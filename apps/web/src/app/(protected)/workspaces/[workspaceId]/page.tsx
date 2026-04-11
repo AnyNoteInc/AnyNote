@@ -1,52 +1,21 @@
 import { notFound } from "next/navigation"
 
-import { Box } from "@repo/ui/components"
-
-import { CookieBanner } from "@/components/workspace/cookie-banner"
-import { WorkspaceAiPanel } from "@/components/workspace/workspace-ai-panel"
-import { WorkspaceOnboarding } from "@/components/workspace/workspace-onboarding"
-import { WorkspaceSidebar } from "@/components/workspace/workspace-sidebar"
-import { WorkspaceToolbar } from "@/components/workspace/workspace-toolbar"
 import { getServerTRPC } from "@/trpc/server"
+import { PageView } from "@/components/page/page-view"
 
-function formatEditedRelative(updated: Date): string {
-  const diff = Date.now() - new Date(updated).getTime()
-  const minutes = Math.max(1, Math.floor(diff / 60000))
-  if (minutes < 60) return `Edited ${minutes}m ago`
-  const hours = Math.floor(minutes / 60)
-  if (hours < 24) return `Edited ${hours}h ago`
-  const days = Math.floor(hours / 24)
-  return `Edited ${days}d ago`
-}
+type Props = { params: Promise<{ workspaceId: string }> }
 
-export default async function WorkspacePage({
-  params,
-}: {
-  params: Promise<{ workspaceId: string }>
-}) {
+export default async function WorkspaceRootPage({ params }: Props) {
   const { workspaceId } = await params
   const trpc = await getServerTRPC()
-  const [workspace, current] = await Promise.all([
-    trpc.workspace.getById({ id: workspaceId }),
-    trpc.subscription.getCurrent(),
-  ])
-  if (!workspace) notFound()
+  const pages = await trpc.page.listByWorkspace({ workspaceId })
+  if (pages.length === 0) notFound()
 
-  return (
-    <>
-      <WorkspaceSidebar
-        workspace={{ id: workspace.id, name: workspace.name, icon: workspace.icon }}
-        planName={current.plan.name}
-      />
-      <Box sx={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
-        <WorkspaceToolbar
-          title="Welcome to AnyNote"
-          editedRelative={formatEditedRelative(workspace.updatedAt)}
-        />
-        <WorkspaceOnboarding />
-      </Box>
-      <WorkspaceAiPanel />
-      <CookieBanner />
-    </>
-  )
+  const firstPage = pages[0]!
+  const [page, blocks] = await Promise.all([
+    trpc.page.getById({ id: firstPage.id }),
+    trpc.block.listByPage({ pageId: firstPage.id }),
+  ])
+
+  return <PageView page={page} blocks={blocks} />
 }
