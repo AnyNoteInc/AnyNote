@@ -22,4 +22,10 @@ export { default as StepContent, type StepContentProps } from "@mui/material/Ste
 
 export { default as Switch, type SwitchProps } from "@mui/material/Switch"
 
+export { default as Table, type TableProps } from "@mui/material/Table"
+export { default as TableBody, type TableBodyProps } from "@mui/material/TableBody"
+export { default as TableCell, type TableCellProps } from "@mui/material/TableCell"
+export { default as TableHead, type TableHeadProps } from "@mui/material/TableHead"
+export { default as TableRow, type TableRowProps } from "@mui/material/TableRow"
+
 export * from "./ui/button"
