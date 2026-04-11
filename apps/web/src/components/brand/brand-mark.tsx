@@ -1,0 +1,33 @@
+import type { SVGProps } from "react"
+
+type BrandMarkProps = SVGProps<SVGSVGElement> & {
+  size?: number
+}
+
+export function BrandMark({ size = 40, style, ...props }: BrandMarkProps) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 64 64"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{ display: "block", ...style }}
+      {...props}
+    >
+      <rect x="2" y="2" width="60" height="60" rx="15" fill="#121416" />
+      <rect
+        x="2"
+        y="2"
+        width="60"
+        height="60"
+        rx="15"
+        stroke="rgba(255,255,255,0.08)"
+        strokeWidth="1.5"
+      />
+      <path d="M18 50L28.5 14H35.5L46 50H38.5L36.25 42H27.75L25.5 50H18Z" fill="#F5F0E8" />
+      <path d="M29.75 34.5H34.25L32 25.75L29.75 34.5Z" fill="#121416" />
+      <rect x="31" y="14" width="2" height="36" rx="1" fill="#A67C52" />
+    </svg>
+  )
+}

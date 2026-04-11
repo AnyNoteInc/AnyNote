@@ -1,4 +1,7 @@
 /** @type {import('next').NextConfig} */
-const nextConfig = {};
+const nextConfig = {
+  serverExternalPackages: ['pg', '@prisma/client'],
+  transpilePackages: ['@repo/ui', '@repo/trpc', '@repo/auth'],
+}
 
-export default nextConfig;
+export default nextConfig

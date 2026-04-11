@@ -1,0 +1,86 @@
+generator client {
+  provider = "prisma-client-js"
+  engineType = "client"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id            String    @id @default(uuid(7)) @db.Uuid()
+  name          String    @db.VarChar(255)
+  lastName      String    @db.VarChar(255)
+  firstName     String    @db.VarChar(255)
+  email         String    @unique @db.VarChar(255)
+  emailVerified Boolean @map("email_verified") @default(false)
+  image         String?   @db.VarChar(1024)
+
+  tz            String    @db.VarChar(50) @default("UTC")
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  accounts      Account[]
+  sessions      Session[]
+
+  @@map("users")
+}
+
+model Account {
+  id                String    @id @default(uuid(7)) @db.Uuid()
+  userId            String    @map("user_id") @db.Uuid()
+  providerId        String    @map("provider_id") @db.VarChar(255)
+  accountId         String    @map("provider_account_id") @db.VarChar(255)
+  accessToken       String?   @map("access_token") @db.VarChar(1024)
+  refreshToken      String?   @map("refresh_token") @db.VarChar(1024)
+  idToken           String?   @map("id_token") @db.VarChar(1024)
+  accessTokenExpiresAt DateTime? @map("access_token_expires_at") @db.Timestamptz(6)
+  refreshTokenExpiresAt DateTime? @map("refresh_token_expires_at") @db.Timestamptz(6)
+  scope             String?   @db.VarChar(255)
+  password          String?   @map("password") @db.VarChar(256)
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, accountId])
+  @@index([userId])
+  @@map("accounts")
+}
+
+model Session {
+  id        String   @id @default(uuid(7)) @db.Uuid()
+  
+  token     String   @unique @db.VarChar(255)
+  expiresAt DateTime @map("expires_at") @db.Timestamptz(6)
+  ipAddress String?  @map("ip_address") @db.VarChar(45)
+  userAgent String?  @map("user_agent") @db.VarChar(1024)
+
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  userId    String   @map("user_id") @db.Uuid()
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("sessions")
+}
+
+model Verification {
+  id         String   @id @default(uuid(7)) @db.Uuid()
+  identifier String   @db.VarChar(255)
+  value      String   @unique @map("token") @db.VarChar(255)
+  expiresAt  DateTime @map("expires_at") @db.Timestamptz(6)
+  createdAt  DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  @@index([identifier])
+  @@map("verification_tokens")
+}
+
+model Jwks {
+  id          String   @id @default(uuid(7)) @db.Uuid()
+  publicKey   String   @map("public_key") @db.Text()
+  privateKey  String   @map("private_key") @db.Text()
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  expiresAt   DateTime? @map("expires_at") @db.Timestamptz(6)
+  @@map("jwks")
+}

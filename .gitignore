@@ -36,3 +36,9 @@ yarn-error.log*
 # Misc
 .DS_Store
 *.pem
+
+.playwright-browsers
+.pnpm-store
+.remember
+# next-agents-md
+.next-docs/

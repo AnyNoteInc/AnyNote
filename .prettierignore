@@ -1,0 +1,7 @@
+.codex
+.remember
+.playwright-browsers
+test-results
+node_modules
+.next
+.turbo

@@ -1,0 +1,37 @@
+{
+    "database": {
+        "1775899361115": {
+            "host": "127.0.0.1",
+            "port": 5432,
+            "user": "user",
+            "password": "dbclient_a$tHW2LTajGduTMDn3ISFTaw==",
+            "dbType": "PostgreSQL",
+            "database": "anynote",
+            "advance": {
+                "idleConfig": {
+                    "enable": true
+                },
+                "hideSystemSchema": true,
+                "groupingTables": false,
+                "loadMetaDataWhenExpandTreeView": true
+            },
+            "treeFeatures": [],
+            "usingSSH": false,
+            "useSocksProxy": false,
+            "useHTTPProxy": false,
+            "global": false,
+            "savePassword": "Forever",
+            "readonly": false,
+            "sort": 11,
+            "group": "LOCAL",
+            "useSSL": false,
+            "fs": {
+                "encoding": "utf8",
+                "showHidden": true
+            },
+            "key": "1775899361115",
+            "connectionKey": "database.connections"
+        }
+    },
+    "$schema": "https://cdn.database-client.com/dbclient/schema.json"
+}
