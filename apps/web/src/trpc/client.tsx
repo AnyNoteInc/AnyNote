@@ -4,7 +4,7 @@ import { useState, type PropsWithChildren } from "react"
 
 import { QueryClientProvider } from "@tanstack/react-query"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
-import { httpBatchLink, loggerLink } from "@trpc/client"
+import { httpBatchLink } from "@trpc/client"
 import { createTRPCReact } from "@trpc/react-query"
 
 import type { AppRouter } from "@repo/trpc"
@@ -25,11 +25,6 @@ export function TRPCReactProvider({ children }: PropsWithChildren) {
   const [trpcClient] = useState(() =>
     trpc.createClient({
       links: [
-        loggerLink({
-          enabled: (opts) =>
-            process.env.NODE_ENV === "development" ||
-            (opts.direction === "down" && opts.result instanceof Error),
-        }),
         httpBatchLink({
           url: `${getBaseUrl()}/api/trpc`,
         }),

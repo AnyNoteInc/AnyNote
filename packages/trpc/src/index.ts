@@ -3,6 +3,9 @@ import { userRouter } from "./routers/user"
 import { workspaceRouter } from "./routers/workspace"
 import { subscriptionRouter } from "./routers/subscription"
 import { integrationRouter } from "./routers/integration"
+import { blockRouter } from "./routers/block"
+import { pageRouter } from "./routers/page"
+import { searchRouter } from "./routers/search"
 
 export { createContext, createServerContext } from "./trpc"
 export type { Context } from "./trpc"
@@ -13,6 +16,9 @@ export const appRouter = router({
   workspace: workspaceRouter,
   subscription: subscriptionRouter,
   integration: integrationRouter,
+  block: blockRouter,
+  page: pageRouter,
+  search: searchRouter,
 })
 
 export const createCaller = createCallerFactory(appRouter)
