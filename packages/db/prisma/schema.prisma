@@ -84,3 +84,40 @@ model Jwks {
   expiresAt   DateTime? @map("expires_at") @db.Timestamptz(6)
   @@map("jwks")
 }
+
+enum RoleType {
+  OWNER
+  ADMIN
+  EDITOR
+  COMMENTER
+  VIEWER
+  GUEST
+}
+
+enum ParentType {
+  WORKSPACE
+  PAGE
+  DATABASE
+  BLOCK
+}
+
+enum IntegrationScope {
+  USER
+  WORKSPACE
+  BOTH
+}
+
+enum IntegrationStatus {
+  PENDING
+  CONNECTED
+  DISCONNECTED
+  ERROR
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  CANCELED
+  EXPIRED
+  PAST_DUE
+}
