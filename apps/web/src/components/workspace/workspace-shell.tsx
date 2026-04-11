@@ -2,26 +2,30 @@
 
 import type { ReactNode } from "react"
 
-import { Box, CssBaseline, ThemeProvider } from "@repo/ui/components"
-import { createAppTheme } from "@repo/ui/theme"
+import { Box } from "@repo/ui/components"
 
-export function WorkspaceShell({ children }: { children: ReactNode }) {
-  const theme = createAppTheme("dark")
+type Props = {
+  sidebar: ReactNode
+  main: ReactNode
+  sidebarWidth: number
+}
+
+export function WorkspaceShell({ sidebar, main, sidebarWidth }: Props) {
   return (
-    <ThemeProvider theme={theme}>
-      <CssBaseline />
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: "240px minmax(0, 1fr) 340px",
-          height: "100vh",
-          backgroundColor: "#0c0d10",
-          color: "#e7e8ea",
-          overflow: "hidden",
-        }}
-      >
-        {children}
+    <Box
+      sx={{
+        display: "grid",
+        gridTemplateColumns: `${sidebarWidth}px minmax(0, 1fr)`,
+        height: "100vh",
+        bgcolor: "background.default",
+        color: "text.primary",
+        overflow: "hidden",
+      }}
+    >
+      {sidebar}
+      <Box component="main" sx={{ overflow: "auto" }}>
+        {main}
       </Box>
-    </ThemeProvider>
+    </Box>
   )
 }
