@@ -31,10 +31,10 @@ export function useThemeMode() {
   return value
 }
 
-export type UiProviderProps = PropsWithChildren
+export type UiProviderProps = PropsWithChildren<{ mode?: PaletteMode }>
 
-export function UiProvider({ children }: UiProviderProps) {
-  const [mode, setMode] = useState<PaletteMode>("light")
+export function UiProvider({ children, mode: initialMode = "light" }: UiProviderProps) {
+  const [mode, setMode] = useState<PaletteMode>(initialMode)
 
   useEffect(() => {
     const stored = window.localStorage.getItem("app-theme-mode") as PaletteMode | null

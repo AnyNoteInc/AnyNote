@@ -1,7 +1,11 @@
 import type { Metadata } from "next"
+import { cookies } from "next/headers"
 import localFont from "next/font/local"
 
 import { UiProvider } from "@repo/ui/providers"
+
+import { getSession } from "@/lib/get-session"
+import { getServerTRPC } from "@/trpc/server"
 
 import "./globals.css"
 
@@ -28,15 +32,36 @@ export const metadata: Metadata = {
   },
 }
 
-export default function RootLayout({
+async function resolveTheme(): Promise<"light" | "dark"> {
+  const cookieStore = await cookies()
+  const cookieTheme = cookieStore.get("theme")?.value as "light" | "dark" | "system" | undefined
+
+  const session = await getSession()
+  if (session) {
+    try {
+      const trpc = await getServerTRPC()
+      const prefs = await trpc.user.getPreferences()
+      const stored = (prefs?.theme as "light" | "dark" | "system" | null) ?? cookieTheme ?? "system"
+      if (stored !== "system") return stored
+    } catch {
+      // fall through to cookie / default
+    }
+  }
+
+  if (cookieTheme && cookieTheme !== "system") return cookieTheme
+  return "light"
+}
+
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode
 }>) {
+  const mode = await resolveTheme()
   return (
     <html lang="ru" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        <UiProvider>{children}</UiProvider>
+        <UiProvider mode={mode}>{children}</UiProvider>
       </body>
     </html>
   )
