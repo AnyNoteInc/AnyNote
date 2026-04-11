@@ -1,54 +1,38 @@
 import { Box, Stack, Typography } from "@repo/ui/components"
 
 type Props = {
-  title: string
-  editedRelative: string
+  pageTitle: string
+  pageIcon?: string | null
+  editedLabel: string
 }
 
-export function WorkspaceToolbar({ title, editedRelative }: Props) {
+export function WorkspaceToolbar({ pageTitle, pageIcon, editedLabel }: Props) {
   return (
     <Stack
       direction="row"
       alignItems="center"
-      spacing={1.5}
+      spacing={1.25}
       sx={{
-        px: 2.25,
+        px: 2,
         py: 1.25,
-        borderBottom: "1px solid #1a1c20",
+        borderBottom: "1px solid",
+        borderColor: "divider",
       }}
     >
-      <Typography variant="body2" sx={{ color: "#a7aab1" }}>
-        👋 {title}
+      <Typography variant="body2" noWrap>
+        {pageIcon ? `${pageIcon} ` : ""}
+        {pageTitle}
       </Typography>
-      <Typography variant="body2" sx={{ color: "#6b6e75" }}>
+      <Typography variant="body2" color="text.secondary">
         ·
       </Typography>
-      <Typography variant="body2" sx={{ color: "#6b6e75" }}>
+      <Typography variant="body2" color="text.secondary">
         Private
       </Typography>
       <Box sx={{ flex: 1 }} />
-      <Typography variant="caption" sx={{ color: "#6b6e75" }}>
-        {editedRelative}
+      <Typography variant="caption" color="text.secondary">
+        {editedLabel}
       </Typography>
-      <Typography variant="body2" sx={{ color: "#a7aab1", cursor: "default" }}>
-        Share
-      </Typography>
-      <Typography variant="body2" sx={{ color: "#6b6e75" }}>
-        ⋯
-      </Typography>
-      <Box
-        sx={{
-          px: 1.25,
-          py: 0.5,
-          borderRadius: 0.75,
-          border: "1px solid #2a2d33",
-          backgroundColor: "#1a1c20",
-          fontSize: 12,
-          color: "#a7aab1",
-        }}
-      >
-        ＋ New AI chat
-      </Box>
     </Stack>
   )
 }
