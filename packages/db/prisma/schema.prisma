@@ -23,6 +23,8 @@ model User {
   sessions      Session[]
   createdWorkspaces    Workspace[]       @relation("WorkspaceCreatedBy")
   workspaceMemberships WorkspaceMember[]
+  createdPages  Page[]                @relation("PageCreatedBy")
+  updatedPages  Page[]                @relation("PageUpdatedBy")
 
   @@map("users")
 }
@@ -158,4 +160,30 @@ model WorkspaceMember {
   @@index([userId])
   @@index([userId, role])
   @@map("workspace_members")
+}
+
+model Page {
+  id            String     @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId   String     @map("workspace_id") @db.Uuid
+  parentType    ParentType @map("parent_type")
+  parentId      String?    @map("parent_id") @db.Uuid
+  title         String?    @db.Text
+  icon          String?    @db.Text
+  coverUrl      String?    @map("cover_url") @db.Text
+  isDatabaseRow Boolean    @default(false) @map("is_database_row")
+  archived      Boolean    @default(false)
+  deletedAt     DateTime?  @map("deleted_at") @db.Timestamptz(6)
+  createdById   String?    @map("created_by_id") @db.Uuid
+  updatedById   String?    @map("updated_by_id") @db.Uuid
+  createdAt     DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User?     @relation("PageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy User?     @relation("PageUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@index([parentType, parentId])
+  @@index([archived])
+  @@map("pages")
 }
