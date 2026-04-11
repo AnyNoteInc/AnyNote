@@ -39,6 +39,8 @@ export {
   IntegrationScope,
   IntegrationStatus,
   SubscriptionStatus,
+  BlockType,
+  SearchMessageRole,
 } from "@prisma/client"
 export type {
   User,
@@ -54,5 +56,8 @@ export type {
   Integration,
   Plan,
   Subscription,
+  Block,
+  SearchChat,
+  SearchMessage,
 } from "@prisma/client"
 export default prisma
