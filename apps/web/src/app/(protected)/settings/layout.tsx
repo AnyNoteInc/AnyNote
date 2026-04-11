@@ -32,21 +32,20 @@ export default async function SettingsLayout({ children }: { children: ReactNode
           }}
         >
           <Stack spacing={2}>
-            <Box
-              component={Link}
+            <Link
               href="/app"
-              sx={{
+              style={{
                 display: "flex",
                 alignItems: "center",
-                gap: 1,
-                color: "text.secondary",
+                gap: 8,
+                color: "var(--mui-palette-text-secondary, rgba(0, 0, 0, 0.6))",
                 fontSize: 13,
                 textDecoration: "none",
               }}
             >
               <span>←</span>
               <span>Вернуться в workspace</span>
-            </Box>
+            </Link>
             <Stack
               direction="row"
               spacing={1.25}
