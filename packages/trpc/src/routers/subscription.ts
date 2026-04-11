@@ -1,5 +1,5 @@
-import { router, protectedProcedure } from "../trpc.js"
-import { getActivePlanForUser } from "../helpers/plan.js"
+import { router, protectedProcedure } from "../trpc"
+import { getActivePlanForUser } from "../helpers/plan"
 
 export const subscriptionRouter = router({
   getCurrent: protectedProcedure.query(async ({ ctx }) => {

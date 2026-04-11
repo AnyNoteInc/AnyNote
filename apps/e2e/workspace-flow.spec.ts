@@ -14,8 +14,11 @@ test("sign up → new workspace → default landing → settings nav → free-pl
   await page.getByLabel(/имя/i).fill("Victor")
   await page.getByLabel(/фамилия/i).fill("Luferov")
   await page.getByLabel(/email/i).fill(email)
-  await page.getByLabel(/пароль/i).fill(password)
+  await page.getByLabel(/^пароль$/i).fill(password)
+  await page.getByLabel(/повторите пароль/i).fill(password)
   await page.getByRole("button", { name: /зарегистрироваться|sign ?up|создать/i }).click()
+  // Wait for sign-up to complete and redirect
+  await expect(page).toHaveURL(/\/workspaces\/new|\/app/, { timeout: 15000 })
 
   // 2. Without a default workspace, /app must redirect to /workspaces/new
   await page.goto("/app")

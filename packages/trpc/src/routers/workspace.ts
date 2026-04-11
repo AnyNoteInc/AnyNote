@@ -1,8 +1,8 @@
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
 
-import { router, protectedProcedure } from "../trpc.js"
-import { getActivePlanForUser } from "../helpers/plan.js"
+import { router, protectedProcedure } from "../trpc"
+import { getActivePlanForUser } from "../helpers/plan"
 
 export const workspaceRouter = router({
   create: protectedProcedure

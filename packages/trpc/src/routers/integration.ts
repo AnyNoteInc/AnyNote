@@ -1,7 +1,7 @@
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
 
-import { router, protectedProcedure } from "../trpc.js"
+import { router, protectedProcedure } from "../trpc"
 
 const ScopeSchema = z.enum(["USER", "WORKSPACE"])
 
