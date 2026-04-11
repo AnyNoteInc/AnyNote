@@ -21,6 +21,8 @@ model User {
   updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
   accounts      Account[]
   sessions      Session[]
+  createdWorkspaces    Workspace[]       @relation("WorkspaceCreatedBy")
+  workspaceMemberships WorkspaceMember[]
 
   @@map("users")
 }
@@ -120,4 +122,40 @@ enum SubscriptionStatus {
   CANCELED
   EXPIRED
   PAST_DUE
+}
+
+model Workspace {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  name        String   @db.VarChar(255)
+  slug        String?  @unique @db.VarChar(255)
+  icon        String?  @db.VarChar(64)
+  createdById String?  @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  createdBy             User?             @relation("WorkspaceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  members               WorkspaceMember[]
+  pages                 Page[]
+  workspaceIntegrations Integration[]     @relation("WorkspaceIntegrations")
+  defaultForUsers       UserPreference[]  @relation("DefaultWorkspace")
+
+  @@index([createdById])
+  @@map("workspaces")
+}
+
+model WorkspaceMember {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  role        RoleType
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@index([userId])
+  @@index([userId, role])
+  @@map("workspace_members")
 }
