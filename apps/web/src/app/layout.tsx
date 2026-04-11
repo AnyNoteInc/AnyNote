@@ -32,7 +32,7 @@ export const metadata: Metadata = {
   },
 }
 
-async function resolveTheme(): Promise<"light" | "dark"> {
+async function resolveTheme(): Promise<"light" | "dark" | "system"> {
   const cookieStore = await cookies()
   const cookieTheme = cookieStore.get("theme")?.value as "light" | "dark" | "system" | undefined
 
@@ -42,14 +42,13 @@ async function resolveTheme(): Promise<"light" | "dark"> {
       const trpc = await getServerTRPC()
       const prefs = await trpc.user.getPreferences()
       const stored = (prefs?.theme as "light" | "dark" | "system" | null) ?? cookieTheme ?? "system"
-      if (stored !== "system") return stored
+      return stored
     } catch {
-      // fall through to cookie / default
+      // fall through
     }
   }
 
-  if (cookieTheme && cookieTheme !== "system") return cookieTheme
-  return "light"
+  return cookieTheme ?? "system"
 }
 
 export default async function RootLayout({
@@ -61,7 +60,7 @@ export default async function RootLayout({
   return (
     <html lang="ru" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        <UiProvider mode={mode}>{children}</UiProvider>
+        <UiProvider initial={mode}>{children}</UiProvider>
       </body>
     </html>
   )
