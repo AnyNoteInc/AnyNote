@@ -28,6 +28,8 @@ model User {
   preferences   UserPreference?
   userIntegrations Integration[]       @relation("UserIntegrations")
   subscriptions Subscription[]
+  blocksCreated Block[] @relation("BlockCreator")
+  blocksUpdated Block[] @relation("BlockUpdater")
 
   @@map("users")
 }
@@ -129,6 +131,33 @@ enum SubscriptionStatus {
   PAST_DUE
 }
 
+enum BlockType {
+  // MVP-rendered
+  PARAGRAPH
+  HEADING_1
+  HEADING_2
+  HEADING_3
+  TO_DO
+  BULLETED_LIST_ITEM
+  NUMBERED_LIST_ITEM
+  TOGGLE
+  QUOTE
+  CALLOUT
+  DIVIDER
+  CODE
+  // Reserved for future
+  IMAGE
+  VIDEO
+  FILE
+  PDF
+  BOOKMARK
+  EQUATION
+  TABLE
+  COLUMN
+  SYNCED_BLOCK
+  LINK_TO_PAGE
+}
+
 model Workspace {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name        String   @db.VarChar(255)
@@ -184,11 +213,39 @@ model Page {
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   createdBy User?     @relation("PageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy User?     @relation("PageUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  blocks    Block[]
 
   @@index([workspaceId])
   @@index([parentType, parentId])
   @@index([archived])
   @@map("pages")
+}
+
+model Block {
+  id            String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  type          BlockType
+  pageId        String    @map("page_id") @db.Uuid
+  parentBlockId String?   @map("parent_block_id") @db.Uuid
+  prevBlockId   String?   @unique @map("prev_block_id") @db.Uuid
+  content       Json      @default("{}")
+  createdById   String    @map("created_by_id") @db.Uuid
+  updatedById   String?   @map("updated_by_id") @db.Uuid
+  createdAt     DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  archivedAt    DateTime? @map("archived_at") @db.Timestamptz(6)
+
+  page      Page    @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  parent    Block?  @relation("BlockTree", fields: [parentBlockId], references: [id], onDelete: Cascade)
+  children  Block[] @relation("BlockTree")
+  prev      Block?  @relation("BlockPrev", fields: [prevBlockId], references: [id], onDelete: SetNull)
+  next      Block?  @relation("BlockPrev")
+  createdBy User    @relation("BlockCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  updatedBy User?   @relation("BlockUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+
+  @@unique([parentBlockId, prevBlockId], map: "blocks_parent_prev_unique")
+  @@index([pageId])
+  @@index([pageId, parentBlockId])
+  @@map("blocks")
 }
 
 model UserPreference {
