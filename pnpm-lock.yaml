@@ -38,6 +38,9 @@ importers:
       '@repo/auth':
         specifier: workspace:*
         version: link:../../packages/auth
+      '@repo/db':
+        specifier: workspace:*
+        version: link:../../packages/db
       '@repo/trpc':
         specifier: workspace:*
         version: link:../../packages/trpc

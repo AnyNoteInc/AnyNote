@@ -22,6 +22,7 @@ export { default as StepLabel, type StepLabelProps } from "@mui/material/StepLab
 export { default as StepContent, type StepContentProps } from "@mui/material/StepContent"
 
 export { default as Switch, type SwitchProps } from "@mui/material/Switch"
+export { default as Checkbox, type CheckboxProps } from "@mui/material/Checkbox"
 
 export { default as Table, type TableProps } from "@mui/material/Table"
 export { default as TableBody, type TableBodyProps } from "@mui/material/TableBody"
