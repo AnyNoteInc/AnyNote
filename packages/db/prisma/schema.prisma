@@ -242,8 +242,6 @@ model Block {
   createdBy User    @relation("BlockCreator", fields: [createdById], references: [id], onDelete: Restrict)
   updatedBy User?   @relation("BlockUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
 
-  @@unique([parentBlockId, prevBlockId], map: "blocks_parent_prev_unique")
-  @@index([pageId])
   @@index([pageId, parentBlockId])
   @@map("blocks")
 }
