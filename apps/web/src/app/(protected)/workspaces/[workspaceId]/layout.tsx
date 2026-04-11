@@ -1,20 +1,39 @@
-import { notFound } from "next/navigation"
 import type { ReactNode } from "react"
 
-import { WorkspaceShell } from "@/components/workspace/workspace-shell"
-import { getServerTRPC } from "@/trpc/server"
+import { notFound } from "next/navigation"
 
-export default async function WorkspaceLayout({
-  params,
-  children,
-}: {
-  params: Promise<{ workspaceId: string }>
+import { requireSession } from "@/lib/get-session"
+import { getServerTRPC } from "@/trpc/server"
+import { WorkspaceLayoutClient } from "@/components/workspace/workspace-layout-client"
+
+type Props = {
   children: ReactNode
-}) {
+  params: Promise<{ workspaceId: string }>
+}
+
+export default async function WorkspaceLayout({ children, params }: Props) {
   const { workspaceId } = await params
+  const session = await requireSession()
   const trpc = await getServerTRPC()
   const workspace = await trpc.workspace.getById({ id: workspaceId })
   if (!workspace) notFound()
+  const pages = await trpc.page.listByWorkspace({ workspaceId })
+  const { plan } = await trpc.subscription.getCurrent()
 
-  return <WorkspaceShell>{children}</WorkspaceShell>
+  return (
+    <WorkspaceLayoutClient
+      workspace={{ id: workspace.id, name: workspace.name, icon: workspace.icon }}
+      planName={plan.name}
+      pages={pages.map((p) => ({ id: p.id, title: p.title, icon: p.icon }))}
+      user={{
+        firstName: session.user.firstName,
+        lastName: session.user.lastName,
+        email: session.user.email,
+      }}
+      firstPageTitle={pages[0]?.title ?? "Untitled"}
+      firstPageIcon={pages[0]?.icon ?? null}
+    >
+      {children}
+    </WorkspaceLayoutClient>
+  )
 }
