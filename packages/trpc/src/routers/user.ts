@@ -55,12 +55,13 @@ export const userRouter = router({
     }),
 
   listSessions: protectedProcedure.query(async ({ ctx }) => {
+    // Never select `token` — it's the raw session secret.
     return ctx.prisma.session.findMany({
       where: { userId: ctx.user.id, expiresAt: { gt: new Date() } },
       orderBy: { updatedAt: "desc" },
+      take: 50,
       select: {
         id: true,
-        token: true,
         ipAddress: true,
         userAgent: true,
         createdAt: true,
