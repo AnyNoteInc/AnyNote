@@ -26,6 +26,7 @@ model User {
   createdPages  Page[]                @relation("PageCreatedBy")
   updatedPages  Page[]                @relation("PageUpdatedBy")
   preferences   UserPreference?
+  userIntegrations Integration[]       @relation("UserIntegrations")
 
   @@map("users")
 }
@@ -204,4 +205,49 @@ model UserPreference {
 
   @@index([defaultWorkspaceId])
   @@map("user_preferences")
+}
+
+model IntegrationProvider {
+  id           String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug         String           @unique @db.VarChar(50)
+  name         String           @db.VarChar(100)
+  description  String?          @db.Text
+  iconUrl      String?          @map("icon_url") @db.Text
+  scope        IntegrationScope
+  isEnabled    Boolean          @default(true) @map("is_enabled")
+  configSchema Json?            @map("config_schema")
+  sortOrder    Int              @default(0) @map("sort_order")
+  createdAt    DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  integrations Integration[]
+
+  @@map("integration_providers")
+}
+
+model Integration {
+  id           String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  providerId   String            @map("provider_id") @db.Uuid
+  scope        IntegrationScope
+  userId       String?           @map("user_id") @db.Uuid
+  workspaceId  String?           @map("workspace_id") @db.Uuid
+  status       IntegrationStatus @default(PENDING)
+  externalId   String?           @map("external_id") @db.VarChar(255)
+  config       Json?
+  credentials  Json?
+  connectedAt  DateTime?         @map("connected_at") @db.Timestamptz(6)
+  lastSyncAt   DateTime?         @map("last_sync_at") @db.Timestamptz(6)
+  errorMessage String?           @map("error_message") @db.Text
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  provider  IntegrationProvider @relation(fields: [providerId], references: [id], onDelete: Restrict)
+  user      User?               @relation("UserIntegrations", fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace?          @relation("WorkspaceIntegrations", fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([providerId])
+  @@index([userId])
+  @@index([workspaceId])
+  @@index([status])
+  @@map("integrations")
 }
