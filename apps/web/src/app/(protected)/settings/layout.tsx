@@ -1,0 +1,85 @@
+import type { ReactNode } from "react"
+import Link from "next/link"
+
+import { Box, Container, Paper, Stack, Typography } from "@repo/ui/components"
+
+import { SettingsNav } from "@/components/settings/settings-nav"
+import { getSession } from "@/lib/get-session"
+
+export default async function SettingsLayout({ children }: { children: ReactNode }) {
+  const session = await getSession()
+  const user = session!.user
+
+  return (
+    <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}>
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "260px minmax(0, 1fr)" },
+          gap: { xs: 3, md: 4 },
+        }}
+      >
+        <Paper
+          elevation={0}
+          sx={{
+            p: 2,
+            borderRadius: 2,
+            border: "1px solid",
+            borderColor: "divider",
+            alignSelf: "start",
+            position: { md: "sticky" },
+            top: { md: 24 },
+          }}
+        >
+          <Stack spacing={2}>
+            <Box
+              component={Link}
+              href="/app"
+              sx={{
+                display: "flex",
+                alignItems: "center",
+                gap: 1,
+                color: "text.secondary",
+                fontSize: 13,
+                textDecoration: "none",
+              }}
+            >
+              <span>←</span>
+              <span>Вернуться в workspace</span>
+            </Box>
+            <Stack
+              direction="row"
+              spacing={1.25}
+              alignItems="center"
+              sx={{ pb: 2, borderBottom: "1px solid", borderColor: "divider" }}
+            >
+              <Box
+                sx={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: "50%",
+                  background: "linear-gradient(135deg,#0f766e,#155e75)",
+                }}
+              />
+              <Stack spacing={0}>
+                <Typography variant="body2" fontWeight={600}>
+                  {user.firstName} {user.lastName}
+                </Typography>
+                <Typography variant="caption" color="text.secondary">
+                  {user.email}
+                </Typography>
+              </Stack>
+            </Stack>
+            <Stack spacing={0.5}>
+              <Typography variant="overline" color="text.secondary">
+                Настройки
+              </Typography>
+              <SettingsNav />
+            </Stack>
+          </Stack>
+        </Paper>
+        <Box>{children}</Box>
+      </Box>
+    </Container>
+  )
+}
