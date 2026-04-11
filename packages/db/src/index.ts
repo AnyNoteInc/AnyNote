@@ -1,4 +1,4 @@
-import { PrismaClient } from "@prisma/client"
+import { PrismaClient, Prisma } from "@prisma/client"
 import { PrismaPg } from "@prisma/adapter-pg"
 
 type GlobalPrisma = typeof globalThis & {
@@ -30,5 +30,29 @@ if (process.env.NODE_ENV !== "production") {
   globalForPrisma.prisma = prisma
 }
 
-export * from "@prisma/client"
+// Explicit re-exports — avoid `export *` from @prisma/client, which is CJS and
+// trips Turbopack's "unexpected export *" warning on the server bundle.
+export { PrismaClient, Prisma }
+export {
+  RoleType,
+  ParentType,
+  IntegrationScope,
+  IntegrationStatus,
+  SubscriptionStatus,
+} from "@prisma/client"
+export type {
+  User,
+  Account,
+  Session,
+  Verification,
+  Jwks,
+  Workspace,
+  WorkspaceMember,
+  Page,
+  UserPreference,
+  IntegrationProvider,
+  Integration,
+  Plan,
+  Subscription,
+} from "@prisma/client"
 export default prisma

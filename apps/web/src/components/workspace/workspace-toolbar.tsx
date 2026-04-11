@@ -17,13 +17,25 @@ export function WorkspaceToolbar({ title, editedRelative }: Props) {
         borderBottom: "1px solid #1a1c20",
       }}
     >
-      <Typography variant="body2" sx={{ color: "#a7aab1" }}>👋 {title}</Typography>
-      <Typography variant="body2" sx={{ color: "#6b6e75" }}>·</Typography>
-      <Typography variant="body2" sx={{ color: "#6b6e75" }}>Private</Typography>
+      <Typography variant="body2" sx={{ color: "#a7aab1" }}>
+        👋 {title}
+      </Typography>
+      <Typography variant="body2" sx={{ color: "#6b6e75" }}>
+        ·
+      </Typography>
+      <Typography variant="body2" sx={{ color: "#6b6e75" }}>
+        Private
+      </Typography>
       <Box sx={{ flex: 1 }} />
-      <Typography variant="caption" sx={{ color: "#6b6e75" }}>{editedRelative}</Typography>
-      <Typography variant="body2" sx={{ color: "#a7aab1", cursor: "default" }}>Share</Typography>
-      <Typography variant="body2" sx={{ color: "#6b6e75" }}>⋯</Typography>
+      <Typography variant="caption" sx={{ color: "#6b6e75" }}>
+        {editedRelative}
+      </Typography>
+      <Typography variant="body2" sx={{ color: "#a7aab1", cursor: "default" }}>
+        Share
+      </Typography>
+      <Typography variant="body2" sx={{ color: "#6b6e75" }}>
+        ⋯
+      </Typography>
       <Box
         sx={{
           px: 1.25,

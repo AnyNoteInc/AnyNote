@@ -14,9 +14,13 @@ export function WorkspaceAiPanel() {
       }}
     >
       <Stack direction="row" alignItems="center" spacing={1}>
-        <Typography variant="body2" sx={{ color: "#a7aab1" }}>✨ AI assistant</Typography>
+        <Typography variant="body2" sx={{ color: "#a7aab1" }}>
+          ✨ AI assistant
+        </Typography>
         <Box sx={{ flex: 1 }} />
-        <Typography variant="body2" sx={{ color: "#6b6e75" }}>⋯</Typography>
+        <Typography variant="body2" sx={{ color: "#6b6e75" }}>
+          ⋯
+        </Typography>
       </Stack>
 
       <Box sx={{ flex: 1 }} />
@@ -38,7 +42,9 @@ export function WorkspaceAiPanel() {
         </Typography>
       </Stack>
 
-      <Box sx={{ border: "1px solid #2a2d33", borderRadius: 1, backgroundColor: "#121418", p: 1.25 }}>
+      <Box
+        sx={{ border: "1px solid #2a2d33", borderRadius: 1, backgroundColor: "#121418", p: 1.25 }}
+      >
         <Typography variant="body2" sx={{ color: "#6b6e75" }}>
           Summarize my notes from last week...
         </Typography>
@@ -48,7 +54,9 @@ export function WorkspaceAiPanel() {
           spacing={1}
           sx={{ pt: 1.25, mt: 1, borderTop: "1px solid #1e2024" }}
         >
-          <Typography variant="caption" sx={{ color: "#a7aab1" }}>Auto mode ⌄</Typography>
+          <Typography variant="caption" sx={{ color: "#a7aab1" }}>
+            Auto mode ⌄
+          </Typography>
           <Box sx={{ flex: 1 }} />
           <Box
             sx={{

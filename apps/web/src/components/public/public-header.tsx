@@ -31,15 +31,15 @@ export function PublicHeader({ session }: PublicHeaderProps) {
         spacing={2}
         sx={{ px: { xs: 3, md: 4, xl: 5 } }}
       >
-        <Box
-          component={Link}
+        <Link
           href="/"
           aria-label="На главную"
-          sx={{
+          style={{
             display: "inline-flex",
             alignItems: "center",
-            gap: 1.5,
+            gap: 12,
             textDecoration: "none",
+            color: "inherit",
           }}
         >
           <BrandMark size={42} aria-label="AnyNote" />
@@ -51,7 +51,7 @@ export function PublicHeader({ session }: PublicHeaderProps) {
               knowledge system for serious teams
             </Typography>
           </Stack>
-        </Box>
+        </Link>
 
         <Stack
           direction="row"

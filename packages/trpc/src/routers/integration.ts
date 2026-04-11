@@ -20,7 +20,9 @@ export const integrationRouter = router({
         where: {
           OR: [
             { scope: "USER", userId: ctx.user.id },
-            ...(input.workspaceId ? [{ scope: "WORKSPACE" as const, workspaceId: input.workspaceId }] : []),
+            ...(input.workspaceId
+              ? [{ scope: "WORKSPACE" as const, workspaceId: input.workspaceId }]
+              : []),
           ],
           status: { in: ["PENDING", "CONNECTED", "ERROR"] },
         },
@@ -38,7 +40,10 @@ export const integrationRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       if (input.scope === "WORKSPACE" && !input.workspaceId) {
-        throw new TRPCError({ code: "BAD_REQUEST", message: "workspaceId required for WORKSPACE scope" })
+        throw new TRPCError({
+          code: "BAD_REQUEST",
+          message: "workspaceId required for WORKSPACE scope",
+        })
       }
       if (input.scope === "WORKSPACE") {
         const member = await ctx.prisma.workspaceMember.findUnique({
@@ -69,7 +74,9 @@ export const integrationRouter = router({
       }
       if (integration.scope === "WORKSPACE") {
         const member = await ctx.prisma.workspaceMember.findUnique({
-          where: { workspaceId_userId: { workspaceId: integration.workspaceId!, userId: ctx.user.id } },
+          where: {
+            workspaceId_userId: { workspaceId: integration.workspaceId!, userId: ctx.user.id },
+          },
         })
         if (!member) throw new TRPCError({ code: "FORBIDDEN" })
       }

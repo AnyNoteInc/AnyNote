@@ -26,13 +26,29 @@ function SlashPill({ children }: { children: React.ReactNode }) {
 const items: Item[] = [
   { kind: "check", done: true, text: "Create your first page" },
   { kind: "check", done: true, text: "Pick a workspace icon" },
-  { kind: "check", done: false, text: <>Try a slash command — type <SlashPill>/heading</SlashPill> on a blank line</> },
+  {
+    kind: "check",
+    done: false,
+    text: (
+      <>
+        Try a slash command — type <SlashPill>/heading</SlashPill> on a blank line
+      </>
+    ),
+  },
   { kind: "check", done: false, text: "Import notes from Notion or Obsidian" },
   { kind: "check", done: false, text: "Upload a file or image with drag-and-drop" },
   { kind: "check", done: false, text: "Connect an integration (GitHub, Telegram, AmoCRM)" },
   { kind: "toggle", text: "Advanced: databases, views, filters" },
   { kind: "check", done: false, text: "Share a page with a public link" },
-  { kind: "check", done: false, text: <>Ask AI about your docs — <SlashPill>/ask</SlashPill></> },
+  {
+    kind: "check",
+    done: false,
+    text: (
+      <>
+        Ask AI about your docs — <SlashPill>/ask</SlashPill>
+      </>
+    ),
+  },
   { kind: "check", done: false, text: "Invite a teammate" },
 ]
 
@@ -64,12 +80,17 @@ export function WorkspaceOnboarding() {
           {items.map((item, idx) => (
             <Stack key={idx} direction="row" spacing={1.25} alignItems="center">
               {item.kind === "check" && (
-                <Box component="span" sx={{ color: item.done ? "#4a9eff" : "#4a4d55", fontSize: 16 }}>
+                <Box
+                  component="span"
+                  sx={{ color: item.done ? "#4a9eff" : "#4a4d55", fontSize: 16 }}
+                >
                   {item.done ? "☑" : "☐"}
                 </Box>
               )}
               {item.kind === "toggle" && (
-                <Box component="span" sx={{ color: "#6b6e75", fontSize: 16 }}>▸</Box>
+                <Box component="span" sx={{ color: "#6b6e75", fontSize: 16 }}>
+                  ▸
+                </Box>
               )}
               <Typography
                 variant="body2"

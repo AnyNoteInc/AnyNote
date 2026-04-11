@@ -78,8 +78,13 @@ export function IntegrationCard({ provider, integration, defaultWorkspaceId }: P
       <Stack spacing={1.5} sx={{ height: "100%" }}>
         <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
           <Stack spacing={0.5}>
-            <Typography variant="subtitle1" fontWeight={700}>{provider.name}</Typography>
-            <Chip size="small" label={provider.scope === "USER" ? "Личный аккаунт" : "Для workspace"} />
+            <Typography variant="subtitle1" fontWeight={700}>
+              {provider.name}
+            </Typography>
+            <Chip
+              size="small"
+              label={provider.scope === "USER" ? "Личный аккаунт" : "Для workspace"}
+            />
           </Stack>
           {integration && (
             <Chip

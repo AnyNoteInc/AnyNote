@@ -56,7 +56,12 @@ export function NewWorkspaceForm() {
           inputProps={{ maxLength: 4 }}
           helperText="Один эмодзи для украшения сайдбара"
         />
-        <Button type="submit" variant="contained" size="large" disabled={create.isPending || !name.trim()}>
+        <Button
+          type="submit"
+          variant="contained"
+          size="large"
+          disabled={create.isPending || !name.trim()}
+        >
           Создать пространство
         </Button>
       </Stack>

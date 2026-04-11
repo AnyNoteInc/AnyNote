@@ -22,13 +22,22 @@ export function WorkspaceSidebar({ workspace, planName }: Props) {
       }}
     >
       <Stack direction="row" alignItems="center" spacing={1} sx={{ px: 1, pb: 1.75 }}>
-        <Box sx={{ width: 20, height: 20, borderRadius: 0.75, background: "linear-gradient(135deg,#4a9eff,#9c7bff)" }} />
+        <Box
+          sx={{
+            width: 20,
+            height: 20,
+            borderRadius: 0.75,
+            background: "linear-gradient(135deg,#4a9eff,#9c7bff)",
+          }}
+        />
         <Stack spacing={0}>
           <Typography variant="body2" fontWeight={600}>
             {workspace.icon ? `${workspace.icon} ` : ""}
             {workspace.name}
           </Typography>
-          <Typography variant="caption" sx={{ color: "#6b6e75" }}>{planName} plan</Typography>
+          <Typography variant="caption" sx={{ color: "#6b6e75" }}>
+            {planName} plan
+          </Typography>
         </Stack>
       </Stack>
 

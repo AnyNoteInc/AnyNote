@@ -44,7 +44,8 @@ export function SessionsTable({ currentSessionId }: Props) {
   })
 
   if (sessionsQuery.isLoading) return <Typography color="text.secondary">Загрузка...</Typography>
-  if (!sessionsQuery.data?.length) return <Typography color="text.secondary">Нет активных сессий</Typography>
+  if (!sessionsQuery.data?.length)
+    return <Typography color="text.secondary">Нет активных сессий</Typography>
 
   return (
     <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, overflow: "hidden" }}>
@@ -65,7 +66,9 @@ export function SessionsTable({ currentSessionId }: Props) {
               <TableRow key={session.id}>
                 <TableCell>
                   <Stack direction="row" spacing={1} alignItems="center">
-                    <span>{browser} на {os}</span>
+                    <span>
+                      {browser} на {os}
+                    </span>
                     {isCurrent && <Chip size="small" label="Эта сессия" color="primary" />}
                   </Stack>
                 </TableCell>

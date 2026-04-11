@@ -21,14 +21,30 @@ function formatPrice(minor: number, currency: string): string {
   return `${major.toLocaleString("ru-RU")} ${currency}/мес`
 }
 
-export function CurrentPlanCard({ plan, subscription }: { plan: Plan; subscription: Subscription }) {
+export function CurrentPlanCard({
+  plan,
+  subscription,
+}: {
+  plan: Plan
+  subscription: Subscription
+}) {
   const features = Array.isArray(plan.features) ? (plan.features as string[]) : []
   return (
-    <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, p: 3, backgroundColor: "background.paper" }}>
+    <Box
+      sx={{
+        border: "1px solid",
+        borderColor: "divider",
+        borderRadius: 2,
+        p: 3,
+        backgroundColor: "background.paper",
+      }}
+    >
       <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
         <Stack spacing={1}>
           <Stack direction="row" spacing={1} alignItems="center">
-            <Typography variant="h5" fontWeight={700}>{plan.name}</Typography>
+            <Typography variant="h5" fontWeight={700}>
+              {plan.name}
+            </Typography>
             <Chip
               size="small"
               label={subscription.status}
@@ -48,7 +64,9 @@ export function CurrentPlanCard({ plan, subscription }: { plan: Plan; subscripti
             </Stack>
           )}
         </Stack>
-        <Button variant="contained" disabled>Обновить тариф</Button>
+        <Button variant="contained" disabled>
+          Обновить тариф
+        </Button>
       </Stack>
     </Box>
   )

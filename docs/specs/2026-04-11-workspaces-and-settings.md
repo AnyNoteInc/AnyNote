@@ -210,13 +210,13 @@ model IntegrationProvider {
 
 **Seed (in the initial migration):**
 
-| slug           | name         | scope     | description                                     |
-| -------------- | ------------ | --------- | ----------------------------------------------- |
-| `yandex`       | Yandex       | USER      | Личный аккаунт Яндекс (диск, почта, календарь)  |
-| `github`       | GitHub       | USER      | Личный GitHub — репозитории, issues, PRs        |
-| `telegram`     | Telegram     | USER      | Личный Telegram для уведомлений                 |
-| `amocrm`       | AmoCRM       | WORKSPACE | CRM для workspace — сделки, контакты            |
-| `mango_office` | MangoOffice  | WORKSPACE | Облачная телефония MangoOffice                  |
+| slug           | name        | scope     | description                                    |
+| -------------- | ----------- | --------- | ---------------------------------------------- |
+| `yandex`       | Yandex      | USER      | Личный аккаунт Яндекс (диск, почта, календарь) |
+| `github`       | GitHub      | USER      | Личный GitHub — репозитории, issues, PRs       |
+| `telegram`     | Telegram    | USER      | Личный Telegram для уведомлений                |
+| `amocrm`       | AmoCRM      | WORKSPACE | CRM для workspace — сделки, контакты           |
+| `mango_office` | MangoOffice | WORKSPACE | Облачная телефония MangoOffice                 |
 
 #### `Integration`
 
@@ -299,11 +299,11 @@ model Plan {
 
 **Seed (in the initial migration):**
 
-| slug        | name        | priceMonthly | maxWorkspaces | maxMembers | features                                             |
-| ----------- | ----------- | ------------ | ------------- | ---------- | ---------------------------------------------------- |
-| `free`      | Free        | 0            | 1             | 1          | `["Одно пространство", "Базовый редактор"]`          |
-| `personal`  | Personal    | 39000 (390₽) | 5             | 1          | `["5 пространств", "История версий", "AI поиск"]`    |
-| `corporate` | Corporate   | 149000 (1490₽) | null        | null       | `["∞ пространств", "Команды", "SSO", "Приоритет"]`   |
+| slug        | name      | priceMonthly   | maxWorkspaces | maxMembers | features                                           |
+| ----------- | --------- | -------------- | ------------- | ---------- | -------------------------------------------------- |
+| `free`      | Free      | 0              | 1             | 1          | `["Одно пространство", "Базовый редактор"]`        |
+| `personal`  | Personal  | 39000 (390₽)   | 5             | 1          | `["5 пространств", "История версий", "AI поиск"]`  |
+| `corporate` | Corporate | 149000 (1490₽) | null          | null       | `["∞ пространств", "Команды", "SSO", "Приоритет"]` |
 
 #### `Subscription`
 
@@ -617,6 +617,7 @@ export const appRouter = t.router({
 ```
 
 **`userRouter` procedures:**
+
 - `getPreferences()` → `UserPreference | null`
 - `setTheme({ theme })` → writes `user_preferences.theme` + returns new theme
 - `setNotificationSettings(payload)` → writes jsonb
@@ -625,16 +626,19 @@ export const appRouter = t.router({
 - `revokeSession({ sessionId })` → delete session (disallow revoking current)
 
 **`workspaceRouter` procedures:**
+
 - `create({ name, icon })` → flow above
 - `getById({ id })` → filters by `workspace_members.userId = session.user.id`
 - `listMine()` → workspaces where the user is a member
 - `getDefault()` → convenience for the `/app` redirect
 
 **`subscriptionRouter` procedures:**
+
 - `getCurrent()` → active `{ plan, subscription }`
 - `listHistory()` → ordered by `startedAt DESC`
 
 **`integrationRouter` procedures:**
+
 - `listProviders()` → all enabled providers
 - `listMine()` → combines user + workspace integrations for a given workspaceId
 - `connect({ providerId, scope, workspaceId? })` → creates `integrations` row with `status = PENDING`
@@ -662,6 +666,7 @@ New file: `packages/db/prisma/seed.ts`. Idempotent — uses `upsert` so running 
 2. Manually via `pnpm --filter @repo/db prisma:seed`.
 
 The seed covers:
+
 - 5 integration providers (idempotent `upsert` by `slug`).
 - 3 plans (idempotent `upsert` by `slug`).
 
@@ -730,6 +735,7 @@ databaseHooks: {
 7. **Unit test for `getActivePlanForUser`** and for the free-plan enforcement branch (requires either a test DB or a Prisma mock).
 
 Tests that **won't** be written this iteration:
+
 - Real OAuth round-trips (no real OAuth).
 - Real billing flows (no payment provider).
 - Block/page editor (not built).
@@ -815,18 +821,18 @@ Single Prisma migration named `20260411_workspaces_settings_billing_integrations
 
 ## Appendix A: Decision log
 
-| Area | Options | Chosen | Reason |
-|---|---|---|---|
-| Schema scope | (A) full merge / (B) minimum for current UI / (C) core content | **B** | Focused iteration; pgvector-free; next iterations add their own slice. |
-| Integration scope | (A1) user / (A2) workspace / (A3) both | **A3** | GitHub/Telegram are personal, AmoCRM/MangoOffice are corporate. |
-| Integration catalog | (B1) static in TS / (B2) table | **B2** | Hundreds of providers planned; table scales, admin UI later. |
-| Subscription scope | (A1) user / (A2) workspace / (A3) hybrid | **A3** | "Free = 1 workspace" is a per-user constraint. |
-| Plan model | (B1) enum / (B2) plans table / (B3) plans + subscriptions history | **B3** | UI asks for purchase history. |
-| Workspace ownership | (A1) via members only / (A2) duplicated owner_id / (A3) members + createdById audit | **A3** | Matches docs/database.md; no denormalization. |
-| Default workspace | (B1) user_preferences / (B2) members.is_default | **B1** | Existing column in target schema; simpler invariant. |
-| Signup flow | (C1) manual `/workspaces/new` / (C2) auto-create Personal | **C1** | User's explicit requirement. |
-| URL structure | (A) flat / (B) all under `/app` / (C) `(protected)` group | **C** | Single auth gate; short URLs; minimal refactor. |
-| Theme storage | (A1) client only / (A2) server only / (A3) hybrid | **A3** | Prevents flash of wrong theme, persists across devices. |
-| Notifications | (B1) stub / (B2) persisted jsonb | **B2** | Table exists anyway, stub = broken state. |
-| Sessions table | (C1) real query / (C2) stub | **C1** | better-auth already writes real data. |
-| Notion onboarding data | (A) static JSX / (B) Welcome Page record / (C) hybrid | **A** | B-merge promised minimum tables; welcome is a template, not a page. |
+| Area                   | Options                                                                             | Chosen | Reason                                                                 |
+| ---------------------- | ----------------------------------------------------------------------------------- | ------ | ---------------------------------------------------------------------- |
+| Schema scope           | (A) full merge / (B) minimum for current UI / (C) core content                      | **B**  | Focused iteration; pgvector-free; next iterations add their own slice. |
+| Integration scope      | (A1) user / (A2) workspace / (A3) both                                              | **A3** | GitHub/Telegram are personal, AmoCRM/MangoOffice are corporate.        |
+| Integration catalog    | (B1) static in TS / (B2) table                                                      | **B2** | Hundreds of providers planned; table scales, admin UI later.           |
+| Subscription scope     | (A1) user / (A2) workspace / (A3) hybrid                                            | **A3** | "Free = 1 workspace" is a per-user constraint.                         |
+| Plan model             | (B1) enum / (B2) plans table / (B3) plans + subscriptions history                   | **B3** | UI asks for purchase history.                                          |
+| Workspace ownership    | (A1) via members only / (A2) duplicated owner_id / (A3) members + createdById audit | **A3** | Matches docs/database.md; no denormalization.                          |
+| Default workspace      | (B1) user_preferences / (B2) members.is_default                                     | **B1** | Existing column in target schema; simpler invariant.                   |
+| Signup flow            | (C1) manual `/workspaces/new` / (C2) auto-create Personal                           | **C1** | User's explicit requirement.                                           |
+| URL structure          | (A) flat / (B) all under `/app` / (C) `(protected)` group                           | **C**  | Single auth gate; short URLs; minimal refactor.                        |
+| Theme storage          | (A1) client only / (A2) server only / (A3) hybrid                                   | **A3** | Prevents flash of wrong theme, persists across devices.                |
+| Notifications          | (B1) stub / (B2) persisted jsonb                                                    | **B2** | Table exists anyway, stub = broken state.                              |
+| Sessions table         | (C1) real query / (C2) stub                                                         | **C1** | better-auth already writes real data.                                  |
+| Notion onboarding data | (A) static JSX / (B) Welcome Page record / (C) hybrid                               | **A**  | B-merge promised minimum tables; welcome is a template, not a page.    |

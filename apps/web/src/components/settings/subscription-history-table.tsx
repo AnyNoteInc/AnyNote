@@ -1,4 +1,12 @@
-import { Box, Table, TableBody, TableCell, TableHead, TableRow, Typography } from "@repo/ui/components"
+import {
+  Box,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  Typography,
+} from "@repo/ui/components"
 
 type Row = {
   id: string

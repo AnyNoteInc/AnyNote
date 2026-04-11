@@ -10,9 +10,24 @@ import { trpc } from "@/trpc/client"
 type Theme = "light" | "dark" | "system"
 
 const options: Array<{ value: Theme; label: string; preview: React.CSSProperties }> = [
-  { value: "light",  label: "Светлая",  preview: { background: "#fff", border: "1px solid #e5e7eb" } },
-  { value: "dark",   label: "Тёмная",   preview: { background: "#0c0d10", border: "1px solid #1e2024" } },
-  { value: "system", label: "Системная", preview: { background: "linear-gradient(90deg,#fff 50%,#0c0d10 50%)", border: "1px solid #d1d5db" } },
+  {
+    value: "light",
+    label: "Светлая",
+    preview: { background: "#fff", border: "1px solid #e5e7eb" },
+  },
+  {
+    value: "dark",
+    label: "Тёмная",
+    preview: { background: "#0c0d10", border: "1px solid #1e2024" },
+  },
+  {
+    value: "system",
+    label: "Системная",
+    preview: {
+      background: "linear-gradient(90deg,#fff 50%,#0c0d10 50%)",
+      border: "1px solid #d1d5db",
+    },
+  },
 ]
 
 export function ThemeSection({ initial }: { initial: Theme | null }) {
@@ -30,8 +45,18 @@ export function ThemeSection({ initial }: { initial: Theme | null }) {
   }
 
   return (
-    <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, p: { xs: 2.5, md: 3 }, backgroundColor: "background.paper" }}>
-      <Typography variant="subtitle1" fontWeight={700}>Тема оформления</Typography>
+    <Box
+      sx={{
+        border: "1px solid",
+        borderColor: "divider",
+        borderRadius: 2,
+        p: { xs: 2.5, md: 3 },
+        backgroundColor: "background.paper",
+      }}
+    >
+      <Typography variant="subtitle1" fontWeight={700}>
+        Тема оформления
+      </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Выберите светлую, тёмную или автоматическую тему
       </Typography>

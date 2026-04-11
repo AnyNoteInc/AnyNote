@@ -20,7 +20,9 @@ export default async function IntegrationsSettingsPage() {
   return (
     <Stack spacing={3}>
       <Stack spacing={0.5}>
-        <Typography variant="h5" fontWeight={700}>Интеграции</Typography>
+        <Typography variant="h5" fontWeight={700}>
+          Интеграции
+        </Typography>
         <Typography variant="body2" color="text.secondary">
           Подключите внешние сервисы к своему аккаунту или рабочему пространству
         </Typography>

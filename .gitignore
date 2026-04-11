@@ -42,3 +42,7 @@ yarn-error.log*
 .remember
 # next-agents-md
 .next-docs/
+.superpowers/
+.playwright-mcp/
+test-results/
+.claude/settings.json

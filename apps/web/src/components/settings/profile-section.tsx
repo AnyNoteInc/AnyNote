@@ -22,24 +22,57 @@ export function ProfileSection({ initial }: Props) {
   const updateProfile = trpc.user.updateProfile.useMutation()
 
   return (
-    <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, p: { xs: 2.5, md: 3 }, backgroundColor: "background.paper" }}>
-      <Typography variant="subtitle1" fontWeight={700}>Профиль</Typography>
+    <Box
+      sx={{
+        border: "1px solid",
+        borderColor: "divider",
+        borderRadius: 2,
+        p: { xs: 2.5, md: 3 },
+        backgroundColor: "background.paper",
+      }}
+    >
+      <Typography variant="subtitle1" fontWeight={700}>
+        Профиль
+      </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Имя, email и аватар, которые видят другие
       </Typography>
       <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
-        <Box sx={{ width: 60, height: 60, borderRadius: "50%", background: "linear-gradient(135deg,#0f766e,#155e75)" }} />
+        <Box
+          sx={{
+            width: 60,
+            height: 60,
+            borderRadius: "50%",
+            background: "linear-gradient(135deg,#0f766e,#155e75)",
+          }}
+        />
         <Stack direction="row" spacing={1}>
-          <Button variant="outlined" size="small" disabled>Загрузить</Button>
-          <Button variant="text" size="small" color="inherit" disabled>Удалить</Button>
+          <Button variant="outlined" size="small" disabled>
+            Загрузить
+          </Button>
+          <Button variant="text" size="small" color="inherit" disabled>
+            Удалить
+          </Button>
         </Stack>
       </Stack>
       <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, mb: 2 }}>
-        <TextField label="Имя" size="small" value={firstName} onChange={(e) => setFirstName(e.target.value)} />
-        <TextField label="Фамилия" size="small" value={lastName} onChange={(e) => setLastName(e.target.value)} />
+        <TextField
+          label="Имя"
+          size="small"
+          value={firstName}
+          onChange={(e) => setFirstName(e.target.value)}
+        />
+        <TextField
+          label="Фамилия"
+          size="small"
+          value={lastName}
+          onChange={(e) => setLastName(e.target.value)}
+        />
       </Box>
       <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mb: 1 }}>
-        <Typography variant="caption" color="text.secondary">Email</Typography>
+        <Typography variant="caption" color="text.secondary">
+          Email
+        </Typography>
         <Box
           sx={{
             px: 1,
@@ -55,8 +88,15 @@ export function ProfileSection({ initial }: Props) {
         </Box>
       </Stack>
       <Stack direction="row" spacing={1}>
-        <TextField size="small" value={initial.email} sx={{ flex: 1 }} InputProps={{ readOnly: true }} />
-        <Button variant="outlined" size="small" disabled>Изменить</Button>
+        <TextField
+          size="small"
+          value={initial.email}
+          sx={{ flex: 1 }}
+          InputProps={{ readOnly: true }}
+        />
+        <Button variant="outlined" size="small" disabled>
+          Изменить
+        </Button>
       </Stack>
       <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
         Смена email потребует повторного подтверждения по ссылке

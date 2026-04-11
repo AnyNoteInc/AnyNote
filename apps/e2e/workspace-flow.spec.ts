@@ -8,7 +8,9 @@ import { test, expect } from "@playwright/test"
 const email = `victor+${Date.now()}@example.com`
 const password = "Password123!"
 
-test("sign up → new workspace → default landing → settings nav → free-plan limit", async ({ page }) => {
+test("sign up → new workspace → default landing → settings nav → free-plan limit", async ({
+  page,
+}) => {
   // 1. Sign up
   await page.goto("/sign-up")
   await page.getByLabel(/имя/i).fill("Victor")

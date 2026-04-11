@@ -6,9 +6,9 @@ import { usePathname } from "next/navigation"
 import { Box, Stack, Typography } from "@repo/ui/components"
 
 const items = [
-  { href: "/settings/general",      label: "Общее",      icon: "⚙" },
-  { href: "/settings/account",      label: "Аккаунт",    icon: "◉" },
-  { href: "/settings/billing",      label: "Оплата",     icon: "💳" },
+  { href: "/settings/general", label: "Общее", icon: "⚙" },
+  { href: "/settings/account", label: "Аккаунт", icon: "◉" },
+  { href: "/settings/billing", label: "Оплата", icon: "💳" },
   { href: "/settings/integrations", label: "Интеграции", icon: "⇌" },
 ]
 
@@ -37,7 +37,9 @@ export function SettingsNav() {
               "&:hover": { backgroundColor: "action.hover" },
             }}
           >
-            <Typography component="span" sx={{ fontSize: 16 }}>{item.icon}</Typography>
+            <Typography component="span" sx={{ fontSize: 16 }}>
+              {item.icon}
+            </Typography>
             <Typography variant="body2">{item.label}</Typography>
           </Box>
         )

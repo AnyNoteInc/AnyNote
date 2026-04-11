@@ -16,14 +16,18 @@ export default async function BillingSettingsPage() {
   return (
     <Stack spacing={3}>
       <Stack spacing={0.5}>
-        <Typography variant="h5" fontWeight={700}>Оплата</Typography>
+        <Typography variant="h5" fontWeight={700}>
+          Оплата
+        </Typography>
         <Typography variant="body2" color="text.secondary">
           Текущий тариф и история покупок
         </Typography>
       </Stack>
       <CurrentPlanCard plan={current.plan} subscription={current.subscription} />
       <Stack spacing={1}>
-        <Typography variant="subtitle1" fontWeight={700}>История</Typography>
+        <Typography variant="subtitle1" fontWeight={700}>
+          История
+        </Typography>
         <SubscriptionHistoryTable rows={history} />
       </Stack>
     </Stack>
