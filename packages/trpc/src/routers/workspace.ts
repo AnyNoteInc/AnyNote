@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server"
 
 import { router, protectedProcedure } from "../trpc"
 import { getActivePlanForUser } from "../helpers/plan"
+import { seedStartPage } from "../helpers/seed-start-page"
 
 export const workspaceRouter = router({
   create: protectedProcedure
@@ -38,7 +39,8 @@ export const workspaceRouter = router({
           create: { userId: ctx.user.id, defaultWorkspaceId: workspace.id },
           update: { defaultWorkspaceId: workspace.id },
         })
-        return workspace
+        const { pageId } = await seedStartPage(tx, workspace.id, ctx.user.id)
+        return { ...workspace, startPageId: pageId }
       })
     }),
 
