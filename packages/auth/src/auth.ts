@@ -3,7 +3,7 @@ import { prismaAdapter } from "better-auth/adapters/prisma"
 import { magicLink, bearer, jwt, deviceAuthorization, lastLoginMethod } from "better-auth/plugins"
 import { nextCookies } from "better-auth/next-js"
 
-import { prisma } from "@repo/db"
+import { prisma, SubscriptionStatus } from "@repo/db"
 
 const auth = betterAuth({
   database: prismaAdapter(prisma, {
@@ -57,6 +57,23 @@ const auth = betterAuth({
     storeSessionInDatabase: true,
   },
   experimental: { joins: true },
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (user) => {
+          const freePlan = await prisma.plan.findUniqueOrThrow({ where: { slug: "free" } })
+          await prisma.subscription.create({
+            data: { userId: user.id, planId: freePlan.id, status: SubscriptionStatus.ACTIVE },
+          })
+          await prisma.userPreference.upsert({
+            where: { userId: user.id },
+            create: { userId: user.id },
+            update: {},
+          })
+        },
+      },
+    },
+  },
 })
 
 export type Auth = typeof auth
