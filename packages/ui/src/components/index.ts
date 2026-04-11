@@ -20,4 +20,6 @@ export { default as Step, type StepProps } from "@mui/material/Step"
 export { default as StepLabel, type StepLabelProps } from "@mui/material/StepLabel"
 export { default as StepContent, type StepContentProps } from "@mui/material/StepContent"
 
+export { default as Switch, type SwitchProps } from "@mui/material/Switch"
+
 export * from "./ui/button"
