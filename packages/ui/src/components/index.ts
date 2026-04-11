@@ -29,6 +29,9 @@ export { default as TableCell, type TableCellProps } from "@mui/material/TableCe
 export { default as TableHead, type TableHeadProps } from "@mui/material/TableHead"
 export { default as TableRow, type TableRowProps } from "@mui/material/TableRow"
 
+export { default as Select, type SelectProps } from "@mui/material/Select"
+export { default as MenuItem, type MenuItemProps } from "@mui/material/MenuItem"
+
 export { ThemeProvider } from "@mui/material/styles"
 export { default as CssBaseline } from "@mui/material/CssBaseline"
 
