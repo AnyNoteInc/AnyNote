@@ -1,3 +1,5 @@
+"use client"
+
 import type { ReactNode } from "react"
 
 import { Box, CssBaseline, ThemeProvider } from "@repo/ui/components"
