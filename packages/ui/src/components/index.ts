@@ -11,6 +11,7 @@ export { default as Typography, type TypographyProps } from "@mui/material/Typog
 export { default as Box, type BoxProps } from "@mui/material/Box"
 export { default as Divider, type DividerProps } from "@mui/material/Divider"
 export { default as Alert, type AlertProps } from "@mui/material/Alert"
+export { default as Avatar, type AvatarProps } from "@mui/material/Avatar"
 export { default as TextField, type TextFieldProps } from "@mui/material/TextField"
 export { default as IconButton, type IconButtonProps } from "@mui/material/IconButton"
 export { default as Tooltip, type TooltipProps } from "@mui/material/Tooltip"
