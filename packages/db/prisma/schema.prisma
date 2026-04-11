@@ -30,6 +30,7 @@ model User {
   subscriptions Subscription[]
   blocksCreated Block[] @relation("BlockCreator")
   blocksUpdated Block[] @relation("BlockUpdater")
+  searchChats   SearchChat[] @relation("SearchChatCreator")
 
   @@map("users")
 }
@@ -158,6 +159,11 @@ enum BlockType {
   LINK_TO_PAGE
 }
 
+enum SearchMessageRole {
+  USER
+  ASSISTANT
+}
+
 model Workspace {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name        String   @db.VarChar(255)
@@ -172,6 +178,7 @@ model Workspace {
   pages                 Page[]
   workspaceIntegrations Integration[]     @relation("WorkspaceIntegrations")
   defaultForUsers       UserPreference[]  @relation("DefaultWorkspace")
+  searchChats           SearchChat[]
 
   @@index([createdById])
   @@map("workspaces")
@@ -244,6 +251,36 @@ model Block {
 
   @@index([pageId, parentBlockId])
   @@map("blocks")
+}
+
+model SearchChat {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  createdById String   @map("created_by_id") @db.Uuid
+  title       String   @default("Новый поиск")
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User            @relation("SearchChatCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  messages  SearchMessage[]
+
+  @@index([workspaceId, updatedAt(sort: Desc)])
+  @@map("search_chats")
+}
+
+model SearchMessage {
+  id        String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chatId    String            @map("chat_id") @db.Uuid
+  role      SearchMessageRole
+  content   String            @db.Text
+  sources   Json              @default("[]")
+  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  chat SearchChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+
+  @@index([chatId, createdAt])
+  @@map("search_messages")
 }
 
 model UserPreference {
