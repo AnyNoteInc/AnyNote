@@ -1,40 +1,11 @@
-import { initTRPC } from "@trpc/server"
+import { router, publicProcedure, createCallerFactory } from "./trpc.js"
 
-import { prisma } from "@repo/db"
-import { getUserFromRequest } from "@repo/auth"
+export { createContext, createServerContext } from "./trpc.js"
+export type { Context } from "./trpc.js"
 
-type CreateContextOptions = {
-  req: Request
-  resHeaders: Headers
-}
-
-export const createContext = async ({ req, resHeaders }: CreateContextOptions) => {
-  const user = await getUserFromRequest(req, resHeaders)
-
-  return {
-    prisma,
-    user,
-    headers: req.headers,
-    resHeaders,
-  }
-}
-
-export const createServerContext = async (headers: Headers) => {
-  return createContext({
-    req: new Request("http://rsc.internal", { headers }),
-    resHeaders: new Headers(),
-  })
-}
-
-export type Context = Awaited<ReturnType<typeof createContext>>
-
-const t = initTRPC.context<Context>().create()
-
-export const createCallerFactory = t.createCallerFactory
-
-export const appRouter = t.router({
-  health: t.procedure.query(() => ({ ok: true })),
-  users: t.procedure.query(async ({ ctx }) => {
+export const appRouter = router({
+  health: publicProcedure.query(() => ({ ok: true })),
+  users: publicProcedure.query(async ({ ctx }) => {
     return ctx.prisma.user.findMany({
       select: {
         id: true,
