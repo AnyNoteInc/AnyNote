@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useRef, useState, type ReactNode } from "react"
+import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 
 import { Box, IconButton, MenuIcon, Paper, Popper, Stack, Typography } from "@repo/ui/components"
 
@@ -22,6 +22,15 @@ export function WorkspaceToolbar({
   const [popperOpen, setPopperOpen] = useState(false)
   const anchorRef = useRef<HTMLButtonElement>(null)
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const suppressUntil = useRef(0)
+
+  // Suppress popper for 300ms after sidebar becomes hidden,
+  // so the cursor landing on the newly-appeared MenuIcon doesn't trigger it.
+  useEffect(() => {
+    if (sidebarHidden) {
+      suppressUntil.current = Date.now() + 300
+    }
+  }, [sidebarHidden])
 
   const scheduleClose = useCallback(() => {
     closeTimer.current = setTimeout(() => setPopperOpen(false), 120)
@@ -35,6 +44,7 @@ export function WorkspaceToolbar({
   }, [])
 
   const handleMouseEnter = useCallback(() => {
+    if (Date.now() < suppressUntil.current) return
     cancelClose()
     setPopperOpen(true)
   }, [cancelClose])
