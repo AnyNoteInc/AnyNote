@@ -4,6 +4,8 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 
 import { Box, IconButton, MenuIcon, Paper, Popper, Stack, Typography } from "@repo/ui/components"
 
+import { SIDEBAR_WIDTH } from "./workspace-layout-client"
+
 type Breadcrumb = { label: string; href?: string }
 
 type Props = {
@@ -31,6 +33,12 @@ export function WorkspaceToolbar({
       suppressUntil.current = Date.now() + 300
     }
   }, [sidebarHidden])
+
+  useEffect(() => {
+    return () => {
+      if (closeTimer.current) clearTimeout(closeTimer.current)
+    }
+  }, [])
 
   const scheduleClose = useCallback(() => {
     closeTimer.current = setTimeout(() => setPopperOpen(false), 120)
@@ -66,11 +74,13 @@ export function WorkspaceToolbar({
       }}
     >
       {sidebarHidden ? (
-        <Box onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+        <>
           <IconButton
             ref={anchorRef}
             size="small"
             onClick={onOpenSidebar}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
             sx={{ color: "text.secondary" }}
           >
             <MenuIcon sx={{ fontSize: 20 }} />
@@ -87,7 +97,7 @@ export function WorkspaceToolbar({
                 onMouseEnter={handleMouseEnter}
                 onMouseLeave={handleMouseLeave}
                 sx={{
-                  width: 240,
+                  width: SIDEBAR_WIDTH,
                   maxHeight: "calc(100vh - 80px)",
                   overflow: "auto",
                   borderRadius: 2,
@@ -98,7 +108,7 @@ export function WorkspaceToolbar({
               </Paper>
             </Popper>
           ) : null}
-        </Box>
+        </>
       ) : null}
       {breadcrumbs.map((crumb, i) => (
         <Stack key={i} direction="row" alignItems="center" spacing={1.25}>

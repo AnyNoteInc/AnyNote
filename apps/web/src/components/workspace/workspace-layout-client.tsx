@@ -21,6 +21,7 @@ type Props = {
 }
 
 const STORAGE_KEY = "workspace.sidebar.collapsed"
+export const SIDEBAR_WIDTH = 240
 
 export function WorkspaceLayoutClient({ workspace, planName, pages, user, children }: Props) {
   const [hidden, setHidden] = useState(false)
@@ -68,36 +69,19 @@ export function WorkspaceLayoutClient({ workspace, planName, pages, user, childr
 
   const userMenu = <WorkspaceUserMenu user={user} />
 
-  const sidebarNode = (
-    <WorkspaceSidebar
-      workspace={workspace}
-      planName={planName}
-      pages={pages}
-      onHide={() => setHidden(true)}
-      userMenu={userMenu}
-    />
-  )
-
-  const popperSidebarNode = (
-    <WorkspaceSidebar
-      workspace={workspace}
-      planName={planName}
-      pages={pages}
-      userMenu={userMenu}
-    />
-  )
+  const sidebarProps = { workspace, planName, pages, userMenu }
 
   return (
     <WorkspaceShell
       sidebarHidden={hidden}
-      sidebar={sidebarNode}
+      sidebar={<WorkspaceSidebar {...sidebarProps} onHide={() => setHidden(true)} />}
       main={
         <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
           <WorkspaceToolbar
             breadcrumbs={breadcrumbs}
             sidebarHidden={hidden}
             onOpenSidebar={() => setHidden(false)}
-            sidebarContent={popperSidebarNode}
+            sidebarContent={<WorkspaceSidebar {...sidebarProps} />}
           />
           <Box sx={{ flex: 1, overflow: "auto" }}>{children}</Box>
         </Box>

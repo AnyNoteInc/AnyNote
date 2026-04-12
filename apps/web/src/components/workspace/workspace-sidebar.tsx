@@ -16,6 +16,7 @@ import {
   Typography,
 } from "@repo/ui/components"
 
+import { SIDEBAR_WIDTH } from "./workspace-layout-client"
 import { SearchSidebarSection } from "./search-sidebar-section"
 
 type Props = {
@@ -33,11 +34,12 @@ export function WorkspaceSidebar({
   onHide,
   userMenu,
 }: Props) {
+  const pathname = usePathname()
   return (
     <Box
       component="aside"
       sx={{
-        width: 240,
+        width: SIDEBAR_WIDTH,
         borderRight: "1px solid",
         borderColor: "divider",
         display: "flex",
@@ -92,6 +94,7 @@ export function WorkspaceSidebar({
           label="Настройки"
           href={`/workspaces/${workspace.id}/settings`}
           matchPrefix={`/workspaces/${workspace.id}/settings`}
+          pathname={pathname}
         />
       </Stack>
 
@@ -108,12 +111,14 @@ export function WorkspaceSidebar({
             icon={<span style={{ fontSize: 14 }}>{page.icon ?? "📄"}</span>}
             label={page.title ?? "Untitled"}
             href={`/workspaces/${workspace.id}`}
+            pathname={pathname}
           />
         ))}
         <NavItem
           icon={<span style={{ fontSize: 14 }}>＋</span>}
           label="Новая страница"
           href="#"
+          pathname={pathname}
           muted
         />
       </Stack>
@@ -126,6 +131,7 @@ export function WorkspaceSidebar({
           label="Корзина"
           href="#"
           matchPrefix="/trash"
+          pathname={pathname}
           muted
         />
       </Box>
@@ -140,15 +146,16 @@ function NavItem({
   label,
   href,
   matchPrefix,
+  pathname,
   muted,
 }: {
   icon: ReactNode
   label: string
   href: string
   matchPrefix?: string
+  pathname: string
   muted?: boolean
 }) {
-  const pathname = usePathname()
   const active = matchPrefix ? pathname.startsWith(matchPrefix) : false
   return (
     <Box
