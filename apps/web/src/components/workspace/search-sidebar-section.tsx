@@ -2,9 +2,10 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { useState } from "react"
+import { useMemo, useState } from "react"
 
 import {
+  AddIcon,
   ArrowDropDownIcon,
   ArrowDropUpIcon,
   Box,
@@ -16,6 +17,7 @@ import {
   DialogContentText,
   DialogTitle,
   DriveFileRenameOutlineIcon,
+  IconButton,
   Menu,
   MenuItem,
   MoreHorizIcon,
@@ -29,9 +31,24 @@ import { trpc } from "@/trpc/client"
 
 type Props = { workspaceId: string }
 
-type ChatItem = { id: string; title: string | null }
+type ChatItem = {
+  id: string
+  title: string | null
+  parentId: string | null
+  updatedAt: string | Date
+  createdAt: string | Date
+  createdById: string
+}
 
-function ChatListItem({ chat, workspaceId }: { chat: ChatItem; workspaceId: string }) {
+function ChatTreeItem({
+  chat,
+  workspaceId,
+  allChats,
+}: {
+  chat: ChatItem
+  workspaceId: string
+  allChats: ChatItem[]
+}) {
   const pathname = usePathname()
   const router = useRouter()
   const utils = trpc.useUtils()
@@ -42,6 +59,14 @@ function ChatListItem({ chat, workspaceId }: { chat: ChatItem; workspaceId: stri
   const [deleteOpen, setDeleteOpen] = useState(false)
 
   const isActive = pathname === `/workspaces/${workspaceId}/search/${chat.id}`
+
+  const children = useMemo(
+    () =>
+      allChats
+        .filter((c) => c.parentId === chat.id)
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
+    [allChats, chat.id],
+  )
 
   const rename = trpc.search.renameChat.useMutation({
     onSuccess: async () => {
@@ -58,6 +83,13 @@ function ChatListItem({ chat, workspaceId }: { chat: ChatItem; workspaceId: stri
     },
   })
 
+  const createChild = trpc.search.createChat.useMutation({
+    onSuccess: async (data) => {
+      await utils.search.listChats.invalidate({ workspaceId })
+      router.push(`/workspaces/${workspaceId}/search/${data.id}`)
+    },
+  })
+
   return (
     <>
       <Box
@@ -68,7 +100,7 @@ function ChatListItem({ chat, workspaceId }: { chat: ChatItem; workspaceId: stri
           borderRadius: 0.75,
           bgcolor: isActive ? "action.selected" : "transparent",
           "&:hover": { bgcolor: isActive ? "action.selected" : "action.hover" },
-          "&:hover .more-btn": { visibility: "visible" },
+          "&:hover .chat-actions": { visibility: "visible" },
         }}
       >
         <Link
@@ -88,29 +120,49 @@ function ChatListItem({ chat, workspaceId }: { chat: ChatItem; workspaceId: stri
           </Typography>
         </Link>
         <Box
-          className="more-btn"
-          component="button"
-          onClick={(e) => {
-            e.stopPropagation()
-            setMenuAnchor(e.currentTarget as HTMLElement)
-          }}
+          className="chat-actions"
           sx={{
             display: "flex",
-            alignItems: "center",
-            border: "none",
-            background: "none",
-            cursor: "pointer",
-            color: "text.secondary",
-            p: 0.25,
-            borderRadius: 0.5,
-            flexShrink: 0,
             visibility: menuAnchor ? "visible" : "hidden",
-            "&:hover": { color: "text.primary", bgcolor: "action.hover" },
+            flexShrink: 0,
           }}
         >
-          <MoreHorizIcon sx={{ fontSize: 16 }} />
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation()
+              createChild.mutate({ workspaceId, parentId: chat.id })
+            }}
+            sx={{ p: 0.25 }}
+          >
+            <AddIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation()
+              setMenuAnchor(e.currentTarget as HTMLElement)
+            }}
+            sx={{ p: 0.25 }}
+          >
+            <MoreHorizIcon sx={{ fontSize: 16 }} />
+          </IconButton>
         </Box>
       </Box>
+
+      {/* Children rendered indented */}
+      {children.length > 0 && (
+        <Stack spacing={0.25} sx={{ pl: 2 }}>
+          {children.map((child) => (
+            <ChatTreeItem
+              key={child.id}
+              chat={child}
+              workspaceId={workspaceId}
+              allChats={allChats}
+            />
+          ))}
+        </Stack>
+      )}
 
       {/* Context menu */}
       <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}>
@@ -173,7 +225,7 @@ function ChatListItem({ chat, workspaceId }: { chat: ChatItem; workspaceId: stri
         <DialogTitle>Удалить чат?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Чат «{chat.title ?? "Без названия"}» и все его сообщения будут удалены навсегда.
+            Чат «{chat.title ?? "Без названия"}» и все дочерние чаты будут удалены навсегда.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -204,6 +256,14 @@ export function SearchSidebarSection({ workspaceId }: Props) {
     },
   })
 
+  const rootChats = useMemo(
+    () =>
+      (chats.data ?? [])
+        .filter((c) => !c.parentId)
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime()),
+    [chats.data],
+  )
+
   return (
     <Box>
       <Box
@@ -229,8 +289,13 @@ export function SearchSidebarSection({ workspaceId }: Props) {
       </Box>
       {open ? (
         <Stack spacing={0.25} sx={{ pl: 3 }}>
-          {chats.data?.map((chat) => (
-            <ChatListItem key={chat.id} chat={chat} workspaceId={workspaceId} />
+          {rootChats.map((chat) => (
+            <ChatTreeItem
+              key={chat.id}
+              chat={chat}
+              workspaceId={workspaceId}
+              allChats={chats.data ?? []}
+            />
           ))}
           <Box
             onClick={() => create.mutate({ workspaceId })}
