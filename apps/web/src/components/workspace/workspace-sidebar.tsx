@@ -7,10 +7,9 @@ import { usePathname } from "next/navigation"
 
 import {
   Box,
-  ChevronLeftIcon,
-  ChevronRightIcon,
   DeleteIcon,
   IconButton,
+  KeyboardDoubleArrowLeftIcon,
   SettingsIcon,
   Stack,
   Tooltip,
@@ -23,8 +22,7 @@ type Props = {
   workspace: { id: string; name: string; icon: string | null }
   planName: string
   pages: Array<{ id: string; title: string | null; icon: string | null }>
-  collapsed: boolean
-  onToggleCollapsed: () => void
+  onHide: () => void
   userMenu: ReactNode
 }
 
@@ -32,35 +30,28 @@ export function WorkspaceSidebar({
   workspace,
   planName,
   pages,
-  collapsed,
-  onToggleCollapsed,
+  onHide,
   userMenu,
 }: Props) {
-  const width = collapsed ? 56 : 240
   return (
     <Box
       component="aside"
       sx={{
-        width,
+        width: 240,
         borderRight: "1px solid",
         borderColor: "divider",
         display: "flex",
         flexDirection: "column",
         bgcolor: "background.paper",
-        px: collapsed ? 0.5 : 1.25,
+        px: 1.25,
         py: 1.75,
-        transition: "width 150ms ease",
       }}
     >
       <Stack
         direction="row"
         alignItems="center"
         spacing={1}
-        sx={{
-          px: collapsed ? 0 : 1,
-          pb: 1.75,
-          justifyContent: collapsed ? "center" : "flex-start",
-        }}
+        sx={{ px: 1, pb: 1.75 }}
       >
         <Box
           sx={{
@@ -77,46 +68,37 @@ export function WorkspaceSidebar({
         >
           {workspace.icon ?? "📒"}
         </Box>
-        {collapsed ? null : (
-          <Stack spacing={0} sx={{ flex: 1, minWidth: 0 }}>
-            <Typography variant="body2" noWrap>
-              {workspace.name}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {planName} plan
-            </Typography>
-          </Stack>
-        )}
-        <Tooltip title={collapsed ? "Развернуть" : "Свернуть"} placement="right">
-          <IconButton size="small" onClick={onToggleCollapsed} sx={{ flexShrink: 0 }}>
-            {collapsed ? (
-              <ChevronRightIcon sx={{ fontSize: 16 }} />
-            ) : (
-              <ChevronLeftIcon sx={{ fontSize: 16 }} />
-            )}
+        <Stack spacing={0} sx={{ flex: 1, minWidth: 0 }}>
+          <Typography variant="body2" noWrap>
+            {workspace.name}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            {planName} plan
+          </Typography>
+        </Stack>
+        <Tooltip title="Скрыть" placement="right">
+          <IconButton size="small" onClick={onHide} sx={{ flexShrink: 0 }}>
+            <KeyboardDoubleArrowLeftIcon sx={{ fontSize: 16 }} />
           </IconButton>
         </Tooltip>
       </Stack>
 
       <Stack spacing={0.25} sx={{ py: 0.75 }}>
-        <SearchSidebarSection workspaceId={workspace.id} collapsed={collapsed} />
+        <SearchSidebarSection workspaceId={workspace.id} />
         <NavItem
           icon={<SettingsIcon sx={{ fontSize: 16 }} />}
           label="Настройки"
           href={`/workspaces/${workspace.id}/settings`}
           matchPrefix={`/workspaces/${workspace.id}/settings`}
-          collapsed={collapsed}
         />
       </Stack>
 
-      {collapsed ? null : (
-        <Typography
-          variant="overline"
-          sx={{ color: "text.disabled", px: 1, pt: 2, pb: 0.5, letterSpacing: "0.06em" }}
-        >
-          Страницы
-        </Typography>
-      )}
+      <Typography
+        variant="overline"
+        sx={{ color: "text.disabled", px: 1, pt: 2, pb: 0.5, letterSpacing: "0.06em" }}
+      >
+        Страницы
+      </Typography>
       <Stack spacing={0.25}>
         {pages.map((page) => (
           <NavItem
@@ -124,14 +106,12 @@ export function WorkspaceSidebar({
             icon={<span style={{ fontSize: 14 }}>{page.icon ?? "📄"}</span>}
             label={page.title ?? "Untitled"}
             href={`/workspaces/${workspace.id}`}
-            collapsed={collapsed}
           />
         ))}
         <NavItem
           icon={<span style={{ fontSize: 14 }}>＋</span>}
           label="Новая страница"
           href="#"
-          collapsed={collapsed}
           muted
         />
       </Stack>
@@ -144,7 +124,6 @@ export function WorkspaceSidebar({
           label="Корзина"
           href="#"
           matchPrefix="/trash"
-          collapsed={collapsed}
           muted
         />
       </Box>
@@ -159,19 +138,17 @@ function NavItem({
   label,
   href,
   matchPrefix,
-  collapsed,
   muted,
 }: {
   icon: ReactNode
   label: string
   href: string
   matchPrefix?: string
-  collapsed: boolean
   muted?: boolean
 }) {
   const pathname = usePathname()
   const active = matchPrefix ? pathname.startsWith(matchPrefix) : false
-  const body = (
+  return (
     <Box
       component={Link}
       href={href}
@@ -179,9 +156,8 @@ function NavItem({
         display: "flex",
         alignItems: "center",
         gap: 1,
-        px: collapsed ? 0 : 1,
+        px: 1,
         py: 0.75,
-        justifyContent: collapsed ? "center" : "flex-start",
         borderRadius: 0.75,
         textDecoration: "none",
         color: active ? "text.primary" : muted ? "text.disabled" : "text.secondary",
@@ -191,15 +167,7 @@ function NavItem({
       }}
     >
       {icon}
-      {collapsed ? null : <span>{label}</span>}
+      <span>{label}</span>
     </Box>
   )
-  if (collapsed) {
-    return (
-      <Tooltip title={label} placement="right">
-        {body}
-      </Tooltip>
-    )
-  }
-  return body
 }
