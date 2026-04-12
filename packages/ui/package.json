@@ -40,6 +40,7 @@
     "@mui/icons-material": "^6.1.7",
     "@mui/material": "^6.1.7",
     "@mui/material-nextjs": "^7.3.6",
+    "@mui/x-tree-view": "^9.0.1",
     "react": "^19.2.0",
     "react-hook-form": "^7.68.0"
   },
