@@ -55,6 +55,7 @@ export {
   default as InputAdornment,
   type InputAdornmentProps,
 } from "@mui/material/InputAdornment"
+export { default as Popper, type PopperProps } from "@mui/material/Popper"
 
 export { default as SearchIcon } from "@mui/icons-material/Search"
 export { default as SettingsIcon } from "@mui/icons-material/Settings"
@@ -70,5 +71,7 @@ export { default as ChevronLeftIcon } from "@mui/icons-material/ChevronLeft"
 export { default as ChevronRightIcon } from "@mui/icons-material/ChevronRight"
 export { default as ArrowDropDownIcon } from "@mui/icons-material/ArrowDropDown"
 export { default as ArrowDropUpIcon } from "@mui/icons-material/ArrowDropUp"
+export { default as KeyboardDoubleArrowLeftIcon } from "@mui/icons-material/KeyboardDoubleArrowLeft"
+export { default as MenuIcon } from "@mui/icons-material/Menu"
 
 export * from "./ui/button"
