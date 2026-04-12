@@ -16,10 +16,9 @@ import { signOut } from "@/lib/auth-client"
 
 type Props = {
   user: { firstName: string; lastName: string; email: string }
-  collapsed: boolean
 }
 
-export function WorkspaceUserMenu({ user, collapsed }: Props) {
+export function WorkspaceUserMenu({ user }: Props) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
 
@@ -34,7 +33,7 @@ export function WorkspaceUserMenu({ user, collapsed }: Props) {
           p: 0.75,
           borderRadius: 0.75,
           cursor: "pointer",
-          justifyContent: collapsed ? "center" : "flex-start",
+          justifyContent: "flex-start",
           "&:hover": { bgcolor: "action.hover" },
         }}
       >
@@ -48,16 +47,14 @@ export function WorkspaceUserMenu({ user, collapsed }: Props) {
         >
           {initials}
         </Avatar>
-        {collapsed ? null : (
-          <Stack spacing={0} sx={{ minWidth: 0 }}>
-            <Typography variant="body2" noWrap>
-              {user.firstName} {user.lastName}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" noWrap>
-              {user.email}
-            </Typography>
-          </Stack>
-        )}
+        <Stack spacing={0} sx={{ minWidth: 0 }}>
+          <Typography variant="body2" noWrap>
+            {user.firstName} {user.lastName}
+          </Typography>
+          <Typography variant="caption" color="text.secondary" noWrap>
+            {user.email}
+          </Typography>
+        </Stack>
       </Box>
       <Menu anchorEl={anchor} open={!!anchor} onClose={() => setAnchor(null)}>
         <MenuItem component={Link} href="/profile" onClick={() => setAnchor(null)}>
