@@ -59,5 +59,6 @@ export type {
   Block,
   SearchChat,
   SearchMessage,
+  FavoritePage,
 } from "@prisma/client"
 export default prisma

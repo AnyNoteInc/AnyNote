@@ -31,6 +31,7 @@ model User {
   blocksCreated Block[] @relation("BlockCreator")
   blocksUpdated Block[] @relation("BlockUpdater")
   searchChats   SearchChat[] @relation("SearchChatCreator")
+  favoritePages FavoritePage[]
 
   @@map("users")
 }
@@ -211,6 +212,7 @@ model Page {
   coverUrl      String?    @map("cover_url") @db.Text
   isDatabaseRow Boolean    @default(false) @map("is_database_row")
   archived      Boolean    @default(false)
+  prevPageId    String?    @unique @map("prev_page_id") @db.Uuid
   deletedAt     DateTime?  @map("deleted_at") @db.Timestamptz(6)
   createdById   String?    @map("created_by_id") @db.Uuid
   updatedById   String?    @map("updated_by_id") @db.Uuid
@@ -221,6 +223,11 @@ model Page {
   createdBy User?     @relation("PageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   updatedBy User?     @relation("PageUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
   blocks    Block[]
+  prevPage  Page?  @relation("PageOrder", fields: [prevPageId], references: [id], onDelete: SetNull)
+  nextPage  Page?  @relation("PageOrder")
+  children  Page[] @relation("PageTree")
+  parent    Page?  @relation("PageTree", fields: [parentId], references: [id], onDelete: SetNull)
+  favorites FavoritePage[]
 
   @@index([workspaceId])
   @@index([parentType, parentId])
@@ -258,12 +265,15 @@ model SearchChat {
   workspaceId String   @map("workspace_id") @db.Uuid
   createdById String   @map("created_by_id") @db.Uuid
   title       String   @default("Новый поиск")
+  parentId    String?  @map("parent_id") @db.Uuid
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   createdBy User            @relation("SearchChatCreator", fields: [createdById], references: [id], onDelete: Restrict)
   messages  SearchMessage[]
+  parent   SearchChat?  @relation("ChatTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children SearchChat[] @relation("ChatTree")
 
   @@index([workspaceId, updatedAt(sort: Desc)])
   @@map("search_chats")
@@ -281,6 +291,20 @@ model SearchMessage {
 
   @@index([chatId, createdAt])
   @@map("search_messages")
+}
+
+model FavoritePage {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  pageId    String   @map("page_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, pageId])
+  @@index([userId])
+  @@map("favorite_pages")
 }
 
 model UserPreference {
