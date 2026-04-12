@@ -19,12 +19,23 @@ import {
 import { SIDEBAR_WIDTH } from "./workspace-layout-client"
 import { SearchSidebarSection } from "./search-sidebar-section"
 
+type PageItem = {
+  id: string
+  title: string | null
+  icon: string | null
+  parentType: string
+  parentId: string | null
+  prevPageId: string | null
+  createdById: string | null
+}
+
 type Props = {
   workspace: { id: string; name: string; icon: string | null }
   planName: string
-  pages: Array<{ id: string; title: string | null; icon: string | null }>
+  pages: PageItem[]
   onHide?: () => void
   userMenu: ReactNode
+  userId: string
 }
 
 export function WorkspaceSidebar({
@@ -33,6 +44,7 @@ export function WorkspaceSidebar({
   pages,
   onHide,
   userMenu,
+  userId,
 }: Props) {
   const pathname = usePathname()
   return (

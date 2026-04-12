@@ -24,8 +24,9 @@ export default async function WorkspaceLayout({ children, params }: Props) {
     <WorkspaceLayoutClient
       workspace={{ id: workspace.id, name: workspace.name, icon: workspace.icon }}
       planName={plan.name}
-      pages={pages.map((p) => ({ id: p.id, title: p.title, icon: p.icon }))}
+      pages={pages}
       user={{
+        id: session.user.id,
         firstName: session.user.firstName,
         lastName: session.user.lastName,
         email: session.user.email,

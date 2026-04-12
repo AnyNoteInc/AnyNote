@@ -12,16 +12,26 @@ import { WorkspaceSidebar } from "./workspace-sidebar"
 import { WorkspaceToolbar } from "./workspace-toolbar"
 import { WorkspaceUserMenu } from "./workspace-user-menu"
 
+type PageItem = {
+  id: string
+  title: string | null
+  icon: string | null
+  parentType: string
+  parentId: string | null
+  prevPageId: string | null
+  createdById: string | null
+}
+
 type Props = {
   workspace: { id: string; name: string; icon: string | null }
   planName: string
-  pages: Array<{ id: string; title: string | null; icon: string | null }>
-  user: { firstName: string; lastName: string; email: string }
+  pages: PageItem[]
+  user: { id: string; firstName: string; lastName: string; email: string }
   children: ReactNode
 }
 
 const STORAGE_KEY = "workspace.sidebar.collapsed"
-export const SIDEBAR_WIDTH = 240
+export const SIDEBAR_WIDTH = 313
 
 export function WorkspaceLayoutClient({ workspace, planName, pages, user, children }: Props) {
   const [hidden, setHidden] = useState(false)
@@ -69,7 +79,7 @@ export function WorkspaceLayoutClient({ workspace, planName, pages, user, childr
 
   const userMenu = <WorkspaceUserMenu user={user} />
 
-  const sidebarProps = { workspace, planName, pages, userMenu }
+  const sidebarProps = { workspace, planName, pages, userMenu, userId: user.id }
 
   return (
     <WorkspaceShell
