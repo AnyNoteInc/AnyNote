@@ -1,6 +1,6 @@
 "use client"
 
-import type { ReactNode } from "react"
+import { type ReactNode, useMemo } from "react"
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
@@ -16,8 +16,12 @@ import {
   Typography,
 } from "@repo/ui/components"
 
-import { SIDEBAR_WIDTH } from "./workspace-layout-client"
+import { trpc } from "@/trpc/client"
+
+import { FavoritesSection } from "./favorites-section"
+import { PageTreeSection } from "./page-tree-section"
 import { SearchSidebarSection } from "./search-sidebar-section"
+import { SIDEBAR_WIDTH } from "./workspace-layout-client"
 
 type PageItem = {
   id: string
@@ -47,6 +51,11 @@ export function WorkspaceSidebar({
   userId,
 }: Props) {
   const pathname = usePathname()
+  const favorites = trpc.page.listFavorites.useQuery({ workspaceId: workspace.id })
+  const favoritePageIds = useMemo(
+    () => new Set((favorites.data ?? []).map((f) => f.id)),
+    [favorites.data],
+  )
   return (
     <Box
       component="aside"
@@ -59,6 +68,7 @@ export function WorkspaceSidebar({
         bgcolor: "background.paper",
         px: 1.25,
         py: 1.75,
+        overflow: "auto",
       }}
     >
       <Stack
@@ -110,30 +120,19 @@ export function WorkspaceSidebar({
         />
       </Stack>
 
-      <Typography
-        variant="overline"
-        sx={{ color: "text.disabled", px: 1, pt: 2, pb: 0.5, letterSpacing: "0.06em" }}
-      >
-        Страницы
-      </Typography>
-      <Stack spacing={0.25}>
-        {pages.map((page) => (
-          <NavItem
-            key={page.id}
-            icon={<span style={{ fontSize: 14 }}>{page.icon ?? "📄"}</span>}
-            label={page.title ?? "Untitled"}
-            href={`/workspaces/${workspace.id}`}
-            pathname={pathname}
-          />
-        ))}
-        <NavItem
-          icon={<span style={{ fontSize: 14 }}>＋</span>}
-          label="Новая страница"
-          href="#"
-          pathname={pathname}
-          muted
-        />
-      </Stack>
+      <FavoritesSection
+        workspaceId={workspace.id}
+        allPages={pages}
+        userId={userId}
+        favoritePageIds={favoritePageIds}
+      />
+
+      <PageTreeSection
+        workspaceId={workspace.id}
+        pages={pages}
+        userId={userId}
+        favoritePageIds={favoritePageIds}
+      />
 
       <Box sx={{ flex: 1 }} />
 
@@ -141,10 +140,9 @@ export function WorkspaceSidebar({
         <NavItem
           icon={<DeleteIcon sx={{ fontSize: 16 }} />}
           label="Корзина"
-          href="#"
-          matchPrefix="/trash"
+          href={`/workspaces/${workspace.id}/trash`}
+          matchPrefix={`/workspaces/${workspace.id}/trash`}
           pathname={pathname}
-          muted
         />
       </Box>
 
