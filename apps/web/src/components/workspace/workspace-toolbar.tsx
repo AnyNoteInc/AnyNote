@@ -65,27 +65,29 @@ export function WorkspaceToolbar({
           >
             <MenuIcon sx={{ fontSize: 20 }} />
           </IconButton>
-          <Popper
-            open={popperOpen}
-            anchorEl={anchorRef.current}
-            placement="bottom-start"
-            sx={{ zIndex: 1300 }}
-          >
-            <Paper
-              elevation={8}
-              onMouseEnter={handleMouseEnter}
-              onMouseLeave={handleMouseLeave}
-              sx={{
-                width: 240,
-                maxHeight: "calc(100vh - 80px)",
-                overflow: "auto",
-                borderRadius: 2,
-                mt: 0.5,
-              }}
+          {popperOpen ? (
+            <Popper
+              open
+              anchorEl={anchorRef.current}
+              placement="bottom-start"
+              sx={{ zIndex: 1300 }}
             >
-              {sidebarContent}
-            </Paper>
-          </Popper>
+              <Paper
+                elevation={8}
+                onMouseEnter={handleMouseEnter}
+                onMouseLeave={handleMouseLeave}
+                sx={{
+                  width: 240,
+                  maxHeight: "calc(100vh - 80px)",
+                  overflow: "auto",
+                  borderRadius: 2,
+                  mt: 0.5,
+                }}
+              >
+                {sidebarContent}
+              </Paper>
+            </Popper>
+          ) : null}
         </Box>
       ) : null}
       {breadcrumbs.map((crumb, i) => (
