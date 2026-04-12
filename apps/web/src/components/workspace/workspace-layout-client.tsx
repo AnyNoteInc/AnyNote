@@ -78,6 +78,15 @@ export function WorkspaceLayoutClient({ workspace, planName, pages, user, childr
     />
   )
 
+  const popperSidebarNode = (
+    <WorkspaceSidebar
+      workspace={workspace}
+      planName={planName}
+      pages={pages}
+      userMenu={userMenu}
+    />
+  )
+
   return (
     <WorkspaceShell
       sidebarHidden={hidden}
@@ -88,7 +97,7 @@ export function WorkspaceLayoutClient({ workspace, planName, pages, user, childr
             breadcrumbs={breadcrumbs}
             sidebarHidden={hidden}
             onOpenSidebar={() => setHidden(false)}
-            sidebarContent={sidebarNode}
+            sidebarContent={popperSidebarNode}
           />
           <Box sx={{ flex: 1, overflow: "auto" }}>{children}</Box>
         </Box>

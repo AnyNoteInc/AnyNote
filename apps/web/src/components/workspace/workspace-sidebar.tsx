@@ -22,7 +22,7 @@ type Props = {
   workspace: { id: string; name: string; icon: string | null }
   planName: string
   pages: Array<{ id: string; title: string | null; icon: string | null }>
-  onHide: () => void
+  onHide?: () => void
   userMenu: ReactNode
 }
 
@@ -76,11 +76,13 @@ export function WorkspaceSidebar({
             {planName} plan
           </Typography>
         </Stack>
-        <Tooltip title="Скрыть" placement="right">
-          <IconButton size="small" onClick={onHide} sx={{ flexShrink: 0 }}>
-            <KeyboardDoubleArrowLeftIcon sx={{ fontSize: 16 }} />
-          </IconButton>
-        </Tooltip>
+        {onHide ? (
+          <Tooltip title="Скрыть" placement="right">
+            <IconButton size="small" onClick={onHide} sx={{ flexShrink: 0 }}>
+              <KeyboardDoubleArrowLeftIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
+        ) : null}
       </Stack>
 
       <Stack spacing={0.25} sx={{ py: 0.75 }}>
