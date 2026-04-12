@@ -38,6 +38,14 @@ export const searchRouter = router({
         where: { workspaceId: input.workspaceId },
         orderBy: { updatedAt: "desc" },
         take: 50,
+        select: {
+          id: true,
+          title: true,
+          parentId: true,
+          updatedAt: true,
+          createdAt: true,
+          createdById: true,
+        },
       })
     }),
 
@@ -53,13 +61,17 @@ export const searchRouter = router({
     }),
 
   createChat: protectedProcedure
-    .input(z.object({ workspaceId: z.string().uuid() }))
+    .input(z.object({ workspaceId: z.string().uuid(), parentId: z.string().uuid().optional() }))
     .mutation(async ({ ctx, input }) => {
       await assertWorkspaceMember(ctx, input.workspaceId)
+      if (input.parentId) {
+        await assertChatAccess(ctx, input.parentId)
+      }
       return ctx.prisma.searchChat.create({
         data: {
           workspaceId: input.workspaceId,
           createdById: ctx.user.id,
+          parentId: input.parentId ?? null,
         },
       })
     }),
