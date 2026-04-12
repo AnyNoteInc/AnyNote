@@ -397,4 +397,203 @@ export const pageRouter = router({
         },
       })
     }),
+
+  move: protectedProcedure
+    .input(
+      z.object({
+        pageId: z.string().uuid(),
+        newParentId: z.string().uuid().nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const page = await assertPageAccess(ctx, input.pageId)
+
+      // Check ownership: must be creator or workspace OWNER
+      await assertPageOwnership(ctx, input.pageId, page.workspaceId)
+
+      return ctx.prisma.$transaction(async (tx) => {
+        // 1. Remove from old linked-list
+        const nextSibling = await tx.page.findFirst({
+          where: { prevPageId: page.id, deletedAt: null },
+        })
+        if (nextSibling) {
+          await tx.page.update({
+            where: { id: nextSibling.id },
+            data: { prevPageId: page.prevPageId },
+          })
+        }
+
+        // 2. Prevent moving into own descendant
+        if (input.newParentId) {
+          let currentId: string | null = input.newParentId
+          while (currentId) {
+            if (currentId === input.pageId) {
+              throw new TRPCError({
+                code: "BAD_REQUEST",
+                message: "Невозможно переместить страницу в собственного потомка",
+              })
+            }
+            const ancestor: { parentId: string | null; parentType: string } | null =
+              await tx.page.findFirst({
+                where: { id: currentId, deletedAt: null },
+                select: { parentId: true, parentType: true },
+              })
+            currentId = ancestor?.parentType === "PAGE" ? ancestor.parentId : null
+          }
+        }
+
+        // 3. Set new parentType/parentId
+        const newParentType = input.newParentId ? "PAGE" : "WORKSPACE"
+        await tx.page.update({
+          where: { id: page.id },
+          data: {
+            parentType: newParentType,
+            parentId: input.newParentId,
+            prevPageId: null,
+            updatedById: ctx.user.id,
+          },
+        })
+
+        // 4. Insert at head of new parent's linked-list
+        const existingFirst = await tx.page.findFirst({
+          where: {
+            workspaceId: page.workspaceId,
+            parentType: newParentType,
+            parentId: input.newParentId,
+            prevPageId: null,
+            id: { not: page.id },
+            deletedAt: null,
+          },
+        })
+        if (existingFirst) {
+          await tx.page.update({
+            where: { id: existingFirst.id },
+            data: { prevPageId: page.id },
+          })
+        }
+
+        return { id: page.id }
+      })
+    }),
+
+  duplicate: protectedProcedure
+    .input(z.object({ pageId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const page = await assertPageAccess(ctx, input.pageId)
+
+      return ctx.prisma.$transaction(async (tx) => {
+        // 1. Create copy with same parent
+        const copy = await tx.page.create({
+          data: {
+            workspaceId: page.workspaceId,
+            parentType: page.parentType,
+            parentId: page.parentId,
+            title: `${page.title ?? ""} (копия)`.trim(),
+            icon: page.icon,
+            prevPageId: page.id,
+            createdById: ctx.user.id,
+            updatedById: ctx.user.id,
+          },
+        })
+
+        // 2. Rewire linked-list: old next sibling now points to copy
+        const oldNext = await tx.page.findFirst({
+          where: { prevPageId: page.id, id: { not: copy.id }, deletedAt: null },
+        })
+        if (oldNext) {
+          await tx.page.update({
+            where: { id: oldNext.id },
+            data: { prevPageId: copy.id },
+          })
+        }
+
+        // 3. Copy all non-archived blocks from the original page
+        const blocks = await tx.block.findMany({
+          where: { pageId: page.id, archivedAt: null },
+        })
+        if (blocks.length > 0) {
+          // Build old-id -> new-id mapping
+          const idMap = new Map<string, string>()
+          // We need to create blocks preserving parent/prev relationships
+          // First pass: create all blocks with new IDs (let DB generate them)
+          for (const block of blocks) {
+            const newBlock = await tx.block.create({
+              data: {
+                type: block.type,
+                pageId: copy.id,
+                parentBlockId: null,
+                prevBlockId: null,
+                content: block.content ?? {},
+                createdById: ctx.user.id,
+                updatedById: ctx.user.id,
+              },
+            })
+            idMap.set(block.id, newBlock.id)
+          }
+          // Second pass: fix parent/prev references
+          for (const block of blocks) {
+            const newId = idMap.get(block.id)!
+            const newParentBlockId = block.parentBlockId ? (idMap.get(block.parentBlockId) ?? null) : null
+            const newPrevBlockId = block.prevBlockId ? (idMap.get(block.prevBlockId) ?? null) : null
+            if (newParentBlockId || newPrevBlockId) {
+              await tx.block.update({
+                where: { id: newId },
+                data: { parentBlockId: newParentBlockId, prevBlockId: newPrevBlockId },
+              })
+            }
+          }
+        }
+
+        return copy
+      })
+    }),
+
+  addFavorite: protectedProcedure
+    .input(z.object({ pageId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await assertPageAccess(ctx, input.pageId)
+      return ctx.prisma.favoritePage.upsert({
+        where: { userId_pageId: { userId: ctx.user.id, pageId: input.pageId } },
+        create: { userId: ctx.user.id, pageId: input.pageId },
+        update: {},
+      })
+    }),
+
+  removeFavorite: protectedProcedure
+    .input(z.object({ pageId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await assertPageAccess(ctx, input.pageId)
+      await ctx.prisma.favoritePage.deleteMany({
+        where: { userId: ctx.user.id, pageId: input.pageId },
+      })
+      return { pageId: input.pageId }
+    }),
+
+  listFavorites: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertWorkspaceMember(ctx, input.workspaceId)
+      const favorites = await ctx.prisma.favoritePage.findMany({
+        where: {
+          userId: ctx.user.id,
+          page: {
+            workspaceId: input.workspaceId,
+            deletedAt: null,
+          },
+        },
+        include: {
+          page: {
+            select: {
+              id: true,
+              title: true,
+              icon: true,
+              parentId: true,
+              parentType: true,
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      })
+      return favorites.map((f) => f.page)
+    }),
 })

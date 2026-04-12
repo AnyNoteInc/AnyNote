@@ -5,13 +5,13 @@ import { useState, type PropsWithChildren } from "react"
 import { QueryClientProvider } from "@tanstack/react-query"
 import { ReactQueryDevtools } from "@tanstack/react-query-devtools"
 import { httpBatchLink } from "@trpc/client"
-import { createTRPCReact } from "@trpc/react-query"
+import { type CreateTRPCReact, createTRPCReact } from "@trpc/react-query"
 
 import type { AppRouter } from "@repo/trpc"
 
 import { getQueryClient } from "./query-client"
 
-export const trpc = createTRPCReact<AppRouter>()
+export const trpc: CreateTRPCReact<AppRouter, unknown> = createTRPCReact<AppRouter>()
 
 function getBaseUrl() {
   if (typeof window !== "undefined") {
