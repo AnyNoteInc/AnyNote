@@ -22,13 +22,12 @@ import {
   SearchIcon,
   Stack,
   TextField,
-  Tooltip,
   Typography,
 } from "@repo/ui/components"
 
 import { trpc } from "@/trpc/client"
 
-type Props = { workspaceId: string; collapsed: boolean }
+type Props = { workspaceId: string }
 
 type ChatItem = { id: string; title: string | null }
 
@@ -193,7 +192,7 @@ function ChatListItem({ chat, workspaceId }: { chat: ChatItem; workspaceId: stri
   )
 }
 
-export function SearchSidebarSection({ workspaceId, collapsed }: Props) {
+export function SearchSidebarSection({ workspaceId }: Props) {
   const [open, setOpen] = useState(true)
   const router = useRouter()
   const utils = trpc.useUtils()
@@ -204,26 +203,6 @@ export function SearchSidebarSection({ workspaceId, collapsed }: Props) {
       router.push(`/workspaces/${workspaceId}/search/${data.id}`)
     },
   })
-
-  if (collapsed) {
-    return (
-      <Tooltip title="Поиск" placement="right">
-        <Link href={`/workspaces/${workspaceId}/search`} style={{ textDecoration: "none" }}>
-          <Box
-            sx={{
-              display: "flex",
-              justifyContent: "center",
-              py: 0.75,
-              color: "text.secondary",
-              "&:hover": { color: "text.primary" },
-            }}
-          >
-            <SearchIcon sx={{ fontSize: 18 }} />
-          </Box>
-        </Link>
-      </Tooltip>
-    )
-  }
 
   return (
     <Box>
