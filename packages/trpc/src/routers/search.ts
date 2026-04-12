@@ -96,6 +96,16 @@ export const searchRouter = router({
       })
     }),
 
+  renameChat: protectedProcedure
+    .input(z.object({ chatId: z.string().uuid(), title: z.string().min(1).max(48) }))
+    .mutation(async ({ ctx, input }) => {
+      await assertChatAccess(ctx, input.chatId)
+      return ctx.prisma.searchChat.update({
+        where: { id: input.chatId },
+        data: { title: input.title },
+      })
+    }),
+
   deleteChat: protectedProcedure
     .input(z.object({ chatId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {

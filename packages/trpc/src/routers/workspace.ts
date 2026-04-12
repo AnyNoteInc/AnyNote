@@ -105,7 +105,6 @@ export const workspaceRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await assertRole(ctx, input.id, ["OWNER", "ADMIN"])
-      await assertPaidPlan(ctx)
       return ctx.prisma.workspace.update({
         where: { id: input.id },
         data: { name: input.name, icon: input.icon },
@@ -123,6 +122,15 @@ export const workspaceRouter = router({
         },
         orderBy: { createdAt: "asc" },
       })
+    }),
+
+  getMyRole: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const member = await ctx.prisma.workspaceMember.findUnique({
+        where: { workspaceId_userId: { workspaceId: input.workspaceId, userId: ctx.user.id } },
+      })
+      return member?.role ?? null
     }),
 
   inviteMember: protectedProcedure
@@ -177,7 +185,6 @@ export const workspaceRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       await assertRole(ctx, input.id, ["OWNER"])
-      await assertPaidPlan(ctx)
       await ctx.prisma.workspace.delete({ where: { id: input.id } })
       return { ok: true }
     }),

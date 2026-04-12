@@ -37,4 +37,38 @@ export { default as MenuItem, type MenuItemProps } from "@mui/material/MenuItem"
 export { ThemeProvider } from "@mui/material/styles"
 export { default as CssBaseline } from "@mui/material/CssBaseline"
 
+export { default as Dialog, type DialogProps } from "@mui/material/Dialog"
+export { default as DialogTitle, type DialogTitleProps } from "@mui/material/DialogTitle"
+export {
+  default as DialogContent,
+  type DialogContentProps,
+} from "@mui/material/DialogContent"
+export {
+  default as DialogContentText,
+  type DialogContentTextProps,
+} from "@mui/material/DialogContentText"
+export {
+  default as DialogActions,
+  type DialogActionsProps,
+} from "@mui/material/DialogActions"
+export {
+  default as InputAdornment,
+  type InputAdornmentProps,
+} from "@mui/material/InputAdornment"
+
+export { default as SearchIcon } from "@mui/icons-material/Search"
+export { default as SettingsIcon } from "@mui/icons-material/Settings"
+export { default as DeleteIcon } from "@mui/icons-material/Delete"
+export { default as ArrowUpwardIcon } from "@mui/icons-material/ArrowUpward"
+export { default as LeakAddIcon } from "@mui/icons-material/LeakAdd"
+export { default as PersonIcon } from "@mui/icons-material/Person"
+export { default as PaymentIcon } from "@mui/icons-material/Payment"
+export { default as AddIcon } from "@mui/icons-material/Add"
+export { default as MoreHorizIcon } from "@mui/icons-material/MoreHoriz"
+export { default as DriveFileRenameOutlineIcon } from "@mui/icons-material/DriveFileRenameOutline"
+export { default as ChevronLeftIcon } from "@mui/icons-material/ChevronLeft"
+export { default as ChevronRightIcon } from "@mui/icons-material/ChevronRight"
+export { default as ArrowDropDownIcon } from "@mui/icons-material/ArrowDropDown"
+export { default as ArrowDropUpIcon } from "@mui/icons-material/ArrowDropUp"
+
 export * from "./ui/button"

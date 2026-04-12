@@ -1,499 +1,716 @@
----
-Я хочу написать программное SaaS веб приложение наподобии Notion или obsidion, приложение должно предоставлять следующий фукнционал
-- имеет современный дизайн с возможность создавать разделы и в разделы помещать тектовую информацию в md формате
-- можно загружать различные медиа файлы, картинки, звук, текст, пдф и другие
-- каждая страница должна представлять собой md файл который визуализируется ровно так, как это устроено в notion или obsidion
-- сайт имеет авторизацию через yandex или через логин и пароль
-	- /sign-in - для входа
-	- /sign-out - для выхода из системы
-	- /registration - для регистрации
-- на главное страницы должна быть современный продающий дизайн, призывающий совершить покупку, и содержать следующие разделы
-	- почему стоит использовать, сравнение с Notion
-	- перечислены основные преимущества системы
-		- на основе сравнения с obsidion & notion
-	- инсталация предоставляется как SaaS так и On-Prem, привести плюсы и минусы
-	- тарифы
-		- free
-		- персональный
-		- корпоративный
-- сделай две темы для сайта, а именно темную и светлую
-- по сайту должен быть удобный поиск с rag (выбери на оснвое анализа векторную базу данных для хранения)
-- есть возможность поделиться документов для внешней аудитории
-- сделай возмонжость задания промптов, которые прогоняются над загружаемыми текстовыми документами
-- визуализацию блоков должна быть как у Notion, сделай осмотр реакт библиотек
-
-Для реализации используй следующие технологии:
-- монорепа, которая оркестрируется turbo.repo https://turborepo.dev/docs/guides/frameworks/nextjs
-- основное ядро приложения должно быть написано на NextJS 16/react 19+
-- для базы данных используй postgers и в качестве драйвера для работы prisma https://www.prisma.io
-- для UI используй MUI https://mui.com
-- для взаимодействия фронта с клиентов используй trpc
-- rag можно сделать на основе векторной базы данных, сделай анализ и выбере
-- для серверной части и взаимодействия можно выбрать python (для анализа данных), общение с python должно происходить по restapi контрактам
-
-Напиши подрбный план, сделай шаги по которым мы будем формировать это приложение
----
+Вот сжатая версия твоего MD-документа без потери ключевого смысла и требований — убрал дубли, упростил формулировки и оставил только важное 👇
 
 ---
 
-Это амбициозный и технически сложный проект. Создание аналога Notion — это не просто разработка редактора, а построение полноценной платформы для управления знаниями.
-Для реализации такого проекта я предлагаю разбить разработку на 6 этапов. Мы будем использовать подход Monorepo (Turborepo), что позволит нам легко
-масштабировать проект, разделяя UI-компонентеы, логику и сами приложения.
+# Project Plan: AnyType (Notion-like SaaS)
+
+## Overview
+
+Разработка SaaS-приложения для управления знаниями (аналог Notion / Obsidian):
+
+* Markdown-редактор (block-based, как Notion)
+* Работа с медиа (изображения, аудио, PDF и др.)
+* Документы как md-страницы
+* Авторизация (Yandex + email/password)
+* Публичный доступ к документам
+* AI-функции (RAG + prompt processing)
+* Поиск по контенту
+* Темы: light / dark
 
 ---
 
-Архитектура проекта (Monorepo)
+## Tech Stack
 
-- apps/web: Основное приложение на Next.js (редактор, дашборд, пользовательские интерфейсы).
-- apps/marketing: Лендинг (на Next.js или Astro) для продвижения продукта.
-- packages/ui: Библиотека общих компонентов (Material UI / Radix UI) для обеспечения единства дизайна.
-- packages/config: Общие конфигурации (ESLint, Prettier, Tailwind, TypeScript).
-  my-notion-clone/
-  ├── apps/
-  │ ├── web/ (Next.js - core app)
-  │ └── marketing/ (Next.js/Astro - landing page)
-  ├── packages/
-  │ ├── ui/ (Shared UI components)
-  │ ├── eslint-config/
-  │ └── typescript-config/
-  ├── turbo.json
-  └── package.json
+* **Frontend**: Next.js 16 + React 19 + MUI + tRPC
+* **Backend (AI)**: Python (REST)
+* **DB**: PostgreSQL + Prisma
+* **Vector DB**: Weaviate
+* **Storage**: S3 (MinIO)
+* **Cache**: Redis
+* **LLM**: Ollama (gemma4)
+* **Monorepo**: Turborepo
 
 ---
 
-План разработки
+## Monorepo Structure
 
-Этап 1: Фундамент и Инфраструктура (Infrastructure)
+```
+apps/
+  web/        # основное приложение (включая лендинг)
 
-Цель: Настроить рабочую среду и развернуть базу данных.
+packages/
+  ui/         # MUI компоненты
+  auth/       # авторизация
+  db/         # Prisma
 
-1. Инициализация Monorepo: Настройка Turborepo, TypeScript, ESLint.
-2. Настройка Базы Данных: Развертывание PostgreSQL (например, через Supabase или Neon) и Prisma ORM для типизированного доступа к данным.
-3. Настройка Хранилища: Настройка S3-совместимого хранилища (AWS S3, R2 или Supabase Storage) для загрузки файлов и изображений.
-4. Настройка Auth: Интеграция NextAuth.js или Supabase Auth (поддержка OAuth для Yandex/Google и Email/Password).
-
-Этап 2: Базовый интерфейс и Пользовательский опыт (Core UI & Auth)
-
-Цель: Реализовать вход в систему и базовую навигацию.
-
-1. Разработка UI Kit: Создание базовых компонентов (кнопки, инпуты, модалки) в packages/ui.
-2. Реализация Auth Flow: Страницы регистрации, входа, восстановления пароля.
-3. Dashboard: Создание боковой панели (Sidebar) со списком документов и папок.
-4. Layouts: Создание адаптивной верстки (Mobile/Desktop).
-
-Этап 3: Сердце системы — Редактор (The Editor Engine)
-
-Цель: Создать функциональный блокнотный редактор.
-
-1. Выбор движка редактора: Использование TipTap или Slate.js (наилучшие варианты для создания "block-based" опыта, как в Notion).
-2. Block-based architecture: Реализация концепции блоков (текст, заголовок, список, чекбокс).
-3. Markdown support: Поддерка ввода через Markdown синтаксис.
-4. Slash Commands: Реализация меню, вызываемого через / (как в Notion).
-5. Image/File Drag-and-Drop: Возможность перетаскивать файлы прямо в редактор.
-
-Этап 4: Управление данными и файлами (Data & File Management)
-
-Цель: Реализовать полноценную работу с контентом.
-
-1. CRUD операций: Создание, чтение, обновление и удаление страниц/документов.
-2. Система папок: Иерархическая структура документов.
-
-- Auto-save: Реализация механизма автоматического сохранения изменений (Optimistic UI).
-
-3. File Upload System: Обработка загрузки изображений и документов с привязкой к конкретной странице.
-
-Этап 5: Интеллектуальные функции — AI & RAG (The "Magic" Layer)
-
-Цель: Добавить уникальную ценность с помощью ИИ.
-
-1. Интеграция LLM: Подключение OpenAI API (GPT-4) или Anthcp (Claude) для генерации/редактирования текста.
-2. Внедрение RAG (Retrieation Augmented Generation):- Embeddings: Создание векторных представлений (embeddings) для всех документов пользователя.
-   - Vector Database: Использование Pinecone, Weaviate или pgvector (в PostgreSQL) для хранения векторов.- Semantic Search: Возможно_ть задавать вопросы по своим документам ("Что я писал про проект X месяц назад?").
-3. AI Features: Кнопки "Summarize", "Fix Grammar", "Translate".
-
-Этап 6: Маркетинг, Оптимизация и Релиз (Production Ready)
-
-Цель: Подготовка продукта к реальным пользователям.
-
-1. Landing Page: Разработка продающего лендинга в apps/marketing с описанием функций и ценовым планом.
-2. SEO & Performance: Настройка SSR/SSG в Next.js, оптимизация Core Web Vents.
-3. CI/CD: Настройка GitHub Actions для автоматического тестирования и деплоя (Vercel/Docker).
-4. Analytics: Подключение мониторинга ошибок (Sentry) и аналитики (PostHog).
+infra/
+  docker-compose.yml
+```
 
 ---
 
-Технологический стек (Итоговый)
+## Infrastructure (docker-compose)
 
-- Language: TypeScript
-- Framework: Next.js (App Router)
-- Monorepo Tool: Turborepo
-- Database: PostgreSQL + Prisma + pgvector
-- Auth: NextAuth.js / Supabase Auth
-- Editor: TipTap (Block-based)
-- UI: Tailwind CSS + Radix UI / Shadcn UI
-- AI: OpenAI API / LangChain (для RAG)
-- Storage: AWS S3 / Cloudflare R2
+Сервисы:
 
----
+* postgres
+* minio
+* weaviate
+* ollama
+* redis
 
-# Project Plan: AnyType (SaaS Knowledge Management System)
-
-## Project Overview
-
-Creation of a high-performance, block-based knowledge management SaaS (similar to Notion or Obsidian) with AI-powered features (RAG) and multi-tenancy support.
-
-## Architecture: Monorepo (Turborepo)
-
-- `apps/web`: Core application (Next.js, Editor, Dashboard, Auth).
-- `apps/marketing`: Landing page and marketing site (Next.js/Astro).
-- `packages/ui`: Shared UI library (MUI/Radix).
-- `packages/config`: Shared configurations (ESLint, TypeScript, etc.).
-
-## Development Phases
-
-### Phase 1: Infrastructure & Foundation
-
-- [ ] Initialize Turborepo monorepo.
-- [ ] Setup PostgreSQL with Prisma ORM.
-- [ ] Configure S3-compatible storage (AWS S3/R2) for media.
-- [ ] Implement Authentication (NextAuth.js/Supabase) with Yandex/Email/Password support.
-- [ ] Setup CI/CD pipelines.
-
-### Phase 2: Core UI & User Experience
-
-- [ ] Develop shared UI component library in `packages/ui`.
-- [ ] Implement Dashboard layout with sidebar and document navigation.
-- [ ] Create Authentication flows (Sign-in, Sign-up, Sign-out).
-- [ ] Implement Dark/Light mode support.
-
-### Phase 3: The Editor Engine (Block-based)
-
-- [ ] Integrate Block-based editor engine (TipTap or Slate.js).
-- [ ] Implement Markdown support and Slash commands (`/` menu).
-- [ ] Build Block types: Text, Headers, Checklists, Lists.
-- [ ] Implement Media embedding (Images, PDFs, Audio) via Drag-and-Drop.
-
-### Phase 4: Data & Document Management
-
-- [ ] Implement CRUD operations for pages and folders.
-- [ ] Implement hierarchical document structure (nested pages).
-- [ ] Implement Auto-save mechanism with Optimistic UI.
-- [ ] Implement Public Sharing feature for external audiences.
-
-### Phase 5: AI & RAG Implementation
-
-- [ ] Integrate LLM (OpenAI/Anthropic) for text processing.
-
-- [_] Setup Vector Database (pgvector/Pinecone) for semantic search.
-
-- [ ] Implement Embeddings pipeline for document indexing.
-- [ ] Create AI Prompt features (Summarize, Rewrite, etc.) on top of documents.
-- [ ] Implement Semantic Search functionality (RAG).
-
-### Phase 6: Marketing & Production Readiness
-
-- [ ] Develop high-converting Landing Page (`apps/marketing`).
-- [ ] Implement Pricing tiers (Free, Personal, Enterprise).
-- [ ] Setup SaaS/On-Prem deployment strategies.
-- [ ] Implement error monitoring (Sentry) and analytics (PostHog).
+→ все с healthchecks
 
 ---
 
-Теперь давай определим технологии для хранения данных и создадим файл compose.yml
+## Core Features
 
-- postgres - для хранения данных
-- minio - контейнер S3 совместимы для хранения медиа файлов
-- weaviate.io - векторная база данных для хранения векторов
-- ollama - для инференса llm моделей и внутри инициализация gemma4
-- redis - для key value хранения
+### Auth
 
-для всех контейнеров добавь hea
-
-собери compose.yml и запусти, проверь работоспособность
+* `/sign-in`
+* `/registration`
+* `/sign-out`
 
 ---
 
-Изучи проект /Users/victor/Projects/Pet/speech-insight
+### Documents
 
-- обнови package.json, дополни пакеты из проекта speech-insight
-- перенеси все модули из проекта packages в speech-insight в этот проект и выполни команды
-  - turbo run lin
-  - prettier --write \"/\*.{ts,tsx,md}\"\*\*
-  - turbo run check-types
-
-проверь работоспособность приложения используя команду turbo run dev
-
----
-
-Сделай работу по плану
-
-I have explored the speech-insight packages to understand how they can be integrated into anynote. Here is a summary of the key findings:
-
-1. packages/auth
-
-- Purpose: Handles authentication logic using better-auth.
-- Key Files: src/auth.ts (core logic), src/index.ts (exports), src/utils.ts.
-- Dependencies: better-auth, @repo/db, @repo/eslint-config, @repo/typescript-config.
-- Integration Note: Relies on the db package for session/user storage. Needs careful integration with anynote's database setup.
-
-2. packages/db
-
-- Purpose: Database schema and client management using Prisma.
-- Key Files: prisma/schema.prisma (schema definition), src/index.ts (client export).
-- Dependencies: @prisma/client, @prisma/adapter-pg, dotenv.
-- Integration Note: Uses PostgreSQL. We will need to merge the Prisma schema and ensure migrations are handled correctly in anynote.
-
-  likely action items:\*\*
-
-- auth: Port the auth logic, ensuring it works with the new environment.
-- db: Migrate the schema and handle migration scripts.
-- ui/ui components: Adapt any necessary auth-related UI components.
-
-claude --resume 37b58423-8589-41d8-9221-0b7546726c0e
+* Block-based editor (TipTap)
+* Markdown поддержка
+* Drag & Drop медиа
+* Автосохранение
+* Иерархия страниц
+* Публичный доступ
 
 ---
 
-- удали сайт apps/marketing и его клавную страницу перенеси в сайт apps/web пока нет смысла делать два сайта сделаем один
-- выполни с помощью prisma миграцию в postges, которая находится в compose.yml
-- с помощью playwright агента проверь, что все работает и работает авторизация
-- главную страницу сделай с общим шрифтом и сделай ее на современный манер
+### AI / RAG
 
-для главной страницы используй вот эту инструкцию
-
-This skill guides creation of distinctive, production-grade frontend interfaces that avoid generic "AI slop" aesthetics. Implement real working code with exceptional attention to aesthetic details and creative choices.
-
-The user provides frontend requirements: a component, page, application, or interface to build. They may include context about the purpose, audience, or technical constraints.
-
-Design Thinking
-
-Before coding, understand the context and commit to a BOLD aesthetic direction:
-
-Purpose: What problem does this interface solve? Who uses it?
-
-Tone: Pick an extreme: brutally minimal, maximalist chaos, retro-futuristic, organic/natural, luxury/refined, playful/toy-like, editorial/magazine, brutalist/raw, art deco/geometric, soft/pastel, industrial/utilitarian, etc. There are so many flavors to choose from. Use these for inspiration but design one that is true to the aesthetic direction.
-
-Constraints: Technical requirements (framework, performance, accessibility).
-
-Differentiation: What makes this UNFORGETTABLE? What's the one thing someone will remember?
-
-CRITICAL: Choose a clear conceptual direction and execute it with precision. Bold maximalism and refined minimalism both work - the key is intentionality, not intensity.
-
-Then implement working code (HTML/CSS/JS, React, Vue, etc.) that is:
-
-Production-grade and functional
-
-Visually striking and memorable
-
-Cohesive with a clear aesthetic point-of-view
-
-Meticulously refined in every detail
-
-Frontend Aesthetics Guidelines
-
-Focus on:
-
-Typography: Choose fonts that are beautiful, unique, and interesting. Avoid generic fonts like Arial and Inter; opt instead for distinctive choices that elevate the frontend's aesthetics; unexpected, characterful font choices. Pair a distinctive display font with a refined body font.
-
-Color & Theme: Commit to a cohesive aesthetic. Use CSS variables for consistency. Dominant colors with sharp accents outperform timid, evenly-distributed palettes.
-
-Motion: Use animations for effects and micro-interactions. Prioritize CSS-only solutions for HTML. Use Motion library for React when available. Focus on high-impact moments: one well-orchestrated page load with staggered reveals (animation-delay) creates more delight than scattered micro-interactions. Use scroll-triggering and hover states that surprise.
-
-Spatial Composition: Unexpected layouts. Asymmetry. Overlap. Diagonal flow. Grid-breaking elements. Generous negative space OR controlled density.
-
-Backgrounds & Visual Details: Create atmosphere and depth rather than defaulting to solid colors. Add contextual effects and textures that match the overall aesthetic. Apply creative forms like gradient meshes, noise textures, geometric patterns, layered transparencies, dramatic shadows, decorative borders, custom cursors, and grain overlays.
-
-NEVER use generic AI-generated aesthetics like overused font families (Inter, Roboto, Arial, system fonts), cliched color schemes (particularly purple gradients on white backgrounds), predictable layouts and component patterns, and cookie-cutter design that lacks context-specific character.
-
-Interpret creatively and make unexpected choices that feel genuinely designed for the context. No design should be the same. Vary between light and dark themes, different fonts, different aesthetics. NEVER converge on common choices (Space Grotesk, for example) across generations.
-
-IMPORTANT: Match implementation complexity to the aesthetic vision. Maximalist designs need elaborate code with extensive animations and effects. Minimalist or refined designs need restraint, precision, and careful attention to spacing, typography, and subtle details. Elegance comes from executing the vision well.
-
-Remember: Claude is capable of extraordinary creative work. Don't hold back, show what can truly be created when thinking outside the box and committing fully to a distinctive vision.
+* Embeddings документов
+* Векторное хранение (Weaviate)
+* Семантический поиск
+* Prompt execution на документах
 
 ---
 
-## Главная страница
+### Search
 
-Я хочу написать программное SaaS веб приложение наподобии Notion или obsidion, приложение должно предоставлять следующий фукнционал
+* Глобальный поиск (как ChatGPT)
+* `/workspaces/{id}/search`
 
-- имеет современный дизайн с возможность создавать разделы и в разделы помещать тектовую информацию в md формате
-- можно загружать различные медиа файлы, картинки, звук, текст, пдф и другие
-- каждая страница должна представлять собой md файл который визуализируется ровно так, как это устроено в notion или obsidion
-- сайт имеет авторизацию через yandex или через логин и пароль
-  - /sign-in - для входа
-  - /sign-out - для выхода из системы
-  - /registration - для регистрации
-- на главное страницы должна быть современный продающий дизайн, призывающий совершить покупку, и содержать следующие разделы
-  - почему стоит использовать, сравнение с Notion
-  - перечислены основные преимущества системы
-    - на основе сравнения с obsidion & notion
-  - инсталация предоставляется как SaaS так и On-Prem, привести плюсы и минусы
-  - тарифы
-    - free
-    - персональный
-    - корпоративный
-- сделай две темы для сайта, а именно темную и светлую
-- по сайту должен быть удобный поиск с rag (выбери на оснвое анализа векторную базу данных для хранения)
-- есть возможность поделиться документов для внешней аудитории
-- сделай возмонжость задания промптов, которые прогоняются над загружаемыми текстовыми документами
-- визуализацию блоков должна быть как у Notion, сделай осмотр реакт библиотек
-  главная страница совершенно ужасная, используя скилл .codex/skills/frontend-design сделай бомбическую главную страницу
-- продающую секцию, характеризующую самые крутые возможности
-- почему вы должны купить нас прямо сейчас
-- тарифы
+---
 
-используй для референса сайт https://yonote.ru только сделай на современный лад
+## UI / UX
 
-## Подвал
+### Темы
 
-Давай добавим подвал в приложени, отделим его чертой в лучших традициях дизайна, там сделаем вот такие блоки
+* Light / Dark
+* Управление через settings
 
-Продукт
+---
 
-Интеграции
+### Главная страница (Landing)
 
-- [Документация](/docs)
-- [Цены](/pricing)
-- [Для разработчиков](/developers)
+Современный продающий дизайн:
 
-Сообщество
+* сравнение с Notion / Obsidian
+* преимущества
+* SaaS vs On-Prem
+* тарифы:
 
-- [Контакты](/contact)
-- [Наши планы](/roadmap)
+  * Free
+  * Personal
+  * Corporate
+* CTA: “купить сейчас”
 
-Компания
+---
 
-- [Политика конфиденциальности](/privacy)
-- [Пользовательское соглашение](/terms)
-- [Договор-оферта](/offer)
+### Footer
 
-Для каждого раздела создай страницу в гурппе маршрутов (about),
-на странице Документация сделай надпись тут скоро будет документация
-на странице Цены сделай три тарифа с гланвой страницы, free, персональный и компания
-на странице Для разработчиков найди самые популярные в россии интеграции и добавь их туда
+Разделы:
 
-- yandex
-- AmoCRM
-- bitrix24
-- MangoOffice телефония
-  на странице контактов сделай форму для заказа, там имя, email и телефон и кнопку отправить, пока что пусть пишет в консоль
-  на странице наших планов реализуй роудмап
-- Запуск редактора текста
-- AI умный поиск на RAG
-- Интеграция с AmoCRM
-- Интеграция с bitrix24
-- Интеграция с MangoOffice телефонией
-  на странице Политика конфиденциальности напиши самое обычное пользовательское соглашение для подобных сайтов скачай с сайта и адаптируй
-  на странице Пользовательское соглашение сделай самое обычное пользовательское соглашение скачай с сайта и адаптируй https://yonote.ru/terms
-  на странице Договор-оферта сделай https://yonote.ru/offer скачай с сайта и адапатируй
+* Продукт (docs, pricing, developers)
+* Сообщество (contact, roadmap)
+* Компания (privacy, terms, offer)
 
-При реализации используй компоненты MUI взятые из packages/ui реэкспортированные из mui
+---
 
-После проверь, что все работает pnpm run dev и получи страницу
+## Pages
 
-# База данных
+### About (routes group)
 
-### Общее описание
+* `/docs` → "Скоро будет документация"
+* `/pricing` → тарифы
+* `/developers` → интеграции:
 
-Теперь приступаем к написанию развитию базы данных. Ознакомься со структурой проекта по файлу MEMERY.md, изучи структуру проекта и технологии.
-Прочитай файл docs/database.md, мы должны сделать такую же структуру как в notion или obsidion. Выполни следующие действия
+  * Yandex
+  * AmoCRM
+  * Bitrix24
+  * MangoOffice
+* `/contact` → форма (console.log)
+* `/roadmap`:
 
-- прочитай и изучи файл packages/db/prisma/schema.prisma
-- смерджи этот файл с таблицой описанной в docs/database.md
-- также нужно добавить таблицу с интеграцийми, к которым может подклчюаться пользователь
-- также нужно добавить таблицу с покупками тарифных планов, их три free, personal & corporate
-- подготовь миграцию и выполни миграции
+  * редактор
+  * RAG поиск
+  * интеграции
+* `/privacy`, `/terms`, `/offer` → адаптированные тексты
 
-После этого создай группу путей по (settings) добавь туда следующие страницы, на страницы слева должно быть навигационной меню, в справа страницы
+---
 
-- Общее - страница где можно поменять аватар и настройки уведомлений, а также выбор темы светлая или темная
-- Аккаунт - страница с кнопкой выхода из система и таблица с активными сессиями
-- Оплата - где выводится текущий тариф, привязанный к пользователю и история купленных тарифов
-- Интеграции - страница с интеграциями, пока выыведи интеграции с yandex, github, telegram, AmoCRM, MangoOffice
+## Settings (route group)
 
-После этого создай группу (workspaces)
+* **General**
 
-- если workspace по умолчанию нет, то переходим на страницу workspaces/new для создания нового пространства
-- если пространство есть выбирается оно или то, которое установлено по умолчанию
-- на бесплатном тарифе можно создать только одно пространство
-- внутри workspaces/ нужно сделать старницу
-  Создай веб-приложение с интерфейсом в стиле Notion onboarding page в темной теме.
+  * аватар
+  * уведомления
+  * тема
+* **Account**
 
-#### Основная структура layout
+  * logout
+  * сессии
+* **Billing**
 
-Сделай 3-колоночный layout на всю высоту viewport:
+  * тариф
+  * история
+* **Integrations**
 
-- **левая sidebar** фиксированной ширины 240 px
-- **центральная рабочая область** flex: 1
-- **правая AI sidebar** фиксированной ширины 320–360 px
+  * yandex, github, telegram, amocrm, mango
 
-Высота — 100vh.
-Основной фон — почти черный, с очень мягкими разделителями между колонками.
+---
 
-#### Левая sidebar
+## Workspaces
 
-Содержит:
+* 1 workspace на free тарифе
+* если нет → `/workspaces/new`
+* редирект на default workspace
 
-- workspace title вверху
-- вертикальное меню основных разделов
-- секцию Agents
-- секцию Private со списком страниц
-- выбранную страницу с фоном active-state
-- нижнюю кнопку Trash
+---
 
-Стиль:
+### Workspace Layout
 
-- мелкая типографика
-- line-icons
-- низкая визуальная насыщенность
-- hover и active с мягкими скругленными прямоугольниками
-- секционные отступы 16–24 px
-- между элементами меню 6–10 px
+3 колонки:
 
-#### Центральная рабочая область
+* Sidebar (240px)
+* Content (flex)
+* (AI sidebar — УДАЛЕН)
 
-Вверху легкая toolbar-строка:
+Особенности:
 
-- breadcrumb/название страницы
-- status Private
-- справа edited time, Share, action icons, New AI chat
+* collapsible sidebar
+* минимализм
+* onboarding страница (чеклист)
+* поддержка тем
 
-Основной контент:
+---
 
-- центрированная узкая колонка шириной 480 px
-- верхний отступ примерно 80–120 px
-- эмодзи сверху
-- h1 заголовок
-- onboarding checklist из 9–10 элементов
-- часть элементов checked, часть unchecked
-- один элемент в виде toggle row
-- инлайн-подсветка slash-команд цветом
+## Дополнительные требования
 
-Требования к визуалу:
+* создать стартовую страницу при создании workspace
+* убрать лишние UI элементы (AI, Share и т.д.)
+* sidebar → иконки при сжатии
+* поиск как ChatGPT
+* настройки workspace вместо user settings
 
-- много пустого пространства вокруг
-- контент не должен растягиваться на всю ширину
-- текст похож на редактор документов
-- акцент на типографике, а не на карточках
+---
 
-#### Правая AI sidebar
+## Database
 
-Сделай AI assistant panel:
+Нужно:
 
-- внизу панели приветственный блок
-- аватар/иконка агента
-- приветственный текст
-- 1 строка описания
-- input-card с примером запроса
-- нижняя строка с Auto mode и кнопкой отправки
+* смерджить `schema.prisma` + docs/database.md
+* добавить:
 
-Элементы должны быть визуально легкими, с тонкими рамками, темным фоном и скруглениями.
+  * integrations
+  * subscriptions (free/personal/corporate)
 
-#### Нижний floating banner
+---
 
-Добавь маленький cookie banner внизу по центру:
+## Dev Tasks
 
-- компактная темная плашка
-- текст + 3 действия
-- легкая тень
-- border radius 10–12 px
+Команды:
+
+```
+pnpm run dev
+pnpm run lint
+pnpm run format
+pnpm run check-types
+pnpm run build
+```
+
+---
+
+## Fixes
+
+* исправить prisma CJS export warning
+* добавить `/profile`
+* `/settings` → редирект
+* облегчить шрифты
+* унифицировать темы
+* убрать лишние стили
+* исправить навигацию
+
+---
+
+## Migration
+
+* выполнить prisma migrate
+* подключить к postgres из docker-compose
+
+---
+
+## QA
+
+* проверить через Playwright:
+
+  * авторизацию
+  * страницы
+  * ошибки в консоли
+
+---
+
+Если хочешь, дальше могу:
+
+* ужать ещё до **чек-листа для разработки (task board)**
+* или разложить это в **epics + tickets как в Jira**
+
+
+---
+
+1. Когда я прехожу на странице с workspace /workspaces/{workspaceId} - выдается 404, а должна открываться страница поиска /workspaces/{workspaceId}/search
+2. В разделе поиска есть последних две записи это
+  1. новый поиск - который создает новый чат - это нужно удалить
+  2. + Новый чат - который должен делать то, что делает новый поиск, именно он и должен создавать новый чат
+3. Кнопка сжатия левого сайдбара должна быть не под корзиной, а там где название workspace, только справа
+  - Идет иконка
+  - Дальше идет название рабочего пространства и снизу план
+  - справа кнопки сжатия
+4. Замени все иконки на сайте под material design иконки из mui
+  - Раздел поиск - SearchIcon
+  - Настройки - SettingsIcon
+  - Иконку кордины - DeleteIcon
+5. В разделе поиска рядом с названием сделай при наведении появляющуюся три точки и там выбор
+  - переименовать - тут сделать модальку с переименованием
+  - удалить - модалка с подтверждением удаления
+6. На странице нового чата добавь следующее
+  - возможность писать многострочный текст, огранич все 10-ю строками
+  - слева от поля ввода сделай иконку + которое открывает выбор файлов
+  - справа кнопку отправить занес под поле ввода и замени Отправить на икноку ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
+  - иконки сделай реэкспортом из packages/ui
+7. Почини хлебные крошки, чтобы они могли отображали
+  - для Поиска - Поиск > Название раздела для поиска
+  - для Настроек - Настройки
+  - Для Страниц - Страницы > {Название папки, если не корневая} > Название страницы
+  - Для кордины - Корзина
+8. На страницы общее не работает смена /settings/general смена темы оформления
+9. В настройках измени иконки с эмоций на MUI иконки
+  - Общее - SettingsIcon
+  - Аккаунт - PersonIcon
+  - Оплата - PaymentIcon
+  - Интеграции - LeakAddIcon
+
+
+---
+Необходимо внести некоторые изменения:
+1. В хлебных крошках убери private в конце, эта фраза смущает
+2. В поиске кнопка отправить внизу справа, а должна быть на одном уровее с полем ввода
+3. Когда мы ходим по разделам сделай подсветку разделов, чтобы понимать где мы находимся
+4. Кнопка удалить поисковый чат работает, но чат не удаляет, сделай, чтобы чат удалялся, должна вылезать модалка для подтверждения
+5. Сделай так, чтобы можно было переименовывать поисковый чат, переименвоание должно выходить в моделаке
+6. Сделай чтобы на любом тарифе можно было переименовывать workspace /workspaces/{workspaceId}/settings/general
+
+---
+Необходимо внести некоторые другие изменения
+1. Переимнеование должно быть доступно на всех тарифах /workspaces/{workspaceId}/settings/general
+2. Удаление рабочего пространства должно быть возможно только овнерам и доступно на всех тарифных планах
+3. У поиска измени иконку расркытия на ArrowDropDownIcon
+
+---
+Внеси следующие правки
+1. Переменование workspace все еще доступно только для тарифов выше free, сделай для всех
+/workspaces/{workespaceId}/settings/general
+  - убери информационную панель, которая говорит о том, что нужно поднять тариф и сделай возможность менять название
+2. Удаление workspace также сделай досупно для всех тарифов /workspaces/{workespaceId}/settings/danger
+3. Удалять и переименовывать пространство может только пользователь с ролью OWNER
+
+
+---
+
+Мы делаем сервис, походий на notion, мы уже сделали базы данных, прикреплено в файле. Сейчас мы происходим формированию задач для реализации страниц.
+Нам нужно сделать максимально подробную спецификацию отталкиваясь от базы данных.
+1. Давай переделаем левый сайдбар
+  - В нормальном раскрытом состоянии он такой же как и сейчас, поэтому тут ничего не меняй
+  - для сокрытия используй иконку KeyboardDoubleArrowLeftIcon
+  - при нажатии не иконку левый сайдбар пропадает, там где хлебные крошки появляется иконка MenuIcon, при нажатии на которую левый сайдбар становиться снова доступен
+  - при наведении выводится компонент на подобии pooper, который повторяет основной то, что в левом сайд баре, однако находиться поверх контекнта
+2. Страницы могут включать другие страницы, в примере New page включает страницу New Database. Для реализации компонента дерева возьми компонент MUI X Tree View
+  - документация доступна по сссылке https://mui.com/x/react-tree-view/quickstart/
+  - добавь компонент в компонент packages/ui
+  - сделай реэкспорт для использования
+3. При наведении на страницу по событию hover должны подсвечиваться две иконки
+  - AddIcon из MUI - для добавления дочерней страницы, т.е. у страниц должно быть parent_id для формирования дерева
+  - MoreHorizIcon из MUI для действий над страницей со следующими пунктами в меню
+    - StarIcon - если в избранном, StarBorderIcon - если страница не в избранном Добавить в избранное 
+    - разделительная черта
+    - LinkIcon - копировать ссылку на страницу
+    - ContentCopy - Сделать копию, должна в этом же разделе создаваться полная копия этой страницы
+    - DriveFileRenameOutlineIcon - Переименовать. Переименовываем только заголовок
+    - MovingIcon - для перенесения страницы по разделам
+    - DeleteIcon - переменстить в корзину. Должна быть реализация SoftDelete и если Page.is_deleted = true, то страница выводиться в корзине и не выводится в списке страниц.
+4. В разделе корзина все страницы выводятся страницы у которых Page.is_deleted = true в плоском формате списоком. В списке справа два действия восстановить или удалить:
+  - RestoreIcon - иконка для восстановления. Если мы нажимаем на икноку для восстанвоелния, page.is_deleted устанавливается в false и старница восстанавливается в списке страниц
+  - DeleteForeverIcon - иконка для удаления навсегда. Если мы нажимаем на иконку удаления, то страница удаляется из базы
+5. Нужно добавить новый раздел "Избранное" выше чем страницы, в который попадают страницы у которых page.is_favorite = true, они также выводятся и в разделе страниц. Раздел избранное выводит в избранные в плоском формате, однако6 если страница имеет дочерние страницы, то они таже выводяться в разделе.
+6. Углубимся в детализацию страницы для Notion
+  - Страница состоит из блоков, которые выводятся друг за другом
+  - Нужно найти mardown редактор как в ноушен и заиспользовать его для редактирвоания каждого блока
+  - Рядом с каждым блоком, при наведении на него должно подсвечиваться две горизонтально стоящие иконки AddIcon и DragIndicatorIcon
+    - при нажатии на AddIcon создается пустой блок, который следует сразу за текущим блоком
+    - DragIndicatorIcon иконка для сортировки, нажав и удерживая можно перетаскивать, меняя позицию
+    - для перетаскаиваяния давай выберем самую популярную библиотеку для перетаскивания на react
+  - Документ представляет собой стандартную markdown структуру как в notion
+  - Блоки могут включать другие блоки, т.е. у блока должен появиться parent_id, блок, который имеет дочерние страницы должен иметь два состояни
+    - PlayArrowIcon - иконка в закрытом состоянии дочерние блоки не показвыаются
+    - ArrowDropDownIcon - когда дочерние блоки открыты и мы показываем дочерние блоки, они доступны для сортировки и перетаскивания
+
+Напиши промрт который нужно скормить в Claude code для реализации, если у тебя есть вопросы или проиворечия в реализации, давай обсудим и выберем разные варианты
+
+
+--- промт после chatgpt
+
+Ты — senior frontend/fullstack инженер. Твоя задача — реализовать сложную функциональность Notion-подобного редактора и навигации на основе уже существующей схемы БД.
+
+Ты ОБЯЗАН строго следовать контракту выполнения.
+
+========================================
+ЭТАП 0 — ВАЖНЫЕ ПРАВИЛА
+========================================
+
+1. НЕ ПРИДУМЫВАЙ новые поля в БД.
+2. Используй только существующую схему:
+
+- pages:
+  - иерархия через parent_type + parent_id
+  - soft delete через deleted_at
+- blocks:
+  - древовидная структура через parent_block_id
+  - порядок через position
+  - глубина через depth
+  - soft delete через deleted_at
+- favorites:
+  - избранное пользователя
+- user_preferences:
+  - хранение UI состояний (sidebar, editor collapse)
+- attachments:
+  - связи файлов с сущностями
+
+Ссылка на схему: :contentReference[oaicite:0]{index=0}
+
+3. НЕЛЬЗЯ:
+- использовать page.is_deleted (его нет)
+- использовать page.is_favorite (его нет)
+
+4. ОБЯЗАТЕЛЬНО:
+- учитывать soft delete через deleted_at
+- учитывать recursive поведение
+- учитывать user-specific состояния
+
+========================================
+ЭТАП 1 — АУДИТ (ОБЯЗАТЕЛЕН)
+========================================
+
+Сначала ты НЕ ПИШЕШЬ КОД.
+
+Ты должен:
+1. Найти текущие компоненты:
+   - Sidebar / Layout
+   - Breadcrumbs
+   - Page view
+   - Editor / Blocks
+   - packages/ui
+
+2. Найти:
+   - data access layer (API / repository)
+   - hooks
+   - types
+
+3. Ответить:
+- какие части уже есть
+- чего не хватает
+- где будут изменения
+
+4. Сформировать список файлов:
+- которые будут изменены
+- которые будут созданы
+
+========================================
+ЭТАП 2 — АРХИТЕКТУРНЫЙ ПЛАН
+========================================
+
+Перед кодом ты обязан описать:
+
+1. Архитектуру sidebar state
+2. Архитектуру PageTree
+3. Архитектуру Favorites
+4. Архитектуру Trash
+5. Архитектуру Block Editor (ВАЖНО — кастомный, НЕ библиотека)
+6. Архитектуру drag-and-drop
+7. Архитектуру state management (hooks + query)
+
+Обязательно:
+- описать data flow
+- описать optimistic updates
+- описать edge cases
+
+========================================
+ЭТАП 3 — РЕАЛИЗАЦИЯ
+========================================
+
+Теперь реализуй.
+
+========================================
+1. SIDEBAR
+========================================
+
+Требования:
+
+- expanded (по умолчанию)
+- collapsed
+- hover preview (overlay)
+
+Поведение:
+
+- collapse:
+  - кнопка KeyboardDoubleArrowLeftIcon
+- collapsed:
+  - показывается MenuIcon в breadcrumbs
+- hover:
+  - показывается Popper/Popover overlay
+  - повторяет sidebar
+
+Состояние:
+- хранить в user_preferences.sidebar_state
+
+Реализовать:
+- useSidebarState hook
+- Sidebar component refactor
+- SidebarOverlay
+- persist state
+
+========================================
+2. TREE VIEW СТРАНИЦ
+========================================
+
+- использовать MUI X Tree View
+- вынести в packages/ui
+- сделать реэкспорт
+
+Данные:
+- строить дерево из pages.parent_id
+- не показывать:
+  - deleted_at != null
+  - archived = true
+  - is_database_row = true
+
+Добавить:
+- mapper: flat → tree
+
+========================================
+3. ACTIONS НА СТРАНИЦЕ
+========================================
+
+Hover actions:
+
+AddIcon:
+- create child page
+
+MoreHorizIcon → menu:
+
+1. Favorite:
+- через favorites table
+- toggle
+
+2. Copy link:
+- только INTERNAL link
+
+3. Duplicate page:
+ОБЯЗАТЕЛЬНО:
+- копировать:
+  - page
+  - blocks
+  - дочерние pages
+- НЕ копировать:
+  - favorites
+  - comments
+  - reactions
+  - share_links
+  - permissions
+
+4. Rename:
+- только title
+
+5. Move:
+- менять parent_id
+- запрет циклов
+
+6. Delete:
+- soft delete:
+  - установить deleted_at
+  - РЕКУРСИВНО для всех дочерних страниц
+
+========================================
+4. КОРЗИНА
+========================================
+
+- список pages где deleted_at != null
+- плоский список
+
+Actions:
+- Restore:
+  - deleted_at = null
+  - РЕКУРСИВНО восстановить всё дерево
+
+- Delete Forever:
+  - физическое удаление
+  - РЕКУРСИВНО:
+    - pages
+    - blocks
+
+========================================
+5. FAVORITES
+========================================
+
+- источник: favorites table
+
+Правила:
+
+- показывать:
+  - избранные страницы
+  - И ВСЕ ИХ ДОЧЕРНИЕ СТРАНИЦЫ
+- даже если есть дубли — ЭТО НОРМАЛЬНО
+
+- порядок:
+  - favorites.position
+
+========================================
+6. BLOCK EDITOR (САМОЕ ВАЖНОЕ)
+========================================
+
+НЕЛЬЗЯ использовать сторонний Notion-редактор.
+
+НУЖНО:
+- реализовать свой renderer/editor поверх blocks
+
+Блок:
+- id
+- parent_block_id
+- position
+- depth
+- content
+
+Требования:
+
+1. Рендер:
+- блоки идут последовательно
+- вложенные блоки через дерево
+
+2. Hover actions:
+- AddIcon → вставка блока после текущего
+- DragIndicatorIcon → drag
+
+3. Drag & Drop:
+- использовать популярную библиотеку
+- поддержка:
+  - reorder
+  - nesting
+
+4. Вложенность:
+- parent_block_id
+- depth
+
+5. Collapse:
+- состояние хранится в user_preferences.editor_settings
+- не в blocks
+
+6. Иконки:
+- PlayArrowIcon (closed)
+- ArrowDropDownIcon (open)
+
+7. Soft delete:
+- blocks.deleted_at
+
+========================================
+7. DATA UTILS (ОБЯЗАТЕЛЬНО)
+========================================
+
+Реализовать:
+
+- buildPageTree
+- buildBlockTree
+- flattenBlockTree
+- insertBlockAfter
+- moveBlock
+- reindexPositions
+- duplicatePageTree
+- softDeletePageTree
+- restorePageTree
+
+========================================
+8. МУТАЦИИ
+========================================
+
+Реализовать hooks:
+
+Pages:
+- createPage
+- duplicatePageTree
+- renamePage
+- movePage
+- softDeletePageTree
+- restorePageTree
+- deletePageForever
+
+Favorites:
+- toggleFavorite
+
+Blocks:
+- createBlockAfter
+- updateBlock
+- moveBlock
+- softDeleteBlock
+
+========================================
+9. EDGE CASES (ОБЯЗАТЕЛЬНО)
+========================================
+
+- нельзя переместить страницу в своего потомка
+- soft delete всегда рекурсивный
+- restore всегда рекурсивный
+- duplicate не копирует лишнее
+- drag не ломает depth
+- reorder не ломает position
+- удаленные элементы не попадают в UI
+
+========================================
+10. ЧТО ВЕРНУТЬ
+========================================
+
+Ты обязан вернуть:
+
+1. Аудит
+2. План
+3. Список файлов
+4. Полный код
+5. TODO backend
+6. Список допущений
+7. Список рисков
+
+========================================
+11. ВАЖНО
+========================================
+
+НЕ ПРЫГАЙ СРАЗУ В КОД.
+
+Сначала:
+- аудит
+- затем план
+- только потом код

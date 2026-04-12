@@ -30,8 +30,6 @@ export default async function WorkspaceLayout({ children, params }: Props) {
         lastName: session.user.lastName,
         email: session.user.email,
       }}
-      firstPageTitle={pages[0]?.title ?? "Untitled"}
-      firstPageIcon={pages[0]?.icon ?? null}
     >
       {children}
     </WorkspaceLayoutClient>

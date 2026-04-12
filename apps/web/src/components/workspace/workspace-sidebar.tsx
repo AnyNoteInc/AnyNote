@@ -3,8 +3,19 @@
 import type { ReactNode } from "react"
 
 import Link from "next/link"
+import { usePathname } from "next/navigation"
 
-import { Box, Stack, Tooltip, Typography } from "@repo/ui/components"
+import {
+  Box,
+  ChevronLeftIcon,
+  ChevronRightIcon,
+  DeleteIcon,
+  IconButton,
+  SettingsIcon,
+  Stack,
+  Tooltip,
+  Typography,
+} from "@repo/ui/components"
 
 import { SearchSidebarSection } from "./search-sidebar-section"
 
@@ -61,26 +72,39 @@ export function WorkspaceSidebar({
             alignItems: "center",
             justifyContent: "center",
             fontSize: 14,
+            flexShrink: 0,
           }}
         >
           {workspace.icon ?? "📒"}
         </Box>
         {collapsed ? null : (
-          <Stack spacing={0}>
-            <Typography variant="body2">{workspace.name}</Typography>
+          <Stack spacing={0} sx={{ flex: 1, minWidth: 0 }}>
+            <Typography variant="body2" noWrap>
+              {workspace.name}
+            </Typography>
             <Typography variant="caption" color="text.secondary">
               {planName} plan
             </Typography>
           </Stack>
         )}
+        <Tooltip title={collapsed ? "Развернуть" : "Свернуть"} placement="right">
+          <IconButton size="small" onClick={onToggleCollapsed} sx={{ flexShrink: 0 }}>
+            {collapsed ? (
+              <ChevronRightIcon sx={{ fontSize: 16 }} />
+            ) : (
+              <ChevronLeftIcon sx={{ fontSize: 16 }} />
+            )}
+          </IconButton>
+        </Tooltip>
       </Stack>
 
       <Stack spacing={0.25} sx={{ py: 0.75 }}>
         <SearchSidebarSection workspaceId={workspace.id} collapsed={collapsed} />
         <NavItem
-          icon="⚙"
+          icon={<SettingsIcon sx={{ fontSize: 16 }} />}
           label="Настройки"
           href={`/workspaces/${workspace.id}/settings`}
+          matchPrefix={`/workspaces/${workspace.id}/settings`}
           collapsed={collapsed}
         />
       </Stack>
@@ -97,32 +121,32 @@ export function WorkspaceSidebar({
         {pages.map((page) => (
           <NavItem
             key={page.id}
-            icon={page.icon ?? "📄"}
+            icon={<span style={{ fontSize: 14 }}>{page.icon ?? "📄"}</span>}
             label={page.title ?? "Untitled"}
             href={`/workspaces/${workspace.id}`}
             collapsed={collapsed}
           />
         ))}
-        <NavItem icon="＋" label="Новая страница" href="#" collapsed={collapsed} muted />
+        <NavItem
+          icon={<span style={{ fontSize: 14 }}>＋</span>}
+          label="Новая страница"
+          href="#"
+          collapsed={collapsed}
+          muted
+        />
       </Stack>
 
       <Box sx={{ flex: 1 }} />
 
       <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 1.25 }}>
-        <NavItem icon="🗑" label="Корзина" href="#" collapsed={collapsed} muted />
-      </Box>
-
-      <Box
-        onClick={onToggleCollapsed}
-        sx={{
-          cursor: "pointer",
-          textAlign: "center",
-          color: "text.disabled",
-          py: 0.75,
-          "&:hover": { color: "text.primary" },
-        }}
-      >
-        {collapsed ? "▸" : "◂"}
+        <NavItem
+          icon={<DeleteIcon sx={{ fontSize: 16 }} />}
+          label="Корзина"
+          href="#"
+          matchPrefix="/trash"
+          collapsed={collapsed}
+          muted
+        />
       </Box>
 
       <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 1 }}>{userMenu}</Box>
@@ -134,17 +158,19 @@ function NavItem({
   icon,
   label,
   href,
+  matchPrefix,
   collapsed,
-  active,
   muted,
 }: {
-  icon: string
+  icon: ReactNode
   label: string
   href: string
+  matchPrefix?: string
   collapsed: boolean
-  active?: boolean
   muted?: boolean
 }) {
+  const pathname = usePathname()
+  const active = matchPrefix ? pathname.startsWith(matchPrefix) : false
   const body = (
     <Box
       component={Link}
@@ -158,17 +184,13 @@ function NavItem({
         justifyContent: collapsed ? "center" : "flex-start",
         borderRadius: 0.75,
         textDecoration: "none",
-        color: active
-          ? "text.primary"
-          : muted
-            ? "text.disabled"
-            : "text.secondary",
+        color: active ? "text.primary" : muted ? "text.disabled" : "text.secondary",
         backgroundColor: active ? "action.selected" : "transparent",
         "&:hover": { backgroundColor: active ? "action.selected" : "action.hover" },
         fontSize: 13,
       }}
     >
-      <span>{icon}</span>
+      {icon}
       {collapsed ? null : <span>{label}</span>}
     </Box>
   )

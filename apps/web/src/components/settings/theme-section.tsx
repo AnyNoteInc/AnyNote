@@ -1,9 +1,7 @@
 "use client"
 
-import { useRouter } from "next/navigation"
-import { useState } from "react"
-
 import { Box, Stack, Typography } from "@repo/ui/components"
+import { useThemeMode } from "@repo/ui/providers"
 
 import { trpc } from "@/trpc/client"
 
@@ -30,18 +28,14 @@ const options: Array<{ value: Theme; label: string; preview: React.CSSProperties
   },
 ]
 
-export function ThemeSection({ initial }: { initial: Theme | null }) {
-  const [selected, setSelected] = useState<Theme>(initial ?? "system")
+export function ThemeSection() {
+  const { preference, setPreference } = useThemeMode()
   const setTheme = trpc.user.setTheme.useMutation()
-  const router = useRouter()
 
-  const choose = async (theme: Theme) => {
-    setSelected(theme)
-    // Cookie set client-side so the next SSR render uses it. The tRPC route
-    // handler doesn't propagate Set-Cookie from ctx.resHeaders.
+  const choose = (theme: Theme) => {
+    setPreference(theme)
     document.cookie = `theme=${theme}; Path=/; Max-Age=31536000; SameSite=Lax`
-    await setTheme.mutateAsync({ theme })
-    router.refresh()
+    setTheme.mutate({ theme })
   }
 
   return (
@@ -62,11 +56,11 @@ export function ThemeSection({ initial }: { initial: Theme | null }) {
       </Typography>
       <Stack direction="row" spacing={1.5}>
         {options.map((opt) => {
-          const active = selected === opt.value
+          const active = preference === opt.value
           return (
             <Box
               key={opt.value}
-              onClick={() => void choose(opt.value)}
+              onClick={() => choose(opt.value)}
               sx={{
                 flex: 1,
                 p: 1.5,

@@ -37,7 +37,7 @@ export default async function GeneralSettingsPage() {
           image: user.image ?? null,
         }}
       />
-      <ThemeSection initial={(prefs?.theme as "light" | "dark" | "system" | null) ?? null} />
+      <ThemeSection />
       <NotificationsSection
         initial={(prefs?.notificationSettings as NotificationSettings | null) ?? null}
       />

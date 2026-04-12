@@ -1,8 +1,15 @@
 "use client"
 
-import { useState, useRef, useEffect } from "react"
+import { useEffect, useRef, useState } from "react"
 
-import { Box, Button, Stack, TextField } from "@repo/ui/components"
+import {
+  ArrowUpwardIcon,
+  Box,
+  IconButton,
+  Stack,
+  TextField,
+  Tooltip,
+} from "@repo/ui/components"
 
 import { trpc } from "@/trpc/client"
 
@@ -24,14 +31,13 @@ export function SearchChatInput({ chatId, workspaceId }: Props) {
     inputRef.current?.focus()
   }, [chatId])
 
+  const submit = () => {
+    if (!value.trim() || send.isPending) return
+    send.mutate({ chatId, content: value.trim() })
+  }
+
   return (
     <Box
-      component="form"
-      onSubmit={(event) => {
-        event.preventDefault()
-        if (!value.trim() || send.isPending) return
-        send.mutate({ chatId, content: value.trim() })
-      }}
       sx={{
         position: "sticky",
         bottom: 0,
@@ -41,19 +47,47 @@ export function SearchChatInput({ chatId, workspaceId }: Props) {
         p: 2,
       }}
     >
-      <Stack direction="row" spacing={1} sx={{ maxWidth: 720, mx: "auto" }}>
+      <Stack
+        direction="row"
+        spacing={1}
+        alignItems="flex-end"
+        sx={{ maxWidth: 720, mx: "auto" }}
+      >
         <TextField
           inputRef={inputRef}
           value={value}
-          onChange={(event) => setValue(event.target.value)}
+          onChange={(e) => setValue(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault()
+              submit()
+            }
+          }}
           placeholder="Спросите что-нибудь о пространстве..."
           size="small"
           fullWidth
+          multiline
+          maxRows={10}
           disabled={send.isPending}
         />
-        <Button type="submit" disabled={!value.trim() || send.isPending}>
-          Отправить
-        </Button>
+        <Tooltip title="Отправить (Enter)">
+          <span>
+            <IconButton
+              size="small"
+              onClick={submit}
+              disabled={!value.trim() || send.isPending}
+              sx={{
+                mb: 0.5,
+                bgcolor: "primary.main",
+                color: "primary.contrastText",
+                "&:hover": { bgcolor: "primary.dark" },
+                "&:disabled": { bgcolor: "action.disabledBackground" },
+              }}
+            >
+              <ArrowUpwardIcon fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
       </Stack>
     </Box>
   )

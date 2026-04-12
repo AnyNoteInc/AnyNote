@@ -1,8 +1,11 @@
 "use client"
 
-import { useEffect, useState, type ReactNode } from "react"
+import { usePathname } from "next/navigation"
+import { useEffect, useMemo, useState, type ReactNode } from "react"
 
 import { Box } from "@repo/ui/components"
+
+import { trpc } from "@/trpc/client"
 
 import { WorkspaceShell } from "./workspace-shell"
 import { WorkspaceSidebar } from "./workspace-sidebar"
@@ -14,23 +17,14 @@ type Props = {
   planName: string
   pages: Array<{ id: string; title: string | null; icon: string | null }>
   user: { firstName: string; lastName: string; email: string }
-  firstPageTitle: string
-  firstPageIcon: string | null
   children: ReactNode
 }
 
 const STORAGE_KEY = "workspace.sidebar.collapsed"
 
-export function WorkspaceLayoutClient({
-  workspace,
-  planName,
-  pages,
-  user,
-  firstPageTitle,
-  firstPageIcon,
-  children,
-}: Props) {
+export function WorkspaceLayoutClient({ workspace, planName, pages, user, children }: Props) {
   const [collapsed, setCollapsed] = useState(false)
+  const pathname = usePathname()
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY)
@@ -42,6 +36,39 @@ export function WorkspaceLayoutClient({
   }, [collapsed])
 
   const sidebarWidth = collapsed ? 56 : 240
+
+  // Derive chatId from pathname for breadcrumb label
+  const chatIdMatch = pathname.match(/\/search\/([a-f0-9-]{36})$/)
+  const activeChatId = chatIdMatch?.[1] ?? null
+
+  const chats = trpc.search.listChats.useQuery(
+    { workspaceId: workspace.id },
+    { enabled: activeChatId !== null },
+  )
+  const activeChat = activeChatId ? (chats.data?.find((c) => c.id === activeChatId) ?? null) : null
+
+  const breadcrumbs = useMemo(() => {
+    if (pathname.includes("/search")) {
+      const base = { label: "Поиск", href: `/workspaces/${workspace.id}/search` }
+      if (activeChat) return [base, { label: activeChat.title ?? "Без названия" }]
+      return [base]
+    }
+    if (pathname.includes("/settings")) {
+      return [{ label: "Настройки" }]
+    }
+    if (pathname.includes("/trash")) {
+      return [{ label: "Корзина" }]
+    }
+    // Pages — derive from pages list
+    const pageIdMatch = pathname.match(/\/pages\/([a-f0-9-]{36})/)
+    if (pageIdMatch) {
+      const page = pages.find((p) => p.id === pageIdMatch[1])
+      const base = { label: "Страницы" }
+      if (page) return [base, { label: page.title ?? "Untitled" }]
+      return [base]
+    }
+    return [{ label: workspace.name }]
+  }, [pathname, activeChat, pages, workspace.id, workspace.name])
 
   return (
     <WorkspaceShell
@@ -57,13 +84,9 @@ export function WorkspaceLayoutClient({
         />
       }
       main={
-        <Box>
-          <WorkspaceToolbar
-            pageTitle={firstPageTitle}
-            pageIcon={firstPageIcon}
-            editedLabel="Edited just now"
-          />
-          {children}
+        <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+          <WorkspaceToolbar breadcrumbs={breadcrumbs} />
+          <Box sx={{ flex: 1, overflow: "auto" }}>{children}</Box>
         </Box>
       }
     />

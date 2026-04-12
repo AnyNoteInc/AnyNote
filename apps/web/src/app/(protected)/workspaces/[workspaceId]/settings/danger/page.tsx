@@ -8,14 +8,16 @@ type Props = { params: Promise<{ workspaceId: string }> }
 export default async function WorkspaceSettingsDangerPage({ params }: Props) {
   const { workspaceId } = await params
   const trpc = await getServerTRPC()
-  const workspace = await trpc.workspace.getById({ id: workspaceId })
+  const [workspace, myRole] = await Promise.all([
+    trpc.workspace.getById({ id: workspaceId }),
+    trpc.workspace.getMyRole({ workspaceId }),
+  ])
   if (!workspace) notFound()
-  const { plan } = await trpc.subscription.getCurrent()
 
   return (
     <WorkspaceDangerSection
       workspace={{ id: workspace.id, name: workspace.name }}
-      locked={plan.slug === "free"}
+      isOwner={myRole === "OWNER"}
     />
   )
 }

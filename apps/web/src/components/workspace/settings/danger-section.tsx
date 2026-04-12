@@ -9,10 +9,10 @@ import { trpc } from "@/trpc/client"
 
 type Props = {
   workspace: { id: string; name: string }
-  locked: boolean
+  isOwner: boolean
 }
 
-export function WorkspaceDangerSection({ workspace, locked }: Props) {
+export function WorkspaceDangerSection({ workspace, isOwner }: Props) {
   const [confirmation, setConfirmation] = useState("")
   const router = useRouter()
   const del = trpc.workspace.delete.useMutation({
@@ -25,11 +25,9 @@ export function WorkspaceDangerSection({ workspace, locked }: Props) {
         <Typography variant="h6" color="error">
           Опасная зона
         </Typography>
-        {locked ? (
-          <Alert severity="info">
-            Удаление доступно на платных тарифах. <a href="/settings/billing">Апгрейд</a>
-          </Alert>
-        ) : null}
+        {!isOwner && (
+          <Alert severity="info">Только владелец пространства может удалить его.</Alert>
+        )}
         {del.error ? <Alert severity="error">{del.error.message}</Alert> : null}
         <Typography variant="body2" color="text.secondary">
           Удаление пространства необратимо. Все страницы, блоки и поисковые чаты будут удалены.
@@ -37,13 +35,14 @@ export function WorkspaceDangerSection({ workspace, locked }: Props) {
         <TextField
           label={`Введите "${workspace.name}" для подтверждения`}
           value={confirmation}
-          onChange={(event) => setConfirmation(event.target.value)}
-          disabled={locked || del.isPending}
+          onChange={(e) => setConfirmation(e.target.value)}
+          disabled={!isOwner || del.isPending}
         />
         <Button
           color="error"
           onClick={() => del.mutate({ id: workspace.id })}
-          disabled={locked || del.isPending || confirmation !== workspace.name}
+          disabled={!isOwner || del.isPending || confirmation !== workspace.name}
+          sx={{ alignSelf: "flex-start" }}
         >
           Удалить пространство
         </Button>

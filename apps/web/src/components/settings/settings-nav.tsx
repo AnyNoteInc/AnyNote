@@ -1,15 +1,29 @@
 "use client"
 
+import type { ReactNode } from "react"
+
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 
-import { Box, Stack, Typography } from "@repo/ui/components"
+import {
+  Box,
+  LeakAddIcon,
+  PaymentIcon,
+  PersonIcon,
+  SettingsIcon,
+  Stack,
+  Typography,
+} from "@repo/ui/components"
 
-const items = [
-  { href: "/settings/general", label: "Общее", icon: "⚙" },
-  { href: "/settings/account", label: "Аккаунт", icon: "◉" },
-  { href: "/settings/billing", label: "Оплата", icon: "💳" },
-  { href: "/settings/integrations", label: "Интеграции", icon: "⇌" },
+const items: Array<{ href: string; label: string; icon: ReactNode }> = [
+  { href: "/settings/general", label: "Общее", icon: <SettingsIcon fontSize="small" /> },
+  { href: "/settings/account", label: "Аккаунт", icon: <PersonIcon fontSize="small" /> },
+  { href: "/settings/billing", label: "Оплата", icon: <PaymentIcon fontSize="small" /> },
+  {
+    href: "/settings/integrations",
+    label: "Интеграции",
+    icon: <LeakAddIcon fontSize="small" />,
+  },
 ]
 
 export function SettingsNav() {
@@ -37,9 +51,7 @@ export function SettingsNav() {
               "&:hover": { backgroundColor: "action.hover" },
             }}
           >
-            <Typography component="span" sx={{ fontSize: 16 }}>
-              {item.icon}
-            </Typography>
+            {item.icon}
             <Typography variant="body2">{item.label}</Typography>
           </Box>
         )

@@ -1,12 +1,12 @@
 import { Box, Stack, Typography } from "@repo/ui/components"
 
+type Breadcrumb = { label: string; href?: string }
+
 type Props = {
-  pageTitle: string
-  pageIcon?: string | null
-  editedLabel: string
+  breadcrumbs: Breadcrumb[]
 }
 
-export function WorkspaceToolbar({ pageTitle, pageIcon, editedLabel }: Props) {
+export function WorkspaceToolbar({ breadcrumbs }: Props) {
   return (
     <Stack
       direction="row"
@@ -19,20 +19,23 @@ export function WorkspaceToolbar({ pageTitle, pageIcon, editedLabel }: Props) {
         borderColor: "divider",
       }}
     >
-      <Typography variant="body2" noWrap>
-        {pageIcon ? `${pageIcon} ` : ""}
-        {pageTitle}
-      </Typography>
-      <Typography variant="body2" color="text.secondary">
-        ·
-      </Typography>
-      <Typography variant="body2" color="text.secondary">
-        Private
-      </Typography>
+      {breadcrumbs.map((crumb, i) => (
+        <Stack key={i} direction="row" alignItems="center" spacing={1.25}>
+          {i > 0 && (
+            <Typography variant="body2" color="text.disabled">
+              /
+            </Typography>
+          )}
+          <Typography
+            variant="body2"
+            noWrap
+            color={i === breadcrumbs.length - 1 ? "text.primary" : "text.secondary"}
+          >
+            {crumb.label}
+          </Typography>
+        </Stack>
+      ))}
       <Box sx={{ flex: 1 }} />
-      <Typography variant="caption" color="text.secondary">
-        {editedLabel}
-      </Typography>
     </Stack>
   )
 }
