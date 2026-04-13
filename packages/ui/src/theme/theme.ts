@@ -3,6 +3,7 @@ import type { PaletteMode } from "@mui/material"
 
 export function createAppTheme(mode: PaletteMode = "light") {
   return createTheme({
+    cssVariables: true,
     palette: {
       mode,
       primary: { main: "#0f766e" },
@@ -56,7 +57,9 @@ export function createAppTheme(mode: PaletteMode = "light") {
       body2: { fontWeight: 300 },
       button: { textTransform: "none", fontWeight: 400 },
       overline: {
-        fontFamily: ["var(--font-geist-mono)", "ui-monospace", "SFMono-Regular", "monospace"].join(", "),
+        fontFamily: ["var(--font-geist-mono)", "ui-monospace", "SFMono-Regular", "monospace"].join(
+          ", ",
+        ),
         letterSpacing: "0.16em",
         fontWeight: 400,
       },

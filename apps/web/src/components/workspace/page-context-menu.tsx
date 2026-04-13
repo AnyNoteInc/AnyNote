@@ -197,7 +197,7 @@ export function PageContextMenu({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setDeleteOpen(false)}>Отмена</Button>
+          <Button variant="text" onClick={() => setDeleteOpen(false)}>Отмена</Button>
           <Button onClick={handleDeleteConfirm} color="error" variant="contained">
             Удалить
           </Button>

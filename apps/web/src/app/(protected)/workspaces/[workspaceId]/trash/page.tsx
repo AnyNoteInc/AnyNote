@@ -122,6 +122,7 @@ export default function TrashPage({ params }: Props) {
               }
             }}
             disabled={hardDelete.isPending}
+            color="warning"
           >
             Удалить навсегда
           </Button>

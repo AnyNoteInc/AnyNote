@@ -181,7 +181,7 @@ function FavItem({
         py: 0.5,
         borderRadius: 0.75,
         textDecoration: "none",
-        color: "text.secondary",
+        color: indent ? "text.disabled" : "text.secondary",
         bgcolor: isActive ? "action.selected" : "transparent",
         "&:hover": { bgcolor: isActive ? "action.selected" : "action.hover" },
         "&:hover .fav-more": { visibility: "visible" },

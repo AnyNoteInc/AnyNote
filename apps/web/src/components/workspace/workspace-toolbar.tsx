@@ -30,7 +30,8 @@ export function WorkspaceToolbar({
   // so the cursor landing on the newly-appeared MenuIcon doesn't trigger it.
   useEffect(() => {
     if (sidebarHidden) {
-      suppressUntil.current = Date.now() + 300
+      suppressUntil.current = Date.now() + 500
+      setPopperOpen(false)
     }
   }, [sidebarHidden])
 
