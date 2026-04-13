@@ -35,10 +35,17 @@ type Props = {
   favoritePageIds: Set<string>
 }
 
-export function FavoritesSection({ workspaceId, allPages, userId, favoritePageIds }: Props) {
+export function FavoritesSection({
+  workspaceId,
+  allPages: initialPages,
+  userId,
+  favoritePageIds,
+}: Props) {
   const [open, setOpen] = useState(true)
   const pathname = usePathname()
   const favorites = trpc.page.listFavorites.useQuery({ workspaceId })
+  const pagesQuery = trpc.page.listByWorkspace.useQuery({ workspaceId })
+  const allPages = pagesQuery.data ?? initialPages
 
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
   const [menuPage, setMenuPage] = useState<PageItem | null>(null)

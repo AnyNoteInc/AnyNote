@@ -3,7 +3,14 @@
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useState } from "react"
-import { Box, Typography, IconButton, AddIcon, MoreHorizIcon } from "@repo/ui/components"
+import {
+  Box,
+  Typography,
+  IconButton,
+  AddIcon,
+  MoreHorizIcon,
+  ChevronRightIcon,
+} from "@repo/ui/components"
 import { trpc } from "@/trpc/client"
 import { PageContextMenu } from "./page-context-menu"
 import { MovePageDialog } from "./move-page-dialog"
@@ -65,6 +72,7 @@ function PageTreeItem({
 
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
   const [moveOpen, setMoveOpen] = useState(false)
+  const [expanded, setExpanded] = useState(true)
 
   const isActive = pathname === `/workspaces/${workspaceId}/pages/${page.id}`
 
@@ -86,13 +94,26 @@ function PageTreeItem({
           display: "flex",
           alignItems: "center",
           pr: 0.5,
-          pl: depth * 1.5 + 0.5,
+          pl: depth * 1.5,
           borderRadius: 0.75,
           bgcolor: isActive ? "action.selected" : "transparent",
           "&:hover": { bgcolor: isActive ? "action.selected" : "action.hover" },
           "&:hover .page-actions": { visibility: "visible" },
         }}
       >
+        {children.length > 0 ? (
+          <IconButton size="small" onClick={() => setExpanded((v) => !v)} sx={{ p: 0, mr: 0.25 }}>
+            <ChevronRightIcon
+              sx={{
+                fontSize: 16,
+                transform: expanded ? "rotate(90deg)" : "none",
+                transition: "transform 0.15s",
+              }}
+            />
+          </IconButton>
+        ) : (
+          <Box sx={{ width: 20 }} />
+        )}
         <Link
           href={`/workspaces/${workspaceId}/pages/${page.id}`}
           onClick={(e) => e.stopPropagation()}
@@ -147,17 +168,18 @@ function PageTreeItem({
         </Box>
       </Box>
 
-      {children.map((child) => (
-        <PageTreeItem
-          key={child.id}
-          page={child}
-          pages={pages}
-          workspaceId={workspaceId}
-          userId={userId}
-          favoritePageIds={favoritePageIds}
-          depth={depth + 1}
-        />
-      ))}
+      {expanded &&
+        children.map((child) => (
+          <PageTreeItem
+            key={child.id}
+            page={child}
+            pages={pages}
+            workspaceId={workspaceId}
+            userId={userId}
+            favoritePageIds={favoritePageIds}
+            depth={depth + 1}
+          />
+        ))}
 
       <PageContextMenu
         anchorEl={menuAnchor}

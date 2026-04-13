@@ -7,6 +7,7 @@ import { useMemo, useState } from "react"
 import {
   AddIcon,
   ArrowDropDownIcon,
+  ChevronRightIcon,
   ArrowDropUpIcon,
   Box,
   Button,
@@ -57,6 +58,7 @@ function ChatTreeItem({
   const [renameOpen, setRenameOpen] = useState(false)
   const [renameValue, setRenameValue] = useState("")
   const [deleteOpen, setDeleteOpen] = useState(false)
+  const [expanded, setExpanded] = useState(true)
 
   const isActive = pathname === `/workspaces/${workspaceId}/search/${chat.id}`
 
@@ -103,6 +105,21 @@ function ChatTreeItem({
           "&:hover .chat-actions": { visibility: "visible" },
         }}
       >
+        {children.length > 0 ? (
+          <IconButton
+            size="small"
+            onClick={() => setExpanded((v) => !v)}
+            sx={{ p: 0, flexShrink: 0 }}
+          >
+            <ChevronRightIcon
+              sx={{
+                fontSize: 16,
+                transform: expanded ? "rotate(90deg)" : "none",
+                transition: "transform 0.15s",
+              }}
+            />
+          </IconButton>
+        ) : null}
         <Link
           href={`/workspaces/${workspaceId}/search/${chat.id}`}
           style={{ textDecoration: "none", flex: 1, minWidth: 0 }}
@@ -151,7 +168,7 @@ function ChatTreeItem({
       </Box>
 
       {/* Children rendered indented */}
-      {children.length > 0 && (
+      {expanded && children.length > 0 && (
         <Stack spacing={0.25} sx={{ pl: 2 }}>
           {children.map((child) => (
             <ChatTreeItem

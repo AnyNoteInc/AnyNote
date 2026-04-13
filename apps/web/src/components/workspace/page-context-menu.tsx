@@ -64,6 +64,7 @@ export function PageContextMenu({
   const invalidate = () => {
     void utils.page.listByWorkspace.invalidate({ workspaceId })
     void utils.page.listFavorites.invalidate({ workspaceId })
+    void utils.page.listTrashed.invalidate({ workspaceId })
   }
 
   const addFavorite = trpc.page.addFavorite.useMutation({ onSuccess: invalidate })
@@ -178,7 +179,9 @@ export function PageContextMenu({
           />
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setRenameOpen(false)}>Отмена</Button>
+          <Button variant="text" onClick={() => setRenameOpen(false)}>
+            Отмена
+          </Button>
           <Button onClick={handleRenameSubmit} variant="contained">
             Сохранить
           </Button>

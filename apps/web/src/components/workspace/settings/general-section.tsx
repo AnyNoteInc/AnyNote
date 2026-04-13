@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 
 import { Alert, Button, Paper, Stack, TextField, Typography } from "@repo/ui/components"
 
@@ -15,11 +16,13 @@ export function WorkspaceGeneralSection({ workspace, isOwner }: Props) {
   const [name, setName] = useState(workspace.name)
   const [icon, setIcon] = useState(workspace.icon ?? "")
   const [successShown, setSuccessShown] = useState(false)
+  const router = useRouter()
   const utils = trpc.useUtils()
   const rename = trpc.workspace.rename.useMutation({
     onSuccess: async () => {
       setSuccessShown(true)
       await utils.workspace.getById.invalidate({ id: workspace.id })
+      router.refresh()
       setTimeout(() => setSuccessShown(false), 3000)
     },
   })
@@ -43,9 +46,13 @@ export function WorkspaceGeneralSection({ workspace, isOwner }: Props) {
         <TextField
           label="Иконка (эмодзи)"
           value={icon}
-          onChange={(e) => setIcon(e.target.value)}
+          onChange={(e) => {
+            // Take only the first grapheme cluster (emoji)
+            const segments = [...new Intl.Segmenter().segment(e.target.value)]
+            setIcon(segments[0]?.segment ?? "")
+          }}
           disabled={!isOwner || rename.isPending}
-          inputProps={{ maxLength: 8 }}
+          inputProps={{ maxLength: 4 }}
         />
         <Button
           onClick={() => rename.mutate({ id: workspace.id, name, icon: icon || undefined })}

@@ -29,7 +29,7 @@ export async function seedStartPage(
     data: {
       workspaceId,
       parentType: "WORKSPACE",
-      parentId: workspaceId,
+      parentId: null,
       title: "Welcome to AnyNote",
       icon: "👋",
       createdById: userId,
