@@ -3,14 +3,7 @@
 import Link from "next/link"
 import { useState } from "react"
 
-import {
-  Avatar,
-  Box,
-  Menu,
-  MenuItem,
-  Stack,
-  Typography,
-} from "@repo/ui/components"
+import { Avatar, Box, Menu, MenuItem, Stack, Typography } from "@repo/ui/components"
 
 import { signOut } from "@/lib/auth-client"
 

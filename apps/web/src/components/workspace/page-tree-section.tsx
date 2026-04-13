@@ -98,11 +98,7 @@ function PageTreeItem({
           onClick={(e) => e.stopPropagation()}
           style={{ textDecoration: "none", flex: 1, minWidth: 0, display: "flex", gap: 4 }}
         >
-          <Typography
-            variant="body2"
-            component="span"
-            sx={{ flexShrink: 0, lineHeight: "28px" }}
-          >
+          <Typography variant="body2" component="span" sx={{ flexShrink: 0, lineHeight: "28px" }}>
             {page.icon ?? "📄"}
           </Typography>
           <Typography
@@ -187,7 +183,12 @@ function PageTreeItem({
   )
 }
 
-export function PageTreeSection({ workspaceId, pages: initialPages, userId, favoritePageIds }: Props) {
+export function PageTreeSection({
+  workspaceId,
+  pages: initialPages,
+  userId,
+  favoritePageIds,
+}: Props) {
   const router = useRouter()
   const utils = trpc.useUtils()
 

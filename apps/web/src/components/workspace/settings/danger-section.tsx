@@ -25,9 +25,7 @@ export function WorkspaceDangerSection({ workspace, isOwner }: Props) {
         <Typography variant="h6" color="error">
           Опасная зона
         </Typography>
-        {!isOwner && (
-          <Alert severity="info">Только владелец пространства может удалить его.</Alert>
-        )}
+        {!isOwner && <Alert severity="info">Только владелец пространства может удалить его.</Alert>}
         {del.error ? <Alert severity="error">{del.error.message}</Alert> : null}
         <Typography variant="body2" color="text.secondary">
           Удаление пространства необратимо. Все страницы, блоки и поисковые чаты будут удалены.

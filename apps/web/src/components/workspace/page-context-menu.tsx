@@ -51,7 +51,6 @@ export function PageContextMenu({
   onClose,
   page,
   workspaceId,
-  userId,
   isFavorite,
   onOpenMoveDialog,
 }: Props) {
@@ -155,8 +154,7 @@ export function PageContextMenu({
         </MenuItem>
 
         <MenuItem onClick={handleOpenDelete} sx={{ ...menuItemSx, color: "error.main" }}>
-          <DeleteIcon fontSize="small" />
-          В корзину
+          <DeleteIcon fontSize="small" />В корзину
         </MenuItem>
       </Menu>
 

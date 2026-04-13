@@ -533,7 +533,9 @@ export const pageRouter = router({
           // Second pass: fix parent/prev references
           for (const block of blocks) {
             const newId = idMap.get(block.id)!
-            const newParentBlockId = block.parentBlockId ? (idMap.get(block.parentBlockId) ?? null) : null
+            const newParentBlockId = block.parentBlockId
+              ? (idMap.get(block.parentBlockId) ?? null)
+              : null
             const newPrevBlockId = block.prevBlockId ? (idMap.get(block.prevBlockId) ?? null) : null
             if (newParentBlockId || newPrevBlockId) {
               await tx.block.update({

@@ -2,14 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 
-import {
-  ArrowUpwardIcon,
-  Box,
-  IconButton,
-  Stack,
-  TextField,
-  Tooltip,
-} from "@repo/ui/components"
+import { ArrowUpwardIcon, Box, IconButton, Stack, TextField, Tooltip } from "@repo/ui/components"
 
 import { trpc } from "@/trpc/client"
 
@@ -47,12 +40,7 @@ export function SearchChatInput({ chatId, workspaceId }: Props) {
         p: 2,
       }}
     >
-      <Stack
-        direction="row"
-        spacing={1}
-        alignItems="flex-end"
-        sx={{ maxWidth: 720, mx: "auto" }}
-      >
+      <Stack direction="row" spacing={1} alignItems="flex-end" sx={{ maxWidth: 720, mx: "auto" }}>
         <TextField
           inputRef={inputRef}
           value={value}

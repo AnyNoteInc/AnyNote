@@ -61,6 +61,7 @@ Many-to-many between User and Page. One record = one page favorited by one user.
 Install `@mui/x-tree-view` in `packages/ui`.
 
 Re-export from `@repo/ui/components`:
+
 - `SimpleTreeView`
 - `TreeItem`
 - `RichTreeView` (for drag-and-drop)
@@ -93,6 +94,7 @@ On hover, two icons appear to the right of the page title:
 ### Drag & Drop
 
 RichTreeView handles D&D natively. On drop:
+
 1. Remove page from old linked-list chain (rewire prev/next siblings)
 2. Set new `parentId`
 3. Insert into new linked-list chain at drop position
@@ -169,6 +171,7 @@ Appears between search section and pages section. Only rendered if user has at l
 Flat list (no tree) of all workspace pages where `deletedAt != null`. Sorted by `deletedAt DESC`.
 
 Each item shows:
+
 - Page icon + title
 - Deletion date
 - Two action icons:
@@ -178,6 +181,7 @@ Each item shows:
 ### Soft-delete cascade
 
 When a page is moved to trash:
+
 - All descendant pages are also marked `deletedAt = now()`
 - All appear in trash as flat list
 
@@ -203,6 +207,7 @@ Permanently removes page and all its blocks from database.
 ### UI
 
 MUI Dialog containing:
+
 - Title: "Переместить «{page title}»"
 - Tree of workspace pages (SimpleTreeView) excluding:
   - The page being moved
@@ -213,6 +218,7 @@ MUI Dialog containing:
 ### Logic
 
 On confirm:
+
 1. Remove page from old linked-list chain
 2. Set new `parentId` (or null for root)
 3. Insert at start of new parent's linked-list
@@ -229,6 +235,7 @@ On confirm:
 ### UI
 
 Inline editing in tree — TreeItem label becomes a text input on "Переименовать" action.
+
 - Enter or blur: save
 - Escape: cancel
 
@@ -264,18 +271,18 @@ Available to any workspace member.
 
 ## 10. Access Control Summary
 
-| Action | Who can perform |
-|--------|----------------|
-| View pages/tree | Any workspace member |
-| Create page/child | Any workspace member |
-| Rename | Page creator OR workspace owner |
-| Delete (soft) | Page creator OR workspace owner |
-| Move | Page creator OR workspace owner |
-| Duplicate | Any workspace member |
-| Favorite/unfavorite | Any workspace member |
-| Copy link | Any workspace member |
-| Restore from trash | Page creator OR workspace owner |
-| Hard delete | Page creator OR workspace owner |
+| Action              | Who can perform                 |
+| ------------------- | ------------------------------- |
+| View pages/tree     | Any workspace member            |
+| Create page/child   | Any workspace member            |
+| Rename              | Page creator OR workspace owner |
+| Delete (soft)       | Page creator OR workspace owner |
+| Move                | Page creator OR workspace owner |
+| Duplicate           | Any workspace member            |
+| Favorite/unfavorite | Any workspace member            |
+| Copy link           | Any workspace member            |
+| Restore from trash  | Page creator OR workspace owner |
+| Hard delete         | Page creator OR workspace owner |
 
 ---
 
@@ -283,25 +290,25 @@ Available to any workspace member.
 
 ### page router (new/modified)
 
-| Procedure | Type | Description |
-|-----------|------|-------------|
-| `listByWorkspace` | query | **Modified** — add `prevPageId` to select |
-| `listTrashed` | query | Soft-deleted pages for workspace |
-| `listFavorites` | query | User's favorited pages with children |
-| `create` | mutation | Create page with parentId, linked-list insertion |
-| `rename` | mutation | Update title (creator/owner only) |
-| `duplicate` | mutation | Copy page + blocks |
-| `move` | mutation | Change parent + rewire linked-lists |
-| `softDelete` | mutation | Set deletedAt on page + descendants |
-| `restore` | mutation | Clear deletedAt on page + descendants |
-| `hardDelete` | mutation | Permanent delete from DB |
-| `addFavorite` | mutation | Add FavoritePage record |
-| `removeFavorite` | mutation | Remove FavoritePage record |
+| Procedure         | Type     | Description                                      |
+| ----------------- | -------- | ------------------------------------------------ |
+| `listByWorkspace` | query    | **Modified** — add `prevPageId` to select        |
+| `listTrashed`     | query    | Soft-deleted pages for workspace                 |
+| `listFavorites`   | query    | User's favorited pages with children             |
+| `create`          | mutation | Create page with parentId, linked-list insertion |
+| `rename`          | mutation | Update title (creator/owner only)                |
+| `duplicate`       | mutation | Copy page + blocks                               |
+| `move`            | mutation | Change parent + rewire linked-lists              |
+| `softDelete`      | mutation | Set deletedAt on page + descendants              |
+| `restore`         | mutation | Clear deletedAt on page + descendants            |
+| `hardDelete`      | mutation | Permanent delete from DB                         |
+| `addFavorite`     | mutation | Add FavoritePage record                          |
+| `removeFavorite`  | mutation | Remove FavoritePage record                       |
 
 ### search router (modified)
 
-| Procedure | Type | Description |
-|-----------|------|-------------|
-| `listChats` | query | **Modified** — add `parentId` to select |
-| `createChat` | mutation | **Modified** — accept optional `parentId` |
+| Procedure    | Type     | Description                                        |
+| ------------ | -------- | -------------------------------------------------- |
+| `listChats`  | query    | **Modified** — add `parentId` to select            |
+| `createChat` | mutation | **Modified** — accept optional `parentId`          |
 | `deleteChat` | mutation | **Modified** — cascade deletes children (DB-level) |

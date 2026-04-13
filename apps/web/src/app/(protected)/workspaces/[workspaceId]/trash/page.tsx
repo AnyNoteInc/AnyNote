@@ -51,9 +51,7 @@ export default function TrashPage({ params }: Props) {
         Корзина
       </Typography>
 
-      {trashed.data?.length === 0 && (
-        <Typography color="text.secondary">Корзина пуста</Typography>
-      )}
+      {trashed.data?.length === 0 && <Typography color="text.secondary">Корзина пуста</Typography>}
 
       <Stack spacing={0.5}>
         {trashed.data?.map((page) => (
@@ -75,8 +73,7 @@ export default function TrashPage({ params }: Props) {
                 {page.title ?? "Без названия"}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Удалено{" "}
-                {page.deletedAt ? new Date(page.deletedAt).toLocaleDateString("ru-RU") : ""}
+                Удалено {page.deletedAt ? new Date(page.deletedAt).toLocaleDateString("ru-RU") : ""}
               </Typography>
             </Box>
             <Tooltip title="Восстановить">

@@ -14,10 +14,10 @@ Replace the current three-state sidebar (open 240px / collapsed 56px / n/a) with
 
 ### Two states: open and hidden
 
-| State | Sidebar width | Toolbar | Trigger |
-|-------|--------------|---------|---------|
-| **Open** | 240px (unchanged) | Breadcrumbs only (no menu icon) | Click `KeyboardDoubleArrowLeftIcon` in sidebar header to hide |
-| **Hidden** | 0px (removed from layout) | `MenuIcon` appears before breadcrumbs | Click `MenuIcon` to reopen |
+| State      | Sidebar width             | Toolbar                               | Trigger                                                       |
+| ---------- | ------------------------- | ------------------------------------- | ------------------------------------------------------------- |
+| **Open**   | 240px (unchanged)         | Breadcrumbs only (no menu icon)       | Click `KeyboardDoubleArrowLeftIcon` in sidebar header to hide |
+| **Hidden** | 0px (removed from layout) | `MenuIcon` appears before breadcrumbs | Click `MenuIcon` to reopen                                    |
 
 ### Hover popover (when hidden)
 

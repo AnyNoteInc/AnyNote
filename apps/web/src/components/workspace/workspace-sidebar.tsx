@@ -43,14 +43,7 @@ type Props = {
   userId: string
 }
 
-export function WorkspaceSidebar({
-  workspace,
-  planName,
-  pages,
-  onHide,
-  userMenu,
-  userId,
-}: Props) {
+export function WorkspaceSidebar({ workspace, planName, pages, onHide, userMenu, userId }: Props) {
   const pathname = usePathname()
   const favorites = trpc.page.listFavorites.useQuery({ workspaceId: workspace.id })
   const favoritePageIds = useMemo(
@@ -72,12 +65,7 @@ export function WorkspaceSidebar({
         overflow: "auto",
       }}
     >
-      <Stack
-        direction="row"
-        alignItems="center"
-        spacing={1}
-        sx={{ px: 1, pb: 1.75 }}
-      >
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ px: 1, pb: 1.75 }}>
         <Box
           sx={{
             width: 24,

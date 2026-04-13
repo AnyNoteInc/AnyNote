@@ -107,9 +107,7 @@ export function WorkspaceMembersSection({ workspaceId, locked, currentUserId }: 
                       color="error"
                       variant="outlined"
                       disabled={locked}
-                      onClick={() =>
-                        remove.mutate({ workspaceId, userId: member.userId })
-                      }
+                      onClick={() => remove.mutate({ workspaceId, userId: member.userId })}
                     >
                       Удалить
                     </Button>
