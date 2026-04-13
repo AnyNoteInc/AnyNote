@@ -11,17 +11,7 @@ import { WorkspaceShell } from "./workspace-shell"
 import { WorkspaceSidebar } from "./workspace-sidebar"
 import { WorkspaceToolbar } from "./workspace-toolbar"
 import { WorkspaceUserMenu } from "./workspace-user-menu"
-
-type PageItem = {
-  id: string
-  title: string | null
-  icon: string | null
-  parentType: string
-  parentId: string | null
-  prevPageId: string | null
-  createdById: string | null
-  createdAt: string | Date
-}
+import type { PageItem } from "./types"
 
 type Props = {
   workspace: { id: string; name: string; icon: string | null }
@@ -80,7 +70,7 @@ export function WorkspaceLayoutClient({ workspace, planName, pages, user, childr
 
   const userMenu = <WorkspaceUserMenu user={user} />
 
-  const sidebarProps = { workspace, planName, pages, userMenu, userId: user.id }
+  const sidebarProps = { workspace, planName, pages, userMenu }
 
   return (
     <WorkspaceShell

@@ -14,55 +14,24 @@ import {
 import { trpc } from "@/trpc/client"
 import { PageContextMenu } from "./page-context-menu"
 import { MovePageDialog } from "./move-page-dialog"
-
-type PageItem = {
-  id: string
-  title: string | null
-  icon: string | null
-  parentType: string
-  parentId: string | null
-  prevPageId: string | null
-  createdById: string | null
-  createdAt: string | Date
-}
+import { type PageItem, orderSiblings } from "./types"
 
 type Props = {
   workspaceId: string
   pages: PageItem[]
-  userId: string
   favoritePageIds: Set<string>
-}
-
-function orderSiblings(pages: PageItem[]): PageItem[] {
-  if (pages.length === 0) return []
-  const byPrev = new Map<string | null, PageItem>()
-  for (const p of pages) byPrev.set(p.prevPageId, p)
-  const out: PageItem[] = []
-  let cursor: string | null = null
-  while (byPrev.has(cursor)) {
-    const next: PageItem = byPrev.get(cursor)!
-    out.push(next)
-    cursor = next.id
-  }
-  const inChain = new Set(out.map((p) => p.id))
-  for (const p of pages) {
-    if (!inChain.has(p.id)) out.push(p)
-  }
-  return out
 }
 
 function PageTreeItem({
   page,
   pages,
   workspaceId,
-  userId,
   favoritePageIds,
   depth,
 }: {
   page: PageItem
   pages: PageItem[]
   workspaceId: string
-  userId: string
   favoritePageIds: Set<string>
   depth: number
 }) {
@@ -175,7 +144,6 @@ function PageTreeItem({
             page={child}
             pages={pages}
             workspaceId={workspaceId}
-            userId={userId}
             favoritePageIds={favoritePageIds}
             depth={depth + 1}
           />
@@ -186,7 +154,6 @@ function PageTreeItem({
         onClose={() => setMenuAnchor(null)}
         page={page}
         workspaceId={workspaceId}
-        userId={userId}
         isFavorite={favoritePageIds.has(page.id)}
         onOpenMoveDialog={() => {
           setMenuAnchor(null)
@@ -205,12 +172,7 @@ function PageTreeItem({
   )
 }
 
-export function PageTreeSection({
-  workspaceId,
-  pages: initialPages,
-  userId,
-  favoritePageIds,
-}: Props) {
+export function PageTreeSection({ workspaceId, pages: initialPages, favoritePageIds }: Props) {
   const router = useRouter()
   const utils = trpc.useUtils()
 
@@ -239,7 +201,6 @@ export function PageTreeSection({
             page={page}
             pages={pages}
             workspaceId={workspaceId}
-            userId={userId}
             favoritePageIds={favoritePageIds}
             depth={0}
           />

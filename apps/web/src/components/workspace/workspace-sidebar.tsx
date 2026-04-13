@@ -20,19 +20,9 @@ import { trpc } from "@/trpc/client"
 
 import { FavoritesSection } from "./favorites-section"
 import { PageTreeSection } from "./page-tree-section"
+import type { PageItem } from "./types"
 import { SearchSidebarSection } from "./search-sidebar-section"
 import { SIDEBAR_WIDTH } from "./workspace-layout-client"
-
-type PageItem = {
-  id: string
-  title: string | null
-  icon: string | null
-  parentType: string
-  parentId: string | null
-  prevPageId: string | null
-  createdById: string | null
-  createdAt: string | Date
-}
 
 type Props = {
   workspace: { id: string; name: string; icon: string | null }
@@ -40,10 +30,9 @@ type Props = {
   pages: PageItem[]
   onHide?: () => void
   userMenu: ReactNode
-  userId: string
 }
 
-export function WorkspaceSidebar({ workspace, planName, pages, onHide, userMenu, userId }: Props) {
+export function WorkspaceSidebar({ workspace, planName, pages, onHide, userMenu }: Props) {
   const pathname = usePathname()
   const favorites = trpc.page.listFavorites.useQuery({ workspaceId: workspace.id })
   const favoritePageIds = useMemo(
@@ -112,16 +101,10 @@ export function WorkspaceSidebar({ workspace, planName, pages, onHide, userMenu,
       <FavoritesSection
         workspaceId={workspace.id}
         allPages={pages}
-        userId={userId}
         favoritePageIds={favoritePageIds}
       />
 
-      <PageTreeSection
-        workspaceId={workspace.id}
-        pages={pages}
-        userId={userId}
-        favoritePageIds={favoritePageIds}
-      />
+      <PageTreeSection workspaceId={workspace.id} pages={pages} favoritePageIds={favoritePageIds} />
 
       <Box sx={{ flex: 1 }} />
 

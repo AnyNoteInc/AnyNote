@@ -12,17 +12,7 @@ import {
   Typography,
 } from "@repo/ui/components"
 import { trpc } from "@/trpc/client"
-
-type PageItem = {
-  id: string
-  title: string | null
-  icon: string | null
-  parentType: string
-  parentId: string | null
-  prevPageId: string | null
-  createdById: string | null
-  createdAt: string | Date
-}
+import { type PageItem, orderSiblings } from "./types"
 
 type Props = {
   open: boolean
@@ -45,34 +35,6 @@ function getDescendantIds(pageId: string, pages: PageItem[]): Set<string> {
     }
   }
   return ids
-}
-
-function orderSiblings(siblings: PageItem[]): PageItem[] {
-  if (siblings.length === 0) return []
-
-  const byPrev = new Map<string | null, PageItem>()
-  for (const s of siblings) {
-    byPrev.set(s.prevPageId, s)
-  }
-
-  const ordered: PageItem[] = []
-  const visited = new Set<string>()
-
-  let current = byPrev.get(null)
-  while (current && !visited.has(current.id)) {
-    ordered.push(current)
-    visited.add(current.id)
-    current = byPrev.get(current.id)
-  }
-
-  // Append orphans not reached by the chain
-  for (const s of siblings) {
-    if (!visited.has(s.id)) {
-      ordered.push(s)
-    }
-  }
-
-  return ordered
 }
 
 function PageTreeItems({

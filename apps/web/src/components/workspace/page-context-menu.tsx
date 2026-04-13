@@ -22,24 +22,13 @@ import {
   DeleteIcon,
 } from "@repo/ui/components"
 import { trpc } from "@/trpc/client"
-
-type PageItem = {
-  id: string
-  title: string | null
-  icon: string | null
-  parentType: string
-  parentId: string | null
-  prevPageId: string | null
-  createdById: string | null
-  createdAt: string | Date
-}
+import type { PageItem } from "./types"
 
 type Props = {
   anchorEl: HTMLElement | null
   onClose: () => void
   page: PageItem
   workspaceId: string
-  userId: string
   isFavorite: boolean
   onOpenMoveDialog: () => void
 }
@@ -197,7 +186,9 @@ export function PageContextMenu({
           </DialogContentText>
         </DialogContent>
         <DialogActions>
-          <Button variant="text" onClick={() => setDeleteOpen(false)}>Отмена</Button>
+          <Button variant="text" onClick={() => setDeleteOpen(false)}>
+            Отмена
+          </Button>
           <Button onClick={handleDeleteConfirm} color="error" variant="contained">
             Удалить
           </Button>

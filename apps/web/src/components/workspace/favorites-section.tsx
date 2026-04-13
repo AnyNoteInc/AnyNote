@@ -16,31 +16,15 @@ import {
 import { trpc } from "@/trpc/client"
 import { PageContextMenu } from "./page-context-menu"
 import { MovePageDialog } from "./move-page-dialog"
-
-type PageItem = {
-  id: string
-  title: string | null
-  icon: string | null
-  parentType: string
-  parentId: string | null
-  prevPageId: string | null
-  createdById: string | null
-  createdAt: string | Date
-}
+import type { PageItem } from "./types"
 
 type Props = {
   workspaceId: string
   allPages: PageItem[]
-  userId: string
   favoritePageIds: Set<string>
 }
 
-export function FavoritesSection({
-  workspaceId,
-  allPages: initialPages,
-  userId,
-  favoritePageIds,
-}: Props) {
+export function FavoritesSection({ workspaceId, allPages: initialPages, favoritePageIds }: Props) {
   const [open, setOpen] = useState(true)
   const pathname = usePathname()
   const favorites = trpc.page.listFavorites.useQuery({ workspaceId })
@@ -132,7 +116,6 @@ export function FavoritesSection({
           onClose={handleCloseMenu}
           page={menuPage}
           workspaceId={workspaceId}
-          userId={userId}
           isFavorite={true}
           onOpenMoveDialog={() => {
             setMovePage(menuPage)
