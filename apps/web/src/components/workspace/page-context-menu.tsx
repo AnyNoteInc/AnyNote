@@ -31,6 +31,7 @@ type PageItem = {
   parentId: string | null
   prevPageId: string | null
   createdById: string | null
+  createdAt: string | Date
 }
 
 type Props = {

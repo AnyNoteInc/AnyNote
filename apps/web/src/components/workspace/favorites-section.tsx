@@ -25,6 +25,7 @@ type PageItem = {
   parentId: string | null
   prevPageId: string | null
   createdById: string | null
+  createdAt: string | Date
 }
 
 type Props = {
@@ -92,6 +93,7 @@ export function FavoritesSection({ workspaceId, allPages, userId, favoritePageId
               ...fav,
               prevPageId: null,
               createdById: null,
+              createdAt: new Date(),
             }
             return (
               <Box key={fav.id}>
@@ -181,7 +183,7 @@ function FavItem({
     >
       <span style={{ fontSize: 14, marginRight: 8 }}>{page.icon ?? "📄"}</span>
       <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {page.title ?? "Untitled"}
+        {page.title ?? "Без названия"}
       </span>
       <IconButton
         size="small"

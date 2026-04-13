@@ -21,6 +21,7 @@ type PageItem = {
   parentId: string | null
   prevPageId: string | null
   createdById: string | null
+  createdAt: string | Date
 }
 
 type Props = {
@@ -101,7 +102,7 @@ function PageTreeItems({
           label={
             <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
               {p.icon && <Typography component="span">{p.icon}</Typography>}
-              <Typography component="span">{p.title ?? "Untitled"}</Typography>
+              <Typography component="span">{p.title ?? "Без названия"}</Typography>
             </Box>
           }
           onClick={(e) => {
@@ -142,7 +143,7 @@ export function MovePageDialog({ open, onClose, page, pages, workspaceId }: Prop
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>{`Переместить \u00AB${page.title ?? "Untitled"}\u00BB`}</DialogTitle>
+      <DialogTitle>{`Переместить \u00AB${page.title ?? "Без названия"}\u00BB`}</DialogTitle>
       <DialogContent>
         <SimpleTreeView>
           <TreeItem

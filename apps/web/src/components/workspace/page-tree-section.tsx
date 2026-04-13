@@ -16,6 +16,7 @@ type PageItem = {
   parentId: string | null
   prevPageId: string | null
   createdById: string | null
+  createdAt: string | Date
 }
 
 type Props = {
@@ -186,9 +187,12 @@ function PageTreeItem({
   )
 }
 
-export function PageTreeSection({ workspaceId, pages, userId, favoritePageIds }: Props) {
+export function PageTreeSection({ workspaceId, pages: initialPages, userId, favoritePageIds }: Props) {
   const router = useRouter()
   const utils = trpc.useUtils()
+
+  const pagesQuery = trpc.page.listByWorkspace.useQuery({ workspaceId })
+  const pages = pagesQuery.data ?? initialPages
 
   const createPage = trpc.page.create.useMutation({
     onSuccess: async (data) => {

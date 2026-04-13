@@ -18,7 +18,7 @@ export default function PageView({ params }: Props) {
 
   return (
     <Box sx={{ p: 4, maxWidth: 710, mx: "auto" }}>
-      <Typography variant="h4">{page.data.title ?? "Untitled"}</Typography>
+      <Typography variant="h4">{page.data.title ?? "Без названия"}</Typography>
     </Box>
   )
 }

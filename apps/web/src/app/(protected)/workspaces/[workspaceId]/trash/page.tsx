@@ -72,7 +72,7 @@ export default function TrashPage({ params }: Props) {
             <span style={{ fontSize: 16 }}>{page.icon ?? "📄"}</span>
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Typography variant="body2" noWrap>
-                {page.title ?? "Untitled"}
+                {page.title ?? "Без названия"}
               </Typography>
               <Typography variant="caption" color="text.secondary">
                 Удалено{" "}
@@ -110,7 +110,7 @@ export default function TrashPage({ params }: Props) {
         <DialogTitle>Удалить навсегда?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Страница «{confirmPage?.title ?? "Untitled"}» будет удалена безвозвратно.
+            Страница «{confirmPage?.title ?? "Без названия"}» будет удалена безвозвратно.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

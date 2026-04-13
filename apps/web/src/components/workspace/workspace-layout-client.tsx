@@ -20,6 +20,7 @@ type PageItem = {
   parentId: string | null
   prevPageId: string | null
   createdById: string | null
+  createdAt: string | Date
 }
 
 type Props = {
@@ -71,7 +72,7 @@ export function WorkspaceLayoutClient({ workspace, planName, pages, user, childr
     if (pageIdMatch) {
       const page = pages.find((p) => p.id === pageIdMatch[1])
       const base = { label: "Страницы" }
-      if (page) return [base, { label: page.title ?? "Untitled" }]
+      if (page) return [base, { label: page.title ?? "Без названия" }]
       return [base]
     }
     return [{ label: workspace.name }]
