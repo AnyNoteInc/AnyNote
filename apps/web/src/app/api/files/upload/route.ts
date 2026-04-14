@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto"
 
-import { prisma } from "@repo/db"
+import { Prisma, prisma } from "@repo/db"
 import { storage } from "@repo/storage"
 
 import { getSession } from "@/lib/get-session"
@@ -90,20 +90,38 @@ export async function POST(request: Request) {
     if (!(await storage.exists(s3Key))) {
       await storage.put(s3Key, bytes, { contentType: mimeType, size: bytes.length })
     }
-    fileRow = await prisma.file.create({
-      data: {
-        userId: session.user.id,
-        workspaceId,
-        name: file.name,
-        ext,
-        fileSize: BigInt(bytes.length),
-        mimeType,
-        hash,
-        path: s3Key,
-        status: "ACTIVE",
-        isPublic: kind === "avatar",
-      },
-    })
+    try {
+      fileRow = await prisma.file.create({
+        data: {
+          userId: session.user.id,
+          workspaceId,
+          name: file.name,
+          ext,
+          fileSize: BigInt(bytes.length),
+          mimeType,
+          hash,
+          path: s3Key,
+          status: "ACTIVE",
+          isPublic: kind === "avatar",
+        },
+      })
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+        fileRow = await prisma.file.findFirst({
+          where: {
+            userId: session.user.id,
+            hash,
+            workspaceId,
+            status: "ACTIVE",
+          },
+        })
+        if (!fileRow) {
+          return Response.json({ error: "Upload conflict" }, { status: 409 })
+        }
+      } else {
+        throw err
+      }
+    }
   }
 
   let imageUrl: string | undefined
