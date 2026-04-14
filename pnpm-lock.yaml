@@ -41,6 +41,9 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@repo/storage':
+        specifier: workspace:*
+        version: link:../../packages/storage
       '@repo/trpc':
         specifier: workspace:*
         version: link:../../packages/trpc
