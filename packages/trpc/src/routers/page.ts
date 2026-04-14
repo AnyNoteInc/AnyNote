@@ -406,6 +406,22 @@ export const pageRouter = router({
       })
     }),
 
+  emptyTrash: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const member = await assertWorkspaceMember(ctx, input.workspaceId)
+      if (member.role !== "OWNER") {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Только владелец может очистить корзину" })
+      }
+      const deleted = await ctx.prisma.page.deleteMany({
+        where: {
+          workspaceId: input.workspaceId,
+          deletedAt: { not: null },
+        },
+      })
+      return { count: deleted.count }
+    }),
+
   move: protectedProcedure
     .input(
       z.object({

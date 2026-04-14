@@ -6,6 +6,7 @@ import {
   Box,
   Button,
   DeleteForeverIcon,
+  DeleteIcon,
   Dialog,
   DialogActions,
   DialogContent,
@@ -42,14 +43,30 @@ export default function TrashPage({ params }: Props) {
     },
   })
 
+  const emptyTrash = trpc.page.emptyTrash.useMutation({
+    onSuccess: async () => {
+      await utils.page.listTrashed.invalidate({ workspaceId })
+      await utils.page.listByWorkspace.invalidate({ workspaceId })
+      await utils.page.listFavorites.invalidate({ workspaceId })
+    },
+  })
+
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null)
   const confirmPage = trashed.data?.find((p) => p.id === confirmDeleteId)
+  const [emptyConfirmOpen, setEmptyConfirmOpen] = useState(false)
 
   return (
     <Box sx={{ p: 4, maxWidth: 710, mx: "auto" }}>
-      <Typography variant="h5" sx={{ mb: 3 }}>
-        Корзина
-      </Typography>
+      <Box sx={{ display: "flex", alignItems: "center", mb: 3, gap: 1 }}>
+        <Typography variant="h5">Корзина</Typography>
+        {(trashed.data?.length ?? 0) > 0 && (
+          <Tooltip title="Очистить корзину">
+            <IconButton size="small" onClick={() => setEmptyConfirmOpen(true)} sx={{ color: "error.main" }}>
+              <DeleteIcon sx={{ fontSize: 20 }} />
+            </IconButton>
+          </Tooltip>
+        )}
+      </Box>
 
       {trashed.data?.length === 0 && <Typography color="text.secondary">Корзина пуста</Typography>}
 
@@ -125,6 +142,36 @@ export default function TrashPage({ params }: Props) {
             color="warning"
           >
             Удалить навсегда
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      <Dialog
+        open={emptyConfirmOpen}
+        onClose={() => setEmptyConfirmOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Очистить корзину?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Все страницы в корзине ({trashed.data?.length ?? 0}) будут удалены безвозвратно.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button variant="text" onClick={() => setEmptyConfirmOpen(false)}>
+            Отмена
+          </Button>
+          <Button
+            onClick={() => {
+              emptyTrash.mutate({ workspaceId })
+              setEmptyConfirmOpen(false)
+            }}
+            disabled={emptyTrash.isPending}
+            color="error"
+            variant="contained"
+          >
+            Удалить все
           </Button>
         </DialogActions>
       </Dialog>
