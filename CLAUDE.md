@@ -123,6 +123,12 @@ The repo root `.env` is the single source for all local-dev env vars. Required:
 - `BETTER_AUTH_URL` — base URL for auth (e.g. `http://localhost:3000`)
 - `BETTER_AUTH_SECRET` — session signing secret
 - `NEXT_PUBLIC_BASE_URL` — public app URL (e.g. `http://localhost:3000`)
+- `S3_ENDPOINT` — S3-compatible endpoint URL (e.g. `http://localhost:9000` for MinIO)
+- `S3_REGION` — S3 region (e.g. `us-east-1`)
+- `S3_ACCESS_KEY` — S3 access key id
+- `S3_SECRET_KEY` — S3 secret access key
+- `S3_BUCKET` — bucket name (e.g. `storage`)
+- `S3_FORCE_PATH_STYLE` — `true` for MinIO (path-style URLs); `false` for AWS S3
 
 These are declared in `turbo.json` `globalEnv` so Turbo hashes them for caching.
 
