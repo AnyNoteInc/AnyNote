@@ -68,6 +68,11 @@ export function WorkspaceLayoutClient({ workspace, planName, pages, user, childr
     return [{ label: workspace.name }]
   }, [pathname, activeChat, pages, workspace.id, workspace.name])
 
+  useEffect(() => {
+    const title = breadcrumbs.map((b) => b.label).join(" / ")
+    document.title = title ? `${title} — AnyNote` : "AnyNote"
+  }, [breadcrumbs])
+
   const userMenu = <WorkspaceUserMenu user={user} />
 
   const sidebarProps = { workspace, planName, pages, userMenu }

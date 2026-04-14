@@ -39,22 +39,13 @@ export { default as CssBaseline } from "@mui/material/CssBaseline"
 
 export { default as Dialog, type DialogProps } from "@mui/material/Dialog"
 export { default as DialogTitle, type DialogTitleProps } from "@mui/material/DialogTitle"
-export {
-  default as DialogContent,
-  type DialogContentProps,
-} from "@mui/material/DialogContent"
+export { default as DialogContent, type DialogContentProps } from "@mui/material/DialogContent"
 export {
   default as DialogContentText,
   type DialogContentTextProps,
 } from "@mui/material/DialogContentText"
-export {
-  default as DialogActions,
-  type DialogActionsProps,
-} from "@mui/material/DialogActions"
-export {
-  default as InputAdornment,
-  type InputAdornmentProps,
-} from "@mui/material/InputAdornment"
+export { default as DialogActions, type DialogActionsProps } from "@mui/material/DialogActions"
+export { default as InputAdornment, type InputAdornmentProps } from "@mui/material/InputAdornment"
 export { default as Popper, type PopperProps } from "@mui/material/Popper"
 
 export { default as SearchIcon } from "@mui/icons-material/Search"

@@ -54,7 +54,7 @@ Considered: (A) fractional decimal, (B) integer with resequence, (C) LexoRank, (
 
 ### D3 — Block types: full Notion set
 
-**Chosen: C.** Enum contains all Notion core + media types. Only the `B subset` (PARAGRAPH, HEADING_1/2/3, TO_DO, BULLETED_/NUMBERED_LIST_ITEM, TOGGLE, QUOTE, CALLOUT, DIVIDER, CODE) is rendered/validated in MVP. Remaining values (IMAGE, VIDEO, FILE, PDF, BOOKMARK, EQUATION, TABLE, COLUMN, SYNCED_BLOCK, LINK_TO_PAGE) are reserved — documented here so no one wires them up prematurely.
+**Chosen: C.** Enum contains all Notion core + media types. Only the `B subset` (PARAGRAPH, HEADING*1/2/3, TO_DO, BULLETED*/NUMBERED_LIST_ITEM, TOGGLE, QUOTE, CALLOUT, DIVIDER, CODE) is rendered/validated in MVP. Remaining values (IMAGE, VIDEO, FILE, PDF, BOOKMARK, EQUATION, TABLE, COLUMN, SYNCED_BLOCK, LINK_TO_PAGE) are reserved — documented here so no one wires them up prematurely.
 
 ### D4 — Search = chat per workspace
 
@@ -73,6 +73,7 @@ All three destructive actions (rename, invite, delete) are gated to `plan.slug !
 ### D7 — Thin fonts: global MUI typography weights
 
 One change in `packages/ui/src/theme/theme.ts`:
+
 - `fontWeightLight: 200`
 - `fontWeightRegular: 300` (was 400)
 - `fontWeightMedium: 400` (was 500)
@@ -158,7 +159,7 @@ model Block {
 **Linked-list invariants** (enforced at the database level):
 
 1. `@@unique([parentBlockId, prevBlockId])` — in a sibling group, at most one block can claim a given predecessor. Catches concurrent inserts that try to splice into the same slot.
-2. Two partial unique indexes ensure exactly one *head* (null `prev`) per sibling group:
+2. Two partial unique indexes ensure exactly one _head_ (null `prev`) per sibling group:
 
 ```sql
 -- one root-level head per page
@@ -231,6 +232,7 @@ model SearchMessage {
 ### Migration
 
 One migration: `20260411_xxxx_add_blocks_search_chats`. Creates:
+
 - `BlockType` type
 - `SearchMessageRole` type
 - `blocks` table with all FKs, indexes, `@@unique([parentBlockId, prevBlockId])`
@@ -312,23 +314,23 @@ Link chain becomes `[httpBatchLink(...)]` only. Errors still flow to `useMutatio
 
 ### New
 
-| Path | Type | Purpose |
-|---|---|---|
-| `/profile` | Server | User profile with avatar/name/workspace cards |
-| `/settings/page.tsx` | Server | `redirect("/settings/general")` |
-| `/workspaces/page.tsx` | Server | redirect to default workspace or `/workspaces/new` |
-| `/workspaces/[id]/search/page.tsx` | Server | redirect to latest chat or empty state |
-| `/workspaces/[id]/search/[chatId]/page.tsx` | Server | chat view |
-| `/workspaces/[id]/settings/page.tsx` | Server | `redirect("/workspaces/[id]/settings/general")` |
-| `/workspaces/[id]/settings/general/page.tsx` | Server | Workspace rename |
-| `/workspaces/[id]/settings/members/page.tsx` | Server | Member list + invite |
-| `/workspaces/[id]/settings/danger/page.tsx` | Server | Delete workspace |
-| `/workspaces/[id]/settings/layout.tsx` | Server | 2-pane: nav + content |
+| Path                                         | Type   | Purpose                                            |
+| -------------------------------------------- | ------ | -------------------------------------------------- |
+| `/profile`                                   | Server | User profile with avatar/name/workspace cards      |
+| `/settings/page.tsx`                         | Server | `redirect("/settings/general")`                    |
+| `/workspaces/page.tsx`                       | Server | redirect to default workspace or `/workspaces/new` |
+| `/workspaces/[id]/search/page.tsx`           | Server | redirect to latest chat or empty state             |
+| `/workspaces/[id]/search/[chatId]/page.tsx`  | Server | chat view                                          |
+| `/workspaces/[id]/settings/page.tsx`         | Server | `redirect("/workspaces/[id]/settings/general")`    |
+| `/workspaces/[id]/settings/general/page.tsx` | Server | Workspace rename                                   |
+| `/workspaces/[id]/settings/members/page.tsx` | Server | Member list + invite                               |
+| `/workspaces/[id]/settings/danger/page.tsx`  | Server | Delete workspace                                   |
+| `/workspaces/[id]/settings/layout.tsx`       | Server | 2-pane: nav + content                              |
 
 ### Modified
 
-| Path | Change |
-|---|---|
+| Path                        | Change                                                                                   |
+| --------------------------- | ---------------------------------------------------------------------------------------- |
 | `/workspaces/[id]/page.tsx` | Now fetches first Page + blocks and renders `<PageView>` (deletes `WorkspaceOnboarding`) |
 
 ### Removed

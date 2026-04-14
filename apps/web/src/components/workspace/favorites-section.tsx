@@ -11,6 +11,7 @@ import {
   IconButton,
   MoreHorizIcon,
   Stack,
+  StarIcon,
 } from "@repo/ui/components"
 
 import { trpc } from "@/trpc/client"
@@ -24,6 +25,17 @@ type Props = {
   favoritePageIds: Set<string>
 }
 
+/** Recursively collect all descendants of a page */
+function getAllDescendants(pageId: string, allPages: PageItem[]): PageItem[] {
+  const result: PageItem[] = []
+  const directChildren = allPages.filter((p) => p.parentId === pageId && p.parentType === "PAGE")
+  for (const child of directChildren) {
+    result.push(child)
+    result.push(...getAllDescendants(child.id, allPages))
+  }
+  return result
+}
+
 export function FavoritesSection({ workspaceId, allPages: initialPages, favoritePageIds }: Props) {
   const [open, setOpen] = useState(true)
   const pathname = usePathname()
@@ -35,9 +47,8 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
   const [menuPage, setMenuPage] = useState<PageItem | null>(null)
   const [movePage, setMovePage] = useState<PageItem | null>(null)
 
-  if (!favorites.data?.length && !favoritePageIds.size) return null
-
   const favPages = favorites.data ?? []
+  if (favPages.length === 0 && !favoritePageIds.size) return null
 
   const handleOpenMenu = (event: React.MouseEvent<HTMLElement>, page: PageItem) => {
     event.preventDefault()
@@ -50,9 +61,6 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
     setMenuAnchor(null)
     setMenuPage(null)
   }
-
-  const childrenOf = (parentId: string) =>
-    allPages.filter((p) => p.parentId === parentId && p.parentType === "PAGE")
 
   return (
     <Box>
@@ -69,6 +77,7 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
           "&:hover": { color: "text.primary" },
         }}
       >
+        <StarIcon sx={{ fontSize: 16 }} />
         <span style={{ fontSize: 13, flex: 1 }}>Избранное</span>
         {open ? (
           <ArrowDropUpIcon sx={{ fontSize: 16 }} />
@@ -78,7 +87,7 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
       </Box>
 
       {open ? (
-        <Stack spacing={0.25}>
+        <Stack spacing={0.25} sx={{ maxHeight: 200, overflow: "auto" }}>
           {favPages.map((fav) => {
             const page = allPages.find((p) => p.id === fav.id) ?? {
               ...fav,
@@ -86,6 +95,7 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
               createdById: null,
               createdAt: new Date(),
             }
+            const descendants = getAllDescendants(fav.id, allPages)
             return (
               <Box key={fav.id}>
                 <FavItem
@@ -93,8 +103,9 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
                   workspaceId={workspaceId}
                   pathname={pathname}
                   onOpenMenu={handleOpenMenu}
+                  isFavorite={favoritePageIds.has(page.id)}
                 />
-                {childrenOf(fav.id).map((child) => (
+                {descendants.map((child) => (
                   <FavItem
                     key={child.id}
                     page={child}
@@ -102,6 +113,7 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
                     pathname={pathname}
                     onOpenMenu={handleOpenMenu}
                     indent
+                    isFavorite={favoritePageIds.has(child.id)}
                   />
                 ))}
               </Box>
@@ -116,7 +128,7 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
           onClose={handleCloseMenu}
           page={menuPage}
           workspaceId={workspaceId}
-          isFavorite={true}
+          isFavorite={favoritePageIds.has(menuPage.id)}
           onOpenMoveDialog={() => {
             setMovePage(menuPage)
             handleCloseMenu()
@@ -149,6 +161,7 @@ function FavItem({
   pathname: string
   onOpenMenu: (event: React.MouseEvent<HTMLElement>, page: PageItem) => void
   indent?: boolean
+  isFavorite: boolean
 }) {
   const isActive = pathname === `/workspaces/${workspaceId}/pages/${page.id}`
 

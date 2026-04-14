@@ -1,14 +1,16 @@
 "use client"
 
+import { useState } from "react"
+
 import {
   Box,
   Button,
+  ChevronRightIcon,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
-  SimpleTreeView,
-  TreeItem,
+  IconButton,
   Typography,
 } from "@repo/ui/components"
 import { trpc } from "@/trpc/client"
@@ -37,50 +39,76 @@ function getDescendantIds(pageId: string, pages: PageItem[]): Set<string> {
   return ids
 }
 
-function PageTreeItems({
-  parentId,
-  parentType,
+function MoveTreeItem({
+  page,
   pages,
   excludeIds,
   onSelect,
+  depth,
 }: {
-  parentId: string | null
-  parentType: string
+  page: PageItem
   pages: PageItem[]
   excludeIds: Set<string>
-  onSelect: (itemId: string) => void
+  onSelect: (id: string) => void
+  depth: number
 }) {
-  const siblings = pages.filter(
-    (p) => p.parentType === parentType && p.parentId === parentId && !excludeIds.has(p.id),
+  const [expanded, setExpanded] = useState(false)
+  const children = orderSiblings(
+    pages.filter((p) => p.parentType === "PAGE" && p.parentId === page.id && !excludeIds.has(p.id)),
   )
-  const ordered = orderSiblings(siblings)
 
   return (
     <>
-      {ordered.map((p) => (
-        <TreeItem
-          key={p.id}
-          itemId={p.id}
-          label={
-            <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              {p.icon && <Typography component="span">{p.icon}</Typography>}
-              <Typography component="span">{p.title ?? "Без названия"}</Typography>
-            </Box>
-          }
-          onClick={(e) => {
-            e.stopPropagation()
-            onSelect(p.id)
-          }}
-        >
-          <PageTreeItems
-            parentId={p.id}
-            parentType="PAGE"
+      <Box
+        onClick={() => onSelect(page.id)}
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          pl: depth * 2 + 1,
+          pr: 1,
+          py: 0.5,
+          cursor: "pointer",
+          borderRadius: 0.75,
+          "&:hover": { bgcolor: "action.hover" },
+          fontSize: 13,
+        }}
+      >
+        {children.length > 0 ? (
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation()
+              setExpanded((v) => !v)
+            }}
+            sx={{ p: 0, mr: 0.5 }}
+          >
+            <ChevronRightIcon
+              sx={{
+                fontSize: 16,
+                transform: expanded ? "rotate(90deg)" : "none",
+                transition: "transform 0.15s",
+              }}
+            />
+          </IconButton>
+        ) : (
+          <Box sx={{ width: 20, mr: 0.5 }} />
+        )}
+        <span style={{ marginRight: 6 }}>{page.icon ?? "📄"}</span>
+        <Typography variant="body2" noWrap>
+          {page.title ?? "Без названия"}
+        </Typography>
+      </Box>
+      {expanded &&
+        children.map((child) => (
+          <MoveTreeItem
+            key={child.id}
+            page={child}
             pages={pages}
             excludeIds={excludeIds}
             onSelect={onSelect}
+            depth={depth + 1}
           />
-        </TreeItem>
-      ))}
+        ))}
     </>
   )
 }
@@ -97,6 +125,9 @@ export function MovePageDialog({ open, onClose, page, pages, workspaceId }: Prop
   })
 
   const excludeIds = new Set([page.id, ...getDescendantIds(page.id, pages)])
+  const rootPages = orderSiblings(
+    pages.filter((p) => p.parentType === "WORKSPACE" && !excludeIds.has(p.id)),
+  )
 
   const handleSelect = (itemId: string) => {
     const newParentId = itemId === "__root__" ? null : itemId
@@ -106,27 +137,38 @@ export function MovePageDialog({ open, onClose, page, pages, workspaceId }: Prop
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
       <DialogTitle>{`Переместить \u00AB${page.title ?? "Без названия"}\u00BB`}</DialogTitle>
-      <DialogContent>
-        <SimpleTreeView>
-          <TreeItem
-            itemId="__root__"
-            label={<Typography>Корень</Typography>}
-            onClick={(e) => {
-              e.stopPropagation()
-              handleSelect("__root__")
-            }}
-          />
-          <PageTreeItems
-            parentId={null}
-            parentType="WORKSPACE"
+      <DialogContent sx={{ p: 1 }}>
+        <Box
+          onClick={() => handleSelect("__root__")}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            px: 1,
+            py: 0.5,
+            cursor: "pointer",
+            borderRadius: 0.75,
+            fontWeight: 500,
+            fontSize: 13,
+            "&:hover": { bgcolor: "action.hover" },
+          }}
+        >
+          Корень
+        </Box>
+        {rootPages.map((p) => (
+          <MoveTreeItem
+            key={p.id}
+            page={p}
             pages={pages}
             excludeIds={excludeIds}
             onSelect={handleSelect}
+            depth={0}
           />
-        </SimpleTreeView>
+        ))}
       </DialogContent>
       <DialogActions>
-        <Button onClick={onClose}>Отмена</Button>
+        <Button variant="text" onClick={onClose}>
+          Отмена
+        </Button>
       </DialogActions>
     </Dialog>
   )

@@ -27,6 +27,7 @@ Before starting Task 1:
 ### Task 1: `Block` Prisma model + `BlockType` enum
 
 **Files:**
+
 - Modify: `packages/db/prisma/schema.prisma`
 
 - [ ] **Step 1: Add `BlockType` enum**
@@ -134,6 +135,7 @@ git commit -m "feat(db): add Block model with BlockType enum"
 ### Task 2: `SearchChat` + `SearchMessage` models
 
 **Files:**
+
 - Modify: `packages/db/prisma/schema.prisma`
 
 - [ ] **Step 1: Add `SearchMessageRole` enum**
@@ -204,6 +206,7 @@ git commit -m "feat(db): add SearchChat and SearchMessage models"
 ### Task 3: Migration — apply schema + manual partial indexes
 
 **Files:**
+
 - Create: `packages/db/prisma/migrations/<timestamp>_workspace_polish_pass/migration.sql`
 
 - [ ] **Step 1: Run migration dev command**
@@ -313,6 +316,7 @@ rm /tmp/block-type-check.ts
 ### Task 5: Update `@repo/db` explicit re-exports
 
 **Files:**
+
 - Modify: `packages/db/src/index.ts`
 
 - [ ] **Step 1: Extend the explicit exports list**
@@ -375,6 +379,7 @@ git commit -m "feat(db): export Block, SearchChat, SearchMessage explicitly"
 ### Task 6: `blockRouter` with `listByPage`, `create`, `update`, `move`, `archive`
 
 **Files:**
+
 - Create: `packages/trpc/src/routers/block.ts`
 - Create: `packages/trpc/src/schemas/block-content.ts`
 
@@ -388,7 +393,10 @@ import { z } from "zod"
 const textBlock = z.object({ text: z.string().max(10_000) })
 const todoBlock = z.object({ text: z.string().max(10_000), checked: z.boolean().default(false) })
 const calloutBlock = z.object({ text: z.string().max(10_000), emoji: z.string().max(8).optional() })
-const codeBlock = z.object({ text: z.string().max(50_000), language: z.string().max(32).default("plaintext") })
+const codeBlock = z.object({
+  text: z.string().max(50_000),
+  language: z.string().max(32).default("plaintext"),
+})
 const emptyBlock = z.object({}).strict()
 
 export const BlockCreateInput = z.discriminatedUnion("type", [
@@ -493,7 +501,10 @@ export const blockRouter = router({
             })
           : null
         if (input.afterBlockId && !after) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "afterBlockId not in the same sibling group" })
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "afterBlockId not in the same sibling group",
+          })
         }
 
         const exNext = await tx.block.findFirst({
@@ -531,7 +542,10 @@ export const blockRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const block = await ctx.prisma.block.findFirst({
-        where: { id: input.id, page: { workspace: { members: { some: { userId: ctx.user.id } } } } },
+        where: {
+          id: input.id,
+          page: { workspace: { members: { some: { userId: ctx.user.id } } } },
+        },
       })
       if (!block) throw new TRPCError({ code: "NOT_FOUND" })
       return ctx.prisma.block.update({
@@ -551,13 +565,20 @@ export const blockRouter = router({
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.$transaction(async (tx) => {
         const block = await tx.block.findFirst({
-          where: { id: input.id, page: { workspace: { members: { some: { userId: ctx.user.id } } } } },
+          where: {
+            id: input.id,
+            page: { workspace: { members: { some: { userId: ctx.user.id } } } },
+          },
         })
         if (!block) throw new TRPCError({ code: "NOT_FOUND" })
 
         // Unlink from current position
         const oldNext = await tx.block.findFirst({
-          where: { pageId: block.pageId, parentBlockId: block.parentBlockId, prevBlockId: block.id },
+          where: {
+            pageId: block.pageId,
+            parentBlockId: block.parentBlockId,
+            prevBlockId: block.id,
+          },
         })
         if (oldNext) {
           await tx.block.update({
@@ -569,7 +590,11 @@ export const blockRouter = router({
         // Link at new position
         const newPrev = input.newAfterBlockId
           ? await tx.block.findFirst({
-              where: { id: input.newAfterBlockId, pageId: block.pageId, parentBlockId: input.newParentBlockId },
+              where: {
+                id: input.newAfterBlockId,
+                pageId: block.pageId,
+                parentBlockId: input.newParentBlockId,
+              },
             })
           : null
         const newNext = await tx.block.findFirst({
@@ -600,11 +625,18 @@ export const blockRouter = router({
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.$transaction(async (tx) => {
         const block = await tx.block.findFirst({
-          where: { id: input.id, page: { workspace: { members: { some: { userId: ctx.user.id } } } } },
+          where: {
+            id: input.id,
+            page: { workspace: { members: { some: { userId: ctx.user.id } } } },
+          },
         })
         if (!block) throw new TRPCError({ code: "NOT_FOUND" })
         const next = await tx.block.findFirst({
-          where: { pageId: block.pageId, parentBlockId: block.parentBlockId, prevBlockId: block.id },
+          where: {
+            pageId: block.pageId,
+            parentBlockId: block.parentBlockId,
+            prevBlockId: block.id,
+          },
         })
         if (next) {
           await tx.block.update({
@@ -641,6 +673,7 @@ git commit -m "feat(trpc): add blockRouter with linked-list operations"
 ### Task 7: `pageRouter` (minimal)
 
 **Files:**
+
 - Create: `packages/trpc/src/routers/page.ts`
 
 - [ ] **Step 1: Create the router**
@@ -707,6 +740,7 @@ git commit -m "feat(trpc): add pageRouter with getById and listByWorkspace"
 ### Task 8: `seedStartPage` helper + rewire `workspace.create`
 
 **Files:**
+
 - Create: `packages/trpc/src/helpers/seed-start-page.ts`
 - Modify: `packages/trpc/src/routers/workspace.ts`
 
@@ -825,6 +859,7 @@ git commit -m "feat(trpc): seed welcome page + blocks on workspace create"
 ### Task 9: `workspaceRouter` — rename / listMembers / inviteMember / removeMember / delete
 
 **Files:**
+
 - Modify: `packages/trpc/src/routers/workspace.ts`
 
 - [ ] **Step 1: Add plan-gate helper**
@@ -832,7 +867,10 @@ git commit -m "feat(trpc): seed welcome page + blocks on workspace create"
 At the top of the file after imports:
 
 ```ts
-async function assertPaidPlan(ctx: { prisma: typeof import("@repo/db").default; user: { id: string } }) {
+async function assertPaidPlan(ctx: {
+  prisma: typeof import("@repo/db").default
+  user: { id: string }
+}) {
   const { plan } = await getActivePlanForUser(ctx.prisma, ctx.user.id)
   if (plan.slug === "free") {
     throw new TRPCError({
@@ -966,6 +1004,7 @@ git commit -m "feat(trpc): workspace rename/members/delete with plan gating"
 ### Task 10: `searchRouter` with chat + echo message pipeline
 
 **Files:**
+
 - Create: `packages/trpc/src/routers/search.ts`
 
 - [ ] **Step 1: Create the router**
@@ -1095,6 +1134,7 @@ git commit -m "feat(trpc): add searchRouter with echo message pipeline"
 ### Task 11: Register new routers + remove `loggerLink`
 
 **Files:**
+
 - Modify: `packages/trpc/src/index.ts`
 - Modify: `apps/web/src/trpc/client.tsx`
 
@@ -1150,6 +1190,7 @@ git commit -m "feat(trpc): register block/page/search routers, drop loggerLink"
 ### Task 12: Thin typography weights + dark palette tokens in theme
 
 **Files:**
+
 - Modify: `packages/ui/src/theme/theme.ts`
 
 - [ ] **Step 1: Replace the theme factory**
@@ -1213,7 +1254,9 @@ export function createAppTheme(mode: PaletteMode = "light") {
       body2: { fontWeight: 300 },
       button: { textTransform: "none", fontWeight: 400 },
       overline: {
-        fontFamily: ["var(--font-geist-mono)", "ui-monospace", "SFMono-Regular", "monospace"].join(", "),
+        fontFamily: ["var(--font-geist-mono)", "ui-monospace", "SFMono-Regular", "monospace"].join(
+          ", ",
+        ),
         letterSpacing: "0.16em",
         fontWeight: 400,
       },
@@ -1253,6 +1296,7 @@ git commit -m "feat(ui): thin typography weights and extended palette tokens"
 ### Task 13: Remove internal `ThemeProvider` and hex colors from `WorkspaceShell`
 
 **Files:**
+
 - Modify: `apps/web/src/components/workspace/workspace-shell.tsx`
 
 - [ ] **Step 1: Replace the file contents**
@@ -1311,6 +1355,7 @@ git commit -m "refactor(web): simplify WorkspaceShell, drop internal ThemeProvid
 ### Task 14: Fix `resolveTheme()` + client-side `system` handling
 
 **Files:**
+
 - Modify: `apps/web/src/app/layout.tsx`
 - Modify: `packages/ui/src/providers/ui-provider.tsx`
 
@@ -1456,6 +1501,7 @@ git commit -m "feat(ui): system theme preference with prefers-color-scheme"
 ### Task 15: `/settings` → `/settings/general` redirect
 
 **Files:**
+
 - Create: `apps/web/src/app/(protected)/settings/page.tsx`
 
 - [ ] **Step 1: Create the redirect page**
@@ -1488,6 +1534,7 @@ git commit -m "feat(web): redirect /settings to /settings/general"
 ### Task 16: `/workspaces` → default workspace redirect
 
 **Files:**
+
 - Create: `apps/web/src/app/(protected)/workspaces/page.tsx`
 
 - [ ] **Step 1: Create the server redirect**
@@ -1523,6 +1570,7 @@ git commit -m "feat(web): redirect /workspaces to default workspace"
 ### Task 17: `/profile` page with avatar + workspace cards
 
 **Files:**
+
 - Create: `apps/web/src/app/(protected)/profile/page.tsx`
 
 - [ ] **Step 1: Create the page**
@@ -1530,15 +1578,7 @@ git commit -m "feat(web): redirect /workspaces to default workspace"
 ```tsx
 import Link from "next/link"
 
-import {
-  Avatar,
-  Box,
-  Button,
-  Container,
-  Paper,
-  Stack,
-  Typography,
-} from "@repo/ui/components"
+import { Avatar, Box, Button, Container, Paper, Stack, Typography } from "@repo/ui/components"
 
 import { requireSession } from "@/lib/get-session"
 import { getServerTRPC } from "@/trpc/server"
@@ -1550,7 +1590,8 @@ export default async function ProfilePage() {
   const trpc = await getServerTRPC()
   const workspaces = await trpc.workspace.listMine()
 
-  const initials = `${session.user.firstName.charAt(0)}${session.user.lastName.charAt(0)}`.toUpperCase()
+  const initials =
+    `${session.user.firstName.charAt(0)}${session.user.lastName.charAt(0)}`.toUpperCase()
 
   return (
     <Container maxWidth="sm" sx={{ py: { xs: 4, md: 8 } }}>
@@ -1665,6 +1706,7 @@ git commit -m "feat(web): add /profile page with avatar and workspaces"
 ### Task 18: `/workspaces/[id]/settings` layout + nav
 
 **Files:**
+
 - Create: `apps/web/src/app/(protected)/workspaces/[workspaceId]/settings/layout.tsx`
 - Create: `apps/web/src/app/(protected)/workspaces/[workspaceId]/settings/page.tsx`
 - Create: `apps/web/src/components/workspace/workspace-settings-nav.tsx`
@@ -1706,7 +1748,9 @@ export function WorkspaceSettingsNav({ workspaceId }: Props) {
               borderRadius: 6,
               textDecoration: "none",
               fontSize: 14,
-              color: active ? "var(--mui-palette-text-primary)" : "var(--mui-palette-text-secondary)",
+              color: active
+                ? "var(--mui-palette-text-primary)"
+                : "var(--mui-palette-text-secondary)",
               backgroundColor: active ? "var(--mui-palette-action-selected)" : "transparent",
             }}
           >
@@ -1785,6 +1829,7 @@ git commit -m "feat(web): workspace settings layout and nav"
 ### Task 19: Workspace settings — `/general` (rename, plan-gated)
 
 **Files:**
+
 - Create: `apps/web/src/app/(protected)/workspaces/[workspaceId]/settings/general/page.tsx`
 - Create: `apps/web/src/components/workspace/settings/general-section.tsx`
 
@@ -1797,14 +1842,7 @@ git commit -m "feat(web): workspace settings layout and nav"
 
 import { useState } from "react"
 
-import {
-  Alert,
-  Button,
-  Paper,
-  Stack,
-  TextField,
-  Typography,
-} from "@repo/ui/components"
+import { Alert, Button, Paper, Stack, TextField, Typography } from "@repo/ui/components"
 
 import { trpc } from "@/trpc/client"
 
@@ -1909,6 +1947,7 @@ git commit -m "feat(web): workspace settings general (rename, plan-gated)"
 ### Task 20: Workspace settings — `/members`
 
 **Files:**
+
 - Create: `apps/web/src/app/(protected)/workspaces/[workspaceId]/settings/members/page.tsx`
 - Create: `apps/web/src/components/workspace/settings/members-section.tsx`
 
@@ -2024,9 +2063,7 @@ export function WorkspaceMembersSection({ workspaceId, locked, currentUserId }: 
                       color="error"
                       variant="outlined"
                       disabled={locked}
-                      onClick={() =>
-                        remove.mutate({ workspaceId, userId: member.userId })
-                      }
+                      onClick={() => remove.mutate({ workspaceId, userId: member.userId })}
                     >
                       Удалить
                     </Button>
@@ -2078,6 +2115,7 @@ grep -E "Select|MenuItem" packages/ui/src/components/index.ts
 ```
 
 If missing, add:
+
 ```ts
 export { Select, MenuItem } from "@mui/material"
 ```
@@ -2095,6 +2133,7 @@ git commit -m "feat(web): workspace settings members (invite/remove, gated)"
 ### Task 21: Workspace settings — `/danger` (delete)
 
 **Files:**
+
 - Create: `apps/web/src/app/(protected)/workspaces/[workspaceId]/settings/danger/page.tsx`
 - Create: `apps/web/src/components/workspace/settings/danger-section.tsx`
 
@@ -2197,6 +2236,7 @@ git commit -m "feat(web): workspace settings danger zone (delete)"
 ### Task 22: `/workspaces/[id]/search` entry redirect
 
 **Files:**
+
 - Create: `apps/web/src/app/(protected)/workspaces/[workspaceId]/search/page.tsx`
 
 - [ ] **Step 1: Create the page**
@@ -2232,6 +2272,7 @@ git commit -m "feat(web): search index redirects to latest chat"
 ### Task 23: `/workspaces/[id]/search/[chatId]` chat view
 
 **Files:**
+
 - Create: `apps/web/src/app/(protected)/workspaces/[workspaceId]/search/[chatId]/page.tsx`
 - Create: `apps/web/src/components/workspace/search/search-chat-view.tsx`
 - Create: `apps/web/src/components/workspace/search/search-chat-input.tsx`
@@ -2333,8 +2374,7 @@ export function SearchChatView({ chatId, workspaceId }: Props) {
               sx={{
                 p: 2,
                 alignSelf: message.role === "USER" ? "flex-end" : "flex-start",
-                bgcolor:
-                  message.role === "USER" ? "action.selected" : "background.paper",
+                bgcolor: message.role === "USER" ? "action.selected" : "background.paper",
                 maxWidth: "80%",
               }}
             >
@@ -2386,6 +2426,7 @@ git commit -m "feat(web): search chat view with echo pipeline"
 ### Task 24: `PageView` + `BlockRenderer` for data-driven start page
 
 **Files:**
+
 - Create: `apps/web/src/components/page/page-view.tsx`
 - Create: `apps/web/src/components/page/block-renderer.tsx`
 
@@ -2409,9 +2450,7 @@ export function BlockRenderer({ block }: { block: Block & { depth: number } }) {
 
   switch (block.type) {
     case "PARAGRAPH":
-      return (
-        <Typography sx={{ pl: `${indent}px`, my: 0.75 }}>{content.text}</Typography>
-      )
+      return <Typography sx={{ pl: `${indent}px`, my: 0.75 }}>{content.text}</Typography>
     case "HEADING_1":
       return (
         <Typography variant="h3" sx={{ pl: `${indent}px`, mt: 3, mb: 1 }}>
@@ -2432,9 +2471,7 @@ export function BlockRenderer({ block }: { block: Block & { depth: number } }) {
       )
     case "TO_DO":
       return (
-        <Box
-          sx={{ display: "flex", alignItems: "center", gap: 1, pl: `${indent}px`, my: 0.25 }}
-        >
+        <Box sx={{ display: "flex", alignItems: "center", gap: 1, pl: `${indent}px`, my: 0.25 }}>
           <Checkbox checked={!!content.checked} disabled size="small" />
           <Typography
             sx={{
@@ -2447,13 +2484,9 @@ export function BlockRenderer({ block }: { block: Block & { depth: number } }) {
         </Box>
       )
     case "BULLETED_LIST_ITEM":
-      return (
-        <Typography sx={{ pl: `${indent + 16}px`, my: 0.25 }}>• {content.text}</Typography>
-      )
+      return <Typography sx={{ pl: `${indent + 16}px`, my: 0.25 }}>• {content.text}</Typography>
     case "NUMBERED_LIST_ITEM":
-      return (
-        <Typography sx={{ pl: `${indent + 16}px`, my: 0.25 }}>{content.text}</Typography>
-      )
+      return <Typography sx={{ pl: `${indent + 16}px`, my: 0.25 }}>{content.text}</Typography>
     case "TOGGLE":
       return (
         <Box component="details" sx={{ pl: `${indent}px`, my: 0.5 }}>
@@ -2497,7 +2530,13 @@ export function BlockRenderer({ block }: { block: Block & { depth: number } }) {
       return (
         <Box
           component="hr"
-          sx={{ ml: `${indent}px`, border: 0, borderTop: "1px solid", borderColor: "divider", my: 1.5 }}
+          sx={{
+            ml: `${indent}px`,
+            border: 0,
+            borderTop: "1px solid",
+            borderColor: "divider",
+            my: 1.5,
+          }}
         />
       )
     case "CODE":
@@ -2572,6 +2611,7 @@ git commit -m "feat(web): PageView and BlockRenderer for data-driven pages"
 ### Task 25: Wire `/workspaces/[id]` to `PageView` and remove `WorkspaceOnboarding`
 
 **Files:**
+
 - Modify: `apps/web/src/app/(protected)/workspaces/[workspaceId]/page.tsx`
 - Delete: `apps/web/src/components/workspace/workspace-onboarding.tsx`
 
@@ -2627,6 +2667,7 @@ git commit -m "feat(web): render workspace root via PageView from seeded blocks"
 ### Task 26: `WorkspaceSidebar` — remove "Главная", add search section, settings link update
 
 **Files:**
+
 - Modify: `apps/web/src/components/workspace/workspace-sidebar.tsx`
 - Create: `apps/web/src/components/workspace/search-sidebar-section.tsx`
 
@@ -2767,7 +2808,16 @@ export function WorkspaceSidebar({
         transition: "width 150ms ease",
       }}
     >
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ px: collapsed ? 0 : 1, pb: 1.75, justifyContent: collapsed ? "center" : "flex-start" }}>
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={1}
+        sx={{
+          px: collapsed ? 0 : 1,
+          pb: 1.75,
+          justifyContent: collapsed ? "center" : "flex-start",
+        }}
+      >
         <Box
           sx={{
             width: 24,
@@ -2875,11 +2925,7 @@ function NavItem({
         justifyContent: collapsed ? "center" : "flex-start",
         borderRadius: 0.75,
         textDecoration: "none",
-        color: active
-          ? "text.primary"
-          : muted
-            ? "text.disabled"
-            : "text.secondary",
+        color: active ? "text.primary" : muted ? "text.disabled" : "text.secondary",
         backgroundColor: active ? "action.selected" : "transparent",
         "&:hover": { backgroundColor: active ? "action.selected" : "action.hover" },
         fontSize: 13,
@@ -2921,6 +2967,7 @@ git commit -m "feat(web): workspace sidebar with search section and collapse"
 ### Task 27: `WorkspaceUserMenu` footer component
 
 **Files:**
+
 - Create: `apps/web/src/components/workspace/workspace-user-menu.tsx`
 
 - [ ] **Step 1: Create the component**
@@ -2931,14 +2978,7 @@ git commit -m "feat(web): workspace sidebar with search section and collapse"
 import Link from "next/link"
 import { useState } from "react"
 
-import {
-  Avatar,
-  Box,
-  Menu,
-  MenuItem,
-  Stack,
-  Typography,
-} from "@repo/ui/components"
+import { Avatar, Box, Menu, MenuItem, Stack, Typography } from "@repo/ui/components"
 
 import { signOut } from "@/lib/auth-client"
 
@@ -3029,6 +3069,7 @@ git commit -m "feat(web): workspace footer user menu"
 ### Task 28: `WorkspaceToolbar` cleanup (remove Share / ⋯ / New AI chat)
 
 **Files:**
+
 - Modify: `apps/web/src/components/workspace/workspace-toolbar.tsx`
 
 - [ ] **Step 1: Replace the file**
@@ -3087,6 +3128,7 @@ git commit -m "refactor(web): strip Share/more/AI from WorkspaceToolbar"
 ### Task 29: Delete `WorkspaceAiPanel` + update `/workspaces/[id]/layout.tsx`
 
 **Files:**
+
 - Delete: `apps/web/src/components/workspace/workspace-ai-panel.tsx`
 - Delete: `apps/web/src/components/workspace/cookie-banner.tsx` (if present; it was part of the AI panel layout)
 - Modify: `apps/web/src/app/(protected)/workspaces/[workspaceId]/layout.tsx`
@@ -3240,6 +3282,7 @@ git commit -m "refactor(web): remove AI panel, wire collapsible shell"
 ### Task 30: Update e2e spec + final verification
 
 **Files:**
+
 - Modify: `apps/e2e/workspace-flow.spec.ts`
 
 - [ ] **Step 1: Update the existing spec**

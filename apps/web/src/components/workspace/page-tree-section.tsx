@@ -4,6 +4,8 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useState } from "react"
 import {
+  ArrowDropDownIcon,
+  ArrowDropUpIcon,
   Box,
   Typography,
   IconButton,
@@ -173,6 +175,7 @@ function PageTreeItem({
 }
 
 export function PageTreeSection({ workspaceId, pages: initialPages, favoritePageIds }: Props) {
+  const [open, setOpen] = useState(true)
   const router = useRouter()
   const utils = trpc.useUtils()
 
@@ -190,51 +193,64 @@ export function PageTreeSection({ workspaceId, pages: initialPages, favoritePage
 
   return (
     <Box>
-      <Typography variant="overline" sx={{ px: 1, color: "text.secondary" }}>
-        Страницы
-      </Typography>
-
-      <Box sx={{ mt: 0.5 }}>
-        {rootPages.map((page) => (
-          <PageTreeItem
-            key={page.id}
-            page={page}
-            pages={pages}
-            workspaceId={workspaceId}
-            favoritePageIds={favoritePageIds}
-            depth={0}
-          />
-        ))}
-      </Box>
-
       <Box
-        component="button"
-        onClick={() =>
-          createPage.mutate({
-            workspaceId,
-            parentType: "WORKSPACE",
-            parentId: null,
-          })
-        }
         sx={{
           display: "flex",
           alignItems: "center",
-          gap: 0.5,
-          width: "100%",
-          border: "none",
-          background: "none",
-          cursor: "pointer",
-          color: "text.secondary",
-          py: 0.5,
-          px: 0.5,
-          borderRadius: 0.75,
-          fontSize: 13,
-          "&:hover": { bgcolor: "action.hover", color: "text.primary" },
+          px: 1,
+          py: 0.75,
         }}
       >
-        <AddIcon sx={{ fontSize: 16 }} />
-        Новая страница
+        <Box
+          onClick={() => setOpen((prev) => !prev)}
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            gap: 1,
+            flex: 1,
+            cursor: "pointer",
+            color: "text.secondary",
+            "&:hover": { color: "text.primary" },
+          }}
+        >
+          <Typography variant="overline" sx={{ color: "inherit", letterSpacing: "0.06em" }}>
+            Страницы
+          </Typography>
+          {open ? (
+            <ArrowDropUpIcon sx={{ fontSize: 16 }} />
+          ) : (
+            <ArrowDropDownIcon sx={{ fontSize: 16 }} />
+          )}
+        </Box>
+        <IconButton
+          size="small"
+          onClick={() =>
+            createPage.mutate({
+              workspaceId,
+              parentType: "WORKSPACE",
+              parentId: null,
+            })
+          }
+          sx={{ p: 0.25 }}
+        >
+          <AddIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+        </IconButton>
       </Box>
+
+      {open ? (
+        <Box sx={{ maxHeight: 300, overflow: "auto" }}>
+          {rootPages.map((page) => (
+            <PageTreeItem
+              key={page.id}
+              page={page}
+              pages={pages}
+              workspaceId={workspaceId}
+              favoritePageIds={favoritePageIds}
+              depth={0}
+            />
+          ))}
+        </Box>
+      ) : null}
     </Box>
   )
 }

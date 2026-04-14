@@ -303,9 +303,19 @@ export function SearchSidebarSection({ workspaceId }: Props) {
         ) : (
           <ArrowDropDownIcon sx={{ fontSize: 16 }} />
         )}
+        <IconButton
+          size="small"
+          onClick={(e) => {
+            e.stopPropagation()
+            create.mutate({ workspaceId })
+          }}
+          sx={{ p: 0.25, ml: 0.5 }}
+        >
+          <AddIcon sx={{ fontSize: 16 }} />
+        </IconButton>
       </Box>
       {open ? (
-        <Stack spacing={0.25} sx={{ pl: 3 }}>
+        <Stack spacing={0.25} sx={{ pl: 3, maxHeight: 200, overflow: "auto" }}>
           {rootChats.map((chat) => (
             <ChatTreeItem
               key={chat.id}
@@ -314,18 +324,6 @@ export function SearchSidebarSection({ workspaceId }: Props) {
               allChats={chats.data ?? []}
             />
           ))}
-          <Box
-            onClick={() => create.mutate({ workspaceId })}
-            sx={{
-              cursor: "pointer",
-              py: 0.5,
-              color: "text.disabled",
-              "&:hover": { color: "text.primary" },
-              fontSize: 13,
-            }}
-          >
-            ＋ Новый чат
-          </Box>
         </Stack>
       ) : null}
     </Box>

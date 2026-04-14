@@ -60,7 +60,7 @@ Turborepo + pnpm workspaces. Workspace filters: `apps/*`, `packages/*`.
 
 - `(about)/` — public marketing pages (landing, docs, pricing, contact, etc.). No providers beyond the root layout.
 - `(auth)/layout.tsx` — redirects to `/app` if a session already exists.
-- `app/layout.tsx` — calls `requireSession()` (which `redirect()`s to `/sign-in` on failure) and wraps children in `<TRPCReactProvider>`. The tRPC/React Query client is **only** loaded inside `/app` to keep the marketing bundle pure RSC.
+- `(protected)/layout.tsx` — calls `requireSession()` (which `redirect()`s to `/sign-in` on failure) and wraps children in `<TRPCReactProvider>`. The tRPC/React Query client is **only** loaded inside this subtree to keep the marketing bundle pure RSC. Protected routes include `/app`, `/profile`, `/settings/*`, `/workspaces/*`.
 - `layout.tsx` (root) — only `<UiProvider>` + fonts. No tRPC, no React Query.
 
 Special files used across route groups: `loading.tsx`, `error.tsx`, `global-error.tsx`, `not-found.tsx`. Generated app icons live in `app/icon.tsx` (512×512) and `app/apple-icon.tsx` (180×180), both rendering shared SVG via `lib/brand-icon.tsx` and `next/og` `ImageResponse`.
@@ -87,9 +87,9 @@ When adding procedures, edit `packages/trpc/src/index.ts`. The context includes 
 
 ## Conventions that bite
 
-### No semicolons
+### Prettier style
 
-Prettier is configured with `semi: false` project-wide (`.prettierrc`). Don't add semicolons — run `pnpm format` if in doubt.
+`.prettierrc`: `semi: false`, double quotes, trailing commas, 100-char print width. Run `pnpm format` if in doubt.
 
 ### RSC ↔ Client boundary
 
@@ -114,3 +114,22 @@ Import MUI through the `@repo/ui/components` / `@repo/ui/widgets` subpaths — n
 better-auth runs with `additionalFields: { firstName, lastName }` and `advanced.database.generateId: false` (Prisma generates UUID v7 ids). Schema is tracked in `packages/db/prisma/schema.prisma`; do not let better-auth auto-generate tables.
 
 `sendResetPassword` currently throws in production — wire a real email transport before enabling password reset flows.
+
+### Environment variables
+
+The repo root `.env` is the single source for all local-dev env vars. Required:
+
+- `DATABASE_URL` — Postgres connection string (e.g. `postgresql://user:password@localhost:5432/anynote`)
+- `BETTER_AUTH_URL` — base URL for auth (e.g. `http://localhost:3000`)
+- `BETTER_AUTH_SECRET` — session signing secret
+- `NEXT_PUBLIC_BASE_URL` — public app URL (e.g. `http://localhost:3000`)
+
+These are declared in `turbo.json` `globalEnv` so Turbo hashes them for caching.
+
+### Docker compose services
+
+`compose.yml` runs: Postgres (5432), MinIO (9000/9001), Weaviate (8080/50051), Redis (6379). All have health checks. Run `docker compose up -d` before `pnpm dev`.
+
+### Database seeding
+
+`packages/db/prisma/seed.ts` populates integration providers (Yandex, GitHub, Telegram, AmoCRM, MangoOffice) and plans (Free, Personal, Corporate). Run after initial schema push.

@@ -1,14 +1,6 @@
 import Link from "next/link"
 
-import {
-  Avatar,
-  Box,
-  Button,
-  Container,
-  Paper,
-  Stack,
-  Typography,
-} from "@repo/ui/components"
+import { Avatar, Box, Button, Container, Paper, Stack, Typography } from "@repo/ui/components"
 
 import { requireSession } from "@/lib/get-session"
 import { getServerTRPC } from "@/trpc/server"
@@ -91,10 +83,7 @@ export default async function ProfilePage() {
                       {workspace.name}
                     </Typography>
                   </Stack>
-                  <Link
-                    href={`/workspaces/${workspace.id}`}
-                    style={{ textDecoration: "none" }}
-                  >
+                  <Link href={`/workspaces/${workspace.id}`} style={{ textDecoration: "none" }}>
                     <Button size="small" variant="outlined">
                       Перейти
                     </Button>

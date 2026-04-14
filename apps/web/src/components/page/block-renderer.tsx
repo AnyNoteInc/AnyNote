@@ -15,9 +15,7 @@ export function BlockRenderer({ block }: { block: Block & { depth: number } }) {
 
   switch (block.type) {
     case "PARAGRAPH":
-      return (
-        <Typography sx={{ pl: `${indent}px`, my: 0.75 }}>{content.text}</Typography>
-      )
+      return <Typography sx={{ pl: `${indent}px`, my: 0.75 }}>{content.text}</Typography>
     case "HEADING_1":
       return (
         <Typography variant="h3" sx={{ pl: `${indent}px`, mt: 3, mb: 1 }}>

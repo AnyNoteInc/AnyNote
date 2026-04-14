@@ -78,7 +78,10 @@ export const blockRouter = router({
             })
           : null
         if (input.afterBlockId && !after) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "afterBlockId not in the same sibling group" })
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "afterBlockId not in the same sibling group",
+          })
         }
 
         const exNext = await tx.block.findFirst({
@@ -116,7 +119,10 @@ export const blockRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       const block = await ctx.prisma.block.findFirst({
-        where: { id: input.id, page: { workspace: { members: { some: { userId: ctx.user.id } } } } },
+        where: {
+          id: input.id,
+          page: { workspace: { members: { some: { userId: ctx.user.id } } } },
+        },
       })
       if (!block) throw new TRPCError({ code: "NOT_FOUND" })
       return ctx.prisma.block.update({
@@ -136,12 +142,19 @@ export const blockRouter = router({
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.$transaction(async (tx) => {
         const block = await tx.block.findFirst({
-          where: { id: input.id, page: { workspace: { members: { some: { userId: ctx.user.id } } } } },
+          where: {
+            id: input.id,
+            page: { workspace: { members: { some: { userId: ctx.user.id } } } },
+          },
         })
         if (!block) throw new TRPCError({ code: "NOT_FOUND" })
 
         const oldNext = await tx.block.findFirst({
-          where: { pageId: block.pageId, parentBlockId: block.parentBlockId, prevBlockId: block.id },
+          where: {
+            pageId: block.pageId,
+            parentBlockId: block.parentBlockId,
+            prevBlockId: block.id,
+          },
         })
         if (oldNext) {
           await tx.block.update({
@@ -152,7 +165,11 @@ export const blockRouter = router({
 
         const newPrev = input.newAfterBlockId
           ? await tx.block.findFirst({
-              where: { id: input.newAfterBlockId, pageId: block.pageId, parentBlockId: input.newParentBlockId },
+              where: {
+                id: input.newAfterBlockId,
+                pageId: block.pageId,
+                parentBlockId: input.newParentBlockId,
+              },
             })
           : null
         const newNext = await tx.block.findFirst({
@@ -183,11 +200,18 @@ export const blockRouter = router({
     .mutation(async ({ ctx, input }) => {
       return ctx.prisma.$transaction(async (tx) => {
         const block = await tx.block.findFirst({
-          where: { id: input.id, page: { workspace: { members: { some: { userId: ctx.user.id } } } } },
+          where: {
+            id: input.id,
+            page: { workspace: { members: { some: { userId: ctx.user.id } } } },
+          },
         })
         if (!block) throw new TRPCError({ code: "NOT_FOUND" })
         const next = await tx.block.findFirst({
-          where: { pageId: block.pageId, parentBlockId: block.parentBlockId, prevBlockId: block.id },
+          where: {
+            pageId: block.pageId,
+            parentBlockId: block.parentBlockId,
+            prevBlockId: block.id,
+          },
         })
         if (next) {
           await tx.block.update({

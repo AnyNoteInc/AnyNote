@@ -15,18 +15,22 @@
 ## File Structure
 
 ### Schema & DB
+
 - Modify: `packages/db/prisma/schema.prisma` — add `prevPageId` to Page, `parentId` to SearchChat, new `FavoritePage` model
 - Modify: `packages/db/src/index.ts` — re-export `FavoritePage` type
 
 ### UI Package
+
 - Modify: `packages/ui/package.json` — add `@mui/x-tree-view` dependency
 - Modify: `packages/ui/src/components/index.ts` — re-export Tree View components + new icons
 
 ### tRPC Routers
+
 - Modify: `packages/trpc/src/routers/page.ts` — expand from 2 to 12 procedures
 - Modify: `packages/trpc/src/routers/search.ts` — add `parentId` to listChats/createChat/deleteChat
 
 ### Frontend Components
+
 - Create: `apps/web/src/components/workspace/page-tree-section.tsx` — tree view for pages with hover actions
 - Create: `apps/web/src/components/workspace/page-context-menu.tsx` — MoreHoriz menu for pages
 - Create: `apps/web/src/components/workspace/favorites-section.tsx` — favorites tree section
@@ -36,6 +40,7 @@
 - Modify: `apps/web/src/components/workspace/workspace-layout-client.tsx` — pass userId, update page type
 
 ### Routes
+
 - Create: `apps/web/src/app/(protected)/workspaces/[workspaceId]/trash/page.tsx` — trash page
 - Create: `apps/web/src/app/(protected)/workspaces/[workspaceId]/pages/[pageId]/page.tsx` — page view (stub)
 - Modify: `apps/web/src/app/(protected)/workspaces/[workspaceId]/layout.tsx` — pass userId to layout client
@@ -45,6 +50,7 @@
 ## Task 1: Schema Changes (Prisma)
 
 **Files:**
+
 - Modify: `packages/db/prisma/schema.prisma:10-36` (User model — add FavoritePage relation)
 - Modify: `packages/db/prisma/schema.prisma:167-184` (Workspace — add FavoritePage relation not needed, it's user-level)
 - Modify: `packages/db/prisma/schema.prisma:204-229` (Page model)
@@ -161,6 +167,7 @@ git commit -m "feat(db): add prevPageId, SearchChat.parentId, and FavoritePage m
 ## Task 2: MUI X Tree View in UI Package
 
 **Files:**
+
 - Modify: `packages/ui/package.json`
 - Modify: `packages/ui/src/components/index.ts`
 
@@ -215,6 +222,7 @@ git commit -m "feat(ui): add MUI X Tree View and new icons to shared UI package"
 ## Task 3: Page tRPC Router — Core CRUD
 
 **Files:**
+
 - Modify: `packages/trpc/src/routers/page.ts`
 
 This task expands the page router from 2 procedures to include: `create`, `rename`, `softDelete`, `restore`, `hardDelete`, `listTrashed`. The linked-list helpers and access control are added here.
@@ -263,7 +271,10 @@ async function assertPageOwnership(
     where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
   })
   if (member?.role !== "OWNER") {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Только создатель или владелец пространства" })
+    throw new TRPCError({
+      code: "FORBIDDEN",
+      message: "Только создатель или владелец пространства",
+    })
   }
   return page
 }
@@ -531,6 +542,7 @@ git commit -m "feat(trpc): expand page router with create, rename, softDelete, r
 ## Task 4: Page tRPC Router — Move, Duplicate, Favorites
 
 **Files:**
+
 - Modify: `packages/trpc/src/routers/page.ts`
 
 - [ ] **Step 1: Add move, duplicate, addFavorite, removeFavorite, listFavorites**
@@ -735,6 +747,7 @@ git commit -m "feat(trpc): add page move, duplicate, favorites procedures"
 ## Task 5: Search Router — parentId Support
 
 **Files:**
+
 - Modify: `packages/trpc/src/routers/search.ts`
 
 - [ ] **Step 1: Update listChats to include parentId**
@@ -742,19 +755,19 @@ git commit -m "feat(trpc): add page move, duplicate, favorites procedures"
 In `packages/trpc/src/routers/search.ts`, update the `listChats` query (line 37-41) to select parentId:
 
 ```typescript
-      return ctx.prisma.searchChat.findMany({
-        where: { workspaceId: input.workspaceId },
-        orderBy: { updatedAt: "desc" },
-        take: 50,
-        select: {
-          id: true,
-          title: true,
-          parentId: true,
-          updatedAt: true,
-          createdAt: true,
-          createdById: true,
-        },
-      })
+return ctx.prisma.searchChat.findMany({
+  where: { workspaceId: input.workspaceId },
+  orderBy: { updatedAt: "desc" },
+  take: 50,
+  select: {
+    id: true,
+    title: true,
+    parentId: true,
+    updatedAt: true,
+    createdAt: true,
+    createdById: true,
+  },
+})
 ```
 
 - [ ] **Step 2: Update createChat to accept parentId**
@@ -806,6 +819,7 @@ git commit -m "feat(trpc): add parentId to search chat list and create"
 ## Task 6: Layout Wiring — Pass userId and Expanded Page Data
 
 **Files:**
+
 - Modify: `apps/web/src/app/(protected)/workspaces/[workspaceId]/layout.tsx`
 - Modify: `apps/web/src/components/workspace/workspace-layout-client.tsx`
 - Modify: `apps/web/src/components/workspace/workspace-sidebar.tsx`
@@ -874,7 +888,7 @@ type Props = {
 In the same file, update the sidebarProps (line 72):
 
 ```typescript
-  const sidebarProps = { workspace, planName, pages, userMenu, userId: user.id }
+const sidebarProps = { workspace, planName, pages, userMenu, userId: user.id }
 ```
 
 - [ ] **Step 4: Update WorkspaceSidebar Props**
@@ -935,6 +949,7 @@ git commit -m "feat: wire userId and expanded page data through layout"
 ## Task 7: Page Context Menu Component
 
 **Files:**
+
 - Create: `apps/web/src/components/workspace/page-context-menu.tsx`
 
 - [ ] **Step 1: Create the page context menu component**
@@ -1102,8 +1117,7 @@ export function PageContextMenu({
           }}
           sx={{ gap: 1, fontSize: 13, color: "error.main" }}
         >
-          <DeleteIcon fontSize="small" />
-          В корзину
+          <DeleteIcon fontSize="small" />В корзину
         </MenuItem>
       </Menu>
 
@@ -1185,6 +1199,7 @@ git commit -m "feat: add PageContextMenu with favorites, rename, duplicate, move
 ## Task 8: Move Page Dialog
 
 **Files:**
+
 - Create: `apps/web/src/components/workspace/move-page-dialog.tsx`
 
 - [ ] **Step 1: Create the move dialog component**
@@ -1320,9 +1335,7 @@ export function MovePageDialog({ open, onClose, page, pages, workspaceId }: Prop
         <SimpleTreeView onItemClick={handleSelect}>
           <TreeItem
             itemId="__root__"
-            label={
-              <Box sx={{ py: 0.25, fontSize: 13, fontWeight: 500 }}>Корень</Box>
-            }
+            label={<Box sx={{ py: 0.25, fontSize: 13, fontWeight: 500 }}>Корень</Box>}
           />
           <PageTreeItems
             parentId={workspaceId}
@@ -1360,6 +1373,7 @@ git commit -m "feat: add MovePageDialog with tree picker"
 ## Task 9: Page Tree Section Component
 
 **Files:**
+
 - Create: `apps/web/src/components/workspace/page-tree-section.tsx`
 
 This is the main tree view for pages in the sidebar, replacing the flat NavItem list.
@@ -1476,7 +1490,14 @@ function PageTreeItem({
             <Link
               href={`/workspaces/${workspaceId}/pages/${page.id}`}
               onClick={(e) => e.stopPropagation()}
-              style={{ textDecoration: "none", display: "flex", alignItems: "center", gap: 4, flex: 1, minWidth: 0 }}
+              style={{
+                textDecoration: "none",
+                display: "flex",
+                alignItems: "center",
+                gap: 4,
+                flex: 1,
+                minWidth: 0,
+              }}
             >
               <span style={{ fontSize: 14, flexShrink: 0 }}>{page.icon ?? "📄"}</span>
               <Typography
@@ -1566,9 +1587,7 @@ export function PageTreeSection({ workspaceId, pages, userId, favoritePageIds }:
     },
   })
 
-  const rootPages = orderSiblings(
-    pages.filter((p) => p.parentType === "WORKSPACE"),
-  )
+  const rootPages = orderSiblings(pages.filter((p) => p.parentType === "WORKSPACE"))
 
   return (
     <Box>
@@ -1629,6 +1648,7 @@ git commit -m "feat: add PageTreeSection with tree rendering and hover actions"
 ## Task 10: Favorites Section Component
 
 **Files:**
+
 - Create: `apps/web/src/components/workspace/favorites-section.tsx`
 
 - [ ] **Step 1: Create favorites-section.tsx**
@@ -1719,9 +1739,18 @@ function FavoriteItem({
       >
         <Link
           href={`/workspaces/${workspaceId}/pages/${page.id}`}
-          style={{ textDecoration: "none", flex: 1, minWidth: 0, display: "flex", alignItems: "center", gap: 4 }}
+          style={{
+            textDecoration: "none",
+            flex: 1,
+            minWidth: 0,
+            display: "flex",
+            alignItems: "center",
+            gap: 4,
+          }}
         >
-          <Box sx={{ pl: 1, py: 0.5, display: "flex", alignItems: "center", gap: 0.5, minWidth: 0 }}>
+          <Box
+            sx={{ pl: 1, py: 0.5, display: "flex", alignItems: "center", gap: 0.5, minWidth: 0 }}
+          >
             <span style={{ fontSize: 14, flexShrink: 0 }}>{page.icon ?? "📄"}</span>
             <Typography
               variant="body2"
@@ -1865,6 +1894,7 @@ git commit -m "feat: add FavoritesSection with collapsible favorites list and ch
 ## Task 11: Update Search Sidebar for Tree + Add Child
 
 **Files:**
+
 - Modify: `apps/web/src/components/workspace/search-sidebar-section.tsx`
 
 - [ ] **Step 1: Refactor ChatListItem to support tree + AddIcon**
@@ -2205,6 +2235,7 @@ git commit -m "feat: refactor SearchSidebarSection with tree hierarchy and AddIc
 ## Task 12: Update WorkspaceSidebar — Integrate All Sections
 
 **Files:**
+
 - Modify: `apps/web/src/components/workspace/workspace-sidebar.tsx`
 
 - [ ] **Step 1: Replace flat page list with new sections**
@@ -2256,14 +2287,7 @@ type Props = {
   userId: string
 }
 
-export function WorkspaceSidebar({
-  workspace,
-  planName,
-  pages,
-  onHide,
-  userMenu,
-  userId,
-}: Props) {
+export function WorkspaceSidebar({ workspace, planName, pages, onHide, userMenu, userId }: Props) {
   const pathname = usePathname()
   const favorites = trpc.page.listFavorites.useQuery({ workspaceId: workspace.id })
   const favoritePageIds = useMemo(
@@ -2286,12 +2310,7 @@ export function WorkspaceSidebar({
         overflow: "auto",
       }}
     >
-      <Stack
-        direction="row"
-        alignItems="center"
-        spacing={1}
-        sx={{ px: 1, pb: 1.75 }}
-      >
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ px: 1, pb: 1.75 }}>
         <Box
           sx={{
             width: 24,
@@ -2425,6 +2444,7 @@ git commit -m "feat: integrate favorites, page tree, and trash link into Workspa
 ## Task 13: Trash Page Route
 
 **Files:**
+
 - Create: `apps/web/src/app/(protected)/workspaces/[workspaceId]/trash/page.tsx`
 
 - [ ] **Step 1: Create trash page**
@@ -2484,9 +2504,7 @@ export default function TrashPage({ params }: TrashPageProps) {
         Корзина
       </Typography>
 
-      {trashed.data?.length === 0 && (
-        <Typography color="text.secondary">Корзина пуста</Typography>
-      )}
+      {trashed.data?.length === 0 && <Typography color="text.secondary">Корзина пуста</Typography>}
 
       <Stack spacing={0.5}>
         {trashed.data?.map((page) => (
@@ -2628,6 +2646,7 @@ Open `http://localhost:3000` in browser. Navigate to a workspace.
 - [ ] **Step 2: Test page tree**
 
 Verify:
+
 - Pages render as a tree in the sidebar
 - Creating a child page via AddIcon works
 - Context menu opens on MoreHorizIcon click
@@ -2639,6 +2658,7 @@ Verify:
 - [ ] **Step 3: Test search chat tree**
 
 Verify:
+
 - Chats render with hierarchy
 - Creating child chats via AddIcon works
 - Deleting a parent chat also removes children
@@ -2647,6 +2667,7 @@ Verify:
 - [ ] **Step 4: Test favorites section**
 
 Verify:
+
 - Favorites section hidden when empty
 - Adding to favorites via context menu shows section
 - Children of favorited pages appear nested
@@ -2656,6 +2677,7 @@ Verify:
 - [ ] **Step 5: Test trash page**
 
 Navigate to `/workspaces/{id}/trash`:
+
 - Soft-deleted pages appear in flat list
 - Restore returns page to tree
 - Hard delete removes permanently
@@ -2666,6 +2688,7 @@ Navigate to `/workspaces/{id}/trash`:
 - [ ] **Step 6: Test move dialog**
 
 Via context menu > Переместить:
+
 - Tree shows all pages except the page and its descendants
 - "Корень" option moves to workspace root
 - Clicking a page moves into it

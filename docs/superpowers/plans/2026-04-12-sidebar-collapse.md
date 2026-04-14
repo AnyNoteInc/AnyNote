@@ -12,21 +12,22 @@
 
 ## File Map
 
-| Action | File | Responsibility |
-|--------|------|----------------|
-| Modify | `packages/ui/src/components/index.ts` | Add `KeyboardDoubleArrowLeftIcon`, `MenuIcon`, `Popper`, `Paper` exports |
-| Modify | `apps/web/src/components/workspace/workspace-sidebar.tsx` | Remove collapsed logic, use `KeyboardDoubleArrowLeftIcon`, always render full width |
-| Modify | `apps/web/src/components/workspace/search-sidebar-section.tsx` | Remove `collapsed` prop and collapsed-mode branch |
-| Modify | `apps/web/src/components/workspace/workspace-user-menu.tsx` | Remove `collapsed` prop and collapsed-mode rendering |
-| Modify | `apps/web/src/components/workspace/workspace-toolbar.tsx` | Add `MenuIcon` with click-to-open and hover-to-popover behavior |
-| Modify | `apps/web/src/components/workspace/workspace-shell.tsx` | Replace `sidebarWidth` prop with `sidebarHidden` boolean |
-| Modify | `apps/web/src/components/workspace/workspace-layout-client.tsx` | Orchestrate new two-state model, wire props |
+| Action | File                                                            | Responsibility                                                                      |
+| ------ | --------------------------------------------------------------- | ----------------------------------------------------------------------------------- |
+| Modify | `packages/ui/src/components/index.ts`                           | Add `KeyboardDoubleArrowLeftIcon`, `MenuIcon`, `Popper`, `Paper` exports            |
+| Modify | `apps/web/src/components/workspace/workspace-sidebar.tsx`       | Remove collapsed logic, use `KeyboardDoubleArrowLeftIcon`, always render full width |
+| Modify | `apps/web/src/components/workspace/search-sidebar-section.tsx`  | Remove `collapsed` prop and collapsed-mode branch                                   |
+| Modify | `apps/web/src/components/workspace/workspace-user-menu.tsx`     | Remove `collapsed` prop and collapsed-mode rendering                                |
+| Modify | `apps/web/src/components/workspace/workspace-toolbar.tsx`       | Add `MenuIcon` with click-to-open and hover-to-popover behavior                     |
+| Modify | `apps/web/src/components/workspace/workspace-shell.tsx`         | Replace `sidebarWidth` prop with `sidebarHidden` boolean                            |
+| Modify | `apps/web/src/components/workspace/workspace-layout-client.tsx` | Orchestrate new two-state model, wire props                                         |
 
 ---
 
 ### Task 1: Export new MUI components from `@repo/ui`
 
 **Files:**
+
 - Modify: `packages/ui/src/components/index.ts:59-72` (icon exports block)
 
 - [ ] **Step 1: Add icon and component exports**
@@ -61,6 +62,7 @@ git commit -m "feat(ui): export KeyboardDoubleArrowLeftIcon, MenuIcon, Popper"
 ### Task 2: Remove collapsed logic from `SearchSidebarSection`
 
 **Files:**
+
 - Modify: `apps/web/src/components/workspace/search-sidebar-section.tsx:31,196-226`
 
 - [ ] **Step 1: Update Props type**
@@ -182,6 +184,7 @@ git commit -m "refactor: remove collapsed mode from SearchSidebarSection"
 ### Task 3: Remove collapsed logic from `WorkspaceUserMenu`
 
 **Files:**
+
 - Modify: `apps/web/src/components/workspace/workspace-user-menu.tsx`
 
 - [ ] **Step 1: Remove `collapsed` from Props and component**
@@ -257,6 +260,7 @@ git commit -m "refactor: remove collapsed mode from WorkspaceUserMenu"
 ### Task 4: Rewrite `WorkspaceSidebar` — remove collapsed, add `onHide`
 
 **Files:**
+
 - Modify: `apps/web/src/components/workspace/workspace-sidebar.tsx`
 
 - [ ] **Step 1: Update imports — replace chevron icons with double-arrow**
@@ -316,13 +320,7 @@ type Props = {
 Replace the entire function body. Key changes: remove all `collapsed` conditionals, always render full width 240px, use `KeyboardDoubleArrowLeftIcon`:
 
 ```tsx
-export function WorkspaceSidebar({
-  workspace,
-  planName,
-  pages,
-  onHide,
-  userMenu,
-}: Props) {
+export function WorkspaceSidebar({ workspace, planName, pages, onHide, userMenu }: Props) {
   return (
     <Box
       component="aside"
@@ -337,12 +335,7 @@ export function WorkspaceSidebar({
         py: 1.75,
       }}
     >
-      <Stack
-        direction="row"
-        alignItems="center"
-        spacing={1}
-        sx={{ px: 1, pb: 1.75 }}
-      >
+      <Stack direction="row" alignItems="center" spacing={1} sx={{ px: 1, pb: 1.75 }}>
         <Box
           sx={{
             width: 24,
@@ -481,6 +474,7 @@ git commit -m "refactor: remove collapsed mode from WorkspaceSidebar, use Keyboa
 ### Task 5: Update `WorkspaceShell` — boolean prop instead of width
 
 **Files:**
+
 - Modify: `apps/web/src/components/workspace/workspace-shell.tsx`
 
 - [ ] **Step 1: Replace the entire component**
@@ -532,6 +526,7 @@ git commit -m "refactor: WorkspaceShell uses sidebarHidden boolean instead of wi
 ### Task 6: Update `WorkspaceToolbar` — add `MenuIcon` + hover Popper
 
 **Files:**
+
 - Modify: `apps/web/src/components/workspace/workspace-toolbar.tsx`
 
 - [ ] **Step 1: Rewrite the component**
@@ -654,6 +649,7 @@ export function WorkspaceToolbar({
 ```
 
 Key implementation notes:
+
 - The `Box` wrapping `IconButton` + `Popper` forms the hover zone for the MenuIcon side
 - The `Paper` inside Popper has its own `onMouseEnter`/`onMouseLeave` to keep the popper alive when the mouse moves into it
 - A 120ms delay on close handles the gap between the icon and the popper
@@ -671,6 +667,7 @@ git commit -m "feat: WorkspaceToolbar MenuIcon with hover Popper for hidden side
 ### Task 7: Wire everything in `WorkspaceLayoutClient`
 
 **Files:**
+
 - Modify: `apps/web/src/components/workspace/workspace-layout-client.tsx`
 
 - [ ] **Step 1: Rewrite the component to use the new two-state model**
@@ -779,6 +776,7 @@ export function WorkspaceLayoutClient({ workspace, planName, pages, user, childr
 ```
 
 Key changes:
+
 - `collapsed` renamed to `hidden`
 - `sidebarWidth` removed — `WorkspaceShell` now takes `sidebarHidden: boolean`
 - `sidebarNode` built once and passed to both `WorkspaceShell` (grid sidebar) and `WorkspaceToolbar` (popper content)
@@ -813,6 +811,7 @@ Run: `pnpm dev --filter=web`
 - [ ] **Step 2: Test open state**
 
 Open `http://localhost:3000`, sign in, navigate to a workspace. Verify:
+
 - Sidebar shows at 240px with full content
 - `KeyboardDoubleArrowLeftIcon` (double chevron «) is visible in sidebar header
 - All nav items, pages, search section, user menu render normally
@@ -820,6 +819,7 @@ Open `http://localhost:3000`, sign in, navigate to a workspace. Verify:
 - [ ] **Step 3: Test hide action**
 
 Click the `«` icon. Verify:
+
 - Sidebar disappears completely (0px, no border visible)
 - Main content expands to full width
 - `MenuIcon` (hamburger) appears in the toolbar before breadcrumbs
@@ -827,6 +827,7 @@ Click the `«` icon. Verify:
 - [ ] **Step 4: Test hover popover**
 
 Hover over the `MenuIcon`. Verify:
+
 - Popper appears below the icon, overlaying main content
 - Popper contains the same sidebar content (workspace name, search, settings, pages, trash, user menu)
 - Moving mouse from icon into popper keeps it open
@@ -835,6 +836,7 @@ Hover over the `MenuIcon`. Verify:
 - [ ] **Step 5: Test reopen**
 
 Click the `MenuIcon`. Verify:
+
 - Sidebar reappears at 240px
 - `MenuIcon` disappears from toolbar
 

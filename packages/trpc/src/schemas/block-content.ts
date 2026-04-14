@@ -3,7 +3,10 @@ import { z } from "zod"
 const textBlock = z.object({ text: z.string().max(10_000) })
 const todoBlock = z.object({ text: z.string().max(10_000), checked: z.boolean().default(false) })
 const calloutBlock = z.object({ text: z.string().max(10_000), emoji: z.string().max(8).optional() })
-const codeBlock = z.object({ text: z.string().max(50_000), language: z.string().max(32).default("plaintext") })
+const codeBlock = z.object({
+  text: z.string().max(50_000),
+  language: z.string().max(32).default("plaintext"),
+})
 const emptyBlock = z.object({}).strict()
 
 export const BlockCreateInput = z.discriminatedUnion("type", [

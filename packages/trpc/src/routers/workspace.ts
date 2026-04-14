@@ -114,7 +114,14 @@ export const workspaceRouter = router({
   listMembers: protectedProcedure
     .input(z.object({ workspaceId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      await assertRole(ctx, input.workspaceId, ["OWNER", "ADMIN", "EDITOR", "COMMENTER", "VIEWER", "GUEST"])
+      await assertRole(ctx, input.workspaceId, [
+        "OWNER",
+        "ADMIN",
+        "EDITOR",
+        "COMMENTER",
+        "VIEWER",
+        "GUEST",
+      ])
       return ctx.prisma.workspaceMember.findMany({
         where: { workspaceId: input.workspaceId },
         include: {
@@ -149,7 +156,8 @@ export const workspaceRouter = router({
       if (!user) {
         throw new TRPCError({
           code: "NOT_FOUND",
-          message: "Пользователь с таким email не зарегистрирован. Приглашения по ссылке будут позже.",
+          message:
+            "Пользователь с таким email не зарегистрирован. Приглашения по ссылке будут позже.",
         })
       }
 
@@ -171,7 +179,8 @@ export const workspaceRouter = router({
         if (owners <= 1) {
           throw new TRPCError({
             code: "BAD_REQUEST",
-            message: "Нельзя удалить единственного OWNER. Передайте роль другому или удалите пространство.",
+            message:
+              "Нельзя удалить единственного OWNER. Передайте роль другому или удалите пространство.",
           })
         }
       }
