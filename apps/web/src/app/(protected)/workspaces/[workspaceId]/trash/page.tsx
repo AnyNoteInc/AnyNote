@@ -57,15 +57,21 @@ export default function TrashPage({ params }: Props) {
 
   return (
     <Box sx={{ p: 4, maxWidth: 710, mx: "auto" }}>
-      <Box sx={{ display: "flex", alignItems: "center", mb: 3, gap: 1 }}>
-        <Typography variant="h5">Корзина</Typography>
-        {(trashed.data?.length ?? 0) > 0 && (
-          <Tooltip title="Очистить корзину">
-            <IconButton size="small" onClick={() => setEmptyConfirmOpen(true)} sx={{ color: "error.main" }}>
-              <DeleteIcon sx={{ fontSize: 20 }} />
-            </IconButton>
-          </Tooltip>
-        )}
+      <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+        <Typography variant="h5" sx={{ flex: 1 }}>
+          Корзина
+        </Typography>
+        <Tooltip title="Очистить корзину">
+          <IconButton
+            onClick={() => setEmptyConfirmOpen(true)}
+            sx={{
+              color: "error.main",
+              visibility: (trashed.data?.length ?? 0) > 0 ? "visible" : "hidden",
+            }}
+          >
+            <DeleteIcon />
+          </IconButton>
+        </Tooltip>
       </Box>
 
       {trashed.data?.length === 0 && <Typography color="text.secondary">Корзина пуста</Typography>}
