@@ -87,23 +87,35 @@ export async function POST(request: Request) {
 
   let fileRow = existing
   if (!fileRow) {
+    let wePut = false
     if (!(await storage.exists(s3Key))) {
       await storage.put(s3Key, bytes, { contentType: mimeType, size: bytes.length })
+      wePut = true
     }
+
     try {
-      fileRow = await prisma.file.create({
-        data: {
-          userId: session.user.id,
-          workspaceId,
-          name: file.name,
-          ext,
-          fileSize: BigInt(bytes.length),
-          mimeType,
-          hash,
-          path: s3Key,
-          status: "ACTIVE",
-          isPublic: kind === "avatar",
-        },
+      fileRow = await prisma.$transaction(async (tx) => {
+        const created = await tx.file.create({
+          data: {
+            userId: session.user.id,
+            workspaceId,
+            name: file.name,
+            ext,
+            fileSize: BigInt(bytes.length),
+            mimeType,
+            hash,
+            path: s3Key,
+            status: "ACTIVE",
+            isPublic: kind === "avatar",
+          },
+        })
+        if (kind === "avatar") {
+          await tx.user.update({
+            where: { id: session.user.id },
+            data: { image: `/api/files/${created.id}` },
+          })
+        }
+        return created
       })
     } catch (err) {
       if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
@@ -116,21 +128,32 @@ export async function POST(request: Request) {
           },
         })
         if (!fileRow) {
+          if (wePut) await storage.delete(s3Key).catch(() => {})
           return Response.json({ error: "Upload conflict" }, { status: 409 })
         }
+        // Dedup recovery: point User.image at the existing row if avatar
+        if (kind === "avatar") {
+          await prisma.user.update({
+            where: { id: session.user.id },
+            data: { image: `/api/files/${fileRow.id}` },
+          })
+        }
       } else {
+        if (wePut) await storage.delete(s3Key).catch(() => {})
         throw err
       }
     }
+  } else if (kind === "avatar") {
+    // Dedup hit on the initial findFirst: existing row, update User.image
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { image: `/api/files/${fileRow.id}` },
+    })
   }
 
   let imageUrl: string | undefined
-  if (kind === "avatar") {
+  if (kind === "avatar" && fileRow) {
     imageUrl = `/api/files/${fileRow.id}`
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: { image: imageUrl },
-    })
   }
 
   return Response.json({

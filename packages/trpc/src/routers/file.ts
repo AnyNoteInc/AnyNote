@@ -76,7 +76,17 @@ export const fileRouter = router({
     if (file.userId !== ctx.user.id && !file.isPublic) {
       throw new TRPCError({ code: "NOT_FOUND", message: "File not found" })
     }
-    return serializeFile(file)
+    const serialized = serializeFile(file)
+    if (file.userId !== ctx.user.id) {
+      // Public file viewed by non-owner: scrub sensitive fields
+      return {
+        ...serialized,
+        userId: "",
+        hash: "",
+        path: "",
+      }
+    }
+    return serialized
   }),
 
   delete: protectedProcedure.input(z.object({ id: uuid })).mutation(async ({ ctx, input }) => {
