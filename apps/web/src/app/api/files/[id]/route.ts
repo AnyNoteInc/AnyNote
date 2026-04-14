@@ -1,14 +1,15 @@
-import type { Readable } from "node:stream"
+import { Readable } from "node:stream"
 
 import { prisma } from "@repo/db"
 import { storage } from "@repo/storage"
+import type { NextRequest } from "next/server"
 
 import { getSession } from "@/lib/get-session"
 
 export const runtime = "nodejs"
 
 export async function GET(
-  _request: Request,
+  _request: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
   const { id } = await params
@@ -36,19 +37,8 @@ export async function GET(
   } catch {
     return new Response("Not found", { status: 404 })
   }
-  const stream = new ReadableStream({
-    start(controller) {
-      body.on("data", (chunk: Buffer) => controller.enqueue(chunk))
-      body.on("end", () => controller.close())
-      body.on("error", (err) => {
-        body.destroy()
-        controller.error(err)
-      })
-    },
-    cancel() {
-      body.destroy()
-    },
-  })
+
+  const stream = Readable.toWeb(body) as unknown as ReadableStream<Uint8Array>
 
   // fire-and-forget increment
   void prisma.file

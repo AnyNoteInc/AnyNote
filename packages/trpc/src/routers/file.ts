@@ -1,7 +1,7 @@
 import { TRPCError } from "@trpc/server"
 import { z } from "zod"
 
-import { FileStatus, type File } from "@repo/db"
+import { FileStatus, Prisma, type File } from "@repo/db"
 
 import { protectedProcedure, router } from "../trpc"
 
@@ -9,7 +9,9 @@ const uuid = z.string().uuid()
 
 const FileStatusSchema = z.nativeEnum(FileStatus)
 
-type FileDTO = Omit<File, "fileSize"> & { fileSize: string }
+export interface FileDTO extends Omit<File, "fileSize"> {
+  fileSize: string
+}
 
 const serializeFile = (file: File): FileDTO => ({
   ...file,
@@ -90,42 +92,51 @@ export const fileRouter = router({
   }),
 
   delete: protectedProcedure.input(z.object({ id: uuid })).mutation(async ({ ctx, input }) => {
-    const file = await ctx.prisma.file.findUnique({ where: { id: input.id } })
-    if (!file || file.userId !== ctx.user.id) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "File not found" })
+    try {
+      const updated = await ctx.prisma.file.update({
+        where: { id: input.id, userId: ctx.user.id },
+        data: { status: FileStatus.DELETED },
+      })
+      return serializeFile(updated)
+    } catch (err) {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
+        throw new TRPCError({ code: "NOT_FOUND", message: "File not found" })
+      }
+      throw err
     }
-    const updated = await ctx.prisma.file.update({
-      where: { id: input.id },
-      data: { status: FileStatus.DELETED },
-    })
-    return serializeFile(updated)
   }),
 
   rename: protectedProcedure
     .input(z.object({ id: uuid, name: z.string().min(1).max(512) }))
     .mutation(async ({ ctx, input }) => {
-      const file = await ctx.prisma.file.findUnique({ where: { id: input.id } })
-      if (!file || file.userId !== ctx.user.id) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "File not found" })
+      try {
+        const updated = await ctx.prisma.file.update({
+          where: { id: input.id, userId: ctx.user.id },
+          data: { name: input.name },
+        })
+        return serializeFile(updated)
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
+          throw new TRPCError({ code: "NOT_FOUND", message: "File not found" })
+        }
+        throw err
       }
-      const updated = await ctx.prisma.file.update({
-        where: { id: input.id },
-        data: { name: input.name },
-      })
-      return serializeFile(updated)
     }),
 
   setPublic: protectedProcedure
     .input(z.object({ id: uuid, isPublic: z.boolean() }))
     .mutation(async ({ ctx, input }) => {
-      const file = await ctx.prisma.file.findUnique({ where: { id: input.id } })
-      if (!file || file.userId !== ctx.user.id) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "File not found" })
+      try {
+        const updated = await ctx.prisma.file.update({
+          where: { id: input.id, userId: ctx.user.id },
+          data: { isPublic: input.isPublic },
+        })
+        return serializeFile(updated)
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
+          throw new TRPCError({ code: "NOT_FOUND", message: "File not found" })
+        }
+        throw err
       }
-      const updated = await ctx.prisma.file.update({
-        where: { id: input.id },
-        data: { isPublic: input.isPublic },
-      })
-      return serializeFile(updated)
     }),
 })

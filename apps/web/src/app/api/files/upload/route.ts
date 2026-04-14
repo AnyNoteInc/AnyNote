@@ -1,7 +1,8 @@
 import { createHash } from "node:crypto"
 
-import { Prisma, prisma } from "@repo/db"
+import { FileStatus, Prisma, prisma } from "@repo/db"
 import { storage } from "@repo/storage"
+import type { NextRequest } from "next/server"
 
 import { getSession } from "@/lib/get-session"
 import {
@@ -13,15 +14,20 @@ import {
 
 export const runtime = "nodejs"
 
-export async function POST(request: Request) {
+const setUserAvatar = (userId: string, fileId: string) =>
+  prisma.user.update({
+    where: { id: userId },
+    data: { image: `/api/files/${fileId}` },
+  })
+
+export async function POST(request: NextRequest) {
   const session = await getSession()
   if (!session) {
     return Response.json({ error: "Unauthorized" }, { status: 401 })
   }
 
-  const url = new URL(request.url)
-  const kindParam = url.searchParams.get("kind")
-  const workspaceIdParam = url.searchParams.get("workspaceId")
+  const kindParam = request.nextUrl.searchParams.get("kind")
+  const workspaceIdParam = request.nextUrl.searchParams.get("workspaceId")
 
   if (kindParam !== "avatar" && kindParam !== "attachment") {
     return Response.json({ error: "Invalid kind" }, { status: 400 })
@@ -74,17 +80,13 @@ export async function POST(request: Request) {
       userId: session.user.id,
       hash,
       workspaceId,
-      status: "ACTIVE",
+      status: FileStatus.ACTIVE,
     },
   })
 
   let fileRow = existing
   if (!fileRow) {
-    let wePut = false
-    if (!(await storage.exists(s3Key))) {
-      await storage.put(s3Key, bytes, { contentType: mimeType, size: bytes.length })
-      wePut = true
-    }
+    await storage.put(s3Key, bytes, { contentType: mimeType, size: bytes.length })
 
     try {
       fileRow = await prisma.$transaction(async (tx) => {
@@ -98,7 +100,7 @@ export async function POST(request: Request) {
             mimeType,
             hash,
             path: s3Key,
-            status: "ACTIVE",
+            status: FileStatus.ACTIVE,
             isPublic: kind === "avatar",
           },
         })
@@ -117,31 +119,23 @@ export async function POST(request: Request) {
             userId: session.user.id,
             hash,
             workspaceId,
-            status: "ACTIVE",
+            status: FileStatus.ACTIVE,
           },
         })
         if (!fileRow) {
-          if (wePut) await storage.delete(s3Key).catch(() => {})
           return Response.json({ error: "Upload conflict" }, { status: 409 })
         }
         // Dedup recovery: point User.image at the existing row if avatar
         if (kind === "avatar") {
-          await prisma.user.update({
-            where: { id: session.user.id },
-            data: { image: `/api/files/${fileRow.id}` },
-          })
+          await setUserAvatar(session.user.id, fileRow.id)
         }
       } else {
-        if (wePut) await storage.delete(s3Key).catch(() => {})
         throw err
       }
     }
   } else if (kind === "avatar") {
     // Dedup hit on the initial findFirst: existing row, update User.image
-    await prisma.user.update({
-      where: { id: session.user.id },
-      data: { image: `/api/files/${fileRow.id}` },
-    })
+    await setUserAvatar(session.user.id, fileRow.id)
   }
 
   let imageUrl: string | undefined
