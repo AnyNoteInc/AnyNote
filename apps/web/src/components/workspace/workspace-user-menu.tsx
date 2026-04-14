@@ -8,7 +8,7 @@ import { Avatar, Box, Menu, MenuItem, Stack, Typography } from "@repo/ui/compone
 import { signOut } from "@/lib/auth-client"
 
 type Props = {
-  user: { firstName: string; lastName: string; email: string }
+  user: { firstName: string; lastName: string; email: string; image: string | null }
 }
 
 export function WorkspaceUserMenu({ user }: Props) {
@@ -31,6 +31,7 @@ export function WorkspaceUserMenu({ user }: Props) {
         }}
       >
         <Avatar
+          src={user.image ?? undefined}
           sx={{
             width: 28,
             height: 28,

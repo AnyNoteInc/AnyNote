@@ -4,6 +4,7 @@ import { useState } from "react"
 
 import { Box, Button, Stack, TextField, Typography } from "@repo/ui/components"
 
+import ProfileAvatarUploader from "@/components/profile/profile-avatar-uploader"
 import { trpc } from "@/trpc/client"
 
 type Props = {
@@ -20,6 +21,7 @@ export function ProfileSection({ initial }: Props) {
   const [firstName, setFirstName] = useState(initial.firstName)
   const [lastName, setLastName] = useState(initial.lastName)
   const updateProfile = trpc.user.updateProfile.useMutation()
+  const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
 
   return (
     <Box
@@ -37,24 +39,9 @@ export function ProfileSection({ initial }: Props) {
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Имя, email и аватар, которые видят другие
       </Typography>
-      <Stack direction="row" alignItems="center" spacing={2} sx={{ mb: 3 }}>
-        <Box
-          sx={{
-            width: 60,
-            height: 60,
-            borderRadius: "50%",
-            background: "linear-gradient(135deg,#0f766e,#155e75)",
-          }}
-        />
-        <Stack direction="row" spacing={1}>
-          <Button variant="outlined" size="small" disabled>
-            Загрузить
-          </Button>
-          <Button variant="text" size="small" color="inherit" disabled>
-            Удалить
-          </Button>
-        </Stack>
-      </Stack>
+      <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
+        <ProfileAvatarUploader currentImage={initial.image} initials={initials} />
+      </Box>
       <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, mb: 2 }}>
         <TextField
           label="Имя"

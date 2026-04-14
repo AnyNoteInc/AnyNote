@@ -17,7 +17,7 @@ type Props = {
   workspace: { id: string; name: string; icon: string | null }
   planName: string
   pages: PageItem[]
-  user: { id: string; firstName: string; lastName: string; email: string }
+  user: { id: string; firstName: string; lastName: string; email: string; image: string | null }
   children: ReactNode
 }
 

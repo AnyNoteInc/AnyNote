@@ -30,6 +30,7 @@ export default async function WorkspaceLayout({ children, params }: Props) {
         firstName: session.user.firstName,
         lastName: session.user.lastName,
         email: session.user.email,
+        image: session.user.image ?? null,
       }}
     >
       {children}
