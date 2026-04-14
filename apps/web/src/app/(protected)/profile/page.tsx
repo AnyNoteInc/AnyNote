@@ -1,7 +1,8 @@
 import Link from "next/link"
 
-import { Avatar, Box, Button, Container, Paper, Stack, Typography } from "@repo/ui/components"
+import { Box, Button, Container, Paper, Stack, Typography } from "@repo/ui/components"
 
+import ProfileAvatarUploader from "@/components/profile/profile-avatar-uploader"
 import { requireSession } from "@/lib/get-session"
 import { getServerTRPC } from "@/trpc/server"
 
@@ -18,17 +19,10 @@ export default async function ProfilePage() {
   return (
     <Container maxWidth="sm" sx={{ py: { xs: 4, md: 8 } }}>
       <Stack alignItems="center" spacing={3}>
-        <Avatar
-          sx={{
-            width: 128,
-            height: 128,
-            fontSize: 44,
-            background: "linear-gradient(135deg,#0f766e,#155e75)",
-            color: "#fff",
-          }}
-        >
-          {initials}
-        </Avatar>
+        <ProfileAvatarUploader
+          currentImage={session.user.image ?? null}
+          initials={initials}
+        />
         <Stack alignItems="center" spacing={0.5}>
           <Typography variant="h4">
             {session.user.firstName} {session.user.lastName}
