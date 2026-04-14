@@ -35,7 +35,10 @@ export async function GET(
     start(controller) {
       body.on("data", (chunk: Buffer) => controller.enqueue(chunk))
       body.on("end", () => controller.close())
-      body.on("error", (err) => controller.error(err))
+      body.on("error", (err) => {
+        body.destroy()
+        controller.error(err)
+      })
     },
     cancel() {
       body.destroy()
