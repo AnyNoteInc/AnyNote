@@ -32,6 +32,7 @@ model User {
   blocksUpdated Block[] @relation("BlockUpdater")
   searchChats   SearchChat[] @relation("SearchChatCreator")
   favoritePages FavoritePage[]
+  files         File[]
 
   @@map("users")
 }
@@ -180,6 +181,7 @@ model Workspace {
   workspaceIntegrations Integration[]     @relation("WorkspaceIntegrations")
   defaultForUsers       UserPreference[]  @relation("DefaultWorkspace")
   searchChats           SearchChat[]
+  files                 File[]
 
   @@index([createdById])
   @@map("workspaces")
@@ -255,6 +257,7 @@ model Block {
   next      Block?  @relation("BlockPrev")
   createdBy User    @relation("BlockCreator", fields: [createdById], references: [id], onDelete: Restrict)
   updatedBy User?   @relation("BlockUpdater", fields: [updatedById], references: [id], onDelete: SetNull)
+  blockFiles    BlockFile[]
 
   @@index([pageId, parentBlockId])
   @@map("blocks")
@@ -412,4 +415,55 @@ model Subscription {
   @@index([planId])
   @@index([userId, status])
   @@map("subscriptions")
+}
+
+enum FileStatus {
+  ACTIVE
+  PENDING
+  DELETED
+  ARCHIVED
+}
+
+model File {
+  id            String      @id @default(uuid(7)) @db.Uuid()
+  userId        String      @map("user_id") @db.Uuid()
+  workspaceId   String?     @map("workspace_id") @db.Uuid()
+
+  name          String      @db.VarChar(512)
+  ext           String      @db.VarChar(16)
+  fileSize      BigInt      @map("file_size")
+  mimeType      String      @map("mime_type") @db.VarChar(128)
+  hash          String      @db.VarChar(64)
+  path          String      @db.VarChar(512)
+
+  status        FileStatus  @default(ACTIVE)
+  isPublic      Boolean     @default(false) @map("is_public")
+
+  downloadCount Int         @default(0) @map("download_count")
+  expiresAt     DateTime?   @map("expires_at") @db.Timestamptz(6)
+
+  createdAt     DateTime    @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime    @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace     Workspace?  @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  blockFiles    BlockFile[]
+
+  @@index([userId])
+  @@index([createdAt])
+  @@index([workspaceId])
+  @@map("files")
+}
+
+model BlockFile {
+  blockId   String   @map("block_id") @db.Uuid()
+  fileId    String   @map("file_id") @db.Uuid()
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  block     Block    @relation(fields: [blockId], references: [id], onDelete: Cascade)
+  file      File     @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@id([blockId, fileId])
+  @@index([fileId])
+  @@map("block_files")
 }

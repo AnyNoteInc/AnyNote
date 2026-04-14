@@ -41,6 +41,7 @@ export {
   SubscriptionStatus,
   BlockType,
   SearchMessageRole,
+  FileStatus,
 } from "@prisma/client"
 export type {
   User,
@@ -60,5 +61,7 @@ export type {
   SearchChat,
   SearchMessage,
   FavoritePage,
+  File,
+  BlockFile,
 } from "@prisma/client"
 export default prisma
