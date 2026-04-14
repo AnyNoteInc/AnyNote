@@ -48,7 +48,8 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
   const [movePage, setMovePage] = useState<PageItem | null>(null)
 
   const favPages = favorites.data ?? []
-  if (favPages.length === 0 && !favoritePageIds.size) return null
+  const hasFavorites = favPages.length > 0 || favoritePageIds.size > 0
+  if (!hasFavorites && favorites.isFetched) return null
 
   const handleOpenMenu = (event: React.MouseEvent<HTMLElement>, page: PageItem) => {
     event.preventDefault()
@@ -59,7 +60,6 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
 
   const handleCloseMenu = () => {
     setMenuAnchor(null)
-    setMenuPage(null)
   }
 
   return (
@@ -167,16 +167,12 @@ function FavItem({
 
   return (
     <Box
-      component={Link}
-      href={`/workspaces/${workspaceId}/pages/${page.id}`}
       sx={{
         display: "flex",
         alignItems: "center",
         pr: 0.5,
         pl: indent ? 3 : 1,
-        py: 0.5,
         borderRadius: 0.75,
-        textDecoration: "none",
         color: indent ? "text.disabled" : "text.secondary",
         bgcolor: isActive ? "action.selected" : "transparent",
         "&:hover": { bgcolor: isActive ? "action.selected" : "action.hover" },
@@ -184,10 +180,26 @@ function FavItem({
         fontSize: 13,
       }}
     >
-      <span style={{ fontSize: 14, marginRight: 8 }}>{page.icon ?? "📄"}</span>
-      <span style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-        {page.title ?? "Без названия"}
-      </span>
+      <Link
+        href={`/workspaces/${workspaceId}/pages/${page.id}`}
+        style={{
+          textDecoration: "none",
+          color: "inherit",
+          display: "flex",
+          alignItems: "center",
+          flex: 1,
+          minWidth: 0,
+          paddingTop: 4,
+          paddingBottom: 4,
+        }}
+      >
+        <span style={{ fontSize: 14, marginRight: 8, flexShrink: 0 }}>{page.icon ?? "📄"}</span>
+        <span
+          style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+        >
+          {page.title ?? "Без названия"}
+        </span>
+      </Link>
       <IconButton
         size="small"
         className="fav-more"

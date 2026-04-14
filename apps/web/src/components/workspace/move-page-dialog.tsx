@@ -44,18 +44,21 @@ function MoveTreeItem({
   pages,
   excludeIds,
   onSelect,
+  selectedId,
   depth,
 }: {
   page: PageItem
   pages: PageItem[]
   excludeIds: Set<string>
   onSelect: (id: string) => void
+  selectedId: string | null
   depth: number
 }) {
   const [expanded, setExpanded] = useState(false)
   const children = orderSiblings(
     pages.filter((p) => p.parentType === "PAGE" && p.parentId === page.id && !excludeIds.has(p.id)),
   )
+  const isSelected = selectedId === page.id
 
   return (
     <>
@@ -69,7 +72,10 @@ function MoveTreeItem({
           py: 0.5,
           cursor: "pointer",
           borderRadius: 0.75,
-          "&:hover": { bgcolor: "action.hover" },
+          ...(isSelected
+            ? { bgcolor: "primary.main", color: "primary.contrastText" }
+            : {}),
+          "&:hover": { bgcolor: isSelected ? "primary.dark" : "action.hover" },
           fontSize: 13,
         }}
       >
@@ -106,6 +112,7 @@ function MoveTreeItem({
             pages={pages}
             excludeIds={excludeIds}
             onSelect={onSelect}
+            selectedId={selectedId}
             depth={depth + 1}
           />
         ))}
@@ -115,6 +122,7 @@ function MoveTreeItem({
 
 export function MovePageDialog({ open, onClose, page, pages, workspaceId }: Props) {
   const utils = trpc.useUtils()
+  const [selectedId, setSelectedId] = useState<string | null>(null)
 
   const move = trpc.page.move.useMutation({
     onSuccess: async () => {
@@ -129,17 +137,20 @@ export function MovePageDialog({ open, onClose, page, pages, workspaceId }: Prop
     pages.filter((p) => p.parentType === "WORKSPACE" && !excludeIds.has(p.id)),
   )
 
-  const handleSelect = (itemId: string) => {
-    const newParentId = itemId === "__root__" ? null : itemId
+  const handleConfirm = () => {
+    if (selectedId === null) return
+    const newParentId = selectedId === "__root__" ? null : selectedId
     move.mutate({ pageId: page.id, newParentId })
   }
+
+  const selectedSx = { bgcolor: "primary.main", color: "primary.contrastText" } as const
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
       <DialogTitle>{`Переместить \u00AB${page.title ?? "Без названия"}\u00BB`}</DialogTitle>
       <DialogContent sx={{ p: 1 }}>
         <Box
-          onClick={() => handleSelect("__root__")}
+          onClick={() => setSelectedId("__root__")}
           sx={{
             display: "flex",
             alignItems: "center",
@@ -149,7 +160,8 @@ export function MovePageDialog({ open, onClose, page, pages, workspaceId }: Prop
             borderRadius: 0.75,
             fontWeight: 500,
             fontSize: 13,
-            "&:hover": { bgcolor: "action.hover" },
+            ...(selectedId === "__root__" ? selectedSx : {}),
+            "&:hover": { bgcolor: selectedId === "__root__" ? "primary.dark" : "action.hover" },
           }}
         >
           Корень
@@ -160,7 +172,8 @@ export function MovePageDialog({ open, onClose, page, pages, workspaceId }: Prop
             page={p}
             pages={pages}
             excludeIds={excludeIds}
-            onSelect={handleSelect}
+            onSelect={setSelectedId}
+            selectedId={selectedId}
             depth={0}
           />
         ))}
@@ -168,6 +181,13 @@ export function MovePageDialog({ open, onClose, page, pages, workspaceId }: Prop
       <DialogActions>
         <Button variant="text" onClick={onClose}>
           Отмена
+        </Button>
+        <Button
+          onClick={handleConfirm}
+          variant="contained"
+          disabled={selectedId === null || move.isPending}
+        >
+          Переместить
         </Button>
       </DialogActions>
     </Dialog>

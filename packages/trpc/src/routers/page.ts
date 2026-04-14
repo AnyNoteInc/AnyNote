@@ -210,14 +210,14 @@ export const pageRouter = router({
       const now = new Date()
 
       return ctx.prisma.$transaction(async (tx) => {
-        // Remove page from linked list
+        // Remove page from linked list (detach first to avoid unique constraint)
         const nextSibling = await tx.page.findFirst({
           where: { prevPageId: page.id, deletedAt: null },
         })
         if (nextSibling) {
           await tx.page.update({
             where: { id: nextSibling.id },
-            data: { prevPageId: page.prevPageId },
+            data: { prevPageId: null },
           })
         }
 
@@ -226,6 +226,14 @@ export const pageRouter = router({
           where: { id: page.id },
           data: { deletedAt: now, prevPageId: null, updatedById: ctx.user.id },
         })
+
+        // Reattach next sibling to previous
+        if (nextSibling) {
+          await tx.page.update({
+            where: { id: nextSibling.id },
+            data: { prevPageId: page.prevPageId },
+          })
+        }
 
         // Soft-delete all descendants recursively
         // Use a loop to walk the tree breadth-first
@@ -412,14 +420,14 @@ export const pageRouter = router({
       await assertPageOwnership(ctx, input.pageId, page.workspaceId)
 
       return ctx.prisma.$transaction(async (tx) => {
-        // 1. Remove from old linked-list
+        // 1. Remove from old linked-list (detach first to avoid unique constraint)
         const nextSibling = await tx.page.findFirst({
           where: { prevPageId: page.id, deletedAt: null },
         })
         if (nextSibling) {
           await tx.page.update({
             where: { id: nextSibling.id },
-            data: { prevPageId: page.prevPageId },
+            data: { prevPageId: null },
           })
         }
 
@@ -454,6 +462,14 @@ export const pageRouter = router({
           },
         })
 
+        // Reattach next sibling to previous in old list
+        if (nextSibling) {
+          await tx.page.update({
+            where: { id: nextSibling.id },
+            data: { prevPageId: page.prevPageId },
+          })
+        }
+
         // 4. Insert at head of new parent's linked-list
         const existingFirst = await tx.page.findFirst({
           where: {
@@ -482,7 +498,18 @@ export const pageRouter = router({
       const page = await assertPageAccess(ctx, input.pageId)
 
       return ctx.prisma.$transaction(async (tx) => {
-        // 1. Create copy with same parent
+        // 1. Detach old next sibling first (prevPageId is unique)
+        const oldNext = await tx.page.findFirst({
+          where: { prevPageId: page.id, deletedAt: null },
+        })
+        if (oldNext) {
+          await tx.page.update({
+            where: { id: oldNext.id },
+            data: { prevPageId: null },
+          })
+        }
+
+        // 2. Create copy with same parent, inserted after original
         const copy = await tx.page.create({
           data: {
             workspaceId: page.workspaceId,
@@ -496,10 +523,7 @@ export const pageRouter = router({
           },
         })
 
-        // 2. Rewire linked-list: old next sibling now points to copy
-        const oldNext = await tx.page.findFirst({
-          where: { prevPageId: page.id, id: { not: copy.id }, deletedAt: null },
-        })
+        // 3. Reattach old next sibling to point to copy
         if (oldNext) {
           await tx.page.update({
             where: { id: oldNext.id },
