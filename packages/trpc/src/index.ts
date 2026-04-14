@@ -6,6 +6,7 @@ import { integrationRouter } from "./routers/integration"
 import { blockRouter } from "./routers/block"
 import { pageRouter } from "./routers/page"
 import { searchRouter } from "./routers/search"
+import { fileRouter } from "./routers/file"
 
 export { createContext, createServerContext } from "./trpc"
 export type { Context } from "./trpc"
@@ -19,6 +20,7 @@ export const appRouter = router({
   block: blockRouter,
   page: pageRouter,
   search: searchRouter,
+  file: fileRouter,
 })
 
 export const createCaller = createCallerFactory(appRouter)
