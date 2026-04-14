@@ -13,9 +13,6 @@ import {
 
 export const runtime = "nodejs"
 
-const isAvatarMime = (mime: string): boolean =>
-  mime === "image/png" || mime === "image/jpeg" || mime === "image/webp" || mime === "image/gif"
-
 export async function POST(request: Request) {
   const session = await getSession()
   if (!session) {
@@ -64,10 +61,6 @@ export async function POST(request: Request) {
   const validationError = validateUpload(kind, bytes.length, mimeType)
   if (validationError) {
     return Response.json({ error: validationError.message }, { status: validationError.status })
-  }
-
-  if (kind === "avatar" && !isAvatarMime(mimeType)) {
-    return Response.json({ error: "Avatar mime must be an image" }, { status: 400 })
   }
 
   const hash = createHash("sha256").update(bytes).digest("hex")

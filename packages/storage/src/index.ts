@@ -1,3 +1,4 @@
+import type { StorageClient } from "./contract"
 import { S3StorageClient } from "./s3-client"
 
 export type { PutOptions, StorageClient } from "./contract"
@@ -9,8 +10,8 @@ type GlobalStorage = typeof globalThis & {
 
 const g = globalThis as GlobalStorage
 
-export const storage: S3StorageClient = g.__storage ?? new S3StorageClient()
+export const storage: StorageClient = g.__storage ?? new S3StorageClient()
 
 if (process.env.NODE_ENV !== "production") {
-  g.__storage = storage
+  g.__storage = storage as S3StorageClient
 }

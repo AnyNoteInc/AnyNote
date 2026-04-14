@@ -30,23 +30,20 @@ test("avatar upload: upload, persist, serve via /api/files", async ({ page, requ
     buffer: Buffer.from(MIN_PNG_BASE64, "base64"),
   })
 
-  // Wait for router.refresh() to re-render with new avatar URL
-  await expect
-    .poll(
-      async () => {
-        const src = await page.locator("img").first().getAttribute("src")
-        return src ?? ""
-      },
-      { timeout: 10_000, intervals: [200, 500, 1000] },
-    )
-    .toMatch(/^\/api\/files\//)
+  const avatarImg = page.locator('img[src^="/api/files/"]')
 
-  const imgSrc = await page.locator("img").first().getAttribute("src")
+  // Wait for the avatar image to appear with the right src after upload
+  await expect.poll(
+    async () => (await avatarImg.first().getAttribute("src")) ?? "",
+    { timeout: 10_000, intervals: [200, 500, 1000] },
+  ).toMatch(/^\/api\/files\//)
+
+  const imgSrc = await avatarImg.first().getAttribute("src")
   expect(imgSrc).toBeTruthy()
 
   // Reload and verify persistence
   await page.reload()
-  await expect(page.locator("img").first()).toHaveAttribute("src", imgSrc!)
+  await expect(avatarImg.first()).toHaveAttribute("src", imgSrc!)
 
   // The avatar file is public — fetch directly (no auth cookie required)
   const fileRes = await request.get(imgSrc!)

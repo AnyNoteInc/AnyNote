@@ -20,7 +20,13 @@ type S3Config = {
 }
 
 const readConfig = (): S3Config => {
-  const required = ["S3_ENDPOINT", "S3_REGION", "S3_ACCESS_KEY", "S3_SECRET_KEY", "S3_BUCKET"] as const
+  const required = [
+    "S3_ENDPOINT",
+    "S3_REGION",
+    "S3_ACCESS_KEY",
+    "S3_SECRET_KEY",
+    "S3_BUCKET",
+  ] as const
   for (const name of required) {
     if (!process.env[name]) {
       throw new Error(`[@repo/storage] missing env var ${name}`)
@@ -74,6 +80,7 @@ export class S3StorageClient implements StorageClient {
     if (!res.Body) {
       throw new Error(`[@repo/storage] empty body for key ${key}`)
     }
+    // Safe cast — this client only runs in Node.js (route handlers use runtime = "nodejs").
     return res.Body as Readable
   }
 

@@ -29,11 +29,11 @@ export const validateUpload = (
   const maxBytes = kind === "avatar" ? AVATAR_MAX_BYTES : ATTACHMENT_MAX_BYTES
   if (size === 0) return { status: 400, message: "Empty file" }
   if (size > maxBytes) {
-    return { status: 400, message: `File exceeds limit of ${maxBytes} bytes` }
+    return { status: 400, message: "File too large" }
   }
   const allowed = kind === "avatar" ? AVATAR_MIME : ATTACHMENT_MIME
   if (!allowed.has(mimeType)) {
-    return { status: 400, message: `Mime type ${mimeType} not allowed for ${kind}` }
+    return { status: 400, message: "File type not allowed" }
   }
   return null
 }

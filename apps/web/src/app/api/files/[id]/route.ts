@@ -30,7 +30,12 @@ export async function GET(
     }
   }
 
-  const body = (await storage.get(file.path)) as Readable
+  let body: Readable
+  try {
+    body = (await storage.get(file.path)) as Readable
+  } catch {
+    return new Response("Not found", { status: 404 })
+  }
   const stream = new ReadableStream({
     start(controller) {
       body.on("data", (chunk: Buffer) => controller.enqueue(chunk))
@@ -55,10 +60,9 @@ export async function GET(
       /* swallow — download already streaming */
     })
 
-  const filenameSafe = encodeURIComponent(file.name)
-  const disposition = file.ext
-    ? `inline; filename="${filenameSafe}.${file.ext}"`
-    : `inline; filename="${filenameSafe}"`
+  const filenameStem = file.ext ? `${file.name}.${file.ext}` : file.name
+  const filenameStar = encodeURIComponent(filenameStem)
+  const disposition = `inline; filename="${filenameStar}"; filename*=UTF-8''${filenameStar}`
 
   return new Response(stream, {
     status: 200,

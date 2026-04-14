@@ -53,9 +53,24 @@ export default function ProfileAvatarUploader({ currentImage, initials }: Props)
     <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
       <Box
         onClick={onClick}
+        role="button"
+        tabIndex={0}
+        aria-label="Сменить аватар"
+        onKeyDown={(e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault()
+            onClick()
+          }
+        }}
         sx={{
           position: "relative",
           cursor: isUploading ? "wait" : "pointer",
+          "&:focus-visible": {
+            outline: "2px solid",
+            outlineColor: "primary.main",
+            outlineOffset: 2,
+            borderRadius: "50%",
+          },
           "&:hover .overlay": { opacity: 1 },
         }}
       >
