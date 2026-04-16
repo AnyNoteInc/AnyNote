@@ -11,10 +11,11 @@ export function createUploadHandler(args: {
   return async ({ blob, filename }) => {
     const fd = new FormData()
     fd.append("file", blob, filename)
-    const res = await fetch(
-      `/api/files/upload?kind=attachment&workspaceId=${args.workspaceId}`,
-      { method: "POST", body: fd, credentials: "include" },
-    )
+    const res = await fetch(`/api/files/upload?kind=attachment&workspaceId=${args.workspaceId}`, {
+      method: "POST",
+      body: fd,
+      credentials: "include",
+    })
     if (!res.ok) throw new Error(`upload failed: ${res.status}`)
     const data = (await res.json()) as { file: { id: string } }
     await args.attachToPage(data.file.id)
