@@ -159,3 +159,8 @@ Env vars (all live in the repo root `.env`):
 The block model has been removed; page content now lives in `Page.contentYjs` (bytes) plus `Page.content` (JSON snapshot). Do not re-introduce blocks without first reading `docs/superpowers/specs/2026-04-16-collaborative-editor-design.md`.
 
 `@repo/editor` and `@repo/excalidraw` are compiled with `moduleResolution: "Bundler"` (not the repo default `NodeNext`) because Next.js's `transpilePackages` consumes their `src/` directly. This is also why they use extensionless relative imports while other workspace packages with NodeNext do too.
+
+- Known deviation: Excalidraw image assets are currently duplicated in S3
+  and in `Page.contentYjs`. See `packages/excalidraw/README.md` "Known
+  limitations" — a follow-up will strip dataURLs from `yAssets` once
+  `@timephy/y-excalidraw` supports file-id placeholders.

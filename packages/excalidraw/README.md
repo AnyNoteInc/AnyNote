@@ -32,3 +32,19 @@ import { Board } from "@repo/excalidraw"
   package does not attach files to pages directly — the consumer wires
   attach-to-page inside the closure returned from `createUploadHandler`
   (see `apps/web`).
+
+## Known limitations
+
+Image assets dropped onto the canvas are currently stored both in S3
+(via the `uploadHandler`) AND encoded as dataURLs inside `Page.contentYjs`
+by `@timephy/y-excalidraw`. This means the bytea column grows with every
+pasted image.
+
+The design spec prescribes a different flow: store only an S3 reference in
+`yAssets` and populate Excalidraw's file cache on load via
+`excalidrawAPI.addFiles(...)`. Implementing that requires a binding fork
+or a PR upstream to `@timephy/y-excalidraw` so it persists a file-id
+placeholder instead of the dataURL. Deferred.
+
+Upload-side plumbing (`FilesHandler`, `file.attachToPage`) is in place so
+the existing page-files record survives the eventual swap.
