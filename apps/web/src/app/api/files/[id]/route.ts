@@ -24,7 +24,20 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     const session = await getSession()
     if (!session) return new Response("Unauthorized", { status: 401 })
     if (session.user.id !== file.userId) {
-      return new Response("Forbidden", { status: 403 })
+      // Allow download if the file is attached to a page in a workspace the user belongs to.
+      const linked = await prisma.pageFile.findFirst({
+        where: {
+          fileId: file.id,
+          page: {
+            deletedAt: null,
+            workspace: { members: { some: { userId: session.user.id } } },
+          },
+        },
+        select: { pageId: true },
+      })
+      if (!linked) {
+        return new Response("Forbidden", { status: 403 })
+      }
     }
   }
 
