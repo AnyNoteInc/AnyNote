@@ -3,7 +3,6 @@ import { userRouter } from "./routers/user"
 import { workspaceRouter } from "./routers/workspace"
 import { subscriptionRouter } from "./routers/subscription"
 import { integrationRouter } from "./routers/integration"
-import { blockRouter } from "./routers/block"
 import { pageRouter } from "./routers/page"
 import { searchRouter } from "./routers/search"
 import { fileRouter } from "./routers/file"
@@ -17,7 +16,6 @@ export const appRouter = router({
   workspace: workspaceRouter,
   subscription: subscriptionRouter,
   integration: integrationRouter,
-  block: blockRouter,
   page: pageRouter,
   search: searchRouter,
   file: fileRouter,

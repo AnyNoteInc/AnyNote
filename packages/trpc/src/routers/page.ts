@@ -97,7 +97,6 @@ export const pageRouter = router({
           id: true,
           title: true,
           icon: true,
-          parentType: true,
           parentId: true,
           prevPageId: true,
           createdById: true,
@@ -110,7 +109,6 @@ export const pageRouter = router({
     .input(
       z.object({
         workspaceId: z.string().uuid(),
-        parentType: z.enum(["WORKSPACE", "PAGE"]),
         parentId: z.string().uuid().nullable(),
         title: z.string().optional(),
         icon: z.string().optional(),
@@ -119,22 +117,8 @@ export const pageRouter = router({
     .mutation(async ({ ctx, input }) => {
       await assertWorkspaceMember(ctx, input.workspaceId)
 
-      // Validate parentId consistency
-      if (input.parentType === "WORKSPACE" && input.parentId !== null) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Для корневой страницы parentId должен быть null",
-        })
-      }
-      if (input.parentType === "PAGE" && !input.parentId) {
-        throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "Для дочерней страницы необходимо указать parentId",
-        })
-      }
-
       // If parent is a page, verify it exists and belongs to same workspace
-      if (input.parentType === "PAGE" && input.parentId) {
+      if (input.parentId) {
         const parentPage = await ctx.prisma.page.findFirst({
           where: { id: input.parentId, workspaceId: input.workspaceId, deletedAt: null },
         })
@@ -150,7 +134,6 @@ export const pageRouter = router({
         const newPage = await tx.page.create({
           data: {
             workspaceId: input.workspaceId,
-            parentType: input.parentType,
             parentId: input.parentId,
             title: input.title ?? null,
             icon: input.icon ?? null,
@@ -164,7 +147,6 @@ export const pageRouter = router({
         const existingFirst = await tx.page.findFirst({
           where: {
             workspaceId: input.workspaceId,
-            parentType: input.parentType,
             parentId: input.parentId,
             prevPageId: null,
             id: { not: newPage.id },
@@ -237,11 +219,10 @@ export const pageRouter = router({
 
         // Soft-delete all descendants recursively
         // Use a loop to walk the tree breadth-first
-        let parentIds = [page.id]
+        let parentIds: string[] = [page.id]
         while (parentIds.length > 0) {
           const children = await tx.page.findMany({
             where: {
-              parentType: "PAGE",
               parentId: { in: parentIds },
               deletedAt: null,
             },
@@ -279,16 +260,14 @@ export const pageRouter = router({
         }
 
         // Determine restore location: if parent is deleted, move to workspace root
-        let restoreParentType = page.parentType
         let restoreParentId = page.parentId
 
-        if (page.parentType === "PAGE" && page.parentId) {
+        if (page.parentId) {
           const parentPage = await tx.page.findFirst({
             where: { id: page.parentId, deletedAt: null },
           })
           if (!parentPage) {
             // Parent is still deleted — move to workspace root
-            restoreParentType = "WORKSPACE"
             restoreParentId = null
           }
         }
@@ -298,7 +277,6 @@ export const pageRouter = router({
           where: { id: page.id },
           data: {
             deletedAt: null,
-            parentType: restoreParentType,
             parentId: restoreParentId,
             prevPageId: null,
             updatedById: ctx.user.id,
@@ -309,7 +287,6 @@ export const pageRouter = router({
         const existingFirst = await tx.page.findFirst({
           where: {
             workspaceId: input.workspaceId,
-            parentType: restoreParentType,
             parentId: restoreParentId,
             prevPageId: null,
             id: { not: page.id },
@@ -324,11 +301,10 @@ export const pageRouter = router({
         }
 
         // Restore all descendants recursively
-        let parentIds = [page.id]
+        let parentIds: string[] = [page.id]
         while (parentIds.length > 0) {
           const children = await tx.page.findMany({
             where: {
-              parentType: "PAGE",
               parentId: { in: parentIds },
               deletedAt: { not: null },
             },
@@ -376,7 +352,7 @@ export const pageRouter = router({
           })
         }
 
-        // Delete the page (cascade handles blocks)
+        // Delete the page (cascade handles related rows)
         await tx.page.delete({ where: { id: page.id } })
 
         return { id: page.id }
@@ -397,7 +373,6 @@ export const pageRouter = router({
           id: true,
           title: true,
           icon: true,
-          parentType: true,
           parentId: true,
           deletedAt: true,
           createdById: true,
@@ -457,21 +432,18 @@ export const pageRouter = router({
                 message: "Невозможно переместить страницу в собственного потомка",
               })
             }
-            const ancestor: { parentId: string | null; parentType: string } | null =
-              await tx.page.findFirst({
-                where: { id: currentId, deletedAt: null },
-                select: { parentId: true, parentType: true },
-              })
-            currentId = ancestor?.parentType === "PAGE" ? ancestor.parentId : null
+            const ancestor: { parentId: string | null } | null = await tx.page.findFirst({
+              where: { id: currentId, deletedAt: null },
+              select: { parentId: true },
+            })
+            currentId = ancestor?.parentId ?? null
           }
         }
 
-        // 3. Set new parentType/parentId
-        const newParentType = input.newParentId ? "PAGE" : "WORKSPACE"
+        // 3. Set new parentId
         await tx.page.update({
           where: { id: page.id },
           data: {
-            parentType: newParentType,
             parentId: input.newParentId,
             prevPageId: null,
             updatedById: ctx.user.id,
@@ -490,7 +462,6 @@ export const pageRouter = router({
         const existingFirst = await tx.page.findFirst({
           where: {
             workspaceId: page.workspaceId,
-            parentType: newParentType,
             parentId: input.newParentId,
             prevPageId: null,
             id: { not: page.id },
@@ -529,7 +500,6 @@ export const pageRouter = router({
         const copy = await tx.page.create({
           data: {
             workspaceId: page.workspaceId,
-            parentType: page.parentType,
             parentId: page.parentId,
             title: `${page.title ?? ""} (копия)`.trim(),
             icon: page.icon,
@@ -545,45 +515,6 @@ export const pageRouter = router({
             where: { id: oldNext.id },
             data: { prevPageId: copy.id },
           })
-        }
-
-        // 3. Copy all non-archived blocks from the original page
-        const blocks = await tx.block.findMany({
-          where: { pageId: page.id, archivedAt: null },
-        })
-        if (blocks.length > 0) {
-          // Build old-id -> new-id mapping
-          const idMap = new Map<string, string>()
-          // We need to create blocks preserving parent/prev relationships
-          // First pass: create all blocks with new IDs (let DB generate them)
-          for (const block of blocks) {
-            const newBlock = await tx.block.create({
-              data: {
-                type: block.type,
-                pageId: copy.id,
-                parentBlockId: null,
-                prevBlockId: null,
-                content: block.content ?? {},
-                createdById: ctx.user.id,
-                updatedById: ctx.user.id,
-              },
-            })
-            idMap.set(block.id, newBlock.id)
-          }
-          // Second pass: fix parent/prev references
-          for (const block of blocks) {
-            const newId = idMap.get(block.id)!
-            const newParentBlockId = block.parentBlockId
-              ? (idMap.get(block.parentBlockId) ?? null)
-              : null
-            const newPrevBlockId = block.prevBlockId ? (idMap.get(block.prevBlockId) ?? null) : null
-            if (newParentBlockId || newPrevBlockId) {
-              await tx.block.update({
-                where: { id: newId },
-                data: { parentBlockId: newParentBlockId, prevBlockId: newPrevBlockId },
-              })
-            }
-          }
         }
 
         return copy
@@ -630,7 +561,6 @@ export const pageRouter = router({
               title: true,
               icon: true,
               parentId: true,
-              parentType: true,
             },
           },
         },
