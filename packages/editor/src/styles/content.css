@@ -1,0 +1,102 @@
+.anynote-editor {
+  font-family: var(--editor-font-family, inherit);
+  color: var(--editor-text, currentColor);
+}
+
+.anynote-editor .ProseMirror {
+  outline: none;
+  min-height: 200px;
+  padding: 16px 24px;
+  line-height: 1.6;
+}
+
+.anynote-editor .ProseMirror p.is-editor-empty:first-child::before {
+  color: var(--editor-text-muted, rgba(0, 0, 0, 0.4));
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+.anynote-editor h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  margin: 1.25rem 0 0.5rem;
+}
+.anynote-editor h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 1rem 0 0.5rem;
+}
+.anynote-editor h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0.75rem 0 0.5rem;
+}
+.anynote-editor p,
+.anynote-editor ul,
+.anynote-editor ol {
+  margin: 0.25rem 0;
+}
+
+.anynote-editor blockquote {
+  border-left: 3px solid var(--editor-divider, rgba(0, 0, 0, 0.12));
+  margin: 0.5rem 0;
+  padding-left: 12px;
+  color: var(--editor-text-muted, rgba(0, 0, 0, 0.6));
+}
+
+.anynote-editor pre {
+  background: var(--editor-code-bg, rgba(0, 0, 0, 0.04));
+  border-radius: 6px;
+  padding: 12px;
+  overflow-x: auto;
+}
+
+.anynote-editor code {
+  background: var(--editor-code-bg, rgba(0, 0, 0, 0.04));
+  border-radius: 4px;
+  padding: 0 4px;
+}
+
+.anynote-editor hr {
+  border: none;
+  border-top: 1px solid var(--editor-divider, rgba(0, 0, 0, 0.12));
+  margin: 1rem 0;
+}
+
+.anynote-editor table {
+  border-collapse: collapse;
+  margin: 0.5rem 0;
+}
+.anynote-editor th,
+.anynote-editor td {
+  border: 1px solid var(--editor-divider, rgba(0, 0, 0, 0.12));
+  padding: 6px 8px;
+}
+
+.anynote-editor .collaboration-cursor__caret,
+.anynote-editor .collaboration-carets__caret {
+  border-left: 2px solid;
+  border-right: 2px solid;
+  margin-left: -1px;
+  margin-right: -1px;
+  pointer-events: none;
+  position: relative;
+  word-break: normal;
+}
+
+.anynote-editor .collaboration-cursor__label,
+.anynote-editor .collaboration-carets__label {
+  border-radius: 3px 3px 3px 0;
+  color: white;
+  font-size: 12px;
+  font-weight: 600;
+  left: -1px;
+  line-height: normal;
+  padding: 0.1rem 0.3rem;
+  position: absolute;
+  top: -1.4em;
+  user-select: none;
+  white-space: nowrap;
+}

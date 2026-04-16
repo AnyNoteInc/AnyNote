@@ -289,6 +289,9 @@ importers:
       '@types/react':
         specifier: ^19.2.2
         version: 19.2.2
+      '@types/react-dom':
+        specifier: ^19.2.2
+        version: 19.2.2(@types/react@19.2.2)
       eslint:
         specifier: ^9.39.1
         version: 9.39.4(jiti@2.6.1)
