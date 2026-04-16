@@ -30,7 +30,7 @@ function getDescendantIds(pageId: string, pages: PageItem[]): Set<string> {
   while (queue.length > 0) {
     const current = queue.shift()!
     for (const p of pages) {
-      if (p.parentType === "PAGE" && p.parentId === current && !ids.has(p.id)) {
+      if (p.parentId === current && !ids.has(p.id)) {
         ids.add(p.id)
         queue.push(p.id)
       }
@@ -56,7 +56,7 @@ function MoveTreeItem({
 }) {
   const [expanded, setExpanded] = useState(false)
   const children = orderSiblings(
-    pages.filter((p) => p.parentType === "PAGE" && p.parentId === page.id && !excludeIds.has(p.id)),
+    pages.filter((p) => p.parentId === page.id && !excludeIds.has(p.id)),
   )
   const isSelected = selectedId === page.id
 
@@ -134,7 +134,7 @@ export function MovePageDialog({ open, onClose, page, pages, workspaceId }: Prop
 
   const excludeIds = new Set([page.id, ...getDescendantIds(page.id, pages)])
   const rootPages = orderSiblings(
-    pages.filter((p) => p.parentType === "WORKSPACE" && !excludeIds.has(p.id)),
+    pages.filter((p) => p.parentId === null && !excludeIds.has(p.id)),
   )
 
   const handleConfirm = () => {

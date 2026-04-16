@@ -2,7 +2,6 @@ export type PageItem = {
   id: string
   title: string | null
   icon: string | null
-  parentType: string
   parentId: string | null
   prevPageId: string | null
   createdById: string | null

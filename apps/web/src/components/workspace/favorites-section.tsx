@@ -28,7 +28,7 @@ type Props = {
 /** Recursively collect all descendants of a page */
 function getAllDescendants(pageId: string, allPages: PageItem[]): PageItem[] {
   const result: PageItem[] = []
-  const directChildren = allPages.filter((p) => p.parentId === pageId && p.parentType === "PAGE")
+  const directChildren = allPages.filter((p) => p.parentId === pageId)
   for (const child of directChildren) {
     result.push(child)
     result.push(...getAllDescendants(child.id, allPages))

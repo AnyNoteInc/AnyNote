@@ -54,9 +54,7 @@ function PageTreeItem({
     },
   })
 
-  const children = orderSiblings(
-    pages.filter((p) => p.parentId === page.id && p.parentType === "PAGE"),
-  )
+  const children = orderSiblings(pages.filter((p) => p.parentId === page.id))
 
   return (
     <>
@@ -118,7 +116,6 @@ function PageTreeItem({
               e.stopPropagation()
               createPage.mutate({
                 workspaceId,
-                parentType: "PAGE",
                 parentId: page.id,
               })
             }}
@@ -189,7 +186,7 @@ export function PageTreeSection({ workspaceId, pages: initialPages, favoritePage
     },
   })
 
-  const rootPages = orderSiblings(pages.filter((p) => p.parentType === "WORKSPACE"))
+  const rootPages = orderSiblings(pages.filter((p) => p.parentId === null))
 
   return (
     <Box>
@@ -227,7 +224,6 @@ export function PageTreeSection({ workspaceId, pages: initialPages, favoritePage
           onClick={() =>
             createPage.mutate({
               workspaceId,
-              parentType: "WORKSPACE",
               parentId: null,
             })
           }

@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
-import type { PrismaClient } from "@repo/db"
+import { PageType, type PrismaClient } from "@repo/db"
 
 import { router, protectedProcedure } from "../trpc"
 
@@ -177,6 +177,33 @@ export const pageRouter = router({
       return ctx.prisma.page.update({
         where: { id: input.id },
         data: { title: input.title, updatedById: ctx.user.id },
+      })
+    }),
+
+  update: protectedProcedure
+    .input(
+      z.object({
+        id: z.string().uuid(),
+        workspaceId: z.string().uuid(),
+        title: z.string().optional(),
+        icon: z.string().nullable().optional(),
+        type: z.nativeEnum(PageType).optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertPageOwnership(ctx, input.id, input.workspaceId)
+      const data: {
+        title?: string
+        icon?: string | null
+        type?: PageType
+        updatedById: string
+      } = { updatedById: ctx.user.id }
+      if (input.title !== undefined) data.title = input.title
+      if (input.icon !== undefined) data.icon = input.icon
+      if (input.type !== undefined) data.type = input.type
+      return ctx.prisma.page.update({
+        where: { id: input.id },
+        data,
       })
     }),
 
