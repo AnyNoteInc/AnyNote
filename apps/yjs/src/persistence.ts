@@ -2,7 +2,7 @@ import { prisma, PageType, Prisma } from "@repo/db"
 import * as Y from "yjs"
 import { TiptapTransformer } from "@hocuspocus/transformer"
 
-import { log } from "./logger"
+import { log } from "./logger.js"
 
 export async function loadPageDocument(pageId: string): Promise<Y.Doc> {
   const page = await prisma.page.findUnique({

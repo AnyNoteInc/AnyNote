@@ -1,9 +1,9 @@
 import { Server } from "@hocuspocus/server"
 
-import { loadEnv } from "./env"
-import { initJwks, verifyJwt, canAccessPage } from "./auth"
-import { loadPageDocument, storePageDocument } from "./persistence"
-import { log } from "./logger"
+import { loadEnv } from "./env.js"
+import { initJwks, verifyJwt, canAccessPage } from "./auth.js"
+import { loadPageDocument, storePageDocument } from "./persistence.js"
+import { log } from "./logger.js"
 import type { PageType } from "@repo/db"
 
 type AuthContext = { userId: string; pageType: PageType }
@@ -32,10 +32,38 @@ const server = new Server({
   },
 
   async onStoreDocument({ documentName, document, context }) {
-    const { pageType } = context as AuthContext
+    const ctx = context as Partial<AuthContext>
+    if (!ctx.pageType) {
+      throw new Error("missing pageType in onStoreDocument context")
+    }
+    const { pageType } = ctx as AuthContext
     await storePageDocument({ pageId: documentName, document, pageType })
   },
 })
 
-server.listen()
+process.on("unhandledRejection", (err) => {
+  log.error("unhandled rejection", { error: String(err) })
+})
+
+process.on("uncaughtException", (err) => {
+  log.error("uncaught exception", {
+    error: String(err),
+    stack: err instanceof Error ? err.stack : undefined,
+  })
+  process.exit(1)
+})
+
+for (const sig of ["SIGTERM", "SIGINT"] as const) {
+  process.on(sig, async () => {
+    log.info("shutting down", { signal: sig })
+    try {
+      await server.destroy()
+    } catch (err) {
+      log.error("server destroy failed", { error: String(err) })
+    }
+    process.exit(0)
+  })
+}
+
+await server.listen()
 log.info("yjs server listening", { port: env.port })

@@ -18,11 +18,11 @@ export function loadEnv(): Env {
   return {
     // YJS_PORT and BETTER_AUTH_JWT_AUDIENCE are documented in the README;
     // turbo.json registration is handled in a later phase.
-    // eslint-disable-next-line turbo/no-undeclared-env-vars
+    // eslint-disable-next-line turbo/no-undeclared-env-vars -- TODO(phase-7): register YJS_PORT and BETTER_AUTH_JWT_AUDIENCE in turbo.json globalEnv and remove this disable
     port: Number(process.env.YJS_PORT ?? 1234),
     authBaseUrl,
     jwksUrl: `${authBaseUrl}/api/auth/jwks`,
-    // eslint-disable-next-line turbo/no-undeclared-env-vars
+    // eslint-disable-next-line turbo/no-undeclared-env-vars -- TODO(phase-7): register YJS_PORT and BETTER_AUTH_JWT_AUDIENCE in turbo.json globalEnv and remove this disable
     jwtAudience: process.env.BETTER_AUTH_JWT_AUDIENCE,
   }
 }

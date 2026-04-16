@@ -5,7 +5,7 @@ Hocuspocus WebSocket server that powers real-time collaboration for AnyNote text
 - Validates inbound JWTs against better-auth's JWKS endpoint.
 - Verifies the user is a member of the page's workspace.
 - Loads/saves `Y.Doc` state from `Page.contentYjs` (Bytes).
-- For TEXT pages, also writes a denormalized Tiptap snapshot to `Page.content`.
+- For non-Excalidraw pages, also writes a denormalized Tiptap snapshot to `Page.content`.
 
 ## Scripts
 

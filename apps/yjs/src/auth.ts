@@ -1,7 +1,7 @@
 import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose"
 import { prisma, PageType } from "@repo/db"
 
-import { log } from "./logger"
+import { log } from "./logger.js"
 
 let jwksFetcher: ReturnType<typeof createRemoteJWKSet> | null = null
 
