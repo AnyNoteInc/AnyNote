@@ -3,7 +3,7 @@ import CollaborationCaret from "@tiptap/extension-collaboration-caret"
 import type { HocuspocusProvider } from "@hocuspocus/provider"
 import type * as Y from "yjs"
 
-import type { AnyNoteEditorUser } from "../types.js"
+import type { AnyNoteEditorUser } from "../types"
 
 export const buildCollaboration = (args: {
   ydoc: Y.Doc

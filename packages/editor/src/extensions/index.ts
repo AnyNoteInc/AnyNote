@@ -13,11 +13,11 @@ import type { HocuspocusProvider } from "@hocuspocus/provider"
 import { common, createLowlight } from "lowlight"
 import type * as Y from "yjs"
 
-import { buildCollaboration } from "./collaboration.js"
-import { buildFileUpload } from "./file-upload.js"
-import { buildPlaceholder } from "./placeholder.js"
-import { SlashMenu, type SlashMenuRender } from "./slash-menu.js"
-import type { AnyNoteEditorUser, SlashCommandItem, UploadHandler } from "../types.js"
+import { buildCollaboration } from "./collaboration"
+import { buildFileUpload } from "./file-upload"
+import { buildPlaceholder } from "./placeholder"
+import { SlashMenu, type SlashMenuRender } from "./slash-menu"
+import type { AnyNoteEditorUser, SlashCommandItem, UploadHandler } from "../types"
 
 const lowlight = createLowlight(common)
 

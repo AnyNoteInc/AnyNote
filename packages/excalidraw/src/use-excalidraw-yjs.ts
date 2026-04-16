@@ -29,8 +29,8 @@ export function useExcalidrawYjs(args: {
 
   // Yjs containers shared with the Excalidraw binding.
   // Names match @timephy/y-excalidraw conventions.
-  const yElements = useState<Y.Array<Y.Map<unknown>>>(
-    () => ydoc.getArray<Y.Map<unknown>>("elements"),
+  const yElements = useState<Y.Array<Y.Map<unknown>>>(() =>
+    ydoc.getArray<Y.Map<unknown>>("elements"),
   )[0]
   const yAssets = useState<Y.Map<unknown>>(() => ydoc.getMap<unknown>("assets"))[0]
 

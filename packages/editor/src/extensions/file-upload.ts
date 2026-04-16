@@ -3,7 +3,7 @@ import FileUpload, {
   type UploadHandler as CodelessUploadHandler,
 } from "@tiptap-codeless/extension-file-upload"
 
-import type { UploadHandler } from "../types.js"
+import type { UploadHandler } from "../types"
 
 const inferKind = (mime: string): "image" | "video" | "file" => {
   if (mime.startsWith("image/")) return "image"

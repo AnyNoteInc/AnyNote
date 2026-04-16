@@ -4,7 +4,7 @@ import { List, ListItemButton, ListItemText, Paper } from "@mui/material"
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react"
 import type { CSSProperties } from "react"
 
-import type { SlashCommandItem } from "../types.js"
+import type { SlashCommandItem } from "../types"
 
 export type SlashMenuPopoverHandle = {
   onKeyDown: (event: KeyboardEvent) => boolean

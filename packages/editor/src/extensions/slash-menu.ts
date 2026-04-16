@@ -1,7 +1,7 @@
 import { Extension } from "@tiptap/core"
 import Suggestion, { type SuggestionKeyDownProps, type SuggestionProps } from "@tiptap/suggestion"
 
-import type { SlashCommandItem } from "../types.js"
+import type { SlashCommandItem } from "../types"
 
 export type SlashMenuRender = {
   onStart: (props: SuggestionProps<SlashCommandItem, SlashCommandItem>) => void

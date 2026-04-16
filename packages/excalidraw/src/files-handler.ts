@@ -1,4 +1,4 @@
-import type { UploadHandler, UploadedFile } from "./types.js"
+import type { UploadHandler, UploadedFile } from "./types"
 
 /**
  * Shape of a single entry in Excalidraw's `BinaryFiles` map. We intentionally

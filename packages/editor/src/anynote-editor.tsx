@@ -8,14 +8,14 @@ import tippy, { type Instance } from "tippy.js"
 import { useEffect, useMemo, useRef, useState } from "react"
 import * as Y from "yjs"
 
-import { EditorDragHandle } from "./components/drag-handle.js"
-import { FloatingToolbar } from "./components/floating-toolbar.js"
-import { SlashMenuPopover } from "./components/slash-menu-popover.js"
-import type { SlashMenuPopoverHandle } from "./components/slash-menu-popover.js"
-import { buildExtensions } from "./extensions/index.js"
-import type { SlashMenuRender } from "./extensions/slash-menu.js"
-import { defaultSlashItems } from "./slash-items.js"
-import type { AnyNoteEditorProps, SlashCommandItem } from "./types.js"
+import { EditorDragHandle } from "./components/drag-handle"
+import { FloatingToolbar } from "./components/floating-toolbar"
+import { SlashMenuPopover } from "./components/slash-menu-popover"
+import type { SlashMenuPopoverHandle } from "./components/slash-menu-popover"
+import { buildExtensions } from "./extensions/index"
+import type { SlashMenuRender } from "./extensions/slash-menu"
+import { defaultSlashItems } from "./slash-items"
+import type { AnyNoteEditorProps, SlashCommandItem } from "./types"
 
 type SlashSuggestionProps = SuggestionProps<SlashCommandItem, SlashCommandItem>
 

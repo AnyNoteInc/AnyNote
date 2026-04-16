@@ -4,18 +4,14 @@ import "@excalidraw/excalidraw/index.css"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Excalidraw } from "@excalidraw/excalidraw"
-import type {
-  AppState,
-  BinaryFiles,
-  ExcalidrawImperativeAPI,
-} from "@excalidraw/excalidraw/types"
+import type { AppState, BinaryFiles, ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types"
 import type { OrderedExcalidrawElement } from "@excalidraw/excalidraw/element/types"
 import { Box } from "@mui/material"
 import { ExcalidrawBinding } from "@timephy/y-excalidraw"
 
-import { FilesHandler, type ExcalidrawFile } from "./files-handler.js"
-import type { BoardProps } from "./types.js"
-import { useExcalidrawYjs } from "./use-excalidraw-yjs.js"
+import { FilesHandler, type ExcalidrawFile } from "./files-handler"
+import type { BoardProps } from "./types"
+import { useExcalidrawYjs } from "./use-excalidraw-yjs"
 
 export function BoardInner(props: BoardProps) {
   const { pageId, yjsUrl, yjsToken, uploadHandler, editable = true, className } = props
@@ -41,12 +37,7 @@ export function BoardInner(props: BoardProps) {
     if (!apiReady) return
     const api = apiRef.current
     if (!api) return
-    const binding = new ExcalidrawBinding(
-      yElements,
-      yAssets,
-      api,
-      provider.awareness ?? undefined,
-    )
+    const binding = new ExcalidrawBinding(yElements, yAssets, api, provider.awareness ?? undefined)
     bindingRef.current = binding
     return () => {
       binding.destroy()
@@ -60,11 +51,7 @@ export function BoardInner(props: BoardProps) {
   }, [])
 
   const onChange = useCallback(
-    (
-      _elements: readonly OrderedExcalidrawElement[],
-      _appState: AppState,
-      fileMap: BinaryFiles,
-    ) => {
+    (_elements: readonly OrderedExcalidrawElement[], _appState: AppState, fileMap: BinaryFiles) => {
       // Upload newly-added images through the consumer-provided handler.
       void files.syncFiles(fileMap as unknown as Record<string, ExcalidrawFile>)
     },
@@ -81,11 +68,7 @@ export function BoardInner(props: BoardProps) {
         position: "relative",
       }}
     >
-      <Excalidraw
-        excalidrawAPI={onMount}
-        viewModeEnabled={!editable}
-        onChange={onChange}
-      />
+      <Excalidraw excalidrawAPI={onMount} viewModeEnabled={!editable} onChange={onChange} />
     </Box>
   )
 }

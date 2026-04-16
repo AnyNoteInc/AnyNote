@@ -1,4 +1,4 @@
-import type { SlashCommandItem } from "./types.js"
+import type { SlashCommandItem } from "./types"
 
 const ITEMS: SlashCommandItem[] = [
   {
