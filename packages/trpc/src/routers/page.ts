@@ -533,8 +533,10 @@ export const pageRouter = router({
           data: {
             workspaceId: page.workspaceId,
             parentId: page.parentId,
+            type: page.type,
             title: `${page.title ?? ""} (копия)`.trim(),
             icon: page.icon,
+            content: page.content ?? undefined,
             prevPageId: page.id,
             createdById: ctx.user.id,
             updatedById: ctx.user.id,
