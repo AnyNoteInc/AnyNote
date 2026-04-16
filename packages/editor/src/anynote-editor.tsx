@@ -93,9 +93,7 @@ export function AnyNoteEditor(props: AnyNoteEditorProps) {
           slashRendererRef.current.popup?.hide()
           return true
         }
-        return (
-          slashRendererRef.current.component?.ref?.onKeyDown(suggestionProps.event) ?? false
-        )
+        return slashRendererRef.current.component?.ref?.onKeyDown(suggestionProps.event) ?? false
       },
       onExit: () => {
         slashRendererRef.current.popup?.destroy()

@@ -5,10 +5,7 @@ export type UploadedFile = {
   src: string
 }
 
-export type UploadHandler = (args: {
-  blob: Blob
-  filename: string
-}) => Promise<UploadedFile>
+export type UploadHandler = (args: { blob: Blob; filename: string }) => Promise<UploadedFile>
 
 export type AnyNoteEditorUser = {
   id: string

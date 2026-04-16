@@ -19,10 +19,7 @@ export default async function ProfilePage() {
   return (
     <Container maxWidth="sm" sx={{ py: { xs: 4, md: 8 } }}>
       <Stack alignItems="center" spacing={3}>
-        <ProfileAvatarUploader
-          currentImage={session.user.image ?? null}
-          initials={initials}
-        />
+        <ProfileAvatarUploader currentImage={session.user.image ?? null} initials={initials} />
         <Stack alignItems="center" spacing={0.5}>
           <Typography variant="h4">
             {session.user.firstName} {session.user.lastName}

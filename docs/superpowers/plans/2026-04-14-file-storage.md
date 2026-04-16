@@ -17,6 +17,7 @@
 ## Task 1: Infrastructure — compose, env, turbo
 
 **Files:**
+
 - Modify: `compose.yml`
 - Modify: `.env`
 - Modify: `turbo.json`
@@ -26,16 +27,16 @@
 Open `compose.yml` and add this service block just after the `minio` service (before `weaviate`):
 
 ```yaml
-  minio-init:
-    image: minio/mc
-    depends_on:
-      minio:
-        condition: service_healthy
-    entrypoint: >
-      /bin/sh -c "
-      mc alias set local http://minio:9000 admin password &&
-      mc mb --ignore-existing local/storage
-      "
+minio-init:
+  image: minio/mc
+  depends_on:
+    minio:
+      condition: service_healthy
+  entrypoint: >
+    /bin/sh -c "
+    mc alias set local http://minio:9000 admin password &&
+    mc mb --ignore-existing local/storage
+    "
 ```
 
 - [ ] **Step 2: Append S3 env vars to `.env`**
@@ -58,14 +59,16 @@ Open `turbo.json`, find the `globalEnv` array, and add the six `S3_*` names to i
 - [ ] **Step 4: Bring MinIO up and verify bucket creation**
 
 Run:
+
 ```bash
 docker compose up -d minio minio-init
 docker compose logs minio-init
 ```
 
-Expected: a log line `Bucket created successfully \`local/storage\`` OR `Bucket \`local/storage\` already exists` (if re-run). Exit code 0.
+Expected: a log line `Bucket created successfully \`local/storage\``OR`Bucket \`local/storage\` already exists` (if re-run). Exit code 0.
 
 Confirm via:
+
 ```bash
 docker run --rm --network anynote_default minio/mc sh -c \
   "mc alias set local http://minio:9000 admin password >/dev/null && mc ls local/"
@@ -87,6 +90,7 @@ git commit -m "feat(infra): add minio-init and s3 env vars"
 ## Task 2: Prisma schema — `File`, `BlockFile`, `FileStatus`
 
 **Files:**
+
 - Modify: `packages/db/prisma/schema.prisma`
 - Create: `packages/db/prisma/migrations/<timestamp>_add_files/migration.sql`
 - Modify: `packages/db/src/index.ts`
@@ -163,16 +167,19 @@ model BlockFile {
 - [ ] **Step 4: Add back-relations on `User`, `Workspace`, `Block`**
 
 In `User` (around line 10–37), add inside the relations block:
+
 ```prisma
   files         File[]
 ```
 
 In `Workspace` (around line 168), add inside the relations block:
+
 ```prisma
   files                 File[]
 ```
 
 In `Block` (around line 238), add inside the relations block:
+
 ```prisma
   blockFiles    BlockFile[]
 ```
@@ -234,6 +241,7 @@ export {
 ```
 
 In the type-export block, add `File` and `BlockFile`:
+
 ```ts
 export type {
   User,
@@ -267,6 +275,7 @@ git commit -m "feat(db): add File and BlockFile models with partial unique index
 ## Task 3: Scaffold `@repo/storage` package
 
 **Files:**
+
 - Create: `packages/storage/package.json`
 - Create: `packages/storage/tsconfig.json`
 - Create: `packages/storage/eslint.config.mjs`
@@ -335,7 +344,7 @@ Create `packages/storage/tsconfig.json`:
 Create `packages/storage/eslint.config.mjs`:
 
 ```js
-import { config } from '@repo/eslint-config/base'
+import { config } from "@repo/eslint-config/base"
 
 /** @type {import("eslint").Linter.Config[]} */
 export default config
@@ -377,6 +386,7 @@ git commit -m "feat(storage): scaffold @repo/storage package"
 ## Task 4: Implement `@repo/storage` contract + S3 client
 
 **Files:**
+
 - Create: `packages/storage/src/contract.ts`
 - Create: `packages/storage/src/s3-client.ts`
 - Modify: `packages/storage/src/index.ts`
@@ -428,7 +438,13 @@ type S3Config = {
 }
 
 const readConfig = (): S3Config => {
-  const required = ["S3_ENDPOINT", "S3_REGION", "S3_ACCESS_KEY", "S3_SECRET_KEY", "S3_BUCKET"] as const
+  const required = [
+    "S3_ENDPOINT",
+    "S3_REGION",
+    "S3_ACCESS_KEY",
+    "S3_SECRET_KEY",
+    "S3_BUCKET",
+  ] as const
   for (const name of required) {
     if (!process.env[name]) {
       throw new Error(`[@repo/storage] missing env var ${name}`)
@@ -476,9 +492,7 @@ export class S3StorageClient implements StorageClient {
   }
 
   async get(key: string): Promise<Readable> {
-    const res = await this.client.send(
-      new GetObjectCommand({ Bucket: this.bucket, Key: key }),
-    )
+    const res = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }))
     if (!res.Body) {
       throw new Error(`[@repo/storage] empty body for key ${key}`)
     }
@@ -557,6 +571,7 @@ git commit -m "feat(storage): implement S3StorageClient and singleton"
 ## Task 5: Wire `@repo/storage` into `apps/web`
 
 **Files:**
+
 - Modify: `apps/web/package.json`
 - Modify: `apps/web/next.config.js`
 
@@ -577,8 +592,8 @@ Open `apps/web/next.config.js` and update:
 ```js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ['pg', '@prisma/client'],
-  transpilePackages: ['@repo/ui', '@repo/trpc', '@repo/auth', '@repo/storage'],
+  serverExternalPackages: ["pg", "@prisma/client"],
+  transpilePackages: ["@repo/ui", "@repo/trpc", "@repo/auth", "@repo/storage"],
 }
 
 export default nextConfig
@@ -605,6 +620,7 @@ git commit -m "feat(web): add @repo/storage dependency"
 ## Task 6: HTTP route — `POST /api/files/upload`
 
 **Files:**
+
 - Create: `apps/web/src/lib/file-validation.ts`
 - Create: `apps/web/src/app/api/files/upload/route.ts`
 
@@ -656,7 +672,11 @@ export const validateUpload = (
 export const extractExt = (filename: string): string => {
   const dot = filename.lastIndexOf(".")
   if (dot < 0 || dot === filename.length - 1) return ""
-  return filename.slice(dot + 1).toLowerCase().replace(/[^a-z0-9]/g, "").slice(0, 16)
+  return filename
+    .slice(dot + 1)
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, "")
+    .slice(0, 16)
 }
 
 export const computeS3Key = (hash: string, ext: string): string => {
@@ -676,12 +696,7 @@ import { prisma } from "@repo/db"
 import { storage } from "@repo/storage"
 
 import { getSession } from "@/lib/get-session"
-import {
-  computeS3Key,
-  extractExt,
-  validateUpload,
-  type UploadKind,
-} from "@/lib/file-validation"
+import { computeS3Key, extractExt, validateUpload, type UploadKind } from "@/lib/file-validation"
 
 export const runtime = "nodejs"
 
@@ -862,6 +877,7 @@ git commit -m "feat(web): POST /api/files/upload route"
 ## Task 7: HTTP route — `GET /api/files/[id]`
 
 **Files:**
+
 - Create: `apps/web/src/app/api/files/[id]/route.ts`
 
 - [ ] **Step 1: Write the download route**
@@ -878,10 +894,7 @@ import { getSession } from "@/lib/get-session"
 
 export const runtime = "nodejs"
 
-export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
   const file = await prisma.file.findUnique({ where: { id } })
@@ -959,6 +972,7 @@ curl -i "http://localhost:3000/api/files/<file-id>" -o /tmp/downloaded.png
 Expected: `200 OK`, `Content-Type: image/png`, `Content-Disposition: inline; filename="...png"`. `/tmp/downloaded.png` matches the source byte-for-byte: `sha256sum /tmp/downloaded.png` equals the `hash` stored in DB.
 
 Negative tests:
+
 - `curl -i "http://localhost:3000/api/files/00000000-0000-0000-0000-000000000000"` → `404`
 - Upload a non-avatar (`kind=attachment` with `isPublic=false`), then try `curl` without cookie → `401`
 - Same URL with a different user's session → `403`
@@ -975,6 +989,7 @@ git commit -m "feat(web): GET /api/files/[id] download route"
 ## Task 8: tRPC `fileRouter`
 
 **Files:**
+
 - Create: `packages/trpc/src/routers/file.ts`
 - Modify: `packages/trpc/src/index.ts`
 
@@ -1149,6 +1164,7 @@ git commit -m "feat(trpc): add fileRouter"
 ## Task 9: Profile avatar UI
 
 **Files:**
+
 - Create: `apps/web/src/components/profile/profile-avatar-uploader.tsx`
 - Modify: `apps/web/src/app/(protected)/profile/page.tsx`
 
@@ -1326,6 +1342,7 @@ pnpm dev
 ```
 
 Navigate to `http://localhost:3000/profile`. Click the avatar circle. Pick a PNG. Expect:
+
 - Spinner appears over the avatar
 - Page refreshes with the new image displayed
 - DevTools → Application → Cookies: still logged in
@@ -1347,6 +1364,7 @@ git commit -m "feat(web): profile avatar upload UI"
 ## Task 10: Playwright E2E + final verification
 
 **Files:**
+
 - Create: `apps/e2e/files.spec.ts`
 
 - [ ] **Step 1: Look at existing Playwright auth/setup**
@@ -1441,28 +1459,29 @@ git commit -m "test(e2e): avatar upload golden path"
 
 **1. Spec coverage:**
 
-| Spec section                                             | Task(s)     |
-|----------------------------------------------------------|-------------|
-| compose minio-init + bucket                              | Task 1      |
-| S3 env vars + turbo globalEnv                            | Task 1      |
-| `@repo/storage` package scaffold                         | Task 3      |
-| StorageClient contract + S3StorageClient impl + singleton| Task 4      |
-| File / BlockFile Prisma models + FileStatus enum         | Task 2      |
-| Partial unique indexes (raw SQL)                         | Task 2 (6) |
-| User / Workspace / Block back-relations                  | Task 2 (4) |
-| @repo/db exports (FileStatus, File, BlockFile)           | Task 2 (8) |
-| S3 path `{hash[0..2]}/{hash}.{ext}`                      | Task 6 (computeS3Key) |
-| POST /api/files/upload (auth, kind, size/mime, dedup, S3 put, Files insert, User.image update) | Task 6 |
-| GET /api/files/[id] (auth, stream, Content-Disposition, download count) | Task 7 |
-| fileRouter: list, listWorkspace (403), getById, delete, rename, setPublic | Task 8 |
-| ProfileAvatarUploader + profile page integration         | Task 9      |
-| Playwright E2E golden path                               | Task 10     |
+| Spec section                                                                                   | Task(s)               |
+| ---------------------------------------------------------------------------------------------- | --------------------- |
+| compose minio-init + bucket                                                                    | Task 1                |
+| S3 env vars + turbo globalEnv                                                                  | Task 1                |
+| `@repo/storage` package scaffold                                                               | Task 3                |
+| StorageClient contract + S3StorageClient impl + singleton                                      | Task 4                |
+| File / BlockFile Prisma models + FileStatus enum                                               | Task 2                |
+| Partial unique indexes (raw SQL)                                                               | Task 2 (6)            |
+| User / Workspace / Block back-relations                                                        | Task 2 (4)            |
+| @repo/db exports (FileStatus, File, BlockFile)                                                 | Task 2 (8)            |
+| S3 path `{hash[0..2]}/{hash}.{ext}`                                                            | Task 6 (computeS3Key) |
+| POST /api/files/upload (auth, kind, size/mime, dedup, S3 put, Files insert, User.image update) | Task 6                |
+| GET /api/files/[id] (auth, stream, Content-Disposition, download count)                        | Task 7                |
+| fileRouter: list, listWorkspace (403), getById, delete, rename, setPublic                      | Task 8                |
+| ProfileAvatarUploader + profile page integration                                               | Task 9                |
+| Playwright E2E golden path                                                                     | Task 10               |
 
 All spec requirements have an implementing task.
 
 **2. Placeholder scan:** No TBDs, all code steps show full code, all commands exact.
 
 **3. Type consistency:**
+
 - `StorageClient`: used in Task 4 (definition), Task 6 (`storage.put`, `storage.exists`), Task 7 (`storage.get`) — signatures align.
 - `FileStatus`: defined as Prisma enum in Task 2, imported in Task 8 (`@repo/db`) and used as string literal in Tasks 6–7 (`"ACTIVE"`, `"DELETED"`). Prisma's runtime enum matches string values — fine.
 - `computeS3Key`, `extractExt`, `validateUpload`: defined in Task 6 step 1, used in Task 6 step 2. Consistent signatures.

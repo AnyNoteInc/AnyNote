@@ -5,12 +5,7 @@ import { storage } from "@repo/storage"
 import type { NextRequest } from "next/server"
 
 import { getSession } from "@/lib/get-session"
-import {
-  computeS3Key,
-  extractExt,
-  validateUpload,
-  type UploadKind,
-} from "@/lib/file-validation"
+import { computeS3Key, extractExt, validateUpload, type UploadKind } from "@/lib/file-validation"
 
 export const runtime = "nodejs"
 

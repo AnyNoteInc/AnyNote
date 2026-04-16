@@ -9,6 +9,7 @@
 ## 1. Goals & Non-goals
 
 ### Goals
+
 - Render rich-text pages with a Notion-like editing UX powered by Tiptap v3.
 - Render canvas pages with Excalidraw for diagrams and sketches.
 - Multiple users can edit the same page simultaneously (text or canvas) and see each other's cursors and changes in real time.
@@ -17,6 +18,7 @@
 - Authorization for the realtime channel is enforced per page (workspace membership).
 
 ### Non-goals (this spec)
+
 - Implementing DATABASE / KANBAN / FORM page types — only enum values and a placeholder branch in the renderer factory.
 - Restoring or migrating data from the existing `Block` / `BlockFile` tables — they are dropped cleanly.
 - Cover images on pages — `coverUrl` is removed; cover support is a future task.
@@ -51,6 +53,7 @@ Postgres (single source of truth at rest)
 ```
 
 **Key invariants:**
+
 - `Page.contentYjs` is the source of truth for collaborative state. `Page.content` is a denormalized snapshot for non-realtime consumers (search, RSC pages, future API exports).
 - `apps/yjs` is the only writer of `content` and `contentYjs` during an active session. tRPC mutations only read those fields (except `page.create` which initializes both to null and `page.update` which can change `type`/`title`/`icon`).
 - `PageFile` rows are written by `apps/web` (via tRPC) when an attachment is added in either editor; cleanup happens on page delete via `onDelete: Cascade` and on explicit `file.detachFromPage`.
@@ -60,6 +63,7 @@ Postgres (single source of truth at rest)
 ## 3. Database Changes (`packages/db`)
 
 ### 3.1 Removals
+
 - Drop table `blocks` and all its indexes.
 - Drop table `block_files`.
 - Drop enum `block_type` (`BlockType`).
@@ -68,6 +72,7 @@ Postgres (single source of truth at rest)
 - On `File`: drop relation `blocks BlockFile[]`.
 
 ### 3.2 Additions
+
 - New enum:
   ```prisma
   enum PageType {
@@ -80,12 +85,13 @@ Postgres (single source of truth at rest)
   ```
 - On `Page`, add:
   - `type PageType @default(TEXT)`
-  - `content Json?`            // Tiptap JSON snapshot
-  - `contentYjs Bytes?`        // Y.encodeStateAsUpdate
-  - `files PageFile[]`         // back-relation
+  - `content Json?` // Tiptap JSON snapshot
+  - `contentYjs Bytes?` // Y.encodeStateAsUpdate
+  - `files PageFile[]` // back-relation
 - On `File`, add:
-  - `pages PageFile[]`         // back-relation
+  - `pages PageFile[]` // back-relation
 - New model:
+
   ```prisma
   model PageFile {
     pageId    String   @db.Uuid
@@ -101,7 +107,9 @@ Postgres (single source of truth at rest)
   ```
 
 ### 3.3 Migration
+
 A single Prisma migration named `20260416_collab_editor`:
+
 1. `DROP TABLE block_files;`
 2. `DROP TABLE blocks;`
 3. `DROP TYPE block_type;`
@@ -118,6 +126,7 @@ No data migration — existing Block rows are deleted with the table.
 ## 4. apps/yjs (Hocuspocus WebSocket Server)
 
 ### 4.1 Layout
+
 ```
 apps/yjs/
 ├─ package.json          (scripts: dev, build, start, lint, check-types)
@@ -133,10 +142,12 @@ apps/yjs/
 ```
 
 ### 4.2 Dependencies
+
 - Runtime: `@hocuspocus/server`, `@hocuspocus/transformer` (TiptapTransformer), `yjs`, `jose`, `@repo/db`.
 - Dev: `tsx`, `typescript`, `@types/node`, `@repo/typescript-config`, `@repo/eslint-config`.
 
 ### 4.3 Scripts
+
 ```json
 {
   "dev": "tsx watch src/index.ts",
@@ -148,18 +159,21 @@ apps/yjs/
 ```
 
 ### 4.4 Hooks
+
 - **`onAuthenticate({ token, documentName })`** — verify JWT via `jose.jwtVerify` against better-auth JWKS (URL fetched once at startup, cached). On success, call `canAccessPage(prisma, userId, pageId=documentName)` which returns `{ pageType }` (single Prisma query that joins workspace members and selects `Page.type`). Throw to reject; on success, return `{ userId, pageType }` so subsequent hooks receive it via `context`.
 - **`onLoadDocument({ documentName, context })`** — read `Page.contentYjs` from Postgres; if non-null, `Y.applyUpdate(ydoc, contentYjs)`; return `ydoc`. The `context.pageType` from `onAuthenticate` is consulted by `onStoreDocument`.
 - **`onStoreDocument({ documentName, document, context })`** — encode `Y.encodeStateAsUpdate(document)` → `Buffer`. If `context.pageType !== 'EXCALIDRAW'`, also derive Tiptap JSON via `TiptapTransformer.fromYdoc(document, "default")` and write to `Page.content`; otherwise leave `content` untouched. Single `prisma.page.update` writes the affected fields.
 - Hocuspocus default debounce (~2s, max ~10s) is sufficient.
 
 ### 4.5 Auth model
+
 - The browser calls `POST /api/yjs/token` (in apps/web) and receives a short-lived JWT (1h TTL, `sub=userId`).
 - The browser passes the JWT as `token` to `HocuspocusProvider`.
 - apps/yjs verifies the JWT against the same JWKS exposed by better-auth's `jwt()` plugin.
 - Per-page authorization (`canAccessPage`) runs once per WebSocket connection in `onAuthenticate`.
 
 ### 4.6 Failure modes
+
 - Invalid JWT → connection rejected (Hocuspocus surfaces 401-equivalent).
 - Page not found or user not a workspace member → connection rejected.
 - DB unavailable on `onStoreDocument` → Hocuspocus retries with backoff; client keeps editing in-memory; on permanent failure, the in-memory state stays correct until reconnect.
@@ -169,6 +183,7 @@ apps/yjs/
 ## 5. packages/editor (Tiptap)
 
 ### 5.1 Layout
+
 ```
 packages/editor/
 ├─ package.json
@@ -195,6 +210,7 @@ packages/editor/
 ```
 
 ### 5.2 Public API
+
 ```ts
 export type UploadHandler = (args: {
   blob: Blob
@@ -204,8 +220,8 @@ export type UploadHandler = (args: {
 export type AnyNoteEditorProps = {
   pageId: string
   workspaceId: string
-  yjsUrl: string                        // ws://...
-  yjsToken: () => Promise<string>       // called by HocuspocusProvider on initial connect and on every reconnect; implementation must always fetch a fresh JWT (do not cache the resolved string)
+  yjsUrl: string // ws://...
+  yjsToken: () => Promise<string> // called by HocuspocusProvider on initial connect and on every reconnect; implementation must always fetch a fresh JWT (do not cache the resolved string)
   user: { id: string; name: string; color: string }
   uploadHandler: UploadHandler
   editable?: boolean
@@ -216,27 +232,33 @@ export function AnyNoteEditor(props: AnyNoteEditorProps): JSX.Element
 ```
 
 ### 5.3 Extension set
+
 - Base (Tiptap v3): `@tiptap/starter-kit` (with `history: false` — Yjs manages undo/redo), `@tiptap/extension-task-list`, `@tiptap/extension-task-item`, `@tiptap/extension-link`, `@tiptap/extension-placeholder`, `@tiptap/extension-typography`, `@tiptap/extension-image`, `@tiptap/extension-table` (+ row, cell, header), `@tiptap/extension-code-block-lowlight` + `lowlight`.
 - Collaboration: `@tiptap/extension-collaboration` (Yjs binding), `@tiptap/extension-collaboration-cursor`.
 - UX: `@tiptap/extension-drag-handle-react`, custom `slash-menu` extension on top of `@tiptap/suggestion`.
 - Files: `@tiptap-codeless/extension-file-upload` with `storageMode: "custom"`; the custom handler invokes `uploadHandler` and returns `{ src }`.
 
 ### 5.4 Initialization flow
+
 1. `const ydoc = useState(() => new Y.Doc())[0]`
 2. `const provider = useState(() => new HocuspocusProvider({ url: yjsUrl, name: pageId, document: ydoc, token: yjsToken }))[0]`
 3. `const editor = useEditor({ extensions: buildExtensions({ ydoc, provider, user, uploadHandler }), editable, onCreate, ... })`
 4. On unmount: `provider.destroy(); ydoc.destroy()`. The `useState(initializer)` pattern guarantees stable references across Next.js re-renders.
 
 ### 5.5 Slash menu items (initial set)
+
 Heading 1/2/3, Paragraph, Bullet list, Numbered list, Task list, Quote, Code block, Divider, Image, File, Table.
 
 ### 5.6 Floating toolbar items
+
 Bold, italic, strike, code, link, heading-toggle.
 
 ### 5.7 Markdown input
-Provided by `@tiptap/extension-typography` and starter-kit's input rules: `# `, `## `, `### `, `> `, `- `, `1. `, `\`\`\``, `---`, `**bold**`, `*italic*`, `~~strike~~`, `\`code\``.
+
+Provided by `@tiptap/extension-typography` and starter-kit's input rules: `# `, `## `, `### `, `> `, `- `, `1. `, `\`\`\``, `---`, `**bold**`, `_italic_`, `~~strike~~`, `\`code\``.
 
 ### 5.8 Theming
+
 - `styles/content.css` defines content typography using CSS variables with `currentColor` fallbacks.
 - AnyNoteEditor wraps content in a small `<GlobalStyles>` block that maps `theme.palette.text.primary`, `theme.palette.divider`, etc. to the CSS variables consumed by `content.css`.
 - `content.css` is exposed via subpath export `@repo/editor/styles` and imported once in the protected layout.
@@ -246,6 +268,7 @@ Provided by `@tiptap/extension-typography` and starter-kit's input rules: `# `, 
 ## 6. packages/excalidraw
 
 ### 6.1 Layout
+
 ```
 packages/excalidraw/
 ├─ package.json
@@ -262,17 +285,19 @@ packages/excalidraw/
 ```
 
 ### 6.2 Dependencies
+
 - Runtime: `@excalidraw/excalidraw`, `@timephy/y-excalidraw`, `@hocuspocus/provider`, `yjs`.
 - Peer: `react`, `next` (for `next/dynamic`).
 
 ### 6.3 Public API
+
 ```ts
 export type BoardProps = {
   pageId: string
   workspaceId: string
   yjsUrl: string
   yjsToken: () => Promise<string>
-  uploadHandler: UploadHandler           // shared type with @repo/editor
+  uploadHandler: UploadHandler // shared type with @repo/editor
   editable?: boolean
   className?: string
 }
@@ -281,18 +306,22 @@ export function Board(props: BoardProps): JSX.Element
 ```
 
 ### 6.4 SSR strategy
+
 - `board.tsx` exports a `dynamic(() => import("./board-inner"), { ssr: false })`. This guarantees Excalidraw never appears in the server bundle.
 - `board-inner.tsx` carries `"use client"` and never accesses `window` / `document` at module top level.
 
 ### 6.5 Sizing
+
 - `<Board>` renders with `width: 100%; height: 100%`. The parent `PageRenderer` cell uses `flex: 1; min-height: 0` inside a flex column so Excalidraw fills the available area without overflow loops.
 
 ### 6.6 Yjs binding
+
 - `useExcalidrawYjs` returns `{ ydoc, provider, binding }` initialized via `useState(initializer)` for stable references.
 - On the Excalidraw `excalidrawAPI` callback: `binding.attach(api)`.
 - Cursors / awareness handled by `ExcalidrawBinding(ydoc, provider.awareness)`.
 
 ### 6.7 File handling
+
 - Excalidraw stores image `Files` (BinaryFiles) in memory: `{ id, dataURL, mimeType, ... }`.
 - `files-handler.ts` watches `onChange(elements, appState, files)`:
   1. Diff `files` against an in-memory `Set<excalidrawFileId>` of already-uploaded ids.
@@ -305,6 +334,7 @@ export function Board(props: BoardProps): JSX.Element
 ## 7. apps/web Integration
 
 ### 7.1 New / modified files
+
 - `app/api/yjs/token/route.ts` — JWT issuer (POST). Calls `requireSession()`, then obtains a JWT via better-auth's JWT plugin (the plugin exposes `/api/auth/token` endpoint and equivalent `auth.api.getToken({ headers })`; the exact call is wired during implementation against the installed version). Returns `{ token, expiresAt }`. Runtime `nodejs`.
 - `app/(protected)/workspaces/[workspaceId]/pages/[pageId]/page.tsx` — replace placeholder; resolve `page` via RSC tRPC, render `<PageRenderer>` inside a flex column with header.
 - `components/page/page-renderer.tsx` — RSC factory component; `dynamic(import @repo/editor)` and `dynamic(import @repo/excalidraw)` with `ssr:false`; switch on `page.type`.
@@ -314,12 +344,14 @@ export function Board(props: BoardProps): JSX.Element
 - `lib/upload-handler.ts` — exports `createUploadHandler(workspaceId, pageId)` returning a `UploadHandler` that POSTs to `/api/files/upload?kind=attachment&workspaceId=...` and then attaches to page via tRPC.
 
 ### 7.2 tRPC changes (`packages/trpc`)
+
 - Add `file.attachToPage({ pageId, fileId })` — upserts a `PageFile` row; verifies workspace membership.
 - Add `file.detachFromPage({ pageId, fileId })` — deletes the `PageFile` row.
 - Update `page.update` input to allow `type?: PageType`.
 - Remove the existing `blockRouter` (and its mount) plus any references to Block / BlockFile.
 
 ### 7.3 Env vars (new)
+
 - `NEXT_PUBLIC_YJS_URL` (apps/web) — e.g. `ws://localhost:1234`.
 - `YJS_PORT` (apps/yjs) — defaults to `1234`.
 - `BETTER_AUTH_JWT_AUDIENCE` (optional, both) — JWT audience claim, validated by apps/yjs.
@@ -327,6 +359,7 @@ export function Board(props: BoardProps): JSX.Element
 All added to `turbo.json` `globalEnv` for cache hashing.
 
 ### 7.4 Layout & styles
+
 - `app/(protected)/layout.tsx` adds a side-effect import: `import "@repo/editor/styles"`.
 - `MUI` continues to provide the surrounding shell; the editor renders inside an MUI `Box` whose theme tokens feed into the editor's CSS variables.
 
@@ -335,6 +368,7 @@ All added to `turbo.json` `globalEnv` for cache hashing.
 ## 8. Testing
 
 ### 8.1 Manual verification (must pass before considering work done)
+
 - Open a TEXT page → type text → reload → text persists.
 - Open the same TEXT page in two windows → typing in one appears in the other within ~1s; cursors visible.
 - Use slash-menu: insert heading, list, image (upload), divider — each renders.
@@ -344,6 +378,7 @@ All added to `turbo.json` `globalEnv` for cache hashing.
 - Insert an image into Excalidraw → upload completes → reload → image still on the canvas.
 
 ### 8.2 Playwright (apps/e2e)
+
 - `editor.spec.ts` — single-user TEXT editor: type, save, reload, assert content.
 - `editor-collab.spec.ts` — two browser contexts on the same TEXT page: write in A, assert in B.
 - `excalidraw.spec.ts` — single-user EXCALIDRAW: draw, reload, assert element count.
@@ -351,6 +386,7 @@ All added to `turbo.json` `globalEnv` for cache hashing.
 Run via `pnpm exec playwright test`. The dev server (apps/web on :3000 and apps/yjs on :1234) must be running before invocation.
 
 ### 8.3 Verification commands (run at end)
+
 - `pnpm lint`
 - `pnpm check-types`
 - `pnpm format`

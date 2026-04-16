@@ -8,10 +8,7 @@ import { getSession } from "@/lib/get-session"
 
 export const runtime = "nodejs"
 
-export async function GET(
-  _request: NextRequest,
-  { params }: { params: Promise<{ id: string }> },
-) {
+export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
   const file = await prisma.file.findUnique({ where: { id } })

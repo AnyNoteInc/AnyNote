@@ -33,10 +33,12 @@ test("avatar upload: upload, persist, serve via /api/files", async ({ page, requ
   const avatarImg = page.locator('img[src^="/api/files/"]')
 
   // Wait for the avatar image to appear with the right src after upload
-  await expect.poll(
-    async () => (await avatarImg.first().getAttribute("src")) ?? "",
-    { timeout: 10_000, intervals: [200, 500, 1000] },
-  ).toMatch(/^\/api\/files\//)
+  await expect
+    .poll(async () => (await avatarImg.first().getAttribute("src")) ?? "", {
+      timeout: 10_000,
+      intervals: [200, 500, 1000],
+    })
+    .toMatch(/^\/api\/files\//)
 
   const imgSrc = await avatarImg.first().getAttribute("src")
   expect(imgSrc).toBeTruthy()

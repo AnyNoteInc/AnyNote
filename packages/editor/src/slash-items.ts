@@ -33,43 +33,37 @@ const ITEMS: SlashCommandItem[] = [
     id: "bullet",
     label: "Bullet list",
     keywords: ["ul", "list"],
-    run: ({ editor, range }) =>
-      editor.chain().focus().deleteRange(range).toggleBulletList().run(),
+    run: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleBulletList().run(),
   },
   {
     id: "ordered",
     label: "Numbered list",
     keywords: ["ol"],
-    run: ({ editor, range }) =>
-      editor.chain().focus().deleteRange(range).toggleOrderedList().run(),
+    run: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleOrderedList().run(),
   },
   {
     id: "task",
     label: "Task list",
     keywords: ["todo", "checkbox"],
-    run: ({ editor, range }) =>
-      editor.chain().focus().deleteRange(range).toggleTaskList().run(),
+    run: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleTaskList().run(),
   },
   {
     id: "quote",
     label: "Quote",
     keywords: ["blockquote"],
-    run: ({ editor, range }) =>
-      editor.chain().focus().deleteRange(range).toggleBlockquote().run(),
+    run: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleBlockquote().run(),
   },
   {
     id: "code",
     label: "Code block",
     keywords: ["code"],
-    run: ({ editor, range }) =>
-      editor.chain().focus().deleteRange(range).toggleCodeBlock().run(),
+    run: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleCodeBlock().run(),
   },
   {
     id: "divider",
     label: "Divider",
     keywords: ["hr", "separator"],
-    run: ({ editor, range }) =>
-      editor.chain().focus().deleteRange(range).setHorizontalRule().run(),
+    run: ({ editor, range }) => editor.chain().focus().deleteRange(range).setHorizontalRule().run(),
   },
   {
     id: "table",

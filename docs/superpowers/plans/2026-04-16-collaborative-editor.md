@@ -17,6 +17,7 @@
 ### Task 1.1: Verify `parent_type` enum usage and edit Prisma schema
 
 **Files:**
+
 - Modify: `packages/db/prisma/schema.prisma` (Page model, File model; remove Block + BlockFile + BlockType + ParentType)
 
 - [ ] **Step 1: Check that `ParentType` is used only by `Page.parentType`**
@@ -153,6 +154,7 @@ Expected: client generates successfully. Any field reference errors here mean St
 ### Task 1.2: Create the migration
 
 **Files:**
+
 - Create: `packages/db/prisma/migrations/20260416_collab_editor/migration.sql`
 
 - [ ] **Step 1: Run `prisma migrate dev` against the local DB**
@@ -227,6 +229,7 @@ docker compose exec postgres psql -U user -d anynote -c "\d pages" -c "\d page_f
 ```
 
 Expected:
+
 - `pages` has columns `type` (PageType), `content` (jsonb), `content_yjs` (bytea); does NOT have `parent_type`, `cover_url`, `is_database_row`.
 - `page_files` exists with composite PK and an index on `file_id`.
 - `BlockType` and `ParentType` are NOT listed in `\dT`; `PageType` IS listed.
@@ -249,6 +252,7 @@ Removes Page.parentType, Page.coverUrl, Page.isDatabaseRow."
 ### Task 2.1: Remove `blockRouter` and Block references
 
 **Files:**
+
 - Delete: `packages/trpc/src/routers/block.ts`
 - Modify: `packages/trpc/src/index.ts`
 - Audit: `packages/trpc/src/routers/page.ts` (remove any block-related procedures or fields)
@@ -280,6 +284,7 @@ rm packages/trpc/src/routers/block.ts
 - [ ] **Step 4: Audit `pageRouter` for block-related logic**
 
 Open `packages/trpc/src/routers/page.ts`. For every procedure that returns `blocks` (e.g., `include: { blocks: ... }`) or filters on `parentType`:
+
 - Remove the `blocks` includes entirely.
 - Replace `parentType` filters with the equivalent on `parentId IS NULL` (workspace-level pages have no parent) — be guided by call sites; if a filter cannot be straightforwardly replaced, leave a `TODO: revisit` and surface it for review.
 
@@ -309,6 +314,7 @@ git commit -m "refactor(trpc): remove blockRouter and Block references"
 ### Task 2.2: Add `file.attachToPage` and `file.detachFromPage`
 
 **Files:**
+
 - Modify: `packages/trpc/src/routers/file.ts`
 
 - [ ] **Step 1: Add input schemas and procedures**
@@ -392,6 +398,7 @@ git commit -m "feat(trpc): add file.attachToPage and file.detachFromPage"
 ### Task 2.3: Add `type` to `page.update` input
 
 **Files:**
+
 - Modify: `packages/trpc/src/routers/page.ts` (or `packages/trpc/src/schemas/page.ts` if input is shared)
 
 - [ ] **Step 1: Locate the `page.update` (or `update`) procedure input schema**
@@ -426,6 +433,7 @@ git commit -m "feat(trpc): allow page.update to set Page.type"
 ### Task 3.1: Scaffold the package
 
 **Files:**
+
 - Create: `apps/yjs/package.json`
 - Create: `apps/yjs/tsconfig.json`
 - Create: `apps/yjs/eslint.config.mjs`
@@ -486,7 +494,7 @@ git commit -m "feat(trpc): allow page.update to set Page.type"
 - [ ] **Step 3: Create `apps/yjs/eslint.config.mjs`**
 
 ```js
-import { config } from '@repo/eslint-config/base'
+import { config } from "@repo/eslint-config/base"
 
 /** @type {import("eslint").Linter.Config[]} */
 export default config
@@ -537,6 +545,7 @@ git commit -m "chore(yjs): scaffold apps/yjs package"
 ### Task 3.2: Implement env validation
 
 **Files:**
+
 - Create: `apps/yjs/src/env.ts`
 
 - [ ] **Step 1: Write `env.ts`**
@@ -579,6 +588,7 @@ Expected: no errors.
 ### Task 3.3: Implement logger and persistence layer
 
 **Files:**
+
 - Create: `apps/yjs/src/logger.ts`
 - Create: `apps/yjs/src/persistence.ts`
 
@@ -659,6 +669,7 @@ Expected: no errors.
 ### Task 3.4: Implement JWT verification and access check
 
 **Files:**
+
 - Create: `apps/yjs/src/auth.ts`
 
 - [ ] **Step 1: Write `auth.ts`**
@@ -724,6 +735,7 @@ Expected: no errors.
 ### Task 3.5: Wire the Hocuspocus server
 
 **Files:**
+
 - Create: `apps/yjs/src/index.ts`
 
 - [ ] **Step 1: Write `index.ts`**
@@ -810,6 +822,7 @@ git commit -m "feat(yjs): hocuspocus server with JWT auth and prisma persistence
 ### Task 4.1: Add `/api/yjs/token` route
 
 **Files:**
+
 - Create: `apps/web/src/app/api/yjs/token/route.ts`
 
 - [ ] **Step 1: Confirm better-auth's token endpoint exists**
@@ -898,6 +911,7 @@ git commit -m "feat(web): add /api/yjs/token JWT issuer for yjs server"
 ### Task 5.1: Scaffold the package
 
 **Files:**
+
 - Create: `packages/editor/package.json`
 - Create: `packages/editor/tsconfig.json`
 - Create: `packages/editor/eslint.config.mjs`
@@ -989,7 +1003,7 @@ git commit -m "feat(web): add /api/yjs/token JWT issuer for yjs server"
 - [ ] **Step 3: Create `eslint.config.mjs`**
 
 ```js
-import { config } from '@repo/eslint-config/react-internal'
+import { config } from "@repo/eslint-config/react-internal"
 
 /** @type {import("eslint").Linter.Config} */
 export default config
@@ -1033,6 +1047,7 @@ git commit -m "chore(editor): scaffold packages/editor with tiptap dependencies"
 ### Task 5.2: Define public types
 
 **Files:**
+
 - Create: `packages/editor/src/types.ts`
 
 - [ ] **Step 1: Write `types.ts`**
@@ -1043,10 +1058,7 @@ export type UploadedFile = {
   src: string
 }
 
-export type UploadHandler = (args: {
-  blob: Blob
-  filename: string
-}) => Promise<UploadedFile>
+export type UploadHandler = (args: { blob: Blob; filename: string }) => Promise<UploadedFile>
 
 export type AnyNoteEditorUser = {
   id: string
@@ -1087,6 +1099,7 @@ pnpm --filter @repo/editor check-types
 ### Task 5.3: Build extensions module
 
 **Files:**
+
 - Create: `packages/editor/src/extensions/placeholder.ts`
 - Create: `packages/editor/src/extensions/file-upload.ts`
 - Create: `packages/editor/src/extensions/collaboration.ts`
@@ -1262,6 +1275,7 @@ Fix any type mismatches against the actual installed extension APIs.
 ### Task 5.4: Build the slash-menu popover (MUI)
 
 **Files:**
+
 - Create: `packages/editor/src/components/slash-menu-popover.tsx`
 
 - [ ] **Step 1: Write the popover component**
@@ -1335,6 +1349,7 @@ export const SlashMenuPopover = forwardRef<SlashMenuPopoverHandle, Props>(functi
 ### Task 5.5: Build the floating toolbar (BubbleMenu) and drag handle
 
 **Files:**
+
 - Create: `packages/editor/src/components/floating-toolbar.tsx`
 - Create: `packages/editor/src/components/drag-handle.tsx`
 
@@ -1444,6 +1459,7 @@ pnpm --filter @repo/editor check-types
 ### Task 5.6: Default slash-menu items registry
 
 **Files:**
+
 - Create: `packages/editor/src/slash-items.ts`
 
 - [ ] **Step 1: Write the registry**
@@ -1484,43 +1500,37 @@ const ITEMS: SlashCommandItem[] = [
     id: "bullet",
     label: "Bullet list",
     keywords: ["ul", "list"],
-    run: ({ editor, range }) =>
-      editor.chain().focus().deleteRange(range).toggleBulletList().run(),
+    run: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleBulletList().run(),
   },
   {
     id: "ordered",
     label: "Numbered list",
     keywords: ["ol"],
-    run: ({ editor, range }) =>
-      editor.chain().focus().deleteRange(range).toggleOrderedList().run(),
+    run: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleOrderedList().run(),
   },
   {
     id: "task",
     label: "Task list",
     keywords: ["todo", "checkbox"],
-    run: ({ editor, range }) =>
-      editor.chain().focus().deleteRange(range).toggleTaskList().run(),
+    run: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleTaskList().run(),
   },
   {
     id: "quote",
     label: "Quote",
     keywords: ["blockquote"],
-    run: ({ editor, range }) =>
-      editor.chain().focus().deleteRange(range).toggleBlockquote().run(),
+    run: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleBlockquote().run(),
   },
   {
     id: "code",
     label: "Code block",
     keywords: ["code"],
-    run: ({ editor, range }) =>
-      editor.chain().focus().deleteRange(range).toggleCodeBlock().run(),
+    run: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleCodeBlock().run(),
   },
   {
     id: "divider",
     label: "Divider",
     keywords: ["hr", "separator"],
-    run: ({ editor, range }) =>
-      editor.chain().focus().deleteRange(range).setHorizontalRule().run(),
+    run: ({ editor, range }) => editor.chain().focus().deleteRange(range).setHorizontalRule().run(),
   },
   {
     id: "table",
@@ -1550,6 +1560,7 @@ export const defaultSlashItems = (query: string): SlashCommandItem[] => {
 ### Task 5.7: Build the AnyNoteEditor component
 
 **Files:**
+
 - Create: `packages/editor/src/anynote-editor.tsx`
 
 - [ ] **Step 1: Write the component**
@@ -1567,10 +1578,7 @@ import tippy, { type Instance, type Props as TippyProps } from "tippy.js"
 import { buildExtensions } from "./extensions"
 import { FloatingToolbar } from "./components/floating-toolbar"
 import { EditorDragHandle } from "./components/drag-handle"
-import {
-  SlashMenuPopover,
-  type SlashMenuPopoverHandle,
-} from "./components/slash-menu-popover"
+import { SlashMenuPopover, type SlashMenuPopoverHandle } from "./components/slash-menu-popover"
 import { defaultSlashItems } from "./slash-items"
 import type { AnyNoteEditorProps, SlashCommandItem } from "./types"
 
@@ -1689,6 +1697,7 @@ pnpm --filter @repo/editor check-types
 ### Task 5.8: Editor styles + theme bridge
 
 **Files:**
+
 - Create: `packages/editor/src/styles/content.css`
 
 - [ ] **Step 1: Write `content.css`**
@@ -1714,10 +1723,26 @@ pnpm --filter @repo/editor check-types
   pointer-events: none;
 }
 
-.anynote-editor h1 { font-size: 1.875rem; font-weight: 700; margin: 1.25rem 0 0.5rem; }
-.anynote-editor h2 { font-size: 1.5rem;  font-weight: 600; margin: 1.0rem 0 0.5rem; }
-.anynote-editor h3 { font-size: 1.25rem; font-weight: 600; margin: 0.75rem 0 0.5rem; }
-.anynote-editor p, .anynote-editor ul, .anynote-editor ol { margin: 0.25rem 0; }
+.anynote-editor h1 {
+  font-size: 1.875rem;
+  font-weight: 700;
+  margin: 1.25rem 0 0.5rem;
+}
+.anynote-editor h2 {
+  font-size: 1.5rem;
+  font-weight: 600;
+  margin: 1rem 0 0.5rem;
+}
+.anynote-editor h3 {
+  font-size: 1.25rem;
+  font-weight: 600;
+  margin: 0.75rem 0 0.5rem;
+}
+.anynote-editor p,
+.anynote-editor ul,
+.anynote-editor ol {
+  margin: 0.25rem 0;
+}
 .anynote-editor blockquote {
   border-left: 3px solid var(--editor-divider, rgba(0, 0, 0, 0.12));
   margin: 0.5rem 0;
@@ -1740,8 +1765,12 @@ pnpm --filter @repo/editor check-types
   border-top: 1px solid var(--editor-divider, rgba(0, 0, 0, 0.12));
   margin: 1rem 0;
 }
-.anynote-editor table { border-collapse: collapse; margin: 0.5rem 0; }
-.anynote-editor th, .anynote-editor td {
+.anynote-editor table {
+  border-collapse: collapse;
+  margin: 0.5rem 0;
+}
+.anynote-editor th,
+.anynote-editor td {
   border: 1px solid var(--editor-divider, rgba(0, 0, 0, 0.12));
   padding: 6px 8px;
 }
@@ -1772,6 +1801,7 @@ pnpm --filter @repo/editor check-types
 ### Task 5.9: Theme bridge + barrel + commit
 
 **Files:**
+
 - Create: `packages/editor/src/theme-bridge.tsx`
 - Modify: `packages/editor/src/index.ts`
 
@@ -1838,6 +1868,7 @@ git commit -m "feat(editor): tiptap collaborative editor with slash menu, drag h
 ### Task 6.1: Scaffold the package
 
 **Files:**
+
 - Create: `packages/excalidraw/package.json`
 - Create: `packages/excalidraw/tsconfig.json`
 - Create: `packages/excalidraw/eslint.config.mjs`
@@ -1906,7 +1937,7 @@ git commit -m "feat(editor): tiptap collaborative editor with slash menu, drag h
 - [ ] **Step 3: Create `eslint.config.mjs`**
 
 ```js
-import { config } from '@repo/eslint-config/react-internal'
+import { config } from "@repo/eslint-config/react-internal"
 
 /** @type {import("eslint").Linter.Config} */
 export default config
@@ -1956,6 +1987,7 @@ git commit -m "chore(excalidraw): scaffold packages/excalidraw"
 ### Task 6.2: Define types
 
 **Files:**
+
 - Create: `packages/excalidraw/src/types.ts`
 
 - [ ] **Step 1: Write `types.ts`**
@@ -1963,10 +1995,7 @@ git commit -m "chore(excalidraw): scaffold packages/excalidraw"
 ```ts
 export type UploadedFile = { id: string; src: string }
 
-export type UploadHandler = (args: {
-  blob: Blob
-  filename: string
-}) => Promise<UploadedFile>
+export type UploadHandler = (args: { blob: Blob; filename: string }) => Promise<UploadedFile>
 
 export type BoardProps = {
   pageId: string
@@ -1982,6 +2011,7 @@ export type BoardProps = {
 ### Task 6.3: Yjs binding hook
 
 **Files:**
+
 - Create: `packages/excalidraw/src/use-excalidraw-yjs.ts`
 
 - [ ] **Step 1: Write the hook**
@@ -2009,9 +2039,7 @@ export function useExcalidrawYjs(args: {
         token: args.yjsToken,
       }),
   )[0]
-  const binding = useState(
-    () => new ExcalidrawBinding(ydoc, provider.awareness),
-  )[0]
+  const binding = useState(() => new ExcalidrawBinding(ydoc, provider.awareness))[0]
 
   useEffect(() => {
     return () => {
@@ -2030,6 +2058,7 @@ export function useExcalidrawYjs(args: {
 ### Task 6.4: Files handler
 
 **Files:**
+
 - Create: `packages/excalidraw/src/files-handler.ts`
 
 The handler relies entirely on the consumer-provided `UploadHandler` for both upload and page-attachment (the consumer wires that up in its closure — see Task 7.1).
@@ -2086,6 +2115,7 @@ function extFromMime(mime: string): string {
 ### Task 6.5: Board (inner + outer)
 
 **Files:**
+
 - Create: `packages/excalidraw/src/board-inner.tsx`
 - Create: `packages/excalidraw/src/board.tsx`
 
@@ -2129,11 +2159,7 @@ export function BoardInner(props: BoardProps) {
       className={props.className}
       sx={{ width: "100%", height: "100%", minHeight: 0, position: "relative" }}
     >
-      <Excalidraw
-        excalidrawAPI={onMount}
-        viewModeEnabled={!editable}
-        onChange={onChange}
-      />
+      <Excalidraw excalidrawAPI={onMount} viewModeEnabled={!editable} onChange={onChange} />
     </Box>
   )
 }
@@ -2160,6 +2186,7 @@ export function Board(props: BoardProps) {
 ### Task 6.6: Barrel + verification
 
 **Files:**
+
 - Create: `packages/excalidraw/src/index.ts`
 
 - [ ] **Step 1: Write barrel**
@@ -2192,6 +2219,7 @@ git commit -m "feat(excalidraw): collaborative canvas with yjs binding and file 
 ### Task 7.1: Add yjs config and upload handler helpers
 
 **Files:**
+
 - Create: `apps/web/src/lib/yjs-config.ts`
 - Create: `apps/web/src/lib/upload-handler.ts`
 
@@ -2226,10 +2254,11 @@ export function createUploadHandler(args: {
   return async ({ blob, filename }) => {
     const fd = new FormData()
     fd.append("file", blob, filename)
-    const res = await fetch(
-      `/api/files/upload?kind=attachment&workspaceId=${args.workspaceId}`,
-      { method: "POST", body: fd, credentials: "include" },
-    )
+    const res = await fetch(`/api/files/upload?kind=attachment&workspaceId=${args.workspaceId}`, {
+      method: "POST",
+      body: fd,
+      credentials: "include",
+    })
     if (!res.ok) throw new Error(`upload failed: ${res.status}`)
     const data = (await res.json()) as { file: { id: string } }
     await args.attachToPage(data.file.id)
@@ -2247,6 +2276,7 @@ pnpm --filter web check-types
 ### Task 7.2: PageRenderer factory
 
 **Files:**
+
 - Create: `apps/web/src/components/page/page-renderer.tsx`
 
 - [ ] **Step 1: Write the renderer**
@@ -2262,10 +2292,10 @@ import { trpc } from "@/trpc/client"
 import { yjsUrl, fetchYjsToken } from "@/lib/yjs-config"
 import { createUploadHandler } from "@/lib/upload-handler"
 
-const AnyNoteEditor = dynamic(
-  () => import("@repo/editor").then((m) => m.AnyNoteEditor),
-  { ssr: false, loading: () => <CenteredSpinner /> },
-)
+const AnyNoteEditor = dynamic(() => import("@repo/editor").then((m) => m.AnyNoteEditor), {
+  ssr: false,
+  loading: () => <CenteredSpinner />,
+})
 const Board = dynamic(() => import("@repo/excalidraw").then((m) => m.Board), {
   ssr: false,
   loading: () => <CenteredSpinner />,
@@ -2347,6 +2377,7 @@ pnpm --filter web check-types
 ### Task 7.3: Update the page route
 
 **Files:**
+
 - Modify: `apps/web/src/app/(protected)/workspaces/[workspaceId]/pages/[pageId]/page.tsx`
 - Delete: `apps/web/src/components/page/page-view.tsx`
 - Delete: `apps/web/src/components/page/block-renderer.tsx`
@@ -2361,14 +2392,7 @@ import { requireSession } from "@/lib/get-session"
 import { getServerTRPC } from "@/trpc/server"
 import { PageRenderer } from "@/components/page/page-renderer"
 
-const COLORS = [
-  "#1976d2",
-  "#9c27b0",
-  "#2e7d32",
-  "#ed6c02",
-  "#0288d1",
-  "#d32f2f",
-]
+const COLORS = ["#1976d2", "#9c27b0", "#2e7d32", "#ed6c02", "#0288d1", "#d32f2f"]
 
 function colorFor(userId: string): string {
   let hash = 0
@@ -2431,6 +2455,7 @@ pnpm --filter web check-types
 ### Task 7.4: Wire editor styles into the protected layout
 
 **Files:**
+
 - Modify: `apps/web/src/app/(protected)/layout.tsx`
 
 - [ ] **Step 1: Add the side-effect import at the top of the file**
@@ -2444,7 +2469,7 @@ import "@repo/editor/styles"
 ```tsx
 import { EditorThemeBridge } from "@repo/editor"
 // ...
-<TRPCReactProvider>
+;<TRPCReactProvider>
   <EditorThemeBridge />
   {children}
 </TRPCReactProvider>
@@ -2460,6 +2485,7 @@ pnpm --filter web lint
 ### Task 7.5: Env vars + turbo
 
 **Files:**
+
 - Modify: `.env` (local dev only — do not commit secrets)
 - Modify: `.env.example` (if exists)
 - Modify: `turbo.json`
@@ -2491,6 +2517,7 @@ git commit -m "feat(web): integrate AnyNoteEditor and Board via PageRenderer fac
 ### Task 7.6: Add page-type selector for testing
 
 **Files:**
+
 - Modify: the page-creation UI (likely `apps/web/src/app/(protected)/workspaces/[workspaceId]/page.tsx` or a sidebar component) — search and adjust.
 
 - [ ] **Step 1: Locate the page creation entry point**
@@ -2521,6 +2548,7 @@ git commit -m "feat(web): allow creating pages of TEXT or EXCALIDRAW type"
 ### Task 8.1: Playwright — TEXT editor smoke
 
 **Files:**
+
 - Create: `apps/e2e/editor.spec.ts`
 
 - [ ] **Step 1: Write the spec**
@@ -2561,6 +2589,7 @@ Expected: PASS.
 ### Task 8.2: Playwright — collaborative editing
 
 **Files:**
+
 - Create: `apps/e2e/editor-collab.spec.ts`
 
 - [ ] **Step 1: Write the spec**
@@ -2598,6 +2627,7 @@ pnpm exec playwright test apps/e2e/editor-collab.spec.ts
 ### Task 8.3: Playwright — Excalidraw smoke
 
 **Files:**
+
 - Create: `apps/e2e/excalidraw.spec.ts`
 
 - [ ] **Step 1: Write the spec**
@@ -2625,8 +2655,8 @@ test("excalidraw page persists a drawn shape after reload", async ({ page }) => 
   await page.waitForTimeout(2500)
   await page.reload()
   // Verify by counting elements via the Excalidraw API exposed in window
-  const count = await page.evaluate(() =>
-    (window as any).EXCALIDRAW_API?.getSceneElements?.().length ?? 0,
+  const count = await page.evaluate(
+    () => (window as any).EXCALIDRAW_API?.getSceneElements?.().length ?? 0,
   )
   expect(count).toBeGreaterThanOrEqual(1)
 })
@@ -2674,11 +2704,13 @@ git commit -m "chore: pnpm format pass after collab editor work" || true
 ### Task 8.5: Update CLAUDE.md and README touchpoints
 
 **Files:**
+
 - Modify: `CLAUDE.md` — add a short section documenting `apps/yjs`, the new env vars, and the `PageRenderer` location.
 
 - [ ] **Step 1: Append a "Realtime collaboration" section**
 
 Document:
+
 - `pnpm --filter @repo/yjs-server dev` is required alongside `pnpm dev` for editing pages.
 - `NEXT_PUBLIC_YJS_URL`, `YJS_PORT`, `BETTER_AUTH_JWT_AUDIENCE` env vars.
 - Page rendering is dispatched via `apps/web/src/components/page/page-renderer.tsx` keyed on `Page.type`.

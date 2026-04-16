@@ -74,9 +74,7 @@ export class S3StorageClient implements StorageClient {
   }
 
   async get(key: string): Promise<Readable> {
-    const res = await this.client.send(
-      new GetObjectCommand({ Bucket: this.bucket, Key: key }),
-    )
+    const res = await this.client.send(new GetObjectCommand({ Bucket: this.bucket, Key: key }))
     if (!res.Body) {
       throw new Error(`[@repo/storage] empty body for key ${key}`)
     }

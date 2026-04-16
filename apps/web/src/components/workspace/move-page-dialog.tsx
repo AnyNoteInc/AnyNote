@@ -72,9 +72,7 @@ function MoveTreeItem({
           py: 0.5,
           cursor: "pointer",
           borderRadius: 0.75,
-          ...(isSelected
-            ? { bgcolor: "primary.main", color: "primary.contrastText" }
-            : {}),
+          ...(isSelected ? { bgcolor: "primary.main", color: "primary.contrastText" } : {}),
           "&:hover": { bgcolor: isSelected ? "primary.dark" : "action.hover" },
           fontSize: 13,
         }}
@@ -133,9 +131,7 @@ export function MovePageDialog({ open, onClose, page, pages, workspaceId }: Prop
   })
 
   const excludeIds = new Set([page.id, ...getDescendantIds(page.id, pages)])
-  const rootPages = orderSiblings(
-    pages.filter((p) => p.parentId === null && !excludeIds.has(p.id)),
-  )
+  const rootPages = orderSiblings(pages.filter((p) => p.parentId === null && !excludeIds.has(p.id)))
 
   const handleConfirm = () => {
     if (selectedId === null) return

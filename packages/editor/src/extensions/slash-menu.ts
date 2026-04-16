@@ -1,8 +1,5 @@
 import { Extension } from "@tiptap/core"
-import Suggestion, {
-  type SuggestionKeyDownProps,
-  type SuggestionProps,
-} from "@tiptap/suggestion"
+import Suggestion, { type SuggestionKeyDownProps, type SuggestionProps } from "@tiptap/suggestion"
 
 import type { SlashCommandItem } from "../types.js"
 

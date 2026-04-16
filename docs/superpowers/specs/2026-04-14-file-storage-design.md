@@ -40,6 +40,7 @@ The app has no file storage. Users cannot upload avatars, and there is no path f
 ```
 
 Key boundaries:
+
 - **`@repo/storage`** — storage contract + S3 implementation; the only place that talks to S3
 - **`@repo/db`** — Prisma models for `File`, `BlockFile`, `FileStatus` enum
 - **Route handlers in `apps/web`** — wire multipart / streaming to `@repo/storage` + `@repo/db`; enforce auth, size/mime
@@ -95,6 +96,7 @@ packages/storage/
 ```
 
 Subpath exports:
+
 - `.` — contract, types, and the default singleton `storage`
 
 ### Contract
@@ -238,12 +240,14 @@ Both handlers run on `runtime = "nodejs"` and live under `apps/web/src/app/api/f
 ### `POST /api/files/upload`
 
 **Query params:**
+
 - `kind=avatar|attachment` (required)
 - `workspaceId=<uuid>` (required iff `kind=attachment`; rejected iff `kind=avatar`)
 
 **Body:** `multipart/form-data` with a single `file` field.
 
 **Flow:**
+
 1. Require session (`401` if absent)
 2. Parse the multipart body via `request.formData()`; reject if `file` missing (`400`)
 3. Validate size and mime by `kind`:
@@ -262,6 +266,7 @@ Both handlers run on `runtime = "nodejs"` and live under `apps/web/src/app/api/f
 ### `GET /api/files/[id]`
 
 **Flow:**
+
 1. Load `File` by id; if missing or `status != ACTIVE` → `404`
 2. If `expiresAt && expiresAt < now` → `410 Gone`
 3. If `!isPublic` → require session and enforce `session.user.id === file.userId`; else `403`
@@ -311,7 +316,7 @@ No separate "remove avatar" button in this iteration (YAGNI — the user can jus
 ## Error Handling Summary
 
 | Scenario                                  | Status |
-|-------------------------------------------|--------|
+| ----------------------------------------- | ------ |
 | No session on protected route             | 401    |
 | Non-owner tries to mutate a file          | 403    |
 | Non-member calls `listWorkspace`          | 403    |
@@ -333,6 +338,7 @@ No separate "remove avatar" button in this iteration (YAGNI — the user can jus
 No feature flag. The `File` table is net-new (no existing data to migrate). The `User.image` field is already nullable and currently empty across all rows, so changing how we populate it is non-breaking.
 
 Release order:
+
 1. Merge schema + `@repo/storage` + env + compose changes together (infra-safe alone; no consumer code)
 2. Merge route handlers + `fileRouter`
 3. Merge profile UI change

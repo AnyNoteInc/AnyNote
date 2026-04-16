@@ -15,10 +15,9 @@ Tiptap-based collaborative rich-text editor for AnyNote.
 ```tsx
 import dynamic from "next/dynamic"
 
-const AnyNoteEditor = dynamic(
-  () => import("@repo/editor").then((m) => m.AnyNoteEditor),
-  { ssr: false },
-)
+const AnyNoteEditor = dynamic(() => import("@repo/editor").then((m) => m.AnyNoteEditor), {
+  ssr: false,
+})
 ```
 
 Use inside a MUI `ThemeProvider` and ensure `<EditorThemeBridge />` is mounted once.
