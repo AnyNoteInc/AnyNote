@@ -15,6 +15,7 @@
     "@repo/auth": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/editor": "workspace:*",
+    "@repo/excalidraw": "workspace:*",
     "@repo/storage": "workspace:*",
     "@repo/trpc": "workspace:*",
     "@repo/ui": "workspace:*",
