@@ -14,13 +14,26 @@ import type { BoardProps } from "./types"
 import { useExcalidrawYjs } from "./use-excalidraw-yjs"
 
 export function BoardInner(props: BoardProps) {
-  const { pageId, yjsUrl, yjsToken, uploadHandler, editable = true, className } = props
+  const { pageId, yjsUrl, yjsToken, uploadHandler, user, editable = true, className } = props
 
   const { provider, yElements, yAssets } = useExcalidrawYjs({
     pageId,
     yjsUrl,
     yjsToken,
   })
+
+  // Publish the local user's identity through the Yjs awareness channel so
+  // remote clients can render collaborator cursors/labels correctly.
+  useEffect(() => {
+    if (!user) return
+    provider.awareness?.setLocalStateField("user", {
+      name: user.name,
+      color: user.color,
+    })
+    // Only re-publish when the visible user identity actually changes —
+    // new `user` object identities on each render would otherwise churn awareness.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [provider, user?.name, user?.color])
 
   const files = useMemo(() => new FilesHandler(uploadHandler), [uploadHandler])
 

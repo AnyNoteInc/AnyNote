@@ -61,6 +61,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
         yjsUrl={yjsUrl}
         yjsToken={fetchYjsToken}
         uploadHandler={uploadHandler}
+        user={user}
       />
     )
   }

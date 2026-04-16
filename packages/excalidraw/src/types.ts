@@ -11,6 +11,7 @@ export type BoardProps = {
   yjsUrl: string
   yjsToken: () => Promise<string>
   uploadHandler: UploadHandler
+  user?: { id: string; name: string; color: string }
   editable?: boolean
   className?: string
 }
