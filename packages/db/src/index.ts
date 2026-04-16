@@ -35,11 +35,10 @@ if (process.env.NODE_ENV !== "production") {
 export { PrismaClient, Prisma }
 export {
   RoleType,
-  ParentType,
+  PageType,
   IntegrationScope,
   IntegrationStatus,
   SubscriptionStatus,
-  BlockType,
   SearchMessageRole,
   FileStatus,
 } from "@prisma/client"
@@ -57,11 +56,10 @@ export type {
   Integration,
   Plan,
   Subscription,
-  Block,
   SearchChat,
   SearchMessage,
   FavoritePage,
   File,
-  BlockFile,
+  PageFile,
 } from "@prisma/client"
 export default prisma
