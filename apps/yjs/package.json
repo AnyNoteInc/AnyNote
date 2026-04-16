@@ -1,0 +1,29 @@
+{
+  "name": "@repo/yjs-server",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "main": "dist/index.js",
+  "scripts": {
+    "dev": "tsx watch src/index.ts",
+    "build": "tsc -p tsconfig.json",
+    "start": "node dist/index.js",
+    "lint": "eslint . --max-warnings 0",
+    "check-types": "tsc -p tsconfig.json --noEmit"
+  },
+  "dependencies": {
+    "@hocuspocus/server": "^3.4.4",
+    "@hocuspocus/transformer": "^3.4.4",
+    "@repo/db": "workspace:*",
+    "jose": "^6.2.2",
+    "yjs": "^13.6.30"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "^22.19.1",
+    "eslint": "^9.39.1",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.2"
+  }
+}
