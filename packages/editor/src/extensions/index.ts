@@ -1,5 +1,4 @@
 import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight"
-import Image from "@tiptap/extension-image"
 import Link from "@tiptap/extension-link"
 import { Table } from "@tiptap/extension-table"
 import TableCell from "@tiptap/extension-table-cell"
@@ -35,7 +34,6 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   StarterKit.configure({ undoRedo: false }),
   buildPlaceholder(opts.placeholder),
   Link.configure({ openOnClick: false }),
-  Image,
   Typography,
   TaskList,
   TaskItem.configure({ nested: true }),
