@@ -139,3 +139,23 @@ These are declared in `turbo.json` `globalEnv` so Turbo hashes them for caching.
 ### Database seeding
 
 `packages/db/prisma/seed.ts` populates integration providers (Yandex, GitHub, Telegram, AmoCRM, MangoOffice) and plans (Free, Personal, Corporate). Run after initial schema push.
+
+### Realtime collaboration (apps/yjs + PageRenderer)
+
+Pages are collaboratively edited through a Hocuspocus server that lives in `apps/yjs` (`@repo/yjs-server`). It must run alongside `pnpm dev`:
+
+```bash
+pnpm --filter @repo/yjs-server dev     # ws://localhost:1234
+```
+
+Env vars (all live in the repo root `.env`):
+
+- `NEXT_PUBLIC_YJS_URL` — websocket URL the browser connects to (e.g. `ws://localhost:1234`).
+- `YJS_PORT` — port the yjs server listens on.
+- `BETTER_AUTH_JWT_AUDIENCE` — audience claim used by `/api/yjs/token` to issue short-lived tokens; the yjs server verifies it.
+
+`apps/web/src/components/page/page-renderer.tsx` is the single dispatch point for page rendering — it switches on `Page.type` (`TEXT` → `@repo/editor` Tiptap canvas, `EXCALIDRAW` → `@repo/excalidraw` board). Both are loaded via `next/dynamic` with `ssr: false`.
+
+The block model has been removed; page content now lives in `Page.contentYjs` (bytes) plus `Page.content` (JSON snapshot). Do not re-introduce blocks without first reading `docs/superpowers/specs/2026-04-16-collaborative-editor-design.md`.
+
+`@repo/editor` and `@repo/excalidraw` are compiled with `moduleResolution: "Bundler"` (not the repo default `NodeNext`) because Next.js's `transpilePackages` consumes their `src/` directly. This is also why they use extensionless relative imports while other workspace packages with NodeNext do too.
