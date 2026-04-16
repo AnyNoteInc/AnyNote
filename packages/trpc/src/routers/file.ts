@@ -139,4 +139,59 @@ export const fileRouter = router({
         throw err
       }
     }),
+
+  attachToPage: protectedProcedure
+    .input(z.object({ pageId: uuid, fileId: uuid }))
+    .mutation(async ({ ctx, input }) => {
+      const page = await ctx.prisma.page.findFirst({
+        where: {
+          id: input.pageId,
+          deletedAt: null,
+          workspace: { members: { some: { userId: ctx.user.id } } },
+        },
+        select: { id: true },
+      })
+      if (!page) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Page not accessible" })
+      }
+      const file = await ctx.prisma.file.findFirst({
+        where: { id: input.fileId, userId: ctx.user.id },
+        select: { id: true },
+      })
+      if (!file) {
+        throw new TRPCError({ code: "NOT_FOUND", message: "File not found" })
+      }
+      await ctx.prisma.pageFile.upsert({
+        where: { pageId_fileId: { pageId: input.pageId, fileId: input.fileId } },
+        create: { pageId: input.pageId, fileId: input.fileId },
+        update: {},
+      })
+      return { ok: true as const }
+    }),
+
+  detachFromPage: protectedProcedure
+    .input(z.object({ pageId: uuid, fileId: uuid }))
+    .mutation(async ({ ctx, input }) => {
+      const page = await ctx.prisma.page.findFirst({
+        where: {
+          id: input.pageId,
+          workspace: { members: { some: { userId: ctx.user.id } } },
+        },
+        select: { id: true },
+      })
+      if (!page) {
+        throw new TRPCError({ code: "FORBIDDEN", message: "Page not accessible" })
+      }
+      try {
+        await ctx.prisma.pageFile.delete({
+          where: { pageId_fileId: { pageId: input.pageId, fileId: input.fileId } },
+        })
+      } catch (err) {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
+          return { ok: true as const }
+        }
+        throw err
+      }
+      return { ok: true as const }
+    }),
 })
