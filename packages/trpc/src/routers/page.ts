@@ -112,6 +112,7 @@ export const pageRouter = router({
         parentId: z.string().uuid().nullable(),
         title: z.string().optional(),
         icon: z.string().optional(),
+        type: z.nativeEnum(PageType).optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -137,6 +138,7 @@ export const pageRouter = router({
             parentId: input.parentId,
             title: input.title ?? null,
             icon: input.icon ?? null,
+            type: input.type ?? PageType.TEXT,
             prevPageId: null,
             createdById: ctx.user.id,
             updatedById: ctx.user.id,

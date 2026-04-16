@@ -71,6 +71,16 @@ export { default as ContentCopyIcon } from "@mui/icons-material/ContentCopy"
 export { default as MovingIcon } from "@mui/icons-material/Moving"
 export { default as RestoreIcon } from "@mui/icons-material/Restore"
 export { default as DeleteForeverIcon } from "@mui/icons-material/DeleteForever"
+export { default as DescriptionIcon } from "@mui/icons-material/Description"
+export { default as BrushIcon } from "@mui/icons-material/Brush"
+export {
+  default as ListItemIcon,
+  type ListItemIconProps,
+} from "@mui/material/ListItemIcon"
+export {
+  default as ListItemText,
+  type ListItemTextProps,
+} from "@mui/material/ListItemText"
 
 export { SimpleTreeView } from "@mui/x-tree-view/SimpleTreeView"
 export { RichTreeView } from "@mui/x-tree-view/RichTreeView"

@@ -2,26 +2,76 @@
 
 import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
-import { useState } from "react"
+import { useState, type MouseEvent } from "react"
 import {
   ArrowDropDownIcon,
   ArrowDropUpIcon,
   Box,
-  Typography,
-  IconButton,
-  AddIcon,
-  MoreHorizIcon,
+  BrushIcon,
   ChevronRightIcon,
+  DescriptionIcon,
+  IconButton,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
+  MoreHorizIcon,
+  Typography,
+  AddIcon,
 } from "@repo/ui/components"
 import { trpc } from "@/trpc/client"
 import { PageContextMenu } from "./page-context-menu"
 import { MovePageDialog } from "./move-page-dialog"
 import { type PageItem, orderSiblings } from "./types"
 
+type CreatablePageType = "TEXT" | "EXCALIDRAW"
+
 type Props = {
   workspaceId: string
   pages: PageItem[]
   favoritePageIds: Set<string>
+}
+
+function CreatePageMenu({
+  anchorEl,
+  onClose,
+  onCreate,
+}: {
+  anchorEl: HTMLElement | null
+  onClose: () => void
+  onCreate: (type: CreatablePageType) => void
+}) {
+  return (
+    <Menu
+      anchorEl={anchorEl}
+      open={Boolean(anchorEl)}
+      onClose={onClose}
+      onClick={(e) => e.stopPropagation()}
+    >
+      <MenuItem
+        onClick={() => {
+          onCreate("TEXT")
+          onClose()
+        }}
+      >
+        <ListItemIcon>
+          <DescriptionIcon fontSize="small" />
+        </ListItemIcon>
+        <ListItemText primary="Текстовая страница" />
+      </MenuItem>
+      <MenuItem
+        onClick={() => {
+          onCreate("EXCALIDRAW")
+          onClose()
+        }}
+      >
+        <ListItemIcon>
+          <BrushIcon fontSize="small" />
+        </ListItemIcon>
+        <ListItemText primary="Холст" />
+      </MenuItem>
+    </Menu>
+  )
 }
 
 function PageTreeItem({
@@ -42,6 +92,7 @@ function PageTreeItem({
   const utils = trpc.useUtils()
 
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
+  const [createAnchor, setCreateAnchor] = useState<HTMLElement | null>(null)
   const [moveOpen, setMoveOpen] = useState(false)
   const [expanded, setExpanded] = useState(true)
 
@@ -106,18 +157,15 @@ function PageTreeItem({
           className="page-actions"
           sx={{
             display: "flex",
-            visibility: menuAnchor ? "visible" : "hidden",
+            visibility: menuAnchor || createAnchor ? "visible" : "hidden",
             flexShrink: 0,
           }}
         >
           <IconButton
             size="small"
-            onClick={(e) => {
+            onClick={(e: MouseEvent<HTMLElement>) => {
               e.stopPropagation()
-              createPage.mutate({
-                workspaceId,
-                parentId: page.id,
-              })
+              setCreateAnchor(e.currentTarget)
             }}
             sx={{ p: 0.25 }}
           >
@@ -148,6 +196,18 @@ function PageTreeItem({
           />
         ))}
 
+      <CreatePageMenu
+        anchorEl={createAnchor}
+        onClose={() => setCreateAnchor(null)}
+        onCreate={(type) =>
+          createPage.mutate({
+            workspaceId,
+            parentId: page.id,
+            type,
+          })
+        }
+      />
+
       <PageContextMenu
         anchorEl={menuAnchor}
         onClose={() => setMenuAnchor(null)}
@@ -173,6 +233,7 @@ function PageTreeItem({
 
 export function PageTreeSection({ workspaceId, pages: initialPages, favoritePageIds }: Props) {
   const [open, setOpen] = useState(true)
+  const [createAnchor, setCreateAnchor] = useState<HTMLElement | null>(null)
   const router = useRouter()
   const utils = trpc.useUtils()
 
@@ -221,16 +282,22 @@ export function PageTreeSection({ workspaceId, pages: initialPages, favoritePage
         </Box>
         <IconButton
           size="small"
-          onClick={() =>
-            createPage.mutate({
-              workspaceId,
-              parentId: null,
-            })
-          }
+          onClick={(e: MouseEvent<HTMLElement>) => setCreateAnchor(e.currentTarget)}
           sx={{ p: 0.25 }}
         >
           <AddIcon sx={{ fontSize: 16, color: "text.secondary" }} />
         </IconButton>
+        <CreatePageMenu
+          anchorEl={createAnchor}
+          onClose={() => setCreateAnchor(null)}
+          onCreate={(type) =>
+            createPage.mutate({
+              workspaceId,
+              parentId: null,
+              type,
+            })
+          }
+        />
       </Box>
 
       {open ? (
