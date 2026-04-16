@@ -149,17 +149,23 @@ export const fileRouter = router({
           deletedAt: null,
           workspace: { members: { some: { userId: ctx.user.id } } },
         },
-        select: { id: true },
+        select: { id: true, workspaceId: true },
       })
       if (!page) {
         throw new TRPCError({ code: "FORBIDDEN", message: "Page not accessible" })
       }
       const file = await ctx.prisma.file.findFirst({
         where: { id: input.fileId, userId: ctx.user.id },
-        select: { id: true },
+        select: { id: true, workspaceId: true },
       })
       if (!file) {
         throw new TRPCError({ code: "NOT_FOUND", message: "File not found" })
+      }
+      if (!file.workspaceId || file.workspaceId !== page.workspaceId) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "File does not belong to this workspace",
+        })
       }
       await ctx.prisma.pageFile.upsert({
         where: { pageId_fileId: { pageId: input.pageId, fileId: input.fileId } },
