@@ -42,10 +42,6 @@ export class FilesHandler {
     await Promise.allSettled(tasks)
   }
 
-  getUploaded(id: string): UploadedFile | undefined {
-    return this.uploaded.get(id)
-  }
-
   private async uploadOne(excalidrawId: string, file: ExcalidrawFile): Promise<void> {
     const blob = await dataUrlToBlob(file.dataURL)
     const filename = `excalidraw-${excalidrawId}.${extFromMime(file.mimeType)}`

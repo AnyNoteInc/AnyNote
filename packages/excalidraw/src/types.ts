@@ -7,7 +7,6 @@ export type UploadHandler = (args: { blob: Blob; filename: string }) => Promise<
 
 export type BoardProps = {
   pageId: string
-  workspaceId: string
   yjsUrl: string
   yjsToken: () => Promise<string>
   uploadHandler: UploadHandler

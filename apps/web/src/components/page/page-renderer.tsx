@@ -1,8 +1,9 @@
 "use client"
 
-import { useCallback, useMemo } from "react"
+import { useCallback, useMemo, useRef } from "react"
 import dynamic from "next/dynamic"
 
+import type { PageType } from "@repo/db"
 import { Box, CircularProgress } from "@repo/ui/components"
 
 import { trpc } from "@/trpc/client"
@@ -29,7 +30,7 @@ function CenteredSpinner() {
 
 type PageInput = {
   id: string
-  type: "TEXT" | "EXCALIDRAW" | "DATABASE" | "KANBAN" | "FORM"
+  type: PageType
 }
 
 type Props = {
@@ -40,12 +41,14 @@ type Props = {
 
 export function PageRenderer({ page, workspaceId, user }: Props) {
   const attachFile = trpc.file.attachToPage.useMutation()
+  const attachFileRef = useRef(attachFile)
+  attachFileRef.current = attachFile
 
   const attachToPage = useCallback(
     async (fileId: string) => {
-      await attachFile.mutateAsync({ pageId: page.id, fileId })
+      await attachFileRef.current.mutateAsync({ pageId: page.id, fileId })
     },
-    [attachFile, page.id],
+    [page.id],
   )
 
   const uploadHandler = useMemo(
@@ -57,7 +60,6 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
     return (
       <Board
         pageId={page.id}
-        workspaceId={workspaceId}
         yjsUrl={yjsUrl}
         yjsToken={fetchYjsToken}
         uploadHandler={uploadHandler}
@@ -70,7 +72,6 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
     return (
       <AnyNoteEditor
         pageId={page.id}
-        workspaceId={workspaceId}
         yjsUrl={yjsUrl}
         yjsToken={fetchYjsToken}
         user={user}

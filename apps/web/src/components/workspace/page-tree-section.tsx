@@ -19,12 +19,13 @@ import {
   Typography,
   AddIcon,
 } from "@repo/ui/components"
+import type { PageType } from "@repo/db"
 import { trpc } from "@/trpc/client"
 import { PageContextMenu } from "./page-context-menu"
 import { MovePageDialog } from "./move-page-dialog"
 import { type PageItem, orderSiblings } from "./types"
 
-type CreatablePageType = "TEXT" | "EXCALIDRAW"
+type CreatablePageType = Extract<PageType, "TEXT" | "EXCALIDRAW">
 
 type Props = {
   workspaceId: string

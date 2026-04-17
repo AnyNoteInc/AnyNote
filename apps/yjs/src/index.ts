@@ -32,11 +32,10 @@ const server = new Server({
   },
 
   async onStoreDocument({ documentName, document, context }) {
-    const ctx = context as Partial<AuthContext>
-    if (!ctx.pageType) {
+    const { pageType } = context as AuthContext
+    if (!pageType) {
       throw new Error("missing pageType in onStoreDocument context")
     }
-    const { pageType } = ctx as AuthContext
     await storePageDocument({ pageId: documentName, document, pageType })
   },
 })

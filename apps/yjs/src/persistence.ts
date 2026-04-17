@@ -22,12 +22,9 @@ export async function storePageDocument(args: {
   pageType: PageType
 }): Promise<void> {
   const { pageId, document, pageType } = args
-  const update = Y.encodeStateAsUpdate(document)
-  // Copy into a fresh ArrayBuffer-backed view so the type matches Prisma's
-  // `Uint8Array<ArrayBuffer>` expectation (`encodeStateAsUpdate` returns
-  // `Uint8Array<ArrayBufferLike>`, which could be a SharedArrayBuffer).
-  const contentYjs = new Uint8Array(update.length)
-  contentYjs.set(update)
+  // `new Uint8Array(typedArray)` copies into a fresh ArrayBuffer-backed view,
+  // matching Prisma's `Uint8Array<ArrayBuffer>` (not `ArrayBufferLike`) type.
+  const contentYjs = new Uint8Array(Y.encodeStateAsUpdate(document))
 
   const data: Prisma.PageUpdateInput = { contentYjs }
   if (pageType !== PageType.EXCALIDRAW) {

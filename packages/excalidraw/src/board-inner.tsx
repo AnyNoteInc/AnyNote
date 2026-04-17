@@ -2,7 +2,7 @@
 
 import "@excalidraw/excalidraw/index.css"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Excalidraw } from "@excalidraw/excalidraw"
 import type { AppState, BinaryFiles, ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types"
 import type { OrderedExcalidrawElement } from "@excalidraw/excalidraw/element/types"
@@ -37,30 +37,19 @@ export function BoardInner(props: BoardProps) {
 
   const files = useMemo(() => new FilesHandler(uploadHandler), [uploadHandler])
 
-  const apiRef = useRef<ExcalidrawImperativeAPI | null>(null)
-  const bindingRef = useRef<ExcalidrawBinding | null>(null)
-  const [apiReady, setApiReady] = useState(false)
+  const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null)
 
-  // Create the ExcalidrawBinding once the imperative API is available.
-  // @timephy/y-excalidraw@2.0.15 constructor:
-  //   new ExcalidrawBinding(yElements, yAssets, api, awareness?, undoConfig?)
-  // — it needs a concrete `api` at construction time, so we can't eagerly
-  // instantiate it alongside the Y.Doc / provider.
+  // Binding requires the live imperative API, available only after onMount.
   useEffect(() => {
-    if (!apiReady) return
-    const api = apiRef.current
     if (!api) return
     const binding = new ExcalidrawBinding(yElements, yAssets, api, provider.awareness ?? undefined)
-    bindingRef.current = binding
     return () => {
       binding.destroy()
-      bindingRef.current = null
     }
-  }, [apiReady, yElements, yAssets, provider])
+  }, [api, yElements, yAssets, provider])
 
-  const onMount = useCallback((api: ExcalidrawImperativeAPI) => {
-    apiRef.current = api
-    setApiReady(true)
+  const onMount = useCallback((a: ExcalidrawImperativeAPI) => {
+    setApi(a)
   }, [])
 
   const onChange = useCallback(

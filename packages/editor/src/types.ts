@@ -15,7 +15,6 @@ export type AnyNoteEditorUser = {
 
 export type AnyNoteEditorProps = {
   pageId: string
-  workspaceId: string
   yjsUrl: string
   yjsToken: () => Promise<string>
   user: AnyNoteEditorUser
