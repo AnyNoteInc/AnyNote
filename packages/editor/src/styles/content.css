@@ -1,13 +1,21 @@
 .anynote-editor {
   font-family: var(--editor-font-family, inherit);
   color: var(--editor-text, currentColor);
+  position: relative;
+  overflow: hidden;
 }
 
 .anynote-editor .ProseMirror {
   outline: none;
   min-height: 200px;
-  padding: 16px 24px;
+  padding: 16px 48px;
   line-height: 1.6;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+}
+
+.anynote-editor .ProseMirror > * {
+  max-width: 100%;
 }
 
 .anynote-editor .ProseMirror p.is-editor-empty:first-child::before {
@@ -99,4 +107,63 @@
   top: -1.4em;
   user-select: none;
   white-space: nowrap;
+}
+
+/* Task list: keep checkbox and text on the same line */
+.anynote-editor ul[data-type="taskList"] {
+  list-style: none;
+  padding: 0;
+}
+
+.anynote-editor ul[data-type="taskList"] li {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  margin: 0.25rem 0;
+}
+
+.anynote-editor ul[data-type="taskList"] li > label {
+  flex-shrink: 0;
+  margin-top: 0.35rem;
+}
+
+.anynote-editor ul[data-type="taskList"] li > div {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.anynote-editor ul[data-type="taskList"] li > div > p {
+  margin: 0;
+}
+
+/* Drag handle positioning — in-flow at left gutter, no layout shifts during drag */
+.anynote-editor .tiptap-drag-handle {
+  position: absolute;
+  left: 4px;
+  width: 20px;
+  user-select: none;
+  cursor: grab;
+  opacity: 0;
+  transition: opacity 120ms ease;
+}
+
+.anynote-editor .tiptap-drag-handle:hover,
+.anynote-editor .ProseMirror:hover ~ .tiptap-drag-handle,
+.anynote-editor:hover .tiptap-drag-handle {
+  opacity: 1;
+}
+
+.anynote-editor .tiptap-drag-handle:active {
+  cursor: grabbing;
+}
+
+/* Slash menu popup via tippy */
+.tippy-box[data-animation="fade"][data-state="hidden"] {
+  opacity: 0;
+}
+.tippy-box {
+  background: transparent;
+}
+.tippy-content {
+  padding: 0;
 }

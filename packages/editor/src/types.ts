@@ -1,3 +1,4 @@
+import type { ReactNode } from "react"
 import type { Editor } from "@tiptap/core"
 
 export type UploadedFile = {
@@ -29,5 +30,6 @@ export type SlashCommandItem = {
   label: string
   description?: string
   keywords?: string[]
+  icon?: ReactNode
   run: (args: { editor: Editor; range: { from: number; to: number } }) => void
 }

@@ -24,7 +24,21 @@ type Props = {
 const STORAGE_KEY = "workspace.sidebar.collapsed"
 export const SIDEBAR_WIDTH = 313
 
-export function WorkspaceLayoutClient({ workspace, planName, pages, user, children }: Props) {
+export function WorkspaceLayoutClient({
+  workspace,
+  planName,
+  pages: initialPages,
+  user,
+  children,
+}: Props) {
+  // Read pages via useQuery with RSC-provided initialData so that rename /
+  // delete / move mutations can invalidate the cache and re-render the
+  // breadcrumb without a full server refresh.
+  const pagesQuery = trpc.page.listByWorkspace.useQuery(
+    { workspaceId: workspace.id },
+    { staleTime: 0 },
+  )
+  const pages: PageItem[] = pagesQuery.data ?? initialPages
   const [hidden, setHidden] = useState(false)
   const pathname = usePathname()
 

@@ -5,8 +5,8 @@ import "@excalidraw/excalidraw/index.css"
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Excalidraw } from "@excalidraw/excalidraw"
 import type { AppState, BinaryFiles, ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types"
-import type { OrderedExcalidrawElement } from "@excalidraw/excalidraw/element/types"
-import { Box } from "@mui/material"
+import type { OrderedExcalidrawElement, Theme } from "@excalidraw/excalidraw/element/types"
+import { Box, useTheme } from "@mui/material"
 import { ExcalidrawBinding } from "@timephy/y-excalidraw"
 
 import { FilesHandler, type ExcalidrawFile } from "./files-handler"
@@ -15,6 +15,9 @@ import { useExcalidrawYjs } from "./use-excalidraw-yjs"
 
 export function BoardInner(props: BoardProps) {
   const { pageId, yjsUrl, yjsToken, uploadHandler, user, editable = true, className } = props
+
+  const muiTheme = useTheme()
+  const excalidrawTheme: Theme = muiTheme.palette.mode === "dark" ? "dark" : "light"
 
   const resources = useExcalidrawYjs({ pageId, yjsUrl, yjsToken })
 
@@ -69,7 +72,12 @@ export function BoardInner(props: BoardProps) {
         position: "relative",
       }}
     >
-      <Excalidraw excalidrawAPI={onMount} viewModeEnabled={!editable} onChange={onChange} />
+      <Excalidraw
+        excalidrawAPI={onMount}
+        viewModeEnabled={!editable}
+        theme={excalidrawTheme}
+        onChange={onChange}
+      />
     </Box>
   )
 }

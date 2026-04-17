@@ -1,10 +1,11 @@
 import { notFound } from "next/navigation"
 
-import { Box, Typography } from "@repo/ui/components"
+import { Box } from "@repo/ui/components"
 
 import { requireSession } from "@/lib/get-session"
 import { getServerTRPC } from "@/trpc/server"
 import { PageRenderer } from "@/components/page/page-renderer"
+import { PageTitle } from "@/components/page/page-title"
 
 const COLORS = ["#1976d2", "#9c27b0", "#2e7d32", "#ed6c02", "#0288d1", "#d32f2f"]
 
@@ -35,7 +36,7 @@ export default async function PageView({
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
       {!isExcalidraw && (
         <Box sx={{ px: 3, py: 2, maxWidth: 713, width: "100%", mx: "auto" }}>
-          <Typography variant="h5">{page.title ?? "Без названия"}</Typography>
+          <PageTitle id={page.id} initialTitle={page.title} />
         </Box>
       )}
       <Box

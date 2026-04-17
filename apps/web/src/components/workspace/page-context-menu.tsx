@@ -54,6 +54,7 @@ export function PageContextMenu({
     void utils.page.listByWorkspace.invalidate({ workspaceId })
     void utils.page.listFavorites.invalidate({ workspaceId })
     void utils.page.listTrashed.invalidate({ workspaceId })
+    void utils.page.getById.invalidate({ id: page.id })
   }
 
   const addFavorite = trpc.page.addFavorite.useMutation({ onSuccess: invalidate })

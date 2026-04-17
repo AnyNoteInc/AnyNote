@@ -1,8 +1,7 @@
 "use client"
 
-import { List, ListItemButton, ListItemText, Paper } from "@mui/material"
+import { List, ListItemButton, ListItemIcon, ListItemText, Paper } from "@mui/material"
 import { forwardRef, useEffect, useImperativeHandle, useState } from "react"
-import type { CSSProperties } from "react"
 
 import type { SlashCommandItem } from "../types"
 
@@ -13,11 +12,10 @@ export type SlashMenuPopoverHandle = {
 type Props = {
   items: SlashCommandItem[]
   command: (item: SlashCommandItem) => void
-  clientRect?: (() => DOMRect | null) | null
 }
 
 export const SlashMenuPopover = forwardRef<SlashMenuPopoverHandle, Props>(function SlashMenuPopover(
-  { items, command, clientRect },
+  { items, command },
   ref,
 ) {
   const [active, setActive] = useState(0)
@@ -50,16 +48,21 @@ export const SlashMenuPopover = forwardRef<SlashMenuPopoverHandle, Props>(functi
 
   if (items.length === 0) return null
 
-  const rect = clientRect?.()
-  const style: CSSProperties = rect
-    ? { position: "fixed", top: rect.bottom + 4, left: rect.left, zIndex: 1300 }
-    : { display: "none" }
-
   return (
-    <Paper elevation={6} style={style} sx={{ width: 280, py: 0.5 }}>
-      <List dense>
+    <Paper elevation={6} sx={{ width: 260, py: 0.5, maxHeight: 320, overflow: "auto" }}>
+      <List dense disablePadding>
         {items.map((item, idx) => (
-          <ListItemButton key={item.id} selected={idx === active} onClick={() => command(item)}>
+          <ListItemButton
+            key={item.id}
+            selected={idx === active}
+            onClick={() => command(item)}
+            sx={{ gap: 1 }}
+          >
+            {item.icon ? (
+              <ListItemIcon sx={{ minWidth: 28, color: "text.secondary" }}>
+                {item.icon}
+              </ListItemIcon>
+            ) : null}
             <ListItemText primary={item.label} secondary={item.description} />
           </ListItemButton>
         ))}

@@ -12,6 +12,7 @@ import { EditorDragHandle } from "./components/drag-handle"
 import { FloatingToolbar } from "./components/floating-toolbar"
 import { SlashMenuPopover } from "./components/slash-menu-popover"
 import type { SlashMenuPopoverHandle } from "./components/slash-menu-popover"
+import { TableToolbar } from "./components/table-toolbar"
 import { buildExtensions } from "./extensions/index"
 import type { SlashMenuRender } from "./extensions/slash-menu"
 import { defaultSlashItems } from "./slash-items"
@@ -64,7 +65,6 @@ function AnyNoteEditorInner(
     {
       items: SlashCommandItem[]
       command: (item: SlashCommandItem) => void
-      clientRect?: (() => DOMRect | null) | null
     }
   >
 
@@ -80,23 +80,22 @@ function AnyNoteEditorInner(
           props: {
             items: suggestionProps.items,
             command: (item: SlashCommandItem) => suggestionProps.command(item),
-            clientRect: suggestionProps.clientRect,
           },
           editor: suggestionProps.editor,
         })
         slashRendererRef.current.component = component
 
-        const rect = suggestionProps.clientRect?.() ?? null
-        if (!rect) return
-
+        if (!suggestionProps.clientRect) return
+        const getRect = suggestionProps.clientRect
         const [popup] = tippy("body", {
-          getReferenceClientRect: () => suggestionProps.clientRect?.() ?? rect,
+          getReferenceClientRect: () => getRect() ?? new DOMRect(0, 0, 0, 0),
           appendTo: () => document.body,
           content: component.element,
           showOnCreate: true,
           interactive: true,
           trigger: "manual",
           placement: "bottom-start",
+          offset: [0, 6],
         })
         slashRendererRef.current.popup = popup ?? null
       },
@@ -104,7 +103,6 @@ function AnyNoteEditorInner(
         slashRendererRef.current.component?.updateProps({
           items: suggestionProps.items,
           command: (item: SlashCommandItem) => suggestionProps.command(item),
-          clientRect: suggestionProps.clientRect,
         })
         const clientRect = suggestionProps.clientRect
         if (clientRect) {
@@ -151,6 +149,7 @@ function AnyNoteEditorInner(
     <Box className={`anynote-editor ${props.className ?? ""}`} sx={{ height: "100%" }}>
       {editor ? <EditorDragHandle editor={editor} /> : null}
       {editor ? <FloatingToolbar editor={editor} /> : null}
+      {editor ? <TableToolbar editor={editor} /> : null}
       <EditorContent editor={editor} />
     </Box>
   )

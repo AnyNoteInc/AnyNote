@@ -1,74 +1,100 @@
+import { createElement } from "react"
+
+import {
+  BulletListIcon,
+  CodeIcon,
+  DividerIcon,
+  Heading1Icon,
+  Heading2Icon,
+  Heading3Icon,
+  OrderedListIcon,
+  ParagraphIcon,
+  QuoteIcon,
+  TableIcon,
+  TaskListIcon,
+} from "./assets/index"
 import type { SlashCommandItem } from "./types"
 
 const ITEMS: SlashCommandItem[] = [
   {
     id: "h1",
-    label: "Heading 1",
-    keywords: ["h1", "title"],
+    label: "Заголовок 1",
+    keywords: ["h1", "title", "заголовок"],
+    icon: createElement(Heading1Icon),
     run: ({ editor, range }) =>
       editor.chain().focus().deleteRange(range).setNode("heading", { level: 1 }).run(),
   },
   {
     id: "h2",
-    label: "Heading 2",
-    keywords: ["h2"],
+    label: "Заголовок 2",
+    keywords: ["h2", "заголовок"],
+    icon: createElement(Heading2Icon),
     run: ({ editor, range }) =>
       editor.chain().focus().deleteRange(range).setNode("heading", { level: 2 }).run(),
   },
   {
     id: "h3",
-    label: "Heading 3",
-    keywords: ["h3"],
+    label: "Заголовок 3",
+    keywords: ["h3", "заголовок"],
+    icon: createElement(Heading3Icon),
     run: ({ editor, range }) =>
       editor.chain().focus().deleteRange(range).setNode("heading", { level: 3 }).run(),
   },
   {
     id: "paragraph",
-    label: "Paragraph",
-    keywords: ["text", "p"],
+    label: "Абзац",
+    keywords: ["text", "p", "параграф", "текст"],
+    icon: createElement(ParagraphIcon),
     run: ({ editor, range }) =>
       editor.chain().focus().deleteRange(range).setNode("paragraph").run(),
   },
   {
     id: "bullet",
-    label: "Bullet list",
-    keywords: ["ul", "list"],
+    label: "Маркированный список",
+    keywords: ["ul", "list", "список"],
+    icon: createElement(BulletListIcon),
     run: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleBulletList().run(),
   },
   {
     id: "ordered",
-    label: "Numbered list",
-    keywords: ["ol"],
+    label: "Нумерованный список",
+    keywords: ["ol", "номер"],
+    icon: createElement(OrderedListIcon),
     run: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleOrderedList().run(),
   },
   {
     id: "task",
-    label: "Task list",
-    keywords: ["todo", "checkbox"],
+    label: "Список задач",
+    keywords: ["todo", "checkbox", "чеклист", "задача"],
+    icon: createElement(TaskListIcon),
     run: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleTaskList().run(),
   },
   {
     id: "quote",
-    label: "Quote",
-    keywords: ["blockquote"],
+    label: "Цитата",
+    keywords: ["blockquote", "цитата"],
+    icon: createElement(QuoteIcon),
     run: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleBlockquote().run(),
   },
   {
     id: "code",
-    label: "Code block",
-    keywords: ["code"],
+    label: "Код",
+    keywords: ["code", "pre", "код"],
+    icon: createElement(CodeIcon),
     run: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleCodeBlock().run(),
   },
   {
     id: "divider",
-    label: "Divider",
-    keywords: ["hr", "separator"],
+    label: "Разделитель",
+    keywords: ["hr", "separator", "разделитель"],
+    icon: createElement(DividerIcon),
     run: ({ editor, range }) => editor.chain().focus().deleteRange(range).setHorizontalRule().run(),
   },
   {
     id: "table",
-    label: "Table",
-    keywords: ["grid"],
+    label: "Таблица",
+    keywords: ["grid", "таблица"],
+    icon: createElement(TableIcon),
     run: ({ editor, range }) =>
       editor
         .chain()
