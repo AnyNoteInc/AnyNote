@@ -16,24 +16,18 @@ import { useExcalidrawYjs } from "./use-excalidraw-yjs"
 export function BoardInner(props: BoardProps) {
   const { pageId, yjsUrl, yjsToken, uploadHandler, user, editable = true, className } = props
 
-  const { provider, yElements, yAssets } = useExcalidrawYjs({
-    pageId,
-    yjsUrl,
-    yjsToken,
-  })
+  const resources = useExcalidrawYjs({ pageId, yjsUrl, yjsToken })
 
   // Publish the local user's identity through the Yjs awareness channel so
   // remote clients can render collaborator cursors/labels correctly.
   useEffect(() => {
-    if (!user) return
-    provider.awareness?.setLocalStateField("user", {
+    if (!user || !resources) return
+    resources.provider.awareness?.setLocalStateField("user", {
       name: user.name,
       color: user.color,
     })
-    // Only re-publish when the visible user identity actually changes —
-    // new `user` object identities on each render would otherwise churn awareness.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [provider, user?.name, user?.color])
+  }, [resources, user?.name, user?.color])
 
   const files = useMemo(() => new FilesHandler(uploadHandler), [uploadHandler])
 
@@ -41,12 +35,17 @@ export function BoardInner(props: BoardProps) {
 
   // Binding requires the live imperative API, available only after onMount.
   useEffect(() => {
-    if (!api) return
-    const binding = new ExcalidrawBinding(yElements, yAssets, api, provider.awareness ?? undefined)
+    if (!api || !resources) return
+    const binding = new ExcalidrawBinding(
+      resources.yElements,
+      resources.yAssets,
+      api,
+      resources.provider.awareness ?? undefined,
+    )
     return () => {
       binding.destroy()
     }
-  }, [api, yElements, yAssets, provider])
+  }, [api, resources])
 
   const onMount = useCallback((a: ExcalidrawImperativeAPI) => {
     setApi(a)

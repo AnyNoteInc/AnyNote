@@ -58,7 +58,7 @@ function CreatePageMenu({
         <ListItemIcon>
           <DescriptionIcon fontSize="small" />
         </ListItemIcon>
-        <ListItemText primary="Текстовая страница" />
+        <ListItemText primary="Текст" />
       </MenuItem>
       <MenuItem
         onClick={() => {

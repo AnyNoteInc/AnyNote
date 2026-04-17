@@ -26,7 +26,7 @@ test("text page mounts the AnyNoteEditor", async ({ page }) => {
     .getByText("Страницы", { exact: true })
     .locator("xpath=ancestor::*[.//button][1]")
   await pagesHeaderRow.getByRole("button").click()
-  await page.getByRole("menuitem", { name: "Текстовая страница" }).click()
+  await page.getByRole("menuitem", { name: "Текст" }).click()
 
   // Page route should navigate, and the editor DOM should appear.
   await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/pages\/[a-f0-9-]+/, { timeout: 15_000 })

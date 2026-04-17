@@ -19,20 +19,45 @@ import type { AnyNoteEditorProps, SlashCommandItem } from "./types"
 
 type SlashSuggestionProps = SuggestionProps<SlashCommandItem, SlashCommandItem>
 
-export function AnyNoteEditor(props: AnyNoteEditorProps) {
-  const { pageId, yjsUrl, yjsToken, user, uploadHandler, editable = true } = props
-  const placeholder = props.placeholder ?? "Введите '/' для команд"
+type YjsResources = { ydoc: Y.Doc; provider: HocuspocusProvider }
 
-  const [ydoc] = useState(() => new Y.Doc())
-  const [provider] = useState(
-    () =>
-      new HocuspocusProvider({
-        url: yjsUrl,
-        name: pageId,
-        document: ydoc,
-        token: yjsToken,
-      }),
-  )
+export function AnyNoteEditor(props: AnyNoteEditorProps) {
+  const { pageId, yjsUrl, yjsToken } = props
+  const [resources, setResources] = useState<YjsResources | null>(null)
+
+  // Create Y.Doc + provider inside useEffect so React StrictMode's
+  // mount → unmount → remount cycle gets fresh resources on the second
+  // mount (otherwise we'd keep using destroyed objects).
+  useEffect(() => {
+    const ydoc = new Y.Doc()
+    const provider = new HocuspocusProvider({
+      url: yjsUrl,
+      name: pageId,
+      document: ydoc,
+      token: yjsToken,
+    })
+    setResources({ ydoc, provider })
+    return () => {
+      provider.destroy()
+      ydoc.destroy()
+      setResources(null)
+    }
+  }, [pageId, yjsUrl, yjsToken])
+
+  if (!resources) {
+    return (
+      <Box className={`anynote-editor ${props.className ?? ""}`} sx={{ height: "100%" }} />
+    )
+  }
+  return <AnyNoteEditorInner {...props} resources={resources} />
+}
+
+function AnyNoteEditorInner(
+  props: AnyNoteEditorProps & { resources: YjsResources },
+) {
+  const { user, uploadHandler, editable = true, resources } = props
+  const { ydoc, provider } = resources
+  const placeholder = props.placeholder ?? "Введите '/' для команд"
 
   type SlashMenuRenderer = ReactRenderer<
     SlashMenuPopoverHandle,
@@ -119,15 +144,8 @@ export function AnyNoteEditor(props: AnyNoteEditorProps) {
         slashRender,
       }),
     },
-    [],
+    [ydoc, provider],
   )
-
-  useEffect(() => {
-    return () => {
-      provider.destroy()
-      ydoc.destroy()
-    }
-  }, [provider, ydoc])
 
   return (
     <Box className={`anynote-editor ${props.className ?? ""}`} sx={{ height: "100%" }}>

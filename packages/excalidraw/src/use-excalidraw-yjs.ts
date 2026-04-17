@@ -4,55 +4,42 @@ import { useEffect, useState } from "react"
 import * as Y from "yjs"
 import { HocuspocusProvider } from "@hocuspocus/provider"
 
-/**
- * Owns the Y.Doc and HocuspocusProvider for the board.
- *
- * We deliberately DO NOT construct the `ExcalidrawBinding` here: the
- * `@timephy/y-excalidraw` constructor requires the live
- * `ExcalidrawImperativeAPI`, which only becomes available after Excalidraw
- * mounts and invokes its `excalidrawAPI` callback. The binding is therefore
- * created lazily in the component (see `board-inner.tsx`) once the API is
- * known; this hook only returns the Yjs primitives it will need.
- *
- * `useState(initializer)` is used for both the doc and the provider so that
- * the references stay stable across re-renders. Teardown happens in the
- * cleanup effect so `StrictMode`'s double-invoke behaves.
- */
+export type YjsResources = {
+  ydoc: Y.Doc
+  provider: HocuspocusProvider
+  yElements: Y.Array<Y.Map<unknown>>
+  yAssets: Y.Map<unknown>
+}
+
+// Creates Y.Doc + HocuspocusProvider inside useEffect so they're torn down
+// and recreated per mount cycle. This matters in React StrictMode dev mode,
+// which mounts → unmounts → remounts; a `useState(initializer)` pattern
+// would survive the teardown but leave destroyed resources in state.
 export function useExcalidrawYjs(args: {
   pageId: string
   yjsUrl: string
   yjsToken: () => Promise<string>
-}) {
+}): YjsResources | null {
   const { pageId, yjsUrl, yjsToken } = args
-
-  const ydoc = useState<Y.Doc>(() => new Y.Doc())[0]
-
-  // Yjs containers shared with the Excalidraw binding.
-  // Names match @timephy/y-excalidraw conventions.
-  const yElements = useState<Y.Array<Y.Map<unknown>>>(() =>
-    ydoc.getArray<Y.Map<unknown>>("elements"),
-  )[0]
-  const yAssets = useState<Y.Map<unknown>>(() => ydoc.getMap<unknown>("assets"))[0]
-
-  const provider = useState<HocuspocusProvider>(
-    () =>
-      new HocuspocusProvider({
-        url: yjsUrl,
-        name: pageId,
-        document: ydoc,
-        token: yjsToken,
-      }),
-  )[0]
+  const [resources, setResources] = useState<YjsResources | null>(null)
 
   useEffect(() => {
+    const ydoc = new Y.Doc()
+    const yElements = ydoc.getArray<Y.Map<unknown>>("elements")
+    const yAssets = ydoc.getMap<unknown>("assets")
+    const provider = new HocuspocusProvider({
+      url: yjsUrl,
+      name: pageId,
+      document: ydoc,
+      token: yjsToken,
+    })
+    setResources({ ydoc, provider, yElements, yAssets })
     return () => {
       provider.destroy()
       ydoc.destroy()
+      setResources(null)
     }
-    // ydoc / provider are stable by construction; we only want a true
-    // unmount-time cleanup, hence the empty dep array.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [pageId, yjsUrl, yjsToken])
 
-  return { ydoc, provider, yElements, yAssets }
+  return resources
 }
