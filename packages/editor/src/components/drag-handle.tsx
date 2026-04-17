@@ -27,6 +27,31 @@ export function EditorDragHandle({ editor }: Props) {
     }
   }
 
+  const onElementDragStart = (event: DragEvent) => {
+    const info = hoverNodeRef.current
+    if (!info || !event.dataTransfer) return
+    const dom = editor.view.nodeDOM(info.from) as HTMLElement | null
+    if (!dom) return
+    const rect = dom.getBoundingClientRect()
+    // Upstream's dragHandler builds an off-screen clone wrapper and anchors
+    // the drag image via `event.clientX - wrapperRect.left`. Because the
+    // wrapper sits at body.left ≈ 0, the preview jumps to the viewport's
+    // left edge whenever the block lives in the centered reading column.
+    // Shadow setDragImage so the library's call re-anchors to the *original*
+    // block's rect — the ghost then stays under the cursor where it was
+    // grabbed.
+    const nativeSet = event.dataTransfer.setDragImage.bind(event.dataTransfer)
+    Object.defineProperty(event.dataTransfer, "setDragImage", {
+      configurable: true,
+      value: (image: Element) => {
+        const width = (image as HTMLElement).getBoundingClientRect().width || rect.width
+        const x = Math.max(0, Math.min(event.clientX - rect.left, width))
+        const y = Math.max(0, Math.min(event.clientY - rect.top, rect.height))
+        nativeSet(image, x, y)
+      },
+    })
+  }
+
   const openSlashMenu = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
     event.preventDefault()
@@ -57,7 +82,11 @@ export function EditorDragHandle({ editor }: Props) {
   }
 
   return (
-    <DragHandle editor={editor} onNodeChange={onNodeChange}>
+    <DragHandle
+      editor={editor}
+      onNodeChange={onNodeChange}
+      onElementDragStart={onElementDragStart}
+    >
       <Box
         className="tiptap-drag-handle-wrapper"
         sx={{

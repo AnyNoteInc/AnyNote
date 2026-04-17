@@ -3,7 +3,15 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 
-import { Alert, Button, Paper, Stack, TextField, Typography } from "@repo/ui/components"
+import {
+  Alert,
+  Button,
+  EmojiIconButton,
+  Paper,
+  Stack,
+  TextField,
+  Typography,
+} from "@repo/ui/components"
 
 import { trpc } from "@/trpc/client"
 
@@ -27,6 +35,8 @@ export function WorkspaceGeneralSection({ workspace, isOwner }: Props) {
     },
   })
 
+  const disabled = !isOwner || rename.isPending
+
   return (
     <Paper variant="outlined" sx={{ p: 3 }}>
       <Stack spacing={2}>
@@ -36,27 +46,34 @@ export function WorkspaceGeneralSection({ workspace, isOwner }: Props) {
         )}
         {rename.error ? <Alert severity="error">{rename.error.message}</Alert> : null}
         {successShown ? <Alert severity="success">Сохранено</Alert> : null}
-        <TextField
-          label="Название"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          disabled={!isOwner || rename.isPending}
-          fullWidth
-        />
-        <TextField
-          label="Иконка (эмодзи)"
-          value={icon}
-          onChange={(e) => {
-            // Take only the first grapheme cluster (emoji)
-            const segments = [...new Intl.Segmenter().segment(e.target.value)]
-            setIcon(segments[0]?.segment ?? "")
-          }}
-          disabled={!isOwner || rename.isPending}
-          inputProps={{ maxLength: 4 }}
-        />
+        <Stack direction="row" spacing={1.5} alignItems="stretch">
+          <EmojiIconButton
+            value={icon}
+            fallback="📒"
+            emojiSize={28}
+            onChange={setIcon}
+            disabled={disabled}
+            aria-label="Изменить иконку"
+            sx={{
+              width: 56,
+              height: 56,
+              borderRadius: 1,
+              border: 1,
+              borderColor: "divider",
+              alignSelf: "center",
+            }}
+          />
+          <TextField
+            label="Название"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            disabled={disabled}
+            fullWidth
+          />
+        </Stack>
         <Button
           onClick={() => rename.mutate({ id: workspace.id, name, icon: icon || undefined })}
-          disabled={!isOwner || rename.isPending || !name.trim()}
+          disabled={disabled || !name.trim()}
           sx={{ alignSelf: "flex-start" }}
         >
           Сохранить

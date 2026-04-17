@@ -7,6 +7,10 @@ export {
   default as CircularProgress,
   type CircularProgressProps,
 } from "@mui/material/CircularProgress"
+export { default as Skeleton, type SkeletonProps } from "@mui/material/Skeleton"
+export { default as Popover, type PopoverProps } from "@mui/material/Popover"
+export { EmojiPicker, type EmojiPickerProps } from "./ui/emoji-picker"
+export { EmojiIconButton, type EmojiIconButtonProps } from "./ui/emoji-icon-button"
 export { default as Typography, type TypographyProps } from "@mui/material/Typography"
 export { default as Box, type BoxProps } from "@mui/material/Box"
 export { default as Divider, type DividerProps } from "@mui/material/Divider"

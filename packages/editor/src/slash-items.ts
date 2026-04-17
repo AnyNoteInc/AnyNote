@@ -17,9 +17,9 @@ import type { SlashCommandItem } from "./types"
 
 const ITEMS: SlashCommandItem[] = [
   {
-    id: "paragraph",
+    id: "text",
     label: "Текст",
-    keywords: ["text", "p", "параграф", "текст", "абзац"],
+    keywords: ["text", "t", "текст"],
     icon: createElement(TextIcon),
     run: ({ editor, range }) =>
       editor.chain().focus().deleteRange(range).setNode("paragraph").run(),

@@ -35,9 +35,15 @@ export function useExcalidrawYjs(args: {
     })
     setResources({ ydoc, provider, yElements, yAssets })
     return () => {
-      provider.destroy()
-      ydoc.destroy()
       setResources(null)
+      // Defer destroy so an in-flight WebSocket handshake can complete
+      // before we close the socket. Prevents the browser warning
+      // "WebSocket is closed before the connection is established" during
+      // React StrictMode dev remounts.
+      setTimeout(() => {
+        provider.destroy()
+        ydoc.destroy()
+      }, 300)
     }
   }, [pageId, yjsUrl, yjsToken])
 

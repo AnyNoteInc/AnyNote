@@ -5,7 +5,8 @@ import { Box } from "@repo/ui/components"
 import { requireSession } from "@/lib/get-session"
 import { getServerTRPC } from "@/trpc/server"
 import { PageRenderer } from "@/components/page/page-renderer"
-import { PageTitle } from "@/components/page/page-title"
+import { PageHeader } from "@/components/page/page-header"
+import { pageColumnSx } from "@/components/page/column-sx"
 
 const COLORS = ["#1976d2", "#9c27b0", "#2e7d32", "#ed6c02", "#0288d1", "#d32f2f"]
 
@@ -35,11 +36,16 @@ export default async function PageView({
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
       {!isExcalidraw && (
-        <Box sx={{ px: 3, py: 2, maxWidth: 713, width: "100%", mx: "auto" }}>
-          <PageTitle id={page.id} initialTitle={page.title} />
+        <Box sx={{ ...pageColumnSx, pt: 4, pb: 1 }}>
+          <PageHeader
+            id={page.id}
+            workspaceId={workspaceId}
+            initialTitle={page.title}
+            initialIcon={page.icon}
+          />
         </Box>
       )}
-      <Box sx={isExcalidraw ? { flex: 1, minHeight: 0 } : { flex: 1, minHeight: 0 }}>
+      <Box sx={{ flex: 1, minHeight: 0 }}>
         <PageRenderer
           page={{ id: page.id, type: page.type }}
           workspaceId={workspaceId}
