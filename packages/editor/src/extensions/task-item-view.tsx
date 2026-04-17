@@ -20,6 +20,7 @@ function TaskItemView({ node, updateAttributes, editor }: NodeViewProps) {
       <Checkbox
         checked={checked}
         onChange={handleChange}
+        color="primary"
         size="small"
         disableRipple
         disabled={!editor.isEditable}

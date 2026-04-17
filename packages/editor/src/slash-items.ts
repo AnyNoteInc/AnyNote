@@ -8,14 +8,22 @@ import {
   Heading2Icon,
   Heading3Icon,
   OrderedListIcon,
-  ParagraphIcon,
   QuoteIcon,
   TableIcon,
   TaskListIcon,
+  TextIcon,
 } from "./assets/index"
 import type { SlashCommandItem } from "./types"
 
 const ITEMS: SlashCommandItem[] = [
+  {
+    id: "paragraph",
+    label: "Текст",
+    keywords: ["text", "p", "параграф", "текст", "абзац"],
+    icon: createElement(TextIcon),
+    run: ({ editor, range }) =>
+      editor.chain().focus().deleteRange(range).setNode("paragraph").run(),
+  },
   {
     id: "h1",
     label: "Заголовок 1",
@@ -39,14 +47,6 @@ const ITEMS: SlashCommandItem[] = [
     icon: createElement(Heading3Icon),
     run: ({ editor, range }) =>
       editor.chain().focus().deleteRange(range).setNode("heading", { level: 3 }).run(),
-  },
-  {
-    id: "paragraph",
-    label: "Абзац",
-    keywords: ["text", "p", "параграф", "текст"],
-    icon: createElement(ParagraphIcon),
-    run: ({ editor, range }) =>
-      editor.chain().focus().deleteRange(range).setNode("paragraph").run(),
   },
   {
     id: "bullet",

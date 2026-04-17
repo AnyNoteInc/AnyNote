@@ -2,7 +2,6 @@
   font-family: var(--editor-font-family, inherit);
   color: var(--editor-text, currentColor);
   position: relative;
-  overflow: hidden;
 }
 
 .anynote-editor .ProseMirror {
@@ -10,12 +9,24 @@
   min-height: 200px;
   padding: 16px 48px;
   line-height: 1.6;
-  word-wrap: break-word;
-  overflow-wrap: anywhere;
+  /* Let very long words / URLs break at word boundaries so normal text
+     stays wrapped, but wide blocks (code, tables, images) overflow
+     naturally — that overflow bubbles up to the scrollable main region. */
+  overflow-wrap: break-word;
+  /* Center text-heavy blocks at a readable width; wide blocks opt out
+     below so they can use full main-area width (and spill if wider). */
+  max-width: 713px;
+  margin: 0 auto;
+  box-sizing: content-box;
 }
 
-.anynote-editor .ProseMirror > * {
-  max-width: 100%;
+/* Wide blocks escape the 713px reading column so long code / tables /
+   images create a horizontal scrollbar on the main area instead of being
+   clipped. */
+.anynote-editor .ProseMirror pre,
+.anynote-editor .ProseMirror table {
+  max-width: none;
+  overflow-x: auto;
 }
 
 .anynote-editor .ProseMirror p.is-editor-empty:first-child::before {
@@ -109,7 +120,7 @@
   white-space: nowrap;
 }
 
-/* Task list: MUI Checkbox + text, vertically centered on first line of content */
+/* Task list: MUI Checkbox + text, checkbox visually centered on first line of content. */
 .anynote-editor ul[data-type="taskList"] {
   list-style: none;
   padding: 0;
@@ -120,16 +131,17 @@
   display: flex;
   align-items: flex-start;
   gap: 4px;
-  margin: 0.1rem 0;
+  margin: 0.15rem 0;
 }
 
-/* Align the MUI checkbox vertically to match the first line of content.
-   The line-height of the editor is ~1.6em; MUI's size="small" Checkbox is 34px tall
-   which includes 9px padding on each side — that matches an em-height line naturally. */
+/* The MUI Checkbox size="small" is ~30px tall (svg 20 + 5px padding on each side).
+   The editor's line-height is 1.6em, giving a ~25.6px first-line box at 16px font.
+   We pull the checkbox up so the SVG center lands on the first line's vertical
+   center: margin-top = (line-height - checkbox-height) / 2 ≈ -2.2px. */
 .anynote-editor .anynote-task-item__checkbox,
 .anynote-editor ul[data-type="taskList"] > li > label {
   flex-shrink: 0;
-  margin-top: -6px; /* pull up to center with first text line */
+  margin-top: calc((1em * 1.6 - 30px) / 2);
 }
 
 .anynote-editor .anynote-task-item__content,
@@ -141,13 +153,12 @@
 .anynote-editor .anynote-task-item__content > p,
 .anynote-editor ul[data-type="taskList"] > li > div > p {
   margin: 0;
-  padding-top: 4px;
 }
 
-/* Checked: dim + strike-through the content */
+/* Checked: dim + strike-through the content. Unchecked stays default. */
 .anynote-editor .anynote-task-item[data-checked="true"] .anynote-task-item__content,
 .anynote-editor ul[data-type="taskList"] > li[data-checked="true"] > div {
-  color: var(--editor-text-muted, rgba(0, 0, 0, 0.38));
+  color: var(--editor-text-muted, rgba(0, 0, 0, 0.5));
   text-decoration: line-through;
 }
 

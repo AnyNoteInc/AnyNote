@@ -39,13 +39,7 @@ export default async function PageView({
           <PageTitle id={page.id} initialTitle={page.title} />
         </Box>
       )}
-      <Box
-        sx={
-          isExcalidraw
-            ? { flex: 1, minHeight: 0 }
-            : { flex: 1, minHeight: 0, maxWidth: 713, width: "100%", mx: "auto" }
-        }
-      >
+      <Box sx={isExcalidraw ? { flex: 1, minHeight: 0 } : { flex: 1, minHeight: 0 }}>
         <PageRenderer
           page={{ id: page.id, type: page.type }}
           workspaceId={workspaceId}
