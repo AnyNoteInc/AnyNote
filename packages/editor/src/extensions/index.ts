@@ -4,7 +4,6 @@ import { Table } from "@tiptap/extension-table"
 import TableCell from "@tiptap/extension-table-cell"
 import TableHeader from "@tiptap/extension-table-header"
 import TableRow from "@tiptap/extension-table-row"
-import TaskItem from "@tiptap/extension-task-item"
 import TaskList from "@tiptap/extension-task-list"
 import Typography from "@tiptap/extension-typography"
 import StarterKit from "@tiptap/starter-kit"
@@ -16,6 +15,7 @@ import { buildCollaboration } from "./collaboration"
 import { buildFileUpload } from "./file-upload"
 import { buildPlaceholder } from "./placeholder"
 import { SlashMenu, type SlashMenuRender } from "./slash-menu"
+import { TaskItemWithCheckbox } from "./task-item-view"
 import type { AnyNoteEditorUser, SlashCommandItem, UploadHandler } from "../types"
 
 const lowlight = createLowlight(common)
@@ -36,7 +36,7 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   Link.configure({ openOnClick: false }),
   Typography,
   TaskList,
-  TaskItem.configure({ nested: true }),
+  TaskItemWithCheckbox.configure({ nested: true }),
   Table.configure({ resizable: true }),
   TableRow,
   TableHeader,

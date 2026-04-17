@@ -109,31 +109,46 @@
   white-space: nowrap;
 }
 
-/* Task list: keep checkbox and text on the same line */
+/* Task list: MUI Checkbox + text, vertically centered on first line of content */
 .anynote-editor ul[data-type="taskList"] {
   list-style: none;
   padding: 0;
 }
 
-.anynote-editor ul[data-type="taskList"] li {
+.anynote-editor .anynote-task-item,
+.anynote-editor ul[data-type="taskList"] > li {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
-  margin: 0.25rem 0;
+  gap: 4px;
+  margin: 0.1rem 0;
 }
 
-.anynote-editor ul[data-type="taskList"] li > label {
+/* Align the MUI checkbox vertically to match the first line of content.
+   The line-height of the editor is ~1.6em; MUI's size="small" Checkbox is 34px tall
+   which includes 9px padding on each side — that matches an em-height line naturally. */
+.anynote-editor .anynote-task-item__checkbox,
+.anynote-editor ul[data-type="taskList"] > li > label {
   flex-shrink: 0;
-  margin-top: 0.35rem;
+  margin-top: -6px; /* pull up to center with first text line */
 }
 
-.anynote-editor ul[data-type="taskList"] li > div {
+.anynote-editor .anynote-task-item__content,
+.anynote-editor ul[data-type="taskList"] > li > div {
   flex: 1 1 auto;
   min-width: 0;
 }
 
-.anynote-editor ul[data-type="taskList"] li > div > p {
+.anynote-editor .anynote-task-item__content > p,
+.anynote-editor ul[data-type="taskList"] > li > div > p {
   margin: 0;
+  padding-top: 4px;
+}
+
+/* Checked: dim + strike-through the content */
+.anynote-editor .anynote-task-item[data-checked="true"] .anynote-task-item__content,
+.anynote-editor ul[data-type="taskList"] > li[data-checked="true"] > div {
+  color: var(--editor-text-muted, rgba(0, 0, 0, 0.38));
+  text-decoration: line-through;
 }
 
 /* Drag handle positioning — in-flow at left gutter, no layout shifts during drag */

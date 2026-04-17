@@ -1,6 +1,7 @@
 "use client"
 
 import "@excalidraw/excalidraw/index.css"
+import "./board.css"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Excalidraw } from "@excalidraw/excalidraw"

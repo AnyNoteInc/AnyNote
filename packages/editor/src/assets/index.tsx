@@ -91,3 +91,58 @@ export const TableIcon = icon([
   <line key="d" x1="10" y1="4" x2="10" y2="20" />,
   <line key="e" x1="16" y1="4" x2="16" y2="20" />,
 ])
+
+export const InsertColumnLeftIcon = icon([
+  <rect key="a" x="10" y="4" width="10" height="16" rx="1" />,
+  <line key="b" x1="15" y1="4" x2="15" y2="20" />,
+  <line key="c" x1="5" y1="12" x2="1" y2="12" />,
+  <line key="d" x1="3" y1="10" x2="3" y2="14" />,
+])
+
+export const InsertColumnRightIcon = icon([
+  <rect key="a" x="4" y="4" width="10" height="16" rx="1" />,
+  <line key="b" x1="9" y1="4" x2="9" y2="20" />,
+  <line key="c" x1="19" y1="12" x2="23" y2="12" />,
+  <line key="d" x1="21" y1="10" x2="21" y2="14" />,
+])
+
+export const DeleteColumnIcon = icon([
+  <rect key="a" x="3" y="4" width="6" height="16" rx="1" />,
+  <rect key="b" x="15" y="4" width="6" height="16" rx="1" />,
+  <line key="c" x1="10.5" y1="8" x2="13.5" y2="11" />,
+  <line key="d" x1="13.5" y1="8" x2="10.5" y2="11" />,
+])
+
+export const InsertRowUpIcon = icon([
+  <rect key="a" x="4" y="10" width="16" height="10" rx="1" />,
+  <line key="b" x1="4" y1="15" x2="20" y2="15" />,
+  <line key="c" x1="12" y1="5" x2="12" y2="1" />,
+  <line key="d" x1="10" y1="3" x2="14" y2="3" />,
+])
+
+export const InsertRowDownIcon = icon([
+  <rect key="a" x="4" y="4" width="16" height="10" rx="1" />,
+  <line key="b" x1="4" y1="9" x2="20" y2="9" />,
+  <line key="c" x1="12" y1="19" x2="12" y2="23" />,
+  <line key="d" x1="10" y1="21" x2="14" y2="21" />,
+])
+
+export const DeleteRowIcon = icon([
+  <rect key="a" x="4" y="3" width="16" height="6" rx="1" />,
+  <rect key="b" x="4" y="15" width="16" height="6" rx="1" />,
+  <line key="c" x1="8" y1="10.5" x2="11" y2="13.5" />,
+  <line key="d" x1="11" y1="10.5" x2="8" y2="13.5" />,
+])
+
+export const DeleteTableIcon = (props: IconProps) =>
+  createElement(
+    "svg",
+    { ...base, ...props },
+    <rect key="a" x="3" y="4" width="18" height="16" rx="2" />,
+    <line key="b" x1="3" y1="10" x2="21" y2="10" />,
+    <line key="c" x1="3" y1="16" x2="21" y2="16" />,
+    <line key="d" x1="10" y1="4" x2="10" y2="20" />,
+    <line key="e" x1="16" y1="4" x2="16" y2="20" />,
+    <line key="f" x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth={2.5} />,
+    <line key="g" x1="18" y1="6" x2="6" y2="18" stroke="currentColor" strokeWidth={2.5} />,
+  )

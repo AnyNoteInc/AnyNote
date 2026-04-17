@@ -1,10 +1,19 @@
 "use client"
 
-import AddCircleOutlineIcon from "@mui/icons-material/AddCircleOutline"
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline"
+import { createElement } from "react"
 import { IconButton, Paper, Stack, Tooltip } from "@mui/material"
 import type { Editor } from "@tiptap/core"
 import { BubbleMenu } from "@tiptap/react/menus"
+
+import {
+  DeleteColumnIcon,
+  DeleteRowIcon,
+  DeleteTableIcon,
+  InsertColumnLeftIcon,
+  InsertColumnRightIcon,
+  InsertRowDownIcon,
+  InsertRowUpIcon,
+} from "../assets/index"
 
 type Props = { editor: Editor }
 
@@ -20,33 +29,33 @@ export function TableToolbar({ editor }: Props) {
               size="small"
               onClick={() => editor.chain().focus().addColumnBefore().run()}
             >
-              <AddCircleOutlineIcon fontSize="small" sx={{ transform: "rotate(-90deg)" }} />
+              {createElement(InsertColumnLeftIcon)}
             </IconButton>
           </Tooltip>
           <Tooltip title="Добавить столбец справа">
             <IconButton size="small" onClick={() => editor.chain().focus().addColumnAfter().run()}>
-              <AddCircleOutlineIcon fontSize="small" sx={{ transform: "rotate(90deg)" }} />
+              {createElement(InsertColumnRightIcon)}
             </IconButton>
           </Tooltip>
           <Tooltip title="Удалить столбец">
             <IconButton size="small" onClick={() => editor.chain().focus().deleteColumn().run()}>
-              <DeleteOutlineIcon fontSize="small" sx={{ transform: "rotate(90deg)" }} />
+              {createElement(DeleteColumnIcon)}
             </IconButton>
           </Tooltip>
 
           <Tooltip title="Добавить строку сверху">
             <IconButton size="small" onClick={() => editor.chain().focus().addRowBefore().run()}>
-              <AddCircleOutlineIcon fontSize="small" />
+              {createElement(InsertRowUpIcon)}
             </IconButton>
           </Tooltip>
           <Tooltip title="Добавить строку снизу">
             <IconButton size="small" onClick={() => editor.chain().focus().addRowAfter().run()}>
-              <AddCircleOutlineIcon fontSize="small" sx={{ transform: "rotate(180deg)" }} />
+              {createElement(InsertRowDownIcon)}
             </IconButton>
           </Tooltip>
           <Tooltip title="Удалить строку">
             <IconButton size="small" onClick={() => editor.chain().focus().deleteRow().run()}>
-              <DeleteOutlineIcon fontSize="small" />
+              {createElement(DeleteRowIcon)}
             </IconButton>
           </Tooltip>
 
@@ -56,7 +65,7 @@ export function TableToolbar({ editor }: Props) {
               color="error"
               onClick={() => editor.chain().focus().deleteTable().run()}
             >
-              <DeleteOutlineIcon fontSize="small" />
+              {createElement(DeleteTableIcon)}
             </IconButton>
           </Tooltip>
         </Stack>
