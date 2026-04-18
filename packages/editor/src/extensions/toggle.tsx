@@ -2,7 +2,7 @@ import { Node, mergeAttributes } from "@tiptap/core"
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react"
 import type { NodeViewProps } from "@tiptap/react"
 import type { MouseEvent as ReactMouseEvent } from "react"
-import { IconButton } from "@mui/material"
+import { Box, IconButton } from "@mui/material"
 import ArrowRightOutlinedIcon from "@mui/icons-material/ArrowRightOutlined"
 
 function ToggleView({ node, updateAttributes }: NodeViewProps) {
@@ -15,27 +15,44 @@ function ToggleView({ node, updateAttributes }: NodeViewProps) {
   }
 
   return (
-    <NodeViewWrapper className="anynote-toggle" data-open={open}>
-      <IconButton
-        size="small"
-        onMouseDown={(e: ReactMouseEvent<HTMLButtonElement>) => e.preventDefault()}
-        onClick={handleToggle}
-        contentEditable={false}
-        className="anynote-toggle-arrow"
-        aria-label={open ? "Свернуть" : "Развернуть"}
+    <NodeViewWrapper className="anynote-toggle" data-open={open ? "true" : "false"}>
+      <Box
         sx={{
-          width: 20,
-          height: 20,
-          p: 0,
-          mt: "2px",
-          transform: open ? "rotate(90deg)" : "rotate(0deg)",
-          transition: "transform 120ms",
-          color: "text.secondary",
+          display: "flex",
+          alignItems: "flex-start",
+          gap: 1,
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: 1.5,
+          px: 1.5,
+          py: 1,
+          my: 0.5,
+          transition: "border-color .15s",
+          "&:hover": { borderColor: "text.secondary" },
         }}
       >
-        <ArrowRightOutlinedIcon sx={{ fontSize: 18 }} />
-      </IconButton>
-      <NodeViewContent className="anynote-toggle-content" as="div" />
+        <IconButton
+          size="small"
+          onMouseDown={(e: ReactMouseEvent<HTMLButtonElement>) => e.preventDefault()}
+          onClick={handleToggle}
+          contentEditable={false}
+          className="anynote-toggle-arrow"
+          aria-label={open ? "Свернуть" : "Развернуть"}
+          sx={{
+            width: 20,
+            height: 20,
+            p: 0,
+            mt: "2px",
+            flexShrink: 0,
+            transform: open ? "rotate(90deg)" : "rotate(0deg)",
+            transition: "transform 120ms",
+            color: "text.secondary",
+          }}
+        >
+          <ArrowRightOutlinedIcon sx={{ fontSize: 18 }} />
+        </IconButton>
+        <NodeViewContent className="anynote-toggle-content" as="div" />
+      </Box>
     </NodeViewWrapper>
   )
 }
@@ -51,7 +68,7 @@ export const Toggle = Node.create({
       open: {
         default: true,
         parseHTML: (el) => el.getAttribute("data-open") !== "false",
-        renderHTML: (attrs) => ({ "data-open": String(Boolean(attrs.open)) }),
+        renderHTML: (attrs) => ({ "data-open": attrs.open ? "true" : "false" }),
       },
     }
   },

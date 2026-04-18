@@ -7,7 +7,6 @@ export function editorHtmlToMarkdown(html: string): string {
     codeBlockStyle: "fenced",
   })
 
-  // Callout: blockquote with emoji prefix
   td.addRule("callout", {
     filter: (n) => {
       if (n.nodeName !== "DIV") return false
@@ -17,11 +16,10 @@ export function editorHtmlToMarkdown(html: string): string {
     replacement: (content, node) => {
       const el = node as HTMLElement
       const icon = el.dataset?.emoji ?? el.dataset?.icon ?? "💡"
-      return `\n\n> ${icon} ${content.trim()}\n\n`
+      return `\n> ${icon} ${content.trim()}\n`
     },
   })
 
-  // Toggle: <details><summary>...</summary>...</details>
   td.addRule("toggle", {
     filter: (n) => {
       if (n.nodeName !== "DIV") return false
@@ -30,14 +28,13 @@ export function editorHtmlToMarkdown(html: string): string {
     },
     replacement: (content) => {
       const trimmed = content.trim()
-      const lines = trimmed.split("\n")
+      const lines = trimmed.split("\n").filter((l) => l.length > 0)
       const summary = lines[0] ?? ""
-      const body = lines.slice(1).join("\n").trim()
-      return `\n\n<details>\n<summary>${summary}</summary>\n\n${body}\n\n</details>\n\n`
+      const body = lines.slice(1).join("\n")
+      return `\n<details>\n<summary>${summary}</summary>\n${body}\n</details>\n`
     },
   })
 
-  // HiddenText: best-effort span wrapper (MD has no masked text primitive)
   td.addRule("hiddenText", {
     filter: (n) => {
       if (n.nodeName !== "DIV") return false
@@ -47,7 +44,6 @@ export function editorHtmlToMarkdown(html: string): string {
     replacement: (content) => `<span class="hidden">${content.trim()}</span>`,
   })
 
-  // FileAttachment: [filename](url)
   td.addRule("fileAttachment", {
     filter: (n) => {
       if (n.nodeName !== "DIV") return false
@@ -62,5 +58,10 @@ export function editorHtmlToMarkdown(html: string): string {
     },
   })
 
-  return td.turndown(html)
+  // Turndown emits two newlines between most blocks for standard markdown.
+  // Callers found the extra blank lines noisy — collapse to single newlines
+  // (markdown renderers still treat these as paragraph breaks for rendering
+  // purposes because of hard line breaks at the block level).
+  const raw = td.turndown(html)
+  return raw.replace(/\n{2,}/g, "\n").trim() + "\n"
 }

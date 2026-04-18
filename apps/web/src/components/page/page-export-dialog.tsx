@@ -66,8 +66,12 @@ export function PageExportDialog({ open, onClose, pageId }: Props) {
 <meta charset="utf-8">
 <title>${escapeHtml(title)}</title>
 <style>
-body { font-family: -apple-system, system-ui, sans-serif; max-width: 800px; margin: 32px auto; padding: 0 16px; line-height: 1.6; color: #222; }
-pre { background: #f4f4f5; padding: 12px; border-radius: 6px; overflow: auto; }
+body { font-family: -apple-system, system-ui, sans-serif; max-width: 800px; margin: 32px auto; padding: 0 16px; line-height: 1.5; color: #222; }
+h1, h2, h3, h4, h5, h6 { margin: 0.6em 0 0.3em; }
+p, ul, ol, blockquote, pre { margin: 0.25em 0; }
+ul, ol { padding-left: 1.4em; }
+li { margin: 0.1em 0; }
+pre { background: #f4f4f5; padding: 10px; border-radius: 6px; overflow: auto; }
 code { font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace; }
 blockquote { border-left: 3px solid #d4d4d8; padding-left: 12px; color: #555; }
 img { max-width: 100%; height: auto; }
@@ -90,20 +94,28 @@ ${body}
     style.textContent = `
       @media print {
         nav, aside, .workspace-sidebar, .workspace-toolbar, .tiptap-drag-handle-wrapper,
-        .page-actions-toolbar, [class*="SlashMenu"] { display: none !important; }
-        body { padding: 0; margin: 0; }
+        .page-actions-toolbar, [class*="SlashMenu"],
+        .MuiDialog-root, .MuiBackdrop-root, .MuiPopover-root, .MuiModal-root {
+          display: none !important;
+        }
+        html, body { height: auto !important; overflow: visible !important; padding: 0; margin: 0; background: #fff !important; color: #000 !important; }
+        main, [data-full-width] { height: auto !important; overflow: visible !important; }
         .anynote-editor { max-width: none !important; padding: 24px !important; height: auto !important; }
+        .anynote-editor .ProseMirror { max-width: none !important; }
         @page { margin: 18mm; }
       }
     `
     document.head.appendChild(style)
+    // Close the MUI Dialog first so its focus trap releases and doesn't capture
+    // window.print; then fire print on the next tick when the dialog is out of
+    // the DOM.
+    onClose()
     const cleanup = () => {
       style.remove()
       window.removeEventListener("afterprint", cleanup)
     }
     window.addEventListener("afterprint", cleanup)
-    window.print()
-    onClose()
+    setTimeout(() => window.print(), 100)
   }, [onClose])
 
   return (

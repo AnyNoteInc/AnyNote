@@ -11,7 +11,12 @@ import ShortcutIcon from "@mui/icons-material/Shortcut"
 import SyncAltOutlinedIcon from "@mui/icons-material/SyncAltOutlined"
 
 import { blockDisplayName, isConvertible } from "../lib/block-names"
-import { convertBlock, CONVERSION_LABELS, type ConversionTarget } from "../lib/block-conversion"
+import {
+  convertBlock,
+  CONVERSION_ICONS,
+  CONVERSION_LABELS,
+  type ConversionTarget,
+} from "../lib/block-conversion"
 import { duplicateBlock } from "../lib/block-duplicate"
 import {
   BACKGROUND_COLOR_KEYS,
@@ -38,7 +43,10 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
   const [submenu, setSubmenu] = useState<Submenu>(null)
   const [submenuAnchor, setSubmenuAnchor] = useState<HTMLElement | null>(null)
 
-  const node = useMemo(() => (pos == null ? null : editor.state.doc.nodeAt(pos)), [editor, pos])
+  const node = useMemo(
+    () => (pos == null ? null : (editor.state.doc.resolve(pos).nodeAfter ?? null)),
+    [editor, pos],
+  )
   const displayName = node ? blockDisplayName(node) : ""
   const convertible = node ? isConvertible(node) : false
 
@@ -175,11 +183,19 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
         anchorOrigin={{ vertical: "top", horizontal: "right" }}
         transformOrigin={{ vertical: "top", horizontal: "left" }}
       >
-        {(Object.keys(CONVERSION_LABELS) as ConversionTarget[]).map((target) => (
-          <MenuItem key={target} onClick={() => handleConvert(target)}>
-            {CONVERSION_LABELS[target]}
-          </MenuItem>
-        ))}
+        {(Object.keys(CONVERSION_LABELS) as ConversionTarget[]).map((target) => {
+          const Icon = CONVERSION_ICONS[target]
+          return (
+            <MenuItem key={target} onClick={() => handleConvert(target)} sx={denseMenuItemSx}>
+              <ListItemIcon sx={{ minWidth: 24 }}>
+                <Icon width={16} height={16} />
+              </ListItemIcon>
+              <ListItemText primaryTypographyProps={{ fontSize: 13 }}>
+                {CONVERSION_LABELS[target]}
+              </ListItemText>
+            </MenuItem>
+          )
+        })}
       </Menu>
 
       <Menu
@@ -188,38 +204,51 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
         onClose={() => setSubmenu(null)}
         anchorOrigin={{ vertical: "top", horizontal: "right" }}
         transformOrigin={{ vertical: "top", horizontal: "left" }}
+        slotProps={{ paper: { sx: { minWidth: 160 } } }}
       >
-        <MenuItem disabled dense>
-          <Typography variant="caption" color="text.secondary">
-            Цвет текста
-          </Typography>
-        </MenuItem>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: "block", px: 1.25, pt: 0.5 }}
+        >
+          Цвет текста
+        </Typography>
         {TEXT_COLOR_KEYS.map((key) => (
-          <MenuItem key={`t-${key}`} onClick={() => handleTextColor(key)}>
-            <ListItemIcon>
-              <Swatch color={textColorSwatch(key)} />
-            </ListItemIcon>
-            <ListItemText>{TEXT_COLOR_LABELS[key]}</ListItemText>
+          <MenuItem key={`t-${key}`} onClick={() => handleTextColor(key)} sx={compactColorItemSx}>
+            <Swatch color={textColorSwatch(key)} />
+            <span>{TEXT_COLOR_LABELS[key]}</span>
           </MenuItem>
         ))}
-        <Divider />
-        <MenuItem disabled dense>
-          <Typography variant="caption" color="text.secondary">
-            Фон
-          </Typography>
-        </MenuItem>
+        <Divider sx={{ my: 0.25 }} />
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ display: "block", px: 1.25, pt: 0.5 }}
+        >
+          Фон
+        </Typography>
         {BACKGROUND_COLOR_KEYS.map((key) => (
-          <MenuItem key={`b-${key}`} onClick={() => handleBackground(key)}>
-            <ListItemIcon>
-              <Swatch color={backgroundColorSwatch(key)} />
-            </ListItemIcon>
-            <ListItemText>{BACKGROUND_COLOR_LABELS[key]}</ListItemText>
+          <MenuItem key={`b-${key}`} onClick={() => handleBackground(key)} sx={compactColorItemSx}>
+            <Swatch color={backgroundColorSwatch(key)} />
+            <span>{BACKGROUND_COLOR_LABELS[key]}</span>
           </MenuItem>
         ))}
       </Menu>
     </>
   )
 }
+
+const denseMenuItemSx = { py: 0.5 } as const
+
+const compactColorItemSx = {
+  display: "flex",
+  alignItems: "center",
+  gap: 1,
+  fontSize: 13,
+  py: 0.5,
+  px: 1.25,
+  minHeight: 28,
+} as const
 
 function Swatch({ color }: { color: string }) {
   return (
@@ -231,6 +260,7 @@ function Swatch({ color }: { color: string }) {
         border: "1px solid",
         borderColor: "divider",
         backgroundColor: color === "transparent" ? "transparent" : color,
+        flexShrink: 0,
       }}
     />
   )

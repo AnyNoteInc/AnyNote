@@ -3,7 +3,7 @@
 import "@excalidraw/excalidraw/index.css"
 import "./board.css"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Excalidraw } from "@excalidraw/excalidraw"
 import type { AppState, BinaryFiles, ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types"
 import type { OrderedExcalidrawElement, Theme } from "@excalidraw/excalidraw/element/types"
@@ -14,16 +14,31 @@ import { FilesHandler, type ExcalidrawFile } from "./files-handler"
 import type { BoardProps } from "./types"
 import { useExcalidrawYjs } from "./use-excalidraw-yjs"
 
+const DARK_BG = "#121212"
+const LIGHT_BG = "#ffffff"
+
 export function BoardInner(props: BoardProps) {
   const { pageId, yjsUrl, yjsToken, uploadHandler, user, editable = true, className } = props
 
   const muiTheme = useTheme()
   const excalidrawTheme: Theme = muiTheme.palette.mode === "dark" ? "dark" : "light"
+  const viewBackgroundColor = muiTheme.palette.mode === "dark" ? DARK_BG : LIGHT_BG
+
+  // Capture initial mode so Excalidraw mounts with the correct canvas background
+  // from the first paint — switching theme later still works via the useEffect
+  // below that pushes updateScene. Memoized against the first render.
+  const initialModeRef = useRef(muiTheme.palette.mode)
+  const initialData = useMemo(
+    () => ({
+      appState: {
+        viewBackgroundColor: initialModeRef.current === "dark" ? DARK_BG : LIGHT_BG,
+      },
+    }),
+    [],
+  )
 
   const resources = useExcalidrawYjs({ pageId, yjsUrl, yjsToken })
 
-  // Publish the local user's identity through the Yjs awareness channel so
-  // remote clients can render collaborator cursors/labels correctly.
   useEffect(() => {
     if (!user || !resources) return
     resources.provider.awareness?.setLocalStateField("user", {
@@ -37,7 +52,6 @@ export function BoardInner(props: BoardProps) {
 
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null)
 
-  // Binding requires the live imperative API, available only after onMount.
   useEffect(() => {
     if (!api || !resources) return
     const binding = new ExcalidrawBinding(
@@ -55,22 +69,23 @@ export function BoardInner(props: BoardProps) {
     setApi(a)
   }, [])
 
-  // Sync canvas background with MUI theme. Excalidraw's dark `theme` prop styles
-  // the chrome, but the canvas background comes from appState.viewBackgroundColor.
-  // We push the local theme-derived color via updateScene (no history commit) so
-  // the choice stays per-user and is not written to Yjs.
+  // On theme change after mount, push the new canvas background. Scheduled on
+  // a microtask so it runs after the binding's own scene updates, preventing
+  // a race where our write is immediately followed by a Yjs-driven no-op that
+  // undoes it.
   useEffect(() => {
     if (!api) return
-    const viewBackgroundColor = muiTheme.palette.mode === "dark" ? "#121212" : "#ffffff"
-    api.updateScene({
-      appState: { viewBackgroundColor },
-      captureUpdate: "NEVER",
-    })
-  }, [api, muiTheme.palette.mode])
+    const id = window.setTimeout(() => {
+      api.updateScene({
+        appState: { viewBackgroundColor },
+        captureUpdate: "NEVER",
+      })
+    }, 0)
+    return () => window.clearTimeout(id)
+  }, [api, viewBackgroundColor])
 
   const onChange = useCallback(
     (_elements: readonly OrderedExcalidrawElement[], _appState: AppState, fileMap: BinaryFiles) => {
-      // Upload newly-added images through the consumer-provided handler.
       void files.syncFiles(fileMap as unknown as Record<string, ExcalidrawFile>)
     },
     [files],
@@ -90,6 +105,7 @@ export function BoardInner(props: BoardProps) {
         excalidrawAPI={onMount}
         viewModeEnabled={!editable}
         theme={excalidrawTheme}
+        initialData={initialData}
         onChange={onChange}
       />
     </Box>

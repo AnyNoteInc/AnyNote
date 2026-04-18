@@ -26,7 +26,7 @@ export function WorkspaceShell({ sidebar, main, sidebarHidden }: Props) {
       }}
     >
       {sidebarHidden ? null : (
-        <Box className="workspace-sidebar" sx={{ minHeight: 0 }}>
+        <Box className="workspace-sidebar" sx={{ height: "100%", minHeight: 0, display: "flex" }}>
           {sidebar}
         </Box>
       )}
