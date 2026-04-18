@@ -1,6 +1,6 @@
 "use client"
 
-import { useRef, type MouseEvent } from "react"
+import { useRef, useState, type MouseEvent } from "react"
 import AddIcon from "@mui/icons-material/Add"
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator"
 import { Box, IconButton } from "@mui/material"
@@ -8,12 +8,19 @@ import type { Editor } from "@tiptap/core"
 import DragHandle from "@tiptap/extension-drag-handle-react"
 import type { Node as PMNode } from "@tiptap/pm/model"
 
-type Props = { editor: Editor }
+import { DragHandleMenu } from "./drag-handle-menu"
+
+type Props = {
+  editor: Editor
+  onRequestBlockMove?: (pos: number) => void
+}
 
 type HoverNodePos = { from: number; to: number; isEmpty: boolean } | null
 
-export function EditorDragHandle({ editor }: Props) {
+export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
   const hoverNodeRef = useRef<HoverNodePos>(null)
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
+  const [menuPos, setMenuPos] = useState<number | null>(null)
 
   const onNodeChange = ({ node, pos }: { node: PMNode | null; editor: Editor; pos: number }) => {
     if (!node) {
@@ -84,30 +91,63 @@ export function EditorDragHandle({ editor }: Props) {
       .run()
   }
 
+  const openBlockMenu = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+    event.preventDefault()
+    const info = hoverNodeRef.current
+    if (!info) return
+    setMenuAnchor(event.currentTarget)
+    setMenuPos(info.from)
+  }
+
+  const closeBlockMenu = () => {
+    setMenuAnchor(null)
+    setMenuPos(null)
+  }
+
   return (
-    <DragHandle editor={editor} onNodeChange={onNodeChange} onElementDragStart={onElementDragStart}>
-      <Box
-        className="tiptap-drag-handle-wrapper"
-        sx={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 0.25,
-          color: "text.disabled",
-        }}
+    <>
+      <DragHandle
+        editor={editor}
+        onNodeChange={onNodeChange}
+        onElementDragStart={onElementDragStart}
       >
-        <IconButton
-          size="small"
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={openSlashMenu}
-          sx={{ p: 0.25, color: "text.secondary" }}
-          aria-label="Добавить блок"
+        <Box
+          className="tiptap-drag-handle-wrapper"
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.25,
+            color: "text.disabled",
+          }}
         >
-          <AddIcon fontSize="small" />
-        </IconButton>
-        <Box sx={{ cursor: "grab", display: "inline-flex", alignItems: "center", p: 0.25 }}>
-          <DragIndicatorIcon fontSize="small" />
+          <IconButton
+            size="small"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={openSlashMenu}
+            sx={{ p: 0.25, color: "text.secondary" }}
+            aria-label="Добавить блок"
+          >
+            <AddIcon fontSize="small" />
+          </IconButton>
+          <IconButton
+            size="small"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={openBlockMenu}
+            sx={{ p: 0.25, cursor: "grab", color: "text.secondary" }}
+            aria-label="Действия блока"
+          >
+            <DragIndicatorIcon fontSize="small" />
+          </IconButton>
         </Box>
-      </Box>
-    </DragHandle>
+      </DragHandle>
+      <DragHandleMenu
+        editor={editor}
+        anchorEl={menuAnchor}
+        pos={menuPos}
+        onClose={closeBlockMenu}
+        onRequestMove={(pos) => onRequestBlockMove?.(pos)}
+      />
+    </>
   )
 }

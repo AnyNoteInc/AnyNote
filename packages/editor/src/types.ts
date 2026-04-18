@@ -44,6 +44,8 @@ export type AnyNoteEditorProps = {
   editable?: boolean
   className?: string
   placeholder?: string
+  onReady?: (editor: Editor) => void
+  onRequestBlockMove?: (pos: number) => void
 }
 
 export type SlashCommandItem = {
