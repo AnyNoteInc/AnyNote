@@ -61,11 +61,7 @@ export const Toggle = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return [
-      "div",
-      mergeAttributes(HTMLAttributes, { "data-type": "toggle" }),
-      0,
-    ]
+    return ["div", mergeAttributes(HTMLAttributes, { "data-type": "toggle" }), 0]
   },
 
   addNodeView() {
@@ -83,10 +79,13 @@ export const Toggle = Node.create({
           if (node.type.name !== "toggle") continue
           if (node.attrs.open) return false
           const pos = $from.before(depth)
-          editor.chain().command(({ tr }) => {
-            tr.setNodeMarkup(pos, undefined, { ...node.attrs, open: true })
-            return true
-          }).run()
+          editor
+            .chain()
+            .command(({ tr }) => {
+              tr.setNodeMarkup(pos, undefined, { ...node.attrs, open: true })
+              return true
+            })
+            .run()
           return false
         }
         return false

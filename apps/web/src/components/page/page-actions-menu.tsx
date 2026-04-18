@@ -38,13 +38,7 @@ type Props = {
 
 const menuItemSx = { gap: 1, fontSize: 13 } as const
 
-export function PageActionsMenu({
-  pageId,
-  pageTitle,
-  workspaceId,
-  pageType,
-  isFavorite,
-}: Props) {
+export function PageActionsMenu({ pageId, pageTitle, workspaceId, pageType, isFavorite }: Props) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const [exportOpen, setExportOpen] = useState(false)
   const [moveOpen, setMoveOpen] = useState(false)
@@ -139,11 +133,7 @@ export function PageActionsMenu({
 
         <Divider />
 
-        <MenuItem
-          onClick={handleOpenExport}
-          sx={menuItemSx}
-          disabled={pageType !== "TEXT"}
-        >
+        <MenuItem onClick={handleOpenExport} sx={menuItemSx} disabled={pageType !== "TEXT"}>
           <ListItemIcon>
             <PublishIcon fontSize="small" />
           </ListItemIcon>
@@ -163,11 +153,7 @@ export function PageActionsMenu({
         />
       ) : null}
 
-      <PageExportDialog
-        open={exportOpen}
-        onClose={() => setExportOpen(false)}
-        pageId={pageId}
-      />
+      <PageExportDialog open={exportOpen} onClose={() => setExportOpen(false)} pageId={pageId} />
     </>
   )
 }

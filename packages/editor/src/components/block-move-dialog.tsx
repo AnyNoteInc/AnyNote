@@ -2,13 +2,7 @@
 
 import type { ReactNode } from "react"
 
-import {
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-} from "@mui/material"
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle } from "@mui/material"
 
 type Props = {
   open: boolean
@@ -19,14 +13,7 @@ type Props = {
   canConfirm: boolean
 }
 
-export function BlockMoveDialog({
-  open,
-  onClose,
-  onConfirm,
-  busy,
-  treePicker,
-  canConfirm,
-}: Props) {
+export function BlockMoveDialog({ open, onClose, onConfirm, busy, treePicker, canConfirm }: Props) {
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Переместить блок на страницу</DialogTitle>
@@ -35,11 +22,7 @@ export function BlockMoveDialog({
       </DialogContent>
       <DialogActions>
         <Button onClick={onClose}>Отмена</Button>
-        <Button
-          onClick={onConfirm}
-          disabled={!canConfirm || Boolean(busy)}
-          variant="contained"
-        >
+        <Button onClick={onConfirm} disabled={!canConfirm || Boolean(busy)} variant="contained">
           {busy ? "Перемещение…" : "Переместить"}
         </Button>
       </DialogActions>

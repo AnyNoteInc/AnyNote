@@ -16,45 +16,45 @@
 
 ### New files
 
-| Path | Responsibility |
-|---|---|
-| `packages/editor/src/lib/block-names.ts` | Localized Russian display names for block node types |
-| `packages/editor/src/lib/color-palette.ts` | Keyword color list + labels + helpers |
-| `packages/editor/src/lib/block-conversion.ts` | "Convert to" command dispatch |
-| `packages/editor/src/lib/block-duplicate.ts` | Duplicate block at position |
-| `packages/editor/src/lib/block-move.ts` | Cross-page block move via headless Yjs |
-| `packages/editor/src/extensions/text-color.ts` | `anynoteTextColor` TipTap mark |
-| `packages/editor/src/extensions/block-background.ts` | Global `backgroundColor` attribute on block nodes |
-| `packages/editor/src/extensions/toggle.tsx` | Collapsible container block |
-| `packages/editor/src/extensions/hidden-text.tsx` | Masked-content block |
-| `packages/editor/src/components/drag-handle-menu.tsx` | MUI Menu + color/convert submenus on drag handle |
-| `packages/editor/src/components/block-move-dialog.tsx` | Dialog wrapping shared page tree picker |
-| `apps/web/src/components/workspace/page-tree-picker.tsx` | Extracted shared tree picker (from `MovePageDialog`) |
-| `apps/web/src/hooks/use-page-actions.tsx` | Shared page actions (duplicate/move/delete/favorite/copyLink) |
-| `apps/web/src/hooks/use-full-width.ts` | Per-page full-width state via localStorage |
-| `apps/web/src/components/page/page-actions-toolbar.tsx` | Star + MoreHoriz host for breadcrumbs right slot |
-| `apps/web/src/components/page/page-actions-menu.tsx` | MoreHoriz menu: copy/dup/move/delete/full-width/export |
-| `apps/web/src/components/page/page-export-dialog.tsx` | PDF / Markdown / HTML export entry |
-| `apps/web/src/components/page/favorite-star.tsx` | Star toggle using usePageActions |
-| `apps/web/src/lib/editor-to-markdown.ts` | turndown instance with custom rules |
+| Path                                                     | Responsibility                                                |
+| -------------------------------------------------------- | ------------------------------------------------------------- |
+| `packages/editor/src/lib/block-names.ts`                 | Localized Russian display names for block node types          |
+| `packages/editor/src/lib/color-palette.ts`               | Keyword color list + labels + helpers                         |
+| `packages/editor/src/lib/block-conversion.ts`            | "Convert to" command dispatch                                 |
+| `packages/editor/src/lib/block-duplicate.ts`             | Duplicate block at position                                   |
+| `packages/editor/src/lib/block-move.ts`                  | Cross-page block move via headless Yjs                        |
+| `packages/editor/src/extensions/text-color.ts`           | `anynoteTextColor` TipTap mark                                |
+| `packages/editor/src/extensions/block-background.ts`     | Global `backgroundColor` attribute on block nodes             |
+| `packages/editor/src/extensions/toggle.tsx`              | Collapsible container block                                   |
+| `packages/editor/src/extensions/hidden-text.tsx`         | Masked-content block                                          |
+| `packages/editor/src/components/drag-handle-menu.tsx`    | MUI Menu + color/convert submenus on drag handle              |
+| `packages/editor/src/components/block-move-dialog.tsx`   | Dialog wrapping shared page tree picker                       |
+| `apps/web/src/components/workspace/page-tree-picker.tsx` | Extracted shared tree picker (from `MovePageDialog`)          |
+| `apps/web/src/hooks/use-page-actions.tsx`                | Shared page actions (duplicate/move/delete/favorite/copyLink) |
+| `apps/web/src/hooks/use-full-width.ts`                   | Per-page full-width state via localStorage                    |
+| `apps/web/src/components/page/page-actions-toolbar.tsx`  | Star + MoreHoriz host for breadcrumbs right slot              |
+| `apps/web/src/components/page/page-actions-menu.tsx`     | MoreHoriz menu: copy/dup/move/delete/full-width/export        |
+| `apps/web/src/components/page/page-export-dialog.tsx`    | PDF / Markdown / HTML export entry                            |
+| `apps/web/src/components/page/favorite-star.tsx`         | Star toggle using usePageActions                              |
+| `apps/web/src/lib/editor-to-markdown.ts`                 | turndown instance with custom rules                           |
 
 ### Modified files
 
-| Path | Change |
-|---|---|
-| `packages/excalidraw/src/board-inner.tsx` | Sync `viewBackgroundColor` with MUI theme |
-| `packages/editor/src/extensions/index.ts` | Register TextColor / BlockBackground / Toggle / HiddenText |
-| `packages/editor/src/slash-items.ts` | Add toggle + hidden slash commands |
-| `packages/editor/src/styles/content.css` | CSS palette + block-level rules for toggle/hidden |
-| `packages/editor/src/components/drag-handle.tsx` | Click-to-open menu on drag indicator icon |
-| `packages/editor/src/anynote-editor.tsx` | Forward editor instance for export + move helpers |
-| `packages/editor/src/index.ts` | Export helpers/components consumed by app |
-| `apps/web/src/components/workspace/workspace-toolbar.tsx` | Add optional `rightSlot` prop |
-| `apps/web/src/components/workspace/page-context-menu.tsx` | Reuse `usePageActions` hook |
-| `apps/web/src/components/workspace/move-page-dialog.tsx` | Compose extracted `PageTreePicker` |
-| `apps/web/src/app/(protected)/workspaces/[wsId]/pages/[pageId]/page.tsx` | Mount `PageActionsToolbar` and pass to toolbar |
-| `apps/web/package.json` | Add `turndown` dep |
-| `apps/e2e/editor-extensions.spec.ts` | New E2E specs (end of plan) |
+| Path                                                                     | Change                                                     |
+| ------------------------------------------------------------------------ | ---------------------------------------------------------- |
+| `packages/excalidraw/src/board-inner.tsx`                                | Sync `viewBackgroundColor` with MUI theme                  |
+| `packages/editor/src/extensions/index.ts`                                | Register TextColor / BlockBackground / Toggle / HiddenText |
+| `packages/editor/src/slash-items.ts`                                     | Add toggle + hidden slash commands                         |
+| `packages/editor/src/styles/content.css`                                 | CSS palette + block-level rules for toggle/hidden          |
+| `packages/editor/src/components/drag-handle.tsx`                         | Click-to-open menu on drag indicator icon                  |
+| `packages/editor/src/anynote-editor.tsx`                                 | Forward editor instance for export + move helpers          |
+| `packages/editor/src/index.ts`                                           | Export helpers/components consumed by app                  |
+| `apps/web/src/components/workspace/workspace-toolbar.tsx`                | Add optional `rightSlot` prop                              |
+| `apps/web/src/components/workspace/page-context-menu.tsx`                | Reuse `usePageActions` hook                                |
+| `apps/web/src/components/workspace/move-page-dialog.tsx`                 | Compose extracted `PageTreePicker`                         |
+| `apps/web/src/app/(protected)/workspaces/[wsId]/pages/[pageId]/page.tsx` | Mount `PageActionsToolbar` and pass to toolbar             |
+| `apps/web/package.json`                                                  | Add `turndown` dep                                         |
+| `apps/e2e/editor-extensions.spec.ts`                                     | New E2E specs (end of plan)                                |
 
 ---
 
@@ -63,6 +63,7 @@
 ### Task 1: Sync Excalidraw canvas background with MUI theme
 
 **Files:**
+
 - Modify: `packages/excalidraw/src/board-inner.tsx`
 
 - [ ] **Step 1: Add theme-aware viewBackgroundColor effect**
@@ -118,6 +119,7 @@ git commit -m "fix(excalidraw): sync canvas background with MUI theme"
 ### Task 2: Block display names map
 
 **Files:**
+
 - Create: `packages/editor/src/lib/block-names.ts`
 
 - [ ] **Step 1: Write the full display-name map**
@@ -180,6 +182,7 @@ git commit -m "feat(editor): block display names + convertibility helper"
 ### Task 3: Color palette constants + CSS variables
 
 **Files:**
+
 - Create: `packages/editor/src/lib/color-palette.ts`
 - Modify: `packages/editor/src/styles/content.css`
 
@@ -242,68 +245,104 @@ Open `packages/editor/src/styles/content.css` and append at the end:
 ```css
 /* === Anynote color palette (keyword-driven, theme-aware) === */
 :root {
-  --anynote-color-gray:   #6b6b6b;
-  --anynote-color-brown:  #8a5d3d;
+  --anynote-color-gray: #6b6b6b;
+  --anynote-color-brown: #8a5d3d;
   --anynote-color-orange: #b45309;
   --anynote-color-yellow: #a16207;
-  --anynote-color-green:  #347d47;
-  --anynote-color-blue:   #1a6bb3;
+  --anynote-color-green: #347d47;
+  --anynote-color-blue: #1a6bb3;
   --anynote-color-purple: #6b3fa0;
-  --anynote-color-pink:   #b5338e;
-  --anynote-color-red:    #b42318;
+  --anynote-color-pink: #b5338e;
+  --anynote-color-red: #b42318;
 
-  --anynote-bg-gray:   rgba(107, 107, 107, 0.12);
-  --anynote-bg-brown:  rgba(138, 93, 61, 0.14);
+  --anynote-bg-gray: rgba(107, 107, 107, 0.12);
+  --anynote-bg-brown: rgba(138, 93, 61, 0.14);
   --anynote-bg-orange: rgba(180, 83, 9, 0.14);
   --anynote-bg-yellow: rgba(161, 98, 7, 0.14);
-  --anynote-bg-green:  rgba(52, 125, 71, 0.14);
-  --anynote-bg-blue:   rgba(26, 107, 179, 0.14);
+  --anynote-bg-green: rgba(52, 125, 71, 0.14);
+  --anynote-bg-blue: rgba(26, 107, 179, 0.14);
   --anynote-bg-purple: rgba(107, 63, 160, 0.14);
-  --anynote-bg-pink:   rgba(181, 51, 142, 0.14);
-  --anynote-bg-red:    rgba(180, 35, 24, 0.14);
+  --anynote-bg-pink: rgba(181, 51, 142, 0.14);
+  --anynote-bg-red: rgba(180, 35, 24, 0.14);
 }
 
 [data-mui-color-scheme="dark"] {
-  --anynote-color-gray:   #b5bac0;
-  --anynote-color-brown:  #c9a07a;
+  --anynote-color-gray: #b5bac0;
+  --anynote-color-brown: #c9a07a;
   --anynote-color-orange: #e58a2b;
   --anynote-color-yellow: #d7b54c;
-  --anynote-color-green:  #6fd389;
-  --anynote-color-blue:   #7cbcff;
+  --anynote-color-green: #6fd389;
+  --anynote-color-blue: #7cbcff;
   --anynote-color-purple: #c395f0;
-  --anynote-color-pink:   #f09ad0;
-  --anynote-color-red:    #f28a80;
+  --anynote-color-pink: #f09ad0;
+  --anynote-color-red: #f28a80;
 
-  --anynote-bg-gray:   rgba(181, 186, 192, 0.22);
-  --anynote-bg-brown:  rgba(201, 160, 122, 0.22);
+  --anynote-bg-gray: rgba(181, 186, 192, 0.22);
+  --anynote-bg-brown: rgba(201, 160, 122, 0.22);
   --anynote-bg-orange: rgba(229, 138, 43, 0.22);
   --anynote-bg-yellow: rgba(215, 181, 76, 0.22);
-  --anynote-bg-green:  rgba(111, 211, 137, 0.22);
-  --anynote-bg-blue:   rgba(124, 188, 255, 0.22);
+  --anynote-bg-green: rgba(111, 211, 137, 0.22);
+  --anynote-bg-blue: rgba(124, 188, 255, 0.22);
   --anynote-bg-purple: rgba(195, 149, 240, 0.22);
-  --anynote-bg-pink:   rgba(240, 154, 208, 0.22);
-  --anynote-bg-red:    rgba(242, 138, 128, 0.22);
+  --anynote-bg-pink: rgba(240, 154, 208, 0.22);
+  --anynote-bg-red: rgba(242, 138, 128, 0.22);
 }
 
-.anynote-color-gray   { color: var(--anynote-color-gray); }
-.anynote-color-brown  { color: var(--anynote-color-brown); }
-.anynote-color-orange { color: var(--anynote-color-orange); }
-.anynote-color-yellow { color: var(--anynote-color-yellow); }
-.anynote-color-green  { color: var(--anynote-color-green); }
-.anynote-color-blue   { color: var(--anynote-color-blue); }
-.anynote-color-purple { color: var(--anynote-color-purple); }
-.anynote-color-pink   { color: var(--anynote-color-pink); }
-.anynote-color-red    { color: var(--anynote-color-red); }
+.anynote-color-gray {
+  color: var(--anynote-color-gray);
+}
+.anynote-color-brown {
+  color: var(--anynote-color-brown);
+}
+.anynote-color-orange {
+  color: var(--anynote-color-orange);
+}
+.anynote-color-yellow {
+  color: var(--anynote-color-yellow);
+}
+.anynote-color-green {
+  color: var(--anynote-color-green);
+}
+.anynote-color-blue {
+  color: var(--anynote-color-blue);
+}
+.anynote-color-purple {
+  color: var(--anynote-color-purple);
+}
+.anynote-color-pink {
+  color: var(--anynote-color-pink);
+}
+.anynote-color-red {
+  color: var(--anynote-color-red);
+}
 
-.anynote-bg-gray   { background-color: var(--anynote-bg-gray); }
-.anynote-bg-brown  { background-color: var(--anynote-bg-brown); }
-.anynote-bg-orange { background-color: var(--anynote-bg-orange); }
-.anynote-bg-yellow { background-color: var(--anynote-bg-yellow); }
-.anynote-bg-green  { background-color: var(--anynote-bg-green); }
-.anynote-bg-blue   { background-color: var(--anynote-bg-blue); }
-.anynote-bg-purple { background-color: var(--anynote-bg-purple); }
-.anynote-bg-pink   { background-color: var(--anynote-bg-pink); }
-.anynote-bg-red    { background-color: var(--anynote-bg-red); }
+.anynote-bg-gray {
+  background-color: var(--anynote-bg-gray);
+}
+.anynote-bg-brown {
+  background-color: var(--anynote-bg-brown);
+}
+.anynote-bg-orange {
+  background-color: var(--anynote-bg-orange);
+}
+.anynote-bg-yellow {
+  background-color: var(--anynote-bg-yellow);
+}
+.anynote-bg-green {
+  background-color: var(--anynote-bg-green);
+}
+.anynote-bg-blue {
+  background-color: var(--anynote-bg-blue);
+}
+.anynote-bg-purple {
+  background-color: var(--anynote-bg-purple);
+}
+.anynote-bg-pink {
+  background-color: var(--anynote-bg-pink);
+}
+.anynote-bg-red {
+  background-color: var(--anynote-bg-red);
+}
 
 /* Block-level background keeps padding/radius so highlights look intentional */
 .anynote-editor [class*="anynote-bg-"] {
@@ -342,6 +381,7 @@ git commit -m "feat(editor): color palette constants and CSS variables"
 ### Task 4: TextColor mark extension
 
 **Files:**
+
 - Create: `packages/editor/src/extensions/text-color.ts`
 
 - [ ] **Step 1: Write the mark**
@@ -429,6 +469,7 @@ git commit -m "feat(editor): anynoteTextColor mark"
 ### Task 5: BlockBackground global attribute extension
 
 **Files:**
+
 - Create: `packages/editor/src/extensions/block-background.ts`
 
 - [ ] **Step 1: Write the extension**
@@ -532,6 +573,7 @@ git commit -m "feat(editor): blockBackground global attribute extension"
 ### Task 6: Register TextColor + BlockBackground in extensions index
 
 **Files:**
+
 - Modify: `packages/editor/src/extensions/index.ts`
 
 - [ ] **Step 1: Add imports and entries**
@@ -576,6 +618,7 @@ git commit -m "feat(editor): register text-color and block-background extensions
 ### Task 7: Toggle block extension
 
 **Files:**
+
 - Create: `packages/editor/src/extensions/toggle.tsx`
 - Modify: `packages/editor/src/styles/content.css`
 
@@ -650,11 +693,7 @@ export const Toggle = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return [
-      "div",
-      mergeAttributes(HTMLAttributes, { "data-type": "toggle" }),
-      0,
-    ]
+    return ["div", mergeAttributes(HTMLAttributes, { "data-type": "toggle" }), 0]
   },
 
   addNodeView() {
@@ -672,10 +711,13 @@ export const Toggle = Node.create({
           if (node.type.name !== "toggle") continue
           if (node.attrs.open) return false
           const pos = $from.before(depth)
-          editor.chain().command(({ tr }) => {
-            tr.setNodeMarkup(pos, undefined, { ...node.attrs, open: true })
-            return true
-          }).run()
+          editor
+            .chain()
+            .command(({ tr }) => {
+              tr.setNodeMarkup(pos, undefined, { ...node.attrs, open: true })
+              return true
+            })
+            .run()
           return false
         }
         return false
@@ -720,6 +762,7 @@ git commit -m "feat(editor): toggle block extension"
 ### Task 8: HiddenText block extension
 
 **Files:**
+
 - Create: `packages/editor/src/extensions/hidden-text.tsx`
 - Modify: `packages/editor/src/styles/content.css`
 
@@ -777,11 +820,7 @@ export const HiddenText = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return [
-      "div",
-      mergeAttributes(HTMLAttributes, { "data-type": "hidden-text" }),
-      0,
-    ]
+    return ["div", mergeAttributes(HTMLAttributes, { "data-type": "hidden-text" }), 0]
   },
 
   addNodeView() {
@@ -838,6 +877,7 @@ git commit -m "feat(editor): hidden-text block extension"
 ### Task 9: Register Toggle + HiddenText, add slash-menu items
 
 **Files:**
+
 - Modify: `packages/editor/src/extensions/index.ts`
 - Modify: `packages/editor/src/slash-items.ts`
 
@@ -916,6 +956,7 @@ Expected: no errors.
 - [ ] **Step 4: Smoke-test in browser**
 
 With dev servers running, open a text page. Open slash menu (`/`), scroll to see "Переключатель" and "Скрытый текст". Click each:
+
 - Toggle: expect a collapsible block with an arrow on the left.
 - HiddenText: expect a block with an eye icon and masked content when typed.
 
@@ -935,6 +976,7 @@ git commit -m "feat(editor): toggle and hidden-text slash menu items"
 ### Task 10: Block duplicate + block conversion libs
 
 **Files:**
+
 - Create: `packages/editor/src/lib/block-duplicate.ts`
 - Create: `packages/editor/src/lib/block-conversion.ts`
 
@@ -1023,6 +1065,7 @@ git commit -m "feat(editor): block duplicate and conversion helpers"
 ### Task 11: DragHandleMenu component (without move)
 
 **Files:**
+
 - Create: `packages/editor/src/components/drag-handle-menu.tsx`
 
 - [ ] **Step 1: Write the menu component**
@@ -1096,21 +1139,33 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
 
   const handleConvert = (target: ConversionTarget) => {
     if (pos == null) return
-    editor.chain().focus().setTextSelection(pos + 1).run()
+    editor
+      .chain()
+      .focus()
+      .setTextSelection(pos + 1)
+      .run()
     convertBlock(editor, target)
     handleClose()
   }
 
   const handleTextColor = (color: TextColorKey) => {
     if (pos == null || !node) return
-    editor.chain().focus().setTextSelection({ from: pos + 1, to: pos + node.nodeSize - 1 }).run()
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from: pos + 1, to: pos + node.nodeSize - 1 })
+      .run()
     editor.chain().focus().setAnynoteTextColor(color).run()
     handleClose()
   }
 
   const handleBackground = (color: BackgroundColorKey) => {
     if (pos == null || !node) return
-    editor.chain().focus().setTextSelection({ from: pos + 1, to: pos + node.nodeSize - 1 }).run()
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from: pos + 1, to: pos + node.nodeSize - 1 })
+      .run()
     editor.chain().focus().setBlockBackground(color).run()
     handleClose()
   }
@@ -1123,7 +1178,11 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
 
   const handleDelete = () => {
     if (pos == null || !node) return
-    editor.chain().focus().deleteRange({ from: pos, to: pos + node.nodeSize }).run()
+    editor
+      .chain()
+      .focus()
+      .deleteRange({ from: pos, to: pos + node.nodeSize })
+      .run()
     handleClose()
   }
 
@@ -1153,7 +1212,9 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
               <SyncAltOutlinedIcon fontSize="small" />
             </ListItemIcon>
             <ListItemText>Превратить в</ListItemText>
-            <Typography variant="caption" color="text.secondary">▸</Typography>
+            <Typography variant="caption" color="text.secondary">
+              ▸
+            </Typography>
           </MenuItem>
         )}
 
@@ -1162,7 +1223,9 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
             <FormatPaintOutlinedIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>Цвет</ListItemText>
-          <Typography variant="caption" color="text.secondary">▸</Typography>
+          <Typography variant="caption" color="text.secondary">
+            ▸
+          </Typography>
         </MenuItem>
 
         <Divider />
@@ -1211,7 +1274,9 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
         transformOrigin={{ vertical: "top", horizontal: "left" }}
       >
         <MenuItem disabled dense>
-          <Typography variant="caption" color="text.secondary">Цвет текста</Typography>
+          <Typography variant="caption" color="text.secondary">
+            Цвет текста
+          </Typography>
         </MenuItem>
         {TEXT_COLOR_KEYS.map((key) => (
           <MenuItem key={`t-${key}`} onClick={() => handleTextColor(key)}>
@@ -1223,7 +1288,9 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
         ))}
         <Divider />
         <MenuItem disabled dense>
-          <Typography variant="caption" color="text.secondary">Фон</Typography>
+          <Typography variant="caption" color="text.secondary">
+            Фон
+          </Typography>
         </MenuItem>
         {BACKGROUND_COLOR_KEYS.map((key) => (
           <MenuItem key={`b-${key}`} onClick={() => handleBackground(key)}>
@@ -1268,6 +1335,7 @@ git commit -m "feat(editor): drag handle menu component (without move)"
 ### Task 12: Wire menu into drag handle
 
 **Files:**
+
 - Modify: `packages/editor/src/components/drag-handle.tsx`
 - Modify: `packages/editor/src/anynote-editor.tsx`
 
@@ -1283,8 +1351,9 @@ const [menuPos, setMenuPos] = useState<number | null>(null)
 
 const handleOpenMenu = (e: React.MouseEvent<HTMLElement>) => {
   e.stopPropagation()
-  const pos = /* however the component gets current hovered-block pos */
-  setMenuAnchor(e.currentTarget)
+  const pos =
+    /* however the component gets current hovered-block pos */
+    setMenuAnchor(e.currentTarget)
   setMenuPos(pos)
 }
 ```
@@ -1345,6 +1414,7 @@ git commit -m "feat(editor): drag handle click opens block menu"
 ### Task 13: Extract PageTreePicker from MovePageDialog
 
 **Files:**
+
 - Create: `apps/web/src/components/workspace/page-tree-picker.tsx`
 - Modify: `apps/web/src/components/workspace/move-page-dialog.tsx`
 
@@ -1393,17 +1463,13 @@ export function PageTreePicker({ workspaceId, excludePageIds, onSelect, selected
   return (
     <List dense>
       <ListItemButton selected={selectedId === null} onClick={() => onSelect(null)}>
-        <ListItemIcon><FolderIcon fontSize="small" /></ListItemIcon>
+        <ListItemIcon>
+          <FolderIcon fontSize="small" />
+        </ListItemIcon>
         <ListItemText>Корень пространства</ListItemText>
       </ListItemButton>
       {tree.map((node) => (
-        <TreeRow
-          key={node.id}
-          node={node}
-          depth={0}
-          selectedId={selectedId}
-          onSelect={onSelect}
-        />
+        <TreeRow key={node.id} node={node} depth={0} selectedId={selectedId} onSelect={onSelect} />
       ))}
     </List>
   )
@@ -1510,6 +1576,7 @@ git commit -m "refactor(web): extract PageTreePicker from MovePageDialog"
 ### Task 14: Block move logic (headless Yjs insert)
 
 **Files:**
+
 - Create: `packages/editor/src/lib/block-move.ts`
 - Create: `packages/editor/src/components/block-move-dialog.tsx`
 - Modify: `packages/editor/src/index.ts`
@@ -1530,7 +1597,7 @@ type MoveBlockParams = {
   targetPageId: string
   yjsUrl: string
   token: string
-  fragmentField?: string  // defaults to "prosemirror"
+  fragmentField?: string // defaults to "prosemirror"
 }
 
 export type MoveBlockResult = { ok: true } | { ok: false; error: string }
@@ -1597,7 +1664,11 @@ export async function moveBlockToPage({
     // Wait a tick for the update to propagate through Hocuspocus to the server.
     await new Promise<void>((resolve) => setTimeout(resolve, 150))
 
-    editor.chain().focus().deleteRange({ from: sourcePos, to: sourcePos + nodeSize }).run()
+    editor
+      .chain()
+      .focus()
+      .deleteRange({ from: sourcePos, to: sourcePos + nodeSize })
+      .run()
 
     return { ok: true }
   } catch (err) {
@@ -1621,31 +1692,18 @@ Content of `packages/editor/src/components/block-move-dialog.tsx`:
 import { useState } from "react"
 import type { ReactNode } from "react"
 
-import {
-  Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
-} from "@repo/ui/components"
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle } from "@repo/ui/components"
 
 type Props = {
   open: boolean
   onClose: () => void
   onConfirm: (targetPageId: string) => void
   busy?: boolean
-  treePicker: ReactNode  // consumer supplies a <PageTreePicker onSelect={setSelected} selectedId={selected}/>
+  treePicker: ReactNode // consumer supplies a <PageTreePicker onSelect={setSelected} selectedId={selected}/>
   selectedId: string | null
 }
 
-export function BlockMoveDialog({
-  open,
-  onClose,
-  onConfirm,
-  busy,
-  treePicker,
-  selectedId,
-}: Props) {
+export function BlockMoveDialog({ open, onClose, onConfirm, busy, treePicker, selectedId }: Props) {
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Переместить блок на страницу</DialogTitle>
@@ -1691,6 +1749,7 @@ git commit -m "feat(editor): block move dialog + headless Yjs insert logic"
 ### Task 15: Wire block move into page-renderer
 
 **Files:**
+
 - Modify: `apps/web/src/components/page/page-renderer.tsx`
 
 - [ ] **Step 1: Add state + dialog mount**
@@ -1704,7 +1763,7 @@ const [moveBusy, setMoveBusy] = useState(false)
 
 const editorRef = useRef<Editor | null>(null)
 
-const tokenQuery = trpc.yjs.issueToken.useMutation()  // or wherever the token endpoint lives
+const tokenQuery = trpc.yjs.issueToken.useMutation() // or wherever the token endpoint lives
 const router = useRouter()
 const { workspaceId } = useParams()
 
@@ -1808,6 +1867,7 @@ git commit -m "feat(editor): wire block move across pages in page-renderer"
 ### Task 16: Extract `usePageActions` hook
 
 **Files:**
+
 - Create: `apps/web/src/hooks/use-page-actions.tsx`
 - Modify: `apps/web/src/components/workspace/page-context-menu.tsx`
 
@@ -1998,6 +2058,7 @@ git commit -m "refactor(web): extract usePageActions shared hook"
 ### Task 17: FavoriteStar + useFullWidth + PageActionsMenu (without export)
 
 **Files:**
+
 - Create: `apps/web/src/components/page/favorite-star.tsx`
 - Create: `apps/web/src/hooks/use-full-width.ts`
 - Create: `apps/web/src/components/page/page-actions-menu.tsx`
@@ -2010,13 +2071,7 @@ git commit -m "refactor(web): extract usePageActions shared hook"
 import { IconButton, StarBorderIcon, StarIcon } from "@repo/ui/components"
 import { usePageActions } from "@/hooks/use-page-actions"
 
-export function FavoriteStar({
-  pageId,
-  workspaceId,
-}: {
-  pageId: string
-  workspaceId: string
-}) {
+export function FavoriteStar({ pageId, workspaceId }: { pageId: string; workspaceId: string }) {
   const { isFavorite, toggleFavorite } = usePageActions(pageId, workspaceId)
   return (
     <IconButton
@@ -2122,20 +2177,49 @@ export function PageActionsMenu({ pageId, workspaceId, pageType }: Props) {
       </IconButton>
 
       <Menu open={Boolean(anchor)} anchorEl={anchor} onClose={closeMenu}>
-        <MenuItem onClick={() => { void actions.copyLink(); closeMenu() }}>
-          <ListItemIcon><LinkIcon fontSize="small" /></ListItemIcon>
+        <MenuItem
+          onClick={() => {
+            void actions.copyLink()
+            closeMenu()
+          }}
+        >
+          <ListItemIcon>
+            <LinkIcon fontSize="small" />
+          </ListItemIcon>
           <ListItemText>Копировать ссылку</ListItemText>
         </MenuItem>
-        <MenuItem onClick={() => { actions.duplicate(); closeMenu() }}>
-          <ListItemIcon><ContentCopyIcon fontSize="small" /></ListItemIcon>
+        <MenuItem
+          onClick={() => {
+            actions.duplicate()
+            closeMenu()
+          }}
+        >
+          <ListItemIcon>
+            <ContentCopyIcon fontSize="small" />
+          </ListItemIcon>
           <ListItemText>Копия</ListItemText>
         </MenuItem>
-        <MenuItem onClick={() => { actions.openMoveDialog(); closeMenu() }}>
-          <ListItemIcon><ShortcutIcon fontSize="small" /></ListItemIcon>
+        <MenuItem
+          onClick={() => {
+            actions.openMoveDialog()
+            closeMenu()
+          }}
+        >
+          <ListItemIcon>
+            <ShortcutIcon fontSize="small" />
+          </ListItemIcon>
           <ListItemText>Переместить</ListItemText>
         </MenuItem>
-        <MenuItem onClick={() => { actions.openDeleteDialog(); closeMenu() }} sx={{ color: "error.main" }}>
-          <ListItemIcon><DeleteIcon fontSize="small" sx={{ color: "error.main" }} /></ListItemIcon>
+        <MenuItem
+          onClick={() => {
+            actions.openDeleteDialog()
+            closeMenu()
+          }}
+          sx={{ color: "error.main" }}
+        >
+          <ListItemIcon>
+            <DeleteIcon fontSize="small" sx={{ color: "error.main" }} />
+          </ListItemIcon>
           <ListItemText>Удалить</ListItemText>
         </MenuItem>
 
@@ -2152,10 +2236,15 @@ export function PageActionsMenu({ pageId, workspaceId, pageType }: Props) {
         <Divider />
 
         <MenuItem
-          onClick={() => { setExportOpen(true); closeMenu() }}
+          onClick={() => {
+            setExportOpen(true)
+            closeMenu()
+          }}
           disabled={pageType !== "TEXT"}
         >
-          <ListItemIcon><PublishIcon fontSize="small" /></ListItemIcon>
+          <ListItemIcon>
+            <PublishIcon fontSize="small" />
+          </ListItemIcon>
           <ListItemText>Экспортировать</ListItemText>
         </MenuItem>
       </Menu>
@@ -2207,6 +2296,7 @@ git commit -m "feat(web): favorite star, full-width hook, page actions menu"
 ### Task 18: PageExportDialog with PDF / HTML / Markdown
 
 **Files:**
+
 - Create: `apps/web/src/lib/editor-to-markdown.ts`
 - Modify: `apps/web/src/components/page/page-export-dialog.tsx`
 - Modify: `apps/web/package.json` (new `turndown` dep)
@@ -2297,12 +2387,10 @@ const Ctx = createContext<{ editor: Editor | null; setEditor: (e: Editor | null)
 
 export function PageEditorProvider({ children }: { children: ReactNode }) {
   const ref = useRef<Editor | null>(null)
-  const setEditor = (e: Editor | null) => { ref.current = e }
-  return (
-    <Ctx.Provider value={{ editor: ref.current, setEditor }}>
-      {children}
-    </Ctx.Provider>
-  )
+  const setEditor = (e: Editor | null) => {
+    ref.current = e
+  }
+  return <Ctx.Provider value={{ editor: ref.current, setEditor }}>{children}</Ctx.Provider>
 }
 
 export function useCurrentEditor(): Editor | null {
@@ -2418,9 +2506,15 @@ ${body}
       <DialogContent>
         <DialogContentText>Выберите формат для экспорта.</DialogContentText>
         <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
-          <Button variant="contained" onClick={exportPdf}>PDF</Button>
-          <Button variant="contained" onClick={exportMarkdown}>Markdown</Button>
-          <Button variant="contained" onClick={exportHtml}>HTML</Button>
+          <Button variant="contained" onClick={exportPdf}>
+            PDF
+          </Button>
+          <Button variant="contained" onClick={exportMarkdown}>
+            Markdown
+          </Button>
+          <Button variant="contained" onClick={exportHtml}>
+            HTML
+          </Button>
         </Stack>
       </DialogContent>
       <DialogActions>
@@ -2460,6 +2554,7 @@ git commit -m "feat(web): page export dialog — PDF (print), Markdown (turndown
 ### Task 19: PageActionsToolbar + rightSlot wiring
 
 **Files:**
+
 - Create: `apps/web/src/components/page/page-actions-toolbar.tsx`
 - Modify: `apps/web/src/components/workspace/workspace-toolbar.tsx`
 - Modify: `apps/web/src/app/(protected)/workspaces/[wsId]/pages/[pageId]/page.tsx`
@@ -2484,12 +2579,7 @@ export function PageActionsToolbar({
   pageType: "TEXT" | "EXCALIDRAW"
 }) {
   return (
-    <Stack
-      direction="row"
-      spacing={0.5}
-      alignItems="center"
-      className="page-actions-toolbar"
-    >
+    <Stack direction="row" spacing={0.5} alignItems="center" className="page-actions-toolbar">
       <FavoriteStar pageId={pageId} workspaceId={workspaceId} />
       <PageActionsMenu pageId={pageId} workspaceId={workspaceId} pageType={pageType} />
     </Stack>
@@ -2514,8 +2604,10 @@ type Props = {
 In the render, replace `<Box sx={{ flex: 1 }} />` with:
 
 ```tsx
-<Box sx={{ flex: 1 }} />
-{rightSlot}
+;<Box sx={{ flex: 1 }} />
+{
+  rightSlot
+}
 ```
 
 Add `className="workspace-toolbar"` to the outer `Stack`.
@@ -2523,6 +2615,7 @@ Add `className="workspace-toolbar"` to the outer `Stack`.
 - [ ] **Step 3: Pass `rightSlot` from page route**
 
 Find the file that mounts `<WorkspaceToolbar>` for a page. Likely one of:
+
 - `apps/web/src/app/(protected)/workspaces/[wsId]/pages/[pageId]/page.tsx`
 - or a layout like `apps/web/src/app/(protected)/workspaces/[wsId]/layout.tsx`
 
@@ -2565,6 +2658,7 @@ Add the class `.page-content` to the wrapper and thread the data attribute from 
 - [ ] **Step 6: Smoke test**
 
 Open a text page. Verify breadcrumbs now show: breadcrumbs ... spacer ... star + more-horiz.
+
 - Click star → favorite toggles (sidebar "Избранное" list should pick up change).
 - Click more-horiz → menu opens with all 7 items.
 - Copy link → clipboard has URL.
@@ -2624,6 +2718,7 @@ git commit -m "chore: prettier + lint fixes after editor extensions" || true
 ### Task 21: Playwright E2E regression + new specs
 
 **Files:**
+
 - Create: `apps/e2e/editor-extensions.spec.ts`
 - Possibly modify: existing specs if upload flow changes behavior due to registration
 
@@ -2781,6 +2876,7 @@ Create an Excalidraw page, draw a shape, toggle OS dark mode. Canvas background 
 - [ ] **Step 2: Drag-handle menu full walkthrough**
 
 On a text page, exercise every menu item:
+
 - Превратить: paragraph → H1 → H2 → H3 → H4 → bullet → numbered → quote → code → text (chain)
 - Цвет: text-red, bg-blue, text-default, bg-default
 - Дубликат: paragraph dups; image dups (with same src)
@@ -2798,6 +2894,7 @@ Insert hidden-text → type; content is masked; click eye; content revealed; cli
 - [ ] **Step 5: Page actions in breadcrumbs**
 
 Every menu item:
+
 - Copy link → paste in URL bar → same page.
 - Копия → new page with "(копия)" in title.
 - Переместить → moves page.

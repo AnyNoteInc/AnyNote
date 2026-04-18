@@ -21,12 +21,7 @@ export function PageActionsToolbar({ pageId, workspaceId }: Props) {
   const isFavorite = (favoritesQ.data ?? []).some((p) => p.id === pageId)
 
   return (
-    <Stack
-      direction="row"
-      spacing={0.5}
-      alignItems="center"
-      className="page-actions-toolbar"
-    >
+    <Stack direction="row" spacing={0.5} alignItems="center" className="page-actions-toolbar">
       <FavoriteStar
         pageId={pageId}
         pageTitle={title}

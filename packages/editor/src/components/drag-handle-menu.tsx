@@ -3,15 +3,7 @@
 import { useMemo, useState, type MouseEvent } from "react"
 import type { Editor } from "@tiptap/core"
 
-import {
-  Box,
-  Divider,
-  ListItemIcon,
-  ListItemText,
-  Menu,
-  MenuItem,
-  Typography,
-} from "@mui/material"
+import { Box, Divider, ListItemIcon, ListItemText, Menu, MenuItem, Typography } from "@mui/material"
 import ContentCopyIcon from "@mui/icons-material/ContentCopy"
 import DeleteIcon from "@mui/icons-material/Delete"
 import FormatPaintOutlinedIcon from "@mui/icons-material/FormatPaintOutlined"
@@ -63,21 +55,33 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
 
   const handleConvert = (target: ConversionTarget) => {
     if (pos == null) return
-    editor.chain().focus().setTextSelection(pos + 1).run()
+    editor
+      .chain()
+      .focus()
+      .setTextSelection(pos + 1)
+      .run()
     convertBlock(editor, target)
     handleClose()
   }
 
   const handleTextColor = (color: TextColorKey) => {
     if (pos == null || !node) return
-    editor.chain().focus().setTextSelection({ from: pos + 1, to: pos + node.nodeSize - 1 }).run()
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from: pos + 1, to: pos + node.nodeSize - 1 })
+      .run()
     editor.chain().focus().setAnynoteTextColor(color).run()
     handleClose()
   }
 
   const handleBackground = (color: BackgroundColorKey) => {
     if (pos == null || !node) return
-    editor.chain().focus().setTextSelection({ from: pos + 1, to: pos + node.nodeSize - 1 }).run()
+    editor
+      .chain()
+      .focus()
+      .setTextSelection({ from: pos + 1, to: pos + node.nodeSize - 1 })
+      .run()
     editor.chain().focus().setBlockBackground(color).run()
     handleClose()
   }
@@ -90,7 +94,11 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
 
   const handleDelete = () => {
     if (pos == null || !node) return
-    editor.chain().focus().deleteRange({ from: pos, to: pos + node.nodeSize }).run()
+    editor
+      .chain()
+      .focus()
+      .deleteRange({ from: pos, to: pos + node.nodeSize })
+      .run()
     handleClose()
   }
 

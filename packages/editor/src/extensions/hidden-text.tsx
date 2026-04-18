@@ -48,11 +48,7 @@ export const HiddenText = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return [
-      "div",
-      mergeAttributes(HTMLAttributes, { "data-type": "hidden-text" }),
-      0,
-    ]
+    return ["div", mergeAttributes(HTMLAttributes, { "data-type": "hidden-text" }), 0]
   },
 
   addNodeView() {

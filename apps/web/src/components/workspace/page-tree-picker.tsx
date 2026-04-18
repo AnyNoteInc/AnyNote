@@ -2,12 +2,7 @@
 
 import { useState } from "react"
 
-import {
-  Box,
-  ChevronRightIcon,
-  IconButton,
-  Typography,
-} from "@repo/ui/components"
+import { Box, ChevronRightIcon, IconButton, Typography } from "@repo/ui/components"
 
 import { type PageItem, orderSiblings } from "./types"
 

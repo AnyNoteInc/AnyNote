@@ -12,7 +12,11 @@ type Props = {
 }
 
 export function FavoriteStar({ pageId, pageTitle, workspaceId, isFavorite }: Props) {
-  const { toggleFavorite } = usePageActions({ id: pageId, title: pageTitle }, workspaceId, isFavorite)
+  const { toggleFavorite } = usePageActions(
+    { id: pageId, title: pageTitle },
+    workspaceId,
+    isFavorite,
+  )
   return (
     <IconButton
       size="small"
