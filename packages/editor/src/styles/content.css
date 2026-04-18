@@ -294,6 +294,14 @@
   border-radius: 4px;
 }
 
+/* === Full-width page mode === */
+[data-full-width="true"] .anynote-editor .ProseMirror {
+  max-width: none;
+}
+[data-full-width="true"] .page-column {
+  max-width: none !important;
+}
+
 /* === Toggle block === */
 .anynote-toggle {
   display: grid;

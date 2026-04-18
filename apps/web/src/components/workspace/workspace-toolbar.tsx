@@ -14,6 +14,7 @@ type Props = {
   sidebarHidden: boolean
   onOpenSidebar: () => void
   sidebarContent: ReactNode
+  rightSlot?: ReactNode
 }
 
 export function WorkspaceToolbar({
@@ -21,6 +22,7 @@ export function WorkspaceToolbar({
   sidebarHidden,
   onOpenSidebar,
   sidebarContent,
+  rightSlot,
 }: Props) {
   const [popperOpen, setPopperOpen] = useState(false)
   const anchorRef = useRef<HTMLButtonElement>(null)
@@ -68,6 +70,7 @@ export function WorkspaceToolbar({
       direction="row"
       alignItems="center"
       spacing={1.25}
+      className="workspace-toolbar"
       sx={{
         px: 2,
         py: 1.25,
@@ -144,6 +147,7 @@ export function WorkspaceToolbar({
         )
       })}
       <Box sx={{ flex: 1 }} />
+      {rightSlot}
     </Stack>
   )
 }

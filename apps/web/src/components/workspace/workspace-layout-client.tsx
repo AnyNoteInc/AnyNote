@@ -7,6 +7,9 @@ import { Box } from "@repo/ui/components"
 
 import { trpc } from "@/trpc/client"
 
+import { PageActionsToolbar } from "@/components/page/page-actions-toolbar"
+import { PageEditorProvider } from "@/components/page/editor-context"
+
 import { WorkspaceShell } from "./workspace-shell"
 import { WorkspaceSidebar } from "./workspace-sidebar"
 import { WorkspaceToolbar } from "./workspace-toolbar"
@@ -105,21 +108,71 @@ export function WorkspaceLayoutClient({
 
   const sidebarProps = { workspace, planName, pages, userMenu }
 
+  const pageIdMatch = pathname.match(/\/pages\/([a-f0-9-]{36})/)
+  const activePageId = pageIdMatch?.[1] ?? null
+
+  const [fullWidth, setFullWidth] = useState(false)
+  useEffect(() => {
+    if (!activePageId) {
+      setFullWidth(false)
+      return
+    }
+    try {
+      const raw = localStorage.getItem(`anynote.page-full-width.${activePageId}`)
+      setFullWidth(raw === "true")
+    } catch {
+      setFullWidth(false)
+    }
+  }, [activePageId])
+
+  // Listen for localStorage changes (cross-tab and same-tab via storage event).
+  // useFullWidth hook writes directly; we re-read on focus so menu toggles update
+  // the full-width class here.
+  useEffect(() => {
+    if (!activePageId) return
+    const check = () => {
+      try {
+        const raw = localStorage.getItem(`anynote.page-full-width.${activePageId}`)
+        setFullWidth(raw === "true")
+      } catch {
+        /* ignore */
+      }
+    }
+    const interval = setInterval(check, 400)
+    return () => clearInterval(interval)
+  }, [activePageId])
+
+  // PageEditorProvider wraps BOTH the toolbar (so PageActionsMenu → PageExportDialog
+  // can read the editor via usePageEditor) and the editor content (so PageRenderer
+  // can register the editor via setEditor).
+  const mainContent = (
+    <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+      <WorkspaceToolbar
+        breadcrumbs={breadcrumbs}
+        sidebarHidden={hidden}
+        onOpenSidebar={() => setHidden(false)}
+        sidebarContent={<WorkspaceSidebar {...sidebarProps} />}
+        rightSlot={
+          activePageId ? (
+            <PageActionsToolbar pageId={activePageId} workspaceId={workspace.id} />
+          ) : null
+        }
+      />
+      <Box
+        sx={{ flex: 1, overflow: "auto" }}
+        data-full-width={fullWidth ? "true" : "false"}
+        className="page-content-scroll"
+      >
+        {children}
+      </Box>
+    </Box>
+  )
+
   return (
     <WorkspaceShell
       sidebarHidden={hidden}
       sidebar={<WorkspaceSidebar {...sidebarProps} onHide={() => setHidden(true)} />}
-      main={
-        <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-          <WorkspaceToolbar
-            breadcrumbs={breadcrumbs}
-            sidebarHidden={hidden}
-            onOpenSidebar={() => setHidden(false)}
-            sidebarContent={<WorkspaceSidebar {...sidebarProps} />}
-          />
-          <Box sx={{ flex: 1, overflow: "auto" }}>{children}</Box>
-        </Box>
-      }
+      main={activePageId ? <PageEditorProvider>{mainContent}</PageEditorProvider> : mainContent}
     />
   )
 }
