@@ -55,6 +55,19 @@ export function BoardInner(props: BoardProps) {
     setApi(a)
   }, [])
 
+  // Sync canvas background with MUI theme. Excalidraw's dark `theme` prop styles
+  // the chrome, but the canvas background comes from appState.viewBackgroundColor.
+  // We push the local theme-derived color via updateScene (no history commit) so
+  // the choice stays per-user and is not written to Yjs.
+  useEffect(() => {
+    if (!api) return
+    const viewBackgroundColor = muiTheme.palette.mode === "dark" ? "#121212" : "#ffffff"
+    api.updateScene({
+      appState: { viewBackgroundColor },
+      captureUpdate: "NEVER",
+    })
+  }, [api, muiTheme.palette.mode])
+
   const onChange = useCallback(
     (_elements: readonly OrderedExcalidrawElement[], _appState: AppState, fileMap: BinaryFiles) => {
       // Upload newly-added images through the consumer-provided handler.
