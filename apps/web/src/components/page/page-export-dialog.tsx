@@ -45,7 +45,7 @@ function downloadBlob(blob: Blob, filename: string) {
 export function PageExportDialog({ open, onClose, pageId }: Props) {
   const pageEditor = usePageEditor()
   const pageQ = trpc.page.getById.useQuery({ id: pageId }, { enabled: open })
-  const title = (pageQ.data?.title?.trim() || "Без названия") + ""
+  const title = pageQ.data?.title?.trim() || "Без названия"
 
   const exportMarkdown = useCallback(() => {
     const editor = pageEditor.getEditor()

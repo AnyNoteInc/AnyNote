@@ -9,6 +9,7 @@ import { trpc } from "@/trpc/client"
 
 import { PageActionsToolbar } from "@/components/page/page-actions-toolbar"
 import { PageEditorProvider } from "@/components/page/editor-context"
+import { useFullWidth } from "@/hooks/use-full-width"
 
 import { WorkspaceShell } from "./workspace-shell"
 import { WorkspaceSidebar } from "./workspace-sidebar"
@@ -111,36 +112,7 @@ export function WorkspaceLayoutClient({
   const pageIdMatch = pathname.match(/\/pages\/([a-f0-9-]{36})/)
   const activePageId = pageIdMatch?.[1] ?? null
 
-  const [fullWidth, setFullWidth] = useState(false)
-  useEffect(() => {
-    if (!activePageId) {
-      setFullWidth(false)
-      return
-    }
-    try {
-      const raw = localStorage.getItem(`anynote.page-full-width.${activePageId}`)
-      setFullWidth(raw === "true")
-    } catch {
-      setFullWidth(false)
-    }
-  }, [activePageId])
-
-  // Listen for localStorage changes (cross-tab and same-tab via storage event).
-  // useFullWidth hook writes directly; we re-read on focus so menu toggles update
-  // the full-width class here.
-  useEffect(() => {
-    if (!activePageId) return
-    const check = () => {
-      try {
-        const raw = localStorage.getItem(`anynote.page-full-width.${activePageId}`)
-        setFullWidth(raw === "true")
-      } catch {
-        /* ignore */
-      }
-    }
-    const interval = setInterval(check, 400)
-    return () => clearInterval(interval)
-  }, [activePageId])
+  const [fullWidth] = useFullWidth(activePageId ?? "")
 
   // PageEditorProvider wraps BOTH the toolbar (so PageActionsMenu → PageExportDialog
   // can read the editor via usePageEditor) and the editor content (so PageRenderer

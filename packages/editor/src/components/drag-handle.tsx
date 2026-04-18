@@ -146,7 +146,7 @@ export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
         anchorEl={menuAnchor}
         pos={menuPos}
         onClose={closeBlockMenu}
-        onRequestMove={(pos) => onRequestBlockMove?.(pos)}
+        onRequestMove={onRequestBlockMove ?? (() => undefined)}
       />
     </>
   )

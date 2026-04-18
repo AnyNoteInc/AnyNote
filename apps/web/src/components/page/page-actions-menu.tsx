@@ -24,7 +24,7 @@ import { usePageActions } from "@/hooks/use-page-actions"
 import { useFullWidth } from "@/hooks/use-full-width"
 
 import { MovePageDialog } from "@/components/workspace/move-page-dialog"
-import { trpc } from "@/trpc/client"
+import type { PageItem } from "@/components/workspace/types"
 
 import { PageExportDialog } from "./page-export-dialog"
 
@@ -34,23 +34,28 @@ type Props = {
   workspaceId: string
   pageType: "TEXT" | "EXCALIDRAW"
   isFavorite: boolean
+  // Full page row needed by MovePageDialog; undefined until parent's query settles.
+  movedPage: PageItem | undefined
+  pages: PageItem[]
 }
 
 const menuItemSx = { gap: 1, fontSize: 13 } as const
 
-export function PageActionsMenu({ pageId, pageTitle, workspaceId, pageType, isFavorite }: Props) {
+export function PageActionsMenu({
+  pageId,
+  pageTitle,
+  workspaceId,
+  pageType,
+  isFavorite,
+  movedPage,
+  pages,
+}: Props) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const [exportOpen, setExportOpen] = useState(false)
   const [moveOpen, setMoveOpen] = useState(false)
 
   const actions = usePageActions({ id: pageId, title: pageTitle }, workspaceId, isFavorite)
   const [fullWidth, setFullWidth] = useFullWidth(pageId)
-
-  // Current page detail used by MovePageDialog as the "moved page".
-  const pageQ = trpc.page.getById.useQuery({ id: pageId })
-  const pagesQ = trpc.page.listByWorkspace.useQuery({ workspaceId })
-  const movedPage = pageQ.data
-  const pages = pagesQ.data ?? []
 
   const openMenu = (e: MouseEvent<HTMLElement>) => setAnchor(e.currentTarget)
   const closeMenu = () => setAnchor(null)

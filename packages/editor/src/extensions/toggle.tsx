@@ -70,8 +70,6 @@ export const Toggle = Node.create({
 
   addKeyboardShortcuts() {
     return {
-      // If user presses Enter at the end of the first-child paragraph while the
-      // toggle is collapsed, expand it so the new paragraph is visible.
       Enter: ({ editor }) => {
         const { $from } = editor.state.selection
         for (let depth = $from.depth; depth > 0; depth--) {

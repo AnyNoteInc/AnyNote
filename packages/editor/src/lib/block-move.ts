@@ -14,6 +14,8 @@ type MoveBlockParams = {
 
 export type MoveBlockResult = { ok: true } | { ok: false; error: string }
 
+const FLUSH_DELAY_MS = 200
+
 // Moves the block at sourcePos (in editor's local ProseMirror doc) to the end
 // of the target page's ProseMirror document, over Hocuspocus/Yjs.
 //
@@ -75,7 +77,11 @@ export async function moveBlockToPage({
 
     tempYDoc.destroy()
 
-    await new Promise<void>((resolve) => setTimeout(resolve, 200))
+    // Give Hocuspocus a window to broadcast our transact() update to the
+    // server before we tear down the provider below. Without this, fast paths
+    // can destroy the socket before the update frame ships, and the insert is
+    // lost server-side.
+    await new Promise<void>((resolve) => setTimeout(resolve, FLUSH_DELAY_MS))
 
     editor
       .chain()
