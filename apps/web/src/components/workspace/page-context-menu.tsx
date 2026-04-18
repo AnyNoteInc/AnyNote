@@ -1,7 +1,6 @@
 "use client"
 
 import { useState } from "react"
-import { useRouter } from "next/navigation"
 import {
   Menu,
   MenuItem,
@@ -9,7 +8,6 @@ import {
   Dialog,
   DialogTitle,
   DialogContent,
-  DialogContentText,
   DialogActions,
   TextField,
   Button,
@@ -22,6 +20,7 @@ import {
   DeleteIcon,
 } from "@repo/ui/components"
 import { trpc } from "@/trpc/client"
+import { usePageActions } from "@/hooks/use-page-actions"
 import type { PageItem } from "./types"
 
 type Props = {
@@ -43,48 +42,31 @@ export function PageContextMenu({
   isFavorite,
   onOpenMoveDialog,
 }: Props) {
-  const router = useRouter()
+  const actions = usePageActions(page, workspaceId, isFavorite)
   const utils = trpc.useUtils()
 
   const [renameOpen, setRenameOpen] = useState(false)
   const [renameValue, setRenameValue] = useState("")
-  const [deleteOpen, setDeleteOpen] = useState(false)
 
-  const invalidate = () => {
-    void utils.page.listByWorkspace.invalidate({ workspaceId })
-    void utils.page.listFavorites.invalidate({ workspaceId })
-    void utils.page.listTrashed.invalidate({ workspaceId })
-    void utils.page.getById.invalidate({ id: page.id })
-  }
-
-  const addFavorite = trpc.page.addFavorite.useMutation({ onSuccess: invalidate })
-  const removeFavorite = trpc.page.removeFavorite.useMutation({ onSuccess: invalidate })
-  const rename = trpc.page.rename.useMutation({ onSuccess: invalidate })
-  const softDelete = trpc.page.softDelete.useMutation({ onSuccess: invalidate })
-  const duplicate = trpc.page.duplicate.useMutation({
-    onSuccess: (data) => {
-      invalidate()
-      router.push(`/workspaces/${workspaceId}/pages/${data.id}`)
+  const rename = trpc.page.rename.useMutation({
+    onSuccess: () => {
+      void utils.page.listByWorkspace.invalidate({ workspaceId })
+      void utils.page.getById.invalidate({ id: page.id })
     },
   })
 
   const handleToggleFavorite = () => {
-    if (isFavorite) {
-      removeFavorite.mutate({ pageId: page.id })
-    } else {
-      addFavorite.mutate({ pageId: page.id })
-    }
+    actions.toggleFavorite()
     onClose()
   }
 
   const handleCopyLink = () => {
-    const url = `${window.location.origin}/workspaces/${workspaceId}/pages/${page.id}`
-    void navigator.clipboard.writeText(url)
+    void actions.copyLink()
     onClose()
   }
 
   const handleDuplicate = () => {
-    duplicate.mutate({ pageId: page.id })
+    actions.duplicate()
     onClose()
   }
 
@@ -105,13 +87,8 @@ export function PageContextMenu({
   }
 
   const handleOpenDelete = () => {
-    setDeleteOpen(true)
+    actions.openDeleteConfirm()
     onClose()
-  }
-
-  const handleDeleteConfirm = () => {
-    softDelete.mutate({ id: page.id, workspaceId })
-    setDeleteOpen(false)
   }
 
   return (
@@ -178,23 +155,7 @@ export function PageContextMenu({
         </DialogActions>
       </Dialog>
 
-      {/* Delete confirmation dialog */}
-      <Dialog open={deleteOpen} onClose={() => setDeleteOpen(false)} maxWidth="xs" fullWidth>
-        <DialogTitle>Удалить страницу?</DialogTitle>
-        <DialogContent>
-          <DialogContentText>
-            Страница и все дочерние страницы будут перемещены в корзину.
-          </DialogContentText>
-        </DialogContent>
-        <DialogActions>
-          <Button variant="text" onClick={() => setDeleteOpen(false)}>
-            Отмена
-          </Button>
-          <Button onClick={handleDeleteConfirm} color="error" variant="contained">
-            Удалить
-          </Button>
-        </DialogActions>
-      </Dialog>
+      {actions.dialogs}
     </>
   )
 }
