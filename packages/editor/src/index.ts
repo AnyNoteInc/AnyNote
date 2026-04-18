@@ -2,6 +2,9 @@ export { AnyNoteEditor } from "./anynote-editor"
 export { EditorThemeBridge } from "./theme-bridge"
 export { createSlashItems } from "./slash-items"
 export type { SlashMediaHandlers } from "./slash-items"
+export { BlockMoveDialog } from "./components/block-move-dialog"
+export { moveBlockToPage } from "./lib/block-move"
+export type { MoveBlockResult } from "./lib/block-move"
 export type {
   AnyNoteEditorProps,
   AnyNoteEditorUser,
