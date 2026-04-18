@@ -109,6 +109,7 @@ export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
     <>
       <DragHandle
         editor={editor}
+        nested
         onNodeChange={onNodeChange}
         onElementDragStart={onElementDragStart}
       >

@@ -5,10 +5,12 @@ import { Box, IconButton } from "@mui/material"
 import VisibilityIcon from "@mui/icons-material/Visibility"
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff"
 
-// `visible` is a LOCAL view-state only — we do not persist it. Every client
-// starts with the content masked and reveals on their own click.
+// `visible` is a LOCAL view-state only — we do not persist it. Starts visible
+// on fresh insertion so the author can type, then the author hides via the eye
+// icon when done. On subsequent page loads, the state is lost (React local)
+// so other viewers see the intended masked default.
 function HiddenTextView() {
-  const [visible, setVisible] = useState(false)
+  const [visible, setVisible] = useState(true)
 
   return (
     <NodeViewWrapper className="anynote-hidden-text" data-visible={visible ? "true" : "false"}>

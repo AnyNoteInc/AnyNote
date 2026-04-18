@@ -307,13 +307,15 @@
   flex: 1;
   min-width: 0;
 }
-.anynote-toggle[data-open="false"] .anynote-toggle-content > *:not(:first-child) {
+/* TipTap React NodeViewContent wraps the actual children in an inner
+   [data-node-view-content-react] div, so we descend through it. */
+.anynote-toggle[data-open="false"]
+  .anynote-toggle-content
+  [data-node-view-content-react]
+  > *:not(:first-child) {
   display: none;
 }
-.anynote-toggle .anynote-toggle-content > * {
-  margin: 0;
-}
-.anynote-toggle .anynote-toggle-content > * + * {
+.anynote-toggle .anynote-toggle-content [data-node-view-content-react] > * + * {
   margin-top: 6px;
 }
 
@@ -322,15 +324,17 @@
   flex: 1;
   min-width: 0;
 }
-.anynote-hidden-text[data-visible="false"] .anynote-hidden-text-content {
+.anynote-hidden-text[data-visible="false"] .anynote-hidden-text-content [data-node-view-content-react] {
   -webkit-text-security: disc;
   text-security: disc;
 }
 @supports not ((-webkit-text-security: disc) or (text-security: disc)) {
-  .anynote-hidden-text[data-visible="false"] .anynote-hidden-text-content {
+  .anynote-hidden-text[data-visible="false"]
+    .anynote-hidden-text-content
+    [data-node-view-content-react] {
     filter: blur(5px);
   }
 }
-.anynote-hidden-text .anynote-hidden-text-content > * + * {
+.anynote-hidden-text .anynote-hidden-text-content [data-node-view-content-react] > * + * {
   margin-top: 6px;
 }

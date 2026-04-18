@@ -528,7 +528,9 @@ export const pageRouter = router({
           })
         }
 
-        // 2. Create copy with same parent, inserted after original
+        // 2. Create copy with same parent, inserted after original. Copy both
+        // the JSON snapshot AND the authoritative contentYjs bytes — the editor
+        // loads from contentYjs, so without it the duplicate renders empty.
         const copy = await tx.page.create({
           data: {
             workspaceId: page.workspaceId,
@@ -537,6 +539,7 @@ export const pageRouter = router({
             title: `${page.title ?? ""} (копия)`.trim(),
             icon: page.icon,
             content: page.content ?? undefined,
+            contentYjs: page.contentYjs ?? undefined,
             prevPageId: page.id,
             createdById: ctx.user.id,
             updatedById: ctx.user.id,

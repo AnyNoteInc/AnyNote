@@ -16,22 +16,25 @@ import { useExcalidrawYjs } from "./use-excalidraw-yjs"
 
 const DARK_BG = "#121212"
 const LIGHT_BG = "#ffffff"
+const DARK_STROKE = "#ffffff"
+const LIGHT_STROKE = "#1e1e1e"
 
 export function BoardInner(props: BoardProps) {
   const { pageId, yjsUrl, yjsToken, uploadHandler, user, editable = true, className } = props
 
   const muiTheme = useTheme()
   const excalidrawTheme: Theme = muiTheme.palette.mode === "dark" ? "dark" : "light"
-  const viewBackgroundColor = muiTheme.palette.mode === "dark" ? DARK_BG : LIGHT_BG
+  const isDark = muiTheme.palette.mode === "dark"
+  const viewBackgroundColor = isDark ? DARK_BG : LIGHT_BG
+  const currentItemStrokeColor = isDark ? DARK_STROKE : LIGHT_STROKE
 
-  // Capture initial mode so Excalidraw mounts with the correct canvas background
-  // from the first paint — switching theme later still works via the useEffect
-  // below that pushes updateScene. Memoized against the first render.
   const initialModeRef = useRef(muiTheme.palette.mode)
   const initialData = useMemo(
     () => ({
       appState: {
         viewBackgroundColor: initialModeRef.current === "dark" ? DARK_BG : LIGHT_BG,
+        currentItemStrokeColor:
+          initialModeRef.current === "dark" ? DARK_STROKE : LIGHT_STROKE,
       },
     }),
     [],
@@ -77,12 +80,12 @@ export function BoardInner(props: BoardProps) {
     if (!api) return
     const id = window.setTimeout(() => {
       api.updateScene({
-        appState: { viewBackgroundColor },
+        appState: { viewBackgroundColor, currentItemStrokeColor },
         captureUpdate: "NEVER",
       })
     }, 0)
     return () => window.clearTimeout(id)
-  }, [api, viewBackgroundColor])
+  }, [api, viewBackgroundColor, currentItemStrokeColor])
 
   const onChange = useCallback(
     (_elements: readonly OrderedExcalidrawElement[], _appState: AppState, fileMap: BinaryFiles) => {
