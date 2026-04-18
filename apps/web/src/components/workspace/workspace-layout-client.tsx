@@ -74,10 +74,24 @@ export function WorkspaceLayoutClient({
     }
     const pageIdMatch = pathname.match(/\/pages\/([a-f0-9-]{36})/)
     if (pageIdMatch) {
-      const page = pages.find((p) => p.id === pageIdMatch[1])
       const base = { label: "Страницы" }
-      if (page) return [base, { label: page.title ?? "Без названия" }]
-      return [base]
+      const pagesById = new Map(pages.map((p) => [p.id, p]))
+      const chain: PageItem[] = []
+      let current = pagesById.get(pageIdMatch[1] ?? "")
+      while (current) {
+        chain.unshift(current)
+        current = current.parentId ? pagesById.get(current.parentId) : undefined
+      }
+      if (chain.length === 0) return [base]
+      return [
+        base,
+        ...chain.map((p, idx) => ({
+          label: p.title ?? "Новая страница",
+          // Link ancestors back to themselves; the current page (last crumb)
+          // stays plain text so users don't click a no-op link.
+          href: idx === chain.length - 1 ? undefined : `/workspaces/${workspace.id}/pages/${p.id}`,
+        })),
+      ]
     }
     return [{ label: workspace.name }]
   }, [pathname, activeChat, pages, workspace.id, workspace.name])

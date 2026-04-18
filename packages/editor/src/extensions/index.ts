@@ -11,9 +11,13 @@ import type { HocuspocusProvider } from "@hocuspocus/provider"
 import { common, createLowlight } from "lowlight"
 import type * as Y from "yjs"
 
+import { Callout } from "./callout"
 import { buildCollaboration } from "./collaboration"
+import { FileAttachment } from "./file-attachment"
 import { buildFileUpload } from "./file-upload"
+import { PageLink } from "./page-link"
 import { buildPlaceholder } from "./placeholder"
+import { ResizableImage } from "./resizable-image"
 import { SlashMenu, type SlashMenuRender } from "./slash-menu"
 import { TaskItemWithCheckbox } from "./task-item-view"
 import type { AnyNoteEditorUser, SlashCommandItem, UploadHandler } from "../types"
@@ -28,6 +32,7 @@ export type BuildExtensionsOptions = {
   placeholder: string
   slashItems: (query: string) => SlashCommandItem[]
   slashRender: () => SlashMenuRender
+  onNavigateToPage: (pageId: string) => void
 }
 
 export const buildExtensions = (opts: BuildExtensionsOptions) => [
@@ -35,6 +40,7 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   buildPlaceholder(opts.placeholder),
   Link.configure({ openOnClick: false }),
   Typography,
+  ResizableImage.configure({ uploadHandler: opts.uploadHandler }),
   TaskList,
   TaskItemWithCheckbox.configure({ nested: true }),
   Table.configure({ resizable: true }),
@@ -42,6 +48,9 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   TableHeader,
   TableCell,
   CodeBlockLowlight.configure({ lowlight }),
+  Callout,
+  FileAttachment,
+  PageLink.configure({ onNavigate: opts.onNavigateToPage }),
   ...buildCollaboration({ ydoc: opts.ydoc, provider: opts.provider, user: opts.user }),
   buildFileUpload(opts.uploadHandler),
   SlashMenu.configure({

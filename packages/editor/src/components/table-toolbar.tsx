@@ -25,10 +25,7 @@ export function TableToolbar({ editor }: Props) {
       <Paper elevation={6} sx={{ p: 0.25 }}>
         <Stack direction="row" spacing={0.25} alignItems="center">
           <Tooltip title="Добавить столбец слева">
-            <IconButton
-              size="small"
-              onClick={() => editor.chain().focus().addColumnBefore().run()}
-            >
+            <IconButton size="small" onClick={() => editor.chain().focus().addColumnBefore().run()}>
               {createElement(InsertColumnLeftIcon)}
             </IconButton>
           </Tooltip>

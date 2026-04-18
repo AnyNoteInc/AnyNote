@@ -1,9 +1,16 @@
 "use client"
 
-import { List, ListItemButton, ListItemIcon, ListItemText, Paper } from "@mui/material"
-import { forwardRef, useEffect, useImperativeHandle, useState } from "react"
+import {
+  List,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  ListSubheader,
+  Paper,
+} from "@mui/material"
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react"
 
-import type { SlashCommandItem } from "../types"
+import type { SlashCommandGroup, SlashCommandItem } from "../types"
 
 export type SlashMenuPopoverHandle = {
   onKeyDown: (event: KeyboardEvent) => boolean
@@ -14,15 +21,43 @@ type Props = {
   command: (item: SlashCommandItem) => void
 }
 
+const GROUP_ORDER: SlashCommandGroup[] = ["base", "media"]
+
+const GROUP_TITLES: Record<SlashCommandGroup, string> = {
+  base: "Базовые блоки",
+  media: "Медиа",
+}
+
 export const SlashMenuPopover = forwardRef<SlashMenuPopoverHandle, Props>(function SlashMenuPopover(
   { items, command },
   ref,
 ) {
   const [active, setActive] = useState(0)
 
+  const grouped = useMemo(() => {
+    const byGroup = new Map<SlashCommandGroup, SlashCommandItem[]>()
+    for (const item of items) {
+      const list = byGroup.get(item.group) ?? []
+      list.push(item)
+      byGroup.set(item.group, list)
+    }
+    return GROUP_ORDER.filter((g) => byGroup.has(g)).map((g) => ({
+      group: g,
+      title: GROUP_TITLES[g],
+      items: byGroup.get(g)!,
+    }))
+  }, [items])
+
   useEffect(() => {
     setActive(0)
   }, [items])
+
+  const itemRefs = useRef<(HTMLElement | null)[]>([])
+
+  useEffect(() => {
+    const el = itemRefs.current[active]
+    if (el) el.scrollIntoView({ block: "nearest" })
+  }, [active])
 
   useImperativeHandle(ref, () => ({
     onKeyDown: (event: KeyboardEvent) => {
@@ -48,23 +83,54 @@ export const SlashMenuPopover = forwardRef<SlashMenuPopoverHandle, Props>(functi
 
   if (items.length === 0) return null
 
+  let running = 0
+
   return (
-    <Paper elevation={6} sx={{ width: 260, py: 0.5, maxHeight: 320, overflow: "auto" }}>
-      <List dense disablePadding>
-        {items.map((item, idx) => (
-          <ListItemButton
-            key={item.id}
-            selected={idx === active}
-            onClick={() => command(item)}
-            sx={{ gap: 1 }}
-          >
-            {item.icon ? (
-              <ListItemIcon sx={{ minWidth: 28, color: "text.secondary" }}>
-                {item.icon}
-              </ListItemIcon>
-            ) : null}
-            <ListItemText primary={item.label} secondary={item.description} />
-          </ListItemButton>
+    <Paper elevation={6} sx={{ width: 280, py: 0.5, maxHeight: 360, overflow: "auto" }}>
+      <List dense disablePadding subheader={<li />}>
+        {grouped.map(({ group, title, items: groupItems }) => (
+          <li key={group}>
+            <ul style={{ padding: 0, margin: 0, listStyle: "none" }}>
+              <ListSubheader
+                disableSticky
+                sx={{
+                  lineHeight: "24px",
+                  fontSize: 11,
+                  fontWeight: 600,
+                  textTransform: "uppercase",
+                  letterSpacing: 0.5,
+                  color: "text.secondary",
+                  backgroundColor: "transparent",
+                  px: 1.5,
+                  pt: 0.75,
+                }}
+              >
+                {title}
+              </ListSubheader>
+              {groupItems.map((item) => {
+                const index = running++
+                return (
+                  <ListItemButton
+                    key={item.id}
+                    ref={(el: HTMLElement | null) => {
+                      itemRefs.current[index] = el
+                    }}
+                    selected={index === active}
+                    onClick={() => command(item)}
+                    data-slash-item-id={item.id}
+                    sx={{ gap: 1 }}
+                  >
+                    {item.icon ? (
+                      <ListItemIcon sx={{ minWidth: 28, color: "text.secondary" }}>
+                        {item.icon}
+                      </ListItemIcon>
+                    ) : null}
+                    <ListItemText primary={item.label} secondary={item.description} />
+                  </ListItemButton>
+                )
+              })}
+            </ul>
+          </li>
         ))}
       </List>
     </Paper>

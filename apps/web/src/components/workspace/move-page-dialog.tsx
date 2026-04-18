@@ -97,9 +97,9 @@ function MoveTreeItem({
         ) : (
           <Box sx={{ width: 20, mr: 0.5 }} />
         )}
-        <span style={{ marginRight: 6 }}>{page.icon ?? "📄"}</span>
+        {page.icon ? <span style={{ marginRight: 6 }}>{page.icon}</span> : null}
         <Typography variant="body2" noWrap>
-          {page.title ?? "Без названия"}
+          {page.title ?? "Новая страница"}
         </Typography>
       </Box>
       {expanded &&
@@ -143,7 +143,7 @@ export function MovePageDialog({ open, onClose, page, pages, workspaceId }: Prop
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>{`Переместить \u00AB${page.title ?? "Без названия"}\u00BB`}</DialogTitle>
+      <DialogTitle>{`Переместить \u00AB${page.title ?? "Новая страница"}\u00BB`}</DialogTitle>
       <DialogContent sx={{ p: 1 }}>
         <Box
           onClick={() => setSelectedId("__root__")}

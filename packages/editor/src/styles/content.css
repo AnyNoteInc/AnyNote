@@ -52,6 +52,11 @@
   font-weight: 600;
   margin: 0.75rem 0 0.5rem;
 }
+.anynote-editor h4 {
+  font-size: 1.00rem;
+  font-weight: 600;
+  margin: 0.5rem 0 0.25rem;
+}
 .anynote-editor p,
 .anynote-editor ul,
 .anynote-editor ol {
@@ -181,6 +186,30 @@
 
 .anynote-editor .tiptap-drag-handle:active {
   cursor: grabbing;
+}
+
+/* Callout block: flex row with emoji on the left, content on the right. */
+.anynote-editor .anynote-callout {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  background: var(--editor-callout-bg, rgba(99, 102, 241, 0.08));
+  border: 1px solid var(--editor-callout-border, rgba(99, 102, 241, 0.18));
+  border-radius: 8px;
+  margin: 0.5rem 0;
+}
+
+.anynote-editor .anynote-callout-content {
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.anynote-editor .anynote-callout-content > *:first-child {
+  margin-top: 0;
+}
+.anynote-editor .anynote-callout-content > *:last-child {
+  margin-bottom: 0;
 }
 
 /* Slash menu popup via tippy */

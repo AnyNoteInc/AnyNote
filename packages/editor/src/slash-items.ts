@@ -2,22 +2,35 @@ import { createElement } from "react"
 
 import {
   BulletListIcon,
+  CalloutIcon,
   CodeIcon,
   DividerIcon,
+  FileIcon,
   Heading1Icon,
   Heading2Icon,
   Heading3Icon,
+  Heading4Icon,
+  ImageIcon,
+  MarkdownIcon,
   OrderedListIcon,
+  PageLinkIcon,
   QuoteIcon,
   TableIcon,
   TaskListIcon,
   TextIcon,
 } from "./assets/index"
-import type { SlashCommandItem } from "./types"
+import type { SlashCommandItem, SlashRange } from "./types"
 
-const ITEMS: SlashCommandItem[] = [
+export type SlashMediaHandlers = {
+  openFilePopover: (range: SlashRange) => void
+  openMarkdownPopover: (range: SlashRange) => void
+  openPageLinkPopover: (range: SlashRange) => void
+}
+
+const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
   {
     id: "text",
+    group: "base",
     label: "Текст",
     keywords: ["text", "t", "текст"],
     icon: createElement(TextIcon),
@@ -26,6 +39,7 @@ const ITEMS: SlashCommandItem[] = [
   },
   {
     id: "h1",
+    group: "base",
     label: "Заголовок 1",
     keywords: ["h1", "title", "заголовок"],
     icon: createElement(Heading1Icon),
@@ -34,6 +48,7 @@ const ITEMS: SlashCommandItem[] = [
   },
   {
     id: "h2",
+    group: "base",
     label: "Заголовок 2",
     keywords: ["h2", "заголовок"],
     icon: createElement(Heading2Icon),
@@ -42,6 +57,7 @@ const ITEMS: SlashCommandItem[] = [
   },
   {
     id: "h3",
+    group: "base",
     label: "Заголовок 3",
     keywords: ["h3", "заголовок"],
     icon: createElement(Heading3Icon),
@@ -49,7 +65,17 @@ const ITEMS: SlashCommandItem[] = [
       editor.chain().focus().deleteRange(range).setNode("heading", { level: 3 }).run(),
   },
   {
+    id: "h4",
+    group: "base",
+    label: "Заголовок 4",
+    keywords: ["h4", "заголовок"],
+    icon: createElement(Heading4Icon),
+    run: ({ editor, range }) =>
+      editor.chain().focus().deleteRange(range).setNode("heading", { level: 4 }).run(),
+  },
+  {
     id: "bullet",
+    group: "base",
     label: "Маркированный список",
     keywords: ["ul", "list", "список"],
     icon: createElement(BulletListIcon),
@@ -57,6 +83,7 @@ const ITEMS: SlashCommandItem[] = [
   },
   {
     id: "ordered",
+    group: "base",
     label: "Нумерованный список",
     keywords: ["ol", "номер"],
     icon: createElement(OrderedListIcon),
@@ -64,6 +91,7 @@ const ITEMS: SlashCommandItem[] = [
   },
   {
     id: "task",
+    group: "base",
     label: "Список задач",
     keywords: ["todo", "checkbox", "чеклист", "задача"],
     icon: createElement(TaskListIcon),
@@ -71,6 +99,7 @@ const ITEMS: SlashCommandItem[] = [
   },
   {
     id: "quote",
+    group: "base",
     label: "Цитата",
     keywords: ["blockquote", "цитата"],
     icon: createElement(QuoteIcon),
@@ -78,6 +107,7 @@ const ITEMS: SlashCommandItem[] = [
   },
   {
     id: "code",
+    group: "base",
     label: "Код",
     keywords: ["code", "pre", "код"],
     icon: createElement(CodeIcon),
@@ -85,6 +115,7 @@ const ITEMS: SlashCommandItem[] = [
   },
   {
     id: "divider",
+    group: "base",
     label: "Разделитель",
     keywords: ["hr", "separator", "разделитель"],
     icon: createElement(DividerIcon),
@@ -92,6 +123,7 @@ const ITEMS: SlashCommandItem[] = [
   },
   {
     id: "table",
+    group: "base",
     label: "Таблица",
     keywords: ["grid", "таблица"],
     icon: createElement(TableIcon),
@@ -103,14 +135,78 @@ const ITEMS: SlashCommandItem[] = [
         .insertTable({ rows: 3, cols: 3, withHeaderRow: true })
         .run(),
   },
+  {
+    id: "callout",
+    group: "base",
+    label: "Выноска",
+    description: "Выделить текст",
+    keywords: ["callout", "выноска", "заметка", "info", "выделить"],
+    icon: createElement(CalloutIcon),
+    run: ({ editor, range }) =>
+      editor
+        .chain()
+        .focus()
+        .deleteRange(range)
+        .insertContent({
+          type: "callout",
+          attrs: { emoji: "💡" },
+          content: [{ type: "paragraph" }],
+        })
+        .run(),
+  },
+  {
+    id: "pageLink",
+    group: "base",
+    label: "Ссылка на страницу",
+    description: "Вставить ссылку на другую страницу",
+    keywords: ["link", "page", "ссылка", "страница"],
+    icon: createElement(PageLinkIcon),
+    run: ({ range }) => handlers.openPageLinkPopover(range),
+  },
+  {
+    id: "image",
+    group: "media",
+    label: "Картинка",
+    description: "Вставить пустой блок для загрузки изображения",
+    keywords: ["image", "img", "картинка", "изображение", "фото"],
+    icon: createElement(ImageIcon),
+    run: ({ editor, range }) =>
+      editor
+        .chain()
+        .focus()
+        .deleteRange(range)
+        .insertContent({ type: "image", attrs: { src: null } })
+        .run(),
+  },
+  {
+    id: "file",
+    group: "media",
+    label: "Файл",
+    description: "Загрузить файл",
+    keywords: ["file", "attachment", "файл", "документ", "вложение"],
+    icon: createElement(FileIcon),
+    run: ({ range }) => handlers.openFilePopover(range),
+  },
+  {
+    id: "markdown",
+    group: "media",
+    label: "Markdown",
+    description: "Вставить содержимое .md файла",
+    keywords: ["markdown", "md", "импорт"],
+    icon: createElement(MarkdownIcon),
+    run: ({ range }) => handlers.openMarkdownPopover(range),
+  },
 ]
 
-export const defaultSlashItems = (query: string): SlashCommandItem[] => {
-  const q = query.trim().toLowerCase()
-  if (!q) return ITEMS
-  return ITEMS.filter(
-    (it) =>
-      it.label.toLowerCase().includes(q) ||
-      (it.keywords ?? []).some((k) => k.toLowerCase().includes(q)),
-  )
+export const createSlashItems = (handlers: SlashMediaHandlers) => {
+  const items = buildItems(handlers)
+  return (query: string): SlashCommandItem[] => {
+    const q = query.trim().toLowerCase()
+    if (!q) return items
+    return items.filter(
+      (it) =>
+        it.label.toLowerCase().includes(q) ||
+        (it.keywords ?? []).some((k) => k.toLowerCase().includes(q)),
+    )
+  }
 }

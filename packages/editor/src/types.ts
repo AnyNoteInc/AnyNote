@@ -14,12 +14,33 @@ export type AnyNoteEditorUser = {
   color: string
 }
 
+export type PageLookupItem = {
+  id: string
+  title: string
+  icon: string | null
+}
+
+export type SlashCommandGroup = "base" | "media"
+
+export type SlashRange = { from: number; to: number }
+
+// Minimal virtual anchor accepted by MUI Popover. We don't have a real DOM
+// node for the slash cursor position, so we synthesize one with the
+// selection's client rect.
+export type VirtualAnchor = {
+  getBoundingClientRect: () => DOMRect
+  nodeType?: number
+}
+
 export type AnyNoteEditorProps = {
   pageId: string
+  workspaceId: string
   yjsUrl: string
   yjsToken: () => Promise<string>
   user: AnyNoteEditorUser
   uploadHandler: UploadHandler
+  pageSearch: (query: string) => Promise<PageLookupItem[]>
+  onNavigateToPage: (pageId: string) => void
   editable?: boolean
   className?: string
   placeholder?: string
@@ -31,5 +52,6 @@ export type SlashCommandItem = {
   description?: string
   keywords?: string[]
   icon?: ReactNode
-  run: (args: { editor: Editor; range: { from: number; to: number } }) => void
+  group: SlashCommandGroup
+  run: (args: { editor: Editor; range: SlashRange }) => void
 }

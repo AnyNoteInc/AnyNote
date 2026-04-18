@@ -140,9 +140,11 @@ function PageTreeItem({
           onClick={(e) => e.stopPropagation()}
           style={{ textDecoration: "none", flex: 1, minWidth: 0, display: "flex", gap: 4 }}
         >
-          <Typography variant="body2" component="span" sx={{ flexShrink: 0, lineHeight: "28px" }}>
-            {page.icon ?? "📄"}
-          </Typography>
+          {page.icon ? (
+            <Typography variant="body2" component="span" sx={{ flexShrink: 0, lineHeight: "28px" }}>
+              {page.icon}
+            </Typography>
+          ) : null}
           <Typography
             variant="body2"
             noWrap
@@ -151,7 +153,7 @@ function PageTreeItem({
               color: isActive ? "text.primary" : "text.secondary",
             }}
           >
-            {page.title ?? "Без названия"}
+            {page.title ?? "Новая страница"}
           </Typography>
         </Link>
         <Box

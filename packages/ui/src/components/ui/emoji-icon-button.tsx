@@ -2,8 +2,11 @@
 
 import { useState, type MouseEvent, type ReactNode } from "react"
 import Box from "@mui/material/Box"
+import Button from "@mui/material/Button"
 import IconButton, { type IconButtonProps } from "@mui/material/IconButton"
 import Popover from "@mui/material/Popover"
+import Stack from "@mui/material/Stack"
+import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline"
 
 import { EmojiPicker } from "./emoji-picker"
 
@@ -13,6 +16,7 @@ export type EmojiIconButtonProps = Omit<
 > & {
   value?: string | null
   onChange: (emoji: string) => void
+  onRemove?: () => void
   fallback?: ReactNode
   emojiSize?: number
 }
@@ -20,6 +24,7 @@ export type EmojiIconButtonProps = Omit<
 export function EmojiIconButton({
   value,
   onChange,
+  onRemove,
   fallback = "📄",
   emojiSize = 32,
   sx,
@@ -28,6 +33,7 @@ export function EmojiIconButton({
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const open = (event: MouseEvent<HTMLButtonElement>) => setAnchor(event.currentTarget)
   const close = () => setAnchor(null)
+  const canRemove = Boolean(value && onRemove)
   return (
     <>
       <IconButton {...buttonProps} onClick={open} sx={sx}>
@@ -41,12 +47,31 @@ export function EmojiIconButton({
         onClose={close}
         anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
       >
-        <EmojiPicker
-          onSelect={(emoji) => {
-            close()
-            onChange(emoji)
-          }}
-        />
+        <Stack>
+          {canRemove ? (
+            <Box sx={{ p: 1, borderBottom: 1, borderColor: "divider" }}>
+              <Button
+                size="small"
+                fullWidth
+                color="inherit"
+                startIcon={<DeleteOutlineIcon fontSize="small" />}
+                onClick={() => {
+                  close()
+                  onRemove?.()
+                }}
+                sx={{ justifyContent: "flex-start", color: "text.secondary" }}
+              >
+                Удалить иконку
+              </Button>
+            </Box>
+          ) : null}
+          <EmojiPicker
+            onSelect={(emoji) => {
+              close()
+              onChange(emoji)
+            }}
+          />
+        </Stack>
       </Popover>
     </>
   )

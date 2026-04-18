@@ -9,6 +9,9 @@ const nextConfig = {
     '@repo/editor',
     '@repo/excalidraw',
   ],
+  experimental: {
+    optimizePackageImports: ['emoji-picker-react'],
+  },
 }
 
 export default nextConfig

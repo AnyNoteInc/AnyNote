@@ -1,5 +1,6 @@
 "use client"
 
+import Link from "next/link"
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
 
 import { Box, IconButton, MenuIcon, Paper, Popper, Stack, Typography } from "@repo/ui/components"
@@ -111,22 +112,37 @@ export function WorkspaceToolbar({
           ) : null}
         </>
       ) : null}
-      {breadcrumbs.map((crumb, i) => (
-        <Stack key={i} direction="row" alignItems="center" spacing={1.25}>
-          {i > 0 && (
-            <Typography variant="body2" color="text.disabled">
-              /
-            </Typography>
-          )}
-          <Typography
-            variant="body2"
-            noWrap
-            color={i === breadcrumbs.length - 1 ? "text.primary" : "text.secondary"}
-          >
-            {crumb.label}
-          </Typography>
-        </Stack>
-      ))}
+      {breadcrumbs.map((crumb, i) => {
+        const isLast = i === breadcrumbs.length - 1
+        return (
+          <Stack key={i} direction="row" alignItems="center" spacing={1.25}>
+            {i > 0 && (
+              <Typography variant="body2" color="text.disabled">
+                /
+              </Typography>
+            )}
+            {crumb.href && !isLast ? (
+              <Typography
+                component={Link}
+                href={crumb.href}
+                variant="body2"
+                noWrap
+                sx={{
+                  color: "text.secondary",
+                  textDecoration: "none",
+                  "&:hover": { color: "text.primary", textDecoration: "underline" },
+                }}
+              >
+                {crumb.label}
+              </Typography>
+            ) : (
+              <Typography variant="body2" noWrap color={isLast ? "text.primary" : "text.secondary"}>
+                {crumb.label}
+              </Typography>
+            )}
+          </Stack>
+        )
+      })}
       <Box sx={{ flex: 1 }} />
     </Stack>
   )

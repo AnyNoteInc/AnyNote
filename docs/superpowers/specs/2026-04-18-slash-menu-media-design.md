@@ -42,11 +42,11 @@ export type SlashCommandItem = {
   description?: string
   keywords?: string[]
   icon?: ReactNode
-  group: SlashCommandGroup  // NEW
+  group: SlashCommandGroup // NEW
   run: (args: {
     editor: Editor
     range: { from: number; to: number }
-    context: SlashCommandContext  // NEW
+    context: SlashCommandContext // NEW
   }) => void
 }
 
@@ -86,6 +86,7 @@ Rationale for `pageSearch` and `onNavigateToPage` as props: editor package stays
 #### `file-attachment.ts` — block node `fileAttachment`
 
 Atom block node with attrs:
+
 - `url: string` — `/api/files/{fileId}` URL from upload handler
 - `name: string` — original filename
 - `size: number` — bytes
@@ -93,9 +94,11 @@ Atom block node with attrs:
 - `ext: string` — lowercased extension without dot (for icon lookup)
 
 ReactNodeView renders a clickable row:
+
 ```
 [icon] filename.ext      12.3 KB    [download →]
 ```
+
 Clicking the row (or the download affordance) opens `url` in a new tab via `<a href={url} target="_blank" rel="noopener noreferrer" download={name}>`.
 
 Serialization: custom HTML `<div data-type="file-attachment" data-url data-name data-size data-mime data-ext />` so yjs + prosemirror parse it back.
@@ -103,6 +106,7 @@ Serialization: custom HTML `<div data-type="file-attachment" data-url data-name 
 #### `page-link.ts` — inline node `pageLink`
 
 Atom inline node with attrs:
+
 - `pageId: string`
 - `workspaceId: string`
 - `title: string`
@@ -119,6 +123,7 @@ All popovers are rendered inside `AnyNoteEditorInner` using MUI `<Popover>` with
 
 Props: `{ open, anchorEl, range, onClose, uploadHandler, editor }`.
 Two MUI tabs:
+
 - **Tab 1 "Загрузить"**: file input (`accept="image/*"`), preview, "Загрузить" button → calls `uploadHandler`, on success replaces `range` with an `<img>` node (`editor.chain().focus().deleteRange(range).setImage({ src })`).
 - **Tab 2 "Ссылка"**: URL TextField + "Вставить" button → replaces `range` with `<img src={url}>`.
 
@@ -141,6 +146,7 @@ Update popover to render items partitioned by `group`, with MUI `<ListSubheader>
 ### Default slash items (packages/editor/src/slash-items.ts)
 
 Add `group` to every existing item (all `"base"`). Append:
+
 - `{ id: "pageLink", group: "base", label: "Ссылка на страницу", run: (ctx) => ctx.context.openPageLinkPopover(ctx.range) }`
 - `{ id: "image", group: "media", label: "Картинка", run: (ctx) => ctx.context.openImagePopover(ctx.range) }`
 - `{ id: "file", group: "media", label: "Файл", run: (ctx) => ctx.context.openFilePopover(ctx.range) }`
@@ -165,6 +171,7 @@ Export helper `getFileIcon(ext: string): ComponentType` in `assets/files/index.t
 ### UI package additions (packages/ui/src/components/index.ts)
 
 Add:
+
 ```ts
 export { default as Tabs, type TabsProps } from "@mui/material/Tabs"
 export { default as Tab, type TabProps } from "@mui/material/Tab"
@@ -188,6 +195,7 @@ Add `@tiptap/extension-image` to `@repo/editor` dependencies. Register in `build
 ## Data flow
 
 ### Image upload (Tab 1)
+
 ```
 slash "/" → user selects "Картинка" → openImagePopover(range)
   → tab Upload → file picker → click "Загрузить"
@@ -198,6 +206,7 @@ slash "/" → user selects "Картинка" → openImagePopover(range)
 ```
 
 ### Image URL (Tab 2)
+
 ```
 slash "/" → "Картинка" → openImagePopover(range)
   → tab URL → user pastes URL → click "Вставить"
@@ -205,6 +214,7 @@ slash "/" → "Картинка" → openImagePopover(range)
 ```
 
 ### File upload
+
 ```
 slash "/" → "Файл" → openFilePopover(range)
   → file picker → click "Загрузить"
@@ -216,6 +226,7 @@ slash "/" → "Файл" → openFilePopover(range)
 ```
 
 ### Page link
+
 ```
 slash "/" → "Ссылка на страницу" → openPageLinkPopover(range)
   → user types → pageSearch(query) → returns filtered list
@@ -235,11 +246,14 @@ slash "/" → "Ссылка на страницу" → openPageLinkPopover(range
 ## Testing
 
 ### Unit / type-check
+
 - `pnpm run check-types` must pass.
 - `pnpm run lint` must pass with `--max-warnings 0`.
 
 ### Playwright E2E (apps/e2e/)
+
 Add new spec `apps/e2e/editor-slash-media.spec.ts` covering:
+
 1. Open a text page, type `/`, verify the menu renders two group headings and all items.
 2. Select "Картинка" → Upload tab → attach a small PNG → verify image appears in the editor.
 3. Select "Картинка" → URL tab → paste URL → verify image appears.

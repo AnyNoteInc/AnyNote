@@ -12,11 +12,7 @@ function TaskItemView({ node, updateAttributes, editor }: NodeViewProps) {
     if (editor.isEditable) updateAttributes({ checked: next })
   }
   return (
-    <NodeViewWrapper
-      as="li"
-      data-checked={checked || undefined}
-      className="anynote-task-item"
-    >
+    <NodeViewWrapper as="li" data-checked={checked || undefined} className="anynote-task-item">
       <Checkbox
         checked={checked}
         onChange={handleChange}

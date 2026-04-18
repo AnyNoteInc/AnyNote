@@ -193,11 +193,13 @@ function FavItem({
           paddingBottom: 4,
         }}
       >
-        <span style={{ fontSize: 14, marginRight: 8, flexShrink: 0 }}>{page.icon ?? "📄"}</span>
+        {page.icon ? (
+          <span style={{ fontSize: 14, marginRight: 8, flexShrink: 0 }}>{page.icon}</span>
+        ) : null}
         <span
           style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
         >
-          {page.title ?? "Без названия"}
+          {page.title ?? "Новая страница"}
         </span>
       </Link>
       <IconButton

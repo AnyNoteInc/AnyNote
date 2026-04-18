@@ -69,7 +69,10 @@ export function EditorDragHandle({ editor }: Props) {
       return
     }
     if (info.isEmpty) {
-      chain.setTextSelection(info.from + 1).insertContent("/").run()
+      chain
+        .setTextSelection(info.from + 1)
+        .insertContent("/")
+        .run()
       return
     }
     // Non-empty: put cursor at end of node and insert new paragraph below
@@ -82,11 +85,7 @@ export function EditorDragHandle({ editor }: Props) {
   }
 
   return (
-    <DragHandle
-      editor={editor}
-      onNodeChange={onNodeChange}
-      onElementDragStart={onElementDragStart}
-    >
+    <DragHandle editor={editor} onNodeChange={onNodeChange} onElementDragStart={onElementDragStart}>
       <Box
         className="tiptap-drag-handle-wrapper"
         sx={{

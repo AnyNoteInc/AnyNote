@@ -17,8 +17,7 @@ const base: SVGProps<SVGSVGElement> = {
 }
 
 const icon = (name: string, paths: ReactElement[]) => {
-  const Component = (props: IconProps) =>
-    createElement("svg", { ...base, ...props }, paths)
+  const Component = (props: IconProps) => createElement("svg", { ...base, ...props }, paths)
   Component.displayName = name
   return Component
 }
@@ -42,6 +41,14 @@ export const Heading3Icon = icon("Heading3Icon", [
   <path key="b" d="M4 18V6" />,
   <path key="c" d="M12 18V6" />,
   <path key="d" d="M15 9h4l-2 3a2 2 0 1 1-1 3.7" />,
+])
+
+export const Heading4Icon = icon("Heading4Icon", [
+  <path key="a" d="M4 12h8" />,
+  <path key="b" d="M4 18V6" />,
+  <path key="c" d="M12 18V6" />,
+  <path key="d" d="M16 8v5h4" />,
+  <path key="e" d="M20 8v10" />,
 ])
 
 export const ParagraphIcon = icon("ParagraphIcon", [
@@ -158,3 +165,41 @@ export const DeleteTableIcon = (props: IconProps) =>
     <line key="f" x1="6" y1="6" x2="18" y2="18" stroke="currentColor" strokeWidth={2.5} />,
     <line key="g" x1="18" y1="6" x2="6" y2="18" stroke="currentColor" strokeWidth={2.5} />,
   )
+
+export const ImageIcon = icon("ImageIcon", [
+  <rect key="a" x="3" y="4" width="18" height="16" rx="2" />,
+  <circle key="b" cx="9" cy="10" r="1.5" />,
+  <path key="c" d="m21 16-4-4-6 6-3-3-5 5" />,
+])
+
+export const FileIcon = icon("FileIcon", [
+  <path key="a" d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" />,
+  <polyline key="b" points="14 3 14 8 19 8" />,
+])
+
+export const PageLinkIcon = icon("PageLinkIcon", [
+  <path key="a" d="M14 3H7a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V8Z" />,
+  <polyline key="b" points="14 3 14 8 19 8" />,
+  <path key="c" d="M9 13h6" />,
+  <path key="d" d="M9 17h4" />,
+])
+
+export const DownloadIcon = icon("DownloadIcon", [
+  <path key="a" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />,
+  <polyline key="b" points="7 10 12 15 17 10" />,
+  <line key="c" x1="12" y1="15" x2="12" y2="3" />,
+])
+
+export const CalloutIcon = icon("CalloutIcon", [
+  <rect key="a" x="3" y="5" width="18" height="14" rx="2" />,
+  <circle key="b" cx="8" cy="10" r="1.2" />,
+  <path key="c" d="M12 10h5" />,
+  <path key="d" d="M7 14h10" />,
+])
+
+export const MarkdownIcon = icon("MarkdownIcon", [
+  <rect key="a" x="3" y="5" width="18" height="14" rx="2" />,
+  <path key="b" d="M7 15V9l2.5 3L12 9v6" />,
+  <path key="c" d="M16 9v6" />,
+  <path key="d" d="M14 13l2 2 2-2" />,
+])

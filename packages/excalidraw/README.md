@@ -7,7 +7,6 @@ Excalidraw canvas with Yjs-backed real-time collaboration via
 
 ```tsx
 import { Board } from "@repo/excalidraw"
-
 ;<Board
   pageId="..."
   workspaceId="..."

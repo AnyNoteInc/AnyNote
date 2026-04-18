@@ -1,10 +1,6 @@
 "use client"
 
-import Picker, {
-  EmojiStyle,
-  Theme as EmojiTheme,
-  type EmojiClickData,
-} from "emoji-picker-react"
+import Picker, { EmojiStyle, Theme as EmojiTheme, type EmojiClickData } from "emoji-picker-react"
 import { useTheme } from "@mui/material/styles"
 
 export type EmojiPickerProps = {
