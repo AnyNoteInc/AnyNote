@@ -10,6 +10,7 @@ import {
   Heading2Icon,
   Heading3Icon,
   Heading4Icon,
+  HiddenIcon,
   ImageIcon,
   MarkdownIcon,
   OrderedListIcon,
@@ -18,6 +19,7 @@ import {
   TableIcon,
   TaskListIcon,
   TextIcon,
+  ToggleIcon,
 } from "./assets/index"
 import type { SlashCommandItem, SlashRange } from "./types"
 
@@ -150,6 +152,43 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
         .insertContent({
           type: "callout",
           attrs: { emoji: "💡" },
+          content: [{ type: "paragraph" }],
+        })
+        .run(),
+  },
+  {
+    id: "toggle",
+    group: "base",
+    label: "Переключатель",
+    description: "Скрываемое содержимое",
+    keywords: ["toggle", "collapse", "переключатель", "свернуть"],
+    icon: createElement(ToggleIcon),
+    run: ({ editor, range }) =>
+      editor
+        .chain()
+        .focus()
+        .deleteRange(range)
+        .insertContent({
+          type: "toggle",
+          attrs: { open: true },
+          content: [{ type: "paragraph" }],
+        })
+        .run(),
+  },
+  {
+    id: "hidden",
+    group: "base",
+    label: "Скрытый текст",
+    description: "Скрывает содержимое под маской",
+    keywords: ["hidden", "mask", "скрытый", "спойлер"],
+    icon: createElement(HiddenIcon),
+    run: ({ editor, range }) =>
+      editor
+        .chain()
+        .focus()
+        .deleteRange(range)
+        .insertContent({
+          type: "hiddenText",
           content: [{ type: "paragraph" }],
         })
         .run(),
