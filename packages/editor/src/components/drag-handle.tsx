@@ -5,10 +5,31 @@ import AddIcon from "@mui/icons-material/Add"
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator"
 import { Box, IconButton } from "@mui/material"
 import type { Editor } from "@tiptap/core"
+import type { DragHandleRule } from "@tiptap/extension-drag-handle"
 import DragHandle from "@tiptap/extension-drag-handle-react"
 import type { Node as PMNode } from "@tiptap/pm/model"
 
 import { DragHandleMenu } from "./drag-handle-menu"
+
+const CONTAINER_TYPES = ["callout", "toggle", "hiddenText"]
+
+// First child of a container block is not independently draggable — dragging
+// the first row should pick the parent container instead. Mirrors the library's
+// built-in `listItemFirstChild` rule but for our block types.
+const firstChildOfContainer: DragHandleRule = {
+  id: "firstChildOfContainer",
+  evaluate: ({ parent, isFirst }) => {
+    if (!isFirst || !parent) return 0
+    return CONTAINER_TYPES.includes(parent.type.name) ? 1000 : 0
+  },
+}
+
+// `edgeDetection: 'none'` disables the 12px band where deeper nodes lose score
+// near their left edge. With it on, mousing from an inner block toward the
+// handle (which sits in the gutter) would flip the target to the parent mid-
+// motion, so the handle would jump to the outer container before the cursor
+// even reached it.
+const nestedOptions = { rules: [firstChildOfContainer], edgeDetection: "none" as const }
 
 type Props = {
   editor: Editor
@@ -109,7 +130,7 @@ export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
     <>
       <DragHandle
         editor={editor}
-        nested
+        nested={nestedOptions}
         onNodeChange={onNodeChange}
         onElementDragStart={onElementDragStart}
       >

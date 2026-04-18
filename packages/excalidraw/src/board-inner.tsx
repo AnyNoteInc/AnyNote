@@ -33,8 +33,7 @@ export function BoardInner(props: BoardProps) {
     () => ({
       appState: {
         viewBackgroundColor: initialModeRef.current === "dark" ? DARK_BG : LIGHT_BG,
-        currentItemStrokeColor:
-          initialModeRef.current === "dark" ? DARK_STROKE : LIGHT_STROKE,
+        currentItemStrokeColor: initialModeRef.current === "dark" ? DARK_STROKE : LIGHT_STROKE,
       },
     }),
     [],
