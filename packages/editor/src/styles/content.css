@@ -293,3 +293,40 @@
   padding: 2px 6px;
   border-radius: 4px;
 }
+
+/* === Toggle block === */
+.anynote-toggle {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 4px;
+  align-items: start;
+}
+.anynote-toggle[data-open="false"] > .anynote-toggle-content > *:not(:first-child) {
+  display: none;
+}
+.anynote-toggle-content > * {
+  margin: 0;
+}
+.anynote-toggle-content > * + * {
+  margin-top: 6px;
+}
+
+/* === Hidden text block === */
+.anynote-hidden-text {
+  display: grid;
+  grid-template-columns: 24px 1fr;
+  gap: 4px;
+  align-items: start;
+}
+.anynote-hidden-text[data-visible="false"] > .anynote-hidden-text-content {
+  -webkit-text-security: disc;
+  text-security: disc;
+}
+@supports not ((-webkit-text-security: disc) or (text-security: disc)) {
+  .anynote-hidden-text[data-visible="false"] > .anynote-hidden-text-content {
+    filter: blur(5px);
+  }
+}
+.anynote-hidden-text-content > * + * {
+  margin-top: 6px;
+}
