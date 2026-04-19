@@ -261,7 +261,7 @@ downwards.
 
 ```json
 {
-  "name": "@repo/agents",
+  "name": "agents",
   "private": true,
   "scripts": {
     "dev": "uv run uvicorn agents.main:app --host 0.0.0.0 --port 8080 --reload",

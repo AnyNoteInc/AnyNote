@@ -392,7 +392,7 @@ EOF
 
 ## Task 2: `apps/agents/` project skeleton + uv lockfile
 
-Create the full directory tree with empty Python packages and minimal metadata so `pnpm --filter @repo/agents <script>` and `uv sync` work before any real logic lands.
+Create the full directory tree with empty Python packages and minimal metadata so `pnpm --filter agents <script>` and `uv sync` work before any real logic lands.
 
 **Files (created):**
 - `apps/agents/package.json`
@@ -523,7 +523,7 @@ app = create_app()
 
 ```json
 {
-  "name": "@repo/agents",
+  "name": "agents",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -610,7 +610,7 @@ OLLAMA_DEFAULT_MODEL="gemma4"
 - [ ] **Step 2.9: Write `apps/agents/README.md`**
 
 ```markdown
-# @repo/agents — AnyNote Agents Service
+# agents — AnyNote Agents Service
 
 FastAPI + LangGraph backend that owns LLM interaction. The service is
 stateless w.r.t. credentials — every request carries the provider
@@ -620,8 +620,8 @@ config. Conversation state is persisted by LangGraph's
 ## Setup
 
 ```bash
-pnpm install                              # installs @repo/agents too
-pnpm --filter @repo/agents build          # uv sync --frozen
+pnpm install                              # installs agents too
+pnpm --filter agents build          # uv sync --frozen
 docker compose up -d                      # postgres/ollama/qdrant/...
 ollama pull gemma4                        # pulls the default model
 ```
@@ -629,12 +629,12 @@ ollama pull gemma4                        # pulls the default model
 ## Dev loop
 
 ```bash
-pnpm --filter @repo/agents dev            # http://localhost:8080
-pnpm --filter @repo/agents test           # unit tests only
-pnpm --filter @repo/agents test -- -m integration   # requires running Ollama
-pnpm --filter @repo/agents check-types
-pnpm --filter @repo/agents lint
-pnpm --filter @repo/agents format
+pnpm --filter agents dev            # http://localhost:8080
+pnpm --filter agents test           # unit tests only
+pnpm --filter agents test -- -m integration   # requires running Ollama
+pnpm --filter agents check-types
+pnpm --filter agents lint
+pnpm --filter agents format
 ```
 
 Alternative via Makefile in this directory:
@@ -680,28 +680,28 @@ cd ../..
 
 Expected: `uv.lock` created in `apps/agents/`. `.venv/` is git-ignored.
 
-- [ ] **Step 2.11: Install workspace deps so Turbo picks up `@repo/agents`**
+- [ ] **Step 2.11: Install workspace deps so Turbo picks up `agents`**
 
 ```bash
 pnpm install
 ```
 
-Expected: pnpm logs `@repo/agents` as a new workspace project.
+Expected: pnpm logs `agents` as a new workspace project.
 
 - [ ] **Step 2.12: Verify Turbo tasks execute against the new package**
 
 ```bash
-pnpm --filter @repo/agents build
-pnpm --filter @repo/agents check-types
-pnpm --filter @repo/agents lint
-pnpm --filter @repo/agents test
+pnpm --filter agents build
+pnpm --filter agents check-types
+pnpm --filter agents lint
+pnpm --filter agents test
 ```
 
 Expected:
 - `build` → `uv sync --frozen` succeeds, no code changes
 - `check-types` → mypy runs, zero errors (the minimal `main.py` is clean)
 - `lint` → ruff passes
-- `test` → pytest exits with `no tests ran` (exit 5). Wrap via shell: `pnpm --filter @repo/agents test || test $? -eq 5`; this is acceptable because no test files exist yet.
+- `test` → pytest exits with `no tests ran` (exit 5). Wrap via shell: `pnpm --filter agents test || test $? -eq 5`; this is acceptable because no test files exist yet.
 
 If pytest's exit-5 on "no tests collected" fails the pnpm command, add `tests/test_placeholder.py`:
 
@@ -802,7 +802,7 @@ def test_settings_missing_required_raises(monkeypatch: pytest.MonkeyPatch) -> No
 - [ ] **Step 3.2: Run test — expect ImportError**
 
 ```bash
-pnpm --filter @repo/agents test
+pnpm --filter agents test
 ```
 
 Expected: test collection fails with `ModuleNotFoundError: agents.settings`.
@@ -837,7 +837,7 @@ class Settings(BaseSettings):
 - [ ] **Step 3.4: Run test — expect PASS**
 
 ```bash
-pnpm --filter @repo/agents test
+pnpm --filter agents test
 ```
 
 Expected: 3 passed.
@@ -895,7 +895,7 @@ def test_inheritance() -> None:
 - [ ] **Step 3.6: Run test — expect ImportError**
 
 ```bash
-pnpm --filter @repo/agents test
+pnpm --filter agents test
 ```
 
 Expected: `ModuleNotFoundError: agents.exceptions`.
@@ -938,7 +938,7 @@ class ProviderError(AgentException):
 - [ ] **Step 3.8: Run tests — expect all PASS**
 
 ```bash
-pnpm --filter @repo/agents test
+pnpm --filter agents test
 ```
 
 Expected: 9 passed (3 settings + 6 exceptions).
@@ -952,8 +952,8 @@ rm -f apps/agents/tests/test_placeholder.py
 - [ ] **Step 3.10: Lint + types**
 
 ```bash
-pnpm --filter @repo/agents lint
-pnpm --filter @repo/agents check-types
+pnpm --filter agents lint
+pnpm --filter agents check-types
 ```
 
 Expected: both green.
@@ -1072,7 +1072,7 @@ def test_invalid_thread_id_fails() -> None:
 - [ ] **Step 4.2: Run test — expect ImportError**
 
 ```bash
-pnpm --filter @repo/agents test
+pnpm --filter agents test
 ```
 
 - [ ] **Step 4.3: Implement `agents/schemas/generate.py`**
@@ -1204,7 +1204,7 @@ class GenerateRequest(_CamelModel):
 - [ ] **Step 4.4: Run test — expect PASS (all 6)**
 
 ```bash
-pnpm --filter @repo/agents test
+pnpm --filter agents test
 ```
 
 Expected: `6 passed` on the new file; total count includes earlier tests.
@@ -1246,7 +1246,7 @@ def test_error_event() -> None:
 - [ ] **Step 4.6: Run test — expect ImportError**
 
 ```bash
-pnpm --filter @repo/agents test
+pnpm --filter agents test
 ```
 
 - [ ] **Step 4.7: Implement `agents/schemas/streaming.py`**
@@ -1308,7 +1308,7 @@ class ServerEvent:
 - [ ] **Step 4.8: Run tests**
 
 ```bash
-pnpm --filter @repo/agents test
+pnpm --filter agents test
 ```
 
 Expected: all tests pass (settings 3 + exceptions 6 + generate 6 + streaming 4 = 19).
@@ -1316,8 +1316,8 @@ Expected: all tests pass (settings 3 + exceptions 6 + generate 6 + streaming 4 =
 - [ ] **Step 4.9: Lint + types**
 
 ```bash
-pnpm --filter @repo/agents lint
-pnpm --filter @repo/agents check-types
+pnpm --filter agents lint
+pnpm --filter agents check-types
 ```
 
 Expected: green.
@@ -1462,7 +1462,7 @@ def test_renderer_emits_recent_messages_in_order() -> None:
 - [ ] **Step 5.2: Run test — expect ImportError**
 
 ```bash
-pnpm --filter @repo/agents test
+pnpm --filter agents test
 ```
 
 - [ ] **Step 5.3: Write the Jinja template — `agents/prompts/default.j2`**
@@ -1611,7 +1611,7 @@ rm -f apps/agents/agents/prompts/.gitkeep
 - [ ] **Step 5.6: Run tests**
 
 ```bash
-pnpm --filter @repo/agents test
+pnpm --filter agents test
 ```
 
 Expected: all 7 prompt-renderer tests plus earlier 19 → total 26 passed.
@@ -1619,8 +1619,8 @@ Expected: all 7 prompt-renderer tests plus earlier 19 → total 26 passed.
 - [ ] **Step 5.7: Lint + types**
 
 ```bash
-pnpm --filter @repo/agents lint
-pnpm --filter @repo/agents check-types
+pnpm --filter agents lint
+pnpm --filter agents check-types
 ```
 
 Expected: green.
@@ -1709,7 +1709,7 @@ Note: `ModelConfig.model_construct` bypasses pydantic validation so we can exerc
 - [ ] **Step 6.2: Run test — expect ImportError**
 
 ```bash
-pnpm --filter @repo/agents test
+pnpm --filter agents test
 ```
 
 - [ ] **Step 6.3: Implement `agents/services/providers.py`**
@@ -1766,7 +1766,7 @@ def create_chat_model(config: ModelConfig) -> BaseChatModel:
 - [ ] **Step 6.4: Run test**
 
 ```bash
-pnpm --filter @repo/agents test
+pnpm --filter agents test
 ```
 
 Expected: 4 new passed; total 30.
@@ -1776,8 +1776,8 @@ If `ChatOllama`/`ChatOpenAI`/`GigaChat` instantiation hits network calls in the 
 - [ ] **Step 6.5: Lint + types**
 
 ```bash
-pnpm --filter @repo/agents lint
-pnpm --filter @repo/agents check-types
+pnpm --filter agents lint
+pnpm --filter agents check-types
 ```
 
 - [ ] **Step 6.6: Commit**
@@ -1858,7 +1858,7 @@ def test_graph_state_shape() -> None:
 - [ ] **Step 7.2: Run test — expect ImportError**
 
 ```bash
-pnpm --filter @repo/agents test
+pnpm --filter agents test
 ```
 
 - [ ] **Step 7.3: Implement `agents/services/graph.py`**
@@ -1934,7 +1934,7 @@ def build_graph(
 - [ ] **Step 7.4: Run tests — expect PASS**
 
 ```bash
-pnpm --filter @repo/agents test
+pnpm --filter agents test
 ```
 
 Expected: both tests pass.
@@ -1950,8 +1950,8 @@ Or use the `langchain_core.runnables.base.RunnableLambda` wrapper to fake a mess
 - [ ] **Step 7.5: Lint + types**
 
 ```bash
-pnpm --filter @repo/agents lint
-pnpm --filter @repo/agents check-types
+pnpm --filter agents lint
+pnpm --filter agents check-types
 ```
 
 - [ ] **Step 7.6: Commit**
@@ -2039,7 +2039,7 @@ class AppSingletonsProvider(Provider):
 - [ ] **Step 8.2: Type-check**
 
 ```bash
-pnpm --filter @repo/agents check-types
+pnpm --filter agents check-types
 ```
 
 Expected: green. If `AsyncPostgresSaver.from_conn_string` returns a context manager of a different shape than assumed, consult `uv run python -c "from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver; help(AsyncPostgresSaver.from_conn_string)"` and adjust (the API is stable in 2.x, but check).
@@ -2047,7 +2047,7 @@ Expected: green. If `AsyncPostgresSaver.from_conn_string` returns a context mana
 - [ ] **Step 8.3: Lint**
 
 ```bash
-pnpm --filter @repo/agents lint
+pnpm --filter agents lint
 ```
 
 - [ ] **Step 8.4: Commit**
@@ -2160,7 +2160,7 @@ def test_correct_token_allowed() -> None:
 - [ ] **Step 9.3: Run test — expect ImportError**
 
 ```bash
-pnpm --filter @repo/agents test
+pnpm --filter agents test
 ```
 
 - [ ] **Step 9.4: Implement `agents/entrypoints/rest/auth.py`**
@@ -2190,7 +2190,7 @@ def require_bearer(authorization: str | None = Header(default=None)) -> None:
 - [ ] **Step 9.5: Run tests**
 
 ```bash
-pnpm --filter @repo/agents test
+pnpm --filter agents test
 ```
 
 Expected: 3 new passed.
@@ -2198,8 +2198,8 @@ Expected: 3 new passed.
 - [ ] **Step 9.6: Lint + types**
 
 ```bash
-pnpm --filter @repo/agents lint
-pnpm --filter @repo/agents check-types
+pnpm --filter agents lint
+pnpm --filter agents check-types
 ```
 
 - [ ] **Step 9.7: Commit**
@@ -2246,7 +2246,7 @@ def test_health_ok() -> None:
 - [ ] **Step 10.2: Run test — expect 404 from unmounted route**
 
 ```bash
-pnpm --filter @repo/agents test
+pnpm --filter agents test
 ```
 
 - [ ] **Step 10.3: Implement `agents/entrypoints/rest/health.py`**
@@ -2296,14 +2296,14 @@ app = create_app()
 - [ ] **Step 10.5: Run test — expect PASS**
 
 ```bash
-pnpm --filter @repo/agents test
+pnpm --filter agents test
 ```
 
 - [ ] **Step 10.6: Lint + types**
 
 ```bash
-pnpm --filter @repo/agents lint
-pnpm --filter @repo/agents check-types
+pnpm --filter agents lint
+pnpm --filter agents check-types
 ```
 
 - [ ] **Step 10.7: Commit**
@@ -2382,7 +2382,7 @@ app = create_app()
 - [ ] **Step 11.3: Run tests — expect PASS**
 
 ```bash
-pnpm --filter @repo/agents test
+pnpm --filter agents test
 ```
 
 Expected: all previously-passing tests still pass. If `create_app()` triggers a DB connection at import time, `from_context` context missing will fail loudly — fix by ensuring `make_async_container` receives the Settings instance in `context=`.
@@ -2392,14 +2392,14 @@ Note: existing tests that called `create_app()` directly will now spin up an asy
 - [ ] **Step 11.4: Lint + types**
 
 ```bash
-pnpm --filter @repo/agents lint
-pnpm --filter @repo/agents check-types
+pnpm --filter agents lint
+pnpm --filter agents check-types
 ```
 
 - [ ] **Step 11.5: Smoke — start server + curl**
 
 ```bash
-pnpm --filter @repo/agents dev &
+pnpm --filter agents dev &
 AGENTS_PID=$!
 sleep 3
 curl -s http://localhost:8080/health
@@ -2590,7 +2590,7 @@ async def test_generate_streams_tokens_from_ollama() -> None:
 - [ ] **Step 12.4: Run unit tests**
 
 ```bash
-pnpm --filter @repo/agents test
+pnpm --filter agents test
 ```
 
 Expected: all unit tests still pass (the integration test is excluded by marker).
@@ -2606,7 +2606,7 @@ Wait a few minutes — it downloads ~4 GB.
 - [ ] **Step 12.6: Run integration test**
 
 ```bash
-pnpm --filter @repo/agents test -- -m integration
+pnpm --filter agents test -- -m integration
 ```
 
 Expected: the `test_generate_streams_tokens_from_ollama` test passes — at least one `token` event streamed, `done` seen.
@@ -2616,8 +2616,8 @@ If it fails with a DB connection error, ensure `docker compose ps` shows postgre
 - [ ] **Step 12.7: Lint + types**
 
 ```bash
-pnpm --filter @repo/agents lint
-pnpm --filter @repo/agents check-types
+pnpm --filter agents lint
+pnpm --filter agents check-types
 ```
 
 - [ ] **Step 12.8: Commit**
@@ -2663,7 +2663,7 @@ Run `pnpm exec playwright test` only if you want — pillar B1 does not touch an
 - [ ] **Step 13.3: Smoke against the dev server**
 
 ```bash
-pnpm --filter @repo/agents dev &
+pnpm --filter agents dev &
 AGENTS_PID=$!
 sleep 3
 curl -s http://localhost:8080/health
