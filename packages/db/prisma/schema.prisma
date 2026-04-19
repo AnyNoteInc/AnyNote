@@ -28,7 +28,7 @@ model User {
   preferences          UserPreference?
   userIntegrations     Integration[]     @relation("UserIntegrations")
   subscriptions        Subscription[]
-  searchChats          SearchChat[]      @relation("SearchChatCreator")
+  chats                Chat[]            @relation("ChatCreator")
   favoritePages        FavoritePage[]
   files                File[]
 
@@ -134,9 +134,15 @@ enum PageType {
   FORM
 }
 
-enum SearchMessageRole {
+enum ChatMessageRole {
   USER
   ASSISTANT
+}
+
+enum PageOwnership {
+  TEXT
+  SKILL
+  AGENT
 }
 
 model Workspace {
@@ -153,7 +159,7 @@ model Workspace {
   pages                 Page[]
   workspaceIntegrations Integration[]     @relation("WorkspaceIntegrations")
   defaultForUsers       UserPreference[]  @relation("DefaultWorkspace")
-  searchChats           SearchChat[]
+  chats                 Chat[]
   files                 File[]
 
   @@index([createdById])
@@ -178,21 +184,22 @@ model WorkspaceMember {
 }
 
 model Page {
-  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  workspaceId String    @map("workspace_id") @db.Uuid
-  parentId    String?   @map("parent_id") @db.Uuid
-  type        PageType  @default(TEXT)
-  title       String?   @db.Text
-  icon        String?   @db.Text
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String        @map("workspace_id") @db.Uuid
+  parentId    String?       @map("parent_id") @db.Uuid
+  type        PageType      @default(TEXT)
+  ownership   PageOwnership @default(TEXT)
+  title       String?       @db.Text
+  icon        String?       @db.Text
   content     Json?
-  contentYjs  Bytes?    @map("content_yjs")
-  archived    Boolean   @default(false)
-  prevPageId  String?   @unique @map("prev_page_id") @db.Uuid
-  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
-  createdById String?   @map("created_by_id") @db.Uuid
-  updatedById String?   @map("updated_by_id") @db.Uuid
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  contentYjs  Bytes?        @map("content_yjs")
+  archived    Boolean       @default(false)
+  prevPageId  String?       @unique @map("prev_page_id") @db.Uuid
+  deletedAt   DateTime?     @map("deleted_at") @db.Timestamptz(6)
+  createdById String?       @map("created_by_id") @db.Uuid
+  updatedById String?       @map("updated_by_id") @db.Uuid
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   createdBy User?          @relation("PageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -207,40 +214,53 @@ model Page {
   @@index([workspaceId])
   @@index([parentId])
   @@index([archived])
+  @@index([workspaceId, ownership])
   @@map("pages")
 }
 
-model SearchChat {
+model Chat {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   workspaceId String   @map("workspace_id") @db.Uuid
   createdById String   @map("created_by_id") @db.Uuid
-  title       String   @default("Новый поиск")
+  title       String   @default("Новый чат")
   parentId    String?  @map("parent_id") @db.Uuid
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  workspace Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdBy User            @relation("SearchChatCreator", fields: [createdById], references: [id], onDelete: Restrict)
-  messages  SearchMessage[]
-  parent    SearchChat?     @relation("ChatTree", fields: [parentId], references: [id], onDelete: Cascade)
-  children  SearchChat[]    @relation("ChatTree")
+  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User          @relation("ChatCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  messages  ChatMessage[]
+  parent    Chat?         @relation("ChatTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Chat[]        @relation("ChatTree")
 
   @@index([workspaceId, updatedAt(sort: Desc)])
-  @@map("search_chats")
+  @@map("chats")
 }
 
-model SearchMessage {
-  id        String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  chatId    String            @map("chat_id") @db.Uuid
-  role      SearchMessageRole
-  content   String            @db.Text
-  sources   Json              @default("[]")
-  createdAt DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+model ChatMessage {
+  id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chatId    String          @map("chat_id") @db.Uuid
+  role      ChatMessageRole
+  content   String          @db.Text
+  sources   Json            @default("[]")
+  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  chat SearchChat @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  chat  Chat              @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  files ChatMessageFile[]
 
   @@index([chatId, createdAt])
-  @@map("search_messages")
+  @@map("chat_messages")
+}
+
+model ChatMessageFile {
+  messageId String      @db.Uuid
+  fileId    String      @db.Uuid
+  createdAt DateTime    @default(now())
+  message   ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
+  file      File        @relation(fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@id([messageId, fileId])
+  @@map("chat_message_files")
 }
 
 model FavoritePage {
@@ -319,6 +339,44 @@ model Integration {
   @@map("integrations")
 }
 
+model AiProvider {
+  id                String    @id @default(uuid(7)) @db.Uuid
+  slug              String    @unique
+  name              String
+  defaultBaseUrl    String?   @map("default_base_url")
+  credentialsSchema Json      @default("{}") @map("credentials_schema")
+  docsUrl           String?   @map("docs_url")
+  supportsStreaming Boolean   @default(true) @map("supports_streaming")
+  supportsTools     Boolean   @default(false) @map("supports_tools")
+  isActive          Boolean   @default(true) @map("is_active")
+  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  models            AiModel[]
+
+  @@map("ai_providers")
+}
+
+model AiModel {
+  id                      String     @id @default(uuid(7)) @db.Uuid
+  providerId              String     @map("provider_id") @db.Uuid
+  slug                    String
+  displayName             String     @map("display_name")
+  contextTokens           Int        @map("context_tokens")
+  maxOutputTokens         Int        @map("max_output_tokens")
+  supportsVision          Boolean    @default(false) @map("supports_vision")
+  supportsFunctionCalling Boolean    @default(false) @map("supports_function_calling")
+  minPlanSlug             String?    @map("min_plan_slug")
+  defaultTemperature      Float?     @map("default_temperature")
+  isActive                Boolean    @default(true) @map("is_active")
+  deprecatedAt            DateTime?  @map("deprecated_at") @db.Timestamptz(6)
+  createdAt               DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt               DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  provider                AiProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, slug])
+  @@map("ai_models")
+}
+
 model Plan {
   id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   slug                   String   @unique @db.VarChar(50)
@@ -392,9 +450,10 @@ model File {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  pages     PageFile[]
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace        Workspace?        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  pages            PageFile[]
+  chatMessageFiles ChatMessageFile[]
 
   @@index([userId])
   @@index([createdAt])

@@ -36,10 +36,11 @@ export { PrismaClient, Prisma }
 export {
   RoleType,
   PageType,
+  PageOwnership,
   IntegrationScope,
   IntegrationStatus,
   SubscriptionStatus,
-  SearchMessageRole,
+  ChatMessageRole,
   FileStatus,
 } from "@prisma/client"
 export type {
@@ -56,8 +57,11 @@ export type {
   Integration,
   Plan,
   Subscription,
-  SearchChat,
-  SearchMessage,
+  Chat,
+  ChatMessage,
+  ChatMessageFile,
+  AiProvider,
+  AiModel,
   FavoritePage,
   File,
   PageFile,
