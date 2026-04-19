@@ -201,6 +201,9 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
         slashRender,
         onNavigateToPage,
       }),
+      onCreate: ({ editor: ed }) => {
+        props.onReady?.(ed)
+      },
     },
     [ydoc, provider],
   )
@@ -210,7 +213,9 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
 
   return (
     <Box className={`anynote-editor ${props.className ?? ""}`} sx={{ height: "100%" }}>
-      {editor ? <EditorDragHandle editor={editor} /> : null}
+      {editor ? (
+        <EditorDragHandle editor={editor} onRequestBlockMove={props.onRequestBlockMove} />
+      ) : null}
       {editor ? <FloatingToolbar editor={editor} /> : null}
       {editor ? <TableToolbar editor={editor} /> : null}
       <EditorContent editor={editor} />

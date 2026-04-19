@@ -63,6 +63,42 @@
   margin: 0.25rem 0;
 }
 
+/* Bulleted / numbered lists: the drag handle sits at each block's left edge,
+   so native `::marker` (which renders in the UL's left padding) collides with
+   the handle. Reset the padding and render markers inside each `li` via a
+   `::before` pseudo-element, matching how task lists already shift their
+   checkbox into the content box. */
+.anynote-editor ul:not([data-type="taskList"]),
+.anynote-editor ol {
+  list-style: none;
+  padding-left: 0;
+}
+.anynote-editor ul:not([data-type="taskList"]) > li,
+.anynote-editor ol > li {
+  position: relative;
+  padding-left: 1.75em;
+}
+.anynote-editor ul:not([data-type="taskList"]) > li::before {
+  content: "•";
+  position: absolute;
+  left: 0.5em;
+  top: 0;
+  line-height: inherit;
+}
+.anynote-editor ol {
+  counter-reset: anynote-ol;
+}
+.anynote-editor ol > li {
+  counter-increment: anynote-ol;
+}
+.anynote-editor ol > li::before {
+  content: counter(anynote-ol) ".";
+  position: absolute;
+  left: 0.25em;
+  top: 0;
+  line-height: inherit;
+}
+
 .anynote-editor blockquote {
   border-left: 3px solid var(--editor-divider, rgba(0, 0, 0, 0.12));
   margin: 0.5rem 0;
@@ -221,4 +257,120 @@
 }
 .tippy-content {
   padding: 0;
+}
+
+/* === Anynote color palette (keyword-driven, theme-aware) === */
+:root {
+  --anynote-color-gray:   #6b6b6b;
+  --anynote-color-brown:  #8a5d3d;
+  --anynote-color-orange: #b45309;
+  --anynote-color-yellow: #a16207;
+  --anynote-color-green:  #347d47;
+  --anynote-color-blue:   #1a6bb3;
+  --anynote-color-purple: #6b3fa0;
+  --anynote-color-pink:   #b5338e;
+  --anynote-color-red:    #b42318;
+
+  --anynote-bg-gray:   rgba(107, 107, 107, 0.12);
+  --anynote-bg-brown:  rgba(138, 93, 61, 0.14);
+  --anynote-bg-orange: rgba(180, 83, 9, 0.14);
+  --anynote-bg-yellow: rgba(161, 98, 7, 0.14);
+  --anynote-bg-green:  rgba(52, 125, 71, 0.14);
+  --anynote-bg-blue:   rgba(26, 107, 179, 0.14);
+  --anynote-bg-purple: rgba(107, 63, 160, 0.14);
+  --anynote-bg-pink:   rgba(181, 51, 142, 0.14);
+  --anynote-bg-red:    rgba(180, 35, 24, 0.14);
+}
+
+[data-mui-color-scheme="dark"] {
+  --anynote-color-gray:   #b5bac0;
+  --anynote-color-brown:  #c9a07a;
+  --anynote-color-orange: #e58a2b;
+  --anynote-color-yellow: #d7b54c;
+  --anynote-color-green:  #6fd389;
+  --anynote-color-blue:   #7cbcff;
+  --anynote-color-purple: #c395f0;
+  --anynote-color-pink:   #f09ad0;
+  --anynote-color-red:    #f28a80;
+
+  --anynote-bg-gray:   rgba(181, 186, 192, 0.22);
+  --anynote-bg-brown:  rgba(201, 160, 122, 0.22);
+  --anynote-bg-orange: rgba(229, 138, 43, 0.22);
+  --anynote-bg-yellow: rgba(215, 181, 76, 0.22);
+  --anynote-bg-green:  rgba(111, 211, 137, 0.22);
+  --anynote-bg-blue:   rgba(124, 188, 255, 0.22);
+  --anynote-bg-purple: rgba(195, 149, 240, 0.22);
+  --anynote-bg-pink:   rgba(240, 154, 208, 0.22);
+  --anynote-bg-red:    rgba(242, 138, 128, 0.22);
+}
+
+.anynote-color-gray   { color: var(--anynote-color-gray); }
+.anynote-color-brown  { color: var(--anynote-color-brown); }
+.anynote-color-orange { color: var(--anynote-color-orange); }
+.anynote-color-yellow { color: var(--anynote-color-yellow); }
+.anynote-color-green  { color: var(--anynote-color-green); }
+.anynote-color-blue   { color: var(--anynote-color-blue); }
+.anynote-color-purple { color: var(--anynote-color-purple); }
+.anynote-color-pink   { color: var(--anynote-color-pink); }
+.anynote-color-red    { color: var(--anynote-color-red); }
+
+.anynote-bg-gray   { background-color: var(--anynote-bg-gray); }
+.anynote-bg-brown  { background-color: var(--anynote-bg-brown); }
+.anynote-bg-orange { background-color: var(--anynote-bg-orange); }
+.anynote-bg-yellow { background-color: var(--anynote-bg-yellow); }
+.anynote-bg-green  { background-color: var(--anynote-bg-green); }
+.anynote-bg-blue   { background-color: var(--anynote-bg-blue); }
+.anynote-bg-purple { background-color: var(--anynote-bg-purple); }
+.anynote-bg-pink   { background-color: var(--anynote-bg-pink); }
+.anynote-bg-red    { background-color: var(--anynote-bg-red); }
+
+/* Block-level background keeps padding/radius so highlights look intentional */
+.anynote-editor [class*="anynote-bg-"] {
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+/* === Full-width page mode === */
+[data-full-width="true"] .anynote-editor .ProseMirror {
+  max-width: none;
+}
+[data-full-width="true"] .page-column {
+  max-width: none !important;
+}
+
+/* === Toggle block === */
+.anynote-toggle .anynote-toggle-content {
+  flex: 1;
+  min-width: 0;
+}
+/* TipTap React NodeViewContent wraps the actual children in an inner
+   [data-node-view-content-react] div, so we descend through it. */
+.anynote-toggle[data-open="false"]
+  .anynote-toggle-content
+  [data-node-view-content-react]
+  > *:not(:first-child) {
+  display: none;
+}
+.anynote-toggle .anynote-toggle-content [data-node-view-content-react] > * + * {
+  margin-top: 6px;
+}
+
+/* === Hidden text block === */
+.anynote-hidden-text .anynote-hidden-text-content {
+  flex: 1;
+  min-width: 0;
+}
+.anynote-hidden-text[data-visible="false"] .anynote-hidden-text-content [data-node-view-content-react] {
+  -webkit-text-security: disc;
+  text-security: disc;
+}
+@supports not ((-webkit-text-security: disc) or (text-security: disc)) {
+  .anynote-hidden-text[data-visible="false"]
+    .anynote-hidden-text-content
+    [data-node-view-content-react] {
+    filter: blur(5px);
+  }
+}
+.anynote-hidden-text .anynote-hidden-text-content [data-node-view-content-react] > * + * {
+  margin-top: 6px;
 }

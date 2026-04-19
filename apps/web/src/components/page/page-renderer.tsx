@@ -1,16 +1,29 @@
 "use client"
 
-import { useCallback, useMemo, useRef } from "react"
+import { useCallback, useMemo, useRef, useState } from "react"
 import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 
 import type { PageType } from "@repo/db"
-import type { PageLookupItem } from "@repo/editor"
+import {
+  BlockMoveDialog,
+  moveBlockToPage,
+  type Editor,
+  type MoveBlockResult,
+  type PageLookupItem,
+} from "@repo/editor"
 import { Box, CircularProgress } from "@repo/ui/components"
 
 import { trpc } from "@/trpc/client"
 import { yjsUrl, fetchYjsToken } from "@/lib/yjs-config"
 import { createUploadHandler } from "@/lib/upload-handler"
+import {
+  PAGE_TREE_ROOT,
+  PageTreePicker,
+  type PageTreeSelection,
+} from "@/components/workspace/page-tree-picker"
+
+import { usePageEditor } from "./editor-context"
 
 const AnyNoteEditor = dynamic(() => import("@repo/editor").then((m) => m.AnyNoteEditor), {
   ssr: false,
@@ -48,6 +61,14 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
   attachFileRef.current = attachFile
 
   const trpcUtils = trpc.useUtils()
+  const pageEditor = usePageEditor()
+  const pagesQuery = trpc.page.listByWorkspace.useQuery({ workspaceId })
+  const editorRef = useRef<Editor | null>(null)
+
+  const [movePos, setMovePos] = useState<number | null>(null)
+  const [moveTarget, setMoveTarget] = useState<PageTreeSelection | null>(null)
+  const [moveBusy, setMoveBusy] = useState(false)
+  const [moveError, setMoveError] = useState<string | null>(null)
 
   const attachToPage = useCallback(
     async (fileId: string) => {
@@ -80,6 +101,63 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
     [router, workspaceId],
   )
 
+  const handleEditorReady = useCallback(
+    (editor: Editor) => {
+      editorRef.current = editor
+      pageEditor.setEditor(editor)
+    },
+    [pageEditor],
+  )
+
+  const handleRequestBlockMove = useCallback((pos: number) => {
+    setMovePos(pos)
+    setMoveTarget(null)
+    setMoveError(null)
+  }, [])
+
+  const handleCloseMove = useCallback(() => {
+    if (moveBusy) return
+    setMovePos(null)
+    setMoveTarget(null)
+  }, [moveBusy])
+
+  const handleConfirmMove = useCallback(async () => {
+    if (movePos == null || moveTarget == null) return
+    const editor = editorRef.current
+    if (!editor) {
+      setMoveError("Редактор не готов")
+      return
+    }
+    if (moveTarget === PAGE_TREE_ROOT) {
+      setMoveError("Блок можно переместить только в страницу")
+      return
+    }
+
+    setMoveBusy(true)
+    setMoveError(null)
+    try {
+      const token = await fetchYjsToken()
+      const result: MoveBlockResult = await moveBlockToPage({
+        editor,
+        sourcePos: movePos,
+        targetPageId: moveTarget,
+        yjsUrl,
+        token,
+      })
+      if (result.ok) {
+        setMovePos(null)
+        setMoveTarget(null)
+        router.push(`/workspaces/${workspaceId}/pages/${moveTarget}`)
+      } else {
+        setMoveError(result.error)
+      }
+    } catch (err) {
+      setMoveError(err instanceof Error ? err.message : String(err))
+    } finally {
+      setMoveBusy(false)
+    }
+  }, [movePos, moveTarget, router, workspaceId])
+
   if (page.type === "EXCALIDRAW") {
     return (
       <Board
@@ -94,16 +172,41 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
 
   if (page.type === "TEXT") {
     return (
-      <AnyNoteEditor
-        pageId={page.id}
-        workspaceId={workspaceId}
-        yjsUrl={yjsUrl}
-        yjsToken={fetchYjsToken}
-        user={user}
-        uploadHandler={uploadHandler}
-        pageSearch={pageSearch}
-        onNavigateToPage={onNavigateToPage}
-      />
+      <>
+        <AnyNoteEditor
+          pageId={page.id}
+          workspaceId={workspaceId}
+          yjsUrl={yjsUrl}
+          yjsToken={fetchYjsToken}
+          user={user}
+          uploadHandler={uploadHandler}
+          pageSearch={pageSearch}
+          onNavigateToPage={onNavigateToPage}
+          onReady={handleEditorReady}
+          onRequestBlockMove={handleRequestBlockMove}
+        />
+        <BlockMoveDialog
+          open={movePos != null}
+          onClose={handleCloseMove}
+          onConfirm={handleConfirmMove}
+          busy={moveBusy}
+          canConfirm={moveTarget != null && moveTarget !== PAGE_TREE_ROOT}
+          treePicker={
+            <>
+              <PageTreePicker
+                pages={pagesQuery.data ?? []}
+                excludeIds={new Set([page.id])}
+                onSelect={setMoveTarget}
+                selectedId={moveTarget}
+                showRoot={false}
+              />
+              {moveError ? (
+                <Box sx={{ color: "error.main", mt: 1, fontSize: 13, px: 1 }}>{moveError}</Box>
+              ) : null}
+            </>
+          }
+        />
+      </>
     )
   }
 

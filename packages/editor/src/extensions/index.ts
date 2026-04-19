@@ -11,15 +11,19 @@ import type { HocuspocusProvider } from "@hocuspocus/provider"
 import { common, createLowlight } from "lowlight"
 import type * as Y from "yjs"
 
+import { BlockBackground } from "./block-background"
 import { Callout } from "./callout"
 import { buildCollaboration } from "./collaboration"
 import { FileAttachment } from "./file-attachment"
 import { buildFileUpload } from "./file-upload"
+import { HiddenText } from "./hidden-text"
 import { PageLink } from "./page-link"
 import { buildPlaceholder } from "./placeholder"
 import { ResizableImage } from "./resizable-image"
 import { SlashMenu, type SlashMenuRender } from "./slash-menu"
 import { TaskItemWithCheckbox } from "./task-item-view"
+import { AnynoteTextColor } from "./text-color"
+import { Toggle } from "./toggle"
 import type { AnyNoteEditorUser, SlashCommandItem, UploadHandler } from "../types"
 
 const lowlight = createLowlight(common)
@@ -40,6 +44,8 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   buildPlaceholder(opts.placeholder),
   Link.configure({ openOnClick: false }),
   Typography,
+  AnynoteTextColor,
+  BlockBackground,
   ResizableImage.configure({ uploadHandler: opts.uploadHandler }),
   TaskList,
   TaskItemWithCheckbox.configure({ nested: true }),
@@ -49,6 +55,8 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   TableCell,
   CodeBlockLowlight.configure({ lowlight }),
   Callout,
+  Toggle,
+  HiddenText,
   FileAttachment,
   PageLink.configure({ onNavigate: opts.onNavigateToPage }),
   ...buildCollaboration({ ydoc: opts.ydoc, provider: opts.provider, user: opts.user }),

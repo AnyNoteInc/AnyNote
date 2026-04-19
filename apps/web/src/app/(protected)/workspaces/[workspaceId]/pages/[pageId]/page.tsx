@@ -6,7 +6,7 @@ import { requireSession } from "@/lib/get-session"
 import { getServerTRPC } from "@/trpc/server"
 import { PageRenderer } from "@/components/page/page-renderer"
 import { PageHeader } from "@/components/page/page-header"
-import { pageColumnSx } from "@/components/page/column-sx"
+import { PAGE_COLUMN_CLASS, pageColumnSx } from "@/components/page/column-sx"
 
 const COLORS = ["#1976d2", "#9c27b0", "#2e7d32", "#ed6c02", "#0288d1", "#d32f2f"]
 
@@ -36,7 +36,7 @@ export default async function PageView({
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
       {!isExcalidraw && (
-        <Box sx={{ ...pageColumnSx, pt: 4, pb: 1 }}>
+        <Box className={PAGE_COLUMN_CLASS} sx={{ ...pageColumnSx, pt: 4, pb: 1 }}>
           <PageHeader
             id={page.id}
             workspaceId={workspaceId}

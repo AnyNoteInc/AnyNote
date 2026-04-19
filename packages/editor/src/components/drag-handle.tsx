@@ -1,19 +1,47 @@
 "use client"
 
-import { useRef, type MouseEvent } from "react"
+import { useRef, useState, type MouseEvent } from "react"
 import AddIcon from "@mui/icons-material/Add"
 import DragIndicatorIcon from "@mui/icons-material/DragIndicator"
 import { Box, IconButton } from "@mui/material"
 import type { Editor } from "@tiptap/core"
+import type { DragHandleRule } from "@tiptap/extension-drag-handle"
 import DragHandle from "@tiptap/extension-drag-handle-react"
 import type { Node as PMNode } from "@tiptap/pm/model"
 
-type Props = { editor: Editor }
+import { DragHandleMenu } from "./drag-handle-menu"
+
+const CONTAINER_TYPES = ["callout", "toggle", "hiddenText"]
+
+// First child of a container block is not independently draggable — dragging
+// the first row should pick the parent container instead. Mirrors the library's
+// built-in `listItemFirstChild` rule but for our block types.
+const firstChildOfContainer: DragHandleRule = {
+  id: "firstChildOfContainer",
+  evaluate: ({ parent, isFirst }) => {
+    if (!isFirst || !parent) return 0
+    return CONTAINER_TYPES.includes(parent.type.name) ? 1000 : 0
+  },
+}
+
+// `edgeDetection: 'none'` disables the 12px band where deeper nodes lose score
+// near their left edge. With it on, mousing from an inner block toward the
+// handle (which sits in the gutter) would flip the target to the parent mid-
+// motion, so the handle would jump to the outer container before the cursor
+// even reached it.
+const nestedOptions = { rules: [firstChildOfContainer], edgeDetection: "none" as const }
+
+type Props = {
+  editor: Editor
+  onRequestBlockMove?: (pos: number) => void
+}
 
 type HoverNodePos = { from: number; to: number; isEmpty: boolean } | null
 
-export function EditorDragHandle({ editor }: Props) {
+export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
   const hoverNodeRef = useRef<HoverNodePos>(null)
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
+  const [menuPos, setMenuPos] = useState<number | null>(null)
 
   const onNodeChange = ({ node, pos }: { node: PMNode | null; editor: Editor; pos: number }) => {
     if (!node) {
@@ -84,30 +112,64 @@ export function EditorDragHandle({ editor }: Props) {
       .run()
   }
 
+  const openBlockMenu = (event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation()
+    event.preventDefault()
+    const info = hoverNodeRef.current
+    if (!info) return
+    setMenuAnchor(event.currentTarget)
+    setMenuPos(info.from)
+  }
+
+  const closeBlockMenu = () => {
+    setMenuAnchor(null)
+    setMenuPos(null)
+  }
+
   return (
-    <DragHandle editor={editor} onNodeChange={onNodeChange} onElementDragStart={onElementDragStart}>
-      <Box
-        className="tiptap-drag-handle-wrapper"
-        sx={{
-          display: "inline-flex",
-          alignItems: "center",
-          gap: 0.25,
-          color: "text.disabled",
-        }}
+    <>
+      <DragHandle
+        editor={editor}
+        nested={nestedOptions}
+        onNodeChange={onNodeChange}
+        onElementDragStart={onElementDragStart}
       >
-        <IconButton
-          size="small"
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={openSlashMenu}
-          sx={{ p: 0.25, color: "text.secondary" }}
-          aria-label="Добавить блок"
+        <Box
+          className="tiptap-drag-handle-wrapper"
+          sx={{
+            display: "inline-flex",
+            alignItems: "center",
+            gap: 0.25,
+            color: "text.disabled",
+          }}
         >
-          <AddIcon fontSize="small" />
-        </IconButton>
-        <Box sx={{ cursor: "grab", display: "inline-flex", alignItems: "center", p: 0.25 }}>
-          <DragIndicatorIcon fontSize="small" />
+          <IconButton
+            size="small"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={openSlashMenu}
+            sx={{ p: 0.25, color: "text.secondary" }}
+            aria-label="Добавить блок"
+          >
+            <AddIcon fontSize="small" />
+          </IconButton>
+          <IconButton
+            size="small"
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={openBlockMenu}
+            sx={{ p: 0.25, cursor: "grab", color: "text.secondary" }}
+            aria-label="Действия блока"
+          >
+            <DragIndicatorIcon fontSize="small" />
+          </IconButton>
         </Box>
-      </Box>
-    </DragHandle>
+      </DragHandle>
+      <DragHandleMenu
+        editor={editor}
+        anchorEl={menuAnchor}
+        pos={menuPos}
+        onClose={closeBlockMenu}
+        onRequestMove={onRequestBlockMove ?? (() => undefined)}
+      />
+    </>
   )
 }

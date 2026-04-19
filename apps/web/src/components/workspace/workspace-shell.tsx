@@ -25,7 +25,11 @@ export function WorkspaceShell({ sidebar, main, sidebarHidden }: Props) {
         transition: "grid-template-columns 150ms ease",
       }}
     >
-      {sidebarHidden ? null : sidebar}
+      {sidebarHidden ? null : (
+        <Box className="workspace-sidebar" sx={{ height: "100%", minHeight: 0, display: "flex" }}>
+          {sidebar}
+        </Box>
+      )}
       <Box component="main" sx={{ overflow: "auto" }}>
         {main}
       </Box>

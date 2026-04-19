@@ -203,3 +203,12 @@ export const MarkdownIcon = icon("MarkdownIcon", [
   <path key="c" d="M16 9v6" />,
   <path key="d" d="M14 13l2 2 2-2" />,
 ])
+
+export const ToggleIcon = icon("ToggleIcon", [<polyline key="a" points="9 6 15 12 9 18" />])
+
+export const HiddenIcon = icon("HiddenIcon", [
+  <path key="a" d="M2 12s3-7 10-7c2.5 0 4.6 1 6.3 2.3" />,
+  <path key="b" d="M22 12s-3 7-10 7c-2.5 0-4.6-1-6.3-2.3" />,
+  <circle key="c" cx="12" cy="12" r="3" />,
+  <line key="d" x1="3" y1="3" x2="21" y2="21" />,
+])

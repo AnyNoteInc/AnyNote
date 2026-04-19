@@ -30,6 +30,7 @@ Six editor/page enhancements:
 **Solution.** In `packages/excalidraw/src/board-inner.tsx`, track `muiTheme.palette.mode` and when it changes, call `api.updateScene({ appState: { viewBackgroundColor: next }, commitToHistory: false })` locally.
 
 Color mapping:
+
 - light → `#ffffff`
 - dark → `#121212`
 
@@ -38,6 +39,7 @@ The `viewBackgroundColor` update is applied through the imperative API but not w
 The existing `filter: none !important` CSS override stays (still needed for documents where users have set a light background explicitly).
 
 **Files changed:**
+
 - `packages/excalidraw/src/board-inner.tsx` (~15 lines added)
 
 ---
@@ -51,6 +53,7 @@ Clicking `DragIndicatorIcon` in `packages/editor/src/components/drag-handle.tsx`
 ### Menu structure (top → bottom)
 
 1. **Header** — disabled `MenuItem` showing the block's display name (e.g. "Заголовок 1", "Маркированный список"). Names map in `packages/editor/src/lib/block-names.ts`:
+
    ```
    paragraph → Текст
    heading(1-4) → Заголовок 1-4
@@ -93,19 +96,25 @@ Implementation note: the existing `MovePageDialog` in `apps/web/src/components/w
 ### Color system
 
 **Text color** — custom TipTap mark `anynoteTextColor`:
+
 ```ts
 Mark.create({
   name: "anynoteTextColor",
   addAttributes: () => ({ color: { default: "default" } }),
   parseHTML: () => [{ tag: "span[data-anynote-color]" }],
-  renderHTML: ({ HTMLAttributes }) =>
-    ["span", { class: `anynote-color-${HTMLAttributes.color}`, "data-anynote-color": HTMLAttributes.color }, 0],
+  renderHTML: ({ HTMLAttributes }) => [
+    "span",
+    { class: `anynote-color-${HTMLAttributes.color}`, "data-anynote-color": HTMLAttributes.color },
+    0,
+  ],
 })
 ```
+
 - `color: "default"` removes the mark.
 - Applying: `editor.chain().setMark("anynoteTextColor", { color }).run()`.
 
 **Background color** — added as attribute on base block nodes via a small extension `BlockBackground` that uses `extendNodeSchema` on `paragraph | heading | bulletList | orderedList | blockquote | codeBlock | taskList | callout | toggle | hiddenText | resizableImage | fileAttachment | pageLink`:
+
 ```ts
 addGlobalAttributes: () => [{
   types: [...above list],
@@ -116,38 +125,43 @@ addGlobalAttributes: () => [{
 ```
 
 **CSS palette** (in `packages/editor/src/styles/content.css`):
+
 ```css
 :root {
-  --anynote-color-gray: #6B6B6B;
-  --anynote-color-brown: #6A4B3C;
-  --anynote-color-orange: #B45309;
-  --anynote-color-yellow: #A16207;
-  --anynote-color-green: #347D47;
-  --anynote-color-blue: #1A6BB3;
-  --anynote-color-purple: #6B3FA0;
-  --anynote-color-pink: #B5338E;
-  --anynote-color-red: #B42318;
+  --anynote-color-gray: #6b6b6b;
+  --anynote-color-brown: #6a4b3c;
+  --anynote-color-orange: #b45309;
+  --anynote-color-yellow: #a16207;
+  --anynote-color-green: #347d47;
+  --anynote-color-blue: #1a6bb3;
+  --anynote-color-purple: #6b3fa0;
+  --anynote-color-pink: #b5338e;
+  --anynote-color-red: #b42318;
 
-  --anynote-bg-gray: rgba(107,107,107,0.12);
-  --anynote-bg-brown: rgba(106,75,60,0.14);
-  --anynote-bg-orange: rgba(180,83,9,0.14);
-  --anynote-bg-yellow: rgba(161,98,7,0.14);
-  --anynote-bg-green: rgba(52,125,71,0.14);
-  --anynote-bg-blue: rgba(26,107,179,0.14);
-  --anynote-bg-purple: rgba(107,63,160,0.14);
-  --anynote-bg-pink: rgba(181,51,142,0.14);
-  --anynote-bg-red: rgba(180,35,24,0.14);
+  --anynote-bg-gray: rgba(107, 107, 107, 0.12);
+  --anynote-bg-brown: rgba(106, 75, 60, 0.14);
+  --anynote-bg-orange: rgba(180, 83, 9, 0.14);
+  --anynote-bg-yellow: rgba(161, 98, 7, 0.14);
+  --anynote-bg-green: rgba(52, 125, 71, 0.14);
+  --anynote-bg-blue: rgba(26, 107, 179, 0.14);
+  --anynote-bg-purple: rgba(107, 63, 160, 0.14);
+  --anynote-bg-pink: rgba(181, 51, 142, 0.14);
+  --anynote-bg-red: rgba(180, 35, 24, 0.14);
 }
 
 [data-mui-color-scheme="dark"] {
-  --anynote-color-gray: #9AA0A6;
+  --anynote-color-gray: #9aa0a6;
   /* ... all 9 darker-mode equivalents */
-  --anynote-bg-gray: rgba(154,160,166,0.22);
+  --anynote-bg-gray: rgba(154, 160, 166, 0.22);
   /* ... 9 darker-mode bg equivalents */
 }
 
-.anynote-color-gray { color: var(--anynote-color-gray); }
-.anynote-bg-gray    { background-color: var(--anynote-bg-gray); }
+.anynote-color-gray {
+  color: var(--anynote-color-gray);
+}
+.anynote-bg-gray {
+  background-color: var(--anynote-bg-gray);
+}
 /* ... 9 more classes per kind */
 ```
 
@@ -169,6 +183,7 @@ Expected latency: 1-2s for sync + insert. Show loading indicator in the menu ite
 ### Files
 
 **New:**
+
 - `packages/editor/src/components/drag-handle-menu.tsx` — main menu UI
 - `packages/editor/src/components/block-move-dialog.tsx` — wraps MovePageDialog for block target
 - `packages/editor/src/extensions/text-color.ts` — `anynoteTextColor` mark
@@ -180,6 +195,7 @@ Expected latency: 1-2s for sync + insert. Show loading indicator in the menu ite
 - `packages/editor/src/lib/color-palette.ts` — color keyword constants + labels
 
 **Modified:**
+
 - `packages/editor/src/components/drag-handle.tsx` — add onClick → open menu
 - `packages/editor/src/extensions/index.ts` — register new extensions
 - `packages/editor/src/styles/content.css` — color variables + classes
@@ -198,8 +214,11 @@ Node.create({
   group: "block",
   defining: true,
   addAttributes: () => ({
-    open: { default: true, parseHTML: el => el.getAttribute("data-open") === "true",
-            renderHTML: attrs => ({ "data-open": attrs.open }) },
+    open: {
+      default: true,
+      parseHTML: (el) => el.getAttribute("data-open") === "true",
+      renderHTML: (attrs) => ({ "data-open": attrs.open }),
+    },
   }),
   parseHTML: () => [{ tag: 'div[data-type="toggle"]' }],
   renderHTML: ({ HTMLAttributes }) => ["div", { ...HTMLAttributes, "data-type": "toggle" }, 0],
@@ -214,8 +233,11 @@ function ToggleView({ node, updateAttributes }) {
   const open = node.attrs.open
   return (
     <NodeViewWrapper className="anynote-toggle" data-open={open}>
-      <IconButton size="small" onClick={() => updateAttributes({ open: !open })}
-        sx={{ transform: open ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 120ms" }}>
+      <IconButton
+        size="small"
+        onClick={() => updateAttributes({ open: !open })}
+        sx={{ transform: open ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 120ms" }}
+      >
         <ArrowRightOutlinedIcon fontSize="small" />
       </IconButton>
       <NodeViewContent className="anynote-toggle-content" />
@@ -227,7 +249,11 @@ function ToggleView({ node, updateAttributes }) {
 ### CSS
 
 ```css
-.anynote-toggle { display: grid; grid-template-columns: 28px 1fr; align-items: start; }
+.anynote-toggle {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  align-items: start;
+}
 .anynote-toggle[data-open="false"] > .anynote-toggle-content > :not(:first-child) {
   display: none;
 }
@@ -280,10 +306,10 @@ Node.create({
 
 ```tsx
 function HiddenTextView() {
-  const [visible, setVisible] = useState(false)  // local only
+  const [visible, setVisible] = useState(false) // local only
   return (
     <NodeViewWrapper className="anynote-hidden-text" data-visible={visible}>
-      <IconButton size="small" onClick={() => setVisible(v => !v)}>
+      <IconButton size="small" onClick={() => setVisible((v) => !v)}>
         {visible ? <VisibilityIcon fontSize="small" /> : <VisibilityOffIcon fontSize="small" />}
       </IconButton>
       <NodeViewContent className="anynote-hidden-text-content" />
@@ -295,7 +321,11 @@ function HiddenTextView() {
 ### CSS
 
 ```css
-.anynote-hidden-text { display: grid; grid-template-columns: 28px 1fr; align-items: start; }
+.anynote-hidden-text {
+  display: grid;
+  grid-template-columns: 28px 1fr;
+  align-items: start;
+}
 .anynote-hidden-text[data-visible="false"] > .anynote-hidden-text-content {
   -webkit-text-security: disc;
   text-security: disc;
@@ -377,11 +407,13 @@ Triggered by `MoreHorizIcon` `IconButton`. `Menu` contains:
 Three buttons: PDF, Markdown, HTML.
 
 **PDF** (`window.print()` approach):
+
 - Inject a `<style>` element with `@media print` rules: hide `.workspace-sidebar`, `.workspace-toolbar`, `.drag-handle`, `.slash-menu-popover`; remove max-width; print-friendly typography.
 - Call `window.print()`.
 - Remove style element after print dialog closes (listen for `afterprint`).
 
 **Markdown** (via `turndown`):
+
 - `const html = editor.getHTML()` (editor instance exposed via ref from `AnyNoteEditor`).
 - `const turndown = new TurndownService({ headingStyle: "atx" })`.
 - Custom rules:
@@ -395,6 +427,7 @@ Three buttons: PDF, Markdown, HTML.
 - Trigger download as `{title}.md`.
 
 **HTML**:
+
 - `const html = editor.getHTML()`.
 - Wrap in `<!DOCTYPE html><html><head><meta charset="utf-8"><title>{title}</title><style>{inline css}</style></head><body>{html}</body></html>`.
 - Inline CSS includes color palette + typography.
@@ -405,6 +438,7 @@ For Excalidraw pages: export dialog shows "Экспорт недоступен �
 ### Files
 
 **New:**
+
 - `apps/web/src/hooks/use-page-actions.tsx`
 - `apps/web/src/hooks/use-full-width.ts`
 - `apps/web/src/components/page/page-actions-toolbar.tsx`
@@ -414,15 +448,18 @@ For Excalidraw pages: export dialog shows "Экспорт недоступен �
 - `apps/web/src/lib/editor-to-markdown.ts` — turndown config
 
 **Modified:**
+
 - `apps/web/src/components/workspace/workspace-toolbar.tsx` — rightSlot prop
 - `apps/web/src/components/workspace/page-context-menu.tsx` — use new hook
 - `apps/web/src/components/workspace/move-page-dialog.tsx` — compose extracted PageTreePicker
 - Page route layout (where `PageRenderer` is mounted) — pass `data-full-width` + render `rightSlot`
 
 **New shared:**
+
 - `apps/web/src/components/workspace/page-tree-picker.tsx` — extracted tree UI reused by MovePageDialog and BlockMoveDialog
 
 **Dependencies:**
+
 - `turndown` (~15KB) → `apps/web/package.json`
 
 ---
@@ -438,9 +475,11 @@ function FavoriteStar({ pageId, workspaceId }) {
   const { isFavorite, toggleFavorite } = usePageActions(pageId, workspaceId)
   return (
     <IconButton size="small" onClick={toggleFavorite}>
-      {isFavorite
-        ? <StarIcon sx={{ color: "warning.main" }} fontSize="small" />
-        : <StarBorderIcon fontSize="small" />}
+      {isFavorite ? (
+        <StarIcon sx={{ color: "warning.main" }} fontSize="small" />
+      ) : (
+        <StarBorderIcon fontSize="small" />
+      )}
     </IconButton>
   )
 }
@@ -449,6 +488,7 @@ function FavoriteStar({ pageId, workspaceId }) {
 ### Optimistic mutation
 
 Inside `use-page-actions`, `toggleFavorite` uses `useMutation` with:
+
 - `onMutate`: toggle `isFavorite` in the query cache immediately.
 - `onError`: revert to snapshot.
 - `onSettled`: invalidate affected queries.
@@ -468,6 +508,7 @@ See section 5 (lives in `page-actions-toolbar.tsx`, no standalone additions).
 ### Registration order in editor extensions
 
 `packages/editor/src/extensions/index.ts` `buildExtensions()`:
+
 ```
 ...existing StarterKit + customs,
 AnynoteTextColor,

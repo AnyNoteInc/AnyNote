@@ -1,7 +1,6 @@
 "use client"
 
 import "@excalidraw/excalidraw/index.css"
-import "./board.css"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Excalidraw } from "@excalidraw/excalidraw"
@@ -22,8 +21,6 @@ export function BoardInner(props: BoardProps) {
 
   const resources = useExcalidrawYjs({ pageId, yjsUrl, yjsToken })
 
-  // Publish the local user's identity through the Yjs awareness channel so
-  // remote clients can render collaborator cursors/labels correctly.
   useEffect(() => {
     if (!user || !resources) return
     resources.provider.awareness?.setLocalStateField("user", {
@@ -37,7 +34,6 @@ export function BoardInner(props: BoardProps) {
 
   const [api, setApi] = useState<ExcalidrawImperativeAPI | null>(null)
 
-  // Binding requires the live imperative API, available only after onMount.
   useEffect(() => {
     if (!api || !resources) return
     const binding = new ExcalidrawBinding(
@@ -57,7 +53,6 @@ export function BoardInner(props: BoardProps) {
 
   const onChange = useCallback(
     (_elements: readonly OrderedExcalidrawElement[], _appState: AppState, fileMap: BinaryFiles) => {
-      // Upload newly-added images through the consumer-provided handler.
       void files.syncFiles(fileMap as unknown as Record<string, ExcalidrawFile>)
     },
     [files],

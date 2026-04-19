@@ -27,8 +27,11 @@ type Props = {
 
 export function PageHeader({ id, workspaceId, initialTitle, initialIcon }: Props) {
   const query = trpc.page.getById.useQuery({ id }, { staleTime: 0 })
-  const title = query.data?.title ?? initialTitle
-  const icon = query.data?.icon ?? initialIcon
+  // Use the query result directly when loaded (data can be null for icon after
+  // removal). Only fall back to SSR initialIcon/Title while the query is still
+  // pending. `?? initialIcon` was a bug — it treated null as "not loaded".
+  const title = query.data ? query.data.title : initialTitle
+  const icon = query.data ? query.data.icon : initialIcon
 
   const utils = trpc.useUtils()
   const update = trpc.page.update.useMutation({
