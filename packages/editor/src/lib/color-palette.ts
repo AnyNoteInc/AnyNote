@@ -33,7 +33,11 @@ export const BACKGROUND_COLOR_LABELS: Record<BackgroundColorKey, string> = {
   blue: "Синий",
 }
 
-// CSS-variable-backed preview swatches for menu items.
+// CSS-variable-backed preview swatches for menu items. Both pickers use the
+// strong `--anynote-color-*` tokens so the hue is legible at 14×14. The
+// block-background tokens are 12–14% alpha — correct when applied to a whole
+// block, but they collapse into the menu's own background on a tiny swatch
+// (particularly on light theme, where the bg is white).
 export function textColorSwatch(key: TextColorKey): string {
   if (key === "default") return "transparent"
   return `var(--anynote-color-${key})`
@@ -41,5 +45,5 @@ export function textColorSwatch(key: TextColorKey): string {
 
 export function backgroundColorSwatch(key: BackgroundColorKey): string {
   if (key === "default") return "transparent"
-  return `var(--anynote-bg-${key})`
+  return `var(--anynote-color-${key})`
 }

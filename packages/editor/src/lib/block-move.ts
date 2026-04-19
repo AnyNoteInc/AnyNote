@@ -30,13 +30,17 @@ const FLUSH_DELAY_MS = 200
 //   6. Remove the block from the source editor (local edit syncs out via its
 //      own provider).
 //   7. Disconnect the background provider.
+// Must match the `field` passed to `Collaboration.configure` on the editor.
+// y-prosemirror and HocuspocusProvider both default to "prosemirror", but our
+// editor is configured with "default", so that's what both the source editor
+// binding and any write-through to a target page's Y.Doc have to share.
 export async function moveBlockToPage({
   editor,
   sourcePos,
   targetPageId,
   yjsUrl,
   token,
-  fragmentField = "prosemirror",
+  fragmentField = "default",
 }: MoveBlockParams): Promise<MoveBlockResult> {
   const node = editor.state.doc.nodeAt(sourcePos)
   if (!node) return { ok: false, error: "Block not found at source position" }
