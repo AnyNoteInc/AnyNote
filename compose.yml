@@ -52,11 +52,9 @@ services:
     environment:
       QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:-dev-qdrant-key}
       QDRANT__TELEMETRY_DISABLED: "true"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:6333/readyz || exit 1"]
-      interval: 5s
-      timeout: 5s
-      retries: 5
+    # Healthcheck intentionally omitted: qdrant image is distroless and
+    # ships neither wget nor curl. Re-add in Pillar D once we actually
+    # depend on Qdrant. Host-side probe: `curl http://localhost:6333/readyz`.
     volumes:
       - qdrant_data:/qdrant/storage
 
