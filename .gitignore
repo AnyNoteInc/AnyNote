@@ -46,3 +46,13 @@ yarn-error.log*
 .playwright-mcp/
 test-results/
 .claude/settings.json
+
+# Python (apps/agents)
+__pycache__/
+*.py[cod]
+*.pyo
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.venv/
+*.egg-info/
