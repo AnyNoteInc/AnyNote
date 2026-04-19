@@ -70,24 +70,24 @@ function ChatTreeItem({
     [allChats, chat.id],
   )
 
-  const rename = trpc.search.renameChat.useMutation({
+  const rename = trpc.chat.renameChat.useMutation({
     onSuccess: async () => {
-      await utils.search.listChats.invalidate({ workspaceId })
+      await utils.chat.listChats.invalidate({ workspaceId })
       setRenameOpen(false)
     },
   })
 
-  const deleteChat = trpc.search.deleteChat.useMutation({
+  const deleteChat = trpc.chat.deleteChat.useMutation({
     onSuccess: async () => {
-      await utils.search.listChats.invalidate({ workspaceId })
+      await utils.chat.listChats.invalidate({ workspaceId })
       setDeleteOpen(false)
       if (isActive) router.push(`/workspaces/${workspaceId}/search`)
     },
   })
 
-  const createChild = trpc.search.createChat.useMutation({
+  const createChild = trpc.chat.createChat.useMutation({
     onSuccess: async (data) => {
-      await utils.search.listChats.invalidate({ workspaceId })
+      await utils.chat.listChats.invalidate({ workspaceId })
       router.push(`/workspaces/${workspaceId}/search/${data.id}`)
     },
   })
@@ -265,10 +265,10 @@ export function SearchSidebarSection({ workspaceId }: Props) {
   const [open, setOpen] = useState(true)
   const router = useRouter()
   const utils = trpc.useUtils()
-  const chats = trpc.search.listChats.useQuery({ workspaceId })
-  const create = trpc.search.createChat.useMutation({
+  const chats = trpc.chat.listChats.useQuery({ workspaceId })
+  const create = trpc.chat.createChat.useMutation({
     onSuccess: async (data) => {
-      await utils.search.listChats.invalidate({ workspaceId })
+      await utils.chat.listChats.invalidate({ workspaceId })
       router.push(`/workspaces/${workspaceId}/search/${data.id}`)
     },
   })

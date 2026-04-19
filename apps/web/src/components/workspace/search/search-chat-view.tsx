@@ -30,7 +30,7 @@ function MessageBubble({ role, content }: { role: string; content: string }) {
 type SimpleMessage = { id: string; role: string; content: string }
 
 export function SearchChatView({ chatId, workspaceId }: Props) {
-  const chat = trpc.search.getChat.useQuery({ chatId })
+  const chat = trpc.chat.getChat.useQuery({ chatId })
   const messages: SimpleMessage[] = chat.data?.messages ?? []
 
   return (
