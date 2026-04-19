@@ -82,6 +82,7 @@ export const pageRouter = router({
           workspaceId: true,
           parentId: true,
           type: true,
+          ownership: true,
           title: true,
           icon: true,
           content: true,
