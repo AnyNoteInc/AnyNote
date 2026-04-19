@@ -1,7 +1,6 @@
 "use client"
 
 import "@excalidraw/excalidraw/index.css"
-import "./board.css"
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { Excalidraw } from "@excalidraw/excalidraw"
@@ -19,22 +18,6 @@ export function BoardInner(props: BoardProps) {
 
   const muiTheme = useTheme()
   const excalidrawTheme: Theme = muiTheme.palette.mode === "dark" ? "dark" : "light"
-  // Derive canvas background + default stroke from the active MUI palette so
-  // they track light/dark theme (and any palette customisation) instead of
-  // being pinned to hard-coded hex values.
-  const viewBackgroundColor = muiTheme.palette.background.default
-  const currentItemStrokeColor = muiTheme.palette.text.primary
-
-  const initialData = useMemo(
-    () => ({
-      appState: { viewBackgroundColor, currentItemStrokeColor },
-    }),
-    // Capture the palette snapshot at mount; later theme changes flow through
-    // the updateScene effect below (remounting Excalidraw would wipe the yjs
-    // binding).
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [],
-  )
 
   const resources = useExcalidrawYjs({ pageId, yjsUrl, yjsToken })
 
@@ -68,21 +51,6 @@ export function BoardInner(props: BoardProps) {
     setApi(a)
   }, [])
 
-  // On theme change after mount, push the new canvas background. Scheduled on
-  // a microtask so it runs after the binding's own scene updates, preventing
-  // a race where our write is immediately followed by a Yjs-driven no-op that
-  // undoes it.
-  useEffect(() => {
-    if (!api) return
-    const id = window.setTimeout(() => {
-      api.updateScene({
-        appState: { viewBackgroundColor, currentItemStrokeColor },
-        captureUpdate: "NEVER",
-      })
-    }, 0)
-    return () => window.clearTimeout(id)
-  }, [api, viewBackgroundColor, currentItemStrokeColor])
-
   const onChange = useCallback(
     (_elements: readonly OrderedExcalidrawElement[], _appState: AppState, fileMap: BinaryFiles) => {
       void files.syncFiles(fileMap as unknown as Record<string, ExcalidrawFile>)
@@ -104,7 +72,6 @@ export function BoardInner(props: BoardProps) {
         excalidrawAPI={onMount}
         viewModeEnabled={!editable}
         theme={excalidrawTheme}
-        initialData={initialData}
         onChange={onChange}
       />
     </Box>
