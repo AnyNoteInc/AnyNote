@@ -167,11 +167,11 @@ CREATE TABLE "chat_messages" (
 
 -- CreateTable
 CREATE TABLE "chat_message_files" (
-    "messageId" UUID NOT NULL,
-    "fileId" UUID NOT NULL,
-    "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "message_id" UUID NOT NULL,
+    "file_id" UUID NOT NULL,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
-    CONSTRAINT "chat_message_files_pkey" PRIMARY KEY ("messageId","fileId")
+    CONSTRAINT "chat_message_files_pkey" PRIMARY KEY ("message_id","file_id")
 );
 
 -- CreateTable
@@ -238,9 +238,9 @@ CREATE TABLE "integrations" (
 -- CreateTable
 CREATE TABLE "ai_providers" (
     "id" UUID NOT NULL,
-    "slug" TEXT NOT NULL,
-    "name" TEXT NOT NULL,
-    "default_base_url" TEXT,
+    "slug" VARCHAR(50) NOT NULL,
+    "name" VARCHAR(100) NOT NULL,
+    "default_base_url" VARCHAR(255),
     "credentials_schema" JSONB NOT NULL DEFAULT '{}',
     "docs_url" TEXT,
     "supports_streaming" BOOLEAN NOT NULL DEFAULT true,
@@ -256,8 +256,8 @@ CREATE TABLE "ai_providers" (
 CREATE TABLE "ai_models" (
     "id" UUID NOT NULL,
     "provider_id" UUID NOT NULL,
-    "slug" TEXT NOT NULL,
-    "display_name" TEXT NOT NULL,
+    "slug" VARCHAR(100) NOT NULL,
+    "display_name" VARCHAR(150) NOT NULL,
     "context_tokens" INTEGER NOT NULL,
     "max_output_tokens" INTEGER NOT NULL,
     "supports_vision" BOOLEAN NOT NULL DEFAULT false,
@@ -402,6 +402,9 @@ CREATE INDEX "chats_workspace_id_updated_at_idx" ON "chats"("workspace_id", "upd
 CREATE INDEX "chat_messages_chat_id_created_at_idx" ON "chat_messages"("chat_id", "created_at");
 
 -- CreateIndex
+CREATE INDEX "chat_message_files_file_id_idx" ON "chat_message_files"("file_id");
+
+-- CreateIndex
 CREATE INDEX "favorite_pages_user_id_idx" ON "favorite_pages"("user_id");
 
 -- CreateIndex
@@ -501,10 +504,10 @@ ALTER TABLE "chats" ADD CONSTRAINT "chats_parent_id_fkey" FOREIGN KEY ("parent_i
 ALTER TABLE "chat_messages" ADD CONSTRAINT "chat_messages_chat_id_fkey" FOREIGN KEY ("chat_id") REFERENCES "chats"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "chat_message_files" ADD CONSTRAINT "chat_message_files_messageId_fkey" FOREIGN KEY ("messageId") REFERENCES "chat_messages"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "chat_message_files" ADD CONSTRAINT "chat_message_files_message_id_fkey" FOREIGN KEY ("message_id") REFERENCES "chat_messages"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "chat_message_files" ADD CONSTRAINT "chat_message_files_fileId_fkey" FOREIGN KEY ("fileId") REFERENCES "files"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+ALTER TABLE "chat_message_files" ADD CONSTRAINT "chat_message_files_file_id_fkey" FOREIGN KEY ("file_id") REFERENCES "files"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "favorite_pages" ADD CONSTRAINT "favorite_pages_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;

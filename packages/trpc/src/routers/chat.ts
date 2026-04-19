@@ -96,7 +96,7 @@ export const chatRouter = router({
             content: `🔎 MVP echo: "${input.content}". Настоящий RAG подключим с OLLAMA + Weaviate.`,
           },
         })
-        const shouldRename = chat.title === "Новый поиск"
+        const shouldRename = chat.title === "Новый чат"
         await tx.chat.update({
           where: { id: chat.id },
           data: {
