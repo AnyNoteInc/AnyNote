@@ -9,7 +9,7 @@ export default async function SearchChatPage({ params }: Props) {
   const { workspaceId, chatId } = await params
   const trpc = await getServerTRPC()
   try {
-    await trpc.search.getChat({ chatId })
+    await trpc.chat.getChat({ chatId })
   } catch {
     notFound()
   }

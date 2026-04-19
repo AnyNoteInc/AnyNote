@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
-import { PageType, type PrismaClient } from "@repo/db"
+import { PageType, type Page, type PrismaClient } from "@repo/db"
 
 import { router, protectedProcedure } from "../trpc"
 
@@ -71,11 +71,29 @@ async function assertPageOwnership(
 export const pageRouter = router({
   getById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .query(async ({ ctx, input }) => {
+    .query(async ({ ctx, input }): Promise<Page> => {
       const page = await ctx.prisma.page.findFirst({
         where: {
           id: input.id,
           workspace: { members: { some: { userId: ctx.user.id } } },
+        },
+        select: {
+          id: true,
+          workspaceId: true,
+          parentId: true,
+          type: true,
+          ownership: true,
+          title: true,
+          icon: true,
+          content: true,
+          contentYjs: true,
+          archived: true,
+          prevPageId: true,
+          deletedAt: true,
+          createdById: true,
+          updatedById: true,
+          createdAt: true,
+          updatedAt: true,
         },
       })
       if (!page) throw new TRPCError({ code: "NOT_FOUND", message: "Страница не найдена" })
@@ -115,7 +133,7 @@ export const pageRouter = router({
         type: z.nativeEnum(PageType).optional(),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ ctx, input }): Promise<{ id: string }> => {
       await assertWorkspaceMember(ctx, input.workspaceId)
 
       // If parent is a page, verify it exists and belongs to same workspace
@@ -162,7 +180,7 @@ export const pageRouter = router({
           })
         }
 
-        return newPage
+        return { id: newPage.id }
       })
     }),
 
@@ -174,13 +192,19 @@ export const pageRouter = router({
         title: z.string(),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
-      await assertPageOwnership(ctx, input.id, input.workspaceId)
-      return ctx.prisma.page.update({
-        where: { id: input.id },
-        data: { title: input.title, updatedById: ctx.user.id },
-      })
-    }),
+    .mutation(
+      async ({
+        ctx,
+        input,
+      }): Promise<{ id: string; title: string | null; icon: string | null; updatedAt: Date }> => {
+        await assertPageOwnership(ctx, input.id, input.workspaceId)
+        return ctx.prisma.page.update({
+          where: { id: input.id },
+          data: { title: input.title, updatedById: ctx.user.id },
+          select: { id: true, title: true, icon: true, updatedAt: true },
+        })
+      },
+    ),
 
   update: protectedProcedure
     .input(
@@ -192,22 +216,28 @@ export const pageRouter = router({
         type: z.nativeEnum(PageType).optional(),
       }),
     )
-    .mutation(async ({ ctx, input }) => {
-      await assertPageOwnership(ctx, input.id, input.workspaceId)
-      const data: {
-        title?: string
-        icon?: string | null
-        type?: PageType
-        updatedById: string
-      } = { updatedById: ctx.user.id }
-      if (input.title !== undefined) data.title = input.title
-      if (input.icon !== undefined) data.icon = input.icon
-      if (input.type !== undefined) data.type = input.type
-      return ctx.prisma.page.update({
-        where: { id: input.id },
-        data,
-      })
-    }),
+    .mutation(
+      async ({
+        ctx,
+        input,
+      }): Promise<{ id: string; title: string | null; icon: string | null; updatedAt: Date }> => {
+        await assertPageOwnership(ctx, input.id, input.workspaceId)
+        const data: {
+          title?: string
+          icon?: string | null
+          type?: PageType
+          updatedById: string
+        } = { updatedById: ctx.user.id }
+        if (input.title !== undefined) data.title = input.title
+        if (input.icon !== undefined) data.icon = input.icon
+        if (input.type !== undefined) data.type = input.type
+        return ctx.prisma.page.update({
+          where: { id: input.id },
+          data,
+          select: { id: true, title: true, icon: true, updatedAt: true },
+        })
+      },
+    ),
 
   softDelete: protectedProcedure
     .input(
@@ -513,7 +543,7 @@ export const pageRouter = router({
 
   duplicate: protectedProcedure
     .input(z.object({ pageId: z.string().uuid() }))
-    .mutation(async ({ ctx, input }) => {
+    .mutation(async ({ ctx, input }): Promise<{ id: string }> => {
       const page = await assertPageAccess(ctx, input.pageId)
 
       return ctx.prisma.$transaction(async (tx) => {
@@ -554,7 +584,7 @@ export const pageRouter = router({
           })
         }
 
-        return copy
+        return { id: copy.id }
       })
     }),
 

@@ -12,11 +12,11 @@ export function SearchChatInput({ chatId, workspaceId }: Props) {
   const [value, setValue] = useState("")
   const inputRef = useRef<HTMLInputElement | null>(null)
   const utils = trpc.useUtils()
-  const send = trpc.search.sendMessage.useMutation({
+  const send = trpc.chat.sendMessage.useMutation({
     onSuccess: async () => {
       setValue("")
-      await utils.search.getChat.invalidate({ chatId })
-      await utils.search.listChats.invalidate({ workspaceId })
+      await utils.chat.getChat.invalidate({ chatId })
+      await utils.chat.listChats.invalidate({ workspaceId })
     },
   })
 

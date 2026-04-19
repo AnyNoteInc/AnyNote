@@ -9,7 +9,7 @@ type Props = { params: Promise<{ workspaceId: string }> }
 export default async function SearchIndexPage({ params }: Props) {
   const { workspaceId } = await params
   const trpc = await getServerTRPC()
-  const chats = await trpc.search.listChats({ workspaceId })
+  const chats = await trpc.chat.listChats({ workspaceId })
   if (chats.length > 0) {
     redirect(`/workspaces/${workspaceId}/search/${chats[0]!.id}`)
   }

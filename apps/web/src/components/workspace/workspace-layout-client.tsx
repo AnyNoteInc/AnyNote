@@ -58,7 +58,7 @@ export function WorkspaceLayoutClient({
   const chatIdMatch = pathname.match(/\/search\/([a-f0-9-]{36})$/)
   const activeChatId = chatIdMatch?.[1] ?? null
 
-  const chats = trpc.search.listChats.useQuery(
+  const chats = trpc.chat.listChats.useQuery(
     { workspaceId: workspace.id },
     { enabled: activeChatId !== null },
   )

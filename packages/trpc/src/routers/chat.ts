@@ -19,7 +19,7 @@ async function assertChatAccess(
   ctx: { prisma: PrismaClient; user: { id: string } },
   chatId: string,
 ) {
-  const chat = await ctx.prisma.searchChat.findFirst({
+  const chat = await ctx.prisma.chat.findFirst({
     where: {
       id: chatId,
       workspace: { members: { some: { userId: ctx.user.id } } },
@@ -29,12 +29,12 @@ async function assertChatAccess(
   return chat
 }
 
-export const searchRouter = router({
+export const chatRouter = router({
   listChats: protectedProcedure
     .input(z.object({ workspaceId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       await assertWorkspaceMember(ctx, input.workspaceId)
-      return ctx.prisma.searchChat.findMany({
+      return ctx.prisma.chat.findMany({
         where: { workspaceId: input.workspaceId },
         orderBy: { updatedAt: "desc" },
         take: 50,
@@ -53,7 +53,7 @@ export const searchRouter = router({
     .input(z.object({ chatId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const chat = await assertChatAccess(ctx, input.chatId)
-      const messages = await ctx.prisma.searchMessage.findMany({
+      const messages = await ctx.prisma.chatMessage.findMany({
         where: { chatId: chat.id },
         orderBy: { createdAt: "asc" },
       })
@@ -67,7 +67,7 @@ export const searchRouter = router({
       if (input.parentId) {
         await assertChatAccess(ctx, input.parentId)
       }
-      return ctx.prisma.searchChat.create({
+      return ctx.prisma.chat.create({
         data: {
           workspaceId: input.workspaceId,
           createdById: ctx.user.id,
@@ -86,18 +86,18 @@ export const searchRouter = router({
     .mutation(async ({ ctx, input }) => {
       const chat = await assertChatAccess(ctx, input.chatId)
       return ctx.prisma.$transaction(async (tx) => {
-        const userMessage = await tx.searchMessage.create({
+        const userMessage = await tx.chatMessage.create({
           data: { chatId: chat.id, role: "USER", content: input.content },
         })
-        const assistantMessage = await tx.searchMessage.create({
+        const assistantMessage = await tx.chatMessage.create({
           data: {
             chatId: chat.id,
             role: "ASSISTANT",
             content: `🔎 MVP echo: "${input.content}". Настоящий RAG подключим с OLLAMA + Weaviate.`,
           },
         })
-        const shouldRename = chat.title === "Новый поиск"
-        await tx.searchChat.update({
+        const shouldRename = chat.title === "Новый чат"
+        await tx.chat.update({
           where: { id: chat.id },
           data: {
             updatedAt: new Date(),
@@ -112,7 +112,7 @@ export const searchRouter = router({
     .input(z.object({ chatId: z.string().uuid(), title: z.string().min(1).max(48) }))
     .mutation(async ({ ctx, input }) => {
       await assertChatAccess(ctx, input.chatId)
-      return ctx.prisma.searchChat.update({
+      return ctx.prisma.chat.update({
         where: { id: input.chatId },
         data: { title: input.title },
       })
@@ -122,7 +122,7 @@ export const searchRouter = router({
     .input(z.object({ chatId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       await assertChatAccess(ctx, input.chatId)
-      await ctx.prisma.searchChat.delete({ where: { id: input.chatId } })
+      await ctx.prisma.chat.delete({ where: { id: input.chatId } })
       return { ok: true }
     }),
 })
