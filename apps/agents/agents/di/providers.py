@@ -12,9 +12,8 @@ from collections.abc import AsyncIterator
 import asyncpg  # type: ignore[import-untyped]
 from dishka import Provider, Scope, from_context, provide
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
-from langgraph.graph.state import CompiledStateGraph
 
-from agents.services.graph import GraphState, build_graph
+from agents.services.graph import CompiledGraph, build_graph
 from agents.services.prompt_renderer import JinjaRenderer
 from agents.services.providers import create_chat_model
 from agents.settings import Settings
@@ -58,7 +57,7 @@ class AppSingletonsProvider(Provider):
     @provide
     def graph(
         self, renderer: JinjaRenderer, checkpointer: AsyncPostgresSaver
-    ) -> CompiledStateGraph[GraphState, None, GraphState, GraphState]:
+    ) -> CompiledGraph:
         return build_graph(
             renderer=renderer,
             llm_factory=create_chat_model,

@@ -28,13 +28,19 @@ class GraphState(TypedDict, total=False):
 
 LlmFactory = Callable[[ModelConfig], BaseChatModel]
 
+# Alias used by Dishka providers and the /generate endpoint so both sides
+# reference the exact same parameterized CompiledStateGraph type. Dishka
+# resolves dependencies by exact type equality, so the provider's return
+# annotation must match the consumer's FromDishka[...] annotation.
+CompiledGraph = CompiledStateGraph[GraphState, None, GraphState, GraphState]
+
 
 def build_graph(
     *,
     renderer: JinjaRenderer,
     llm_factory: LlmFactory,
     checkpointer: BaseCheckpointSaver[str],
-) -> CompiledStateGraph[GraphState, None, GraphState, GraphState]:
+) -> CompiledGraph:
     """Compile the prepare_prompt → llm pipeline with the given checkpointer."""
 
     async def prepare_prompt(state: GraphState) -> GraphState:
