@@ -4,7 +4,7 @@ import { workspaceRouter } from "./routers/workspace"
 import { subscriptionRouter } from "./routers/subscription"
 import { integrationRouter } from "./routers/integration"
 import { pageRouter } from "./routers/page"
-import { searchRouter } from "./routers/search"
+import { chatRouter } from "./routers/chat"
 import { fileRouter } from "./routers/file"
 
 export { createContext, createServerContext } from "./trpc"
@@ -17,7 +17,7 @@ export const appRouter = router({
   subscription: subscriptionRouter,
   integration: integrationRouter,
   page: pageRouter,
-  search: searchRouter,
+  chat: chatRouter,
   file: fileRouter,
 })
 
