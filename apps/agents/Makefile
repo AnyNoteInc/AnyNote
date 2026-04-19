@@ -9,7 +9,7 @@ sync:
 	uv sync --frozen
 
 dev:
-	uv run uvicorn agents.main:app --host 0.0.0.0 --port 8080 --reload
+	uv run uvicorn --factory agents.main:create_app --host 0.0.0.0 --port 8080 --reload
 
 test:
 	uv run pytest -m 'not integration'

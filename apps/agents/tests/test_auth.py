@@ -2,16 +2,26 @@
 
 from __future__ import annotations
 
+from dishka import Provider, Scope, from_context, make_async_container
+from dishka.integrations.fastapi import setup_dishka
 from fastapi import Depends, FastAPI, Request
 from fastapi.responses import JSONResponse
 from fastapi.testclient import TestClient
 
 from agents.entrypoints.rest.auth import require_bearer
 from agents.exceptions import AuthError
+from agents.settings import Settings
+
+
+class _SettingsProvider(Provider):
+    scope = Scope.APP
+    settings = from_context(provides=Settings, scope=Scope.APP)
 
 
 def _protected_app() -> FastAPI:
     app = FastAPI()
+    settings = Settings()
+    container = make_async_container(_SettingsProvider(), context={Settings: settings})
 
     @app.get("/protected")
     def endpoint(_: None = Depends(require_bearer)) -> dict[str, bool]:
@@ -24,6 +34,7 @@ def _protected_app() -> FastAPI:
             content={"error": {"code": exc.code, "message": str(exc)}},
         )
 
+    setup_dishka(container=container, app=app)
     return app
 
 
