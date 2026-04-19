@@ -1,7 +1,10 @@
 "use client"
 
 import { useEffect, useRef, useState, type MouseEvent } from "react"
+import { useQueryClient } from "@tanstack/react-query"
+import { getQueryKey } from "@trpc/react-query"
 
+import type { Page } from "@repo/db"
 import {
   AddIcon,
   Box,
@@ -15,6 +18,19 @@ import {
 } from "@repo/ui/components"
 
 import { trpc } from "@/trpc/client"
+
+// Matches the scalar select used by page.listByWorkspace on the server. Kept
+// local because pulling the tRPC router output type is exactly what triggered
+// the TS2589 depth explosion we're sidestepping here.
+type WorkspacePageListItem = {
+  id: string
+  title: string | null
+  icon: string | null
+  parentId: string | null
+  prevPageId: string | null
+  createdById: string
+  createdAt: Date
+}
 
 const UNTITLED_PLACEHOLDER = "Новая страница"
 
@@ -33,24 +49,41 @@ export function PageHeader({ id, workspaceId, initialTitle, initialIcon }: Props
   const title = query.data ? query.data.title : initialTitle
   const icon = query.data ? query.data.icon : initialIcon
 
-  const utils = trpc.useUtils()
+  const queryClient = useQueryClient()
   const update = trpc.page.update.useMutation({
     // Update both caches in place instead of invalidating. Invalidation would
     // refetch the whole workspace page list, which the sidebar + breadcrumb
     // subscribe to — causing a visible flicker and unnecessary network work.
+    //
+    // NB: uses queryClient.setQueryData + getQueryKey instead of
+    // trpc.useUtils().page.*.setData. The tRPC utils wrapper's generic depth
+    // (DecoratedProcedureUtilsRecord × Prisma v7 output types) exceeds TS's
+    // recursion limit for the Page router — see TS2589. Routing through
+    // TanStack Query directly uses a flat <TData> generic and type-checks fine.
     onSuccess: (updated) => {
-      utils.page.getById.setData({ id }, (prev) =>
-        prev
-          ? { ...prev, title: updated.title, icon: updated.icon, updatedAt: updated.updatedAt }
-          : prev,
-      )
-      utils.page.listByWorkspace.setData(
-        { workspaceId },
-        (prev) =>
-          prev?.map((p) =>
+      const pageByIdKey = getQueryKey(trpc.page.getById, { id }, "query")
+      const currentPage = queryClient.getQueryData<Page>(pageByIdKey)
+      if (currentPage) {
+        // updatedAt is intentionally not written here: tRPC's default JSON
+        // transport serialises Date → string, but Page's type says Date.
+        // Skipping the field avoids a Date/string mismatch and the sidebar
+        // will pick up the fresh timestamp from its own refetch path.
+        queryClient.setQueryData<Page>(pageByIdKey, {
+          ...currentPage,
+          title: updated.title,
+          icon: updated.icon,
+        })
+      }
+      const pageListKey = getQueryKey(trpc.page.listByWorkspace, { workspaceId }, "query")
+      const currentList = queryClient.getQueryData<WorkspacePageListItem[]>(pageListKey)
+      if (currentList) {
+        queryClient.setQueryData<WorkspacePageListItem[]>(
+          pageListKey,
+          currentList.map((p) =>
             p.id === id ? { ...p, title: updated.title, icon: updated.icon } : p,
-          ) ?? prev,
-      )
+          ),
+        )
+      }
     },
   })
 
