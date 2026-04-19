@@ -189,6 +189,10 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
         .deleteRange(range)
         .insertContent({
           type: "hiddenText",
+          // Stamp the insert time so the node view can distinguish a freshly
+          // inserted block (show visible so the author can type) from a node
+          // loaded from storage (show masked).
+          attrs: { created: Date.now() },
           content: [{ type: "paragraph" }],
         })
         .run(),

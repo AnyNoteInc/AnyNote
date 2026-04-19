@@ -126,7 +126,11 @@ export function PageActionsMenu({
 
         <Divider />
 
-        <MenuItem onClick={handleToggleFullWidth} sx={menuItemSx}>
+        <MenuItem
+          onClick={handleToggleFullWidth}
+          sx={menuItemSx}
+          disabled={pageType === "EXCALIDRAW"}
+        >
           <ListItemIcon>
             <HeightIcon fontSize="small" sx={{ transform: "rotate(90deg)" }} />
           </ListItemIcon>

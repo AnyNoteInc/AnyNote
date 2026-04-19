@@ -3,7 +3,7 @@
 import "@excalidraw/excalidraw/index.css"
 import "./board.css"
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { Excalidraw } from "@excalidraw/excalidraw"
 import type { AppState, BinaryFiles, ExcalidrawImperativeAPI } from "@excalidraw/excalidraw/types"
 import type { OrderedExcalidrawElement, Theme } from "@excalidraw/excalidraw/element/types"
@@ -14,28 +14,25 @@ import { FilesHandler, type ExcalidrawFile } from "./files-handler"
 import type { BoardProps } from "./types"
 import { useExcalidrawYjs } from "./use-excalidraw-yjs"
 
-const DARK_BG = "#121212"
-const LIGHT_BG = "#ffffff"
-const DARK_STROKE = "#ffffff"
-const LIGHT_STROKE = "#1e1e1e"
-
 export function BoardInner(props: BoardProps) {
   const { pageId, yjsUrl, yjsToken, uploadHandler, user, editable = true, className } = props
 
   const muiTheme = useTheme()
   const excalidrawTheme: Theme = muiTheme.palette.mode === "dark" ? "dark" : "light"
-  const isDark = muiTheme.palette.mode === "dark"
-  const viewBackgroundColor = isDark ? DARK_BG : LIGHT_BG
-  const currentItemStrokeColor = isDark ? DARK_STROKE : LIGHT_STROKE
+  // Derive canvas background + default stroke from the active MUI palette so
+  // they track light/dark theme (and any palette customisation) instead of
+  // being pinned to hard-coded hex values.
+  const viewBackgroundColor = muiTheme.palette.background.default
+  const currentItemStrokeColor = muiTheme.palette.text.primary
 
-  const initialModeRef = useRef(muiTheme.palette.mode)
   const initialData = useMemo(
     () => ({
-      appState: {
-        viewBackgroundColor: initialModeRef.current === "dark" ? DARK_BG : LIGHT_BG,
-        currentItemStrokeColor: initialModeRef.current === "dark" ? DARK_STROKE : LIGHT_STROKE,
-      },
+      appState: { viewBackgroundColor, currentItemStrokeColor },
     }),
+    // Capture the palette snapshot at mount; later theme changes flow through
+    // the updateScene effect below (remounting Excalidraw would wipe the yjs
+    // binding).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
     [],
   )
 

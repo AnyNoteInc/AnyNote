@@ -1,16 +1,23 @@
 import React, { useState } from "react"
 import { Node, mergeAttributes } from "@tiptap/core"
+import type { NodeViewProps } from "@tiptap/react"
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react"
 import { Box, IconButton } from "@mui/material"
 import VisibilityIcon from "@mui/icons-material/Visibility"
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff"
 
-// `visible` is a LOCAL view-state only — we do not persist it. Starts visible
-// on fresh insertion so the author can type, then the author hides via the eye
-// icon when done. On subsequent page loads, the state is lost (React local)
-// so other viewers see the intended masked default.
-function HiddenTextView() {
-  const [visible, setVisible] = useState(true)
+// Hidden text should be visible immediately after insertion (so the author can
+// type into it) but hidden by default after a reload. We distinguish the two
+// states with a `created` timestamp attribute: the slash menu sets it on
+// insertion, and the view treats any timestamp older than this threshold as
+// "loaded from storage" and starts masked.
+const FRESH_INSERT_MS = 3000
+
+function HiddenTextView({ node }: NodeViewProps) {
+  const [visible, setVisible] = useState(() => {
+    const created = node.attrs.created
+    return typeof created === "number" && Date.now() - created < FRESH_INSERT_MS
+  })
 
   return (
     <NodeViewWrapper className="anynote-hidden-text" data-visible={visible ? "true" : "false"}>
@@ -61,6 +68,22 @@ export const HiddenText = Node.create({
   group: "block",
   content: "block+",
   defining: true,
+
+  addAttributes() {
+    return {
+      created: {
+        default: null,
+        parseHTML: (el) => {
+          const raw = el.getAttribute("data-created")
+          if (!raw) return null
+          const value = Number.parseInt(raw, 10)
+          return Number.isFinite(value) ? value : null
+        },
+        renderHTML: (attrs) =>
+          typeof attrs.created === "number" ? { "data-created": String(attrs.created) } : {},
+      },
+    }
+  },
 
   parseHTML() {
     return [{ tag: 'div[data-type="hidden-text"]' }]

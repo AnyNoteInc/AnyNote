@@ -63,6 +63,42 @@
   margin: 0.25rem 0;
 }
 
+/* Bulleted / numbered lists: the drag handle sits at each block's left edge,
+   so native `::marker` (which renders in the UL's left padding) collides with
+   the handle. Reset the padding and render markers inside each `li` via a
+   `::before` pseudo-element, matching how task lists already shift their
+   checkbox into the content box. */
+.anynote-editor ul:not([data-type="taskList"]),
+.anynote-editor ol {
+  list-style: none;
+  padding-left: 0;
+}
+.anynote-editor ul:not([data-type="taskList"]) > li,
+.anynote-editor ol > li {
+  position: relative;
+  padding-left: 1.75em;
+}
+.anynote-editor ul:not([data-type="taskList"]) > li::before {
+  content: "•";
+  position: absolute;
+  left: 0.5em;
+  top: 0;
+  line-height: inherit;
+}
+.anynote-editor ol {
+  counter-reset: anynote-ol;
+}
+.anynote-editor ol > li {
+  counter-increment: anynote-ol;
+}
+.anynote-editor ol > li::before {
+  content: counter(anynote-ol) ".";
+  position: absolute;
+  left: 0.25em;
+  top: 0;
+  line-height: inherit;
+}
+
 .anynote-editor blockquote {
   border-left: 3px solid var(--editor-divider, rgba(0, 0, 0, 0.12));
   margin: 0.5rem 0;
