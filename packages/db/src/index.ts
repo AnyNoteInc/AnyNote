@@ -65,5 +65,9 @@ export type {
   FavoritePage,
   File,
   PageFile,
+  OutboxEvent,
 } from "@prisma/client"
+export { OutboxEventStatus } from "@prisma/client"
+export { enqueueOutboxEvent } from "./outbox.js"
+export type { OutboxAggregateType, EnqueueOutboxEventArgs } from "./outbox.js"
 export default prisma
