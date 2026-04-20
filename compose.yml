@@ -85,31 +85,6 @@ services:
     volumes:
       - redis_data:/data
 
-  indexer:
-    build:
-      context: ./apps/indexer
-    profiles: ["worker"]
-    depends_on:
-      postgres:
-        condition: service_healthy
-      qdrant:
-        condition: service_started
-      ollama:
-        condition: service_started
-    environment:
-      INDEXER_DATABASE_URL: postgresql://user:password@postgres:5432/anynote
-      INDEXER_QDRANT_URL: http://qdrant:6333
-      INDEXER_QDRANT_API_KEY: ${QDRANT_API_KEY:-dev-qdrant-key}
-      INDEXER_QDRANT_COLLECTION: anynote-pages
-      INDEXER_POLL_INTERVAL_MS: "1000"
-      INDEXER_BATCH: "16"
-      EMBEDDINGS_PROVIDER: ollama
-      EMBEDDINGS_MODEL: nomic-embed-text
-      EMBEDDINGS_DIM: "768"
-      OLLAMA_BASE_URL: http://ollama:11434
-    ports:
-      - "8081:8081"
-
 volumes:
   postgres_data:
   minio_data:
