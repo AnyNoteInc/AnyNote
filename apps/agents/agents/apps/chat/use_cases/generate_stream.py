@@ -12,9 +12,29 @@ from agents.apps.chat.errors import ProviderError
 from agents.apps.chat.schemas import GenerateRequest, ServerEvent
 from agents.apps.chat.services.graph_service import CompiledGraph, GraphState
 
+_INTERNAL_ERROR_MESSAGE = "Internal server error"
+
 
 def normalize_event(event: ServerEvent) -> str:
     return event.model_dump_json()
+
+
+def _extract_token_text(content: object) -> str | None:
+    if isinstance(content, str):
+        return content or None
+    if isinstance(content, list):
+        fragments: list[str] = []
+        for block in content:
+            if isinstance(block, str):
+                if block:
+                    fragments.append(block)
+                continue
+            if isinstance(block, dict) and block.get("type") == "text":
+                text = block.get("text")
+                if isinstance(text, str) and text:
+                    fragments.append(text)
+        return "".join(fragments) or None
+    return None
 
 
 class GenerateStreamUseCase:
@@ -37,11 +57,13 @@ class GenerateStreamUseCase:
                     continue
                 message, _metadata = chunk
                 if isinstance(message, AIMessageChunk):
-                    content = message.content
-                    if isinstance(content, str) and content:
+                    content = _extract_token_text(message.content)
+                    if content:
                         yield {"data": normalize_event(ServerEvent.token(content))}
             yield {"data": normalize_event(ServerEvent.done())}
         except ProviderError as exc:
             yield {"data": normalize_event(ServerEvent.error(exc.code, str(exc)))}
-        except Exception as exc:
-            yield {"data": normalize_event(ServerEvent.error("INTERNAL_ERROR", str(exc)))}
+        except Exception:
+            yield {
+                "data": normalize_event(ServerEvent.error("INTERNAL_ERROR", _INTERNAL_ERROR_MESSAGE))
+            }
