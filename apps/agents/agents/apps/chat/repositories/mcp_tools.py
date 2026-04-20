@@ -35,9 +35,11 @@ def _argument_schema(tool: dict[str, Any]) -> type[BaseModel]:
     fields: dict[str, Any] = {}
     for prop_name, spec in properties.items():
         py_type: type[Any] = _json_type_to_python(spec.get("type"))
-        default: Any = ... if prop_name in required else None
         description = spec.get("description") or None
-        fields[prop_name] = (py_type | None, Field(default, description=description))
+        if prop_name in required:
+            fields[prop_name] = (py_type, Field(..., description=description))
+        else:
+            fields[prop_name] = (py_type | None, Field(None, description=description))
     if not fields:
         return create_model(schema_name)
     return create_model(schema_name, **fields)
