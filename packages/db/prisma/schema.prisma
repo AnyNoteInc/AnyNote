@@ -475,3 +475,31 @@ model PageFile {
   @@index([fileId])
   @@map("page_files")
 }
+
+enum OutboxEventStatus {
+  PENDING
+  PROCESSING
+  DONE
+  FAILED
+}
+
+model OutboxEvent {
+  id            BigInt            @id @default(autoincrement())
+  eventType     String            @map("event_type")     @db.VarChar(64)
+  aggregateType String            @map("aggregate_type") @db.VarChar(32)
+  aggregateId   String            @map("aggregate_id")   @db.Uuid
+  workspaceId   String?           @map("workspace_id")   @db.Uuid
+  payload       Json              @default("{}")
+  status        OutboxEventStatus @default(PENDING)
+  attempts      Int               @default(0)
+  nextAttemptAt DateTime          @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
+  lockedAt      DateTime?         @map("locked_at")      @db.Timestamptz(6)
+  lockedBy      String?           @map("locked_by")      @db.VarChar(64)
+  processedAt   DateTime?         @map("processed_at")   @db.Timestamptz(6)
+  lastError     String?           @map("last_error")     @db.Text
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  @@index([status, nextAttemptAt])
+  @@index([aggregateType, aggregateId])
+  @@map("outbox_events")
+}
