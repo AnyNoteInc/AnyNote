@@ -45,6 +45,7 @@ export function WorkspaceAiSection({ workspaceId }: Props) {
       utils.aiSettings.get.invalidate({ workspaceId })
     },
   })
+  const reindex = trpc.aiSettings.reindexWorkspace.useMutation()
 
   const [defaultModelId, setDefaultModelId] = useState<string>("")
   const [systemPromptPageId, setSystemPromptPageId] = useState<string>("")
@@ -276,6 +277,36 @@ export function WorkspaceAiSection({ workspaceId }: Props) {
           <FormHelperText>
             Кликните по странице, чтобы добавить её в активные скиллы. Выбрано: {skillPageIds.length}
           </FormHelperText>
+        </Stack>
+      </Paper>
+
+      <Paper variant="outlined" sx={{ p: 3 }}>
+        <Stack spacing={2}>
+          <Box>
+            <Typography variant="h6" sx={{ fontWeight: 600 }}>
+              Переиндексация
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              Перевыпустит outbox-событие page.upserted для каждой страницы
+              workspace, чтобы индексатор пересобрал точки в Qdrant. Полезно
+              после смены embeddings-модели или восстановления после простоя.
+            </Typography>
+          </Box>
+          <Box>
+            <Button
+              variant="outlined"
+              onClick={() => reindex.mutate({ workspaceId })}
+              loading={reindex.isPending}
+            >
+              Переиндексировать workspace
+            </Button>
+          </Box>
+          {reindex.error && <Alert severity="error">{reindex.error.message}</Alert>}
+          {reindex.isSuccess && reindex.data && (
+            <Alert severity="success">
+              Поставлено в очередь страниц: {reindex.data.enqueued}
+            </Alert>
+          )}
         </Stack>
       </Paper>
 

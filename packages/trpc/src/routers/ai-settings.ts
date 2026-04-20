@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
-import type { AiModel, AiProvider, Prisma, WorkspaceAiSettings } from "@repo/db"
+import { enqueueOutboxEvent, type AiModel, type AiProvider, type Prisma, type WorkspaceAiSettings } from "@repo/db"
 
 import { router, protectedProcedure } from "../trpc"
 
@@ -219,6 +219,39 @@ export const aiSettingsRouter = router({
         orderBy: [{ updatedAt: "desc" }],
         take: 200,
         select: { id: true, title: true, ownership: true },
+      })
+    }),
+
+  /**
+   * Re-emit a `page.upserted` outbox event for every live page in the
+   * workspace. The indexer drains the outbox and re-builds Qdrant
+   * points. Use after switching the embeddings model or recovering
+   * from an indexer outage.
+   */
+  reindexWorkspace: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const member = await assertWorkspaceMember(ctx, input.workspaceId)
+      if (member.role !== "OWNER") {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Только владелец может запускать переиндексацию",
+        })
+      }
+      return ctx.prisma.$transaction(async (tx) => {
+        const pages = await tx.page.findMany({
+          where: { workspaceId: input.workspaceId, deletedAt: null },
+          select: { id: true },
+        })
+        for (const p of pages) {
+          await enqueueOutboxEvent(tx, {
+            eventType: "page.upserted",
+            aggregateType: "page",
+            aggregateId: p.id,
+            workspaceId: input.workspaceId,
+          })
+        }
+        return { enqueued: pages.length }
       })
     }),
 })
