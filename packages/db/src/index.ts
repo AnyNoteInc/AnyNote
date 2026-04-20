@@ -62,6 +62,7 @@ export type {
   ChatMessageFile,
   AiProvider,
   AiModel,
+  WorkspaceAiSettings,
   FavoritePage,
   File,
   PageFile,

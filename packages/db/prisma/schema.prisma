@@ -161,6 +161,7 @@ model Workspace {
   defaultForUsers       UserPreference[]  @relation("DefaultWorkspace")
   chats                 Chat[]
   files                 File[]
+  aiSettings            WorkspaceAiSettings?
 
   @@index([createdById])
   @@map("workspaces")
@@ -210,6 +211,7 @@ model Page {
   parent    Page?          @relation("PageTree", fields: [parentId], references: [id], onDelete: SetNull)
   favorites FavoritePage[]
   files     PageFile[]
+  systemPromptOf WorkspaceAiSettings[] @relation("WorkspaceSystemPrompt")
 
   @@index([workspaceId])
   @@index([parentId])
@@ -374,9 +376,30 @@ model AiModel {
   createdAt               DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt               DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
   provider                AiProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  workspaceSettings       WorkspaceAiSettings[]
 
   @@unique([providerId, slug])
   @@map("ai_models")
+}
+
+model WorkspaceAiSettings {
+  workspaceId         String   @id @map("workspace_id") @db.Uuid
+  defaultModelId      String?  @map("default_model_id") @db.Uuid
+  systemPromptPageId  String?  @map("system_prompt_page_id") @db.Uuid
+  temperature         Float?
+  maxOutputTokens     Int?     @map("max_output_tokens")
+  topP                Float?   @map("top_p")
+  providerCredentials Json?    @default("{}") @map("provider_credentials")
+  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  defaultModel     AiModel?  @relation(fields: [defaultModelId], references: [id], onDelete: SetNull)
+  systemPromptPage Page?     @relation("WorkspaceSystemPrompt", fields: [systemPromptPageId], references: [id], onDelete: SetNull)
+
+  @@index([defaultModelId])
+  @@index([systemPromptPageId])
+  @@map("workspace_ai_settings")
 }
 
 model Plan {
