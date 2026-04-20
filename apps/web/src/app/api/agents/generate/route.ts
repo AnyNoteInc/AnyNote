@@ -7,8 +7,7 @@ import { getSession } from "@/lib/get-session"
 export const runtime = "nodejs"
 
 interface GenerateBody {
-  workspaceId: string
-  threadId: string
+  chatId: string
   prompt: string
   history: Array<{ role: "user" | "assistant"; content: string }>
 }
@@ -18,11 +17,8 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 function parseBody(raw: unknown): GenerateBody {
   if (!raw || typeof raw !== "object") throw new Error("Invalid body")
   const o = raw as Record<string, unknown>
-  if (typeof o.workspaceId !== "string" || !UUID_RE.test(o.workspaceId)) {
-    throw new Error("workspaceId must be a UUID")
-  }
-  if (typeof o.threadId !== "string" || !UUID_RE.test(o.threadId)) {
-    throw new Error("threadId must be a UUID")
+  if (typeof o.chatId !== "string" || !UUID_RE.test(o.chatId)) {
+    throw new Error("chatId must be a UUID")
   }
   if (typeof o.prompt !== "string" || o.prompt.length === 0) {
     throw new Error("prompt must be a non-empty string")
@@ -36,7 +32,7 @@ function parseBody(raw: unknown): GenerateBody {
       history.push({ role: m.role, content: m.content })
     }
   }
-  return { workspaceId: o.workspaceId, threadId: o.threadId, prompt: o.prompt, history }
+  return { chatId: o.chatId, prompt: o.prompt, history }
 }
 
 const PROVIDER_BASE_URLS: Record<string, string> = {
@@ -58,21 +54,24 @@ export async function POST(req: NextRequest): Promise<Response> {
     )
   }
 
-  const member = await prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId: body.workspaceId, userId: session.user.id } },
+  const chat = await prisma.chat.findFirst({
+    where: {
+      id: body.chatId,
+      workspace: { members: { some: { userId: session.user.id } } },
+    },
+    select: { id: true, workspaceId: true, title: true },
   })
-  if (!member) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 })
+  if (!chat) {
+    return NextResponse.json({ error: "Chat not found" }, { status: 404 })
   }
 
   const settings = await prisma.workspaceAiSettings.findUnique({
-    where: { workspaceId: body.workspaceId },
+    where: { workspaceId: chat.workspaceId },
     include: {
       defaultModel: { include: { provider: true } },
       systemPromptPage: { select: { content: true, title: true } },
     },
   })
-
   if (!settings?.defaultModel) {
     return NextResponse.json(
       { error: "Workspace AI default model is not configured" },
@@ -83,16 +82,30 @@ export async function POST(req: NextRequest): Promise<Response> {
   const provider = settings.defaultModel.provider
   const providerSlug = provider.slug
   const baseUrl =
-    PROVIDER_BASE_URLS[providerSlug] ??
-    provider.defaultBaseUrl ??
-    undefined
+    PROVIDER_BASE_URLS[providerSlug] ?? provider.defaultBaseUrl ?? undefined
 
   const systemPrompt = settings.systemPromptPage?.content
     ? extractTextFromTiptap(settings.systemPromptPage.content)
     : undefined
 
+  // Persist user message + bump chat title (if still default) BEFORE streaming
+  // so the row is durable even if the upstream call fails.
+  await prisma.$transaction(async (tx) => {
+    await tx.chatMessage.create({
+      data: { chatId: chat.id, role: "USER", content: body.prompt },
+    })
+    const shouldRename = chat.title === "Новый чат"
+    await tx.chat.update({
+      where: { id: chat.id },
+      data: {
+        updatedAt: new Date(),
+        title: shouldRename ? body.prompt.slice(0, 48) : undefined,
+      },
+    })
+  })
+
   const agentsPayload = {
-    threadId: body.threadId,
+    threadId: chat.id,
     model: {
       provider: providerSlug,
       name: settings.defaultModel.slug,
@@ -131,7 +144,68 @@ export async function POST(req: NextRequest): Promise<Response> {
     )
   }
 
-  return new Response(upstream.body, {
+  // Tee the upstream SSE: forward to the client AND parse to accumulate the
+  // assistant's full text so we can persist it once "done" arrives.
+  const decoder = new TextDecoder()
+  let assistantBuffer = ""
+  let finished = false
+
+  const upstreamReader = upstream.body.getReader()
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      let frameBuffer = ""
+      try {
+        while (true) {
+          const { value, done } = await upstreamReader.read()
+          if (done) break
+          if (value) controller.enqueue(value)
+          frameBuffer += decoder.decode(value, { stream: true })
+          let nl: number
+          while ((nl = frameBuffer.indexOf("\n\n")) >= 0) {
+            const frame = frameBuffer.slice(0, nl)
+            frameBuffer = frameBuffer.slice(nl + 2)
+            const dataLine = frame.split("\n").find((l) => l.startsWith("data:"))
+            if (!dataLine) continue
+            const json = dataLine.slice(5).trim()
+            if (!json) continue
+            try {
+              const ev: { type: string; content?: string } = JSON.parse(json)
+              if (ev.type === "token" && typeof ev.content === "string") {
+                assistantBuffer += ev.content
+              } else if (ev.type === "done") {
+                finished = true
+              }
+            } catch {
+              // Non-JSON SSE frame; forward but skip persistence accounting.
+            }
+          }
+        }
+      } catch (err) {
+        controller.error(err)
+      } finally {
+        controller.close()
+        if (finished && assistantBuffer.trim().length > 0) {
+          try {
+            await prisma.chatMessage.create({
+              data: { chatId: chat.id, role: "ASSISTANT", content: assistantBuffer },
+            })
+            await prisma.chat.update({
+              where: { id: chat.id },
+              data: { updatedAt: new Date() },
+            })
+          } catch (persistErr) {
+            // Logging only — the stream already completed for the client.
+            console.error("[chat-persist] failed to save assistant message", persistErr)
+          }
+        }
+      }
+    },
+    cancel() {
+      void upstreamReader.cancel()
+    },
+  })
+
+  return new Response(stream, {
     status: 200,
     headers: {
       "content-type": "text/event-stream; charset=utf-8",
