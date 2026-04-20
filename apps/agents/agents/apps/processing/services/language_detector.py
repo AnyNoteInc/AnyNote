@@ -1,0 +1,30 @@
+"""Language detection wrapper around langdetect."""
+
+from __future__ import annotations
+
+from typing import Literal
+
+from langdetect import DetectorFactory, LangDetectException, detect
+
+DetectorFactory.seed = 0  # deterministic results
+
+DetectedLanguage = Literal["ru", "en"]
+
+
+class LanguageDetector:
+    """Detects language of a text chunk.
+
+    Returns only "ru" or "en"; anything else falls back to "ru" because
+    the indexer's downstream pipeline (spaCy) only has models for those.
+    """
+
+    def detect(self, text: str) -> DetectedLanguage:
+        if not text.strip():
+            return "ru"
+        try:
+            detected = detect(text)
+        except LangDetectException:
+            return "ru"
+        if detected == "en":
+            return "en"
+        return "ru"
