@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
-import { PageType, type Page, type PrismaClient } from "@repo/db"
+import { PageType, enqueueOutboxEvent, type Page, type PrismaClient } from "@repo/db"
 
 import { router, protectedProcedure } from "../trpc"
 
@@ -180,6 +180,13 @@ export const pageRouter = router({
           })
         }
 
+        await enqueueOutboxEvent(tx, {
+          eventType: "page.upserted",
+          aggregateType: "page",
+          aggregateId: newPage.id,
+          workspaceId: input.workspaceId,
+        })
+
         return { id: newPage.id }
       })
     }),
@@ -198,10 +205,19 @@ export const pageRouter = router({
         input,
       }): Promise<{ id: string; title: string | null; icon: string | null; updatedAt: Date }> => {
         await assertPageOwnership(ctx, input.id, input.workspaceId)
-        return ctx.prisma.page.update({
-          where: { id: input.id },
-          data: { title: input.title, updatedById: ctx.user.id },
-          select: { id: true, title: true, icon: true, updatedAt: true },
+        return ctx.prisma.$transaction(async (tx) => {
+          const updated = await tx.page.update({
+            where: { id: input.id },
+            data: { title: input.title, updatedById: ctx.user.id },
+            select: { id: true, title: true, icon: true, updatedAt: true },
+          })
+          await enqueueOutboxEvent(tx, {
+            eventType: "page.upserted",
+            aggregateType: "page",
+            aggregateId: updated.id,
+            workspaceId: input.workspaceId,
+          })
+          return updated
         })
       },
     ),
@@ -231,10 +247,19 @@ export const pageRouter = router({
         if (input.title !== undefined) data.title = input.title
         if (input.icon !== undefined) data.icon = input.icon
         if (input.type !== undefined) data.type = input.type
-        return ctx.prisma.page.update({
-          where: { id: input.id },
-          data,
-          select: { id: true, title: true, icon: true, updatedAt: true },
+        return ctx.prisma.$transaction(async (tx) => {
+          const updated = await tx.page.update({
+            where: { id: input.id },
+            data,
+            select: { id: true, title: true, icon: true, updatedAt: true },
+          })
+          await enqueueOutboxEvent(tx, {
+            eventType: "page.upserted",
+            aggregateType: "page",
+            aggregateId: updated.id,
+            workspaceId: input.workspaceId,
+          })
+          return updated
         })
       },
     ),
@@ -295,6 +320,13 @@ export const pageRouter = router({
           })
           parentIds = childIds
         }
+
+        await enqueueOutboxEvent(tx, {
+          eventType: "page.deleted",
+          aggregateType: "page",
+          aggregateId: page.id,
+          workspaceId: input.workspaceId,
+        })
 
         return { id: page.id }
       })
@@ -378,6 +410,13 @@ export const pageRouter = router({
           parentIds = childIds
         }
 
+        await enqueueOutboxEvent(tx, {
+          eventType: "page.upserted",
+          aggregateType: "page",
+          aggregateId: page.id,
+          workspaceId: input.workspaceId,
+        })
+
         return { id: page.id }
       })
     }),
@@ -413,6 +452,13 @@ export const pageRouter = router({
 
         // Delete the page (cascade handles related rows)
         await tx.page.delete({ where: { id: page.id } })
+
+        await enqueueOutboxEvent(tx, {
+          eventType: "page.deleted",
+          aggregateType: "page",
+          aggregateId: page.id,
+          workspaceId: input.workspaceId,
+        })
 
         return { id: page.id }
       })
@@ -450,13 +496,24 @@ export const pageRouter = router({
           message: "Только владелец может очистить корзину",
         })
       }
-      const deleted = await ctx.prisma.page.deleteMany({
-        where: {
-          workspaceId: input.workspaceId,
-          deletedAt: { not: null },
-        },
+      return ctx.prisma.$transaction(async (tx) => {
+        const trashed = await tx.page.findMany({
+          where: { workspaceId: input.workspaceId, deletedAt: { not: null } },
+          select: { id: true },
+        })
+        const deleted = await tx.page.deleteMany({
+          where: { workspaceId: input.workspaceId, deletedAt: { not: null } },
+        })
+        for (const { id } of trashed) {
+          await enqueueOutboxEvent(tx, {
+            eventType: "page.deleted",
+            aggregateType: "page",
+            aggregateId: id,
+            workspaceId: input.workspaceId,
+          })
+        }
+        return { count: deleted.count }
       })
-      return { count: deleted.count }
     }),
 
   move: protectedProcedure
@@ -537,6 +594,13 @@ export const pageRouter = router({
           })
         }
 
+        await enqueueOutboxEvent(tx, {
+          eventType: "page.upserted",
+          aggregateType: "page",
+          aggregateId: page.id,
+          workspaceId: page.workspaceId,
+        })
+
         return { id: page.id }
       })
     }),
@@ -583,6 +647,13 @@ export const pageRouter = router({
             data: { prevPageId: copy.id },
           })
         }
+
+        await enqueueOutboxEvent(tx, {
+          eventType: "page.upserted",
+          aggregateType: "page",
+          aggregateId: copy.id,
+          workspaceId: page.workspaceId,
+        })
 
         return { id: copy.id }
       })
