@@ -1,21 +1,26 @@
-import { notFound } from "next/navigation"
+import { notFound, redirect } from "next/navigation"
 
-import { ChatPageClient } from "./chat-page-client"
+import { getSession } from "@/lib/get-session"
+import { prisma } from "@repo/db"
 import { getServerTRPC } from "@/trpc/server"
 
 type Props = { params: Promise<{ workspaceId: string }> }
 
-export default async function WorkspaceChatPage({ params }: Props) {
+export default async function WorkspaceChatLandingPage({ params }: Props) {
   const { workspaceId } = await params
+  const session = await getSession()
+  if (!session) notFound()
   const trpc = await getServerTRPC()
   const workspace = await trpc.workspace.getById({ id: workspaceId })
   if (!workspace) notFound()
-  const settings = await trpc.aiSettings.get({ workspaceId })
-  return (
-    <ChatPageClient
-      workspaceId={workspaceId}
-      workspaceName={workspace.name}
-      hasModelConfigured={settings.defaultModelId !== null}
-    />
-  )
+
+  const chat = await prisma.chat.create({
+    data: {
+      workspaceId,
+      createdById: session.user.id,
+    },
+    select: { id: true },
+  })
+
+  redirect(`/workspaces/${workspaceId}/chat/${chat.id}`)
 }

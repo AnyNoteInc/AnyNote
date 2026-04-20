@@ -10,25 +10,28 @@ import {
 } from "@repo/chat/components"
 import { useChatStream } from "@repo/chat/hooks"
 import type { ChatMessage, ChatStreamChunk } from "@repo/chat/types"
-import { useMemo, useRef } from "react"
+import { useEffect, useMemo } from "react"
 
 type Props = {
-  workspaceId: string
   workspaceName: string
+  chatId: string
   hasModelConfigured: boolean
+  initialMessages?: ChatMessage[]
 }
 
-export function ChatPageClient({ workspaceId, workspaceName, hasModelConfigured }: Props) {
-  const threadIdRef = useRef<string>(typeof crypto !== "undefined" ? crypto.randomUUID() : "thread")
-
+export function ChatPageClient({
+  workspaceName,
+  chatId,
+  hasModelConfigured,
+  initialMessages,
+}: Props) {
   const submit = useMemo(() => {
     return async function* (
       prompt: string,
       history: ChatMessage[],
     ): AsyncIterable<ChatStreamChunk> {
       const payload = {
-        workspaceId,
-        threadId: threadIdRef.current,
+        chatId,
         prompt,
         history: history
           .filter((m) => m.role === "user" || m.role === "assistant")
@@ -77,9 +80,17 @@ export function ChatPageClient({ workspaceId, workspaceName, hasModelConfigured 
         }
       }
     }
-  }, [workspaceId])
+  }, [chatId])
 
   const stream = useChatStream({ submit })
+
+  useEffect(() => {
+    if (initialMessages && initialMessages.length > 0) {
+      stream.setMessages(initialMessages)
+    }
+    // Hydrate once per chatId; further updates are owned by stream itself.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [chatId])
 
   return (
     <Box sx={{ height: "calc(100vh - 64px)" }}>
@@ -97,7 +108,7 @@ export function ChatPageClient({ workspaceId, workspaceName, hasModelConfigured 
             title="О чём поговорим?"
             subtitle={
               hasModelConfigured
-                ? "Спросите что-нибудь — ответ придёт стримом из apps/agents."
+                ? "Спросите что-нибудь — ответ придёт стримом, история сохраняется."
                 : "Сначала настройте модель в разделе AI агент."
             }
           />
