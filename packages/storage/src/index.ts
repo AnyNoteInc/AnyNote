@@ -1,7 +1,7 @@
-import type { StorageClient } from "./contract"
-import { S3StorageClient } from "./s3-client"
+import type { StorageClient } from "./contract.js"
+import { S3StorageClient } from "./s3-client.js"
 
-export type { PutOptions, StorageClient } from "./contract"
+export type { PutOptions, StorageClient } from "./contract.js"
 
 type GlobalStorage = typeof globalThis & {
   __storage?: S3StorageClient
