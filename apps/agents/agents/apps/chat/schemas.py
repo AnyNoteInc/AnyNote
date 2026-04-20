@@ -2,10 +2,10 @@
 
 from __future__ import annotations
 
-from typing import ClassVar, Literal
+from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_serializer
 from pydantic.alias_generators import to_camel
 
 from agents.apps.chat.enums import ModelProvider
@@ -62,7 +62,7 @@ class McpServer(CamelModel):
     tools: list[str] = Field(default_factory=list)
 
 
-class Mcp(CamelModel):
+class McpConfig(CamelModel):
     servers: list[McpServer] = Field(default_factory=list)
 
 
@@ -81,44 +81,35 @@ class GenerateRequest(CamelModel):
     thread_id: UUID
     model: ModelConfig
     conversation: Conversation = Field(default_factory=Conversation)
-    mcp: Mcp | None = None
+    mcp: McpConfig | None = None
     user_request: UserRequest
 
 
-class _EventModel(CamelModel):
-    type: str
-
-
-class TokenEvent(_EventModel):
-    type: Literal["token"] = "token"
-    text: str
-
-
-class DoneEvent(_EventModel):
-    type: Literal["done"] = "done"
-
-
-class ErrorEvent(_EventModel):
-    type: Literal["error"] = "error"
-    code: str
-    message: str
-
-
-class ServerEvent:
-    """Factory helpers for chat SSE payloads."""
-
-    _token_event: ClassVar[type[TokenEvent]] = TokenEvent
-    _done_event: ClassVar[type[DoneEvent]] = DoneEvent
-    _error_event: ClassVar[type[ErrorEvent]] = ErrorEvent
+class ServerEvent(CamelModel):
+    type: Literal["token", "done", "error"]
+    text: str | None = None
+    code: str | None = None
+    message: str | None = None
 
     @classmethod
-    def token(cls, text: str) -> TokenEvent:
-        return cls._token_event(text=text)
+    def token(cls, text: str) -> ServerEvent:
+        return cls(type="token", text=text)
 
     @classmethod
-    def done(cls) -> DoneEvent:
-        return cls._done_event()
+    def done(cls) -> ServerEvent:
+        return cls(type="done")
 
     @classmethod
-    def error(cls, code: str, message: str) -> ErrorEvent:
-        return cls._error_event(code=code, message=message)
+    def error(cls, code: str, message: str) -> ServerEvent:
+        return cls(type="error", code=code, message=message)
+
+    @model_serializer(mode="plain")
+    def _serialize(self) -> dict[str, str]:
+        data: dict[str, str] = {"type": self.type}
+        if self.text is not None:
+            data["text"] = self.text
+        if self.code is not None:
+            data["code"] = self.code
+        if self.message is not None:
+            data["message"] = self.message
+        return data

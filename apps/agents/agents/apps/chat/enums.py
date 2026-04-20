@@ -6,6 +6,6 @@ from enum import StrEnum
 
 
 class ModelProvider(StrEnum):
-    ollama = "ollama"
-    openai = "openai"
-    gigachat = "gigachat"
+    OLLAMA = "ollama"
+    OPENAI = "openai"
+    GIGACHAT = "gigachat"
