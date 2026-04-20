@@ -81,12 +81,32 @@ export async function POST(req: NextRequest): Promise<Response> {
 
   const provider = settings.defaultModel.provider
   const providerSlug = provider.slug
+  const credentialsByProvider =
+    settings.providerCredentials &&
+    typeof settings.providerCredentials === "object" &&
+    !Array.isArray(settings.providerCredentials)
+      ? (settings.providerCredentials as Record<string, Record<string, string>>)
+      : {}
+  const providerCreds = credentialsByProvider[providerSlug] ?? {}
   const baseUrl =
-    PROVIDER_BASE_URLS[providerSlug] ?? provider.defaultBaseUrl ?? undefined
+    providerCreds.baseUrl ?? PROVIDER_BASE_URLS[providerSlug] ?? provider.defaultBaseUrl ?? undefined
 
   const systemPrompt = settings.systemPromptPage?.content
     ? extractTextFromTiptap(settings.systemPromptPage.content)
     : undefined
+
+  const skillPages =
+    settings.skillPageIds.length > 0
+      ? await prisma.page.findMany({
+          where: { id: { in: settings.skillPageIds }, workspaceId: chat.workspaceId },
+          select: { id: true, title: true, content: true },
+        })
+      : []
+  const skills = skillPages.map((p) => ({
+    id: p.id,
+    title: p.title ?? "Skill",
+    markdown: p.content ? extractTextFromTiptap(p.content) : "",
+  }))
 
   // Persist user message + bump chat title (if still default) BEFORE streaming
   // so the row is durable even if the upstream call fails.
@@ -109,7 +129,14 @@ export async function POST(req: NextRequest): Promise<Response> {
     model: {
       provider: providerSlug,
       name: settings.defaultModel.slug,
-      connection: { baseUrl },
+      connection: {
+        baseUrl,
+        apiKey: providerCreds.apiKey ?? undefined,
+        organization: providerCreds.organization ?? undefined,
+        clientId: providerCreds.clientId ?? undefined,
+        clientSecret: providerCreds.clientSecret ?? undefined,
+        scope: providerCreds.scope ?? undefined,
+      },
       settings: {
         temperature: settings.temperature ?? settings.defaultModel.defaultTemperature ?? undefined,
         maxOutputTokens: settings.maxOutputTokens ?? undefined,
@@ -118,6 +145,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     },
     instructions: systemPrompt ? { systemPrompt } : undefined,
     conversation: { messages: body.history },
+    skills,
     userRequest: { text: body.prompt },
   }
 
