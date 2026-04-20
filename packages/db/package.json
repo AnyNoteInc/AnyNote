@@ -18,6 +18,7 @@
     "check-types": "tsc -p tsconfig.json --noEmit",
     "prisma:generate": "prisma generate",
     "prisma:db-push": "prisma db push",
+    "prisma:apply-sql": "prisma db execute --file",
     "prisma:seed": "tsx prisma/seed.ts"
   },
   "dependencies": {
