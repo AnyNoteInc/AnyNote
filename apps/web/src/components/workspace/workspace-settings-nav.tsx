@@ -10,6 +10,7 @@ type Props = { workspaceId: string }
 const ITEMS = [
   { label: "Общее", slug: "general" },
   { label: "Участники", slug: "members" },
+  { label: "AI агент", slug: "ai" },
   { label: "Опасная зона", slug: "danger" },
 ] as const
 

@@ -96,3 +96,8 @@ export { RichTreeView } from "@mui/x-tree-view/RichTreeView"
 export { TreeItem } from "@mui/x-tree-view/TreeItem"
 
 export * from "./ui/button"
+
+export { default as FormControl, type FormControlProps } from "@mui/material/FormControl"
+export { default as InputLabel, type InputLabelProps } from "@mui/material/InputLabel"
+export { default as FormHelperText, type FormHelperTextProps } from "@mui/material/FormHelperText"
+export { default as Slider, type SliderProps } from "@mui/material/Slider"
