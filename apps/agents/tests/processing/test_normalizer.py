@@ -57,3 +57,22 @@ def test_auto_detect_russian(normalizer: NormalizerService) -> None:
     out, lang = normalizer.normalize("Здравствуйте, это тест", "auto")
     assert lang == "ru"
     assert len(out) > 0
+
+
+def test_english_basic_lemmatization(normalizer: NormalizerService) -> None:
+    out, lang = normalizer.normalize("The quick brown foxes were running quickly", "en")
+    assert lang == "en"
+    tokens = out.split()
+    assert "quick" in tokens
+    assert "brown" in tokens
+    assert "fox" in tokens
+    assert "run" in tokens
+    # stopwords filtered
+    assert "the" not in tokens
+    assert "were" not in tokens
+
+
+def test_auto_detect_english(normalizer: NormalizerService) -> None:
+    out, lang = normalizer.normalize("Quick brown foxes jump over lazy dogs", "auto")
+    assert lang == "en"
+    assert len(out.split()) >= 3
