@@ -107,7 +107,8 @@ services:
       QDRANT_COLLECTION: page_chunks
       OLLAMA_BASE_URL: http://ollama:11434
       EMBEDDING_MODEL: nomic-embed-text
-      PROCESSING_SERVICE_URL: http://agents:8080
+      # PROCESSING_SERVICE_URL: run apps/agents separately on :8080 and wire in
+      # via host networking if needed. Compose does not define an agents service.
       ENGINES_MCP_TOKEN: ${ENGINES_MCP_TOKEN:-dev-engines-token-change-me}
       INDEXER_QUIET_PERIOD_MINUTES: "5"
       INDEXER_CRON_EXPRESSION: "*/1 * * * *"
