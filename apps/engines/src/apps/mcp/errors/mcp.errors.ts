@@ -5,7 +5,7 @@ export class WorkspaceAccessDeniedError extends HttpException {
     super(
       {
         code: "WORKSPACE_ACCESS_DENIED",
-        message: `User ${userId} is not a member of workspace ${workspaceId}`,
+        message: `Access denied: user ${userId} is not a member of workspace ${workspaceId}`,
       },
       403,
     )
