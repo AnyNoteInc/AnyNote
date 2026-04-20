@@ -1,0 +1,7 @@
+process.env.DATABASE_URL = process.env.DATABASE_URL || "postgresql://user:password@localhost:5432/anynote"
+process.env.S3_ENDPOINT = process.env.S3_ENDPOINT || "http://localhost:9000"
+process.env.S3_REGION = process.env.S3_REGION || "us-east-1"
+process.env.S3_ACCESS_KEY = process.env.S3_ACCESS_KEY || "test"
+process.env.S3_SECRET_KEY = process.env.S3_SECRET_KEY || "test"
+process.env.S3_BUCKET = process.env.S3_BUCKET || "storage"
+process.env.S3_FORCE_PATH_STYLE = process.env.S3_FORCE_PATH_STYLE || "true"

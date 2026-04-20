@@ -1,32 +1,46 @@
 # apps/engines
 
-AnyNote engines service — exposes workspace tools (Qdrant search, page
-lookup) via the Model Context Protocol so `apps/agents` can call them
-during tool-augmented generation.
+AnyNote engines service — NestJS backend that unifies:
 
-## Tools
+1. **Indexer** — cron-based reconciler + BullMQ consumer that indexes
+   `TEXT`/`TEXT` pages into Qdrant.
+2. **MCP server** — Model Context Protocol endpoint exposing 15 tools for
+   pages, files, skills, agents, and workspace statistics, consumed by
+   `apps/agents` during tool-augmented generation.
 
-- `search_workspace_pages(query, workspace_id, top_k=5)` — semantic
-  search over the indexer's Qdrant collection.
-- `get_page(page_id, workspace_id?)` — full page text (Tiptap walked
-  to plain text).
-- `list_workspace_pages(workspace_id, limit=20)` — recent pages.
+## Prerequisites
+
+- `docker compose up -d postgres redis qdrant ollama`
+- `docker compose exec -T ollama ollama pull nomic-embed-text`
+- `apps/agents` running on `http://localhost:8080` (provides
+  `/processing/normalize` used by the indexer).
 
 ## Quick start
 
 ```bash
-docker compose up -d postgres qdrant ollama
-docker compose exec -T ollama ollama pull nomic-embed-text
+pnpm install
 pnpm --filter engines dev
 curl http://localhost:8082/health
 ```
 
-The MCP endpoint is mounted at `/mcp` and requires
-`Authorization: Bearer ${ENGINES_MCP_TOKEN}`.
+The MCP endpoint is mounted at `POST /mcp`, protected by
+`Authorization: Bearer $ENGINES_MCP_TOKEN`.
+
+## Env variables
+
+See repo root `.env.example`. Key knobs:
+
+- `ENGINES_PORT` — default 8082
+- `ENGINES_MCP_TOKEN` — shared secret with `apps/agents`
+- `PROCESSING_SERVICE_URL` — `apps/agents` base URL (default `http://localhost:8080`)
+- `INDEXER_QUIET_PERIOD_MINUTES` — wait this long after last edit before
+  enqueueing (default 5)
+- `INDEXER_CRON_EXPRESSION` — reconciler schedule (default `*/1 * * * *`)
+- `UPLOAD_INLINE_MAX_BYTES` — base64-upload ceiling (default 1 MiB)
 
 ## Tests
 
 ```bash
 pnpm --filter engines test            # unit
-pnpm --filter engines test-int        # integration
+pnpm --filter engines test-int        # integration (requires docker compose up)
 ```

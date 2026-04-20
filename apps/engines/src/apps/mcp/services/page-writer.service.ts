@@ -1,0 +1,189 @@
+import { Inject, Injectable } from "@nestjs/common"
+import type { PrismaClient } from "@repo/db"
+import { Prisma } from "@repo/db"
+
+import { PRISMA } from "../../../infra/db/db.providers.js"
+import { PageNotFoundError } from "../errors/mcp.errors.js"
+
+export type CreatePageInput = {
+  userId: string
+  workspaceId: string
+  parentId?: string | null
+  title: string
+  ownership?: "TEXT" | "SKILL" | "AGENT"
+}
+
+export type UpdatePageInput = {
+  userId: string
+  workspaceId: string
+  pageId: string
+  title?: string
+  icon?: string | null
+  content?: unknown
+}
+
+export type MovePageInput = {
+  userId: string
+  workspaceId: string
+  pageId: string
+  newParentId?: string | null
+  prevPageId?: string | null
+}
+
+@Injectable()
+export class PageWriter {
+  constructor(@Inject(PRISMA) private readonly prisma: PrismaClient) {}
+
+  async createPage(input: CreatePageInput): Promise<string> {
+    return this.prisma.$transaction(async (tx) => {
+      await this.ensureParent(tx, input.parentId, input.workspaceId)
+      const page = await tx.page.create({
+        data: {
+          workspaceId: input.workspaceId,
+          parentId: input.parentId ?? null,
+          title: input.title,
+          ownership: input.ownership ?? "TEXT",
+          type: "TEXT",
+          createdById: input.userId,
+          updatedById: input.userId,
+        },
+        select: { id: true },
+      })
+      await tx.outboxEvent.create({
+        data: {
+          eventType: "page.upserted",
+          aggregateType: "page",
+          aggregateId: page.id,
+          workspaceId: input.workspaceId,
+          payload: {},
+        },
+      })
+      return page.id
+    })
+  }
+
+  async updatePage(input: UpdatePageInput): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const page = await tx.page.findUnique({
+        where: { id: input.pageId },
+        select: { id: true, workspaceId: true },
+      })
+      if (!page || page.workspaceId !== input.workspaceId) {
+        throw new PageNotFoundError(input.pageId)
+      }
+      await tx.page.update({
+        where: { id: input.pageId },
+        data: {
+          title: input.title,
+          icon: input.icon,
+          content: input.content as never,
+          updatedById: input.userId,
+        },
+      })
+      await tx.outboxEvent.create({
+        data: {
+          eventType: "page.upserted",
+          aggregateType: "page",
+          aggregateId: input.pageId,
+          workspaceId: input.workspaceId,
+          payload: {},
+        },
+      })
+    })
+  }
+
+  async movePage(input: MovePageInput): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      // 1. Find the page being moved; validate workspace ownership.
+      const page = await tx.page.findUnique({
+        where: { id: input.pageId },
+        select: { id: true, workspaceId: true, prevPageId: true },
+      })
+      if (!page || page.workspaceId !== input.workspaceId) {
+        throw new PageNotFoundError(input.pageId)
+      }
+
+      // Validate new parent (cross-workspace / soft-deleted check).
+      await this.ensureParent(tx, input.newParentId, input.workspaceId)
+
+      // 2. Collapse the old position: find the page currently pointing at the
+      //    moved page as predecessor and relink it to moved page's previous
+      //    predecessor. Detach first to avoid P2002 on the @unique prevPageId.
+      const oldSuccessor = await tx.page.findFirst({
+        where: { prevPageId: input.pageId },
+        select: { id: true },
+      })
+      if (oldSuccessor) {
+        await tx.page.update({
+          where: { id: oldSuccessor.id },
+          data: { prevPageId: null },
+        })
+      }
+
+      // 3. Make room at the new position: the current successor of the new
+      //    predecessor must be relinked to the moved page.
+      let newSuccessor: { id: string } | null = null
+      if (input.prevPageId) {
+        newSuccessor = await tx.page.findFirst({
+          where: { prevPageId: input.prevPageId, id: { not: input.pageId } },
+          select: { id: true },
+        })
+        if (newSuccessor) {
+          await tx.page.update({
+            where: { id: newSuccessor.id },
+            data: { prevPageId: null },
+          })
+        }
+      }
+
+      // 4. Update the moved page with its new parent + predecessor.
+      await tx.page.update({
+        where: { id: input.pageId },
+        data: {
+          parentId: input.newParentId ?? null,
+          prevPageId: input.prevPageId ?? null,
+          updatedById: input.userId,
+        },
+      })
+
+      // 5. Finish relinking now that the moved page is out of the way.
+      if (oldSuccessor) {
+        await tx.page.update({
+          where: { id: oldSuccessor.id },
+          data: { prevPageId: page.prevPageId ?? null },
+        })
+      }
+      if (newSuccessor) {
+        await tx.page.update({
+          where: { id: newSuccessor.id },
+          data: { prevPageId: input.pageId },
+        })
+      }
+
+      await tx.outboxEvent.create({
+        data: {
+          eventType: "page.upserted",
+          aggregateType: "page",
+          aggregateId: input.pageId,
+          workspaceId: input.workspaceId,
+          payload: {},
+        },
+      })
+    })
+  }
+
+  private async ensureParent(
+    tx: Prisma.TransactionClient,
+    parentId: string | null | undefined,
+    workspaceId: string,
+  ): Promise<void> {
+    if (!parentId) return
+    const parent = await tx.page.findUnique({
+      where: { id: parentId },
+      select: { workspaceId: true, deletedAt: true },
+    })
+    if (!parent || parent.workspaceId !== workspaceId || parent.deletedAt) {
+      throw new PageNotFoundError(parentId)
+    }
+  }
+}

@@ -2,9 +2,13 @@
 name = "agents"
 version = "0.1.0"
 description = "AnyNote agents service — FastAPI + LangGraph LLM pipeline"
-requires-python = ">=3.12,<3.13"
+requires-python = ">=3.12,<3.14"
 dependencies = [
     "fastapi[standard]>=0.116",
+    "fast-clean>=1.5.0,<1.6.0; python_version < '3.13'",
+    "fast-clean>=1.6.0; python_version >= '3.13'",
+    "typer>=0.15",
+    "alembic>=1.14",
     "uvicorn[standard]>=0.30",
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
@@ -21,6 +25,8 @@ dependencies = [
     "jinja2>=3.1",
     "sse-starlette>=2.1",
     "psycopg[binary]>=3.2",
+    "spacy>=3.7,<4",
+    "langdetect>=1.0",
 ]
 
 [dependency-groups]

@@ -85,30 +85,36 @@ services:
     volumes:
       - redis_data:/data
 
-  indexer:
+  engines:
     build:
-      context: ./apps/indexer
+      context: .
+      dockerfile: apps/engines/Dockerfile
     profiles: ["worker"]
     depends_on:
       postgres:
+        condition: service_healthy
+      redis:
         condition: service_healthy
       qdrant:
         condition: service_started
       ollama:
         condition: service_started
     environment:
-      INDEXER_DATABASE_URL: postgresql://user:password@postgres:5432/anynote
-      INDEXER_QDRANT_URL: http://qdrant:6333
-      INDEXER_QDRANT_API_KEY: ${QDRANT_API_KEY:-dev-qdrant-key}
-      INDEXER_QDRANT_COLLECTION: anynote-pages
-      INDEXER_POLL_INTERVAL_MS: "1000"
-      INDEXER_BATCH: "16"
-      EMBEDDINGS_PROVIDER: ollama
-      EMBEDDINGS_MODEL: nomic-embed-text
-      EMBEDDINGS_DIM: "768"
+      DATABASE_URL: postgresql://user:password@postgres:5432/anynote
+      REDIS_URL: redis://redis:6379
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-dev-qdrant-key}
+      QDRANT_COLLECTION: page_chunks
       OLLAMA_BASE_URL: http://ollama:11434
+      EMBEDDING_MODEL: nomic-embed-text
+      # PROCESSING_SERVICE_URL: run apps/agents separately on :8080 and wire in
+      # via host networking if needed. Compose does not define an agents service.
+      ENGINES_MCP_TOKEN: ${ENGINES_MCP_TOKEN:-dev-engines-token-change-me}
+      INDEXER_QUIET_PERIOD_MINUTES: "5"
+      INDEXER_CRON_EXPRESSION: "*/1 * * * *"
+      INDEXER_DRAINER_INTERVAL_MS: "5000"
     ports:
-      - "8081:8081"
+      - "8082:8082"
 
 volumes:
   postgres_data:

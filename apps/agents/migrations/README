@@ -1,0 +1,2 @@
+Use `make revision NAME=<message>` and `make migrate`.
+Do not add LangGraph checkpoint tables to Alembic migrations.

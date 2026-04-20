@@ -7,6 +7,7 @@ from dishka.integrations.fastapi import setup_dishka
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
+from agents.apps.processing.depends import ProcessingProvider
 from agents.di.providers import AppProvider, AppSingletonsProvider
 from agents.entrypoints.rest.router import api_router
 from agents.exceptions import AgentException
@@ -25,6 +26,7 @@ def create_app() -> FastAPI:
     container = make_async_container(
         AppProvider(),
         AppSingletonsProvider(),
+        ProcessingProvider(),
         context={Settings: settings},
     )
 
