@@ -108,6 +108,15 @@ export class WorkspaceTools {
       select: { id: true, workspaceId: true, name: true },
     })
     if (!file || file.workspaceId !== args.workspaceId) throw new PageNotFoundError(args.fileId)
+    if (args.parentId) {
+      const parent = await this.prisma.page.findUnique({
+        where: { id: args.parentId },
+        select: { workspaceId: true, deletedAt: true },
+      })
+      if (!parent || parent.workspaceId !== args.workspaceId || parent.deletedAt) {
+        throw new PageNotFoundError(args.parentId)
+      }
+    }
     const title = args.title ?? file.name
     const pageId = await this.writer.createPage({
       userId: args.userId,

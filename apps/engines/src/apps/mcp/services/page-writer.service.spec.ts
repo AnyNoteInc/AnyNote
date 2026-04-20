@@ -62,6 +62,54 @@ describe("PageWriter", () => {
         }),
       })
     })
+
+    it("allows createPage without parent", async () => {
+      ;(mockPrisma.page.create as jest.Mock).mockResolvedValue({ id: "p1" } as never)
+
+      await expect(
+        writer.createPage({
+          userId: "u1",
+          workspaceId: "w1",
+          parentId: null,
+          title: "Test",
+        }),
+      ).resolves.toBe("p1")
+      expect(mockPrisma.page.findUnique).not.toHaveBeenCalled()
+    })
+
+    it("rejects createPage with parent in other workspace", async () => {
+      ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({
+        workspaceId: "other",
+        deletedAt: null,
+      } as never)
+
+      await expect(
+        writer.createPage({
+          userId: "u1",
+          workspaceId: "w1",
+          parentId: "parent-1",
+          title: "Test",
+        }),
+      ).rejects.toThrow(/not found/i)
+      expect(mockPrisma.page.create).not.toHaveBeenCalled()
+    })
+
+    it("rejects createPage with deleted parent", async () => {
+      ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({
+        workspaceId: "w1",
+        deletedAt: new Date(),
+      } as never)
+
+      await expect(
+        writer.createPage({
+          userId: "u1",
+          workspaceId: "w1",
+          parentId: "parent-1",
+          title: "Test",
+        }),
+      ).rejects.toThrow(/not found/i)
+      expect(mockPrisma.page.create).not.toHaveBeenCalled()
+    })
   })
 
   describe("updatePage", () => {

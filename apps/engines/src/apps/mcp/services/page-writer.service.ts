@@ -1,5 +1,6 @@
 import { Inject, Injectable } from "@nestjs/common"
 import type { PrismaClient } from "@repo/db"
+import { Prisma } from "@repo/db"
 
 import { PRISMA } from "../../../infra/db/db.providers.js"
 import { PageNotFoundError } from "../errors/mcp.errors.js"
@@ -35,6 +36,7 @@ export class PageWriter {
 
   async createPage(input: CreatePageInput): Promise<string> {
     return this.prisma.$transaction(async (tx) => {
+      await this.ensureParent(tx, input.parentId, input.workspaceId)
       const page = await tx.page.create({
         data: {
           workspaceId: input.workspaceId,
@@ -101,6 +103,9 @@ export class PageWriter {
         throw new PageNotFoundError(input.pageId)
       }
 
+      // Validate new parent (cross-workspace / soft-deleted check).
+      await this.ensureParent(tx, input.newParentId, input.workspaceId)
+
       // 2. Collapse the old position: find the page currently pointing at the
       //    moved page as predecessor and relink it to moved page's previous
       //    predecessor. Detach first to avoid P2002 on the @unique prevPageId.
@@ -165,5 +170,20 @@ export class PageWriter {
         },
       })
     })
+  }
+
+  private async ensureParent(
+    tx: Prisma.TransactionClient,
+    parentId: string | null | undefined,
+    workspaceId: string,
+  ): Promise<void> {
+    if (!parentId) return
+    const parent = await tx.page.findUnique({
+      where: { id: parentId },
+      select: { workspaceId: true, deletedAt: true },
+    })
+    if (!parent || parent.workspaceId !== workspaceId || parent.deletedAt) {
+      throw new PageNotFoundError(parentId)
+    }
   }
 }
