@@ -6,6 +6,7 @@ import { integrationRouter } from "./routers/integration"
 import { pageRouter } from "./routers/page"
 import { chatRouter } from "./routers/chat"
 import { fileRouter } from "./routers/file"
+import { aiSettingsRouter } from "./routers/ai-settings"
 
 export { createContext, createServerContext } from "./trpc"
 export type { Context } from "./trpc"
@@ -19,6 +20,7 @@ export const appRouter = router({
   page: pageRouter,
   chat: chatRouter,
   file: fileRouter,
+  aiSettings: aiSettingsRouter,
 })
 
 export const createCaller = createCallerFactory(appRouter)
