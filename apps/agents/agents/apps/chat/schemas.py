@@ -5,7 +5,14 @@ from __future__ import annotations
 from typing import Literal
 from uuid import UUID
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_serializer
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 from pydantic.alias_generators import to_camel
 
 from agents.apps.chat.enums import ModelProvider
@@ -90,6 +97,25 @@ class ServerEvent(CamelModel):
     text: str | None = None
     code: str | None = None
     message: str | None = None
+
+    @model_validator(mode="after")
+    def _validate_variant_shape(self) -> ServerEvent:
+        if self.type == "token":
+            if self.text is None:
+                raise ValueError("ServerEvent(type='token') requires text")
+            if self.code is not None or self.message is not None:
+                raise ValueError("ServerEvent(type='token') forbids code and message")
+        elif self.type == "done":
+            if self.text is not None or self.code is not None or self.message is not None:
+                raise ValueError("ServerEvent(type='done') forbids text, code, and message")
+        elif self.type == "error":
+            if self.text is not None:
+                raise ValueError("ServerEvent(type='error') forbids text")
+            if self.code is None:
+                raise ValueError("ServerEvent(type='error') requires code")
+            if self.message is None:
+                raise ValueError("ServerEvent(type='error') requires message")
+        return self
 
     @classmethod
     def token(cls, text: str) -> ServerEvent:

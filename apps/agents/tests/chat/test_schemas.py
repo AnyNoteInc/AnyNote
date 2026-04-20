@@ -31,6 +31,21 @@ def test_server_event_token_shape() -> None:
     assert event.model_dump() == {"type": "token", "text": "hello"}
 
 
+def test_server_event_token_requires_text() -> None:
+    with pytest.raises(ValidationError):
+        ServerEvent.model_validate({"type": "token"})
+
+
+def test_server_event_done_rejects_payload_fields() -> None:
+    with pytest.raises(ValidationError):
+        ServerEvent.model_validate({"type": "done", "text": "unexpected"})
+
+
+def test_server_event_error_requires_code_and_message() -> None:
+    with pytest.raises(ValidationError):
+        ServerEvent.model_validate({"type": "error", "message": "missing code"})
+
+
 def test_server_event_done_shape() -> None:
     event = ServerEvent.done()
     assert event.model_dump() == {"type": "done"}
