@@ -24,7 +24,14 @@ export interface AiSettingsResult {
   temperature: number | null
   maxOutputTokens: number | null
   topP: number | null
+  providerCredentials: Record<string, Record<string, string>>
+  skillPageIds: string[]
 }
+
+const ProviderKeysSchema = z.record(
+  z.string().min(1),
+  z.record(z.string().min(1), z.string()),
+)
 
 export const aiSettingsRouter = router({
   /** List AI providers + models the workspace's plan allows. */
@@ -89,6 +96,12 @@ export const aiSettingsRouter = router({
         await ctx.prisma.workspaceAiSettings.findUnique({
           where: { workspaceId: input.workspaceId },
         })
+      const credentials =
+        settings?.providerCredentials &&
+        typeof settings.providerCredentials === "object" &&
+        !Array.isArray(settings.providerCredentials)
+          ? (settings.providerCredentials as Record<string, Record<string, string>>)
+          : {}
       return {
         workspaceId: input.workspaceId,
         defaultModelId: settings?.defaultModelId ?? null,
@@ -96,6 +109,8 @@ export const aiSettingsRouter = router({
         temperature: settings?.temperature ?? null,
         maxOutputTokens: settings?.maxOutputTokens ?? null,
         topP: settings?.topP ?? null,
+        providerCredentials: credentials,
+        skillPageIds: settings?.skillPageIds ?? [],
       }
     }),
 
@@ -108,6 +123,8 @@ export const aiSettingsRouter = router({
         temperature: z.number().min(0).max(2).nullable().optional(),
         maxOutputTokens: z.number().int().positive().nullable().optional(),
         topP: z.number().min(0).max(1).nullable().optional(),
+        providerCredentials: ProviderKeysSchema.optional(),
+        skillPageIds: z.array(z.string().uuid()).optional(),
       }),
     )
     .mutation(async ({ ctx, input }): Promise<AiSettingsResult> => {
@@ -130,6 +147,17 @@ export const aiSettingsRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Страница не найдена в workspace" })
         }
       }
+      if (input.skillPageIds && input.skillPageIds.length > 0) {
+        const found = await ctx.prisma.page.count({
+          where: { id: { in: input.skillPageIds }, workspaceId: input.workspaceId },
+        })
+        if (found !== input.skillPageIds.length) {
+          throw new TRPCError({
+            code: "BAD_REQUEST",
+            message: "Часть страниц не найдена в workspace",
+          })
+        }
+      }
       const data: Prisma.WorkspaceAiSettingsCreateInput | Prisma.WorkspaceAiSettingsUpdateInput = {}
       if (input.defaultModelId !== undefined) {
         ;(data as Prisma.WorkspaceAiSettingsUpdateInput).defaultModel = input.defaultModelId
@@ -144,6 +172,10 @@ export const aiSettingsRouter = router({
       if (input.temperature !== undefined) data.temperature = input.temperature
       if (input.maxOutputTokens !== undefined) data.maxOutputTokens = input.maxOutputTokens
       if (input.topP !== undefined) data.topP = input.topP
+      if (input.providerCredentials !== undefined) {
+        data.providerCredentials = input.providerCredentials as Prisma.InputJsonValue
+      }
+      if (input.skillPageIds !== undefined) data.skillPageIds = input.skillPageIds
 
       const createData: Prisma.WorkspaceAiSettingsCreateInput = {
         workspace: { connect: { id: input.workspaceId } },
@@ -155,6 +187,12 @@ export const aiSettingsRouter = router({
         update: data as Prisma.WorkspaceAiSettingsUpdateInput,
       })
 
+      const credentials =
+        upserted.providerCredentials &&
+        typeof upserted.providerCredentials === "object" &&
+        !Array.isArray(upserted.providerCredentials)
+          ? (upserted.providerCredentials as Record<string, Record<string, string>>)
+          : {}
       return {
         workspaceId: upserted.workspaceId,
         defaultModelId: upserted.defaultModelId,
@@ -162,6 +200,25 @@ export const aiSettingsRouter = router({
         temperature: upserted.temperature,
         maxOutputTokens: upserted.maxOutputTokens,
         topP: upserted.topP,
+        providerCredentials: credentials,
+        skillPageIds: upserted.skillPageIds,
       }
+    }),
+
+  /** Lightweight page picker for skill selection. */
+  listWorkspacePages: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertWorkspaceMember(ctx, input.workspaceId)
+      return ctx.prisma.page.findMany({
+        where: {
+          workspaceId: input.workspaceId,
+          deletedAt: null,
+          archived: false,
+        },
+        orderBy: [{ updatedAt: "desc" }],
+        take: 200,
+        select: { id: true, title: true, ownership: true },
+      })
     }),
 })

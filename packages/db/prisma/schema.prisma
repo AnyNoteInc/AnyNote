@@ -390,6 +390,7 @@ model WorkspaceAiSettings {
   maxOutputTokens     Int?     @map("max_output_tokens")
   topP                Float?   @map("top_p")
   providerCredentials Json?    @default("{}") @map("provider_credentials")
+  skillPageIds        String[] @default([]) @map("skill_page_ids") @db.Uuid
   createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
