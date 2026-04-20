@@ -30,13 +30,25 @@ check-types:
 	uv run mypy agents tests
 
 revision:
-	uv run alembic revision --autogenerate -m "$(NAME)"
+	@if [ ! -f alembic.ini ]; then \
+		echo "alembic.ini not found. Add Alembic scaffold before running migrations."; \
+	else \
+		uv run alembic revision --autogenerate -m "$(NAME)"; \
+	fi
 
 migrate:
-	uv run alembic upgrade head
+	@if [ ! -f alembic.ini ]; then \
+		echo "alembic.ini not found. Add Alembic scaffold before running migrations."; \
+	else \
+		uv run alembic upgrade head; \
+	fi
 
 rollback:
-	uv run alembic downgrade $(NUM)
+	@if [ ! -f alembic.ini ]; then \
+		echo "alembic.ini not found. Add Alembic scaffold before running migrations."; \
+	else \
+		uv run alembic downgrade $(NUM); \
+	fi
 
 clean:
 	rm -rf .venv .pytest_cache .ruff_cache .mypy_cache
