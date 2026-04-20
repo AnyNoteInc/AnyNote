@@ -70,7 +70,9 @@ export class IndexingProcessor extends WorkerHost {
 
       const points: QdrantPoint[] = []
       for (let i = 0; i < chunks.length; i++) {
-        const normalized = await this.processing.normalize(chunks[i], "auto")
+        const chunk = chunks[i]
+        if (!chunk) continue
+        const normalized = await this.processing.normalize(chunk, "auto")
         if (!normalized) continue
         const vector = await this.embedding.embed(normalized)
         points.push({
