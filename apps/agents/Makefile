@@ -1,4 +1,4 @@
-.PHONY: install lock sync dev test test-all lint format check-types clean
+.PHONY: install lock sync dev test test-integration test-all lint format check-types revision migrate rollback clean
 
 install: lock sync
 
@@ -9,10 +9,13 @@ sync:
 	uv sync --frozen
 
 dev:
-	uv run uvicorn --factory agents.main:create_app --host 0.0.0.0 --port 8080 --reload
+	uv run uvicorn agents.cmd.rest:app --host 0.0.0.0 --port 8080 --reload
 
 test:
 	uv run pytest -m 'not integration'
+
+test-integration:
+	uv run pytest -m integration
 
 test-all:
 	uv run pytest
@@ -25,6 +28,27 @@ format:
 
 check-types:
 	uv run mypy agents tests
+
+revision:
+	@if [ ! -f alembic.ini ]; then \
+		echo "alembic.ini not found. Add Alembic scaffold before running migrations."; \
+	else \
+		uv run alembic revision --autogenerate -m "$(NAME)"; \
+	fi
+
+migrate:
+	@if [ ! -f alembic.ini ]; then \
+		echo "alembic.ini not found. Add Alembic scaffold before running migrations."; \
+	else \
+		uv run alembic upgrade head; \
+	fi
+
+rollback:
+	@if [ ! -f alembic.ini ]; then \
+		echo "alembic.ini not found. Add Alembic scaffold before running migrations."; \
+	else \
+		uv run alembic downgrade $(NUM); \
+	fi
 
 clean:
 	rm -rf .venv .pytest_cache .ruff_cache .mypy_cache
