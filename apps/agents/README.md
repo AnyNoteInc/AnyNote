@@ -1,25 +1,33 @@
 # agents — AnyNote Agents Service
 
-FastAPI + LangGraph backend that owns LLM interaction. The service is
-stateless w.r.t. credentials — every request carries the provider
-config. Conversation state is persisted by LangGraph's
-`AsyncPostgresSaver` in the `agents` database.
+FastAPI + LangGraph backend for AnyNote LLM interactions. Provider
+configuration stays request-driven, so Ollama, OpenAI, and GigaChat
+support remain available through the same chat pipeline.
+
+## Entrypoints
+
+- REST: `uv run uvicorn agents.cmd.rest:app --host 0.0.0.0 --port 8080 --reload`
+- CLI: `uv run python cli --help`
 
 ## Setup
 
 ```bash
-pnpm install                              # installs agents too
-pnpm --filter agents build                # uv sync --frozen
-docker compose up -d                      # postgres/ollama/qdrant/...
-ollama pull gemma4                        # pulls the default model
+pnpm install
+pnpm --filter agents build
+docker compose up -d
+ollama pull gemma4
 ```
 
-## Dev loop
+## Tests
+
+- Unit: `uv run pytest -m 'not integration'`
+- Integration (Ollama): `uv run pytest -m integration`
+
+## Dev Commands
 
 ```bash
-pnpm --filter agents dev                  # http://localhost:8080
-pnpm --filter agents test                 # unit tests only
-pnpm --filter agents test -- -m integration   # requires running Ollama
+pnpm --filter agents dev
+pnpm --filter agents test
 pnpm --filter agents check-types
 pnpm --filter agents lint
 pnpm --filter agents format
@@ -28,22 +36,23 @@ pnpm --filter agents format
 Alternative via Makefile in this directory:
 
 ```bash
-make install   # lock + sync
+make install
 make dev
 make test
+make test-integration
 ```
 
 ## Layout
 
-- `agents/entrypoints/rest/` — FastAPI routers
-- `agents/services/` — LangChain factory, Jinja renderer, LangGraph pipeline
-- `agents/schemas/` — pydantic request/response + SSE event models
-- `agents/di/` — Dishka providers
+- `agents/bootstrap.py` — FastAPI bootstrap, fast-clean hooks, Dishka setup
+- `agents/router.py` — top-level route registration
+- `agents/apps/chat/` — chat schemas, repositories, services, use cases, router
+- `agents/cli/` — Typer CLI scaffold
 - `agents/prompts/` — Jinja prompt templates
-- `tests/` — pytest
+- `tests/` — pytest coverage
 
 ## Owned database tables
 
 LangGraph's `AsyncPostgresSaver` owns the `checkpoints*` family of
-tables in the `agents` database. Do NOT manage those with Alembic —
-let the checkpointer run its own `setup()` on startup.
+tables in the `agents` database. Keep those out of Alembic migrations
+and let the checkpointer manage them during startup.
