@@ -1,18 +1,25 @@
 "use client"
 
 import Link from "next/link"
-import { Box, Button, Container, Paper, Stack, Typography } from "@repo/ui/components"
-
-type ChatRow = {
-  id: string
-  title: string
-  updatedAt: string
-}
+import { useState } from "react"
+import {
+  Box,
+  Button,
+  Container,
+  DeleteIcon,
+  EditIcon,
+  IconButton,
+  Paper,
+  Stack,
+  TextField,
+  Tooltip,
+  Typography,
+} from "@repo/ui/components"
+import { trpc } from "@/trpc/client"
 
 type Props = {
   workspaceId: string
   workspaceName: string
-  chats: ChatRow[]
 }
 
 const dateFormat = new Intl.DateTimeFormat("ru-RU", {
@@ -22,7 +29,31 @@ const dateFormat = new Intl.DateTimeFormat("ru-RU", {
   minute: "2-digit",
 })
 
-export function ChatListClient({ workspaceId, workspaceName, chats }: Props) {
+export function ChatListClient({ workspaceId, workspaceName }: Props) {
+  const utils = trpc.useUtils()
+  const chatsQuery = trpc.chat.listChats.useQuery({ workspaceId })
+  const renameMutation = trpc.chat.renameChat.useMutation({
+    onSuccess: () => utils.chat.listChats.invalidate({ workspaceId }),
+  })
+  const deleteMutation = trpc.chat.deleteChat.useMutation({
+    onSuccess: () => utils.chat.listChats.invalidate({ workspaceId }),
+  })
+
+  const [editing, setEditing] = useState<{ id: string; value: string } | null>(null)
+
+  const onRenameSave = () => {
+    if (!editing || !editing.value.trim()) return
+    renameMutation.mutate(
+      { chatId: editing.id, title: editing.value.trim().slice(0, 48) },
+      { onSuccess: () => setEditing(null) },
+    )
+  }
+
+  const onDelete = (id: string, title: string) => {
+    if (!window.confirm(`Удалить чат «${title}»? Это действие необратимо.`)) return
+    deleteMutation.mutate({ chatId: id })
+  }
+
   return (
     <Container maxWidth="md" sx={{ py: { xs: 3, md: 5 } }}>
       <Stack spacing={3}>
@@ -44,7 +75,11 @@ export function ChatListClient({ workspaceId, workspaceName, chats }: Props) {
           </Button>
         </Box>
 
-        {chats.length === 0 ? (
+        {chatsQuery.isLoading ? (
+          <Typography variant="body2" color="text.secondary">
+            Загружаем…
+          </Typography>
+        ) : (chatsQuery.data ?? []).length === 0 ? (
           <Paper variant="outlined" sx={{ p: 4, textAlign: "center" }}>
             <Typography color="text.secondary">
               Пока ни одного чата. Нажмите «Новый чат», чтобы начать.
@@ -52,33 +87,75 @@ export function ChatListClient({ workspaceId, workspaceName, chats }: Props) {
           </Paper>
         ) : (
           <Stack spacing={1}>
-            {chats.map((chat) => (
-              <Paper
-                key={chat.id}
-                variant="outlined"
-                component={Link}
-                href={`/workspaces/${workspaceId}/chat/${chat.id}`}
-                sx={{
-                  p: 2,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 2,
-                  textDecoration: "none",
-                  color: "inherit",
-                  transition: "background-color 0.15s",
-                  "&:hover": { bgcolor: "action.hover" },
-                }}
-              >
-                <Box sx={{ flexGrow: 1, minWidth: 0 }}>
-                  <Typography variant="body1" sx={{ fontWeight: 500 }} noWrap>
-                    {chat.title}
+            {(chatsQuery.data ?? []).map((chat) => {
+              const isEditing = editing?.id === chat.id
+              return (
+                <Paper
+                  key={chat.id}
+                  variant="outlined"
+                  sx={{
+                    p: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 1,
+                  }}
+                >
+                  {isEditing ? (
+                    <TextField
+                      autoFocus
+                      size="small"
+                      value={editing!.value}
+                      onChange={(e) => setEditing({ id: chat.id, value: e.target.value })}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") onRenameSave()
+                        if (e.key === "Escape") setEditing(null)
+                      }}
+                      onBlur={() => setEditing(null)}
+                      sx={{ flexGrow: 1 }}
+                    />
+                  ) : (
+                    <Box
+                      component={Link}
+                      href={`/workspaces/${workspaceId}/chat/${chat.id}`}
+                      sx={{
+                        flexGrow: 1,
+                        minWidth: 0,
+                        textDecoration: "none",
+                        color: "inherit",
+                      }}
+                    >
+                      <Typography variant="body1" sx={{ fontWeight: 500 }} noWrap>
+                        {chat.title}
+                      </Typography>
+                    </Box>
+                  )}
+                  <Typography variant="caption" color="text.secondary">
+                    {dateFormat.format(new Date(chat.updatedAt))}
                   </Typography>
-                </Box>
-                <Typography variant="caption" color="text.secondary">
-                  {dateFormat.format(new Date(chat.updatedAt))}
-                </Typography>
-              </Paper>
-            ))}
+                  <Tooltip title="Переименовать">
+                    <IconButton
+                      size="small"
+                      onMouseDown={(e) => {
+                        // Prevent the TextField onBlur from firing before we set state.
+                        e.preventDefault()
+                        setEditing({ id: chat.id, value: chat.title })
+                      }}
+                    >
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                  <Tooltip title="Удалить">
+                    <IconButton
+                      size="small"
+                      onClick={() => onDelete(chat.id, chat.title)}
+                      disabled={deleteMutation.isPending}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                </Paper>
+              )
+            })}
           </Stack>
         )}
       </Stack>
