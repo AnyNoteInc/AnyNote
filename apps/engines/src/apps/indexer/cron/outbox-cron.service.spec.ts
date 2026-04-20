@@ -22,7 +22,7 @@ describe("OutboxCronService", () => {
   })
 
   it("queries only TEXT pages idle for 5+ minutes", async () => {
-    ;(mockPrisma.page.findMany as jest.Mock).mockResolvedValue([])
+    ;(mockPrisma.page.findMany as jest.Mock).mockResolvedValue([] as never)
 
     await service.tick()
 
@@ -42,8 +42,8 @@ describe("OutboxCronService", () => {
     ;(mockPrisma.page.findMany as jest.Mock).mockResolvedValue([
       { id: "p1", workspaceId: "w1" },
       { id: "p2", workspaceId: "w1" },
-    ])
-    ;(mockPrisma.$executeRaw as jest.Mock).mockResolvedValue(1)
+    ] as never)
+    ;(mockPrisma.$executeRaw as jest.Mock).mockResolvedValue(1 as never)
 
     const inserted = await service.tick()
 
@@ -52,7 +52,7 @@ describe("OutboxCronService", () => {
   })
 
   it("returns 0 when no eligible pages", async () => {
-    ;(mockPrisma.page.findMany as jest.Mock).mockResolvedValue([])
+    ;(mockPrisma.page.findMany as jest.Mock).mockResolvedValue([] as never)
     expect(await service.tick()).toBe(0)
   })
 })
