@@ -85,6 +85,36 @@ services:
     volumes:
       - redis_data:/data
 
+  engines:
+    build:
+      context: .
+      dockerfile: apps/engines/Dockerfile
+    profiles: ["worker"]
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      ollama:
+        condition: service_started
+    environment:
+      DATABASE_URL: postgresql://user:password@postgres:5432/anynote
+      REDIS_URL: redis://redis:6379
+      QDRANT_URL: http://qdrant:6333
+      QDRANT_API_KEY: ${QDRANT_API_KEY:-dev-qdrant-key}
+      QDRANT_COLLECTION: page_chunks
+      OLLAMA_BASE_URL: http://ollama:11434
+      EMBEDDING_MODEL: nomic-embed-text
+      PROCESSING_SERVICE_URL: http://agents:8080
+      ENGINES_MCP_TOKEN: ${ENGINES_MCP_TOKEN:-dev-engines-token-change-me}
+      INDEXER_QUIET_PERIOD_MINUTES: "5"
+      INDEXER_CRON_EXPRESSION: "*/1 * * * *"
+      INDEXER_DRAINER_INTERVAL_MS: "5000"
+    ports:
+      - "8082:8082"
+
 volumes:
   postgres_data:
   minio_data:
