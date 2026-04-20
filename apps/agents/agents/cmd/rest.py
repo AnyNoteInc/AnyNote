@@ -1,5 +1,5 @@
 from __future__ import annotations
 
-from fastapi import FastAPI
+from agents.main import create_app
 
-app = FastAPI(title="AnyNote Agents")
+app = create_app()
