@@ -21,7 +21,7 @@ class InvalidPayloadError(AgentException):
 
 
 class ProviderError(AgentException):
-    def __init__(self, message: str, *, code: str = "PROVIDER_ERROR") -> None:
+    def __init__(self, message: str, code: str = "PROVIDER_ERROR") -> None:
         super().__init__(code=code, message=message, http_status=502)
 
 
