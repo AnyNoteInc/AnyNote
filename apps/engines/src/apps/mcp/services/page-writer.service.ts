@@ -92,13 +92,46 @@ export class PageWriter {
 
   async movePage(input: MovePageInput): Promise<void> {
     await this.prisma.$transaction(async (tx) => {
+      // 1. Find the page being moved; validate workspace ownership.
       const page = await tx.page.findUnique({
         where: { id: input.pageId },
-        select: { id: true, workspaceId: true },
+        select: { id: true, workspaceId: true, prevPageId: true },
       })
       if (!page || page.workspaceId !== input.workspaceId) {
         throw new PageNotFoundError(input.pageId)
       }
+
+      // 2. Collapse the old position: find the page currently pointing at the
+      //    moved page as predecessor and relink it to moved page's previous
+      //    predecessor. Detach first to avoid P2002 on the @unique prevPageId.
+      const oldSuccessor = await tx.page.findFirst({
+        where: { prevPageId: input.pageId },
+        select: { id: true },
+      })
+      if (oldSuccessor) {
+        await tx.page.update({
+          where: { id: oldSuccessor.id },
+          data: { prevPageId: null },
+        })
+      }
+
+      // 3. Make room at the new position: the current successor of the new
+      //    predecessor must be relinked to the moved page.
+      let newSuccessor: { id: string } | null = null
+      if (input.prevPageId) {
+        newSuccessor = await tx.page.findFirst({
+          where: { prevPageId: input.prevPageId, id: { not: input.pageId } },
+          select: { id: true },
+        })
+        if (newSuccessor) {
+          await tx.page.update({
+            where: { id: newSuccessor.id },
+            data: { prevPageId: null },
+          })
+        }
+      }
+
+      // 4. Update the moved page with its new parent + predecessor.
       await tx.page.update({
         where: { id: input.pageId },
         data: {
@@ -107,6 +140,21 @@ export class PageWriter {
           updatedById: input.userId,
         },
       })
+
+      // 5. Finish relinking now that the moved page is out of the way.
+      if (oldSuccessor) {
+        await tx.page.update({
+          where: { id: oldSuccessor.id },
+          data: { prevPageId: page.prevPageId ?? null },
+        })
+      }
+      if (newSuccessor) {
+        await tx.page.update({
+          where: { id: newSuccessor.id },
+          data: { prevPageId: input.pageId },
+        })
+      }
+
       await tx.outboxEvent.create({
         data: {
           eventType: "page.upserted",
