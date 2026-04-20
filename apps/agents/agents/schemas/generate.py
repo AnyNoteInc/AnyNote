@@ -90,7 +90,9 @@ class Agent(_CamelModel):
 
 class McpServer(_CamelModel):
     name: str
-    description: str
+    description: str = ""
+    url: str | None = None
+    auth_header: str | None = None
     tools: list[str] = Field(default_factory=list)
 
 

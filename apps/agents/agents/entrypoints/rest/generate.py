@@ -44,9 +44,7 @@ async def generate(
             # stream_mode as a list causes LangGraph to yield
             # (mode_name, chunk) tuples. For "messages" mode, each chunk
             # is itself an (AIMessageChunk, metadata) tuple.
-            async for item in graph.astream(
-                initial_state, config, stream_mode=stream_modes
-            ):
+            async for item in graph.astream(initial_state, config, stream_mode=stream_modes):
                 if not (isinstance(item, tuple) and len(item) == 2):
                     continue
                 mode, chunk = item

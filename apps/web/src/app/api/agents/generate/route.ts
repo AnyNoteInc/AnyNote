@@ -146,6 +146,7 @@ export async function POST(req: NextRequest): Promise<Response> {
     instructions: systemPrompt ? { systemPrompt } : undefined,
     conversation: { messages: body.history },
     skills,
+    mcp: buildMcpConfig(),
     userRequest: { text: body.prompt },
   }
 
@@ -241,6 +242,22 @@ export async function POST(req: NextRequest): Promise<Response> {
       connection: "keep-alive",
     },
   })
+}
+
+function buildMcpConfig(): { servers: Array<{ name: string; description: string; url: string; authHeader?: string }> } | undefined {
+  const enginesUrl = process.env.ENGINES_MCP_URL
+  const enginesToken = process.env.ENGINES_MCP_TOKEN
+  if (!enginesUrl) return undefined
+  return {
+    servers: [
+      {
+        name: "anynote-engines",
+        description: "Workspace tools: page search and lookup",
+        url: enginesUrl,
+        authHeader: enginesToken ? `Bearer ${enginesToken}` : undefined,
+      },
+    ],
+  }
 }
 
 function extractTextFromTiptap(content: unknown): string {
