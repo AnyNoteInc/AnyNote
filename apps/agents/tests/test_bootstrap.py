@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import pytest
 from fastapi import APIRouter, Depends
 from fastapi.testclient import TestClient
 
@@ -74,3 +75,35 @@ def test_create_app_formats_chat_agent_exception() -> None:
     assert response.json() == {
         "error": {"code": "INVALID_PAYLOAD", "message": "bad payload"},
     }
+
+
+def test_create_app_calls_use_logging_hook(monkeypatch: pytest.MonkeyPatch) -> None:
+    called = False
+
+    def _use_logging_stub(_base_dir: object) -> None:
+        nonlocal called
+        called = True
+
+    monkeypatch.setattr("agents.bootstrap.use_logging", _use_logging_stub)
+    monkeypatch.setattr("agents.bootstrap.use_sentry", lambda _dsn: None)
+    monkeypatch.setattr("agents.bootstrap.use_middleware", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr("agents.bootstrap.use_monitoring", lambda *_args, **_kwargs: None)
+    monkeypatch.setattr(
+        "agents.bootstrap.use_exceptions_handlers",
+        lambda *_args, **_kwargs: None,
+    )
+
+    create_app([])
+
+    assert called is True
+
+
+def test_create_app_registers_monitoring_per_instance() -> None:
+    first_app = create_app([])
+    second_app = create_app([])
+
+    first_paths = {route.path for route in first_app.routes}
+    second_paths = {route.path for route in second_app.routes}
+
+    assert "/metrics" in first_paths
+    assert "/metrics" in second_paths
