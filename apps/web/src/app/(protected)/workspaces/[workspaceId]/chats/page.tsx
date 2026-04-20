@@ -10,17 +10,6 @@ export default async function WorkspaceChatsListPage({ params }: Props) {
   const trpc = await getServerTRPC()
   const workspace = await trpc.workspace.getById({ id: workspaceId })
   if (!workspace) notFound()
-  const chats = await trpc.chat.listChats({ workspaceId })
 
-  return (
-    <ChatListClient
-      workspaceId={workspaceId}
-      workspaceName={workspace.name}
-      chats={chats.map((c) => ({
-        id: c.id,
-        title: c.title,
-        updatedAt: c.updatedAt.toISOString(),
-      }))}
-    />
-  )
+  return <ChatListClient workspaceId={workspaceId} workspaceName={workspace.name} />
 }

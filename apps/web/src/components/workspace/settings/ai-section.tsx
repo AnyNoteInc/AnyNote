@@ -149,14 +149,27 @@ export function WorkspaceAiSection({ workspaceId }: Props) {
             </FormHelperText>
           </FormControl>
 
-          <TextField
-            label="Системный промпт (ID страницы)"
-            placeholder="UUID страницы из этого workspace"
-            value={systemPromptPageId}
-            onChange={(e) => setSystemPromptPageId(e.target.value)}
-            helperText="Содержимое указанной страницы прикрепляется в начало каждого промпта."
-            fullWidth
-          />
+          <FormControl fullWidth>
+            <InputLabel id="ai-system-prompt-page">Системный промпт (страница)</InputLabel>
+            <Select
+              labelId="ai-system-prompt-page"
+              label="Системный промпт (страница)"
+              value={systemPromptPageId}
+              onChange={(e) => setSystemPromptPageId(String(e.target.value))}
+            >
+              <MenuItem value="">
+                <em>Не выбрано</em>
+              </MenuItem>
+              {(pagesQuery.data ?? []).map((p) => (
+                <MenuItem key={p.id} value={p.id}>
+                  {p.title || "Без названия"}
+                </MenuItem>
+              ))}
+            </Select>
+            <FormHelperText>
+              Содержимое выбранной страницы прикрепляется в начало каждого промпта.
+            </FormHelperText>
+          </FormControl>
 
           <Box>
             <Typography variant="body2" sx={{ mb: 1 }}>
