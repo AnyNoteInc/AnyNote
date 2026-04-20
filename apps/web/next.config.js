@@ -8,6 +8,7 @@ const nextConfig = {
     '@repo/storage',
     '@repo/editor',
     '@repo/excalidraw',
+    '@repo/chat',
   ],
   experimental: {
     optimizePackageImports: ['emoji-picker-react'],
