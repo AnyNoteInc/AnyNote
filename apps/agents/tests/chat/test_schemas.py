@@ -4,7 +4,7 @@ import pytest
 from pydantic import ValidationError
 
 from agents.apps.chat.enums import ModelProvider
-from agents.apps.chat.errors import InvalidPayloadError, UnauthorizedError
+from agents.apps.chat.errors import InvalidPayloadError, ProviderError, UnauthorizedError
 from agents.apps.chat.schemas import GenerateRequest, ServerEvent
 
 
@@ -57,3 +57,10 @@ def test_unauthorized_error_shape() -> None:
     assert error.http_status == 401
     assert error.code == "UNAUTHORIZED"
     assert error.message == "Invalid bearer token"
+
+
+def test_provider_error_accepts_positional_code() -> None:
+    error = ProviderError("bad provider", "SOME_CODE")
+    assert error.http_status == 502
+    assert error.code == "SOME_CODE"
+    assert error.message == "bad provider"
