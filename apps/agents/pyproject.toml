@@ -21,6 +21,8 @@ dependencies = [
     "jinja2>=3.1",
     "sse-starlette>=2.1",
     "psycopg[binary]>=3.2",
+    "spacy>=3.7,<4",
+    "langdetect>=1.0",
 ]
 
 [dependency-groups]

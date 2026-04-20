@@ -10,6 +10,8 @@ RUN pip install --no-cache-dir uv==0.5.*
 WORKDIR /app
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
+RUN uv run python -m spacy download ru_core_news_sm \
+ && uv run python -m spacy download en_core_web_sm
 
 COPY agents ./agents
 
