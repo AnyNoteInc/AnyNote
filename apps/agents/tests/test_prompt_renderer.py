@@ -55,7 +55,9 @@ def _full_payload() -> GenerateRequest:
         agents=[Agent(id="a1", title="Архитектор", markdown="# Agent\n...")],
         mcp=McpConfig(
             servers=[
-                McpServer(name="apps-web", description="Built-ins", tools=["search_docs", "get_page"]),
+                McpServer(
+                    name="apps-web", description="Built-ins", tools=["search_docs", "get_page"]
+                ),
             ]
         ),
         user_request=UserRequest(text="Покажи итоговый пример"),

@@ -35,12 +35,8 @@ class AppProvider(Provider):
             await pool.close()
 
     @provide
-    async def checkpointer(
-        self, settings: Settings
-    ) -> AsyncIterator[AsyncPostgresSaver]:
-        async with AsyncPostgresSaver.from_conn_string(
-            settings.agents_database_url
-        ) as saver:
+    async def checkpointer(self, settings: Settings) -> AsyncIterator[AsyncPostgresSaver]:
+        async with AsyncPostgresSaver.from_conn_string(settings.agents_database_url) as saver:
             await saver.setup()
             yield saver
 
@@ -55,9 +51,7 @@ class AppSingletonsProvider(Provider):
         return JinjaRenderer()
 
     @provide
-    def graph(
-        self, renderer: JinjaRenderer, checkpointer: AsyncPostgresSaver
-    ) -> CompiledGraph:
+    def graph(self, renderer: JinjaRenderer, checkpointer: AsyncPostgresSaver) -> CompiledGraph:
         return build_graph(
             renderer=renderer,
             llm_factory=create_chat_model,
