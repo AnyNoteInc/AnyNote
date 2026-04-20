@@ -1,5 +1,6 @@
 from __future__ import annotations
 
-from agents.main import create_app
+from agents.bootstrap import create_app
+from agents.router import apply_routes
 
-app = create_app()
+app = create_app([apply_routes])
