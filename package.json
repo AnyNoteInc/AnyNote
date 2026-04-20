@@ -7,6 +7,8 @@
     "lint": "turbo run lint",
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
+    "test": "turbo run test",
+    "gates": "turbo run check-types lint build test",
     "prepare": "husky"
   },
   "devDependencies": {
