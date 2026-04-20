@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common"
+import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common"
 
 import { QdrantService } from "../../../infra/qdrant/qdrant.service.js"
 
@@ -15,10 +15,14 @@ export type QdrantPoint = {
 const VECTOR_SIZE = 768
 
 @Injectable()
-export class QdrantWriter {
+export class QdrantWriter implements OnApplicationBootstrap {
   private readonly log = new Logger(QdrantWriter.name)
 
   constructor(private readonly qdrant: QdrantService) {}
+
+  async onApplicationBootstrap(): Promise<void> {
+    await this.ensureCollection()
+  }
 
   async ensureCollection(): Promise<void> {
     const existing = await this.qdrant.client.getCollections()
