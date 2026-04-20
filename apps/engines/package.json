@@ -1,15 +1,17 @@
 {
   "name": "engines",
   "version": "0.1.0",
+  "type": "module",
   "private": true,
+  "main": "dist/main.js",
   "scripts": {
     "dev": "nest start --watch",
     "build": "nest build",
-    "start": "node dist/main",
+    "start": "node --env-file=../../.env dist/main.js",
     "check-types": "tsc --noEmit",
     "lint": "eslint \"src/**/*.ts\" --max-warnings 0",
-    "test": "jest",
-    "test-int": "jest --config jest.integration.config.ts"
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "test-int": "NODE_OPTIONS=--experimental-vm-modules jest --config jest.integration.config.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
@@ -33,6 +35,8 @@
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.0",
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
     "@types/express": "^5.0.0",
     "@types/jest": "^29.5.14",
     "@types/node": "^22.10.0",
