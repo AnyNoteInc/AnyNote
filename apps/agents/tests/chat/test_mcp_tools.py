@@ -1,11 +1,17 @@
 from __future__ import annotations
 
 import pytest
-from pydantic import ValidationError
+from pydantic import BaseModel, ValidationError
 from pytest_httpx import HTTPXMock
 
 from agents.apps.chat.repositories.mcp_tools import fetch_mcp_tools
 from agents.apps.chat.schemas import McpServer
+
+
+def _model_schema(schema: object) -> type[BaseModel]:
+    assert isinstance(schema, type)
+    assert issubclass(schema, BaseModel)
+    return schema
 
 
 @pytest.mark.asyncio
@@ -80,7 +86,7 @@ async def test_required_tool_args_reject_missing_and_none(httpx_mock: HTTPXMock)
     )
 
     tools = await fetch_mcp_tools([server])
-    args_schema = tools[0].args_schema
+    args_schema = _model_schema(tools[0].args_schema)
 
     with pytest.raises(ValidationError):
         args_schema.model_validate({})

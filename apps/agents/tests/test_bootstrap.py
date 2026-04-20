@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import pytest
 from fastapi import APIRouter, Depends
+from fastapi.routing import APIRoute
 from fastapi.testclient import TestClient
 
 from agents.apps.chat.errors import InvalidPayloadError
@@ -13,7 +14,7 @@ from agents.router import apply_routes
 
 def test_create_app_registers_routes() -> None:
     app = create_app([apply_routes])
-    paths = {route.path for route in app.routes}
+    paths = {route.path for route in app.routes if isinstance(route, APIRoute)}
     assert "/api/v1/generate" in paths
 
 
@@ -102,8 +103,8 @@ def test_create_app_registers_monitoring_per_instance() -> None:
     first_app = create_app([])
     second_app = create_app([])
 
-    first_paths = {route.path for route in first_app.routes}
-    second_paths = {route.path for route in second_app.routes}
+    first_paths = {route.path for route in first_app.routes if isinstance(route, APIRoute)}
+    second_paths = {route.path for route in second_app.routes if isinstance(route, APIRoute)}
 
     assert "/metrics" in first_paths
     assert "/metrics" in second_paths

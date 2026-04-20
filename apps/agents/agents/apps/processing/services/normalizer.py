@@ -27,8 +27,7 @@ class NormalizerService:
 
     def __init__(self) -> None:
         self._pipelines: dict[str, Language] = {
-            lang: spacy.load(model_name)
-            for lang, model_name in _PIPELINE_NAMES.items()
+            lang: spacy.load(model_name) for lang, model_name in _PIPELINE_NAMES.items()
         }
         self._detector = LanguageDetector()
 
@@ -61,7 +60,7 @@ class NormalizerService:
 
         nlp = self._pipelines[effective_lang]
 
-        # 6–8. Tokenize + lemmatize + filter stopwords/punct/short
+        # 6-8. Tokenize + lemmatize + filter stopwords/punct/short
         doc = nlp(text)
         lemmas: list[str] = []
         for token in doc:

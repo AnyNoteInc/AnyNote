@@ -38,6 +38,7 @@ except ImportError:
         if all(getattr(route, "path", None) != "/metrics" for route in app.routes):
             app.include_router(_monitoring_router)
 
+
 try:
     from fast_clean.contrib.sentry.sentry import use_sentry  # type: ignore[import-not-found]
 except ImportError:

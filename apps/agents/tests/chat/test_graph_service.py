@@ -27,7 +27,7 @@ def _payload(user_text: str = "Привет") -> GenerateRequest:
     )
 
 
-def test_build_graph_returns_compiled_graph(checkpointer: object) -> None:
+def test_build_graph_returns_compiled_graph(checkpointer: InMemorySaver) -> None:
     graph = build_graph(renderer=JinjaRenderer(), checkpointer=checkpointer)
     assert hasattr(graph, "astream")
 
@@ -52,4 +52,7 @@ async def test_build_graph_runs_end_to_end_with_fake_llm() -> None:
     assert final_state is not None
     assert "response_text" in final_state
     assert final_state["response_text"] == "Привет, Вася!"
-    assert any(isinstance(message, AIMessage) and message.content == "Привет, Вася!" for message in final_state["messages"])
+    assert any(
+        isinstance(message, AIMessage) and message.content == "Привет, Вася!"
+        for message in final_state["messages"]
+    )

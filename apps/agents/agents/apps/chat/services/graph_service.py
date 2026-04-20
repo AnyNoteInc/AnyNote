@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Callable
-from typing import TypedDict
+from typing import TypeAlias, TypedDict
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
@@ -27,7 +27,9 @@ class GraphState(TypedDict, total=False):
 
 
 LlmFactory = Callable[[ModelConfig], BaseChatModel]
-CompiledGraph = CompiledStateGraph[GraphState, None, GraphState, GraphState]
+CompiledGraph: TypeAlias = (  # noqa: UP040
+    CompiledStateGraph[GraphState, None, GraphState, GraphState]
+)
 
 
 def build_graph(

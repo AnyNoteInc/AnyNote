@@ -65,5 +65,7 @@ class GenerateStreamUseCase:
             yield {"data": normalize_event(ServerEvent.error(exc.code, str(exc)))}
         except Exception:
             yield {
-                "data": normalize_event(ServerEvent.error("INTERNAL_ERROR", _INTERNAL_ERROR_MESSAGE))
+                "data": normalize_event(
+                    ServerEvent.error("INTERNAL_ERROR", _INTERNAL_ERROR_MESSAGE)
+                )
             }

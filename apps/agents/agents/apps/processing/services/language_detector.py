@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Literal
 
-from langdetect import DetectorFactory, LangDetectException, detect
+from langdetect import DetectorFactory, LangDetectException, detect  # type: ignore[import-untyped]
 
 DetectorFactory.seed = 0  # deterministic results
 
