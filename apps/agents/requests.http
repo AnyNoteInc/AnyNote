@@ -1,0 +1,62 @@
+POST http://localhost:8080/chat/generate HTTP/1.1
+content-type: application/json
+
+{
+  "threadId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "model": {
+    "provider": "ollama",
+    "name": "gemma4",
+    "connection": {
+      "baseUrl": "http://localhost:11434"
+    },
+    "settings": {
+      "temperature": 0,
+      "topP": 0
+    }
+  },
+  "systemPrompt": "Ты профессиональный помощник, который помогает пользователю с его запросами. Ты всегда отвечаешь на русском языке.",
+  "instruction": {
+    "format": "markdown",
+    "language": "ru",
+    "citationsRequired": true
+  },
+  "query": "Как поймать утку в пруду?"
+}
+
+###
+POST http://localhost:8080/chat/generate HTTP/1.1
+content-type: application/json
+
+{
+  "threadId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
+  "model": {
+    "provider": "gigachat",
+    "name": "GigaChat-2",
+    "connection": {
+      "clientId": "019da3de-19e1-7f92-a0e1-5b90595c8e6c",
+      "clientSecret": "e0762394-8b7c-48d4-84ea-dd3e4e57420b",
+      "scope": "GIGACHAT_API_PERS"
+    },
+    "settings": {
+      "temperature": 0,
+      "topP": 0
+    }
+  },
+  "systemPrompt": "Ты профессиональный помощник, который помогает пользователю с его запросами. Ты всегда отвечаешь на русском языке.",
+  "instruction": {
+    "format": "markdown",
+    "language": "ru",
+    "citationsRequired": true
+  },
+  "query": "Как поймать утку в пруду?"
+}
+
+
+###
+POST http://localhost:8080/processing/normalize HTTP/1.1
+content-type: application/json
+
+{
+  "text": "Ты профессиональный помощник, который помогает пользователю с его запросами. Ты всегда отвечаешь на русском языке.",
+  "language": "auto"
+}

@@ -1,18 +1,15 @@
-"""FastAPI router for chat generation."""
-
-from __future__ import annotations
 
 from dishka.integrations.fastapi import FromDishka, inject
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter
 from sse_starlette.sse import EventSourceResponse
 
 from agents.apps.chat.schemas import QueryRequestSchema
 from agents.apps.chat.use_cases import GenerateStreamUseCase
 
-router = APIRouter()
+router = APIRouter(prefix="/chat", tags=["Chat"])
 
 
-@router.post('/generate')
+@router.post('/generate', response_model=None, response_class=EventSourceResponse)
 @inject
 async def generate(
     query_reqyest: QueryRequestSchema,

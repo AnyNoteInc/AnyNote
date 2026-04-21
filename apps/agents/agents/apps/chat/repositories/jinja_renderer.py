@@ -1,9 +1,14 @@
+from __future__ import annotations
 
+from pathlib import Path
 from os.path import join
+
 from jinja2 import Environment, FileSystemLoader
+
 from agents.settings import SettingsSchema
 
 from ..schemas import QueryRequestSchema
+
 
 class JinjaRendererRepository:
     """Render the default Jinja prompt for chat payloads."""
@@ -11,9 +16,9 @@ class JinjaRendererRepository:
     TEMPLATE_NAME = 'default.j2'
 
     def __init__(self, settings: SettingsSchema) -> None:
-        template_dir = join(settings.base_dir, "agents", "apps", "chat", "repositories", "templates")
-        self.enviroment = Environment(loader=FileSystemLoader(template_dir))
+        path = join(settings.base_dir, 'agents', 'apps', 'chat', 'templates')
+        self.environment = Environment(loader=FileSystemLoader(path))
 
     def render(self, context: QueryRequestSchema) -> str:
-        template = self.enviroment.get_template(self.TEMPLATE_NAME)
-        return template.render(context=context, model=context.model)
+        template = self.environment.get_template(self.TEMPLATE_NAME)
+        return template.render(**context.model_dump(mode='json'))

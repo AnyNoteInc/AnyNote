@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-import json
+from logging import getLogger
 from collections.abc import AsyncIterator
 from typing import Literal
 
@@ -11,8 +11,10 @@ from ..errors import ProviderError
 from ..schemas import ServerEvent, QueryRequestSchema, GraphStateSchema
 
 
-_INTERNAL_ERROR_MESSAGE = "Internal server error"
+INTERNAL_ERROR_MESSAGE = "Internal server error"
 
+
+logger = getLogger(__name__)
 
 @dataclass
 class GenerateStreamUseCase:
@@ -47,8 +49,9 @@ class GenerateStreamUseCase:
             yield ServerEvent.done()
         except ProviderError as exc:
             yield ServerEvent.error(exc.code, str(exc))
-        except Exception:
-            yield ServerEvent.error("INTERNAL_ERROR", _INTERNAL_ERROR_MESSAGE)
+        except Exception as exc:
+            logger.exception("Unexpected error during GenerateStreamUseCase execution", exc_info=exc)
+            yield ServerEvent.error("INTERNAL_ERROR", INTERNAL_ERROR_MESSAGE)
 
     @staticmethod
     def extract_token_text(content: object) -> str | None:

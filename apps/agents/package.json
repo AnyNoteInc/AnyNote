@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "dev": "uv run uvicorn agents.cmd.rest:app --host 0.0.0.0 --port 8080 --reload",
-    "build": "uv sync --frozen",
+    "install:nlp-models": "uv run python -m spacy download ru_core_news_sm && uv run python -m spacy download en_core_web_sm",
+    "build": "uv sync --frozen && pnpm run install:nlp-models",
     "check-types": "uv run mypy agents tests",
     "lint": "uv run ruff check agents tests",
     "format": "uv run ruff format agents tests",

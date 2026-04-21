@@ -126,7 +126,7 @@ class QueryRequestSchema(RequestResponseSchema):
     """
     Сообщения пользователя.
     """
-    agents: list[str] = Field(default_factory=list)
+    agents: Annotated[list[AgentConfigSchema], Field(default_factory=list)]
     """
     Список агентов.
     """

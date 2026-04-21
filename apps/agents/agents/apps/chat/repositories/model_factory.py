@@ -3,6 +3,7 @@ from langchain_core.language_models import BaseChatModel
 from langchain_gigachat.chat_models import GigaChat
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
+from base64 import b64encode
 from pydantic import SecretStr
 from ..enums import ModelProviderEnum
 from ..errors import InvalidPayloadError
@@ -35,12 +36,14 @@ class ModelFactoryRepository:
                 )
 
             case ModelProviderEnum.GIGACHAT:
-                credentials = f"{config.connection.client_id}:{config.connection.client_secret}"
+                credentials = b64encode(f"{config.connection.client_id}:{config.connection.client_secret}".encode()).decode()
                 return GigaChat(
                     credentials=credentials,
                     scope=config.connection.scope or "GIGACHAT_API_PERS",
                     model=config.name,
                     temperature=temperature,
+                    verify_ssl_certs=False,
+                    streaming=True,
                 )
             case _:
                 raise InvalidPayloadError(f"Unknown provider: {provider!r}")

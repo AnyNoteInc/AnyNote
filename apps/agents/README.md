@@ -18,6 +18,16 @@ docker compose up -d
 ollama pull gemma4
 ```
 
+`pnpm --filter agents build` now installs the required spaCy models for
+the `/processing/normalize` pipeline. If you work with `uv` directly
+instead of the package script, run:
+
+```bash
+uv sync --frozen
+uv run python -m spacy download ru_core_news_sm
+uv run python -m spacy download en_core_web_sm
+```
+
 ## Tests
 
 - Unit: `uv run pytest -m 'not integration'`
