@@ -1,34 +1,47 @@
-"""Pydantic schemas for chat requests and SSE events."""
 
-from __future__ import annotations
-
-from typing import Literal
+from typing import Annotated, Literal, Self
+from langchain_core.tools import StructuredTool
+from langchain_core.messages import BaseMessage
 from uuid import UUID
+from fast_clean.schemas.request_response import RequestResponseSchema
 
-from pydantic import (
-    BaseModel,
-    ConfigDict,
-    Field,
-    field_validator,
-    model_serializer,
-    model_validator,
-)
-from pydantic.alias_generators import to_camel
-
-from agents.apps.chat.enums import ModelProvider
+from pydantic import BaseModel, Field
 
 
-class CamelModel(BaseModel):
-    """Base model that serializes fields as camelCase on the wire."""
-
-    model_config = ConfigDict(
-        alias_generator=to_camel,
-        populate_by_name=True,
-        extra="forbid",
-    )
+from .enums import ModelProviderEnum, RoleEnum
 
 
-class ModelConnection(CamelModel):
+
+class AgentConfigSchema(RequestResponseSchema):
+    title: str
+    markdown: str
+
+class SkillConfigSchema(RequestResponseSchema):
+    name: str
+    description: str
+
+
+
+class RagDocumentSchema(RequestResponseSchema):
+    id: UUID
+    """
+    PageId идентификатор документа
+    """
+    title: str
+    """
+    Заголовок документа.
+    """
+    content: str
+    """
+    Текст контекнта.
+    """
+
+
+class RagDocumentsSchema(RequestResponseSchema):
+    documents: Annotated[list[RagDocumentSchema], Field(default_factory=list)]
+
+
+class ModelConnectionSchema(RequestResponseSchema):
     base_url: str | None = None
     api_key: str | None = None
     organization: str | None = None
@@ -37,105 +50,111 @@ class ModelConnection(CamelModel):
     scope: str | None = None
 
 
-class ModelSettings(CamelModel):
+class ModelSettingsSchema(RequestResponseSchema):
     temperature: float | None = None
-    max_output_tokens: int | None = None
     top_p: float | None = None
 
 
-class ModelConfig(CamelModel):
-    provider: ModelProvider
+class ModelConfigSchema(RequestResponseSchema):
+    provider: ModelProviderEnum
     name: str
-    connection: ModelConnection = Field(default_factory=ModelConnection)
-    settings: ModelSettings = Field(default_factory=ModelSettings)
+    connection: ModelConnectionSchema = Field(default_factory=ModelConnectionSchema)
+    settings: ModelSettingsSchema = Field(default_factory=ModelSettingsSchema)
 
 
-class ConversationMessage(CamelModel):
-    role: Literal["user", "assistant"]
+class ConversationMessageSchema(RequestResponseSchema):
+    role: RoleEnum
     content: str
 
 
-class Conversation(CamelModel):
-    messages: list[ConversationMessage] = Field(default_factory=list)
-    max_history_tokens: int | None = None
-    summary: str | None = None
-
-
-class McpServer(CamelModel):
+class McpServerSchema(RequestResponseSchema):
     name: str
-    description: str = ""
-    url: str | None = None
+    description: str = ''
+    url: str
     auth_header: str | None = None
     tools: list[str] = Field(default_factory=list)
 
+    retries: int = 3
+    verify: bool = True
 
-class McpConfig(CamelModel):
-    servers: list[McpServer] = Field(default_factory=list)
-
-
-class UserRequest(CamelModel):
-    text: str
-
-    @field_validator("text")
-    @classmethod
-    def _not_blank(cls, value: str) -> str:
-        if not value.strip():
-            raise ValueError("userRequest.text must not be blank")
-        return value
+class McpConfigSchema(RequestResponseSchema):
+    servers: list[McpServerSchema] = Field(default_factory=list)
 
 
-class GenerateRequest(CamelModel):
-    thread_id: UUID
-    model: ModelConfig
-    conversation: Conversation = Field(default_factory=Conversation)
-    mcp: McpConfig | None = None
-    user_request: UserRequest
 
 
-class ServerEvent(CamelModel):
+class ServerEvent(RequestResponseSchema):
     type: Literal["token", "done", "error"]
     text: str | None = None
     code: str | None = None
     message: str | None = None
 
-    @model_validator(mode="after")
-    def _validate_variant_shape(self) -> ServerEvent:
-        if self.type == "token":
-            if self.text is None:
-                raise ValueError("ServerEvent(type='token') requires text")
-            if self.code is not None or self.message is not None:
-                raise ValueError("ServerEvent(type='token') forbids code and message")
-        elif self.type == "done":
-            if self.text is not None or self.code is not None or self.message is not None:
-                raise ValueError("ServerEvent(type='done') forbids text, code, and message")
-        elif self.type == "error":
-            if self.text is not None:
-                raise ValueError("ServerEvent(type='error') forbids text")
-            if self.code is None:
-                raise ValueError("ServerEvent(type='error') requires code")
-            if self.message is None:
-                raise ValueError("ServerEvent(type='error') requires message")
-        return self
-
     @classmethod
-    def token(cls, text: str) -> ServerEvent:
+    def token(cls, text: str) -> Self:
         return cls(type="token", text=text)
 
     @classmethod
-    def done(cls) -> ServerEvent:
+    def done(cls) -> Self:
         return cls(type="done")
 
     @classmethod
-    def error(cls, code: str, message: str) -> ServerEvent:
+    def error(cls, code: str, message: str) -> Self:
         return cls(type="error", code=code, message=message)
 
-    @model_serializer(mode="plain")
-    def _serialize(self) -> dict[str, str]:
-        data: dict[str, str] = {"type": self.type}
-        if self.text is not None:
-            data["text"] = self.text
-        if self.code is not None:
-            data["code"] = self.code
-        if self.message is not None:
-            data["message"] = self.message
-        return data
+
+class InstructionRequestSchema(RequestResponseSchema):
+    format: str = 'markdown'
+    language: str = 'en'
+    citations_required: bool
+
+
+class QueryRequestSchema(RequestResponseSchema):
+    thread_id: UUID
+    """
+    Идентификатор чата.
+    """
+    model: ModelConfigSchema
+    """
+    Конфигурация модели.
+    """
+    system_prompt: str = ''
+    instruction: InstructionRequestSchema
+    """
+    Инструкция.
+    """
+    messages: Annotated[list[ConversationMessageSchema], Field(default_factory=list)]
+    """
+    Сообщения пользователя.
+    """
+    agents: list[str] = Field(default_factory=list)
+    """
+    Список агентов.
+    """
+    skills: Annotated[list[SkillConfigSchema], Field(default_factory=list)]
+    """
+    Спилы пользователя.
+    """
+    rag: RagDocumentsSchema | None = None
+    """
+    Документы для Retrieval Augmented Generation. Если указано, будет добавлено в контекст модели.
+    """
+    mcp: McpConfigSchema | None = None
+    """
+    Список mcp серверов, доступных для инструментов. Если не указан, инструменты использоваться не будут.
+    """
+    
+    query: str
+    """
+    Запрос пользователя.
+    """
+
+
+class GraphStateSchema(BaseModel):
+    system_prompt: str
+    payload: QueryRequestSchema
+    messages: Annotated[list[BaseMessage], Field(default_factory=list)]
+    tools: Annotated[list[StructuredTool], Field(default_factory=list)]
+    response_text: str = ''
+    
+
+

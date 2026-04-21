@@ -2,16 +2,18 @@
 
 from __future__ import annotations
 
-from agents.exceptions import AgentException
+from fast_clean.exceptions import BusinessLogicException
 
 
-class ProcessingException(AgentException):
-    """Base class for processing module failures."""
+class ProcessingException(BusinessLogicException):
 
-    code = "PROCESSING_ERROR"
-    http_status = 500
+    @property
+    def message(self) -> str:
+        return "An error occurred during processing."
 
 
-class UnsupportedLanguageError(ProcessingException):
-    code = "UNSUPPORTED_LANGUAGE"
-    http_status = 400
+class UnsupportedLanguageError(BusinessLogicException):
+   
+    @property
+    def message(self) -> str: 
+        return "The language is not supported for processing."

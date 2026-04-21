@@ -1,97 +1,72 @@
-"""Lightweight MCP HTTP tool loader."""
 
-from __future__ import annotations
-
+import asyncio
 import json
 import logging
-from collections.abc import Callable
 from typing import Any
+from dataclasses import dataclass
 
 import httpx
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field, create_model
+from ..errors import McpRequestError
 
-from agents.apps.chat.schemas import McpServer
+from ..schemas import McpServerSchema
 
 log = logging.getLogger(__name__)
 
 
-def _json_type_to_python(json_type: str | None) -> type[Any]:
-    return {
-        "string": str,
-        "integer": int,
-        "number": float,
-        "boolean": bool,
-        "array": list,
-        "object": dict,
-    }.get(json_type or "", str)
+class McpToolsRepository:
+    """Fetch and wrap tools from MCP servers."""
 
+    JSON_TYPE_MAP: dict[str, type[Any]] = {
+        'string': str,
+        'integer': int,
+        'number': float,
+        'boolean': bool,
+        'array': list,
+        'object': dict,
+    }
 
-def _argument_schema(tool: dict[str, Any]) -> type[BaseModel]:
-    schema_name = f"{tool.get('name', 'McpTool')}Args"
-    input_schema = tool.get("inputSchema") or {}
-    properties: dict[str, Any] = input_schema.get("properties") or {}
-    required = set(input_schema.get("required") or [])
-    fields: dict[str, Any] = {}
-    for prop_name, spec in properties.items():
-        py_type: type[Any] = _json_type_to_python(spec.get("type"))
-        description = spec.get("description") or None
-        if prop_name in required:
-            fields[prop_name] = (py_type, Field(..., description=description))
-        else:
-            fields[prop_name] = (py_type | None, Field(None, description=description))
-    if not fields:
-        return create_model(schema_name)
-    return create_model(schema_name, **fields)
+    def make_client(self, server: McpServerSchema) -> httpx.AsyncClient:
+        transport = httpx.AsyncHTTPTransport(retries=server.retries, verify=server.verify)
+        return httpx.AsyncClient(transport=transport)
 
+    async def post_mcp(self, server: McpServerSchema, payload: dict[str, Any]) -> Any:
+        headers = {'content-type': 'application/json', 'accept': 'application/json'}
+        if server.auth_header:
+            headers['Authorization'] = server.auth_header
 
-async def _post_mcp(client: httpx.AsyncClient, server: McpServer, payload: dict[str, Any]) -> Any:
-    if not server.url:
-        raise RuntimeError(f"MCP server {server.name} has no url")
-    url: str = server.url
-    headers = {"content-type": "application/json", "accept": "application/json"}
-    if server.auth_header:
-        headers["authorization"] = server.auth_header
-    resp = await client.post(url, json=payload, headers=headers, timeout=30.0)
-    resp.raise_for_status()
-    body = resp.json()
-    if isinstance(body, dict) and "error" in body and body["error"]:
-        raise RuntimeError(f"MCP error: {body['error']}")
-    return body.get("result") if isinstance(body, dict) else body
+        async with self.make_client(server) as client:
+            resp = await client.post(server.url,json=payload, headers=headers, timeout=30.0)
+            resp.raise_for_status()
+            body = resp.json()
+            if isinstance(body, dict) and 'error' in body:
+                raise McpRequestError(server, body['error'])
+            return body.get('result') if isinstance(body, dict) else body
 
-
-async def fetch_mcp_tools(servers: list[McpServer]) -> list[StructuredTool]:
-    if not servers:
-        return []
-    tools: list[StructuredTool] = []
-    async with httpx.AsyncClient() as client:
-        for server in servers:
-            try:
-                listed = await _post_mcp(
-                    client,
-                    server,
-                    {"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}},
-                )
-            except Exception as exc:
-                log.warning("MCP server %s unreachable: %s", server.name, exc)
+    async def fetch_mcp_tools(self, servers: list[McpServerSchema]) -> list[StructuredTool]:
+        tools: list[StructuredTool] = []
+        mcp_server_responses = await asyncio.gather(
+            *[self.post_mcp(server, {"jsonrpc": "2.0", "id": 1, "method": "tools/list", "params": {}}) for server in servers],
+            return_exceptions=True,
+        )
+        for mcp_server, response in zip(servers, mcp_server_responses, strict=True):
+            if isinstance(response, Exception):
+                log.warning("MCP server %s unreachable: %s", mcp_server.name, response)
                 continue
-            for entry in listed.get("tools", []) if isinstance(listed, dict) else []:
-                tools.append(_wrap_tool(server, entry))
-    return tools
+            for entry in response.get("tools", []) if isinstance(response, dict) else []:
+                tools.append(self.wrap_tool(mcp_server, entry))
+        return tools
 
+    def wrap_tool(self, server: McpServerSchema, entry: dict[str, Any]) -> StructuredTool:
+        name = str(entry.get("name") or "unnamed")
+        description = str(entry.get("description") or f"MCP tool {name} on {server.name}")
+        args_schema = self.argument_schema(entry)
 
-def _wrap_tool(server: McpServer, entry: dict[str, Any]) -> StructuredTool:
-    name = str(entry.get("name") or "unnamed")
-    description = str(entry.get("description") or f"MCP tool {name} on {server.name}")
-    args_schema = _argument_schema(entry)
-    server_snapshot = server
-
-    async def call(**kwargs: Any) -> str:
-        async with httpx.AsyncClient() as client:
+        async def call(**kwargs: Any) -> str:
             try:
-                result = await _post_mcp(
-                    client,
-                    server_snapshot,
+                result = await self.post_mcp(
+                    server,
                     {
                         "jsonrpc": "2.0",
                         "id": 2,
@@ -101,23 +76,50 @@ def _wrap_tool(server: McpServer, entry: dict[str, Any]) -> StructuredTool:
                 )
             except Exception as exc:
                 return f"tool '{name}' error: {exc}"
-        if isinstance(result, dict) and "content" in result:
-            chunks = result.get("content") or []
-            text = "\n".join(
-                str(c.get("text", ""))
-                for c in chunks
-                if isinstance(c, dict) and c.get("type") == "text"
-            )
-            return text or json.dumps(result, ensure_ascii=False)
-        return json.dumps(result, ensure_ascii=False)
+            if isinstance(result, dict) and "content" in result:
+                chunks = result.get("content") or []
+                text = "\n".join(
+                    str(c.get("text", ""))
+                    for c in chunks
+                    if isinstance(c, dict) and c.get("type") == "text"
+                )
+                return text or json.dumps(result, ensure_ascii=False)
+            return json.dumps(result, ensure_ascii=False)
 
-    return StructuredTool.from_function(
-        coroutine=_make_async_runner(call),
-        name=name,
-        description=description,
-        args_schema=args_schema,
-    )
+        return StructuredTool.from_function(
+            coroutine=call,
+            name=name,
+            description=description,
+            args_schema=args_schema,
+        )
+    
+
+    def build_field_definition(
+        self,
+        prop_name: str,
+        spec: dict[str, Any],
+        required_fields: set[str],
+    ) -> tuple[Any, Field]: # type: ignore
+        py_type = self.JSON_TYPE_MAP.get(spec.get('type', 'string'), str)
+        description = spec.get("description")
+
+        if prop_name in required_fields:
+            return py_type, Field(..., description=description)
+
+        return py_type | None, Field(default=None, description=description)
 
 
-def _make_async_runner(coroutine: Callable[..., Any]) -> Callable[..., Any]:
-    return coroutine
+    def argument_schema(self, tool: dict[str, Any]) -> type[BaseModel]:
+        schema_name = f"{tool.get('name') or 'McpTool'}Args"
+        input_schema = tool.get("inputSchema") or {}
+        properties = input_schema.get("properties") or {}
+        required_fields = set(input_schema.get("required") or [])
+
+        field_definitions: dict[str, Any] = {
+            prop_name: self.build_field_definition(prop_name, spec, required_fields)
+            for prop_name, spec in properties.items()
+        }
+
+        return create_model(schema_name, **field_definitions) 
+    
+

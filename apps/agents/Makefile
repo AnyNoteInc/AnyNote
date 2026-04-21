@@ -1,55 +1,25 @@
-.PHONY: install lock sync dev test test-integration test-all lint format check-types revision migrate rollback clean
+.PHONY=migrate,revision,dev,test
 
-install: lock sync
-
-lock:
-	uv lock
-
-sync:
-	uv sync --frozen
-
-dev:
-	uv run uvicorn agents.cmd.rest:app --host 0.0.0.0 --port 8080 --reload
 
 test:
-	uv run pytest -m 'not integration'
+	uv run pytest --cov-report html --cov=src tests
 
-test-integration:
-	uv run pytest -m integration
+all-test:
+	uv run pytest --cov-report html --cov=src tests
 
-test-all:
-	uv run pytest
-
-lint:
-	uv run ruff check agents tests
-
-format:
-	uv run ruff format agents tests
-
-check-types:
-	uv run mypy agents tests
+dev:
+	uv run uvicorn src.main:app --reload
 
 revision:
-	@if [ ! -f alembic.ini ]; then \
-		echo "alembic.ini not found. Add Alembic scaffold before running migrations."; \
-	else \
-		uv run alembic revision --autogenerate -m "$(NAME)"; \
-	fi
+	uv run alembic revision --autogenerate -m $(NAME)
 
 migrate:
-	@if [ ! -f alembic.ini ]; then \
-		echo "alembic.ini not found. Add Alembic scaffold before running migrations."; \
-	else \
-		uv run alembic upgrade head; \
-	fi
+	uv run alembic upgrade head
 
 rollback:
-	@if [ ! -f alembic.ini ]; then \
-		echo "alembic.ini not found. Add Alembic scaffold before running migrations."; \
-	else \
-		uv run alembic downgrade $(NUM); \
-	fi
+	uv run alembic downgrade $(NUM)
 
-clean:
-	rm -rf .venv .pytest_cache .ruff_cache .mypy_cache
-	find . -name __pycache__ -type d -prune -exec rm -rf {} +
+HOST ?= 0.0.0.0
+PORT ?= 8080
+start:
+	uv run uvicorn src.main:app --host $(HOST) --port $(PORT)

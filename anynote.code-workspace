@@ -1,0 +1,12 @@
+{
+  "folders": [
+    {
+      "path": "apps/agents",
+      "name": "agents"
+    },
+    {
+      "path": ".",
+      "name": "anynote"
+    }
+  ]
+}

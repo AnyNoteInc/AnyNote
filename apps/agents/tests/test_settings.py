@@ -1,36 +1,34 @@
-"""Unit tests for settings loading from environment variables."""
-
 from __future__ import annotations
 
-import pytest
-from pydantic import ValidationError
-
-from agents.settings import Settings
+import importlib
+import sys
 
 
-def test_settings_reads_required_env(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("AGENTS_DATABASE_URL", "postgresql://u:p@h:5432/agents")
-    monkeypatch.setenv("AGENTS_SERVICE_TOKEN", "secret-token")
-    s = Settings()
-    assert s.agents_database_url == "postgresql://u:p@h:5432/agents"
-    assert s.agents_service_token == "secret-token"
-    assert s.agents_log_level == "INFO"
-    assert s.ollama_base_url == "http://localhost:11434"
-    assert s.ollama_default_model == "gemma4"
+def test_settings_import_uses_project_dotenv_even_when_shell_debug_is_release(monkeypatch, tmp_path) -> None:
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv('DEBUG', 'release')
+    monkeypatch.delenv('ENVIRONMENT', raising=False)
+    monkeypatch.delenv('TITLE', raising=False)
 
+    (tmp_path / '.env').write_text(
+        '\n'.join(
+            [
+                'TITLE=agents',
+                'DEBUG=true',
+                'ENVIRONMENT=dev',
+                'BASE_URL=http://localhost:8000',
+                'SECRET_KEY=test-secret',
+                'CORS_ORIGINS=["127.0.0.1", "localhost"]',
+                'DB__HOST=localhost',
+                'DB__PORT=5432',
+                'DB__USER=postgres',
+                'DB__PASSWORD=postgres',
+                'DB__NAME=agents',
+            ]
+        )
+    )
 
-def test_settings_uses_ollama_overrides(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setenv("AGENTS_DATABASE_URL", "postgresql://u:p@h:5432/agents")
-    monkeypatch.setenv("AGENTS_SERVICE_TOKEN", "t")
-    monkeypatch.setenv("OLLAMA_BASE_URL", "http://ollama:11434")
-    monkeypatch.setenv("OLLAMA_DEFAULT_MODEL", "llama3.1")
-    s = Settings()
-    assert s.ollama_base_url == "http://ollama:11434"
-    assert s.ollama_default_model == "llama3.1"
+    sys.modules.pop('agents.settings', None)
+    settings_module = importlib.import_module('agents.settings')
 
-
-def test_settings_missing_required_raises(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.delenv("AGENTS_DATABASE_URL", raising=False)
-    monkeypatch.delenv("AGENTS_SERVICE_TOKEN", raising=False)
-    with pytest.raises(ValidationError):
-        Settings()
+    assert settings_module.settings.debug is True

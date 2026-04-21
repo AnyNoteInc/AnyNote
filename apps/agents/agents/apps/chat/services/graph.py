@@ -1,0 +1,115 @@
+from dataclasses import dataclass
+
+from collections.abc import Callable
+from typing import TypeAlias, TypedDict
+
+from langchain_core.language_models import BaseChatModel, LanguageModelInput
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.tools import StructuredTool
+from langgraph.checkpoint.base import BaseCheckpointSaver
+from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph, Runnable
+
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from ..enums import RoleEnum
+from ..schemas import QueryRequestSchema, GraphStateSchema
+
+from ..repositories import JinjaRendererRepository, ModelFactoryRepository, McpToolsRepository
+
+
+
+CompiledGraph: TypeAlias = CompiledStateGraph[GraphStateSchema, None, GraphStateSchema, GraphStateSchema]
+
+
+
+@dataclass
+class GraphService:
+
+    jinja_repository: JinjaRendererRepository
+    mcp_tools_repository: McpToolsRepository
+    model_factory_repository: ModelFactoryRepository
+    checkpointer: AsyncPostgresSaver
+
+    def make_graph(self, state: GraphStateSchema) -> CompiledGraph:
+        """
+        Собираем главный граф для обработки запроса.
+        """
+        workflow: StateGraph[GraphStateSchema, None, GraphStateSchema, GraphStateSchema] = StateGraph(GraphStateSchema)
+        workflow.add_node("prepare_prompt", self.prepare_prompt)
+        workflow.add_node("llm", self.llm)
+        workflow.add_node("tools", self.tools_node)
+        workflow.add_edge(START, "prepare_prompt")
+        workflow.add_edge("prepare_prompt", "llm")
+        workflow.add_conditional_edges("llm", self.route_after_llm, {"tools": "tools", END: END})
+        workflow.add_edge("tools", "llm")
+        return workflow.compile(checkpointer=self.checkpointer)
+
+    async def prepare_prompt(self, state: GraphStateSchema) -> GraphStateSchema:
+        payload = state.payload
+        system_prompt = self.jinja_repository.render(state.payload)
+
+        messages: list[BaseMessage] = [SystemMessage(content=system_prompt)]
+        messages += [
+            HumanMessage(content=msg.content)
+            if msg.role == RoleEnum.USER else AIMessage(content=msg.content)
+            for msg in payload.messages
+        ]
+
+        messages.append(HumanMessage(content=payload.query))
+
+        servers = payload.mcp.servers if payload.mcp else []
+        tools = await self.mcp_tools_repository.fetch_mcp_tools(servers)
+
+        return GraphStateSchema(
+            payload=payload,
+            system_prompt=system_prompt,
+            messages=messages,
+            tools=tools,
+            response_text='',
+        )
+
+    async def llm(self, state: GraphStateSchema) -> GraphStateSchema:
+        model = self.model_factory_repository.make(state.payload.model)
+        bound = model.bind_tools(state.tools) if state.tools else model
+        result = bound.invoke(state.messages)
+        text = str(result.content)
+        return GraphStateSchema(
+            payload=state.payload,
+            system_prompt=state.system_prompt,
+            messages=[*state.messages, result],
+            tools=state.tools,
+            response_text=text,
+        )
+    
+    async def tools_node(self, state: GraphStateSchema) -> GraphStateSchema:
+        last = state.messages[-1]
+        tool_calls = getattr(last, "tool_calls", None) or []
+        registered = {tool.name: tool for tool in state.tools}
+        additions: list[BaseMessage] = []
+        for call in tool_calls:
+            name = call["name"] if isinstance(call, dict) else call.name
+            args = call["args"] if isinstance(call, dict) else call.args
+            call_id = call["id"] if isinstance(call, dict) else call.id
+            tool = registered.get(name)
+            if tool is None:
+                content = f"tool '{name}' is not registered"
+            else:
+                try:
+                    content = await tool.ainvoke(args)
+                except Exception as exc:
+                    content = f"tool '{name}' raised: {exc}"
+            additions.append(ToolMessage(content=str(content), tool_call_id=call_id))
+        return GraphStateSchema(
+            payload=state.payload,
+            system_prompt=state.system_prompt,
+            messages=[*state.messages, *additions],
+            tools=state.tools,
+            response_text=state.response_text,
+        )
+
+    def route_after_llm(self, state: GraphStateSchema) -> str:
+        last = state.messages[-1]
+        tool_calls = getattr(last, 'tool_calls', [])
+        if tool_calls and state.tools:
+            return "tools"
+        return END

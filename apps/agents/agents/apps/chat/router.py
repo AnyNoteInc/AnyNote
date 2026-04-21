@@ -6,17 +6,16 @@ from dishka.integrations.fastapi import FromDishka, inject
 from fastapi import APIRouter, Depends
 from sse_starlette.sse import EventSourceResponse
 
-from agents.apps.chat.schemas import GenerateRequest
+from agents.apps.chat.schemas import QueryRequestSchema
 from agents.apps.chat.use_cases import GenerateStreamUseCase
-from agents.entrypoints.rest.auth import require_bearer
 
-router = APIRouter(prefix="/api/v1")
+router = APIRouter()
 
 
-@router.post("/generate", dependencies=[Depends(require_bearer)])
+@router.post('/generate')
 @inject
 async def generate(
-    body: GenerateRequest,
+    query_reqyest: QueryRequestSchema,
     use_case: FromDishka[GenerateStreamUseCase],
 ) -> EventSourceResponse:
-    return EventSourceResponse(use_case.stream(body), ping=15)
+    return EventSourceResponse(use_case(query_reqyest), ping=15)

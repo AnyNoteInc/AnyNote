@@ -1,3 +1,1 @@
-from .generate_stream import GenerateStreamUseCase
-
-__all__ = ["GenerateStreamUseCase"]
+from .generate_stream import GenerateStreamUseCase as GenerateStreamUseCase

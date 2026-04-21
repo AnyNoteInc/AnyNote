@@ -1,11 +1,12 @@
-"""Shared enum definitions for chat payloads."""
-
-from __future__ import annotations
-
-from enum import StrEnum
+from enum import StrEnum, auto
 
 
-class ModelProvider(StrEnum):
-    OLLAMA = "ollama"
-    OPENAI = "openai"
-    GIGACHAT = "gigachat"
+class ModelProviderEnum(StrEnum):
+    OLLAMA = auto()
+    OPENAI = auto()
+    GIGACHAT = auto()
+
+
+class RoleEnum(StrEnum):
+    USER = auto()
+    ASSISTANT = auto()
