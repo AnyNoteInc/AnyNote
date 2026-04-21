@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
-import { enqueueOutboxEvent, type AiModel, type AiProvider, type Prisma, type WorkspaceAiSettings } from "@repo/db"
+import type { AiModel, AiProvider, Prisma } from "@repo/db"
 
 import { router, protectedProcedure } from "../trpc"
 
@@ -20,18 +20,10 @@ async function assertWorkspaceMember(
 export interface AiSettingsResult {
   workspaceId: string
   defaultModelId: string | null
-  systemPromptPageId: string | null
-  temperature: number | null
-  maxOutputTokens: number | null
-  topP: number | null
-  providerCredentials: Record<string, Record<string, string>>
-  skillPageIds: string[]
+  systemPrompt: string | null
+  temperature: number
+  topP: number
 }
-
-const ProviderKeysSchema = z.record(
-  z.string().min(1),
-  z.record(z.string().min(1), z.string()),
-)
 
 export const aiSettingsRouter = router({
   /** List AI providers + models the workspace's plan allows. */
@@ -47,14 +39,7 @@ export const aiSettingsRouter = router({
             models: Array<
               Pick<
                 AiModel,
-                | "id"
-                | "slug"
-                | "displayName"
-                | "contextTokens"
-                | "maxOutputTokens"
-                | "supportsVision"
-                | "supportsFunctionCalling"
-                | "minPlanSlug"
+                "id" | "slug" | "displayName" | "contextTokens" | "supportsVision" | "minPlanSlug"
               >
             >
           }
@@ -76,9 +61,7 @@ export const aiSettingsRouter = router({
                 slug: true,
                 displayName: true,
                 contextTokens: true,
-                maxOutputTokens: true,
                 supportsVision: true,
-                supportsFunctionCalling: true,
                 minPlanSlug: true,
               },
             },
@@ -92,25 +75,15 @@ export const aiSettingsRouter = router({
     .input(z.object({ workspaceId: z.string().uuid() }))
     .query(async ({ ctx, input }): Promise<AiSettingsResult> => {
       await assertWorkspaceMember(ctx, input.workspaceId)
-      const settings: WorkspaceAiSettings | null =
-        await ctx.prisma.workspaceAiSettings.findUnique({
-          where: { workspaceId: input.workspaceId },
-        })
-      const credentials =
-        settings?.providerCredentials &&
-        typeof settings.providerCredentials === "object" &&
-        !Array.isArray(settings.providerCredentials)
-          ? (settings.providerCredentials as Record<string, Record<string, string>>)
-          : {}
+      const settings = await ctx.prisma.workspaceAiSettings.findUnique({
+        where: { workspaceId: input.workspaceId },
+      })
       return {
         workspaceId: input.workspaceId,
         defaultModelId: settings?.defaultModelId ?? null,
-        systemPromptPageId: settings?.systemPromptPageId ?? null,
-        temperature: settings?.temperature ?? null,
-        maxOutputTokens: settings?.maxOutputTokens ?? null,
-        topP: settings?.topP ?? null,
-        providerCredentials: credentials,
-        skillPageIds: settings?.skillPageIds ?? [],
+        systemPrompt: settings?.systemPrompt ?? null,
+        temperature: settings?.temperature ?? 0.2,
+        topP: settings?.topP ?? 0.5,
       }
     }),
 
@@ -119,12 +92,7 @@ export const aiSettingsRouter = router({
       z.object({
         workspaceId: z.string().uuid(),
         defaultModelId: z.string().uuid().nullable().optional(),
-        systemPromptPageId: z.string().uuid().nullable().optional(),
-        temperature: z.number().min(0).max(2).nullable().optional(),
-        maxOutputTokens: z.number().int().positive().nullable().optional(),
-        topP: z.number().min(0).max(1).nullable().optional(),
-        providerCredentials: ProviderKeysSchema.optional(),
-        skillPageIds: z.array(z.string().uuid()).optional(),
+        systemPrompt: z.string().nullable().optional(),
       }),
     )
     .mutation(async ({ ctx, input }): Promise<AiSettingsResult> => {
@@ -138,44 +106,15 @@ export const aiSettingsRouter = router({
           throw new TRPCError({ code: "BAD_REQUEST", message: "Недоступная модель" })
         }
       }
-      if (input.systemPromptPageId) {
-        const page = await ctx.prisma.page.findFirst({
-          where: { id: input.systemPromptPageId, workspaceId: input.workspaceId },
-          select: { id: true },
-        })
-        if (!page) {
-          throw new TRPCError({ code: "BAD_REQUEST", message: "Страница не найдена в workspace" })
-        }
-      }
-      if (input.skillPageIds && input.skillPageIds.length > 0) {
-        const found = await ctx.prisma.page.count({
-          where: { id: { in: input.skillPageIds }, workspaceId: input.workspaceId },
-        })
-        if (found !== input.skillPageIds.length) {
-          throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "Часть страниц не найдена в workspace",
-          })
-        }
-      }
       const data: Prisma.WorkspaceAiSettingsCreateInput | Prisma.WorkspaceAiSettingsUpdateInput = {}
       if (input.defaultModelId !== undefined) {
         ;(data as Prisma.WorkspaceAiSettingsUpdateInput).defaultModel = input.defaultModelId
           ? { connect: { id: input.defaultModelId } }
           : { disconnect: true }
       }
-      if (input.systemPromptPageId !== undefined) {
-        ;(data as Prisma.WorkspaceAiSettingsUpdateInput).systemPromptPage = input.systemPromptPageId
-          ? { connect: { id: input.systemPromptPageId } }
-          : { disconnect: true }
+      if (input.systemPrompt !== undefined) {
+        data.systemPrompt = input.systemPrompt === null ? null : input.systemPrompt.trim() || null
       }
-      if (input.temperature !== undefined) data.temperature = input.temperature
-      if (input.maxOutputTokens !== undefined) data.maxOutputTokens = input.maxOutputTokens
-      if (input.topP !== undefined) data.topP = input.topP
-      if (input.providerCredentials !== undefined) {
-        data.providerCredentials = input.providerCredentials as Prisma.InputJsonValue
-      }
-      if (input.skillPageIds !== undefined) data.skillPageIds = input.skillPageIds
 
       const createData: Prisma.WorkspaceAiSettingsCreateInput = {
         workspace: { connect: { id: input.workspaceId } },
@@ -187,71 +126,12 @@ export const aiSettingsRouter = router({
         update: data as Prisma.WorkspaceAiSettingsUpdateInput,
       })
 
-      const credentials =
-        upserted.providerCredentials &&
-        typeof upserted.providerCredentials === "object" &&
-        !Array.isArray(upserted.providerCredentials)
-          ? (upserted.providerCredentials as Record<string, Record<string, string>>)
-          : {}
       return {
         workspaceId: upserted.workspaceId,
         defaultModelId: upserted.defaultModelId,
-        systemPromptPageId: upserted.systemPromptPageId,
+        systemPrompt: upserted.systemPrompt,
         temperature: upserted.temperature,
-        maxOutputTokens: upserted.maxOutputTokens,
         topP: upserted.topP,
-        providerCredentials: credentials,
-        skillPageIds: upserted.skillPageIds,
       }
-    }),
-
-  /** Lightweight page picker for skill selection. */
-  listWorkspacePages: protectedProcedure
-    .input(z.object({ workspaceId: z.string().uuid() }))
-    .query(async ({ ctx, input }) => {
-      await assertWorkspaceMember(ctx, input.workspaceId)
-      return ctx.prisma.page.findMany({
-        where: {
-          workspaceId: input.workspaceId,
-          deletedAt: null,
-          archived: false,
-        },
-        orderBy: [{ updatedAt: "desc" }],
-        take: 200,
-        select: { id: true, title: true, ownership: true },
-      })
-    }),
-
-  /**
-   * Re-emit a `page.upserted` outbox event for every live page in the
-   * workspace. The indexer drains the outbox and re-builds Qdrant
-   * points. Use after switching the embeddings model or recovering
-   * from an indexer outage.
-   */
-  reindexWorkspace: protectedProcedure
-    .input(z.object({ workspaceId: z.string().uuid() }))
-    .mutation(async ({ ctx, input }) => {
-      const member = await assertWorkspaceMember(ctx, input.workspaceId)
-      if (member.role !== "OWNER") {
-        throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Только владелец может запускать переиндексацию",
-        })
-      }
-      return ctx.prisma.$transaction(async (tx) => {
-        const pages = await tx.page.findMany({
-          where: { workspaceId: input.workspaceId, deletedAt: null },
-          select: { id: true },
-        })
-        for (const p of pages) {
-          await enqueueOutboxEvent(tx, {
-            eventType: "page.upserted",
-            aggregateType: "page",
-            aggregateId: p.id,
-            workspaceId: input.workspaceId,
-          })
-        }
-        return { enqueued: pages.length }
-      })
     }),
 })

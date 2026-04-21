@@ -115,46 +115,20 @@ async function main() {
   // ── AI providers ──────────────────────────────────────────────────────────
   const aiProviders = [
     {
-      slug: "ollama",
-      name: "Ollama",
-      defaultBaseUrl: process.env.OLLAMA_BASE_URL ?? "http://localhost:11434",
-      credentialsSchema: {
-        fields: [
-          { key: "base_url", label: "Base URL", type: "string", required: false },
-        ],
-      } satisfies Prisma.InputJsonValue,
-      docsUrl: "https://github.com/ollama/ollama",
-      supportsStreaming: true,
-      supportsTools: true,
-    },
-    {
-      slug: "openai",
-      name: "OpenAI ChatGPT",
-      defaultBaseUrl: "https://api.openai.com/v1",
-      credentialsSchema: {
-        fields: [
-          { key: "api_key", label: "API key", type: "secret", required: true },
-          { key: "organization", label: "Organization", type: "string", required: false },
-        ],
-      } satisfies Prisma.InputJsonValue,
-      docsUrl: "https://platform.openai.com/docs",
-      supportsStreaming: true,
-      supportsTools: true,
-    },
-    {
       slug: "gigachat",
       name: "GigaChat",
-      defaultBaseUrl: "https://gigachat.devices.sberbank.ru/api/v1",
-      credentialsSchema: {
-        fields: [
-          { key: "client_id", label: "Client ID", type: "string", required: true },
-          { key: "client_secret", label: "Client Secret", type: "secret", required: true },
-          { key: "scope", label: "Scope", type: "string", required: true, default: "GIGACHAT_API_PERS" },
-        ],
+      connection: {
+        clientId: "019da3de-19e1-7f92-a0e1-5b90595c8e6c",
+        clientSecret: "e0762394-8b7c-48d4-84ea-dd3e4e57420b",
+        scope: "GIGACHAT_API_PERS",
       } satisfies Prisma.InputJsonValue,
-      docsUrl: "https://developers.sber.ru/docs/ru/gigachat/api/overview",
-      supportsStreaming: true,
-      supportsTools: true,
+    },
+    {
+      slug: "ollama",
+      name: "Ollama",
+      connection: {
+        baseUrl: "http://localhost:11434",
+      } satisfies Prisma.InputJsonValue,
     },
   ] as const
 
@@ -164,11 +138,7 @@ async function main() {
         where: { slug: p.slug },
         update: {
           name: p.name,
-          defaultBaseUrl: p.defaultBaseUrl,
-          credentialsSchema: p.credentialsSchema,
-          docsUrl: p.docsUrl,
-          supportsStreaming: p.supportsStreaming,
-          supportsTools: p.supportsTools,
+          connection: p.connection,
           isActive: true,
         },
         create: { ...p, isActive: true },
@@ -181,64 +151,20 @@ async function main() {
   // ── AI models ─────────────────────────────────────────────────────────────
   const aiModels = [
     {
+      providerSlug: "gigachat",
+      slug: "GigaChat-2",
+      displayName: "GigaChat-2",
+      contextTokens: 32000,
+      supportsVision: false,
+      minPlanSlug: null,
+    },
+    {
       providerSlug: "ollama",
       slug: "gemma4",
       displayName: "Gemma 4 (Ollama)",
       contextTokens: 8192,
-      maxOutputTokens: 4096,
       supportsVision: false,
-      supportsFunctionCalling: false,
       minPlanSlug: null,
-    },
-    {
-      providerSlug: "openai",
-      slug: "gpt-4o-mini",
-      displayName: "GPT-4o mini",
-      contextTokens: 128000,
-      maxOutputTokens: 16384,
-      supportsVision: true,
-      supportsFunctionCalling: true,
-      minPlanSlug: "personal",
-    },
-    {
-      providerSlug: "openai",
-      slug: "gpt-4o",
-      displayName: "GPT-4o",
-      contextTokens: 128000,
-      maxOutputTokens: 16384,
-      supportsVision: true,
-      supportsFunctionCalling: true,
-      minPlanSlug: "personal",
-    },
-    {
-      providerSlug: "gigachat",
-      slug: "GigaChat",
-      displayName: "GigaChat",
-      contextTokens: 32000,
-      maxOutputTokens: 8000,
-      supportsVision: false,
-      supportsFunctionCalling: true,
-      minPlanSlug: "personal",
-    },
-    {
-      providerSlug: "gigachat",
-      slug: "GigaChat-Pro",
-      displayName: "GigaChat Pro",
-      contextTokens: 32000,
-      maxOutputTokens: 8000,
-      supportsVision: false,
-      supportsFunctionCalling: true,
-      minPlanSlug: "personal",
-    },
-    {
-      providerSlug: "gigachat",
-      slug: "GigaChat-Max",
-      displayName: "GigaChat Max",
-      contextTokens: 131072,
-      maxOutputTokens: 8000,
-      supportsVision: true,
-      supportsFunctionCalling: true,
-      minPlanSlug: "corporate",
     },
   ] as const
 
@@ -250,9 +176,7 @@ async function main() {
       update: {
         displayName: m.displayName,
         contextTokens: m.contextTokens,
-        maxOutputTokens: m.maxOutputTokens,
         supportsVision: m.supportsVision,
-        supportsFunctionCalling: m.supportsFunctionCalling,
         minPlanSlug: m.minPlanSlug,
         isActive: true,
       },
@@ -261,16 +185,14 @@ async function main() {
         slug: m.slug,
         displayName: m.displayName,
         contextTokens: m.contextTokens,
-        maxOutputTokens: m.maxOutputTokens,
         supportsVision: m.supportsVision,
-        supportsFunctionCalling: m.supportsFunctionCalling,
         minPlanSlug: m.minPlanSlug,
         isActive: true,
       },
     })
   }
 
-  console.info("Seed complete: 5 providers, 3 plans, 3 AI providers, 6 AI models")
+  console.info("Seed complete: 5 providers, 3 plans, 2 AI providers, 2 AI models")
 }
 
 main()

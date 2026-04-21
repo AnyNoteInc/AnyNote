@@ -35,8 +35,13 @@ function parseBody(raw: unknown): GenerateBody {
   return { chatId: o.chatId, prompt: o.prompt, history }
 }
 
-const PROVIDER_BASE_URLS: Record<string, string> = {
-  ollama: process.env.OLLAMA_BASE_URL ?? "http://localhost:11434",
+function providerConnection(value: unknown): Record<string, string> {
+  if (!value || typeof value !== "object" || Array.isArray(value)) return {}
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+    if (typeof v === "string") out[k] = v
+  }
+  return out
 }
 
 export async function POST(req: NextRequest): Promise<Response> {
@@ -69,7 +74,6 @@ export async function POST(req: NextRequest): Promise<Response> {
     where: { workspaceId: chat.workspaceId },
     include: {
       defaultModel: { include: { provider: true } },
-      systemPromptPage: { select: { content: true, title: true } },
     },
   })
   if (!settings?.defaultModel) {
@@ -80,33 +84,7 @@ export async function POST(req: NextRequest): Promise<Response> {
   }
 
   const provider = settings.defaultModel.provider
-  const providerSlug = provider.slug
-  const credentialsByProvider =
-    settings.providerCredentials &&
-    typeof settings.providerCredentials === "object" &&
-    !Array.isArray(settings.providerCredentials)
-      ? (settings.providerCredentials as Record<string, Record<string, string>>)
-      : {}
-  const providerCreds = credentialsByProvider[providerSlug] ?? {}
-  const baseUrl =
-    providerCreds.baseUrl ?? PROVIDER_BASE_URLS[providerSlug] ?? provider.defaultBaseUrl ?? undefined
-
-  const systemPrompt = settings.systemPromptPage?.content
-    ? extractTextFromTiptap(settings.systemPromptPage.content)
-    : undefined
-
-  const skillPages =
-    settings.skillPageIds.length > 0
-      ? await prisma.page.findMany({
-          where: { id: { in: settings.skillPageIds }, workspaceId: chat.workspaceId },
-          select: { id: true, title: true, content: true },
-        })
-      : []
-  const skills = skillPages.map((p) => ({
-    id: p.id,
-    title: p.title ?? "Skill",
-    markdown: p.content ? extractTextFromTiptap(p.content) : "",
-  }))
+  const connection = providerConnection(provider.connection)
 
   // Persist user message + bump chat title (if still default) BEFORE streaming
   // so the row is durable even if the upstream call fails.
@@ -127,25 +105,16 @@ export async function POST(req: NextRequest): Promise<Response> {
   const agentsPayload = {
     threadId: chat.id,
     model: {
-      provider: providerSlug,
+      provider: provider.slug,
       name: settings.defaultModel.slug,
-      connection: {
-        baseUrl,
-        apiKey: providerCreds.apiKey ?? undefined,
-        organization: providerCreds.organization ?? undefined,
-        clientId: providerCreds.clientId ?? undefined,
-        clientSecret: providerCreds.clientSecret ?? undefined,
-        scope: providerCreds.scope ?? undefined,
-      },
+      connection,
       settings: {
-        temperature: settings.temperature ?? settings.defaultModel.defaultTemperature ?? undefined,
-        maxOutputTokens: settings.maxOutputTokens ?? undefined,
-        topP: settings.topP ?? undefined,
+        temperature: settings.temperature,
+        topP: settings.topP,
       },
     },
-    instructions: systemPrompt ? { systemPrompt } : undefined,
+    instructions: settings.systemPrompt ? { systemPrompt: settings.systemPrompt } : undefined,
     conversation: { messages: body.history },
-    skills,
     mcp: buildMcpConfig(),
     userRequest: { text: body.prompt },
   }
@@ -257,37 +226,5 @@ function buildMcpConfig(): { servers: Array<{ name: string; description: string;
         authHeader: enginesToken ? `Bearer ${enginesToken}` : undefined,
       },
     ],
-  }
-}
-
-function extractTextFromTiptap(content: unknown): string {
-  if (!content) return ""
-  const parts: string[] = []
-  walk(content as { type?: string; text?: string; content?: unknown[] }, parts)
-  return parts.join("").trim()
-}
-
-function walk(
-  node: { type?: string; text?: string; content?: unknown[] },
-  parts: string[],
-): void {
-  if (!node || typeof node !== "object") return
-  if (node.type === "text" && typeof node.text === "string") {
-    parts.push(node.text)
-    return
-  }
-  if (Array.isArray(node.content)) {
-    for (const child of node.content) {
-      walk(child as { type?: string; text?: string; content?: unknown[] }, parts)
-    }
-  }
-  if (
-    node.type === "paragraph" ||
-    node.type === "heading" ||
-    node.type === "blockquote" ||
-    node.type === "listItem" ||
-    node.type === "codeBlock"
-  ) {
-    parts.push("\n\n")
   }
 }

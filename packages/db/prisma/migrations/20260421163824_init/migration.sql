@@ -22,6 +22,9 @@ CREATE TYPE "PageOwnership" AS ENUM ('TEXT', 'SKILL', 'AGENT');
 -- CreateEnum
 CREATE TYPE "FileStatus" AS ENUM ('ACTIVE', 'PENDING', 'DELETED', 'ARCHIVED');
 
+-- CreateEnum
+CREATE TYPE "OutboxEventStatus" AS ENUM ('PENDING', 'PROCESSING', 'DONE', 'FAILED');
+
 -- CreateTable
 CREATE TABLE "users" (
     "id" UUID NOT NULL,
@@ -240,11 +243,7 @@ CREATE TABLE "ai_providers" (
     "id" UUID NOT NULL,
     "slug" VARCHAR(50) NOT NULL,
     "name" VARCHAR(100) NOT NULL,
-    "default_base_url" VARCHAR(255),
-    "credentials_schema" JSONB NOT NULL DEFAULT '{}',
-    "docs_url" TEXT,
-    "supports_streaming" BOOLEAN NOT NULL DEFAULT true,
-    "supports_tools" BOOLEAN NOT NULL DEFAULT false,
+    "connection" JSONB NOT NULL DEFAULT '{}',
     "is_active" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
@@ -259,17 +258,27 @@ CREATE TABLE "ai_models" (
     "slug" VARCHAR(100) NOT NULL,
     "display_name" VARCHAR(150) NOT NULL,
     "context_tokens" INTEGER NOT NULL,
-    "max_output_tokens" INTEGER NOT NULL,
     "supports_vision" BOOLEAN NOT NULL DEFAULT false,
-    "supports_function_calling" BOOLEAN NOT NULL DEFAULT false,
     "min_plan_slug" TEXT,
-    "default_temperature" DOUBLE PRECISION,
     "is_active" BOOLEAN NOT NULL DEFAULT true,
     "deprecated_at" TIMESTAMPTZ(6),
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
 
     CONSTRAINT "ai_models_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "workspace_ai_settings" (
+    "workspace_id" UUID NOT NULL,
+    "default_model_id" UUID,
+    "system_prompt" TEXT,
+    "temperature" DOUBLE PRECISION NOT NULL DEFAULT 0.2,
+    "top_p" DOUBLE PRECISION NOT NULL DEFAULT 0.5,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL,
+
+    CONSTRAINT "workspace_ai_settings_pkey" PRIMARY KEY ("workspace_id")
 );
 
 -- CreateTable
@@ -339,6 +348,26 @@ CREATE TABLE "page_files" (
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "page_files_pkey" PRIMARY KEY ("page_id","file_id")
+);
+
+-- CreateTable
+CREATE TABLE "outbox_events" (
+    "id" BIGSERIAL NOT NULL,
+    "event_type" VARCHAR(64) NOT NULL,
+    "aggregate_type" VARCHAR(32) NOT NULL,
+    "aggregate_id" UUID NOT NULL,
+    "workspace_id" UUID,
+    "payload" JSONB NOT NULL DEFAULT '{}',
+    "status" "OutboxEventStatus" NOT NULL DEFAULT 'PENDING',
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "next_attempt_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "locked_at" TIMESTAMPTZ(6),
+    "locked_by" VARCHAR(64),
+    "processed_at" TIMESTAMPTZ(6),
+    "last_error" TEXT,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "outbox_events_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateIndex
@@ -438,6 +467,9 @@ CREATE UNIQUE INDEX "ai_providers_slug_key" ON "ai_providers"("slug");
 CREATE UNIQUE INDEX "ai_models_provider_id_slug_key" ON "ai_models"("provider_id", "slug");
 
 -- CreateIndex
+CREATE INDEX "workspace_ai_settings_default_model_id_idx" ON "workspace_ai_settings"("default_model_id");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "plans_slug_key" ON "plans"("slug");
 
 -- CreateIndex
@@ -460,6 +492,12 @@ CREATE INDEX "files_workspace_id_idx" ON "files"("workspace_id");
 
 -- CreateIndex
 CREATE INDEX "page_files_file_id_idx" ON "page_files"("file_id");
+
+-- CreateIndex
+CREATE INDEX "outbox_events_status_next_attempt_at_idx" ON "outbox_events"("status", "next_attempt_at");
+
+-- CreateIndex
+CREATE INDEX "outbox_events_aggregate_type_aggregate_id_idx" ON "outbox_events"("aggregate_type", "aggregate_id");
 
 -- AddForeignKey
 ALTER TABLE "accounts" ADD CONSTRAINT "accounts_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -532,6 +570,12 @@ ALTER TABLE "integrations" ADD CONSTRAINT "integrations_workspace_id_fkey" FOREI
 
 -- AddForeignKey
 ALTER TABLE "ai_models" ADD CONSTRAINT "ai_models_provider_id_fkey" FOREIGN KEY ("provider_id") REFERENCES "ai_providers"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "workspace_ai_settings" ADD CONSTRAINT "workspace_ai_settings_workspace_id_fkey" FOREIGN KEY ("workspace_id") REFERENCES "workspaces"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "workspace_ai_settings" ADD CONSTRAINT "workspace_ai_settings_default_model_id_fkey" FOREIGN KEY ("default_model_id") REFERENCES "ai_models"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;

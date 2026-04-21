@@ -3,7 +3,15 @@
 import { useRouter } from "next/navigation"
 import { useState } from "react"
 
-import { Alert, Box, Button, Stack, TextField, Typography } from "@repo/ui/components"
+import {
+  Alert,
+  Box,
+  Button,
+  EmojiIconButton,
+  Stack,
+  TextField,
+  Typography,
+} from "@repo/ui/components"
 
 import { trpc } from "@/trpc/client"
 
@@ -41,21 +49,32 @@ export function NewWorkspaceForm() {
           </Typography>
         </Stack>
         {error && <Alert severity="error">{error}</Alert>}
-        <TextField
-          label="Название"
-          value={name}
-          onChange={(e) => setName(e.target.value)}
-          required
-          inputProps={{ maxLength: 64 }}
-          autoFocus
-        />
-        <TextField
-          label="Иконка (эмодзи)"
-          value={icon}
-          onChange={(e) => setIcon(e.target.value)}
-          inputProps={{ maxLength: 4 }}
-          helperText="Один эмодзи для украшения сайдбара"
-        />
+        <Stack direction="row" spacing={1.5} alignItems="center">
+          <EmojiIconButton
+            value={icon}
+            onChange={setIcon}
+            aria-label="Выбрать иконку"
+            sx={{
+              width: 56,
+              height: 56,
+              p: 0.5,
+              borderRadius: 1,
+              border: 1,
+              borderColor: "divider",
+              flexShrink: 0,
+            }}
+            emojiSize={32}
+          />
+          <TextField
+            label="Название"
+            value={name}
+            onChange={(e) => setName(e.target.value)}
+            required
+            inputProps={{ maxLength: 64 }}
+            autoFocus
+            fullWidth
+          />
+        </Stack>
         <Button
           type="submit"
           variant="contained"

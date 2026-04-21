@@ -7,7 +7,6 @@ import { usePathname } from "next/navigation"
 
 import {
   Box,
-  ChatBubbleOutlineIcon,
   DeleteIcon,
   IconButton,
   KeyboardDoubleArrowLeftIcon,
@@ -110,13 +109,6 @@ export function WorkspaceSidebar({ workspace, planName, pages, onHide, userMenu 
       <Box sx={{ flex: 1 }} />
 
       <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 1.25 }}>
-        <NavItem
-          icon={<ChatBubbleOutlineIcon sx={{ fontSize: 16 }} />}
-          label="AI чаты"
-          href={`/workspaces/${workspace.id}/chats`}
-          matchPrefix={`/workspaces/${workspace.id}/chat`}
-          pathname={pathname}
-        />
         <NavItem
           icon={<DeleteIcon sx={{ fontSize: 16 }} />}
           label="Корзина"

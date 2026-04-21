@@ -1,9 +1,0 @@
-{
-  "$schema": "https://json.schemastore.org/tsconfig",
-  "extends": "@repo/typescript-config/react-library.json",
-  "compilerOptions": {
-    "outDir": "dist",
-    "types": ["react", "react-dom", "node"]
-  },
-  "include": ["src", "test"]
-}

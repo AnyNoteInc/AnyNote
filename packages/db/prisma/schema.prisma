@@ -211,7 +211,6 @@ model Page {
   parent    Page?          @relation("PageTree", fields: [parentId], references: [id], onDelete: SetNull)
   favorites FavoritePage[]
   files     PageFile[]
-  systemPromptOf WorkspaceAiSettings[] @relation("WorkspaceSystemPrompt")
 
   @@index([workspaceId])
   @@index([parentId])
@@ -344,62 +343,50 @@ model Integration {
 }
 
 model AiProvider {
-  id                String    @id @default(uuid(7)) @db.Uuid
-  slug              String    @unique @db.VarChar(50)
-  name              String    @db.VarChar(100)
-  defaultBaseUrl    String?   @map("default_base_url") @db.VarChar(255)
-  credentialsSchema Json      @default("{}") @map("credentials_schema")
-  docsUrl           String?   @map("docs_url")
-  supportsStreaming Boolean   @default(true) @map("supports_streaming")
-  supportsTools     Boolean   @default(false) @map("supports_tools")
-  isActive          Boolean   @default(true) @map("is_active")
-  createdAt         DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  models            AiModel[]
+  id         String    @id @default(uuid(7)) @db.Uuid
+  slug       String    @unique @db.VarChar(50)
+  name       String    @db.VarChar(100)
+  connection Json      @default("{}") @map("connection")
+  isActive   Boolean   @default(true) @map("is_active")
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  models     AiModel[]
 
   @@map("ai_providers")
 }
 
 model AiModel {
-  id                      String     @id @default(uuid(7)) @db.Uuid
-  providerId              String     @map("provider_id") @db.Uuid
-  slug                    String     @db.VarChar(100)
-  displayName             String     @map("display_name") @db.VarChar(150)
-  contextTokens           Int        @map("context_tokens")
-  maxOutputTokens         Int        @map("max_output_tokens")
-  supportsVision          Boolean    @default(false) @map("supports_vision")
-  supportsFunctionCalling Boolean    @default(false) @map("supports_function_calling")
-  minPlanSlug             String?    @map("min_plan_slug")
-  defaultTemperature      Float?     @map("default_temperature")
-  isActive                Boolean    @default(true) @map("is_active")
-  deprecatedAt            DateTime?  @map("deprecated_at") @db.Timestamptz(6)
-  createdAt               DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt               DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
-  provider                AiProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  workspaceSettings       WorkspaceAiSettings[]
+  id                String     @id @default(uuid(7)) @db.Uuid
+  providerId        String     @map("provider_id") @db.Uuid
+  slug              String     @db.VarChar(100)
+  displayName       String     @map("display_name") @db.VarChar(150)
+  contextTokens     Int        @map("context_tokens")
+  supportsVision    Boolean    @default(false) @map("supports_vision")
+  minPlanSlug       String?    @map("min_plan_slug")
+  isActive          Boolean    @default(true) @map("is_active")
+  deprecatedAt      DateTime?  @map("deprecated_at") @db.Timestamptz(6)
+  createdAt         DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
+  provider          AiProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  workspaceSettings WorkspaceAiSettings[]
 
   @@unique([providerId, slug])
   @@map("ai_models")
 }
 
 model WorkspaceAiSettings {
-  workspaceId         String   @id @map("workspace_id") @db.Uuid
-  defaultModelId      String?  @map("default_model_id") @db.Uuid
-  systemPromptPageId  String?  @map("system_prompt_page_id") @db.Uuid
-  temperature         Float?
-  maxOutputTokens     Int?     @map("max_output_tokens")
-  topP                Float?   @map("top_p")
-  providerCredentials Json?    @default("{}") @map("provider_credentials")
-  skillPageIds        String[] @default([]) @map("skill_page_ids") @db.Uuid
-  createdAt           DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt           DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  workspaceId    String   @id @map("workspace_id") @db.Uuid
+  defaultModelId String?  @map("default_model_id") @db.Uuid
+  systemPrompt   String?  @map("system_prompt") @db.Text
+  temperature    Float    @default(0.2)
+  topP           Float    @default(0.5) @map("top_p")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  defaultModel     AiModel?  @relation(fields: [defaultModelId], references: [id], onDelete: SetNull)
-  systemPromptPage Page?     @relation("WorkspaceSystemPrompt", fields: [systemPromptPageId], references: [id], onDelete: SetNull)
+  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  defaultModel AiModel?  @relation(fields: [defaultModelId], references: [id], onDelete: SetNull)
 
   @@index([defaultModelId])
-  @@index([systemPromptPageId])
   @@map("workspace_ai_settings")
 }
 

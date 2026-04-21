@@ -55,7 +55,7 @@ export function WorkspaceLayoutClient({
     window.localStorage.setItem(STORAGE_KEY, String(hidden))
   }, [hidden])
 
-  const chatIdMatch = pathname.match(/\/search\/([a-f0-9-]{36})$/)
+  const chatIdMatch = pathname.match(/\/chats\/([a-f0-9-]{36})$/)
   const activeChatId = chatIdMatch?.[1] ?? null
 
   const chats = trpc.chat.listChats.useQuery(
@@ -65,8 +65,8 @@ export function WorkspaceLayoutClient({
   const activeChat = activeChatId ? (chats.data?.find((c) => c.id === activeChatId) ?? null) : null
 
   const breadcrumbs = useMemo(() => {
-    if (pathname.includes("/search")) {
-      const base = { label: "Поиск", href: `/workspaces/${workspace.id}/search` }
+    if (pathname.includes("/chats")) {
+      const base = { label: "Чаты", href: `/workspaces/${workspace.id}/chats` }
       if (activeChat) return [base, { label: activeChat.title ?? "Без названия" }]
       return [base]
     }

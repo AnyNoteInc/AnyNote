@@ -1006,3 +1006,36 @@ x-Workspace-Id: 21ab1e33-ac0d-4f03-8f63-8f3f830b0cc1
 1. он проверял возможность причастности X-User-Id к пространству x-Workspace-Id
 2. во всех схеме удалял поля userId & workspaceId и забирал их из заголовков
 3. Этот запрос должен вернуть ответ о статистике страницы
+
+
+---
+
+Есть несколько изменений по apps/web
+1. Удали страницу /workspaces/{workspaceId}/chats, удали из сайдбара AI чаты
+2. Переименуй search -> chats, /workspaces/{workspaceId}/search/{chatId} -> /workspaces/{workspaceId}/chats/{chatId}
+3. При создании нового пространства заполни страницу Welcome to AnyNote с иконкой 👋, внутри сделай контент из списка дел
+  - [x] Создать аккаунт в AnyNote
+  - [ ] Нажать где-нибудь внизу `/` и посмотреть элементы
+    - [ ] Ввести `/image`, нажать Enter и загрузить свое фото
+  - [ ] Создать новую страницу в сайдбаре слева 👈
+4. На странице настройки AI агента /workspaces/{workspaceId}/settings/ai
+  - В первом разделе убрать контрол ввода максимальное количество токенов в ответе, удалить это поле из базы, если оно есть
+  - В первом разделе настройку температуры удалить
+  - Раздел API ключи провайдеров полностью удалить, удалить trpc методы, которые это использовали
+  - Раздел скиллы удалить и удалить из базы данных поля
+  - Раздел переиндексацию удалить и удалить trpc метод с бизнес логикой, которое отвечает за это
+5. Из таблицы ai_providers удалить поля default_base_url, docs_url, supports_streaming, supports_tools
+6. Из таблицы ai_models удали поля max_output_tokens, supports_function_calling, default_temperature
+6. В таблице credential_schema переименуй в connection
+7. Из выбранных моделей в сиде оставить только две
+  - Gigachat 
+    - slug: gigachat
+    - name: GigaCaht
+    - connection: {"clientId": "019da3de-19e1-7f92-a0e1-5b90595c8e6c", "clientSecret": "e0762394-8b7c-48d4-84ea-dd3e4e57420b", "scope": "GIGACHAT_API_PERS" }
+    модель в ai_models оставь только GigaChat-2
+  - Ollama
+    - slug: ollama
+    - name: Ollama
+    - connection: {"baseUrl": "http://localhost:11434"}
+    модель в ai_models оставь gemma4
+8. Удали пакет @repo/chat и все что связано с ним

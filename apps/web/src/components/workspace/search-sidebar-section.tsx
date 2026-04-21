@@ -7,6 +7,7 @@ import { useMemo, useState } from "react"
 import {
   AddIcon,
   ArrowDropDownIcon,
+  ChatBubbleOutlineIcon,
   ChevronRightIcon,
   ArrowDropUpIcon,
   Box,
@@ -22,7 +23,6 @@ import {
   Menu,
   MenuItem,
   MoreHorizIcon,
-  SearchIcon,
   Stack,
   TextField,
   Typography,
@@ -60,7 +60,7 @@ function ChatTreeItem({
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [expanded, setExpanded] = useState(true)
 
-  const isActive = pathname === `/workspaces/${workspaceId}/search/${chat.id}`
+  const isActive = pathname === `/workspaces/${workspaceId}/chats/${chat.id}`
 
   const children = useMemo(
     () =>
@@ -81,14 +81,14 @@ function ChatTreeItem({
     onSuccess: async () => {
       await utils.chat.listChats.invalidate({ workspaceId })
       setDeleteOpen(false)
-      if (isActive) router.push(`/workspaces/${workspaceId}/search`)
+      if (isActive) router.push(`/workspaces/${workspaceId}/chats`)
     },
   })
 
   const createChild = trpc.chat.createChat.useMutation({
     onSuccess: async (data) => {
       await utils.chat.listChats.invalidate({ workspaceId })
-      router.push(`/workspaces/${workspaceId}/search/${data.id}`)
+      router.push(`/workspaces/${workspaceId}/chats/${data.id}`)
     },
   })
 
@@ -121,7 +121,7 @@ function ChatTreeItem({
           </IconButton>
         ) : null}
         <Link
-          href={`/workspaces/${workspaceId}/search/${chat.id}`}
+          href={`/workspaces/${workspaceId}/chats/${chat.id}`}
           style={{ textDecoration: "none", flex: 1, minWidth: 0 }}
         >
           <Typography
@@ -269,7 +269,7 @@ export function SearchSidebarSection({ workspaceId }: Props) {
   const create = trpc.chat.createChat.useMutation({
     onSuccess: async (data) => {
       await utils.chat.listChats.invalidate({ workspaceId })
-      router.push(`/workspaces/${workspaceId}/search/${data.id}`)
+      router.push(`/workspaces/${workspaceId}/chats/${data.id}`)
     },
   })
 
@@ -296,8 +296,8 @@ export function SearchSidebarSection({ workspaceId }: Props) {
           "&:hover": { color: "text.primary" },
         }}
       >
-        <SearchIcon sx={{ fontSize: 16 }} />
-        <span style={{ fontSize: 13, flex: 1 }}>Поиск</span>
+        <ChatBubbleOutlineIcon sx={{ fontSize: 16 }} />
+        <span style={{ fontSize: 13, flex: 1 }}>Чаты</span>
         {open ? (
           <ArrowDropUpIcon sx={{ fontSize: 16 }} />
         ) : (
