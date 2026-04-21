@@ -48,6 +48,17 @@ class RagDocumentsSchema(RequestResponseSchema):
     documents: Annotated[list[RagDocumentSchema], Field(default_factory=list)]
 
 
+class McpToolSchema(BaseModel):
+    name: str
+    description: str = ''
+
+
+class McpServerToolsSchema(BaseModel):
+    name: str
+    description: str = ''
+    tools: list[McpToolSchema] = Field(default_factory=list)
+
+
 class ModelConnectionSchema(RequestResponseSchema):
     base_url: str | None = None
     api_key: str | None = None
@@ -132,14 +143,6 @@ class QueryRequestSchema(RequestResponseSchema):
     """
     Сообщения пользователя.
     """
-    agents: Annotated[list[AgentConfigSchema], Field(default_factory=list)]
-    """
-    Список агентов.
-    """
-    skills: Annotated[list[SkillConfigSchema], Field(default_factory=list)]
-    """
-    Спилы пользователя.
-    """
     rag: RagDocumentsSchema | None = None
     """
     Документы для Retrieval Augmented Generation. Если указано, будет добавлено в контекст модели.
@@ -159,8 +162,10 @@ class GraphStateSchema(BaseModel):
     payload: QueryRequestSchema
     user_context: UserContextSchema
     messages: Annotated[list[BaseMessage], Field(default_factory=list)]
-    tools: Annotated[list[StructuredTool], Field(default_factory=list)]
+    tools: Annotated[list[McpServerToolsSchema], Field(default_factory=list)]
     response_text: str = ''
 
 
+class RuntimeContext(BaseModel):
+    tools: list[StructuredTool] =  Field(default_factory=list)
 

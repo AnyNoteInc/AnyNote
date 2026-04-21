@@ -8,7 +8,7 @@ from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field, create_model
 
 from ..errors import McpRequestError
-from ..schemas import McpServerSchema
+from ..schemas import McpServerSchema, McpServerToolsSchema, McpToolSchema
 
 log = logging.getLogger(__name__)
 
@@ -70,8 +70,9 @@ class McpToolsRepository:
                 raise McpRequestError(server, body['error'])
             return body.get('result') if isinstance(body, dict) else body
 
-    async def fetch_mcp_tools(self, servers: list[McpServerSchema]) -> list[StructuredTool]:
+    async def fetch_mcp_tools(self, servers: list[McpServerSchema]) -> tuple[list[StructuredTool], list[McpServerToolsSchema]]:
         tools: list[StructuredTool] = []
+        mcp_tools: list[McpServerToolsSchema] = []
         mcp_server_responses = await asyncio.gather(
             *[
                 self.post_mcp(server, {'jsonrpc': '2.0', 'id': 1, 'method': 'tools/list', 'params': {}})
@@ -83,9 +84,20 @@ class McpToolsRepository:
             if isinstance(response, Exception):
                 log.warning('MCP server %s unreachable: %s', mcp_server.name, response)
                 continue
+
+            mcp_server_tool = McpServerToolsSchema(name=mcp_server.name, description=mcp_server.description)
+
             for entry in response.get('tools', []) if isinstance(response, dict) else []:
                 tools.append(self.wrap_tool(mcp_server, entry))
-        return tools
+
+                mcp_server_tool.tools.append(McpToolSchema(
+                    name=entry.get('name', 'unnamed'),
+                    description=entry.get('description', ''),
+                ))
+            
+            mcp_tools.append(mcp_server_tool)
+
+        return tools, mcp_tools
 
     def wrap_tool(self, server: McpServerSchema, entry: dict[str, Any]) -> StructuredTool:
         name = str(entry.get('name') or 'unnamed')

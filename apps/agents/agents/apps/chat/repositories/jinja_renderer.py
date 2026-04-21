@@ -6,7 +6,7 @@ from jinja2 import Environment, FileSystemLoader
 
 from agents.settings import SettingsSchema
 
-from ..schemas import QueryRequestSchema
+from ..schemas import QueryRequestSchema, McpServerToolsSchema
 
 
 class JinjaRendererRepository:
@@ -17,7 +17,10 @@ class JinjaRendererRepository:
     def __init__(self, settings: SettingsSchema) -> None:
         path = join(settings.base_dir, 'agents', 'apps', 'chat', 'templates')
         self.environment = Environment(loader=FileSystemLoader(path))
+        self.template = self.environment.get_template(self.TEMPLATE_NAME)
 
-    def render(self, context: QueryRequestSchema) -> str:
-        template = self.environment.get_template(self.TEMPLATE_NAME)
-        return template.render(**context.model_dump(mode='json'))
+    def render(self, context: QueryRequestSchema, mcp_servers: list[McpServerToolsSchema]) -> str:
+        return self.template.render(**{
+            **context.model_dump(mode='json'),
+            'mcp_servers': mcp_servers,
+        })
