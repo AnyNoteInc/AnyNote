@@ -1,7 +1,7 @@
 from dataclasses import dataclass
-from typing import TypeAlias
 
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
+from langchain_core.tools import StructuredTool
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
@@ -10,13 +10,11 @@ from ..enums import RoleEnum
 from ..repositories import JinjaRendererRepository, McpToolsRepository, ModelFactoryRepository
 from ..schemas import GraphStateSchema
 
-CompiledGraph: TypeAlias = CompiledStateGraph[GraphStateSchema, None, GraphStateSchema, GraphStateSchema]
-
+type CompiledGraph = CompiledStateGraph[GraphStateSchema, None, GraphStateSchema, GraphStateSchema]
 
 
 @dataclass
 class GraphService:
-
     jinja_repository: JinjaRendererRepository
     mcp_tools_repository: McpToolsRepository
     model_factory_repository: ModelFactoryRepository
@@ -26,14 +24,15 @@ class GraphService:
         """
         Собираем главный граф для обработки запроса.
         """
+
         workflow: StateGraph[GraphStateSchema, None, GraphStateSchema, GraphStateSchema] = StateGraph(GraphStateSchema)
-        workflow.add_node("prepare_prompt", self.prepare_prompt)
-        workflow.add_node("llm", self.llm)
-        workflow.add_node("tools", self.tools_node)
-        workflow.add_edge(START, "prepare_prompt")
-        workflow.add_edge("prepare_prompt", "llm")
-        workflow.add_conditional_edges("llm", self.route_after_llm, {"tools": "tools", END: END})
-        workflow.add_edge("tools", "llm")
+        workflow.add_node('prepare_prompt', self.prepare_prompt)
+        workflow.add_node('llm', self.llm)
+        workflow.add_node('tools', self.tools)
+        workflow.add_edge(START, 'prepare_prompt')
+        workflow.add_edge('prepare_prompt', 'llm')
+        workflow.add_conditional_edges('llm', self.route_after_llm, {'tools': 'tools', END: END})
+        workflow.add_edge('tools', 'llm')
         return workflow.compile(checkpointer=self.checkpointer)
 
     async def prepare_prompt(self, state: GraphStateSchema) -> GraphStateSchema:
@@ -42,8 +41,7 @@ class GraphService:
 
         messages: list[BaseMessage] = [SystemMessage(content=system_prompt)]
         messages += [
-            HumanMessage(content=msg.content)
-            if msg.role == RoleEnum.USER else AIMessage(content=msg.content)
+            HumanMessage(content=msg.content) if msg.role == RoleEnum.USER else AIMessage(content=msg.content)
             for msg in payload.messages
         ]
 
@@ -56,8 +54,8 @@ class GraphService:
             payload=payload,
             user_context=state.user_context,
             system_prompt=system_prompt,
-            messages=messages,
             tools=tools,
+            messages=messages,
             response_text='',
         )
 
@@ -68,22 +66,22 @@ class GraphService:
         text = str(result.content)
         return GraphStateSchema(
             payload=state.payload,
+            tools=state.tools,
             user_context=state.user_context,
             system_prompt=state.system_prompt,
             messages=[*state.messages, result],
-            tools=state.tools,
             response_text=text,
         )
 
-    async def tools_node(self, state: GraphStateSchema) -> GraphStateSchema:
+    async def tools(self, state: GraphStateSchema) -> GraphStateSchema:
         last = state.messages[-1]
-        tool_calls = getattr(last, "tool_calls", None) or []
+        tool_calls = getattr(last, 'tool_calls', None) or []
         registered = {tool.name: tool for tool in state.tools}
         additions: list[BaseMessage] = []
         for call in tool_calls:
-            name = call["name"] if isinstance(call, dict) else call.name
-            args = call["args"] if isinstance(call, dict) else call.args
-            call_id = call["id"] if isinstance(call, dict) else call.id
+            name = call['name'] if isinstance(call, dict) else call.name
+            args = call['args'] if isinstance(call, dict) else call.args
+            call_id = call['id'] if isinstance(call, dict) else call.id
             tool = registered.get(name)
             if tool is None:
                 content = f"tool '{name}' is not registered"
@@ -97,8 +95,8 @@ class GraphService:
             payload=state.payload,
             user_context=state.user_context,
             system_prompt=state.system_prompt,
-            messages=[*state.messages, *additions],
             tools=state.tools,
+            messages=[*state.messages, *additions],
             response_text=state.response_text,
         )
 
@@ -106,5 +104,5 @@ class GraphService:
         last = state.messages[-1]
         tool_calls = getattr(last, 'tool_calls', [])
         if tool_calls and state.tools:
-            return "tools"
+            return 'tools'
         return END
