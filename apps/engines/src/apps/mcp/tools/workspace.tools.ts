@@ -1,4 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common"
+import type { Context } from "@rekog/mcp-nest"
 import { Tool } from "@rekog/mcp-nest"
 import type { PrismaClient } from "@repo/db"
 import { z } from "zod"
@@ -8,10 +9,21 @@ import { PageNotFoundError } from "../errors/mcp.errors.js"
 import { WorkspaceMemberGuard } from "../guards/workspace-member.guard.js"
 import { PageWriter } from "../services/page-writer.service.js"
 import { StatsService } from "../services/stats.service.js"
+import { getMcpRequestContext, type McpRequestWithContext } from "../utils/mcp-request-context.js"
 
-const UserWorkspace = z.object({
-  userId: z.string().uuid(),
-  workspaceId: z.string().uuid(),
+const PaginationInput = z.object({
+  limit: z.number().int().positive().max(200).default(50),
+  offset: z.number().int().nonnegative().default(0),
+})
+
+const LimitInput = z.object({
+  limit: z.number().int().positive().max(200).default(50),
+})
+
+const CreatePageFromFileInput = z.object({
+  parentId: z.string().uuid().nullable().optional(),
+  fileId: z.string().uuid(),
+  title: z.string().min(1).max(255).optional(),
 })
 
 @Injectable()
@@ -26,30 +38,32 @@ export class WorkspaceTools {
   @Tool({
     name: "getWorkspaceStats",
     description: "Workspace members, pages-by-type, total pages",
-    parameters: UserWorkspace,
+    parameters: z.object({}),
   })
-  async getWorkspaceStats(args: { userId: string; workspaceId: string }) {
-    await this.guard.assert(args.workspaceId, args.userId)
-    return this.stats.getWorkspaceStats(args.workspaceId)
+  async getWorkspaceStats(
+    _args: Record<string, never>,
+    _context: Context,
+    req: McpRequestWithContext,
+  ) {
+    const requestContext = getMcpRequestContext(req)
+    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
+    return this.stats.getWorkspaceStats(requestContext.workspaceId)
   }
 
   @Tool({
     name: "listWorkspaceFiles",
     description: "List all files in a workspace",
-    parameters: UserWorkspace.extend({
-      limit: z.number().int().positive().max(200).default(50),
-      offset: z.number().int().nonnegative().default(0),
-    }),
+    parameters: PaginationInput,
   })
-  async listWorkspaceFiles(args: {
-    userId: string
-    workspaceId: string
-    limit: number
-    offset: number
-  }) {
-    await this.guard.assert(args.workspaceId, args.userId)
+  async listWorkspaceFiles(
+    args: z.infer<typeof PaginationInput>,
+    _context: Context,
+    req: McpRequestWithContext,
+  ) {
+    const requestContext = getMcpRequestContext(req)
+    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
     const files = await this.prisma.file.findMany({
-      where: { workspaceId: args.workspaceId, status: "ACTIVE" },
+      where: { workspaceId: requestContext.workspaceId, status: "ACTIVE" },
       orderBy: { createdAt: "desc" },
       take: args.limit,
       skip: args.offset,
@@ -69,58 +83,65 @@ export class WorkspaceTools {
   @Tool({
     name: "listSkills",
     description: "List skill pages (ownership=SKILL) in a workspace",
-    parameters: UserWorkspace.extend({ limit: z.number().int().positive().max(200).default(50) }),
+    parameters: LimitInput,
   })
-  async listSkills(args: { userId: string; workspaceId: string; limit: number }) {
-    await this.guard.assert(args.workspaceId, args.userId)
-    return this.listOwnershipPages(args.workspaceId, "SKILL", args.limit)
+  async listSkills(
+    args: z.infer<typeof LimitInput>,
+    _context: Context,
+    req: McpRequestWithContext,
+  ) {
+    const requestContext = getMcpRequestContext(req)
+    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
+    return this.listOwnershipPages(requestContext.workspaceId, "SKILL", args.limit)
   }
 
   @Tool({
     name: "listAgents",
     description: "List agent pages (ownership=AGENT) in a workspace",
-    parameters: UserWorkspace.extend({ limit: z.number().int().positive().max(200).default(50) }),
+    parameters: LimitInput,
   })
-  async listAgents(args: { userId: string; workspaceId: string; limit: number }) {
-    await this.guard.assert(args.workspaceId, args.userId)
-    return this.listOwnershipPages(args.workspaceId, "AGENT", args.limit)
+  async listAgents(
+    args: z.infer<typeof LimitInput>,
+    _context: Context,
+    req: McpRequestWithContext,
+  ) {
+    const requestContext = getMcpRequestContext(req)
+    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
+    return this.listOwnershipPages(requestContext.workspaceId, "AGENT", args.limit)
   }
 
   @Tool({
     name: "createPageFromFile",
     description: "Create a page and attach an existing workspace file to it",
-    parameters: UserWorkspace.extend({
-      parentId: z.string().uuid().nullable().optional(),
-      fileId: z.string().uuid(),
-      title: z.string().min(1).max(255).optional(),
-    }),
+    parameters: CreatePageFromFileInput,
   })
-  async createPageFromFile(args: {
-    userId: string
-    workspaceId: string
-    parentId?: string | null
-    fileId: string
-    title?: string
-  }) {
-    await this.guard.assert(args.workspaceId, args.userId)
+  async createPageFromFile(
+    args: z.infer<typeof CreatePageFromFileInput>,
+    _context: Context,
+    req: McpRequestWithContext,
+  ) {
+    const requestContext = getMcpRequestContext(req)
+    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
     const file = await this.prisma.file.findUnique({
       where: { id: args.fileId },
       select: { id: true, workspaceId: true, name: true },
     })
-    if (!file || file.workspaceId !== args.workspaceId) throw new PageNotFoundError(args.fileId)
+    if (!file || file.workspaceId !== requestContext.workspaceId) {
+      throw new PageNotFoundError(args.fileId)
+    }
     if (args.parentId) {
       const parent = await this.prisma.page.findUnique({
         where: { id: args.parentId },
         select: { workspaceId: true, deletedAt: true },
       })
-      if (!parent || parent.workspaceId !== args.workspaceId || parent.deletedAt) {
+      if (!parent || parent.workspaceId !== requestContext.workspaceId || parent.deletedAt) {
         throw new PageNotFoundError(args.parentId)
       }
     }
     const title = args.title ?? file.name
     const pageId = await this.writer.createPage({
-      userId: args.userId,
-      workspaceId: args.workspaceId,
+      userId: requestContext.userId,
+      workspaceId: requestContext.workspaceId,
       parentId: args.parentId,
       title,
       ownership: "TEXT",

@@ -970,3 +970,39 @@ It can also happen if the client has a browser extension installed which messes 
     - в метаданные Qdrant записать следующие поля
       - pageId
       - workspaceId
+
+---
+
+когда я запускаю сервис engines командой pnpm run dev --filter engines
+1. парадет ошибка, добавь пакет @nestjs/config и запусти приложение
+2. добавь сваггер
+
+---
+
+
+сервис apps/engines явлеятся mcp сервисом, его должно быть можно вызвать следующим образом 
+
+```http
+POST http://localhost:8090/api/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+X-User-Id: 019da937-08fb-74c9-bccf-d0d161ac8d85
+x-Workspace-Id: 21ab1e33-ac0d-4f03-8f63-8f3f830b0cc1
+
+{
+  "id": "0",
+  "jsonrpc": "2.0",
+  "method": "tools/call",
+  "params": {
+      "name": "getPageStats",
+      "arguments": {
+          "pageId": "b040f19a-3c27-499c-8ae0-8e4d5c3279cd"
+      }
+  }
+}
+```
+
+переделай структуру так, чтобы
+1. он проверял возможность причастности X-User-Id к пространству x-Workspace-Id
+2. во всех схеме удалял поля userId & workspaceId и забирал их из заголовков
+3. Этот запрос должен вернуть ответ о статистике страницы

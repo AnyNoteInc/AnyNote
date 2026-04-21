@@ -26,6 +26,8 @@ content-type: application/json
 ###
 POST http://localhost:8080/chat/generate HTTP/1.1
 content-type: application/json
+x-user-id: 123e4567-e89b-12d3-a456-426614174000
+x-workspace-id: 123e4567-e89b-12d3-a456-426614174001
 
 {
   "threadId": "3fa85f64-5717-4562-b3fc-2c963f66afa6",
@@ -43,12 +45,26 @@ content-type: application/json
     }
   },
   "systemPrompt": "Ты профессиональный помощник, который помогает пользователю с его запросами. Ты всегда отвечаешь на русском языке.",
+  "mcp": {
+    "servers": [{
+      "name": "AnyNote MCP Server",
+      "url": "http://localhost:8090/api/mcp",
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
+        "X-User-Id": "019da937-08fb-74c9-bccf-d0d161ac8d85",
+        "x-Workspace-Id": "21ab1e33-ac0d-4f03-8f63-8f3f830b0cc1"
+      },
+      "retries": 3,
+      "verify": false
+    }]
+  },
   "instruction": {
     "format": "markdown",
     "language": "ru",
     "citationsRequired": true
   },
-  "query": "Как поймать утку в пруду?"
+  "query": "Какой тулинг у тебя есть?"
 }
 
 
@@ -60,3 +76,5 @@ content-type: application/json
   "text": "Ты профессиональный помощник, который помогает пользователю с его запросами. Ты всегда отвечаешь на русском языке.",
   "language": "auto"
 }
+
+

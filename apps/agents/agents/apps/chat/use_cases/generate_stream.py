@@ -1,15 +1,14 @@
+from collections.abc import AsyncIterator
 from dataclasses import dataclass
 from logging import getLogger
-from collections.abc import AsyncIterator
 from typing import Literal
 
 from langchain_core.messages import AIMessage, AIMessageChunk, AnyMessage, ToolMessage
 from langchain_core.runnables import RunnableConfig
 
-from ..services import GraphService
 from ..errors import ProviderError
-from ..schemas import ServerEvent, QueryRequestSchema, GraphStateSchema
-
+from ..schemas import GraphStateSchema, QueryRequestSchema, ServerEvent, UserContextSchema
+from ..services import GraphService
 
 INTERNAL_ERROR_MESSAGE = "Internal server error"
 
@@ -21,15 +20,15 @@ class GenerateStreamUseCase:
     graph_service: GraphService
 
 
-    async def __call__(self, query_request: QueryRequestSchema) -> AsyncIterator[ServerEvent]:
+    async def __call__(self, query_request: QueryRequestSchema, user_context: UserContextSchema) -> AsyncIterator[ServerEvent]:
         config: RunnableConfig = {"configurable": {"thread_id": str(query_request.thread_id)}}
         initial_state = GraphStateSchema.model_validate({
             'payload': query_request,
-            'system_prompt': query_request.system_prompt
+            'system_prompt': query_request.system_prompt,
+            'user_context': user_context,
         })
         stream_modes: list[Literal['messages'] | Literal['updates']] = ['messages', 'updates']
 
-        
         try:
             graph = self.graph_service.make_graph(initial_state)
             async for chunk in graph.astream(initial_state, config, stream_mode=stream_modes, version='v2'):
@@ -70,7 +69,7 @@ class GenerateStreamUseCase:
                         fragments.append(text)
             return "".join(fragments) or None
         return None
-    
+
     def render_completed_message(self,message: AnyMessage) -> str | None:
         if isinstance(message, AIMessage) and message.tool_calls:
             return ','.join([str(call) for call in message.tool_calls])

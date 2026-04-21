@@ -10,7 +10,6 @@ const config: Config = {
   },
   extensionsToTreatAsEsm: [".ts"],
   moduleNameMapper: {
-    "^@src/(.*)$": "<rootDir>/src/$1",
     "^(\\.{1,2}/.*)\\.js$": "$1",
     "^@repo/db$": "<rootDir>/../../packages/db/src/index.ts",
     "^@repo/storage$": "<rootDir>/../../packages/storage/src/index.ts",

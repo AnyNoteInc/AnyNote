@@ -9,11 +9,7 @@
     "experimentalDecorators": true,
     "sourceMap": true,
     "declaration": false,
-    "declarationMap": false,
-    "baseUrl": "./",
-    "paths": {
-      "@src/*": ["src/*"]
-    }
+    "declarationMap": false
   },
   "include": ["src/**/*"]
 }

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-from pathlib import Path
 from os.path import join
 
 from jinja2 import Environment, FileSystemLoader

@@ -1,11 +1,10 @@
-from importlib import import_module
 from logging.config import fileConfig
 
+from agents.settings import settings
 from alembic import context
 from fast_clean.contrib.sqlalchemy_utils.utils import render_item
 from fast_clean.db import Base
 from sqlalchemy import engine_from_config, pool
-from agents.settings import settings
 
 # Import models
 

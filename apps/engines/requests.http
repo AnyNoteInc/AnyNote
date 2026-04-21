@@ -1,0 +1,33 @@
+###
+POST http://localhost:8090/api/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+X-User-Id: 019da937-08fb-74c9-bccf-d0d161ac8d85
+x-Workspace-Id: 21ab1e33-ac0d-4f03-8f63-8f3f830b0cc1
+
+{
+    "id": "0",
+    "jsonrpc": "2.0",
+    "method": "tools/list",
+    "params": {}
+}
+
+
+###
+POST http://localhost:8090/api/mcp
+Content-Type: application/json
+Accept: application/json, text/event-stream
+X-User-Id: 019da937-08fb-74c9-bccf-d0d161ac8d85
+x-Workspace-Id: 21ab1e33-ac0d-4f03-8f63-8f3f830b0cc1
+
+{
+    "id": "0",
+    "jsonrpc": "2.0",
+    "method": "tools/call",
+    "params": {
+        "name": "getPageStats",
+        "arguments": {
+            "pageId": "b040f19a-3c27-499c-8ae0-8e4d5c3279cd"
+        }
+    }
+}

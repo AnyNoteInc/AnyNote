@@ -1,10 +1,12 @@
+from typing import Annotated
 
 from dishka.integrations.fastapi import FromDishka, inject
-from fastapi import APIRouter
+from fastapi import APIRouter, Header
 from sse_starlette.sse import EventSourceResponse
 
-from agents.apps.chat.schemas import QueryRequestSchema
 from agents.apps.chat.use_cases import GenerateStreamUseCase
+
+from .schemas import QueryRequestSchema, UserContextSchema
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
@@ -13,6 +15,7 @@ router = APIRouter(prefix="/chat", tags=["Chat"])
 @inject
 async def generate(
     query_reqyest: QueryRequestSchema,
-    use_case: FromDishka[GenerateStreamUseCase],
+    generate_stream_use_case: FromDishka[GenerateStreamUseCase],
+    user_context: Annotated[UserContextSchema, Header()]
 ) -> EventSourceResponse:
-    return EventSourceResponse(use_case(query_reqyest), ping=15)
+    return EventSourceResponse(generate_stream_use_case(query_reqyest, user_context), ping=15)

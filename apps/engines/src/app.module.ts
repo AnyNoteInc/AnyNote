@@ -1,5 +1,6 @@
 import { BullModule } from "@nestjs/bullmq"
 import { Module } from "@nestjs/common"
+import { ConfigModule } from "@nestjs/config"
 import { ScheduleModule } from "@nestjs/schedule"
 
 import { IndexerModule } from "./apps/indexer/indexer.module.js"
@@ -11,6 +12,7 @@ import { QdrantModule } from "./infra/qdrant/qdrant.module.js"
 
 @Module({
   imports: [
+    ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
     BullModule.forRoot({
       connection: {

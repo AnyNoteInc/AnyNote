@@ -1,4 +1,5 @@
 import { Inject, Injectable } from "@nestjs/common"
+import type { Context } from "@rekog/mcp-nest"
 import { Tool } from "@rekog/mcp-nest"
 import type { PrismaClient } from "@repo/db"
 import { z } from "zod"
@@ -9,11 +10,28 @@ import { WorkspaceMemberGuard } from "../guards/workspace-member.guard.js"
 import { MarkdownRenderer } from "../services/markdown-renderer.service.js"
 import { PageWriter } from "../services/page-writer.service.js"
 import { StatsService } from "../services/stats.service.js"
+import { getMcpRequestContext, type McpRequestWithContext } from "../utils/mcp-request-context.js"
 
-const UserWorkspace = z.object({
-  userId: z.string().uuid(),
-  workspaceId: z.string().uuid(),
+const CreatePageInput = z.object({
+  parentId: z.string().uuid().nullable().optional(),
+  title: z.string().min(1).max(255),
+  ownership: z.enum(["TEXT", "SKILL", "AGENT"]).default("TEXT"),
 })
+
+const UpdatePageInput = z.object({
+  pageId: z.string().uuid(),
+  title: z.string().max(255).optional(),
+  icon: z.string().nullable().optional(),
+  content: z.unknown().optional(),
+})
+
+const MovePageInput = z.object({
+  pageId: z.string().uuid(),
+  newParentId: z.string().uuid().nullable().optional(),
+  prevPageId: z.string().uuid().nullable().optional(),
+})
+
+const PageIdInput = z.object({ pageId: z.string().uuid() })
 
 @Injectable()
 export class PageTools {
@@ -28,23 +46,18 @@ export class PageTools {
   @Tool({
     name: "createPage",
     description: "Create a new page in a workspace",
-    parameters: UserWorkspace.extend({
-      parentId: z.string().uuid().nullable().optional(),
-      title: z.string().min(1).max(255),
-      ownership: z.enum(["TEXT", "SKILL", "AGENT"]).default("TEXT"),
-    }),
+    parameters: CreatePageInput,
   })
-  async createPage(args: {
-    userId: string
-    workspaceId: string
-    parentId?: string | null
-    title: string
-    ownership?: "TEXT" | "SKILL" | "AGENT"
-  }) {
-    await this.guard.assert(args.workspaceId, args.userId)
+  async createPage(
+    args: z.infer<typeof CreatePageInput>,
+    _context: Context,
+    req: McpRequestWithContext,
+  ) {
+    const requestContext = getMcpRequestContext(req)
+    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
     const pageId = await this.writer.createPage({
-      userId: args.userId,
-      workspaceId: args.workspaceId,
+      userId: requestContext.userId,
+      workspaceId: requestContext.workspaceId,
       parentId: args.parentId,
       title: args.title,
       ownership: args.ownership,
@@ -55,69 +68,77 @@ export class PageTools {
   @Tool({
     name: "updatePage",
     description: "Update page title/icon/content",
-    parameters: UserWorkspace.extend({
-      pageId: z.string().uuid(),
-      title: z.string().max(255).optional(),
-      icon: z.string().nullable().optional(),
-      content: z.unknown().optional(),
-    }),
+    parameters: UpdatePageInput,
   })
-  async updatePage(args: {
-    userId: string
-    workspaceId: string
-    pageId: string
-    title?: string
-    icon?: string | null
-    content?: unknown
-  }) {
-    await this.guard.assert(args.workspaceId, args.userId)
-    await this.writer.updatePage(args)
+  async updatePage(
+    args: z.infer<typeof UpdatePageInput>,
+    _context: Context,
+    req: McpRequestWithContext,
+  ) {
+    const requestContext = getMcpRequestContext(req)
+    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
+    await this.writer.updatePage({
+      ...args,
+      userId: requestContext.userId,
+      workspaceId: requestContext.workspaceId,
+    })
     return { ok: true as const }
   }
 
   @Tool({
     name: "movePage",
     description: "Move a page to a new parent or reorder",
-    parameters: UserWorkspace.extend({
-      pageId: z.string().uuid(),
-      newParentId: z.string().uuid().nullable().optional(),
-      prevPageId: z.string().uuid().nullable().optional(),
-    }),
+    parameters: MovePageInput,
   })
-  async movePage(args: {
-    userId: string
-    workspaceId: string
-    pageId: string
-    newParentId?: string | null
-    prevPageId?: string | null
-  }) {
-    await this.guard.assert(args.workspaceId, args.userId)
-    await this.writer.movePage(args)
+  async movePage(
+    args: z.infer<typeof MovePageInput>,
+    _context: Context,
+    req: McpRequestWithContext,
+  ) {
+    const requestContext = getMcpRequestContext(req)
+    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
+    await this.writer.movePage({
+      ...args,
+      userId: requestContext.userId,
+      workspaceId: requestContext.workspaceId,
+    })
     return { ok: true as const }
   }
 
   @Tool({
     name: "getPageMarkdown",
     description: "Render page content as Markdown",
-    parameters: UserWorkspace.extend({ pageId: z.string().uuid() }),
+    parameters: PageIdInput,
   })
-  async getPageMarkdown(args: { userId: string; workspaceId: string; pageId: string }) {
-    await this.guard.assert(args.workspaceId, args.userId)
+  async getPageMarkdown(
+    args: z.infer<typeof PageIdInput>,
+    _context: Context,
+    req: McpRequestWithContext,
+  ) {
+    const requestContext = getMcpRequestContext(req)
+    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
     const page = await this.prisma.page.findUnique({
       where: { id: args.pageId },
       select: { workspaceId: true, content: true },
     })
-    if (!page || page.workspaceId !== args.workspaceId) throw new PageNotFoundError(args.pageId)
+    if (!page || page.workspaceId !== requestContext.workspaceId) {
+      throw new PageNotFoundError(args.pageId)
+    }
     return { markdown: this.renderer.render(page.content as never) }
   }
 
   @Tool({
     name: "getPageStats",
     description: "Return page metadata (creator, creation date, type, ownership)",
-    parameters: UserWorkspace.extend({ pageId: z.string().uuid() }),
+    parameters: PageIdInput,
   })
-  async getPageStats(args: { userId: string; workspaceId: string; pageId: string }) {
-    await this.guard.assert(args.workspaceId, args.userId)
-    return this.stats.getPageStats(args.pageId, args.workspaceId)
+  async getPageStats(
+    args: z.infer<typeof PageIdInput>,
+    _context: Context,
+    req: McpRequestWithContext,
+  ) {
+    const requestContext = getMcpRequestContext(req)
+    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
+    return this.stats.getPageStats(args.pageId, requestContext.workspaceId)
   }
 }

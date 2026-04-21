@@ -1,8 +1,16 @@
 {
   "folders": [
     {
+      "path": "apps/web",
+      "name": "web"
+    },
+    {
       "path": "apps/agents",
       "name": "agents"
+    },
+    {
+      "path": "apps/engines",
+      "name": "engines"
     },
     {
       "path": ".",

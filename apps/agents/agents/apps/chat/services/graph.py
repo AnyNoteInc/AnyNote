@@ -1,22 +1,14 @@
 from dataclasses import dataclass
+from typing import TypeAlias
 
-from collections.abc import Callable
-from typing import TypeAlias, TypedDict
-
-from langchain_core.language_models import BaseChatModel, LanguageModelInput
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
-from langchain_core.tools import StructuredTool
-from langgraph.checkpoint.base import BaseCheckpointSaver
-from langgraph.graph import END, START, StateGraph
-from langgraph.graph.state import CompiledStateGraph, Runnable
-
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+from langgraph.graph import END, START, StateGraph
+from langgraph.graph.state import CompiledStateGraph
+
 from ..enums import RoleEnum
-from ..schemas import QueryRequestSchema, GraphStateSchema
-
-from ..repositories import JinjaRendererRepository, ModelFactoryRepository, McpToolsRepository
-
-
+from ..repositories import JinjaRendererRepository, McpToolsRepository, ModelFactoryRepository
+from ..schemas import GraphStateSchema
 
 CompiledGraph: TypeAlias = CompiledStateGraph[GraphStateSchema, None, GraphStateSchema, GraphStateSchema]
 
@@ -58,10 +50,11 @@ class GraphService:
         messages.append(HumanMessage(content=payload.query))
 
         servers = payload.mcp.servers if payload.mcp else []
-        tools = await self.mcp_tools_repository.fetch_mcp_tools(servers)
+        tools = await self.mcp_tools_repository.fetch_mcp_tools(servers) if servers else []
 
         return GraphStateSchema(
             payload=payload,
+            user_context=state.user_context,
             system_prompt=system_prompt,
             messages=messages,
             tools=tools,
@@ -75,12 +68,13 @@ class GraphService:
         text = str(result.content)
         return GraphStateSchema(
             payload=state.payload,
+            user_context=state.user_context,
             system_prompt=state.system_prompt,
             messages=[*state.messages, result],
             tools=state.tools,
             response_text=text,
         )
-    
+
     async def tools_node(self, state: GraphStateSchema) -> GraphStateSchema:
         last = state.messages[-1]
         tool_calls = getattr(last, "tool_calls", None) or []
@@ -101,6 +95,7 @@ class GraphService:
             additions.append(ToolMessage(content=str(content), tool_call_id=call_id))
         return GraphStateSchema(
             payload=state.payload,
+            user_context=state.user_context,
             system_prompt=state.system_prompt,
             messages=[*state.messages, *additions],
             tools=state.tools,

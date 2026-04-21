@@ -3,14 +3,13 @@ import asyncio
 import json
 import logging
 from typing import Any
-from dataclasses import dataclass
 
 import httpx
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field, create_model
-from ..errors import McpRequestError
 
-from ..schemas import McpServerSchema
+from ..errors import McpRequestError
+from ..schemas import McpServerSchema, UserContextSchema
 
 log = logging.getLogger(__name__)
 
@@ -32,12 +31,8 @@ class McpToolsRepository:
         return httpx.AsyncClient(transport=transport)
 
     async def post_mcp(self, server: McpServerSchema, payload: dict[str, Any]) -> Any:
-        headers = {'content-type': 'application/json', 'accept': 'application/json'}
-        if server.auth_header:
-            headers['Authorization'] = server.auth_header
-
         async with self.make_client(server) as client:
-            resp = await client.post(server.url,json=payload, headers=headers, timeout=30.0)
+            resp = await client.post(server.url, json=payload, headers=server.headers, timeout=30.0)
             resp.raise_for_status()
             body = resp.json()
             if isinstance(body, dict) and 'error' in body:
@@ -92,7 +87,7 @@ class McpToolsRepository:
             description=description,
             args_schema=args_schema,
         )
-    
+
 
     def build_field_definition(
         self,
@@ -120,6 +115,6 @@ class McpToolsRepository:
             for prop_name, spec in properties.items()
         }
 
-        return create_model(schema_name, **field_definitions) 
-    
+        return create_model(schema_name, **field_definitions)
+
 

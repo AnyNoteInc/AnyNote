@@ -4,15 +4,14 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 
-import asyncpg
+from dishka import Provider, Scope, provide
 from fast_clean.repositories import SettingsRepositoryProtocol
-from dishka import Provider, Scope, from_context, provide
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from agents.settings import SettingsSchema
 
-from .repositories import JinjaRendererRepository, ModelFactoryRepository, McpToolsRepository
-from .services import GraphService 
+from .repositories import JinjaRendererRepository, McpToolsRepository, ModelFactoryRepository
+from .services import GraphService
 from .use_cases import GenerateStreamUseCase
 
 
@@ -32,7 +31,7 @@ class ChatProvider(Provider):
         async with AsyncPostgresSaver.from_conn_string(settings.db.dsn) as saver:
             await saver.setup()
             yield saver
-    
+
     model_factory_repository = provide(ModelFactoryRepository, scope=Scope.APP)
     mcp_tools_repository = provide(McpToolsRepository, scope=Scope.APP)
 

@@ -13,7 +13,7 @@ class ProcessingException(BusinessLogicException):
 
 
 class UnsupportedLanguageError(BusinessLogicException):
-   
+
     @property
-    def message(self) -> str: 
+    def message(self) -> str:
         return "The language is not supported for processing."

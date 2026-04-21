@@ -1,13 +1,16 @@
+from base64 import b64encode
 from dataclasses import dataclass
+
 from langchain_core.language_models import BaseChatModel
 from langchain_gigachat.chat_models import GigaChat
 from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
-from base64 import b64encode
 from pydantic import SecretStr
+
+from agents.apps.chat.schemas import ModelConfigSchema
+
 from ..enums import ModelProviderEnum
 from ..errors import InvalidPayloadError
-from agents.apps.chat.schemas import ModelConfigSchema
 
 
 @dataclass

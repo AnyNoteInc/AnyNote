@@ -17,7 +17,7 @@
     "@repo/typescript-config": "workspace:*",
     "husky": "^9.1.7",
     "prettier": "^3.7.4",
-    "turbo": "^2.7.3",
+    "turbo": "^2.9.6",
     "typescript": "5.9.2"
   },
   "packageManager": "pnpm@9.0.0",

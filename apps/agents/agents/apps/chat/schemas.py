@@ -1,15 +1,24 @@
 
 from typing import Annotated, Literal, Self
-from langchain_core.tools import StructuredTool
-from langchain_core.messages import BaseMessage
 from uuid import UUID
+
 from fast_clean.schemas.request_response import RequestResponseSchema
-
+from langchain_core.messages import BaseMessage
+from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
-
 
 from .enums import ModelProviderEnum, RoleEnum
 
+
+class UserContextSchema(BaseModel):
+    x_user_id: UUID
+    """
+    Идентификатор пользователя.
+    """
+    x_workspace_id: UUID
+    """
+    Идентификатор рабочего пространства.
+    """
 
 
 class AgentConfigSchema(RequestResponseSchema):
@@ -19,8 +28,6 @@ class AgentConfigSchema(RequestResponseSchema):
 class SkillConfigSchema(RequestResponseSchema):
     name: str
     description: str
-
-
 
 class RagDocumentSchema(RequestResponseSchema):
     id: UUID
@@ -71,16 +78,15 @@ class McpServerSchema(RequestResponseSchema):
     name: str
     description: str = ''
     url: str
-    auth_header: str | None = None
     tools: list[str] = Field(default_factory=list)
+
+    headers: dict[str, str] = Field(default_factory=dict)
 
     retries: int = 3
     verify: bool = True
 
 class McpConfigSchema(RequestResponseSchema):
     servers: list[McpServerSchema] = Field(default_factory=list)
-
-
 
 
 class ServerEvent(RequestResponseSchema):
@@ -142,7 +148,6 @@ class QueryRequestSchema(RequestResponseSchema):
     """
     Список mcp серверов, доступных для инструментов. Если не указан, инструменты использоваться не будут.
     """
-    
     query: str
     """
     Запрос пользователя.
@@ -152,9 +157,10 @@ class QueryRequestSchema(RequestResponseSchema):
 class GraphStateSchema(BaseModel):
     system_prompt: str
     payload: QueryRequestSchema
+    user_context: UserContextSchema
     messages: Annotated[list[BaseMessage], Field(default_factory=list)]
     tools: Annotated[list[StructuredTool], Field(default_factory=list)]
     response_text: str = ''
-    
+
 
 
