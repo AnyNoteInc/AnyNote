@@ -9,7 +9,7 @@ from agents.apps.chat.enums import ModelProviderEnum
 from agents.apps.chat.schemas import QueryRequestSchema, ServerEvent, UserContextSchema
 from agents.apps.chat.services import GraphService
 from agents.apps.chat.use_cases import GenerateStreamUseCase
-from langchain_core.messages import ToolMessage
+from langchain_core.messages import AIMessage, ToolMessage
 
 
 class StubGraph:
@@ -17,6 +17,20 @@ class StubGraph:
         yield {
             'type': 'updates',
             'data': {
+                'model': {
+                    'messages': [
+                        AIMessage(
+                            content='',
+                            tool_calls=[
+                                {
+                                    'id': 'call-1',
+                                    'name': 'search_pages',
+                                    'args': {'query': 'tool output'},
+                                },
+                            ],
+                        ),
+                    ],
+                },
                 'tools': {
                     'messages': [
                         ToolMessage(
@@ -54,7 +68,7 @@ def make_query_request() -> QueryRequestSchema:
 
 
 @pytest.mark.asyncio
-async def test_generate_stream_emits_completed_tool_message_as_token() -> None:
+async def test_generate_stream_emits_tool_status_events() -> None:
     use_case = GenerateStreamUseCase(graph_service=cast(GraphService, StubGraphService()))
 
     events = [
@@ -66,6 +80,18 @@ async def test_generate_stream_emits_completed_tool_message_as_token() -> None:
     ]
 
     assert events == [
-        ServerEvent.token('tool output'),
+        ServerEvent.status(
+            id='call-1',
+            kind='tool',
+            state='running',
+            title='search_pages',
+        ),
+        ServerEvent.status(
+            id='call-1',
+            kind='tool',
+            state='done',
+            title='search_pages',
+            detail='tool output',
+        ),
         ServerEvent.done(),
     ]

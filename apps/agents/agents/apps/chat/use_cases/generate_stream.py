@@ -15,6 +15,14 @@ INTERNAL_ERROR_MESSAGE = "Internal server error"
 
 logger = getLogger(__name__)
 
+
+def _tool_call_field(call: object, key: str) -> str | None:
+    if isinstance(call, dict):
+        value = call.get(key)
+    else:
+        value = getattr(call, key, None)
+    return value if isinstance(value, str) and value else None
+
 @dataclass
 class GenerateStreamUseCase:
     graph_service: GraphService
@@ -28,6 +36,7 @@ class GenerateStreamUseCase:
             'user_context': user_context,
         })
         stream_modes: list[Literal['messages'] | Literal['updates']] = ['messages', 'updates']
+        tool_titles: dict[str, str] = {}
 
         try:
             graph = self.graph_service.make_graph(initial_state)
@@ -41,10 +50,10 @@ class GenerateStreamUseCase:
 
                 elif chunk["type"] == 'updates':
                     for source, update in chunk["data"].items():
-                        if source in ("model", "tools"):  # `source` captures node name
-                            content = self.render_completed_message(update["messages"][-1])
-                            if content:
-                                yield ServerEvent.token(content)
+                        if source not in ("model", "tools"):
+                            continue
+                        for event in self.render_status_events(source, update["messages"], tool_titles):
+                            yield event
             yield ServerEvent.done()
         except ProviderError as exc:
             yield ServerEvent.error(exc.code, str(exc))
@@ -70,9 +79,49 @@ class GenerateStreamUseCase:
             return "".join(fragments) or None
         return None
 
-    def render_completed_message(self, message: AnyMessage) -> str | None:
-        if isinstance(message, AIMessage) and message.tool_calls:
-            return ','.join([str(call) for call in message.tool_calls])
-        if isinstance(message, ToolMessage):
-            return self.extract_token_text(message.content)
-        return None
+    def render_status_events(
+        self,
+        source: str,
+        messages: list[AnyMessage],
+        tool_titles: dict[str, str],
+    ) -> list[ServerEvent]:
+        events: list[ServerEvent] = []
+
+        if source == "model":
+            for message in messages:
+                if not isinstance(message, AIMessage):
+                    continue
+                for call in message.tool_calls:
+                    call_id = _tool_call_field(call, "id")
+                    title = _tool_call_field(call, "name")
+                    if not call_id or not title:
+                        continue
+                    tool_titles[call_id] = title
+                    events.append(
+                        ServerEvent.status(
+                            id=call_id,
+                            kind="tool",
+                            state="running",
+                            title=title,
+                        ),
+                    )
+            return events
+
+        for message in messages:
+            if not isinstance(message, ToolMessage):
+                continue
+            detail = self.extract_token_text(message.content)
+            title = tool_titles.get(message.tool_call_id, "Tool")
+            state: Literal["done", "error"] = "done"
+            if detail and (" raised:" in detail or " is not registered" in detail):
+                state = "error"
+            events.append(
+                ServerEvent.status(
+                    id=message.tool_call_id,
+                    kind="tool",
+                    state=state,
+                    title=title,
+                    detail=detail,
+                ),
+            )
+        return events

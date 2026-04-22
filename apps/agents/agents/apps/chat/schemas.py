@@ -101,14 +101,30 @@ class McpConfigSchema(RequestResponseSchema):
 
 
 class ServerEvent(RequestResponseSchema):
-    type: Literal["token", "done", "error"]
+    type: Literal["token", "status", "done", "error"]
     text: str | None = None
+    id: str | None = None
+    kind: Literal["tool", "confirmation"] | None = None
+    state: Literal["pending", "running", "done", "error", "required"] | None = None
+    title: str | None = None
+    detail: str | None = None
     code: str | None = None
     message: str | None = None
 
     @classmethod
     def token(cls, text: str) -> Self:
         return cls(type="token", text=text)
+
+    @classmethod
+    def status(
+        cls,
+        id: str,
+        kind: Literal["tool", "confirmation"],
+        state: Literal["pending", "running", "done", "error", "required"],
+        title: str,
+        detail: str | None = None,
+    ) -> Self:
+        return cls(type="status", id=id, kind=kind, state=state, title=title, detail=detail)
 
     @classmethod
     def done(cls) -> Self:
@@ -168,4 +184,3 @@ class GraphStateSchema(BaseModel):
 
 class RuntimeContext(BaseModel):
     tools: list[StructuredTool] =  Field(default_factory=list)
-
