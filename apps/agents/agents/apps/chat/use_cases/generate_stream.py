@@ -33,11 +33,11 @@ class GenerateStreamUseCase:
             graph = self.graph_service.make_graph(initial_state)
             async for chunk in graph.astream(initial_state, config, stream_mode=stream_modes, version='v2'):
                 if chunk['type'] == 'messages':
-                    token, metadata = chunk['data']
-                    if isinstance(token, AIMessageChunk):
-                        token = self.extract_token_text(token.content)
-                        if token:
-                            yield ServerEvent.token(token)
+                    message_chunk, _metadata = chunk['data']
+                    if isinstance(message_chunk, AIMessageChunk):
+                        token_text = self.extract_token_text(message_chunk.content)
+                        if token_text:
+                            yield ServerEvent.token(token_text)
 
                 elif chunk["type"] == 'updates':
                     for source, update in chunk["data"].items():
@@ -70,8 +70,9 @@ class GenerateStreamUseCase:
             return "".join(fragments) or None
         return None
 
-    def render_completed_message(self,message: AnyMessage) -> str | None:
+    def render_completed_message(self, message: AnyMessage) -> str | None:
         if isinstance(message, AIMessage) and message.tool_calls:
             return ','.join([str(call) for call in message.tool_calls])
         if isinstance(message, ToolMessage):
-            return self.extract_token_text(message.content_blocks)
+            return self.extract_token_text(message.content)
+        return None

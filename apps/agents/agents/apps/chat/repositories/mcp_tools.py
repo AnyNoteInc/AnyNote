@@ -94,7 +94,7 @@ class McpToolsRepository:
                     name=entry.get('name', 'unnamed'),
                     description=entry.get('description', ''),
                 ))
-            
+
             mcp_tools.append(mcp_server_tool)
 
         return tools, mcp_tools

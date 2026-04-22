@@ -29,7 +29,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 def create_app(use_routes: Iterable[Callable[[FastAPI], None]]) -> FastAPI:
-    settings = SettingsSchema()  # type: ignore
+    settings = SettingsSchema()
     project_info = use_toml_info(settings.base_dir)
     app = FastAPI(
         title=project_info.name,

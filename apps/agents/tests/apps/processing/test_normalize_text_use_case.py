@@ -1,4 +1,9 @@
-from agents.apps.processing.schemas import NormalizeRequest, NormalizeResponse
+from agents.apps.processing.schemas import (
+    DetectedLanguage,
+    Language,
+    NormalizeRequest,
+    NormalizeResponse,
+)
 from agents.apps.processing.use_cases import NormalizeTextUseCase
 
 
@@ -6,7 +11,7 @@ class StubNormalizerService:
     def __init__(self) -> None:
         self.calls: list[tuple[str, str]] = []
 
-    def normalize(self, text: str, language: str) -> tuple[str, str]:
+    def normalize(self, text: str, language: Language) -> tuple[str, DetectedLanguage]:
         self.calls.append((text, language))
         return ('normalized text', 'en')
 

@@ -1,15 +1,14 @@
 from dataclasses import dataclass
-
 from functools import partial
+
 from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
-from langchain_core.tools import StructuredTool
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
 from ..enums import RoleEnum
 from ..repositories import JinjaRendererRepository, McpToolsRepository, ModelFactoryRepository
-from ..schemas import GraphStateSchema, RuntimeContext, McpToolSchema
+from ..schemas import GraphStateSchema, McpServerToolsSchema, RuntimeContext
 
 type CompiledGraph = CompiledStateGraph[GraphStateSchema, None, GraphStateSchema, GraphStateSchema]
 
@@ -42,7 +41,10 @@ class GraphService:
         payload = state.payload
 
         servers = payload.mcp.servers if payload.mcp else []
-        context.tools, mcp_server_tools = await self.mcp_tools_repository.fetch_mcp_tools(servers) if servers else []
+        mcp_server_tools: list[McpServerToolsSchema] = []
+        context.tools = []
+        if servers:
+            context.tools, mcp_server_tools = await self.mcp_tools_repository.fetch_mcp_tools(servers)
 
         messages: list[BaseMessage] = [SystemMessage(content=state.system_prompt)]
         messages += [

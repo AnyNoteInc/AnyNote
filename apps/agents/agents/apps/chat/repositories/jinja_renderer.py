@@ -6,7 +6,7 @@ from jinja2 import Environment, FileSystemLoader
 
 from agents.settings import SettingsSchema
 
-from ..schemas import QueryRequestSchema, McpServerToolsSchema
+from ..schemas import McpServerToolsSchema, QueryRequestSchema
 
 
 class JinjaRendererRepository:

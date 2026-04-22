@@ -11,4 +11,4 @@ class SettingsSchema(CoreSettingsSchema):
     cors_origins: Annotated[list[str], Field(default_factory=list)]
     db: CoreDbSettingsSchema
 
-settings = SettingsSchema()  # type: ignore
+settings = SettingsSchema()
