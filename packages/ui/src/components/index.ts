@@ -104,3 +104,5 @@ export { default as FormControl, type FormControlProps } from "@mui/material/For
 export { default as InputLabel, type InputLabelProps } from "@mui/material/InputLabel"
 export { default as FormHelperText, type FormHelperTextProps } from "@mui/material/FormHelperText"
 export { default as Slider, type SliderProps } from "@mui/material/Slider"
+
+export * from "./chat"
