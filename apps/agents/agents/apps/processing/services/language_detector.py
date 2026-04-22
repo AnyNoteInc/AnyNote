@@ -11,7 +11,7 @@ DetectorFactory.seed = 0  # deterministic results
 DetectedLanguage = Literal["ru", "en"]
 
 
-class LanguageDetector:
+class LanguageDetectorService:
     """Detects language of a text chunk.
 
     Returns only "ru" or "en"; anything else falls back to "ru" because

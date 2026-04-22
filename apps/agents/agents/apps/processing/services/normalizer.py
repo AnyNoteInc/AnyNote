@@ -1,6 +1,3 @@
-"""Text normalization pipeline: NFC → lower → strip → lemmatize → stopwords → short-token filter."""
-
-from __future__ import annotations
 
 import re
 import unicodedata
@@ -9,7 +6,7 @@ from typing import Literal
 import spacy
 from spacy.language import Language
 
-from agents.apps.processing.services.language_detector import LanguageDetector
+from .language_detector import LanguageDetectorService
 
 _PIPELINE_NAMES = {
     "ru": "ru_core_news_sm",
@@ -25,11 +22,11 @@ RequestedLanguage = Literal["ru", "en", "auto"]
 class NormalizerService:
     """spaCy-backed text normalizer. Loads both models on construction."""
 
-    def __init__(self) -> None:
+    def __init__(self, detector: LanguageDetectorService) -> None:
         self._pipelines: dict[str, Language] = {
             lang: spacy.load(model_name) for lang, model_name in _PIPELINE_NAMES.items()
         }
-        self._detector = LanguageDetector()
+        self._detector = detector
 
     def normalize(self, text: str, language: RequestedLanguage) -> tuple[str, Literal["ru", "en"]]:
         """Run the full normalization pipeline.

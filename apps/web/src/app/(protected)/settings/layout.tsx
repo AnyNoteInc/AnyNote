@@ -1,7 +1,7 @@
 import type { ReactNode } from "react"
 import Link from "next/link"
 
-import { Box, Container, Paper, Stack, Typography } from "@repo/ui/components"
+import { Avatar, Box, Container, Paper, Stack, Typography } from "@repo/ui/components"
 
 import { SettingsNav } from "@/components/settings/settings-nav"
 import { getSession } from "@/lib/get-session"
@@ -52,14 +52,17 @@ export default async function SettingsLayout({ children }: { children: ReactNode
               alignItems="center"
               sx={{ pb: 2, borderBottom: "1px solid", borderColor: "divider" }}
             >
-              <Box
+              <Avatar
+                src={user.image ?? undefined}
                 sx={{
                   width: 34,
                   height: 34,
-                  borderRadius: "50%",
+                  fontSize: 14,
                   background: "linear-gradient(135deg,#0f766e,#155e75)",
                 }}
-              />
+              >
+                {`${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()}
+              </Avatar>
               <Stack spacing={0}>
                 <Typography variant="body2" fontWeight={600}>
                   {user.firstName} {user.lastName}

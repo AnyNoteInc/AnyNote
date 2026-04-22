@@ -1,60 +1,241 @@
+import { FileStatus, prisma } from "@repo/db"
 import { NextResponse, type NextRequest } from "next/server"
 
-import { prisma } from "@repo/db"
-
 import { getSession } from "@/lib/get-session"
+import { activeStreamRegistry } from "@/lib/chat/active-stream-registry"
+import {
+  buildAgentsPayload,
+  type WorkspaceSettingsSnapshot,
+} from "@/lib/chat/agents-payload"
+import { encodeSseEvent, decodeAgentsSseEvents } from "@/lib/chat/sse"
+import type {
+  ServiceBlock,
+  StartChatGenerationBody,
+} from "@/lib/chat/types"
 
 export const runtime = "nodejs"
 
-interface GenerateBody {
-  chatId: string
-  prompt: string
-  history: Array<{ role: "user" | "assistant"; content: string }>
-}
-
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
-function parseBody(raw: unknown): GenerateBody {
-  if (!raw || typeof raw !== "object") throw new Error("Invalid body")
-  const o = raw as Record<string, unknown>
-  if (typeof o.chatId !== "string" || !UUID_RE.test(o.chatId)) {
+function parseBody(raw: unknown): StartChatGenerationBody {
+  if (!raw || typeof raw !== "object") {
+    throw new Error("Invalid body")
+  }
+
+  const body = raw as Record<string, unknown>
+  if (typeof body.chatId !== "string" || !UUID_RE.test(body.chatId)) {
     throw new Error("chatId must be a UUID")
   }
-  if (typeof o.prompt !== "string" || o.prompt.length === 0) {
-    throw new Error("prompt must be a non-empty string")
+  if (typeof body.text !== "string" || body.text.trim().length === 0) {
+    throw new Error("text must be a non-empty string")
   }
-  const historyRaw = Array.isArray(o.history) ? o.history : []
-  const history: GenerateBody["history"] = []
-  for (const item of historyRaw) {
-    if (!item || typeof item !== "object") continue
-    const m = item as Record<string, unknown>
-    if ((m.role === "user" || m.role === "assistant") && typeof m.content === "string") {
-      history.push({ role: m.role, content: m.content })
+
+  const fileIds = Array.isArray(body.fileIds)
+    ? body.fileIds.filter((fileId): fileId is string => typeof fileId === "string" && UUID_RE.test(fileId))
+    : []
+
+  return {
+    chatId: body.chatId,
+    text: body.text.trim(),
+    fileIds,
+  }
+}
+
+function upsertServiceBlock(blocks: ServiceBlock[], block: ServiceBlock): ServiceBlock[] {
+  const next = [...blocks]
+  const existingIndex = next.findIndex((candidate) => candidate.id === block.id)
+  if (existingIndex >= 0) {
+    next[existingIndex] = block
+    return next
+  }
+  next.push(block)
+  return next
+}
+
+function createDebouncedPersist(args: {
+  assistantMessageId: string
+  entry: ReturnType<typeof activeStreamRegistry.create>
+}) {
+  let timer: ReturnType<typeof setTimeout> | null = null
+
+  const persist = async () => {
+    await prisma.chatMessage.update({
+      where: { id: args.assistantMessageId },
+      data: {
+        content: args.entry.content,
+        errorMessage: args.entry.errorMessage ?? null,
+        status: args.entry.status,
+      },
+    })
+  }
+
+  return {
+    schedule() {
+      if (timer) {
+        return
+      }
+      timer = setTimeout(() => {
+        timer = null
+        void persist()
+      }, 200)
+    },
+    async flush() {
+      if (timer) {
+        clearTimeout(timer)
+        timer = null
+      }
+      await persist()
+    },
+  }
+}
+
+function createEntryResponse(args: {
+  entry: ReturnType<typeof activeStreamRegistry.create>
+  initialEvents: Array<Parameters<typeof encodeSseEvent>[0]>
+}) {
+  return new Response(
+    new ReadableStream({
+      start(controller) {
+        for (const event of args.initialEvents) {
+          controller.enqueue(encodeSseEvent(event))
+        }
+
+        let unsubscribe = () => {}
+        unsubscribe = args.entry.subscribe((event) => {
+          controller.enqueue(encodeSseEvent(event))
+          if (event.type === "message.done") {
+            unsubscribe()
+            controller.close()
+          }
+        })
+
+        return () => unsubscribe()
+      },
+    }),
+    {
+      headers: {
+        "cache-control": "no-cache, no-transform",
+        connection: "keep-alive",
+        "content-type": "text/event-stream; charset=utf-8",
+      },
+    },
+  )
+}
+
+async function streamAgentsToRegistry(args: {
+  assistantMessageId: string
+  chatId: string
+  entry: ReturnType<typeof activeStreamRegistry.create>
+  text: string
+  userId: string
+  workspaceId: string
+  settings: WorkspaceSettingsSnapshot
+}) {
+  const flush = createDebouncedPersist({
+    assistantMessageId: args.assistantMessageId,
+    entry: args.entry,
+  })
+
+  try {
+    const upstream = await fetch(`${process.env.AGENTS_SERVICE_URL ?? "http://localhost:8080"}/chat/generate`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-user-id": args.userId,
+        "x-workspace-id": args.workspaceId,
+      },
+      body: JSON.stringify(
+        buildAgentsPayload({
+          chatId: args.chatId,
+          settings: args.settings,
+          text: args.text,
+          userId: args.userId,
+          workspaceId: args.workspaceId,
+        }),
+      ),
+    })
+
+    if (!upstream.ok || !upstream.body) {
+      const message = `Agents upstream ${upstream.status}`
+      args.entry.publishStatus("ERROR", message)
+      return
     }
+
+    const reader = upstream.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ""
+    let completed = false
+
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) {
+        break
+      }
+
+      const decoded = decoder.decode(value, { stream: true })
+      const parsed = decodeAgentsSseEvents({ buffer, chunk: decoded })
+      buffer = parsed.buffer
+
+      for (const event of parsed.events) {
+        if (event.type === "token") {
+          args.entry.publishDelta(event.text)
+          flush.schedule()
+          continue
+        }
+
+        if (event.type === "status") {
+          args.entry.publishBlocks(
+            upsertServiceBlock(args.entry.blocks, {
+              id: event.id,
+              kind: event.kind,
+              state: event.state,
+              title: event.title,
+              detail: event.detail,
+            }),
+          )
+          continue
+        }
+
+        if (event.type === "error") {
+          args.entry.publishStatus("ERROR", event.message)
+          completed = true
+          break
+        }
+
+        if (event.type === "done") {
+          args.entry.publishStatus("DONE")
+          completed = true
+        }
+      }
+    }
+
+    if (!completed) {
+      args.entry.publishStatus("DONE")
+    }
+  } catch (error) {
+    args.entry.publishStatus(
+      "ERROR",
+      error instanceof Error ? error.message : "Agents upstream failed",
+    )
+  } finally {
+    await flush.flush()
+    args.entry.publishDone()
+    args.entry.scheduleCleanup()
   }
-  return { chatId: o.chatId, prompt: o.prompt, history }
 }
 
-function providerConnection(value: unknown): Record<string, string> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) return {}
-  const out: Record<string, string> = {}
-  for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
-    if (typeof v === "string") out[k] = v
-  }
-  return out
-}
-
-export async function POST(req: NextRequest): Promise<Response> {
+export async function POST(request: NextRequest): Promise<Response> {
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
-  let body: GenerateBody
+
+  let body: StartChatGenerationBody
   try {
-    body = parseBody(await req.json())
-  } catch (err) {
+    body = parseBody(await request.json())
+  } catch (error) {
     return NextResponse.json(
-      { error: err instanceof Error ? err.message : "Invalid body" },
+      { error: error instanceof Error ? error.message : "Invalid body" },
       { status: 400 },
     )
   }
@@ -64,10 +245,25 @@ export async function POST(req: NextRequest): Promise<Response> {
       id: body.chatId,
       workspace: { members: { some: { userId: session.user.id } } },
     },
-    select: { id: true, workspaceId: true, title: true },
+    select: { id: true, title: true, workspaceId: true },
   })
   if (!chat) {
     return NextResponse.json({ error: "Chat not found" }, { status: 404 })
+  }
+
+  if (body.fileIds.length > 0) {
+    const files = await prisma.file.findMany({
+      where: {
+        id: { in: body.fileIds },
+        status: FileStatus.ACTIVE,
+        userId: session.user.id,
+        workspaceId: chat.workspaceId,
+      },
+      select: { id: true },
+    })
+    if (files.length !== body.fileIds.length) {
+      return NextResponse.json({ error: "One or more files are invalid for this chat" }, { status: 400 })
+    }
   }
 
   const settings = await prisma.workspaceAiSettings.findUnique({
@@ -83,148 +279,91 @@ export async function POST(req: NextRequest): Promise<Response> {
     )
   }
 
-  const provider = settings.defaultModel.provider
-  const connection = providerConnection(provider.connection)
+  const settingsSnapshot: WorkspaceSettingsSnapshot = {
+    defaultModel: {
+      slug: settings.defaultModel.slug,
+      provider: {
+        slug: settings.defaultModel.provider.slug,
+        connection: settings.defaultModel.provider.connection,
+      },
+    },
+    systemPrompt: settings.systemPrompt,
+    temperature: settings.temperature,
+    topP: settings.topP,
+  }
 
-  // Persist user message + bump chat title (if still default) BEFORE streaming
-  // so the row is durable even if the upstream call fails.
-  await prisma.$transaction(async (tx) => {
-    await tx.chatMessage.create({
-      data: { chatId: chat.id, role: "USER", content: body.prompt },
+  const { assistantMessage, userMessage } = await prisma.$transaction(async (tx) => {
+    const userMessage = await tx.chatMessage.create({
+      data: {
+        chatId: chat.id,
+        content: body.text,
+        role: "USER",
+        status: "DONE",
+      },
     })
+
+    if (body.fileIds.length > 0) {
+      await tx.chatMessageFile.createMany({
+        data: body.fileIds.map((fileId) => ({
+          fileId,
+          messageId: userMessage.id,
+        })),
+        skipDuplicates: true,
+      })
+    }
+
+    const assistantMessage = await tx.chatMessage.create({
+      data: {
+        chatId: chat.id,
+        content: "",
+        errorMessage: null,
+        role: "ASSISTANT",
+        status: "STREAMING",
+      },
+    })
+
     const shouldRename = chat.title === "Новый чат"
     await tx.chat.update({
       where: { id: chat.id },
       data: {
         updatedAt: new Date(),
-        title: shouldRename ? body.prompt.slice(0, 48) : undefined,
+        title: shouldRename ? body.text.slice(0, 48) : undefined,
       },
     })
+
+    return { assistantMessage, userMessage }
   })
 
-  const agentsPayload = {
-    threadId: chat.id,
-    model: {
-      provider: provider.slug,
-      name: settings.defaultModel.slug,
-      connection,
-      settings: {
-        temperature: settings.temperature,
-        topP: settings.topP,
-      },
-    },
-    instructions: settings.systemPrompt ? { systemPrompt: settings.systemPrompt } : undefined,
-    conversation: { messages: body.history },
-    mcp: buildMcpConfig(),
-    userRequest: { text: body.prompt },
-  }
-
-  const agentsUrl = process.env.AGENTS_SERVICE_URL ?? "http://localhost:8080"
-  const agentsToken = process.env.AGENTS_SERVICE_TOKEN
-  if (!agentsToken) {
-    return NextResponse.json({ error: "AGENTS_SERVICE_TOKEN not set" }, { status: 500 })
-  }
-
-  const upstream = await fetch(`${agentsUrl}/api/v1/generate`, {
-    method: "POST",
-    headers: {
-      "content-type": "application/json",
-      authorization: `Bearer ${agentsToken}`,
-    },
-    body: JSON.stringify(agentsPayload),
+  const entry = activeStreamRegistry.create({
+    assistantMessageId: assistantMessage.id,
+    chatId: chat.id,
+    userMessageId: userMessage.id,
   })
 
-  if (!upstream.ok || !upstream.body) {
-    const text = await upstream.text().catch(() => "")
-    return NextResponse.json(
-      { error: `Agents upstream ${upstream.status}: ${text.slice(0, 200)}` },
-      { status: 502 },
-    )
-  }
-
-  // Tee the upstream SSE: forward to the client AND parse to accumulate the
-  // assistant's full text so we can persist it once "done" arrives.
-  const decoder = new TextDecoder()
-  let assistantBuffer = ""
-  let finished = false
-
-  const upstreamReader = upstream.body.getReader()
-  const stream = new ReadableStream<Uint8Array>({
-    async start(controller) {
-      let frameBuffer = ""
-      try {
-        while (true) {
-          const { value, done } = await upstreamReader.read()
-          if (done) break
-          if (value) controller.enqueue(value)
-          frameBuffer += decoder.decode(value, { stream: true })
-          let nl: number
-          while ((nl = frameBuffer.indexOf("\n\n")) >= 0) {
-            const frame = frameBuffer.slice(0, nl)
-            frameBuffer = frameBuffer.slice(nl + 2)
-            const dataLine = frame.split("\n").find((l) => l.startsWith("data:"))
-            if (!dataLine) continue
-            const json = dataLine.slice(5).trim()
-            if (!json) continue
-            try {
-              const ev: { type: string; content?: string } = JSON.parse(json)
-              if (ev.type === "token" && typeof ev.content === "string") {
-                assistantBuffer += ev.content
-              } else if (ev.type === "done") {
-                finished = true
-              }
-            } catch {
-              // Non-JSON SSE frame; forward but skip persistence accounting.
-            }
-          }
-        }
-      } catch (err) {
-        controller.error(err)
-      } finally {
-        controller.close()
-        if (finished && assistantBuffer.trim().length > 0) {
-          try {
-            await prisma.chatMessage.create({
-              data: { chatId: chat.id, role: "ASSISTANT", content: assistantBuffer },
-            })
-            await prisma.chat.update({
-              where: { id: chat.id },
-              data: { updatedAt: new Date() },
-            })
-          } catch (persistErr) {
-            // Logging only — the stream already completed for the client.
-            console.error("[chat-persist] failed to save assistant message", persistErr)
-          }
-        }
-      }
-    },
-    cancel() {
-      void upstreamReader.cancel()
-    },
+  const upstreamTask = streamAgentsToRegistry({
+    assistantMessageId: assistantMessage.id,
+    chatId: chat.id,
+    entry,
+    settings: settingsSnapshot,
+    text: body.text,
+    userId: session.user.id,
+    workspaceId: chat.workspaceId,
   })
+  entry.setUpstreamTask(upstreamTask)
 
-  return new Response(stream, {
-    status: 200,
-    headers: {
-      "content-type": "text/event-stream; charset=utf-8",
-      "cache-control": "no-cache, no-transform",
-      connection: "keep-alive",
-    },
-  })
-}
-
-function buildMcpConfig(): { servers: Array<{ name: string; description: string; url: string; authHeader?: string }> } | undefined {
-  const enginesUrl = process.env.ENGINES_MCP_URL
-  const enginesToken = process.env.ENGINES_MCP_TOKEN
-  if (!enginesUrl) return undefined
-  return {
-    servers: [
+  return createEntryResponse({
+    entry,
+    initialEvents: [
       {
-        name: "anynote-engines",
-        description: "Workspace tools: page search and lookup",
-        url: enginesUrl,
-        authHeader: enginesToken ? `Bearer ${enginesToken}` : undefined,
+        type: "message.created",
+        assistantMessageId: assistantMessage.id,
+        userMessageId: userMessage.id,
+      },
+      {
+        type: "message.status",
+        assistantMessageId: assistantMessage.id,
+        status: "STREAMING",
       },
     ],
-  }
+  })
 }
