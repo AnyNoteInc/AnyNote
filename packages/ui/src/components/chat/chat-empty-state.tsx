@@ -10,8 +10,8 @@ type ChatEmptyStateProps = {
 }
 
 export function ChatEmptyState({
-  title = "No messages yet",
-  description = "Start the thread with a prompt to begin the conversation.",
+  title = "Сообщений пока нет",
+  description = "Отправьте первое сообщение, чтобы начать диалог.",
 }: ChatEmptyStateProps) {
   return (
     <Box

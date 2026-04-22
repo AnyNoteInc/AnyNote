@@ -50,7 +50,16 @@ function getStatusLabel(message: ChatThreadMessage) {
     return null
   }
 
-  return message.status[0]?.toUpperCase() + message.status.slice(1)
+  switch (message.status) {
+    case "sent":
+      return "Отправлено"
+    case "streaming":
+      return "Печатает"
+    case "error":
+      return "Ошибка"
+    default:
+      return message.status[0]?.toUpperCase() + message.status.slice(1)
+  }
 }
 
 function getInitials(label: string) {
@@ -120,6 +129,7 @@ export function ChatMessageList({
                     </Typography>
                   ) : null}
                   <Box
+                    suppressHydrationWarning
                     sx={{
                       bgcolor: isUser ? "primary.main" : "background.paper",
                       border: 1,
@@ -129,6 +139,11 @@ export function ChatMessageList({
                       color: isUser ? "primary.contrastText" : "text.primary",
                       px: 1.5,
                       py: 1.25,
+                      "& .MuiChatMessage-bubble": {
+                        backgroundColor: "transparent",
+                        borderRadius: 0,
+                        padding: 0,
+                      },
                     }}
                   >
                     <MuiChatMessageContent />

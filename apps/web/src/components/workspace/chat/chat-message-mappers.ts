@@ -15,6 +15,40 @@ export type ServerChatMessage = ChatQueryData["messages"][number]
 
 export type DraftAttachmentSummary = Omit<ChatFilePart, "type" | "downloadUrl">
 
+function getPartSyncKey(part: ServerChatMessage["parts"][number]) {
+  switch (part.type) {
+    case "text":
+      return `text:${part.text}`
+    case "file":
+      return [
+        "file",
+        part.fileId,
+        part.name,
+        part.mimeType,
+        part.fileSize,
+        part.downloadUrl,
+      ].join(":")
+    default:
+      return JSON.stringify(part)
+  }
+}
+
+export function createServerMessagesSyncKey(messages: ServerChatMessage[]): string {
+  return messages
+    .map((message) => {
+      return [
+        message.id,
+        message.role,
+        message.status,
+        message.errorMessage ?? "",
+        message.createdAt,
+        message.updatedAt,
+        message.parts.map(getPartSyncKey).join("|"),
+      ].join("~")
+    })
+    .join("||")
+}
+
 function mapRole(role: ServerChatMessage["role"]): ChatThreadMessage["role"] {
   return role === "USER" ? "user" : "assistant"
 }

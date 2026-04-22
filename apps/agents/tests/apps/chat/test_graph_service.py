@@ -14,6 +14,7 @@ from agents.apps.chat.schemas import (
     UserContextSchema,
 )
 from agents.apps.chat.services import GraphService
+from langchain_core.messages import AIMessage
 from langchain_core.tools import StructuredTool
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
@@ -34,6 +35,26 @@ class StubMcpToolsRepository:
     async def fetch_mcp_tools(self, servers: list[object]) -> tuple[list[object], list[object]]:
         self.calls.append(servers)
         return [], []
+
+
+class StubStreamingModel:
+    def __init__(self) -> None:
+        self.ainvoke_calls: list[list[object]] = []
+
+    async def ainvoke(self, messages: list[object]) -> AIMessage:
+        self.ainvoke_calls.append(messages)
+        return AIMessage(content='streamed answer')
+
+    def invoke(self, _messages: list[object]) -> AIMessage:
+        raise AssertionError('llm() must use ainvoke() to preserve token streaming')
+
+
+class StubModelFactoryRepository:
+    def __init__(self, model: StubStreamingModel) -> None:
+        self.model = model
+
+    def make(self, _config: object) -> StubStreamingModel:
+        return self.model
 
 
 def make_query_request(*, mcp: McpConfigSchema | None) -> QueryRequestSchema:
@@ -124,3 +145,24 @@ async def test_prepare_prompt_handles_missing_or_empty_mcp_servers(
         'Earlier answer',
         'Latest question',
     ]
+
+
+@pytest.mark.asyncio
+async def test_llm_uses_async_model_invocation_to_allow_streaming() -> None:
+    model = StubStreamingModel()
+    service = GraphService(
+        jinja_repository=cast(JinjaRendererRepository, object()),
+        mcp_tools_repository=cast(McpToolsRepository, object()),
+        model_factory_repository=cast(ModelFactoryRepository, StubModelFactoryRepository(model)),
+        checkpointer=cast(AsyncPostgresSaver, object()),
+    )
+
+    state = make_state(mcp=None)
+    state.messages = [AIMessage(content='previous answer')]
+
+    result = await service.llm(RuntimeContext(), state)
+
+    assert model.ainvoke_calls == [state.messages]
+    assert result.response_text == 'streamed answer'
+    assert isinstance(result.messages[-1], AIMessage)
+    assert result.messages[-1].content == 'streamed answer'

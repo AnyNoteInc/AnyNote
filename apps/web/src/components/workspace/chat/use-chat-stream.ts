@@ -10,6 +10,7 @@ import type { WebChatSseEvent } from "@/lib/chat/types"
 import {
   appendAssistantText,
   appendPendingMessagePair,
+  createServerMessagesSyncKey,
   mapServerMessagesToThreadMessages,
   replaceAssistantServiceBlocks,
   updateAssistantStatus,
@@ -41,6 +42,7 @@ export function useChatStream({ chatId, initialMessages, onSettled }: UseChatStr
     mapServerMessagesToThreadMessages(initialMessages),
   )
   const activeAssistantMessageIdRef = useRef<string | null>(null)
+  const lastServerSyncKeyRef = useRef(createServerMessagesSyncKey(initialMessages))
   const pendingSendRef = useRef<PendingSend | null>(null)
   const streamControllerRef = useRef<AbortController | null>(null)
 
@@ -195,6 +197,13 @@ export function useChatStream({ chatId, initialMessages, onSettled }: UseChatStr
     if (isStreaming) {
       return
     }
+
+    const nextServerSyncKey = createServerMessagesSyncKey(serverMessages)
+    if (lastServerSyncKeyRef.current === nextServerSyncKey) {
+      return
+    }
+
+    lastServerSyncKeyRef.current = nextServerSyncKey
 
     startTransition(() => {
       setMessages(mapServerMessagesToThreadMessages(serverMessages))

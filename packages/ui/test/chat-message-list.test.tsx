@@ -36,6 +36,45 @@ describe("ChatMessageList", () => {
       />,
     )
 
-    expect(screen.getByText("08:05 • Sent")).toBeTruthy()
+    expect(screen.getByText("08:05 • Отправлено")).toBeTruthy()
+  })
+
+  it("renders the empty state in Russian", () => {
+    render(<ChatMessageList messages={[]} />)
+
+    expect(screen.getByText("Сообщений пока нет")).toBeTruthy()
+    expect(screen.getByText("Отправьте первое сообщение, чтобы начать диалог.")).toBeTruthy()
+  })
+
+  it("injects a css rule that strips the inner assistant bubble background", () => {
+    render(
+      <ChatMessageList
+        messages={[
+          {
+            id: "assistant-message-no-inner-bubble",
+            parts: [{ type: "text", text: "Ответ без внутреннего фона" }],
+            role: "assistant",
+          },
+        ]}
+      />,
+    )
+
+    const hasTransparentBubbleRule = Array.from(document.styleSheets).some((sheet) => {
+      try {
+        return Array.from(sheet.cssRules).some((rule) => {
+          if (!(rule instanceof CSSStyleRule)) {
+            return false
+          }
+          if (!rule.selectorText.includes(".MuiChatMessage-bubble")) {
+            return false
+          }
+          return /background-color:\s*transparent/i.test(rule.cssText)
+        })
+      } catch {
+        return false
+      }
+    })
+
+    expect(hasTransparentBubbleRule).toBe(true)
   })
 })

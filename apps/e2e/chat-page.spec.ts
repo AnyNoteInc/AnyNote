@@ -134,8 +134,12 @@ test("chat page opens for an existing workspace chat", async ({ page }) => {
   await page.goto(`/workspaces/${workspace.id}/chats/${chat.id}`)
 
   await expect(page).toHaveURL(new RegExp(`/workspaces/${workspace.id}/chats/${chat.id}$`))
-  await expect(page.getByTestId("chat-composer-textarea")).toBeVisible()
+  const composer = page.getByTestId("chat-composer-textarea")
+  await expect(composer).toBeVisible()
   await expect(page.getByText("Привет из seed-сообщения")).toBeVisible()
   await expect(page.getByText("This page could not be found")).toHaveCount(0)
+  await composer.fill("Проверка ввода без зависания")
+  await expect(composer).toHaveValue("Проверка ввода без зависания")
+  await expect(page.getByRole("button", { name: "Send" })).toBeEnabled()
   expect(consoleErrors.join("\n")).not.toContain("Hydration failed because the server rendered text didn't match the client")
 })

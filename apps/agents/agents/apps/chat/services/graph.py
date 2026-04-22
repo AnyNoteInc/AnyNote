@@ -68,7 +68,7 @@ class GraphService:
     async def llm(self, context: RuntimeContext, state: GraphStateSchema) -> GraphStateSchema:
         model = self.model_factory_repository.make(state.payload.model)
         bound = model.bind_tools(context.tools) if context.tools else model
-        result = bound.invoke(state.messages)
+        result = await bound.ainvoke(state.messages)
         text = str(result.content)
         return GraphStateSchema(
             payload=state.payload,

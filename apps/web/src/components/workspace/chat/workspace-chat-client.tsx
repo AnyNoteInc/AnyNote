@@ -2,7 +2,7 @@
 
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react"
 
-import { Alert, Box, ChatThread, Stack } from "@repo/ui/components"
+import { Alert, Box, ChatThread, Stack, type ChatSendPayload } from "@repo/ui/components"
 
 import { trpc } from "@/trpc/client"
 
@@ -38,7 +38,14 @@ export function WorkspaceChatClient({
     ])
   })
 
-  const stream = useChatStream({
+  const {
+    error: streamError,
+    isStreaming,
+    messages,
+    replaceFromServer,
+    resume,
+    send,
+  } = useChatStream({
     chatId,
     initialMessages,
     onSettled: handleStreamSettled,
@@ -50,8 +57,8 @@ export function WorkspaceChatClient({
   )
 
   useEffect(() => {
-    stream.replaceFromServer(serverMessages)
-  }, [serverMessages, stream])
+    replaceFromServer(serverMessages)
+  }, [replaceFromServer, serverMessages])
 
   const resumableAssistantMessageId = useMemo(
     () => findResumableAssistantMessageId(serverMessages),
@@ -64,13 +71,13 @@ export function WorkspaceChatClient({
       return
     }
 
-    if (stream.isStreaming || resumeAttemptRef.current === resumableAssistantMessageId) {
+    if (isStreaming || resumeAttemptRef.current === resumableAssistantMessageId) {
       return
     }
 
     resumeAttemptRef.current = resumableAssistantMessageId
-    void stream.resume(resumableAssistantMessageId)
-  }, [resumableAssistantMessageId, stream])
+    void resume(resumableAssistantMessageId)
+  }, [isStreaming, resumableAssistantMessageId, resume])
 
   const handleSend = useEffectEvent(async (text: string) => {
     if (draftAttachments.hasPendingUploads) {
@@ -84,7 +91,7 @@ export function WorkspaceChatClient({
     }
 
     setActionError(null)
-    const started = await stream.send({
+    const started = await send({
       attachments: draftAttachments.uploadedAttachments,
       text,
     })
@@ -95,7 +102,21 @@ export function WorkspaceChatClient({
     }
   })
 
-  const combinedError = actionError ?? draftAttachments.error ?? stream.error ?? query.error?.message ?? null
+  const handleComposerSend = useEffectEvent((payload: ChatSendPayload) => {
+    void handleSend(payload.text)
+  })
+
+  const handleComposerAttachmentsChange = useEffectEvent((attachments: typeof draftAttachments.attachments) => {
+    setActionError(null)
+    draftAttachments.syncComposerAttachments(attachments)
+  })
+
+  const handleComposerValueChange = useEffectEvent((value: string) => {
+    setActionError(null)
+    setDraft(value)
+  })
+
+  const combinedError = actionError ?? draftAttachments.error ?? streamError ?? query.error?.message ?? null
 
   return (
     <Box
@@ -113,19 +134,11 @@ export function WorkspaceChatClient({
           composerAttachments={draftAttachments.attachments}
           composerPlaceholder="Спросите что-нибудь..."
           composerValue={draft}
-          disabled={stream.isStreaming}
-          messages={stream.messages}
-          onComposerAttachmentsChange={(attachments) => {
-            setActionError(null)
-            draftAttachments.syncComposerAttachments(attachments)
-          }}
-          onComposerValueChange={(value) => {
-            setActionError(null)
-            setDraft(value)
-          }}
-          onSend={({ text }) => {
-            void handleSend(text)
-          }}
+          disabled={isStreaming}
+          messages={messages}
+          onComposerAttachmentsChange={handleComposerAttachmentsChange}
+          onComposerValueChange={handleComposerValueChange}
+          onSend={handleComposerSend}
         />
       </Stack>
     </Box>
