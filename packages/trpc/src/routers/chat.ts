@@ -29,6 +29,48 @@ async function assertChatAccess(
   return chat
 }
 
+type ChatMessageWithFiles = {
+  id: string
+  role: "USER" | "ASSISTANT"
+  status: "STREAMING" | "DONE" | "ERROR"
+  errorMessage: string | null
+  content: string
+  createdAt: Date
+  updatedAt: Date
+  files: Array<{
+    file: {
+      id: string
+      name: string
+      mimeType: string
+      fileSize: bigint
+    }
+  }>
+}
+
+function normalizeChatMessage(message: ChatMessageWithFiles) {
+  return {
+    id: message.id,
+    role: message.role,
+    status: message.status,
+    errorMessage: message.errorMessage,
+    createdAt: message.createdAt.toISOString(),
+    updatedAt: message.updatedAt.toISOString(),
+    parts: [
+      ...(message.content.trim().length > 0
+        ? [{ type: "text" as const, text: message.content }]
+        : []),
+      ...message.files.map(({ file }) => ({
+        type: "file" as const,
+        fileId: file.id,
+        name: file.name,
+        mimeType: file.mimeType,
+        fileSize: file.fileSize.toString(),
+        downloadUrl: `/api/files/${file.id}`,
+      })),
+    ],
+  }
+}
+
 export const chatRouter = router({
   listChats: protectedProcedure
     .input(z.object({ workspaceId: z.string().uuid() }))
@@ -53,11 +95,20 @@ export const chatRouter = router({
     .input(z.object({ chatId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       const chat = await assertChatAccess(ctx, input.chatId)
-      const messages = await ctx.prisma.chatMessage.findMany({
+      const messages = (await ctx.prisma.chatMessage.findMany({
+        include: {
+          files: {
+            include: { file: true },
+            orderBy: { createdAt: "asc" },
+          },
+        },
         where: { chatId: chat.id },
         orderBy: { createdAt: "asc" },
-      })
-      return { chat, messages }
+      })) as ChatMessageWithFiles[]
+      return {
+        chat,
+        messages: messages.map(normalizeChatMessage),
+      }
     }),
 
   createChat: protectedProcedure
@@ -73,38 +124,6 @@ export const chatRouter = router({
           createdById: ctx.user.id,
           parentId: input.parentId ?? null,
         },
-      })
-    }),
-
-  sendMessage: protectedProcedure
-    .input(
-      z.object({
-        chatId: z.string().uuid(),
-        content: z.string().min(1).max(4000),
-      }),
-    )
-    .mutation(async ({ ctx, input }) => {
-      const chat = await assertChatAccess(ctx, input.chatId)
-      return ctx.prisma.$transaction(async (tx) => {
-        const userMessage = await tx.chatMessage.create({
-          data: { chatId: chat.id, role: "USER", content: input.content },
-        })
-        const assistantMessage = await tx.chatMessage.create({
-          data: {
-            chatId: chat.id,
-            role: "ASSISTANT",
-            content: `🔎 MVP echo: "${input.content}". Настоящий RAG подключим с OLLAMA + Weaviate.`,
-          },
-        })
-        const shouldRename = chat.title === "Новый чат"
-        await tx.chat.update({
-          where: { id: chat.id },
-          data: {
-            updatedAt: new Date(),
-            title: shouldRename ? input.content.slice(0, 48) : undefined,
-          },
-        })
-        return { userMessage, assistantMessage }
       })
     }),
 
