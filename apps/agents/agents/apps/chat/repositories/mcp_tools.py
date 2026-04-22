@@ -67,7 +67,10 @@ class McpToolsRepository:
             resp.raise_for_status()
             body = resp.json()
             if isinstance(body, dict) and 'error' in body:
-                raise McpRequestError(server, body['error'])
+                error = body['error']
+                if isinstance(error, dict):
+                    raise McpRequestError(server, error)
+                raise McpRequestError(server, {'message': str(error)})
             return body.get('result') if isinstance(body, dict) else body
 
     async def fetch_mcp_tools(self, servers: list[McpServerSchema]) -> tuple[list[StructuredTool], list[McpServerToolsSchema]]:
