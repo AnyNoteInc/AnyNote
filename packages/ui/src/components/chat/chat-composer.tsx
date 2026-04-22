@@ -2,15 +2,24 @@
 
 import AttachFileIcon from "@mui/icons-material/AttachFile"
 import SendRoundedIcon from "@mui/icons-material/SendRounded"
-import Box from "@mui/material/Box"
-import IconButton from "@mui/material/IconButton"
-import Paper from "@mui/material/Paper"
 import Stack from "@mui/material/Stack"
-import TextareaAutosize from "@mui/material/TextareaAutosize"
-import type { ChangeEvent, KeyboardEvent } from "react"
-import { useId, useRef } from "react"
+import {
+  ChatComposer as MuiChatComposer,
+  ChatComposerAttachButton,
+  ChatComposerSendButton,
+  ChatComposerTextArea,
+} from "@mui/x-chat"
+import { ChatProvider, useChatComposer, useChatStore } from "@mui/x-chat-headless"
+import { useEffect, useMemo, useRef } from "react"
 
 import { ChatFileChip } from "./chat-file-chip"
+import {
+  CHAT_COMPOSER_MAX_ROWS,
+  CHAT_CONVERSATION_ID,
+  CHAT_CONVERSATIONS,
+  CHAT_MEMBERS,
+  createComposerAdapter,
+} from "./chat-provider-utils"
 import type { ChatComposerAttachment, ChatSendPayload } from "./chat-types"
 
 type ChatComposerProps = {
@@ -23,17 +32,95 @@ type ChatComposerProps = {
   placeholder?: string
 }
 
-function buildDraftAttachment(file: File, index: number): ChatComposerAttachment {
-  const localId =
-    typeof crypto !== "undefined" && "randomUUID" in crypto
-      ? crypto.randomUUID()
-      : `${Date.now()}-${index}-${file.name}`
+function getAttachmentSignature(attachments: ChatComposerAttachment[]) {
+  return attachments
+    .map((attachment) => {
+      return `${attachment.localId}:${attachment.status}:${attachment.file.name}:${attachment.file.size}`
+    })
+    .join("|")
+}
 
-  return {
-    localId,
-    file,
-    status: "queued",
-  }
+type ChatComposerInnerProps = {
+  attachments: ChatComposerAttachment[]
+  onAttachmentsChange: (attachments: ChatComposerAttachment[]) => void
+  disabled: boolean
+  placeholder: string
+}
+
+function ChatComposerInner({
+  attachments,
+  onAttachmentsChange,
+  disabled,
+  placeholder,
+}: ChatComposerInnerProps) {
+  const composer = useChatComposer()
+  const store = useChatStore()
+  const previousPropSignatureRef = useRef<string | null>(null)
+  const syncingFromPropsRef = useRef(false)
+  const propSignature = getAttachmentSignature(attachments)
+  const storeSignature = getAttachmentSignature(composer.attachments)
+  const hasText = composer.value.trim().length > 0
+
+  useEffect(() => {
+    const propChanged = previousPropSignatureRef.current !== propSignature
+    previousPropSignatureRef.current = propSignature
+
+    if (!propChanged || propSignature === storeSignature) {
+      return
+    }
+
+    syncingFromPropsRef.current = true
+    store.setComposerAttachments(attachments)
+  }, [attachments, propSignature, store, storeSignature])
+
+  useEffect(() => {
+    if (syncingFromPropsRef.current) {
+      if (storeSignature === propSignature) {
+        syncingFromPropsRef.current = false
+      }
+      return
+    }
+
+    if (storeSignature !== propSignature) {
+      onAttachmentsChange(composer.attachments)
+    }
+  }, [composer.attachments, onAttachmentsChange, propSignature, storeSignature])
+
+  return (
+    <MuiChatComposer disabled={disabled} variant="compact">
+      {composer.attachments.length > 0 ? (
+        <Stack
+          direction="row"
+          flexBasis="100%"
+          flexWrap="wrap"
+          gap={1}
+        >
+          {composer.attachments.map((attachment) => (
+            <ChatFileChip
+              key={attachment.localId}
+              name={attachment.file.name}
+              onDelete={() => {
+                composer.removeAttachment(attachment.localId)
+              }}
+              secondaryLabel={attachment.status}
+            />
+          ))}
+        </Stack>
+      ) : null}
+      <ChatComposerAttachButton aria-label="Attach files" disabled={disabled}>
+        <AttachFileIcon />
+      </ChatComposerAttachButton>
+      <ChatComposerTextArea
+        data-testid="chat-composer-textarea"
+        disabled={disabled}
+        maxRows={CHAT_COMPOSER_MAX_ROWS}
+        placeholder={placeholder}
+      />
+      <ChatComposerSendButton aria-label="Send" disabled={disabled || !hasText}>
+        <SendRoundedIcon />
+      </ChatComposerSendButton>
+    </MuiChatComposer>
+  )
 }
 
 export function ChatComposer({
@@ -45,128 +132,30 @@ export function ChatComposer({
   disabled = false,
   placeholder = "Write a message",
 }: ChatComposerProps) {
-  const fileInputId = useId()
-  const isComposingRef = useRef(false)
-  const hasText = value.trim().length > 0
-
-  function handleSubmit() {
-    const text = value.trim()
-    if (!text || disabled) {
-      return
-    }
-
-    onSend({
-      text,
-      attachments,
+  const adapter = useMemo(() => {
+    return createComposerAdapter({
+      disabled,
+      onSend,
     })
-  }
-
-  function handleFileChange(event: ChangeEvent<HTMLInputElement>) {
-    const fileList = event.target.files
-    if (!fileList || fileList.length === 0) {
-      return
-    }
-
-    const nextAttachments = Array.from(fileList).map((file, index) => buildDraftAttachment(file, index))
-    onAttachmentsChange([...attachments, ...nextAttachments])
-    event.target.value = ""
-  }
-
-  function handleKeyDown(event: KeyboardEvent<HTMLTextAreaElement>) {
-    if (event.key !== "Enter" || event.shiftKey || isComposingRef.current) {
-      return
-    }
-
-    event.preventDefault()
-    handleSubmit()
-  }
+  }, [disabled, onSend])
 
   return (
-    <Paper
-      component="form"
-      elevation={0}
-      onSubmit={(event) => {
-        event.preventDefault()
-        handleSubmit()
-      }}
-      sx={{
-        border: 1,
-        borderColor: "divider",
-        borderRadius: 3,
-        p: 1.25,
-      }}
-      variant="outlined"
+    <ChatProvider
+      activeConversationId={CHAT_CONVERSATION_ID}
+      adapter={adapter}
+      composerValue={value}
+      conversations={CHAT_CONVERSATIONS}
+      members={CHAT_MEMBERS}
+      onComposerValueChange={onValueChange}
     >
-      {attachments.length > 0 ? (
-        <Stack direction="row" flexWrap="wrap" gap={1} mb={1}>
-          {attachments.map((attachment) => (
-            <ChatFileChip
-              key={attachment.localId}
-              name={attachment.file.name}
-              onDelete={() => {
-                onAttachmentsChange(
-                  attachments.filter((candidate) => candidate.localId !== attachment.localId),
-                )
-              }}
-              secondaryLabel={attachment.status}
-            />
-          ))}
-        </Stack>
-      ) : null}
-
-      <Stack alignItems="flex-end" direction="row" gap={1}>
-        <input
-          hidden
-          id={fileInputId}
-          multiple
-          onChange={handleFileChange}
-          type="file"
-        />
-        <IconButton
-          aria-label="Attach files"
-          component="label"
-          disabled={disabled}
-          htmlFor={fileInputId}
-          size="small"
-        >
-          <AttachFileIcon />
-        </IconButton>
-        <Box flex={1}>
-          <TextareaAutosize
-            disabled={disabled}
-            maxRows={8}
-            minRows={1}
-            onChange={(event) => onValueChange(event.target.value)}
-            onCompositionEnd={() => {
-              isComposingRef.current = false
-            }}
-            onCompositionStart={() => {
-              isComposingRef.current = true
-            }}
-            onKeyDown={handleKeyDown}
-            placeholder={placeholder}
-            style={{
-              background: "transparent",
-              border: "none",
-              color: "inherit",
-              font: "inherit",
-              outline: "none",
-              resize: "none",
-              width: "100%",
-            }}
-            value={value}
-          />
-        </Box>
-        <IconButton
-          aria-label="Send"
-          color="primary"
-          disabled={!hasText || disabled}
-          onClick={handleSubmit}
-          size="small"
-        >
-          <SendRoundedIcon />
-        </IconButton>
-      </Stack>
-    </Paper>
+      <ChatComposerInner
+        attachments={attachments}
+        disabled={disabled}
+        onAttachmentsChange={onAttachmentsChange}
+        placeholder={placeholder}
+      />
+    </ChatProvider>
   )
 }
+
+export { CHAT_COMPOSER_MAX_ROWS }

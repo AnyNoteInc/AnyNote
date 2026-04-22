@@ -2,8 +2,8 @@ import { cleanup, render, screen } from "@testing-library/react"
 import userEvent from "@testing-library/user-event"
 import { afterEach, describe, expect, it, vi } from "vitest"
 
+import { CHAT_COMPOSER_MAX_ROWS, ChatComposer } from "../src/components/chat/chat-composer"
 import type { ChatComposerAttachment } from "../src/components/chat/chat-types"
-import { ChatComposer } from "../src/components/chat/chat-composer"
 
 describe("ChatComposer", () => {
   afterEach(() => {
@@ -55,5 +55,20 @@ describe("ChatComposer", () => {
       attachments,
     })
     expect(onSend).toHaveBeenCalledTimes(1)
+  })
+
+  it("uses a 12-row composer cap", () => {
+    render(
+      <ChatComposer
+        value=""
+        attachments={[]}
+        onValueChange={() => {}}
+        onAttachmentsChange={() => {}}
+        onSend={vi.fn()}
+      />,
+    )
+
+    expect(screen.getByTestId("chat-composer-textarea")).toBeTruthy()
+    expect(CHAT_COMPOSER_MAX_ROWS).toBe(12)
   })
 })

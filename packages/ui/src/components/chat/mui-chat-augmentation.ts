@@ -6,3 +6,5 @@ declare module "@mui/x-chat/types" {
     "service-status": ChatServiceStatusPart
   }
 }
+
+export {}

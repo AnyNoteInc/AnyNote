@@ -16,17 +16,19 @@ describe("ChatMessageContent", () => {
             fileSize: "12 KB",
             downloadUrl: "/api/files/f1",
           },
-          { type: "text", text: "Hello there" },
+          { type: "text", text: "# Heading\n\nHello **there**" },
         ]}
       />,
     )
 
-    const text = screen.getByText("Hello there")
+    const text = screen.getByRole("heading", { name: "Heading" })
     const file = screen.getByRole("link", { name: /brief\.pdf/i })
+    const strong = container.querySelector("strong")
 
     expect(text).toBeTruthy()
     expect(file).toBeTruthy()
-    expect(container.textContent?.indexOf("Hello there")).toBeLessThan(
+    expect(strong?.textContent).toBe("there")
+    expect(container.textContent?.indexOf("Heading")).toBeLessThan(
       container.textContent?.indexOf("brief.pdf") ?? Number.POSITIVE_INFINITY,
     )
   })

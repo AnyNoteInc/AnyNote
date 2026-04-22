@@ -1,7 +1,7 @@
 "use client"
 
 import Box from "@mui/material/Box"
-import Typography from "@mui/material/Typography"
+import ReactMarkdown from "react-markdown"
 
 import { ChatFileChip } from "./chat-file-chip"
 import { ChatServiceBlock } from "./chat-service-block"
@@ -32,9 +32,40 @@ export function ChatMessageContent({ parts }: ChatMessageContentProps) {
       {sortedParts.map((part, index) => {
         if (part.type === "text") {
           return (
-            <Typography key={`${part.type}-${index}`} sx={{ whiteSpace: "pre-wrap", wordBreak: "break-word" }} variant="body2">
-              {part.text}
-            </Typography>
+            <Box
+              key={`${part.type}-${index}`}
+              sx={{
+                "& code": {
+                  bgcolor: "action.hover",
+                  borderRadius: 1,
+                  px: 0.5,
+                  py: 0.125,
+                },
+                "& ol, & ul": {
+                  m: 0,
+                  pl: 3,
+                },
+                "& p": {
+                  m: 0,
+                },
+                "& p + p": {
+                  mt: 1,
+                },
+                "& pre": {
+                  bgcolor: "grey.100",
+                  borderRadius: 2,
+                  m: 0,
+                  overflowX: "auto",
+                  p: 1,
+                },
+                "& strong": {
+                  fontWeight: 600,
+                },
+                overflowWrap: "anywhere",
+              }}
+            >
+              <ReactMarkdown>{part.text}</ReactMarkdown>
+            </Box>
           )
         }
 
