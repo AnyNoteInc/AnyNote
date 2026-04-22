@@ -31,11 +31,11 @@ export default async function PageView({
     [session.user.firstName, session.user.lastName].filter(Boolean).join(" ").trim() ||
     session.user.email
 
-  const isExcalidraw = page.type === "EXCALIDRAW"
+  const isFullBleed = page.type === "EXCALIDRAW" || page.type === "GENOGRAM"
 
   return (
     <Box sx={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
-      {!isExcalidraw && (
+      {!isFullBleed && (
         <Box className={PAGE_COLUMN_CLASS} sx={{ ...pageColumnSx, pt: 4, pb: 1 }}>
           <PageHeader
             id={page.id}

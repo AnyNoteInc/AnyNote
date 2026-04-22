@@ -35,6 +35,11 @@ const Board = dynamic(() => import("@repo/excalidraw").then((m) => m.Board), {
   loading: () => <CenteredSpinner />,
 })
 
+const Genogram = dynamic(
+  () => import("@repo/genogram").then((m) => m.GenogramBoard),
+  { ssr: false, loading: () => <CenteredSpinner /> },
+)
+
 function CenteredSpinner() {
   return (
     <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
@@ -165,6 +170,17 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
         yjsUrl={yjsUrl}
         yjsToken={fetchYjsToken}
         uploadHandler={uploadHandler}
+        user={user}
+      />
+    )
+  }
+
+  if (page.type === "GENOGRAM") {
+    return (
+      <Genogram
+        pageId={page.id}
+        yjsUrl={yjsUrl}
+        yjsToken={fetchYjsToken}
         user={user}
       />
     )

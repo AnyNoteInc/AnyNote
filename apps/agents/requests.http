@@ -10,8 +10,8 @@ content-type: application/json
       "baseUrl": "http://localhost:11434"
     },
     "settings": {
-      "temperature": 0,
-      "topP": 0
+      "temperature": 0.2,
+      "topP": 0.4б
     }
   },
   "systemPrompt": "Ты профессиональный помощник, который помогает пользователю с его запросами. Ты всегда отвечаешь на русском языке.",

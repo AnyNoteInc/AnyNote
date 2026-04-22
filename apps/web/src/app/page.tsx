@@ -1,81 +1,25 @@
 import type { Metadata } from "next"
 
-import {
-  Box,
-  Button,
-  Chip,
-  Container,
-  Divider,
-  Paper,
-  Stack,
-  Typography,
-} from "@repo/ui/components"
+import { Box, Button, Container, Divider, Paper, Stack, Typography } from "@repo/ui/components"
 
-import { pricingCards } from "@/components/public/content"
+import { landingPricingCards } from "@/components/public/content"
 import { PublicFooter } from "@/components/public/public-footer"
 import { PublicHeader } from "@/components/public/public-header"
 import { getSession } from "@/lib/get-session"
 
-const featureCards = [
+const benefitCards = [
   {
-    title: "Markdown-first редактор",
-    body: "Каждая страница живет как Markdown-документ, но выглядит как polished block-editor уровня Notion",
-    marker: "MD",
+    title: "Всё в одном пространстве",
+    body: "Документы, заметки, схемы, файлы клиентов — больше не разбросаны по Google Docs, чатам и папкам на рабочем столе. Один вход — вся работа команды под рукой.",
   },
   {
-    title: "Медиа без трения",
-    body: "Изображения, PDF, аудио, текстовые файлы и вложения собираются в одном контексте документа",
-    marker: "FX",
+    title: "Спросил — нашёл",
+    body: "Задаёте вопрос обычными словами: «какие договоры мы заключили в марте», «что обсуждали с клиентом». Ответ приходит из ваших документов, а не из гугла.",
   },
   {
-    title: "AI и RAG поверх знаний",
-    body: "Поиск и промпты работают не по общим словам, а по индексированной базе реальных документов команды",
-    marker: "AI",
+    title: "Одна ссылка вместо десяти вложений",
+    body: "Нужно показать клиенту документ, бриф, схему работ? Отправляете одну ссылку — он видит всё в нормальном виде, без регистраций и PDF-экспортов.",
   },
-]
-
-const proofItems = ["Yandex / Email auth", "Public sharing", "SaaS + On-Prem", "Dark / Light"]
-
-const comparisonRows = [
-  {
-    title: "Markdown как исходный формат",
-    anynote: "Нативная модель документа и чистый экспорт",
-    notion: "Блоки удобны, но не markdown-first",
-    obsidian: "Сильный markdown, слабее командный SaaS-слой",
-  },
-  {
-    title: "Командная база знаний",
-    anynote: "SaaS-подход, роли, публичные ссылки, AI поверх workspace",
-    notion: "Сильная совместная работа, но тяжелее локальная и on-prem модель",
-    obsidian: "Отличен для personal knowledge, сложнее для командного стандарта",
-  },
-  {
-    title: "Инсталляция",
-    anynote: "Одна продуктовая модель для cloud и on-prem",
-    notion: "Только cloud",
-    obsidian: "Локальный-first, но без полноценного SaaS-опыта из коробки",
-  },
-]
-
-const distributionCards = [
-  {
-    title: "SaaS",
-    pluses: "Мгновенный старт, обновления без участия команды, быстрый onboarding",
-    minuses: "Ниже контроль над инфраструктурой и комплаенс-контуром",
-    accent: "Для команд, которым важна скорость запуска",
-  },
-  {
-    title: "On-Prem",
-    pluses: "Полный контроль над данными, контуром безопасности и сетевым доступом",
-    minuses: "Выше стоимость владения и длиннее цикл внедрения",
-    accent: "Для enterprise и regulated environments",
-  },
-]
-
-const urgencyPoints = [
-  "Не теряйте контекст между Notion, Obsidian, Google Docs и файловыми папками",
-  "Соберите AI-поиск поверх документов до того, как база знаний снова расползется",
-  "Подготовьте платформу, которую можно продать как SaaS и внедрять как On-Prem",
 ]
 
 export const metadata: Metadata = {
@@ -85,6 +29,9 @@ export const metadata: Metadata = {
 export default async function HomePage() {
   const session = await getSession()
 
+  const primaryHref = session ? "/app" : "/registration"
+  const primaryLabel = session ? "Открыть рабочее пространство" : "Начать бесплатно"
+
   return (
     <Box
       component="main"
@@ -92,395 +39,102 @@ export default async function HomePage() {
         minHeight: "100vh",
         color: "text.primary",
         background:
-          "radial-gradient(circle at 14% 16%, rgba(15, 118, 110, 0.12), transparent 18%), linear-gradient(180deg, rgba(7, 18, 24, 0.05) 0%, transparent 44%, rgba(255,255,255,0.02) 100%)",
+          "radial-gradient(circle at 16% 12%, rgba(15, 118, 110, 0.08), transparent 24%)",
       }}
     >
-      <Box
-        sx={{
-          position: "fixed",
-          inset: 0,
-          pointerEvents: "none",
-          opacity: 0.14,
-          backgroundImage:
-            "linear-gradient(rgba(148,163,184,0.12) 1px, transparent 1px), linear-gradient(90deg, rgba(148,163,184,0.12) 1px, transparent 1px)",
-          backgroundSize: "42px 42px",
-          maskImage:
-            "linear-gradient(180deg, rgba(0,0,0,0.92), rgba(0,0,0,0.56) 42%, transparent 100%)",
-        }}
-      />
-
-      <Container maxWidth="xl" sx={{ position: "relative", pb: { xs: 9, md: 14 } }}>
+      <Container maxWidth="xl" sx={{ position: "relative", pb: { xs: 9, md: 12 } }}>
         <PublicHeader session={session} />
 
         <Box
           sx={{
-            pt: { xs: 4, md: 7 },
+            pt: { xs: 5, md: 8 },
             display: "grid",
-            gridTemplateColumns: { xs: "1fr", xl: "minmax(0, 1.2fr) 430px" },
-            gap: { xs: 5, xl: 4 },
-            alignItems: "start",
+            gridTemplateColumns: { xs: "1fr", lg: "minmax(0, 1fr) minmax(0, 1fr)" },
+            gap: { xs: 5, lg: 6 },
+            alignItems: "center",
           }}
         >
-          <Stack spacing={4.5}>
-            <Stack spacing={2.5} sx={{ maxWidth: 920 }}>
-              <Chip
-                label="Российский SaaS knowledge workspace нового поколения"
-                sx={{
-                  alignSelf: "flex-start",
-                  borderRadius: 4,
-                  height: 38,
-                  px: 1.2,
-                  backdropFilter: "blur(10px)",
-                  color: "text.primary",
-                  backgroundColor: "rgba(247,250,248,0.78)",
-                  border: "1px solid rgba(148,163,184,0.18)",
-                }}
-              />
-              <Typography
-                variant="h1"
-                sx={{
-                  maxWidth: 1040,
-                  fontSize: { xs: "3.2rem", sm: "4.7rem", md: "6.8rem" },
-                }}
-              >
-                Notion-уровень интерфейса, Obsidian-уровень контроля, один продукт для вашей базы
-                знаний
-              </Typography>
-              <Typography
-                variant="h6"
-                color="text.secondary"
-                sx={{
-                  maxWidth: 760,
-                  lineHeight: 1.6,
-                  fontSize: { xs: "1.02rem", md: "1.18rem" },
-                }}
-              >
-                AnyNote создается как SaaS-платформа для команд, которым нужен markdown-first
-                редактор, удобные блоки как в Notion, медиа, public sharing и AI-поиск поверх
-                документов, а не поверх хаоса.
-              </Typography>
-            </Stack>
-
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={2}>
-              <Button href={session ? "/app" : "/registration"} size="large">
-                {session ? "Открыть рабочее пространство" : "Начать бесплатно"}
-              </Button>
-              <Button href="/sign-in" variant="outlined" color="inherit" size="large">
-                Запросить демо и войти
-              </Button>
-            </Stack>
-
-            <Stack direction="row" flexWrap="wrap" gap={1.25}>
-              {proofItems.map((item) => (
-                <Chip
-                  key={item}
-                  label={item}
-                  variant="outlined"
-                  sx={{
-                    borderRadius: 4,
-                    backgroundColor: "rgba(247,250,248,0.74)",
-                    borderColor: "rgba(148,163,184,0.18)",
-                  }}
-                />
-              ))}
-            </Stack>
-          </Stack>
-
-          <Paper
-            elevation={0}
-            sx={{
-              p: 2.5,
-              borderRadius: 4,
-              border: "1px solid rgba(148,163,184,0.14)",
-              background:
-                "linear-gradient(180deg, rgba(16, 28, 33, 0.96) 0%, rgba(11, 21, 26, 0.98) 100%)",
-              boxShadow: "0 18px 48px rgba(10, 18, 22, 0.18)",
-              transform: { xl: "translateY(28px)" },
-            }}
-          >
-            <Stack spacing={2.25}>
-              <Stack direction="row" justifyContent="space-between" alignItems="center">
-                <Typography variant="overline" color="rgba(226,232,240,0.72)">
-                  Live preview
-                </Typography>
-                <Typography variant="body2" color="rgba(226,232,240,0.58)">
-                  md + blocks + ai
-                </Typography>
-              </Stack>
-
-              <Paper
-                elevation={0}
-                sx={{
-                  p: 2.5,
-                  borderRadius: 4,
-                  border: "1px solid rgba(148,163,184,0.14)",
-                  backgroundColor: "rgba(255,255,255,0.03)",
-                }}
-              >
-                <Stack spacing={2}>
-                  <Typography variant="h6" fontWeight={800} sx={{ color: "#f8fafc" }}>
-                    Product memory / launch brief
-                  </Typography>
-                  <Typography color="rgba(226,232,240,0.74)">
-                    Документ выглядит как polished editor, хранится как понятный markdown-слой и
-                    сразу готов для поиска, prompt actions и внешнего шаринга.
-                  </Typography>
-                  <Divider sx={{ borderColor: "rgba(148,163,184,0.12)" }} />
-                  <Stack spacing={1.1}>
-                    {[
-                      "Slash-команды и визуальные блоки",
-                      "Вложения: PDF, audio, images, text",
-                      "RAG-индексация и AI prompts",
-                      "Публичные ссылки для внешней аудитории",
-                    ].map((item) => (
-                      <Stack key={item} direction="row" spacing={1.2} alignItems="center">
-                        <Box
-                          sx={{
-                            width: 8,
-                            height: 8,
-                            borderRadius: 999,
-                            background: "#0f766e",
-                          }}
-                        />
-                        <Typography variant="body2" color="rgba(241,245,249,0.88)">
-                          {item}
-                        </Typography>
-                      </Stack>
-                    ))}
-                  </Stack>
-                </Stack>
-              </Paper>
-
-              <Box
-                sx={{
-                  display: "grid",
-                  gridTemplateColumns: "repeat(2, minmax(0, 1fr))",
-                  gap: 1.5,
-                }}
-              >
-                {featureCards.map((card) => {
-                  return (
-                    <Paper
-                      key={card.title}
-                      elevation={0}
-                      sx={{
-                        p: 2,
-                        borderRadius: 4,
-                        minHeight: 156,
-                        backgroundColor: "rgba(255,255,255,0.06)",
-                        border: "1px solid rgba(148,163,184,0.14)",
-                      }}
-                    >
-                      <Stack spacing={1.4}>
-                        <Box
-                          sx={{
-                            width: 24,
-                            height: 24,
-                            borderRadius: 4,
-                            display: "grid",
-                            placeItems: "center",
-                            fontSize: 10,
-                            fontWeight: 800,
-                            letterSpacing: "0.12em",
-                            background: "rgba(15,118,110,0.18)",
-                          }}
-                        >
-                          {card.marker}
-                        </Box>
-                        <Typography fontWeight={700} sx={{ color: "#f8fafc" }}>
-                          {card.title}
-                        </Typography>
-                        <Typography variant="body2" color="rgba(226,232,240,0.74)">
-                          {card.body}
-                        </Typography>
-                      </Stack>
-                    </Paper>
-                  )
-                })}
-              </Box>
-            </Stack>
-          </Paper>
-        </Box>
-
-        <Stack spacing={3} sx={{ mt: { xs: 9, md: 12 } }}>
-          <Typography variant="overline" color="text.secondary">
-            Почему стоит использовать нас вместо связки Notion + Obsidian
-          </Typography>
-          <Typography variant="h2" sx={{ maxWidth: 840 }}>
-            Не просто альтернатива. Более цельная модель для командной памяти, документации и
-            AI-поиска
-          </Typography>
-        </Stack>
-
-        <Box
-          sx={{
-            mt: 4,
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", lg: "1.25fr 0.85fr" },
-            gap: 3,
-          }}
-        >
-          <Paper
-            elevation={0}
-            sx={{
-              overflow: "hidden",
-              borderRadius: 4,
-              border: "1px solid rgba(148,163,184,0.16)",
-              backgroundColor: "background.paper",
-            }}
-          >
-            <Box
+          <Stack spacing={3.5}>
+            <Typography
+              variant="h1"
               sx={{
-                display: "grid",
-                gridTemplateColumns: "1.2fr 1fr 1fr 1fr",
+                fontSize: { xs: "2.3rem", sm: "2.9rem", md: "3.5rem" },
+                lineHeight: 1.1,
+                maxWidth: 680,
               }}
             >
-              {["Критерий", "AnyNote", "Notion", "Obsidian"].map((item) => (
-                <Box
-                  key={item}
-                  sx={{
-                    p: 2,
-                    borderBottom: "1px solid rgba(148,163,184,0.12)",
-                    backgroundColor: "rgba(148,163,184,0.06)",
-                  }}
-                >
-                  <Typography fontWeight={800}>{item}</Typography>
-                </Box>
-              ))}
-              {comparisonRows.flatMap((row) => [
-                <Box
-                  key={`${row.title}-label`}
-                  sx={{
-                    p: 2,
-                    borderBottom: "1px solid rgba(148,163,184,0.12)",
-                  }}
-                >
-                  <Typography fontWeight={700}>{row.title}</Typography>
-                </Box>,
-                <Box
-                  key={`${row.title}-anynote`}
-                  sx={{
-                    p: 2,
-                    borderBottom: "1px solid rgba(148,163,184,0.12)",
-                  }}
-                >
-                  <Typography color="text.secondary">{row.anynote}</Typography>
-                </Box>,
-                <Box
-                  key={`${row.title}-notion`}
-                  sx={{
-                    p: 2,
-                    borderBottom: "1px solid rgba(148,163,184,0.12)",
-                  }}
-                >
-                  <Typography color="text.secondary">{row.notion}</Typography>
-                </Box>,
-                <Box
-                  key={`${row.title}-obsidian`}
-                  sx={{
-                    p: 2,
-                    borderBottom: "1px solid rgba(148,163,184,0.12)",
-                  }}
-                >
-                  <Typography color="text.secondary">{row.obsidian}</Typography>
-                </Box>,
-              ])}
-            </Box>
-          </Paper>
-
-          <Stack spacing={3}>
-            {featureCards.map((card, index) => {
-              return (
-                <Paper
-                  key={card.title}
-                  elevation={0}
-                  sx={{
-                    p: 3,
-                    borderRadius: 4,
-                    border: "1px solid rgba(148,163,184,0.16)",
-                    backgroundColor: "background.paper",
-                    backgroundImage:
-                      index === 1
-                        ? "linear-gradient(180deg, rgba(15, 118, 110, 0.10) 0%, rgba(255,255,255,0.02) 100%)"
-                        : "none",
-                  }}
-                >
-                  <Stack spacing={1.5}>
-                    <Box
-                      sx={{
-                        width: 26,
-                        height: 26,
-                        borderRadius: 4,
-                        display: "grid",
-                        placeItems: "center",
-                        fontSize: 10,
-                        fontWeight: 800,
-                        letterSpacing: "0.12em",
-                        background: "rgba(15,118,110,0.18)",
-                      }}
-                    >
-                      {card.marker}
-                    </Box>
-                    <Typography variant="h6">{card.title}</Typography>
-                    <Typography color="text.secondary">{card.body}</Typography>
-                  </Stack>
-                </Paper>
-              )
-            })}
+              Документы команды — в одном месте. И они находятся за секунды.
+            </Typography>
+            <Typography
+              color="text.secondary"
+              sx={{
+                maxWidth: 600,
+                lineHeight: 1.6,
+                fontSize: { xs: "1rem", md: "1.12rem" },
+              }}
+            >
+              Собирайте заметки, файлы и рабочие материалы в общем пространстве. Задавайте вопрос —
+              получайте ответ из ваших документов.
+            </Typography>
+            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+              <Button href={primaryHref} size="large">
+                {primaryLabel}
+              </Button>
+              {!session && (
+                <Button href="/sign-in" variant="outlined" color="inherit" size="large">
+                  Войти
+                </Button>
+              )}
+            </Stack>
           </Stack>
+
+          <HeroPreview />
         </Box>
 
-        <Stack spacing={3} sx={{ mt: { xs: 9, md: 12 } }}>
-          <Typography variant="overline" color="text.secondary">
-            SaaS и On-Prem
-          </Typography>
-          <Typography variant="h2" sx={{ maxWidth: 820 }}>
-            Одна продуктовая линия для cloud-команд и компаний, которым нужен свой контур
-          </Typography>
-        </Stack>
+        <SectionHeader eyebrow="Что вы получаете">
+          Команда перестаёт терять документы и тратить часы на поиск
+        </SectionHeader>
 
         <Box
           sx={{
             mt: 4,
             display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+            gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" },
             gap: 3,
           }}
         >
-          {distributionCards.map((card) => (
+          {benefitCards.map((card) => (
             <Paper
               key={card.title}
               elevation={0}
               sx={{
-                p: { xs: 3, md: 4 },
+                p: { xs: 3, md: 3.5 },
                 borderRadius: 4,
-                border: "1px solid rgba(148,163,184,0.16)",
+                border: "1px solid rgba(148,163,184,0.18)",
                 backgroundColor: "background.paper",
               }}
             >
-              <Stack spacing={2.2}>
-                <Typography variant="h4">{card.title}</Typography>
-                <Typography fontWeight={700}>{card.accent}</Typography>
-                <Divider />
-                <Typography color="text.secondary">
-                  <strong>Плюсы:</strong> {card.pluses}
-                </Typography>
-                <Typography color="text.secondary">
-                  <strong>Минусы:</strong> {card.minuses}
+              <Stack spacing={1.5}>
+                <Typography variant="h5">{card.title}</Typography>
+                <Typography color="text.secondary" sx={{ lineHeight: 1.6 }}>
+                  {card.body}
                 </Typography>
               </Stack>
             </Paper>
           ))}
         </Box>
 
-        <Stack spacing={3} sx={{ mt: { xs: 9, md: 12 } }}>
-          <Typography variant="overline" color="text.secondary">
-            Тарифы
-          </Typography>
-          <Typography variant="h2" sx={{ maxWidth: 720 }}>
-            От бесплатного старта до корпоративного знания как инфраструктуры.
-          </Typography>
-        </Stack>
+        <SectionHeader eyebrow="Как это выглядит">
+          Пример: карточка клиента в агентстве
+        </SectionHeader>
+
+        <Box sx={{ mt: 4 }}>
+          <DetailedPreview />
+        </Box>
+
+        <SectionHeader eyebrow="Тарифы">
+          Выберите план, который подходит команде
+        </SectionHeader>
 
         <Box
           sx={{
@@ -490,119 +144,378 @@ export default async function HomePage() {
             gap: 3,
           }}
         >
-          {pricingCards.map((plan, index) => (
-            <Paper
-              key={plan.title}
-              elevation={0}
-              sx={{
-                p: 3.5,
-                borderRadius: 4,
-                minHeight: 360,
-                border:
-                  index === 1
+          {landingPricingCards.map((plan, index) => {
+            const isPrimary = index === 1
+            const isCustom = plan.price === "Custom"
+            const planHref = isCustom ? "/contact" : primaryHref
+            return (
+              <Paper
+                key={plan.title}
+                elevation={0}
+                sx={{
+                  p: 3.5,
+                  borderRadius: 4,
+                  minHeight: 360,
+                  border: isPrimary
                     ? "1px solid rgba(15, 118, 110, 0.34)"
-                    : "1px solid rgba(148,163,184,0.16)",
-                backgroundColor: "background.paper",
-                backgroundImage:
-                  index === 1
-                    ? "linear-gradient(180deg, rgba(15, 118, 110, 0.12) 0%, rgba(255,255,255,0.03) 100%)"
+                    : "1px solid rgba(148,163,184,0.18)",
+                  backgroundColor: "background.paper",
+                  backgroundImage: isPrimary
+                    ? "linear-gradient(180deg, rgba(15, 118, 110, 0.10) 0%, rgba(255,255,255,0.03) 100%)"
                     : "none",
-                boxShadow: index === 1 ? "0 18px 42px rgba(15, 118, 110, 0.10)" : "none",
-              }}
-            >
-              <Stack spacing={2}>
-                <Typography variant="h5">{plan.title}</Typography>
-                <Typography variant="h2" sx={{ fontSize: "3.2rem" }}>
-                  {plan.price === "Custom" ? plan.price : `$${plan.price}`}
-                </Typography>
-                <Typography color="text.secondary">{plan.description}</Typography>
-                <Divider />
-                <Stack spacing={1.2}>
-                  {plan.items.map((item) => (
-                    <Typography key={item} color="text.secondary">
-                      • {item}
-                    </Typography>
-                  ))}
+                  boxShadow: isPrimary ? "0 18px 42px rgba(15, 118, 110, 0.10)" : "none",
+                }}
+              >
+                <Stack spacing={2}>
+                  <Typography variant="h5">{plan.title}</Typography>
+                  <Typography variant="h2" sx={{ fontSize: "3rem" }}>
+                    {isCustom ? "По запросу" : `$${plan.price}`}
+                  </Typography>
+                  <Typography color="text.secondary">{plan.description}</Typography>
+                  <Divider />
+                  <Stack spacing={1.2}>
+                    {plan.items.map((item) => (
+                      <Typography key={item} color="text.secondary">
+                        • {item}
+                      </Typography>
+                    ))}
+                  </Stack>
+                  <Box sx={{ pt: 1 }}>
+                    <Button
+                      href={planHref}
+                      variant={isPrimary ? "contained" : "outlined"}
+                      color={isPrimary ? "primary" : "inherit"}
+                      fullWidth
+                    >
+                      {plan.cta}
+                    </Button>
+                  </Box>
                 </Stack>
-                <Box sx={{ pt: 1 }}>
-                  <Button
-                    href={session ? "/app" : "/registration"}
-                    variant={index === 1 ? "contained" : "outlined"}
-                    color={index === 1 ? "primary" : "inherit"}
-                    fullWidth
-                  >
-                    Выбрать {plan.title}
-                  </Button>
-                </Box>
-              </Stack>
-            </Paper>
-          ))}
+              </Paper>
+            )
+          })}
         </Box>
 
         <Paper
           elevation={0}
           sx={{
-            mt: { xs: 9, md: 12 },
-            p: { xs: 3.5, md: 5 },
+            mt: { xs: 8, md: 11 },
+            p: { xs: 4, md: 6 },
             borderRadius: 4,
-            overflow: "hidden",
-            position: "relative",
-            background: "linear-gradient(180deg, #101c21 0%, #0b151a 100%)",
-            color: "#f8fafc",
+            border: "1px solid rgba(148,163,184,0.18)",
+            backgroundColor: "background.paper",
+            textAlign: "center",
           }}
         >
-          <Box
-            sx={{
-              position: "absolute",
-              inset: 0,
-              background:
-                "radial-gradient(circle at top left, rgba(15,118,110,0.18), transparent 18%)",
-            }}
-          />
-          <Box sx={{ position: "relative" }}>
-            <Stack
-              direction={{ xs: "column", xl: "row" }}
-              justifyContent="space-between"
-              spacing={4}
-              alignItems={{ xs: "flex-start", xl: "center" }}
-            >
-              <Stack spacing={2} sx={{ maxWidth: 820 }}>
-                <Typography variant="overline" color="rgba(248,250,252,0.66)">
-                  Почему покупать сейчас
-                </Typography>
-                <Typography variant="h2" sx={{ color: "#f8fafc" }}>
-                  Пока рынок выбирает между Notion и Obsidian, вы можете получить систему, которая
-                  ближе к вашему сценарию и модели владения
-                </Typography>
-                <Stack spacing={1.1}>
-                  {urgencyPoints.map((item) => (
-                    <Typography key={item} color="rgba(226,232,240,0.84)">
-                      • {item}
-                    </Typography>
-                  ))}
-                </Stack>
-              </Stack>
-              <Stack spacing={1.5} sx={{ minWidth: { xl: 280 } }}>
-                <Button href={session ? "/app" : "/registration"} size="large">
-                  Начать сейчас
-                </Button>
-                <Button
-                  href="/sign-in"
-                  variant="outlined"
-                  size="large"
-                  sx={{
-                    color: "#f8fafc",
-                    borderColor: "rgba(248,250,252,0.18)",
-                  }}
-                >
-                  Обсудить внедрение
-                </Button>
-              </Stack>
-            </Stack>
-          </Box>
+          <Stack spacing={2.5} alignItems="center">
+            <Typography variant="h2" sx={{ fontSize: { xs: "2rem", md: "2.6rem" } }}>
+              Начните за 2 минуты
+            </Typography>
+            <Typography color="text.secondary" sx={{ maxWidth: 520 }}>
+              Регистрация бесплатная. Банковская карта не нужна.
+            </Typography>
+            <Button href={primaryHref} size="large" sx={{ mt: 1 }}>
+              {primaryLabel}
+            </Button>
+          </Stack>
         </Paper>
       </Container>
       <PublicFooter />
     </Box>
+  )
+}
+
+function SectionHeader({ eyebrow, children }: { eyebrow: string; children: React.ReactNode }) {
+  return (
+    <Stack spacing={1.5} sx={{ mt: { xs: 8, md: 11 } }}>
+      <Typography variant="overline" color="text.secondary">
+        {eyebrow}
+      </Typography>
+      <Typography
+        variant="h2"
+        sx={{ maxWidth: 780, fontSize: { xs: "1.9rem", md: "2.6rem" }, lineHeight: 1.2 }}
+      >
+        {children}
+      </Typography>
+    </Stack>
+  )
+}
+
+function HeroPreview() {
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        p: 2,
+        borderRadius: 4,
+        border: "1px solid rgba(148,163,184,0.22)",
+        backgroundColor: "background.paper",
+        boxShadow: "0 24px 60px rgba(15, 23, 42, 0.08)",
+      }}
+    >
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "116px 1fr", sm: "148px 1fr" },
+          gap: 1.5,
+          minHeight: 340,
+        }}
+      >
+        <Box
+          sx={{
+            borderRadius: 3,
+            backgroundColor: "rgba(148,163,184,0.08)",
+            p: 1.5,
+          }}
+        >
+          <SidebarGroup title="Клиенты" activeIndex={0} items={["ООО «Ромашка»", "ИП Иванов", "ООО «ТехноПром»"]} />
+          <Box sx={{ mt: 2 }}>
+            <SidebarGroup title="Задачи" items={["На неделю", "В работе"]} />
+          </Box>
+        </Box>
+
+        <Box sx={{ p: { xs: 1, sm: 1.5 } }}>
+          <Typography variant="caption" color="text.secondary">
+            Клиенты / ООО «Ромашка»
+          </Typography>
+          <Typography sx={{ mt: 0.5, fontSize: { xs: "1.05rem", sm: "1.2rem" }, fontWeight: 700 }}>
+            Карточка клиента
+          </Typography>
+          <Divider sx={{ my: 1.5 }} />
+          <Stack spacing={1.5}>
+            <PreviewField label="Контактное лицо" value="Петров Иван · +7 (999) 123-45-67" />
+            <PreviewField label="Договоры" value="Договор №14 от 12.03 · Допсоглашение №1" />
+            <PreviewField label="Файлы" value="договор.pdf · бриф.docx · схема.холст" />
+          </Stack>
+        </Box>
+      </Box>
+    </Paper>
+  )
+}
+
+function DetailedPreview() {
+  return (
+    <Paper
+      elevation={0}
+      sx={{
+        p: { xs: 2, md: 3 },
+        borderRadius: 4,
+        border: "1px solid rgba(148,163,184,0.22)",
+        backgroundColor: "background.paper",
+        boxShadow: "0 24px 60px rgba(15, 23, 42, 0.06)",
+      }}
+    >
+      <Box
+        sx={{
+          display: "grid",
+          gridTemplateColumns: { xs: "1fr", md: "200px 1fr" },
+          gap: { xs: 2, md: 3 },
+        }}
+      >
+        <Box
+          sx={{
+            borderRadius: 3,
+            backgroundColor: "rgba(148,163,184,0.06)",
+            p: 2,
+            display: { xs: "none", md: "block" },
+          }}
+        >
+          <SidebarGroup title="Клиенты" activeIndex={0} items={["ООО «Ромашка»", "ИП Иванов", "ООО «ТехноПром»"]} />
+          <Box sx={{ mt: 2.5 }}>
+            <SidebarGroup title="Задачи" items={["На неделю", "В работе", "Архив"]} />
+          </Box>
+          <Box sx={{ mt: 2.5 }}>
+            <SidebarGroup title="Шаблоны" items={["Бриф", "Договор", "Отчёт"]} />
+          </Box>
+        </Box>
+
+        <Box sx={{ p: { xs: 1, md: 2 } }}>
+          <Typography variant="caption" color="text.secondary">
+            Клиенты / ООО «Ромашка»
+          </Typography>
+          <Typography
+            variant="h4"
+            sx={{ mt: 0.5, fontSize: { xs: "1.4rem", md: "1.8rem" }, fontWeight: 700 }}
+          >
+            ООО «Ромашка» — карточка клиента
+          </Typography>
+          <Divider sx={{ my: 2 }} />
+
+          <Stack spacing={2.5}>
+            <DocSection title="Контакты">
+              <Typography variant="body2">Петров Иван Сергеевич — директор</Typography>
+              <Typography variant="body2" color="text.secondary">
+                +7 (999) 123-45-67 · petrov@romashka.ru
+              </Typography>
+            </DocSection>
+
+            <DocSection title="История работ">
+              <Typography variant="body2">
+                Март 2026 — редизайн сайта, запуск рекламной кампании.
+              </Typography>
+              <Typography variant="body2" color="text.secondary">
+                Февраль 2026 — SEO-аудит, техническое задание.
+              </Typography>
+            </DocSection>
+
+            <DocSection title="Договоры и файлы">
+              <Stack direction="row" flexWrap="wrap" gap={1}>
+                {[
+                  "договор №14.pdf",
+                  "допсоглашение №1.pdf",
+                  "бриф.docx",
+                  "схема взаимодействия",
+                ].map((file) => (
+                  <FilePill key={file} label={file} />
+                ))}
+              </Stack>
+            </DocSection>
+
+            <DocSection title="Открытые задачи">
+              <Stack spacing={0.75}>
+                <TaskRow text="Согласовать макет главной" due="до 25.04" />
+                <TaskRow text="Подготовить отчёт за март" due="до 28.04" />
+              </Stack>
+            </DocSection>
+          </Stack>
+        </Box>
+      </Box>
+    </Paper>
+  )
+}
+
+function SidebarGroup({
+  title,
+  items,
+  activeIndex,
+}: {
+  title: string
+  items: string[]
+  activeIndex?: number
+}) {
+  return (
+    <Box>
+      <Typography
+        variant="caption"
+        sx={{
+          color: "text.secondary",
+          fontWeight: 700,
+          letterSpacing: "0.08em",
+          textTransform: "uppercase",
+          display: "block",
+        }}
+      >
+        {title}
+      </Typography>
+      <Stack spacing={0.5} sx={{ mt: 1 }}>
+        {items.map((item, i) => {
+          const isActive = i === activeIndex
+          return (
+            <Box
+              key={item}
+              sx={{
+                px: 1,
+                py: 0.6,
+                borderRadius: 1.5,
+                backgroundColor: isActive ? "rgba(15,118,110,0.10)" : "transparent",
+                border: isActive
+                  ? "1px solid rgba(15,118,110,0.22)"
+                  : "1px solid transparent",
+              }}
+            >
+              <Typography
+                variant="caption"
+                sx={{
+                  color: isActive ? "primary.main" : "text.primary",
+                  fontWeight: isActive ? 600 : 400,
+                }}
+              >
+                {item}
+              </Typography>
+            </Box>
+          )
+        })}
+      </Stack>
+    </Box>
+  )
+}
+
+function PreviewField({ label, value }: { label: string; value: string }) {
+  return (
+    <Box>
+      <Typography
+        variant="caption"
+        sx={{
+          color: "text.secondary",
+          textTransform: "uppercase",
+          fontWeight: 700,
+          letterSpacing: "0.06em",
+        }}
+      >
+        {label}
+      </Typography>
+      <Typography variant="body2" sx={{ mt: 0.25 }}>
+        {value}
+      </Typography>
+    </Box>
+  )
+}
+
+function DocSection({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <Box>
+      <Typography
+        variant="caption"
+        sx={{
+          color: "text.secondary",
+          textTransform: "uppercase",
+          fontWeight: 700,
+          letterSpacing: "0.08em",
+          display: "block",
+          mb: 0.75,
+        }}
+      >
+        {title}
+      </Typography>
+      <Stack spacing={0.5}>{children}</Stack>
+    </Box>
+  )
+}
+
+function FilePill({ label }: { label: string }) {
+  return (
+    <Box
+      sx={{
+        px: 1.25,
+        py: 0.5,
+        borderRadius: 2,
+        backgroundColor: "rgba(148,163,184,0.10)",
+        border: "1px solid rgba(148,163,184,0.18)",
+      }}
+    >
+      <Typography variant="caption">{label}</Typography>
+    </Box>
+  )
+}
+
+function TaskRow({ text, due }: { text: string; due: string }) {
+  return (
+    <Stack direction="row" spacing={1.2} alignItems="center">
+      <Box
+        sx={{
+          width: 14,
+          height: 14,
+          borderRadius: "4px",
+          border: "1.5px solid rgba(148,163,184,0.5)",
+          flexShrink: 0,
+        }}
+      />
+      <Typography variant="body2" sx={{ flexGrow: 1 }}>
+        {text}
+      </Typography>
+      <Typography variant="caption" color="text.secondary">
+        {due}
+      </Typography>
+    </Stack>
   )
 }

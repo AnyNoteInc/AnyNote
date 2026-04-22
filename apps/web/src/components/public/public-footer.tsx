@@ -103,7 +103,7 @@ export function PublicFooter() {
               © {new Date().getFullYear()} AnyNote. Все права защищены.
             </Typography>
             <Typography variant="body2" color="rgba(226,232,240,0.68)">
-              Российский knowledge workspace для команд, документов и AI.
+              Рабочее пространство команды для документов, заметок и поиска.
             </Typography>
           </Stack>
         </Paper>

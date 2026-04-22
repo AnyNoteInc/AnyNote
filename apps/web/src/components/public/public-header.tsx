@@ -48,7 +48,7 @@ export function PublicHeader({ session }: PublicHeaderProps) {
               AnyNote
             </Typography>
             <Typography variant="caption" color="text.secondary">
-              knowledge system for serious teams
+              документы команды в одном месте
             </Typography>
           </Stack>
         </Link>

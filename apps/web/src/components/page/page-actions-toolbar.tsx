@@ -22,7 +22,9 @@ export function PageActionsToolbar({ pageId, workspaceId }: Props) {
   const pagesQ = trpc.page.listByWorkspace.useQuery({ workspaceId })
 
   const title = pageQ.data?.title ?? null
-  const pageType = pageQ.data?.type === "EXCALIDRAW" ? "EXCALIDRAW" : "TEXT"
+  const rawType = pageQ.data?.type
+  const pageType: "TEXT" | "EXCALIDRAW" | "GENOGRAM" =
+    rawType === "EXCALIDRAW" || rawType === "GENOGRAM" ? rawType : "TEXT"
   const isFavorite = (favoritesQ.data ?? []).some((p) => p.id === pageId)
   const pages: PageItem[] = pagesQ.data ?? []
   const movedPage = pages.find((p) => p.id === pageId)

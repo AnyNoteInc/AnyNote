@@ -4,6 +4,7 @@ import Link from "next/link"
 import { usePathname, useRouter } from "next/navigation"
 import { useState, type MouseEvent } from "react"
 import {
+  AccountTreeIcon,
   ArrowDropDownIcon,
   ArrowDropUpIcon,
   Box,
@@ -25,7 +26,7 @@ import { PageContextMenu } from "./page-context-menu"
 import { MovePageDialog } from "./move-page-dialog"
 import { type PageItem, orderSiblings } from "./types"
 
-type CreatablePageType = Extract<PageType, "TEXT" | "EXCALIDRAW">
+type CreatablePageType = Extract<PageType, "TEXT" | "EXCALIDRAW" | "GENOGRAM">
 
 type Props = {
   workspaceId: string
@@ -70,6 +71,17 @@ function CreatePageMenu({
           <BrushIcon fontSize="small" />
         </ListItemIcon>
         <ListItemText primary="Холст" />
+      </MenuItem>
+      <MenuItem
+        onClick={() => {
+          onCreate("GENOGRAM")
+          onClose()
+        }}
+      >
+        <ListItemIcon>
+          <AccountTreeIcon fontSize="small" />
+        </ListItemIcon>
+        <ListItemText primary="Генограмма" />
       </MenuItem>
     </Menu>
   )

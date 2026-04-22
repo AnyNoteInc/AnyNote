@@ -16,6 +16,7 @@
     "@repo/db": "workspace:*",
     "@repo/editor": "workspace:*",
     "@repo/excalidraw": "workspace:*",
+    "@repo/genogram": "workspace:*",
     "@repo/storage": "workspace:*",
     "@repo/trpc": "workspace:*",
     "@repo/ui": "workspace:*",

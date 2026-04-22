@@ -32,7 +32,7 @@ type Props = {
   pageId: string
   pageTitle: string | null
   workspaceId: string
-  pageType: "TEXT" | "EXCALIDRAW"
+  pageType: "TEXT" | "EXCALIDRAW" | "GENOGRAM"
   isFavorite: boolean
   // Full page row needed by MovePageDialog; undefined until parent's query settles.
   movedPage: PageItem | undefined
@@ -129,7 +129,7 @@ export function PageActionsMenu({
         <MenuItem
           onClick={handleToggleFullWidth}
           sx={menuItemSx}
-          disabled={pageType === "EXCALIDRAW"}
+          disabled={pageType !== "TEXT"}
         >
           <ListItemIcon>
             <HeightIcon fontSize="small" sx={{ transform: "rotate(90deg)" }} />

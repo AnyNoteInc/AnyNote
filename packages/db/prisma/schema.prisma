@@ -129,6 +129,7 @@ enum SubscriptionStatus {
 enum PageType {
   TEXT
   EXCALIDRAW
+  GENOGRAM
   DATABASE
   KANBAN
   FORM

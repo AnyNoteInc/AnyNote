@@ -1,6 +1,10 @@
 {
   "folders": [
     {
+      "path": ".",
+      "name": "anynote"
+    },
+    {
       "path": "apps/web",
       "name": "web"
     },
@@ -11,10 +15,6 @@
     {
       "path": "apps/engines",
       "name": "engines"
-    },
-    {
-      "path": ".",
-      "name": "anynote"
     }
   ]
 }
