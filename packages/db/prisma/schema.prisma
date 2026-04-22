@@ -140,6 +140,12 @@ enum ChatMessageRole {
   ASSISTANT
 }
 
+enum ChatMessageStatus {
+  STREAMING
+  DONE
+  ERROR
+}
+
 enum PageOwnership {
   TEXT
   SKILL
@@ -240,17 +246,21 @@ model Chat {
 }
 
 model ChatMessage {
-  id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  chatId    String          @map("chat_id") @db.Uuid
-  role      ChatMessageRole
-  content   String          @db.Text
-  sources   Json            @default("[]")
-  createdAt DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  id           String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  chatId       String            @map("chat_id") @db.Uuid
+  role         ChatMessageRole
+  status       ChatMessageStatus @default(DONE)
+  content      String            @db.Text
+  sources      Json              @default("[]")
+  errorMessage String?           @map("error_message") @db.Text
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   chat  Chat              @relation(fields: [chatId], references: [id], onDelete: Cascade)
   files ChatMessageFile[]
 
   @@index([chatId, createdAt])
+  @@index([chatId, status])
   @@map("chat_messages")
 }
 
