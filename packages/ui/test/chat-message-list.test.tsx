@@ -20,4 +20,22 @@ describe("ChatMessageList", () => {
     expect(screen.getByText("Ответ ассистента")).toBeTruthy()
     expect(screen.queryByText("Assistant")).toBeNull()
   })
+
+  it("renders timestamps with a deterministic HH:MM format", () => {
+    render(
+      <ChatMessageList
+        messages={[
+          {
+            id: "message-with-time",
+            parts: [{ type: "text", text: "Сообщение со временем" }],
+            role: "user",
+            createdAt: "2026-04-22T08:05:00.000Z",
+            status: "sent",
+          },
+        ]}
+      />,
+    )
+
+    expect(screen.getByText("08:05 • Sent")).toBeTruthy()
+  })
 })

@@ -56,10 +56,6 @@ class GraphService:
 
         system_prompt = self.jinja_repository.render(state.payload, mcp_server_tools)
 
-        print('-' * 60)
-        print(system_prompt)
-        print('-' * 60)
-
         return GraphStateSchema(
             payload=payload,
             user_context=state.user_context,

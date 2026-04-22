@@ -53,7 +53,7 @@ export function buildAgentsPayload(args: {
             "Content-Type": "application/json",
             Accept: "application/json, text/event-stream",
             "X-User-Id": args.userId,
-            "x-Workspace-Id": args.workspaceId,
+            "X-Workspace-Id": args.workspaceId,
           },
           retries: 3,
           verify: false,

@@ -35,7 +35,6 @@ export function useDraftAttachments(workspaceId: string) {
       const response = await fetch(`/api/files/upload?kind=attachment&workspaceId=${workspaceId}`, {
         method: "POST",
         body: formData,
-        credentials: "include",
       })
 
       const payload = (await response.json().catch(() => null)) as UploadResponse | { error?: string } | null

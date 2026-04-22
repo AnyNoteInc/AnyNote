@@ -6,6 +6,7 @@ let RoleType: { OWNER: string }
 let prisma: {
   $disconnect: () => Promise<void>
   user: {
+    findUnique: (args: unknown) => Promise<{ id: string } | null>
     findUniqueOrThrow: (args: unknown) => Promise<{ id: string }>
   }
   workspace: {
@@ -17,7 +18,15 @@ let prisma: {
   chat: {
     create: (args: unknown) => Promise<{ id: string }>
   }
+  chatMessage: {
+    create: (args: unknown) => Promise<{ id: string }>
+  }
 }
+
+test.use({
+  locale: "en-US",
+  timezoneId: "America/New_York",
+})
 
 test.beforeAll(async () => {
   if (!process.env.DATABASE_URL) {
@@ -52,6 +61,13 @@ test.afterAll(async () => {
 
 test("chat page opens for an existing workspace chat", async ({ page }) => {
   const email = `chat-page+${Date.now()}@example.com`
+  const consoleErrors: string[] = []
+
+  page.on("console", (message) => {
+    if (message.type() === "error") {
+      consoleErrors.push(message.text())
+    }
+  })
 
   await page.goto("/sign-up")
   await page.getByRole("textbox", { name: "Email" }).fill(email)
@@ -105,9 +121,21 @@ test("chat page opens for an existing workspace chat", async ({ page }) => {
     select: { id: true },
   })
 
+  await prisma.chatMessage.create({
+    data: {
+      chatId: chat.id,
+      role: "USER",
+      status: "DONE",
+      content: "Привет из seed-сообщения",
+    },
+    select: { id: true },
+  })
+
   await page.goto(`/workspaces/${workspace.id}/chats/${chat.id}`)
 
   await expect(page).toHaveURL(new RegExp(`/workspaces/${workspace.id}/chats/${chat.id}$`))
   await expect(page.getByTestId("chat-composer-textarea")).toBeVisible()
+  await expect(page.getByText("Привет из seed-сообщения")).toBeVisible()
   await expect(page.getByText("This page could not be found")).toHaveCount(0)
+  expect(consoleErrors.join("\n")).not.toContain("Hydration failed because the server rendered text didn't match the client")
 })

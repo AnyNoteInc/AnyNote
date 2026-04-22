@@ -35,10 +35,10 @@ function formatTimestamp(value: ChatThreadMessage["createdAt"]) {
     return null
   }
 
-  return new Intl.DateTimeFormat(undefined, {
-    hour: "numeric",
-    minute: "2-digit",
-  }).format(date)
+  const hours = String(date.getUTCHours()).padStart(2, "0")
+  const minutes = String(date.getUTCMinutes()).padStart(2, "0")
+
+  return `${hours}:${minutes}`
 }
 
 function getAuthorLabel(message: ChatThreadMessage) {

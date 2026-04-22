@@ -251,27 +251,30 @@ export async function POST(request: NextRequest): Promise<Response> {
     return NextResponse.json({ error: "Chat not found" }, { status: 404 })
   }
 
-  if (body.fileIds.length > 0) {
-    const files = await prisma.file.findMany({
-      where: {
-        id: { in: body.fileIds },
-        status: FileStatus.ACTIVE,
-        userId: session.user.id,
-        workspaceId: chat.workspaceId,
+  const [files, settings] = await Promise.all([
+    body.fileIds.length > 0
+      ? prisma.file.findMany({
+          where: {
+            id: { in: body.fileIds },
+            status: FileStatus.ACTIVE,
+            userId: session.user.id,
+            workspaceId: chat.workspaceId,
+          },
+          select: { id: true },
+        })
+      : Promise.resolve([] as Array<{ id: string }>),
+    prisma.workspaceAiSettings.findUnique({
+      where: { workspaceId: chat.workspaceId },
+      include: {
+        defaultModel: { include: { provider: true } },
       },
-      select: { id: true },
-    })
-    if (files.length !== body.fileIds.length) {
-      return NextResponse.json({ error: "One or more files are invalid for this chat" }, { status: 400 })
-    }
+    }),
+  ])
+
+  if (files.length !== body.fileIds.length) {
+    return NextResponse.json({ error: "One or more files are invalid for this chat" }, { status: 400 })
   }
 
-  const settings = await prisma.workspaceAiSettings.findUnique({
-    where: { workspaceId: chat.workspaceId },
-    include: {
-      defaultModel: { include: { provider: true } },
-    },
-  })
   if (!settings?.defaultModel) {
     return NextResponse.json(
       { error: "Workspace AI default model is not configured" },

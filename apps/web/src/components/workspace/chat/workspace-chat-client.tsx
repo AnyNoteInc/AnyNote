@@ -36,7 +36,6 @@ export function WorkspaceChatClient({
       utils.chat.getChat.invalidate({ chatId }),
       utils.chat.listChats.invalidate({ workspaceId }),
     ])
-    await query.refetch()
   })
 
   const stream = useChatStream({
@@ -99,38 +98,36 @@ export function WorkspaceChatClient({
   const combinedError = actionError ?? draftAttachments.error ?? stream.error ?? query.error?.message ?? null
 
   return (
-    <Box sx={{ height: "100%", width: "100%" }}>
-      <Box
-        sx={{
-          height: "100%",
-          maxWidth: 960,
-          mx: "auto",
-          px: { xs: 1.5, sm: 2.5 },
-          py: 2,
-        }}
-      >
-        <Stack height="100%" spacing={2}>
-          {combinedError ? <Alert severity="error">{combinedError}</Alert> : null}
-          <ChatThread
-            composerAttachments={draftAttachments.attachments}
-            composerPlaceholder="Спросите что-нибудь..."
-            composerValue={draft}
-            disabled={stream.isStreaming}
-            messages={stream.messages}
-            onComposerAttachmentsChange={(attachments) => {
-              setActionError(null)
-              draftAttachments.syncComposerAttachments(attachments)
-            }}
-            onComposerValueChange={(value) => {
-              setActionError(null)
-              setDraft(value)
-            }}
-            onSend={({ text }) => {
-              void handleSend(text)
-            }}
-          />
-        </Stack>
-      </Box>
+    <Box
+      sx={{
+        height: "100%",
+        maxWidth: 960,
+        mx: "auto",
+        px: { xs: 1.5, sm: 2.5 },
+        py: 2,
+      }}
+    >
+      <Stack height="100%" spacing={2}>
+        {combinedError ? <Alert severity="error">{combinedError}</Alert> : null}
+        <ChatThread
+          composerAttachments={draftAttachments.attachments}
+          composerPlaceholder="Спросите что-нибудь..."
+          composerValue={draft}
+          disabled={stream.isStreaming}
+          messages={stream.messages}
+          onComposerAttachmentsChange={(attachments) => {
+            setActionError(null)
+            draftAttachments.syncComposerAttachments(attachments)
+          }}
+          onComposerValueChange={(value) => {
+            setActionError(null)
+            setDraft(value)
+          }}
+          onSend={({ text }) => {
+            void handleSend(text)
+          }}
+        />
+      </Stack>
     </Box>
   )
 }

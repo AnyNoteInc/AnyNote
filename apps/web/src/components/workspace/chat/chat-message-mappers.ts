@@ -1,6 +1,5 @@
-"use client"
-
 import type {
+  ChatFilePart,
   ChatMessagePart,
   ChatServiceStatusPart,
   ChatThreadMessage,
@@ -14,18 +13,15 @@ type RouterOutputs = inferRouterOutputs<AppRouter>
 export type ChatQueryData = RouterOutputs["chat"]["getChat"]
 export type ServerChatMessage = ChatQueryData["messages"][number]
 
-export type DraftAttachmentSummary = {
-  fileId: string
-  name: string
-  mimeType: string
-  fileSize: string
-}
+export type DraftAttachmentSummary = Omit<ChatFilePart, "type" | "downloadUrl">
 
 function mapRole(role: ServerChatMessage["role"]): ChatThreadMessage["role"] {
   return role === "USER" ? "user" : "assistant"
 }
 
-function mapStatus(status: ServerChatMessage["status"]): ChatThreadMessage["status"] {
+function mapStatus(
+  status: "STREAMING" | "DONE" | "ERROR",
+): ChatThreadMessage["status"] {
   switch (status) {
     case "STREAMING":
       return "streaming"
@@ -159,6 +155,10 @@ export function appendAssistantText(
   assistantMessageId: string,
   text: string,
 ): ChatThreadMessage[] {
+  if (!messages.some((message) => message.id === assistantMessageId)) {
+    return messages
+  }
+
   return messages.map((message) => {
     if (message.id !== assistantMessageId) {
       return message
@@ -197,6 +197,10 @@ export function replaceAssistantServiceBlocks(
   assistantMessageId: string,
   blocks: Array<Omit<ChatServiceStatusPart, "type">>,
 ): ChatThreadMessage[] {
+  if (!messages.some((message) => message.id === assistantMessageId)) {
+    return messages
+  }
+
   return messages.map((message) => {
     if (message.id !== assistantMessageId) {
       return message
@@ -216,6 +220,10 @@ export function updateAssistantStatus(args: {
   status: "STREAMING" | "DONE" | "ERROR"
   errorMessage?: string
 }): ChatThreadMessage[] {
+  if (!args.messages.some((message) => message.id === args.assistantMessageId)) {
+    return args.messages
+  }
+
   return args.messages.map((message) => {
     if (message.id !== args.assistantMessageId) {
       return message
@@ -229,12 +237,7 @@ export function updateAssistantStatus(args: {
 
     return {
       ...message,
-      status:
-        args.status === "STREAMING"
-          ? "streaming"
-          : args.status === "ERROR"
-            ? "error"
-            : "sent",
+      status: mapStatus(args.status),
       parts: terminalParts,
       updatedAt: new Date().toISOString(),
     }

@@ -44,11 +44,15 @@ export function useChatStream({ chatId, initialMessages, onSettled }: UseChatStr
   const pendingSendRef = useRef<PendingSend | null>(null)
   const streamControllerRef = useRef<AbortController | null>(null)
 
-  const finishStream = useEffectEvent(async () => {
+  const resetStream = useEffectEvent(() => {
     activeAssistantMessageIdRef.current = null
     pendingSendRef.current = null
     streamControllerRef.current = null
     setIsStreaming(false)
+  })
+
+  const finishStream = useEffectEvent(async () => {
+    resetStream()
     await onSettled?.()
   })
 
@@ -113,56 +117,55 @@ export function useChatStream({ chatId, initialMessages, onSettled }: UseChatStr
     }
   })
 
-  const consumeResponse = useEffectEvent(async (response: Response) => {
-    if (!response.ok) {
-      const payload = (await response.json().catch(() => null)) as { error?: string } | null
-      setError(payload?.error ?? `Запрос завершился с ошибкой ${response.status}.`)
-      setIsStreaming(false)
-      activeAssistantMessageIdRef.current = null
-      pendingSendRef.current = null
-      return false
-    }
+  const consumeResponse = useEffectEvent(
+    async (response: Response, controller: AbortController) => {
+      if (!response.ok) {
+        const payload = (await response.json().catch(() => null)) as { error?: string } | null
+        setError(payload?.error ?? `Запрос завершился с ошибкой ${response.status}.`)
+        resetStream()
+        return false
+      }
 
-    if (!response.body) {
-      setError("Пустой поток ответа.")
-      setIsStreaming(false)
-      activeAssistantMessageIdRef.current = null
-      pendingSendRef.current = null
-      return false
-    }
+      if (!response.body) {
+        setError("Пустой поток ответа.")
+        resetStream()
+        return false
+      }
 
-    const reader = response.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ""
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ""
 
-    try {
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) {
-          break
+      try {
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) {
+            break
+          }
+
+          const decoded = decoder.decode(value, { stream: true })
+          const parsed = decodeWebSseEvents({ buffer, chunk: decoded })
+          buffer = parsed.buffer
+
+          for (const event of parsed.events) {
+            applyEvent(event)
+          }
         }
-
-        const decoded = decoder.decode(value, { stream: true })
-        const parsed = decodeWebSseEvents({ buffer, chunk: decoded })
-        buffer = parsed.buffer
-
-        for (const event of parsed.events) {
-          applyEvent(event)
+      } catch (streamError) {
+        if (!controller.signal.aborted) {
+          setError(getErrorMessage(streamError, "Поток ответа был прерван."))
+        }
+      } finally {
+        await reader.cancel().catch(() => {})
+        reader.releaseLock()
+        if (activeAssistantMessageIdRef.current !== null || pendingSendRef.current !== null) {
+          await finishStream()
         }
       }
-    } catch (streamError) {
-      if (!reader.closed) {
-        setError(getErrorMessage(streamError, "Поток ответа был прерван."))
-      }
-    } finally {
-      reader.releaseLock()
-      if (activeAssistantMessageIdRef.current !== null || pendingSendRef.current !== null) {
-        await finishStream()
-      }
-    }
 
-    return true
-  })
+      return true
+    },
+  )
 
   const openStream = useEffectEvent(async (request: (signal: AbortSignal) => Promise<Response>) => {
     if (isStreaming) {
@@ -176,17 +179,14 @@ export function useChatStream({ chatId, initialMessages, onSettled }: UseChatStr
 
     try {
       const response = await request(controller.signal)
-      return await consumeResponse(response)
+      return await consumeResponse(response, controller)
     } catch (requestError) {
       if (controller.signal.aborted) {
         return false
       }
 
       setError(getErrorMessage(requestError, "Не удалось открыть поток ответа."))
-      setIsStreaming(false)
-      activeAssistantMessageIdRef.current = null
-      pendingSendRef.current = null
-      streamControllerRef.current = null
+      resetStream()
       return false
     }
   })
