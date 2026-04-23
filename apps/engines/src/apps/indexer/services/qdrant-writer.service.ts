@@ -9,6 +9,12 @@ export type QdrantPoint = {
     pageId: string
     workspaceId: string
     chunkIndex: number
+    title: string
+    content: string
+    pageType: string
+    createdById: string
+    createdAt: string
+    updatedAt: string
   }
 }
 
@@ -41,6 +47,16 @@ export class QdrantWriter implements OnApplicationBootstrap {
         must: [{ key: "pageId", match: { value: pageId } }],
       },
     })
+  }
+
+  async wipeCollection(): Promise<void> {
+    const existing = await this.qdrant.client.getCollections()
+    const collections = existing.collections as { name: string }[] | undefined
+    const exists = collections?.some((c) => c.name === this.qdrant.collection)
+    if (exists) {
+      await this.qdrant.client.deleteCollection(this.qdrant.collection)
+    }
+    await this.ensureCollection()
   }
 
   async upsert(points: QdrantPoint[]): Promise<void> {

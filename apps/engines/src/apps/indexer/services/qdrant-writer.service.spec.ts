@@ -41,7 +41,21 @@ describe("QdrantWriter", () => {
     it("passes through points list", async () => {
       fakeClient.upsert.mockResolvedValue({})
       const points = [
-        { id: "a", vector: [0.1, 0.2], payload: { pageId: "p", workspaceId: "w", chunkIndex: 0 } },
+        {
+          id: "11111111-1111-1111-1111-111111111111",
+          vector: [0.1],
+          payload: {
+            pageId: "p1",
+            workspaceId: "w1",
+            chunkIndex: 0,
+            title: "Hello",
+            content: "normalized text",
+            pageType: "TEXT",
+            createdById: "u1",
+            createdAt: "2026-04-22T00:00:00.000Z",
+            updatedAt: "2026-04-22T00:00:00.000Z",
+          },
+        },
       ]
       await writer.upsert(points)
       expect(fakeClient.upsert).toHaveBeenCalledWith("page_chunks", { points })

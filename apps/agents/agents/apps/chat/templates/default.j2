@@ -22,9 +22,22 @@ Thread: {{ thread_id }}
 {% endif -%}
 {% if rag and rag.documents -%}
 ## Retrieved context
+Ниже — фрагменты страниц рабочего пространства, найденные по запросу пользователя.
+Используй их как основной источник фактов. Если фрагмента недостаточно —
+вызови инструмент `getPageMarkdown(pageId)`, чтобы прочитать полный текст страницы.
+
 {% for d in rag.documents -%}
-- {{ d.content }}
+### Документ {{ loop.index }}
+- pageId: {{ d.id }}
+- title: {{ d.title }}
+- content:
+{{ d.content | indent(2, first=True) }}
+
 {% endfor %}
+Правила цитирования:
+- Ссылайся на страницы в формате [{{ '{title}' }}](page:{{ '{pageId}' }})
+- Не придумывай pageId — используй только те, что приведены выше
+- Если нужного факта нет в найденных фрагментах — явно скажи «в базе знаний не найдено»
 {% endif -%}
 {% if messages -%}
 ## History
@@ -34,6 +47,11 @@ Thread: {{ thread_id }}
 {% endif %}
 # TOOLS
 You may use MCP tools if they help answer the request.
+
+Ключевые инструменты для работы с базой знаний:
+- `getPageMarkdown(pageId)` — прочитать полный текст страницы (используй, когда фрагмента из Retrieved context недостаточно)
+- `getPageStats(pageId)` — метаданные страницы (автор, дата создания, тип)
+- `getWorkspaceStats()` — обзор рабочего пространства
 
 Rules:
 - Use tools only when necessary

@@ -35,7 +35,7 @@ export class IndexingProcessor extends WorkerHost {
   }
 
   async process(job: Job<IndexPageJob>): Promise<void> {
-    const { outboxId, pageId, workspaceId } = job.data
+    const { outboxId, pageId } = job.data
     try {
       const page = await this.prisma.page.findUnique({
         where: { id: pageId },
@@ -46,6 +46,10 @@ export class IndexingProcessor extends WorkerHost {
           deletedAt: true,
           content: true,
           workspaceId: true,
+          title: true,
+          createdById: true,
+          createdAt: true,
+          updatedAt: true,
         },
       })
 
@@ -74,11 +78,22 @@ export class IndexingProcessor extends WorkerHost {
         if (!chunk) continue
         const normalized = await this.processing.normalize(chunk, "auto")
         if (!normalized) continue
+        console.log(`Normalized chunk ${i} for page ${pageId}: ${normalized}...`)
         const vector = await this.embedding.embed(normalized)
         points.push({
           id: pointId(pageId, i),
           vector,
-          payload: { pageId, workspaceId, chunkIndex: i },
+          payload: {
+            pageId,
+            workspaceId: page.workspaceId,
+            chunkIndex: i,
+            title: page.title ?? "",
+            content: normalized,
+            pageType: page.type,
+            createdById: page.createdById ?? "",
+            createdAt: page.createdAt.toISOString(),
+            updatedAt: page.updatedAt.toISOString(),
+          },
         })
       }
 

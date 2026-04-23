@@ -7,6 +7,7 @@ const mocks = vi.hoisted(() => {
       create: vi.fn(),
     },
     getSession: vi.fn(),
+    searchRagDocuments: vi.fn(),
     prisma: {
       $transaction: vi.fn(),
       chat: { findFirst: vi.fn() },
@@ -28,6 +29,10 @@ vi.mock("@/lib/get-session", () => ({
 
 vi.mock("@/lib/chat/active-stream-registry", () => ({
   activeStreamRegistry: mocks.activeStreamRegistry,
+}))
+
+vi.mock("@/lib/chat/rag-search", () => ({
+  searchRagDocuments: mocks.searchRagDocuments,
 }))
 
 import { POST } from "../src/app/api/agents/generate/route"
@@ -104,6 +109,13 @@ describe("POST /api/agents/generate", () => {
         },
       },
     })
+    mocks.searchRagDocuments.mockResolvedValue([
+      {
+        id: "66666666-6666-6666-6666-666666666666",
+        title: "Found page",
+        content: "Found chunk",
+      },
+    ])
     mocks.prisma.$transaction.mockImplementation(async (callback) => {
       return callback({
         chat: { update: vi.fn() },
@@ -117,15 +129,13 @@ describe("POST /api/agents/generate", () => {
       })
     })
     mocks.activeStreamRegistry.create.mockReturnValue(entry)
-    vi.stubGlobal(
-      "fetch",
-      vi.fn().mockResolvedValue(
-        new Response('data: {"type":"done"}\n\n', {
-          headers: { "content-type": "text/event-stream" },
-          status: 200,
-        }),
-      ),
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response('data: {"type":"done"}\n\n', {
+        headers: { "content-type": "text/event-stream" },
+        status: 200,
+      }),
     )
+    vi.stubGlobal("fetch", fetchMock)
 
     const response = await POST(
       new NextRequest("http://localhost/api/agents/generate", {
@@ -140,8 +150,22 @@ describe("POST /api/agents/generate", () => {
 
     expect(response.status).toBe(200)
     const body = await response.text()
+    const upstreamPayload = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string)
 
     expect(body).toContain('"type":"message.created"')
     expect(body).toContain('"type":"message.delta"')
+    expect(mocks.searchRagDocuments).toHaveBeenCalledWith({
+      workspaceId,
+      query: "Привет",
+    })
+    expect(upstreamPayload.rag).toEqual({
+      documents: [
+        {
+          id: "66666666-6666-6666-6666-666666666666",
+          title: "Found page",
+          content: "Found chunk",
+        },
+      ],
+    })
   })
 })

@@ -18,7 +18,7 @@ Indexing already runs end-to-end. What's missing is the retrieval layer and prom
 
 ## Current state (summary)
 
-- Indexing pipeline writes 768-dim embeddings to Qdrant collection `page_chunks` with payload `{pageId, workspaceId, chunkIndex}`.
+- Indexing pipeline writes 768-dim embeddings to the active Qdrant collection (`QDRANT_COLLECTION`, default `page_chunks`) with payload `{pageId, workspaceId, chunkIndex}`.
 - Python agent schema (`QueryRequestSchema.rag: RagDocumentsSchema`) and the Jinja2 template (`default.j2`) already accept `rag.documents[]` — the agents service needs no transport changes, only prompt polish.
 - No search endpoint exists. apps/web has no Qdrant/Ollama client.
 - MCP tool `getPageMarkdown(pageId)` exists and is the natural way for the LLM to pull full page text when a chunk is insufficient.
@@ -108,8 +108,7 @@ apps/engines/src/apps/search/
     page-search.service.ts
     page-search.service.spec.ts
   dto/
-    search-request.dto.ts
-    search-response.dto.ts
+    search.schema.ts
 ```
 
 Wired into `AppModule` alongside `IndexerModule` and `McpModule`.
@@ -150,7 +149,7 @@ Response:
 5. Map to `RagDocument` shape
 
 ### Validation
-`class-validator` in the DTO: `workspaceId` UUID, `query` non-empty, `topK` integer 1..20, `scoreThreshold` float 0..1. Matches existing validation conventions in engines controllers.
+Use a small `zod` schema (`search.schema.ts`) at the controller boundary: `workspaceId` UUID, `query` non-empty, `topK` integer 1..20, `scoreThreshold` float 0..1. This matches the lightweight validation pattern already used in the repo better than introducing Nest/class-validator DTOs just for this endpoint.
 
 ### Security
 The endpoint has no auth middleware — engines is an internal service bound to the docker/VPC network. Never expose on the public ingress. Document this in `search.controller.ts` header comment.
@@ -176,7 +175,7 @@ export async function searchRagDocuments(args: {
 ```
 
 Behaviour:
-- POSTs to `${ENGINES_SERVICE_URL}/search/pages` (default `http://localhost:8080`)
+- POSTs to `${ENGINES_SERVICE_URL}/search/pages` (default `http://localhost:8082`)
 - 5 s timeout
 - Returns `[]` on any failure (network, non-2xx, parse error). Logs a warning; never throws.
 - Maps response `documents[]` to `RagDocument[]` — drops `score`, `updatedAt`, `pageType` (Python schema does not accept them)
@@ -296,7 +295,7 @@ All existing tests in `apps/engines`, `apps/web`, `apps/agents`, `@repo/ui` must
 
 Add to repo root `.env` and `turbo.json` globalEnv:
 
-- `ENGINES_SERVICE_URL` — new, e.g. `http://localhost:8080` (read by apps/web). Not currently declared.
+- `ENGINES_SERVICE_URL` — new, e.g. `http://localhost:8082` (read by apps/web). Not currently declared.
 - `INDEXER_REINDEX_ON_BOOT` — new, optional `true/false`, default unset. Only honoured in dev to force full reindex after payload shape changes.
 
 Existing used: `QDRANT_URL`, `QDRANT_API_KEY`, `QDRANT_COLLECTION`, `OLLAMA_BASE_URL`, `EMBEDDING_MODEL`, `AGENTS_SERVICE_URL`.

@@ -5,6 +5,7 @@ import { ScheduleModule } from "@nestjs/schedule"
 
 import { IndexerModule } from "./apps/indexer/indexer.module.js"
 import { McpModule } from "./apps/mcp/mcp.module.js"
+import { SearchModule } from "./apps/search/search.module.js"
 import { HealthModule } from "./health/health.module.js"
 import { DbModule } from "./infra/db/db.module.js"
 import { OllamaModule } from "./infra/ollama/ollama.module.js"
@@ -24,6 +25,7 @@ import { QdrantModule } from "./infra/qdrant/qdrant.module.js"
     OllamaModule,
     IndexerModule,
     McpModule,
+    SearchModule,
     HealthModule,
   ],
 })

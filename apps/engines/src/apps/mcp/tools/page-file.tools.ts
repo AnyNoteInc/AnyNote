@@ -8,18 +8,19 @@ import { PRISMA } from "../../../infra/db/db.providers.js"
 import { PageNotFoundError } from "../errors/mcp.errors.js"
 import { WorkspaceMemberGuard } from "../guards/workspace-member.guard.js"
 import { FileUploader } from "../services/file-uploader.service.js"
+import { mcpUuid } from "../utils/mcp-input.js"
 import { getMcpRequestContext, type McpRequestWithContext } from "../utils/mcp-request-context.js"
 
 const UploadInline = z.object({
-  pageId: z.string().uuid(),
+  pageId: mcpUuid(),
   fileName: z.string().min(1).max(512),
   mimeType: z.string().min(1).max(128),
   contentBase64: z.string().min(1),
 })
 
 const Attach = z.object({
-  pageId: z.string().uuid(),
-  fileId: z.string().uuid(),
+  pageId: mcpUuid(),
+  fileId: mcpUuid(),
 })
 
 @Injectable()
@@ -125,7 +126,7 @@ export class PageFileTools {
   @Tool({
     name: "listPageFiles",
     description: "List files attached to a page",
-    parameters: z.object({ pageId: z.string().uuid() }),
+    parameters: z.object({ pageId: mcpUuid() }),
   })
   async listPageFiles(
     args: { pageId: string },

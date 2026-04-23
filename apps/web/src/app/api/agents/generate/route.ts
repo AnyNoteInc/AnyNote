@@ -7,6 +7,7 @@ import {
   buildAgentsPayload,
   type WorkspaceSettingsSnapshot,
 } from "@/lib/chat/agents-payload"
+import { searchRagDocuments, type RagDocument } from "@/lib/chat/rag-search"
 import { encodeSseEvent, decodeAgentsSseEvents } from "@/lib/chat/sse"
 import type {
   ServiceBlock,
@@ -126,6 +127,7 @@ async function streamAgentsToRegistry(args: {
   assistantMessageId: string
   chatId: string
   entry: ReturnType<typeof activeStreamRegistry.create>
+  rag: RagDocument[]
   text: string
   userId: string
   workspaceId: string
@@ -147,6 +149,7 @@ async function streamAgentsToRegistry(args: {
       body: JSON.stringify(
         buildAgentsPayload({
           chatId: args.chatId,
+          rag: args.rag,
           settings: args.settings,
           text: args.text,
           userId: args.userId,
@@ -294,6 +297,10 @@ export async function POST(request: NextRequest): Promise<Response> {
     temperature: settings.temperature,
     topP: settings.topP,
   }
+  const rag = await searchRagDocuments({
+    workspaceId: chat.workspaceId,
+    query: body.text,
+  })
 
   const { assistantMessage, userMessage } = await prisma.$transaction(async (tx) => {
     const userMessage = await tx.chatMessage.create({
@@ -347,6 +354,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     assistantMessageId: assistantMessage.id,
     chatId: chat.id,
     entry,
+    rag,
     settings: settingsSnapshot,
     text: body.text,
     userId: session.user.id,

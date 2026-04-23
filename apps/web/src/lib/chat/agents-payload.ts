@@ -11,6 +11,12 @@ export type WorkspaceSettingsSnapshot = {
   }
 }
 
+export type RagDocument = {
+  id: string
+  title: string
+  content: string
+}
+
 function normalizeConnection(value: unknown): Record<string, string> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return {}
@@ -30,6 +36,7 @@ export function buildAgentsPayload(args: {
   workspaceId: string
   userId: string
   text: string
+  rag: RagDocument[]
   settings: WorkspaceSettingsSnapshot
 }) {
   return {
@@ -64,6 +71,9 @@ export function buildAgentsPayload(args: {
       format: "markdown",
       language: "ru",
       citationsRequired: true,
+    },
+    rag: {
+      documents: args.rag,
     },
     query: args.text,
   }

@@ -1366,3 +1366,56 @@ x-workspace-id: 123e4567-e89b-12d3-a456-426614174001
   - поиск по названию файла
   - По пользователю, при нажатии на чип появляется меню с выбором пользователей, которые загружали файлы
 - сделать пагинацию, выводить по 20 файлов за один раз
+
+
+---
+
+Приступаем к реализации RAG
+1. У нас есть индексирование страниц, которое работает в apps/engines
+  Нужно добавить в метадату к кусочкам сохраняемым в qdrant добавить поле content - нормализованный текст и title = page.title
+
+  какие данные еще стоит добавить в metadata?
+2. При отправке запроса в сервисе apps/web нужно сделать поиск по векторной базе знаний и добавлять в запрос параметры поле rag
+```
+{
+  "threadId": "<chat.id>",
+  "model": {
+    "provider": "<workspaceDefaultModel.provider.slug>",
+    "name": "<workspaceDefaultModel.slug>",
+    "connection": "<workspaceDefaultModel.provider.connection>",
+    "settings": {
+      "temperature": "<workspaceAiSettings.temperature>",
+      "topP": "<workspaceAiSettings.topP>"
+    }
+  },
+  "systemPrompt": "<workspaceAiSettings.systemPrompt or empty string>",
+  "rag": { # new field in query
+    "documents": [
+      { id: "<metadata.pageId>", "title": "<metadata.title>", "content": "<metadata.content>" }
+    ]
+  }
+  "mcp": {
+    "servers": [{
+      "name": "AnyNote MCP Server",
+      "url": "http://localhost:8090/api/mcp",
+      "headers": {
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
+        "X-User-Id": "<session.user.id>",
+        "x-Workspace-Id": "<chat.workspaceId>"
+      },
+      "retries": 3,
+      "verify": false
+    }]
+  },
+  "instruction": {
+    "format": "markdown",
+    "language": "ru",
+    "citationsRequired": true
+  },
+  "query": "<user text>"
+}
+```
+3. Нужно поправить в промпт формирование rag agents/apps/chat/templates/default.j2, чтобы LLM понимало и могло вызывать тулинг по информации для страниц, может быть стоит изменить шаблон промпта на jinja2, чтобы более качественнее отвечать
+4. реализуй проверку и проведи тесты на playwright что rag работает
+

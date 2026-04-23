@@ -2,6 +2,7 @@ import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, jest 
 import type { INestApplication } from "@nestjs/common"
 import { Test } from "@nestjs/testing"
 import { prisma } from "@repo/db"
+import request from "supertest"
 
 import { AppModule } from "../../src/app.module.js"
 import { OutboxDrainerService } from "../../src/apps/indexer/cron/outbox-drainer.service.js"
@@ -14,15 +15,15 @@ jest.setTimeout(60000)
 
 const TEST_VECTOR = Array.from({ length: 768 }, (_, index) => (index === 0 ? 0.1 : 0))
 
-describe("Indexing e2e", () => {
+describe("Search e2e", () => {
   let app: INestApplication
+  let http: ReturnType<typeof request>
   let qdrant: QdrantService
   let drainer: OutboxDrainerService
   let writer: QdrantWriter
 
   let workspaceId: string
   let userId: string
-  let pageId: string
 
   beforeAll(async () => {
     const moduleRef = await Test.createTestingModule({
@@ -40,6 +41,10 @@ describe("Indexing e2e", () => {
 
     app = moduleRef.createNestApplication()
     await app.init()
+    await app.listen(0)
+
+    const server = app.getHttpServer() as import("http").Server
+    http = request(server)
     qdrant = app.get(QdrantService)
     drainer = app.get(OutboxDrainerService)
     writer = app.get(QdrantWriter)
@@ -52,14 +57,15 @@ describe("Indexing e2e", () => {
   })
 
   beforeEach(async () => {
-    const ws = await prisma.workspace.create({ data: { name: "test-ws" } })
-    workspaceId = ws.id
+    const workspace = await prisma.workspace.create({ data: { name: "search-test" } })
+    workspaceId = workspace.id
+
     const user = await prisma.user.create({
       data: {
-        name: "Test User",
-        firstName: "T",
+        name: "Search User",
+        firstName: "S",
         lastName: "U",
-        email: `t-${workspaceId}@e.com`,
+        email: `search-${workspaceId}@e.com`,
         emailVerified: true,
       },
     })
@@ -68,54 +74,80 @@ describe("Indexing e2e", () => {
   })
 
   afterEach(async () => {
-    if (workspaceId) {
-      await prisma.workspace.delete({ where: { id: workspaceId } }).catch(() => undefined)
-    }
-    if (userId) {
-      await prisma.user.delete({ where: { id: userId } }).catch(() => undefined)
-    }
+    await prisma.workspace.delete({ where: { id: workspaceId } }).catch(() => undefined)
+    await prisma.user.delete({ where: { id: userId } }).catch(() => undefined)
   })
 
-  it("drains outbox to BullMQ and writes Qdrant points", async () => {
+  it("indexes a page and returns it from POST /search/pages", async () => {
     const page = await prisma.page.create({
       data: {
         workspaceId,
-        title: "Hello",
-        content: {
-          type: "doc",
-          content: [{ type: "paragraph", content: [{ type: "text", text: "Hello world" }] }],
-        },
+        title: "RAG retrieval page",
+        ownership: "TEXT",
         createdById: userId,
         updatedById: userId,
+        content: {
+          type: "doc",
+          content: [
+            {
+              type: "paragraph",
+              content: [{ type: "text", text: "RAG retrieval integration anchor text for semantic search." }],
+            },
+          ],
+        },
       },
     })
-    pageId = page.id
 
     await prisma.outboxEvent.create({
       data: {
         eventType: "page.upserted",
         aggregateType: "page",
-        aggregateId: pageId,
+        aggregateId: page.id,
         workspaceId,
         payload: {},
       },
     })
 
-    // Manually invoke drainer (bypasses the 5s schedule)
     await drainer.drain()
+    await waitFor(async () => {
+      const points = await qdrant.client.scroll(qdrant.collection, {
+        filter: { must: [{ key: "pageId", match: { value: page.id } }] },
+        limit: 10,
+      })
 
-    // Wait for BullMQ worker to process
-    await new Promise((r) => setTimeout(r, 15000))
-
-    const done = await prisma.outboxEvent.findFirst({
-      where: { aggregateId: pageId, status: "DONE" },
+      expect(points.points.length).toBeGreaterThan(0)
     })
-    expect(done).toBeTruthy()
 
-    const points = await qdrant.client.scroll(qdrant.collection, {
-      filter: { must: [{ key: "pageId", match: { value: pageId } }] },
-      limit: 10,
+    const response = await http.post("/search/pages").send({
+      workspaceId,
+      query: "RAG retrieval integration anchor",
+      topK: 5,
     })
-    expect(points.points.length).toBeGreaterThan(0)
+
+    expect(response.status).toBe(201)
+    expect(response.body.documents).toEqual([
+      expect.objectContaining({
+        id: page.id,
+        title: "RAG retrieval page",
+        pageType: "TEXT",
+      }),
+    ])
+    expect(response.body.documents[0]?.content).toEqual(expect.stringContaining("RAG"))
   })
 })
+
+async function waitFor(assertion: () => Promise<void>, attempts = 30, delayMs = 1000): Promise<void> {
+  let lastError: unknown
+
+  for (let attempt = 0; attempt < attempts; attempt++) {
+    try {
+      await assertion()
+      return
+    } catch (error) {
+      lastError = error
+      await new Promise((resolve) => setTimeout(resolve, delayMs))
+    }
+  }
+
+  throw lastError
+}

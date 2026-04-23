@@ -10,28 +10,29 @@ import { WorkspaceMemberGuard } from "../guards/workspace-member.guard.js"
 import { MarkdownRenderer } from "../services/markdown-renderer.service.js"
 import { PageWriter } from "../services/page-writer.service.js"
 import { StatsService } from "../services/stats.service.js"
+import { mcpNullableUuidOptional, mcpUuid } from "../utils/mcp-input.js"
 import { getMcpRequestContext, type McpRequestWithContext } from "../utils/mcp-request-context.js"
 
 const CreatePageInput = z.object({
-  parentId: z.string().uuid().nullable().optional(),
+  parentId: mcpNullableUuidOptional(),
   title: z.string().min(1).max(255),
   ownership: z.enum(["TEXT", "SKILL", "AGENT"]).default("TEXT"),
 })
 
 const UpdatePageInput = z.object({
-  pageId: z.string().uuid(),
+  pageId: mcpUuid(),
   title: z.string().max(255).optional(),
   icon: z.string().nullable().optional(),
   content: z.unknown().optional(),
 })
 
 const MovePageInput = z.object({
-  pageId: z.string().uuid(),
-  newParentId: z.string().uuid().nullable().optional(),
-  prevPageId: z.string().uuid().nullable().optional(),
+  pageId: mcpUuid(),
+  newParentId: mcpNullableUuidOptional(),
+  prevPageId: mcpNullableUuidOptional(),
 })
 
-const PageIdInput = z.object({ pageId: z.string().uuid() })
+const PageIdInput = z.object({ pageId: mcpUuid() })
 
 @Injectable()
 export class PageTools {

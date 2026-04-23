@@ -5,24 +5,25 @@ import type { PrismaClient } from "@repo/db"
 import { z } from "zod"
 
 import { PRISMA } from "../../../infra/db/db.providers.js"
-import { PageNotFoundError } from "../errors/mcp.errors.js"
+import { FileNotFoundError, PageNotFoundError } from "../errors/mcp.errors.js"
 import { WorkspaceMemberGuard } from "../guards/workspace-member.guard.js"
 import { PageWriter } from "../services/page-writer.service.js"
 import { StatsService } from "../services/stats.service.js"
+import { mcpInput, mcpNullableUuidOptional, mcpUuid } from "../utils/mcp-input.js"
 import { getMcpRequestContext, type McpRequestWithContext } from "../utils/mcp-request-context.js"
 
 const PaginationInput = z.object({
-  limit: z.number().int().positive().max(200).default(50),
-  offset: z.number().int().nonnegative().default(0),
+  limit: mcpInput(z.number().int().positive().max(200).default(50)),
+  offset: mcpInput(z.number().int().nonnegative().default(0)),
 })
 
 const LimitInput = z.object({
-  limit: z.number().int().positive().max(200).default(50),
+  limit: mcpInput(z.number().int().positive().max(200).default(50)),
 })
 
 const CreatePageFromFileInput = z.object({
-  parentId: z.string().uuid().nullable().optional(),
-  fileId: z.string().uuid(),
+  parentId: mcpNullableUuidOptional(),
+  fileId: mcpUuid(),
   title: z.string().min(1).max(255).optional(),
 })
 
@@ -127,7 +128,7 @@ export class WorkspaceTools {
       select: { id: true, workspaceId: true, name: true },
     })
     if (!file || file.workspaceId !== requestContext.workspaceId) {
-      throw new PageNotFoundError(args.fileId)
+      throw new FileNotFoundError(args.fileId)
     }
     if (args.parentId) {
       const parent = await this.prisma.page.findUnique({

@@ -57,6 +57,11 @@ describe("IndexingProcessor", () => {
       ownership: "TEXT",
       deletedAt: null,
       content: {},
+      workspaceId: "w1",
+      title: "Hello",
+      createdById: "u1",
+      createdAt: new Date("2026-04-22T00:00:00.000Z"),
+      updatedAt: new Date("2026-04-22T01:00:00.000Z"),
     } as never)
     ;(mockPrisma.$executeRaw as jest.Mock).mockResolvedValue(1 as never)
 
@@ -74,6 +79,10 @@ describe("IndexingProcessor", () => {
       deletedAt: null,
       content: { type: "doc", content: [] },
       workspaceId: "w1",
+      title: "Hello",
+      createdById: "u1",
+      createdAt: new Date("2026-04-22T00:00:00.000Z"),
+      updatedAt: new Date("2026-04-22T01:00:00.000Z"),
     } as never)
     ;(mockPrisma.$executeRaw as jest.Mock).mockResolvedValue(1 as never)
     ;(mockChunker.chunksFromDoc as jest.Mock).mockReturnValue(["chunk a", "chunk b"] as never)
@@ -88,8 +97,28 @@ describe("IndexingProcessor", () => {
 
     expect(mockQdrant.deleteByPageId).toHaveBeenCalledWith("p1")
     expect(mockQdrant.upsert).toHaveBeenCalledWith([
-      expect.objectContaining({ vector: [0.1, 0.2], payload: { pageId: "p1", workspaceId: "w1", chunkIndex: 0 } }),
-      expect.objectContaining({ vector: [0.3, 0.4], payload: { pageId: "p1", workspaceId: "w1", chunkIndex: 1 } }),
+      expect.objectContaining({
+        vector: [0.1, 0.2],
+        payload: {
+          pageId: "p1",
+          workspaceId: "w1",
+          chunkIndex: 0,
+          title: "Hello",
+          content: "a",
+          pageType: "TEXT",
+          createdById: "u1",
+          createdAt: "2026-04-22T00:00:00.000Z",
+          updatedAt: "2026-04-22T01:00:00.000Z",
+        },
+      }),
+      expect.objectContaining({
+        vector: [0.3, 0.4],
+        payload: expect.objectContaining({
+          chunkIndex: 1,
+          content: "b",
+          title: "Hello",
+        }),
+      }),
     ])
   })
 
@@ -101,6 +130,10 @@ describe("IndexingProcessor", () => {
       deletedAt: null,
       content: { type: "doc", content: [] },
       workspaceId: "w1",
+      title: "Hello",
+      createdById: "u1",
+      createdAt: new Date("2026-04-22T00:00:00.000Z"),
+      updatedAt: new Date("2026-04-22T01:00:00.000Z"),
     } as never)
     ;(mockPrisma.$executeRaw as jest.Mock).mockResolvedValue(1 as never)
     ;(mockChunker.chunksFromDoc as jest.Mock).mockReturnValue(["!!", "real"] as never)

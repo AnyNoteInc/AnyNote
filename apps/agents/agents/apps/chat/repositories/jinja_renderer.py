@@ -17,10 +17,10 @@ class JinjaRendererRepository:
     def __init__(self, settings: SettingsSchema) -> None:
         path = join(settings.base_dir, 'agents', 'apps', 'chat', 'templates')
         self.environment = Environment(loader=FileSystemLoader(path))
-        self.template = self.environment.get_template(self.TEMPLATE_NAME)
 
     def render(self, context: QueryRequestSchema, mcp_servers: list[McpServerToolsSchema]) -> str:
-        return self.template.render(**{
+        template = self.environment.get_template(self.TEMPLATE_NAME)
+        return template.render(**{
             **context.model_dump(mode='json'),
             'mcp_servers': mcp_servers,
         })
