@@ -11,22 +11,28 @@ function normalizeNullish(value: unknown): unknown {
   return value
 }
 
+function extractSingleUuid(value: string): string | null {
+  const matches = value.match(UUID_EXTRACT_RE) ?? []
+  const uniqueMatches = [...new Set(matches.map((match) => match.toLowerCase()))]
+  return uniqueMatches.length === 1 ? (uniqueMatches[0] ?? null) : null
+}
+
 function normalizeUuidLike(value: unknown): unknown {
-  if (typeof value !== "string") {
-    return value
+  if (typeof value === "string") {
+    const trimmed = value.trim()
+    if (!trimmed) {
+      return trimmed
+    }
+
+    return extractSingleUuid(trimmed) ?? trimmed
   }
 
-  const trimmed = value.trim()
-  if (!trimmed) {
-    return trimmed
+  if (typeof value === "object" && value !== null) {
+    const serialized = JSON.stringify(value)
+    return extractSingleUuid(serialized) ?? value
   }
 
-  const matches = trimmed.match(UUID_EXTRACT_RE) ?? []
-  if (matches.length !== 1) {
-    return trimmed
-  }
-
-  return matches[0]
+  return value
 }
 
 export function mcpUuid() {

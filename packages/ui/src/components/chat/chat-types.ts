@@ -3,14 +3,14 @@ import type {
   ChatMessageStatus,
   ChatRole,
   ChatTextMessagePart,
-} from "@mui/x-chat/types"
+} from '@mui/x-chat/types'
 
 export type ChatComposerAttachment = ChatDraftAttachment
 
 export type ChatTextPart = ChatTextMessagePart
 
-export type ChatFilePart = {
-  type: "file"
+export type ChatAttacmentPart = {
+  type: 'attacment'
   fileId: string
   name: string
   mimeType: string
@@ -18,18 +18,19 @@ export type ChatFilePart = {
   downloadUrl: string
 }
 
-export type ChatServiceBlockState = "pending" | "running" | "done" | "error" | "required"
+export type ChatServiceBlockState = 'pending' | 'running' | 'done' | 'error' | 'required'
 
-export type ChatServiceStatusPart = {
-  type: "service-status"
+export type ChatToolPart = {
+  type: 'tool'
   id: string
-  kind: "tool" | "confirmation"
+  kind: 'tool' | 'confirmation'
   state: ChatServiceBlockState
   title: string
   detail?: string
+  result?: string
 }
 
-export type ChatMessagePart = ChatTextPart | ChatFilePart | ChatServiceStatusPart
+export type ChatMessagePart = ChatTextPart | ChatAttacmentPart | ChatToolPart
 
 export type ChatThreadMessage = {
   id: string

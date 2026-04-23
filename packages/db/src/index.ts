@@ -1,5 +1,5 @@
-import { PrismaClient, Prisma } from "@prisma/client"
-import { PrismaPg } from "@prisma/adapter-pg"
+import { PrismaClient, Prisma } from '@prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
 
 type GlobalPrisma = typeof globalThis & {
   prisma?: PrismaClient
@@ -13,7 +13,7 @@ export const prisma =
     const databaseUrl = process.env.DATABASE_URL
 
     if (!databaseUrl) {
-      throw new Error("DATABASE_URL environment variable is not set.")
+      throw new Error('DATABASE_URL environment variable is not set.')
     }
 
     const adapter = new PrismaPg({
@@ -22,11 +22,11 @@ export const prisma =
 
     return new PrismaClient({
       adapter,
-      log: process.env.NODE_ENV === "production" ? ["error", "warn"] : ["query", "error", "warn"],
+      log: process.env.NODE_ENV === 'production' ? ['error', 'warn'] : ['query', 'error', 'warn'],
     })
   })()
 
-if (process.env.NODE_ENV !== "production") {
+if (process.env.NODE_ENV !== 'production') {
   globalForPrisma.prisma = prisma
 }
 
@@ -42,7 +42,7 @@ export {
   SubscriptionStatus,
   ChatMessageRole,
   FileStatus,
-} from "@prisma/client"
+} from '@prisma/client'
 export type {
   User,
   Account,
@@ -59,7 +59,6 @@ export type {
   Subscription,
   Chat,
   ChatMessage,
-  ChatMessageFile,
   AiProvider,
   AiModel,
   WorkspaceAiSettings,
@@ -67,10 +66,10 @@ export type {
   File,
   PageFile,
   OutboxEvent,
-} from "@prisma/client"
-export { OutboxEventStatus } from "@prisma/client"
+} from '@prisma/client'
+export { OutboxEventStatus } from '@prisma/client'
 
-export type OutboxAggregateType = "page" | "file"
+export type OutboxAggregateType = 'page' | 'file'
 
 export interface EnqueueOutboxEventArgs {
   eventType: string

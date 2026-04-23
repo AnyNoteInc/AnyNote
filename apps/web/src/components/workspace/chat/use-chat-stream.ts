@@ -1,22 +1,22 @@
-"use client"
+'use client'
 
-import { useEffect, useEffectEvent, useRef, useState, startTransition } from "react"
+import { useEffect, useEffectEvent, useRef, useState, startTransition } from 'react'
 
-import type { ChatThreadMessage } from "@repo/ui/components"
+import type { ChatThreadMessage } from '@repo/ui/components'
 
-import { decodeWebSseEvents } from "@/lib/chat/sse"
-import type { WebChatSseEvent } from "@/lib/chat/types"
+import { decodeWebSseEvents } from '@/lib/chat/sse'
+import type { WebChatSseEvent } from '@/lib/chat/types'
 
 import {
   appendAssistantText,
   appendPendingMessagePair,
   createServerMessagesSyncKey,
   mapServerMessagesToThreadMessages,
-  replaceAssistantServiceBlocks,
+  replaceAssistantToolBlocks,
   updateAssistantStatus,
   type DraftAttachmentSummary,
   type ServerChatMessage,
-} from "./chat-message-mappers"
+} from './chat-message-mappers'
 
 type PendingSend = {
   attachments: DraftAttachmentSummary[]
@@ -60,7 +60,7 @@ export function useChatStream({ chatId, initialMessages, onSettled }: UseChatStr
 
   const applyEvent = useEffectEvent((event: WebChatSseEvent) => {
     switch (event.type) {
-      case "message.created": {
+      case 'message.created': {
         const pendingSend = pendingSendRef.current
         if (!pendingSend) {
           return
@@ -78,15 +78,15 @@ export function useChatStream({ chatId, initialMessages, onSettled }: UseChatStr
         return
       }
 
-      case "message.delta": {
+      case 'message.delta': {
         activeAssistantMessageIdRef.current = event.assistantMessageId
         setMessages((current) => appendAssistantText(current, event.assistantMessageId, event.text))
         return
       }
 
-      case "message.service": {
+      case 'message.service': {
         setMessages((current) =>
-          replaceAssistantServiceBlocks(
+          replaceAssistantToolBlocks(
             current,
             event.assistantMessageId,
             event.blocks.map((block) => ({
@@ -95,13 +95,14 @@ export function useChatStream({ chatId, initialMessages, onSettled }: UseChatStr
               state: block.state,
               title: block.title,
               detail: block.detail,
+              result: block.result,
             })),
           ),
         )
         return
       }
 
-      case "message.status": {
+      case 'message.status': {
         setMessages((current) =>
           updateAssistantStatus({
             messages: current,
@@ -113,7 +114,7 @@ export function useChatStream({ chatId, initialMessages, onSettled }: UseChatStr
         return
       }
 
-      case "message.done": {
+      case 'message.done': {
         void finishStream()
       }
     }
@@ -129,14 +130,14 @@ export function useChatStream({ chatId, initialMessages, onSettled }: UseChatStr
       }
 
       if (!response.body) {
-        setError("Пустой поток ответа.")
+        setError('Пустой поток ответа.')
         resetStream()
         return false
       }
 
       const reader = response.body.getReader()
       const decoder = new TextDecoder()
-      let buffer = ""
+      let buffer = ''
 
       try {
         while (true) {
@@ -155,7 +156,7 @@ export function useChatStream({ chatId, initialMessages, onSettled }: UseChatStr
         }
       } catch (streamError) {
         if (!controller.signal.aborted) {
-          setError(getErrorMessage(streamError, "Поток ответа был прерван."))
+          setError(getErrorMessage(streamError, 'Поток ответа был прерван.'))
         }
       } finally {
         await reader.cancel().catch(() => {})
@@ -187,7 +188,7 @@ export function useChatStream({ chatId, initialMessages, onSettled }: UseChatStr
         return false
       }
 
-      setError(getErrorMessage(requestError, "Не удалось открыть поток ответа."))
+      setError(getErrorMessage(requestError, 'Не удалось открыть поток ответа.'))
       resetStream()
       return false
     }
@@ -222,10 +223,10 @@ export function useChatStream({ chatId, initialMessages, onSettled }: UseChatStr
     }
 
     return await openStream((signal) =>
-      fetch("/api/agents/generate", {
-        method: "POST",
+      fetch('/api/agents/generate', {
+        method: 'POST',
         headers: {
-          "content-type": "application/json",
+          'content-type': 'application/json',
         },
         body: JSON.stringify({
           chatId,
@@ -246,7 +247,7 @@ export function useChatStream({ chatId, initialMessages, onSettled }: UseChatStr
     return await openStream((signal) =>
       fetch(`/api/agents/streams/${assistantMessageId}`, {
         headers: {
-          Accept: "text/event-stream",
+          Accept: 'text/event-stream',
         },
         signal,
       }),

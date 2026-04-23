@@ -1,33 +1,43 @@
 import type {
-  ChatFilePart,
+  ChatAttacmentPart,
   ChatMessagePart,
-  ChatServiceStatusPart,
   ChatThreadMessage,
-} from "@repo/ui/components"
-import type { inferRouterOutputs } from "@trpc/server"
+  ChatToolPart,
+} from '@repo/ui/components'
+import type { inferRouterOutputs } from '@trpc/server'
 
-import type { AppRouter } from "@repo/trpc"
+import type { AppRouter } from '@repo/trpc'
 
 type RouterOutputs = inferRouterOutputs<AppRouter>
 
-export type ChatQueryData = RouterOutputs["chat"]["getChat"]
-export type ServerChatMessage = ChatQueryData["messages"][number]
+export type ChatQueryData = RouterOutputs['chat']['getChat']
+export type ServerChatMessage = ChatQueryData['messages'][number]
 
-export type DraftAttachmentSummary = Omit<ChatFilePart, "type" | "downloadUrl">
+export type DraftAttachmentSummary = Omit<ChatAttacmentPart, 'type' | 'downloadUrl'>
 
-function getPartSyncKey(part: ServerChatMessage["parts"][number]) {
+function getPartSyncKey(part: ServerChatMessage['parts'][number]) {
   switch (part.type) {
-    case "text":
+    case 'text':
       return `text:${part.text}`
-    case "file":
+    case 'attacment':
       return [
-        "file",
+        'attacment',
         part.fileId,
         part.name,
         part.mimeType,
         part.fileSize,
         part.downloadUrl,
-      ].join(":")
+      ].join(':')
+    case 'tool':
+      return [
+        'tool',
+        part.id,
+        part.kind,
+        part.state,
+        part.title,
+        part.detail ?? '',
+        part.result ?? '',
+      ].join(':')
     default:
       return JSON.stringify(part)
   }
@@ -40,67 +50,63 @@ export function createServerMessagesSyncKey(messages: ServerChatMessage[]): stri
         message.id,
         message.role,
         message.status,
-        message.errorMessage ?? "",
+        message.errorMessage ?? '',
         message.createdAt,
         message.updatedAt,
-        message.parts.map(getPartSyncKey).join("|"),
-      ].join("~")
+        message.parts.map(getPartSyncKey).join('|'),
+      ].join('~')
     })
-    .join("||")
+    .join('||')
 }
 
-function mapRole(role: ServerChatMessage["role"]): ChatThreadMessage["role"] {
-  return role === "USER" ? "user" : "assistant"
+function mapRole(role: ServerChatMessage['role']): ChatThreadMessage['role'] {
+  return role === 'USER' ? 'user' : 'assistant'
 }
 
-function mapStatus(
-  status: "STREAMING" | "DONE" | "ERROR",
-): ChatThreadMessage["status"] {
+function mapStatus(status: 'STREAMING' | 'DONE' | 'ERROR'): ChatThreadMessage['status'] {
   switch (status) {
-    case "STREAMING":
-      return "streaming"
-    case "ERROR":
-      return "error"
+    case 'STREAMING':
+      return 'streaming'
+    case 'ERROR':
+      return 'error'
     default:
-      return "sent"
+      return 'sent'
   }
 }
 
-function createErrorStatusPart(messageId: string, errorMessage: string): ChatServiceStatusPart {
+function createErrorStatusPart(messageId: string, errorMessage: string): ChatToolPart {
   return {
     id: `${messageId}-error`,
-    type: "service-status",
-    kind: "tool",
-    state: "error",
-    title: "Ошибка генерации",
+    type: 'tool',
+    kind: 'tool',
+    state: 'error',
+    title: 'Ошибка генерации',
     detail: errorMessage,
   }
 }
 
-function stripServiceParts(parts: ChatMessagePart[]) {
-  return parts.filter((part) => part.type !== "service-status")
+function stripToolParts(parts: ChatMessagePart[]) {
+  return parts.filter((part) => part.type !== 'tool')
 }
 
-function toServiceStatusParts(
-  blocks: Array<Omit<ChatServiceStatusPart, "type">>,
-): ChatServiceStatusPart[] {
+function toToolParts(blocks: Array<Omit<ChatToolPart, 'type'>>): ChatToolPart[] {
   return blocks.map((block) => ({
     ...block,
-    type: "service-status",
+    type: 'tool',
   }))
 }
 
-function withStatusParts(
+function withToolParts(
   persistedParts: ChatMessagePart[],
-  serviceParts: ChatServiceStatusPart[],
+  toolParts: ChatToolPart[],
 ): ChatMessagePart[] {
-  return [...persistedParts, ...serviceParts]
+  return [...persistedParts, ...toolParts]
 }
 
 export function mapServerMessageToThreadMessage(message: ServerChatMessage): ChatThreadMessage {
   const persistedParts = [...message.parts]
   const errorParts =
-    message.status === "ERROR" && message.errorMessage
+    message.status === 'ERROR' && message.errorMessage
       ? [createErrorStatusPart(message.id, message.errorMessage)]
       : []
 
@@ -110,7 +116,7 @@ export function mapServerMessageToThreadMessage(message: ServerChatMessage): Cha
     status: mapStatus(message.status),
     createdAt: message.createdAt,
     updatedAt: message.updatedAt,
-    parts: withStatusParts(persistedParts, errorParts),
+    parts: withToolParts(persistedParts, errorParts),
   }
 }
 
@@ -128,7 +134,7 @@ export function findResumableAssistantMessageId(
     return null
   }
 
-  if (lastMessage.role !== "ASSISTANT" || lastMessage.status !== "STREAMING") {
+  if (lastMessage.role !== 'ASSISTANT' || lastMessage.status !== 'STREAMING') {
     return null
   }
 
@@ -146,14 +152,14 @@ export function createPendingMessagePair(args: {
   return [
     {
       id: args.userMessageId,
-      role: "user",
-      status: "sent",
+      role: 'user',
+      status: 'sent',
       createdAt: now,
       updatedAt: now,
       parts: [
-        { type: "text", text: args.text },
+        { type: 'text', text: args.text },
         ...args.attachments.map((attachment) => ({
-          type: "file" as const,
+          type: 'attacment' as const,
           fileId: attachment.fileId,
           name: attachment.name,
           mimeType: attachment.mimeType,
@@ -164,8 +170,8 @@ export function createPendingMessagePair(args: {
     },
     {
       id: args.assistantMessageId,
-      role: "assistant",
-      status: "streaming",
+      role: 'assistant',
+      status: 'streaming',
       createdAt: now,
       updatedAt: now,
       parts: [],
@@ -198,38 +204,34 @@ export function appendAssistantText(
       return message
     }
 
-    const persistedParts = stripServiceParts(message.parts)
-    const serviceParts = message.parts.filter(
-      (part): part is ChatServiceStatusPart => part.type === "service-status",
-    )
-    const textIndex = persistedParts.findIndex((part) => part.type === "text")
-    const nextParts = [...persistedParts]
+    const textIndex = message.parts.findIndex((part) => part.type === 'text')
+    const nextParts = [...message.parts]
 
     if (textIndex >= 0) {
       const textPart = nextParts[textIndex]
-      if (textPart?.type === "text") {
+      if (textPart?.type === 'text') {
         nextParts[textIndex] = {
           ...textPart,
           text: textPart.text + text,
         }
       }
     } else {
-      nextParts.unshift({ type: "text", text })
+      nextParts.unshift({ type: 'text', text })
     }
 
     return {
       ...message,
-      parts: withStatusParts(nextParts, serviceParts),
-      status: "streaming",
+      parts: nextParts,
+      status: 'streaming',
       updatedAt: new Date().toISOString(),
     }
   })
 }
 
-export function replaceAssistantServiceBlocks(
+export function replaceAssistantToolBlocks(
   messages: ChatThreadMessage[],
   assistantMessageId: string,
-  blocks: Array<Omit<ChatServiceStatusPart, "type">>,
+  blocks: Array<Omit<ChatToolPart, 'type'>>,
 ): ChatThreadMessage[] {
   if (!messages.some((message) => message.id === assistantMessageId)) {
     return messages
@@ -242,7 +244,7 @@ export function replaceAssistantServiceBlocks(
 
     return {
       ...message,
-      parts: withStatusParts(stripServiceParts(message.parts), toServiceStatusParts(blocks)),
+      parts: withToolParts(stripToolParts(message.parts), toToolParts(blocks)),
       updatedAt: new Date().toISOString(),
     }
   })
@@ -251,7 +253,7 @@ export function replaceAssistantServiceBlocks(
 export function updateAssistantStatus(args: {
   messages: ChatThreadMessage[]
   assistantMessageId: string
-  status: "STREAMING" | "DONE" | "ERROR"
+  status: 'STREAMING' | 'DONE' | 'ERROR'
   errorMessage?: string
 }): ChatThreadMessage[] {
   if (!args.messages.some((message) => message.id === args.assistantMessageId)) {
@@ -263,11 +265,15 @@ export function updateAssistantStatus(args: {
       return message
     }
 
-    const persistedParts = stripServiceParts(message.parts)
+    const partsWithoutGeneratedError = message.parts.filter(
+      (part) => part.type !== 'tool' || part.id !== `${message.id}-error`,
+    )
     const terminalParts =
-      args.status === "ERROR" && args.errorMessage
-        ? withStatusParts(persistedParts, [createErrorStatusPart(message.id, args.errorMessage)])
-        : persistedParts
+      args.status === 'ERROR' && args.errorMessage
+        ? withToolParts(partsWithoutGeneratedError, [
+            createErrorStatusPart(message.id, args.errorMessage),
+          ])
+        : partsWithoutGeneratedError
 
     return {
       ...message,

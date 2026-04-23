@@ -1,6 +1,6 @@
 "use client"
 
-import { ChatMessage, ChatMessageContent as MuiChatMessageContent, ChatMessageList as MuiChatMessageList } from "@mui/x-chat"
+import { ChatMessage, ChatMessageList as MuiChatMessageList } from "@mui/x-chat"
 import Avatar from "@mui/material/Avatar"
 import Box from "@mui/material/Box"
 import Stack from "@mui/material/Stack"
@@ -9,6 +9,7 @@ import { ChatProvider } from "@mui/x-chat-headless"
 import { useMemo } from "react"
 
 import { ChatEmptyState } from "./chat-empty-state"
+import { ChatMessageContent } from "./chat-message-content"
 import {
   buildProviderMessages,
   CHAT_CONVERSATION_ID,
@@ -23,6 +24,7 @@ type ChatMessageListProps = {
   messages: ChatThreadMessage[]
   emptyTitle?: string
   emptyDescription?: string
+  scrollMode?: "internal" | "page"
 }
 
 function formatTimestamp(value: ChatThreadMessage["createdAt"]) {
@@ -75,8 +77,10 @@ export function ChatMessageList({
   messages,
   emptyTitle,
   emptyDescription,
+  scrollMode = "internal",
 }: ChatMessageListProps) {
   const providerMessages = useMemo(() => buildProviderMessages(messages), [messages])
+  const usesPageScroll = scrollMode === "page"
 
   return (
     <ChatProvider
@@ -88,7 +92,9 @@ export function ChatMessageList({
       partRenderers={chatPartRenderers}
     >
       <MuiChatMessageList
-        autoScroll
+        autoScroll={!usesPageScroll}
+        data-scroll-mode={scrollMode}
+        data-testid="chat-message-list"
         items={providerMessages.map((message) => message.id)}
         overlay={
           messages.length === 0 ? (
@@ -146,7 +152,7 @@ export function ChatMessageList({
                       },
                     }}
                   >
-                    <MuiChatMessageContent />
+                    <ChatMessageContent parts={message.parts} />
                   </Box>
                   {timestamp || status ? (
                     <Typography color="text.secondary" mt={0.75} variant="caption">
@@ -159,10 +165,22 @@ export function ChatMessageList({
           )
         }}
         sx={{
-          flex: 1,
-          minHeight: 0,
+          flex: usesPageScroll ? "none" : 1,
+          minHeight: usesPageScroll ? "auto" : 0,
+          overflow: "visible",
           px: 2,
           py: 2,
+          ...(usesPageScroll
+            ? {
+                "& .MuiChatMessageList-scroller": {
+                  overflowY: "visible !important",
+                  overscrollBehavior: "auto !important",
+                },
+                "& .MuiChatMessageList-content": {
+                  minHeight: "auto",
+                },
+              }
+            : null),
         }}
       />
     </ChatProvider>

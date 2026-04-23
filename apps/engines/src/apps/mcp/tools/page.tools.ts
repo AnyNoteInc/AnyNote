@@ -10,13 +10,13 @@ import { WorkspaceMemberGuard } from "../guards/workspace-member.guard.js"
 import { MarkdownRenderer } from "../services/markdown-renderer.service.js"
 import { PageWriter } from "../services/page-writer.service.js"
 import { StatsService } from "../services/stats.service.js"
-import { mcpNullableUuidOptional, mcpUuid } from "../utils/mcp-input.js"
+import { mcpInput, mcpNullableUuidOptional, mcpUuid } from "../utils/mcp-input.js"
 import { getMcpRequestContext, type McpRequestWithContext } from "../utils/mcp-request-context.js"
 
 const CreatePageInput = z.object({
   parentId: mcpNullableUuidOptional(),
   title: z.string().min(1).max(255),
-  ownership: z.enum(["TEXT", "SKILL", "AGENT"]).default("TEXT"),
+  ownership: mcpInput(z.enum(["TEXT", "SKILL", "AGENT"]).default("TEXT")),
 })
 
 const UpdatePageInput = z.object({

@@ -121,14 +121,16 @@ export function WorkspaceChatClient({
   return (
     <Box
       sx={{
-        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        minHeight: "100%",
         maxWidth: 960,
         mx: "auto",
         px: { xs: 1.5, sm: 2.5 },
-        py: 2,
+        pt: 2,
       }}
     >
-      <Stack height="100%" spacing={2}>
+      <Stack flex={1} minHeight={0} spacing={2}>
         {combinedError ? <Alert severity="error">{combinedError}</Alert> : null}
         <ChatThread
           composerAttachments={draftAttachments.attachments}
@@ -139,6 +141,8 @@ export function WorkspaceChatClient({
           onComposerAttachmentsChange={handleComposerAttachmentsChange}
           onComposerValueChange={handleComposerValueChange}
           onSend={handleComposerSend}
+          scrollContainerSelector=".page-content-scroll"
+          scrollKey={chatId}
         />
       </Stack>
     </Box>

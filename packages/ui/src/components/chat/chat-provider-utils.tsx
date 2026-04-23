@@ -1,6 +1,6 @@
-"use client"
+'use client'
 
-import "./mui-chat-augmentation"
+import './mui-chat-augmentation'
 
 import type {
   ChatAdapter,
@@ -10,19 +10,19 @@ import type {
   ChatPartRendererMap,
   ChatStreamEnvelope,
   ChatUser,
-} from "@mui/x-chat-headless"
+} from '@mui/x-chat-headless'
 
-import { ChatFileChip } from "./chat-file-chip"
-import { ChatServiceBlock } from "./chat-service-block"
-import type { ChatSendPayload, ChatThreadMessage } from "./chat-types"
+import { ChatFileChip } from './chat-file-chip'
+import { ChatServiceBlock } from './chat-service-block'
+import type { ChatSendPayload, ChatThreadMessage, ChatToolPart } from './chat-types'
 
-export const CHAT_CONVERSATION_ID = "workspace-chat-thread"
+export const CHAT_CONVERSATION_ID = 'workspace-chat-thread'
 export const CHAT_COMPOSER_MAX_ROWS = 12
 
 export const CHAT_CONVERSATIONS: ChatConversation[] = [{ id: CHAT_CONVERSATION_ID }]
 export const CHAT_MEMBERS: ChatUser[] = [
-  { id: "current-user", role: "user" },
-  { id: "assistant-user", role: "assistant" },
+  { id: 'current-user', role: 'user' },
+  { id: 'assistant-user', role: 'assistant' },
 ]
 
 function createClosedStream(): ReadableStream<ChatMessageChunk | ChatStreamEnvelope> {
@@ -58,13 +58,15 @@ export function createComposerAdapter(args: {
   }
 }
 
-export function extractTextFromParts(parts: ReadonlyArray<{ type: string; text?: string }>): string {
+export function extractTextFromParts(
+  parts: ReadonlyArray<{ type: string; text?: string }>,
+): string {
   return parts
-    .filter((part): part is { type: "text"; text: string } => {
-      return part.type === "text" && typeof part.text === "string"
+    .filter((part): part is { type: 'text'; text: string } => {
+      return part.type === 'text' && typeof part.text === 'string'
     })
     .map((part) => part.text)
-    .join("")
+    .join('')
     .trim()
 }
 
@@ -81,18 +83,18 @@ function toIsoString(value: string | Date | undefined) {
   return Number.isNaN(parsed.getTime()) ? undefined : parsed.toISOString()
 }
 
-function normalizeStatus(status: ChatThreadMessage["status"]): ChatMessage["status"] | undefined {
+function normalizeStatus(status: ChatThreadMessage['status']): ChatMessage['status'] | undefined {
   if (!status) {
     return undefined
   }
 
   switch (status.toUpperCase()) {
-    case "STREAMING":
-      return "streaming"
-    case "DONE":
-      return "sent"
-    case "ERROR":
-      return "error"
+    case 'STREAMING':
+      return 'streaming'
+    case 'DONE':
+      return 'sent'
+    case 'ERROR':
+      return 'error'
     default:
       return status
   }
@@ -120,12 +122,8 @@ export function buildProviderMessages(messages: ChatThreadMessage[]): ChatMessag
 }
 
 export const chatPartRenderers: ChatPartRendererMap = {
-  file: ({ part }) => {
-    const href = "downloadUrl" in part ? part.downloadUrl : part.url
-    const name = "name" in part ? part.name : part.filename ?? part.url
-    const secondaryLabel = "fileSize" in part ? part.fileSize : undefined
-
-    return <ChatFileChip href={href} name={name} secondaryLabel={secondaryLabel} />
+  attacment: ({ part }) => {
+    return <ChatFileChip href={part.downloadUrl} name={part.name} secondaryLabel={part.fileSize} />
   },
-  "service-status": ({ part }) => <ChatServiceBlock part={part} />,
+  tool: ({ part }) => <ChatServiceBlock part={part as ChatToolPart} />,
 }

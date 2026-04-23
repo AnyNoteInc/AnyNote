@@ -190,6 +190,30 @@ describe("MCP e2e", () => {
     )
   })
 
+  it("accepts pageId embedded in a Russian creator question", async () => {
+    const page = await prisma.page.create({
+      data: {
+        workspaceId,
+        title: "Russian creator question page",
+        createdById: userId,
+        updatedById: userId,
+      },
+    })
+
+    const res = await callTool("getPageStats", {
+      pageId: `кто создал страницу ${page.id}`,
+    })
+
+    const payload = parseToolPayload(res)
+    expect(payload).toEqual(
+      expect.objectContaining({
+        type: "TEXT",
+        ownership: "TEXT",
+        createdBy: expect.objectContaining({ id: userId }),
+      }),
+    )
+  })
+
   it("returns expected payloads for remaining read tools", async () => {
     const markdownPage = await prisma.page.create({
       data: {
@@ -457,6 +481,25 @@ describe("MCP e2e", () => {
     })
     expect(createdPage.parentId).toBe(sourceParent.id)
     expect(createdPage.ownership).toBe("AGENT")
+
+    const createdWithNullOwnership = parseToolPayload(
+      await callTool("createPage", {
+        title: "Created page with null ownership",
+        ownership: null,
+      }),
+    )
+    expect(createdWithNullOwnership).toEqual({ pageId: expect.any(String) })
+
+    await expect(
+      prisma.page.findUniqueOrThrow({
+        where: { id: createdWithNullOwnership.pageId as string },
+      }),
+    ).resolves.toEqual(
+      expect.objectContaining({
+        title: "Created page with null ownership",
+        ownership: "TEXT",
+      }),
+    )
 
     const updated = parseToolPayload(
       await callTool("updatePage", {

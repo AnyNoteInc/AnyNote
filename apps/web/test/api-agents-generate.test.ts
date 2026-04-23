@@ -1,5 +1,5 @@
-import { NextRequest } from "next/server"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { NextRequest } from 'next/server'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => {
   return {
@@ -18,31 +18,32 @@ const mocks = vi.hoisted(() => {
   }
 })
 
-vi.mock("@repo/db", () => ({
-  FileStatus: { ACTIVE: "ACTIVE" },
+vi.mock('@repo/db', () => ({
+  FileStatus: { ACTIVE: 'ACTIVE' },
   prisma: mocks.prisma,
 }))
 
-vi.mock("@/lib/get-session", () => ({
+vi.mock('@/lib/get-session', () => ({
   getSession: mocks.getSession,
 }))
 
-vi.mock("@/lib/chat/active-stream-registry", () => ({
+vi.mock('@/lib/chat/active-stream-registry', () => ({
   activeStreamRegistry: mocks.activeStreamRegistry,
 }))
 
-vi.mock("@/lib/chat/rag-search", () => ({
+vi.mock('@/lib/chat/rag-search', () => ({
   searchRagDocuments: mocks.searchRagDocuments,
 }))
 
-import { POST } from "../src/app/api/agents/generate/route"
+import { POST } from '../src/app/api/agents/generate/route'
 
-describe("POST /api/agents/generate", () => {
-  const chatId = "11111111-1111-1111-1111-111111111111"
-  const workspaceId = "22222222-2222-2222-2222-222222222222"
-  const userId = "33333333-3333-3333-3333-333333333333"
-  const userMessageId = "44444444-4444-4444-4444-444444444444"
-  const assistantMessageId = "55555555-5555-5555-5555-555555555555"
+describe('POST /api/agents/generate', () => {
+  const chatId = '11111111-1111-1111-1111-111111111111'
+  const workspaceId = '22222222-2222-2222-2222-222222222222'
+  const userId = '33333333-3333-3333-3333-333333333333'
+  const userMessageId = '44444444-4444-4444-4444-444444444444'
+  const assistantMessageId = '55555555-5555-5555-5555-555555555555'
+  const fileId = '77777777-7777-7777-7777-777777777777'
 
   beforeEach(() => {
     vi.restoreAllMocks()
@@ -52,35 +53,45 @@ describe("POST /api/agents/generate", () => {
     vi.unstubAllGlobals()
   })
 
-  it("returns SSE events for a successful start flow", async () => {
+  it('returns SSE events for a successful start flow', async () => {
+    let upstreamTask: Promise<void> | null = null
     const entry = {
       assistantMessageId,
       blocks: [],
       chatId,
-      content: "",
+      content: '',
       errorMessage: undefined,
       lastTouchedAt: Date.now(),
-      publishBlocks: vi.fn(),
+      publishBlocks: vi.fn((blocks) => {
+        entry.blocks = blocks
+      }),
       publishCreated: vi.fn(),
-      publishDelta: vi.fn(),
+      publishDelta: vi.fn((text) => {
+        entry.content += text
+      }),
       publishDone: vi.fn(),
-      publishStatus: vi.fn(),
+      publishStatus: vi.fn((status, errorMessage) => {
+        entry.status = status
+        entry.errorMessage = errorMessage
+      }),
       scheduleCleanup: vi.fn(),
-      setUpstreamTask: vi.fn(),
-      status: "STREAMING",
+      setUpstreamTask: vi.fn((task) => {
+        upstreamTask = task
+      }),
+      status: 'STREAMING',
       subscribe: vi.fn((subscriber) => {
         subscriber({
-          type: "message.delta",
+          type: 'message.delta',
           assistantMessageId,
-          text: "Привет",
+          text: 'Привет',
         })
         subscriber({
-          type: "message.status",
+          type: 'message.status',
           assistantMessageId,
-          status: "DONE",
+          status: 'DONE',
         })
         subscriber({
-          type: "message.done",
+          type: 'message.done',
           assistantMessageId,
         })
         return () => {}
@@ -94,76 +105,145 @@ describe("POST /api/agents/generate", () => {
     })
     mocks.prisma.chat.findFirst.mockResolvedValue({
       id: chatId,
-      title: "Новый чат",
+      title: 'Новый чат',
       workspaceId,
     })
+    mocks.prisma.file.findMany.mockResolvedValue([
+      {
+        id: fileId,
+        name: 'brief.pdf',
+        mimeType: 'application/pdf',
+        fileSize: BigInt(2048),
+      },
+    ])
     mocks.prisma.workspaceAiSettings.findUnique.mockResolvedValue({
       temperature: 0,
       topP: 0,
-      systemPrompt: "sys",
+      systemPrompt: 'sys',
       defaultModel: {
-        slug: "GigaChat-2",
+        slug: 'GigaChat-2',
         provider: {
-          slug: "gigachat",
+          slug: 'gigachat',
           connection: {},
         },
       },
     })
     mocks.searchRagDocuments.mockResolvedValue([
       {
-        id: "66666666-6666-6666-6666-666666666666",
-        title: "Found page",
-        content: "Found chunk",
+        id: '66666666-6666-6666-6666-666666666666',
+        title: 'Found page',
+        content: 'Found chunk',
       },
     ])
+    const txChatMessageCreate = vi
+      .fn()
+      .mockResolvedValueOnce({ id: userMessageId })
+      .mockResolvedValueOnce({ id: assistantMessageId })
+    const txChatMessageFileCreateMany = vi.fn()
     mocks.prisma.$transaction.mockImplementation(async (callback) => {
       return callback({
         chat: { update: vi.fn() },
         chatMessage: {
-          create: vi
-            .fn()
-            .mockResolvedValueOnce({ id: userMessageId })
-            .mockResolvedValueOnce({ id: assistantMessageId }),
+          create: txChatMessageCreate,
         },
-        chatMessageFile: { createMany: vi.fn() },
+        chatMessageFile: { createMany: txChatMessageFileCreateMany },
       })
     })
     mocks.activeStreamRegistry.create.mockReturnValue(entry)
     const fetchMock = vi.fn().mockResolvedValue(
-      new Response('data: {"type":"done"}\n\n', {
-        headers: { "content-type": "text/event-stream" },
-        status: 200,
-      }),
+      new Response(
+        [
+          'data: {"type":"status","id":"tool-1","kind":"tool","state":"running","title":"search_pages"}',
+          '',
+          'data: {"type":"token","text":"Привет"}',
+          '',
+          'data: {"type":"status","id":"tool-1","kind":"tool","state":"done","title":"search_pages","detail":"1 документ","result":"Найдена страница Roadmap"}',
+          '',
+          'data: {"type":"done"}',
+          '',
+        ].join('\n'),
+        {
+          headers: { 'content-type': 'text/event-stream' },
+          status: 200,
+        },
+      ),
     )
-    vi.stubGlobal("fetch", fetchMock)
+    vi.stubGlobal('fetch', fetchMock)
 
     const response = await POST(
-      new NextRequest("http://localhost/api/agents/generate", {
-        method: "POST",
+      new NextRequest('http://localhost/api/agents/generate', {
+        method: 'POST',
         body: JSON.stringify({
           chatId,
-          text: "Привет",
-          fileIds: [],
+          text: 'Привет',
+          fileIds: [fileId],
         }),
       }),
     )
 
     expect(response.status).toBe(200)
     const body = await response.text()
+    await upstreamTask
     const upstreamPayload = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string)
 
     expect(body).toContain('"type":"message.created"')
     expect(body).toContain('"type":"message.delta"')
+    expect(txChatMessageCreate).toHaveBeenNthCalledWith(1, {
+      data: {
+        chatId,
+        parts: [
+          { type: 'text', text: 'Привет' },
+          {
+            type: 'attacment',
+            fileId,
+            name: 'brief.pdf',
+            mimeType: 'application/pdf',
+            fileSize: '2048',
+          },
+        ],
+        role: 'USER',
+        status: 'DONE',
+      },
+    })
+    expect(txChatMessageCreate).toHaveBeenNthCalledWith(2, {
+      data: {
+        chatId,
+        errorMessage: null,
+        parts: [],
+        role: 'ASSISTANT',
+        status: 'STREAMING',
+      },
+    })
+    expect(txChatMessageFileCreateMany).not.toHaveBeenCalled()
+    expect(mocks.prisma.chatMessage.update).toHaveBeenCalledWith({
+      where: { id: assistantMessageId },
+      data: {
+        errorMessage: null,
+        parts: [
+          { type: 'text', text: 'Привет' },
+          {
+            type: 'tool',
+            id: 'tool-1',
+            kind: 'tool',
+            state: 'done',
+            title: 'search_pages',
+            detail: '1 документ',
+            result: 'Найдена страница Roadmap',
+          },
+        ],
+        status: 'DONE',
+      },
+    })
     expect(mocks.searchRagDocuments).toHaveBeenCalledWith({
       workspaceId,
-      query: "Привет",
+      query: 'Привет',
     })
     expect(upstreamPayload.rag).toEqual({
       documents: [
         {
-          id: "66666666-6666-6666-6666-666666666666",
-          title: "Found page",
-          content: "Found chunk",
+          id: '66666666-6666-6666-6666-666666666666',
+          title: 'Found page',
+          content: 'Found chunk',
         },
       ],
     })

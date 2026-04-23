@@ -1,38 +1,34 @@
-import { FileStatus, prisma } from "@repo/db"
-import { NextResponse, type NextRequest } from "next/server"
+import { FileStatus, prisma } from '@repo/db'
+import { NextResponse, type NextRequest } from 'next/server'
 
-import { getSession } from "@/lib/get-session"
-import { activeStreamRegistry } from "@/lib/chat/active-stream-registry"
-import {
-  buildAgentsPayload,
-  type WorkspaceSettingsSnapshot,
-} from "@/lib/chat/agents-payload"
-import { searchRagDocuments, type RagDocument } from "@/lib/chat/rag-search"
-import { encodeSseEvent, decodeAgentsSseEvents } from "@/lib/chat/sse"
-import type {
-  ServiceBlock,
-  StartChatGenerationBody,
-} from "@/lib/chat/types"
+import { getSession } from '@/lib/get-session'
+import { activeStreamRegistry } from '@/lib/chat/active-stream-registry'
+import { buildAgentsPayload, type WorkspaceSettingsSnapshot } from '@/lib/chat/agents-payload'
+import { searchRagDocuments, type RagDocument } from '@/lib/chat/rag-search'
+import { encodeSseEvent, decodeAgentsSseEvents } from '@/lib/chat/sse'
+import type { ServiceBlock, StartChatGenerationBody } from '@/lib/chat/types'
 
-export const runtime = "nodejs"
+export const runtime = 'nodejs'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
 function parseBody(raw: unknown): StartChatGenerationBody {
-  if (!raw || typeof raw !== "object") {
-    throw new Error("Invalid body")
+  if (!raw || typeof raw !== 'object') {
+    throw new Error('Invalid body')
   }
 
   const body = raw as Record<string, unknown>
-  if (typeof body.chatId !== "string" || !UUID_RE.test(body.chatId)) {
-    throw new Error("chatId must be a UUID")
+  if (typeof body.chatId !== 'string' || !UUID_RE.test(body.chatId)) {
+    throw new Error('chatId must be a UUID')
   }
-  if (typeof body.text !== "string" || body.text.trim().length === 0) {
-    throw new Error("text must be a non-empty string")
+  if (typeof body.text !== 'string' || body.text.trim().length === 0) {
+    throw new Error('text must be a non-empty string')
   }
 
   const fileIds = Array.isArray(body.fileIds)
-    ? body.fileIds.filter((fileId): fileId is string => typeof fileId === "string" && UUID_RE.test(fileId))
+    ? body.fileIds.filter(
+        (fileId): fileId is string => typeof fileId === 'string' && UUID_RE.test(fileId),
+      )
     : []
 
   return {
@@ -53,6 +49,46 @@ function upsertServiceBlock(blocks: ServiceBlock[], block: ServiceBlock): Servic
   return next
 }
 
+type ValidChatFile = {
+  id: string
+  name: string
+  mimeType: string
+  fileSize: bigint
+}
+
+function createTextPart(text: string) {
+  return { type: 'text' as const, text }
+}
+
+function createAttacmentPart(file: ValidChatFile) {
+  return {
+    type: 'attacment' as const,
+    fileId: file.id,
+    name: file.name,
+    mimeType: file.mimeType,
+    fileSize: file.fileSize.toString(),
+  }
+}
+
+function createToolPart(block: ServiceBlock) {
+  return {
+    type: 'tool' as const,
+    id: block.id,
+    kind: block.kind,
+    state: block.state,
+    title: block.title,
+    detail: block.detail,
+    result: block.result,
+  }
+}
+
+function createAssistantParts(entry: ReturnType<typeof activeStreamRegistry.create>) {
+  return [
+    ...(entry.content.length > 0 ? [createTextPart(entry.content)] : []),
+    ...entry.blocks.map(createToolPart),
+  ]
+}
+
 function createDebouncedPersist(args: {
   assistantMessageId: string
   entry: ReturnType<typeof activeStreamRegistry.create>
@@ -63,8 +99,8 @@ function createDebouncedPersist(args: {
     await prisma.chatMessage.update({
       where: { id: args.assistantMessageId },
       data: {
-        content: args.entry.content,
         errorMessage: args.entry.errorMessage ?? null,
+        parts: createAssistantParts(args.entry),
         status: args.entry.status,
       },
     })
@@ -104,7 +140,7 @@ function createEntryResponse(args: {
         let unsubscribe = () => {}
         unsubscribe = args.entry.subscribe((event) => {
           controller.enqueue(encodeSseEvent(event))
-          if (event.type === "message.done") {
+          if (event.type === 'message.done') {
             unsubscribe()
             controller.close()
           }
@@ -115,9 +151,9 @@ function createEntryResponse(args: {
     }),
     {
       headers: {
-        "cache-control": "no-cache, no-transform",
-        connection: "keep-alive",
-        "content-type": "text/event-stream; charset=utf-8",
+        'cache-control': 'no-cache, no-transform',
+        connection: 'keep-alive',
+        'content-type': 'text/event-stream; charset=utf-8',
       },
     },
   )
@@ -139,34 +175,37 @@ async function streamAgentsToRegistry(args: {
   })
 
   try {
-    const upstream = await fetch(`${process.env.AGENTS_SERVICE_URL ?? "http://localhost:8080"}/chat/generate`, {
-      method: "POST",
-      headers: {
-        "content-type": "application/json",
-        "x-user-id": args.userId,
-        "x-workspace-id": args.workspaceId,
+    const upstream = await fetch(
+      `${process.env.AGENTS_SERVICE_URL ?? 'http://localhost:8080'}/chat/generate`,
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/json',
+          'x-user-id': args.userId,
+          'x-workspace-id': args.workspaceId,
+        },
+        body: JSON.stringify(
+          buildAgentsPayload({
+            chatId: args.chatId,
+            rag: args.rag,
+            settings: args.settings,
+            text: args.text,
+            userId: args.userId,
+            workspaceId: args.workspaceId,
+          }),
+        ),
       },
-      body: JSON.stringify(
-        buildAgentsPayload({
-          chatId: args.chatId,
-          rag: args.rag,
-          settings: args.settings,
-          text: args.text,
-          userId: args.userId,
-          workspaceId: args.workspaceId,
-        }),
-      ),
-    })
+    )
 
     if (!upstream.ok || !upstream.body) {
       const message = `Agents upstream ${upstream.status}`
-      args.entry.publishStatus("ERROR", message)
+      args.entry.publishStatus('ERROR', message)
       return
     }
 
     const reader = upstream.body.getReader()
     const decoder = new TextDecoder()
-    let buffer = ""
+    let buffer = ''
     let completed = false
 
     while (true) {
@@ -180,45 +219,51 @@ async function streamAgentsToRegistry(args: {
       buffer = parsed.buffer
 
       for (const event of parsed.events) {
-        if (event.type === "token") {
+        if (event.type === 'token') {
           args.entry.publishDelta(event.text)
           flush.schedule()
           continue
         }
 
-        if (event.type === "status") {
+        if (event.type === 'status') {
+          const explicitResult = typeof event.result === 'string' ? event.result : undefined
+          const fallbackResult =
+            !explicitResult && (event.state === 'done' || event.state === 'error')
+              ? event.detail
+              : undefined
           args.entry.publishBlocks(
             upsertServiceBlock(args.entry.blocks, {
               id: event.id,
               kind: event.kind,
               state: event.state,
               title: event.title,
-              detail: event.detail,
+              detail: explicitResult ? event.detail : undefined,
+              result: explicitResult ?? fallbackResult,
             }),
           )
           continue
         }
 
-        if (event.type === "error") {
-          args.entry.publishStatus("ERROR", event.message)
+        if (event.type === 'error') {
+          args.entry.publishStatus('ERROR', event.message)
           completed = true
           break
         }
 
-        if (event.type === "done") {
-          args.entry.publishStatus("DONE")
+        if (event.type === 'done') {
+          args.entry.publishStatus('DONE')
           completed = true
         }
       }
     }
 
     if (!completed) {
-      args.entry.publishStatus("DONE")
+      args.entry.publishStatus('DONE')
     }
   } catch (error) {
     args.entry.publishStatus(
-      "ERROR",
-      error instanceof Error ? error.message : "Agents upstream failed",
+      'ERROR',
+      error instanceof Error ? error.message : 'Agents upstream failed',
     )
   } finally {
     await flush.flush()
@@ -230,7 +275,7 @@ async function streamAgentsToRegistry(args: {
 export async function POST(request: NextRequest): Promise<Response> {
   const session = await getSession()
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   let body: StartChatGenerationBody
@@ -238,7 +283,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     body = parseBody(await request.json())
   } catch (error) {
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Invalid body" },
+      { error: error instanceof Error ? error.message : 'Invalid body' },
       { status: 400 },
     )
   }
@@ -251,7 +296,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     select: { id: true, title: true, workspaceId: true },
   })
   if (!chat) {
-    return NextResponse.json({ error: "Chat not found" }, { status: 404 })
+    return NextResponse.json({ error: 'Chat not found' }, { status: 404 })
   }
 
   const [files, settings] = await Promise.all([
@@ -263,9 +308,9 @@ export async function POST(request: NextRequest): Promise<Response> {
             userId: session.user.id,
             workspaceId: chat.workspaceId,
           },
-          select: { id: true },
+          select: { id: true, name: true, mimeType: true, fileSize: true },
         })
-      : Promise.resolve([] as Array<{ id: string }>),
+      : Promise.resolve([] as ValidChatFile[]),
     prisma.workspaceAiSettings.findUnique({
       where: { workspaceId: chat.workspaceId },
       include: {
@@ -275,12 +320,15 @@ export async function POST(request: NextRequest): Promise<Response> {
   ])
 
   if (files.length !== body.fileIds.length) {
-    return NextResponse.json({ error: "One or more files are invalid for this chat" }, { status: 400 })
+    return NextResponse.json(
+      { error: 'One or more files are invalid for this chat' },
+      { status: 400 },
+    )
   }
 
   if (!settings?.defaultModel) {
     return NextResponse.json(
-      { error: "Workspace AI default model is not configured" },
+      { error: 'Workspace AI default model is not configured' },
       { status: 400 },
     )
   }
@@ -301,38 +349,33 @@ export async function POST(request: NextRequest): Promise<Response> {
     workspaceId: chat.workspaceId,
     query: body.text,
   })
+  const filesById = new Map(files.map((file) => [file.id, file]))
+  const orderedFiles = body.fileIds.flatMap((fileId) => {
+    const file = filesById.get(fileId)
+    return file ? [file] : []
+  })
 
   const { assistantMessage, userMessage } = await prisma.$transaction(async (tx) => {
     const userMessage = await tx.chatMessage.create({
       data: {
         chatId: chat.id,
-        content: body.text,
-        role: "USER",
-        status: "DONE",
+        parts: [createTextPart(body.text), ...orderedFiles.map(createAttacmentPart)],
+        role: 'USER',
+        status: 'DONE',
       },
     })
-
-    if (body.fileIds.length > 0) {
-      await tx.chatMessageFile.createMany({
-        data: body.fileIds.map((fileId) => ({
-          fileId,
-          messageId: userMessage.id,
-        })),
-        skipDuplicates: true,
-      })
-    }
 
     const assistantMessage = await tx.chatMessage.create({
       data: {
         chatId: chat.id,
-        content: "",
         errorMessage: null,
-        role: "ASSISTANT",
-        status: "STREAMING",
+        parts: [],
+        role: 'ASSISTANT',
+        status: 'STREAMING',
       },
     })
 
-    const shouldRename = chat.title === "Новый чат"
+    const shouldRename = chat.title === 'Новый чат'
     await tx.chat.update({
       where: { id: chat.id },
       data: {
@@ -366,14 +409,14 @@ export async function POST(request: NextRequest): Promise<Response> {
     entry,
     initialEvents: [
       {
-        type: "message.created",
+        type: 'message.created',
         assistantMessageId: assistantMessage.id,
         userMessageId: userMessage.id,
       },
       {
-        type: "message.status",
+        type: 'message.status',
         assistantMessageId: assistantMessage.id,
-        status: "STREAMING",
+        status: 'STREAMING',
       },
     ],
   })

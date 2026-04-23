@@ -1,9 +1,9 @@
-import { z } from "zod"
-import { TRPCError } from "@trpc/server"
+import { z } from 'zod'
+import { TRPCError } from '@trpc/server'
 
-import type { PrismaClient } from "@repo/db"
+import type { PrismaClient } from '@repo/db'
 
-import { router, protectedProcedure } from "../trpc"
+import { router, protectedProcedure } from '../trpc'
 
 async function assertWorkspaceMember(
   ctx: { prisma: PrismaClient; user: { id: string } },
@@ -12,7 +12,7 @@ async function assertWorkspaceMember(
   const member = await ctx.prisma.workspaceMember.findUnique({
     where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
   })
-  if (!member) throw new TRPCError({ code: "FORBIDDEN" })
+  if (!member) throw new TRPCError({ code: 'FORBIDDEN' })
 }
 
 async function assertChatAccess(
@@ -25,29 +25,143 @@ async function assertChatAccess(
       workspace: { members: { some: { userId: ctx.user.id } } },
     },
   })
-  if (!chat) throw new TRPCError({ code: "NOT_FOUND" })
+  if (!chat) throw new TRPCError({ code: 'NOT_FOUND' })
   return chat
 }
 
-type ChatMessageWithFiles = {
+type ChatMessageWithParts = {
   id: string
-  role: "USER" | "ASSISTANT"
-  status: "STREAMING" | "DONE" | "ERROR"
+  role: 'USER' | 'ASSISTANT'
+  status: 'STREAMING' | 'DONE' | 'ERROR'
   errorMessage: string | null
-  content: string
+  parts: unknown
   createdAt: Date
   updatedAt: Date
-  files: Array<{
-    file: {
-      id: string
-      name: string
-      mimeType: string
-      fileSize: bigint
-    }
-  }>
 }
 
-function normalizeChatMessage(message: ChatMessageWithFiles) {
+type ChatToolPartState = 'pending' | 'running' | 'done' | 'error' | 'required'
+
+type ChatMessagePartDto =
+  | { type: 'text'; text: string }
+  | {
+      type: 'tool'
+      id: string
+      kind: 'tool' | 'confirmation'
+      state: ChatToolPartState
+      title: string
+      detail?: string
+      result?: string
+    }
+  | {
+      type: 'attacment'
+      fileId: string
+      name: string
+      mimeType: string
+      fileSize: string
+      downloadUrl: string
+    }
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function optionalString(value: unknown): string | undefined {
+  return typeof value === 'string' && value.length > 0 ? value : undefined
+}
+
+function requiredString(value: unknown): string | null {
+  return typeof value === 'string' && value.length > 0 ? value : null
+}
+
+function normalizeFileSize(value: unknown): string | null {
+  if (typeof value === 'string' && value.length > 0) {
+    return value
+  }
+  if (typeof value === 'number' && Number.isFinite(value)) {
+    return String(value)
+  }
+  return null
+}
+
+function normalizeToolState(value: unknown): ChatToolPartState | null {
+  return value === 'pending' ||
+    value === 'running' ||
+    value === 'done' ||
+    value === 'error' ||
+    value === 'required'
+    ? value
+    : null
+}
+
+function normalizeMessageParts(parts: unknown): ChatMessagePartDto[] {
+  if (!Array.isArray(parts)) {
+    return []
+  }
+
+  return parts.flatMap<ChatMessagePartDto>((part) => {
+    if (!isRecord(part)) {
+      return []
+    }
+
+    if (part.type === 'text') {
+      const text = requiredString(part.text)
+      return text ? [{ type: 'text' as const, text }] : []
+    }
+
+    if (part.type === 'tool') {
+      const id = requiredString(part.id)
+      const title = requiredString(part.title)
+      const kind =
+        part.kind === 'confirmation' ? 'confirmation' : part.kind === 'tool' ? 'tool' : null
+      const state = normalizeToolState(part.state)
+
+      if (!id || !title || !kind || !state) {
+        return []
+      }
+
+      const detail = optionalString(part.detail)
+      const result = optionalString(part.result)
+
+      return [
+        {
+          type: 'tool' as const,
+          id,
+          kind,
+          state,
+          title,
+          ...(detail ? { detail } : {}),
+          ...(result ? { result } : {}),
+        },
+      ]
+    }
+
+    if (part.type === 'attacment') {
+      const fileId = requiredString(part.fileId)
+      const name = requiredString(part.name)
+      const mimeType = requiredString(part.mimeType)
+      const fileSize = normalizeFileSize(part.fileSize)
+
+      if (!fileId || !name || !mimeType || !fileSize) {
+        return []
+      }
+
+      return [
+        {
+          type: 'attacment' as const,
+          fileId,
+          name,
+          mimeType,
+          fileSize,
+          downloadUrl: `/api/files/${fileId}`,
+        },
+      ]
+    }
+
+    return []
+  })
+}
+
+function normalizeChatMessage(message: ChatMessageWithParts) {
   return {
     id: message.id,
     role: message.role,
@@ -55,19 +169,7 @@ function normalizeChatMessage(message: ChatMessageWithFiles) {
     errorMessage: message.errorMessage,
     createdAt: message.createdAt.toISOString(),
     updatedAt: message.updatedAt.toISOString(),
-    parts: [
-      ...(message.content.trim().length > 0
-        ? [{ type: "text" as const, text: message.content }]
-        : []),
-      ...message.files.map(({ file }) => ({
-        type: "file" as const,
-        fileId: file.id,
-        name: file.name,
-        mimeType: file.mimeType,
-        fileSize: file.fileSize.toString(),
-        downloadUrl: `/api/files/${file.id}`,
-      })),
-    ],
+    parts: normalizeMessageParts(message.parts),
   }
 }
 
@@ -78,7 +180,7 @@ export const chatRouter = router({
       await assertWorkspaceMember(ctx, input.workspaceId)
       return ctx.prisma.chat.findMany({
         where: { workspaceId: input.workspaceId },
-        orderBy: { updatedAt: "desc" },
+        orderBy: { updatedAt: 'desc' },
         take: 50,
         select: {
           id: true,
@@ -96,15 +198,9 @@ export const chatRouter = router({
     .query(async ({ ctx, input }) => {
       const chat = await assertChatAccess(ctx, input.chatId)
       const messages = (await ctx.prisma.chatMessage.findMany({
-        include: {
-          files: {
-            include: { file: true },
-            orderBy: { createdAt: "asc" },
-          },
-        },
         where: { chatId: chat.id },
-        orderBy: { createdAt: "asc" },
-      })) as ChatMessageWithFiles[]
+        orderBy: { createdAt: 'asc' },
+      })) as ChatMessageWithParts[]
       return {
         chat,
         messages: messages.map(normalizeChatMessage),

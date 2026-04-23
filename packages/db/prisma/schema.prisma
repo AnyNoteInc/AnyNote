@@ -161,11 +161,11 @@ model Workspace {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  createdBy             User?             @relation("WorkspaceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy             User?                @relation("WorkspaceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   members               WorkspaceMember[]
   pages                 Page[]
-  workspaceIntegrations Integration[]     @relation("WorkspaceIntegrations")
-  defaultForUsers       UserPreference[]  @relation("DefaultWorkspace")
+  workspaceIntegrations Integration[]        @relation("WorkspaceIntegrations")
+  defaultForUsers       UserPreference[]     @relation("DefaultWorkspace")
   chats                 Chat[]
   files                 File[]
   aiSettings            WorkspaceAiSettings?
@@ -250,31 +250,17 @@ model ChatMessage {
   chatId       String            @map("chat_id") @db.Uuid
   role         ChatMessageRole
   status       ChatMessageStatus @default(DONE)
-  content      String            @db.Text
+  parts        Json              @default("[]")
   sources      Json              @default("[]")
   errorMessage String?           @map("error_message") @db.Text
   createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  chat  Chat              @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  files ChatMessageFile[]
+  chat Chat @relation(fields: [chatId], references: [id], onDelete: Cascade)
 
   @@index([chatId, createdAt])
   @@index([chatId, status])
   @@map("chat_messages")
-}
-
-model ChatMessageFile {
-  messageId String   @map("message_id") @db.Uuid
-  fileId    String   @map("file_id") @db.Uuid
-  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-
-  message ChatMessage @relation(fields: [messageId], references: [id], onDelete: Cascade)
-  file    File        @relation(fields: [fileId], references: [id], onDelete: Cascade)
-
-  @@id([messageId, fileId])
-  @@index([fileId])
-  @@map("chat_message_files")
 }
 
 model FavoritePage {
@@ -367,18 +353,18 @@ model AiProvider {
 }
 
 model AiModel {
-  id                String     @id @default(uuid(7)) @db.Uuid
-  providerId        String     @map("provider_id") @db.Uuid
-  slug              String     @db.VarChar(100)
-  displayName       String     @map("display_name") @db.VarChar(150)
-  contextTokens     Int        @map("context_tokens")
-  supportsVision    Boolean    @default(false) @map("supports_vision")
-  minPlanSlug       String?    @map("min_plan_slug")
-  isActive          Boolean    @default(true) @map("is_active")
-  deprecatedAt      DateTime?  @map("deprecated_at") @db.Timestamptz(6)
-  createdAt         DateTime   @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime   @updatedAt @map("updated_at") @db.Timestamptz(6)
-  provider          AiProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  id                String                @id @default(uuid(7)) @db.Uuid
+  providerId        String                @map("provider_id") @db.Uuid
+  slug              String                @db.VarChar(100)
+  displayName       String                @map("display_name") @db.VarChar(150)
+  contextTokens     Int                   @map("context_tokens")
+  supportsVision    Boolean               @default(false) @map("supports_vision")
+  minPlanSlug       String?               @map("min_plan_slug")
+  isActive          Boolean               @default(true) @map("is_active")
+  deprecatedAt      DateTime?             @map("deprecated_at") @db.Timestamptz(6)
+  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  provider          AiProvider            @relation(fields: [providerId], references: [id], onDelete: Cascade)
   workspaceSettings WorkspaceAiSettings[]
 
   @@unique([providerId, slug])
@@ -474,10 +460,9 @@ model File {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workspace        Workspace?        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  pages            PageFile[]
-  chatMessageFiles ChatMessageFile[]
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  pages     PageFile[]
 
   @@index([userId])
   @@index([createdAt])
@@ -507,18 +492,18 @@ enum OutboxEventStatus {
 
 model OutboxEvent {
   id            BigInt            @id @default(autoincrement())
-  eventType     String            @map("event_type")     @db.VarChar(64)
+  eventType     String            @map("event_type") @db.VarChar(64)
   aggregateType String            @map("aggregate_type") @db.VarChar(32)
-  aggregateId   String            @map("aggregate_id")   @db.Uuid
-  workspaceId   String?           @map("workspace_id")   @db.Uuid
+  aggregateId   String            @map("aggregate_id") @db.Uuid
+  workspaceId   String?           @map("workspace_id") @db.Uuid
   payload       Json              @default("{}")
   status        OutboxEventStatus @default(PENDING)
   attempts      Int               @default(0)
   nextAttemptAt DateTime          @default(now()) @map("next_attempt_at") @db.Timestamptz(6)
-  lockedAt      DateTime?         @map("locked_at")      @db.Timestamptz(6)
-  lockedBy      String?           @map("locked_by")      @db.VarChar(64)
-  processedAt   DateTime?         @map("processed_at")   @db.Timestamptz(6)
-  lastError     String?           @map("last_error")     @db.Text
+  lockedAt      DateTime?         @map("locked_at") @db.Timestamptz(6)
+  lockedBy      String?           @map("locked_by") @db.VarChar(64)
+  processedAt   DateTime?         @map("processed_at") @db.Timestamptz(6)
+  lastError     String?           @map("last_error") @db.Text
   createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
 
   @@index([status, nextAttemptAt])
