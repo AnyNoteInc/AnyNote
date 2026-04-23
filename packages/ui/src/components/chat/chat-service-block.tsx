@@ -1,6 +1,6 @@
 'use client'
 
-import Alert from '@mui/material/Alert'
+import Alert, { AlertColor } from '@mui/material/Alert'
 import Box from '@mui/material/Box'
 import Button from '@mui/material/Button'
 import Dialog from '@mui/material/Dialog'
@@ -15,32 +15,26 @@ type ChatServiceBlockProps = {
   part: ChatToolPart
 }
 
-function getSeverity(state: ChatToolPart['state']) {
-  switch (state) {
-    case 'done':
-      return 'success'
-    case 'error':
-      return 'error'
-    case 'required':
-      return 'warning'
-    default:
-      return 'info'
+function getSeverity(state: ChatToolPart['state']): AlertColor {
+  const state_maps: Record<ChatToolPart['state'], AlertColor> = {
+    done: 'success',
+    error: 'error',
+    required: 'warning',
+    running: 'info',
+    pending: 'info',
   }
+  return state_maps[state] || 'info'
 }
 
 function getStateLabel(state: ChatToolPart['state']) {
-  switch (state) {
-    case 'done':
-      return 'Done'
-    case 'error':
-      return 'Error'
-    case 'required':
-      return 'Action required'
-    case 'running':
-      return 'Running'
-    default:
-      return 'Pending'
+  const state_maps: Record<ChatToolPart['state'], string> = {
+    done: 'Done',
+    error: 'Error',
+    required: 'Action required',
+    running: 'Running',
+    pending: 'Pending',
   }
+  return state_maps[state] || 'Pending'
 }
 
 export function ChatServiceBlock({ part }: ChatServiceBlockProps) {
