@@ -94,4 +94,21 @@ export async function enqueueOutboxEvent(
   })
 }
 
+export async function enqueueOutboxEventIgnoreConflict(
+  tx: Prisma.TransactionClient,
+  args: EnqueueOutboxEventArgs & { delayMs?: number },
+): Promise<void> {
+  const delaySql = args.delayMs
+    ? Prisma.sql`now() + ${args.delayMs} * interval '1 millisecond'`
+    : Prisma.sql`now()`
+  await tx.$executeRaw(Prisma.sql`
+    INSERT INTO outbox_events
+      (event_type, aggregate_type, aggregate_id, workspace_id, payload, status, next_attempt_at)
+    VALUES
+      (${args.eventType}, ${args.aggregateType}, ${args.aggregateId}::uuid,
+       ${args.workspaceId ?? null}::uuid, ${JSON.stringify(args.payload ?? {})}::jsonb, 'PENDING', ${delaySql})
+    ON CONFLICT DO NOTHING
+  `)
+}
+
 export default prisma
