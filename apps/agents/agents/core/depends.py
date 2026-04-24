@@ -23,7 +23,7 @@ class VectorsProvider(Provider):
         auth = settings.qdrant.auth
         client = AsyncQdrantClient(
             url=settings.qdrant.url,
-            api_key=auth.token if auth else None,
+            api_key=auth.bearer_token if auth else None,
         )
         try:
             yield client
