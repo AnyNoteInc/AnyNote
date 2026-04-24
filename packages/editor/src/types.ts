@@ -35,6 +35,7 @@ export type VirtualAnchor = {
 export type AnyNoteEditorProps = {
   pageId: string
   workspaceId: string
+  initialContentYjs?: string | null
   yjsUrl: string
   yjsToken: () => Promise<string>
   user: AnyNoteEditorUser

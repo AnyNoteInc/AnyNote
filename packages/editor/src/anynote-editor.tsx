@@ -34,7 +34,7 @@ type OpenPopover = {
 }
 
 export function AnyNoteEditor(props: AnyNoteEditorProps) {
-  const { pageId, yjsUrl, yjsToken } = props
+  const { pageId, yjsUrl, yjsToken, initialContentYjs } = props
   const [resources, setResources] = useState<YjsResources | null>(null)
 
   // Create Y.Doc + provider inside useEffect so React StrictMode's
@@ -42,6 +42,10 @@ export function AnyNoteEditor(props: AnyNoteEditorProps) {
   // mount (otherwise we'd keep using destroyed objects).
   useEffect(() => {
     const ydoc = new Y.Doc()
+    if (initialContentYjs) {
+      const bytes = Uint8Array.from(atob(initialContentYjs), (c) => c.charCodeAt(0))
+      Y.applyUpdate(ydoc, bytes)
+    }
     const provider = new HocuspocusProvider({
       url: yjsUrl,
       name: pageId,
@@ -60,7 +64,7 @@ export function AnyNoteEditor(props: AnyNoteEditorProps) {
         ydoc.destroy()
       }, 300)
     }
-  }, [pageId, yjsUrl, yjsToken])
+  }, [pageId, yjsUrl, yjsToken, initialContentYjs])
 
   if (!resources) {
     return <Box className={`anynote-editor ${props.className ?? ""}`} sx={{ height: "100%" }} />
