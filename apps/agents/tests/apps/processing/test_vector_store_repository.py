@@ -1,3 +1,4 @@
+from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
@@ -9,7 +10,7 @@ COLLECTION = 'pages'
 VECTOR_SIZE = 768
 
 
-def _make_repo(client=None, embeddings=None) -> VectorStoreRepository:
+def _make_repo(client: Any = None, embeddings: Any = None) -> VectorStoreRepository:
     return VectorStoreRepository(
         client=client or AsyncMock(),
         embeddings=embeddings or MagicMock(),

@@ -1,4 +1,4 @@
-from typing import Annotated
+from typing import Annotated, Any
 
 from fast_clean.schemas import BearerTokenAuthSchema
 from fast_clean.settings import (
@@ -18,7 +18,7 @@ class QdrantSettingsSchema(CoreServiceSettingsSchema):
 
     @model_validator(mode='before')
     @classmethod
-    def construct_host_url(cls, data):
+    def construct_host_url(cls, data: dict[str, Any]) -> dict[str, Any]:
         """Construct full URL from host, port, and protocol if needed."""
         host = data.get('host')
         if isinstance(host, str) and '://' not in host:
@@ -41,7 +41,7 @@ class OllamaSettingsSchema(CoreServiceSettingsSchema):
 
     @model_validator(mode='before')
     @classmethod
-    def construct_host_url(cls, data):
+    def construct_host_url(cls, data: dict[str, Any]) -> dict[str, Any]:
         """Construct full URL from host, port, and protocol if needed."""
         host = data.get('host')
         if isinstance(host, str) and '://' not in host:
@@ -64,4 +64,4 @@ class SettingsSchema(CoreSettingsSchema):
     ollama: OllamaSettingsSchema
 
 
-settings = SettingsSchema()  # type: ignore
+settings = SettingsSchema()

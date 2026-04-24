@@ -1,3 +1,4 @@
+from typing import Any, Callable
 from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID
 
@@ -14,8 +15,10 @@ WS_ID = UUID('00000000-0000-0000-0000-000000000002')
 
 
 def _make_use_case(
-    split_return=None, normalize_return='normalized', embed_return=None,
-):
+    split_return: Callable[[str], list[str]] | None = None,
+    normalize_return: str = 'normalized',
+    embed_return: list[float] | None = None,
+) -> tuple[VectorizePageUseCase, MagicMock, MagicMock, MagicMock, MagicMock]:
     chunker = MagicMock()
     chunker.split = MagicMock(side_effect=split_return or (lambda t: [t]))
 
