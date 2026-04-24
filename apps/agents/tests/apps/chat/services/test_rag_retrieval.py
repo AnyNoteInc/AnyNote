@@ -21,15 +21,16 @@ def _doc(page_id: str, block_number: int, content: str = 'x') -> Document:
     })
 
 
-def _make_service(retriever_docs: list[Document]) -> RagRetrievalService:
+def _make_service(retriever_docs: list[Document]) -> tuple[RagRetrievalService, AsyncMock]:
     store = MagicMock()
-    store.similarity_search = AsyncMock(return_value=retriever_docs)
-    return RagRetrievalService(vector_store_repository=store)
+    mock = AsyncMock(return_value=retriever_docs)
+    store.similarity_search = mock
+    return RagRetrievalService(vector_store_repository=store), mock
 
 
 @pytest.mark.asyncio
 async def test_empty_query_returns_empty() -> None:
-    svc = _make_service([])
+    svc, _ = _make_service([])
     assert await svc.retrieve(WS_ID, '') == []
     assert await svc.retrieve(WS_ID, '   ') == []
 
@@ -42,7 +43,7 @@ async def test_dedupes_by_page_and_block() -> None:
         _doc('00000000-0000-0000-0000-000000000aaa', 1),
         _doc('00000000-0000-0000-0000-000000000bbb', 0),
     ]
-    svc = _make_service(docs)
+    svc, _ = _make_service(docs)
     result = await svc.retrieve(WS_ID, 'q', k=5)
     assert len(result) == 3
     keys = {(str(d.page_id), d.block_number) for d in result}
@@ -56,15 +57,15 @@ async def test_dedupes_by_page_and_block() -> None:
 @pytest.mark.asyncio
 async def test_respects_k_limit() -> None:
     docs = [_doc(f'00000000-0000-0000-0000-00000000000{i}', 0) for i in range(1, 10)]
-    svc = _make_service(docs)
+    svc, _ = _make_service(docs)
     result = await svc.retrieve(WS_ID, 'q', k=3)
     assert len(result) == 3
 
 
 @pytest.mark.asyncio
 async def test_overfetches_k_times_3() -> None:
-    svc = _make_service([])
+    svc, mock = _make_service([])
     await svc.retrieve(WS_ID, 'q', k=5)
-    svc.vector_store_repository.similarity_search.assert_awaited_once_with(
+    mock.assert_awaited_once_with(
         workspace_id=str(WS_ID), query='q', k=15,
     )

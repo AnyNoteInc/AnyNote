@@ -1,7 +1,7 @@
 from typing import Annotated
 
+from fast_clean.schemas import BearerTokenAuthSchema
 from fast_clean.settings import (
-    BearerTokenAuthSchema,
     CoreDbSettingsSchema,
     CoreServiceSettingsSchema,
     CoreSettingsSchema,
