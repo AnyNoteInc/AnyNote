@@ -31,19 +31,17 @@ Thread: {{ thread_id }}
 ### Документ {{ loop.index }}
 - pageId: {{ d.page_id }}
 - workspaceId: {{ d.workspace_id }}
-- chunkIndex: {{ d.chunk_index }}
+- blockNumber: {{ d.block_number }}
 - title: {{ d.title }}
 - pageType: {{ d.page_type }}
-- createdById: {{ d.created_by_id }}
-- createdAt: {{ d.created_at }}
-- updatedAt: {{ d.updated_at }}
 - content:
 {{ d.content | indent(2, first=True) }}
+
 {% endfor -%}
 
 Правила цитирования:
-- Ссылайся на страницы в формате [{{ '{title}' }}](/workspaces/{{ '{workspaceId}' }}/pages/{{ '{pageId}' }})
-- Не придумывай pageId — используй только те, что приведены выше
+- Ссылайся на страницы так: `[{{ '{title}' }}](/workspaces/{{ '{workspaceId}' }}/pages/{{ '{pageId}' }}#{{ '{blockNumber}' }})`
+- Не придумывай pageId/blockNumber — используй только значения из списка выше
 - Если нужного факта нет в найденных фрагментах — явно скажи «в базе знаний не найдено»
 {% endif -%}
 {% if messages -%}
