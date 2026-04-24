@@ -7,7 +7,6 @@ const mocks = vi.hoisted(() => {
       create: vi.fn(),
     },
     getSession: vi.fn(),
-    searchRagDocuments: vi.fn(),
     prisma: {
       $transaction: vi.fn(),
       chat: { findFirst: vi.fn() },
@@ -31,9 +30,6 @@ vi.mock('@/lib/chat/active-stream-registry', () => ({
   activeStreamRegistry: mocks.activeStreamRegistry,
 }))
 
-vi.mock('@/lib/chat/rag-search', () => ({
-  searchRagDocuments: mocks.searchRagDocuments,
-}))
 
 import { POST } from '../src/app/api/agents/generate/route'
 
@@ -128,19 +124,6 @@ describe('POST /api/agents/generate', () => {
         },
       },
     })
-    mocks.searchRagDocuments.mockResolvedValue([
-      {
-        pageId: '66666666-6666-6666-6666-666666666666',
-        workspaceId,
-        chunkIndex: 2,
-        title: 'Found page',
-        content: 'Found chunk',
-        pageType: 'TEXT',
-        createdById: userId,
-        createdAt: '2026-04-22T10:00:00.000Z',
-        updatedAt: '2026-04-22T10:05:00.000Z',
-      },
-    ])
     const txChatMessageCreate = vi
       .fn()
       .mockResolvedValueOnce({ id: userMessageId })
@@ -239,25 +222,6 @@ describe('POST /api/agents/generate', () => {
         ],
         status: 'DONE',
       },
-    })
-    expect(mocks.searchRagDocuments).toHaveBeenCalledWith({
-      workspaceId,
-      query: 'Привет',
-    })
-    expect(upstreamPayload.rag).toEqual({
-      documents: [
-        {
-          pageId: '66666666-6666-6666-6666-666666666666',
-          workspaceId,
-          chunkIndex: 2,
-          title: 'Found page',
-          content: 'Found chunk',
-          pageType: 'TEXT',
-          createdById: userId,
-          createdAt: '2026-04-22T10:00:00.000Z',
-          updatedAt: '2026-04-22T10:05:00.000Z',
-        },
-      ],
     })
   })
 })
