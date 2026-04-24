@@ -1,5 +1,3 @@
-import type { RagDocument } from "./rag-search"
-
 export type WorkspaceSettingsSnapshot = {
   temperature: number | null
   topP: number | null
@@ -32,7 +30,6 @@ export function buildAgentsPayload(args: {
   workspaceId: string
   userId: string
   text: string
-  rag: RagDocument[]
   settings: WorkspaceSettingsSnapshot
 }) {
   return {
@@ -67,9 +64,6 @@ export function buildAgentsPayload(args: {
       format: "markdown",
       language: "ru",
       citationsRequired: true,
-    },
-    rag: {
-      documents: args.rag,
     },
     query: args.text,
   }

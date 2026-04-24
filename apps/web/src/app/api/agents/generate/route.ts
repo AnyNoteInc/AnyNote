@@ -4,7 +4,6 @@ import { NextResponse, type NextRequest } from 'next/server'
 import { getSession } from '@/lib/get-session'
 import { activeStreamRegistry } from '@/lib/chat/active-stream-registry'
 import { buildAgentsPayload, type WorkspaceSettingsSnapshot } from '@/lib/chat/agents-payload'
-import { searchRagDocuments, type RagDocument } from '@/lib/chat/rag-search'
 import { encodeSseEvent, decodeAgentsSseEvents } from '@/lib/chat/sse'
 import type { ServiceBlock, StartChatGenerationBody } from '@/lib/chat/types'
 
@@ -163,7 +162,6 @@ async function streamAgentsToRegistry(args: {
   assistantMessageId: string
   chatId: string
   entry: ReturnType<typeof activeStreamRegistry.create>
-  rag: RagDocument[]
   text: string
   userId: string
   workspaceId: string
@@ -187,7 +185,6 @@ async function streamAgentsToRegistry(args: {
         body: JSON.stringify(
           buildAgentsPayload({
             chatId: args.chatId,
-            rag: args.rag,
             settings: args.settings,
             text: args.text,
             userId: args.userId,
@@ -345,10 +342,6 @@ export async function POST(request: NextRequest): Promise<Response> {
     temperature: settings.temperature,
     topP: settings.topP,
   }
-  const rag = await searchRagDocuments({
-    workspaceId: chat.workspaceId,
-    query: body.text,
-  })
   const filesById = new Map(files.map((file) => [file.id, file]))
   const orderedFiles = body.fileIds.flatMap((fileId) => {
     const file = filesById.get(fileId)
@@ -397,7 +390,6 @@ export async function POST(request: NextRequest): Promise<Response> {
     assistantMessageId: assistantMessage.id,
     chatId: chat.id,
     entry,
-    rag,
     settings: settingsSnapshot,
     text: body.text,
     userId: session.user.id,
