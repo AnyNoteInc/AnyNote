@@ -123,3 +123,50 @@ docs/        superpowers/specs · superpowers/plans
 docker/      postgres-init scripts
 compose.yml  postgres · minio · qdrant · ollama · redis · indexer (worker profile)
 ```
+
+## RAG / vectorization setup
+
+Vectorization runs as a cron in `apps/engines` that calls `POST /vectorization`
+in `apps/agents`. Qdrant (`pages` collection, cosine, 768 dims) and Ollama
+(`nomic-embed-text`) must be up before starting the services.
+
+### Pre-flight checklist
+
+1. `docker compose up -d` — brings up Postgres, Qdrant, Ollama.
+2. `ollama pull nomic-embed-text` — pull the embedding model into your local Ollama.
+3. `pnpm --filter @repo/db prisma:db-push` — apply schema if first run.
+4. `pnpm --filter @repo/db prisma:seed` — seeds AI providers (GigaChat, Yandex, etc.).
+5. `pnpm dev` — start web, yjs, engines, agents.
+
+### Initial backfill
+
+After the first deploy (or after changing the normalizer pipeline), re-enqueue
+every TEXT page into the outbox so it gets indexed:
+
+```bash
+pnpm --filter engines backfill:reindex
+```
+
+The cron picks up events every 30 seconds in batches of 10 — a workspace with
+1000 pages takes ~50 minutes. For faster backfill, temporarily bump cadence and
+batch size via env:
+
+```bash
+INDEXER_CRON_EXPRESSION="*/5 * * * * *" INDEXER_BATCH=50 pnpm --filter engines dev
+```
+
+### Rollback (if /vectorization or Qdrant is broken)
+
+Disable the cron by setting an invalid schedule:
+
+```bash
+INDEXER_CRON_EXPRESSION="0 0 31 2 *" pnpm --filter engines dev
+```
+
+Drop the `pages` collection if needed:
+
+```bash
+curl -X DELETE http://localhost:6333/collections/pages
+```
+
+`apps/agents` will recreate it on next startup.
