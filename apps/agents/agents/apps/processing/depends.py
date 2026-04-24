@@ -1,20 +1,25 @@
-from dishka import Provider, Scope
+"""Dishka providers for the processing (vectorization) application."""
 
-from agents.apps.processing.repositories import (
-    VectorStoreRepository,
-    VectorizationRepository,
-)
-from agents.apps.processing.services import (
-    ChunkerService,
-    LanguageDetectorService,
-    NormalizerService,
-)
-from agents.apps.processing.use_cases import VectorizePageUseCase
+from __future__ import annotations
 
-provider = Provider(scope=Scope.APP)
-provider.provide(ChunkerService)
-provider.provide(LanguageDetectorService)
-provider.provide(NormalizerService)
-provider.provide(VectorStoreRepository)
-provider.provide(VectorizationRepository)
-provider.provide(VectorizePageUseCase)
+from dishka import Provider, Scope, provide
+
+from .repositories import VectorStoreRepository, VectorizationRepository
+from .services import ChunkerService, LanguageDetectorService, NormalizerService
+from .use_cases import VectorizePageUseCase
+
+
+class ProcessingProvider(Provider):
+    scope = Scope.REQUEST
+
+    chunker_service = provide(ChunkerService, scope=Scope.APP)
+    language_detector_service = provide(LanguageDetectorService, scope=Scope.APP)
+    normalizer_service = provide(NormalizerService, scope=Scope.APP)
+
+    vectorization_repository = provide(VectorizationRepository)
+    vector_store_repository = provide(VectorStoreRepository)
+
+    vectorize_page_use_case = provide(VectorizePageUseCase)
+
+
+provider = ProcessingProvider()
