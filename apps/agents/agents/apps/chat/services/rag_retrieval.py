@@ -17,8 +17,6 @@ class RagRetrievalService:
     async def retrieve(
         self, workspace_id: UUID, query: str, k: int = 5,
     ) -> list[RagDocumentSchema]:
-        if not query.strip():
-            return []
         docs = await self.vector_store_repository.similarity_search(
             workspace_id=str(workspace_id), query=query, k=k * 3,
         )
