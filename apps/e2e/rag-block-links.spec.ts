@@ -40,7 +40,6 @@ let prisma: {
   }
 }
 
-test.use({ locale: "en-US", timezoneId: "America/New_York" })
 test.setTimeout(180_000)
 
 test.beforeAll(async () => {
