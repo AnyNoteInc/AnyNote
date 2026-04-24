@@ -16,21 +16,21 @@ describe("ProcessingClient", () => {
     process.env.PROCESSING_SERVICE_URL = "http://agents.test:8080"
   })
 
-  it("posts text and returns normalized string", async () => {
-    mockPost.mockResolvedValue({ data: { normalized: "тест", language: "ru" } })
+  it("posts text and returns normalized chunks", async () => {
+    mockPost.mockResolvedValue({ data: { chunks: ["тест"], language: "ru" } })
     const client = new ProcessingClient()
     const out = await client.normalize("Тестовый текст", "auto")
-    expect(out).toBe("тест")
+    expect(out).toEqual(["тест"])
     expect(mockPost).toHaveBeenCalledWith("/processing/normalize", {
       text: "Тестовый текст",
       language: "auto",
     })
   })
 
-  it("returns empty string when normalized is empty", async () => {
-    mockPost.mockResolvedValue({ data: { normalized: "", language: "ru" } })
+  it("returns empty array when no normalized chunks remain", async () => {
+    mockPost.mockResolvedValue({ data: { chunks: [], language: "ru" } })
     const client = new ProcessingClient()
-    expect(await client.normalize("!!!", "ru")).toBe("")
+    expect(await client.normalize("!!!", "ru")).toEqual([])
   })
 
   it("throws after retries on 5xx", async () => {

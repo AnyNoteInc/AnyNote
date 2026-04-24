@@ -1,13 +1,13 @@
 from dataclasses import dataclass
-from typing import Protocol
 
-from agents.apps.processing.schemas import NormalizeRequest, NormalizeResponse
+from ..schemas import NormalizeRequestSchema, NormalizeResponseSchema
 from ..services import NormalizerService
+
 
 @dataclass
 class NormalizeTextUseCase:
     normalizer: NormalizerService
 
-    def __call__(self, payload: NormalizeRequest) -> NormalizeResponse:
-        normalized, language = self.normalizer.normalize(payload.text, payload.language)
-        return NormalizeResponse(normalized=normalized, language=language)
+    def __call__(self, payload: NormalizeRequestSchema) -> NormalizeResponseSchema:
+        chunks, language = self.normalizer.normalize(payload.text, payload.language)
+        return NormalizeResponseSchema(chunks=chunks, language=language)

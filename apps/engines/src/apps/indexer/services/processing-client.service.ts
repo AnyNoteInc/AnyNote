@@ -4,7 +4,7 @@ import axios, { AxiosInstance } from "axios"
 export type ProcessingLanguage = "ru" | "en" | "auto"
 
 type NormalizeResponse = {
-  normalized: string
+  chunks: string[]
   language: "ru" | "en"
 }
 
@@ -20,7 +20,7 @@ export class ProcessingClient {
     })
   }
 
-  async normalize(text: string, language: ProcessingLanguage): Promise<string> {
+  async normalize(text: string, language: ProcessingLanguage): Promise<string[]> {
     const maxAttempts = 3
     let lastError: unknown
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
@@ -29,7 +29,7 @@ export class ProcessingClient {
           text,
           language,
         })
-        return res.data.normalized
+        return res.data.chunks
       } catch (err) {
         lastError = err
         if (attempt < maxAttempts) {

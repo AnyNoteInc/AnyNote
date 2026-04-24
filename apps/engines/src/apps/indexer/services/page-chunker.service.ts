@@ -1,5 +1,7 @@
 import { Injectable } from "@nestjs/common"
 
+const NON_INDEXABLE_BLOCK_TYPES = new Set(["heading", "image", "fileAttachment", "hiddenText"])
+
 export type TiptapNode = {
   type: string
   text?: string
@@ -25,6 +27,7 @@ export class PageChunker {
   }
 
   private collectText(node: TiptapNode): string {
+    if (NON_INDEXABLE_BLOCK_TYPES.has(node.type)) return ""
     if (node.type === "text") return node.text ?? ""
     if (!Array.isArray(node.content)) return ""
     return node.content.map((c) => this.collectText(c)).join(" ")

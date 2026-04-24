@@ -4,17 +4,20 @@ import unicodedata
 from typing import Literal
 
 import spacy
+from langchain_text_splitters import RecursiveCharacterTextSplitter
 from spacy.language import Language
 
 from .language_detector import LanguageDetectorService
 
-_PIPELINE_NAMES = {
+PIPELINE_NAMES = {
     "ru": "ru_core_news_sm",
     "en": "en_core_web_sm",
 }
 
-_SERVICE_CHARS_RE = re.compile(r"[^\w\s]|_", re.UNICODE)
-_WHITESPACE_RE = re.compile(r"\s+")
+SERVICE_CHARS_RE = re.compile(r"[^\w\s]|_", re.UNICODE)
+WHITESPACE_RE = re.compile(r"\s+")
+TEXT_SPLITTER_CHUNK_SIZE = 500
+TEXT_SPLITTER_CHUNK_OVERLAP = 100
 
 RequestedLanguage = Literal["ru", "en", "auto"]
 
@@ -23,39 +26,40 @@ class NormalizerService:
     """spaCy-backed text normalizer. Loads both models on construction."""
 
     def __init__(self, detector: LanguageDetectorService) -> None:
-        self._pipelines: dict[str, Language] = {
-            lang: spacy.load(model_name) for lang, model_name in _PIPELINE_NAMES.items()
+        self.pipelines: dict[str, Language] = {
+            lang: spacy.load(model_name) for lang, model_name in PIPELINE_NAMES.items()
         }
-        self._detector = detector
+        self.detector = detector
+        self.splitter = RecursiveCharacterTextSplitter(
+            chunk_size=TEXT_SPLITTER_CHUNK_SIZE,
+            chunk_overlap=TEXT_SPLITTER_CHUNK_OVERLAP,
+            length_function=len,
+        )
 
-    def normalize(self, text: str, language: RequestedLanguage) -> tuple[str, Literal["ru", "en"]]:
+    def normalize(self, text: str, language: RequestedLanguage) -> tuple[list[str], Literal["ru", "en"]]:
         """Run the full normalization pipeline.
 
-        Returns (normalized_text, effective_language).
+        Returns (normalized_chunks, effective_language).
         """
         if not text:
-            return ("", "ru" if language == "auto" else language)
+            return ([], "ru" if language == "auto" else language)
 
         # 1. Unicode NFC
         text = unicodedata.normalize("NFC", text)
         # 2. Lowercase
         text = text.lower()
         # 3. Remove service chars (punctuation, underscores) → space
-        text = _SERVICE_CHARS_RE.sub(" ", text)
+        text = SERVICE_CHARS_RE.sub(" ", text)
         # 4. Collapse whitespace
-        text = _WHITESPACE_RE.sub(" ", text).strip()
+        text = WHITESPACE_RE.sub(" ", text).strip()
 
         if not text:
-            return ("", "ru" if language == "auto" else language)
+            return ([], "ru" if language == "auto" else language)
 
         # 5. Language detection if auto
-        effective_lang: Literal["ru", "en"]
-        if language == "auto":
-            effective_lang = self._detector.detect(text)
-        else:
-            effective_lang = language
+        effective_lang = self.detector.detect(text) if language == "auto" else language
 
-        nlp = self._pipelines[effective_lang]
+        nlp = self.pipelines[effective_lang]
 
         # 6-8. Tokenize + lemmatize + filter stopwords/punct/short
         doc = nlp(text)
@@ -68,4 +72,9 @@ class NormalizerService:
                 continue
             lemmas.append(lemma)
 
-        return (" ".join(lemmas), effective_lang)
+        normalized_text = " ".join(lemmas)
+        if not normalized_text:
+            return ([], effective_lang)
+
+        chunks = [chunk.strip() for chunk in self.splitter.split_text(normalized_text) if chunk.strip()]
+        return (chunks, effective_lang)

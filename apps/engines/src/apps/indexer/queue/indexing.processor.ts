@@ -76,28 +76,32 @@ export class IndexingProcessor extends WorkerHost {
       for (let i = 0; i < chunks.length; i++) {
         const chunk = chunks[i]
         if (!chunk) continue
-        const normalized = await this.processing.normalize(chunk, "auto")
-        if (!normalized) continue
-        console.log(`Normalized chunk ${i} for page ${pageId}: ${normalized}...`)
-        const vector = await this.embedding.embed(normalized)
-        points.push({
-          id: pointId(pageId, i),
-          vector,
-          payload: {
-            pageId,
-            workspaceId: page.workspaceId,
-            chunkIndex: i,
-            title: page.title ?? "",
-            content: normalized,
-            pageType: page.type,
-            createdById: page.createdById ?? "",
-            createdAt: page.createdAt.toISOString(),
-            updatedAt: page.updatedAt.toISOString(),
-          },
-        })
+        const normalizedChunks = await this.processing.normalize(chunk, "auto")
+        for (const normalizedChunk of normalizedChunks) {
+          const normalized = normalizedChunk.trim()
+          if (!normalized) continue
+          const vector = await this.embedding.embed(normalized)
+          points.push({
+            id: pointId(pageId, i),
+            vector,
+            payload: {
+              pageId,
+              workspaceId: page.workspaceId,
+              chunkIndex: i,
+              title: page.title ?? "",
+              content: normalized,
+              pageType: page.type,
+              createdById: page.createdById ?? "",
+              createdAt: page.createdAt.toISOString(),
+              updatedAt: page.updatedAt.toISOString(),
+            },
+          })
+        }
       }
 
-      await this.qdrant.upsert(points)
+      if (points.length > 0) {
+        await this.qdrant.upsert(points)
+      }
       await this.markDone(outboxId)
     } catch (err) {
       this.log.error(`Indexing failed for page ${pageId}: ${(err as Error).message}`)

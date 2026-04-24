@@ -13,7 +13,7 @@ describe("PageChunker", () => {
     expect(chunker.chunksFromDoc({ type: "doc" })).toEqual([])
   })
 
-  it("extracts one chunk per first-level node", () => {
+  it("extracts one chunk per first-level indexable node", () => {
     const doc = {
       type: "doc" as const,
       content: [
@@ -22,11 +22,7 @@ describe("PageChunker", () => {
         { type: "paragraph", content: [{ type: "text", text: "Second paragraph." }] },
       ],
     }
-    expect(chunker.chunksFromDoc(doc)).toEqual([
-      "First paragraph.",
-      "A heading",
-      "Second paragraph.",
-    ])
+    expect(chunker.chunksFromDoc(doc)).toEqual(["First paragraph.", "Second paragraph."])
   })
 
   it("joins nested text leaves inside one first-level node", () => {
@@ -83,5 +79,27 @@ describe("PageChunker", () => {
       ],
     }
     expect(chunker.chunksFromDoc(doc)).toEqual(["valid", "also valid"])
+  })
+
+  it("excludes headings, images, files, and hidden text from indexing", () => {
+    const doc = {
+      type: "doc" as const,
+      content: [
+        { type: "paragraph", content: [{ type: "text", text: "Visible paragraph" }] },
+        { type: "heading", attrs: { level: 1 }, content: [{ type: "text", text: "Heading" }] },
+        { type: "image", attrs: { src: "https://example.test/image.png" } },
+        {
+          type: "fileAttachment",
+          attrs: { url: "https://example.test/file.pdf", name: "file.pdf" },
+        },
+        {
+          type: "hiddenText",
+          content: [{ type: "paragraph", content: [{ type: "text", text: "Secret" }] }],
+        },
+        { type: "paragraph", content: [{ type: "text", text: "Still visible" }] },
+      ],
+    }
+
+    expect(chunker.chunksFromDoc(doc)).toEqual(["Visible paragraph", "Still visible"])
   })
 })

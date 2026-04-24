@@ -31,7 +31,7 @@ describe("Search e2e", () => {
     })
       .overrideProvider(ProcessingClient)
       .useValue({
-        normalize: jest.fn(async (text: string) => text),
+        normalize: jest.fn(async (text: string) => [text]),
       })
       .overrideProvider(EmbeddingClient)
       .useValue({
