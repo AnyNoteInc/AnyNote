@@ -79,7 +79,7 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
   }
 
   const filtersActive = search !== "" || uploaderId !== null
-  const items = listQuery.data?.items ?? []
+  const items = useMemo(() => listQuery.data?.items ?? [], [listQuery.data?.items])
   const total = listQuery.data?.total ?? 0
 
   const body = useMemo(() => {
