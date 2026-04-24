@@ -103,6 +103,31 @@ export const fileRouter = router({
       }
     }),
 
+  workspaceUploaders: protectedProcedure
+    .input(z.object({ workspaceId: uuid }))
+    .query(async ({ ctx, input }) => {
+      const member = await ctx.prisma.workspaceMember.findUnique({
+        where: {
+          workspaceId_userId: {
+            workspaceId: input.workspaceId,
+            userId: ctx.user.id,
+          },
+        },
+      })
+      if (!member) {
+        throw new TRPCError({
+          code: "FORBIDDEN",
+          message: "Not a member of this workspace",
+        })
+      }
+
+      return ctx.prisma.user.findMany({
+        where: { files: { some: { workspaceId: input.workspaceId, status: FileStatus.ACTIVE } } },
+        select: { id: true, firstName: true, lastName: true, email: true, image: true },
+        orderBy: [{ firstName: "asc" }, { lastName: "asc" }, { email: "asc" }],
+      })
+    }),
+
   getById: protectedProcedure.input(z.object({ id: uuid })).query(async ({ ctx, input }) => {
     const file = await ctx.prisma.file.findUnique({ where: { id: input.id } })
     if (!file) throw new TRPCError({ code: "NOT_FOUND", message: "File not found" })

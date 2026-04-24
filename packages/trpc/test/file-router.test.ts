@@ -170,3 +170,38 @@ describe("fileRouter.listWorkspace", () => {
     ).rejects.toMatchObject({ code: "FORBIDDEN" })
   })
 })
+
+describe("fileRouter.workspaceUploaders", () => {
+  it("lists unique uploaders for a workspace", async () => {
+    const findMany = vi.fn(async () => [
+      { id: USER_ID, firstName: "Ivan", lastName: "Ivanov", email: "i@x", image: null },
+      { id: OTHER_USER_ID, firstName: "Petr", lastName: "Petrov", email: "p@x", image: "/a" },
+    ])
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn(async () => memberOk()) },
+      user: { findMany },
+    } as unknown as PrismaClient
+
+    const caller = createCaller(baseContext(prisma))
+    const result = await caller.workspaceUploaders({ workspaceId: WORKSPACE_ID })
+
+    expect(findMany).toHaveBeenCalledWith({
+      where: { files: { some: { workspaceId: WORKSPACE_ID, status: "ACTIVE" } } },
+      select: { id: true, firstName: true, lastName: true, email: true, image: true },
+      orderBy: [{ firstName: "asc" }, { lastName: "asc" }, { email: "asc" }],
+    })
+    expect(result).toHaveLength(2)
+  })
+
+  it("forbids non-members from listing uploaders", async () => {
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn(async () => null) },
+      user: { findMany: vi.fn() },
+    } as unknown as PrismaClient
+
+    const caller = createCaller(baseContext(prisma))
+    await expect(
+      caller.workspaceUploaders({ workspaceId: WORKSPACE_ID }),
+    ).rejects.toMatchObject({ code: "FORBIDDEN" })
+  })
+})
