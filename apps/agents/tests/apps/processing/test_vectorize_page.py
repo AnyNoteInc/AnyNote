@@ -25,7 +25,7 @@ def _make_use_case(
     normalizer.normalize = MagicMock(return_value=normalize_return)
 
     vec_repo = MagicMock()
-    vec_repo.embed = AsyncMock(return_value=embed_return or [0.1, 0.2])
+    vec_repo.embed_batch = AsyncMock(return_value=[embed_return or [0.1, 0.2]])
 
     store = MagicMock()
     store.delete_by_page = AsyncMock()
@@ -90,8 +90,8 @@ async def test_upserts_with_expected_metadata() -> None:
 
     await uc(_payload([ContentBlockSchema(blockNumber=5, content='ignored')]))
 
-    # vec_repo.embed called with NORMALIZED text, not raw
-    vec_repo.embed.assert_awaited_once_with('norm text')
+    # vec_repo.embed_batch called with NORMALIZED text, not raw
+    vec_repo.embed_batch.assert_awaited_once_with(['norm text'])
 
     # store.upsert_chunks got a single point with the RAW chunk in metadata
     args, _ = store.upsert_chunks.call_args

@@ -24,41 +24,49 @@ class VectorizePageUseCase:
         # 1. Идемпотентность: удаляем все точки этой страницы (reindex)
         await self.vector_store_repository.delete_by_page(str(payload.pageId))
 
-        indexed = 0
+        # 2. Собираем pending-чанки: (raw, normalized, block_number, chunk_idx)
         skipped = 0
-        points: list[tuple[str, list[float], dict[str, Any]]] = []
-
+        pending: list[tuple[str, str, int, int]] = []
         for block in payload.contents:
             raw_chunks = self.chunker_service.split(block.content)
             if not raw_chunks:
                 skipped += 1
                 continue
-
-            for i, raw_chunk in enumerate(raw_chunks):
-                normalized = self.normalizer_service.normalize(raw_chunk)
+            for i, raw in enumerate(raw_chunks):
+                normalized = self.normalizer_service.normalize(raw)
                 if not normalized:
                     continue
+                pending.append((raw, normalized, block.blockNumber, i))
 
-                vector = await self.vectorization_repository.embed(normalized)
+        if not pending:
+            await self.vector_store_repository.upsert_chunks([])
+            return VectorizationResponseSchema(indexedChunks=0, skippedBlocks=skipped)
 
-                payload_meta: dict[str, Any] = {
-                    'pageId': str(payload.pageId),
-                    'workspaceId': str(payload.workspaceId),
-                    'title': payload.title,
-                    'pageType': payload.pageType,
-                    'blockNumber': block.blockNumber,
-                    'content': raw_chunk,  # raw chunk до нормализации
-                }
-                points.append((
-                    self._point_id(payload.pageId, block.blockNumber, i),
-                    vector,
-                    payload_meta,
-                ))
-                indexed += 1
+        # 3. Векторизуем всё одним batch-запросом
+        vectors = await self.vectorization_repository.embed_batch(
+            [normalized for _, normalized, _, _ in pending],
+        )
+
+        # 4. Собираем точки
+        points: list[tuple[str, list[float], dict[str, Any]]] = []
+        for (raw, _normalized, block_number, chunk_idx), vector in zip(pending, vectors, strict=True):
+            payload_meta: dict[str, Any] = {
+                'pageId': str(payload.pageId),
+                'workspaceId': str(payload.workspaceId),
+                'title': payload.title,
+                'pageType': payload.pageType,
+                'blockNumber': block_number,
+                'content': raw,  # raw chunk до нормализации
+            }
+            points.append((
+                self._point_id(payload.pageId, block_number, chunk_idx),
+                vector,
+                payload_meta,
+            ))
 
         await self.vector_store_repository.upsert_chunks(points)
         return VectorizationResponseSchema(
-            indexedChunks=indexed, skippedBlocks=skipped,
+            indexedChunks=len(points), skippedBlocks=skipped,
         )
 
     @staticmethod
