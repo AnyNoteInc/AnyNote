@@ -6,7 +6,7 @@ import { loadPageDocument, storePageDocument } from "./persistence.js"
 import { log } from "./logger.js"
 import type { PageType } from "@repo/db"
 
-type AuthContext = { userId: string; pageType: PageType }
+type AuthContext = { userId: string; pageType: PageType; workspaceId: string }
 
 const env = loadEnv()
 initJwks(env.jwksUrl)
@@ -22,8 +22,13 @@ const server = new Server({
       log.warn("page access denied", { userId, pageId: documentName })
       throw new Error("Forbidden")
     }
-    log.info("authenticated", { userId, pageId: documentName, pageType: access.pageType })
-    const ctx: AuthContext = { userId, pageType: access.pageType }
+    log.info("authenticated", {
+      userId, pageId: documentName,
+      pageType: access.pageType, workspaceId: access.workspaceId,
+    })
+    const ctx: AuthContext = {
+      userId, pageType: access.pageType, workspaceId: access.workspaceId,
+    }
     return ctx
   },
 
@@ -32,11 +37,11 @@ const server = new Server({
   },
 
   async onStoreDocument({ documentName, document, context }) {
-    const { pageType } = context as AuthContext
-    if (!pageType) {
-      throw new Error("missing pageType in onStoreDocument context")
+    const { pageType, workspaceId } = context as AuthContext
+    if (!pageType || !workspaceId) {
+      throw new Error("missing pageType/workspaceId in onStoreDocument context")
     }
-    await storePageDocument({ pageId: documentName, document, pageType })
+    await storePageDocument({ pageId: documentName, workspaceId, document, pageType })
   },
 })
 
