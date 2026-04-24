@@ -1,10 +1,9 @@
 import os
-
 from unittest.mock import MagicMock
 
+from agents.apps.chat.enums import ModelProviderEnum
 from agents.apps.chat.repositories.jinja_renderer import JinjaRendererRepository
 from agents.apps.chat.schemas import QueryRequestSchema, RagDocumentSchema
-from agents.apps.chat.enums import ModelProviderEnum
 
 
 def _settings() -> MagicMock:

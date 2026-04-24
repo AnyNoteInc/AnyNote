@@ -4,10 +4,9 @@ with nomic-embed-text pulled)."""
 from uuid import uuid4
 
 import pytest
-from fastapi.testclient import TestClient
-
 from agents.bootstrap import create_app
 from agents.router import apply_routes
+from fastapi.testclient import TestClient
 
 
 @pytest.mark.integration

@@ -1,7 +1,6 @@
 from unittest.mock import AsyncMock
 
 import pytest
-
 from agents.apps.processing.repositories.vectorization_repository import VectorizationRepository
 
 

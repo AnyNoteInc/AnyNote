@@ -75,12 +75,6 @@ plugins = ["pydantic.mypy"]
 [tool.ruff]
 line-length = 120
 target-version = "py312"
-
-# exclude = ["jupyter_notebook_config.py"]
-select = ["E", "F", "W", "I", "N", "B", "UP", "ASYNC", "RUF"]
-ignore = ["E501"]
-
-
 src = ["checker", "tests"]
 exclude = [
     ".venv",
@@ -90,6 +84,11 @@ exclude = [
     "dist",
     "venv",
 ]
+
+[tool.ruff.lint]
+# exclude = ["jupyter_notebook_config.py"]
+select = ["E", "F", "W", "I", "N", "B", "UP", "ASYNC", "RUF"]
+ignore = ["E501", "RUF002", "N815"]
 
 [tool.ruff.format]
 quote-style = "single"

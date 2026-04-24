@@ -6,7 +6,7 @@ from fast_clean.settings import (
     CoreServiceSettingsSchema,
     CoreSettingsSchema,
 )
-from pydantic import Field, HttpUrl, model_validator
+from pydantic import Field, model_validator
 
 
 class QdrantSettingsSchema(CoreServiceSettingsSchema):

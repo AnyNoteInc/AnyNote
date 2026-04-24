@@ -3,9 +3,10 @@ from hashlib import sha256
 from typing import Any
 from uuid import UUID
 
-from ..repositories import VectorStoreRepository, VectorizationRepository
+from ..repositories import VectorizationRepository, VectorStoreRepository
 from ..schemas import (
-    VectorizationRequestSchema, VectorizationResponseSchema,
+    VectorizationRequestSchema,
+    VectorizationResponseSchema,
 )
 from ..services import ChunkerService, NormalizerService
 

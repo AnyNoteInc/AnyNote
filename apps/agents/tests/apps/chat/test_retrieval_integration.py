@@ -3,9 +3,7 @@
 from uuid import uuid4
 
 import pytest
-
 from agents.apps.processing.repositories import VectorStoreRepository
-from agents.apps.processing.repositories.vector_store_repository import VectorStoreRepository
 from agents.settings import SettingsSchema
 from langchain_ollama import OllamaEmbeddings
 from qdrant_client import AsyncQdrantClient

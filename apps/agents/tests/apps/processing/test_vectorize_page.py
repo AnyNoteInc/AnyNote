@@ -1,14 +1,13 @@
-from typing import Any, Callable
+from collections.abc import Callable
 from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID
 
 import pytest
-
 from agents.apps.processing.schemas import (
-    ContentBlockSchema, VectorizationRequestSchema,
+    ContentBlockSchema,
+    VectorizationRequestSchema,
 )
 from agents.apps.processing.use_cases.vectorize_page import VectorizePageUseCase
-
 
 PAGE_ID = UUID('00000000-0000-0000-0000-000000000001')
 WS_ID = UUID('00000000-0000-0000-0000-000000000002')
@@ -66,7 +65,7 @@ async def test_empty_contents_still_deletes() -> None:
 
 @pytest.mark.asyncio
 async def test_skips_block_with_no_chunks() -> None:
-    uc, chunker, *_, store = _make_use_case(split_return=lambda t: [])
+    uc, _chunker, *_, store = _make_use_case(split_return=lambda t: [])
     result = await uc(_payload([ContentBlockSchema(blockNumber=2, content='x')]))
     assert result.indexedChunks == 0
     assert result.skippedBlocks == 1
@@ -75,7 +74,7 @@ async def test_skips_block_with_no_chunks() -> None:
 
 @pytest.mark.asyncio
 async def test_skips_chunks_that_normalize_to_empty() -> None:
-    uc, *_, store = _make_use_case(
+    uc, *_other, _store = _make_use_case(
         split_return=lambda t: ['chunk'], normalize_return='',
     )
     result = await uc(_payload([ContentBlockSchema(blockNumber=0, content='x')]))
@@ -98,7 +97,7 @@ async def test_upserts_with_expected_metadata() -> None:
     args, _ = store.upsert_chunks.call_args
     points = args[0]
     assert len(points) == 1
-    pid, vector, payload_meta = points[0]
+    _pid, _vector, payload_meta = points[0]
     assert payload_meta == {
         'pageId': str(PAGE_ID),
         'workspaceId': str(WS_ID),

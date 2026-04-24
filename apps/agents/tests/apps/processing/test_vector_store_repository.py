@@ -2,8 +2,6 @@ from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from qdrant_client.http.models import Distance, VectorParams
-
 from agents.apps.processing.repositories.vector_store_repository import VectorStoreRepository
 
 COLLECTION = 'pages'
@@ -35,7 +33,8 @@ async def test_ensure_collection_creates_when_missing() -> None:
 
 @pytest.mark.asyncio
 async def test_ensure_collection_noop_when_exists() -> None:
-    existing = MagicMock(); existing.name = COLLECTION
+    existing = MagicMock()
+    existing.name = COLLECTION
     client = AsyncMock()
     client.get_collections = AsyncMock(return_value=MagicMock(collections=[existing]))
     client.create_collection = AsyncMock()

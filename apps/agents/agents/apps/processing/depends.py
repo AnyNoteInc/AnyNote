@@ -9,7 +9,7 @@ from qdrant_client import AsyncQdrantClient
 
 from agents.settings import SettingsSchema
 
-from .repositories import VectorStoreRepository, VectorizationRepository
+from .repositories import VectorizationRepository, VectorStoreRepository
 from .services import ChunkerService, LanguageDetectorService, NormalizerService
 from .use_cases import VectorizePageUseCase
 

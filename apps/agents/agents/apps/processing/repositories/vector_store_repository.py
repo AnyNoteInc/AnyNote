@@ -5,7 +5,12 @@ from langchain_core.documents import Document
 from langchain_ollama import OllamaEmbeddings
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.http.models import (
-    Distance, FieldCondition, Filter, MatchValue, PointStruct, VectorParams,
+    Distance,
+    FieldCondition,
+    Filter,
+    MatchValue,
+    PointStruct,
+    VectorParams,
 )
 
 

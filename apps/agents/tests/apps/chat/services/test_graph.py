@@ -2,14 +2,14 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID
 
 import pytest
-
-from agents.apps.chat.services.graph import GraphService
-from agents.apps.chat.schemas import (
-    GraphStateSchema, InstructionRequestSchema, ModelConfigSchema,
-    ModelConnectionSchema, ModelSettingsSchema, QueryRequestSchema,
-    RuntimeContext, UserContextSchema,
-)
 from agents.apps.chat.enums import ModelProviderEnum
+from agents.apps.chat.schemas import (
+    GraphStateSchema,
+    QueryRequestSchema,
+    RuntimeContext,
+    UserContextSchema,
+)
+from agents.apps.chat.services.graph import GraphService
 
 
 @pytest.mark.asyncio

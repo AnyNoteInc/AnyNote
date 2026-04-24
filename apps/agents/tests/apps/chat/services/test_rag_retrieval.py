@@ -2,10 +2,8 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID
 
 import pytest
-from langchain_core.documents import Document
-
 from agents.apps.chat.services.rag_retrieval import RagRetrievalService
-
+from langchain_core.documents import Document
 
 WS_ID = UUID('00000000-0000-0000-0000-000000000001')
 

@@ -6,10 +6,10 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.graph.state import CompiledStateGraph
 
+from .rag_retrieval import RagRetrievalService
 from ..enums import RoleEnum
 from ..repositories import JinjaRendererRepository, McpToolsRepository, ModelFactoryRepository
 from ..schemas import GraphStateSchema, McpServerToolsSchema, RuntimeContext
-from .rag_retrieval import RagRetrievalService
 
 type CompiledGraph = CompiledStateGraph[GraphStateSchema, None, GraphStateSchema, GraphStateSchema]
 
