@@ -1,6 +1,6 @@
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
-import { PageType, enqueueOutboxEvent, type Page, type PrismaClient } from "@repo/db"
+import { PageType, enqueueOutboxEvent, type PrismaClient } from "@repo/db"
 
 import { router, protectedProcedure } from "../trpc"
 
