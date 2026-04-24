@@ -71,7 +71,7 @@ async function assertPageOwnership(
 export const pageRouter = router({
   getById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
-    .query(async ({ ctx, input }): Promise<Page> => {
+    .query(async ({ ctx, input }) => {
       const page = await ctx.prisma.page.findFirst({
         where: {
           id: input.id,
@@ -97,7 +97,12 @@ export const pageRouter = router({
         },
       })
       if (!page) throw new TRPCError({ code: "NOT_FOUND", message: "Страница не найдена" })
-      return page
+      return {
+        ...page,
+        contentYjs: page.contentYjs
+          ? Buffer.from(page.contentYjs).toString("base64")
+          : null,
+      }
     }),
 
   listByWorkspace: protectedProcedure
