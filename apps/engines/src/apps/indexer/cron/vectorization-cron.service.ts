@@ -66,31 +66,33 @@ export class VectorizationCronService implements OnModuleInit {
   }
 
   private async processBatch(rows: Row[]): Promise<void> {
-    for (const row of rows) {
-      try {
-        const page = await this.prisma.page.findUnique({
-          where: { id: row.page_id },
-          select: {
-            id: true, type: true, deletedAt: true, title: true,
-            content: true, workspaceId: true,
-          },
-        })
-        const isEligible = page && !page.deletedAt && page.type === "TEXT"
-        const contents = isEligible
-          ? this.reader.blocksFromDoc(page.content as TiptapNode | null)
-          : []
-        await this.agents.vectorize({
-          pageId: row.page_id,
-          workspaceId: row.workspace_id,
-          title: page?.title ?? "",
-          pageType: "TEXT",
-          contents,
-        })
-        await this.markDone(row.id)
-      } catch (err) {
-        this.log.error(`Indexing failed for page ${row.page_id}: ${(err as Error).message}`)
-        await this.markFailedOrRetry(row.id, err as Error)
-      }
+    await Promise.all(rows.map((row) => this.processRow(row)))
+  }
+
+  private async processRow(row: Row): Promise<void> {
+    try {
+      const page = await this.prisma.page.findUnique({
+        where: { id: row.page_id },
+        select: {
+          id: true, type: true, deletedAt: true, title: true,
+          content: true, workspaceId: true,
+        },
+      })
+      const isEligible = page && !page.deletedAt && page.type === "TEXT"
+      const contents = isEligible
+        ? this.reader.blocksFromDoc(page.content as TiptapNode | null)
+        : []
+      await this.agents.vectorize({
+        pageId: row.page_id,
+        workspaceId: row.workspace_id,
+        title: page?.title ?? "",
+        pageType: "TEXT",
+        contents,
+      })
+      await this.markDone(row.id)
+    } catch (err) {
+      this.log.error(`Indexing failed for page ${row.page_id}: ${(err as Error).message}`)
+      await this.markFailedOrRetry(row.id, err as Error)
     }
   }
 
