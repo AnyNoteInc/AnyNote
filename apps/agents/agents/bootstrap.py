@@ -21,7 +21,15 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     - устанавливаем настройки логгирования
     - устанавливаем настройки кеширования
     - устанавливаем настройки стриминга
+    - создаём qdrant-коллекцию `pages`, если её ещё нет
     """
+    from agents.apps.processing.repositories import VectorStoreRepository
+
+    container = ContainerManager.container
+    if container is not None:
+        async with container() as req:
+            vsr = await req.get(VectorStoreRepository)
+            await vsr.ensure_collection()
 
     yield
 
