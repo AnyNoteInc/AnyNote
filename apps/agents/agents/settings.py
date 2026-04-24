@@ -5,19 +5,15 @@ from fast_clean.settings import (
     CoreServiceSettingsSchema,
     CoreSettingsSchema,
 )
-from pydantic import Field, HttpUrl
+from pydantic import Field
 
 
 class QdrantSettingsSchema(CoreServiceSettingsSchema):
-    host: HttpUrl | None = None  # type: ignore[assignment]  # parent requires HttpUrl; we use `url` instead
-    url: str
     collection_name: str = 'pages'
     vector_size: int = 768
 
 
 class OllamaSettingsSchema(CoreServiceSettingsSchema):
-    host: HttpUrl | None = None  # type: ignore[assignment]  # parent requires HttpUrl; we use `url` instead
-    url: str
     embedding_model: str = 'nomic-embed-text'
 
 

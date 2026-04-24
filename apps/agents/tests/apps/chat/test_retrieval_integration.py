@@ -22,11 +22,11 @@ async def test_full_indexing_then_retrieval_roundtrip() -> None:
     auth = settings.qdrant.auth
     api_key = auth.bearer_token if isinstance(auth, BearerTokenAuthSchema) else None
     client = AsyncQdrantClient(
-        url=settings.qdrant.url,
+        url=str(settings.qdrant.host).rstrip('/'),
         api_key=api_key,
     )
     embeddings = OllamaEmbeddings(
-        base_url=settings.ollama.url,
+        base_url=str(settings.ollama.host).rstrip('/'),
         model=settings.ollama.embedding_model,
     )
     repo = VectorStoreRepository(

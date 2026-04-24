@@ -24,7 +24,7 @@ class VectorsProvider(Provider):
         auth = settings.qdrant.auth
         api_key = auth.bearer_token if isinstance(auth, BearerTokenAuthSchema) else None
         client = AsyncQdrantClient(
-            url=settings.qdrant.url,
+            url=str(settings.qdrant.host).rstrip('/'),
             api_key=api_key,
         )
         try:
@@ -38,7 +38,7 @@ class VectorsProvider(Provider):
     ) -> OllamaEmbeddings:
         settings = await settings_repository.get(SettingsSchema)
         return OllamaEmbeddings(
-            base_url=settings.ollama.url,
+            base_url=str(settings.ollama.host).rstrip('/'),
             model=settings.ollama.embedding_model,
         )
 
