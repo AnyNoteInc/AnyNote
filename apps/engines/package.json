@@ -14,22 +14,17 @@
     "test-int": "NODE_OPTIONS=--experimental-vm-modules jest --config jest.integration.config.ts"
   },
   "dependencies": {
-    "@nestjs/bullmq": "^11.0.0",
     "@nestjs/common": "^11.0.0",
     "@nestjs/config": "^4.0.0",
     "@nestjs/core": "^11.0.0",
     "@nestjs/platform-express": "^11.0.0",
     "@nestjs/schedule": "^4.1.0",
     "@nestjs/swagger": "^11.0.0",
-    "@qdrant/js-client-rest": "^1.12.0",
     "@rekog/mcp-nest": "^1.5.0",
     "@repo/db": "workspace:*",
     "@repo/storage": "workspace:*",
-    "axios": "^1.7.0",
-    "bullmq": "^5.25.0",
     "cron": "^3.2.0",
     "dotenv": "^17.0.0",
-    "ioredis": "^5.4.0",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "zod": "^3.23.0"
