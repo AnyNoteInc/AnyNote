@@ -34,14 +34,14 @@ function pickUserId(payload: JWTPayload): string | undefined {
 export async function canAccessPage(
   userId: string,
   pageId: string,
-): Promise<{ pageType: PageType } | null> {
+): Promise<{ pageType: PageType; workspaceId: string } | null> {
   const page = await prisma.page.findFirst({
     where: {
       id: pageId,
       deletedAt: null,
       workspace: { members: { some: { userId } } },
     },
-    select: { type: true },
+    select: { type: true, workspaceId: true },
   })
-  return page ? { pageType: page.type } : null
+  return page ? { pageType: page.type, workspaceId: page.workspaceId } : null
 }
