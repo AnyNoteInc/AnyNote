@@ -17,7 +17,6 @@ async function bootstrap() {
     .setDescription("Engines service — indexer, MCP server, health endpoints")
     .setVersion("0.1.0")
     .addTag("health")
-    .addTag("indexer")
     .addTag("mcp")
     .build()
   const document = SwaggerModule.createDocument(app, swaggerConfig)
