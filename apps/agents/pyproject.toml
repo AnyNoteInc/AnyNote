@@ -88,7 +88,14 @@ exclude = [
 [tool.ruff.lint]
 # exclude = ["jupyter_notebook_config.py"]
 select = ["E", "F", "W", "I", "N", "B", "UP", "ASYNC", "RUF"]
-ignore = ["E501", "RUF002", "N815"]
+ignore = ["E501"]
+
+[tool.ruff.lint.per-file-ignores]
+# Schema fields use camelCase to match HTTP wire format expected by apps/engines.
+"agents/apps/processing/schemas.py" = ["N815"]
+# Russian docstrings contain Cyrillic letters that ruff confuses with Latin.
+"agents/apps/chat/services/rag_retrieval.py" = ["RUF002"]
+"agents/apps/processing/services/chunker.py" = ["RUF002"]
 
 [tool.ruff.format]
 quote-style = "single"
