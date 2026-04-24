@@ -19,12 +19,17 @@ export function useExcalidrawYjs(args: {
   pageId: string
   yjsUrl: string
   yjsToken: () => Promise<string>
+  initialContentYjs?: string | null
 }): YjsResources | null {
-  const { pageId, yjsUrl, yjsToken } = args
+  const { pageId, yjsUrl, yjsToken, initialContentYjs } = args
   const [resources, setResources] = useState<YjsResources | null>(null)
 
   useEffect(() => {
     const ydoc = new Y.Doc()
+    if (initialContentYjs) {
+      const bytes = Uint8Array.from(atob(initialContentYjs), (c) => c.charCodeAt(0))
+      Y.applyUpdate(ydoc, bytes)
+    }
     const yElements = ydoc.getArray<Y.Map<unknown>>("elements")
     const yAssets = ydoc.getMap<unknown>("assets")
     const provider = new HocuspocusProvider({
@@ -45,7 +50,7 @@ export function useExcalidrawYjs(args: {
         ydoc.destroy()
       }, 300)
     }
-  }, [pageId, yjsUrl, yjsToken])
+  }, [pageId, yjsUrl, yjsToken, initialContentYjs])
 
   return resources
 }

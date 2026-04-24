@@ -9,6 +9,7 @@ export type BoardProps = {
   pageId: string
   yjsUrl: string
   yjsToken: () => Promise<string>
+  initialContentYjs?: string | null
   uploadHandler: UploadHandler
   user?: { id: string; name: string; color: string }
   editable?: boolean

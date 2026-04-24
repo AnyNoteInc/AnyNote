@@ -14,12 +14,12 @@ import type { BoardProps } from "./types"
 import { useExcalidrawYjs } from "./use-excalidraw-yjs"
 
 export function BoardInner(props: BoardProps) {
-  const { pageId, yjsUrl, yjsToken, uploadHandler, user, editable = true, className } = props
+  const { pageId, yjsUrl, yjsToken, initialContentYjs, uploadHandler, user, editable = true, className } = props
 
   const muiTheme = useTheme()
   const excalidrawTheme: Theme = muiTheme.palette.mode === "dark" ? "dark" : "light"
 
-  const resources = useExcalidrawYjs({ pageId, yjsUrl, yjsToken })
+  const resources = useExcalidrawYjs({ pageId, yjsUrl, yjsToken, initialContentYjs })
 
   useEffect(() => {
     if (!user || !resources) return
