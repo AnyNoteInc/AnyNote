@@ -24,6 +24,7 @@ type ChatMessageListProps = {
   messages: ChatThreadMessage[]
   emptyTitle?: string
   emptyDescription?: string
+  showEmptyState?: boolean
   scrollMode?: "internal" | "page"
 }
 
@@ -77,6 +78,7 @@ export function ChatMessageList({
   messages,
   emptyTitle,
   emptyDescription,
+  showEmptyState = true,
   scrollMode = "internal",
 }: ChatMessageListProps) {
   const providerMessages = useMemo(() => buildProviderMessages(messages), [messages])
@@ -97,7 +99,7 @@ export function ChatMessageList({
         data-testid="chat-message-list"
         items={providerMessages.map((message) => message.id)}
         overlay={
-          messages.length === 0 ? (
+          showEmptyState && messages.length === 0 ? (
             <ChatEmptyState description={emptyDescription} title={emptyTitle} />
           ) : null
         }

@@ -20,6 +20,7 @@ Thread: {{ thread_id }}
 ## System
 {{ system_prompt }}
 {% endif -%}
+
 {% if rag and rag.documents -%}
 ## Retrieved context
 Ниже — фрагменты страниц рабочего пространства, найденные по запросу пользователя.
@@ -32,10 +33,10 @@ Thread: {{ thread_id }}
 - title: {{ d.title }}
 - content:
 {{ d.content | indent(2, first=True) }}
+{% endfor -%}
 
-{% endfor %}
 Правила цитирования:
-- Ссылайся на страницы в формате [{{ '{title}' }}](page:{{ '{pageId}' }})
+- Ссылайся на страницы в формате [{{ '{title}' }}](/workspaces/{{ '{workspaceId}' }}/pages/{{ '{pageId}' }})
 - Не придумывай pageId — используй только те, что приведены выше
 - Если нужного факта нет в найденных фрагментах — явно скажи «в базе знаний не найдено»
 {% endif -%}

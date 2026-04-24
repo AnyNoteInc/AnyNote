@@ -33,7 +33,7 @@ export async function searchRagDocuments(args: {
   }
 
   try {
-    const response = await fetch(`${process.env.ENGINES_SERVICE_URL ?? "http://localhost:8082"}/search/pages`, {
+    const response = await fetch(`${process.env.ENGINES_URL}:${process.env.ENGINES_PORT}`, {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({

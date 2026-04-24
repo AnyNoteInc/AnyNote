@@ -74,4 +74,44 @@ describe("ChatThread", () => {
 
     expect(scrollTo).toHaveBeenLastCalledWith({ behavior: "smooth", top: 1280 })
   })
+
+  it("fills the available height in page scroll mode so the composer stays at the bottom", () => {
+    render(
+      <ChatThread
+        composerAttachments={[]}
+        composerValue=""
+        messages={[]}
+        onComposerAttachmentsChange={() => {}}
+        onComposerValueChange={() => {}}
+        onSend={() => {}}
+        scrollContainerSelector=".page-content-scroll"
+        scrollKey="chat-empty"
+      />,
+    )
+
+    const thread = screen.getByTestId("chat-thread")
+    const styles = getComputedStyle(thread)
+
+    expect(styles.flexGrow).toBe("1")
+    expect(styles.minHeight).toBe("0")
+  })
+
+  it("renders the empty hint next to the composer instead of the top message area", () => {
+    render(
+      <ChatThread
+        composerAttachments={[]}
+        composerValue=""
+        messages={[]}
+        onComposerAttachmentsChange={() => {}}
+        onComposerValueChange={() => {}}
+        onSend={() => {}}
+        scrollContainerSelector=".page-content-scroll"
+        scrollKey="chat-empty"
+      />,
+    )
+
+    const composerShell = screen.getByTestId("chat-composer-shell")
+
+    expect(composerShell.textContent).toContain("Отправьте первое сообщение, чтобы начать диалог.")
+  })
 })

@@ -1445,3 +1445,29 @@ x-workspace-id: 123e4567-e89b-12d3-a456-426614174001
   - скрытый текст
 2. Добавить в сервси apps/agents библиотеку для разделения большого текста на кусочки langchain_text_splitters и ответе о нормализации текста расширить контракт и выозвращать не нормализованный текст, а возвращать массив кусочков нормализованного текста chunk_size=500 overlap=100 символов
 3. для каждого кусочка сделать векторизацию
+
+
+---
+
+
+Метаданные, которые выглядят следующим образом в qdrant и которые туда сохраняются
+```json
+{
+  "pageId": "0296228a-62e1-4c81-9744-0655e45af5bd",
+  "workspaceId": "2991d511-0114-45b7-bd3b-8c9469f09b56",
+  "chunkIndex": 112,
+  "title": "Архитектура Backend на python",
+  "content": "responseschema basemodel схема ответ настройка генерирование camelcase snake case camelcase model config configdict alias generator aliasgenerator serialization alias to camel remoteresponseschema requestschema remoterequestschema responseschema",
+  "pageType": "TEXT",
+  "createdById": "019db0f8-5146-7740-8476-9b5802c2af08",
+  "createdAt": "2026-04-24T05:44:21.587Z",
+  "updatedAt": "2026-04-24T05:47:37.417Z"
+}
+```
+
+Давай приведем все остальные контракты к этим параметрам в
+1. apps/web/src/lib/chat/rag-search.ts
+2. apps/agents/agents/apps/chat/schemas.py
+3. apps/agents/agents/apps/chat/templates/default.j2
+
+прогони тесты, что это работает

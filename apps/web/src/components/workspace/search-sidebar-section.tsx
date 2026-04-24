@@ -30,6 +30,8 @@ import {
 
 import { trpc } from "@/trpc/client"
 
+import { buildChatHref, navigateToChat } from "./chat/navigation"
+
 type Props = { workspaceId: string }
 
 type ChatItem = {
@@ -88,7 +90,7 @@ function ChatTreeItem({
   const createChild = trpc.chat.createChat.useMutation({
     onSuccess: async (data) => {
       await utils.chat.listChats.invalidate({ workspaceId })
-      router.push(`/workspaces/${workspaceId}/chats/${data.id}`)
+      navigateToChat(router, workspaceId, data.id)
     },
   })
 
@@ -121,7 +123,8 @@ function ChatTreeItem({
           </IconButton>
         ) : null}
         <Link
-          href={`/workspaces/${workspaceId}/chats/${chat.id}`}
+          href={buildChatHref(workspaceId, chat.id)}
+          scroll={false}
           style={{ textDecoration: "none", flex: 1, minWidth: 0 }}
         >
           <Typography
@@ -269,7 +272,7 @@ export function SearchSidebarSection({ workspaceId }: Props) {
   const create = trpc.chat.createChat.useMutation({
     onSuccess: async (data) => {
       await utils.chat.listChats.invalidate({ workspaceId })
-      router.push(`/workspaces/${workspaceId}/chats/${data.id}`)
+      navigateToChat(router, workspaceId, data.id)
     },
   })
 

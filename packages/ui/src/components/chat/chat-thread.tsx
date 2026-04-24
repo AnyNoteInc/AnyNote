@@ -9,6 +9,7 @@ import { alpha } from "@mui/material/styles"
 import { useEffect, useLayoutEffect, useRef, useState } from "react"
 
 import { ChatComposer } from "./chat-composer"
+import { ChatEmptyState } from "./chat-empty-state"
 import { ChatMessageList } from "./chat-message-list"
 import type { ChatComposerAttachment, ChatSendPayload, ChatThreadMessage } from "./chat-types"
 
@@ -125,8 +126,9 @@ export function ChatThread({
   return (
     <Stack
       data-testid="chat-thread"
+      flex={usesPageScroll ? 1 : undefined}
       height={usesPageScroll ? undefined : "100%"}
-      minHeight={usesPageScroll ? "100%" : 0}
+      minHeight={0}
       spacing={0}
       sx={{ position: "relative" }}
     >
@@ -134,6 +136,7 @@ export function ChatThread({
         emptyDescription={emptyDescription}
         emptyTitle={emptyTitle}
         messages={messages}
+        showEmptyState={false}
         scrollMode={usesPageScroll ? "page" : "internal"}
       />
       <Box
@@ -159,6 +162,12 @@ export function ChatThread({
             : null),
         })}
       >
+        {messages.length === 0 ? (
+          <ChatEmptyState
+            description={emptyDescription}
+            title={emptyTitle}
+          />
+        ) : null}
         {usesPageScroll ? (
           <Fade in={showScrollDown} unmountOnExit>
             <Fab

@@ -5,16 +5,16 @@ from __future__ import annotations
 from dishka.integrations.fastapi import FromDishka, inject
 from fastapi import APIRouter
 
-from .schemas import NormalizeRequest, NormalizeResponse
+from .schemas import NormalizeRequestSchema, NormalizeResponseSchema
 from .use_cases import NormalizeTextUseCase
 
 router = APIRouter(prefix="/processing", tags=["Processing"])
 
 
-@router.post("/normalize", response_model=NormalizeResponse)
+@router.post("/normalize", response_model=NormalizeResponseSchema)
 @inject
 async def normalize(
-    payload: NormalizeRequest,
+    payload: NormalizeRequestSchema,
     use_case: FromDishka[NormalizeTextUseCase],
-) -> NormalizeResponse:
+) -> NormalizeResponseSchema:
     return use_case(payload)
