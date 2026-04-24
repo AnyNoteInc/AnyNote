@@ -24,18 +24,38 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
     const session = await getSession()
     if (!session) return new Response("Unauthorized", { status: 401 })
     if (session.user.id !== file.userId) {
-      // Allow download if the file is attached to a page in a workspace the user belongs to.
-      const linked = await prisma.pageFile.findFirst({
-        where: {
-          fileId: file.id,
-          page: {
-            deletedAt: null,
-            workspace: { members: { some: { userId: session.user.id } } },
+      // Allow download if the file is an ACTIVE file in a workspace the user belongs to…
+      let authorized = false
+
+      if (file.workspaceId && file.status === "ACTIVE") {
+        const member = await prisma.workspaceMember.findUnique({
+          where: {
+            workspaceId_userId: {
+              workspaceId: file.workspaceId,
+              userId: session.user.id,
+            },
           },
-        },
-        select: { pageId: true },
-      })
-      if (!linked) {
+          select: { userId: true },
+        })
+        if (member) authorized = true
+      }
+
+      // …or attached to a page in a workspace the user belongs to.
+      if (!authorized) {
+        const linked = await prisma.pageFile.findFirst({
+          where: {
+            fileId: file.id,
+            page: {
+              deletedAt: null,
+              workspace: { members: { some: { userId: session.user.id } } },
+            },
+          },
+          select: { pageId: true },
+        })
+        if (linked) authorized = true
+      }
+
+      if (!authorized) {
         return new Response("Forbidden", { status: 403 })
       }
     }
