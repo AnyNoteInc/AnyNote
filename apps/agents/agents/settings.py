@@ -9,6 +9,17 @@ from fast_clean.settings import (
 from pydantic import Field, model_validator
 
 
+def _build_host_url(data: dict[str, Any]) -> dict[str, Any]:
+    """Synthesize HOST from HOST + PORT + PROTOCOL env vars if not already a full URL."""
+    host = data.get('host')
+    if isinstance(host, str) and '://' not in host:
+        protocol = data.get('protocol', 'http')
+        port = data.get('port', '')
+        port_str = f':{port}' if port else ''
+        data['host'] = f'{protocol}://{host}{port_str}'
+    return data
+
+
 class QdrantSettingsSchema(CoreServiceSettingsSchema):
     auth: BearerTokenAuthSchema | None = None
     collection_name: str = 'pages'
@@ -19,14 +30,7 @@ class QdrantSettingsSchema(CoreServiceSettingsSchema):
     @model_validator(mode='before')
     @classmethod
     def construct_host_url(cls, data: dict[str, Any]) -> dict[str, Any]:
-        """Construct full URL from host, port, and protocol if needed."""
-        host = data.get('host')
-        if isinstance(host, str) and '://' not in host:
-            protocol = data.get('protocol', 'http')
-            port = data.get('port', '')
-            port_str = f':{port}' if port else ''
-            data['host'] = f'{protocol}://{host}{port_str}'
-        return data
+        return _build_host_url(data)
 
     @property
     def url(self) -> str:
@@ -42,14 +46,7 @@ class OllamaSettingsSchema(CoreServiceSettingsSchema):
     @model_validator(mode='before')
     @classmethod
     def construct_host_url(cls, data: dict[str, Any]) -> dict[str, Any]:
-        """Construct full URL from host, port, and protocol if needed."""
-        host = data.get('host')
-        if isinstance(host, str) and '://' not in host:
-            protocol = data.get('protocol', 'http')
-            port = data.get('port', '')
-            port_str = f':{port}' if port else ''
-            data['host'] = f'{protocol}://{host}{port_str}'
-        return data
+        return _build_host_url(data)
 
     @property
     def url(self) -> str:
