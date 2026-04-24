@@ -173,7 +173,6 @@ describe('POST /api/agents/generate', () => {
     expect(response.status).toBe(200)
     const body = await response.text()
     await upstreamTask
-    const upstreamPayload = JSON.parse(fetchMock.mock.calls[0]?.[1]?.body as string)
 
     expect(body).toContain('"type":"message.created"')
     expect(body).toContain('"type":"message.delta"')
