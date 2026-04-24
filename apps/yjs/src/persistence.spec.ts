@@ -1,4 +1,4 @@
-import { jest } from "@jest/globals"
+import { beforeEach, describe, expect, it, jest } from "@jest/globals"
 import * as Y from "yjs"
 
 // Mock @repo/db BEFORE importing persistence
@@ -42,14 +42,14 @@ describe("storePageDocument", () => {
     })
 
     expect(mockTxPageUpdate).toHaveBeenCalledTimes(1)
-    const call = mockTxPageUpdate.mock.calls[0][0] as {
+    const call = mockTxPageUpdate.mock.calls[0]![0] as {
       data: { content: unknown; contentYjs: unknown }
     }
     expect(call.data.contentYjs).toBeInstanceOf(Uint8Array)
     expect(call.data.content).toBeDefined()
 
     expect(mockEnqueueOutboxEventIgnoreConflict).toHaveBeenCalledTimes(1)
-    const outboxArgs = mockEnqueueOutboxEventIgnoreConflict.mock.calls[0][1] as {
+    const outboxArgs = mockEnqueueOutboxEventIgnoreConflict.mock.calls[0]![1] as {
       eventType: string
       aggregateId: string
       workspaceId: string
@@ -75,7 +75,7 @@ describe("storePageDocument", () => {
       pageType: "EXCALIDRAW" as never,
     })
 
-    const call = mockTxPageUpdate.mock.calls[0][0] as {
+    const call = mockTxPageUpdate.mock.calls[0]![0] as {
       data: { content: { elements: unknown[] }; contentYjs: unknown }
     }
     expect(call.data.content).toEqual({ elements: [{ type: "rectangle" }] })
@@ -91,7 +91,7 @@ describe("storePageDocument", () => {
       document: doc,
       pageType: "GENOGRAM" as never,
     })
-    const call = mockTxPageUpdate.mock.calls[0][0] as {
+    const call = mockTxPageUpdate.mock.calls[0]![0] as {
       data: { content?: unknown }
     }
     expect(call.data.content).toBeUndefined()
