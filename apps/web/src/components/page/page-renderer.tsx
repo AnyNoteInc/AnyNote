@@ -51,6 +51,7 @@ function CenteredSpinner() {
 type PageInput = {
   id: string
   type: PageType
+  contentYjs: string | null
 }
 
 type Props = {
@@ -167,6 +168,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
     return (
       <Board
         pageId={page.id}
+        initialContentYjs={page.contentYjs}
         yjsUrl={yjsUrl}
         yjsToken={fetchYjsToken}
         uploadHandler={uploadHandler}
@@ -192,6 +194,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
         <AnyNoteEditor
           pageId={page.id}
           workspaceId={workspaceId}
+          initialContentYjs={page.contentYjs}
           yjsUrl={yjsUrl}
           yjsToken={fetchYjsToken}
           user={user}

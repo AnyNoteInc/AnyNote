@@ -47,7 +47,7 @@ export default async function PageView({
       )}
       <Box sx={{ flex: 1, minHeight: 0 }}>
         <PageRenderer
-          page={{ id: page.id, type: page.type }}
+          page={{ id: page.id, type: page.type, contentYjs: page.contentYjs }}
           workspaceId={workspaceId}
           user={{ id: session.user.id, name: displayName, color: colorFor(session.user.id) }}
         />
