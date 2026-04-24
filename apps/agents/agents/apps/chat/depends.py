@@ -42,4 +42,4 @@ class ChatProvider(Provider):
     generate_stream_use_case = provide(GenerateStreamUseCase)
 
 
-prodiver = ChatProvider()
+provider = ChatProvider()
