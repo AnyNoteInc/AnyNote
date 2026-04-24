@@ -1,20 +1,20 @@
-"""POST /processing/normalize route."""
+"""POST /vectorization route."""
 
 from __future__ import annotations
 
 from dishka.integrations.fastapi import FromDishka, inject
 from fastapi import APIRouter
 
-from .schemas import NormalizeRequestSchema, NormalizeResponseSchema
-from .use_cases import NormalizeTextUseCase
+from .schemas import VectorizationRequestSchema, VectorizationResponseSchema
+from .use_cases import VectorizePageUseCase
 
-router = APIRouter(prefix="/processing", tags=["Processing"])
+router = APIRouter(prefix='/vectorization', tags=['Vectorization'])
 
 
-@router.post("/normalize", response_model=NormalizeResponseSchema)
+@router.post('', response_model=VectorizationResponseSchema)
 @inject
-async def normalize(
-    payload: NormalizeRequestSchema,
-    use_case: FromDishka[NormalizeTextUseCase],
-) -> NormalizeResponseSchema:
-    return use_case(payload)
+async def vectorize(
+    payload: VectorizationRequestSchema,
+    use_case: FromDishka[VectorizePageUseCase],
+) -> VectorizationResponseSchema:
+    return await use_case(payload)
