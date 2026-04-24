@@ -2,11 +2,13 @@ import { expect, test } from "@playwright/test"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 
+import { qdrantHasPointForBlock } from "./helpers/qdrant-helpers"
+import { waitUntil } from "./helpers/wait-until"
+
 let RoleType: { OWNER: string }
 let prisma: {
   $disconnect: () => Promise<void>
   user: {
-    findUnique: (args: unknown) => Promise<{ id: string } | null>
     findUniqueOrThrow: (args: unknown) => Promise<{ id: string }>
   }
   workspace: {
@@ -20,10 +22,10 @@ let prisma: {
     create: (args: unknown) => Promise<unknown>
   }
   aiProvider: {
-    findFirst: (args: unknown) => Promise<{ id: string; slug: string } | null>
+    findFirst: (args: unknown) => Promise<{ id: string } | null>
   }
   aiModel: {
-    findFirst: (args: unknown) => Promise<{ id: string; slug: string } | null>
+    findFirst: (args: unknown) => Promise<{ id: string } | null>
   }
   page: {
     create: (args: unknown) => Promise<{ id: string }>
@@ -31,17 +33,15 @@ let prisma: {
   }
   outboxEvent: {
     create: (args: unknown) => Promise<unknown>
+    findFirst: (args: unknown) => Promise<{ status: string } | null>
   }
   chat: {
     create: (args: unknown) => Promise<{ id: string }>
   }
 }
 
-test.use({
-  locale: "en-US",
-  timezoneId: "America/New_York",
-})
-test.setTimeout(120_000)
+test.use({ locale: "en-US", timezoneId: "America/New_York" })
+test.setTimeout(180_000)
 
 test.beforeAll(async () => {
   if (!process.env.DATABASE_URL) {
@@ -49,35 +49,30 @@ test.beforeAll(async () => {
     const envFile = readFileSync(envPath, "utf8")
     const databaseUrl = envFile
       .split("\n")
-      .map((line) => line.trim())
-      .find((line) => line.startsWith("DATABASE_URL="))
+      .map((l) => l.trim())
+      .find((l) => l.startsWith("DATABASE_URL="))
       ?.slice("DATABASE_URL=".length)
       .replace(/^"|"$/g, "")
-
-    if (!databaseUrl) {
-      throw new Error("DATABASE_URL is not configured in .env")
-    }
-
+    if (!databaseUrl) throw new Error("DATABASE_URL not configured in .env")
     process.env.DATABASE_URL = databaseUrl
   }
-
   const db = await import("../../packages/db/src/index")
   RoleType = db.RoleType
   prisma = db.prisma
 })
 
 test.afterAll(async () => {
-  if (prisma) {
-    await prisma.$disconnect()
-  }
+  if (prisma) await prisma.$disconnect()
 })
 
 const password = "SuperSecure123!"
 const MARKER = "Бразильский Медведь"
+const QUERY = "Как называется наш корпоративный кофе?"
 
-test("rag grounds answer in indexed page", async ({ page: browser }) => {
-  const email = `rag+${Date.now()}@example.com`
+test("assistant cites page with block-anchor link", async ({ page: browser }) => {
+  const email = `rag-anchor+${Date.now()}@example.com`
 
+  // --- Register via UI (better-auth hashes credentials) ---
   await browser.goto("/sign-up")
   await browser.getByRole("textbox", { name: "Email" }).fill(email)
   await browser.getByRole("textbox", { name: "Фамилия" }).fill("Тестов")
@@ -87,19 +82,14 @@ test("rag grounds answer in indexed page", async ({ page: browser }) => {
   await browser.getByRole("button", { name: "Зарегистрироваться" }).click()
   await browser.waitForURL(/\/workspaces\/new/)
 
-  await expect
-    .poll(
-      async () =>
-        prisma.user.findUnique({
-          where: { email },
-          select: { id: true },
-        }),
-      {
-        timeout: 10_000,
-        intervals: [200, 500, 1000],
-      },
-    )
-    .toBeTruthy()
+  // --- Wait for user row to exist, then seed workspace + page via Prisma ---
+  await expect.poll(
+    async () =>
+      prisma.user
+        .findUniqueOrThrow({ where: { email }, select: { id: true } })
+        .catch(() => null),
+    { timeout: 10_000, intervals: [200, 500, 1000] },
+  ).toBeTruthy()
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { email },
@@ -107,30 +97,20 @@ test("rag grounds answer in indexed page", async ({ page: browser }) => {
   })
 
   const workspace = await prisma.workspace.create({
-    data: {
-      name: `RAG ws ${Date.now()}`,
-      createdById: user.id,
-    },
+    data: { name: `RAG anchor ${Date.now()}`, createdById: user.id },
     select: { id: true },
   })
   await prisma.workspaceMember.create({
-    data: {
-      workspaceId: workspace.id,
-      userId: user.id,
-      role: RoleType.OWNER,
-    },
+    data: { workspaceId: workspace.id, userId: user.id, role: RoleType.OWNER },
   })
 
-  const provider = await prisma.aiProvider.findFirst({
-    where: { slug: "gigachat" },
-  })
-  const model = await prisma.aiModel.findFirst({
-    where: { slug: "GigaChat-2" },
-  })
+  const provider = await prisma.aiProvider.findFirst({ where: { slug: "gigachat" } })
+  const model = await prisma.aiModel.findFirst({ where: { slug: "GigaChat-2" } })
   if (!provider || !model) {
-    throw new Error("GigaChat provider/model not seeded; run `pnpm --filter @repo/db prisma:seed`")
+    throw new Error(
+      "GigaChat provider/model not seeded; run `pnpm --filter @repo/db prisma:seed`",
+    )
   }
-
   await prisma.workspaceAiSettings.create({
     data: {
       workspaceId: workspace.id,
@@ -141,13 +121,22 @@ test("rag grounds answer in indexed page", async ({ page: browser }) => {
     },
   })
 
+  // --- Tiptap doc: block 0 = paragraph, 1 = heading (SKIP), 2 = paragraph with MARKER ---
   const pageRow = await prisma.page.create({
     data: {
       workspaceId: workspace.id,
-      title: "Корпоративная кухня",
+      title: "Корпоративные напитки",
       content: {
         type: "doc",
         content: [
+          {
+            type: "paragraph",
+            content: [{ type: "text", text: "Документ о напитках в офисе." }],
+          },
+          {
+            type: "heading",
+            content: [{ type: "text", text: "Кофе" }],
+          },
           {
             type: "paragraph",
             content: [
@@ -164,6 +153,8 @@ test("rag grounds answer in indexed page", async ({ page: browser }) => {
     },
     select: { id: true },
   })
+
+  // --- Bypass 5-min quiet-period for E2E: next_attempt_at defaults to now() ---
   await prisma.outboxEvent.create({
     data: {
       eventType: "page.upserted",
@@ -174,61 +165,50 @@ test("rag grounds answer in indexed page", async ({ page: browser }) => {
     },
   })
 
-  const enginesBase = process.env.ENGINES_SERVICE_URL ?? "http://localhost:8082"
-  await expect
-    .poll(
-      async () => {
-        const response = await fetch(`${enginesBase}/search/pages`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({
-            workspaceId: workspace.id,
-            query: "корпоративный кофе",
-          }),
-        })
-
-        if (!response.ok) {
-          return 0
-        }
-
-        const body = (await response.json()) as { documents: Array<{ id: string }> }
-        return body.documents.filter((document) => document.id === pageRow.id).length
-      },
-      {
-        timeout: 60_000,
-        intervals: [2000, 3000, 5000],
-      },
-    )
-    .toBeGreaterThan(0)
-
-  const chat = await prisma.chat.create({
-    data: {
-      workspaceId: workspace.id,
-      createdById: user.id,
+  // --- Wait for engines cron → agents vectorization → outbox DONE ---
+  await waitUntil(
+    async () => {
+      const row = await prisma.outboxEvent.findFirst({
+        where: { aggregateId: pageRow.id, eventType: "page.upserted" },
+        orderBy: { createdAt: "desc" },
+      })
+      return row?.status === "DONE"
     },
+    { timeout: 90_000, pollMs: 1000, label: "outbox page.upserted → DONE" },
+  )
+
+  // --- Verify Qdrant has a point for block #2 (where MARKER lives) ---
+  expect(await qdrantHasPointForBlock(pageRow.id, 2)).toBe(true)
+
+  // --- Create a chat via Prisma (matches existing rag.spec.ts pattern) ---
+  const chat = await prisma.chat.create({
+    data: { workspaceId: workspace.id, createdById: user.id },
     select: { id: true },
   })
 
   await browser.goto(`/workspaces/${workspace.id}/chats/${chat.id}`)
   const composer = browser.getByTestId("chat-composer-textarea")
   await expect(composer).toBeVisible()
-  await composer.fill("Как называется наш корпоративный кофе?")
+  await composer.fill(QUERY)
   await browser.getByRole("button", { name: "Send" }).click()
 
-  await expect
-    .poll(
-      async () =>
-        browser
-          .locator('[role="article"]')
-          .allInnerTexts()
-          .then((chunks) => chunks.join("\n")),
-      {
-        timeout: 60_000,
-        intervals: [1000, 2000],
-      },
-    )
-    .toContain(MARKER)
+  // --- Poll until the marker appears in any assistant article ---
+  await expect.poll(
+    async () =>
+      browser
+        .locator('[role="article"]')
+        .allInnerTexts()
+        .then((chunks) => chunks.join("\n")),
+    { timeout: 120_000, intervals: [1000, 2000] },
+  ).toContain(MARKER)
 
+  // --- Assert the block-anchor link exists in the DOM ---
+  const anchor = browser.locator(
+    `a[href="/workspaces/${workspace.id}/pages/${pageRow.id}#2"]`,
+  )
+  await expect(anchor).toBeVisible({ timeout: 10_000 })
+
+  // --- Cleanup ---
   await prisma.page.delete({ where: { id: pageRow.id } }).catch(() => undefined)
   await prisma.workspace.delete({ where: { id: workspace.id } }).catch(() => undefined)
 })
