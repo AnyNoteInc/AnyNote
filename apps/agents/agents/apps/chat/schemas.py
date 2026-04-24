@@ -1,5 +1,4 @@
 
-from datetime import datetime
 from typing import Annotated, Literal, Self
 from uuid import UUID
 
@@ -32,41 +31,29 @@ class SkillConfigSchema(RequestResponseSchema):
 
 
 class RagDocumentSchema(RequestResponseSchema):
-    page_id: str
+    page_id: UUID
     """
     PageId идентификатор документа
     """
-    workspace_id: str
+    workspace_id: UUID
     """
     WorkspaceId идентификатор рабочего пространства.
-    """
-    chunk_index: int
-    """
-    Индекс чанка страницы.
     """
     title: str
     """
     Заголовок документа.
     """
-    content: str
-    """
-    Текст контекнта.
-    """
     page_type: str
     """
     Тип страницы.
     """
-    created_by_id: str
+    block_number: int
     """
-    Идентификатор автора страницы.
+    Порядковый номер блока на странице.
     """
-    created_at: datetime
+    content: str
     """
-    Дата создания страницы.
-    """
-    updated_at: datetime
-    """
-    Дата обновления страницы.
+    Текст контента (исходный чанк до нормализации).
     """
 
 
