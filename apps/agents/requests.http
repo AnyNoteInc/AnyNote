@@ -43,11 +43,14 @@ x-workspace-id: 123e4567-e89b-12d3-a456-426614174001
 
 
 ###
-POST http://localhost:8080/processing/normalize HTTP/1.1
-content-type: application/json
+POST http://localhost:8080/vectorization
+Content-Type: application/json
 
 {
-  "text": "Ты профессиональный помощник, который помогает пользователю с его запросами. Ты всегда отвечаешь на русском языке.",
-  "language": "auto"
+  "pageId": "00000000-0000-0000-0000-000000000001",
+  "workspaceId": "00000000-0000-0000-0000-000000000002",
+  "title": "Sample page",
+  "pageType": "TEXT",
+  "contents": [{ "blockNumber": 0, "content": "hello world" }]
 }
 

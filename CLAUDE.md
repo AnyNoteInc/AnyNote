@@ -16,7 +16,7 @@ pnpm check-types          # turbo run check-types (runs `next typegen` then `tsc
 pnpm format               # prettier --write **/*.{ts,tsx,md}
 ```
 
-Infra for local dev (Postgres, MinIO, Weaviate, Redis) is in `compose.yml`:
+Infra for local dev (Postgres, MinIO, Qdrant, Ollama) is in `compose.yml`:
 
 ```bash
 docker compose up -d
@@ -134,7 +134,7 @@ These are declared in `turbo.json` `globalEnv` so Turbo hashes them for caching.
 
 ### Docker compose services
 
-`compose.yml` runs: Postgres (5432), MinIO (9000/9001), Weaviate (8080/50051), Redis (6379). All have health checks. Run `docker compose up -d` before `pnpm dev`.
+`compose.yml` runs: Postgres (5432), MinIO (9000/9001), Qdrant (6333/6334), Ollama (11434). All have health checks. Run `docker compose up -d` before `pnpm dev`.
 
 ### Database seeding
 
