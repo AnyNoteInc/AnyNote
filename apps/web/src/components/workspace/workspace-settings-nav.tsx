@@ -11,6 +11,7 @@ const ITEMS = [
   { label: "Общее", slug: "general" },
   { label: "Участники", slug: "members" },
   { label: "AI агент", slug: "ai" },
+  { label: "Файлы", slug: "files" },
   { label: "Опасная зона", slug: "danger" },
 ] as const
 
