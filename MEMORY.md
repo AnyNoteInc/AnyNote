@@ -1471,3 +1471,78 @@ x-workspace-id: 123e4567-e89b-12d3-a456-426614174001
 3. apps/agents/agents/apps/chat/templates/default.j2
 
 прогони тесты, что это работает
+
+
+---
+
+
+Нужно переделать механизм получения и индексации страниц
+1. Сохранять контент страницы при работе в многопользовательском режиме через сервис apps/yjs
+  - page.content должен загружаться сразу при открытии страницы, а не через yjs через socket, через yjs должен идти только обмен на изменения
+  - страницы с типом excalidraw должны сохранять свое состояние в page.content и отдавать его при загрузке страницы
+  - при любом изменении нужно страницы через yjs должна ставиться задача на обработку по transactional outbox в таблицу OutboxEvents
+  - при любом изменении нужно страницы через yjs должна ставиться задача на обработку по transactional outbox в таблицу OutboxEvents
+  - должен быть механизм дедупликации, если разные пользователи меняют страницу, должна быть одна запись
+    по aggregate_type, aggregate_id, workspace_id со статусом panging
+  - запись должна забираться через 5 минут после created_at, чтобы не было тротлинга
+2. В сервисе apps/engins изменить алгоритм OutboxEvents где status = PENDING и created_at + 5 min > now() чанками по 10 страниц за один раз
+  - поле page.content пробегаемся по массиву content первого уровня внутри документа, из которых формируется блок, который состоит из двух полей
+    - blockNumber - порядковый номер блока (нужно для подсветки блока)
+    - content - формируется как контект блока, а если блок имеет дочерние элементы, то проходимся рекурсивно и текст из дочерних блоков просто конкатенируем друг с другом
+  - пустые блоки
+  - блоки с типом header, hidder, image, files не учитываем и пропускаем, как на первом уровне, так при проходе в дочерних элементов
+  - получившийся результат отправляем в сервис apps/agents post запросом на /vectorization
+  - работу с embedding из сервиса apps/engines удалить, лишние зависимости также удалить
+  - модуль search удалить
+  - в модуле apps/engines остается только mcp и крон по отпраке контента в apps/agents
+3. В сервисе apps/agents создать API для векторизации страниц в приложении apps/agents/agents/apps/processing
+	- сделать интеграцию с qdrant добавив библиотеку langchain-qdrant
+	
+	- сделать API post запрос /vectorization для векторизации страниц страниц, у которого будет следующее API
+```json
+{
+  "pageId": "<page.id>",
+  "workspaceId": "<page.workspaceId>",
+  "title": "<page.title>",
+  "pageType": "<page.page_type>",
+  "contents": [
+    {"blockNumber": 0, "content": "<text>"}
+  ]
+}
+```
+	blockNumber - номер блока на странице, content - текст присланный из сервиса apps/engines по API
+	После этого алгоритм обработки контента такой
+    - для каждого content в contents
+      1. разбить на чанки с помощью langchain-text-splitters RecursiveCharacterTextSplitter chunk_size=500 chunk_overlap=100
+        для каждого чанка
+          - привести к нижнму регистру
+          - удалить знаки пунктуации
+          - токенизацию 
+          - лемматизацию
+          - удалить стопслова
+          - сделать векторизацию с помощью ollama nomic-embed-text (VerctirizationRepository)
+        в качестве matadata записать следующее
+```json
+{
+  "pageId": "<page.id>",
+  "workspaceId": "<page.workspaceId>",
+  "title": "<page.title>",
+  "pageType": "<page.page_type>",
+  "blockNumber": "<contents[number].blockNumber>",
+  "content": "исходный чанк после сплитинга"
+}
+```
+  workspaceId и pageId для генерацииmd ссылки [<metadata.title>](/workspaces/<workspaceId>/pages/<pageId>#<blockNumber>)
+  полученные чанки сохранить в qdrant VectorStoreRepository
+  инжекция зависимостей на примере apps/agents/agents/apps/chat/depends.py
+	- для векторизациии используй langchain-ollama OLLAMA и модель nomic-embed-text
+  - коллекция в qdrant должна назваться pages
+  - добавить интеграцию с vector store на основе quadrant  в LangGraph apps/agents/agents/apps/chat/services/graph.py используя библиотеку langchain-qdrant 
+    при запросе необходимо делать поиск 5 документов, делать дедубликацию документов по pageId, blockNumber и подмешивать их в запрос llm
+    внести соответствующие правки в default.j2 шаблон, если раздел rag не нужен
+	- для quadrant и для OLLAMA добавь в settings настрйки apps/agents/agents/settings.py
+    CoreServiceSettingsSchema
+  - исправить шаблон если это необходимо
+    для qdrant предусмотреть авторизацию по токену BearerTokenAuthSchema
+	- rest запрос post /normalize удалить
+4. Провести с помощью playwright тесты, убедиться, что в ответе есть ссылки на страницы с указанием блока, на который мы ссылаемся во время запроса
