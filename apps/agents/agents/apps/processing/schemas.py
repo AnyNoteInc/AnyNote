@@ -1,20 +1,21 @@
-from typing import Literal
-
+from uuid import UUID
 
 from pydantic import BaseModel, Field
 
-Language = Literal["ru", "en", "auto"]
-DetectedLanguage = Literal["ru", "en"]
+
+class ContentBlockSchema(BaseModel):
+    blockNumber: int = Field(..., ge=0)
+    content: str = Field(..., min_length=1)
 
 
-class NormalizeRequestSchema(BaseModel):
-    text: str = Field(..., description="Raw text to normalize.")
-    language: Language = Field("auto", description="Source language or 'auto'.")
+class VectorizationRequestSchema(BaseModel):
+    pageId: UUID
+    workspaceId: UUID
+    title: str
+    pageType: str
+    contents: list[ContentBlockSchema]
 
 
-class NormalizeResponseSchema(BaseModel):
-    chunks: list[str] = Field(
-        ...,
-        description='Normalized text chunks ready for embedding.',
-    )
-    language: DetectedLanguage = Field(..., description="Language used for pipeline.")
+class VectorizationResponseSchema(BaseModel):
+    indexedChunks: int
+    skippedBlocks: int
