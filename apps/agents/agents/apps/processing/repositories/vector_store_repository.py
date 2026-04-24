@@ -75,8 +75,9 @@ class VectorStoreRepository:
         )
         return [
             Document(
-                page_content=str(point.payload.get('content', '')) if point.payload else '',
-                metadata=dict(point.payload) if point.payload else {},
+                page_content=str(point.payload.get('content', '')),
+                metadata=dict(point.payload),
             )
             for point in res.points
+            if point.payload
         ]
