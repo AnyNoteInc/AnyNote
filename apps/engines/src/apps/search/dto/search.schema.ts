@@ -11,11 +11,14 @@ export type SearchPagesRequest = z.infer<typeof searchPagesRequestSchema>
 
 export type SearchPagesResponse = {
   documents: Array<{
-    id: string
+    pageId: string
+    workspaceId: string
+    chunkIndex: number
     title: string
     content: string
-    score: number
-    updatedAt: string
     pageType: string
+    createdById: string
+    createdAt: string
+    updatedAt: string
   }>
 }

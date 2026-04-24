@@ -1,3 +1,5 @@
+import type { RagDocument } from "./rag-search"
+
 export type WorkspaceSettingsSnapshot = {
   temperature: number | null
   topP: number | null
@@ -9,12 +11,6 @@ export type WorkspaceSettingsSnapshot = {
       connection: unknown
     }
   }
-}
-
-export type RagDocument = {
-  id: string
-  title: string
-  content: string
 }
 
 function normalizeConnection(value: unknown): Record<string, string> {

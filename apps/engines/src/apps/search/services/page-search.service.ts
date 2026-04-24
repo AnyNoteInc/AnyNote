@@ -4,12 +4,15 @@ import { QdrantService } from "../../../infra/qdrant/qdrant.service.js"
 import { EmbeddingClient } from "../../indexer/services/embedding-client.service.js"
 
 export type RagSearchDocument = {
-  id: string
+  pageId: string
+  workspaceId: string
+  chunkIndex: number
   title: string
   content: string
-  score: number
-  updatedAt: string
   pageType: string
+  createdById: string
+  createdAt: string
+  updatedAt: string
 }
 
 export type SearchArgs = {
@@ -23,6 +26,10 @@ type QdrantHit = {
   id: string | number
   score: number
   payload?: Record<string, unknown> | null
+}
+
+type RankedRagSearchDocument = RagSearchDocument & {
+  score: number
 }
 
 const DEFAULT_TOP_K = 5
@@ -49,13 +56,17 @@ export class PageSearchService {
       with_payload: true,
     })) as QdrantHit[]
 
-    const bestPerPage = new Map<string, RagSearchDocument>()
+    const bestPerPage = new Map<string, RankedRagSearchDocument>()
     for (const hit of hits) {
       const payload = (hit.payload ?? {}) as {
         pageId?: string
+        workspaceId?: string
+        chunkIndex?: number
         title?: string
         content?: string
         pageType?: string
+        createdById?: string
+        createdAt?: string
         updatedAt?: string
       }
 
@@ -69,18 +80,23 @@ export class PageSearchService {
       }
 
       bestPerPage.set(payload.pageId, {
-        id: payload.pageId,
+        pageId: payload.pageId,
+        workspaceId: payload.workspaceId ?? args.workspaceId,
+        chunkIndex: payload.chunkIndex ?? 0,
         title: payload.title ?? "",
         content: payload.content ?? "",
-        score: hit.score,
-        updatedAt: payload.updatedAt ?? "",
         pageType: payload.pageType ?? "",
+        createdById: payload.createdById ?? "",
+        createdAt: payload.createdAt ?? "",
+        updatedAt: payload.updatedAt ?? "",
+        score: hit.score,
       })
     }
 
     const documents = [...bestPerPage.values()]
       .sort((left, right) => right.score - left.score)
       .slice(0, topK)
+      .map(({ score: _score, ...document }) => document)
 
     return { documents }
   }

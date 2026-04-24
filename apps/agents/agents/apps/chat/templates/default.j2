@@ -29,8 +29,14 @@ Thread: {{ thread_id }}
 
 {% for d in rag.documents -%}
 ### Документ {{ loop.index }}
-- pageId: {{ d.id }}
+- pageId: {{ d.page_id }}
+- workspaceId: {{ d.workspace_id }}
+- chunkIndex: {{ d.chunk_index }}
 - title: {{ d.title }}
+- pageType: {{ d.page_type }}
+- createdById: {{ d.created_by_id }}
+- createdAt: {{ d.created_at }}
+- updatedAt: {{ d.updated_at }}
 - content:
 {{ d.content | indent(2, first=True) }}
 {% endfor -%}

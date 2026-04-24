@@ -130,9 +130,15 @@ describe('POST /api/agents/generate', () => {
     })
     mocks.searchRagDocuments.mockResolvedValue([
       {
-        id: '66666666-6666-6666-6666-666666666666',
+        pageId: '66666666-6666-6666-6666-666666666666',
+        workspaceId,
+        chunkIndex: 2,
         title: 'Found page',
         content: 'Found chunk',
+        pageType: 'TEXT',
+        createdById: userId,
+        createdAt: '2026-04-22T10:00:00.000Z',
+        updatedAt: '2026-04-22T10:05:00.000Z',
       },
     ])
     const txChatMessageCreate = vi
@@ -241,9 +247,15 @@ describe('POST /api/agents/generate', () => {
     expect(upstreamPayload.rag).toEqual({
       documents: [
         {
-          id: '66666666-6666-6666-6666-666666666666',
+          pageId: '66666666-6666-6666-6666-666666666666',
+          workspaceId,
+          chunkIndex: 2,
           title: 'Found page',
           content: 'Found chunk',
+          pageType: 'TEXT',
+          createdById: userId,
+          createdAt: '2026-04-22T10:00:00.000Z',
+          updatedAt: '2026-04-22T10:05:00.000Z',
         },
       ],
     })

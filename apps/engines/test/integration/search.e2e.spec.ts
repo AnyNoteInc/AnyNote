@@ -127,9 +127,14 @@ describe("Search e2e", () => {
     expect(response.status).toBe(201)
     expect(response.body.documents).toEqual([
       expect.objectContaining({
-        id: page.id,
+        pageId: page.id,
+        workspaceId,
         title: "RAG retrieval page",
+        chunkIndex: 0,
         pageType: "TEXT",
+        createdById: userId,
+        createdAt: expect.any(String),
+        updatedAt: expect.any(String),
       }),
     ])
     expect(response.body.documents[0]?.content).toEqual(expect.stringContaining("RAG"))

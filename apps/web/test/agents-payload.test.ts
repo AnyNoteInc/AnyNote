@@ -11,9 +11,15 @@ describe("buildAgentsPayload", () => {
       text: "hello",
       rag: [
         {
-          id: "44444444-4444-4444-4444-444444444444",
+          pageId: "44444444-4444-4444-4444-444444444444",
+          workspaceId: "22222222-2222-2222-2222-222222222222",
+          chunkIndex: 3,
           title: "Doc",
           content: "Chunk",
+          pageType: "TEXT",
+          createdById: "33333333-3333-3333-3333-333333333333",
+          createdAt: "2026-04-22T10:00:00.000Z",
+          updatedAt: "2026-04-22T10:05:00.000Z",
         },
       ],
       settings: {
@@ -33,9 +39,15 @@ describe("buildAgentsPayload", () => {
     expect(payload.rag).toEqual({
       documents: [
         {
-          id: "44444444-4444-4444-4444-444444444444",
+          pageId: "44444444-4444-4444-4444-444444444444",
+          workspaceId: "22222222-2222-2222-2222-222222222222",
+          chunkIndex: 3,
           title: "Doc",
           content: "Chunk",
+          pageType: "TEXT",
+          createdById: "33333333-3333-3333-3333-333333333333",
+          createdAt: "2026-04-22T10:00:00.000Z",
+          updatedAt: "2026-04-22T10:05:00.000Z",
         },
       ],
     })

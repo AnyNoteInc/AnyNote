@@ -16,12 +16,15 @@ describe("SearchController", () => {
     ;(mockService.search as jest.Mock).mockResolvedValue({
       documents: [
         {
-          id: "p1",
+          pageId: "p1",
+          workspaceId: "w1",
+          chunkIndex: 0,
           title: "T",
           content: "C",
-          score: 0.9,
-          updatedAt: "2026-04-22T00:00:00.000Z",
           pageType: "TEXT",
+          createdById: "u1",
+          createdAt: "2026-04-21T00:00:00.000Z",
+          updatedAt: "2026-04-22T00:00:00.000Z",
         },
       ],
     } as never)

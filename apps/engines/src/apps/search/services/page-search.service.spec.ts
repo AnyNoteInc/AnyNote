@@ -52,12 +52,15 @@ describe("PageSearchService", () => {
     )
     expect(result.documents).toEqual([
       {
-        id: "p1",
+        pageId: "p1",
+        workspaceId: "w1",
+        chunkIndex: 0,
         title: "Title p1",
         content: "content p1-0",
-        score: 0.9,
-        updatedAt: "2026-04-22T01:00:00.000Z",
         pageType: "TEXT",
+        createdById: "u1",
+        createdAt: "2026-04-22T00:00:00.000Z",
+        updatedAt: "2026-04-22T01:00:00.000Z",
       },
     ])
   })
@@ -73,8 +76,8 @@ describe("PageSearchService", () => {
     const result = await service.search({ workspaceId: "w1", query: "x" })
 
     expect(result.documents).toHaveLength(2)
-    expect(result.documents[0]).toMatchObject({ id: "p1", content: "high", score: 0.9 })
-    expect(result.documents[1]).toMatchObject({ id: "p2", content: "p2-best", score: 0.8 })
+    expect(result.documents[0]).toMatchObject({ pageId: "p1", chunkIndex: 1, content: "high" })
+    expect(result.documents[1]).toMatchObject({ pageId: "p2", chunkIndex: 0, content: "p2-best" })
   })
 
   it("caps at topK pages after dedupe", async () => {
@@ -86,7 +89,7 @@ describe("PageSearchService", () => {
     const result = await service.search({ workspaceId: "w1", query: "x", topK: 3 })
 
     expect(result.documents).toHaveLength(3)
-    expect(result.documents.map((document) => document.id)).toEqual(["p0", "p1", "p2"])
+    expect(result.documents.map((document) => document.pageId)).toEqual(["p0", "p1", "p2"])
   })
 
   it("returns empty documents when Qdrant returns no hits", async () => {

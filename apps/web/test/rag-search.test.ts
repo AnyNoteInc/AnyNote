@@ -21,12 +21,15 @@ describe("searchRagDocuments", () => {
           JSON.stringify({
             documents: [
               {
-                id: "11111111-1111-1111-1111-111111111111",
+                pageId: "11111111-1111-1111-1111-111111111111",
+                workspaceId: "22222222-2222-2222-2222-222222222222",
+                chunkIndex: 7,
                 title: "Doc",
                 content: "Chunk",
-                score: 0.9,
-                updatedAt: "2026-04-22T00:00:00.000Z",
                 pageType: "TEXT",
+                createdById: "33333333-3333-3333-3333-333333333333",
+                createdAt: "2026-04-21T23:00:00.000Z",
+                updatedAt: "2026-04-22T00:00:00.000Z",
               },
             ],
           }),
@@ -42,9 +45,15 @@ describe("searchRagDocuments", () => {
 
     expect(result).toEqual([
       {
-        id: "11111111-1111-1111-1111-111111111111",
+        pageId: "11111111-1111-1111-1111-111111111111",
+        workspaceId: "22222222-2222-2222-2222-222222222222",
+        chunkIndex: 7,
         title: "Doc",
         content: "Chunk",
+        pageType: "TEXT",
+        createdById: "33333333-3333-3333-3333-333333333333",
+        createdAt: "2026-04-21T23:00:00.000Z",
+        updatedAt: "2026-04-22T00:00:00.000Z",
       },
     ])
     expect(fetch).toHaveBeenCalledWith(

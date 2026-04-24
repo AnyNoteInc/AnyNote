@@ -1,18 +1,37 @@
 export type RagDocument = {
-  id: string
+  pageId: string
+  workspaceId: string
+  chunkIndex: number
   title: string
   content: string
+  pageType: string
+  createdById: string
+  createdAt: string
+  updatedAt: string
 }
 
 type SearchResponse = {
   documents?: Array<{
     id?: string
+    pageId?: string
+    workspaceId?: string
+    chunkIndex?: number
     title?: string
     content?: string
+    pageType?: string
+    createdById?: string
+    createdAt?: string
+    updatedAt?: string
   }>
 }
 
 const SEARCH_TIMEOUT_MS = 5000
+
+function getEnginesSearchUrl(): string {
+  const host = process.env.ENGINES_URL ?? "localhost"
+  const port = process.env.ENGINES_PORT ?? "8090"
+  return `http://${host}:${port}/search/pages`
+}
 
 export async function searchRagDocuments(args: {
   workspaceId: string
@@ -33,7 +52,7 @@ export async function searchRagDocuments(args: {
   }
 
   try {
-    const response = await fetch(`${process.env.ENGINES_URL}:${process.env.ENGINES_PORT}`, {
+    const response = await fetch(getEnginesSearchUrl(), {
       method: "POST",
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
@@ -56,9 +75,15 @@ export async function searchRagDocuments(args: {
     }
 
     return payload.documents.map((document) => ({
-      id: document.id ?? "",
+      pageId: document.pageId ?? document.id ?? "",
+      workspaceId: document.workspaceId ?? args.workspaceId,
+      chunkIndex: typeof document.chunkIndex === "number" ? document.chunkIndex : 0,
       title: document.title ?? "",
       content: document.content ?? "",
+      pageType: document.pageType ?? "",
+      createdById: document.createdById ?? "",
+      createdAt: document.createdAt ?? "",
+      updatedAt: document.updatedAt ?? "",
     }))
   } catch (error) {
     console.warn("RAG search failed", error)
