@@ -21,7 +21,7 @@ class ProcessingProvider(Provider):
     language_detector_service = provide(LanguageDetectorService, scope=Scope.APP)
     normalizer_service = provide(NormalizerService, scope=Scope.APP)
 
-    @provide
+    @provide(scope=Scope.APP)
     async def vector_store_repository(
         self,
         client: AsyncQdrantClient,
