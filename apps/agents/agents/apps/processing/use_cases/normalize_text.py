@@ -9,5 +9,8 @@ class NormalizeTextUseCase:
     normalizer: NormalizerService
 
     def __call__(self, payload: NormalizeRequestSchema) -> NormalizeResponseSchema:
-        chunks, language = self.normalizer.normalize(payload.text, payload.language)
+        normalized = self.normalizer.normalize(payload.text)
+        chunks = [normalized] if normalized else []
+        # Language is detected automatically within normalize()
+        language = self.normalizer.detector.detect(payload.text) if payload.text else 'ru'
         return NormalizeResponseSchema(chunks=chunks, language=language)
