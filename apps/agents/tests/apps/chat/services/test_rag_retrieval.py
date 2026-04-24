@@ -22,10 +22,8 @@ def _doc(page_id: str, block_number: int, content: str = 'x') -> Document:
 
 
 def _make_service(retriever_docs: list[Document]) -> RagRetrievalService:
-    retriever = MagicMock()
-    retriever.ainvoke = AsyncMock(return_value=retriever_docs)
     store = MagicMock()
-    store.as_retriever = MagicMock(return_value=retriever)
+    store.similarity_search = AsyncMock(return_value=retriever_docs)
     return RagRetrievalService(vector_store_repository=store)
 
 
@@ -67,8 +65,6 @@ async def test_respects_k_limit() -> None:
 async def test_overfetches_k_times_3() -> None:
     svc = _make_service([])
     await svc.retrieve(WS_ID, 'q', k=5)
-    svc.vector_store_repository.as_retriever.assert_called_once()
-    _, kwargs = svc.vector_store_repository.as_retriever.call_args
-    # workspace_id kwarg + k=15 (overfetch = k*3)
-    assert kwargs['workspace_id'] == str(WS_ID)
-    assert kwargs['k'] == 15
+    svc.vector_store_repository.similarity_search.assert_awaited_once_with(
+        workspace_id=str(WS_ID), query='q', k=15,
+    )

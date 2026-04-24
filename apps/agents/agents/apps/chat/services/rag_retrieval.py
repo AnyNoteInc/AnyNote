@@ -19,10 +19,9 @@ class RagRetrievalService:
     ) -> list[RagDocumentSchema]:
         if not query.strip():
             return []
-        retriever = self.vector_store_repository.as_retriever(
-            workspace_id=str(workspace_id), k=k * 3,
+        docs = await self.vector_store_repository.similarity_search(
+            workspace_id=str(workspace_id), query=query, k=k * 3,
         )
-        docs = await retriever.ainvoke(query)
         return self._dedupe(docs, k)
 
     @staticmethod
