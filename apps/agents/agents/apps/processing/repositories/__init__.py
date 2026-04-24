@@ -1,4 +1,3 @@
-from .vector_store_repository import VectorStoreRepository
-from .vectorization_repository import VectorizationRepository
+from .vector_store_repository import VectorStoreRepository as VectorStoreRepository
+from .vectorization_repository import VectorizationRepository as VectorizationRepository
 
-__all__ = ['VectorStoreRepository', 'VectorizationRepository']

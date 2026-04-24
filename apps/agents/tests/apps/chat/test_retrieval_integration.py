@@ -5,6 +5,7 @@ from uuid import uuid4
 import pytest
 from agents.apps.processing.repositories import VectorStoreRepository
 from agents.settings import SettingsSchema
+from fast_clean.schemas import BearerTokenAuthSchema
 from langchain_ollama import OllamaEmbeddings
 from qdrant_client import AsyncQdrantClient
 
@@ -19,9 +20,10 @@ async def test_full_indexing_then_retrieval_roundtrip() -> None:
     """
     settings = SettingsSchema()
     auth = settings.qdrant.auth
+    api_key = auth.bearer_token if isinstance(auth, BearerTokenAuthSchema) else None
     client = AsyncQdrantClient(
         url=settings.qdrant.url,
-        api_key=auth.bearer_token if auth else None,
+        api_key=api_key,
     )
     embeddings = OllamaEmbeddings(
         base_url=settings.ollama.url,

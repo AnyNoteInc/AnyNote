@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator
 
 from dishka import Provider, Scope, provide
 from fast_clean.repositories import SettingsRepositoryProtocol
+from fast_clean.schemas import BearerTokenAuthSchema
 from langchain_ollama import OllamaEmbeddings
 from qdrant_client import AsyncQdrantClient
 
@@ -21,9 +22,10 @@ class VectorsProvider(Provider):
     ) -> AsyncIterator[AsyncQdrantClient]:
         settings = await settings_repository.get(SettingsSchema)
         auth = settings.qdrant.auth
+        api_key = auth.bearer_token if isinstance(auth, BearerTokenAuthSchema) else None
         client = AsyncQdrantClient(
             url=settings.qdrant.url,
-            api_key=auth.bearer_token if auth else None,
+            api_key=api_key,
         )
         try:
             yield client
