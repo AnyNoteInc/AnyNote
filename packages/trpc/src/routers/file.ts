@@ -43,8 +43,10 @@ export const fileRouter = router({
     .input(
       z.object({
         workspaceId: uuid,
-        cursor: uuid.optional(),
-        limit: z.number().int().min(1).max(100).default(50),
+        search: z.string().max(256).optional(),
+        uploaderId: uuid.optional(),
+        page: z.number().int().min(0).default(0),
+        pageSize: z.number().int().min(1).max(100).default(20),
       }),
     )
     .query(async ({ ctx, input }) => {
@@ -62,14 +64,43 @@ export const fileRouter = router({
           message: "Not a member of this workspace",
         })
       }
-      const rows = await ctx.prisma.file.findMany({
-        where: { workspaceId: input.workspaceId, status: FileStatus.ACTIVE },
-        orderBy: { createdAt: "desc" },
-        take: input.limit,
-        cursor: input.cursor ? { id: input.cursor } : undefined,
-        skip: input.cursor ? 1 : 0,
-      })
-      return rows.map(serializeFile)
+
+      const search = input.search?.trim() ?? ""
+      const where: Prisma.FileWhereInput = {
+        workspaceId: input.workspaceId,
+        status: FileStatus.ACTIVE,
+        ...(search ? { name: { contains: search, mode: "insensitive" as const } } : {}),
+        ...(input.uploaderId ? { userId: input.uploaderId } : {}),
+      }
+
+      const [rows, total] = await Promise.all([
+        ctx.prisma.file.findMany({
+          where,
+          orderBy: { createdAt: "desc" },
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                image: true,
+              },
+            },
+          },
+          skip: input.page * input.pageSize,
+          take: input.pageSize,
+        }),
+        ctx.prisma.file.count({ where }),
+      ])
+
+      return {
+        items: rows.map((row) => ({
+          ...serializeFile(row),
+          user: row.user,
+        })),
+        total,
+      }
     }),
 
   getById: protectedProcedure.input(z.object({ id: uuid })).query(async ({ ctx, input }) => {
