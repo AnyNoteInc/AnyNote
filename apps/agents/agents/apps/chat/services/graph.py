@@ -9,6 +9,7 @@ from langgraph.graph.state import CompiledStateGraph
 from ..enums import RoleEnum
 from ..repositories import JinjaRendererRepository, McpToolsRepository, ModelFactoryRepository
 from ..schemas import GraphStateSchema, McpServerToolsSchema, RuntimeContext
+from .rag_retrieval import RagRetrievalService
 
 type CompiledGraph = CompiledStateGraph[GraphStateSchema, None, GraphStateSchema, GraphStateSchema]
 
@@ -18,6 +19,7 @@ class GraphService:
     jinja_repository: JinjaRendererRepository
     mcp_tools_repository: McpToolsRepository
     model_factory_repository: ModelFactoryRepository
+    rag_retrieval_service: RagRetrievalService
     checkpointer: AsyncPostgresSaver
 
     def make_graph(self, state: GraphStateSchema) -> CompiledGraph:
@@ -46,6 +48,12 @@ class GraphService:
         if servers:
             context.tools, mcp_server_tools = await self.mcp_tools_repository.fetch_mcp_tools(servers)
 
+        rag_documents = await self.rag_retrieval_service.retrieve(
+            workspace_id=state.user_context.x_workspace_id,
+            query=payload.query,
+            k=5,
+        )
+
         messages: list[BaseMessage] = [SystemMessage(content=state.system_prompt)]
         messages += [
             HumanMessage(content=msg.content) if msg.role == RoleEnum.USER else AIMessage(content=msg.content)
@@ -54,7 +62,9 @@ class GraphService:
 
         messages.append(HumanMessage(content=payload.query))
 
-        system_prompt = self.jinja_repository.render(state.payload, mcp_server_tools)
+        system_prompt = self.jinja_repository.render(
+            state.payload, mcp_server_tools, rag_documents,
+        )
         print('-' * 60)
         print(system_prompt)
         print('-' * 60)
