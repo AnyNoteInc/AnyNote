@@ -69,3 +69,29 @@ async def test_overfetches_k_times_3() -> None:
     mock.assert_awaited_once_with(
         workspace_id=str(WS_ID), query='q', k=15,
     )
+
+
+def test_rag_document_accepts_snake_case_kwargs() -> None:
+    from agents.apps.chat.schemas import RagDocumentSchema
+    doc = RagDocumentSchema(
+        page_id=UUID('00000000-0000-0000-0000-000000000001'),
+        workspace_id=UUID('00000000-0000-0000-0000-000000000002'),
+        title='T',
+        page_type='TEXT',
+        block_number=0,
+        content='c',
+    )
+    assert doc.page_id == UUID('00000000-0000-0000-0000-000000000001')
+
+
+def test_rag_document_accepts_camel_case_via_model_validate() -> None:
+    from agents.apps.chat.schemas import RagDocumentSchema
+    doc = RagDocumentSchema.model_validate({
+        'pageId': '00000000-0000-0000-0000-000000000001',
+        'workspaceId': '00000000-0000-0000-0000-000000000002',
+        'title': 'T',
+        'pageType': 'TEXT',
+        'blockNumber': 0,
+        'content': 'c',
+    })
+    assert doc.page_id == UUID('00000000-0000-0000-0000-000000000001')

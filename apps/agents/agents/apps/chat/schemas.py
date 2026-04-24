@@ -5,7 +5,8 @@ from uuid import UUID
 from fast_clean.schemas.request_response import RequestResponseSchema
 from langchain_core.messages import BaseMessage
 from langchain_core.tools import StructuredTool
-from pydantic import BaseModel, Field
+from pydantic import AliasGenerator, BaseModel, ConfigDict, Field
+from pydantic.alias_generators import to_camel
 
 from .enums import ModelProviderEnum, RoleEnum
 
@@ -31,6 +32,14 @@ class SkillConfigSchema(RequestResponseSchema):
 
 
 class RagDocumentSchema(RequestResponseSchema):
+    model_config = ConfigDict(
+        alias_generator=AliasGenerator(
+            validation_alias=to_camel,
+            serialization_alias=to_camel,
+        ),
+        populate_by_name=True,
+    )
+
     page_id: UUID
     """
     PageId идентификатор документа

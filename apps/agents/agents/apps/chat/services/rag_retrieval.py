@@ -34,11 +34,11 @@ class RagRetrievalService:
                 continue
             seen.add(key)
             result.append(RagDocumentSchema(
-                pageId=UUID(d.metadata['pageId']),
-                workspaceId=UUID(d.metadata['workspaceId']),
+                page_id=UUID(d.metadata['pageId']),
+                workspace_id=UUID(d.metadata['workspaceId']),
                 title=d.metadata['title'],
-                pageType=d.metadata['pageType'],
-                blockNumber=d.metadata['blockNumber'],
+                page_type=d.metadata['pageType'],
+                block_number=d.metadata['blockNumber'],
                 content=d.metadata['content'],
             ))
             if len(result) >= k:
