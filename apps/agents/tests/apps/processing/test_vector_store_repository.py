@@ -1,6 +1,7 @@
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
+import httpx
 import pytest
 from agents.apps.processing.repositories.vector_store_repository import VectorStoreRepository
 
@@ -20,7 +21,6 @@ def _make_repo(client: Any = None, embeddings: Any = None) -> VectorStoreReposit
 @pytest.mark.asyncio
 async def test_ensure_collection_creates_when_missing() -> None:
     client = AsyncMock()
-    client.get_collections = AsyncMock(return_value=MagicMock(collections=[]))
     client.create_collection = AsyncMock()
     repo = _make_repo(client=client)
 
@@ -32,17 +32,17 @@ async def test_ensure_collection_creates_when_missing() -> None:
 
 
 @pytest.mark.asyncio
-async def test_ensure_collection_noop_when_exists() -> None:
-    existing = MagicMock()
-    existing.name = COLLECTION
+async def test_ensure_collection_swallows_already_exists() -> None:
+    from qdrant_client.http.exceptions import UnexpectedResponse
     client = AsyncMock()
-    client.get_collections = AsyncMock(return_value=MagicMock(collections=[existing]))
-    client.create_collection = AsyncMock()
+    client.create_collection = AsyncMock(
+        side_effect=UnexpectedResponse(409, "already exists", b"", httpx.Headers()),
+    )
     repo = _make_repo(client=client)
 
-    await repo.ensure_collection()
+    await repo.ensure_collection()  # should not raise
 
-    client.create_collection.assert_not_awaited()
+    client.create_collection.assert_awaited_once()
 
 
 @pytest.mark.asyncio

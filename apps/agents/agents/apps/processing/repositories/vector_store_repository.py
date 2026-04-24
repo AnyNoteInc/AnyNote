@@ -4,6 +4,7 @@ from typing import Any
 from langchain_core.documents import Document
 from langchain_ollama import OllamaEmbeddings
 from qdrant_client import AsyncQdrantClient
+from qdrant_client.http.exceptions import UnexpectedResponse
 from qdrant_client.http.models import (
     Distance,
     FieldCondition,
@@ -24,12 +25,15 @@ class VectorStoreRepository:
     vector_size: int
 
     async def ensure_collection(self) -> None:
-        cols = await self.client.get_collections()
-        if not any(c.name == self.collection_name for c in cols.collections):
+        try:
             await self.client.create_collection(
                 self.collection_name,
                 vectors_config=VectorParams(size=self.vector_size, distance=Distance.COSINE),
             )
+        except UnexpectedResponse as e:
+            # 409: collection already exists — idempotent, safe to ignore.
+            if e.status_code != 409:
+                raise
 
     async def delete_by_page(self, page_id: str) -> None:
         await self.client.delete(
