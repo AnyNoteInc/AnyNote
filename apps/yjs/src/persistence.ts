@@ -1,4 +1,9 @@
-import { prisma, PageType, Prisma } from "@repo/db"
+import {
+  enqueueOutboxEventIgnoreConflict,
+  PageType,
+  Prisma,
+  prisma,
+} from "@repo/db"
 import * as Y from "yjs"
 import { TiptapTransformer } from "@hocuspocus/transformer"
 
@@ -18,16 +23,16 @@ export async function loadPageDocument(pageId: string): Promise<Y.Doc> {
 
 export async function storePageDocument(args: {
   pageId: string
+  workspaceId: string
   document: Y.Doc
   pageType: PageType
 }): Promise<void> {
-  const { pageId, document, pageType } = args
-  // `new Uint8Array(typedArray)` copies into a fresh ArrayBuffer-backed view,
-  // matching Prisma's `Uint8Array<ArrayBuffer>` (not `ArrayBufferLike`) type.
+  const { pageId, workspaceId, document, pageType } = args
   const contentYjs = new Uint8Array(Y.encodeStateAsUpdate(document))
 
   const data: Prisma.PageUpdateInput = { contentYjs }
-  if (pageType !== PageType.EXCALIDRAW) {
+
+  if (pageType === PageType.TEXT) {
     try {
       data.content = TiptapTransformer.fromYdoc(document, "default") as Prisma.InputJsonValue
     } catch (err) {
@@ -36,10 +41,23 @@ export async function storePageDocument(args: {
         error: (err as Error).message,
       })
     }
+  } else if (pageType === PageType.EXCALIDRAW) {
+    const yElements = document.getArray("elements")
+    const snapshot = { elements: yElements.toJSON() }
+    data.content = snapshot as Prisma.InputJsonValue
   }
 
-  await prisma.page.update({
-    where: { id: pageId },
-    data,
+  await prisma.$transaction(async (tx) => {
+    await tx.page.update({ where: { id: pageId }, data })
+
+    if (pageType === PageType.TEXT) {
+      await enqueueOutboxEventIgnoreConflict(tx, {
+        eventType: "page.upserted",
+        aggregateType: "page",
+        aggregateId: pageId,
+        workspaceId,
+        delayMs: 5 * 60 * 1000,
+      })
+    }
   })
 }
