@@ -11,7 +11,8 @@
     "check-types": "tsc --noEmit",
     "lint": "eslint \"src/**/*.ts\" --max-warnings 0",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
-    "test-int": "NODE_OPTIONS=--experimental-vm-modules jest --config jest.integration.config.ts"
+    "test-int": "NODE_OPTIONS=--experimental-vm-modules jest --config jest.integration.config.ts",
+    "backfill:reindex": "tsx --env-file=../../.env src/cli/backfill-reindex.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
@@ -45,6 +46,7 @@
     "supertest": "^7.0.0",
     "ts-jest": "^29.2.5",
     "ts-node": "^10.9.2",
+    "tsx": "^4.21.0",
     "typescript": "^5.7.0"
   }
 }
