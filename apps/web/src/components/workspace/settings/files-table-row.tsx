@@ -73,12 +73,19 @@ export function FilesTableRow({ file, currentUserId, onRequestDelete }: Props) {
           <FileExtIcon ext={file.ext} />
           <Tooltip title={displayName}>
             <Typography
+              component="a"
+              href={downloadUrl}
+              target="_blank"
+              rel="noreferrer"
               variant="body2"
               sx={{
                 overflow: "hidden",
                 textOverflow: "ellipsis",
                 whiteSpace: "nowrap",
                 minWidth: 0,
+                color: "text.primary",
+                textDecoration: "none",
+                "&:hover": { textDecoration: "underline" },
               }}
             >
               {displayName}
