@@ -33,6 +33,10 @@ export { default as TableBody, type TableBodyProps } from "@mui/material/TableBo
 export { default as TableCell, type TableCellProps } from "@mui/material/TableCell"
 export { default as TableHead, type TableHeadProps } from "@mui/material/TableHead"
 export { default as TableRow, type TableRowProps } from "@mui/material/TableRow"
+export {
+  default as TablePagination,
+  type TablePaginationProps,
+} from "@mui/material/TablePagination"
 
 export { default as Select, type SelectProps } from "@mui/material/Select"
 export { default as Menu, type MenuProps } from "@mui/material/Menu"
@@ -91,6 +95,17 @@ export { default as AccountTreeIcon } from "@mui/icons-material/AccountTree"
 export { default as ArrowRightOutlinedIcon } from "@mui/icons-material/ArrowRightOutlined"
 export { default as VisibilityIcon } from "@mui/icons-material/Visibility"
 export { default as VisibilityOffIcon } from "@mui/icons-material/VisibilityOff"
+export { default as DownloadIcon } from "@mui/icons-material/Download"
+export { default as PictureAsPdfIcon } from "@mui/icons-material/PictureAsPdf"
+export { default as ImageIcon } from "@mui/icons-material/Image"
+export { default as VideoFileIcon } from "@mui/icons-material/VideoFile"
+export { default as AudioFileIcon } from "@mui/icons-material/AudioFile"
+export { default as FolderZipIcon } from "@mui/icons-material/FolderZip"
+export { default as TableChartIcon } from "@mui/icons-material/TableChart"
+export { default as SlideshowIcon } from "@mui/icons-material/Slideshow"
+export { default as TextSnippetIcon } from "@mui/icons-material/TextSnippet"
+export { default as CodeIcon } from "@mui/icons-material/Code"
+export { default as InsertDriveFileIcon } from "@mui/icons-material/InsertDriveFile"
 export { default as ListItemIcon, type ListItemIconProps } from "@mui/material/ListItemIcon"
 export { default as ListItemText, type ListItemTextProps } from "@mui/material/ListItemText"
 
