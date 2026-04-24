@@ -13,7 +13,7 @@ from agents.apps.chat.schemas import (
     RuntimeContext,
     UserContextSchema,
 )
-from agents.apps.chat.services import GraphService
+from agents.apps.chat.services import GraphService, RagRetrievalService
 from langchain_core.messages import AIMessage
 from langchain_core.tools import StructuredTool
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
@@ -21,10 +21,10 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 class StubJinjaRendererRepository:
     def __init__(self) -> None:
-        self.calls: list[tuple[QueryRequestSchema, list[object]]] = []
+        self.calls: list[tuple[QueryRequestSchema, list[object], list[object]]] = []
 
-    def render(self, context: QueryRequestSchema, mcp_servers: list[object]) -> str:
-        self.calls.append((context, mcp_servers))
+    def render(self, context: QueryRequestSchema, mcp_servers: list[object], rag_documents: list[object]) -> str:
+        self.calls.append((context, mcp_servers, rag_documents))
         return 'rendered prompt'
 
 
@@ -55,6 +55,11 @@ class StubModelFactoryRepository:
 
     def make(self, _config: object) -> StubStreamingModel:
         return self.model
+
+
+class StubRagRetrievalService:
+    async def retrieve(self, workspace_id: object, query: str, k: int = 5) -> list[object]:
+        return []
 
 
 def make_query_request(*, mcp: McpConfigSchema | None) -> QueryRequestSchema:
@@ -110,6 +115,7 @@ async def test_prepare_prompt_handles_missing_or_empty_mcp_servers(
         jinja_repository=cast(JinjaRendererRepository, renderer),
         mcp_tools_repository=cast(McpToolsRepository, mcp_tools),
         model_factory_repository=cast(ModelFactoryRepository, object()),
+        rag_retrieval_service=cast(RagRetrievalService, StubRagRetrievalService()),
         checkpointer=cast(AsyncPostgresSaver, object()),
     )
 
@@ -130,7 +136,10 @@ async def test_prepare_prompt_handles_missing_or_empty_mcp_servers(
 
     assert mcp_tools.calls == []
     assert context.tools == []
-    assert renderer.calls == [(result.payload, [])]
+    assert len(renderer.calls) == 1
+    assert renderer.calls[0][0] == result.payload
+    assert renderer.calls[0][1] == []  # mcp_servers
+    assert renderer.calls[0][2] == []  # rag_documents
     assert result.system_prompt == 'rendered prompt'
     assert result.tools == []
     assert [type(message).__name__ for message in result.messages] == [
@@ -154,6 +163,7 @@ async def test_llm_uses_async_model_invocation_to_allow_streaming() -> None:
         jinja_repository=cast(JinjaRendererRepository, object()),
         mcp_tools_repository=cast(McpToolsRepository, object()),
         model_factory_repository=cast(ModelFactoryRepository, StubModelFactoryRepository(model)),
+        rag_retrieval_service=cast(RagRetrievalService, StubRagRetrievalService()),
         checkpointer=cast(AsyncPostgresSaver, object()),
     )
 

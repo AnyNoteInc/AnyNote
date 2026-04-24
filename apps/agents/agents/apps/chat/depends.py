@@ -11,7 +11,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from agents.settings import SettingsSchema
 
 from .repositories import JinjaRendererRepository, McpToolsRepository, ModelFactoryRepository
-from .services import GraphService
+from .services import GraphService, RagRetrievalService
 from .use_cases import GenerateStreamUseCase
 
 
@@ -36,6 +36,8 @@ class ChatProvider(Provider):
     mcp_tools_repository = provide(McpToolsRepository, scope=Scope.APP)
 
     graph_service = provide(GraphService)
+
+    rag_retrieval_service = provide(RagRetrievalService)
 
     generate_stream_use_case = provide(GenerateStreamUseCase)
 
