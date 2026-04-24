@@ -15,7 +15,6 @@ import { trpc } from "@/trpc/client"
 type DialogFile = {
   id: string
   name: string
-  ext: string
 }
 
 type Props = {
@@ -44,14 +43,12 @@ export function FilesDeleteDialog({ open, file, onClose, onDeleted }: Props) {
     onClose()
   }
 
-  const displayName = file ? (file.ext ? `${file.name}.${file.ext}` : file.name) : ""
-
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth>
       <DialogTitle>Удалить файл?</DialogTitle>
       <DialogContent>
         <DialogContentText>
-          Файл «{displayName}» будет удалён. Это действие нельзя отменить.
+          Файл «{file?.name ?? ""}» будет удалён. Это действие нельзя отменить.
         </DialogContentText>
         {mutation.error ? (
           <Alert severity="error" sx={{ mt: 2 }}>

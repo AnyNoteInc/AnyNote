@@ -54,7 +54,6 @@ const fullName = (user: RowUser) => {
 const initials = (user: RowUser) => fullName(user).slice(0, 1).toUpperCase()
 
 export function FilesTableRow({ file, currentUserId, onRequestDelete }: Props) {
-  const displayName = file.ext ? `${file.name}.${file.ext}` : file.name
   const downloadUrl = `/api/files/${file.id}`
   const owned = file.userId === currentUserId
 
@@ -63,7 +62,7 @@ export function FilesTableRow({ file, currentUserId, onRequestDelete }: Props) {
       <TableCell sx={{ maxWidth: 320 }}>
         <Stack direction="row" spacing={1} alignItems="center" sx={{ minWidth: 0 }}>
           <FileExtIcon ext={file.ext} />
-          <Tooltip title={displayName}>
+          <Tooltip title={file.name}>
             <Typography
               component="a"
               href={downloadUrl}
@@ -80,7 +79,7 @@ export function FilesTableRow({ file, currentUserId, onRequestDelete }: Props) {
                 "&:hover": { textDecoration: "underline" },
               }}
             >
-              {displayName}
+              {file.name}
             </Typography>
           </Tooltip>
         </Stack>
