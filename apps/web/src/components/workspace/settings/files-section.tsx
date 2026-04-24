@@ -6,7 +6,9 @@ import {
   Alert,
   Box,
   Button,
+  InputAdornment,
   Paper,
+  SearchIcon,
   Stack,
   Table,
   TableBody,
@@ -14,6 +16,7 @@ import {
   TableHead,
   TablePagination,
   TableRow,
+  TextField,
   Typography,
 } from "@repo/ui/components"
 
@@ -86,7 +89,7 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
     if (listQuery.isLoading && items.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={7} sx={{ textAlign: "center", py: 4 }}>
+          <TableCell colSpan={5} sx={{ textAlign: "center", py: 4 }}>
             <Typography variant="body2" color="text.secondary">
               Загрузка…
             </Typography>
@@ -98,7 +101,7 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
     if (items.length === 0 && filtersActive) {
       return (
         <TableRow>
-          <TableCell colSpan={7} sx={{ textAlign: "center", py: 4 }}>
+          <TableCell colSpan={5} sx={{ textAlign: "center", py: 4 }}>
             <Stack spacing={1} alignItems="center">
               <Typography variant="body2" color="text.secondary">
                 По фильтрам ничего не найдено.
@@ -115,7 +118,7 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
     if (items.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={7} sx={{ textAlign: "center", py: 4 }}>
+          <TableCell colSpan={5} sx={{ textAlign: "center", py: 4 }}>
             <Typography variant="body2" color="text.secondary">
               Файлы ещё не загружались.
             </Typography>
@@ -148,12 +151,27 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
           <Alert severity="error">{listQuery.error.message}</Alert>
         ) : null}
 
+        <TextField
+          size="small"
+          placeholder="Поиск по названию"
+          value={searchInput}
+          onChange={(e) => setSearchInput(e.target.value)}
+          slotProps={{
+            input: {
+              startAdornment: (
+                <InputAdornment position="start">
+                  <SearchIcon fontSize="small" />
+                </InputAdornment>
+              ),
+            },
+          }}
+          fullWidth
+        />
+
         <FilesFilters
-          search={searchInput}
           uploaderId={uploaderId}
           uploaders={uploadersQuery.data ?? []}
           uploadersLoading={uploadersQuery.isLoading}
-          onSearchChange={setSearchInput}
           onUploaderChange={setUploaderId}
         />
 
@@ -162,9 +180,7 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
             <TableHead>
               <TableRow>
                 <TableCell>Название</TableCell>
-                <TableCell>Расширение</TableCell>
                 <TableCell align="right">Размер</TableCell>
-                <TableCell>Статус</TableCell>
                 <TableCell align="right">Скачивания</TableCell>
                 <TableCell>Загрузил</TableCell>
                 <TableCell align="right">Действия</TableCell>

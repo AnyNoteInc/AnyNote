@@ -2,19 +2,7 @@
 
 import { useRef, useState } from "react"
 
-import {
-  Avatar,
-  Box,
-  Chip,
-  InputAdornment,
-  Menu,
-  MenuItem,
-  Popover,
-  SearchIcon,
-  Stack,
-  TextField,
-  Typography,
-} from "@repo/ui/components"
+import { Avatar, Box, Chip, Menu, MenuItem, Stack, Typography } from "@repo/ui/components"
 
 type Uploader = {
   id: string
@@ -25,11 +13,9 @@ type Uploader = {
 }
 
 type Props = {
-  search: string
   uploaderId: string | null
   uploaders: Uploader[]
   uploadersLoading: boolean
-  onSearchChange: (value: string) => void
   onUploaderChange: (value: string | null) => void
 }
 
@@ -51,21 +37,16 @@ function shortName(user: Uploader) {
 }
 
 export function FilesFilters({
-  search,
   uploaderId,
   uploaders,
   uploadersLoading,
-  onSearchChange,
   onUploaderChange,
 }: Props) {
-  const searchChipRef = useRef<HTMLDivElement>(null)
   const uploaderChipRef = useRef<HTMLDivElement>(null)
-  const [searchOpen, setSearchOpen] = useState(false)
   const [uploaderOpen, setUploaderOpen] = useState(false)
 
-  const activeUploader = uploaderId ? uploaders.find((u) => u.id === uploaderId) ?? null : null
+  const activeUploader = uploaderId ? (uploaders.find((u) => u.id === uploaderId) ?? null) : null
 
-  const searchLabel = search ? `Название: «${search}»` : "Название"
   const uploaderLabel = activeUploader
     ? `Пользователь: ${shortName(activeUploader)}`
     : "Пользователь"
@@ -73,15 +54,6 @@ export function FilesFilters({
   return (
     <>
       <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
-        <Chip
-          ref={searchChipRef}
-          label={searchLabel}
-          variant={search ? "filled" : "outlined"}
-          color={search ? "primary" : "default"}
-          icon={<SearchIcon fontSize="small" />}
-          onClick={() => setSearchOpen(true)}
-          onDelete={search ? () => onSearchChange("") : undefined}
-        />
         <Chip
           ref={uploaderChipRef}
           label={uploaderLabel}
@@ -91,32 +63,6 @@ export function FilesFilters({
           onDelete={activeUploader ? () => onUploaderChange(null) : undefined}
         />
       </Stack>
-
-      <Popover
-        open={searchOpen}
-        anchorEl={searchChipRef.current}
-        onClose={() => setSearchOpen(false)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-        slotProps={{ paper: { sx: { p: 1.5, width: 280 } } }}
-      >
-        <TextField
-          autoFocus
-          fullWidth
-          size="small"
-          placeholder="Поиск по названию"
-          value={search}
-          onChange={(e) => onSearchChange(e.target.value)}
-          slotProps={{
-            input: {
-              startAdornment: (
-                <InputAdornment position="start">
-                  <SearchIcon fontSize="small" />
-                </InputAdornment>
-              ),
-            },
-          }}
-        />
-      </Popover>
 
       <Menu
         open={uploaderOpen}
@@ -141,10 +87,7 @@ export function FilesFilters({
               }}
             >
               <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
-                <Avatar
-                  src={user.image ?? undefined}
-                  sx={{ width: 24, height: 24, fontSize: 12 }}
-                >
+                <Avatar src={user.image ?? undefined} sx={{ width: 24, height: 24, fontSize: 12 }}>
                   {initials(user)}
                 </Avatar>
                 <Typography variant="body2" noWrap>

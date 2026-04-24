@@ -3,7 +3,6 @@
 import {
   Avatar,
   Box,
-  Chip,
   DeleteIcon,
   DownloadIcon,
   IconButton,
@@ -54,13 +53,6 @@ const fullName = (user: RowUser) => {
 
 const initials = (user: RowUser) => fullName(user).slice(0, 1).toUpperCase()
 
-const STATUS_LABEL: Record<string, string> = {
-  ACTIVE: "Активен",
-  ARCHIVED: "В архиве",
-  PENDING: "Обработка",
-  DELETED: "Удалён",
-}
-
 export function FilesTableRow({ file, currentUserId, onRequestDelete }: Props) {
   const displayName = file.ext ? `${file.name}.${file.ext}` : file.name
   const downloadUrl = `/api/files/${file.id}`
@@ -93,11 +85,7 @@ export function FilesTableRow({ file, currentUserId, onRequestDelete }: Props) {
           </Tooltip>
         </Stack>
       </TableCell>
-      <TableCell>{file.ext ? file.ext.toUpperCase() : "—"}</TableCell>
       <TableCell align="right">{formatMb(file.fileSize)}</TableCell>
-      <TableCell>
-        <Chip size="small" label={STATUS_LABEL[file.status] ?? file.status} />
-      </TableCell>
       <TableCell align="right">{file.downloadCount}</TableCell>
       <TableCell>
         <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
