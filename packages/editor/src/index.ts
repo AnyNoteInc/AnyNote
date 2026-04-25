@@ -5,6 +5,7 @@ export type { SlashMediaHandlers } from "./slash-items"
 export { BlockMoveDialog } from "./components/block-move-dialog"
 export { moveBlockToPage } from "./lib/block-move"
 export type { MoveBlockResult } from "./lib/block-move"
+export { scrollToBlockIndex } from "./block-anchor"
 export type { Editor } from "@tiptap/core"
 export type {
   AnyNoteEditorProps,
