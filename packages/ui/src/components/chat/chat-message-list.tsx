@@ -9,6 +9,7 @@ import { ChatProvider } from "@mui/x-chat-headless"
 import { useMemo } from "react"
 
 import { ChatEmptyState } from "./chat-empty-state"
+import { ChatLoadingPhrases } from "./chat-loading-phrases"
 import { ChatMessageContent } from "./chat-message-content"
 import {
   buildProviderMessages,
@@ -111,6 +112,10 @@ export function ChatMessageList({
           }
 
           const isUser = message.role === "user"
+          const isEmptyStreamingAssistant =
+            message.role === "assistant" &&
+            message.status === "streaming" &&
+            message.parts.length === 0
           const timestamp = formatTimestamp(message.createdAt)
           const status = getStatusLabel(message)
           const label = getAuthorLabel(message)
@@ -136,29 +141,32 @@ export function ChatMessageList({
                       {label}
                     </Typography>
                   ) : null}
-                  <Box
-                    suppressHydrationWarning
-                    sx={{
-                      bgcolor: isUser ? "primary.main" : "background.paper",
-                      border: 1,
-                      borderColor: isUser ? "primary.main" : "divider",
-                      borderRadius: 3,
-                      boxShadow: 1,
-                      color: isUser ? "primary.contrastText" : "text.primary",
-                      px: 1.5,
-                      py: 1.25,
-                      "& .MuiChatMessage-bubble": {
-                        backgroundColor: "transparent",
-                        borderRadius: 0,
-                        padding: 0,
-                      },
-                    }}
-                  >
-                    <ChatMessageContent parts={message.parts} />
-                  </Box>
-                  {timestamp || status ? (
+                  {isEmptyStreamingAssistant ? null : (
+                    <Box
+                      suppressHydrationWarning
+                      sx={{
+                        bgcolor: isUser ? "primary.main" : "background.paper",
+                        border: 1,
+                        borderColor: isUser ? "primary.main" : "divider",
+                        borderRadius: 3,
+                        boxShadow: 1,
+                        color: isUser ? "primary.contrastText" : "text.primary",
+                        px: 1.5,
+                        py: 1.25,
+                        "& .MuiChatMessage-bubble": {
+                          backgroundColor: "transparent",
+                          borderRadius: 0,
+                          padding: 0,
+                        },
+                      }}
+                    >
+                      <ChatMessageContent parts={message.parts} />
+                    </Box>
+                  )}
+                  {timestamp || status || isEmptyStreamingAssistant ? (
                     <Typography color="text.secondary" mt={0.75} variant="caption">
-                      {[timestamp, status].filter(Boolean).join(" • ")}
+                      {timestamp ? `${timestamp} • ` : null}
+                      {isEmptyStreamingAssistant ? <ChatLoadingPhrases /> : status}
                     </Typography>
                   ) : null}
                 </Box>

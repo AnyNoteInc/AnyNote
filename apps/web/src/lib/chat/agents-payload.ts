@@ -11,6 +11,11 @@ export type WorkspaceSettingsSnapshot = {
   }
 }
 
+export type AgentConversationMessage = {
+  role: "user" | "assistant"
+  content: string
+}
+
 function normalizeConnection(value: unknown): Record<string, string> {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     return {}
@@ -31,6 +36,7 @@ export function buildAgentsPayload(args: {
   userId: string
   text: string
   settings: WorkspaceSettingsSnapshot
+  messages?: AgentConversationMessage[]
 }) {
   return {
     threadId: args.chatId,
@@ -44,6 +50,7 @@ export function buildAgentsPayload(args: {
       },
     },
     systemPrompt: args.settings.systemPrompt ?? "",
+    messages: args.messages ?? [],
     mcp: {
       servers: [
         {

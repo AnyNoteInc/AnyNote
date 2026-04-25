@@ -43,6 +43,7 @@ export {
   ChatMessageRole,
   FileStatus,
 } from '@prisma/client'
+export type { ChatMessageStatus } from '@prisma/client'
 export type {
   User,
   Account,

@@ -15,7 +15,8 @@ from agents.apps.chat.services.graph import GraphService
 @pytest.mark.asyncio
 async def test_prepare_prompt_invokes_retrieval_and_render() -> None:
     jinja = MagicMock()
-    jinja.render = MagicMock(return_value='SYSTEM')
+    jinja.system_render = MagicMock(return_value='SYSTEM')
+    jinja.user_render = MagicMock(return_value='USER')
     mcp = MagicMock()
     mcp.fetch_mcp_tools = AsyncMock(return_value=([], []))
     retrieval = MagicMock()
@@ -64,5 +65,7 @@ async def test_prepare_prompt_invokes_retrieval_and_render() -> None:
     retrieval.retrieve.assert_awaited_once_with(
         workspace_id=ws_id, query='ping', k=5,
     )
-    jinja.render.assert_called_once()
+    jinja.system_render.assert_called_once()
+    jinja.user_render.assert_called_once()
     assert new_state.system_prompt == 'SYSTEM'
+    assert str(new_state.messages[-1].content) == 'USER'

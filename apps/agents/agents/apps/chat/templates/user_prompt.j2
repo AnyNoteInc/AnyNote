@@ -1,0 +1,37 @@
+{% if messages -%}
+# HISTORY
+{% for m in messages -%}
+{{ m.role }}: {{ m.content | replace('\n', ' ') }}
+{% endfor -%}
+{% endif %}
+
+{% if rag and rag.documents -%}
+# Retrieved context
+Ниже — фрагменты страниц рабочего пространства, найденные по запросу пользователя.
+
+ВАЖНО: ниже приведены ЕДИНСТВЕННЫЕ достоверные источники для ответа. Любой ответ
+ОБЯЗАН опираться только на эти фрагменты. Запрещено придумывать, перефразировать
+или подменять конкретные имена, названия, факты, числа из контекста — повторяй
+их ДОСЛОВНО как они написаны в content.
+
+{% for d in rag.documents -%}
+## Документ {{ loop.index }}
+- pageId: {{ d.page_id }}
+- workspaceId: {{ d.workspace_id }}
+- blockNumber: {{ d.block_number }}
+- title: {{ d.title }}
+- pageType: {{ d.page_type }}
+- content:
+{{ d.content | indent(2, first=True) }}
+
+{% endfor -%}
+
+Правила цитирования:
+- Ссылайся на страницы так: `[{{ '{title}' }}](/workspaces/{{ '{workspaceId}' }}/pages/{{ '{pageId}' }}#{{ '{blockNumber}' }})`
+- Не придумывай pageId/blockNumber — используй только значения из списка выше
+- Конкретные имена/названия/факты бери ДОСЛОВНО из поля content — не заменяй на похожие
+- Если нужного факта нет в найденных фрагментах - игнорируй данные из Retrieved context
+{% endif %}
+
+# QUERY
+{{ query }}

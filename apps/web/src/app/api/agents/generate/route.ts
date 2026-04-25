@@ -3,7 +3,12 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 import { getSession } from '@/lib/get-session'
 import { activeStreamRegistry } from '@/lib/chat/active-stream-registry'
-import { buildAgentsPayload, type WorkspaceSettingsSnapshot } from '@/lib/chat/agents-payload'
+import {
+  buildAgentsPayload,
+  type AgentConversationMessage,
+  type WorkspaceSettingsSnapshot,
+} from '@/lib/chat/agents-payload'
+import { buildChatHistoryMessages } from '@/lib/chat/chat-history'
 import { encodeSseEvent, decodeAgentsSseEvents } from '@/lib/chat/sse'
 import type { ServiceBlock, StartChatGenerationBody } from '@/lib/chat/types'
 
@@ -158,6 +163,7 @@ async function streamAgentsToRegistry(args: {
   userId: string
   workspaceId: string
   settings: WorkspaceSettingsSnapshot
+  messages: AgentConversationMessage[]
 }) {
   const flush = createDebouncedPersist({
     assistantMessageId: args.assistantMessageId,
@@ -181,6 +187,7 @@ async function streamAgentsToRegistry(args: {
             text: args.text,
             userId: args.userId,
             workspaceId: args.workspaceId,
+            messages: args.messages,
           }),
         ),
       },
@@ -282,13 +289,13 @@ export async function POST(request: NextRequest): Promise<Response> {
       id: body.chatId,
       workspace: { members: { some: { userId: session.user.id } } },
     },
-    select: { id: true, title: true, workspaceId: true },
+    select: { id: true, title: true, workspaceId: true, parentId: true },
   })
   if (!chat) {
     return NextResponse.json({ error: 'Chat not found' }, { status: 404 })
   }
 
-  const [files, settings] = await Promise.all([
+  const [files, settings, historyMessages] = await Promise.all([
     body.fileIds.length > 0
       ? prisma.file.findMany({
           where: {
@@ -305,6 +312,11 @@ export async function POST(request: NextRequest): Promise<Response> {
       include: {
         defaultModel: { include: { provider: true } },
       },
+    }),
+    buildChatHistoryMessages({
+      prisma,
+      chatId: chat.id,
+      workspaceId: chat.workspaceId,
     }),
   ])
 
@@ -386,6 +398,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     text: body.text,
     userId: session.user.id,
     workspaceId: chat.workspaceId,
+    messages: historyMessages,
   })
   entry.setUpstreamTask(upstreamTask)
 
