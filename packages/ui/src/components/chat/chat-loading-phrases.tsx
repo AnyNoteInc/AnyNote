@@ -1,6 +1,5 @@
 "use client"
 
-import Typography from "@mui/material/Typography"
 import { useEffect, useState } from "react"
 
 const LOADING_PHRASES = ["Загрузка", "Вычисления", "Преобразование", "Литье"] as const
@@ -16,9 +15,5 @@ export function ChatLoadingPhrases() {
     return () => clearInterval(id)
   }, [])
 
-  return (
-    <Typography color="text.secondary" suppressHydrationWarning variant="body2">
-      {LOADING_PHRASES[index]}
-    </Typography>
-  )
+  return <span suppressHydrationWarning>{LOADING_PHRASES[index]}</span>
 }

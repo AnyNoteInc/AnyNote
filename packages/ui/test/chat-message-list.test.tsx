@@ -78,7 +78,7 @@ describe("ChatMessageList", () => {
     expect(hasTransparentBubbleRule).toBe(true)
   })
 
-  it("shows loading phrases for an assistant message that is streaming with empty parts", () => {
+  it("shows loading phrases instead of Печатает for an empty streaming assistant", () => {
     render(
       <ChatMessageList
         messages={[
@@ -93,6 +93,26 @@ describe("ChatMessageList", () => {
     )
 
     expect(screen.getByText("Загрузка")).toBeTruthy()
+    expect(screen.queryByText("Печатает")).toBeNull()
+  })
+
+  it("shows Печатает (not loading phrases) once the assistant emits text while streaming", () => {
+    render(
+      <ChatMessageList
+        messages={[
+          {
+            id: "assistant-text-streaming-status",
+            parts: [{ type: "text", text: "Промежуточный кусок ответа" }],
+            role: "assistant",
+            status: "streaming",
+            createdAt: "2026-04-25T15:00:00.000Z",
+          },
+        ]}
+      />,
+    )
+
+    expect(screen.getByText("15:00 • Печатает")).toBeTruthy()
+    expect(screen.queryByText("Загрузка")).toBeNull()
   })
 
   it("does not show loading phrases once the assistant has produced text", () => {
