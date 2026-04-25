@@ -1,6 +1,6 @@
 "use client"
 
-import { useCallback, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import dynamic from "next/dynamic"
 import { useRouter } from "next/navigation"
 
@@ -8,6 +8,7 @@ import type { PageType } from "@repo/db"
 import {
   BlockMoveDialog,
   moveBlockToPage,
+  scrollToBlockIndex,
   type Editor,
   type MoveBlockResult,
   type PageLookupItem,
@@ -24,10 +25,11 @@ import {
 } from "@/components/workspace/page-tree-picker"
 
 import { usePageEditor } from "./editor-context"
+import { EditorContentSkeleton } from "./editor-content-skeleton"
 
 const AnyNoteEditor = dynamic(() => import("@repo/editor").then((m) => m.AnyNoteEditor), {
   ssr: false,
-  loading: () => <CenteredSpinner />,
+  loading: () => <EditorContentSkeleton />,
 })
 
 const Board = dynamic(() => import("@repo/excalidraw").then((m) => m.Board), {
@@ -71,6 +73,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
   const pagesQuery = trpc.page.listByWorkspace.useQuery({ workspaceId })
   const editorRef = useRef<Editor | null>(null)
 
+  const [editorReady, setEditorReady] = useState(false)
   const [movePos, setMovePos] = useState<number | null>(null)
   const [moveTarget, setMoveTarget] = useState<PageTreeSelection | null>(null)
   const [moveBusy, setMoveBusy] = useState(false)
@@ -111,9 +114,43 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
     (editor: Editor) => {
       editorRef.current = editor
       pageEditor.setEditor(editor)
+      setEditorReady(true)
     },
     [pageEditor],
   )
+
+  useEffect(() => {
+    if (!editorReady) return
+    const editor = editorRef.current
+    if (!editor) return
+
+    let timer: number | null = null
+    let cancelled = false
+
+    const apply = () => {
+      const hash = window.location.hash.slice(1)
+      if (!hash) return
+      const index = Number.parseInt(hash, 10)
+      if (Number.isNaN(index)) return
+      let attempts = 0
+      const tryScroll = () => {
+        if (cancelled) return
+        if (scrollToBlockIndex(editor, index)) return
+        if (++attempts < 10) {
+          timer = window.setTimeout(tryScroll, 150)
+        }
+      }
+      tryScroll()
+    }
+
+    apply()
+    window.addEventListener("hashchange", apply)
+    return () => {
+      cancelled = true
+      if (timer) window.clearTimeout(timer)
+      window.removeEventListener("hashchange", apply)
+    }
+  }, [editorReady])
 
   const handleRequestBlockMove = useCallback((pos: number) => {
     setMovePos(pos)
@@ -203,6 +240,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
           onNavigateToPage={onNavigateToPage}
           onReady={handleEditorReady}
           onRequestBlockMove={handleRequestBlockMove}
+          loadingFallback={<EditorContentSkeleton />}
         />
         <BlockMoveDialog
           open={movePos != null}
