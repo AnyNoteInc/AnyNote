@@ -1,4 +1,4 @@
-import type { Prisma, PrismaClient } from "@repo/db"
+import type { ChatMessageRole, ChatMessageStatus, Prisma, PrismaClient } from "@repo/db"
 
 import type { AgentConversationMessage } from "./agents-payload"
 
@@ -8,7 +8,7 @@ const ANCESTOR_LAST_COUNT = 4
 
 type MessageRow = {
   id: string
-  role: "USER" | "ASSISTANT"
+  role: ChatMessageRole
   parts: Prisma.JsonValue
   createdAt: Date
 }
@@ -59,7 +59,7 @@ function pickHistory(messages: MessageRow[], lastCount: number): MessageRow[] {
   return [first, ...tail]
 }
 
-function mapRole(role: "USER" | "ASSISTANT"): AgentConversationMessage["role"] {
+function mapRole(role: ChatMessageRole): AgentConversationMessage["role"] {
   return role === "USER" ? "user" : "assistant"
 }
 
@@ -92,7 +92,7 @@ export async function buildChatHistoryMessages(args: {
     const lastCount = isCurrent ? CURRENT_CHAT_LAST_COUNT : ANCESTOR_LAST_COUNT
 
     const messages = (await args.prisma.chatMessage.findMany({
-      where: { chatId: chain[i], status: "DONE" },
+      where: { chatId: chain[i], status: "DONE" satisfies ChatMessageStatus },
       orderBy: { createdAt: "asc" },
       select: { id: true, role: true, parts: true, createdAt: true },
     })) as MessageRow[]

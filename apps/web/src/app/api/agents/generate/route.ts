@@ -3,9 +3,12 @@ import { NextResponse, type NextRequest } from 'next/server'
 
 import { getSession } from '@/lib/get-session'
 import { activeStreamRegistry } from '@/lib/chat/active-stream-registry'
-import { buildAgentsPayload, type WorkspaceSettingsSnapshot } from '@/lib/chat/agents-payload'
+import {
+  buildAgentsPayload,
+  type AgentConversationMessage,
+  type WorkspaceSettingsSnapshot,
+} from '@/lib/chat/agents-payload'
 import { buildChatHistoryMessages } from '@/lib/chat/chat-history'
-import type { AgentConversationMessage } from '@/lib/chat/agents-payload'
 import { encodeSseEvent, decodeAgentsSseEvents } from '@/lib/chat/sse'
 import type { ServiceBlock, StartChatGenerationBody } from '@/lib/chat/types'
 
@@ -292,7 +295,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     return NextResponse.json({ error: 'Chat not found' }, { status: 404 })
   }
 
-  const [files, settings] = await Promise.all([
+  const [files, settings, historyMessages] = await Promise.all([
     body.fileIds.length > 0
       ? prisma.file.findMany({
           where: {
@@ -309,6 +312,11 @@ export async function POST(request: NextRequest): Promise<Response> {
       include: {
         defaultModel: { include: { provider: true } },
       },
+    }),
+    buildChatHistoryMessages({
+      prisma,
+      chatId: chat.id,
+      workspaceId: chat.workspaceId,
     }),
   ])
 
@@ -342,12 +350,6 @@ export async function POST(request: NextRequest): Promise<Response> {
   const orderedFiles = body.fileIds.flatMap((fileId) => {
     const file = filesById.get(fileId)
     return file ? [file] : []
-  })
-
-  const historyMessages = await buildChatHistoryMessages({
-    prisma,
-    chatId: chat.id,
-    workspaceId: chat.workspaceId,
   })
 
   const { assistantMessage, userMessage } = await prisma.$transaction(async (tx) => {
