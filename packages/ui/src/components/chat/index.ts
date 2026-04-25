@@ -1,6 +1,7 @@
 export * from "./chat-composer"
 export * from "./chat-empty-state"
 export * from "./chat-file-chip"
+export * from "./chat-loading-phrases"
 export * from "./chat-message-content"
 export * from "./chat-message-list"
 export * from "./chat-service-block"

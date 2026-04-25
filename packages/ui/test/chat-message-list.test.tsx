@@ -77,4 +77,39 @@ describe("ChatMessageList", () => {
 
     expect(hasTransparentBubbleRule).toBe(true)
   })
+
+  it("shows loading phrases for an assistant message that is streaming with empty parts", () => {
+    render(
+      <ChatMessageList
+        messages={[
+          {
+            id: "assistant-empty-streaming",
+            parts: [],
+            role: "assistant",
+            status: "streaming",
+          },
+        ]}
+      />,
+    )
+
+    expect(screen.getByText("Загрузка")).toBeTruthy()
+  })
+
+  it("does not show loading phrases once the assistant has produced text", () => {
+    render(
+      <ChatMessageList
+        messages={[
+          {
+            id: "assistant-text-streaming",
+            parts: [{ type: "text", text: "Уже что-то есть" }],
+            role: "assistant",
+            status: "streaming",
+          },
+        ]}
+      />,
+    )
+
+    expect(screen.queryByText("Загрузка")).toBeNull()
+    expect(screen.getByText("Уже что-то есть")).toBeTruthy()
+  })
 })

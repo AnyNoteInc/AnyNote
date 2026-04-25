@@ -9,6 +9,7 @@ import { ChatProvider } from "@mui/x-chat-headless"
 import { useMemo } from "react"
 
 import { ChatEmptyState } from "./chat-empty-state"
+import { ChatLoadingPhrases } from "./chat-loading-phrases"
 import { ChatMessageContent } from "./chat-message-content"
 import {
   buildProviderMessages,
@@ -154,7 +155,13 @@ export function ChatMessageList({
                       },
                     }}
                   >
-                    <ChatMessageContent parts={message.parts} />
+                    {message.role === "assistant" &&
+                    message.status === "streaming" &&
+                    message.parts.length === 0 ? (
+                      <ChatLoadingPhrases />
+                    ) : (
+                      <ChatMessageContent parts={message.parts} />
+                    )}
                   </Box>
                   {timestamp || status ? (
                     <Typography color="text.secondary" mt={0.75} variant="caption">
