@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => {
     prisma: {
       $transaction: vi.fn(),
       chat: { findFirst: vi.fn() },
-      chatMessage: { update: vi.fn() },
+      chatMessage: { update: vi.fn(), findMany: vi.fn() },
       file: { findMany: vi.fn() },
       workspaceAiSettings: { findUnique: vi.fn() },
     },
@@ -103,7 +103,22 @@ describe('POST /api/agents/generate', () => {
       id: chatId,
       title: 'Новый чат',
       workspaceId,
+      parentId: null,
     })
+    mocks.prisma.chatMessage.findMany.mockResolvedValue([
+      {
+        id: 'prev-1',
+        role: 'USER',
+        parts: [{ type: 'text', text: 'previous question' }],
+        createdAt: new Date('2026-04-25T10:00:00Z'),
+      },
+      {
+        id: 'prev-2',
+        role: 'ASSISTANT',
+        parts: [{ type: 'text', text: 'previous answer' }],
+        createdAt: new Date('2026-04-25T10:01:00Z'),
+      },
+    ])
     mocks.prisma.file.findMany.mockResolvedValue([
       {
         id: fileId,
@@ -222,5 +237,15 @@ describe('POST /api/agents/generate', () => {
         status: 'DONE',
       },
     })
+
+    const upstreamCall = fetchMock.mock.calls.find(([url]) =>
+      String(url).endsWith('/chat/generate'),
+    )
+    expect(upstreamCall).toBeDefined()
+    const sentBody = JSON.parse(upstreamCall![1].body as string)
+    expect(sentBody.messages).toEqual([
+      { role: 'user', content: 'previous question' },
+      { role: 'assistant', content: 'previous answer' },
+    ])
   })
 })
