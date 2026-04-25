@@ -60,9 +60,13 @@ class GraphService:
             for msg in payload.messages
         ]
 
-        messages.append(HumanMessage(content=payload.query))
+        user_query = self.jinja_repository.user_render(
+            state.payload, mcp_server_tools, rag_documents,
+        )
 
-        system_prompt = self.jinja_repository.render(
+        messages.append(HumanMessage(content=user_query))
+
+        system_prompt = self.jinja_repository.system_render(
             state.payload, mcp_server_tools, rag_documents,
         )
 

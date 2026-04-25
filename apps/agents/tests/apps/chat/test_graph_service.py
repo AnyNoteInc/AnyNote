@@ -21,11 +21,26 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 class StubJinjaRendererRepository:
     def __init__(self) -> None:
-        self.calls: list[tuple[QueryRequestSchema, list[object], list[object]]] = []
+        self.system_calls: list[tuple[QueryRequestSchema, list[object], list[object]]] = []
+        self.user_calls: list[tuple[QueryRequestSchema, list[object], list[object]]] = []
 
-    def render(self, context: QueryRequestSchema, mcp_servers: list[object], rag_documents: list[object]) -> str:
-        self.calls.append((context, mcp_servers, rag_documents))
-        return 'rendered prompt'
+    def system_render(
+        self,
+        context: QueryRequestSchema,
+        mcp_servers: list[object],
+        rag_documents: list[object],
+    ) -> str:
+        self.system_calls.append((context, mcp_servers, rag_documents))
+        return 'rendered system prompt'
+
+    def user_render(
+        self,
+        context: QueryRequestSchema,
+        mcp_servers: list[object],
+        rag_documents: list[object],
+    ) -> str:
+        self.user_calls.append((context, mcp_servers, rag_documents))
+        return 'rendered user prompt'
 
 
 class StubMcpToolsRepository:
@@ -136,11 +151,15 @@ async def test_prepare_prompt_handles_missing_or_empty_mcp_servers(
 
     assert mcp_tools.calls == []
     assert context.tools == []
-    assert len(renderer.calls) == 1
-    assert renderer.calls[0][0] == result.payload
-    assert renderer.calls[0][1] == []  # mcp_servers
-    assert renderer.calls[0][2] == []  # rag_documents
-    assert result.system_prompt == 'rendered prompt'
+    assert len(renderer.system_calls) == 1
+    assert renderer.system_calls[0][0] == result.payload
+    assert renderer.system_calls[0][1] == []  # mcp_servers
+    assert renderer.system_calls[0][2] == []  # rag_documents
+    assert len(renderer.user_calls) == 1
+    assert renderer.user_calls[0][0] == result.payload
+    assert renderer.user_calls[0][1] == []  # mcp_servers
+    assert renderer.user_calls[0][2] == []  # rag_documents
+    assert result.system_prompt == 'rendered system prompt'
     assert result.tools == []
     assert [type(message).__name__ for message in result.messages] == [
         'SystemMessage',
@@ -152,7 +171,7 @@ async def test_prepare_prompt_handles_missing_or_empty_mcp_servers(
         'base system prompt',
         'Earlier message',
         'Earlier answer',
-        'Latest question',
+        'rendered user prompt',
     ]
 
 

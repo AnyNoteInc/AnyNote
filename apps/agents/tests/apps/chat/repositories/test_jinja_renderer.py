@@ -47,9 +47,9 @@ def _rag_doc() -> RagDocumentSchema:
     })
 
 
-def test_render_with_rag_documents_has_anchor_link() -> None:
+def test_user_render_with_rag_documents_has_anchor_link() -> None:
     renderer = JinjaRendererRepository(_settings())
-    result = renderer.render(_payload(), [], [_rag_doc()])
+    result = renderer.user_render(_payload(), [], [_rag_doc()])
     # citation format literal appears as placeholder string
     assert '/workspaces/' in result
     assert '/pages/' in result
@@ -60,14 +60,31 @@ def test_render_with_rag_documents_has_anchor_link() -> None:
     assert 'coffee details' in result
 
 
-def test_render_without_rag_omits_retrieved_context() -> None:
+def test_user_render_without_rag_omits_retrieved_context() -> None:
     renderer = JinjaRendererRepository(_settings())
-    result = renderer.render(_payload(), [], [])
-    assert '## Retrieved context' not in result
+    result = renderer.user_render(_payload(), [], [])
+    assert 'Retrieved context' not in result
 
 
-def test_render_still_renders_tools_section() -> None:
+def test_user_render_includes_query() -> None:
     renderer = JinjaRendererRepository(_settings())
-    result = renderer.render(_payload(), [], [])
+    result = renderer.user_render(_payload(), [], [])
+    assert 'test query' in result
+
+
+def test_system_render_renders_tools_section() -> None:
+    renderer = JinjaRendererRepository(_settings())
+    result = renderer.system_render(_payload(), [], [])
     # getPageMarkdown is referenced in the # TOOLS section regardless
     assert 'getPageMarkdown' in result
+
+
+def test_system_render_omits_rag_and_query() -> None:
+    renderer = JinjaRendererRepository(_settings())
+    result = renderer.system_render(_payload(), [], [_rag_doc()])
+    # RAG content lives in the user prompt — only the priority-list mention of
+    # "Retrieved context" should remain, never the actual document body.
+    assert 'coffee details' not in result
+    assert 'blockNumber: 7' not in result
+    # The query also belongs to the user prompt
+    assert 'test query' not in result
