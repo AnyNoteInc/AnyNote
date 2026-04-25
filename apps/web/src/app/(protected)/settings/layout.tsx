@@ -3,6 +3,7 @@ import Link from "next/link"
 
 import { Avatar, Box, Container, Paper, Stack, Typography } from "@repo/ui/components"
 
+import { settingsSidebarBackLink } from "@/components/settings/settings-sidebar-links"
 import { SettingsNav } from "@/components/settings/settings-nav"
 import { getSession } from "@/lib/get-session"
 
@@ -33,7 +34,7 @@ export default async function SettingsLayout({ children }: { children: ReactNode
         >
           <Stack spacing={2}>
             <Link
-              href="/app"
+              href={settingsSidebarBackLink.href}
               style={{
                 display: "flex",
                 alignItems: "center",
@@ -44,7 +45,7 @@ export default async function SettingsLayout({ children }: { children: ReactNode
               }}
             >
               <span>←</span>
-              <span>Вернуться в workspace</span>
+              <span>{settingsSidebarBackLink.label}</span>
             </Link>
             <Stack
               direction="row"

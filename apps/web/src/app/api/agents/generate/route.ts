@@ -70,15 +70,7 @@ function createAttacmentPart(file: ValidChatFile) {
 }
 
 function createToolPart(block: ServiceBlock) {
-  return {
-    type: 'tool' as const,
-    id: block.id,
-    kind: block.kind,
-    state: block.state,
-    title: block.title,
-    detail: block.detail,
-    result: block.result,
-  }
+  return {type: 'tool' as const, ...block}
 }
 
 function createAssistantParts(entry: ReturnType<typeof activeStreamRegistry.create>) {
