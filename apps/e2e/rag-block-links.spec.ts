@@ -43,17 +43,24 @@ let prisma: {
 test.setTimeout(180_000)
 
 test.beforeAll(async () => {
-  if (!process.env.DATABASE_URL) {
-    const envPath = join(process.cwd(), ".env")
-    const envFile = readFileSync(envPath, "utf8")
-    const databaseUrl = envFile
+  const envPath = join(process.cwd(), ".env")
+  const envFile = readFileSync(envPath, "utf8")
+  const readVar = (key: string): string | undefined =>
+    envFile
       .split("\n")
       .map((l) => l.trim())
-      .find((l) => l.startsWith("DATABASE_URL="))
-      ?.slice("DATABASE_URL=".length)
+      .find((l) => l.startsWith(`${key}=`))
+      ?.slice(`${key}=`.length)
       .replace(/^"|"$/g, "")
+
+  if (!process.env.DATABASE_URL) {
+    const databaseUrl = readVar("DATABASE_URL")
     if (!databaseUrl) throw new Error("DATABASE_URL not configured in .env")
     process.env.DATABASE_URL = databaseUrl
+  }
+  if (!process.env.QDRANT__AUTH__BEARER_TOKEN) {
+    const token = readVar("QDRANT__AUTH__BEARER_TOKEN")
+    if (token) process.env.QDRANT__AUTH__BEARER_TOKEN = token
   }
   const db = await import("../../packages/db/src/index")
   RoleType = db.RoleType
