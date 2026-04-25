@@ -12,6 +12,7 @@ import { common, createLowlight } from "lowlight"
 import type * as Y from "yjs"
 
 import { BlockBackground } from "./block-background"
+import { BlockIndexAttributes } from "./block-index-attributes"
 import { Callout } from "./callout"
 import { buildCollaboration } from "./collaboration"
 import { FileAttachment } from "./file-attachment"
@@ -65,4 +66,5 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
     items: opts.slashItems,
     render: opts.slashRender,
   }),
+  BlockIndexAttributes,
 ]
