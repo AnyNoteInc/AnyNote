@@ -47,6 +47,7 @@ export type AnyNoteEditorProps = {
   placeholder?: string
   onReady?: (editor: Editor) => void
   onRequestBlockMove?: (pos: number) => void
+  loadingFallback?: ReactNode
 }
 
 export type SlashCommandItem = {
