@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server"
-import { parseWebhookEvent, verifyTrustedIp } from "@repo/yookassa"
+import { parseWebhookEvent, verifyTrustedIp } from "@repo/yookassa/next"
 import { prisma } from "@repo/db"
 import { getYookassaClient } from "@/server/yookassa"
 import {

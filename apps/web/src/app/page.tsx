@@ -152,53 +152,52 @@ export default async function HomePage() {
           {landingPricingCards.map((plan) => {
             const isPrimary = plan.slug === "pro"
             return (
-              <Paper
-                key={plan.slug}
-                component={Link}
-                href="/pricing"
-                elevation={0}
-                sx={{
-                  p: 3.5,
-                  borderRadius: 4,
-                  minHeight: 360,
-                  color: "text.primary",
-                  display: "flex",
-                  textDecoration: "none",
-                  border: isPrimary
-                    ? "1px solid rgba(15, 118, 110, 0.34)"
-                    : "1px solid rgba(148,163,184,0.18)",
-                  backgroundColor: "background.paper",
-                  backgroundImage: isPrimary
-                    ? "linear-gradient(180deg, rgba(15, 118, 110, 0.10) 0%, rgba(255,255,255,0.03) 100%)"
-                    : "none",
-                  boxShadow: isPrimary ? "0 18px 42px rgba(15, 118, 110, 0.10)" : "none",
-                }}
-              >
-                <Stack spacing={2} sx={{ width: "100%" }}>
-                  <Typography variant="h5">{plan.name}</Typography>
-                  <Typography variant="h2" sx={{ fontSize: "3rem" }}>
-                    {plan.price}
-                  </Typography>
-                  <Divider />
-                  <Stack spacing={1.2}>
-                    {plan.features.map((item) => (
-                      <Typography key={item} color="text.secondary">
-                        • {item}
-                      </Typography>
-                    ))}
+              <Link key={plan.slug} href="/pricing" style={{ textDecoration: "none" }}>
+                <Paper
+                  elevation={0}
+                  sx={{
+                    p: 3.5,
+                    borderRadius: 4,
+                    minHeight: 360,
+                    color: "text.primary",
+                    display: "flex",
+                    textDecoration: "none",
+                    border: isPrimary
+                      ? "1px solid rgba(15, 118, 110, 0.34)"
+                      : "1px solid rgba(148,163,184,0.18)",
+                    backgroundColor: "background.paper",
+                    backgroundImage: isPrimary
+                      ? "linear-gradient(180deg, rgba(15, 118, 110, 0.10) 0%, rgba(255,255,255,0.03) 100%)"
+                      : "none",
+                    boxShadow: isPrimary ? "0 18px 42px rgba(15, 118, 110, 0.10)" : "none",
+                  }}
+                >
+                  <Stack spacing={2} sx={{ width: "100%" }}>
+                    <Typography variant="h5">{plan.name}</Typography>
+                    <Typography variant="h2" sx={{ fontSize: "3rem" }}>
+                      {plan.price}
+                    </Typography>
+                    <Divider />
+                    <Stack spacing={1.2}>
+                      {plan.features.map((item) => (
+                        <Typography key={item} color="text.secondary">
+                          • {item}
+                        </Typography>
+                      ))}
+                    </Stack>
+                    <Box sx={{ pt: 1, mt: "auto" }}>
+                      <Button
+                        component="span"
+                        variant={isPrimary ? "contained" : "outlined"}
+                        color={isPrimary ? "primary" : "inherit"}
+                        fullWidth
+                      >
+                        Смотреть тариф
+                      </Button>
+                    </Box>
                   </Stack>
-                  <Box sx={{ pt: 1, mt: "auto" }}>
-                    <Button
-                      component="span"
-                      variant={isPrimary ? "contained" : "outlined"}
-                      color={isPrimary ? "primary" : "inherit"}
-                      fullWidth
-                    >
-                      Смотреть тариф
-                    </Button>
-                  </Box>
-                </Stack>
-              </Paper>
+                </Paper>
+              </Link>
             )
           })}
         </Box>

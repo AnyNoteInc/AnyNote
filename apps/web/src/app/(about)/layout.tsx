@@ -3,6 +3,7 @@ import { Box } from "@repo/ui/components"
 import { PublicFooter } from "@/components/public/public-footer"
 import { PublicHeader } from "@/components/public/public-header"
 import { getSession } from "@/lib/get-session"
+import { TRPCReactProvider } from "@/trpc/client"
 
 export default async function AboutLayout({
   children,
@@ -34,11 +35,13 @@ export default async function AboutLayout({
         }}
       />
 
-      <Box sx={{ position: "relative" }}>
-        <PublicHeader session={session} />
-        <main>{children}</main>
-        <PublicFooter />
-      </Box>
+      <TRPCReactProvider>
+        <Box sx={{ position: "relative" }}>
+          <PublicHeader session={session} />
+          <main>{children}</main>
+          <PublicFooter />
+        </Box>
+      </TRPCReactProvider>
     </Box>
   )
 }

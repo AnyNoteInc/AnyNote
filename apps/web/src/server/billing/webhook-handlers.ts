@@ -1,6 +1,6 @@
 import "server-only"
 import type { PrismaClient } from "@prisma/client"
-import type { Payment, Refund, YookassaClient } from "@repo/yookassa"
+import type { Payment, Refund, YookassaClient } from "@repo/yookassa/next"
 
 type Ctx = { yookassa: YookassaClient; prisma: PrismaClient }
 

@@ -10,6 +10,10 @@
       "import": "./src/index.ts",
       "types": "./src/index.ts"
     },
+    "./next": {
+      "import": "./src/index.next.ts",
+      "types": "./src/index.next.ts"
+    },
     "./*": {
       "import": "./src/*",
       "types": "./src/*"

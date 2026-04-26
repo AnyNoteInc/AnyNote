@@ -2,12 +2,16 @@ import { initTRPC, TRPCError } from "@trpc/server"
 
 import { prisma } from "@repo/db"
 import { getUserFromRequest } from "@repo/auth"
-import type { YookassaClient } from "@repo/yookassa"
+import type { CreatePaymentInput, Payment } from "@repo/yookassa"
+
+type YookassaClientLike = {
+  createPayment(input: CreatePaymentInput, idempotencyKey: string): Promise<Payment>
+}
 
 type CreateContextOptions = {
   req: Request
   resHeaders: Headers
-  yookassa: YookassaClient
+  yookassa: YookassaClientLike
   returnUrlBase: string
 }
 
@@ -25,7 +29,7 @@ export const createContext = async ({ req, resHeaders, yookassa, returnUrlBase }
 
 export const createServerContext = async (
   headers: Headers,
-  yookassa: YookassaClient,
+  yookassa: YookassaClientLike,
   returnUrlBase: string,
 ) => {
   return createContext({
