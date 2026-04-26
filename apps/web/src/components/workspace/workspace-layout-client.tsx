@@ -11,6 +11,8 @@ import { PageActionsToolbar } from "@/components/page/page-actions-toolbar"
 import { PageEditorProvider } from "@/components/page/editor-context"
 import { useFullWidth } from "@/hooks/use-full-width"
 
+import type { PlanFeatures } from "@repo/trpc"
+
 import { WorkspaceShell } from "./workspace-shell"
 import { WorkspaceSidebar } from "./workspace-sidebar"
 import { WorkspaceToolbar } from "./workspace-toolbar"
@@ -19,7 +21,7 @@ import type { PageItem } from "./types"
 
 type Props = {
   workspace: { id: string; name: string; icon: string | null }
-  planName: string
+  features: PlanFeatures
   pages: PageItem[]
   user: { id: string; firstName: string; lastName: string; email: string; image: string | null }
   children: ReactNode
@@ -30,7 +32,7 @@ export const SIDEBAR_WIDTH = 313
 
 export function WorkspaceLayoutClient({
   workspace,
-  planName,
+  features,
   pages: initialPages,
   user,
   children,
@@ -107,7 +109,7 @@ export function WorkspaceLayoutClient({
 
   const userMenu = <WorkspaceUserMenu user={user} />
 
-  const sidebarProps = { workspace, planName, pages, userMenu }
+  const sidebarProps = { workspace, features, pages, userMenu }
 
   const pageIdMatch = pathname.match(/\/pages\/([a-f0-9-]{36})/)
   const activePageId = pageIdMatch?.[1] ?? null

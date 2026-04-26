@@ -11,6 +11,14 @@ import { aiSettingsRouter } from "./routers/ai-settings"
 export { createContext, createServerContext } from "./trpc"
 export type { Context } from "./trpc"
 
+export type { PlanFeatures } from "./helpers/plan"
+export {
+  getWorkspaceFeatures,
+  getAvailableAiModels,
+  requireWritableWorkspace,
+  getActivePlanForUser,
+} from "./helpers/plan"
+
 export const appRouter = router({
   health: publicProcedure.query(() => ({ ok: true })),
   user: userRouter,

@@ -16,6 +16,8 @@ import {
   Typography,
 } from "@repo/ui/components"
 
+import type { PlanFeatures } from "@repo/trpc"
+
 import { trpc } from "@/trpc/client"
 
 import { FavoritesSection } from "./favorites-section"
@@ -26,13 +28,13 @@ import { SIDEBAR_WIDTH } from "./workspace-layout-client"
 
 type Props = {
   workspace: { id: string; name: string; icon: string | null }
-  planName: string
+  features: PlanFeatures
   pages: PageItem[]
   onHide?: () => void
   userMenu: ReactNode
 }
 
-export function WorkspaceSidebar({ workspace, planName, pages, onHide, userMenu }: Props) {
+export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu }: Props) {
   const pathname = usePathname()
   const favorites = trpc.page.listFavorites.useQuery({ workspaceId: workspace.id })
   const favoritePageIds = useMemo(
@@ -75,7 +77,7 @@ export function WorkspaceSidebar({ workspace, planName, pages, onHide, userMenu 
             {workspace.name}
           </Typography>
           <Typography variant="caption" color="text.secondary">
-            {planName} plan
+            {features.name} plan
           </Typography>
         </Stack>
         {onHide ? (
