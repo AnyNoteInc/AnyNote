@@ -5,23 +5,25 @@ import { usePathname } from "next/navigation"
 
 import { Box, Stack } from "@repo/ui/components"
 
-type Props = { workspaceId: string }
+import type { PlanFeatures } from "@repo/trpc"
 
-const ITEMS = [
-  { label: "Общее", slug: "general" },
-  { label: "Участники", slug: "members" },
-  { label: "AI агент", slug: "ai" },
-  { label: "Файлы", slug: "files" },
-  { label: "Опасная зона", slug: "danger" },
-] as const
+type Props = { workspaceId: string; features: PlanFeatures }
 
-export function WorkspaceSettingsNav({ workspaceId }: Props) {
+export function WorkspaceSettingsNav({ workspaceId, features }: Props) {
   const pathname = usePathname()
   const base = `/workspaces/${workspaceId}/settings`
 
+  const items = [
+    { label: "Общее", slug: "general", show: true },
+    { label: "Участники", slug: "members", show: features.membersSettingsEnabled },
+    { label: "AI агент", slug: "ai", show: features.aiSettingsEnabled },
+    { label: "Файлы", slug: "files", show: true },
+    { label: "Опасная зона", slug: "danger", show: true },
+  ].filter((item) => item.show)
+
   return (
     <Stack spacing={0.5} component="nav">
-      {ITEMS.map((item) => {
+      {items.map((item) => {
         const href = `${base}/${item.slug}`
         const active = pathname === href
         return (

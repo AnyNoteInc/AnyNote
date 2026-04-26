@@ -7,6 +7,7 @@ import { usePathname } from "next/navigation"
 
 import {
   Box,
+  Chip,
   DeleteIcon,
   IconButton,
   KeyboardDoubleArrowLeftIcon,
@@ -76,9 +77,28 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
           <Typography variant="body2" noWrap>
             {workspace.name}
           </Typography>
-          <Typography variant="caption" color="text.secondary">
-            {features.name} plan
-          </Typography>
+          <Stack direction="row" alignItems="center" gap={1}>
+            <Chip
+              label={features.name}
+              size="small"
+              color={features.isPaid ? "success" : "default"}
+              variant={features.isPaid ? "filled" : "outlined"}
+            />
+            {!features.isPaid && (
+              <Box
+                component={Link}
+                href="/pricing"
+                sx={{
+                  fontSize: 12,
+                  color: "primary.main",
+                  textDecoration: "none",
+                  "&:hover": { textDecoration: "underline" },
+                }}
+              >
+                Перейти на Pro
+              </Box>
+            )}
+          </Stack>
         </Stack>
         {onHide ? (
           <Tooltip title="Скрыть" placement="right">
@@ -91,6 +111,19 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
 
       <Stack spacing={0.25} sx={{ py: 0.75 }}>
         <SearchSidebarSection workspaceId={workspace.id} />
+        {features.chatsEnabled && (
+          <NavItem
+            icon={
+              <Box component="span" sx={{ fontSize: 16, lineHeight: 1 }}>
+                💬
+              </Box>
+            }
+            label="Чаты"
+            href={`/workspaces/${workspace.id}/chats`}
+            matchPrefix={`/workspaces/${workspace.id}/chats`}
+            pathname={pathname}
+          />
+        )}
         <NavItem
           icon={<SettingsIcon sx={{ fontSize: 16 }} />}
           label="Настройки"

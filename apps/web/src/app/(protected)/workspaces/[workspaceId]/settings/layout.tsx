@@ -3,6 +3,8 @@ import type { ReactNode } from "react"
 import { notFound } from "next/navigation"
 import { Box, Container, Paper } from "@repo/ui/components"
 
+import { getWorkspaceFeatures } from "@repo/trpc"
+
 import { WorkspaceSettingsNav } from "@/components/workspace/workspace-settings-nav"
 import { getServerTRPC } from "@/trpc/server"
 
@@ -14,7 +16,10 @@ type Props = {
 export default async function WorkspaceSettingsLayout({ children, params }: Props) {
   const { workspaceId } = await params
   const trpc = await getServerTRPC()
-  const workspace = await trpc.workspace.getById({ id: workspaceId })
+  const [workspace, features] = await Promise.all([
+    trpc.workspace.getById({ id: workspaceId }),
+    getWorkspaceFeatures(workspaceId),
+  ])
   if (!workspace) notFound()
 
   return (
@@ -27,7 +32,7 @@ export default async function WorkspaceSettingsLayout({ children, params }: Prop
         }}
       >
         <Paper variant="outlined" sx={{ p: 2, alignSelf: "start" }}>
-          <WorkspaceSettingsNav workspaceId={workspaceId} />
+          <WorkspaceSettingsNav workspaceId={workspaceId} features={features} />
         </Paper>
         <Box>{children}</Box>
       </Box>
