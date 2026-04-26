@@ -61,9 +61,17 @@ const auth = betterAuth({
     user: {
       create: {
         after: async (user) => {
-          const freePlan = await prisma.plan.findUniqueOrThrow({ where: { slug: "free" } })
+          const personalPlan = await prisma.plan.findUniqueOrThrow({ where: { slug: "personal" } })
           await prisma.subscription.create({
-            data: { userId: user.id, planId: freePlan.id, status: SubscriptionStatus.ACTIVE },
+            data: {
+              userId: user.id,
+              planId: personalPlan.id,
+              status: SubscriptionStatus.ACTIVE,
+              billingPeriod: "MONTHLY",
+              currentPeriodStart: null,
+              currentPeriodEnd: null,
+              cancelAtPeriodEnd: false,
+            },
           })
           await prisma.userPreference.upsert({
             where: { userId: user.id },
