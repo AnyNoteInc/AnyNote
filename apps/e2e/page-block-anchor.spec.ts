@@ -130,8 +130,12 @@ test("block-anchor URL scrolls to and highlights the indexed block", async ({ pa
   const target = browser.locator('[data-block-index="2"]')
 
   // Wait for element to be visible and have the flash class within 3s
+  // Element appears once the editor mounts
   await expect(target).toBeVisible({ timeout: 15_000 })
-  await expect(target).toHaveClass(/block-flash/, { timeout: 3_000 })
+  // Flash class is applied within 2s of arrival
+  await expect(target).toHaveClass(/block-flash/, { timeout: 2_000 })
+  // Class is removed within 4s (3s flash + slack for Playwright poll cadence)
+  await expect(target).not.toHaveClass(/block-flash/, { timeout: 4_000 })
 
   // Cleanup
   await prisma.page.delete({ where: { id: pageRow.id } }).catch(() => undefined)

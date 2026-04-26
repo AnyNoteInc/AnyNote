@@ -73,7 +73,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
   const pagesQuery = trpc.page.listByWorkspace.useQuery({ workspaceId })
   const editorRef = useRef<Editor | null>(null)
 
-  const [editorReady, setEditorReady] = useState(false)
+  const [editor, setEditor] = useState<Editor | null>(null)
   const [movePos, setMovePos] = useState<number | null>(null)
   const [moveTarget, setMoveTarget] = useState<PageTreeSelection | null>(null)
   const [moveBusy, setMoveBusy] = useState(false)
@@ -111,17 +111,15 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
   )
 
   const handleEditorReady = useCallback(
-    (editor: Editor) => {
-      editorRef.current = editor
-      pageEditor.setEditor(editor)
-      setEditorReady(true)
+    (e: Editor) => {
+      editorRef.current = e
+      pageEditor.setEditor(e)
+      setEditor(e)
     },
     [pageEditor],
   )
 
   useEffect(() => {
-    if (!editorReady) return
-    const editor = editorRef.current
     if (!editor) return
 
     let timer: number | null = null
@@ -150,7 +148,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
       if (timer) window.clearTimeout(timer)
       window.removeEventListener("hashchange", apply)
     }
-  }, [editorReady])
+  }, [editor])
 
   const handleRequestBlockMove = useCallback((pos: number) => {
     setMovePos(pos)
