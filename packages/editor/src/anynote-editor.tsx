@@ -67,7 +67,11 @@ export function AnyNoteEditor(props: AnyNoteEditorProps) {
   }, [pageId, yjsUrl, yjsToken, initialContentYjs])
 
   if (!resources) {
-    return <Box className={`anynote-editor ${props.className ?? ""}`} sx={{ height: "100%" }} />
+    return (
+      props.loadingFallback ?? (
+        <Box className={`anynote-editor ${props.className ?? ""}`} sx={{ height: "100%" }} />
+      )
+    )
   }
   return <AnyNoteEditorInner {...props} resources={resources} />
 }

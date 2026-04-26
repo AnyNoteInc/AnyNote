@@ -10,7 +10,7 @@ import { useMemo } from "react"
 
 import { ChatEmptyState } from "./chat-empty-state"
 import { ChatLoadingPhrases } from "./chat-loading-phrases"
-import { ChatMessageContent } from "./chat-message-content"
+import { ChatMessageContent, type ChatRenderLink } from "./chat-message-content"
 import {
   buildProviderMessages,
   CHAT_CONVERSATION_ID,
@@ -27,6 +27,7 @@ type ChatMessageListProps = {
   emptyDescription?: string
   showEmptyState?: boolean
   scrollMode?: "internal" | "page"
+  renderLink?: ChatRenderLink
 }
 
 function formatTimestamp(value: ChatThreadMessage["createdAt"]) {
@@ -81,6 +82,7 @@ export function ChatMessageList({
   emptyDescription,
   showEmptyState = true,
   scrollMode = "internal",
+  renderLink,
 }: ChatMessageListProps) {
   const providerMessages = useMemo(() => buildProviderMessages(messages), [messages])
   const usesPageScroll = scrollMode === "page"
@@ -160,7 +162,7 @@ export function ChatMessageList({
                         },
                       }}
                     >
-                      <ChatMessageContent parts={message.parts} />
+                      <ChatMessageContent parts={message.parts} renderLink={renderLink} />
                     </Box>
                   )}
                   {timestamp || status || isEmptyStreamingAssistant ? (

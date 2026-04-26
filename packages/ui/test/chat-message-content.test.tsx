@@ -56,4 +56,32 @@ describe('ChatMessageContent', () => {
       container.textContent?.indexOf('brief.pdf') ?? Number.POSITIVE_INFINITY,
     )
   })
+
+  it('renders default <a> when renderLink is not provided', () => {
+    const { container } = render(
+      <ChatMessageContent parts={[{ type: 'text', text: '[link](/foo)' }]} />,
+    )
+    const anchor = container.querySelector('a')
+    expect(anchor).toBeTruthy()
+    expect(anchor?.getAttribute('href')).toBe('/foo')
+    expect(anchor?.textContent).toBe('link')
+  })
+
+  it('uses renderLink when provided', () => {
+    const { container } = render(
+      <ChatMessageContent
+        parts={[{ type: 'text', text: '[link](/foo)' }]}
+        renderLink={(href, children) => (
+          <span data-testid='custom-link' data-href={href}>
+            {children}
+          </span>
+        )}
+      />,
+    )
+    const span = container.querySelector('[data-testid="custom-link"]')
+    expect(span).toBeTruthy()
+    expect(span?.getAttribute('data-href')).toBe('/foo')
+    expect(span?.textContent).toBe('link')
+    expect(container.querySelector('a')).toBeNull()
+  })
 })

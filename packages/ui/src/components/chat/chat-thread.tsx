@@ -11,6 +11,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react"
 import { ChatComposer } from "./chat-composer"
 import { ChatEmptyState } from "./chat-empty-state"
 import { ChatMessageList } from "./chat-message-list"
+import type { ChatRenderLink } from "./chat-message-content"
 import type { ChatComposerAttachment, ChatSendPayload, ChatThreadMessage } from "./chat-types"
 
 const BOTTOM_THRESHOLD_PX = 120
@@ -28,6 +29,7 @@ type ChatThreadProps = {
   emptyDescription?: string
   scrollContainerSelector?: string
   scrollKey?: string
+  renderLink?: ChatRenderLink
 }
 
 function isNearBottom(element: HTMLElement) {
@@ -61,6 +63,7 @@ export function ChatThread({
   emptyDescription,
   scrollContainerSelector,
   scrollKey,
+  renderLink,
 }: ChatThreadProps) {
   const pinnedToBottomRef = useRef(true)
   const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null)
@@ -136,6 +139,7 @@ export function ChatThread({
         emptyDescription={emptyDescription}
         emptyTitle={emptyTitle}
         messages={messages}
+        renderLink={renderLink}
         showEmptyState={false}
         scrollMode={usesPageScroll ? "page" : "internal"}
       />

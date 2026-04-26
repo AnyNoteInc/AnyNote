@@ -374,3 +374,12 @@
 .anynote-hidden-text .anynote-hidden-text-content [data-node-view-content-react] > * + * {
   margin-top: 6px;
 }
+
+/* Block-anchor flash: applied for 3s when the user navigates to a
+   /workspaces/.../pages/.../#N URL. The transition fades the background
+   back to transparent when the class is removed. */
+.anynote-editor .ProseMirror .block-flash {
+  background-color: var(--anynote-bg-yellow);
+  border-radius: 4px;
+  transition: background-color 0.6s ease-out;
+}

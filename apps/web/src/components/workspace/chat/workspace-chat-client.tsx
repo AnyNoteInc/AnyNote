@@ -6,6 +6,7 @@ import { Alert, Box, ChatThread, Stack, type ChatSendPayload } from "@repo/ui/co
 
 import { trpc } from "@/trpc/client"
 
+import { renderChatLink } from "@/components/chat/chat-link-renderer"
 import {
   findResumableAssistantMessageId,
   type ServerChatMessage,
@@ -141,6 +142,7 @@ export function WorkspaceChatClient({
           onComposerAttachmentsChange={handleComposerAttachmentsChange}
           onComposerValueChange={handleComposerValueChange}
           onSend={handleComposerSend}
+          renderLink={renderChatLink}
           scrollContainerSelector=".page-content-scroll"
           scrollKey={chatId}
         />

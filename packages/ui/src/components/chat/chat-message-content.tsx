@@ -1,14 +1,18 @@
 'use client'
 
 import Box from '@mui/material/Box'
+import type { ReactNode } from 'react'
 import ReactMarkdown from 'react-markdown'
 
 import { ChatFileChip } from './chat-file-chip'
 import { ChatServiceBlock } from './chat-service-block'
 import type { ChatMessagePart } from './chat-types'
 
+export type ChatRenderLink = (href: string, children: ReactNode) => ReactNode
+
 type ChatMessageContentProps = {
   parts: ChatMessagePart[]
+  renderLink?: ChatRenderLink
 }
 
 function getPartOrder(part: ChatMessagePart) {
@@ -24,8 +28,14 @@ function getPartOrder(part: ChatMessagePart) {
   }
 }
 
-export function ChatMessageContent({ parts }: ChatMessageContentProps) {
+export function ChatMessageContent({ parts, renderLink }: ChatMessageContentProps) {
   const sortedParts = [...parts].sort((left, right) => getPartOrder(left) - getPartOrder(right))
+  const markdownComponents = renderLink
+    ? {
+        a: ({ href, children }: { href?: string; children?: ReactNode }) =>
+          href ? <>{renderLink(href, children)}</> : <>{children}</>,
+      }
+    : undefined
 
   return (
     <Box display="flex" flexDirection="column" gap={1.25}>
@@ -64,7 +74,7 @@ export function ChatMessageContent({ parts }: ChatMessageContentProps) {
                 overflowWrap: 'anywhere',
               }}
             >
-              <ReactMarkdown>{part.text}</ReactMarkdown>
+              <ReactMarkdown components={markdownComponents}>{part.text}</ReactMarkdown>
             </Box>
           )
         }
