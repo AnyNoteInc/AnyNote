@@ -379,7 +379,7 @@
    /workspaces/.../pages/.../#N URL. The transition fades the background
    back to transparent when the class is removed. */
 .anynote-editor .ProseMirror .block-flash {
-  background-color: #fff9c4; /* MUI yellow.100 */
+  background-color: var(--anynote-bg-yellow);
   border-radius: 4px;
   transition: background-color 0.6s ease-out;
 }
