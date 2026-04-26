@@ -677,7 +677,8 @@ export const pageRouter = router({
   addFavorite: protectedProcedure
     .input(z.object({ pageId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      await assertPageAccess(ctx, input.pageId)
+      const page = await assertPageAccess(ctx, input.pageId)
+      await requireWritableWorkspace(page.workspaceId)
       return ctx.prisma.favoritePage.upsert({
         where: { userId_pageId: { userId: ctx.user.id, pageId: input.pageId } },
         create: { userId: ctx.user.id, pageId: input.pageId },
@@ -688,7 +689,8 @@ export const pageRouter = router({
   removeFavorite: protectedProcedure
     .input(z.object({ pageId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      await assertPageAccess(ctx, input.pageId)
+      const page = await assertPageAccess(ctx, input.pageId)
+      await requireWritableWorkspace(page.workspaceId)
       await ctx.prisma.favoritePage.deleteMany({
         where: { userId: ctx.user.id, pageId: input.pageId },
       })
