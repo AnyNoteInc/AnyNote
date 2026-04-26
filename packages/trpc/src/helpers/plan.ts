@@ -1,5 +1,5 @@
 import { prisma } from "@repo/db"
-import type { Plan, PrismaClient } from "@repo/db"
+import type { AiModel, AiProvider, Plan, PrismaClient } from "@repo/db"
 
 export async function getActivePlanForUser(prismaClient: PrismaClient, userId: string) {
   const subscription = await prismaClient.subscription.findFirst({
@@ -45,6 +45,25 @@ function planToFeatures(plan: Plan): PlanFeatures {
     prioritySupport: plan.prioritySupport,
     developerSpaceEnabled: plan.developerSpaceEnabled,
   }
+}
+
+export async function getAvailableAiModels(
+  workspaceId: string,
+): Promise<(AiModel & { provider: AiProvider })[]> {
+  const features = await getWorkspaceFeatures(workspaceId)
+  const allowed = await prisma.plan.findMany({
+    where: { sortOrder: { lte: features.sortOrder } },
+    select: { slug: true },
+  })
+  const allowedSlugs = allowed.map((r) => r.slug)
+  return prisma.aiModel.findMany({
+    where: {
+      isActive: true,
+      OR: [{ minPlanSlug: null }, { minPlanSlug: { in: allowedSlugs } }],
+    },
+    include: { provider: true },
+    orderBy: { displayName: "asc" },
+  })
 }
 
 export async function getWorkspaceFeatures(workspaceId: string): Promise<PlanFeatures> {
