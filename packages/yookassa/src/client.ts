@@ -1,1 +1,57 @@
-export class YookassaClient {}
+import { YookassaApiError } from "./errors.js"
+import type { CreatePaymentInput, Payment } from "./types.js"
+
+export type YookassaClientOpts = {
+  shopId: string
+  secretKey: string
+  baseUrl?: string
+  fetch?: typeof fetch
+}
+
+export class YookassaClient {
+  private readonly baseUrl: string
+  private readonly auth: string
+  private readonly fetchImpl: typeof fetch
+
+  constructor(opts: YookassaClientOpts) {
+    this.baseUrl = opts.baseUrl ?? "https://api.yookassa.ru/v3"
+    this.auth = `Basic ${Buffer.from(`${opts.shopId}:${opts.secretKey}`).toString("base64")}`
+    this.fetchImpl = opts.fetch ?? fetch
+  }
+
+  private async request<T>(path: string, init: RequestInit, idempotencyKey?: string): Promise<T> {
+    const headers: Record<string, string> = {
+      Authorization: this.auth,
+      "Content-Type": "application/json",
+    }
+
+    if (idempotencyKey) {
+      headers["Idempotence-Key"] = idempotencyKey
+    }
+
+    const response = await this.fetchImpl(`${this.baseUrl}${path}`, {
+      ...init,
+      headers,
+    })
+
+    const body = await response.json().catch(() => undefined)
+
+    if (!response.ok) {
+      const code = typeof body === "object" && body !== null && "code" in body ? String(body.code) : undefined
+      throw new YookassaApiError(code ?? "YooKassa API request failed", response.status, body)
+    }
+
+    return body as T
+  }
+
+  createPayment(input: CreatePaymentInput, idempotencyKey: string): Promise<Payment> {
+    return this.request<Payment>(
+      "/payments",
+      {
+        method: "POST",
+        body: JSON.stringify(input),
+      },
+      idempotencyKey,
+    )
+  }
+}
