@@ -2,6 +2,7 @@ import { describe, expect, it, jest } from "@jest/globals"
 
 import { AgentsClient } from "../services/agents-client.service.js"
 import { PageContentReader } from "../services/page-content-reader.service.js"
+import { PlanFeaturesService } from "../services/plan-features.service.js"
 import { VectorizationCronService } from "./vectorization-cron.service.js"
 
 function makePrismaMock(opts: { rows: unknown[]; page: unknown }) {
@@ -19,12 +20,19 @@ function makePrismaMock(opts: { rows: unknown[]; page: unknown }) {
   }
 }
 
+function makePlanFeaturesMock(enabled: boolean): PlanFeaturesService {
+  return {
+    isPageIndexingEnabled: jest.fn(async () => enabled),
+  } as unknown as PlanFeaturesService
+}
+
 describe("VectorizationCronService", () => {
   it("no-op when no rows", async () => {
     const prisma = makePrismaMock({ rows: [], page: null })
     const agents = { vectorize: jest.fn(async () => undefined) } as unknown as AgentsClient
     const reader = new PageContentReader()
-    const svc = new VectorizationCronService(prisma as never, reader, agents)
+    const planFeatures = makePlanFeaturesMock(true)
+    const svc = new VectorizationCronService(prisma as never, reader, agents, planFeatures)
     await svc.tick()
     expect(agents.vectorize).not.toHaveBeenCalled()
   })
@@ -42,7 +50,8 @@ describe("VectorizationCronService", () => {
     const vectorize = jest.fn(async () => undefined)
     const agents = { vectorize } as unknown as AgentsClient
     const reader = new PageContentReader()
-    const svc = new VectorizationCronService(prisma as never, reader, agents)
+    const planFeatures = makePlanFeaturesMock(true)
+    const svc = new VectorizationCronService(prisma as never, reader, agents, planFeatures)
     await svc.tick()
     expect(vectorize).toHaveBeenCalledTimes(1)
     const arg = (vectorize.mock.calls[0] as unknown as [{ contents: unknown[] }])[0]
@@ -57,7 +66,8 @@ describe("VectorizationCronService", () => {
     const prisma = makePrismaMock({ rows, page })
     const vectorize = jest.fn(async () => undefined)
     const agents = { vectorize } as unknown as AgentsClient
-    const svc = new VectorizationCronService(prisma as never, new PageContentReader(), agents)
+    const planFeatures = makePlanFeaturesMock(true)
+    const svc = new VectorizationCronService(prisma as never, new PageContentReader(), agents, planFeatures)
     await svc.tick()
     expect(vectorize).toHaveBeenCalledWith(expect.objectContaining({
       pageId: "p2", workspaceId: "w2", contents: [],
@@ -71,7 +81,8 @@ describe("VectorizationCronService", () => {
     const prisma = makePrismaMock({ rows, page: null })
     const vectorize = jest.fn(async () => undefined)
     const agents = { vectorize } as unknown as AgentsClient
-    const svc = new VectorizationCronService(prisma as never, new PageContentReader(), agents)
+    const planFeatures = makePlanFeaturesMock(true)
+    const svc = new VectorizationCronService(prisma as never, new PageContentReader(), agents, planFeatures)
     await svc.tick()
     expect(prisma.__mocks.findUnique).not.toHaveBeenCalled()
     expect(vectorize).toHaveBeenCalledWith(expect.objectContaining({
@@ -87,11 +98,29 @@ describe("VectorizationCronService", () => {
     const prisma = makePrismaMock({ rows, page })
     const vectorize = jest.fn(async () => undefined)
     const agents = { vectorize } as unknown as AgentsClient
-    const svc = new VectorizationCronService(prisma as never, new PageContentReader(), agents)
+    const planFeatures = makePlanFeaturesMock(true)
+    const svc = new VectorizationCronService(prisma as never, new PageContentReader(), agents, planFeatures)
     await svc.tick()
     // claimBatch: 1 SELECT + 2 UPDATE (PROCESSING + collapse-older-to-DONE).
     // processRow: 1 UPDATE (mark current row DONE after success).
     expect(prisma.__mocks.queryRaw).toHaveBeenCalledTimes(1)
+    expect(prisma.__mocks.executeRaw).toHaveBeenCalledTimes(3)
+  })
+
+  it("skips vectorization and marks row DONE when pageIndexingEnabled is false", async () => {
+    const rows = [{
+      id: BigInt(5), page_id: "p5", workspace_id: "w5", event_type: "page.upserted",
+    }]
+    const page = { id: "p5", type: "TEXT", deletedAt: null, title: "T", content: null, workspaceId: "w5" }
+    const prisma = makePrismaMock({ rows, page })
+    const vectorize = jest.fn(async () => undefined)
+    const agents = { vectorize } as unknown as AgentsClient
+    const planFeatures = makePlanFeaturesMock(false)
+    const svc = new VectorizationCronService(prisma as never, new PageContentReader(), agents, planFeatures)
+    await svc.tick()
+    expect(vectorize).not.toHaveBeenCalled()
+    // claimBatch: 1 SELECT + 2 UPDATE (PROCESSING + collapse-older-to-DONE).
+    // processRow skip path: 1 UPDATE (markDone without vectorizing).
     expect(prisma.__mocks.executeRaw).toHaveBeenCalledTimes(3)
   })
 })

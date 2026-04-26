@@ -8,6 +8,7 @@ import { Prisma } from "@repo/db"
 import { PRISMA } from "../../../infra/db/db.providers.js"
 import { AgentsClient } from "../services/agents-client.service.js"
 import { PageContentReader, type TiptapNode } from "../services/page-content-reader.service.js"
+import { PlanFeaturesService } from "../services/plan-features.service.js"
 
 type EventType = "page.upserted" | "page.deleted"
 
@@ -29,6 +30,7 @@ export class VectorizationCronService implements OnModuleInit {
     @Inject(PRISMA) private readonly prisma: PrismaClient,
     private readonly reader: PageContentReader,
     private readonly agents: AgentsClient,
+    private readonly planFeatures: PlanFeaturesService,
   ) {
     this.workerId = `engines-${process.env.HOSTNAME ?? randomUUID().slice(0, 8)}`
     this.batch = Number(process.env.INDEXER_BATCH ?? 10)
@@ -97,6 +99,11 @@ export class VectorizationCronService implements OnModuleInit {
   }
 
   private async processRow(row: Row): Promise<void> {
+    const allowed = await this.planFeatures.isPageIndexingEnabled(row.workspace_id)
+    if (!allowed) {
+      await this.markDone(row.id)
+      return
+    }
     try {
       if (row.event_type === "page.deleted") {
         await this.agents.vectorize({
