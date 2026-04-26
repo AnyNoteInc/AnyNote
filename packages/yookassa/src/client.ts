@@ -1,7 +1,7 @@
 import { YookassaApiError } from "./errors.js"
 import type { CreatePaymentInput, Payment } from "./types.js"
 
-export type ChargeSavedInput = Omit<CreatePaymentInput, "save_payment_method" | "confirmation"> & {
+export type ChargeSavedInput = Omit<CreatePaymentInput, "save_payment_method" | "confirmation" | "capture"> & {
   payment_method_id: string
 }
 
@@ -71,6 +71,6 @@ export class YookassaClient {
   }
 
   getPayment(paymentId: string): Promise<Payment> {
-    return this.request<Payment>(`/payments/${paymentId}`, { method: "GET" })
+    return this.request<Payment>(`/payments/${encodeURIComponent(paymentId)}`, { method: "GET" })
   }
 }

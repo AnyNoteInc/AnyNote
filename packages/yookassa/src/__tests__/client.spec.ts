@@ -1,6 +1,7 @@
 import { describe, expect, it, vi } from "vitest"
 
 import { YookassaClient } from "../client"
+import type { ChargeSavedInput } from "../index"
 
 describe("YookassaClient", () => {
   const payment = {
@@ -70,16 +71,14 @@ describe("YookassaClient", () => {
       fetch: fetchMock as unknown as typeof fetch,
     })
 
-    const result = await client.chargeWithSavedMethod(
-      {
-        amount: { value: "150.00", currency: "RUB" },
-        capture: false,
-        payment_method_id: "pm_1",
-        description: "Saved payment method charge",
-        metadata: { orderId: "order_1" },
-      },
-      "idem_2",
-    )
+    const input = {
+      amount: { value: "150.00", currency: "RUB" },
+      payment_method_id: "pm_1",
+      description: "Saved payment method charge",
+      metadata: { orderId: "order_1" },
+    } satisfies ChargeSavedInput
+
+    const result = await client.chargeWithSavedMethod(input, "idem_2")
 
     expect(fetchMock).toHaveBeenCalledWith("https://api.yookassa.ru/v3/payments", {
       method: "POST",
@@ -88,13 +87,15 @@ describe("YookassaClient", () => {
         "Content-Type": "application/json",
         "Idempotence-Key": "idem_2",
       },
-      body: JSON.stringify({
-        amount: { value: "150.00", currency: "RUB" },
-        capture: true,
-        payment_method_id: "pm_1",
-        description: "Saved payment method charge",
-        metadata: { orderId: "order_1" },
-      }),
+      body: expect.any(String),
+    })
+    const [, requestInit] = fetchMock.mock.calls[0]!
+    expect(JSON.parse(String(requestInit.body))).toEqual({
+      amount: { value: "150.00", currency: "RUB" },
+      capture: true,
+      payment_method_id: "pm_1",
+      description: "Saved payment method charge",
+      metadata: { orderId: "order_1" },
     })
     expect(fetchMock).not.toHaveBeenCalledWith(
       expect.any(String),
@@ -118,9 +119,9 @@ describe("YookassaClient", () => {
       fetch: fetchMock as unknown as typeof fetch,
     })
 
-    const result = await client.getPayment("pmt_1")
+    const result = await client.getPayment("pmt_1/with space")
 
-    expect(fetchMock).toHaveBeenCalledWith("https://api.yookassa.ru/v3/payments/pmt_1", {
+    expect(fetchMock).toHaveBeenCalledWith("https://api.yookassa.ru/v3/payments/pmt_1%2Fwith%20space", {
       method: "GET",
       headers: {
         Authorization: `Basic ${Buffer.from("shop:secret").toString("base64")}`,
