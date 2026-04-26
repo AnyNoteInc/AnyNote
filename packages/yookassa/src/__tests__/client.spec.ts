@@ -131,3 +131,60 @@ describe("YookassaClient", () => {
     expect(result).toEqual(payment)
   })
 })
+
+describe("YookassaClient.createRefund", () => {
+  it("posts to /refunds with idempotency", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "rf_1",
+          payment_id: "pmt_1",
+          status: "succeeded",
+          amount: { value: "150.00", currency: "RUB" },
+          created_at: "2026-04-26T00:00:00Z",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    )
+    const client = new YookassaClient({
+      shopId: "shop",
+      secretKey: "secret",
+      fetch: fetchMock as unknown as typeof fetch,
+    })
+    const r = await client.createRefund(
+      { payment_id: "pmt_1", amount: { value: "150.00", currency: "RUB" } },
+      "rf-key",
+    )
+    expect(r.id).toBe("rf_1")
+    const [url, init] = fetchMock.mock.calls[0]!
+    expect(url).toBe("https://api.yookassa.ru/v3/refunds")
+    expect(init?.method).toBe("POST")
+    const headers = new Headers(init?.headers as HeadersInit)
+    expect(headers.get("Idempotence-Key")).toBe("rf-key")
+  })
+})
+
+describe("YookassaClient.getRefund", () => {
+  it("fetches refund by id", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          id: "rf_2",
+          payment_id: "pmt_2",
+          status: "succeeded",
+          amount: { value: "150.00", currency: "RUB" },
+          created_at: "2026-04-26T00:00:00Z",
+        }),
+        { status: 200, headers: { "Content-Type": "application/json" } },
+      ),
+    )
+    const client = new YookassaClient({
+      shopId: "shop",
+      secretKey: "secret",
+      fetch: fetchMock as unknown as typeof fetch,
+    })
+    const r = await client.getRefund("rf_2")
+    expect(r.id).toBe("rf_2")
+    expect(fetchMock.mock.calls[0]![0]).toBe("https://api.yookassa.ru/v3/refunds/rf_2")
+  })
+})

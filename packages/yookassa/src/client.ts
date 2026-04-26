@@ -1,5 +1,5 @@
 import { YookassaApiError } from "./errors.js"
-import type { CreatePaymentInput, Payment } from "./types.js"
+import type { CreatePaymentInput, CreateRefundInput, Payment, Refund } from "./types.js"
 
 export type ChargeSavedInput = Omit<CreatePaymentInput, "save_payment_method" | "confirmation" | "capture"> & {
   payment_method_id: string
@@ -72,5 +72,13 @@ export class YookassaClient {
 
   getPayment(paymentId: string): Promise<Payment> {
     return this.request<Payment>(`/payments/${encodeURIComponent(paymentId)}`, { method: "GET" })
+  }
+
+  createRefund(input: CreateRefundInput, idempotencyKey: string): Promise<Refund> {
+    return this.request<Refund>("/refunds", { method: "POST", body: JSON.stringify(input) }, idempotencyKey)
+  }
+
+  getRefund(id: string): Promise<Refund> {
+    return this.request<Refund>(`/refunds/${id}`, { method: "GET" })
   }
 }
