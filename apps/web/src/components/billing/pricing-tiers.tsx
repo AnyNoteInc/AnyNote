@@ -1,22 +1,19 @@
 'use client'
 
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
 import {
   Box,
   Button,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   Divider,
   Paper,
   Stack,
   Typography,
 } from '@repo/ui/components'
+
+import { CheckoutModal } from './checkout-modal'
 
 type BillingPeriod = 'MONTHLY' | 'YEARLY'
 type CheckoutPlanSlug = 'pro' | 'max'
@@ -42,11 +39,6 @@ type Props = {
 type CheckoutState = {
   planSlug: CheckoutPlanSlug
   defaultPeriod: BillingPeriod
-}
-
-type CheckoutModalProps = CheckoutState & {
-  planName: string
-  onClose: () => void
 }
 
 const CUSTOM_TIER = {
@@ -110,23 +102,6 @@ function buildPurchaseUrl(planSlug: string, period: BillingPeriod, mode: 'sign-i
   return `/${mode}?${params.toString()}`
 }
 
-function CheckoutModal({ planName, defaultPeriod, onClose }: CheckoutModalProps) {
-  return (
-    <Dialog open onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Оформление {planName}</DialogTitle>
-      <DialogContent>
-        <DialogContentText>
-          Платежная форма для периода {defaultPeriod === 'YEARLY' ? 'год' : 'месяц'} будет
-          подключена следующим шагом.
-        </DialogContentText>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={onClose}>Закрыть</Button>
-      </DialogActions>
-    </Dialog>
-  )
-}
-
 export function PricingTiers({ plans, currentPlanSlug, isAuthenticated }: Props) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -134,11 +109,6 @@ export function PricingTiers({ plans, currentPlanSlug, isAuthenticated }: Props)
   const initialPeriod: BillingPeriod = isBillingPeriod(periodParam) ? periodParam : 'MONTHLY'
   const [period, setPeriod] = useState<BillingPeriod>(initialPeriod)
   const [checkout, setCheckout] = useState<CheckoutState | null>(null)
-
-  const checkoutPlan = useMemo(
-    () => plans.find((plan) => checkout?.planSlug === plan.slug) ?? null,
-    [checkout?.planSlug, plans],
-  )
 
   useEffect(() => {
     if (!isAuthenticated || searchParams.get('intent') !== 'purchase') return
@@ -357,10 +327,9 @@ export function PricingTiers({ plans, currentPlanSlug, isAuthenticated }: Props)
         </Paper>
       </Box>
 
-      {checkout && checkoutPlan ? (
+      {checkout ? (
         <CheckoutModal
           planSlug={checkout.planSlug}
-          planName={checkoutPlan.name}
           defaultPeriod={checkout.defaultPeriod}
           onClose={() => setCheckout(null)}
         />
