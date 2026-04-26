@@ -1,4 +1,5 @@
 import type { Metadata } from "next"
+import Link from "next/link"
 
 import { Box, Button, Container, Divider, Paper, Stack, Typography } from "@repo/ui/components"
 
@@ -140,22 +141,29 @@ export default async function HomePage() {
           sx={{
             mt: 4,
             display: "grid",
-            gridTemplateColumns: { xs: "1fr", lg: "repeat(3, minmax(0, 1fr))" },
+            gridTemplateColumns: {
+              xs: "1fr",
+              md: "repeat(2, minmax(0, 1fr))",
+              xl: "repeat(4, minmax(0, 1fr))",
+            },
             gap: 3,
           }}
         >
-          {landingPricingCards.map((plan, index) => {
-            const isPrimary = index === 1
-            const isCustom = plan.price === "Custom"
-            const planHref = isCustom ? "/contact" : primaryHref
+          {landingPricingCards.map((plan) => {
+            const isPrimary = plan.slug === "pro"
             return (
               <Paper
-                key={plan.title}
+                key={plan.slug}
+                component={Link}
+                href="/pricing"
                 elevation={0}
                 sx={{
                   p: 3.5,
                   borderRadius: 4,
                   minHeight: 360,
+                  color: "text.primary",
+                  display: "flex",
+                  textDecoration: "none",
                   border: isPrimary
                     ? "1px solid rgba(15, 118, 110, 0.34)"
                     : "1px solid rgba(148,163,184,0.18)",
@@ -166,28 +174,27 @@ export default async function HomePage() {
                   boxShadow: isPrimary ? "0 18px 42px rgba(15, 118, 110, 0.10)" : "none",
                 }}
               >
-                <Stack spacing={2}>
-                  <Typography variant="h5">{plan.title}</Typography>
+                <Stack spacing={2} sx={{ width: "100%" }}>
+                  <Typography variant="h5">{plan.name}</Typography>
                   <Typography variant="h2" sx={{ fontSize: "3rem" }}>
-                    {isCustom ? "По запросу" : `$${plan.price}`}
+                    {plan.price}
                   </Typography>
-                  <Typography color="text.secondary">{plan.description}</Typography>
                   <Divider />
                   <Stack spacing={1.2}>
-                    {plan.items.map((item) => (
+                    {plan.features.map((item) => (
                       <Typography key={item} color="text.secondary">
                         • {item}
                       </Typography>
                     ))}
                   </Stack>
-                  <Box sx={{ pt: 1 }}>
+                  <Box sx={{ pt: 1, mt: "auto" }}>
                     <Button
-                      href={planHref}
+                      component="span"
                       variant={isPrimary ? "contained" : "outlined"}
                       color={isPrimary ? "primary" : "inherit"}
                       fullWidth
                     >
-                      {plan.cta}
+                      Смотреть тариф
                     </Button>
                   </Box>
                 </Stack>
