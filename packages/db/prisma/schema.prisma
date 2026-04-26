@@ -28,6 +28,7 @@ model User {
   preferences          UserPreference?
   userIntegrations     Integration[]     @relation("UserIntegrations")
   subscriptions        Subscription[]
+  orders               Order[]
   chats                Chat[]            @relation("ChatCreator")
   favoritePages        FavoritePage[]
   files                File[]
@@ -388,48 +389,122 @@ model WorkspaceAiSettings {
 }
 
 model Plan {
-  id                     String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  slug                   String   @unique @db.VarChar(50)
-  name                   String   @db.VarChar(100)
-  description            String?  @db.Text
-  priceMonthly           Int      @default(0) @map("price_monthly")
-  currency               String   @default("RUB") @db.VarChar(3)
-  maxWorkspaces          Int?     @map("max_workspaces")
-  maxMembersPerWorkspace Int?     @map("max_members_per_workspace")
-  features               Json     @default("[]")
-  isActive               Boolean  @default(true) @map("is_active")
-  sortOrder              Int      @default(0) @map("sort_order")
-  createdAt              DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt              DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug                     String   @unique @db.VarChar(50)
+  name                     String   @db.VarChar(100)
+  description              String?  @db.Text
 
-  subscriptions Subscription[]
+  priceMonthlyKopecks      Int      @default(0) @map("price_monthly_kopecks")
+  priceYearlyKopecks       Int      @default(0) @map("price_yearly_kopecks")
+  currency                 String   @default("RUB") @db.VarChar(3)
+
+  maxWorkspaces            Int?     @map("max_workspaces")
+  maxMembersPerWorkspace   Int      @default(1) @map("max_members_per_workspace")
+
+  chatsEnabled             Boolean  @default(false) @map("chats_enabled")
+  pageIndexingEnabled      Boolean  @default(false) @map("page_indexing_enabled")
+  membersSettingsEnabled   Boolean  @default(false) @map("members_settings_enabled")
+  aiSettingsEnabled        Boolean  @default(false) @map("ai_settings_enabled")
+  customMcpEnabled         Boolean  @default(false) @map("custom_mcp_enabled")
+  prioritySupport          Boolean  @default(false) @map("priority_support")
+  developerSpaceEnabled    Boolean  @default(false) @map("developer_space_enabled")
+
+  features                 Json     @default("[]")
+  isActive                 Boolean  @default(true) @map("is_active")
+  sortOrder                Int      @default(0) @map("sort_order")
+
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  subscriptions            Subscription[]
+  orders                   Order[]
 
   @@map("plans")
 }
 
 model Subscription {
-  id                     String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId                 String             @map("user_id") @db.Uuid
-  planId                 String             @map("plan_id") @db.Uuid
-  status                 SubscriptionStatus @default(ACTIVE)
-  startedAt              DateTime           @default(now()) @map("started_at") @db.Timestamptz(6)
-  currentPeriodEnd       DateTime?          @map("current_period_end") @db.Timestamptz(6)
-  canceledAt             DateTime?          @map("canceled_at") @db.Timestamptz(6)
-  paymentProvider        String?            @map("payment_provider") @db.VarChar(32)
-  providerSubscriptionId String?            @map("provider_subscription_id") @db.VarChar(255)
-  amountPaid             Int?               @map("amount_paid")
-  currency               String?            @db.VarChar(3)
-  metadata               Json?
-  createdAt              DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt              DateTime           @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                   String   @map("user_id") @db.Uuid
+  planId                   String   @map("plan_id") @db.Uuid
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan Plan @relation(fields: [planId], references: [id], onDelete: Restrict)
+  status                   SubscriptionStatus  @default(ACTIVE)
+  billingPeriod            BillingPeriod       @default(MONTHLY) @map("billing_period")
+
+  currentPeriodStart       DateTime? @map("current_period_start") @db.Timestamptz(6)
+  currentPeriodEnd         DateTime? @map("current_period_end") @db.Timestamptz(6)
+
+  cancelAtPeriodEnd        Boolean   @default(false) @map("cancel_at_period_end")
+  cancelledAt              DateTime? @map("cancelled_at") @db.Timestamptz(6)
+
+  paymentMethodId          String?   @map("payment_method_id") @db.VarChar(64)
+  paymentMethodLast4       String?   @map("payment_method_last4") @db.VarChar(4)
+  paymentMethodBrand       String?   @map("payment_method_brand") @db.VarChar(32)
+
+  paymentProvider          String?   @map("payment_provider") @db.VarChar(32)
+  providerSubscriptionId   String?   @map("provider_subscription_id") @db.VarChar(64)
+  amountPaid               Int?      @map("amount_paid")
+  currency                 String    @default("RUB") @db.VarChar(3)
+  metadata                 Json?
+
+  expiredAt                DateTime? @map("expired_at") @db.Timestamptz(6)
+  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan                     Plan     @relation(fields: [planId], references: [id])
+  orders                   Order[]
 
   @@index([userId])
-  @@index([planId])
-  @@index([userId, status])
+  @@index([currentPeriodEnd, status, cancelAtPeriodEnd])
   @@map("subscriptions")
+}
+
+enum BillingPeriod {
+  MONTHLY
+  YEARLY
+}
+
+model Order {
+  id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId                   String   @map("user_id") @db.Uuid
+  planId                   String   @map("plan_id") @db.Uuid
+  subscriptionId           String?  @map("subscription_id") @db.Uuid
+
+  billingPeriod            BillingPeriod @map("billing_period")
+  amountKopecks            Int      @map("amount_kopecks")
+  currency                 String   @default("RUB") @db.VarChar(3)
+  status                   OrderStatus @default(PENDING)
+
+  yookassaPaymentId        String?  @unique @map("yookassa_payment_id") @db.VarChar(64)
+  yookassaIdempotencyKey   String   @unique @map("yookassa_idempotency_key") @db.VarChar(64)
+  yookassaRefundId         String?  @map("yookassa_refund_id") @db.VarChar(64)
+
+  isInitial                Boolean  @default(false) @map("is_initial")
+  savedPaymentMethod       Boolean  @default(false) @map("saved_payment_method")
+
+  refundedAt               DateTime? @map("refunded_at") @db.Timestamptz(6)
+  paidAt                   DateTime? @map("paid_at") @db.Timestamptz(6)
+
+  metadata                 Json?
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user                     User          @relation(fields: [userId], references: [id])
+  plan                     Plan          @relation(fields: [planId], references: [id])
+  subscription             Subscription? @relation(fields: [subscriptionId], references: [id])
+
+  @@index([userId])
+  @@index([status])
+  @@index([subscriptionId])
+  @@map("orders")
+}
+
+enum OrderStatus {
+  PENDING
+  PAID
+  FAILED
+  REFUNDED
+  CANCELED
 }
 
 enum FileStatus {
