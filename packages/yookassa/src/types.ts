@@ -1,12 +1,37 @@
-export type YookassaAmount = {
+export type YookassaCurrency = "RUB"
+
+export type Money = {
   value: string
-  currency: string
+  currency: YookassaCurrency
 }
+
+export type YookassaAmount = Money
 
 export type ConfirmationRedirect = {
   type: "redirect"
   confirmation_url: string
   return_url?: string
+}
+
+export type CreatePaymentConfirmation = {
+  type: "redirect"
+  return_url: string
+}
+
+export type CreatePaymentInput = {
+  amount: Money
+  capture: boolean
+  save_payment_method?: boolean
+  payment_method_id?: string
+  confirmation?: CreatePaymentConfirmation
+  description?: string
+  metadata?: Record<string, string>
+}
+
+export type CreateRefundInput = {
+  payment_id: string
+  amount: Money
+  description?: string
 }
 
 export type PaymentMethodCard = {
