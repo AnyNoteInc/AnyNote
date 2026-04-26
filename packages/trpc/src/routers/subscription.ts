@@ -10,7 +10,7 @@ export const subscriptionRouter = router({
     return ctx.prisma.subscription.findMany({
       where: { userId: ctx.user.id },
       include: { plan: true },
-      orderBy: { startedAt: "desc" },
+      orderBy: { createdAt: "desc" },
     })
   }),
 })
