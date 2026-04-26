@@ -2,7 +2,6 @@ import { expect, test } from "@playwright/test"
 import { readFileSync } from "node:fs"
 import { join } from "node:path"
 import { TiptapTransformer } from "@hocuspocus/transformer"
-import Code from "@tiptap/extension-code"
 import Document from "@tiptap/extension-document"
 import Paragraph from "@tiptap/extension-paragraph"
 import Text from "@tiptap/extension-text"
@@ -56,7 +55,7 @@ test.afterAll(async () => {
 
 const password = "SuperSecure123!"
 
-const EXTENSIONS = [Document, Paragraph, Text, Code]
+const EXTENSIONS = [Document, Paragraph, Text]
 
 function buildContentYjs(content: object): Uint8Array<ArrayBuffer> {
   const ydoc = TiptapTransformer.toYdoc(content, "default", EXTENSIONS)
@@ -124,20 +123,23 @@ test("block-anchor URL scrolls to and highlights the indexed block", async ({ pa
     select: { id: true },
   })
 
-  // Navigate directly with the hash in the URL
-  await browser.goto(`/workspaces/${workspace.id}/pages/${pageRow.id}#2`)
+  try {
+    // Navigate directly with the hash in the URL
+    await browser.goto(`/workspaces/${workspace.id}/pages/${pageRow.id}#2`)
 
-  const target = browser.locator('[data-block-index="2"]')
+    const target = browser.locator('[data-block-index="2"]')
 
-  // Wait for element to be visible and have the flash class within 3s
-  // Element appears once the editor mounts
-  await expect(target).toBeVisible({ timeout: 15_000 })
-  // Flash class is applied within 2s of arrival
-  await expect(target).toHaveClass(/block-flash/, { timeout: 2_000 })
-  // Class is removed within 4s (3s flash + slack for Playwright poll cadence)
-  await expect(target).not.toHaveClass(/block-flash/, { timeout: 4_000 })
-
-  // Cleanup
-  await prisma.page.delete({ where: { id: pageRow.id } }).catch(() => undefined)
-  await prisma.workspace.delete({ where: { id: workspace.id } }).catch(() => undefined)
+    // Element appears once the editor mounts
+    await expect(target).toBeVisible({ timeout: 15_000 })
+    // Flash class is applied within 2s of arrival.
+    // The flash duration is BLOCK_FLASH_DURATION_MS = 3000 in
+    // packages/editor/src/block-anchor.ts; bumping that requires the
+    // not.toHaveClass timeout below to grow accordingly.
+    await expect(target).toHaveClass(/block-flash/, { timeout: 2_000 })
+    // Class is removed within 4s (3s flash + slack for Playwright poll cadence).
+    await expect(target).not.toHaveClass(/block-flash/, { timeout: 4_000 })
+  } finally {
+    await prisma.page.delete({ where: { id: pageRow.id } }).catch(() => undefined)
+    await prisma.workspace.delete({ where: { id: workspace.id } }).catch(() => undefined)
+  }
 })
