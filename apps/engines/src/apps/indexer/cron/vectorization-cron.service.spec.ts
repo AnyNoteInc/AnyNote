@@ -29,8 +29,10 @@ describe("VectorizationCronService", () => {
     expect(agents.vectorize).not.toHaveBeenCalled()
   })
 
-  it("calls agents for TEXT page with blocks", async () => {
-    const rows = [{ id: BigInt(1), page_id: "p1", workspace_id: "w1" }]
+  it("calls agents for TEXT page with blocks on page.upserted", async () => {
+    const rows = [{
+      id: BigInt(1), page_id: "p1", workspace_id: "w1", event_type: "page.upserted",
+    }]
     const page = {
       id: "p1", type: "TEXT", deletedAt: null, title: "T",
       content: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "hi" }] }] },
@@ -47,8 +49,10 @@ describe("VectorizationCronService", () => {
     expect(arg.contents).toHaveLength(1)
   })
 
-  it("calls agents with empty contents when page is deleted/non-TEXT", async () => {
-    const rows = [{ id: BigInt(2), page_id: "p2", workspace_id: "w2" }]
+  it("calls agents with empty contents on page.upserted when page is soft-deleted", async () => {
+    const rows = [{
+      id: BigInt(2), page_id: "p2", workspace_id: "w2", event_type: "page.upserted",
+    }]
     const page = { id: "p2", type: "TEXT", deletedAt: new Date(), title: "", content: null, workspaceId: "w2" }
     const prisma = makePrismaMock({ rows, page })
     const vectorize = jest.fn(async () => undefined)
@@ -58,5 +62,36 @@ describe("VectorizationCronService", () => {
     expect(vectorize).toHaveBeenCalledWith(expect.objectContaining({
       pageId: "p2", workspaceId: "w2", contents: [],
     }))
+  })
+
+  it("deletes vectors on page.deleted event without loading the page", async () => {
+    const rows = [{
+      id: BigInt(3), page_id: "p3", workspace_id: "w3", event_type: "page.deleted",
+    }]
+    const prisma = makePrismaMock({ rows, page: null })
+    const vectorize = jest.fn(async () => undefined)
+    const agents = { vectorize } as unknown as AgentsClient
+    const svc = new VectorizationCronService(prisma as never, new PageContentReader(), agents)
+    await svc.tick()
+    expect(prisma.__mocks.findUnique).not.toHaveBeenCalled()
+    expect(vectorize).toHaveBeenCalledWith(expect.objectContaining({
+      pageId: "p3", workspaceId: "w3", contents: [],
+    }))
+  })
+
+  it("issues mark-older-as-DONE update inside the claim transaction", async () => {
+    const rows = [{
+      id: BigInt(4), page_id: "p4", workspace_id: "w4", event_type: "page.upserted",
+    }]
+    const page = { id: "p4", type: "TEXT", deletedAt: null, title: "T", content: null, workspaceId: "w4" }
+    const prisma = makePrismaMock({ rows, page })
+    const vectorize = jest.fn(async () => undefined)
+    const agents = { vectorize } as unknown as AgentsClient
+    const svc = new VectorizationCronService(prisma as never, new PageContentReader(), agents)
+    await svc.tick()
+    // claimBatch: 1 SELECT + 2 UPDATE (PROCESSING + collapse-older-to-DONE).
+    // processRow: 1 UPDATE (mark current row DONE after success).
+    expect(prisma.__mocks.queryRaw).toHaveBeenCalledTimes(1)
+    expect(prisma.__mocks.executeRaw).toHaveBeenCalledTimes(3)
   })
 })

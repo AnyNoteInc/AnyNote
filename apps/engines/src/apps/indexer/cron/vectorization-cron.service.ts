@@ -9,7 +9,14 @@ import { PRISMA } from "../../../infra/db/db.providers.js"
 import { AgentsClient } from "../services/agents-client.service.js"
 import { PageContentReader, type TiptapNode } from "../services/page-content-reader.service.js"
 
-type Row = { id: bigint; page_id: string; workspace_id: string }
+type EventType = "page.upserted" | "page.deleted"
+
+type Row = {
+  id: bigint
+  page_id: string
+  workspace_id: string
+  event_type: EventType
+}
 
 @Injectable()
 export class VectorizationCronService implements OnModuleInit {
@@ -34,7 +41,7 @@ export class VectorizationCronService implements OnModuleInit {
     )
   }
 
-  @Cron(process.env.INDEXER_CRON_EXPRESSION ?? "*/30 * * * * *")
+  @Cron(process.env.INDEXER_CRON_EXPRESSION ?? "0 */5 * * * *")
   async tick(): Promise<void> {
     const rows = await this.claimBatch()
     if (rows.length === 0) return
@@ -43,14 +50,20 @@ export class VectorizationCronService implements OnModuleInit {
 
   private async claimBatch(): Promise<Row[]> {
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      // Pick the latest PENDING event per (aggregate_type, aggregate_id, workspace_id) tuple.
       const rows = await tx.$queryRaw<Row[]>(Prisma.sql`
-        SELECT id, aggregate_id AS page_id, workspace_id
+        SELECT id, event_type, aggregate_id AS page_id, workspace_id
         FROM outbox_events
-        WHERE event_type = 'page.upserted'
-          AND aggregate_type = 'page'
-          AND status = 'PENDING'
-          AND next_attempt_at <= now()
-        ORDER BY next_attempt_at
+        WHERE id IN (
+          SELECT DISTINCT ON (aggregate_id, workspace_id) id
+          FROM outbox_events
+          WHERE status = 'PENDING'
+            AND next_attempt_at <= now()
+            AND aggregate_type = 'page'
+            AND event_type IN ('page.upserted', 'page.deleted')
+          ORDER BY aggregate_id, workspace_id, created_at DESC, id DESC
+        )
+        ORDER BY id
         LIMIT ${this.batch}
         FOR UPDATE SKIP LOCKED
       `)
@@ -60,6 +73,20 @@ export class VectorizationCronService implements OnModuleInit {
         UPDATE outbox_events
         SET status='PROCESSING', locked_at=now(), locked_by=${this.workerId}
         WHERE id IN (${Prisma.join(ids)})
+      `)
+      // Collapse all other PENDING events for the same (aggregate_id, workspace_id)
+      // into DONE so they don't fire again next tick.
+      await tx.$executeRaw(Prisma.sql`
+        UPDATE outbox_events
+        SET status='DONE', processed_at=now()
+        WHERE status='PENDING'
+          AND aggregate_type='page'
+          AND id NOT IN (${Prisma.join(ids)})
+          AND (aggregate_id, workspace_id) IN (
+            SELECT aggregate_id, workspace_id
+            FROM outbox_events
+            WHERE id IN (${Prisma.join(ids)})
+          )
       `)
       return rows
     })
@@ -71,24 +98,34 @@ export class VectorizationCronService implements OnModuleInit {
 
   private async processRow(row: Row): Promise<void> {
     try {
-      const page = await this.prisma.page.findUnique({
-        where: { id: row.page_id },
-        select: {
-          id: true, type: true, deletedAt: true, title: true,
-          content: true, workspaceId: true,
-        },
-      })
-      const isEligible = page && !page.deletedAt && page.type === "TEXT"
-      const contents = isEligible
-        ? this.reader.blocksFromDoc(page.content as TiptapNode | null)
-        : []
-      await this.agents.vectorize({
-        pageId: row.page_id,
-        workspaceId: row.workspace_id,
-        title: page?.title ?? "",
-        pageType: "TEXT",
-        contents,
-      })
+      if (row.event_type === "page.deleted") {
+        await this.agents.vectorize({
+          pageId: row.page_id,
+          workspaceId: row.workspace_id,
+          title: "",
+          pageType: "TEXT",
+          contents: [],
+        })
+      } else {
+        const page = await this.prisma.page.findUnique({
+          where: { id: row.page_id },
+          select: {
+            id: true, type: true, deletedAt: true, title: true,
+            content: true, workspaceId: true,
+          },
+        })
+        const isEligible = page && !page.deletedAt && page.type === "TEXT"
+        const contents = isEligible
+          ? this.reader.blocksFromDoc(page.content as TiptapNode | null)
+          : []
+        await this.agents.vectorize({
+          pageId: row.page_id,
+          workspaceId: row.workspace_id,
+          title: page?.title ?? "",
+          pageType: "TEXT",
+          contents,
+        })
+      }
       await this.markDone(row.id)
     } catch (err) {
       this.log.error(`Indexing failed for page ${row.page_id}: ${(err as Error).message}`)

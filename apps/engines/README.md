@@ -35,7 +35,7 @@ See repo root `.env.example`. Key knobs:
 - `PROCESSING_SERVICE_URL` — `apps/agents` base URL (default `http://localhost:8080`)
 - `INDEXER_QUIET_PERIOD_MINUTES` — wait this long after last edit before
   enqueueing (default 5)
-- `INDEXER_CRON_EXPRESSION` — reconciler schedule (default `*/1 * * * *`)
+- `INDEXER_CRON_EXPRESSION` — reconciler schedule (default `0 */5 * * * *`, i.e. every 5 minutes)
 - `UPLOAD_INLINE_MAX_BYTES` — base64-upload ceiling (default 1 MiB)
 
 ## Tests
