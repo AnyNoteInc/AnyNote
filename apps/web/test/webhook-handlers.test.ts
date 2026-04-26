@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { prisma } from '@repo/db'
-import type { Payment, YookassaClient } from '@repo/yookassa'
+import type { Payment, YookassaClient } from '@repo/yookassa/next'
 
 vi.mock('server-only', () => ({}))
 
