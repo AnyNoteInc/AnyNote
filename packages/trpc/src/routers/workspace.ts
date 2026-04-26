@@ -3,12 +3,12 @@ import { TRPCError } from "@trpc/server"
 import type { PrismaClient } from "@repo/db"
 
 import { router, protectedProcedure } from "../trpc"
-import { getActivePlanForUser } from "../helpers/plan"
+import { getActivePlanForUser, requireWritableWorkspace } from "../helpers/plan"
 import { seedStartPage } from "../helpers/seed-start-page"
 
 async function assertPaidPlan(ctx: { prisma: PrismaClient; user: { id: string } }) {
   const { plan } = await getActivePlanForUser(ctx.prisma, ctx.user.id)
-  if (plan.slug === "free") {
+  if (plan.slug === "personal") {
     throw new TRPCError({
       code: "FORBIDDEN",
       message: "Это действие доступно на платных тарифах",
@@ -105,6 +105,7 @@ export const workspaceRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await assertRole(ctx, input.id, ["OWNER", "ADMIN"])
+      await requireWritableWorkspace(input.id)
       return ctx.prisma.workspace.update({
         where: { id: input.id },
         data: { name: input.name, icon: input.icon },
@@ -150,6 +151,7 @@ export const workspaceRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       await assertRole(ctx, input.workspaceId, ["OWNER"])
+      await requireWritableWorkspace(input.workspaceId)
       await assertPaidPlan(ctx)
 
       const user = await ctx.prisma.user.findUnique({ where: { email: input.email } })
@@ -172,6 +174,7 @@ export const workspaceRouter = router({
     .input(z.object({ workspaceId: z.string().uuid(), userId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       await assertRole(ctx, input.workspaceId, ["OWNER"])
+      await requireWritableWorkspace(input.workspaceId)
       if (input.userId === ctx.user.id) {
         const owners = await ctx.prisma.workspaceMember.count({
           where: { workspaceId: input.workspaceId, role: "OWNER" },
@@ -194,6 +197,7 @@ export const workspaceRouter = router({
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       await assertRole(ctx, input.id, ["OWNER"])
+      await requireWritableWorkspace(input.id)
       await ctx.prisma.workspace.delete({ where: { id: input.id } })
       return { ok: true }
     }),

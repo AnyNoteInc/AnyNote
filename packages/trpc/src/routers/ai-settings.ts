@@ -3,6 +3,7 @@ import { TRPCError } from "@trpc/server"
 import type { AiModel, AiProvider, Prisma } from "@repo/db"
 
 import { router, protectedProcedure } from "../trpc"
+import { getAvailableAiModels, requireWritableWorkspace } from "../helpers/plan"
 
 async function assertWorkspaceMember(
   ctx: { prisma: Prisma.TransactionClient | typeof import("@repo/db").prisma; user: { id: string } },
@@ -46,28 +47,47 @@ export const aiSettingsRouter = router({
         >
       > => {
         await assertWorkspaceMember(ctx, input.workspaceId)
-        const providers = await ctx.prisma.aiProvider.findMany({
-          where: { isActive: true },
-          orderBy: { name: "asc" },
-          select: {
-            id: true,
-            slug: true,
-            name: true,
-            models: {
-              where: { isActive: true, deprecatedAt: null },
-              orderBy: { displayName: "asc" },
-              select: {
-                id: true,
-                slug: true,
-                displayName: true,
-                contextTokens: true,
-                supportsVision: true,
-                minPlanSlug: true,
-              },
-            },
-          },
-        })
-        return providers
+        const models = await getAvailableAiModels(input.workspaceId)
+        const byProvider = new Map<
+          string,
+          Pick<AiProvider, "id" | "slug" | "name"> & {
+            models: Array<
+              Pick<
+                AiModel,
+                "id" | "slug" | "displayName" | "contextTokens" | "supportsVision" | "minPlanSlug"
+              >
+            >
+          }
+        >()
+
+        for (const model of models.filter((m) => m.deprecatedAt === null)) {
+          const provider =
+            byProvider.get(model.provider.id) ??
+            ({
+              id: model.provider.id,
+              slug: model.provider.slug,
+              name: model.provider.name,
+              models: [],
+            } satisfies Pick<AiProvider, "id" | "slug" | "name"> & {
+              models: Array<
+                Pick<
+                  AiModel,
+                  "id" | "slug" | "displayName" | "contextTokens" | "supportsVision" | "minPlanSlug"
+                >
+              >
+            })
+          provider.models.push({
+            id: model.id,
+            slug: model.slug,
+            displayName: model.displayName,
+            contextTokens: model.contextTokens,
+            supportsVision: model.supportsVision,
+            minPlanSlug: model.minPlanSlug,
+          })
+          byProvider.set(provider.id, provider)
+        }
+
+        return [...byProvider.values()].sort((a, b) => a.name.localeCompare(b.name))
       },
     ),
 
@@ -97,12 +117,11 @@ export const aiSettingsRouter = router({
     )
     .mutation(async ({ ctx, input }): Promise<AiSettingsResult> => {
       await assertWorkspaceMember(ctx, input.workspaceId)
+      await requireWritableWorkspace(input.workspaceId)
       if (input.defaultModelId) {
-        const model = await ctx.prisma.aiModel.findUnique({
-          where: { id: input.defaultModelId },
-          select: { id: true, isActive: true },
-        })
-        if (!model || !model.isActive) {
+        const availableModels = await getAvailableAiModels(input.workspaceId)
+        const model = availableModels.find((m) => m.id === input.defaultModelId)
+        if (!model || model.deprecatedAt !== null) {
           throw new TRPCError({ code: "BAD_REQUEST", message: "Недоступная модель" })
         }
       }
