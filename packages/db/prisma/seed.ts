@@ -132,6 +132,8 @@ const plans = [
   },
 ] as const
 
+const canonicalPlanSlugs = plans.map((plan) => plan.slug)
+
 async function main() {
   for (const p of providers) {
     await prisma.integrationProvider.upsert({
@@ -147,6 +149,10 @@ async function main() {
       update: { ...p, features: p.features as unknown as Prisma.InputJsonValue },
     })
   }
+  await prisma.plan.updateMany({
+    where: { slug: { notIn: canonicalPlanSlugs } },
+    data: { isActive: false },
+  })
   // ── AI providers ──────────────────────────────────────────────────────────
   const aiProviders = [
     {
@@ -227,7 +233,7 @@ async function main() {
     })
   }
 
-  console.info("Seed complete: 5 providers, 3 plans, 2 AI providers, 2 AI models")
+  console.info("Seed complete: 5 providers, 3 active plans, 2 AI providers, 2 AI models")
 }
 
 main()
