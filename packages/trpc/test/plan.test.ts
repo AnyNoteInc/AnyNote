@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach } from "vitest"
 import { prisma } from "@repo/db"
-import { getWorkspaceFeatures, getAvailableAiModels } from "../src/helpers/plan"
+import { getWorkspaceFeatures, getAvailableAiModels, requireWritableWorkspace } from "../src/helpers/plan"
 
 describe("getWorkspaceFeatures", () => {
   let workspaceId: string
@@ -122,5 +122,69 @@ describe("getAvailableAiModels", () => {
     const slugs = models.map((m) => m.slug)
     expect(slugs).not.toContain("gigachat-2-pro")
     expect(slugs).not.toContain("gigachat-2-max")
+  })
+})
+
+describe("requireWritableWorkspace", () => {
+  let workspaceId: string
+  let ownerId: string
+
+  beforeEach(async () => {
+    // clean fixtures from previous runs
+    await prisma.subscription.deleteMany({
+      where: { user: { email: { contains: "+plan-test@anynote.dev" } } },
+    })
+    await prisma.workspace.deleteMany({
+      where: { createdBy: { email: { contains: "+plan-test@anynote.dev" } } },
+    })
+    await prisma.user.deleteMany({
+      where: { email: { contains: "+plan-test@anynote.dev" } },
+    })
+
+    const owner = await prisma.user.create({
+      data: {
+        email: "wf+plan-test@anynote.dev",
+        emailVerified: true,
+        name: "Test",
+        firstName: "Test",
+        lastName: "User",
+      },
+    })
+    ownerId = owner.id
+    const ws = await prisma.workspace.create({
+      data: { name: "WS1", createdById: owner.id },
+      select: { id: true },
+    })
+    workspaceId = ws.id
+  })
+
+  it("allows writes for first workspace on Personal (within limit)", async () => {
+    await expect(requireWritableWorkspace(workspaceId)).resolves.toBeUndefined()
+  })
+
+  it("blocks writes for second workspace on Personal (over limit)", async () => {
+    const second = await prisma.workspace.create({
+      data: { name: "WS2", createdById: ownerId },
+      select: { id: true },
+    })
+    await expect(requireWritableWorkspace(second.id)).rejects.toThrow(/WORKSPACE_OVER_PLAN_LIMIT/)
+  })
+
+  it("allows writes for unlimited Max plan regardless of count", async () => {
+    const max = await prisma.plan.findUniqueOrThrow({ where: { slug: "max" } })
+    await prisma.subscription.create({
+      data: {
+        userId: ownerId,
+        planId: max.id,
+        status: "ACTIVE",
+        billingPeriod: "MONTHLY",
+        currentPeriodStart: new Date(),
+        currentPeriodEnd: new Date(Date.now() + 30 * 86400_000),
+      },
+    })
+    // create extra workspaces — should still work
+    await prisma.workspace.create({ data: { name: "WS2", createdById: ownerId } })
+    const ws3 = await prisma.workspace.create({ data: { name: "WS3", createdById: ownerId }, select: { id: true } })
+    await expect(requireWritableWorkspace(ws3.id)).resolves.toBeUndefined()
   })
 })

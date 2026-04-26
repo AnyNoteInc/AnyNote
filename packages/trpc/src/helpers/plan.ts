@@ -1,3 +1,4 @@
+import { TRPCError } from "@trpc/server"
 import { prisma } from "@repo/db"
 import type { AiModel, AiProvider, Plan, PrismaClient } from "@repo/db"
 
@@ -85,4 +86,22 @@ export async function getWorkspaceFeatures(workspaceId: string): Promise<PlanFea
     return planToFeatures(personal)
   }
   return planToFeatures(sub.plan)
+}
+
+export async function requireWritableWorkspace(workspaceId: string): Promise<void> {
+  const workspace = await prisma.workspace.findUnique({
+    where: { id: workspaceId },
+    select: { createdById: true, createdAt: true },
+  })
+  if (!workspace) throw new TRPCError({ code: "NOT_FOUND" })
+
+  const features = await getWorkspaceFeatures(workspaceId)
+  if (features.maxWorkspaces === null) return
+
+  const olderCount = await prisma.workspace.count({
+    where: { createdById: workspace.createdById, createdAt: { lt: workspace.createdAt } },
+  })
+  if (olderCount >= features.maxWorkspaces) {
+    throw new TRPCError({ code: "FORBIDDEN", message: "WORKSPACE_OVER_PLAN_LIMIT" })
+  }
 }
