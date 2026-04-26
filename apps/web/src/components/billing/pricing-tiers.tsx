@@ -6,6 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Box, Button, Chip, Divider, Paper, Stack, Typography } from '@repo/ui/components'
 
 import { CheckoutModal } from './checkout-modal'
+import { getPlanDisplayName } from './plan-labels'
 
 type BillingPeriod = 'MONTHLY' | 'YEARLY'
 type CheckoutPlanSlug = 'pro' | 'max'
@@ -184,6 +185,7 @@ export function PricingTiers({ plans, currentPlanSlug, isAuthenticated }: Props)
         }}
       >
         {plans.map((plan) => {
+          const planName = getPlanDisplayName(plan)
           const isCurrent = plan.slug === currentPlanSlug
           const isPaid = plan.priceMonthlyKopecks > 0 || plan.priceYearlyKopecks > 0
           const yearlyHint = period === 'YEARLY' ? getYearlyHint(plan) : null
@@ -197,7 +199,7 @@ export function PricingTiers({ plans, currentPlanSlug, isAuthenticated }: Props)
                 ? 'Открыть биллинг'
                 : currentPlanSlug === 'personal'
                   ? 'Купить'
-                  : `Перейти на ${plan.name}`
+                  : `Перейти на ${planName}`
 
           return (
             <Paper
@@ -222,7 +224,7 @@ export function PricingTiers({ plans, currentPlanSlug, isAuthenticated }: Props)
                     justifyContent="space-between"
                   >
                     <Typography variant="h5" fontWeight={700}>
-                      {plan.name}
+                      {planName}
                     </Typography>
                     {isCurrent ? <Chip size="small" color="success" label="Активен" /> : null}
                   </Stack>

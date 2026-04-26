@@ -3,7 +3,7 @@ import { TRPCError } from '@trpc/server'
 import type { PrismaClient } from '@repo/db'
 
 import { router, protectedProcedure } from '../trpc'
-import { getActivePlanForUser, requireWritableWorkspace } from '../helpers/plan'
+import { getActivePlanForUser, getPlanDisplayName, requireWritableWorkspace } from '../helpers/plan'
 import { seedStartPage } from '../helpers/seed-start-page'
 
 async function assertPaidPlan(ctx: { prisma: PrismaClient; user: { id: string } }) {
@@ -47,7 +47,7 @@ export const workspaceRouter = router({
         if (owned >= plan.maxWorkspaces) {
           throw new TRPCError({
             code: 'FORBIDDEN',
-            message: `На тарифе ${plan.name} можно создать не больше ${plan.maxWorkspaces} пространств`,
+            message: `На тарифе ${getPlanDisplayName(plan)} можно создать не больше ${plan.maxWorkspaces} пространств`,
           })
         }
       }

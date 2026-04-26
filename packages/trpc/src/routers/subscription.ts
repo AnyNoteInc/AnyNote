@@ -2,7 +2,7 @@ import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../trpc'
-import { getActivePlanForUser } from '../helpers/plan'
+import { getActivePlanForUser, getPlanDisplayName } from '../helpers/plan'
 
 export const subscriptionRouter = router({
   getCurrent: protectedProcedure.query(async ({ ctx }) => {
@@ -111,7 +111,7 @@ export const subscriptionRouter = router({
             type: 'redirect',
             return_url: `${ctx.returnUrlBase}/billing/return?orderId=${order.id}`,
           },
-          description: `Подписка ${plan.name} (${periodLabel})`,
+          description: `Подписка ${getPlanDisplayName(plan)} (${periodLabel})`,
           metadata: {
             orderId: order.id,
             userId: ctx.user.id,

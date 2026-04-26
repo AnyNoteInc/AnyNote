@@ -35,7 +35,7 @@ export function CancelSubscriptionDialog({ open, periodEnd, onClose }: Props) {
       <DialogTitle>Отменить подписку?</DialogTitle>
       <DialogContent>
         <Typography color="text.secondary">
-          Подписка останется активной до {dateStr}, затем вы перейдете на Personal без потери
+          Подписка останется активной до {dateStr}, затем вы перейдете на Персональный без потери
           данных.
         </Typography>
       </DialogContent>

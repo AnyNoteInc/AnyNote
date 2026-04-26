@@ -30,10 +30,17 @@ export type PlanFeatures = {
   developerSpaceEnabled: boolean
 }
 
+export function getPlanDisplayName(plan: Pick<Plan, 'slug' | 'name'>): string {
+  if (plan.slug === 'personal') return 'Персональный'
+  if (plan.slug === 'pro') return 'ПРО'
+  if (plan.slug === 'max') return 'МАКС'
+  return plan.name
+}
+
 function planToFeatures(plan: Plan): PlanFeatures {
   return {
     slug: plan.slug as PlanFeatures['slug'],
-    name: plan.name,
+    name: getPlanDisplayName(plan),
     sortOrder: plan.sortOrder,
     isPaid: plan.slug !== 'personal',
     maxWorkspaces: plan.maxWorkspaces,

@@ -19,6 +19,7 @@ import {
 
 import type { PlanFeatures } from '@repo/trpc'
 
+import { getPlanDisplayName } from '@/components/billing/plan-labels'
 import { trpc } from '@/trpc/client'
 
 import { FavoritesSection } from './favorites-section'
@@ -79,7 +80,7 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
           </Typography>
           <Stack direction="row" alignItems="center" gap={1}>
             <Chip
-              label={features.name}
+              label={getPlanDisplayName(features)}
               size="small"
               color={features.isPaid ? 'success' : 'default'}
               variant={features.isPaid ? 'filled' : 'outlined'}
@@ -95,7 +96,7 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
                   '&:hover': { textDecoration: 'underline' },
                 }}
               >
-                Перейти на Pro
+                Перейти на ПРО
               </Box>
             )}
           </Stack>
@@ -110,19 +111,21 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
       </Stack>
 
       <Stack spacing={0.25} sx={{ py: 0.75 }}>
-        <SearchSidebarSection workspaceId={workspace.id} />
         {features.chatsEnabled && (
-          <NavItem
-            icon={
-              <Box component="span" sx={{ fontSize: 16, lineHeight: 1 }}>
-                💬
-              </Box>
-            }
-            label="Чаты"
-            href={`/workspaces/${workspace.id}/chats`}
-            matchPrefix={`/workspaces/${workspace.id}/chats`}
-            pathname={pathname}
-          />
+          <>
+            <SearchSidebarSection workspaceId={workspace.id} />
+            <NavItem
+              icon={
+                <Box component="span" sx={{ fontSize: 16, lineHeight: 1 }}>
+                  💬
+                </Box>
+              }
+              label="Чаты"
+              href={`/workspaces/${workspace.id}/chats`}
+              matchPrefix={`/workspaces/${workspace.id}/chats`}
+              pathname={pathname}
+            />
+          </>
         )}
         <NavItem
           icon={<SettingsIcon sx={{ fontSize: 16 }} />}

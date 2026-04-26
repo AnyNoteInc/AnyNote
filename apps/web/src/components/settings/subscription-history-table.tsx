@@ -8,6 +8,8 @@ import {
   Typography,
 } from '@repo/ui/components'
 
+import { getPlanDisplayName } from '@/components/billing/plan-labels'
+
 type Row = {
   id: string
   status: string
@@ -50,7 +52,7 @@ export function SubscriptionHistoryTable({ rows }: { rows: Row[] }) {
         <TableBody>
           {rows.map((r) => (
             <TableRow key={r.id}>
-              <TableCell>{r.plan.name}</TableCell>
+              <TableCell>{getPlanDisplayName(r.plan)}</TableCell>
               <TableCell>{formatPeriod(r.startedAt, r.currentPeriodEnd, r.canceledAt)}</TableCell>
               <TableCell>{formatAmount(r.amountPaid, r.currency)}</TableCell>
               <TableCell>{r.status}</TableCell>

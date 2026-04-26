@@ -1,10 +1,9 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest'
 import { prisma } from '@repo/db'
-import type { Payment } from '@repo/yookassa'
+import type { Payment, YookassaClient } from '@repo/yookassa'
 
 vi.mock('server-only', () => ({}))
 
-// eslint-disable-next-line import/first
 import { handlePaymentSucceeded } from '../src/server/billing/webhook-handlers'
 
 describe('handlePaymentSucceeded', () => {
@@ -68,7 +67,7 @@ describe('handlePaymentSucceeded', () => {
           }) as Payment,
       ),
     }
-    await handlePaymentSucceeded({ yookassa: yk as any, prisma }, {
+    await handlePaymentSucceeded({ yookassa: yk as unknown as YookassaClient, prisma }, {
       id: 'pmt_wh_test_1',
     } as Payment)
     const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId } })
@@ -92,10 +91,10 @@ describe('handlePaymentSucceeded', () => {
           }) as Payment,
       ),
     }
-    await handlePaymentSucceeded({ yookassa: yk as any, prisma }, {
+    await handlePaymentSucceeded({ yookassa: yk as unknown as YookassaClient, prisma }, {
       id: 'pmt_wh_test_1',
     } as Payment)
-    await handlePaymentSucceeded({ yookassa: yk as any, prisma }, {
+    await handlePaymentSucceeded({ yookassa: yk as unknown as YookassaClient, prisma }, {
       id: 'pmt_wh_test_1',
     } as Payment)
     const subs = await prisma.subscription.findMany({ where: { userId, planId } })
@@ -114,7 +113,7 @@ describe('handlePaymentSucceeded', () => {
           }) as Payment,
       ),
     }
-    await handlePaymentSucceeded({ yookassa: yk as any, prisma }, {
+    await handlePaymentSucceeded({ yookassa: yk as unknown as YookassaClient, prisma }, {
       id: 'pmt_wh_test_1',
     } as Payment)
     const order = await prisma.order.findUniqueOrThrow({ where: { id: orderId } })

@@ -9,7 +9,6 @@ let client: YookassaClient | null = null
 class MockYookassaClient implements Pick<YookassaClient, 'createPayment' | 'getPayment'> {
   async createPayment(
     input: Parameters<YookassaClient['createPayment']>[0],
-    _idempotencyKey: string,
   ): Promise<Payment> {
     const orderId = input.metadata?.orderId
     const paymentId = `mock_${orderId ?? crypto.randomUUID()}`

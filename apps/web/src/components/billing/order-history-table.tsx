@@ -9,6 +9,8 @@ import {
   Typography,
 } from '@repo/ui/components'
 
+import { getPlanDisplayName } from './plan-labels'
+
 type Row = Order & { plan: Pick<Plan, 'name' | 'slug'> }
 
 function formatAmount(amountKopecks: number, currency: string): string {
@@ -43,7 +45,7 @@ export function OrderHistoryTable({ orders }: { orders: Row[] }) {
           {orders.map((order) => (
             <TableRow key={order.id}>
               <TableCell>{new Date(order.createdAt).toLocaleDateString('ru-RU')}</TableCell>
-              <TableCell>{order.plan.name}</TableCell>
+              <TableCell>{getPlanDisplayName(order.plan)}</TableCell>
               <TableCell>{formatPeriod(order)}</TableCell>
               <TableCell align="right">
                 {formatAmount(order.amountKopecks, order.currency)}

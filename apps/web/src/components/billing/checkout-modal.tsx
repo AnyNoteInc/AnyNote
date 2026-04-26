@@ -18,6 +18,8 @@ import {
 
 import { trpc } from '@/trpc/client'
 
+import { getPlanDisplayName } from './plan-labels'
+
 type BillingPeriod = 'MONTHLY' | 'YEARLY'
 type CheckoutPlanSlug = 'pro' | 'max'
 
@@ -30,11 +32,6 @@ type Props = {
 const PRICES_RUB: Record<CheckoutPlanSlug, Record<BillingPeriod, number>> = {
   pro: { MONTHLY: 150, YEARLY: 1000 },
   max: { MONTHLY: 1500, YEARLY: 12000 },
-}
-
-const PLAN_NAMES: Record<CheckoutPlanSlug, string> = {
-  pro: 'Pro',
-  max: 'Max',
 }
 
 export function CheckoutModal({ planSlug, defaultPeriod, onClose }: Props) {
@@ -51,7 +48,7 @@ export function CheckoutModal({ planSlug, defaultPeriod, onClose }: Props) {
 
   return (
     <Dialog open onClose={onClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Подписка {PLAN_NAMES[planSlug]}</DialogTitle>
+      <DialogTitle>Подписка {getPlanDisplayName({ slug: planSlug })}</DialogTitle>
       <DialogContent>
         <Stack spacing={3} sx={{ pt: 1 }}>
           <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1}>

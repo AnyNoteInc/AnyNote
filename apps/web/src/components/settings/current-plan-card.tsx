@@ -7,6 +7,7 @@ import type { Plan, Subscription } from '@prisma/client'
 import { Button, Chip, Paper, Stack, Typography } from '@repo/ui/components'
 
 import { CancelSubscriptionDialog } from '@/components/billing/cancel-subscription-dialog'
+import { getPlanDisplayName } from '@/components/billing/plan-labels'
 import { trpc } from '@/trpc/client'
 
 type Props = {
@@ -34,7 +35,7 @@ export function CurrentPlanCard({ subscription }: Props) {
   })
 
   const plan = subscription?.plan ?? null
-  const planName = plan?.name ?? 'Personal'
+  const planName = getPlanDisplayName({ slug: plan?.slug, name: plan?.name })
   const isPaid = plan?.slug !== undefined && plan.slug !== 'personal'
   const periodEnd = formatDate(subscription?.currentPeriodEnd ?? null)
 
@@ -70,7 +71,7 @@ export function CurrentPlanCard({ subscription }: Props) {
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
           {!isPaid ? (
             <Button component={Link} href="/pricing" variant="contained">
-              Перейти на Pro
+              Перейти на ПРО
             </Button>
           ) : null}
           {isPaid && !subscription?.cancelAtPeriodEnd ? (

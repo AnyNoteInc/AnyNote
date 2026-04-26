@@ -56,19 +56,19 @@ export const pricingCards = [
 export const landingPricingCards = [
   {
     slug: 'personal',
-    name: 'Personal',
+    name: 'Персональный',
     price: 'Бесплатно',
     features: ['1 рабочее пространство', 'Базовый редактор'],
   },
   {
     slug: 'pro',
-    name: 'Pro',
+    name: 'ПРО',
     price: 'от 150 ₽/мес',
     features: ['3 пространства', 'До 5 участников', 'Чаты с AI', 'Индексация'],
   },
   {
     slug: 'max',
-    name: 'Max',
+    name: 'МАКС',
     price: 'от 1500 ₽/мес',
     features: ['∞ пространств', 'До 100 участников', 'Все модели GigaChat', 'MCP-серверы'],
   },

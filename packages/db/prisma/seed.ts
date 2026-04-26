@@ -59,7 +59,7 @@ const providers = [
 const plans = [
   {
     slug: 'personal',
-    name: 'Personal',
+    name: 'Персональный',
     description: 'Для личного пользования',
     priceMonthlyKopecks: 0,
     priceYearlyKopecks: 0,
@@ -79,7 +79,7 @@ const plans = [
   },
   {
     slug: 'pro',
-    name: 'Pro',
+    name: 'ПРО',
     description: 'Для продвинутых пользователей',
     priceMonthlyKopecks: 15_000,
     priceYearlyKopecks: 100_000,
@@ -105,7 +105,7 @@ const plans = [
   },
   {
     slug: 'max',
-    name: 'Max',
+    name: 'МАКС',
     description: 'Для команд и больших задач',
     priceMonthlyKopecks: 150_000,
     priceYearlyKopecks: 1_200_000,
