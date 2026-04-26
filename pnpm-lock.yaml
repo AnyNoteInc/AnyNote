@@ -61,6 +61,9 @@ importers:
       '@repo/storage':
         specifier: workspace:*
         version: link:../../packages/storage
+      '@repo/yookassa':
+        specifier: workspace:*
+        version: link:../../packages/yookassa
       cron:
         specifier: ^3.2.0
         version: 3.5.0
