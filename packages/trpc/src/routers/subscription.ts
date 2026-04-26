@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto"
 import { z } from "zod"
 import { TRPCError } from "@trpc/server"
 import { router, protectedProcedure } from "../trpc"
@@ -63,4 +64,72 @@ export const subscriptionRouter = router({
       take: 100,
     })
   }),
+
+  startCheckout: protectedProcedure
+    .input(
+      z.object({
+        planSlug: z.enum(["pro", "max"]),
+        period: z.enum(["MONTHLY", "YEARLY"]),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const plan = await ctx.prisma.plan.findUnique({ where: { slug: input.planSlug } })
+      if (!plan) throw new TRPCError({ code: "NOT_FOUND", message: "PLAN_NOT_FOUND" })
+
+      const existing = await ctx.prisma.subscription.findFirst({
+        where: { userId: ctx.user.id, status: "ACTIVE", planId: plan.id },
+      })
+      if (existing) throw new TRPCError({ code: "CONFLICT", message: "ALREADY_SUBSCRIBED" })
+
+      const amountKopecks =
+        input.period === "MONTHLY" ? plan.priceMonthlyKopecks : plan.priceYearlyKopecks
+      const idempotencyKey = randomUUID()
+
+      const order = await ctx.prisma.order.create({
+        data: {
+          userId: ctx.user.id,
+          planId: plan.id,
+          billingPeriod: input.period,
+          amountKopecks,
+          currency: "RUB",
+          status: "PENDING",
+          isInitial: true,
+          savedPaymentMethod: true,
+          yookassaIdempotencyKey: idempotencyKey,
+        },
+      })
+
+      const rub = (amountKopecks / 100).toFixed(2)
+      const periodLabel = input.period === "MONTHLY" ? "Месяц" : "Год"
+
+      const payment = await ctx.yookassa.createPayment(
+        {
+          amount: { value: rub, currency: "RUB" },
+          capture: true,
+          save_payment_method: true,
+          confirmation: {
+            type: "redirect",
+            return_url: `${ctx.returnUrlBase}/billing/return?orderId=${order.id}`,
+          },
+          description: `Подписка ${plan.name} (${periodLabel})`,
+          metadata: {
+            orderId: order.id,
+            userId: ctx.user.id,
+            planSlug: plan.slug,
+            period: input.period,
+          },
+        },
+        idempotencyKey,
+      )
+
+      await ctx.prisma.order.update({
+        where: { id: order.id },
+        data: { yookassaPaymentId: payment.id },
+      })
+
+      if (!payment.confirmation?.confirmation_url) {
+        throw new TRPCError({ code: "INTERNAL_SERVER_ERROR", message: "NO_CONFIRMATION_URL" })
+      }
+      return { orderId: order.id, confirmationUrl: payment.confirmation.confirmation_url }
+    }),
 })

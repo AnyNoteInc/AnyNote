@@ -37,7 +37,11 @@
     "INDEXER_BATCH",
     "UPLOAD_INLINE_MAX_BYTES",
     "OPENAI_API_KEY",
-    "HOSTNAME"
+    "HOSTNAME",
+    "YOOKASSA_SHOP_ID",
+    "YOOKASSA_SECRET_KEY",
+    "YOOKASSA_RETURN_URL_BASE",
+    "YOOKASSA_TRUSTED_IPS"
   ],
   "tasks": {
     "build": {

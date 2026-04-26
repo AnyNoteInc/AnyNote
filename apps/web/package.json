@@ -20,6 +20,7 @@
     "@repo/genogram": "workspace:*",
     "@repo/storage": "workspace:*",
     "@repo/trpc": "workspace:*",
+    "@repo/yookassa": "workspace:*",
     "@repo/ui": "workspace:*",
     "@tanstack/react-query": "^5.90.16",
     "@trpc/client": "^11.0.0",

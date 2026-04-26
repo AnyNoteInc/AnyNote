@@ -158,6 +158,9 @@ importers:
       '@repo/ui':
         specifier: workspace:*
         version: link:../../packages/ui
+      '@repo/yookassa':
+        specifier: workspace:*
+        version: link:../../packages/yookassa
       '@tanstack/react-query':
         specifier: ^5.90.16
         version: 5.97.0(react@19.2.5)
@@ -607,6 +610,9 @@ importers:
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
+      '@repo/yookassa':
+        specifier: workspace:*
+        version: link:../yookassa
       '@tiptap/core':
         specifier: ^3.22.3
         version: 3.22.3(@tiptap/pm@3.22.3)

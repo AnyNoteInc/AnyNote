@@ -2,26 +2,37 @@ import { initTRPC, TRPCError } from "@trpc/server"
 
 import { prisma } from "@repo/db"
 import { getUserFromRequest } from "@repo/auth"
+import type { YookassaClient } from "@repo/yookassa"
 
 type CreateContextOptions = {
   req: Request
   resHeaders: Headers
+  yookassa: YookassaClient
+  returnUrlBase: string
 }
 
-export const createContext = async ({ req, resHeaders }: CreateContextOptions) => {
+export const createContext = async ({ req, resHeaders, yookassa, returnUrlBase }: CreateContextOptions) => {
   const user = await getUserFromRequest(req, resHeaders)
   return {
     prisma,
     user,
     headers: req.headers,
     resHeaders,
+    yookassa,
+    returnUrlBase,
   }
 }
 
-export const createServerContext = async (headers: Headers) => {
+export const createServerContext = async (
+  headers: Headers,
+  yookassa: YookassaClient,
+  returnUrlBase: string,
+) => {
   return createContext({
     req: new Request("http://rsc.internal", { headers }),
     resHeaders: new Headers(),
+    yookassa,
+    returnUrlBase,
   })
 }
 
