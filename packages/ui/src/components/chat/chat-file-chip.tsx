@@ -1,7 +1,7 @@
-"use client"
+'use client'
 
-import DescriptionOutlinedIcon from "@mui/icons-material/DescriptionOutlined"
-import Chip from "@mui/material/Chip"
+import DescriptionOutlinedIcon from '@mui/icons-material/DescriptionOutlined'
+import Chip from '@mui/material/Chip'
 
 type ChatFileChipProps = {
   name: string
@@ -16,23 +16,23 @@ export function ChatFileChip({ name, secondaryLabel, href, onDelete }: ChatFileC
   return (
     <Chip
       clickable={Boolean(href)}
-      component={href ? "a" : "div"}
+      component={href ? 'a' : 'div'}
       href={href}
       icon={<DescriptionOutlinedIcon fontSize="small" />}
       label={label}
       onDelete={onDelete}
-      rel={href ? "noreferrer" : undefined}
+      rel={href ? 'noreferrer' : undefined}
       size="small"
       sx={{
-        maxWidth: "100%",
-        "& .MuiChip-label": {
-          display: "block",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
-          whiteSpace: "nowrap",
+        maxWidth: '100%',
+        '& .MuiChip-label': {
+          display: 'block',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
         },
       }}
-      target={href ? "_blank" : undefined}
+      target={href ? '_blank' : undefined}
       variant="outlined"
     />
   )

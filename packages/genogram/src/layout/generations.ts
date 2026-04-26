@@ -1,5 +1,5 @@
-import type { GenogramPageData, Person, PersonId } from "../types"
-import type { Relations } from "./relations"
+import type { GenogramPageData, Person, PersonId } from '../types'
+import type { Relations } from './relations'
 
 /**
  * BFS from pivot. Partners share generation; children are +1; parents -1.
@@ -32,8 +32,8 @@ export function assignGenerations(
 function pickPivot(data: GenogramPageData): Person | null {
   const people = Object.values(data.entities.people)
   return (
-    people.find((p) => p.role === "owner") ??
-    people.find((p) => p.bloodRelation === "direct") ??
+    people.find((p) => p.role === 'owner') ??
+    people.find((p) => p.bloodRelation === 'direct') ??
     people[0] ??
     null
   )
@@ -74,7 +74,7 @@ function visitChildren(
     const cg = data.entities.childGroups[cgId]
     if (!cg) continue
     for (const entry of cg.children) {
-      if (entry.kind !== "person") continue
+      if (entry.kind !== 'person') continue
       if (!result.has(entry.personId) && data.entities.people[entry.personId]) {
         result.set(entry.personId, gen + 1)
         queue.push(entry.personId)
@@ -118,7 +118,7 @@ function visitSiblings(
   const cg = data.entities.childGroups[cgId]
   if (!cg) return
   for (const entry of cg.children) {
-    if (entry.kind !== "person") continue
+    if (entry.kind !== 'person') continue
     if (entry.personId === personId) continue
     if (!result.has(entry.personId) && data.entities.people[entry.personId]) {
       result.set(entry.personId, gen)

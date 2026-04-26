@@ -1,8 +1,8 @@
-"use client"
-import { useEffect, useState } from "react"
-import Link from "next/link"
-import { Box, Stack, CircularProgress, Typography, Button } from "@repo/ui/components"
-import { trpc } from "@/trpc/client"
+'use client'
+import { useEffect, useState } from 'react'
+import Link from 'next/link'
+import { Box, Stack, CircularProgress, Typography, Button } from '@repo/ui/components'
+import { trpc } from '@/trpc/client'
 
 export function OrderProgress({ orderId }: { orderId: string }) {
   const [elapsed, setElapsed] = useState(0)
@@ -12,12 +12,15 @@ export function OrderProgress({ orderId }: { orderId: string }) {
   }, [])
 
   const [shouldPoll, setShouldPoll] = useState(true)
-  const query = trpc.subscription.getOrder.useQuery({ orderId }, {
-    refetchInterval: shouldPoll ? 2000 : false,
-  })
+  const query = trpc.subscription.getOrder.useQuery(
+    { orderId },
+    {
+      refetchInterval: shouldPoll ? 2000 : false,
+    },
+  )
 
   useEffect(() => {
-    if (query.data && query.data.status !== "PENDING") {
+    if (query.data && query.data.status !== 'PENDING') {
       setShouldPoll(false)
     }
   }, [query.data])
@@ -31,7 +34,7 @@ export function OrderProgress({ orderId }: { orderId: string }) {
     )
   }
 
-  if (order.status === "PAID") {
+  if (order.status === 'PAID') {
     return (
       <Centered>
         <Typography variant="h5">Оплата прошла успешно</Typography>
@@ -42,7 +45,7 @@ export function OrderProgress({ orderId }: { orderId: string }) {
     )
   }
 
-  if (order.status === "FAILED") {
+  if (order.status === 'FAILED') {
     return (
       <Centered>
         <Typography variant="h5" color="error">
@@ -81,10 +84,10 @@ function Centered({ children }: { children: React.ReactNode }) {
   return (
     <Box
       sx={{
-        minHeight: "70vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        minHeight: '70vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
       }}
     >
       <Stack spacing={2} alignItems="center">

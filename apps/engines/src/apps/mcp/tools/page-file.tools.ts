@@ -1,15 +1,15 @@
-import { Inject, Injectable } from "@nestjs/common"
-import type { Context } from "@rekog/mcp-nest"
-import { Tool } from "@rekog/mcp-nest"
-import type { PrismaClient } from "@repo/db"
-import { z } from "zod"
+import { Inject, Injectable } from '@nestjs/common'
+import type { Context } from '@rekog/mcp-nest'
+import { Tool } from '@rekog/mcp-nest'
+import type { PrismaClient } from '@repo/db'
+import { z } from 'zod'
 
-import { PRISMA } from "../../../infra/db/db.providers.js"
-import { PageNotFoundError } from "../errors/mcp.errors.js"
-import { WorkspaceMemberGuard } from "../guards/workspace-member.guard.js"
-import { FileUploader } from "../services/file-uploader.service.js"
-import { mcpUuid } from "../utils/mcp-input.js"
-import { getMcpRequestContext, type McpRequestWithContext } from "../utils/mcp-request-context.js"
+import { PRISMA } from '../../../infra/db/db.providers.js'
+import { PageNotFoundError } from '../errors/mcp.errors.js'
+import { WorkspaceMemberGuard } from '../guards/workspace-member.guard.js'
+import { FileUploader } from '../services/file-uploader.service.js'
+import { mcpUuid } from '../utils/mcp-input.js'
+import { getMcpRequestContext, type McpRequestWithContext } from '../utils/mcp-request-context.js'
 
 const UploadInline = z.object({
   pageId: mcpUuid(),
@@ -32,8 +32,8 @@ export class PageFileTools {
   ) {}
 
   @Tool({
-    name: "uploadFileToPage",
-    description: "Upload a small file (<=1MB) to a page inline via base64",
+    name: 'uploadFileToPage',
+    description: 'Upload a small file (<=1MB) to a page inline via base64',
     parameters: UploadInline,
   })
   async uploadFileToPage(
@@ -43,7 +43,7 @@ export class PageFileTools {
   ) {
     const requestContext = getMcpRequestContext(req)
     await this.guard.assert(requestContext.workspaceId, requestContext.userId)
-    const buffer = Buffer.from(args.contentBase64, "base64")
+    const buffer = Buffer.from(args.contentBase64, 'base64')
     const fileId = await this.uploader.uploadInline({
       userId: requestContext.userId,
       workspaceId: requestContext.workspaceId,
@@ -57,8 +57,8 @@ export class PageFileTools {
   }
 
   @Tool({
-    name: "uploadImageToPage",
-    description: "Upload a small image (<=1MB) to a page inline via base64",
+    name: 'uploadImageToPage',
+    description: 'Upload a small image (<=1MB) to a page inline via base64',
     parameters: UploadInline,
   })
   async uploadImageToPage(
@@ -68,7 +68,7 @@ export class PageFileTools {
   ) {
     const requestContext = getMcpRequestContext(req)
     await this.guard.assert(requestContext.workspaceId, requestContext.userId)
-    const buffer = Buffer.from(args.contentBase64, "base64")
+    const buffer = Buffer.from(args.contentBase64, 'base64')
     const fileId = await this.uploader.uploadInline({
       userId: requestContext.userId,
       workspaceId: requestContext.workspaceId,
@@ -82,8 +82,8 @@ export class PageFileTools {
   }
 
   @Tool({
-    name: "attachFileToPage",
-    description: "Attach an existing workspace file to a page by id",
+    name: 'attachFileToPage',
+    description: 'Attach an existing workspace file to a page by id',
     parameters: Attach,
   })
   async attachFileToPage(
@@ -103,8 +103,8 @@ export class PageFileTools {
   }
 
   @Tool({
-    name: "attachImageToPage",
-    description: "Attach an existing workspace image to a page by id",
+    name: 'attachImageToPage',
+    description: 'Attach an existing workspace image to a page by id',
     parameters: Attach,
   })
   async attachImageToPage(
@@ -124,15 +124,11 @@ export class PageFileTools {
   }
 
   @Tool({
-    name: "listPageFiles",
-    description: "List files attached to a page",
+    name: 'listPageFiles',
+    description: 'List files attached to a page',
     parameters: z.object({ pageId: mcpUuid() }),
   })
-  async listPageFiles(
-    args: { pageId: string },
-    _context: Context,
-    req: McpRequestWithContext,
-  ) {
+  async listPageFiles(args: { pageId: string }, _context: Context, req: McpRequestWithContext) {
     const requestContext = getMcpRequestContext(req)
     await this.guard.assert(requestContext.workspaceId, requestContext.userId)
     const page = await this.prisma.page.findUnique({

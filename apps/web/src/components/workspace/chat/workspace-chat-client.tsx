@@ -1,18 +1,15 @@
-"use client"
+'use client'
 
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react"
+import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 
-import { Alert, Box, ChatThread, Stack, type ChatSendPayload } from "@repo/ui/components"
+import { Alert, Box, ChatThread, Stack, type ChatSendPayload } from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
-import { renderChatLink } from "@/components/chat/chat-link-renderer"
-import {
-  findResumableAssistantMessageId,
-  type ServerChatMessage,
-} from "./chat-message-mappers"
-import { useChatStream } from "./use-chat-stream"
-import { useDraftAttachments } from "./use-draft-attachments"
+import { renderChatLink } from '@/components/chat/chat-link-renderer'
+import { findResumableAssistantMessageId, type ServerChatMessage } from './chat-message-mappers'
+import { useChatStream } from './use-chat-stream'
+import { useDraftAttachments } from './use-draft-attachments'
 
 type WorkspaceChatClientProps = {
   chatId: string
@@ -25,7 +22,7 @@ export function WorkspaceChatClient({
   workspaceId,
   initialMessages,
 }: WorkspaceChatClientProps) {
-  const [draft, setDraft] = useState("")
+  const [draft, setDraft] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
   const utils = trpc.useUtils()
   const query = trpc.chat.getChat.useQuery({ chatId })
@@ -82,12 +79,12 @@ export function WorkspaceChatClient({
 
   const handleSend = useEffectEvent(async (text: string) => {
     if (draftAttachments.hasPendingUploads) {
-      setActionError("Дождитесь завершения загрузки файлов перед отправкой.")
+      setActionError('Дождитесь завершения загрузки файлов перед отправкой.')
       return
     }
 
     if (draftAttachments.hasFailedUploads) {
-      setActionError("Удалите файлы с ошибкой загрузки или загрузите их заново.")
+      setActionError('Удалите файлы с ошибкой загрузки или загрузите их заново.')
       return
     }
 
@@ -98,7 +95,7 @@ export function WorkspaceChatClient({
     })
 
     if (started) {
-      setDraft("")
+      setDraft('')
       draftAttachments.clear()
     }
   })
@@ -107,26 +104,29 @@ export function WorkspaceChatClient({
     void handleSend(payload.text)
   })
 
-  const handleComposerAttachmentsChange = useEffectEvent((attachments: typeof draftAttachments.attachments) => {
-    setActionError(null)
-    draftAttachments.syncComposerAttachments(attachments)
-  })
+  const handleComposerAttachmentsChange = useEffectEvent(
+    (attachments: typeof draftAttachments.attachments) => {
+      setActionError(null)
+      draftAttachments.syncComposerAttachments(attachments)
+    },
+  )
 
   const handleComposerValueChange = useEffectEvent((value: string) => {
     setActionError(null)
     setDraft(value)
   })
 
-  const combinedError = actionError ?? draftAttachments.error ?? streamError ?? query.error?.message ?? null
+  const combinedError =
+    actionError ?? draftAttachments.error ?? streamError ?? query.error?.message ?? null
 
   return (
     <Box
       sx={{
-        display: "flex",
-        flexDirection: "column",
-        minHeight: "100%",
+        display: 'flex',
+        flexDirection: 'column',
+        minHeight: '100%',
         maxWidth: 960,
-        mx: "auto",
+        mx: 'auto',
         px: { xs: 1.5, sm: 2.5 },
         pt: 2,
       }}

@@ -1,9 +1,9 @@
-"use client"
+'use client'
 
-import { type ReactNode, useMemo } from "react"
+import { type ReactNode, useMemo } from 'react'
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 import {
   Box,
@@ -15,17 +15,17 @@ import {
   Stack,
   Tooltip,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import type { PlanFeatures } from "@repo/trpc"
+import type { PlanFeatures } from '@repo/trpc'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
-import { FavoritesSection } from "./favorites-section"
-import { PageTreeSection } from "./page-tree-section"
-import type { PageItem } from "./types"
-import { SearchSidebarSection } from "./search-sidebar-section"
-import { SIDEBAR_WIDTH } from "./workspace-layout-client"
+import { FavoritesSection } from './favorites-section'
+import { PageTreeSection } from './page-tree-section'
+import type { PageItem } from './types'
+import { SearchSidebarSection } from './search-sidebar-section'
+import { SIDEBAR_WIDTH } from './workspace-layout-client'
 
 type Props = {
   workspace: { id: string; name: string; icon: string | null }
@@ -47,14 +47,14 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
       component="aside"
       sx={{
         width: SIDEBAR_WIDTH,
-        borderRight: "1px solid",
-        borderColor: "divider",
-        display: "flex",
-        flexDirection: "column",
-        bgcolor: "background.paper",
+        borderRight: '1px solid',
+        borderColor: 'divider',
+        display: 'flex',
+        flexDirection: 'column',
+        bgcolor: 'background.paper',
         px: 1.25,
         py: 1.75,
-        overflow: "auto",
+        overflow: 'auto',
       }}
     >
       <Stack direction="row" alignItems="center" spacing={1} sx={{ px: 1, pb: 1.75 }}>
@@ -63,15 +63,15 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
             width: 24,
             height: 24,
             borderRadius: 0.75,
-            background: "linear-gradient(135deg,#0f766e,#155e75)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            background: 'linear-gradient(135deg,#0f766e,#155e75)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             fontSize: 14,
             flexShrink: 0,
           }}
         >
-          {workspace.icon ?? "📒"}
+          {workspace.icon ?? '📒'}
         </Box>
         <Stack spacing={0} sx={{ flex: 1, minWidth: 0 }}>
           <Typography variant="body2" noWrap>
@@ -81,8 +81,8 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
             <Chip
               label={features.name}
               size="small"
-              color={features.isPaid ? "success" : "default"}
-              variant={features.isPaid ? "filled" : "outlined"}
+              color={features.isPaid ? 'success' : 'default'}
+              variant={features.isPaid ? 'filled' : 'outlined'}
             />
             {!features.isPaid && (
               <Box
@@ -90,9 +90,9 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
                 href="/pricing"
                 sx={{
                   fontSize: 12,
-                  color: "primary.main",
-                  textDecoration: "none",
-                  "&:hover": { textDecoration: "underline" },
+                  color: 'primary.main',
+                  textDecoration: 'none',
+                  '&:hover': { textDecoration: 'underline' },
                 }}
               >
                 Перейти на Pro
@@ -143,7 +143,7 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
 
       <Box sx={{ flex: 1 }} />
 
-      <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 1.25 }}>
+      <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1.25 }}>
         <NavItem
           icon={<DeleteIcon sx={{ fontSize: 16 }} />}
           label="Корзина"
@@ -153,7 +153,7 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
         />
       </Box>
 
-      <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 1 }}>{userMenu}</Box>
+      <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>{userMenu}</Box>
     </Box>
   )
 }
@@ -179,16 +179,16 @@ function NavItem({
       component={Link}
       href={href}
       sx={{
-        display: "flex",
-        alignItems: "center",
+        display: 'flex',
+        alignItems: 'center',
         gap: 1,
         px: 1,
         py: 0.75,
         borderRadius: 0.75,
-        textDecoration: "none",
-        color: active ? "text.primary" : muted ? "text.disabled" : "text.secondary",
-        backgroundColor: active ? "action.selected" : "transparent",
-        "&:hover": { backgroundColor: active ? "action.selected" : "action.hover" },
+        textDecoration: 'none',
+        color: active ? 'text.primary' : muted ? 'text.disabled' : 'text.secondary',
+        backgroundColor: active ? 'action.selected' : 'transparent',
+        '&:hover': { backgroundColor: active ? 'action.selected' : 'action.hover' },
         fontSize: 13,
       }}
     >

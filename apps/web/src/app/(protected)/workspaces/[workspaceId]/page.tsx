@@ -1,6 +1,6 @@
-import { redirect } from "next/navigation"
+import { redirect } from 'next/navigation'
 
-import { getServerTRPC } from "@/trpc/server"
+import { getServerTRPC } from '@/trpc/server'
 
 type Props = { params: Promise<{ workspaceId: string }> }
 

@@ -1,12 +1,12 @@
-import type { ReactNode } from "react"
+import type { ReactNode } from 'react'
 
-import { notFound } from "next/navigation"
-import { Box, Container, Paper } from "@repo/ui/components"
+import { notFound } from 'next/navigation'
+import { Box, Container, Paper } from '@repo/ui/components'
 
-import { getWorkspaceFeatures } from "@repo/trpc"
+import { getWorkspaceFeatures } from '@repo/trpc'
 
-import { WorkspaceSettingsNav } from "@/components/workspace/workspace-settings-nav"
-import { getServerTRPC } from "@/trpc/server"
+import { WorkspaceSettingsNav } from '@/components/workspace/workspace-settings-nav'
+import { getServerTRPC } from '@/trpc/server'
 
 type Props = {
   children: ReactNode
@@ -26,12 +26,12 @@ export default async function WorkspaceSettingsLayout({ children, params }: Prop
     <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}>
       <Box
         sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "220px minmax(0,1fr)" },
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '220px minmax(0,1fr)' },
           gap: { xs: 3, md: 4 },
         }}
       >
-        <Paper variant="outlined" sx={{ p: 2, alignSelf: "start" }}>
+        <Paper variant="outlined" sx={{ p: 2, alignSelf: 'start' }}>
           <WorkspaceSettingsNav workspaceId={workspaceId} features={features} />
         </Paper>
         <Box>{children}</Box>

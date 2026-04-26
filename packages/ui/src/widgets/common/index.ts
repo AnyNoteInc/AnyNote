@@ -1,7 +1,7 @@
-export { ChangeColorTheme } from "./change-color-theme"
+export { ChangeColorTheme } from './change-color-theme'
 export {
   UserAvatarMenu,
   type UserAvatarMenuProps,
   type UserAvatarMenuItem,
   type UserAvatarMenuUser,
-} from "./user-avatar-menu"
+} from './user-avatar-menu'

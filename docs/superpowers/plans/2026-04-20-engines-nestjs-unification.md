@@ -5,6 +5,7 @@
 **Goal:** Merge `apps/engines` (Python MCP) and `apps/indexer` (Python outbox worker) into one NestJS 11 service at `apps/engines`, and add a new Python `processing` module inside `apps/agents` for text normalization.
 
 **Architecture:** Two NestJS modules inside `apps/engines/src/apps/`:
+
 - `indexer` — `@nestjs/schedule` cron + `@nestjs/bullmq` consumer + PageChunker → ProcessingClient → Ollama → QdrantWriter.
 - `mcp` — `@rekog/mcp-nest` server exposing 15 tools for pages, files, skills, agents, stats.
 
@@ -26,6 +27,7 @@
 > not declared in the schema.
 
 **Files:**
+
 - Create: `packages/db/prisma/sql/2026-04-20-outbox-active-unique.sql`
 - Modify: `packages/db/package.json` (add convenience script)
 
@@ -42,6 +44,7 @@ Expected: `The database is already in sync with the Prisma schema`.
 - [ ] **Step 2: Create SQL file**
 
 Create `packages/db/prisma/sql/2026-04-20-outbox-active-unique.sql`:
+
 ```sql
 CREATE UNIQUE INDEX IF NOT EXISTS "outbox_events_active_unique"
   ON "outbox_events" ("aggregate_type", "aggregate_id", "event_type")
@@ -51,6 +54,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS "outbox_events_active_unique"
 - [ ] **Step 3: Add convenience script**
 
 Edit `packages/db/package.json`, inside `"scripts"`:
+
 ```json
 "prisma:apply-sql": "prisma db execute --file"
 ```
@@ -90,12 +94,14 @@ unique indexes; applied via new prisma:apply-sql script."
 ### Task 1.1: Add spaCy + langdetect dependencies
 
 **Files:**
+
 - Modify: `apps/agents/pyproject.toml`
 - Modify: `apps/agents/Dockerfile`
 
 - [ ] **Step 1: Add deps to pyproject.toml**
 
 In `[project.dependencies]` array add:
+
 ```toml
 "spacy>=3.7,<4",
 "langdetect>=1.0",
@@ -122,6 +128,7 @@ Each is ~15–50 MB download.
 - [ ] **Step 4: Add model download to Dockerfile**
 
 Find the line that runs `uv sync` in `apps/agents/Dockerfile`. Add immediately after:
+
 ```dockerfile
 RUN uv run python -m spacy download ru_core_news_sm \
  && uv run python -m spacy download en_core_web_sm
@@ -137,6 +144,7 @@ git commit -m "build(agents): add spacy + langdetect for processing module"
 ### Task 1.2: Create processing module skeleton
 
 **Files:**
+
 - Create: `apps/agents/agents/apps/processing/__init__.py`
 - Create: `apps/agents/agents/apps/processing/schemas.py`
 - Create: `apps/agents/agents/apps/processing/errors.py`
@@ -207,6 +215,7 @@ git commit -m "feat(agents): scaffold processing module skeleton"
 ### Task 1.3: LanguageDetector service — TDD
 
 **Files:**
+
 - Create: `apps/agents/tests/processing/__init__.py`
 - Create: `apps/agents/tests/processing/test_language_detector.py`
 - Create: `apps/agents/agents/apps/processing/services/language_detector.py`
@@ -216,6 +225,7 @@ git commit -m "feat(agents): scaffold processing module skeleton"
 Create `apps/agents/tests/processing/__init__.py` (empty).
 
 Create `apps/agents/tests/processing/test_language_detector.py`:
+
 ```python
 """Tests for LanguageDetector."""
 
@@ -260,6 +270,7 @@ Expected: `ModuleNotFoundError: No module named 'agents.apps.processing.services
 - [ ] **Step 3: Implement**
 
 Create `apps/agents/agents/apps/processing/services/language_detector.py`:
+
 ```python
 """Language detection wrapper around langdetect."""
 
@@ -311,12 +322,14 @@ git commit -m "feat(agents/processing): add language detector"
 ### Task 1.4: NormalizerService (RU) — TDD
 
 **Files:**
+
 - Create: `apps/agents/tests/processing/test_normalizer.py`
 - Create: `apps/agents/agents/apps/processing/services/normalizer.py`
 
 - [ ] **Step 1: Write failing tests**
 
 Create `apps/agents/tests/processing/test_normalizer.py`:
+
 ```python
 """Tests for NormalizerService."""
 
@@ -390,6 +403,7 @@ Expected: `ModuleNotFoundError`.
 - [ ] **Step 3: Implement**
 
 Create `apps/agents/agents/apps/processing/services/normalizer.py`:
+
 ```python
 """Text normalization pipeline: NFC → lower → strip → lemmatize → stopwords → short-token filter."""
 
@@ -486,11 +500,13 @@ git commit -m "feat(agents/processing): add spacy-backed normalizer"
 ### Task 1.5: NormalizerService (EN) additional tests
 
 **Files:**
+
 - Modify: `apps/agents/tests/processing/test_normalizer.py`
 
 - [ ] **Step 1: Append EN tests**
 
 Add to bottom of `test_normalizer.py`:
+
 ```python
 def test_english_basic_lemmatization(normalizer: NormalizerService) -> None:
     out, lang = normalizer.normalize("The quick brown foxes were running quickly", "en")
@@ -529,12 +545,14 @@ git commit -m "test(agents/processing): cover english lemmatization"
 ### Task 1.6: Dishka provider
 
 **Files:**
+
 - Create: `apps/agents/agents/apps/processing/depends.py`
 - Create: `apps/agents/tests/processing/test_depends.py`
 
 - [ ] **Step 1: Write failing test**
 
 Create `apps/agents/tests/processing/test_depends.py`:
+
 ```python
 """Contract test — processing provider resolves service."""
 
@@ -573,6 +591,7 @@ Expected: `ModuleNotFoundError`.
 - [ ] **Step 3: Implement**
 
 Create `apps/agents/agents/apps/processing/depends.py`:
+
 ```python
 """Dishka providers for the processing module."""
 
@@ -616,6 +635,7 @@ git commit -m "feat(agents/processing): add dishka provider"
 ### Task 1.7: Router + app registration
 
 **Files:**
+
 - Create: `apps/agents/agents/apps/processing/router.py`
 - Create: `apps/agents/tests/processing/test_router.py`
 - Modify: `apps/agents/agents/entrypoints/rest/router.py`
@@ -624,6 +644,7 @@ git commit -m "feat(agents/processing): add dishka provider"
 - [ ] **Step 1: Write failing test**
 
 Create `apps/agents/tests/processing/test_router.py`:
+
 ```python
 """HTTP contract test for /processing/normalize."""
 
@@ -680,6 +701,7 @@ Expected: `404 Not Found` (route not mounted).
 - [ ] **Step 3: Create router.py**
 
 Create `apps/agents/agents/apps/processing/router.py`:
+
 ```python
 """POST /processing/normalize route."""
 
@@ -707,6 +729,7 @@ async def normalize(
 - [ ] **Step 4: Register router**
 
 Modify `apps/agents/agents/entrypoints/rest/router.py` — add import and include:
+
 ```python
 from agents.apps.processing.router import processing_router
 # ...
@@ -716,6 +739,7 @@ api_router.include_router(processing_router)
 - [ ] **Step 5: Register provider**
 
 Modify `apps/agents/agents/main.py` — add import for `ProcessingProvider` and include it in `make_async_container`:
+
 ```python
 from agents.apps.processing.depends import ProcessingProvider
 # ...
@@ -779,6 +803,7 @@ git commit -m "chore(agents/processing): satisfy ruff + mypy"
 ### Task 2.1: Delete old Python services
 
 **Files:**
+
 - Delete: `apps/indexer/` (entire directory)
 - Delete: `apps/engines/engines/`, `apps/engines/pyproject.toml`, `apps/engines/uv.lock`, `apps/engines/tests/`, `apps/engines/Dockerfile`, `apps/engines/Makefile`, `apps/engines/README.md`
 
@@ -821,6 +846,7 @@ compose.yml indexer service removed."
 ### Task 2.2: Scaffold NestJS project
 
 **Files:**
+
 - Create: `apps/engines/package.json`
 - Create: `apps/engines/tsconfig.json`
 - Create: `apps/engines/tsconfig.build.json`
@@ -834,6 +860,7 @@ compose.yml indexer service removed."
 - [ ] **Step 1: Write package.json**
 
 Create `apps/engines/package.json`:
+
 ```json
 {
   "name": "engines",
@@ -887,6 +914,7 @@ Create `apps/engines/package.json`:
 - [ ] **Step 2: Write tsconfig.json**
 
 Create `apps/engines/tsconfig.json`:
+
 ```json
 {
   "compilerOptions": {
@@ -922,6 +950,7 @@ Create `apps/engines/tsconfig.json`:
 - [ ] **Step 3: Write tsconfig.build.json**
 
 Create `apps/engines/tsconfig.build.json`:
+
 ```json
 {
   "extends": "./tsconfig.json",
@@ -932,6 +961,7 @@ Create `apps/engines/tsconfig.build.json`:
 - [ ] **Step 4: Write nest-cli.json**
 
 Create `apps/engines/nest-cli.json`:
+
 ```json
 {
   "$schema": "https://json.schemastore.org/nest-cli",
@@ -946,6 +976,7 @@ Create `apps/engines/nest-cli.json`:
 - [ ] **Step 5: Write .eslintrc.json**
 
 Create `apps/engines/.eslintrc.json`:
+
 ```json
 {
   "parser": "@typescript-eslint/parser",
@@ -966,6 +997,7 @@ Create `apps/engines/.eslintrc.json`:
 - [ ] **Step 6: Write .gitignore**
 
 Create `apps/engines/.gitignore`:
+
 ```
 dist/
 node_modules/
@@ -977,22 +1009,23 @@ coverage/
 - [ ] **Step 7: Write jest.config.ts**
 
 Create `apps/engines/jest.config.ts`:
+
 ```ts
-import type { Config } from "jest"
+import type { Config } from 'jest'
 
 const config: Config = {
-  moduleFileExtensions: ["js", "json", "ts"],
-  rootDir: ".",
-  testRegex: ".*\\.spec\\.ts$",
-  testPathIgnorePatterns: ["<rootDir>/test/integration/"],
+  moduleFileExtensions: ['js', 'json', 'ts'],
+  rootDir: '.',
+  testRegex: '.*\\.spec\\.ts$',
+  testPathIgnorePatterns: ['<rootDir>/test/integration/'],
   transform: {
-    "^.+\\.(t|j)s$": "ts-jest",
+    '^.+\\.(t|j)s$': 'ts-jest',
   },
-  collectCoverageFrom: ["src/**/*.ts"],
-  coverageDirectory: "./coverage",
-  testEnvironment: "node",
+  collectCoverageFrom: ['src/**/*.ts'],
+  coverageDirectory: './coverage',
+  testEnvironment: 'node',
   moduleNameMapper: {
-    "^@src/(.*)$": "<rootDir>/src/$1",
+    '^@src/(.*)$': '<rootDir>/src/$1',
   },
 }
 
@@ -1002,15 +1035,16 @@ export default config
 - [ ] **Step 8: Write src/main.ts**
 
 Create `apps/engines/src/main.ts`:
+
 ```ts
-import "reflect-metadata"
+import 'reflect-metadata'
 
-import { NestFactory } from "@nestjs/core"
+import { NestFactory } from '@nestjs/core'
 
-import { AppModule } from "./app.module"
+import { AppModule } from './app.module'
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule, { logger: ["log", "warn", "error"] })
+  const app = await NestFactory.create(AppModule, { logger: ['log', 'warn', 'error'] })
   const port = Number(process.env.ENGINES_PORT ?? 8082)
   await app.listen(port)
 }
@@ -1021,8 +1055,9 @@ bootstrap()
 - [ ] **Step 9: Write minimal src/app.module.ts**
 
 Create `apps/engines/src/app.module.ts`:
+
 ```ts
-import { Module } from "@nestjs/common"
+import { Module } from '@nestjs/common'
 
 @Module({
   imports: [],
@@ -1073,6 +1108,7 @@ git commit -m "feat(engines): scaffold nestjs 11 application"
 ### Task 2.3: Health controller + test
 
 **Files:**
+
 - Create: `apps/engines/src/health/health.controller.ts`
 - Create: `apps/engines/src/health/health.module.ts`
 - Create: `apps/engines/src/health/health.controller.spec.ts`
@@ -1081,12 +1117,13 @@ git commit -m "feat(engines): scaffold nestjs 11 application"
 - [ ] **Step 1: Write failing test**
 
 Create `apps/engines/src/health/health.controller.spec.ts`:
+
 ```ts
-import { Test, TestingModule } from "@nestjs/testing"
+import { Test, TestingModule } from '@nestjs/testing'
 
-import { HealthController } from "./health.controller"
+import { HealthController } from './health.controller'
 
-describe("HealthController", () => {
+describe('HealthController', () => {
   let controller: HealthController
 
   beforeEach(async () => {
@@ -1096,8 +1133,8 @@ describe("HealthController", () => {
     controller = moduleRef.get(HealthController)
   })
 
-  it("returns ok status", () => {
-    expect(controller.health()).toEqual({ status: "ok" })
+  it('returns ok status', () => {
+    expect(controller.health()).toEqual({ status: 'ok' })
   })
 })
 ```
@@ -1113,23 +1150,25 @@ Expected: `Cannot find module './health.controller'`.
 - [ ] **Step 3: Implement controller**
 
 Create `apps/engines/src/health/health.controller.ts`:
-```ts
-import { Controller, Get } from "@nestjs/common"
 
-@Controller("health")
+```ts
+import { Controller, Get } from '@nestjs/common'
+
+@Controller('health')
 export class HealthController {
   @Get()
   health() {
-    return { status: "ok" }
+    return { status: 'ok' }
   }
 }
 ```
 
 Create `apps/engines/src/health/health.module.ts`:
-```ts
-import { Module } from "@nestjs/common"
 
-import { HealthController } from "./health.controller"
+```ts
+import { Module } from '@nestjs/common'
+
+import { HealthController } from './health.controller'
 
 @Module({
   controllers: [HealthController],
@@ -1140,10 +1179,11 @@ export class HealthModule {}
 - [ ] **Step 4: Wire into AppModule**
 
 Modify `apps/engines/src/app.module.ts`:
-```ts
-import { Module } from "@nestjs/common"
 
-import { HealthModule } from "./health/health.module"
+```ts
+import { Module } from '@nestjs/common'
+
+import { HealthModule } from './health/health.module'
 
 @Module({
   imports: [HealthModule],
@@ -1180,6 +1220,7 @@ git commit -m "feat(engines): add /health endpoint"
 ### Task 2.4: Infra — DB module (Prisma DI)
 
 **Files:**
+
 - Create: `apps/engines/src/infra/db/db.module.ts`
 - Create: `apps/engines/src/infra/db/db.providers.ts`
 - Create: `apps/engines/src/infra/db/db.module.spec.ts`
@@ -1187,20 +1228,21 @@ git commit -m "feat(engines): add /health endpoint"
 - [ ] **Step 1: Write failing test**
 
 Create `apps/engines/src/infra/db/db.module.spec.ts`:
+
 ```ts
-import { Test } from "@nestjs/testing"
+import { Test } from '@nestjs/testing'
 
-import { DbModule } from "./db.module"
-import { PRISMA } from "./db.providers"
+import { DbModule } from './db.module'
+import { PRISMA } from './db.providers'
 
-describe("DbModule", () => {
-  it("exposes PRISMA provider", async () => {
+describe('DbModule', () => {
+  it('exposes PRISMA provider', async () => {
     const moduleRef = await Test.createTestingModule({
       imports: [DbModule],
     }).compile()
     const prisma = moduleRef.get(PRISMA)
     expect(prisma).toBeDefined()
-    expect(typeof prisma.$connect).toBe("function")
+    expect(typeof prisma.$connect).toBe('function')
   })
 })
 ```
@@ -1216,11 +1258,12 @@ Expected: `Cannot find module './db.providers'`.
 - [ ] **Step 3: Implement providers**
 
 Create `apps/engines/src/infra/db/db.providers.ts`:
-```ts
-import type { FactoryProvider } from "@nestjs/common"
-import { prisma, PrismaClient } from "@repo/db"
 
-export const PRISMA = Symbol("PRISMA_CLIENT")
+```ts
+import type { FactoryProvider } from '@nestjs/common'
+import { prisma, PrismaClient } from '@repo/db'
+
+export const PRISMA = Symbol('PRISMA_CLIENT')
 
 export const prismaProvider: FactoryProvider<PrismaClient> = {
   provide: PRISMA,
@@ -1229,10 +1272,11 @@ export const prismaProvider: FactoryProvider<PrismaClient> = {
 ```
 
 Create `apps/engines/src/infra/db/db.module.ts`:
-```ts
-import { Global, Module } from "@nestjs/common"
 
-import { prismaProvider } from "./db.providers"
+```ts
+import { Global, Module } from '@nestjs/common'
+
+import { prismaProvider } from './db.providers'
 
 @Global()
 @Module({
@@ -1245,11 +1289,12 @@ export class DbModule {}
 - [ ] **Step 4: Wire into AppModule**
 
 Modify `apps/engines/src/app.module.ts`:
-```ts
-import { Module } from "@nestjs/common"
 
-import { DbModule } from "./infra/db/db.module"
-import { HealthModule } from "./health/health.module"
+```ts
+import { Module } from '@nestjs/common'
+
+import { DbModule } from './infra/db/db.module'
+import { HealthModule } from './health/health.module'
 
 @Module({
   imports: [DbModule, HealthModule],
@@ -1275,6 +1320,7 @@ git commit -m "feat(engines/infra): add global db module exposing @repo/db singl
 ### Task 2.5: Infra — Qdrant module
 
 **Files:**
+
 - Create: `apps/engines/src/infra/qdrant/qdrant.module.ts`
 - Create: `apps/engines/src/infra/qdrant/qdrant.service.ts`
 - Create: `apps/engines/src/infra/qdrant/qdrant.service.spec.ts`
@@ -1282,27 +1328,28 @@ git commit -m "feat(engines/infra): add global db module exposing @repo/db singl
 - [ ] **Step 1: Write failing test**
 
 Create `apps/engines/src/infra/qdrant/qdrant.service.spec.ts`:
-```ts
-import { QdrantService } from "./qdrant.service"
 
-describe("QdrantService", () => {
-  it("constructs with url + apiKey from env", () => {
-    process.env.QDRANT_URL = "http://localhost:6333"
-    process.env.QDRANT_API_KEY = "dev"
+```ts
+import { QdrantService } from './qdrant.service'
+
+describe('QdrantService', () => {
+  it('constructs with url + apiKey from env', () => {
+    process.env.QDRANT_URL = 'http://localhost:6333'
+    process.env.QDRANT_API_KEY = 'dev'
     const svc = new QdrantService()
     expect(svc.client).toBeDefined()
   })
 
-  it("uses QDRANT_COLLECTION env var", () => {
-    process.env.QDRANT_COLLECTION = "custom"
+  it('uses QDRANT_COLLECTION env var', () => {
+    process.env.QDRANT_COLLECTION = 'custom'
     const svc = new QdrantService()
-    expect(svc.collection).toBe("custom")
+    expect(svc.collection).toBe('custom')
   })
 
-  it("defaults collection to page_chunks", () => {
+  it('defaults collection to page_chunks', () => {
     delete process.env.QDRANT_COLLECTION
     const svc = new QdrantService()
-    expect(svc.collection).toBe("page_chunks")
+    expect(svc.collection).toBe('page_chunks')
   })
 })
 ```
@@ -1318,9 +1365,10 @@ Expected: `Cannot find module './qdrant.service'`.
 - [ ] **Step 3: Implement**
 
 Create `apps/engines/src/infra/qdrant/qdrant.service.ts`:
+
 ```ts
-import { Injectable } from "@nestjs/common"
-import { QdrantClient } from "@qdrant/js-client-rest"
+import { Injectable } from '@nestjs/common'
+import { QdrantClient } from '@qdrant/js-client-rest'
 
 @Injectable()
 export class QdrantService {
@@ -1329,19 +1377,20 @@ export class QdrantService {
 
   constructor() {
     this.client = new QdrantClient({
-      url: process.env.QDRANT_URL ?? "http://localhost:6333",
+      url: process.env.QDRANT_URL ?? 'http://localhost:6333',
       apiKey: process.env.QDRANT_API_KEY,
     })
-    this.collection = process.env.QDRANT_COLLECTION ?? "page_chunks"
+    this.collection = process.env.QDRANT_COLLECTION ?? 'page_chunks'
   }
 }
 ```
 
 Create `apps/engines/src/infra/qdrant/qdrant.module.ts`:
-```ts
-import { Global, Module } from "@nestjs/common"
 
-import { QdrantService } from "./qdrant.service"
+```ts
+import { Global, Module } from '@nestjs/common'
+
+import { QdrantService } from './qdrant.service'
 
 @Global()
 @Module({
@@ -1354,7 +1403,7 @@ export class QdrantModule {}
 - [ ] **Step 4: Wire into AppModule**
 
 ```ts
-import { QdrantModule } from "./infra/qdrant/qdrant.module"
+import { QdrantModule } from './infra/qdrant/qdrant.module'
 
 @Module({
   imports: [DbModule, QdrantModule, HealthModule],
@@ -1380,6 +1429,7 @@ git commit -m "feat(engines/infra): add qdrant module"
 ### Task 2.6: Infra — Ollama module
 
 **Files:**
+
 - Create: `apps/engines/src/infra/ollama/ollama.module.ts`
 - Create: `apps/engines/src/infra/ollama/ollama.service.ts`
 - Create: `apps/engines/src/infra/ollama/ollama.service.spec.ts`
@@ -1387,39 +1437,40 @@ git commit -m "feat(engines/infra): add qdrant module"
 - [ ] **Step 1: Write failing test**
 
 Create `apps/engines/src/infra/ollama/ollama.service.spec.ts`:
+
 ```ts
-import axios from "axios"
+import axios from 'axios'
 
-import { OllamaService } from "./ollama.service"
+import { OllamaService } from './ollama.service'
 
-jest.mock("axios")
+jest.mock('axios')
 const mockedAxios = axios as jest.Mocked<typeof axios>
 
-describe("OllamaService", () => {
+describe('OllamaService', () => {
   beforeEach(() => {
     jest.resetAllMocks()
-    process.env.OLLAMA_BASE_URL = "http://ollama.test:11434"
-    process.env.EMBEDDING_MODEL = "nomic-embed-text"
+    process.env.OLLAMA_BASE_URL = 'http://ollama.test:11434'
+    process.env.EMBEDDING_MODEL = 'nomic-embed-text'
   })
 
-  it("embeds text via /api/embeddings", async () => {
+  it('embeds text via /api/embeddings', async () => {
     mockedAxios.create.mockReturnValue({
       post: jest.fn().mockResolvedValue({ data: { embedding: [0.1, 0.2, 0.3] } }),
     } as unknown as ReturnType<typeof axios.create>)
 
     const svc = new OllamaService()
-    const vec = await svc.embed("hello")
+    const vec = await svc.embed('hello')
 
     expect(vec).toEqual([0.1, 0.2, 0.3])
   })
 
-  it("throws if response missing embedding", async () => {
+  it('throws if response missing embedding', async () => {
     mockedAxios.create.mockReturnValue({
       post: jest.fn().mockResolvedValue({ data: {} }),
     } as unknown as ReturnType<typeof axios.create>)
 
     const svc = new OllamaService()
-    await expect(svc.embed("hello")).rejects.toThrow(/empty/i)
+    await expect(svc.embed('hello')).rejects.toThrow(/empty/i)
   })
 })
 ```
@@ -1435,9 +1486,10 @@ Expected: module not found.
 - [ ] **Step 3: Implement**
 
 Create `apps/engines/src/infra/ollama/ollama.service.ts`:
+
 ```ts
-import { Injectable, Logger } from "@nestjs/common"
-import axios, { AxiosInstance } from "axios"
+import { Injectable, Logger } from '@nestjs/common'
+import axios, { AxiosInstance } from 'axios'
 
 @Injectable()
 export class OllamaService {
@@ -1447,20 +1499,20 @@ export class OllamaService {
 
   constructor() {
     this.http = axios.create({
-      baseURL: process.env.OLLAMA_BASE_URL ?? "http://localhost:11434",
+      baseURL: process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434',
       timeout: 30000,
     })
-    this.model = process.env.EMBEDDING_MODEL ?? "nomic-embed-text"
+    this.model = process.env.EMBEDDING_MODEL ?? 'nomic-embed-text'
   }
 
   async embed(text: string): Promise<number[]> {
-    const res = await this.http.post<{ embedding?: number[] }>("/api/embeddings", {
+    const res = await this.http.post<{ embedding?: number[] }>('/api/embeddings', {
       model: this.model,
       prompt: text,
     })
     const embedding = res.data.embedding
     if (!embedding || embedding.length === 0) {
-      throw new Error("Ollama returned empty embedding")
+      throw new Error('Ollama returned empty embedding')
     }
     return embedding
   }
@@ -1468,10 +1520,11 @@ export class OllamaService {
 ```
 
 Create `apps/engines/src/infra/ollama/ollama.module.ts`:
-```ts
-import { Global, Module } from "@nestjs/common"
 
-import { OllamaService } from "./ollama.service"
+```ts
+import { Global, Module } from '@nestjs/common'
+
+import { OllamaService } from './ollama.service'
 
 @Global()
 @Module({
@@ -1507,96 +1560,94 @@ git commit -m "feat(engines/infra): add ollama embedding module"
 ### Task 3.1: PageChunker service
 
 **Files:**
+
 - Create: `apps/engines/src/apps/indexer/services/page-chunker.service.ts`
 - Create: `apps/engines/src/apps/indexer/services/page-chunker.service.spec.ts`
 
 - [ ] **Step 1: Write failing tests**
 
 Create `apps/engines/src/apps/indexer/services/page-chunker.service.spec.ts`:
-```ts
-import { PageChunker } from "./page-chunker.service"
 
-describe("PageChunker", () => {
+```ts
+import { PageChunker } from './page-chunker.service'
+
+describe('PageChunker', () => {
   const chunker = new PageChunker()
 
-  it("returns empty array for null doc", () => {
+  it('returns empty array for null doc', () => {
     expect(chunker.chunksFromDoc(null)).toEqual([])
   })
 
-  it("returns empty array for doc without content", () => {
-    expect(chunker.chunksFromDoc({ type: "doc" })).toEqual([])
+  it('returns empty array for doc without content', () => {
+    expect(chunker.chunksFromDoc({ type: 'doc' })).toEqual([])
   })
 
-  it("extracts one chunk per first-level node", () => {
+  it('extracts one chunk per first-level node', () => {
     const doc = {
-      type: "doc",
+      type: 'doc',
       content: [
-        { type: "paragraph", content: [{ type: "text", text: "First paragraph." }] },
-        { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "A heading" }] },
-        { type: "paragraph", content: [{ type: "text", text: "Second paragraph." }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'First paragraph.' }] },
+        { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'A heading' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'Second paragraph.' }] },
       ],
     }
     expect(chunker.chunksFromDoc(doc)).toEqual([
-      "First paragraph.",
-      "A heading",
-      "Second paragraph.",
+      'First paragraph.',
+      'A heading',
+      'Second paragraph.',
     ])
   })
 
-  it("joins nested text leaves inside one first-level node", () => {
+  it('joins nested text leaves inside one first-level node', () => {
     const doc = {
-      type: "doc",
+      type: 'doc',
       content: [
         {
-          type: "paragraph",
+          type: 'paragraph',
           content: [
-            { type: "text", text: "Hello " },
-            { type: "text", text: "world", marks: [{ type: "bold" }] },
-            { type: "text", text: "!" },
+            { type: 'text', text: 'Hello ' },
+            { type: 'text', text: 'world', marks: [{ type: 'bold' }] },
+            { type: 'text', text: '!' },
           ],
         },
       ],
     }
-    expect(chunker.chunksFromDoc(doc)).toEqual(["Hello   world   !"])
+    expect(chunker.chunksFromDoc(doc)).toEqual(['Hello   world   !'])
   })
 
-  it("walks deeply nested content (bulletList → listItem → paragraph → text)", () => {
+  it('walks deeply nested content (bulletList → listItem → paragraph → text)', () => {
     const doc = {
-      type: "doc",
+      type: 'doc',
       content: [
         {
-          type: "bulletList",
+          type: 'bulletList',
           content: [
             {
-              type: "listItem",
-              content: [
-                { type: "paragraph", content: [{ type: "text", text: "Item A" }] },
-              ],
+              type: 'listItem',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Item A' }] }],
             },
             {
-              type: "listItem",
-              content: [
-                { type: "paragraph", content: [{ type: "text", text: "Item B" }] },
-              ],
+              type: 'listItem',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Item B' }] }],
             },
           ],
         },
       ],
     }
-    expect(chunker.chunksFromDoc(doc)).toEqual(["Item A Item B"])
+    expect(chunker.chunksFromDoc(doc)).toEqual(['Item A Item B'])
   })
 
-  it("skips empty first-level nodes", () => {
+  it('skips empty first-level nodes', () => {
     const doc = {
-      type: "doc",
+      type: 'doc',
       content: [
-        { type: "paragraph", content: [{ type: "text", text: "valid" }] },
-        { type: "paragraph" },
-        { type: "paragraph", content: [{ type: "text", text: "   " }] },
-        { type: "paragraph", content: [{ type: "text", text: "also valid" }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'valid' }] },
+        { type: 'paragraph' },
+        { type: 'paragraph', content: [{ type: 'text', text: '   ' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'also valid' }] },
       ],
     }
-    expect(chunker.chunksFromDoc(doc)).toEqual(["valid", "also valid"])
+    expect(chunker.chunksFromDoc(doc)).toEqual(['valid', 'also valid'])
   })
 })
 ```
@@ -1612,8 +1663,9 @@ Expected: module not found.
 - [ ] **Step 3: Implement**
 
 Create `apps/engines/src/apps/indexer/services/page-chunker.service.ts`:
+
 ```ts
-import { Injectable } from "@nestjs/common"
+import { Injectable } from '@nestjs/common'
 
 export type TiptapNode = {
   type: string
@@ -1622,24 +1674,25 @@ export type TiptapNode = {
   [k: string]: unknown
 }
 
-export type TiptapDoc = {
-  type: "doc"
-  content?: TiptapNode[]
-} | null | undefined
+export type TiptapDoc =
+  | {
+      type: 'doc'
+      content?: TiptapNode[]
+    }
+  | null
+  | undefined
 
 @Injectable()
 export class PageChunker {
   chunksFromDoc(doc: TiptapDoc): string[] {
     if (!doc || !Array.isArray(doc.content)) return []
-    return doc.content
-      .map((node) => this.collectText(node).trim())
-      .filter((s) => s.length > 0)
+    return doc.content.map((node) => this.collectText(node).trim()).filter((s) => s.length > 0)
   }
 
   private collectText(node: TiptapNode): string {
-    if (node.type === "text") return node.text ?? ""
-    if (!Array.isArray(node.content)) return ""
-    return node.content.map((c) => this.collectText(c)).join(" ")
+    if (node.type === 'text') return node.text ?? ''
+    if (!Array.isArray(node.content)) return ''
+    return node.content.map((c) => this.collectText(c)).join(' ')
   }
 }
 ```
@@ -1663,50 +1716,54 @@ git commit -m "feat(engines/indexer): add page chunker service"
 ### Task 3.2: ProcessingClient service
 
 **Files:**
+
 - Create: `apps/engines/src/apps/indexer/services/processing-client.service.ts`
 - Create: `apps/engines/src/apps/indexer/services/processing-client.service.spec.ts`
 
 - [ ] **Step 1: Write failing tests**
 
 Create `apps/engines/src/apps/indexer/services/processing-client.service.spec.ts`:
+
 ```ts
-import axios from "axios"
+import axios from 'axios'
 
-import { ProcessingClient } from "./processing-client.service"
+import { ProcessingClient } from './processing-client.service'
 
-jest.mock("axios")
+jest.mock('axios')
 const mockedAxios = axios as jest.Mocked<typeof axios>
 
-describe("ProcessingClient", () => {
+describe('ProcessingClient', () => {
   const mockPost = jest.fn()
 
   beforeEach(() => {
     jest.resetAllMocks()
-    process.env.PROCESSING_SERVICE_URL = "http://agents.test:8080"
-    mockedAxios.create.mockReturnValue({ post: mockPost } as unknown as ReturnType<typeof axios.create>)
+    process.env.PROCESSING_SERVICE_URL = 'http://agents.test:8080'
+    mockedAxios.create.mockReturnValue({ post: mockPost } as unknown as ReturnType<
+      typeof axios.create
+    >)
   })
 
-  it("posts text and returns normalized string", async () => {
-    mockPost.mockResolvedValue({ data: { normalized: "тест", language: "ru" } })
+  it('posts text and returns normalized string', async () => {
+    mockPost.mockResolvedValue({ data: { normalized: 'тест', language: 'ru' } })
     const client = new ProcessingClient()
-    const out = await client.normalize("Тестовый текст", "auto")
-    expect(out).toBe("тест")
-    expect(mockPost).toHaveBeenCalledWith("/processing/normalize", {
-      text: "Тестовый текст",
-      language: "auto",
+    const out = await client.normalize('Тестовый текст', 'auto')
+    expect(out).toBe('тест')
+    expect(mockPost).toHaveBeenCalledWith('/processing/normalize', {
+      text: 'Тестовый текст',
+      language: 'auto',
     })
   })
 
-  it("returns empty string when normalized is empty", async () => {
-    mockPost.mockResolvedValue({ data: { normalized: "", language: "ru" } })
+  it('returns empty string when normalized is empty', async () => {
+    mockPost.mockResolvedValue({ data: { normalized: '', language: 'ru' } })
     const client = new ProcessingClient()
-    expect(await client.normalize("!!!", "ru")).toBe("")
+    expect(await client.normalize('!!!', 'ru')).toBe('')
   })
 
-  it("throws after retries on 5xx", async () => {
+  it('throws after retries on 5xx', async () => {
     mockPost.mockRejectedValue({ response: { status: 500 } })
     const client = new ProcessingClient()
-    await expect(client.normalize("x", "ru")).rejects.toBeDefined()
+    await expect(client.normalize('x', 'ru')).rejects.toBeDefined()
     expect(mockPost).toHaveBeenCalledTimes(3)
   })
 })
@@ -1723,15 +1780,16 @@ Expected: module not found.
 - [ ] **Step 3: Implement**
 
 Create `apps/engines/src/apps/indexer/services/processing-client.service.ts`:
-```ts
-import { Injectable, Logger } from "@nestjs/common"
-import axios, { AxiosInstance } from "axios"
 
-export type ProcessingLanguage = "ru" | "en" | "auto"
+```ts
+import { Injectable, Logger } from '@nestjs/common'
+import axios, { AxiosInstance } from 'axios'
+
+export type ProcessingLanguage = 'ru' | 'en' | 'auto'
 
 type NormalizeResponse = {
   normalized: string
-  language: "ru" | "en"
+  language: 'ru' | 'en'
 }
 
 @Injectable()
@@ -1741,7 +1799,7 @@ export class ProcessingClient {
 
   constructor() {
     this.http = axios.create({
-      baseURL: process.env.PROCESSING_SERVICE_URL ?? "http://localhost:8080",
+      baseURL: process.env.PROCESSING_SERVICE_URL ?? 'http://localhost:8080',
       timeout: 10000,
     })
   }
@@ -1751,7 +1809,7 @@ export class ProcessingClient {
     let lastError: unknown
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
       try {
-        const res = await this.http.post<NormalizeResponse>("/processing/normalize", {
+        const res = await this.http.post<NormalizeResponse>('/processing/normalize', {
           text,
           language,
         })
@@ -1787,17 +1845,19 @@ git commit -m "feat(engines/indexer): add processing service http client"
 ### Task 3.3: QdrantWriter service
 
 **Files:**
+
 - Create: `apps/engines/src/apps/indexer/services/qdrant-writer.service.ts`
 - Create: `apps/engines/src/apps/indexer/services/qdrant-writer.service.spec.ts`
 
 - [ ] **Step 1: Write failing tests**
 
 Create `apps/engines/src/apps/indexer/services/qdrant-writer.service.spec.ts`:
-```ts
-import { QdrantService } from "../../../infra/qdrant/qdrant.service"
-import { QdrantWriter } from "./qdrant-writer.service"
 
-describe("QdrantWriter", () => {
+```ts
+import { QdrantService } from '../../../infra/qdrant/qdrant.service'
+import { QdrantWriter } from './qdrant-writer.service'
+
+describe('QdrantWriter', () => {
   const fakeClient = {
     delete: jest.fn(),
     upsert: jest.fn(),
@@ -1806,7 +1866,7 @@ describe("QdrantWriter", () => {
   }
   const qdrantService = {
     client: fakeClient,
-    collection: "page_chunks",
+    collection: 'page_chunks',
   } as unknown as QdrantService
 
   let writer: QdrantWriter
@@ -1816,46 +1876,46 @@ describe("QdrantWriter", () => {
     writer = new QdrantWriter(qdrantService)
   })
 
-  describe("deleteByPageId", () => {
-    it("calls delete with filter on pageId", async () => {
+  describe('deleteByPageId', () => {
+    it('calls delete with filter on pageId', async () => {
       fakeClient.delete.mockResolvedValue({})
-      await writer.deleteByPageId("page-1")
-      expect(fakeClient.delete).toHaveBeenCalledWith("page_chunks", {
+      await writer.deleteByPageId('page-1')
+      expect(fakeClient.delete).toHaveBeenCalledWith('page_chunks', {
         filter: {
-          must: [{ key: "pageId", match: { value: "page-1" } }],
+          must: [{ key: 'pageId', match: { value: 'page-1' } }],
         },
       })
     })
   })
 
-  describe("upsert", () => {
-    it("passes through points list", async () => {
+  describe('upsert', () => {
+    it('passes through points list', async () => {
       fakeClient.upsert.mockResolvedValue({})
       const points = [
-        { id: "a", vector: [0.1, 0.2], payload: { pageId: "p", workspaceId: "w", chunkIndex: 0 } },
+        { id: 'a', vector: [0.1, 0.2], payload: { pageId: 'p', workspaceId: 'w', chunkIndex: 0 } },
       ]
       await writer.upsert(points)
-      expect(fakeClient.upsert).toHaveBeenCalledWith("page_chunks", { points })
+      expect(fakeClient.upsert).toHaveBeenCalledWith('page_chunks', { points })
     })
 
-    it("is a no-op for empty points", async () => {
+    it('is a no-op for empty points', async () => {
       await writer.upsert([])
       expect(fakeClient.upsert).not.toHaveBeenCalled()
     })
   })
 
-  describe("ensureCollection", () => {
-    it("creates collection if missing", async () => {
+  describe('ensureCollection', () => {
+    it('creates collection if missing', async () => {
       fakeClient.getCollections.mockResolvedValue({ collections: [] })
       await writer.ensureCollection()
-      expect(fakeClient.createCollection).toHaveBeenCalledWith("page_chunks", {
-        vectors: { size: 768, distance: "Cosine" },
+      expect(fakeClient.createCollection).toHaveBeenCalledWith('page_chunks', {
+        vectors: { size: 768, distance: 'Cosine' },
       })
     })
 
-    it("skips if collection exists", async () => {
+    it('skips if collection exists', async () => {
       fakeClient.getCollections.mockResolvedValue({
-        collections: [{ name: "page_chunks" }],
+        collections: [{ name: 'page_chunks' }],
       })
       await writer.ensureCollection()
       expect(fakeClient.createCollection).not.toHaveBeenCalled()
@@ -1875,10 +1935,11 @@ Expected: module not found.
 - [ ] **Step 3: Implement**
 
 Create `apps/engines/src/apps/indexer/services/qdrant-writer.service.ts`:
-```ts
-import { Injectable, Logger } from "@nestjs/common"
 
-import { QdrantService } from "../../../infra/qdrant/qdrant.service"
+```ts
+import { Injectable, Logger } from '@nestjs/common'
+
+import { QdrantService } from '../../../infra/qdrant/qdrant.service'
 
 export type QdrantPoint = {
   id: string
@@ -1903,7 +1964,7 @@ export class QdrantWriter {
     const exists = existing.collections?.some((c) => c.name === this.qdrant.collection)
     if (exists) return
     await this.qdrant.client.createCollection(this.qdrant.collection, {
-      vectors: { size: VECTOR_SIZE, distance: "Cosine" },
+      vectors: { size: VECTOR_SIZE, distance: 'Cosine' },
     })
     this.log.log(`Created Qdrant collection ${this.qdrant.collection}`)
   }
@@ -1911,7 +1972,7 @@ export class QdrantWriter {
   async deleteByPageId(pageId: string): Promise<void> {
     await this.qdrant.client.delete(this.qdrant.collection, {
       filter: {
-        must: [{ key: "pageId", match: { value: pageId } }],
+        must: [{ key: 'pageId', match: { value: pageId } }],
       },
     })
   }
@@ -1942,18 +2003,20 @@ git commit -m "feat(engines/indexer): add qdrant writer service"
 ### Task 3.4: OutboxCronService
 
 **Files:**
+
 - Create: `apps/engines/src/apps/indexer/cron/outbox-cron.service.ts`
 - Create: `apps/engines/src/apps/indexer/cron/outbox-cron.service.spec.ts`
 
 - [ ] **Step 1: Write failing tests**
 
 Create `apps/engines/src/apps/indexer/cron/outbox-cron.service.spec.ts`:
+
 ```ts
-import type { PrismaClient } from "@repo/db"
+import type { PrismaClient } from '@repo/db'
 
-import { OutboxCronService } from "./outbox-cron.service"
+import { OutboxCronService } from './outbox-cron.service'
 
-describe("OutboxCronService", () => {
+describe('OutboxCronService', () => {
   const mockPrisma = {
     page: {
       findMany: jest.fn(),
@@ -1965,19 +2028,19 @@ describe("OutboxCronService", () => {
 
   beforeEach(() => {
     jest.resetAllMocks()
-    process.env.INDEXER_QUIET_PERIOD_MINUTES = "5"
+    process.env.INDEXER_QUIET_PERIOD_MINUTES = '5'
     service = new OutboxCronService(mockPrisma)
   })
 
-  it("queries only TEXT pages idle for 5+ minutes", async () => {
+  it('queries only TEXT pages idle for 5+ minutes', async () => {
     ;(mockPrisma.page.findMany as jest.Mock).mockResolvedValue([])
 
     await service.tick()
 
     expect(mockPrisma.page.findMany).toHaveBeenCalledWith({
       where: expect.objectContaining({
-        type: "TEXT",
-        ownership: "TEXT",
+        type: 'TEXT',
+        ownership: 'TEXT',
         deletedAt: null,
         updatedAt: expect.objectContaining({ lt: expect.any(Date) }),
       }),
@@ -1986,10 +2049,10 @@ describe("OutboxCronService", () => {
     })
   })
 
-  it("upserts outbox row per page with ON CONFLICT DO NOTHING", async () => {
+  it('upserts outbox row per page with ON CONFLICT DO NOTHING', async () => {
     ;(mockPrisma.page.findMany as jest.Mock).mockResolvedValue([
-      { id: "p1", workspaceId: "w1" },
-      { id: "p2", workspaceId: "w1" },
+      { id: 'p1', workspaceId: 'w1' },
+      { id: 'p2', workspaceId: 'w1' },
     ])
     ;(mockPrisma.$executeRaw as jest.Mock).mockResolvedValue(1)
 
@@ -1999,7 +2062,7 @@ describe("OutboxCronService", () => {
     expect(mockPrisma.$executeRaw).toHaveBeenCalledTimes(2)
   })
 
-  it("returns 0 when no eligible pages", async () => {
+  it('returns 0 when no eligible pages', async () => {
     ;(mockPrisma.page.findMany as jest.Mock).mockResolvedValue([])
     expect(await service.tick()).toBe(0)
   })
@@ -2015,13 +2078,14 @@ pnpm --filter engines test -- outbox-cron
 - [ ] **Step 3: Implement**
 
 Create `apps/engines/src/apps/indexer/cron/outbox-cron.service.ts`:
-```ts
-import { Inject, Injectable, Logger } from "@nestjs/common"
-import { Cron } from "@nestjs/schedule"
-import type { PrismaClient } from "@repo/db"
-import { Prisma } from "@repo/db"
 
-import { PRISMA } from "../../../infra/db/db.providers"
+```ts
+import { Inject, Injectable, Logger } from '@nestjs/common'
+import { Cron } from '@nestjs/schedule'
+import type { PrismaClient } from '@repo/db'
+import { Prisma } from '@repo/db'
+
+import { PRISMA } from '../../../infra/db/db.providers'
 
 @Injectable()
 export class OutboxCronService {
@@ -2032,14 +2096,14 @@ export class OutboxCronService {
     this.quietPeriodMs = Number(process.env.INDEXER_QUIET_PERIOD_MINUTES ?? 5) * 60_000
   }
 
-  @Cron(process.env.INDEXER_CRON_EXPRESSION ?? "*/1 * * * *")
+  @Cron(process.env.INDEXER_CRON_EXPRESSION ?? '*/1 * * * *')
   async tick(): Promise<number> {
     const cutoff = new Date(Date.now() - this.quietPeriodMs)
 
     const pages = await this.prisma.page.findMany({
       where: {
-        type: "TEXT",
-        ownership: "TEXT",
+        type: 'TEXT',
+        ownership: 'TEXT',
         deletedAt: null,
         updatedAt: { lt: cutoff },
       },
@@ -2082,19 +2146,21 @@ git commit -m "feat(engines/indexer): add outbox cron scanning idle pages"
 ### Task 3.5: OutboxDrainerService
 
 **Files:**
+
 - Create: `apps/engines/src/apps/indexer/cron/outbox-drainer.service.ts`
 - Create: `apps/engines/src/apps/indexer/cron/outbox-drainer.service.spec.ts`
 
 - [ ] **Step 1: Write failing tests**
 
 Create `apps/engines/src/apps/indexer/cron/outbox-drainer.service.spec.ts`:
+
 ```ts
-import type { Queue } from "bullmq"
-import type { PrismaClient } from "@repo/db"
+import type { Queue } from 'bullmq'
+import type { PrismaClient } from '@repo/db'
 
-import { OutboxDrainerService } from "./outbox-drainer.service"
+import { OutboxDrainerService } from './outbox-drainer.service'
 
-describe("OutboxDrainerService", () => {
+describe('OutboxDrainerService', () => {
   const mockPrisma = {
     $transaction: jest.fn(),
     $queryRaw: jest.fn(),
@@ -2109,14 +2175,14 @@ describe("OutboxDrainerService", () => {
 
   beforeEach(() => {
     jest.resetAllMocks()
-    process.env.INDEXER_DRAINER_BATCH = "50"
+    process.env.INDEXER_DRAINER_BATCH = '50'
     service = new OutboxDrainerService(mockPrisma, mockQueue)
   })
 
-  it("claims batch and enqueues jobs", async () => {
+  it('claims batch and enqueues jobs', async () => {
     const rows = [
-      { id: 1n, page_id: "p1", workspace_id: "w1" },
-      { id: 2n, page_id: "p2", workspace_id: "w1" },
+      { id: 1n, page_id: 'p1', workspace_id: 'w1' },
+      { id: 2n, page_id: 'p2', workspace_id: 'w1' },
     ]
     ;(mockPrisma.$transaction as jest.Mock).mockImplementation(async (fn) => {
       ;(mockPrisma.$queryRaw as jest.Mock).mockResolvedValueOnce(rows)
@@ -2131,13 +2197,13 @@ describe("OutboxDrainerService", () => {
     expect(mockQueue.add).toHaveBeenCalledTimes(2)
     expect(mockQueue.add).toHaveBeenNthCalledWith(
       1,
-      "index-page",
-      { outboxId: "1", pageId: "p1", workspaceId: "w1" },
+      'index-page',
+      { outboxId: '1', pageId: 'p1', workspaceId: 'w1' },
       expect.any(Object),
     )
   })
 
-  it("returns 0 when no pending rows", async () => {
+  it('returns 0 when no pending rows', async () => {
     ;(mockPrisma.$transaction as jest.Mock).mockImplementation(async (fn) => {
       ;(mockPrisma.$queryRaw as jest.Mock).mockResolvedValueOnce([])
       return fn(mockPrisma)
@@ -2157,19 +2223,20 @@ pnpm --filter engines test -- outbox-drainer
 - [ ] **Step 3: Implement**
 
 Create `apps/engines/src/apps/indexer/cron/outbox-drainer.service.ts`:
+
 ```ts
-import { randomUUID } from "node:crypto"
+import { randomUUID } from 'node:crypto'
 
-import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common"
-import { InjectQueue } from "@nestjs/bullmq"
-import { Interval } from "@nestjs/schedule"
-import type { PrismaClient } from "@repo/db"
-import { Prisma } from "@repo/db"
-import type { Queue } from "bullmq"
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { InjectQueue } from '@nestjs/bullmq'
+import { Interval } from '@nestjs/schedule'
+import type { PrismaClient } from '@repo/db'
+import { Prisma } from '@repo/db'
+import type { Queue } from 'bullmq'
 
-import { PRISMA } from "../../../infra/db/db.providers"
+import { PRISMA } from '../../../infra/db/db.providers'
 
-const INDEXING_QUEUE = "indexing"
+const INDEXING_QUEUE = 'indexing'
 
 type ClaimedRow = {
   id: bigint
@@ -2219,7 +2286,7 @@ export class OutboxDrainerService implements OnModuleInit {
           WHERE id = ${row.id}
         `)
         await this.queue.add(
-          "index-page",
+          'index-page',
           { outboxId: row.id.toString(), pageId: row.page_id, workspaceId: row.workspace_id },
           { jobId: `outbox-${row.id}`, removeOnComplete: true, removeOnFail: 100 },
         )
@@ -2250,23 +2317,25 @@ git commit -m "feat(engines/indexer): add outbox → bullmq drainer"
 ### Task 3.6: IndexingProcessor
 
 **Files:**
+
 - Create: `apps/engines/src/apps/indexer/queue/indexing.processor.ts`
 - Create: `apps/engines/src/apps/indexer/queue/indexing.processor.spec.ts`
 
 - [ ] **Step 1: Write failing tests**
 
 Create `apps/engines/src/apps/indexer/queue/indexing.processor.spec.ts`:
+
 ```ts
-import type { PrismaClient } from "@repo/db"
-import type { Job } from "bullmq"
+import type { PrismaClient } from '@repo/db'
+import type { Job } from 'bullmq'
 
-import { EmbeddingClient } from "../services/embedding-client.service"
-import { PageChunker } from "../services/page-chunker.service"
-import { ProcessingClient } from "../services/processing-client.service"
-import { QdrantWriter } from "../services/qdrant-writer.service"
-import { IndexingProcessor } from "./indexing.processor"
+import { EmbeddingClient } from '../services/embedding-client.service'
+import { PageChunker } from '../services/page-chunker.service'
+import { ProcessingClient } from '../services/processing-client.service'
+import { QdrantWriter } from '../services/qdrant-writer.service'
+import { IndexingProcessor } from './indexing.processor'
 
-describe("IndexingProcessor", () => {
+describe('IndexingProcessor', () => {
   const mockPrisma = {
     page: { findUnique: jest.fn() },
     $executeRaw: jest.fn(),
@@ -2282,84 +2351,95 @@ describe("IndexingProcessor", () => {
 
   let processor: IndexingProcessor
 
-  const makeJob = (data: object): Job => ({ data } as Job)
+  const makeJob = (data: object): Job => ({ data }) as Job
 
   beforeEach(() => {
     jest.resetAllMocks()
-    processor = new IndexingProcessor(mockPrisma, mockChunker, mockProcessing, mockEmbed, mockQdrant)
+    processor = new IndexingProcessor(
+      mockPrisma,
+      mockChunker,
+      mockProcessing,
+      mockEmbed,
+      mockQdrant,
+    )
   })
 
-  it("deletes points and returns when page is missing", async () => {
+  it('deletes points and returns when page is missing', async () => {
     ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue(null)
 
-    await processor.process(makeJob({ outboxId: "1", pageId: "p1", workspaceId: "w1" }))
+    await processor.process(makeJob({ outboxId: '1', pageId: 'p1', workspaceId: 'w1' }))
 
-    expect(mockQdrant.deleteByPageId).toHaveBeenCalledWith("p1")
+    expect(mockQdrant.deleteByPageId).toHaveBeenCalledWith('p1')
     expect(mockChunker.chunksFromDoc).not.toHaveBeenCalled()
     expect(mockPrisma.$executeRaw).toHaveBeenCalled() // marks DONE
   })
 
-  it("skips wrong page types but still deletes old points", async () => {
+  it('skips wrong page types but still deletes old points', async () => {
     ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({
-      id: "p1",
-      type: "EXCALIDRAW",
-      ownership: "TEXT",
+      id: 'p1',
+      type: 'EXCALIDRAW',
+      ownership: 'TEXT',
       deletedAt: null,
       content: {},
     })
 
-    await processor.process(makeJob({ outboxId: "1", pageId: "p1", workspaceId: "w1" }))
+    await processor.process(makeJob({ outboxId: '1', pageId: 'p1', workspaceId: 'w1' }))
 
     expect(mockQdrant.deleteByPageId).toHaveBeenCalled()
     expect(mockChunker.chunksFromDoc).not.toHaveBeenCalled()
   })
 
-  it("processes chunks end-to-end when page is valid", async () => {
+  it('processes chunks end-to-end when page is valid', async () => {
     ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({
-      id: "p1",
-      type: "TEXT",
-      ownership: "TEXT",
+      id: 'p1',
+      type: 'TEXT',
+      ownership: 'TEXT',
       deletedAt: null,
-      content: { type: "doc", content: [] },
-      workspaceId: "w1",
+      content: { type: 'doc', content: [] },
+      workspaceId: 'w1',
     })
-    ;(mockChunker.chunksFromDoc as jest.Mock).mockReturnValue(["chunk a", "chunk b"])
-    ;(mockProcessing.normalize as jest.Mock)
-      .mockResolvedValueOnce("a")
-      .mockResolvedValueOnce("b")
+    ;(mockChunker.chunksFromDoc as jest.Mock).mockReturnValue(['chunk a', 'chunk b'])
+    ;(mockProcessing.normalize as jest.Mock).mockResolvedValueOnce('a').mockResolvedValueOnce('b')
     ;(mockEmbed.embed as jest.Mock)
       .mockResolvedValueOnce([0.1, 0.2])
       .mockResolvedValueOnce([0.3, 0.4])
 
-    await processor.process(makeJob({ outboxId: "1", pageId: "p1", workspaceId: "w1" }))
+    await processor.process(makeJob({ outboxId: '1', pageId: 'p1', workspaceId: 'w1' }))
 
-    expect(mockQdrant.deleteByPageId).toHaveBeenCalledWith("p1")
+    expect(mockQdrant.deleteByPageId).toHaveBeenCalledWith('p1')
     expect(mockQdrant.upsert).toHaveBeenCalledWith([
-      expect.objectContaining({ vector: [0.1, 0.2], payload: { pageId: "p1", workspaceId: "w1", chunkIndex: 0 } }),
-      expect.objectContaining({ vector: [0.3, 0.4], payload: { pageId: "p1", workspaceId: "w1", chunkIndex: 1 } }),
+      expect.objectContaining({
+        vector: [0.1, 0.2],
+        payload: { pageId: 'p1', workspaceId: 'w1', chunkIndex: 0 },
+      }),
+      expect.objectContaining({
+        vector: [0.3, 0.4],
+        payload: { pageId: 'p1', workspaceId: 'w1', chunkIndex: 1 },
+      }),
     ])
   })
 
-  it("drops empty normalized chunks", async () => {
+  it('drops empty normalized chunks', async () => {
     ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({
-      id: "p1",
-      type: "TEXT",
-      ownership: "TEXT",
+      id: 'p1',
+      type: 'TEXT',
+      ownership: 'TEXT',
       deletedAt: null,
-      content: { type: "doc", content: [] },
-      workspaceId: "w1",
+      content: { type: 'doc', content: [] },
+      workspaceId: 'w1',
     })
-    ;(mockChunker.chunksFromDoc as jest.Mock).mockReturnValue(["!!", "real"])
-    ;(mockProcessing.normalize as jest.Mock)
-      .mockResolvedValueOnce("")
-      .mockResolvedValueOnce("real")
+    ;(mockChunker.chunksFromDoc as jest.Mock).mockReturnValue(['!!', 'real'])
+    ;(mockProcessing.normalize as jest.Mock).mockResolvedValueOnce('').mockResolvedValueOnce('real')
     ;(mockEmbed.embed as jest.Mock).mockResolvedValueOnce([0.5])
 
-    await processor.process(makeJob({ outboxId: "1", pageId: "p1", workspaceId: "w1" }))
+    await processor.process(makeJob({ outboxId: '1', pageId: 'p1', workspaceId: 'w1' }))
 
     expect(mockEmbed.embed).toHaveBeenCalledTimes(1)
     expect(mockQdrant.upsert).toHaveBeenCalledWith([
-      expect.objectContaining({ vector: [0.5], payload: expect.objectContaining({ chunkIndex: 1 }) }),
+      expect.objectContaining({
+        vector: [0.5],
+        payload: expect.objectContaining({ chunkIndex: 1 }),
+      }),
     ])
   })
 })
@@ -2368,10 +2448,11 @@ describe("IndexingProcessor", () => {
 - [ ] **Step 2: Create EmbeddingClient wrapper**
 
 Create `apps/engines/src/apps/indexer/services/embedding-client.service.ts`:
-```ts
-import { Injectable } from "@nestjs/common"
 
-import { OllamaService } from "../../../infra/ollama/ollama.service"
+```ts
+import { Injectable } from '@nestjs/common'
+
+import { OllamaService } from '../../../infra/ollama/ollama.service'
 
 @Injectable()
 export class EmbeddingClient {
@@ -2394,22 +2475,23 @@ Expected: module not found.
 - [ ] **Step 4: Implement processor**
 
 Create `apps/engines/src/apps/indexer/queue/indexing.processor.ts`:
+
 ```ts
-import { createHash } from "node:crypto"
+import { createHash } from 'node:crypto'
 
-import { Inject, Logger } from "@nestjs/common"
-import { Processor, WorkerHost } from "@nestjs/bullmq"
-import type { PrismaClient } from "@repo/db"
-import { Prisma } from "@repo/db"
-import type { Job } from "bullmq"
+import { Inject, Logger } from '@nestjs/common'
+import { Processor, WorkerHost } from '@nestjs/bullmq'
+import type { PrismaClient } from '@repo/db'
+import { Prisma } from '@repo/db'
+import type { Job } from 'bullmq'
 
-import { PRISMA } from "../../../infra/db/db.providers"
-import { EmbeddingClient } from "../services/embedding-client.service"
-import { PageChunker } from "../services/page-chunker.service"
-import { ProcessingClient } from "../services/processing-client.service"
-import { QdrantPoint, QdrantWriter } from "../services/qdrant-writer.service"
+import { PRISMA } from '../../../infra/db/db.providers'
+import { EmbeddingClient } from '../services/embedding-client.service'
+import { PageChunker } from '../services/page-chunker.service'
+import { ProcessingClient } from '../services/processing-client.service'
+import { QdrantPoint, QdrantWriter } from '../services/qdrant-writer.service'
 
-const INDEXING_QUEUE = "indexing"
+const INDEXING_QUEUE = 'indexing'
 
 export type IndexPageJob = {
   outboxId: string
@@ -2451,15 +2533,17 @@ export class IndexingProcessor extends WorkerHost {
       if (
         !page ||
         page.deletedAt ||
-        page.type !== "TEXT" ||
-        page.ownership !== "TEXT" ||
+        page.type !== 'TEXT' ||
+        page.ownership !== 'TEXT' ||
         !page.content
       ) {
         await this.markDone(outboxId)
         return
       }
 
-      const chunks = this.chunker.chunksFromDoc(page.content as unknown as Parameters<PageChunker["chunksFromDoc"]>[0])
+      const chunks = this.chunker.chunksFromDoc(
+        page.content as unknown as Parameters<PageChunker['chunksFromDoc']>[0],
+      )
       if (chunks.length === 0) {
         await this.markDone(outboxId)
         return
@@ -2467,7 +2551,7 @@ export class IndexingProcessor extends WorkerHost {
 
       const points: QdrantPoint[] = []
       for (let i = 0; i < chunks.length; i++) {
-        const normalized = await this.processing.normalize(chunks[i], "auto")
+        const normalized = await this.processing.normalize(chunks[i], 'auto')
         if (!normalized) continue
         const vector = await this.embedding.embed(normalized)
         points.push({
@@ -2512,10 +2596,18 @@ export class IndexingProcessor extends WorkerHost {
 }
 
 function pointId(pageId: string, chunkIndex: number): string {
-  const h = createHash("sha256").update(`${pageId}:${chunkIndex}`).digest("hex")
+  const h = createHash('sha256').update(`${pageId}:${chunkIndex}`).digest('hex')
   // UUID v4 layout derived from hash to fit Qdrant's accepted id format
   return (
-    h.slice(0, 8) + "-" + h.slice(8, 12) + "-" + h.slice(12, 16) + "-" + h.slice(16, 20) + "-" + h.slice(20, 32)
+    h.slice(0, 8) +
+    '-' +
+    h.slice(8, 12) +
+    '-' +
+    h.slice(12, 16) +
+    '-' +
+    h.slice(16, 20) +
+    '-' +
+    h.slice(20, 32)
   )
 }
 ```
@@ -2538,28 +2630,30 @@ git commit -m "feat(engines/indexer): add bullmq indexing processor"
 ### Task 3.7: IndexerModule wiring
 
 **Files:**
+
 - Create: `apps/engines/src/apps/indexer/indexer.module.ts`
 - Modify: `apps/engines/src/app.module.ts`
 
 - [ ] **Step 1: Write IndexerModule**
 
 Create `apps/engines/src/apps/indexer/indexer.module.ts`:
-```ts
-import { BullModule } from "@nestjs/bullmq"
-import { Module } from "@nestjs/common"
 
-import { OutboxCronService } from "./cron/outbox-cron.service"
-import { OutboxDrainerService } from "./cron/outbox-drainer.service"
-import { IndexingProcessor } from "./queue/indexing.processor"
-import { EmbeddingClient } from "./services/embedding-client.service"
-import { PageChunker } from "./services/page-chunker.service"
-import { ProcessingClient } from "./services/processing-client.service"
-import { QdrantWriter } from "./services/qdrant-writer.service"
+```ts
+import { BullModule } from '@nestjs/bullmq'
+import { Module } from '@nestjs/common'
+
+import { OutboxCronService } from './cron/outbox-cron.service'
+import { OutboxDrainerService } from './cron/outbox-drainer.service'
+import { IndexingProcessor } from './queue/indexing.processor'
+import { EmbeddingClient } from './services/embedding-client.service'
+import { PageChunker } from './services/page-chunker.service'
+import { ProcessingClient } from './services/processing-client.service'
+import { QdrantWriter } from './services/qdrant-writer.service'
 
 @Module({
   imports: [
     BullModule.registerQueue({
-      name: "indexing",
+      name: 'indexing',
     }),
   ],
   providers: [
@@ -2578,23 +2672,24 @@ export class IndexerModule {}
 - [ ] **Step 2: Wire BullModule forRoot into AppModule**
 
 Modify `apps/engines/src/app.module.ts`:
-```ts
-import { BullModule } from "@nestjs/bullmq"
-import { Module } from "@nestjs/common"
-import { ScheduleModule } from "@nestjs/schedule"
 
-import { IndexerModule } from "./apps/indexer/indexer.module"
-import { HealthModule } from "./health/health.module"
-import { DbModule } from "./infra/db/db.module"
-import { OllamaModule } from "./infra/ollama/ollama.module"
-import { QdrantModule } from "./infra/qdrant/qdrant.module"
+```ts
+import { BullModule } from '@nestjs/bullmq'
+import { Module } from '@nestjs/common'
+import { ScheduleModule } from '@nestjs/schedule'
+
+import { IndexerModule } from './apps/indexer/indexer.module'
+import { HealthModule } from './health/health.module'
+import { DbModule } from './infra/db/db.module'
+import { OllamaModule } from './infra/ollama/ollama.module'
+import { QdrantModule } from './infra/qdrant/qdrant.module'
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
     BullModule.forRoot({
       connection: {
-        url: process.env.REDIS_URL ?? "redis://localhost:6379",
+        url: process.env.REDIS_URL ?? 'redis://localhost:6379',
       },
     }),
     DbModule,
@@ -2648,12 +2743,14 @@ git commit -m "feat(engines/indexer): wire indexer module into app"
 ### Task 4.1: MCP error taxonomy + exception filter
 
 **Files:**
+
 - Create: `apps/engines/src/apps/mcp/errors/mcp.errors.ts`
 - Create: `apps/engines/src/apps/mcp/errors/mcp.errors.spec.ts`
 
 - [ ] **Step 1: Write failing tests**
 
 Create `apps/engines/src/apps/mcp/errors/mcp.errors.spec.ts`:
+
 ```ts
 import {
   FileNotFoundError,
@@ -2661,31 +2758,31 @@ import {
   PageNotFoundError,
   UnsupportedMimeTypeError,
   WorkspaceAccessDeniedError,
-} from "./mcp.errors"
+} from './mcp.errors'
 
-describe("MCP errors", () => {
-  it("WorkspaceAccessDeniedError → 403 WORKSPACE_ACCESS_DENIED", () => {
-    const err = new WorkspaceAccessDeniedError("w1", "u1")
+describe('MCP errors', () => {
+  it('WorkspaceAccessDeniedError → 403 WORKSPACE_ACCESS_DENIED', () => {
+    const err = new WorkspaceAccessDeniedError('w1', 'u1')
     expect(err.getStatus()).toBe(403)
-    expect(err.getResponse()).toMatchObject({ code: "WORKSPACE_ACCESS_DENIED" })
+    expect(err.getResponse()).toMatchObject({ code: 'WORKSPACE_ACCESS_DENIED' })
   })
 
-  it("PageNotFoundError → 404", () => {
-    expect(new PageNotFoundError("p1").getStatus()).toBe(404)
+  it('PageNotFoundError → 404', () => {
+    expect(new PageNotFoundError('p1').getStatus()).toBe(404)
   })
 
-  it("FileNotFoundError → 404", () => {
-    expect(new FileNotFoundError("f1").getStatus()).toBe(404)
+  it('FileNotFoundError → 404', () => {
+    expect(new FileNotFoundError('f1').getStatus()).toBe(404)
   })
 
-  it("FileTooLargeError → 413 with limit in message", () => {
+  it('FileTooLargeError → 413 with limit in message', () => {
     const err = new FileTooLargeError(5_000_000, 1_048_576)
     expect(err.getStatus()).toBe(413)
-    expect((err.getResponse() as { message: string }).message).toContain("attach")
+    expect((err.getResponse() as { message: string }).message).toContain('attach')
   })
 
-  it("UnsupportedMimeTypeError → 415", () => {
-    expect(new UnsupportedMimeTypeError("text/exotic").getStatus()).toBe(415)
+  it('UnsupportedMimeTypeError → 415', () => {
+    expect(new UnsupportedMimeTypeError('text/exotic').getStatus()).toBe(415)
   })
 })
 ```
@@ -2701,14 +2798,15 @@ Expected: module not found.
 - [ ] **Step 3: Implement**
 
 Create `apps/engines/src/apps/mcp/errors/mcp.errors.ts`:
+
 ```ts
-import { HttpException } from "@nestjs/common"
+import { HttpException } from '@nestjs/common'
 
 export class WorkspaceAccessDeniedError extends HttpException {
   constructor(workspaceId: string, userId: string) {
     super(
       {
-        code: "WORKSPACE_ACCESS_DENIED",
+        code: 'WORKSPACE_ACCESS_DENIED',
         message: `User ${userId} is not a member of workspace ${workspaceId}`,
       },
       403,
@@ -2718,13 +2816,13 @@ export class WorkspaceAccessDeniedError extends HttpException {
 
 export class PageNotFoundError extends HttpException {
   constructor(pageId: string) {
-    super({ code: "PAGE_NOT_FOUND", message: `Page ${pageId} not found` }, 404)
+    super({ code: 'PAGE_NOT_FOUND', message: `Page ${pageId} not found` }, 404)
   }
 }
 
 export class FileNotFoundError extends HttpException {
   constructor(fileId: string) {
-    super({ code: "FILE_NOT_FOUND", message: `File ${fileId} not found` }, 404)
+    super({ code: 'FILE_NOT_FOUND', message: `File ${fileId} not found` }, 404)
   }
 }
 
@@ -2732,7 +2830,7 @@ export class FileTooLargeError extends HttpException {
   constructor(size: number, limit: number) {
     super(
       {
-        code: "FILE_TOO_LARGE",
+        code: 'FILE_TOO_LARGE',
         message: `File size ${size} exceeds inline limit ${limit}. Upload via apps/web and use attachFileToPage instead.`,
       },
       413,
@@ -2742,7 +2840,7 @@ export class FileTooLargeError extends HttpException {
 
 export class UnsupportedMimeTypeError extends HttpException {
   constructor(mimeType: string) {
-    super({ code: "UNSUPPORTED_MIME_TYPE", message: `MIME type ${mimeType} not supported` }, 415)
+    super({ code: 'UNSUPPORTED_MIME_TYPE', message: `MIME type ${mimeType} not supported` }, 415)
   }
 }
 ```
@@ -2765,16 +2863,18 @@ git commit -m "feat(engines/mcp): add error taxonomy"
 ### Task 4.2: McpTokenGuard
 
 **Files:**
+
 - Create: `apps/engines/src/apps/mcp/guards/mcp-token.guard.ts`
 - Create: `apps/engines/src/apps/mcp/guards/mcp-token.guard.spec.ts`
 
 - [ ] **Step 1: Write failing tests**
 
 Create `apps/engines/src/apps/mcp/guards/mcp-token.guard.spec.ts`:
-```ts
-import type { ExecutionContext } from "@nestjs/common"
 
-import { McpTokenGuard } from "./mcp-token.guard"
+```ts
+import type { ExecutionContext } from '@nestjs/common'
+
+import { McpTokenGuard } from './mcp-token.guard'
 
 function makeCtx(authHeader?: string): ExecutionContext {
   return {
@@ -2784,29 +2884,29 @@ function makeCtx(authHeader?: string): ExecutionContext {
   } as ExecutionContext
 }
 
-describe("McpTokenGuard", () => {
+describe('McpTokenGuard', () => {
   beforeEach(() => {
-    process.env.ENGINES_MCP_TOKEN = "sekret"
+    process.env.ENGINES_MCP_TOKEN = 'sekret'
   })
 
-  it("allows valid bearer token", () => {
+  it('allows valid bearer token', () => {
     const guard = new McpTokenGuard()
-    expect(guard.canActivate(makeCtx("Bearer sekret"))).toBe(true)
+    expect(guard.canActivate(makeCtx('Bearer sekret'))).toBe(true)
   })
 
-  it("denies missing header", () => {
+  it('denies missing header', () => {
     const guard = new McpTokenGuard()
     expect(() => guard.canActivate(makeCtx(undefined))).toThrow(/unauthorized/i)
   })
 
-  it("denies wrong token", () => {
+  it('denies wrong token', () => {
     const guard = new McpTokenGuard()
-    expect(() => guard.canActivate(makeCtx("Bearer nope"))).toThrow(/unauthorized/i)
+    expect(() => guard.canActivate(makeCtx('Bearer nope'))).toThrow(/unauthorized/i)
   })
 
-  it("denies missing Bearer prefix", () => {
+  it('denies missing Bearer prefix', () => {
     const guard = new McpTokenGuard()
-    expect(() => guard.canActivate(makeCtx("sekret"))).toThrow(/unauthorized/i)
+    expect(() => guard.canActivate(makeCtx('sekret'))).toThrow(/unauthorized/i)
   })
 })
 ```
@@ -2820,8 +2920,9 @@ pnpm --filter engines test -- mcp-token.guard
 - [ ] **Step 3: Implement**
 
 Create `apps/engines/src/apps/mcp/guards/mcp-token.guard.ts`:
+
 ```ts
-import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from "@nestjs/common"
+import { CanActivate, ExecutionContext, Injectable, UnauthorizedException } from '@nestjs/common'
 
 @Injectable()
 export class McpTokenGuard implements CanActivate {
@@ -2829,11 +2930,11 @@ export class McpTokenGuard implements CanActivate {
     const req = ctx.switchToHttp().getRequest<{ headers: Record<string, string | undefined> }>()
     const header = req.headers.authorization
     const expected = process.env.ENGINES_MCP_TOKEN
-    if (!expected) throw new UnauthorizedException("MCP token not configured")
-    if (!header) throw new UnauthorizedException("Missing Authorization header")
-    if (!header.startsWith("Bearer ")) throw new UnauthorizedException("Bearer prefix required")
+    if (!expected) throw new UnauthorizedException('MCP token not configured')
+    if (!header) throw new UnauthorizedException('Missing Authorization header')
+    if (!header.startsWith('Bearer ')) throw new UnauthorizedException('Bearer prefix required')
     const token = header.slice(7)
-    if (token !== expected) throw new UnauthorizedException("Invalid token")
+    if (token !== expected) throw new UnauthorizedException('Invalid token')
     return true
   }
 }
@@ -2857,18 +2958,20 @@ git commit -m "feat(engines/mcp): add bearer token guard"
 ### Task 4.3: WorkspaceMemberGuard
 
 **Files:**
+
 - Create: `apps/engines/src/apps/mcp/guards/workspace-member.guard.ts`
 - Create: `apps/engines/src/apps/mcp/guards/workspace-member.guard.spec.ts`
 
 - [ ] **Step 1: Write failing tests**
 
 Create `apps/engines/src/apps/mcp/guards/workspace-member.guard.spec.ts`:
+
 ```ts
-import type { PrismaClient } from "@repo/db"
+import type { PrismaClient } from '@repo/db'
 
-import { WorkspaceMemberGuard } from "./workspace-member.guard"
+import { WorkspaceMemberGuard } from './workspace-member.guard'
 
-describe("WorkspaceMemberGuard", () => {
+describe('WorkspaceMemberGuard', () => {
   const mockPrisma = {
     workspaceMember: { findUnique: jest.fn() },
   } as unknown as PrismaClient
@@ -2880,14 +2983,14 @@ describe("WorkspaceMemberGuard", () => {
     guard = new WorkspaceMemberGuard(mockPrisma)
   })
 
-  it("allows when member exists", async () => {
-    ;(mockPrisma.workspaceMember.findUnique as jest.Mock).mockResolvedValue({ userId: "u1" })
-    await expect(guard.assert("w1", "u1")).resolves.toBeUndefined()
+  it('allows when member exists', async () => {
+    ;(mockPrisma.workspaceMember.findUnique as jest.Mock).mockResolvedValue({ userId: 'u1' })
+    await expect(guard.assert('w1', 'u1')).resolves.toBeUndefined()
   })
 
-  it("throws WorkspaceAccessDeniedError when not a member", async () => {
+  it('throws WorkspaceAccessDeniedError when not a member', async () => {
     ;(mockPrisma.workspaceMember.findUnique as jest.Mock).mockResolvedValue(null)
-    await expect(guard.assert("w1", "u1")).rejects.toThrow(/access/i)
+    await expect(guard.assert('w1', 'u1')).rejects.toThrow(/access/i)
   })
 })
 ```
@@ -2901,12 +3004,13 @@ pnpm --filter engines test -- workspace-member.guard
 - [ ] **Step 3: Implement**
 
 Create `apps/engines/src/apps/mcp/guards/workspace-member.guard.ts`:
-```ts
-import { Inject, Injectable } from "@nestjs/common"
-import type { PrismaClient } from "@repo/db"
 
-import { PRISMA } from "../../../infra/db/db.providers"
-import { WorkspaceAccessDeniedError } from "../errors/mcp.errors"
+```ts
+import { Inject, Injectable } from '@nestjs/common'
+import type { PrismaClient } from '@repo/db'
+
+import { PRISMA } from '../../../infra/db/db.providers'
+import { WorkspaceAccessDeniedError } from '../errors/mcp.errors'
 
 @Injectable()
 export class WorkspaceMemberGuard {
@@ -2941,131 +3045,146 @@ git commit -m "feat(engines/mcp): add workspace member guard (plain service)"
 ### Task 4.4: MarkdownRendererService
 
 **Files:**
+
 - Create: `apps/engines/src/apps/mcp/services/markdown-renderer.service.ts`
 - Create: `apps/engines/src/apps/mcp/services/markdown-renderer.service.spec.ts`
 
 - [ ] **Step 1: Write failing tests**
 
 Create `apps/engines/src/apps/mcp/services/markdown-renderer.service.spec.ts`:
-```ts
-import { MarkdownRenderer } from "./markdown-renderer.service"
 
-describe("MarkdownRenderer", () => {
+````ts
+import { MarkdownRenderer } from './markdown-renderer.service'
+
+describe('MarkdownRenderer', () => {
   const renderer = new MarkdownRenderer()
 
-  it("renders empty doc as empty string", () => {
-    expect(renderer.render({ type: "doc", content: [] })).toBe("")
+  it('renders empty doc as empty string', () => {
+    expect(renderer.render({ type: 'doc', content: [] })).toBe('')
   })
 
-  it("renders paragraph", () => {
+  it('renders paragraph', () => {
     expect(
       renderer.render({
-        type: "doc",
-        content: [
-          { type: "paragraph", content: [{ type: "text", text: "Hello" }] },
-        ],
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hello' }] }],
       }),
-    ).toBe("Hello")
+    ).toBe('Hello')
   })
 
-  it("renders heading with correct level", () => {
+  it('renders heading with correct level', () => {
     expect(
       renderer.render({
-        type: "doc",
+        type: 'doc',
         content: [
-          { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Title" }] },
+          { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Title' }] },
         ],
       }),
-    ).toBe("## Title")
+    ).toBe('## Title')
   })
 
-  it("renders marks bold/italic/code/link", () => {
+  it('renders marks bold/italic/code/link', () => {
     const doc = {
-      type: "doc",
+      type: 'doc',
       content: [
         {
-          type: "paragraph",
+          type: 'paragraph',
           content: [
-            { type: "text", text: "x", marks: [{ type: "bold" }] },
-            { type: "text", text: " y", marks: [{ type: "italic" }] },
-            { type: "text", text: " z", marks: [{ type: "code" }] },
+            { type: 'text', text: 'x', marks: [{ type: 'bold' }] },
+            { type: 'text', text: ' y', marks: [{ type: 'italic' }] },
+            { type: 'text', text: ' z', marks: [{ type: 'code' }] },
             {
-              type: "text",
-              text: " a",
-              marks: [{ type: "link", attrs: { href: "https://x" } }],
+              type: 'text',
+              text: ' a',
+              marks: [{ type: 'link', attrs: { href: 'https://x' } }],
             },
           ],
         },
       ],
     }
     const rendered = renderer.render(doc)
-    expect(rendered).toContain("**x**")
-    expect(rendered).toContain("_ y_")
-    expect(rendered).toContain("` z`")
-    expect(rendered).toContain("[ a](https://x)")
+    expect(rendered).toContain('**x**')
+    expect(rendered).toContain('_ y_')
+    expect(rendered).toContain('` z`')
+    expect(rendered).toContain('[ a](https://x)')
   })
 
-  it("renders bullet list", () => {
+  it('renders bullet list', () => {
     const doc = {
-      type: "doc",
+      type: 'doc',
       content: [
         {
-          type: "bulletList",
+          type: 'bulletList',
           content: [
-            { type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "A" }] }] },
-            { type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "B" }] }] },
+            {
+              type: 'listItem',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'A' }] }],
+            },
+            {
+              type: 'listItem',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'B' }] }],
+            },
           ],
         },
       ],
     }
-    expect(renderer.render(doc)).toBe("- A\n- B")
+    expect(renderer.render(doc)).toBe('- A\n- B')
   })
 
-  it("renders ordered list", () => {
+  it('renders ordered list', () => {
     const doc = {
-      type: "doc",
+      type: 'doc',
       content: [
         {
-          type: "orderedList",
+          type: 'orderedList',
           content: [
-            { type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "A" }] }] },
-            { type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "B" }] }] },
+            {
+              type: 'listItem',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'A' }] }],
+            },
+            {
+              type: 'listItem',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'B' }] }],
+            },
           ],
         },
       ],
     }
-    expect(renderer.render(doc)).toBe("1. A\n2. B")
+    expect(renderer.render(doc)).toBe('1. A\n2. B')
   })
 
-  it("renders code block with language", () => {
+  it('renders code block with language', () => {
     const doc = {
-      type: "doc",
+      type: 'doc',
       content: [
         {
-          type: "codeBlock",
-          attrs: { language: "ts" },
-          content: [{ type: "text", text: "const x = 1" }],
+          type: 'codeBlock',
+          attrs: { language: 'ts' },
+          content: [{ type: 'text', text: 'const x = 1' }],
         },
       ],
     }
-    expect(renderer.render(doc)).toBe("```ts\nconst x = 1\n```")
+    expect(renderer.render(doc)).toBe('```ts\nconst x = 1\n```')
   })
 
-  it("renders blockquote", () => {
+  it('renders blockquote', () => {
     const doc = {
-      type: "doc",
+      type: 'doc',
       content: [
-        { type: "blockquote", content: [{ type: "paragraph", content: [{ type: "text", text: "quoted" }] }] },
+        {
+          type: 'blockquote',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'quoted' }] }],
+        },
       ],
     }
-    expect(renderer.render(doc)).toBe("> quoted")
+    expect(renderer.render(doc)).toBe('> quoted')
   })
 
-  it("renders horizontal rule", () => {
-    expect(renderer.render({ type: "doc", content: [{ type: "horizontalRule" }] })).toBe("---")
+  it('renders horizontal rule', () => {
+    expect(renderer.render({ type: 'doc', content: [{ type: 'horizontalRule' }] })).toBe('---')
   })
 })
-```
+````
 
 - [ ] **Step 2: Run — verify fail**
 
@@ -3076,8 +3195,9 @@ pnpm --filter engines test -- markdown-renderer
 - [ ] **Step 3: Implement**
 
 Create `apps/engines/src/apps/mcp/services/markdown-renderer.service.ts`:
-```ts
-import { Injectable } from "@nestjs/common"
+
+````ts
+import { Injectable } from '@nestjs/common'
 
 type Node = {
   type: string
@@ -3087,38 +3207,45 @@ type Node = {
   marks?: { type: string; attrs?: Record<string, unknown> }[]
 }
 
-type Doc = { type: "doc"; content?: Node[] }
+type Doc = { type: 'doc'; content?: Node[] }
 
 @Injectable()
 export class MarkdownRenderer {
   render(doc: Doc | null | undefined): string {
-    if (!doc || !doc.content) return ""
-    return doc.content.map((n) => this.renderNode(n)).join("\n\n").trimEnd()
+    if (!doc || !doc.content) return ''
+    return doc.content
+      .map((n) => this.renderNode(n))
+      .join('\n\n')
+      .trimEnd()
   }
 
   private renderNode(node: Node): string {
     switch (node.type) {
-      case "paragraph":
+      case 'paragraph':
         return this.renderInline(node.content ?? [])
-      case "heading": {
+      case 'heading': {
         const level = Math.max(1, Math.min(6, Number(node.attrs?.level ?? 1)))
-        return `${"#".repeat(level)} ${this.renderInline(node.content ?? [])}`
+        return `${'#'.repeat(level)} ${this.renderInline(node.content ?? [])}`
       }
-      case "bulletList":
-        return (node.content ?? []).map((li) => `- ${this.renderListItem(li)}`).join("\n")
-      case "orderedList":
-        return (node.content ?? []).map((li, i) => `${i + 1}. ${this.renderListItem(li)}`).join("\n")
-      case "blockquote":
-        return (node.content ?? []).map((n) => `> ${this.renderNode(n)}`).join("\n")
-      case "codeBlock": {
-        const lang = typeof node.attrs?.language === "string" ? node.attrs.language : ""
-        return "```" + lang + "\n" + (node.content?.map((c) => c.text ?? "").join("") ?? "") + "\n```"
+      case 'bulletList':
+        return (node.content ?? []).map((li) => `- ${this.renderListItem(li)}`).join('\n')
+      case 'orderedList':
+        return (node.content ?? [])
+          .map((li, i) => `${i + 1}. ${this.renderListItem(li)}`)
+          .join('\n')
+      case 'blockquote':
+        return (node.content ?? []).map((n) => `> ${this.renderNode(n)}`).join('\n')
+      case 'codeBlock': {
+        const lang = typeof node.attrs?.language === 'string' ? node.attrs.language : ''
+        return (
+          '```' + lang + '\n' + (node.content?.map((c) => c.text ?? '').join('') ?? '') + '\n```'
+        )
       }
-      case "horizontalRule":
-        return "---"
-      case "hardBreak":
-        return "  \n"
-      case "text":
+      case 'horizontalRule':
+        return '---'
+      case 'hardBreak':
+        return '  \n'
+      case 'text':
         return this.renderText(node)
       default:
         return this.renderInline(node.content ?? [])
@@ -3126,28 +3253,28 @@ export class MarkdownRenderer {
   }
 
   private renderListItem(li: Node): string {
-    return (li.content ?? []).map((n) => this.renderNode(n)).join(" ")
+    return (li.content ?? []).map((n) => this.renderNode(n)).join(' ')
   }
 
   private renderInline(nodes: Node[]): string {
-    return nodes.map((n) => this.renderNode(n)).join("")
+    return nodes.map((n) => this.renderNode(n)).join('')
   }
 
   private renderText(node: Node): string {
-    let out = node.text ?? ""
+    let out = node.text ?? ''
     for (const mark of node.marks ?? []) {
-      if (mark.type === "bold") out = `**${out}**`
-      else if (mark.type === "italic") out = `_${out}_`
-      else if (mark.type === "code") out = `\`${out}\``
-      else if (mark.type === "link") {
-        const href = typeof mark.attrs?.href === "string" ? mark.attrs.href : ""
+      if (mark.type === 'bold') out = `**${out}**`
+      else if (mark.type === 'italic') out = `_${out}_`
+      else if (mark.type === 'code') out = `\`${out}\``
+      else if (mark.type === 'link') {
+        const href = typeof mark.attrs?.href === 'string' ? mark.attrs.href : ''
         out = `[${out}](${href})`
       }
     }
     return out
   }
 }
-```
+````
 
 - [ ] **Step 4: Run — verify pass**
 
@@ -3168,18 +3295,20 @@ git commit -m "feat(engines/mcp): add tiptap → markdown renderer"
 ### Task 4.5: PageWriterService
 
 **Files:**
+
 - Create: `apps/engines/src/apps/mcp/services/page-writer.service.ts`
 - Create: `apps/engines/src/apps/mcp/services/page-writer.service.spec.ts`
 
 - [ ] **Step 1: Write failing tests**
 
 Create `apps/engines/src/apps/mcp/services/page-writer.service.spec.ts`:
+
 ```ts
-import type { PrismaClient } from "@repo/db"
+import type { PrismaClient } from '@repo/db'
 
-import { PageWriter } from "./page-writer.service"
+import { PageWriter } from './page-writer.service'
 
-describe("PageWriter", () => {
+describe('PageWriter', () => {
   const mockPrisma = {
     $transaction: jest.fn(),
     page: {
@@ -3194,58 +3323,60 @@ describe("PageWriter", () => {
 
   beforeEach(() => {
     jest.resetAllMocks()
-    ;(mockPrisma.$transaction as jest.Mock).mockImplementation(async (fn: (tx: PrismaClient) => unknown) => fn(mockPrisma))
+    ;(mockPrisma.$transaction as jest.Mock).mockImplementation(
+      async (fn: (tx: PrismaClient) => unknown) => fn(mockPrisma),
+    )
     writer = new PageWriter(mockPrisma)
   })
 
-  describe("createPage", () => {
-    it("creates page and enqueues outbox", async () => {
-      ;(mockPrisma.page.create as jest.Mock).mockResolvedValue({ id: "p1" })
+  describe('createPage', () => {
+    it('creates page and enqueues outbox', async () => {
+      ;(mockPrisma.page.create as jest.Mock).mockResolvedValue({ id: 'p1' })
 
       const id = await writer.createPage({
-        userId: "u1",
-        workspaceId: "w1",
-        title: "Test",
-        ownership: "TEXT",
+        userId: 'u1',
+        workspaceId: 'w1',
+        title: 'Test',
+        ownership: 'TEXT',
       })
 
-      expect(id).toBe("p1")
+      expect(id).toBe('p1')
       expect(mockPrisma.page.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          workspaceId: "w1",
-          title: "Test",
-          ownership: "TEXT",
-          createdById: "u1",
-          updatedById: "u1",
+          workspaceId: 'w1',
+          title: 'Test',
+          ownership: 'TEXT',
+          createdById: 'u1',
+          updatedById: 'u1',
         }),
       })
       expect(mockPrisma.outboxEvent.create).toHaveBeenCalledWith({
         data: expect.objectContaining({
-          eventType: "page.upserted",
-          aggregateType: "page",
-          aggregateId: "p1",
-          workspaceId: "w1",
+          eventType: 'page.upserted',
+          aggregateType: 'page',
+          aggregateId: 'p1',
+          workspaceId: 'w1',
         }),
       })
     })
   })
 
-  describe("updatePage", () => {
-    it("rejects when page belongs to another workspace", async () => {
+  describe('updatePage', () => {
+    it('rejects when page belongs to another workspace', async () => {
       ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({
-        id: "p1",
-        workspaceId: "other",
+        id: 'p1',
+        workspaceId: 'other',
       })
       await expect(
-        writer.updatePage({ userId: "u1", workspaceId: "w1", pageId: "p1", title: "x" }),
+        writer.updatePage({ userId: 'u1', workspaceId: 'w1', pageId: 'p1', title: 'x' }),
       ).rejects.toThrow(/not found/i)
     })
 
-    it("updates page and enqueues outbox", async () => {
-      ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({ id: "p1", workspaceId: "w1" })
-      ;(mockPrisma.page.update as jest.Mock).mockResolvedValue({ id: "p1" })
+    it('updates page and enqueues outbox', async () => {
+      ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({ id: 'p1', workspaceId: 'w1' })
+      ;(mockPrisma.page.update as jest.Mock).mockResolvedValue({ id: 'p1' })
 
-      await writer.updatePage({ userId: "u1", workspaceId: "w1", pageId: "p1", title: "new" })
+      await writer.updatePage({ userId: 'u1', workspaceId: 'w1', pageId: 'p1', title: 'new' })
 
       expect(mockPrisma.page.update).toHaveBeenCalled()
       expect(mockPrisma.outboxEvent.create).toHaveBeenCalled()
@@ -3263,19 +3394,20 @@ pnpm --filter engines test -- page-writer
 - [ ] **Step 3: Implement**
 
 Create `apps/engines/src/apps/mcp/services/page-writer.service.ts`:
-```ts
-import { Inject, Injectable } from "@nestjs/common"
-import type { PrismaClient } from "@repo/db"
 
-import { PRISMA } from "../../../infra/db/db.providers"
-import { PageNotFoundError } from "../errors/mcp.errors"
+```ts
+import { Inject, Injectable } from '@nestjs/common'
+import type { PrismaClient } from '@repo/db'
+
+import { PRISMA } from '../../../infra/db/db.providers'
+import { PageNotFoundError } from '../errors/mcp.errors'
 
 export type CreatePageInput = {
   userId: string
   workspaceId: string
   parentId?: string | null
   title: string
-  ownership?: "TEXT" | "SKILL" | "AGENT"
+  ownership?: 'TEXT' | 'SKILL' | 'AGENT'
 }
 
 export type UpdatePageInput = {
@@ -3306,8 +3438,8 @@ export class PageWriter {
           workspaceId: input.workspaceId,
           parentId: input.parentId ?? null,
           title: input.title,
-          ownership: input.ownership ?? "TEXT",
-          type: "TEXT",
+          ownership: input.ownership ?? 'TEXT',
+          type: 'TEXT',
           createdById: input.userId,
           updatedById: input.userId,
         },
@@ -3315,8 +3447,8 @@ export class PageWriter {
       })
       await tx.outboxEvent.create({
         data: {
-          eventType: "page.upserted",
-          aggregateType: "page",
+          eventType: 'page.upserted',
+          aggregateType: 'page',
           aggregateId: page.id,
           workspaceId: input.workspaceId,
           payload: {},
@@ -3346,8 +3478,8 @@ export class PageWriter {
       })
       await tx.outboxEvent.create({
         data: {
-          eventType: "page.upserted",
-          aggregateType: "page",
+          eventType: 'page.upserted',
+          aggregateType: 'page',
           aggregateId: input.pageId,
           workspaceId: input.workspaceId,
           payload: {},
@@ -3375,8 +3507,8 @@ export class PageWriter {
       })
       await tx.outboxEvent.create({
         data: {
-          eventType: "page.upserted",
-          aggregateType: "page",
+          eventType: 'page.upserted',
+          aggregateType: 'page',
           aggregateId: input.pageId,
           workspaceId: input.workspaceId,
           payload: {},
@@ -3406,19 +3538,21 @@ git commit -m "feat(engines/mcp): add page writer service"
 ### Task 4.6: FileUploaderService
 
 **Files:**
+
 - Create: `apps/engines/src/apps/mcp/services/file-uploader.service.ts`
 - Create: `apps/engines/src/apps/mcp/services/file-uploader.service.spec.ts`
 
 - [ ] **Step 1: Write failing tests**
 
 Create `apps/engines/src/apps/mcp/services/file-uploader.service.spec.ts`:
+
 ```ts
-import type { PrismaClient } from "@repo/db"
-import type { StorageClient } from "@repo/storage"
+import type { PrismaClient } from '@repo/db'
+import type { StorageClient } from '@repo/storage'
 
-import { FileUploader, IMAGE_MIME_TYPES } from "./file-uploader.service"
+import { FileUploader, IMAGE_MIME_TYPES } from './file-uploader.service'
 
-describe("FileUploader", () => {
+describe('FileUploader', () => {
   const mockPrisma = {
     $transaction: jest.fn(),
     file: { create: jest.fn(), findUnique: jest.fn() },
@@ -3432,100 +3566,125 @@ describe("FileUploader", () => {
 
   beforeEach(() => {
     jest.resetAllMocks()
-    process.env.UPLOAD_INLINE_MAX_BYTES = "1048576"
-    ;(mockPrisma.$transaction as jest.Mock).mockImplementation(async (fn: (tx: PrismaClient) => unknown) => fn(mockPrisma))
+    process.env.UPLOAD_INLINE_MAX_BYTES = '1048576'
+    ;(mockPrisma.$transaction as jest.Mock).mockImplementation(
+      async (fn: (tx: PrismaClient) => unknown) => fn(mockPrisma),
+    )
     uploader = new FileUploader(mockPrisma, mockStorage)
   })
 
-  describe("uploadInline", () => {
-    it("rejects oversize file", async () => {
+  describe('uploadInline', () => {
+    it('rejects oversize file', async () => {
       const big = Buffer.alloc(2_000_000)
       await expect(
         uploader.uploadInline({
-          userId: "u1",
-          workspaceId: "w1",
-          pageId: "p1",
-          fileName: "a.bin",
-          mimeType: "application/octet-stream",
+          userId: 'u1',
+          workspaceId: 'w1',
+          pageId: 'p1',
+          fileName: 'a.bin',
+          mimeType: 'application/octet-stream',
           buffer: big,
           imageOnly: false,
         }),
       ).rejects.toThrow(/FILE_TOO_LARGE/i)
     })
 
-    it("rejects non-image mime when imageOnly=true", async () => {
+    it('rejects non-image mime when imageOnly=true', async () => {
       await expect(
         uploader.uploadInline({
-          userId: "u1",
-          workspaceId: "w1",
-          pageId: "p1",
-          fileName: "a.txt",
-          mimeType: "text/plain",
-          buffer: Buffer.from("x"),
+          userId: 'u1',
+          workspaceId: 'w1',
+          pageId: 'p1',
+          fileName: 'a.txt',
+          mimeType: 'text/plain',
+          buffer: Buffer.from('x'),
           imageOnly: true,
         }),
       ).rejects.toThrow(/UNSUPPORTED_MIME_TYPE/i)
     })
 
-    it("rejects when page not in workspace", async () => {
-      ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({ id: "p1", workspaceId: "other" })
+    it('rejects when page not in workspace', async () => {
+      ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({
+        id: 'p1',
+        workspaceId: 'other',
+      })
       await expect(
         uploader.uploadInline({
-          userId: "u1",
-          workspaceId: "w1",
-          pageId: "p1",
-          fileName: "a.txt",
-          mimeType: "text/plain",
-          buffer: Buffer.from("x"),
+          userId: 'u1',
+          workspaceId: 'w1',
+          pageId: 'p1',
+          fileName: 'a.txt',
+          mimeType: 'text/plain',
+          buffer: Buffer.from('x'),
           imageOnly: false,
         }),
       ).rejects.toThrow(/PAGE_NOT_FOUND/i)
     })
 
-    it("uploads and links small file", async () => {
-      ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({ id: "p1", workspaceId: "w1" })
-      ;(mockPrisma.file.create as jest.Mock).mockResolvedValue({ id: "f1" })
+    it('uploads and links small file', async () => {
+      ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({ id: 'p1', workspaceId: 'w1' })
+      ;(mockPrisma.file.create as jest.Mock).mockResolvedValue({ id: 'f1' })
 
       const id = await uploader.uploadInline({
-        userId: "u1",
-        workspaceId: "w1",
-        pageId: "p1",
-        fileName: "a.txt",
-        mimeType: "text/plain",
-        buffer: Buffer.from("hello"),
+        userId: 'u1',
+        workspaceId: 'w1',
+        pageId: 'p1',
+        fileName: 'a.txt',
+        mimeType: 'text/plain',
+        buffer: Buffer.from('hello'),
         imageOnly: false,
       })
 
-      expect(id).toBe("f1")
+      expect(id).toBe('f1')
       expect(mockStorage.put).toHaveBeenCalled()
       expect(mockPrisma.pageFile.create).toHaveBeenCalled()
       expect(mockPrisma.outboxEvent.create).toHaveBeenCalled()
     })
   })
 
-  describe("attach", () => {
-    it("rejects cross-workspace attach", async () => {
-      ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({ id: "p1", workspaceId: "w1" })
-      ;(mockPrisma.file.findUnique as jest.Mock).mockResolvedValue({ id: "f1", workspaceId: "other", mimeType: "text/plain" })
+  describe('attach', () => {
+    it('rejects cross-workspace attach', async () => {
+      ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({ id: 'p1', workspaceId: 'w1' })
+      ;(mockPrisma.file.findUnique as jest.Mock).mockResolvedValue({
+        id: 'f1',
+        workspaceId: 'other',
+        mimeType: 'text/plain',
+      })
       await expect(
-        uploader.attach({ userId: "u1", workspaceId: "w1", pageId: "p1", fileId: "f1", imageOnly: false }),
+        uploader.attach({
+          userId: 'u1',
+          workspaceId: 'w1',
+          pageId: 'p1',
+          fileId: 'f1',
+          imageOnly: false,
+        }),
       ).rejects.toThrow(/FILE_NOT_FOUND/i)
     })
 
-    it("links existing file", async () => {
-      ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({ id: "p1", workspaceId: "w1" })
-      ;(mockPrisma.file.findUnique as jest.Mock).mockResolvedValue({ id: "f1", workspaceId: "w1", mimeType: "text/plain" })
+    it('links existing file', async () => {
+      ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({ id: 'p1', workspaceId: 'w1' })
+      ;(mockPrisma.file.findUnique as jest.Mock).mockResolvedValue({
+        id: 'f1',
+        workspaceId: 'w1',
+        mimeType: 'text/plain',
+      })
 
-      await uploader.attach({ userId: "u1", workspaceId: "w1", pageId: "p1", fileId: "f1", imageOnly: false })
+      await uploader.attach({
+        userId: 'u1',
+        workspaceId: 'w1',
+        pageId: 'p1',
+        fileId: 'f1',
+        imageOnly: false,
+      })
 
       expect(mockPrisma.pageFile.create).toHaveBeenCalledWith({
-        data: { pageId: "p1", fileId: "f1" },
+        data: { pageId: 'p1', fileId: 'f1' },
       })
       expect(mockPrisma.outboxEvent.create).toHaveBeenCalled()
     })
 
-    it("validates image mime on imageOnly attach", () => {
-      expect(IMAGE_MIME_TYPES).toContain("image/png")
+    it('validates image mime on imageOnly attach', () => {
+      expect(IMAGE_MIME_TYPES).toContain('image/png')
     })
   })
 })
@@ -3540,25 +3699,32 @@ pnpm --filter engines test -- file-uploader
 - [ ] **Step 3: Implement**
 
 Create `apps/engines/src/apps/mcp/services/file-uploader.service.ts`:
+
 ```ts
-import { createHash } from "node:crypto"
-import { extname } from "node:path"
+import { createHash } from 'node:crypto'
+import { extname } from 'node:path'
 
-import { Inject, Injectable } from "@nestjs/common"
-import type { PrismaClient } from "@repo/db"
-import { storage, type StorageClient } from "@repo/storage"
+import { Inject, Injectable } from '@nestjs/common'
+import type { PrismaClient } from '@repo/db'
+import { storage, type StorageClient } from '@repo/storage'
 
-import { PRISMA } from "../../../infra/db/db.providers"
+import { PRISMA } from '../../../infra/db/db.providers'
 import {
   FileNotFoundError,
   FileTooLargeError,
   PageNotFoundError,
   UnsupportedMimeTypeError,
-} from "../errors/mcp.errors"
+} from '../errors/mcp.errors'
 
-export const STORAGE = Symbol("STORAGE_CLIENT")
+export const STORAGE = Symbol('STORAGE_CLIENT')
 
-export const IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"]
+export const IMAGE_MIME_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+]
 
 export type UploadInlineInput = {
   userId: string
@@ -3603,8 +3769,8 @@ export class FileUploader {
         throw new PageNotFoundError(input.pageId)
       }
 
-      const hash = createHash("sha256").update(input.buffer).digest("hex")
-      const ext = (extname(input.fileName).replace(/^\./, "") || "bin").slice(0, 16)
+      const hash = createHash('sha256').update(input.buffer).digest('hex')
+      const ext = (extname(input.fileName).replace(/^\./, '') || 'bin').slice(0, 16)
 
       const file = await tx.file.create({
         data: {
@@ -3615,21 +3781,24 @@ export class FileUploader {
           fileSize: BigInt(input.buffer.length),
           mimeType: input.mimeType,
           hash,
-          path: "pending",
-          status: "ACTIVE",
+          path: 'pending',
+          status: 'ACTIVE',
         },
         select: { id: true },
       })
 
       const key = `workspaces/${input.workspaceId}/files/${file.id}.${ext}`
-      await this.storage.put(key, input.buffer, { contentType: input.mimeType, size: input.buffer.length })
+      await this.storage.put(key, input.buffer, {
+        contentType: input.mimeType,
+        size: input.buffer.length,
+      })
       await tx.file.update({ where: { id: file.id }, data: { path: key } })
 
       await tx.pageFile.create({ data: { pageId: input.pageId, fileId: file.id } })
       await tx.outboxEvent.create({
         data: {
-          eventType: "page.upserted",
-          aggregateType: "page",
+          eventType: 'page.upserted',
+          aggregateType: 'page',
           aggregateId: input.pageId,
           workspaceId: input.workspaceId,
           payload: {},
@@ -3662,8 +3831,8 @@ export class FileUploader {
       await tx.pageFile.create({ data: { pageId: input.pageId, fileId: input.fileId } })
       await tx.outboxEvent.create({
         data: {
-          eventType: "page.upserted",
-          aggregateType: "page",
+          eventType: 'page.upserted',
+          aggregateType: 'page',
           aggregateId: input.pageId,
           workspaceId: input.workspaceId,
           payload: {},
@@ -3693,18 +3862,20 @@ git commit -m "feat(engines/mcp): add file uploader service"
 ### Task 4.7: StatsService
 
 **Files:**
+
 - Create: `apps/engines/src/apps/mcp/services/stats.service.ts`
 - Create: `apps/engines/src/apps/mcp/services/stats.service.spec.ts`
 
 - [ ] **Step 1: Write failing tests**
 
 Create `apps/engines/src/apps/mcp/services/stats.service.spec.ts`:
+
 ```ts
-import type { PrismaClient } from "@repo/db"
+import type { PrismaClient } from '@repo/db'
 
-import { StatsService } from "./stats.service"
+import { StatsService } from './stats.service'
 
-describe("StatsService", () => {
+describe('StatsService', () => {
   const mockPrisma = {
     workspaceMember: { findMany: jest.fn() },
     page: { groupBy: jest.fn(), count: jest.fn(), findUnique: jest.fn() },
@@ -3717,52 +3888,56 @@ describe("StatsService", () => {
     svc = new StatsService(mockPrisma)
   })
 
-  describe("getWorkspaceStats", () => {
-    it("aggregates members, pagesByType, totalPages", async () => {
+  describe('getWorkspaceStats', () => {
+    it('aggregates members, pagesByType, totalPages', async () => {
       ;(mockPrisma.workspaceMember.findMany as jest.Mock).mockResolvedValue([
-        { userId: "u1", role: "OWNER", user: { id: "u1", firstName: "Ann", lastName: "A", email: "a@a" } },
+        {
+          userId: 'u1',
+          role: 'OWNER',
+          user: { id: 'u1', firstName: 'Ann', lastName: 'A', email: 'a@a' },
+        },
       ])
       ;(mockPrisma.page.groupBy as jest.Mock).mockResolvedValue([
-        { type: "TEXT", _count: { _all: 3 } },
-        { type: "EXCALIDRAW", _count: { _all: 1 } },
+        { type: 'TEXT', _count: { _all: 3 } },
+        { type: 'EXCALIDRAW', _count: { _all: 1 } },
       ])
       ;(mockPrisma.page.count as jest.Mock).mockResolvedValue(4)
 
-      const stats = await svc.getWorkspaceStats("w1")
+      const stats = await svc.getWorkspaceStats('w1')
 
       expect(stats).toEqual({
-        members: [{ id: "u1", firstName: "Ann", lastName: "A", email: "a@a", role: "OWNER" }],
+        members: [{ id: 'u1', firstName: 'Ann', lastName: 'A', email: 'a@a', role: 'OWNER' }],
         pagesByType: { TEXT: 3, EXCALIDRAW: 1 },
         totalPages: 4,
       })
     })
   })
 
-  describe("getPageStats", () => {
-    it("returns page metadata", async () => {
-      const created = new Date("2026-01-01")
+  describe('getPageStats', () => {
+    it('returns page metadata', async () => {
+      const created = new Date('2026-01-01')
       ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({
-        id: "p1",
-        workspaceId: "w1",
-        type: "TEXT",
-        ownership: "TEXT",
+        id: 'p1',
+        workspaceId: 'w1',
+        type: 'TEXT',
+        ownership: 'TEXT',
         createdAt: created,
-        createdBy: { id: "u1", firstName: "Ann", lastName: "A", email: "a@a" },
+        createdBy: { id: 'u1', firstName: 'Ann', lastName: 'A', email: 'a@a' },
       })
 
-      const stats = await svc.getPageStats("p1", "w1")
+      const stats = await svc.getPageStats('p1', 'w1')
 
-      expect(stats.type).toBe("TEXT")
+      expect(stats.type).toBe('TEXT')
       expect(stats.createdAt).toEqual(created)
-      expect(stats.createdBy?.id).toBe("u1")
+      expect(stats.createdBy?.id).toBe('u1')
     })
 
-    it("throws when page in other workspace", async () => {
+    it('throws when page in other workspace', async () => {
       ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({
-        id: "p1",
-        workspaceId: "other",
+        id: 'p1',
+        workspaceId: 'other',
       })
-      await expect(svc.getPageStats("p1", "w1")).rejects.toThrow(/not found/i)
+      await expect(svc.getPageStats('p1', 'w1')).rejects.toThrow(/not found/i)
     })
   })
 })
@@ -3777,12 +3952,13 @@ pnpm --filter engines test -- stats.service
 - [ ] **Step 3: Implement**
 
 Create `apps/engines/src/apps/mcp/services/stats.service.ts`:
-```ts
-import { Inject, Injectable } from "@nestjs/common"
-import type { PrismaClient } from "@repo/db"
 
-import { PRISMA } from "../../../infra/db/db.providers"
-import { PageNotFoundError } from "../errors/mcp.errors"
+```ts
+import { Inject, Injectable } from '@nestjs/common'
+import type { PrismaClient } from '@repo/db'
+
+import { PRISMA } from '../../../infra/db/db.providers'
+import { PageNotFoundError } from '../errors/mcp.errors'
 
 @Injectable()
 export class StatsService {
@@ -3799,7 +3975,7 @@ export class StatsService {
         },
       }),
       this.prisma.page.groupBy({
-        by: ["type"],
+        by: ['type'],
         where: { workspaceId, deletedAt: null },
         _count: { _all: true },
       }),
@@ -3866,6 +4042,7 @@ git commit -m "feat(engines/mcp): add stats service"
 ### Task 4.8: MCP tool classes
 
 **Files:**
+
 - Create: `apps/engines/src/apps/mcp/tools/page.tools.ts`
 - Create: `apps/engines/src/apps/mcp/tools/page-file.tools.ts`
 - Create: `apps/engines/src/apps/mcp/tools/workspace.tools.ts`
@@ -3876,18 +4053,19 @@ git commit -m "feat(engines/mcp): add stats service"
 - [ ] **Step 1: Write page.tools.ts**
 
 Create `apps/engines/src/apps/mcp/tools/page.tools.ts`:
-```ts
-import { Inject, Injectable } from "@nestjs/common"
-import { Tool } from "@rekog/mcp-nest"
-import type { PrismaClient } from "@repo/db"
-import { z } from "zod"
 
-import { PRISMA } from "../../../infra/db/db.providers"
-import { PageNotFoundError } from "../errors/mcp.errors"
-import { WorkspaceMemberGuard } from "../guards/workspace-member.guard"
-import { MarkdownRenderer } from "../services/markdown-renderer.service"
-import { PageWriter } from "../services/page-writer.service"
-import { StatsService } from "../services/stats.service"
+```ts
+import { Inject, Injectable } from '@nestjs/common'
+import { Tool } from '@rekog/mcp-nest'
+import type { PrismaClient } from '@repo/db'
+import { z } from 'zod'
+
+import { PRISMA } from '../../../infra/db/db.providers'
+import { PageNotFoundError } from '../errors/mcp.errors'
+import { WorkspaceMemberGuard } from '../guards/workspace-member.guard'
+import { MarkdownRenderer } from '../services/markdown-renderer.service'
+import { PageWriter } from '../services/page-writer.service'
+import { StatsService } from '../services/stats.service'
 
 const UserWorkspace = z.object({
   userId: z.string().uuid(),
@@ -3905,15 +4083,21 @@ export class PageTools {
   ) {}
 
   @Tool({
-    name: "createPage",
-    description: "Create a new page in a workspace",
+    name: 'createPage',
+    description: 'Create a new page in a workspace',
     parameters: UserWorkspace.extend({
       parentId: z.string().uuid().nullable().optional(),
       title: z.string().min(1).max(255),
-      ownership: z.enum(["TEXT", "SKILL", "AGENT"]).default("TEXT"),
+      ownership: z.enum(['TEXT', 'SKILL', 'AGENT']).default('TEXT'),
     }),
   })
-  async createPage(args: z.infer<typeof UserWorkspace> & { title: string; parentId?: string | null; ownership?: "TEXT" | "SKILL" | "AGENT" }) {
+  async createPage(
+    args: z.infer<typeof UserWorkspace> & {
+      title: string
+      parentId?: string | null
+      ownership?: 'TEXT' | 'SKILL' | 'AGENT'
+    },
+  ) {
     await this.guard.assert(args.workspaceId, args.userId)
     const pageId = await this.writer.createPage({
       userId: args.userId,
@@ -3926,8 +4110,8 @@ export class PageTools {
   }
 
   @Tool({
-    name: "updatePage",
-    description: "Update page title/icon/content",
+    name: 'updatePage',
+    description: 'Update page title/icon/content',
     parameters: UserWorkspace.extend({
       pageId: z.string().uuid(),
       title: z.string().max(255).optional(),
@@ -3949,8 +4133,8 @@ export class PageTools {
   }
 
   @Tool({
-    name: "movePage",
-    description: "Move a page to a new parent or reorder",
+    name: 'movePage',
+    description: 'Move a page to a new parent or reorder',
     parameters: UserWorkspace.extend({
       pageId: z.string().uuid(),
       newParentId: z.string().uuid().nullable().optional(),
@@ -3970,8 +4154,8 @@ export class PageTools {
   }
 
   @Tool({
-    name: "getPageMarkdown",
-    description: "Render page content as Markdown",
+    name: 'getPageMarkdown',
+    description: 'Render page content as Markdown',
     parameters: UserWorkspace.extend({ pageId: z.string().uuid() }),
   })
   async getPageMarkdown(args: { userId: string; workspaceId: string; pageId: string }) {
@@ -3985,8 +4169,8 @@ export class PageTools {
   }
 
   @Tool({
-    name: "getPageStats",
-    description: "Return page metadata (creator, creation date, type, ownership)",
+    name: 'getPageStats',
+    description: 'Return page metadata (creator, creation date, type, ownership)',
     parameters: UserWorkspace.extend({ pageId: z.string().uuid() }),
   })
   async getPageStats(args: { userId: string; workspaceId: string; pageId: string }) {
@@ -3999,16 +4183,17 @@ export class PageTools {
 - [ ] **Step 2: Write page-file.tools.ts**
 
 Create `apps/engines/src/apps/mcp/tools/page-file.tools.ts`:
-```ts
-import { Inject, Injectable } from "@nestjs/common"
-import { Tool } from "@rekog/mcp-nest"
-import type { PrismaClient } from "@repo/db"
-import { z } from "zod"
 
-import { PRISMA } from "../../../infra/db/db.providers"
-import { PageNotFoundError } from "../errors/mcp.errors"
-import { WorkspaceMemberGuard } from "../guards/workspace-member.guard"
-import { FileUploader } from "../services/file-uploader.service"
+```ts
+import { Inject, Injectable } from '@nestjs/common'
+import { Tool } from '@rekog/mcp-nest'
+import type { PrismaClient } from '@repo/db'
+import { z } from 'zod'
+
+import { PRISMA } from '../../../infra/db/db.providers'
+import { PageNotFoundError } from '../errors/mcp.errors'
+import { WorkspaceMemberGuard } from '../guards/workspace-member.guard'
+import { FileUploader } from '../services/file-uploader.service'
 
 const UserWorkspace = z.object({
   userId: z.string().uuid(),
@@ -4035,10 +4220,14 @@ export class PageFileTools {
     private readonly uploader: FileUploader,
   ) {}
 
-  @Tool({ name: "uploadFileToPage", description: "Upload a small file (≤1MB) to a page inline via base64", parameters: UploadInline })
+  @Tool({
+    name: 'uploadFileToPage',
+    description: 'Upload a small file (≤1MB) to a page inline via base64',
+    parameters: UploadInline,
+  })
   async uploadFileToPage(args: z.infer<typeof UploadInline>) {
     await this.guard.assert(args.workspaceId, args.userId)
-    const buffer = Buffer.from(args.contentBase64, "base64")
+    const buffer = Buffer.from(args.contentBase64, 'base64')
     const fileId = await this.uploader.uploadInline({
       userId: args.userId,
       workspaceId: args.workspaceId,
@@ -4051,10 +4240,14 @@ export class PageFileTools {
     return { fileId }
   }
 
-  @Tool({ name: "uploadImageToPage", description: "Upload a small image (≤1MB) to a page inline via base64", parameters: UploadInline })
+  @Tool({
+    name: 'uploadImageToPage',
+    description: 'Upload a small image (≤1MB) to a page inline via base64',
+    parameters: UploadInline,
+  })
   async uploadImageToPage(args: z.infer<typeof UploadInline>) {
     await this.guard.assert(args.workspaceId, args.userId)
-    const buffer = Buffer.from(args.contentBase64, "base64")
+    const buffer = Buffer.from(args.contentBase64, 'base64')
     const fileId = await this.uploader.uploadInline({
       userId: args.userId,
       workspaceId: args.workspaceId,
@@ -4067,14 +4260,22 @@ export class PageFileTools {
     return { fileId }
   }
 
-  @Tool({ name: "attachFileToPage", description: "Attach an existing workspace file to a page by id", parameters: Attach })
+  @Tool({
+    name: 'attachFileToPage',
+    description: 'Attach an existing workspace file to a page by id',
+    parameters: Attach,
+  })
   async attachFileToPage(args: z.infer<typeof Attach>) {
     await this.guard.assert(args.workspaceId, args.userId)
     await this.uploader.attach({ ...args, imageOnly: false })
     return { ok: true as const }
   }
 
-  @Tool({ name: "attachImageToPage", description: "Attach an existing workspace image to a page by id", parameters: Attach })
+  @Tool({
+    name: 'attachImageToPage',
+    description: 'Attach an existing workspace image to a page by id',
+    parameters: Attach,
+  })
   async attachImageToPage(args: z.infer<typeof Attach>) {
     await this.guard.assert(args.workspaceId, args.userId)
     await this.uploader.attach({ ...args, imageOnly: true })
@@ -4082,8 +4283,8 @@ export class PageFileTools {
   }
 
   @Tool({
-    name: "listPageFiles",
-    description: "List files attached to a page",
+    name: 'listPageFiles',
+    description: 'List files attached to a page',
     parameters: UserWorkspace.extend({ pageId: z.string().uuid() }),
   })
   async listPageFiles(args: { userId: string; workspaceId: string; pageId: string }) {
@@ -4117,17 +4318,18 @@ export class PageFileTools {
 - [ ] **Step 3: Write workspace.tools.ts**
 
 Create `apps/engines/src/apps/mcp/tools/workspace.tools.ts`:
-```ts
-import { Inject, Injectable } from "@nestjs/common"
-import { Tool } from "@rekog/mcp-nest"
-import type { PrismaClient } from "@repo/db"
-import { z } from "zod"
 
-import { PRISMA } from "../../../infra/db/db.providers"
-import { PageNotFoundError } from "../errors/mcp.errors"
-import { WorkspaceMemberGuard } from "../guards/workspace-member.guard"
-import { PageWriter } from "../services/page-writer.service"
-import { StatsService } from "../services/stats.service"
+```ts
+import { Inject, Injectable } from '@nestjs/common'
+import { Tool } from '@rekog/mcp-nest'
+import type { PrismaClient } from '@repo/db'
+import { z } from 'zod'
+
+import { PRISMA } from '../../../infra/db/db.providers'
+import { PageNotFoundError } from '../errors/mcp.errors'
+import { WorkspaceMemberGuard } from '../guards/workspace-member.guard'
+import { PageWriter } from '../services/page-writer.service'
+import { StatsService } from '../services/stats.service'
 
 const UserWorkspace = z.object({
   userId: z.string().uuid(),
@@ -4143,25 +4345,34 @@ export class WorkspaceTools {
     private readonly stats: StatsService,
   ) {}
 
-  @Tool({ name: "getWorkspaceStats", description: "Workspace members, pages-by-type, total pages", parameters: UserWorkspace })
+  @Tool({
+    name: 'getWorkspaceStats',
+    description: 'Workspace members, pages-by-type, total pages',
+    parameters: UserWorkspace,
+  })
   async getWorkspaceStats(args: { userId: string; workspaceId: string }) {
     await this.guard.assert(args.workspaceId, args.userId)
     return this.stats.getWorkspaceStats(args.workspaceId)
   }
 
   @Tool({
-    name: "listWorkspaceFiles",
-    description: "List all files in a workspace",
+    name: 'listWorkspaceFiles',
+    description: 'List all files in a workspace',
     parameters: UserWorkspace.extend({
       limit: z.number().int().positive().max(200).default(50),
       offset: z.number().int().nonnegative().default(0),
     }),
   })
-  async listWorkspaceFiles(args: { userId: string; workspaceId: string; limit: number; offset: number }) {
+  async listWorkspaceFiles(args: {
+    userId: string
+    workspaceId: string
+    limit: number
+    offset: number
+  }) {
     await this.guard.assert(args.workspaceId, args.userId)
     const files = await this.prisma.file.findMany({
-      where: { workspaceId: args.workspaceId, status: "ACTIVE" },
-      orderBy: { createdAt: "desc" },
+      where: { workspaceId: args.workspaceId, status: 'ACTIVE' },
+      orderBy: { createdAt: 'desc' },
       take: args.limit,
       skip: args.offset,
       select: { id: true, name: true, mimeType: true, fileSize: true, createdAt: true },
@@ -4178,28 +4389,28 @@ export class WorkspaceTools {
   }
 
   @Tool({
-    name: "listSkills",
-    description: "List skill pages (ownership=SKILL) in a workspace",
+    name: 'listSkills',
+    description: 'List skill pages (ownership=SKILL) in a workspace',
     parameters: UserWorkspace.extend({ limit: z.number().int().positive().max(200).default(50) }),
   })
   async listSkills(args: { userId: string; workspaceId: string; limit: number }) {
     await this.guard.assert(args.workspaceId, args.userId)
-    return this.listOwnershipPages(args.workspaceId, "SKILL", args.limit)
+    return this.listOwnershipPages(args.workspaceId, 'SKILL', args.limit)
   }
 
   @Tool({
-    name: "listAgents",
-    description: "List agent pages (ownership=AGENT) in a workspace",
+    name: 'listAgents',
+    description: 'List agent pages (ownership=AGENT) in a workspace',
     parameters: UserWorkspace.extend({ limit: z.number().int().positive().max(200).default(50) }),
   })
   async listAgents(args: { userId: string; workspaceId: string; limit: number }) {
     await this.guard.assert(args.workspaceId, args.userId)
-    return this.listOwnershipPages(args.workspaceId, "AGENT", args.limit)
+    return this.listOwnershipPages(args.workspaceId, 'AGENT', args.limit)
   }
 
   @Tool({
-    name: "createPageFromFile",
-    description: "Create a page and attach an existing workspace file to it",
+    name: 'createPageFromFile',
+    description: 'Create a page and attach an existing workspace file to it',
     parameters: UserWorkspace.extend({
       parentId: z.string().uuid().nullable().optional(),
       fileId: z.string().uuid(),
@@ -4225,16 +4436,20 @@ export class WorkspaceTools {
       workspaceId: args.workspaceId,
       parentId: args.parentId,
       title,
-      ownership: "TEXT",
+      ownership: 'TEXT',
     })
     await this.prisma.pageFile.create({ data: { pageId, fileId: args.fileId } })
     return { pageId }
   }
 
-  private async listOwnershipPages(workspaceId: string, ownership: "SKILL" | "AGENT", limit: number) {
+  private async listOwnershipPages(
+    workspaceId: string,
+    ownership: 'SKILL' | 'AGENT',
+    limit: number,
+  ) {
     const pages = await this.prisma.page.findMany({
       where: { workspaceId, ownership, deletedAt: null },
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: 'desc' },
       take: limit,
       select: { id: true, title: true, icon: true, createdAt: true },
     })
@@ -4246,24 +4461,25 @@ export class WorkspaceTools {
 - [ ] **Step 4: Write smoke tests for tool classes**
 
 Create `apps/engines/src/apps/mcp/tools/tools.spec.ts`:
+
 ```ts
-import type { PrismaClient } from "@repo/db"
+import type { PrismaClient } from '@repo/db'
 
-import { WorkspaceAccessDeniedError } from "../errors/mcp.errors"
-import { WorkspaceMemberGuard } from "../guards/workspace-member.guard"
-import { FileUploader } from "../services/file-uploader.service"
-import { MarkdownRenderer } from "../services/markdown-renderer.service"
-import { PageWriter } from "../services/page-writer.service"
-import { StatsService } from "../services/stats.service"
-import { PageTools } from "./page.tools"
-import { WorkspaceTools } from "./workspace.tools"
+import { WorkspaceAccessDeniedError } from '../errors/mcp.errors'
+import { WorkspaceMemberGuard } from '../guards/workspace-member.guard'
+import { FileUploader } from '../services/file-uploader.service'
+import { MarkdownRenderer } from '../services/markdown-renderer.service'
+import { PageWriter } from '../services/page-writer.service'
+import { StatsService } from '../services/stats.service'
+import { PageTools } from './page.tools'
+import { WorkspaceTools } from './workspace.tools'
 
-describe("Tools access control", () => {
+describe('Tools access control', () => {
   const mockPrisma = {
     workspaceMember: { findUnique: jest.fn().mockResolvedValue(null) },
   } as unknown as PrismaClient
 
-  it("PageTools.createPage denies non-member", async () => {
+  it('PageTools.createPage denies non-member', async () => {
     const guard = new WorkspaceMemberGuard(mockPrisma)
     const tools = new PageTools(
       mockPrisma,
@@ -4274,23 +4490,18 @@ describe("Tools access control", () => {
     )
     await expect(
       tools.createPage({
-        userId: "u1",
-        workspaceId: "w1",
-        title: "x",
+        userId: 'u1',
+        workspaceId: 'w1',
+        title: 'x',
       }),
     ).rejects.toBeInstanceOf(WorkspaceAccessDeniedError)
   })
 
-  it("WorkspaceTools.getWorkspaceStats denies non-member", async () => {
+  it('WorkspaceTools.getWorkspaceStats denies non-member', async () => {
     const guard = new WorkspaceMemberGuard(mockPrisma)
-    const tools = new WorkspaceTools(
-      mockPrisma,
-      guard,
-      {} as PageWriter,
-      {} as StatsService,
-    )
+    const tools = new WorkspaceTools(mockPrisma, guard, {} as PageWriter, {} as StatsService)
     await expect(
-      tools.getWorkspaceStats({ userId: "u1", workspaceId: "w1" }),
+      tools.getWorkspaceStats({ userId: 'u1', workspaceId: 'w1' }),
     ).rejects.toBeInstanceOf(WorkspaceAccessDeniedError)
   })
 })
@@ -4314,6 +4525,7 @@ git commit -m "feat(engines/mcp): add 15 MCP tools with zod schemas"
 ### Task 4.9: McpModule wiring + global exception filter
 
 **Files:**
+
 - Create: `apps/engines/src/apps/mcp/mcp.module.ts`
 - Create: `apps/engines/src/apps/mcp/errors/mcp-exception.filter.ts`
 - Modify: `apps/engines/src/app.module.ts`
@@ -4322,9 +4534,10 @@ git commit -m "feat(engines/mcp): add 15 MCP tools with zod schemas"
 - [ ] **Step 1: Write MCP exception filter**
 
 Create `apps/engines/src/apps/mcp/errors/mcp-exception.filter.ts`:
+
 ```ts
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException, Logger } from "@nestjs/common"
-import type { Response } from "express"
+import { ArgumentsHost, Catch, ExceptionFilter, HttpException, Logger } from '@nestjs/common'
+import type { Response } from 'express'
 
 @Catch(HttpException)
 export class McpExceptionFilter implements ExceptionFilter {
@@ -4336,7 +4549,7 @@ export class McpExceptionFilter implements ExceptionFilter {
     const status = exception.getStatus()
     const body = exception.getResponse()
     this.log.warn(`MCP error ${status}: ${JSON.stringify(body)}`)
-    res.status(status).json(typeof body === "string" ? { message: body } : body)
+    res.status(status).json(typeof body === 'string' ? { message: body } : body)
   }
 }
 ```
@@ -4344,30 +4557,31 @@ export class McpExceptionFilter implements ExceptionFilter {
 - [ ] **Step 2: Write McpModule**
 
 Create `apps/engines/src/apps/mcp/mcp.module.ts`:
+
 ```ts
-import { Module } from "@nestjs/common"
-import { APP_FILTER, APP_GUARD } from "@nestjs/core"
-import { McpModule as McpNestModule } from "@rekog/mcp-nest"
+import { Module } from '@nestjs/common'
+import { APP_FILTER, APP_GUARD } from '@nestjs/core'
+import { McpModule as McpNestModule } from '@rekog/mcp-nest'
 
-import { McpExceptionFilter } from "./errors/mcp-exception.filter"
-import { McpTokenGuard } from "./guards/mcp-token.guard"
-import { WorkspaceMemberGuard } from "./guards/workspace-member.guard"
-import { FileUploader, STORAGE } from "./services/file-uploader.service"
-import { MarkdownRenderer } from "./services/markdown-renderer.service"
-import { PageWriter } from "./services/page-writer.service"
-import { StatsService } from "./services/stats.service"
-import { PageTools } from "./tools/page.tools"
-import { PageFileTools } from "./tools/page-file.tools"
-import { WorkspaceTools } from "./tools/workspace.tools"
+import { McpExceptionFilter } from './errors/mcp-exception.filter'
+import { McpTokenGuard } from './guards/mcp-token.guard'
+import { WorkspaceMemberGuard } from './guards/workspace-member.guard'
+import { FileUploader, STORAGE } from './services/file-uploader.service'
+import { MarkdownRenderer } from './services/markdown-renderer.service'
+import { PageWriter } from './services/page-writer.service'
+import { StatsService } from './services/stats.service'
+import { PageTools } from './tools/page.tools'
+import { PageFileTools } from './tools/page-file.tools'
+import { WorkspaceTools } from './tools/workspace.tools'
 
-import { storage } from "@repo/storage"
+import { storage } from '@repo/storage'
 
 @Module({
   imports: [
     McpNestModule.forRoot({
-      name: "anynote-engines",
-      version: "0.1.0",
-      transport: { type: "streamable-http", endpoint: "/mcp" },
+      name: 'anynote-engines',
+      version: '0.1.0',
+      transport: { type: 'streamable-http', endpoint: '/mcp' },
       guards: [McpTokenGuard],
     }),
   ],
@@ -4393,15 +4607,16 @@ export class McpModule {}
 - [ ] **Step 3: Wire into AppModule**
 
 Modify `apps/engines/src/app.module.ts`:
+
 ```ts
-import { McpModule } from "./apps/mcp/mcp.module"
+import { McpModule } from './apps/mcp/mcp.module'
 
 @Module({
   imports: [
     ScheduleModule.forRoot(),
     BullModule.forRoot({
       connection: {
-        url: process.env.REDIS_URL ?? "redis://localhost:6379",
+        url: process.env.REDIS_URL ?? 'redis://localhost:6379',
       },
     }),
     DbModule,
@@ -4464,12 +4679,14 @@ git commit -m "feat(engines/mcp): wire mcp module with 15 tools"
 ### Task 5.1: Update env + turbo
 
 **Files:**
+
 - Modify: `.env.example` (repo root)
 - Modify: `turbo.json` (repo root)
 
 - [ ] **Step 1: Update turbo.json globalEnv**
 
 In `turbo.json` add (or keep existing) env keys, and add the new ones after the existing engines keys:
+
 ```json
 "ENGINES_PORT",
 "ENGINES_MCP_TOKEN",
@@ -4491,6 +4708,7 @@ Add `EMBEDDING_MODEL` (single key, used by new engines).
 - [ ] **Step 2: Update .env.example**
 
 Append to `.env.example`:
+
 ```env
 # Engines service (NestJS)
 ENGINES_PORT=8082
@@ -4519,41 +4737,43 @@ git commit -m "chore: update env + turbo for new engines service"
 ### Task 5.2: compose.yml engines service
 
 **Files:**
+
 - Modify: `compose.yml`
 
 - [ ] **Step 1: Add engines service block**
 
 In `compose.yml`, immediately before the `volumes:` block, add:
+
 ```yaml
-  engines:
-    build:
-      context: .
-      dockerfile: apps/engines/Dockerfile
-    profiles: ["worker"]
-    depends_on:
-      postgres:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-      qdrant:
-        condition: service_started
-      ollama:
-        condition: service_started
-    environment:
-      DATABASE_URL: postgresql://user:password@postgres:5432/anynote
-      REDIS_URL: redis://redis:6379
-      QDRANT_URL: http://qdrant:6333
-      QDRANT_API_KEY: ${QDRANT_API_KEY:-dev-qdrant-key}
-      QDRANT_COLLECTION: page_chunks
-      OLLAMA_BASE_URL: http://ollama:11434
-      EMBEDDING_MODEL: nomic-embed-text
-      PROCESSING_SERVICE_URL: http://agents:8080
-      ENGINES_MCP_TOKEN: ${ENGINES_MCP_TOKEN:-dev-engines-token-change-me}
-      INDEXER_QUIET_PERIOD_MINUTES: "5"
-      INDEXER_CRON_EXPRESSION: "*/1 * * * *"
-      INDEXER_DRAINER_INTERVAL_MS: "5000"
-    ports:
-      - "8082:8082"
+engines:
+  build:
+    context: .
+    dockerfile: apps/engines/Dockerfile
+  profiles: ['worker']
+  depends_on:
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+    qdrant:
+      condition: service_started
+    ollama:
+      condition: service_started
+  environment:
+    DATABASE_URL: postgresql://user:password@postgres:5432/anynote
+    REDIS_URL: redis://redis:6379
+    QDRANT_URL: http://qdrant:6333
+    QDRANT_API_KEY: ${QDRANT_API_KEY:-dev-qdrant-key}
+    QDRANT_COLLECTION: page_chunks
+    OLLAMA_BASE_URL: http://ollama:11434
+    EMBEDDING_MODEL: nomic-embed-text
+    PROCESSING_SERVICE_URL: http://agents:8080
+    ENGINES_MCP_TOKEN: ${ENGINES_MCP_TOKEN:-dev-engines-token-change-me}
+    INDEXER_QUIET_PERIOD_MINUTES: '5'
+    INDEXER_CRON_EXPRESSION: '*/1 * * * *'
+    INDEXER_DRAINER_INTERVAL_MS: '5000'
+  ports:
+    - '8082:8082'
 ```
 
 - [ ] **Step 2: Commit**
@@ -4566,11 +4786,13 @@ git commit -m "chore(compose): add engines service, remove indexer"
 ### Task 5.3: Engines Dockerfile
 
 **Files:**
+
 - Create: `apps/engines/Dockerfile`
 
 - [ ] **Step 1: Write Dockerfile**
 
 Create `apps/engines/Dockerfile`:
+
 ```dockerfile
 # syntax=docker/dockerfile:1.7
 FROM node:22-alpine AS builder
@@ -4622,12 +4844,14 @@ git commit -m "build(engines): add dockerfile"
 ### Task 5.4: Engines README
 
 **Files:**
+
 - Create: `apps/engines/README.md`
 
 - [ ] **Step 1: Write README**
 
 Create `apps/engines/README.md`:
-```markdown
+
+````markdown
 # apps/engines
 
 AnyNote engines service — NestJS backend that unifies:
@@ -4652,6 +4876,7 @@ pnpm install
 pnpm --filter engines dev
 curl http://localhost:8082/health
 ```
+````
 
 The MCP endpoint is mounted at `POST /mcp`, protected by
 `Authorization: Bearer $ENGINES_MCP_TOKEN`.
@@ -4674,38 +4899,41 @@ See repo root `.env.example`. Key knobs:
 pnpm --filter engines test            # unit
 pnpm --filter engines test-int        # integration (requires docker compose up)
 ```
-```
+
+````
 
 - [ ] **Step 2: Commit**
 
 ```bash
 git add apps/engines/README.md
 git commit -m "docs(engines): add README"
-```
+````
 
 ### Task 5.5: Integration test harness + end-to-end indexing flow
 
 **Files:**
+
 - Create: `apps/engines/jest.integration.config.ts`
 - Create: `apps/engines/test/integration/indexing.e2e.spec.ts`
 
 - [ ] **Step 1: Write integration jest config**
 
 Create `apps/engines/jest.integration.config.ts`:
+
 ```ts
-import type { Config } from "jest"
+import type { Config } from 'jest'
 
 const config: Config = {
-  moduleFileExtensions: ["js", "json", "ts"],
-  rootDir: ".",
-  testRegex: "test/integration/.*\\.e2e\\.spec\\.ts$",
+  moduleFileExtensions: ['js', 'json', 'ts'],
+  rootDir: '.',
+  testRegex: 'test/integration/.*\\.e2e\\.spec\\.ts$',
   transform: {
-    "^.+\\.(t|j)s$": "ts-jest",
+    '^.+\\.(t|j)s$': 'ts-jest',
   },
-  testEnvironment: "node",
+  testEnvironment: 'node',
   testTimeout: 60000,
   moduleNameMapper: {
-    "^@src/(.*)$": "<rootDir>/src/$1",
+    '^@src/(.*)$': '<rootDir>/src/$1',
   },
 }
 
@@ -4715,19 +4943,20 @@ export default config
 - [ ] **Step 2: Write e2e indexing test**
 
 Create `apps/engines/test/integration/indexing.e2e.spec.ts`:
-```ts
-import { NestFactory } from "@nestjs/core"
-import type { INestApplication } from "@nestjs/common"
-import { prisma } from "@repo/db"
 
-import { AppModule } from "../../src/app.module"
-import { OutboxDrainerService } from "../../src/apps/indexer/cron/outbox-drainer.service"
-import { QdrantService } from "../../src/infra/qdrant/qdrant.service"
-import { QdrantWriter } from "../../src/apps/indexer/services/qdrant-writer.service"
+```ts
+import { NestFactory } from '@nestjs/core'
+import type { INestApplication } from '@nestjs/common'
+import { prisma } from '@repo/db'
+
+import { AppModule } from '../../src/app.module'
+import { OutboxDrainerService } from '../../src/apps/indexer/cron/outbox-drainer.service'
+import { QdrantService } from '../../src/infra/qdrant/qdrant.service'
+import { QdrantWriter } from '../../src/apps/indexer/services/qdrant-writer.service'
 
 jest.setTimeout(60000)
 
-describe("Indexing e2e", () => {
+describe('Indexing e2e', () => {
   let app: INestApplication
   let qdrant: QdrantService
   let drainer: OutboxDrainerService
@@ -4752,13 +4981,13 @@ describe("Indexing e2e", () => {
   })
 
   beforeEach(async () => {
-    const ws = await prisma.workspace.create({ data: { name: "test-ws" } })
+    const ws = await prisma.workspace.create({ data: { name: 'test-ws' } })
     workspaceId = ws.id
     const user = await prisma.user.create({
-      data: { firstName: "T", lastName: "U", email: `t-${workspaceId}@e.com`, emailVerified: true },
+      data: { firstName: 'T', lastName: 'U', email: `t-${workspaceId}@e.com`, emailVerified: true },
     })
     userId = user.id
-    await prisma.workspaceMember.create({ data: { workspaceId, userId, role: "OWNER" } })
+    await prisma.workspaceMember.create({ data: { workspaceId, userId, role: 'OWNER' } })
   })
 
   afterEach(async () => {
@@ -4770,14 +4999,14 @@ describe("Indexing e2e", () => {
     }
   })
 
-  it("drains outbox to BullMQ and writes Qdrant points", async () => {
+  it('drains outbox to BullMQ and writes Qdrant points', async () => {
     const page = await prisma.page.create({
       data: {
         workspaceId,
-        title: "Hello",
+        title: 'Hello',
         content: {
-          type: "doc",
-          content: [{ type: "paragraph", content: [{ type: "text", text: "Hello world" }] }],
+          type: 'doc',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hello world' }] }],
         },
         createdById: userId,
         updatedById: userId,
@@ -4787,8 +5016,8 @@ describe("Indexing e2e", () => {
 
     await prisma.outboxEvent.create({
       data: {
-        eventType: "page.upserted",
-        aggregateType: "page",
+        eventType: 'page.upserted',
+        aggregateType: 'page',
         aggregateId: pageId,
         workspaceId,
         payload: {},
@@ -4802,12 +5031,12 @@ describe("Indexing e2e", () => {
     await new Promise((r) => setTimeout(r, 15000))
 
     const done = await prisma.outboxEvent.findFirst({
-      where: { aggregateId: pageId, status: "DONE" },
+      where: { aggregateId: pageId, status: 'DONE' },
     })
     expect(done).toBeTruthy()
 
     const points = await qdrant.client.scroll(qdrant.collection, {
-      filter: { must: [{ key: "pageId", match: { value: pageId } }] },
+      filter: { must: [{ key: 'pageId', match: { value: pageId } }] },
       limit: 10,
     })
     expect(points.points.length).toBeGreaterThan(0)
@@ -4818,6 +5047,7 @@ describe("Indexing e2e", () => {
 - [ ] **Step 3: Run integration test**
 
 Prerequisites:
+
 ```bash
 docker compose up -d postgres redis qdrant ollama
 docker compose exec -T ollama ollama pull nomic-embed-text
@@ -4840,33 +5070,35 @@ git commit -m "test(engines): add e2e indexing integration test"
 ### Task 5.6: MCP happy path integration test
 
 **Files:**
+
 - Create: `apps/engines/test/integration/mcp.e2e.spec.ts`
 
 - [ ] **Step 1: Write e2e test**
 
 Create `apps/engines/test/integration/mcp.e2e.spec.ts`:
-```ts
-import { NestFactory } from "@nestjs/core"
-import type { INestApplication } from "@nestjs/common"
-import request from "supertest"
-import { prisma } from "@repo/db"
 
-import { AppModule } from "../../src/app.module"
+```ts
+import { NestFactory } from '@nestjs/core'
+import type { INestApplication } from '@nestjs/common'
+import request from 'supertest'
+import { prisma } from '@repo/db'
+
+import { AppModule } from '../../src/app.module'
 
 jest.setTimeout(30000)
 
-describe("MCP e2e", () => {
+describe('MCP e2e', () => {
   let app: INestApplication
   let http: ReturnType<typeof request>
   let workspaceId: string
   let userId: string
 
   beforeAll(async () => {
-    process.env.ENGINES_MCP_TOKEN = "test-token"
+    process.env.ENGINES_MCP_TOKEN = 'test-token'
     app = await NestFactory.create(AppModule, { logger: false })
     await app.init()
     await app.listen(0)
-    const server = app.getHttpServer() as import("http").Server
+    const server = app.getHttpServer() as import('http').Server
     http = request(server)
   })
 
@@ -4876,13 +5108,18 @@ describe("MCP e2e", () => {
   })
 
   beforeEach(async () => {
-    const ws = await prisma.workspace.create({ data: { name: "mcp-test" } })
+    const ws = await prisma.workspace.create({ data: { name: 'mcp-test' } })
     workspaceId = ws.id
     const user = await prisma.user.create({
-      data: { firstName: "M", lastName: "U", email: `mcp-${workspaceId}@e.com`, emailVerified: true },
+      data: {
+        firstName: 'M',
+        lastName: 'U',
+        email: `mcp-${workspaceId}@e.com`,
+        emailVerified: true,
+      },
     })
     userId = user.id
-    await prisma.workspaceMember.create({ data: { workspaceId, userId, role: "OWNER" } })
+    await prisma.workspaceMember.create({ data: { workspaceId, userId, role: 'OWNER' } })
   })
 
   afterEach(async () => {
@@ -4890,67 +5127,72 @@ describe("MCP e2e", () => {
     await prisma.user.delete({ where: { id: userId } }).catch(() => undefined)
   })
 
-  it("rejects missing auth header with 401", async () => {
+  it('rejects missing auth header with 401', async () => {
     const res = await http
-      .post("/mcp")
-      .send({ jsonrpc: "2.0", method: "tools/list", id: 1 })
-      .set("Content-Type", "application/json")
+      .post('/mcp')
+      .send({ jsonrpc: '2.0', method: 'tools/list', id: 1 })
+      .set('Content-Type', 'application/json')
     expect(res.status).toBe(401)
   })
 
-  it("lists tools with valid auth", async () => {
+  it('lists tools with valid auth', async () => {
     const res = await http
-      .post("/mcp")
-      .send({ jsonrpc: "2.0", method: "tools/list", id: 1 })
-      .set("Content-Type", "application/json")
-      .set("Authorization", "Bearer test-token")
+      .post('/mcp')
+      .send({ jsonrpc: '2.0', method: 'tools/list', id: 1 })
+      .set('Content-Type', 'application/json')
+      .set('Authorization', 'Bearer test-token')
     expect(res.status).toBe(200)
     expect(res.body.result?.tools).toEqual(
-      expect.arrayContaining([expect.objectContaining({ name: "createPage" })]),
+      expect.arrayContaining([expect.objectContaining({ name: 'createPage' })]),
     )
   })
 
-  it("creates page via MCP tool call", async () => {
+  it('creates page via MCP tool call', async () => {
     const res = await http
-      .post("/mcp")
+      .post('/mcp')
       .send({
-        jsonrpc: "2.0",
-        method: "tools/call",
+        jsonrpc: '2.0',
+        method: 'tools/call',
         id: 2,
         params: {
-          name: "createPage",
-          arguments: { userId, workspaceId, title: "MCP Page" },
+          name: 'createPage',
+          arguments: { userId, workspaceId, title: 'MCP Page' },
         },
       })
-      .set("Content-Type", "application/json")
-      .set("Authorization", "Bearer test-token")
+      .set('Content-Type', 'application/json')
+      .set('Authorization', 'Bearer test-token')
     expect(res.status).toBe(200)
     const content = res.body.result?.content?.[0]?.text ?? JSON.stringify(res.body)
     const payload = JSON.parse(content)
     expect(payload.pageId).toBeDefined()
 
     const created = await prisma.page.findUnique({ where: { id: payload.pageId } })
-    expect(created?.title).toBe("MCP Page")
+    expect(created?.title).toBe('MCP Page')
   })
 
-  it("rejects non-member with WORKSPACE_ACCESS_DENIED", async () => {
+  it('rejects non-member with WORKSPACE_ACCESS_DENIED', async () => {
     const otherUser = await prisma.user.create({
-      data: { firstName: "X", lastName: "Y", email: `other-${workspaceId}@e.com`, emailVerified: true },
+      data: {
+        firstName: 'X',
+        lastName: 'Y',
+        email: `other-${workspaceId}@e.com`,
+        emailVerified: true,
+      },
     })
     try {
       const res = await http
-        .post("/mcp")
+        .post('/mcp')
         .send({
-          jsonrpc: "2.0",
-          method: "tools/call",
+          jsonrpc: '2.0',
+          method: 'tools/call',
           id: 3,
           params: {
-            name: "createPage",
-            arguments: { userId: otherUser.id, workspaceId, title: "Denied" },
+            name: 'createPage',
+            arguments: { userId: otherUser.id, workspaceId, title: 'Denied' },
           },
         })
-        .set("Content-Type", "application/json")
-        .set("Authorization", "Bearer test-token")
+        .set('Content-Type', 'application/json')
+        .set('Authorization', 'Bearer test-token')
       // @rekog/mcp-nest surfaces the HttpException body; status may be 200 with error payload
       const bodyText = JSON.stringify(res.body)
       expect(bodyText).toMatch(/WORKSPACE_ACCESS_DENIED/)

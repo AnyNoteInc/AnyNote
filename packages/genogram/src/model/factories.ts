@@ -26,12 +26,12 @@ import type {
   UnionDivorce,
   UnionId,
   UnionKind,
-} from "../types"
-import { GENOGRAM_SCHEMA_VERSION } from "../types"
-import { createId } from "../utils/id"
+} from '../types'
+import { GENOGRAM_SCHEMA_VERSION } from '../types'
+import { createId } from '../utils/id'
 
 function defaultSize(bloodRelation: BloodRelation): PersonSize {
-  return bloodRelation === "direct" || bloodRelation === "partner" ? "big" : "small"
+  return bloodRelation === 'direct' || bloodRelation === 'partner' ? 'big' : 'small'
 }
 
 export interface CreatePersonInput {
@@ -51,7 +51,7 @@ export function createPerson(input: CreatePersonInput): Person {
   return {
     id: input.id ?? createId<PersonId>(),
     sex: input.sex,
-    role: input.role ?? "regular",
+    role: input.role ?? 'regular',
     size: input.size ?? defaultSize(input.bloodRelation),
     bloodRelation: input.bloodRelation,
     partnerOrder: input.partnerOrder,
@@ -79,7 +79,7 @@ export interface CreateUnionInput {
 export function createUnion(input: CreateUnionInput): Union {
   return {
     id: input.id ?? createId<UnionId>(),
-    kind: input.kind ?? "marriage",
+    kind: input.kind ?? 'marriage',
     malePartnerId: input.malePartnerId,
     femalePartnerId: input.femalePartnerId,
     startDate: input.startDate,

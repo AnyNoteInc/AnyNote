@@ -1,5 +1,5 @@
 function isRecord(x: unknown): x is Record<string, unknown> {
-  return typeof x === "object" && x !== null
+  return typeof x === 'object' && x !== null
 }
 
 export interface VersionedMigration {
@@ -19,7 +19,7 @@ export function migrate(input: unknown): unknown {
   let current: Record<string, unknown> = input
   let guard = 0
   while (guard++ < 64) {
-    const version = typeof current.version === "number" ? current.version : 0
+    const version = typeof current.version === 'number' ? current.version : 0
     const m = migrations.find((x) => x.from === version)
     if (!m) break
     const next = m.migrate(current)

@@ -1,7 +1,7 @@
-import { Injectable, Logger } from "@nestjs/common"
-import { Cron } from "@nestjs/schedule"
+import { Injectable, Logger } from '@nestjs/common'
+import { Cron } from '@nestjs/schedule'
 
-import { SubscriptionRenewalService } from "../services/subscription-renewal.service.js"
+import { SubscriptionRenewalService } from '../services/subscription-renewal.service.js'
 
 @Injectable()
 export class SubscriptionRenewalCronService {
@@ -9,11 +9,11 @@ export class SubscriptionRenewalCronService {
 
   constructor(private readonly renewal: SubscriptionRenewalService) {}
 
-  @Cron(process.env.BILLING_RENEWAL_CRON_EXPRESSION ?? "0 0 0 * * *", {
-    timeZone: "Europe/Moscow",
+  @Cron(process.env.BILLING_RENEWAL_CRON_EXPRESSION ?? '0 0 0 * * *', {
+    timeZone: 'Europe/Moscow',
   })
   async handleRenewals(): Promise<void> {
-    this.logger.log("Starting subscription renewal cron")
+    this.logger.log('Starting subscription renewal cron')
     await this.renewal.expireCanceled()
     await this.renewal.renewActive()
   }

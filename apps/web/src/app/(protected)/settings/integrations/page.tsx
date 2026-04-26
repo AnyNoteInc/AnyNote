@@ -1,9 +1,9 @@
-import { Box, Stack, Typography } from "@repo/ui/components"
+import { Box, Stack, Typography } from '@repo/ui/components'
 
-import { IntegrationCard } from "@/components/settings/integration-card"
-import { getServerTRPC } from "@/trpc/server"
+import { IntegrationCard } from '@/components/settings/integration-card'
+import { getServerTRPC } from '@/trpc/server'
 
-export const metadata = { title: "Интеграции · Настройки" }
+export const metadata = { title: 'Интеграции · Настройки' }
 
 export default async function IntegrationsSettingsPage() {
   const trpc = await getServerTRPC()
@@ -29,8 +29,8 @@ export default async function IntegrationsSettingsPage() {
       </Stack>
       <Box
         sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr", lg: "1fr 1fr 1fr" },
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr', lg: '1fr 1fr 1fr' },
           gap: 2,
         }}
       >

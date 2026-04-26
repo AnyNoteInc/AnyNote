@@ -1,9 +1,9 @@
-"use client"
+'use client'
 
-import { createElement } from "react"
-import { IconButton, Paper, Stack, Tooltip } from "@mui/material"
-import type { Editor } from "@tiptap/core"
-import { BubbleMenu } from "@tiptap/react/menus"
+import { createElement } from 'react'
+import { IconButton, Paper, Stack, Tooltip } from '@mui/material'
+import type { Editor } from '@tiptap/core'
+import { BubbleMenu } from '@tiptap/react/menus'
 
 import {
   DeleteColumnIcon,
@@ -13,15 +13,15 @@ import {
   InsertColumnRightIcon,
   InsertRowDownIcon,
   InsertRowUpIcon,
-} from "../assets/index"
+} from '../assets/index'
 
 type Props = { editor: Editor }
 
 export function TableToolbar({ editor }: Props) {
-  const shouldShow = () => editor.isActive("table")
+  const shouldShow = () => editor.isActive('table')
 
   return (
-    <BubbleMenu editor={editor} shouldShow={shouldShow} options={{ placement: "top" }}>
+    <BubbleMenu editor={editor} shouldShow={shouldShow} options={{ placement: 'top' }}>
       <Paper elevation={6} sx={{ p: 0.25 }}>
         <Stack direction="row" spacing={0.25} alignItems="center">
           <Tooltip title="Добавить столбец слева">

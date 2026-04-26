@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import {
   Alert,
@@ -8,9 +8,9 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
 type DialogFile = {
   id: string
@@ -48,7 +48,7 @@ export function FilesDeleteDialog({ open, file, onClose, onDeleted }: Props) {
       <DialogTitle>Удалить файл?</DialogTitle>
       <DialogContent>
         <DialogContentText>
-          Файл «{file?.name ?? ""}» будет удалён. Это действие нельзя отменить.
+          Файл «{file?.name ?? ''}» будет удалён. Это действие нельзя отменить.
         </DialogContentText>
         {mutation.error ? (
           <Alert severity="error" sx={{ mt: 2 }}>

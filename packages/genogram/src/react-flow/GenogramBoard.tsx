@@ -1,8 +1,8 @@
-"use client"
+'use client'
 
-import { useEffect, type CSSProperties } from "react"
-import { useGenogramYjs } from "../hooks/useGenogramYjs"
-import { GenogramFlow, type GenogramMode } from "./GenogramFlow"
+import { useEffect, type CSSProperties } from 'react'
+import { useGenogramYjs } from '../hooks/useGenogramYjs'
+import { GenogramFlow, type GenogramMode } from './GenogramFlow'
 
 export interface GenogramBoardProps {
   pageId: string
@@ -24,7 +24,7 @@ export function GenogramBoard({
   yjsUrl,
   yjsToken,
   user,
-  mode = "editor",
+  mode = 'editor',
   className,
   style,
 }: GenogramBoardProps) {
@@ -32,7 +32,7 @@ export function GenogramBoard({
 
   useEffect(() => {
     if (!resources || !user) return
-    resources.provider.awareness?.setLocalStateField("user", {
+    resources.provider.awareness?.setLocalStateField('user', {
       name: user.name,
       color: user.color,
     })
@@ -41,8 +41,8 @@ export function GenogramBoard({
 
   useEffect(() => {
     if (!resources) return
-    if (typeof window === "undefined") return
-    if (process.env.NODE_ENV !== "development") return
+    if (typeof window === 'undefined') return
+    if (process.env.NODE_ENV !== 'development') return
     ;(window as unknown as { __genogramDoc?: unknown }).__genogramDoc = resources.ydoc
     return () => {
       const w = window as unknown as { __genogramDoc?: unknown }
@@ -52,12 +52,5 @@ export function GenogramBoard({
 
   if (!resources) return null
 
-  return (
-    <GenogramFlow
-      yDoc={resources.ydoc}
-      mode={mode}
-      className={className}
-      style={style}
-    />
-  )
+  return <GenogramFlow yDoc={resources.ydoc} mode={mode} className={className} style={style} />
 }

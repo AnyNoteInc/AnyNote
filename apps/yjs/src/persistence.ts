@@ -1,13 +1,8 @@
-import {
-  enqueueOutboxEventIgnoreConflict,
-  PageType,
-  Prisma,
-  prisma,
-} from "@repo/db"
-import * as Y from "yjs"
-import { TiptapTransformer } from "@hocuspocus/transformer"
+import { enqueueOutboxEventIgnoreConflict, PageType, Prisma, prisma } from '@repo/db'
+import * as Y from 'yjs'
+import { TiptapTransformer } from '@hocuspocus/transformer'
 
-import { log } from "./logger.js"
+import { log } from './logger.js'
 
 export async function loadPageDocument(pageId: string): Promise<Y.Doc> {
   const page = await prisma.page.findUnique({
@@ -34,15 +29,15 @@ export async function storePageDocument(args: {
 
   if (pageType === PageType.TEXT) {
     try {
-      data.content = TiptapTransformer.fromYdoc(document, "default") as Prisma.InputJsonValue
+      data.content = TiptapTransformer.fromYdoc(document, 'default') as Prisma.InputJsonValue
     } catch (err) {
-      log.warn("tiptap transformer failed; saving contentYjs only", {
+      log.warn('tiptap transformer failed; saving contentYjs only', {
         pageId,
         error: (err as Error).message,
       })
     }
   } else if (pageType === PageType.EXCALIDRAW) {
-    const yElements = document.getArray("elements")
+    const yElements = document.getArray('elements')
     const snapshot = { elements: yElements.toJSON() }
     data.content = snapshot as Prisma.InputJsonValue
   }
@@ -52,8 +47,8 @@ export async function storePageDocument(args: {
 
     if (pageType === PageType.TEXT) {
       await enqueueOutboxEventIgnoreConflict(tx, {
-        eventType: "page.upserted",
-        aggregateType: "page",
+        eventType: 'page.upserted',
+        aggregateType: 'page',
         aggregateId: pageId,
         workspaceId,
         delayMs: 5 * 60 * 1000,

@@ -1,8 +1,8 @@
-"use client"
+'use client'
 
-import { IconButton, StarBorderIcon, StarIcon } from "@repo/ui/components"
+import { IconButton, StarBorderIcon, StarIcon } from '@repo/ui/components'
 
-import { usePageActions } from "@/hooks/use-page-actions"
+import { usePageActions } from '@/hooks/use-page-actions'
 
 type Props = {
   pageId: string
@@ -21,11 +21,11 @@ export function FavoriteStar({ pageId, pageTitle, workspaceId, isFavorite }: Pro
     <IconButton
       size="small"
       onClick={toggleFavorite}
-      aria-label={isFavorite ? "Убрать из избранного" : "Добавить в избранное"}
-      sx={{ color: "text.secondary" }}
+      aria-label={isFavorite ? 'Убрать из избранного' : 'Добавить в избранное'}
+      sx={{ color: 'text.secondary' }}
     >
       {isFavorite ? (
-        <StarIcon sx={{ color: "warning.main", fontSize: 20 }} />
+        <StarIcon sx={{ color: 'warning.main', fontSize: 20 }} />
       ) : (
         <StarBorderIcon sx={{ fontSize: 20 }} />
       )}

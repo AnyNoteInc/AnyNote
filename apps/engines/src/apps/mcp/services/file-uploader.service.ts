@@ -1,21 +1,27 @@
-import { createHash } from "node:crypto"
-import { extname } from "node:path"
+import { createHash } from 'node:crypto'
+import { extname } from 'node:path'
 
-import { Inject, Injectable } from "@nestjs/common"
-import type { PrismaClient } from "@repo/db"
-import { storage as defaultStorage, type StorageClient } from "@repo/storage"
+import { Inject, Injectable } from '@nestjs/common'
+import type { PrismaClient } from '@repo/db'
+import { storage as defaultStorage, type StorageClient } from '@repo/storage'
 
-import { PRISMA } from "../../../infra/db/db.providers.js"
+import { PRISMA } from '../../../infra/db/db.providers.js'
 import {
   FileNotFoundError,
   FileTooLargeError,
   PageNotFoundError,
   UnsupportedMimeTypeError,
-} from "../errors/mcp.errors.js"
+} from '../errors/mcp.errors.js'
 
-export const STORAGE = Symbol("STORAGE_CLIENT")
+export const STORAGE = Symbol('STORAGE_CLIENT')
 
-export const IMAGE_MIME_TYPES = ["image/png", "image/jpeg", "image/gif", "image/webp", "image/svg+xml"]
+export const IMAGE_MIME_TYPES = [
+  'image/png',
+  'image/jpeg',
+  'image/gif',
+  'image/webp',
+  'image/svg+xml',
+]
 
 export type UploadInlineInput = {
   userId: string
@@ -60,8 +66,8 @@ export class FileUploader {
         throw new PageNotFoundError(input.pageId)
       }
 
-      const hash = createHash("sha256").update(input.buffer).digest("hex")
-      const ext = (extname(input.fileName).replace(/^\./, "") || "bin").slice(0, 16)
+      const hash = createHash('sha256').update(input.buffer).digest('hex')
+      const ext = (extname(input.fileName).replace(/^\./, '') || 'bin').slice(0, 16)
 
       const file = await tx.file.create({
         data: {
@@ -72,21 +78,24 @@ export class FileUploader {
           fileSize: BigInt(input.buffer.length),
           mimeType: input.mimeType,
           hash,
-          path: "pending",
-          status: "ACTIVE",
+          path: 'pending',
+          status: 'ACTIVE',
         },
         select: { id: true },
       })
 
       const key = `workspaces/${input.workspaceId}/files/${file.id}.${ext}`
-      await this.storage.put(key, input.buffer, { contentType: input.mimeType, size: input.buffer.length })
+      await this.storage.put(key, input.buffer, {
+        contentType: input.mimeType,
+        size: input.buffer.length,
+      })
       await tx.file.update({ where: { id: file.id }, data: { path: key } })
 
       await tx.pageFile.create({ data: { pageId: input.pageId, fileId: file.id } })
       await tx.outboxEvent.create({
         data: {
-          eventType: "page.upserted",
-          aggregateType: "page",
+          eventType: 'page.upserted',
+          aggregateType: 'page',
           aggregateId: input.pageId,
           workspaceId: input.workspaceId,
           payload: {},
@@ -119,8 +128,8 @@ export class FileUploader {
       await tx.pageFile.create({ data: { pageId: input.pageId, fileId: input.fileId } })
       await tx.outboxEvent.create({
         data: {
-          eventType: "page.upserted",
-          aggregateType: "page",
+          eventType: 'page.upserted',
+          aggregateType: 'page',
           aggregateId: input.pageId,
           workspaceId: input.workspaceId,
           payload: {},

@@ -15,6 +15,7 @@ Spec: [docs/superpowers/specs/2026-04-22-rag-retrieval-design.md](../specs/2026-
 ## File Structure
 
 **New files (apps/engines):**
+
 - `apps/engines/src/apps/search/search.module.ts`
 - `apps/engines/src/apps/search/search.controller.ts`
 - `apps/engines/src/apps/search/search.controller.spec.ts`
@@ -26,16 +27,20 @@ Spec: [docs/superpowers/specs/2026-04-22-rag-retrieval-design.md](../specs/2026-
 - `apps/engines/test/integration/search.e2e.spec.ts`
 
 **New files (apps/web):**
+
 - `apps/web/src/lib/chat/rag-search.ts`
 - `apps/web/src/lib/chat/rag-search.test.ts`
 
 **New files (apps/e2e):**
+
 - `apps/e2e/rag.spec.ts`
 
 **New files (apps/agents):**
+
 - `apps/agents/tests/apps/chat/repositories/test_jinja_renderer.py`
 
 **Modified files:**
+
 - `apps/engines/src/apps/indexer/services/qdrant-writer.service.ts` — widen `QdrantPoint.payload` type
 - `apps/engines/src/apps/indexer/services/qdrant-writer.service.spec.ts` — update fixture payload
 - `apps/engines/src/apps/indexer/queue/indexing.processor.ts` — read extra page fields, populate new payload fields
@@ -54,6 +59,7 @@ Spec: [docs/superpowers/specs/2026-04-22-rag-retrieval-design.md](../specs/2026-
 Extend the payload shape to carry page metadata needed by RAG. No behaviour change yet — IndexingProcessor will populate the new fields in Task 2.
 
 **Files:**
+
 - Modify: `apps/engines/src/apps/indexer/services/qdrant-writer.service.ts`
 - Test: `apps/engines/src/apps/indexer/services/qdrant-writer.service.spec.ts`
 
@@ -69,18 +75,18 @@ Edit `apps/engines/src/apps/indexer/services/qdrant-writer.service.spec.ts`. Fin
 ```ts
 await writer.upsert([
   {
-    id: "11111111-1111-1111-1111-111111111111",
+    id: '11111111-1111-1111-1111-111111111111',
     vector: [0.1],
     payload: {
-      pageId: "p1",
-      workspaceId: "w1",
+      pageId: 'p1',
+      workspaceId: 'w1',
       chunkIndex: 0,
-      title: "Hello",
-      content: "normalized text",
-      pageType: "TEXT",
-      createdById: "u1",
-      createdAt: "2026-04-22T00:00:00.000Z",
-      updatedAt: "2026-04-22T00:00:00.000Z",
+      title: 'Hello',
+      content: 'normalized text',
+      pageType: 'TEXT',
+      createdById: 'u1',
+      createdAt: '2026-04-22T00:00:00.000Z',
+      updatedAt: '2026-04-22T00:00:00.000Z',
     },
   },
 ])
@@ -139,6 +145,7 @@ Note: `check-types` for the IndexingProcessor call site will now fail because th
 Read the extra page columns via Prisma and fill them into every Qdrant point.
 
 **Files:**
+
 - Modify: `apps/engines/src/apps/indexer/queue/indexing.processor.ts`
 - Test: `apps/engines/src/apps/indexer/queue/indexing.processor.spec.ts`
 
@@ -148,16 +155,16 @@ Edit `apps/engines/src/apps/indexer/queue/indexing.processor.spec.ts`. In the `"
 
 ```ts
 ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({
-  id: "p1",
-  type: "TEXT",
-  ownership: "TEXT",
+  id: 'p1',
+  type: 'TEXT',
+  ownership: 'TEXT',
   deletedAt: null,
-  content: { type: "doc", content: [] },
-  workspaceId: "w1",
-  title: "Hello",
-  createdById: "u1",
-  createdAt: new Date("2026-04-22T00:00:00.000Z"),
-  updatedAt: new Date("2026-04-22T01:00:00.000Z"),
+  content: { type: 'doc', content: [] },
+  workspaceId: 'w1',
+  title: 'Hello',
+  createdById: 'u1',
+  createdAt: new Date('2026-04-22T00:00:00.000Z'),
+  updatedAt: new Date('2026-04-22T01:00:00.000Z'),
 } as never)
 ```
 
@@ -168,23 +175,23 @@ expect(mockQdrant.upsert).toHaveBeenCalledWith([
   expect.objectContaining({
     vector: [0.1, 0.2],
     payload: {
-      pageId: "p1",
-      workspaceId: "w1",
+      pageId: 'p1',
+      workspaceId: 'w1',
       chunkIndex: 0,
-      title: "Hello",
-      content: "a",
-      pageType: "TEXT",
-      createdById: "u1",
-      createdAt: "2026-04-22T00:00:00.000Z",
-      updatedAt: "2026-04-22T01:00:00.000Z",
+      title: 'Hello',
+      content: 'a',
+      pageType: 'TEXT',
+      createdById: 'u1',
+      createdAt: '2026-04-22T00:00:00.000Z',
+      updatedAt: '2026-04-22T01:00:00.000Z',
     },
   }),
   expect.objectContaining({
     vector: [0.3, 0.4],
     payload: expect.objectContaining({
       chunkIndex: 1,
-      content: "b",
-      title: "Hello",
+      content: 'b',
+      title: 'Hello',
     }),
   }),
 ])
@@ -233,10 +240,10 @@ points.push({
     pageId,
     workspaceId,
     chunkIndex: i,
-    title: page.title ?? "",
+    title: page.title ?? '',
     content: normalized,
     pageType: page.type,
-    createdById: page.createdById ?? "",
+    createdById: page.createdById ?? '',
     createdAt: page.createdAt.toISOString(),
     updatedAt: page.updatedAt.toISOString(),
   },
@@ -267,6 +274,7 @@ git commit -m "feat(engines): populate Qdrant payload with page metadata (title,
 After the payload shape changed, old points miss the new fields. Add an opt-in env switch that re-enqueues every TEXT page via the outbox on app boot.
 
 **Files:**
+
 - Create: `apps/engines/src/apps/indexer/services/reindex-on-boot.service.ts`
 - Create: `apps/engines/src/apps/indexer/services/reindex-on-boot.service.spec.ts`
 - Modify: `apps/engines/src/apps/indexer/indexer.module.ts`
@@ -276,13 +284,13 @@ After the payload shape changed, old points miss the new fields. Add an opt-in e
 Create `apps/engines/src/apps/indexer/services/reindex-on-boot.service.spec.ts`:
 
 ```ts
-import { jest, describe, it, expect, beforeEach, afterEach } from "@jest/globals"
-import type { PrismaClient } from "@repo/db"
+import { jest, describe, it, expect, beforeEach, afterEach } from '@jest/globals'
+import type { PrismaClient } from '@repo/db'
 
-import type { QdrantWriter } from "./qdrant-writer.service.js"
-import { ReindexOnBootService } from "./reindex-on-boot.service.js"
+import type { QdrantWriter } from './qdrant-writer.service.js'
+import { ReindexOnBootService } from './reindex-on-boot.service.js'
 
-describe("ReindexOnBootService", () => {
+describe('ReindexOnBootService', () => {
   const mockPrisma = {
     page: { findMany: jest.fn<(...a: unknown[]) => Promise<unknown[]>>() },
     outboxEvent: { create: jest.fn<(...a: unknown[]) => Promise<unknown>>() },
@@ -304,7 +312,7 @@ describe("ReindexOnBootService", () => {
     process.env.INDEXER_REINDEX_ON_BOOT = originalEnv
   })
 
-  it("is a no-op when env flag is absent", async () => {
+  it('is a no-op when env flag is absent', async () => {
     delete process.env.INDEXER_REINDEX_ON_BOOT
     const svc = new ReindexOnBootService(mockPrisma, mockQdrant)
     await svc.onApplicationBootstrap()
@@ -312,11 +320,11 @@ describe("ReindexOnBootService", () => {
     expect(mockPrisma.page.findMany).not.toHaveBeenCalled()
   })
 
-  it("wipes the collection and enqueues every live TEXT page when flag is true", async () => {
-    process.env.INDEXER_REINDEX_ON_BOOT = "true"
+  it('wipes the collection and enqueues every live TEXT page when flag is true', async () => {
+    process.env.INDEXER_REINDEX_ON_BOOT = 'true'
     ;(mockPrisma.page.findMany as jest.Mock).mockResolvedValue([
-      { id: "p1", workspaceId: "w1" },
-      { id: "p2", workspaceId: "w2" },
+      { id: 'p1', workspaceId: 'w1' },
+      { id: 'p2', workspaceId: 'w2' },
     ] as never)
     ;(mockPrisma.outboxEvent.create as jest.Mock).mockResolvedValue({} as never)
 
@@ -325,16 +333,16 @@ describe("ReindexOnBootService", () => {
 
     expect(mockQdrant.wipeCollection).toHaveBeenCalled()
     expect(mockPrisma.page.findMany).toHaveBeenCalledWith({
-      where: { type: "TEXT", deletedAt: null },
+      where: { type: 'TEXT', deletedAt: null },
       select: { id: true, workspaceId: true },
     })
     expect(mockPrisma.outboxEvent.create).toHaveBeenCalledTimes(2)
     expect(mockPrisma.outboxEvent.create).toHaveBeenCalledWith({
       data: {
-        eventType: "page.upserted",
-        aggregateType: "page",
-        aggregateId: "p1",
-        workspaceId: "w1",
+        eventType: 'page.upserted',
+        aggregateType: 'page',
+        aggregateId: 'p1',
+        workspaceId: 'w1',
         payload: {},
       },
     })
@@ -368,12 +376,12 @@ async wipeCollection(): Promise<void> {
 Create `apps/engines/src/apps/indexer/services/reindex-on-boot.service.ts`:
 
 ```ts
-import { Injectable, Logger, OnApplicationBootstrap } from "@nestjs/common"
-import type { PrismaClient } from "@repo/db"
-import { Inject } from "@nestjs/common"
+import { Injectable, Logger, OnApplicationBootstrap } from '@nestjs/common'
+import type { PrismaClient } from '@repo/db'
+import { Inject } from '@nestjs/common'
 
-import { PRISMA } from "../../../infra/db/db.providers.js"
-import { QdrantWriter } from "./qdrant-writer.service.js"
+import { PRISMA } from '../../../infra/db/db.providers.js'
+import { QdrantWriter } from './qdrant-writer.service.js'
 
 @Injectable()
 export class ReindexOnBootService implements OnApplicationBootstrap {
@@ -385,21 +393,23 @@ export class ReindexOnBootService implements OnApplicationBootstrap {
   ) {}
 
   async onApplicationBootstrap(): Promise<void> {
-    if (process.env.INDEXER_REINDEX_ON_BOOT !== "true") return
+    if (process.env.INDEXER_REINDEX_ON_BOOT !== 'true') return
 
-    this.log.warn("INDEXER_REINDEX_ON_BOOT=true — wiping Qdrant collection and re-enqueuing all TEXT pages")
+    this.log.warn(
+      'INDEXER_REINDEX_ON_BOOT=true — wiping Qdrant collection and re-enqueuing all TEXT pages',
+    )
     await this.qdrant.wipeCollection()
 
     const pages = await this.prisma.page.findMany({
-      where: { type: "TEXT", deletedAt: null },
+      where: { type: 'TEXT', deletedAt: null },
       select: { id: true, workspaceId: true },
     })
 
     for (const page of pages) {
       await this.prisma.outboxEvent.create({
         data: {
-          eventType: "page.upserted",
-          aggregateType: "page",
+          eventType: 'page.upserted',
+          aggregateType: 'page',
           aggregateId: page.id,
           workspaceId: page.workspaceId,
           payload: {},
@@ -447,6 +457,7 @@ git commit -m "feat(engines): add INDEXER_REINDEX_ON_BOOT switch to wipe Qdrant 
 Unit-tested service that embeds a query, calls Qdrant, dedupes hits by pageId, returns top-K documents.
 
 **Files:**
+
 - Create: `apps/engines/src/apps/search/services/page-search.service.ts`
 - Create: `apps/engines/src/apps/search/services/page-search.service.spec.ts`
 
@@ -455,16 +466,21 @@ Unit-tested service that embeds a query, calls Qdrant, dedupes hits by pageId, r
 Create `apps/engines/src/apps/search/services/page-search.service.spec.ts`:
 
 ```ts
-import { jest, describe, it, expect, beforeEach } from "@jest/globals"
+import { jest, describe, it, expect, beforeEach } from '@jest/globals'
 
-import type { EmbeddingClient } from "../../indexer/services/embedding-client.service.js"
-import type { QdrantService } from "../../../infra/qdrant/qdrant.service.js"
-import { PageSearchService } from "./page-search.service.js"
+import type { EmbeddingClient } from '../../indexer/services/embedding-client.service.js'
+import type { QdrantService } from '../../../infra/qdrant/qdrant.service.js'
+import { PageSearchService } from './page-search.service.js'
 
-describe("PageSearchService", () => {
-  const mockEmbed = { embed: jest.fn<(...a: unknown[]) => Promise<number[]>>() } as unknown as EmbeddingClient
+describe('PageSearchService', () => {
+  const mockEmbed = {
+    embed: jest.fn<(...a: unknown[]) => Promise<number[]>>(),
+  } as unknown as EmbeddingClient
   const mockQdrantClient = { search: jest.fn<(...a: unknown[]) => Promise<unknown[]>>() }
-  const mockQdrant = { client: mockQdrantClient, collection: "page_chunks" } as unknown as QdrantService
+  const mockQdrant = {
+    client: mockQdrantClient,
+    collection: 'page_chunks',
+  } as unknown as QdrantService
 
   let service: PageSearchService
 
@@ -474,36 +490,41 @@ describe("PageSearchService", () => {
     service = new PageSearchService(mockEmbed, mockQdrant)
   })
 
-  const makeHit = (args: { pageId: string; score: number; chunkIndex?: number; content?: string }) => ({
+  const makeHit = (args: {
+    pageId: string
+    score: number
+    chunkIndex?: number
+    content?: string
+  }) => ({
     id: `id-${args.pageId}-${args.chunkIndex ?? 0}`,
     score: args.score,
     payload: {
       pageId: args.pageId,
-      workspaceId: "w1",
+      workspaceId: 'w1',
       chunkIndex: args.chunkIndex ?? 0,
       title: `Title ${args.pageId}`,
       content: args.content ?? `content ${args.pageId}-${args.chunkIndex ?? 0}`,
-      pageType: "TEXT",
-      createdById: "u1",
-      createdAt: "2026-04-22T00:00:00.000Z",
-      updatedAt: "2026-04-22T01:00:00.000Z",
+      pageType: 'TEXT',
+      createdById: 'u1',
+      createdAt: '2026-04-22T00:00:00.000Z',
+      updatedAt: '2026-04-22T01:00:00.000Z',
     },
   })
 
-  it("embeds query, calls Qdrant with workspace filter, maps hits to documents", async () => {
+  it('embeds query, calls Qdrant with workspace filter, maps hits to documents', async () => {
     ;(mockEmbed.embed as jest.Mock).mockResolvedValue([0.1, 0.2] as never)
     ;(mockQdrantClient.search as jest.Mock).mockResolvedValue([
-      makeHit({ pageId: "p1", score: 0.9 }),
+      makeHit({ pageId: 'p1', score: 0.9 }),
     ] as never)
 
-    const result = await service.search({ workspaceId: "w1", query: "hello", topK: 5 })
+    const result = await service.search({ workspaceId: 'w1', query: 'hello', topK: 5 })
 
-    expect(mockEmbed.embed).toHaveBeenCalledWith("hello")
+    expect(mockEmbed.embed).toHaveBeenCalledWith('hello')
     expect(mockQdrantClient.search).toHaveBeenCalledWith(
-      "page_chunks",
+      'page_chunks',
       expect.objectContaining({
         vector: [0.1, 0.2],
-        filter: { must: [{ key: "workspaceId", match: { value: "w1" } }] },
+        filter: { must: [{ key: 'workspaceId', match: { value: 'w1' } }] },
         limit: 15,
         score_threshold: 0.35,
         with_payload: true,
@@ -511,60 +532,62 @@ describe("PageSearchService", () => {
     )
     expect(result.documents).toEqual([
       {
-        id: "p1",
-        title: "Title p1",
-        content: "content p1-0",
+        id: 'p1',
+        title: 'Title p1',
+        content: 'content p1-0',
         score: 0.9,
-        updatedAt: "2026-04-22T01:00:00.000Z",
-        pageType: "TEXT",
+        updatedAt: '2026-04-22T01:00:00.000Z',
+        pageType: 'TEXT',
       },
     ])
   })
 
-  it("dedupes by pageId, keeping the highest-scoring chunk per page", async () => {
+  it('dedupes by pageId, keeping the highest-scoring chunk per page', async () => {
     ;(mockEmbed.embed as jest.Mock).mockResolvedValue([0.1] as never)
     ;(mockQdrantClient.search as jest.Mock).mockResolvedValue([
-      makeHit({ pageId: "p1", score: 0.7, chunkIndex: 0, content: "low" }),
-      makeHit({ pageId: "p1", score: 0.9, chunkIndex: 1, content: "high" }),
-      makeHit({ pageId: "p2", score: 0.8, chunkIndex: 0, content: "p2-best" }),
+      makeHit({ pageId: 'p1', score: 0.7, chunkIndex: 0, content: 'low' }),
+      makeHit({ pageId: 'p1', score: 0.9, chunkIndex: 1, content: 'high' }),
+      makeHit({ pageId: 'p2', score: 0.8, chunkIndex: 0, content: 'p2-best' }),
     ] as never)
 
-    const result = await service.search({ workspaceId: "w1", query: "x" })
+    const result = await service.search({ workspaceId: 'w1', query: 'x' })
 
     expect(result.documents).toHaveLength(2)
-    expect(result.documents[0]).toMatchObject({ id: "p1", content: "high", score: 0.9 })
-    expect(result.documents[1]).toMatchObject({ id: "p2", content: "p2-best", score: 0.8 })
+    expect(result.documents[0]).toMatchObject({ id: 'p1', content: 'high', score: 0.9 })
+    expect(result.documents[1]).toMatchObject({ id: 'p2', content: 'p2-best', score: 0.8 })
   })
 
-  it("caps at topK pages after dedupe", async () => {
+  it('caps at topK pages after dedupe', async () => {
     ;(mockEmbed.embed as jest.Mock).mockResolvedValue([0.1] as never)
     ;(mockQdrantClient.search as jest.Mock).mockResolvedValue(
-      Array.from({ length: 10 }, (_, i) => makeHit({ pageId: `p${i}`, score: 0.9 - i * 0.05 })) as never,
+      Array.from({ length: 10 }, (_, i) =>
+        makeHit({ pageId: `p${i}`, score: 0.9 - i * 0.05 }),
+      ) as never,
     )
 
-    const result = await service.search({ workspaceId: "w1", query: "x", topK: 3 })
+    const result = await service.search({ workspaceId: 'w1', query: 'x', topK: 3 })
 
     expect(result.documents).toHaveLength(3)
-    expect(result.documents.map((d) => d.id)).toEqual(["p0", "p1", "p2"])
+    expect(result.documents.map((d) => d.id)).toEqual(['p0', 'p1', 'p2'])
   })
 
-  it("returns empty documents when Qdrant returns no hits", async () => {
+  it('returns empty documents when Qdrant returns no hits', async () => {
     ;(mockEmbed.embed as jest.Mock).mockResolvedValue([0.1] as never)
     ;(mockQdrantClient.search as jest.Mock).mockResolvedValue([] as never)
 
-    const result = await service.search({ workspaceId: "w1", query: "no match" })
+    const result = await service.search({ workspaceId: 'w1', query: 'no match' })
 
     expect(result.documents).toEqual([])
   })
 
-  it("passes custom scoreThreshold and topK to Qdrant", async () => {
+  it('passes custom scoreThreshold and topK to Qdrant', async () => {
     ;(mockEmbed.embed as jest.Mock).mockResolvedValue([0.1] as never)
     ;(mockQdrantClient.search as jest.Mock).mockResolvedValue([] as never)
 
-    await service.search({ workspaceId: "w1", query: "x", topK: 7, scoreThreshold: 0.5 })
+    await service.search({ workspaceId: 'w1', query: 'x', topK: 7, scoreThreshold: 0.5 })
 
     expect(mockQdrantClient.search).toHaveBeenCalledWith(
-      "page_chunks",
+      'page_chunks',
       expect.objectContaining({ limit: 21, score_threshold: 0.5 }),
     )
   })
@@ -581,10 +604,10 @@ Expected: FAIL — module does not exist.
 Create `apps/engines/src/apps/search/services/page-search.service.ts`:
 
 ```ts
-import { Injectable, Logger } from "@nestjs/common"
+import { Injectable, Logger } from '@nestjs/common'
 
-import { QdrantService } from "../../../infra/qdrant/qdrant.service.js"
-import { EmbeddingClient } from "../../indexer/services/embedding-client.service.js"
+import { QdrantService } from '../../../infra/qdrant/qdrant.service.js'
+import { EmbeddingClient } from '../../indexer/services/embedding-client.service.js'
 
 export type RagSearchDocument = {
   id: string
@@ -628,7 +651,7 @@ export class PageSearchService {
     const vector = await this.embedding.embed(args.query)
     const hits = (await this.qdrant.client.search(this.qdrant.collection, {
       vector,
-      filter: { must: [{ key: "workspaceId", match: { value: args.workspaceId } }] },
+      filter: { must: [{ key: 'workspaceId', match: { value: args.workspaceId } }] },
       limit: topK * SEARCH_LIMIT_MULTIPLIER,
       score_threshold: scoreThreshold,
       with_payload: true,
@@ -648,17 +671,15 @@ export class PageSearchService {
       if (existing && existing.score >= hit.score) continue
       bestPerPage.set(payload.pageId, {
         id: payload.pageId,
-        title: payload.title ?? "",
-        content: payload.content ?? "",
+        title: payload.title ?? '',
+        content: payload.content ?? '',
         score: hit.score,
-        updatedAt: payload.updatedAt ?? "",
-        pageType: payload.pageType ?? "",
+        updatedAt: payload.updatedAt ?? '',
+        pageType: payload.pageType ?? '',
       })
     }
 
-    const documents = [...bestPerPage.values()]
-      .sort((a, b) => b.score - a.score)
-      .slice(0, topK)
+    const documents = [...bestPerPage.values()].sort((a, b) => b.score - a.score).slice(0, topK)
 
     return { documents }
   }
@@ -682,6 +703,7 @@ git commit -m "feat(engines): add PageSearchService with dedupe-by-page and scor
 ## Task 5: Add zod request schema for search DTO
 
 **Files:**
+
 - Create: `apps/engines/src/apps/search/dto/search.schema.ts`
 
 - [ ] **Step 1: Create the schema file**
@@ -689,7 +711,7 @@ git commit -m "feat(engines): add PageSearchService with dedupe-by-page and scor
 Create `apps/engines/src/apps/search/dto/search.schema.ts`:
 
 ```ts
-import { z } from "zod"
+import { z } from 'zod'
 
 export const searchPagesRequestSchema = z.object({
   workspaceId: z.string().uuid(),
@@ -729,6 +751,7 @@ git commit -m "feat(engines): add zod schema for search request validation"
 ## Task 6: Create `SearchController` and `SearchModule`
 
 **Files:**
+
 - Create: `apps/engines/src/apps/search/search.controller.ts`
 - Create: `apps/engines/src/apps/search/search.controller.spec.ts`
 - Create: `apps/engines/src/apps/search/search.module.ts`
@@ -740,13 +763,15 @@ git commit -m "feat(engines): add zod schema for search request validation"
 Create `apps/engines/src/apps/search/search.controller.spec.ts`:
 
 ```ts
-import { jest, describe, it, expect, beforeEach } from "@jest/globals"
+import { jest, describe, it, expect, beforeEach } from '@jest/globals'
 
-import { SearchController } from "./search.controller.js"
-import type { PageSearchService } from "./services/page-search.service.js"
+import { SearchController } from './search.controller.js'
+import type { PageSearchService } from './services/page-search.service.js'
 
-describe("SearchController", () => {
-  const mockService = { search: jest.fn<(...a: unknown[]) => Promise<unknown>>() } as unknown as PageSearchService
+describe('SearchController', () => {
+  const mockService = {
+    search: jest.fn<(...a: unknown[]) => Promise<unknown>>(),
+  } as unknown as PageSearchService
   let controller: SearchController
 
   beforeEach(() => {
@@ -754,34 +779,46 @@ describe("SearchController", () => {
     controller = new SearchController(mockService)
   })
 
-  it("returns documents from the service for a valid payload", async () => {
+  it('returns documents from the service for a valid payload', async () => {
     ;(mockService.search as jest.Mock).mockResolvedValue({
-      documents: [{ id: "p1", title: "T", content: "C", score: 0.9, updatedAt: "2026-04-22T00:00:00.000Z", pageType: "TEXT" }],
+      documents: [
+        {
+          id: 'p1',
+          title: 'T',
+          content: 'C',
+          score: 0.9,
+          updatedAt: '2026-04-22T00:00:00.000Z',
+          pageType: 'TEXT',
+        },
+      ],
     } as never)
 
     const result = await controller.searchPages({
-      workspaceId: "11111111-1111-1111-1111-111111111111",
-      query: "hello",
+      workspaceId: '11111111-1111-1111-1111-111111111111',
+      query: 'hello',
     })
 
     expect(mockService.search).toHaveBeenCalledWith({
-      workspaceId: "11111111-1111-1111-1111-111111111111",
-      query: "hello",
+      workspaceId: '11111111-1111-1111-1111-111111111111',
+      query: 'hello',
       topK: undefined,
       scoreThreshold: undefined,
     })
     expect(result.documents).toHaveLength(1)
   })
 
-  it("rejects invalid workspaceId with 400", async () => {
+  it('rejects invalid workspaceId with 400', async () => {
     await expect(
-      controller.searchPages({ workspaceId: "not-a-uuid", query: "x" } as never),
+      controller.searchPages({ workspaceId: 'not-a-uuid', query: 'x' } as never),
     ).rejects.toMatchObject({ status: 400 })
   })
 
-  it("rejects empty query with 400", async () => {
+  it('rejects empty query with 400', async () => {
     await expect(
-      controller.searchPages({ workspaceId: "11111111-1111-1111-1111-111111111111", query: "  " } as never),
+      controller.searchPages({
+        workspaceId: '11111111-1111-1111-1111-111111111111',
+        query: '  ',
+      } as never),
     ).rejects.toMatchObject({ status: 400 })
   })
 })
@@ -797,20 +834,20 @@ Expected: FAIL — controller does not exist.
 Create `apps/engines/src/apps/search/search.controller.ts`:
 
 ```ts
-import { BadRequestException, Body, Controller, Post } from "@nestjs/common"
-import { ApiOkResponse, ApiTags } from "@nestjs/swagger"
+import { BadRequestException, Body, Controller, Post } from '@nestjs/common'
+import { ApiOkResponse, ApiTags } from '@nestjs/swagger'
 
-import { searchPagesRequestSchema, type SearchPagesResponse } from "./dto/search.schema.js"
-import { PageSearchService } from "./services/page-search.service.js"
+import { searchPagesRequestSchema, type SearchPagesResponse } from './dto/search.schema.js'
+import { PageSearchService } from './services/page-search.service.js'
 
 // INTERNAL ENDPOINT: no auth. Do not expose on public ingress.
-@ApiTags("search")
-@Controller("search")
+@ApiTags('search')
+@Controller('search')
 export class SearchController {
   constructor(private readonly service: PageSearchService) {}
 
-  @Post("pages")
-  @ApiOkResponse({ description: "RAG documents for the query" })
+  @Post('pages')
+  @ApiOkResponse({ description: 'RAG documents for the query' })
   async searchPages(@Body() body: unknown): Promise<SearchPagesResponse> {
     const parsed = searchPagesRequestSchema.safeParse(body)
     if (!parsed.success) {
@@ -829,12 +866,12 @@ export class SearchController {
 Create `apps/engines/src/apps/search/search.module.ts`:
 
 ```ts
-import { Module } from "@nestjs/common"
+import { Module } from '@nestjs/common'
 
-import { IndexerModule } from "../indexer/indexer.module.js"
-import { QdrantModule } from "../../infra/qdrant/qdrant.module.js"
-import { SearchController } from "./search.controller.js"
-import { PageSearchService } from "./services/page-search.service.js"
+import { IndexerModule } from '../indexer/indexer.module.js'
+import { QdrantModule } from '../../infra/qdrant/qdrant.module.js'
+import { SearchController } from './search.controller.js'
+import { PageSearchService } from './services/page-search.service.js'
 
 @Module({
   imports: [IndexerModule, QdrantModule],
@@ -852,7 +889,7 @@ In `apps/engines/src/apps/indexer/indexer.module.ts`, add `exports`:
 @Module({
   imports: [
     BullModule.registerQueue({
-      name: "indexing",
+      name: 'indexing',
     }),
   ],
   providers: [
@@ -905,6 +942,7 @@ git commit -m "feat(engines): expose POST /search/pages endpoint with zod valida
 Verify end-to-end: index a page via the outbox → poll Qdrant → call the endpoint → assert the page is returned with correct payload.
 
 **Files:**
+
 - Create: `apps/engines/test/integration/search.e2e.spec.ts`
 
 - [ ] **Step 1: Create the integration test**
@@ -912,19 +950,28 @@ Verify end-to-end: index a page via the outbox → poll Qdrant → call the endp
 Create `apps/engines/test/integration/search.e2e.spec.ts`:
 
 ```ts
-import { afterAll, beforeAll, beforeEach, afterEach, describe, expect, it, jest } from "@jest/globals"
-import type { INestApplication } from "@nestjs/common"
-import { NestFactory } from "@nestjs/core"
-import { prisma } from "@repo/db"
+import {
+  afterAll,
+  beforeAll,
+  beforeEach,
+  afterEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from '@jest/globals'
+import type { INestApplication } from '@nestjs/common'
+import { NestFactory } from '@nestjs/core'
+import { prisma } from '@repo/db'
 
-import { AppModule } from "../../src/app.module.js"
-import { OutboxDrainerService } from "../../src/apps/indexer/cron/outbox-drainer.service.js"
-import { QdrantWriter } from "../../src/apps/indexer/services/qdrant-writer.service.js"
-import { SearchController } from "../../src/apps/search/search.controller.js"
+import { AppModule } from '../../src/app.module.js'
+import { OutboxDrainerService } from '../../src/apps/indexer/cron/outbox-drainer.service.js'
+import { QdrantWriter } from '../../src/apps/indexer/services/qdrant-writer.service.js'
+import { SearchController } from '../../src/apps/search/search.controller.js'
 
 jest.setTimeout(120000)
 
-describe("Search e2e", () => {
+describe('Search e2e', () => {
   let app: INestApplication
   let drainer: OutboxDrainerService
   let writer: QdrantWriter
@@ -949,37 +996,41 @@ describe("Search e2e", () => {
   })
 
   beforeEach(async () => {
-    const ws = await prisma.workspace.create({ data: { name: "test-ws-search" } })
+    const ws = await prisma.workspace.create({ data: { name: 'test-ws-search' } })
     workspaceId = ws.id
     const user = await prisma.user.create({
       data: {
-        name: "Test",
-        firstName: "T",
-        lastName: "U",
+        name: 'Test',
+        firstName: 'T',
+        lastName: 'U',
         email: `t-search-${workspaceId}@e.com`,
         emailVerified: true,
       },
     })
     userId = user.id
-    await prisma.workspaceMember.create({ data: { workspaceId, userId, role: "OWNER" } })
+    await prisma.workspaceMember.create({ data: { workspaceId, userId, role: 'OWNER' } })
   })
 
   afterEach(async () => {
     if (pageId) await prisma.page.delete({ where: { id: pageId } }).catch(() => undefined)
-    if (workspaceId) await prisma.workspace.delete({ where: { id: workspaceId } }).catch(() => undefined)
+    if (workspaceId)
+      await prisma.workspace.delete({ where: { id: workspaceId } }).catch(() => undefined)
     if (userId) await prisma.user.delete({ where: { id: userId } }).catch(() => undefined)
   })
 
-  it("indexes a page and returns it via POST /search/pages", async () => {
-    const marker = "Бразильский Медведь квартального отчёта"
+  it('indexes a page and returns it via POST /search/pages', async () => {
+    const marker = 'Бразильский Медведь квартального отчёта'
     const page = await prisma.page.create({
       data: {
         workspaceId,
-        title: "Quarterly notes",
+        title: 'Quarterly notes',
         content: {
-          type: "doc",
+          type: 'doc',
           content: [
-            { type: "paragraph", content: [{ type: "text", text: `Корпоративный кофе ${marker}` }] },
+            {
+              type: 'paragraph',
+              content: [{ type: 'text', text: `Корпоративный кофе ${marker}` }],
+            },
           ],
         },
         createdById: userId,
@@ -990,8 +1041,8 @@ describe("Search e2e", () => {
 
     await prisma.outboxEvent.create({
       data: {
-        eventType: "page.upserted",
-        aggregateType: "page",
+        eventType: 'page.upserted',
+        aggregateType: 'page',
         aggregateId: pageId,
         workspaceId,
         payload: {},
@@ -1002,32 +1053,39 @@ describe("Search e2e", () => {
     // BullMQ worker + Ollama embedding can take a while
     await new Promise((r) => setTimeout(r, 20000))
 
-    const done = await prisma.outboxEvent.findFirst({ where: { aggregateId: pageId, status: "DONE" } })
+    const done = await prisma.outboxEvent.findFirst({
+      where: { aggregateId: pageId, status: 'DONE' },
+    })
     expect(done).toBeTruthy()
 
     const response = await controller.searchPages({
       workspaceId,
-      query: "Как называется корпоративный кофе?",
+      query: 'Как называется корпоративный кофе?',
     })
 
     expect(response.documents.length).toBeGreaterThan(0)
     const top = response.documents[0]
     expect(top.id).toBe(pageId)
-    expect(top.title).toBe("Quarterly notes")
+    expect(top.title).toBe('Quarterly notes')
     expect(top.content).toContain(marker)
-    expect(top.pageType).toBe("TEXT")
+    expect(top.pageType).toBe('TEXT')
     expect(top.score).toBeGreaterThan(0.35)
   })
 
-  it("respects workspace isolation (returns empty for foreign workspace)", async () => {
+  it('respects workspace isolation (returns empty for foreign workspace)', async () => {
     // Index page in workspaceId (from beforeEach) with unique content
     const page = await prisma.page.create({
       data: {
         workspaceId,
-        title: "Secret",
+        title: 'Secret',
         content: {
-          type: "doc",
-          content: [{ type: "paragraph", content: [{ type: "text", text: "workspace-isolation-marker-xyz" }] }],
+          type: 'doc',
+          content: [
+            {
+              type: 'paragraph',
+              content: [{ type: 'text', text: 'workspace-isolation-marker-xyz' }],
+            },
+          ],
         },
         createdById: userId,
         updatedById: userId,
@@ -1036,8 +1094,8 @@ describe("Search e2e", () => {
     pageId = page.id
     await prisma.outboxEvent.create({
       data: {
-        eventType: "page.upserted",
-        aggregateType: "page",
+        eventType: 'page.upserted',
+        aggregateType: 'page',
         aggregateId: pageId,
         workspaceId,
         payload: {},
@@ -1047,11 +1105,11 @@ describe("Search e2e", () => {
     await new Promise((r) => setTimeout(r, 20000))
 
     // Create a second workspace and query with it
-    const otherWs = await prisma.workspace.create({ data: { name: "other-ws" } })
+    const otherWs = await prisma.workspace.create({ data: { name: 'other-ws' } })
     try {
       const response = await controller.searchPages({
         workspaceId: otherWs.id,
-        query: "workspace-isolation-marker-xyz",
+        query: 'workspace-isolation-marker-xyz',
       })
       expect(response.documents).toEqual([])
     } finally {
@@ -1082,6 +1140,7 @@ git commit -m "test(engines): integration test for /search/pages with workspace 
 ## Task 8: Create `rag-search.ts` in apps/web with graceful failure
 
 **Files:**
+
 - Create: `apps/web/src/lib/chat/rag-search.ts`
 - Create: `apps/web/src/lib/chat/rag-search.test.ts`
 
@@ -1090,78 +1149,83 @@ git commit -m "test(engines): integration test for /search/pages with workspace 
 Create `apps/web/src/lib/chat/rag-search.test.ts`:
 
 ```ts
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { searchRagDocuments } from "./rag-search"
+import { searchRagDocuments } from './rag-search'
 
-describe("searchRagDocuments", () => {
+describe('searchRagDocuments', () => {
   const fetchSpy = vi.fn<typeof fetch>()
   const originalFetch = globalThis.fetch
 
   beforeEach(() => {
     fetchSpy.mockReset()
     globalThis.fetch = fetchSpy as unknown as typeof fetch
-    process.env.ENGINES_SERVICE_URL = "http://engines:8082"
+    process.env.ENGINES_SERVICE_URL = 'http://engines:8082'
   })
 
   afterEach(() => {
     globalThis.fetch = originalFetch
   })
 
-  it("returns mapped documents on 200", async () => {
+  it('returns mapped documents on 200', async () => {
     fetchSpy.mockResolvedValue(
       new Response(
         JSON.stringify({
           documents: [
-            { id: "p1", title: "T", content: "C", score: 0.9, updatedAt: "2026-04-22T00:00:00.000Z", pageType: "TEXT" },
+            {
+              id: 'p1',
+              title: 'T',
+              content: 'C',
+              score: 0.9,
+              updatedAt: '2026-04-22T00:00:00.000Z',
+              pageType: 'TEXT',
+            },
           ],
         }),
-        { status: 200, headers: { "content-type": "application/json" } },
+        { status: 200, headers: { 'content-type': 'application/json' } },
       ),
     )
 
-    const result = await searchRagDocuments({ workspaceId: "w1", query: "hello" })
+    const result = await searchRagDocuments({ workspaceId: 'w1', query: 'hello' })
 
-    expect(result).toEqual([{ id: "p1", title: "T", content: "C" }])
+    expect(result).toEqual([{ id: 'p1', title: 'T', content: 'C' }])
     expect(fetchSpy).toHaveBeenCalledWith(
-      "http://engines:8080/search/pages",
+      'http://engines:8080/search/pages',
       expect.objectContaining({
-        method: "POST",
-        headers: expect.objectContaining({ "content-type": "application/json" }),
-        body: JSON.stringify({ workspaceId: "w1", query: "hello", topK: 5 }),
+        method: 'POST',
+        headers: expect.objectContaining({ 'content-type': 'application/json' }),
+        body: JSON.stringify({ workspaceId: 'w1', query: 'hello', topK: 5 }),
       }),
     )
   })
 
-  it("returns [] on 5xx", async () => {
-    fetchSpy.mockResolvedValue(new Response("boom", { status: 503 }))
-    const result = await searchRagDocuments({ workspaceId: "w1", query: "x" })
+  it('returns [] on 5xx', async () => {
+    fetchSpy.mockResolvedValue(new Response('boom', { status: 503 }))
+    const result = await searchRagDocuments({ workspaceId: 'w1', query: 'x' })
     expect(result).toEqual([])
   })
 
-  it("returns [] on network error", async () => {
-    fetchSpy.mockRejectedValue(new Error("ECONNREFUSED"))
-    const result = await searchRagDocuments({ workspaceId: "w1", query: "x" })
+  it('returns [] on network error', async () => {
+    fetchSpy.mockRejectedValue(new Error('ECONNREFUSED'))
+    const result = await searchRagDocuments({ workspaceId: 'w1', query: 'x' })
     expect(result).toEqual([])
   })
 
-  it("returns [] on malformed JSON", async () => {
+  it('returns [] on malformed JSON', async () => {
     fetchSpy.mockResolvedValue(
-      new Response("not-json", { status: 200, headers: { "content-type": "application/json" } }),
+      new Response('not-json', { status: 200, headers: { 'content-type': 'application/json' } }),
     )
-    const result = await searchRagDocuments({ workspaceId: "w1", query: "x" })
+    const result = await searchRagDocuments({ workspaceId: 'w1', query: 'x' })
     expect(result).toEqual([])
   })
 
-  it("honours custom topK", async () => {
-    fetchSpy.mockResolvedValue(
-      new Response(JSON.stringify({ documents: [] }), { status: 200 }),
-    )
-    await searchRagDocuments({ workspaceId: "w1", query: "x", topK: 3 })
+  it('honours custom topK', async () => {
+    fetchSpy.mockResolvedValue(new Response(JSON.stringify({ documents: [] }), { status: 200 }))
+    await searchRagDocuments({ workspaceId: 'w1', query: 'x', topK: 3 })
     expect(fetchSpy).toHaveBeenCalledWith(
       expect.any(String),
       expect.objectContaining({
-        body: JSON.stringify({ workspaceId: "w1", query: "x", topK: 3 }),
+        body: JSON.stringify({ workspaceId: 'w1', query: 'x', topK: 3 }),
       }),
     )
   })
@@ -1196,14 +1260,14 @@ export async function searchRagDocuments(args: {
   query: string
   topK?: number
 }): Promise<RagDocument[]> {
-  const baseUrl = process.env.ENGINES_SERVICE_URL ?? "http://localhost:8082"
+  const baseUrl = process.env.ENGINES_SERVICE_URL ?? 'http://localhost:8082'
   const controller = new AbortController()
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS)
 
   try {
     const response = await fetch(`${baseUrl}/search/pages`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         workspaceId: args.workspaceId,
         query: args.query,
@@ -1220,8 +1284,12 @@ export async function searchRagDocuments(args: {
     const data = (await response.json()) as EnginesSearchResponse
     const documents = Array.isArray(data?.documents) ? data.documents : []
     return documents
-      .filter((doc): doc is Required<NonNullable<EnginesSearchResponse["documents"]>[number]> => {
-        return typeof doc?.id === "string" && typeof doc?.title === "string" && typeof doc?.content === "string"
+      .filter((doc): doc is Required<NonNullable<EnginesSearchResponse['documents']>[number]> => {
+        return (
+          typeof doc?.id === 'string' &&
+          typeof doc?.title === 'string' &&
+          typeof doc?.content === 'string'
+        )
       })
       .map((doc) => ({ id: doc.id, title: doc.title, content: doc.content }))
   } catch (error) {
@@ -1250,6 +1318,7 @@ git commit -m "feat(web): add rag-search client with graceful failure"
 ## Task 9: Extend `buildAgentsPayload` to include `rag`
 
 **Files:**
+
 - Modify: `apps/web/src/lib/chat/agents-payload.ts`
 
 - [ ] **Step 1: Search for existing tests of `buildAgentsPayload`**
@@ -1263,58 +1332,62 @@ If a test file exists, extend it. If none exists, create `apps/web/src/lib/chat/
 Create `apps/web/src/lib/chat/agents-payload.test.ts` if absent:
 
 ```ts
-import { describe, expect, it } from "vitest"
+import { describe, expect, it } from 'vitest'
 
-import { buildAgentsPayload, type WorkspaceSettingsSnapshot } from "./agents-payload"
+import { buildAgentsPayload, type WorkspaceSettingsSnapshot } from './agents-payload'
 
 const settings: WorkspaceSettingsSnapshot = {
   temperature: 0.3,
   topP: 0.9,
-  systemPrompt: "be nice",
+  systemPrompt: 'be nice',
   defaultModel: {
-    slug: "gigachat-2",
-    provider: { slug: "gigachat", connection: { scope: "GIGACHAT_API_PERS" } },
+    slug: 'gigachat-2',
+    provider: { slug: 'gigachat', connection: { scope: 'GIGACHAT_API_PERS' } },
   },
 }
 
-describe("buildAgentsPayload", () => {
-  it("includes empty rag.documents when no rag passed", () => {
+describe('buildAgentsPayload', () => {
+  it('includes empty rag.documents when no rag passed', () => {
     const payload = buildAgentsPayload({
-      chatId: "c1",
-      workspaceId: "w1",
-      userId: "u1",
-      text: "hi",
+      chatId: 'c1',
+      workspaceId: 'w1',
+      userId: 'u1',
+      text: 'hi',
       settings,
       rag: [],
     })
     expect(payload.rag).toEqual({ documents: [] })
   })
 
-  it("passes provided rag documents through", () => {
+  it('passes provided rag documents through', () => {
     const payload = buildAgentsPayload({
-      chatId: "c1",
-      workspaceId: "w1",
-      userId: "u1",
-      text: "hi",
+      chatId: 'c1',
+      workspaceId: 'w1',
+      userId: 'u1',
+      text: 'hi',
       settings,
-      rag: [{ id: "p1", title: "T", content: "C" }],
+      rag: [{ id: 'p1', title: 'T', content: 'C' }],
     })
-    expect(payload.rag).toEqual({ documents: [{ id: "p1", title: "T", content: "C" }] })
+    expect(payload.rag).toEqual({ documents: [{ id: 'p1', title: 'T', content: 'C' }] })
   })
 
-  it("preserves existing top-level fields", () => {
+  it('preserves existing top-level fields', () => {
     const payload = buildAgentsPayload({
-      chatId: "c1",
-      workspaceId: "w1",
-      userId: "u1",
-      text: "hi",
+      chatId: 'c1',
+      workspaceId: 'w1',
+      userId: 'u1',
+      text: 'hi',
       settings,
       rag: [],
     })
-    expect(payload.threadId).toBe("c1")
-    expect(payload.query).toBe("hi")
+    expect(payload.threadId).toBe('c1')
+    expect(payload.query).toBe('hi')
     expect(payload.mcp.servers).toHaveLength(1)
-    expect(payload.instruction).toEqual({ format: "markdown", language: "ru", citationsRequired: true })
+    expect(payload.instruction).toEqual({
+      format: 'markdown',
+      language: 'ru',
+      citationsRequired: true,
+    })
   })
 })
 ```
@@ -1331,9 +1404,9 @@ In `apps/web/src/lib/chat/agents-payload.ts`, add the import and rag handling:
 At the top add:
 
 ```ts
-import type { RagDocument } from "./rag-search"
+import type { RagDocument } from './rag-search'
 
-export type { RagDocument } from "./rag-search"
+export type { RagDocument } from './rag-search'
 ```
 
 Replace the `buildAgentsPayload` function signature and body:
@@ -1358,18 +1431,18 @@ export function buildAgentsPayload(args: {
         topP: args.settings.topP,
       },
     },
-    systemPrompt: args.settings.systemPrompt ?? "",
+    systemPrompt: args.settings.systemPrompt ?? '',
     rag: { documents: args.rag },
     mcp: {
       servers: [
         {
-          name: "AnyNote MCP Server",
-          url: process.env.ANYNOTE_MCP_URL ?? "http://localhost:8090/api/mcp",
+          name: 'AnyNote MCP Server',
+          url: process.env.ANYNOTE_MCP_URL ?? 'http://localhost:8090/api/mcp',
           headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json, text/event-stream",
-            "X-User-Id": args.userId,
-            "X-Workspace-Id": args.workspaceId,
+            'Content-Type': 'application/json',
+            Accept: 'application/json, text/event-stream',
+            'X-User-Id': args.userId,
+            'X-Workspace-Id': args.workspaceId,
           },
           retries: 3,
           verify: false,
@@ -1377,8 +1450,8 @@ export function buildAgentsPayload(args: {
       ],
     },
     instruction: {
-      format: "markdown",
-      language: "ru",
+      format: 'markdown',
+      language: 'ru',
       citationsRequired: true,
     },
     query: args.text,
@@ -1408,6 +1481,7 @@ git commit -m "feat(web): add rag field to buildAgentsPayload"
 ## Task 10: Wire RAG search into `/api/agents/generate`
 
 **Files:**
+
 - Modify: `apps/web/src/app/api/agents/generate/route.ts`
 
 - [ ] **Step 1: Update the route**
@@ -1417,7 +1491,7 @@ In `apps/web/src/app/api/agents/generate/route.ts`:
 Add the import at the top:
 
 ```ts
-import { searchRagDocuments, type RagDocument } from "@/lib/chat/rag-search"
+import { searchRagDocuments, type RagDocument } from '@/lib/chat/rag-search'
 ```
 
 Add `rag` to the `streamAgentsToRegistry` args type (around line 125-133):
@@ -1499,6 +1573,7 @@ git commit -m "feat(web): call /search/pages before chat generate and attach rag
 ## Task 11: Polish `default.j2` prompt template
 
 **Files:**
+
 - Modify: `apps/agents/agents/apps/chat/templates/default.j2`
 - Create: `apps/agents/tests/apps/chat/repositories/test_jinja_renderer.py`
 
@@ -1694,6 +1769,7 @@ git commit -m "feat(agents): structure RAG block in prompt with pageId/title/con
 ## Task 12: Declare new env vars in `turbo.json`
 
 **Files:**
+
 - Modify: `turbo.json`
 
 - [ ] **Step 1: Check current globalEnv**
@@ -1759,6 +1835,7 @@ Remove or set `INDEXER_REINDEX_ON_BOOT=false` in `.env` to avoid re-wiping on fu
 ## Task 14: E2E Playwright test for RAG
 
 **Files:**
+
 - Create: `apps/e2e/rag.spec.ts`
 
 - [ ] **Step 1: Create the test**
@@ -1766,9 +1843,9 @@ Remove or set `INDEXER_REINDEX_ON_BOOT=false` in `.env` to avoid re-wiping on fu
 Create `apps/e2e/rag.spec.ts`:
 
 ```ts
-import { expect, test } from "@playwright/test"
-import { readFileSync } from "node:fs"
-import { join } from "node:path"
+import { expect, test } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 let RoleType: { OWNER: string }
 let prisma: {
@@ -1777,33 +1854,39 @@ let prisma: {
     findUnique: (args: unknown) => Promise<{ id: string } | null>
     findUniqueOrThrow: (args: unknown) => Promise<{ id: string }>
   }
-  workspace: { create: (args: unknown) => Promise<{ id: string }>; delete: (args: unknown) => Promise<unknown> }
+  workspace: {
+    create: (args: unknown) => Promise<{ id: string }>
+    delete: (args: unknown) => Promise<unknown>
+  }
   workspaceMember: { create: (args: unknown) => Promise<unknown> }
   workspaceAiSettings: { create: (args: unknown) => Promise<unknown> }
   aiProvider: { findFirst: (args: unknown) => Promise<{ id: string; slug: string } | null> }
   aiModel: { findFirst: (args: unknown) => Promise<{ id: string; slug: string } | null> }
-  page: { create: (args: unknown) => Promise<{ id: string }>; delete: (args: unknown) => Promise<unknown> }
+  page: {
+    create: (args: unknown) => Promise<{ id: string }>
+    delete: (args: unknown) => Promise<unknown>
+  }
   outboxEvent: { create: (args: unknown) => Promise<unknown> }
   chat: { create: (args: unknown) => Promise<{ id: string }> }
 }
 
-test.use({ locale: "en-US", timezoneId: "America/New_York" })
+test.use({ locale: 'en-US', timezoneId: 'America/New_York' })
 test.setTimeout(120_000)
 
 test.beforeAll(async () => {
   if (!process.env.DATABASE_URL) {
-    const envPath = join(process.cwd(), ".env")
-    const envFile = readFileSync(envPath, "utf8")
+    const envPath = join(process.cwd(), '.env')
+    const envFile = readFileSync(envPath, 'utf8')
     const databaseUrl = envFile
-      .split("\n")
+      .split('\n')
       .map((line) => line.trim())
-      .find((line) => line.startsWith("DATABASE_URL="))
-      ?.slice("DATABASE_URL=".length)
-      .replace(/^"|"$/g, "")
-    if (!databaseUrl) throw new Error("DATABASE_URL is not configured in .env")
+      .find((line) => line.startsWith('DATABASE_URL='))
+      ?.slice('DATABASE_URL='.length)
+      .replace(/^"|"$/g, '')
+    if (!databaseUrl) throw new Error('DATABASE_URL is not configured in .env')
     process.env.DATABASE_URL = databaseUrl
   }
-  const db = await import("../../packages/db/src/index")
+  const db = await import('../../packages/db/src/index')
   RoleType = db.RoleType
   prisma = db.prisma
 })
@@ -1812,20 +1895,20 @@ test.afterAll(async () => {
   if (prisma) await prisma.$disconnect()
 })
 
-const password = "SuperSecure123!"
-const MARKER = "Бразильский Медведь"
+const password = 'SuperSecure123!'
+const MARKER = 'Бразильский Медведь'
 
-test("rag grounds answer in indexed page", async ({ page: browser }) => {
+test('rag grounds answer in indexed page', async ({ page: browser }) => {
   const email = `rag+${Date.now()}@example.com`
 
   // sign up via UI to get auth cookie
-  await browser.goto("/sign-up")
-  await browser.getByRole("textbox", { name: "Email" }).fill(email)
-  await browser.getByRole("textbox", { name: "Фамилия" }).fill("Тестов")
-  await browser.getByRole("textbox", { name: "Имя" }).fill("РАГ")
-  await browser.getByRole("textbox", { name: /^пароль$/i }).fill(password)
-  await browser.getByRole("textbox", { name: "Повторите пароль" }).fill(password)
-  await browser.getByRole("button", { name: "Зарегистрироваться" }).click()
+  await browser.goto('/sign-up')
+  await browser.getByRole('textbox', { name: 'Email' }).fill(email)
+  await browser.getByRole('textbox', { name: 'Фамилия' }).fill('Тестов')
+  await browser.getByRole('textbox', { name: 'Имя' }).fill('РАГ')
+  await browser.getByRole('textbox', { name: /^пароль$/i }).fill(password)
+  await browser.getByRole('textbox', { name: 'Повторите пароль' }).fill(password)
+  await browser.getByRole('button', { name: 'Зарегистрироваться' }).click()
   await browser.waitForURL(/\/workspaces\/new/)
 
   await expect
@@ -1847,10 +1930,10 @@ test("rag grounds answer in indexed page", async ({ page: browser }) => {
   })
 
   // seed AI settings with real default model (assumes Prisma seed created GigaChat provider+model)
-  const provider = await prisma.aiProvider.findFirst({ where: { slug: "gigachat" } })
-  const model = await prisma.aiModel.findFirst({ where: { slug: "gigachat-2" } })
+  const provider = await prisma.aiProvider.findFirst({ where: { slug: 'gigachat' } })
+  const model = await prisma.aiModel.findFirst({ where: { slug: 'gigachat-2' } })
   if (!provider || !model) {
-    throw new Error("GigaChat provider/model not seeded; run `pnpm --filter @repo/db prisma:seed`")
+    throw new Error('GigaChat provider/model not seeded; run `pnpm --filter @repo/db prisma:seed`')
   }
   await prisma.workspaceAiSettings.create({
     data: {
@@ -1866,13 +1949,15 @@ test("rag grounds answer in indexed page", async ({ page: browser }) => {
   const pageRow = await prisma.page.create({
     data: {
       workspaceId: workspace.id,
-      title: "Корпоративная кухня",
+      title: 'Корпоративная кухня',
       content: {
-        type: "doc",
+        type: 'doc',
         content: [
           {
-            type: "paragraph",
-            content: [{ type: "text", text: `Корпоративный кофе нашей компании называется "${MARKER}".` }],
+            type: 'paragraph',
+            content: [
+              { type: 'text', text: `Корпоративный кофе нашей компании называется "${MARKER}".` },
+            ],
           },
         ],
       },
@@ -1883,8 +1968,8 @@ test("rag grounds answer in indexed page", async ({ page: browser }) => {
   })
   await prisma.outboxEvent.create({
     data: {
-      eventType: "page.upserted",
-      aggregateType: "page",
+      eventType: 'page.upserted',
+      aggregateType: 'page',
       aggregateId: pageRow.id,
       workspaceId: workspace.id,
       payload: {},
@@ -1892,14 +1977,14 @@ test("rag grounds answer in indexed page", async ({ page: browser }) => {
   })
 
   // wait for indexing (outbox drainer runs every 5 s + embedding latency)
-  const enginesBase = process.env.ENGINES_SERVICE_URL ?? "http://localhost:8082"
+  const enginesBase = process.env.ENGINES_SERVICE_URL ?? 'http://localhost:8082'
   await expect
     .poll(
       async () => {
         const res = await fetch(`${enginesBase}/search/pages`, {
-          method: "POST",
-          headers: { "content-type": "application/json" },
-          body: JSON.stringify({ workspaceId: workspace.id, query: "корпоративный кофе" }),
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ workspaceId: workspace.id, query: 'корпоративный кофе' }),
         })
         if (!res.ok) return 0
         const body = (await res.json()) as { documents: Array<{ id: string }> }
@@ -1916,10 +2001,10 @@ test("rag grounds answer in indexed page", async ({ page: browser }) => {
   })
 
   await browser.goto(`/workspaces/${workspace.id}/chats/${chat.id}`)
-  const composer = browser.getByTestId("chat-composer-textarea")
+  const composer = browser.getByTestId('chat-composer-textarea')
   await expect(composer).toBeVisible()
-  await composer.fill("Как называется наш корпоративный кофе?")
-  await browser.getByRole("button", { name: "Send" }).click()
+  await composer.fill('Как называется наш корпоративный кофе?')
+  await browser.getByRole('button', { name: 'Send' }).click()
 
   // wait for streamed assistant message to include the marker
   await expect
@@ -1928,7 +2013,7 @@ test("rag grounds answer in indexed page", async ({ page: browser }) => {
         browser
           .locator('[role="article"]')
           .allInnerTexts()
-          .then((chunks) => chunks.join("\n")),
+          .then((chunks) => chunks.join('\n')),
       { timeout: 60_000, intervals: [1_000, 2_000] },
     )
     .toContain(MARKER)
@@ -1942,6 +2027,7 @@ test("rag grounds answer in indexed page", async ({ page: browser }) => {
 - [ ] **Step 2: Manually run all dev services**
 
 Prerequisite to run the test — all four apps dev servers and docker compose must be up:
+
 - `docker compose up -d`
 - `pnpm dev` (or per-app: web, engines, agents, yjs)
 
@@ -1951,6 +2037,7 @@ Run: `pnpm exec playwright test apps/e2e/rag.spec.ts --reporter=list`
 Expected: PASS (1 test, ~60-90 s).
 
 If the model answer does not contain `MARKER`, check:
+
 1. Engines logs — did the indexer mark the outbox event DONE?
 2. `POST /search/pages` manually — does it return the page?
 3. Network trace in browser — did the assistant message stream include the MARKER (i.e. did the prompt reach the LLM) or was it dropped?
@@ -1995,6 +2082,7 @@ git status
 - [ ] **Step 5: Summarise the change**
 
 In the final commit or PR description, note:
+
 - New endpoint `POST /search/pages` is internal-only (no auth)
 - `ENGINES_SERVICE_URL` must be set in apps/web env
 - `INDEXER_REINDEX_ON_BOOT=true` is a one-shot dev helper; disable after first boot on each dev machine

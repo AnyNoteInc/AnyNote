@@ -1,7 +1,7 @@
-import { notFound } from "next/navigation"
-import { prisma } from "@repo/db"
-import { requireSession } from "@/lib/get-session"
-import { OrderProgress } from "@/components/billing/order-progress"
+import { notFound } from 'next/navigation'
+import { prisma } from '@repo/db'
+import { requireSession } from '@/lib/get-session'
+import { OrderProgress } from '@/components/billing/order-progress'
 
 type Props = { searchParams: Promise<{ orderId?: string }> }
 

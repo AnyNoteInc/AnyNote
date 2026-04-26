@@ -1,6 +1,6 @@
-export { UnionLineEdge } from "./UnionLineEdge"
-export { UnionTrunkEdge } from "./UnionTrunkEdge"
-export { ChildEdge } from "./ChildEdge"
-export { BirthDiagonalEdge } from "./BirthDiagonalEdge"
-export { TwinHorizontalEdge } from "./TwinHorizontalEdge"
-export { DivorceMarker } from "./primitives/DivorceMarker"
+export { UnionLineEdge } from './UnionLineEdge'
+export { UnionTrunkEdge } from './UnionTrunkEdge'
+export { ChildEdge } from './ChildEdge'
+export { BirthDiagonalEdge } from './BirthDiagonalEdge'
+export { TwinHorizontalEdge } from './TwinHorizontalEdge'
+export { DivorceMarker } from './primitives/DivorceMarker'

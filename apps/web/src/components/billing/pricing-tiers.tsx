@@ -3,15 +3,7 @@
 import { useEffect, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 
-import {
-  Box,
-  Button,
-  Chip,
-  Divider,
-  Paper,
-  Stack,
-  Typography,
-} from '@repo/ui/components'
+import { Box, Button, Chip, Divider, Paper, Stack, Typography } from '@repo/ui/components'
 
 import { CheckoutModal } from './checkout-modal'
 

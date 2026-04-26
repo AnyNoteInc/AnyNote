@@ -653,78 +653,78 @@ Add to `packages/db/package.json` (merge with existing fields, do not overwrite)
 - [ ] **Step 8.3 — Write `packages/db/prisma/seed.ts`**
 
 ```ts
-import { PrismaClient } from "@prisma/client"
+import { PrismaClient } from '@prisma/client'
 
 const prisma = new PrismaClient()
 
 const providers = [
   {
-    slug: "yandex",
-    name: "Yandex",
-    scope: "USER" as const,
+    slug: 'yandex',
+    name: 'Yandex',
+    scope: 'USER' as const,
     sortOrder: 10,
-    description: "Личный аккаунт Яндекс (диск, почта, календарь)",
+    description: 'Личный аккаунт Яндекс (диск, почта, календарь)',
   },
   {
-    slug: "github",
-    name: "GitHub",
-    scope: "USER" as const,
+    slug: 'github',
+    name: 'GitHub',
+    scope: 'USER' as const,
     sortOrder: 20,
-    description: "Личный GitHub — репозитории, issues, PR",
+    description: 'Личный GitHub — репозитории, issues, PR',
   },
   {
-    slug: "telegram",
-    name: "Telegram",
-    scope: "USER" as const,
+    slug: 'telegram',
+    name: 'Telegram',
+    scope: 'USER' as const,
     sortOrder: 30,
-    description: "Личный Telegram для уведомлений",
+    description: 'Личный Telegram для уведомлений',
   },
   {
-    slug: "amocrm",
-    name: "AmoCRM",
-    scope: "WORKSPACE" as const,
+    slug: 'amocrm',
+    name: 'AmoCRM',
+    scope: 'WORKSPACE' as const,
     sortOrder: 40,
-    description: "CRM для workspace — сделки, контакты",
+    description: 'CRM для workspace — сделки, контакты',
   },
   {
-    slug: "mango_office",
-    name: "MangoOffice",
-    scope: "WORKSPACE" as const,
+    slug: 'mango_office',
+    name: 'MangoOffice',
+    scope: 'WORKSPACE' as const,
     sortOrder: 50,
-    description: "Облачная телефония MangoOffice",
+    description: 'Облачная телефония MangoOffice',
   },
 ]
 
 const plans = [
   {
-    slug: "free",
-    name: "Free",
+    slug: 'free',
+    name: 'Free',
     priceMonthly: 0,
     maxWorkspaces: 1,
     maxMembersPerWorkspace: 1,
     sortOrder: 10,
-    description: "Одно пространство, базовые возможности",
-    features: ["Одно пространство", "Базовый редактор"],
+    description: 'Одно пространство, базовые возможности',
+    features: ['Одно пространство', 'Базовый редактор'],
   },
   {
-    slug: "personal",
-    name: "Personal",
+    slug: 'personal',
+    name: 'Personal',
     priceMonthly: 39000,
     maxWorkspaces: 5,
     maxMembersPerWorkspace: 1,
     sortOrder: 20,
-    description: "Для личных проектов и фриланса",
-    features: ["5 пространств", "История версий", "AI поиск"],
+    description: 'Для личных проектов и фриланса',
+    features: ['5 пространств', 'История версий', 'AI поиск'],
   },
   {
-    slug: "corporate",
-    name: "Corporate",
+    slug: 'corporate',
+    name: 'Corporate',
     priceMonthly: 149000,
     maxWorkspaces: null,
     maxMembersPerWorkspace: null,
     sortOrder: 30,
-    description: "Для команд и компаний",
-    features: ["∞ пространств", "Команды", "SSO", "Приоритетная поддержка"],
+    description: 'Для команд и компаний',
+    features: ['∞ пространств', 'Команды', 'SSO', 'Приоритетная поддержка'],
   },
 ]
 
@@ -751,7 +751,7 @@ async function main() {
       },
     })
   }
-  console.info("Seed complete: 5 providers, 3 plans")
+  console.info('Seed complete: 5 providers, 3 plans')
 }
 
 main()
@@ -849,10 +849,10 @@ git commit -m "feat(auth): create FREE subscription and preferences on user sign
 - [ ] **Step 10.1 — Create `packages/trpc/src/trpc.ts`**
 
 ```ts
-import { initTRPC, TRPCError } from "@trpc/server"
+import { initTRPC, TRPCError } from '@trpc/server'
 
-import { prisma } from "@repo/db"
-import { getUserFromRequest } from "@repo/auth"
+import { prisma } from '@repo/db'
+import { getUserFromRequest } from '@repo/auth'
 
 type CreateContextOptions = {
   req: Request
@@ -871,7 +871,7 @@ export const createContext = async ({ req, resHeaders }: CreateContextOptions) =
 
 export const createServerContext = async (headers: Headers) => {
   return createContext({
-    req: new Request("http://rsc.internal", { headers }),
+    req: new Request('http://rsc.internal', { headers }),
     resHeaders: new Headers(),
   })
 }
@@ -886,7 +886,7 @@ export const createCallerFactory = t.createCallerFactory
 
 export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
   if (!ctx.user) {
-    throw new TRPCError({ code: "UNAUTHORIZED", message: "Session required" })
+    throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Session required' })
   }
   return next({ ctx: { ...ctx, user: ctx.user } })
 })
@@ -897,9 +897,9 @@ export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
 Replace the top of `packages/trpc/src/index.ts` with:
 
 ```ts
-import { router, publicProcedure, createCallerFactory } from "./trpc"
-export { createContext, createServerContext } from "./trpc"
-export type { Context } from "./trpc"
+import { router, publicProcedure, createCallerFactory } from './trpc'
+export { createContext, createServerContext } from './trpc'
+export type { Context } from './trpc'
 ```
 
 Leave the existing `appRouter = t.router({ ... })` definition below for now — it will be replaced in Task 14. Just swap local `t.router` / `t.procedure` references to `router` / `publicProcedure` so the file still compiles.
@@ -931,13 +931,13 @@ git commit -m "refactor(trpc): extract base into trpc.ts with protectedProcedure
 - [ ] **Step 11.1 — Write the helper**
 
 ```ts
-import type { PrismaClient } from "@prisma/client"
+import type { PrismaClient } from '@prisma/client'
 
 export async function getActivePlanForUser(prisma: PrismaClient, userId: string) {
   const subscription = await prisma.subscription.findFirst({
-    where: { userId, status: { in: ["TRIAL", "ACTIVE", "PAST_DUE"] } },
+    where: { userId, status: { in: ['TRIAL', 'ACTIVE', 'PAST_DUE'] } },
     include: { plan: true },
-    orderBy: { startedAt: "desc" },
+    orderBy: { startedAt: 'desc' },
   })
   if (!subscription) {
     throw new Error(`User ${userId} has no active subscription`)
@@ -972,12 +972,12 @@ git commit -m "feat(trpc): add getActivePlanForUser helper"
 - [ ] **Step 12.1 — Write the router**
 
 ```ts
-import { z } from "zod"
-import { TRPCError } from "@trpc/server"
+import { z } from 'zod'
+import { TRPCError } from '@trpc/server'
 
-import { router, protectedProcedure } from "../trpc"
+import { router, protectedProcedure } from '../trpc'
 
-const ThemeSchema = z.enum(["light", "dark", "system"])
+const ThemeSchema = z.enum(['light', 'dark', 'system'])
 
 const NotificationSettingsSchema = z.object({
   email: z.object({
@@ -1035,7 +1035,7 @@ export const userRouter = router({
   listSessions: protectedProcedure.query(async ({ ctx }) => {
     return ctx.prisma.session.findMany({
       where: { userId: ctx.user.id, expiresAt: { gt: new Date() } },
-      orderBy: { updatedAt: "desc" },
+      orderBy: { updatedAt: 'desc' },
       select: {
         id: true,
         token: true,
@@ -1055,7 +1055,7 @@ export const userRouter = router({
         where: { id: input.sessionId },
       })
       if (!session || session.userId !== ctx.user.id) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Session not found" })
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Session not found' })
       }
       await ctx.prisma.session.delete({ where: { id: input.sessionId } })
       return { ok: true }
@@ -1091,11 +1091,11 @@ git commit -m "feat(trpc): add userRouter (preferences, sessions, profile)"
 - [ ] **Step 13.1 — `workspace.ts`**
 
 ```ts
-import { z } from "zod"
-import { TRPCError } from "@trpc/server"
+import { z } from 'zod'
+import { TRPCError } from '@trpc/server'
 
-import { router, protectedProcedure } from "../trpc"
-import { getActivePlanForUser } from "../helpers/plan"
+import { router, protectedProcedure } from '../trpc'
+import { getActivePlanForUser } from '../helpers/plan'
 
 export const workspaceRouter = router({
   create: protectedProcedure
@@ -1109,11 +1109,11 @@ export const workspaceRouter = router({
       const { plan } = await getActivePlanForUser(ctx.prisma, ctx.user.id)
       if (plan.maxWorkspaces !== null) {
         const owned = await ctx.prisma.workspaceMember.count({
-          where: { userId: ctx.user.id, role: "OWNER" },
+          where: { userId: ctx.user.id, role: 'OWNER' },
         })
         if (owned >= plan.maxWorkspaces) {
           throw new TRPCError({
-            code: "FORBIDDEN",
+            code: 'FORBIDDEN',
             message: `На тарифе ${plan.name} можно создать не больше ${plan.maxWorkspaces} пространств`,
           })
         }
@@ -1124,7 +1124,7 @@ export const workspaceRouter = router({
           data: { name: input.name, icon: input.icon, createdById: ctx.user.id },
         })
         await tx.workspaceMember.create({
-          data: { workspaceId: workspace.id, userId: ctx.user.id, role: "OWNER" },
+          data: { workspaceId: workspace.id, userId: ctx.user.id, role: 'OWNER' },
         })
         await tx.userPreference.upsert({
           where: { userId: ctx.user.id },
@@ -1149,7 +1149,7 @@ export const workspaceRouter = router({
   listMine: protectedProcedure.query(async ({ ctx }) => {
     return ctx.prisma.workspace.findMany({
       where: { members: { some: { userId: ctx.user.id } } },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: 'asc' },
     })
   }),
 
@@ -1166,8 +1166,8 @@ export const workspaceRouter = router({
 - [ ] **Step 13.2 — `subscription.ts`**
 
 ```ts
-import { router, protectedProcedure } from "../trpc"
-import { getActivePlanForUser } from "../helpers/plan"
+import { router, protectedProcedure } from '../trpc'
+import { getActivePlanForUser } from '../helpers/plan'
 
 export const subscriptionRouter = router({
   getCurrent: protectedProcedure.query(async ({ ctx }) => {
@@ -1178,7 +1178,7 @@ export const subscriptionRouter = router({
     return ctx.prisma.subscription.findMany({
       where: { userId: ctx.user.id },
       include: { plan: true },
-      orderBy: { startedAt: "desc" },
+      orderBy: { startedAt: 'desc' },
     })
   }),
 })
@@ -1187,18 +1187,18 @@ export const subscriptionRouter = router({
 - [ ] **Step 13.3 — `integration.ts`**
 
 ```ts
-import { z } from "zod"
-import { TRPCError } from "@trpc/server"
+import { z } from 'zod'
+import { TRPCError } from '@trpc/server'
 
-import { router, protectedProcedure } from "../trpc"
+import { router, protectedProcedure } from '../trpc'
 
-const ScopeSchema = z.enum(["USER", "WORKSPACE"])
+const ScopeSchema = z.enum(['USER', 'WORKSPACE'])
 
 export const integrationRouter = router({
   listProviders: protectedProcedure.query(async ({ ctx }) => {
     return ctx.prisma.integrationProvider.findMany({
       where: { isEnabled: true },
-      orderBy: { sortOrder: "asc" },
+      orderBy: { sortOrder: 'asc' },
     })
   }),
 
@@ -1208,12 +1208,12 @@ export const integrationRouter = router({
       return ctx.prisma.integration.findMany({
         where: {
           OR: [
-            { scope: "USER", userId: ctx.user.id },
+            { scope: 'USER', userId: ctx.user.id },
             ...(input.workspaceId
-              ? [{ scope: "WORKSPACE" as const, workspaceId: input.workspaceId }]
+              ? [{ scope: 'WORKSPACE' as const, workspaceId: input.workspaceId }]
               : []),
           ],
-          status: { in: ["PENDING", "CONNECTED", "ERROR"] },
+          status: { in: ['PENDING', 'CONNECTED', 'ERROR'] },
         },
         include: { provider: true },
       })
@@ -1228,25 +1228,25 @@ export const integrationRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      if (input.scope === "WORKSPACE" && !input.workspaceId) {
+      if (input.scope === 'WORKSPACE' && !input.workspaceId) {
         throw new TRPCError({
-          code: "BAD_REQUEST",
-          message: "workspaceId required for WORKSPACE scope",
+          code: 'BAD_REQUEST',
+          message: 'workspaceId required for WORKSPACE scope',
         })
       }
-      if (input.scope === "WORKSPACE") {
+      if (input.scope === 'WORKSPACE') {
         const member = await ctx.prisma.workspaceMember.findUnique({
           where: { workspaceId_userId: { workspaceId: input.workspaceId!, userId: ctx.user.id } },
         })
-        if (!member) throw new TRPCError({ code: "FORBIDDEN" })
+        if (!member) throw new TRPCError({ code: 'FORBIDDEN' })
       }
       return ctx.prisma.integration.create({
         data: {
           providerId: input.providerId,
           scope: input.scope,
-          userId: input.scope === "USER" ? ctx.user.id : null,
-          workspaceId: input.scope === "WORKSPACE" ? input.workspaceId : null,
-          status: "PENDING",
+          userId: input.scope === 'USER' ? ctx.user.id : null,
+          workspaceId: input.scope === 'WORKSPACE' ? input.workspaceId : null,
+          status: 'PENDING',
         },
       })
     }),
@@ -1257,22 +1257,22 @@ export const integrationRouter = router({
       const integration = await ctx.prisma.integration.findUnique({
         where: { id: input.integrationId },
       })
-      if (!integration) throw new TRPCError({ code: "NOT_FOUND" })
+      if (!integration) throw new TRPCError({ code: 'NOT_FOUND' })
       // Authorization: user must own it or be a member of the workspace.
-      if (integration.scope === "USER" && integration.userId !== ctx.user.id) {
-        throw new TRPCError({ code: "FORBIDDEN" })
+      if (integration.scope === 'USER' && integration.userId !== ctx.user.id) {
+        throw new TRPCError({ code: 'FORBIDDEN' })
       }
-      if (integration.scope === "WORKSPACE") {
+      if (integration.scope === 'WORKSPACE') {
         const member = await ctx.prisma.workspaceMember.findUnique({
           where: {
             workspaceId_userId: { workspaceId: integration.workspaceId!, userId: ctx.user.id },
           },
         })
-        if (!member) throw new TRPCError({ code: "FORBIDDEN" })
+        if (!member) throw new TRPCError({ code: 'FORBIDDEN' })
       }
       return ctx.prisma.integration.update({
         where: { id: input.integrationId },
-        data: { status: "DISCONNECTED" },
+        data: { status: 'DISCONNECTED' },
       })
     }),
 })
@@ -1306,14 +1306,14 @@ git commit -m "feat(trpc): add workspace, subscription, integration routers"
 Replace the entire contents of `packages/trpc/src/index.ts` with:
 
 ```ts
-import { router, publicProcedure, createCallerFactory } from "./trpc"
-import { userRouter } from "./routers/user"
-import { workspaceRouter } from "./routers/workspace"
-import { subscriptionRouter } from "./routers/subscription"
-import { integrationRouter } from "./routers/integration"
+import { router, publicProcedure, createCallerFactory } from './trpc'
+import { userRouter } from './routers/user'
+import { workspaceRouter } from './routers/workspace'
+import { subscriptionRouter } from './routers/subscription'
+import { integrationRouter } from './routers/integration'
 
-export { createContext, createServerContext } from "./trpc"
-export type { Context } from "./trpc"
+export { createContext, createServerContext } from './trpc'
+export type { Context } from './trpc'
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ ok: true })),
@@ -1354,10 +1354,10 @@ git commit -m "refactor(trpc): assemble appRouter from namespaced routers"
 - [ ] **Step 15.1 — Write the layout**
 
 ```tsx
-import type { ReactNode } from "react"
+import type { ReactNode } from 'react'
 
-import { requireSession } from "@/lib/get-session"
-import { TRPCReactProvider } from "@/trpc/client"
+import { requireSession } from '@/lib/get-session'
+import { TRPCReactProvider } from '@/trpc/client'
 
 export default async function ProtectedLayout({ children }: { children: ReactNode }) {
   await requireSession()
@@ -1392,13 +1392,13 @@ git commit -m "feat(web): add (protected) route group with auth gate and tRPC pr
 - [ ] **Step 16.1 — Write the new `/app` page (pure redirect)**
 
 ```tsx
-import { redirect } from "next/navigation"
+import { redirect } from 'next/navigation'
 
-import { getServerTRPC } from "@/trpc/server"
+import { getServerTRPC } from '@/trpc/server'
 
 export default async function AppIndexPage() {
   const defaultWorkspace = await (await getServerTRPC()).workspace.getDefault()
-  if (!defaultWorkspace) redirect("/workspaces/new")
+  if (!defaultWorkspace) redirect('/workspaces/new')
   redirect(`/workspaces/${defaultWorkspace.id}`)
 }
 ```
@@ -1438,18 +1438,18 @@ git commit -m "refactor(web): move /app into (protected) as redirect to workspac
 - [ ] **Step 17.1 — `settings-nav.tsx` (client)**
 
 ```tsx
-"use client"
+'use client'
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
-import { Box, Stack, Typography } from "@repo/ui/components"
+import { Box, Stack, Typography } from '@repo/ui/components'
 
 const items = [
-  { href: "/settings/general", label: "Общее", icon: "⚙" },
-  { href: "/settings/account", label: "Аккаунт", icon: "◉" },
-  { href: "/settings/billing", label: "Оплата", icon: "💳" },
-  { href: "/settings/integrations", label: "Интеграции", icon: "⇌" },
+  { href: '/settings/general', label: 'Общее', icon: '⚙' },
+  { href: '/settings/account', label: 'Аккаунт', icon: '◉' },
+  { href: '/settings/billing', label: 'Оплата', icon: '💳' },
+  { href: '/settings/integrations', label: 'Интеграции', icon: '⇌' },
 ]
 
 export function SettingsNav() {
@@ -1464,17 +1464,17 @@ export function SettingsNav() {
             component={Link}
             href={item.href}
             sx={{
-              display: "flex",
-              alignItems: "center",
+              display: 'flex',
+              alignItems: 'center',
               gap: 1.25,
               px: 1.25,
               py: 1,
               borderRadius: 1,
-              textDecoration: "none",
-              color: active ? "text.primary" : "text.secondary",
+              textDecoration: 'none',
+              color: active ? 'text.primary' : 'text.secondary',
               fontWeight: active ? 600 : 400,
-              backgroundColor: active ? "action.selected" : "transparent",
-              "&:hover": { backgroundColor: "action.hover" },
+              backgroundColor: active ? 'action.selected' : 'transparent',
+              '&:hover': { backgroundColor: 'action.hover' },
             }}
           >
             <Typography component="span" sx={{ fontSize: 16 }}>
@@ -1492,13 +1492,13 @@ export function SettingsNav() {
 - [ ] **Step 17.2 — `settings/layout.tsx`**
 
 ```tsx
-import type { ReactNode } from "react"
-import Link from "next/link"
+import type { ReactNode } from 'react'
+import Link from 'next/link'
 
-import { Box, Container, Paper, Stack, Typography } from "@repo/ui/components"
+import { Box, Container, Paper, Stack, Typography } from '@repo/ui/components'
 
-import { SettingsNav } from "@/components/settings/settings-nav"
-import { getSession } from "@/lib/get-session"
+import { SettingsNav } from '@/components/settings/settings-nav'
+import { getSession } from '@/lib/get-session'
 
 export default async function SettingsLayout({ children }: { children: ReactNode }) {
   const session = await getSession()
@@ -1508,8 +1508,8 @@ export default async function SettingsLayout({ children }: { children: ReactNode
     <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}>
       <Box
         sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "260px minmax(0, 1fr)" },
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '260px minmax(0, 1fr)' },
           gap: { xs: 3, md: 4 },
         }}
       >
@@ -1518,10 +1518,10 @@ export default async function SettingsLayout({ children }: { children: ReactNode
           sx={{
             p: 2,
             borderRadius: 2,
-            border: "1px solid",
-            borderColor: "divider",
-            alignSelf: "start",
-            position: { md: "sticky" },
+            border: '1px solid',
+            borderColor: 'divider',
+            alignSelf: 'start',
+            position: { md: 'sticky' },
             top: { md: 24 },
           }}
         >
@@ -1530,12 +1530,12 @@ export default async function SettingsLayout({ children }: { children: ReactNode
               component={Link}
               href="/app"
               sx={{
-                display: "flex",
-                alignItems: "center",
+                display: 'flex',
+                alignItems: 'center',
                 gap: 1,
-                color: "text.secondary",
+                color: 'text.secondary',
                 fontSize: 13,
-                textDecoration: "none",
+                textDecoration: 'none',
               }}
             >
               <span>←</span>
@@ -1545,14 +1545,14 @@ export default async function SettingsLayout({ children }: { children: ReactNode
               direction="row"
               spacing={1.25}
               alignItems="center"
-              sx={{ pb: 2, borderBottom: "1px solid", borderColor: "divider" }}
+              sx={{ pb: 2, borderBottom: '1px solid', borderColor: 'divider' }}
             >
               <Box
                 sx={{
                   width: 34,
                   height: 34,
-                  borderRadius: "50%",
-                  background: "linear-gradient(135deg,#0f766e,#155e75)",
+                  borderRadius: '50%',
+                  background: 'linear-gradient(135deg,#0f766e,#155e75)',
                 }}
               />
               <Stack spacing={0}>
@@ -1608,13 +1608,13 @@ git commit -m "feat(web): add settings layout with 2-pane shell and left nav"
 - [ ] **Step 18.1 — `profile-section.tsx` (client)**
 
 ```tsx
-"use client"
+'use client'
 
-import { useState } from "react"
+import { useState } from 'react'
 
-import { Box, Button, Stack, TextField, Typography } from "@repo/ui/components"
+import { Box, Button, Stack, TextField, Typography } from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
 type Props = {
   initial: {
@@ -1634,11 +1634,11 @@ export function ProfileSection({ initial }: Props) {
   return (
     <Box
       sx={{
-        border: "1px solid",
-        borderColor: "divider",
+        border: '1px solid',
+        borderColor: 'divider',
         borderRadius: 2,
         p: { xs: 2.5, md: 3 },
-        backgroundColor: "background.paper",
+        backgroundColor: 'background.paper',
       }}
     >
       <Typography variant="subtitle1" fontWeight={700}>
@@ -1652,8 +1652,8 @@ export function ProfileSection({ initial }: Props) {
           sx={{
             width: 60,
             height: 60,
-            borderRadius: "50%",
-            background: "linear-gradient(135deg,#0f766e,#155e75)",
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg,#0f766e,#155e75)',
           }}
         />
         <Stack direction="row" spacing={1}>
@@ -1665,7 +1665,7 @@ export function ProfileSection({ initial }: Props) {
           </Button>
         </Stack>
       </Stack>
-      <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, mb: 2 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
         <TextField
           label="Имя"
           size="small"
@@ -1690,11 +1690,11 @@ export function ProfileSection({ initial }: Props) {
             borderRadius: 10,
             fontSize: 10,
             fontWeight: 600,
-            color: initial.emailVerified ? "success.dark" : "warning.dark",
-            backgroundColor: initial.emailVerified ? "success.light" : "warning.light",
+            color: initial.emailVerified ? 'success.dark' : 'warning.dark',
+            backgroundColor: initial.emailVerified ? 'success.light' : 'warning.light',
           }}
         >
-          {initial.emailVerified ? "Подтверждён" : "Не подтверждён"}
+          {initial.emailVerified ? 'Подтверждён' : 'Не подтверждён'}
         </Box>
       </Stack>
       <Stack direction="row" spacing={1}>
@@ -1708,10 +1708,10 @@ export function ProfileSection({ initial }: Props) {
           Изменить
         </Button>
       </Stack>
-      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
         Смена email потребует повторного подтверждения по ссылке
       </Typography>
-      <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
         <Button
           variant="contained"
           size="small"
@@ -1729,40 +1729,40 @@ export function ProfileSection({ initial }: Props) {
 - [ ] **Step 18.2 — `theme-section.tsx` (client)**
 
 ```tsx
-"use client"
+'use client'
 
-import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 
-import { Box, Stack, Typography } from "@repo/ui/components"
+import { Box, Stack, Typography } from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
-type Theme = "light" | "dark" | "system"
+type Theme = 'light' | 'dark' | 'system'
 
 const options: Array<{ value: Theme; label: string; preview: React.CSSProperties }> = [
   {
-    value: "light",
-    label: "Светлая",
-    preview: { background: "#fff", border: "1px solid #e5e7eb" },
+    value: 'light',
+    label: 'Светлая',
+    preview: { background: '#fff', border: '1px solid #e5e7eb' },
   },
   {
-    value: "dark",
-    label: "Тёмная",
-    preview: { background: "#0c0d10", border: "1px solid #1e2024" },
+    value: 'dark',
+    label: 'Тёмная',
+    preview: { background: '#0c0d10', border: '1px solid #1e2024' },
   },
   {
-    value: "system",
-    label: "Системная",
+    value: 'system',
+    label: 'Системная',
     preview: {
-      background: "linear-gradient(90deg,#fff 50%,#0c0d10 50%)",
-      border: "1px solid #d1d5db",
+      background: 'linear-gradient(90deg,#fff 50%,#0c0d10 50%)',
+      border: '1px solid #d1d5db',
     },
   },
 ]
 
 export function ThemeSection({ initial }: { initial: Theme | null }) {
-  const [selected, setSelected] = useState<Theme>(initial ?? "system")
+  const [selected, setSelected] = useState<Theme>(initial ?? 'system')
   const setTheme = trpc.user.setTheme.useMutation()
   const router = useRouter()
 
@@ -1779,11 +1779,11 @@ export function ThemeSection({ initial }: { initial: Theme | null }) {
   return (
     <Box
       sx={{
-        border: "1px solid",
-        borderColor: "divider",
+        border: '1px solid',
+        borderColor: 'divider',
         borderRadius: 2,
         p: { xs: 2.5, md: 3 },
-        backgroundColor: "background.paper",
+        backgroundColor: 'background.paper',
       }}
     >
       <Typography variant="subtitle1" fontWeight={700}>
@@ -1803,10 +1803,10 @@ export function ThemeSection({ initial }: { initial: Theme | null }) {
                 flex: 1,
                 p: 1.5,
                 borderRadius: 1.5,
-                border: active ? "2px solid" : "1px solid",
-                borderColor: active ? "primary.main" : "divider",
-                cursor: "pointer",
-                textAlign: "center",
+                border: active ? '2px solid' : '1px solid',
+                borderColor: active ? 'primary.main' : 'divider',
+                cursor: 'pointer',
+                textAlign: 'center',
               }}
             >
               <Box sx={{ height: 36, borderRadius: 1, mb: 1, ...opt.preview }} />
@@ -1825,13 +1825,13 @@ export function ThemeSection({ initial }: { initial: Theme | null }) {
 - [ ] **Step 18.3 — `notifications-section.tsx` (client)**
 
 ```tsx
-"use client"
+'use client'
 
-import { useState } from "react"
+import { useState } from 'react'
 
-import { Box, Stack, Switch, Typography } from "@repo/ui/components"
+import { Box, Stack, Switch, Typography } from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
 type NotificationSettings = {
   email: { mentions: boolean; comments: boolean; weeklyDigest: boolean }
@@ -1846,7 +1846,7 @@ export function NotificationsSection({ initial }: { initial: NotificationSetting
   const mutate = trpc.user.setNotificationSettings.useMutation()
 
   const toggle =
-    (key: keyof NotificationSettings["email"]) => async (_: unknown, checked: boolean) => {
+    (key: keyof NotificationSettings['email']) => async (_: unknown, checked: boolean) => {
       const next: NotificationSettings = {
         email: { ...value.email, [key]: checked },
       }
@@ -1856,30 +1856,30 @@ export function NotificationsSection({ initial }: { initial: NotificationSetting
 
   const rows = [
     {
-      key: "mentions" as const,
-      title: "Упоминания",
-      desc: "Когда вас упоминают в странице или комментарии",
+      key: 'mentions' as const,
+      title: 'Упоминания',
+      desc: 'Когда вас упоминают в странице или комментарии',
     },
     {
-      key: "comments" as const,
-      title: "Комментарии",
-      desc: "Новые комментарии в документах, где вы участник",
+      key: 'comments' as const,
+      title: 'Комментарии',
+      desc: 'Новые комментарии в документах, где вы участник',
     },
     {
-      key: "weeklyDigest" as const,
-      title: "Еженедельный дайджест",
-      desc: "Сводка активности раз в неделю",
+      key: 'weeklyDigest' as const,
+      title: 'Еженедельный дайджест',
+      desc: 'Сводка активности раз в неделю',
     },
   ]
 
   return (
     <Box
       sx={{
-        border: "1px solid",
-        borderColor: "divider",
+        border: '1px solid',
+        borderColor: 'divider',
         borderRadius: 2,
         p: { xs: 2.5, md: 3 },
-        backgroundColor: "background.paper",
+        backgroundColor: 'background.paper',
       }}
     >
       <Typography variant="subtitle1" fontWeight={700}>
@@ -1897,8 +1897,8 @@ export function NotificationsSection({ initial }: { initial: NotificationSetting
             justifyContent="space-between"
             sx={{
               py: 1,
-              borderBottom: i < rows.length - 1 ? "1px solid" : "none",
-              borderColor: "divider",
+              borderBottom: i < rows.length - 1 ? '1px solid' : 'none',
+              borderColor: 'divider',
             }}
           >
             <Stack spacing={0.25}>
@@ -1921,15 +1921,15 @@ export function NotificationsSection({ initial }: { initial: NotificationSetting
 - [ ] **Step 18.4 — `settings/general/page.tsx`**
 
 ```tsx
-import { Stack, Typography } from "@repo/ui/components"
+import { Stack, Typography } from '@repo/ui/components'
 
-import { NotificationsSection } from "@/components/settings/notifications-section"
-import { ProfileSection } from "@/components/settings/profile-section"
-import { ThemeSection } from "@/components/settings/theme-section"
-import { getSession } from "@/lib/get-session"
-import { getServerTRPC } from "@/trpc/server"
+import { NotificationsSection } from '@/components/settings/notifications-section'
+import { ProfileSection } from '@/components/settings/profile-section'
+import { ThemeSection } from '@/components/settings/theme-section'
+import { getSession } from '@/lib/get-session'
+import { getServerTRPC } from '@/trpc/server'
 
-export const metadata = { title: "Общее · Настройки" }
+export const metadata = { title: 'Общее · Настройки' }
 
 export default async function GeneralSettingsPage() {
   const session = await getSession()
@@ -1959,7 +1959,7 @@ export default async function GeneralSettingsPage() {
           image: user.image ?? null,
         }}
       />
-      <ThemeSection initial={(prefs?.theme as "light" | "dark" | "system" | null) ?? null} />
+      <ThemeSection initial={(prefs?.theme as 'light' | 'dark' | 'system' | null) ?? null} />
       <NotificationsSection
         initial={(prefs?.notificationSettings as NotificationSettings | null) ?? null}
       />
@@ -1998,27 +1998,27 @@ git commit -m "feat(web): /settings/general page with profile, theme, notificati
 
 ```ts
 export function parseUserAgent(ua: string | null | undefined): { browser: string; os: string } {
-  if (!ua) return { browser: "Unknown", os: "Unknown" }
+  if (!ua) return { browser: 'Unknown', os: 'Unknown' }
   const browser = /Edg/.test(ua)
-    ? "Edge"
+    ? 'Edge'
     : /Chrome/.test(ua)
-      ? "Chrome"
+      ? 'Chrome'
       : /Firefox/.test(ua)
-        ? "Firefox"
+        ? 'Firefox'
         : /Safari/.test(ua)
-          ? "Safari"
-          : "Unknown"
+          ? 'Safari'
+          : 'Unknown'
   const os = /Windows/.test(ua)
-    ? "Windows"
+    ? 'Windows'
     : /Mac OS X|Macintosh/.test(ua)
-      ? "macOS"
+      ? 'macOS'
       : /iPhone|iPad/.test(ua)
-        ? "iOS"
+        ? 'iOS'
         : /Android/.test(ua)
-          ? "Android"
+          ? 'Android'
           : /Linux/.test(ua)
-            ? "Linux"
-            : "Unknown"
+            ? 'Linux'
+            : 'Unknown'
   return { browser, os }
 }
 ```
@@ -2026,13 +2026,13 @@ export function parseUserAgent(ua: string | null | undefined): { browser: string
 - [ ] **Step 19.2 — `sign-out-button.tsx`**
 
 ```tsx
-"use client"
+'use client'
 
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 
-import { Button } from "@repo/ui/components"
+import { Button } from '@repo/ui/components'
 
-import { authClient } from "@/lib/auth-client"
+import { authClient } from '@/lib/auth-client'
 
 export function SignOutButton() {
   const router = useRouter()
@@ -2042,7 +2042,7 @@ export function SignOutButton() {
       color="error"
       onClick={async () => {
         await authClient.signOut()
-        router.push("/sign-in")
+        router.push('/sign-in')
       }}
     >
       Выйти из системы
@@ -2054,9 +2054,9 @@ export function SignOutButton() {
 - [ ] **Step 19.3 — `sessions-table.tsx`**
 
 ```tsx
-"use client"
+'use client'
 
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 
 import {
   Box,
@@ -2069,10 +2069,10 @@ import {
   TableHead,
   TableRow,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { parseUserAgent } from "@/lib/parse-user-agent"
-import { trpc } from "@/trpc/client"
+import { parseUserAgent } from '@/lib/parse-user-agent'
+import { trpc } from '@/trpc/client'
 
 type Props = {
   currentSessionId: string
@@ -2081,7 +2081,7 @@ type Props = {
 function formatRelative(date: Date): string {
   const diff = Date.now() - date.getTime()
   const minutes = Math.floor(diff / 60000)
-  if (minutes < 1) return "только что"
+  if (minutes < 1) return 'только что'
   if (minutes < 60) return `${minutes} мин назад`
   const hours = Math.floor(minutes / 60)
   if (hours < 24) return `${hours} ч назад`
@@ -2104,7 +2104,7 @@ export function SessionsTable({ currentSessionId }: Props) {
     return <Typography color="text.secondary">Нет активных сессий</Typography>
 
   return (
-    <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, overflow: "hidden" }}>
+    <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
       <Table size="small">
         <TableHead>
           <TableRow>
@@ -2128,7 +2128,7 @@ export function SessionsTable({ currentSessionId }: Props) {
                     {isCurrent && <Chip size="small" label="Эта сессия" color="primary" />}
                   </Stack>
                 </TableCell>
-                <TableCell>{session.ipAddress ?? "—"}</TableCell>
+                <TableCell>{session.ipAddress ?? '—'}</TableCell>
                 <TableCell>{formatRelative(new Date(session.updatedAt))}</TableCell>
                 <TableCell align="right">
                   {isCurrent ? null : (
@@ -2155,13 +2155,13 @@ export function SessionsTable({ currentSessionId }: Props) {
 - [ ] **Step 19.4 — `settings/account/page.tsx`**
 
 ```tsx
-import { Stack, Typography } from "@repo/ui/components"
+import { Stack, Typography } from '@repo/ui/components'
 
-import { SessionsTable } from "@/components/settings/sessions-table"
-import { SignOutButton } from "@/components/settings/sign-out-button"
-import { getSession } from "@/lib/get-session"
+import { SessionsTable } from '@/components/settings/sessions-table'
+import { SignOutButton } from '@/components/settings/sign-out-button'
+import { getSession } from '@/lib/get-session'
 
-export const metadata = { title: "Аккаунт · Настройки" }
+export const metadata = { title: 'Аккаунт · Настройки' }
 
 export default async function AccountSettingsPage() {
   const session = await getSession()
@@ -2217,7 +2217,7 @@ git commit -m "feat(web): /settings/account with sign out and sessions table"
 - [ ] **Step 20.1 — `current-plan-card.tsx`**
 
 ```tsx
-import { Box, Button, Chip, Stack, Typography } from "@repo/ui/components"
+import { Box, Button, Chip, Stack, Typography } from '@repo/ui/components'
 
 type Plan = {
   name: string
@@ -2235,9 +2235,9 @@ type Subscription = {
 }
 
 function formatPrice(minor: number, currency: string): string {
-  if (minor === 0) return "Бесплатно"
+  if (minor === 0) return 'Бесплатно'
   const major = minor / 100
-  return `${major.toLocaleString("ru-RU")} ${currency}/мес`
+  return `${major.toLocaleString('ru-RU')} ${currency}/мес`
 }
 
 export function CurrentPlanCard({
@@ -2251,11 +2251,11 @@ export function CurrentPlanCard({
   return (
     <Box
       sx={{
-        border: "1px solid",
-        borderColor: "divider",
+        border: '1px solid',
+        borderColor: 'divider',
         borderRadius: 2,
         p: 3,
-        backgroundColor: "background.paper",
+        backgroundColor: 'background.paper',
       }}
     >
       <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
@@ -2267,16 +2267,16 @@ export function CurrentPlanCard({
             <Chip
               size="small"
               label={subscription.status}
-              color={subscription.status === "ACTIVE" ? "success" : "default"}
+              color={subscription.status === 'ACTIVE' ? 'success' : 'default'}
             />
           </Stack>
           <Typography variant="body2" color="text.secondary">
             {formatPrice(plan.priceMonthly, plan.currency)}
             {plan.maxWorkspaces !== null &&
-              ` · до ${plan.maxWorkspaces} ${plan.maxWorkspaces === 1 ? "пространства" : "пространств"}`}
+              ` · до ${plan.maxWorkspaces} ${plan.maxWorkspaces === 1 ? 'пространства' : 'пространств'}`}
           </Typography>
           {features.length > 0 && (
-            <Stack component="ul" spacing={0.5} sx={{ m: 0, pl: 2.5, color: "text.secondary" }}>
+            <Stack component="ul" spacing={0.5} sx={{ m: 0, pl: 2.5, color: 'text.secondary' }}>
               {features.map((f) => (
                 <li key={f}>{f}</li>
               ))}
@@ -2303,7 +2303,7 @@ import {
   TableHead,
   TableRow,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
 type Row = {
   id: string
@@ -2318,21 +2318,21 @@ type Row = {
 }
 
 function formatAmount(amount: number | null, currency: string | null): string {
-  if (amount === null || amount === 0) return "—"
+  if (amount === null || amount === 0) return '—'
   const major = amount / 100
-  return `${major.toLocaleString("ru-RU")} ${currency ?? ""}`
+  return `${major.toLocaleString('ru-RU')} ${currency ?? ''}`
 }
 
 function formatPeriod(started: Date, end: Date | null, canceled: Date | null): string {
-  const s = new Date(started).toLocaleDateString("ru-RU")
-  const e = (canceled ?? end) ? new Date((canceled ?? end)!).toLocaleDateString("ru-RU") : "—"
+  const s = new Date(started).toLocaleDateString('ru-RU')
+  const e = (canceled ?? end) ? new Date((canceled ?? end)!).toLocaleDateString('ru-RU') : '—'
   return `${s} → ${e}`
 }
 
 export function SubscriptionHistoryTable({ rows }: { rows: Row[] }) {
   if (!rows.length) return <Typography color="text.secondary">История пуста</Typography>
   return (
-    <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, overflow: "hidden" }}>
+    <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
       <Table size="small">
         <TableHead>
           <TableRow>
@@ -2350,7 +2350,7 @@ export function SubscriptionHistoryTable({ rows }: { rows: Row[] }) {
               <TableCell>{formatPeriod(r.startedAt, r.currentPeriodEnd, r.canceledAt)}</TableCell>
               <TableCell>{formatAmount(r.amountPaid, r.currency)}</TableCell>
               <TableCell>{r.status}</TableCell>
-              <TableCell>{r.paymentProvider ?? "—"}</TableCell>
+              <TableCell>{r.paymentProvider ?? '—'}</TableCell>
             </TableRow>
           ))}
         </TableBody>
@@ -2363,13 +2363,13 @@ export function SubscriptionHistoryTable({ rows }: { rows: Row[] }) {
 - [ ] **Step 20.3 — `settings/billing/page.tsx`**
 
 ```tsx
-import { Stack, Typography } from "@repo/ui/components"
+import { Stack, Typography } from '@repo/ui/components'
 
-import { CurrentPlanCard } from "@/components/settings/current-plan-card"
-import { SubscriptionHistoryTable } from "@/components/settings/subscription-history-table"
-import { getServerTRPC } from "@/trpc/server"
+import { CurrentPlanCard } from '@/components/settings/current-plan-card'
+import { SubscriptionHistoryTable } from '@/components/settings/subscription-history-table'
+import { getServerTRPC } from '@/trpc/server'
 
-export const metadata = { title: "Оплата · Настройки" }
+export const metadata = { title: 'Оплата · Настройки' }
 
 export default async function BillingSettingsPage() {
   const trpc = await getServerTRPC()
@@ -2420,26 +2420,26 @@ git commit -m "feat(web): /settings/billing with current plan and history"
 - [ ] **Step 21.1 — `integration-card.tsx` (client)**
 
 ```tsx
-"use client"
+'use client'
 
-import Link from "next/link"
+import Link from 'next/link'
 
-import { Box, Button, Chip, Stack, Typography } from "@repo/ui/components"
+import { Box, Button, Chip, Stack, Typography } from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
 type Provider = {
   id: string
   slug: string
   name: string
   description: string | null
-  scope: "USER" | "WORKSPACE" | "BOTH"
+  scope: 'USER' | 'WORKSPACE' | 'BOTH'
 }
 
 type Integration = {
   id: string
   providerId: string
-  status: "PENDING" | "CONNECTED" | "DISCONNECTED" | "ERROR"
+  status: 'PENDING' | 'CONNECTED' | 'DISCONNECTED' | 'ERROR'
 }
 
 type Props = {
@@ -2448,18 +2448,18 @@ type Props = {
   defaultWorkspaceId: string | null
 }
 
-const statusLabel: Record<Integration["status"], string> = {
-  PENDING: "Ожидание OAuth",
-  CONNECTED: "Подключено",
-  DISCONNECTED: "Не подключено",
-  ERROR: "Ошибка",
+const statusLabel: Record<Integration['status'], string> = {
+  PENDING: 'Ожидание OAuth',
+  CONNECTED: 'Подключено',
+  DISCONNECTED: 'Не подключено',
+  ERROR: 'Ошибка',
 }
 
-const statusColor: Record<Integration["status"], "default" | "success" | "warning" | "error"> = {
-  PENDING: "warning",
-  CONNECTED: "success",
-  DISCONNECTED: "default",
-  ERROR: "error",
+const statusColor: Record<Integration['status'], 'default' | 'success' | 'warning' | 'error'> = {
+  PENDING: 'warning',
+  CONNECTED: 'success',
+  DISCONNECTED: 'default',
+  ERROR: 'error',
 }
 
 export function IntegrationCard({ provider, integration, defaultWorkspaceId }: Props) {
@@ -2467,15 +2467,15 @@ export function IntegrationCard({ provider, integration, defaultWorkspaceId }: P
   const disconnect = trpc.integration.disconnect.useMutation()
   const utils = trpc.useUtils()
 
-  const needsWorkspace = provider.scope === "WORKSPACE" && !defaultWorkspaceId
-  const isConnected = integration?.status === "CONNECTED" || integration?.status === "PENDING"
+  const needsWorkspace = provider.scope === 'WORKSPACE' && !defaultWorkspaceId
+  const isConnected = integration?.status === 'CONNECTED' || integration?.status === 'PENDING'
 
   const handleConnect = async () => {
     if (needsWorkspace) return
     await connect.mutateAsync({
       providerId: provider.id,
-      scope: provider.scope === "USER" ? "USER" : "WORKSPACE",
-      workspaceId: provider.scope === "WORKSPACE" ? defaultWorkspaceId! : undefined,
+      scope: provider.scope === 'USER' ? 'USER' : 'WORKSPACE',
+      workspaceId: provider.scope === 'WORKSPACE' ? defaultWorkspaceId! : undefined,
     })
     utils.integration.listMine.invalidate()
   }
@@ -2489,15 +2489,15 @@ export function IntegrationCard({ provider, integration, defaultWorkspaceId }: P
   return (
     <Box
       sx={{
-        border: "1px solid",
-        borderColor: "divider",
+        border: '1px solid',
+        borderColor: 'divider',
         borderRadius: 2,
         p: 2.5,
-        backgroundColor: "background.paper",
-        height: "100%",
+        backgroundColor: 'background.paper',
+        height: '100%',
       }}
     >
-      <Stack spacing={1.5} sx={{ height: "100%" }}>
+      <Stack spacing={1.5} sx={{ height: '100%' }}>
         <Stack direction="row" justifyContent="space-between" alignItems="flex-start" spacing={1}>
           <Stack spacing={0.5}>
             <Typography variant="subtitle1" fontWeight={700}>
@@ -2505,7 +2505,7 @@ export function IntegrationCard({ provider, integration, defaultWorkspaceId }: P
             </Typography>
             <Chip
               size="small"
-              label={provider.scope === "USER" ? "Личный аккаунт" : "Для workspace"}
+              label={provider.scope === 'USER' ? 'Личный аккаунт' : 'Для workspace'}
             />
           </Stack>
           {integration && (
@@ -2517,7 +2517,7 @@ export function IntegrationCard({ provider, integration, defaultWorkspaceId }: P
           )}
         </Stack>
         <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
-          {provider.description ?? "Без описания"}
+          {provider.description ?? 'Без описания'}
         </Typography>
         {needsWorkspace ? (
           <Button component={Link} href="/workspaces/new" variant="outlined" size="small">
@@ -2552,12 +2552,12 @@ export function IntegrationCard({ provider, integration, defaultWorkspaceId }: P
 - [ ] **Step 21.2 — `settings/integrations/page.tsx`**
 
 ```tsx
-import { Box, Stack, Typography } from "@repo/ui/components"
+import { Box, Stack, Typography } from '@repo/ui/components'
 
-import { IntegrationCard } from "@/components/settings/integration-card"
-import { getServerTRPC } from "@/trpc/server"
+import { IntegrationCard } from '@/components/settings/integration-card'
+import { getServerTRPC } from '@/trpc/server'
 
-export const metadata = { title: "Интеграции · Настройки" }
+export const metadata = { title: 'Интеграции · Настройки' }
 
 export default async function IntegrationsSettingsPage() {
   const trpc = await getServerTRPC()
@@ -2583,8 +2583,8 @@ export default async function IntegrationsSettingsPage() {
       </Stack>
       <Box
         sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "1fr 1fr", lg: "1fr 1fr 1fr" },
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '1fr 1fr', lg: '1fr 1fr 1fr' },
           gap: 2,
         }}
       >
@@ -2622,18 +2622,18 @@ git commit -m "feat(web): /settings/integrations with provider grid"
 - [ ] **Step 22.1 — `new-workspace-form.tsx` (client)**
 
 ```tsx
-"use client"
+'use client'
 
-import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 
-import { Alert, Box, Button, Stack, TextField, Typography } from "@repo/ui/components"
+import { Alert, Box, Button, Stack, TextField, Typography } from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
 export function NewWorkspaceForm() {
-  const [name, setName] = useState("")
-  const [icon, setIcon] = useState("📒")
+  const [name, setName] = useState('')
+  const [icon, setIcon] = useState('📒')
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const create = trpc.workspace.create.useMutation({
@@ -2653,7 +2653,7 @@ export function NewWorkspaceForm() {
         setError(null)
         create.mutate({ name: name.trim(), icon })
       }}
-      sx={{ maxWidth: 480, mx: "auto", mt: { xs: 4, md: 8 } }}
+      sx={{ maxWidth: 480, mx: 'auto', mt: { xs: 4, md: 8 } }}
     >
       <Stack spacing={3}>
         <Stack spacing={1} textAlign="center">
@@ -2697,11 +2697,11 @@ export function NewWorkspaceForm() {
 - [ ] **Step 22.2 — `workspaces/new/page.tsx`**
 
 ```tsx
-import { Container } from "@repo/ui/components"
+import { Container } from '@repo/ui/components'
 
-import { NewWorkspaceForm } from "@/components/workspace/new-workspace-form"
+import { NewWorkspaceForm } from '@/components/workspace/new-workspace-form'
 
-export const metadata = { title: "Новое пространство" }
+export const metadata = { title: 'Новое пространство' }
 
 export default function NewWorkspacePage() {
   return (
@@ -2739,25 +2739,25 @@ git commit -m "feat(web): /workspaces/new creation form"
 - [ ] **Step 23.1 — `workspace-shell.tsx`**
 
 ```tsx
-import type { ReactNode } from "react"
+import type { ReactNode } from 'react'
 
-import { Box, CssBaseline, ThemeProvider } from "@repo/ui/components"
-import { createAppTheme } from "@repo/ui/theme"
+import { Box, CssBaseline, ThemeProvider } from '@repo/ui/components'
+import { createAppTheme } from '@repo/ui/theme'
 
 export function WorkspaceShell({ children }: { children: ReactNode }) {
   // Force dark theme for this route, ignoring user preference.
-  const theme = createAppTheme("dark")
+  const theme = createAppTheme('dark')
   return (
     <ThemeProvider theme={theme}>
       <CssBaseline />
       <Box
         sx={{
-          display: "grid",
-          gridTemplateColumns: "240px minmax(0, 1fr) 340px",
-          height: "100vh",
-          backgroundColor: "#0c0d10",
-          color: "#e7e8ea",
-          overflow: "hidden",
+          display: 'grid',
+          gridTemplateColumns: '240px minmax(0, 1fr) 340px',
+          height: '100vh',
+          backgroundColor: '#0c0d10',
+          color: '#e7e8ea',
+          overflow: 'hidden',
         }}
       >
         {children}
@@ -2770,11 +2770,11 @@ export function WorkspaceShell({ children }: { children: ReactNode }) {
 - [ ] **Step 23.2 — `workspaces/[workspaceId]/layout.tsx`**
 
 ```tsx
-import { notFound } from "next/navigation"
-import type { ReactNode } from "react"
+import { notFound } from 'next/navigation'
+import type { ReactNode } from 'react'
 
-import { WorkspaceShell } from "@/components/workspace/workspace-shell"
-import { getServerTRPC } from "@/trpc/server"
+import { WorkspaceShell } from '@/components/workspace/workspace-shell'
+import { getServerTRPC } from '@/trpc/server'
 
 export default async function WorkspaceLayout({
   params,
@@ -2822,11 +2822,11 @@ git commit -m "feat(web): workspace shell layout with forced dark theme"
 - [ ] **Step 24.1 — `workspace-sidebar.tsx` (client)**
 
 ```tsx
-"use client"
+'use client'
 
-import Link from "next/link"
+import Link from 'next/link'
 
-import { Box, Stack, Typography } from "@repo/ui/components"
+import { Box, Stack, Typography } from '@repo/ui/components'
 
 type Props = {
   workspace: { id: string; name: string; icon: string | null }
@@ -2838,9 +2838,9 @@ export function WorkspaceSidebar({ workspace, planName }: Props) {
     <Box
       component="aside"
       sx={{
-        borderRight: "1px solid #1e2024",
-        display: "flex",
-        flexDirection: "column",
+        borderRight: '1px solid #1e2024',
+        display: 'flex',
+        flexDirection: 'column',
         px: 1.25,
         py: 1.75,
       }}
@@ -2851,15 +2851,15 @@ export function WorkspaceSidebar({ workspace, planName }: Props) {
             width: 20,
             height: 20,
             borderRadius: 0.75,
-            background: "linear-gradient(135deg,#4a9eff,#9c7bff)",
+            background: 'linear-gradient(135deg,#4a9eff,#9c7bff)',
           }}
         />
         <Stack spacing={0}>
           <Typography variant="body2" fontWeight={600}>
-            {workspace.icon ? `${workspace.icon} ` : ""}
+            {workspace.icon ? `${workspace.icon} ` : ''}
             {workspace.name}
           </Typography>
-          <Typography variant="caption" sx={{ color: "#6b6e75" }}>
+          <Typography variant="caption" sx={{ color: '#6b6e75' }}>
             {planName} plan
           </Typography>
         </Stack>
@@ -2873,7 +2873,7 @@ export function WorkspaceSidebar({ workspace, planName }: Props) {
 
       <Typography
         variant="overline"
-        sx={{ color: "#6b6e75", px: 1, pt: 2, pb: 0.5, letterSpacing: "0.06em" }}
+        sx={{ color: '#6b6e75', px: 1, pt: 2, pb: 0.5, letterSpacing: '0.06em' }}
       >
         Страницы
       </Typography>
@@ -2884,7 +2884,7 @@ export function WorkspaceSidebar({ workspace, planName }: Props) {
 
       <Box sx={{ flex: 1 }} />
 
-      <Box sx={{ borderTop: "1px solid #1e2024", pt: 1.25 }}>
+      <Box sx={{ borderTop: '1px solid #1e2024', pt: 1.25 }}>
         <NavItem icon="🗑" label="Корзина" href="#" muted />
       </Box>
     </Box>
@@ -2909,16 +2909,16 @@ function NavItem({
       component={Link}
       href={href}
       sx={{
-        display: "flex",
-        alignItems: "center",
+        display: 'flex',
+        alignItems: 'center',
         gap: 1,
         px: 1,
         py: 0.75,
         borderRadius: 0.75,
-        textDecoration: "none",
-        color: active ? "#f0f1f3" : muted ? "#6b6e75" : "#a7aab1",
-        backgroundColor: active ? "#1a1c20" : "transparent",
-        "&:hover": { backgroundColor: active ? "#1a1c20" : "#141619" },
+        textDecoration: 'none',
+        color: active ? '#f0f1f3' : muted ? '#6b6e75' : '#a7aab1',
+        backgroundColor: active ? '#1a1c20' : 'transparent',
+        '&:hover': { backgroundColor: active ? '#1a1c20' : '#141619' },
         fontSize: 13,
       }}
     >
@@ -2932,7 +2932,7 @@ function NavItem({
 - [ ] **Step 24.2 — `workspace-toolbar.tsx`**
 
 ```tsx
-import { Box, Stack, Typography } from "@repo/ui/components"
+import { Box, Stack, Typography } from '@repo/ui/components'
 
 type Props = {
   title: string
@@ -2948,26 +2948,26 @@ export function WorkspaceToolbar({ title, editedRelative }: Props) {
       sx={{
         px: 2.25,
         py: 1.25,
-        borderBottom: "1px solid #1a1c20",
+        borderBottom: '1px solid #1a1c20',
       }}
     >
-      <Typography variant="body2" sx={{ color: "#a7aab1" }}>
+      <Typography variant="body2" sx={{ color: '#a7aab1' }}>
         👋 {title}
       </Typography>
-      <Typography variant="body2" sx={{ color: "#6b6e75" }}>
+      <Typography variant="body2" sx={{ color: '#6b6e75' }}>
         ·
       </Typography>
-      <Typography variant="body2" sx={{ color: "#6b6e75" }}>
+      <Typography variant="body2" sx={{ color: '#6b6e75' }}>
         Private
       </Typography>
       <Box sx={{ flex: 1 }} />
-      <Typography variant="caption" sx={{ color: "#6b6e75" }}>
+      <Typography variant="caption" sx={{ color: '#6b6e75' }}>
         {editedRelative}
       </Typography>
-      <Typography variant="body2" sx={{ color: "#a7aab1", cursor: "default" }}>
+      <Typography variant="body2" sx={{ color: '#a7aab1', cursor: 'default' }}>
         Share
       </Typography>
-      <Typography variant="body2" sx={{ color: "#6b6e75" }}>
+      <Typography variant="body2" sx={{ color: '#6b6e75' }}>
         ⋯
       </Typography>
       <Box
@@ -2975,10 +2975,10 @@ export function WorkspaceToolbar({ title, editedRelative }: Props) {
           px: 1.25,
           py: 0.5,
           borderRadius: 0.75,
-          border: "1px solid #2a2d33",
-          backgroundColor: "#1a1c20",
+          border: '1px solid #2a2d33',
+          backgroundColor: '#1a1c20',
           fontSize: 12,
-          color: "#a7aab1",
+          color: '#a7aab1',
         }}
       >
         ＋ New AI chat
@@ -2991,17 +2991,17 @@ export function WorkspaceToolbar({ title, editedRelative }: Props) {
 - [ ] **Step 24.3 — `workspace-onboarding.tsx`**
 
 ```tsx
-import { Box, Stack, Typography } from "@repo/ui/components"
+import { Box, Stack, Typography } from '@repo/ui/components'
 
 type Item =
-  | { kind: "check"; done: boolean; text: React.ReactNode }
-  | { kind: "toggle"; text: React.ReactNode }
+  | { kind: 'check'; done: boolean; text: React.ReactNode }
+  | { kind: 'toggle'; text: React.ReactNode }
 
 const items: Item[] = [
-  { kind: "check", done: true, text: "Create your first page" },
-  { kind: "check", done: true, text: "Pick a workspace icon" },
+  { kind: 'check', done: true, text: 'Create your first page' },
+  { kind: 'check', done: true, text: 'Pick a workspace icon' },
   {
-    kind: "check",
+    kind: 'check',
     done: false,
     text: (
       <>
@@ -3009,13 +3009,13 @@ const items: Item[] = [
       </>
     ),
   },
-  { kind: "check", done: false, text: "Import notes from Notion or Obsidian" },
-  { kind: "check", done: false, text: "Upload a file or image with drag-and-drop" },
-  { kind: "check", done: false, text: "Connect an integration (GitHub, Telegram, AmoCRM)" },
-  { kind: "toggle", text: "Advanced: databases, views, filters" },
-  { kind: "check", done: false, text: "Share a page with a public link" },
+  { kind: 'check', done: false, text: 'Import notes from Notion or Obsidian' },
+  { kind: 'check', done: false, text: 'Upload a file or image with drag-and-drop' },
+  { kind: 'check', done: false, text: 'Connect an integration (GitHub, Telegram, AmoCRM)' },
+  { kind: 'toggle', text: 'Advanced: databases, views, filters' },
+  { kind: 'check', done: false, text: 'Share a page with a public link' },
   {
-    kind: "check",
+    kind: 'check',
     done: false,
     text: (
       <>
@@ -3023,7 +3023,7 @@ const items: Item[] = [
       </>
     ),
   },
-  { kind: "check", done: false, text: "Invite a teammate" },
+  { kind: 'check', done: false, text: 'Invite a teammate' },
 ]
 
 function SlashPill({ children }: { children: React.ReactNode }) {
@@ -3031,13 +3031,13 @@ function SlashPill({ children }: { children: React.ReactNode }) {
     <Box
       component="span"
       sx={{
-        color: "#9c7bff",
-        backgroundColor: "#1a1824",
+        color: '#9c7bff',
+        backgroundColor: '#1a1824',
         px: 0.75,
         py: 0.25,
         borderRadius: 0.5,
-        fontFamily: "monospace",
-        fontSize: "0.9em",
+        fontFamily: 'monospace',
+        fontSize: '0.9em',
       }}
     >
       {children}
@@ -3051,45 +3051,45 @@ export function WorkspaceOnboarding() {
       component="main"
       sx={{
         flex: 1,
-        overflow: "auto",
-        display: "flex",
-        justifyContent: "center",
+        overflow: 'auto',
+        display: 'flex',
+        justifyContent: 'center',
         pt: { xs: 6, md: 10 },
         px: { xs: 3, md: 6 },
         pb: 6,
       }}
     >
-      <Box sx={{ maxWidth: 480, width: "100%" }}>
+      <Box sx={{ maxWidth: 480, width: '100%' }}>
         <Typography sx={{ fontSize: 40, lineHeight: 1, mb: 2.25 }}>👋</Typography>
         <Typography
           variant="h3"
           fontWeight={700}
           letterSpacing="-0.02em"
-          sx={{ mb: 2.5, color: "#f0f1f3" }}
+          sx={{ mb: 2.5, color: '#f0f1f3' }}
         >
           Welcome to AnyNote
         </Typography>
         <Stack spacing={1.25}>
           {items.map((item, idx) => (
             <Stack key={idx} direction="row" spacing={1.25} alignItems="center">
-              {item.kind === "check" && (
+              {item.kind === 'check' && (
                 <Box
                   component="span"
-                  sx={{ color: item.done ? "#4a9eff" : "#4a4d55", fontSize: 16 }}
+                  sx={{ color: item.done ? '#4a9eff' : '#4a4d55', fontSize: 16 }}
                 >
-                  {item.done ? "☑" : "☐"}
+                  {item.done ? '☑' : '☐'}
                 </Box>
               )}
-              {item.kind === "toggle" && (
-                <Box component="span" sx={{ color: "#6b6e75", fontSize: 16 }}>
+              {item.kind === 'toggle' && (
+                <Box component="span" sx={{ color: '#6b6e75', fontSize: 16 }}>
                   ▸
                 </Box>
               )}
               <Typography
                 variant="body2"
                 sx={{
-                  color: item.kind === "check" && item.done ? "#6b6e75" : "#e7e8ea",
-                  textDecoration: item.kind === "check" && item.done ? "line-through" : "none",
+                  color: item.kind === 'check' && item.done ? '#6b6e75' : '#e7e8ea',
+                  textDecoration: item.kind === 'check' && item.done ? 'line-through' : 'none',
                 }}
               >
                 {item.text}
@@ -3106,63 +3106,63 @@ export function WorkspaceOnboarding() {
 - [ ] **Step 24.4 — `workspace-ai-panel.tsx` (client)**
 
 ```tsx
-"use client"
+'use client'
 
-import { Box, Stack, Typography } from "@repo/ui/components"
+import { Box, Stack, Typography } from '@repo/ui/components'
 
 export function WorkspaceAiPanel() {
   return (
     <Box
       component="aside"
       sx={{
-        borderLeft: "1px solid #1e2024",
-        display: "flex",
-        flexDirection: "column",
+        borderLeft: '1px solid #1e2024',
+        display: 'flex',
+        flexDirection: 'column',
         p: 1.75,
       }}
     >
       <Stack direction="row" alignItems="center" spacing={1}>
-        <Typography variant="body2" sx={{ color: "#a7aab1" }}>
+        <Typography variant="body2" sx={{ color: '#a7aab1' }}>
           ✨ AI assistant
         </Typography>
         <Box sx={{ flex: 1 }} />
-        <Typography variant="body2" sx={{ color: "#6b6e75" }}>
+        <Typography variant="body2" sx={{ color: '#6b6e75' }}>
           ⋯
         </Typography>
       </Stack>
 
       <Box sx={{ flex: 1 }} />
 
-      <Stack alignItems="center" spacing={1} sx={{ textAlign: "center", pb: 1.25 }}>
+      <Stack alignItems="center" spacing={1} sx={{ textAlign: 'center', pb: 1.25 }}>
         <Box
           sx={{
             width: 44,
             height: 44,
-            borderRadius: "50%",
-            background: "linear-gradient(135deg,#9c7bff,#4a9eff)",
+            borderRadius: '50%',
+            background: 'linear-gradient(135deg,#9c7bff,#4a9eff)',
           }}
         />
-        <Typography variant="body2" fontWeight={600} sx={{ color: "#f0f1f3" }}>
+        <Typography variant="body2" fontWeight={600} sx={{ color: '#f0f1f3' }}>
           Hi, I'm Ani
         </Typography>
-        <Typography variant="caption" sx={{ color: "#6b6e75" }}>
+        <Typography variant="caption" sx={{ color: '#6b6e75' }}>
           Your AnyNote research assistant
         </Typography>
       </Stack>
 
       <Box
-        sx={{ border: "1px solid #2a2d33", borderRadius: 1, backgroundColor: "#121418", p: 1.25 }}
+        sx={{ border: '1px solid #2a2d33', borderRadius: 1, backgroundColor: '#121418', p: 1.25 }}
       >
-        <Typography variant="body2" sx={{ color: "#6b6e75" }}>
+        <Typography variant="body2" sx={{ color: '#6b6e75' }}>
           Summarize my notes from last week...
         </Typography>
         <Stack
           direction="row"
           alignItems="center"
           spacing={1}
-          sx={{ pt: 1.25, mt: 1, borderTop: "1px solid #1e2024" }}
+          sx={{ pt: 1.25, mt: 1, borderTop: '1px solid #1e2024' }}
         >
-          <Typography variant="caption" sx={{ color: "#a7aab1" }}>
+          <Typography variant="caption" sx={{ color: '#a7aab1' }}>
             Auto mode ⌄
           </Typography>
           <Box sx={{ flex: 1 }} />
@@ -3171,11 +3171,11 @@ export function WorkspaceAiPanel() {
               width: 22,
               height: 22,
               borderRadius: 0.625,
-              backgroundColor: "#4a9eff",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              color: "white",
+              backgroundColor: '#4a9eff',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'white',
             }}
           >
             ↑
@@ -3190,25 +3190,25 @@ export function WorkspaceAiPanel() {
 - [ ] **Step 24.5 — `cookie-banner.tsx` (client)**
 
 ```tsx
-"use client"
+'use client'
 
-import { useEffect, useState } from "react"
+import { useEffect, useState } from 'react'
 
-import { Box, Button, Stack, Typography } from "@repo/ui/components"
+import { Box, Button, Stack, Typography } from '@repo/ui/components'
 
-const STORAGE_KEY = "cookiesAccepted"
+const STORAGE_KEY = 'cookiesAccepted'
 
 export function CookieBanner() {
   const [visible, setVisible] = useState(false)
 
   useEffect(() => {
-    if (typeof window === "undefined") return
-    setVisible(window.localStorage.getItem(STORAGE_KEY) !== "true")
+    if (typeof window === 'undefined') return
+    setVisible(window.localStorage.getItem(STORAGE_KEY) !== 'true')
   }, [])
 
   const dismiss = (accept: boolean) => {
-    if (typeof window !== "undefined") {
-      window.localStorage.setItem(STORAGE_KEY, accept ? "true" : "false")
+    if (typeof window !== 'undefined') {
+      window.localStorage.setItem(STORAGE_KEY, accept ? 'true' : 'false')
     }
     setVisible(false)
   }
@@ -3217,20 +3217,20 @@ export function CookieBanner() {
   return (
     <Box
       sx={{
-        position: "fixed",
+        position: 'fixed',
         bottom: 20,
-        left: "50%",
-        transform: "translateX(-50%)",
-        display: "flex",
-        alignItems: "center",
+        left: '50%',
+        transform: 'translateX(-50%)',
+        display: 'flex',
+        alignItems: 'center',
         gap: 1.75,
-        backgroundColor: "#17191d",
-        color: "#e7e8ea",
-        border: "1px solid #2a2d33",
+        backgroundColor: '#17191d',
+        color: '#e7e8ea',
+        border: '1px solid #2a2d33',
         borderRadius: 1.5,
         px: 1.75,
         py: 1.25,
-        boxShadow: "0 8px 24px rgba(0,0,0,0.35)",
+        boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
         zIndex: 1000,
         fontSize: 12,
       }}
@@ -3278,16 +3278,16 @@ git commit -m "feat(web): workspace sidebar, toolbar, onboarding, AI panel, cook
 - [ ] **Step 25.1 — Write the page**
 
 ```tsx
-import { notFound } from "next/navigation"
+import { notFound } from 'next/navigation'
 
-import { Box } from "@repo/ui/components"
+import { Box } from '@repo/ui/components'
 
-import { CookieBanner } from "@/components/workspace/cookie-banner"
-import { WorkspaceAiPanel } from "@/components/workspace/workspace-ai-panel"
-import { WorkspaceOnboarding } from "@/components/workspace/workspace-onboarding"
-import { WorkspaceSidebar } from "@/components/workspace/workspace-sidebar"
-import { WorkspaceToolbar } from "@/components/workspace/workspace-toolbar"
-import { getServerTRPC } from "@/trpc/server"
+import { CookieBanner } from '@/components/workspace/cookie-banner'
+import { WorkspaceAiPanel } from '@/components/workspace/workspace-ai-panel'
+import { WorkspaceOnboarding } from '@/components/workspace/workspace-onboarding'
+import { WorkspaceSidebar } from '@/components/workspace/workspace-sidebar'
+import { WorkspaceToolbar } from '@/components/workspace/workspace-toolbar'
+import { getServerTRPC } from '@/trpc/server'
 
 function formatEditedRelative(updated: Date): string {
   const diff = Date.now() - new Date(updated).getTime()
@@ -3318,7 +3318,7 @@ export default async function WorkspacePage({
         workspace={{ id: workspace.id, name: workspace.name, icon: workspace.icon }}
         planName={current.plan.name}
       />
-      <Box sx={{ display: "flex", flexDirection: "column", minWidth: 0 }}>
+      <Box sx={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
         <WorkspaceToolbar
           title="Welcome to AnyNote"
           editedRelative={formatEditedRelative(workspace.updatedAt)}
@@ -3363,19 +3363,19 @@ Open `packages/ui/src/providers/ui-provider.tsx`. It should accept an optional `
 Rough shape (adapt to whatever the file already does):
 
 ```tsx
-"use client"
+'use client'
 
-import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter"
-import { ThemeProvider, CssBaseline } from "@mui/material"
+import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter'
+import { ThemeProvider, CssBaseline } from '@mui/material'
 
-import { createAppTheme } from "../theme"
+import { createAppTheme } from '../theme'
 
 type UiProviderProps = {
   children: React.ReactNode
-  mode?: "light" | "dark"
+  mode?: 'light' | 'dark'
 }
 
-export function UiProvider({ children, mode = "light" }: UiProviderProps) {
+export function UiProvider({ children, mode = 'light' }: UiProviderProps) {
   const theme = createAppTheme(mode)
   return (
     <AppRouterCacheProvider>
@@ -3393,37 +3393,37 @@ export function UiProvider({ children, mode = "light" }: UiProviderProps) {
 Replace the body of `RootLayout` to read cookie first, then (if session exists) read `user_preferences.theme`:
 
 ```tsx
-import type { Metadata } from "next"
-import { cookies } from "next/headers"
-import localFont from "next/font/local"
+import type { Metadata } from 'next'
+import { cookies } from 'next/headers'
+import localFont from 'next/font/local'
 
-import { UiProvider } from "@repo/ui/providers"
+import { UiProvider } from '@repo/ui/providers'
 
-import { getSession } from "@/lib/get-session"
-import { getServerTRPC } from "@/trpc/server"
-import "./globals.css"
+import { getSession } from '@/lib/get-session'
+import { getServerTRPC } from '@/trpc/server'
+import './globals.css'
 
 // ... existing font and metadata setup unchanged ...
 
-async function resolveTheme(): Promise<"light" | "dark"> {
+async function resolveTheme(): Promise<'light' | 'dark'> {
   const cookieStore = await cookies()
-  const cookieTheme = cookieStore.get("theme")?.value as "light" | "dark" | "system" | undefined
+  const cookieTheme = cookieStore.get('theme')?.value as 'light' | 'dark' | 'system' | undefined
 
   const session = await getSession()
   if (session) {
     try {
       const prefs = await (await getServerTRPC()).user.getPreferences()
-      const stored = (prefs?.theme as "light" | "dark" | "system" | null) ?? cookieTheme ?? "system"
-      if (stored !== "system") return stored
+      const stored = (prefs?.theme as 'light' | 'dark' | 'system' | null) ?? cookieTheme ?? 'system'
+      if (stored !== 'system') return stored
     } catch {
       /* fall through to cookie/default */
     }
   }
 
-  if (cookieTheme && cookieTheme !== "system") return cookieTheme
+  if (cookieTheme && cookieTheme !== 'system') return cookieTheme
   // "system" and unset both fall back to light for SSR.
   // The client can override via media query post-hydration if we add that later.
-  return "light"
+  return 'light'
 }
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
@@ -3465,7 +3465,7 @@ git commit -m "feat(web): SSR theme from user preferences with cookie fallback"
 - [ ] **Step 27.1 — Write the spec**
 
 ```ts
-import { test, expect } from "@playwright/test"
+import { test, expect } from '@playwright/test'
 
 // This spec requires:
 //   - docker compose up -d postgres   (a fresh DB is ideal)
@@ -3475,45 +3475,45 @@ import { test, expect } from "@playwright/test"
 // To reset state: drop and recreate the database, re-run migration, then re-run this spec.
 
 const email = `victor+${Date.now()}@example.com`
-const password = "Password123!"
+const password = 'Password123!'
 
-test("sign up → new workspace → default landing → settings nav", async ({ page }) => {
+test('sign up → new workspace → default landing → settings nav', async ({ page }) => {
   // 1. Sign up
-  await page.goto("/sign-up")
-  await page.getByLabel(/имя/i).fill("Victor")
-  await page.getByLabel(/фамилия/i).fill("Luferov")
+  await page.goto('/sign-up')
+  await page.getByLabel(/имя/i).fill('Victor')
+  await page.getByLabel(/фамилия/i).fill('Luferov')
   await page.getByLabel(/email/i).fill(email)
   await page.getByLabel(/пароль/i).fill(password)
-  await page.getByRole("button", { name: /зарегистрироваться|sign ?up/i }).click()
+  await page.getByRole('button', { name: /зарегистрироваться|sign ?up/i }).click()
 
   // 2. Without a default workspace, /app must redirect to /workspaces/new
-  await page.goto("/app")
+  await page.goto('/app')
   await expect(page).toHaveURL(/\/workspaces\/new/)
 
   // 3. Create first workspace
-  await page.getByLabel(/название/i).fill("My First Workspace")
-  await page.getByRole("button", { name: /создать пространство/i }).click()
+  await page.getByLabel(/название/i).fill('My First Workspace')
+  await page.getByRole('button', { name: /создать пространство/i }).click()
   await expect(page).toHaveURL(/\/workspaces\/[0-9a-f-]+/)
-  await expect(page.getByRole("heading", { level: 3, name: "Welcome to AnyNote" })).toBeVisible()
+  await expect(page.getByRole('heading', { level: 3, name: 'Welcome to AnyNote' })).toBeVisible()
 
   // 4. Sidebar navigation to settings
-  await page.getByRole("link", { name: "Настройки" }).click()
-  await expect(page).toHaveURL("/settings/general")
-  await expect(page.getByRole("heading", { name: "Общее" })).toBeVisible()
+  await page.getByRole('link', { name: 'Настройки' }).click()
+  await expect(page).toHaveURL('/settings/general')
+  await expect(page.getByRole('heading', { name: 'Общее' })).toBeVisible()
 
   // 5. Settings nav to account
-  await page.getByRole("link", { name: "Аккаунт" }).click()
-  await expect(page).toHaveURL("/settings/account")
-  await expect(page.getByRole("heading", { name: "Аккаунт" })).toBeVisible()
+  await page.getByRole('link', { name: 'Аккаунт' }).click()
+  await expect(page).toHaveURL('/settings/account')
+  await expect(page.getByRole('heading', { name: 'Аккаунт' })).toBeVisible()
 
   // 6. Free plan limit: /app should redirect to the one workspace
-  await page.goto("/app")
+  await page.goto('/app')
   await expect(page).toHaveURL(/\/workspaces\/[0-9a-f-]+/)
 
   // 7. Trying to create a second workspace as a free user must fail.
-  await page.goto("/workspaces/new")
-  await page.getByLabel(/название/i).fill("Second Workspace")
-  await page.getByRole("button", { name: /создать пространство/i }).click()
+  await page.goto('/workspaces/new')
+  await page.getByLabel(/название/i).fill('Second Workspace')
+  await page.getByRole('button', { name: /создать пространство/i }).click()
   await expect(page.getByText(/Free.*пространств/i)).toBeVisible()
 })
 ```

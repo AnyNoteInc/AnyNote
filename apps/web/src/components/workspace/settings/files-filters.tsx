@@ -1,8 +1,8 @@
-"use client"
+'use client'
 
-import { useRef, useState } from "react"
+import { useRef, useState } from 'react'
 
-import { Avatar, Box, Chip, Menu, MenuItem, Stack, Typography } from "@repo/ui/components"
+import { Avatar, Box, Chip, Menu, MenuItem, Stack, Typography } from '@repo/ui/components'
 
 type Uploader = {
   id: string
@@ -20,7 +20,7 @@ type Props = {
 }
 
 function fullName(user: Uploader) {
-  const joined = [user.firstName, user.lastName].filter(Boolean).join(" ").trim()
+  const joined = [user.firstName, user.lastName].filter(Boolean).join(' ').trim()
   return joined || user.email
 }
 
@@ -30,18 +30,13 @@ function initials(user: Uploader) {
 }
 
 function shortName(user: Uploader) {
-  const first = user.firstName?.trim() ?? ""
-  const last = user.lastName?.trim() ?? ""
+  const first = user.firstName?.trim() ?? ''
+  const last = user.lastName?.trim() ?? ''
   if (first && last) return `${first} ${last.slice(0, 1)}.`
   return first || last || user.email
 }
 
-export function FilesFilters({
-  uploaderId,
-  uploaders,
-  uploadersLoading,
-  onUploaderChange,
-}: Props) {
+export function FilesFilters({ uploaderId, uploaders, uploadersLoading, onUploaderChange }: Props) {
   const uploaderChipRef = useRef<HTMLDivElement>(null)
   const [uploaderOpen, setUploaderOpen] = useState(false)
 
@@ -49,7 +44,7 @@ export function FilesFilters({
 
   const uploaderLabel = activeUploader
     ? `Пользователь: ${shortName(activeUploader)}`
-    : "Пользователь"
+    : 'Пользователь'
 
   return (
     <>
@@ -57,8 +52,8 @@ export function FilesFilters({
         <Chip
           ref={uploaderChipRef}
           label={uploaderLabel}
-          variant={activeUploader ? "filled" : "outlined"}
-          color={activeUploader ? "primary" : "default"}
+          variant={activeUploader ? 'filled' : 'outlined'}
+          color={activeUploader ? 'primary' : 'default'}
           onClick={() => setUploaderOpen(true)}
           onDelete={activeUploader ? () => onUploaderChange(null) : undefined}
         />
@@ -68,8 +63,8 @@ export function FilesFilters({
         open={uploaderOpen}
         anchorEl={uploaderChipRef.current}
         onClose={() => setUploaderOpen(false)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-        transformOrigin={{ vertical: "top", horizontal: "left" }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
         slotProps={{ paper: { sx: { maxHeight: 360, minWidth: 260 } } }}
       >
         {uploadersLoading ? (
@@ -86,7 +81,7 @@ export function FilesFilters({
                 setUploaderOpen(false)
               }}
             >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
                 <Avatar src={user.image ?? undefined} sx={{ width: 24, height: 24, fontSize: 12 }}>
                   {initials(user)}
                 </Avatar>

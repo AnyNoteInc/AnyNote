@@ -1,8 +1,8 @@
-import { z } from "zod"
-import type { GenogramPageData } from "../types"
+import { z } from 'zod'
+import type { GenogramPageData } from '../types'
 
 const Id = z.string().uuid()
-const IsoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, "expected YYYY-MM-DD")
+const IsoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'expected YYYY-MM-DD')
 
 const PersonIdentitySchema = z.object({
   firstName: z.string().optional(),
@@ -19,12 +19,12 @@ const LifeDatesSchema = z.object({
   deathDate: IsoDate.optional(),
   deathDateApprox: z.boolean().optional(),
   isDeceased: z.boolean(),
-  deathKind: z.enum(["natural", "tragic", "early"]).optional(),
+  deathKind: z.enum(['natural', 'tragic', 'early']).optional(),
 })
 
 const CharacterTagSchema = z.union([
-  z.object({ kind: z.literal("text"), value: z.string() }),
-  z.object({ kind: z.literal("tag"), value: z.string() }),
+  z.object({ kind: z.literal('text'), value: z.string() }),
+  z.object({ kind: z.literal('tag'), value: z.string() }),
 ])
 
 const PersonProfileSchema = z.object({
@@ -37,33 +37,33 @@ const PersonProfileSchema = z.object({
 })
 
 const PersonLabelConfigSchema = z.object({
-  position: z.enum(["auto", "left", "right", "top", "bottom"]).optional(),
+  position: z.enum(['auto', 'left', 'right', 'top', 'bottom']).optional(),
   visibleFields: z
     .array(
       z.enum([
-        "identity",
-        "birthDate",
-        "deathDate",
-        "age",
-        "birthPlace",
-        "profession",
-        "characters",
-        "addictions",
-        "diseases",
+        'identity',
+        'birthDate',
+        'deathDate',
+        'age',
+        'birthPlace',
+        'profession',
+        'characters',
+        'addictions',
+        'diseases',
       ]),
     )
     .optional(),
-  format: z.enum(["brief", "full"]).optional(),
+  format: z.enum(['brief', 'full']).optional(),
   offset: z.object({ x: z.number(), y: z.number() }).optional(),
   hidden: z.boolean().optional(),
 })
 
 const PersonSchema = z.object({
   id: Id,
-  sex: z.enum(["male", "female"]),
-  role: z.enum(["owner", "regular"]),
-  size: z.enum(["big", "small"]),
-  bloodRelation: z.enum(["direct", "partner", "sibling", "unknown"]),
+  sex: z.enum(['male', 'female']),
+  role: z.enum(['owner', 'regular']),
+  size: z.enum(['big', 'small']),
+  bloodRelation: z.enum(['direct', 'partner', 'sibling', 'unknown']),
   partnerOrder: z.number().int().positive().optional(),
   identity: PersonIdentitySchema,
   lifeDates: LifeDatesSchema,
@@ -73,12 +73,12 @@ const PersonSchema = z.object({
 
 const UnionDivorceSchema = z.object({
   date: IsoDate.optional(),
-  custodySide: z.enum(["left", "right", "shared"]).optional(),
+  custodySide: z.enum(['left', 'right', 'shared']).optional(),
 })
 
 const UnionSchema = z.object({
   id: Id,
-  kind: z.enum(["marriage", "cohabitation"]),
+  kind: z.enum(['marriage', 'cohabitation']),
   malePartnerId: Id,
   femalePartnerId: Id,
   startDate: IsoDate.optional(),
@@ -89,12 +89,12 @@ const UnionSchema = z.object({
 
 const ChildEntrySchema = z.union([
   z.object({
-    kind: z.literal("person"),
+    kind: z.literal('person'),
     personId: Id,
     birthGroupId: Id.optional(),
   }),
   z.object({
-    kind: z.literal("loss"),
+    kind: z.literal('loss'),
     lossId: Id,
   }),
 ])
@@ -107,13 +107,13 @@ const ChildGroupSchema = z.object({
 
 const BirthGroupSchema = z.object({
   id: Id,
-  kind: z.enum(["twins", "fraternal"]),
+  kind: z.enum(['twins', 'fraternal']),
   memberIds: z.array(Id).min(2),
 })
 
 const PregnancyLossSchema = z.object({
   id: Id,
-  kind: z.enum(["abortion", "miscarriage"]),
+  kind: z.enum(['abortion', 'miscarriage']),
   childGroupId: Id,
   date: IsoDate.optional(),
   note: z.string().optional(),
@@ -133,7 +133,7 @@ const ViewportSchema = z.object({
 })
 
 const LayoutMetadataSchema = z.object({
-  mode: z.enum(["auto", "manual", "mixed"]),
+  mode: z.enum(['auto', 'manual', 'mixed']),
   positions: z.record(z.object({ x: z.number(), y: z.number() })).optional(),
   generations: z.record(z.number().int()).optional(),
   pinned: z.array(Id).optional(),
@@ -156,7 +156,7 @@ export const GenogramPageDataSchema = z.object({
 export interface ValidationIssue {
   path: string[]
   message: string
-  code: "schema" | "invariant"
+  code: 'schema' | 'invariant'
 }
 
 export function validateSchema(input: unknown): ValidationIssue[] {
@@ -165,7 +165,7 @@ export function validateSchema(input: unknown): ValidationIssue[] {
   return result.error.issues.map((i) => ({
     path: i.path.map((p) => String(p)),
     message: i.message,
-    code: "schema" as const,
+    code: 'schema' as const,
   }))
 }
 

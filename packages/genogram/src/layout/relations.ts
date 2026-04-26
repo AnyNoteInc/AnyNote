@@ -1,10 +1,4 @@
-import type {
-  BirthGroupId,
-  ChildGroupId,
-  GenogramPageData,
-  PersonId,
-  UnionId,
-} from "../types"
+import type { BirthGroupId, ChildGroupId, GenogramPageData, PersonId, UnionId } from '../types'
 
 export interface Relations {
   /** Union that produced this person (as a child). */
@@ -33,7 +27,7 @@ export function buildRelations(data: GenogramPageData): Relations {
 
   for (const cg of Object.values(data.entities.childGroups)) {
     for (const entry of cg.children) {
-      if (entry.kind !== "person") continue
+      if (entry.kind !== 'person') continue
       parentUnionByPerson.set(entry.personId, cg.unionId)
       if (entry.birthGroupId) {
         birthGroupByPerson.set(entry.personId, entry.birthGroupId)

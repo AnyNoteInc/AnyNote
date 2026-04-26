@@ -1,7 +1,6 @@
-import { z } from "zod"
+import { z } from 'zod'
 
-const UUID_EXTRACT_RE =
-  /[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/gi
+const UUID_EXTRACT_RE = /[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}/gi
 
 function normalizeNullish(value: unknown): unknown {
   if (value == null) {
@@ -18,7 +17,7 @@ function extractSingleUuid(value: string): string | null {
 }
 
 function normalizeUuidLike(value: unknown): unknown {
-  if (typeof value === "string") {
+  if (typeof value === 'string') {
     const trimmed = value.trim()
     if (!trimmed) {
       return trimmed
@@ -27,7 +26,7 @@ function normalizeUuidLike(value: unknown): unknown {
     return extractSingleUuid(trimmed) ?? trimmed
   }
 
-  if (typeof value === "object" && value !== null) {
+  if (typeof value === 'object' && value !== null) {
     const serialized = JSON.stringify(value)
     return extractSingleUuid(serialized) ?? value
   }

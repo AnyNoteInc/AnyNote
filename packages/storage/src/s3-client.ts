@@ -1,14 +1,14 @@
-import type { Readable } from "node:stream"
+import type { Readable } from 'node:stream'
 
 import {
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
   S3Client,
-} from "@aws-sdk/client-s3"
-import { Upload } from "@aws-sdk/lib-storage"
+} from '@aws-sdk/client-s3'
+import { Upload } from '@aws-sdk/lib-storage'
 
-import type { PutOptions, StorageClient } from "./contract.js"
+import type { PutOptions, StorageClient } from './contract.js'
 
 type S3Config = {
   endpoint: string
@@ -21,11 +21,11 @@ type S3Config = {
 
 const readConfig = (): S3Config => {
   const required = [
-    "S3_ENDPOINT",
-    "S3_REGION",
-    "S3_ACCESS_KEY",
-    "S3_SECRET_KEY",
-    "S3_BUCKET",
+    'S3_ENDPOINT',
+    'S3_REGION',
+    'S3_ACCESS_KEY',
+    'S3_SECRET_KEY',
+    'S3_BUCKET',
   ] as const
   for (const name of required) {
     if (!process.env[name]) {
@@ -38,7 +38,7 @@ const readConfig = (): S3Config => {
     accessKeyId: process.env.S3_ACCESS_KEY!,
     secretAccessKey: process.env.S3_SECRET_KEY!,
     bucket: process.env.S3_BUCKET!,
-    forcePathStyle: process.env.S3_FORCE_PATH_STYLE === "true",
+    forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
   }
 }
 
@@ -92,7 +92,7 @@ export class S3StorageClient implements StorageClient {
       return true
     } catch (err: unknown) {
       const error = err as { name?: string; $metadata?: { httpStatusCode?: number } }
-      if (error.name === "NotFound" || error.$metadata?.httpStatusCode === 404) {
+      if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
         return false
       }
       throw err

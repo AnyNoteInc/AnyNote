@@ -1,8 +1,8 @@
-"use client"
+'use client'
 
-import { useEffect, useState } from "react"
+import { useEffect, useState } from 'react'
 
-const LOADING_PHRASES = ["Загрузка", "Вычисления", "Преобразование", "Литье"] as const
+const LOADING_PHRASES = ['Загрузка', 'Вычисления', 'Преобразование', 'Литье'] as const
 const PHRASE_INTERVAL_MS = 1000
 
 export function ChatLoadingPhrases() {

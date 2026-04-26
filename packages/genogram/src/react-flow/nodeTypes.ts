@@ -1,4 +1,4 @@
-import type { NodeTypes } from "@xyflow/react"
+import type { NodeTypes } from '@xyflow/react'
 import {
   AnnotationNode,
   BirthGroupNode,
@@ -6,7 +6,7 @@ import {
   PersonNode,
   PregnancyLossNode,
   UnionNode,
-} from "../nodes"
+} from '../nodes'
 
 export const nodeTypes: NodeTypes = {
   person: PersonNode,

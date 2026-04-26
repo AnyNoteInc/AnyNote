@@ -1,6 +1,6 @@
-"use client"
+'use client'
 
-import { PageError } from "@/components/fallbacks/page-error"
+import { PageError } from '@/components/fallbacks/page-error'
 
 export default function AuthError({
   error,

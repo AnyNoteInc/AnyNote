@@ -1,13 +1,13 @@
-import { config } from "dotenv"
-import { PrismaClient, Prisma } from "@prisma/client"
-import { PrismaPg } from "@prisma/adapter-pg"
+import { config } from 'dotenv'
+import { PrismaClient, Prisma } from '@prisma/client'
+import { PrismaPg } from '@prisma/adapter-pg'
 
-config({ path: "../../.env" })
+config({ path: '../../.env' })
 
 const databaseUrl = process.env.DATABASE_URL
 
 if (!databaseUrl) {
-  throw new Error("DATABASE_URL environment variable is not set.")
+  throw new Error('DATABASE_URL environment variable is not set.')
 }
 
 const adapter = new PrismaPg({
@@ -20,50 +20,50 @@ const prisma = new PrismaClient({
 
 const providers = [
   {
-    slug: "yandex",
-    name: "Yandex",
-    scope: "USER" as const,
+    slug: 'yandex',
+    name: 'Yandex',
+    scope: 'USER' as const,
     sortOrder: 10,
-    description: "Личный аккаунт Яндекс (диск, почта, календарь)",
+    description: 'Личный аккаунт Яндекс (диск, почта, календарь)',
   },
   {
-    slug: "github",
-    name: "GitHub",
-    scope: "USER" as const,
+    slug: 'github',
+    name: 'GitHub',
+    scope: 'USER' as const,
     sortOrder: 20,
-    description: "Личный GitHub — репозитории, issues, PR",
+    description: 'Личный GitHub — репозитории, issues, PR',
   },
   {
-    slug: "telegram",
-    name: "Telegram",
-    scope: "USER" as const,
+    slug: 'telegram',
+    name: 'Telegram',
+    scope: 'USER' as const,
     sortOrder: 30,
-    description: "Личный Telegram для уведомлений",
+    description: 'Личный Telegram для уведомлений',
   },
   {
-    slug: "amocrm",
-    name: "AmoCRM",
-    scope: "WORKSPACE" as const,
+    slug: 'amocrm',
+    name: 'AmoCRM',
+    scope: 'WORKSPACE' as const,
     sortOrder: 40,
-    description: "CRM для workspace — сделки, контакты",
+    description: 'CRM для workspace — сделки, контакты',
   },
   {
-    slug: "mango_office",
-    name: "MangoOffice",
-    scope: "WORKSPACE" as const,
+    slug: 'mango_office',
+    name: 'MangoOffice',
+    scope: 'WORKSPACE' as const,
     sortOrder: 50,
-    description: "Облачная телефония MangoOffice",
+    description: 'Облачная телефония MangoOffice',
   },
 ]
 
 const plans = [
   {
-    slug: "personal",
-    name: "Personal",
-    description: "Для личного пользования",
+    slug: 'personal',
+    name: 'Personal',
+    description: 'Для личного пользования',
     priceMonthlyKopecks: 0,
     priceYearlyKopecks: 0,
-    currency: "RUB",
+    currency: 'RUB',
     maxWorkspaces: 1,
     maxMembersPerWorkspace: 1,
     chatsEnabled: false,
@@ -73,17 +73,17 @@ const plans = [
     customMcpEnabled: false,
     prioritySupport: false,
     developerSpaceEnabled: false,
-    features: ["1 рабочее пространство", "Базовый редактор", "Без AI и индексации"],
+    features: ['1 рабочее пространство', 'Базовый редактор', 'Без AI и индексации'],
     sortOrder: 1,
     isActive: true,
   },
   {
-    slug: "pro",
-    name: "Pro",
-    description: "Для продвинутых пользователей",
+    slug: 'pro',
+    name: 'Pro',
+    description: 'Для продвинутых пользователей',
     priceMonthlyKopecks: 15_000,
     priceYearlyKopecks: 100_000,
-    currency: "RUB",
+    currency: 'RUB',
     maxWorkspaces: 3,
     maxMembersPerWorkspace: 5,
     chatsEnabled: true,
@@ -94,22 +94,22 @@ const plans = [
     prioritySupport: false,
     developerSpaceEnabled: false,
     features: [
-      "3 рабочих пространства",
-      "До 5 участников в каждом",
-      "Чаты с AI",
-      "Индексация страниц",
-      "GigaChat-2 и GigaChat-2 Pro",
+      '3 рабочих пространства',
+      'До 5 участников в каждом',
+      'Чаты с AI',
+      'Индексация страниц',
+      'GigaChat-2 и GigaChat-2 Pro',
     ],
     sortOrder: 2,
     isActive: true,
   },
   {
-    slug: "max",
-    name: "Max",
-    description: "Для команд и больших задач",
+    slug: 'max',
+    name: 'Max',
+    description: 'Для команд и больших задач',
     priceMonthlyKopecks: 150_000,
     priceYearlyKopecks: 1_200_000,
-    currency: "RUB",
+    currency: 'RUB',
     maxWorkspaces: null,
     maxMembersPerWorkspace: 100,
     chatsEnabled: true,
@@ -120,12 +120,12 @@ const plans = [
     prioritySupport: true,
     developerSpaceEnabled: true,
     features: [
-      "Неограниченное число пространств",
-      "До 100 участников",
-      "GigaChat-2, Pro, Max",
-      "Кастомные MCP-серверы",
-      "Приоритетная поддержка",
-      "Доступ к пространству разработчиков",
+      'Неограниченное число пространств',
+      'До 100 участников',
+      'GigaChat-2, Pro, Max',
+      'Кастомные MCP-серверы',
+      'Приоритетная поддержка',
+      'Доступ к пространству разработчиков',
     ],
     sortOrder: 3,
     isActive: true,
@@ -156,19 +156,19 @@ async function main() {
   // ── AI providers ──────────────────────────────────────────────────────────
   const aiProviders = [
     {
-      slug: "gigachat",
-      name: "GigaChat",
+      slug: 'gigachat',
+      name: 'GigaChat',
       connection: {
-        clientId: "019da3de-19e1-7f92-a0e1-5b90595c8e6c",
-        clientSecret: "e0762394-8b7c-48d4-84ea-dd3e4e57420b",
-        scope: "GIGACHAT_API_PERS",
+        clientId: '019da3de-19e1-7f92-a0e1-5b90595c8e6c',
+        clientSecret: 'e0762394-8b7c-48d4-84ea-dd3e4e57420b',
+        scope: 'GIGACHAT_API_PERS',
       } satisfies Prisma.InputJsonValue,
     },
     {
-      slug: "ollama",
-      name: "Ollama",
+      slug: 'ollama',
+      name: 'Ollama',
       connection: {
-        baseUrl: "http://localhost:11434",
+        baseUrl: 'http://localhost:11434',
       } satisfies Prisma.InputJsonValue,
     },
   ] as const
@@ -190,36 +190,36 @@ async function main() {
   const providerBySlug = new Map(providerRows.map((r) => [r.slug, r]))
 
   // ── AI models ─────────────────────────────────────────────────────────────
-  const gigachatModelSlugs = ["gigachat-2", "gigachat-2-pro", "gigachat-2-max"] as const
+  const gigachatModelSlugs = ['gigachat-2', 'gigachat-2-pro', 'gigachat-2-max'] as const
   const aiModels = [
     {
-      providerSlug: "gigachat",
-      slug: "gigachat-2",
-      displayName: "GigaChat-2",
+      providerSlug: 'gigachat',
+      slug: 'gigachat-2',
+      displayName: 'GigaChat-2',
       contextTokens: 32000,
       supportsVision: false,
-      minPlanSlug: "pro",
+      minPlanSlug: 'pro',
     },
     {
-      providerSlug: "gigachat",
-      slug: "gigachat-2-pro",
-      displayName: "GigaChat-2 Pro",
+      providerSlug: 'gigachat',
+      slug: 'gigachat-2-pro',
+      displayName: 'GigaChat-2 Pro',
       contextTokens: 32000,
       supportsVision: false,
-      minPlanSlug: "pro",
+      minPlanSlug: 'pro',
     },
     {
-      providerSlug: "gigachat",
-      slug: "gigachat-2-max",
-      displayName: "GigaChat-2 Max",
+      providerSlug: 'gigachat',
+      slug: 'gigachat-2-max',
+      displayName: 'GigaChat-2 Max',
       contextTokens: 64000,
       supportsVision: false,
-      minPlanSlug: "max",
+      minPlanSlug: 'max',
     },
     {
-      providerSlug: "ollama",
-      slug: "gemma4",
-      displayName: "Gemma 4 (Ollama)",
+      providerSlug: 'ollama',
+      slug: 'gemma4',
+      displayName: 'Gemma 4 (Ollama)',
       contextTokens: 8192,
       supportsVision: false,
       minPlanSlug: null,
@@ -250,8 +250,8 @@ async function main() {
     })
   }
 
-  const gigachatProvider = providerBySlug.get("gigachat")
-  if (!gigachatProvider) throw new Error("Seed: unknown AI provider slug gigachat")
+  const gigachatProvider = providerBySlug.get('gigachat')
+  if (!gigachatProvider) throw new Error('Seed: unknown AI provider slug gigachat')
   await prisma.aiModel.updateMany({
     where: {
       providerId: gigachatProvider.id,
@@ -264,7 +264,7 @@ async function main() {
     },
   })
 
-  console.info("Seed complete: 5 providers, 3 active plans, 2 AI providers, 4 AI models")
+  console.info('Seed complete: 5 providers, 3 active plans, 2 AI providers, 4 AI models')
 }
 
 main()

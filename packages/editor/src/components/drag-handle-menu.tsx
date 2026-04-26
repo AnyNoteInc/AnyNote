@@ -1,23 +1,23 @@
-"use client"
+'use client'
 
-import { useMemo, useState, type MouseEvent } from "react"
-import type { Editor } from "@tiptap/core"
+import { useMemo, useState, type MouseEvent } from 'react'
+import type { Editor } from '@tiptap/core'
 
-import { Box, Divider, ListItemIcon, ListItemText, Menu, MenuItem, Typography } from "@mui/material"
-import ContentCopyIcon from "@mui/icons-material/ContentCopy"
-import DeleteIcon from "@mui/icons-material/Delete"
-import FormatPaintOutlinedIcon from "@mui/icons-material/FormatPaintOutlined"
-import ShortcutIcon from "@mui/icons-material/Shortcut"
-import SyncAltOutlinedIcon from "@mui/icons-material/SyncAltOutlined"
+import { Box, Divider, ListItemIcon, ListItemText, Menu, MenuItem, Typography } from '@mui/material'
+import ContentCopyIcon from '@mui/icons-material/ContentCopy'
+import DeleteIcon from '@mui/icons-material/Delete'
+import FormatPaintOutlinedIcon from '@mui/icons-material/FormatPaintOutlined'
+import ShortcutIcon from '@mui/icons-material/Shortcut'
+import SyncAltOutlinedIcon from '@mui/icons-material/SyncAltOutlined'
 
-import { blockDisplayName, isConvertible } from "../lib/block-names"
+import { blockDisplayName, isConvertible } from '../lib/block-names'
 import {
   convertBlock,
   CONVERSION_ICONS,
   CONVERSION_LABELS,
   type ConversionTarget,
-} from "../lib/block-conversion"
-import { duplicateBlock } from "../lib/block-duplicate"
+} from '../lib/block-conversion'
+import { duplicateBlock } from '../lib/block-duplicate'
 import {
   BACKGROUND_COLOR_KEYS,
   BACKGROUND_COLOR_LABELS,
@@ -27,7 +27,7 @@ import {
   textColorSwatch,
   type BackgroundColorKey,
   type TextColorKey,
-} from "../lib/color-palette"
+} from '../lib/color-palette'
 
 type Props = {
   editor: Editor
@@ -37,7 +37,7 @@ type Props = {
   onRequestMove: (pos: number) => void
 }
 
-type Submenu = "convert" | "color" | null
+type Submenu = 'convert' | 'color' | null
 
 export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }: Props) {
   const [submenu, setSubmenu] = useState<Submenu>(null)
@@ -47,7 +47,7 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
     () => (pos == null ? null : (editor.state.doc.resolve(pos).nodeAfter ?? null)),
     [editor, pos],
   )
-  const displayName = node ? blockDisplayName(node) : ""
+  const displayName = node ? blockDisplayName(node) : ''
   const convertible = node ? isConvertible(node) : false
 
   const handleClose = () => {
@@ -56,7 +56,7 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
     onClose()
   }
 
-  const handleOpenSubmenu = (kind: "convert" | "color") => (e: MouseEvent<HTMLElement>) => {
+  const handleOpenSubmenu = (kind: 'convert' | 'color') => (e: MouseEvent<HTMLElement>) => {
     setSubmenu(kind)
     setSubmenuAnchor(e.currentTarget)
   }
@@ -131,7 +131,7 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
         </MenuItem>
 
         {convertible && (
-          <MenuItem onClick={handleOpenSubmenu("convert")}>
+          <MenuItem onClick={handleOpenSubmenu('convert')}>
             <ListItemIcon>
               <SyncAltOutlinedIcon fontSize="small" />
             </ListItemIcon>
@@ -142,7 +142,7 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
           </MenuItem>
         )}
 
-        <MenuItem onClick={handleOpenSubmenu("color")}>
+        <MenuItem onClick={handleOpenSubmenu('color')}>
           <ListItemIcon>
             <FormatPaintOutlinedIcon fontSize="small" />
           </ListItemIcon>
@@ -168,20 +168,20 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
           <ListItemText>Переместить</ListItemText>
         </MenuItem>
 
-        <MenuItem onClick={handleDelete} sx={{ color: "error.main" }}>
+        <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
           <ListItemIcon>
-            <DeleteIcon fontSize="small" sx={{ color: "error.main" }} />
+            <DeleteIcon fontSize="small" sx={{ color: 'error.main' }} />
           </ListItemIcon>
           <ListItemText>Удалить</ListItemText>
         </MenuItem>
       </Menu>
 
       <Menu
-        open={submenu === "convert" && Boolean(submenuAnchor)}
+        open={submenu === 'convert' && Boolean(submenuAnchor)}
         anchorEl={submenuAnchor}
         onClose={() => setSubmenu(null)}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "left" }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
       >
         {(Object.keys(CONVERSION_LABELS) as ConversionTarget[]).map((target) => {
           const Icon = CONVERSION_ICONS[target]
@@ -199,17 +199,17 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
       </Menu>
 
       <Menu
-        open={submenu === "color" && Boolean(submenuAnchor)}
+        open={submenu === 'color' && Boolean(submenuAnchor)}
         anchorEl={submenuAnchor}
         onClose={() => setSubmenu(null)}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "left" }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
         slotProps={{ paper: { sx: { minWidth: 160 } } }}
       >
         <Typography
           variant="caption"
           color="text.secondary"
-          sx={{ display: "block", px: 1.25, pt: 0.5 }}
+          sx={{ display: 'block', px: 1.25, pt: 0.5 }}
         >
           Цвет текста
         </Typography>
@@ -223,7 +223,7 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
         <Typography
           variant="caption"
           color="text.secondary"
-          sx={{ display: "block", px: 1.25, pt: 0.5 }}
+          sx={{ display: 'block', px: 1.25, pt: 0.5 }}
         >
           Фон
         </Typography>
@@ -241,8 +241,8 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
 const denseMenuItemSx = { py: 0.5 } as const
 
 const compactColorItemSx = {
-  display: "flex",
-  alignItems: "center",
+  display: 'flex',
+  alignItems: 'center',
   gap: 1,
   fontSize: 13,
   py: 0.5,
@@ -257,9 +257,9 @@ function Swatch({ color }: { color: string }) {
         width: 14,
         height: 14,
         borderRadius: 0.5,
-        border: "1px solid",
-        borderColor: "divider",
-        backgroundColor: color === "transparent" ? "transparent" : color,
+        border: '1px solid',
+        borderColor: 'divider',
+        backgroundColor: color === 'transparent' ? 'transparent' : color,
         flexShrink: 0,
       }}
     />

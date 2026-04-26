@@ -1,13 +1,13 @@
-"use client"
+'use client'
 
-import { useState } from "react"
-import type { ElementType, MouseEvent } from "react"
-import Avatar from "@mui/material/Avatar"
-import Divider from "@mui/material/Divider"
-import ListItemText from "@mui/material/ListItemText"
-import Menu from "@mui/material/Menu"
-import MenuItem from "@mui/material/MenuItem"
-import { Box, IconButton, Typography } from "@repo/ui/components"
+import { useState } from 'react'
+import type { ElementType, MouseEvent } from 'react'
+import Avatar from '@mui/material/Avatar'
+import Divider from '@mui/material/Divider'
+import ListItemText from '@mui/material/ListItemText'
+import Menu from '@mui/material/Menu'
+import MenuItem from '@mui/material/MenuItem'
+import { Box, IconButton, Typography } from '@repo/ui/components'
 
 export type UserAvatarMenuUser = {
   name: string
@@ -31,8 +31,8 @@ export type UserAvatarMenuProps = {
 
 const getInitials = (text: string): string => {
   const parts = text.trim().split(/\s+/).slice(0, 2)
-  const initials = parts.map((part) => part[0]).join("")
-  return initials.toUpperCase() || "U"
+  const initials = parts.map((part) => part[0]).join('')
+  return initials.toUpperCase() || 'U'
 }
 
 export function UserAvatarMenu({ user, items }: UserAvatarMenuProps) {
@@ -56,8 +56,8 @@ export function UserAvatarMenu({ user, items }: UserAvatarMenuProps) {
         anchorEl={anchorEl}
         open={open}
         onClose={handleClose}
-        anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "right" }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
       >
         <Box sx={{ px: 2, py: 1 }}>
           <Typography variant="subtitle1" fontWeight={600}>

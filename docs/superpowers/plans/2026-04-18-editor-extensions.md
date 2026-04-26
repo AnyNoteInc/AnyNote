@@ -77,10 +77,10 @@ Open `packages/excalidraw/src/board-inner.tsx` and add an effect after the exist
 // the choice stays per-user and is not written to Yjs.
 useEffect(() => {
   if (!api) return
-  const viewBackgroundColor = muiTheme.palette.mode === "dark" ? "#121212" : "#ffffff"
+  const viewBackgroundColor = muiTheme.palette.mode === 'dark' ? '#121212' : '#ffffff'
   api.updateScene({
     appState: { viewBackgroundColor },
-    captureUpdate: "NEVER",
+    captureUpdate: 'NEVER',
   })
 }, [api, muiTheme.palette.mode])
 ```
@@ -133,23 +133,23 @@ Content:
 type NodeLike = { type: { name: string }; attrs?: Record<string, unknown> }
 
 const BASE: Record<string, string> = {
-  paragraph: "Текст",
-  bulletList: "Маркированный список",
-  orderedList: "Нумерованный список",
-  taskList: "Задачи",
-  blockquote: "Цитата",
-  codeBlock: "Код",
-  resizableImage: "Изображение",
-  fileAttachment: "Файл",
-  pageLink: "Ссылка на страницу",
-  callout: "Подсказка",
-  toggle: "Переключатель",
-  hiddenText: "Скрытый текст",
+  paragraph: 'Текст',
+  bulletList: 'Маркированный список',
+  orderedList: 'Нумерованный список',
+  taskList: 'Задачи',
+  blockquote: 'Цитата',
+  codeBlock: 'Код',
+  resizableImage: 'Изображение',
+  fileAttachment: 'Файл',
+  pageLink: 'Ссылка на страницу',
+  callout: 'Подсказка',
+  toggle: 'Переключатель',
+  hiddenText: 'Скрытый текст',
 }
 
 export function blockDisplayName(node: NodeLike): string {
   const name = node.type.name
-  if (name === "heading") {
+  if (name === 'heading') {
     const level = Number(node.attrs?.level ?? 1)
     return `Заголовок ${level}`
   }
@@ -157,12 +157,12 @@ export function blockDisplayName(node: NodeLike): string {
 }
 
 export const CONVERTIBLE_TYPES = new Set([
-  "paragraph",
-  "heading",
-  "bulletList",
-  "orderedList",
-  "blockquote",
-  "codeBlock",
+  'paragraph',
+  'heading',
+  'bulletList',
+  'orderedList',
+  'blockquote',
+  'codeBlock',
 ])
 
 export function isConvertible(node: NodeLike): boolean {
@@ -192,48 +192,48 @@ Content of `packages/editor/src/lib/color-palette.ts`:
 
 ```ts
 export const TEXT_COLOR_KEYS = [
-  "default",
-  "gray",
-  "brown",
-  "orange",
-  "yellow",
-  "green",
-  "blue",
-  "purple",
-  "pink",
-  "red",
+  'default',
+  'gray',
+  'brown',
+  'orange',
+  'yellow',
+  'green',
+  'blue',
+  'purple',
+  'pink',
+  'red',
 ] as const
 
 export type TextColorKey = (typeof TEXT_COLOR_KEYS)[number]
 
 export const TEXT_COLOR_LABELS: Record<TextColorKey, string> = {
-  default: "По умолчанию",
-  gray: "Серый",
-  brown: "Коричневый",
-  orange: "Оранжевый",
-  yellow: "Жёлтый",
-  green: "Зелёный",
-  blue: "Голубой",
-  purple: "Фиолетовый",
-  pink: "Розовый",
-  red: "Красный",
+  default: 'По умолчанию',
+  gray: 'Серый',
+  brown: 'Коричневый',
+  orange: 'Оранжевый',
+  yellow: 'Жёлтый',
+  green: 'Зелёный',
+  blue: 'Голубой',
+  purple: 'Фиолетовый',
+  pink: 'Розовый',
+  red: 'Красный',
 }
 
 export const BACKGROUND_COLOR_KEYS = TEXT_COLOR_KEYS
 export type BackgroundColorKey = TextColorKey
 export const BACKGROUND_COLOR_LABELS: Record<BackgroundColorKey, string> = {
   ...TEXT_COLOR_LABELS,
-  blue: "Синий",
+  blue: 'Синий',
 }
 
 // CSS-variable-backed preview swatches for menu items.
 export function textColorSwatch(key: TextColorKey): string {
-  if (key === "default") return "transparent"
+  if (key === 'default') return 'transparent'
   return `var(--anynote-color-${key})`
 }
 
 export function backgroundColorSwatch(key: BackgroundColorKey): string {
-  if (key === "default") return "transparent"
+  if (key === 'default') return 'transparent'
   return `var(--anynote-bg-${key})`
 }
 ```
@@ -266,7 +266,7 @@ Open `packages/editor/src/styles/content.css` and append at the end:
   --anynote-bg-red: rgba(180, 35, 24, 0.14);
 }
 
-[data-mui-color-scheme="dark"] {
+[data-mui-color-scheme='dark'] {
   --anynote-color-gray: #b5bac0;
   --anynote-color-brown: #c9a07a;
   --anynote-color-orange: #e58a2b;
@@ -345,7 +345,7 @@ Open `packages/editor/src/styles/content.css` and append at the end:
 }
 
 /* Block-level background keeps padding/radius so highlights look intentional */
-.anynote-editor [class*="anynote-bg-"] {
+.anynote-editor [class*='anynote-bg-'] {
   padding: 2px 6px;
   border-radius: 4px;
 }
@@ -389,12 +389,12 @@ git commit -m "feat(editor): color palette constants and CSS variables"
 Content:
 
 ```ts
-import { Mark, mergeAttributes } from "@tiptap/core"
+import { Mark, mergeAttributes } from '@tiptap/core'
 
-import type { TextColorKey } from "../lib/color-palette"
-import { TEXT_COLOR_KEYS } from "../lib/color-palette"
+import type { TextColorKey } from '../lib/color-palette'
+import { TEXT_COLOR_KEYS } from '../lib/color-palette'
 
-declare module "@tiptap/core" {
+declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     anynoteTextColor: {
       setAnynoteTextColor: (color: TextColorKey) => ReturnType
@@ -404,26 +404,26 @@ declare module "@tiptap/core" {
 }
 
 function isValidColor(value: unknown): value is TextColorKey {
-  return typeof value === "string" && (TEXT_COLOR_KEYS as readonly string[]).includes(value)
+  return typeof value === 'string' && (TEXT_COLOR_KEYS as readonly string[]).includes(value)
 }
 
 export const AnynoteTextColor = Mark.create({
-  name: "anynoteTextColor",
+  name: 'anynoteTextColor',
 
   addAttributes() {
     return {
       color: {
-        default: "default" as TextColorKey,
+        default: 'default' as TextColorKey,
         parseHTML: (el) => {
-          const raw = el.getAttribute("data-anynote-color")
-          return isValidColor(raw) ? raw : "default"
+          const raw = el.getAttribute('data-anynote-color')
+          return isValidColor(raw) ? raw : 'default'
         },
         renderHTML: (attrs) => {
           const color = attrs.color as TextColorKey
-          if (!color || color === "default") return {}
+          if (!color || color === 'default') return {}
           return {
             class: `anynote-color-${color}`,
-            "data-anynote-color": color,
+            'data-anynote-color': color,
           }
         },
       },
@@ -431,11 +431,11 @@ export const AnynoteTextColor = Mark.create({
   },
 
   parseHTML() {
-    return [{ tag: "span[data-anynote-color]" }]
+    return [{ tag: 'span[data-anynote-color]' }]
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ["span", mergeAttributes(HTMLAttributes), 0]
+    return ['span', mergeAttributes(HTMLAttributes), 0]
   },
 
   addCommands() {
@@ -443,7 +443,7 @@ export const AnynoteTextColor = Mark.create({
       setAnynoteTextColor:
         (color) =>
         ({ chain }) => {
-          if (color === "default") {
+          if (color === 'default') {
             return chain().unsetMark(this.name).run()
           }
           return chain().setMark(this.name, { color }).run()
@@ -477,12 +477,12 @@ git commit -m "feat(editor): anynoteTextColor mark"
 Content:
 
 ```ts
-import { Extension } from "@tiptap/core"
+import { Extension } from '@tiptap/core'
 
-import type { BackgroundColorKey } from "../lib/color-palette"
-import { BACKGROUND_COLOR_KEYS } from "../lib/color-palette"
+import type { BackgroundColorKey } from '../lib/color-palette'
+import { BACKGROUND_COLOR_KEYS } from '../lib/color-palette'
 
-declare module "@tiptap/core" {
+declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     blockBackground: {
       setBlockBackground: (color: BackgroundColorKey) => ReturnType
@@ -492,27 +492,27 @@ declare module "@tiptap/core" {
 
 // Every block node that should support the "Цвет → Фон" menu entry
 export const BACKGROUND_SUPPORTED_TYPES = [
-  "paragraph",
-  "heading",
-  "bulletList",
-  "orderedList",
-  "taskList",
-  "blockquote",
-  "codeBlock",
-  "callout",
-  "toggle",
-  "hiddenText",
-  "resizableImage",
-  "fileAttachment",
-  "pageLink",
+  'paragraph',
+  'heading',
+  'bulletList',
+  'orderedList',
+  'taskList',
+  'blockquote',
+  'codeBlock',
+  'callout',
+  'toggle',
+  'hiddenText',
+  'resizableImage',
+  'fileAttachment',
+  'pageLink',
 ]
 
 function isValidBg(value: unknown): value is BackgroundColorKey {
-  return typeof value === "string" && (BACKGROUND_COLOR_KEYS as readonly string[]).includes(value)
+  return typeof value === 'string' && (BACKGROUND_COLOR_KEYS as readonly string[]).includes(value)
 }
 
 export const BlockBackground = Extension.create({
-  name: "blockBackground",
+  name: 'blockBackground',
 
   addGlobalAttributes() {
     return [
@@ -522,15 +522,15 @@ export const BlockBackground = Extension.create({
           backgroundColor: {
             default: null as BackgroundColorKey | null,
             parseHTML: (el) => {
-              const raw = el.getAttribute("data-anynote-bg")
+              const raw = el.getAttribute('data-anynote-bg')
               return isValidBg(raw) ? raw : null
             },
             renderHTML: (attrs) => {
               const bg = attrs.backgroundColor as BackgroundColorKey | null
-              if (!bg || bg === "default") return {}
+              if (!bg || bg === 'default') return {}
               return {
                 class: `anynote-bg-${bg}`,
-                "data-anynote-bg": bg,
+                'data-anynote-bg': bg,
               }
             },
           },
@@ -548,7 +548,7 @@ export const BlockBackground = Extension.create({
           let changed = false
           state.doc.nodesBetween(from, to, (node, pos) => {
             if (!BACKGROUND_SUPPORTED_TYPES.includes(node.type.name)) return
-            const next = color === "default" ? null : color
+            const next = color === 'default' ? null : color
             if (node.attrs.backgroundColor === next) return
             tr.setNodeMarkup(pos, undefined, { ...node.attrs, backgroundColor: next })
             changed = true
@@ -583,8 +583,8 @@ Open `packages/editor/src/extensions/index.ts`. Find the `buildExtensions()` fun
 Add to imports near the top:
 
 ```ts
-import { AnynoteTextColor } from "./text-color"
-import { BlockBackground } from "./block-background"
+import { AnynoteTextColor } from './text-color'
+import { BlockBackground } from './block-background'
 ```
 
 Add to the extension list returned by `buildExtensions()`, after StarterKit but before custom node views:
@@ -627,11 +627,11 @@ git commit -m "feat(editor): register text-color and block-background extensions
 Content of `packages/editor/src/extensions/toggle.tsx`:
 
 ```tsx
-import { Node, mergeAttributes } from "@tiptap/core"
-import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react"
-import type { NodeViewProps } from "@tiptap/react"
+import { Node, mergeAttributes } from '@tiptap/core'
+import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
+import type { NodeViewProps } from '@tiptap/react'
 
-import { ArrowRightOutlinedIcon, IconButton } from "@repo/ui/components"
+import { ArrowRightOutlinedIcon, IconButton } from '@repo/ui/components'
 
 function ToggleView({ node, updateAttributes, editor }: NodeViewProps) {
   const open = node.attrs.open !== false
@@ -654,15 +654,15 @@ function ToggleView({ node, updateAttributes, editor }: NodeViewProps) {
         onClick={handleToggle}
         contentEditable={false}
         className="anynote-toggle-arrow"
-        aria-label={open ? "Свернуть" : "Развернуть"}
+        aria-label={open ? 'Свернуть' : 'Развернуть'}
         sx={{
           width: 20,
           height: 20,
           p: 0,
-          mt: "2px",
-          transform: open ? "rotate(90deg)" : "rotate(0deg)",
-          transition: "transform 120ms",
-          color: "text.secondary",
+          mt: '2px',
+          transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
+          transition: 'transform 120ms',
+          color: 'text.secondary',
         }}
       >
         <ArrowRightOutlinedIcon sx={{ fontSize: 18 }} />
@@ -673,17 +673,17 @@ function ToggleView({ node, updateAttributes, editor }: NodeViewProps) {
 }
 
 export const Toggle = Node.create({
-  name: "toggle",
-  group: "block",
-  content: "block+",
+  name: 'toggle',
+  group: 'block',
+  content: 'block+',
   defining: true,
 
   addAttributes() {
     return {
       open: {
         default: true,
-        parseHTML: (el) => el.getAttribute("data-open") !== "false",
-        renderHTML: (attrs) => ({ "data-open": String(Boolean(attrs.open)) }),
+        parseHTML: (el) => el.getAttribute('data-open') !== 'false',
+        renderHTML: (attrs) => ({ 'data-open': String(Boolean(attrs.open)) }),
       },
     }
   },
@@ -693,7 +693,7 @@ export const Toggle = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ["div", mergeAttributes(HTMLAttributes, { "data-type": "toggle" }), 0]
+    return ['div', mergeAttributes(HTMLAttributes, { 'data-type': 'toggle' }), 0]
   },
 
   addNodeView() {
@@ -708,7 +708,7 @@ export const Toggle = Node.create({
         const { $from } = editor.state.selection
         for (let depth = $from.depth; depth > 0; depth--) {
           const node = $from.node(depth)
-          if (node.type.name !== "toggle") continue
+          if (node.type.name !== 'toggle') continue
           if (node.attrs.open) return false
           const pos = $from.before(depth)
           editor
@@ -739,7 +739,7 @@ Append to `packages/editor/src/styles/content.css`:
   gap: 4px;
   align-items: start;
 }
-.anynote-toggle[data-open="false"] > .anynote-toggle-content > *:not(:first-child) {
+.anynote-toggle[data-open='false'] > .anynote-toggle-content > *:not(:first-child) {
   display: none;
 }
 .anynote-toggle-content > * {
@@ -771,11 +771,11 @@ git commit -m "feat(editor): toggle block extension"
 Content of `packages/editor/src/extensions/hidden-text.tsx`:
 
 ```tsx
-import { useState } from "react"
-import { Node, mergeAttributes } from "@tiptap/core"
-import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react"
+import { useState } from 'react'
+import { Node, mergeAttributes } from '@tiptap/core'
+import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 
-import { IconButton, VisibilityIcon, VisibilityOffIcon } from "@repo/ui/components"
+import { IconButton, VisibilityIcon, VisibilityOffIcon } from '@repo/ui/components'
 
 // `visible` is a LOCAL view-state only — we do not persist it. Every client
 // starts with the content masked and reveals on their own click.
@@ -789,13 +789,13 @@ function HiddenTextView() {
         onMouseDown={(e) => e.preventDefault()}
         onClick={() => setVisible((v) => !v)}
         contentEditable={false}
-        aria-label={visible ? "Скрыть" : "Показать"}
+        aria-label={visible ? 'Скрыть' : 'Показать'}
         sx={{
           width: 20,
           height: 20,
           p: 0,
-          mt: "2px",
-          color: "text.secondary",
+          mt: '2px',
+          color: 'text.secondary',
         }}
       >
         {visible ? (
@@ -810,9 +810,9 @@ function HiddenTextView() {
 }
 
 export const HiddenText = Node.create({
-  name: "hiddenText",
-  group: "block",
-  content: "block+",
+  name: 'hiddenText',
+  group: 'block',
+  content: 'block+',
   defining: true,
 
   parseHTML() {
@@ -820,7 +820,7 @@ export const HiddenText = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ["div", mergeAttributes(HTMLAttributes, { "data-type": "hidden-text" }), 0]
+    return ['div', mergeAttributes(HTMLAttributes, { 'data-type': 'hidden-text' }), 0]
   },
 
   addNodeView() {
@@ -851,12 +851,12 @@ Append to `packages/editor/src/styles/content.css`:
   gap: 4px;
   align-items: start;
 }
-.anynote-hidden-text[data-visible="false"] > .anynote-hidden-text-content {
+.anynote-hidden-text[data-visible='false'] > .anynote-hidden-text-content {
   -webkit-text-security: disc;
   text-security: disc;
 }
 @supports not ((-webkit-text-security: disc) or (text-security: disc)) {
-  .anynote-hidden-text[data-visible="false"] > .anynote-hidden-text-content {
+  .anynote-hidden-text[data-visible='false'] > .anynote-hidden-text-content {
     filter: blur(5px);
   }
 }
@@ -886,8 +886,8 @@ git commit -m "feat(editor): hidden-text block extension"
 Add imports to `packages/editor/src/extensions/index.ts`:
 
 ```ts
-import { Toggle } from "./toggle"
-import { HiddenText } from "./hidden-text"
+import { Toggle } from './toggle'
+import { HiddenText } from './hidden-text'
 ```
 
 Add to the extensions list returned by `buildExtensions()`, after `Callout` and other custom nodes:
@@ -942,7 +942,7 @@ Open `packages/editor/src/slash-items.ts`. Find the `buildItems()` helper (refer
 Add the icon imports at the top of `slash-items.ts` if they are not already imported:
 
 ```ts
-import { ArrowRightOutlinedIcon, VisibilityOffIcon } from "@repo/ui/components"
+import { ArrowRightOutlinedIcon, VisibilityOffIcon } from '@repo/ui/components'
 ```
 
 - [ ] **Step 3: Type-check editor package**
@@ -985,7 +985,7 @@ git commit -m "feat(editor): toggle and hidden-text slash menu items"
 Content of `packages/editor/src/lib/block-duplicate.ts`:
 
 ```ts
-import type { Editor } from "@tiptap/core"
+import type { Editor } from '@tiptap/core'
 
 // Duplicates the block at `pos` by serializing it to JSON and inserting a copy
 // immediately after. Works for any node type since it uses the raw JSON form.
@@ -1003,51 +1003,51 @@ export function duplicateBlock(editor: Editor, pos: number): boolean {
 Content of `packages/editor/src/lib/block-conversion.ts`:
 
 ```ts
-import type { Editor } from "@tiptap/core"
+import type { Editor } from '@tiptap/core'
 
 export type ConversionTarget =
-  | "paragraph"
-  | "heading-1"
-  | "heading-2"
-  | "heading-3"
-  | "heading-4"
-  | "bulletList"
-  | "orderedList"
-  | "blockquote"
-  | "codeBlock"
+  | 'paragraph'
+  | 'heading-1'
+  | 'heading-2'
+  | 'heading-3'
+  | 'heading-4'
+  | 'bulletList'
+  | 'orderedList'
+  | 'blockquote'
+  | 'codeBlock'
 
 export const CONVERSION_LABELS: Record<ConversionTarget, string> = {
-  paragraph: "Текст",
-  "heading-1": "Заголовок 1",
-  "heading-2": "Заголовок 2",
-  "heading-3": "Заголовок 3",
-  "heading-4": "Заголовок 4",
-  bulletList: "Маркированный список",
-  orderedList: "Нумерованный список",
-  blockquote: "Цитата",
-  codeBlock: "Код",
+  paragraph: 'Текст',
+  'heading-1': 'Заголовок 1',
+  'heading-2': 'Заголовок 2',
+  'heading-3': 'Заголовок 3',
+  'heading-4': 'Заголовок 4',
+  bulletList: 'Маркированный список',
+  orderedList: 'Нумерованный список',
+  blockquote: 'Цитата',
+  codeBlock: 'Код',
 }
 
 export function convertBlock(editor: Editor, target: ConversionTarget): boolean {
   const chain = editor.chain().focus()
   switch (target) {
-    case "paragraph":
+    case 'paragraph':
       return chain.setParagraph().run()
-    case "heading-1":
+    case 'heading-1':
       return chain.setHeading({ level: 1 }).run()
-    case "heading-2":
+    case 'heading-2':
       return chain.setHeading({ level: 2 }).run()
-    case "heading-3":
+    case 'heading-3':
       return chain.setHeading({ level: 3 }).run()
-    case "heading-4":
+    case 'heading-4':
       return chain.setHeading({ level: 4 }).run()
-    case "bulletList":
+    case 'bulletList':
       return chain.toggleBulletList().run()
-    case "orderedList":
+    case 'orderedList':
       return chain.toggleOrderedList().run()
-    case "blockquote":
+    case 'blockquote':
       return chain.setBlockquote().run()
-    case "codeBlock":
+    case 'codeBlock':
       return chain.toggleCodeBlock().run()
   }
 }
@@ -1073,10 +1073,10 @@ git commit -m "feat(editor): block duplicate and conversion helpers"
 Content of `packages/editor/src/components/drag-handle-menu.tsx`:
 
 ```tsx
-"use client"
+'use client'
 
-import { useMemo, useState, type MouseEvent } from "react"
-import type { Editor } from "@tiptap/core"
+import { useMemo, useState, type MouseEvent } from 'react'
+import type { Editor } from '@tiptap/core'
 
 import {
   Box,
@@ -1092,11 +1092,11 @@ import {
   Stack,
   SyncAltOutlinedIcon,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { blockDisplayName, isConvertible } from "../lib/block-names"
-import { convertBlock, CONVERSION_LABELS, type ConversionTarget } from "../lib/block-conversion"
-import { duplicateBlock } from "../lib/block-duplicate"
+import { blockDisplayName, isConvertible } from '../lib/block-names'
+import { convertBlock, CONVERSION_LABELS, type ConversionTarget } from '../lib/block-conversion'
+import { duplicateBlock } from '../lib/block-duplicate'
 import {
   BACKGROUND_COLOR_KEYS,
   BACKGROUND_COLOR_LABELS,
@@ -1106,7 +1106,7 @@ import {
   textColorSwatch,
   type BackgroundColorKey,
   type TextColorKey,
-} from "../lib/color-palette"
+} from '../lib/color-palette'
 
 type Props = {
   editor: Editor
@@ -1116,14 +1116,14 @@ type Props = {
   onRequestMove: (pos: number) => void
 }
 
-type Submenu = "convert" | "color" | null
+type Submenu = 'convert' | 'color' | null
 
 export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }: Props) {
   const [submenu, setSubmenu] = useState<Submenu>(null)
   const [submenuAnchor, setSubmenuAnchor] = useState<HTMLElement | null>(null)
 
   const node = useMemo(() => (pos == null ? null : editor.state.doc.nodeAt(pos)), [editor, pos])
-  const displayName = node ? blockDisplayName(node) : ""
+  const displayName = node ? blockDisplayName(node) : ''
   const convertible = node ? isConvertible(node) : false
 
   const handleClose = () => {
@@ -1132,7 +1132,7 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
     onClose()
   }
 
-  const handleOpenSubmenu = (kind: "convert" | "color") => (e: MouseEvent<HTMLElement>) => {
+  const handleOpenSubmenu = (kind: 'convert' | 'color') => (e: MouseEvent<HTMLElement>) => {
     setSubmenu(kind)
     setSubmenuAnchor(e.currentTarget)
   }
@@ -1207,7 +1207,7 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
         </MenuItem>
 
         {convertible && (
-          <MenuItem onClick={handleOpenSubmenu("convert")}>
+          <MenuItem onClick={handleOpenSubmenu('convert')}>
             <ListItemIcon>
               <SyncAltOutlinedIcon fontSize="small" />
             </ListItemIcon>
@@ -1218,7 +1218,7 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
           </MenuItem>
         )}
 
-        <MenuItem onClick={handleOpenSubmenu("color")}>
+        <MenuItem onClick={handleOpenSubmenu('color')}>
           <ListItemIcon>
             <FormatPaintOutlinedIcon fontSize="small" />
           </ListItemIcon>
@@ -1244,20 +1244,20 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
           <ListItemText>Переместить</ListItemText>
         </MenuItem>
 
-        <MenuItem onClick={handleDelete} sx={{ color: "error.main" }}>
+        <MenuItem onClick={handleDelete} sx={{ color: 'error.main' }}>
           <ListItemIcon>
-            <DeleteIcon fontSize="small" sx={{ color: "error.main" }} />
+            <DeleteIcon fontSize="small" sx={{ color: 'error.main' }} />
           </ListItemIcon>
           <ListItemText>Удалить</ListItemText>
         </MenuItem>
       </Menu>
 
       <Menu
-        open={submenu === "convert" && Boolean(submenuAnchor)}
+        open={submenu === 'convert' && Boolean(submenuAnchor)}
         anchorEl={submenuAnchor}
         onClose={() => setSubmenu(null)}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "left" }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
       >
         {(Object.keys(CONVERSION_LABELS) as ConversionTarget[]).map((target) => (
           <MenuItem key={target} onClick={() => handleConvert(target)}>
@@ -1267,11 +1267,11 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
       </Menu>
 
       <Menu
-        open={submenu === "color" && Boolean(submenuAnchor)}
+        open={submenu === 'color' && Boolean(submenuAnchor)}
         anchorEl={submenuAnchor}
         onClose={() => setSubmenu(null)}
-        anchorOrigin={{ vertical: "top", horizontal: "right" }}
-        transformOrigin={{ vertical: "top", horizontal: "left" }}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
       >
         <MenuItem disabled dense>
           <Typography variant="caption" color="text.secondary">
@@ -1312,9 +1312,9 @@ function Swatch({ color }: { color: string }) {
         width: 14,
         height: 14,
         borderRadius: 0.5,
-        border: "1px solid",
-        borderColor: "divider",
-        backgroundColor: color === "transparent" ? "transparent" : color,
+        border: '1px solid',
+        borderColor: 'divider',
+        backgroundColor: color === 'transparent' ? 'transparent' : color,
       }}
     />
   )
@@ -1431,9 +1431,9 @@ Identify the recursive `MoveTreeItem` component and the tree rendering section.
 Extract the tree rendering (root + recursive items) into a reusable component. Example shape:
 
 ```tsx
-"use client"
+'use client'
 
-import { useState } from "react"
+import { useState } from 'react'
 import {
   Box,
   FolderIcon,
@@ -1443,8 +1443,8 @@ import {
   ListItemText,
   Stack,
   Typography,
-} from "@repo/ui/components"
-import { trpc } from "@/trpc/client"
+} from '@repo/ui/components'
+import { trpc } from '@/trpc/client'
 
 type Props = {
   workspaceId: string
@@ -1517,13 +1517,13 @@ function TreeRow({
         {node.children.length > 0 ? (
           <Box
             component="span"
-            sx={{ mr: 1, cursor: "pointer" }}
+            sx={{ mr: 1, cursor: 'pointer' }}
             onClick={(e) => {
               e.stopPropagation()
               setOpen((v) => !v)
             }}
           >
-            {open ? "▾" : "▸"}
+            {open ? '▾' : '▸'}
           </Box>
         ) : (
           <Box component="span" sx={{ mr: 1, width: 12 }} />
@@ -1531,7 +1531,7 @@ function TreeRow({
         <ListItemIcon sx={{ minWidth: 28 }}>
           {node.icon ? <Typography>{node.icon}</Typography> : <FolderIcon fontSize="small" />}
         </ListItemIcon>
-        <ListItemText primary={node.title?.trim() || "Новая страница"} />
+        <ListItemText primary={node.title?.trim() || 'Новая страница'} />
       </ListItemButton>
       {open &&
         node.children.map((c) => (
@@ -1586,10 +1586,10 @@ git commit -m "refactor(web): extract PageTreePicker from MovePageDialog"
 Content:
 
 ```ts
-import type { Editor } from "@tiptap/core"
-import { HocuspocusProvider } from "@hocuspocus/provider"
-import * as Y from "yjs"
-import { prosemirrorJSONToYDoc } from "y-prosemirror"
+import type { Editor } from '@tiptap/core'
+import { HocuspocusProvider } from '@hocuspocus/provider'
+import * as Y from 'yjs'
+import { prosemirrorJSONToYDoc } from 'y-prosemirror'
 
 type MoveBlockParams = {
   editor: Editor
@@ -1615,10 +1615,10 @@ export async function moveBlockToPage({
   targetPageId,
   yjsUrl,
   token,
-  fragmentField = "prosemirror",
+  fragmentField = 'prosemirror',
 }: MoveBlockParams): Promise<MoveBlockResult> {
   const node = editor.state.doc.nodeAt(sourcePos)
-  if (!node) return { ok: false, error: "Block not found at source position" }
+  if (!node) return { ok: false, error: 'Block not found at source position' }
   const json = node.toJSON()
   const nodeSize = node.nodeSize
 
@@ -1633,8 +1633,8 @@ export async function moveBlockToPage({
 
   try {
     await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("Sync timeout")), 10_000)
-      provider.on("synced", () => {
+      const timeout = setTimeout(() => reject(new Error('Sync timeout')), 10_000)
+      provider.on('synced', () => {
         clearTimeout(timeout)
         resolve()
       })
@@ -1643,7 +1643,7 @@ export async function moveBlockToPage({
     // Wrap the single block in a synthetic doc so y-prosemirror can materialize
     // its XML representation end-to-end (prosemirrorJSONToYDoc expects a doc-level
     // prosemirror JSON tree as input).
-    const syntheticDoc = { type: "doc", content: [json] }
+    const syntheticDoc = { type: 'doc', content: [json] }
     const tempYDoc = prosemirrorJSONToYDoc(editor.schema, syntheticDoc, fragmentField)
     const tempFragment = tempYDoc.getXmlFragment(fragmentField)
 
@@ -1687,12 +1687,12 @@ Note: `y-prosemirror`'s exact export shape for `prosemirrorJSONToYXmlFragment` m
 Content of `packages/editor/src/components/block-move-dialog.tsx`:
 
 ```tsx
-"use client"
+'use client'
 
-import { useState } from "react"
-import type { ReactNode } from "react"
+import { useState } from 'react'
+import type { ReactNode } from 'react'
 
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle } from "@repo/ui/components"
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle } from '@repo/ui/components'
 
 type Props = {
   open: boolean
@@ -1707,7 +1707,7 @@ export function BlockMoveDialog({ open, onClose, onConfirm, busy, treePicker, se
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
       <DialogTitle>Переместить блок на страницу</DialogTitle>
-      <DialogContent dividers sx={{ maxHeight: 480, overflow: "auto" }}>
+      <DialogContent dividers sx={{ maxHeight: 480, overflow: 'auto' }}>
         {treePicker}
       </DialogContent>
       <DialogActions>
@@ -1717,7 +1717,7 @@ export function BlockMoveDialog({ open, onClose, onConfirm, busy, treePicker, se
           disabled={!selectedId || busy}
           variant="contained"
         >
-          {busy ? "Перемещение…" : "Переместить"}
+          {busy ? 'Перемещение…' : 'Переместить'}
         </Button>
       </DialogActions>
     </Dialog>
@@ -1732,9 +1732,9 @@ This is deliberately decoupled from tRPC / trpc clients (so the editor package s
 Edit `packages/editor/src/index.ts` and add:
 
 ```ts
-export { BlockMoveDialog } from "./components/block-move-dialog"
-export { moveBlockToPage } from "./lib/block-move"
-export type { MoveBlockResult } from "./lib/block-move"
+export { BlockMoveDialog } from './components/block-move-dialog'
+export { moveBlockToPage } from './lib/block-move'
+export type { MoveBlockResult } from './lib/block-move'
 ```
 
 - [ ] **Step 4: Commit**
@@ -1783,7 +1783,7 @@ const handleMoveConfirm = async () => {
       router.push(`/workspaces/${workspaceId}/pages/${moveTargetId}`)
     } else {
       // Surface via snackbar; project's snackbar pattern should be reused.
-      console.error("moveBlockToPage failed:", result.error)
+      console.error('moveBlockToPage failed:', result.error)
     }
   } finally {
     setMoveBusy(false)
@@ -1884,10 +1884,10 @@ Identify: how favorites are toggled, how duplicate/move/delete run, where snackb
 Content of `apps/web/src/hooks/use-page-actions.tsx`:
 
 ```tsx
-"use client"
+'use client'
 
-import { useState, type ReactNode } from "react"
-import { useRouter } from "next/navigation"
+import { useState, type ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Button,
   Dialog,
@@ -1895,10 +1895,10 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { MovePageDialog } from "@/components/workspace/move-page-dialog"
-import { trpc } from "@/trpc/client"
+import { MovePageDialog } from '@/components/workspace/move-page-dialog'
+import { trpc } from '@/trpc/client'
 
 export type UsePageActionsResult = {
   isFavorite: boolean
@@ -2066,10 +2066,10 @@ git commit -m "refactor(web): extract usePageActions shared hook"
 - [ ] **Step 1: Write FavoriteStar**
 
 ```tsx
-"use client"
+'use client'
 
-import { IconButton, StarBorderIcon, StarIcon } from "@repo/ui/components"
-import { usePageActions } from "@/hooks/use-page-actions"
+import { IconButton, StarBorderIcon, StarIcon } from '@repo/ui/components'
+import { usePageActions } from '@/hooks/use-page-actions'
 
 export function FavoriteStar({ pageId, workspaceId }: { pageId: string; workspaceId: string }) {
   const { isFavorite, toggleFavorite } = usePageActions(pageId, workspaceId)
@@ -2077,10 +2077,10 @@ export function FavoriteStar({ pageId, workspaceId }: { pageId: string; workspac
     <IconButton
       size="small"
       onClick={toggleFavorite}
-      aria-label={isFavorite ? "Убрать из избранного" : "Добавить в избранное"}
+      aria-label={isFavorite ? 'Убрать из избранного' : 'Добавить в избранное'}
     >
       {isFavorite ? (
-        <StarIcon sx={{ color: "warning.main", fontSize: 20 }} />
+        <StarIcon sx={{ color: 'warning.main', fontSize: 20 }} />
       ) : (
         <StarBorderIcon sx={{ fontSize: 20 }} />
       )}
@@ -2094,9 +2094,9 @@ Confirm `StarIcon` and `StarBorderIcon` are re-exported from `@repo/ui/component
 - [ ] **Step 2: Write `useFullWidth`**
 
 ```ts
-"use client"
+'use client'
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from 'react'
 
 const KEY = (pageId: string) => `anynote.page-full-width.${pageId}`
 
@@ -2106,7 +2106,7 @@ export function useFullWidth(pageId: string) {
   useEffect(() => {
     try {
       const raw = localStorage.getItem(KEY(pageId))
-      setFullWidthState(raw === "true")
+      setFullWidthState(raw === 'true')
     } catch {
       // SSR or localStorage blocked — stay with default
     }
@@ -2131,9 +2131,9 @@ export function useFullWidth(pageId: string) {
 - [ ] **Step 3: Write PageActionsMenu (without export)**
 
 ```tsx
-"use client"
+'use client'
 
-import { useState, type MouseEvent } from "react"
+import { useState, type MouseEvent } from 'react'
 import {
   ContentCopyIcon,
   DeleteIcon,
@@ -2149,16 +2149,16 @@ import {
   PublishIcon,
   ShortcutIcon,
   Switch,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { usePageActions } from "@/hooks/use-page-actions"
-import { useFullWidth } from "@/hooks/use-full-width"
-import { PageExportDialog } from "./page-export-dialog"
+import { usePageActions } from '@/hooks/use-page-actions'
+import { useFullWidth } from '@/hooks/use-full-width'
+import { PageExportDialog } from './page-export-dialog'
 
 type Props = {
   pageId: string
   workspaceId: string
-  pageType: "TEXT" | "EXCALIDRAW"
+  pageType: 'TEXT' | 'EXCALIDRAW'
 }
 
 export function PageActionsMenu({ pageId, workspaceId, pageType }: Props) {
@@ -2215,10 +2215,10 @@ export function PageActionsMenu({ pageId, workspaceId, pageType }: Props) {
             actions.openDeleteDialog()
             closeMenu()
           }}
-          sx={{ color: "error.main" }}
+          sx={{ color: 'error.main' }}
         >
           <ListItemIcon>
-            <DeleteIcon fontSize="small" sx={{ color: "error.main" }} />
+            <DeleteIcon fontSize="small" sx={{ color: 'error.main' }} />
           </ListItemIcon>
           <ListItemText>Удалить</ListItemText>
         </MenuItem>
@@ -2227,7 +2227,7 @@ export function PageActionsMenu({ pageId, workspaceId, pageType }: Props) {
 
         <MenuItem onClick={() => setFullWidth(!fullWidth)}>
           <ListItemIcon>
-            <HeightIcon fontSize="small" sx={{ transform: "rotate(90deg)" }} />
+            <HeightIcon fontSize="small" sx={{ transform: 'rotate(90deg)' }} />
           </ListItemIcon>
           <ListItemText>Полноэкранный</ListItemText>
           <Switch checked={fullWidth} edge="end" size="small" />
@@ -2240,7 +2240,7 @@ export function PageActionsMenu({ pageId, workspaceId, pageType }: Props) {
             setExportOpen(true)
             closeMenu()
           }}
-          disabled={pageType !== "TEXT"}
+          disabled={pageType !== 'TEXT'}
         >
           <ListItemIcon>
             <PublishIcon fontSize="small" />
@@ -2269,7 +2269,7 @@ Note: `PageExportDialog` is created in Task 18. Until then, either create an emp
 Create `apps/web/src/components/page/page-export-dialog.tsx` as a stub:
 
 ```tsx
-"use client"
+'use client'
 
 export function PageExportDialog(props: {
   open: boolean
@@ -2316,48 +2316,48 @@ Expected: packages added to `apps/web/package.json`.
 Content of `apps/web/src/lib/editor-to-markdown.ts`:
 
 ```ts
-import TurndownService from "turndown"
+import TurndownService from 'turndown'
 
 export function editorHtmlToMarkdown(html: string): string {
   const td = new TurndownService({
-    headingStyle: "atx",
-    bulletListMarker: "-",
-    codeBlockStyle: "fenced",
+    headingStyle: 'atx',
+    bulletListMarker: '-',
+    codeBlockStyle: 'fenced',
   })
 
   // Callout: blockquote with emoji prefix
-  td.addRule("callout", {
-    filter: (n) => n.nodeName === "DIV" && (n as HTMLElement).dataset?.type === "callout",
+  td.addRule('callout', {
+    filter: (n) => n.nodeName === 'DIV' && (n as HTMLElement).dataset?.type === 'callout',
     replacement: (content, node) => {
-      const icon = (node as HTMLElement).dataset?.icon ?? "💡"
+      const icon = (node as HTMLElement).dataset?.icon ?? '💡'
       return `\n\n> ${icon} ${content.trim()}\n\n`
     },
   })
 
   // Toggle: <details><summary>...</summary>...</details>
-  td.addRule("toggle", {
-    filter: (n) => n.nodeName === "DIV" && (n as HTMLElement).dataset?.type === "toggle",
+  td.addRule('toggle', {
+    filter: (n) => n.nodeName === 'DIV' && (n as HTMLElement).dataset?.type === 'toggle',
     replacement: (content) => {
-      const lines = content.trim().split("\n")
-      const summary = lines[0] ?? ""
-      const body = lines.slice(1).join("\n")
+      const lines = content.trim().split('\n')
+      const summary = lines[0] ?? ''
+      const body = lines.slice(1).join('\n')
       return `\n\n<details>\n<summary>${summary}</summary>\n\n${body}\n\n</details>\n\n`
     },
   })
 
   // HiddenText: wrap in a span with class="hidden" (best-effort)
-  td.addRule("hiddenText", {
-    filter: (n) => n.nodeName === "DIV" && (n as HTMLElement).dataset?.type === "hidden-text",
+  td.addRule('hiddenText', {
+    filter: (n) => n.nodeName === 'DIV' && (n as HTMLElement).dataset?.type === 'hidden-text',
     replacement: (content) => `<span class="hidden">${content.trim()}</span>`,
   })
 
   // FileAttachment: [filename](url)
-  td.addRule("fileAttachment", {
-    filter: (n) => n.nodeName === "DIV" && (n as HTMLElement).dataset?.type === "file-attachment",
+  td.addRule('fileAttachment', {
+    filter: (n) => n.nodeName === 'DIV' && (n as HTMLElement).dataset?.type === 'file-attachment',
     replacement: (_content, node) => {
       const el = node as HTMLElement
-      const name = el.dataset?.name ?? "file"
-      const url = el.dataset?.url ?? "#"
+      const name = el.dataset?.name ?? 'file'
+      const url = el.dataset?.url ?? '#'
       return `[${name}](${url})`
     },
   })
@@ -2376,10 +2376,10 @@ The export dialog needs access to the editor instance for the current page. Simp
 Create a minimal React context in `apps/web/src/components/page/editor-context.tsx`:
 
 ```tsx
-"use client"
+'use client'
 
-import { createContext, useContext, useRef, type ReactNode } from "react"
-import type { Editor } from "@tiptap/core"
+import { createContext, useContext, useRef, type ReactNode } from 'react'
+import type { Editor } from '@tiptap/core'
 
 const Ctx = createContext<{ editor: Editor | null; setEditor: (e: Editor | null) => void } | null>(
   null,
@@ -2406,9 +2406,9 @@ Register in page-renderer: wrap rendering of the text editor with `<PageEditorPr
 Replace stub in `apps/web/src/components/page/page-export-dialog.tsx`:
 
 ```tsx
-"use client"
+'use client'
 
-import { useCallback } from "react"
+import { useCallback } from 'react'
 import {
   Button,
   Dialog,
@@ -2417,11 +2417,11 @@ import {
   DialogContentText,
   DialogTitle,
   Stack,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
-import { editorHtmlToMarkdown } from "@/lib/editor-to-markdown"
-import { useCurrentEditor } from "./editor-context"
+import { trpc } from '@/trpc/client'
+import { editorHtmlToMarkdown } from '@/lib/editor-to-markdown'
+import { useCurrentEditor } from './editor-context'
 
 type Props = {
   open: boolean
@@ -2433,11 +2433,11 @@ type Props = {
 export function PageExportDialog({ open, onClose, pageId }: Props) {
   const editor = useCurrentEditor()
   const pageQ = trpc.page.getById.useQuery({ id: pageId }, { enabled: open })
-  const title = (pageQ.data?.title?.trim() || "Без названия") + ""
+  const title = (pageQ.data?.title?.trim() || 'Без названия') + ''
 
   const downloadBlob = (blob: Blob, filename: string) => {
     const url = URL.createObjectURL(blob)
-    const a = document.createElement("a")
+    const a = document.createElement('a')
     a.href = url
     a.download = filename
     document.body.appendChild(a)
@@ -2450,7 +2450,7 @@ export function PageExportDialog({ open, onClose, pageId }: Props) {
     if (!editor) return
     const html = editor.getHTML()
     const md = editorHtmlToMarkdown(html)
-    downloadBlob(new Blob([md], { type: "text/markdown;charset=utf-8" }), `${title}.md`)
+    downloadBlob(new Blob([md], { type: 'text/markdown;charset=utf-8' }), `${title}.md`)
     onClose()
   }, [editor, title, onClose])
 
@@ -2474,13 +2474,13 @@ img { max-width: 100%; height: auto; }
 ${body}
 </body>
 </html>`
-    downloadBlob(new Blob([doc], { type: "text/html;charset=utf-8" }), `${title}.html`)
+    downloadBlob(new Blob([doc], { type: 'text/html;charset=utf-8' }), `${title}.html`)
     onClose()
   }, [editor, title, onClose])
 
   const exportPdf = useCallback(() => {
-    const style = document.createElement("style")
-    style.setAttribute("data-print-override", "true")
+    const style = document.createElement('style')
+    style.setAttribute('data-print-override', 'true')
     style.textContent = `
       @media print {
         nav, aside, .workspace-sidebar, .workspace-toolbar, .tiptap-drag-handle,
@@ -2493,9 +2493,9 @@ ${body}
     document.head.appendChild(style)
     const cleanup = () => {
       style.remove()
-      window.removeEventListener("afterprint", cleanup)
+      window.removeEventListener('afterprint', cleanup)
     }
-    window.addEventListener("afterprint", cleanup)
+    window.addEventListener('afterprint', cleanup)
     window.print()
     onClose()
   }, [onClose])
@@ -2526,10 +2526,10 @@ ${body}
 
 function escapeHtml(s: string): string {
   return s
-    .replace(/&/g, "&amp;")
-    .replace(/</g, "&lt;")
-    .replace(/>/g, "&gt;")
-    .replace(/"/g, "&quot;")
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
 }
 ```
 
@@ -2562,12 +2562,12 @@ git commit -m "feat(web): page export dialog — PDF (print), Markdown (turndown
 - [ ] **Step 1: Write PageActionsToolbar**
 
 ```tsx
-"use client"
+'use client'
 
-import { Stack } from "@repo/ui/components"
+import { Stack } from '@repo/ui/components'
 
-import { FavoriteStar } from "./favorite-star"
-import { PageActionsMenu } from "./page-actions-menu"
+import { FavoriteStar } from './favorite-star'
+import { PageActionsMenu } from './page-actions-menu'
 
 export function PageActionsToolbar({
   pageId,
@@ -2576,7 +2576,7 @@ export function PageActionsToolbar({
 }: {
   pageId: string
   workspaceId: string
-  pageType: "TEXT" | "EXCALIDRAW"
+  pageType: 'TEXT' | 'EXCALIDRAW'
 }) {
   return (
     <Stack direction="row" spacing={0.5} alignItems="center" className="page-actions-toolbar">
@@ -2646,7 +2646,7 @@ In the sidebar container component (probably `apps/web/src/components/workspace/
 Locate the page content wrapper that applies `max-width: 713px`. Add a `data-full-width` attribute driven by `useFullWidth(pageId)` state and a CSS rule:
 
 ```css
-.page-content[data-full-width="true"] {
+.page-content[data-full-width='true'] {
   max-width: none;
   padding-left: 32px;
   padding-right: 32px;
@@ -2745,98 +2745,98 @@ Expected: all green. If any test fails, investigate regression and fix before mo
 Content of `apps/e2e/editor-extensions.spec.ts`:
 
 ```ts
-import { expect, test } from "@playwright/test"
+import { expect, test } from '@playwright/test'
 
-const password = "SuperSecure123!"
+const password = 'SuperSecure123!'
 
-async function signUp(page: import("@playwright/test").Page, tag: string) {
+async function signUp(page: import('@playwright/test').Page, tag: string) {
   const email = `${tag}+${Date.now()}@example.com`
-  await page.goto("/sign-up")
-  await page.getByRole("textbox", { name: "Email" }).fill(email)
-  await page.getByRole("textbox", { name: "Фамилия" }).fill("Тестов")
-  await page.getByRole("textbox", { name: "Имя" }).fill("Экст")
-  await page.getByRole("textbox", { name: /^пароль$/i }).fill(password)
-  await page.getByRole("textbox", { name: "Повторите пароль" }).fill(password)
-  await page.getByRole("button", { name: "Зарегистрироваться" }).click()
+  await page.goto('/sign-up')
+  await page.getByRole('textbox', { name: 'Email' }).fill(email)
+  await page.getByRole('textbox', { name: 'Фамилия' }).fill('Тестов')
+  await page.getByRole('textbox', { name: 'Имя' }).fill('Экст')
+  await page.getByRole('textbox', { name: /^пароль$/i }).fill(password)
+  await page.getByRole('textbox', { name: 'Повторите пароль' }).fill(password)
+  await page.getByRole('button', { name: 'Зарегистрироваться' }).click()
   await page.waitForURL(/\/workspaces\/new/)
-  await page.getByRole("textbox", { name: "Название" }).fill("Ext Test")
-  await page.getByRole("button", { name: "Создать пространство" }).click()
+  await page.getByRole('textbox', { name: 'Название' }).fill('Ext Test')
+  await page.getByRole('button', { name: 'Создать пространство' }).click()
   await page.waitForURL(/\/workspaces\/[a-f0-9-]+/)
 }
 
-async function createTextPage(page: import("@playwright/test").Page) {
+async function createTextPage(page: import('@playwright/test').Page) {
   const previousUrl = page.url()
   const pagesSection = page
-    .getByText("Страницы", { exact: true })
+    .getByText('Страницы', { exact: true })
     .locator('xpath=ancestor::*[.//*[@data-testid="AddIcon"]][1]')
   await pagesSection.locator('button:has([data-testid="AddIcon"])').first().click()
-  await page.getByRole("menuitem", { name: "Текст" }).click()
+  await page.getByRole('menuitem', { name: 'Текст' }).click()
   await page.waitForURL(
     (url) =>
       /\/workspaces\/[a-f0-9-]+\/pages\/[a-f0-9-]+/.test(url.toString()) &&
       url.toString() !== previousUrl,
     { timeout: 15_000 },
   )
-  return page.locator(".anynote-editor .ProseMirror")
+  return page.locator('.anynote-editor .ProseMirror')
 }
 
-test("slash menu inserts toggle and hidden blocks", async ({ page }) => {
-  await signUp(page, "ext-slash")
+test('slash menu inserts toggle and hidden blocks', async ({ page }) => {
+  await signUp(page, 'ext-slash')
   const editor = await createTextPage(page)
   await editor.click()
 
-  await editor.press("/")
-  await page.getByRole("menuitem", { name: "Переключатель" }).click()
-  await expect(page.locator(".anynote-toggle")).toBeVisible()
+  await editor.press('/')
+  await page.getByRole('menuitem', { name: 'Переключатель' }).click()
+  await expect(page.locator('.anynote-toggle')).toBeVisible()
 
-  await editor.press("End")
-  await editor.press("Enter")
-  await editor.press("/")
-  await page.getByRole("menuitem", { name: "Скрытый текст" }).click()
-  await expect(page.locator(".anynote-hidden-text")).toBeVisible()
+  await editor.press('End')
+  await editor.press('Enter')
+  await editor.press('/')
+  await page.getByRole('menuitem', { name: 'Скрытый текст' }).click()
+  await expect(page.locator('.anynote-hidden-text')).toBeVisible()
 })
 
-test("favorite star in breadcrumbs toggles favorite state", async ({ page }) => {
-  await signUp(page, "ext-fav")
+test('favorite star in breadcrumbs toggles favorite state', async ({ page }) => {
+  await signUp(page, 'ext-fav')
   await createTextPage(page)
 
-  const star = page.getByRole("button", { name: "Добавить в избранное" })
+  const star = page.getByRole('button', { name: 'Добавить в избранное' })
   await expect(star).toBeVisible()
   await star.click()
-  await expect(page.getByRole("button", { name: "Убрать из избранного" })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Убрать из избранного' })).toBeVisible()
   // Favorites section in sidebar should now list this page
-  await expect(page.getByText("Избранное")).toBeVisible()
+  await expect(page.getByText('Избранное')).toBeVisible()
 })
 
-test("page actions menu opens with all items", async ({ page }) => {
-  await signUp(page, "ext-menu")
+test('page actions menu opens with all items', async ({ page }) => {
+  await signUp(page, 'ext-menu')
   await createTextPage(page)
 
-  await page.getByRole("button", { name: "Действия страницы" }).click()
-  await expect(page.getByRole("menuitem", { name: "Копировать ссылку" })).toBeVisible()
-  await expect(page.getByRole("menuitem", { name: "Копия" })).toBeVisible()
-  await expect(page.getByRole("menuitem", { name: "Переместить" })).toBeVisible()
-  await expect(page.getByRole("menuitem", { name: "Удалить" })).toBeVisible()
-  await expect(page.getByRole("menuitem", { name: "Полноэкранный" })).toBeVisible()
-  await expect(page.getByRole("menuitem", { name: "Экспортировать" })).toBeVisible()
+  await page.getByRole('button', { name: 'Действия страницы' }).click()
+  await expect(page.getByRole('menuitem', { name: 'Копировать ссылку' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Копия' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Переместить' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Удалить' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Полноэкранный' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Экспортировать' })).toBeVisible()
 })
 
-test("drag handle click opens block menu with convert submenu", async ({ page }) => {
-  await signUp(page, "ext-dh")
+test('drag handle click opens block menu with convert submenu', async ({ page }) => {
+  await signUp(page, 'ext-dh')
   const editor = await createTextPage(page)
   await editor.click()
-  await editor.type("Привет мир")
+  await editor.type('Привет мир')
 
   // Hover the paragraph to reveal the drag handle
   await editor.hover()
   const dragIcon = page.locator(".tiptap-drag-handle [data-testid='DragIndicatorIcon']").first()
   await dragIcon.click()
 
-  await expect(page.getByRole("menuitem", { name: "Превратить в" })).toBeVisible()
-  await expect(page.getByRole("menuitem", { name: "Цвет" })).toBeVisible()
-  await expect(page.getByRole("menuitem", { name: "Дубликат" })).toBeVisible()
-  await expect(page.getByRole("menuitem", { name: "Переместить" })).toBeVisible()
-  await expect(page.getByRole("menuitem", { name: "Удалить" })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Превратить в' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Цвет' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Дубликат' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Переместить' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Удалить' })).toBeVisible()
 })
 ```
 

@@ -1,119 +1,132 @@
-import { describe, it, expect } from "@jest/globals"
+import { describe, it, expect } from '@jest/globals'
 
-import { MarkdownRenderer } from "./markdown-renderer.service.js"
+import { MarkdownRenderer } from './markdown-renderer.service.js'
 
-describe("MarkdownRenderer", () => {
+describe('MarkdownRenderer', () => {
   const renderer = new MarkdownRenderer()
 
-  it("renders empty doc as empty string", () => {
-    expect(renderer.render({ type: "doc", content: [] })).toBe("")
+  it('renders empty doc as empty string', () => {
+    expect(renderer.render({ type: 'doc', content: [] })).toBe('')
   })
 
-  it("renders paragraph", () => {
+  it('renders paragraph', () => {
     expect(
       renderer.render({
-        type: "doc",
-        content: [
-          { type: "paragraph", content: [{ type: "text", text: "Hello" }] },
-        ],
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hello' }] }],
       }),
-    ).toBe("Hello")
+    ).toBe('Hello')
   })
 
-  it("renders heading with correct level", () => {
+  it('renders heading with correct level', () => {
     expect(
       renderer.render({
-        type: "doc",
+        type: 'doc',
         content: [
-          { type: "heading", attrs: { level: 2 }, content: [{ type: "text", text: "Title" }] },
+          { type: 'heading', attrs: { level: 2 }, content: [{ type: 'text', text: 'Title' }] },
         ],
       }),
-    ).toBe("## Title")
+    ).toBe('## Title')
   })
 
-  it("renders marks bold/italic/code/link", () => {
+  it('renders marks bold/italic/code/link', () => {
     const doc = {
-      type: "doc" as const,
+      type: 'doc' as const,
       content: [
         {
-          type: "paragraph",
+          type: 'paragraph',
           content: [
-            { type: "text", text: "x", marks: [{ type: "bold" }] },
-            { type: "text", text: " y", marks: [{ type: "italic" }] },
-            { type: "text", text: " z", marks: [{ type: "code" }] },
+            { type: 'text', text: 'x', marks: [{ type: 'bold' }] },
+            { type: 'text', text: ' y', marks: [{ type: 'italic' }] },
+            { type: 'text', text: ' z', marks: [{ type: 'code' }] },
             {
-              type: "text",
-              text: " a",
-              marks: [{ type: "link", attrs: { href: "https://x" } }],
+              type: 'text',
+              text: ' a',
+              marks: [{ type: 'link', attrs: { href: 'https://x' } }],
             },
           ],
         },
       ],
     }
     const rendered = renderer.render(doc)
-    expect(rendered).toContain("**x**")
-    expect(rendered).toContain("_ y_")
-    expect(rendered).toContain("` z`")
-    expect(rendered).toContain("[ a](https://x)")
+    expect(rendered).toContain('**x**')
+    expect(rendered).toContain('_ y_')
+    expect(rendered).toContain('` z`')
+    expect(rendered).toContain('[ a](https://x)')
   })
 
-  it("renders bullet list", () => {
+  it('renders bullet list', () => {
     const doc = {
-      type: "doc" as const,
+      type: 'doc' as const,
       content: [
         {
-          type: "bulletList",
+          type: 'bulletList',
           content: [
-            { type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "A" }] }] },
-            { type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "B" }] }] },
+            {
+              type: 'listItem',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'A' }] }],
+            },
+            {
+              type: 'listItem',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'B' }] }],
+            },
           ],
         },
       ],
     }
-    expect(renderer.render(doc)).toBe("- A\n- B")
+    expect(renderer.render(doc)).toBe('- A\n- B')
   })
 
-  it("renders ordered list", () => {
+  it('renders ordered list', () => {
     const doc = {
-      type: "doc" as const,
+      type: 'doc' as const,
       content: [
         {
-          type: "orderedList",
+          type: 'orderedList',
           content: [
-            { type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "A" }] }] },
-            { type: "listItem", content: [{ type: "paragraph", content: [{ type: "text", text: "B" }] }] },
+            {
+              type: 'listItem',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'A' }] }],
+            },
+            {
+              type: 'listItem',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'B' }] }],
+            },
           ],
         },
       ],
     }
-    expect(renderer.render(doc)).toBe("1. A\n2. B")
+    expect(renderer.render(doc)).toBe('1. A\n2. B')
   })
 
-  it("renders code block with language", () => {
+  it('renders code block with language', () => {
     const doc = {
-      type: "doc" as const,
+      type: 'doc' as const,
       content: [
         {
-          type: "codeBlock",
-          attrs: { language: "ts" },
-          content: [{ type: "text", text: "const x = 1" }],
+          type: 'codeBlock',
+          attrs: { language: 'ts' },
+          content: [{ type: 'text', text: 'const x = 1' }],
         },
       ],
     }
-    expect(renderer.render(doc)).toBe("```ts\nconst x = 1\n```")
+    expect(renderer.render(doc)).toBe('```ts\nconst x = 1\n```')
   })
 
-  it("renders blockquote", () => {
+  it('renders blockquote', () => {
     const doc = {
-      type: "doc" as const,
+      type: 'doc' as const,
       content: [
-        { type: "blockquote", content: [{ type: "paragraph", content: [{ type: "text", text: "quoted" }] }] },
+        {
+          type: 'blockquote',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'quoted' }] }],
+        },
       ],
     }
-    expect(renderer.render(doc)).toBe("> quoted")
+    expect(renderer.render(doc)).toBe('> quoted')
   })
 
-  it("renders horizontal rule", () => {
-    expect(renderer.render({ type: "doc", content: [{ type: "horizontalRule" }] })).toBe("---")
+  it('renders horizontal rule', () => {
+    expect(renderer.render({ type: 'doc', content: [{ type: 'horizontalRule' }] })).toBe('---')
   })
 })

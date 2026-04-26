@@ -13,9 +13,9 @@ Tiptap-based collaborative rich-text editor for AnyNote.
 ## Usage
 
 ```tsx
-import dynamic from "next/dynamic"
+import dynamic from 'next/dynamic'
 
-const AnyNoteEditor = dynamic(() => import("@repo/editor").then((m) => m.AnyNoteEditor), {
+const AnyNoteEditor = dynamic(() => import('@repo/editor').then((m) => m.AnyNoteEditor), {
   ssr: false,
 })
 ```

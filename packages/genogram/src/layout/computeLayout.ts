@@ -1,9 +1,9 @@
-import type { EntityId, GenogramPageData, PersonId } from "../types"
-import { assignGenerations } from "./generations"
-import { placeAll, type PlacementContext } from "./placement"
-import { buildRelations } from "./relations"
-import type { Bounds, LayoutResult, Point } from "./types"
-import { EMPTY_LAYOUT } from "./types"
+import type { EntityId, GenogramPageData, PersonId } from '../types'
+import { assignGenerations } from './generations'
+import { placeAll, type PlacementContext } from './placement'
+import { buildRelations } from './relations'
+import type { Bounds, LayoutResult, Point } from './types'
+import { EMPTY_LAYOUT } from './types'
 
 export function computeLayout(data: GenogramPageData): LayoutResult {
   if (Object.keys(data.entities.people).length === 0) return EMPTY_LAYOUT

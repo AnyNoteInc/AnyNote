@@ -1,18 +1,18 @@
-"use client"
+'use client'
 
-import { useState, type MouseEvent, type ReactNode } from "react"
-import Box from "@mui/material/Box"
-import Button from "@mui/material/Button"
-import IconButton, { type IconButtonProps } from "@mui/material/IconButton"
-import Popover from "@mui/material/Popover"
-import Stack from "@mui/material/Stack"
-import DeleteOutlineIcon from "@mui/icons-material/DeleteOutline"
+import { useState, type MouseEvent, type ReactNode } from 'react'
+import Box from '@mui/material/Box'
+import Button from '@mui/material/Button'
+import IconButton, { type IconButtonProps } from '@mui/material/IconButton'
+import Popover from '@mui/material/Popover'
+import Stack from '@mui/material/Stack'
+import DeleteOutlineIcon from '@mui/icons-material/DeleteOutline'
 
-import { EmojiPicker } from "./emoji-picker"
+import { EmojiPicker } from './emoji-picker'
 
 export type EmojiIconButtonProps = Omit<
   IconButtonProps,
-  "children" | "onClick" | "onChange" | "value"
+  'children' | 'onClick' | 'onChange' | 'value'
 > & {
   value?: string | null
   onChange: (emoji: string) => void
@@ -25,7 +25,7 @@ export function EmojiIconButton({
   value,
   onChange,
   onRemove,
-  fallback = "📄",
+  fallback = '📄',
   emojiSize = 32,
   sx,
   ...buttonProps
@@ -45,11 +45,11 @@ export function EmojiIconButton({
         open={Boolean(anchor)}
         anchorEl={anchor}
         onClose={close}
-        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
       >
         <Stack>
           {canRemove ? (
-            <Box sx={{ p: 1, borderBottom: 1, borderColor: "divider" }}>
+            <Box sx={{ p: 1, borderBottom: 1, borderColor: 'divider' }}>
               <Button
                 size="small"
                 fullWidth
@@ -59,7 +59,7 @@ export function EmojiIconButton({
                   close()
                   onRemove?.()
                 }}
-                sx={{ justifyContent: "flex-start", color: "text.secondary" }}
+                sx={{ justifyContent: 'flex-start', color: 'text.secondary' }}
               >
                 Удалить иконку
               </Button>

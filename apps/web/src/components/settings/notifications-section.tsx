@@ -1,10 +1,10 @@
-"use client"
+'use client'
 
-import { useState } from "react"
+import { useState } from 'react'
 
-import { Box, Stack, Switch, Typography } from "@repo/ui/components"
+import { Box, Stack, Switch, Typography } from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
 type NotificationSettings = {
   email: { mentions: boolean; comments: boolean; weeklyDigest: boolean }
@@ -19,7 +19,7 @@ export function NotificationsSection({ initial }: { initial: NotificationSetting
   const mutate = trpc.user.setNotificationSettings.useMutation()
 
   const toggle =
-    (key: keyof NotificationSettings["email"]) => async (_: unknown, checked: boolean) => {
+    (key: keyof NotificationSettings['email']) => async (_: unknown, checked: boolean) => {
       const next: NotificationSettings = {
         email: { ...value.email, [key]: checked },
       }
@@ -29,30 +29,30 @@ export function NotificationsSection({ initial }: { initial: NotificationSetting
 
   const rows = [
     {
-      key: "mentions" as const,
-      title: "Упоминания",
-      desc: "Когда вас упоминают в странице или комментарии",
+      key: 'mentions' as const,
+      title: 'Упоминания',
+      desc: 'Когда вас упоминают в странице или комментарии',
     },
     {
-      key: "comments" as const,
-      title: "Комментарии",
-      desc: "Новые комментарии в документах, где вы участник",
+      key: 'comments' as const,
+      title: 'Комментарии',
+      desc: 'Новые комментарии в документах, где вы участник',
     },
     {
-      key: "weeklyDigest" as const,
-      title: "Еженедельный дайджест",
-      desc: "Сводка активности раз в неделю",
+      key: 'weeklyDigest' as const,
+      title: 'Еженедельный дайджест',
+      desc: 'Сводка активности раз в неделю',
     },
   ]
 
   return (
     <Box
       sx={{
-        border: "1px solid",
-        borderColor: "divider",
+        border: '1px solid',
+        borderColor: 'divider',
         borderRadius: 2,
         p: { xs: 2.5, md: 3 },
-        backgroundColor: "background.paper",
+        backgroundColor: 'background.paper',
       }}
     >
       <Typography variant="subtitle1" fontWeight={700}>
@@ -70,8 +70,8 @@ export function NotificationsSection({ initial }: { initial: NotificationSetting
             justifyContent="space-between"
             sx={{
               py: 1,
-              borderBottom: i < rows.length - 1 ? "1px solid" : "none",
-              borderColor: "divider",
+              borderBottom: i < rows.length - 1 ? '1px solid' : 'none',
+              borderColor: 'divider',
             }}
           >
             <Stack spacing={0.25}>

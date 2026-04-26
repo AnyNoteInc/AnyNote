@@ -92,6 +92,7 @@ This spec is a single subsystem (`apps/agents`) and can be implemented in one pl
 ### Task 1: Create New Package Skeleton and Entrypoint Smoke Test
 
 **Files:**
+
 - Create: `apps/agents/tests/test_cmd_rest.py`
 - Create: `apps/agents/agents/cmd/__init__.py`
 - Create: `apps/agents/agents/cmd/rest.py`
@@ -162,6 +163,7 @@ git commit -m "test(agents): add cmd/rest smoke test and package skeleton"
 ### Task 2: Port Chat Schemas, Enums, Errors into `apps/chat`
 
 **Files:**
+
 - Create: `apps/agents/tests/chat/test_schemas.py`
 - Create: `apps/agents/agents/apps/chat/enums.py`
 - Create: `apps/agents/agents/apps/chat/errors.py`
@@ -372,6 +374,7 @@ git commit -m "feat(agents): add chat schemas enums and errors"
 ### Task 3: Move Provider Factory and Prompt Renderer to Repositories
 
 **Files:**
+
 - Create: `apps/agents/tests/chat/test_model_factory.py`
 - Create: `apps/agents/tests/chat/test_prompt_renderer.py`
 - Create: `apps/agents/agents/apps/chat/repositories/__init__.py`
@@ -543,6 +546,7 @@ git commit -m "feat(agents): move provider factory and prompt renderer to chat r
 ### Task 4: Move MCP Tool Adapter and Graph Service
 
 **Files:**
+
 - Create: `apps/agents/tests/chat/test_mcp_tools.py`
 - Create: `apps/agents/tests/chat/test_graph_service.py`
 - Create: `apps/agents/agents/apps/chat/repositories/mcp_tools.py`
@@ -843,6 +847,7 @@ git commit -m "feat(agents): port mcp adapters and graph service into chat modul
 ### Task 5: Add Generate Use Case and Chat Router
 
 **Files:**
+
 - Create: `apps/agents/tests/chat/test_generate_stream_use_case.py`
 - Create: `apps/agents/tests/chat/test_router.py`
 - Create: `apps/agents/agents/apps/chat/use_cases/__init__.py`
@@ -997,6 +1002,7 @@ git commit -m "feat(agents): add generate stream use case and chat router"
 ### Task 6: Add Dishka Providers, Bootstrap, Main Router, REST Entrypoint
 
 **Files:**
+
 - Create: `apps/agents/tests/test_bootstrap.py`
 - Create: `apps/agents/agents/apps/chat/depends.py`
 - Create: `apps/agents/agents/bootstrap.py`
@@ -1211,6 +1217,7 @@ git commit -m "feat(agents): wire dishka providers bootstrap router and cmd rest
 ### Task 7: Integrate `fast-clean` in Bootstrap and Add CLI Scaffold
 
 **Files:**
+
 - Create: `apps/agents/tests/test_cli.py`
 - Create: `apps/agents/agents/cli/__init__.py`
 - Create: `apps/agents/agents/cli/bootstrap.py`
@@ -1408,6 +1415,7 @@ git commit -m "feat(agents): integrate fast-clean bootstrap hooks and cli scaffo
 ### Task 8: Add Project Infra Files and Build/Run Script Alignment
 
 **Files:**
+
 - Create: `apps/agents/tests/test_scripts.py`
 - Create: `apps/agents/.dockerignore`
 - Create: `apps/agents/.gitignore`
@@ -1588,6 +1596,7 @@ repos:
 
 ```md
 # apps/agents/README.md (section excerpt)
+
 ## Entrypoints
 
 - REST: `uv run uvicorn agents.cmd.rest:app --host 0.0.0.0 --port 8080 --reload`
@@ -1623,6 +1632,7 @@ git commit -m "chore(agents): align infra files and scripts with new entrypoints
 ### Task 9: Add Alembic Scaffold with Checkpoint Table Exclusion
 
 **Files:**
+
 - Create: `apps/agents/tests/test_alembic_env.py`
 - Create: `apps/agents/agents_migrations_env.py`
 - Create: `apps/agents/alembic.ini`
@@ -1803,6 +1813,7 @@ git commit -m "feat(agents): add alembic scaffold with checkpoint exclusions"
 ### Task 10: Migrate Integration Test, Remove Legacy Modules, Run Full Verification
 
 **Files:**
+
 - Create: `apps/agents/tests/test_legacy_removed.py`
 - Modify: `apps/agents/tests/conftest.py`
 - Modify: `apps/agents/tests/test_generate_ollama.py`

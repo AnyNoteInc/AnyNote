@@ -1,12 +1,12 @@
-import "server-only"
-import type { PrismaClient } from "@prisma/client"
-import type { Payment, Refund, YookassaClient } from "@repo/yookassa/next"
+import 'server-only'
+import type { PrismaClient } from '@prisma/client'
+import type { Payment, Refund, YookassaClient } from '@repo/yookassa/next'
 
 type Ctx = { yookassa: YookassaClient; prisma: PrismaClient }
 
-function addPeriod(start: Date, period: "MONTHLY" | "YEARLY"): Date {
+function addPeriod(start: Date, period: 'MONTHLY' | 'YEARLY'): Date {
   const end = new Date(start)
-  if (period === "MONTHLY") end.setMonth(end.getMonth() + 1)
+  if (period === 'MONTHLY') end.setMonth(end.getMonth() + 1)
   else end.setFullYear(end.getFullYear() + 1)
   return end
 }
@@ -16,10 +16,10 @@ export async function handlePaymentSucceeded(ctx: Ctx, eventPayment: Payment): P
     where: { yookassaPaymentId: eventPayment.id },
     include: { plan: true },
   })
-  if (!order || order.status !== "PENDING") return
+  if (!order || order.status !== 'PENDING') return
 
   const verified = await ctx.yookassa.getPayment(eventPayment.id)
-  if (verified.status !== "succeeded") return
+  if (verified.status !== 'succeeded') return
 
   const now = new Date()
   const periodEnd = addPeriod(now, order.billingPeriod)
@@ -27,8 +27,8 @@ export async function handlePaymentSucceeded(ctx: Ctx, eventPayment: Payment): P
   await ctx.prisma.$transaction(async (tx) => {
     // 1. Expire other active subs of this user (different plan)
     await tx.subscription.updateMany({
-      where: { userId: order.userId, status: "ACTIVE", planId: { not: order.planId } },
-      data: { status: "EXPIRED", expiredAt: now },
+      where: { userId: order.userId, status: 'ACTIVE', planId: { not: order.planId } },
+      data: { status: 'EXPIRED', expiredAt: now },
     })
 
     // 2. Find or create subscription for this plan
@@ -37,7 +37,7 @@ export async function handlePaymentSucceeded(ctx: Ctx, eventPayment: Payment): P
     })
 
     const subData = {
-      status: "ACTIVE" as const,
+      status: 'ACTIVE' as const,
       billingPeriod: order.billingPeriod,
       currentPeriodStart: now,
       currentPeriodEnd: periodEnd,
@@ -58,7 +58,7 @@ export async function handlePaymentSucceeded(ctx: Ctx, eventPayment: Payment): P
     await tx.order.update({
       where: { id: order.id },
       data: {
-        status: "PAID",
+        status: 'PAID',
         paidAt: now,
         subscriptionId: subscription.id,
         savedPaymentMethod: verified.payment_method?.saved ?? false,
@@ -71,10 +71,10 @@ export async function handlePaymentCanceled(ctx: Ctx, eventPayment: Payment): Pr
   const order = await ctx.prisma.order.findUnique({
     where: { yookassaPaymentId: eventPayment.id },
   })
-  if (!order || order.status !== "PENDING") return
+  if (!order || order.status !== 'PENDING') return
   await ctx.prisma.order.update({
     where: { id: order.id },
-    data: { status: "FAILED" },
+    data: { status: 'FAILED' },
   })
 }
 
@@ -82,16 +82,16 @@ export async function handleRefundSucceeded(ctx: Ctx, refund: Refund): Promise<v
   const order = await ctx.prisma.order.findUnique({
     where: { yookassaPaymentId: refund.payment_id },
   })
-  if (!order || order.status === "REFUNDED") return
+  if (!order || order.status === 'REFUNDED') return
   await ctx.prisma.$transaction(async (tx) => {
     await tx.order.update({
       where: { id: order.id },
-      data: { status: "REFUNDED", refundedAt: new Date(), yookassaRefundId: refund.id },
+      data: { status: 'REFUNDED', refundedAt: new Date(), yookassaRefundId: refund.id },
     })
     if (order.subscriptionId) {
       await tx.subscription.update({
         where: { id: order.subscriptionId },
-        data: { status: "EXPIRED", expiredAt: new Date(), currentPeriodEnd: new Date() },
+        data: { status: 'EXPIRED', expiredAt: new Date(), currentPeriodEnd: new Date() },
       })
     }
   })

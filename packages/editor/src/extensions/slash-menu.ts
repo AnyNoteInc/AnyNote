@@ -1,7 +1,7 @@
-import { Extension } from "@tiptap/core"
-import Suggestion, { type SuggestionKeyDownProps, type SuggestionProps } from "@tiptap/suggestion"
+import { Extension } from '@tiptap/core'
+import Suggestion, { type SuggestionKeyDownProps, type SuggestionProps } from '@tiptap/suggestion'
 
-import type { SlashCommandItem } from "../types"
+import type { SlashCommandItem } from '../types'
 
 export type SlashMenuRender = {
   onStart: (props: SuggestionProps<SlashCommandItem, SlashCommandItem>) => void
@@ -16,7 +16,7 @@ export type SlashMenuOptions = {
 }
 
 export const SlashMenu = Extension.create<SlashMenuOptions>({
-  name: "slashMenu",
+  name: 'slashMenu',
   addOptions() {
     return {
       items: () => [],
@@ -32,7 +32,7 @@ export const SlashMenu = Extension.create<SlashMenuOptions>({
     return [
       Suggestion<SlashCommandItem, SlashCommandItem>({
         editor: this.editor,
-        char: "/",
+        char: '/',
         startOfLine: false,
         items: ({ query }) => this.options.items(query),
         command: ({ editor, range, props }) => {

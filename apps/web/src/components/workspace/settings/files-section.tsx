@@ -1,6 +1,6 @@
-"use client"
+'use client'
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from 'react'
 
 import {
   Alert,
@@ -18,13 +18,13 @@ import {
   TableRow,
   TextField,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
-import { FilesDeleteDialog } from "./files-delete-dialog"
-import { FilesFilters } from "./files-filters"
-import { FilesTableRow, type RowFile } from "./files-table-row"
+import { FilesDeleteDialog } from './files-delete-dialog'
+import { FilesFilters } from './files-filters'
+import { FilesTableRow, type RowFile } from './files-table-row'
 
 type Props = {
   workspaceId: string
@@ -36,8 +36,8 @@ const PAGE_SIZE = 20
 export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
   const utils = trpc.useUtils()
 
-  const [searchInput, setSearchInput] = useState("")
-  const [search, setSearch] = useState("")
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
   const [uploaderId, setUploaderId] = useState<string | null>(null)
   const [page, setPage] = useState(0)
   const [deleteTarget, setDeleteTarget] = useState<RowFile | null>(null)
@@ -71,8 +71,8 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
   }, [listQuery.data?.total, page])
 
   const resetFilters = () => {
-    setSearchInput("")
-    setSearch("")
+    setSearchInput('')
+    setSearch('')
     setUploaderId(null)
   }
 
@@ -81,7 +81,7 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
     utils.file.workspaceUploaders.invalidate({ workspaceId })
   }
 
-  const filtersActive = search !== "" || uploaderId !== null
+  const filtersActive = search !== '' || uploaderId !== null
   const items = useMemo(() => listQuery.data?.items ?? [], [listQuery.data?.items])
   const total = listQuery.data?.total ?? 0
 
@@ -89,7 +89,7 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
     if (listQuery.isLoading && items.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={5} sx={{ textAlign: "center", py: 4 }}>
+          <TableCell colSpan={5} sx={{ textAlign: 'center', py: 4 }}>
             <Typography variant="body2" color="text.secondary">
               Загрузка…
             </Typography>
@@ -101,7 +101,7 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
     if (items.length === 0 && filtersActive) {
       return (
         <TableRow>
-          <TableCell colSpan={5} sx={{ textAlign: "center", py: 4 }}>
+          <TableCell colSpan={5} sx={{ textAlign: 'center', py: 4 }}>
             <Stack spacing={1} alignItems="center">
               <Typography variant="body2" color="text.secondary">
                 По фильтрам ничего не найдено.
@@ -118,7 +118,7 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
     if (items.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={5} sx={{ textAlign: "center", py: 4 }}>
+          <TableCell colSpan={5} sx={{ textAlign: 'center', py: 4 }}>
             <Typography variant="body2" color="text.secondary">
               Файлы ещё не загружались.
             </Typography>
@@ -147,9 +147,7 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
           </Typography>
         </Box>
 
-        {listQuery.error ? (
-          <Alert severity="error">{listQuery.error.message}</Alert>
-        ) : null}
+        {listQuery.error ? <Alert severity="error">{listQuery.error.message}</Alert> : null}
 
         <TextField
           size="small"
@@ -175,7 +173,7 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
           onUploaderChange={setUploaderId}
         />
 
-        <Box sx={{ overflowX: "auto" }}>
+        <Box sx={{ overflowX: 'auto' }}>
           <Table size="small">
             <TableHead>
               <TableRow>

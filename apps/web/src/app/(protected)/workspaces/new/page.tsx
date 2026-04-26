@@ -1,8 +1,8 @@
-import { Container } from "@repo/ui/components"
+import { Container } from '@repo/ui/components'
 
-import { NewWorkspaceForm } from "@/components/workspace/new-workspace-form"
+import { NewWorkspaceForm } from '@/components/workspace/new-workspace-form'
 
-export const metadata = { title: "Новое пространство" }
+export const metadata = { title: 'Новое пространство' }
 
 export default function NewWorkspacePage() {
   return (

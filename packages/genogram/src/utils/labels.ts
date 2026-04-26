@@ -1,16 +1,13 @@
-import type { Person } from "../types"
+import type { Person } from '../types'
 
 export function formatPersonLabelLines(person: Person): string[] {
   const lines: string[] = []
 
-  const name = joinNonEmpty(
-    [person.identity.firstName, person.identity.lastName],
-    " ",
-  )
+  const name = joinNonEmpty([person.identity.firstName, person.identity.lastName], ' ')
   if (name) {
     lines.push(name)
   } else if (person.identity.isUnknown) {
-    lines.push("?")
+    lines.push('?')
   }
 
   const birth = person.lifeDates.birthDate

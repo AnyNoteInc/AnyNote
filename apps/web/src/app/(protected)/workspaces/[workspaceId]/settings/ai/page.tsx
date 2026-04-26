@@ -1,8 +1,8 @@
-import { notFound } from "next/navigation"
+import { notFound } from 'next/navigation'
 
-import { getWorkspaceFeatures, getAvailableAiModels } from "@repo/trpc"
-import { WorkspaceAiSection } from "@/components/workspace/settings/ai-section"
-import { getServerTRPC } from "@/trpc/server"
+import { getWorkspaceFeatures, getAvailableAiModels } from '@repo/trpc'
+import { WorkspaceAiSection } from '@/components/workspace/settings/ai-section'
+import { getServerTRPC } from '@/trpc/server'
 
 type Props = { params: Promise<{ workspaceId: string }> }
 

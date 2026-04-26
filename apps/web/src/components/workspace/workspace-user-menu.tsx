@@ -1,11 +1,11 @@
-"use client"
+'use client'
 
-import Link from "next/link"
-import { useState } from "react"
+import Link from 'next/link'
+import { useState } from 'react'
 
-import { Avatar, Box, Menu, MenuItem, Stack, Typography } from "@repo/ui/components"
+import { Avatar, Box, Menu, MenuItem, Stack, Typography } from '@repo/ui/components'
 
-import { signOut } from "@/lib/auth-client"
+import { signOut } from '@/lib/auth-client'
 
 type Props = {
   user: { firstName: string; lastName: string; email: string; image: string | null }
@@ -20,14 +20,14 @@ export function WorkspaceUserMenu({ user }: Props) {
       <Box
         onClick={(event) => setAnchor(event.currentTarget)}
         sx={{
-          display: "flex",
-          alignItems: "center",
+          display: 'flex',
+          alignItems: 'center',
           gap: 1,
           p: 0.75,
           borderRadius: 0.75,
-          cursor: "pointer",
-          justifyContent: "flex-start",
-          "&:hover": { bgcolor: "action.hover" },
+          cursor: 'pointer',
+          justifyContent: 'flex-start',
+          '&:hover': { bgcolor: 'action.hover' },
         }}
       >
         <Avatar
@@ -36,7 +36,7 @@ export function WorkspaceUserMenu({ user }: Props) {
             width: 28,
             height: 28,
             fontSize: 13,
-            background: "linear-gradient(135deg,#0f766e,#155e75)",
+            background: 'linear-gradient(135deg,#0f766e,#155e75)',
           }}
         >
           {initials}

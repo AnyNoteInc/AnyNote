@@ -19,7 +19,7 @@ keep the existing monorepo green.
 ## Goals
 
 1. Rename `SearchChat`/`SearchMessage` to `Chat`/`ChatMessage` (model + table + relations
-   + enum) so the domain language matches the new "AI chat" product.
+   - enum) so the domain language matches the new "AI chat" product.
 2. Introduce `ChatMessageFile` join table so chat messages can carry attachments,
    reusing the existing `PageFile` pattern.
 3. Introduce a pre-seeded catalog of AI providers and models (`AiProvider`,
@@ -58,19 +58,19 @@ keep the existing monorepo green.
 
 ### 1. Renames
 
-| Before              | After                  |
-|---------------------|------------------------|
-| `model SearchChat`  | `model Chat`           |
-| `@@map("search_chats")`   | `@@map("chats")`           |
-| `model SearchMessage` | `model ChatMessage`   |
-| `@@map("search_messages")` | `@@map("chat_messages")` |
-| `enum SearchMessageRole` | `enum ChatMessageRole` (values `USER`, `ASSISTANT` unchanged) |
-| `User.searchChats`  | `User.chats`           |
-| `Workspace.searchChats` | `Workspace.chats`  |
-| relation `"SearchChatCreator"` | relation `"ChatCreator"` |
-| relation `"ChatTree"` (self-ref) | preserved as-is |
-| `SearchChat.title` default `"Новый поиск"` | `Chat.title` default `"Новый чат"` |
-| `SearchMessage.sources Json @default("[]")` | `ChatMessage.sources Json @default("[]")` (preserved) |
+| Before                                      | After                                                         |
+| ------------------------------------------- | ------------------------------------------------------------- |
+| `model SearchChat`                          | `model Chat`                                                  |
+| `@@map("search_chats")`                     | `@@map("chats")`                                              |
+| `model SearchMessage`                       | `model ChatMessage`                                           |
+| `@@map("search_messages")`                  | `@@map("chat_messages")`                                      |
+| `enum SearchMessageRole`                    | `enum ChatMessageRole` (values `USER`, `ASSISTANT` unchanged) |
+| `User.searchChats`                          | `User.chats`                                                  |
+| `Workspace.searchChats`                     | `Workspace.chats`                                             |
+| relation `"SearchChatCreator"`              | relation `"ChatCreator"`                                      |
+| relation `"ChatTree"` (self-ref)            | preserved as-is                                               |
+| `SearchChat.title` default `"Новый поиск"`  | `Chat.title` default `"Новый чат"`                            |
+| `SearchMessage.sources Json @default("[]")` | `ChatMessage.sources Json @default("[]")` (preserved)         |
 
 All other fields (`id`, `workspaceId`, `parentId`, `createdById`, timestamps) are
 preserved 1:1.
@@ -213,24 +213,24 @@ queries cheap — Pillar F and Pillar E rely on that pattern.
 
 ### `AiProvider` — 3 rows
 
-| slug       | name            | defaultBaseUrl                                    | supportsStreaming | supportsTools | docsUrl                                   |
-|------------|-----------------|---------------------------------------------------|-------------------|---------------|-------------------------------------------|
-| `ollama`   | Ollama          | value of `process.env.OLLAMA_BASE_URL`            | true              | true          | `https://github.com/ollama/ollama`        |
-| `openai`   | OpenAI ChatGPT  | `https://api.openai.com/v1`                       | true              | true          | `https://platform.openai.com/docs`        |
-| `gigachat` | GigaChat        | `https://gigachat.devices.sberbank.ru/api/v1`     | true              | true          | resolved via context7 MCP at impl time    |
+| slug       | name           | defaultBaseUrl                                | supportsStreaming | supportsTools | docsUrl                                |
+| ---------- | -------------- | --------------------------------------------- | ----------------- | ------------- | -------------------------------------- |
+| `ollama`   | Ollama         | value of `process.env.OLLAMA_BASE_URL`        | true              | true          | `https://github.com/ollama/ollama`     |
+| `openai`   | OpenAI ChatGPT | `https://api.openai.com/v1`                   | true              | true          | `https://platform.openai.com/docs`     |
+| `gigachat` | GigaChat       | `https://gigachat.devices.sberbank.ru/api/v1` | true              | true          | resolved via context7 MCP at impl time |
 
 `credentialsSchema` per provider per the shapes above.
 
 ### `AiModel` — stable starter catalog
 
-| provider  | slug           | displayName         | contextTokens | maxOutputTokens | supportsVision | supportsFunctionCalling | minPlanSlug  |
-|-----------|----------------|---------------------|--------------:|----------------:|---------------:|------------------------:|--------------|
-| ollama    | `gemma4`       | Gemma 4 (Ollama)    | 8192          | 4096            | false          | false                   | `null`       |
-| openai    | `gpt-4o-mini`  | GPT-4o mini         | 128000        | 16384           | true           | true                    | `personal`   |
-| openai    | `gpt-4o`       | GPT-4o              | 128000        | 16384           | true           | true                    | `personal`   |
-| gigachat  | `GigaChat`     | GigaChat            | 32000         | 8000            | false          | true                    | `personal`   |
-| gigachat  | `GigaChat-Pro` | GigaChat Pro        | 32000         | 8000            | false          | true                    | `personal`   |
-| gigachat  | `GigaChat-Max` | GigaChat Max        | 131072        | 8000            | true           | true                    | `corporate`  |
+| provider | slug           | displayName      | contextTokens | maxOutputTokens | supportsVision | supportsFunctionCalling | minPlanSlug |
+| -------- | -------------- | ---------------- | ------------: | --------------: | -------------: | ----------------------: | ----------- |
+| ollama   | `gemma4`       | Gemma 4 (Ollama) |          8192 |            4096 |          false |                   false | `null`      |
+| openai   | `gpt-4o-mini`  | GPT-4o mini      |        128000 |           16384 |           true |                    true | `personal`  |
+| openai   | `gpt-4o`       | GPT-4o           |        128000 |           16384 |           true |                    true | `personal`  |
+| gigachat | `GigaChat`     | GigaChat         |         32000 |            8000 |          false |                    true | `personal`  |
+| gigachat | `GigaChat-Pro` | GigaChat Pro     |         32000 |            8000 |          false |                    true | `personal`  |
+| gigachat | `GigaChat-Max` | GigaChat Max     |        131072 |            8000 |           true |                    true | `corporate` |
 
 Exact GigaChat context/output numbers are subject to current GigaChat docs
 (resolved via context7 MCP at implementation). The values above are the

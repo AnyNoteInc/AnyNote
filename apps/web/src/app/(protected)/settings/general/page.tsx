@@ -1,12 +1,12 @@
-import { Stack, Typography } from "@repo/ui/components"
+import { Stack, Typography } from '@repo/ui/components'
 
-import { NotificationsSection } from "@/components/settings/notifications-section"
-import { ProfileSection } from "@/components/settings/profile-section"
-import { ThemeSection } from "@/components/settings/theme-section"
-import { getSession } from "@/lib/get-session"
-import { getServerTRPC } from "@/trpc/server"
+import { NotificationsSection } from '@/components/settings/notifications-section'
+import { ProfileSection } from '@/components/settings/profile-section'
+import { ThemeSection } from '@/components/settings/theme-section'
+import { getSession } from '@/lib/get-session'
+import { getServerTRPC } from '@/trpc/server'
 
-export const metadata = { title: "Общее · Настройки" }
+export const metadata = { title: 'Общее · Настройки' }
 
 type NotificationSettings = {
   email: { mentions: boolean; comments: boolean; weeklyDigest: boolean }

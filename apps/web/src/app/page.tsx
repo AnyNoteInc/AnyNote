@@ -1,65 +1,64 @@
-import type { Metadata } from "next"
-import Link from "next/link"
+import type { Metadata } from 'next'
+import Link from 'next/link'
 
-import { Box, Button, Container, Divider, Paper, Stack, Typography } from "@repo/ui/components"
+import { Box, Button, Container, Divider, Paper, Stack, Typography } from '@repo/ui/components'
 
-import { landingPricingCards } from "@/components/public/content"
-import { PublicFooter } from "@/components/public/public-footer"
-import { PublicHeader } from "@/components/public/public-header"
-import { getSession } from "@/lib/get-session"
+import { landingPricingCards } from '@/components/public/content'
+import { PublicFooter } from '@/components/public/public-footer'
+import { PublicHeader } from '@/components/public/public-header'
+import { getSession } from '@/lib/get-session'
 
 const benefitCards = [
   {
-    title: "Всё в одном пространстве",
-    body: "Документы, заметки, схемы, файлы клиентов — больше не разбросаны по Google Docs, чатам и папкам на рабочем столе. Один вход — вся работа команды под рукой.",
+    title: 'Всё в одном пространстве',
+    body: 'Документы, заметки, схемы, файлы клиентов — больше не разбросаны по Google Docs, чатам и папкам на рабочем столе. Один вход — вся работа команды под рукой.',
   },
   {
-    title: "Спросил — нашёл",
-    body: "Задаёте вопрос обычными словами: «какие договоры мы заключили в марте», «что обсуждали с клиентом». Ответ приходит из ваших документов, а не из гугла.",
+    title: 'Спросил — нашёл',
+    body: 'Задаёте вопрос обычными словами: «какие договоры мы заключили в марте», «что обсуждали с клиентом». Ответ приходит из ваших документов, а не из гугла.',
   },
   {
-    title: "Одна ссылка вместо десяти вложений",
-    body: "Нужно показать клиенту документ, бриф, схему работ? Отправляете одну ссылку — он видит всё в нормальном виде, без регистраций и PDF-экспортов.",
+    title: 'Одна ссылка вместо десяти вложений',
+    body: 'Нужно показать клиенту документ, бриф, схему работ? Отправляете одну ссылку — он видит всё в нормальном виде, без регистраций и PDF-экспортов.',
   },
 ]
 
 export const metadata: Metadata = {
-  title: "AnyNote",
+  title: 'AnyNote',
 }
 
 export default async function HomePage() {
   const session = await getSession()
 
-  const primaryHref = session ? "/app" : "/registration"
-  const primaryLabel = session ? "Открыть рабочее пространство" : "Начать бесплатно"
+  const primaryHref = session ? '/app' : '/registration'
+  const primaryLabel = session ? 'Открыть рабочее пространство' : 'Начать бесплатно'
 
   return (
     <Box
       component="main"
       sx={{
-        minHeight: "100vh",
-        color: "text.primary",
-        background:
-          "radial-gradient(circle at 16% 12%, rgba(15, 118, 110, 0.08), transparent 24%)",
+        minHeight: '100vh',
+        color: 'text.primary',
+        background: 'radial-gradient(circle at 16% 12%, rgba(15, 118, 110, 0.08), transparent 24%)',
       }}
     >
-      <Container maxWidth="xl" sx={{ position: "relative", pb: { xs: 9, md: 12 } }}>
+      <Container maxWidth="xl" sx={{ position: 'relative', pb: { xs: 9, md: 12 } }}>
         <PublicHeader session={session} />
 
         <Box
           sx={{
             pt: { xs: 5, md: 8 },
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", lg: "minmax(0, 1fr) minmax(0, 1fr)" },
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', lg: 'minmax(0, 1fr) minmax(0, 1fr)' },
             gap: { xs: 5, lg: 6 },
-            alignItems: "center",
+            alignItems: 'center',
           }}
         >
           <Stack spacing={3.5}>
             <Typography
               variant="h1"
               sx={{
-                fontSize: { xs: "2.3rem", sm: "2.9rem", md: "3.5rem" },
+                fontSize: { xs: '2.3rem', sm: '2.9rem', md: '3.5rem' },
                 lineHeight: 1.1,
                 maxWidth: 680,
               }}
@@ -71,13 +70,13 @@ export default async function HomePage() {
               sx={{
                 maxWidth: 600,
                 lineHeight: 1.6,
-                fontSize: { xs: "1rem", md: "1.12rem" },
+                fontSize: { xs: '1rem', md: '1.12rem' },
               }}
             >
               Собирайте заметки, файлы и рабочие материалы в общем пространстве. Задавайте вопрос —
               получайте ответ из ваших документов.
             </Typography>
-            <Stack direction={{ xs: "column", sm: "row" }} spacing={1.5}>
+            <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
               <Button href={primaryHref} size="large">
                 {primaryLabel}
               </Button>
@@ -99,8 +98,8 @@ export default async function HomePage() {
         <Box
           sx={{
             mt: 4,
-            display: "grid",
-            gridTemplateColumns: { xs: "1fr", md: "repeat(3, minmax(0, 1fr))" },
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: 'repeat(3, minmax(0, 1fr))' },
             gap: 3,
           }}
         >
@@ -111,8 +110,8 @@ export default async function HomePage() {
               sx={{
                 p: { xs: 3, md: 3.5 },
                 borderRadius: 4,
-                border: "1px solid rgba(148,163,184,0.18)",
-                backgroundColor: "background.paper",
+                border: '1px solid rgba(148,163,184,0.18)',
+                backgroundColor: 'background.paper',
               }}
             >
               <Stack spacing={1.5}>
@@ -133,48 +132,46 @@ export default async function HomePage() {
           <DetailedPreview />
         </Box>
 
-        <SectionHeader eyebrow="Тарифы">
-          Выберите план, который подходит команде
-        </SectionHeader>
+        <SectionHeader eyebrow="Тарифы">Выберите план, который подходит команде</SectionHeader>
 
         <Box
           sx={{
             mt: 4,
-            display: "grid",
+            display: 'grid',
             gridTemplateColumns: {
-              xs: "1fr",
-              md: "repeat(2, minmax(0, 1fr))",
-              xl: "repeat(4, minmax(0, 1fr))",
+              xs: '1fr',
+              md: 'repeat(2, minmax(0, 1fr))',
+              xl: 'repeat(4, minmax(0, 1fr))',
             },
             gap: 3,
           }}
         >
           {landingPricingCards.map((plan) => {
-            const isPrimary = plan.slug === "pro"
+            const isPrimary = plan.slug === 'pro'
             return (
-              <Link key={plan.slug} href="/pricing" style={{ textDecoration: "none" }}>
+              <Link key={plan.slug} href="/pricing" style={{ textDecoration: 'none' }}>
                 <Paper
                   elevation={0}
                   sx={{
                     p: 3.5,
                     borderRadius: 4,
                     minHeight: 360,
-                    color: "text.primary",
-                    display: "flex",
-                    textDecoration: "none",
+                    color: 'text.primary',
+                    display: 'flex',
+                    textDecoration: 'none',
                     border: isPrimary
-                      ? "1px solid rgba(15, 118, 110, 0.34)"
-                      : "1px solid rgba(148,163,184,0.18)",
-                    backgroundColor: "background.paper",
+                      ? '1px solid rgba(15, 118, 110, 0.34)'
+                      : '1px solid rgba(148,163,184,0.18)',
+                    backgroundColor: 'background.paper',
                     backgroundImage: isPrimary
-                      ? "linear-gradient(180deg, rgba(15, 118, 110, 0.10) 0%, rgba(255,255,255,0.03) 100%)"
-                      : "none",
-                    boxShadow: isPrimary ? "0 18px 42px rgba(15, 118, 110, 0.10)" : "none",
+                      ? 'linear-gradient(180deg, rgba(15, 118, 110, 0.10) 0%, rgba(255,255,255,0.03) 100%)'
+                      : 'none',
+                    boxShadow: isPrimary ? '0 18px 42px rgba(15, 118, 110, 0.10)' : 'none',
                   }}
                 >
-                  <Stack spacing={2} sx={{ width: "100%" }}>
+                  <Stack spacing={2} sx={{ width: '100%' }}>
                     <Typography variant="h5">{plan.name}</Typography>
-                    <Typography variant="h2" sx={{ fontSize: "3rem" }}>
+                    <Typography variant="h2" sx={{ fontSize: '3rem' }}>
                       {plan.price}
                     </Typography>
                     <Divider />
@@ -185,11 +182,11 @@ export default async function HomePage() {
                         </Typography>
                       ))}
                     </Stack>
-                    <Box sx={{ pt: 1, mt: "auto" }}>
+                    <Box sx={{ pt: 1, mt: 'auto' }}>
                       <Button
                         component="span"
-                        variant={isPrimary ? "contained" : "outlined"}
-                        color={isPrimary ? "primary" : "inherit"}
+                        variant={isPrimary ? 'contained' : 'outlined'}
+                        color={isPrimary ? 'primary' : 'inherit'}
                         fullWidth
                       >
                         Смотреть тариф
@@ -208,13 +205,13 @@ export default async function HomePage() {
             mt: { xs: 8, md: 11 },
             p: { xs: 4, md: 6 },
             borderRadius: 4,
-            border: "1px solid rgba(148,163,184,0.18)",
-            backgroundColor: "background.paper",
-            textAlign: "center",
+            border: '1px solid rgba(148,163,184,0.18)',
+            backgroundColor: 'background.paper',
+            textAlign: 'center',
           }}
         >
           <Stack spacing={2.5} alignItems="center">
-            <Typography variant="h2" sx={{ fontSize: { xs: "2rem", md: "2.6rem" } }}>
+            <Typography variant="h2" sx={{ fontSize: { xs: '2rem', md: '2.6rem' } }}>
               Начните за 2 минуты
             </Typography>
             <Typography color="text.secondary" sx={{ maxWidth: 520 }}>
@@ -239,7 +236,7 @@ function SectionHeader({ eyebrow, children }: { eyebrow: string; children: React
       </Typography>
       <Typography
         variant="h2"
-        sx={{ maxWidth: 780, fontSize: { xs: "1.9rem", md: "2.6rem" }, lineHeight: 1.2 }}
+        sx={{ maxWidth: 780, fontSize: { xs: '1.9rem', md: '2.6rem' }, lineHeight: 1.2 }}
       >
         {children}
       </Typography>
@@ -254,15 +251,15 @@ function HeroPreview() {
       sx={{
         p: 2,
         borderRadius: 4,
-        border: "1px solid rgba(148,163,184,0.22)",
-        backgroundColor: "background.paper",
-        boxShadow: "0 24px 60px rgba(15, 23, 42, 0.08)",
+        border: '1px solid rgba(148,163,184,0.22)',
+        backgroundColor: 'background.paper',
+        boxShadow: '0 24px 60px rgba(15, 23, 42, 0.08)',
       }}
     >
       <Box
         sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "116px 1fr", sm: "148px 1fr" },
+          display: 'grid',
+          gridTemplateColumns: { xs: '116px 1fr', sm: '148px 1fr' },
           gap: 1.5,
           minHeight: 340,
         }}
@@ -270,13 +267,17 @@ function HeroPreview() {
         <Box
           sx={{
             borderRadius: 3,
-            backgroundColor: "rgba(148,163,184,0.08)",
+            backgroundColor: 'rgba(148,163,184,0.08)',
             p: 1.5,
           }}
         >
-          <SidebarGroup title="Клиенты" activeIndex={0} items={["ООО «Ромашка»", "ИП Иванов", "ООО «ТехноПром»"]} />
+          <SidebarGroup
+            title="Клиенты"
+            activeIndex={0}
+            items={['ООО «Ромашка»', 'ИП Иванов', 'ООО «ТехноПром»']}
+          />
           <Box sx={{ mt: 2 }}>
-            <SidebarGroup title="Задачи" items={["На неделю", "В работе"]} />
+            <SidebarGroup title="Задачи" items={['На неделю', 'В работе']} />
           </Box>
         </Box>
 
@@ -284,7 +285,7 @@ function HeroPreview() {
           <Typography variant="caption" color="text.secondary">
             Клиенты / ООО «Ромашка»
           </Typography>
-          <Typography sx={{ mt: 0.5, fontSize: { xs: "1.05rem", sm: "1.2rem" }, fontWeight: 700 }}>
+          <Typography sx={{ mt: 0.5, fontSize: { xs: '1.05rem', sm: '1.2rem' }, fontWeight: 700 }}>
             Карточка клиента
           </Typography>
           <Divider sx={{ my: 1.5 }} />
@@ -306,32 +307,36 @@ function DetailedPreview() {
       sx={{
         p: { xs: 2, md: 3 },
         borderRadius: 4,
-        border: "1px solid rgba(148,163,184,0.22)",
-        backgroundColor: "background.paper",
-        boxShadow: "0 24px 60px rgba(15, 23, 42, 0.06)",
+        border: '1px solid rgba(148,163,184,0.22)',
+        backgroundColor: 'background.paper',
+        boxShadow: '0 24px 60px rgba(15, 23, 42, 0.06)',
       }}
     >
       <Box
         sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "200px 1fr" },
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '200px 1fr' },
           gap: { xs: 2, md: 3 },
         }}
       >
         <Box
           sx={{
             borderRadius: 3,
-            backgroundColor: "rgba(148,163,184,0.06)",
+            backgroundColor: 'rgba(148,163,184,0.06)',
             p: 2,
-            display: { xs: "none", md: "block" },
+            display: { xs: 'none', md: 'block' },
           }}
         >
-          <SidebarGroup title="Клиенты" activeIndex={0} items={["ООО «Ромашка»", "ИП Иванов", "ООО «ТехноПром»"]} />
+          <SidebarGroup
+            title="Клиенты"
+            activeIndex={0}
+            items={['ООО «Ромашка»', 'ИП Иванов', 'ООО «ТехноПром»']}
+          />
           <Box sx={{ mt: 2.5 }}>
-            <SidebarGroup title="Задачи" items={["На неделю", "В работе", "Архив"]} />
+            <SidebarGroup title="Задачи" items={['На неделю', 'В работе', 'Архив']} />
           </Box>
           <Box sx={{ mt: 2.5 }}>
-            <SidebarGroup title="Шаблоны" items={["Бриф", "Договор", "Отчёт"]} />
+            <SidebarGroup title="Шаблоны" items={['Бриф', 'Договор', 'Отчёт']} />
           </Box>
         </Box>
 
@@ -341,7 +346,7 @@ function DetailedPreview() {
           </Typography>
           <Typography
             variant="h4"
-            sx={{ mt: 0.5, fontSize: { xs: "1.4rem", md: "1.8rem" }, fontWeight: 700 }}
+            sx={{ mt: 0.5, fontSize: { xs: '1.4rem', md: '1.8rem' }, fontWeight: 700 }}
           >
             ООО «Ромашка» — карточка клиента
           </Typography>
@@ -367,10 +372,10 @@ function DetailedPreview() {
             <DocSection title="Договоры и файлы">
               <Stack direction="row" flexWrap="wrap" gap={1}>
                 {[
-                  "договор №14.pdf",
-                  "допсоглашение №1.pdf",
-                  "бриф.docx",
-                  "схема взаимодействия",
+                  'договор №14.pdf',
+                  'допсоглашение №1.pdf',
+                  'бриф.docx',
+                  'схема взаимодействия',
                 ].map((file) => (
                   <FilePill key={file} label={file} />
                 ))}
@@ -404,11 +409,11 @@ function SidebarGroup({
       <Typography
         variant="caption"
         sx={{
-          color: "text.secondary",
+          color: 'text.secondary',
           fontWeight: 700,
-          letterSpacing: "0.08em",
-          textTransform: "uppercase",
-          display: "block",
+          letterSpacing: '0.08em',
+          textTransform: 'uppercase',
+          display: 'block',
         }}
       >
         {title}
@@ -423,16 +428,14 @@ function SidebarGroup({
                 px: 1,
                 py: 0.6,
                 borderRadius: 1.5,
-                backgroundColor: isActive ? "rgba(15,118,110,0.10)" : "transparent",
-                border: isActive
-                  ? "1px solid rgba(15,118,110,0.22)"
-                  : "1px solid transparent",
+                backgroundColor: isActive ? 'rgba(15,118,110,0.10)' : 'transparent',
+                border: isActive ? '1px solid rgba(15,118,110,0.22)' : '1px solid transparent',
               }}
             >
               <Typography
                 variant="caption"
                 sx={{
-                  color: isActive ? "primary.main" : "text.primary",
+                  color: isActive ? 'primary.main' : 'text.primary',
                   fontWeight: isActive ? 600 : 400,
                 }}
               >
@@ -452,10 +455,10 @@ function PreviewField({ label, value }: { label: string; value: string }) {
       <Typography
         variant="caption"
         sx={{
-          color: "text.secondary",
-          textTransform: "uppercase",
+          color: 'text.secondary',
+          textTransform: 'uppercase',
           fontWeight: 700,
-          letterSpacing: "0.06em",
+          letterSpacing: '0.06em',
         }}
       >
         {label}
@@ -473,11 +476,11 @@ function DocSection({ title, children }: { title: string; children: React.ReactN
       <Typography
         variant="caption"
         sx={{
-          color: "text.secondary",
-          textTransform: "uppercase",
+          color: 'text.secondary',
+          textTransform: 'uppercase',
           fontWeight: 700,
-          letterSpacing: "0.08em",
-          display: "block",
+          letterSpacing: '0.08em',
+          display: 'block',
           mb: 0.75,
         }}
       >
@@ -495,8 +498,8 @@ function FilePill({ label }: { label: string }) {
         px: 1.25,
         py: 0.5,
         borderRadius: 2,
-        backgroundColor: "rgba(148,163,184,0.10)",
-        border: "1px solid rgba(148,163,184,0.18)",
+        backgroundColor: 'rgba(148,163,184,0.10)',
+        border: '1px solid rgba(148,163,184,0.18)',
       }}
     >
       <Typography variant="caption">{label}</Typography>
@@ -511,8 +514,8 @@ function TaskRow({ text, due }: { text: string; due: string }) {
         sx={{
           width: 14,
           height: 14,
-          borderRadius: "4px",
-          border: "1.5px solid rgba(148,163,184,0.5)",
+          borderRadius: '4px',
+          border: '1.5px solid rgba(148,163,184,0.5)',
           flexShrink: 0,
         }}
       />

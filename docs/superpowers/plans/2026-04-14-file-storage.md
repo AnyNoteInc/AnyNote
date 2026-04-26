@@ -237,7 +237,7 @@ export {
   BlockType,
   SearchMessageRole,
   FileStatus,
-} from "@prisma/client"
+} from '@prisma/client'
 ```
 
 In the type-export block, add `File` and `BlockFile`:
@@ -250,7 +250,7 @@ export type {
   FavoritePage,
   File,
   BlockFile,
-} from "@prisma/client"
+} from '@prisma/client'
 ```
 
 - [ ] **Step 9: Typecheck**
@@ -344,7 +344,7 @@ Create `packages/storage/tsconfig.json`:
 Create `packages/storage/eslint.config.mjs`:
 
 ```js
-import { config } from "@repo/eslint-config/base"
+import { config } from '@repo/eslint-config/base'
 
 /** @type {import("eslint").Linter.Config[]} */
 export default config
@@ -396,7 +396,7 @@ git commit -m "feat(storage): scaffold @repo/storage package"
 Create `packages/storage/src/contract.ts`:
 
 ```ts
-import type { Readable } from "node:stream"
+import type { Readable } from 'node:stream'
 
 export type PutOptions = {
   contentType: string
@@ -416,17 +416,17 @@ export interface StorageClient {
 Create `packages/storage/src/s3-client.ts`:
 
 ```ts
-import type { Readable } from "node:stream"
+import type { Readable } from 'node:stream'
 
 import {
   DeleteObjectCommand,
   GetObjectCommand,
   HeadObjectCommand,
   S3Client,
-} from "@aws-sdk/client-s3"
-import { Upload } from "@aws-sdk/lib-storage"
+} from '@aws-sdk/client-s3'
+import { Upload } from '@aws-sdk/lib-storage'
 
-import type { PutOptions, StorageClient } from "./contract"
+import type { PutOptions, StorageClient } from './contract'
 
 type S3Config = {
   endpoint: string
@@ -439,11 +439,11 @@ type S3Config = {
 
 const readConfig = (): S3Config => {
   const required = [
-    "S3_ENDPOINT",
-    "S3_REGION",
-    "S3_ACCESS_KEY",
-    "S3_SECRET_KEY",
-    "S3_BUCKET",
+    'S3_ENDPOINT',
+    'S3_REGION',
+    'S3_ACCESS_KEY',
+    'S3_SECRET_KEY',
+    'S3_BUCKET',
   ] as const
   for (const name of required) {
     if (!process.env[name]) {
@@ -456,7 +456,7 @@ const readConfig = (): S3Config => {
     accessKeyId: process.env.S3_ACCESS_KEY!,
     secretAccessKey: process.env.S3_SECRET_KEY!,
     bucket: process.env.S3_BUCKET!,
-    forcePathStyle: process.env.S3_FORCE_PATH_STYLE === "true",
+    forcePathStyle: process.env.S3_FORCE_PATH_STYLE === 'true',
   }
 }
 
@@ -509,7 +509,7 @@ export class S3StorageClient implements StorageClient {
       return true
     } catch (err: unknown) {
       const error = err as { name?: string; $metadata?: { httpStatusCode?: number } }
-      if (error.name === "NotFound" || error.$metadata?.httpStatusCode === 404) {
+      if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
         return false
       }
       throw err
@@ -523,10 +523,10 @@ export class S3StorageClient implements StorageClient {
 Replace the placeholder `packages/storage/src/index.ts` with:
 
 ```ts
-import { S3StorageClient } from "./s3-client"
+import { S3StorageClient } from './s3-client'
 
-export type { PutOptions, StorageClient } from "./contract"
-export { S3StorageClient } from "./s3-client"
+export type { PutOptions, StorageClient } from './contract'
+export { S3StorageClient } from './s3-client'
 
 type GlobalStorage = typeof globalThis & {
   __storage?: S3StorageClient
@@ -536,7 +536,7 @@ const g = globalThis as GlobalStorage
 
 export const storage: S3StorageClient = g.__storage ?? new S3StorageClient()
 
-if (process.env.NODE_ENV !== "production") {
+if (process.env.NODE_ENV !== 'production') {
   g.__storage = storage
 }
 ```
@@ -592,8 +592,8 @@ Open `apps/web/next.config.js` and update:
 ```js
 /** @type {import('next').NextConfig} */
 const nextConfig = {
-  serverExternalPackages: ["pg", "@prisma/client"],
-  transpilePackages: ["@repo/ui", "@repo/trpc", "@repo/auth", "@repo/storage"],
+  serverExternalPackages: ['pg', '@prisma/client'],
+  transpilePackages: ['@repo/ui', '@repo/trpc', '@repo/auth', '@repo/storage'],
 }
 
 export default nextConfig
@@ -629,25 +629,25 @@ git commit -m "feat(web): add @repo/storage dependency"
 Create `apps/web/src/lib/file-validation.ts`:
 
 ```ts
-export type UploadKind = "avatar" | "attachment"
+export type UploadKind = 'avatar' | 'attachment'
 
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024
 const ATTACHMENT_MAX_BYTES = 50 * 1024 * 1024
 
-const AVATAR_MIME = new Set(["image/png", "image/jpeg", "image/webp", "image/gif"])
+const AVATAR_MIME = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
 
 const ATTACHMENT_MIME = new Set([
-  "image/png",
-  "image/jpeg",
-  "image/webp",
-  "image/gif",
-  "application/pdf",
-  "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
-  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-  "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-  "text/plain",
-  "text/markdown",
-  "application/zip",
+  'image/png',
+  'image/jpeg',
+  'image/webp',
+  'image/gif',
+  'application/pdf',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  'text/plain',
+  'text/markdown',
+  'application/zip',
 ])
 
 export type ValidationError = { status: 400; message: string }
@@ -657,12 +657,12 @@ export const validateUpload = (
   size: number,
   mimeType: string,
 ): ValidationError | null => {
-  const maxBytes = kind === "avatar" ? AVATAR_MAX_BYTES : ATTACHMENT_MAX_BYTES
-  if (size === 0) return { status: 400, message: "Empty file" }
+  const maxBytes = kind === 'avatar' ? AVATAR_MAX_BYTES : ATTACHMENT_MAX_BYTES
+  if (size === 0) return { status: 400, message: 'Empty file' }
   if (size > maxBytes) {
     return { status: 400, message: `File exceeds limit of ${maxBytes} bytes` }
   }
-  const allowed = kind === "avatar" ? AVATAR_MIME : ATTACHMENT_MIME
+  const allowed = kind === 'avatar' ? AVATAR_MIME : ATTACHMENT_MIME
   if (!allowed.has(mimeType)) {
     return { status: 400, message: `Mime type ${mimeType} not allowed for ${kind}` }
   }
@@ -670,12 +670,12 @@ export const validateUpload = (
 }
 
 export const extractExt = (filename: string): string => {
-  const dot = filename.lastIndexOf(".")
-  if (dot < 0 || dot === filename.length - 1) return ""
+  const dot = filename.lastIndexOf('.')
+  if (dot < 0 || dot === filename.length - 1) return ''
   return filename
     .slice(dot + 1)
     .toLowerCase()
-    .replace(/[^a-z0-9]/g, "")
+    .replace(/[^a-z0-9]/g, '')
     .slice(0, 16)
 }
 
@@ -690,42 +690,42 @@ export const computeS3Key = (hash: string, ext: string): string => {
 Create `apps/web/src/app/api/files/upload/route.ts`:
 
 ```ts
-import { createHash } from "node:crypto"
+import { createHash } from 'node:crypto'
 
-import { prisma } from "@repo/db"
-import { storage } from "@repo/storage"
+import { prisma } from '@repo/db'
+import { storage } from '@repo/storage'
 
-import { getSession } from "@/lib/get-session"
-import { computeS3Key, extractExt, validateUpload, type UploadKind } from "@/lib/file-validation"
+import { getSession } from '@/lib/get-session'
+import { computeS3Key, extractExt, validateUpload, type UploadKind } from '@/lib/file-validation'
 
-export const runtime = "nodejs"
+export const runtime = 'nodejs'
 
 const isAvatarMime = (mime: string): boolean =>
-  mime === "image/png" || mime === "image/jpeg" || mime === "image/webp" || mime === "image/gif"
+  mime === 'image/png' || mime === 'image/jpeg' || mime === 'image/webp' || mime === 'image/gif'
 
 export async function POST(request: Request) {
   const session = await getSession()
   if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 })
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   const url = new URL(request.url)
-  const kindParam = url.searchParams.get("kind")
-  const workspaceIdParam = url.searchParams.get("workspaceId")
+  const kindParam = url.searchParams.get('kind')
+  const workspaceIdParam = url.searchParams.get('workspaceId')
 
-  if (kindParam !== "avatar" && kindParam !== "attachment") {
-    return Response.json({ error: "Invalid kind" }, { status: 400 })
+  if (kindParam !== 'avatar' && kindParam !== 'attachment') {
+    return Response.json({ error: 'Invalid kind' }, { status: 400 })
   }
   const kind: UploadKind = kindParam
 
-  if (kind === "avatar" && workspaceIdParam) {
-    return Response.json({ error: "workspaceId not allowed for avatar" }, { status: 400 })
+  if (kind === 'avatar' && workspaceIdParam) {
+    return Response.json({ error: 'workspaceId not allowed for avatar' }, { status: 400 })
   }
-  if (kind === "attachment" && !workspaceIdParam) {
-    return Response.json({ error: "workspaceId is required for attachment" }, { status: 400 })
+  if (kind === 'attachment' && !workspaceIdParam) {
+    return Response.json({ error: 'workspaceId is required for attachment' }, { status: 400 })
   }
 
-  if (kind === "attachment") {
+  if (kind === 'attachment') {
     const member = await prisma.workspaceMember.findUnique({
       where: {
         workspaceId_userId: {
@@ -735,40 +735,40 @@ export async function POST(request: Request) {
       },
     })
     if (!member) {
-      return Response.json({ error: "Forbidden" }, { status: 403 })
+      return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
   }
 
   const formData = await request.formData()
-  const file = formData.get("file")
+  const file = formData.get('file')
   if (!(file instanceof File)) {
-    return Response.json({ error: "Missing file field" }, { status: 400 })
+    return Response.json({ error: 'Missing file field' }, { status: 400 })
   }
 
   const bytes = Buffer.from(await file.arrayBuffer())
-  const mimeType = file.type || "application/octet-stream"
+  const mimeType = file.type || 'application/octet-stream'
 
   const validationError = validateUpload(kind, bytes.length, mimeType)
   if (validationError) {
     return Response.json({ error: validationError.message }, { status: validationError.status })
   }
 
-  if (kind === "avatar" && !isAvatarMime(mimeType)) {
-    return Response.json({ error: "Avatar mime must be an image" }, { status: 400 })
+  if (kind === 'avatar' && !isAvatarMime(mimeType)) {
+    return Response.json({ error: 'Avatar mime must be an image' }, { status: 400 })
   }
 
-  const hash = createHash("sha256").update(bytes).digest("hex")
+  const hash = createHash('sha256').update(bytes).digest('hex')
   const ext = extractExt(file.name)
   const s3Key = computeS3Key(hash, ext)
 
-  const workspaceId = kind === "attachment" ? workspaceIdParam : null
+  const workspaceId = kind === 'attachment' ? workspaceIdParam : null
 
   const existing = await prisma.file.findFirst({
     where: {
       userId: session.user.id,
       hash,
       workspaceId,
-      status: "ACTIVE",
+      status: 'ACTIVE',
     },
   })
 
@@ -787,14 +787,14 @@ export async function POST(request: Request) {
         mimeType,
         hash,
         path: s3Key,
-        status: "ACTIVE",
-        isPublic: kind === "avatar",
+        status: 'ACTIVE',
+        isPublic: kind === 'avatar',
       },
     })
   }
 
   let imageUrl: string | undefined
-  if (kind === "avatar") {
+  if (kind === 'avatar') {
     imageUrl = `/api/files/${fileRow.id}`
     await prisma.user.update({
       where: { id: session.user.id },
@@ -885,41 +885,41 @@ git commit -m "feat(web): POST /api/files/upload route"
 Create `apps/web/src/app/api/files/[id]/route.ts`:
 
 ```ts
-import type { Readable } from "node:stream"
+import type { Readable } from 'node:stream'
 
-import { prisma } from "@repo/db"
-import { storage } from "@repo/storage"
+import { prisma } from '@repo/db'
+import { storage } from '@repo/storage'
 
-import { getSession } from "@/lib/get-session"
+import { getSession } from '@/lib/get-session'
 
-export const runtime = "nodejs"
+export const runtime = 'nodejs'
 
 export async function GET(_request: Request, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
   const file = await prisma.file.findUnique({ where: { id } })
-  if (!file || file.status !== "ACTIVE") {
-    return new Response("Not found", { status: 404 })
+  if (!file || file.status !== 'ACTIVE') {
+    return new Response('Not found', { status: 404 })
   }
 
   if (file.expiresAt && file.expiresAt.getTime() < Date.now()) {
-    return new Response("Gone", { status: 410 })
+    return new Response('Gone', { status: 410 })
   }
 
   if (!file.isPublic) {
     const session = await getSession()
-    if (!session) return new Response("Unauthorized", { status: 401 })
+    if (!session) return new Response('Unauthorized', { status: 401 })
     if (session.user.id !== file.userId) {
-      return new Response("Forbidden", { status: 403 })
+      return new Response('Forbidden', { status: 403 })
     }
   }
 
   const body = (await storage.get(file.path)) as Readable
   const stream = new ReadableStream({
     start(controller) {
-      body.on("data", (chunk: Buffer) => controller.enqueue(chunk))
-      body.on("end", () => controller.close())
-      body.on("error", (err) => controller.error(err))
+      body.on('data', (chunk: Buffer) => controller.enqueue(chunk))
+      body.on('end', () => controller.close())
+      body.on('error', (err) => controller.error(err))
     },
     cancel() {
       body.destroy()
@@ -944,10 +944,10 @@ export async function GET(_request: Request, { params }: { params: Promise<{ id:
   return new Response(stream, {
     status: 200,
     headers: {
-      "Content-Type": file.mimeType,
-      "Content-Length": file.fileSize.toString(),
-      "Content-Disposition": disposition,
-      "Cache-Control": "private, max-age=0",
+      'Content-Type': file.mimeType,
+      'Content-Length': file.fileSize.toString(),
+      'Content-Disposition': disposition,
+      'Cache-Control': 'private, max-age=0',
     },
   })
 }
@@ -998,12 +998,12 @@ git commit -m "feat(web): GET /api/files/[id] download route"
 Create `packages/trpc/src/routers/file.ts`:
 
 ```ts
-import { TRPCError } from "@trpc/server"
-import { z } from "zod"
+import { TRPCError } from '@trpc/server'
+import { z } from 'zod'
 
-import { FileStatus } from "@repo/db"
+import { FileStatus } from '@repo/db'
 
-import { protectedProcedure, router } from "../trpc"
+import { protectedProcedure, router } from '../trpc'
 
 const uuid = z.string().uuid()
 
@@ -1022,7 +1022,7 @@ export const fileRouter = router({
       const statuses = input.status ?? [FileStatus.ACTIVE]
       return ctx.prisma.file.findMany({
         where: { userId: ctx.user.id, status: { in: statuses } },
-        orderBy: { createdAt: "desc" },
+        orderBy: { createdAt: 'desc' },
         take: input.limit,
         cursor: input.cursor ? { id: input.cursor } : undefined,
         skip: input.cursor ? 1 : 0,
@@ -1048,13 +1048,13 @@ export const fileRouter = router({
       })
       if (!member) {
         throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Not a member of this workspace",
+          code: 'FORBIDDEN',
+          message: 'Not a member of this workspace',
         })
       }
       return ctx.prisma.file.findMany({
         where: { workspaceId: input.workspaceId, status: FileStatus.ACTIVE },
-        orderBy: { createdAt: "desc" },
+        orderBy: { createdAt: 'desc' },
         take: input.limit,
         cursor: input.cursor ? { id: input.cursor } : undefined,
         skip: input.cursor ? 1 : 0,
@@ -1063,9 +1063,9 @@ export const fileRouter = router({
 
   getById: protectedProcedure.input(z.object({ id: uuid })).query(async ({ ctx, input }) => {
     const file = await ctx.prisma.file.findUnique({ where: { id: input.id } })
-    if (!file) throw new TRPCError({ code: "NOT_FOUND", message: "File not found" })
+    if (!file) throw new TRPCError({ code: 'NOT_FOUND', message: 'File not found' })
     if (file.userId !== ctx.user.id && !file.isPublic) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "File not found" })
+      throw new TRPCError({ code: 'NOT_FOUND', message: 'File not found' })
     }
     return file
   }),
@@ -1073,7 +1073,7 @@ export const fileRouter = router({
   delete: protectedProcedure.input(z.object({ id: uuid })).mutation(async ({ ctx, input }) => {
     const file = await ctx.prisma.file.findUnique({ where: { id: input.id } })
     if (!file || file.userId !== ctx.user.id) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "File not found" })
+      throw new TRPCError({ code: 'NOT_FOUND', message: 'File not found' })
     }
     return ctx.prisma.file.update({
       where: { id: input.id },
@@ -1086,7 +1086,7 @@ export const fileRouter = router({
     .mutation(async ({ ctx, input }) => {
       const file = await ctx.prisma.file.findUnique({ where: { id: input.id } })
       if (!file || file.userId !== ctx.user.id) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "File not found" })
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'File not found' })
       }
       return ctx.prisma.file.update({
         where: { id: input.id },
@@ -1099,7 +1099,7 @@ export const fileRouter = router({
     .mutation(async ({ ctx, input }) => {
       const file = await ctx.prisma.file.findUnique({ where: { id: input.id } })
       if (!file || file.userId !== ctx.user.id) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "File not found" })
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'File not found' })
       }
       return ctx.prisma.file.update({
         where: { id: input.id },
@@ -1114,18 +1114,18 @@ export const fileRouter = router({
 Open `packages/trpc/src/index.ts`. Add import and router entry:
 
 ```ts
-import { router, publicProcedure, createCallerFactory } from "./trpc"
-import { userRouter } from "./routers/user"
-import { workspaceRouter } from "./routers/workspace"
-import { subscriptionRouter } from "./routers/subscription"
-import { integrationRouter } from "./routers/integration"
-import { blockRouter } from "./routers/block"
-import { pageRouter } from "./routers/page"
-import { searchRouter } from "./routers/search"
-import { fileRouter } from "./routers/file"
+import { router, publicProcedure, createCallerFactory } from './trpc'
+import { userRouter } from './routers/user'
+import { workspaceRouter } from './routers/workspace'
+import { subscriptionRouter } from './routers/subscription'
+import { integrationRouter } from './routers/integration'
+import { blockRouter } from './routers/block'
+import { pageRouter } from './routers/page'
+import { searchRouter } from './routers/search'
+import { fileRouter } from './routers/file'
 
-export { createContext, createServerContext } from "./trpc"
-export type { Context } from "./trpc"
+export { createContext, createServerContext } from './trpc'
+export type { Context } from './trpc'
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ ok: true })),
@@ -1173,20 +1173,20 @@ git commit -m "feat(trpc): add fileRouter"
 Create `apps/web/src/components/profile/profile-avatar-uploader.tsx`:
 
 ```tsx
-"use client"
+'use client'
 
-import { useRef, useState } from "react"
+import { useRef, useState } from 'react'
 
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 
-import { Avatar, Box, CircularProgress, Typography } from "@repo/ui/components"
+import { Avatar, Box, CircularProgress, Typography } from '@repo/ui/components'
 
 type Props = {
   currentImage: string | null
   initials: string
 }
 
-const ACCEPT = "image/png,image/jpeg,image/webp,image/gif"
+const ACCEPT = 'image/png,image/jpeg,image/webp,image/gif'
 
 export default function ProfileAvatarUploader({ currentImage, initials }: Props) {
   const inputRef = useRef<HTMLInputElement | null>(null)
@@ -1201,15 +1201,15 @@ export default function ProfileAvatarUploader({ currentImage, initials }: Props)
 
   const onChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
-    e.target.value = ""
+    e.target.value = ''
     if (!file) return
     setError(null)
     setIsUploading(true)
     try {
       const body = new FormData()
-      body.append("file", file)
-      const res = await fetch("/api/files/upload?kind=avatar", {
-        method: "POST",
+      body.append('file', file)
+      const res = await fetch('/api/files/upload?kind=avatar', {
+        method: 'POST',
         body,
       })
       if (!res.ok) {
@@ -1218,20 +1218,20 @@ export default function ProfileAvatarUploader({ currentImage, initials }: Props)
       }
       router.refresh()
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Upload failed")
+      setError(err instanceof Error ? err.message : 'Upload failed')
     } finally {
       setIsUploading(false)
     }
   }
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 1 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 1 }}>
       <Box
         onClick={onClick}
         sx={{
-          position: "relative",
-          cursor: isUploading ? "wait" : "pointer",
-          "&:hover .overlay": { opacity: 1 },
+          position: 'relative',
+          cursor: isUploading ? 'wait' : 'pointer',
+          '&:hover .overlay': { opacity: 1 },
         }}
       >
         <Avatar
@@ -1240,8 +1240,8 @@ export default function ProfileAvatarUploader({ currentImage, initials }: Props)
             width: 128,
             height: 128,
             fontSize: 44,
-            background: "linear-gradient(135deg,#0f766e,#155e75)",
-            color: "#fff",
+            background: 'linear-gradient(135deg,#0f766e,#155e75)',
+            color: '#fff',
           }}
         >
           {initials}
@@ -1249,20 +1249,20 @@ export default function ProfileAvatarUploader({ currentImage, initials }: Props)
         <Box
           className="overlay"
           sx={{
-            position: "absolute",
+            position: 'absolute',
             inset: 0,
-            borderRadius: "50%",
-            bgcolor: "rgba(0,0,0,0.4)",
-            color: "#fff",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            borderRadius: '50%',
+            bgcolor: 'rgba(0,0,0,0.4)',
+            color: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             opacity: isUploading ? 1 : 0,
-            transition: "opacity 120ms ease",
+            transition: 'opacity 120ms ease',
             fontSize: 12,
           }}
         >
-          {isUploading ? <CircularProgress size={28} sx={{ color: "#fff" }} /> : "Сменить"}
+          {isUploading ? <CircularProgress size={28} sx={{ color: '#fff' }} /> : 'Сменить'}
         </Box>
       </Box>
       <input
@@ -1270,7 +1270,7 @@ export default function ProfileAvatarUploader({ currentImage, initials }: Props)
         type="file"
         accept={ACCEPT}
         onChange={onChange}
-        style={{ display: "none" }}
+        style={{ display: 'none' }}
         data-testid="avatar-file-input"
       />
       {error ? (
@@ -1380,46 +1380,46 @@ Inspect how other specs sign in (e.g. `auth.spec.ts`) — reuse whatever fixture
 Create `apps/e2e/files.spec.ts`:
 
 ```ts
-import { readFileSync } from "node:fs"
-import { join } from "node:path"
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
-import { expect, test } from "@playwright/test"
+import { expect, test } from '@playwright/test'
 
 // Small 1x1 PNG (base64-decoded) — valid minimal PNG bytes.
 const MIN_PNG_BASE64 =
-  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNgAAIAAAUAAen63NgAAAAASUVORK5CYII="
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNgAAIAAAUAAen63NgAAAAASUVORK5CYII='
 
-test.describe("avatar upload", () => {
-  test("uploads, persists, and serves via /api/files", async ({ page, request }) => {
+test.describe('avatar upload', () => {
+  test('uploads, persists, and serves via /api/files', async ({ page, request }) => {
     // Assume test-auth helper — adapt to whatever exists in apps/e2e.
     // e.g. await signIn(page, { email: "test@example.com", password: "..." })
 
-    await page.goto("/profile")
+    await page.goto('/profile')
 
-    const fileInput = page.getByTestId("avatar-file-input")
+    const fileInput = page.getByTestId('avatar-file-input')
     await fileInput.setInputFiles({
-      name: "avatar.png",
-      mimeType: "image/png",
-      buffer: Buffer.from(MIN_PNG_BASE64, "base64"),
+      name: 'avatar.png',
+      mimeType: 'image/png',
+      buffer: Buffer.from(MIN_PNG_BASE64, 'base64'),
     })
 
     // Wait for router.refresh()
     await expect(async () => {
-      const src = await page.locator("img").first().getAttribute("src")
+      const src = await page.locator('img').first().getAttribute('src')
       expect(src).toMatch(/^\/api\/files\//)
     }).toPass({ timeout: 5000 })
 
-    const imgSrc = await page.locator("img").first().getAttribute("src")
+    const imgSrc = await page.locator('img').first().getAttribute('src')
     expect(imgSrc).toBeTruthy()
 
     // Reload — avatar persists
     await page.reload()
-    await expect(page.locator("img").first()).toHaveAttribute("src", imgSrc!)
+    await expect(page.locator('img').first()).toHaveAttribute('src', imgSrc!)
 
     // The image URL is publicly readable (isPublic=true for avatars)
     const res = await request.get(imgSrc!)
     expect(res.status()).toBe(200)
-    expect(res.headers()["content-type"]).toBe("image/png")
+    expect(res.headers()['content-type']).toBe('image/png')
   })
 })
 ```

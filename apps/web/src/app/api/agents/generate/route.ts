@@ -75,7 +75,7 @@ function createAttacmentPart(file: ValidChatFile) {
 }
 
 function createToolPart(block: ServiceBlock) {
-  return {type: 'tool' as const, ...block}
+  return { type: 'tool' as const, ...block }
 }
 
 function createAssistantParts(entry: ReturnType<typeof activeStreamRegistry.create>) {

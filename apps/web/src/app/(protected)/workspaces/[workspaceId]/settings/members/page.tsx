@@ -1,9 +1,9 @@
-import { notFound } from "next/navigation"
+import { notFound } from 'next/navigation'
 
-import { getWorkspaceFeatures } from "@repo/trpc"
-import { requireSession } from "@/lib/get-session"
-import { getServerTRPC } from "@/trpc/server"
-import { WorkspaceMembersSection } from "@/components/workspace/settings/members-section"
+import { getWorkspaceFeatures } from '@repo/trpc'
+import { requireSession } from '@/lib/get-session'
+import { getServerTRPC } from '@/trpc/server'
+import { WorkspaceMembersSection } from '@/components/workspace/settings/members-section'
 
 type Props = { params: Promise<{ workspaceId: string }> }
 
@@ -20,7 +20,7 @@ export default async function WorkspaceSettingsMembersPage({ params }: Props) {
   return (
     <WorkspaceMembersSection
       workspaceId={workspace.id}
-      locked={plan.slug === "free"}
+      locked={plan.slug === 'free'}
       currentUserId={session.user.id}
     />
   )

@@ -1,8 +1,8 @@
-import { Injectable } from "@nestjs/common"
-import { prisma } from "@repo/db"
-import { randomUUID } from "node:crypto"
+import { Injectable } from '@nestjs/common'
+import { prisma } from '@repo/db'
+import { randomUUID } from 'node:crypto'
 
-import { YookassaClientFactory } from "./yookassa-client.factory.js"
+import { YookassaClientFactory } from './yookassa-client.factory.js'
 
 @Injectable()
 export class RefundService {
@@ -13,7 +13,7 @@ export class RefundService {
       where: { id: orderId },
     })
 
-    if (order.status !== "PAID" || order.refundedAt) {
+    if (order.status !== 'PAID' || order.refundedAt) {
       throw new Error(`Order ${orderId} is already refunded or not paid`)
     }
 
@@ -28,8 +28,8 @@ export class RefundService {
     const refund = await this.yookassaFactory.get().createRefund(
       {
         payment_id: order.yookassaPaymentId,
-        amount: { value: (order.amountKopecks / 100).toFixed(2), currency: "RUB" },
-        description: "Возврат",
+        amount: { value: (order.amountKopecks / 100).toFixed(2), currency: 'RUB' },
+        description: 'Возврат',
       },
       randomUUID(),
     )
@@ -39,7 +39,7 @@ export class RefundService {
       prisma.order.update({
         where: { id: orderId },
         data: {
-          status: "REFUNDED",
+          status: 'REFUNDED',
           refundedAt: now,
           yookassaRefundId: refund.id,
         },
@@ -47,7 +47,7 @@ export class RefundService {
       prisma.subscription.update({
         where: { id: order.subscriptionId },
         data: {
-          status: "EXPIRED",
+          status: 'EXPIRED',
           expiredAt: now,
           currentPeriodEnd: now,
         },

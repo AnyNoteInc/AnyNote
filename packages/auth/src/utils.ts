@@ -1,6 +1,6 @@
-import { auth, type Session } from "./auth"
+import { auth, type Session } from './auth'
 
-export type AuthUser = Session["user"]
+export type AuthUser = Session['user']
 
 export async function getUserFromRequest(
   req?: Request,
@@ -20,9 +20,9 @@ export async function getUserFromRequest(
       return null
     }
 
-    const setCookie = result.headers?.get("set-cookie")
+    const setCookie = result.headers?.get('set-cookie')
     if (setCookie && resHeaders) {
-      resHeaders.append("set-cookie", setCookie)
+      resHeaders.append('set-cookie', setCookie)
     }
 
     return result.response?.user ?? null

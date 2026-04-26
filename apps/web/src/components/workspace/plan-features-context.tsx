@@ -1,8 +1,8 @@
-"use client"
+'use client'
 
-import { createContext, useContext } from "react"
+import { createContext, useContext } from 'react'
 
-import type { PlanFeatures } from "@repo/trpc"
+import type { PlanFeatures } from '@repo/trpc'
 
 const Ctx = createContext<PlanFeatures | null>(null)
 
@@ -18,6 +18,6 @@ export function PlanFeaturesProvider({
 
 export function usePlanFeatures(): PlanFeatures {
   const v = useContext(Ctx)
-  if (!v) throw new Error("usePlanFeatures must be used inside PlanFeaturesProvider")
+  if (!v) throw new Error('usePlanFeatures must be used inside PlanFeaturesProvider')
   return v
 }

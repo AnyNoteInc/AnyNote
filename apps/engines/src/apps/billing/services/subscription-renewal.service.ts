@@ -1,18 +1,18 @@
-import { Injectable, Logger } from "@nestjs/common"
-import { prisma } from "@repo/db"
-import type { Payment } from "@repo/yookassa"
-import { randomUUID } from "node:crypto"
+import { Injectable, Logger } from '@nestjs/common'
+import { prisma } from '@repo/db'
+import type { Payment } from '@repo/yookassa'
+import { randomUUID } from 'node:crypto'
 
-import { YookassaClientFactory } from "./yookassa-client.factory.js"
+import { YookassaClientFactory } from './yookassa-client.factory.js'
 
 function renewalBatchSize(): number {
-  const parsed = Number.parseInt(process.env.BILLING_RENEWAL_BATCH_SIZE ?? "50", 10)
+  const parsed = Number.parseInt(process.env.BILLING_RENEWAL_BATCH_SIZE ?? '50', 10)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 50
 }
 
-function addBillingPeriod(start: Date, period: "MONTHLY" | "YEARLY"): Date {
+function addBillingPeriod(start: Date, period: 'MONTHLY' | 'YEARLY'): Date {
   const end = new Date(start)
-  if (period === "YEARLY") {
+  if (period === 'YEARLY') {
     end.setFullYear(end.getFullYear() + 1)
     return end
   }
@@ -32,18 +32,18 @@ export class SubscriptionRenewalService {
 
     await prisma.subscription.updateMany({
       where: {
-        status: "ACTIVE",
+        status: 'ACTIVE',
         cancelAtPeriodEnd: true,
         currentPeriodEnd: { not: null, lte: now },
       },
-      data: { status: "EXPIRED", expiredAt: now },
+      data: { status: 'EXPIRED', expiredAt: now },
     })
   }
 
   async renewActive(): Promise<void> {
     const dueSubscriptions = await prisma.subscription.findMany({
       where: {
-        status: "ACTIVE",
+        status: 'ACTIVE',
         cancelAtPeriodEnd: false,
         paymentMethodId: { not: null },
         currentPeriodEnd: { not: null, lte: new Date() },
@@ -67,12 +67,12 @@ export class SubscriptionRenewalService {
       include: { plan: true },
     })
 
-    if (subscription.status !== "ACTIVE" || !subscription.paymentMethodId) {
+    if (subscription.status !== 'ACTIVE' || !subscription.paymentMethodId) {
       return
     }
 
     const amountKopecks =
-      subscription.billingPeriod === "YEARLY"
+      subscription.billingPeriod === 'YEARLY'
         ? subscription.plan.priceYearlyKopecks
         : subscription.plan.priceMonthlyKopecks
     const idempotencyKey = randomUUID()
@@ -85,7 +85,7 @@ export class SubscriptionRenewalService {
         billingPeriod: subscription.billingPeriod,
         amountKopecks,
         currency: subscription.currency,
-        status: "PENDING",
+        status: 'PENDING',
         isInitial: false,
         savedPaymentMethod: true,
         yookassaIdempotencyKey: idempotencyKey,
@@ -93,13 +93,13 @@ export class SubscriptionRenewalService {
     })
 
     const amount = (amountKopecks / 100).toFixed(2)
-    const periodLabel = subscription.billingPeriod === "YEARLY" ? "Год" : "Месяц"
+    const periodLabel = subscription.billingPeriod === 'YEARLY' ? 'Год' : 'Месяц'
 
     let payment: Payment
     try {
       payment = await this.yookassaFactory.get().chargeWithSavedMethod(
         {
-          amount: { value: amount, currency: "RUB" },
+          amount: { value: amount, currency: 'RUB' },
           payment_method_id: subscription.paymentMethodId,
           description: `Автопродление ${subscription.plan.name} (${periodLabel})`,
           metadata: { orderId: order.id, subscriptionId: subscription.id },
@@ -107,27 +107,27 @@ export class SubscriptionRenewalService {
         idempotencyKey,
       )
     } catch (err) {
-      this.logger.error("chargeWithSavedMethod threw", err)
+      this.logger.error('chargeWithSavedMethod threw', err)
       await prisma.$transaction([
         prisma.order.update({
           where: { id: order.id },
-          data: { status: "FAILED" },
+          data: { status: 'FAILED' },
         }),
         prisma.subscription.update({
           where: { id: subscription.id },
-          data: { status: "EXPIRED", expiredAt: new Date() },
+          data: { status: 'EXPIRED', expiredAt: new Date() },
         }),
       ])
       return
     }
 
-    if (payment.status === "succeeded") {
+    if (payment.status === 'succeeded') {
       const now = new Date()
       await prisma.$transaction([
         prisma.order.update({
           where: { id: order.id },
           data: {
-            status: "PAID",
+            status: 'PAID',
             yookassaPaymentId: payment.id,
             paidAt: now,
           },
@@ -143,16 +143,16 @@ export class SubscriptionRenewalService {
       return
     }
 
-    if (payment.status === "canceled") {
+    if (payment.status === 'canceled') {
       const now = new Date()
       await prisma.$transaction([
         prisma.order.update({
           where: { id: order.id },
-          data: { status: "FAILED", yookassaPaymentId: payment.id },
+          data: { status: 'FAILED', yookassaPaymentId: payment.id },
         }),
         prisma.subscription.update({
           where: { id: subscription.id },
-          data: { status: "EXPIRED", expiredAt: now },
+          data: { status: 'EXPIRED', expiredAt: now },
         }),
       ])
       return

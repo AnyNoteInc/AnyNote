@@ -1,13 +1,13 @@
-import { NextResponse, type NextRequest } from "next/server"
+import { NextResponse, type NextRequest } from 'next/server'
 
-import { prisma } from "@repo/db"
+import { prisma } from '@repo/db'
 
-import { getSession } from "@/lib/get-session"
-import { activeStreamRegistry } from "@/lib/chat/active-stream-registry"
-import { encodeSseEvent } from "@/lib/chat/sse"
-import type { StreamStatus } from "@/lib/chat/types"
+import { getSession } from '@/lib/get-session'
+import { activeStreamRegistry } from '@/lib/chat/active-stream-registry'
+import { encodeSseEvent } from '@/lib/chat/sse'
+import type { StreamStatus } from '@/lib/chat/types'
 
-export const runtime = "nodejs"
+export const runtime = 'nodejs'
 
 export async function GET(
   _request: NextRequest,
@@ -15,14 +15,14 @@ export async function GET(
 ) {
   const session = await getSession()
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
   const { assistantMessageId } = await params
   const message = await prisma.chatMessage.findFirst({
     where: {
       id: assistantMessageId,
-      role: "ASSISTANT",
+      role: 'ASSISTANT',
       chat: {
         workspace: {
           members: {
@@ -38,27 +38,28 @@ export async function GET(
     },
   })
   if (!message) {
-    return NextResponse.json({ error: "Message not found" }, { status: 404 })
+    return NextResponse.json({ error: 'Message not found' }, { status: 404 })
   }
 
   const entry = activeStreamRegistry.get(assistantMessageId)
   if (!entry) {
-    const terminalStatus: StreamStatus = message.status === "ERROR" ? "ERROR" : "DONE"
+    const terminalStatus: StreamStatus = message.status === 'ERROR' ? 'ERROR' : 'DONE'
 
     return new Response(
       new ReadableStream({
         start(controller) {
           controller.enqueue(
             encodeSseEvent({
-              type: "message.status",
+              type: 'message.status',
               assistantMessageId,
               status: terminalStatus,
-              errorMessage: terminalStatus === "ERROR" ? (message.errorMessage ?? undefined) : undefined,
+              errorMessage:
+                terminalStatus === 'ERROR' ? (message.errorMessage ?? undefined) : undefined,
             }),
           )
           controller.enqueue(
             encodeSseEvent({
-              type: "message.done",
+              type: 'message.done',
               assistantMessageId,
             }),
           )
@@ -67,9 +68,9 @@ export async function GET(
       }),
       {
         headers: {
-          "cache-control": "no-cache, no-transform",
-          connection: "keep-alive",
-          "content-type": "text/event-stream; charset=utf-8",
+          'cache-control': 'no-cache, no-transform',
+          connection: 'keep-alive',
+          'content-type': 'text/event-stream; charset=utf-8',
         },
       },
     )
@@ -80,7 +81,7 @@ export async function GET(
       start(controller) {
         controller.enqueue(
           encodeSseEvent({
-            type: "message.status",
+            type: 'message.status',
             assistantMessageId,
             status: entry.status,
             errorMessage: entry.errorMessage,
@@ -90,7 +91,7 @@ export async function GET(
         if (entry.blocks.length > 0) {
           controller.enqueue(
             encodeSseEvent({
-              type: "message.service",
+              type: 'message.service',
               assistantMessageId,
               blocks: entry.blocks,
             }),
@@ -100,7 +101,7 @@ export async function GET(
         let unsubscribe = () => {}
         unsubscribe = entry.subscribe((event) => {
           controller.enqueue(encodeSseEvent(event))
-          if (event.type === "message.done") {
+          if (event.type === 'message.done') {
             unsubscribe()
             controller.close()
           }
@@ -111,9 +112,9 @@ export async function GET(
     }),
     {
       headers: {
-        "cache-control": "no-cache, no-transform",
-        connection: "keep-alive",
-        "content-type": "text/event-stream; charset=utf-8",
+        'cache-control': 'no-cache, no-transform',
+        connection: 'keep-alive',
+        'content-type': 'text/event-stream; charset=utf-8',
       },
     },
   )

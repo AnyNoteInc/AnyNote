@@ -6,12 +6,12 @@ Excalidraw canvas with Yjs-backed real-time collaboration via
 ## Public API
 
 ```tsx
-import { Board } from "@repo/excalidraw"
+import { Board } from '@repo/excalidraw'
 ;<Board
   pageId="..."
   workspaceId="..."
   yjsUrl="ws://localhost:1234"
-  yjsToken={async () => "..."}
+  yjsToken={async () => '...'}
   uploadHandler={async ({ blob, filename }) => ({ id, src })}
   editable
 />

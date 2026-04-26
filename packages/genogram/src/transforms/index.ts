@@ -1,3 +1,3 @@
-export * from "./migrate"
-export * from "./pageToDomain"
-export * from "./domainToPage"
+export * from './migrate'
+export * from './pageToDomain'
+export * from './domainToPage'

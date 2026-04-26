@@ -1,11 +1,11 @@
-import type { ReactNode } from "react"
-import Link from "next/link"
+import type { ReactNode } from 'react'
+import Link from 'next/link'
 
-import { Avatar, Box, Container, Paper, Stack, Typography } from "@repo/ui/components"
+import { Avatar, Box, Container, Paper, Stack, Typography } from '@repo/ui/components'
 
-import { settingsSidebarBackLink } from "@/components/settings/settings-sidebar-links"
-import { SettingsNav } from "@/components/settings/settings-nav"
-import { getSession } from "@/lib/get-session"
+import { settingsSidebarBackLink } from '@/components/settings/settings-sidebar-links'
+import { SettingsNav } from '@/components/settings/settings-nav'
+import { getSession } from '@/lib/get-session'
 
 export default async function SettingsLayout({ children }: { children: ReactNode }) {
   const session = await getSession()
@@ -15,8 +15,8 @@ export default async function SettingsLayout({ children }: { children: ReactNode
     <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}>
       <Box
         sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "260px minmax(0, 1fr)" },
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '260px minmax(0, 1fr)' },
           gap: { xs: 3, md: 4 },
         }}
       >
@@ -25,10 +25,10 @@ export default async function SettingsLayout({ children }: { children: ReactNode
           sx={{
             p: 2,
             borderRadius: 2,
-            border: "1px solid",
-            borderColor: "divider",
-            alignSelf: "start",
-            position: { md: "sticky" },
+            border: '1px solid',
+            borderColor: 'divider',
+            alignSelf: 'start',
+            position: { md: 'sticky' },
             top: { md: 24 },
           }}
         >
@@ -36,12 +36,12 @@ export default async function SettingsLayout({ children }: { children: ReactNode
             <Link
               href={settingsSidebarBackLink.href}
               style={{
-                display: "flex",
-                alignItems: "center",
+                display: 'flex',
+                alignItems: 'center',
                 gap: 8,
-                color: "var(--mui-palette-text-secondary, rgba(0, 0, 0, 0.6))",
+                color: 'var(--mui-palette-text-secondary, rgba(0, 0, 0, 0.6))',
                 fontSize: 13,
-                textDecoration: "none",
+                textDecoration: 'none',
               }}
             >
               <span>←</span>
@@ -51,7 +51,7 @@ export default async function SettingsLayout({ children }: { children: ReactNode
               direction="row"
               spacing={1.25}
               alignItems="center"
-              sx={{ pb: 2, borderBottom: "1px solid", borderColor: "divider" }}
+              sx={{ pb: 2, borderBottom: '1px solid', borderColor: 'divider' }}
             >
               <Avatar
                 src={user.image ?? undefined}
@@ -59,7 +59,7 @@ export default async function SettingsLayout({ children }: { children: ReactNode
                   width: 34,
                   height: 34,
                   fontSize: 14,
-                  background: "linear-gradient(135deg,#0f766e,#155e75)",
+                  background: 'linear-gradient(135deg,#0f766e,#155e75)',
                 }}
               >
                 {`${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()}

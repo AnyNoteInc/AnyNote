@@ -1,4 +1,4 @@
-import type { UploadHandler, UploadedFile } from "./types"
+import type { UploadHandler, UploadedFile } from './types'
 
 /**
  * Shape of a single entry in Excalidraw's `BinaryFiles` map. We intentionally
@@ -57,11 +57,11 @@ async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
 
 function extFromMime(mime: string): string {
   const map: Record<string, string> = {
-    "image/png": "png",
-    "image/jpeg": "jpg",
-    "image/webp": "webp",
-    "image/svg+xml": "svg",
-    "image/gif": "gif",
+    'image/png': 'png',
+    'image/jpeg': 'jpg',
+    'image/webp': 'webp',
+    'image/svg+xml': 'svg',
+    'image/gif': 'gif',
   }
-  return map[mime] ?? "bin"
+  return map[mime] ?? 'bin'
 }

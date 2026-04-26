@@ -1,16 +1,16 @@
-import { randomUUID } from "node:crypto"
+import { randomUUID } from 'node:crypto'
 
-import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common"
-import { Cron } from "@nestjs/schedule"
-import type { PrismaClient } from "@repo/db"
-import { Prisma } from "@repo/db"
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Cron } from '@nestjs/schedule'
+import type { PrismaClient } from '@repo/db'
+import { Prisma } from '@repo/db'
 
-import { PRISMA } from "../../../infra/db/db.providers.js"
-import { AgentsClient } from "../services/agents-client.service.js"
-import { PageContentReader, type TiptapNode } from "../services/page-content-reader.service.js"
-import { PlanFeaturesService } from "../services/plan-features.service.js"
+import { PRISMA } from '../../../infra/db/db.providers.js'
+import { AgentsClient } from '../services/agents-client.service.js'
+import { PageContentReader, type TiptapNode } from '../services/page-content-reader.service.js'
+import { PlanFeaturesService } from '../services/plan-features.service.js'
 
-type EventType = "page.upserted" | "page.deleted"
+type EventType = 'page.upserted' | 'page.deleted'
 
 type Row = {
   id: bigint
@@ -38,12 +38,10 @@ export class VectorizationCronService implements OnModuleInit {
   }
 
   onModuleInit(): void {
-    this.log.log(
-      `VectorizationCron ready; worker=${this.workerId} batch=${this.batch}`,
-    )
+    this.log.log(`VectorizationCron ready; worker=${this.workerId} batch=${this.batch}`)
   }
 
-  @Cron(process.env.INDEXER_CRON_EXPRESSION ?? "0 */5 * * * *")
+  @Cron(process.env.INDEXER_CRON_EXPRESSION ?? '0 */5 * * * *')
   async tick(): Promise<void> {
     const rows = await this.claimBatch()
     if (rows.length === 0) return
@@ -105,31 +103,35 @@ export class VectorizationCronService implements OnModuleInit {
       return
     }
     try {
-      if (row.event_type === "page.deleted") {
+      if (row.event_type === 'page.deleted') {
         await this.agents.vectorize({
           pageId: row.page_id,
           workspaceId: row.workspace_id,
-          title: "",
-          pageType: "TEXT",
+          title: '',
+          pageType: 'TEXT',
           contents: [],
         })
       } else {
         const page = await this.prisma.page.findUnique({
           where: { id: row.page_id },
           select: {
-            id: true, type: true, deletedAt: true, title: true,
-            content: true, workspaceId: true,
+            id: true,
+            type: true,
+            deletedAt: true,
+            title: true,
+            content: true,
+            workspaceId: true,
           },
         })
-        const isEligible = page && !page.deletedAt && page.type === "TEXT"
+        const isEligible = page && !page.deletedAt && page.type === 'TEXT'
         const contents = isEligible
           ? this.reader.blocksFromDoc(page.content as TiptapNode | null)
           : []
         await this.agents.vectorize({
           pageId: row.page_id,
           workspaceId: row.workspace_id,
-          title: page?.title ?? "",
-          pageType: "TEXT",
+          title: page?.title ?? '',
+          pageType: 'TEXT',
           contents,
         })
       }

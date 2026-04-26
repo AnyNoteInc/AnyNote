@@ -1,16 +1,16 @@
-import { Inject, Injectable } from "@nestjs/common"
-import type { Context } from "@rekog/mcp-nest"
-import { Tool } from "@rekog/mcp-nest"
-import type { PrismaClient } from "@repo/db"
-import { z } from "zod"
+import { Inject, Injectable } from '@nestjs/common'
+import type { Context } from '@rekog/mcp-nest'
+import { Tool } from '@rekog/mcp-nest'
+import type { PrismaClient } from '@repo/db'
+import { z } from 'zod'
 
-import { PRISMA } from "../../../infra/db/db.providers.js"
-import { FileNotFoundError, PageNotFoundError } from "../errors/mcp.errors.js"
-import { WorkspaceMemberGuard } from "../guards/workspace-member.guard.js"
-import { PageWriter } from "../services/page-writer.service.js"
-import { StatsService } from "../services/stats.service.js"
-import { mcpInput, mcpNullableUuidOptional, mcpUuid } from "../utils/mcp-input.js"
-import { getMcpRequestContext, type McpRequestWithContext } from "../utils/mcp-request-context.js"
+import { PRISMA } from '../../../infra/db/db.providers.js'
+import { FileNotFoundError, PageNotFoundError } from '../errors/mcp.errors.js'
+import { WorkspaceMemberGuard } from '../guards/workspace-member.guard.js'
+import { PageWriter } from '../services/page-writer.service.js'
+import { StatsService } from '../services/stats.service.js'
+import { mcpInput, mcpNullableUuidOptional, mcpUuid } from '../utils/mcp-input.js'
+import { getMcpRequestContext, type McpRequestWithContext } from '../utils/mcp-request-context.js'
 
 const PaginationInput = z.object({
   limit: mcpInput(z.number().int().positive().max(200).default(50)),
@@ -37,8 +37,8 @@ export class WorkspaceTools {
   ) {}
 
   @Tool({
-    name: "getWorkspaceStats",
-    description: "Workspace members, pages-by-type, total pages",
+    name: 'getWorkspaceStats',
+    description: 'Workspace members, pages-by-type, total pages',
     parameters: z.object({}),
   })
   async getWorkspaceStats(
@@ -52,8 +52,8 @@ export class WorkspaceTools {
   }
 
   @Tool({
-    name: "listWorkspaceFiles",
-    description: "List all files in a workspace",
+    name: 'listWorkspaceFiles',
+    description: 'List all files in a workspace',
     parameters: PaginationInput,
   })
   async listWorkspaceFiles(
@@ -64,8 +64,8 @@ export class WorkspaceTools {
     const requestContext = getMcpRequestContext(req)
     await this.guard.assert(requestContext.workspaceId, requestContext.userId)
     const files = await this.prisma.file.findMany({
-      where: { workspaceId: requestContext.workspaceId, status: "ACTIVE" },
-      orderBy: { createdAt: "desc" },
+      where: { workspaceId: requestContext.workspaceId, status: 'ACTIVE' },
+      orderBy: { createdAt: 'desc' },
       take: args.limit,
       skip: args.offset,
       select: { id: true, name: true, mimeType: true, fileSize: true, createdAt: true },
@@ -82,8 +82,8 @@ export class WorkspaceTools {
   }
 
   @Tool({
-    name: "listSkills",
-    description: "List skill pages (ownership=SKILL) in a workspace",
+    name: 'listSkills',
+    description: 'List skill pages (ownership=SKILL) in a workspace',
     parameters: LimitInput,
   })
   async listSkills(
@@ -93,12 +93,12 @@ export class WorkspaceTools {
   ) {
     const requestContext = getMcpRequestContext(req)
     await this.guard.assert(requestContext.workspaceId, requestContext.userId)
-    return this.listOwnershipPages(requestContext.workspaceId, "SKILL", args.limit)
+    return this.listOwnershipPages(requestContext.workspaceId, 'SKILL', args.limit)
   }
 
   @Tool({
-    name: "listAgents",
-    description: "List agent pages (ownership=AGENT) in a workspace",
+    name: 'listAgents',
+    description: 'List agent pages (ownership=AGENT) in a workspace',
     parameters: LimitInput,
   })
   async listAgents(
@@ -108,12 +108,12 @@ export class WorkspaceTools {
   ) {
     const requestContext = getMcpRequestContext(req)
     await this.guard.assert(requestContext.workspaceId, requestContext.userId)
-    return this.listOwnershipPages(requestContext.workspaceId, "AGENT", args.limit)
+    return this.listOwnershipPages(requestContext.workspaceId, 'AGENT', args.limit)
   }
 
   @Tool({
-    name: "createPageFromFile",
-    description: "Create a page and attach an existing workspace file to it",
+    name: 'createPageFromFile',
+    description: 'Create a page and attach an existing workspace file to it',
     parameters: CreatePageFromFileInput,
   })
   async createPageFromFile(
@@ -145,7 +145,7 @@ export class WorkspaceTools {
       workspaceId: requestContext.workspaceId,
       parentId: args.parentId,
       title,
-      ownership: "TEXT",
+      ownership: 'TEXT',
     })
     await this.prisma.pageFile.create({ data: { pageId, fileId: args.fileId } })
     return { pageId }
@@ -153,12 +153,12 @@ export class WorkspaceTools {
 
   private async listOwnershipPages(
     workspaceId: string,
-    ownership: "SKILL" | "AGENT",
+    ownership: 'SKILL' | 'AGENT',
     limit: number,
   ) {
     const pages = await this.prisma.page.findMany({
       where: { workspaceId, ownership, deletedAt: null },
-      orderBy: { createdAt: "desc" },
+      orderBy: { createdAt: 'desc' },
       take: limit,
       select: { id: true, title: true, icon: true, createdAt: true },
     })

@@ -417,9 +417,9 @@ apps/web/src/app/
 **`(protected)/layout.tsx` content sketch:**
 
 ```tsx
-import type { ReactNode } from "react"
-import { requireSession } from "@/lib/get-session"
-import { TRPCReactProvider } from "@/trpc/client"
+import type { ReactNode } from 'react'
+import { requireSession } from '@/lib/get-session'
+import { TRPCReactProvider } from '@/trpc/client'
 
 export default async function ProtectedLayout({ children }: { children: ReactNode }) {
   await requireSession()
@@ -500,11 +500,11 @@ async function createWorkspace({ input, ctx }) {
   const activePlan = await getActivePlanForUser(userId)
   if (activePlan.maxWorkspaces !== null) {
     const ownedCount = await ctx.prisma.workspaceMember.count({
-      where: { userId, role: "OWNER" },
+      where: { userId, role: 'OWNER' },
     })
     if (ownedCount >= activePlan.maxWorkspaces) {
       throw new TRPCError({
-        code: "FORBIDDEN",
+        code: 'FORBIDDEN',
         message: `На тарифе ${activePlan.name} можно создать не больше ${activePlan.maxWorkspaces} пространств`,
       })
     }
@@ -516,7 +516,7 @@ async function createWorkspace({ input, ctx }) {
       data: { name: input.name, icon: input.icon, createdById: userId },
     })
     await tx.workspaceMember.create({
-      data: { workspaceId: workspace.id, userId, role: "OWNER" },
+      data: { workspaceId: workspace.id, userId, role: 'OWNER' },
     })
     await tx.userPreference.upsert({
       where: { userId },
@@ -551,7 +551,7 @@ export default async function WorkspaceLayout({ params, children }) {
 ```ts
 // session is guaranteed by the parent (protected)/layout.tsx
 const prefs = await getServerTRPC().user.getPreferences()
-if (!prefs?.defaultWorkspaceId) redirect("/workspaces/new")
+if (!prefs?.defaultWorkspaceId) redirect('/workspaces/new')
 redirect(`/workspaces/${prefs.defaultWorkspaceId}`)
 ```
 
@@ -681,9 +681,9 @@ Helper: `packages/trpc/src/helpers/plan.ts`
 ```ts
 export async function getActivePlanForUser(userId: string) {
   const sub = await prisma.subscription.findFirst({
-    where: { userId, status: { in: ["TRIAL", "ACTIVE", "PAST_DUE"] } },
+    where: { userId, status: { in: ['TRIAL', 'ACTIVE', 'PAST_DUE'] } },
     include: { plan: true },
-    orderBy: { startedAt: "desc" },
+    orderBy: { startedAt: 'desc' },
   })
   if (!sub) throw new Error(`User ${userId} has no active subscription`)
   return sub.plan

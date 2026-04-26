@@ -1,8 +1,8 @@
-import { Box, Button, Container, Divider, Paper, Stack, Typography } from "@repo/ui/components"
+import { Box, Button, Container, Divider, Paper, Stack, Typography } from '@repo/ui/components'
 
-import { BrandMark } from "@/components/brand/brand-mark"
+import { BrandMark } from '@/components/brand/brand-mark'
 
-import { publicFooterSections } from "./content"
+import { publicFooterSections } from './content'
 
 export function PublicFooter() {
   return (
@@ -10,7 +10,7 @@ export function PublicFooter() {
       <Container maxWidth="xl">
         <Divider
           sx={{
-            borderColor: "rgba(148, 163, 184, 0.22)",
+            borderColor: 'rgba(148, 163, 184, 0.22)',
             mb: { xs: 3, md: 4 },
           }}
         />
@@ -21,16 +21,16 @@ export function PublicFooter() {
             px: { xs: 3, md: 4 },
             py: { xs: 3.5, md: 4.5 },
             borderRadius: 2,
-            border: "1px solid rgba(148,163,184,0.14)",
-            background: "linear-gradient(180deg, rgba(16,28,33,0.94) 0%, rgba(12,22,27,0.98) 100%)",
-            color: "rgba(241,245,249,0.96)",
-            boxShadow: "0 20px 60px rgba(3, 10, 14, 0.18)",
+            border: '1px solid rgba(148,163,184,0.14)',
+            background: 'linear-gradient(180deg, rgba(16,28,33,0.94) 0%, rgba(12,22,27,0.98) 100%)',
+            color: 'rgba(241,245,249,0.96)',
+            boxShadow: '0 20px 60px rgba(3, 10, 14, 0.18)',
           }}
         >
           <Box
             sx={{
-              display: "grid",
-              gridTemplateColumns: { xs: "1fr", lg: "340px minmax(0, 1fr)" },
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', lg: '340px minmax(0, 1fr)' },
               gap: { xs: 3, md: 4 },
             }}
           >
@@ -54,11 +54,11 @@ export function PublicFooter() {
 
             <Box
               sx={{
-                display: "grid",
+                display: 'grid',
                 gridTemplateColumns: {
-                  xs: "1fr",
-                  sm: "repeat(2, minmax(0, 1fr))",
-                  lg: "repeat(3, minmax(0, 1fr))",
+                  xs: '1fr',
+                  sm: 'repeat(2, minmax(0, 1fr))',
+                  lg: 'repeat(3, minmax(0, 1fr))',
                 },
                 gap: 3,
               }}
@@ -76,10 +76,10 @@ export function PublicFooter() {
                         variant="text"
                         color="inherit"
                         sx={{
-                          justifyContent: "flex-start",
+                          justifyContent: 'flex-start',
                           px: 0,
-                          textTransform: "none",
-                          color: "rgba(241,245,249,0.88)",
+                          textTransform: 'none',
+                          color: 'rgba(241,245,249,0.88)',
                         }}
                       >
                         {link.label}
@@ -91,13 +91,13 @@ export function PublicFooter() {
             </Box>
           </Box>
 
-          <Divider sx={{ my: 3, borderColor: "rgba(148, 163, 184, 0.18)" }} />
+          <Divider sx={{ my: 3, borderColor: 'rgba(148, 163, 184, 0.18)' }} />
 
           <Stack
-            direction={{ xs: "column", sm: "row" }}
+            direction={{ xs: 'column', sm: 'row' }}
             spacing={1}
             justifyContent="space-between"
-            alignItems={{ xs: "flex-start", sm: "center" }}
+            alignItems={{ xs: 'flex-start', sm: 'center' }}
           >
             <Typography variant="body2" color="rgba(226,232,240,0.68)">
               © {new Date().getFullYear()} AnyNote. Все права защищены.

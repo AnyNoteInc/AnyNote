@@ -1,10 +1,10 @@
-import { jest, describe, it, expect, beforeEach } from "@jest/globals"
+import { jest, describe, it, expect, beforeEach } from '@jest/globals'
 
-import type { PrismaClient } from "@repo/db"
+import type { PrismaClient } from '@repo/db'
 
-import { StatsService } from "./stats.service.js"
+import { StatsService } from './stats.service.js'
 
-describe("StatsService", () => {
+describe('StatsService', () => {
   const mockPrisma = {
     workspaceMember: { findMany: jest.fn<(...a: unknown[]) => Promise<unknown>>() },
     page: {
@@ -24,49 +24,56 @@ describe("StatsService", () => {
     svc = new StatsService(mockPrisma)
   })
 
-  describe("getWorkspaceStats", () => {
-    it("aggregates members, pagesByType, totalPages", async () => {
+  describe('getWorkspaceStats', () => {
+    it('aggregates members, pagesByType, totalPages', async () => {
       ;(mockPrisma.workspaceMember.findMany as jest.Mock).mockResolvedValue([
-        { userId: "u1", role: "OWNER", user: { id: "u1", firstName: "Ann", lastName: "A", email: "a@a" } },
+        {
+          userId: 'u1',
+          role: 'OWNER',
+          user: { id: 'u1', firstName: 'Ann', lastName: 'A', email: 'a@a' },
+        },
       ] as never)
       ;(mockPrisma.page.groupBy as jest.Mock).mockResolvedValue([
-        { type: "TEXT", _count: { _all: 3 } },
-        { type: "EXCALIDRAW", _count: { _all: 1 } },
+        { type: 'TEXT', _count: { _all: 3 } },
+        { type: 'EXCALIDRAW', _count: { _all: 1 } },
       ] as never)
       ;(mockPrisma.page.count as jest.Mock).mockResolvedValue(4 as never)
 
-      const stats = await svc.getWorkspaceStats("w1")
+      const stats = await svc.getWorkspaceStats('w1')
 
       expect(stats).toEqual({
-        members: [{ id: "u1", firstName: "Ann", lastName: "A", email: "a@a", role: "OWNER" }],
+        members: [{ id: 'u1', firstName: 'Ann', lastName: 'A', email: 'a@a', role: 'OWNER' }],
         pagesByType: { TEXT: 3, EXCALIDRAW: 1 },
         totalPages: 4,
       })
     })
   })
 
-  describe("getPageStats", () => {
-    it("returns page metadata", async () => {
-      const created = new Date("2026-01-01")
+  describe('getPageStats', () => {
+    it('returns page metadata', async () => {
+      const created = new Date('2026-01-01')
       ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({
-        id: "p1",
-        workspaceId: "w1",
-        type: "TEXT",
-        ownership: "TEXT",
+        id: 'p1',
+        workspaceId: 'w1',
+        type: 'TEXT',
+        ownership: 'TEXT',
         createdAt: created,
-        createdBy: { id: "u1", firstName: "Ann", lastName: "A", email: "a@a" },
+        createdBy: { id: 'u1', firstName: 'Ann', lastName: 'A', email: 'a@a' },
       } as never)
 
-      const stats = await svc.getPageStats("p1", "w1")
+      const stats = await svc.getPageStats('p1', 'w1')
 
-      expect(stats.type).toBe("TEXT")
+      expect(stats.type).toBe('TEXT')
       expect(stats.createdAt).toEqual(created)
-      expect(stats.createdBy?.id).toBe("u1")
+      expect(stats.createdBy?.id).toBe('u1')
     })
 
-    it("throws when page in other workspace", async () => {
-      ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({ id: "p1", workspaceId: "other" } as never)
-      await expect(svc.getPageStats("p1", "w1")).rejects.toThrow(/not found/i)
+    it('throws when page in other workspace', async () => {
+      ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({
+        id: 'p1',
+        workspaceId: 'other',
+      } as never)
+      await expect(svc.getPageStats('p1', 'w1')).rejects.toThrow(/not found/i)
     })
   })
 })

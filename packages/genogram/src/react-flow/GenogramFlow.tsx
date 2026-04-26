@@ -1,25 +1,20 @@
-"use client"
+'use client'
 
-import "@xyflow/react/dist/style.css"
+import '@xyflow/react/dist/style.css'
 
-import { useEffect, useMemo, useRef, type CSSProperties } from "react"
-import * as Y from "yjs"
-import {
-  Background,
-  Controls,
-  ReactFlow,
-  ReactFlowProvider,
-} from "@xyflow/react"
-import type { GenogramEdge, GenogramNode, GenogramPageData } from "../types"
-import { useGenogram } from "../hooks"
-import { getGenogramMaps } from "../yjs/schema"
-import { hydrateDoc } from "../yjs/hydrateDoc"
-import { snapshotFromDoc } from "../yjs/snapshotFromDoc"
-import { domainToFlow } from "./domainToFlow"
-import { edgeTypes } from "./edgeTypes"
-import { nodeTypes } from "./nodeTypes"
+import { useEffect, useMemo, useRef, type CSSProperties } from 'react'
+import * as Y from 'yjs'
+import { Background, Controls, ReactFlow, ReactFlowProvider } from '@xyflow/react'
+import type { GenogramEdge, GenogramNode, GenogramPageData } from '../types'
+import { useGenogram } from '../hooks'
+import { getGenogramMaps } from '../yjs/schema'
+import { hydrateDoc } from '../yjs/hydrateDoc'
+import { snapshotFromDoc } from '../yjs/snapshotFromDoc'
+import { domainToFlow } from './domainToFlow'
+import { edgeTypes } from './edgeTypes'
+import { nodeTypes } from './nodeTypes'
 
-export type GenogramMode = "readonly" | "editor"
+export type GenogramMode = 'readonly' | 'editor'
 
 export interface GenogramFlowProps {
   /** External Y.Doc (collab). Leave undefined for standalone mode. */
@@ -45,7 +40,7 @@ export function GenogramFlow(props: GenogramFlowProps) {
 function GenogramFlowInner({
   yDoc,
   initialSnapshot,
-  mode = "editor",
+  mode = 'editor',
   onChange,
   className,
   style,
@@ -65,10 +60,10 @@ function GenogramFlowInner({
 
   const { domain, layout } = useGenogram(doc)
 
-  const { nodes, edges } = useMemo(
-    () => domainToFlow(domain, layout),
-    [domain, layout],
-  ) as { nodes: GenogramNode[]; edges: GenogramEdge[] }
+  const { nodes, edges } = useMemo(() => domainToFlow(domain, layout), [domain, layout]) as {
+    nodes: GenogramNode[]
+    edges: GenogramEdge[]
+  }
 
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
@@ -86,10 +81,10 @@ function GenogramFlowInner({
     onChangeRef.current(snapshot)
   }, [domain, doc])
 
-  const readonly = mode === "readonly"
+  const readonly = mode === 'readonly'
 
   return (
-    <div className={className} style={{ width: "100%", height: "100%", ...style }}>
+    <div className={className} style={{ width: '100%', height: '100%', ...style }}>
       <ReactFlow
         nodes={nodes}
         edges={edges}

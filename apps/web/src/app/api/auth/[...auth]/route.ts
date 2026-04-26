@@ -1,6 +1,6 @@
-import { auth } from "@repo/auth"
-import { toNextJsHandler } from "better-auth/next-js"
+import { auth } from '@repo/auth'
+import { toNextJsHandler } from 'better-auth/next-js'
 
-export const runtime = "nodejs"
+export const runtime = 'nodejs'
 
 export const { GET, POST, PATCH, PUT, DELETE } = toNextJsHandler(auth)

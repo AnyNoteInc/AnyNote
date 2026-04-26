@@ -1,18 +1,18 @@
-"use client"
+'use client'
 
-import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded"
-import Box from "@mui/material/Box"
-import Fab from "@mui/material/Fab"
-import Fade from "@mui/material/Fade"
-import Stack from "@mui/material/Stack"
-import { alpha } from "@mui/material/styles"
-import { useEffect, useLayoutEffect, useRef, useState } from "react"
+import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded'
+import Box from '@mui/material/Box'
+import Fab from '@mui/material/Fab'
+import Fade from '@mui/material/Fade'
+import Stack from '@mui/material/Stack'
+import { alpha } from '@mui/material/styles'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
-import { ChatComposer } from "./chat-composer"
-import { ChatEmptyState } from "./chat-empty-state"
-import { ChatMessageList } from "./chat-message-list"
-import type { ChatRenderLink } from "./chat-message-content"
-import type { ChatComposerAttachment, ChatSendPayload, ChatThreadMessage } from "./chat-types"
+import { ChatComposer } from './chat-composer'
+import { ChatEmptyState } from './chat-empty-state'
+import { ChatMessageList } from './chat-message-list'
+import type { ChatRenderLink } from './chat-message-content'
+import type { ChatComposerAttachment, ChatSendPayload, ChatThreadMessage } from './chat-types'
 
 const BOTTOM_THRESHOLD_PX = 120
 
@@ -42,7 +42,7 @@ function scrollToBottom(element: HTMLElement, behavior: ScrollBehavior) {
     top: element.scrollHeight,
   }
 
-  if (typeof element.scrollTo === "function") {
+  if (typeof element.scrollTo === 'function') {
     element.scrollTo(options)
     return
   }
@@ -85,7 +85,7 @@ export function ChatThread({
 
     pinnedToBottomRef.current = true
     setShowScrollDown(false)
-    scrollToBottom(element, "auto")
+    scrollToBottom(element, 'auto')
   }, [scrollContainerSelector, scrollKey])
 
   useEffect(() => {
@@ -100,10 +100,10 @@ export function ChatThread({
     }
 
     updateScrollState()
-    scrollElement.addEventListener("scroll", updateScrollState, { passive: true })
+    scrollElement.addEventListener('scroll', updateScrollState, { passive: true })
 
     return () => {
-      scrollElement.removeEventListener("scroll", updateScrollState)
+      scrollElement.removeEventListener('scroll', updateScrollState)
     }
   }, [scrollElement])
 
@@ -112,7 +112,7 @@ export function ChatThread({
       return
     }
 
-    scrollToBottom(scrollElement, "auto")
+    scrollToBottom(scrollElement, 'auto')
     setShowScrollDown(false)
   }, [messages, scrollElement])
 
@@ -123,17 +123,17 @@ export function ChatThread({
 
     pinnedToBottomRef.current = true
     setShowScrollDown(false)
-    scrollToBottom(scrollElement, "smooth")
+    scrollToBottom(scrollElement, 'smooth')
   }
 
   return (
     <Stack
       data-testid="chat-thread"
       flex={usesPageScroll ? 1 : undefined}
-      height={usesPageScroll ? undefined : "100%"}
+      height={usesPageScroll ? undefined : '100%'}
       minHeight={0}
       spacing={0}
-      sx={{ position: "relative" }}
+      sx={{ position: 'relative' }}
     >
       <ChatMessageList
         emptyDescription={emptyDescription}
@@ -141,16 +141,16 @@ export function ChatThread({
         messages={messages}
         renderLink={renderLink}
         showEmptyState={false}
-        scrollMode={usesPageScroll ? "page" : "internal"}
+        scrollMode={usesPageScroll ? 'page' : 'internal'}
       />
       <Box
-        data-sticky={usesPageScroll ? "true" : "false"}
+        data-sticky={usesPageScroll ? 'true' : 'false'}
         data-testid="chat-composer-shell"
         sx={(theme) => ({
           bottom: 0,
-          mt: "auto",
+          mt: 'auto',
           pb: { xs: 1.5, sm: 2 },
-          position: usesPageScroll ? "sticky" : "static",
+          position: usesPageScroll ? 'sticky' : 'static',
           pt: 2,
           px: 2,
           zIndex: theme.zIndex.appBar - 1,
@@ -167,10 +167,7 @@ export function ChatThread({
         })}
       >
         {messages.length === 0 ? (
-          <ChatEmptyState
-            description={emptyDescription}
-            title={emptyTitle}
-          />
+          <ChatEmptyState description={emptyDescription} title={emptyTitle} />
         ) : null}
         {usesPageScroll ? (
           <Fade in={showScrollDown} unmountOnExit>
@@ -180,10 +177,10 @@ export function ChatThread({
               onClick={handleScrollDown}
               size="small"
               sx={{
-                left: "50%",
-                position: "absolute",
+                left: '50%',
+                position: 'absolute',
                 top: -18,
-                transform: "translateX(-50%)",
+                transform: 'translateX(-50%)',
               }}
             >
               <KeyboardArrowDownRoundedIcon />

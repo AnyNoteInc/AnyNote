@@ -1,31 +1,31 @@
-import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight"
-import Link from "@tiptap/extension-link"
-import { Table } from "@tiptap/extension-table"
-import TableCell from "@tiptap/extension-table-cell"
-import TableHeader from "@tiptap/extension-table-header"
-import TableRow from "@tiptap/extension-table-row"
-import TaskList from "@tiptap/extension-task-list"
-import Typography from "@tiptap/extension-typography"
-import StarterKit from "@tiptap/starter-kit"
-import type { HocuspocusProvider } from "@hocuspocus/provider"
-import { common, createLowlight } from "lowlight"
-import type * as Y from "yjs"
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
+import Link from '@tiptap/extension-link'
+import { Table } from '@tiptap/extension-table'
+import TableCell from '@tiptap/extension-table-cell'
+import TableHeader from '@tiptap/extension-table-header'
+import TableRow from '@tiptap/extension-table-row'
+import TaskList from '@tiptap/extension-task-list'
+import Typography from '@tiptap/extension-typography'
+import StarterKit from '@tiptap/starter-kit'
+import type { HocuspocusProvider } from '@hocuspocus/provider'
+import { common, createLowlight } from 'lowlight'
+import type * as Y from 'yjs'
 
-import { BlockBackground } from "./block-background"
-import { BlockIndexAttributes } from "./block-index-attributes"
-import { Callout } from "./callout"
-import { buildCollaboration } from "./collaboration"
-import { FileAttachment } from "./file-attachment"
-import { buildFileUpload } from "./file-upload"
-import { HiddenText } from "./hidden-text"
-import { PageLink } from "./page-link"
-import { buildPlaceholder } from "./placeholder"
-import { ResizableImage } from "./resizable-image"
-import { SlashMenu, type SlashMenuRender } from "./slash-menu"
-import { TaskItemWithCheckbox } from "./task-item-view"
-import { AnynoteTextColor } from "./text-color"
-import { Toggle } from "./toggle"
-import type { AnyNoteEditorUser, SlashCommandItem, UploadHandler } from "../types"
+import { BlockBackground } from './block-background'
+import { BlockIndexAttributes } from './block-index-attributes'
+import { Callout } from './callout'
+import { buildCollaboration } from './collaboration'
+import { FileAttachment } from './file-attachment'
+import { buildFileUpload } from './file-upload'
+import { HiddenText } from './hidden-text'
+import { PageLink } from './page-link'
+import { buildPlaceholder } from './placeholder'
+import { ResizableImage } from './resizable-image'
+import { SlashMenu, type SlashMenuRender } from './slash-menu'
+import { TaskItemWithCheckbox } from './task-item-view'
+import { AnynoteTextColor } from './text-color'
+import { Toggle } from './toggle'
+import type { AnyNoteEditorUser, SlashCommandItem, UploadHandler } from '../types'
 
 const lowlight = createLowlight(common)
 

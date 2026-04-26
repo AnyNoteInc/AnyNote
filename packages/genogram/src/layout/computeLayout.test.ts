@@ -1,6 +1,6 @@
-import { describe, expect, it } from "vitest"
-import { computeLayout } from "./computeLayout"
-import { LAYOUT } from "./constants"
+import { describe, expect, it } from 'vitest'
+import { computeLayout } from './computeLayout'
+import { LAYOUT } from './constants'
 import {
   newGenogram,
   scenarioCouple,
@@ -9,24 +9,24 @@ import {
   scenarioThreeGenerations,
   scenarioTwins,
   scenarioWithLoss,
-} from "./__fixtures__/scenarios"
+} from './__fixtures__/scenarios'
 
-describe("computeLayout", () => {
-  it("empty genogram produces empty layout", () => {
+describe('computeLayout', () => {
+  it('empty genogram produces empty layout', () => {
     const result = computeLayout(newGenogram())
     expect(result.positions).toEqual({})
     expect(result.generations).toEqual({})
     expect(result.bounds).toEqual({ x: 0, y: 0, width: 0, height: 0 })
   })
 
-  it("single person sits at (w/2, 0) with gen 0", () => {
+  it('single person sits at (w/2, 0) with gen 0', () => {
     const { data, ownerId } = scenarioSolo()
     const result = computeLayout(data)
     expect(result.generations[ownerId]).toBe(0)
     expect(result.positions[ownerId]).toEqual({ x: LAYOUT.PERSON_BIG / 2, y: 0 })
   })
 
-  it("couple: male left, female right, union anchor in the middle", () => {
+  it('couple: male left, female right, union anchor in the middle', () => {
     const { data, maleId, femaleId, unionId } = scenarioCouple()
     const result = computeLayout(data)
     const male = result.positions[maleId]!
@@ -42,9 +42,8 @@ describe("computeLayout", () => {
     expect(female.x - male.x).toBe(LAYOUT.PERSON_BIG + LAYOUT.PARTNER_GAP)
   })
 
-  it("nuclear family: children below, hub between", () => {
-    const { data, unionId, childGroupId, child1Id, child2Id, maleId } =
-      scenarioNuclearFamily()
+  it('nuclear family: children below, hub between', () => {
+    const { data, unionId, childGroupId, child1Id, child2Id, maleId } = scenarioNuclearFamily()
     const result = computeLayout(data)
 
     const union = result.positions[unionId]!
@@ -70,7 +69,7 @@ describe("computeLayout", () => {
     expect((c1.x + c2.x) / 2).toBeCloseTo(union.x, 5)
   })
 
-  it("twins share a birth group anchor above them", () => {
+  it('twins share a birth group anchor above them', () => {
     const { data, unionId, twin1Id, twin2Id, birthGroupId } = scenarioTwins()
     const result = computeLayout(data)
 
@@ -86,7 +85,7 @@ describe("computeLayout", () => {
     expect(bg.x).toBeCloseTo(union.x, 5)
   })
 
-  it("pregnancy loss sits between siblings on the child row", () => {
+  it('pregnancy loss sits between siblings on the child row', () => {
     const { data, lossId, child1Id, child2Id } = scenarioWithLoss()
     const result = computeLayout(data)
 
@@ -99,9 +98,8 @@ describe("computeLayout", () => {
     expect(loss.x).toBeLessThan(c2.x)
   })
 
-  it("three generations: grandparents above, pivot/spouse below parent", () => {
-    const { data, grandpaId, parentId, pivotId, pivotSpouseId } =
-      scenarioThreeGenerations()
+  it('three generations: grandparents above, pivot/spouse below parent', () => {
+    const { data, grandpaId, parentId, pivotId, pivotSpouseId } = scenarioThreeGenerations()
     const result = computeLayout(data)
 
     const gp = result.positions[grandpaId]!

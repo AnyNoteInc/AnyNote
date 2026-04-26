@@ -1,9 +1,9 @@
-import { z } from "zod"
-import { TRPCError } from "@trpc/server"
-import { PageType, enqueueOutboxEvent, type PrismaClient } from "@repo/db"
+import { z } from 'zod'
+import { TRPCError } from '@trpc/server'
+import { PageType, enqueueOutboxEvent, type PrismaClient } from '@repo/db'
 
-import { router, protectedProcedure } from "../trpc"
-import { requireWritableWorkspace } from "../helpers/plan"
+import { router, protectedProcedure } from '../trpc'
+import { requireWritableWorkspace } from '../helpers/plan'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -15,7 +15,7 @@ async function assertWorkspaceMember(
     where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
   })
   if (!member) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Вы не являетесь участником воркспейса" })
+    throw new TRPCError({ code: 'FORBIDDEN', message: 'Вы не являетесь участником воркспейса' })
   }
   return member
 }
@@ -31,7 +31,7 @@ async function assertPageAccess(
     },
   })
   if (!page) {
-    throw new TRPCError({ code: "NOT_FOUND", message: "Страница не найдена" })
+    throw new TRPCError({ code: 'NOT_FOUND', message: 'Страница не найдена' })
   }
   return page
 }
@@ -54,15 +54,15 @@ async function assertPageOwnership(
     }),
   ])
   if (!page) {
-    throw new TRPCError({ code: "NOT_FOUND", message: "Страница не найдена" })
+    throw new TRPCError({ code: 'NOT_FOUND', message: 'Страница не найдена' })
   }
   if (!member) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Вы не являетесь участником воркспейса" })
+    throw new TRPCError({ code: 'FORBIDDEN', message: 'Вы не являетесь участником воркспейса' })
   }
-  const isOwner = member.role === "OWNER"
+  const isOwner = member.role === 'OWNER'
   const isCreator = page.createdById === ctx.user.id
   if (!isOwner && !isCreator) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Недостаточно прав" })
+    throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
   }
   return page
 }
@@ -97,12 +97,10 @@ export const pageRouter = router({
           updatedAt: true,
         },
       })
-      if (!page) throw new TRPCError({ code: "NOT_FOUND", message: "Страница не найдена" })
+      if (!page) throw new TRPCError({ code: 'NOT_FOUND', message: 'Страница не найдена' })
       return {
         ...page,
-        contentYjs: page.contentYjs
-          ? Buffer.from(page.contentYjs).toString("base64")
-          : null,
+        contentYjs: page.contentYjs ? Buffer.from(page.contentYjs).toString('base64') : null,
       }
     }),
 
@@ -116,7 +114,7 @@ export const pageRouter = router({
           archived: false,
           deletedAt: null,
         },
-        orderBy: { createdAt: "asc" },
+        orderBy: { createdAt: 'asc' },
         select: {
           id: true,
           title: true,
@@ -150,8 +148,8 @@ export const pageRouter = router({
         })
         if (!parentPage) {
           throw new TRPCError({
-            code: "NOT_FOUND",
-            message: "Родительская страница не найдена",
+            code: 'NOT_FOUND',
+            message: 'Родительская страница не найдена',
           })
         }
       }
@@ -188,8 +186,8 @@ export const pageRouter = router({
         }
 
         await enqueueOutboxEvent(tx, {
-          eventType: "page.upserted",
-          aggregateType: "page",
+          eventType: 'page.upserted',
+          aggregateType: 'page',
           aggregateId: newPage.id,
           workspaceId: input.workspaceId,
         })
@@ -220,8 +218,8 @@ export const pageRouter = router({
             select: { id: true, title: true, icon: true, updatedAt: true },
           })
           await enqueueOutboxEvent(tx, {
-            eventType: "page.upserted",
-            aggregateType: "page",
+            eventType: 'page.upserted',
+            aggregateType: 'page',
             aggregateId: updated.id,
             workspaceId: input.workspaceId,
           })
@@ -263,8 +261,8 @@ export const pageRouter = router({
             select: { id: true, title: true, icon: true, updatedAt: true },
           })
           await enqueueOutboxEvent(tx, {
-            eventType: "page.upserted",
-            aggregateType: "page",
+            eventType: 'page.upserted',
+            aggregateType: 'page',
             aggregateId: updated.id,
             workspaceId: input.workspaceId,
           })
@@ -332,8 +330,8 @@ export const pageRouter = router({
         }
 
         await enqueueOutboxEvent(tx, {
-          eventType: "page.deleted",
-          aggregateType: "page",
+          eventType: 'page.deleted',
+          aggregateType: 'page',
           aggregateId: page.id,
           workspaceId: input.workspaceId,
         })
@@ -358,7 +356,7 @@ export const pageRouter = router({
           where: { id: input.id, workspaceId: input.workspaceId },
         })
         if (!page || !page.deletedAt) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Страница не найдена в корзине" })
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Страница не найдена в корзине' })
         }
 
         // Determine restore location: if parent is deleted, move to workspace root
@@ -422,8 +420,8 @@ export const pageRouter = router({
         }
 
         await enqueueOutboxEvent(tx, {
-          eventType: "page.upserted",
-          aggregateType: "page",
+          eventType: 'page.upserted',
+          aggregateType: 'page',
           aggregateId: page.id,
           workspaceId: input.workspaceId,
         })
@@ -448,7 +446,7 @@ export const pageRouter = router({
           where: { id: input.id, workspaceId: input.workspaceId },
         })
         if (!page) {
-          throw new TRPCError({ code: "NOT_FOUND", message: "Страница не найдена" })
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Страница не найдена' })
         }
 
         // Remove from linked list if still linked
@@ -466,8 +464,8 @@ export const pageRouter = router({
         await tx.page.delete({ where: { id: page.id } })
 
         await enqueueOutboxEvent(tx, {
-          eventType: "page.deleted",
-          aggregateType: "page",
+          eventType: 'page.deleted',
+          aggregateType: 'page',
           aggregateId: page.id,
           workspaceId: input.workspaceId,
         })
@@ -485,7 +483,7 @@ export const pageRouter = router({
           workspaceId: input.workspaceId,
           deletedAt: { not: null },
         },
-        orderBy: { deletedAt: "desc" },
+        orderBy: { deletedAt: 'desc' },
         select: {
           id: true,
           title: true,
@@ -503,10 +501,10 @@ export const pageRouter = router({
     .mutation(async ({ ctx, input }) => {
       const member = await assertWorkspaceMember(ctx, input.workspaceId)
       await requireWritableWorkspace(input.workspaceId)
-      if (member.role !== "OWNER") {
+      if (member.role !== 'OWNER') {
         throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Только владелец может очистить корзину",
+          code: 'FORBIDDEN',
+          message: 'Только владелец может очистить корзину',
         })
       }
       return ctx.prisma.$transaction(async (tx) => {
@@ -519,8 +517,8 @@ export const pageRouter = router({
         })
         for (const { id } of trashed) {
           await enqueueOutboxEvent(tx, {
-            eventType: "page.deleted",
-            aggregateType: "page",
+            eventType: 'page.deleted',
+            aggregateType: 'page',
             aggregateId: id,
             workspaceId: input.workspaceId,
           })
@@ -561,8 +559,8 @@ export const pageRouter = router({
           while (currentId) {
             if (currentId === input.pageId) {
               throw new TRPCError({
-                code: "BAD_REQUEST",
-                message: "Невозможно переместить страницу в собственного потомка",
+                code: 'BAD_REQUEST',
+                message: 'Невозможно переместить страницу в собственного потомка',
               })
             }
             const ancestor: { parentId: string | null } | null = await tx.page.findFirst({
@@ -609,8 +607,8 @@ export const pageRouter = router({
         }
 
         await enqueueOutboxEvent(tx, {
-          eventType: "page.upserted",
-          aggregateType: "page",
+          eventType: 'page.upserted',
+          aggregateType: 'page',
           aggregateId: page.id,
           workspaceId: page.workspaceId,
         })
@@ -645,7 +643,7 @@ export const pageRouter = router({
             workspaceId: page.workspaceId,
             parentId: page.parentId,
             type: page.type,
-            title: `${page.title ?? ""} (копия)`.trim(),
+            title: `${page.title ?? ''} (копия)`.trim(),
             icon: page.icon,
             content: page.content ?? undefined,
             contentYjs: page.contentYjs ?? undefined,
@@ -664,8 +662,8 @@ export const pageRouter = router({
         }
 
         await enqueueOutboxEvent(tx, {
-          eventType: "page.upserted",
-          aggregateType: "page",
+          eventType: 'page.upserted',
+          aggregateType: 'page',
           aggregateId: copy.id,
           workspaceId: page.workspaceId,
         })
@@ -719,7 +717,7 @@ export const pageRouter = router({
             },
           },
         },
-        orderBy: { createdAt: "desc" },
+        orderBy: { createdAt: 'desc' },
       })
       return favorites.map((f) => f.page)
     }),

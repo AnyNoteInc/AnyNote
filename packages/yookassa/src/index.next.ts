@@ -1,5 +1,5 @@
-export { YookassaClient } from "./client.next"
-export type { ChargeSavedInput } from "./client.next"
-export * from "./errors"
-export * from "./types"
-export { parseWebhookEvent, verifyTrustedIp } from "./webhook.next"
+export { YookassaClient } from './client.next'
+export type { ChargeSavedInput } from './client.next'
+export * from './errors'
+export * from './types'
+export { parseWebhookEvent, verifyTrustedIp } from './webhook.next'

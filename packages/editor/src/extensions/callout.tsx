@@ -1,20 +1,20 @@
-"use client"
+'use client'
 
-import { Box, IconButton, Popover } from "@mui/material"
-import { Node, mergeAttributes } from "@tiptap/core"
-import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react"
-import type { NodeViewProps } from "@tiptap/react"
-import Picker, { EmojiStyle, Theme as EmojiTheme, type EmojiClickData } from "emoji-picker-react"
-import { useTheme } from "@mui/material/styles"
-import { useCallback, useState } from "react"
+import { Box, IconButton, Popover } from '@mui/material'
+import { Node, mergeAttributes } from '@tiptap/core'
+import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
+import type { NodeViewProps } from '@tiptap/react'
+import Picker, { EmojiStyle, Theme as EmojiTheme, type EmojiClickData } from 'emoji-picker-react'
+import { useTheme } from '@mui/material/styles'
+import { useCallback, useState } from 'react'
 
-const DEFAULT_EMOJI = "💡"
+const DEFAULT_EMOJI = '💡'
 
 function CalloutView({ node, updateAttributes, editor }: NodeViewProps) {
   const emoji = (node.attrs.emoji as string) || DEFAULT_EMOJI
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const muiTheme = useTheme()
-  const pickerTheme = muiTheme.palette.mode === "dark" ? EmojiTheme.DARK : EmojiTheme.LIGHT
+  const pickerTheme = muiTheme.palette.mode === 'dark' ? EmojiTheme.DARK : EmojiTheme.LIGHT
 
   const openPicker = useCallback(
     (event: React.MouseEvent<HTMLButtonElement>) => {
@@ -40,7 +40,7 @@ function CalloutView({ node, updateAttributes, editor }: NodeViewProps) {
     <NodeViewWrapper as="div" className="anynote-callout" data-type="callout">
       <Box
         contentEditable={false}
-        sx={{ flexShrink: 0, display: "flex", alignItems: "flex-start", pt: 0.25 }}
+        sx={{ flexShrink: 0, display: 'flex', alignItems: 'flex-start', pt: 0.25 }}
       >
         <IconButton
           size="small"
@@ -66,8 +66,8 @@ function CalloutView({ node, updateAttributes, editor }: NodeViewProps) {
         open={Boolean(anchor)}
         anchorEl={anchor}
         onClose={closePicker}
-        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-        transformOrigin={{ vertical: "top", horizontal: "left" }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
       >
         <Picker
           onEmojiClick={handleEmojiClick}
@@ -84,9 +84,9 @@ function CalloutView({ node, updateAttributes, editor }: NodeViewProps) {
 }
 
 export const Callout = Node.create({
-  name: "callout",
-  group: "block",
-  content: "block+",
+  name: 'callout',
+  group: 'block',
+  content: 'block+',
   defining: true,
   draggable: true,
 
@@ -103,7 +103,7 @@ export const Callout = Node.create({
         getAttrs: (element) => {
           const el = element as HTMLElement
           return {
-            emoji: el.getAttribute("data-emoji") || DEFAULT_EMOJI,
+            emoji: el.getAttribute('data-emoji') || DEFAULT_EMOJI,
           }
         },
       },
@@ -112,10 +112,10 @@ export const Callout = Node.create({
 
   renderHTML({ HTMLAttributes, node }) {
     return [
-      "div",
+      'div',
       mergeAttributes(HTMLAttributes, {
-        "data-type": "callout",
-        "data-emoji": (node.attrs.emoji as string) || DEFAULT_EMOJI,
+        'data-type': 'callout',
+        'data-emoji': (node.attrs.emoji as string) || DEFAULT_EMOJI,
       }),
       0,
     ]

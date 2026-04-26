@@ -289,7 +289,7 @@ Expected: 0 errors. `@repo/db` should now expose `Block`, `BlockType`, `SearchCh
 Create `/tmp/block-type-check.ts`:
 
 ```ts
-import type { Block, BlockType, SearchChat, SearchMessage } from "@repo/db"
+import type { Block, BlockType, SearchChat, SearchMessage } from '@repo/db'
 
 const _probe: { b: Block; t: BlockType; c: SearchChat; m: SearchMessage } = {} as never
 void _probe
@@ -335,7 +335,7 @@ export {
   SubscriptionStatus,
   BlockType,
   SearchMessageRole,
-} from "@prisma/client"
+} from '@prisma/client'
 export type {
   User,
   Account,
@@ -353,7 +353,7 @@ export type {
   Block,
   SearchChat,
   SearchMessage,
-} from "@prisma/client"
+} from '@prisma/client'
 export default prisma
 ```
 
@@ -388,30 +388,30 @@ git commit -m "feat(db): export Block, SearchChat, SearchMessage explicitly"
 `packages/trpc/src/schemas/block-content.ts`:
 
 ```ts
-import { z } from "zod"
+import { z } from 'zod'
 
 const textBlock = z.object({ text: z.string().max(10_000) })
 const todoBlock = z.object({ text: z.string().max(10_000), checked: z.boolean().default(false) })
 const calloutBlock = z.object({ text: z.string().max(10_000), emoji: z.string().max(8).optional() })
 const codeBlock = z.object({
   text: z.string().max(50_000),
-  language: z.string().max(32).default("plaintext"),
+  language: z.string().max(32).default('plaintext'),
 })
 const emptyBlock = z.object({}).strict()
 
-export const BlockCreateInput = z.discriminatedUnion("type", [
-  z.object({ type: z.literal("PARAGRAPH"), content: textBlock }),
-  z.object({ type: z.literal("HEADING_1"), content: textBlock }),
-  z.object({ type: z.literal("HEADING_2"), content: textBlock }),
-  z.object({ type: z.literal("HEADING_3"), content: textBlock }),
-  z.object({ type: z.literal("TO_DO"), content: todoBlock }),
-  z.object({ type: z.literal("BULLETED_LIST_ITEM"), content: textBlock }),
-  z.object({ type: z.literal("NUMBERED_LIST_ITEM"), content: textBlock }),
-  z.object({ type: z.literal("TOGGLE"), content: textBlock }),
-  z.object({ type: z.literal("QUOTE"), content: textBlock }),
-  z.object({ type: z.literal("CALLOUT"), content: calloutBlock }),
-  z.object({ type: z.literal("DIVIDER"), content: emptyBlock }),
-  z.object({ type: z.literal("CODE"), content: codeBlock }),
+export const BlockCreateInput = z.discriminatedUnion('type', [
+  z.object({ type: z.literal('PARAGRAPH'), content: textBlock }),
+  z.object({ type: z.literal('HEADING_1'), content: textBlock }),
+  z.object({ type: z.literal('HEADING_2'), content: textBlock }),
+  z.object({ type: z.literal('HEADING_3'), content: textBlock }),
+  z.object({ type: z.literal('TO_DO'), content: todoBlock }),
+  z.object({ type: z.literal('BULLETED_LIST_ITEM'), content: textBlock }),
+  z.object({ type: z.literal('NUMBERED_LIST_ITEM'), content: textBlock }),
+  z.object({ type: z.literal('TOGGLE'), content: textBlock }),
+  z.object({ type: z.literal('QUOTE'), content: textBlock }),
+  z.object({ type: z.literal('CALLOUT'), content: calloutBlock }),
+  z.object({ type: z.literal('DIVIDER'), content: emptyBlock }),
+  z.object({ type: z.literal('CODE'), content: codeBlock }),
 ])
 
 export type BlockCreateInputType = z.infer<typeof BlockCreateInput>
@@ -422,13 +422,13 @@ export type BlockCreateInputType = z.infer<typeof BlockCreateInput>
 `packages/trpc/src/routers/block.ts`:
 
 ```ts
-import { z } from "zod"
-import { TRPCError } from "@trpc/server"
+import { z } from 'zod'
+import { TRPCError } from '@trpc/server'
 
-import type { Block } from "@repo/db"
+import type { Block } from '@repo/db'
 
-import { router, protectedProcedure } from "../trpc"
-import { BlockCreateInput } from "../schemas/block-content"
+import { router, protectedProcedure } from '../trpc'
+import { BlockCreateInput } from '../schemas/block-content'
 
 type OrderedBlock = Block & { depth: number }
 
@@ -461,14 +461,14 @@ function orderBlocks(blocks: Block[]): OrderedBlock[] {
 }
 
 async function assertPageAccess(
-  ctx: { prisma: typeof import("@repo/db").default; user: { id: string } },
+  ctx: { prisma: typeof import('@repo/db').default; user: { id: string } },
   pageId: string,
 ) {
   const page = await ctx.prisma.page.findFirst({
     where: { id: pageId, workspace: { members: { some: { userId: ctx.user.id } } } },
     select: { id: true },
   })
-  if (!page) throw new TRPCError({ code: "NOT_FOUND", message: "Страница не найдена" })
+  if (!page) throw new TRPCError({ code: 'NOT_FOUND', message: 'Страница не найдена' })
 }
 
 export const blockRouter = router({
@@ -502,8 +502,8 @@ export const blockRouter = router({
           : null
         if (input.afterBlockId && !after) {
           throw new TRPCError({
-            code: "BAD_REQUEST",
-            message: "afterBlockId not in the same sibling group",
+            code: 'BAD_REQUEST',
+            message: 'afterBlockId not in the same sibling group',
           })
         }
 
@@ -547,7 +547,7 @@ export const blockRouter = router({
           page: { workspace: { members: { some: { userId: ctx.user.id } } } },
         },
       })
-      if (!block) throw new TRPCError({ code: "NOT_FOUND" })
+      if (!block) throw new TRPCError({ code: 'NOT_FOUND' })
       return ctx.prisma.block.update({
         where: { id: input.id },
         data: { content: input.content, updatedById: ctx.user.id },
@@ -570,7 +570,7 @@ export const blockRouter = router({
             page: { workspace: { members: { some: { userId: ctx.user.id } } } },
           },
         })
-        if (!block) throw new TRPCError({ code: "NOT_FOUND" })
+        if (!block) throw new TRPCError({ code: 'NOT_FOUND' })
 
         // Unlink from current position
         const oldNext = await tx.block.findFirst({
@@ -630,7 +630,7 @@ export const blockRouter = router({
             page: { workspace: { members: { some: { userId: ctx.user.id } } } },
           },
         })
-        if (!block) throw new TRPCError({ code: "NOT_FOUND" })
+        if (!block) throw new TRPCError({ code: 'NOT_FOUND' })
         const next = await tx.block.findFirst({
           where: {
             pageId: block.pageId,
@@ -679,10 +679,10 @@ git commit -m "feat(trpc): add blockRouter with linked-list operations"
 - [ ] **Step 1: Create the router**
 
 ```ts
-import { z } from "zod"
-import { TRPCError } from "@trpc/server"
+import { z } from 'zod'
+import { TRPCError } from '@trpc/server'
 
-import { router, protectedProcedure } from "../trpc"
+import { router, protectedProcedure } from '../trpc'
 
 export const pageRouter = router({
   getById: protectedProcedure
@@ -694,7 +694,7 @@ export const pageRouter = router({
           workspace: { members: { some: { userId: ctx.user.id } } },
         },
       })
-      if (!page) throw new TRPCError({ code: "NOT_FOUND" })
+      if (!page) throw new TRPCError({ code: 'NOT_FOUND' })
       return page
     }),
 
@@ -708,7 +708,7 @@ export const pageRouter = router({
           archived: false,
           deletedAt: null,
         },
-        orderBy: { createdAt: "asc" },
+        orderBy: { createdAt: 'asc' },
         select: {
           id: true,
           title: true,
@@ -747,25 +747,25 @@ git commit -m "feat(trpc): add pageRouter with getById and listByWorkspace"
 - [ ] **Step 1: Create the seed helper**
 
 ```ts
-import type { Prisma } from "@repo/db"
+import type { Prisma } from '@repo/db'
 
 type Tx = Prisma.TransactionClient
 
 type SeedBlock =
-  | { type: "TO_DO"; text: string; checked?: boolean }
-  | { type: "TOGGLE"; text: string }
+  | { type: 'TO_DO'; text: string; checked?: boolean }
+  | { type: 'TOGGLE'; text: string }
 
 const START_BLOCKS: SeedBlock[] = [
-  { type: "TO_DO", text: "Create your first page", checked: true },
-  { type: "TO_DO", text: "Pick a workspace icon", checked: true },
-  { type: "TO_DO", text: "Try a slash command — type /heading on a blank line" },
-  { type: "TO_DO", text: "Import notes from Notion or Obsidian" },
-  { type: "TO_DO", text: "Upload a file or image with drag-and-drop" },
-  { type: "TO_DO", text: "Connect an integration (GitHub, Telegram, AmoCRM)" },
-  { type: "TOGGLE", text: "Advanced: databases, views, filters" },
-  { type: "TO_DO", text: "Share a page with a public link" },
-  { type: "TO_DO", text: "Ask AI about your docs — /ask" },
-  { type: "TO_DO", text: "Invite a teammate" },
+  { type: 'TO_DO', text: 'Create your first page', checked: true },
+  { type: 'TO_DO', text: 'Pick a workspace icon', checked: true },
+  { type: 'TO_DO', text: 'Try a slash command — type /heading on a blank line' },
+  { type: 'TO_DO', text: 'Import notes from Notion or Obsidian' },
+  { type: 'TO_DO', text: 'Upload a file or image with drag-and-drop' },
+  { type: 'TO_DO', text: 'Connect an integration (GitHub, Telegram, AmoCRM)' },
+  { type: 'TOGGLE', text: 'Advanced: databases, views, filters' },
+  { type: 'TO_DO', text: 'Share a page with a public link' },
+  { type: 'TO_DO', text: 'Ask AI about your docs — /ask' },
+  { type: 'TO_DO', text: 'Invite a teammate' },
 ]
 
 export async function seedStartPage(
@@ -776,10 +776,10 @@ export async function seedStartPage(
   const page = await tx.page.create({
     data: {
       workspaceId,
-      parentType: "WORKSPACE",
+      parentType: 'WORKSPACE',
       parentId: workspaceId,
-      title: "Welcome to AnyNote",
-      icon: "👋",
+      title: 'Welcome to AnyNote',
+      icon: '👋',
       createdById: userId,
       updatedById: userId,
     },
@@ -788,7 +788,7 @@ export async function seedStartPage(
   let prevId: string | null = null
   for (const item of START_BLOCKS) {
     const content =
-      item.type === "TO_DO"
+      item.type === 'TO_DO'
         ? { text: item.text, checked: item.checked ?? false }
         : { text: item.text }
 
@@ -813,7 +813,7 @@ export async function seedStartPage(
 In `packages/trpc/src/routers/workspace.ts`, modify the `create` procedure's transaction to call the helper after creating the member:
 
 ```ts
-import { seedStartPage } from "../helpers/seed-start-page"
+import { seedStartPage } from '../helpers/seed-start-page'
 
 // ...inside create mutation, after workspaceMember.create and userPreference.upsert:
 
@@ -829,7 +829,7 @@ return ctx.prisma.$transaction(async (tx) => {
     data: { name: input.name, icon: input.icon, createdById: ctx.user.id },
   })
   await tx.workspaceMember.create({
-    data: { workspaceId: workspace.id, userId: ctx.user.id, role: "OWNER" },
+    data: { workspaceId: workspace.id, userId: ctx.user.id, role: 'OWNER' },
   })
   await tx.userPreference.upsert({
     where: { userId: ctx.user.id },
@@ -868,28 +868,28 @@ At the top of the file after imports:
 
 ```ts
 async function assertPaidPlan(ctx: {
-  prisma: typeof import("@repo/db").default
+  prisma: typeof import('@repo/db').default
   user: { id: string }
 }) {
   const { plan } = await getActivePlanForUser(ctx.prisma, ctx.user.id)
-  if (plan.slug === "free") {
+  if (plan.slug === 'free') {
     throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "Это действие доступно на платных тарифах",
+      code: 'FORBIDDEN',
+      message: 'Это действие доступно на платных тарифах',
     })
   }
 }
 
 async function assertRole(
-  ctx: { prisma: typeof import("@repo/db").default; user: { id: string } },
+  ctx: { prisma: typeof import('@repo/db').default; user: { id: string } },
   workspaceId: string,
-  allowed: Array<"OWNER" | "ADMIN" | "EDITOR" | "COMMENTER" | "VIEWER" | "GUEST">,
+  allowed: Array<'OWNER' | 'ADMIN' | 'EDITOR' | 'COMMENTER' | 'VIEWER' | 'GUEST'>,
 ) {
   const member = await ctx.prisma.workspaceMember.findUnique({
     where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
   })
   if (!member || !allowed.includes(member.role)) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Недостаточно прав" })
+    throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
   }
   return member
 }
@@ -1010,23 +1010,23 @@ git commit -m "feat(trpc): workspace rename/members/delete with plan gating"
 - [ ] **Step 1: Create the router**
 
 ```ts
-import { z } from "zod"
-import { TRPCError } from "@trpc/server"
+import { z } from 'zod'
+import { TRPCError } from '@trpc/server'
 
-import { router, protectedProcedure } from "../trpc"
+import { router, protectedProcedure } from '../trpc'
 
 async function assertWorkspaceMember(
-  ctx: { prisma: typeof import("@repo/db").default; user: { id: string } },
+  ctx: { prisma: typeof import('@repo/db').default; user: { id: string } },
   workspaceId: string,
 ) {
   const member = await ctx.prisma.workspaceMember.findUnique({
     where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
   })
-  if (!member) throw new TRPCError({ code: "FORBIDDEN" })
+  if (!member) throw new TRPCError({ code: 'FORBIDDEN' })
 }
 
 async function assertChatAccess(
-  ctx: { prisma: typeof import("@repo/db").default; user: { id: string } },
+  ctx: { prisma: typeof import('@repo/db').default; user: { id: string } },
   chatId: string,
 ) {
   const chat = await ctx.prisma.searchChat.findFirst({
@@ -1035,7 +1035,7 @@ async function assertChatAccess(
       workspace: { members: { some: { userId: ctx.user.id } } },
     },
   })
-  if (!chat) throw new TRPCError({ code: "NOT_FOUND" })
+  if (!chat) throw new TRPCError({ code: 'NOT_FOUND' })
   return chat
 }
 
@@ -1046,7 +1046,7 @@ export const searchRouter = router({
       await assertWorkspaceMember(ctx, input.workspaceId)
       return ctx.prisma.searchChat.findMany({
         where: { workspaceId: input.workspaceId },
-        orderBy: { updatedAt: "desc" },
+        orderBy: { updatedAt: 'desc' },
         take: 50,
       })
     }),
@@ -1057,7 +1057,7 @@ export const searchRouter = router({
       const chat = await assertChatAccess(ctx, input.chatId)
       const messages = await ctx.prisma.searchMessage.findMany({
         where: { chatId: chat.id },
-        orderBy: { createdAt: "asc" },
+        orderBy: { createdAt: 'asc' },
       })
       return { chat, messages }
     }),
@@ -1085,16 +1085,16 @@ export const searchRouter = router({
       const chat = await assertChatAccess(ctx, input.chatId)
       return ctx.prisma.$transaction(async (tx) => {
         const userMessage = await tx.searchMessage.create({
-          data: { chatId: chat.id, role: "USER", content: input.content },
+          data: { chatId: chat.id, role: 'USER', content: input.content },
         })
         const assistantMessage = await tx.searchMessage.create({
           data: {
             chatId: chat.id,
-            role: "ASSISTANT",
+            role: 'ASSISTANT',
             content: `🔎 MVP echo: "${input.content}". Настоящий RAG подключим с OLLAMA + Weaviate.`,
           },
         })
-        const shouldRename = chat.title === "Новый поиск"
+        const shouldRename = chat.title === 'Новый поиск'
         await tx.searchChat.update({
           where: { id: chat.id },
           data: {
@@ -1141,9 +1141,9 @@ git commit -m "feat(trpc): add searchRouter with echo message pipeline"
 - [ ] **Step 1: Register routers in `packages/trpc/src/index.ts`**
 
 ```ts
-import { blockRouter } from "./routers/block"
-import { pageRouter } from "./routers/page"
-import { searchRouter } from "./routers/search"
+import { blockRouter } from './routers/block'
+import { pageRouter } from './routers/page'
+import { searchRouter } from './routers/search'
 
 export const appRouter = router({
   // ...existing namespaces
@@ -1196,55 +1196,55 @@ git commit -m "feat(trpc): register block/page/search routers, drop loggerLink"
 - [ ] **Step 1: Replace the theme factory**
 
 ```ts
-import { createTheme } from "@mui/material/styles"
-import type { PaletteMode } from "@mui/material"
+import { createTheme } from '@mui/material/styles'
+import type { PaletteMode } from '@mui/material'
 
-export function createAppTheme(mode: PaletteMode = "light") {
+export function createAppTheme(mode: PaletteMode = 'light') {
   return createTheme({
     palette: {
       mode,
-      primary: { main: "#0f766e" },
-      secondary: { main: "#155e75" },
+      primary: { main: '#0f766e' },
+      secondary: { main: '#155e75' },
       background:
-        mode === "dark"
+        mode === 'dark'
           ? {
-              default: "#0c0d10",
-              paper: "#14161a",
+              default: '#0c0d10',
+              paper: '#14161a',
             }
           : {
-              default: "#fafaf9",
-              paper: "#ffffff",
+              default: '#fafaf9',
+              paper: '#ffffff',
             },
       text:
-        mode === "dark"
+        mode === 'dark'
           ? {
-              primary: "#e7e8ea",
-              secondary: "#a7aab1",
-              disabled: "#6b6e75",
+              primary: '#e7e8ea',
+              secondary: '#a7aab1',
+              disabled: '#6b6e75',
             }
           : {
-              primary: "#1f2021",
-              secondary: "#52525b",
-              disabled: "#a1a1aa",
+              primary: '#1f2021',
+              secondary: '#52525b',
+              disabled: '#a1a1aa',
             },
-      divider: mode === "dark" ? "rgba(255,255,255,0.08)" : "rgba(0,0,0,0.08)",
+      divider: mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
     },
     shape: { borderRadius: 4 },
     typography: {
       fontFamily: [
-        "var(--font-geist-sans)",
-        "system-ui",
-        "-apple-system",
-        "BlinkMacSystemFont",
-        "sans-serif",
-      ].join(", "),
+        'var(--font-geist-sans)',
+        'system-ui',
+        '-apple-system',
+        'BlinkMacSystemFont',
+        'sans-serif',
+      ].join(', '),
       fontWeightLight: 200,
       fontWeightRegular: 300,
       fontWeightMedium: 400,
       fontWeightBold: 500,
-      h1: { fontWeight: 300, letterSpacing: "-0.04em", lineHeight: 1.08 },
-      h2: { fontWeight: 300, letterSpacing: "-0.03em", lineHeight: 1.12 },
-      h3: { fontWeight: 300, letterSpacing: "-0.02em" },
+      h1: { fontWeight: 300, letterSpacing: '-0.04em', lineHeight: 1.08 },
+      h2: { fontWeight: 300, letterSpacing: '-0.03em', lineHeight: 1.12 },
+      h3: { fontWeight: 300, letterSpacing: '-0.02em' },
       h4: { fontWeight: 400 },
       h5: { fontWeight: 400 },
       h6: { fontWeight: 400 },
@@ -1252,25 +1252,25 @@ export function createAppTheme(mode: PaletteMode = "light") {
       subtitle2: { fontWeight: 400 },
       body1: { fontWeight: 300 },
       body2: { fontWeight: 300 },
-      button: { textTransform: "none", fontWeight: 400 },
+      button: { textTransform: 'none', fontWeight: 400 },
       overline: {
-        fontFamily: ["var(--font-geist-mono)", "ui-monospace", "SFMono-Regular", "monospace"].join(
-          ", ",
+        fontFamily: ['var(--font-geist-mono)', 'ui-monospace', 'SFMono-Regular', 'monospace'].join(
+          ', ',
         ),
-        letterSpacing: "0.16em",
+        letterSpacing: '0.16em',
         fontWeight: 400,
       },
     },
     components: {
       MuiButton: {
-        defaultProps: { variant: "contained" },
+        defaultProps: { variant: 'contained' },
         styleOverrides: {
           root: { borderRadius: 4, paddingInline: 18 },
         },
       },
       MuiPaper: {
         styleOverrides: {
-          root: { backgroundImage: "none" },
+          root: { backgroundImage: 'none' },
         },
       },
     },
@@ -1302,11 +1302,11 @@ git commit -m "feat(ui): thin typography weights and extended palette tokens"
 - [ ] **Step 1: Replace the file contents**
 
 ```tsx
-"use client"
+'use client'
 
-import type { ReactNode } from "react"
+import type { ReactNode } from 'react'
 
-import { Box } from "@repo/ui/components"
+import { Box } from '@repo/ui/components'
 
 type Props = {
   sidebar: ReactNode
@@ -1318,16 +1318,16 @@ export function WorkspaceShell({ sidebar, main, sidebarWidth }: Props) {
   return (
     <Box
       sx={{
-        display: "grid",
+        display: 'grid',
         gridTemplateColumns: `${sidebarWidth}px minmax(0, 1fr)`,
-        height: "100vh",
-        bgcolor: "background.default",
-        color: "text.primary",
-        overflow: "hidden",
+        height: '100vh',
+        bgcolor: 'background.default',
+        color: 'text.primary',
+        overflow: 'hidden',
       }}
     >
       {sidebar}
-      <Box component="main" sx={{ overflow: "auto" }}>
+      <Box component="main" sx={{ overflow: 'auto' }}>
         {main}
       </Box>
     </Box>
@@ -1364,23 +1364,23 @@ git commit -m "refactor(web): simplify WorkspaceShell, drop internal ThemeProvid
 In `apps/web/src/app/layout.tsx`:
 
 ```ts
-async function resolveTheme(): Promise<"light" | "dark" | "system"> {
+async function resolveTheme(): Promise<'light' | 'dark' | 'system'> {
   const cookieStore = await cookies()
-  const cookieTheme = cookieStore.get("theme")?.value as "light" | "dark" | "system" | undefined
+  const cookieTheme = cookieStore.get('theme')?.value as 'light' | 'dark' | 'system' | undefined
 
   const session = await getSession()
   if (session) {
     try {
       const trpc = await getServerTRPC()
       const prefs = await trpc.user.getPreferences()
-      const stored = (prefs?.theme as "light" | "dark" | "system" | null) ?? cookieTheme ?? "system"
+      const stored = (prefs?.theme as 'light' | 'dark' | 'system' | null) ?? cookieTheme ?? 'system'
       return stored
     } catch {
       // fall through
     }
   }
 
-  return cookieTheme ?? "system"
+  return cookieTheme ?? 'system'
 }
 ```
 
@@ -1393,12 +1393,12 @@ Update the call site to pass `"system"` through by changing the prop type in `Ui
 - [ ] **Step 2: Update `UiProvider` to accept `system` and listen to `prefers-color-scheme`**
 
 ```tsx
-"use client"
+'use client'
 
-import { CssBaseline, GlobalStyles } from "@mui/material"
-import type { PaletteMode } from "@mui/material"
-import { ThemeProvider } from "@mui/material/styles"
-import { AppRouterCacheProvider } from "@mui/material-nextjs/v15-appRouter"
+import { CssBaseline, GlobalStyles } from '@mui/material'
+import type { PaletteMode } from '@mui/material'
+import { ThemeProvider } from '@mui/material/styles'
+import { AppRouterCacheProvider } from '@mui/material-nextjs/v15-appRouter'
 import {
   createContext,
   useContext,
@@ -1406,11 +1406,11 @@ import {
   useMemo,
   useState,
   type PropsWithChildren,
-} from "react"
+} from 'react'
 
-import { createAppTheme } from "@repo/ui/theme"
+import { createAppTheme } from '@repo/ui/theme'
 
-type Preference = PaletteMode | "system"
+type Preference = PaletteMode | 'system'
 
 type ThemeModeContextValue = {
   mode: PaletteMode
@@ -1423,48 +1423,48 @@ const ThemeModeContext = createContext<ThemeModeContextValue | null>(null)
 
 export function useThemeMode() {
   const value = useContext(ThemeModeContext)
-  if (!value) throw new Error("useThemeMode must be used within UiProvider")
+  if (!value) throw new Error('useThemeMode must be used within UiProvider')
   return value
 }
 
 export type UiProviderProps = PropsWithChildren<{ initial?: Preference }>
 
 function resolveMode(preference: Preference, prefersDark: boolean): PaletteMode {
-  if (preference === "light" || preference === "dark") return preference
-  return prefersDark ? "dark" : "light"
+  if (preference === 'light' || preference === 'dark') return preference
+  return prefersDark ? 'dark' : 'light'
 }
 
-export function UiProvider({ children, initial = "system" }: UiProviderProps) {
+export function UiProvider({ children, initial = 'system' }: UiProviderProps) {
   const [preference, setPreferenceState] = useState<Preference>(initial)
   const [prefersDark, setPrefersDark] = useState<boolean>(false)
 
   useEffect(() => {
-    const stored = window.localStorage.getItem("app-theme-mode") as Preference | null
-    if (stored === "light" || stored === "dark" || stored === "system") {
+    const stored = window.localStorage.getItem('app-theme-mode') as Preference | null
+    if (stored === 'light' || stored === 'dark' || stored === 'system') {
       setPreferenceState(stored)
     }
   }, [])
 
   useEffect(() => {
-    const mq = window.matchMedia("(prefers-color-scheme: dark)")
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
     setPrefersDark(mq.matches)
     const handler = (e: MediaQueryListEvent) => setPrefersDark(e.matches)
-    mq.addEventListener("change", handler)
-    return () => mq.removeEventListener("change", handler)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
   }, [])
 
   useEffect(() => {
-    window.localStorage.setItem("app-theme-mode", preference)
+    window.localStorage.setItem('app-theme-mode', preference)
   }, [preference])
 
   const mode = resolveMode(preference, prefersDark)
   const theme = useMemo(() => createAppTheme(mode), [mode])
 
   const setPreference = (p: Preference) => setPreferenceState(p)
-  const toggleMode = () => setPreferenceState(mode === "light" ? "dark" : "light")
+  const toggleMode = () => setPreferenceState(mode === 'light' ? 'dark' : 'light')
 
   return (
-    <AppRouterCacheProvider options={{ key: "css", enableCssLayer: true }}>
+    <AppRouterCacheProvider options={{ key: 'css', enableCssLayer: true }}>
       <ThemeModeContext.Provider value={{ mode, preference, setPreference, toggleMode }}>
         <ThemeProvider theme={theme}>
           <CssBaseline />
@@ -1507,10 +1507,10 @@ git commit -m "feat(ui): system theme preference with prefers-color-scheme"
 - [ ] **Step 1: Create the redirect page**
 
 ```tsx
-import { redirect } from "next/navigation"
+import { redirect } from 'next/navigation'
 
 export default function SettingsIndexRedirect(): never {
-  redirect("/settings/general")
+  redirect('/settings/general')
 }
 ```
 
@@ -1540,9 +1540,9 @@ git commit -m "feat(web): redirect /settings to /settings/general"
 - [ ] **Step 1: Create the server redirect**
 
 ```tsx
-import { redirect } from "next/navigation"
+import { redirect } from 'next/navigation'
 
-import { getServerTRPC } from "@/trpc/server"
+import { getServerTRPC } from '@/trpc/server'
 
 export default async function WorkspacesIndexRedirect() {
   const trpc = await getServerTRPC()
@@ -1554,7 +1554,7 @@ export default async function WorkspacesIndexRedirect() {
   if (owned.length > 0) {
     redirect(`/workspaces/${owned[0]!.id}`)
   }
-  redirect("/workspaces/new")
+  redirect('/workspaces/new')
 }
 ```
 
@@ -1576,14 +1576,14 @@ git commit -m "feat(web): redirect /workspaces to default workspace"
 - [ ] **Step 1: Create the page**
 
 ```tsx
-import Link from "next/link"
+import Link from 'next/link'
 
-import { Avatar, Box, Button, Container, Paper, Stack, Typography } from "@repo/ui/components"
+import { Avatar, Box, Button, Container, Paper, Stack, Typography } from '@repo/ui/components'
 
-import { requireSession } from "@/lib/get-session"
-import { getServerTRPC } from "@/trpc/server"
+import { requireSession } from '@/lib/get-session'
+import { getServerTRPC } from '@/trpc/server'
 
-export const metadata = { title: "Мой профиль" }
+export const metadata = { title: 'Мой профиль' }
 
 export default async function ProfilePage() {
   const session = await requireSession()
@@ -1601,8 +1601,8 @@ export default async function ProfilePage() {
             width: 128,
             height: 128,
             fontSize: 44,
-            background: "linear-gradient(135deg,#0f766e,#155e75)",
-            color: "#fff",
+            background: 'linear-gradient(135deg,#0f766e,#155e75)',
+            color: '#fff',
           }}
         >
           {initials}
@@ -1616,12 +1616,12 @@ export default async function ProfilePage() {
           </Typography>
         </Stack>
 
-        <Box sx={{ width: "100%", pt: 2 }}>
+        <Box sx={{ width: '100%', pt: 2 }}>
           <Typography variant="overline" color="text.secondary">
             Рабочие пространства
           </Typography>
           {workspaces.length === 0 ? (
-            <Paper variant="outlined" sx={{ p: 3, textAlign: "center", mt: 1 }}>
+            <Paper variant="outlined" sx={{ p: 3, textAlign: 'center', mt: 1 }}>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 У вас пока нет рабочих пространств
               </Typography>
@@ -1637,8 +1637,8 @@ export default async function ProfilePage() {
                   variant="outlined"
                   sx={{
                     p: 2,
-                    display: "flex",
-                    alignItems: "center",
+                    display: 'flex',
+                    alignItems: 'center',
                     gap: 2,
                   }}
                 >
@@ -1647,14 +1647,14 @@ export default async function ProfilePage() {
                       width: 40,
                       height: 40,
                       borderRadius: 1,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       fontSize: 20,
-                      bgcolor: "action.hover",
+                      bgcolor: 'action.hover',
                     }}
                   >
-                    {workspace.icon ?? "📒"}
+                    {workspace.icon ?? '📒'}
                   </Box>
                   <Stack spacing={0} sx={{ flex: 1, minWidth: 0 }}>
                     <Typography variant="body1" noWrap>
@@ -1714,19 +1714,19 @@ git commit -m "feat(web): add /profile page with avatar and workspaces"
 - [ ] **Step 1: Create the settings nav client component**
 
 ```tsx
-"use client"
+'use client'
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
-import { Stack } from "@repo/ui/components"
+import { Stack } from '@repo/ui/components'
 
 type Props = { workspaceId: string }
 
 const ITEMS = [
-  { label: "Общее", slug: "general" },
-  { label: "Участники", slug: "members" },
-  { label: "Опасная зона", slug: "danger" },
+  { label: 'Общее', slug: 'general' },
+  { label: 'Участники', slug: 'members' },
+  { label: 'Опасная зона', slug: 'danger' },
 ] as const
 
 export function WorkspaceSettingsNav({ workspaceId }: Props) {
@@ -1743,15 +1743,15 @@ export function WorkspaceSettingsNav({ workspaceId }: Props) {
             key={item.slug}
             href={href}
             style={{
-              display: "block",
-              padding: "6px 10px",
+              display: 'block',
+              padding: '6px 10px',
               borderRadius: 6,
-              textDecoration: "none",
+              textDecoration: 'none',
               fontSize: 14,
               color: active
-                ? "var(--mui-palette-text-primary)"
-                : "var(--mui-palette-text-secondary)",
-              backgroundColor: active ? "var(--mui-palette-action-selected)" : "transparent",
+                ? 'var(--mui-palette-text-primary)'
+                : 'var(--mui-palette-text-secondary)',
+              backgroundColor: active ? 'var(--mui-palette-action-selected)' : 'transparent',
             }}
           >
             {item.label}
@@ -1766,13 +1766,13 @@ export function WorkspaceSettingsNav({ workspaceId }: Props) {
 - [ ] **Step 2: Create the layout**
 
 ```tsx
-import type { ReactNode } from "react"
+import type { ReactNode } from 'react'
 
-import { Box, Container, Paper } from "@repo/ui/components"
-import { notFound } from "next/navigation"
+import { Box, Container, Paper } from '@repo/ui/components'
+import { notFound } from 'next/navigation'
 
-import { WorkspaceSettingsNav } from "@/components/workspace/workspace-settings-nav"
-import { getServerTRPC } from "@/trpc/server"
+import { WorkspaceSettingsNav } from '@/components/workspace/workspace-settings-nav'
+import { getServerTRPC } from '@/trpc/server'
 
 type Props = {
   children: ReactNode
@@ -1789,12 +1789,12 @@ export default async function WorkspaceSettingsLayout({ children, params }: Prop
     <Container maxWidth="lg" sx={{ py: { xs: 3, md: 5 } }}>
       <Box
         sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "220px minmax(0,1fr)" },
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: '220px minmax(0,1fr)' },
           gap: { xs: 3, md: 4 },
         }}
       >
-        <Paper variant="outlined" sx={{ p: 2, alignSelf: "start" }}>
+        <Paper variant="outlined" sx={{ p: 2, alignSelf: 'start' }}>
           <WorkspaceSettingsNav workspaceId={workspaceId} />
         </Paper>
         <Box>{children}</Box>
@@ -1807,7 +1807,7 @@ export default async function WorkspaceSettingsLayout({ children, params }: Prop
 - [ ] **Step 3: Create the index redirect**
 
 ```tsx
-import { redirect } from "next/navigation"
+import { redirect } from 'next/navigation'
 
 type Props = { params: Promise<{ workspaceId: string }> }
 
@@ -1838,13 +1838,13 @@ git commit -m "feat(web): workspace settings layout and nav"
 `apps/web/src/components/workspace/settings/general-section.tsx`:
 
 ```tsx
-"use client"
+'use client'
 
-import { useState } from "react"
+import { useState } from 'react'
 
-import { Alert, Button, Paper, Stack, TextField, Typography } from "@repo/ui/components"
+import { Alert, Button, Paper, Stack, TextField, Typography } from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
 type Props = {
   workspace: { id: string; name: string; icon: string | null }
@@ -1853,7 +1853,7 @@ type Props = {
 
 export function WorkspaceGeneralSection({ workspace, locked }: Props) {
   const [name, setName] = useState(workspace.name)
-  const [icon, setIcon] = useState(workspace.icon ?? "")
+  const [icon, setIcon] = useState(workspace.icon ?? '')
   const [successShown, setSuccessShown] = useState(false)
   const utils = trpc.useUtils()
   const rename = trpc.workspace.rename.useMutation({
@@ -1906,10 +1906,10 @@ export function WorkspaceGeneralSection({ workspace, locked }: Props) {
 - [ ] **Step 2: Create the server page**
 
 ```tsx
-import { notFound } from "next/navigation"
+import { notFound } from 'next/navigation'
 
-import { getServerTRPC } from "@/trpc/server"
-import { WorkspaceGeneralSection } from "@/components/workspace/settings/general-section"
+import { getServerTRPC } from '@/trpc/server'
+import { WorkspaceGeneralSection } from '@/components/workspace/settings/general-section'
 
 type Props = { params: Promise<{ workspaceId: string }> }
 
@@ -1923,7 +1923,7 @@ export default async function WorkspaceSettingsGeneralPage({ params }: Props) {
   return (
     <WorkspaceGeneralSection
       workspace={{ id: workspace.id, name: workspace.name, icon: workspace.icon }}
-      locked={plan.slug === "free"}
+      locked={plan.slug === 'free'}
     />
   )
 }
@@ -1954,9 +1954,9 @@ git commit -m "feat(web): workspace settings general (rename, plan-gated)"
 - [ ] **Step 1: Create the client section**
 
 ```tsx
-"use client"
+'use client'
 
-import { useState } from "react"
+import { useState } from 'react'
 
 import {
   Alert,
@@ -1972,9 +1972,9 @@ import {
   TableRow,
   TextField,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
 type Props = {
   workspaceId: string
@@ -1983,13 +1983,13 @@ type Props = {
 }
 
 export function WorkspaceMembersSection({ workspaceId, locked, currentUserId }: Props) {
-  const [email, setEmail] = useState("")
-  const [role, setRole] = useState<"ADMIN" | "EDITOR" | "COMMENTER" | "VIEWER">("EDITOR")
+  const [email, setEmail] = useState('')
+  const [role, setRole] = useState<'ADMIN' | 'EDITOR' | 'COMMENTER' | 'VIEWER'>('EDITOR')
   const utils = trpc.useUtils()
   const members = trpc.workspace.listMembers.useQuery({ workspaceId })
   const invite = trpc.workspace.inviteMember.useMutation({
     onSuccess: async () => {
-      setEmail("")
+      setEmail('')
       await utils.workspace.listMembers.invalidate({ workspaceId })
     },
   })
@@ -2082,11 +2082,11 @@ export function WorkspaceMembersSection({ workspaceId, locked, currentUserId }: 
 - [ ] **Step 2: Create the server page**
 
 ```tsx
-import { notFound } from "next/navigation"
+import { notFound } from 'next/navigation'
 
-import { requireSession } from "@/lib/get-session"
-import { getServerTRPC } from "@/trpc/server"
-import { WorkspaceMembersSection } from "@/components/workspace/settings/members-section"
+import { requireSession } from '@/lib/get-session'
+import { getServerTRPC } from '@/trpc/server'
+import { WorkspaceMembersSection } from '@/components/workspace/settings/members-section'
 
 type Props = { params: Promise<{ workspaceId: string }> }
 
@@ -2101,7 +2101,7 @@ export default async function WorkspaceSettingsMembersPage({ params }: Props) {
   return (
     <WorkspaceMembersSection
       workspaceId={workspace.id}
-      locked={plan.slug === "free"}
+      locked={plan.slug === 'free'}
       currentUserId={session.user.id}
     />
   )
@@ -2117,7 +2117,7 @@ grep -E "Select|MenuItem" packages/ui/src/components/index.ts
 If missing, add:
 
 ```ts
-export { Select, MenuItem } from "@mui/material"
+export { Select, MenuItem } from '@mui/material'
 ```
 
 - [ ] **Step 4: Type-check and commit**
@@ -2140,14 +2140,14 @@ git commit -m "feat(web): workspace settings members (invite/remove, gated)"
 - [ ] **Step 1: Create the client section**
 
 ```tsx
-"use client"
+'use client'
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
-import { Alert, Button, Paper, Stack, TextField, Typography } from "@repo/ui/components"
+import { Alert, Button, Paper, Stack, TextField, Typography } from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
 type Props = {
   workspace: { id: string; name: string }
@@ -2155,14 +2155,14 @@ type Props = {
 }
 
 export function WorkspaceDangerSection({ workspace, locked }: Props) {
-  const [confirmation, setConfirmation] = useState("")
+  const [confirmation, setConfirmation] = useState('')
   const router = useRouter()
   const del = trpc.workspace.delete.useMutation({
-    onSuccess: () => router.push("/workspaces"),
+    onSuccess: () => router.push('/workspaces'),
   })
 
   return (
-    <Paper variant="outlined" sx={{ p: 3, borderColor: "error.main" }}>
+    <Paper variant="outlined" sx={{ p: 3, borderColor: 'error.main' }}>
       <Stack spacing={2}>
         <Typography variant="h6" color="error">
           Опасная зона
@@ -2198,10 +2198,10 @@ export function WorkspaceDangerSection({ workspace, locked }: Props) {
 - [ ] **Step 2: Create the server page**
 
 ```tsx
-import { notFound } from "next/navigation"
+import { notFound } from 'next/navigation'
 
-import { getServerTRPC } from "@/trpc/server"
-import { WorkspaceDangerSection } from "@/components/workspace/settings/danger-section"
+import { getServerTRPC } from '@/trpc/server'
+import { WorkspaceDangerSection } from '@/components/workspace/settings/danger-section'
 
 type Props = { params: Promise<{ workspaceId: string }> }
 
@@ -2215,7 +2215,7 @@ export default async function WorkspaceSettingsDangerPage({ params }: Props) {
   return (
     <WorkspaceDangerSection
       workspace={{ id: workspace.id, name: workspace.name }}
-      locked={plan.slug === "free"}
+      locked={plan.slug === 'free'}
     />
   )
 }
@@ -2242,9 +2242,9 @@ git commit -m "feat(web): workspace settings danger zone (delete)"
 - [ ] **Step 1: Create the page**
 
 ```tsx
-import { redirect } from "next/navigation"
+import { redirect } from 'next/navigation'
 
-import { getServerTRPC } from "@/trpc/server"
+import { getServerTRPC } from '@/trpc/server'
 
 type Props = { params: Promise<{ workspaceId: string }> }
 
@@ -2280,23 +2280,23 @@ git commit -m "feat(web): search index redirects to latest chat"
 - [ ] **Step 1: Create the input component**
 
 ```tsx
-"use client"
+'use client'
 
-import { useState, useRef, useEffect } from "react"
+import { useState, useRef, useEffect } from 'react'
 
-import { Box, Button, Stack, TextField } from "@repo/ui/components"
+import { Box, Button, Stack, TextField } from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
 type Props = { chatId: string; workspaceId: string }
 
 export function SearchChatInput({ chatId, workspaceId }: Props) {
-  const [value, setValue] = useState("")
+  const [value, setValue] = useState('')
   const inputRef = useRef<HTMLInputElement | null>(null)
   const utils = trpc.useUtils()
   const send = trpc.search.sendMessage.useMutation({
     onSuccess: async () => {
-      setValue("")
+      setValue('')
       await utils.search.getChat.invalidate({ chatId })
       await utils.search.listChats.invalidate({ workspaceId })
     },
@@ -2315,15 +2315,15 @@ export function SearchChatInput({ chatId, workspaceId }: Props) {
         send.mutate({ chatId, content: value.trim() })
       }}
       sx={{
-        position: "sticky",
+        position: 'sticky',
         bottom: 0,
-        bgcolor: "background.default",
-        borderTop: "1px solid",
-        borderColor: "divider",
+        bgcolor: 'background.default',
+        borderTop: '1px solid',
+        borderColor: 'divider',
         p: 2,
       }}
     >
-      <Stack direction="row" spacing={1} sx={{ maxWidth: 720, mx: "auto" }}>
+      <Stack direction="row" spacing={1} sx={{ maxWidth: 720, mx: 'auto' }}>
         <TextField
           inputRef={inputRef}
           value={value}
@@ -2345,13 +2345,13 @@ export function SearchChatInput({ chatId, workspaceId }: Props) {
 - [ ] **Step 2: Create the chat view**
 
 ```tsx
-"use client"
+'use client'
 
-import { Box, Paper, Stack, Typography } from "@repo/ui/components"
+import { Box, Paper, Stack, Typography } from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
-import { SearchChatInput } from "./search-chat-input"
+import { SearchChatInput } from './search-chat-input'
 
 type Props = { chatId: string; workspaceId: string }
 
@@ -2359,9 +2359,9 @@ export function SearchChatView({ chatId, workspaceId }: Props) {
   const chat = trpc.search.getChat.useQuery({ chatId })
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
-      <Box sx={{ flex: 1, overflowY: "auto", px: 3, py: 4 }}>
-        <Stack spacing={2} sx={{ maxWidth: 720, mx: "auto" }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
+      <Box sx={{ flex: 1, overflowY: 'auto', px: 3, py: 4 }}>
+        <Stack spacing={2} sx={{ maxWidth: 720, mx: 'auto' }}>
           {chat.data?.messages.length === 0 ? (
             <Typography color="text.secondary" textAlign="center">
               Начните новый поиск — напишите, что хотите найти
@@ -2373,12 +2373,12 @@ export function SearchChatView({ chatId, workspaceId }: Props) {
               variant="outlined"
               sx={{
                 p: 2,
-                alignSelf: message.role === "USER" ? "flex-end" : "flex-start",
-                bgcolor: message.role === "USER" ? "action.selected" : "background.paper",
-                maxWidth: "80%",
+                alignSelf: message.role === 'USER' ? 'flex-end' : 'flex-start',
+                bgcolor: message.role === 'USER' ? 'action.selected' : 'background.paper',
+                maxWidth: '80%',
               }}
             >
-              <Typography variant="body1" sx={{ whiteSpace: "pre-wrap" }}>
+              <Typography variant="body1" sx={{ whiteSpace: 'pre-wrap' }}>
                 {message.content}
               </Typography>
             </Paper>
@@ -2394,10 +2394,10 @@ export function SearchChatView({ chatId, workspaceId }: Props) {
 - [ ] **Step 3: Create the server page**
 
 ```tsx
-import { notFound } from "next/navigation"
+import { notFound } from 'next/navigation'
 
-import { getServerTRPC } from "@/trpc/server"
-import { SearchChatView } from "@/components/workspace/search/search-chat-view"
+import { getServerTRPC } from '@/trpc/server'
+import { SearchChatView } from '@/components/workspace/search/search-chat-view'
 
 type Props = { params: Promise<{ workspaceId: string; chatId: string }> }
 
@@ -2433,9 +2433,9 @@ git commit -m "feat(web): search chat view with echo pipeline"
 - [ ] **Step 1: Create the block renderer**
 
 ```tsx
-import type { Block } from "@repo/db"
+import type { Block } from '@repo/db'
 
-import { Box, Checkbox, Typography } from "@repo/ui/components"
+import { Box, Checkbox, Typography } from '@repo/ui/components'
 
 type BlockContent = {
   text?: string
@@ -2449,97 +2449,97 @@ export function BlockRenderer({ block }: { block: Block & { depth: number } }) {
   const indent = block.depth * 24
 
   switch (block.type) {
-    case "PARAGRAPH":
+    case 'PARAGRAPH':
       return <Typography sx={{ pl: `${indent}px`, my: 0.75 }}>{content.text}</Typography>
-    case "HEADING_1":
+    case 'HEADING_1':
       return (
         <Typography variant="h3" sx={{ pl: `${indent}px`, mt: 3, mb: 1 }}>
           {content.text}
         </Typography>
       )
-    case "HEADING_2":
+    case 'HEADING_2':
       return (
         <Typography variant="h4" sx={{ pl: `${indent}px`, mt: 2.5, mb: 1 }}>
           {content.text}
         </Typography>
       )
-    case "HEADING_3":
+    case 'HEADING_3':
       return (
         <Typography variant="h5" sx={{ pl: `${indent}px`, mt: 2, mb: 0.75 }}>
           {content.text}
         </Typography>
       )
-    case "TO_DO":
+    case 'TO_DO':
       return (
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, pl: `${indent}px`, my: 0.25 }}>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, pl: `${indent}px`, my: 0.25 }}>
           <Checkbox checked={!!content.checked} disabled size="small" />
           <Typography
             sx={{
-              textDecoration: content.checked ? "line-through" : "none",
-              color: content.checked ? "text.disabled" : "text.primary",
+              textDecoration: content.checked ? 'line-through' : 'none',
+              color: content.checked ? 'text.disabled' : 'text.primary',
             }}
           >
             {content.text}
           </Typography>
         </Box>
       )
-    case "BULLETED_LIST_ITEM":
+    case 'BULLETED_LIST_ITEM':
       return <Typography sx={{ pl: `${indent + 16}px`, my: 0.25 }}>• {content.text}</Typography>
-    case "NUMBERED_LIST_ITEM":
+    case 'NUMBERED_LIST_ITEM':
       return <Typography sx={{ pl: `${indent + 16}px`, my: 0.25 }}>{content.text}</Typography>
-    case "TOGGLE":
+    case 'TOGGLE':
       return (
         <Box component="details" sx={{ pl: `${indent}px`, my: 0.5 }}>
-          <Box component="summary" sx={{ cursor: "pointer", listStyle: "none" }}>
+          <Box component="summary" sx={{ cursor: 'pointer', listStyle: 'none' }}>
             <Typography component="span">▸ {content.text}</Typography>
           </Box>
         </Box>
       )
-    case "QUOTE":
+    case 'QUOTE':
       return (
         <Typography
           sx={{
             pl: `${indent + 12}px`,
-            borderLeft: "3px solid",
-            borderColor: "divider",
+            borderLeft: '3px solid',
+            borderColor: 'divider',
             my: 1,
-            fontStyle: "italic",
+            fontStyle: 'italic',
           }}
         >
           {content.text}
         </Typography>
       )
-    case "CALLOUT":
+    case 'CALLOUT':
       return (
         <Box
           sx={{
-            display: "flex",
+            display: 'flex',
             gap: 1,
             p: 1.5,
             borderRadius: 1,
-            bgcolor: "action.hover",
+            bgcolor: 'action.hover',
             ml: `${indent}px`,
             my: 1,
           }}
         >
-          <Typography component="span">{content.emoji ?? "💡"}</Typography>
+          <Typography component="span">{content.emoji ?? '💡'}</Typography>
           <Typography>{content.text}</Typography>
         </Box>
       )
-    case "DIVIDER":
+    case 'DIVIDER':
       return (
         <Box
           component="hr"
           sx={{
             ml: `${indent}px`,
             border: 0,
-            borderTop: "1px solid",
-            borderColor: "divider",
+            borderTop: '1px solid',
+            borderColor: 'divider',
             my: 1.5,
           }}
         />
       )
-    case "CODE":
+    case 'CODE':
       return (
         <Box
           component="pre"
@@ -2547,10 +2547,10 @@ export function BlockRenderer({ block }: { block: Block & { depth: number } }) {
             ml: `${indent}px`,
             p: 1.5,
             borderRadius: 1,
-            bgcolor: "action.hover",
-            fontFamily: "var(--font-geist-mono)",
+            bgcolor: 'action.hover',
+            fontFamily: 'var(--font-geist-mono)',
             fontSize: 13,
-            overflowX: "auto",
+            overflowX: 'auto',
           }}
         >
           {content.text}
@@ -2565,11 +2565,11 @@ export function BlockRenderer({ block }: { block: Block & { depth: number } }) {
 - [ ] **Step 2: Create the page view**
 
 ```tsx
-import type { Block, Page } from "@repo/db"
+import type { Block, Page } from '@repo/db'
 
-import { Box, Stack, Typography } from "@repo/ui/components"
+import { Box, Stack, Typography } from '@repo/ui/components'
 
-import { BlockRenderer } from "./block-renderer"
+import { BlockRenderer } from './block-renderer'
 
 type Props = {
   page: Page
@@ -2578,12 +2578,12 @@ type Props = {
 
 export function PageView({ page, blocks }: Props) {
   return (
-    <Box sx={{ maxWidth: 720, mx: "auto", px: 3, py: 6 }}>
+    <Box sx={{ maxWidth: 720, mx: 'auto', px: 3, py: 6 }}>
       <Stack spacing={1} sx={{ mb: 4 }}>
         {page.icon ? (
           <Typography sx={{ fontSize: 40, lineHeight: 1 }}>{page.icon}</Typography>
         ) : null}
-        <Typography variant="h3">{page.title ?? "Untitled"}</Typography>
+        <Typography variant="h3">{page.title ?? 'Untitled'}</Typography>
       </Stack>
       {blocks.map((block) => (
         <BlockRenderer key={block.id} block={block} />
@@ -2618,10 +2618,10 @@ git commit -m "feat(web): PageView and BlockRenderer for data-driven pages"
 - [ ] **Step 1: Rewrite the page**
 
 ```tsx
-import { notFound } from "next/navigation"
+import { notFound } from 'next/navigation'
 
-import { getServerTRPC } from "@/trpc/server"
-import { PageView } from "@/components/page/page-view"
+import { getServerTRPC } from '@/trpc/server'
+import { PageView } from '@/components/page/page-view'
 
 type Props = { params: Promise<{ workspaceId: string }> }
 
@@ -2674,14 +2674,14 @@ git commit -m "feat(web): render workspace root via PageView from seeded blocks"
 - [ ] **Step 1: Create `SearchSidebarSection`**
 
 ```tsx
-"use client"
+'use client'
 
-import Link from "next/link"
-import { useState } from "react"
+import Link from 'next/link'
+import { useState } from 'react'
 
-import { Box, Stack, Typography } from "@repo/ui/components"
+import { Box, Stack, Typography } from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
 type Props = { workspaceId: string; collapsed: boolean }
 
@@ -2692,15 +2692,15 @@ export function SearchSidebarSection({ workspaceId, collapsed }: Props) {
 
   if (collapsed) {
     return (
-      <Link href={`/workspaces/${workspaceId}/search`} style={{ textDecoration: "none" }}>
+      <Link href={`/workspaces/${workspaceId}/search`} style={{ textDecoration: 'none' }}>
         <Box
           title="Поиск"
           sx={{
-            display: "flex",
-            justifyContent: "center",
+            display: 'flex',
+            justifyContent: 'center',
             py: 0.75,
-            color: "text.secondary",
-            "&:hover": { color: "text.primary" },
+            color: 'text.secondary',
+            '&:hover': { color: 'text.primary' },
           }}
         >
           ⌕
@@ -2714,19 +2714,19 @@ export function SearchSidebarSection({ workspaceId, collapsed }: Props) {
       <Box
         onClick={() => setOpen((prev) => !prev)}
         sx={{
-          display: "flex",
-          alignItems: "center",
+          display: 'flex',
+          alignItems: 'center',
           gap: 1,
           px: 1,
           py: 0.75,
-          cursor: "pointer",
-          color: "text.secondary",
-          "&:hover": { color: "text.primary" },
+          cursor: 'pointer',
+          color: 'text.secondary',
+          '&:hover': { color: 'text.primary' },
         }}
       >
         <span>⌕</span>
         <span style={{ fontSize: 13, flex: 1 }}>Поиск</span>
-        <span style={{ fontSize: 11 }}>{open ? "▾" : "▸"}</span>
+        <span style={{ fontSize: 11 }}>{open ? '▾' : '▸'}</span>
       </Box>
       {open ? (
         <Stack spacing={0.25} sx={{ pl: 3 }}>
@@ -2734,12 +2734,12 @@ export function SearchSidebarSection({ workspaceId, collapsed }: Props) {
             <Link
               key={chat.id}
               href={`/workspaces/${workspaceId}/search/${chat.id}`}
-              style={{ textDecoration: "none" }}
+              style={{ textDecoration: 'none' }}
             >
               <Typography
                 variant="body2"
                 noWrap
-                sx={{ py: 0.5, color: "text.secondary", "&:hover": { color: "text.primary" } }}
+                sx={{ py: 0.5, color: 'text.secondary', '&:hover': { color: 'text.primary' } }}
               >
                 {chat.title}
               </Typography>
@@ -2748,10 +2748,10 @@ export function SearchSidebarSection({ workspaceId, collapsed }: Props) {
           <Box
             onClick={() => create.mutate({ workspaceId })}
             sx={{
-              cursor: "pointer",
+              cursor: 'pointer',
               py: 0.5,
-              color: "text.disabled",
-              "&:hover": { color: "text.primary" },
+              color: 'text.disabled',
+              '&:hover': { color: 'text.primary' },
               fontSize: 13,
             }}
           >
@@ -2767,13 +2767,13 @@ export function SearchSidebarSection({ workspaceId, collapsed }: Props) {
 - [ ] **Step 2: Replace `WorkspaceSidebar`**
 
 ```tsx
-"use client"
+'use client'
 
-import Link from "next/link"
+import Link from 'next/link'
 
-import { Box, Stack, Tooltip, Typography } from "@repo/ui/components"
+import { Box, Stack, Tooltip, Typography } from '@repo/ui/components'
 
-import { SearchSidebarSection } from "./search-sidebar-section"
+import { SearchSidebarSection } from './search-sidebar-section'
 
 type Props = {
   workspace: { id: string; name: string; icon: string | null }
@@ -2798,14 +2798,14 @@ export function WorkspaceSidebar({
       component="aside"
       sx={{
         width,
-        borderRight: "1px solid",
-        borderColor: "divider",
-        display: "flex",
-        flexDirection: "column",
-        bgcolor: "background.paper",
+        borderRight: '1px solid',
+        borderColor: 'divider',
+        display: 'flex',
+        flexDirection: 'column',
+        bgcolor: 'background.paper',
         px: collapsed ? 0.5 : 1.25,
         py: 1.75,
-        transition: "width 150ms ease",
+        transition: 'width 150ms ease',
       }}
     >
       <Stack
@@ -2815,7 +2815,7 @@ export function WorkspaceSidebar({
         sx={{
           px: collapsed ? 0 : 1,
           pb: 1.75,
-          justifyContent: collapsed ? "center" : "flex-start",
+          justifyContent: collapsed ? 'center' : 'flex-start',
         }}
       >
         <Box
@@ -2823,14 +2823,14 @@ export function WorkspaceSidebar({
             width: 24,
             height: 24,
             borderRadius: 0.75,
-            background: "linear-gradient(135deg,#0f766e,#155e75)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            background: 'linear-gradient(135deg,#0f766e,#155e75)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             fontSize: 14,
           }}
         >
-          {workspace.icon ?? "📒"}
+          {workspace.icon ?? '📒'}
         </Box>
         {collapsed ? null : (
           <Stack spacing={0}>
@@ -2855,7 +2855,7 @@ export function WorkspaceSidebar({
       {collapsed ? null : (
         <Typography
           variant="overline"
-          sx={{ color: "text.disabled", px: 1, pt: 2, pb: 0.5, letterSpacing: "0.06em" }}
+          sx={{ color: 'text.disabled', px: 1, pt: 2, pb: 0.5, letterSpacing: '0.06em' }}
         >
           Страницы
         </Typography>
@@ -2864,8 +2864,8 @@ export function WorkspaceSidebar({
         {pages.map((page) => (
           <NavItem
             key={page.id}
-            icon={page.icon ?? "📄"}
-            label={page.title ?? "Untitled"}
+            icon={page.icon ?? '📄'}
+            label={page.title ?? 'Untitled'}
             href={`/workspaces/${workspace.id}`}
             collapsed={collapsed}
           />
@@ -2875,24 +2875,24 @@ export function WorkspaceSidebar({
 
       <Box sx={{ flex: 1 }} />
 
-      <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 1.25 }}>
+      <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1.25 }}>
         <NavItem icon="🗑" label="Корзина" href="#" collapsed={collapsed} muted />
       </Box>
 
       <Box
         onClick={onToggleCollapsed}
         sx={{
-          cursor: "pointer",
-          textAlign: "center",
-          color: "text.disabled",
+          cursor: 'pointer',
+          textAlign: 'center',
+          color: 'text.disabled',
           py: 0.75,
-          "&:hover": { color: "text.primary" },
+          '&:hover': { color: 'text.primary' },
         }}
       >
-        {collapsed ? "▸" : "◂"}
+        {collapsed ? '▸' : '◂'}
       </Box>
 
-      <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 1 }}>{userMenu}</Box>
+      <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>{userMenu}</Box>
     </Box>
   )
 }
@@ -2917,17 +2917,17 @@ function NavItem({
       component={Link}
       href={href}
       sx={{
-        display: "flex",
-        alignItems: "center",
+        display: 'flex',
+        alignItems: 'center',
         gap: 1,
         px: collapsed ? 0 : 1,
         py: 0.75,
-        justifyContent: collapsed ? "center" : "flex-start",
+        justifyContent: collapsed ? 'center' : 'flex-start',
         borderRadius: 0.75,
-        textDecoration: "none",
-        color: active ? "text.primary" : muted ? "text.disabled" : "text.secondary",
-        backgroundColor: active ? "action.selected" : "transparent",
-        "&:hover": { backgroundColor: active ? "action.selected" : "action.hover" },
+        textDecoration: 'none',
+        color: active ? 'text.primary' : muted ? 'text.disabled' : 'text.secondary',
+        backgroundColor: active ? 'action.selected' : 'transparent',
+        '&:hover': { backgroundColor: active ? 'action.selected' : 'action.hover' },
         fontSize: 13,
       }}
     >
@@ -2973,14 +2973,14 @@ git commit -m "feat(web): workspace sidebar with search section and collapse"
 - [ ] **Step 1: Create the component**
 
 ```tsx
-"use client"
+'use client'
 
-import Link from "next/link"
-import { useState } from "react"
+import Link from 'next/link'
+import { useState } from 'react'
 
-import { Avatar, Box, Menu, MenuItem, Stack, Typography } from "@repo/ui/components"
+import { Avatar, Box, Menu, MenuItem, Stack, Typography } from '@repo/ui/components'
 
-import { signOut } from "@/lib/auth-client"
+import { signOut } from '@/lib/auth-client'
 
 type Props = {
   user: { firstName: string; lastName: string; email: string }
@@ -2996,14 +2996,14 @@ export function WorkspaceUserMenu({ user, collapsed }: Props) {
       <Box
         onClick={(event) => setAnchor(event.currentTarget)}
         sx={{
-          display: "flex",
-          alignItems: "center",
+          display: 'flex',
+          alignItems: 'center',
           gap: 1,
           p: 0.75,
           borderRadius: 0.75,
-          cursor: "pointer",
-          justifyContent: collapsed ? "center" : "flex-start",
-          "&:hover": { bgcolor: "action.hover" },
+          cursor: 'pointer',
+          justifyContent: collapsed ? 'center' : 'flex-start',
+          '&:hover': { bgcolor: 'action.hover' },
         }}
       >
         <Avatar
@@ -3011,7 +3011,7 @@ export function WorkspaceUserMenu({ user, collapsed }: Props) {
             width: 28,
             height: 28,
             fontSize: 13,
-            background: "linear-gradient(135deg,#0f766e,#155e75)",
+            background: 'linear-gradient(135deg,#0f766e,#155e75)',
           }}
         >
           {initials}
@@ -3075,7 +3075,7 @@ git commit -m "feat(web): workspace footer user menu"
 - [ ] **Step 1: Replace the file**
 
 ```tsx
-import { Box, Stack, Typography } from "@repo/ui/components"
+import { Box, Stack, Typography } from '@repo/ui/components'
 
 type Props = {
   pageTitle: string
@@ -3092,12 +3092,12 @@ export function WorkspaceToolbar({ pageTitle, pageIcon, editedLabel }: Props) {
       sx={{
         px: 2,
         py: 1.25,
-        borderBottom: "1px solid",
-        borderColor: "divider",
+        borderBottom: '1px solid',
+        borderColor: 'divider',
       }}
     >
       <Typography variant="body2" noWrap>
-        {pageIcon ? `${pageIcon} ` : ""}
+        {pageIcon ? `${pageIcon} ` : ''}
         {pageTitle}
       </Typography>
       <Typography variant="body2" color="text.secondary">
@@ -3143,15 +3143,15 @@ rm -f apps/web/src/components/workspace/cookie-banner.tsx
 - [ ] **Step 2: Rewrite the workspace layout**
 
 ```tsx
-import { notFound } from "next/navigation"
+import { notFound } from 'next/navigation'
 
-import { getServerTRPC } from "@/trpc/server"
-import { requireSession } from "@/lib/get-session"
-import { WorkspaceShell } from "@/components/workspace/workspace-shell"
-import { WorkspaceSidebar } from "@/components/workspace/workspace-sidebar"
-import { WorkspaceToolbar } from "@/components/workspace/workspace-toolbar"
-import { WorkspaceUserMenu } from "@/components/workspace/workspace-user-menu"
-import { WorkspaceLayoutClient } from "@/components/workspace/workspace-layout-client"
+import { getServerTRPC } from '@/trpc/server'
+import { requireSession } from '@/lib/get-session'
+import { WorkspaceShell } from '@/components/workspace/workspace-shell'
+import { WorkspaceSidebar } from '@/components/workspace/workspace-sidebar'
+import { WorkspaceToolbar } from '@/components/workspace/workspace-toolbar'
+import { WorkspaceUserMenu } from '@/components/workspace/workspace-user-menu'
+import { WorkspaceLayoutClient } from '@/components/workspace/workspace-layout-client'
 
 type Props = {
   children: React.ReactNode
@@ -3177,7 +3177,7 @@ export default async function WorkspaceLayout({ children, params }: Props) {
         lastName: session.user.lastName,
         email: session.user.email,
       }}
-      firstPageTitle={pages[0]?.title ?? "Untitled"}
+      firstPageTitle={pages[0]?.title ?? 'Untitled'}
       firstPageIcon={pages[0]?.icon ?? null}
     >
       {children}
@@ -3191,16 +3191,16 @@ export default async function WorkspaceLayout({ children, params }: Props) {
 `apps/web/src/components/workspace/workspace-layout-client.tsx`:
 
 ```tsx
-"use client"
+'use client'
 
-import { useEffect, useState, type ReactNode } from "react"
+import { useEffect, useState, type ReactNode } from 'react'
 
-import { Box } from "@repo/ui/components"
+import { Box } from '@repo/ui/components'
 
-import { WorkspaceShell } from "./workspace-shell"
-import { WorkspaceSidebar } from "./workspace-sidebar"
-import { WorkspaceToolbar } from "./workspace-toolbar"
-import { WorkspaceUserMenu } from "./workspace-user-menu"
+import { WorkspaceShell } from './workspace-shell'
+import { WorkspaceSidebar } from './workspace-sidebar'
+import { WorkspaceToolbar } from './workspace-toolbar'
+import { WorkspaceUserMenu } from './workspace-user-menu'
 
 type Props = {
   workspace: { id: string; name: string; icon: string | null }
@@ -3212,7 +3212,7 @@ type Props = {
   children: ReactNode
 }
 
-const STORAGE_KEY = "workspace.sidebar.collapsed"
+const STORAGE_KEY = 'workspace.sidebar.collapsed'
 
 export function WorkspaceLayoutClient({
   workspace,
@@ -3227,7 +3227,7 @@ export function WorkspaceLayoutClient({
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY)
-    if (stored === "true") setCollapsed(true)
+    if (stored === 'true') setCollapsed(true)
   }, [])
 
   useEffect(() => {
@@ -3290,50 +3290,50 @@ git commit -m "refactor(web): remove AI panel, wire collapsible shell"
 Edit `apps/e2e/workspace-flow.spec.ts` so it no longer expects "Главная" and clicks the new settings link. Focus on three assertions: sign up → reach workspace → open `/workspaces/[id]/settings/general` via sidebar Settings → see the rename card.
 
 ```ts
-import { test, expect } from "@playwright/test"
+import { test, expect } from '@playwright/test'
 
 const email = `review+${Date.now()}@example.com`
-const password = "SuperSecure123!"
+const password = 'SuperSecure123!'
 
-test("workspace + settings happy path", async ({ page }) => {
-  await page.goto("/sign-up")
-  await page.getByRole("textbox", { name: "Email" }).fill(email)
-  await page.getByRole("textbox", { name: "Фамилия" }).fill("Ревьюер")
-  await page.getByRole("textbox", { name: "Имя" }).fill("Тест")
-  await page.getByRole("textbox", { name: /^пароль$/i }).fill(password)
-  await page.getByRole("textbox", { name: "Повторите пароль" }).fill(password)
-  await page.getByRole("button", { name: "Зарегистрироваться" }).click()
+test('workspace + settings happy path', async ({ page }) => {
+  await page.goto('/sign-up')
+  await page.getByRole('textbox', { name: 'Email' }).fill(email)
+  await page.getByRole('textbox', { name: 'Фамилия' }).fill('Ревьюер')
+  await page.getByRole('textbox', { name: 'Имя' }).fill('Тест')
+  await page.getByRole('textbox', { name: /^пароль$/i }).fill(password)
+  await page.getByRole('textbox', { name: 'Повторите пароль' }).fill(password)
+  await page.getByRole('button', { name: 'Зарегистрироваться' }).click()
 
   await page.waitForURL(/\/workspaces\/new/)
-  await page.getByRole("textbox", { name: "Название" }).fill("Рабочее пространство")
-  await page.getByRole("button", { name: "Создать пространство" }).click()
+  await page.getByRole('textbox', { name: 'Название' }).fill('Рабочее пространство')
+  await page.getByRole('button', { name: 'Создать пространство' }).click()
 
   await page.waitForURL(/\/workspaces\/[a-f0-9-]+$/)
-  await expect(page.getByRole("heading", { name: "Welcome to AnyNote" })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Welcome to AnyNote' })).toBeVisible()
 
-  await page.getByRole("link", { name: "Настройки" }).click()
+  await page.getByRole('link', { name: 'Настройки' }).click()
   await page.waitForURL(/\/settings\/general$/)
-  await expect(page.getByRole("heading", { name: "Общее" })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Общее' })).toBeVisible()
 })
 
-test("free plan blocks second workspace create", async ({ page }) => {
+test('free plan blocks second workspace create', async ({ page }) => {
   const email2 = `review2+${Date.now()}@example.com`
-  await page.goto("/sign-up")
-  await page.getByRole("textbox", { name: "Email" }).fill(email2)
-  await page.getByRole("textbox", { name: "Фамилия" }).fill("Ревьюер")
-  await page.getByRole("textbox", { name: "Имя" }).fill("Тест")
-  await page.getByRole("textbox", { name: /^пароль$/i }).fill(password)
-  await page.getByRole("textbox", { name: "Повторите пароль" }).fill(password)
-  await page.getByRole("button", { name: "Зарегистрироваться" }).click()
+  await page.goto('/sign-up')
+  await page.getByRole('textbox', { name: 'Email' }).fill(email2)
+  await page.getByRole('textbox', { name: 'Фамилия' }).fill('Ревьюер')
+  await page.getByRole('textbox', { name: 'Имя' }).fill('Тест')
+  await page.getByRole('textbox', { name: /^пароль$/i }).fill(password)
+  await page.getByRole('textbox', { name: 'Повторите пароль' }).fill(password)
+  await page.getByRole('button', { name: 'Зарегистрироваться' }).click()
 
   await page.waitForURL(/\/workspaces\/new/)
-  await page.getByRole("textbox", { name: "Название" }).fill("Первое")
-  await page.getByRole("button", { name: "Создать пространство" }).click()
+  await page.getByRole('textbox', { name: 'Название' }).fill('Первое')
+  await page.getByRole('button', { name: 'Создать пространство' }).click()
   await page.waitForURL(/\/workspaces\/[a-f0-9-]+$/)
 
-  await page.goto("/workspaces/new")
-  await page.getByRole("textbox", { name: "Название" }).fill("Второе")
-  await page.getByRole("button", { name: "Создать пространство" }).click()
+  await page.goto('/workspaces/new')
+  await page.getByRole('textbox', { name: 'Название' }).fill('Второе')
+  await page.getByRole('button', { name: 'Создать пространство' }).click()
   await expect(page.getByText(/можно создать не больше/)).toBeVisible()
 })
 ```

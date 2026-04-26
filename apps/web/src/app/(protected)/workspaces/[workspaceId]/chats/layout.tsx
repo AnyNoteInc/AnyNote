@@ -1,5 +1,5 @@
-import { notFound } from "next/navigation"
-import { getWorkspaceFeatures } from "@repo/trpc"
+import { notFound } from 'next/navigation'
+import { getWorkspaceFeatures } from '@repo/trpc'
 
 export default async function ChatsLayout({
   params,

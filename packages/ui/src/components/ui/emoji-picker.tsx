@@ -1,7 +1,7 @@
-"use client"
+'use client'
 
-import Picker, { EmojiStyle, Theme as EmojiTheme, type EmojiClickData } from "emoji-picker-react"
-import { useTheme } from "@mui/material/styles"
+import Picker, { EmojiStyle, Theme as EmojiTheme, type EmojiClickData } from 'emoji-picker-react'
+import { useTheme } from '@mui/material/styles'
 
 export type EmojiPickerProps = {
   onSelect: (emoji: string) => void
@@ -11,7 +11,7 @@ export type EmojiPickerProps = {
 
 export function EmojiPicker({ onSelect, width = 320, height = 400 }: EmojiPickerProps) {
   const muiTheme = useTheme()
-  const theme = muiTheme.palette.mode === "dark" ? EmojiTheme.DARK : EmojiTheme.LIGHT
+  const theme = muiTheme.palette.mode === 'dark' ? EmojiTheme.DARK : EmojiTheme.LIGHT
   return (
     <Picker
       onEmojiClick={(data: EmojiClickData) => onSelect(data.emoji)}

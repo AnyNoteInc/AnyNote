@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import {
   Box,
@@ -10,11 +10,11 @@ import {
   Stack,
   TextField,
   Typography,
-} from "@mui/material"
-import type { Editor } from "@tiptap/core"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+} from '@mui/material'
+import type { Editor } from '@tiptap/core'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 
-import type { PageLookupItem, SlashRange, VirtualAnchor } from "../types"
+import type { PageLookupItem, SlashRange, VirtualAnchor } from '../types'
 
 type Props = {
   open: boolean
@@ -37,7 +37,7 @@ export function PageLinkPopover({
   pageSearch,
   onClose,
 }: Props) {
-  const [query, setQuery] = useState("")
+  const [query, setQuery] = useState('')
   const [results, setResults] = useState<PageLookupItem[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -59,7 +59,7 @@ export function PageLinkPopover({
         })
         .catch(() => {
           if (reqIdRef.current !== id) return
-          setError("Ошибка поиска")
+          setError('Ошибка поиска')
           setLoading(false)
         })
     }, DEBOUNCE_MS)
@@ -68,7 +68,7 @@ export function PageLinkPopover({
 
   useEffect(() => {
     if (!open) {
-      setQuery("")
+      setQuery('')
       setResults([])
       setActive(0)
     }
@@ -83,14 +83,14 @@ export function PageLinkPopover({
         .deleteRange(range)
         .insertContent([
           {
-            type: "pageLink",
+            type: 'pageLink',
             attrs: {
               pageId: item.id,
               workspaceId,
-              title: item.title || "Без названия",
+              title: item.title || 'Без названия',
             },
           },
-          { type: "text", text: " " },
+          { type: 'text', text: ' ' },
         ])
         .run()
       onClose()
@@ -101,13 +101,13 @@ export function PageLinkPopover({
   const handleKeyDown = useCallback(
     (event: React.KeyboardEvent<HTMLInputElement>) => {
       if (results.length === 0) return
-      if (event.key === "ArrowDown") {
+      if (event.key === 'ArrowDown') {
         event.preventDefault()
         setActive((i) => (i + 1) % results.length)
-      } else if (event.key === "ArrowUp") {
+      } else if (event.key === 'ArrowUp') {
         event.preventDefault()
         setActive((i) => (i - 1 + results.length) % results.length)
-      } else if (event.key === "Enter") {
+      } else if (event.key === 'Enter') {
         event.preventDefault()
         const item = results[active]
         if (item) insertLink(item)
@@ -119,7 +119,7 @@ export function PageLinkPopover({
   const content = useMemo(() => {
     if (loading) {
       return (
-        <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+        <Box sx={{ display: 'flex', justifyContent: 'center', py: 2 }}>
           <CircularProgress size={20} />
         </Box>
       )
@@ -139,7 +139,7 @@ export function PageLinkPopover({
       )
     }
     return (
-      <List dense disablePadding sx={{ maxHeight: 280, overflow: "auto" }}>
+      <List dense disablePadding sx={{ maxHeight: 280, overflow: 'auto' }}>
         {results.map((item, idx) => (
           <ListItemButton
             key={item.id}
@@ -151,14 +151,14 @@ export function PageLinkPopover({
               component="span"
               sx={{
                 width: 18,
-                textAlign: "center",
-                color: "text.secondary",
+                textAlign: 'center',
+                color: 'text.secondary',
                 fontSize: 14,
               }}
             >
-              {item.icon || "📄"}
+              {item.icon || '📄'}
             </Box>
-            <ListItemText primary={item.title || "Без названия"} />
+            <ListItemText primary={item.title || 'Без названия'} />
           </ListItemButton>
         ))}
       </List>
@@ -170,12 +170,12 @@ export function PageLinkPopover({
       open={open}
       anchorEl={anchorEl as Element | null}
       onClose={onClose}
-      anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-      transformOrigin={{ vertical: "top", horizontal: "left" }}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      transformOrigin={{ vertical: 'top', horizontal: 'left' }}
       slotProps={{ paper: { sx: { width: 340 } } }}
     >
       <Stack>
-        <Box sx={{ p: 1.5, borderBottom: 1, borderColor: "divider" }}>
+        <Box sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider' }}>
           <TextField
             autoFocus
             size="small"

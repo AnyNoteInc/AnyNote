@@ -1,8 +1,8 @@
-import { headers } from "next/headers"
-import { redirect } from "next/navigation"
+import { headers } from 'next/headers'
+import { redirect } from 'next/navigation'
 
-import { auth } from "@repo/auth"
-import { getSession } from "@/lib/get-session"
+import { auth } from '@repo/auth'
+import { getSession } from '@/lib/get-session'
 
 export default async function SignOutPage() {
   if (await getSession()) {
@@ -10,5 +10,5 @@ export default async function SignOutPage() {
       headers: await headers(),
     })
   }
-  redirect("/")
+  redirect('/')
 }

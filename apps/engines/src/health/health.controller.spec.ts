@@ -1,8 +1,8 @@
-import { Test, TestingModule } from "@nestjs/testing"
+import { Test, TestingModule } from '@nestjs/testing'
 
-import { HealthController } from "./health.controller.js"
+import { HealthController } from './health.controller.js'
 
-describe("HealthController", () => {
+describe('HealthController', () => {
   let controller: HealthController
 
   beforeEach(async () => {
@@ -12,7 +12,7 @@ describe("HealthController", () => {
     controller = moduleRef.get(HealthController)
   })
 
-  it("returns ok status", () => {
-    expect(controller.health()).toEqual({ status: "ok" })
+  it('returns ok status', () => {
+    expect(controller.health()).toEqual({ status: 'ok' })
   })
 })

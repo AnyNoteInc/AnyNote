@@ -1,11 +1,11 @@
-"use client"
+'use client'
 
-import { Alert, Box, Button, CircularProgress, Popover, Stack, Typography } from "@mui/material"
-import type { Editor } from "@tiptap/core"
-import { marked } from "marked"
-import { useCallback, useId, useRef, useState } from "react"
+import { Alert, Box, Button, CircularProgress, Popover, Stack, Typography } from '@mui/material'
+import type { Editor } from '@tiptap/core'
+import { marked } from 'marked'
+import { useCallback, useId, useRef, useState } from 'react'
 
-import type { SlashRange, VirtualAnchor } from "../types"
+import type { SlashRange, VirtualAnchor } from '../types'
 
 type Props = {
   open: boolean
@@ -20,7 +20,7 @@ type Props = {
 // force us to thread promises through the insert flow.
 const parseMarkdown = (source: string): string => {
   const out = marked.parse(source, { async: false, gfm: true })
-  return typeof out === "string" ? out : ""
+  return typeof out === 'string' ? out : ''
 }
 
 export function MarkdownUploadPopover({ open, anchorEl, range, editor, onClose }: Props) {
@@ -32,7 +32,7 @@ export function MarkdownUploadPopover({ open, anchorEl, range, editor, onClose }
   const reset = useCallback(() => {
     setBusy(false)
     setError(null)
-    if (fileInputRef.current) fileInputRef.current.value = ""
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }, [])
 
   const handleClose = useCallback(() => {
@@ -44,14 +44,14 @@ export function MarkdownUploadPopover({ open, anchorEl, range, editor, onClose }
   const handleFileSelected = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0]
-      if (fileInputRef.current) fileInputRef.current.value = ""
+      if (fileInputRef.current) fileInputRef.current.value = ''
       if (!file || !range) return
       setBusy(true)
       setError(null)
       try {
         const text = await file.text()
         if (!text.trim()) {
-          setError("Файл пуст")
+          setError('Файл пуст')
           setBusy(false)
           return
         }
@@ -60,7 +60,7 @@ export function MarkdownUploadPopover({ open, anchorEl, range, editor, onClose }
         reset()
         onClose()
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Не удалось разобрать Markdown")
+        setError(err instanceof Error ? err.message : 'Не удалось разобрать Markdown')
         setBusy(false)
       }
     },
@@ -72,8 +72,8 @@ export function MarkdownUploadPopover({ open, anchorEl, range, editor, onClose }
       open={open}
       anchorEl={anchorEl as Element | null}
       onClose={handleClose}
-      anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-      transformOrigin={{ vertical: "top", horizontal: "left" }}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      transformOrigin={{ vertical: 'top', horizontal: 'left' }}
       slotProps={{ paper: { sx: { width: 360 } } }}
     >
       <Box sx={{ p: 2 }}>
@@ -86,7 +86,7 @@ export function MarkdownUploadPopover({ open, anchorEl, range, editor, onClose }
             fullWidth
             startIcon={busy ? <CircularProgress size={16} color="inherit" /> : null}
           >
-            {busy ? "Разбор..." : "Выбрать .md файл"}
+            {busy ? 'Разбор...' : 'Выбрать .md файл'}
             <input
               id={fileInputId}
               ref={fileInputRef}

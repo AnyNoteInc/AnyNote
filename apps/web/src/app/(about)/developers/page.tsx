@@ -1,12 +1,12 @@
-import type { Metadata } from "next"
+import type { Metadata } from 'next'
 
-import { Box, Chip, Paper, Stack, Typography } from "@repo/ui/components"
+import { Box, Chip, Paper, Stack, Typography } from '@repo/ui/components'
 
-import { integrationCards } from "@/components/public/content"
-import { PublicPageShell } from "@/components/public/public-page-shell"
+import { integrationCards } from '@/components/public/content'
+import { PublicPageShell } from '@/components/public/public-page-shell'
 
 export const metadata: Metadata = {
-  title: "Для разработчиков",
+  title: 'Для разработчиков',
 }
 
 export default function DevelopersPage() {
@@ -18,8 +18,8 @@ export default function DevelopersPage() {
     >
       <Box
         sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
           gap: 3,
         }}
       >
@@ -30,8 +30,8 @@ export default function DevelopersPage() {
             sx={{
               p: 3,
               borderRadius: 2,
-              border: "1px solid rgba(148,163,184,0.16)",
-              backgroundColor: "background.paper",
+              border: '1px solid rgba(148,163,184,0.16)',
+              backgroundColor: 'background.paper',
             }}
           >
             <Stack spacing={2}>

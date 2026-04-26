@@ -1,10 +1,10 @@
-import { Command, CommandRunner } from "nest-commander"
+import { Command, CommandRunner } from 'nest-commander'
 
-import { BackfillReindexService } from "../services/backfill-reindex.service.js"
+import { BackfillReindexService } from '../services/backfill-reindex.service.js'
 
 @Command({
-  name: "backfill-reindex",
-  description: "Re-emit OutboxEvent for all TEXT pages",
+  name: 'backfill-reindex',
+  description: 'Re-emit OutboxEvent for all TEXT pages',
 })
 export class BackfillReindexCommand extends CommandRunner {
   constructor(private readonly backfill: BackfillReindexService) {

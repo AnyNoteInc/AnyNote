@@ -6,15 +6,8 @@ import type {
   PersonId,
   PregnancyLossId,
   UnionId,
-} from "./ids"
-import type {
-  Annotation,
-  BirthGroup,
-  ChildGroup,
-  Person,
-  PregnancyLoss,
-  Union,
-} from "./domain"
+} from './ids'
+import type { Annotation, BirthGroup, ChildGroup, Person, PregnancyLoss, Union } from './domain'
 
 export interface Viewport {
   x: number
@@ -22,7 +15,7 @@ export interface Viewport {
   zoom: number
 }
 
-export type LayoutMode = "auto" | "manual" | "mixed"
+export type LayoutMode = 'auto' | 'manual' | 'mixed'
 
 export interface LayoutMetadata {
   mode: LayoutMode

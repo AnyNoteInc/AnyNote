@@ -1,7 +1,7 @@
-import { Inject, Injectable } from "@nestjs/common"
-import type { PrismaClient } from "@repo/db"
+import { Inject, Injectable } from '@nestjs/common'
+import type { PrismaClient } from '@repo/db'
 
-import { PRISMA } from "../../../infra/db/db.providers.js"
+import { PRISMA } from '../../../infra/db/db.providers.js'
 
 @Injectable()
 export class PlanFeaturesService {
@@ -14,7 +14,7 @@ export class PlanFeaturesService {
     })
     if (!ws?.createdById) return false
     const sub = await this.prisma.subscription.findFirst({
-      where: { userId: ws.createdById, status: "ACTIVE" },
+      where: { userId: ws.createdById, status: 'ACTIVE' },
       select: { plan: { select: { pageIndexingEnabled: true } } },
     })
     return Boolean(sub?.plan.pageIndexingEnabled)

@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import {
   Avatar,
@@ -11,9 +11,9 @@ import {
   TableRow,
   Tooltip,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { FileExtIcon } from "./file-ext-icon"
+import { FileExtIcon } from './file-ext-icon'
 
 type RowUser = {
   id: string
@@ -42,12 +42,12 @@ type Props = {
 
 const formatMb = (bytes: string) => {
   const num = Number(bytes)
-  if (!Number.isFinite(num)) return "—"
+  if (!Number.isFinite(num)) return '—'
   return `${(num / (1024 * 1024)).toFixed(2)} МБ`
 }
 
 const fullName = (user: RowUser) => {
-  const joined = [user.firstName, user.lastName].filter(Boolean).join(" ").trim()
+  const joined = [user.firstName, user.lastName].filter(Boolean).join(' ').trim()
   return joined || user.email
 }
 
@@ -70,13 +70,13 @@ export function FilesTableRow({ file, currentUserId, onRequestDelete }: Props) {
               rel="noreferrer"
               variant="body2"
               sx={{
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
                 minWidth: 0,
-                color: "text.primary",
-                textDecoration: "none",
-                "&:hover": { textDecoration: "underline" },
+                color: 'text.primary',
+                textDecoration: 'none',
+                '&:hover': { textDecoration: 'underline' },
               }}
             >
               {file.name}
@@ -87,11 +87,8 @@ export function FilesTableRow({ file, currentUserId, onRequestDelete }: Props) {
       <TableCell align="right">{formatMb(file.fileSize)}</TableCell>
       <TableCell align="right">{file.downloadCount}</TableCell>
       <TableCell>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
-          <Avatar
-            src={file.user.image ?? undefined}
-            sx={{ width: 24, height: 24, fontSize: 12 }}
-          >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+          <Avatar src={file.user.image ?? undefined} sx={{ width: 24, height: 24, fontSize: 12 }}>
             {initials(file.user)}
           </Avatar>
           <Typography variant="body2" noWrap>

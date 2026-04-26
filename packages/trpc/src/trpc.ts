@@ -1,8 +1,8 @@
-import { initTRPC, TRPCError } from "@trpc/server"
+import { initTRPC, TRPCError } from '@trpc/server'
 
-import { prisma } from "@repo/db"
-import { getUserFromRequest } from "@repo/auth"
-import type { CreatePaymentInput, Payment } from "@repo/yookassa"
+import { prisma } from '@repo/db'
+import { getUserFromRequest } from '@repo/auth'
+import type { CreatePaymentInput, Payment } from '@repo/yookassa'
 
 type YookassaClientLike = {
   createPayment(input: CreatePaymentInput, idempotencyKey: string): Promise<Payment>
@@ -15,7 +15,12 @@ type CreateContextOptions = {
   returnUrlBase: string
 }
 
-export const createContext = async ({ req, resHeaders, yookassa, returnUrlBase }: CreateContextOptions) => {
+export const createContext = async ({
+  req,
+  resHeaders,
+  yookassa,
+  returnUrlBase,
+}: CreateContextOptions) => {
   const user = await getUserFromRequest(req, resHeaders)
   return {
     prisma,
@@ -33,7 +38,7 @@ export const createServerContext = async (
   returnUrlBase: string,
 ) => {
   return createContext({
-    req: new Request("http://rsc.internal", { headers }),
+    req: new Request('http://rsc.internal', { headers }),
     resHeaders: new Headers(),
     yookassa,
     returnUrlBase,
@@ -50,7 +55,7 @@ export const createCallerFactory = t.createCallerFactory
 
 export const protectedProcedure = t.procedure.use(({ ctx, next }) => {
   if (!ctx.user) {
-    throw new TRPCError({ code: "UNAUTHORIZED", message: "Session required" })
+    throw new TRPCError({ code: 'UNAUTHORIZED', message: 'Session required' })
   }
   return next({ ctx: { ...ctx, user: ctx.user } })
 })

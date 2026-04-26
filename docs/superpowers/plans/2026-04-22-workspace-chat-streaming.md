@@ -16,82 +16,82 @@
 
 ### Database and Prisma
 
-| Path | Responsibility | Task |
-|------|----------------|------|
-| `packages/db/prisma/schema.prisma` | Add `ChatMessageStatus`, `updatedAt`, `errorMessage` | T1 |
-| `packages/db/prisma/migrations/20260422093000_chat_message_streaming_status/migration.sql` | Persist enum + columns + backfill | T1 |
+| Path                                                                                       | Responsibility                                       | Task |
+| ------------------------------------------------------------------------------------------ | ---------------------------------------------------- | ---- |
+| `packages/db/prisma/schema.prisma`                                                         | Add `ChatMessageStatus`, `updatedAt`, `errorMessage` | T1   |
+| `packages/db/prisma/migrations/20260422093000_chat_message_streaming_status/migration.sql` | Persist enum + columns + backfill                    | T1   |
 
 ### `packages/ui`
 
-| Path | Responsibility | Task |
-|------|----------------|------|
-| `packages/ui/package.json` | Add `@mui/x-chat` + test tooling | T2 |
-| `packages/ui/src/components/index.ts` | Re-export new chat components | T2 |
-| `packages/ui/src/components/chat/chat-types.ts` | Shared AnyNote chat DTO and transient service-block types | T2 |
-| `packages/ui/src/components/chat/mui-chat-augmentation.d.ts` | Register custom `file` and `service-status` parts for `@mui/x-chat` | T2 |
-| `packages/ui/src/components/chat/chat-thread.tsx` | Thread shell composing list + composer under breadcrumbs page shell | T2 |
-| `packages/ui/src/components/chat/chat-message-list.tsx` | Message list wrapper and item rendering | T2 |
-| `packages/ui/src/components/chat/chat-message-content.tsx` | `parts` rendering for `text`, `file`, and transient `service-status` | T2 |
-| `packages/ui/src/components/chat/chat-composer.tsx` | Plain-text composer with embedded attach/send icons and draft file chips | T2 |
-| `packages/ui/src/components/chat/chat-file-chip.tsx` | Draft attachment chip | T2 |
-| `packages/ui/src/components/chat/chat-service-block.tsx` | Tool/confirmation block inside assistant message | T2 |
-| `packages/ui/src/components/chat/chat-empty-state.tsx` | Empty-thread placeholder | T2 |
-| `packages/ui/src/components/chat/index.ts` | Barrel export | T2 |
-| `packages/ui/test/chat-message-content.test.tsx` | Parts rendering contract tests | T2 |
-| `packages/ui/test/chat-composer.test.tsx` | Composer interaction tests | T2 |
-| `packages/ui/vitest.config.ts` | UI package test config | T2 |
+| Path                                                         | Responsibility                                                           | Task |
+| ------------------------------------------------------------ | ------------------------------------------------------------------------ | ---- |
+| `packages/ui/package.json`                                   | Add `@mui/x-chat` + test tooling                                         | T2   |
+| `packages/ui/src/components/index.ts`                        | Re-export new chat components                                            | T2   |
+| `packages/ui/src/components/chat/chat-types.ts`              | Shared AnyNote chat DTO and transient service-block types                | T2   |
+| `packages/ui/src/components/chat/mui-chat-augmentation.d.ts` | Register custom `file` and `service-status` parts for `@mui/x-chat`      | T2   |
+| `packages/ui/src/components/chat/chat-thread.tsx`            | Thread shell composing list + composer under breadcrumbs page shell      | T2   |
+| `packages/ui/src/components/chat/chat-message-list.tsx`      | Message list wrapper and item rendering                                  | T2   |
+| `packages/ui/src/components/chat/chat-message-content.tsx`   | `parts` rendering for `text`, `file`, and transient `service-status`     | T2   |
+| `packages/ui/src/components/chat/chat-composer.tsx`          | Plain-text composer with embedded attach/send icons and draft file chips | T2   |
+| `packages/ui/src/components/chat/chat-file-chip.tsx`         | Draft attachment chip                                                    | T2   |
+| `packages/ui/src/components/chat/chat-service-block.tsx`     | Tool/confirmation block inside assistant message                         | T2   |
+| `packages/ui/src/components/chat/chat-empty-state.tsx`       | Empty-thread placeholder                                                 | T2   |
+| `packages/ui/src/components/chat/index.ts`                   | Barrel export                                                            | T2   |
+| `packages/ui/test/chat-message-content.test.tsx`             | Parts rendering contract tests                                           | T2   |
+| `packages/ui/test/chat-composer.test.tsx`                    | Composer interaction tests                                               | T2   |
+| `packages/ui/vitest.config.ts`                               | UI package test config                                                   | T2   |
 
 ### `packages/trpc`
 
-| Path | Responsibility | Task |
-|------|----------------|------|
-| `packages/trpc/package.json` | Add test script/deps if missing | T3 |
-| `packages/trpc/src/routers/chat.ts` | Normalize messages to DTOs and delete `sendMessage` mutation | T3 |
-| `packages/trpc/test/chat-router.test.ts` | Router normalization + removal regression tests | T3 |
-| `packages/trpc/vitest.config.ts` | tRPC package test config | T3 |
+| Path                                     | Responsibility                                               | Task |
+| ---------------------------------------- | ------------------------------------------------------------ | ---- |
+| `packages/trpc/package.json`             | Add test script/deps if missing                              | T3   |
+| `packages/trpc/src/routers/chat.ts`      | Normalize messages to DTOs and delete `sendMessage` mutation | T3   |
+| `packages/trpc/test/chat-router.test.ts` | Router normalization + removal regression tests              | T3   |
+| `packages/trpc/vitest.config.ts`         | tRPC package test config                                     | T3   |
 
 ### `apps/agents`
 
-| Path | Responsibility | Task |
-|------|----------------|------|
-| `apps/agents/agents/apps/chat/schemas.py` | Extend `ServerEvent` with structured `status` event payload | T4 |
-| `apps/agents/agents/apps/chat/use_cases/generate_stream.py` | Emit `status` events for tool/confirmation updates instead of flattening them into plain text | T4 |
-| `apps/agents/tests/apps/chat/test_generate_stream.py` | SSE event-shape regression tests | T4 |
+| Path                                                        | Responsibility                                                                                | Task |
+| ----------------------------------------------------------- | --------------------------------------------------------------------------------------------- | ---- |
+| `apps/agents/agents/apps/chat/schemas.py`                   | Extend `ServerEvent` with structured `status` event payload                                   | T4   |
+| `apps/agents/agents/apps/chat/use_cases/generate_stream.py` | Emit `status` events for tool/confirmation updates instead of flattening them into plain text | T4   |
+| `apps/agents/tests/apps/chat/test_generate_stream.py`       | SSE event-shape regression tests                                                              | T4   |
 
 ### `apps/web` server-side
 
-| Path | Responsibility | Task |
-|------|----------------|------|
-| `apps/web/package.json` | Add test script/deps if missing | T5 |
-| `apps/web/src/lib/chat/types.ts` | Shared web-layer SSE and registry types | T5 |
-| `apps/web/src/lib/chat/active-stream-registry.ts` | Process-local upstream fan-out + debounced persistence | T5 |
-| `apps/web/src/lib/chat/agents-payload.ts` | Build `/chat/generate` payload from `Chat`, `WorkspaceAiSettings`, and session | T5 |
-| `apps/web/src/lib/chat/sse.ts` | SSE frame encode/decode helpers | T5 |
-| `apps/web/src/app/api/agents/generate/route.ts` | Start message transaction + registry-backed SSE | T5 |
-| `apps/web/src/app/api/agents/streams/[assistantMessageId]/route.ts` | Resume active stream after reload | T5 |
-| `apps/web/test/active-stream-registry.test.ts` | Registry fan-out and flush tests | T5 |
-| `apps/web/test/api-agents-generate.test.ts` | Start-route contract tests | T5 |
-| `apps/web/vitest.config.ts` | Web package test config | T5 |
+| Path                                                                | Responsibility                                                                 | Task |
+| ------------------------------------------------------------------- | ------------------------------------------------------------------------------ | ---- |
+| `apps/web/package.json`                                             | Add test script/deps if missing                                                | T5   |
+| `apps/web/src/lib/chat/types.ts`                                    | Shared web-layer SSE and registry types                                        | T5   |
+| `apps/web/src/lib/chat/active-stream-registry.ts`                   | Process-local upstream fan-out + debounced persistence                         | T5   |
+| `apps/web/src/lib/chat/agents-payload.ts`                           | Build `/chat/generate` payload from `Chat`, `WorkspaceAiSettings`, and session | T5   |
+| `apps/web/src/lib/chat/sse.ts`                                      | SSE frame encode/decode helpers                                                | T5   |
+| `apps/web/src/app/api/agents/generate/route.ts`                     | Start message transaction + registry-backed SSE                                | T5   |
+| `apps/web/src/app/api/agents/streams/[assistantMessageId]/route.ts` | Resume active stream after reload                                              | T5   |
+| `apps/web/test/active-stream-registry.test.ts`                      | Registry fan-out and flush tests                                               | T5   |
+| `apps/web/test/api-agents-generate.test.ts`                         | Start-route contract tests                                                     | T5   |
+| `apps/web/vitest.config.ts`                                         | Web package test config                                                        | T5   |
 
 ### `apps/web` client-side
 
-| Path | Responsibility | Task |
-|------|----------------|------|
-| `apps/web/src/components/workspace/chat/workspace-chat-client.tsx` | Main client orchestrator for read/send/stream/resume | T6 |
-| `apps/web/src/components/workspace/chat/use-chat-stream.ts` | Browser-side SSE state reducer | T6 |
-| `apps/web/src/components/workspace/chat/use-draft-attachments.ts` | Upload/remove draft attachment state | T6 |
-| `apps/web/src/components/workspace/chat/chat-message-mappers.ts` | Convert tRPC DTOs to `@repo/ui` chat props | T6 |
-| `apps/web/src/app/(protected)/workspaces/[workspaceId]/chats/[chatId]/page.tsx` | Swap out legacy `SearchChatView` | T6 |
-| `apps/web/src/components/workspace/search/search-chat-view.tsx` | Delete from active path or remove file entirely | T6 |
-| `apps/web/src/components/workspace/search/search-chat-input.tsx` | Delete from active path or remove file entirely | T6 |
-| `apps/web/test/workspace-chat-client.test.tsx` | Client reload/send reducer tests | T6 |
+| Path                                                                            | Responsibility                                       | Task |
+| ------------------------------------------------------------------------------- | ---------------------------------------------------- | ---- |
+| `apps/web/src/components/workspace/chat/workspace-chat-client.tsx`              | Main client orchestrator for read/send/stream/resume | T6   |
+| `apps/web/src/components/workspace/chat/use-chat-stream.ts`                     | Browser-side SSE state reducer                       | T6   |
+| `apps/web/src/components/workspace/chat/use-draft-attachments.ts`               | Upload/remove draft attachment state                 | T6   |
+| `apps/web/src/components/workspace/chat/chat-message-mappers.ts`                | Convert tRPC DTOs to `@repo/ui` chat props           | T6   |
+| `apps/web/src/app/(protected)/workspaces/[workspaceId]/chats/[chatId]/page.tsx` | Swap out legacy `SearchChatView`                     | T6   |
+| `apps/web/src/components/workspace/search/search-chat-view.tsx`                 | Delete from active path or remove file entirely      | T6   |
+| `apps/web/src/components/workspace/search/search-chat-input.tsx`                | Delete from active path or remove file entirely      | T6   |
+| `apps/web/test/workspace-chat-client.test.tsx`                                  | Client reload/send reducer tests                     | T6   |
 
 ### Verification
 
-| Path | Responsibility | Task |
-|------|----------------|------|
-| `apps/agents/requests.http` | Update sample request to the final contract if needed | T7 |
-| `docs/superpowers/specs/2026-04-22-workspace-chat-streaming-design.md` | No changes expected; reference only | T7 |
+| Path                                                                   | Responsibility                                        | Task |
+| ---------------------------------------------------------------------- | ----------------------------------------------------- | ---- |
+| `apps/agents/requests.http`                                            | Update sample request to the final contract if needed | T7   |
+| `docs/superpowers/specs/2026-04-22-workspace-chat-streaming-design.md` | No changes expected; reference only                   | T7   |
 
 ---
 
@@ -128,6 +128,7 @@ Expected: green baseline or clearly identified pre-existing failures. If the bas
 Add durable assistant stream state to `ChatMessage`.
 
 **Files:**
+
 - Modify: `packages/db/prisma/schema.prisma`
 - Create: `packages/db/prisma/migrations/20260422093000_chat_message_streaming_status/migration.sql`
 
@@ -206,6 +207,7 @@ git commit -m "feat: add chat message streaming status"
 Install `@mui/x-chat`, add test tooling, and create the reusable thread/composer/message components.
 
 **Files:**
+
 - Modify: `packages/ui/package.json`
 - Modify: `packages/ui/src/components/index.ts`
 - Create: `packages/ui/src/components/chat/chat-types.ts`
@@ -257,31 +259,31 @@ Keep the exact `@mui/x-chat` version resolved by `pnpm`.
 Create `packages/ui/test/chat-message-content.test.tsx`:
 
 ```tsx
-import { render, screen } from "@testing-library/react"
-import { describe, expect, it } from "vitest"
+import { render, screen } from '@testing-library/react'
+import { describe, expect, it } from 'vitest'
 
-import { ChatMessageContent } from "../src/components/chat/chat-message-content"
+import { ChatMessageContent } from '../src/components/chat/chat-message-content'
 
-describe("ChatMessageContent", () => {
-  it("renders text before files", () => {
+describe('ChatMessageContent', () => {
+  it('renders text before files', () => {
     render(
       <ChatMessageContent
         parts={[
-          { type: "text", text: "Привет" },
+          { type: 'text', text: 'Привет' },
           {
-            type: "file",
-            fileId: "f1",
-            name: "brief.pdf",
-            mimeType: "application/pdf",
-            fileSize: "12",
-            downloadUrl: "/api/files/f1",
+            type: 'file',
+            fileId: 'f1',
+            name: 'brief.pdf',
+            mimeType: 'application/pdf',
+            fileSize: '12',
+            downloadUrl: '/api/files/f1',
           },
         ]}
       />,
     )
 
-    expect(screen.getByText("Привет")).toBeInTheDocument()
-    expect(screen.getByText("brief.pdf")).toBeInTheDocument()
+    expect(screen.getByText('Привет')).toBeInTheDocument()
+    expect(screen.getByText('brief.pdf')).toBeInTheDocument()
   })
 })
 ```
@@ -289,24 +291,26 @@ describe("ChatMessageContent", () => {
 Create `packages/ui/test/chat-composer.test.tsx`:
 
 ```tsx
-import { render, screen } from "@testing-library/react"
-import userEvent from "@testing-library/user-event"
-import { describe, expect, it, vi } from "vitest"
+import { render, screen } from '@testing-library/react'
+import userEvent from '@testing-library/user-event'
+import { describe, expect, it, vi } from 'vitest'
 
-import { ChatComposer } from "../src/components/chat/chat-composer"
+import { ChatComposer } from '../src/components/chat/chat-composer'
 
-describe("ChatComposer", () => {
-  it("disables send while the text area is empty", () => {
+describe('ChatComposer', () => {
+  it('disables send while the text area is empty', () => {
     render(<ChatComposer value="" attachments={[]} onValueChange={() => {}} onSend={vi.fn()} />)
-    expect(screen.getByRole("button", { name: /send/i })).toBeDisabled()
+    expect(screen.getByRole('button', { name: /send/i })).toBeDisabled()
   })
 
-  it("calls onSend only when non-empty text exists", async () => {
+  it('calls onSend only when non-empty text exists', async () => {
     const user = userEvent.setup()
     const onSend = vi.fn()
-    render(<ChatComposer value="Запрос" attachments={[]} onValueChange={() => {}} onSend={onSend} />)
-    await user.click(screen.getByRole("button", { name: /send/i }))
-    expect(onSend).toHaveBeenCalledWith("Запрос")
+    render(
+      <ChatComposer value="Запрос" attachments={[]} onValueChange={() => {}} onSend={onSend} />,
+    )
+    await user.click(screen.getByRole('button', { name: /send/i }))
+    expect(onSend).toHaveBeenCalledWith('Запрос')
   })
 })
 ```
@@ -325,7 +329,7 @@ Create `packages/ui/src/components/chat/chat-types.ts`:
 
 ```ts
 export type ChatFilePart = {
-  type: "file"
+  type: 'file'
   fileId: string
   name: string
   mimeType: string
@@ -334,14 +338,14 @@ export type ChatFilePart = {
 }
 
 export type ChatTextPart = {
-  type: "text"
+  type: 'text'
   text: string
 }
 
 export type ChatServiceBlock = {
   id: string
-  kind: "tool" | "confirmation"
-  state: "pending" | "running" | "done" | "error" | "required"
+  kind: 'tool' | 'confirmation'
+  state: 'pending' | 'running' | 'done' | 'error' | 'required'
   title: string
   detail?: string
 }
@@ -350,12 +354,12 @@ export type ChatServiceBlock = {
 Create `packages/ui/src/components/chat/mui-chat-augmentation.d.ts`:
 
 ```ts
-import type { ChatFilePart, ChatServiceBlock } from "./chat-types"
+import type { ChatFilePart, ChatServiceBlock } from './chat-types'
 
-declare module "@mui/x-chat/types" {
+declare module '@mui/x-chat/types' {
   interface ChatCustomMessagePartMap {
     file: ChatFilePart
-    "service-status": ChatServiceBlock & { type: "service-status" }
+    'service-status': ChatServiceBlock & { type: 'service-status' }
   }
 }
 ```
@@ -365,36 +369,36 @@ declare module "@mui/x-chat/types" {
 Key exports in `packages/ui/src/components/chat/index.ts`:
 
 ```ts
-export * from "./chat-types"
-export { ChatThread } from "./chat-thread"
-export { ChatMessageList } from "./chat-message-list"
-export { ChatMessageContent } from "./chat-message-content"
-export { ChatComposer } from "./chat-composer"
-export { ChatEmptyState } from "./chat-empty-state"
+export * from './chat-types'
+export { ChatThread } from './chat-thread'
+export { ChatMessageList } from './chat-message-list'
+export { ChatMessageContent } from './chat-message-content'
+export { ChatComposer } from './chat-composer'
+export { ChatEmptyState } from './chat-empty-state'
 ```
 
 Core render logic in `chat-message-content.tsx`:
 
 ```tsx
-"use client"
+'use client'
 
-import { Box, Chip, Typography } from "../index"
-import type { ChatFilePart, ChatServiceBlock, ChatTextPart } from "./chat-types"
+import { Box, Chip, Typography } from '../index'
+import type { ChatFilePart, ChatServiceBlock, ChatTextPart } from './chat-types'
 
-type Part = ChatTextPart | ChatFilePart | ({ type: "service-status" } & ChatServiceBlock)
+type Part = ChatTextPart | ChatFilePart | ({ type: 'service-status' } & ChatServiceBlock)
 
 export function ChatMessageContent({ parts }: { parts: Part[] }) {
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
       {parts.map((part) => {
-        if (part.type === "text") {
+        if (part.type === 'text') {
           return (
-            <Typography key={`text-${part.text}`} sx={{ whiteSpace: "pre-wrap" }}>
+            <Typography key={`text-${part.text}`} sx={{ whiteSpace: 'pre-wrap' }}>
               {part.text}
             </Typography>
           )
         }
-        if (part.type === "file") {
+        if (part.type === 'file') {
           return (
             <Chip
               key={part.fileId}
@@ -416,9 +420,18 @@ export function ChatMessageContent({ parts }: { parts: Part[] }) {
 Core composer shell in `chat-composer.tsx`:
 
 ```tsx
-"use client"
+'use client'
 
-import { Box, IconButton, Stack, TextField, Tooltip, AddIcon, ArrowUpwardIcon, Chip } from "../index"
+import {
+  Box,
+  IconButton,
+  Stack,
+  TextField,
+  Tooltip,
+  AddIcon,
+  ArrowUpwardIcon,
+  Chip,
+} from '../index'
 
 type DraftAttachment = { localId: string; name: string }
 
@@ -436,12 +449,24 @@ export function ChatComposer(props: Props) {
   const canSend = props.value.trim().length > 0 && !props.disabled
 
   return (
-    <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 3, p: 1.5, bgcolor: "background.paper" }}>
+    <Box
+      sx={{
+        border: '1px solid',
+        borderColor: 'divider',
+        borderRadius: 3,
+        p: 1.5,
+        bgcolor: 'background.paper',
+      }}
+    >
       <Stack spacing={1}>
         {props.attachments.length > 0 ? (
           <Stack direction="row" spacing={1} useFlexGap flexWrap="wrap">
             {props.attachments.map((file) => (
-              <Chip key={file.localId} label={file.name} onDelete={() => props.onRemoveAttachment?.(file.localId)} />
+              <Chip
+                key={file.localId}
+                label={file.name}
+                onDelete={() => props.onRemoveAttachment?.(file.localId)}
+              />
             ))}
           </Stack>
         ) : null}
@@ -462,7 +487,7 @@ export function ChatComposer(props: Props) {
             fullWidth
             placeholder="Спросите что-нибудь..."
             onKeyDown={(event) => {
-              if (event.key === "Enter" && !event.shiftKey) {
+              if (event.key === 'Enter' && !event.shiftKey) {
                 event.preventDefault()
                 if (canSend) props.onSend(props.value.trim())
               }
@@ -470,7 +495,11 @@ export function ChatComposer(props: Props) {
           />
           <Tooltip title="Отправить">
             <span>
-              <IconButton size="small" disabled={!canSend} onClick={() => props.onSend(props.value.trim())}>
+              <IconButton
+                size="small"
+                disabled={!canSend}
+                onClick={() => props.onSend(props.value.trim())}
+              >
                 <ArrowUpwardIcon fontSize="small" />
               </IconButton>
             </span>
@@ -487,18 +516,18 @@ export function ChatComposer(props: Props) {
 Append to `packages/ui/src/components/index.ts`:
 
 ```ts
-export * from "./chat"
+export * from './chat'
 ```
 
 Create `packages/ui/vitest.config.ts`:
 
 ```ts
-import { defineConfig } from "vitest/config"
+import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
-    environment: "jsdom",
-    include: ["test/**/*.test.ts", "test/**/*.test.tsx"],
+    environment: 'jsdom',
+    include: ['test/**/*.test.ts', 'test/**/*.test.tsx'],
   },
 })
 ```
@@ -532,6 +561,7 @@ git commit -m "feat: add reusable workspace chat ui"
 Expose `parts`, `status`, and file metadata through `getChat`, and delete `sendMessage`.
 
 **Files:**
+
 - Modify: `packages/trpc/package.json`
 - Modify: `packages/trpc/src/routers/chat.ts`
 - Create: `packages/trpc/test/chat-router.test.ts`
@@ -560,20 +590,27 @@ Update `packages/trpc/package.json`:
 Create `packages/trpc/test/chat-router.test.ts`:
 
 ```ts
-import { describe, expect, it } from "vitest"
+import { describe, expect, it } from 'vitest'
 
-describe("chatRouter getChat normalization", () => {
-  it("emits text first and files after it", async () => {
+describe('chatRouter getChat normalization', () => {
+  it('emits text first and files after it', async () => {
     const dto = {
       parts: [
-        { type: "text", text: "Привет" },
-        { type: "file", fileId: "f1", name: "brief.pdf", mimeType: "application/pdf", fileSize: "10", downloadUrl: "/api/files/f1" },
+        { type: 'text', text: 'Привет' },
+        {
+          type: 'file',
+          fileId: 'f1',
+          name: 'brief.pdf',
+          mimeType: 'application/pdf',
+          fileSize: '10',
+          downloadUrl: '/api/files/f1',
+        },
       ],
-      status: "DONE",
+      status: 'DONE',
     }
 
-    expect(dto.parts[0]).toEqual({ type: "text", text: "Привет" })
-    expect(dto.parts[1]).toMatchObject({ type: "file", name: "brief.pdf" })
+    expect(dto.parts[0]).toEqual({ type: 'text', text: 'Привет' })
+    expect(dto.parts[1]).toMatchObject({ type: 'file', name: 'brief.pdf' })
   })
 })
 ```
@@ -595,10 +632,10 @@ Key logic for `packages/trpc/src/routers/chat.ts`:
 ```ts
 const messages = await ctx.prisma.chatMessage.findMany({
   where: { chatId: chat.id },
-  orderBy: { createdAt: "asc" },
+  orderBy: { createdAt: 'asc' },
   include: {
     files: {
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: 'asc' },
       include: { file: true },
     },
   },
@@ -614,9 +651,11 @@ return {
     createdAt: message.createdAt.toISOString(),
     updatedAt: message.updatedAt.toISOString(),
     parts: [
-      ...(message.content.trim().length > 0 ? [{ type: "text" as const, text: message.content }] : []),
+      ...(message.content.trim().length > 0
+        ? [{ type: 'text' as const, text: message.content }]
+        : []),
       ...message.files.map(({ file }) => ({
-        type: "file" as const,
+        type: 'file' as const,
         fileId: file.id,
         name: file.name,
         mimeType: file.mimeType,
@@ -650,12 +689,12 @@ sendMessage: protectedProcedure
 Create `packages/trpc/vitest.config.ts`:
 
 ```ts
-import { defineConfig } from "vitest/config"
+import { defineConfig } from 'vitest/config'
 
 export default defineConfig({
   test: {
-    environment: "node",
-    include: ["test/**/*.test.ts"],
+    environment: 'node',
+    include: ['test/**/*.test.ts'],
   },
 })
 ```
@@ -688,6 +727,7 @@ git commit -m "feat: normalize chat messages for ui"
 Teach the agents stream to emit `status` frames for tool and confirmation updates.
 
 **Files:**
+
 - Modify: `apps/agents/agents/apps/chat/schemas.py`
 - Modify: `apps/agents/agents/apps/chat/use_cases/generate_stream.py`
 - Create: `apps/agents/tests/apps/chat/test_generate_stream.py`
@@ -807,6 +847,7 @@ git commit -m "feat: add structured chat status events"
 Replace the current one-off proxy with a registry-backed orchestration layer that persists partial assistant content.
 
 **Files:**
+
 - Modify: `apps/web/package.json`
 - Create: `apps/web/src/lib/chat/types.ts`
 - Create: `apps/web/src/lib/chat/active-stream-registry.ts`
@@ -844,24 +885,24 @@ Update `apps/web/package.json`:
 Create `apps/web/test/active-stream-registry.test.ts`:
 
 ```ts
-import { describe, expect, it } from "vitest"
+import { describe, expect, it } from 'vitest'
 
-import { createActiveStreamRegistry } from "../src/lib/chat/active-stream-registry"
+import { createActiveStreamRegistry } from '../src/lib/chat/active-stream-registry'
 
-describe("active stream registry", () => {
-  it("broadcasts deltas to multiple subscribers", async () => {
+describe('active stream registry', () => {
+  it('broadcasts deltas to multiple subscribers', async () => {
     const registry = createActiveStreamRegistry()
-    const entry = registry.create("assistant-1")
+    const entry = registry.create('assistant-1')
 
     const seen: string[] = []
     entry.subscribe((event) => {
-      if (event.type === "message.delta") seen.push(event.text)
+      if (event.type === 'message.delta') seen.push(event.text)
     })
 
-    entry.publishDelta("При")
-    entry.publishDelta("вет")
+    entry.publishDelta('При')
+    entry.publishDelta('вет')
 
-    expect(seen).toEqual(["При", "вет"])
+    expect(seen).toEqual(['При', 'вет'])
   })
 })
 ```
@@ -881,24 +922,29 @@ Create `apps/web/src/lib/chat/types.ts`:
 ```ts
 export type ServiceBlock = {
   id: string
-  kind: "tool" | "confirmation"
-  state: "pending" | "running" | "done" | "error" | "required"
+  kind: 'tool' | 'confirmation'
+  state: 'pending' | 'running' | 'done' | 'error' | 'required'
   title: string
   detail?: string
 }
 
 export type WebChatSseEvent =
-  | { type: "message.created"; assistantMessageId: string; userMessageId: string }
-  | { type: "message.delta"; assistantMessageId: string; text: string }
-  | { type: "message.service"; assistantMessageId: string; blocks: ServiceBlock[] }
-  | { type: "message.status"; assistantMessageId: string; status: "STREAMING" | "DONE" | "ERROR"; errorMessage?: string }
-  | { type: "message.done"; assistantMessageId: string }
+  | { type: 'message.created'; assistantMessageId: string; userMessageId: string }
+  | { type: 'message.delta'; assistantMessageId: string; text: string }
+  | { type: 'message.service'; assistantMessageId: string; blocks: ServiceBlock[] }
+  | {
+      type: 'message.status'
+      assistantMessageId: string
+      status: 'STREAMING' | 'DONE' | 'ERROR'
+      errorMessage?: string
+    }
+  | { type: 'message.done'; assistantMessageId: string }
 ```
 
 Create `apps/web/src/lib/chat/active-stream-registry.ts`:
 
 ```ts
-import type { WebChatSseEvent, ServiceBlock } from "./types"
+import type { WebChatSseEvent, ServiceBlock } from './types'
 
 type Subscriber = (event: WebChatSseEvent) => void
 
@@ -910,7 +956,7 @@ type Entry = {
   subscribe: (fn: Subscriber) => () => void
   publishDelta: (text: string) => void
   publishBlocks: (blocks: ServiceBlock[]) => void
-  publishStatus: (status: "STREAMING" | "DONE" | "ERROR", errorMessage?: string) => void
+  publishStatus: (status: 'STREAMING' | 'DONE' | 'ERROR', errorMessage?: string) => void
 }
 
 export function createActiveStreamRegistry() {
@@ -919,7 +965,7 @@ export function createActiveStreamRegistry() {
   function create(assistantMessageId: string): Entry {
     const entry: Entry = {
       assistantMessageId,
-      content: "",
+      content: '',
       blocks: [],
       subscribers: new Set(),
       subscribe(fn) {
@@ -929,18 +975,18 @@ export function createActiveStreamRegistry() {
       publishDelta(text) {
         entry.content += text
         for (const subscriber of entry.subscribers) {
-          subscriber({ type: "message.delta", assistantMessageId, text })
+          subscriber({ type: 'message.delta', assistantMessageId, text })
         }
       },
       publishBlocks(blocks) {
         entry.blocks = blocks
         for (const subscriber of entry.subscribers) {
-          subscriber({ type: "message.service", assistantMessageId, blocks })
+          subscriber({ type: 'message.service', assistantMessageId, blocks })
         }
       },
       publishStatus(status, errorMessage) {
         for (const subscriber of entry.subscribers) {
-          subscriber({ type: "message.status", assistantMessageId, status, errorMessage })
+          subscriber({ type: 'message.status', assistantMessageId, status, errorMessage })
         }
       },
     }
@@ -948,7 +994,12 @@ export function createActiveStreamRegistry() {
     return entry
   }
 
-  return { entries, create, get: (id: string) => entries.get(id), delete: (id: string) => entries.delete(id) }
+  return {
+    entries,
+    create,
+    get: (id: string) => entries.get(id),
+    delete: (id: string) => entries.delete(id),
+  }
 }
 ```
 
@@ -967,8 +1018,8 @@ const { userMessage, assistantMessage, chat, settings } = await prisma.$transact
   const userMessage = await tx.chatMessage.create({
     data: {
       chatId: chat.id,
-      role: "USER",
-      status: "DONE",
+      role: 'USER',
+      status: 'DONE',
       content: body.text.trim(),
     },
   })
@@ -983,9 +1034,9 @@ const { userMessage, assistantMessage, chat, settings } = await prisma.$transact
   const assistantMessage = await tx.chatMessage.create({
     data: {
       chatId: chat.id,
-      role: "ASSISTANT",
-      status: "STREAMING",
-      content: "",
+      role: 'ASSISTANT',
+      status: 'STREAMING',
+      content: '',
       errorMessage: null,
     },
   })
@@ -1001,9 +1052,9 @@ Then create/start the registry entry, call `fetch(`${agentsUrl}/chat/generate`, 
 Create `apps/web/src/app/api/agents/streams/[assistantMessageId]/route.ts`:
 
 ```ts
-import { NextResponse, type NextRequest } from "next/server"
+import { NextResponse, type NextRequest } from 'next/server'
 
-import { activeStreamRegistry } from "@/lib/chat/active-stream-registry"
+import { activeStreamRegistry } from '@/lib/chat/active-stream-registry'
 
 export async function GET(
   _request: NextRequest,
@@ -1013,7 +1064,7 @@ export async function GET(
   const entry = activeStreamRegistry.get(assistantMessageId)
 
   if (!entry) {
-    return NextResponse.json({ error: "Stream not active" }, { status: 404 })
+    return NextResponse.json({ error: 'Stream not active' }, { status: 404 })
   }
 
   return new Response(
@@ -1024,7 +1075,7 @@ export async function GET(
         })
         controller.enqueue(
           new TextEncoder().encode(
-            `data: ${JSON.stringify({ type: "message.status", assistantMessageId, status: "STREAMING" })}\n\n`,
+            `data: ${JSON.stringify({ type: 'message.status', assistantMessageId, status: 'STREAMING' })}\n\n`,
           ),
         )
         return () => unsubscribe()
@@ -1032,9 +1083,9 @@ export async function GET(
     }),
     {
       headers: {
-        "content-type": "text/event-stream; charset=utf-8",
-        "cache-control": "no-cache, no-transform",
-        connection: "keep-alive",
+        'content-type': 'text/event-stream; charset=utf-8',
+        'cache-control': 'no-cache, no-transform',
+        connection: 'keep-alive',
       },
     },
   )
@@ -1071,6 +1122,7 @@ git commit -m "feat: add web chat streaming orchestration"
 Swap out the old `SearchChat*` components and connect the page to tRPC history + upload + send + reload-resume.
 
 **Files:**
+
 - Create: `apps/web/src/components/workspace/chat/workspace-chat-client.tsx`
 - Create: `apps/web/src/components/workspace/chat/use-chat-stream.ts`
 - Create: `apps/web/src/components/workspace/chat/use-draft-attachments.ts`
@@ -1085,12 +1137,12 @@ Swap out the old `SearchChat*` components and connect the page to tRPC history +
 Create `apps/web/test/workspace-chat-client.test.tsx`:
 
 ```tsx
-import { describe, expect, it } from "vitest"
+import { describe, expect, it } from 'vitest'
 
-describe("workspace chat client", () => {
-  it("treats the last STREAMING assistant message as resumable", () => {
-    const messages = [{ id: "a1", role: "ASSISTANT", status: "STREAMING" }]
-    expect(messages.at(-1)?.status).toBe("STREAMING")
+describe('workspace chat client', () => {
+  it('treats the last STREAMING assistant message as resumable', () => {
+    const messages = [{ id: 'a1', role: 'ASSISTANT', status: 'STREAMING' }]
+    expect(messages.at(-1)?.status).toBe('STREAMING')
   })
 })
 ```
@@ -1114,7 +1166,7 @@ Expected: fail until the client module exists.
 `apps/web/src/components/workspace/chat/use-draft-attachments.ts`:
 
 ```ts
-import { useState } from "react"
+import { useState } from 'react'
 
 type DraftAttachment = {
   localId: string
@@ -1129,11 +1181,11 @@ export function useDraftAttachments(workspaceId: string) {
 
   async function upload(file: File) {
     const formData = new FormData()
-    formData.append("file", file)
+    formData.append('file', file)
     const response = await fetch(`/api/files/upload?kind=attachment&workspaceId=${workspaceId}`, {
-      method: "POST",
+      method: 'POST',
       body: formData,
-      credentials: "include",
+      credentials: 'include',
     })
     const data = await response.json()
     setAttachments((current) => [
@@ -1163,18 +1215,24 @@ export function useDraftAttachments(workspaceId: string) {
 Core structure for `workspace-chat-client.tsx`:
 
 ```tsx
-"use client"
+'use client'
 
-import { useEffect, useState, startTransition } from "react"
+import { useEffect, useState, startTransition } from 'react'
 
-import { ChatThread } from "@repo/ui/components"
+import { ChatThread } from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
-export function WorkspaceChatClient({ chatId, workspaceId }: { chatId: string; workspaceId: string }) {
+export function WorkspaceChatClient({
+  chatId,
+  workspaceId,
+}: {
+  chatId: string
+  workspaceId: string
+}) {
   const query = trpc.chat.getChat.useQuery({ chatId })
   const attachments = useDraftAttachments(workspaceId)
-  const [draft, setDraft] = useState("")
+  const [draft, setDraft] = useState('')
   const [messages, setMessages] = useState<any[]>([])
 
   useEffect(() => {
@@ -1186,15 +1244,15 @@ export function WorkspaceChatClient({ chatId, workspaceId }: { chatId: string; w
 
   useEffect(() => {
     const last = query.data?.messages.at(-1)
-    if (!last || last.role !== "ASSISTANT" || last.status !== "STREAMING") return
+    if (!last || last.role !== 'ASSISTANT' || last.status !== 'STREAMING') return
     const source = new EventSource(`/api/agents/streams/${last.id}`)
     return () => source.close()
   }, [query.data?.messages])
 
   async function send(text: string) {
-    const response = await fetch("/api/agents/generate", {
-      method: "POST",
-      headers: { "content-type": "application/json" },
+    const response = await fetch('/api/agents/generate', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
       body: JSON.stringify({
         chatId,
         text,
@@ -1223,7 +1281,7 @@ export function WorkspaceChatClient({ chatId, workspaceId }: { chatId: string; w
 Update `apps/web/src/app/(protected)/workspaces/[workspaceId]/chats/[chatId]/page.tsx`:
 
 ```tsx
-import { WorkspaceChatClient } from "@/components/workspace/chat/workspace-chat-client"
+import { WorkspaceChatClient } from '@/components/workspace/chat/workspace-chat-client'
 
 export default async function SearchChatPage({ params }: Props) {
   const { workspaceId, chatId } = await params
@@ -1268,6 +1326,7 @@ git commit -m "feat: replace workspace chat page with streaming ui"
 Run focused verification across every touched layer and update the HTTP sample if it drifted.
 
 **Files:**
+
 - Modify: `apps/agents/requests.http` (only if the checked-in sample differs from the implemented payload)
 
 - [ ] **Step 7.1: Update the sample request if needed**

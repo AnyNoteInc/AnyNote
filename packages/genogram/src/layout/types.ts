@@ -1,4 +1,4 @@
-import type { EntityId, PersonId } from "../types"
+import type { EntityId, PersonId } from '../types'
 
 export interface Point {
   x: number

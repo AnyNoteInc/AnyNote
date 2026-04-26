@@ -1,5 +1,5 @@
-import { EDGE_STROKE, EDGE_WIDTH } from "./constants"
-import type { CustodySide } from "../../types"
+import { EDGE_STROKE, EDGE_WIDTH } from './constants'
+import type { CustodySide } from '../../types'
 
 const SLASH_LENGTH = 10
 const SLASH_GAP = 4
@@ -64,11 +64,11 @@ export function DivorceMarker({
 
 function custodySideToT(side?: CustodySide): number {
   switch (side) {
-    case "left":
+    case 'left':
       return 0.35
-    case "right":
+    case 'right':
       return 0.65
-    case "shared":
+    case 'shared':
     default:
       return 0.5
   }

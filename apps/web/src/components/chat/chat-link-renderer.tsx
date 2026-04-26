@@ -1,13 +1,13 @@
-"use client"
+'use client'
 
-import Link from "next/link"
-import type { ReactNode } from "react"
+import Link from 'next/link'
+import type { ReactNode } from 'react'
 
-const SAFE_EXTERNAL_PROTOCOLS = new Set(["http:", "https:"])
+const SAFE_EXTERNAL_PROTOCOLS = new Set(['http:', 'https:'])
 
 export function renderChatLink(href: string, children: ReactNode): ReactNode {
   // Internal app links: /workspaces/..., /app, etc. (single leading slash, not //)
-  if (href.startsWith("/") && !href.startsWith("//")) {
+  if (href.startsWith('/') && !href.startsWith('//')) {
     return <Link href={href}>{children}</Link>
   }
   // External: only render <a> for safe protocols (http/https)

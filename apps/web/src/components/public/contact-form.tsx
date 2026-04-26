@@ -1,7 +1,7 @@
-"use client"
+'use client'
 
-import { useState, type ChangeEvent, type FormEvent } from "react"
-import { Alert, Box, Button, Stack, TextField } from "@repo/ui/components"
+import { useState, type ChangeEvent, type FormEvent } from 'react'
+import { Alert, Box, Button, Stack, TextField } from '@repo/ui/components'
 
 type ContactFormState = {
   name: string
@@ -10,9 +10,9 @@ type ContactFormState = {
 }
 
 const initialState: ContactFormState = {
-  name: "",
-  email: "",
-  phone: "",
+  name: '',
+  email: '',
+  phone: '',
 }
 
 export function ContactForm() {
@@ -26,7 +26,7 @@ export function ContactForm() {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    console.log("AnyNote contact request", form)
+    console.log('AnyNote contact request', form)
     setSubmitted(true)
     setForm(initialState)
   }
@@ -37,8 +37,8 @@ export function ContactForm() {
         component="form"
         onSubmit={handleSubmit}
         sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", md: "repeat(2, minmax(0, 1fr))" },
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', md: 'repeat(2, minmax(0, 1fr))' },
           gap: 2,
         }}
       >
@@ -46,7 +46,7 @@ export function ContactForm() {
           label="Имя"
           name="name"
           value={form.name}
-          onChange={handleChange("name")}
+          onChange={handleChange('name')}
           required
           fullWidth
         />
@@ -55,7 +55,7 @@ export function ContactForm() {
           name="email"
           type="email"
           value={form.email}
-          onChange={handleChange("email")}
+          onChange={handleChange('email')}
           required
           fullWidth
         />
@@ -63,12 +63,12 @@ export function ContactForm() {
           label="Телефон"
           name="phone"
           value={form.phone}
-          onChange={handleChange("phone")}
+          onChange={handleChange('phone')}
           required
           fullWidth
-          sx={{ gridColumn: { md: "1 / -1" } }}
+          sx={{ gridColumn: { md: '1 / -1' } }}
         />
-        <Box sx={{ gridColumn: { md: "1 / -1" }, pt: 0.5 }}>
+        <Box sx={{ gridColumn: { md: '1 / -1' }, pt: 0.5 }}>
           <Button type="submit" size="large">
             Отправить
           </Button>

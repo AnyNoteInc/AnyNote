@@ -6,13 +6,13 @@ of `apps/agents` + `apps/engines`.
 
 ## Apps
 
-| App | Tech | Default port | Purpose |
-|---|---|---|---|
-| `apps/web` | Next.js 16 (App Router, RSC, MUI v6) | 3000 | The product UI |
-| `apps/yjs` | Hocuspocus | 1234 | Realtime collaborative editor |
-| `apps/agents` | FastAPI · LangGraph · Dishka | 8080 | LLM gateway with streaming + MCP tool-call loop |
-| `apps/engines` | NestJS · @rekog/mcp-nest · @nestjs/schedule | 8082 | MCP server exposing workspace tools + vectorization cron |
-| `apps/e2e` | Playwright | — | E2E smoke tests |
+| App            | Tech                                        | Default port | Purpose                                                  |
+| -------------- | ------------------------------------------- | ------------ | -------------------------------------------------------- |
+| `apps/web`     | Next.js 16 (App Router, RSC, MUI v6)        | 3000         | The product UI                                           |
+| `apps/yjs`     | Hocuspocus                                  | 1234         | Realtime collaborative editor                            |
+| `apps/agents`  | FastAPI · LangGraph · Dishka                | 8080         | LLM gateway with streaming + MCP tool-call loop          |
+| `apps/engines` | NestJS · @rekog/mcp-nest · @nestjs/schedule | 8082         | MCP server exposing workspace tools + vectorization cron |
+| `apps/e2e`     | Playwright                                  | —            | E2E smoke tests                                          |
 
 ## Packages
 

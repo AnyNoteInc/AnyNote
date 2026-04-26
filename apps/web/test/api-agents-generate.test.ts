@@ -30,7 +30,6 @@ vi.mock('@/lib/chat/active-stream-registry', () => ({
   activeStreamRegistry: mocks.activeStreamRegistry,
 }))
 
-
 import { POST } from '../src/app/api/agents/generate/route'
 
 describe('POST /api/agents/generate', () => {

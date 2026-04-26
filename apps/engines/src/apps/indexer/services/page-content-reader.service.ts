@@ -1,4 +1,4 @@
-import { Injectable } from "@nestjs/common"
+import { Injectable } from '@nestjs/common'
 
 export type TiptapNode = {
   type: string
@@ -7,12 +7,14 @@ export type TiptapNode = {
   [k: string]: unknown
 }
 
-const SKIP = new Set(["heading", "hiddenText", "image", "fileAttachment"])
+const SKIP = new Set(['heading', 'hiddenText', 'image', 'fileAttachment'])
 
 @Injectable()
 export class PageContentReader {
-  blocksFromDoc(doc: TiptapNode | null | undefined): Array<{ blockNumber: number; content: string }> {
-    if (!doc || doc.type !== "doc" || !Array.isArray(doc.content)) return []
+  blocksFromDoc(
+    doc: TiptapNode | null | undefined,
+  ): Array<{ blockNumber: number; content: string }> {
+    if (!doc || doc.type !== 'doc' || !Array.isArray(doc.content)) return []
     const out: Array<{ blockNumber: number; content: string }> = []
     doc.content.forEach((node, idx) => {
       if (SKIP.has(node.type)) return
@@ -25,8 +27,8 @@ export class PageContentReader {
 }
 
 function collectText(node: TiptapNode): string {
-  if (SKIP.has(node.type)) return ""
-  if (node.type === "text") return node.text ?? ""
-  if (!Array.isArray(node.content)) return ""
-  return node.content.map(collectText).join(" ")
+  if (SKIP.has(node.type)) return ''
+  if (node.type === 'text') return node.text ?? ''
+  if (!Array.isArray(node.content)) return ''
+  return node.content.map(collectText).join(' ')
 }

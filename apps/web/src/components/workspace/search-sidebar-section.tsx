@@ -1,8 +1,8 @@
-"use client"
+'use client'
 
-import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
-import { useMemo, useState } from "react"
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
+import { useMemo, useState } from 'react'
 
 import {
   AddIcon,
@@ -26,11 +26,11 @@ import {
   Stack,
   TextField,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
-import { buildChatHref, navigateToChat } from "./chat/navigation"
+import { buildChatHref, navigateToChat } from './chat/navigation'
 
 type Props = { workspaceId: string }
 
@@ -58,7 +58,7 @@ function ChatTreeItem({
 
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
   const [renameOpen, setRenameOpen] = useState(false)
-  const [renameValue, setRenameValue] = useState("")
+  const [renameValue, setRenameValue] = useState('')
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [expanded, setExpanded] = useState(true)
 
@@ -98,13 +98,13 @@ function ChatTreeItem({
     <>
       <Box
         sx={{
-          display: "flex",
-          alignItems: "center",
+          display: 'flex',
+          alignItems: 'center',
           pr: 0.5,
           borderRadius: 0.75,
-          bgcolor: isActive ? "action.selected" : "transparent",
-          "&:hover": { bgcolor: isActive ? "action.selected" : "action.hover" },
-          "&:hover .chat-actions": { visibility: "visible" },
+          bgcolor: isActive ? 'action.selected' : 'transparent',
+          '&:hover': { bgcolor: isActive ? 'action.selected' : 'action.hover' },
+          '&:hover .chat-actions': { visibility: 'visible' },
         }}
       >
         {children.length > 0 ? (
@@ -116,8 +116,8 @@ function ChatTreeItem({
             <ChevronRightIcon
               sx={{
                 fontSize: 16,
-                transform: expanded ? "rotate(90deg)" : "none",
-                transition: "transform 0.15s",
+                transform: expanded ? 'rotate(90deg)' : 'none',
+                transition: 'transform 0.15s',
               }}
             />
           </IconButton>
@@ -125,7 +125,7 @@ function ChatTreeItem({
         <Link
           href={buildChatHref(workspaceId, chat.id)}
           scroll={false}
-          style={{ textDecoration: "none", flex: 1, minWidth: 0 }}
+          style={{ textDecoration: 'none', flex: 1, minWidth: 0 }}
         >
           <Typography
             variant="body2"
@@ -133,17 +133,17 @@ function ChatTreeItem({
             sx={{
               py: 0.5,
               pl: 0.5,
-              color: isActive ? "text.primary" : "text.secondary",
+              color: isActive ? 'text.primary' : 'text.secondary',
             }}
           >
-            {chat.title ?? "Без названия"}
+            {chat.title ?? 'Без названия'}
           </Typography>
         </Link>
         <Box
           className="chat-actions"
           sx={{
-            display: "flex",
-            visibility: menuAnchor ? "visible" : "hidden",
+            display: 'flex',
+            visibility: menuAnchor ? 'visible' : 'hidden',
             flexShrink: 0,
           }}
         >
@@ -189,7 +189,7 @@ function ChatTreeItem({
         <MenuItem
           onClick={() => {
             setMenuAnchor(null)
-            setRenameValue(chat.title ?? "")
+            setRenameValue(chat.title ?? '')
             setRenameOpen(true)
           }}
           sx={{ gap: 1, fontSize: 13 }}
@@ -202,7 +202,7 @@ function ChatTreeItem({
             setMenuAnchor(null)
             setDeleteOpen(true)
           }}
-          sx={{ gap: 1, fontSize: 13, color: "error.main" }}
+          sx={{ gap: 1, fontSize: 13, color: 'error.main' }}
         >
           <DeleteIcon fontSize="small" />
           Удалить
@@ -220,7 +220,7 @@ function ChatTreeItem({
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && renameValue.trim()) {
+              if (e.key === 'Enter' && renameValue.trim()) {
                 rename.mutate({ chatId: chat.id, title: renameValue.trim() })
               }
             }}
@@ -245,7 +245,7 @@ function ChatTreeItem({
         <DialogTitle>Удалить чат?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Чат «{chat.title ?? "Без названия"}» и все дочерние чаты будут удалены навсегда.
+            Чат «{chat.title ?? 'Без названия'}» и все дочерние чаты будут удалены навсегда.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -289,14 +289,14 @@ export function SearchSidebarSection({ workspaceId }: Props) {
       <Box
         onClick={() => setOpen((prev) => !prev)}
         sx={{
-          display: "flex",
-          alignItems: "center",
+          display: 'flex',
+          alignItems: 'center',
           gap: 1,
           px: 1,
           py: 0.75,
-          cursor: "pointer",
-          color: "text.secondary",
-          "&:hover": { color: "text.primary" },
+          cursor: 'pointer',
+          color: 'text.secondary',
+          '&:hover': { color: 'text.primary' },
         }}
       >
         <ChatBubbleOutlineIcon sx={{ fontSize: 16 }} />
@@ -318,7 +318,7 @@ export function SearchSidebarSection({ workspaceId }: Props) {
         </IconButton>
       </Box>
       {open ? (
-        <Stack spacing={0.25} sx={{ pl: 3, maxHeight: 200, overflow: "auto" }}>
+        <Stack spacing={0.25} sx={{ pl: 3, maxHeight: 200, overflow: 'auto' }}>
           {rootChats.map((chat) => (
             <ChatTreeItem
               key={chat.id}

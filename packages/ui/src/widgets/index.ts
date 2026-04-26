@@ -1,3 +1,3 @@
-export * from "./auth"
-export * from "./landing"
-export * from "./common"
+export * from './auth'
+export * from './landing'
+export * from './common'

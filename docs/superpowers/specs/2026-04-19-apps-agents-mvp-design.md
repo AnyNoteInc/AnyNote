@@ -26,8 +26,8 @@ without reshaping the public API.
 ## Goals
 
 1. Stand up `apps/agents/` as a first-class monorepo app: `pyproject.toml`
-   + `uv.lock` + `package.json` with Turbo-compatible scripts so that
-   `pnpm dev --filter @repo/agents` works.
+   - `uv.lock` + `package.json` with Turbo-compatible scripts so that
+     `pnpm dev --filter @repo/agents` works.
 2. Update docker infra: replace Weaviate with Qdrant, add Ollama,
    auto-create the `agents` database on first Postgres start.
 3. Implement a minimal but production-shaped FastAPI app with Dishka DI,
@@ -318,6 +318,7 @@ Providers declared in `agents/di/providers.py` via Dishka's
 ### `POST /api/v1/generate`
 
 **Request headers:**
+
 - `Authorization: Bearer ${AGENTS_SERVICE_TOKEN}` (required)
 - `Content-Type: application/json`
 
@@ -371,6 +372,7 @@ All camelCase → snake_case via pydantic `alias_generator = to_camel` and
 `populate_by_name=True`. Internal code uses snake_case fields.
 
 **Validation rules:**
+
 - `threadId` is UUID.
 - `conversation.messages` may be empty (first turn).
 - `userRequest.text` is required, non-empty after strip.
@@ -399,6 +401,7 @@ After an `error` event, the stream closes. Clients MUST render the error
 inline and not expect further events.
 
 **HTTP-level errors** (before stream starts):
+
 - `400 BAD_REQUEST` — schema invalid / empty user request
 - `401 UNAUTHORIZED` — missing/invalid Bearer
 - `409 CONFLICT` — `threadId` locked by another in-flight request
@@ -609,13 +612,13 @@ flushed.
 - `test_generate_ollama.py` — marked `@pytest.mark.integration`.
   Requires a running Ollama with `gemma4` pulled. Posts a minimal
   payload, asserts:
-    - HTTP 200
-    - response Content-Type is `text/event-stream`
-    - at least one `{"type":"token"}` event
-    - a `{"type":"done"}` event fires
-    - total run time under 30s
-  If Ollama is unreachable, the test is skipped with a message, not
-  failed.
+  - HTTP 200
+  - response Content-Type is `text/event-stream`
+  - at least one `{"type":"token"}` event
+  - a `{"type":"done"}` event fires
+  - total run time under 30s
+    If Ollama is unreachable, the test is skipped with a message, not
+    failed.
 
 Running the integration test is opt-in:
 `uv run pytest -m integration`.

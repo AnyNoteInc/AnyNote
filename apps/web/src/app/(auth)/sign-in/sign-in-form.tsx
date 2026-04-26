@@ -1,9 +1,9 @@
-"use client"
+'use client'
 
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 
-import { LoginForm, type LoginFormValues } from "@repo/ui/widgets"
-import { signIn } from "@/lib/auth-client"
+import { LoginForm, type LoginFormValues } from '@repo/ui/widgets'
+import { signIn } from '@/lib/auth-client'
 
 export function SignInForm() {
   const router = useRouter()
@@ -11,9 +11,9 @@ export function SignInForm() {
   const handleSubmit = async (values: LoginFormValues) => {
     await signIn.email({
       ...values,
-      callbackURL: "/app",
+      callbackURL: '/app',
     })
-    router.push("/app")
+    router.push('/app')
     router.refresh()
   }
 

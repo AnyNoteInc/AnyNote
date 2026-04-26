@@ -1,9 +1,9 @@
-"use client"
+'use client'
 
-import type { ReactNode } from "react"
+import type { ReactNode } from 'react'
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 import {
   Box,
@@ -13,15 +13,15 @@ import {
   SettingsIcon,
   Stack,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
 const items: Array<{ href: string; label: string; icon: ReactNode }> = [
-  { href: "/settings/general", label: "Общее", icon: <SettingsIcon fontSize="small" /> },
-  { href: "/settings/account", label: "Аккаунт", icon: <PersonIcon fontSize="small" /> },
-  { href: "/settings/billing", label: "Оплата", icon: <PaymentIcon fontSize="small" /> },
+  { href: '/settings/general', label: 'Общее', icon: <SettingsIcon fontSize="small" /> },
+  { href: '/settings/account', label: 'Аккаунт', icon: <PersonIcon fontSize="small" /> },
+  { href: '/settings/billing', label: 'Оплата', icon: <PaymentIcon fontSize="small" /> },
   {
-    href: "/settings/integrations",
-    label: "Интеграции",
+    href: '/settings/integrations',
+    label: 'Интеграции',
     icon: <LeakAddIcon fontSize="small" />,
   },
 ]
@@ -38,17 +38,17 @@ export function SettingsNav() {
             component={Link}
             href={item.href}
             sx={{
-              display: "flex",
-              alignItems: "center",
+              display: 'flex',
+              alignItems: 'center',
               gap: 1.25,
               px: 1.25,
               py: 1,
               borderRadius: 1,
-              textDecoration: "none",
-              color: active ? "text.primary" : "text.secondary",
+              textDecoration: 'none',
+              color: active ? 'text.primary' : 'text.secondary',
               fontWeight: active ? 600 : 400,
-              backgroundColor: active ? "action.selected" : "transparent",
-              "&:hover": { backgroundColor: "action.hover" },
+              backgroundColor: active ? 'action.selected' : 'transparent',
+              '&:hover': { backgroundColor: 'action.hover' },
             }}
           >
             {item.icon}

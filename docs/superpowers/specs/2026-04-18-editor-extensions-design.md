@@ -99,12 +99,12 @@ Implementation note: the existing `MovePageDialog` in `apps/web/src/components/w
 
 ```ts
 Mark.create({
-  name: "anynoteTextColor",
-  addAttributes: () => ({ color: { default: "default" } }),
-  parseHTML: () => [{ tag: "span[data-anynote-color]" }],
+  name: 'anynoteTextColor',
+  addAttributes: () => ({ color: { default: 'default' } }),
+  parseHTML: () => [{ tag: 'span[data-anynote-color]' }],
   renderHTML: ({ HTMLAttributes }) => [
-    "span",
-    { class: `anynote-color-${HTMLAttributes.color}`, "data-anynote-color": HTMLAttributes.color },
+    'span',
+    { class: `anynote-color-${HTMLAttributes.color}`, 'data-anynote-color': HTMLAttributes.color },
     0,
   ],
 })
@@ -149,7 +149,7 @@ addGlobalAttributes: () => [{
   --anynote-bg-red: rgba(180, 35, 24, 0.14);
 }
 
-[data-mui-color-scheme="dark"] {
+[data-mui-color-scheme='dark'] {
   --anynote-color-gray: #9aa0a6;
   /* ... all 9 darker-mode equivalents */
   --anynote-bg-gray: rgba(154, 160, 166, 0.22);
@@ -209,19 +209,19 @@ Expected latency: 1-2s for sync + insert. Show loading indicator in the menu ite
 
 ```ts
 Node.create({
-  name: "toggle",
-  content: "block+",
-  group: "block",
+  name: 'toggle',
+  content: 'block+',
+  group: 'block',
   defining: true,
   addAttributes: () => ({
     open: {
       default: true,
-      parseHTML: (el) => el.getAttribute("data-open") === "true",
-      renderHTML: (attrs) => ({ "data-open": attrs.open }),
+      parseHTML: (el) => el.getAttribute('data-open') === 'true',
+      renderHTML: (attrs) => ({ 'data-open': attrs.open }),
     },
   }),
   parseHTML: () => [{ tag: 'div[data-type="toggle"]' }],
-  renderHTML: ({ HTMLAttributes }) => ["div", { ...HTMLAttributes, "data-type": "toggle" }, 0],
+  renderHTML: ({ HTMLAttributes }) => ['div', { ...HTMLAttributes, 'data-type': 'toggle' }, 0],
   addNodeView: () => ReactNodeViewRenderer(ToggleView),
 })
 ```
@@ -236,7 +236,7 @@ function ToggleView({ node, updateAttributes }) {
       <IconButton
         size="small"
         onClick={() => updateAttributes({ open: !open })}
-        sx={{ transform: open ? "rotate(90deg)" : "rotate(0deg)", transition: "transform 120ms" }}
+        sx={{ transform: open ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 120ms' }}
       >
         <ArrowRightOutlinedIcon fontSize="small" />
       </IconButton>
@@ -254,7 +254,7 @@ function ToggleView({ node, updateAttributes }) {
   grid-template-columns: 28px 1fr;
   align-items: start;
 }
-.anynote-toggle[data-open="false"] > .anynote-toggle-content > :not(:first-child) {
+.anynote-toggle[data-open='false'] > .anynote-toggle-content > :not(:first-child) {
   display: none;
 }
 ```
@@ -291,13 +291,13 @@ Implemented via `addKeyboardShortcuts` or `Plugin` with `handleKeyDown`.
 
 ```ts
 Node.create({
-  name: "hiddenText",
-  content: "block+",
-  group: "block",
+  name: 'hiddenText',
+  content: 'block+',
+  group: 'block',
   defining: true,
   // visible is local-only — never persisted, never parsed
   parseHTML: () => [{ tag: 'div[data-type="hidden-text"]' }],
-  renderHTML: ({ HTMLAttributes }) => ["div", { ...HTMLAttributes, "data-type": "hidden-text" }, 0],
+  renderHTML: ({ HTMLAttributes }) => ['div', { ...HTMLAttributes, 'data-type': 'hidden-text' }, 0],
   addNodeView: () => ReactNodeViewRenderer(HiddenTextView),
 })
 ```
@@ -326,12 +326,12 @@ function HiddenTextView() {
   grid-template-columns: 28px 1fr;
   align-items: start;
 }
-.anynote-hidden-text[data-visible="false"] > .anynote-hidden-text-content {
+.anynote-hidden-text[data-visible='false'] > .anynote-hidden-text-content {
   -webkit-text-security: disc;
   text-security: disc;
 }
 @supports not ((-webkit-text-security: disc) or (text-security: disc)) {
-  .anynote-hidden-text[data-visible="false"] > .anynote-hidden-text-content {
+  .anynote-hidden-text[data-visible='false'] > .anynote-hidden-text-content {
     filter: blur(5px);
   }
 }
@@ -476,7 +476,7 @@ function FavoriteStar({ pageId, workspaceId }) {
   return (
     <IconButton size="small" onClick={toggleFavorite}>
       {isFavorite ? (
-        <StarIcon sx={{ color: "warning.main" }} fontSize="small" />
+        <StarIcon sx={{ color: 'warning.main' }} fontSize="small" />
       ) : (
         <StarBorderIcon fontSize="small" />
       )}

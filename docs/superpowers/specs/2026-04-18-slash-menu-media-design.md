@@ -34,7 +34,7 @@ Group the slash menu entries under two section headings: **Базовые бло
 ### New / changed types (packages/editor/src/types.ts)
 
 ```ts
-export type SlashCommandGroup = "base" | "media"
+export type SlashCommandGroup = 'base' | 'media'
 
 export type SlashCommandItem = {
   id: string
@@ -173,9 +173,9 @@ Export helper `getFileIcon(ext: string): ComponentType` in `assets/files/index.t
 Add:
 
 ```ts
-export { default as Tabs, type TabsProps } from "@mui/material/Tabs"
-export { default as Tab, type TabProps } from "@mui/material/Tab"
-export { default as ListSubheader, type ListSubheaderProps } from "@mui/material/ListSubheader"
+export { default as Tabs, type TabsProps } from '@mui/material/Tabs'
+export { default as Tab, type TabProps } from '@mui/material/Tab'
+export { default as ListSubheader, type ListSubheaderProps } from '@mui/material/ListSubheader'
 ```
 
 (These MUI components are already a transitive dep via `@mui/material`, no new install needed.)

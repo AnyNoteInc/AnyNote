@@ -1,5 +1,5 @@
-import { Injectable } from "@nestjs/common"
-import { YookassaClient } from "@repo/yookassa"
+import { Injectable } from '@nestjs/common'
+import { YookassaClient } from '@repo/yookassa'
 
 @Injectable()
 export class YookassaClientFactory {
@@ -14,7 +14,7 @@ export class YookassaClientFactory {
     const secretKey = process.env.YOOKASSA_SECRET_KEY
 
     if (!shopId || !secretKey) {
-      throw new Error("YOOKASSA_SHOP_ID/SECRET_KEY missing")
+      throw new Error('YOOKASSA_SHOP_ID/SECRET_KEY missing')
     }
 
     this.client = new YookassaClient({ shopId, secretKey })

@@ -1,7 +1,7 @@
-import type * as Y from "yjs"
-import type { GenogramPageData } from "../types"
-import { GENOGRAM_SCHEMA_VERSION } from "../types"
-import { getGenogramMaps } from "./schema"
+import type * as Y from 'yjs'
+import type { GenogramPageData } from '../types'
+import { GENOGRAM_SCHEMA_VERSION } from '../types'
+import { getGenogramMaps } from './schema'
 
 /**
  * Snapshots every Y.Map into a plain GenogramPageData. Layout/viewport are

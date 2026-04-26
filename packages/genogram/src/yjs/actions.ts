@@ -1,4 +1,4 @@
-import type * as Y from "yjs"
+import type * as Y from 'yjs'
 import {
   createAnnotation,
   createBirthGroup,
@@ -12,7 +12,7 @@ import {
   type CreatePersonInput,
   type CreatePregnancyLossInput,
   type CreateUnionInput,
-} from "../model/factories"
+} from '../model/factories'
 import type {
   Annotation,
   AnnotationId,
@@ -28,8 +28,8 @@ import type {
   Union,
   UnionDivorce,
   UnionId,
-} from "../types"
-import { getGenogramMaps } from "./schema"
+} from '../types'
+import { getGenogramMaps } from './schema'
 
 // ── creation ─────────────────────────────────────────────
 
@@ -70,10 +70,7 @@ export function addBirthGroup(doc: Y.Doc, input: CreateBirthGroupInput): BirthGr
   return bg
 }
 
-export function addPregnancyLoss(
-  doc: Y.Doc,
-  input: CreatePregnancyLossInput,
-): PregnancyLoss {
+export function addPregnancyLoss(doc: Y.Doc, input: CreatePregnancyLossInput): PregnancyLoss {
   const loss = createPregnancyLoss(input)
   doc.transact(() => {
     getGenogramMaps(doc).pregnancyLosses.set(loss.id, loss)
@@ -94,7 +91,7 @@ export function addAnnotation(doc: Y.Doc, input: CreateAnnotationInput): Annotat
 export function updatePerson(
   doc: Y.Doc,
   personId: PersonId,
-  patch: Partial<Omit<Person, "id">>,
+  patch: Partial<Omit<Person, 'id'>>,
 ): void {
   const maps = getGenogramMaps(doc)
   const existing = maps.people.get(personId)
@@ -104,11 +101,7 @@ export function updatePerson(
   })
 }
 
-export function updateUnion(
-  doc: Y.Doc,
-  unionId: UnionId,
-  patch: Partial<Omit<Union, "id">>,
-): void {
+export function updateUnion(doc: Y.Doc, unionId: UnionId, patch: Partial<Omit<Union, 'id'>>): void {
   const maps = getGenogramMaps(doc)
   const existing = maps.unions.get(unionId)
   if (!existing) return
@@ -125,11 +118,7 @@ export function setUnionDivorce(
   updateUnion(doc, unionId, { divorce })
 }
 
-export function appendChild(
-  doc: Y.Doc,
-  childGroupId: ChildGroupId,
-  entry: ChildEntry,
-): void {
+export function appendChild(doc: Y.Doc, childGroupId: ChildGroupId, entry: ChildEntry): void {
   const maps = getGenogramMaps(doc)
   const cg = maps.childGroups.get(childGroupId)
   if (!cg) return

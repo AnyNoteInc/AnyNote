@@ -1,24 +1,24 @@
 export function parseUserAgent(ua: string | null | undefined): { browser: string; os: string } {
-  if (!ua) return { browser: "Unknown", os: "Unknown" }
+  if (!ua) return { browser: 'Unknown', os: 'Unknown' }
   const browser = /Edg/.test(ua)
-    ? "Edge"
+    ? 'Edge'
     : /Chrome/.test(ua)
-      ? "Chrome"
+      ? 'Chrome'
       : /Firefox/.test(ua)
-        ? "Firefox"
+        ? 'Firefox'
         : /Safari/.test(ua)
-          ? "Safari"
-          : "Unknown"
+          ? 'Safari'
+          : 'Unknown'
   const os = /Windows/.test(ua)
-    ? "Windows"
+    ? 'Windows'
     : /Mac OS X|Macintosh/.test(ua)
-      ? "macOS"
+      ? 'macOS'
       : /iPhone|iPad/.test(ua)
-        ? "iOS"
+        ? 'iOS'
         : /Android/.test(ua)
-          ? "Android"
+          ? 'Android'
           : /Linux/.test(ua)
-            ? "Linux"
-            : "Unknown"
+            ? 'Linux'
+            : 'Unknown'
   return { browser, os }
 }

@@ -1,23 +1,23 @@
-"use client"
+'use client'
 
-import { useRef, useState, type MouseEvent } from "react"
-import AddIcon from "@mui/icons-material/Add"
-import DragIndicatorIcon from "@mui/icons-material/DragIndicator"
-import { Box, IconButton } from "@mui/material"
-import type { Editor } from "@tiptap/core"
-import type { DragHandleRule } from "@tiptap/extension-drag-handle"
-import DragHandle from "@tiptap/extension-drag-handle-react"
-import type { Node as PMNode } from "@tiptap/pm/model"
+import { useRef, useState, type MouseEvent } from 'react'
+import AddIcon from '@mui/icons-material/Add'
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
+import { Box, IconButton } from '@mui/material'
+import type { Editor } from '@tiptap/core'
+import type { DragHandleRule } from '@tiptap/extension-drag-handle'
+import DragHandle from '@tiptap/extension-drag-handle-react'
+import type { Node as PMNode } from '@tiptap/pm/model'
 
-import { DragHandleMenu } from "./drag-handle-menu"
+import { DragHandleMenu } from './drag-handle-menu'
 
-const CONTAINER_TYPES = ["callout", "toggle", "hiddenText"]
+const CONTAINER_TYPES = ['callout', 'toggle', 'hiddenText']
 
 // First child of a container block is not independently draggable — dragging
 // the first row should pick the parent container instead. Mirrors the library's
 // built-in `listItemFirstChild` rule but for our block types.
 const firstChildOfContainer: DragHandleRule = {
-  id: "firstChildOfContainer",
+  id: 'firstChildOfContainer',
   evaluate: ({ parent, isFirst }) => {
     if (!isFirst || !parent) return 0
     return CONTAINER_TYPES.includes(parent.type.name) ? 1000 : 0
@@ -29,7 +29,7 @@ const firstChildOfContainer: DragHandleRule = {
 // handle (which sits in the gutter) would flip the target to the parent mid-
 // motion, so the handle would jump to the outer container before the cursor
 // even reached it.
-const nestedOptions = { rules: [firstChildOfContainer], edgeDetection: "none" as const }
+const nestedOptions = { rules: [firstChildOfContainer], edgeDetection: 'none' as const }
 
 type Props = {
   editor: Editor
@@ -69,7 +69,7 @@ export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
     // block's rect — the ghost then stays under the cursor where it was
     // grabbed.
     const nativeSet = event.dataTransfer.setDragImage.bind(event.dataTransfer)
-    Object.defineProperty(event.dataTransfer, "setDragImage", {
+    Object.defineProperty(event.dataTransfer, 'setDragImage', {
       configurable: true,
       value: (image: Element) => {
         const width = (image as HTMLElement).getBoundingClientRect().width || rect.width
@@ -90,25 +90,25 @@ export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
     if (alt) {
       // Insert empty paragraph above the hovered node, then slash
       chain
-        .insertContentAt(info.from, { type: "paragraph" })
+        .insertContentAt(info.from, { type: 'paragraph' })
         .setTextSelection(info.from + 1)
-        .insertContent("/")
+        .insertContent('/')
         .run()
       return
     }
     if (info.isEmpty) {
       chain
         .setTextSelection(info.from + 1)
-        .insertContent("/")
+        .insertContent('/')
         .run()
       return
     }
     // Non-empty: put cursor at end of node and insert new paragraph below
     chain
       .setTextSelection(info.to - 1)
-      .insertContentAt(info.to, { type: "paragraph" })
+      .insertContentAt(info.to, { type: 'paragraph' })
       .setTextSelection(info.to + 1)
-      .insertContent("/")
+      .insertContent('/')
       .run()
   }
 
@@ -137,17 +137,17 @@ export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
         <Box
           className="tiptap-drag-handle-wrapper"
           sx={{
-            display: "inline-flex",
-            alignItems: "center",
+            display: 'inline-flex',
+            alignItems: 'center',
             gap: 0.25,
-            color: "text.disabled",
+            color: 'text.disabled',
           }}
         >
           <IconButton
             size="small"
             onMouseDown={(e) => e.stopPropagation()}
             onClick={openSlashMenu}
-            sx={{ p: 0.25, color: "text.secondary" }}
+            sx={{ p: 0.25, color: 'text.secondary' }}
             aria-label="Добавить блок"
           >
             <AddIcon fontSize="small" />
@@ -156,7 +156,7 @@ export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
             size="small"
             onMouseDown={(e) => e.stopPropagation()}
             onClick={openBlockMenu}
-            sx={{ p: 0.25, cursor: "grab", color: "text.secondary" }}
+            sx={{ p: 0.25, cursor: 'grab', color: 'text.secondary' }}
             aria-label="Действия блока"
           >
             <DragIndicatorIcon fontSize="small" />

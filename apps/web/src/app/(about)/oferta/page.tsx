@@ -1,11 +1,11 @@
-import type { Metadata } from "next"
+import type { Metadata } from 'next'
 
-import { Alert, Stack, Typography } from "@repo/ui/components"
+import { Alert, Stack, Typography } from '@repo/ui/components'
 
-import { PublicPageShell } from "@/components/public/public-page-shell"
+import { PublicPageShell } from '@/components/public/public-page-shell'
 
 export const metadata: Metadata = {
-  title: "Договор-оферта",
+  title: 'Договор-оферта',
 }
 
 export default function OfertaPage() {

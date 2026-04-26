@@ -1,5 +1,5 @@
-import type { ReactNode } from "react"
-import type { Editor } from "@tiptap/core"
+import type { ReactNode } from 'react'
+import type { Editor } from '@tiptap/core'
 
 export type UploadedFile = {
   id: string
@@ -20,7 +20,7 @@ export type PageLookupItem = {
   icon: string | null
 }
 
-export type SlashCommandGroup = "base" | "media"
+export type SlashCommandGroup = 'base' | 'media'
 
 export type SlashRange = { from: number; to: number }
 

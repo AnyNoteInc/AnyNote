@@ -1,7 +1,7 @@
-import type { Editor } from "@tiptap/core"
-import { HocuspocusProvider } from "@hocuspocus/provider"
-import { prosemirrorJSONToYDoc } from "y-prosemirror"
-import * as Y from "yjs"
+import type { Editor } from '@tiptap/core'
+import { HocuspocusProvider } from '@hocuspocus/provider'
+import { prosemirrorJSONToYDoc } from 'y-prosemirror'
+import * as Y from 'yjs'
 
 type MoveBlockParams = {
   editor: Editor
@@ -40,10 +40,10 @@ export async function moveBlockToPage({
   targetPageId,
   yjsUrl,
   token,
-  fragmentField = "default",
+  fragmentField = 'default',
 }: MoveBlockParams): Promise<MoveBlockResult> {
   const node = editor.state.doc.nodeAt(sourcePos)
-  if (!node) return { ok: false, error: "Block not found at source position" }
+  if (!node) return { ok: false, error: 'Block not found at source position' }
   const json = node.toJSON()
   const nodeSize = node.nodeSize
 
@@ -57,14 +57,14 @@ export async function moveBlockToPage({
 
   try {
     await new Promise<void>((resolve, reject) => {
-      const timeout = setTimeout(() => reject(new Error("Sync timeout")), 10_000)
-      provider.on("synced", () => {
+      const timeout = setTimeout(() => reject(new Error('Sync timeout')), 10_000)
+      provider.on('synced', () => {
         clearTimeout(timeout)
         resolve()
       })
     })
 
-    const syntheticDoc = { type: "doc", content: [json] }
+    const syntheticDoc = { type: 'doc', content: [json] }
     const tempYDoc = prosemirrorJSONToYDoc(editor.schema, syntheticDoc, fragmentField)
     const tempFragment = tempYDoc.getXmlFragment(fragmentField)
 

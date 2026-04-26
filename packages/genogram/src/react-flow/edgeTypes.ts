@@ -1,11 +1,11 @@
-import type { EdgeTypes } from "@xyflow/react"
+import type { EdgeTypes } from '@xyflow/react'
 import {
   BirthDiagonalEdge,
   ChildEdge,
   TwinHorizontalEdge,
   UnionLineEdge,
   UnionTrunkEdge,
-} from "../edges"
+} from '../edges'
 
 export const edgeTypes: EdgeTypes = {
   unionMarriage: UnionLineEdge,

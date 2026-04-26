@@ -1,9 +1,9 @@
-import { render, screen, act } from "@testing-library/react"
-import { afterEach, beforeEach, describe, expect, it, vi } from "vitest"
+import { render, screen, act } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { ChatLoadingPhrases } from "../src/components/chat/chat-loading-phrases"
+import { ChatLoadingPhrases } from '../src/components/chat/chat-loading-phrases'
 
-describe("ChatLoadingPhrases", () => {
+describe('ChatLoadingPhrases', () => {
   beforeEach(() => {
     vi.useFakeTimers()
   })
@@ -12,33 +12,33 @@ describe("ChatLoadingPhrases", () => {
     vi.useRealTimers()
   })
 
-  it("starts with the first phrase", () => {
+  it('starts with the first phrase', () => {
     render(<ChatLoadingPhrases />)
-    expect(screen.getByText("Загрузка")).toBeTruthy()
+    expect(screen.getByText('Загрузка')).toBeTruthy()
   })
 
-  it("rotates phrases every 1000 ms", () => {
+  it('rotates phrases every 1000 ms', () => {
     render(<ChatLoadingPhrases />)
-    expect(screen.getByText("Загрузка")).toBeTruthy()
+    expect(screen.getByText('Загрузка')).toBeTruthy()
 
     act(() => {
       vi.advanceTimersByTime(1000)
     })
-    expect(screen.getByText("Вычисления")).toBeTruthy()
+    expect(screen.getByText('Вычисления')).toBeTruthy()
 
     act(() => {
       vi.advanceTimersByTime(1000)
     })
-    expect(screen.getByText("Преобразование")).toBeTruthy()
+    expect(screen.getByText('Преобразование')).toBeTruthy()
 
     act(() => {
       vi.advanceTimersByTime(1000)
     })
-    expect(screen.getByText("Литье")).toBeTruthy()
+    expect(screen.getByText('Литье')).toBeTruthy()
 
     act(() => {
       vi.advanceTimersByTime(1000)
     })
-    expect(screen.getByText("Загрузка")).toBeTruthy()
+    expect(screen.getByText('Загрузка')).toBeTruthy()
   })
 })

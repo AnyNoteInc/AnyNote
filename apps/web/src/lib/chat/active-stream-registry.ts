@@ -1,4 +1,4 @@
-import type { ServiceBlock, StreamStatus, WebChatSseEvent } from "./types"
+import type { ServiceBlock, StreamStatus, WebChatSseEvent } from './types'
 
 type Subscriber = (event: WebChatSseEvent) => void
 
@@ -44,9 +44,9 @@ export function createActiveStreamRegistry() {
       assistantMessageId: args.assistantMessageId,
       chatId: args.chatId,
       userMessageId: args.userMessageId,
-      content: "",
+      content: '',
       blocks: [],
-      status: "STREAMING",
+      status: 'STREAMING',
       errorMessage: undefined,
       upstreamTask: null,
       lastTouchedAt: Date.now(),
@@ -60,7 +60,7 @@ export function createActiveStreamRegistry() {
       },
       publishCreated() {
         publish({
-          type: "message.created",
+          type: 'message.created',
           assistantMessageId: entry.assistantMessageId,
           userMessageId: entry.userMessageId,
         })
@@ -68,7 +68,7 @@ export function createActiveStreamRegistry() {
       publishDelta(text) {
         entry.content += text
         publish({
-          type: "message.delta",
+          type: 'message.delta',
           assistantMessageId: entry.assistantMessageId,
           text,
         })
@@ -76,7 +76,7 @@ export function createActiveStreamRegistry() {
       publishBlocks(blocks) {
         entry.blocks = blocks
         publish({
-          type: "message.service",
+          type: 'message.service',
           assistantMessageId: entry.assistantMessageId,
           blocks,
         })
@@ -85,7 +85,7 @@ export function createActiveStreamRegistry() {
         entry.status = status
         entry.errorMessage = errorMessage
         publish({
-          type: "message.status",
+          type: 'message.status',
           assistantMessageId: entry.assistantMessageId,
           status,
           errorMessage,
@@ -93,7 +93,7 @@ export function createActiveStreamRegistry() {
       },
       publishDone() {
         publish({
-          type: "message.done",
+          type: 'message.done',
           assistantMessageId: entry.assistantMessageId,
         })
       },

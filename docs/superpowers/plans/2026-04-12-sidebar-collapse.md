@@ -35,14 +35,14 @@
 Add these lines at the end of the icons block (after the `ArrowDropUpIcon` line, before the `export * from "./ui/button"` line) in `packages/ui/src/components/index.ts`:
 
 ```typescript
-export { default as KeyboardDoubleArrowLeftIcon } from "@mui/icons-material/KeyboardDoubleArrowLeft"
-export { default as MenuIcon } from "@mui/icons-material/Menu"
+export { default as KeyboardDoubleArrowLeftIcon } from '@mui/icons-material/KeyboardDoubleArrowLeft'
+export { default as MenuIcon } from '@mui/icons-material/Menu'
 ```
 
 Add these lines in the MUI component exports section (after the `InputAdornment` export, before the icons):
 
 ```typescript
-export { default as Popper, type PopperProps } from "@mui/material/Popper"
+export { default as Popper, type PopperProps } from '@mui/material/Popper'
 ```
 
 - [ ] **Step 2: Verify build**
@@ -140,7 +140,7 @@ import {
   TextField,
   Tooltip,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
 // After
 import {
@@ -162,7 +162,7 @@ import {
   Stack,
   TextField,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 ```
 
 Also remove unused `Link` import from `next/link` — check first: `Link` is still used in `ChatListItem` (line 76), so **keep it**.
@@ -277,7 +277,7 @@ import {
   Stack,
   Tooltip,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
 // After
 import {
@@ -289,7 +289,7 @@ import {
   Stack,
   Tooltip,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 ```
 
 - [ ] **Step 2: Update Props type**
@@ -326,11 +326,11 @@ export function WorkspaceSidebar({ workspace, planName, pages, onHide, userMenu 
       component="aside"
       sx={{
         width: 240,
-        borderRight: "1px solid",
-        borderColor: "divider",
-        display: "flex",
-        flexDirection: "column",
-        bgcolor: "background.paper",
+        borderRight: '1px solid',
+        borderColor: 'divider',
+        display: 'flex',
+        flexDirection: 'column',
+        bgcolor: 'background.paper',
         px: 1.25,
         py: 1.75,
       }}
@@ -341,15 +341,15 @@ export function WorkspaceSidebar({ workspace, planName, pages, onHide, userMenu 
             width: 24,
             height: 24,
             borderRadius: 0.75,
-            background: "linear-gradient(135deg,#0f766e,#155e75)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            background: 'linear-gradient(135deg,#0f766e,#155e75)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             fontSize: 14,
             flexShrink: 0,
           }}
         >
-          {workspace.icon ?? "\ud83d\udcd2"}
+          {workspace.icon ?? '\ud83d\udcd2'}
         </Box>
         <Stack spacing={0} sx={{ flex: 1, minWidth: 0 }}>
           <Typography variant="body2" noWrap>
@@ -378,7 +378,7 @@ export function WorkspaceSidebar({ workspace, planName, pages, onHide, userMenu 
 
       <Typography
         variant="overline"
-        sx={{ color: "text.disabled", px: 1, pt: 2, pb: 0.5, letterSpacing: "0.06em" }}
+        sx={{ color: 'text.disabled', px: 1, pt: 2, pb: 0.5, letterSpacing: '0.06em' }}
       >
         Страницы
       </Typography>
@@ -386,8 +386,8 @@ export function WorkspaceSidebar({ workspace, planName, pages, onHide, userMenu 
         {pages.map((page) => (
           <NavItem
             key={page.id}
-            icon={<span style={{ fontSize: 14 }}>{page.icon ?? "\ud83d\udcc4"}</span>}
-            label={page.title ?? "Untitled"}
+            icon={<span style={{ fontSize: 14 }}>{page.icon ?? '\ud83d\udcc4'}</span>}
+            label={page.title ?? 'Untitled'}
             href={`/workspaces/${workspace.id}`}
           />
         ))}
@@ -401,7 +401,7 @@ export function WorkspaceSidebar({ workspace, planName, pages, onHide, userMenu 
 
       <Box sx={{ flex: 1 }} />
 
-      <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 1.25 }}>
+      <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1.25 }}>
         <NavItem
           icon={<DeleteIcon sx={{ fontSize: 16 }} />}
           label="Корзина"
@@ -411,7 +411,7 @@ export function WorkspaceSidebar({ workspace, planName, pages, onHide, userMenu 
         />
       </Box>
 
-      <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 1 }}>{userMenu}</Box>
+      <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>{userMenu}</Box>
     </Box>
   )
 }
@@ -442,16 +442,16 @@ function NavItem({
       component={Link}
       href={href}
       sx={{
-        display: "flex",
-        alignItems: "center",
+        display: 'flex',
+        alignItems: 'center',
         gap: 1,
         px: 1,
         py: 0.75,
         borderRadius: 0.75,
-        textDecoration: "none",
-        color: active ? "text.primary" : muted ? "text.disabled" : "text.secondary",
-        backgroundColor: active ? "action.selected" : "transparent",
-        "&:hover": { backgroundColor: active ? "action.selected" : "action.hover" },
+        textDecoration: 'none',
+        color: active ? 'text.primary' : muted ? 'text.disabled' : 'text.secondary',
+        backgroundColor: active ? 'action.selected' : 'transparent',
+        '&:hover': { backgroundColor: active ? 'action.selected' : 'action.hover' },
         fontSize: 13,
       }}
     >
@@ -480,11 +480,11 @@ git commit -m "refactor: remove collapsed mode from WorkspaceSidebar, use Keyboa
 - [ ] **Step 1: Replace the entire component**
 
 ```tsx
-"use client"
+'use client'
 
-import type { ReactNode } from "react"
+import type { ReactNode } from 'react'
 
-import { Box } from "@repo/ui/components"
+import { Box } from '@repo/ui/components'
 
 type Props = {
   sidebar: ReactNode
@@ -496,17 +496,17 @@ export function WorkspaceShell({ sidebar, main, sidebarHidden }: Props) {
   return (
     <Box
       sx={{
-        display: "grid",
-        gridTemplateColumns: sidebarHidden ? "1fr" : "240px minmax(0, 1fr)",
-        height: "100vh",
-        bgcolor: "background.default",
-        color: "text.primary",
-        overflow: "hidden",
-        transition: "grid-template-columns 150ms ease",
+        display: 'grid',
+        gridTemplateColumns: sidebarHidden ? '1fr' : '240px minmax(0, 1fr)',
+        height: '100vh',
+        bgcolor: 'background.default',
+        color: 'text.primary',
+        overflow: 'hidden',
+        transition: 'grid-template-columns 150ms ease',
       }}
     >
       {sidebarHidden ? null : sidebar}
-      <Box component="main" sx={{ overflow: "auto" }}>
+      <Box component="main" sx={{ overflow: 'auto' }}>
         {main}
       </Box>
     </Box>
@@ -536,11 +536,11 @@ This is the most complex change. The toolbar gains: a `MenuIcon` button (visible
 Replace the entire file:
 
 ```tsx
-"use client"
+'use client'
 
-import { useCallback, useRef, useState, type ReactNode } from "react"
+import { useCallback, useRef, useState, type ReactNode } from 'react'
 
-import { Box, IconButton, MenuIcon, Paper, Popper, Stack, Typography } from "@repo/ui/components"
+import { Box, IconButton, MenuIcon, Paper, Popper, Stack, Typography } from '@repo/ui/components'
 
 type Breadcrumb = { label: string; href?: string }
 
@@ -589,8 +589,8 @@ export function WorkspaceToolbar({
       sx={{
         px: 2,
         py: 1.25,
-        borderBottom: "1px solid",
-        borderColor: "divider",
+        borderBottom: '1px solid',
+        borderColor: 'divider',
       }}
     >
       {sidebarHidden ? (
@@ -599,7 +599,7 @@ export function WorkspaceToolbar({
             ref={anchorRef}
             size="small"
             onClick={onOpenSidebar}
-            sx={{ color: "text.secondary" }}
+            sx={{ color: 'text.secondary' }}
           >
             <MenuIcon sx={{ fontSize: 20 }} />
           </IconButton>
@@ -615,8 +615,8 @@ export function WorkspaceToolbar({
               onMouseLeave={handleMouseLeave}
               sx={{
                 width: 240,
-                maxHeight: "calc(100vh - 80px)",
-                overflow: "auto",
+                maxHeight: 'calc(100vh - 80px)',
+                overflow: 'auto',
                 borderRadius: 2,
                 mt: 0.5,
               }}
@@ -636,7 +636,7 @@ export function WorkspaceToolbar({
           <Typography
             variant="body2"
             noWrap
-            color={i === breadcrumbs.length - 1 ? "text.primary" : "text.secondary"}
+            color={i === breadcrumbs.length - 1 ? 'text.primary' : 'text.secondary'}
           >
             {crumb.label}
           </Typography>
@@ -675,19 +675,19 @@ git commit -m "feat: WorkspaceToolbar MenuIcon with hover Popper for hidden side
 Replace the entire file:
 
 ```tsx
-"use client"
+'use client'
 
-import { usePathname } from "next/navigation"
-import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { usePathname } from 'next/navigation'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 
-import { Box } from "@repo/ui/components"
+import { Box } from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
-import { WorkspaceShell } from "./workspace-shell"
-import { WorkspaceSidebar } from "./workspace-sidebar"
-import { WorkspaceToolbar } from "./workspace-toolbar"
-import { WorkspaceUserMenu } from "./workspace-user-menu"
+import { WorkspaceShell } from './workspace-shell'
+import { WorkspaceSidebar } from './workspace-sidebar'
+import { WorkspaceToolbar } from './workspace-toolbar'
+import { WorkspaceUserMenu } from './workspace-user-menu'
 
 type Props = {
   workspace: { id: string; name: string; icon: string | null }
@@ -697,7 +697,7 @@ type Props = {
   children: ReactNode
 }
 
-const STORAGE_KEY = "workspace.sidebar.collapsed"
+const STORAGE_KEY = 'workspace.sidebar.collapsed'
 
 export function WorkspaceLayoutClient({ workspace, planName, pages, user, children }: Props) {
   const [hidden, setHidden] = useState(false)
@@ -705,7 +705,7 @@ export function WorkspaceLayoutClient({ workspace, planName, pages, user, childr
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY)
-    if (stored === "true") setHidden(true)
+    if (stored === 'true') setHidden(true)
   }, [])
 
   useEffect(() => {
@@ -722,22 +722,22 @@ export function WorkspaceLayoutClient({ workspace, planName, pages, user, childr
   const activeChat = activeChatId ? (chats.data?.find((c) => c.id === activeChatId) ?? null) : null
 
   const breadcrumbs = useMemo(() => {
-    if (pathname.includes("/search")) {
-      const base = { label: "Поиск", href: `/workspaces/${workspace.id}/search` }
-      if (activeChat) return [base, { label: activeChat.title ?? "Без названия" }]
+    if (pathname.includes('/search')) {
+      const base = { label: 'Поиск', href: `/workspaces/${workspace.id}/search` }
+      if (activeChat) return [base, { label: activeChat.title ?? 'Без названия' }]
       return [base]
     }
-    if (pathname.includes("/settings")) {
-      return [{ label: "Настройки" }]
+    if (pathname.includes('/settings')) {
+      return [{ label: 'Настройки' }]
     }
-    if (pathname.includes("/trash")) {
-      return [{ label: "Корзина" }]
+    if (pathname.includes('/trash')) {
+      return [{ label: 'Корзина' }]
     }
     const pageIdMatch = pathname.match(/\/pages\/([a-f0-9-]{36})/)
     if (pageIdMatch) {
       const page = pages.find((p) => p.id === pageIdMatch[1])
-      const base = { label: "Страницы" }
-      if (page) return [base, { label: page.title ?? "Untitled" }]
+      const base = { label: 'Страницы' }
+      if (page) return [base, { label: page.title ?? 'Untitled' }]
       return [base]
     }
     return [{ label: workspace.name }]
@@ -760,14 +760,14 @@ export function WorkspaceLayoutClient({ workspace, planName, pages, user, childr
       sidebarHidden={hidden}
       sidebar={sidebarNode}
       main={
-        <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+        <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
           <WorkspaceToolbar
             breadcrumbs={breadcrumbs}
             sidebarHidden={hidden}
             onOpenSidebar={() => setHidden(false)}
             sidebarContent={sidebarNode}
           />
-          <Box sx={{ flex: 1, overflow: "auto" }}>{children}</Box>
+          <Box sx={{ flex: 1, overflow: 'auto' }}>{children}</Box>
         </Box>
       }
     />

@@ -1,4 +1,4 @@
-import type { Edge, Node } from "@xyflow/react"
+import type { Edge, Node } from '@xyflow/react'
 import type {
   AnnotationId,
   BirthGroupId,
@@ -7,7 +7,7 @@ import type {
   PersonId,
   PregnancyLossId,
   UnionId,
-} from "./ids"
+} from './ids'
 import type {
   BirthKind,
   CustodySide,
@@ -16,26 +16,26 @@ import type {
   PersonSize,
   Sex,
   UnionKind,
-} from "./domain"
-import type { RenderableLabel } from "./labels"
+} from './domain'
+import type { RenderableLabel } from './labels'
 
 export type GenogramNodeType =
-  | "person"
-  | "pregnancyLoss"
-  | "union"
-  | "childrenHub"
-  | "birthGroup"
-  | "annotation"
+  | 'person'
+  | 'pregnancyLoss'
+  | 'union'
+  | 'childrenHub'
+  | 'birthGroup'
+  | 'annotation'
 
 export type GenogramEdgeType =
-  | "unionMarriage"
-  | "unionCohabitation"
-  | "unionTrunk"
-  | "sibling"
-  | "child"
-  | "twinDiagonal"
-  | "twinHorizontal"
-  | "fraternalDiagonal"
+  | 'unionMarriage'
+  | 'unionCohabitation'
+  | 'unionTrunk'
+  | 'sibling'
+  | 'child'
+  | 'twinDiagonal'
+  | 'twinHorizontal'
+  | 'fraternalDiagonal'
 
 export interface PersonNodeData {
   [key: string]: unknown
@@ -86,14 +86,14 @@ export interface AnnotationNodeData {
 }
 
 export type GenogramNode =
-  | Node<PersonNodeData, "person">
-  | Node<PregnancyLossNodeData, "pregnancyLoss">
-  | Node<UnionNodeData, "union">
-  | Node<ChildrenHubNodeData, "childrenHub">
-  | Node<BirthGroupNodeData, "birthGroup">
-  | Node<AnnotationNodeData, "annotation">
+  | Node<PersonNodeData, 'person'>
+  | Node<PregnancyLossNodeData, 'pregnancyLoss'>
+  | Node<UnionNodeData, 'union'>
+  | Node<ChildrenHubNodeData, 'childrenHub'>
+  | Node<BirthGroupNodeData, 'birthGroup'>
+  | Node<AnnotationNodeData, 'annotation'>
 
-export type EdgeDecoration = "divorceSlash" | "diagonalConverge"
+export type EdgeDecoration = 'divorceSlash' | 'diagonalConverge'
 
 export interface GenogramEdgeData {
   [key: string]: unknown
@@ -102,7 +102,7 @@ export interface GenogramEdgeData {
   decorations?: EdgeDecoration[]
   custodySide?: CustodySide
   pathHints?: {
-    corner?: "topLeft" | "topRight"
+    corner?: 'topLeft' | 'topRight'
   }
 }
 

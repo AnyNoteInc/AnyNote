@@ -60,33 +60,38 @@ RAG retrieval is best-effort. If engines is unavailable the chat still works —
 ## Section 1: Extended chunk metadata (apps/engines)
 
 ### Files changed
+
 - `apps/engines/src/apps/indexer/services/qdrant-writer.service.ts` — widen `QdrantPoint.payload` type
 - `apps/engines/src/apps/indexer/queue/indexing.processor.ts` — populate new fields from the Prisma `page` record
 
 ### New payload shape
+
 ```ts
 type QdrantPoint = {
   id: string
   vector: number[]
   payload: {
-    pageId: string           // existing
-    workspaceId: string      // existing
-    chunkIndex: number       // existing
-    title: string            // NEW — page.title
-    content: string          // NEW — normalized chunk text
-    pageType: string         // NEW — "TEXT" | "GENOGRAM" | "EXCALIDRAW"
-    createdById: string      // NEW — page.createdById
-    createdAt: string        // NEW — ISO-8601 (page.createdAt)
-    updatedAt: string        // NEW — ISO-8601 (page.updatedAt)
+    pageId: string // existing
+    workspaceId: string // existing
+    chunkIndex: number // existing
+    title: string // NEW — page.title
+    content: string // NEW — normalized chunk text
+    pageType: string // NEW — "TEXT" | "GENOGRAM" | "EXCALIDRAW"
+    createdById: string // NEW — page.createdById
+    createdAt: string // NEW — ISO-8601 (page.createdAt)
+    updatedAt: string // NEW — ISO-8601 (page.updatedAt)
   }
 }
 ```
 
 ### IndexingProcessor changes
+
 Extend the Prisma `select` to include `title`, `createdById`, `createdAt`, `updatedAt` (type/ownership already present). Propagate these fields (plus the normalized chunk text) into every `QdrantPoint.payload`.
 
 ### Backfill strategy
+
 Existing points lack the new fields. For dev we clear and reindex:
+
 1. Add an env switch `INDEXER_REINDEX_ON_BOOT=true`
 2. On `onApplicationBootstrap`, if the switch is true, delete all points from the collection and enqueue a `page.upserted` outbox event for every non-deleted TEXT page.
 3. The normal worker consumes these events and re-embeds with the new payload.
@@ -94,12 +99,14 @@ Existing points lack the new fields. For dev we clear and reindex:
 If the switch is absent or `false`, nothing happens (safe default for prod).
 
 ### Tests
+
 - `qdrant-writer.service.spec.ts` — update expected payload shape
 - `indexing.processor.spec.ts` — assert every upserted point carries the six new fields
 
 ## Section 2: Search endpoint (apps/engines)
 
 ### New module layout
+
 ```
 apps/engines/src/apps/search/
   search.module.ts
@@ -118,6 +125,7 @@ Wired into `AppModule` alongside `IndexerModule` and `McpModule`.
 `POST /search/pages`
 
 Request:
+
 ```ts
 {
   workspaceId: string      // UUID
@@ -128,20 +136,22 @@ Request:
 ```
 
 Response:
+
 ```ts
 {
   documents: Array<{
-    id: string             // pageId (UUID)
+    id: string // pageId (UUID)
     title: string
-    content: string        // best-matching chunk text
-    score: number          // cosine similarity, 0..1
-    updatedAt: string      // ISO-8601
+    content: string // best-matching chunk text
+    score: number // cosine similarity, 0..1
+    updatedAt: string // ISO-8601
     pageType: string
   }>
 }
 ```
 
 ### `PageSearchService.search` algorithm
+
 1. `vector = await embedding.embed(query)` — reuses existing `EmbeddingClient` / `OllamaService`
 2. `hits = await qdrant.client.search(collection, { vector, filter: { must: [{ key: "workspaceId", match: { value: workspaceId } }] }, limit: topK * 3, score_threshold, with_payload: true })`
 3. Dedupe hits: `Map<pageId, bestHit>`, keeping the max-score entry per pageId
@@ -149,18 +159,22 @@ Response:
 5. Map to `RagDocument` shape
 
 ### Validation
+
 Use a small `zod` schema (`search.schema.ts`) at the controller boundary: `workspaceId` UUID, `query` non-empty, `topK` integer 1..20, `scoreThreshold` float 0..1. This matches the lightweight validation pattern already used in the repo better than introducing Nest/class-validator DTOs just for this endpoint.
 
 ### Security
+
 The endpoint has no auth middleware — engines is an internal service bound to the docker/VPC network. Never expose on the public ingress. Document this in `search.controller.ts` header comment.
 
 ### Tests
+
 - `page-search.service.spec.ts` (unit, mocked Ollama + Qdrant): dedupe, threshold filtering, topK cap, empty-workspace returns `[]`
 - `apps/engines/test/integration/search.e2e.spec.ts` (integration, real Qdrant): index a page via outbox, poll until available, call `/search/pages`, assert the page is found with correct title + content snippet
 
 ## Section 3: apps/web integration
 
 ### New file
+
 `apps/web/src/lib/chat/rag-search.ts`
 
 ```ts
@@ -175,16 +189,19 @@ export async function searchRagDocuments(args: {
 ```
 
 Behaviour:
+
 - POSTs to `${ENGINES_SERVICE_URL}/search/pages` (default `http://localhost:8082`)
 - 5 s timeout
 - Returns `[]` on any failure (network, non-2xx, parse error). Logs a warning; never throws.
 - Maps response `documents[]` to `RagDocument[]` — drops `score`, `updatedAt`, `pageType` (Python schema does not accept them)
 
 ### Files modified
+
 - `apps/web/src/lib/chat/agents-payload.ts` — add `rag` to `buildAgentsPayload` output and to the arg type
 - `apps/web/src/app/api/agents/generate/route.ts` — call `searchRagDocuments` after settings load, before `streamAgentsToRegistry`. Pass result into `buildAgentsPayload`.
 
 ### agents-payload.ts additions
+
 ```ts
 export type RagDocument = { id: string; title: string; content: string }
 
@@ -201,15 +218,18 @@ export function buildAgentsPayload(args: {
 ```
 
 ### Tests
+
 - `apps/web/src/lib/chat/rag-search.test.ts` — happy path, 5xx → `[]`, timeout → `[]`, malformed JSON → `[]`
 - `apps/web/src/lib/chat/agents-payload.test.ts` (extend) — rag field serialized correctly
 
 ## Section 4: Prompt template improvements (apps/agents)
 
 ### File modified
+
 `apps/agents/agents/apps/chat/templates/default.j2`
 
 ### Changes to the `## Retrieved context` block
+
 Replace the current bullet list with a structured per-document block that exposes `id`, `title`, and properly-indented content:
 
 ```jinja
@@ -236,6 +256,7 @@ Replace the current bullet list with a structured per-document block that expose
 ```
 
 ### Changes to the `# TOOLS` block
+
 Add a knowledge-base sub-section listing the most relevant MCP tools:
 
 ```jinja
@@ -257,15 +278,18 @@ Rules:
 The existing `{% if mcp_servers %}` loop stays untouched below.
 
 ### Tests
+
 - `apps/agents/tests/apps/chat/repositories/test_jinja_renderer.py` — render with two rag documents, assert: `pageId` string appears, `title` appears, content is indented two spaces under `content:`, citation-format instruction appears, `getPageMarkdown` is mentioned in TOOLS.
 - Negative test — render without `rag` (None) produces no Retrieved-context section.
 
 ## Section 5: E2E verification
 
 ### Playwright spec
+
 `apps/e2e/rag.spec.ts`
 
 **Setup (via Prisma seed helper)**:
+
 - Test user + workspace
 - Workspace AI settings with a real default model (GigaChat, same as existing chat-streaming tests)
 - One TEXT page containing a distinctive, LLM-unknowable fact. Default marker: `Корпоративный кофе называется "Бразильский Медведь"`.
@@ -273,6 +297,7 @@ The existing `{% if mcp_servers %}` loop stays untouched below.
 Mirror the approach used by the existing chat-streaming E2E: direct Prisma calls from the test file (`apps/e2e/rag.spec.ts`) create/cleanup fixtures, no HTTP seed endpoint. Trigger indexing by inserting the outbox event in the same transaction as the page (matches how the indexer runs in production).
 
 **Test steps**:
+
 1. Prisma seed helper inserts user, workspace, AI settings, page, outbox event.
 2. Poll `POST /search/pages` with query containing the marker ("корпоративный кофе") until `documents.length > 0` or 10 s timeout. This confirms indexing ran before we query the chat.
 3. UI login, open/create a chat in the test workspace, type "Как называется наш корпоративный кофе?", submit.
@@ -280,6 +305,7 @@ Mirror the approach used by the existing chat-streaming E2E: direct Prisma calls
 5. Read the assistant message text from the DOM.
 
 **Assertions**:
+
 - Assistant response contains the substring `Бразильский Медведь` (proves RAG made the difference — the model could not produce this without retrieved context).
 - Final `ChatMessage.status = "DONE"` in DB for both user and assistant.
 - Zero console errors.
@@ -289,6 +315,7 @@ Mirror the approach used by the existing chat-streaming E2E: direct Prisma calls
 **LLM non-determinism**: we assert substring presence only, not exact wording. The marker is designed to be unusual enough that a GigaChat hallucination would not emit it unless the context supplied it.
 
 ### Cross-cutting QA
+
 All existing tests in `apps/engines`, `apps/web`, `apps/agents`, `@repo/ui` must stay green. Add the new tests to `turbo.json` inputs where relevant (tests typically auto-discovered).
 
 ## Environment variables
@@ -308,14 +335,14 @@ Existing used: `QDRANT_URL`, `QDRANT_API_KEY`, `QDRANT_COLLECTION`, `OLLAMA_BASE
 
 ## Error handling summary
 
-| Failure | Behaviour |
-|---|---|
-| Ollama down during indexing | Existing retry logic in IndexingProcessor |
-| Ollama down during search | `/search/pages` returns 503; apps/web treats as `[]` |
-| Qdrant down during search | `/search/pages` returns 503; apps/web treats as `[]` |
-| Engines HTTP down during search | apps/web timeout → `[]` |
-| No hits above threshold | 200 OK with `documents: []` |
-| Workspace has zero indexed pages | 200 OK with `documents: []` |
+| Failure                                  | Behaviour                                                                      |
+| ---------------------------------------- | ------------------------------------------------------------------------------ |
+| Ollama down during indexing              | Existing retry logic in IndexingProcessor                                      |
+| Ollama down during search                | `/search/pages` returns 503; apps/web treats as `[]`                           |
+| Qdrant down during search                | `/search/pages` returns 503; apps/web treats as `[]`                           |
+| Engines HTTP down during search          | apps/web timeout → `[]`                                                        |
+| No hits above threshold                  | 200 OK with `documents: []`                                                    |
+| Workspace has zero indexed pages         | 200 OK with `documents: []`                                                    |
 | Payload missing new fields (pre-reindex) | Search still works; `title`/`content` default to `""`. Triggers a log warning. |
 
 ## Decisions (for future readers)

@@ -1,9 +1,9 @@
-import { z } from "zod"
-import { TRPCError } from "@trpc/server"
+import { z } from 'zod'
+import { TRPCError } from '@trpc/server'
 
-import { router, protectedProcedure } from "../trpc"
+import { router, protectedProcedure } from '../trpc'
 
-const ThemeSchema = z.enum(["light", "dark", "system"])
+const ThemeSchema = z.enum(['light', 'dark', 'system'])
 
 const NotificationSettingsSchema = z.object({
   email: z.object({
@@ -58,7 +58,7 @@ export const userRouter = router({
     // Never select `token` — it's the raw session secret.
     return ctx.prisma.session.findMany({
       where: { userId: ctx.user.id, expiresAt: { gt: new Date() } },
-      orderBy: { updatedAt: "desc" },
+      orderBy: { updatedAt: 'desc' },
       take: 50,
       select: {
         id: true,
@@ -78,7 +78,7 @@ export const userRouter = router({
         where: { id: input.sessionId },
       })
       if (!session || session.userId !== ctx.user.id) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "Session not found" })
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Session not found' })
       }
       await ctx.prisma.session.delete({ where: { id: input.sessionId } })
       return { ok: true }

@@ -1,11 +1,11 @@
-"use client"
+'use client'
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
-import { Box, Stack } from "@repo/ui/components"
+import { Box, Stack } from '@repo/ui/components'
 
-import type { PlanFeatures } from "@repo/trpc"
+import type { PlanFeatures } from '@repo/trpc'
 
 type Props = { workspaceId: string; features: PlanFeatures }
 
@@ -14,11 +14,11 @@ export function WorkspaceSettingsNav({ workspaceId, features }: Props) {
   const base = `/workspaces/${workspaceId}/settings`
 
   const items = [
-    { label: "Общее", slug: "general", show: true },
-    { label: "Участники", slug: "members", show: features.membersSettingsEnabled },
-    { label: "AI агент", slug: "ai", show: features.aiSettingsEnabled },
-    { label: "Файлы", slug: "files", show: true },
-    { label: "Опасная зона", slug: "danger", show: true },
+    { label: 'Общее', slug: 'general', show: true },
+    { label: 'Участники', slug: 'members', show: features.membersSettingsEnabled },
+    { label: 'AI агент', slug: 'ai', show: features.aiSettingsEnabled },
+    { label: 'Файлы', slug: 'files', show: true },
+    { label: 'Опасная зона', slug: 'danger', show: true },
   ].filter((item) => item.show)
 
   return (
@@ -32,14 +32,14 @@ export function WorkspaceSettingsNav({ workspaceId, features }: Props) {
             component={Link}
             href={href}
             sx={{
-              display: "block",
-              padding: "6px 10px",
+              display: 'block',
+              padding: '6px 10px',
               borderRadius: 0.75,
-              textDecoration: "none",
+              textDecoration: 'none',
               fontSize: 14,
-              color: active ? "text.primary" : "text.secondary",
-              bgcolor: active ? "action.selected" : "transparent",
-              "&:hover": { bgcolor: active ? "action.selected" : "action.hover" },
+              color: active ? 'text.primary' : 'text.secondary',
+              bgcolor: active ? 'action.selected' : 'transparent',
+              '&:hover': { bgcolor: active ? 'action.selected' : 'action.hover' },
             }}
           >
             {item.label}

@@ -1,15 +1,11 @@
-import type { GenogramPageData } from "../types"
-import { createEmptyGenogram } from "../model/factories"
-import {
-  parseGenogram,
-  safeParseGenogram,
-  type ValidationIssue,
-} from "../model/validators"
-import { migrate } from "./migrate"
+import type { GenogramPageData } from '../types'
+import { createEmptyGenogram } from '../model/factories'
+import { parseGenogram, safeParseGenogram, type ValidationIssue } from '../model/validators'
+import { migrate } from './migrate'
 
 function isEmptyInput(raw: unknown): boolean {
   if (raw == null) return true
-  if (typeof raw !== "object") return false
+  if (typeof raw !== 'object') return false
   return Object.keys(raw as Record<string, unknown>).length === 0
 }
 

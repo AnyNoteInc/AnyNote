@@ -1,7 +1,7 @@
-"use client"
+'use client'
 
-import { useForm } from "react-hook-form"
-import { Stack, TextField, Button, Divider, Typography } from "@repo/ui/components"
+import { useForm } from 'react-hook-form'
+import { Stack, TextField, Button, Divider, Typography } from '@repo/ui/components'
 
 export type RegisterFormValues = {
   email: string
@@ -11,7 +11,7 @@ export type RegisterFormValues = {
   confirmPassword: string
 }
 
-export type RegisterSubmitPayload = Omit<RegisterFormValues, "confirmPassword">
+export type RegisterSubmitPayload = Omit<RegisterFormValues, 'confirmPassword'>
 
 export type RegisterFormProps = {
   defaultValues?: Partial<RegisterFormValues>
@@ -24,16 +24,16 @@ export type RegisterFormProps = {
 export function RegisterForm({
   defaultValues,
   onSubmit,
-  titleLabel = "Регистрация",
-  submitLabel = "Зарегистрироваться",
+  titleLabel = 'Регистрация',
+  submitLabel = 'Зарегистрироваться',
   isSubmitting,
 }: RegisterFormProps) {
   const formDefaults: RegisterFormValues = {
-    email: "",
-    lastName: "",
-    firstName: "",
-    password: "",
-    confirmPassword: "",
+    email: '',
+    lastName: '',
+    firstName: '',
+    password: '',
+    confirmPassword: '',
     ...defaultValues,
   }
 
@@ -44,17 +44,17 @@ export function RegisterForm({
     formState: { errors, isSubmitting: rhfSubmitting },
   } = useForm<RegisterFormValues>({
     defaultValues: formDefaults,
-    mode: "onSubmit",
-    reValidateMode: "onChange",
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
   })
 
   const submitting = isSubmitting ?? rhfSubmitting
 
   const handleFormSubmit = handleSubmit(async ({ confirmPassword, ...values }) => {
     if (values.password !== confirmPassword) {
-      setError("confirmPassword", {
-        type: "validate",
-        message: "Пароли не совпадают",
+      setError('confirmPassword', {
+        type: 'validate',
+        message: 'Пароли не совпадают',
       })
       return
     }
@@ -70,11 +70,11 @@ export function RegisterForm({
       </Stack>
       <Stack spacing={2.5}>
         <TextField
-          {...register("email", {
-            required: "Введите email",
+          {...register('email', {
+            required: 'Введите email',
             pattern: {
               value: /\S+@\S+\.\S+/,
-              message: "Введите корректный email",
+              message: 'Введите корректный email',
             },
           })}
           type="email"
@@ -85,7 +85,7 @@ export function RegisterForm({
           helperText={errors.email?.message}
         />
         <TextField
-          {...register("lastName", { required: "Введите фамилию" })}
+          {...register('lastName', { required: 'Введите фамилию' })}
           label="Фамилия"
           fullWidth
           autoComplete="family-name"
@@ -93,7 +93,7 @@ export function RegisterForm({
           helperText={errors.lastName?.message}
         />
         <TextField
-          {...register("firstName", { required: "Введите имя" })}
+          {...register('firstName', { required: 'Введите имя' })}
           label="Имя"
           fullWidth
           autoComplete="given-name"
@@ -102,9 +102,9 @@ export function RegisterForm({
         />
         <Divider />
         <TextField
-          {...register("password", {
-            required: "Введите пароль",
-            minLength: { value: 8, message: "Минимум 8 символов" },
+          {...register('password', {
+            required: 'Введите пароль',
+            minLength: { value: 8, message: 'Минимум 8 символов' },
           })}
           label="Пароль"
           type="password"
@@ -114,8 +114,8 @@ export function RegisterForm({
           helperText={errors.password?.message}
         />
         <TextField
-          {...register("confirmPassword", {
-            required: "Повторите пароль",
+          {...register('confirmPassword', {
+            required: 'Повторите пароль',
           })}
           label="Повторите пароль"
           type="password"

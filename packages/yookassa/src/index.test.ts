@@ -1,11 +1,11 @@
-import { describe, expect, it } from "vitest"
+import { describe, expect, it } from 'vitest'
 
-import { YookassaClient, parseWebhookEvent, verifyTrustedIp } from "./index.js"
+import { YookassaClient, parseWebhookEvent, verifyTrustedIp } from './index.js'
 
-describe("@repo/yookassa scaffold", () => {
-  it("exports planned public API placeholders", () => {
-    expect(YookassaClient).toBeTypeOf("function")
-    expect(parseWebhookEvent).toBeTypeOf("function")
-    expect(verifyTrustedIp).toBeTypeOf("function")
+describe('@repo/yookassa scaffold', () => {
+  it('exports planned public API placeholders', () => {
+    expect(YookassaClient).toBeTypeOf('function')
+    expect(parseWebhookEvent).toBeTypeOf('function')
+    expect(verifyTrustedIp).toBeTypeOf('function')
   })
 })

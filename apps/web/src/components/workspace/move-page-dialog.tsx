@@ -1,17 +1,17 @@
-"use client"
+'use client'
 
-import { useState } from "react"
+import { useState } from 'react'
 
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle } from "@repo/ui/components"
-import { trpc } from "@/trpc/client"
+import { Button, Dialog, DialogActions, DialogContent, DialogTitle } from '@repo/ui/components'
+import { trpc } from '@/trpc/client'
 
 import {
   PAGE_TREE_ROOT,
   PageTreePicker,
   getDescendantIds,
   type PageTreeSelection,
-} from "./page-tree-picker"
-import { type PageItem } from "./types"
+} from './page-tree-picker'
+import { type PageItem } from './types'
 
 type Props = {
   open: boolean
@@ -43,7 +43,7 @@ export function MovePageDialog({ open, onClose, page, pages, workspaceId }: Prop
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>{`Переместить \u00AB${page.title ?? "Новая страница"}\u00BB`}</DialogTitle>
+      <DialogTitle>{`Переместить \u00AB${page.title ?? 'Новая страница'}\u00BB`}</DialogTitle>
       <DialogContent sx={{ p: 1 }}>
         <PageTreePicker
           pages={pages}

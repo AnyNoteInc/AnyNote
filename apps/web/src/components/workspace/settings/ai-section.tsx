@@ -1,6 +1,6 @@
-"use client"
+'use client'
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from 'react'
 import {
   Alert,
   Button,
@@ -13,8 +13,8 @@ import {
   Stack,
   TextField,
   Typography,
-} from "@repo/ui/components"
-import { trpc } from "@/trpc/client"
+} from '@repo/ui/components'
+import { trpc } from '@/trpc/client'
 
 type InitialModel = { id: string; displayName: string; provider: { name: string; slug: string } }
 
@@ -36,13 +36,13 @@ export function WorkspaceAiSection({ workspaceId, initialModels }: Props) {
     },
   })
 
-  const [defaultModelId, setDefaultModelId] = useState<string>("")
-  const [systemPrompt, setSystemPrompt] = useState<string>("")
+  const [defaultModelId, setDefaultModelId] = useState<string>('')
+  const [systemPrompt, setSystemPrompt] = useState<string>('')
 
   useEffect(() => {
     if (!settingsQuery.data) return
-    setDefaultModelId(settingsQuery.data.defaultModelId ?? "")
-    setSystemPrompt(settingsQuery.data.systemPrompt ?? "")
+    setDefaultModelId(settingsQuery.data.defaultModelId ?? '')
+    setSystemPrompt(settingsQuery.data.systemPrompt ?? '')
   }, [settingsQuery.data])
 
   const flatModels = useMemo(() => {
@@ -66,8 +66,8 @@ export function WorkspaceAiSection({ workspaceId, initialModels }: Props) {
   const onSave = () => {
     update.mutate({
       workspaceId,
-      defaultModelId: defaultModelId === "" ? null : defaultModelId,
-      systemPrompt: systemPrompt.trim() === "" ? null : systemPrompt,
+      defaultModelId: defaultModelId === '' ? null : defaultModelId,
+      systemPrompt: systemPrompt.trim() === '' ? null : systemPrompt,
     })
   }
 
@@ -117,7 +117,7 @@ export function WorkspaceAiSection({ workspaceId, initialModels }: Props) {
           onClick={onSave}
           loading={update.isPending}
           disabled={disabled}
-          sx={{ alignSelf: "flex-start" }}
+          sx={{ alignSelf: 'flex-start' }}
         >
           Сохранить
         </Button>

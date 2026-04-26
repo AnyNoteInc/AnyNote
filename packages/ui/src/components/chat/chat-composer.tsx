@@ -1,26 +1,26 @@
-"use client"
+'use client'
 
-import AttachFileIcon from "@mui/icons-material/AttachFile"
-import SendRoundedIcon from "@mui/icons-material/SendRounded"
-import Stack from "@mui/material/Stack"
+import AttachFileIcon from '@mui/icons-material/AttachFile'
+import SendRoundedIcon from '@mui/icons-material/SendRounded'
+import Stack from '@mui/material/Stack'
 import {
   ChatComposer as MuiChatComposer,
   ChatComposerAttachButton,
   ChatComposerSendButton,
   ChatComposerTextArea,
-} from "@mui/x-chat"
-import { ChatProvider, useChatComposer, useChatStore } from "@mui/x-chat-headless"
-import { useEffect, useMemo, useRef } from "react"
+} from '@mui/x-chat'
+import { ChatProvider, useChatComposer, useChatStore } from '@mui/x-chat-headless'
+import { useEffect, useMemo, useRef } from 'react'
 
-import { ChatFileChip } from "./chat-file-chip"
+import { ChatFileChip } from './chat-file-chip'
 import {
   CHAT_COMPOSER_MAX_ROWS,
   CHAT_CONVERSATION_ID,
   CHAT_CONVERSATIONS,
   CHAT_MEMBERS,
   createComposerAdapter,
-} from "./chat-provider-utils"
-import type { ChatComposerAttachment, ChatSendPayload } from "./chat-types"
+} from './chat-provider-utils'
+import type { ChatComposerAttachment, ChatSendPayload } from './chat-types'
 
 type ChatComposerProps = {
   value: string
@@ -37,7 +37,7 @@ function getAttachmentSignature(attachments: ChatComposerAttachment[]) {
     .map((attachment) => {
       return `${attachment.localId}:${attachment.status}:${attachment.file.name}:${attachment.file.size}`
     })
-    .join("|")
+    .join('|')
 }
 
 type ChatComposerInnerProps = {
@@ -89,12 +89,7 @@ function ChatComposerInner({
   return (
     <MuiChatComposer disabled={disabled} variant="compact">
       {composer.attachments.length > 0 ? (
-        <Stack
-          direction="row"
-          flexBasis="100%"
-          flexWrap="wrap"
-          gap={1}
-        >
+        <Stack direction="row" flexBasis="100%" flexWrap="wrap" gap={1}>
           {composer.attachments.map((attachment) => (
             <ChatFileChip
               key={attachment.localId}
@@ -130,7 +125,7 @@ export function ChatComposer({
   onAttachmentsChange,
   onSend,
   disabled = false,
-  placeholder = "Write a message",
+  placeholder = 'Write a message',
 }: ChatComposerProps) {
   const adapter = useMemo(() => {
     return createComposerAdapter({

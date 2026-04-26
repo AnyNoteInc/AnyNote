@@ -1,13 +1,13 @@
-import type { ReactNode } from "react"
+import type { ReactNode } from 'react'
 
-import { notFound } from "next/navigation"
+import { notFound } from 'next/navigation'
 
-import { getWorkspaceFeatures } from "@repo/trpc"
+import { getWorkspaceFeatures } from '@repo/trpc'
 
-import { requireSession } from "@/lib/get-session"
-import { getServerTRPC } from "@/trpc/server"
-import { PlanFeaturesProvider } from "@/components/workspace/plan-features-context"
-import { WorkspaceLayoutClient } from "@/components/workspace/workspace-layout-client"
+import { requireSession } from '@/lib/get-session'
+import { getServerTRPC } from '@/trpc/server'
+import { PlanFeaturesProvider } from '@/components/workspace/plan-features-context'
+import { WorkspaceLayoutClient } from '@/components/workspace/workspace-layout-client'
 
 type Props = {
   children: ReactNode

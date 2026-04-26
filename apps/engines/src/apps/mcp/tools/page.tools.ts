@@ -1,22 +1,22 @@
-import { Inject, Injectable } from "@nestjs/common"
-import type { Context } from "@rekog/mcp-nest"
-import { Tool } from "@rekog/mcp-nest"
-import type { PrismaClient } from "@repo/db"
-import { z } from "zod"
+import { Inject, Injectable } from '@nestjs/common'
+import type { Context } from '@rekog/mcp-nest'
+import { Tool } from '@rekog/mcp-nest'
+import type { PrismaClient } from '@repo/db'
+import { z } from 'zod'
 
-import { PRISMA } from "../../../infra/db/db.providers.js"
-import { PageNotFoundError } from "../errors/mcp.errors.js"
-import { WorkspaceMemberGuard } from "../guards/workspace-member.guard.js"
-import { MarkdownRenderer } from "../services/markdown-renderer.service.js"
-import { PageWriter } from "../services/page-writer.service.js"
-import { StatsService } from "../services/stats.service.js"
-import { mcpInput, mcpNullableUuidOptional, mcpUuid } from "../utils/mcp-input.js"
-import { getMcpRequestContext, type McpRequestWithContext } from "../utils/mcp-request-context.js"
+import { PRISMA } from '../../../infra/db/db.providers.js'
+import { PageNotFoundError } from '../errors/mcp.errors.js'
+import { WorkspaceMemberGuard } from '../guards/workspace-member.guard.js'
+import { MarkdownRenderer } from '../services/markdown-renderer.service.js'
+import { PageWriter } from '../services/page-writer.service.js'
+import { StatsService } from '../services/stats.service.js'
+import { mcpInput, mcpNullableUuidOptional, mcpUuid } from '../utils/mcp-input.js'
+import { getMcpRequestContext, type McpRequestWithContext } from '../utils/mcp-request-context.js'
 
 const CreatePageInput = z.object({
   parentId: mcpNullableUuidOptional(),
   title: z.string().min(1).max(255),
-  ownership: mcpInput(z.enum(["TEXT", "SKILL", "AGENT"]).default("TEXT")),
+  ownership: mcpInput(z.enum(['TEXT', 'SKILL', 'AGENT']).default('TEXT')),
 })
 
 const UpdatePageInput = z.object({
@@ -45,8 +45,8 @@ export class PageTools {
   ) {}
 
   @Tool({
-    name: "createPage",
-    description: "Create a new page in a workspace",
+    name: 'createPage',
+    description: 'Create a new page in a workspace',
     parameters: CreatePageInput,
   })
   async createPage(
@@ -67,8 +67,8 @@ export class PageTools {
   }
 
   @Tool({
-    name: "updatePage",
-    description: "Update page title/icon/content",
+    name: 'updatePage',
+    description: 'Update page title/icon/content',
     parameters: UpdatePageInput,
   })
   async updatePage(
@@ -87,8 +87,8 @@ export class PageTools {
   }
 
   @Tool({
-    name: "movePage",
-    description: "Move a page to a new parent or reorder",
+    name: 'movePage',
+    description: 'Move a page to a new parent or reorder',
     parameters: MovePageInput,
   })
   async movePage(
@@ -107,8 +107,8 @@ export class PageTools {
   }
 
   @Tool({
-    name: "getPageMarkdown",
-    description: "Render page content as Markdown",
+    name: 'getPageMarkdown',
+    description: 'Render page content as Markdown',
     parameters: PageIdInput,
   })
   async getPageMarkdown(
@@ -129,8 +129,8 @@ export class PageTools {
   }
 
   @Tool({
-    name: "getPageStats",
-    description: "Return page metadata (creator, creation date, type, ownership)",
+    name: 'getPageStats',
+    description: 'Return page metadata (creator, creation date, type, ownership)',
     parameters: PageIdInput,
   })
   async getPageStats(

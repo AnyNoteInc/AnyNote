@@ -72,7 +72,7 @@ describe('ChatMessageContent', () => {
       <ChatMessageContent
         parts={[{ type: 'text', text: '[link](/foo)' }]}
         renderLink={(href, children) => (
-          <span data-testid='custom-link' data-href={href}>
+          <span data-testid="custom-link" data-href={href}>
             {children}
           </span>
         )}

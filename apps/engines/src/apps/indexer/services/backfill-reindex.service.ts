@@ -1,8 +1,8 @@
-import { Inject, Injectable } from "@nestjs/common"
-import type { PrismaClient } from "@repo/db"
-import { Prisma } from "@repo/db"
+import { Inject, Injectable } from '@nestjs/common'
+import type { PrismaClient } from '@repo/db'
+import { Prisma } from '@repo/db'
 
-import { PRISMA } from "../../../infra/db/db.providers.js"
+import { PRISMA } from '../../../infra/db/db.providers.js'
 
 @Injectable()
 export class BackfillReindexService {
@@ -10,7 +10,7 @@ export class BackfillReindexService {
 
   async enqueueTextPages(): Promise<{ inserted: number; total: number }> {
     const pages = await this.prisma.page.findMany({
-      where: { type: "TEXT", deletedAt: null },
+      where: { type: 'TEXT', deletedAt: null },
       select: { id: true, workspaceId: true },
     })
 
