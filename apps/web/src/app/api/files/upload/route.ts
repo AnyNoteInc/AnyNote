@@ -1,13 +1,13 @@
-import { createHash } from "node:crypto"
+import { createHash } from 'node:crypto'
 
-import { FileStatus, Prisma, prisma } from "@repo/db"
-import { storage } from "@repo/storage"
-import type { NextRequest } from "next/server"
+import { FileStatus, Prisma, prisma } from '@repo/db'
+import { storage } from '@repo/storage'
+import type { NextRequest } from 'next/server'
 
-import { getSession } from "@/lib/get-session"
-import { computeS3Key, extractExt, validateUpload, type UploadKind } from "@/lib/file-validation"
+import { getSession } from '@/lib/get-session'
+import { computeS3Key, extractExt, validateUpload, type UploadKind } from '@/lib/file-validation'
 
-export const runtime = "nodejs"
+export const runtime = 'nodejs'
 
 const setUserAvatar = (userId: string, fileId: string) =>
   prisma.user.update({
@@ -18,25 +18,25 @@ const setUserAvatar = (userId: string, fileId: string) =>
 export async function POST(request: NextRequest) {
   const session = await getSession()
   if (!session) {
-    return Response.json({ error: "Unauthorized" }, { status: 401 })
+    return Response.json({ error: 'Unauthorized' }, { status: 401 })
   }
 
-  const kindParam = request.nextUrl.searchParams.get("kind")
-  const workspaceIdParam = request.nextUrl.searchParams.get("workspaceId")
+  const kindParam = request.nextUrl.searchParams.get('kind')
+  const workspaceIdParam = request.nextUrl.searchParams.get('workspaceId')
 
-  if (kindParam !== "avatar" && kindParam !== "attachment") {
-    return Response.json({ error: "Invalid kind" }, { status: 400 })
+  if (kindParam !== 'avatar' && kindParam !== 'attachment') {
+    return Response.json({ error: 'Invalid kind' }, { status: 400 })
   }
   const kind: UploadKind = kindParam
 
-  if (kind === "avatar" && workspaceIdParam) {
-    return Response.json({ error: "workspaceId not allowed for avatar" }, { status: 400 })
+  if (kind === 'avatar' && workspaceIdParam) {
+    return Response.json({ error: 'workspaceId not allowed for avatar' }, { status: 400 })
   }
-  if (kind === "attachment" && !workspaceIdParam) {
-    return Response.json({ error: "workspaceId is required for attachment" }, { status: 400 })
+  if (kind === 'attachment' && !workspaceIdParam) {
+    return Response.json({ error: 'workspaceId is required for attachment' }, { status: 400 })
   }
 
-  if (kind === "attachment") {
+  if (kind === 'attachment') {
     const member = await prisma.workspaceMember.findUnique({
       where: {
         workspaceId_userId: {
@@ -46,29 +46,29 @@ export async function POST(request: NextRequest) {
       },
     })
     if (!member) {
-      return Response.json({ error: "Forbidden" }, { status: 403 })
+      return Response.json({ error: 'Forbidden' }, { status: 403 })
     }
   }
 
   const formData = await request.formData()
-  const file = formData.get("file")
+  const file = formData.get('file')
   if (!(file instanceof File)) {
-    return Response.json({ error: "Missing file field" }, { status: 400 })
+    return Response.json({ error: 'Missing file field' }, { status: 400 })
   }
 
   const bytes = Buffer.from(await file.arrayBuffer())
-  const mimeType = file.type || "application/octet-stream"
+  const mimeType = file.type || 'application/octet-stream'
 
   const validationError = validateUpload(kind, bytes.length, mimeType)
   if (validationError) {
     return Response.json({ error: validationError.message }, { status: validationError.status })
   }
 
-  const hash = createHash("sha256").update(bytes).digest("hex")
+  const hash = createHash('sha256').update(bytes).digest('hex')
   const ext = extractExt(file.name)
   const s3Key = computeS3Key(hash, ext)
 
-  const workspaceId = kind === "attachment" ? workspaceIdParam : null
+  const workspaceId = kind === 'attachment' ? workspaceIdParam : null
 
   const existing = await prisma.file.findFirst({
     where: {
@@ -96,10 +96,10 @@ export async function POST(request: NextRequest) {
             hash,
             path: s3Key,
             status: FileStatus.ACTIVE,
-            isPublic: kind === "avatar",
+            isPublic: kind === 'avatar',
           },
         })
-        if (kind === "avatar") {
+        if (kind === 'avatar') {
           await tx.user.update({
             where: { id: session.user.id },
             data: { image: `/api/files/${created.id}` },
@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
         return created
       })
     } catch (err) {
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2002") {
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2002') {
         fileRow = await prisma.file.findFirst({
           where: {
             userId: session.user.id,
@@ -118,23 +118,23 @@ export async function POST(request: NextRequest) {
           },
         })
         if (!fileRow) {
-          return Response.json({ error: "Upload conflict" }, { status: 409 })
+          return Response.json({ error: 'Upload conflict' }, { status: 409 })
         }
         // Dedup recovery: point User.image at the existing row if avatar
-        if (kind === "avatar") {
+        if (kind === 'avatar') {
           await setUserAvatar(session.user.id, fileRow.id)
         }
       } else {
         throw err
       }
     }
-  } else if (kind === "avatar") {
+  } else if (kind === 'avatar') {
     // Dedup hit on the initial findFirst: existing row, update User.image
     await setUserAvatar(session.user.id, fileRow.id)
   }
 
   let imageUrl: string | undefined
-  if (kind === "avatar" && fileRow) {
+  if (kind === 'avatar' && fileRow) {
     imageUrl = `/api/files/${fileRow.id}`
   }
 

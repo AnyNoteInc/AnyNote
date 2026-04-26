@@ -1,13 +1,13 @@
-import { Inject, CanActivate, ExecutionContext, Injectable } from "@nestjs/common"
-import type { PrismaClient } from "@repo/db"
+import { Inject, CanActivate, ExecutionContext, Injectable } from '@nestjs/common'
+import type { PrismaClient } from '@repo/db'
 
-import { PRISMA } from "../../../infra/db/db.providers.js"
-import { WorkspaceAccessDeniedError } from "../errors/mcp.errors.js"
+import { PRISMA } from '../../../infra/db/db.providers.js'
+import { WorkspaceAccessDeniedError } from '../errors/mcp.errors.js'
 import {
   normalizeMcpRequestBody,
   readMcpRequestContext,
   type McpRequestWithContext,
-} from "../utils/mcp-request-context.js"
+} from '../utils/mcp-request-context.js'
 
 @Injectable()
 export class McpTokenGuard implements CanActivate {
@@ -18,7 +18,7 @@ export class McpTokenGuard implements CanActivate {
     normalizeMcpRequestBody(req.body)
     req.mcpContext = readMcpRequestContext(req.headers)
 
-    if ((req.body as { method?: unknown } | undefined)?.method === "tools/list") {
+    if ((req.body as { method?: unknown } | undefined)?.method === 'tools/list') {
       const member = await this.prisma.workspaceMember.findUnique({
         where: {
           workspaceId_userId: {

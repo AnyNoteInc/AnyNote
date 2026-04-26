@@ -1,5 +1,5 @@
-import { useMemo } from "react"
-import type * as Y from "yjs"
+import { useMemo } from 'react'
+import type * as Y from 'yjs'
 import type {
   Annotation,
   AnnotationId,
@@ -14,10 +14,10 @@ import type {
   PregnancyLossId,
   Union,
   UnionId,
-} from "../types"
-import { GENOGRAM_SCHEMA_VERSION } from "../types"
-import { getGenogramMaps } from "../yjs/schema"
-import { useYMap } from "./useYMap"
+} from '../types'
+import { GENOGRAM_SCHEMA_VERSION } from '../types'
+import { getGenogramMaps } from '../yjs/schema'
+import { useYMap } from './useYMap'
 
 /**
  * Reactive domain snapshot assembled from the six Y.Maps in the doc.

@@ -1,8 +1,8 @@
-import { Inject, Injectable } from "@nestjs/common"
-import type { PrismaClient } from "@repo/db"
+import { Inject, Injectable } from '@nestjs/common'
+import type { PrismaClient } from '@repo/db'
 
-import { PRISMA } from "../../../infra/db/db.providers.js"
-import { PageNotFoundError } from "../errors/mcp.errors.js"
+import { PRISMA } from '../../../infra/db/db.providers.js'
+import { PageNotFoundError } from '../errors/mcp.errors.js'
 
 @Injectable()
 export class StatsService {
@@ -19,7 +19,7 @@ export class StatsService {
         },
       }),
       this.prisma.page.groupBy({
-        by: ["type"],
+        by: ['type'],
         where: { workspaceId, deletedAt: null },
         _count: { _all: true },
       }),

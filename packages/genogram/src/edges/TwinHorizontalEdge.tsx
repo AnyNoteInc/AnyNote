@@ -1,6 +1,6 @@
-import type { Edge, EdgeProps } from "@xyflow/react"
-import type { GenogramEdgeData, GenogramEdgeType } from "../types"
-import { EDGE_STROKE, EDGE_WIDTH } from "./primitives/constants"
+import type { Edge, EdgeProps } from '@xyflow/react'
+import type { GenogramEdgeData, GenogramEdgeType } from '../types'
+import { EDGE_STROKE, EDGE_WIDTH } from './primitives/constants'
 
 type TwinHEdge = Edge<GenogramEdgeData, GenogramEdgeType>
 

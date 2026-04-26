@@ -1,10 +1,10 @@
-import { Server } from "@hocuspocus/server"
+import { Server } from '@hocuspocus/server'
 
-import { loadEnv } from "./env.js"
-import { initJwks, verifyJwt, canAccessPage } from "./auth.js"
-import { loadPageDocument, storePageDocument } from "./persistence.js"
-import { log } from "./logger.js"
-import type { PageType } from "@repo/db"
+import { loadEnv } from './env.js'
+import { initJwks, verifyJwt, canAccessPage } from './auth.js'
+import { loadPageDocument, storePageDocument } from './persistence.js'
+import { log } from './logger.js'
+import type { PageType } from '@repo/db'
 
 type AuthContext = { userId: string; pageType: PageType; workspaceId: string }
 
@@ -15,19 +15,23 @@ const server = new Server({
   port: env.port,
 
   async onAuthenticate({ token, documentName }) {
-    if (!token) throw new Error("Missing auth token")
+    if (!token) throw new Error('Missing auth token')
     const { userId } = await verifyJwt(token, env.jwtAudience)
     const access = await canAccessPage(userId, documentName)
     if (!access) {
-      log.warn("page access denied", { userId, pageId: documentName })
-      throw new Error("Forbidden")
+      log.warn('page access denied', { userId, pageId: documentName })
+      throw new Error('Forbidden')
     }
-    log.info("authenticated", {
-      userId, pageId: documentName,
-      pageType: access.pageType, workspaceId: access.workspaceId,
+    log.info('authenticated', {
+      userId,
+      pageId: documentName,
+      pageType: access.pageType,
+      workspaceId: access.workspaceId,
     })
     const ctx: AuthContext = {
-      userId, pageType: access.pageType, workspaceId: access.workspaceId,
+      userId,
+      pageType: access.pageType,
+      workspaceId: access.workspaceId,
     }
     return ctx
   },
@@ -39,35 +43,35 @@ const server = new Server({
   async onStoreDocument({ documentName, document, context }) {
     const { pageType, workspaceId } = context as AuthContext
     if (!pageType || !workspaceId) {
-      throw new Error("missing pageType/workspaceId in onStoreDocument context")
+      throw new Error('missing pageType/workspaceId in onStoreDocument context')
     }
     await storePageDocument({ pageId: documentName, workspaceId, document, pageType })
   },
 })
 
-process.on("unhandledRejection", (err) => {
-  log.error("unhandled rejection", { error: String(err) })
+process.on('unhandledRejection', (err) => {
+  log.error('unhandled rejection', { error: String(err) })
 })
 
-process.on("uncaughtException", (err) => {
-  log.error("uncaught exception", {
+process.on('uncaughtException', (err) => {
+  log.error('uncaught exception', {
     error: String(err),
     stack: err instanceof Error ? err.stack : undefined,
   })
   process.exit(1)
 })
 
-for (const sig of ["SIGTERM", "SIGINT"] as const) {
+for (const sig of ['SIGTERM', 'SIGINT'] as const) {
   process.on(sig, async () => {
-    log.info("shutting down", { signal: sig })
+    log.info('shutting down', { signal: sig })
     try {
       await server.destroy()
     } catch (err) {
-      log.error("server destroy failed", { error: String(err) })
+      log.error('server destroy failed', { error: String(err) })
     }
     process.exit(0)
   })
 }
 
 await server.listen()
-log.info("yjs server listening", { port: env.port })
+log.info('yjs server listening', { port: env.port })

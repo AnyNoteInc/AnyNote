@@ -1,20 +1,20 @@
-import { Handle, Position, type NodeProps } from "@xyflow/react"
-import type { Node } from "@xyflow/react"
-import { LAYOUT } from "../layout/constants"
-import type { PregnancyLossNodeData } from "../types"
-import { PersonLabel } from "./primitives/PersonLabel"
+import { Handle, Position, type NodeProps } from '@xyflow/react'
+import type { Node } from '@xyflow/react'
+import { LAYOUT } from '../layout/constants'
+import type { PregnancyLossNodeData } from '../types'
+import { PersonLabel } from './primitives/PersonLabel'
 
-type LossRfNode = Node<PregnancyLossNodeData, "pregnancyLoss">
+type LossRfNode = Node<PregnancyLossNodeData, 'pregnancyLoss'>
 
 const STROKE = 1.5
-const STROKE_COLOR = "var(--genogram-stroke, #333)"
+const STROKE_COLOR = 'var(--genogram-stroke, #333)'
 
 export function PregnancyLossNode({ data }: NodeProps<LossRfNode>) {
   const w = LAYOUT.LOSS
-  const letter = data.kind === "abortion" ? "A" : "B"
+  const letter = data.kind === 'abortion' ? 'A' : 'B'
 
   return (
-    <div style={{ position: "relative", width: w, height: w }}>
+    <div style={{ position: 'relative', width: w, height: w }}>
       <Handle
         type="target"
         position={Position.Top}
@@ -27,24 +27,10 @@ export function PregnancyLossNode({ data }: NodeProps<LossRfNode>) {
         width={w}
         height={w}
         viewBox={`0 0 ${w} ${w}`}
-        style={{ display: "block", overflow: "visible" }}
+        style={{ display: 'block', overflow: 'visible' }}
       >
-        <line
-          x1={w / 2}
-          y1={0}
-          x2={w / 2}
-          y2={w}
-          stroke={STROKE_COLOR}
-          strokeWidth={STROKE}
-        />
-        <line
-          x1={0}
-          y1={w / 2}
-          x2={w}
-          y2={w / 2}
-          stroke={STROKE_COLOR}
-          strokeWidth={STROKE}
-        />
+        <line x1={w / 2} y1={0} x2={w / 2} y2={w} stroke={STROKE_COLOR} strokeWidth={STROKE} />
+        <line x1={0} y1={w / 2} x2={w} y2={w / 2} stroke={STROKE_COLOR} strokeWidth={STROKE} />
         <text
           x={w * 0.75}
           y={w * 0.35}
@@ -69,5 +55,5 @@ const anchorHandle = {
   minWidth: 1,
   minHeight: 1,
   border: 0,
-  background: "transparent",
+  background: 'transparent',
 }

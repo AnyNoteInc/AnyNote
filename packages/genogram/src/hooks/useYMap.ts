@@ -1,5 +1,5 @@
-import { useCallback, useRef, useSyncExternalStore } from "react"
-import type * as Y from "yjs"
+import { useCallback, useRef, useSyncExternalStore } from 'react'
+import type * as Y from 'yjs'
 
 /**
  * Subscribe to a Y.Map via useSyncExternalStore. Returns the map contents

@@ -1,15 +1,15 @@
-import { TRPCError } from "@trpc/server"
-import { z } from "zod"
+import { TRPCError } from '@trpc/server'
+import { z } from 'zod'
 
-import { FileStatus, Prisma, type File } from "@repo/db"
+import { FileStatus, Prisma, type File } from '@repo/db'
 
-import { protectedProcedure, router } from "../trpc"
+import { protectedProcedure, router } from '../trpc'
 
 const uuid = z.string().uuid()
 
 const FileStatusSchema = z.nativeEnum(FileStatus)
 
-export interface FileDTO extends Omit<File, "fileSize"> {
+export interface FileDTO extends Omit<File, 'fileSize'> {
   fileSize: string
 }
 
@@ -31,7 +31,7 @@ export const fileRouter = router({
       const statuses = input.status ?? [FileStatus.ACTIVE]
       const rows = await ctx.prisma.file.findMany({
         where: { userId: ctx.user.id, status: { in: statuses } },
-        orderBy: { createdAt: "desc" },
+        orderBy: { createdAt: 'desc' },
         take: input.limit,
         cursor: input.cursor ? { id: input.cursor } : undefined,
         skip: input.cursor ? 1 : 0,
@@ -60,23 +60,23 @@ export const fileRouter = router({
       })
       if (!member) {
         throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Not a member of this workspace",
+          code: 'FORBIDDEN',
+          message: 'Not a member of this workspace',
         })
       }
 
-      const search = input.search?.trim() ?? ""
+      const search = input.search?.trim() ?? ''
       const where: Prisma.FileWhereInput = {
         workspaceId: input.workspaceId,
         status: FileStatus.ACTIVE,
-        ...(search ? { name: { contains: search, mode: "insensitive" as const } } : {}),
+        ...(search ? { name: { contains: search, mode: 'insensitive' as const } } : {}),
         ...(input.uploaderId ? { userId: input.uploaderId } : {}),
       }
 
       const [rows, total] = await Promise.all([
         ctx.prisma.file.findMany({
           where,
-          orderBy: { createdAt: "desc" },
+          orderBy: { createdAt: 'desc' },
           include: {
             user: {
               select: {
@@ -116,32 +116,32 @@ export const fileRouter = router({
       })
       if (!member) {
         throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "Not a member of this workspace",
+          code: 'FORBIDDEN',
+          message: 'Not a member of this workspace',
         })
       }
 
       return ctx.prisma.user.findMany({
         where: { files: { some: { workspaceId: input.workspaceId, status: FileStatus.ACTIVE } } },
         select: { id: true, firstName: true, lastName: true, email: true, image: true },
-        orderBy: [{ firstName: "asc" }, { lastName: "asc" }, { email: "asc" }],
+        orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }, { email: 'asc' }],
       })
     }),
 
   getById: protectedProcedure.input(z.object({ id: uuid })).query(async ({ ctx, input }) => {
     const file = await ctx.prisma.file.findUnique({ where: { id: input.id } })
-    if (!file) throw new TRPCError({ code: "NOT_FOUND", message: "File not found" })
+    if (!file) throw new TRPCError({ code: 'NOT_FOUND', message: 'File not found' })
     if (file.userId !== ctx.user.id && !file.isPublic) {
-      throw new TRPCError({ code: "NOT_FOUND", message: "File not found" })
+      throw new TRPCError({ code: 'NOT_FOUND', message: 'File not found' })
     }
     const serialized = serializeFile(file)
     if (file.userId !== ctx.user.id) {
       // Public file viewed by non-owner: scrub sensitive fields
       return {
         ...serialized,
-        userId: "",
-        hash: "",
-        path: "",
+        userId: '',
+        hash: '',
+        path: '',
       }
     }
     return serialized
@@ -155,8 +155,8 @@ export const fileRouter = router({
       })
       return serializeFile(updated)
     } catch (err) {
-      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
-        throw new TRPCError({ code: "NOT_FOUND", message: "File not found" })
+      if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'File not found' })
       }
       throw err
     }
@@ -172,8 +172,8 @@ export const fileRouter = router({
         })
         return serializeFile(updated)
       } catch (err) {
-        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
-          throw new TRPCError({ code: "NOT_FOUND", message: "File not found" })
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'File not found' })
         }
         throw err
       }
@@ -189,8 +189,8 @@ export const fileRouter = router({
         })
         return serializeFile(updated)
       } catch (err) {
-        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
-          throw new TRPCError({ code: "NOT_FOUND", message: "File not found" })
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'File not found' })
         }
         throw err
       }
@@ -208,19 +208,19 @@ export const fileRouter = router({
         select: { id: true, workspaceId: true },
       })
       if (!page) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Page not accessible" })
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Page not accessible' })
       }
       const file = await ctx.prisma.file.findFirst({
         where: { id: input.fileId, userId: ctx.user.id },
         select: { id: true, workspaceId: true },
       })
       if (!file) {
-        throw new TRPCError({ code: "NOT_FOUND", message: "File not found" })
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'File not found' })
       }
       if (!file.workspaceId || file.workspaceId !== page.workspaceId) {
         throw new TRPCError({
-          code: "FORBIDDEN",
-          message: "File does not belong to this workspace",
+          code: 'FORBIDDEN',
+          message: 'File does not belong to this workspace',
         })
       }
       await ctx.prisma.pageFile.upsert({
@@ -242,14 +242,14 @@ export const fileRouter = router({
         select: { id: true },
       })
       if (!page) {
-        throw new TRPCError({ code: "FORBIDDEN", message: "Page not accessible" })
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Page not accessible' })
       }
       try {
         await ctx.prisma.pageFile.delete({
           where: { pageId_fileId: { pageId: input.pageId, fileId: input.fileId } },
         })
       } catch (err) {
-        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === "P2025") {
+        if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2025') {
           return { ok: true as const }
         }
         throw err

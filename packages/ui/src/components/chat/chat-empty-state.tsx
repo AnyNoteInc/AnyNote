@@ -1,8 +1,8 @@
-"use client"
+'use client'
 
-import ChatBubbleOutlineIcon from "@mui/icons-material/ChatBubbleOutline"
-import Box from "@mui/material/Box"
-import Typography from "@mui/material/Typography"
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline'
+import Box from '@mui/material/Box'
+import Typography from '@mui/material/Typography'
 
 type ChatEmptyStateProps = {
   title?: string
@@ -10,8 +10,8 @@ type ChatEmptyStateProps = {
 }
 
 export function ChatEmptyState({
-  title = "Сообщений пока нет",
-  description = "Отправьте первое сообщение, чтобы начать диалог.",
+  title = 'Сообщений пока нет',
+  description = 'Отправьте первое сообщение, чтобы начать диалог.',
 }: ChatEmptyStateProps) {
   return (
     <Box
@@ -30,7 +30,7 @@ export function ChatEmptyState({
         display="flex"
         height={56}
         justifyContent="center"
-        sx={{ bgcolor: "action.hover", color: "text.secondary" }}
+        sx={{ bgcolor: 'action.hover', color: 'text.secondary' }}
         width={56}
       >
         <ChatBubbleOutlineIcon />

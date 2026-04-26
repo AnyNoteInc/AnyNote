@@ -1,11 +1,11 @@
-"use client"
+'use client'
 
-import { useState } from "react"
+import { useState } from 'react'
 
-import { Box, Button, Stack, TextField, Typography } from "@repo/ui/components"
+import { Box, Button, Stack, TextField, Typography } from '@repo/ui/components'
 
-import ProfileAvatarUploader from "@/components/profile/profile-avatar-uploader"
-import { trpc } from "@/trpc/client"
+import ProfileAvatarUploader from '@/components/profile/profile-avatar-uploader'
+import { trpc } from '@/trpc/client'
 
 type Props = {
   initial: {
@@ -26,11 +26,11 @@ export function ProfileSection({ initial }: Props) {
   return (
     <Box
       sx={{
-        border: "1px solid",
-        borderColor: "divider",
+        border: '1px solid',
+        borderColor: 'divider',
         borderRadius: 2,
         p: { xs: 2.5, md: 3 },
-        backgroundColor: "background.paper",
+        backgroundColor: 'background.paper',
       }}
     >
       <Typography variant="subtitle1" fontWeight={700}>
@@ -39,10 +39,10 @@ export function ProfileSection({ initial }: Props) {
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Имя, email и аватар, которые видят другие
       </Typography>
-      <Box sx={{ display: "flex", justifyContent: "center", mb: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'center', mb: 3 }}>
         <ProfileAvatarUploader currentImage={initial.image} initials={initials} />
       </Box>
-      <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 2, mb: 2 }}>
+      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 2, mb: 2 }}>
         <TextField
           label="Имя"
           size="small"
@@ -67,11 +67,11 @@ export function ProfileSection({ initial }: Props) {
             borderRadius: 10,
             fontSize: 10,
             fontWeight: 600,
-            color: initial.emailVerified ? "success.dark" : "warning.dark",
-            backgroundColor: initial.emailVerified ? "success.light" : "warning.light",
+            color: initial.emailVerified ? 'success.dark' : 'warning.dark',
+            backgroundColor: initial.emailVerified ? 'success.light' : 'warning.light',
           }}
         >
-          {initial.emailVerified ? "Подтверждён" : "Не подтверждён"}
+          {initial.emailVerified ? 'Подтверждён' : 'Не подтверждён'}
         </Box>
       </Stack>
       <Stack direction="row" spacing={1}>
@@ -85,10 +85,10 @@ export function ProfileSection({ initial }: Props) {
           Изменить
         </Button>
       </Stack>
-      <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 1 }}>
+      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
         Смена email потребует повторного подтверждения по ссылке
       </Typography>
-      <Box sx={{ display: "flex", justifyContent: "flex-end", mt: 3 }}>
+      <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
         <Button
           variant="contained"
           size="small"

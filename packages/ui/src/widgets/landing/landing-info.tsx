@@ -1,4 +1,4 @@
-import { Paper, Container, Stack, Typography, Button } from "@repo/ui/components"
+import { Paper, Container, Stack, Typography, Button } from '@repo/ui/components'
 
 export function LandingInfo() {
   return (
@@ -7,10 +7,10 @@ export function LandingInfo() {
         elevation={0}
         sx={{
           p: 4,
-          display: "flex",
-          flexDirection: "column",
+          display: 'flex',
+          flexDirection: 'column',
           gap: 3,
-          textAlign: "center",
+          textAlign: 'center',
         }}
       >
         <Stack spacing={1}>

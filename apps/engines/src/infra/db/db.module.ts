@@ -1,6 +1,6 @@
-import { Global, Module } from "@nestjs/common"
+import { Global, Module } from '@nestjs/common'
 
-import { prismaProvider } from "./db.providers.js"
+import { prismaProvider } from './db.providers.js'
 
 @Global()
 @Module({

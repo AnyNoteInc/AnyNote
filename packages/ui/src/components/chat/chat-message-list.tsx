@@ -1,16 +1,16 @@
-"use client"
+'use client'
 
-import { ChatMessage, ChatMessageList as MuiChatMessageList } from "@mui/x-chat"
-import Avatar from "@mui/material/Avatar"
-import Box from "@mui/material/Box"
-import Stack from "@mui/material/Stack"
-import Typography from "@mui/material/Typography"
-import { ChatProvider } from "@mui/x-chat-headless"
-import { useMemo } from "react"
+import { ChatMessage, ChatMessageList as MuiChatMessageList } from '@mui/x-chat'
+import Avatar from '@mui/material/Avatar'
+import Box from '@mui/material/Box'
+import Stack from '@mui/material/Stack'
+import Typography from '@mui/material/Typography'
+import { ChatProvider } from '@mui/x-chat-headless'
+import { useMemo } from 'react'
 
-import { ChatEmptyState } from "./chat-empty-state"
-import { ChatLoadingPhrases } from "./chat-loading-phrases"
-import { ChatMessageContent, type ChatRenderLink } from "./chat-message-content"
+import { ChatEmptyState } from './chat-empty-state'
+import { ChatLoadingPhrases } from './chat-loading-phrases'
+import { ChatMessageContent, type ChatRenderLink } from './chat-message-content'
 import {
   buildProviderMessages,
   CHAT_CONVERSATION_ID,
@@ -18,19 +18,19 @@ import {
   CHAT_MEMBERS,
   chatPartRenderers,
   noopChatAdapter,
-} from "./chat-provider-utils"
-import type { ChatThreadMessage } from "./chat-types"
+} from './chat-provider-utils'
+import type { ChatThreadMessage } from './chat-types'
 
 type ChatMessageListProps = {
   messages: ChatThreadMessage[]
   emptyTitle?: string
   emptyDescription?: string
   showEmptyState?: boolean
-  scrollMode?: "internal" | "page"
+  scrollMode?: 'internal' | 'page'
   renderLink?: ChatRenderLink
 }
 
-function formatTimestamp(value: ChatThreadMessage["createdAt"]) {
+function formatTimestamp(value: ChatThreadMessage['createdAt']) {
   if (!value) {
     return null
   }
@@ -40,8 +40,8 @@ function formatTimestamp(value: ChatThreadMessage["createdAt"]) {
     return null
   }
 
-  const hours = String(date.getUTCHours()).padStart(2, "0")
-  const minutes = String(date.getUTCMinutes()).padStart(2, "0")
+  const hours = String(date.getUTCHours()).padStart(2, '0')
+  const minutes = String(date.getUTCMinutes()).padStart(2, '0')
 
   return `${hours}:${minutes}`
 }
@@ -56,12 +56,12 @@ function getStatusLabel(message: ChatThreadMessage) {
   }
 
   switch (message.status) {
-    case "sent":
-      return "Отправлено"
-    case "streaming":
-      return "Печатает"
-    case "error":
-      return "Ошибка"
+    case 'sent':
+      return 'Отправлено'
+    case 'streaming':
+      return 'Печатает'
+    case 'error':
+      return 'Ошибка'
     default:
       return message.status[0]?.toUpperCase() + message.status.slice(1)
   }
@@ -73,7 +73,7 @@ function getInitials(label: string) {
     .filter(Boolean)
     .slice(0, 2)
     .map((token) => token[0]?.toUpperCase())
-    .join("")
+    .join('')
 }
 
 export function ChatMessageList({
@@ -81,11 +81,11 @@ export function ChatMessageList({
   emptyTitle,
   emptyDescription,
   showEmptyState = true,
-  scrollMode = "internal",
+  scrollMode = 'internal',
   renderLink,
 }: ChatMessageListProps) {
   const providerMessages = useMemo(() => buildProviderMessages(messages), [messages])
-  const usesPageScroll = scrollMode === "page"
+  const usesPageScroll = scrollMode === 'page'
 
   return (
     <ChatProvider
@@ -113,10 +113,10 @@ export function ChatMessageList({
             return null
           }
 
-          const isUser = message.role === "user"
+          const isUser = message.role === 'user'
           const isEmptyStreamingAssistant =
-            message.role === "assistant" &&
-            message.status === "streaming" &&
+            message.role === 'assistant' &&
+            message.status === 'streaming' &&
             message.parts.length === 0
           const timestamp = formatTimestamp(message.createdAt)
           const status = getStatusLabel(message)
@@ -126,18 +126,18 @@ export function ChatMessageList({
           return (
             <ChatMessage key={message.id} messageId={message.id}>
               <Stack
-                alignItems={isUser ? "flex-end" : "flex-start"}
+                alignItems={isUser ? 'flex-end' : 'flex-start'}
                 direction="row"
-                justifyContent={isUser ? "flex-end" : "flex-start"}
+                justifyContent={isUser ? 'flex-end' : 'flex-start'}
                 spacing={1.5}
                 width="100%"
               >
                 {showAvatar ? (
-                  <Avatar alt={label ?? ""} src={message.avatarUrl} sx={{ width: 32, height: 32 }}>
+                  <Avatar alt={label ?? ''} src={message.avatarUrl} sx={{ width: 32, height: 32 }}>
                     {label ? getInitials(label) : null}
                   </Avatar>
                 ) : null}
-                <Box maxWidth={{ xs: "100%", sm: "85%", md: "76%" }}>
+                <Box maxWidth={{ xs: '100%', sm: '85%', md: '76%' }}>
                   {label ? (
                     <Typography color="text.secondary" gutterBottom variant="caption">
                       {label}
@@ -147,16 +147,16 @@ export function ChatMessageList({
                     <Box
                       suppressHydrationWarning
                       sx={{
-                        bgcolor: isUser ? "primary.main" : "background.paper",
+                        bgcolor: isUser ? 'primary.main' : 'background.paper',
                         border: 1,
-                        borderColor: isUser ? "primary.main" : "divider",
+                        borderColor: isUser ? 'primary.main' : 'divider',
                         borderRadius: 3,
                         boxShadow: 1,
-                        color: isUser ? "primary.contrastText" : "text.primary",
+                        color: isUser ? 'primary.contrastText' : 'text.primary',
                         px: 1.5,
                         py: 1.25,
-                        "& .MuiChatMessage-bubble": {
-                          backgroundColor: "transparent",
+                        '& .MuiChatMessage-bubble': {
+                          backgroundColor: 'transparent',
                           borderRadius: 0,
                           padding: 0,
                         },
@@ -177,19 +177,19 @@ export function ChatMessageList({
           )
         }}
         sx={{
-          flex: usesPageScroll ? "none" : 1,
-          minHeight: usesPageScroll ? "auto" : 0,
-          overflow: "visible",
+          flex: usesPageScroll ? 'none' : 1,
+          minHeight: usesPageScroll ? 'auto' : 0,
+          overflow: 'visible',
           px: 2,
           py: 2,
           ...(usesPageScroll
             ? {
-                "& .MuiChatMessageList-scroller": {
-                  overflowY: "visible !important",
-                  overscrollBehavior: "auto !important",
+                '& .MuiChatMessageList-scroller': {
+                  overflowY: 'visible !important',
+                  overscrollBehavior: 'auto !important',
                 },
-                "& .MuiChatMessageList-content": {
-                  minHeight: "auto",
+                '& .MuiChatMessageList-content': {
+                  minHeight: 'auto',
                 },
               }
             : null),

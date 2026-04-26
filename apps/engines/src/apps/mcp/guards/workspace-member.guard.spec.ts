@@ -1,10 +1,10 @@
-import { jest, describe, it, expect, beforeEach } from "@jest/globals"
+import { jest, describe, it, expect, beforeEach } from '@jest/globals'
 
-import type { PrismaClient } from "@repo/db"
+import type { PrismaClient } from '@repo/db'
 
-import { WorkspaceMemberGuard } from "./workspace-member.guard.js"
+import { WorkspaceMemberGuard } from './workspace-member.guard.js'
 
-describe("WorkspaceMemberGuard", () => {
+describe('WorkspaceMemberGuard', () => {
   const mockPrisma = {
     workspaceMember: { findUnique: jest.fn<(...a: unknown[]) => Promise<unknown>>() },
   } as unknown as PrismaClient
@@ -16,15 +16,15 @@ describe("WorkspaceMemberGuard", () => {
     guard = new WorkspaceMemberGuard(mockPrisma)
   })
 
-  it("allows when member exists", async () => {
+  it('allows when member exists', async () => {
     ;(mockPrisma.workspaceMember.findUnique as jest.Mock).mockResolvedValue({
-      userId: "u1",
+      userId: 'u1',
     } as never)
-    await expect(guard.assert("w1", "u1")).resolves.toBeUndefined()
+    await expect(guard.assert('w1', 'u1')).resolves.toBeUndefined()
   })
 
-  it("throws WorkspaceAccessDeniedError when not a member", async () => {
+  it('throws WorkspaceAccessDeniedError when not a member', async () => {
     ;(mockPrisma.workspaceMember.findUnique as jest.Mock).mockResolvedValue(null as never)
-    await expect(guard.assert("w1", "u1")).rejects.toThrow(/access/i)
+    await expect(guard.assert('w1', 'u1')).rejects.toThrow(/access/i)
   })
 })

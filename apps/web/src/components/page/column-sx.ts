@@ -4,11 +4,11 @@
 // The `page-column` class lets [data-full-width="true"] in content.css
 // release the max-width constraint when the user toggles full-width mode.
 export const pageColumnSx = {
-  maxWidth: "713px",
-  width: "100%",
-  mx: "auto",
-  px: "48px",
-  boxSizing: "content-box",
+  maxWidth: '713px',
+  width: '100%',
+  mx: 'auto',
+  px: '48px',
+  boxSizing: 'content-box',
 } as const
 
-export const PAGE_COLUMN_CLASS = "page-column"
+export const PAGE_COLUMN_CLASS = 'page-column'

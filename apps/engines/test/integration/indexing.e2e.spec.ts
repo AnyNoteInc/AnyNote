@@ -1,20 +1,29 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, jest } from "@jest/globals"
-import type { INestApplication } from "@nestjs/common"
-import { Test } from "@nestjs/testing"
-import { prisma } from "@repo/db"
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from '@jest/globals'
+import type { INestApplication } from '@nestjs/common'
+import { Test } from '@nestjs/testing'
+import { prisma } from '@repo/db'
 
-import { AppModule } from "../../src/app.module.js"
-import { OutboxDrainerService } from "../../src/apps/indexer/cron/outbox-drainer.service.js"
-import { EmbeddingClient } from "../../src/apps/indexer/services/embedding-client.service.js"
-import { ProcessingClient } from "../../src/apps/indexer/services/processing-client.service.js"
-import { QdrantWriter } from "../../src/apps/indexer/services/qdrant-writer.service.js"
-import { QdrantService } from "../../src/infra/qdrant/qdrant.service.js"
+import { AppModule } from '../../src/app.module.js'
+import { OutboxDrainerService } from '../../src/apps/indexer/cron/outbox-drainer.service.js'
+import { EmbeddingClient } from '../../src/apps/indexer/services/embedding-client.service.js'
+import { ProcessingClient } from '../../src/apps/indexer/services/processing-client.service.js'
+import { QdrantWriter } from '../../src/apps/indexer/services/qdrant-writer.service.js'
+import { QdrantService } from '../../src/infra/qdrant/qdrant.service.js'
 
 jest.setTimeout(60000)
 
 const TEST_VECTOR = Array.from({ length: 768 }, (_, index) => (index === 0 ? 0.1 : 0))
 
-describe("Indexing e2e", () => {
+describe('Indexing e2e', () => {
   let app: INestApplication
   let qdrant: QdrantService
   let drainer: OutboxDrainerService
@@ -52,19 +61,19 @@ describe("Indexing e2e", () => {
   })
 
   beforeEach(async () => {
-    const ws = await prisma.workspace.create({ data: { name: "test-ws" } })
+    const ws = await prisma.workspace.create({ data: { name: 'test-ws' } })
     workspaceId = ws.id
     const user = await prisma.user.create({
       data: {
-        name: "Test User",
-        firstName: "T",
-        lastName: "U",
+        name: 'Test User',
+        firstName: 'T',
+        lastName: 'U',
         email: `t-${workspaceId}@e.com`,
         emailVerified: true,
       },
     })
     userId = user.id
-    await prisma.workspaceMember.create({ data: { workspaceId, userId, role: "OWNER" } })
+    await prisma.workspaceMember.create({ data: { workspaceId, userId, role: 'OWNER' } })
   })
 
   afterEach(async () => {
@@ -76,14 +85,14 @@ describe("Indexing e2e", () => {
     }
   })
 
-  it("drains outbox to BullMQ and writes Qdrant points", async () => {
+  it('drains outbox to BullMQ and writes Qdrant points', async () => {
     const page = await prisma.page.create({
       data: {
         workspaceId,
-        title: "Hello",
+        title: 'Hello',
         content: {
-          type: "doc",
-          content: [{ type: "paragraph", content: [{ type: "text", text: "Hello world" }] }],
+          type: 'doc',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hello world' }] }],
         },
         createdById: userId,
         updatedById: userId,
@@ -93,8 +102,8 @@ describe("Indexing e2e", () => {
 
     await prisma.outboxEvent.create({
       data: {
-        eventType: "page.upserted",
-        aggregateType: "page",
+        eventType: 'page.upserted',
+        aggregateType: 'page',
         aggregateId: pageId,
         workspaceId,
         payload: {},
@@ -108,12 +117,12 @@ describe("Indexing e2e", () => {
     await new Promise((r) => setTimeout(r, 15000))
 
     const done = await prisma.outboxEvent.findFirst({
-      where: { aggregateId: pageId, status: "DONE" },
+      where: { aggregateId: pageId, status: 'DONE' },
     })
     expect(done).toBeTruthy()
 
     const points = await qdrant.client.scroll(qdrant.collection, {
-      filter: { must: [{ key: "pageId", match: { value: pageId } }] },
+      filter: { must: [{ key: 'pageId', match: { value: pageId } }] },
       limit: 10,
     })
     expect(points.points.length).toBeGreaterThan(0)

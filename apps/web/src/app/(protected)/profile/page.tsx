@@ -1,12 +1,12 @@
-import Link from "next/link"
+import Link from 'next/link'
 
-import { Box, Button, Container, Paper, Stack, Typography } from "@repo/ui/components"
+import { Box, Button, Container, Paper, Stack, Typography } from '@repo/ui/components'
 
-import ProfileAvatarUploader from "@/components/profile/profile-avatar-uploader"
-import { requireSession } from "@/lib/get-session"
-import { getServerTRPC } from "@/trpc/server"
+import ProfileAvatarUploader from '@/components/profile/profile-avatar-uploader'
+import { requireSession } from '@/lib/get-session'
+import { getServerTRPC } from '@/trpc/server'
 
-export const metadata = { title: "Мой профиль" }
+export const metadata = { title: 'Мой профиль' }
 
 export default async function ProfilePage() {
   const session = await requireSession()
@@ -29,16 +29,16 @@ export default async function ProfilePage() {
           </Typography>
         </Stack>
 
-        <Box sx={{ width: "100%", pt: 2 }}>
+        <Box sx={{ width: '100%', pt: 2 }}>
           <Typography variant="overline" color="text.secondary">
             Рабочие пространства
           </Typography>
           {workspaces.length === 0 ? (
-            <Paper variant="outlined" sx={{ p: 3, textAlign: "center", mt: 1 }}>
+            <Paper variant="outlined" sx={{ p: 3, textAlign: 'center', mt: 1 }}>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
                 У вас пока нет рабочих пространств
               </Typography>
-              <Link href="/workspaces/new" style={{ textDecoration: "none" }}>
+              <Link href="/workspaces/new" style={{ textDecoration: 'none' }}>
                 <Button>Создать пространство</Button>
               </Link>
             </Paper>
@@ -50,8 +50,8 @@ export default async function ProfilePage() {
                   variant="outlined"
                   sx={{
                     p: 2,
-                    display: "flex",
-                    alignItems: "center",
+                    display: 'flex',
+                    alignItems: 'center',
                     gap: 2,
                   }}
                 >
@@ -60,21 +60,21 @@ export default async function ProfilePage() {
                       width: 40,
                       height: 40,
                       borderRadius: 1,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
                       fontSize: 20,
-                      bgcolor: "action.hover",
+                      bgcolor: 'action.hover',
                     }}
                   >
-                    {workspace.icon ?? "📒"}
+                    {workspace.icon ?? '📒'}
                   </Box>
                   <Stack spacing={0} sx={{ flex: 1, minWidth: 0 }}>
                     <Typography variant="body1" noWrap>
                       {workspace.name}
                     </Typography>
                   </Stack>
-                  <Link href={`/workspaces/${workspace.id}`} style={{ textDecoration: "none" }}>
+                  <Link href={`/workspaces/${workspace.id}`} style={{ textDecoration: 'none' }}>
                     <Button size="small" variant="outlined">
                       Перейти
                     </Button>

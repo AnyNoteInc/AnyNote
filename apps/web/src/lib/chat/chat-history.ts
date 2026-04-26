@@ -1,6 +1,6 @@
-import type { ChatMessageRole, ChatMessageStatus, Prisma, PrismaClient } from "@repo/db"
+import type { ChatMessageRole, ChatMessageStatus, Prisma, PrismaClient } from '@repo/db'
 
-import type { AgentConversationMessage } from "./agents-payload"
+import type { AgentConversationMessage } from './agents-payload'
 
 const MAX_ANCESTORS = 50
 const CURRENT_CHAT_LAST_COUNT = 10
@@ -23,27 +23,27 @@ type PrismaLike = {
     }) => Promise<ChatNode | null>
   }
   chatMessage: {
-    findMany: PrismaClient["chatMessage"]["findMany"]
+    findMany: PrismaClient['chatMessage']['findMany']
   }
 }
 
-function isTextPart(value: unknown): value is { type: "text"; text: string } {
+function isTextPart(value: unknown): value is { type: 'text'; text: string } {
   return (
     !!value &&
-    typeof value === "object" &&
-    (value as { type?: unknown }).type === "text" &&
-    typeof (value as { text?: unknown }).text === "string"
+    typeof value === 'object' &&
+    (value as { type?: unknown }).type === 'text' &&
+    typeof (value as { text?: unknown }).text === 'string'
   )
 }
 
 function extractText(parts: Prisma.JsonValue): string {
   if (!Array.isArray(parts)) {
-    return ""
+    return ''
   }
   return parts
     .filter(isTextPart)
     .map((part) => part.text)
-    .join("\n\n")
+    .join('\n\n')
     .trim()
 }
 
@@ -59,8 +59,8 @@ function pickHistory(messages: MessageRow[], lastCount: number): MessageRow[] {
   return [first, ...tail]
 }
 
-function mapRole(role: ChatMessageRole): AgentConversationMessage["role"] {
-  return role === "USER" ? "user" : "assistant"
+function mapRole(role: ChatMessageRole): AgentConversationMessage['role'] {
+  return role === 'USER' ? 'user' : 'assistant'
 }
 
 export async function buildChatHistoryMessages(args: {
@@ -92,8 +92,8 @@ export async function buildChatHistoryMessages(args: {
     const lastCount = isCurrent ? CURRENT_CHAT_LAST_COUNT : ANCESTOR_LAST_COUNT
 
     const messages = (await args.prisma.chatMessage.findMany({
-      where: { chatId: chain[i], status: "DONE" satisfies ChatMessageStatus },
-      orderBy: { createdAt: "asc" },
+      where: { chatId: chain[i], status: 'DONE' satisfies ChatMessageStatus },
+      orderBy: { createdAt: 'asc' },
       select: { id: true, role: true, parts: true, createdAt: true },
     })) as MessageRow[]
 

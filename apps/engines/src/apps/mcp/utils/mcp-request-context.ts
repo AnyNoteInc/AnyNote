@@ -1,5 +1,5 @@
-import { UnauthorizedException } from "@nestjs/common"
-import { z } from "zod"
+import { UnauthorizedException } from '@nestjs/common'
+import { z } from 'zod'
 
 const McpRequestContextSchema = z.object({
   userId: z.string().uuid(),
@@ -24,11 +24,11 @@ function getHeader(headers: HeaderMap, name: string): string | undefined {
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === "object" && value !== null
+  return typeof value === 'object' && value !== null
 }
 
 export function normalizeMcpRequestBody(body: unknown): void {
-  if (!isRecord(body) || body.method !== "tools/call") return
+  if (!isRecord(body) || body.method !== 'tools/call') return
 
   const params = body.params
   if (!isRecord(params)) return
@@ -39,18 +39,18 @@ export function normalizeMcpRequestBody(body: unknown): void {
 }
 
 export function readMcpRequestContext(headers: HeaderMap): McpRequestContext {
-  const userId = getHeader(headers, "x-user-id")
-  if (!userId) throw new UnauthorizedException("Unauthorized: missing X-User-Id header")
+  const userId = getHeader(headers, 'x-user-id')
+  if (!userId) throw new UnauthorizedException('Unauthorized: missing X-User-Id header')
 
-  const workspaceId = getHeader(headers, "x-workspace-id")
+  const workspaceId = getHeader(headers, 'x-workspace-id')
   if (!workspaceId) {
-    throw new UnauthorizedException("Unauthorized: missing x-Workspace-Id header")
+    throw new UnauthorizedException('Unauthorized: missing x-Workspace-Id header')
   }
 
   const parsed = McpRequestContextSchema.safeParse({ userId, workspaceId })
   if (!parsed.success) {
     const issue = parsed.error.issues[0]
-    const headerName = issue?.path[0] === "workspaceId" ? "x-Workspace-Id" : "X-User-Id"
+    const headerName = issue?.path[0] === 'workspaceId' ? 'x-Workspace-Id' : 'X-User-Id'
     throw new UnauthorizedException(`Unauthorized: invalid ${headerName} header`)
   }
 
@@ -58,7 +58,7 @@ export function readMcpRequestContext(headers: HeaderMap): McpRequestContext {
 }
 
 export function getMcpRequestContext(req?: McpRequestWithContext): McpRequestContext {
-  if (!req) throw new UnauthorizedException("Unauthorized: MCP request context is unavailable")
+  if (!req) throw new UnauthorizedException('Unauthorized: MCP request context is unavailable')
 
   if (!req.mcpContext) {
     req.mcpContext = readMcpRequestContext(req.headers)

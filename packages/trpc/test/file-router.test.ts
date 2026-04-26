@@ -1,11 +1,11 @@
-import { describe, expect, it, vi } from "vitest"
+import { describe, expect, it, vi } from 'vitest'
 
-vi.mock("@repo/auth", () => ({
+vi.mock('@repo/auth', () => ({
   getUserFromRequest: vi.fn(),
 }))
 
-vi.mock("@repo/db", () => ({
-  FileStatus: { ACTIVE: "ACTIVE", PENDING: "PENDING", DELETED: "DELETED", ARCHIVED: "ARCHIVED" },
+vi.mock('@repo/db', () => ({
+  FileStatus: { ACTIVE: 'ACTIVE', PENDING: 'PENDING', DELETED: 'DELETED', ARCHIVED: 'ARCHIVED' },
   Prisma: {
     PrismaClientKnownRequestError: class PrismaClientKnownRequestError extends Error {
       code: string
@@ -18,17 +18,17 @@ vi.mock("@repo/db", () => ({
   prisma: {},
 }))
 
-import type { PrismaClient } from "@repo/db"
+import type { PrismaClient } from '@repo/db'
 
-import { fileRouter } from "../src/routers/file"
-import { createCallerFactory } from "../src/trpc"
+import { fileRouter } from '../src/routers/file'
+import { createCallerFactory } from '../src/trpc'
 
 const createCaller = createCallerFactory(fileRouter)
 
-const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111"
-const USER_ID = "22222222-2222-2222-2222-222222222222"
-const OTHER_USER_ID = "33333333-3333-3333-3333-333333333333"
-const FILE_ID = "44444444-4444-4444-4444-444444444444"
+const WORKSPACE_ID = '11111111-1111-1111-1111-111111111111'
+const USER_ID = '22222222-2222-2222-2222-222222222222'
+const OTHER_USER_ID = '33333333-3333-3333-3333-333333333333'
+const FILE_ID = '44444444-4444-4444-4444-444444444444'
 
 function baseContext(prisma: PrismaClient) {
   return {
@@ -43,21 +43,21 @@ function memberOk() {
   return { workspaceId: WORKSPACE_ID, userId: USER_ID }
 }
 
-describe("fileRouter.listWorkspace", () => {
-  it("returns paginated items with total and user relation", async () => {
-    const createdAt = new Date("2026-04-22T10:00:00.000Z")
-    const updatedAt = new Date("2026-04-22T10:01:00.000Z")
+describe('fileRouter.listWorkspace', () => {
+  it('returns paginated items with total and user relation', async () => {
+    const createdAt = new Date('2026-04-22T10:00:00.000Z')
+    const updatedAt = new Date('2026-04-22T10:01:00.000Z')
     const fileRow = {
       id: FILE_ID,
       userId: USER_ID,
       workspaceId: WORKSPACE_ID,
-      name: "brief",
-      ext: "pdf",
+      name: 'brief',
+      ext: 'pdf',
       fileSize: BigInt(1024),
-      mimeType: "application/pdf",
-      hash: "h",
-      path: "p",
-      status: "ACTIVE",
+      mimeType: 'application/pdf',
+      hash: 'h',
+      path: 'p',
+      status: 'ACTIVE',
       isPublic: false,
       downloadCount: 3,
       expiresAt: null,
@@ -65,9 +65,9 @@ describe("fileRouter.listWorkspace", () => {
       updatedAt,
       user: {
         id: USER_ID,
-        firstName: "Ivan",
-        lastName: "Ivanov",
-        email: "ivan@example.com",
+        firstName: 'Ivan',
+        lastName: 'Ivanov',
+        email: 'ivan@example.com',
         image: null,
       },
     }
@@ -90,15 +90,15 @@ describe("fileRouter.listWorkspace", () => {
       items: [
         {
           ...fileRow,
-          fileSize: "1024",
+          fileSize: '1024',
         },
       ],
       total: 42,
     })
 
     expect(findMany).toHaveBeenCalledWith({
-      where: { workspaceId: WORKSPACE_ID, status: "ACTIVE" },
-      orderBy: { createdAt: "desc" },
+      where: { workspaceId: WORKSPACE_ID, status: 'ACTIVE' },
+      orderBy: { createdAt: 'desc' },
       include: {
         user: { select: { id: true, firstName: true, lastName: true, email: true, image: true } },
       },
@@ -106,11 +106,11 @@ describe("fileRouter.listWorkspace", () => {
       take: 20,
     })
     expect(count).toHaveBeenCalledWith({
-      where: { workspaceId: WORKSPACE_ID, status: "ACTIVE" },
+      where: { workspaceId: WORKSPACE_ID, status: 'ACTIVE' },
     })
   })
 
-  it("applies case-insensitive name search and uploader filter", async () => {
+  it('applies case-insensitive name search and uploader filter', async () => {
     const findMany = vi.fn(async () => [])
     const count = vi.fn(async () => 0)
     const prisma = {
@@ -123,21 +123,21 @@ describe("fileRouter.listWorkspace", () => {
       workspaceId: WORKSPACE_ID,
       page: 0,
       pageSize: 20,
-      search: "  Report  ",
+      search: '  Report  ',
       uploaderId: OTHER_USER_ID,
     })
 
     const expectedWhere = {
       workspaceId: WORKSPACE_ID,
-      status: "ACTIVE",
-      name: { contains: "Report", mode: "insensitive" },
+      status: 'ACTIVE',
+      name: { contains: 'Report', mode: 'insensitive' },
       userId: OTHER_USER_ID,
     }
     expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expectedWhere }))
     expect(count).toHaveBeenCalledWith({ where: expectedWhere })
   })
 
-  it("ignores whitespace-only search", async () => {
+  it('ignores whitespace-only search', async () => {
     const findMany = vi.fn(async () => [])
     const count = vi.fn(async () => 0)
     const prisma = {
@@ -150,15 +150,15 @@ describe("fileRouter.listWorkspace", () => {
       workspaceId: WORKSPACE_ID,
       page: 0,
       pageSize: 20,
-      search: "   ",
+      search: '   ',
     })
 
     expect(findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { workspaceId: WORKSPACE_ID, status: "ACTIVE" } }),
+      expect.objectContaining({ where: { workspaceId: WORKSPACE_ID, status: 'ACTIVE' } }),
     )
   })
 
-  it("forbids non-members", async () => {
+  it('forbids non-members', async () => {
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => null) },
       file: { findMany: vi.fn(), count: vi.fn() },
@@ -167,15 +167,15 @@ describe("fileRouter.listWorkspace", () => {
     const caller = createCaller(baseContext(prisma))
     await expect(
       caller.listWorkspace({ workspaceId: WORKSPACE_ID, page: 0, pageSize: 20 }),
-    ).rejects.toMatchObject({ code: "FORBIDDEN" })
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
   })
 })
 
-describe("fileRouter.workspaceUploaders", () => {
-  it("lists unique uploaders for a workspace", async () => {
+describe('fileRouter.workspaceUploaders', () => {
+  it('lists unique uploaders for a workspace', async () => {
     const findMany = vi.fn(async () => [
-      { id: USER_ID, firstName: "Ivan", lastName: "Ivanov", email: "i@x", image: null },
-      { id: OTHER_USER_ID, firstName: "Petr", lastName: "Petrov", email: "p@x", image: "/a" },
+      { id: USER_ID, firstName: 'Ivan', lastName: 'Ivanov', email: 'i@x', image: null },
+      { id: OTHER_USER_ID, firstName: 'Petr', lastName: 'Petrov', email: 'p@x', image: '/a' },
     ])
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => memberOk()) },
@@ -186,22 +186,22 @@ describe("fileRouter.workspaceUploaders", () => {
     const result = await caller.workspaceUploaders({ workspaceId: WORKSPACE_ID })
 
     expect(findMany).toHaveBeenCalledWith({
-      where: { files: { some: { workspaceId: WORKSPACE_ID, status: "ACTIVE" } } },
+      where: { files: { some: { workspaceId: WORKSPACE_ID, status: 'ACTIVE' } } },
       select: { id: true, firstName: true, lastName: true, email: true, image: true },
-      orderBy: [{ firstName: "asc" }, { lastName: "asc" }, { email: "asc" }],
+      orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }, { email: 'asc' }],
     })
     expect(result).toHaveLength(2)
   })
 
-  it("forbids non-members from listing uploaders", async () => {
+  it('forbids non-members from listing uploaders', async () => {
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => null) },
       user: { findMany: vi.fn() },
     } as unknown as PrismaClient
 
     const caller = createCaller(baseContext(prisma))
-    await expect(
-      caller.workspaceUploaders({ workspaceId: WORKSPACE_ID }),
-    ).rejects.toMatchObject({ code: "FORBIDDEN" })
+    await expect(caller.workspaceUploaders({ workspaceId: WORKSPACE_ID })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    })
   })
 })

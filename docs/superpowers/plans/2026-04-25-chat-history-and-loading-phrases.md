@@ -5,6 +5,7 @@
 **Goal:** Send conversation history to the agents service via the existing `messages` field of `QueryRequestSchema`, replace the empty assistant bubble with rotating loading phrases, and confirm RAG block-anchor links still appear via Playwright.
 
 **Architecture:**
+
 1. New module `apps/web/src/lib/chat/chat-history.ts` walks the parent chain of `Chat.parentId` and slices messages per the spec (current chat: first + last 10; each ancestor: first + last 4). Returns `Array<{ role: "user" | "assistant", content: string }>` ordered root → current.
 2. `buildAgentsPayload` accepts the new `messages` array and includes it in the JSON sent to `/chat/generate`. Pydantic's `QueryRequestSchema` already has the field — no agent-side changes.
 3. `apps/web/src/app/api/agents/generate/route.ts` fetches history **before** the transaction that creates the new user/assistant rows so the new query is not duplicated, then passes it through to `streamAgentsToRegistry → buildAgentsPayload`.
@@ -17,25 +18,26 @@
 
 ## File Structure
 
-| File | Status | Responsibility |
-|------|--------|----------------|
-| `apps/web/src/lib/chat/agents-payload.ts` | Modify | Add `messages` to function args + return shape |
-| `apps/web/test/agents-payload.test.ts` | Modify | Cover new `messages` field |
-| `apps/web/src/lib/chat/chat-history.ts` | Create | Recursive history collector with slicing rules |
-| `apps/web/test/chat-history.test.ts` | Create | Unit-test all slicing scenarios with mocked Prisma |
-| `apps/web/src/app/api/agents/generate/route.ts` | Modify | Select `parentId`, fetch history before transaction, thread it through |
-| `apps/web/test/api-agents-generate.test.ts` | Modify | Assert `messages` is forwarded to agents upstream |
-| `packages/ui/src/components/chat/chat-loading-phrases.tsx` | Create | Component cycling 4 phrases every 1000 ms |
-| `packages/ui/test/chat-loading-phrases.test.tsx` | Create | Verify phrase rotation with fake timers |
-| `packages/ui/src/components/chat/index.ts` | Modify | Re-export the new component |
-| `packages/ui/src/components/chat/chat-message-list.tsx` | Modify | Render `ChatLoadingPhrases` when assistant is streaming with empty parts |
-| `packages/ui/test/chat-message-list.test.tsx` | Modify | Cover the new loading-state branch |
+| File                                                       | Status | Responsibility                                                           |
+| ---------------------------------------------------------- | ------ | ------------------------------------------------------------------------ |
+| `apps/web/src/lib/chat/agents-payload.ts`                  | Modify | Add `messages` to function args + return shape                           |
+| `apps/web/test/agents-payload.test.ts`                     | Modify | Cover new `messages` field                                               |
+| `apps/web/src/lib/chat/chat-history.ts`                    | Create | Recursive history collector with slicing rules                           |
+| `apps/web/test/chat-history.test.ts`                       | Create | Unit-test all slicing scenarios with mocked Prisma                       |
+| `apps/web/src/app/api/agents/generate/route.ts`            | Modify | Select `parentId`, fetch history before transaction, thread it through   |
+| `apps/web/test/api-agents-generate.test.ts`                | Modify | Assert `messages` is forwarded to agents upstream                        |
+| `packages/ui/src/components/chat/chat-loading-phrases.tsx` | Create | Component cycling 4 phrases every 1000 ms                                |
+| `packages/ui/test/chat-loading-phrases.test.tsx`           | Create | Verify phrase rotation with fake timers                                  |
+| `packages/ui/src/components/chat/index.ts`                 | Modify | Re-export the new component                                              |
+| `packages/ui/src/components/chat/chat-message-list.tsx`    | Modify | Render `ChatLoadingPhrases` when assistant is streaming with empty parts |
+| `packages/ui/test/chat-message-list.test.tsx`              | Modify | Cover the new loading-state branch                                       |
 
 ---
 
 ## Task 1: Add `messages` parameter to `buildAgentsPayload`
 
 **Files:**
+
 - Modify: `apps/web/src/lib/chat/agents-payload.ts`
 - Modify: `apps/web/test/agents-payload.test.ts`
 
@@ -44,52 +46,52 @@
 Open `apps/web/test/agents-payload.test.ts` and add a second `it(...)` block inside the existing `describe("buildAgentsPayload", ...)`:
 
 ```typescript
-  it("includes the conversation messages in the payload", () => {
-    const payload = buildAgentsPayload({
-      chatId: "11111111-1111-1111-1111-111111111111",
-      workspaceId: "22222222-2222-2222-2222-222222222222",
-      userId: "33333333-3333-3333-3333-333333333333",
-      text: "follow up question",
-      messages: [
-        { role: "user", content: "first user message" },
-        { role: "assistant", content: "previous answer" },
-      ],
-      settings: {
-        temperature: 0,
-        topP: 0,
-        systemPrompt: "sys",
-        defaultModel: {
-          slug: "model",
-          provider: { slug: "provider", connection: {} },
-        },
+it('includes the conversation messages in the payload', () => {
+  const payload = buildAgentsPayload({
+    chatId: '11111111-1111-1111-1111-111111111111',
+    workspaceId: '22222222-2222-2222-2222-222222222222',
+    userId: '33333333-3333-3333-3333-333333333333',
+    text: 'follow up question',
+    messages: [
+      { role: 'user', content: 'first user message' },
+      { role: 'assistant', content: 'previous answer' },
+    ],
+    settings: {
+      temperature: 0,
+      topP: 0,
+      systemPrompt: 'sys',
+      defaultModel: {
+        slug: 'model',
+        provider: { slug: 'provider', connection: {} },
       },
-    })
-
-    expect(payload.messages).toEqual([
-      { role: "user", content: "first user message" },
-      { role: "assistant", content: "previous answer" },
-    ])
+    },
   })
 
-  it("defaults messages to an empty array when omitted", () => {
-    const payload = buildAgentsPayload({
-      chatId: "11111111-1111-1111-1111-111111111111",
-      workspaceId: "22222222-2222-2222-2222-222222222222",
-      userId: "33333333-3333-3333-3333-333333333333",
-      text: "hello",
-      settings: {
-        temperature: 0,
-        topP: 0,
-        systemPrompt: "sys",
-        defaultModel: {
-          slug: "model",
-          provider: { slug: "provider", connection: {} },
-        },
-      },
-    })
+  expect(payload.messages).toEqual([
+    { role: 'user', content: 'first user message' },
+    { role: 'assistant', content: 'previous answer' },
+  ])
+})
 
-    expect(payload.messages).toEqual([])
+it('defaults messages to an empty array when omitted', () => {
+  const payload = buildAgentsPayload({
+    chatId: '11111111-1111-1111-1111-111111111111',
+    workspaceId: '22222222-2222-2222-2222-222222222222',
+    userId: '33333333-3333-3333-3333-333333333333',
+    text: 'hello',
+    settings: {
+      temperature: 0,
+      topP: 0,
+      systemPrompt: 'sys',
+      defaultModel: {
+        slug: 'model',
+        provider: { slug: 'provider', connection: {} },
+      },
+    },
   })
+
+  expect(payload.messages).toEqual([])
+})
 ```
 
 - [ ] **Step 2: Run the failing tests**
@@ -103,7 +105,7 @@ Open `apps/web/src/lib/chat/agents-payload.ts`. Add a new exported type at the t
 
 ```typescript
 export type AgentConversationMessage = {
-  role: "user" | "assistant"
+  role: 'user' | 'assistant'
   content: string
 }
 
@@ -126,18 +128,18 @@ export function buildAgentsPayload(args: {
         topP: args.settings.topP,
       },
     },
-    systemPrompt: args.settings.systemPrompt ?? "",
+    systemPrompt: args.settings.systemPrompt ?? '',
     messages: args.messages ?? [],
     mcp: {
       servers: [
         {
-          name: "AnyNote MCP Server",
-          url: process.env.ANYNOTE_MCP_URL ?? "http://localhost:8090/api/mcp",
+          name: 'AnyNote MCP Server',
+          url: process.env.ANYNOTE_MCP_URL ?? 'http://localhost:8090/api/mcp',
           headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json, text/event-stream",
-            "X-User-Id": args.userId,
-            "X-Workspace-Id": args.workspaceId,
+            'Content-Type': 'application/json',
+            Accept: 'application/json, text/event-stream',
+            'X-User-Id': args.userId,
+            'X-Workspace-Id': args.workspaceId,
           },
           retries: 3,
           verify: false,
@@ -145,8 +147,8 @@ export function buildAgentsPayload(args: {
       ],
     },
     instruction: {
-      format: "markdown",
-      language: "ru",
+      format: 'markdown',
+      language: 'ru',
       citationsRequired: true,
     },
     query: args.text,
@@ -173,6 +175,7 @@ git commit -m "feat(chat): accept messages history in buildAgentsPayload"
 ## Task 2: Create chat history fetcher
 
 **Files:**
+
 - Create: `apps/web/src/lib/chat/chat-history.ts`
 - Create: `apps/web/test/chat-history.test.ts`
 
@@ -189,28 +192,28 @@ git commit -m "feat(chat): accept messages history in buildAgentsPayload"
 Create `apps/web/test/chat-history.test.ts`:
 
 ```typescript
-import { describe, expect, it, vi, beforeEach } from "vitest"
+import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import { buildChatHistoryMessages } from "../src/lib/chat/chat-history"
+import { buildChatHistoryMessages } from '../src/lib/chat/chat-history'
 
 type ChatRow = { id: string; parentId: string | null; workspaceId: string }
 type MessageRow = {
   id: string
-  role: "USER" | "ASSISTANT"
-  status: "STREAMING" | "DONE" | "ERROR"
+  role: 'USER' | 'ASSISTANT'
+  status: 'STREAMING' | 'DONE' | 'ERROR'
   parts: unknown
   createdAt: Date
 }
 
 function textPart(text: string) {
-  return { type: "text", text }
+  return { type: 'text', text }
 }
 
-function makeMessages(count: number, role: "USER" | "ASSISTANT" = "USER"): MessageRow[] {
+function makeMessages(count: number, role: 'USER' | 'ASSISTANT' = 'USER'): MessageRow[] {
   return Array.from({ length: count }, (_, index) => ({
     id: `msg-${index}`,
     role,
-    status: "DONE" as const,
+    status: 'DONE' as const,
     parts: [textPart(`m${index}`)],
     createdAt: new Date(2026, 3, 1, 0, index),
   }))
@@ -235,98 +238,98 @@ function createPrismaMock(args: {
   }
 }
 
-describe("buildChatHistoryMessages", () => {
+describe('buildChatHistoryMessages', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it("returns empty array when chat has no messages", async () => {
+  it('returns empty array when chat has no messages', async () => {
     const prisma = createPrismaMock({
-      chats: [{ id: "c1", parentId: null, workspaceId: "w" }],
+      chats: [{ id: 'c1', parentId: null, workspaceId: 'w' }],
       messagesByChat: { c1: [] },
     })
 
     const result = await buildChatHistoryMessages({
       prisma: prisma as never,
-      chatId: "c1",
-      workspaceId: "w",
+      chatId: 'c1',
+      workspaceId: 'w',
     })
 
     expect(result).toEqual([])
   })
 
-  it("returns the single message for a 1-message chat", async () => {
-    const messages = makeMessages(1, "USER")
+  it('returns the single message for a 1-message chat', async () => {
+    const messages = makeMessages(1, 'USER')
     const prisma = createPrismaMock({
-      chats: [{ id: "c1", parentId: null, workspaceId: "w" }],
+      chats: [{ id: 'c1', parentId: null, workspaceId: 'w' }],
       messagesByChat: { c1: messages },
     })
 
     const result = await buildChatHistoryMessages({
       prisma: prisma as never,
-      chatId: "c1",
-      workspaceId: "w",
+      chatId: 'c1',
+      workspaceId: 'w',
     })
 
-    expect(result).toEqual([{ role: "user", content: "m0" }])
+    expect(result).toEqual([{ role: 'user', content: 'm0' }])
   })
 
-  it("returns all messages when count <= 1 + lastN (no parent, count = 5)", async () => {
-    const messages = makeMessages(5, "USER")
+  it('returns all messages when count <= 1 + lastN (no parent, count = 5)', async () => {
+    const messages = makeMessages(5, 'USER')
     const prisma = createPrismaMock({
-      chats: [{ id: "c1", parentId: null, workspaceId: "w" }],
+      chats: [{ id: 'c1', parentId: null, workspaceId: 'w' }],
       messagesByChat: { c1: messages },
     })
 
     const result = await buildChatHistoryMessages({
       prisma: prisma as never,
-      chatId: "c1",
-      workspaceId: "w",
+      chatId: 'c1',
+      workspaceId: 'w',
     })
 
-    expect(result.map((m) => m.content)).toEqual(["m0", "m1", "m2", "m3", "m4"])
+    expect(result.map((m) => m.content)).toEqual(['m0', 'm1', 'm2', 'm3', 'm4'])
   })
 
-  it("returns first + last 10 with no overlap (no parent, count = 15)", async () => {
-    const messages = makeMessages(15, "USER")
+  it('returns first + last 10 with no overlap (no parent, count = 15)', async () => {
+    const messages = makeMessages(15, 'USER')
     const prisma = createPrismaMock({
-      chats: [{ id: "c1", parentId: null, workspaceId: "w" }],
+      chats: [{ id: 'c1', parentId: null, workspaceId: 'w' }],
       messagesByChat: { c1: messages },
     })
 
     const result = await buildChatHistoryMessages({
       prisma: prisma as never,
-      chatId: "c1",
-      workspaceId: "w",
+      chatId: 'c1',
+      workspaceId: 'w',
     })
 
     expect(result.map((m) => m.content)).toEqual([
-      "m0",
-      "m5",
-      "m6",
-      "m7",
-      "m8",
-      "m9",
-      "m10",
-      "m11",
-      "m12",
-      "m13",
-      "m14",
+      'm0',
+      'm5',
+      'm6',
+      'm7',
+      'm8',
+      'm9',
+      'm10',
+      'm11',
+      'm12',
+      'm13',
+      'm14',
     ])
   })
 
-  it("walks parent chain root → current with correct slicing per chat", async () => {
-    const root = makeMessages(8, "USER").map((m, i) => ({
+  it('walks parent chain root → current with correct slicing per chat', async () => {
+    const root = makeMessages(8, 'USER').map((m, i) => ({
       ...m,
       id: `root-${i}`,
       parts: [textPart(`root${i}`)],
     }))
-    const middle = makeMessages(8, "USER").map((m, i) => ({
+    const middle = makeMessages(8, 'USER').map((m, i) => ({
       ...m,
       id: `mid-${i}`,
       parts: [textPart(`mid${i}`)],
     }))
-    const current = makeMessages(15, "USER").map((m, i) => ({
+    const current = makeMessages(15, 'USER').map((m, i) => ({
       ...m,
       id: `cur-${i}`,
       parts: [textPart(`cur${i}`)],
@@ -334,184 +337,184 @@ describe("buildChatHistoryMessages", () => {
 
     const prisma = createPrismaMock({
       chats: [
-        { id: "root", parentId: null, workspaceId: "w" },
-        { id: "mid", parentId: "root", workspaceId: "w" },
-        { id: "cur", parentId: "mid", workspaceId: "w" },
+        { id: 'root', parentId: null, workspaceId: 'w' },
+        { id: 'mid', parentId: 'root', workspaceId: 'w' },
+        { id: 'cur', parentId: 'mid', workspaceId: 'w' },
       ],
       messagesByChat: { root, mid: middle, cur: current },
     })
 
     const result = await buildChatHistoryMessages({
       prisma: prisma as never,
-      chatId: "cur",
-      workspaceId: "w",
+      chatId: 'cur',
+      workspaceId: 'w',
     })
 
     // root: first + last 4 = root0, root4, root5, root6, root7
     // mid: first + last 4 = mid0, mid4, mid5, mid6, mid7
     // cur: first + last 10 = cur0, cur5, cur6, cur7, cur8, cur9, cur10, cur11, cur12, cur13, cur14
     expect(result.map((m) => m.content)).toEqual([
-      "root0",
-      "root4",
-      "root5",
-      "root6",
-      "root7",
-      "mid0",
-      "mid4",
-      "mid5",
-      "mid6",
-      "mid7",
-      "cur0",
-      "cur5",
-      "cur6",
-      "cur7",
-      "cur8",
-      "cur9",
-      "cur10",
-      "cur11",
-      "cur12",
-      "cur13",
-      "cur14",
+      'root0',
+      'root4',
+      'root5',
+      'root6',
+      'root7',
+      'mid0',
+      'mid4',
+      'mid5',
+      'mid6',
+      'mid7',
+      'cur0',
+      'cur5',
+      'cur6',
+      'cur7',
+      'cur8',
+      'cur9',
+      'cur10',
+      'cur11',
+      'cur12',
+      'cur13',
+      'cur14',
     ])
   })
 
-  it("maps role USER → user, ASSISTANT → assistant", async () => {
+  it('maps role USER → user, ASSISTANT → assistant', async () => {
     const messages: MessageRow[] = [
       {
-        id: "u",
-        role: "USER",
-        status: "DONE",
-        parts: [textPart("hi")],
+        id: 'u',
+        role: 'USER',
+        status: 'DONE',
+        parts: [textPart('hi')],
         createdAt: new Date(2026, 3, 1, 0, 0),
       },
       {
-        id: "a",
-        role: "ASSISTANT",
-        status: "DONE",
-        parts: [textPart("hello")],
+        id: 'a',
+        role: 'ASSISTANT',
+        status: 'DONE',
+        parts: [textPart('hello')],
         createdAt: new Date(2026, 3, 1, 0, 1),
       },
     ]
     const prisma = createPrismaMock({
-      chats: [{ id: "c", parentId: null, workspaceId: "w" }],
+      chats: [{ id: 'c', parentId: null, workspaceId: 'w' }],
       messagesByChat: { c: messages },
     })
 
     const result = await buildChatHistoryMessages({
       prisma: prisma as never,
-      chatId: "c",
-      workspaceId: "w",
+      chatId: 'c',
+      workspaceId: 'w',
     })
 
     expect(result).toEqual([
-      { role: "user", content: "hi" },
-      { role: "assistant", content: "hello" },
+      { role: 'user', content: 'hi' },
+      { role: 'assistant', content: 'hello' },
     ])
   })
 
-  it("skips messages with no extractable text", async () => {
+  it('skips messages with no extractable text', async () => {
     const messages: MessageRow[] = [
       {
-        id: "1",
-        role: "USER",
-        status: "DONE",
-        parts: [textPart("real")],
+        id: '1',
+        role: 'USER',
+        status: 'DONE',
+        parts: [textPart('real')],
         createdAt: new Date(2026, 3, 1, 0, 0),
       },
       {
-        id: "2",
-        role: "ASSISTANT",
-        status: "DONE",
-        parts: [{ type: "tool", id: "t1", kind: "tool", state: "done", title: "ran" }],
+        id: '2',
+        role: 'ASSISTANT',
+        status: 'DONE',
+        parts: [{ type: 'tool', id: 't1', kind: 'tool', state: 'done', title: 'ran' }],
         createdAt: new Date(2026, 3, 1, 0, 1),
       },
       {
-        id: "3",
-        role: "USER",
-        status: "DONE",
-        parts: [textPart("   ")],
+        id: '3',
+        role: 'USER',
+        status: 'DONE',
+        parts: [textPart('   ')],
         createdAt: new Date(2026, 3, 1, 0, 2),
       },
     ]
     const prisma = createPrismaMock({
-      chats: [{ id: "c", parentId: null, workspaceId: "w" }],
+      chats: [{ id: 'c', parentId: null, workspaceId: 'w' }],
       messagesByChat: { c: messages },
     })
 
     const result = await buildChatHistoryMessages({
       prisma: prisma as never,
-      chatId: "c",
-      workspaceId: "w",
+      chatId: 'c',
+      workspaceId: 'w',
     })
 
-    expect(result).toEqual([{ role: "user", content: "real" }])
+    expect(result).toEqual([{ role: 'user', content: 'real' }])
   })
 
-  it("only loads DONE messages from prisma (filters STREAMING / ERROR)", async () => {
+  it('only loads DONE messages from prisma (filters STREAMING / ERROR)', async () => {
     const prisma = createPrismaMock({
-      chats: [{ id: "c", parentId: null, workspaceId: "w" }],
+      chats: [{ id: 'c', parentId: null, workspaceId: 'w' }],
       messagesByChat: { c: [] },
     })
 
     await buildChatHistoryMessages({
       prisma: prisma as never,
-      chatId: "c",
-      workspaceId: "w",
+      chatId: 'c',
+      workspaceId: 'w',
     })
 
     expect(prisma.chatMessage.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ chatId: "c", status: "DONE" }),
+        where: expect.objectContaining({ chatId: 'c', status: 'DONE' }),
       }),
     )
   })
 
-  it("scopes ancestor lookups to the same workspaceId", async () => {
+  it('scopes ancestor lookups to the same workspaceId', async () => {
     const prisma = createPrismaMock({
       chats: [
-        { id: "root", parentId: null, workspaceId: "w" },
-        { id: "cur", parentId: "root", workspaceId: "w" },
+        { id: 'root', parentId: null, workspaceId: 'w' },
+        { id: 'cur', parentId: 'root', workspaceId: 'w' },
       ],
       messagesByChat: { root: [], cur: [] },
     })
 
     await buildChatHistoryMessages({
       prisma: prisma as never,
-      chatId: "cur",
-      workspaceId: "w",
+      chatId: 'cur',
+      workspaceId: 'w',
     })
 
     expect(prisma.chat.findFirst).toHaveBeenCalledWith({
-      where: { id: "root", workspaceId: "w" },
+      where: { id: 'root', workspaceId: 'w' },
       select: { id: true, parentId: true },
     })
   })
 
-  it("concatenates the last 10 messages including first when count = 11", async () => {
-    const messages = makeMessages(11, "USER")
+  it('concatenates the last 10 messages including first when count = 11', async () => {
+    const messages = makeMessages(11, 'USER')
     const prisma = createPrismaMock({
-      chats: [{ id: "c1", parentId: null, workspaceId: "w" }],
+      chats: [{ id: 'c1', parentId: null, workspaceId: 'w' }],
       messagesByChat: { c1: messages },
     })
 
     const result = await buildChatHistoryMessages({
       prisma: prisma as never,
-      chatId: "c1",
-      workspaceId: "w",
+      chatId: 'c1',
+      workspaceId: 'w',
     })
 
     expect(result.map((m) => m.content)).toEqual([
-      "m0",
-      "m1",
-      "m2",
-      "m3",
-      "m4",
-      "m5",
-      "m6",
-      "m7",
-      "m8",
-      "m9",
-      "m10",
+      'm0',
+      'm1',
+      'm2',
+      'm3',
+      'm4',
+      'm5',
+      'm6',
+      'm7',
+      'm8',
+      'm9',
+      'm10',
     ])
   })
 })
@@ -527,9 +530,9 @@ Expected: every test fails because `apps/web/src/lib/chat/chat-history.ts` does 
 Create `apps/web/src/lib/chat/chat-history.ts`:
 
 ```typescript
-import type { Prisma, PrismaClient } from "@repo/db"
+import type { Prisma, PrismaClient } from '@repo/db'
 
-import type { AgentConversationMessage } from "./agents-payload"
+import type { AgentConversationMessage } from './agents-payload'
 
 const MAX_ANCESTORS = 50
 const CURRENT_CHAT_LAST_COUNT = 10
@@ -537,37 +540,37 @@ const ANCESTOR_LAST_COUNT = 4
 
 type MessageRow = {
   id: string
-  role: "USER" | "ASSISTANT"
+  role: 'USER' | 'ASSISTANT'
   parts: Prisma.JsonValue
   createdAt: Date
 }
 
 type PrismaLike = {
   chat: {
-    findFirst: PrismaClient["chat"]["findFirst"]
+    findFirst: PrismaClient['chat']['findFirst']
   }
   chatMessage: {
-    findMany: PrismaClient["chatMessage"]["findMany"]
+    findMany: PrismaClient['chatMessage']['findMany']
   }
 }
 
-function isTextPart(value: unknown): value is { type: "text"; text: string } {
+function isTextPart(value: unknown): value is { type: 'text'; text: string } {
   return (
     !!value &&
-    typeof value === "object" &&
-    (value as { type?: unknown }).type === "text" &&
-    typeof (value as { text?: unknown }).text === "string"
+    typeof value === 'object' &&
+    (value as { type?: unknown }).type === 'text' &&
+    typeof (value as { text?: unknown }).text === 'string'
   )
 }
 
 function extractText(parts: Prisma.JsonValue): string {
   if (!Array.isArray(parts)) {
-    return ""
+    return ''
   }
   return parts
     .filter(isTextPart)
     .map((part) => part.text)
-    .join("\n\n")
+    .join('\n\n')
     .trim()
 }
 
@@ -583,8 +586,8 @@ function pickHistory(messages: MessageRow[], lastCount: number): MessageRow[] {
   return [first, ...tail]
 }
 
-function mapRole(role: "USER" | "ASSISTANT"): AgentConversationMessage["role"] {
-  return role === "USER" ? "user" : "assistant"
+function mapRole(role: 'USER' | 'ASSISTANT'): AgentConversationMessage['role'] {
+  return role === 'USER' ? 'user' : 'assistant'
 }
 
 export async function buildChatHistoryMessages(args: {
@@ -616,8 +619,8 @@ export async function buildChatHistoryMessages(args: {
     const lastCount = isCurrent ? CURRENT_CHAT_LAST_COUNT : ANCESTOR_LAST_COUNT
 
     const messages = (await args.prisma.chatMessage.findMany({
-      where: { chatId: chain[i], status: "DONE" },
-      orderBy: { createdAt: "asc" },
+      where: { chatId: chain[i], status: 'DONE' },
+      orderBy: { createdAt: 'asc' },
       select: { id: true, role: true, parts: true, createdAt: true },
     })) as MessageRow[]
 
@@ -650,6 +653,7 @@ git commit -m "feat(chat): collect parent-aware chat history for agents"
 ## Task 3: Wire history into the POST `/api/agents/generate` route
 
 **Files:**
+
 - Modify: `apps/web/src/app/api/agents/generate/route.ts`
 - Modify: `apps/web/test/api-agents-generate.test.ts`
 
@@ -707,10 +711,17 @@ Then capture `fetch` calls. Near the top of the same `it(...)` (before invoking 
 
 ```typescript
 const fetchMock = vi.fn().mockResolvedValue(
-  new Response(new ReadableStream({ start(controller) { controller.close() } }), {
-    status: 200,
-    headers: { 'content-type': 'text/event-stream' },
-  }),
+  new Response(
+    new ReadableStream({
+      start(controller) {
+        controller.close()
+      },
+    }),
+    {
+      status: 200,
+      headers: { 'content-type': 'text/event-stream' },
+    },
+  ),
 )
 vi.stubGlobal('fetch', fetchMock)
 ```
@@ -718,9 +729,7 @@ vi.stubGlobal('fetch', fetchMock)
 And after the existing assertions (after `expect(...)` calls), add:
 
 ```typescript
-const upstreamCall = fetchMock.mock.calls.find(([url]) =>
-  String(url).endsWith('/chat/generate'),
-)
+const upstreamCall = fetchMock.mock.calls.find(([url]) => String(url).endsWith('/chat/generate'))
 expect(upstreamCall).toBeDefined()
 const sentBody = JSON.parse(upstreamCall![1].body as string)
 expect(sentBody.messages).toEqual([
@@ -812,26 +821,26 @@ Change `select` to include `parentId`:
 (d) After the chat existence check (right after `if (!chat) { return ... 404 ... }`), insert the history fetch (this MUST be **before** the `$transaction`):
 
 ```typescript
-  const historyMessages = await buildChatHistoryMessages({
-    prisma,
-    chatId: chat.id,
-    workspaceId: chat.workspaceId,
-  })
+const historyMessages = await buildChatHistoryMessages({
+  prisma,
+  chatId: chat.id,
+  workspaceId: chat.workspaceId,
+})
 ```
 
 (e) In the `streamAgentsToRegistry({...})` call near the end of `POST`, pass `messages: historyMessages`:
 
 ```typescript
-  const upstreamTask = streamAgentsToRegistry({
-    assistantMessageId: assistantMessage.id,
-    chatId: chat.id,
-    entry,
-    settings: settingsSnapshot,
-    text: body.text,
-    userId: session.user.id,
-    workspaceId: chat.workspaceId,
-    messages: historyMessages,
-  })
+const upstreamTask = streamAgentsToRegistry({
+  assistantMessageId: assistantMessage.id,
+  chatId: chat.id,
+  entry,
+  settings: settingsSnapshot,
+  text: body.text,
+  userId: session.user.id,
+  workspaceId: chat.workspaceId,
+  messages: historyMessages,
+})
 ```
 
 - [ ] **Step 4: Re-run the route test**
@@ -861,6 +870,7 @@ git commit -m "feat(chat): forward chat history to agents /chat/generate"
 ## Task 4: Add rotating loading-phrase placeholder for streaming assistant bubble
 
 **Files:**
+
 - Create: `packages/ui/src/components/chat/chat-loading-phrases.tsx`
 - Create: `packages/ui/test/chat-loading-phrases.test.tsx`
 - Modify: `packages/ui/src/components/chat/index.ts`
@@ -969,15 +979,15 @@ Expected: both tests pass.
 Open `packages/ui/src/components/chat/index.ts` and add the new export between `chat-file-chip` and `chat-message-content`:
 
 ```typescript
-export * from "./chat-composer"
-export * from "./chat-empty-state"
-export * from "./chat-file-chip"
-export * from "./chat-loading-phrases"
-export * from "./chat-message-content"
-export * from "./chat-message-list"
-export * from "./chat-service-block"
-export * from "./chat-thread"
-export * from "./chat-types"
+export * from './chat-composer'
+export * from './chat-empty-state'
+export * from './chat-file-chip'
+export * from './chat-loading-phrases'
+export * from './chat-message-content'
+export * from './chat-message-list'
+export * from './chat-service-block'
+export * from './chat-thread'
+export * from './chat-types'
 ```
 
 - [ ] **Step 6: Add failing test in `chat-message-list.test.tsx` for the new branch**
@@ -1031,7 +1041,7 @@ Expected: the new "shows loading phrases" test fails because the list still rend
 Open `packages/ui/src/components/chat/chat-message-list.tsx`. Add an import alongside the others:
 
 ```typescript
-import { ChatLoadingPhrases } from "./chat-loading-phrases"
+import { ChatLoadingPhrases } from './chat-loading-phrases'
 ```
 
 Find the line that renders `<ChatMessageContent parts={message.parts} />` inside the `renderItem` callback. Replace that single line with a conditional:
@@ -1067,6 +1077,7 @@ pnpm --filter web dev
 ```
 
 Open `http://localhost:3000`, log in, open a chat in any workspace, send a message, and visually confirm:
+
 - Before the first token arrives, the assistant bubble shows rotating phrases (Загрузка → Вычисления → Преобразование → Литье) cycling once per second.
 - Once tokens stream, the markdown text replaces the placeholder.
 
@@ -1088,6 +1099,7 @@ git commit -m "feat(ui): rotate loading phrases while assistant is streaming"
 **Files:** none modified.
 
 The existing `apps/e2e/rag-block-links.spec.ts` already:
+
 - Seeds a workspace + page (with the marker `Бразильский Медведь` in block #2)
 - Sends a chat query through the UI
 - Polls until the marker appears in any assistant article
@@ -1124,6 +1136,7 @@ pnpm exec playwright test apps/e2e/rag-block-links.spec.ts
 ```
 
 Expected: `1 passed`. The test verifies:
+
 - Marker text appears in an assistant `[role="article"]`
 - The `<a>` tag pointing to `/workspaces/{wsId}/pages/{pageId}#2` is present in the DOM
 

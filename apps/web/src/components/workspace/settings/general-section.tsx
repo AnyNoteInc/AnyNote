@@ -1,7 +1,7 @@
-"use client"
+'use client'
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 import {
   Alert,
@@ -11,9 +11,9 @@ import {
   Stack,
   TextField,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
 type Props = {
   workspace: { id: string; name: string; icon: string | null }
@@ -22,7 +22,7 @@ type Props = {
 
 export function WorkspaceGeneralSection({ workspace, isOwner }: Props) {
   const [name, setName] = useState(workspace.name)
-  const [icon, setIcon] = useState(workspace.icon ?? "")
+  const [icon, setIcon] = useState(workspace.icon ?? '')
   const [successShown, setSuccessShown] = useState(false)
   const router = useRouter()
   const utils = trpc.useUtils()
@@ -59,8 +59,8 @@ export function WorkspaceGeneralSection({ workspace, isOwner }: Props) {
               height: 56,
               borderRadius: 1,
               border: 1,
-              borderColor: "divider",
-              alignSelf: "center",
+              borderColor: 'divider',
+              alignSelf: 'center',
             }}
           />
           <TextField
@@ -74,7 +74,7 @@ export function WorkspaceGeneralSection({ workspace, isOwner }: Props) {
         <Button
           onClick={() => rename.mutate({ id: workspace.id, name, icon: icon || undefined })}
           disabled={disabled || !name.trim()}
-          sx={{ alignSelf: "flex-start" }}
+          sx={{ alignSelf: 'flex-start' }}
         >
           Сохранить
         </Button>

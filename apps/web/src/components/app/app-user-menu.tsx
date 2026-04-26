@@ -1,28 +1,28 @@
-"use client"
+'use client'
 
-import Link from "next/link"
+import Link from 'next/link'
 
-import { Button } from "@repo/ui/components"
-import { UserAvatarMenu, type UserAvatarMenuItem } from "@repo/ui/widgets"
+import { Button } from '@repo/ui/components'
+import { UserAvatarMenu, type UserAvatarMenuItem } from '@repo/ui/widgets'
 
-import type { SessionType } from "@/lib/get-session"
+import type { SessionType } from '@/lib/get-session'
 
 type NavLink = {
   label: string
   href: string
-  color: "inherit" | "primary"
-  variant: "text" | "contained"
+  color: 'inherit' | 'primary'
+  variant: 'text' | 'contained'
 }
 
 const guestLinks: NavLink[] = [
-  { label: "Вход", href: "/sign-in", color: "inherit", variant: "text" },
-  { label: "Регистрация", href: "/sign-up", color: "primary", variant: "contained" },
+  { label: 'Вход', href: '/sign-in', color: 'inherit', variant: 'text' },
+  { label: 'Регистрация', href: '/sign-up', color: 'primary', variant: 'contained' },
 ]
 
 const userMenuItems: UserAvatarMenuItem[] = [
-  { label: "Профиль", href: "/profile", component: Link },
-  { label: "Настройки", href: "/settings", component: Link },
-  { label: "Выйти", href: "/sign-out", component: Link },
+  { label: 'Профиль', href: '/profile', component: Link },
+  { label: 'Настройки', href: '/settings', component: Link },
+  { label: 'Выйти', href: '/sign-out', component: Link },
 ]
 
 export type AppUserMenuProps = {

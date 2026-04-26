@@ -1,76 +1,66 @@
-import type { Metadata } from "next"
+import type { Metadata } from 'next'
 
-import { Box, Button, Divider, Paper, Stack, Typography } from "@repo/ui/components"
+import { prisma } from '@repo/db'
+import { getActivePlanForUser } from '@repo/trpc'
 
-import { PublicPageShell } from "@/components/public/public-page-shell"
-import { pricingCards } from "@/components/public/content"
+import { PricingTiers, type PricingTierPlan } from '@/components/billing/pricing-tiers'
+import { PublicPageShell } from '@/components/public/public-page-shell'
+import { getSession } from '@/lib/get-session'
 
 export const metadata: Metadata = {
-  title: "Цены",
+  title: 'Цены',
 }
 
-export default function PricingPage() {
+function normalizeFeatures(features: unknown): string[] {
+  return Array.isArray(features)
+    ? features.filter((feature): feature is string => typeof feature === 'string')
+    : []
+}
+
+export default async function PricingPage() {
+  const [plans, session] = await Promise.all([
+    prisma.plan.findMany({
+      where: { isActive: true },
+      orderBy: { sortOrder: 'asc' },
+      select: {
+        id: true,
+        slug: true,
+        name: true,
+        description: true,
+        priceMonthlyKopecks: true,
+        priceYearlyKopecks: true,
+        currency: true,
+        features: true,
+        sortOrder: true,
+      },
+    }),
+    getSession(),
+  ])
+
+  const currentPlan = session
+    ? await getActivePlanForUser(prisma, session.user.id).then(
+        ({ plan }) => plan,
+        () => null,
+      )
+    : null
+
+  const pricingPlans: PricingTierPlan[] = plans.map((plan) => ({
+    ...plan,
+    description: plan.description ?? '',
+    features: normalizeFeatures(plan.features),
+  }))
+
   return (
     <PublicPageShell
       eyebrow="Тарифы"
-      title="Выберите модель запуска под вашу команду"
-      description="Три базовых тарифа повторяют продуктовую матрицу с главной страницы: от бесплатного старта до корпоративного контура."
+      title="Выберите тариф под текущий ритм команды"
+      description="Персональный подходит для личной базы знаний, ПРО открывает командные сценарии, МАКС рассчитан на рабочие пространства с расширенными настройками."
     >
-      <Box
-        sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", lg: "repeat(3, minmax(0, 1fr))" },
-          gap: 3,
-        }}
-      >
-        {pricingCards.map((plan, index) => (
-          <Paper
-            key={plan.title}
-            elevation={0}
-            sx={{
-              p: 3.5,
-              borderRadius: 2,
-              minHeight: 360,
-              border:
-                index === 1
-                  ? "1px solid rgba(15, 118, 110, 0.34)"
-                  : "1px solid rgba(148,163,184,0.16)",
-              backgroundColor: "background.paper",
-              backgroundImage:
-                index === 1
-                  ? "linear-gradient(180deg, rgba(15, 118, 110, 0.12) 0%, rgba(255,255,255,0.03) 100%)"
-                  : "none",
-              boxShadow: index === 1 ? "0 18px 42px rgba(15, 118, 110, 0.10)" : "none",
-            }}
-          >
-            <Stack spacing={2}>
-              <Typography variant="h5">{plan.title}</Typography>
-              <Typography variant="h2" sx={{ fontSize: "3.2rem" }}>
-                {plan.price === "Custom" ? plan.price : `$${plan.price}`}
-              </Typography>
-              <Typography color="text.secondary">{plan.description}</Typography>
-              <Divider />
-              <Stack spacing={1.2}>
-                {plan.items.map((item) => (
-                  <Typography key={item} color="text.secondary">
-                    • {item}
-                  </Typography>
-                ))}
-              </Stack>
-              <Box sx={{ pt: 1 }}>
-                <Button
-                  href="/registration"
-                  variant={index === 1 ? "contained" : "outlined"}
-                  color={index === 1 ? "primary" : "inherit"}
-                  fullWidth
-                >
-                  Выбрать {plan.title}
-                </Button>
-              </Box>
-            </Stack>
-          </Paper>
-        ))}
-      </Box>
+      <PricingTiers
+        plans={pricingPlans}
+        currentPlanSlug={currentPlan?.slug ?? null}
+        isAuthenticated={Boolean(session)}
+      />
     </PublicPageShell>
   )
 }

@@ -1,6 +1,6 @@
-"use client"
+'use client'
 
-import { useState } from "react"
+import { useState } from 'react'
 import {
   Menu,
   MenuItem,
@@ -18,10 +18,10 @@ import {
   DriveFileRenameOutlineIcon,
   MovingIcon,
   DeleteIcon,
-} from "@repo/ui/components"
-import { trpc } from "@/trpc/client"
-import { usePageActions } from "@/hooks/use-page-actions"
-import type { PageItem } from "./types"
+} from '@repo/ui/components'
+import { trpc } from '@/trpc/client'
+import { usePageActions } from '@/hooks/use-page-actions'
+import type { PageItem } from './types'
 
 type Props = {
   anchorEl: HTMLElement | null
@@ -46,7 +46,7 @@ export function PageContextMenu({
   const utils = trpc.useUtils()
 
   const [renameOpen, setRenameOpen] = useState(false)
-  const [renameValue, setRenameValue] = useState("")
+  const [renameValue, setRenameValue] = useState('')
 
   const rename = trpc.page.rename.useMutation({
     onSuccess: () => {
@@ -71,7 +71,7 @@ export function PageContextMenu({
   }
 
   const handleOpenRename = () => {
-    setRenameValue(page.title ?? "")
+    setRenameValue(page.title ?? '')
     setRenameOpen(true)
     onClose()
   }
@@ -96,7 +96,7 @@ export function PageContextMenu({
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={onClose}>
         <MenuItem onClick={handleToggleFavorite} sx={menuItemSx}>
           {isFavorite ? <StarIcon fontSize="small" /> : <StarBorderIcon fontSize="small" />}
-          {isFavorite ? "Убрать из избранного" : "В избранное"}
+          {isFavorite ? 'Убрать из избранного' : 'В избранное'}
         </MenuItem>
 
         <Divider />
@@ -121,7 +121,7 @@ export function PageContextMenu({
           Переместить
         </MenuItem>
 
-        <MenuItem onClick={handleOpenDelete} sx={{ ...menuItemSx, color: "error.main" }}>
+        <MenuItem onClick={handleOpenDelete} sx={{ ...menuItemSx, color: 'error.main' }}>
           <DeleteIcon fontSize="small" />В корзину
         </MenuItem>
       </Menu>
@@ -137,7 +137,7 @@ export function PageContextMenu({
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter") {
+              if (e.key === 'Enter') {
                 e.preventDefault()
                 handleRenameSubmit()
               }

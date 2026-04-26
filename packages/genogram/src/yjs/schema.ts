@@ -1,20 +1,13 @@
-import type * as Y from "yjs"
-import type {
-  Annotation,
-  BirthGroup,
-  ChildGroup,
-  Person,
-  PregnancyLoss,
-  Union,
-} from "../types"
+import type * as Y from 'yjs'
+import type { Annotation, BirthGroup, ChildGroup, Person, PregnancyLoss, Union } from '../types'
 
 export const GENOGRAM_MAP_NAMES = {
-  people: "genogram.people",
-  unions: "genogram.unions",
-  childGroups: "genogram.childGroups",
-  birthGroups: "genogram.birthGroups",
-  pregnancyLosses: "genogram.pregnancyLosses",
-  annotations: "genogram.annotations",
+  people: 'genogram.people',
+  unions: 'genogram.unions',
+  childGroups: 'genogram.childGroups',
+  birthGroups: 'genogram.birthGroups',
+  pregnancyLosses: 'genogram.pregnancyLosses',
+  annotations: 'genogram.annotations',
 } as const
 
 export interface GenogramYMaps {

@@ -1,36 +1,38 @@
-"use client"
+'use client'
 
-import { usePathname } from "next/navigation"
-import { useEffect, useMemo, useState, type ReactNode } from "react"
+import { usePathname } from 'next/navigation'
+import { useEffect, useMemo, useState, type ReactNode } from 'react'
 
-import { Box } from "@repo/ui/components"
+import { Box } from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
-import { PageActionsToolbar } from "@/components/page/page-actions-toolbar"
-import { PageEditorProvider } from "@/components/page/editor-context"
-import { useFullWidth } from "@/hooks/use-full-width"
+import { PageActionsToolbar } from '@/components/page/page-actions-toolbar'
+import { PageEditorProvider } from '@/components/page/editor-context'
+import { useFullWidth } from '@/hooks/use-full-width'
 
-import { WorkspaceShell } from "./workspace-shell"
-import { WorkspaceSidebar } from "./workspace-sidebar"
-import { WorkspaceToolbar } from "./workspace-toolbar"
-import { WorkspaceUserMenu } from "./workspace-user-menu"
-import type { PageItem } from "./types"
+import type { PlanFeatures } from '@repo/trpc'
+
+import { WorkspaceShell } from './workspace-shell'
+import { WorkspaceSidebar } from './workspace-sidebar'
+import { WorkspaceToolbar } from './workspace-toolbar'
+import { WorkspaceUserMenu } from './workspace-user-menu'
+import type { PageItem } from './types'
 
 type Props = {
   workspace: { id: string; name: string; icon: string | null }
-  planName: string
+  features: PlanFeatures
   pages: PageItem[]
   user: { id: string; firstName: string; lastName: string; email: string; image: string | null }
   children: ReactNode
 }
 
-const STORAGE_KEY = "workspace.sidebar.collapsed"
+const STORAGE_KEY = 'workspace.sidebar.collapsed'
 export const SIDEBAR_WIDTH = 313
 
 export function WorkspaceLayoutClient({
   workspace,
-  planName,
+  features,
   pages: initialPages,
   user,
   children,
@@ -48,7 +50,7 @@ export function WorkspaceLayoutClient({
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY)
-    if (stored === "true") setHidden(true)
+    if (stored === 'true') setHidden(true)
   }, [])
 
   useEffect(() => {
@@ -65,23 +67,23 @@ export function WorkspaceLayoutClient({
   const activeChat = activeChatId ? (chats.data?.find((c) => c.id === activeChatId) ?? null) : null
 
   const breadcrumbs = useMemo(() => {
-    if (pathname.includes("/chats")) {
-      const base = { label: "Чаты", href: `/workspaces/${workspace.id}/chats` }
-      if (activeChat) return [base, { label: activeChat.title ?? "Без названия" }]
+    if (pathname.includes('/chats')) {
+      const base = { label: 'Чаты', href: `/workspaces/${workspace.id}/chats` }
+      if (activeChat) return [base, { label: activeChat.title ?? 'Без названия' }]
       return [base]
     }
-    if (pathname.includes("/settings")) {
-      return [{ label: "Настройки" }]
+    if (pathname.includes('/settings')) {
+      return [{ label: 'Настройки' }]
     }
-    if (pathname.includes("/trash")) {
-      return [{ label: "Корзина" }]
+    if (pathname.includes('/trash')) {
+      return [{ label: 'Корзина' }]
     }
     const pageIdMatch = pathname.match(/\/pages\/([a-f0-9-]{36})/)
     if (pageIdMatch) {
-      const base = { label: "Страницы" }
+      const base = { label: 'Страницы' }
       const pagesById = new Map(pages.map((p) => [p.id, p]))
       const chain: PageItem[] = []
-      let current = pagesById.get(pageIdMatch[1] ?? "")
+      let current = pagesById.get(pageIdMatch[1] ?? '')
       while (current) {
         chain.unshift(current)
         current = current.parentId ? pagesById.get(current.parentId) : undefined
@@ -90,7 +92,7 @@ export function WorkspaceLayoutClient({
       return [
         base,
         ...chain.map((p, idx) => ({
-          label: p.title ?? "Новая страница",
+          label: p.title ?? 'Новая страница',
           // Link ancestors back to themselves; the current page (last crumb)
           // stays plain text so users don't click a no-op link.
           href: idx === chain.length - 1 ? undefined : `/workspaces/${workspace.id}/pages/${p.id}`,
@@ -101,24 +103,24 @@ export function WorkspaceLayoutClient({
   }, [pathname, activeChat, pages, workspace.id, workspace.name])
 
   useEffect(() => {
-    const title = breadcrumbs.map((b) => b.label).join(" / ")
-    document.title = title ? `${title} — AnyNote` : "AnyNote"
+    const title = breadcrumbs.map((b) => b.label).join(' / ')
+    document.title = title ? `${title} — AnyNote` : 'AnyNote'
   }, [breadcrumbs])
 
   const userMenu = <WorkspaceUserMenu user={user} />
 
-  const sidebarProps = { workspace, planName, pages, userMenu }
+  const sidebarProps = { workspace, features, pages, userMenu }
 
   const pageIdMatch = pathname.match(/\/pages\/([a-f0-9-]{36})/)
   const activePageId = pageIdMatch?.[1] ?? null
 
-  const [fullWidth] = useFullWidth(activePageId ?? "")
+  const [fullWidth] = useFullWidth(activePageId ?? '')
 
   // PageEditorProvider wraps BOTH the toolbar (so PageActionsMenu → PageExportDialog
   // can read the editor via usePageEditor) and the editor content (so PageRenderer
   // can register the editor via setEditor).
   const mainContent = (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100vh" }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <WorkspaceToolbar
         breadcrumbs={breadcrumbs}
         sidebarHidden={hidden}
@@ -131,8 +133,8 @@ export function WorkspaceLayoutClient({
         }
       />
       <Box
-        sx={{ flex: 1, overflow: "auto" }}
-        data-full-width={fullWidth ? "true" : "false"}
+        sx={{ flex: 1, overflow: 'auto' }}
+        data-full-width={fullWidth ? 'true' : 'false'}
         className="page-content-scroll"
       >
         {children}

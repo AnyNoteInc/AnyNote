@@ -16,16 +16,16 @@
 
 **Modified files (in task order):**
 
-| Path | Responsibility | Touched by |
-|------|----------------|-----------|
-| `packages/db/prisma/schema.prisma` | Source of truth for models, enums, relations, `@@map` | Task 1 |
-| `packages/db/src/index.ts` | Explicit re-exports of Prisma client symbols consumed by the rest of the workspace | Task 2 |
-| `packages/trpc/src/routers/search.ts` → `chat.ts` | tRPC procedures formerly operating on `SearchChat`/`SearchMessage` | Task 3 |
-| `packages/trpc/src/index.ts` | Root router registration | Task 3 |
-| `apps/web/src/app/(protected)/workspaces/[workspaceId]/search/[chatId]/page.tsx` | Server component calling `trpc.search.getChat` | Task 4 |
-| `apps/web/src/components/workspace/search/search-chat-view.tsx` | Client view using `trpc.search.*` and `SearchMessageRole` | Task 4 |
-| `apps/web/src/components/workspace/search/search-chat-input.tsx` | Client input using `trpc.search.*` | Task 4 |
-| `packages/db/prisma/seed.ts` | Seed `AiProvider` + `AiModel` rows | Task 5 |
+| Path                                                                             | Responsibility                                                                     | Touched by |
+| -------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------- | ---------- |
+| `packages/db/prisma/schema.prisma`                                               | Source of truth for models, enums, relations, `@@map`                              | Task 1     |
+| `packages/db/src/index.ts`                                                       | Explicit re-exports of Prisma client symbols consumed by the rest of the workspace | Task 2     |
+| `packages/trpc/src/routers/search.ts` → `chat.ts`                                | tRPC procedures formerly operating on `SearchChat`/`SearchMessage`                 | Task 3     |
+| `packages/trpc/src/index.ts`                                                     | Root router registration                                                           | Task 3     |
+| `apps/web/src/app/(protected)/workspaces/[workspaceId]/search/[chatId]/page.tsx` | Server component calling `trpc.search.getChat`                                     | Task 4     |
+| `apps/web/src/components/workspace/search/search-chat-view.tsx`                  | Client view using `trpc.search.*` and `SearchMessageRole`                          | Task 4     |
+| `apps/web/src/components/workspace/search/search-chat-input.tsx`                 | Client input using `trpc.search.*`                                                 | Task 4     |
+| `packages/db/prisma/seed.ts`                                                     | Seed `AiProvider` + `AiModel` rows                                                 | Task 5     |
 
 **Intentionally NOT touched (scope):**
 
@@ -91,6 +91,7 @@ Expected: all green. If any fails on `main`, STOP — that is a pre-existing reg
 Apply every schema change in one edit. After this step the workspace will NOT type-check until Tasks 2–4 update the callers — that is expected.
 
 **Files:**
+
 - Modify: `packages/db/prisma/schema.prisma`
 
 - [ ] **Step 1.1: Rename `SearchChat` model**
@@ -98,15 +99,19 @@ Apply every schema change in one edit. After this step the workspace will NOT ty
 Open `packages/db/prisma/schema.prisma`. Find the `model SearchChat { ... }` block.
 
 Change the declaration line:
+
 ```prisma
 model SearchChat {
 ```
+
 to:
+
 ```prisma
 model Chat {
 ```
 
 Change inside the same block:
+
 - `@@map("search_chats")` → `@@map("chats")`
 - `title String @default("Новый поиск")` → `title String @default("Новый чат")`
 - `createdBy User @relation("SearchChatCreator", fields: [createdById], references: [id], onDelete: Restrict)` → `createdBy User @relation("ChatCreator", fields: [createdById], references: [id], onDelete: Restrict)`
@@ -119,6 +124,7 @@ Leave every other field (`id`, `workspaceId`, `parentId`, `createdById`, timesta
 - [ ] **Step 1.2: Rename `SearchMessage` model and `SearchMessageRole` enum**
 
 In the same file:
+
 - `enum SearchMessageRole {` → `enum ChatMessageRole {` (values `USER`, `ASSISTANT` remain unchanged)
 - `model SearchMessage {` → `model ChatMessage {`
 - `@@map("search_messages")` → `@@map("chat_messages")`
@@ -130,11 +136,13 @@ Preserve `sources Json @default("[]")` exactly as-is.
 - [ ] **Step 1.3: Update `User` model relation**
 
 In `model User { ... }`, find:
+
 ```prisma
 searchChats SearchChat[] @relation("SearchChatCreator")
 ```
 
 Replace with:
+
 ```prisma
 chats Chat[] @relation("ChatCreator")
 ```
@@ -142,11 +150,13 @@ chats Chat[] @relation("ChatCreator")
 - [ ] **Step 1.4: Update `Workspace` model relation**
 
 In `model Workspace { ... }`, find:
+
 ```prisma
 searchChats SearchChat[]
 ```
 
 Replace with:
+
 ```prisma
 chats Chat[]
 ```
@@ -171,11 +181,13 @@ model ChatMessageFile {
 - [ ] **Step 1.6: Add reverse relations**
 
 Inside `model ChatMessage { ... }`, append (next to `chat` relation):
+
 ```prisma
 files ChatMessageFile[]
 ```
 
 Inside `model File { ... }` (find the block with `pageFiles PageFile[]`), add:
+
 ```prisma
 chatMessageFiles ChatMessageFile[]
 ```
@@ -265,7 +277,7 @@ pnpm --filter @repo/db exec prisma validate
 
 Expected: `prisma format` writes the file, `prisma validate` prints "The schema is valid" with no errors.
 
-Common failure mode: if you mis-paired a relation rename (e.g., renamed `SearchChatCreator` on `Chat` but forgot on `User.chats`), `validate` will say *Relation field `chats` references `ChatCreator` which is not defined*. Re-check Steps 1.1 and 1.3.
+Common failure mode: if you mis-paired a relation rename (e.g., renamed `SearchChatCreator` on `Chat` but forgot on `User.chats`), `validate` will say _Relation field `chats` references `ChatCreator` which is not defined_. Re-check Steps 1.1 and 1.3.
 
 - [ ] **Step 1.12: Generate client**
 
@@ -292,6 +304,7 @@ Expected: "The database is now in sync with your Prisma schema." All legacy `sea
 ## Task 2: Update `@repo/db` re-exports
 
 **Files:**
+
 - Modify: `packages/db/src/index.ts`
 
 - [ ] **Step 2.1: Swap enum re-export**
@@ -307,7 +320,7 @@ export {
   SubscriptionStatus,
   SearchMessageRole,
   FileStatus,
-} from "@prisma/client"
+} from '@prisma/client'
 ```
 
 with:
@@ -322,12 +335,13 @@ export {
   SubscriptionStatus,
   ChatMessageRole,
   FileStatus,
-} from "@prisma/client"
+} from '@prisma/client'
 ```
 
 - [ ] **Step 2.2: Swap type re-export**
 
 In the `export type { ... } from "@prisma/client"` block:
+
 - Remove `SearchChat,`
 - Remove `SearchMessage,`
 - Add `Chat,`
@@ -363,7 +377,7 @@ export type {
   FavoritePage,
   File,
   PageFile,
-} from "@prisma/client"
+} from '@prisma/client'
 ```
 
 - [ ] **Step 2.3: Type-check the package**
@@ -397,6 +411,7 @@ EOF
 ## Task 3: Rename tRPC router `search` → `chat`
 
 **Files:**
+
 - Rename: `packages/trpc/src/routers/search.ts` → `packages/trpc/src/routers/chat.ts`
 - Modify: `packages/trpc/src/index.ts`
 
@@ -410,14 +425,14 @@ git mv packages/trpc/src/routers/search.ts packages/trpc/src/routers/chat.ts
 
 Open `packages/trpc/src/routers/chat.ts` and apply these find-and-replace operations to the whole file:
 
-| Find | Replace |
-|------|---------|
-| `searchRouter` | `chatRouter` |
-| `prisma.searchChat.` | `prisma.chat.` |
-| `prisma.searchMessage.` | `prisma.chatMessage.` |
-| `SearchMessageRole` | `ChatMessageRole` |
-| `SearchChat` (type reference, if any) | `Chat` |
-| `SearchMessage` (type reference, if any) | `ChatMessage` |
+| Find                                     | Replace               |
+| ---------------------------------------- | --------------------- |
+| `searchRouter`                           | `chatRouter`          |
+| `prisma.searchChat.`                     | `prisma.chat.`        |
+| `prisma.searchMessage.`                  | `prisma.chatMessage.` |
+| `SearchMessageRole`                      | `ChatMessageRole`     |
+| `SearchChat` (type reference, if any)    | `Chat`                |
+| `SearchMessage` (type reference, if any) | `ChatMessage`         |
 
 The `renameChat` mutation that was added to this router (per session memory) stays by the same name — it was already called `renameChat`, the rename of the surrounding model does not affect its procedure name.
 
@@ -434,18 +449,23 @@ Expected: no output (exit code 1).
 Open `packages/trpc/src/index.ts`. Apply these changes:
 
 ```ts
-import { searchRouter } from "./routers/search"
+import { searchRouter } from './routers/search'
 ```
+
 →
+
 ```ts
-import { chatRouter } from "./routers/chat"
+import { chatRouter } from './routers/chat'
 ```
 
 And in the `appRouter` literal:
+
 ```ts
 search: searchRouter,
 ```
+
 →
+
 ```ts
 chat: chatRouter,
 ```
@@ -481,6 +501,7 @@ EOF
 ## Task 4: Update `apps/web` callers
 
 **Files:**
+
 - Modify: `apps/web/src/app/(protected)/workspaces/[workspaceId]/search/[chatId]/page.tsx`
 - Modify: `apps/web/src/components/workspace/search/search-chat-view.tsx`
 - Modify: `apps/web/src/components/workspace/search/search-chat-input.tsx`
@@ -502,7 +523,9 @@ In `apps/web/src/app/(protected)/workspaces/[workspaceId]/search/[chatId]/page.t
 ```ts
 await trpc.search.getChat({ chatId })
 ```
+
 →
+
 ```ts
 await trpc.chat.getChat({ chatId })
 ```
@@ -511,12 +534,12 @@ await trpc.chat.getChat({ chatId })
 
 In `apps/web/src/components/workspace/search/search-chat-view.tsx`, apply to the whole file:
 
-| Find | Replace |
-|------|---------|
-| `trpc.search.` | `trpc.chat.` |
-| `SearchMessageRole` | `ChatMessageRole` |
-| `SearchMessage` (type ref, if present) | `ChatMessage` |
-| `SearchChat` (type ref, if present) | `Chat` |
+| Find                                   | Replace           |
+| -------------------------------------- | ----------------- |
+| `trpc.search.`                         | `trpc.chat.`      |
+| `SearchMessageRole`                    | `ChatMessageRole` |
+| `SearchMessage` (type ref, if present) | `ChatMessage`     |
+| `SearchChat` (type ref, if present)    | `Chat`            |
 
 Import lines update automatically when `SearchMessageRole` is renamed to `ChatMessageRole` (since both re-export from `@repo/db`).
 
@@ -563,6 +586,7 @@ EOF
 ## Task 5: Seed — AI providers and models
 
 **Files:**
+
 - Modify: `packages/db/prisma/seed.ts`
 
 - [ ] **Step 5.1: Inspect existing seed structure**
@@ -578,13 +602,13 @@ Confirm the file already uses `prisma.integrationProvider.upsert({ where: { slug
 Open `packages/db/prisma/seed.ts`. If the existing import line is:
 
 ```ts
-import { PrismaClient } from "@prisma/client"
+import { PrismaClient } from '@prisma/client'
 ```
 
 change it to:
 
 ```ts
-import { PrismaClient, Prisma } from "@prisma/client"
+import { PrismaClient, Prisma } from '@prisma/client'
 ```
 
 If `Prisma` is already imported, skip this step.
@@ -596,44 +620,48 @@ After the existing `plans` upsert loop and before any final `await prisma.$disco
 ```ts
 const aiProviders = [
   {
-    slug: "ollama",
-    name: "Ollama",
-    defaultBaseUrl: process.env.OLLAMA_BASE_URL ?? "http://localhost:11434",
+    slug: 'ollama',
+    name: 'Ollama',
+    defaultBaseUrl: process.env.OLLAMA_BASE_URL ?? 'http://localhost:11434',
     credentialsSchema: {
-      fields: [
-        { key: "base_url", label: "Base URL", type: "string", required: false },
-      ],
+      fields: [{ key: 'base_url', label: 'Base URL', type: 'string', required: false }],
     } satisfies Prisma.InputJsonValue,
-    docsUrl: "https://github.com/ollama/ollama",
+    docsUrl: 'https://github.com/ollama/ollama',
     supportsStreaming: true,
     supportsTools: true,
   },
   {
-    slug: "openai",
-    name: "OpenAI ChatGPT",
-    defaultBaseUrl: "https://api.openai.com/v1",
+    slug: 'openai',
+    name: 'OpenAI ChatGPT',
+    defaultBaseUrl: 'https://api.openai.com/v1',
     credentialsSchema: {
       fields: [
-        { key: "api_key", label: "API key", type: "secret", required: true },
-        { key: "organization", label: "Organization", type: "string", required: false },
+        { key: 'api_key', label: 'API key', type: 'secret', required: true },
+        { key: 'organization', label: 'Organization', type: 'string', required: false },
       ],
     } satisfies Prisma.InputJsonValue,
-    docsUrl: "https://platform.openai.com/docs",
+    docsUrl: 'https://platform.openai.com/docs',
     supportsStreaming: true,
     supportsTools: true,
   },
   {
-    slug: "gigachat",
-    name: "GigaChat",
-    defaultBaseUrl: "https://gigachat.devices.sberbank.ru/api/v1",
+    slug: 'gigachat',
+    name: 'GigaChat',
+    defaultBaseUrl: 'https://gigachat.devices.sberbank.ru/api/v1',
     credentialsSchema: {
       fields: [
-        { key: "client_id", label: "Client ID", type: "string", required: true },
-        { key: "client_secret", label: "Client Secret", type: "secret", required: true },
-        { key: "scope", label: "Scope", type: "string", required: true, default: "GIGACHAT_API_PERS" },
+        { key: 'client_id', label: 'Client ID', type: 'string', required: true },
+        { key: 'client_secret', label: 'Client Secret', type: 'secret', required: true },
+        {
+          key: 'scope',
+          label: 'Scope',
+          type: 'string',
+          required: true,
+          default: 'GIGACHAT_API_PERS',
+        },
       ],
     } satisfies Prisma.InputJsonValue,
-    docsUrl: "https://developers.sber.ru/docs/ru/gigachat/api/overview",
+    docsUrl: 'https://developers.sber.ru/docs/ru/gigachat/api/overview',
     supportsStreaming: true,
     supportsTools: true,
   },
@@ -669,9 +697,9 @@ Directly after the provider block above:
 ```ts
 const aiModels = [
   {
-    providerSlug: "ollama",
-    slug: "gemma4",
-    displayName: "Gemma 4 (Ollama)",
+    providerSlug: 'ollama',
+    slug: 'gemma4',
+    displayName: 'Gemma 4 (Ollama)',
     contextTokens: 8192,
     maxOutputTokens: 4096,
     supportsVision: false,
@@ -679,54 +707,54 @@ const aiModels = [
     minPlanSlug: null,
   },
   {
-    providerSlug: "openai",
-    slug: "gpt-4o-mini",
-    displayName: "GPT-4o mini",
+    providerSlug: 'openai',
+    slug: 'gpt-4o-mini',
+    displayName: 'GPT-4o mini',
     contextTokens: 128000,
     maxOutputTokens: 16384,
     supportsVision: true,
     supportsFunctionCalling: true,
-    minPlanSlug: "personal",
+    minPlanSlug: 'personal',
   },
   {
-    providerSlug: "openai",
-    slug: "gpt-4o",
-    displayName: "GPT-4o",
+    providerSlug: 'openai',
+    slug: 'gpt-4o',
+    displayName: 'GPT-4o',
     contextTokens: 128000,
     maxOutputTokens: 16384,
     supportsVision: true,
     supportsFunctionCalling: true,
-    minPlanSlug: "personal",
+    minPlanSlug: 'personal',
   },
   {
-    providerSlug: "gigachat",
-    slug: "GigaChat",
-    displayName: "GigaChat",
+    providerSlug: 'gigachat',
+    slug: 'GigaChat',
+    displayName: 'GigaChat',
     contextTokens: 32000,
     maxOutputTokens: 8000,
     supportsVision: false,
     supportsFunctionCalling: true,
-    minPlanSlug: "personal",
+    minPlanSlug: 'personal',
   },
   {
-    providerSlug: "gigachat",
-    slug: "GigaChat-Pro",
-    displayName: "GigaChat Pro",
+    providerSlug: 'gigachat',
+    slug: 'GigaChat-Pro',
+    displayName: 'GigaChat Pro',
     contextTokens: 32000,
     maxOutputTokens: 8000,
     supportsVision: false,
     supportsFunctionCalling: true,
-    minPlanSlug: "personal",
+    minPlanSlug: 'personal',
   },
   {
-    providerSlug: "gigachat",
-    slug: "GigaChat-Max",
-    displayName: "GigaChat Max",
+    providerSlug: 'gigachat',
+    slug: 'GigaChat-Max',
+    displayName: 'GigaChat Max',
     contextTokens: 131072,
     maxOutputTokens: 8000,
     supportsVision: true,
     supportsFunctionCalling: true,
-    minPlanSlug: "corporate",
+    minPlanSlug: 'corporate',
   },
 ] as const
 
@@ -781,6 +809,7 @@ Expected: `3` and `6`.
 - [ ] **Step 5.7: Verify idempotency**
 
 Re-run the seed:
+
 ```bash
 pnpm --filter @repo/db prisma:seed
 ```
@@ -852,6 +881,7 @@ Expected: Next.js build succeeds (App Router). Watch for RSC boundary errors per
 - [ ] **Step 6.4: Dev server + yjs + Playwright**
 
 In terminal 1:
+
 ```bash
 pnpm dev
 ```
@@ -912,6 +942,7 @@ Expected: 4 commits from Tasks 2, 3, 4, 5 (schema+db-index, trpc rename, web cal
 - [ ] **Step 7.2: Do NOT merge into `main` autonomously.**
 
 Report to the user:
+
 - commit list
 - verified counts (3 providers, 6 models)
 - green `check-types` / `lint` / `build` / playwright
@@ -923,18 +954,18 @@ The user will decide merge timing and whether to use a `feat/db-foundation` bran
 
 ## Self-Review — spec ↔ plan coverage
 
-| Spec requirement | Implemented in |
-|------------------|----------------|
+| Spec requirement                                                         | Implemented in                                                                    |
+| ------------------------------------------------------------------------ | --------------------------------------------------------------------------------- |
 | Rename `SearchChat`/`SearchMessage` (model, table, relation names, enum) | Task 1 steps 1.1, 1.2, 1.3, 1.4; Task 2 (re-exports); Task 3 (tRPC); Task 4 (web) |
-| `ChatMessageFile` new join table | Task 1 step 1.5, 1.6 |
-| `AiProvider` + `AiModel` catalog | Task 1 steps 1.9, 1.10; Task 5 (seed) |
-| `Page.ownership` + `PageOwnership` enum + index | Task 1 steps 1.7, 1.8 |
-| `prisma db push --force-reset` + reseed | Task 1 step 1.13; Task 5 step 5.5 |
-| `minPlanSlug` soft FK values (`personal`, `corporate`, null) | Task 5 step 5.4 |
-| Callers updated across tRPC + app | Tasks 3, 4 |
-| Green `check-types` / `lint` / `build` / Playwright | Task 6 |
-| No UI, no Python, no new apps, no indexing fields | Every task scope explicitly excludes those |
-| `credentialsSchema` JSON shape for OpenAI / Ollama / GigaChat | Task 5 step 5.3 (with GigaChat context7-verification note) |
+| `ChatMessageFile` new join table                                         | Task 1 step 1.5, 1.6                                                              |
+| `AiProvider` + `AiModel` catalog                                         | Task 1 steps 1.9, 1.10; Task 5 (seed)                                             |
+| `Page.ownership` + `PageOwnership` enum + index                          | Task 1 steps 1.7, 1.8                                                             |
+| `prisma db push --force-reset` + reseed                                  | Task 1 step 1.13; Task 5 step 5.5                                                 |
+| `minPlanSlug` soft FK values (`personal`, `corporate`, null)             | Task 5 step 5.4                                                                   |
+| Callers updated across tRPC + app                                        | Tasks 3, 4                                                                        |
+| Green `check-types` / `lint` / `build` / Playwright                      | Task 6                                                                            |
+| No UI, no Python, no new apps, no indexing fields                        | Every task scope explicitly excludes those                                        |
+| `credentialsSchema` JSON shape for OpenAI / Ollama / GigaChat            | Task 5 step 5.3 (with GigaChat context7-verification note)                        |
 
 **Placeholder scan:** every code block contains runnable code, every command has an expected output, every identifier referenced in later tasks is defined in Task 1. No "TBD", no "similar to ...", no "fill in details".
 

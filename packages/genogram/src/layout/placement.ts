@@ -7,10 +7,10 @@ import type {
   PersonId,
   PregnancyLossId,
   UnionId,
-} from "../types"
-import { LAYOUT, personWidth } from "./constants"
-import type { Relations } from "./relations"
-import type { Point } from "./types"
+} from '../types'
+import { LAYOUT, personWidth } from './constants'
+import type { Relations } from './relations'
+import type { Point } from './types'
 
 export interface PlacementContext {
   data: GenogramPageData
@@ -35,9 +35,7 @@ export function placeAll(ctx: PlacementContext): void {
   }
 }
 
-type Unit =
-  | { kind: "person"; personId: PersonId }
-  | { kind: "union"; unionId: UnionId }
+type Unit = { kind: 'person'; personId: PersonId } | { kind: 'union'; unionId: UnionId }
 
 function findRoots(ctx: PlacementContext): Unit[] {
   const { data, generations, minGen, relations } = ctx
@@ -63,10 +61,10 @@ function findRoots(ctx: PlacementContext): Unit[] {
       const u = data.entities.unions[rootUnionId]!
       visited.add(u.malePartnerId)
       visited.add(u.femalePartnerId)
-      roots.push({ kind: "union", unionId: rootUnionId })
+      roots.push({ kind: 'union', unionId: rootUnionId })
     } else {
       visited.add(pid)
-      roots.push({ kind: "person", personId: pid })
+      roots.push({ kind: 'person', personId: pid })
     }
   }
 
@@ -74,7 +72,7 @@ function findRoots(ctx: PlacementContext): Unit[] {
 }
 
 function placeUnit(unit: Unit, leftX: number, ctx: PlacementContext): number {
-  return unit.kind === "union"
+  return unit.kind === 'union'
     ? placeUnionSubtree(unit.unionId, leftX, ctx)
     : placePersonSolo(unit.personId, leftX, ctx)
 }
@@ -133,11 +131,7 @@ function placeUnionSubtree(unionId: UnionId, leftX: number, ctx: PlacementContex
   return totalWidth
 }
 
-function placeChildren(
-  childGroupId: ChildGroupId,
-  leftX: number,
-  ctx: PlacementContext,
-): number {
+function placeChildren(childGroupId: ChildGroupId, leftX: number, ctx: PlacementContext): number {
   const cg = ctx.data.entities.childGroups[childGroupId]
   if (!cg) return 0
 
@@ -145,7 +139,7 @@ function placeChildren(
   let i = 0
   while (i < cg.children.length) {
     const entry = cg.children[i]!
-    if (entry.kind === "person" && entry.birthGroupId) {
+    if (entry.kind === 'person' && entry.birthGroupId) {
       const run = collectBirthGroupRun(cg.children, i, entry.birthGroupId)
       const width = placeBirthGroupCluster(entry.birthGroupId, run, cursorX, ctx)
       cursorX += width + LAYOUT.SIBLING_GAP
@@ -163,26 +157,22 @@ function collectBirthGroupRun(
   entries: ChildEntry[],
   startIndex: number,
   birthGroupId: BirthGroupId,
-): Array<{ kind: "person"; personId: PersonId; birthGroupId: BirthGroupId }> {
+): Array<{ kind: 'person'; personId: PersonId; birthGroupId: BirthGroupId }> {
   const run: Array<{
-    kind: "person"
+    kind: 'person'
     personId: PersonId
     birthGroupId: BirthGroupId
   }> = []
   for (let i = startIndex; i < entries.length; i++) {
     const e = entries[i]!
-    if (e.kind !== "person" || e.birthGroupId !== birthGroupId) break
-    run.push({ kind: "person", personId: e.personId, birthGroupId })
+    if (e.kind !== 'person' || e.birthGroupId !== birthGroupId) break
+    run.push({ kind: 'person', personId: e.personId, birthGroupId })
   }
   return run
 }
 
-function placeChildEntry(
-  entry: ChildEntry,
-  leftX: number,
-  ctx: PlacementContext,
-): number {
-  if (entry.kind === "loss") {
+function placeChildEntry(entry: ChildEntry, leftX: number, ctx: PlacementContext): number {
+  if (entry.kind === 'loss') {
     return placeLoss(entry.lossId, leftX, ctx)
   }
   const personUnions = ctx.relations.unionsByPerson.get(entry.personId) ?? []
@@ -209,7 +199,7 @@ function placeLoss(lossId: PregnancyLossId, leftX: number, ctx: PlacementContext
 
 function placeBirthGroupCluster(
   birthGroupId: BirthGroupId,
-  members: Array<{ kind: "person"; personId: PersonId; birthGroupId: BirthGroupId }>,
+  members: Array<{ kind: 'person'; personId: PersonId; birthGroupId: BirthGroupId }>,
   leftX: number,
   ctx: PlacementContext,
 ): number {
@@ -234,15 +224,12 @@ function placeBirthGroupCluster(
 
 // ── measurement (bottom-up) ───────────────────────────────
 
-export function measureChildren(
-  cg: { children: ChildEntry[] },
-  ctx: PlacementContext,
-): number {
+export function measureChildren(cg: { children: ChildEntry[] }, ctx: PlacementContext): number {
   let width = 0
   let i = 0
   while (i < cg.children.length) {
     const entry = cg.children[i]!
-    if (entry.kind === "person" && entry.birthGroupId) {
+    if (entry.kind === 'person' && entry.birthGroupId) {
       const run = collectBirthGroupRun(cg.children, i, entry.birthGroupId)
       width += measureBirthGroupCluster(run, ctx) + LAYOUT.SIBLING_GAP
       i += run.length
@@ -255,7 +242,7 @@ export function measureChildren(
 }
 
 function measureChildEntry(entry: ChildEntry, ctx: PlacementContext): number {
-  if (entry.kind === "loss") return LAYOUT.LOSS
+  if (entry.kind === 'loss') return LAYOUT.LOSS
   const personUnions = ctx.relations.unionsByPerson.get(entry.personId) ?? []
   const uid = personUnions.find((id) => !ctx.visitedUnions.has(id))
   if (uid) return measureUnion(uid, ctx)
@@ -269,15 +256,14 @@ function measureUnion(unionId: UnionId, ctx: PlacementContext): number {
   const male = ctx.data.entities.people[u.malePartnerId]
   const female = ctx.data.entities.people[u.femalePartnerId]
   if (!male || !female) return 0
-  const coupleWidth =
-    personWidth(male.size) + LAYOUT.PARTNER_GAP + personWidth(female.size)
+  const coupleWidth = personWidth(male.size) + LAYOUT.PARTNER_GAP + personWidth(female.size)
   const cg = u.childGroupId ? ctx.data.entities.childGroups[u.childGroupId] : undefined
   const childrenWidth = cg ? measureChildren(cg, ctx) : 0
   return Math.max(coupleWidth, childrenWidth)
 }
 
 function measureBirthGroupCluster(
-  members: Array<{ kind: "person"; personId: PersonId }>,
+  members: Array<{ kind: 'person'; personId: PersonId }>,
   ctx: PlacementContext,
 ): number {
   let width = 0

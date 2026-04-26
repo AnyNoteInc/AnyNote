@@ -1,12 +1,12 @@
-"use client"
+'use client'
 
-import { Stack } from "@repo/ui/components"
+import { Stack } from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
-import type { PageItem } from "@/components/workspace/types"
+import { trpc } from '@/trpc/client'
+import type { PageItem } from '@/components/workspace/types'
 
-import { FavoriteStar } from "./favorite-star"
-import { PageActionsMenu } from "./page-actions-menu"
+import { FavoriteStar } from './favorite-star'
+import { PageActionsMenu } from './page-actions-menu'
 
 type Props = {
   pageId: string
@@ -23,8 +23,8 @@ export function PageActionsToolbar({ pageId, workspaceId }: Props) {
 
   const title = pageQ.data?.title ?? null
   const rawType = pageQ.data?.type
-  const pageType: "TEXT" | "EXCALIDRAW" | "GENOGRAM" =
-    rawType === "EXCALIDRAW" || rawType === "GENOGRAM" ? rawType : "TEXT"
+  const pageType: 'TEXT' | 'EXCALIDRAW' | 'GENOGRAM' =
+    rawType === 'EXCALIDRAW' || rawType === 'GENOGRAM' ? rawType : 'TEXT'
   const isFavorite = (favoritesQ.data ?? []).some((p) => p.id === pageId)
   const pages: PageItem[] = pagesQ.data ?? []
   const movedPage = pages.find((p) => p.id === pageId)

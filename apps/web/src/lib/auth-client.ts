@@ -1,17 +1,17 @@
-"use client"
+'use client'
 
-import { createAuthClient } from "better-auth/react"
+import { createAuthClient } from 'better-auth/react'
 import {
   jwtClient,
   customSessionClient,
   magicLinkClient,
   deviceAuthorizationClient,
   lastLoginMethodClient,
-} from "better-auth/client/plugins"
-import { auth } from "@repo/auth"
+} from 'better-auth/client/plugins'
+import { auth } from '@repo/auth'
 
 const baseURL =
-  typeof window === "undefined" ? process.env.NEXT_PUBLIC_BASE_URL! : window.location.origin
+  typeof window === 'undefined' ? process.env.NEXT_PUBLIC_BASE_URL! : window.location.origin
 
 export const { signIn, signUp, signOut, useSession } = createAuthClient({
   baseURL,

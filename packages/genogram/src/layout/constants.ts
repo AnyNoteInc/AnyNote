@@ -9,6 +9,6 @@ export const LAYOUT = {
   BIRTH_GROUP_OFFSET_Y: 30,
 } as const
 
-export function personWidth(size: "big" | "small"): number {
-  return size === "big" ? LAYOUT.PERSON_BIG : LAYOUT.PERSON_SMALL
+export function personWidth(size: 'big' | 'small'): number {
+  return size === 'big' ? LAYOUT.PERSON_BIG : LAYOUT.PERSON_SMALL
 }

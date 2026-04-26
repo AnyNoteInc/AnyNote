@@ -102,7 +102,7 @@ Subpath exports:
 ### Contract
 
 ```ts
-import type { Readable } from "node:stream"
+import type { Readable } from 'node:stream'
 
 export type PutOptions = {
   contentType: string

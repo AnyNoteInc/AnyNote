@@ -1,8 +1,8 @@
-"use client"
+'use client'
 
-import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
-import { useState, type MouseEvent } from "react"
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
+import { useState, type MouseEvent } from 'react'
 import {
   AccountTreeIcon,
   ArrowDropDownIcon,
@@ -19,14 +19,14 @@ import {
   MoreHorizIcon,
   Typography,
   AddIcon,
-} from "@repo/ui/components"
-import type { PageType } from "@repo/db"
-import { trpc } from "@/trpc/client"
-import { PageContextMenu } from "./page-context-menu"
-import { MovePageDialog } from "./move-page-dialog"
-import { type PageItem, orderSiblings } from "./types"
+} from '@repo/ui/components'
+import type { PageType } from '@repo/db'
+import { trpc } from '@/trpc/client'
+import { PageContextMenu } from './page-context-menu'
+import { MovePageDialog } from './move-page-dialog'
+import { type PageItem, orderSiblings } from './types'
 
-type CreatablePageType = Extract<PageType, "TEXT" | "EXCALIDRAW" | "GENOGRAM">
+type CreatablePageType = Extract<PageType, 'TEXT' | 'EXCALIDRAW' | 'GENOGRAM'>
 
 type Props = {
   workspaceId: string
@@ -52,7 +52,7 @@ function CreatePageMenu({
     >
       <MenuItem
         onClick={() => {
-          onCreate("TEXT")
+          onCreate('TEXT')
           onClose()
         }}
       >
@@ -63,7 +63,7 @@ function CreatePageMenu({
       </MenuItem>
       <MenuItem
         onClick={() => {
-          onCreate("EXCALIDRAW")
+          onCreate('EXCALIDRAW')
           onClose()
         }}
       >
@@ -74,7 +74,7 @@ function CreatePageMenu({
       </MenuItem>
       <MenuItem
         onClick={() => {
-          onCreate("GENOGRAM")
+          onCreate('GENOGRAM')
           onClose()
         }}
       >
@@ -124,14 +124,14 @@ function PageTreeItem({
     <>
       <Box
         sx={{
-          display: "flex",
-          alignItems: "center",
+          display: 'flex',
+          alignItems: 'center',
           pr: 0.5,
           pl: depth * 1.5,
           borderRadius: 0.75,
-          bgcolor: isActive ? "action.selected" : "transparent",
-          "&:hover": { bgcolor: isActive ? "action.selected" : "action.hover" },
-          "&:hover .page-actions": { visibility: "visible" },
+          bgcolor: isActive ? 'action.selected' : 'transparent',
+          '&:hover': { bgcolor: isActive ? 'action.selected' : 'action.hover' },
+          '&:hover .page-actions': { visibility: 'visible' },
         }}
       >
         {children.length > 0 ? (
@@ -139,8 +139,8 @@ function PageTreeItem({
             <ChevronRightIcon
               sx={{
                 fontSize: 16,
-                transform: expanded ? "rotate(90deg)" : "none",
-                transition: "transform 0.15s",
+                transform: expanded ? 'rotate(90deg)' : 'none',
+                transition: 'transform 0.15s',
               }}
             />
           </IconButton>
@@ -150,10 +150,10 @@ function PageTreeItem({
         <Link
           href={`/workspaces/${workspaceId}/pages/${page.id}`}
           onClick={(e) => e.stopPropagation()}
-          style={{ textDecoration: "none", flex: 1, minWidth: 0, display: "flex", gap: 4 }}
+          style={{ textDecoration: 'none', flex: 1, minWidth: 0, display: 'flex', gap: 4 }}
         >
           {page.icon ? (
-            <Typography variant="body2" component="span" sx={{ flexShrink: 0, lineHeight: "28px" }}>
+            <Typography variant="body2" component="span" sx={{ flexShrink: 0, lineHeight: '28px' }}>
               {page.icon}
             </Typography>
           ) : null}
@@ -162,17 +162,17 @@ function PageTreeItem({
             noWrap
             sx={{
               py: 0.5,
-              color: isActive ? "text.primary" : "text.secondary",
+              color: isActive ? 'text.primary' : 'text.secondary',
             }}
           >
-            {page.title ?? "Новая страница"}
+            {page.title ?? 'Новая страница'}
           </Typography>
         </Link>
         <Box
           className="page-actions"
           sx={{
-            display: "flex",
-            visibility: menuAnchor || createAnchor ? "visible" : "hidden",
+            display: 'flex',
+            visibility: menuAnchor || createAnchor ? 'visible' : 'hidden',
             flexShrink: 0,
           }}
         >
@@ -268,8 +268,8 @@ export function PageTreeSection({ workspaceId, pages: initialPages, favoritePage
     <Box>
       <Box
         sx={{
-          display: "flex",
-          alignItems: "center",
+          display: 'flex',
+          alignItems: 'center',
           px: 1,
           py: 0.75,
         }}
@@ -277,16 +277,16 @@ export function PageTreeSection({ workspaceId, pages: initialPages, favoritePage
         <Box
           onClick={() => setOpen((prev) => !prev)}
           sx={{
-            display: "flex",
-            alignItems: "center",
+            display: 'flex',
+            alignItems: 'center',
             gap: 1,
             flex: 1,
-            cursor: "pointer",
-            color: "text.secondary",
-            "&:hover": { color: "text.primary" },
+            cursor: 'pointer',
+            color: 'text.secondary',
+            '&:hover': { color: 'text.primary' },
           }}
         >
-          <Typography variant="overline" sx={{ color: "inherit", letterSpacing: "0.06em" }}>
+          <Typography variant="overline" sx={{ color: 'inherit', letterSpacing: '0.06em' }}>
             Страницы
           </Typography>
           {open ? (
@@ -300,7 +300,7 @@ export function PageTreeSection({ workspaceId, pages: initialPages, favoritePage
           onClick={(e: MouseEvent<HTMLElement>) => setCreateAnchor(e.currentTarget)}
           sx={{ p: 0.25 }}
         >
-          <AddIcon sx={{ fontSize: 16, color: "text.secondary" }} />
+          <AddIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
         </IconButton>
         <CreatePageMenu
           anchorEl={createAnchor}
@@ -316,7 +316,7 @@ export function PageTreeSection({ workspaceId, pages: initialPages, favoritePage
       </Box>
 
       {open ? (
-        <Box sx={{ maxHeight: 300, overflow: "auto" }}>
+        <Box sx={{ maxHeight: 300, overflow: 'auto' }}>
           {rootPages.map((page) => (
             <PageTreeItem
               key={page.id}

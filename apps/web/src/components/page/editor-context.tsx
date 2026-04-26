@@ -1,7 +1,7 @@
-"use client"
+'use client'
 
-import { createContext, useContext, useRef, useState, type ReactNode } from "react"
-import type { Editor } from "@repo/editor"
+import { createContext, useContext, useRef, useState, type ReactNode } from 'react'
+import type { Editor } from '@repo/editor'
 
 type Ctx = {
   getEditor: () => Editor | null

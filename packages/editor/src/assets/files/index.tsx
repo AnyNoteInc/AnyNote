@@ -1,20 +1,20 @@
-import { createElement, type FC, type SVGProps } from "react"
+import { createElement, type FC, type SVGProps } from 'react'
 
 type IconProps = SVGProps<SVGSVGElement>
 export type FileIconComponent = FC<IconProps>
 
 const COLORS = {
-  text: "#64748B",
-  pdf: "#DC2626",
-  doc: "#2563EB",
-  xls: "#16A34A",
-  ppt: "#EA580C",
-  image: "#9333EA",
-  audio: "#DB2777",
-  video: "#E11D48",
-  archive: "#CA8A04",
-  code: "#0D9488",
-  default: "#475569",
+  text: '#64748B',
+  pdf: '#DC2626',
+  doc: '#2563EB',
+  xls: '#16A34A',
+  ppt: '#EA580C',
+  image: '#9333EA',
+  audio: '#DB2777',
+  video: '#E11D48',
+  archive: '#CA8A04',
+  code: '#0D9488',
+  default: '#475569',
 } as const
 
 const EXT_TO_COLOR: Record<string, string> = {
@@ -41,31 +41,31 @@ const EXT_TO_COLOR: Record<string, string> = {
 const makeFileIcon = (label: string, color: string, displayName: string): FileIconComponent => {
   const Component: FileIconComponent = (props) =>
     createElement(
-      "svg",
+      'svg',
       {
-        viewBox: "0 0 32 32",
+        viewBox: '0 0 32 32',
         width: 32,
         height: 32,
-        fill: "none",
-        xmlns: "http://www.w3.org/2000/svg",
+        fill: 'none',
+        xmlns: 'http://www.w3.org/2000/svg',
         ...props,
       },
-      createElement("path", {
-        key: "body",
-        d: "M8 2h12l6 6v20a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z",
-        fill: "#FFFFFF",
-        stroke: "#94A3B8",
+      createElement('path', {
+        key: 'body',
+        d: 'M8 2h12l6 6v20a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2Z',
+        fill: '#FFFFFF',
+        stroke: '#94A3B8',
         strokeWidth: 1.5,
       }),
-      createElement("path", {
-        key: "fold",
-        d: "M20 2v6h6",
-        fill: "none",
-        stroke: "#94A3B8",
+      createElement('path', {
+        key: 'fold',
+        d: 'M20 2v6h6',
+        fill: 'none',
+        stroke: '#94A3B8',
         strokeWidth: 1.5,
       }),
-      createElement("rect", {
-        key: "label-bg",
+      createElement('rect', {
+        key: 'label-bg',
         x: 4,
         y: 18,
         width: 22,
@@ -74,16 +74,16 @@ const makeFileIcon = (label: string, color: string, displayName: string): FileIc
         fill: color,
       }),
       createElement(
-        "text",
+        'text',
         {
-          key: "label",
+          key: 'label',
           x: 15,
           y: 24.5,
-          textAnchor: "middle",
-          fontFamily: "ui-sans-serif, system-ui, sans-serif",
+          textAnchor: 'middle',
+          fontFamily: 'ui-sans-serif, system-ui, sans-serif',
           fontSize: label.length > 3 ? 5 : 6,
           fontWeight: 700,
-          fill: "#FFFFFF",
+          fill: '#FFFFFF',
           letterSpacing: 0.5,
         },
         label.toUpperCase(),
@@ -93,25 +93,25 @@ const makeFileIcon = (label: string, color: string, displayName: string): FileIc
   return Component
 }
 
-export const TxtIcon = makeFileIcon("txt", COLORS.text, "TxtIcon")
-export const PdfIcon = makeFileIcon("pdf", COLORS.pdf, "PdfIcon")
-export const DocIcon = makeFileIcon("doc", COLORS.doc, "DocIcon")
-export const DocxIcon = makeFileIcon("docx", COLORS.doc, "DocxIcon")
-export const XlsIcon = makeFileIcon("xls", COLORS.xls, "XlsIcon")
-export const XlsxIcon = makeFileIcon("xlsx", COLORS.xls, "XlsxIcon")
-export const PptIcon = makeFileIcon("ppt", COLORS.ppt, "PptIcon")
-export const PptxIcon = makeFileIcon("pptx", COLORS.ppt, "PptxIcon")
-export const JpgIcon = makeFileIcon("jpg", COLORS.image, "JpgIcon")
-export const PngIcon = makeFileIcon("png", COLORS.image, "PngIcon")
-export const GifIcon = makeFileIcon("gif", COLORS.image, "GifIcon")
-export const Mp3Icon = makeFileIcon("mp3", COLORS.audio, "Mp3Icon")
-export const WavIcon = makeFileIcon("wav", COLORS.audio, "WavIcon")
-export const Mp4Icon = makeFileIcon("mp4", COLORS.video, "Mp4Icon")
-export const ZipIcon = makeFileIcon("zip", COLORS.archive, "ZipIcon")
-export const RarIcon = makeFileIcon("rar", COLORS.archive, "RarIcon")
-export const HtmlIcon = makeFileIcon("html", COLORS.code, "HtmlIcon")
-export const CsvIcon = makeFileIcon("csv", COLORS.xls, "CsvIcon")
-export const DefaultFileIcon = makeFileIcon("file", COLORS.default, "DefaultFileIcon")
+export const TxtIcon = makeFileIcon('txt', COLORS.text, 'TxtIcon')
+export const PdfIcon = makeFileIcon('pdf', COLORS.pdf, 'PdfIcon')
+export const DocIcon = makeFileIcon('doc', COLORS.doc, 'DocIcon')
+export const DocxIcon = makeFileIcon('docx', COLORS.doc, 'DocxIcon')
+export const XlsIcon = makeFileIcon('xls', COLORS.xls, 'XlsIcon')
+export const XlsxIcon = makeFileIcon('xlsx', COLORS.xls, 'XlsxIcon')
+export const PptIcon = makeFileIcon('ppt', COLORS.ppt, 'PptIcon')
+export const PptxIcon = makeFileIcon('pptx', COLORS.ppt, 'PptxIcon')
+export const JpgIcon = makeFileIcon('jpg', COLORS.image, 'JpgIcon')
+export const PngIcon = makeFileIcon('png', COLORS.image, 'PngIcon')
+export const GifIcon = makeFileIcon('gif', COLORS.image, 'GifIcon')
+export const Mp3Icon = makeFileIcon('mp3', COLORS.audio, 'Mp3Icon')
+export const WavIcon = makeFileIcon('wav', COLORS.audio, 'WavIcon')
+export const Mp4Icon = makeFileIcon('mp4', COLORS.video, 'Mp4Icon')
+export const ZipIcon = makeFileIcon('zip', COLORS.archive, 'ZipIcon')
+export const RarIcon = makeFileIcon('rar', COLORS.archive, 'RarIcon')
+export const HtmlIcon = makeFileIcon('html', COLORS.code, 'HtmlIcon')
+export const CsvIcon = makeFileIcon('csv', COLORS.xls, 'CsvIcon')
+export const DefaultFileIcon = makeFileIcon('file', COLORS.default, 'DefaultFileIcon')
 
 const ICON_BY_EXT: Record<string, FileIconComponent> = {
   txt: TxtIcon,
@@ -136,9 +136,9 @@ const ICON_BY_EXT: Record<string, FileIconComponent> = {
 }
 
 export const getFileIcon = (ext: string): FileIconComponent => {
-  const key = ext.toLowerCase().replace(/^\./, "")
+  const key = ext.toLowerCase().replace(/^\./, '')
   return ICON_BY_EXT[key] ?? DefaultFileIcon
 }
 
 export const getFileColor = (ext: string): string =>
-  EXT_TO_COLOR[ext.toLowerCase().replace(/^\./, "")] ?? COLORS.default
+  EXT_TO_COLOR[ext.toLowerCase().replace(/^\./, '')] ?? COLORS.default

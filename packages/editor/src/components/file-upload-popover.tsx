@@ -1,10 +1,10 @@
-"use client"
+'use client'
 
-import { Alert, Box, Button, CircularProgress, Popover, Stack, Typography } from "@mui/material"
-import type { Editor } from "@tiptap/core"
-import { useCallback, useId, useRef, useState } from "react"
+import { Alert, Box, Button, CircularProgress, Popover, Stack, Typography } from '@mui/material'
+import type { Editor } from '@tiptap/core'
+import { useCallback, useId, useRef, useState } from 'react'
 
-import type { SlashRange, UploadHandler, VirtualAnchor } from "../types"
+import type { SlashRange, UploadHandler, VirtualAnchor } from '../types'
 
 type Props = {
   open: boolean
@@ -17,7 +17,7 @@ type Props = {
 
 const getExtension = (name: string): string => {
   const m = name.toLowerCase().match(/\.([a-z0-9]+)$/)
-  return m?.[1] ?? ""
+  return m?.[1] ?? ''
 }
 
 export function FileUploadPopover({
@@ -38,7 +38,7 @@ export function FileUploadPopover({
     setBusy(false)
     setProgress(null)
     setError(null)
-    if (fileInputRef.current) fileInputRef.current.value = ""
+    if (fileInputRef.current) fileInputRef.current.value = ''
   }, [])
 
   const handleClose = useCallback(() => {
@@ -50,7 +50,7 @@ export function FileUploadPopover({
   const handleFilesSelected = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
       const files = Array.from(event.target.files ?? [])
-      if (fileInputRef.current) fileInputRef.current.value = ""
+      if (fileInputRef.current) fileInputRef.current.value = ''
       if (files.length === 0 || !range) return
       setBusy(true)
       setError(null)
@@ -67,7 +67,7 @@ export function FileUploadPopover({
               url: result.src,
               name: file.name,
               size: file.size,
-              mimeType: file.type || "application/octet-stream",
+              mimeType: file.type || 'application/octet-stream',
               ext: getExtension(file.name),
             }
           }),
@@ -79,7 +79,7 @@ export function FileUploadPopover({
           .deleteRange(range)
           .insertContent(
             uploaded.map((u) => ({
-              type: "fileAttachment",
+              type: 'fileAttachment',
               attrs: u,
             })),
           )
@@ -87,7 +87,7 @@ export function FileUploadPopover({
         reset()
         onClose()
       } catch (err) {
-        setError(err instanceof Error ? err.message : "Не удалось загрузить файл")
+        setError(err instanceof Error ? err.message : 'Не удалось загрузить файл')
         setBusy(false)
       }
     },
@@ -99,8 +99,8 @@ export function FileUploadPopover({
       open={open}
       anchorEl={anchorEl as Element | null}
       onClose={handleClose}
-      anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-      transformOrigin={{ vertical: "top", horizontal: "left" }}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      transformOrigin={{ vertical: 'top', horizontal: 'left' }}
       slotProps={{ paper: { sx: { width: 360 } } }}
     >
       <Box sx={{ p: 2 }}>
@@ -116,8 +116,8 @@ export function FileUploadPopover({
             {busy
               ? progress
                 ? `Загрузка ${progress.done} из ${progress.total}...`
-                : "Загрузка..."
-              : "Выбрать файлы"}
+                : 'Загрузка...'
+              : 'Выбрать файлы'}
             <input
               id={fileInputId}
               ref={fileInputRef}

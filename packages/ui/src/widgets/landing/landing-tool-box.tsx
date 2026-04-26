@@ -1,9 +1,9 @@
-"use client"
+'use client'
 
-import type { ReactNode } from "react"
-import { AppBar, Toolbar } from "@repo/ui/components"
-import { Box, Button, Container, Stack, Typography } from "@repo/ui/components"
-import { ChangeColorTheme } from "@repo/ui/widgets"
+import type { ReactNode } from 'react'
+import { AppBar, Toolbar } from '@repo/ui/components'
+import { Box, Button, Container, Stack, Typography } from '@repo/ui/components'
+import { ChangeColorTheme } from '@repo/ui/widgets'
 
 export type LandingToolBoxProps = {
   control: ReactNode
@@ -13,23 +13,23 @@ export type LandingToolBoxProps = {
 }
 
 const navItems = [
-  { label: "Функциональность", path: "#features" },
-  { label: "Цены", path: "#pricing" },
-  { label: "Блог", path: "#blog" },
+  { label: 'Функциональность', path: '#features' },
+  { label: 'Цены', path: '#pricing' },
+  { label: 'Блог', path: '#blog' },
 ]
 
 export function LandingToolBox({
   control,
-  brand = "Application",
+  brand = 'Application',
   logo,
   onNavigate,
 }: LandingToolBoxProps) {
   const handleNav = (path: string) => {
     if (onNavigate) {
       onNavigate(path)
-    } else if (path.startsWith("#")) {
+    } else if (path.startsWith('#')) {
       const el = document.querySelector(path)
-      el?.scrollIntoView({ behavior: "smooth", block: "start" })
+      el?.scrollIntoView({ behavior: 'smooth', block: 'start' })
     }
   }
 
@@ -39,9 +39,9 @@ export function LandingToolBox({
       color="transparent"
       elevation={0}
       sx={{
-        borderBottom: "1px solid",
-        borderColor: "divider",
-        backdropFilter: "blur(6px)",
+        borderBottom: '1px solid',
+        borderColor: 'divider',
+        backdropFilter: 'blur(6px)',
       }}
     >
       <Container maxWidth="lg">
@@ -53,7 +53,7 @@ export function LandingToolBox({
                   width: 36,
                   height: 36,
                   borderRadius: 2,
-                  background: "linear-gradient(135deg, #6366f1 0%, #22c55e 100%)",
+                  background: 'linear-gradient(135deg, #6366f1 0%, #22c55e 100%)',
                 }}
               />
             )}
@@ -65,7 +65,7 @@ export function LandingToolBox({
           <Stack
             direction="row"
             spacing={2.5}
-            sx={{ mx: { xs: 3, md: 6 }, display: { xs: "none", md: "flex" } }}
+            sx={{ mx: { xs: 3, md: 6 }, display: { xs: 'none', md: 'flex' } }}
           >
             {navItems.map((item) => (
               <Button
@@ -78,7 +78,7 @@ export function LandingToolBox({
               </Button>
             ))}
           </Stack>
-          <Stack direction="row" spacing={1.5} sx={{ marginLeft: "auto", flexShrink: 0 }}>
+          <Stack direction="row" spacing={1.5} sx={{ marginLeft: 'auto', flexShrink: 0 }}>
             <ChangeColorTheme />
             {control}
           </Stack>

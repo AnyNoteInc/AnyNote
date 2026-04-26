@@ -1,6 +1,6 @@
-"use client"
+'use client'
 
-import { useState } from "react"
+import { useState } from 'react'
 
 import {
   Alert,
@@ -16,9 +16,9 @@ import {
   TableRow,
   TextField,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
 type Props = {
   workspaceId: string
@@ -27,13 +27,13 @@ type Props = {
 }
 
 export function WorkspaceMembersSection({ workspaceId, locked, currentUserId }: Props) {
-  const [email, setEmail] = useState("")
-  const [role, setRole] = useState<"ADMIN" | "EDITOR" | "COMMENTER" | "VIEWER">("EDITOR")
+  const [email, setEmail] = useState('')
+  const [role, setRole] = useState<'ADMIN' | 'EDITOR' | 'COMMENTER' | 'VIEWER'>('EDITOR')
   const utils = trpc.useUtils()
   const members = trpc.workspace.listMembers.useQuery({ workspaceId })
   const invite = trpc.workspace.inviteMember.useMutation({
     onSuccess: async () => {
-      setEmail("")
+      setEmail('')
       await utils.workspace.listMembers.invalidate({ workspaceId })
     },
   })

@@ -56,16 +56,20 @@ parsing, and persistence; the package only renders.
      to skip this hook and drive the controlled API directly.
 4. Public type surface (`@repo/chat/types`):
    ```ts
-   export type MessageRole = "user" | "assistant" | "system" | "tool"
-   export type MessageStatus = "sending" | "streaming" | "done" | "error"
+   export type MessageRole = 'user' | 'assistant' | 'system' | 'tool'
+   export type MessageStatus = 'sending' | 'streaming' | 'done' | 'error'
    export type ChatMessagePart =
-     | { type: "text"; text: string }
-     | { type: "markdown"; text: string }
-     | { type: "code"; language?: string; code: string }
-     | { type: "tool_call"; toolCallId: string }
-     | { type: "attachment"; attachmentId: string }
-   export interface ChatAttachment { /* per agent.md */ }
-   export interface ChatToolCall { /* per agent.md */ }
+     | { type: 'text'; text: string }
+     | { type: 'markdown'; text: string }
+     | { type: 'code'; language?: string; code: string }
+     | { type: 'tool_call'; toolCallId: string }
+     | { type: 'attachment'; attachmentId: string }
+   export interface ChatAttachment {
+     /* per agent.md */
+   }
+   export interface ChatToolCall {
+     /* per agent.md */
+   }
    export interface ChatMessage {
      id: string
      role: MessageRole
@@ -194,7 +198,7 @@ two ways:
 1. **Controlled append** — host receives a token, calls
    `setMessages(ms => updateLast(ms, t => t + token))`.
 2. **`useChatStream` convenience** — host implements `submit(prompt) →
-   AsyncIterable<{ delta: string }>`, the hook adds the user message,
+AsyncIterable<{ delta: string }>`, the hook adds the user message,
    creates an assistant message with `status: "streaming"`, and
    appends `delta`s as they arrive. On `for await` completion the
    assistant message gets `status: "done"`.
@@ -228,7 +232,7 @@ Behavior:
 
 ```ts
 const { containerRef, isPinned, scrollToBottom } = useAutoScroll({
-  threshold: 80,            // px from bottom counts as "pinned"
+  threshold: 80, // px from bottom counts as "pinned"
 })
 ```
 
@@ -285,11 +289,11 @@ A protected route in `apps/web/src/app/(protected)/chat-demo/page.tsx`
 that returns 404 in production:
 
 ```tsx
-import { notFound } from "next/navigation"
-import { ChatDemoClient } from "./chat-demo-client"
+import { notFound } from 'next/navigation'
+import { ChatDemoClient } from './chat-demo-client'
 
 export default function ChatDemoPage() {
-  if (process.env.NODE_ENV === "production") notFound()
+  if (process.env.NODE_ENV === 'production') notFound()
   return <ChatDemoClient />
 }
 ```
@@ -301,13 +305,13 @@ touching `apps/agents`.
 
 ## Failure model
 
-| Scenario | Behavior |
-|---|---|
-| Host throws inside `submit` | `useChatStream` flips last assistant message to `status: "error"` with `errorMessage`; bubble renders inline error + retry button (host wires `onRetry`). |
-| Empty `messages` | `<ChatEmptyState>` renders centered. |
-| Tiptap initialization fails (SSR import) | All composer code is `"use client"`; host renders `<ChatShell>` only inside a client boundary. The `chat-demo` page wraps in a Client Component. |
-| User submits while previous response is streaming | `useChatStream` queues the new message; submission is gated on `lastStatus !== "streaming"`. Host can override via `allowConcurrent: true` prop. |
-| Markdown renderer chokes on malformed input | `react-markdown` already handles arbitrary input safely; we don't sanitize HTML further (no `rehype-raw`). |
+| Scenario                                          | Behavior                                                                                                                                                  |
+| ------------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Host throws inside `submit`                       | `useChatStream` flips last assistant message to `status: "error"` with `errorMessage`; bubble renders inline error + retry button (host wires `onRetry`). |
+| Empty `messages`                                  | `<ChatEmptyState>` renders centered.                                                                                                                      |
+| Tiptap initialization fails (SSR import)          | All composer code is `"use client"`; host renders `<ChatShell>` only inside a client boundary. The `chat-demo` page wraps in a Client Component.          |
+| User submits while previous response is streaming | `useChatStream` queues the new message; submission is gated on `lastStatus !== "streaming"`. Host can override via `allowConcurrent: true` prop.          |
+| Markdown renderer chokes on malformed input       | `react-markdown` already handles arbitrary input safely; we don't sanitize HTML further (no `rehype-raw`).                                                |
 
 ## Open questions resolved during brainstorm
 

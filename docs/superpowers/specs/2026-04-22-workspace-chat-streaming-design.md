@@ -281,7 +281,7 @@ Target DTO shape:
 
 ```ts
 type ChatFilePart = {
-  type: "file"
+  type: 'file'
   fileId: string
   name: string
   mimeType: string
@@ -290,14 +290,14 @@ type ChatFilePart = {
 }
 
 type ChatTextPart = {
-  type: "text"
+  type: 'text'
   text: string
 }
 
 type ChatMessageDto = {
   id: string
-  role: "USER" | "ASSISTANT"
-  status: "STREAMING" | "DONE" | "ERROR"
+  role: 'USER' | 'ASSISTANT'
+  status: 'STREAMING' | 'DONE' | 'ERROR'
   errorMessage: string | null
   createdAt: string
   updatedAt: string
@@ -512,18 +512,20 @@ correct for workspace membership access.
   },
   "systemPrompt": "<workspaceAiSettings.systemPrompt or empty string>",
   "mcp": {
-    "servers": [{
-      "name": "AnyNote MCP Server",
-      "url": "http://localhost:8090/api/mcp",
-      "headers": {
-        "Content-Type": "application/json",
-        "Accept": "application/json, text/event-stream",
-        "X-User-Id": "<session.user.id>",
-        "x-Workspace-Id": "<chat.workspaceId>"
-      },
-      "retries": 3,
-      "verify": false
-    }]
+    "servers": [
+      {
+        "name": "AnyNote MCP Server",
+        "url": "http://localhost:8090/api/mcp",
+        "headers": {
+          "Content-Type": "application/json",
+          "Accept": "application/json, text/event-stream",
+          "X-User-Id": "<session.user.id>",
+          "x-Workspace-Id": "<chat.workspaceId>"
+        },
+        "retries": 3,
+        "verify": false
+      }
+    ]
   },
   "instruction": {
     "format": "markdown",
@@ -554,17 +556,17 @@ extended.
 
 ```ts
 type AgentsStreamEvent =
-  | { type: "token"; text: string }
+  | { type: 'token'; text: string }
   | {
-      type: "status"
+      type: 'status'
       id: string
-      kind: "tool" | "confirmation"
-      state: "pending" | "running" | "done" | "error" | "required"
+      kind: 'tool' | 'confirmation'
+      state: 'pending' | 'running' | 'done' | 'error' | 'required'
       title: string
       detail?: string
     }
-  | { type: "done" }
-  | { type: "error"; code: string; message: string }
+  | { type: 'done' }
+  | { type: 'error'; code: string; message: string }
 ```
 
 #### Web-to-browser event model
@@ -575,34 +577,34 @@ normalizes them into a UI-facing SSE contract:
 ```ts
 type WebChatSseEvent =
   | {
-      type: "message.created"
+      type: 'message.created'
       assistantMessageId: string
       userMessageId: string
     }
   | {
-      type: "message.delta"
+      type: 'message.delta'
       assistantMessageId: string
       text: string
     }
   | {
-      type: "message.service"
+      type: 'message.service'
       assistantMessageId: string
       blocks: Array<{
         id: string
-        kind: "tool" | "confirmation"
-        state: "pending" | "running" | "done" | "error" | "required"
+        kind: 'tool' | 'confirmation'
+        state: 'pending' | 'running' | 'done' | 'error' | 'required'
         title: string
         detail?: string
       }>
     }
   | {
-      type: "message.status"
+      type: 'message.status'
       assistantMessageId: string
-      status: "STREAMING" | "DONE" | "ERROR"
+      status: 'STREAMING' | 'DONE' | 'ERROR'
       errorMessage?: string
     }
   | {
-      type: "message.done"
+      type: 'message.done'
       assistantMessageId: string
     }
 ```

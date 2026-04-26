@@ -1,17 +1,17 @@
-import { z } from "zod"
-import { TRPCError } from "@trpc/server"
-import type { PrismaClient } from "@repo/db"
+import { z } from 'zod'
+import { TRPCError } from '@trpc/server'
+import type { PrismaClient } from '@repo/db'
 
-import { router, protectedProcedure } from "../trpc"
-import { getActivePlanForUser } from "../helpers/plan"
-import { seedStartPage } from "../helpers/seed-start-page"
+import { router, protectedProcedure } from '../trpc'
+import { getActivePlanForUser, getPlanDisplayName, requireWritableWorkspace } from '../helpers/plan'
+import { seedStartPage } from '../helpers/seed-start-page'
 
 async function assertPaidPlan(ctx: { prisma: PrismaClient; user: { id: string } }) {
   const { plan } = await getActivePlanForUser(ctx.prisma, ctx.user.id)
-  if (plan.slug === "free") {
+  if (plan.slug === 'personal') {
     throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "Это действие доступно на платных тарифах",
+      code: 'FORBIDDEN',
+      message: 'Это действие доступно на платных тарифах',
     })
   }
 }
@@ -19,13 +19,13 @@ async function assertPaidPlan(ctx: { prisma: PrismaClient; user: { id: string } 
 async function assertRole(
   ctx: { prisma: PrismaClient; user: { id: string } },
   workspaceId: string,
-  allowed: Array<"OWNER" | "ADMIN" | "EDITOR" | "COMMENTER" | "VIEWER" | "GUEST">,
+  allowed: Array<'OWNER' | 'ADMIN' | 'EDITOR' | 'COMMENTER' | 'VIEWER' | 'GUEST'>,
 ) {
   const member = await ctx.prisma.workspaceMember.findUnique({
     where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
   })
   if (!member || !allowed.includes(member.role)) {
-    throw new TRPCError({ code: "FORBIDDEN", message: "Недостаточно прав" })
+    throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
   }
   return member
 }
@@ -42,12 +42,12 @@ export const workspaceRouter = router({
       const { plan } = await getActivePlanForUser(ctx.prisma, ctx.user.id)
       if (plan.maxWorkspaces !== null) {
         const owned = await ctx.prisma.workspaceMember.count({
-          where: { userId: ctx.user.id, role: "OWNER" },
+          where: { userId: ctx.user.id, role: 'OWNER' },
         })
         if (owned >= plan.maxWorkspaces) {
           throw new TRPCError({
-            code: "FORBIDDEN",
-            message: `На тарифе ${plan.name} можно создать не больше ${plan.maxWorkspaces} пространств`,
+            code: 'FORBIDDEN',
+            message: `На тарифе ${getPlanDisplayName(plan)} можно создать не больше ${plan.maxWorkspaces} пространств`,
           })
         }
       }
@@ -57,7 +57,7 @@ export const workspaceRouter = router({
           data: { name: input.name, icon: input.icon, createdById: ctx.user.id },
         })
         await tx.workspaceMember.create({
-          data: { workspaceId: workspace.id, userId: ctx.user.id, role: "OWNER" },
+          data: { workspaceId: workspace.id, userId: ctx.user.id, role: 'OWNER' },
         })
         await tx.userPreference.upsert({
           where: { userId: ctx.user.id },
@@ -83,7 +83,7 @@ export const workspaceRouter = router({
   listMine: protectedProcedure.query(async ({ ctx }) => {
     return ctx.prisma.workspace.findMany({
       where: { members: { some: { userId: ctx.user.id } } },
-      orderBy: { createdAt: "asc" },
+      orderBy: { createdAt: 'asc' },
     })
   }),
 
@@ -104,7 +104,8 @@ export const workspaceRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await assertRole(ctx, input.id, ["OWNER", "ADMIN"])
+      await assertRole(ctx, input.id, ['OWNER', 'ADMIN'])
+      await requireWritableWorkspace(input.id)
       return ctx.prisma.workspace.update({
         where: { id: input.id },
         data: { name: input.name, icon: input.icon },
@@ -115,19 +116,19 @@ export const workspaceRouter = router({
     .input(z.object({ workspaceId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
       await assertRole(ctx, input.workspaceId, [
-        "OWNER",
-        "ADMIN",
-        "EDITOR",
-        "COMMENTER",
-        "VIEWER",
-        "GUEST",
+        'OWNER',
+        'ADMIN',
+        'EDITOR',
+        'COMMENTER',
+        'VIEWER',
+        'GUEST',
       ])
       return ctx.prisma.workspaceMember.findMany({
         where: { workspaceId: input.workspaceId },
         include: {
           user: { select: { id: true, firstName: true, lastName: true, email: true, image: true } },
         },
-        orderBy: { createdAt: "asc" },
+        orderBy: { createdAt: 'asc' },
       })
     }),
 
@@ -145,19 +146,20 @@ export const workspaceRouter = router({
       z.object({
         workspaceId: z.string().uuid(),
         email: z.string().email(),
-        role: z.enum(["ADMIN", "EDITOR", "COMMENTER", "VIEWER"]),
+        role: z.enum(['ADMIN', 'EDITOR', 'COMMENTER', 'VIEWER']),
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await assertRole(ctx, input.workspaceId, ["OWNER"])
+      await assertRole(ctx, input.workspaceId, ['OWNER'])
+      await requireWritableWorkspace(input.workspaceId)
       await assertPaidPlan(ctx)
 
       const user = await ctx.prisma.user.findUnique({ where: { email: input.email } })
       if (!user) {
         throw new TRPCError({
-          code: "NOT_FOUND",
+          code: 'NOT_FOUND',
           message:
-            "Пользователь с таким email не зарегистрирован. Приглашения по ссылке будут позже.",
+            'Пользователь с таким email не зарегистрирован. Приглашения по ссылке будут позже.',
         })
       }
 
@@ -171,16 +173,17 @@ export const workspaceRouter = router({
   removeMember: protectedProcedure
     .input(z.object({ workspaceId: z.string().uuid(), userId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      await assertRole(ctx, input.workspaceId, ["OWNER"])
+      await assertRole(ctx, input.workspaceId, ['OWNER'])
+      await requireWritableWorkspace(input.workspaceId)
       if (input.userId === ctx.user.id) {
         const owners = await ctx.prisma.workspaceMember.count({
-          where: { workspaceId: input.workspaceId, role: "OWNER" },
+          where: { workspaceId: input.workspaceId, role: 'OWNER' },
         })
         if (owners <= 1) {
           throw new TRPCError({
-            code: "BAD_REQUEST",
+            code: 'BAD_REQUEST',
             message:
-              "Нельзя удалить единственного OWNER. Передайте роль другому или удалите пространство.",
+              'Нельзя удалить единственного OWNER. Передайте роль другому или удалите пространство.',
           })
         }
       }
@@ -193,7 +196,8 @@ export const workspaceRouter = router({
   delete: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      await assertRole(ctx, input.id, ["OWNER"])
+      await assertRole(ctx, input.id, ['OWNER'])
+      await requireWritableWorkspace(input.id)
       await ctx.prisma.workspace.delete({ where: { id: input.id } })
       return { ok: true }
     }),

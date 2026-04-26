@@ -12,18 +12,18 @@ export type WorkspaceSettingsSnapshot = {
 }
 
 export type AgentConversationMessage = {
-  role: "user" | "assistant"
+  role: 'user' | 'assistant'
   content: string
 }
 
 function normalizeConnection(value: unknown): Record<string, string> {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return {}
   }
 
   const connection: Record<string, string> = {}
   for (const [key, candidate] of Object.entries(value as Record<string, unknown>)) {
-    if (typeof candidate === "string") {
+    if (typeof candidate === 'string') {
       connection[key] = candidate
     }
   }
@@ -49,18 +49,18 @@ export function buildAgentsPayload(args: {
         topP: args.settings.topP,
       },
     },
-    systemPrompt: args.settings.systemPrompt ?? "",
+    systemPrompt: args.settings.systemPrompt ?? '',
     messages: args.messages ?? [],
     mcp: {
       servers: [
         {
-          name: "AnyNote MCP Server",
-          url: process.env.ANYNOTE_MCP_URL ?? "http://localhost:8090/api/mcp",
+          name: 'AnyNote MCP Server',
+          url: process.env.ANYNOTE_MCP_URL ?? 'http://localhost:8090/api/mcp',
           headers: {
-            "Content-Type": "application/json",
-            Accept: "application/json, text/event-stream",
-            "X-User-Id": args.userId,
-            "X-Workspace-Id": args.workspaceId,
+            'Content-Type': 'application/json',
+            Accept: 'application/json, text/event-stream',
+            'X-User-Id': args.userId,
+            'X-Workspace-Id': args.workspaceId,
           },
           retries: 3,
           verify: false,
@@ -68,8 +68,8 @@ export function buildAgentsPayload(args: {
       ],
     },
     instruction: {
-      format: "markdown",
-      language: "ru",
+      format: 'markdown',
+      language: 'ru',
       citationsRequired: true,
     },
     query: args.text,

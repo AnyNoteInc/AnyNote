@@ -1,5 +1,5 @@
-export * from "./schema"
-export * from "./assembleDomain"
-export * from "./hydrateDoc"
-export * from "./snapshotFromDoc"
-export * as actions from "./actions"
+export * from './schema'
+export * from './assembleDomain'
+export * from './hydrateDoc'
+export * from './snapshotFromDoc'
+export * as actions from './actions'

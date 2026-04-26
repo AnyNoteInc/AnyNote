@@ -1,7 +1,7 @@
-"use client"
+'use client'
 
-import { useForm } from "react-hook-form"
-import { Divider, TextField, Button, Stack, Typography } from "@repo/ui/components"
+import { useForm } from 'react-hook-form'
+import { Divider, TextField, Button, Stack, Typography } from '@repo/ui/components'
 
 export type LoginFormValues = {
   email: string
@@ -21,13 +21,13 @@ export function LoginForm({
   defaultValues,
   onSubmit,
   onGoogle,
-  titleLabel = "Авторизация",
-  submitLabel = "Войти",
+  titleLabel = 'Авторизация',
+  submitLabel = 'Войти',
   isSubmitting,
 }: LoginFormProps) {
   const formDefaults = {
-    email: "",
-    password: "",
+    email: '',
+    password: '',
     ...defaultValues,
   }
 
@@ -37,8 +37,8 @@ export function LoginForm({
     formState: { errors, isSubmitting: rhfSubmitting },
   } = useForm<LoginFormValues>({
     defaultValues: formDefaults,
-    mode: "onSubmit",
-    reValidateMode: "onChange",
+    mode: 'onSubmit',
+    reValidateMode: 'onChange',
   })
 
   const submitting = isSubmitting ?? rhfSubmitting
@@ -57,11 +57,11 @@ export function LoginForm({
       <Divider />
       <Stack spacing={2.5}>
         <TextField
-          {...register("email", {
-            required: "Введите ник пользователя",
+          {...register('email', {
+            required: 'Введите ник пользователя',
             pattern: {
               value: /\S+@\S+\.\S+/,
-              message: "Введите корректный email",
+              message: 'Введите корректный email',
             },
           })}
           label="Email"
@@ -71,7 +71,7 @@ export function LoginForm({
           helperText={errors.email?.message}
         />
         <TextField
-          {...register("password", { required: "Введите пароль" })}
+          {...register('password', { required: 'Введите пароль' })}
           label="Пароль"
           type="password"
           fullWidth

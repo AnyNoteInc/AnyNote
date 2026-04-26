@@ -1,14 +1,14 @@
-import { notFound } from "next/navigation"
+import { notFound } from 'next/navigation'
 
-import { Box } from "@repo/ui/components"
+import { Box } from '@repo/ui/components'
 
-import { requireSession } from "@/lib/get-session"
-import { getServerTRPC } from "@/trpc/server"
-import { PageRenderer } from "@/components/page/page-renderer"
-import { PageHeader } from "@/components/page/page-header"
-import { PAGE_COLUMN_CLASS, pageColumnSx } from "@/components/page/column-sx"
+import { requireSession } from '@/lib/get-session'
+import { getServerTRPC } from '@/trpc/server'
+import { PageRenderer } from '@/components/page/page-renderer'
+import { PageHeader } from '@/components/page/page-header'
+import { PAGE_COLUMN_CLASS, pageColumnSx } from '@/components/page/column-sx'
 
-const COLORS = ["#1976d2", "#9c27b0", "#2e7d32", "#ed6c02", "#0288d1", "#d32f2f"]
+const COLORS = ['#1976d2', '#9c27b0', '#2e7d32', '#ed6c02', '#0288d1', '#d32f2f']
 
 function colorFor(userId: string): string {
   let hash = 0
@@ -28,13 +28,13 @@ export default async function PageView({
   if (!page) notFound()
 
   const displayName =
-    [session.user.firstName, session.user.lastName].filter(Boolean).join(" ").trim() ||
+    [session.user.firstName, session.user.lastName].filter(Boolean).join(' ').trim() ||
     session.user.email
 
-  const isFullBleed = page.type === "EXCALIDRAW" || page.type === "GENOGRAM"
+  const isFullBleed = page.type === 'EXCALIDRAW' || page.type === 'GENOGRAM'
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       {!isFullBleed && (
         <Box className={PAGE_COLUMN_CLASS} sx={{ ...pageColumnSx, pt: 4, pb: 1 }}>
           <PageHeader

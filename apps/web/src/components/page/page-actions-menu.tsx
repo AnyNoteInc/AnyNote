@@ -1,6 +1,6 @@
-"use client"
+'use client'
 
-import { useState, type MouseEvent } from "react"
+import { useState, type MouseEvent } from 'react'
 
 import {
   Box,
@@ -18,21 +18,21 @@ import {
   MovingIcon,
   PublishIcon,
   Switch,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { usePageActions } from "@/hooks/use-page-actions"
-import { useFullWidth } from "@/hooks/use-full-width"
+import { usePageActions } from '@/hooks/use-page-actions'
+import { useFullWidth } from '@/hooks/use-full-width'
 
-import { MovePageDialog } from "@/components/workspace/move-page-dialog"
-import type { PageItem } from "@/components/workspace/types"
+import { MovePageDialog } from '@/components/workspace/move-page-dialog'
+import type { PageItem } from '@/components/workspace/types'
 
-import { PageExportDialog } from "./page-export-dialog"
+import { PageExportDialog } from './page-export-dialog'
 
 type Props = {
   pageId: string
   pageTitle: string | null
   workspaceId: string
-  pageType: "TEXT" | "EXCALIDRAW" | "GENOGRAM"
+  pageType: 'TEXT' | 'EXCALIDRAW' | 'GENOGRAM'
   isFavorite: boolean
   // Full page row needed by MovePageDialog; undefined until parent's query settles.
   movedPage: PageItem | undefined
@@ -117,32 +117,28 @@ export function PageActionsMenu({
           <ListItemText>Переместить</ListItemText>
         </MenuItem>
 
-        <MenuItem onClick={handleOpenDelete} sx={{ ...menuItemSx, color: "error.main" }}>
+        <MenuItem onClick={handleOpenDelete} sx={{ ...menuItemSx, color: 'error.main' }}>
           <ListItemIcon>
-            <DeleteIcon fontSize="small" sx={{ color: "error.main" }} />
+            <DeleteIcon fontSize="small" sx={{ color: 'error.main' }} />
           </ListItemIcon>
           <ListItemText>Удалить</ListItemText>
         </MenuItem>
 
         <Divider />
 
-        <MenuItem
-          onClick={handleToggleFullWidth}
-          sx={menuItemSx}
-          disabled={pageType !== "TEXT"}
-        >
+        <MenuItem onClick={handleToggleFullWidth} sx={menuItemSx} disabled={pageType !== 'TEXT'}>
           <ListItemIcon>
-            <HeightIcon fontSize="small" sx={{ transform: "rotate(90deg)" }} />
+            <HeightIcon fontSize="small" sx={{ transform: 'rotate(90deg)' }} />
           </ListItemIcon>
           <ListItemText>Полноэкранный</ListItemText>
-          <Box component="span" sx={{ ml: "auto" }}>
+          <Box component="span" sx={{ ml: 'auto' }}>
             <Switch checked={fullWidth} size="small" edge="end" />
           </Box>
         </MenuItem>
 
         <Divider />
 
-        <MenuItem onClick={handleOpenExport} sx={menuItemSx} disabled={pageType !== "TEXT"}>
+        <MenuItem onClick={handleOpenExport} sx={menuItemSx} disabled={pageType !== 'TEXT'}>
           <ListItemIcon>
             <PublishIcon fontSize="small" />
           </ListItemIcon>

@@ -1,31 +1,31 @@
-"use client"
+'use client'
 
-import { Box } from "@mui/material"
-import { HocuspocusProvider } from "@hocuspocus/provider"
-import { EditorContent, ReactRenderer, useEditor } from "@tiptap/react"
-import type { SuggestionProps } from "@tiptap/suggestion"
-import tippy, { type Instance } from "tippy.js"
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import * as Y from "yjs"
+import { Box } from '@mui/material'
+import { HocuspocusProvider } from '@hocuspocus/provider'
+import { EditorContent, ReactRenderer, useEditor } from '@tiptap/react'
+import type { SuggestionProps } from '@tiptap/suggestion'
+import tippy, { type Instance } from 'tippy.js'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import * as Y from 'yjs'
 
-import { EditorDragHandle } from "./components/drag-handle"
-import { FileUploadPopover } from "./components/file-upload-popover"
-import { FloatingToolbar } from "./components/floating-toolbar"
-import { MarkdownUploadPopover } from "./components/markdown-upload-popover"
-import { PageLinkPopover } from "./components/page-link-popover"
-import { SlashMenuPopover } from "./components/slash-menu-popover"
-import type { SlashMenuPopoverHandle } from "./components/slash-menu-popover"
-import { TableToolbar } from "./components/table-toolbar"
-import { buildExtensions } from "./extensions/index"
-import type { SlashMenuRender } from "./extensions/slash-menu"
-import { createSlashItems } from "./slash-items"
-import type { AnyNoteEditorProps, SlashCommandItem, SlashRange, VirtualAnchor } from "./types"
+import { EditorDragHandle } from './components/drag-handle'
+import { FileUploadPopover } from './components/file-upload-popover'
+import { FloatingToolbar } from './components/floating-toolbar'
+import { MarkdownUploadPopover } from './components/markdown-upload-popover'
+import { PageLinkPopover } from './components/page-link-popover'
+import { SlashMenuPopover } from './components/slash-menu-popover'
+import type { SlashMenuPopoverHandle } from './components/slash-menu-popover'
+import { TableToolbar } from './components/table-toolbar'
+import { buildExtensions } from './extensions/index'
+import type { SlashMenuRender } from './extensions/slash-menu'
+import { createSlashItems } from './slash-items'
+import type { AnyNoteEditorProps, SlashCommandItem, SlashRange, VirtualAnchor } from './types'
 
 type SlashSuggestionProps = SuggestionProps<SlashCommandItem, SlashCommandItem>
 
 type YjsResources = { ydoc: Y.Doc; provider: HocuspocusProvider }
 
-type PopoverKind = "file" | "markdown" | "pageLink"
+type PopoverKind = 'file' | 'markdown' | 'pageLink'
 
 type OpenPopover = {
   kind: PopoverKind
@@ -69,7 +69,7 @@ export function AnyNoteEditor(props: AnyNoteEditorProps) {
   if (!resources) {
     return (
       props.loadingFallback ?? (
-        <Box className={`anynote-editor ${props.className ?? ""}`} sx={{ height: "100%" }} />
+        <Box className={`anynote-editor ${props.className ?? ''}`} sx={{ height: '100%' }} />
       )
     )
   }
@@ -121,9 +121,9 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
   const slashItems = useMemo(
     () =>
       createSlashItems({
-        openFilePopover: (range) => openKind("file", range),
-        openMarkdownPopover: (range) => openKind("markdown", range),
-        openPageLinkPopover: (range) => openKind("pageLink", range),
+        openFilePopover: (range) => openKind('file', range),
+        openMarkdownPopover: (range) => openKind('markdown', range),
+        openPageLinkPopover: (range) => openKind('pageLink', range),
       }),
     [openKind],
   )
@@ -152,14 +152,14 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
 
           if (!suggestionProps.clientRect) return
           const getRect = suggestionProps.clientRect
-          const [popup] = tippy("body", {
+          const [popup] = tippy('body', {
             getReferenceClientRect: () => getRect() ?? new DOMRect(0, 0, 0, 0),
             appendTo: () => document.body,
             content: component.element,
             showOnCreate: true,
             interactive: true,
-            trigger: "manual",
-            placement: "bottom-start",
+            trigger: 'manual',
+            placement: 'bottom-start',
             offset: [0, 6],
           })
           slashRendererRef.current.popup = popup ?? null
@@ -178,7 +178,7 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
           }
         },
         onKeyDown: (suggestionProps) => {
-          if (suggestionProps.event.key === "Escape") {
+          if (suggestionProps.event.key === 'Escape') {
             slashRendererRef.current.popup?.hide()
             return true
           }
@@ -220,7 +220,7 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
   const range = popover?.range ?? null
 
   return (
-    <Box className={`anynote-editor ${props.className ?? ""}`} sx={{ height: "100%" }}>
+    <Box className={`anynote-editor ${props.className ?? ''}`} sx={{ height: '100%' }}>
       {editor ? (
         <EditorDragHandle editor={editor} onRequestBlockMove={props.onRequestBlockMove} />
       ) : null}
@@ -230,7 +230,7 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
       {editor ? (
         <>
           <FileUploadPopover
-            open={popover?.kind === "file"}
+            open={popover?.kind === 'file'}
             anchorEl={anchorEl}
             range={range}
             editor={editor}
@@ -238,14 +238,14 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
             onClose={closePopover}
           />
           <MarkdownUploadPopover
-            open={popover?.kind === "markdown"}
+            open={popover?.kind === 'markdown'}
             anchorEl={anchorEl}
             range={range}
             editor={editor}
             onClose={closePopover}
           />
           <PageLinkPopover
-            open={popover?.kind === "pageLink"}
+            open={popover?.kind === 'pageLink'}
             anchorEl={anchorEl}
             range={range}
             editor={editor}

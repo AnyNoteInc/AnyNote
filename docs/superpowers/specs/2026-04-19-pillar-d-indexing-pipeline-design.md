@@ -121,6 +121,7 @@ Loop (every INDEXER_POLL_INTERVAL_MS):
 ```
 
 `handle(row)` switches on `event_type`:
+
 - `page.upserted` → fetch `Page` from Postgres, extract text from
   `content` (Tiptap JSON), chunk, embed each chunk, upsert into Qdrant.
 - `page.deleted` → delete every point with payload `{page_id == X}`
@@ -276,14 +277,14 @@ app. **Default port is 8081** to avoid conflict with agents (8080).
 
 ## Failure model
 
-| Scenario | Behavior |
-|---|---|
-| Qdrant unreachable | `attempts++`, `next_attempt_at = now() + backoff(attempts)`, row stays pending |
-| Embedding API error | same as above |
-| Page row missing (race with delete) | log + mark `done` (event is moot) |
-| `attempts >= INDEXER_MAX_ATTEMPTS` | mark `FAILED`, log, do not retry |
-| Worker crash mid-row | `locked_at` ages out → row reclaimed by another loop iteration |
-| Worker crash after Qdrant write but before `mark_done` | re-processed, Qdrant upsert is idempotent (deterministic point id) |
+| Scenario                                               | Behavior                                                                       |
+| ------------------------------------------------------ | ------------------------------------------------------------------------------ |
+| Qdrant unreachable                                     | `attempts++`, `next_attempt_at = now() + backoff(attempts)`, row stays pending |
+| Embedding API error                                    | same as above                                                                  |
+| Page row missing (race with delete)                    | log + mark `done` (event is moot)                                              |
+| `attempts >= INDEXER_MAX_ATTEMPTS`                     | mark `FAILED`, log, do not retry                                               |
+| Worker crash mid-row                                   | `locked_at` ages out → row reclaimed by another loop iteration                 |
+| Worker crash after Qdrant write but before `mark_done` | re-processed, Qdrant upsert is idempotent (deterministic point id)             |
 
 Backoff formula: `min(60s * 2^attempts, 30min)`.
 
@@ -299,7 +300,7 @@ Backoff formula: `min(60s * 2^attempts, 30min)`.
     point payload, then inserts a `page.deleted` event and asserts
     points are gone. Skipped unless `-m integration`.
 - The indexer's pytest config matches agents': `addopts = "-ra
-  --strict-markers"` + `markers = ["integration: …"]`.
+--strict-markers"` + `markers = ["integration: …"]`.
 
 ## Open questions resolved during brainstorm
 
@@ -331,7 +332,7 @@ Backoff formula: `min(60s * 2^attempts, 30min)`.
   D migration cleanly.
 - `docker compose up -d` then `pnpm --filter indexer dev` starts the
   worker; `curl http://localhost:8081/health` returns `{"status":"ok",
-  "queue_lag": <int>, "qdrant": "reachable"}`.
+"queue_lag": <int>, "qdrant": "reachable"}`.
 - Creating a page in `apps/web` results in `outbox_events.status = DONE`
   within ~2s and a Qdrant point queryable by `page_id` payload filter.
 - Deleting the page removes the points within ~2s.

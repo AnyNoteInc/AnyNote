@@ -30,6 +30,7 @@ Each phase ends with a commit; main stays green after every phase.
 ### Task 1: Add Qdrant + Ollama settings
 
 **Files:**
+
 - Modify: `apps/agents/agents/settings.py`
 
 - [ ] **Step 1: Update settings.py with Qdrant and Ollama schemas**
@@ -71,6 +72,7 @@ settings = SettingsSchema()  # type: ignore
 - [ ] **Step 2: Verify settings parses env correctly**
 
 Create temporary test env and run:
+
 ```bash
 cd apps/agents && QDRANT__HOST=localhost QDRANT__PORT=6333 QDRANT__PROTOCOL=http \
   OLLAMA__HOST=localhost OLLAMA__PORT=11434 OLLAMA__PROTOCOL=http \
@@ -92,6 +94,7 @@ git commit -m "feat(agents): add qdrant + ollama settings schemas"
 ### Task 2: Add langchain-qdrant and qdrant-client dependencies
 
 **Files:**
+
 - Modify: `apps/agents/pyproject.toml`
 
 - [ ] **Step 1: Add dependencies**
@@ -123,6 +126,7 @@ git commit -m "feat(agents): add langchain-qdrant + qdrant-client deps"
 ### Task 3: ChunkerService (RecursiveCharacterTextSplitter wrapper)
 
 **Files:**
+
 - Create: `apps/agents/agents/apps/processing/services/chunker.py`
 - Create: `apps/agents/tests/apps/processing/test_chunker.py`
 - Modify: `apps/agents/agents/apps/processing/services/__init__.py`
@@ -218,6 +222,7 @@ git commit -m "feat(agents): add ChunkerService for recursive text splitting"
 ### Task 4: Simplify NormalizerService (remove splitter)
 
 **Files:**
+
 - Modify: `apps/agents/agents/apps/processing/services/normalizer.py`
 - Modify: `apps/agents/tests/apps/processing/test_normalizer.py` (create if missing)
 
@@ -366,6 +371,7 @@ git commit -m "refactor(agents): simplify NormalizerService — drop splitter, r
 ### Task 5: VectorizationRepository (Ollama embeddings wrapper)
 
 **Files:**
+
 - Create: `apps/agents/agents/apps/processing/repositories/__init__.py`
 - Create: `apps/agents/agents/apps/processing/repositories/vectorization_repository.py`
 - Create: `apps/agents/tests/apps/processing/test_vectorization_repository.py`
@@ -447,7 +453,7 @@ class VectorizationRepository:
         return await self.embeddings.aembed_documents(texts)
 ```
 
-- [ ] **Step 4: Temporarily create stub vector_store_repository.py** so the __init__ import works
+- [ ] **Step 4: Temporarily create stub vector_store_repository.py** so the **init** import works
 
 Create `apps/agents/agents/apps/processing/repositories/vector_store_repository.py` with a minimal stub:
 
@@ -477,6 +483,7 @@ git commit -m "feat(agents): add VectorizationRepository over OllamaEmbeddings"
 ### Task 6: VectorStoreRepository (langchain-qdrant wrapper)
 
 **Files:**
+
 - Modify: `apps/agents/agents/apps/processing/repositories/vector_store_repository.py` (replace stub)
 - Create: `apps/agents/tests/apps/processing/test_vector_store_repository.py`
 
@@ -663,6 +670,7 @@ git commit -m "feat(agents): add VectorStoreRepository over langchain-qdrant"
 ### Task 7: Shared VectorsProvider (Qdrant client + Ollama embeddings)
 
 **Files:**
+
 - Create: `apps/agents/agents/core/__init__.py`
 - Create: `apps/agents/agents/core/depends.py`
 
@@ -749,6 +757,7 @@ git commit -m "feat(agents): add shared VectorsProvider for Qdrant + Ollama"
 ### Task 8: VectorizationRequestSchema / ResponseSchema
 
 **Files:**
+
 - Modify: `apps/agents/agents/apps/processing/schemas.py` (replace content)
 
 - [ ] **Step 1: Replace schemas.py**
@@ -809,6 +818,7 @@ git commit -m "feat(agents): replace processing schemas with Vectorization*"
 ### Task 9: VectorizePageUseCase
 
 **Files:**
+
 - Create: `apps/agents/agents/apps/processing/use_cases/vectorize_page.py`
 - Create: `apps/agents/tests/apps/processing/test_vectorize_page.py`
 - Modify: `apps/agents/agents/apps/processing/use_cases/__init__.py`
@@ -1048,6 +1058,7 @@ git commit -m "feat(agents): add VectorizePageUseCase with TDD pipeline"
 ### Task 10: Replace Router — POST /vectorization
 
 **Files:**
+
 - Modify: `apps/agents/agents/apps/processing/router.py` (replace content)
 
 - [ ] **Step 1: Replace router.py**
@@ -1104,6 +1115,7 @@ git commit -m "feat(agents): replace /processing/normalize with POST /vectorizat
 ### Task 11: Remove old NormalizeTextUseCase + dead normalize code
 
 **Files:**
+
 - Delete: `apps/agents/agents/apps/processing/use_cases/normalize_text.py`
 
 - [ ] **Step 1: Delete the old use case**
@@ -1140,6 +1152,7 @@ git commit -m "refactor(agents): remove NormalizeTextUseCase"
 ### Task 12: Update Dishka provider for processing
 
 **Files:**
+
 - Modify: `apps/agents/agents/apps/processing/depends.py` (replace content)
 
 - [ ] **Step 1: Replace depends.py**
@@ -1199,6 +1212,7 @@ git commit -m "feat(agents): wire ProcessingProvider with new repositories + use
 ### Task 13: Bootstrap — ensure Qdrant collection on startup
 
 **Files:**
+
 - Modify: `apps/agents/agents/bootstrap.py`
 
 - [ ] **Step 1: Update lifespan to call ensure_collection**
@@ -1233,11 +1247,13 @@ Note: the import is kept inside the function to avoid a circular import at modul
 - [ ] **Step 2: Smoke test startup (requires running Qdrant on localhost:6333)**
 
 Start docker compose (if not running):
+
 ```bash
 docker compose up -d
 ```
 
 Then:
+
 ```bash
 cd apps/agents && uv run python -c "
 import asyncio
@@ -1271,6 +1287,7 @@ git commit -m "feat(agents): ensure qdrant `pages` collection on startup"
 ### Task 14: Integration test for /vectorization (real Qdrant + Ollama)
 
 **Files:**
+
 - Create: `apps/agents/tests/apps/processing/test_vectorization_integration.py`
 
 - [ ] **Step 1: Write integration test**
@@ -1363,6 +1380,7 @@ No action needed — old `/processing/normalize` was already removed in Task 10.
 ### Task 15: Update RagDocumentSchema shape
 
 **Files:**
+
 - Modify: `apps/agents/agents/apps/chat/schemas.py:32-78` (the `RagDocumentSchema` block)
 
 - [ ] **Step 1: Replace RagDocumentSchema**
@@ -1423,6 +1441,7 @@ git commit -m "feat(agents): update RagDocumentSchema to block-anchor shape"
 ### Task 16: RagRetrievalService
 
 **Files:**
+
 - Create: `apps/agents/agents/apps/chat/services/rag_retrieval.py`
 - Create: `apps/agents/tests/apps/chat/services/test_rag_retrieval.py`
 - Modify: `apps/agents/agents/apps/chat/services/__init__.py`
@@ -1597,6 +1616,7 @@ git commit -m "feat(agents): add RagRetrievalService with pageId/blockNumber ded
 ### Task 17: Update default.j2 template — citation with block anchor
 
 **Files:**
+
 - Modify: `apps/agents/agents/apps/chat/templates/default.j2`
 
 - [ ] **Step 1: Replace the `## Retrieved context` block**
@@ -1665,6 +1685,7 @@ git commit -m "feat(agents): update default.j2 citation format with block anchor
 ### Task 18: JinjaRendererRepository — add rag_documents parameter
 
 **Files:**
+
 - Modify: `apps/agents/agents/apps/chat/repositories/jinja_renderer.py`
 - Create: `apps/agents/tests/apps/chat/repositories/test_jinja_renderer.py`
 
@@ -1811,6 +1832,7 @@ git commit -m "feat(agents): JinjaRendererRepository accepts explicit rag_docume
 ### Task 19: Inject RagRetrievalService into GraphService
 
 **Files:**
+
 - Modify: `apps/agents/agents/apps/chat/services/graph.py`
 
 - [ ] **Step 1: Update GraphService signature and prepare_prompt**
@@ -1818,11 +1840,13 @@ git commit -m "feat(agents): JinjaRendererRepository accepts explicit rag_docume
 In `apps/agents/agents/apps/chat/services/graph.py`:
 
 1. Add import at top:
+
 ```python
 from .rag_retrieval import RagRetrievalService
 ```
 
 2. Change the `GraphService` dataclass:
+
 ```python
 @dataclass
 class GraphService:
@@ -1834,6 +1858,7 @@ class GraphService:
 ```
 
 3. Update `prepare_prompt` — after the existing MCP-tools block and before `messages: list[BaseMessage]`, add RAG retrieval:
+
 ```python
         rag_documents = await self.rag_retrieval_service.retrieve(
             workspace_id=state.user_context.x_workspace_id,
@@ -1843,6 +1868,7 @@ class GraphService:
 ```
 
 4. Change the `system_prompt = self.jinja_repository.render(...)` call to:
+
 ```python
         system_prompt = self.jinja_repository.render(
             state.payload, mcp_server_tools, rag_documents,
@@ -1932,6 +1958,7 @@ git commit -m "feat(agents): inject RagRetrievalService into GraphService"
 ### Task 20: Wire RagRetrievalService in chat Dishka provider
 
 **Files:**
+
 - Modify: `apps/agents/agents/apps/chat/depends.py`
 
 - [ ] **Step 1: Add provider registration**
@@ -1989,6 +2016,7 @@ Expected: all green.
 ### Task 21: Add jest scaffolding to apps/yjs
 
 **Files:**
+
 - Modify: `apps/yjs/package.json`
 - Create: `apps/yjs/jest.config.ts`
 - Create: `apps/yjs/jest.setup.cjs`
@@ -2015,25 +2043,25 @@ Add to `devDependencies`:
 Create `apps/yjs/jest.config.ts` (copy engines pattern):
 
 ```ts
-import type { Config } from "jest"
+import type { Config } from 'jest'
 
 const config: Config = {
-  preset: "ts-jest/presets/default-esm",
-  moduleFileExtensions: ["js", "json", "ts"],
-  rootDir: ".",
-  testRegex: ".*\\.spec\\.ts$",
+  preset: 'ts-jest/presets/default-esm',
+  moduleFileExtensions: ['js', 'json', 'ts'],
+  rootDir: '.',
+  testRegex: '.*\\.spec\\.ts$',
   transform: {
-    "^.+\\.ts$": ["ts-jest", { useESM: true, tsconfig: "tsconfig.json" }],
+    '^.+\\.ts$': ['ts-jest', { useESM: true, tsconfig: 'tsconfig.json' }],
   },
-  extensionsToTreatAsEsm: [".ts"],
+  extensionsToTreatAsEsm: ['.ts'],
   moduleNameMapper: {
-    "^(\\.{1,2}/.*)\\.js$": "$1",
-    "^@repo/db$": "<rootDir>/../../packages/db/src/index.ts",
+    '^(\\.{1,2}/.*)\\.js$': '$1',
+    '^@repo/db$': '<rootDir>/../../packages/db/src/index.ts',
   },
-  collectCoverageFrom: ["src/**/*.ts"],
-  coverageDirectory: "./coverage",
-  testEnvironment: "node",
-  setupFiles: ["<rootDir>/jest.setup.cjs"],
+  collectCoverageFrom: ['src/**/*.ts'],
+  coverageDirectory: './coverage',
+  testEnvironment: 'node',
+  setupFiles: ['<rootDir>/jest.setup.cjs'],
 }
 
 export default config
@@ -2075,6 +2103,7 @@ git commit -m "chore(yjs): add jest scaffolding"
 ### Task 22: canAccessPage returns workspaceId
 
 **Files:**
+
 - Modify: `apps/yjs/src/auth.ts`
 
 - [ ] **Step 1: Replace canAccessPage function**
@@ -2120,6 +2149,7 @@ git commit -m "feat(yjs): canAccessPage returns workspaceId"
 ### Task 23: Add enqueueOutboxEventIgnoreConflict to @repo/db
 
 **Files:**
+
 - Modify: `packages/db/src/index.ts`
 
 - [ ] **Step 1: Add the helper**
@@ -2166,6 +2196,7 @@ git commit -m "feat(db): add enqueueOutboxEventIgnoreConflict with delayMs + ON 
 ### Task 24: Write failing persistence tests
 
 **Files:**
+
 - Create: `apps/yjs/src/persistence.spec.ts`
 
 - [ ] **Step 1: Write failing tests**
@@ -2173,13 +2204,15 @@ git commit -m "feat(db): add enqueueOutboxEventIgnoreConflict with delayMs + ON 
 Create `apps/yjs/src/persistence.spec.ts`:
 
 ```ts
-import { jest } from "@jest/globals"
-import * as Y from "yjs"
+import { jest } from '@jest/globals'
+import * as Y from 'yjs'
 
 // Mock @repo/db BEFORE importing persistence
 const mockTxExecuteRaw = jest.fn<(sql: unknown) => Promise<number>>().mockResolvedValue(1)
 const mockTxPageUpdate = jest.fn<(args: unknown) => Promise<unknown>>().mockResolvedValue({})
-const mockEnqueueOutboxEventIgnoreConflict = jest.fn<(...args: unknown[]) => Promise<void>>().mockResolvedValue()
+const mockEnqueueOutboxEventIgnoreConflict = jest
+  .fn<(...args: unknown[]) => Promise<void>>()
+  .mockResolvedValue()
 const mockTransaction = jest.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
   return fn({
     $executeRaw: mockTxExecuteRaw,
@@ -2187,14 +2220,14 @@ const mockTransaction = jest.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
   })
 })
 
-jest.unstable_mockModule("@repo/db", () => ({
+jest.unstable_mockModule('@repo/db', () => ({
   prisma: { $transaction: mockTransaction },
-  PageType: { TEXT: "TEXT", EXCALIDRAW: "EXCALIDRAW", GENOGRAM: "GENOGRAM" },
+  PageType: { TEXT: 'TEXT', EXCALIDRAW: 'EXCALIDRAW', GENOGRAM: 'GENOGRAM' },
   Prisma: { sql: (s: TemplateStringsArray, ...v: unknown[]) => ({ s, v }) },
   enqueueOutboxEventIgnoreConflict: mockEnqueueOutboxEventIgnoreConflict,
 }))
 
-const { storePageDocument } = await import("./persistence.js")
+const { storePageDocument } = await import('./persistence.js')
 
 beforeEach(() => {
   mockTxPageUpdate.mockClear()
@@ -2202,58 +2235,65 @@ beforeEach(() => {
   mockTransaction.mockClear()
 })
 
-describe("storePageDocument", () => {
-  it("TEXT: writes contentYjs + tiptap JSON + enqueues outbox with 5m delay", async () => {
+describe('storePageDocument', () => {
+  it('TEXT: writes contentYjs + tiptap JSON + enqueues outbox with 5m delay', async () => {
     const doc = new Y.Doc()
-    doc.getXmlFragment("default").insert(0, [new Y.XmlElement("paragraph")])
+    doc.getXmlFragment('default').insert(0, [new Y.XmlElement('paragraph')])
     await storePageDocument({
-      pageId: "00000000-0000-0000-0000-000000000001",
-      workspaceId: "00000000-0000-0000-0000-000000000002",
+      pageId: '00000000-0000-0000-0000-000000000001',
+      workspaceId: '00000000-0000-0000-0000-000000000002',
       document: doc,
-      pageType: "TEXT" as never,
+      pageType: 'TEXT' as never,
     })
     expect(mockTxPageUpdate).toHaveBeenCalledTimes(1)
-    const call = mockTxPageUpdate.mock.calls[0][0] as { data: { content: unknown; contentYjs: unknown } }
+    const call = mockTxPageUpdate.mock.calls[0][0] as {
+      data: { content: unknown; contentYjs: unknown }
+    }
     expect(call.data.contentYjs).toBeInstanceOf(Uint8Array)
     expect(call.data.content).toBeDefined()
 
     expect(mockEnqueueOutboxEventIgnoreConflict).toHaveBeenCalledTimes(1)
     const outboxArgs = mockEnqueueOutboxEventIgnoreConflict.mock.calls[0][1] as {
-      eventType: string; aggregateId: string; workspaceId: string; delayMs: number
+      eventType: string
+      aggregateId: string
+      workspaceId: string
+      delayMs: number
     }
-    expect(outboxArgs.eventType).toBe("page.upserted")
-    expect(outboxArgs.aggregateId).toBe("00000000-0000-0000-0000-000000000001")
-    expect(outboxArgs.workspaceId).toBe("00000000-0000-0000-0000-000000000002")
+    expect(outboxArgs.eventType).toBe('page.upserted')
+    expect(outboxArgs.aggregateId).toBe('00000000-0000-0000-0000-000000000001')
+    expect(outboxArgs.workspaceId).toBe('00000000-0000-0000-0000-000000000002')
     expect(outboxArgs.delayMs).toBe(5 * 60 * 1000)
   })
 
-  it("EXCALIDRAW: saves { elements } JSON to content + NO outbox", async () => {
+  it('EXCALIDRAW: saves { elements } JSON to content + NO outbox', async () => {
     const doc = new Y.Doc()
-    const yElements = doc.getArray<Y.Map<unknown>>("elements")
+    const yElements = doc.getArray<Y.Map<unknown>>('elements')
     const el = new Y.Map()
-    el.set("type", "rectangle")
+    el.set('type', 'rectangle')
     yElements.insert(0, [el])
 
     await storePageDocument({
-      pageId: "00000000-0000-0000-0000-000000000001",
-      workspaceId: "00000000-0000-0000-0000-000000000002",
+      pageId: '00000000-0000-0000-0000-000000000001',
+      workspaceId: '00000000-0000-0000-0000-000000000002',
       document: doc,
-      pageType: "EXCALIDRAW" as never,
+      pageType: 'EXCALIDRAW' as never,
     })
 
-    const call = mockTxPageUpdate.mock.calls[0][0] as { data: { content: { elements: unknown[] }; contentYjs: unknown } }
-    expect(call.data.content).toEqual({ elements: [{ type: "rectangle" }] })
+    const call = mockTxPageUpdate.mock.calls[0][0] as {
+      data: { content: { elements: unknown[] }; contentYjs: unknown }
+    }
+    expect(call.data.content).toEqual({ elements: [{ type: 'rectangle' }] })
     expect(call.data.contentYjs).toBeInstanceOf(Uint8Array)
     expect(mockEnqueueOutboxEventIgnoreConflict).not.toHaveBeenCalled()
   })
 
-  it("GENOGRAM: saves only contentYjs + NO outbox", async () => {
+  it('GENOGRAM: saves only contentYjs + NO outbox', async () => {
     const doc = new Y.Doc()
     await storePageDocument({
-      pageId: "00000000-0000-0000-0000-000000000001",
-      workspaceId: "00000000-0000-0000-0000-000000000002",
+      pageId: '00000000-0000-0000-0000-000000000001',
+      workspaceId: '00000000-0000-0000-0000-000000000002',
       document: doc,
-      pageType: "GENOGRAM" as never,
+      pageType: 'GENOGRAM' as never,
     })
     const call = mockTxPageUpdate.mock.calls[0][0] as { data: { content?: unknown } }
     expect(call.data.content).toBeUndefined()
@@ -2275,6 +2315,7 @@ Expected: FAIL — `storePageDocument` does not accept `workspaceId`, does not c
 ### Task 25: Update storePageDocument implementation
 
 **Files:**
+
 - Modify: `apps/yjs/src/persistence.ts`
 
 - [ ] **Step 1: Replace persistence.ts**
@@ -2282,16 +2323,11 @@ Expected: FAIL — `storePageDocument` does not accept `workspaceId`, does not c
 Replace `apps/yjs/src/persistence.ts`:
 
 ```ts
-import {
-  enqueueOutboxEventIgnoreConflict,
-  PageType,
-  Prisma,
-  prisma,
-} from "@repo/db"
-import * as Y from "yjs"
-import { TiptapTransformer } from "@hocuspocus/transformer"
+import { enqueueOutboxEventIgnoreConflict, PageType, Prisma, prisma } from '@repo/db'
+import * as Y from 'yjs'
+import { TiptapTransformer } from '@hocuspocus/transformer'
 
-import { log } from "./logger.js"
+import { log } from './logger.js'
 
 export async function loadPageDocument(pageId: string): Promise<Y.Doc> {
   const page = await prisma.page.findUnique({
@@ -2318,15 +2354,15 @@ export async function storePageDocument(args: {
 
   if (pageType === PageType.TEXT) {
     try {
-      data.content = TiptapTransformer.fromYdoc(document, "default") as Prisma.InputJsonValue
+      data.content = TiptapTransformer.fromYdoc(document, 'default') as Prisma.InputJsonValue
     } catch (err) {
-      log.warn("tiptap transformer failed; saving contentYjs only", {
+      log.warn('tiptap transformer failed; saving contentYjs only', {
         pageId,
         error: (err as Error).message,
       })
     }
   } else if (pageType === PageType.EXCALIDRAW) {
-    const yElements = document.getArray("elements")
+    const yElements = document.getArray('elements')
     const snapshot = { elements: yElements.toJSON() }
     data.content = snapshot as Prisma.InputJsonValue
   }
@@ -2336,8 +2372,8 @@ export async function storePageDocument(args: {
 
     if (pageType === PageType.TEXT) {
       await enqueueOutboxEventIgnoreConflict(tx, {
-        eventType: "page.upserted",
-        aggregateType: "page",
+        eventType: 'page.upserted',
+        aggregateType: 'page',
         aggregateId: pageId,
         workspaceId,
         delayMs: 5 * 60 * 1000,
@@ -2367,6 +2403,7 @@ git commit -m "feat(yjs): outbox insert + excalidraw snapshot + atomic tx"
 ### Task 26: AuthContext + onStoreDocument forwards workspaceId
 
 **Files:**
+
 - Modify: `apps/yjs/src/index.ts`
 
 - [ ] **Step 1: Update AuthContext type and onStoreDocument call**
@@ -2374,27 +2411,35 @@ git commit -m "feat(yjs): outbox insert + excalidraw snapshot + atomic tx"
 In `apps/yjs/src/index.ts`:
 
 1. Change the `AuthContext` type:
+
 ```ts
 type AuthContext = { userId: string; pageType: PageType; workspaceId: string }
 ```
 
 2. In `onAuthenticate`, extract `workspaceId` from `canAccessPage` result:
+
 ```ts
 const access = await canAccessPage(userId, documentName)
 if (!access) {
-  log.warn("page access denied", { userId, pageId: documentName })
-  throw new Error("Forbidden")
+  log.warn('page access denied', { userId, pageId: documentName })
+  throw new Error('Forbidden')
 }
-log.info("authenticated", {
-  userId, pageId: documentName, pageType: access.pageType, workspaceId: access.workspaceId,
+log.info('authenticated', {
+  userId,
+  pageId: documentName,
+  pageType: access.pageType,
+  workspaceId: access.workspaceId,
 })
 const ctx: AuthContext = {
-  userId, pageType: access.pageType, workspaceId: access.workspaceId,
+  userId,
+  pageType: access.pageType,
+  workspaceId: access.workspaceId,
 }
 return ctx
 ```
 
 3. In `onStoreDocument`, pass `workspaceId`:
+
 ```ts
 async onStoreDocument({ documentName, document, context }) {
   const { pageType, workspaceId } = context as AuthContext
@@ -2440,6 +2485,7 @@ Expected: all green.
 ### Task 27: Return `contentYjs` base64 from tRPC page.getById
 
 **Files:**
+
 - Modify: `packages/trpc/src/routers/page.ts:72-102` (the `getById` procedure)
 
 Current state: `getById` returns `Promise<Page>` — the Prisma `Page` type including `contentYjs: Bytes | null` (Buffer). We need to transform it to a base64 string for clean JSON transport and simple client decode via `atob`.
@@ -2509,6 +2555,7 @@ git commit -m "feat(trpc): return contentYjs as base64 from page.getById"
 ### Task 28: PageRenderer passes initialContentYjs
 
 **Files:**
+
 - Modify: `apps/web/src/components/page/page-renderer.tsx` (update `PageInput` type + pass prop)
 - Modify: `apps/web/src/app/(protected)/workspaces/[workspaceId]/pages/[pageId]/page.tsx` (forward `contentYjs`)
 
@@ -2527,7 +2574,7 @@ type PageInput = {
 Then destructure it where `page.id`/`page.type` are used, and thread `page.contentYjs` into both the TEXT branch and the EXCALIDRAW branch:
 
 ```tsx
-if (page.type === "EXCALIDRAW") {
+if (page.type === 'EXCALIDRAW') {
   return (
     <Board
       pageId={page.id}
@@ -2542,7 +2589,7 @@ if (page.type === "EXCALIDRAW") {
 ```
 
 ```tsx
-if (page.type === "TEXT") {
+if (page.type === 'TEXT') {
   return (
     <>
       <AnyNoteEditor
@@ -2596,6 +2643,7 @@ git commit -m "feat(web): thread contentYjs through PageRenderer to editor/board
 ### Task 29: Seed Y.Doc in @repo/editor
 
 **Files:**
+
 - Modify: `packages/editor/src/types.ts` (add prop to `AnyNoteEditorProps`)
 - Modify: `packages/editor/src/anynote-editor.tsx` (seed Y.Doc in useEffect)
 
@@ -2620,11 +2668,13 @@ export type AnyNoteEditorProps = {
 In `packages/editor/src/anynote-editor.tsx`, modify the `AnyNoteEditor` component (outer function):
 
 1. Destructure the new prop:
+
 ```tsx
 const { pageId, yjsUrl, yjsToken, initialContentYjs } = props
 ```
 
 2. Replace the useEffect body to apply the seed BEFORE creating the provider:
+
 ```tsx
 useEffect(() => {
   const ydoc = new Y.Doc()
@@ -2671,6 +2721,7 @@ git commit -m "feat(editor): seed Y.Doc from initialContentYjs before provider c
 ### Task 30: Seed Y.Doc in @repo/excalidraw
 
 **Files:**
+
 - Modify: `packages/excalidraw/src/use-excalidraw-yjs.ts`
 - Modify: `packages/excalidraw/src/board.tsx` / `board-inner.tsx` / `types.ts` to accept the prop
 
@@ -2706,8 +2757,8 @@ export function useExcalidrawYjs(args: {
       const bytes = Uint8Array.from(atob(initialContentYjs), (c) => c.charCodeAt(0))
       Y.applyUpdate(ydoc, bytes)
     }
-    const yElements = ydoc.getArray<Y.Map<unknown>>("elements")
-    const yAssets = ydoc.getMap<unknown>("assets")
+    const yElements = ydoc.getArray<Y.Map<unknown>>('elements')
+    const yAssets = ydoc.getMap<unknown>('assets')
     const provider = new HocuspocusProvider({
       url: yjsUrl,
       name: pageId,
@@ -2734,7 +2785,10 @@ In `packages/excalidraw/src/board-inner.tsx`, accept `initialContentYjs` via pro
 
 ```tsx
 const resources = useExcalidrawYjs({
-  pageId, yjsUrl, yjsToken, initialContentYjs,
+  pageId,
+  yjsUrl,
+  yjsToken,
+  initialContentYjs,
 })
 ```
 
@@ -2772,6 +2826,7 @@ Expected: all packages green.
 ### Task 31: Delete old indexer/search files
 
 **Files (delete):**
+
 - `apps/engines/src/apps/indexer/services/embedding-client.service.ts` (+ `.spec.ts`)
 - `apps/engines/src/apps/indexer/services/page-chunker.service.ts` (+ `.spec.ts`)
 - `apps/engines/src/apps/indexer/services/processing-client.service.ts` (+ `.spec.ts`)
@@ -2824,11 +2879,13 @@ Note: commit order matters for bisect; at this commit the module compile fails. 
 ### Task 32: Update engines package.json — drop deps
 
 **Files:**
+
 - Modify: `apps/engines/package.json`
 
 - [ ] **Step 1: Remove deps**
 
 Edit `apps/engines/package.json` `dependencies` and remove:
+
 - `"@nestjs/bullmq"`
 - `"bullmq"`
 - `"ioredis"`
@@ -2862,6 +2919,7 @@ git commit -m "chore(engines): drop bullmq/ioredis/qdrant-client/ollama/axios de
 ### Task 33: PageContentReader — block walking
 
 **Files:**
+
 - Create: `apps/engines/src/apps/indexer/services/page-content-reader.service.ts`
 - Create: `apps/engines/src/apps/indexer/services/page-content-reader.service.spec.ts`
 
@@ -2870,96 +2928,86 @@ git commit -m "chore(engines): drop bullmq/ioredis/qdrant-client/ollama/axios de
 Create `apps/engines/src/apps/indexer/services/page-content-reader.service.spec.ts`:
 
 ```ts
-import { describe, expect, it } from "@jest/globals"
+import { describe, expect, it } from '@jest/globals'
 
-import { PageContentReader, type TiptapNode } from "./page-content-reader.service.js"
+import { PageContentReader, type TiptapNode } from './page-content-reader.service.js'
 
-describe("PageContentReader", () => {
+describe('PageContentReader', () => {
   const reader = new PageContentReader()
 
-  it("returns [] for null/undefined/non-doc", () => {
+  it('returns [] for null/undefined/non-doc', () => {
     expect(reader.blocksFromDoc(null as unknown as TiptapNode)).toEqual([])
-    expect(reader.blocksFromDoc({ type: "paragraph" })).toEqual([])
+    expect(reader.blocksFromDoc({ type: 'paragraph' })).toEqual([])
   })
 
-  it("collects text from a single paragraph", () => {
+  it('collects text from a single paragraph', () => {
     const doc: TiptapNode = {
-      type: "doc",
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hello' }] }],
+    }
+    expect(reader.blocksFromDoc(doc)).toEqual([{ blockNumber: 0, content: 'Hello' }])
+  })
+
+  it('preserves blockNumber even when some blocks are skipped', () => {
+    const doc: TiptapNode = {
+      type: 'doc',
       content: [
-        { type: "paragraph", content: [{ type: "text", text: "Hello" }] },
+        { type: 'heading', content: [{ type: 'text', text: 'Title' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'A' }] },
+        { type: 'image', attrs: {} },
+        { type: 'paragraph', content: [{ type: 'text', text: 'B' }] },
       ],
     }
     expect(reader.blocksFromDoc(doc)).toEqual([
-      { blockNumber: 0, content: "Hello" },
+      { blockNumber: 1, content: 'A' },
+      { blockNumber: 3, content: 'B' },
     ])
   })
 
-  it("preserves blockNumber even when some blocks are skipped", () => {
+  it('skips empty blocks', () => {
     const doc: TiptapNode = {
-      type: "doc",
+      type: 'doc',
       content: [
-        { type: "heading", content: [{ type: "text", text: "Title" }] },
-        { type: "paragraph", content: [{ type: "text", text: "A" }] },
-        { type: "image", attrs: {} },
-        { type: "paragraph", content: [{ type: "text", text: "B" }] },
+        { type: 'paragraph', content: [] },
+        { type: 'paragraph', content: [{ type: 'text', text: '   ' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'hit' }] },
       ],
     }
-    expect(reader.blocksFromDoc(doc)).toEqual([
-      { blockNumber: 1, content: "A" },
-      { blockNumber: 3, content: "B" },
-    ])
+    expect(reader.blocksFromDoc(doc)).toEqual([{ blockNumber: 2, content: 'hit' }])
   })
 
-  it("skips empty blocks", () => {
+  it('recursively collects text from callout, skipping nested image/heading', () => {
     const doc: TiptapNode = {
-      type: "doc",
-      content: [
-        { type: "paragraph", content: [] },
-        { type: "paragraph", content: [{ type: "text", text: "   " }] },
-        { type: "paragraph", content: [{ type: "text", text: "hit" }] },
-      ],
-    }
-    expect(reader.blocksFromDoc(doc)).toEqual([
-      { blockNumber: 2, content: "hit" },
-    ])
-  })
-
-  it("recursively collects text from callout, skipping nested image/heading", () => {
-    const doc: TiptapNode = {
-      type: "doc",
+      type: 'doc',
       content: [
         {
-          type: "callout",
+          type: 'callout',
           content: [
-            { type: "paragraph", content: [{ type: "text", text: "keep" }] },
-            { type: "image", attrs: {} },
-            { type: "heading", content: [{ type: "text", text: "drop" }] },
-            { type: "paragraph", content: [{ type: "text", text: "also keep" }] },
+            { type: 'paragraph', content: [{ type: 'text', text: 'keep' }] },
+            { type: 'image', attrs: {} },
+            { type: 'heading', content: [{ type: 'text', text: 'drop' }] },
+            { type: 'paragraph', content: [{ type: 'text', text: 'also keep' }] },
           ],
         },
       ],
     }
-    expect(reader.blocksFromDoc(doc)).toEqual([
-      { blockNumber: 0, content: "keep  also keep" },
-    ])
+    expect(reader.blocksFromDoc(doc)).toEqual([{ blockNumber: 0, content: 'keep  also keep' }])
   })
 
-  it("joins inline text nodes with space", () => {
+  it('joins inline text nodes with space', () => {
     const doc: TiptapNode = {
-      type: "doc",
+      type: 'doc',
       content: [
         {
-          type: "paragraph",
+          type: 'paragraph',
           content: [
-            { type: "text", text: "foo" },
-            { type: "text", text: "bar" },
+            { type: 'text', text: 'foo' },
+            { type: 'text', text: 'bar' },
           ],
         },
       ],
     }
-    expect(reader.blocksFromDoc(doc)).toEqual([
-      { blockNumber: 0, content: "foo bar" },
-    ])
+    expect(reader.blocksFromDoc(doc)).toEqual([{ blockNumber: 0, content: 'foo bar' }])
   })
 })
 ```
@@ -2977,7 +3025,7 @@ Expected: FAIL — module missing.
 Create `apps/engines/src/apps/indexer/services/page-content-reader.service.ts`:
 
 ```ts
-import { Injectable } from "@nestjs/common"
+import { Injectable } from '@nestjs/common'
 
 export type TiptapNode = {
   type: string
@@ -2986,12 +3034,14 @@ export type TiptapNode = {
   [k: string]: unknown
 }
 
-const SKIP = new Set(["heading", "hiddenText", "image", "fileAttachment"])
+const SKIP = new Set(['heading', 'hiddenText', 'image', 'fileAttachment'])
 
 @Injectable()
 export class PageContentReader {
-  blocksFromDoc(doc: TiptapNode | null | undefined): Array<{ blockNumber: number; content: string }> {
-    if (!doc || doc.type !== "doc" || !Array.isArray(doc.content)) return []
+  blocksFromDoc(
+    doc: TiptapNode | null | undefined,
+  ): Array<{ blockNumber: number; content: string }> {
+    if (!doc || doc.type !== 'doc' || !Array.isArray(doc.content)) return []
     const out: Array<{ blockNumber: number; content: string }> = []
     doc.content.forEach((node, idx) => {
       if (SKIP.has(node.type)) return
@@ -3004,10 +3054,10 @@ export class PageContentReader {
 }
 
 function collectText(node: TiptapNode): string {
-  if (SKIP.has(node.type)) return ""
-  if (node.type === "text") return node.text ?? ""
-  if (!Array.isArray(node.content)) return ""
-  return node.content.map(collectText).join(" ")
+  if (SKIP.has(node.type)) return ''
+  if (node.type === 'text') return node.text ?? ''
+  if (!Array.isArray(node.content)) return ''
+  return node.content.map(collectText).join(' ')
 }
 ```
 
@@ -3031,6 +3081,7 @@ git commit -m "feat(engines): add PageContentReader (block-level text extraction
 ### Task 34: AgentsClient (HTTP to agents /vectorization)
 
 **Files:**
+
 - Create: `apps/engines/src/apps/indexer/services/agents-client.service.ts`
 - Create: `apps/engines/src/apps/indexer/services/agents-client.service.spec.ts`
 
@@ -3039,37 +3090,49 @@ git commit -m "feat(engines): add PageContentReader (block-level text extraction
 Create `apps/engines/src/apps/indexer/services/agents-client.service.spec.ts`:
 
 ```ts
-import { describe, expect, it, jest, beforeEach, afterEach } from "@jest/globals"
+import { describe, expect, it, jest, beforeEach, afterEach } from '@jest/globals'
 
-import { AgentsClient } from "./agents-client.service.js"
+import { AgentsClient } from './agents-client.service.js'
 
-describe("AgentsClient", () => {
+describe('AgentsClient', () => {
   const originalFetch = globalThis.fetch
   beforeEach(() => {
-    process.env.AGENTS_SERVICE_URL = "http://agents:8080"
+    process.env.AGENTS_SERVICE_URL = 'http://agents:8080'
   })
   afterEach(() => {
     globalThis.fetch = originalFetch
   })
 
-  it("POSTs payload to /vectorization and resolves on 2xx", async () => {
-    const mockFetch = jest.fn(async () => new Response("{}", { status: 200 }))
+  it('POSTs payload to /vectorization and resolves on 2xx', async () => {
+    const mockFetch = jest.fn(async () => new Response('{}', { status: 200 }))
     globalThis.fetch = mockFetch as unknown as typeof fetch
     const client = new AgentsClient()
     await client.vectorize({
-      pageId: "p", workspaceId: "w", title: "", pageType: "TEXT", contents: [],
+      pageId: 'p',
+      workspaceId: 'w',
+      title: '',
+      pageType: 'TEXT',
+      contents: [],
     })
     expect(mockFetch).toHaveBeenCalledTimes(1)
     const [url, init] = mockFetch.mock.calls[0] as unknown as [string, RequestInit]
-    expect(url).toBe("http://agents:8080/vectorization")
-    expect(init.method).toBe("POST")
+    expect(url).toBe('http://agents:8080/vectorization')
+    expect(init.method).toBe('POST')
   })
 
-  it("throws on 5xx with readable message", async () => {
-    globalThis.fetch = jest.fn(async () => new Response("boom", { status: 500 })) as unknown as typeof fetch
+  it('throws on 5xx with readable message', async () => {
+    globalThis.fetch = jest.fn(
+      async () => new Response('boom', { status: 500 }),
+    ) as unknown as typeof fetch
     const client = new AgentsClient()
     await expect(
-      client.vectorize({ pageId: "p", workspaceId: "w", title: "", pageType: "TEXT", contents: [] })
+      client.vectorize({
+        pageId: 'p',
+        workspaceId: 'w',
+        title: '',
+        pageType: 'TEXT',
+        contents: [],
+      }),
     ).rejects.toThrow(/500.*boom/)
   })
 })
@@ -3086,7 +3149,7 @@ cd apps/engines && pnpm test agents-client
 Create `apps/engines/src/apps/indexer/services/agents-client.service.ts`:
 
 ```ts
-import { Injectable } from "@nestjs/common"
+import { Injectable } from '@nestjs/common'
 
 export type VectorizationPayload = {
   pageId: string
@@ -3102,7 +3165,7 @@ export class AgentsClient {
   private readonly timeoutMs = 30_000
 
   constructor() {
-    this.baseUrl = process.env.AGENTS_SERVICE_URL ?? "http://localhost:8080"
+    this.baseUrl = process.env.AGENTS_SERVICE_URL ?? 'http://localhost:8080'
   }
 
   async vectorize(payload: VectorizationPayload): Promise<void> {
@@ -3110,8 +3173,8 @@ export class AgentsClient {
     const t = setTimeout(() => ctl.abort(), this.timeoutMs)
     try {
       const res = await fetch(`${this.baseUrl}/vectorization`, {
-        method: "POST",
-        headers: { "content-type": "application/json" },
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
         body: JSON.stringify(payload),
         signal: ctl.signal,
       })
@@ -3145,6 +3208,7 @@ git commit -m "feat(engines): add AgentsClient for /vectorization HTTP calls"
 ### Task 35: VectorizationCronService + new IndexerModule
 
 **Files:**
+
 - Create: `apps/engines/src/apps/indexer/cron/vectorization-cron.service.ts`
 - Create: `apps/engines/src/apps/indexer/cron/vectorization-cron.service.spec.ts`
 - Replace: `apps/engines/src/apps/indexer/indexer.module.ts`
@@ -3154,11 +3218,11 @@ git commit -m "feat(engines): add AgentsClient for /vectorization HTTP calls"
 Create `apps/engines/src/apps/indexer/cron/vectorization-cron.service.spec.ts`:
 
 ```ts
-import { describe, expect, it, jest } from "@jest/globals"
+import { describe, expect, it, jest } from '@jest/globals'
 
-import { AgentsClient } from "../services/agents-client.service.js"
-import { PageContentReader } from "../services/page-content-reader.service.js"
-import { VectorizationCronService } from "./vectorization-cron.service.js"
+import { AgentsClient } from '../services/agents-client.service.js'
+import { PageContentReader } from '../services/page-content-reader.service.js'
+import { VectorizationCronService } from './vectorization-cron.service.js'
 
 function makePrismaMock(opts: { rows: unknown[]; page: unknown }) {
   const executeRaw = jest.fn(async () => 1)
@@ -3175,8 +3239,8 @@ function makePrismaMock(opts: { rows: unknown[]; page: unknown }) {
   }
 }
 
-describe("VectorizationCronService", () => {
-  it("no-op when no rows", async () => {
+describe('VectorizationCronService', () => {
+  it('no-op when no rows', async () => {
     const prisma = makePrismaMock({ rows: [], page: null })
     const agents = { vectorize: jest.fn(async () => undefined) } as unknown as AgentsClient
     const reader = new PageContentReader()
@@ -3185,12 +3249,18 @@ describe("VectorizationCronService", () => {
     expect(agents.vectorize).not.toHaveBeenCalled()
   })
 
-  it("calls agents for TEXT page with blocks", async () => {
-    const rows = [{ id: BigInt(1), page_id: "p1", workspace_id: "w1" }]
+  it('calls agents for TEXT page with blocks', async () => {
+    const rows = [{ id: BigInt(1), page_id: 'p1', workspace_id: 'w1' }]
     const page = {
-      id: "p1", type: "TEXT", deletedAt: null, title: "T",
-      content: { type: "doc", content: [{ type: "paragraph", content: [{ type: "text", text: "hi" }] }] },
-      workspaceId: "w1",
+      id: 'p1',
+      type: 'TEXT',
+      deletedAt: null,
+      title: 'T',
+      content: {
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'hi' }] }],
+      },
+      workspaceId: 'w1',
     }
     const prisma = makePrismaMock({ rows, page })
     const vectorize = jest.fn(async () => undefined)
@@ -3203,17 +3273,28 @@ describe("VectorizationCronService", () => {
     expect(arg.contents).toHaveLength(1)
   })
 
-  it("calls agents with empty contents when page is deleted/non-TEXT", async () => {
-    const rows = [{ id: BigInt(2), page_id: "p2", workspace_id: "w2" }]
-    const page = { id: "p2", type: "TEXT", deletedAt: new Date(), title: "", content: null, workspaceId: "w2" }
+  it('calls agents with empty contents when page is deleted/non-TEXT', async () => {
+    const rows = [{ id: BigInt(2), page_id: 'p2', workspace_id: 'w2' }]
+    const page = {
+      id: 'p2',
+      type: 'TEXT',
+      deletedAt: new Date(),
+      title: '',
+      content: null,
+      workspaceId: 'w2',
+    }
     const prisma = makePrismaMock({ rows, page })
     const vectorize = jest.fn(async () => undefined)
     const agents = { vectorize } as unknown as AgentsClient
     const svc = new VectorizationCronService(prisma as never, new PageContentReader(), agents)
     await svc.tick()
-    expect(vectorize).toHaveBeenCalledWith(expect.objectContaining({
-      pageId: "p2", workspaceId: "w2", contents: [],
-    }))
+    expect(vectorize).toHaveBeenCalledWith(
+      expect.objectContaining({
+        pageId: 'p2',
+        workspaceId: 'w2',
+        contents: [],
+      }),
+    )
   })
 })
 ```
@@ -3229,16 +3310,16 @@ cd apps/engines && pnpm test vectorization-cron
 Create `apps/engines/src/apps/indexer/cron/vectorization-cron.service.ts`:
 
 ```ts
-import { randomUUID } from "node:crypto"
+import { randomUUID } from 'node:crypto'
 
-import { Inject, Injectable, Logger, OnModuleInit } from "@nestjs/common"
-import { Cron } from "@nestjs/schedule"
-import type { PrismaClient } from "@repo/db"
-import { Prisma } from "@repo/db"
+import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
+import { Cron } from '@nestjs/schedule'
+import type { PrismaClient } from '@repo/db'
+import { Prisma } from '@repo/db'
 
-import { PRISMA } from "../../../infra/db/db.providers.js"
-import { AgentsClient } from "../services/agents-client.service.js"
-import { PageContentReader, type TiptapNode } from "../services/page-content-reader.service.js"
+import { PRISMA } from '../../../infra/db/db.providers.js'
+import { AgentsClient } from '../services/agents-client.service.js'
+import { PageContentReader, type TiptapNode } from '../services/page-content-reader.service.js'
 
 type Row = { id: bigint; page_id: string; workspace_id: string }
 
@@ -3260,12 +3341,10 @@ export class VectorizationCronService implements OnModuleInit {
   }
 
   onModuleInit(): void {
-    this.log.log(
-      `VectorizationCron ready; worker=${this.workerId} batch=${this.batch}`,
-    )
+    this.log.log(`VectorizationCron ready; worker=${this.workerId} batch=${this.batch}`)
   }
 
-  @Cron(process.env.INDEXER_CRON_EXPRESSION ?? "*/30 * * * * *")
+  @Cron(process.env.INDEXER_CRON_EXPRESSION ?? '*/30 * * * * *')
   async tick(): Promise<void> {
     const rows = await this.claimBatch()
     if (rows.length === 0) return
@@ -3302,19 +3381,23 @@ export class VectorizationCronService implements OnModuleInit {
         const page = await this.prisma.page.findUnique({
           where: { id: row.page_id },
           select: {
-            id: true, type: true, deletedAt: true, title: true,
-            content: true, workspaceId: true,
+            id: true,
+            type: true,
+            deletedAt: true,
+            title: true,
+            content: true,
+            workspaceId: true,
           },
         })
-        const isEligible = page && !page.deletedAt && page.type === "TEXT"
+        const isEligible = page && !page.deletedAt && page.type === 'TEXT'
         const contents = isEligible
           ? this.reader.blocksFromDoc(page.content as TiptapNode | null)
           : []
         await this.agents.vectorize({
           pageId: row.page_id,
           workspaceId: row.workspace_id,
-          title: page?.title ?? "",
-          pageType: "TEXT",
+          title: page?.title ?? '',
+          pageType: 'TEXT',
           contents,
         })
         await this.markDone(row.id)
@@ -3356,11 +3439,11 @@ export class VectorizationCronService implements OnModuleInit {
 Replace `apps/engines/src/apps/indexer/indexer.module.ts`:
 
 ```ts
-import { Module } from "@nestjs/common"
+import { Module } from '@nestjs/common'
 
-import { VectorizationCronService } from "./cron/vectorization-cron.service.js"
-import { AgentsClient } from "./services/agents-client.service.js"
-import { PageContentReader } from "./services/page-content-reader.service.js"
+import { VectorizationCronService } from './cron/vectorization-cron.service.js'
+import { AgentsClient } from './services/agents-client.service.js'
+import { PageContentReader } from './services/page-content-reader.service.js'
 
 @Module({
   providers: [VectorizationCronService, AgentsClient, PageContentReader],
@@ -3388,6 +3471,7 @@ git commit -m "feat(engines): new VectorizationCronService + lean IndexerModule"
 ### Task 36: Update AppModule — remove SearchModule / BullMQ / Qdrant / Ollama
 
 **Files:**
+
 - Modify: `apps/engines/src/app.module.ts`
 
 - [ ] **Step 1: Replace AppModule**
@@ -3395,14 +3479,14 @@ git commit -m "feat(engines): new VectorizationCronService + lean IndexerModule"
 Replace `apps/engines/src/app.module.ts`:
 
 ```ts
-import { Module } from "@nestjs/common"
-import { ConfigModule } from "@nestjs/config"
-import { ScheduleModule } from "@nestjs/schedule"
+import { Module } from '@nestjs/common'
+import { ConfigModule } from '@nestjs/config'
+import { ScheduleModule } from '@nestjs/schedule'
 
-import { IndexerModule } from "./apps/indexer/indexer.module.js"
-import { McpModule } from "./apps/mcp/mcp.module.js"
-import { HealthModule } from "./health/health.module.js"
-import { DbModule } from "./infra/db/db.module.js"
+import { IndexerModule } from './apps/indexer/indexer.module.js'
+import { McpModule } from './apps/mcp/mcp.module.js'
+import { HealthModule } from './health/health.module.js'
+import { DbModule } from './infra/db/db.module.js'
 
 @Module({
   imports: [
@@ -3463,6 +3547,7 @@ Expected: clean.
 ### Task 37: Delete rag-search.ts + tests
 
 **Files (delete):**
+
 - `apps/web/src/lib/chat/rag-search.ts`
 - `apps/web/src/lib/chat/rag-search.test.ts` (if exists)
 
@@ -3484,6 +3569,7 @@ git commit -m "refactor(web): remove rag-search.ts (agents does retrieval intern
 ### Task 38: Remove `rag` from agents-payload + generate route
 
 **Files:**
+
 - Modify: `apps/web/src/lib/chat/agents-payload.ts`
 - Modify: `apps/web/src/app/api/agents/generate/route.ts`
 - Modify: `apps/web/src/lib/chat/agents-payload.test.ts` (if exists)
@@ -3547,6 +3633,7 @@ Expected: green everywhere.
 ### Task 39: wait-until helper
 
 **Files:**
+
 - Create: `apps/e2e/helpers/wait-until.ts` (if absent)
 
 - [ ] **Step 1: Check if already exists**
@@ -3566,7 +3653,7 @@ export async function waitUntil(
   fn: () => Promise<boolean>,
   opts: { timeout: number; pollMs?: number; label?: string } = { timeout: 30_000 },
 ): Promise<void> {
-  const { timeout, pollMs = 500, label = "condition" } = opts
+  const { timeout, pollMs = 500, label = 'condition' } = opts
   const start = Date.now()
   let lastErr: unknown
   while (Date.now() - start < timeout) {
@@ -3578,7 +3665,7 @@ export async function waitUntil(
     await new Promise((r) => setTimeout(r, pollMs))
   }
   throw new Error(
-    `waitUntil timeout (${timeout}ms) for ${label}${lastErr ? ": " + String(lastErr) : ""}`,
+    `waitUntil timeout (${timeout}ms) for ${label}${lastErr ? ': ' + String(lastErr) : ''}`,
   )
 }
 ```
@@ -3595,6 +3682,7 @@ git commit -m "test(e2e): add waitUntil polling helper"
 ### Task 40: qdrant-helpers — scroll by pageId + blockNumber
 
 **Files:**
+
 - Create: `apps/e2e/helpers/qdrant-helpers.ts`
 
 - [ ] **Step 1: Create helper**
@@ -3607,15 +3695,15 @@ export async function qdrantHasPointForBlock(
   blockNumber: number,
   opts: { baseUrl?: string } = {},
 ): Promise<boolean> {
-  const baseUrl = opts.baseUrl ?? "http://localhost:6333"
+  const baseUrl = opts.baseUrl ?? 'http://localhost:6333'
   const res = await fetch(`${baseUrl}/collections/pages/points/scroll`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
     body: JSON.stringify({
       filter: {
         must: [
-          { key: "pageId", match: { value: pageId } },
-          { key: "blockNumber", match: { value: blockNumber } },
+          { key: 'pageId', match: { value: pageId } },
+          { key: 'blockNumber', match: { value: blockNumber } },
         ],
       },
       limit: 1,
@@ -3665,6 +3753,7 @@ No new code in this task — it's a knowledge-gathering step so Task 42 can be w
 ### Task 42: Rewrite rag.spec.ts → rag-block-links.spec.ts
 
 **Files:**
+
 - Delete: `apps/e2e/rag.spec.ts`
 - Create: `apps/e2e/rag-block-links.spec.ts`
 
@@ -3687,12 +3776,12 @@ rm apps/e2e/rag.spec.ts
 Create `apps/e2e/rag-block-links.spec.ts`:
 
 ```ts
-import { expect, test } from "@playwright/test"
-import { readFileSync } from "node:fs"
-import { join } from "node:path"
+import { expect, test } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
-import { qdrantHasPointForBlock } from "./helpers/qdrant-helpers"
-import { waitUntil } from "./helpers/wait-until"
+import { qdrantHasPointForBlock } from './helpers/qdrant-helpers'
+import { waitUntil } from './helpers/wait-until'
 
 let RoleType: { OWNER: string }
 let prisma: {
@@ -3729,21 +3818,23 @@ let prisma: {
   }
 }
 
-test.use({ locale: "en-US", timezoneId: "America/New_York" })
+test.use({ locale: 'en-US', timezoneId: 'America/New_York' })
 test.setTimeout(180_000)
 
 test.beforeAll(async () => {
   if (!process.env.DATABASE_URL) {
-    const envPath = join(process.cwd(), ".env")
-    const envFile = readFileSync(envPath, "utf8")
+    const envPath = join(process.cwd(), '.env')
+    const envFile = readFileSync(envPath, 'utf8')
     const databaseUrl = envFile
-      .split("\n").map((l) => l.trim())
-      .find((l) => l.startsWith("DATABASE_URL="))
-      ?.slice("DATABASE_URL=".length).replace(/^"|"$/g, "")
-    if (!databaseUrl) throw new Error("DATABASE_URL not configured in .env")
+      .split('\n')
+      .map((l) => l.trim())
+      .find((l) => l.startsWith('DATABASE_URL='))
+      ?.slice('DATABASE_URL='.length)
+      .replace(/^"|"$/g, '')
+    if (!databaseUrl) throw new Error('DATABASE_URL not configured in .env')
     process.env.DATABASE_URL = databaseUrl
   }
-  const db = await import("../../packages/db/src/index")
+  const db = await import('../../packages/db/src/index')
   RoleType = db.RoleType
   prisma = db.prisma
 })
@@ -3752,30 +3843,40 @@ test.afterAll(async () => {
   if (prisma) await prisma.$disconnect()
 })
 
-const password = "SuperSecure123!"
-const MARKER = "Бразильский Медведь"
-const QUERY = "Как называется наш корпоративный кофе?"
+const password = 'SuperSecure123!'
+const MARKER = 'Бразильский Медведь'
+const QUERY = 'Как называется наш корпоративный кофе?'
 
-test("assistant cites page with block-anchor link", async ({ page: browser }) => {
+test('assistant cites page with block-anchor link', async ({ page: browser }) => {
   const email = `rag-anchor+${Date.now()}@example.com`
 
   // --- Register via UI (better-auth hashes credentials) ---
-  await browser.goto("/sign-up")
-  await browser.getByRole("textbox", { name: "Email" }).fill(email)
-  await browser.getByRole("textbox", { name: "Фамилия" }).fill("Тестов")
-  await browser.getByRole("textbox", { name: "Имя" }).fill("РАГ")
-  await browser.getByRole("textbox", { name: /^пароль$/i }).fill(password)
-  await browser.getByRole("textbox", { name: "Повторите пароль" }).fill(password)
-  await browser.getByRole("button", { name: "Зарегистрироваться" }).click()
+  await browser.goto('/sign-up')
+  await browser.getByRole('textbox', { name: 'Email' }).fill(email)
+  await browser.getByRole('textbox', { name: 'Фамилия' }).fill('Тестов')
+  await browser.getByRole('textbox', { name: 'Имя' }).fill('РАГ')
+  await browser.getByRole('textbox', { name: /^пароль$/i }).fill(password)
+  await browser.getByRole('textbox', { name: 'Повторите пароль' }).fill(password)
+  await browser.getByRole('button', { name: 'Зарегистрироваться' }).click()
   await browser.waitForURL(/\/workspaces\/new/)
 
   // --- Wait for user row to exist, then seed workspace + page via Prisma ---
-  await expect.poll(async () => prisma.user.findUniqueOrThrow({
-    where: { email }, select: { id: true },
-  }).catch(() => null), { timeout: 10_000, intervals: [200, 500, 1000] }).toBeTruthy()
+  await expect
+    .poll(
+      async () =>
+        prisma.user
+          .findUniqueOrThrow({
+            where: { email },
+            select: { id: true },
+          })
+          .catch(() => null),
+      { timeout: 10_000, intervals: [200, 500, 1000] },
+    )
+    .toBeTruthy()
 
   const user = await prisma.user.findUniqueOrThrow({
-    where: { email }, select: { id: true },
+    where: { email },
+    select: { id: true },
   })
 
   const workspace = await prisma.workspace.create({
@@ -3786,15 +3887,18 @@ test("assistant cites page with block-anchor link", async ({ page: browser }) =>
     data: { workspaceId: workspace.id, userId: user.id, role: RoleType.OWNER },
   })
 
-  const provider = await prisma.aiProvider.findFirst({ where: { slug: "gigachat" } })
-  const model = await prisma.aiModel.findFirst({ where: { slug: "GigaChat-2" } })
+  const provider = await prisma.aiProvider.findFirst({ where: { slug: 'gigachat' } })
+  const model = await prisma.aiModel.findFirst({ where: { slug: 'GigaChat-2' } })
   if (!provider || !model) {
-    throw new Error("GigaChat provider/model not seeded; run `pnpm --filter @repo/db prisma:seed`")
+    throw new Error('GigaChat provider/model not seeded; run `pnpm --filter @repo/db prisma:seed`')
   }
   await prisma.workspaceAiSettings.create({
     data: {
-      workspaceId: workspace.id, defaultModelId: model.id,
-      temperature: 0.3, topP: 0.9, systemPrompt: null,
+      workspaceId: workspace.id,
+      defaultModelId: model.id,
+      temperature: 0.3,
+      topP: 0.9,
+      systemPrompt: null,
     },
   })
 
@@ -3802,16 +3906,22 @@ test("assistant cites page with block-anchor link", async ({ page: browser }) =>
   const pageRow = await prisma.page.create({
     data: {
       workspaceId: workspace.id,
-      title: "Корпоративные напитки",
+      title: 'Корпоративные напитки',
       content: {
-        type: "doc",
+        type: 'doc',
         content: [
-          { type: "paragraph", content: [{ type: "text", text: "Документ о напитках в офисе." }] },
-          { type: "heading",   content: [{ type: "text", text: "Кофе" }] },
-          { type: "paragraph", content: [{ type: "text", text: `Корпоративный кофе нашей компании называется "${MARKER}".` }] },
+          { type: 'paragraph', content: [{ type: 'text', text: 'Документ о напитках в офисе.' }] },
+          { type: 'heading', content: [{ type: 'text', text: 'Кофе' }] },
+          {
+            type: 'paragraph',
+            content: [
+              { type: 'text', text: `Корпоративный кофе нашей компании называется "${MARKER}".` },
+            ],
+          },
         ],
       },
-      createdById: user.id, updatedById: user.id,
+      createdById: user.id,
+      updatedById: user.id,
     },
     select: { id: true },
   })
@@ -3819,20 +3929,26 @@ test("assistant cites page with block-anchor link", async ({ page: browser }) =>
   // --- Bypass 5-min quiet-period for E2E: next_attempt_at = now() ---
   await prisma.outboxEvent.create({
     data: {
-      eventType: "page.upserted", aggregateType: "page",
-      aggregateId: pageRow.id, workspaceId: workspace.id, payload: {},
+      eventType: 'page.upserted',
+      aggregateType: 'page',
+      aggregateId: pageRow.id,
+      workspaceId: workspace.id,
+      payload: {},
       // next_attempt_at defaults to now() in Prisma schema → picked up immediately
     },
   })
 
   // --- Wait for engines cron → agents vectorization → outbox DONE ---
-  await waitUntil(async () => {
-    const row = await prisma.outboxEvent.findFirst({
-      where: { aggregateId: pageRow.id, eventType: "page.upserted" },
-      orderBy: { createdAt: "desc" },
-    })
-    return row?.status === "DONE"
-  }, { timeout: 90_000, pollMs: 1000, label: "outbox page.upserted → DONE" })
+  await waitUntil(
+    async () => {
+      const row = await prisma.outboxEvent.findFirst({
+        where: { aggregateId: pageRow.id, eventType: 'page.upserted' },
+        orderBy: { createdAt: 'desc' },
+      })
+      return row?.status === 'DONE'
+    },
+    { timeout: 90_000, pollMs: 1000, label: 'outbox page.upserted → DONE' },
+  )
 
   // --- Verify Qdrant has a point for block #2 (where MARKER lives) ---
   expect(await qdrantHasPointForBlock(pageRow.id, 2)).toBe(true)
@@ -3844,23 +3960,25 @@ test("assistant cites page with block-anchor link", async ({ page: browser }) =>
   })
 
   await browser.goto(`/workspaces/${workspace.id}/chats/${chat.id}`)
-  const composer = browser.getByTestId("chat-composer-textarea")
+  const composer = browser.getByTestId('chat-composer-textarea')
   await expect(composer).toBeVisible()
   await composer.fill(QUERY)
-  await browser.getByRole("button", { name: "Send" }).click()
+  await browser.getByRole('button', { name: 'Send' }).click()
 
   // --- Poll until the marker appears in any assistant article ---
-  await expect.poll(
-    async () =>
-      browser.locator('[role="article"]').allInnerTexts()
-        .then((chunks) => chunks.join("\n")),
-    { timeout: 120_000, intervals: [1000, 2000] },
-  ).toContain(MARKER)
+  await expect
+    .poll(
+      async () =>
+        browser
+          .locator('[role="article"]')
+          .allInnerTexts()
+          .then((chunks) => chunks.join('\n')),
+      { timeout: 120_000, intervals: [1000, 2000] },
+    )
+    .toContain(MARKER)
 
   // --- Assert the block-anchor link exists in the DOM ---
-  const anchor = browser.locator(
-    `a[href="/workspaces/${workspace.id}/pages/${pageRow.id}#2"]`,
-  )
+  const anchor = browser.locator(`a[href="/workspaces/${workspace.id}/pages/${pageRow.id}#2"]`)
   await expect(anchor).toBeVisible({ timeout: 10_000 })
 
   // --- Cleanup ---
@@ -3889,6 +4007,7 @@ git commit -m "test(e2e): rag-block-links replaces rag.spec — asserts block-an
 ### Task 43: Backfill CLI for engines
 
 **Files:**
+
 - Create: `apps/engines/src/cli/backfill-reindex.ts`
 - Modify: `apps/engines/package.json`
 
@@ -3897,16 +4016,16 @@ git commit -m "test(e2e): rag-block-links replaces rag.spec — asserts block-an
 Create `apps/engines/src/cli/backfill-reindex.ts`:
 
 ```ts
-import "reflect-metadata"
-import "dotenv/config"
+import 'reflect-metadata'
+import 'dotenv/config'
 
-import { PrismaClient, Prisma } from "@repo/db"
+import { PrismaClient, Prisma } from '@repo/db'
 
 async function main() {
   const prisma = new PrismaClient()
   try {
     const pages = await prisma.page.findMany({
-      where: { type: "TEXT", deletedAt: null },
+      where: { type: 'TEXT', deletedAt: null },
       select: { id: true, workspaceId: true },
     })
     let inserted = 0
@@ -3969,13 +4088,14 @@ git commit -m "feat(engines): add backfill:reindex CLI"
 ### Task 44: README pre-flight for RAG + backfill instructions
 
 **Files:**
+
 - Modify: `README.md` (repo root) or `docs/rag-setup.md` if README is already congested
 
 - [ ] **Step 1: Add RAG setup section to README**
 
 Append to `README.md` (or create `docs/rag-setup.md` and link from README):
 
-```markdown
+````markdown
 ## RAG / vectorization setup
 
 Vectorization runs as a cron in `apps/engines` that calls `POST /vectorization`
@@ -3997,6 +4117,7 @@ every TEXT page into the outbox so it gets indexed:
 ```bash
 pnpm --filter engines backfill:reindex
 ```
+````
 
 The cron picks up events every 30 seconds in batches of 10 — a workspace with
 1000 pages takes ~50 minutes. For faster backfill, temporarily bump cadence and
@@ -4021,14 +4142,15 @@ curl -X DELETE http://localhost:6333/collections/pages
 ```
 
 `apps/agents` will recreate it on next startup.
-```
+
+````
 
 - [ ] **Step 2: Commit**
 
 ```bash
 git add README.md
 git commit -m "docs: RAG pre-flight + backfill + rollback instructions"
-```
+````
 
 ---
 
@@ -4049,6 +4171,7 @@ Expected: green.
 ### Task 45: Update root .env.example + turbo.json globalEnv
 
 **Files:**
+
 - Modify: `.env.example` (repo root, create if absent)
 - Modify: `turbo.json`
 
@@ -4057,6 +4180,7 @@ Expected: green.
 Edit `.env.example` (or the equivalent in the repo):
 
 Remove these lines (if present):
+
 ```
 QDRANT_URL=...
 QDRANT_API_KEY=...
@@ -4073,6 +4197,7 @@ INDEXER_QUIET_PERIOD_MINUTES=...
 ```
 
 Add:
+
 ```
 # --- Qdrant (agents service) ---
 QDRANT__HOST=localhost
@@ -4098,6 +4223,7 @@ Keep existing `AGENTS_SERVICE_URL`, `DATABASE_URL`, `BETTER_AUTH_*`, `S3_*`, `NE
 - [ ] **Step 2: Update turbo.json globalEnv**
 
 Edit `turbo.json` `globalEnv` array:
+
 - Remove the old keys (see list above).
 - Add the new `QDRANT__*` and `OLLAMA__*` keys, plus `INDEXER_BATCH` if missing.
 
@@ -4121,6 +4247,7 @@ git commit -m "chore: sync env.example + turbo globalEnv with new qdrant/ollama 
 ### Task 46: Remove Redis from compose if unused + final doc tidy
 
 **Files:**
+
 - Modify: `compose.yml` (only if Redis is truly unused)
 - Modify: `CLAUDE.md` if outdated
 

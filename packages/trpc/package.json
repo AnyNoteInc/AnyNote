@@ -27,6 +27,7 @@
     "@hocuspocus/transformer": "^3.4.4",
     "@repo/auth": "workspace:*",
     "@repo/db": "workspace:*",
+    "@repo/yookassa": "workspace:*",
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@tiptap/core": "^3.22.3",

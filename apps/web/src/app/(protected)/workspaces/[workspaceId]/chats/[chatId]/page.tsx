@@ -1,21 +1,21 @@
-import { notFound } from "next/navigation"
-import { TRPCError } from "@trpc/server"
+import { notFound } from 'next/navigation'
+import { TRPCError } from '@trpc/server'
 
-import { getServerTRPC } from "@/trpc/server"
-import { WorkspaceChatClient } from "@/components/workspace/chat/workspace-chat-client"
+import { getServerTRPC } from '@/trpc/server'
+import { WorkspaceChatClient } from '@/components/workspace/chat/workspace-chat-client'
 
 type Props = { params: Promise<{ workspaceId: string; chatId: string }> }
 
 function isNotFoundTrpcError(error: unknown): boolean {
   if (error instanceof TRPCError) {
-    return error.code === "NOT_FOUND"
+    return error.code === 'NOT_FOUND'
   }
 
   return (
-    typeof error === "object" &&
+    typeof error === 'object' &&
     error !== null &&
-    "code" in error &&
-    (error as { code?: unknown }).code === "NOT_FOUND"
+    'code' in error &&
+    (error as { code?: unknown }).code === 'NOT_FOUND'
   )
 }
 

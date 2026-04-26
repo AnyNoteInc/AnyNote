@@ -1,6 +1,6 @@
-import type { Prisma } from "@repo/db"
+import type { Prisma } from '@repo/db'
 
-import { buildWelcomePageContent } from "./welcome-page-content"
+import { buildWelcomePageContent } from './welcome-page-content'
 
 type Tx = Prisma.TransactionClient
 
@@ -15,8 +15,8 @@ export async function seedStartPage(
     data: {
       workspaceId,
       parentId: null,
-      title: "Добро пожаловать в AnyNote",
-      icon: "👋",
+      title: 'Добро пожаловать в AnyNote',
+      icon: '👋',
       content: content as Prisma.InputJsonValue,
       contentYjs,
       createdById: userId,

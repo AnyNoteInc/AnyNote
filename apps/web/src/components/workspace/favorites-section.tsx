@@ -1,8 +1,8 @@
-"use client"
+'use client'
 
-import { useState } from "react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { useState } from 'react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 import {
   ArrowDropDownIcon,
@@ -12,12 +12,12 @@ import {
   MoreHorizIcon,
   Stack,
   StarIcon,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
-import { PageContextMenu } from "./page-context-menu"
-import { MovePageDialog } from "./move-page-dialog"
-import type { PageItem } from "./types"
+import { trpc } from '@/trpc/client'
+import { PageContextMenu } from './page-context-menu'
+import { MovePageDialog } from './move-page-dialog'
+import type { PageItem } from './types'
 
 type Props = {
   workspaceId: string
@@ -67,14 +67,14 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
       <Box
         onClick={() => setOpen((prev) => !prev)}
         sx={{
-          display: "flex",
-          alignItems: "center",
+          display: 'flex',
+          alignItems: 'center',
           gap: 1,
           px: 1,
           py: 0.75,
-          cursor: "pointer",
-          color: "text.secondary",
-          "&:hover": { color: "text.primary" },
+          cursor: 'pointer',
+          color: 'text.secondary',
+          '&:hover': { color: 'text.primary' },
         }}
       >
         <StarIcon sx={{ fontSize: 16 }} />
@@ -87,7 +87,7 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
       </Box>
 
       {open ? (
-        <Stack spacing={0.25} sx={{ maxHeight: 200, overflow: "auto" }}>
+        <Stack spacing={0.25} sx={{ maxHeight: 200, overflow: 'auto' }}>
           {favPages.map((fav) => {
             const page = allPages.find((p) => p.id === fav.id) ?? {
               ...fav,
@@ -168,25 +168,25 @@ function FavItem({
   return (
     <Box
       sx={{
-        display: "flex",
-        alignItems: "center",
+        display: 'flex',
+        alignItems: 'center',
         pr: 0.5,
         pl: indent ? 3 : 1,
         borderRadius: 0.75,
-        color: indent ? "text.disabled" : "text.secondary",
-        bgcolor: isActive ? "action.selected" : "transparent",
-        "&:hover": { bgcolor: isActive ? "action.selected" : "action.hover" },
-        "&:hover .fav-more": { visibility: "visible" },
+        color: indent ? 'text.disabled' : 'text.secondary',
+        bgcolor: isActive ? 'action.selected' : 'transparent',
+        '&:hover': { bgcolor: isActive ? 'action.selected' : 'action.hover' },
+        '&:hover .fav-more': { visibility: 'visible' },
         fontSize: 13,
       }}
     >
       <Link
         href={`/workspaces/${workspaceId}/pages/${page.id}`}
         style={{
-          textDecoration: "none",
-          color: "inherit",
-          display: "flex",
-          alignItems: "center",
+          textDecoration: 'none',
+          color: 'inherit',
+          display: 'flex',
+          alignItems: 'center',
           flex: 1,
           minWidth: 0,
           paddingTop: 4,
@@ -197,16 +197,16 @@ function FavItem({
           <span style={{ fontSize: 14, marginRight: 8, flexShrink: 0 }}>{page.icon}</span>
         ) : null}
         <span
-          style={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}
+          style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}
         >
-          {page.title ?? "Новая страница"}
+          {page.title ?? 'Новая страница'}
         </span>
       </Link>
       <IconButton
         size="small"
         className="fav-more"
         onClick={(e) => onOpenMenu(e, page)}
-        sx={{ visibility: "hidden", flexShrink: 0, p: 0.25 }}
+        sx={{ visibility: 'hidden', flexShrink: 0, p: 0.25 }}
       >
         <MoreHorizIcon sx={{ fontSize: 16 }} />
       </IconButton>

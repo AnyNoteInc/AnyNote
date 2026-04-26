@@ -1,6 +1,6 @@
-"use client"
+'use client'
 
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 
 import {
   Box,
@@ -13,10 +13,10 @@ import {
   TableHead,
   TableRow,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { parseUserAgent } from "@/lib/parse-user-agent"
-import { trpc } from "@/trpc/client"
+import { parseUserAgent } from '@/lib/parse-user-agent'
+import { trpc } from '@/trpc/client'
 
 type Props = {
   currentSessionId: string
@@ -25,7 +25,7 @@ type Props = {
 function formatRelative(date: Date): string {
   const diff = Date.now() - date.getTime()
   const minutes = Math.floor(diff / 60000)
-  if (minutes < 1) return "только что"
+  if (minutes < 1) return 'только что'
   if (minutes < 60) return `${minutes} мин назад`
   const hours = Math.floor(minutes / 60)
   if (hours < 24) return `${hours} ч назад`
@@ -48,7 +48,7 @@ export function SessionsTable({ currentSessionId }: Props) {
     return <Typography color="text.secondary">Нет активных сессий</Typography>
 
   return (
-    <Box sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, overflow: "hidden" }}>
+    <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, overflow: 'hidden' }}>
       <Table size="small">
         <TableHead>
           <TableRow>
@@ -72,7 +72,7 @@ export function SessionsTable({ currentSessionId }: Props) {
                     {isCurrent && <Chip size="small" label="Эта сессия" color="primary" />}
                   </Stack>
                 </TableCell>
-                <TableCell>{session.ipAddress ?? "—"}</TableCell>
+                <TableCell>{session.ipAddress ?? '—'}</TableCell>
                 <TableCell>{formatRelative(new Date(session.updatedAt))}</TableCell>
                 <TableCell align="right">
                   {isCurrent ? null : (

@@ -1,4 +1,4 @@
-import type { SVGProps } from "react"
+import type { SVGProps } from 'react'
 
 type BrandMarkProps = SVGProps<SVGSVGElement> & {
   size?: number
@@ -12,7 +12,7 @@ export function BrandMark({ size = 40, style, ...props }: BrandMarkProps) {
       viewBox="0 0 64 64"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      style={{ display: "block", ...style }}
+      style={{ display: 'block', ...style }}
       {...props}
     >
       <rect x="2" y="2" width="60" height="60" rx="15" fill="#121416" />

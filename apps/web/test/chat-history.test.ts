@@ -1,25 +1,25 @@
-import { describe, expect, it, vi, beforeEach } from "vitest"
+import { describe, expect, it, vi, beforeEach } from 'vitest'
 
-import { buildChatHistoryMessages } from "../src/lib/chat/chat-history"
+import { buildChatHistoryMessages } from '../src/lib/chat/chat-history'
 
 type ChatRow = { id: string; parentId: string | null; workspaceId: string }
 type MessageRow = {
   id: string
-  role: "USER" | "ASSISTANT"
-  status: "STREAMING" | "DONE" | "ERROR"
+  role: 'USER' | 'ASSISTANT'
+  status: 'STREAMING' | 'DONE' | 'ERROR'
   parts: unknown
   createdAt: Date
 }
 
 function textPart(text: string) {
-  return { type: "text", text }
+  return { type: 'text', text }
 }
 
-function makeMessages(count: number, role: "USER" | "ASSISTANT" = "USER"): MessageRow[] {
+function makeMessages(count: number, role: 'USER' | 'ASSISTANT' = 'USER'): MessageRow[] {
   return Array.from({ length: count }, (_, index) => ({
     id: `msg-${index}`,
     role,
-    status: "DONE" as const,
+    status: 'DONE' as const,
     parts: [textPart(`m${index}`)],
     createdAt: new Date(2026, 3, 1, 0, index),
   }))
@@ -44,98 +44,98 @@ function createPrismaMock(args: {
   }
 }
 
-describe("buildChatHistoryMessages", () => {
+describe('buildChatHistoryMessages', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it("returns empty array when chat has no messages", async () => {
+  it('returns empty array when chat has no messages', async () => {
     const prisma = createPrismaMock({
-      chats: [{ id: "c1", parentId: null, workspaceId: "w" }],
+      chats: [{ id: 'c1', parentId: null, workspaceId: 'w' }],
       messagesByChat: { c1: [] },
     })
 
     const result = await buildChatHistoryMessages({
       prisma: prisma as never,
-      chatId: "c1",
-      workspaceId: "w",
+      chatId: 'c1',
+      workspaceId: 'w',
     })
 
     expect(result).toEqual([])
   })
 
-  it("returns the single message for a 1-message chat", async () => {
-    const messages = makeMessages(1, "USER")
+  it('returns the single message for a 1-message chat', async () => {
+    const messages = makeMessages(1, 'USER')
     const prisma = createPrismaMock({
-      chats: [{ id: "c1", parentId: null, workspaceId: "w" }],
+      chats: [{ id: 'c1', parentId: null, workspaceId: 'w' }],
       messagesByChat: { c1: messages },
     })
 
     const result = await buildChatHistoryMessages({
       prisma: prisma as never,
-      chatId: "c1",
-      workspaceId: "w",
+      chatId: 'c1',
+      workspaceId: 'w',
     })
 
-    expect(result).toEqual([{ role: "user", content: "m0" }])
+    expect(result).toEqual([{ role: 'user', content: 'm0' }])
   })
 
-  it("returns all messages when count <= 1 + lastN (no parent, count = 5)", async () => {
-    const messages = makeMessages(5, "USER")
+  it('returns all messages when count <= 1 + lastN (no parent, count = 5)', async () => {
+    const messages = makeMessages(5, 'USER')
     const prisma = createPrismaMock({
-      chats: [{ id: "c1", parentId: null, workspaceId: "w" }],
+      chats: [{ id: 'c1', parentId: null, workspaceId: 'w' }],
       messagesByChat: { c1: messages },
     })
 
     const result = await buildChatHistoryMessages({
       prisma: prisma as never,
-      chatId: "c1",
-      workspaceId: "w",
+      chatId: 'c1',
+      workspaceId: 'w',
     })
 
-    expect(result.map((m) => m.content)).toEqual(["m0", "m1", "m2", "m3", "m4"])
+    expect(result.map((m) => m.content)).toEqual(['m0', 'm1', 'm2', 'm3', 'm4'])
   })
 
-  it("returns first + last 10 with no overlap (no parent, count = 15)", async () => {
-    const messages = makeMessages(15, "USER")
+  it('returns first + last 10 with no overlap (no parent, count = 15)', async () => {
+    const messages = makeMessages(15, 'USER')
     const prisma = createPrismaMock({
-      chats: [{ id: "c1", parentId: null, workspaceId: "w" }],
+      chats: [{ id: 'c1', parentId: null, workspaceId: 'w' }],
       messagesByChat: { c1: messages },
     })
 
     const result = await buildChatHistoryMessages({
       prisma: prisma as never,
-      chatId: "c1",
-      workspaceId: "w",
+      chatId: 'c1',
+      workspaceId: 'w',
     })
 
     expect(result.map((m) => m.content)).toEqual([
-      "m0",
-      "m5",
-      "m6",
-      "m7",
-      "m8",
-      "m9",
-      "m10",
-      "m11",
-      "m12",
-      "m13",
-      "m14",
+      'm0',
+      'm5',
+      'm6',
+      'm7',
+      'm8',
+      'm9',
+      'm10',
+      'm11',
+      'm12',
+      'm13',
+      'm14',
     ])
   })
 
-  it("walks parent chain root → current with correct slicing per chat", async () => {
-    const root = makeMessages(8, "USER").map((m, i) => ({
+  it('walks parent chain root → current with correct slicing per chat', async () => {
+    const root = makeMessages(8, 'USER').map((m, i) => ({
       ...m,
       id: `root-${i}`,
       parts: [textPart(`root${i}`)],
     }))
-    const middle = makeMessages(8, "USER").map((m, i) => ({
+    const middle = makeMessages(8, 'USER').map((m, i) => ({
       ...m,
       id: `mid-${i}`,
       parts: [textPart(`mid${i}`)],
     }))
-    const current = makeMessages(15, "USER").map((m, i) => ({
+    const current = makeMessages(15, 'USER').map((m, i) => ({
       ...m,
       id: `cur-${i}`,
       parts: [textPart(`cur${i}`)],
@@ -143,184 +143,184 @@ describe("buildChatHistoryMessages", () => {
 
     const prisma = createPrismaMock({
       chats: [
-        { id: "root", parentId: null, workspaceId: "w" },
-        { id: "mid", parentId: "root", workspaceId: "w" },
-        { id: "cur", parentId: "mid", workspaceId: "w" },
+        { id: 'root', parentId: null, workspaceId: 'w' },
+        { id: 'mid', parentId: 'root', workspaceId: 'w' },
+        { id: 'cur', parentId: 'mid', workspaceId: 'w' },
       ],
       messagesByChat: { root, mid: middle, cur: current },
     })
 
     const result = await buildChatHistoryMessages({
       prisma: prisma as never,
-      chatId: "cur",
-      workspaceId: "w",
+      chatId: 'cur',
+      workspaceId: 'w',
     })
 
     // root: first + last 4 = root0, root4, root5, root6, root7
     // mid: first + last 4 = mid0, mid4, mid5, mid6, mid7
     // cur: first + last 10 = cur0, cur5, cur6, cur7, cur8, cur9, cur10, cur11, cur12, cur13, cur14
     expect(result.map((m) => m.content)).toEqual([
-      "root0",
-      "root4",
-      "root5",
-      "root6",
-      "root7",
-      "mid0",
-      "mid4",
-      "mid5",
-      "mid6",
-      "mid7",
-      "cur0",
-      "cur5",
-      "cur6",
-      "cur7",
-      "cur8",
-      "cur9",
-      "cur10",
-      "cur11",
-      "cur12",
-      "cur13",
-      "cur14",
+      'root0',
+      'root4',
+      'root5',
+      'root6',
+      'root7',
+      'mid0',
+      'mid4',
+      'mid5',
+      'mid6',
+      'mid7',
+      'cur0',
+      'cur5',
+      'cur6',
+      'cur7',
+      'cur8',
+      'cur9',
+      'cur10',
+      'cur11',
+      'cur12',
+      'cur13',
+      'cur14',
     ])
   })
 
-  it("maps role USER → user, ASSISTANT → assistant", async () => {
+  it('maps role USER → user, ASSISTANT → assistant', async () => {
     const messages: MessageRow[] = [
       {
-        id: "u",
-        role: "USER",
-        status: "DONE",
-        parts: [textPart("hi")],
+        id: 'u',
+        role: 'USER',
+        status: 'DONE',
+        parts: [textPart('hi')],
         createdAt: new Date(2026, 3, 1, 0, 0),
       },
       {
-        id: "a",
-        role: "ASSISTANT",
-        status: "DONE",
-        parts: [textPart("hello")],
+        id: 'a',
+        role: 'ASSISTANT',
+        status: 'DONE',
+        parts: [textPart('hello')],
         createdAt: new Date(2026, 3, 1, 0, 1),
       },
     ]
     const prisma = createPrismaMock({
-      chats: [{ id: "c", parentId: null, workspaceId: "w" }],
+      chats: [{ id: 'c', parentId: null, workspaceId: 'w' }],
       messagesByChat: { c: messages },
     })
 
     const result = await buildChatHistoryMessages({
       prisma: prisma as never,
-      chatId: "c",
-      workspaceId: "w",
+      chatId: 'c',
+      workspaceId: 'w',
     })
 
     expect(result).toEqual([
-      { role: "user", content: "hi" },
-      { role: "assistant", content: "hello" },
+      { role: 'user', content: 'hi' },
+      { role: 'assistant', content: 'hello' },
     ])
   })
 
-  it("skips messages with no extractable text", async () => {
+  it('skips messages with no extractable text', async () => {
     const messages: MessageRow[] = [
       {
-        id: "1",
-        role: "USER",
-        status: "DONE",
-        parts: [textPart("real")],
+        id: '1',
+        role: 'USER',
+        status: 'DONE',
+        parts: [textPart('real')],
         createdAt: new Date(2026, 3, 1, 0, 0),
       },
       {
-        id: "2",
-        role: "ASSISTANT",
-        status: "DONE",
-        parts: [{ type: "tool", id: "t1", kind: "tool", state: "done", title: "ran" }],
+        id: '2',
+        role: 'ASSISTANT',
+        status: 'DONE',
+        parts: [{ type: 'tool', id: 't1', kind: 'tool', state: 'done', title: 'ran' }],
         createdAt: new Date(2026, 3, 1, 0, 1),
       },
       {
-        id: "3",
-        role: "USER",
-        status: "DONE",
-        parts: [textPart("   ")],
+        id: '3',
+        role: 'USER',
+        status: 'DONE',
+        parts: [textPart('   ')],
         createdAt: new Date(2026, 3, 1, 0, 2),
       },
     ]
     const prisma = createPrismaMock({
-      chats: [{ id: "c", parentId: null, workspaceId: "w" }],
+      chats: [{ id: 'c', parentId: null, workspaceId: 'w' }],
       messagesByChat: { c: messages },
     })
 
     const result = await buildChatHistoryMessages({
       prisma: prisma as never,
-      chatId: "c",
-      workspaceId: "w",
+      chatId: 'c',
+      workspaceId: 'w',
     })
 
-    expect(result).toEqual([{ role: "user", content: "real" }])
+    expect(result).toEqual([{ role: 'user', content: 'real' }])
   })
 
-  it("only loads DONE messages from prisma (filters STREAMING / ERROR)", async () => {
+  it('only loads DONE messages from prisma (filters STREAMING / ERROR)', async () => {
     const prisma = createPrismaMock({
-      chats: [{ id: "c", parentId: null, workspaceId: "w" }],
+      chats: [{ id: 'c', parentId: null, workspaceId: 'w' }],
       messagesByChat: { c: [] },
     })
 
     await buildChatHistoryMessages({
       prisma: prisma as never,
-      chatId: "c",
-      workspaceId: "w",
+      chatId: 'c',
+      workspaceId: 'w',
     })
 
     expect(prisma.chatMessage.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ chatId: "c", status: "DONE" }),
+        where: expect.objectContaining({ chatId: 'c', status: 'DONE' }),
       }),
     )
   })
 
-  it("scopes ancestor lookups to the same workspaceId", async () => {
+  it('scopes ancestor lookups to the same workspaceId', async () => {
     const prisma = createPrismaMock({
       chats: [
-        { id: "root", parentId: null, workspaceId: "w" },
-        { id: "cur", parentId: "root", workspaceId: "w" },
+        { id: 'root', parentId: null, workspaceId: 'w' },
+        { id: 'cur', parentId: 'root', workspaceId: 'w' },
       ],
       messagesByChat: { root: [], cur: [] },
     })
 
     await buildChatHistoryMessages({
       prisma: prisma as never,
-      chatId: "cur",
-      workspaceId: "w",
+      chatId: 'cur',
+      workspaceId: 'w',
     })
 
     expect(prisma.chat.findFirst).toHaveBeenCalledWith({
-      where: { id: "root", workspaceId: "w" },
+      where: { id: 'root', workspaceId: 'w' },
       select: { id: true, parentId: true },
     })
   })
 
-  it("concatenates the last 10 messages including first when count = 11", async () => {
-    const messages = makeMessages(11, "USER")
+  it('concatenates the last 10 messages including first when count = 11', async () => {
+    const messages = makeMessages(11, 'USER')
     const prisma = createPrismaMock({
-      chats: [{ id: "c1", parentId: null, workspaceId: "w" }],
+      chats: [{ id: 'c1', parentId: null, workspaceId: 'w' }],
       messagesByChat: { c1: messages },
     })
 
     const result = await buildChatHistoryMessages({
       prisma: prisma as never,
-      chatId: "c1",
-      workspaceId: "w",
+      chatId: 'c1',
+      workspaceId: 'w',
     })
 
     expect(result.map((m) => m.content)).toEqual([
-      "m0",
-      "m1",
-      "m2",
-      "m3",
-      "m4",
-      "m5",
-      "m6",
-      "m7",
-      "m8",
-      "m9",
-      "m10",
+      'm0',
+      'm1',
+      'm2',
+      'm3',
+      'm4',
+      'm5',
+      'm6',
+      'm7',
+      'm8',
+      'm9',
+      'm10',
     ])
   })
 })

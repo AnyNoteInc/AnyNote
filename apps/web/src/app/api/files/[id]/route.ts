@@ -1,33 +1,33 @@
-import { Readable } from "node:stream"
+import { Readable } from 'node:stream'
 
-import { prisma } from "@repo/db"
-import { storage } from "@repo/storage"
-import type { NextRequest } from "next/server"
+import { prisma } from '@repo/db'
+import { storage } from '@repo/storage'
+import type { NextRequest } from 'next/server'
 
-import { getSession } from "@/lib/get-session"
+import { getSession } from '@/lib/get-session'
 
-export const runtime = "nodejs"
+export const runtime = 'nodejs'
 
 export async function GET(_request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
 
   const file = await prisma.file.findUnique({ where: { id } })
-  if (!file || file.status !== "ACTIVE") {
-    return new Response("Not found", { status: 404 })
+  if (!file || file.status !== 'ACTIVE') {
+    return new Response('Not found', { status: 404 })
   }
 
   if (file.expiresAt && file.expiresAt.getTime() < Date.now()) {
-    return new Response("Gone", { status: 410 })
+    return new Response('Gone', { status: 410 })
   }
 
   if (!file.isPublic) {
     const session = await getSession()
-    if (!session) return new Response("Unauthorized", { status: 401 })
+    if (!session) return new Response('Unauthorized', { status: 401 })
     if (session.user.id !== file.userId) {
       // Allow download if the file is an ACTIVE file in a workspace the user belongs to…
       let authorized = false
 
-      if (file.workspaceId && file.status === "ACTIVE") {
+      if (file.workspaceId && file.status === 'ACTIVE') {
         const member = await prisma.workspaceMember.findUnique({
           where: {
             workspaceId_userId: {
@@ -56,7 +56,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       }
 
       if (!authorized) {
-        return new Response("Forbidden", { status: 403 })
+        return new Response('Forbidden', { status: 403 })
       }
     }
   }
@@ -65,7 +65,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   try {
     body = (await storage.get(file.path)) as Readable
   } catch {
-    return new Response("Not found", { status: 404 })
+    return new Response('Not found', { status: 404 })
   }
 
   const stream = Readable.toWeb(body) as unknown as ReadableStream<Uint8Array>
@@ -87,10 +87,10 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   return new Response(stream, {
     status: 200,
     headers: {
-      "Content-Type": file.mimeType,
-      "Content-Length": file.fileSize.toString(),
-      "Content-Disposition": disposition,
-      "Cache-Control": "private, max-age=0",
+      'Content-Type': file.mimeType,
+      'Content-Length': file.fileSize.toString(),
+      'Content-Disposition': disposition,
+      'Cache-Control': 'private, max-age=0',
     },
   })
 }

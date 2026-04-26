@@ -1,7 +1,7 @@
-"use client"
+'use client'
 
-import { useRouter } from "next/navigation"
-import { useState } from "react"
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 
 import {
   Alert,
@@ -11,13 +11,13 @@ import {
   Stack,
   TextField,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
 export function NewWorkspaceForm() {
-  const [name, setName] = useState("")
-  const [icon, setIcon] = useState("📒")
+  const [name, setName] = useState('')
+  const [icon, setIcon] = useState('📒')
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const create = trpc.workspace.create.useMutation({
@@ -37,7 +37,7 @@ export function NewWorkspaceForm() {
         setError(null)
         create.mutate({ name: name.trim(), icon })
       }}
-      sx={{ maxWidth: 480, mx: "auto", mt: { xs: 4, md: 8 } }}
+      sx={{ maxWidth: 480, mx: 'auto', mt: { xs: 4, md: 8 } }}
     >
       <Stack spacing={3}>
         <Stack spacing={1} textAlign="center">
@@ -60,7 +60,7 @@ export function NewWorkspaceForm() {
               p: 0.5,
               borderRadius: 1,
               border: 1,
-              borderColor: "divider",
+              borderColor: 'divider',
               flexShrink: 0,
             }}
             emojiSize={32}

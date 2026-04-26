@@ -1,7 +1,7 @@
-import { redirect } from "next/navigation"
+import { redirect } from 'next/navigation'
 
-import { getServerTRPC } from "@/trpc/server"
-import { Box, ChatBubbleOutlineIcon, Typography } from "@repo/ui/components"
+import { getServerTRPC } from '@/trpc/server'
+import { Box, ChatBubbleOutlineIcon, Typography } from '@repo/ui/components'
 
 type Props = { params: Promise<{ workspaceId: string }> }
 
@@ -16,13 +16,13 @@ export default async function ChatsIndexPage({ params }: Props) {
   return (
     <Box
       sx={{
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "center",
-        height: "100%",
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        height: '100%',
         gap: 2,
-        color: "text.disabled",
+        color: 'text.disabled',
       }}
     >
       <ChatBubbleOutlineIcon sx={{ fontSize: 48 }} />

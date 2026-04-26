@@ -14,7 +14,7 @@ function required(name: string): string {
 }
 
 export function loadEnv(): Env {
-  const authBaseUrl = required("BETTER_AUTH_URL").replace(/\/$/, "")
+  const authBaseUrl = required('BETTER_AUTH_URL').replace(/\/$/, '')
   return {
     port: Number(process.env.YJS_PORT ?? 1234),
     authBaseUrl,

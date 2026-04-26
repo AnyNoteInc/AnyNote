@@ -1,4 +1,4 @@
-import type { Editor } from "@tiptap/core"
+import type { Editor } from '@tiptap/core'
 
 // Duplicates the block at `pos` by serializing it to JSON and inserting a copy
 // immediately after. Uses resolve(pos).nodeAfter because drag-handle positions

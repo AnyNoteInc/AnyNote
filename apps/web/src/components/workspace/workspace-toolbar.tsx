@@ -1,11 +1,11 @@
-"use client"
+'use client'
 
-import Link from "next/link"
-import { useCallback, useEffect, useRef, useState, type ReactNode } from "react"
+import Link from 'next/link'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 
-import { Box, IconButton, MenuIcon, Paper, Popper, Stack, Typography } from "@repo/ui/components"
+import { Box, IconButton, MenuIcon, Paper, Popper, Stack, Typography } from '@repo/ui/components'
 
-import { SIDEBAR_WIDTH } from "./workspace-layout-client"
+import { SIDEBAR_WIDTH } from './workspace-layout-client'
 
 type Breadcrumb = { label: string; href?: string }
 
@@ -74,8 +74,8 @@ export function WorkspaceToolbar({
       sx={{
         px: 2,
         py: 1.25,
-        borderBottom: "1px solid",
-        borderColor: "divider",
+        borderBottom: '1px solid',
+        borderColor: 'divider',
       }}
     >
       {sidebarHidden ? (
@@ -86,7 +86,7 @@ export function WorkspaceToolbar({
             onClick={onOpenSidebar}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
-            sx={{ color: "text.secondary" }}
+            sx={{ color: 'text.secondary' }}
           >
             <MenuIcon sx={{ fontSize: 20 }} />
           </IconButton>
@@ -103,8 +103,8 @@ export function WorkspaceToolbar({
                 onMouseLeave={handleMouseLeave}
                 sx={{
                   width: SIDEBAR_WIDTH,
-                  maxHeight: "calc(100vh - 80px)",
-                  overflow: "auto",
+                  maxHeight: 'calc(100vh - 80px)',
+                  overflow: 'auto',
                   borderRadius: 2,
                   mt: 0.5,
                 }}
@@ -131,15 +131,15 @@ export function WorkspaceToolbar({
                 variant="body2"
                 noWrap
                 sx={{
-                  color: "text.secondary",
-                  textDecoration: "none",
-                  "&:hover": { color: "text.primary", textDecoration: "underline" },
+                  color: 'text.secondary',
+                  textDecoration: 'none',
+                  '&:hover': { color: 'text.primary', textDecoration: 'underline' },
                 }}
               >
                 {crumb.label}
               </Typography>
             ) : (
-              <Typography variant="body2" noWrap color={isLast ? "text.primary" : "text.secondary"}>
+              <Typography variant="body2" noWrap color={isLast ? 'text.primary' : 'text.secondary'}>
                 {crumb.label}
               </Typography>
             )}

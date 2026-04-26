@@ -1,11 +1,11 @@
-import type { Metadata } from "next"
+import type { Metadata } from 'next'
 
-import { Stack, Typography } from "@repo/ui/components"
+import { Stack, Typography } from '@repo/ui/components'
 
-import { PublicPageShell } from "@/components/public/public-page-shell"
+import { PublicPageShell } from '@/components/public/public-page-shell'
 
 export const metadata: Metadata = {
-  title: "Документация",
+  title: 'Документация',
 }
 
 export default function DocsPage() {

@@ -7,6 +7,7 @@
 ## Context
 
 `apps/agents` already exists as a FastAPI + Dishka + LangGraph service with:
+
 - REST routes in `agents/entrypoints/rest`
 - domain logic in `agents/services`
 - request/streaming models in `agents/schemas`
@@ -33,6 +34,7 @@ under `agents/apps/chat`.
 Recommended and approved strategy: **phased cutover inside current app**.
 
 Why this strategy:
+
 - Keeps service runnable at each migration step.
 - Reduces regression risk compared to big-bang replacement.
 - Allows progressive movement of code into `apps/chat/*` with targeted tests.
@@ -130,12 +132,14 @@ Target app-level files in `apps/agents` (adapted from `yafs` list):
 ### Repositories (`apps/chat/repositories`)
 
 Responsibilities:
+
 - provider-specific chat model creation (`ollama/openai/gigachat`)
 - MCP HTTP tool discovery and invocation adapters
 - prompt template loading/rendering
 - other external IO helpers needed by chat flow
 
 Rules:
+
 - no FastAPI request objects
 - no route-level response formatting
 - deterministic, narrow contracts consumed by services/use-cases
@@ -143,11 +147,13 @@ Rules:
 ### Services (`apps/chat/services`)
 
 Responsibilities:
+
 - LangGraph state-machine assembly/execution helpers
 - message preparation/normalization
 - streaming event conversion helpers
 
 Rules:
+
 - orchestrates repositories
 - no direct framework routing concerns
 - may be stateless utilities or APP-scoped service classes
@@ -155,11 +161,13 @@ Rules:
 ### Use Cases (`apps/chat/use_cases`)
 
 Responsibilities:
+
 - user scenarios (`generate_stream`, potentially future chat actions)
 - enforce request-level flow and domain constraints
 - return domain output consumed by router
 
 Rules:
+
 - one use case = one user scenario
 - explicit dependencies injected via Dishka
 
@@ -206,6 +214,7 @@ Rules:
 - Ensure async resource cleanup on shutdown (container + pools/checkpointer).
 
 `agents/apps/chat/depends.py` owns provider declarations and scopes:
+
 - APP scope: settings context, DB pool, LangGraph checkpointer, long-lived services.
 - REQUEST scope: use-cases and request-local adapters.
 
@@ -229,6 +238,7 @@ This preserves functional behavior while relocating responsibilities into the ne
 ## Provider Policy
 
 Required provider support after refactor:
+
 - `ollama`
 - `openai`
 - `gigachat`
@@ -249,6 +259,7 @@ Implementation must keep provider-specific connection settings and model options
 - LangGraph checkpoint tables are excluded from autogeneration and migrations.
 
 Practical rule for migration env:
+
 - exclude table names matching checkpoint families (`checkpoint*` / `checkpoints*`) from Alembic autogen.
 - keep `AsyncPostgresSaver.setup()` responsible for checkpoint storage lifecycle.
 

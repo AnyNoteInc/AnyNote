@@ -1,10 +1,10 @@
-"use client"
+'use client'
 
-import { useRouter } from "next/navigation"
+import { useRouter } from 'next/navigation'
 
-import { Button } from "@repo/ui/components"
+import { Button } from '@repo/ui/components'
 
-import { signOut } from "@/lib/auth-client"
+import { signOut } from '@/lib/auth-client'
 
 export function SignOutButton() {
   const router = useRouter()
@@ -14,7 +14,7 @@ export function SignOutButton() {
       color="error"
       onClick={async () => {
         await signOut()
-        router.push("/sign-in")
+        router.push('/sign-in')
       }}
     >
       Выйти из системы

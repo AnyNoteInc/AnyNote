@@ -1,6 +1,6 @@
-"use client"
+'use client'
 
-import { use, useState } from "react"
+import { use, useState } from 'react'
 
 import {
   Box,
@@ -17,9 +17,9 @@ import {
   Stack,
   Tooltip,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
 type Props = {
   params: Promise<{ workspaceId: string }>
@@ -56,8 +56,8 @@ export default function TrashPage({ params }: Props) {
   const [emptyConfirmOpen, setEmptyConfirmOpen] = useState(false)
 
   return (
-    <Box sx={{ p: 4, maxWidth: 710, mx: "auto" }}>
-      <Box sx={{ display: "flex", alignItems: "center", mb: 3 }}>
+    <Box sx={{ p: 4, maxWidth: 710, mx: 'auto' }}>
+      <Box sx={{ display: 'flex', alignItems: 'center', mb: 3 }}>
         <Typography variant="h5" sx={{ flex: 1 }}>
           Корзина
         </Typography>
@@ -65,8 +65,8 @@ export default function TrashPage({ params }: Props) {
           <IconButton
             onClick={() => setEmptyConfirmOpen(true)}
             sx={{
-              color: "error.main",
-              visibility: (trashed.data?.length ?? 0) > 0 ? "visible" : "hidden",
+              color: 'error.main',
+              visibility: (trashed.data?.length ?? 0) > 0 ? 'visible' : 'hidden',
             }}
           >
             <DeleteIcon />
@@ -81,22 +81,22 @@ export default function TrashPage({ params }: Props) {
           <Box
             key={page.id}
             sx={{
-              display: "flex",
-              alignItems: "center",
+              display: 'flex',
+              alignItems: 'center',
               gap: 1.5,
               px: 2,
               py: 1,
               borderRadius: 1,
-              "&:hover": { bgcolor: "action.hover" },
+              '&:hover': { bgcolor: 'action.hover' },
             }}
           >
-            <span style={{ fontSize: 16 }}>{page.icon ?? "📄"}</span>
+            <span style={{ fontSize: 16 }}>{page.icon ?? '📄'}</span>
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Typography variant="body2" noWrap>
-                {page.title ?? "Без названия"}
+                {page.title ?? 'Без названия'}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Удалено {page.deletedAt ? new Date(page.deletedAt).toLocaleDateString("ru-RU") : ""}
+                Удалено {page.deletedAt ? new Date(page.deletedAt).toLocaleDateString('ru-RU') : ''}
               </Typography>
             </Box>
             <Tooltip title="Восстановить">
@@ -112,7 +112,7 @@ export default function TrashPage({ params }: Props) {
               <IconButton
                 size="small"
                 onClick={() => setConfirmDeleteId(page.id)}
-                sx={{ color: "error.main" }}
+                sx={{ color: 'error.main' }}
               >
                 <DeleteForeverIcon sx={{ fontSize: 18 }} />
               </IconButton>
@@ -130,7 +130,7 @@ export default function TrashPage({ params }: Props) {
         <DialogTitle>Удалить навсегда?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Страница «{confirmPage?.title ?? "Без названия"}» будет удалена безвозвратно.
+            Страница «{confirmPage?.title ?? 'Без названия'}» будет удалена безвозвратно.
           </DialogContentText>
         </DialogContent>
         <DialogActions>

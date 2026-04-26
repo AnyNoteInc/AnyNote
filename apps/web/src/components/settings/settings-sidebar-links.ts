@@ -1,4 +1,4 @@
 export const settingsSidebarBackLink = {
-  href: "/profile",
-  label: "Профиль",
+  href: '/profile',
+  label: 'Профиль',
 } as const

@@ -19,6 +19,7 @@ Already on `feat/indexing-pipeline` (created from `main` after Pillar B1 merge).
 ## Task 1: `OutboxEvent` Prisma model + migration
 
 **Files:**
+
 - Modify: `packages/db/prisma/schema.prisma` (append enum + model after `PageFile`)
 - Create: `packages/db/prisma/migrations/YYYYMMDDHHMMSS_pillar_d_outbox_events/migration.sql` (auto-generated)
 - Modify: `packages/db/src/index.ts` (re-export new types if `@prisma/client` doesn't already)
@@ -70,6 +71,7 @@ Expected: a new migration directory under `packages/db/prisma/migrations/` conta
 - [ ] **Step 1.3: Verify the generated SQL**
 
 Open `packages/db/prisma/migrations/<new>/migration.sql` and confirm it contains:
+
 - `CREATE TYPE "OutboxEventStatus" AS ENUM ('PENDING', 'PROCESSING', 'DONE', 'FAILED');`
 - `CREATE TABLE "outbox_events"` with `id BIGSERIAL`, snake_case columns, Timestamptz(6).
 - Two indexes (`outbox_events_status_next_attempt_at_idx`, `outbox_events_aggregate_type_aggregate_id_idx`).
@@ -81,11 +83,11 @@ If column names are camelCase, the `@map` annotations are missing — return to 
 Create `packages/db/test/outbox.test.ts`:
 
 ```ts
-import { describe, expect, it, afterAll } from "vitest"
-import { prisma } from "../src/index"
-import { randomUUID } from "node:crypto"
+import { describe, expect, it, afterAll } from 'vitest'
+import { prisma } from '../src/index'
+import { randomUUID } from 'node:crypto'
 
-describe("outbox_events table", () => {
+describe('outbox_events table', () => {
   const created: bigint[] = []
 
   afterAll(async () => {
@@ -95,21 +97,21 @@ describe("outbox_events table", () => {
     await prisma.$disconnect()
   })
 
-  it("persists and reads back a row with default status PENDING", async () => {
+  it('persists and reads back a row with default status PENDING', async () => {
     const aggregateId = randomUUID()
     const row = await prisma.outboxEvent.create({
       data: {
-        eventType: "page.upserted",
-        aggregateType: "page",
+        eventType: 'page.upserted',
+        aggregateType: 'page',
         aggregateId,
         workspaceId: randomUUID(),
-        payload: { source: "test" },
+        payload: { source: 'test' },
       },
     })
     created.push(row.id)
-    expect(row.status).toBe("PENDING")
+    expect(row.status).toBe('PENDING')
     expect(row.attempts).toBe(0)
-    expect(row.payload).toEqual({ source: "test" })
+    expect(row.payload).toEqual({ source: 'test' })
   })
 })
 ```
@@ -144,6 +146,7 @@ EOF
 ## Task 2: `enqueueOutboxEvent` helper
 
 **Files:**
+
 - Create: `packages/db/src/outbox.ts`
 - Modify: `packages/db/src/index.ts` (re-export)
 - Test: `packages/db/test/enqueue.test.ts`
@@ -153,9 +156,9 @@ EOF
 Create `packages/db/src/outbox.ts`:
 
 ```ts
-import type { Prisma } from "@prisma/client"
+import type { Prisma } from '@prisma/client'
 
-export type OutboxAggregateType = "page" | "file"
+export type OutboxAggregateType = 'page' | 'file'
 
 export interface EnqueueOutboxEventArgs {
   eventType: string
@@ -186,8 +189,8 @@ export async function enqueueOutboxEvent(
 Add to `packages/db/src/index.ts` (in the existing exports section):
 
 ```ts
-export { enqueueOutboxEvent } from "./outbox"
-export type { OutboxAggregateType, EnqueueOutboxEventArgs } from "./outbox"
+export { enqueueOutboxEvent } from './outbox'
+export type { OutboxAggregateType, EnqueueOutboxEventArgs } from './outbox'
 ```
 
 - [ ] **Step 2.3: Write the test**
@@ -195,12 +198,12 @@ export type { OutboxAggregateType, EnqueueOutboxEventArgs } from "./outbox"
 Create `packages/db/test/enqueue.test.ts`:
 
 ```ts
-import { describe, expect, it, afterAll } from "vitest"
-import { randomUUID } from "node:crypto"
-import { prisma } from "../src/index"
-import { enqueueOutboxEvent } from "../src/outbox"
+import { describe, expect, it, afterAll } from 'vitest'
+import { randomUUID } from 'node:crypto'
+import { prisma } from '../src/index'
+import { enqueueOutboxEvent } from '../src/outbox'
 
-describe("enqueueOutboxEvent", () => {
+describe('enqueueOutboxEvent', () => {
   const created: bigint[] = []
 
   afterAll(async () => {
@@ -210,13 +213,13 @@ describe("enqueueOutboxEvent", () => {
     await prisma.$disconnect()
   })
 
-  it("inserts an outbox row inside a transaction", async () => {
+  it('inserts an outbox row inside a transaction', async () => {
     const aggregateId = randomUUID()
     const workspaceId = randomUUID()
     await prisma.$transaction(async (tx) => {
       await enqueueOutboxEvent(tx, {
-        eventType: "page.upserted",
-        aggregateType: "page",
+        eventType: 'page.upserted',
+        aggregateType: 'page',
         aggregateId,
         workspaceId,
         payload: { test: true },
@@ -224,23 +227,23 @@ describe("enqueueOutboxEvent", () => {
     })
     const rows = await prisma.outboxEvent.findMany({ where: { aggregateId } })
     expect(rows).toHaveLength(1)
-    expect(rows[0].eventType).toBe("page.upserted")
+    expect(rows[0].eventType).toBe('page.upserted')
     expect(rows[0].workspaceId).toBe(workspaceId)
     created.push(rows[0].id)
   })
 
-  it("rolls back the row when the surrounding transaction throws", async () => {
+  it('rolls back the row when the surrounding transaction throws', async () => {
     const aggregateId = randomUUID()
     await expect(
       prisma.$transaction(async (tx) => {
         await enqueueOutboxEvent(tx, {
-          eventType: "page.deleted",
-          aggregateType: "page",
+          eventType: 'page.deleted',
+          aggregateType: 'page',
           aggregateId,
         })
-        throw new Error("boom")
+        throw new Error('boom')
       }),
-    ).rejects.toThrow("boom")
+    ).rejects.toThrow('boom')
     const rows = await prisma.outboxEvent.findMany({ where: { aggregateId } })
     expect(rows).toHaveLength(0)
   })
@@ -275,6 +278,7 @@ EOF
 ## Task 3: Wire emitter into Page tRPC mutations
 
 **Files:**
+
 - Modify: `packages/trpc/src/routers/page.ts` — wrap `create`, `update`, `delete`, `restore` (and any soft-delete / permanent-delete) mutations in `prisma.$transaction` and call `enqueueOutboxEvent`
 - Test: `packages/trpc/test/page-outbox.test.ts`
 
@@ -293,12 +297,16 @@ Find the `create` procedure. Replace the `prisma.page.create({ data: ... })` lin
 ```ts
 const page = await prisma.$transaction(async (tx) => {
   const created = await tx.page.create({
-    data: { /* existing fields */ },
-    select: { /* existing select */ },
+    data: {
+      /* existing fields */
+    },
+    select: {
+      /* existing select */
+    },
   })
   await enqueueOutboxEvent(tx, {
-    eventType: "page.upserted",
-    aggregateType: "page",
+    eventType: 'page.upserted',
+    aggregateType: 'page',
     aggregateId: created.id,
     workspaceId: created.workspaceId,
   })
@@ -316,12 +324,16 @@ For each, wrap in a transaction and emit `page.upserted` after the update. The p
 return prisma.$transaction(async (tx) => {
   const updated = await tx.page.update({
     where: { id: input.id },
-    data: { /* existing fields */ },
-    select: { /* existing select */ },
+    data: {
+      /* existing fields */
+    },
+    select: {
+      /* existing select */
+    },
   })
   await enqueueOutboxEvent(tx, {
-    eventType: "page.upserted",
-    aggregateType: "page",
+    eventType: 'page.upserted',
+    aggregateType: 'page',
     aggregateId: updated.id,
     workspaceId: updated.workspaceId,
   })
@@ -343,8 +355,8 @@ return prisma.$transaction(async (tx) => {
     select: { id: true, workspaceId: true },
   })
   await enqueueOutboxEvent(tx, {
-    eventType: "page.deleted",
-    aggregateType: "page",
+    eventType: 'page.deleted',
+    aggregateType: 'page',
     aggregateId: deleted.id,
     workspaceId: deleted.workspaceId,
   })
@@ -364,8 +376,8 @@ return prisma.$transaction(async (tx) => {
     select: { id: true, workspaceId: true },
   })
   await enqueueOutboxEvent(tx, {
-    eventType: "page.upserted",
-    aggregateType: "page",
+    eventType: 'page.upserted',
+    aggregateType: 'page',
     aggregateId: restored.id,
     workspaceId: restored.workspaceId,
   })
@@ -384,8 +396,8 @@ return prisma.$transaction(async (tx) => {
     select: { id: true, workspaceId: true },
   })
   await enqueueOutboxEvent(tx, {
-    eventType: "page.deleted",
-    aggregateType: "page",
+    eventType: 'page.deleted',
+    aggregateType: 'page',
     aggregateId: removed.id,
     workspaceId: removed.workspaceId,
   })
@@ -398,12 +410,12 @@ return prisma.$transaction(async (tx) => {
 Create `packages/trpc/test/page-outbox.test.ts`. Look first at `packages/trpc/test/` for an existing fixture (workspace + user). If none exists, write minimal setup using `prisma` directly:
 
 ```ts
-import { describe, expect, it, beforeAll, afterAll } from "vitest"
-import { randomUUID } from "node:crypto"
-import { prisma } from "@repo/db"
-import { appRouter } from "../src/index"
+import { describe, expect, it, beforeAll, afterAll } from 'vitest'
+import { randomUUID } from 'node:crypto'
+import { prisma } from '@repo/db'
+import { appRouter } from '../src/index'
 
-describe("page mutations enqueue outbox events", () => {
+describe('page mutations enqueue outbox events', () => {
   let workspaceId: string
   let userId: string
   const createdPageIds: string[] = []
@@ -412,10 +424,10 @@ describe("page mutations enqueue outbox events", () => {
   beforeAll(async () => {
     userId = randomUUID()
     await prisma.user.create({
-      data: { id: userId, email: `outbox-${userId}@test.local`, firstName: "T", lastName: "T" },
+      data: { id: userId, email: `outbox-${userId}@test.local`, firstName: 'T', lastName: 'T' },
     })
     const ws = await prisma.workspace.create({
-      data: { name: "outbox-test", ownerId: userId },
+      data: { name: 'outbox-test', ownerId: userId },
     })
     workspaceId = ws.id
   })
@@ -429,38 +441,38 @@ describe("page mutations enqueue outbox events", () => {
     await prisma.$disconnect()
   })
 
-  it("emits page.upserted on create", async () => {
+  it('emits page.upserted on create', async () => {
     const caller = appRouter.createCaller({
       prisma,
       user: { id: userId, email: `outbox-${userId}@test.local` } as any,
       headers: new Headers(),
       resHeaders: new Headers(),
     } as any)
-    const page = await caller.page.create({ workspaceId, title: "Outbox test" })
+    const page = await caller.page.create({ workspaceId, title: 'Outbox test' })
     createdPageIds.push(page.id)
     const events = await prisma.outboxEvent.findMany({ where: { aggregateId: page.id } })
     createdEventIds.push(...events.map((e) => e.id))
     expect(events).toHaveLength(1)
-    expect(events[0].eventType).toBe("page.upserted")
+    expect(events[0].eventType).toBe('page.upserted')
     expect(events[0].workspaceId).toBe(workspaceId)
   })
 
-  it("emits page.deleted on soft-delete", async () => {
+  it('emits page.deleted on soft-delete', async () => {
     const caller = appRouter.createCaller({
       prisma,
       user: { id: userId, email: `outbox-${userId}@test.local` } as any,
       headers: new Headers(),
       resHeaders: new Headers(),
     } as any)
-    const page = await caller.page.create({ workspaceId, title: "Outbox delete test" })
+    const page = await caller.page.create({ workspaceId, title: 'Outbox delete test' })
     createdPageIds.push(page.id)
     await caller.page.delete({ id: page.id })
     const events = await prisma.outboxEvent.findMany({
       where: { aggregateId: page.id },
-      orderBy: { id: "asc" },
+      orderBy: { id: 'asc' },
     })
     createdEventIds.push(...events.map((e) => e.id))
-    expect(events.map((e) => e.eventType)).toEqual(["page.upserted", "page.deleted"])
+    expect(events.map((e) => e.eventType)).toEqual(['page.upserted', 'page.deleted'])
   })
 })
 ```
@@ -497,6 +509,7 @@ EOF
 ## Task 4: `apps/indexer/` scaffold
 
 **Files:**
+
 - Create: `apps/indexer/pyproject.toml`
 - Create: `apps/indexer/package.json`
 - Create: `apps/indexer/Makefile`
@@ -822,7 +835,7 @@ def test_settings_database_url_required() -> None:
 
 - [ ] **Step 4.11: Write minimal `README.md`**
 
-```markdown
+````markdown
 # apps/indexer
 
 AnyNote indexer worker. Drains the `outbox_events` table from the main
@@ -836,6 +849,7 @@ docker compose exec -T ollama ollama pull nomic-embed-text
 pnpm --filter indexer dev
 curl http://localhost:8081/health
 ```
+````
 
 ## Tests
 
@@ -843,7 +857,8 @@ curl http://localhost:8081/health
 pnpm --filter indexer test            # unit
 pnpm --filter indexer test-int        # integration (needs infra)
 ```
-```
+
+````
 
 - [ ] **Step 4.12: Provisional `di/providers.py` placeholder**
 
@@ -866,7 +881,7 @@ class AppProvider(Provider):
 
 class AppSingletonsProvider(Provider):
     scope = Scope.APP
-```
+````
 
 - [ ] **Step 4.13: Update `turbo.json` `globalEnv`**
 
@@ -942,6 +957,7 @@ EOF
 ## Task 5: Dishka providers (full)
 
 **Files:**
+
 - Modify: `apps/indexer/indexer/di/providers.py` (replace the placeholder from Task 4)
 - Test: `apps/indexer/tests/test_di_container.py`
 
@@ -1112,6 +1128,7 @@ EOF
 ## Task 6: Embeddings adapter (Ollama + OpenAI scaffold)
 
 **Files:**
+
 - Create: `apps/indexer/indexer/services/embeddings/__init__.py`
 - Create: `apps/indexer/indexer/services/embeddings/ollama.py`
 - Create: `apps/indexer/indexer/services/embeddings/openai.py`
@@ -1328,6 +1345,7 @@ EOF
 ## Task 7: Tiptap → text + chunker
 
 **Files:**
+
 - Create: `apps/indexer/indexer/services/chunker.py`
 - Test: `apps/indexer/tests/test_chunker.py`
 
@@ -1547,6 +1565,7 @@ EOF
 ## Task 8: Qdrant writer + collection bootstrap
 
 **Files:**
+
 - Create: `apps/indexer/indexer/services/qdrant_writer.py`
 - Test: `apps/indexer/tests/test_qdrant_writer.py` (integration)
 
@@ -1800,6 +1819,7 @@ EOF
 ## Task 9: Outbox repository (claim/ack/fail)
 
 **Files:**
+
 - Create: `apps/indexer/indexer/services/outbox.py`
 - Test: `apps/indexer/tests/test_outbox_repo.py` (integration)
 
@@ -2065,6 +2085,7 @@ EOF
 ## Task 10: Worker loop + handlers + lifespan
 
 **Files:**
+
 - Create: `apps/indexer/indexer/services/handlers.py`
 - Create: `apps/indexer/indexer/services/worker.py`
 - Modify: `apps/indexer/indexer/main.py` (start/stop the worker in lifespan)
@@ -2435,6 +2456,7 @@ EOF
 ## Task 11: `/health` endpoint
 
 **Files:**
+
 - Create: `apps/indexer/indexer/entrypoints/rest/health.py`
 - Modify: `apps/indexer/indexer/entrypoints/rest/router.py` (mount health)
 - Test: `apps/indexer/tests/test_health.py`
@@ -2608,6 +2630,7 @@ EOF
 ## Task 12: End-to-end integration test
 
 **Files:**
+
 - Create: `apps/indexer/tests/test_pipeline_end_to_end.py` (integration)
 
 - [ ] **Step 12.1: Write the e2e test**
@@ -2771,6 +2794,7 @@ EOF
 ## Task 13: Compose + .env.example + README polish
 
 **Files:**
+
 - Modify: `compose.yml` (add indexer service under `profiles: ["worker"]`, optional qdrant healthcheck)
 - Create: `.env.example` at repo root (or modify if it exists)
 - Modify: `apps/indexer/README.md` (failure model + ops notes)
@@ -2780,30 +2804,30 @@ EOF
 Add under the `services:` block (after `redis`):
 
 ```yaml
-  indexer:
-    build:
-      context: ./apps/indexer
-    profiles: ["worker"]
-    depends_on:
-      postgres:
-        condition: service_healthy
-      qdrant:
-        condition: service_started
-      ollama:
-        condition: service_started
-    environment:
-      INDEXER_DATABASE_URL: postgresql://user:password@postgres:5432/anynote
-      INDEXER_QDRANT_URL: http://qdrant:6333
-      INDEXER_QDRANT_API_KEY: ${QDRANT_API_KEY:-dev-qdrant-key}
-      INDEXER_QDRANT_COLLECTION: anynote-pages
-      INDEXER_POLL_INTERVAL_MS: "1000"
-      INDEXER_BATCH: "16"
-      EMBEDDINGS_PROVIDER: ollama
-      EMBEDDINGS_MODEL: nomic-embed-text
-      EMBEDDINGS_DIM: "768"
-      OLLAMA_BASE_URL: http://ollama:11434
-    ports:
-      - "8081:8081"
+indexer:
+  build:
+    context: ./apps/indexer
+  profiles: ['worker']
+  depends_on:
+    postgres:
+      condition: service_healthy
+    qdrant:
+      condition: service_started
+    ollama:
+      condition: service_started
+  environment:
+    INDEXER_DATABASE_URL: postgresql://user:password@postgres:5432/anynote
+    INDEXER_QDRANT_URL: http://qdrant:6333
+    INDEXER_QDRANT_API_KEY: ${QDRANT_API_KEY:-dev-qdrant-key}
+    INDEXER_QDRANT_COLLECTION: anynote-pages
+    INDEXER_POLL_INTERVAL_MS: '1000'
+    INDEXER_BATCH: '16'
+    EMBEDDINGS_PROVIDER: ollama
+    EMBEDDINGS_MODEL: nomic-embed-text
+    EMBEDDINGS_DIM: '768'
+    OLLAMA_BASE_URL: http://ollama:11434
+  ports:
+    - '8081:8081'
 ```
 
 The `profiles: ["worker"]` keeps the indexer out of plain `docker compose up -d`; engineers opt-in with `docker compose --profile worker up -d indexer`.
@@ -2836,7 +2860,7 @@ OPENAI_API_KEY=
 
 Replace the file with:
 
-```markdown
+````markdown
 # apps/indexer
 
 AnyNote indexer worker. Drains the `outbox_events` table from the main
@@ -2851,6 +2875,7 @@ docker compose exec -T ollama ollama pull nomic-embed-text
 pnpm --filter indexer dev
 curl http://localhost:8081/health
 ```
+````
 
 ## Quick start (compose worker profile)
 
@@ -2868,20 +2893,21 @@ pnpm --filter indexer test-int        # integration (needs infra)
 
 ## Failure model
 
-| Scenario | Behavior |
-|---|---|
-| Qdrant unreachable | `attempts++`, `next_attempt_at = now() + min(60s * 2^attempts, 30min)`, row stays PENDING |
-| Embedding API error | same backoff |
-| Page row missing (race with delete) | log + ack DONE |
-| `attempts >= INDEXER_MAX_ATTEMPTS` | mark FAILED; no further retries |
-| Worker crash mid-row | `locked_at` ages out past `INDEXER_LOCK_TTL_MS`; row reclaimed |
-| Worker crash post-Qdrant pre-ack | re-processed; Qdrant upsert is idempotent (deterministic point id) |
+| Scenario                            | Behavior                                                                                  |
+| ----------------------------------- | ----------------------------------------------------------------------------------------- |
+| Qdrant unreachable                  | `attempts++`, `next_attempt_at = now() + min(60s * 2^attempts, 30min)`, row stays PENDING |
+| Embedding API error                 | same backoff                                                                              |
+| Page row missing (race with delete) | log + ack DONE                                                                            |
+| `attempts >= INDEXER_MAX_ATTEMPTS`  | mark FAILED; no further retries                                                           |
+| Worker crash mid-row                | `locked_at` ages out past `INDEXER_LOCK_TTL_MS`; row reclaimed                            |
+| Worker crash post-Qdrant pre-ack    | re-processed; Qdrant upsert is idempotent (deterministic point id)                        |
 
 ## Environment
 
 See repo-root `.env.example` for the full list of `INDEXER_*` /
 `EMBEDDINGS_*` / `OLLAMA_BASE_URL` / `OPENAI_API_KEY` variables.
-```
+
+````
 
 - [ ] **Step 13.4: Run full-workspace gates**
 
@@ -2889,7 +2915,7 @@ See repo-root `.env.example` for the full list of `INDEXER_*` /
 pnpm check-types
 pnpm lint
 pnpm build
-```
+````
 
 Expected: green.
 
@@ -3007,6 +3033,7 @@ Expected: ~13 commits in sequence, clean tree, sensible total churn.
 - [ ] **Step 14.10: Hand-off (no autonomous merge)**
 
 Report to the user:
+
 - Commit list + `git diff main..HEAD --stat`
 - Confirmed gates (`check-types`, `lint`, `build`, unit tests, integration tests)
 - `GET /health` smoke output
@@ -3018,20 +3045,20 @@ The user decides merge timing — typically `git merge --no-ff feat/indexing-pip
 
 ## Self-Review — spec ↔ plan coverage
 
-| Spec goal | Task |
-|-----------|------|
-| 1. `outbox_events` table in main DB via Prisma migration | T1 |
-| 2. `enqueueOutboxEvent(tx, …)` helper in `@repo/db` | T2 |
+| Spec goal                                                                             | Task    |
+| ------------------------------------------------------------------------------------- | ------- |
+| 1. `outbox_events` table in main DB via Prisma migration                              | T1      |
+| 2. `enqueueOutboxEvent(tx, …)` helper in `@repo/db`                                   | T2      |
 | 3. `apps/indexer/` service (pyproject/uv.lock/package.json) — worker-only + `/health` | T4, T11 |
-| 4. Poll with `FOR UPDATE SKIP LOCKED`, batch, exponential backoff | T9, T10 |
-| 5. Pluggable embeddings (Ollama concrete, OpenAI scaffold) | T6 |
-| 6. Tiptap→text + chunker | T7 |
-| 7. `anynote-pages` collection + payload indexes, auto-bootstrap | T8 |
-| 8. Tombstones delete by `page_id` payload filter | T8, T10 |
-| 9. Unit + integration tests (chunker, factory, outbox, worker, e2e) | T1–T12 |
-| 10. `turbo.json` `globalEnv` rename + additions | T4 |
-| 11. Compose profile for the indexer | T13 |
-| 12. Repo green across every gate | T14 |
+| 4. Poll with `FOR UPDATE SKIP LOCKED`, batch, exponential backoff                     | T9, T10 |
+| 5. Pluggable embeddings (Ollama concrete, OpenAI scaffold)                            | T6      |
+| 6. Tiptap→text + chunker                                                              | T7      |
+| 7. `anynote-pages` collection + payload indexes, auto-bootstrap                       | T8      |
+| 8. Tombstones delete by `page_id` payload filter                                      | T8, T10 |
+| 9. Unit + integration tests (chunker, factory, outbox, worker, e2e)                   | T1–T12  |
+| 10. `turbo.json` `globalEnv` rename + additions                                       | T4      |
+| 11. Compose profile for the indexer                                                   | T13     |
+| 12. Repo green across every gate                                                      | T14     |
 
 **Placeholder scan:** every step contains literal code or commands. No "TBD" / "implement the rest" / "appropriate error handling" language. Three explicit contingency notes (Step 5.3 importorskip until services land; Step 8.3 `Range` model alternative; Step 14.9 recovery branch) are recovery instructions, not placeholders.
 

@@ -39,6 +39,7 @@ pnpm --filter web dev                    # manual browser verification
 Per CLAUDE.md, app code must import MUI through `@repo/ui/components`. The icon mapping in [packages/ui/src/components/index.ts](../../../packages/ui/src/components/index.ts) already re-exports `DescriptionIcon`, `DeleteIcon`, `SearchIcon`. We need nine more icons plus `DownloadIcon` and the `TablePagination` component.
 
 **Files:**
+
 - Modify: `packages/ui/src/components/index.ts`
 
 - [ ] **Step 1: Add re-exports**
@@ -49,23 +50,23 @@ Edit `packages/ui/src/components/index.ts`. After the existing `TableRow` export
 export {
   default as TablePagination,
   type TablePaginationProps,
-} from "@mui/material/TablePagination"
+} from '@mui/material/TablePagination'
 ```
 
 After the existing `VisibilityOffIcon` export on line 93, add:
 
 ```ts
-export { default as DownloadIcon } from "@mui/icons-material/Download"
-export { default as PictureAsPdfIcon } from "@mui/icons-material/PictureAsPdf"
-export { default as ImageIcon } from "@mui/icons-material/Image"
-export { default as VideoFileIcon } from "@mui/icons-material/VideoFile"
-export { default as AudioFileIcon } from "@mui/icons-material/AudioFile"
-export { default as FolderZipIcon } from "@mui/icons-material/FolderZip"
-export { default as TableChartIcon } from "@mui/icons-material/TableChart"
-export { default as SlideshowIcon } from "@mui/icons-material/Slideshow"
-export { default as TextSnippetIcon } from "@mui/icons-material/TextSnippet"
-export { default as CodeIcon } from "@mui/icons-material/Code"
-export { default as InsertDriveFileIcon } from "@mui/icons-material/InsertDriveFile"
+export { default as DownloadIcon } from '@mui/icons-material/Download'
+export { default as PictureAsPdfIcon } from '@mui/icons-material/PictureAsPdf'
+export { default as ImageIcon } from '@mui/icons-material/Image'
+export { default as VideoFileIcon } from '@mui/icons-material/VideoFile'
+export { default as AudioFileIcon } from '@mui/icons-material/AudioFile'
+export { default as FolderZipIcon } from '@mui/icons-material/FolderZip'
+export { default as TableChartIcon } from '@mui/icons-material/TableChart'
+export { default as SlideshowIcon } from '@mui/icons-material/Slideshow'
+export { default as TextSnippetIcon } from '@mui/icons-material/TextSnippet'
+export { default as CodeIcon } from '@mui/icons-material/Code'
+export { default as InsertDriveFileIcon } from '@mui/icons-material/InsertDriveFile'
 ```
 
 - [ ] **Step 2: Type-check the UI package**
@@ -90,12 +91,13 @@ git commit -m "feat(ui): re-export TablePagination and file-type icons"
 Pure component mapping a lowercase extension string to a MUI icon. No state, no tRPC, safe to render in RSC but placed under `components/workspace/settings/` alongside the feature.
 
 **Files:**
+
 - Create: `apps/web/src/components/workspace/settings/file-ext-icon.tsx`
 
 - [ ] **Step 1: Create the component**
 
 ```tsx
-import type { ComponentType, SVGProps } from "react"
+import type { ComponentType, SVGProps } from 'react'
 
 import {
   AudioFileIcon,
@@ -109,37 +111,39 @@ import {
   TableChartIcon,
   TextSnippetIcon,
   VideoFileIcon,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-type SvgIconComponent = ComponentType<SVGProps<SVGSVGElement> & { fontSize?: "small" | "inherit" | "medium" | "large" }>
+type SvgIconComponent = ComponentType<
+  SVGProps<SVGSVGElement> & { fontSize?: 'small' | 'inherit' | 'medium' | 'large' }
+>
 
 const GROUPS: Array<{ exts: readonly string[]; Icon: SvgIconComponent }> = [
-  { exts: ["pdf"], Icon: PictureAsPdfIcon as unknown as SvgIconComponent },
+  { exts: ['pdf'], Icon: PictureAsPdfIcon as unknown as SvgIconComponent },
   {
-    exts: ["png", "jpg", "jpeg", "gif", "webp", "svg", "bmp", "avif"],
+    exts: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg', 'bmp', 'avif'],
     Icon: ImageIcon as unknown as SvgIconComponent,
   },
   {
-    exts: ["mp4", "mov", "avi", "mkv", "webm"],
+    exts: ['mp4', 'mov', 'avi', 'mkv', 'webm'],
     Icon: VideoFileIcon as unknown as SvgIconComponent,
   },
   {
-    exts: ["mp3", "wav", "ogg", "flac", "m4a"],
+    exts: ['mp3', 'wav', 'ogg', 'flac', 'm4a'],
     Icon: AudioFileIcon as unknown as SvgIconComponent,
   },
   {
-    exts: ["zip", "rar", "7z", "tar", "gz"],
+    exts: ['zip', 'rar', '7z', 'tar', 'gz'],
     Icon: FolderZipIcon as unknown as SvgIconComponent,
   },
-  { exts: ["doc", "docx", "odt", "rtf"], Icon: DescriptionIcon as unknown as SvgIconComponent },
+  { exts: ['doc', 'docx', 'odt', 'rtf'], Icon: DescriptionIcon as unknown as SvgIconComponent },
   {
-    exts: ["xls", "xlsx", "csv", "ods"],
+    exts: ['xls', 'xlsx', 'csv', 'ods'],
     Icon: TableChartIcon as unknown as SvgIconComponent,
   },
-  { exts: ["ppt", "pptx", "odp"], Icon: SlideshowIcon as unknown as SvgIconComponent },
-  { exts: ["txt", "md"], Icon: TextSnippetIcon as unknown as SvgIconComponent },
+  { exts: ['ppt', 'pptx', 'odp'], Icon: SlideshowIcon as unknown as SvgIconComponent },
+  { exts: ['txt', 'md'], Icon: TextSnippetIcon as unknown as SvgIconComponent },
   {
-    exts: ["js", "ts", "tsx", "jsx", "json", "xml", "yaml", "yml", "py", "go", "rs", "java"],
+    exts: ['js', 'ts', 'tsx', 'jsx', 'json', 'xml', 'yaml', 'yml', 'py', 'go', 'rs', 'java'],
     Icon: CodeIcon as unknown as SvgIconComponent,
   },
 ]
@@ -154,10 +158,10 @@ function resolve(ext: string): SvgIconComponent {
 
 type Props = {
   ext: string
-  fontSize?: "small" | "inherit" | "medium" | "large"
+  fontSize?: 'small' | 'inherit' | 'medium' | 'large'
 }
 
-export function FileExtIcon({ ext, fontSize = "small" }: Props) {
+export function FileExtIcon({ ext, fontSize = 'small' }: Props) {
   const Icon = resolve(ext)
   return <Icon fontSize={fontSize} />
 }
@@ -185,6 +189,7 @@ git commit -m "feat(web): add FileExtIcon component"
 Replace the existing cursor-based `listWorkspace` (no production callers — verified via grep) with page-based `{ page, pageSize }` input, `{ search, uploaderId }` filters, and `{ items, total }` output. Each item carries a `user` sub-object with display fields. Add a router test file next to `chat-router.test.ts` covering the new behaviour.
 
 **Files:**
+
 - Modify: `packages/trpc/src/routers/file.ts` (replace `listWorkspace`, keep everything else)
 - Create: `packages/trpc/test/file-router.test.ts`
 
@@ -193,14 +198,14 @@ Replace the existing cursor-based `listWorkspace` (no production callers — ver
 Create `packages/trpc/test/file-router.test.ts`:
 
 ```ts
-import { describe, expect, it, vi } from "vitest"
+import { describe, expect, it, vi } from 'vitest'
 
-vi.mock("@repo/auth", () => ({
+vi.mock('@repo/auth', () => ({
   getUserFromRequest: vi.fn(),
 }))
 
-vi.mock("@repo/db", () => ({
-  FileStatus: { ACTIVE: "ACTIVE", PENDING: "PENDING", DELETED: "DELETED", ARCHIVED: "ARCHIVED" },
+vi.mock('@repo/db', () => ({
+  FileStatus: { ACTIVE: 'ACTIVE', PENDING: 'PENDING', DELETED: 'DELETED', ARCHIVED: 'ARCHIVED' },
   Prisma: {
     PrismaClientKnownRequestError: class PrismaClientKnownRequestError extends Error {
       code: string
@@ -213,17 +218,17 @@ vi.mock("@repo/db", () => ({
   prisma: {},
 }))
 
-import type { PrismaClient } from "@repo/db"
+import type { PrismaClient } from '@repo/db'
 
-import { fileRouter } from "../src/routers/file"
-import { createCallerFactory } from "../src/trpc"
+import { fileRouter } from '../src/routers/file'
+import { createCallerFactory } from '../src/trpc'
 
 const createCaller = createCallerFactory(fileRouter)
 
-const WORKSPACE_ID = "11111111-1111-1111-1111-111111111111"
-const USER_ID = "22222222-2222-2222-2222-222222222222"
-const OTHER_USER_ID = "33333333-3333-3333-3333-333333333333"
-const FILE_ID = "44444444-4444-4444-4444-444444444444"
+const WORKSPACE_ID = '11111111-1111-1111-1111-111111111111'
+const USER_ID = '22222222-2222-2222-2222-222222222222'
+const OTHER_USER_ID = '33333333-3333-3333-3333-333333333333'
+const FILE_ID = '44444444-4444-4444-4444-444444444444'
 
 function baseContext(prisma: PrismaClient) {
   return {
@@ -238,21 +243,21 @@ function memberOk() {
   return { workspaceId: WORKSPACE_ID, userId: USER_ID }
 }
 
-describe("fileRouter.listWorkspace", () => {
-  it("returns paginated items with total and user relation", async () => {
-    const createdAt = new Date("2026-04-22T10:00:00.000Z")
-    const updatedAt = new Date("2026-04-22T10:01:00.000Z")
+describe('fileRouter.listWorkspace', () => {
+  it('returns paginated items with total and user relation', async () => {
+    const createdAt = new Date('2026-04-22T10:00:00.000Z')
+    const updatedAt = new Date('2026-04-22T10:01:00.000Z')
     const fileRow = {
       id: FILE_ID,
       userId: USER_ID,
       workspaceId: WORKSPACE_ID,
-      name: "brief",
-      ext: "pdf",
+      name: 'brief',
+      ext: 'pdf',
       fileSize: BigInt(1024),
-      mimeType: "application/pdf",
-      hash: "h",
-      path: "p",
-      status: "ACTIVE",
+      mimeType: 'application/pdf',
+      hash: 'h',
+      path: 'p',
+      status: 'ACTIVE',
       isPublic: false,
       downloadCount: 3,
       expiresAt: null,
@@ -260,9 +265,9 @@ describe("fileRouter.listWorkspace", () => {
       updatedAt,
       user: {
         id: USER_ID,
-        firstName: "Ivan",
-        lastName: "Ivanov",
-        email: "ivan@example.com",
+        firstName: 'Ivan',
+        lastName: 'Ivanov',
+        email: 'ivan@example.com',
         image: null,
       },
     }
@@ -285,15 +290,15 @@ describe("fileRouter.listWorkspace", () => {
       items: [
         {
           ...fileRow,
-          fileSize: "1024",
+          fileSize: '1024',
         },
       ],
       total: 42,
     })
 
     expect(findMany).toHaveBeenCalledWith({
-      where: { workspaceId: WORKSPACE_ID, status: "ACTIVE" },
-      orderBy: { createdAt: "desc" },
+      where: { workspaceId: WORKSPACE_ID, status: 'ACTIVE' },
+      orderBy: { createdAt: 'desc' },
       include: {
         user: { select: { id: true, firstName: true, lastName: true, email: true, image: true } },
       },
@@ -301,11 +306,11 @@ describe("fileRouter.listWorkspace", () => {
       take: 20,
     })
     expect(count).toHaveBeenCalledWith({
-      where: { workspaceId: WORKSPACE_ID, status: "ACTIVE" },
+      where: { workspaceId: WORKSPACE_ID, status: 'ACTIVE' },
     })
   })
 
-  it("applies case-insensitive name search and uploader filter", async () => {
+  it('applies case-insensitive name search and uploader filter', async () => {
     const findMany = vi.fn(async () => [])
     const count = vi.fn(async () => 0)
     const prisma = {
@@ -318,21 +323,21 @@ describe("fileRouter.listWorkspace", () => {
       workspaceId: WORKSPACE_ID,
       page: 0,
       pageSize: 20,
-      search: "  Report  ",
+      search: '  Report  ',
       uploaderId: OTHER_USER_ID,
     })
 
     const expectedWhere = {
       workspaceId: WORKSPACE_ID,
-      status: "ACTIVE",
-      name: { contains: "Report", mode: "insensitive" },
+      status: 'ACTIVE',
+      name: { contains: 'Report', mode: 'insensitive' },
       userId: OTHER_USER_ID,
     }
     expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: expectedWhere }))
     expect(count).toHaveBeenCalledWith({ where: expectedWhere })
   })
 
-  it("ignores whitespace-only search", async () => {
+  it('ignores whitespace-only search', async () => {
     const findMany = vi.fn(async () => [])
     const count = vi.fn(async () => 0)
     const prisma = {
@@ -345,15 +350,15 @@ describe("fileRouter.listWorkspace", () => {
       workspaceId: WORKSPACE_ID,
       page: 0,
       pageSize: 20,
-      search: "   ",
+      search: '   ',
     })
 
     expect(findMany).toHaveBeenCalledWith(
-      expect.objectContaining({ where: { workspaceId: WORKSPACE_ID, status: "ACTIVE" } }),
+      expect.objectContaining({ where: { workspaceId: WORKSPACE_ID, status: 'ACTIVE' } }),
     )
   })
 
-  it("forbids non-members", async () => {
+  it('forbids non-members', async () => {
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => null) },
       file: { findMany: vi.fn(), count: vi.fn() },
@@ -362,7 +367,7 @@ describe("fileRouter.listWorkspace", () => {
     const caller = createCaller(baseContext(prisma))
     await expect(
       caller.listWorkspace({ workspaceId: WORKSPACE_ID, page: 0, pageSize: 20 }),
-    ).rejects.toMatchObject({ code: "FORBIDDEN" })
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
   })
 })
 ```
@@ -477,6 +482,7 @@ git commit -m "feat(trpc): paginate file.listWorkspace with search and uploader 
 Returns the unique set of users who have uploaded an ACTIVE file to the workspace — used to populate the uploader chip menu.
 
 **Files:**
+
 - Modify: `packages/trpc/src/routers/file.ts` (add procedure after `listWorkspace`)
 - Modify: `packages/trpc/test/file-router.test.ts` (append test block)
 
@@ -485,11 +491,11 @@ Returns the unique set of users who have uploaded an ACTIVE file to the workspac
 Append to `packages/trpc/test/file-router.test.ts`:
 
 ```ts
-describe("fileRouter.workspaceUploaders", () => {
-  it("lists unique uploaders for a workspace", async () => {
+describe('fileRouter.workspaceUploaders', () => {
+  it('lists unique uploaders for a workspace', async () => {
     const findMany = vi.fn(async () => [
-      { id: USER_ID, firstName: "Ivan", lastName: "Ivanov", email: "i@x", image: null },
-      { id: OTHER_USER_ID, firstName: "Petr", lastName: "Petrov", email: "p@x", image: "/a" },
+      { id: USER_ID, firstName: 'Ivan', lastName: 'Ivanov', email: 'i@x', image: null },
+      { id: OTHER_USER_ID, firstName: 'Petr', lastName: 'Petrov', email: 'p@x', image: '/a' },
     ])
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => memberOk()) },
@@ -500,23 +506,23 @@ describe("fileRouter.workspaceUploaders", () => {
     const result = await caller.workspaceUploaders({ workspaceId: WORKSPACE_ID })
 
     expect(findMany).toHaveBeenCalledWith({
-      where: { files: { some: { workspaceId: WORKSPACE_ID, status: "ACTIVE" } } },
+      where: { files: { some: { workspaceId: WORKSPACE_ID, status: 'ACTIVE' } } },
       select: { id: true, firstName: true, lastName: true, email: true, image: true },
-      orderBy: [{ firstName: "asc" }, { lastName: "asc" }, { email: "asc" }],
+      orderBy: [{ firstName: 'asc' }, { lastName: 'asc' }, { email: 'asc' }],
     })
     expect(result).toHaveLength(2)
   })
 
-  it("forbids non-members from listing uploaders", async () => {
+  it('forbids non-members from listing uploaders', async () => {
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => null) },
       user: { findMany: vi.fn() },
     } as unknown as PrismaClient
 
     const caller = createCaller(baseContext(prisma))
-    await expect(
-      caller.workspaceUploaders({ workspaceId: WORKSPACE_ID }),
-    ).rejects.toMatchObject({ code: "FORBIDDEN" })
+    await expect(caller.workspaceUploaders({ workspaceId: WORKSPACE_ID })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    })
   })
 })
 ```
@@ -582,6 +588,7 @@ git commit -m "feat(trpc): add file.workspaceUploaders query"
 Today non-owners can only download if the file is linked to a page they have access to. Allow any workspace member to download any ACTIVE file that belongs to their workspace.
 
 **Files:**
+
 - Modify: `apps/web/src/app/api/files/[id]/route.ts` — extend the `if (!file.isPublic)` block
 
 - [ ] **Step 1: Update the route**
@@ -589,42 +596,42 @@ Today non-owners can only download if the file is linked to a page they have acc
 Edit `apps/web/src/app/api/files/[id]/route.ts`. Replace the existing `if (session.user.id !== file.userId) { ... }` block (lines 26–41 in the current file) with:
 
 ```ts
-    if (session.user.id !== file.userId) {
-      // Allow download if the file is an ACTIVE file in a workspace the user belongs to…
-      let authorized = false
+if (session.user.id !== file.userId) {
+  // Allow download if the file is an ACTIVE file in a workspace the user belongs to…
+  let authorized = false
 
-      if (file.workspaceId && file.status === "ACTIVE") {
-        const member = await prisma.workspaceMember.findUnique({
-          where: {
-            workspaceId_userId: {
-              workspaceId: file.workspaceId,
-              userId: session.user.id,
-            },
-          },
-          select: { userId: true },
-        })
-        if (member) authorized = true
-      }
+  if (file.workspaceId && file.status === 'ACTIVE') {
+    const member = await prisma.workspaceMember.findUnique({
+      where: {
+        workspaceId_userId: {
+          workspaceId: file.workspaceId,
+          userId: session.user.id,
+        },
+      },
+      select: { userId: true },
+    })
+    if (member) authorized = true
+  }
 
-      // …or attached to a page in a workspace the user belongs to.
-      if (!authorized) {
-        const linked = await prisma.pageFile.findFirst({
-          where: {
-            fileId: file.id,
-            page: {
-              deletedAt: null,
-              workspace: { members: { some: { userId: session.user.id } } },
-            },
-          },
-          select: { pageId: true },
-        })
-        if (linked) authorized = true
-      }
+  // …or attached to a page in a workspace the user belongs to.
+  if (!authorized) {
+    const linked = await prisma.pageFile.findFirst({
+      where: {
+        fileId: file.id,
+        page: {
+          deletedAt: null,
+          workspace: { members: { some: { userId: session.user.id } } },
+        },
+      },
+      select: { pageId: true },
+    })
+    if (linked) authorized = true
+  }
 
-      if (!authorized) {
-        return new Response("Forbidden", { status: 403 })
-      }
-    }
+  if (!authorized) {
+    return new Response('Forbidden', { status: 403 })
+  }
+}
 ```
 
 - [ ] **Step 2: Verify types**
@@ -662,12 +669,13 @@ git commit -m "feat(api): allow workspace members to download workspace files"
 Controlled MUI `Dialog` that confirms deletion of a file by the owner and calls `file.delete`. Keeps its own mutation state; parent passes `onDeleted` to invalidate the list.
 
 **Files:**
+
 - Create: `apps/web/src/components/workspace/settings/files-delete-dialog.tsx`
 
 - [ ] **Step 1: Create the component**
 
 ```tsx
-"use client"
+'use client'
 
 import {
   Alert,
@@ -677,9 +685,9 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
 type DialogFile = {
   id: string
@@ -713,7 +721,7 @@ export function FilesDeleteDialog({ open, file, onClose, onDeleted }: Props) {
     onClose()
   }
 
-  const displayName = file ? (file.ext ? `${file.name}.${file.ext}` : file.name) : ""
+  const displayName = file ? (file.ext ? `${file.name}.${file.ext}` : file.name) : ''
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth>
@@ -769,14 +777,15 @@ git commit -m "feat(web): add FilesDeleteDialog"
 Two chip controls: a name-search popover and an uploader `Menu`. Emits changes to a parent via `onSearchChange` / `onUploaderChange`. Receives the uploader list and a loading flag.
 
 **Files:**
+
 - Create: `apps/web/src/components/workspace/settings/files-filters.tsx`
 
 - [ ] **Step 1: Create the component**
 
 ```tsx
-"use client"
+'use client'
 
-import { useRef, useState } from "react"
+import { useRef, useState } from 'react'
 
 import {
   Avatar,
@@ -790,7 +799,7 @@ import {
   Stack,
   TextField,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
 type Uploader = {
   id: string
@@ -810,7 +819,7 @@ type Props = {
 }
 
 function fullName(user: Uploader) {
-  const joined = [user.firstName, user.lastName].filter(Boolean).join(" ").trim()
+  const joined = [user.firstName, user.lastName].filter(Boolean).join(' ').trim()
   return joined || user.email
 }
 
@@ -820,8 +829,8 @@ function initials(user: Uploader) {
 }
 
 function shortName(user: Uploader) {
-  const first = user.firstName?.trim() ?? ""
-  const last = user.lastName?.trim() ?? ""
+  const first = user.firstName?.trim() ?? ''
+  const last = user.lastName?.trim() ?? ''
   if (first && last) return `${first} ${last.slice(0, 1)}.`
   return first || last || user.email
 }
@@ -839,12 +848,12 @@ export function FilesFilters({
   const [searchOpen, setSearchOpen] = useState(false)
   const [uploaderOpen, setUploaderOpen] = useState(false)
 
-  const activeUploader = uploaderId ? uploaders.find((u) => u.id === uploaderId) ?? null : null
+  const activeUploader = uploaderId ? (uploaders.find((u) => u.id === uploaderId) ?? null) : null
 
-  const searchLabel = search ? `Название: «${search}»` : "Название"
+  const searchLabel = search ? `Название: «${search}»` : 'Название'
   const uploaderLabel = activeUploader
     ? `Пользователь: ${shortName(activeUploader)}`
-    : "Пользователь"
+    : 'Пользователь'
 
   return (
     <>
@@ -852,17 +861,17 @@ export function FilesFilters({
         <Chip
           ref={searchChipRef}
           label={searchLabel}
-          variant={search ? "filled" : "outlined"}
-          color={search ? "primary" : "default"}
+          variant={search ? 'filled' : 'outlined'}
+          color={search ? 'primary' : 'default'}
           icon={<SearchIcon fontSize="small" />}
           onClick={() => setSearchOpen(true)}
-          onDelete={search ? () => onSearchChange("") : undefined}
+          onDelete={search ? () => onSearchChange('') : undefined}
         />
         <Chip
           ref={uploaderChipRef}
           label={uploaderLabel}
-          variant={activeUploader ? "filled" : "outlined"}
-          color={activeUploader ? "primary" : "default"}
+          variant={activeUploader ? 'filled' : 'outlined'}
+          color={activeUploader ? 'primary' : 'default'}
           onClick={() => setUploaderOpen(true)}
           onDelete={activeUploader ? () => onUploaderChange(null) : undefined}
         />
@@ -872,7 +881,7 @@ export function FilesFilters({
         open={searchOpen}
         anchorEl={searchChipRef.current}
         onClose={() => setSearchOpen(false)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
         slotProps={{ paper: { sx: { p: 1.5, width: 280 } } }}
       >
         <TextField
@@ -898,8 +907,8 @@ export function FilesFilters({
         open={uploaderOpen}
         anchorEl={uploaderChipRef.current}
         onClose={() => setUploaderOpen(false)}
-        anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
-        transformOrigin={{ vertical: "top", horizontal: "left" }}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
         slotProps={{ paper: { sx: { maxHeight: 360, minWidth: 260 } } }}
       >
         {uploadersLoading ? (
@@ -916,11 +925,8 @@ export function FilesFilters({
                 setUploaderOpen(false)
               }}
             >
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
-                <Avatar
-                  src={user.image ?? undefined}
-                  sx={{ width: 24, height: 24, fontSize: 12 }}
-                >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+                <Avatar src={user.image ?? undefined} sx={{ width: 24, height: 24, fontSize: 12 }}>
                   {initials(user)}
                 </Avatar>
                 <Typography variant="body2" noWrap>
@@ -958,12 +964,13 @@ git commit -m "feat(web): add FilesFilters chip row"
 Presentational row for a single file. Shows the extension icon, name, ext, size in МБ, status chip, download count, uploader avatar + name, download button, and conditional delete button.
 
 **Files:**
+
 - Create: `apps/web/src/components/workspace/settings/files-table-row.tsx`
 
 - [ ] **Step 1: Create the component**
 
 ```tsx
-"use client"
+'use client'
 
 import {
   Avatar,
@@ -977,9 +984,9 @@ import {
   TableRow,
   Tooltip,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { FileExtIcon } from "./file-ext-icon"
+import { FileExtIcon } from './file-ext-icon'
 
 type RowUser = {
   id: string
@@ -1008,22 +1015,22 @@ type Props = {
 
 const formatMb = (bytes: string) => {
   const num = Number(bytes)
-  if (!Number.isFinite(num)) return "—"
+  if (!Number.isFinite(num)) return '—'
   return `${(num / (1024 * 1024)).toFixed(2)} МБ`
 }
 
 const fullName = (user: RowUser) => {
-  const joined = [user.firstName, user.lastName].filter(Boolean).join(" ").trim()
+  const joined = [user.firstName, user.lastName].filter(Boolean).join(' ').trim()
   return joined || user.email
 }
 
 const initials = (user: RowUser) => fullName(user).slice(0, 1).toUpperCase()
 
 const STATUS_LABEL: Record<string, string> = {
-  ACTIVE: "Активен",
-  ARCHIVED: "В архиве",
-  PENDING: "Обработка",
-  DELETED: "Удалён",
+  ACTIVE: 'Активен',
+  ARCHIVED: 'В архиве',
+  PENDING: 'Обработка',
+  DELETED: 'Удалён',
 }
 
 export function FilesTableRow({ file, currentUserId, onRequestDelete }: Props) {
@@ -1040,9 +1047,9 @@ export function FilesTableRow({ file, currentUserId, onRequestDelete }: Props) {
             <Typography
               variant="body2"
               sx={{
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                whiteSpace: "nowrap",
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
                 minWidth: 0,
               }}
             >
@@ -1051,18 +1058,15 @@ export function FilesTableRow({ file, currentUserId, onRequestDelete }: Props) {
           </Tooltip>
         </Stack>
       </TableCell>
-      <TableCell>{file.ext ? file.ext.toUpperCase() : "—"}</TableCell>
+      <TableCell>{file.ext ? file.ext.toUpperCase() : '—'}</TableCell>
       <TableCell align="right">{formatMb(file.fileSize)}</TableCell>
       <TableCell>
         <Chip size="small" label={STATUS_LABEL[file.status] ?? file.status} />
       </TableCell>
       <TableCell align="right">{file.downloadCount}</TableCell>
       <TableCell>
-        <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 0 }}>
-          <Avatar
-            src={file.user.image ?? undefined}
-            sx={{ width: 24, height: 24, fontSize: 12 }}
-          >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, minWidth: 0 }}>
+          <Avatar src={file.user.image ?? undefined} sx={{ width: 24, height: 24, fontSize: 12 }}>
             {initials(file.user)}
           </Avatar>
           <Typography variant="body2" noWrap>
@@ -1125,14 +1129,15 @@ git commit -m "feat(web): add FilesTableRow"
 Glues filters, table, pagination, and the delete dialog together. Owns `search` (debounced), `uploaderId`, and `page` state. Uses the `@repo/ui/components` Table primitives.
 
 **Files:**
+
 - Create: `apps/web/src/components/workspace/settings/files-section.tsx`
 
 - [ ] **Step 1: Create the component**
 
 ```tsx
-"use client"
+'use client'
 
-import { useEffect, useMemo, useState } from "react"
+import { useEffect, useMemo, useState } from 'react'
 
 import {
   Alert,
@@ -1147,13 +1152,13 @@ import {
   TablePagination,
   TableRow,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
-import { FilesDeleteDialog } from "./files-delete-dialog"
-import { FilesFilters } from "./files-filters"
-import { FilesTableRow, type RowFile } from "./files-table-row"
+import { FilesDeleteDialog } from './files-delete-dialog'
+import { FilesFilters } from './files-filters'
+import { FilesTableRow, type RowFile } from './files-table-row'
 
 type Props = {
   workspaceId: string
@@ -1165,8 +1170,8 @@ const PAGE_SIZE = 20
 export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
   const utils = trpc.useUtils()
 
-  const [searchInput, setSearchInput] = useState("")
-  const [search, setSearch] = useState("")
+  const [searchInput, setSearchInput] = useState('')
+  const [search, setSearch] = useState('')
   const [uploaderId, setUploaderId] = useState<string | null>(null)
   const [page, setPage] = useState(0)
   const [deleteTarget, setDeleteTarget] = useState<RowFile | null>(null)
@@ -1203,8 +1208,8 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
   }, [listQuery.data?.total, page])
 
   const resetFilters = () => {
-    setSearchInput("")
-    setSearch("")
+    setSearchInput('')
+    setSearch('')
     setUploaderId(null)
   }
 
@@ -1213,7 +1218,7 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
     utils.file.workspaceUploaders.invalidate({ workspaceId })
   }
 
-  const filtersActive = search !== "" || uploaderId !== null
+  const filtersActive = search !== '' || uploaderId !== null
   const items = listQuery.data?.items ?? []
   const total = listQuery.data?.total ?? 0
 
@@ -1221,7 +1226,7 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
     if (listQuery.isLoading && items.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={7} sx={{ textAlign: "center", py: 4 }}>
+          <TableCell colSpan={7} sx={{ textAlign: 'center', py: 4 }}>
             <Typography variant="body2" color="text.secondary">
               Загрузка…
             </Typography>
@@ -1233,7 +1238,7 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
     if (items.length === 0 && filtersActive) {
       return (
         <TableRow>
-          <TableCell colSpan={7} sx={{ textAlign: "center", py: 4 }}>
+          <TableCell colSpan={7} sx={{ textAlign: 'center', py: 4 }}>
             <Stack spacing={1} alignItems="center">
               <Typography variant="body2" color="text.secondary">
                 По фильтрам ничего не найдено.
@@ -1250,7 +1255,7 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
     if (items.length === 0) {
       return (
         <TableRow>
-          <TableCell colSpan={7} sx={{ textAlign: "center", py: 4 }}>
+          <TableCell colSpan={7} sx={{ textAlign: 'center', py: 4 }}>
             <Typography variant="body2" color="text.secondary">
               Файлы ещё не загружались.
             </Typography>
@@ -1279,9 +1284,7 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
           </Typography>
         </Box>
 
-        {listQuery.error ? (
-          <Alert severity="error">{listQuery.error.message}</Alert>
-        ) : null}
+        {listQuery.error ? <Alert severity="error">{listQuery.error.message}</Alert> : null}
 
         <FilesFilters
           search={searchInput}
@@ -1292,7 +1295,7 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
           onUploaderChange={setUploaderId}
         />
 
-        <Box sx={{ overflowX: "auto" }}>
+        <Box sx={{ overflowX: 'auto' }}>
           <Table size="small">
             <TableHead>
               <TableRow>
@@ -1356,16 +1359,17 @@ git commit -m "feat(web): add WorkspaceFilesSection"
 Server component that validates workspace access and hands `workspaceId` + `currentUserId` to the client section. Pattern mirrors `apps/web/src/app/(protected)/workspaces/[workspaceId]/settings/ai/page.tsx`.
 
 **Files:**
+
 - Create: `apps/web/src/app/(protected)/workspaces/[workspaceId]/settings/files/page.tsx`
 
 - [ ] **Step 1: Create the page**
 
 ```tsx
-import { notFound } from "next/navigation"
+import { notFound } from 'next/navigation'
 
-import { WorkspaceFilesSection } from "@/components/workspace/settings/files-section"
-import { requireSession } from "@/lib/get-session"
-import { getServerTRPC } from "@/trpc/server"
+import { WorkspaceFilesSection } from '@/components/workspace/settings/files-section'
+import { requireSession } from '@/lib/get-session'
+import { getServerTRPC } from '@/trpc/server'
 
 type Props = { params: Promise<{ workspaceId: string }> }
 
@@ -1402,6 +1406,7 @@ git commit -m "feat(web): add workspace settings files page"
 Insert a new nav item between "AI агент" and "Опасная зона" in [apps/web/src/components/workspace/workspace-settings-nav.tsx](../../../apps/web/src/components/workspace/workspace-settings-nav.tsx).
 
 **Files:**
+
 - Modify: `apps/web/src/components/workspace/workspace-settings-nav.tsx`
 
 - [ ] **Step 1: Update the `ITEMS` array**
@@ -1410,11 +1415,11 @@ Replace lines 10–15 (the current `ITEMS` constant) with:
 
 ```ts
 const ITEMS = [
-  { label: "Общее", slug: "general" },
-  { label: "Участники", slug: "members" },
-  { label: "AI агент", slug: "ai" },
-  { label: "Файлы", slug: "files" },
-  { label: "Опасная зона", slug: "danger" },
+  { label: 'Общее', slug: 'general' },
+  { label: 'Участники', slug: 'members' },
+  { label: 'AI агент', slug: 'ai' },
+  { label: 'Файлы', slug: 'files' },
+  { label: 'Опасная зона', slug: 'danger' },
 ] as const
 ```
 

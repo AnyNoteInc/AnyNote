@@ -1,7 +1,7 @@
-import type * as Y from "yjs"
-import type { GenogramPageData } from "../types"
-import { domainToPage } from "../transforms"
-import { assembleDomain } from "./assembleDomain"
+import type * as Y from 'yjs'
+import type { GenogramPageData } from '../types'
+import { domainToPage } from '../transforms'
+import { assembleDomain } from './assembleDomain'
 
 /**
  * Produces a validated JSON snapshot ready for Page.content. Goes through

@@ -1,14 +1,23 @@
-import { afterAll, afterEach, beforeAll, beforeEach, describe, expect, it, jest } from "@jest/globals"
-import type { INestApplication } from "@nestjs/common"
-import { NestFactory } from "@nestjs/core"
-import { prisma } from "@repo/db"
-import request from "supertest"
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  beforeEach,
+  describe,
+  expect,
+  it,
+  jest,
+} from '@jest/globals'
+import type { INestApplication } from '@nestjs/common'
+import { NestFactory } from '@nestjs/core'
+import { prisma } from '@repo/db'
+import request from 'supertest'
 
-import { AppModule } from "../../src/app.module.js"
+import { AppModule } from '../../src/app.module.js'
 
 jest.setTimeout(30000)
 
-describe("MCP e2e", () => {
+describe('MCP e2e', () => {
   let app: INestApplication
   let http: ReturnType<typeof request>
   let rpcId = 100
@@ -16,12 +25,12 @@ describe("MCP e2e", () => {
   let userId: string
 
   beforeAll(async () => {
-    process.env.ENGINES_MCP_TOKEN = "test-token"
+    process.env.ENGINES_MCP_TOKEN = 'test-token'
     app = await NestFactory.create(AppModule, { logger: false })
-    app.setGlobalPrefix("api")
+    app.setGlobalPrefix('api')
     await app.init()
     await app.listen(0)
-    const server = app.getHttpServer() as import("http").Server
+    const server = app.getHttpServer() as import('http').Server
     http = request(server)
   })
 
@@ -31,19 +40,19 @@ describe("MCP e2e", () => {
   })
 
   beforeEach(async () => {
-    const ws = await prisma.workspace.create({ data: { name: "mcp-test" } })
+    const ws = await prisma.workspace.create({ data: { name: 'mcp-test' } })
     workspaceId = ws.id
     const user = await prisma.user.create({
       data: {
-        name: "Mcp User",
-        firstName: "M",
-        lastName: "U",
+        name: 'Mcp User',
+        firstName: 'M',
+        lastName: 'U',
         email: `mcp-${workspaceId}@e.com`,
         emailVerified: true,
       },
     })
     userId = user.id
-    await prisma.workspaceMember.create({ data: { workspaceId, userId, role: "OWNER" } })
+    await prisma.workspaceMember.create({ data: { workspaceId, userId, role: 'OWNER' } })
   })
 
   afterEach(async () => {
@@ -51,23 +60,19 @@ describe("MCP e2e", () => {
     await prisma.user.delete({ where: { id: userId } }).catch(() => undefined)
   })
 
-  async function callTool(
-    name: string,
-    args: Record<string, unknown>,
-    currentUserId = userId,
-  ) {
+  async function callTool(name: string, args: Record<string, unknown>, currentUserId = userId) {
     return http
-      .post("/api/mcp")
+      .post('/api/mcp')
       .send({
-        jsonrpc: "2.0",
-        method: "tools/call",
+        jsonrpc: '2.0',
+        method: 'tools/call',
         id: rpcId++,
         params: { name, args },
       })
-      .set("Content-Type", "application/json")
-      .set("Accept", "application/json, text/event-stream")
-      .set("X-User-Id", currentUserId)
-      .set("x-Workspace-Id", workspaceId)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json, text/event-stream')
+      .set('X-User-Id', currentUserId)
+      .set('x-Workspace-Id', workspaceId)
   }
 
   function parseToolPayload(res: request.Response) {
@@ -76,158 +81,161 @@ describe("MCP e2e", () => {
     return JSON.parse(content)
   }
 
-  it("rejects missing identity headers with 401", async () => {
+  it('rejects missing identity headers with 401', async () => {
     const res = await http
-      .post("/api/mcp")
-      .send({ jsonrpc: "2.0", method: "tools/list", id: 1 })
-      .set("Content-Type", "application/json")
-      .set("Accept", "application/json, text/event-stream")
+      .post('/api/mcp')
+      .send({ jsonrpc: '2.0', method: 'tools/list', id: 1 })
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json, text/event-stream')
     expect(res.status).toBe(401)
   })
 
-  it("lists tools with valid workspace headers and hides header-derived context fields", async () => {
+  it('lists tools with valid workspace headers and hides header-derived context fields', async () => {
     const res = await http
-      .post("/api/mcp")
-      .send({ jsonrpc: "2.0", method: "tools/list", id: 1 })
-      .set("Content-Type", "application/json")
-      .set("Accept", "application/json, text/event-stream")
-      .set("X-User-Id", userId)
-      .set("x-Workspace-Id", workspaceId)
+      .post('/api/mcp')
+      .send({ jsonrpc: '2.0', method: 'tools/list', id: 1 })
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json, text/event-stream')
+      .set('X-User-Id', userId)
+      .set('x-Workspace-Id', workspaceId)
 
     expect(res.status).toBe(200)
     expect(res.body.result?.tools).toEqual(
-      expect.arrayContaining([expect.objectContaining({ name: "createPage" })]),
+      expect.arrayContaining([expect.objectContaining({ name: 'createPage' })]),
     )
 
     const getPageStats = (
       res.body.result?.tools as
-        | Array<{ name?: string; inputSchema?: { properties?: Record<string, unknown>; required?: string[] } }>
+        | Array<{
+            name?: string
+            inputSchema?: { properties?: Record<string, unknown>; required?: string[] }
+          }>
         | undefined
-    )?.find((tool) => tool.name === "getPageStats")
+    )?.find((tool) => tool.name === 'getPageStats')
 
     expect(getPageStats).toBeDefined()
     expect(getPageStats?.inputSchema?.properties).toEqual(
       expect.objectContaining({ pageId: expect.any(Object) }),
     )
-    expect(getPageStats?.inputSchema?.properties).not.toHaveProperty("userId")
-    expect(getPageStats?.inputSchema?.properties).not.toHaveProperty("workspaceId")
-    expect(getPageStats?.inputSchema?.required ?? []).toEqual(expect.arrayContaining(["pageId"]))
+    expect(getPageStats?.inputSchema?.properties).not.toHaveProperty('userId')
+    expect(getPageStats?.inputSchema?.properties).not.toHaveProperty('workspaceId')
+    expect(getPageStats?.inputSchema?.required ?? []).toEqual(expect.arrayContaining(['pageId']))
   })
 
-  it("returns page stats via header-based tool call using params.args", async () => {
+  it('returns page stats via header-based tool call using params.args', async () => {
     const page = await prisma.page.create({
       data: {
         workspaceId,
-        title: "Stats page",
+        title: 'Stats page',
         createdById: userId,
         updatedById: userId,
       },
     })
 
     const res = await http
-      .post("/api/mcp")
+      .post('/api/mcp')
       .send({
-        jsonrpc: "2.0",
-        method: "tools/call",
+        jsonrpc: '2.0',
+        method: 'tools/call',
         id: 2,
         params: {
-          name: "getPageStats",
+          name: 'getPageStats',
           args: { pageId: page.id },
         },
       })
-      .set("Content-Type", "application/json")
-      .set("Accept", "application/json, text/event-stream")
-      .set("X-User-Id", userId)
-      .set("x-Workspace-Id", workspaceId)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json, text/event-stream')
+      .set('X-User-Id', userId)
+      .set('x-Workspace-Id', workspaceId)
 
     expect(res.status).toBe(200)
     const content = res.body.result?.content?.[0]?.text ?? JSON.stringify(res.body)
     const payload = JSON.parse(content)
     expect(payload).toEqual(
       expect.objectContaining({
-        type: "TEXT",
-        ownership: "TEXT",
+        type: 'TEXT',
+        ownership: 'TEXT',
         createdBy: expect.objectContaining({ id: userId }),
       }),
     )
   })
 
-  it("accepts pageId embedded in a natural-language argument string", async () => {
+  it('accepts pageId embedded in a natural-language argument string', async () => {
     const page = await prisma.page.create({
       data: {
         workspaceId,
-        title: "Natural id page",
+        title: 'Natural id page',
         createdById: userId,
         updatedById: userId,
       },
     })
 
     const res = await http
-      .post("/api/mcp")
+      .post('/api/mcp')
       .send({
-        jsonrpc: "2.0",
-        method: "tools/call",
+        jsonrpc: '2.0',
+        method: 'tools/call',
         id: 22,
         params: {
-          name: "getPageStats",
+          name: 'getPageStats',
           args: { pageId: `pageId = ${page.id}` },
         },
       })
-      .set("Content-Type", "application/json")
-      .set("Accept", "application/json, text/event-stream")
-      .set("X-User-Id", userId)
-      .set("x-Workspace-Id", workspaceId)
+      .set('Content-Type', 'application/json')
+      .set('Accept', 'application/json, text/event-stream')
+      .set('X-User-Id', userId)
+      .set('x-Workspace-Id', workspaceId)
 
     expect(res.status).toBe(200)
     const content = res.body.result?.content?.[0]?.text ?? JSON.stringify(res.body)
     const payload = JSON.parse(content)
     expect(payload).toEqual(
       expect.objectContaining({
-        type: "TEXT",
-        ownership: "TEXT",
+        type: 'TEXT',
+        ownership: 'TEXT',
         createdBy: expect.objectContaining({ id: userId }),
       }),
     )
   })
 
-  it("accepts pageId embedded in a Russian creator question", async () => {
+  it('accepts pageId embedded in a Russian creator question', async () => {
     const page = await prisma.page.create({
       data: {
         workspaceId,
-        title: "Russian creator question page",
+        title: 'Russian creator question page',
         createdById: userId,
         updatedById: userId,
       },
     })
 
-    const res = await callTool("getPageStats", {
+    const res = await callTool('getPageStats', {
       pageId: `кто создал страницу ${page.id}`,
     })
 
     const payload = parseToolPayload(res)
     expect(payload).toEqual(
       expect.objectContaining({
-        type: "TEXT",
-        ownership: "TEXT",
+        type: 'TEXT',
+        ownership: 'TEXT',
         createdBy: expect.objectContaining({ id: userId }),
       }),
     )
   })
 
-  it("returns expected payloads for remaining read tools", async () => {
+  it('returns expected payloads for remaining read tools', async () => {
     const markdownPage = await prisma.page.create({
       data: {
         workspaceId,
-        title: "Markdown page",
-        ownership: "TEXT",
+        title: 'Markdown page',
+        ownership: 'TEXT',
         createdById: userId,
         updatedById: userId,
         content: {
-          type: "doc",
+          type: 'doc',
           content: [
             {
-              type: "paragraph",
-              content: [{ type: "text", text: "Привет markdown" }],
+              type: 'paragraph',
+              content: [{ type: 'text', text: 'Привет markdown' }],
             },
           ],
         },
@@ -236,8 +244,8 @@ describe("MCP e2e", () => {
     const skillPage = await prisma.page.create({
       data: {
         workspaceId,
-        title: "Skill page",
-        ownership: "SKILL",
+        title: 'Skill page',
+        ownership: 'SKILL',
         createdById: userId,
         updatedById: userId,
       },
@@ -245,8 +253,8 @@ describe("MCP e2e", () => {
     const agentPage = await prisma.page.create({
       data: {
         workspaceId,
-        title: "Agent page",
-        ownership: "AGENT",
+        title: 'Agent page',
+        ownership: 'AGENT',
         createdById: userId,
         updatedById: userId,
       },
@@ -255,20 +263,20 @@ describe("MCP e2e", () => {
       data: {
         userId,
         workspaceId,
-        name: "notes.txt",
-        ext: "txt",
+        name: 'notes.txt',
+        ext: 'txt',
         fileSize: BigInt(12),
-        mimeType: "text/plain",
-        hash: "a".repeat(64),
-        path: "test/notes.txt",
-        status: "ACTIVE",
+        mimeType: 'text/plain',
+        hash: 'a'.repeat(64),
+        path: 'test/notes.txt',
+        status: 'ACTIVE',
       },
     })
     await prisma.pageFile.create({
       data: { pageId: markdownPage.id, fileId: file.id },
     })
 
-    const workspaceStats = parseToolPayload(await callTool("getWorkspaceStats", {}))
+    const workspaceStats = parseToolPayload(await callTool('getWorkspaceStats', {}))
     expect(workspaceStats).toEqual(
       expect.objectContaining({
         totalPages: 3,
@@ -276,65 +284,67 @@ describe("MCP e2e", () => {
         members: expect.arrayContaining([
           expect.objectContaining({
             id: userId,
-            role: "OWNER",
+            role: 'OWNER',
           }),
         ]),
       }),
     )
 
     const markdown = parseToolPayload(
-      await callTool("getPageMarkdown", { pageId: `pageId = ${markdownPage.id}` }),
+      await callTool('getPageMarkdown', { pageId: `pageId = ${markdownPage.id}` }),
     )
-    expect(markdown).toEqual({ markdown: "Привет markdown" })
+    expect(markdown).toEqual({ markdown: 'Привет markdown' })
 
-    const workspaceFiles = parseToolPayload(await callTool("listWorkspaceFiles", { limit: 10, offset: 0 }))
+    const workspaceFiles = parseToolPayload(
+      await callTool('listWorkspaceFiles', { limit: 10, offset: 0 }),
+    )
     expect(workspaceFiles).toEqual(
       expect.objectContaining({
         files: expect.arrayContaining([
           expect.objectContaining({
             id: file.id,
-            name: "notes.txt",
-            mimeType: "text/plain",
+            name: 'notes.txt',
+            mimeType: 'text/plain',
             size: 12,
           }),
         ]),
       }),
     )
 
-    const skills = parseToolPayload(await callTool("listSkills", { limit: 10 }))
+    const skills = parseToolPayload(await callTool('listSkills', { limit: 10 }))
     expect(skills).toEqual(
       expect.objectContaining({
         pages: expect.arrayContaining([
           expect.objectContaining({
             id: skillPage.id,
-            title: "Skill page",
+            title: 'Skill page',
           }),
         ]),
       }),
     )
 
-    const agents = parseToolPayload(await callTool("listAgents", { limit: 10 }))
+    const agents = parseToolPayload(await callTool('listAgents', { limit: 10 }))
     expect(agents).toEqual(
       expect.objectContaining({
         pages: expect.arrayContaining([
           expect.objectContaining({
             id: agentPage.id,
-            title: "Agent page",
+            title: 'Agent page',
           }),
         ]),
       }),
     )
 
     const pageFiles = parseToolPayload(
-      await callTool("listPageFiles", { pageId: `pageId = ${markdownPage.id}` }),
+      await callTool('listPageFiles', { pageId: `pageId = ${markdownPage.id}` }),
     )
     expect(pageFiles).toEqual(
       expect.objectContaining({
         files: expect.arrayContaining([
           expect.objectContaining({
             id: file.id,
-            name: "notes.txt",
-            mimeType: "text/plain",
+            name: 'notes.txt',
+            mimeType: 'text/plain',
             size: 12,
           }),
         ]),
@@ -342,12 +352,12 @@ describe("MCP e2e", () => {
     )
   })
 
-  it("applies defaults when MCP tool caller sends null pagination values", async () => {
+  it('applies defaults when MCP tool caller sends null pagination values', async () => {
     const skillPage = await prisma.page.create({
       data: {
         workspaceId,
-        title: "Skill with null limit",
-        ownership: "SKILL",
+        title: 'Skill with null limit',
+        ownership: 'SKILL',
         createdById: userId,
         updatedById: userId,
       },
@@ -355,8 +365,8 @@ describe("MCP e2e", () => {
     const agentPage = await prisma.page.create({
       data: {
         workspaceId,
-        title: "Agent with null limit",
-        ownership: "AGENT",
+        title: 'Agent with null limit',
+        ownership: 'AGENT',
         createdById: userId,
         updatedById: userId,
       },
@@ -365,60 +375,60 @@ describe("MCP e2e", () => {
       data: {
         userId,
         workspaceId,
-        name: "null-defaults.txt",
-        ext: "txt",
+        name: 'null-defaults.txt',
+        ext: 'txt',
         fileSize: BigInt(16),
-        mimeType: "text/plain",
-        hash: "d".repeat(64),
-        path: "test/null-defaults.txt",
-        status: "ACTIVE",
+        mimeType: 'text/plain',
+        hash: 'd'.repeat(64),
+        path: 'test/null-defaults.txt',
+        status: 'ACTIVE',
       },
     })
 
     const workspaceFiles = parseToolPayload(
-      await callTool("listWorkspaceFiles", { limit: null, offset: null }),
+      await callTool('listWorkspaceFiles', { limit: null, offset: null }),
     )
     expect(workspaceFiles).toEqual(
       expect.objectContaining({
         files: expect.arrayContaining([
           expect.objectContaining({
             id: file.id,
-            name: "null-defaults.txt",
+            name: 'null-defaults.txt',
           }),
         ]),
       }),
     )
 
-    const skills = parseToolPayload(await callTool("listSkills", { limit: null }))
+    const skills = parseToolPayload(await callTool('listSkills', { limit: null }))
     expect(skills).toEqual(
       expect.objectContaining({
         pages: expect.arrayContaining([
           expect.objectContaining({
             id: skillPage.id,
-            title: "Skill with null limit",
+            title: 'Skill with null limit',
           }),
         ]),
       }),
     )
 
-    const agents = parseToolPayload(await callTool("listAgents", { limit: null }))
+    const agents = parseToolPayload(await callTool('listAgents', { limit: null }))
     expect(agents).toEqual(
       expect.objectContaining({
         pages: expect.arrayContaining([
           expect.objectContaining({
             id: agentPage.id,
-            title: "Agent with null limit",
+            title: 'Agent with null limit',
           }),
         ]),
       }),
     )
   })
 
-  it("returns expected payloads for remaining mutation tools", async () => {
+  it('returns expected payloads for remaining mutation tools', async () => {
     const sourceParent = await prisma.page.create({
       data: {
         workspaceId,
-        title: "Source parent",
+        title: 'Source parent',
         createdById: userId,
         updatedById: userId,
       },
@@ -426,7 +436,7 @@ describe("MCP e2e", () => {
     const destinationParent = await prisma.page.create({
       data: {
         workspaceId,
-        title: "Destination parent",
+        title: 'Destination parent',
         createdById: userId,
         updatedById: userId,
       },
@@ -435,7 +445,7 @@ describe("MCP e2e", () => {
       data: {
         workspaceId,
         parentId: destinationParent.id,
-        title: "Previous page",
+        title: 'Previous page',
         createdById: userId,
         updatedById: userId,
       },
@@ -444,34 +454,34 @@ describe("MCP e2e", () => {
       data: {
         userId,
         workspaceId,
-        name: "doc.txt",
-        ext: "txt",
+        name: 'doc.txt',
+        ext: 'txt',
         fileSize: BigInt(24),
-        mimeType: "text/plain",
-        hash: "b".repeat(64),
-        path: "test/doc.txt",
-        status: "ACTIVE",
+        mimeType: 'text/plain',
+        hash: 'b'.repeat(64),
+        path: 'test/doc.txt',
+        status: 'ACTIVE',
       },
     })
     const imageFile = await prisma.file.create({
       data: {
         userId,
         workspaceId,
-        name: "image.png",
-        ext: "png",
+        name: 'image.png',
+        ext: 'png',
         fileSize: BigInt(48),
-        mimeType: "image/png",
-        hash: "c".repeat(64),
-        path: "test/image.png",
-        status: "ACTIVE",
+        mimeType: 'image/png',
+        hash: 'c'.repeat(64),
+        path: 'test/image.png',
+        status: 'ACTIVE',
       },
     })
 
     const created = parseToolPayload(
-      await callTool("createPage", {
+      await callTool('createPage', {
         parentId: `parentId = ${sourceParent.id}`,
-        title: "Created page",
-        ownership: "AGENT",
+        title: 'Created page',
+        ownership: 'AGENT',
       }),
     )
     expect(created).toEqual({ pageId: expect.any(String) })
@@ -480,11 +490,11 @@ describe("MCP e2e", () => {
       where: { id: created.pageId as string },
     })
     expect(createdPage.parentId).toBe(sourceParent.id)
-    expect(createdPage.ownership).toBe("AGENT")
+    expect(createdPage.ownership).toBe('AGENT')
 
     const createdWithNullOwnership = parseToolPayload(
-      await callTool("createPage", {
-        title: "Created page with null ownership",
+      await callTool('createPage', {
+        title: 'Created page with null ownership',
         ownership: null,
       }),
     )
@@ -496,24 +506,24 @@ describe("MCP e2e", () => {
       }),
     ).resolves.toEqual(
       expect.objectContaining({
-        title: "Created page with null ownership",
-        ownership: "TEXT",
+        title: 'Created page with null ownership',
+        ownership: 'TEXT',
       }),
     )
 
     const updated = parseToolPayload(
-      await callTool("updatePage", {
+      await callTool('updatePage', {
         pageId: `pageId = ${created.pageId as string}`,
-        title: "Updated page",
+        title: 'Updated page',
       }),
     )
     expect(updated).toEqual({ ok: true })
     await expect(
       prisma.page.findUniqueOrThrow({ where: { id: created.pageId as string } }),
-    ).resolves.toEqual(expect.objectContaining({ title: "Updated page" }))
+    ).resolves.toEqual(expect.objectContaining({ title: 'Updated page' }))
 
     const moved = parseToolPayload(
-      await callTool("movePage", {
+      await callTool('movePage', {
         pageId: `pageId = ${created.pageId as string}`,
         newParentId: `newParentId = ${destinationParent.id}`,
         prevPageId: `prevPageId = ${previousPage.id}`,
@@ -530,7 +540,7 @@ describe("MCP e2e", () => {
     )
 
     const attachedFile = parseToolPayload(
-      await callTool("attachFileToPage", {
+      await callTool('attachFileToPage', {
         pageId: `pageId = ${created.pageId as string}`,
         fileId: `fileId = ${textFile.id}`,
       }),
@@ -538,7 +548,7 @@ describe("MCP e2e", () => {
     expect(attachedFile).toEqual({ ok: true })
 
     const attachedImage = parseToolPayload(
-      await callTool("attachImageToPage", {
+      await callTool('attachImageToPage', {
         pageId: `pageId = ${created.pageId as string}`,
         fileId: `fileId = ${imageFile.id}`,
       }),
@@ -546,10 +556,10 @@ describe("MCP e2e", () => {
     expect(attachedImage).toEqual({ ok: true })
 
     const pageFromFile = parseToolPayload(
-      await callTool("createPageFromFile", {
+      await callTool('createPageFromFile', {
         parentId: `parentId = ${destinationParent.id}`,
         fileId: `fileId = ${textFile.id}`,
-        title: "Page from file",
+        title: 'Page from file',
       }),
     )
     expect(pageFromFile).toEqual({ pageId: expect.any(String) })
@@ -559,7 +569,7 @@ describe("MCP e2e", () => {
     ).resolves.toEqual(
       expect.objectContaining({
         parentId: destinationParent.id,
-        title: "Page from file",
+        title: 'Page from file',
       }),
     )
     await expect(
@@ -574,12 +584,12 @@ describe("MCP e2e", () => {
     ).resolves.toBeTruthy()
   })
 
-  it("returns FILE_NOT_FOUND when createPageFromFile source file is missing", async () => {
-    const missingFileId = "11111111-1111-4111-8111-111111111111"
+  it('returns FILE_NOT_FOUND when createPageFromFile source file is missing', async () => {
+    const missingFileId = '11111111-1111-4111-8111-111111111111'
 
-    const res = await callTool("createPageFromFile", {
+    const res = await callTool('createPageFromFile', {
       fileId: `fileId = ${missingFileId}`,
-      title: "Should fail",
+      title: 'Should fail',
     })
 
     const bodyText = JSON.stringify(res.body)
@@ -587,32 +597,32 @@ describe("MCP e2e", () => {
     expect(res.body?.result?.isError).toBe(true)
   })
 
-  it("rejects non-member with WORKSPACE_ACCESS_DENIED", async () => {
+  it('rejects non-member with WORKSPACE_ACCESS_DENIED', async () => {
     const otherUser = await prisma.user.create({
       data: {
-        name: "Other User",
-        firstName: "X",
-        lastName: "Y",
+        name: 'Other User',
+        firstName: 'X',
+        lastName: 'Y',
         email: `other-${workspaceId}@e.com`,
         emailVerified: true,
       },
     })
     try {
       const res = await http
-        .post("/api/mcp")
+        .post('/api/mcp')
         .send({
-          jsonrpc: "2.0",
-          method: "tools/call",
+          jsonrpc: '2.0',
+          method: 'tools/call',
           id: 3,
           params: {
-            name: "createPage",
-            args: { title: "Denied" },
+            name: 'createPage',
+            args: { title: 'Denied' },
           },
         })
-        .set("Content-Type", "application/json")
-        .set("Accept", "application/json, text/event-stream")
-        .set("X-User-Id", otherUser.id)
-        .set("x-Workspace-Id", workspaceId)
+        .set('Content-Type', 'application/json')
+        .set('Accept', 'application/json, text/event-stream')
+        .set('X-User-Id', otherUser.id)
+        .set('x-Workspace-Id', workspaceId)
 
       // @rekog/mcp-nest surfaces HttpException.message through the MCP tool-call error text;
       // the "code" property is not preserved, only the human message string.

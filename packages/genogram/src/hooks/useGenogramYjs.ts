@@ -1,8 +1,8 @@
-"use client"
+'use client'
 
-import { useEffect, useState } from "react"
-import * as Y from "yjs"
-import { HocuspocusProvider } from "@hocuspocus/provider"
+import { useEffect, useState } from 'react'
+import * as Y from 'yjs'
+import { HocuspocusProvider } from '@hocuspocus/provider'
 
 export interface GenogramYjsResources {
   ydoc: Y.Doc

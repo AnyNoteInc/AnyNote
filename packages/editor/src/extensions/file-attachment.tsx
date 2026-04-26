@@ -1,12 +1,12 @@
-"use client"
+'use client'
 
-import { Node, mergeAttributes } from "@tiptap/core"
-import { NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react"
-import type { NodeViewProps } from "@tiptap/react"
-import { Box, Typography } from "@mui/material"
+import { Node, mergeAttributes } from '@tiptap/core'
+import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
+import type { NodeViewProps } from '@tiptap/react'
+import { Box, Typography } from '@mui/material'
 
-import { getFileIcon } from "../assets/files/index"
-import { DownloadIcon } from "../assets/index"
+import { getFileIcon } from '../assets/files/index'
+import { DownloadIcon } from '../assets/index'
 
 export type FileAttachmentAttrs = {
   url: string
@@ -17,8 +17,8 @@ export type FileAttachmentAttrs = {
 }
 
 const formatBytes = (bytes: number): string => {
-  if (!bytes || bytes < 0) return "0 Б"
-  const units = ["Б", "КБ", "МБ", "ГБ"]
+  if (!bytes || bytes < 0) return '0 Б'
+  const units = ['Б', 'КБ', 'МБ', 'ГБ']
   const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1024)))
   const value = bytes / Math.pow(1024, i)
   return `${value.toFixed(i === 0 ? 0 : 1)} ${units[i]}`
@@ -43,26 +43,26 @@ function FileAttachmentView({ node }: NodeViewProps) {
         rel="noopener noreferrer"
         download={attrs.name}
         sx={{
-          display: "flex",
-          alignItems: "center",
+          display: 'flex',
+          alignItems: 'center',
           gap: 1.5,
-          textDecoration: "none",
-          color: "text.primary",
-          border: "1px solid",
-          borderColor: "divider",
+          textDecoration: 'none',
+          color: 'text.primary',
+          border: '1px solid',
+          borderColor: 'divider',
           borderRadius: 1.5,
           px: 1.5,
           py: 1,
           my: 0.5,
-          transition: "background-color .15s, border-color .15s",
-          "&:hover": {
-            backgroundColor: "action.hover",
-            borderColor: "text.secondary",
-            "& .download-icon": { opacity: 1 },
+          transition: 'background-color .15s, border-color .15s',
+          '&:hover': {
+            backgroundColor: 'action.hover',
+            borderColor: 'text.secondary',
+            '& .download-icon': { opacity: 1 },
           },
         }}
       >
-        <Box sx={{ flexShrink: 0, display: "flex", alignItems: "center" }}>
+        <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
           <Icon width={32} height={32} />
         </Box>
         <Box sx={{ minWidth: 0, flex: 1 }}>
@@ -71,9 +71,9 @@ function FileAttachmentView({ node }: NodeViewProps) {
             variant="body2"
             sx={{
               fontWeight: 500,
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
             }}
           >
             {attrs.name}
@@ -84,7 +84,7 @@ function FileAttachmentView({ node }: NodeViewProps) {
         </Box>
         <Box
           className="download-icon"
-          sx={{ color: "text.secondary", opacity: 0.6, display: "flex", alignItems: "center" }}
+          sx={{ color: 'text.secondary', opacity: 0.6, display: 'flex', alignItems: 'center' }}
         >
           <DownloadIcon width={18} height={18} />
         </Box>
@@ -94,19 +94,19 @@ function FileAttachmentView({ node }: NodeViewProps) {
 }
 
 export const FileAttachment = Node.create({
-  name: "fileAttachment",
-  group: "block",
+  name: 'fileAttachment',
+  group: 'block',
   atom: true,
   draggable: true,
   selectable: true,
 
   addAttributes() {
     return {
-      url: { default: "" },
-      name: { default: "" },
+      url: { default: '' },
+      name: { default: '' },
       size: { default: 0 },
-      mimeType: { default: "" },
-      ext: { default: "" },
+      mimeType: { default: '' },
+      ext: { default: '' },
     }
   },
 
@@ -117,11 +117,11 @@ export const FileAttachment = Node.create({
         getAttrs: (element) => {
           const el = element as HTMLElement
           return {
-            url: el.getAttribute("data-url") ?? "",
-            name: el.getAttribute("data-name") ?? "",
-            size: Number(el.getAttribute("data-size") ?? 0),
-            mimeType: el.getAttribute("data-mime") ?? "",
-            ext: el.getAttribute("data-ext") ?? "",
+            url: el.getAttribute('data-url') ?? '',
+            name: el.getAttribute('data-name') ?? '',
+            size: Number(el.getAttribute('data-size') ?? 0),
+            mimeType: el.getAttribute('data-mime') ?? '',
+            ext: el.getAttribute('data-ext') ?? '',
           }
         },
       },
@@ -131,14 +131,14 @@ export const FileAttachment = Node.create({
   renderHTML({ HTMLAttributes, node }) {
     const attrs = node.attrs as FileAttachmentAttrs
     return [
-      "div",
+      'div',
       mergeAttributes(HTMLAttributes, {
-        "data-type": "file-attachment",
-        "data-url": attrs.url,
-        "data-name": attrs.name,
-        "data-size": String(attrs.size),
-        "data-mime": attrs.mimeType,
-        "data-ext": attrs.ext,
+        'data-type': 'file-attachment',
+        'data-url': attrs.url,
+        'data-name': attrs.name,
+        'data-size': String(attrs.size),
+        'data-mime': attrs.mimeType,
+        'data-ext': attrs.ext,
       }),
     ]
   },

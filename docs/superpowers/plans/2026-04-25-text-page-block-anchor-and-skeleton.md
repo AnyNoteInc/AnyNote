@@ -15,6 +15,7 @@
 ### Task 1: BlockIndexAttributes Tiptap extension
 
 **Files:**
+
 - Create: `packages/editor/src/extensions/block-index-attributes.ts`
 
 ProseMirror Decoration plugin that tags every top-level node in `doc.content` with `data-block-index="N"`. Decorations are presentation-only — they never modify the doc or write to Y.Doc, so they are safe under collaborative editing.
@@ -23,23 +24,23 @@ ProseMirror Decoration plugin that tags every top-level node in `doc.content` wi
 
 ```ts
 // packages/editor/src/extensions/block-index-attributes.ts
-import { Extension } from "@tiptap/core"
-import { Plugin, PluginKey } from "@tiptap/pm/state"
-import { Decoration, DecorationSet } from "@tiptap/pm/view"
+import { Extension } from '@tiptap/core'
+import { Plugin, PluginKey } from '@tiptap/pm/state'
+import { Decoration, DecorationSet } from '@tiptap/pm/view'
 
 export const BlockIndexAttributes = Extension.create({
-  name: "blockIndexAttributes",
+  name: 'blockIndexAttributes',
   addProseMirrorPlugins() {
     return [
       new Plugin({
-        key: new PluginKey("blockIndexAttributes"),
+        key: new PluginKey('blockIndexAttributes'),
         props: {
           decorations(state) {
             const decos: Decoration[] = []
             state.doc.content.forEach((node, offset, index) => {
               decos.push(
                 Decoration.node(offset, offset + node.nodeSize, {
-                  "data-block-index": String(index),
+                  'data-block-index': String(index),
                 }),
               )
             })
@@ -69,6 +70,7 @@ git commit -m "feat(editor): BlockIndexAttributes extension tags top-level nodes
 ### Task 2: Register BlockIndexAttributes in buildExtensions
 
 **Files:**
+
 - Modify: `packages/editor/src/extensions/index.ts`
 
 - [ ] **Step 1: Import and register**
@@ -76,7 +78,7 @@ git commit -m "feat(editor): BlockIndexAttributes extension tags top-level nodes
 In `packages/editor/src/extensions/index.ts`, add the import alongside other extension imports (after existing imports):
 
 ```ts
-import { BlockIndexAttributes } from "./block-index-attributes"
+import { BlockIndexAttributes } from './block-index-attributes'
 ```
 
 Append `BlockIndexAttributes` to the array returned by `buildExtensions`:
@@ -129,6 +131,7 @@ git commit -m "feat(editor): register BlockIndexAttributes in buildExtensions"
 ### Task 3: scrollToBlockIndex utility + .block-flash CSS
 
 **Files:**
+
 - Create: `packages/editor/src/block-anchor.ts`
 - Modify: `packages/editor/src/index.ts`
 - Modify: `packages/editor/src/styles/content.css`
@@ -137,9 +140,9 @@ git commit -m "feat(editor): register BlockIndexAttributes in buildExtensions"
 
 ```ts
 // packages/editor/src/block-anchor.ts
-import type { Editor } from "@tiptap/core"
+import type { Editor } from '@tiptap/core'
 
-const BLOCK_FLASH_CLASS = "block-flash"
+const BLOCK_FLASH_CLASS = 'block-flash'
 const BLOCK_FLASH_DURATION_MS = 3000
 
 export function scrollToBlockIndex(editor: Editor, index: number): boolean {
@@ -151,7 +154,7 @@ export function scrollToBlockIndex(editor: Editor, index: number): boolean {
   })
   const target = root.querySelector(`[data-block-index="${index}"]`)
   if (!(target instanceof HTMLElement)) return false
-  target.scrollIntoView({ block: "center", behavior: "smooth" })
+  target.scrollIntoView({ block: 'center', behavior: 'smooth' })
   target.classList.add(BLOCK_FLASH_CLASS)
   window.setTimeout(() => target.classList.remove(BLOCK_FLASH_CLASS), BLOCK_FLASH_DURATION_MS)
   return true
@@ -178,7 +181,7 @@ Append to `packages/editor/src/styles/content.css`:
 Add to `packages/editor/src/index.ts` (anywhere among the exports):
 
 ```ts
-export { scrollToBlockIndex } from "./block-anchor"
+export { scrollToBlockIndex } from './block-anchor'
 ```
 
 - [ ] **Step 4: Type-check**
@@ -198,6 +201,7 @@ git commit -m "feat(editor): scrollToBlockIndex utility + block-flash CSS"
 ### Task 4: Add loadingFallback prop to AnyNoteEditor
 
 **Files:**
+
 - Modify: `packages/editor/src/types.ts`
 - Modify: `packages/editor/src/anynote-editor.tsx`
 
@@ -230,13 +234,13 @@ export type AnyNoteEditorProps = {
 Replace the `if (!resources)` branch (currently at lines 69–71) of `packages/editor/src/anynote-editor.tsx` with:
 
 ```tsx
-  if (!resources) {
-    return (
-      props.loadingFallback ?? (
-        <Box className={`anynote-editor ${props.className ?? ""}`} sx={{ height: "100%" }} />
-      )
+if (!resources) {
+  return (
+    props.loadingFallback ?? (
+      <Box className={`anynote-editor ${props.className ?? ''}`} sx={{ height: '100%' }} />
     )
-  }
+  )
+}
 ```
 
 - [ ] **Step 3: Type-check**
@@ -256,6 +260,7 @@ git commit -m "feat(editor): support loadingFallback prop for AnyNoteEditor"
 ### Task 5: ChatMessageContent — renderLink prop (TDD)
 
 **Files:**
+
 - Modify: `packages/ui/test/chat-message-content.test.tsx`
 - Modify: `packages/ui/src/components/chat/chat-message-content.tsx`
 
@@ -264,33 +269,33 @@ git commit -m "feat(editor): support loadingFallback prop for AnyNoteEditor"
 Append to the existing `describe('ChatMessageContent', ...)` block in `packages/ui/test/chat-message-content.test.tsx`:
 
 ```tsx
-  it('renders default <a> when renderLink is not provided', () => {
-    const { container } = render(
-      <ChatMessageContent parts={[{ type: 'text', text: '[link](/foo)' }]} />,
-    )
-    const anchor = container.querySelector('a')
-    expect(anchor).toBeTruthy()
-    expect(anchor?.getAttribute('href')).toBe('/foo')
-    expect(anchor?.textContent).toBe('link')
-  })
+it('renders default <a> when renderLink is not provided', () => {
+  const { container } = render(
+    <ChatMessageContent parts={[{ type: 'text', text: '[link](/foo)' }]} />,
+  )
+  const anchor = container.querySelector('a')
+  expect(anchor).toBeTruthy()
+  expect(anchor?.getAttribute('href')).toBe('/foo')
+  expect(anchor?.textContent).toBe('link')
+})
 
-  it('uses renderLink when provided', () => {
-    const { container } = render(
-      <ChatMessageContent
-        parts={[{ type: 'text', text: '[link](/foo)' }]}
-        renderLink={(href, children) => (
-          <span data-testid="custom-link" data-href={href}>
-            {children}
-          </span>
-        )}
-      />,
-    )
-    const span = container.querySelector('[data-testid="custom-link"]')
-    expect(span).toBeTruthy()
-    expect(span?.getAttribute('data-href')).toBe('/foo')
-    expect(span?.textContent).toBe('link')
-    expect(container.querySelector('a')).toBeNull()
-  })
+it('uses renderLink when provided', () => {
+  const { container } = render(
+    <ChatMessageContent
+      parts={[{ type: 'text', text: '[link](/foo)' }]}
+      renderLink={(href, children) => (
+        <span data-testid="custom-link" data-href={href}>
+          {children}
+        </span>
+      )}
+    />,
+  )
+  const span = container.querySelector('[data-testid="custom-link"]')
+  expect(span).toBeTruthy()
+  expect(span?.getAttribute('data-href')).toBe('/foo')
+  expect(span?.textContent).toBe('link')
+  expect(container.querySelector('a')).toBeNull()
+})
 ```
 
 - [ ] **Step 2: Run tests, see failures**
@@ -423,6 +428,7 @@ git commit -m "feat(ui): ChatMessageContent supports renderLink prop"
 ### Task 6: Pass renderLink through ChatMessageList and ChatThread
 
 **Files:**
+
 - Modify: `packages/ui/src/components/chat/chat-message-list.tsx`
 - Modify: `packages/ui/src/components/chat/chat-thread.tsx`
 
@@ -433,7 +439,7 @@ In `packages/ui/src/components/chat/chat-message-list.tsx`:
 Replace the import line `import { ChatMessageContent } from "./chat-message-content"` with:
 
 ```tsx
-import { ChatMessageContent, type ChatRenderLink } from "./chat-message-content"
+import { ChatMessageContent, type ChatRenderLink } from './chat-message-content'
 ```
 
 Add `renderLink?: ChatRenderLink` to `ChatMessageListProps`:
@@ -444,7 +450,7 @@ type ChatMessageListProps = {
   emptyTitle?: string
   emptyDescription?: string
   showEmptyState?: boolean
-  scrollMode?: "internal" | "page"
+  scrollMode?: 'internal' | 'page'
   renderLink?: ChatRenderLink
 }
 ```
@@ -475,7 +481,7 @@ In `packages/ui/src/components/chat/chat-thread.tsx`:
 Add to imports (alongside existing chat imports):
 
 ```tsx
-import type { ChatRenderLink } from "./chat-message-content"
+import type { ChatRenderLink } from './chat-message-content'
 ```
 
 Add to `ChatThreadProps`:
@@ -493,7 +499,7 @@ Pass to `<ChatMessageList ...>` (search for the existing usage, around line 135)
   messages={messages}
   emptyTitle={emptyTitle}
   emptyDescription={emptyDescription}
-  scrollMode={scrollContainerSelector ? "page" : "internal"}
+  scrollMode={scrollContainerSelector ? 'page' : 'internal'}
   renderLink={renderLink}
 />
 ```
@@ -522,6 +528,7 @@ git commit -m "feat(ui): propagate renderLink through ChatMessageList and ChatTh
 ### Task 7: EditorContentSkeleton component
 
 **Files:**
+
 - Create: `apps/web/src/components/page/editor-content-skeleton.tsx`
 
 Geometry mirrors the content portion of `apps/web/src/app/(protected)/workspaces/[workspaceId]/pages/[pageId]/loading.tsx` so the user sees one continuous skeleton across the RSC → JS-load → Y.Doc-init phases.
@@ -530,11 +537,11 @@ Geometry mirrors the content portion of `apps/web/src/app/(protected)/workspaces
 
 ```tsx
 // apps/web/src/components/page/editor-content-skeleton.tsx
-"use client"
+'use client'
 
-import { Box, Skeleton, Stack } from "@repo/ui/components"
+import { Box, Skeleton, Stack } from '@repo/ui/components'
 
-import { pageColumnSx } from "./column-sx"
+import { pageColumnSx } from './column-sx'
 
 export function EditorContentSkeleton() {
   return (
@@ -569,6 +576,7 @@ git commit -m "feat(web): EditorContentSkeleton matches loading.tsx geometry"
 ### Task 8: PageRenderer — skeleton wiring + hash-anchor effect
 
 **Files:**
+
 - Modify: `apps/web/src/components/page/page-renderer.tsx`
 
 - [ ] **Step 1: Update imports**
@@ -576,7 +584,7 @@ git commit -m "feat(web): EditorContentSkeleton matches loading.tsx geometry"
 Change the React import to include `useEffect` and `useState`:
 
 ```tsx
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 ```
 
 Update the `@repo/editor` import to include `scrollToBlockIndex`:
@@ -589,13 +597,13 @@ import {
   type Editor,
   type MoveBlockResult,
   type PageLookupItem,
-} from "@repo/editor"
+} from '@repo/editor'
 ```
 
 Add the skeleton import (after other local imports):
 
 ```tsx
-import { EditorContentSkeleton } from "./editor-content-skeleton"
+import { EditorContentSkeleton } from './editor-content-skeleton'
 ```
 
 - [ ] **Step 2: Replace TEXT-variant dynamic loading fallback**
@@ -603,7 +611,7 @@ import { EditorContentSkeleton } from "./editor-content-skeleton"
 Replace the `AnyNoteEditor` dynamic line so the loading fallback is the skeleton (Board and Genogram keep `CenteredSpinner`):
 
 ```tsx
-const AnyNoteEditor = dynamic(() => import("@repo/editor").then((m) => m.AnyNoteEditor), {
+const AnyNoteEditor = dynamic(() => import('@repo/editor').then((m) => m.AnyNoteEditor), {
   ssr: false,
   loading: () => <EditorContentSkeleton />,
 })
@@ -614,18 +622,18 @@ const AnyNoteEditor = dynamic(() => import("@repo/editor").then((m) => m.AnyNote
 Update `handleEditorReady` to also flip an `editorReady` state, and add the state declaration near the other `useState` calls (after the existing `useState` lines):
 
 ```tsx
-  const [editorReady, setEditorReady] = useState(false)
+const [editorReady, setEditorReady] = useState(false)
 
-  // ... existing useState calls remain ...
+// ... existing useState calls remain ...
 
-  const handleEditorReady = useCallback(
-    (editor: Editor) => {
-      editorRef.current = editor
-      pageEditor.setEditor(editor)
-      setEditorReady(true)
-    },
-    [pageEditor],
-  )
+const handleEditorReady = useCallback(
+  (editor: Editor) => {
+    editorRef.current = editor
+    pageEditor.setEditor(editor)
+    setEditorReady(true)
+  },
+  [pageEditor],
+)
 ```
 
 - [ ] **Step 4: Add the hash-anchor effect**
@@ -633,38 +641,38 @@ Update `handleEditorReady` to also flip an `editorReady` state, and add the stat
 Add immediately after `handleEditorReady`:
 
 ```tsx
-  useEffect(() => {
-    if (!editorReady) return
-    const editor = editorRef.current
-    if (!editor) return
+useEffect(() => {
+  if (!editorReady) return
+  const editor = editorRef.current
+  if (!editor) return
 
-    let timer: ReturnType<typeof window.setTimeout> | null = null
-    let cancelled = false
+  let timer: ReturnType<typeof window.setTimeout> | null = null
+  let cancelled = false
 
-    const apply = () => {
-      const hash = window.location.hash.slice(1)
-      if (!hash) return
-      const index = Number.parseInt(hash, 10)
-      if (Number.isNaN(index)) return
-      let attempts = 0
-      const tryScroll = () => {
-        if (cancelled) return
-        if (scrollToBlockIndex(editor, index)) return
-        if (++attempts < 10) {
-          timer = window.setTimeout(tryScroll, 150)
-        }
+  const apply = () => {
+    const hash = window.location.hash.slice(1)
+    if (!hash) return
+    const index = Number.parseInt(hash, 10)
+    if (Number.isNaN(index)) return
+    let attempts = 0
+    const tryScroll = () => {
+      if (cancelled) return
+      if (scrollToBlockIndex(editor, index)) return
+      if (++attempts < 10) {
+        timer = window.setTimeout(tryScroll, 150)
       }
-      tryScroll()
     }
+    tryScroll()
+  }
 
-    apply()
-    window.addEventListener("hashchange", apply)
-    return () => {
-      cancelled = true
-      if (timer) window.clearTimeout(timer)
-      window.removeEventListener("hashchange", apply)
-    }
-  }, [editorReady])
+  apply()
+  window.addEventListener('hashchange', apply)
+  return () => {
+    cancelled = true
+    if (timer) window.clearTimeout(timer)
+    window.removeEventListener('hashchange', apply)
+  }
+}, [editorReady])
 ```
 
 - [ ] **Step 5: Pass loadingFallback to AnyNoteEditor**
@@ -708,6 +716,7 @@ git commit -m "feat(web): TEXT page skeleton + hash-anchor scroll/highlight"
 ### Task 9: chat-link-renderer + workspace-chat-client wiring
 
 **Files:**
+
 - Create: `apps/web/src/components/chat/chat-link-renderer.tsx`
 - Modify: `apps/web/src/components/workspace/chat/workspace-chat-client.tsx`
 
@@ -715,16 +724,16 @@ git commit -m "feat(web): TEXT page skeleton + hash-anchor scroll/highlight"
 
 ```tsx
 // apps/web/src/components/chat/chat-link-renderer.tsx
-"use client"
+'use client'
 
-import Link from "next/link"
-import type { ReactNode } from "react"
+import Link from 'next/link'
+import type { ReactNode } from 'react'
 
-const SAFE_EXTERNAL_PROTOCOLS = new Set(["http:", "https:"])
+const SAFE_EXTERNAL_PROTOCOLS = new Set(['http:', 'https:'])
 
 export function renderChatLink(href: string, children: ReactNode): ReactNode {
   // Internal app links: /workspaces/..., /app, etc. (single leading slash, not //)
-  if (href.startsWith("/") && !href.startsWith("//")) {
+  if (href.startsWith('/') && !href.startsWith('//')) {
     return <Link href={href}>{children}</Link>
   }
   // External: only render <a> for safe protocols (http/https)
@@ -752,7 +761,7 @@ In `apps/web/src/components/workspace/chat/workspace-chat-client.tsx`:
 Add the import alongside other component imports:
 
 ```tsx
-import { renderChatLink } from "@/components/chat/chat-link-renderer"
+import { renderChatLink } from '@/components/chat/chat-link-renderer'
 ```
 
 On the `<ChatThread ... />` element (around line 135), add the prop `renderLink={renderChatLink}` next to the other props.
@@ -777,9 +786,11 @@ git commit -m "feat(web): chat links use Next Link for internal hrefs, sanitize 
 ### Task 10: E2E spec for block-anchor
 
 **Files:**
+
 - Create: `apps/e2e/page-block-anchor.spec.ts`
 
 Verifies end-to-end that `/workspaces/{id}/pages/{id}#N`:
+
 - renders `[data-block-index="N"]` in the DOM,
 - adds `block-flash` class on arrival,
 - removes the class within 3.5s.
@@ -797,9 +808,9 @@ pnpm dev
 
 ```ts
 // apps/e2e/page-block-anchor.spec.ts
-import { expect, test } from "@playwright/test"
-import { readFileSync } from "node:fs"
-import { join } from "node:path"
+import { expect, test } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+import { join } from 'node:path'
 
 let RoleType: { OWNER: string }
 let prisma: {
@@ -823,22 +834,22 @@ let prisma: {
 test.setTimeout(120_000)
 
 test.beforeAll(async () => {
-  const envPath = join(process.cwd(), ".env")
-  const envFile = readFileSync(envPath, "utf8")
+  const envPath = join(process.cwd(), '.env')
+  const envFile = readFileSync(envPath, 'utf8')
   const readVar = (key: string): string | undefined =>
     envFile
-      .split("\n")
+      .split('\n')
       .map((l) => l.trim())
       .find((l) => l.startsWith(`${key}=`))
       ?.slice(`${key}=`.length)
-      .replace(/^"|"$/g, "")
+      .replace(/^"|"$/g, '')
 
   if (!process.env.DATABASE_URL) {
-    const databaseUrl = readVar("DATABASE_URL")
-    if (!databaseUrl) throw new Error("DATABASE_URL not configured in .env")
+    const databaseUrl = readVar('DATABASE_URL')
+    if (!databaseUrl) throw new Error('DATABASE_URL not configured in .env')
     process.env.DATABASE_URL = databaseUrl
   }
-  const db = await import("../../packages/db/src/index")
+  const db = await import('../../packages/db/src/index')
   RoleType = db.RoleType
   prisma = db.prisma
 })
@@ -847,28 +858,28 @@ test.afterAll(async () => {
   if (prisma) await prisma.$disconnect()
 })
 
-const password = "SuperSecure123!"
+const password = 'SuperSecure123!'
 
-test("block-anchor URL scrolls to and highlights the indexed block", async ({ page: browser }) => {
+test('block-anchor URL scrolls to and highlights the indexed block', async ({ page: browser }) => {
   const email = `block-anchor+${Date.now()}@example.com`
 
   // --- Register via UI ---
-  await browser.goto("/sign-up")
-  await browser.getByRole("textbox", { name: "Email" }).fill(email)
-  await browser.getByRole("textbox", { name: "Фамилия" }).fill("Тест")
-  await browser.getByRole("textbox", { name: "Имя" }).fill("Якорь")
-  await browser.getByRole("textbox", { name: /^пароль$/i }).fill(password)
-  await browser.getByRole("textbox", { name: "Повторите пароль" }).fill(password)
-  await browser.getByRole("button", { name: "Зарегистрироваться" }).click()
+  await browser.goto('/sign-up')
+  await browser.getByRole('textbox', { name: 'Email' }).fill(email)
+  await browser.getByRole('textbox', { name: 'Фамилия' }).fill('Тест')
+  await browser.getByRole('textbox', { name: 'Имя' }).fill('Якорь')
+  await browser.getByRole('textbox', { name: /^пароль$/i }).fill(password)
+  await browser.getByRole('textbox', { name: 'Повторите пароль' }).fill(password)
+  await browser.getByRole('button', { name: 'Зарегистрироваться' }).click()
   await browser.waitForURL(/\/workspaces\/new/)
 
-  await expect.poll(
-    async () =>
-      prisma.user
-        .findUniqueOrThrow({ where: { email }, select: { id: true } })
-        .catch(() => null),
-    { timeout: 10_000, intervals: [200, 500, 1000] },
-  ).toBeTruthy()
+  await expect
+    .poll(
+      async () =>
+        prisma.user.findUniqueOrThrow({ where: { email }, select: { id: true } }).catch(() => null),
+      { timeout: 10_000, intervals: [200, 500, 1000] },
+    )
+    .toBeTruthy()
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { email },
@@ -885,17 +896,17 @@ test("block-anchor URL scrolls to and highlights the indexed block", async ({ pa
 
   // --- Page with 3 paragraphs (indices 0, 1, 2). Long filler so the
   //     viewport must scroll for #2 to be vertically centered. ---
-  const filler = "Lorem ipsum dolor sit amet, consectetur adipiscing elit. ".repeat(40)
+  const filler = 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. '.repeat(40)
   const pageRow = await prisma.page.create({
     data: {
       workspaceId: workspace.id,
-      title: "Anchor target",
+      title: 'Anchor target',
       content: {
-        type: "doc",
+        type: 'doc',
         content: [
-          { type: "paragraph", content: [{ type: "text", text: `Block 0: ${filler}` }] },
-          { type: "paragraph", content: [{ type: "text", text: `Block 1: ${filler}` }] },
-          { type: "paragraph", content: [{ type: "text", text: `Block 2 TARGET: ${filler}` }] },
+          { type: 'paragraph', content: [{ type: 'text', text: `Block 0: ${filler}` }] },
+          { type: 'paragraph', content: [{ type: 'text', text: `Block 1: ${filler}` }] },
+          { type: 'paragraph', content: [{ type: 'text', text: `Block 2 TARGET: ${filler}` }] },
         ],
       },
       createdById: user.id,
@@ -980,6 +991,7 @@ pnpm --filter @repo/yjs-server dev
 ## Self-review notes
 
 **Spec coverage** (each spec section maps to at least one task):
+
 - Block-index decoration → Tasks 1, 2
 - `scrollToBlockIndex` + CSS → Task 3
 - `loadingFallback` prop → Task 4
@@ -991,6 +1003,7 @@ pnpm --filter @repo/yjs-server dev
 - Manual UX verification (skeleton continuity, external-link safety, hashchange) → Task 11
 
 **Type consistency:**
+
 - `ChatRenderLink` defined in Task 5 is consumed identically in Task 6 and used by `renderChatLink` (Task 9, signature matches: `(href: string, children: ReactNode) => ReactNode`).
 - `scrollToBlockIndex(editor: Editor, index: number): boolean` defined in Task 3 is consumed in Task 8 with the same signature.
 - `loadingFallback?: ReactNode` in Task 4 matches the JSX passed in Task 8.

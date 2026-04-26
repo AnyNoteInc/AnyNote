@@ -1,5 +1,5 @@
-import { ArgumentsHost, Catch, ExceptionFilter, HttpException, Logger } from "@nestjs/common"
-import type { Response } from "express"
+import { ArgumentsHost, Catch, ExceptionFilter, HttpException, Logger } from '@nestjs/common'
+import type { Response } from 'express'
 
 @Catch(HttpException)
 export class McpExceptionFilter implements ExceptionFilter {
@@ -11,6 +11,6 @@ export class McpExceptionFilter implements ExceptionFilter {
     const status = exception.getStatus()
     const body = exception.getResponse()
     this.log.warn(`MCP error ${status}: ${JSON.stringify(body)}`)
-    res.status(status).json(typeof body === "string" ? { message: body } : body)
+    res.status(status).json(typeof body === 'string' ? { message: body } : body)
   }
 }

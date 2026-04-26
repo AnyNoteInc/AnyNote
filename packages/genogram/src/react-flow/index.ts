@@ -1,7 +1,7 @@
-export * from "./domainToFlow"
-export { nodeTypes } from "./nodeTypes"
-export { edgeTypes } from "./edgeTypes"
-export { GenogramFlow } from "./GenogramFlow"
-export type { GenogramFlowProps, GenogramMode } from "./GenogramFlow"
-export { GenogramBoard } from "./GenogramBoard"
-export type { GenogramBoardProps } from "./GenogramBoard"
+export * from './domainToFlow'
+export { nodeTypes } from './nodeTypes'
+export { edgeTypes } from './edgeTypes'
+export { GenogramFlow } from './GenogramFlow'
+export type { GenogramFlowProps, GenogramMode } from './GenogramFlow'
+export { GenogramBoard } from './GenogramBoard'
+export type { GenogramBoardProps } from './GenogramBoard'

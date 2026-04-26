@@ -1,16 +1,16 @@
-import { Inject, Injectable } from "@nestjs/common"
-import type { PrismaClient } from "@repo/db"
-import { Prisma } from "@repo/db"
+import { Inject, Injectable } from '@nestjs/common'
+import type { PrismaClient } from '@repo/db'
+import { Prisma } from '@repo/db'
 
-import { PRISMA } from "../../../infra/db/db.providers.js"
-import { PageNotFoundError } from "../errors/mcp.errors.js"
+import { PRISMA } from '../../../infra/db/db.providers.js'
+import { PageNotFoundError } from '../errors/mcp.errors.js'
 
 export type CreatePageInput = {
   userId: string
   workspaceId: string
   parentId?: string | null
   title: string
-  ownership?: "TEXT" | "SKILL" | "AGENT"
+  ownership?: 'TEXT' | 'SKILL' | 'AGENT'
 }
 
 export type UpdatePageInput = {
@@ -42,8 +42,8 @@ export class PageWriter {
           workspaceId: input.workspaceId,
           parentId: input.parentId ?? null,
           title: input.title,
-          ownership: input.ownership ?? "TEXT",
-          type: "TEXT",
+          ownership: input.ownership ?? 'TEXT',
+          type: 'TEXT',
           createdById: input.userId,
           updatedById: input.userId,
         },
@@ -51,8 +51,8 @@ export class PageWriter {
       })
       await tx.outboxEvent.create({
         data: {
-          eventType: "page.upserted",
-          aggregateType: "page",
+          eventType: 'page.upserted',
+          aggregateType: 'page',
           aggregateId: page.id,
           workspaceId: input.workspaceId,
           payload: {},
@@ -82,8 +82,8 @@ export class PageWriter {
       })
       await tx.outboxEvent.create({
         data: {
-          eventType: "page.upserted",
-          aggregateType: "page",
+          eventType: 'page.upserted',
+          aggregateType: 'page',
           aggregateId: input.pageId,
           workspaceId: input.workspaceId,
           payload: {},
@@ -162,8 +162,8 @@ export class PageWriter {
 
       await tx.outboxEvent.create({
         data: {
-          eventType: "page.upserted",
-          aggregateType: "page",
+          eventType: 'page.upserted',
+          aggregateType: 'page',
           aggregateId: input.pageId,
           workspaceId: input.workspaceId,
           payload: {},

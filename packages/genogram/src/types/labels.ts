@@ -1,17 +1,17 @@
-export type LabelPosition = "auto" | "left" | "right" | "top" | "bottom"
+export type LabelPosition = 'auto' | 'left' | 'right' | 'top' | 'bottom'
 
 export type LabelField =
-  | "identity"
-  | "birthDate"
-  | "deathDate"
-  | "age"
-  | "birthPlace"
-  | "profession"
-  | "characters"
-  | "addictions"
-  | "diseases"
+  | 'identity'
+  | 'birthDate'
+  | 'deathDate'
+  | 'age'
+  | 'birthPlace'
+  | 'profession'
+  | 'characters'
+  | 'addictions'
+  | 'diseases'
 
-export type LabelFormat = "brief" | "full"
+export type LabelFormat = 'brief' | 'full'
 
 export interface PersonLabelConfig {
   position?: LabelPosition
@@ -23,7 +23,7 @@ export interface PersonLabelConfig {
 
 export interface RenderableLabel {
   lines: string[]
-  position: "left" | "right" | "top" | "bottom"
+  position: 'left' | 'right' | 'top' | 'bottom'
   hidden: boolean
   offset?: { x: number; y: number }
 }

@@ -1,27 +1,26 @@
-import { Handle, Position, type NodeProps } from "@xyflow/react"
-import type { Node } from "@xyflow/react"
-import { personWidth } from "../layout/constants"
-import type { PersonNodeData } from "../types"
-import { PersonLabel } from "./primitives/PersonLabel"
+import { Handle, Position, type NodeProps } from '@xyflow/react'
+import type { Node } from '@xyflow/react'
+import { personWidth } from '../layout/constants'
+import type { PersonNodeData } from '../types'
+import { PersonLabel } from './primitives/PersonLabel'
 
-type PersonRfNode = Node<PersonNodeData, "person">
+type PersonRfNode = Node<PersonNodeData, 'person'>
 
 const STROKE = 2
-const STROKE_COLOR = "var(--genogram-stroke, #333)"
-const FILL = "var(--genogram-fill, #fff)"
-const DECEASED_FILL = "var(--genogram-fill-deceased, #f4f4f4)"
+const STROKE_COLOR = 'var(--genogram-stroke, #333)'
+const FILL = 'var(--genogram-fill, #fff)'
+const DECEASED_FILL = 'var(--genogram-fill-deceased, #f4f4f4)'
 
 export function PersonNode({ data }: NodeProps<PersonRfNode>) {
   const w = personWidth(data.size)
   const h = w
   const fill = data.isDeceased ? DECEASED_FILL : FILL
-  const showCross =
-    data.isDeceased && (data.deathKind === "early" || data.deathKind === "tragic")
+  const showCross = data.isDeceased && (data.deathKind === 'early' || data.deathKind === 'tragic')
 
   return (
     <div
       style={{
-        position: "relative",
+        position: 'relative',
         width: w,
         height: h,
       }}
@@ -59,9 +58,9 @@ export function PersonNode({ data }: NodeProps<PersonRfNode>) {
         width={w}
         height={h}
         viewBox={`0 0 ${w} ${h}`}
-        style={{ display: "block", overflow: "visible" }}
+        style={{ display: 'block', overflow: 'visible' }}
       >
-        {data.sex === "male" ? (
+        {data.sex === 'male' ? (
           <rect
             x={STROKE / 2}
             y={STROKE / 2}
@@ -83,7 +82,7 @@ export function PersonNode({ data }: NodeProps<PersonRfNode>) {
         )}
 
         {data.isOwner &&
-          (data.sex === "male" ? (
+          (data.sex === 'male' ? (
             <rect
               x={w * 0.25}
               y={h * 0.25}
@@ -164,5 +163,5 @@ const handleStyle = {
   minWidth: 1,
   minHeight: 1,
   border: 0,
-  background: "transparent",
+  background: 'transparent',
 }

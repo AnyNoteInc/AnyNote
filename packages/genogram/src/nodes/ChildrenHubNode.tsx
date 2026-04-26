@@ -1,4 +1,4 @@
-import { Handle, Position } from "@xyflow/react"
+import { Handle, Position } from '@xyflow/react'
 
 export function ChildrenHubNode() {
   return (
@@ -24,7 +24,7 @@ export function ChildrenHubNode() {
 const anchorStyle = {
   width: 1,
   height: 1,
-  pointerEvents: "none" as const,
+  pointerEvents: 'none' as const,
 }
 
 const handleStyle = {
@@ -34,5 +34,5 @@ const handleStyle = {
   minWidth: 1,
   minHeight: 1,
   border: 0,
-  background: "transparent",
+  background: 'transparent',
 }

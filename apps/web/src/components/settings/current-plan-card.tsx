@@ -1,73 +1,101 @@
-import { Box, Button, Chip, Stack, Typography } from "@repo/ui/components"
+'use client'
 
-type Plan = {
-  name: string
-  slug: string
-  priceMonthly: number
-  currency: string
-  maxWorkspaces: number | null
-  features: unknown
+import Link from 'next/link'
+import { useRouter } from 'next/navigation'
+import { useState } from 'react'
+import type { Plan, Subscription } from '@prisma/client'
+import { Button, Chip, Paper, Stack, Typography } from '@repo/ui/components'
+
+import { CancelSubscriptionDialog } from '@/components/billing/cancel-subscription-dialog'
+import { getPlanDisplayName } from '@/components/billing/plan-labels'
+import { trpc } from '@/trpc/client'
+
+type Props = {
+  subscription: (Subscription & { plan: Plan }) | null
 }
 
-type Subscription = {
-  status: string
-  startedAt: Date
-  currentPeriodEnd: Date | null
+function formatDate(date: Date | null): string | null {
+  return date ? new Date(date).toLocaleDateString('ru-RU') : null
 }
 
-function formatPrice(minor: number, currency: string): string {
-  if (minor === 0) return "Бесплатно"
-  const major = minor / 100
-  return `${major.toLocaleString("ru-RU")} ${currency}/мес`
+function formatPrice(plan: Plan | null): string {
+  if (!plan || plan.priceMonthlyKopecks === 0) return 'Бесплатно'
+  return `${(plan.priceMonthlyKopecks / 100).toLocaleString('ru-RU')} ${plan.currency}/мес`
 }
 
-export function CurrentPlanCard({
-  plan,
-  subscription,
-}: {
-  plan: Plan
-  subscription: Subscription
-}) {
-  const features = Array.isArray(plan.features) ? (plan.features as string[]) : []
+export function CurrentPlanCard({ subscription }: Props) {
+  const router = useRouter()
+  const utils = trpc.useUtils()
+  const [showCancel, setShowCancel] = useState(false)
+  const resume = trpc.subscription.resume.useMutation({
+    onSuccess: async () => {
+      await utils.subscription.getCurrent.invalidate()
+      router.refresh()
+    },
+  })
+
+  const plan = subscription?.plan ?? null
+  const planName = getPlanDisplayName({ slug: plan?.slug, name: plan?.name })
+  const isPaid = plan?.slug !== undefined && plan.slug !== 'personal'
+  const periodEnd = formatDate(subscription?.currentPeriodEnd ?? null)
+
+  const statusLabel = isPaid
+    ? subscription?.cancelAtPeriodEnd
+      ? `Отменена, доступ до ${periodEnd ?? 'конца периода'}`
+      : periodEnd
+        ? `Активна, продление ${periodEnd}`
+        : 'Активна'
+    : 'Бесплатный тариф'
+
   return (
-    <Box
-      sx={{
-        border: "1px solid",
-        borderColor: "divider",
-        borderRadius: 2,
-        p: 3,
-        backgroundColor: "background.paper",
-      }}
-    >
-      <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={2}>
-        <Stack spacing={1}>
-          <Stack direction="row" spacing={1} alignItems="center">
-            <Typography variant="h5" fontWeight={700}>
-              {plan.name}
+    <Paper variant="outlined" sx={{ p: 3 }}>
+      <Stack spacing={2.5}>
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          alignItems={{ xs: 'flex-start', sm: 'center' }}
+          spacing={2}
+        >
+          <Chip
+            label={planName}
+            color={isPaid ? 'success' : 'default'}
+            variant={isPaid ? 'filled' : 'outlined'}
+          />
+          <Stack spacing={0.25}>
+            <Typography fontWeight={700}>{statusLabel}</Typography>
+            <Typography variant="body2" color="text.secondary">
+              {formatPrice(plan)}
             </Typography>
-            <Chip
-              size="small"
-              label={subscription.status}
-              color={subscription.status === "ACTIVE" ? "success" : "default"}
-            />
           </Stack>
-          <Typography variant="body2" color="text.secondary">
-            {formatPrice(plan.priceMonthly, plan.currency)}
-            {plan.maxWorkspaces !== null &&
-              ` · до ${plan.maxWorkspaces} ${plan.maxWorkspaces === 1 ? "пространства" : "пространств"}`}
-          </Typography>
-          {features.length > 0 && (
-            <Stack component="ul" spacing={0.5} sx={{ m: 0, pl: 2.5, color: "text.secondary" }}>
-              {features.map((f) => (
-                <li key={f}>{f}</li>
-              ))}
-            </Stack>
-          )}
         </Stack>
-        <Button variant="contained" disabled>
-          Обновить тариф
-        </Button>
+
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
+          {!isPaid ? (
+            <Button component={Link} href="/pricing" variant="contained">
+              Перейти на ПРО
+            </Button>
+          ) : null}
+          {isPaid && !subscription?.cancelAtPeriodEnd ? (
+            <Button color="error" variant="outlined" onClick={() => setShowCancel(true)}>
+              Отменить подписку
+            </Button>
+          ) : null}
+          {isPaid && subscription?.cancelAtPeriodEnd ? (
+            <Button variant="contained" onClick={() => resume.mutate()} disabled={resume.isPending}>
+              {resume.isPending ? 'Возобновляем...' : 'Возобновить'}
+            </Button>
+          ) : null}
+          {isPaid ? (
+            <Button component={Link} href="/pricing" variant="text">
+              Сменить тариф
+            </Button>
+          ) : null}
+        </Stack>
       </Stack>
-    </Box>
+      <CancelSubscriptionDialog
+        open={showCancel}
+        periodEnd={subscription?.currentPeriodEnd ?? null}
+        onClose={() => setShowCancel(false)}
+      />
+    </Paper>
   )
 }

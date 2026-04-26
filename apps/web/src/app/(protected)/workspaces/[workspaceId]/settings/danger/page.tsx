@@ -1,7 +1,7 @@
-import { notFound } from "next/navigation"
+import { notFound } from 'next/navigation'
 
-import { getServerTRPC } from "@/trpc/server"
-import { WorkspaceDangerSection } from "@/components/workspace/settings/danger-section"
+import { getServerTRPC } from '@/trpc/server'
+import { WorkspaceDangerSection } from '@/components/workspace/settings/danger-section'
 
 type Props = { params: Promise<{ workspaceId: string }> }
 
@@ -17,7 +17,7 @@ export default async function WorkspaceSettingsDangerPage({ params }: Props) {
   return (
     <WorkspaceDangerSection
       workspace={{ id: workspace.id, name: workspace.name }}
-      isOwner={myRole === "OWNER"}
+      isOwner={myRole === 'OWNER'}
     />
   )
 }

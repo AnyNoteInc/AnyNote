@@ -1,9 +1,9 @@
-"use client"
+'use client'
 
-import { Checkbox } from "@mui/material"
-import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react"
-import type { NodeViewProps } from "@tiptap/react"
-import TaskItem from "@tiptap/extension-task-item"
+import { Checkbox } from '@mui/material'
+import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
+import type { NodeViewProps } from '@tiptap/react'
+import TaskItem from '@tiptap/extension-task-item'
 
 function TaskItemView({ node, updateAttributes, editor }: NodeViewProps) {
   const checked = Boolean(node.attrs.checked)

@@ -270,7 +270,7 @@ Note every hit; each must be removed in subsequent steps.
 In `packages/trpc/src/index.ts`, delete:
 
 ```ts
-import { blockRouter } from "./routers/block"
+import { blockRouter } from './routers/block'
 ```
 
 and the `block: blockRouter,` line inside `router({ ... })`.
@@ -494,7 +494,7 @@ git commit -m "feat(trpc): allow page.update to set Page.type"
 - [ ] **Step 3: Create `apps/yjs/eslint.config.mjs`**
 
 ```js
-import { config } from "@repo/eslint-config/base"
+import { config } from '@repo/eslint-config/base'
 
 /** @type {import("eslint").Linter.Config[]} */
 export default config
@@ -567,7 +567,7 @@ function required(name: string): string {
 }
 
 export function loadEnv(): Env {
-  const authBaseUrl = required("BETTER_AUTH_URL").replace(/\/$/, "")
+  const authBaseUrl = required('BETTER_AUTH_URL').replace(/\/$/, '')
   return {
     port: Number(process.env.YJS_PORT ?? 1234),
     authBaseUrl,
@@ -595,28 +595,28 @@ Expected: no errors.
 - [ ] **Step 1: Write `logger.ts`**
 
 ```ts
-type Level = "info" | "warn" | "error"
+type Level = 'info' | 'warn' | 'error'
 
 function emit(level: Level, msg: string, meta?: Record<string, unknown>) {
   const payload = { ts: new Date().toISOString(), level, msg, ...(meta ?? {}) }
-  console[level === "error" ? "error" : "log"](JSON.stringify(payload))
+  console[level === 'error' ? 'error' : 'log'](JSON.stringify(payload))
 }
 
 export const log = {
-  info: (msg: string, meta?: Record<string, unknown>) => emit("info", msg, meta),
-  warn: (msg: string, meta?: Record<string, unknown>) => emit("warn", msg, meta),
-  error: (msg: string, meta?: Record<string, unknown>) => emit("error", msg, meta),
+  info: (msg: string, meta?: Record<string, unknown>) => emit('info', msg, meta),
+  warn: (msg: string, meta?: Record<string, unknown>) => emit('warn', msg, meta),
+  error: (msg: string, meta?: Record<string, unknown>) => emit('error', msg, meta),
 }
 ```
 
 - [ ] **Step 2: Write `persistence.ts`**
 
 ```ts
-import { prisma, PageType } from "@repo/db"
-import * as Y from "yjs"
-import { TiptapTransformer } from "@hocuspocus/transformer"
+import { prisma, PageType } from '@repo/db'
+import * as Y from 'yjs'
+import { TiptapTransformer } from '@hocuspocus/transformer'
 
-import { log } from "./logger"
+import { log } from './logger'
 
 export async function loadPageDocument(pageId: string): Promise<Y.Doc> {
   const page = await prisma.page.findUnique({
@@ -642,9 +642,9 @@ export async function storePageDocument(args: {
   const data: { contentYjs: Buffer; content?: unknown } = { contentYjs: buffer }
   if (pageType !== PageType.EXCALIDRAW) {
     try {
-      data.content = TiptapTransformer.fromYdoc(document, "default")
+      data.content = TiptapTransformer.fromYdoc(document, 'default')
     } catch (err) {
-      log.warn("tiptap transformer failed; saving contentYjs only", {
+      log.warn('tiptap transformer failed; saving contentYjs only', {
         pageId,
         error: (err as Error).message,
       })
@@ -675,34 +675,34 @@ Expected: no errors.
 - [ ] **Step 1: Write `auth.ts`**
 
 ```ts
-import { createRemoteJWKSet, jwtVerify, type JWTPayload } from "jose"
-import { prisma, PageType } from "@repo/db"
+import { createRemoteJWKSet, jwtVerify, type JWTPayload } from 'jose'
+import { prisma, PageType } from '@repo/db'
 
-import { log } from "./logger"
+import { log } from './logger'
 
 let jwksFetcher: ReturnType<typeof createRemoteJWKSet> | null = null
 
 export function initJwks(jwksUrl: string): void {
   jwksFetcher = createRemoteJWKSet(new URL(jwksUrl))
-  log.info("JWKS fetcher initialized", { jwksUrl })
+  log.info('JWKS fetcher initialized', { jwksUrl })
 }
 
 export async function verifyJwt(
   token: string,
   audience: string | undefined,
 ): Promise<{ userId: string }> {
-  if (!jwksFetcher) throw new Error("JWKS not initialized; call initJwks first")
+  if (!jwksFetcher) throw new Error('JWKS not initialized; call initJwks first')
   const { payload } = await jwtVerify(token, jwksFetcher, {
     audience,
   })
   const userId = pickUserId(payload)
-  if (!userId) throw new Error("JWT missing subject (userId)")
+  if (!userId) throw new Error('JWT missing subject (userId)')
   return { userId }
 }
 
 function pickUserId(payload: JWTPayload): string | undefined {
-  if (typeof payload.sub === "string") return payload.sub
-  if (typeof (payload as { userId?: unknown }).userId === "string") {
+  if (typeof payload.sub === 'string') return payload.sub
+  if (typeof (payload as { userId?: unknown }).userId === 'string') {
     return (payload as { userId: string }).userId
   }
   return undefined
@@ -741,13 +741,13 @@ Expected: no errors.
 - [ ] **Step 1: Write `index.ts`**
 
 ```ts
-import { Server } from "@hocuspocus/server"
+import { Server } from '@hocuspocus/server'
 
-import { loadEnv } from "./env"
-import { initJwks, verifyJwt, canAccessPage } from "./auth"
-import { loadPageDocument, storePageDocument } from "./persistence"
-import { log } from "./logger"
-import type { PageType } from "@repo/db"
+import { loadEnv } from './env'
+import { initJwks, verifyJwt, canAccessPage } from './auth'
+import { loadPageDocument, storePageDocument } from './persistence'
+import { log } from './logger'
+import type { PageType } from '@repo/db'
 
 type AuthContext = { userId: string; pageType: PageType }
 
@@ -758,14 +758,14 @@ const server = new Server({
   port: env.port,
 
   async onAuthenticate({ token, documentName }) {
-    if (!token) throw new Error("Missing auth token")
+    if (!token) throw new Error('Missing auth token')
     const { userId } = await verifyJwt(token, env.jwtAudience)
     const access = await canAccessPage(userId, documentName)
     if (!access) {
-      log.warn("page access denied", { userId, pageId: documentName })
-      throw new Error("Forbidden")
+      log.warn('page access denied', { userId, pageId: documentName })
+      throw new Error('Forbidden')
     }
-    log.info("authenticated", { userId, pageId: documentName, pageType: access.pageType })
+    log.info('authenticated', { userId, pageId: documentName, pageType: access.pageType })
     const ctx: AuthContext = { userId, pageType: access.pageType }
     return ctx
   },
@@ -781,7 +781,7 @@ const server = new Server({
 })
 
 server.listen()
-log.info("yjs server listening", { port: env.port })
+log.info('yjs server listening', { port: env.port })
 ```
 
 - [ ] **Step 2: Type-check**
@@ -836,24 +836,24 @@ Expected: see the `jwt()` plugin in `auth.ts`. The plugin exposes both `auth.api
 - [ ] **Step 2: Write the route**
 
 ```ts
-import { NextResponse, type NextRequest } from "next/server"
+import { NextResponse, type NextRequest } from 'next/server'
 
-import { auth } from "@repo/auth"
+import { auth } from '@repo/auth'
 
-import { getSession } from "@/lib/get-session"
+import { getSession } from '@/lib/get-session'
 
-export const runtime = "nodejs"
+export const runtime = 'nodejs'
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
   const session = await getSession()
   if (!session) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
   // better-auth's jwt plugin issues a JWT signed with the active JWKS key.
   // The exact return shape is { token: string } as of better-auth 1.x.
   const result = await auth.api.getToken({ headers: req.headers })
   if (!result || !result.token) {
-    return NextResponse.json({ error: "Token issuance failed" }, { status: 500 })
+    return NextResponse.json({ error: 'Token issuance failed' }, { status: 500 })
   }
   return NextResponse.json({ token: result.token })
 }
@@ -868,12 +868,12 @@ node -e "const { auth } = require('./packages/auth/dist/auth.js'); console.log(O
 If the call surfaces a different name (e.g. `signJwt`, `token`), use it. If only the HTTP endpoint exists, replace the route body with:
 
 ```ts
-const upstream = await fetch(new URL("/api/auth/token", req.url), {
+const upstream = await fetch(new URL('/api/auth/token', req.url), {
   headers: req.headers,
-  method: "GET",
+  method: 'GET',
 })
 if (!upstream.ok) {
-  return NextResponse.json({ error: "Token issuance failed" }, { status: 500 })
+  return NextResponse.json({ error: 'Token issuance failed' }, { status: 500 })
 }
 const data = (await upstream.json()) as { token: string }
 return NextResponse.json({ token: data.token })
@@ -1003,7 +1003,7 @@ git commit -m "feat(web): add /api/yjs/token JWT issuer for yjs server"
 - [ ] **Step 3: Create `eslint.config.mjs`**
 
 ```js
-import { config } from "@repo/eslint-config/react-internal"
+import { config } from '@repo/eslint-config/react-internal'
 
 /** @type {import("eslint").Linter.Config} */
 export default config
@@ -1084,7 +1084,7 @@ export type SlashCommandItem = {
   description?: string
   keywords?: string[]
   run: (args: {
-    editor: import("@tiptap/core").Editor
+    editor: import('@tiptap/core').Editor
     range: { from: number; to: number }
   }) => void
 }
@@ -1109,26 +1109,26 @@ pnpm --filter @repo/editor check-types
 - [ ] **Step 1: Write `placeholder.ts`**
 
 ```ts
-import Placeholder from "@tiptap/extension-placeholder"
+import Placeholder from '@tiptap/extension-placeholder'
 
 export const buildPlaceholder = (text: string) =>
   Placeholder.configure({
     placeholder: text,
     showOnlyWhenEditable: true,
-    emptyEditorClass: "is-editor-empty",
+    emptyEditorClass: 'is-editor-empty',
   })
 ```
 
 - [ ] **Step 2: Write `file-upload.ts`**
 
 ```ts
-import { FileUpload } from "@tiptap-codeless/extension-file-upload"
+import { FileUpload } from '@tiptap-codeless/extension-file-upload'
 
-import type { UploadHandler } from "../types"
+import type { UploadHandler } from '../types'
 
 export const buildFileUpload = (uploadHandler: UploadHandler) =>
   FileUpload.configure({
-    storageMode: "custom",
+    storageMode: 'custom',
     uploadHandler: async (file: File) => {
       const result = await uploadHandler({ blob: file, filename: file.name })
       return { src: result.src, id: result.id }
@@ -1141,19 +1141,19 @@ export const buildFileUpload = (uploadHandler: UploadHandler) =>
 - [ ] **Step 3: Write `collaboration.ts`**
 
 ```ts
-import Collaboration from "@tiptap/extension-collaboration"
-import CollaborationCursor from "@tiptap/extension-collaboration-cursor"
-import type { HocuspocusProvider } from "@hocuspocus/provider"
-import type * as Y from "yjs"
+import Collaboration from '@tiptap/extension-collaboration'
+import CollaborationCursor from '@tiptap/extension-collaboration-cursor'
+import type { HocuspocusProvider } from '@hocuspocus/provider'
+import type * as Y from 'yjs'
 
-import type { AnyNoteEditorUser } from "../types"
+import type { AnyNoteEditorUser } from '../types'
 
 export const buildCollaboration = (args: {
   ydoc: Y.Doc
   provider: HocuspocusProvider
   user: AnyNoteEditorUser
 }) => [
-  Collaboration.configure({ document: args.ydoc, field: "default" }),
+  Collaboration.configure({ document: args.ydoc, field: 'default' }),
   CollaborationCursor.configure({
     provider: args.provider,
     user: { name: args.user.name, color: args.user.color },
@@ -1164,22 +1164,22 @@ export const buildCollaboration = (args: {
 - [ ] **Step 4: Write `slash-menu.ts`** (custom Suggestion-based extension)
 
 ```ts
-import { Extension } from "@tiptap/core"
-import Suggestion from "@tiptap/suggestion"
-import type { SlashCommandItem } from "../types"
+import { Extension } from '@tiptap/core'
+import Suggestion from '@tiptap/suggestion'
+import type { SlashCommandItem } from '../types'
 
 export type SlashMenuOptions = {
   items: (query: string) => SlashCommandItem[]
   render: () => {
-    onStart: (props: import("@tiptap/suggestion").SuggestionProps<SlashCommandItem>) => void
-    onUpdate: (props: import("@tiptap/suggestion").SuggestionProps<SlashCommandItem>) => void
-    onKeyDown: (props: import("@tiptap/suggestion").SuggestionKeyDownProps) => boolean
+    onStart: (props: import('@tiptap/suggestion').SuggestionProps<SlashCommandItem>) => void
+    onUpdate: (props: import('@tiptap/suggestion').SuggestionProps<SlashCommandItem>) => void
+    onKeyDown: (props: import('@tiptap/suggestion').SuggestionKeyDownProps) => boolean
     onExit: () => void
   }
 }
 
 export const SlashMenu = Extension.create<SlashMenuOptions>({
-  name: "slashMenu",
+  name: 'slashMenu',
   addOptions() {
     return {
       items: () => [],
@@ -1195,7 +1195,7 @@ export const SlashMenu = Extension.create<SlashMenuOptions>({
     return [
       Suggestion<SlashCommandItem>({
         editor: this.editor,
-        char: "/",
+        char: '/',
         startOfLine: false,
         items: ({ query }) => this.options.items(query),
         command: ({ editor, range, props }) => {
@@ -1211,26 +1211,26 @@ export const SlashMenu = Extension.create<SlashMenuOptions>({
 - [ ] **Step 5: Write `extensions/index.ts` — `buildExtensions(opts)`**
 
 ```ts
-import StarterKit from "@tiptap/starter-kit"
-import Link from "@tiptap/extension-link"
-import Image from "@tiptap/extension-image"
-import Typography from "@tiptap/extension-typography"
-import TaskList from "@tiptap/extension-task-list"
-import TaskItem from "@tiptap/extension-task-item"
-import Table from "@tiptap/extension-table"
-import TableRow from "@tiptap/extension-table-row"
-import TableHeader from "@tiptap/extension-table-header"
-import TableCell from "@tiptap/extension-table-cell"
-import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight"
-import { common, createLowlight } from "lowlight"
-import type { HocuspocusProvider } from "@hocuspocus/provider"
-import type * as Y from "yjs"
+import StarterKit from '@tiptap/starter-kit'
+import Link from '@tiptap/extension-link'
+import Image from '@tiptap/extension-image'
+import Typography from '@tiptap/extension-typography'
+import TaskList from '@tiptap/extension-task-list'
+import TaskItem from '@tiptap/extension-task-item'
+import Table from '@tiptap/extension-table'
+import TableRow from '@tiptap/extension-table-row'
+import TableHeader from '@tiptap/extension-table-header'
+import TableCell from '@tiptap/extension-table-cell'
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
+import { common, createLowlight } from 'lowlight'
+import type { HocuspocusProvider } from '@hocuspocus/provider'
+import type * as Y from 'yjs'
 
-import { buildPlaceholder } from "./placeholder"
-import { buildFileUpload } from "./file-upload"
-import { buildCollaboration } from "./collaboration"
-import { SlashMenu } from "./slash-menu"
-import type { AnyNoteEditorUser, SlashCommandItem, UploadHandler } from "../types"
+import { buildPlaceholder } from './placeholder'
+import { buildFileUpload } from './file-upload'
+import { buildCollaboration } from './collaboration'
+import { SlashMenu } from './slash-menu'
+import type { AnyNoteEditorUser, SlashCommandItem, UploadHandler } from '../types'
 
 const lowlight = createLowlight(common)
 
@@ -1241,7 +1241,7 @@ export const buildExtensions = (opts: {
   uploadHandler: UploadHandler
   placeholder: string
   slashItems: (query: string) => SlashCommandItem[]
-  slashRender: ReturnType<Parameters<typeof SlashMenu.configure>[0]["render"]>
+  slashRender: ReturnType<Parameters<typeof SlashMenu.configure>[0]['render']>
 }) => [
   StarterKit.configure({ history: false }),
   buildPlaceholder(opts.placeholder),
@@ -1281,12 +1281,12 @@ Fix any type mismatches against the actual installed extension APIs.
 - [ ] **Step 1: Write the popover component**
 
 ```tsx
-"use client"
+'use client'
 
-import { useEffect, useImperativeHandle, useState, forwardRef } from "react"
-import { List, ListItemButton, ListItemText, Paper } from "@mui/material"
+import { useEffect, useImperativeHandle, useState, forwardRef } from 'react'
+import { List, ListItemButton, ListItemText, Paper } from '@mui/material'
 
-import type { SlashCommandItem } from "../types"
+import type { SlashCommandItem } from '../types'
 
 export type SlashMenuPopoverHandle = {
   onKeyDown: (event: KeyboardEvent) => boolean
@@ -1310,15 +1310,15 @@ export const SlashMenuPopover = forwardRef<SlashMenuPopoverHandle, Props>(functi
 
   useImperativeHandle(ref, () => ({
     onKeyDown: (event: KeyboardEvent) => {
-      if (event.key === "ArrowDown") {
+      if (event.key === 'ArrowDown') {
         setActive((i) => (i + 1) % Math.max(items.length, 1))
         return true
       }
-      if (event.key === "ArrowUp") {
+      if (event.key === 'ArrowUp') {
         setActive((i) => (i - 1 + items.length) % Math.max(items.length, 1))
         return true
       }
-      if (event.key === "Enter" && items[active]) {
+      if (event.key === 'Enter' && items[active]) {
         command(items[active])
         return true
       }
@@ -1329,8 +1329,8 @@ export const SlashMenuPopover = forwardRef<SlashMenuPopoverHandle, Props>(functi
   if (items.length === 0) return null
   const rect = clientRect?.()
   const style: React.CSSProperties = rect
-    ? { position: "fixed", top: rect.bottom + 4, left: rect.left, zIndex: 1300 }
-    : { display: "none" }
+    ? { position: 'fixed', top: rect.bottom + 4, left: rect.left, zIndex: 1300 }
+    : { display: 'none' }
 
   return (
     <Paper elevation={6} style={style} sx={{ width: 280, py: 0.5 }}>
@@ -1356,57 +1356,57 @@ export const SlashMenuPopover = forwardRef<SlashMenuPopoverHandle, Props>(functi
 - [ ] **Step 1: Write `floating-toolbar.tsx`**
 
 ```tsx
-"use client"
+'use client'
 
-import { BubbleMenu } from "@tiptap/react"
-import type { Editor } from "@tiptap/core"
-import { IconButton, Stack, Paper } from "@mui/material"
-import FormatBoldIcon from "@mui/icons-material/FormatBold"
-import FormatItalicIcon from "@mui/icons-material/FormatItalic"
-import StrikethroughSIcon from "@mui/icons-material/StrikethroughS"
-import CodeIcon from "@mui/icons-material/Code"
-import LinkIcon from "@mui/icons-material/Link"
+import { BubbleMenu } from '@tiptap/react'
+import type { Editor } from '@tiptap/core'
+import { IconButton, Stack, Paper } from '@mui/material'
+import FormatBoldIcon from '@mui/icons-material/FormatBold'
+import FormatItalicIcon from '@mui/icons-material/FormatItalic'
+import StrikethroughSIcon from '@mui/icons-material/StrikethroughS'
+import CodeIcon from '@mui/icons-material/Code'
+import LinkIcon from '@mui/icons-material/Link'
 
 type Props = { editor: Editor }
 
 export function FloatingToolbar({ editor }: Props) {
   return (
     <BubbleMenu editor={editor} tippyOptions={{ duration: 100 }}>
-      <Paper elevation={6} sx={{ display: "inline-flex", borderRadius: 1, px: 0.5 }}>
+      <Paper elevation={6} sx={{ display: 'inline-flex', borderRadius: 1, px: 0.5 }}>
         <Stack direction="row">
           <IconButton
             size="small"
-            color={editor.isActive("bold") ? "primary" : "default"}
+            color={editor.isActive('bold') ? 'primary' : 'default'}
             onClick={() => editor.chain().focus().toggleBold().run()}
           >
             <FormatBoldIcon fontSize="small" />
           </IconButton>
           <IconButton
             size="small"
-            color={editor.isActive("italic") ? "primary" : "default"}
+            color={editor.isActive('italic') ? 'primary' : 'default'}
             onClick={() => editor.chain().focus().toggleItalic().run()}
           >
             <FormatItalicIcon fontSize="small" />
           </IconButton>
           <IconButton
             size="small"
-            color={editor.isActive("strike") ? "primary" : "default"}
+            color={editor.isActive('strike') ? 'primary' : 'default'}
             onClick={() => editor.chain().focus().toggleStrike().run()}
           >
             <StrikethroughSIcon fontSize="small" />
           </IconButton>
           <IconButton
             size="small"
-            color={editor.isActive("code") ? "primary" : "default"}
+            color={editor.isActive('code') ? 'primary' : 'default'}
             onClick={() => editor.chain().focus().toggleCode().run()}
           >
             <CodeIcon fontSize="small" />
           </IconButton>
           <IconButton
             size="small"
-            color={editor.isActive("link") ? "primary" : "default"}
+            color={editor.isActive('link') ? 'primary' : 'default'}
             onClick={() => {
-              const url = window.prompt("URL")
+              const url = window.prompt('URL')
               if (url) editor.chain().focus().setLink({ href: url }).run()
             }}
           >
@@ -1422,12 +1422,12 @@ export function FloatingToolbar({ editor }: Props) {
 - [ ] **Step 2: Write `drag-handle.tsx` (thin wrapper around `DragHandle` from `@tiptap/extension-drag-handle-react`)**
 
 ```tsx
-"use client"
+'use client'
 
-import { DragHandle } from "@tiptap/extension-drag-handle-react"
-import type { Editor } from "@tiptap/core"
-import { Box } from "@mui/material"
-import DragIndicatorIcon from "@mui/icons-material/DragIndicator"
+import { DragHandle } from '@tiptap/extension-drag-handle-react'
+import type { Editor } from '@tiptap/core'
+import { Box } from '@mui/material'
+import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
 
 type Props = { editor: Editor }
 
@@ -1436,10 +1436,10 @@ export function EditorDragHandle({ editor }: Props) {
     <DragHandle editor={editor}>
       <Box
         sx={{
-          color: "text.disabled",
-          cursor: "grab",
-          display: "inline-flex",
-          alignItems: "center",
+          color: 'text.disabled',
+          cursor: 'grab',
+          display: 'inline-flex',
+          alignItems: 'center',
           px: 0.5,
         }}
       >
@@ -1465,77 +1465,77 @@ pnpm --filter @repo/editor check-types
 - [ ] **Step 1: Write the registry**
 
 ```ts
-import type { SlashCommandItem } from "./types"
+import type { SlashCommandItem } from './types'
 
 const ITEMS: SlashCommandItem[] = [
   {
-    id: "h1",
-    label: "Heading 1",
-    keywords: ["h1", "title"],
+    id: 'h1',
+    label: 'Heading 1',
+    keywords: ['h1', 'title'],
     run: ({ editor, range }) =>
-      editor.chain().focus().deleteRange(range).setNode("heading", { level: 1 }).run(),
+      editor.chain().focus().deleteRange(range).setNode('heading', { level: 1 }).run(),
   },
   {
-    id: "h2",
-    label: "Heading 2",
-    keywords: ["h2"],
+    id: 'h2',
+    label: 'Heading 2',
+    keywords: ['h2'],
     run: ({ editor, range }) =>
-      editor.chain().focus().deleteRange(range).setNode("heading", { level: 2 }).run(),
+      editor.chain().focus().deleteRange(range).setNode('heading', { level: 2 }).run(),
   },
   {
-    id: "h3",
-    label: "Heading 3",
-    keywords: ["h3"],
+    id: 'h3',
+    label: 'Heading 3',
+    keywords: ['h3'],
     run: ({ editor, range }) =>
-      editor.chain().focus().deleteRange(range).setNode("heading", { level: 3 }).run(),
+      editor.chain().focus().deleteRange(range).setNode('heading', { level: 3 }).run(),
   },
   {
-    id: "paragraph",
-    label: "Paragraph",
-    keywords: ["text", "p"],
+    id: 'paragraph',
+    label: 'Paragraph',
+    keywords: ['text', 'p'],
     run: ({ editor, range }) =>
-      editor.chain().focus().deleteRange(range).setNode("paragraph").run(),
+      editor.chain().focus().deleteRange(range).setNode('paragraph').run(),
   },
   {
-    id: "bullet",
-    label: "Bullet list",
-    keywords: ["ul", "list"],
+    id: 'bullet',
+    label: 'Bullet list',
+    keywords: ['ul', 'list'],
     run: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleBulletList().run(),
   },
   {
-    id: "ordered",
-    label: "Numbered list",
-    keywords: ["ol"],
+    id: 'ordered',
+    label: 'Numbered list',
+    keywords: ['ol'],
     run: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleOrderedList().run(),
   },
   {
-    id: "task",
-    label: "Task list",
-    keywords: ["todo", "checkbox"],
+    id: 'task',
+    label: 'Task list',
+    keywords: ['todo', 'checkbox'],
     run: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleTaskList().run(),
   },
   {
-    id: "quote",
-    label: "Quote",
-    keywords: ["blockquote"],
+    id: 'quote',
+    label: 'Quote',
+    keywords: ['blockquote'],
     run: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleBlockquote().run(),
   },
   {
-    id: "code",
-    label: "Code block",
-    keywords: ["code"],
+    id: 'code',
+    label: 'Code block',
+    keywords: ['code'],
     run: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleCodeBlock().run(),
   },
   {
-    id: "divider",
-    label: "Divider",
-    keywords: ["hr", "separator"],
+    id: 'divider',
+    label: 'Divider',
+    keywords: ['hr', 'separator'],
     run: ({ editor, range }) => editor.chain().focus().deleteRange(range).setHorizontalRule().run(),
   },
   {
-    id: "table",
-    label: "Table",
-    keywords: ["grid"],
+    id: 'table',
+    label: 'Table',
+    keywords: ['grid'],
     run: ({ editor, range }) =>
       editor
         .chain()
@@ -1566,21 +1566,21 @@ export const defaultSlashItems = (query: string): SlashCommandItem[] => {
 - [ ] **Step 1: Write the component**
 
 ```tsx
-"use client"
+'use client'
 
-import { useEffect, useMemo, useRef, useState } from "react"
-import { EditorContent, useEditor, ReactRenderer } from "@tiptap/react"
-import * as Y from "yjs"
-import { HocuspocusProvider } from "@hocuspocus/provider"
-import { Box } from "@mui/material"
-import tippy, { type Instance, type Props as TippyProps } from "tippy.js"
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { EditorContent, useEditor, ReactRenderer } from '@tiptap/react'
+import * as Y from 'yjs'
+import { HocuspocusProvider } from '@hocuspocus/provider'
+import { Box } from '@mui/material'
+import tippy, { type Instance, type Props as TippyProps } from 'tippy.js'
 
-import { buildExtensions } from "./extensions"
-import { FloatingToolbar } from "./components/floating-toolbar"
-import { EditorDragHandle } from "./components/drag-handle"
-import { SlashMenuPopover, type SlashMenuPopoverHandle } from "./components/slash-menu-popover"
-import { defaultSlashItems } from "./slash-items"
-import type { AnyNoteEditorProps, SlashCommandItem } from "./types"
+import { buildExtensions } from './extensions'
+import { FloatingToolbar } from './components/floating-toolbar'
+import { EditorDragHandle } from './components/drag-handle'
+import { SlashMenuPopover, type SlashMenuPopoverHandle } from './components/slash-menu-popover'
+import { defaultSlashItems } from './slash-items'
+import type { AnyNoteEditorProps, SlashCommandItem } from './types'
 
 export function AnyNoteEditor(props: AnyNoteEditorProps) {
   const { pageId, yjsUrl, yjsToken, user, uploadHandler, editable = true } = props
@@ -1615,14 +1615,14 @@ export function AnyNoteEditor(props: AnyNoteEditorProps) {
         })
         slashRendererRef.current.component = component
 
-        slashRendererRef.current.popup = tippy("body", {
+        slashRendererRef.current.popup = tippy('body', {
           getReferenceClientRect: suggestionProps.clientRect,
           appendTo: () => document.body,
           content: component.element,
           showOnCreate: true,
           interactive: true,
-          trigger: "manual",
-          placement: "bottom-start",
+          trigger: 'manual',
+          placement: 'bottom-start',
         })
       },
       onUpdate: (suggestionProps: any) => {
@@ -1636,7 +1636,7 @@ export function AnyNoteEditor(props: AnyNoteEditorProps) {
         })
       },
       onKeyDown: (suggestionProps: any) => {
-        if (suggestionProps.event.key === "Escape") {
+        if (suggestionProps.event.key === 'Escape') {
           slashRendererRef.current.popup?.[0]?.hide()
           return true
         }
@@ -1677,7 +1677,7 @@ export function AnyNoteEditor(props: AnyNoteEditorProps) {
   }, [provider, ydoc])
 
   return (
-    <Box className={`anynote-editor ${props.className ?? ""}`} sx={{ height: "100%" }}>
+    <Box className={`anynote-editor ${props.className ?? ''}`} sx={{ height: '100%' }}>
       {editor && <EditorDragHandle editor={editor} />}
       {editor && <FloatingToolbar editor={editor} />}
       <EditorContent editor={editor} />
@@ -1808,21 +1808,21 @@ pnpm --filter @repo/editor check-types
 - [ ] **Step 1: Write `theme-bridge.tsx`**
 
 ```tsx
-"use client"
+'use client'
 
-import { GlobalStyles, useTheme } from "@mui/material"
+import { GlobalStyles, useTheme } from '@mui/material'
 
 export function EditorThemeBridge() {
   const theme = useTheme()
   return (
     <GlobalStyles
       styles={{
-        ":root": {
-          "--editor-text": theme.palette.text.primary,
-          "--editor-text-muted": theme.palette.text.secondary,
-          "--editor-divider": theme.palette.divider,
-          "--editor-code-bg": theme.palette.action.hover,
-          "--editor-font-family": theme.typography.fontFamily,
+        ':root': {
+          '--editor-text': theme.palette.text.primary,
+          '--editor-text-muted': theme.palette.text.secondary,
+          '--editor-divider': theme.palette.divider,
+          '--editor-code-bg': theme.palette.action.hover,
+          '--editor-font-family': theme.typography.fontFamily,
         },
       }}
     />
@@ -1833,16 +1833,16 @@ export function EditorThemeBridge() {
 - [ ] **Step 2: Write `src/index.ts` (barrel)**
 
 ```ts
-export { AnyNoteEditor } from "./anynote-editor"
-export { EditorThemeBridge } from "./theme-bridge"
-export { defaultSlashItems } from "./slash-items"
+export { AnyNoteEditor } from './anynote-editor'
+export { EditorThemeBridge } from './theme-bridge'
+export { defaultSlashItems } from './slash-items'
 export type {
   AnyNoteEditorProps,
   AnyNoteEditorUser,
   UploadHandler,
   UploadedFile,
   SlashCommandItem,
-} from "./types"
+} from './types'
 ```
 
 - [ ] **Step 3: Lint and check-types**
@@ -1937,7 +1937,7 @@ git commit -m "feat(editor): tiptap collaborative editor with slash menu, drag h
 - [ ] **Step 3: Create `eslint.config.mjs`**
 
 ```js
-import { config } from "@repo/eslint-config/react-internal"
+import { config } from '@repo/eslint-config/react-internal'
 
 /** @type {import("eslint").Linter.Config} */
 export default config
@@ -2017,12 +2017,12 @@ export type BoardProps = {
 - [ ] **Step 1: Write the hook**
 
 ```ts
-"use client"
+'use client'
 
-import { useEffect, useState } from "react"
-import * as Y from "yjs"
-import { HocuspocusProvider } from "@hocuspocus/provider"
-import { ExcalidrawBinding } from "@timephy/y-excalidraw"
+import { useEffect, useState } from 'react'
+import * as Y from 'yjs'
+import { HocuspocusProvider } from '@hocuspocus/provider'
+import { ExcalidrawBinding } from '@timephy/y-excalidraw'
 
 export function useExcalidrawYjs(args: {
   pageId: string
@@ -2066,7 +2066,7 @@ The handler relies entirely on the consumer-provided `UploadHandler` for both up
 - [ ] **Step 1: Write `files-handler.ts`**
 
 ```ts
-import type { UploadHandler, UploadedFile } from "./types"
+import type { UploadHandler, UploadedFile } from './types'
 
 type ExcalidrawFile = {
   id: string
@@ -2103,12 +2103,12 @@ async function dataUrlToBlob(dataUrl: string): Promise<Blob> {
 
 function extFromMime(mime: string): string {
   const map: Record<string, string> = {
-    "image/png": "png",
-    "image/jpeg": "jpg",
-    "image/webp": "webp",
-    "image/svg+xml": "svg",
+    'image/png': 'png',
+    'image/jpeg': 'jpg',
+    'image/webp': 'webp',
+    'image/svg+xml': 'svg',
   }
-  return map[mime] ?? "bin"
+  return map[mime] ?? 'bin'
 }
 ```
 
@@ -2122,15 +2122,15 @@ function extFromMime(mime: string): string {
 - [ ] **Step 1: Write `board-inner.tsx`**
 
 ```tsx
-"use client"
+'use client'
 
-import { useCallback, useMemo, useRef } from "react"
-import { Excalidraw, type ExcalidrawImperativeAPI } from "@excalidraw/excalidraw"
-import { Box } from "@mui/material"
+import { useCallback, useMemo, useRef } from 'react'
+import { Excalidraw, type ExcalidrawImperativeAPI } from '@excalidraw/excalidraw'
+import { Box } from '@mui/material'
 
-import { useExcalidrawYjs } from "./use-excalidraw-yjs"
-import { FilesHandler } from "./files-handler"
-import type { BoardProps } from "./types"
+import { useExcalidrawYjs } from './use-excalidraw-yjs'
+import { FilesHandler } from './files-handler'
+import type { BoardProps } from './types'
 
 export function BoardInner(props: BoardProps) {
   const { pageId, yjsUrl, yjsToken, uploadHandler, editable = true } = props
@@ -2157,7 +2157,7 @@ export function BoardInner(props: BoardProps) {
   return (
     <Box
       className={props.className}
-      sx={{ width: "100%", height: "100%", minHeight: 0, position: "relative" }}
+      sx={{ width: '100%', height: '100%', minHeight: 0, position: 'relative' }}
     >
       <Excalidraw excalidrawAPI={onMount} viewModeEnabled={!editable} onChange={onChange} />
     </Box>
@@ -2168,13 +2168,13 @@ export function BoardInner(props: BoardProps) {
 - [ ] **Step 2: Write `board.tsx`** (dynamic wrapper)
 
 ```tsx
-"use client"
+'use client'
 
-import dynamic from "next/dynamic"
+import dynamic from 'next/dynamic'
 
-import type { BoardProps } from "./types"
+import type { BoardProps } from './types'
 
-const BoardInner = dynamic(() => import("./board-inner").then((m) => m.BoardInner), {
+const BoardInner = dynamic(() => import('./board-inner').then((m) => m.BoardInner), {
   ssr: false,
 })
 
@@ -2192,8 +2192,8 @@ export function Board(props: BoardProps) {
 - [ ] **Step 1: Write barrel**
 
 ```ts
-export { Board } from "./board"
-export type { BoardProps, UploadHandler, UploadedFile } from "./types"
+export { Board } from './board'
+export type { BoardProps, UploadHandler, UploadedFile } from './types'
 ```
 
 - [ ] **Step 2: Lint + type-check**
@@ -2226,12 +2226,12 @@ git commit -m "feat(excalidraw): collaborative canvas with yjs binding and file 
 - [ ] **Step 1: Write `yjs-config.ts`**
 
 ```ts
-"use client"
+'use client'
 
-export const yjsUrl = process.env.NEXT_PUBLIC_YJS_URL ?? "ws://localhost:1234"
+export const yjsUrl = process.env.NEXT_PUBLIC_YJS_URL ?? 'ws://localhost:1234'
 
 export async function fetchYjsToken(): Promise<string> {
-  const res = await fetch("/api/yjs/token", { method: "POST", credentials: "include" })
+  const res = await fetch('/api/yjs/token', { method: 'POST', credentials: 'include' })
   if (!res.ok) throw new Error(`yjs token fetch failed: ${res.status}`)
   const data = (await res.json()) as { token: string }
   return data.token
@@ -2241,9 +2241,9 @@ export async function fetchYjsToken(): Promise<string> {
 - [ ] **Step 2: Write `upload-handler.ts`**
 
 ```ts
-"use client"
+'use client'
 
-import type { UploadHandler } from "@repo/editor"
+import type { UploadHandler } from '@repo/editor'
 
 export type AttachFn = (fileId: string) => Promise<void>
 
@@ -2253,11 +2253,11 @@ export function createUploadHandler(args: {
 }): UploadHandler {
   return async ({ blob, filename }) => {
     const fd = new FormData()
-    fd.append("file", blob, filename)
+    fd.append('file', blob, filename)
     const res = await fetch(`/api/files/upload?kind=attachment&workspaceId=${args.workspaceId}`, {
-      method: "POST",
+      method: 'POST',
       body: fd,
-      credentials: "include",
+      credentials: 'include',
     })
     if (!res.ok) throw new Error(`upload failed: ${res.status}`)
     const data = (await res.json()) as { file: { id: string } }
@@ -2282,28 +2282,28 @@ pnpm --filter web check-types
 - [ ] **Step 1: Write the renderer**
 
 ```tsx
-"use client"
+'use client'
 
-import { useCallback, useMemo } from "react"
-import dynamic from "next/dynamic"
-import { Box, CircularProgress } from "@mui/material"
+import { useCallback, useMemo } from 'react'
+import dynamic from 'next/dynamic'
+import { Box, CircularProgress } from '@mui/material'
 
-import { trpc } from "@/trpc/client"
-import { yjsUrl, fetchYjsToken } from "@/lib/yjs-config"
-import { createUploadHandler } from "@/lib/upload-handler"
+import { trpc } from '@/trpc/client'
+import { yjsUrl, fetchYjsToken } from '@/lib/yjs-config'
+import { createUploadHandler } from '@/lib/upload-handler'
 
-const AnyNoteEditor = dynamic(() => import("@repo/editor").then((m) => m.AnyNoteEditor), {
+const AnyNoteEditor = dynamic(() => import('@repo/editor').then((m) => m.AnyNoteEditor), {
   ssr: false,
   loading: () => <CenteredSpinner />,
 })
-const Board = dynamic(() => import("@repo/excalidraw").then((m) => m.Board), {
+const Board = dynamic(() => import('@repo/excalidraw').then((m) => m.Board), {
   ssr: false,
   loading: () => <CenteredSpinner />,
 })
 
 function CenteredSpinner() {
   return (
-    <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+    <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
       <CircularProgress />
     </Box>
   )
@@ -2311,7 +2311,7 @@ function CenteredSpinner() {
 
 type PageInput = {
   id: string
-  type: "TEXT" | "EXCALIDRAW" | "DATABASE" | "KANBAN" | "FORM"
+  type: 'TEXT' | 'EXCALIDRAW' | 'DATABASE' | 'KANBAN' | 'FORM'
 }
 
 type Props = {
@@ -2335,7 +2335,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
     [workspaceId, attachToPage],
   )
 
-  if (page.type === "EXCALIDRAW") {
+  if (page.type === 'EXCALIDRAW') {
     return (
       <Board
         pageId={page.id}
@@ -2347,7 +2347,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
     )
   }
 
-  if (page.type === "TEXT") {
+  if (page.type === 'TEXT') {
     return (
       <AnyNoteEditor
         pageId={page.id}
@@ -2361,7 +2361,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
   }
 
   return (
-    <Box sx={{ p: 4, color: "text.secondary" }}>
+    <Box sx={{ p: 4, color: 'text.secondary' }}>
       Тип страницы &laquo;{page.type}&raquo; пока не поддерживается.
     </Box>
   )
@@ -2385,14 +2385,14 @@ pnpm --filter web check-types
 - [ ] **Step 1: Replace the page route content**
 
 ```tsx
-import { notFound } from "next/navigation"
-import { Box, Typography } from "@mui/material"
+import { notFound } from 'next/navigation'
+import { Box, Typography } from '@mui/material'
 
-import { requireSession } from "@/lib/get-session"
-import { getServerTRPC } from "@/trpc/server"
-import { PageRenderer } from "@/components/page/page-renderer"
+import { requireSession } from '@/lib/get-session'
+import { getServerTRPC } from '@/trpc/server'
+import { PageRenderer } from '@/components/page/page-renderer'
 
-const COLORS = ["#1976d2", "#9c27b0", "#2e7d32", "#ed6c02", "#0288d1", "#d32f2f"]
+const COLORS = ['#1976d2', '#9c27b0', '#2e7d32', '#ed6c02', '#0288d1', '#d32f2f']
 
 function colorFor(userId: string): string {
   let hash = 0
@@ -2412,13 +2412,13 @@ export default async function PageView({
   if (!page) notFound()
 
   const displayName =
-    [session.user.firstName, session.user.lastName].filter(Boolean).join(" ").trim() ||
+    [session.user.firstName, session.user.lastName].filter(Boolean).join(' ').trim() ||
     session.user.email
 
   return (
-    <Box sx={{ display: "flex", flexDirection: "column", height: "100%", minHeight: 0 }}>
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       <Box sx={{ px: 3, py: 2 }}>
-        <Typography variant="h5">{page.title ?? "Без названия"}</Typography>
+        <Typography variant="h5">{page.title ?? 'Без названия'}</Typography>
       </Box>
       <Box sx={{ flex: 1, minHeight: 0 }}>
         <PageRenderer
@@ -2461,13 +2461,13 @@ pnpm --filter web check-types
 - [ ] **Step 1: Add the side-effect import at the top of the file**
 
 ```ts
-import "@repo/editor/styles"
+import '@repo/editor/styles'
 ```
 
 - [ ] **Step 2: Add `<EditorThemeBridge/>`** inside the layout's React tree (under `<UiProvider>` so MUI theme is in scope):
 
 ```tsx
-import { EditorThemeBridge } from "@repo/editor"
+import { EditorThemeBridge } from '@repo/editor'
 // ...
 ;<TRPCReactProvider>
   <EditorThemeBridge />
@@ -2554,22 +2554,22 @@ git commit -m "feat(web): allow creating pages of TEXT or EXCALIDRAW type"
 - [ ] **Step 1: Write the spec**
 
 ```ts
-import { test, expect } from "@playwright/test"
+import { test, expect } from '@playwright/test'
 
-test("text page persists typed content after reload", async ({ page }) => {
-  await page.goto("/sign-in")
+test('text page persists typed content after reload', async ({ page }) => {
+  await page.goto('/sign-in')
   // Reuse existing sign-in flow from auth.spec.ts (helper or repeated steps)
   // Then navigate to a known seeded TEXT page or create one via UI:
-  await page.goto("/app")
-  await page.getByRole("button", { name: /создать/i }).click()
-  await page.getByRole("menuitem", { name: /текст/i }).click()
-  const editor = page.locator(".anynote-editor .ProseMirror")
+  await page.goto('/app')
+  await page.getByRole('button', { name: /создать/i }).click()
+  await page.getByRole('menuitem', { name: /текст/i }).click()
+  const editor = page.locator('.anynote-editor .ProseMirror')
   await expect(editor).toBeVisible()
   await editor.click()
-  await page.keyboard.type("hello tiptap")
+  await page.keyboard.type('hello tiptap')
   await page.waitForTimeout(2500) // allow Hocuspocus debounced save
   await page.reload()
-  await expect(editor).toContainText("hello tiptap")
+  await expect(editor).toContainText('hello tiptap')
 })
 ```
 
@@ -2595,22 +2595,22 @@ Expected: PASS.
 - [ ] **Step 1: Write the spec**
 
 ```ts
-import { test, expect } from "@playwright/test"
+import { test, expect } from '@playwright/test'
 
 test("two clients see each other's edits in real time", async ({ browser }) => {
   const ctxA = await browser.newContext()
   const ctxB = await browser.newContext()
   // Sign in both contexts as the same user (simplest) or two seeded users
   // Navigate both to the same TEXT page URL
-  const pageUrl = "/workspaces/SEEDED_WS_ID/pages/SEEDED_PAGE_ID"
+  const pageUrl = '/workspaces/SEEDED_WS_ID/pages/SEEDED_PAGE_ID'
   const a = await ctxA.newPage()
   const b = await ctxB.newPage()
   await a.goto(pageUrl)
   await b.goto(pageUrl)
 
-  await a.locator(".anynote-editor .ProseMirror").click()
-  await a.keyboard.type("from A")
-  await expect(b.locator(".anynote-editor .ProseMirror")).toContainText("from A", {
+  await a.locator('.anynote-editor .ProseMirror').click()
+  await a.keyboard.type('from A')
+  await expect(b.locator('.anynote-editor .ProseMirror')).toContainText('from A', {
     timeout: 5000,
   })
 })
@@ -2633,21 +2633,21 @@ pnpm exec playwright test apps/e2e/editor-collab.spec.ts
 - [ ] **Step 1: Write the spec**
 
 ```ts
-import { test, expect } from "@playwright/test"
+import { test, expect } from '@playwright/test'
 
-test("excalidraw page persists a drawn shape after reload", async ({ page }) => {
-  await page.goto("/sign-in")
+test('excalidraw page persists a drawn shape after reload', async ({ page }) => {
+  await page.goto('/sign-in')
   // ... sign-in steps ...
-  await page.goto("/app")
-  await page.getByRole("button", { name: /создать/i }).click()
-  await page.getByRole("menuitem", { name: /рисунок|canvas/i }).click()
-  await expect(page.locator(".excalidraw")).toBeVisible({ timeout: 10000 })
+  await page.goto('/app')
+  await page.getByRole('button', { name: /создать/i }).click()
+  await page.getByRole('menuitem', { name: /рисунок|canvas/i }).click()
+  await expect(page.locator('.excalidraw')).toBeVisible({ timeout: 10000 })
 
   // Select rectangle tool and draw
-  await page.keyboard.press("r")
-  const canvas = page.locator(".excalidraw canvas").first()
+  await page.keyboard.press('r')
+  const canvas = page.locator('.excalidraw canvas').first()
   const box = await canvas.boundingBox()
-  if (!box) throw new Error("canvas not found")
+  if (!box) throw new Error('canvas not found')
   await page.mouse.move(box.x + 100, box.y + 100)
   await page.mouse.down()
   await page.mouse.move(box.x + 200, box.y + 180)

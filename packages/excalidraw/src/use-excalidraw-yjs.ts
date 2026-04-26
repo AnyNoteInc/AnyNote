@@ -1,8 +1,8 @@
-"use client"
+'use client'
 
-import { useEffect, useState } from "react"
-import * as Y from "yjs"
-import { HocuspocusProvider } from "@hocuspocus/provider"
+import { useEffect, useState } from 'react'
+import * as Y from 'yjs'
+import { HocuspocusProvider } from '@hocuspocus/provider'
 
 export type YjsResources = {
   ydoc: Y.Doc
@@ -30,8 +30,8 @@ export function useExcalidrawYjs(args: {
       const bytes = Uint8Array.from(atob(initialContentYjs), (c) => c.charCodeAt(0))
       Y.applyUpdate(ydoc, bytes)
     }
-    const yElements = ydoc.getArray<Y.Map<unknown>>("elements")
-    const yAssets = ydoc.getMap<unknown>("assets")
+    const yElements = ydoc.getArray<Y.Map<unknown>>('elements')
+    const yAssets = ydoc.getMap<unknown>('assets')
     const provider = new HocuspocusProvider({
       url: yjsUrl,
       name: pageId,

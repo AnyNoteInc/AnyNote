@@ -1,4 +1,4 @@
-import type { AgentsStreamEvent, WebChatSseEvent } from "./types"
+import type { AgentsStreamEvent, WebChatSseEvent } from './types'
 
 const encoder = new TextEncoder()
 
@@ -12,15 +12,15 @@ function decodeSseEvents<T extends { type: string }>(args: {
 }): { buffer: string; events: T[] } {
   const combined = args.buffer + args.chunk
   const frames = combined.split(/\r?\n\r?\n/)
-  const trailing = frames.pop() ?? ""
+  const trailing = frames.pop() ?? ''
   const events: T[] = []
 
   for (const frame of frames) {
     const data = frame
       .split(/\r?\n/)
-      .filter((line) => line.startsWith("data:"))
+      .filter((line) => line.startsWith('data:'))
       .map((line) => line.slice(5).trim())
-      .join("\n")
+      .join('\n')
 
     if (!data) {
       continue
@@ -28,7 +28,7 @@ function decodeSseEvents<T extends { type: string }>(args: {
 
     try {
       const parsed = JSON.parse(data) as T
-      if (parsed && typeof parsed === "object" && "type" in parsed) {
+      if (parsed && typeof parsed === 'object' && 'type' in parsed) {
         events.push(parsed)
       }
     } catch {
@@ -42,16 +42,16 @@ function decodeSseEvents<T extends { type: string }>(args: {
   }
 }
 
-export function decodeAgentsSseEvents(args: {
+export function decodeAgentsSseEvents(args: { buffer: string; chunk: string }): {
   buffer: string
-  chunk: string
-}): { buffer: string; events: AgentsStreamEvent[] } {
+  events: AgentsStreamEvent[]
+} {
   return decodeSseEvents<AgentsStreamEvent>(args)
 }
 
-export function decodeWebSseEvents(args: {
+export function decodeWebSseEvents(args: { buffer: string; chunk: string }): {
   buffer: string
-  chunk: string
-}): { buffer: string; events: WebChatSseEvent[] } {
+  events: WebChatSseEvent[]
+} {
   return decodeSseEvents<WebChatSseEvent>(args)
 }

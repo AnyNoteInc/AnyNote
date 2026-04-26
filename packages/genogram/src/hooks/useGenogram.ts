@@ -1,8 +1,8 @@
-import type * as Y from "yjs"
-import type { LayoutResult } from "../layout/types"
-import type { GenogramPageData } from "../types"
-import { useGenogramDomain } from "./useGenogramDomain"
-import { useGenogramLayout } from "./useGenogramLayout"
+import type * as Y from 'yjs'
+import type { LayoutResult } from '../layout/types'
+import type { GenogramPageData } from '../types'
+import { useGenogramDomain } from './useGenogramDomain'
+import { useGenogramLayout } from './useGenogramLayout'
 
 export interface UseGenogramResult {
   domain: GenogramPageData

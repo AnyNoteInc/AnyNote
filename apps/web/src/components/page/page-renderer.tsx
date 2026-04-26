@@ -1,10 +1,10 @@
-"use client"
+'use client'
 
-import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import dynamic from "next/dynamic"
-import { useRouter } from "next/navigation"
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import dynamic from 'next/dynamic'
+import { useRouter } from 'next/navigation'
 
-import type { PageType } from "@repo/db"
+import type { PageType } from '@repo/db'
 import {
   BlockMoveDialog,
   moveBlockToPage,
@@ -12,39 +12,39 @@ import {
   type Editor,
   type MoveBlockResult,
   type PageLookupItem,
-} from "@repo/editor"
-import { Box, CircularProgress } from "@repo/ui/components"
+} from '@repo/editor'
+import { Box, CircularProgress } from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
-import { yjsUrl, fetchYjsToken } from "@/lib/yjs-config"
-import { createUploadHandler } from "@/lib/upload-handler"
+import { trpc } from '@/trpc/client'
+import { yjsUrl, fetchYjsToken } from '@/lib/yjs-config'
+import { createUploadHandler } from '@/lib/upload-handler'
 import {
   PAGE_TREE_ROOT,
   PageTreePicker,
   type PageTreeSelection,
-} from "@/components/workspace/page-tree-picker"
+} from '@/components/workspace/page-tree-picker'
 
-import { usePageEditor } from "./editor-context"
-import { EditorContentSkeleton } from "./editor-content-skeleton"
+import { usePageEditor } from './editor-context'
+import { EditorContentSkeleton } from './editor-content-skeleton'
 
-const AnyNoteEditor = dynamic(() => import("@repo/editor").then((m) => m.AnyNoteEditor), {
+const AnyNoteEditor = dynamic(() => import('@repo/editor').then((m) => m.AnyNoteEditor), {
   ssr: false,
   loading: () => <EditorContentSkeleton />,
 })
 
-const Board = dynamic(() => import("@repo/excalidraw").then((m) => m.Board), {
+const Board = dynamic(() => import('@repo/excalidraw').then((m) => m.Board), {
   ssr: false,
   loading: () => <CenteredSpinner />,
 })
 
-const Genogram = dynamic(
-  () => import("@repo/genogram").then((m) => m.GenogramBoard),
-  { ssr: false, loading: () => <CenteredSpinner /> },
-)
+const Genogram = dynamic(() => import('@repo/genogram').then((m) => m.GenogramBoard), {
+  ssr: false,
+  loading: () => <CenteredSpinner />,
+})
 
 function CenteredSpinner() {
   return (
-    <Box sx={{ display: "flex", justifyContent: "center", py: 6 }}>
+    <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
       <CircularProgress />
     </Box>
   )
@@ -96,9 +96,9 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
       const pages = await trpcUtils.page.listByWorkspace.ensureData({ workspaceId })
       const q = query.trim().toLowerCase()
       return pages
-        .filter((p) => p.id !== page.id && (!q || (p.title ?? "").toLowerCase().includes(q)))
+        .filter((p) => p.id !== page.id && (!q || (p.title ?? '').toLowerCase().includes(q)))
         .slice(0, 20)
-        .map((p) => ({ id: p.id, title: p.title ?? "", icon: p.icon ?? null }))
+        .map((p) => ({ id: p.id, title: p.title ?? '', icon: p.icon ?? null }))
     },
     [page.id, trpcUtils, workspaceId],
   )
@@ -142,11 +142,11 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
     }
 
     apply()
-    window.addEventListener("hashchange", apply)
+    window.addEventListener('hashchange', apply)
     return () => {
       cancelled = true
       if (timer) window.clearTimeout(timer)
-      window.removeEventListener("hashchange", apply)
+      window.removeEventListener('hashchange', apply)
     }
   }, [editor])
 
@@ -166,11 +166,11 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
     if (movePos == null || moveTarget == null) return
     const editor = editorRef.current
     if (!editor) {
-      setMoveError("Редактор не готов")
+      setMoveError('Редактор не готов')
       return
     }
     if (moveTarget === PAGE_TREE_ROOT) {
-      setMoveError("Блок можно переместить только в страницу")
+      setMoveError('Блок можно переместить только в страницу')
       return
     }
 
@@ -199,7 +199,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
     }
   }, [movePos, moveTarget, router, workspaceId])
 
-  if (page.type === "EXCALIDRAW") {
+  if (page.type === 'EXCALIDRAW') {
     return (
       <Board
         pageId={page.id}
@@ -212,18 +212,11 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
     )
   }
 
-  if (page.type === "GENOGRAM") {
-    return (
-      <Genogram
-        pageId={page.id}
-        yjsUrl={yjsUrl}
-        yjsToken={fetchYjsToken}
-        user={user}
-      />
-    )
+  if (page.type === 'GENOGRAM') {
+    return <Genogram pageId={page.id} yjsUrl={yjsUrl} yjsToken={fetchYjsToken} user={user} />
   }
 
-  if (page.type === "TEXT") {
+  if (page.type === 'TEXT') {
     return (
       <>
         <AnyNoteEditor
@@ -256,7 +249,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
                 showRoot={false}
               />
               {moveError ? (
-                <Box sx={{ color: "error.main", mt: 1, fontSize: 13, px: 1 }}>{moveError}</Box>
+                <Box sx={{ color: 'error.main', mt: 1, fontSize: 13, px: 1 }}>{moveError}</Box>
               ) : null}
             </>
           }
@@ -266,7 +259,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
   }
 
   return (
-    <Box sx={{ p: 4, color: "text.secondary" }}>
+    <Box sx={{ p: 4, color: 'text.secondary' }}>
       Тип страницы &laquo;{page.type}&raquo; пока не поддерживается.
     </Box>
   )

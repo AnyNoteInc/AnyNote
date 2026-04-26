@@ -1,8 +1,8 @@
-"use client"
+'use client'
 
-import { useEffect } from "react"
+import { useEffect } from 'react'
 
-import { Box, Button, Paper, Stack, Typography } from "@repo/ui/components"
+import { Box, Button, Paper, Stack, Typography } from '@repo/ui/components'
 
 export type PageErrorProps = {
   error: Error & { digest?: string }
@@ -14,8 +14,8 @@ export type PageErrorProps = {
 export function PageError({
   error,
   reset,
-  title = "Что-то пошло не так",
-  hint = "Попробуйте повторить запрос — мы уже получили отчёт об ошибке.",
+  title = 'Что-то пошло не так',
+  hint = 'Попробуйте повторить запрос — мы уже получили отчёт об ошибке.',
 }: PageErrorProps) {
   useEffect(() => {
     console.error(error)
@@ -24,10 +24,10 @@ export function PageError({
   return (
     <Box
       sx={{
-        minHeight: "60vh",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
+        minHeight: '60vh',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
         p: { xs: 2, md: 4 },
       }}
     >
@@ -36,11 +36,11 @@ export function PageError({
         sx={{
           p: { xs: 3, md: 4 },
           borderRadius: 2,
-          border: "1px solid",
-          borderColor: "divider",
+          border: '1px solid',
+          borderColor: 'divider',
           maxWidth: 520,
-          width: "100%",
-          textAlign: "center",
+          width: '100%',
+          textAlign: 'center',
         }}
       >
         <Stack spacing={2} alignItems="center">

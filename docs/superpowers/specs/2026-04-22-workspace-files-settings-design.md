@@ -75,19 +75,19 @@ MUI `Dialog` opened from the row delete action:
 
 Pure function `getFileExtIcon(ext: string)` using MUI icons:
 
-| Extensions | Icon |
-|---|---|
-| `pdf` | `PictureAsPdfIcon` |
-| `png`, `jpg`, `jpeg`, `gif`, `webp`, `svg`, `bmp`, `avif` | `ImageIcon` |
-| `mp4`, `mov`, `avi`, `mkv`, `webm` | `VideoFileIcon` |
-| `mp3`, `wav`, `ogg`, `flac`, `m4a` | `AudioFileIcon` |
-| `zip`, `rar`, `7z`, `tar`, `gz` | `FolderZipIcon` |
-| `doc`, `docx`, `odt`, `rtf` | `DescriptionIcon` |
-| `xls`, `xlsx`, `csv`, `ods` | `TableChartIcon` |
-| `ppt`, `pptx`, `odp` | `SlideshowIcon` |
-| `txt`, `md` | `TextSnippetIcon` |
-| `js`, `ts`, `tsx`, `jsx`, `json`, `xml`, `yaml`, `yml`, `py`, `go`, `rs`, `java` | `CodeIcon` |
-| _default_ | `InsertDriveFileIcon` |
+| Extensions                                                                       | Icon                  |
+| -------------------------------------------------------------------------------- | --------------------- |
+| `pdf`                                                                            | `PictureAsPdfIcon`    |
+| `png`, `jpg`, `jpeg`, `gif`, `webp`, `svg`, `bmp`, `avif`                        | `ImageIcon`           |
+| `mp4`, `mov`, `avi`, `mkv`, `webm`                                               | `VideoFileIcon`       |
+| `mp3`, `wav`, `ogg`, `flac`, `m4a`                                               | `AudioFileIcon`       |
+| `zip`, `rar`, `7z`, `tar`, `gz`                                                  | `FolderZipIcon`       |
+| `doc`, `docx`, `odt`, `rtf`                                                      | `DescriptionIcon`     |
+| `xls`, `xlsx`, `csv`, `ods`                                                      | `TableChartIcon`      |
+| `ppt`, `pptx`, `odp`                                                             | `SlideshowIcon`       |
+| `txt`, `md`                                                                      | `TextSnippetIcon`     |
+| `js`, `ts`, `tsx`, `jsx`, `json`, `xml`, `yaml`, `yml`, `py`, `go`, `rs`, `java` | `CodeIcon`            |
+| _default_                                                                        | `InsertDriveFileIcon` |
 
 Icons not yet re-exported from `@repo/ui/components` must be added to `packages/ui/src/components/index.ts` alongside existing `MenuIcon`-style re-exports, never imported directly from `@mui/icons-material` in app code.
 
@@ -127,8 +127,10 @@ Implementation notes:
 ### `file.workspaceUploaders` — new query
 
 ```ts
-input: { workspaceId: uuid }
-output: Array<{ id, firstName, lastName, email, image }>
+input: {
+  workspaceId: uuid
+}
+output: Array<{ id; firstName; lastName; email; image }>
 ```
 
 Implementation:

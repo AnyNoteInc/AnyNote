@@ -1,8 +1,8 @@
-"use client"
+'use client'
 
-import { Box, Skeleton, Stack } from "@repo/ui/components"
+import { Box, Skeleton, Stack } from '@repo/ui/components'
 
-import { pageColumnSx } from "./column-sx"
+import { pageColumnSx } from './column-sx'
 
 export function EditorSkeletonRows() {
   return (

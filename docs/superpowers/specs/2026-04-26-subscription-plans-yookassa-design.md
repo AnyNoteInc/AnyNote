@@ -14,7 +14,8 @@ settings/ai по тарифу, интегрировать YooKassa с recurring 
 (saved-method) для месячных и годовых подписок, добавить cron автопродления
 в `apps/engines`, CLI-команду полного возврата, флаг отмены подписки
 (`cancelAtPeriodEnd`) и переписать страницы `/pricing`, лендинга, `/settings/billing`
-+ новый чекаут-flow.
+
+- новый чекаут-flow.
 
 ## Non-goals
 
@@ -132,11 +133,11 @@ Order.REFUNDED  +  Subscription.EXPIRED  +  currentPeriodEnd=now
 
 ### 1.1. Переименование слагов в одной миграции
 
-| Было slug | Стало slug |
-|---|---|
-| `free` | `personal` |
-| `personal` | `pro` |
-| `corporate` | `max` |
+| Было slug   | Стало slug |
+| ----------- | ---------- |
+| `free`      | `personal` |
+| `personal`  | `pro`      |
+| `corporate` | `max`      |
 
 `Subscription.planId` ссылается по `id`, не по slug → переименование не ломает
 существующие ссылки. Прод-данных нет.
@@ -312,9 +313,9 @@ enum OrderStatus {
 ```ts
 const plans = [
   {
-    slug: "personal",
-    name: "Personal",
-    description: "Для личного пользования",
+    slug: 'personal',
+    name: 'Personal',
+    description: 'Для личного пользования',
     priceMonthlyKopecks: 0,
     priceYearlyKopecks: 0,
     maxWorkspaces: 1,
@@ -326,15 +327,15 @@ const plans = [
     customMcpEnabled: false,
     prioritySupport: false,
     developerSpaceEnabled: false,
-    features: ["1 рабочее пространство", "Базовый редактор", "Без AI и индексации"],
+    features: ['1 рабочее пространство', 'Базовый редактор', 'Без AI и индексации'],
     sortOrder: 1,
   },
   {
-    slug: "pro",
-    name: "Pro",
-    description: "Для продвинутых пользователей",
-    priceMonthlyKopecks: 15_000,        // 150 RUB
-    priceYearlyKopecks: 100_000,        // 1000 RUB
+    slug: 'pro',
+    name: 'Pro',
+    description: 'Для продвинутых пользователей',
+    priceMonthlyKopecks: 15_000, // 150 RUB
+    priceYearlyKopecks: 100_000, // 1000 RUB
     maxWorkspaces: 3,
     maxMembersPerWorkspace: 5,
     chatsEnabled: true,
@@ -345,21 +346,21 @@ const plans = [
     prioritySupport: false,
     developerSpaceEnabled: false,
     features: [
-      "3 рабочих пространства",
-      "До 5 участников в каждом",
-      "Чаты с AI",
-      "Индексация страниц",
-      "GigaChat-2 и GigaChat-2 Pro",
+      '3 рабочих пространства',
+      'До 5 участников в каждом',
+      'Чаты с AI',
+      'Индексация страниц',
+      'GigaChat-2 и GigaChat-2 Pro',
     ],
     sortOrder: 2,
   },
   {
-    slug: "max",
-    name: "Max",
-    description: "Для команд и больших задач",
-    priceMonthlyKopecks: 150_000,       // 1500 RUB
-    priceYearlyKopecks: 1_200_000,      // 12000 RUB
-    maxWorkspaces: null,                // unlimited
+    slug: 'max',
+    name: 'Max',
+    description: 'Для команд и больших задач',
+    priceMonthlyKopecks: 150_000, // 1500 RUB
+    priceYearlyKopecks: 1_200_000, // 12000 RUB
+    maxWorkspaces: null, // unlimited
     maxMembersPerWorkspace: 100,
     chatsEnabled: true,
     pageIndexingEnabled: true,
@@ -369,12 +370,12 @@ const plans = [
     prioritySupport: true,
     developerSpaceEnabled: true,
     features: [
-      "Неограниченное число пространств",
-      "До 100 участников",
-      "GigaChat-2, Pro, Max",
-      "Кастомные MCP-серверы",
-      "Приоритетная поддержка",
-      "Доступ к пространству разработчиков",
+      'Неограниченное число пространств',
+      'До 100 участников',
+      'GigaChat-2, Pro, Max',
+      'Кастомные MCP-серверы',
+      'Приоритетная поддержка',
+      'Доступ к пространству разработчиков',
     ],
     sortOrder: 3,
   },
@@ -392,10 +393,10 @@ const plans = [
 
 ```ts
 export type PlanFeatures = {
-  slug: "personal" | "pro" | "max"
+  slug: 'personal' | 'pro' | 'max'
   name: string
-  sortOrder: number            // используется для сравнения тарифов
-  isPaid: boolean              // false для personal
+  sortOrder: number // используется для сравнения тарифов
+  isPaid: boolean // false для personal
   maxWorkspaces: number | null
   maxMembersPerWorkspace: number
   chatsEnabled: boolean
@@ -410,11 +411,11 @@ export type PlanFeatures = {
 // Список AI-моделей резолвится через AiModel.minPlanSlug, не через PlanFeatures
 export async function getAvailableAiModels(workspaceId: string): Promise<AiModel[]>
 
-
 export async function getWorkspaceFeatures(workspaceId: string): Promise<PlanFeatures>
 ```
 
 Логика:
+
 1. Найти `Workspace.ownerId`.
 2. Найти активную (non-EXPIRED) подписку владельца. Если нет — взять Personal-план.
 3. Из плана собрать `PlanFeatures`. `isPaid = slug !== "personal"`.
@@ -437,11 +438,11 @@ return (
 
 Sub-layout-ы (server components):
 
-| Маршрут | Файл | Проверка |
-|---|---|---|
-| `/chats/*` | `workspaces/[workspaceId]/chats/layout.tsx` (новый) | `if (!features.chatsEnabled) notFound()` |
+| Маршрут             | Файл                                                 | Проверка                                           |
+| ------------------- | ---------------------------------------------------- | -------------------------------------------------- |
+| `/chats/*`          | `workspaces/[workspaceId]/chats/layout.tsx` (новый)  | `if (!features.chatsEnabled) notFound()`           |
 | `/settings/members` | `workspaces/[workspaceId]/settings/members/page.tsx` | `if (!features.membersSettingsEnabled) notFound()` |
-| `/settings/ai` | `workspaces/[workspaceId]/settings/ai/page.tsx` | `if (!features.aiSettingsEnabled) notFound()` |
+| `/settings/ai`      | `workspaces/[workspaceId]/settings/ai/page.tsx`      | `if (!features.aiSettingsEnabled) notFound()`      |
 
 `features` пробрасывается через React Context (или prop через layout-shell, чтобы
 sub-pages могли читать без отдельного fetch). Для упрощения — server-side prop +
@@ -450,6 +451,7 @@ react cache.
 ### 2.3. Скрытие пунктов навигации
 
 `workspace-sidebar.tsx` фильтрует:
+
 - ссылку «Чаты» — по `features.chatsEnabled`
 - настройки «Участники» — по `features.membersSettingsEnabled`
 - настройки «AI агенты» — по `features.aiSettingsEnabled`
@@ -465,8 +467,8 @@ react cache.
   <Chip
     label={features.name}
     size="small"
-    color={features.isPaid ? "success" : "default"}
-    variant={features.isPaid ? "filled" : "outlined"}
+    color={features.isPaid ? 'success' : 'default'}
+    variant={features.isPaid ? 'filled' : 'outlined'}
   />
   {!features.isPaid && (
     <Link href="/pricing" sx={{ fontSize: 12 }}>
@@ -491,18 +493,17 @@ export async function getAvailableAiModels(workspaceId: string): Promise<AiModel
   const features = await getWorkspaceFeatures(workspaceId)
 
   // выбираем все плановые slug-и с sortOrder ≤ текущему
-  const allowedPlanSlugs = await prisma.plan.findMany({
-    where: { sortOrder: { lte: features.sortOrder } },
-    select: { slug: true },
-  }).then((rows) => rows.map((r) => r.slug))
+  const allowedPlanSlugs = await prisma.plan
+    .findMany({
+      where: { sortOrder: { lte: features.sortOrder } },
+      select: { slug: true },
+    })
+    .then((rows) => rows.map((r) => r.slug))
 
   return prisma.aiModel.findMany({
     where: {
       isActive: true,
-      OR: [
-        { minPlanSlug: null },
-        { minPlanSlug: { in: allowedPlanSlugs } },
-      ],
+      OR: [{ minPlanSlug: null }, { minPlanSlug: { in: allowedPlanSlugs } }],
     },
     include: { provider: true },
   })
@@ -520,6 +521,7 @@ export async function getAvailableAiModels(workspaceId: string): Promise<AiModel
 
 **Seed данных AiModel** — отдельная задача в плане реализации: убедиться, что в seed
 есть три модели с правильными `minPlanSlug`:
+
 - `gigachat-2` → `minPlanSlug: "pro"`
 - `gigachat-2-pro` → `minPlanSlug: "pro"`
 - `gigachat-2-max` → `minPlanSlug: "max"`
@@ -549,6 +551,7 @@ TEXT-страницы. Это маленькая задача в плане ре
 ### 2.7. Soft downgrade — read-only режим
 
 После EXPIRED:
+
 - `getWorkspaceFeatures` для всех его workspace начинает возвращать Personal-фичи
 - /chats, /settings/members, /settings/ai → 404 в этих workspace
 - Лишние workspace остаются доступными на чтение
@@ -562,10 +565,10 @@ export async function requireWritableWorkspace(workspaceId: string, userId: stri
     where: { id: workspaceId },
     select: { ownerId: true, createdAt: true },
   })
-  if (!workspace) throw new TRPCError({ code: "NOT_FOUND" })
+  if (!workspace) throw new TRPCError({ code: 'NOT_FOUND' })
 
   const features = await getWorkspaceFeatures(workspaceId)
-  if (features.maxWorkspaces === null) return  // unlimited (Max)
+  if (features.maxWorkspaces === null) return // unlimited (Max)
 
   // считаем какой по счёту workspace создан владельцем
   const olderCount = await prisma.workspace.count({
@@ -573,14 +576,15 @@ export async function requireWritableWorkspace(workspaceId: string, userId: stri
   })
   if (olderCount >= features.maxWorkspaces) {
     throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "WORKSPACE_OVER_PLAN_LIMIT",  // i18n-ключ
+      code: 'FORBIDDEN',
+      message: 'WORKSPACE_OVER_PLAN_LIMIT', // i18n-ключ
     })
   }
 }
 ```
 
 Гард применяется в существующих write-мутациях:
+
 - `page.create`, `page.update`, `page.delete`
 - `member.invite`
 - любые мутации, изменяющие state workspace
@@ -598,6 +602,7 @@ export async function requireWritableWorkspace(workspaceId: string, userId: stri
 Новый workspace-package, тонкая HTTP-обёртка.
 
 Структура:
+
 ```
 packages/yookassa/
   package.json
@@ -611,6 +616,7 @@ packages/yookassa/
 ```
 
 `YookassaClient` API:
+
 ```ts
 class YookassaClient {
   constructor(opts: { shopId: string; secretKey: string; baseUrl?: string; fetch?: typeof fetch })
@@ -626,12 +632,14 @@ HTTP: Basic Auth `${shopId}:${secretKey}`, header `Idempotence-Key: ${uuid}`,
 `Content-Type: application/json`.
 
 Endpoints:
+
 - POST `https://api.yookassa.ru/v3/payments`
 - GET `https://api.yookassa.ru/v3/payments/{id}`
 - POST `https://api.yookassa.ru/v3/refunds`
 - GET `https://api.yookassa.ru/v3/refunds/{id}`
 
 `webhook.ts`:
+
 - `parseWebhookEvent(body)` → `{ event: string; object: Payment | Refund }`
 - `verifyTrustedIp(ip, allowlist?)` — опционально, читает CSV из env
 
@@ -641,14 +649,14 @@ Endpoints:
 
 В repo root `.env`, объявить в `turbo.json globalEnv`:
 
-| Var | Где используется | Default |
-|---|---|---|
-| `YOOKASSA_SHOP_ID` | web, engines | (no default) |
-| `YOOKASSA_SECRET_KEY` | web, engines | (no default) |
-| `YOOKASSA_RETURN_URL_BASE` | web | использует `NEXT_PUBLIC_BASE_URL` если пусто |
-| `YOOKASSA_TRUSTED_IPS` | web | optional CSV |
-| `BILLING_RENEWAL_CRON_EXPRESSION` | engines | `"0 0 0 * * *"` |
-| `BILLING_RENEWAL_BATCH_SIZE` | engines | `50` |
+| Var                               | Где используется | Default                                      |
+| --------------------------------- | ---------------- | -------------------------------------------- |
+| `YOOKASSA_SHOP_ID`                | web, engines     | (no default)                                 |
+| `YOOKASSA_SECRET_KEY`             | web, engines     | (no default)                                 |
+| `YOOKASSA_RETURN_URL_BASE`        | web              | использует `NEXT_PUBLIC_BASE_URL` если пусто |
+| `YOOKASSA_TRUSTED_IPS`            | web              | optional CSV                                 |
+| `BILLING_RENEWAL_CRON_EXPRESSION` | engines          | `"0 0 0 * * *"`                              |
+| `BILLING_RENEWAL_BATCH_SIZE`      | engines          | `50`                                         |
 
 ### 3.3. tRPC расширение `subscription` router
 
@@ -715,10 +723,10 @@ subscription: {
 ```ts
 export async function POST(req: NextRequest) {
   // (опционально) verify request IP
-  const ip = req.headers.get("x-forwarded-for") ?? "?"
+  const ip = req.headers.get('x-forwarded-for') ?? '?'
   if (process.env.YOOKASSA_TRUSTED_IPS) {
     if (!isTrustedIp(ip, process.env.YOOKASSA_TRUSTED_IPS)) {
-      return Response.json({ error: "untrusted IP" }, { status: 403 })
+      return Response.json({ error: 'untrusted IP' }, { status: 403 })
     }
   }
 
@@ -726,14 +734,14 @@ export async function POST(req: NextRequest) {
   const event = parseWebhookEvent(body)
 
   switch (event.type) {
-    case "payment.succeeded":
+    case 'payment.succeeded':
       await handlePaymentSucceeded(event.object)
       break
-    case "payment.canceled":
+    case 'payment.canceled':
       await handlePaymentCanceled(event.object)
       break
-    case "refund.succeeded":
-      await handleRefundSucceeded(event.object)  // идемпотентно — CLI обычно уже
+    case 'refund.succeeded':
+      await handleRefundSucceeded(event.object) // идемпотентно — CLI обычно уже
       break
   }
   return Response.json({ ok: true })
@@ -766,6 +774,7 @@ export async function POST(req: NextRequest) {
 он заполняется здесь, в webhook'e.
 
 Идемпотентность:
+
 - `Order.status === PENDING` — главный флаг
 - `yookassaPaymentId` — `@unique`, не позволит дубликат
 
@@ -780,12 +789,13 @@ subscription.resume:  Subscription { cancelAtPeriodEnd: false, cancelledAt: null
 ```
 
 UI в `/settings/billing`:
+
 - Confirm dialog с текстом «Подписка остаётся активной до DD.MM.YYYY, затем перейдёте
   на Personal без потери данных».
 
 ### 3.6. Refund flow (CLI only)
 
-Реализация в engines (секция 4). Webhook `refund.succeeded` вызывается *после* CLI и
+Реализация в engines (секция 4). Webhook `refund.succeeded` вызывается _после_ CLI и
 действует идемпотентно (если Order уже REFUNDED — no-op).
 
 ### 3.7. Смена тарифа Pro ↔ Max
@@ -833,10 +843,7 @@ export class SubscriptionRenewalCronService {
     private readonly logger: Logger,
   ) {}
 
-  @Cron(
-    process.env.BILLING_RENEWAL_CRON_EXPRESSION ?? "0 0 0 * * *",
-    { timeZone: "Europe/Moscow" },
-  )
+  @Cron(process.env.BILLING_RENEWAL_CRON_EXPRESSION ?? '0 0 0 * * *', { timeZone: 'Europe/Moscow' })
   async processEndOfDay() {
     await this.renewals.expireCanceled()
     await this.renewals.renewActive()
@@ -845,6 +852,7 @@ export class SubscriptionRenewalCronService {
 ```
 
 `SubscriptionRenewalService.expireCanceled()`:
+
 ```sql
 UPDATE Subscription
 SET status = 'EXPIRED', expiredAt = now()
@@ -855,10 +863,11 @@ WHERE status = 'ACTIVE'
 ```
 
 `SubscriptionRenewalService.renewActive()`:
+
 ```ts
 const batch = await prisma.subscription.findMany({
   where: {
-    status: "ACTIVE",
+    status: 'ACTIVE',
     cancelAtPeriodEnd: false,
     paymentMethodId: { not: null },
     currentPeriodEnd: { lte: new Date() },
@@ -877,6 +886,7 @@ for (const sub of batch) {
 ```
 
 `SubscriptionRenewalService.renewOne(subscriptionId)`:
+
 ```ts
 1. Reload Subscription + Plan
 2. Validate инварианты (status=ACTIVE, paymentMethodId, currentPeriodEnd<=now)
@@ -912,12 +922,13 @@ for (const sub of batch) {
 Добавить dep `nest-commander` в `apps/engines/package.json`.
 
 Новый entry: `apps/engines/src/cli.ts`:
+
 ```ts
-import { CommandFactory } from "nest-commander"
-import { CliModule } from "./cli.module"
+import { CommandFactory } from 'nest-commander'
+import { CliModule } from './cli.module'
 
 async function bootstrap() {
-  await CommandFactory.run(CliModule, { logger: ["error", "warn", "log"] })
+  await CommandFactory.run(CliModule, { logger: ['error', 'warn', 'log'] })
 }
 bootstrap().catch((err) => {
   console.error(err)
@@ -928,6 +939,7 @@ bootstrap().catch((err) => {
 `CliModule` импортирует `BillingModule` и `IndexerModule` (для backfill-reindex).
 
 `apps/engines/package.json`:
+
 ```json
 {
   "scripts": {
@@ -938,6 +950,7 @@ bootstrap().catch((err) => {
 ```
 
 Использование:
+
 ```bash
 pnpm --filter @repo/engines cli refund <orderId>
 pnpm --filter @repo/engines cli force-renew <subscriptionId>
@@ -950,24 +963,27 @@ pnpm --filter @repo/engines cli backfill-reindex   # перенос сущест
 #### `refund <orderId>`
 
 ```ts
-@Command({ name: "refund", description: "Полный возврат по Order id", arguments: "<orderId>" })
+@Command({ name: 'refund', description: 'Полный возврат по Order id', arguments: '<orderId>' })
 class RefundCommand extends CommandRunner {
-  constructor(private readonly refunds: RefundService) { super() }
+  constructor(private readonly refunds: RefundService) {
+    super()
+  }
 
   async run([orderId]: string[]) {
     if (!orderId) {
-      console.error("Usage: cli refund <orderId>")
+      console.error('Usage: cli refund <orderId>')
       process.exit(1)
     }
     const result = await this.refunds.fullRefund(orderId)
-    console.log("✓ Refunded:", result.yookassaRefundId)
-    console.log("✓ Order:", orderId, "→ REFUNDED")
-    console.log("✓ Subscription:", result.subscriptionId, "→ EXPIRED")
+    console.log('✓ Refunded:', result.yookassaRefundId)
+    console.log('✓ Order:', orderId, '→ REFUNDED')
+    console.log('✓ Subscription:', result.subscriptionId, '→ EXPIRED')
   }
 }
 ```
 
 `RefundService.fullRefund(orderId)`:
+
 ```ts
 1. Order = findUnique({ orderId })
 2. Validate order.status === "PAID" && order.refundedAt === null
@@ -1005,6 +1021,7 @@ class RefundCommand extends CommandRunner {
 ### 5.1. `/pricing` (публичная)
 
 `apps/web/src/app/(about)/pricing/page.tsx`. Server Component:
+
 ```ts
 const plans = await prisma.plan.findMany({
   where: { isActive: true },
@@ -1016,6 +1033,7 @@ return <PricingTiers plans={plans} currentPlanSlug={currentPlan?.slug} />
 ```
 
 `<PricingTiers>` (client):
+
 - Toggle сверху: «Месяц / Год» (MUI ToggleButtonGroup)
 - 4 карточки (3 из БД + Custom hard-coded)
 - Каждая карточка показывает:
@@ -1024,17 +1042,17 @@ return <PricingTiers plans={plans} currentPlanSlug={currentPlan?.slug} />
   - Список фич из `Plan.features`
   - CTA-кнопка по правилам:
 
-| Currentplan | Plan card | CTA |
-|---|---|---|
-| (нет логина) | personal | «Регистрация» → /sign-up |
-| (нет логина) | pro/max | «Купить» → /sign-in?redirect=/pricing&intent=purchase&plan=...&period=... |
-| personal | personal | «Текущий тариф» (disabled) |
-| personal | pro/max | «Купить» → открывает CheckoutModal |
-| pro | personal | «Перейти» (downgrade — открывает confirm + cancel-flow) |
-| pro | pro | «Текущий тариф» (disabled) |
-| pro | max | «Перейти на Max» → CheckoutModal |
-| max | personal/pro | «Перейти» (downgrade) |
-| max | max | «Текущий тариф» (disabled) |
+| Currentplan  | Plan card    | CTA                                                                       |
+| ------------ | ------------ | ------------------------------------------------------------------------- |
+| (нет логина) | personal     | «Регистрация» → /sign-up                                                  |
+| (нет логина) | pro/max      | «Купить» → /sign-in?redirect=/pricing&intent=purchase&plan=...&period=... |
+| personal     | personal     | «Текущий тариф» (disabled)                                                |
+| personal     | pro/max      | «Купить» → открывает CheckoutModal                                        |
+| pro          | personal     | «Перейти» (downgrade — открывает confirm + cancel-flow)                   |
+| pro          | pro          | «Текущий тариф» (disabled)                                                |
+| pro          | max          | «Перейти на Max» → CheckoutModal                                          |
+| max          | personal/pro | «Перейти» (downgrade)                                                     |
+| max          | max          | «Текущий тариф» (disabled)                                                |
 
 «Перейти» (downgrade) на Pro/Max → cancel current subscription (`cancelAtPeriodEnd=true`)
 и сообщение «Подписка останется активной до DD.MM.YYYY, после — Personal». Без CheckoutModal.
@@ -1044,6 +1062,7 @@ Custom-карточка: «Связаться» → `/contact`.
 ### 5.2. `<CheckoutModal>` (client)
 
 `apps/web/src/components/billing/checkout-modal.tsx`:
+
 - Props: `{ planSlug, defaultPeriod, open, onClose }`
 - Внутри: переключатель «Месяц / Год» (синхронизирован с `defaultPeriod`),
   итоговая сумма, описание, чекбокс «Принимаю условия [оферты](/oferta)»
@@ -1052,6 +1071,7 @@ Custom-карточка: «Связаться» → `/contact`.
 - Состояния: idle / loading / error (читаемое сообщение из tRPC-ошибки)
 
 Интеграция с pricing-страницей:
+
 - Логин → клик «Купить» → `setCheckoutOpen({ planSlug, period })` → модалка
 - Не залогинен → редирект на /sign-in?redirect=/pricing&intent=purchase&plan=...&period=...
 - После логина — pricing-страница смотрит query-params и автооткрывает модалку
@@ -1059,10 +1079,12 @@ Custom-карточка: «Связаться» → `/contact`.
 ### 5.3. `/billing/return?orderId=...`
 
 `apps/web/src/app/(protected)/billing/return/page.tsx` (Server Component):
+
 - Проверяет `Order.userId === session.user.id`, иначе `notFound()`
 - Передаёт `orderId` в `<OrderProgress orderId/>`
 
 `<OrderProgress>` (client):
+
 - TanStack Query: `trpc.subscription.getOrder.useQuery({ orderId }, { refetchInterval: 2000 })`
 - Состояния:
   - `PENDING` ≤30с: спиннер «Обрабатываем оплату…»
@@ -1075,6 +1097,7 @@ Custom-карточка: «Связаться» → `/contact`.
 `apps/web/src/app/(protected)/settings/billing/page.tsx` (полностью переписать):
 
 Секции:
+
 1. **Текущий тариф**:
    - Бейдж + название + статус
      - `ACTIVE && !cancelAtPeriodEnd`: «Активна, продление DD.MM.YYYY»
@@ -1082,7 +1105,7 @@ Custom-карточка: «Связаться» → `/contact`.
      - `EXPIRED`: «Истекла»
      - Personal: «Бесплатный тариф»
 2. **Способ оплаты** (если есть paymentMethodId):
-   - Иконка бренда + «**** N4N4N4N»
+   - Иконка бренда + «\*\*\*\* N4N4N4N»
    - Кнопка «Изменить» — TBD (out of scope в v1; YooKassa требует new payment для смены карты)
 3. **Управление подпиской**:
    - Personal → «Перейти на Pro» → /pricing
@@ -1097,6 +1120,7 @@ Custom-карточка: «Связаться» → `/contact`.
 `apps/web/src/components/public/content.ts`.
 
 Переписать `landingPricingCards`:
+
 - Personal — Бесплатно — основные фичи
 - Pro — от 150 ₽/мес — основные фичи
 - Max — от 1500 ₽/мес — основные фичи
@@ -1116,6 +1140,7 @@ Custom-карточка: «Связаться» → `/contact`.
 ### 5.7. `/oferta` placeholder
 
 Новый файл `apps/web/src/app/(about)/oferta/page.tsx`:
+
 - Server Component
 - Контент: заголовок «Договор-оферта», placeholder-текст с пометкой `TODO: legal review`
 - В чекаут-модалке ссылка `<Link href="/oferta">условия оферты</Link>`
@@ -1131,6 +1156,7 @@ packages/db/prisma/migrations/<timestamp>_subscription_plans/migration.sql
 ```
 
 Содержание:
+
 1. `ALTER TABLE Plan` — переименовать `priceMonthly` → `priceMonthlyKopecks`,
    добавить `priceYearlyKopecks` и capability flags
    (`chatsEnabled`, `pageIndexingEnabled`, `membersSettingsEnabled`,
@@ -1188,14 +1214,14 @@ packages/db/prisma/migrations/<timestamp>_subscription_plans/migration.sql
 
 ## 7. Known limitations & follow-ups
 
-| Тема | Статус |
-|---|---|
-| Custom MCP servers (Max) | Marketing-only флаг; отдельный спек |
-| Developer space + voting (Max) | Marketing-only флаг; отдельный спек |
-| Priority support routing | Marketing-only флаг; отдельный спек |
-| Proration при смене тарифа | Не делаем; известное ограничение |
-| Email-уведомления | Зависит от транспорта; сейчас не настроен — отдельная задача |
-| User-facing рефанды | Только CLI; UI — позже |
-| Смена карты в /settings/billing | Только через новый payment в YooKassa; UI «Изменить карту» — позже |
-| Юридический текст оферты | Placeholder; ждём legal-review |
-| Backfill индексации после апгрейда | Маленькая задача в плане реализации |
+| Тема                               | Статус                                                             |
+| ---------------------------------- | ------------------------------------------------------------------ |
+| Custom MCP servers (Max)           | Marketing-only флаг; отдельный спек                                |
+| Developer space + voting (Max)     | Marketing-only флаг; отдельный спек                                |
+| Priority support routing           | Marketing-only флаг; отдельный спек                                |
+| Proration при смене тарифа         | Не делаем; известное ограничение                                   |
+| Email-уведомления                  | Зависит от транспорта; сейчас не настроен — отдельная задача       |
+| User-facing рефанды                | Только CLI; UI — позже                                             |
+| Смена карты в /settings/billing    | Только через новый payment в YooKassa; UI «Изменить карту» — позже |
+| Юридический текст оферты           | Placeholder; ждём legal-review                                     |
+| Backfill индексации после апгрейда | Маленькая задача в плане реализации                                |

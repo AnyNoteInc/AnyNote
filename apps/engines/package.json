@@ -8,11 +8,12 @@
     "dev": "nest start --watch",
     "build": "nest build",
     "start": "node --env-file=../../.env dist/main.js",
+    "cli": "tsx src/cli.ts",
+    "cli:prod": "node dist/cli.js",
     "check-types": "tsc --noEmit",
     "lint": "eslint \"src/**/*.ts\" --max-warnings 0",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
-    "test-int": "NODE_OPTIONS=--experimental-vm-modules jest --config jest.integration.config.ts",
-    "backfill:reindex": "tsx --env-file=../../.env src/cli/backfill-reindex.ts"
+    "test-int": "NODE_OPTIONS=--experimental-vm-modules jest --config jest.integration.config.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.0",
@@ -24,8 +25,10 @@
     "@rekog/mcp-nest": "^1.5.0",
     "@repo/db": "workspace:*",
     "@repo/storage": "workspace:*",
+    "@repo/yookassa": "workspace:*",
     "cron": "^3.2.0",
     "dotenv": "^17.0.0",
+    "nest-commander": "^3",
     "reflect-metadata": "^0.2.2",
     "rxjs": "^7.8.1",
     "zod": "^3.23.0"

@@ -1,9 +1,9 @@
-import { Node, mergeAttributes } from "@tiptap/core"
-import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from "@tiptap/react"
-import type { NodeViewProps } from "@tiptap/react"
-import type { MouseEvent as ReactMouseEvent } from "react"
-import { Box, IconButton } from "@mui/material"
-import ArrowRightOutlinedIcon from "@mui/icons-material/ArrowRightOutlined"
+import { Node, mergeAttributes } from '@tiptap/core'
+import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
+import type { NodeViewProps } from '@tiptap/react'
+import type { MouseEvent as ReactMouseEvent } from 'react'
+import { Box, IconButton } from '@mui/material'
+import ArrowRightOutlinedIcon from '@mui/icons-material/ArrowRightOutlined'
 
 function ToggleView({ node, updateAttributes }: NodeViewProps) {
   const open = node.attrs.open !== false
@@ -15,20 +15,20 @@ function ToggleView({ node, updateAttributes }: NodeViewProps) {
   }
 
   return (
-    <NodeViewWrapper className="anynote-toggle" data-open={open ? "true" : "false"}>
+    <NodeViewWrapper className="anynote-toggle" data-open={open ? 'true' : 'false'}>
       <Box
         sx={{
-          display: "flex",
-          alignItems: "flex-start",
+          display: 'flex',
+          alignItems: 'flex-start',
           gap: 1,
-          border: "1px solid",
-          borderColor: "divider",
+          border: '1px solid',
+          borderColor: 'divider',
           borderRadius: 1.5,
           px: 1.5,
           py: 1,
           my: 0.5,
-          transition: "border-color .15s",
-          "&:hover": { borderColor: "text.secondary" },
+          transition: 'border-color .15s',
+          '&:hover': { borderColor: 'text.secondary' },
         }}
       >
         <IconButton
@@ -37,16 +37,16 @@ function ToggleView({ node, updateAttributes }: NodeViewProps) {
           onClick={handleToggle}
           contentEditable={false}
           className="anynote-toggle-arrow"
-          aria-label={open ? "Свернуть" : "Развернуть"}
+          aria-label={open ? 'Свернуть' : 'Развернуть'}
           sx={{
             width: 20,
             height: 20,
             p: 0,
-            mt: "2px",
+            mt: '2px',
             flexShrink: 0,
-            transform: open ? "rotate(90deg)" : "rotate(0deg)",
-            transition: "transform 120ms",
-            color: "text.secondary",
+            transform: open ? 'rotate(90deg)' : 'rotate(0deg)',
+            transition: 'transform 120ms',
+            color: 'text.secondary',
           }}
         >
           <ArrowRightOutlinedIcon sx={{ fontSize: 18 }} />
@@ -58,17 +58,17 @@ function ToggleView({ node, updateAttributes }: NodeViewProps) {
 }
 
 export const Toggle = Node.create({
-  name: "toggle",
-  group: "block",
-  content: "block+",
+  name: 'toggle',
+  group: 'block',
+  content: 'block+',
   defining: true,
 
   addAttributes() {
     return {
       open: {
         default: true,
-        parseHTML: (el) => el.getAttribute("data-open") !== "false",
-        renderHTML: (attrs) => ({ "data-open": attrs.open ? "true" : "false" }),
+        parseHTML: (el) => el.getAttribute('data-open') !== 'false',
+        renderHTML: (attrs) => ({ 'data-open': attrs.open ? 'true' : 'false' }),
       },
     }
   },
@@ -78,7 +78,7 @@ export const Toggle = Node.create({
   },
 
   renderHTML({ HTMLAttributes }) {
-    return ["div", mergeAttributes(HTMLAttributes, { "data-type": "toggle" }), 0]
+    return ['div', mergeAttributes(HTMLAttributes, { 'data-type': 'toggle' }), 0]
   },
 
   addNodeView() {
@@ -91,7 +91,7 @@ export const Toggle = Node.create({
         const { $from } = editor.state.selection
         for (let depth = $from.depth; depth > 0; depth--) {
           const node = $from.node(depth)
-          if (node.type.name !== "toggle") continue
+          if (node.type.name !== 'toggle') continue
           if (node.attrs.open) return false
           const pos = $from.before(depth)
           editor

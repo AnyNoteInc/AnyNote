@@ -1,14 +1,14 @@
 import FileUpload, {
   type StoredAsset,
   type UploadHandler as CodelessUploadHandler,
-} from "@tiptap-codeless/extension-file-upload"
+} from '@tiptap-codeless/extension-file-upload'
 
-import type { UploadHandler } from "../types"
+import type { UploadHandler } from '../types'
 
-const inferKind = (mime: string): "image" | "video" | "file" => {
-  if (mime.startsWith("image/")) return "image"
-  if (mime.startsWith("video/")) return "video"
-  return "file"
+const inferKind = (mime: string): 'image' | 'video' | 'file' => {
+  if (mime.startsWith('image/')) return 'image'
+  if (mime.startsWith('video/')) return 'video'
+  return 'file'
 }
 
 export const buildFileUpload = (uploadHandler: UploadHandler) => {
@@ -28,7 +28,7 @@ export const buildFileUpload = (uploadHandler: UploadHandler) => {
     return { assets }
   }
   return FileUpload.configure({
-    storageMode: "custom",
+    storageMode: 'custom',
     handlePaste: true,
     handleDrop: true,
     upload,

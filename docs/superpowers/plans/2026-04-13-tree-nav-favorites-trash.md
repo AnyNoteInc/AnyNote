@@ -143,7 +143,7 @@ export type {
   SearchChat,
   SearchMessage,
   FavoritePage,
-} from "@prisma/client"
+} from '@prisma/client'
 ```
 
 - [ ] **Step 6: Generate Prisma client and push schema**
@@ -182,10 +182,10 @@ pnpm --filter @repo/ui add @mui/x-tree-view
 In `packages/ui/src/components/index.ts`, add after the existing exports:
 
 ```typescript
-export { SimpleTreeView } from "@mui/x-tree-view/SimpleTreeView"
-export { RichTreeView } from "@mui/x-tree-view/RichTreeView"
-export { TreeItem } from "@mui/x-tree-view/TreeItem"
-export type { TreeViewBaseItem } from "@mui/x-tree-view/models"
+export { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView'
+export { RichTreeView } from '@mui/x-tree-view/RichTreeView'
+export { TreeItem } from '@mui/x-tree-view/TreeItem'
+export type { TreeViewBaseItem } from '@mui/x-tree-view/models'
 ```
 
 - [ ] **Step 3: Add new icon re-exports**
@@ -193,13 +193,13 @@ export type { TreeViewBaseItem } from "@mui/x-tree-view/models"
 In `packages/ui/src/components/index.ts`, add the icons needed for page actions:
 
 ```typescript
-export { default as StarIcon } from "@mui/icons-material/Star"
-export { default as StarBorderIcon } from "@mui/icons-material/StarBorder"
-export { default as LinkIcon } from "@mui/icons-material/Link"
-export { default as ContentCopyIcon } from "@mui/icons-material/ContentCopy"
-export { default as MovingIcon } from "@mui/icons-material/Moving"
-export { default as RestoreIcon } from "@mui/icons-material/Restore"
-export { default as DeleteForeverIcon } from "@mui/icons-material/DeleteForever"
+export { default as StarIcon } from '@mui/icons-material/Star'
+export { default as StarBorderIcon } from '@mui/icons-material/StarBorder'
+export { default as LinkIcon } from '@mui/icons-material/Link'
+export { default as ContentCopyIcon } from '@mui/icons-material/ContentCopy'
+export { default as MovingIcon } from '@mui/icons-material/Moving'
+export { default as RestoreIcon } from '@mui/icons-material/Restore'
+export { default as DeleteForeverIcon } from '@mui/icons-material/DeleteForever'
 ```
 
 - [ ] **Step 4: Verify build**
@@ -232,11 +232,11 @@ This task expands the page router from 2 procedures to include: `create`, `renam
 Replace `packages/trpc/src/routers/page.ts` entirely:
 
 ```typescript
-import { z } from "zod"
-import { TRPCError } from "@trpc/server"
-import type { PrismaClient } from "@repo/db"
+import { z } from 'zod'
+import { TRPCError } from '@trpc/server'
+import type { PrismaClient } from '@repo/db'
 
-import { router, protectedProcedure } from "../trpc"
+import { router, protectedProcedure } from '../trpc'
 
 async function assertWorkspaceMember(
   ctx: { prisma: PrismaClient; user: { id: string } },
@@ -245,7 +245,7 @@ async function assertWorkspaceMember(
   const member = await ctx.prisma.workspaceMember.findUnique({
     where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
   })
-  if (!member) throw new TRPCError({ code: "FORBIDDEN", message: "Нет доступа к пространству" })
+  if (!member) throw new TRPCError({ code: 'FORBIDDEN', message: 'Нет доступа к пространству' })
   return member
 }
 
@@ -256,7 +256,7 @@ async function assertPageAccess(
   const page = await ctx.prisma.page.findFirst({
     where: { id: pageId, workspace: { members: { some: { userId: ctx.user.id } } } },
   })
-  if (!page) throw new TRPCError({ code: "NOT_FOUND", message: "Страница не найдена" })
+  if (!page) throw new TRPCError({ code: 'NOT_FOUND', message: 'Страница не найдена' })
   return page
 }
 
@@ -270,10 +270,10 @@ async function assertPageOwnership(
   const member = await ctx.prisma.workspaceMember.findUnique({
     where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
   })
-  if (member?.role !== "OWNER") {
+  if (member?.role !== 'OWNER') {
     throw new TRPCError({
-      code: "FORBIDDEN",
-      message: "Только создатель или владелец пространства",
+      code: 'FORBIDDEN',
+      message: 'Только создатель или владелец пространства',
     })
   }
   return page
@@ -289,7 +289,7 @@ export const pageRouter = router({
           workspace: { members: { some: { userId: ctx.user.id } } },
         },
       })
-      if (!page) throw new TRPCError({ code: "NOT_FOUND" })
+      if (!page) throw new TRPCError({ code: 'NOT_FOUND' })
       return page
     }),
 
@@ -330,9 +330,9 @@ export const pageRouter = router({
         const page = await tx.page.create({
           data: {
             workspaceId: input.workspaceId,
-            parentType: input.parentId ? "PAGE" : "WORKSPACE",
+            parentType: input.parentId ? 'PAGE' : 'WORKSPACE',
             parentId: input.parentId ?? input.workspaceId,
-            title: input.title ?? "Untitled",
+            title: input.title ?? 'Untitled',
             prevPageId: null,
             createdById: ctx.user.id,
             updatedById: ctx.user.id,
@@ -342,7 +342,7 @@ export const pageRouter = router({
         const existingFirst = await tx.page.findFirst({
           where: {
             workspaceId: input.workspaceId,
-            parentType: input.parentId ? "PAGE" : "WORKSPACE",
+            parentType: input.parentId ? 'PAGE' : 'WORKSPACE',
             parentId: input.parentId ?? input.workspaceId,
             prevPageId: null,
             id: { not: page.id },
@@ -382,7 +382,7 @@ export const pageRouter = router({
         while (queue.length > 0) {
           const parentId = queue.shift()!
           const children = await tx.page.findMany({
-            where: { parentId, parentType: "PAGE", deletedAt: null },
+            where: { parentId, parentType: 'PAGE', deletedAt: null },
             select: { id: true },
           })
           for (const child of children) {
@@ -425,7 +425,7 @@ export const pageRouter = router({
           workspaceId: input.workspaceId,
           deletedAt: { not: null },
         },
-        orderBy: { deletedAt: "desc" },
+        orderBy: { deletedAt: 'desc' },
         select: {
           id: true,
           title: true,
@@ -444,7 +444,7 @@ export const pageRouter = router({
       const page = await ctx.prisma.page.findFirst({
         where: { id: input.pageId, workspace: { members: { some: { userId: ctx.user.id } } } },
       })
-      if (!page) throw new TRPCError({ code: "NOT_FOUND" })
+      if (!page) throw new TRPCError({ code: 'NOT_FOUND' })
       await assertPageOwnership(ctx, input.pageId, page.workspaceId)
       return ctx.prisma.$transaction(async (tx) => {
         // Collect all descendant IDs (they were soft-deleted together)
@@ -453,7 +453,7 @@ export const pageRouter = router({
         while (queue.length > 0) {
           const parentId = queue.shift()!
           const children = await tx.page.findMany({
-            where: { parentId, parentType: "PAGE", deletedAt: { not: null } },
+            where: { parentId, parentType: 'PAGE', deletedAt: { not: null } },
             select: { id: true },
           })
           for (const child of children) {
@@ -463,7 +463,7 @@ export const pageRouter = router({
         }
         // Check if parent is still alive
         const parentAlive =
-          page.parentType === "WORKSPACE"
+          page.parentType === 'WORKSPACE'
             ? true
             : await tx.page
                 .findFirst({
@@ -473,7 +473,7 @@ export const pageRouter = router({
                 .then((p) => !!p)
 
         // If parent is deleted, move to workspace root
-        const newParentType = parentAlive ? page.parentType : "WORKSPACE"
+        const newParentType = parentAlive ? page.parentType : 'WORKSPACE'
         const newParentId = parentAlive ? page.parentId : page.workspaceId
 
         // Restore all descendants
@@ -513,7 +513,7 @@ export const pageRouter = router({
       const page = await ctx.prisma.page.findFirst({
         where: { id: input.pageId, workspace: { members: { some: { userId: ctx.user.id } } } },
       })
-      if (!page) throw new TRPCError({ code: "NOT_FOUND" })
+      if (!page) throw new TRPCError({ code: 'NOT_FOUND' })
       await assertPageOwnership(ctx, input.pageId, page.workspaceId)
       // Cascade delete handles blocks via DB-level onDelete: Cascade
       await ctx.prisma.page.delete({ where: { id: input.pageId } })
@@ -757,7 +757,7 @@ In `packages/trpc/src/routers/search.ts`, update the `listChats` query (line 37-
 ```typescript
 return ctx.prisma.searchChat.findMany({
   where: { workspaceId: input.workspaceId },
-  orderBy: { updatedAt: "desc" },
+  orderBy: { updatedAt: 'desc' },
   take: 50,
   select: {
     id: true,
@@ -955,10 +955,10 @@ git commit -m "feat: wire userId and expanded page data through layout"
 - [ ] **Step 1: Create the page context menu component**
 
 ```tsx
-"use client"
+'use client'
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 import {
   Menu,
@@ -977,10 +977,10 @@ import {
   MovingIcon,
   DeleteIcon,
   TextField,
-} from "@repo/ui/components"
-import { Button } from "@repo/ui/components"
+} from '@repo/ui/components'
+import { Button } from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
 type PageItem = {
   id: string
@@ -1015,7 +1015,7 @@ export function PageContextMenu({
   const utils = trpc.useUtils()
 
   const [renameOpen, setRenameOpen] = useState(false)
-  const [renameValue, setRenameValue] = useState("")
+  const [renameValue, setRenameValue] = useState('')
   const [deleteOpen, setDeleteOpen] = useState(false)
 
   const isOwnerOrCreator = page.createdById === userId
@@ -1072,7 +1072,7 @@ export function PageContextMenu({
           sx={{ gap: 1, fontSize: 13 }}
         >
           {isFavorite ? <StarIcon fontSize="small" /> : <StarBorderIcon fontSize="small" />}
-          {isFavorite ? "Убрать из избранного" : "В избранное"}
+          {isFavorite ? 'Убрать из избранного' : 'В избранное'}
         </MenuItem>
         <Divider />
         <MenuItem onClick={handleCopyLink} sx={{ gap: 1, fontSize: 13 }}>
@@ -1092,7 +1092,7 @@ export function PageContextMenu({
         <MenuItem
           onClick={() => {
             onClose()
-            setRenameValue(page.title ?? "")
+            setRenameValue(page.title ?? '')
             setRenameOpen(true)
           }}
           sx={{ gap: 1, fontSize: 13 }}
@@ -1115,7 +1115,7 @@ export function PageContextMenu({
             onClose()
             setDeleteOpen(true)
           }}
-          sx={{ gap: 1, fontSize: 13, color: "error.main" }}
+          sx={{ gap: 1, fontSize: 13, color: 'error.main' }}
         >
           <DeleteIcon fontSize="small" />В корзину
         </MenuItem>
@@ -1132,7 +1132,7 @@ export function PageContextMenu({
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && renameValue.trim()) {
+              if (e.key === 'Enter' && renameValue.trim()) {
                 rename.mutate({ pageId: page.id, title: renameValue.trim() })
               }
             }}
@@ -1157,7 +1157,7 @@ export function PageContextMenu({
         <DialogTitle>Удалить страницу?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Страница «{page.title ?? "Untitled"}» и все дочерние страницы будут перемещены в
+            Страница «{page.title ?? 'Untitled'}» и все дочерние страницы будут перемещены в
             корзину.
           </DialogContentText>
         </DialogContent>
@@ -1205,9 +1205,9 @@ git commit -m "feat: add PageContextMenu with favorites, rename, duplicate, move
 - [ ] **Step 1: Create the move dialog component**
 
 ```tsx
-"use client"
+'use client'
 
-import { useMemo } from "react"
+import { useMemo } from 'react'
 
 import {
   Dialog,
@@ -1217,10 +1217,10 @@ import {
   SimpleTreeView,
   TreeItem,
   Box,
-} from "@repo/ui/components"
-import { Button } from "@repo/ui/components"
+} from '@repo/ui/components'
+import { Button } from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
 type PageItem = {
   id: string
@@ -1246,7 +1246,7 @@ function getDescendantIds(pageId: string, pages: PageItem[]): Set<string> {
   while (queue.length > 0) {
     const id = queue.shift()!
     for (const p of pages) {
-      if (p.parentId === id && p.parentType === "PAGE" && !ids.has(p.id)) {
+      if (p.parentId === id && p.parentType === 'PAGE' && !ids.has(p.id)) {
         ids.add(p.id)
         queue.push(p.id)
       }
@@ -1295,9 +1295,9 @@ function PageTreeItems({
       key={page.id}
       itemId={page.id}
       label={
-        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, py: 0.25 }}>
-          <span style={{ fontSize: 14 }}>{page.icon ?? "📄"}</span>
-          <span style={{ fontSize: 13 }}>{page.title ?? "Untitled"}</span>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, py: 0.25 }}>
+          <span style={{ fontSize: 14 }}>{page.icon ?? '📄'}</span>
+          <span style={{ fontSize: 13 }}>{page.title ?? 'Untitled'}</span>
         </Box>
       }
     >
@@ -1324,13 +1324,13 @@ export function MovePageDialog({ open, onClose, page, pages, workspaceId }: Prop
 
   const handleSelect = (_event: React.SyntheticEvent, itemId: string | null) => {
     if (!itemId) return
-    const newParentId = itemId === "__root__" ? null : itemId
+    const newParentId = itemId === '__root__' ? null : itemId
     move.mutate({ pageId: page.id, newParentId })
   }
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>Переместить «{page.title ?? "Untitled"}»</DialogTitle>
+      <DialogTitle>Переместить «{page.title ?? 'Untitled'}»</DialogTitle>
       <DialogContent>
         <SimpleTreeView onItemClick={handleSelect}>
           <TreeItem
@@ -1381,11 +1381,11 @@ This is the main tree view for pages in the sidebar, replacing the flat NavItem 
 - [ ] **Step 1: Create page-tree-section.tsx**
 
 ```tsx
-"use client"
+'use client'
 
-import { useState, useMemo, useCallback } from "react"
-import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
+import { useState, useMemo, useCallback } from 'react'
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
 
 import {
   Box,
@@ -1395,12 +1395,12 @@ import {
   MoreHorizIcon,
   RichTreeView,
   TreeItem,
-} from "@repo/ui/components"
-import type { TreeViewBaseItem } from "@repo/ui/components"
+} from '@repo/ui/components'
+import type { TreeViewBaseItem } from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
-import { PageContextMenu } from "./page-context-menu"
-import { MovePageDialog } from "./move-page-dialog"
+import { trpc } from '@/trpc/client'
+import { PageContextMenu } from './page-context-menu'
+import { MovePageDialog } from './move-page-dialog'
 
 type PageItem = {
   id: string
@@ -1468,7 +1468,7 @@ function PageTreeItem({
   })
 
   const children = orderSiblings(
-    pages.filter((p) => p.parentId === page.id && p.parentType === "PAGE"),
+    pages.filter((p) => p.parentId === page.id && p.parentType === 'PAGE'),
   )
 
   return (
@@ -1478,44 +1478,44 @@ function PageTreeItem({
         label={
           <Box
             sx={{
-              display: "flex",
-              alignItems: "center",
+              display: 'flex',
+              alignItems: 'center',
               gap: 0.5,
               py: 0.25,
               pr: 0.5,
               minWidth: 0,
-              "&:hover .page-actions": { visibility: "visible" },
+              '&:hover .page-actions': { visibility: 'visible' },
             }}
           >
             <Link
               href={`/workspaces/${workspaceId}/pages/${page.id}`}
               onClick={(e) => e.stopPropagation()}
               style={{
-                textDecoration: "none",
-                display: "flex",
-                alignItems: "center",
+                textDecoration: 'none',
+                display: 'flex',
+                alignItems: 'center',
                 gap: 4,
                 flex: 1,
                 minWidth: 0,
               }}
             >
-              <span style={{ fontSize: 14, flexShrink: 0 }}>{page.icon ?? "📄"}</span>
+              <span style={{ fontSize: 14, flexShrink: 0 }}>{page.icon ?? '📄'}</span>
               <Typography
                 variant="body2"
                 noWrap
                 sx={{
-                  color: isActive ? "text.primary" : "text.secondary",
+                  color: isActive ? 'text.primary' : 'text.secondary',
                   fontSize: 13,
                 }}
               >
-                {page.title ?? "Untitled"}
+                {page.title ?? 'Untitled'}
               </Typography>
             </Link>
             <Box
               className="page-actions"
               sx={{
-                display: "flex",
-                visibility: menuAnchor ? "visible" : "hidden",
+                display: 'flex',
+                visibility: menuAnchor ? 'visible' : 'hidden',
                 flexShrink: 0,
               }}
             >
@@ -1587,17 +1587,17 @@ export function PageTreeSection({ workspaceId, pages, userId, favoritePageIds }:
     },
   })
 
-  const rootPages = orderSiblings(pages.filter((p) => p.parentType === "WORKSPACE"))
+  const rootPages = orderSiblings(pages.filter((p) => p.parentType === 'WORKSPACE'))
 
   return (
     <Box>
       <Typography
         variant="overline"
-        sx={{ color: "text.disabled", px: 1, pt: 2, pb: 0.5, letterSpacing: "0.06em" }}
+        sx={{ color: 'text.disabled', px: 1, pt: 2, pb: 0.5, letterSpacing: '0.06em' }}
       >
         Страницы
       </Typography>
-      <Box sx={{ "& .MuiTreeItem-content": { py: 0, minHeight: 28 } }}>
+      <Box sx={{ '& .MuiTreeItem-content': { py: 0, minHeight: 28 } }}>
         {rootPages.map((page) => (
           <PageTreeItem
             key={page.id}
@@ -1613,11 +1613,11 @@ export function PageTreeSection({ workspaceId, pages, userId, favoritePageIds }:
       <Box
         onClick={() => createPage.mutate({ workspaceId, parentId: null })}
         sx={{
-          cursor: "pointer",
+          cursor: 'pointer',
           py: 0.5,
           px: 1,
-          color: "text.disabled",
-          "&:hover": { color: "text.primary" },
+          color: 'text.disabled',
+          '&:hover': { color: 'text.primary' },
           fontSize: 13,
         }}
       >
@@ -1654,11 +1654,11 @@ git commit -m "feat: add PageTreeSection with tree rendering and hover actions"
 - [ ] **Step 1: Create favorites-section.tsx**
 
 ```tsx
-"use client"
+'use client'
 
-import { useState } from "react"
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import { useState } from 'react'
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 import {
   Box,
@@ -1667,11 +1667,11 @@ import {
   MoreHorizIcon,
   ArrowDropDownIcon,
   ArrowDropUpIcon,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
-import { PageContextMenu } from "./page-context-menu"
-import { MovePageDialog } from "./move-page-dialog"
+import { trpc } from '@/trpc/client'
+import { PageContextMenu } from './page-context-menu'
+import { MovePageDialog } from './move-page-dialog'
 
 type PageItem = {
   id: string
@@ -1722,42 +1722,42 @@ function FavoriteItem({
   if (!fullPage) return null
 
   // Find children of this favorite page from allPages
-  const children = allPages.filter((p) => p.parentId === page.id && p.parentType === "PAGE")
+  const children = allPages.filter((p) => p.parentId === page.id && p.parentType === 'PAGE')
 
   return (
     <>
       <Box
         sx={{
-          display: "flex",
-          alignItems: "center",
+          display: 'flex',
+          alignItems: 'center',
           pr: 0.5,
           borderRadius: 0.75,
-          bgcolor: isActive ? "action.selected" : "transparent",
-          "&:hover": { bgcolor: isActive ? "action.selected" : "action.hover" },
-          "&:hover .fav-more": { visibility: "visible" },
+          bgcolor: isActive ? 'action.selected' : 'transparent',
+          '&:hover': { bgcolor: isActive ? 'action.selected' : 'action.hover' },
+          '&:hover .fav-more': { visibility: 'visible' },
         }}
       >
         <Link
           href={`/workspaces/${workspaceId}/pages/${page.id}`}
           style={{
-            textDecoration: "none",
+            textDecoration: 'none',
             flex: 1,
             minWidth: 0,
-            display: "flex",
-            alignItems: "center",
+            display: 'flex',
+            alignItems: 'center',
             gap: 4,
           }}
         >
           <Box
-            sx={{ pl: 1, py: 0.5, display: "flex", alignItems: "center", gap: 0.5, minWidth: 0 }}
+            sx={{ pl: 1, py: 0.5, display: 'flex', alignItems: 'center', gap: 0.5, minWidth: 0 }}
           >
-            <span style={{ fontSize: 14, flexShrink: 0 }}>{page.icon ?? "📄"}</span>
+            <span style={{ fontSize: 14, flexShrink: 0 }}>{page.icon ?? '📄'}</span>
             <Typography
               variant="body2"
               noWrap
-              sx={{ color: isActive ? "text.primary" : "text.secondary", fontSize: 13 }}
+              sx={{ color: isActive ? 'text.primary' : 'text.secondary', fontSize: 13 }}
             >
-              {page.title ?? "Untitled"}
+              {page.title ?? 'Untitled'}
             </Typography>
           </Box>
         </Link>
@@ -1768,7 +1768,7 @@ function FavoriteItem({
             e.stopPropagation()
             setMenuAnchor(e.currentTarget)
           }}
-          sx={{ p: 0.25, flexShrink: 0, visibility: menuAnchor ? "visible" : "hidden" }}
+          sx={{ p: 0.25, flexShrink: 0, visibility: menuAnchor ? 'visible' : 'hidden' }}
         >
           <MoreHorizIcon sx={{ fontSize: 16 }} />
         </IconButton>
@@ -1781,25 +1781,25 @@ function FavoriteItem({
               <Link
                 key={child.id}
                 href={`/workspaces/${workspaceId}/pages/${child.id}`}
-                style={{ textDecoration: "none" }}
+                style={{ textDecoration: 'none' }}
               >
                 <Box
                   sx={{
-                    display: "flex",
-                    alignItems: "center",
+                    display: 'flex',
+                    alignItems: 'center',
                     gap: 0.5,
                     px: 1,
                     py: 0.5,
                     borderRadius: 0.75,
-                    color: childActive ? "text.primary" : "text.secondary",
-                    bgcolor: childActive ? "action.selected" : "transparent",
-                    "&:hover": { bgcolor: childActive ? "action.selected" : "action.hover" },
+                    color: childActive ? 'text.primary' : 'text.secondary',
+                    bgcolor: childActive ? 'action.selected' : 'transparent',
+                    '&:hover': { bgcolor: childActive ? 'action.selected' : 'action.hover' },
                     fontSize: 13,
                   }}
                 >
-                  <span style={{ fontSize: 14 }}>{child.icon ?? "📄"}</span>
+                  <span style={{ fontSize: 14 }}>{child.icon ?? '📄'}</span>
                   <Typography variant="body2" noWrap sx={{ fontSize: 13 }}>
-                    {child.title ?? "Untitled"}
+                    {child.title ?? 'Untitled'}
                   </Typography>
                 </Box>
               </Link>
@@ -1839,14 +1839,14 @@ export function FavoritesSection({ workspaceId, allPages, userId, favoritePageId
       <Box
         onClick={() => setOpen((prev) => !prev)}
         sx={{
-          display: "flex",
-          alignItems: "center",
+          display: 'flex',
+          alignItems: 'center',
           gap: 1,
           px: 1,
           py: 0.75,
-          cursor: "pointer",
-          color: "text.secondary",
-          "&:hover": { color: "text.primary" },
+          cursor: 'pointer',
+          color: 'text.secondary',
+          '&:hover': { color: 'text.primary' },
         }}
       >
         <span style={{ fontSize: 13, flex: 1 }}>Избранное</span>
@@ -1902,11 +1902,11 @@ git commit -m "feat: add FavoritesSection with collapsible favorites list and ch
 Replace the entire file `apps/web/src/components/workspace/search-sidebar-section.tsx`:
 
 ```tsx
-"use client"
+'use client'
 
-import Link from "next/link"
-import { usePathname, useRouter } from "next/navigation"
-import { useState, useMemo } from "react"
+import Link from 'next/link'
+import { usePathname, useRouter } from 'next/navigation'
+import { useState, useMemo } from 'react'
 
 import {
   AddIcon,
@@ -1929,9 +1929,9 @@ import {
   Stack,
   TextField,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
 type Props = { workspaceId: string }
 
@@ -1957,7 +1957,7 @@ function ChatTreeItem({
 
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
   const [renameOpen, setRenameOpen] = useState(false)
-  const [renameValue, setRenameValue] = useState("")
+  const [renameValue, setRenameValue] = useState('')
   const [deleteOpen, setDeleteOpen] = useState(false)
 
   const isActive = pathname === `/workspaces/${workspaceId}/search/${chat.id}`
@@ -1996,18 +1996,18 @@ function ChatTreeItem({
     <>
       <Box
         sx={{
-          display: "flex",
-          alignItems: "center",
+          display: 'flex',
+          alignItems: 'center',
           pr: 0.5,
           borderRadius: 0.75,
-          bgcolor: isActive ? "action.selected" : "transparent",
-          "&:hover": { bgcolor: isActive ? "action.selected" : "action.hover" },
-          "&:hover .chat-actions": { visibility: "visible" },
+          bgcolor: isActive ? 'action.selected' : 'transparent',
+          '&:hover': { bgcolor: isActive ? 'action.selected' : 'action.hover' },
+          '&:hover .chat-actions': { visibility: 'visible' },
         }}
       >
         <Link
           href={`/workspaces/${workspaceId}/search/${chat.id}`}
-          style={{ textDecoration: "none", flex: 1, minWidth: 0 }}
+          style={{ textDecoration: 'none', flex: 1, minWidth: 0 }}
         >
           <Typography
             variant="body2"
@@ -2015,17 +2015,17 @@ function ChatTreeItem({
             sx={{
               py: 0.5,
               pl: 0.5,
-              color: isActive ? "text.primary" : "text.secondary",
+              color: isActive ? 'text.primary' : 'text.secondary',
             }}
           >
-            {chat.title ?? "Без названия"}
+            {chat.title ?? 'Без названия'}
           </Typography>
         </Link>
         <Box
           className="chat-actions"
           sx={{
-            display: "flex",
-            visibility: menuAnchor ? "visible" : "hidden",
+            display: 'flex',
+            visibility: menuAnchor ? 'visible' : 'hidden',
             flexShrink: 0,
           }}
         >
@@ -2070,7 +2070,7 @@ function ChatTreeItem({
         <MenuItem
           onClick={() => {
             setMenuAnchor(null)
-            setRenameValue(chat.title ?? "")
+            setRenameValue(chat.title ?? '')
             setRenameOpen(true)
           }}
           sx={{ gap: 1, fontSize: 13 }}
@@ -2083,7 +2083,7 @@ function ChatTreeItem({
             setMenuAnchor(null)
             setDeleteOpen(true)
           }}
-          sx={{ gap: 1, fontSize: 13, color: "error.main" }}
+          sx={{ gap: 1, fontSize: 13, color: 'error.main' }}
         >
           <DeleteIcon fontSize="small" />
           Удалить
@@ -2101,7 +2101,7 @@ function ChatTreeItem({
             value={renameValue}
             onChange={(e) => setRenameValue(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && renameValue.trim()) {
+              if (e.key === 'Enter' && renameValue.trim()) {
                 rename.mutate({ chatId: chat.id, title: renameValue.trim() })
               }
             }}
@@ -2126,7 +2126,7 @@ function ChatTreeItem({
         <DialogTitle>Удалить чат?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Чат «{chat.title ?? "Без названия"}» и все дочерние чаты будут удалены навсегда.
+            Чат «{chat.title ?? 'Без названия'}» и все дочерние чаты будут удалены навсегда.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -2170,14 +2170,14 @@ export function SearchSidebarSection({ workspaceId }: Props) {
       <Box
         onClick={() => setOpen((prev) => !prev)}
         sx={{
-          display: "flex",
-          alignItems: "center",
+          display: 'flex',
+          alignItems: 'center',
           gap: 1,
           px: 1,
           py: 0.75,
-          cursor: "pointer",
-          color: "text.secondary",
-          "&:hover": { color: "text.primary" },
+          cursor: 'pointer',
+          color: 'text.secondary',
+          '&:hover': { color: 'text.primary' },
         }}
       >
         <SearchIcon sx={{ fontSize: 16 }} />
@@ -2201,10 +2201,10 @@ export function SearchSidebarSection({ workspaceId }: Props) {
           <Box
             onClick={() => create.mutate({ workspaceId })}
             sx={{
-              cursor: "pointer",
+              cursor: 'pointer',
               py: 0.5,
-              color: "text.disabled",
-              "&:hover": { color: "text.primary" },
+              color: 'text.disabled',
+              '&:hover': { color: 'text.primary' },
               fontSize: 13,
             }}
           >
@@ -2243,13 +2243,13 @@ git commit -m "feat: refactor SearchSidebarSection with tree hierarchy and AddIc
 Replace `apps/web/src/components/workspace/workspace-sidebar.tsx`:
 
 ```tsx
-"use client"
+'use client'
 
-import type { ReactNode } from "react"
-import { useMemo } from "react"
+import type { ReactNode } from 'react'
+import { useMemo } from 'react'
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
+import Link from 'next/link'
+import { usePathname } from 'next/navigation'
 
 import {
   Box,
@@ -2260,13 +2260,13 @@ import {
   Stack,
   Tooltip,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
-import { SIDEBAR_WIDTH } from "./workspace-layout-client"
-import { SearchSidebarSection } from "./search-sidebar-section"
-import { FavoritesSection } from "./favorites-section"
-import { PageTreeSection } from "./page-tree-section"
+import { trpc } from '@/trpc/client'
+import { SIDEBAR_WIDTH } from './workspace-layout-client'
+import { SearchSidebarSection } from './search-sidebar-section'
+import { FavoritesSection } from './favorites-section'
+import { PageTreeSection } from './page-tree-section'
 
 type PageItem = {
   id: string
@@ -2300,14 +2300,14 @@ export function WorkspaceSidebar({ workspace, planName, pages, onHide, userMenu,
       component="aside"
       sx={{
         width: SIDEBAR_WIDTH,
-        borderRight: "1px solid",
-        borderColor: "divider",
-        display: "flex",
-        flexDirection: "column",
-        bgcolor: "background.paper",
+        borderRight: '1px solid',
+        borderColor: 'divider',
+        display: 'flex',
+        flexDirection: 'column',
+        bgcolor: 'background.paper',
         px: 1.25,
         py: 1.75,
-        overflow: "auto",
+        overflow: 'auto',
       }}
     >
       <Stack direction="row" alignItems="center" spacing={1} sx={{ px: 1, pb: 1.75 }}>
@@ -2316,15 +2316,15 @@ export function WorkspaceSidebar({ workspace, planName, pages, onHide, userMenu,
             width: 24,
             height: 24,
             borderRadius: 0.75,
-            background: "linear-gradient(135deg,#0f766e,#155e75)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
+            background: 'linear-gradient(135deg,#0f766e,#155e75)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
             fontSize: 14,
             flexShrink: 0,
           }}
         >
-          {workspace.icon ?? "📒"}
+          {workspace.icon ?? '📒'}
         </Box>
         <Stack spacing={0} sx={{ flex: 1, minWidth: 0 }}>
           <Typography variant="body2" noWrap>
@@ -2370,7 +2370,7 @@ export function WorkspaceSidebar({ workspace, planName, pages, onHide, userMenu,
 
       <Box sx={{ flex: 1 }} />
 
-      <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 1.25 }}>
+      <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1.25 }}>
         <NavItem
           icon={<DeleteIcon sx={{ fontSize: 16 }} />}
           label="Корзина"
@@ -2380,7 +2380,7 @@ export function WorkspaceSidebar({ workspace, planName, pages, onHide, userMenu,
         />
       </Box>
 
-      <Box sx={{ borderTop: "1px solid", borderColor: "divider", pt: 1 }}>{userMenu}</Box>
+      <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>{userMenu}</Box>
     </Box>
   )
 }
@@ -2406,16 +2406,16 @@ function NavItem({
       component={Link}
       href={href}
       sx={{
-        display: "flex",
-        alignItems: "center",
+        display: 'flex',
+        alignItems: 'center',
         gap: 1,
         px: 1,
         py: 0.75,
         borderRadius: 0.75,
-        textDecoration: "none",
-        color: active ? "text.primary" : muted ? "text.disabled" : "text.secondary",
-        backgroundColor: active ? "action.selected" : "transparent",
-        "&:hover": { backgroundColor: active ? "action.selected" : "action.hover" },
+        textDecoration: 'none',
+        color: active ? 'text.primary' : muted ? 'text.disabled' : 'text.secondary',
+        backgroundColor: active ? 'action.selected' : 'transparent',
+        '&:hover': { backgroundColor: active ? 'action.selected' : 'action.hover' },
         fontSize: 13,
       }}
     >
@@ -2450,9 +2450,9 @@ git commit -m "feat: integrate favorites, page tree, and trash link into Workspa
 - [ ] **Step 1: Create trash page**
 
 ```tsx
-"use client"
+'use client'
 
-import { use } from "react"
+import { use } from 'react'
 
 import {
   Box,
@@ -2467,11 +2467,11 @@ import {
   DialogContent,
   DialogContentText,
   DialogActions,
-} from "@repo/ui/components"
-import { Button } from "@repo/ui/components"
+} from '@repo/ui/components'
+import { Button } from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
-import { useState } from "react"
+import { trpc } from '@/trpc/client'
+import { useState } from 'react'
 
 type TrashPageProps = {
   params: Promise<{ workspaceId: string }>
@@ -2499,7 +2499,7 @@ export default function TrashPage({ params }: TrashPageProps) {
   const confirmPage = trashed.data?.find((p) => p.id === confirmDeleteId)
 
   return (
-    <Box sx={{ p: 4, maxWidth: 710, mx: "auto" }}>
+    <Box sx={{ p: 4, maxWidth: 710, mx: 'auto' }}>
       <Typography variant="h5" sx={{ mb: 3 }}>
         Корзина
       </Typography>
@@ -2511,22 +2511,22 @@ export default function TrashPage({ params }: TrashPageProps) {
           <Box
             key={page.id}
             sx={{
-              display: "flex",
-              alignItems: "center",
+              display: 'flex',
+              alignItems: 'center',
               gap: 1.5,
               px: 2,
               py: 1,
               borderRadius: 1,
-              "&:hover": { bgcolor: "action.hover" },
+              '&:hover': { bgcolor: 'action.hover' },
             }}
           >
-            <span style={{ fontSize: 16 }}>{page.icon ?? "📄"}</span>
+            <span style={{ fontSize: 16 }}>{page.icon ?? '📄'}</span>
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Typography variant="body2" noWrap>
-                {page.title ?? "Untitled"}
+                {page.title ?? 'Untitled'}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                Удалено {page.deletedAt ? new Date(page.deletedAt).toLocaleDateString("ru-RU") : ""}
+                Удалено {page.deletedAt ? new Date(page.deletedAt).toLocaleDateString('ru-RU') : ''}
               </Typography>
             </Box>
             <Tooltip title="Восстановить">
@@ -2542,7 +2542,7 @@ export default function TrashPage({ params }: TrashPageProps) {
               <IconButton
                 size="small"
                 onClick={() => setConfirmDeleteId(page.id)}
-                sx={{ color: "error.main" }}
+                sx={{ color: 'error.main' }}
               >
                 <DeleteForeverIcon sx={{ fontSize: 18 }} />
               </IconButton>
@@ -2561,7 +2561,7 @@ export default function TrashPage({ params }: TrashPageProps) {
         <DialogTitle>Удалить навсегда?</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Страница «{confirmPage?.title ?? "Untitled"}» будет удалена безвозвратно.
+            Страница «{confirmPage?.title ?? 'Untitled'}» будет удалена безвозвратно.
           </DialogContentText>
         </DialogContent>
         <DialogActions>
@@ -2591,11 +2591,11 @@ export default function TrashPage({ params }: TrashPageProps) {
 Create `apps/web/src/app/(protected)/workspaces/[workspaceId]/pages/[pageId]/page.tsx`:
 
 ```tsx
-"use client"
+'use client'
 
-import { use } from "react"
-import { Box, Typography } from "@repo/ui/components"
-import { trpc } from "@/trpc/client"
+import { use } from 'react'
+import { Box, Typography } from '@repo/ui/components'
+import { trpc } from '@/trpc/client'
 
 type Props = {
   params: Promise<{ workspaceId: string; pageId: string }>
@@ -2608,8 +2608,8 @@ export default function PageView({ params }: Props) {
   if (!page.data) return null
 
   return (
-    <Box sx={{ p: 4, maxWidth: 710, mx: "auto" }}>
-      <Typography variant="h4">{page.data.title ?? "Untitled"}</Typography>
+    <Box sx={{ p: 4, maxWidth: 710, mx: 'auto' }}>
+      <Typography variant="h4">{page.data.title ?? 'Untitled'}</Typography>
     </Box>
   )
 }

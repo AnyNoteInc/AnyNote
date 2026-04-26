@@ -1,10 +1,10 @@
-"use client"
+'use client'
 
-import { useEffectEvent, useMemo, useState } from "react"
+import { useEffectEvent, useMemo, useState } from 'react'
 
-import type { ChatComposerAttachment } from "@repo/ui/components"
+import type { ChatComposerAttachment } from '@repo/ui/components'
 
-import type { DraftAttachmentSummary } from "./chat-message-mappers"
+import type { DraftAttachmentSummary } from './chat-message-mappers'
 
 type UploadResponse = {
   file: {
@@ -29,20 +29,23 @@ export function useDraftAttachments(workspaceId: string) {
 
   const uploadAttachment = useEffectEvent(async (localId: string, file: File) => {
     const formData = new FormData()
-    formData.append("file", file)
+    formData.append('file', file)
 
     try {
       const response = await fetch(`/api/files/upload?kind=attachment&workspaceId=${workspaceId}`, {
-        method: "POST",
+        method: 'POST',
         body: formData,
       })
 
-      const payload = (await response.json().catch(() => null)) as UploadResponse | { error?: string } | null
-      if (!response.ok || !payload || !("file" in payload)) {
+      const payload = (await response.json().catch(() => null)) as
+        | UploadResponse
+        | { error?: string }
+        | null
+      if (!response.ok || !payload || !('file' in payload)) {
         throw new Error(
-          payload && "error" in payload && typeof payload.error === "string"
+          payload && 'error' in payload && typeof payload.error === 'string'
             ? payload.error
-            : "Не удалось загрузить файл.",
+            : 'Не удалось загрузить файл.',
         )
       }
 
@@ -54,7 +57,7 @@ export function useDraftAttachments(workspaceId: string) {
 
           return {
             ...attachment,
-            status: "uploaded",
+            status: 'uploaded',
             fileId: payload.file.id,
             uploadError: undefined,
             uploadedName: payload.file.name,
@@ -66,7 +69,7 @@ export function useDraftAttachments(workspaceId: string) {
       setError(null)
     } catch (uploadError) {
       const message =
-        uploadError instanceof Error ? uploadError.message : "Не удалось загрузить файл."
+        uploadError instanceof Error ? uploadError.message : 'Не удалось загрузить файл.'
 
       setAttachments((current) =>
         current.map((attachment) => {
@@ -76,7 +79,7 @@ export function useDraftAttachments(workspaceId: string) {
 
           return {
             ...attachment,
-            status: "error",
+            status: 'error',
             uploadError: message,
           }
         }),
@@ -87,7 +90,9 @@ export function useDraftAttachments(workspaceId: string) {
 
   const syncComposerAttachments = useEffectEvent((nextAttachments: ChatComposerAttachment[]) => {
     const currentById = new Map(attachments.map((attachment) => [attachment.localId, attachment]))
-    const newAttachments = nextAttachments.filter((attachment) => !currentById.has(attachment.localId))
+    const newAttachments = nextAttachments.filter(
+      (attachment) => !currentById.has(attachment.localId),
+    )
 
     setAttachments(
       nextAttachments.map((attachment) => {
@@ -102,7 +107,7 @@ export function useDraftAttachments(workspaceId: string) {
 
         return {
           ...attachment,
-          status: "uploading",
+          status: 'uploading',
         }
       }),
     )
@@ -128,12 +133,12 @@ export function useDraftAttachments(workspaceId: string) {
 
   const uploadedAttachments = useMemo<DraftAttachmentSummary[]>(() => {
     return attachments
-      .filter((attachment) => attachment.status === "uploaded" && attachment.fileId)
+      .filter((attachment) => attachment.status === 'uploaded' && attachment.fileId)
       .map((attachment) => ({
         fileId: attachment.fileId!,
         name: attachment.uploadedName ?? attachment.file.name,
         mimeType:
-          (attachment.uploadedMimeType ?? attachment.file.type) || "application/octet-stream",
+          (attachment.uploadedMimeType ?? attachment.file.type) || 'application/octet-stream',
         fileSize: attachment.uploadedFileSize ?? attachment.file.size.toString(),
       }))
   }, [attachments])
@@ -142,8 +147,8 @@ export function useDraftAttachments(workspaceId: string) {
     attachments,
     clear,
     error,
-    hasFailedUploads: attachments.some((attachment) => attachment.status === "error"),
-    hasPendingUploads: attachments.some((attachment) => attachment.status === "uploading"),
+    hasFailedUploads: attachments.some((attachment) => attachment.status === 'error'),
+    hasPendingUploads: attachments.some((attachment) => attachment.status === 'uploading'),
     removeAttachment,
     syncComposerAttachments,
     uploadedAttachments,

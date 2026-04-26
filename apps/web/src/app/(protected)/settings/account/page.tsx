@@ -1,10 +1,10 @@
-import { Stack, Typography } from "@repo/ui/components"
+import { Stack, Typography } from '@repo/ui/components'
 
-import { SessionsTable } from "@/components/settings/sessions-table"
-import { SignOutButton } from "@/components/settings/sign-out-button"
-import { getSession } from "@/lib/get-session"
+import { SessionsTable } from '@/components/settings/sessions-table'
+import { SignOutButton } from '@/components/settings/sign-out-button'
+import { getSession } from '@/lib/get-session'
 
-export const metadata = { title: "Аккаунт · Настройки" }
+export const metadata = { title: 'Аккаунт · Настройки' }
 
 export default async function AccountSettingsPage() {
   const session = await getSession()

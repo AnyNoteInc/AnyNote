@@ -9,6 +9,7 @@ const nextConfig = {
     '@repo/editor',
     '@repo/excalidraw',
     '@repo/genogram',
+    '@repo/yookassa',
   ],
   experimental: {
     optimizePackageImports: ['emoji-picker-react'],

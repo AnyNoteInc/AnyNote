@@ -1,4 +1,4 @@
-import type { Metadata } from "next"
+import type { Metadata } from 'next'
 
 import {
   Box,
@@ -9,13 +9,13 @@ import {
   StepLabel,
   Stepper,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { PublicPageShell } from "@/components/public/public-page-shell"
-import { roadmapItems } from "@/components/public/content"
+import { PublicPageShell } from '@/components/public/public-page-shell'
+import { roadmapItems } from '@/components/public/content'
 
 export const metadata: Metadata = {
-  title: "Наши планы",
+  title: 'Наши планы',
 }
 
 export default function RoadmapPage() {
@@ -27,8 +27,8 @@ export default function RoadmapPage() {
     >
       <Box
         sx={{
-          display: "grid",
-          gridTemplateColumns: { xs: "1fr", lg: "320px minmax(0, 1fr)" },
+          display: 'grid',
+          gridTemplateColumns: { xs: '1fr', lg: '320px minmax(0, 1fr)' },
           gap: 3,
         }}
       >
@@ -37,8 +37,8 @@ export default function RoadmapPage() {
           sx={{
             p: 3,
             borderRadius: 2,
-            border: "1px solid rgba(148,163,184,0.16)",
-            alignSelf: "start",
+            border: '1px solid rgba(148,163,184,0.16)',
+            alignSelf: 'start',
           }}
         >
           <Stack spacing={1.5}>
@@ -58,7 +58,7 @@ export default function RoadmapPage() {
           sx={{
             p: 3,
             borderRadius: 2,
-            border: "1px solid rgba(148,163,184,0.16)",
+            border: '1px solid rgba(148,163,184,0.16)',
           }}
         >
           <Stepper orientation="vertical" activeStep={0} nonLinear>

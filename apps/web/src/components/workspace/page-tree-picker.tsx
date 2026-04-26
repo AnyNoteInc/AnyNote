@@ -1,12 +1,12 @@
-"use client"
+'use client'
 
-import { useState } from "react"
+import { useState } from 'react'
 
-import { Box, ChevronRightIcon, IconButton, Typography } from "@repo/ui/components"
+import { Box, ChevronRightIcon, IconButton, Typography } from '@repo/ui/components'
 
-import { type PageItem, orderSiblings } from "./types"
+import { type PageItem, orderSiblings } from './types'
 
-export const PAGE_TREE_ROOT = "__root__" as const
+export const PAGE_TREE_ROOT = '__root__' as const
 export type PageTreeSelection = string | typeof PAGE_TREE_ROOT
 
 type TreeItemProps = {
@@ -18,7 +18,7 @@ type TreeItemProps = {
   depth: number
 }
 
-const selectedSx = { bgcolor: "primary.main", color: "primary.contrastText" } as const
+const selectedSx = { bgcolor: 'primary.main', color: 'primary.contrastText' } as const
 
 function TreeItem({ page, pages, excludeIds, onSelect, selectedId, depth }: TreeItemProps) {
   const [expanded, setExpanded] = useState(false)
@@ -32,15 +32,15 @@ function TreeItem({ page, pages, excludeIds, onSelect, selectedId, depth }: Tree
       <Box
         onClick={() => onSelect(page.id)}
         sx={{
-          display: "flex",
-          alignItems: "center",
+          display: 'flex',
+          alignItems: 'center',
           pl: depth * 2 + 1,
           pr: 1,
           py: 0.5,
-          cursor: "pointer",
+          cursor: 'pointer',
           borderRadius: 0.75,
           ...(isSelected ? selectedSx : {}),
-          "&:hover": { bgcolor: isSelected ? "primary.dark" : "action.hover" },
+          '&:hover': { bgcolor: isSelected ? 'primary.dark' : 'action.hover' },
           fontSize: 13,
         }}
       >
@@ -56,8 +56,8 @@ function TreeItem({ page, pages, excludeIds, onSelect, selectedId, depth }: Tree
             <ChevronRightIcon
               sx={{
                 fontSize: 16,
-                transform: expanded ? "rotate(90deg)" : "none",
-                transition: "transform 0.15s",
+                transform: expanded ? 'rotate(90deg)' : 'none',
+                transition: 'transform 0.15s',
               }}
             />
           </IconButton>
@@ -66,7 +66,7 @@ function TreeItem({ page, pages, excludeIds, onSelect, selectedId, depth }: Tree
         )}
         {page.icon ? <span style={{ marginRight: 6 }}>{page.icon}</span> : null}
         <Typography variant="body2" noWrap>
-          {page.title ?? "Новая страница"}
+          {page.title ?? 'Новая страница'}
         </Typography>
       </Box>
       {expanded &&
@@ -100,7 +100,7 @@ export function PageTreePicker({
   onSelect,
   selectedId,
   showRoot = true,
-  rootLabel = "Корень",
+  rootLabel = 'Корень',
 }: Props) {
   const effectiveExclude = excludeIds ?? new Set<string>()
   const rootPages = orderSiblings(
@@ -113,17 +113,17 @@ export function PageTreePicker({
         <Box
           onClick={() => onSelect(PAGE_TREE_ROOT)}
           sx={{
-            display: "flex",
-            alignItems: "center",
+            display: 'flex',
+            alignItems: 'center',
             px: 1,
             py: 0.5,
-            cursor: "pointer",
+            cursor: 'pointer',
             borderRadius: 0.75,
             fontWeight: 500,
             fontSize: 13,
             ...(selectedId === PAGE_TREE_ROOT ? selectedSx : {}),
-            "&:hover": {
-              bgcolor: selectedId === PAGE_TREE_ROOT ? "primary.dark" : "action.hover",
+            '&:hover': {
+              bgcolor: selectedId === PAGE_TREE_ROOT ? 'primary.dark' : 'action.hover',
             },
           }}
         >

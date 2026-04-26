@@ -1,7 +1,7 @@
-"use client"
+'use client'
 
-import { useState, type ReactNode } from "react"
-import { useRouter } from "next/navigation"
+import { useState, type ReactNode } from 'react'
+import { useRouter } from 'next/navigation'
 
 import {
   Button,
@@ -10,9 +10,9 @@ import {
   DialogContent,
   DialogContentText,
   DialogTitle,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
 type PageLike = { id: string; title: string | null }
 

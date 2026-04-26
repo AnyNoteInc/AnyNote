@@ -1,15 +1,15 @@
-"use client"
+'use client'
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from 'react'
 
 const KEY = (pageId: string) => `anynote.page-full-width.${pageId}`
-const EVENT = "anynote:full-width-change"
+const EVENT = 'anynote:full-width-change'
 
 type EventDetail = { pageId: string; value: boolean }
 
 function readStored(pageId: string): boolean {
   try {
-    return localStorage.getItem(KEY(pageId)) === "true"
+    return localStorage.getItem(KEY(pageId)) === 'true'
   } catch {
     return false
   }

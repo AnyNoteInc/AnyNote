@@ -1,6 +1,6 @@
-import { redirect } from "next/navigation"
+import { redirect } from 'next/navigation'
 
-import { getServerTRPC } from "@/trpc/server"
+import { getServerTRPC } from '@/trpc/server'
 
 export default async function WorkspacesIndexRedirect() {
   const trpc = await getServerTRPC()
@@ -12,5 +12,5 @@ export default async function WorkspacesIndexRedirect() {
   if (owned.length > 0) {
     redirect(`/workspaces/${owned[0]!.id}`)
   }
-  redirect("/workspaces/new")
+  redirect('/workspaces/new')
 }

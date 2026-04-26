@@ -1,7 +1,7 @@
-import type { Edge, EdgeProps } from "@xyflow/react"
-import type { GenogramEdgeData, GenogramEdgeType } from "../types"
-import { DivorceMarker } from "./primitives/DivorceMarker"
-import { EDGE_STROKE, EDGE_WIDTH } from "./primitives/constants"
+import type { Edge, EdgeProps } from '@xyflow/react'
+import type { GenogramEdgeData, GenogramEdgeType } from '../types'
+import { DivorceMarker } from './primitives/DivorceMarker'
+import { EDGE_STROKE, EDGE_WIDTH } from './primitives/constants'
 
 type UnionRfEdge = Edge<GenogramEdgeData, GenogramEdgeType>
 
@@ -20,8 +20,8 @@ export function UnionLineEdge({
   data,
   style,
 }: EdgeProps<UnionRfEdge>) {
-  const dashed = type === "unionCohabitation"
-  const hasDivorce = data?.decorations?.includes("divorceSlash") ?? false
+  const dashed = type === 'unionCohabitation'
+  const hasDivorce = data?.decorations?.includes('divorceSlash') ?? false
 
   return (
     <g>
@@ -31,7 +31,7 @@ export function UnionLineEdge({
         fill="none"
         stroke={EDGE_STROKE}
         strokeWidth={EDGE_WIDTH}
-        strokeDasharray={dashed ? "6 4" : undefined}
+        strokeDasharray={dashed ? '6 4' : undefined}
         style={style}
       />
       {hasDivorce && (

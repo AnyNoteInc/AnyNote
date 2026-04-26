@@ -1,4 +1,4 @@
-"use client"
+'use client'
 
 import {
   List,
@@ -7,10 +7,10 @@ import {
   ListItemText,
   ListSubheader,
   Paper,
-} from "@mui/material"
-import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from "react"
+} from '@mui/material'
+import { forwardRef, useEffect, useImperativeHandle, useMemo, useRef, useState } from 'react'
 
-import type { SlashCommandGroup, SlashCommandItem } from "../types"
+import type { SlashCommandGroup, SlashCommandItem } from '../types'
 
 export type SlashMenuPopoverHandle = {
   onKeyDown: (event: KeyboardEvent) => boolean
@@ -21,11 +21,11 @@ type Props = {
   command: (item: SlashCommandItem) => void
 }
 
-const GROUP_ORDER: SlashCommandGroup[] = ["base", "media"]
+const GROUP_ORDER: SlashCommandGroup[] = ['base', 'media']
 
 const GROUP_TITLES: Record<SlashCommandGroup, string> = {
-  base: "Базовые блоки",
-  media: "Медиа",
+  base: 'Базовые блоки',
+  media: 'Медиа',
 }
 
 export const SlashMenuPopover = forwardRef<SlashMenuPopoverHandle, Props>(function SlashMenuPopover(
@@ -56,21 +56,21 @@ export const SlashMenuPopover = forwardRef<SlashMenuPopoverHandle, Props>(functi
 
   useEffect(() => {
     const el = itemRefs.current[active]
-    if (el) el.scrollIntoView({ block: "nearest" })
+    if (el) el.scrollIntoView({ block: 'nearest' })
   }, [active])
 
   useImperativeHandle(ref, () => ({
     onKeyDown: (event: KeyboardEvent) => {
       if (items.length === 0) return false
-      if (event.key === "ArrowDown") {
+      if (event.key === 'ArrowDown') {
         setActive((i) => (i + 1) % items.length)
         return true
       }
-      if (event.key === "ArrowUp") {
+      if (event.key === 'ArrowUp') {
         setActive((i) => (i - 1 + items.length) % items.length)
         return true
       }
-      if (event.key === "Enter") {
+      if (event.key === 'Enter') {
         const item = items[active]
         if (item) {
           command(item)
@@ -86,21 +86,21 @@ export const SlashMenuPopover = forwardRef<SlashMenuPopoverHandle, Props>(functi
   let running = 0
 
   return (
-    <Paper elevation={6} sx={{ width: 280, py: 0.5, maxHeight: 360, overflow: "auto" }}>
+    <Paper elevation={6} sx={{ width: 280, py: 0.5, maxHeight: 360, overflow: 'auto' }}>
       <List dense disablePadding subheader={<li />}>
         {grouped.map(({ group, title, items: groupItems }) => (
           <li key={group}>
-            <ul style={{ padding: 0, margin: 0, listStyle: "none" }}>
+            <ul style={{ padding: 0, margin: 0, listStyle: 'none' }}>
               <ListSubheader
                 disableSticky
                 sx={{
-                  lineHeight: "24px",
+                  lineHeight: '24px',
                   fontSize: 11,
                   fontWeight: 600,
-                  textTransform: "uppercase",
+                  textTransform: 'uppercase',
                   letterSpacing: 0.5,
-                  color: "text.secondary",
-                  backgroundColor: "transparent",
+                  color: 'text.secondary',
+                  backgroundColor: 'transparent',
                   px: 1.5,
                   pt: 0.75,
                 }}
@@ -121,7 +121,7 @@ export const SlashMenuPopover = forwardRef<SlashMenuPopoverHandle, Props>(functi
                     sx={{ gap: 1 }}
                   >
                     {item.icon ? (
-                      <ListItemIcon sx={{ minWidth: 28, color: "text.secondary" }}>
+                      <ListItemIcon sx={{ minWidth: 28, color: 'text.secondary' }}>
                         {item.icon}
                       </ListItemIcon>
                     ) : null}

@@ -7,7 +7,7 @@ import {
   createUnion,
   type CreatePersonInput,
   type CreateUnionInput,
-} from "../../model/factories"
+} from '../../model/factories'
 import type {
   BirthGroupId,
   ChildEntry,
@@ -16,7 +16,7 @@ import type {
   PersonId,
   PregnancyLossId,
   UnionId,
-} from "../../types"
+} from '../../types'
 
 // ── builder helpers ─────────────────────────────────────
 
@@ -34,7 +34,7 @@ export function addUnion(
   g: GenogramPageData,
   maleId: PersonId,
   femaleId: PersonId,
-  extra: Omit<CreateUnionInput, "malePartnerId" | "femalePartnerId"> = {},
+  extra: Omit<CreateUnionInput, 'malePartnerId' | 'femalePartnerId'> = {},
 ): UnionId {
   const u = createUnion({ malePartnerId: maleId, femalePartnerId: femaleId, ...extra })
   g.entities.unions[u.id] = u
@@ -55,7 +55,7 @@ export function addChildGroup(
 
 export function addBirthGroup(
   g: GenogramPageData,
-  kind: "twins" | "fraternal",
+  kind: 'twins' | 'fraternal',
   memberIds: PersonId[],
 ): BirthGroupId {
   const bg = createBirthGroup({ kind, memberIds })
@@ -65,7 +65,7 @@ export function addBirthGroup(
 
 export function addPregnancyLoss(
   g: GenogramPageData,
-  kind: "abortion" | "miscarriage",
+  kind: 'abortion' | 'miscarriage',
   childGroupId: ChildGroupId,
 ): PregnancyLossId {
   const pl = createPregnancyLoss({ kind, childGroupId })
@@ -77,7 +77,7 @@ export function addPregnancyLoss(
 
 export function scenarioSolo(): { data: GenogramPageData; ownerId: PersonId } {
   const data = newGenogram()
-  const ownerId = addPerson(data, { sex: "male", bloodRelation: "direct", role: "owner" })
+  const ownerId = addPerson(data, { sex: 'male', bloodRelation: 'direct', role: 'owner' })
   return { data, ownerId }
 }
 
@@ -88,8 +88,8 @@ export function scenarioCouple(): {
   unionId: UnionId
 } {
   const data = newGenogram()
-  const maleId = addPerson(data, { sex: "male", bloodRelation: "direct", role: "owner" })
-  const femaleId = addPerson(data, { sex: "female", bloodRelation: "partner", partnerOrder: 1 })
+  const maleId = addPerson(data, { sex: 'male', bloodRelation: 'direct', role: 'owner' })
+  const femaleId = addPerson(data, { sex: 'female', bloodRelation: 'partner', partnerOrder: 1 })
   const unionId = addUnion(data, maleId, femaleId)
   return { data, maleId, femaleId, unionId }
 }
@@ -104,14 +104,14 @@ export function scenarioNuclearFamily(): {
   childGroupId: ChildGroupId
 } {
   const data = newGenogram()
-  const maleId = addPerson(data, { sex: "male", bloodRelation: "direct", role: "owner" })
-  const femaleId = addPerson(data, { sex: "female", bloodRelation: "partner" })
+  const maleId = addPerson(data, { sex: 'male', bloodRelation: 'direct', role: 'owner' })
+  const femaleId = addPerson(data, { sex: 'female', bloodRelation: 'partner' })
   const unionId = addUnion(data, maleId, femaleId)
-  const child1Id = addPerson(data, { sex: "female", bloodRelation: "direct" })
-  const child2Id = addPerson(data, { sex: "male", bloodRelation: "direct" })
+  const child1Id = addPerson(data, { sex: 'female', bloodRelation: 'direct' })
+  const child2Id = addPerson(data, { sex: 'male', bloodRelation: 'direct' })
   const childGroupId = addChildGroup(data, unionId, [
-    { kind: "person", personId: child1Id },
-    { kind: "person", personId: child2Id },
+    { kind: 'person', personId: child1Id },
+    { kind: 'person', personId: child2Id },
   ])
   return { data, maleId, femaleId, unionId, child1Id, child2Id, childGroupId }
 }
@@ -124,15 +124,15 @@ export function scenarioTwins(): {
   birthGroupId: BirthGroupId
 } {
   const data = newGenogram()
-  const maleId = addPerson(data, { sex: "male", bloodRelation: "direct", role: "owner" })
-  const femaleId = addPerson(data, { sex: "female", bloodRelation: "partner" })
+  const maleId = addPerson(data, { sex: 'male', bloodRelation: 'direct', role: 'owner' })
+  const femaleId = addPerson(data, { sex: 'female', bloodRelation: 'partner' })
   const unionId = addUnion(data, maleId, femaleId)
-  const twin1Id = addPerson(data, { sex: "male", bloodRelation: "direct" })
-  const twin2Id = addPerson(data, { sex: "female", bloodRelation: "direct" })
-  const birthGroupId = addBirthGroup(data, "twins", [twin1Id, twin2Id])
+  const twin1Id = addPerson(data, { sex: 'male', bloodRelation: 'direct' })
+  const twin2Id = addPerson(data, { sex: 'female', bloodRelation: 'direct' })
+  const birthGroupId = addBirthGroup(data, 'twins', [twin1Id, twin2Id])
   addChildGroup(data, unionId, [
-    { kind: "person", personId: twin1Id, birthGroupId },
-    { kind: "person", personId: twin2Id, birthGroupId },
+    { kind: 'person', personId: twin1Id, birthGroupId },
+    { kind: 'person', personId: twin2Id, birthGroupId },
   ])
   return { data, unionId, twin1Id, twin2Id, birthGroupId }
 }
@@ -145,17 +145,17 @@ export function scenarioWithLoss(): {
   lossId: PregnancyLossId
 } {
   const data = newGenogram()
-  const maleId = addPerson(data, { sex: "male", bloodRelation: "direct", role: "owner" })
-  const femaleId = addPerson(data, { sex: "female", bloodRelation: "partner" })
+  const maleId = addPerson(data, { sex: 'male', bloodRelation: 'direct', role: 'owner' })
+  const femaleId = addPerson(data, { sex: 'female', bloodRelation: 'partner' })
   const unionId = addUnion(data, maleId, femaleId)
-  const child1Id = addPerson(data, { sex: "female", bloodRelation: "direct" })
-  const child2Id = addPerson(data, { sex: "male", bloodRelation: "direct" })
+  const child1Id = addPerson(data, { sex: 'female', bloodRelation: 'direct' })
+  const child2Id = addPerson(data, { sex: 'male', bloodRelation: 'direct' })
   const childGroupId = addChildGroup(data, unionId, [])
-  const lossId = addPregnancyLoss(data, "miscarriage", childGroupId)
+  const lossId = addPregnancyLoss(data, 'miscarriage', childGroupId)
   data.entities.childGroups[childGroupId]!.children = [
-    { kind: "person", personId: child1Id },
-    { kind: "loss", lossId },
-    { kind: "person", personId: child2Id },
+    { kind: 'person', personId: child1Id },
+    { kind: 'loss', lossId },
+    { kind: 'person', personId: child2Id },
   ]
   return { data, childGroupId, child1Id, child2Id, lossId }
 }
@@ -178,20 +178,20 @@ export function scenarioThreeGenerations(): {
   pivotUnionId: UnionId
 } {
   const data = newGenogram()
-  const grandpaId = addPerson(data, { sex: "male", bloodRelation: "direct" })
-  const grandmaId = addPerson(data, { sex: "female", bloodRelation: "partner" })
+  const grandpaId = addPerson(data, { sex: 'male', bloodRelation: 'direct' })
+  const grandmaId = addPerson(data, { sex: 'female', bloodRelation: 'partner' })
   const grandparentUnionId = addUnion(data, grandpaId, grandmaId)
 
-  const parentId = addPerson(data, { sex: "male", bloodRelation: "direct" })
-  addChildGroup(data, grandparentUnionId, [{ kind: "person", personId: parentId }])
+  const parentId = addPerson(data, { sex: 'male', bloodRelation: 'direct' })
+  addChildGroup(data, grandparentUnionId, [{ kind: 'person', personId: parentId }])
 
-  const parentSpouseId = addPerson(data, { sex: "female", bloodRelation: "partner" })
+  const parentSpouseId = addPerson(data, { sex: 'female', bloodRelation: 'partner' })
   const parentUnionId = addUnion(data, parentId, parentSpouseId)
 
-  const pivotId = addPerson(data, { sex: "male", bloodRelation: "direct", role: "owner" })
-  addChildGroup(data, parentUnionId, [{ kind: "person", personId: pivotId }])
+  const pivotId = addPerson(data, { sex: 'male', bloodRelation: 'direct', role: 'owner' })
+  addChildGroup(data, parentUnionId, [{ kind: 'person', personId: pivotId }])
 
-  const pivotSpouseId = addPerson(data, { sex: "female", bloodRelation: "partner" })
+  const pivotSpouseId = addPerson(data, { sex: 'female', bloodRelation: 'partner' })
   const pivotUnionId = addUnion(data, pivotId, pivotSpouseId)
 
   return {
@@ -238,112 +238,112 @@ export function scenarioComplexGenogram(): {
   const data = newGenogram()
 
   // ── gen -3: great-grandparents ─────────────────────
-  const gpA_m = addPerson(data, { sex: "male", bloodRelation: "direct" })
-  const gpA_f = addPerson(data, { sex: "female", bloodRelation: "direct" })
+  const gpA_m = addPerson(data, { sex: 'male', bloodRelation: 'direct' })
+  const gpA_f = addPerson(data, { sex: 'female', bloodRelation: 'direct' })
   const uA = addUnion(data, gpA_m, gpA_f)
 
-  const gpD_m = addPerson(data, { sex: "male", bloodRelation: "direct" })
-  const gpD_f = addPerson(data, { sex: "female", bloodRelation: "direct" })
+  const gpD_m = addPerson(data, { sex: 'male', bloodRelation: 'direct' })
+  const gpD_f = addPerson(data, { sex: 'female', bloodRelation: 'direct' })
   const uD = addUnion(data, gpD_m, gpD_f)
 
   // ── gen -2: grandparents ───────────────────────────
   const paternalGranFather = addPerson(data, {
-    sex: "male",
-    bloodRelation: "unknown",
+    sex: 'male',
+    bloodRelation: 'unknown',
     partnerOrder: 1,
     identity: { isUnknown: true },
   })
   const paternalGranMother = addPerson(data, {
-    sex: "female",
-    bloodRelation: "direct",
+    sex: 'female',
+    bloodRelation: 'direct',
   })
   const uPaternalGran = addUnion(data, paternalGranFather, paternalGranMother)
-  addChildGroup(data, uA, [{ kind: "person", personId: paternalGranMother }])
+  addChildGroup(data, uA, [{ kind: 'person', personId: paternalGranMother }])
 
   const maternalGranFather = addPerson(data, {
-    sex: "male",
-    bloodRelation: "direct",
+    sex: 'male',
+    bloodRelation: 'direct',
   })
   const maternalGranMother = addPerson(data, {
-    sex: "female",
-    bloodRelation: "direct",
+    sex: 'female',
+    bloodRelation: 'direct',
   })
   const uMaternalGran = addUnion(data, maternalGranFather, maternalGranMother)
 
-  const sis1 = addPerson(data, { sex: "female", bloodRelation: "sibling" })
-  const sis2 = addPerson(data, { sex: "female", bloodRelation: "sibling" })
-  const sis3 = addPerson(data, { sex: "female", bloodRelation: "sibling" })
+  const sis1 = addPerson(data, { sex: 'female', bloodRelation: 'sibling' })
+  const sis2 = addPerson(data, { sex: 'female', bloodRelation: 'sibling' })
+  const sis3 = addPerson(data, { sex: 'female', bloodRelation: 'sibling' })
   const sis4dead = addPerson(data, {
-    sex: "female",
-    bloodRelation: "sibling",
-    lifeDates: { isDeceased: true, deathKind: "early" },
+    sex: 'female',
+    bloodRelation: 'sibling',
+    lifeDates: { isDeceased: true, deathKind: 'early' },
   })
-  const twin1 = addPerson(data, { sex: "female", bloodRelation: "sibling" })
+  const twin1 = addPerson(data, { sex: 'female', bloodRelation: 'sibling' })
   const twin2dead = addPerson(data, {
-    sex: "female",
-    bloodRelation: "sibling",
-    lifeDates: { isDeceased: true, deathKind: "early" },
+    sex: 'female',
+    bloodRelation: 'sibling',
+    lifeDates: { isDeceased: true, deathKind: 'early' },
   })
-  const twinBG = addBirthGroup(data, "twins", [twin1, twin2dead])
+  const twinBG = addBirthGroup(data, 'twins', [twin1, twin2dead])
 
   addChildGroup(data, uD, [
-    { kind: "person", personId: maternalGranMother },
-    { kind: "person", personId: sis1 },
-    { kind: "person", personId: sis2 },
-    { kind: "person", personId: sis3 },
-    { kind: "person", personId: sis4dead },
-    { kind: "person", personId: twin1, birthGroupId: twinBG },
-    { kind: "person", personId: twin2dead, birthGroupId: twinBG },
+    { kind: 'person', personId: maternalGranMother },
+    { kind: 'person', personId: sis1 },
+    { kind: 'person', personId: sis2 },
+    { kind: 'person', personId: sis3 },
+    { kind: 'person', personId: sis4dead },
+    { kind: 'person', personId: twin1, birthGroupId: twinBG },
+    { kind: 'person', personId: twin2dead, birthGroupId: twinBG },
   ])
 
   // ── gen -1: parents ────────────────────────────────
-  const dad = addPerson(data, { sex: "male", bloodRelation: "direct" })
+  const dad = addPerson(data, { sex: 'male', bloodRelation: 'direct' })
   const deadUncle = addPerson(data, {
-    sex: "male",
-    bloodRelation: "sibling",
-    lifeDates: { isDeceased: true, deathKind: "early" },
+    sex: 'male',
+    bloodRelation: 'sibling',
+    lifeDates: { isDeceased: true, deathKind: 'early' },
   })
   addChildGroup(data, uPaternalGran, [
-    { kind: "person", personId: dad },
-    { kind: "person", personId: deadUncle },
+    { kind: 'person', personId: dad },
+    { kind: 'person', personId: deadUncle },
   ])
 
   const mom = addPerson(data, {
-    sex: "female",
-    bloodRelation: "partner",
+    sex: 'female',
+    bloodRelation: 'partner',
     partnerOrder: 1,
   })
-  addChildGroup(data, uMaternalGran, [{ kind: "person", personId: mom }])
+  addChildGroup(data, uMaternalGran, [{ kind: 'person', personId: mom }])
 
   const uParents = addUnion(data, dad, mom, {
-    divorce: { custodySide: "right" },
+    divorce: { custodySide: 'right' },
   })
 
   // ── gen 0: owner's generation ──────────────────────
-  const son35 = addPerson(data, { sex: "male", bloodRelation: "direct" })
-  const son30 = addPerson(data, { sex: "male", bloodRelation: "direct" })
-  const daughter28 = addPerson(data, { sex: "female", bloodRelation: "direct" })
+  const son35 = addPerson(data, { sex: 'male', bloodRelation: 'direct' })
+  const son30 = addPerson(data, { sex: 'male', bloodRelation: 'direct' })
+  const daughter28 = addPerson(data, { sex: 'female', bloodRelation: 'direct' })
   const owner = addPerson(data, {
-    sex: "female",
-    role: "owner",
-    bloodRelation: "direct",
+    sex: 'female',
+    role: 'owner',
+    bloodRelation: 'direct',
   })
-  const son16 = addPerson(data, { sex: "male", bloodRelation: "direct" })
+  const son16 = addPerson(data, { sex: 'male', bloodRelation: 'direct' })
 
   const cgParents = addChildGroup(data, uParents)
-  const abortion1 = addPregnancyLoss(data, "abortion", cgParents)
-  const abortion2 = addPregnancyLoss(data, "abortion", cgParents)
-  const miscarriage = addPregnancyLoss(data, "miscarriage", cgParents)
+  const abortion1 = addPregnancyLoss(data, 'abortion', cgParents)
+  const abortion2 = addPregnancyLoss(data, 'abortion', cgParents)
+  const miscarriage = addPregnancyLoss(data, 'miscarriage', cgParents)
 
   data.entities.childGroups[cgParents]!.children = [
-    { kind: "person", personId: son35 },
-    { kind: "person", personId: son30 },
-    { kind: "person", personId: daughter28 },
-    { kind: "loss", lossId: abortion1 },
-    { kind: "loss", lossId: abortion2 },
-    { kind: "person", personId: owner },
-    { kind: "loss", lossId: miscarriage },
-    { kind: "person", personId: son16 },
+    { kind: 'person', personId: son35 },
+    { kind: 'person', personId: son30 },
+    { kind: 'person', personId: daughter28 },
+    { kind: 'loss', lossId: abortion1 },
+    { kind: 'loss', lossId: abortion2 },
+    { kind: 'person', personId: owner },
+    { kind: 'loss', lossId: miscarriage },
+    { kind: 'person', personId: son16 },
   ]
 
   return { data, ownerId: owner }

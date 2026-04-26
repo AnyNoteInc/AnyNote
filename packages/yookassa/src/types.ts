@@ -1,4 +1,4 @@
-export type YookassaCurrency = "RUB"
+export type YookassaCurrency = 'RUB'
 
 export type Money = {
   value: string
@@ -8,13 +8,13 @@ export type Money = {
 export type YookassaAmount = Money
 
 export type ConfirmationRedirect = {
-  type: "redirect"
+  type: 'redirect'
   confirmation_url: string
   return_url?: string
 }
 
 export type CreatePaymentConfirmation = {
-  type: "redirect"
+  type: 'redirect'
   return_url: string
 }
 
@@ -59,7 +59,7 @@ export type CancellationDetails = {
 
 export type Payment = {
   id: string
-  status: "pending" | "waiting_for_capture" | "succeeded" | "canceled"
+  status: 'pending' | 'waiting_for_capture' | 'succeeded' | 'canceled'
   paid: boolean
   amount: YookassaAmount
   captured?: boolean
@@ -74,7 +74,7 @@ export type Payment = {
 
 export type Refund = {
   id: string
-  status: "pending" | "succeeded" | "canceled"
+  status: 'pending' | 'succeeded' | 'canceled'
   payment_id: string
   amount: YookassaAmount
   metadata?: Record<string, string>
@@ -82,14 +82,14 @@ export type Refund = {
 }
 
 export type PaymentWebhookEvent = {
-  type: "notification"
-  event: "payment.succeeded" | "payment.canceled" | "payment.waiting_for_capture"
+  type: 'notification'
+  event: 'payment.succeeded' | 'payment.canceled' | 'payment.waiting_for_capture'
   object: Payment
 }
 
 export type RefundWebhookEvent = {
-  type: "notification"
-  event: "refund.succeeded"
+  type: 'notification'
+  event: 'refund.succeeded'
   object: Refund
 }
 

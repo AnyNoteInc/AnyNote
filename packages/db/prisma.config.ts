@@ -1,14 +1,14 @@
-import { existsSync } from "node:fs"
-import { dirname, resolve } from "node:path"
-import { fileURLToPath } from "node:url"
+import { existsSync } from 'node:fs'
+import { dirname, resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
 
-import { config as loadEnv } from "dotenv"
-import { defineConfig, env } from "prisma/config"
+import { config as loadEnv } from 'dotenv'
+import { defineConfig, env } from 'prisma/config'
 
 function findEnvFile(startDir: string): string | null {
   let current = startDir
   while (true) {
-    const candidate = resolve(current, ".env")
+    const candidate = resolve(current, '.env')
     if (existsSync(candidate)) {
       return candidate
     }
@@ -27,14 +27,14 @@ if (envPath) {
   loadEnv({ path: envPath })
 } else {
   console.warn(
-    "[@repo/db] .env not found while walking up from packages/db. " +
-      "DATABASE_URL must be provided via process.env.",
+    '[@repo/db] .env not found while walking up from packages/db. ' +
+      'DATABASE_URL must be provided via process.env.',
   )
 }
 
 export default defineConfig({
-  schema: "./prisma/schema.prisma",
+  schema: './prisma/schema.prisma',
   datasource: {
-    url: env("DATABASE_URL"),
+    url: env('DATABASE_URL'),
   },
 })

@@ -1,5 +1,5 @@
-import type { GenogramPageData } from "../types"
-import { parseGenogram } from "../model/validators"
+import type { GenogramPageData } from '../types'
+import { parseGenogram } from '../model/validators'
 
 /**
  * Snapshot: validates a domain model before writing it to Page.content.

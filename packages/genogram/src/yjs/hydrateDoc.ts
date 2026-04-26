@@ -1,6 +1,6 @@
-import type * as Y from "yjs"
-import type { GenogramPageData } from "../types"
-import { getGenogramMaps } from "./schema"
+import type * as Y from 'yjs'
+import type { GenogramPageData } from '../types'
+import { getGenogramMaps } from './schema'
 
 /**
  * Populate a Y.Doc from a JSON snapshot. Used on initial document load

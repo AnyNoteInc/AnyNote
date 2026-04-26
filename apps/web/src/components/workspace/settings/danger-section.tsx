@@ -1,11 +1,11 @@
-"use client"
+'use client'
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState } from 'react'
+import { useRouter } from 'next/navigation'
 
-import { Alert, Button, Paper, Stack, TextField, Typography } from "@repo/ui/components"
+import { Alert, Button, Paper, Stack, TextField, Typography } from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
 type Props = {
   workspace: { id: string; name: string }
@@ -13,14 +13,14 @@ type Props = {
 }
 
 export function WorkspaceDangerSection({ workspace, isOwner }: Props) {
-  const [confirmation, setConfirmation] = useState("")
+  const [confirmation, setConfirmation] = useState('')
   const router = useRouter()
   const del = trpc.workspace.delete.useMutation({
-    onSuccess: () => router.push("/workspaces"),
+    onSuccess: () => router.push('/workspaces'),
   })
 
   return (
-    <Paper variant="outlined" sx={{ p: 3, borderColor: "error.main" }}>
+    <Paper variant="outlined" sx={{ p: 3, borderColor: 'error.main' }}>
       <Stack spacing={2}>
         <Typography variant="h6" color="error">
           Опасная зона
@@ -40,7 +40,7 @@ export function WorkspaceDangerSection({ workspace, isOwner }: Props) {
           color="error"
           onClick={() => del.mutate({ id: workspace.id })}
           disabled={!isOwner || del.isPending || confirmation !== workspace.name}
-          sx={{ alignSelf: "flex-start" }}
+          sx={{ alignSelf: 'flex-start' }}
         >
           Удалить пространство
         </Button>

@@ -1,13 +1,13 @@
-import Link from "next/link"
+import Link from 'next/link'
 
-import { Box, Button, Stack, Typography } from "@repo/ui/components"
-import { ChangeColorTheme } from "@repo/ui/widgets"
+import { Box, Button, Stack, Typography } from '@repo/ui/components'
+import { ChangeColorTheme } from '@repo/ui/widgets'
 
-import { AppUserMenu } from "@/components/app/app-user-menu"
-import { BrandMark } from "@/components/brand/brand-mark"
-import type { SessionType } from "@/lib/get-session"
+import { AppUserMenu } from '@/components/app/app-user-menu'
+import { BrandMark } from '@/components/brand/brand-mark'
+import type { SessionType } from '@/lib/get-session'
 
-import { publicNavItems } from "./content"
+import { publicNavItems } from './content'
 
 type PublicHeaderProps = {
   session: SessionType
@@ -18,10 +18,10 @@ export function PublicHeader({ session }: PublicHeaderProps) {
     <Box
       sx={{
         py: 2.5,
-        position: "sticky",
+        position: 'sticky',
         top: 0,
         zIndex: 20,
-        backdropFilter: "blur(14px)",
+        backdropFilter: 'blur(14px)',
       }}
     >
       <Stack
@@ -35,11 +35,11 @@ export function PublicHeader({ session }: PublicHeaderProps) {
           href="/"
           aria-label="На главную"
           style={{
-            display: "inline-flex",
-            alignItems: "center",
+            display: 'inline-flex',
+            alignItems: 'center',
             gap: 12,
-            textDecoration: "none",
-            color: "inherit",
+            textDecoration: 'none',
+            color: 'inherit',
           }}
         >
           <BrandMark size={42} aria-label="AnyNote" />
@@ -57,7 +57,7 @@ export function PublicHeader({ session }: PublicHeaderProps) {
           direction="row"
           spacing={0.5}
           alignItems="center"
-          sx={{ display: { xs: "none", lg: "flex" } }}
+          sx={{ display: { xs: 'none', lg: 'flex' } }}
         >
           {publicNavItems.map((item) => (
             <Button
@@ -65,7 +65,7 @@ export function PublicHeader({ session }: PublicHeaderProps) {
               href={item.href}
               variant="text"
               color="inherit"
-              sx={{ textTransform: "none" }}
+              sx={{ textTransform: 'none' }}
             >
               {item.label}
             </Button>

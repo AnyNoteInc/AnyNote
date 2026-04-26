@@ -6,18 +6,18 @@ import type {
   PersonId,
   PregnancyLossId,
   UnionId,
-} from "./ids"
-import type { PersonLabelConfig } from "./labels"
+} from './ids'
+import type { PersonLabelConfig } from './labels'
 
-export type Sex = "male" | "female"
+export type Sex = 'male' | 'female'
 
-export type BloodRelation = "direct" | "partner" | "sibling" | "unknown"
+export type BloodRelation = 'direct' | 'partner' | 'sibling' | 'unknown'
 
-export type PersonRole = "owner" | "regular"
+export type PersonRole = 'owner' | 'regular'
 
-export type PersonSize = "big" | "small"
+export type PersonSize = 'big' | 'small'
 
-export type DeathKind = "natural" | "tragic" | "early"
+export type DeathKind = 'natural' | 'tragic' | 'early'
 
 export interface PersonIdentity {
   firstName?: string
@@ -37,9 +37,7 @@ export interface LifeDates {
   deathKind?: DeathKind
 }
 
-export type CharacterTag =
-  | { kind: "text"; value: string }
-  | { kind: "tag"; value: string }
+export type CharacterTag = { kind: 'text'; value: string } | { kind: 'tag'; value: string }
 
 export interface PersonProfile {
   birthPlace?: string
@@ -63,9 +61,9 @@ export interface Person {
   label: PersonLabelConfig
 }
 
-export type UnionKind = "marriage" | "cohabitation"
+export type UnionKind = 'marriage' | 'cohabitation'
 
-export type CustodySide = "left" | "right" | "shared"
+export type CustodySide = 'left' | 'right' | 'shared'
 
 export interface UnionDivorce {
   date?: string
@@ -84,8 +82,8 @@ export interface Union {
 }
 
 export type ChildEntry =
-  | { kind: "person"; personId: PersonId; birthGroupId?: BirthGroupId }
-  | { kind: "loss"; lossId: PregnancyLossId }
+  | { kind: 'person'; personId: PersonId; birthGroupId?: BirthGroupId }
+  | { kind: 'loss'; lossId: PregnancyLossId }
 
 export interface ChildGroup {
   id: ChildGroupId
@@ -93,7 +91,7 @@ export interface ChildGroup {
   children: ChildEntry[]
 }
 
-export type BirthKind = "twins" | "fraternal"
+export type BirthKind = 'twins' | 'fraternal'
 
 export interface BirthGroup {
   id: BirthGroupId
@@ -101,7 +99,7 @@ export interface BirthGroup {
   memberIds: PersonId[]
 }
 
-export type LossKind = "abortion" | "miscarriage"
+export type LossKind = 'abortion' | 'miscarriage'
 
 export interface PregnancyLoss {
   id: PregnancyLossId

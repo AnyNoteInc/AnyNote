@@ -1,10 +1,10 @@
-"use client"
+'use client'
 
-import { useEffect, useRef, useState, type MouseEvent } from "react"
-import { useQueryClient } from "@tanstack/react-query"
-import { getQueryKey } from "@trpc/react-query"
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
+import { useQueryClient } from '@tanstack/react-query'
+import { getQueryKey } from '@trpc/react-query'
 
-import type { Page } from "@repo/db"
+import type { Page } from '@repo/db'
 import {
   AddIcon,
   Box,
@@ -15,9 +15,9 @@ import {
   Stack,
   TextField,
   Typography,
-} from "@repo/ui/components"
+} from '@repo/ui/components'
 
-import { trpc } from "@/trpc/client"
+import { trpc } from '@/trpc/client'
 
 // Matches the scalar select used by page.listByWorkspace on the server. Kept
 // local because pulling the tRPC router output type is exactly what triggered
@@ -32,7 +32,7 @@ type WorkspacePageListItem = {
   createdAt: Date
 }
 
-const UNTITLED_PLACEHOLDER = "Новая страница"
+const UNTITLED_PLACEHOLDER = 'Новая страница'
 
 type Props = {
   id: string
@@ -61,7 +61,7 @@ export function PageHeader({ id, workspaceId, initialTitle, initialIcon }: Props
     // recursion limit for the Page router — see TS2589. Routing through
     // TanStack Query directly uses a flat <TData> generic and type-checks fine.
     onSuccess: (updated) => {
-      const pageByIdKey = getQueryKey(trpc.page.getById, { id }, "query")
+      const pageByIdKey = getQueryKey(trpc.page.getById, { id }, 'query')
       const currentPage = queryClient.getQueryData<Page>(pageByIdKey)
       if (currentPage) {
         // updatedAt is intentionally not written here: tRPC's default JSON
@@ -74,7 +74,7 @@ export function PageHeader({ id, workspaceId, initialTitle, initialIcon }: Props
           icon: updated.icon,
         })
       }
-      const pageListKey = getQueryKey(trpc.page.listByWorkspace, { workspaceId }, "query")
+      const pageListKey = getQueryKey(trpc.page.listByWorkspace, { workspaceId }, 'query')
       const currentList = queryClient.getQueryData<WorkspacePageListItem[]>(pageListKey)
       if (currentList) {
         queryClient.setQueryData<WorkspacePageListItem[]>(
@@ -88,7 +88,7 @@ export function PageHeader({ id, workspaceId, initialTitle, initialIcon }: Props
   })
 
   const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState("")
+  const [draft, setDraft] = useState('')
   const [addIconAnchor, setAddIconAnchor] = useState<HTMLElement | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
 
@@ -97,14 +97,14 @@ export function PageHeader({ id, workspaceId, initialTitle, initialIcon }: Props
   }, [editing])
 
   const startEdit = () => {
-    setDraft(title ?? "")
+    setDraft(title ?? '')
     setEditing(true)
   }
 
   const commitEdit = () => {
     if (!editing) return
     setEditing(false)
-    const current = (title ?? "").trim()
+    const current = (title ?? '').trim()
     const next = draft.trim()
     if (next !== current) update.mutate({ id, workspaceId, title: next })
   }
@@ -114,7 +114,7 @@ export function PageHeader({ id, workspaceId, initialTitle, initialIcon }: Props
   const closeAddIcon = () => setAddIconAnchor(null)
 
   return (
-    <Stack spacing={0.5} sx={{ "&:hover .page-header__add-icon": { opacity: 1 } }}>
+    <Stack spacing={0.5} sx={{ '&:hover .page-header__add-icon': { opacity: 1 } }}>
       {!icon ? (
         <Box sx={{ height: 28 }}>
           <Button
@@ -123,11 +123,11 @@ export function PageHeader({ id, workspaceId, initialTitle, initialIcon }: Props
             onClick={openAddIcon}
             startIcon={<AddIcon fontSize="small" />}
             sx={{
-              color: "text.secondary",
-              textTransform: "none",
+              color: 'text.secondary',
+              textTransform: 'none',
               opacity: 0,
-              transition: "opacity .15s",
-              "&:focus-visible": { opacity: 1 },
+              transition: 'opacity .15s',
+              '&:focus-visible': { opacity: 1 },
             }}
           >
             Добавить иконку
@@ -136,7 +136,7 @@ export function PageHeader({ id, workspaceId, initialTitle, initialIcon }: Props
             open={Boolean(addIconAnchor)}
             anchorEl={addIconAnchor}
             onClose={closeAddIcon}
-            anchorOrigin={{ vertical: "bottom", horizontal: "left" }}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
           >
             <EmojiPicker
               onSelect={(emoji) => {
@@ -165,11 +165,11 @@ export function PageHeader({ id, workspaceId, initialTitle, initialIcon }: Props
             onChange={(e) => setDraft(e.target.value)}
             onBlur={commitEdit}
             onKeyDown={(e) => {
-              if (e.key === "Enter") {
+              if (e.key === 'Enter') {
                 e.preventDefault()
                 commitEdit()
               }
-              if (e.key === "Escape") {
+              if (e.key === 'Escape') {
                 e.preventDefault()
                 setEditing(false)
               }
@@ -179,8 +179,8 @@ export function PageHeader({ id, workspaceId, initialTitle, initialIcon }: Props
             placeholder={UNTITLED_PLACEHOLDER}
             slotProps={{ input: { disableUnderline: true } }}
             sx={{
-              "& .MuiInput-input": {
-                fontSize: "2.25rem",
+              '& .MuiInput-input': {
+                fontSize: '2.25rem',
                 fontWeight: 700,
                 lineHeight: 1.2,
                 padding: 0,
@@ -193,15 +193,15 @@ export function PageHeader({ id, workspaceId, initialTitle, initialIcon }: Props
             onClick={startEdit}
             sx={{
               flex: 1,
-              fontSize: "2.25rem",
+              fontSize: '2.25rem',
               fontWeight: 700,
               lineHeight: 1.2,
-              cursor: "text",
-              color: title ? "text.primary" : "text.secondary",
+              cursor: 'text',
+              color: title ? 'text.primary' : 'text.secondary',
               px: 1,
               mx: -1,
               borderRadius: 1,
-              "&:hover": { bgcolor: "action.hover" },
+              '&:hover': { bgcolor: 'action.hover' },
             }}
           >
             {title || UNTITLED_PLACEHOLDER}

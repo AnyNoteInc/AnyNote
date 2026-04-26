@@ -1,8 +1,8 @@
-import { Inject, Injectable } from "@nestjs/common"
-import type { PrismaClient } from "@repo/db"
+import { Inject, Injectable } from '@nestjs/common'
+import type { PrismaClient } from '@repo/db'
 
-import { PRISMA } from "../../../infra/db/db.providers.js"
-import { WorkspaceAccessDeniedError } from "../errors/mcp.errors.js"
+import { PRISMA } from '../../../infra/db/db.providers.js'
+import { WorkspaceAccessDeniedError } from '../errors/mcp.errors.js'
 
 @Injectable()
 export class WorkspaceMemberGuard {
