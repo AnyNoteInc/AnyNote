@@ -190,14 +190,31 @@ async function main() {
   const providerBySlug = new Map(providerRows.map((r) => [r.slug, r]))
 
   // ── AI models ─────────────────────────────────────────────────────────────
+  const gigachatModelSlugs = ["gigachat-2", "gigachat-2-pro", "gigachat-2-max"] as const
   const aiModels = [
     {
       providerSlug: "gigachat",
-      slug: "GigaChat-2",
+      slug: "gigachat-2",
       displayName: "GigaChat-2",
       contextTokens: 32000,
       supportsVision: false,
-      minPlanSlug: null,
+      minPlanSlug: "pro",
+    },
+    {
+      providerSlug: "gigachat",
+      slug: "gigachat-2-pro",
+      displayName: "GigaChat-2 Pro",
+      contextTokens: 32000,
+      supportsVision: false,
+      minPlanSlug: "pro",
+    },
+    {
+      providerSlug: "gigachat",
+      slug: "gigachat-2-max",
+      displayName: "GigaChat-2 Max",
+      contextTokens: 64000,
+      supportsVision: false,
+      minPlanSlug: "max",
     },
     {
       providerSlug: "ollama",
@@ -233,7 +250,21 @@ async function main() {
     })
   }
 
-  console.info("Seed complete: 5 providers, 3 active plans, 2 AI providers, 2 AI models")
+  const gigachatProvider = providerBySlug.get("gigachat")
+  if (!gigachatProvider) throw new Error("Seed: unknown AI provider slug gigachat")
+  await prisma.aiModel.updateMany({
+    where: {
+      providerId: gigachatProvider.id,
+      slug: { notIn: [...gigachatModelSlugs] },
+      isActive: true,
+    },
+    data: {
+      isActive: false,
+      deprecatedAt: new Date(),
+    },
+  })
+
+  console.info("Seed complete: 5 providers, 3 active plans, 2 AI providers, 4 AI models")
 }
 
 main()
