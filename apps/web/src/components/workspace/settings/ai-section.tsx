@@ -16,12 +16,17 @@ import {
 } from "@repo/ui/components"
 import { trpc } from "@/trpc/client"
 
-type Props = { workspaceId: string }
+type InitialModel = { id: string; displayName: string; provider: { name: string; slug: string } }
 
-export function WorkspaceAiSection({ workspaceId }: Props) {
+type Props = { workspaceId: string; initialModels?: InitialModel[] }
+
+export function WorkspaceAiSection({ workspaceId, initialModels }: Props) {
   const utils = trpc.useUtils()
   const settingsQuery = trpc.aiSettings.get.useQuery({ workspaceId })
-  const modelsQuery = trpc.aiSettings.listAvailableModels.useQuery({ workspaceId })
+  const modelsQuery = trpc.aiSettings.listAvailableModels.useQuery(
+    { workspaceId },
+    { enabled: initialModels === undefined },
+  )
   const [successShown, setSuccessShown] = useState(false)
   const update = trpc.aiSettings.update.useMutation({
     onSuccess: () => {
@@ -41,6 +46,13 @@ export function WorkspaceAiSection({ workspaceId }: Props) {
   }, [settingsQuery.data])
 
   const flatModels = useMemo(() => {
+    if (initialModels !== undefined) {
+      return initialModels.map((m) => ({
+        id: m.id,
+        label: `${m.provider.name} · ${m.displayName}`,
+        providerSlug: m.provider.slug,
+      }))
+    }
     if (!modelsQuery.data) return []
     return modelsQuery.data.flatMap((p) =>
       p.models.map((m) => ({
@@ -49,7 +61,7 @@ export function WorkspaceAiSection({ workspaceId }: Props) {
         providerSlug: p.slug,
       })),
     )
-  }, [modelsQuery.data])
+  }, [initialModels, modelsQuery.data])
 
   const onSave = () => {
     update.mutate({
@@ -59,7 +71,7 @@ export function WorkspaceAiSection({ workspaceId }: Props) {
     })
   }
 
-  const disabled = settingsQuery.isLoading || modelsQuery.isLoading
+  const disabled = settingsQuery.isLoading || (initialModels === undefined && modelsQuery.isLoading)
 
   return (
     <Paper variant="outlined" sx={{ p: 3 }}>
