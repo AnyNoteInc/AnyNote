@@ -390,6 +390,10 @@ describe('addChildren', () => {
     expect(cg.children).toHaveLength(2)
     expect(cg.children[0]!.kind).toBe('person')
     expect(cg.children[1]!.kind).toBe('loss')
+    const person = Object.values(domain.entities.people).find(
+      (p) => p.identity.firstName === 'Лиза',
+    )!
+    expect(person.size).toBe('small')
   })
 
   it('reorders existing children when reorderExisting is provided', () => {

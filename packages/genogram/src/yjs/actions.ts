@@ -485,6 +485,8 @@ export function addChildren(
 ): void {
   doc.transact(() => {
     const domain = assembleDomain(doc)
+    const union = domain.entities.unions[unionId]
+    if (!union) throw new Error(`addChildren: union ${unionId} not found`)
     let cg = Object.values(domain.entities.childGroups).find((c) => c.unionId === unionId)
     if (!cg) {
       cg = addChildGroup(doc, { unionId })
