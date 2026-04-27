@@ -13,6 +13,7 @@ import {
   getMeta,
   removePerson,
   setMeta,
+  setPartnerOrder,
   setUnionDivorce,
   updatePerson,
 } from './actions'
@@ -298,5 +299,24 @@ describe('addPartner', () => {
     const domain = assembleDomain(doc)
     expect(domain.entities.people[wife1.partnerId]!.partnerOrder).toBe(1)
     expect(domain.entities.people[wife2.partnerId]!.partnerOrder).toBe(2)
+  })
+})
+
+describe('setPartnerOrder', () => {
+  it('swaps partner ordinals when moving partner #1 to #2', () => {
+    const doc = new Y.Doc()
+    const owner = createOwnerWithParents(doc, { sex: 'male' })
+    const w1 = addPartner(doc, owner.ownerId,
+      { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      { kind: 'marriage' }, 1)
+    const w2 = addPartner(doc, owner.ownerId,
+      { firstName: 'Мария', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      { kind: 'marriage' }, 2)
+
+    setPartnerOrder(doc, w1.partnerId, 2)
+
+    const domain = assembleDomain(doc)
+    expect(domain.entities.people[w1.partnerId]!.partnerOrder).toBe(2)
+    expect(domain.entities.people[w2.partnerId]!.partnerOrder).toBe(1)
   })
 })

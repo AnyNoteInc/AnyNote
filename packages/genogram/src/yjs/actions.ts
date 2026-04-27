@@ -38,7 +38,7 @@ import type {
 } from '../types'
 import { getGenogramMaps, getMetaMap } from './schema'
 import { assembleDomain } from './assembleDomain'
-import { hasParents, getPartnersOf } from '../model/computed'
+import { hasParents, getPartnersOf, getBaseOf } from '../model/computed'
 
 // ── creation ─────────────────────────────────────────────
 
@@ -436,4 +436,23 @@ export function addPartner(
     result = { partnerId: partner.id, unionId: union.id }
   })
   return result
+}
+
+// ── setPartnerOrder ─────────────────────────────────────────────────────────
+
+export function setPartnerOrder(doc: Y.Doc, partnerId: PersonId, newOrder: number): void {
+  doc.transact(() => {
+    const domain = assembleDomain(doc)
+    const baseId = getBaseOf(partnerId, domain.entities.unions)
+    if (!baseId) throw new Error(`${partnerId} is not a partner of a base person`)
+    const partners = getPartnersOf(baseId, domain.entities.unions, domain.entities.people)
+    const reordered = partners
+      .filter((p) => p.partnerId !== partnerId)
+      .sort((a, b) => (a.partnerOrder ?? 0) - (b.partnerOrder ?? 0))
+
+    reordered.splice(newOrder - 1, 0, partners.find((p) => p.partnerId === partnerId)!)
+    reordered.forEach((p, idx) => {
+      updatePerson(doc, p.partnerId, { partnerOrder: idx + 1 })
+    })
+  })
 }
