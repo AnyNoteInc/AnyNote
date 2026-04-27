@@ -199,6 +199,25 @@ describe('partner helpers', () => {
     expect(partners.map((p) => p.partnerId)).toEqual(['w1', 'w2'])
   })
 
+  it('getPartnersOf places partner without partnerOrder last', () => {
+    const wife3: Person = personWith({})
+    wife3.id = 'w3' as PersonId
+    wife3.sex = 'female'
+    // no partnerOrder set
+    const u3: Union = {
+      id: 'u3' as UnionId,
+      kind: 'marriage',
+      malePartnerId: 'owner' as PersonId,
+      femalePartnerId: 'w3' as PersonId,
+    }
+    const partners = getPartnersOf(
+      'owner' as PersonId,
+      { u1, u2, u3 },
+      { ...people, w3: wife3 },
+    )
+    expect(partners[partners.length - 1]!.partnerId).toBe('w3')
+  })
+
   it('countPartnersOf returns count', () => {
     expect(countPartnersOf('owner' as PersonId, unions)).toBe(2)
     expect(countPartnersOf('w1' as PersonId, unions)).toBe(1)
