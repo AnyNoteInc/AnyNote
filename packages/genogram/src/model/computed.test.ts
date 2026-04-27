@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { calcAge, calcAgeAtDeath } from './computed'
+import { calcAge, calcAgeAtDeath, shouldShowDeathCross } from './computed'
 import type { Person } from '../types/domain'
 
 describe('calcAge', () => {
@@ -54,6 +54,49 @@ describe('calcAgeAtDeath', () => {
       lifeStatus: 'deceased',
     })
     expect(calcAgeAtDeath(p)).toBeUndefined()
+  })
+})
+
+describe('shouldShowDeathCross', () => {
+  it('returns false when not deceased', () => {
+    const p = personWith({ lifeStatus: 'alive' })
+    expect(shouldShowDeathCross(p)).toBe(false)
+  })
+
+  it('returns true when tragically=true regardless of age', () => {
+    const p = personWith({
+      lifeStatus: 'deceased',
+      tragically: true,
+      birthDate: { year: 1900 },
+      deathDate: { year: 1990 }, // age 90
+    })
+    expect(shouldShowDeathCross(p)).toBe(true)
+  })
+
+  it('returns true when ageAtDeath < 65', () => {
+    const p = personWith({
+      lifeStatus: 'deceased',
+      birthDate: { year: 1950 },
+      deathDate: { year: 2000 }, // age 50
+    })
+    expect(shouldShowDeathCross(p)).toBe(true)
+  })
+
+  it('returns false when ageAtDeath >= 65 and not tragically', () => {
+    const p = personWith({
+      lifeStatus: 'deceased',
+      birthDate: { year: 1900 },
+      deathDate: { year: 2000 }, // age 100
+    })
+    expect(shouldShowDeathCross(p)).toBe(false)
+  })
+
+  it('returns false when ageAtDeath unknown and not tragically', () => {
+    const p = personWith({
+      lifeStatus: 'deceased',
+      // no birth/death dates
+    })
+    expect(shouldShowDeathCross(p)).toBe(false)
   })
 })
 

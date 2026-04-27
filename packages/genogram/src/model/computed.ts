@@ -68,3 +68,10 @@ export function isoToPartial(iso: string): PartialDate | undefined {
   if (isNaN(d.getTime())) return undefined
   return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() }
 }
+
+export function shouldShowDeathCross(person: Person): boolean {
+  if (person.lifeDates.lifeStatus !== 'deceased') return false
+  if (person.lifeDates.tragically === true) return true
+  const age = calcAgeAtDeath(person)
+  return age !== undefined && age < 65
+}
