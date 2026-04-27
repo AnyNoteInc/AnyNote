@@ -38,7 +38,7 @@ import type {
 } from '../types'
 import { getGenogramMaps, getMetaMap } from './schema'
 import { assembleDomain } from './assembleDomain'
-import { hasParents, getPartnersOf, getBaseOf } from '../model/computed'
+import { hasParents, getPartnersOf, getBaseOf, getChildGroupOf } from '../model/computed'
 
 // ── creation ─────────────────────────────────────────────
 
@@ -527,5 +527,34 @@ export function addChildren(
         appendChild(doc, cg.id, { kind: 'loss', lossId: loss.id })
       }
     }
+  })
+}
+
+// ── setChildOrder ──────────────────────────────────────────────────────────────
+
+export function setChildOrder(doc: Y.Doc, childPersonId: PersonId, newOrder: number): void {
+  doc.transact(() => {
+    const domain = assembleDomain(doc)
+    const cg = getChildGroupOf(childPersonId, domain.entities.childGroups)
+    if (!cg) throw new Error(`Person ${childPersonId} is not a child in any group`)
+
+    const idx = cg.children.findIndex(
+      (c) => c.kind === 'person' && c.personId === childPersonId,
+    )
+    if (idx === -1) throw new Error('inconsistent state')
+
+    if (newOrder < 1 || newOrder > cg.children.length) {
+      throw new RangeError(
+        `newOrder ${newOrder} out of range 1..${cg.children.length} for child ${childPersonId}`,
+      )
+    }
+
+    if (newOrder === idx + 1) return // no-op
+
+    const next = [...cg.children]
+    const [item] = next.splice(idx, 1)
+    next.splice(newOrder - 1, 0, item!)
+
+    reorderChildren(doc, cg.id, () => next)
   })
 }

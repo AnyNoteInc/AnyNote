@@ -13,6 +13,7 @@ import {
   createOwnerWithParents,
   getMeta,
   removePerson,
+  setChildOrder,
   setMeta,
   setPartnerOrder,
   setUnionDivorce,
@@ -417,5 +418,31 @@ describe('addChildren', () => {
     domain = assembleDomain(doc)
     cg = Object.values(domain.entities.childGroups).find((c) => c.unionId === partner.unionId)!
     expect(cg.children).toEqual(reversed)
+  })
+})
+
+describe('setChildOrder', () => {
+  it('moves child to new position', () => {
+    const doc = new Y.Doc()
+    const owner = createOwnerWithParents(doc, { sex: 'male' })
+    const partner = addPartner(doc, owner.ownerId,
+      { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      { kind: 'marriage' }, 1)
+
+    addChildren(doc, partner.unionId, [
+      { type: 'person', data: { firstName: 'A', sex: 'female', lifeStatus: 'alive', birthMode: 'date' } },
+      { type: 'person', data: { firstName: 'B', sex: 'female', lifeStatus: 'alive', birthMode: 'date' } },
+      { type: 'person', data: { firstName: 'C', sex: 'female', lifeStatus: 'alive', birthMode: 'date' } },
+    ])
+
+    let domain = assembleDomain(doc)
+    let cg = Object.values(domain.entities.childGroups).find((c) => c.unionId === partner.unionId)!
+    const cId = (cg.children[2] as { kind: 'person'; personId: PersonId }).personId
+
+    setChildOrder(doc, cId, 1) // C → first
+
+    domain = assembleDomain(doc)
+    cg = Object.values(domain.entities.childGroups).find((c) => c.unionId === partner.unionId)!
+    expect((cg.children[0] as { kind: 'person'; personId: PersonId }).personId).toBe(cId)
   })
 })
