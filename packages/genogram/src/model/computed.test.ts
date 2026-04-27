@@ -98,6 +98,15 @@ describe('shouldShowDeathCross', () => {
     })
     expect(shouldShowDeathCross(p)).toBe(false)
   })
+
+  it('returns false when ageAtDeath is exactly 65 and not tragically', () => {
+    const p = personWith({
+      lifeStatus: 'deceased',
+      birthDate: { year: 1935 },
+      deathDate: { year: 2000 }, // age exactly 65
+    })
+    expect(shouldShowDeathCross(p)).toBe(false)
+  })
 })
 
 // Helper for tests
