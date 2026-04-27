@@ -33,6 +33,8 @@ import type {
   UnionId,
 } from '../types'
 import { getGenogramMaps, getMetaMap } from './schema'
+import { assembleDomain } from './assembleDomain'
+import { hasParents } from '../model/computed'
 
 // ── creation ─────────────────────────────────────────────
 
@@ -293,6 +295,50 @@ export function createOwnerWithParents(
       unionId: union.id,
       childGroupId: cg.id,
     }
+  })
+  return result
+}
+
+export function addParents(
+  doc: Y.Doc,
+  childPersonId: PersonId,
+): {
+  fatherId: PersonId
+  motherId: PersonId
+  unionId: UnionId
+  childGroupId: ChildGroupId
+} {
+  const domain = assembleDomain(doc)
+  if (hasParents(childPersonId, domain.entities.childGroups)) {
+    throw new Error(`Person ${childPersonId} already has parents`)
+  }
+
+  let result!: ReturnType<typeof addParents>
+  doc.transact(() => {
+    const father = addPerson(doc, {
+      sex: 'male',
+      bloodRelation: 'direct',
+      role: 'regular',
+      size: 'big',
+      identity: { isUnknown: true },
+      lifeDates: { birthMode: 'date', lifeStatus: 'unknown' },
+    })
+    const mother = addPerson(doc, {
+      sex: 'female',
+      bloodRelation: 'direct',
+      role: 'regular',
+      size: 'big',
+      identity: { isUnknown: true },
+      lifeDates: { birthMode: 'date', lifeStatus: 'unknown' },
+    })
+    const union = addUnion(doc, {
+      kind: 'marriage',
+      malePartnerId: father.id,
+      femalePartnerId: mother.id,
+    })
+    const cg = addChildGroup(doc, { unionId: union.id })
+    appendChild(doc, cg.id, { kind: 'person', personId: childPersonId })
+    result = { fatherId: father.id, motherId: mother.id, unionId: union.id, childGroupId: cg.id }
   })
   return result
 }

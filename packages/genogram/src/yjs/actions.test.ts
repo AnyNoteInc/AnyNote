@@ -3,6 +3,7 @@ import * as Y from 'yjs'
 import {
   addBirthGroup,
   addChildGroup,
+  addParents,
   addPerson,
   addPregnancyLoss,
   addUnion,
@@ -230,5 +231,36 @@ describe('createOwnerWithParents', () => {
     const doc = new Y.Doc()
     const result = createOwnerWithParents(doc, { sex: 'female' })
     expect(assembleDomain(doc).entities.people[result.ownerId]!.sex).toBe('female')
+  })
+})
+
+describe('addParents', () => {
+  it('creates two unknown parents and a marriage union with the child', () => {
+    const doc = new Y.Doc()
+    const child = addPerson(doc, {
+      sex: 'male',
+      bloodRelation: 'direct',
+      role: 'regular',
+      size: 'big',
+      identity: {},
+      lifeDates: { birthMode: 'date', lifeStatus: 'alive' },
+      profile: {},
+    })
+    const result = addParents(doc, child.id)
+
+    const domain = assembleDomain(doc)
+    expect(domain.entities.people[result.fatherId]!.sex).toBe('male')
+    expect(domain.entities.people[result.fatherId]!.identity.isUnknown).toBe(true)
+    expect(domain.entities.people[result.motherId]!.sex).toBe('female')
+    expect(domain.entities.people[result.motherId]!.identity.isUnknown).toBe(true)
+    expect(domain.entities.unions[result.unionId]!.kind).toBe('marriage')
+    const cg = domain.entities.childGroups[result.childGroupId]!
+    expect(cg.children).toEqual([{ kind: 'person', personId: child.id }])
+  })
+
+  it('throws when child already has parents', () => {
+    const doc = new Y.Doc()
+    const owner = createOwnerWithParents(doc, { sex: 'male' })
+    expect(() => addParents(doc, owner.ownerId)).toThrow()
   })
 })
