@@ -518,3 +518,22 @@ describe('updatePerson — extended fields', () => {
     expect(updated.partnerOrder).toBe(1)
   })
 })
+
+describe('setUnionDivorce — markPosition', () => {
+  it('persists markPosition independently of date', () => {
+    const doc = new Y.Doc()
+    const owner = createOwnerWithParents(doc, { sex: 'male' })
+    const partner = addPartner(doc, owner.ownerId,
+      { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      { kind: 'marriage' }, 1)
+
+    setUnionDivorce(doc, partner.unionId, {
+      date: { day: 1, month: 1, year: 2025 },
+      markPosition: 0.7,
+    })
+
+    const u = assembleDomain(doc).entities.unions[partner.unionId]!
+    expect(u.divorce?.markPosition).toBe(0.7)
+    expect(u.divorce?.date).toEqual({ day: 1, month: 1, year: 2025 })
+  })
+})
