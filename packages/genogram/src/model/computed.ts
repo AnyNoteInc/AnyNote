@@ -1,5 +1,5 @@
 import type { BloodRelation, Person, PersonSize, RenderableLabel } from '../types'
-import type { PartialDate } from '../types/domain'
+import type { ChildEntry, ChildGroup, ChildGroupId, PartialDate, PersonId, UnionId } from '../types/domain'
 import { computeAge as computeAgeFromDates } from '../utils/dates'
 
 export function resolveSize(bloodRelation: BloodRelation): PersonSize {
@@ -74,4 +74,31 @@ export function shouldShowDeathCross(person: Person): boolean {
   if (person.lifeDates.tragically === true) return true
   const age = calcAgeAtDeath(person)
   return age !== undefined && age < 65
+}
+
+export function getChildGroupOf(
+  personId: PersonId,
+  childGroups: Record<ChildGroupId, ChildGroup>,
+): ChildGroup | null {
+  for (const cg of Object.values(childGroups)) {
+    if (cg.children.some((c) => c.kind === 'person' && c.personId === personId)) return cg
+  }
+  return null
+}
+
+export function hasParents(
+  personId: PersonId,
+  childGroups: Record<ChildGroupId, ChildGroup>,
+): boolean {
+  return getChildGroupOf(personId, childGroups) !== null
+}
+
+export function getChildrenOf(
+  unionId: UnionId,
+  childGroups: Record<ChildGroupId, ChildGroup>,
+): ChildEntry[] {
+  for (const cg of Object.values(childGroups)) {
+    if (cg.unionId === unionId) return cg.children
+  }
+  return []
 }

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { calcAge, calcAgeAtDeath, shouldShowDeathCross } from './computed'
-import type { Person } from '../types/domain'
+import { calcAge, calcAgeAtDeath, shouldShowDeathCross, hasParents, getChildGroupOf, getChildrenOf } from './computed'
+import type { ChildGroup, ChildGroupId, Person, PersonId, UnionId } from '../types/domain'
 
 describe('calcAge', () => {
   it('returns exact age when full birthDate and full refDate', () => {
@@ -123,3 +123,49 @@ function personWith(life: Partial<Person['lifeDates']>): Person {
     lifeDates: { birthMode: 'date', lifeStatus: 'alive', ...life },
   }
 }
+
+describe('hasParents / getChildGroupOf', () => {
+  const cgA: ChildGroup = {
+    id: 'cgA' as ChildGroupId,
+    unionId: 'u1' as UnionId,
+    children: [
+      { kind: 'person', personId: 'kid1' as PersonId },
+      { kind: 'person', personId: 'kid2' as PersonId },
+    ],
+  }
+  const groups = { cgA }
+
+  it('hasParents returns true when person is in any childGroup', () => {
+    expect(hasParents('kid1' as PersonId, groups)).toBe(true)
+  })
+
+  it('hasParents returns false when person is not a child', () => {
+    expect(hasParents('outsider' as PersonId, groups)).toBe(false)
+  })
+
+  it('getChildGroupOf returns the matching group', () => {
+    expect(getChildGroupOf('kid1' as PersonId, groups)?.id).toBe('cgA')
+  })
+
+  it('getChildGroupOf returns null when not a child', () => {
+    expect(getChildGroupOf('outsider' as PersonId, groups)).toBeNull()
+  })
+})
+
+describe('getChildrenOf', () => {
+  it('returns children of the union, in order', () => {
+    const cg: ChildGroup = {
+      id: 'cg' as ChildGroupId,
+      unionId: 'u1' as UnionId,
+      children: [
+        { kind: 'person', personId: 'a' as PersonId },
+        { kind: 'person', personId: 'b' as PersonId },
+      ],
+    }
+    expect(getChildrenOf('u1' as UnionId, { cg })).toEqual(cg.children)
+  })
+
+  it('returns empty array when no group for union', () => {
+    expect(getChildrenOf('uX' as UnionId, {})).toEqual([])
+  })
+})
