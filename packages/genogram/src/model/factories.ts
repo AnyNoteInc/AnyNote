@@ -157,11 +157,7 @@ export function createDefaultParent(sex: Sex): Person {
   return createPerson({
     sex,
     bloodRelation: 'direct',
-    role: 'regular',
-    size: 'big',
     identity: { isUnknown: true },
-    lifeDates: { birthMode: 'date', lifeStatus: 'unknown' },
-    profile: {},
   })
 }
 
