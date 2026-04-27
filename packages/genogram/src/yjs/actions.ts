@@ -21,6 +21,7 @@ import type {
   ChildEntry,
   ChildGroup,
   ChildGroupId,
+  GenogramMeta,
   Person,
   PersonId,
   PregnancyLoss,
@@ -29,7 +30,6 @@ import type {
   UnionDivorce,
   UnionId,
 } from '../types'
-import type { GenogramMeta } from '../types/domain'
 import { getGenogramMaps, getMetaMap } from './schema'
 
 // ── creation ─────────────────────────────────────────────

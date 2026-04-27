@@ -13,7 +13,7 @@ import {
   setUnionDivorce,
   updatePerson,
 } from './actions'
-import type { PersonId } from '../types/domain'
+import type { PersonId } from '../types'
 import { assembleDomain } from './assembleDomain'
 import { hydrateDoc } from './hydrateDoc'
 import { snapshotFromDoc } from './snapshotFromDoc'
