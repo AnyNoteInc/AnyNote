@@ -8,15 +8,37 @@ import { PartialDateInput } from './primitives/PartialDateInput'
 import { ApproximateAgeInput } from './primitives/ApproximateAgeInput'
 import { RU } from '../i18n/ru'
 
+type FormContext =
+  | {
+      kind: 'edit-data'
+      isPartnerOfMultiBase?: boolean
+      totalPartnersOfBase?: number
+      isChild?: boolean
+      childOrder?: number
+      siblingsCount?: number
+    }
+  | { kind: 'add-partner'; existingPartnersOfBase: number }
+  | { kind: 'add-child' }
+
+const DEFAULT_CONTEXT: FormContext = { kind: 'edit-data' }
+
 interface Props {
-  initial: Partial<PersonDataDraft>
-  onSubmit: (draft: PersonDataDraft) => void
+  initial: Partial<PersonDataDraft & { partnerOrder?: number; childOrder?: number }>
+  context?: FormContext
+  onSubmit: (draft: PersonDataDraft & { partnerOrder?: number; childOrder?: number; partnerCount?: number }) => void
   onCancel: () => void
   submitLabel?: string
   embedded?: boolean
 }
 
-export function PersonDataForm({ initial, onSubmit, onCancel, submitLabel = RU.drawer.save, embedded = false }: Props) {
+export function PersonDataForm({
+  initial,
+  context = DEFAULT_CONTEXT,
+  onSubmit,
+  onCancel,
+  submitLabel = RU.drawer.save,
+  embedded = false,
+}: Props) {
   const [draft, setDraft] = useState<PersonDataDraft>({
     sex: initial.sex ?? 'male',
     birthMode: initial.birthMode ?? 'date',
@@ -30,8 +52,32 @@ export function PersonDataForm({ initial, onSubmit, onCancel, submitLabel = RU.d
     tragically: initial.tragically,
   })
 
+  const [partnerCount, setPartnerCount] = useState<number | undefined>(
+    context.kind === 'add-partner' ? context.existingPartnersOfBase + 1 : undefined,
+  )
+
+  const [partnerOrder, setPartnerOrder] = useState<number | undefined>(initial.partnerOrder)
+
+  const [childOrder, setChildOrder] = useState<number | undefined>(
+    context.kind === 'edit-data' ? context.childOrder : undefined,
+  )
+
   const update = <K extends keyof PersonDataDraft>(k: K, v: PersonDataDraft[K]) =>
     setDraft((d) => ({ ...d, [k]: v }))
+
+  const handleSubmit = () => {
+    const payload: PersonDataDraft & { partnerOrder?: number; childOrder?: number; partnerCount?: number } = { ...draft }
+    if (context.kind === 'add-partner') {
+      payload.partnerCount = partnerCount
+    }
+    if (context.kind === 'edit-data' && context.isPartnerOfMultiBase) {
+      payload.partnerOrder = partnerOrder
+    }
+    if (context.kind === 'edit-data' && context.isChild) {
+      payload.childOrder = childOrder
+    }
+    onSubmit(payload)
+  }
 
   return (
     <Stack spacing={2}>
@@ -85,10 +131,40 @@ export function PersonDataForm({ initial, onSubmit, onCancel, submitLabel = RU.d
         </>
       )}
 
+      {context.kind === 'add-partner' && (
+        <TextField
+          label="Укажите количество партнёров"
+          type="number"
+          value={partnerCount ?? ''}
+          onChange={(e) => setPartnerCount(Number(e.target.value))}
+          inputProps={{ min: context.existingPartnersOfBase + 1 }}
+        />
+      )}
+
+      {context.kind === 'edit-data' && context.isPartnerOfMultiBase && (
+        <TextField
+          label="Порядковый номер партнёра"
+          type="number"
+          value={partnerOrder ?? ''}
+          onChange={(e) => setPartnerOrder(Number(e.target.value))}
+          inputProps={{ min: 1, max: context.totalPartnersOfBase }}
+        />
+      )}
+
+      {context.kind === 'edit-data' && context.isChild && (
+        <TextField
+          label="Порядковый номер ребёнка"
+          type="number"
+          value={childOrder ?? ''}
+          onChange={(e) => setChildOrder(Number(e.target.value))}
+          inputProps={{ min: 1, max: context.siblingsCount }}
+        />
+      )}
+
       {!embedded && (
         <Stack direction="row" spacing={1} justifyContent="flex-end">
           <Button onClick={onCancel}>{RU.drawer.cancel}</Button>
-          <Button variant="contained" onClick={() => onSubmit(draft)}>{submitLabel}</Button>
+          <Button variant="contained" onClick={handleSubmit}>{submitLabel}</Button>
         </Stack>
       )}
     </Stack>
