@@ -4,6 +4,7 @@ import {
   addBirthGroup,
   addChildGroup,
   addParents,
+  addPartner,
   addPerson,
   addPregnancyLoss,
   addUnion,
@@ -262,5 +263,40 @@ describe('addParents', () => {
     const doc = new Y.Doc()
     const owner = createOwnerWithParents(doc, { sex: 'male' })
     expect(() => addParents(doc, owner.ownerId)).toThrow()
+  })
+})
+
+describe('addPartner', () => {
+  it('creates partner with opposite sex and union (newPartnerOrder=1 → no ordinals)', () => {
+    const doc = new Y.Doc()
+    const owner = createOwnerWithParents(doc, { sex: 'male' })
+    const result = addPartner(
+      doc,
+      owner.ownerId,
+      { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      { kind: 'marriage', startDate: { day: 5, month: 6, year: 2020 } },
+      1,
+    )
+
+    const domain = assembleDomain(doc)
+    const partner = domain.entities.people[result.partnerId]!
+    expect(partner.sex).toBe('female')
+    expect(partner.partnerOrder).toBeUndefined()
+    expect(domain.entities.unions[result.unionId]!.kind).toBe('marriage')
+  })
+
+  it('with newPartnerOrder=2 numbers existing partner=1 and new partner=2', () => {
+    const doc = new Y.Doc()
+    const owner = createOwnerWithParents(doc, { sex: 'male' })
+    const wife1 = addPartner(doc, owner.ownerId,
+      { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      { kind: 'marriage' }, 1)
+    const wife2 = addPartner(doc, owner.ownerId,
+      { firstName: 'Мария', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      { kind: 'marriage' }, 2)
+
+    const domain = assembleDomain(doc)
+    expect(domain.entities.people[wife1.partnerId]!.partnerOrder).toBe(1)
+    expect(domain.entities.people[wife2.partnerId]!.partnerOrder).toBe(2)
   })
 })

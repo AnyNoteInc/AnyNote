@@ -16,12 +16,15 @@ import {
 import type {
   Annotation,
   AnnotationId,
+  ApproximateAge,
   BirthGroup,
   BirthGroupId,
+  BirthMode,
   ChildEntry,
   ChildGroup,
   ChildGroupId,
   GenogramMeta,
+  LifeStatus,
   PartialDate,
   Person,
   PersonId,
@@ -31,10 +34,11 @@ import type {
   Union,
   UnionDivorce,
   UnionId,
+  UnionKind,
 } from '../types'
 import { getGenogramMaps, getMetaMap } from './schema'
 import { assembleDomain } from './assembleDomain'
-import { hasParents } from '../model/computed'
+import { hasParents, getPartnersOf } from '../model/computed'
 
 // ── creation ─────────────────────────────────────────────
 
@@ -339,6 +343,85 @@ export function addParents(
     const cg = addChildGroup(doc, { unionId: union.id })
     appendChild(doc, cg.id, { kind: 'person', personId: childPersonId })
     result = { fatherId: father.id, motherId: mother.id, unionId: union.id, childGroupId: cg.id }
+  })
+  return result
+}
+
+// ── addPartner ────────────────────────────────────────────
+
+export interface PersonDataDraft {
+  firstName?: string
+  lastName?: string
+  middleName?: string
+  sex: Sex
+  birthDate?: PartialDate
+  birthMode: BirthMode
+  approximateAge?: ApproximateAge
+  lifeStatus: LifeStatus
+  deathDate?: PartialDate
+  tragically?: boolean
+}
+
+export interface UnionDraft {
+  kind: UnionKind
+  startDate?: PartialDate
+  endDate?: PartialDate
+  divorce?: UnionDivorce
+}
+
+export function addPartner(
+  doc: Y.Doc,
+  basePersonId: PersonId,
+  personDraft: PersonDataDraft,
+  unionDraft: UnionDraft,
+  newPartnerOrder: number,
+): { partnerId: PersonId; unionId: UnionId } {
+  let result!: ReturnType<typeof addPartner>
+  doc.transact(() => {
+    const partner = addPerson(doc, {
+      sex: personDraft.sex,
+      bloodRelation: 'partner',
+      role: 'regular',
+      size: 'big',
+      identity: {
+        firstName: personDraft.firstName,
+        lastName: personDraft.lastName,
+        middleName: personDraft.middleName,
+      },
+      lifeDates: {
+        birthMode: personDraft.birthMode,
+        lifeStatus: personDraft.lifeStatus,
+        birthDate: personDraft.birthDate,
+        approximateAge: personDraft.approximateAge,
+        deathDate: personDraft.deathDate,
+        tragically: personDraft.tragically,
+      },
+      profile: {},
+    })
+
+    const malePartnerId = personDraft.sex === 'male' ? partner.id : basePersonId
+    const femalePartnerId = personDraft.sex === 'female' ? partner.id : basePersonId
+    const union = addUnion(doc, {
+      kind: unionDraft.kind,
+      malePartnerId,
+      femalePartnerId,
+      startDate: unionDraft.startDate,
+      endDate: unionDraft.endDate,
+      divorce: unionDraft.divorce,
+    })
+
+    if (newPartnerOrder > 1) {
+      const domain = assembleDomain(doc)
+      const partners = getPartnersOf(basePersonId, domain.entities.unions, domain.entities.people)
+      partners.forEach((p, idx) => {
+        const order = idx + 1
+        if (p.partnerId === partner.id) return
+        updatePerson(doc, p.partnerId, { partnerOrder: order })
+      })
+      updatePerson(doc, partner.id, { partnerOrder: newPartnerOrder })
+    }
+
+    result = { partnerId: partner.id, unionId: union.id }
   })
   return result
 }
