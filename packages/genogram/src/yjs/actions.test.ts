@@ -445,4 +445,50 @@ describe('setChildOrder', () => {
     cg = Object.values(domain.entities.childGroups).find((c) => c.unionId === partner.unionId)!
     expect((cg.children[0] as { kind: 'person'; personId: PersonId }).personId).toBe(cId)
   })
+
+  it('throws RangeError when newOrder out of range', () => {
+    const doc = new Y.Doc()
+    const owner = createOwnerWithParents(doc, { sex: 'male' })
+    const partner = addPartner(doc, owner.ownerId,
+      { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      { kind: 'marriage' }, 1)
+    addChildren(doc, partner.unionId, [
+      { type: 'person', data: { firstName: 'A', sex: 'female', lifeStatus: 'alive', birthMode: 'date' } },
+      { type: 'person', data: { firstName: 'B', sex: 'female', lifeStatus: 'alive', birthMode: 'date' } },
+    ])
+    const cg = Object.values(assembleDomain(doc).entities.childGroups).find((c) => c.unionId === partner.unionId)!
+    const aId = (cg.children[0] as { kind: 'person'; personId: PersonId }).personId
+    expect(() => setChildOrder(doc, aId, 0)).toThrow(RangeError)
+    expect(() => setChildOrder(doc, aId, 5)).toThrow(RangeError)
+  })
+
+  it('throws when person is not a child in any group', () => {
+    const doc = new Y.Doc()
+    const orphan = addPerson(doc, {
+      sex: 'male',
+      bloodRelation: 'direct',
+      role: 'regular',
+      size: 'big',
+      identity: {},
+      lifeDates: { birthMode: 'date', lifeStatus: 'alive' },
+    })
+    expect(() => setChildOrder(doc, orphan.id, 1)).toThrow()
+  })
+
+  it('no-op when newOrder equals current position', () => {
+    const doc = new Y.Doc()
+    const owner = createOwnerWithParents(doc, { sex: 'male' })
+    const partner = addPartner(doc, owner.ownerId,
+      { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      { kind: 'marriage' }, 1)
+    addChildren(doc, partner.unionId, [
+      { type: 'person', data: { firstName: 'A', sex: 'female', lifeStatus: 'alive', birthMode: 'date' } },
+      { type: 'person', data: { firstName: 'B', sex: 'female', lifeStatus: 'alive', birthMode: 'date' } },
+    ])
+    const cgBefore = Object.values(assembleDomain(doc).entities.childGroups).find((c) => c.unionId === partner.unionId)!
+    const aId = (cgBefore.children[0] as { kind: 'person'; personId: PersonId }).personId
+    setChildOrder(doc, aId, 1) // already first
+    const cgAfter = Object.values(assembleDomain(doc).entities.childGroups).find((c) => c.unionId === partner.unionId)!
+    expect(cgAfter.children).toEqual(cgBefore.children)
+  })
 })
