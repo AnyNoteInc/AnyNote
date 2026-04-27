@@ -172,12 +172,16 @@ function placeUnionSubtree(unionId: UnionId, leftX: number, ctx: PlacementContex
 /**
  * Place a base person who has multiple partners (multi-union).
  *
- * Single-partner rule (enforced by the binary Union model itself):
- *   male → left side, female → right side of base.
+ * Layout rule:
+ *   Sort partners by partnerOrder ascending. Base sits at slot floor(N/2) in
+ *   the N+1 entity sequence — i.e. between the two middle partners for even N,
+ *   or after the first half for odd N. Examples:
+ *     N=2: [p1] [BASE] [p2]
+ *     N=3: [p1] [BASE] [p2] [p3]
+ *     N=4: [p1] [p2] [BASE] [p3] [p4]
  *
- * Multi-partner rule:
- *   Sort unions by the partner's partnerOrder ascending and lay them out
- *   left-to-right. The base person sits at the weighted centre.
+ * Union anchor: midpoint between base and its specific partner.
+ * Children: placed below each union's anchor.
  */
 function placeMultiPartnerSubtree(
   baseId: PersonId,
@@ -207,48 +211,85 @@ function placeMultiPartnerSubtree(
   // Sort by partnerOrder ascending (left-to-right)
   entries.sort((a, b) => a.partnerOrder - b.partnerOrder)
 
-  // Measure total width: all partners + gaps + base
-  const partnerWidths = entries.map(({ partnerId }) => {
-    const p = data.entities.people[partnerId]!
-    return personWidth(p.size)
-  })
-  const totalPartnersWidth = partnerWidths.reduce((s, w) => s + w, 0)
-  const totalWidth =
-    totalPartnersWidth +
-    (entries.length - 1) * LAYOUT.PARTNER_GAP + // gaps between partners
-    LAYOUT.PARTNER_GAP + // gap between base and nearest partner
-    baseW
+  // Base slot: floor(N/2), where N = entries.length.
+  // Build a linear sequence of (N+1) slots: partners[0..K-1], base, partners[K..N-1].
+  const N = entries.length
+  const baseSlot = Math.floor(N / 2) // index in the N+1 sequence where base sits
 
-  // Place everyone left-to-right; base sits after all partners on its sex side.
-  // In multi-partner mode sex rule does not apply — just left-to-right by order.
-  // Base is conceptually the "anchor" inserted between the sorted partners
-  // at its natural place by partnerOrder. Since base has no partnerOrder
-  // (it's the bloodline person), we place base at the centre of the cluster.
-  let cursor = leftX
-  for (let i = 0; i < entries.length; i++) {
-    const { uid, partnerId } = entries[i]!
-    const partner = data.entities.people[partnerId]!
-    const pw = personWidth(partner.size)
-    positions.set(partnerId, { x: cursor + pw / 2, y: baseY })
-    cursor += pw + LAYOUT.PARTNER_GAP
-    visitedUnions.add(uid)
-    // Place union anchor midway between consecutive partners (or partner+base)
-    // — simple midpoint between this partner and the next entity
+  // Measure per-union children widths for layout
+  const childrenWidths = entries.map(({ uid }) => {
+    const u = data.entities.unions[uid]
+    const cg = u?.childGroupId ? data.entities.childGroups[u.childGroupId] : undefined
+    return cg ? measureChildren(cg, ctx) : 0
+  })
+
+  // Build the sequence of slot widths. Each partner slot width = max(partnerW, childrenW).
+  // Base slot width = baseW (no children attached directly to the base node itself).
+  const slotWidths: number[] = []
+  let partnerSlot = 0 // tracks which entries[] index maps to the current slot
+  for (let slot = 0; slot <= N; slot++) {
+    if (slot === baseSlot) {
+      slotWidths.push(baseW)
+    } else {
+      const e = entries[partnerSlot]!
+      const partner = data.entities.people[e.partnerId]!
+      const pw = personWidth(partner.size)
+      const cw = childrenWidths[partnerSlot]!
+      slotWidths.push(Math.max(pw, cw))
+      partnerSlot++
+    }
   }
 
-  // Base goes at the end (after all ordered partners)
-  const baseCenterX = cursor + baseW / 2
+  const totalWidth = slotWidths.reduce((s, w) => s + w, 0) + N * LAYOUT.PARTNER_GAP
+
+  // Assign x-centers for each slot (left to right)
+  const slotCenters: number[] = []
+  let cursor = leftX
+  for (let slot = 0; slot <= N; slot++) {
+    const w = slotWidths[slot]!
+    slotCenters.push(cursor + w / 2)
+    cursor += w + LAYOUT.PARTNER_GAP
+  }
+
+  // Place base
+  const baseCenterX = slotCenters[baseSlot]!
   positions.set(baseId, { x: baseCenterX, y: baseY })
 
-  // Place union nodes midway between each partner and the next entity
-  for (let i = 0; i < entries.length; i++) {
-    const { uid, partnerId } = entries[i]!
-    const partnerPos = positions.get(partnerId)!
-    const nextX =
-      i + 1 < entries.length
-        ? positions.get(entries[i + 1]!.partnerId)!.x
-        : baseCenterX
-    positions.set(uid, { x: (partnerPos.x + nextX) / 2, y: baseY })
+  // Place partners and union anchors; then place children
+  partnerSlot = 0
+  for (let slot = 0; slot <= N; slot++) {
+    if (slot === baseSlot) continue
+
+    const e = entries[partnerSlot]!
+    const { uid, partnerId } = e
+    const partner = data.entities.people[partnerId]!
+    const pw = personWidth(partner.size)
+    const slotCenter = slotCenters[slot]!
+    const slotLeft = slotCenter - slotWidths[slot]! / 2
+
+    // Partner is centered within its slot
+    const partnerX = slotCenter - slotWidths[slot]! / 2 + pw / 2
+    positions.set(partnerId, { x: partnerX, y: baseY })
+    visitedUnions.add(uid)
+
+    // Fix 3: union anchor = midpoint between base and this partner
+    const unionX = (baseCenterX + partnerX) / 2
+    positions.set(uid, { x: unionX, y: baseY })
+
+    // Fix 2: place children below the union anchor
+    const u = data.entities.unions[uid]
+    const cg = u?.childGroupId ? data.entities.childGroups[u.childGroupId] : undefined
+    if (cg && cg.children.length > 0) {
+      const cw = childrenWidths[partnerSlot]!
+      const hubX = unionX
+      const hubY = baseY + LAYOUT.HUB_OFFSET_Y
+      ctx.positions.set(cg.id, { x: hubX, y: hubY })
+
+      const childrenStart = slotLeft + (slotWidths[slot]! - cw) / 2
+      placeChildren(cg.id, childrenStart, ctx)
+    }
+
+    partnerSlot++
   }
 
   return totalWidth
