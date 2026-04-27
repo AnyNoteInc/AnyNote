@@ -11,13 +11,22 @@ CREATE TYPE "IntegrationStatus" AS ENUM ('PENDING', 'CONNECTED', 'DISCONNECTED',
 CREATE TYPE "SubscriptionStatus" AS ENUM ('TRIAL', 'ACTIVE', 'CANCELED', 'EXPIRED', 'PAST_DUE');
 
 -- CreateEnum
-CREATE TYPE "PageType" AS ENUM ('TEXT', 'EXCALIDRAW', 'DATABASE', 'KANBAN', 'FORM');
+CREATE TYPE "PageType" AS ENUM ('TEXT', 'EXCALIDRAW', 'GENOGRAM', 'DATABASE', 'KANBAN', 'FORM');
 
 -- CreateEnum
 CREATE TYPE "ChatMessageRole" AS ENUM ('USER', 'ASSISTANT');
 
 -- CreateEnum
+CREATE TYPE "ChatMessageStatus" AS ENUM ('STREAMING', 'DONE', 'ERROR');
+
+-- CreateEnum
 CREATE TYPE "PageOwnership" AS ENUM ('TEXT', 'SKILL', 'AGENT');
+
+-- CreateEnum
+CREATE TYPE "BillingPeriod" AS ENUM ('MONTHLY', 'YEARLY');
+
+-- CreateEnum
+CREATE TYPE "OrderStatus" AS ENUM ('PENDING', 'PAID', 'FAILED', 'REFUNDED', 'CANCELED');
 
 -- CreateEnum
 CREATE TYPE "FileStatus" AS ENUM ('ACTIVE', 'PENDING', 'DELETED', 'ARCHIVED');
@@ -161,20 +170,14 @@ CREATE TABLE "chat_messages" (
     "id" UUID NOT NULL DEFAULT gen_random_uuid(),
     "chat_id" UUID NOT NULL,
     "role" "ChatMessageRole" NOT NULL,
-    "content" TEXT NOT NULL,
+    "status" "ChatMessageStatus" NOT NULL DEFAULT 'DONE',
+    "parts" JSONB NOT NULL DEFAULT '[]',
     "sources" JSONB NOT NULL DEFAULT '[]',
+    "error_message" TEXT,
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL,
 
     CONSTRAINT "chat_messages_pkey" PRIMARY KEY ("id")
-);
-
--- CreateTable
-CREATE TABLE "chat_message_files" (
-    "message_id" UUID NOT NULL,
-    "file_id" UUID NOT NULL,
-    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT "chat_message_files_pkey" PRIMARY KEY ("message_id","file_id")
 );
 
 -- CreateTable
@@ -287,10 +290,18 @@ CREATE TABLE "plans" (
     "slug" VARCHAR(50) NOT NULL,
     "name" VARCHAR(100) NOT NULL,
     "description" TEXT,
-    "price_monthly" INTEGER NOT NULL DEFAULT 0,
+    "price_monthly_kopecks" INTEGER NOT NULL DEFAULT 0,
+    "price_yearly_kopecks" INTEGER NOT NULL DEFAULT 0,
     "currency" VARCHAR(3) NOT NULL DEFAULT 'RUB',
     "max_workspaces" INTEGER,
-    "max_members_per_workspace" INTEGER,
+    "max_members_per_workspace" INTEGER NOT NULL DEFAULT 1,
+    "chats_enabled" BOOLEAN NOT NULL DEFAULT false,
+    "page_indexing_enabled" BOOLEAN NOT NULL DEFAULT false,
+    "members_settings_enabled" BOOLEAN NOT NULL DEFAULT false,
+    "ai_settings_enabled" BOOLEAN NOT NULL DEFAULT false,
+    "custom_mcp_enabled" BOOLEAN NOT NULL DEFAULT false,
+    "priority_support" BOOLEAN NOT NULL DEFAULT false,
+    "developer_space_enabled" BOOLEAN NOT NULL DEFAULT false,
     "features" JSONB NOT NULL DEFAULT '[]',
     "is_active" BOOLEAN NOT NULL DEFAULT true,
     "sort_order" INTEGER NOT NULL DEFAULT 0,
@@ -306,18 +317,48 @@ CREATE TABLE "subscriptions" (
     "user_id" UUID NOT NULL,
     "plan_id" UUID NOT NULL,
     "status" "SubscriptionStatus" NOT NULL DEFAULT 'ACTIVE',
-    "started_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "billing_period" "BillingPeriod" NOT NULL DEFAULT 'MONTHLY',
+    "current_period_start" TIMESTAMPTZ(6),
     "current_period_end" TIMESTAMPTZ(6),
-    "canceled_at" TIMESTAMPTZ(6),
+    "cancel_at_period_end" BOOLEAN NOT NULL DEFAULT false,
+    "cancelled_at" TIMESTAMPTZ(6),
+    "payment_method_id" VARCHAR(64),
+    "payment_method_last4" VARCHAR(4),
+    "payment_method_brand" VARCHAR(32),
     "payment_provider" VARCHAR(32),
-    "provider_subscription_id" VARCHAR(255),
+    "provider_subscription_id" VARCHAR(64),
     "amount_paid" INTEGER,
-    "currency" VARCHAR(3),
+    "currency" VARCHAR(3) NOT NULL DEFAULT 'RUB',
     "metadata" JSONB,
+    "expired_at" TIMESTAMPTZ(6),
     "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMPTZ(6) NOT NULL,
 
     CONSTRAINT "subscriptions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "orders" (
+    "id" UUID NOT NULL DEFAULT gen_random_uuid(),
+    "user_id" UUID NOT NULL,
+    "plan_id" UUID NOT NULL,
+    "subscription_id" UUID,
+    "billing_period" "BillingPeriod" NOT NULL,
+    "amount_kopecks" INTEGER NOT NULL,
+    "currency" VARCHAR(3) NOT NULL DEFAULT 'RUB',
+    "status" "OrderStatus" NOT NULL DEFAULT 'PENDING',
+    "yookassa_payment_id" VARCHAR(64),
+    "yookassa_idempotency_key" VARCHAR(64) NOT NULL,
+    "yookassa_refund_id" VARCHAR(64),
+    "is_initial" BOOLEAN NOT NULL DEFAULT false,
+    "saved_payment_method" BOOLEAN NOT NULL DEFAULT false,
+    "refunded_at" TIMESTAMPTZ(6),
+    "paid_at" TIMESTAMPTZ(6),
+    "metadata" JSONB,
+    "created_at" TIMESTAMPTZ(6) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "updated_at" TIMESTAMPTZ(6) NOT NULL,
+
+    CONSTRAINT "orders_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -431,7 +472,7 @@ CREATE INDEX "chats_workspace_id_updated_at_idx" ON "chats"("workspace_id", "upd
 CREATE INDEX "chat_messages_chat_id_created_at_idx" ON "chat_messages"("chat_id", "created_at");
 
 -- CreateIndex
-CREATE INDEX "chat_message_files_file_id_idx" ON "chat_message_files"("file_id");
+CREATE INDEX "chat_messages_chat_id_status_idx" ON "chat_messages"("chat_id", "status");
 
 -- CreateIndex
 CREATE INDEX "favorite_pages_user_id_idx" ON "favorite_pages"("user_id");
@@ -476,10 +517,22 @@ CREATE UNIQUE INDEX "plans_slug_key" ON "plans"("slug");
 CREATE INDEX "subscriptions_user_id_idx" ON "subscriptions"("user_id");
 
 -- CreateIndex
-CREATE INDEX "subscriptions_plan_id_idx" ON "subscriptions"("plan_id");
+CREATE INDEX "subscriptions_current_period_end_status_cancel_at_period_en_idx" ON "subscriptions"("current_period_end", "status", "cancel_at_period_end");
 
 -- CreateIndex
-CREATE INDEX "subscriptions_user_id_status_idx" ON "subscriptions"("user_id", "status");
+CREATE UNIQUE INDEX "orders_yookassa_payment_id_key" ON "orders"("yookassa_payment_id");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "orders_yookassa_idempotency_key_key" ON "orders"("yookassa_idempotency_key");
+
+-- CreateIndex
+CREATE INDEX "orders_user_id_idx" ON "orders"("user_id");
+
+-- CreateIndex
+CREATE INDEX "orders_status_idx" ON "orders"("status");
+
+-- CreateIndex
+CREATE INDEX "orders_subscription_id_idx" ON "orders"("subscription_id");
 
 -- CreateIndex
 CREATE INDEX "files_user_id_idx" ON "files"("user_id");
@@ -542,12 +595,6 @@ ALTER TABLE "chats" ADD CONSTRAINT "chats_parent_id_fkey" FOREIGN KEY ("parent_i
 ALTER TABLE "chat_messages" ADD CONSTRAINT "chat_messages_chat_id_fkey" FOREIGN KEY ("chat_id") REFERENCES "chats"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "chat_message_files" ADD CONSTRAINT "chat_message_files_message_id_fkey" FOREIGN KEY ("message_id") REFERENCES "chat_messages"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
-ALTER TABLE "chat_message_files" ADD CONSTRAINT "chat_message_files_file_id_fkey" FOREIGN KEY ("file_id") REFERENCES "files"("id") ON DELETE CASCADE ON UPDATE CASCADE;
-
--- AddForeignKey
 ALTER TABLE "favorite_pages" ADD CONSTRAINT "favorite_pages_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
@@ -582,6 +629,15 @@ ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_user_id_fkey" FOREIGN 
 
 -- AddForeignKey
 ALTER TABLE "subscriptions" ADD CONSTRAINT "subscriptions_plan_id_fkey" FOREIGN KEY ("plan_id") REFERENCES "plans"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "orders" ADD CONSTRAINT "orders_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "orders" ADD CONSTRAINT "orders_plan_id_fkey" FOREIGN KEY ("plan_id") REFERENCES "plans"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "orders" ADD CONSTRAINT "orders_subscription_id_fkey" FOREIGN KEY ("subscription_id") REFERENCES "subscriptions"("id") ON DELETE SET NULL ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE "files" ADD CONSTRAINT "files_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
