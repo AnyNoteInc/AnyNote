@@ -369,6 +369,18 @@ export interface UnionDraft {
   divorce?: UnionDivorce
 }
 
+/**
+ * Adds a new partner to `basePersonId` and creates a Union linking them.
+ *
+ * `newPartnerOrder` must satisfy `newPartnerOrder === countPartnersOf(basePersonId) + 1`
+ * (i.e., append-only — inserting at an already-occupied position is not supported and
+ * will produce duplicate ordinals). The UI in `PersonDataForm` enforces this via
+ * `min: existingPartnersOfBase + 1` and a default of `existingPartnersOfBase + 1`.
+ *
+ * When `newPartnerOrder === 1`, no `partnerOrder` is set on the partner.
+ * When `newPartnerOrder > 1`, all existing partners of the base get `partnerOrder` 1..K
+ * and the new partner gets `newPartnerOrder` (= K+1).
+ */
 export function addPartner(
   doc: Y.Doc,
   basePersonId: PersonId,
