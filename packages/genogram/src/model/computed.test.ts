@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { calcAge, calcAgeAtDeath, shouldShowDeathCross, hasParents, getChildGroupOf, getChildrenOf } from './computed'
-import type { ChildGroup, ChildGroupId, Person, PersonId, UnionId } from '../types/domain'
+import { calcAge, calcAgeAtDeath, shouldShowDeathCross, hasParents, getChildGroupOf, getChildrenOf, getBaseOf, getPartnersOf, countPartnersOf, shouldShowPartnerOrder } from './computed'
+import type { ChildGroup, ChildGroupId, Person, PersonId, Union, UnionId } from '../types/domain'
 
 describe('calcAge', () => {
   it('returns exact age when full birthDate and full refDate', () => {
@@ -167,5 +167,53 @@ describe('getChildrenOf', () => {
 
   it('returns empty array when no group for union', () => {
     expect(getChildrenOf('uX' as UnionId, {})).toEqual([])
+  })
+})
+
+describe('partner helpers', () => {
+  const owner: Person = personWith({}); owner.id = 'owner' as PersonId
+  const wife1: Person = personWith({}); wife1.id = 'w1' as PersonId; wife1.sex = 'female'; wife1.partnerOrder = 1
+  const wife2: Person = personWith({}); wife2.id = 'w2' as PersonId; wife2.sex = 'female'; wife2.partnerOrder = 2
+
+  const u1: Union = {
+    id: 'u1' as UnionId, kind: 'marriage',
+    malePartnerId: 'owner' as PersonId, femalePartnerId: 'w1' as PersonId,
+  }
+  const u2: Union = {
+    id: 'u2' as UnionId, kind: 'marriage',
+    malePartnerId: 'owner' as PersonId, femalePartnerId: 'w2' as PersonId,
+  }
+  const unions = { u1, u2 }
+  const people = { owner, w1: wife1, w2: wife2 }
+
+  it('getBaseOf returns the other side when partner has 1 union', () => {
+    expect(getBaseOf('w1' as PersonId, unions)).toBe('owner')
+  })
+
+  it('getBaseOf returns null when person has 2+ unions (is the central one)', () => {
+    expect(getBaseOf('owner' as PersonId, unions)).toBeNull()
+  })
+
+  it('getPartnersOf returns partners sorted by partnerOrder', () => {
+    const partners = getPartnersOf('owner' as PersonId, unions, people)
+    expect(partners.map((p) => p.partnerId)).toEqual(['w1', 'w2'])
+  })
+
+  it('countPartnersOf returns count', () => {
+    expect(countPartnersOf('owner' as PersonId, unions)).toBe(2)
+    expect(countPartnersOf('w1' as PersonId, unions)).toBe(1)
+  })
+
+  it('shouldShowPartnerOrder returns true for partner of base with >1 partners', () => {
+    expect(shouldShowPartnerOrder('w1' as PersonId, people, unions)).toBe(true)
+  })
+
+  it('shouldShowPartnerOrder returns false for base itself', () => {
+    expect(shouldShowPartnerOrder('owner' as PersonId, people, unions)).toBe(false)
+  })
+
+  it('shouldShowPartnerOrder returns false when single partner', () => {
+    const onlyOne = { u1 }
+    expect(shouldShowPartnerOrder('w1' as PersonId, people, onlyOne)).toBe(false)
   })
 })

@@ -1,5 +1,5 @@
 import type { BloodRelation, Person, PersonSize, RenderableLabel } from '../types'
-import type { ChildEntry, ChildGroup, ChildGroupId, PartialDate, PersonId, UnionId } from '../types/domain'
+import type { ChildEntry, ChildGroup, ChildGroupId, PartialDate, PersonId, Union, UnionId } from '../types/domain'
 import { computeAge as computeAgeFromDates } from '../utils/dates'
 
 export function resolveSize(bloodRelation: BloodRelation): PersonSize {
@@ -101,4 +101,50 @@ export function getChildrenOf(
     if (cg.unionId === unionId) return cg.children
   }
   return []
+}
+
+function unionsOfPerson(personId: PersonId, unions: Record<UnionId, Union>): Union[] {
+  return Object.values(unions).filter(
+    (u) => u.malePartnerId === personId || u.femalePartnerId === personId,
+  )
+}
+
+export function getBaseOf(partnerId: PersonId, unions: Record<UnionId, Union>): PersonId | null {
+  const own = unionsOfPerson(partnerId, unions)
+  if (own.length !== 1) return null
+  const u = own[0]!
+  return u.malePartnerId === partnerId ? u.femalePartnerId : u.malePartnerId
+}
+
+export function getPartnersOf(
+  basePersonId: PersonId,
+  unions: Record<UnionId, Union>,
+  people: Record<PersonId, Person>,
+): { unionId: UnionId; partnerId: PersonId; partnerOrder?: number }[] {
+  const own = unionsOfPerson(basePersonId, unions)
+  return own
+    .map((u) => {
+      const partnerId = u.malePartnerId === basePersonId ? u.femalePartnerId : u.malePartnerId
+      const partnerOrder = people[partnerId]?.partnerOrder
+      return { unionId: u.id, partnerId, partnerOrder }
+    })
+    .sort((a, b) => {
+      if (a.partnerOrder === undefined) return 1
+      if (b.partnerOrder === undefined) return -1
+      return a.partnerOrder - b.partnerOrder
+    })
+}
+
+export function countPartnersOf(personId: PersonId, unions: Record<UnionId, Union>): number {
+  return unionsOfPerson(personId, unions).length
+}
+
+export function shouldShowPartnerOrder(
+  personId: PersonId,
+  people: Record<PersonId, Person>,
+  unions: Record<UnionId, Union>,
+): boolean {
+  const baseId = getBaseOf(personId, unions)
+  if (!baseId) return false
+  return countPartnersOf(baseId, unions) > 1
 }
