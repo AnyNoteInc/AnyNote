@@ -35,7 +35,10 @@ export function placeAll(ctx: PlacementContext): void {
   }
 }
 
-type Unit = { kind: 'person'; personId: PersonId } | { kind: 'union'; unionId: UnionId }
+type Unit =
+  | { kind: 'person'; personId: PersonId }
+  | { kind: 'union'; unionId: UnionId }
+  | { kind: 'multiUnion'; baseId: PersonId; unionIds: UnionId[] }
 
 function findRoots(ctx: PlacementContext): Unit[] {
   const { data, generations, minGen, relations } = ctx
@@ -48,16 +51,32 @@ function findRoots(ctx: PlacementContext): Unit[] {
   }
   topPersons.sort()
 
-  for (const pid of topPersons) {
-    if (visited.has(pid)) continue
+  /**
+   * Emit a root unit for `pid`, marking all involved persons as visited.
+   * Returns true if a root was emitted.
+   */
+  function emitRoot(pid: PersonId): void {
+    if (visited.has(pid)) return
     const unions = relations.unionsByPerson.get(pid) ?? []
-    const rootUnionId = unions.find((uid) => {
+    // Unions where the other person is also at the top generation (i.e. partner unions)
+    const topUnions = unions.filter((uid) => {
       const u = data.entities.unions[uid]
       if (!u) return false
       const other = u.malePartnerId === pid ? u.femalePartnerId : u.malePartnerId
-      return generations.get(other) === minGen
+      return generations.get(other) === minGen && !visited.has(other)
     })
-    if (rootUnionId) {
+
+    if (topUnions.length > 1) {
+      // Multi-partner: base has more than one unvisited partner at same generation
+      visited.add(pid)
+      for (const uid of topUnions) {
+        const u = data.entities.unions[uid]!
+        const partnerId = u.malePartnerId === pid ? u.femalePartnerId : u.malePartnerId
+        visited.add(partnerId)
+      }
+      roots.push({ kind: 'multiUnion', baseId: pid, unionIds: topUnions })
+    } else if (topUnions.length === 1) {
+      const rootUnionId = topUnions[0]!
       const u = data.entities.unions[rootUnionId]!
       visited.add(u.malePartnerId)
       visited.add(u.femalePartnerId)
@@ -68,13 +87,32 @@ function findRoots(ctx: PlacementContext): Unit[] {
     }
   }
 
+  // First pass: emit roots for persons with multiple top-gen unions (multi-partner bases).
+  // This ensures the base person is processed before its partners.
+  for (const pid of topPersons) {
+    if (visited.has(pid)) continue
+    const unions = relations.unionsByPerson.get(pid) ?? []
+    const topUnionCount = unions.filter((uid) => {
+      const u = data.entities.unions[uid]
+      if (!u) return false
+      const other = u.malePartnerId === pid ? u.femalePartnerId : u.malePartnerId
+      return generations.get(other) === minGen
+    }).length
+    if (topUnionCount > 1) emitRoot(pid)
+  }
+
+  // Second pass: emit roots for all remaining unvisited top-gen persons.
+  for (const pid of topPersons) {
+    if (!visited.has(pid)) emitRoot(pid)
+  }
+
   return roots
 }
 
 function placeUnit(unit: Unit, leftX: number, ctx: PlacementContext): number {
-  return unit.kind === 'union'
-    ? placeUnionSubtree(unit.unionId, leftX, ctx)
-    : placePersonSolo(unit.personId, leftX, ctx)
+  if (unit.kind === 'union') return placeUnionSubtree(unit.unionId, leftX, ctx)
+  if (unit.kind === 'multiUnion') return placeMultiPartnerSubtree(unit.baseId, unit.unionIds, leftX, ctx)
+  return placePersonSolo(unit.personId, leftX, ctx)
 }
 
 function placePersonSolo(personId: PersonId, leftX: number, ctx: PlacementContext): number {
@@ -126,6 +164,91 @@ function placeUnionSubtree(unionId: UnionId, leftX: number, ctx: PlacementContex
 
     const childrenStart = leftX + (totalWidth - childrenWidth) / 2
     placeChildren(cg.id, childrenStart, ctx)
+  }
+
+  return totalWidth
+}
+
+/**
+ * Place a base person who has multiple partners (multi-union).
+ *
+ * Single-partner rule (enforced by the binary Union model itself):
+ *   male → left side, female → right side of base.
+ *
+ * Multi-partner rule:
+ *   Sort unions by the partner's partnerOrder ascending and lay them out
+ *   left-to-right. The base person sits at the weighted centre.
+ */
+function placeMultiPartnerSubtree(
+  baseId: PersonId,
+  unionIds: UnionId[],
+  leftX: number,
+  ctx: PlacementContext,
+): number {
+  const { data, generations, minGen, positions, visitedUnions } = ctx
+
+  const base = data.entities.people[baseId]
+  if (!base) return 0
+  const baseGen = generations.get(baseId) ?? 0
+  const baseY = yForGen(baseGen, minGen)
+  const baseW = personWidth(base.size)
+
+  // Resolve each union → partner, with partnerOrder for sorting
+  const entries: Array<{ uid: UnionId; partnerId: PersonId; partnerOrder: number }> = []
+  for (const uid of unionIds) {
+    const u = data.entities.unions[uid]
+    if (!u) continue
+    const partnerId = u.malePartnerId === baseId ? u.femalePartnerId : u.malePartnerId
+    const partner = data.entities.people[partnerId]
+    if (!partner) continue
+    entries.push({ uid, partnerId, partnerOrder: partner.partnerOrder ?? 999 })
+  }
+
+  // Sort by partnerOrder ascending (left-to-right)
+  entries.sort((a, b) => a.partnerOrder - b.partnerOrder)
+
+  // Measure total width: all partners + gaps + base
+  const partnerWidths = entries.map(({ partnerId }) => {
+    const p = data.entities.people[partnerId]!
+    return personWidth(p.size)
+  })
+  const totalPartnersWidth = partnerWidths.reduce((s, w) => s + w, 0)
+  const totalWidth =
+    totalPartnersWidth +
+    (entries.length - 1) * LAYOUT.PARTNER_GAP + // gaps between partners
+    LAYOUT.PARTNER_GAP + // gap between base and nearest partner
+    baseW
+
+  // Place everyone left-to-right; base sits after all partners on its sex side.
+  // In multi-partner mode sex rule does not apply — just left-to-right by order.
+  // Base is conceptually the "anchor" inserted between the sorted partners
+  // at its natural place by partnerOrder. Since base has no partnerOrder
+  // (it's the bloodline person), we place base at the centre of the cluster.
+  let cursor = leftX
+  for (let i = 0; i < entries.length; i++) {
+    const { uid, partnerId } = entries[i]!
+    const partner = data.entities.people[partnerId]!
+    const pw = personWidth(partner.size)
+    positions.set(partnerId, { x: cursor + pw / 2, y: baseY })
+    cursor += pw + LAYOUT.PARTNER_GAP
+    visitedUnions.add(uid)
+    // Place union anchor midway between consecutive partners (or partner+base)
+    // — simple midpoint between this partner and the next entity
+  }
+
+  // Base goes at the end (after all ordered partners)
+  const baseCenterX = cursor + baseW / 2
+  positions.set(baseId, { x: baseCenterX, y: baseY })
+
+  // Place union nodes midway between each partner and the next entity
+  for (let i = 0; i < entries.length; i++) {
+    const { uid, partnerId } = entries[i]!
+    const partnerPos = positions.get(partnerId)!
+    const nextX =
+      i + 1 < entries.length
+        ? positions.get(entries[i + 1]!.partnerId)!.x
+        : baseCenterX
+    positions.set(uid, { x: (partnerPos.x + nextX) / 2, y: baseY })
   }
 
   return totalWidth
