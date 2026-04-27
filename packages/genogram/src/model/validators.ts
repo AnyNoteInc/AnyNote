@@ -73,7 +73,7 @@ const PersonSchema = z.object({
 
 const UnionDivorceSchema = z.object({
   date: IsoDate.optional(),
-  custodySide: z.enum(['left', 'right', 'shared']).optional(),
+  custodySide: z.enum(['male', 'female', 'shared']).optional(),
 })
 
 const UnionSchema = z.object({

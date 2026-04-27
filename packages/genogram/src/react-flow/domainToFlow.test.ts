@@ -60,12 +60,12 @@ describe('domainToFlow', () => {
     const { data, unionId } = scenarioCouple()
     data.entities.unions[unionId]!.divorce = {
       date: '2020-01-01',
-      custodySide: 'right',
+      custodySide: 'female',
     }
     const layout = computeLayout(data)
     const { edges } = domainToFlow(data, layout)
     expect(edges[0]!.data?.decorations).toContain('divorceSlash')
-    expect(edges[0]!.data?.custodySide).toBe('right')
+    expect(edges[0]!.data?.custodySide).toBe('female')
   })
 
   it('nuclear family → person nodes + union + hub + trunk edge + 2 child edges', () => {

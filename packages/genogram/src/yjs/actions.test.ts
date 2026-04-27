@@ -62,11 +62,11 @@ describe('yjs actions', () => {
     const female = addPerson(doc, { sex: 'female', bloodRelation: 'partner' })
     const union = addUnion(doc, { malePartnerId: male.id, femalePartnerId: female.id })
 
-    setUnionDivorce(doc, union.id, { date: '2020-06-01', custodySide: 'right' })
+    setUnionDivorce(doc, union.id, { date: '2020-06-01', custodySide: 'female' })
     let domain = assembleDomain(doc)
     expect(domain.entities.unions[union.id]!.divorce).toEqual({
       date: '2020-06-01',
-      custodySide: 'right',
+      custodySide: 'female',
     })
 
     setUnionDivorce(doc, union.id, undefined)

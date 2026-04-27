@@ -14,8 +14,8 @@ export interface DivorceMarkerProps {
 
 /**
  * Two parallel diagonal slashes across the union line. The position along
- * the line reflects custodySide: left ⇒ near male partner (children stay with him),
- * right ⇒ near female partner, shared/undefined ⇒ midpoint.
+ * the line reflects custodySide: male ⇒ near male partner (children stay with him),
+ * female ⇒ near female partner, shared/undefined ⇒ midpoint.
  */
 export function DivorceMarker({
   sourceX,
@@ -64,9 +64,9 @@ export function DivorceMarker({
 
 function custodySideToT(side?: CustodySide): number {
   switch (side) {
-    case 'left':
+    case 'male':
       return 0.35
-    case 'right':
+    case 'female':
       return 0.65
     case 'shared':
     default:

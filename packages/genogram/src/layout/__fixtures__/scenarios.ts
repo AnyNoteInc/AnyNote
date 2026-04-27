@@ -316,7 +316,7 @@ export function scenarioComplexGenogram(): {
   addChildGroup(data, uMaternalGran, [{ kind: 'person', personId: mom }])
 
   const uParents = addUnion(data, dad, mom, {
-    divorce: { custodySide: 'right' },
+    divorce: { custodySide: 'female' },
   })
 
   // ── gen 0: owner's generation ──────────────────────

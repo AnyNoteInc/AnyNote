@@ -26,9 +26,9 @@ export type ApproximateAge =
   | { kind: 'range'; from: number; to: number }
 
 export interface PartialDate {
-  year?: number
-  month?: number
-  day?: number
+  year?: number   // 4-digit, e.g. 2026
+  month?: number  // 1-12
+  day?: number    // 1-31
 }
 
 export interface PersonIdentity {
@@ -44,7 +44,7 @@ export interface LifeDates {
   birthDate?: PartialDate
   deathDate?: PartialDate
   birthMode: BirthMode
-  approximateAge?: ApproximateAge
+  approximateAge?: ApproximateAge  // only meaningful when birthMode='approximate'
   lifeStatus: LifeStatus
   tragically?: boolean
 }
@@ -75,7 +75,7 @@ export interface Person {
 
 export type UnionKind = 'marriage' | 'cohabitation'
 
-export type CustodySide = 'left' | 'right' | 'shared'
+export type CustodySide = 'male' | 'female' | 'shared'
 
 export interface UnionDivorce {
   date?: PartialDate
@@ -130,6 +130,7 @@ export interface Annotation {
 }
 
 export interface GenogramMeta {
+  /** ISO 8601 timestamp, set once at genogram creation */
   createdAt: string
   ownerId: PersonId
 }
