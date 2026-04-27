@@ -257,3 +257,42 @@ describe('multi-partner layout — base in middle, children placed, anchor at ba
     expect(u2X).toBeCloseTo((baseX + p2X) / 2, 5)
   })
 })
+
+describe('children placement', () => {
+  it('places children left-to-right in ChildGroup.children order', () => {
+    const data = buildFixtureWithChildren()
+    const layout = computeLayout(data)
+    expect(layout.positions['c1' as PersonId]!.x).toBeLessThan(layout.positions['c2' as PersonId]!.x)
+    expect(layout.positions['c2' as PersonId]!.x).toBeLessThan(layout.positions['c3' as PersonId]!.x)
+  })
+})
+
+function buildFixtureWithChildren(): GenogramPageData {
+  const data = createEmptyGenogram()
+
+  const fatherId = addPerson(data, { sex: 'male', bloodRelation: 'direct', role: 'owner' })
+  const motherId = addPerson(data, { sex: 'female', bloodRelation: 'partner', partnerOrder: 1 })
+
+  const c1Id = addPerson(data, { sex: 'male', bloodRelation: 'direct' }, 'c1' as PersonId)
+  const c2Id = addPerson(data, { sex: 'female', bloodRelation: 'direct' }, 'c2' as PersonId)
+  const c3Id = addPerson(data, { sex: 'male', bloodRelation: 'direct' }, 'c3' as PersonId)
+
+  const cg = createChildGroup({
+    unionId: 'placeholder' as UnionId,
+    children: [
+      { kind: 'person', personId: c1Id },
+      { kind: 'person', personId: c2Id },
+      { kind: 'person', personId: c3Id },
+    ],
+  })
+  const u = createUnion({
+    malePartnerId: fatherId,
+    femalePartnerId: motherId,
+    childGroupId: cg.id,
+  })
+  cg.unionId = u.id
+  data.entities.unions[u.id] = u
+  data.entities.childGroups[cg.id] = cg
+
+  return data
+}
