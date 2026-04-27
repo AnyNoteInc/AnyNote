@@ -446,11 +446,25 @@ export function setPartnerOrder(doc: Y.Doc, partnerId: PersonId, newOrder: numbe
     const baseId = getBaseOf(partnerId, domain.entities.unions)
     if (!baseId) throw new Error(`${partnerId} is not a partner of a base person`)
     const partners = getPartnersOf(baseId, domain.entities.unions, domain.entities.people)
+
+    if (newOrder < 1 || newOrder > partners.length) {
+      throw new RangeError(
+        `newOrder ${newOrder} out of range 1..${partners.length} for partner ${partnerId}`,
+      )
+    }
+
+    const movingPartner = partners.find((p) => p.partnerId === partnerId)
+    if (!movingPartner) {
+      throw new Error(`partner ${partnerId} not found in partners of base ${baseId}`)
+    }
+
+    if ((movingPartner.partnerOrder ?? 0) === newOrder) return
+
     const reordered = partners
       .filter((p) => p.partnerId !== partnerId)
       .sort((a, b) => (a.partnerOrder ?? 0) - (b.partnerOrder ?? 0))
 
-    reordered.splice(newOrder - 1, 0, partners.find((p) => p.partnerId === partnerId)!)
+    reordered.splice(newOrder - 1, 0, movingPartner)
     reordered.forEach((p, idx) => {
       updatePerson(doc, p.partnerId, { partnerOrder: idx + 1 })
     })

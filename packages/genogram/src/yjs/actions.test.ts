@@ -319,4 +319,53 @@ describe('setPartnerOrder', () => {
     expect(domain.entities.people[w1.partnerId]!.partnerOrder).toBe(2)
     expect(domain.entities.people[w2.partnerId]!.partnerOrder).toBe(1)
   })
+
+  it('throws when newOrder out of range', () => {
+    const doc = new Y.Doc()
+    const owner = createOwnerWithParents(doc, { sex: 'male' })
+    const w1 = addPartner(doc, owner.ownerId,
+      { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      { kind: 'marriage' }, 1)
+    const w2 = addPartner(doc, owner.ownerId,
+      { firstName: 'Мария', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      { kind: 'marriage' }, 2)
+    void w2
+
+    expect(() => setPartnerOrder(doc, w1.partnerId, 0)).toThrow(RangeError)
+    expect(() => setPartnerOrder(doc, w1.partnerId, 5)).toThrow(RangeError)
+  })
+
+  it('throws when person is not a partner of any base', () => {
+    const doc = new Y.Doc()
+    const orphan = addPerson(doc, {
+      sex: 'male',
+      bloodRelation: 'direct',
+      role: 'regular',
+      size: 'big',
+      identity: {},
+      lifeDates: { birthMode: 'date', lifeStatus: 'alive' },
+    })
+    expect(() => setPartnerOrder(doc, orphan.id, 1)).toThrow()
+  })
+
+  it('reorders 3 partners moving #1 to #3 → ordinals dense 1..3', () => {
+    const doc = new Y.Doc()
+    const owner = createOwnerWithParents(doc, { sex: 'male' })
+    const w1 = addPartner(doc, owner.ownerId,
+      { firstName: 'A', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      { kind: 'marriage' }, 1)
+    const w2 = addPartner(doc, owner.ownerId,
+      { firstName: 'B', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      { kind: 'marriage' }, 2)
+    const w3 = addPartner(doc, owner.ownerId,
+      { firstName: 'C', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      { kind: 'marriage' }, 3)
+
+    setPartnerOrder(doc, w1.partnerId, 3)
+
+    const domain = assembleDomain(doc)
+    expect(domain.entities.people[w1.partnerId]!.partnerOrder).toBe(3)
+    expect(domain.entities.people[w2.partnerId]!.partnerOrder).toBe(1)
+    expect(domain.entities.people[w3.partnerId]!.partnerOrder).toBe(2)
+  })
 })
