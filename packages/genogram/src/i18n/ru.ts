@@ -1,0 +1,81 @@
+const yearsSuffix = (n: number): 'год' | 'года' | 'лет' => {
+  const mod10 = n % 10
+  const mod100 = n % 100
+  if (mod10 === 1 && mod100 !== 11) return 'год'
+  if ([2, 3, 4].includes(mod10) && ![12, 13, 14].includes(mod100)) return 'года'
+  return 'лет'
+}
+
+export const RU = {
+  emptyState: {
+    title: 'Генограмма пуста',
+    subtitle: 'Начните с заполнения данных владельца',
+    cta: 'Создать генограмму',
+  },
+  drawer: {
+    titleCreate: 'Создание генограммы',
+    titleEditData: 'Редактирование данных',
+    titleEditOwner: 'Данные владельца',
+    titleAddPartner: 'Добавление партнёра',
+    titleEditConnection: 'Редактирование связи',
+    titleAddChildren: 'Добавление детей',
+    save: 'Сохранить',
+    create: 'Создать генограмму',
+    cancel: 'Отменить',
+  },
+  fields: {
+    lastName: 'Фамилия',
+    firstName: 'Имя',
+    middleName: 'Отчество',
+    sex: 'Пол',
+    sexMale: 'Мужской',
+    sexFemale: 'Женский',
+    birthDate: 'Дата рождения',
+    approximateAge: 'Приблизительный возраст',
+    lifeStatus: 'Статус',
+    alive: 'Жив',
+    deceased: 'Умер',
+    unknown: 'Неизвестно',
+    deathDate: 'Дата смерти',
+    tragically: 'Трагически',
+    relationKind: 'Тип',
+    marriage: 'Брак',
+    cohabitation: 'Отношения',
+    weddingDate: 'Дата свадьбы',
+    divorced: 'Брак расторгнут',
+    divorceDate: 'Дата развода',
+    relationStartDate: 'Дата начала',
+    relationEnded: 'Отношения закончены',
+    relationEndDate: 'Дата завершения',
+    childCount: 'Укажите количество детей',
+    childKind: 'Тип',
+    childKindChild: 'Ребёнок',
+    childKindMiscarriage: 'Выкидыш',
+    childKindAbortion: 'Аборт',
+    eventDate: 'Дата',
+    ageMode: 'Тип возраста',
+    ageModeSingle: 'Один возраст',
+    ageModeRange: 'Диапазон',
+    ageFrom: 'От',
+    ageTo: 'До',
+    partnerCount: 'Укажите количество партнёров',
+    partnerOrder: 'Порядковый номер партнёра',
+    childOrder: 'Порядковый номер ребёнка',
+  },
+  menu: {
+    editData: 'Редактировать данные',
+    editOwnerData: 'Редактировать данные владельца',
+    addPartner: 'Добавить партнёра',
+    addParents: 'Добавить родителей',
+    editConnection: 'Редактировать связь',
+    addChildren: 'Добавить детей',
+  },
+  labels: {
+    creationDate: 'Дата создания',
+    unknownPerson: { male: 'Неизвестный', female: 'Неизвестная' },
+    yearsSuffix,
+    yearsOld: (n: number) => `${n} ${yearsSuffix(n)}`,
+    yearsOldApprox: (n: number) => `~${n} ${yearsSuffix(n)}`,
+    yearsOldRange: (from: number, to: number) => `~${from}-${to}`,
+  },
+} as const
