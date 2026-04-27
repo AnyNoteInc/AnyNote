@@ -26,6 +26,10 @@
 12. **"Трагически"** — чекбокс при выборе "Умер"; X-маркер внутри элемента отображается при `tragically=true` ИЛИ `ageAtDeath<65`.
 13. **Перетаскиваемая отметка развода** — `markPosition` 0..1 вдоль линии связи, default 0.5.
 14. **Архитектурный подход A** — весь UI внутри `@repo/genogram`, MUI как dep (по аналогии с `@repo/excalidraw`).
+15. **Партнёрская сторона при добавлении** — мужской партнёр слева от базы, женский справа (одиночный партнёр). При множественных партнёрах — слева направо по `partnerOrder` (старшинство).
+16. **Поле "Укажите количество партнёров"** при `add-partner` — задаёт ordinal нового партнёра. Если итоговое total > 1, все партнёры базы получают ordinal'ы и число рисуется внутри их элемента.
+17. **Поле "Порядковый номер партнёра"** в `edit-data` для партнёра — изменяет ordinal с авто-перенумерацией остальных и сменой позиции на схеме.
+18. **Поле "Порядковый номер ребёнка"** в `edit-data` для ребёнка — изменяет позицию в `ChildGroup.children` (но число не рисуется внутри элемента).
 
 ## Архитектура и файловая структура
 
@@ -245,6 +249,14 @@ MUI `<Menu>`, анкер из `ReactFlow.onEdgeClick`. Только для `Unio
 | **Дата смерти** | `<PartialDateInput>` | — | если "Умер" |
 | **Трагически** | `<Checkbox>` | — | если "Умер" |
 
+**Условные поля по контексту**:
+
+| Поле | Контекст показа | Компонент | Note |
+|---|---|---|---|
+| Укажите количество партнёров | mode='add-partner' (только) | `<TextField type="number" min={existingPartners + 1}>` | default = `existingPartners + 1`. Задаёт ordinal нового партнёра. Если задано >1, при submit все партнёры базы получают ordinal'ы 1..N. |
+| Порядковый номер партнёра | mode='edit-data' AND person — партнёр базы с `>1` партнёрами у этой базы | `<TextField type="number" min={1} max={totalPartnersOfBase}>` | Изменение → реордер остальных с авто-перенумерацией. |
+| Порядковый номер ребёнка | mode='edit-data' AND person — child в каком-либо ChildGroup | `<TextField type="number" min={1} max={siblingsCount}>` | Изменение → реордер `ChildGroup.children`. На схеме внутри элемента не рисуется. |
+
 Используется в `edit-data`, `add-partner` (как блок), child entries в `add-children`.
 
 ### MarriageRelationForm
@@ -334,6 +346,7 @@ Mapping:
 | Маленький квадрат | `<rect width=48 height=48>` (sex='male', size='small') |
 | Маленький круг | `<circle r=24>` (sex='female', size='small') |
 | **X-маркер "Умер" (поверх)** | если `lifeStatus='deceased' && (tragically OR ageAtDeath<65)`: для квадрата — две диагонали из углов; для круга — две диагонали, **вписанные** в круг (концы на `r·cos45°` от центра) |
+| **Номер партнёра внутри элемента** | если у базы (партнёр которого данная Person) `totalPartnersOfBase > 1` И у Person задан `partnerOrder` — отрисовываем число `partnerOrder` в центре элемента, `font-size=18px`, `text-anchor='middle'`. Не пересекается с X-маркером (если "Умер" + tragically — число рисуется поверх линий, чуть выше центра). Внутри inner-shape владельца число не рисуется (владелец сам не партнёр). |
 
 Удаляется: inline `?` внутри элемента (теперь `?` идёт в подпись), legacy X-маркер для `deathKind`.
 
@@ -381,10 +394,28 @@ createOwnerWithParents(doc, draft: OwnerDataDraft): {
   childGroupId: ChildGroupId
 }
 
-addPartner(doc, basePersonId: PersonId, personDraft: PersonDataDraft, unionDraft: UnionDraft): {
+addPartner(
+  doc,
+  basePersonId: PersonId,
+  personDraft: PersonDataDraft,
+  unionDraft: UnionDraft,
+  newPartnerOrder: number,    // = "Укажите количество партнёров"; если 1 — partnerOrder не выставляется
+): {
   partnerId: PersonId
   unionId: UnionId
 }
+// Side effect: если newPartnerOrder > 1 (у базы будет >1 партнёров после добавления) —
+// существующие партнёры базы получают partnerOrder 1..K, новый партнёр получает newPartnerOrder.
+// Если newPartnerOrder ≤ existing K — новые ordinal'ы вставляются со смещением остальных.
+
+setPartnerOrder(doc, partnerId: PersonId, newOrder: number): void
+// При edit-data → "Порядковый номер партнёра". Реордерит партнёров базы:
+// все остальные партнёры с ordinal ≥ newOrder сдвигаются на +1 (или -1 в зависимости от направления).
+// Гарантирует уникальность ordinal'ов 1..N.
+
+setChildOrder(doc, childPersonId: PersonId, newOrder: number): void
+// При edit-data → "Порядковый номер ребёнка". Реордерит ChildGroup.children, к которому принадлежит ребёнок.
+// Если ребёнок входит в несколько ChildGroup (что не предполагается доменом) — операция throws.
 
 addParents(doc, childPersonId: PersonId): {
   fatherId: PersonId
@@ -436,7 +467,46 @@ calcAge(birthDate: PartialDate, refDate: PartialDate | string): number | undefin
 calcAgeAtDeath(person: Person): number | undefined
 shouldShowDeathCross(person: Person): boolean   // tragically || ageAtDeath<65
 formatPartialDate(date: PartialDate): string    // в i18n/format-date.ts
+
+// Партнёрские helpers
+getBaseOf(partnerId, unions): PersonId | null
+// Возвращает противоположную сторону Union'а, в котором partnerId участвует.
+// Если у partnerId несколько Union'ов — это сам "central" person, возвращает null.
+
+getPartnersOf(basePersonId, unions): { unionId, partnerId, partnerOrder? }[]
+// Все партнёры базы, отсортированные по partnerOrder ascending (без ordinal — в конец).
+
+countPartnersOf(basePersonId, unions): number
+// Длина getPartnersOf.
+
+shouldShowPartnerOrder(personId, people, unions): boolean
+// true если Person — партнёр базы с >1 партнёрами. Используется в PersonNode для рендера числа.
 ```
+
+## Layout: размещение партнёров и детей
+
+### Партнёры
+
+Применяется в `layout/placement.ts` при расчёте позиций партнёров базы.
+
+| Случай | Правило |
+|---|---|
+| База имеет 1 партнёра | Если новый партнёр `sex='male'` — слева от базы; `sex='female'` — справа от базы. (При редактировании пола одиночного партнёра — он "переезжает" на соответствующую сторону.) |
+| База имеет 2+ партнёров | Все партнёры размещаются на одной горизонтальной линии с базой, упорядоченные по `partnerOrder` слева направо (1 — самый левый). База располагается в середине, между партнёром с самым низким `partnerOrder` и следующим. Если партнёров чётное число, база между двумя средними. (Точное расположение остаётся за алгоритмом placement; правило задаёт порядок.) Sex-правило в этом случае не применяется. |
+
+Y-координата партнёров — та же, что у базы (одна линия иерархии).
+
+### Дети
+
+| Случай | Правило |
+|---|---|
+| Один ребёнок | Размещается под родительской линией связи (центрировано относительно союза). |
+| Несколько детей | Размещаются на одной горизонтальной линии под родительской линией связи, в порядке `ChildGroup.children`. Левый край = первый элемент массива, правый = последний. |
+
+`partnerOrder` хранится в существующем поле `Person.partnerOrder` (тип уже определён в модели). Контракт:
+- Поле обязательно для всех партнёров базы, у которой `>1` партнёров.
+- Поле undefined, если у базы `≤1` партнёр.
+- Управляется только через actions `addPartner` и `setPartnerOrder` (никаких прямых правок). Actions гарантируют консистентность ordinal'ов 1..N.
 
 ## Расчёт возраста
 
@@ -521,6 +591,9 @@ export const RU = {
     ageModeRange: 'Диапазон',
     ageFrom: 'От',
     ageTo: 'До',
+    partnerCount: 'Укажите количество партнёров',
+    partnerOrder: 'Порядковый номер партнёра',
+    childOrder: 'Порядковый номер ребёнка',
   },
   menu: {
     editData: 'Редактировать данные',
@@ -560,13 +633,14 @@ export const RU = {
 
 - `format-date.test.ts` — все ветки `formatPartialDate`.
 - `computed.test.ts` — `calcAge`, `calcAgeAtDeath`, `shouldShowDeathCross`, `hasParents`, `getChildGroupOf`.
-- `actions.test.ts` — Y.Doc actions: `createOwnerWithParents` создаёт правильный набор; `addParents` блокируется (assertion) если родители уже есть; `addChildren` корректно вставляет реордер + новых детей; `addPartner` создаёт союз правильного kind; `updateUnion` поддерживает `divorce.markPosition`.
+- `actions.test.ts` — Y.Doc actions: `createOwnerWithParents` создаёт правильный набор; `addParents` блокируется (assertion) если родители уже есть; `addChildren` корректно вставляет реордер + новых детей; `addPartner` создаёт союз правильного kind; `addPartner` с `newPartnerOrder>1` авто-нумерует существующих партнёров; `setPartnerOrder` реордерит без дыр; `setChildOrder` меняет позицию в `ChildGroup.children`; `updateUnion` поддерживает `divorce.markPosition`.
+- `placement.test.ts` — single male партнёр слева, single female справа; multi-partner упорядочены по `partnerOrder`; дети по порядку `ChildGroup.children`.
 - `transforms.test.ts` — round-trip domain ↔ page snapshot не теряет новые поля.
 
 ### Component (Jest + RTL)
 
 - `OwnerDataForm.test.tsx` — submit вызывает action с правильным draft; режим `create` vs `edit`.
-- `PersonDataForm.test.tsx` — все переключатели (birthMode, lifeStatus); поля даты смерти + tragically появляются по условию; диапазон возраста.
+- `PersonDataForm.test.tsx` — все переключатели (birthMode, lifeStatus); поля даты смерти + tragically появляются по условию; диапазон возраста; "Укажите количество партнёров" видно только в `add-partner`; "Порядковый номер партнёра" виден только при редактировании партнёра базы с >1 партнёрами; "Порядковый номер ребёнка" виден только при редактировании ребёнка.
 - `MarriageRelationForm.test.tsx` — Брак/Отношения переключение, расторгнут/закончены.
 - `AddChildrenForm.test.tsx` — динамическое количество строк; существующие дети первыми; перетаскивание меняет порядок; submit.
 - `ElementMenu.test.tsx` — пункты по типу узла; "Добавить родителей" скрыт если родители уже есть.
@@ -580,6 +654,7 @@ export const RU = {
 2. **Add partner + edit connection**: владелец → "Добавить партнёра" → форма + "Брак" → submit → партнёр с линией. Клик на линию → "Редактировать связь" → переключение на "Отношения" → линия штриховая.
 3. **Add children + edit data + tragically**: на линии → "Добавить детей" count=2, "Ребёнок" + "Выкидыш" → 2 маленьких + крест с буквой В. Клик на ребёнка → "Редактировать" → "Умер" + "Трагически" → внутри ребёнка X.
 4. **Drag divorce mark persistence**: брак с разводом → перетащить отметку → reload → отметка в новой позиции.
+5. **Multi-partner ordering**: владелец → "Добавить партнёра" #1 (count=1) → партнёр без числа внутри. Добавить партнёра #2 (count=2) → у обоих партнёров появляется ordinal внутри (1 и 2), они упорядочены слева направо. Edit partner #1 → "Порядковый номер партнёра" → меняем на 2 → партнёр #2 становится #1, перемещаются местами на схеме.
 
 Зависит от dev-сервера на `localhost:3000` (см. CLAUDE.md), использует существующую auth-фикстуру.
 
