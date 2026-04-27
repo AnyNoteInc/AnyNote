@@ -1,4 +1,5 @@
 import type { BloodRelation, Person, PersonSize, RenderableLabel } from '../types'
+import type { PartialDate } from '../types/domain'
 import { computeAge as computeAgeFromDates } from '../utils/dates'
 
 export function resolveSize(bloodRelation: BloodRelation): PersonSize {
@@ -32,4 +33,38 @@ export function isPartnerPerson(p: Person): boolean {
 
 export function isOwner(p: Person): boolean {
   return p.role === 'owner'
+}
+
+export function calcAge(
+  birth: PartialDate | undefined,
+  ref: PartialDate | string | undefined,
+): number | undefined {
+  if (!birth || birth.year === undefined || !ref) return undefined
+  const refPartial = typeof ref === 'string' ? isoToPartial(ref) : ref
+  if (!refPartial || refPartial.year === undefined) return undefined
+
+  if (
+    birth.day !== undefined &&
+    birth.month !== undefined &&
+    refPartial.day !== undefined &&
+    refPartial.month !== undefined
+  ) {
+    let age = refPartial.year - birth.year
+    if (refPartial.month < birth.month || (refPartial.month === birth.month && refPartial.day < birth.day)) {
+      age -= 1
+    }
+    return age
+  }
+  return refPartial.year - birth.year
+}
+
+export function calcAgeAtDeath(person: Person): number | undefined {
+  if (person.lifeDates.lifeStatus !== 'deceased') return undefined
+  return calcAge(person.lifeDates.birthDate, person.lifeDates.deathDate)
+}
+
+function isoToPartial(iso: string): PartialDate | undefined {
+  const d = new Date(iso)
+  if (isNaN(d.getTime())) return undefined
+  return { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() }
 }
