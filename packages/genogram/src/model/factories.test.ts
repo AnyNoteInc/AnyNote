@@ -12,12 +12,13 @@ describe('factories', () => {
     expect(g.layout).toBeUndefined()
   })
 
-  it('createPerson defaults role, size, isDeceased', () => {
+  it('createPerson defaults role, size, lifeStatus', () => {
     const p = createPerson({ sex: 'male', bloodRelation: 'direct' })
     expect(p.sex).toBe('male')
     expect(p.role).toBe('regular')
     expect(p.size).toBe('big')
-    expect(p.lifeDates.isDeceased).toBe(false)
+    expect(p.lifeDates.lifeStatus).toBe('unknown')
+    expect(p.lifeDates.birthMode).toBe('date')
   })
 
   it('size defaults to small for sibling/unknown', () => {

@@ -12,6 +12,7 @@ import type {
   GenogramPageData,
   LifeDates,
   LossKind,
+  PartialDate,
   Person,
   PersonId,
   PersonIdentity,
@@ -57,7 +58,8 @@ export function createPerson(input: CreatePersonInput): Person {
     partnerOrder: input.partnerOrder,
     identity: input.identity ?? {},
     lifeDates: {
-      isDeceased: false,
+      birthMode: 'date',
+      lifeStatus: 'unknown',
       ...input.lifeDates,
     },
     profile: input.profile ?? {},
@@ -69,8 +71,8 @@ export interface CreateUnionInput {
   malePartnerId: PersonId
   femalePartnerId: PersonId
   kind?: UnionKind
-  startDate?: string
-  endDate?: string
+  startDate?: PartialDate
+  endDate?: PartialDate
   divorce?: UnionDivorce
   childGroupId?: ChildGroupId
   id?: UnionId
@@ -120,7 +122,7 @@ export function createBirthGroup(input: CreateBirthGroupInput): BirthGroup {
 export interface CreatePregnancyLossInput {
   kind: LossKind
   childGroupId: ChildGroupId
-  date?: string
+  date?: PartialDate
   note?: string
   id?: PregnancyLossId
 }
@@ -148,6 +150,26 @@ export function createAnnotation(input: CreateAnnotationInput): Annotation {
     text: input.text,
     targetId: input.targetId,
     position: input.position,
+  }
+}
+
+export function createDefaultParent(sex: Sex): Person {
+  return createPerson({
+    sex,
+    bloodRelation: 'direct',
+    role: 'regular',
+    size: 'big',
+    identity: { isUnknown: true },
+    lifeDates: { birthMode: 'date', lifeStatus: 'unknown' },
+    profile: {},
+  })
+}
+
+export function createDefaultUnion(maleId: PersonId, femaleId: PersonId): Omit<Union, 'id'> {
+  return {
+    kind: 'marriage',
+    malePartnerId: maleId,
+    femalePartnerId: femaleId,
   }
 }
 

@@ -2,7 +2,21 @@ import { z } from 'zod'
 import type { GenogramPageData } from '../types'
 
 const Id = z.string().uuid()
-const IsoDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'expected YYYY-MM-DD')
+
+const PartialDateSchema = z.object({
+  year: z.number().int().optional(),
+  month: z.number().int().min(1).max(12).optional(),
+  day: z.number().int().min(1).max(31).optional(),
+})
+
+const ApproximateAgeSchema = z.union([
+  z.object({ kind: z.literal('value'), value: z.number().int().nonnegative() }),
+  z.object({
+    kind: z.literal('range'),
+    from: z.number().int().nonnegative(),
+    to: z.number().int().nonnegative(),
+  }),
+])
 
 const PersonIdentitySchema = z.object({
   firstName: z.string().optional(),
@@ -14,12 +28,12 @@ const PersonIdentitySchema = z.object({
 })
 
 const LifeDatesSchema = z.object({
-  birthDate: IsoDate.optional(),
-  birthDateApprox: z.boolean().optional(),
-  deathDate: IsoDate.optional(),
-  deathDateApprox: z.boolean().optional(),
-  isDeceased: z.boolean(),
-  deathKind: z.enum(['natural', 'tragic', 'early']).optional(),
+  birthDate: PartialDateSchema.optional(),
+  deathDate: PartialDateSchema.optional(),
+  birthMode: z.enum(['date', 'approximate']),
+  approximateAge: ApproximateAgeSchema.optional(),
+  lifeStatus: z.enum(['alive', 'deceased', 'unknown']),
+  tragically: z.boolean().optional(),
 })
 
 const CharacterTagSchema = z.union([
@@ -72,7 +86,7 @@ const PersonSchema = z.object({
 })
 
 const UnionDivorceSchema = z.object({
-  date: IsoDate.optional(),
+  date: PartialDateSchema.optional(),
   custodySide: z.enum(['male', 'female', 'shared']).optional(),
 })
 
@@ -81,8 +95,8 @@ const UnionSchema = z.object({
   kind: z.enum(['marriage', 'cohabitation']),
   malePartnerId: Id,
   femalePartnerId: Id,
-  startDate: IsoDate.optional(),
-  endDate: IsoDate.optional(),
+  startDate: PartialDateSchema.optional(),
+  endDate: PartialDateSchema.optional(),
   divorce: UnionDivorceSchema.optional(),
   childGroupId: Id.optional(),
 })
@@ -115,7 +129,7 @@ const PregnancyLossSchema = z.object({
   id: Id,
   kind: z.enum(['abortion', 'miscarriage']),
   childGroupId: Id,
-  date: IsoDate.optional(),
+  date: PartialDateSchema.optional(),
   note: z.string().optional(),
 })
 
