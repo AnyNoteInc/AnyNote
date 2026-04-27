@@ -3,6 +3,7 @@ import * as Y from 'yjs'
 import {
   addBirthGroup,
   addChildGroup,
+  addChildren,
   addParents,
   addPartner,
   addPerson,
@@ -367,5 +368,50 @@ describe('setPartnerOrder', () => {
     expect(domain.entities.people[w1.partnerId]!.partnerOrder).toBe(3)
     expect(domain.entities.people[w2.partnerId]!.partnerOrder).toBe(1)
     expect(domain.entities.people[w3.partnerId]!.partnerOrder).toBe(2)
+  })
+})
+
+describe('addChildren', () => {
+  it('adds Person and PregnancyLoss entries to ChildGroup', () => {
+    const doc = new Y.Doc()
+    const owner = createOwnerWithParents(doc, { sex: 'male' })
+    const partner = addPartner(doc, owner.ownerId,
+      { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      { kind: 'marriage' }, 1)
+
+    addChildren(doc, partner.unionId, [
+      { type: 'person', data: { firstName: 'Лиза', sex: 'female', lifeStatus: 'alive', birthMode: 'date' } },
+      { type: 'miscarriage', date: { day: 5, month: 4, year: 2020 } },
+    ])
+
+    const domain = assembleDomain(doc)
+    const childGroups = Object.values(domain.entities.childGroups)
+    const cg = childGroups.find((c) => c.unionId === partner.unionId)!
+    expect(cg.children).toHaveLength(2)
+    expect(cg.children[0]!.kind).toBe('person')
+    expect(cg.children[1]!.kind).toBe('loss')
+  })
+
+  it('reorders existing children when reorderExisting is provided', () => {
+    const doc = new Y.Doc()
+    const owner = createOwnerWithParents(doc, { sex: 'male' })
+    const partner = addPartner(doc, owner.ownerId,
+      { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      { kind: 'marriage' }, 1)
+
+    addChildren(doc, partner.unionId, [
+      { type: 'person', data: { firstName: 'A', sex: 'female', lifeStatus: 'alive', birthMode: 'date' } },
+      { type: 'person', data: { firstName: 'B', sex: 'male', lifeStatus: 'alive', birthMode: 'date' } },
+    ])
+
+    let domain = assembleDomain(doc)
+    let cg = Object.values(domain.entities.childGroups).find((c) => c.unionId === partner.unionId)!
+    const reversed = [...cg.children].reverse()
+
+    addChildren(doc, partner.unionId, [], reversed)
+
+    domain = assembleDomain(doc)
+    cg = Object.values(domain.entities.childGroups).find((c) => c.unionId === partner.unionId)!
+    expect(cg.children).toEqual(reversed)
   })
 })

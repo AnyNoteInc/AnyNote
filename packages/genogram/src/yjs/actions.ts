@@ -470,3 +470,60 @@ export function setPartnerOrder(doc: Y.Doc, partnerId: PersonId, newOrder: numbe
     })
   })
 }
+
+// ── addChildren ──────────────────────────────────────────────────────────────
+
+export type ChildEntryDraft =
+  | { type: 'person'; data: PersonDataDraft }
+  | { type: 'miscarriage' | 'abortion'; date?: PartialDate }
+
+export function addChildren(
+  doc: Y.Doc,
+  unionId: UnionId,
+  newEntries: ChildEntryDraft[],
+  reorderExisting?: ChildEntry[],
+): void {
+  doc.transact(() => {
+    const domain = assembleDomain(doc)
+    let cg = Object.values(domain.entities.childGroups).find((c) => c.unionId === unionId)
+    if (!cg) {
+      cg = addChildGroup(doc, { unionId })
+    }
+
+    if (reorderExisting) {
+      reorderChildren(doc, cg.id, () => reorderExisting)
+    }
+
+    for (const entry of newEntries) {
+      if (entry.type === 'person') {
+        const child = addPerson(doc, {
+          sex: entry.data.sex,
+          bloodRelation: 'direct',
+          role: 'regular',
+          size: 'small',
+          identity: {
+            firstName: entry.data.firstName,
+            lastName: entry.data.lastName,
+            middleName: entry.data.middleName,
+          },
+          lifeDates: {
+            birthMode: entry.data.birthMode,
+            lifeStatus: entry.data.lifeStatus,
+            birthDate: entry.data.birthDate,
+            approximateAge: entry.data.approximateAge,
+            deathDate: entry.data.deathDate,
+            tragically: entry.data.tragically,
+          },
+        })
+        appendChild(doc, cg.id, { kind: 'person', personId: child.id })
+      } else {
+        const loss = addPregnancyLoss(doc, {
+          kind: entry.type,
+          childGroupId: cg.id,
+          date: entry.date,
+        })
+        appendChild(doc, cg.id, { kind: 'loss', lossId: loss.id })
+      }
+    }
+  })
+}
