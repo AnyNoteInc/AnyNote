@@ -22,6 +22,11 @@ describe('calcAge', () => {
   it('accounts for not-yet-reached birthday', () => {
     expect(calcAge({ day: 5, month: 6, year: 1984 }, { day: 27, month: 4, year: 2026 })).toBe(41)
   })
+
+  it('uses UTC for ISO strings (not local timezone)', () => {
+    // 23:00 UTC = early next day in UTC+ timezones — ensure we use UTC consistently
+    expect(calcAge({ day: 27, month: 4, year: 1984 }, '2026-04-26T23:00:00Z')).toBe(41)
+  })
 })
 
 describe('calcAgeAtDeath', () => {

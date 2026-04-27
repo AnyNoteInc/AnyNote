@@ -63,8 +63,8 @@ export function calcAgeAtDeath(person: Person): number | undefined {
   return calcAge(person.lifeDates.birthDate, person.lifeDates.deathDate)
 }
 
-function isoToPartial(iso: string): PartialDate | undefined {
+export function isoToPartial(iso: string): PartialDate | undefined {
   const d = new Date(iso)
   if (isNaN(d.getTime())) return undefined
-  return { year: d.getFullYear(), month: d.getMonth() + 1, day: d.getDate() }
+  return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() }
 }
