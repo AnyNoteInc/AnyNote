@@ -17,7 +17,19 @@ export type PersonRole = 'owner' | 'regular'
 
 export type PersonSize = 'big' | 'small'
 
-export type DeathKind = 'natural' | 'tragic' | 'early'
+export type LifeStatus = 'alive' | 'deceased' | 'unknown'
+
+export type BirthMode = 'date' | 'approximate'
+
+export type ApproximateAge =
+  | { kind: 'value'; value: number }
+  | { kind: 'range'; from: number; to: number }
+
+export interface PartialDate {
+  year?: number
+  month?: number
+  day?: number
+}
 
 export interface PersonIdentity {
   firstName?: string
@@ -29,12 +41,12 @@ export interface PersonIdentity {
 }
 
 export interface LifeDates {
-  birthDate?: string
-  birthDateApprox?: boolean
-  deathDate?: string
-  deathDateApprox?: boolean
-  isDeceased: boolean
-  deathKind?: DeathKind
+  birthDate?: PartialDate
+  deathDate?: PartialDate
+  birthMode: BirthMode
+  approximateAge?: ApproximateAge
+  lifeStatus: LifeStatus
+  tragically?: boolean
 }
 
 export type CharacterTag = { kind: 'text'; value: string } | { kind: 'tag'; value: string }
@@ -66,8 +78,9 @@ export type UnionKind = 'marriage' | 'cohabitation'
 export type CustodySide = 'left' | 'right' | 'shared'
 
 export interface UnionDivorce {
-  date?: string
+  date?: PartialDate
   custodySide?: CustodySide
+  markPosition?: number
 }
 
 export interface Union {
@@ -75,8 +88,8 @@ export interface Union {
   kind: UnionKind
   malePartnerId: PersonId
   femalePartnerId: PersonId
-  startDate?: string
-  endDate?: string
+  startDate?: PartialDate
+  endDate?: PartialDate
   divorce?: UnionDivorce
   childGroupId?: ChildGroupId
 }
@@ -105,7 +118,7 @@ export interface PregnancyLoss {
   id: PregnancyLossId
   kind: LossKind
   childGroupId: ChildGroupId
-  date?: string
+  date?: PartialDate
   note?: string
 }
 
@@ -114,4 +127,9 @@ export interface Annotation {
   targetId?: EntityId
   position?: { x: number; y: number }
   text: string
+}
+
+export interface GenogramMeta {
+  createdAt: string
+  ownerId: PersonId
 }
