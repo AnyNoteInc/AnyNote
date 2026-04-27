@@ -7,10 +7,13 @@ import {
   addPregnancyLoss,
   addUnion,
   appendChild,
+  getMeta,
   removePerson,
+  setMeta,
   setUnionDivorce,
   updatePerson,
 } from './actions'
+import type { PersonId } from '../types/domain'
 import { assembleDomain } from './assembleDomain'
 import { hydrateDoc } from './hydrateDoc'
 import { snapshotFromDoc } from './snapshotFromDoc'
@@ -162,5 +165,18 @@ describe('hydrate + snapshot roundtrip', () => {
     expect(snap.version).toBe(1)
     expect(snap.entities.people).toEqual({})
     expect(snap.annotations).toEqual({})
+  })
+})
+
+describe('meta', () => {
+  it('returns null when meta empty', () => {
+    const doc = new Y.Doc()
+    expect(getMeta(doc)).toBeNull()
+  })
+
+  it('roundtrips createdAt and ownerId', () => {
+    const doc = new Y.Doc()
+    setMeta(doc, { createdAt: '2026-04-27T00:00:00Z', ownerId: 'p1' as PersonId })
+    expect(getMeta(doc)).toEqual({ createdAt: '2026-04-27T00:00:00Z', ownerId: 'p1' })
   })
 })

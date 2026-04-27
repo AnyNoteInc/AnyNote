@@ -10,6 +10,12 @@ export const GENOGRAM_MAP_NAMES = {
   annotations: 'genogram.annotations',
 } as const
 
+export const META_MAP = 'genogram.meta'
+
+export function getMetaMap(doc: Y.Doc): Y.Map<string> {
+  return doc.getMap<string>(META_MAP)
+}
+
 export interface GenogramYMaps {
   people: Y.Map<Person>
   unions: Y.Map<Union>

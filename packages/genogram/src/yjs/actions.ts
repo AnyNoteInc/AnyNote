@@ -29,7 +29,8 @@ import type {
   UnionDivorce,
   UnionId,
 } from '../types'
-import { getGenogramMaps } from './schema'
+import type { GenogramMeta } from '../types/domain'
+import { getGenogramMaps, getMetaMap } from './schema'
 
 // ── creation ─────────────────────────────────────────────
 
@@ -199,5 +200,23 @@ export function removePregnancyLoss(doc: Y.Doc, lossId: PregnancyLossId): void {
 export function removeAnnotation(doc: Y.Doc, annotationId: AnnotationId): void {
   doc.transact(() => {
     getGenogramMaps(doc).annotations.delete(annotationId)
+  })
+}
+
+// ── meta ──────────────────────────────────────────────────
+
+export function getMeta(doc: Y.Doc): GenogramMeta | null {
+  const map = getMetaMap(doc)
+  const createdAt = map.get('createdAt')
+  const ownerId = map.get('ownerId') as PersonId | undefined
+  if (!createdAt || !ownerId) return null
+  return { createdAt, ownerId }
+}
+
+export function setMeta(doc: Y.Doc, meta: GenogramMeta): void {
+  doc.transact(() => {
+    const map = getMetaMap(doc)
+    map.set('createdAt', meta.createdAt)
+    map.set('ownerId', meta.ownerId)
   })
 }
