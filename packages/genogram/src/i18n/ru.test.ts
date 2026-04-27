@@ -24,6 +24,17 @@ describe('RU.labels.yearsSuffix', () => {
     expect(RU.labels.yearsSuffix(15)).toBe('лет')
     expect(RU.labels.yearsSuffix(20)).toBe('лет')
   })
+
+  it('uses лет for hundreds-level teens (111-114)', () => {
+    expect(RU.labels.yearsSuffix(111)).toBe('лет')
+    expect(RU.labels.yearsSuffix(112)).toBe('лет')
+    expect(RU.labels.yearsSuffix(113)).toBe('лет')
+    expect(RU.labels.yearsSuffix(114)).toBe('лет')
+  })
+
+  it('uses лет for 0', () => {
+    expect(RU.labels.yearsSuffix(0)).toBe('лет')
+  })
 })
 
 describe('RU.labels.yearsOld', () => {
