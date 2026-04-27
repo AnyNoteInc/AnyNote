@@ -492,3 +492,29 @@ describe('setChildOrder', () => {
     expect(cgAfter.children).toEqual(cgBefore.children)
   })
 })
+
+describe('updatePerson — extended fields', () => {
+  it('writes lifeStatus, tragically, birthMode, approximateAge, partial dates', () => {
+    const doc = new Y.Doc()
+    const owner = createOwnerWithParents(doc, { sex: 'male' })
+
+    updatePerson(doc, owner.ownerId, {
+      lifeDates: {
+        birthMode: 'approximate',
+        lifeStatus: 'deceased',
+        tragically: true,
+        approximateAge: { kind: 'value', value: 50 },
+        deathDate: { day: 1, month: 1, year: 2024 },
+      },
+      partnerOrder: 1,
+    })
+
+    const updated = assembleDomain(doc).entities.people[owner.ownerId]!
+    expect(updated.lifeDates.lifeStatus).toBe('deceased')
+    expect(updated.lifeDates.tragically).toBe(true)
+    expect(updated.lifeDates.birthMode).toBe('approximate')
+    expect(updated.lifeDates.approximateAge).toEqual({ kind: 'value', value: 50 })
+    expect(updated.lifeDates.deathDate).toEqual({ day: 1, month: 1, year: 2024 })
+    expect(updated.partnerOrder).toBe(1)
+  })
+})
