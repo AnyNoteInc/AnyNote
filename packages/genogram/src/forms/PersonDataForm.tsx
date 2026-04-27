@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button, Checkbox, FormControlLabel, Stack, TextField, ToggleButton, ToggleButtonGroup } from '@mui/material'
 import type { PersonDataDraft } from '../yjs/actions'
 import type { ApproximateAge, BirthMode, LifeStatus, PartialDate } from '../types/domain'
@@ -26,6 +26,7 @@ interface Props {
   initial: Partial<PersonDataDraft & { partnerOrder?: number; childOrder?: number }>
   context?: FormContext
   onSubmit: (draft: PersonDataDraft & { partnerOrder?: number; childOrder?: number; partnerCount?: number }) => void
+  onChange?: (draft: PersonDataDraft & { partnerOrder?: number; childOrder?: number; partnerCount?: number }) => void
   onCancel: () => void
   submitLabel?: string
   embedded?: boolean
@@ -35,6 +36,7 @@ export function PersonDataForm({
   initial,
   context = DEFAULT_CONTEXT,
   onSubmit,
+  onChange,
   onCancel,
   submitLabel = RU.drawer.save,
   embedded = false,
@@ -65,7 +67,7 @@ export function PersonDataForm({
   const update = <K extends keyof PersonDataDraft>(k: K, v: PersonDataDraft[K]) =>
     setDraft((d) => ({ ...d, [k]: v }))
 
-  const handleSubmit = () => {
+  const buildPayload = (): PersonDataDraft & { partnerOrder?: number; childOrder?: number; partnerCount?: number } => {
     const payload: PersonDataDraft & { partnerOrder?: number; childOrder?: number; partnerCount?: number } = { ...draft }
     if (context.kind === 'add-partner') {
       payload.partnerCount = partnerCount
@@ -76,8 +78,17 @@ export function PersonDataForm({
     if (context.kind === 'edit-data' && context.isChild) {
       payload.childOrder = childOrder
     }
-    onSubmit(payload)
+    return payload
   }
+
+  const handleSubmit = () => {
+    onSubmit(buildPayload())
+  }
+
+  useEffect(() => {
+    onChange?.(buildPayload())
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [draft, partnerCount, partnerOrder, childOrder])
 
   return (
     <Stack spacing={2}>

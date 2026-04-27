@@ -106,3 +106,19 @@ describe('PersonDataForm — conditional ordinal fields', () => {
     expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ partnerCount: 2 }))
   })
 })
+
+describe('PersonDataForm — onChange callback', () => {
+  it('fires onChange on every field change (per-keystroke)', async () => {
+    const onChange = vi.fn()
+    render(<PersonDataForm
+      initial={{ sex: 'male' }}
+      context={{ kind: 'edit-data' }}
+      onSubmit={() => {}}
+      onChange={onChange}
+      onCancel={() => {}}
+      embedded
+    />)
+    await userEvent.type(screen.getByLabelText('Имя'), 'А')
+    expect(onChange).toHaveBeenCalledWith(expect.objectContaining({ firstName: 'А' }))
+  })
+})

@@ -38,6 +38,7 @@ export function ChildEntryRow({ value, onChange, readOnly }: Props) {
             initial={value.data}
             context={{ kind: 'add-child' }}
             onSubmit={(d) => onChange({ type: 'person', data: d })}
+            onChange={(d) => onChange({ type: 'person', data: d })}
             onCancel={() => {}}
             embedded
           />
