@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button, Checkbox, FormControlLabel, Stack, ToggleButton, ToggleButtonGroup } from '@mui/material'
 import type { UnionDraft } from '../yjs/actions'
 import type { PartialDate, UnionKind } from '../types/domain'
@@ -8,12 +8,13 @@ import { RU } from '../i18n/ru'
 interface Props {
   initial: Partial<UnionDraft>
   onSubmit: (draft: UnionDraft) => void
+  onChange?: (draft: UnionDraft) => void
   onCancel: () => void
   submitLabel?: string
   embedded?: boolean
 }
 
-export function MarriageRelationForm({ initial, onSubmit, onCancel, submitLabel = RU.drawer.save, embedded = false }: Props) {
+export function MarriageRelationForm({ initial, onSubmit, onChange, onCancel, submitLabel = RU.drawer.save, embedded = false }: Props) {
   const [kind, setKind] = useState<UnionKind>(initial.kind ?? 'marriage')
   const [startDate, setStartDate] = useState<PartialDate | undefined>(initial.startDate)
   const [endDate, setEndDate] = useState<PartialDate | undefined>(initial.endDate)
@@ -21,20 +22,26 @@ export function MarriageRelationForm({ initial, onSubmit, onCancel, submitLabel 
   const [divorceDate, setDivorceDate] = useState<PartialDate | undefined>(initial.divorce?.date)
   const [ended, setEnded] = useState<boolean>(!!initial.endDate && initial.kind === 'cohabitation')
 
-  const submit = () => {
+  const buildDraft = (): UnionDraft => {
     if (kind === 'marriage') {
-      onSubmit({
+      return {
         kind: 'marriage',
         startDate,
         divorce: divorced ? { date: divorceDate, markPosition: initial.divorce?.markPosition } : undefined,
-      })
-    } else {
-      onSubmit({
-        kind: 'cohabitation',
-        startDate,
-        endDate: ended ? endDate : undefined,
-      })
+      }
     }
+    return {
+      kind: 'cohabitation',
+      startDate,
+      endDate: ended ? endDate : undefined,
+    }
+  }
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { onChange?.(buildDraft()) }, [kind, startDate, endDate, divorced, divorceDate, ended])
+
+  const submit = () => {
+    onSubmit(buildDraft())
   }
 
   return (
