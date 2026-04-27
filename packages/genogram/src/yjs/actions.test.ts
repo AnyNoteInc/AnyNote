@@ -7,6 +7,7 @@ import {
   addPregnancyLoss,
   addUnion,
   appendChild,
+  createOwnerWithParents,
   getMeta,
   removePerson,
   setMeta,
@@ -178,5 +179,56 @@ describe('meta', () => {
     const doc = new Y.Doc()
     setMeta(doc, { createdAt: '2026-04-27T00:00:00Z', ownerId: 'p1' as PersonId })
     expect(getMeta(doc)).toEqual({ createdAt: '2026-04-27T00:00:00Z', ownerId: 'p1' })
+  })
+})
+
+describe('createOwnerWithParents', () => {
+  it('creates owner + father + mother + union + childGroup; sets meta', () => {
+    const doc = new Y.Doc()
+    const result = createOwnerWithParents(doc, {
+      firstName: 'Иван',
+      lastName: 'Иванов',
+      sex: 'male',
+      birthDate: { day: 5, month: 3, year: 1984 },
+    })
+
+    const domain = assembleDomain(doc)
+    const owner = domain.entities.people[result.ownerId]!
+    expect(owner.role).toBe('owner')
+    expect(owner.size).toBe('big')
+    expect(owner.sex).toBe('male')
+    expect(owner.identity.firstName).toBe('Иван')
+    expect(owner.lifeDates.lifeStatus).toBe('alive')
+    expect(owner.lifeDates.birthDate).toEqual({ day: 5, month: 3, year: 1984 })
+
+    const father = domain.entities.people[result.fatherId]!
+    expect(father.role).toBe('regular')
+    expect(father.sex).toBe('male')
+    expect(father.identity.isUnknown).toBe(true)
+    expect(father.lifeDates.lifeStatus).toBe('unknown')
+
+    const mother = domain.entities.people[result.motherId]!
+    expect(mother.sex).toBe('female')
+    expect(mother.identity.isUnknown).toBe(true)
+
+    const union = domain.entities.unions[result.unionId]!
+    expect(union.kind).toBe('marriage')
+    expect(union.malePartnerId).toBe(result.fatherId)
+    expect(union.femalePartnerId).toBe(result.motherId)
+
+    const cg = domain.entities.childGroups[result.childGroupId]!
+    expect(cg.unionId).toBe(result.unionId)
+    expect(cg.children).toHaveLength(1)
+    expect(cg.children[0]).toEqual({ kind: 'person', personId: result.ownerId })
+
+    const meta = getMeta(doc)
+    expect(meta?.ownerId).toBe(result.ownerId)
+    expect(meta?.createdAt).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+  })
+
+  it('female owner produces female owner shape', () => {
+    const doc = new Y.Doc()
+    const result = createOwnerWithParents(doc, { sex: 'female' })
+    expect(assembleDomain(doc).entities.people[result.ownerId]!.sex).toBe('female')
   })
 })

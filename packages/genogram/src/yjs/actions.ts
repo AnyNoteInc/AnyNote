@@ -22,10 +22,12 @@ import type {
   ChildGroup,
   ChildGroupId,
   GenogramMeta,
+  PartialDate,
   Person,
   PersonId,
   PregnancyLoss,
   PregnancyLossId,
+  Sex,
   Union,
   UnionDivorce,
   UnionId,
@@ -219,4 +221,78 @@ export function setMeta(doc: Y.Doc, meta: GenogramMeta): void {
     map.set('createdAt', meta.createdAt)
     map.set('ownerId', meta.ownerId)
   })
+}
+
+// ── composite actions ─────────────────────────────────────
+
+export interface OwnerDataDraft {
+  firstName?: string
+  lastName?: string
+  middleName?: string
+  sex: Sex
+  birthDate?: PartialDate
+}
+
+export function createOwnerWithParents(
+  doc: Y.Doc,
+  draft: OwnerDataDraft,
+): {
+  ownerId: PersonId
+  fatherId: PersonId
+  motherId: PersonId
+  unionId: UnionId
+  childGroupId: ChildGroupId
+} {
+  let result!: ReturnType<typeof createOwnerWithParents>
+  doc.transact(() => {
+    const owner = addPerson(doc, {
+      sex: draft.sex,
+      bloodRelation: 'direct',
+      role: 'owner',
+      size: 'big',
+      identity: {
+        firstName: draft.firstName,
+        lastName: draft.lastName,
+        middleName: draft.middleName,
+      },
+      lifeDates: {
+        birthMode: 'date',
+        lifeStatus: 'alive',
+        birthDate: draft.birthDate,
+      },
+    })
+    const father = addPerson(doc, {
+      sex: 'male',
+      bloodRelation: 'direct',
+      role: 'regular',
+      size: 'big',
+      identity: { isUnknown: true },
+      lifeDates: { birthMode: 'date', lifeStatus: 'unknown' },
+    })
+    const mother = addPerson(doc, {
+      sex: 'female',
+      bloodRelation: 'direct',
+      role: 'regular',
+      size: 'big',
+      identity: { isUnknown: true },
+      lifeDates: { birthMode: 'date', lifeStatus: 'unknown' },
+    })
+    const union = addUnion(doc, {
+      kind: 'marriage',
+      malePartnerId: father.id,
+      femalePartnerId: mother.id,
+    })
+    const cg = addChildGroup(doc, { unionId: union.id })
+    appendChild(doc, cg.id, { kind: 'person', personId: owner.id })
+
+    setMeta(doc, { createdAt: new Date().toISOString(), ownerId: owner.id })
+    result = {
+      ownerId: owner.id,
+      fatherId: father.id,
+      motherId: mother.id,
+      unionId: union.id,
+      childGroupId: cg.id,
+    }
+  })
+  return result
 }
