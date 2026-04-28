@@ -27,11 +27,11 @@ export async function dispatchPending(
   prisma: PrismaClient,
   opts: DispatchOptions,
 ): Promise<DispatchResult> {
+  const from = process.env.MAIL_FROM
+  if (!from) throw new Error('MAIL_FROM env var is required')
   const rows = await claimBatch(prisma, opts)
   if (rows.length === 0) return { processed: 0, succeeded: 0, failed: 0, retried: 0 }
   const transport = getMailTransport()
-  const from = process.env.MAIL_FROM
-  if (!from) throw new Error('MAIL_FROM env var is required')
 
   let succeeded = 0
   let failed = 0
