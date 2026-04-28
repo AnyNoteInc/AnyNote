@@ -1,5 +1,3 @@
-from collections.abc import AsyncIterator
-from json import dumps
 from typing import Annotated
 
 from dishka.integrations.fastapi import FromDishka, inject
@@ -9,8 +7,12 @@ from sse_starlette.sse import EventSourceResponse
 from agents.apps.chat.use_cases import GenerateStreamUseCase
 
 from .schemas import QueryRequestSchema, UserContextSchema
-
-from .utils import serialize_server_events
+from .utils import (
+    serialize_server_event as serialize_server_event,
+)
+from .utils import (
+    serialize_server_events,
+)
 
 router = APIRouter(prefix="/chat", tags=["Chat"])
 
@@ -20,7 +22,7 @@ router = APIRouter(prefix="/chat", tags=["Chat"])
 async def generate(
     query_reqyest: QueryRequestSchema,
     generate_stream_use_case: FromDishka[GenerateStreamUseCase],
-    user_context: Annotated[UserContextSchema, Header()]
+    user_context: Annotated[UserContextSchema, Header()],
 ) -> EventSourceResponse:
     return EventSourceResponse(
         serialize_server_events(generate_stream_use_case(query_reqyest, user_context)),
