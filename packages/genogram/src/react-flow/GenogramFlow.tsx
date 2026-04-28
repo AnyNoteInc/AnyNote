@@ -83,6 +83,7 @@ function GenogramFlowInner({
     edges: GenogramEdge[]
   }
 
+
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
   const lastSnapshotRef = useRef<GenogramPageData | null>(null)
@@ -109,7 +110,18 @@ function GenogramFlowInner({
 
   const onEdgeClick = (e: React.MouseEvent, edge: { id: string }) => {
     if (readonly) return
-    dispatch({ type: 'select-edge', id: edge.id, anchorEl: e.currentTarget as HTMLElement })
+    // e.currentTarget is a SVG <g> element. MUI Menu needs an HTML element as
+    // anchorEl. Create a zero-size virtual div positioned at the click point.
+    const virtualEl = document.createElement('div')
+    virtualEl.style.position = 'fixed'
+    virtualEl.style.left = `${e.clientX}px`
+    virtualEl.style.top = `${e.clientY}px`
+    virtualEl.style.width = '0'
+    virtualEl.style.height = '0'
+    document.body.appendChild(virtualEl)
+    // Remove the virtual element once the menu closes (next tick is fine)
+    setTimeout(() => document.body.removeChild(virtualEl), 5000)
+    dispatch({ type: 'select-edge', id: edge.id, anchorEl: virtualEl })
   }
 
   // When meta is null (genogram not yet created), show EmptyState + DrawerHost for CTA flow
@@ -191,7 +203,10 @@ function GenogramFlowInner({
           anchorEl={ui.menu.anchorEl}
           onClose={() => dispatch({ type: 'close-menu' })}
           onAction={(action) => {
-            const unionId = ui.menu!.targetId as UnionId
+            // Edge IDs are prefixed: "marriage:<uuid>" or "cohabitation:<uuid>".
+            // Strip the prefix to get the raw union ID for DrawerHost lookups.
+            const edgeId = ui.menu!.targetId
+            const unionId = (edgeId.includes(':') ? edgeId.slice(edgeId.indexOf(':') + 1) : edgeId) as UnionId
             if (action === 'edit-connection')
               dispatch({
                 type: 'open-drawer',

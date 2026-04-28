@@ -340,9 +340,13 @@ function placeChildEntry(entry: ChildEntry, leftX: number, ctx: PlacementContext
     return placeLoss(entry.lossId, leftX, ctx)
   }
   const personUnions = ctx.relations.unionsByPerson.get(entry.personId) ?? []
-  const downwardUnion = personUnions.find((uid) => !ctx.visitedUnions.has(uid))
-  if (downwardUnion) {
-    return placeUnionSubtree(downwardUnion, leftX, ctx)
+  const unvisitedUnions = personUnions.filter((uid) => !ctx.visitedUnions.has(uid))
+  if (unvisitedUnions.length > 1) {
+    // Child has multiple partnerships — use multi-partner placement
+    return placeMultiPartnerSubtree(entry.personId, unvisitedUnions, leftX, ctx)
+  }
+  if (unvisitedUnions.length === 1) {
+    return placeUnionSubtree(unvisitedUnions[0]!, leftX, ctx)
   }
   return placePersonSolo(entry.personId, leftX, ctx)
 }

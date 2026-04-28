@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import { Button, Stack, TextField } from '@mui/material'
 import type { ChildEntryDraft } from '../yjs/actions'
 import type { ChildEntry } from '../types/domain'
@@ -21,34 +21,46 @@ export function AddChildrenForm({ existingChildren, initialCount, onSubmit, onCa
   const K = existingChildren.length
   const [count, setCount] = useState<number>(initialCount ?? Math.max(K + 1, 1))
   const [orderedExisting, setOrderedExisting] = useState<ExistingChildView[]>(existingChildren)
-  const [newEntries, setNewEntries] = useState<ChildEntryDraft[]>(() => {
-    const need = Math.max(0, (initialCount ?? Math.max(K + 1, 1)) - K)
-    return Array.from({ length: need }, () => ({
+  const initialEntries: ChildEntryDraft[] = Array.from(
+    { length: Math.max(0, (initialCount ?? Math.max(K + 1, 1)) - K) },
+    () => ({
       type: 'person' as const,
       data: { sex: 'male' as const, lifeStatus: 'alive' as const, birthMode: 'date' as const },
-    }))
-  })
+    }),
+  )
+  const [newEntries, setNewEntries] = useState<ChildEntryDraft[]>(initialEntries)
+  // Ref mirrors state so submit() always reads the latest values even if React
+  // hasn't re-rendered since the last useEffect-driven onChange.
+  const newEntriesRef = useRef<ChildEntryDraft[]>(initialEntries)
 
   const updateCount = (n: number) => {
     if (n < K) return
     setCount(n)
     setNewEntries((prev) => {
       const need = n - K
+      let next: ChildEntryDraft[]
       if (need > prev.length) {
-        return [
+        next = [
           ...prev,
           ...Array.from({ length: need - prev.length }, () => ({
             type: 'person' as const,
             data: { sex: 'male' as const, lifeStatus: 'alive' as const, birthMode: 'date' as const },
           })),
         ]
+      } else {
+        next = prev.slice(0, need)
       }
-      return prev.slice(0, need)
+      newEntriesRef.current = next
+      return next
     })
   }
 
   const updateNew = (idx: number, next: ChildEntryDraft) =>
-    setNewEntries((arr) => arr.map((e, i) => (i === idx ? next : e)))
+    setNewEntries((arr) => {
+      const updated = arr.map((e, i) => (i === idx ? next : e))
+      newEntriesRef.current = updated
+      return updated
+    })
 
   const move = (idx: number, dir: -1 | 1) => {
     setOrderedExisting((arr) => {
@@ -61,10 +73,11 @@ export function AddChildrenForm({ existingChildren, initialCount, onSubmit, onCa
   }
 
   const submit = () => {
+    // Read from ref to get the latest entries even if React hasn't re-rendered yet
     const reordered = orderedExisting.map((x) => x.entry)
     const reorderChanged =
       JSON.stringify(reordered) !== JSON.stringify(existingChildren.map((x) => x.entry))
-    onSubmit(newEntries, reorderChanged ? reordered : undefined)
+    onSubmit(newEntriesRef.current, reorderChanged ? reordered : undefined)
   }
 
   return (

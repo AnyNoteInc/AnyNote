@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Button, Checkbox, FormControlLabel, Stack, ToggleButton, ToggleButtonGroup } from '@mui/material'
 import type { UnionDraft } from '../yjs/actions'
 import type { PartialDate, UnionKind } from '../types/domain'
@@ -22,26 +22,39 @@ export function MarriageRelationForm({ initial, onSubmit, onChange, onCancel, su
   const [divorceDate, setDivorceDate] = useState<PartialDate | undefined>(initial.divorce?.date)
   const [ended, setEnded] = useState<boolean>(!!initial.endDate && initial.kind === 'cohabitation')
 
-  const buildDraft = (): UnionDraft => {
-    if (kind === 'marriage') {
+  const buildDraft = (
+    k: UnionKind,
+    sd: PartialDate | undefined,
+    ed: PartialDate | undefined,
+    div: boolean,
+    dd: PartialDate | undefined,
+    end: boolean,
+  ): UnionDraft => {
+    if (k === 'marriage') {
       return {
         kind: 'marriage',
-        startDate,
-        divorce: divorced ? { date: divorceDate, markPosition: initial.divorce?.markPosition } : undefined,
+        startDate: sd,
+        divorce: div ? { date: dd, markPosition: initial.divorce?.markPosition } : undefined,
       }
     }
     return {
       kind: 'cohabitation',
-      startDate,
-      endDate: ended ? endDate : undefined,
+      startDate: sd,
+      endDate: end ? ed : undefined,
     }
   }
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  useEffect(() => { onChange?.(buildDraft()) }, [kind, startDate, endDate, divorced, divorceDate, ended])
+  // Call onChange synchronously so parent components receive the latest draft
+  // before their Save button click handler runs (avoids useEffect timing issues).
+  const updateKind = (v: UnionKind) => { setKind(v); onChange?.(buildDraft(v, startDate, endDate, divorced, divorceDate, ended)) }
+  const updateStartDate = (v: PartialDate | undefined) => { setStartDate(v); onChange?.(buildDraft(kind, v, endDate, divorced, divorceDate, ended)) }
+  const updateEndDate = (v: PartialDate | undefined) => { setEndDate(v); onChange?.(buildDraft(kind, startDate, v, divorced, divorceDate, ended)) }
+  const updateDivorced = (v: boolean) => { setDivorced(v); onChange?.(buildDraft(kind, startDate, endDate, v, divorceDate, ended)) }
+  const updateDivorceDate = (v: PartialDate | undefined) => { setDivorceDate(v); onChange?.(buildDraft(kind, startDate, endDate, divorced, v, ended)) }
+  const updateEnded = (v: boolean) => { setEnded(v); onChange?.(buildDraft(kind, startDate, endDate, divorced, divorceDate, v)) }
 
   const submit = () => {
-    onSubmit(buildDraft())
+    onSubmit(buildDraft(kind, startDate, endDate, divorced, divorceDate, ended))
   }
 
   return (
@@ -49,7 +62,7 @@ export function MarriageRelationForm({ initial, onSubmit, onChange, onCancel, su
       <ToggleButtonGroup
         exclusive
         value={kind}
-        onChange={(_e, next: UnionKind | null) => { if (next) setKind(next) }}
+        onChange={(_e, next: UnionKind | null) => { if (next) updateKind(next) }}
       >
         <ToggleButton value="marriage">{RU.fields.marriage}</ToggleButton>
         <ToggleButton value="cohabitation">{RU.fields.cohabitation}</ToggleButton>
@@ -57,24 +70,24 @@ export function MarriageRelationForm({ initial, onSubmit, onChange, onCancel, su
 
       {kind === 'marriage' ? (
         <>
-          <PartialDateInput label={RU.fields.weddingDate} value={startDate ?? {}} onChange={(v) => setStartDate(Object.keys(v).length ? v : undefined)} />
+          <PartialDateInput label={RU.fields.weddingDate} value={startDate ?? {}} onChange={(v) => updateStartDate(Object.keys(v).length ? v : undefined)} />
           <FormControlLabel
-            control={<Checkbox checked={divorced} onChange={(e) => setDivorced(e.target.checked)} />}
+            control={<Checkbox checked={divorced} onChange={(e) => updateDivorced(e.target.checked)} />}
             label={RU.fields.divorced}
           />
           {divorced && (
-            <PartialDateInput label={RU.fields.divorceDate} value={divorceDate ?? {}} onChange={(v) => setDivorceDate(Object.keys(v).length ? v : undefined)} />
+            <PartialDateInput label={RU.fields.divorceDate} value={divorceDate ?? {}} onChange={(v) => updateDivorceDate(Object.keys(v).length ? v : undefined)} />
           )}
         </>
       ) : (
         <>
-          <PartialDateInput label={RU.fields.relationStartDate} value={startDate ?? {}} onChange={(v) => setStartDate(Object.keys(v).length ? v : undefined)} />
+          <PartialDateInput label={RU.fields.relationStartDate} value={startDate ?? {}} onChange={(v) => updateStartDate(Object.keys(v).length ? v : undefined)} />
           <FormControlLabel
-            control={<Checkbox checked={ended} onChange={(e) => setEnded(e.target.checked)} />}
+            control={<Checkbox checked={ended} onChange={(e) => updateEnded(e.target.checked)} />}
             label={RU.fields.relationEnded}
           />
           {ended && (
-            <PartialDateInput label={RU.fields.relationEndDate} value={endDate ?? {}} onChange={(v) => setEndDate(Object.keys(v).length ? v : undefined)} />
+            <PartialDateInput label={RU.fields.relationEndDate} value={endDate ?? {}} onChange={(v) => updateEndDate(Object.keys(v).length ? v : undefined)} />
           )}
         </>
       )}

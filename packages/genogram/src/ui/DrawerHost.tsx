@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import * as Y from 'yjs'
 import { Button, Drawer, Stack, Typography } from '@mui/material'
 import type { DrawerState } from './ui-state'
@@ -241,12 +241,21 @@ function AddPartnerForm({
   onCancel: () => void
   onSubmit: () => void
 }) {
-  const [personDraft, setPersonDraft] = useState<PersonDataDraft & { partnerCount?: number }>({
+  // Use refs so the save-button click closure always reads the latest draft
+  // regardless of whether React has re-rendered since the last onChange call.
+  const personDraftRef = useRef<PersonDataDraft & { partnerCount?: number }>({
     sex: 'female',
     lifeStatus: 'alive',
     birthMode: 'date',
   })
-  const [unionDraft, setUnionDraft] = useState<UnionDraft>({ kind: 'marriage' })
+  const unionDraftRef = useRef<UnionDraft>({ kind: 'marriage' })
+
+  // Keep state in sync so that PersonDataForm / MarriageRelationForm receive
+  // up-to-date `initial` values when the embedded forms need to re-render.
+  const [personDraft, setPersonDraft] = useState<PersonDataDraft & { partnerCount?: number }>(
+    personDraftRef.current,
+  )
+  const [unionDraft, setUnionDraft] = useState<UnionDraft>(unionDraftRef.current)
 
   return (
     <Stack spacing={3}>
@@ -255,14 +264,20 @@ function AddPartnerForm({
         context={{ kind: 'add-partner', existingPartnersOfBase }}
         onCancel={onCancel}
         onSubmit={() => {}}
-        onChange={(d) => setPersonDraft(d as PersonDataDraft & { partnerCount?: number })}
+        onChange={(d) => {
+          personDraftRef.current = d as PersonDataDraft & { partnerCount?: number }
+          setPersonDraft(personDraftRef.current)
+        }}
         embedded
       />
       <MarriageRelationForm
         initial={unionDraft}
         onCancel={onCancel}
         onSubmit={() => {}}
-        onChange={(d) => setUnionDraft(d)}
+        onChange={(d) => {
+          unionDraftRef.current = d
+          setUnionDraft(d)
+        }}
         embedded
       />
       <Stack direction="row" spacing={1} justifyContent="flex-end">
@@ -270,10 +285,12 @@ function AddPartnerForm({
         <Button
           variant="contained"
           onClick={() => {
-            const partnerCount = personDraft.partnerCount ?? existingPartnersOfBase + 1
-            const { partnerCount: _pc, ...rest } = personDraft
+            // Read from refs to get the latest draft even if React hasn't re-rendered yet
+            const latest = personDraftRef.current
+            const partnerCount = latest.partnerCount ?? existingPartnersOfBase + 1
+            const { partnerCount: _pc, ...rest } = latest
             void _pc
-            addPartner(doc, basePersonId, rest, unionDraft, partnerCount)
+            addPartner(doc, basePersonId, rest, unionDraftRef.current, partnerCount)
             onSubmit()
           }}
         >

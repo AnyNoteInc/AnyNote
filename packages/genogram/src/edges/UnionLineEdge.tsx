@@ -23,11 +23,21 @@ export function UnionLineEdge({
   const dashed = type === 'unionCohabitation'
   const hasDivorce = data?.decorations?.includes('divorceSlash') ?? false
 
+  const d = `M ${sourceX} ${sourceY} L ${targetX} ${targetY}`
+
   return (
     <g>
+      {/* Invisible wide hit-area so Playwright (and touch) can click the line */}
+      <path
+        d={d}
+        fill="none"
+        stroke="transparent"
+        strokeWidth={20}
+        data-testid="union-line-hit"
+      />
       <path
         id={id}
-        d={`M ${sourceX} ${sourceY} L ${targetX} ${targetY}`}
+        d={d}
         fill="none"
         stroke={EDGE_STROKE}
         strokeWidth={EDGE_WIDTH}

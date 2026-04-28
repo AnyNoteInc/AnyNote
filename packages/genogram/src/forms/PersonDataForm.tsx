@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Button, Checkbox, FormControlLabel, Stack, TextField, ToggleButton, ToggleButtonGroup } from '@mui/material'
 import type { PersonDataDraft } from '../yjs/actions'
 import type { ApproximateAge, BirthMode, LifeStatus, PartialDate } from '../types/domain'
@@ -64,31 +64,57 @@ export function PersonDataForm({
     context.kind === 'edit-data' ? context.childOrder : undefined,
   )
 
-  const update = <K extends keyof PersonDataDraft>(k: K, v: PersonDataDraft[K]) =>
-    setDraft((d) => ({ ...d, [k]: v }))
+  const buildPayload = useCallback(
+    (
+      d: PersonDataDraft,
+      pc: number | undefined,
+      po: number | undefined,
+      co: number | undefined,
+    ): PersonDataDraft & { partnerOrder?: number; childOrder?: number; partnerCount?: number } => {
+      const payload: PersonDataDraft & { partnerOrder?: number; childOrder?: number; partnerCount?: number } = { ...d }
+      if (context.kind === 'add-partner') {
+        payload.partnerCount = pc
+      }
+      if (context.kind === 'edit-data' && context.isPartnerOfMultiBase) {
+        payload.partnerOrder = po
+      }
+      if (context.kind === 'edit-data' && context.isChild) {
+        payload.childOrder = co
+      }
+      return payload
+    },
+    // context fields are stable for the lifetime of a form instance
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [context.kind],
+  )
 
-  const buildPayload = (): PersonDataDraft & { partnerOrder?: number; childOrder?: number; partnerCount?: number } => {
-    const payload: PersonDataDraft & { partnerOrder?: number; childOrder?: number; partnerCount?: number } = { ...draft }
-    if (context.kind === 'add-partner') {
-      payload.partnerCount = partnerCount
-    }
-    if (context.kind === 'edit-data' && context.isPartnerOfMultiBase) {
-      payload.partnerOrder = partnerOrder
-    }
-    if (context.kind === 'edit-data' && context.isChild) {
-      payload.childOrder = childOrder
-    }
-    return payload
+  // Call onChange synchronously so parent components (AddPartnerForm, AddChildrenForm)
+  // always have the latest value when their Save button is clicked, even under
+  // Playwright's rapid fill → click timing.
+  const update = <K extends keyof PersonDataDraft>(k: K, v: PersonDataDraft[K]) => {
+    const next = { ...draft, [k]: v }
+    setDraft(next)
+    onChange?.(buildPayload(next, partnerCount, partnerOrder, childOrder))
+  }
+
+  const handlePartnerCount = (v: number) => {
+    setPartnerCount(v)
+    onChange?.(buildPayload(draft, v, partnerOrder, childOrder))
+  }
+
+  const handlePartnerOrder = (v: number) => {
+    setPartnerOrder(v)
+    onChange?.(buildPayload(draft, partnerCount, v, childOrder))
+  }
+
+  const handleChildOrder = (v: number) => {
+    setChildOrder(v)
+    onChange?.(buildPayload(draft, partnerCount, partnerOrder, v))
   }
 
   const handleSubmit = () => {
-    onSubmit(buildPayload())
+    onSubmit(buildPayload(draft, partnerCount, partnerOrder, childOrder))
   }
-
-  useEffect(() => {
-    onChange?.(buildPayload())
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [draft, partnerCount, partnerOrder, childOrder])
 
   return (
     <Stack spacing={2}>
@@ -147,7 +173,7 @@ export function PersonDataForm({
           label="Укажите количество партнёров"
           type="number"
           value={partnerCount ?? ''}
-          onChange={(e) => setPartnerCount(Number(e.target.value))}
+          onChange={(e) => handlePartnerCount(Number(e.target.value))}
           inputProps={{ min: context.existingPartnersOfBase + 1 }}
         />
       )}
@@ -157,7 +183,7 @@ export function PersonDataForm({
           label="Порядковый номер партнёра"
           type="number"
           value={partnerOrder ?? ''}
-          onChange={(e) => setPartnerOrder(Number(e.target.value))}
+          onChange={(e) => handlePartnerOrder(Number(e.target.value))}
           inputProps={{ min: 1, max: context.totalPartnersOfBase }}
         />
       )}
@@ -167,7 +193,7 @@ export function PersonDataForm({
           label="Порядковый номер ребёнка"
           type="number"
           value={childOrder ?? ''}
-          onChange={(e) => setChildOrder(Number(e.target.value))}
+          onChange={(e) => handleChildOrder(Number(e.target.value))}
           inputProps={{ min: 1, max: context.siblingsCount }}
         />
       )}
