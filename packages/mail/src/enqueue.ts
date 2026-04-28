@@ -13,7 +13,7 @@ export async function enqueueMailEvent<K extends MailKind>(
   prisma: PrismaClient,
   args: EnqueueMailEventArgs<K>,
 ): Promise<void> {
-  const aggregateId = args.userId ?? randomUUID()
+  const aggregateId = args.userId || randomUUID()
   await prisma.outboxEvent.create({
     data: {
       aggregateType: 'email',
