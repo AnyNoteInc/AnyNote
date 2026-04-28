@@ -2,18 +2,27 @@
 
 import '@xyflow/react/dist/style.css'
 
-import { useEffect, useMemo, useRef, type CSSProperties } from 'react'
+import { useEffect, useMemo, useReducer, useRef, type CSSProperties } from 'react'
 import * as Y from 'yjs'
 import { Background, Controls, ReactFlow, ReactFlowProvider } from '@xyflow/react'
 import type { GenogramEdge, GenogramNode, GenogramPageData } from '../types'
+import type { PersonId, UnionId } from '../types/ids'
 import { useGenogram } from '../hooks'
 import { getGenogramMaps } from '../yjs/schema'
 import { hydrateDoc } from '../yjs/hydrateDoc'
 import { snapshotFromDoc } from '../yjs/snapshotFromDoc'
+import { getMeta, addParents } from '../yjs/actions'
+import { assembleDomain } from '../yjs/assembleDomain'
+import { hasParents } from '../model/computed'
 import { domainToFlow } from './domainToFlow'
 import { DocContext } from './doc-context'
 import { edgeTypes } from './edgeTypes'
 import { nodeTypes } from './nodeTypes'
+import { initialUiState, uiReducer } from '../ui/ui-state'
+import { DrawerHost } from '../ui/DrawerHost'
+import { ElementMenu } from '../ui/ElementMenu'
+import { EdgeMenu } from '../ui/EdgeMenu'
+import { EmptyState } from '../ui/EmptyState'
 
 export type GenogramMode = 'readonly' | 'editor'
 
@@ -62,8 +71,14 @@ function GenogramFlowInner({
   }, [doc, initialSnapshot])
 
   const { domain, layout } = useGenogram(doc)
+  const [ui, dispatch] = useReducer(uiReducer, initialUiState)
 
-  const { nodes, edges } = useMemo(() => domainToFlow(domain, layout), [domain, layout]) as {
+  const meta = getMeta(doc)
+
+  const { nodes, edges } = useMemo(
+    () => domainToFlow(domain, layout, meta),
+    [domain, layout, meta],
+  ) as {
     nodes: GenogramNode[]
     edges: GenogramEdge[]
   }
@@ -86,6 +101,27 @@ function GenogramFlowInner({
 
   const readonly = mode === 'readonly'
 
+  const onNodeClick = (e: React.MouseEvent, node: { id: string }) => {
+    if (readonly) return
+    if (node.id === '__creation_date__') return
+    dispatch({ type: 'select-node', id: node.id, anchorEl: e.currentTarget as HTMLElement })
+  }
+
+  const onEdgeClick = (e: React.MouseEvent, edge: { id: string }) => {
+    if (readonly) return
+    dispatch({ type: 'select-edge', id: edge.id, anchorEl: e.currentTarget as HTMLElement })
+  }
+
+  // When meta is null (genogram not yet created), show EmptyState + DrawerHost for CTA flow
+  if (!meta) {
+    return (
+      <DocContext.Provider value={doc}>
+        <EmptyState mode={mode} onCreate={() => dispatch({ type: 'open-create' })} />
+        <DrawerHost doc={doc} drawer={ui.drawer} onClose={() => dispatch({ type: 'cancel' })} />
+      </DocContext.Provider>
+    )
+  }
+
   return (
     <DocContext.Provider value={doc}>
       <div className={className} style={{ width: '100%', height: '100%', ...style }}>
@@ -103,11 +139,74 @@ function GenogramFlowInner({
           panOnScroll={false}
           fitView={fitView}
           proOptions={{ hideAttribution: true }}
+          onNodeClick={readonly ? undefined : onNodeClick}
+          onEdgeClick={readonly ? undefined : onEdgeClick}
         >
           <Background gap={24} />
           <Controls showInteractive={false} />
         </ReactFlow>
       </div>
+
+      {ui.menu?.kind === 'node' &&
+        (() => {
+          const domain = assembleDomain(doc)
+          const person = domain.entities.people[ui.menu.targetId as PersonId]
+          if (!person) return null
+          return (
+            <ElementMenu
+              open
+              anchorEl={ui.menu.anchorEl}
+              personSize={person.size}
+              personRole={person.role}
+              hasParents={hasParents(person.id, domain.entities.childGroups)}
+              onClose={() => dispatch({ type: 'close-menu' })}
+              onAction={(action) => {
+                if (action === 'edit-data')
+                  dispatch({
+                    type: 'open-drawer',
+                    drawer: { mode: 'edit-data', personId: person.id },
+                  })
+                else if (action === 'edit-owner')
+                  dispatch({
+                    type: 'open-drawer',
+                    drawer: { mode: 'edit-owner-data', personId: person.id },
+                  })
+                else if (action === 'add-partner')
+                  dispatch({
+                    type: 'open-drawer',
+                    drawer: { mode: 'add-partner', basePersonId: person.id },
+                  })
+                else if (action === 'add-parents') {
+                  addParents(doc, person.id)
+                  dispatch({ type: 'close-menu' })
+                }
+              }}
+            />
+          )
+        })()}
+
+      {ui.menu?.kind === 'edge' && (
+        <EdgeMenu
+          open
+          anchorEl={ui.menu.anchorEl}
+          onClose={() => dispatch({ type: 'close-menu' })}
+          onAction={(action) => {
+            const unionId = ui.menu!.targetId as UnionId
+            if (action === 'edit-connection')
+              dispatch({
+                type: 'open-drawer',
+                drawer: { mode: 'edit-connection', unionId },
+              })
+            else if (action === 'add-children')
+              dispatch({
+                type: 'open-drawer',
+                drawer: { mode: 'add-children', unionId },
+              })
+          }}
+        />
+      )}
+
+      <DrawerHost doc={doc} drawer={ui.drawer} onClose={() => dispatch({ type: 'cancel' })} />
     </DocContext.Provider>
   )
 }
