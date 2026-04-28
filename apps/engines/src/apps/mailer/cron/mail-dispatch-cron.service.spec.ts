@@ -1,4 +1,4 @@
-import { describe, expect, it, jest, beforeEach } from '@jest/globals'
+import { describe, expect, it, jest, beforeEach, afterEach } from '@jest/globals'
 
 const dispatchMock = jest.fn(async () => ({
   processed: 0,
@@ -17,6 +17,12 @@ describe('MailDispatchCronService', () => {
   beforeEach(() => {
     dispatchMock.mockClear()
     dispatchMock.mockResolvedValue({ processed: 0, succeeded: 0, failed: 0, retried: 0 })
+  })
+
+  afterEach(() => {
+    delete process.env.MAIL_DISPATCH_BATCH
+    delete process.env.MAIL_DISPATCH_MAX_ATTEMPTS
+    delete process.env.HOSTNAME
   })
 
   it('does not log when nothing processed', async () => {
@@ -62,5 +68,16 @@ describe('MailDispatchCronService', () => {
     )
     await svc.tick()
     expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('processed=3'))
+  })
+
+  it('catches errors from dispatchPending and logs without rethrowing', async () => {
+    dispatchMock.mockRejectedValueOnce(new Error('db down'))
+    const svc = new MailDispatchCronService({} as never)
+    const errorSpy = jest.spyOn(
+      (svc as unknown as { log: { error: (msg: string) => void } }).log,
+      'error',
+    )
+    await expect(svc.tick()).resolves.toBeUndefined()
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('db down'))
   })
 })
