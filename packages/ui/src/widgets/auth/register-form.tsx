@@ -1,7 +1,16 @@
 'use client'
 
 import { useForm } from 'react-hook-form'
-import { Stack, TextField, Button, Divider, Typography } from '@repo/ui/components'
+import {
+  Button,
+  Divider,
+  KeyboardDoubleArrowLeftIcon,
+  Stack,
+  TextField,
+  Typography,
+} from '@repo/ui/components'
+
+import { AuthHeader } from './auth-header'
 
 export type RegisterFormValues = {
   email: string
@@ -16,16 +25,14 @@ export type RegisterSubmitPayload = Omit<RegisterFormValues, 'confirmPassword'>
 export type RegisterFormProps = {
   defaultValues?: Partial<RegisterFormValues>
   onSubmit?: (values: RegisterSubmitPayload) => Promise<void>
-  titleLabel?: string
-  submitLabel?: string
+  signInHref?: string
   isSubmitting?: boolean
 }
 
 export function RegisterForm({
   defaultValues,
   onSubmit,
-  titleLabel = 'Регистрация',
-  submitLabel = 'Зарегистрироваться',
+  signInHref = '/sign-in',
   isSubmitting,
 }: RegisterFormProps) {
   const formDefaults: RegisterFormValues = {
@@ -63,11 +70,7 @@ export function RegisterForm({
 
   return (
     <Stack spacing={3} component="form" onSubmit={handleFormSubmit}>
-      <Stack spacing={0.5} textAlign="center">
-        <Typography variant="h4" fontWeight={700}>
-          {titleLabel}
-        </Typography>
-      </Stack>
+      <AuthHeader title="Регистрация" />
       <Stack spacing={2.5}>
         <TextField
           {...register('email', {
@@ -124,8 +127,19 @@ export function RegisterForm({
           error={!!errors.confirmPassword}
           helperText={errors.confirmPassword?.message}
         />
+        <Stack direction="row" alignItems="center" spacing={0.5}>
+          <KeyboardDoubleArrowLeftIcon fontSize="small" />
+          <Typography
+            component="a"
+            href={signInHref}
+            variant="body2"
+            sx={{ textDecoration: 'none', color: 'inherit' }}
+          >
+            Назад ко входу
+          </Typography>
+        </Stack>
         <Button type="submit" variant="contained" size="large" disabled={submitting}>
-          {submitLabel}
+          Регистрация
         </Button>
       </Stack>
     </Stack>

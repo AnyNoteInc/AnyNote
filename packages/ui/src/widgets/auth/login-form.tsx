@@ -1,19 +1,30 @@
 'use client'
 
 import { useForm } from 'react-hook-form'
-import { Divider, TextField, Button, Stack, Typography } from '@repo/ui/components'
+import {
+  Button,
+  Checkbox,
+  Divider,
+  FormControlLabel,
+  Stack,
+  TextField,
+  Typography,
+} from '@repo/ui/components'
+
+import { AuthHeader } from './auth-header'
 
 export type LoginFormValues = {
   email: string
   password: string
+  rememberMe: boolean
 }
 
 export type LoginFormProps = {
   defaultValues?: Partial<LoginFormValues>
   onSubmit?: (values: LoginFormValues) => void | Promise<void>
-  onGoogle?: () => void
-  titleLabel?: string
-  submitLabel?: string
+  onGoogle?: () => void | Promise<void>
+  forgotPasswordHref?: string
+  signUpHref?: string
   isSubmitting?: boolean
 }
 
@@ -21,13 +32,14 @@ export function LoginForm({
   defaultValues,
   onSubmit,
   onGoogle,
-  titleLabel = 'Авторизация',
-  submitLabel = 'Войти',
+  forgotPasswordHref = '/reset-credentials',
+  signUpHref = '/sign-up',
   isSubmitting,
 }: LoginFormProps) {
-  const formDefaults = {
+  const formDefaults: LoginFormValues = {
     email: '',
     password: '',
+    rememberMe: false,
     ...defaultValues,
   }
 
@@ -49,20 +61,23 @@ export function LoginForm({
 
   return (
     <Stack spacing={3} component="form" onSubmit={handleFormSubmit}>
-      <Stack spacing={0.5} textAlign="center">
-        <Typography variant="h4" fontWeight={700}>
-          {titleLabel}
-        </Typography>
-      </Stack>
+      <AuthHeader title="Вход в учётную запись" />
+      <Divider />
+      <Button
+        variant="outlined"
+        size="large"
+        onClick={() => onGoogle?.()}
+        disabled={submitting}
+        fullWidth
+      >
+        Войти через Google
+      </Button>
       <Divider />
       <Stack spacing={2.5}>
         <TextField
           {...register('email', {
-            required: 'Введите ник пользователя',
-            pattern: {
-              value: /\S+@\S+\.\S+/,
-              message: 'Введите корректный email',
-            },
+            required: 'Введите email',
+            pattern: { value: /\S+@\S+\.\S+/, message: 'Введите корректный email' },
           })}
           label="Email"
           fullWidth
@@ -79,17 +94,36 @@ export function LoginForm({
           error={!!errors.password}
           helperText={errors.password?.message}
         />
-        <Button type="submit" variant="contained" size="large" disabled={submitting}>
-          {submitLabel}
+        <Stack direction="row" alignItems="center" justifyContent="space-between">
+          <FormControlLabel
+            control={<Checkbox {...register('rememberMe')} size="small" />}
+            label="Запомнить меня"
+          />
+          <Typography
+            component="a"
+            href={forgotPasswordHref}
+            variant="body2"
+            sx={{ textDecoration: 'none', color: 'inherit' }}
+          >
+            Забыли пароль?
+          </Typography>
+        </Stack>
+        <Button type="submit" variant="contained" size="large" disabled={submitting} fullWidth>
+          Войти
         </Button>
       </Stack>
-
-      <Stack spacing={2}>
-        <Divider>или</Divider>
-        <Button variant="outlined" size="large" onClick={() => onGoogle?.()} disabled={submitting}>
-          Войти через Google
-        </Button>
-      </Stack>
+      <Divider />
+      <Typography variant="body2" textAlign="center" color="text.secondary">
+        Новый пользователь?{' '}
+        <Typography
+          component="a"
+          href={signUpHref}
+          variant="body2"
+          sx={{ color: 'inherit', fontWeight: 600 }}
+        >
+          Регистрация
+        </Typography>
+      </Typography>
     </Stack>
   )
 }

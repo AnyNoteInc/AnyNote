@@ -27,6 +27,10 @@ export { default as StepContent, type StepContentProps } from '@mui/material/Ste
 
 export { default as Switch, type SwitchProps } from '@mui/material/Switch'
 export { default as Checkbox, type CheckboxProps } from '@mui/material/Checkbox'
+export {
+  default as FormControlLabel,
+  type FormControlLabelProps,
+} from '@mui/material/FormControlLabel'
 
 export { default as Table, type TableProps } from '@mui/material/Table'
 export { default as TableBody, type TableBodyProps } from '@mui/material/TableBody'
@@ -114,6 +118,7 @@ export { RichTreeView } from '@mui/x-tree-view/RichTreeView'
 export { TreeItem } from '@mui/x-tree-view/TreeItem'
 
 export * from './ui/button'
+export { BrandIcon, type BrandIconProps } from './brand-icon'
 
 export { default as FormControl, type FormControlProps } from '@mui/material/FormControl'
 export { default as InputLabel, type InputLabelProps } from '@mui/material/InputLabel'
