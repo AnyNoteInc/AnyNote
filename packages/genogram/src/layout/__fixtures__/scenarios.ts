@@ -276,13 +276,13 @@ export function scenarioComplexGenogram(): {
   const sis4dead = addPerson(data, {
     sex: 'female',
     bloodRelation: 'sibling',
-    lifeDates: { isDeceased: true, deathKind: 'early' },
+    lifeDates: { lifeStatus: 'deceased', tragically: false },
   })
   const twin1 = addPerson(data, { sex: 'female', bloodRelation: 'sibling' })
   const twin2dead = addPerson(data, {
     sex: 'female',
     bloodRelation: 'sibling',
-    lifeDates: { isDeceased: true, deathKind: 'early' },
+    lifeDates: { lifeStatus: 'deceased', tragically: false },
   })
   const twinBG = addBirthGroup(data, 'twins', [twin1, twin2dead])
 
@@ -301,7 +301,7 @@ export function scenarioComplexGenogram(): {
   const deadUncle = addPerson(data, {
     sex: 'male',
     bloodRelation: 'sibling',
-    lifeDates: { isDeceased: true, deathKind: 'early' },
+    lifeDates: { lifeStatus: 'deceased', tragically: false },
   })
   addChildGroup(data, uPaternalGran, [
     { kind: 'person', personId: dad },

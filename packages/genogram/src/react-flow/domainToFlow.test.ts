@@ -201,7 +201,7 @@ describe('domainToFlow', () => {
       const deceased = nodes
         .filter((n) => n.type === 'person')
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        .filter((n) => (n.data as any).isDeceased)
+        .filter((n) => (n.data as any).lifeStatus === 'deceased')
       expect(deceased).toHaveLength(3)
     })
 

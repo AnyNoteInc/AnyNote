@@ -11,7 +11,7 @@ import type {
 import type {
   BirthKind,
   CustodySide,
-  DeathKind,
+  LifeStatus,
   LossKind,
   PersonSize,
   Sex,
@@ -44,9 +44,11 @@ export interface PersonNodeData {
   size: PersonSize
   isOwner: boolean
   isUnknown: boolean
-  isDeceased: boolean
-  deathKind?: DeathKind
+  lifeStatus: LifeStatus
+  showDeathCross: boolean
+  shouldShowPartnerOrder: boolean
   partnerOrder?: number
+  creationDate?: string
   label: RenderableLabel
 }
 

@@ -2,6 +2,7 @@ import type {
   BirthGroup,
   ChildGroup,
   GenogramEdge,
+  GenogramMeta,
   GenogramNode,
   GenogramPageData,
   Person,
@@ -10,7 +11,7 @@ import type {
 } from '../types'
 import type { LayoutResult } from '../layout/types'
 import { LAYOUT, personWidth } from '../layout/constants'
-import { resolveLabelPosition } from '../model/computed'
+import { resolveLabelPosition, shouldShowDeathCross, shouldShowPartnerOrder } from '../model/computed'
 import { formatPersonLabelLines } from '../utils/labels'
 
 const ANCHOR_SIZE = 1
@@ -20,11 +21,15 @@ export interface FlowSnapshot {
   edges: GenogramEdge[]
 }
 
-export function domainToFlow(data: GenogramPageData, layout: LayoutResult): FlowSnapshot {
+export function domainToFlow(
+  data: GenogramPageData,
+  layout: LayoutResult,
+  meta?: GenogramMeta | null,
+): FlowSnapshot {
   const nodes: GenogramNode[] = []
   const edges: GenogramEdge[] = []
 
-  pushPersonNodes(data, layout, nodes)
+  pushPersonNodes(data, layout, nodes, meta ?? null)
   pushPregnancyLossNodes(data, layout, nodes)
   pushUnionNodesAndEdges(data, layout, nodes, edges)
   pushChildrenHubs(data, layout, nodes, edges)
@@ -34,7 +39,13 @@ export function domainToFlow(data: GenogramPageData, layout: LayoutResult): Flow
   return { nodes, edges }
 }
 
-function pushPersonNodes(data: GenogramPageData, layout: LayoutResult, out: GenogramNode[]): void {
+function pushPersonNodes(
+  data: GenogramPageData,
+  layout: LayoutResult,
+  out: GenogramNode[],
+  meta: GenogramMeta | null,
+): void {
+  const creationDate = meta?.createdAt
   for (const person of Object.values(data.entities.people) as Person[]) {
     const pos = layout.positions[person.id]
     if (!pos) continue
@@ -49,11 +60,17 @@ function pushPersonNodes(data: GenogramPageData, layout: LayoutResult, out: Geno
         size: person.size,
         isOwner: person.role === 'owner',
         isUnknown: !!person.identity.isUnknown,
-        isDeceased: person.lifeDates.isDeceased,
-        deathKind: person.lifeDates.deathKind,
+        lifeStatus: person.lifeDates.lifeStatus,
+        showDeathCross: shouldShowDeathCross(person),
+        shouldShowPartnerOrder: shouldShowPartnerOrder(
+          person.id,
+          data.entities.people,
+          data.entities.unions,
+        ),
         partnerOrder: person.partnerOrder,
+        creationDate,
         label: {
-          lines: formatPersonLabelLines(person),
+          lines: formatPersonLabelLines(person, creationDate),
           position: resolveLabelPosition(person),
           hidden: !!person.label.hidden,
           offset: person.label.offset,

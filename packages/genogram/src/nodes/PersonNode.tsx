@@ -14,8 +14,8 @@ const DECEASED_FILL = 'var(--genogram-fill-deceased, #f4f4f4)'
 export function PersonNode({ data }: NodeProps<PersonRfNode>) {
   const w = personWidth(data.size)
   const h = w
-  const fill = data.isDeceased ? DECEASED_FILL : FILL
-  const showCross = data.isDeceased && (data.deathKind === 'early' || data.deathKind === 'tragic')
+  const fill = data.lifeStatus === 'deceased' ? DECEASED_FILL : FILL
+  const showCross = data.showDeathCross
 
   return (
     <div
@@ -103,20 +103,7 @@ export function PersonNode({ data }: NodeProps<PersonRfNode>) {
             />
           ))}
 
-        {data.isUnknown && (
-          <text
-            x={w / 2}
-            y={h / 2}
-            textAnchor="middle"
-            dominantBaseline="central"
-            fontSize={w * 0.5}
-            fill={STROKE_COLOR}
-          >
-            ?
-          </text>
-        )}
-
-        {data.partnerOrder !== undefined && !data.isUnknown && !data.isOwner && (
+        {data.shouldShowPartnerOrder && data.partnerOrder !== undefined && !data.isOwner && (
           <text
             x={w / 2}
             y={h / 2}
@@ -151,7 +138,7 @@ export function PersonNode({ data }: NodeProps<PersonRfNode>) {
         )}
       </svg>
 
-      <PersonLabel label={data.label} shapeWidth={w} shapeHeight={h} />
+      <PersonLabel label={data.label} shapeWidth={w} shapeHeight={h} size={data.size} />
     </div>
   )
 }

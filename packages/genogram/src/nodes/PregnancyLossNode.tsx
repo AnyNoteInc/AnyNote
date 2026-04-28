@@ -11,7 +11,7 @@ const STROKE_COLOR = 'var(--genogram-stroke, #333)'
 
 export function PregnancyLossNode({ data }: NodeProps<LossRfNode>) {
   const w = LAYOUT.LOSS
-  const letter = data.kind === 'abortion' ? 'A' : 'B'
+  const letter = data.kind === 'abortion' ? 'А' : 'В'
 
   return (
     <div style={{ position: 'relative', width: w, height: w }}>
