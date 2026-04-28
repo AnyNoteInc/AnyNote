@@ -71,10 +71,10 @@ describe('yjs actions', () => {
     const female = addPerson(doc, { sex: 'female', bloodRelation: 'partner' })
     const union = addUnion(doc, { malePartnerId: male.id, femalePartnerId: female.id })
 
-    setUnionDivorce(doc, union.id, { date: '2020-06-01', custodySide: 'female' })
+    setUnionDivorce(doc, union.id, { date: { day: 1, month: 6, year: 2020 }, custodySide: 'female' })
     let domain = assembleDomain(doc)
     expect(domain.entities.unions[union.id]!.divorce).toEqual({
-      date: '2020-06-01',
+      date: { day: 1, month: 6, year: 2020 },
       custodySide: 'female',
     })
 
@@ -88,15 +88,19 @@ describe('yjs actions', () => {
     const p = addPerson(doc, { sex: 'male', bloodRelation: 'direct' })
     updatePerson(doc, p.id, {
       identity: { firstName: 'Иван' },
-      lifeDates: { isDeceased: true, deathKind: 'tragic' },
+      lifeDates: {
+        birthMode: 'date',
+        lifeStatus: 'deceased',
+        tragically: true,
+      },
     })
 
     const domain = assembleDomain(doc)
     const updated = domain.entities.people[p.id]!
     expect(updated.id).toBe(p.id)
     expect(updated.identity.firstName).toBe('Иван')
-    expect(updated.lifeDates.isDeceased).toBe(true)
-    expect(updated.lifeDates.deathKind).toBe('tragic')
+    expect(updated.lifeDates.lifeStatus).toBe('deceased')
+    expect(updated.lifeDates.tragically).toBe(true)
   })
 
   it('removePerson deletes from the Y.Map', () => {
@@ -158,7 +162,7 @@ describe('hydrate + snapshot roundtrip', () => {
       size: 'big',
       bloodRelation: 'direct',
       identity: {},
-      lifeDates: { isDeceased: false },
+      lifeDates: { birthMode: 'date', lifeStatus: 'alive' },
       profile: {},
       label: {},
     })

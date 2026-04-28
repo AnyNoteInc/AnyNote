@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { calcAge, calcAgeAtDeath, shouldShowDeathCross, hasParents, getChildGroupOf, getChildrenOf, getBaseOf, getPartnersOf, countPartnersOf, shouldShowPartnerOrder } from './computed'
-import type { ChildGroup, ChildGroupId, Person, PersonId, Union, UnionId } from '../types/domain'
+import type { ChildGroup, ChildGroupId, Person, PersonId, Union, UnionId } from '../types'
 
 describe('calcAge', () => {
   it('returns exact age when full birthDate and full refDate', () => {
@@ -162,7 +162,8 @@ describe('getChildrenOf', () => {
         { kind: 'person', personId: 'b' as PersonId },
       ],
     }
-    expect(getChildrenOf('u1' as UnionId, { cg })).toEqual(cg.children)
+    const groups: Record<ChildGroupId, ChildGroup> = { [cg.id]: cg }
+    expect(getChildrenOf('u1' as UnionId, groups)).toEqual(cg.children)
   })
 
   it('returns empty array when no group for union', () => {
@@ -183,8 +184,8 @@ describe('partner helpers', () => {
     id: 'u2' as UnionId, kind: 'marriage',
     malePartnerId: 'owner' as PersonId, femalePartnerId: 'w2' as PersonId,
   }
-  const unions = { u1, u2 }
-  const people = { owner, w1: wife1, w2: wife2 }
+  const unions: Record<UnionId, Union> = { [u1.id]: u1, [u2.id]: u2 }
+  const people: Record<PersonId, Person> = { [owner.id]: owner, [wife1.id]: wife1, [wife2.id]: wife2 }
 
   it('getBaseOf returns the other side when partner has 1 union', () => {
     expect(getBaseOf('w1' as PersonId, unions)).toBe('owner')
@@ -212,8 +213,8 @@ describe('partner helpers', () => {
     }
     const partners = getPartnersOf(
       'owner' as PersonId,
-      { u1, u2, u3 },
-      { ...people, w3: wife3 },
+      { ...unions, [u3.id]: u3 },
+      { ...people, [wife3.id]: wife3 },
     )
     expect(partners[partners.length - 1]!.partnerId).toBe('w3')
   })

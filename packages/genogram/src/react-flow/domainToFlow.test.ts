@@ -59,7 +59,7 @@ describe('domainToFlow', () => {
   it('divorce adds divorceSlash decoration and custodySide', () => {
     const { data, unionId } = scenarioCouple()
     data.entities.unions[unionId]!.divorce = {
-      date: '2020-01-01',
+      date: { day: 1, month: 1, year: 2020 },
       custodySide: 'female',
     }
     const layout = computeLayout(data)
@@ -236,7 +236,7 @@ describe('domainToFlow', () => {
 
   describe('creation date node (Task 39)', () => {
     it('no creation date node when meta is absent', () => {
-      const { data, ownerId: _ownerId } = scenarioSolo()
+      const { data } = scenarioSolo()
       const layout = computeLayout(data)
       const { nodes } = domainToFlow(data, layout)
       expect(nodes.find((n) => n.id === '__creation_date__')).toBeUndefined()

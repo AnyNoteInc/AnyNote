@@ -1,4 +1,4 @@
-import type { PersonId, UnionId } from '../types/domain'
+import type { PersonId, UnionId } from '../types'
 
 export type Selection =
   | { kind: 'node'; id: string }

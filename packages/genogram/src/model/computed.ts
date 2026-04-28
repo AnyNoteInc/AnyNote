@@ -1,6 +1,16 @@
-import type { BloodRelation, Person, PersonSize, RenderableLabel } from '../types'
-import type { ChildEntry, ChildGroup, ChildGroupId, PartialDate, PersonId, Union, UnionId } from '../types/domain'
-import { computeAge as computeAgeFromDates } from '../utils/dates'
+import type {
+  BloodRelation,
+  ChildEntry,
+  ChildGroup,
+  ChildGroupId,
+  PartialDate,
+  Person,
+  PersonId,
+  PersonSize,
+  RenderableLabel,
+  Union,
+  UnionId,
+} from '../types'
 
 export function resolveSize(bloodRelation: BloodRelation): PersonSize {
   return bloodRelation === 'direct' || bloodRelation === 'partner' ? 'big' : 'small'
@@ -14,13 +24,13 @@ export function resolveLabelPosition(p: Person): RenderableLabel['position'] {
 }
 
 export function computeAge(p: Person, now: Date = new Date()): number | undefined {
-  return computeAgeFromDates(p.lifeDates.birthDate, p.lifeDates.deathDate, now)
+  return p.lifeDates.lifeStatus === 'deceased'
+    ? calcAgeAtDeath(p)
+    : calcAge(p.lifeDates.birthDate, dateToPartial(now))
 }
 
 export function showDeathCross(p: Person): boolean {
-  if (!p.lifeDates.isDeceased) return false
-  const kind = p.lifeDates.deathKind
-  return kind === 'early' || kind === 'tragic'
+  return shouldShowDeathCross(p)
 }
 
 export function isDirectBlood(p: Person): boolean {
@@ -66,6 +76,10 @@ export function calcAgeAtDeath(person: Person): number | undefined {
 export function isoToPartial(iso: string): PartialDate | undefined {
   const d = new Date(iso)
   if (isNaN(d.getTime())) return undefined
+  return dateToPartial(d)
+}
+
+function dateToPartial(d: Date): PartialDate {
   return { year: d.getUTCFullYear(), month: d.getUTCMonth() + 1, day: d.getUTCDate() }
 }
 
