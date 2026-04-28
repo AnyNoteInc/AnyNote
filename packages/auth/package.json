@@ -15,10 +15,12 @@
   "scripts": {
     "lint": "eslint . --max-warnings 0",
     "build": "tsc -p tsconfig.json",
-    "check-types": "tsc -p tsconfig.json --noEmit"
+    "check-types": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
   },
   "dependencies": {
     "@repo/db": "workspace:*",
+    "@repo/mail": "workspace:*",
     "better-auth": "^1.4.9"
   },
   "devDependencies": {
@@ -26,6 +28,7 @@
     "@repo/typescript-config": "workspace:*",
     "@types/node": "^22.19.1",
     "eslint": "^9.39.1",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
   }
 }
