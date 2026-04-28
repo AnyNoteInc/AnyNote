@@ -41,6 +41,8 @@ export function UnionLineEdge({
           targetX={targetX}
           targetY={targetY}
           custodySide={data?.custodySide}
+          unionId={data?.unionId}
+          markPosition={data?.markPosition}
         />
       )}
     </g>

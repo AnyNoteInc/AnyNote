@@ -1,5 +1,10 @@
+'use client'
+
+import { useCallback, useEffect, useRef, useState } from 'react'
+import type { CustodySide, UnionId } from '../../types'
+import { setUnionDivorce } from '../../yjs/actions'
+import { useDoc } from '../../react-flow/doc-context'
 import { EDGE_STROKE, EDGE_WIDTH } from './constants'
-import type { CustodySide } from '../../types'
 
 const SLASH_LENGTH = 10
 const SLASH_GAP = 4
@@ -10,12 +15,15 @@ export interface DivorceMarkerProps {
   targetX: number
   targetY: number
   custodySide?: CustodySide
+  /** UnionId used to persist markPosition via Yjs. */
+  unionId?: UnionId
+  /** Initial mark position along the line (0..1); defaults to custodySideToT(custodySide). */
+  markPosition?: number
 }
 
 /**
- * Two parallel diagonal slashes across the union line. The position along
- * the line reflects custodySide: male ⇒ near male partner (children stay with him),
- * female ⇒ near female partner, shared/undefined ⇒ midpoint.
+ * Two parallel diagonal slashes across the union line, draggable along the line.
+ * Position is stored in union.divorce.markPosition via Yjs on mouse-up.
  */
 export function DivorceMarker({
   sourceX,
@@ -23,10 +31,73 @@ export function DivorceMarker({
   targetX,
   targetY,
   custodySide,
+  unionId,
+  markPosition,
 }: DivorceMarkerProps) {
-  const t = custodySideToT(custodySide)
-  const cx = sourceX + (targetX - sourceX) * t
-  const cy = sourceY + (targetY - sourceY) * t
+  const doc = useDoc()
+
+  const defaultT = markPosition ?? custodySideToT(custodySide)
+  const localPosRef = useRef<number>(defaultT)
+  const [pos, setPos] = useState<number>(defaultT)
+  const [dragging, setDragging] = useState(false)
+  const dragStateRef = useRef<{
+    posStart: number
+    mouseStart: { x: number; y: number }
+  } | null>(null)
+
+  // Sync from Yjs when markPosition changes externally
+  useEffect(() => {
+    const next = markPosition ?? custodySideToT(custodySide)
+    setPos(next)
+    localPosRef.current = next
+  }, [markPosition, custodySide])
+
+  const onDragStart = useCallback(
+    (e: React.MouseEvent) => {
+      e.stopPropagation()
+      dragStateRef.current = {
+        posStart: localPosRef.current,
+        mouseStart: { x: e.clientX, y: e.clientY },
+      }
+      setDragging(true)
+
+      const onMove = (m: MouseEvent) => {
+        const ds = dragStateRef.current
+        if (!ds) return
+        const dx = m.clientX - ds.mouseStart.x
+        const dy = m.clientY - ds.mouseStart.y
+        const lineDx = targetX - sourceX
+        const lineDy = targetY - sourceY
+        const lineLen = Math.hypot(lineDx, lineDy) || 1
+        const ux = lineDx / lineLen
+        const uy = lineDy / lineLen
+        const deltaScalar = (dx * ux + dy * uy) / lineLen
+        const nextPos = Math.min(1, Math.max(0, ds.posStart + deltaScalar))
+        localPosRef.current = nextPos
+        setPos(nextPos)
+      }
+
+      const onUp = () => {
+        setDragging(false)
+        dragStateRef.current = null
+        window.removeEventListener('mousemove', onMove)
+        window.removeEventListener('mouseup', onUp)
+        if (unionId) {
+          setUnionDivorce(doc, unionId, {
+            custodySide,
+            markPosition: localPosRef.current,
+          })
+        }
+      }
+
+      window.addEventListener('mousemove', onMove)
+      window.addEventListener('mouseup', onUp)
+    },
+    [sourceX, sourceY, targetX, targetY, custodySide, unionId, doc],
+  )
+
+  const cx = sourceX + (targetX - sourceX) * pos
+  const cy = sourceY + (targetY - sourceY) * pos
 
   const dx = targetX - sourceX
   const dy = targetY - sourceY
@@ -59,7 +130,24 @@ export function DivorceMarker({
     )
   })
 
-  return <g>{slashes}</g>
+  return (
+    <g
+      onMouseDown={onDragStart}
+      style={{ cursor: dragging ? 'grabbing' : 'grab' }}
+      data-testid="divorce-mark"
+    >
+      {/* Invisible hit area for easier dragging */}
+      <rect
+        x={cx - 12}
+        y={cy - 12}
+        width={24}
+        height={24}
+        fill="transparent"
+        stroke="none"
+      />
+      {slashes}
+    </g>
+  )
 }
 
 function custodySideToT(side?: CustodySide): number {

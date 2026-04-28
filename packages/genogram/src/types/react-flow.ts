@@ -110,6 +110,10 @@ export interface GenogramEdgeData {
   targetEntityId: EntityId
   decorations?: EdgeDecoration[]
   custodySide?: CustodySide
+  /** UnionId for union-line edges; used by DivorceMarker to persist markPosition. */
+  unionId?: UnionId
+  /** Divorce mark position along the line (0..1); mirrors union.divorce.markPosition. */
+  markPosition?: number
   pathHints?: {
     corner?: 'topLeft' | 'topRight'
   }

@@ -11,6 +11,7 @@ import { getGenogramMaps } from '../yjs/schema'
 import { hydrateDoc } from '../yjs/hydrateDoc'
 import { snapshotFromDoc } from '../yjs/snapshotFromDoc'
 import { domainToFlow } from './domainToFlow'
+import { DocContext } from './doc-context'
 import { edgeTypes } from './edgeTypes'
 import { nodeTypes } from './nodeTypes'
 
@@ -36,6 +37,8 @@ export function GenogramFlow(props: GenogramFlowProps) {
     </ReactFlowProvider>
   )
 }
+
+// DocContext is provided inside GenogramFlowInner where the resolved Y.Doc is available.
 
 function GenogramFlowInner({
   yDoc,
@@ -84,26 +87,28 @@ function GenogramFlowInner({
   const readonly = mode === 'readonly'
 
   return (
-    <div className={className} style={{ width: '100%', height: '100%', ...style }}>
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        nodeTypes={nodeTypes}
-        edgeTypes={edgeTypes}
-        nodesDraggable={!readonly}
-        nodesConnectable={!readonly}
-        elementsSelectable={!readonly}
-        edgesFocusable={!readonly}
-        panOnDrag
-        zoomOnScroll
-        panOnScroll={false}
-        fitView={fitView}
-        proOptions={{ hideAttribution: true }}
-      >
-        <Background gap={24} />
-        <Controls showInteractive={false} />
-      </ReactFlow>
-    </div>
+    <DocContext.Provider value={doc}>
+      <div className={className} style={{ width: '100%', height: '100%', ...style }}>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          nodesDraggable={!readonly}
+          nodesConnectable={!readonly}
+          elementsSelectable={!readonly}
+          edgesFocusable={!readonly}
+          panOnDrag
+          zoomOnScroll
+          panOnScroll={false}
+          fitView={fitView}
+          proOptions={{ hideAttribution: true }}
+        >
+          <Background gap={24} />
+          <Controls showInteractive={false} />
+        </ReactFlow>
+      </div>
+    </DocContext.Provider>
   )
 }
 

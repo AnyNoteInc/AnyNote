@@ -142,6 +142,8 @@ function pushUnionNodesAndEdges(
         targetEntityId: union.femalePartnerId,
         decorations: union.divorce ? ['divorceSlash'] : undefined,
         custodySide: union.divorce?.custodySide,
+        unionId: union.id,
+        markPosition: union.divorce?.markPosition,
       },
     })
   }
