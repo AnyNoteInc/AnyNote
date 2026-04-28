@@ -7,5 +7,5 @@ export const metadata: Metadata = {
 }
 
 export default function SignUpPage() {
-  return <SignUpForm titleLabel={metadata.title as string} />
+  return <SignUpForm />
 }

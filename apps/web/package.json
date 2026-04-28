@@ -18,6 +18,7 @@
     "@repo/editor": "workspace:*",
     "@repo/excalidraw": "workspace:*",
     "@repo/genogram": "workspace:*",
+    "@repo/mail": "workspace:*",
     "@repo/storage": "workspace:*",
     "@repo/trpc": "workspace:*",
     "@repo/yookassa": "workspace:*",
@@ -31,12 +32,15 @@
     "pg": "^8.16.3",
     "react": "^19.2.3",
     "react-dom": "^19.2.0",
+    "react-google-recaptcha-v3": "^1.10.1",
     "turndown": "^7.2.4"
   },
   "devDependencies": {
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
     "@tanstack/react-query-devtools": "^5.91.2",
+    "@testing-library/react": "^16.3.0",
+    "@testing-library/user-event": "^14.6.1",
     "@types/node": "^22.15.3",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",

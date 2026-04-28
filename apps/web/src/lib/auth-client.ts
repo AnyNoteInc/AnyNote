@@ -13,7 +13,22 @@ import { auth } from '@repo/auth'
 const baseURL =
   typeof window === 'undefined' ? process.env.NEXT_PUBLIC_BASE_URL! : window.location.origin
 
-export const { signIn, signUp, signOut, useSession } = createAuthClient({
+type PasswordResetArgs = {
+  email: string
+  redirectTo?: string
+  fetchOptions?: { headers?: Record<string, string> }
+}
+
+export type AuthClient = {
+  requestPasswordReset?: (args: PasswordResetArgs) => Promise<{ error?: { message?: string } | null }>
+  forgetPassword?: (args: PasswordResetArgs) => Promise<{ error?: { message?: string } | null }>
+  resetPassword: (args: {
+    newPassword: string
+    token: string
+  }) => Promise<{ error?: { message?: string } | null }>
+}
+
+const client = createAuthClient({
   baseURL,
   plugins: [
     jwtClient(),
@@ -30,3 +45,6 @@ export const { signIn, signUp, signOut, useSession } = createAuthClient({
     },
   },
 })
+
+export const authClient = client as unknown as AuthClient
+export const { signIn, signUp, signOut, useSession } = client
