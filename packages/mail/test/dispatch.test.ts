@@ -35,7 +35,11 @@ describe('dispatchPending', () => {
     sendMailMock.mockResolvedValue({ messageId: 'msg-1' })
     process.env.MAIL_FROM = process.env.MAIL_FROM ?? 'AnyNote <noreply@anynote.local>'
     await prisma.outboxEvent.deleteMany({
-      where: { aggregateType: 'email', payload: { path: ['to'], string_contains: TAG } },
+      where: {
+        aggregateType: 'email',
+        eventType: 'email.send',
+        status: { in: ['PENDING', 'PROCESSING'] },
+      },
     })
   })
 
