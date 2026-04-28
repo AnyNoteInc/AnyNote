@@ -24,6 +24,7 @@
     "@nestjs/swagger": "^11.0.0",
     "@rekog/mcp-nest": "^1.5.0",
     "@repo/db": "workspace:*",
+    "@repo/mail": "workspace:*",
     "@repo/storage": "workspace:*",
     "@repo/yookassa": "workspace:*",
     "cron": "^3.2.0",
