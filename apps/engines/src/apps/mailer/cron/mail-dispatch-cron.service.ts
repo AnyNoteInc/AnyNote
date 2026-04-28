@@ -26,16 +26,20 @@ export class MailDispatchCronService implements OnModuleInit {
 
   @Cron(process.env.MAIL_DISPATCH_CRON_EXPRESSION ?? '*/30 * * * * *')
   async tick(): Promise<void> {
-    const result = await dispatchPending(this.prisma, {
-      batch: this.batch,
-      maxAttempts: this.maxAttempts,
-      workerId: this.workerId,
-    })
-    if (result.processed > 0) {
-      this.log.log(
-        `tick processed=${result.processed} ok=${result.succeeded} ` +
-          `retry=${result.retried} fail=${result.failed}`,
-      )
+    try {
+      const result = await dispatchPending(this.prisma, {
+        batch: this.batch,
+        maxAttempts: this.maxAttempts,
+        workerId: this.workerId,
+      })
+      if (result.processed > 0) {
+        this.log.log(
+          `tick processed=${result.processed} ok=${result.succeeded} ` +
+            `retry=${result.retried} fail=${result.failed}`,
+        )
+      }
+    } catch (err) {
+      this.log.error(`tick failed worker=${this.workerId}: ${(err as Error).message}`)
     }
   }
 }
