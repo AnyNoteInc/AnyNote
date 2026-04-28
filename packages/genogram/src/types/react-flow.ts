@@ -26,6 +26,7 @@ export type GenogramNodeType =
   | 'childrenHub'
   | 'birthGroup'
   | 'annotation'
+  | 'genogramCreationDate'
 
 export type GenogramEdgeType =
   | 'unionMarriage'
@@ -87,6 +88,11 @@ export interface AnnotationNodeData {
   text: string
 }
 
+export interface OwnerCreationDateNodeData {
+  [key: string]: unknown
+  formattedDate: string
+}
+
 export type GenogramNode =
   | Node<PersonNodeData, 'person'>
   | Node<PregnancyLossNodeData, 'pregnancyLoss'>
@@ -94,6 +100,7 @@ export type GenogramNode =
   | Node<ChildrenHubNodeData, 'childrenHub'>
   | Node<BirthGroupNodeData, 'birthGroup'>
   | Node<AnnotationNodeData, 'annotation'>
+  | Node<OwnerCreationDateNodeData, 'genogramCreationDate'>
 
 export type EdgeDecoration = 'divorceSlash' | 'diagonalConverge'
 

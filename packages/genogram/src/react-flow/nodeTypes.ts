@@ -3,6 +3,7 @@ import {
   AnnotationNode,
   BirthGroupNode,
   ChildrenHubNode,
+  OwnerCreationDateNode,
   PersonNode,
   PregnancyLossNode,
   UnionNode,
@@ -15,4 +16,5 @@ export const nodeTypes: NodeTypes = {
   childrenHub: ChildrenHubNode,
   birthGroup: BirthGroupNode,
   annotation: AnnotationNode,
+  genogramCreationDate: OwnerCreationDateNode,
 }
