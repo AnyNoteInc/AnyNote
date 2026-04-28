@@ -14,12 +14,14 @@ export type ResetPasswordConfirmFormProps = {
   onSubmit?: (newPassword: string) => Promise<void>
   isSubmitting?: boolean
   errorMessage?: string | null
+  requestResetHref?: string
 }
 
 export function ResetPasswordConfirmForm({
   onSubmit,
   isSubmitting,
   errorMessage,
+  requestResetHref = '/reset-credentials',
 }: ResetPasswordConfirmFormProps) {
   const {
     register,
@@ -45,7 +47,18 @@ export function ResetPasswordConfirmForm({
   return (
     <Stack spacing={3} component="form" onSubmit={handleFormSubmit}>
       <AuthHeader title="Новый пароль" />
-      {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
+      {errorMessage ? (
+        <Alert
+          severity="error"
+          action={
+            <Button color="inherit" size="small" href={requestResetHref}>
+              Запросить новую
+            </Button>
+          }
+        >
+          {errorMessage}
+        </Alert>
+      ) : null}
       <TextField
         {...register('password', {
           required: 'Введите пароль',

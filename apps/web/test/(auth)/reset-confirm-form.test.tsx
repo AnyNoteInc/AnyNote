@@ -5,7 +5,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 
 const mocks = vi.hoisted(() => ({
-  resetPassword: vi.fn(async () => ({ error: null })),
+  resetPassword: vi.fn(async () => ({ error: null as { message: string } | null })),
   push: vi.fn(),
   refresh: vi.fn(),
 }))
@@ -48,5 +48,18 @@ describe('ResetConfirmForm', () => {
 
     expect(mocks.resetPassword).not.toHaveBeenCalled()
     expect(await screen.findByText(/не совпадают/i)).toBeTruthy()
+  })
+
+  it('shows a stable reset-token error with a retry link', async () => {
+    mocks.resetPassword.mockResolvedValueOnce({ error: { message: 'Invalid token' } })
+    render(<ResetConfirmForm token="T0K" />)
+    await userEvent.type(screen.getByLabelText(/^пароль$/i), 'newpass123')
+    await userEvent.type(screen.getByLabelText(/повторите пароль/i), 'newpass123')
+    await userEvent.click(screen.getByRole('button', { name: /сохранить/i }))
+
+    expect(await screen.findByText(/ссылка недействительна или истекла/i)).toBeTruthy()
+    expect(screen.getByRole('link', { name: /запросить новую/i }).getAttribute('href')).toBe(
+      '/reset-credentials',
+    )
   })
 })
