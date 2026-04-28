@@ -6,6 +6,7 @@ import {
   jwt,
   deviceAuthorization,
   lastLoginMethod,
+  captcha,
 } from 'better-auth/plugins'
 import { nextCookies } from 'better-auth/next-js'
 
@@ -24,14 +25,21 @@ const auth = betterAuth({
   }),
   emailAndPassword: {
     enabled: true,
-    sendResetPassword: async ({ user, url }) => {
-      // Will be replaced in Task 10 with enqueueMailEvent flow.
-      if (process.env.NODE_ENV === 'production') {
-        throw new Error(
-          'sendResetPassword is not wired to a real transport. Configure email delivery before enabling password reset in production.',
-        )
-      }
-      console.info(`Password reset link for ${user.email}: ${url}`)
+    resetPasswordTokenExpiresIn: VERIFY_EXPIRES_S,
+    sendResetPassword: async ({ user, token }) => {
+      const userWithName = user as { firstName?: string; email: string; id: string }
+      const link = `${appUrl()}/reset-credentials/${token}`
+      const expiresAtIso = new Date(Date.now() + VERIFY_EXPIRES_S * 1000).toISOString()
+      await enqueueMailEvent(prisma, {
+        kind: 'reset-password',
+        to: userWithName.email,
+        data: {
+          firstName: userWithName.firstName ?? '',
+          link,
+          expiresAtIso,
+        },
+        userId: userWithName.id,
+      })
     },
   },
   emailVerification: {
@@ -87,6 +95,16 @@ const auth = betterAuth({
       : {}),
   },
   plugins: [
+    ...(process.env.RECAPTCHA_SECRET_KEY
+      ? [
+          captcha({
+            provider: 'google-recaptcha',
+            secretKey: process.env.RECAPTCHA_SECRET_KEY,
+            minScore: 0.5,
+            endpoints: ['/sign-in/email', '/sign-up/email', '/request-password-reset'],
+          }),
+        ]
+      : []),
     magicLink({
       sendMagicLink: async ({ email, url }) => {
         if (process.env.NODE_ENV !== 'production') {
@@ -115,12 +133,18 @@ const auth = betterAuth({
     user: {
       create: {
         after: async (user) => {
+          const userWithName = user as {
+            id: string
+            email: string
+            emailVerified: boolean
+            firstName?: string
+          }
           const personalPlan = await prisma.plan.findUniqueOrThrow({
             where: { slug: 'personal' },
           })
           await prisma.subscription.create({
             data: {
-              userId: user.id,
+              userId: userWithName.id,
               planId: personalPlan.id,
               status: SubscriptionStatus.ACTIVE,
               billingPeriod: 'MONTHLY',
@@ -130,10 +154,21 @@ const auth = betterAuth({
             },
           })
           await prisma.userPreference.upsert({
-            where: { userId: user.id },
-            create: { userId: user.id },
+            where: { userId: userWithName.id },
+            create: { userId: userWithName.id },
             update: {},
           })
+          if (userWithName.emailVerified) {
+            await enqueueMailEvent(prisma, {
+              kind: 'welcome',
+              to: userWithName.email,
+              data: {
+                firstName: userWithName.firstName ?? '',
+                appUrl: `${appUrl()}/app`,
+              },
+              userId: userWithName.id,
+            })
+          }
         },
       },
     },

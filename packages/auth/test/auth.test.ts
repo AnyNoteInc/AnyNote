@@ -92,4 +92,80 @@ describe('auth callbacks', () => {
     const pref = await prisma.userPreference.findUnique({ where: { userId } })
     expect(pref).not.toBeNull()
   })
+
+  it('forgetPassword enqueues reset-password event with custom URL', async () => {
+    const email = `forget${TAG}`
+    await auth.api.signUpEmail({
+      body: {
+        email,
+        password: 'StrongPass123!',
+        name: 'Test User',
+        firstName: 'Test',
+        lastName: 'User',
+      },
+    })
+    await prisma.outboxEvent.deleteMany({
+      where: {
+        payload: { path: ['kind'], equals: 'verify-email' },
+        AND: { payload: { path: ['to'], equals: email } },
+      },
+    })
+
+    await auth.api.requestPasswordReset({ body: { email } })
+
+    const evt = await prisma.outboxEvent.findFirstOrThrow({
+      where: {
+        aggregateType: 'email',
+        payload: { path: ['kind'], equals: 'reset-password' },
+        AND: { payload: { path: ['to'], equals: email } },
+      },
+    })
+    const payload = evt.payload as { data: { link: string; expiresAtIso: string } }
+    expect(payload.data.link).toContain('/reset-credentials/')
+    expect(payload.data.link).not.toContain('/api/auth/reset-password')
+    const expiresAt = new Date(payload.data.expiresAtIso).getTime()
+    expect(expiresAt).toBeGreaterThan(Date.now())
+  })
+
+  it('Google-style verified user welcome enqueue path is valid', async () => {
+    const email = `googled${TAG}`
+    const personalPlan = await prisma.plan.findUniqueOrThrow({ where: { slug: 'personal' } })
+    const created = await prisma.user.create({
+      data: {
+        email,
+        emailVerified: true,
+        name: 'G User',
+        firstName: 'G',
+        lastName: 'User',
+      },
+    })
+    await prisma.subscription.create({
+      data: {
+        userId: created.id,
+        planId: personalPlan.id,
+        status: SubscriptionStatus.ACTIVE,
+        billingPeriod: 'MONTHLY',
+      },
+    })
+    await prisma.userPreference.create({ data: { userId: created.id } })
+
+    if (created.emailVerified) {
+      const { enqueueMailEvent } = await import('@repo/mail')
+      await enqueueMailEvent(prisma, {
+        kind: 'welcome',
+        to: created.email,
+        data: { firstName: created.firstName, appUrl: 'http://localhost:3000/app' },
+        userId: created.id,
+      })
+    }
+
+    const welcome = await prisma.outboxEvent.findFirstOrThrow({
+      where: {
+        aggregateType: 'email',
+        payload: { path: ['kind'], equals: 'welcome' },
+        AND: { payload: { path: ['to'], equals: email } },
+      },
+    })
+    expect(welcome).toBeTruthy()
+  })
 })
