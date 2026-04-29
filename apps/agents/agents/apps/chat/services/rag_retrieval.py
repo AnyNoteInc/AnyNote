@@ -3,7 +3,9 @@ from uuid import UUID
 
 from langchain_core.documents import Document
 
-from agents.apps.processing.repositories import VectorStoreRepository
+from agents.apps.processing.repositories import EmbeddingFactoryRepository, VectorStoreRepository
+from agents.apps.processing.schemas import EmbeddingProviderConfigSchema
+from agents.apps.processing.utils import collection_name_for
 
 from ..schemas import RagDocumentSchema
 
@@ -13,12 +15,24 @@ class RagRetrievalService:
     """Поиск top-K релевантных чанков из Qdrant с dedup по (pageId, blockNumber)."""
 
     vector_store_repository: VectorStoreRepository
+    embedding_factory_repository: EmbeddingFactoryRepository
 
     async def retrieve(
-        self, workspace_id: UUID, query: str, k: int = 5,
+        self,
+        *,
+        embedding: EmbeddingProviderConfigSchema,
+        workspace_id: UUID,
+        query: str,
+        k: int = 5,
     ) -> list[RagDocumentSchema]:
+        embedder = self.embedding_factory_repository.make(embedding)
+        collection = collection_name_for(embedding.provider, embedding.model_slug)
         docs = await self.vector_store_repository.similarity_search(
-            workspace_id=str(workspace_id), query=query, k=k * 3,
+            collection_name=collection,
+            embeddings=embedder,
+            workspace_id=str(workspace_id),
+            query=query,
+            k=k * 3,
         )
         return self._dedupe(docs, k)
 

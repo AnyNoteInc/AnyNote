@@ -3,10 +3,14 @@
 from uuid import uuid4
 
 import pytest
+from agents.apps.chat.enums import ModelProviderEnum
 from agents.apps.processing.repositories import VectorStoreRepository
+from agents.apps.processing.schemas import EmbeddingProviderConfigSchema, ModelConnectionSchema
+from agents.apps.processing.utils import collection_name_for
 from agents.settings import SettingsSchema
 from fast_clean.schemas import BearerTokenAuthSchema
 from langchain_ollama import OllamaEmbeddings
+from ollama import ResponseError
 from qdrant_client import AsyncQdrantClient
 
 
@@ -25,30 +29,37 @@ async def test_full_indexing_then_retrieval_roundtrip() -> None:
         url=str(settings.qdrant.host).rstrip('/'),
         api_key=api_key,
     )
+    embedding = EmbeddingProviderConfigSchema(
+        provider=ModelProviderEnum.OLLAMA,
+        model_slug='nomic-embed-text',
+        vector_size=768,
+        connection=ModelConnectionSchema(base_url=str(settings.ollama.host).rstrip('/')),
+    )
     embeddings = OllamaEmbeddings(
-        base_url=str(settings.ollama.host).rstrip('/'),
-        model=settings.ollama.embedding_model,
+        base_url=embedding.connection.base_url,
+        model=embedding.model_slug,
     )
-    repo = VectorStoreRepository(
-        client=client,
-        embeddings=embeddings,
-        collection_name=settings.qdrant.collection_name,
-        vector_size=settings.qdrant.vector_size,
-    )
+    collection = collection_name_for(embedding.provider, embedding.model_slug)
+    repo = VectorStoreRepository(client=client)
 
     workspace_id = str(uuid4())
     page_id = str(uuid4())
 
     try:
         # Ensure collection exists
-        await repo.ensure_collection()
+        await repo.ensure_collection(collection, embedding.vector_size)
 
         # Step 1: embed and upsert a test document directly
         content = 'Корпоративный кофе называется «Бразильский Медведь».'
-        vector = await embeddings.aembed_query(content)
+        try:
+            vector = await embeddings.aembed_query(content)
+        except ResponseError as e:
+            if e.status_code == 404:
+                pytest.skip('Ollama model nomic-embed-text is not pulled locally')
+            raise
         import uuid
         point_id = str(uuid.uuid5(uuid.NAMESPACE_DNS, f'{page_id}:0'))
-        await repo.upsert_chunks([
+        await repo.upsert_chunks(collection, [
             (point_id, vector, {
                 'pageId': page_id,
                 'workspaceId': workspace_id,
@@ -61,7 +72,11 @@ async def test_full_indexing_then_retrieval_roundtrip() -> None:
 
         # Step 2: retrieve via similarity_search — this is the C1 proof
         docs = await repo.similarity_search(
-            workspace_id=workspace_id, query='корпоративный кофе', k=5,
+            collection_name=collection,
+            embeddings=embeddings,
+            workspace_id=workspace_id,
+            query='корпоративный кофе',
+            k=5,
         )
 
         assert len(docs) >= 1, f'Expected at least 1 doc, got {len(docs)}'
@@ -70,5 +85,5 @@ async def test_full_indexing_then_retrieval_roundtrip() -> None:
 
     finally:
         # Clean up test data
-        await repo.delete_by_page(page_id)
+        await repo.delete_by_page(collection, page_id)
         await client.close()
