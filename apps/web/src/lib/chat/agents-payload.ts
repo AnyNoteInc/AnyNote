@@ -1,3 +1,5 @@
+import { parseAiProviderConnection } from '@repo/db'
+
 export type WorkspaceSettingsSnapshot = {
   temperature: number | null
   topP: number | null
@@ -9,6 +11,14 @@ export type WorkspaceSettingsSnapshot = {
       connection: unknown
     }
   }
+  embeddingsModel: {
+    slug: string
+    vectorSize: number
+    provider: {
+      slug: string
+      connection: unknown
+    }
+  } | null
 }
 
 export type AgentConversationMessage = {
@@ -38,6 +48,18 @@ export function buildAgentsPayload(args: {
   settings: WorkspaceSettingsSnapshot
   messages?: AgentConversationMessage[]
 }) {
+  const embedding = args.settings.embeddingsModel
+    ? {
+        provider: args.settings.embeddingsModel.provider.slug,
+        modelSlug: args.settings.embeddingsModel.slug,
+        vectorSize: args.settings.embeddingsModel.vectorSize,
+        connection: parseAiProviderConnection(
+          args.settings.embeddingsModel.provider.slug,
+          args.settings.embeddingsModel.provider.connection,
+        ),
+      }
+    : null
+
   return {
     threadId: args.chatId,
     model: {
@@ -67,6 +89,7 @@ export function buildAgentsPayload(args: {
         },
       ],
     },
+    embedding,
     instruction: {
       format: 'markdown',
       language: 'ru',

@@ -1,6 +1,6 @@
 import { notFound } from 'next/navigation'
 
-import { getWorkspaceFeatures, getAvailableAiModels } from '@repo/trpc'
+import { getAvailableAiModels, getAvailableEmbeddingModels, getWorkspaceFeatures } from '@repo/trpc'
 import { WorkspaceAiSection } from '@/components/workspace/settings/ai-section'
 import { getServerTRPC } from '@/trpc/server'
 
@@ -13,7 +13,16 @@ export default async function WorkspaceSettingsAiPage({ params }: Props) {
   const trpc = await getServerTRPC()
   const workspace = await trpc.workspace.getById({ id: workspaceId })
   if (!workspace) notFound()
-  const models = await getAvailableAiModels(workspaceId)
+  const [models, embeddingModels] = await Promise.all([
+    getAvailableAiModels(workspaceId),
+    getAvailableEmbeddingModels(workspaceId),
+  ])
 
-  return <WorkspaceAiSection workspaceId={workspaceId} initialModels={models} />
+  return (
+    <WorkspaceAiSection
+      workspaceId={workspaceId}
+      initialModels={models}
+      initialEmbeddingModels={embeddingModels}
+    />
+  )
 }

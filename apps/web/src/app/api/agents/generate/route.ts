@@ -311,6 +311,7 @@ export async function POST(request: NextRequest): Promise<Response> {
       where: { workspaceId: chat.workspaceId },
       include: {
         defaultModel: { include: { provider: true } },
+        embeddingsModel: { include: { provider: true } },
       },
     }),
     buildChatHistoryMessages({
@@ -342,6 +343,17 @@ export async function POST(request: NextRequest): Promise<Response> {
         connection: settings.defaultModel.provider.connection,
       },
     },
+    embeddingsModel:
+      settings.embeddingsModel && settings.embeddingsModel.vectorSize !== null
+        ? {
+            slug: settings.embeddingsModel.slug,
+            vectorSize: settings.embeddingsModel.vectorSize,
+            provider: {
+              slug: settings.embeddingsModel.provider.slug,
+              connection: settings.embeddingsModel.provider.connection,
+            },
+          }
+        : null,
     systemPrompt: settings.systemPrompt,
     temperature: settings.temperature,
     topP: settings.topP,
