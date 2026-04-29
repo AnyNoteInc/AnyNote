@@ -5,20 +5,20 @@ import { EDGE_STROKE, EDGE_WIDTH } from './primitives/constants'
 type RfChildEdge = Edge<GenogramEdgeData, GenogramEdgeType>
 
 /**
- * L-shaped path from the children hub (source) to a child (target):
- * horizontal at source.y, then vertical down to target. Multiple child
- * edges from the same hub share the horizontal at hub.y — that's what
- * forms the "sibling line" visually.
+ * Straight vertical drop from the union bracket horizontal down to the child
+ * top. The hub sits at the bracket Y, so each child edge starts at
+ * (child.x, bracket Y) — the segment shows up as a parallel line under the
+ * bracket. Layout guarantees child.x stays within the bracket span, so the
+ * line always lands on the bracket horizontal.
  */
 export function ChildEdge({
   id,
-  sourceX,
   sourceY,
   targetX,
   targetY,
   style,
 }: EdgeProps<RfChildEdge>) {
-  const d = `M ${sourceX} ${sourceY} L ${targetX} ${sourceY} L ${targetX} ${targetY}`
+  const d = `M ${targetX} ${sourceY} L ${targetX} ${targetY}`
   return (
     <path id={id} d={d} fill="none" stroke={EDGE_STROKE} strokeWidth={EDGE_WIDTH} style={style} />
   )

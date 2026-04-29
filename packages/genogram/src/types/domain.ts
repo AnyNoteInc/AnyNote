@@ -91,6 +91,13 @@ export interface Union {
   startDate?: PartialDate
   endDate?: PartialDate
   divorce?: UnionDivorce
+  /**
+   * Mark position (0..1) for the cohabitation-ended slash, persisted when the
+   * user drags the marker. Marriage stores its mark position inside
+   * `divorce.markPosition`; this top-level field is only used when
+   * `kind === 'cohabitation'` and `endDate` is set.
+   */
+  endMarkPosition?: number
   childGroupId?: ChildGroupId
 }
 

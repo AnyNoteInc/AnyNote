@@ -39,6 +39,15 @@ export function PersonNode({ data }: NodeProps<PersonRfNode>) {
         style={handleStyle}
         isConnectable={false}
       />
+      {/* Target counterpart at the same position as the bottom source handle,
+          so the union bracket can drop from male.bottom to female.bottom. */}
+      <Handle
+        type="target"
+        position={Position.Bottom}
+        id="bottom-target"
+        style={handleStyle}
+        isConnectable={false}
+      />
       <Handle
         type="target"
         position={Position.Left}

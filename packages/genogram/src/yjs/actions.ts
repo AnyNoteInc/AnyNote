@@ -127,6 +127,44 @@ export function setUnionDivorce(
   updateUnion(doc, unionId, { divorce })
 }
 
+/**
+ * Persist the slash mark position regardless of union kind:
+ *   - marriage: writes to `union.divorce.markPosition` (and custodySide)
+ *   - cohabitation: writes to `union.endMarkPosition` (custodySide is
+ *     marriage-only and is ignored here)
+ *
+ * Used by the DivorceMarker drag handler so the same UI works for both
+ * "брак расторгнут" and "отношения закончены".
+ */
+export function setUnionEndMark(
+  doc: Y.Doc,
+  unionId: UnionId,
+  patch: { markPosition: number; custodySide?: import('../types').CustodySide },
+): void {
+  const maps = getGenogramMaps(doc)
+  const existing = maps.unions.get(unionId)
+  if (!existing) return
+  doc.transact(() => {
+    if (existing.kind === 'marriage') {
+      maps.unions.set(unionId, {
+        ...existing,
+        divorce: {
+          ...existing.divorce,
+          markPosition: patch.markPosition,
+          custodySide: patch.custodySide ?? existing.divorce?.custodySide,
+        },
+        id: unionId,
+      })
+    } else {
+      maps.unions.set(unionId, {
+        ...existing,
+        endMarkPosition: patch.markPosition,
+        id: unionId,
+      })
+    }
+  })
+}
+
 export function appendChild(doc: Y.Doc, childGroupId: ChildGroupId, entry: ChildEntry): void {
   const maps = getGenogramMaps(doc)
   const cg = maps.childGroups.get(childGroupId)

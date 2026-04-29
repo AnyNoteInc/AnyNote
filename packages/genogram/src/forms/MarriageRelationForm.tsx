@@ -40,7 +40,10 @@ export function MarriageRelationForm({ initial, onSubmit, onChange, onCancel, su
     return {
       kind: 'cohabitation',
       startDate: sd,
-      endDate: end ? ed : undefined,
+      // Use an empty PartialDate as a sentinel when the user checks "ended"
+      // without entering a date — keeps the checkbox state persisted and
+      // signals the slash decoration to render on the bracket.
+      endDate: end ? (ed ?? {}) : undefined,
     }
   }
 

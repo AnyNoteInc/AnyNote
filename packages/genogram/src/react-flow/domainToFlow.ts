@@ -6,8 +6,10 @@ import type {
   GenogramNode,
   GenogramPageData,
   Person,
+  PersonId,
   PregnancyLoss,
   Union,
+  UnionId,
 } from '../types'
 import type { LayoutResult } from '../layout/types'
 import { LAYOUT, personWidth } from '../layout/constants'
@@ -30,15 +32,84 @@ export function domainToFlow(
   const nodes: GenogramNode[] = []
   const edges: GenogramEdge[] = []
 
+  const unionOffsets = computeUnionFanOutOffsets(data)
+
   pushPersonNodes(data, layout, nodes, meta ?? null)
   pushPregnancyLossNodes(data, layout, nodes)
-  pushUnionNodesAndEdges(data, layout, nodes, edges)
+  pushUnionNodesAndEdges(data, layout, nodes, edges, unionOffsets)
   pushChildrenHubs(data, layout, nodes, edges)
   pushBirthGroupNodesAndEdges(data, layout, nodes, edges)
   pushAnnotations(data, nodes)
   pushCreationDateNode(meta ?? null, layout, nodes)
 
   return { nodes, edges }
+}
+
+interface UnionEdgeOffsets {
+  sourceXOffset: number
+  targetXOffset: number
+  bracketYOffset: number
+}
+
+/**
+ * For each multi-partner base (a person in more than one union):
+ *   - distribute the connection points across that person's bottom edge so
+ *     each union's bracket emerges from a distinct x (fan-out)
+ *   - stack the bracket horizontals at different Y so they stay parallel
+ *     instead of collinear (Y offset proportional to partnerOrder rank)
+ *
+ * Single-partner unions get all zero offsets and render with the default
+ * straight bottom-handle bracket at the standard drop.
+ */
+function computeUnionFanOutOffsets(
+  data: GenogramPageData,
+): Map<UnionId, UnionEdgeOffsets> {
+  const result = new Map<UnionId, UnionEdgeOffsets>()
+  const personUnions = new Map<PersonId, UnionId[]>()
+  for (const u of Object.values(data.entities.unions) as Union[]) {
+    pushTo(personUnions, u.malePartnerId, u.id)
+    pushTo(personUnions, u.femalePartnerId, u.id)
+  }
+
+  for (const [personId, unionIds] of personUnions) {
+    if (unionIds.length <= 1) continue
+    const person = data.entities.people[personId]
+    if (!person) continue
+
+    const sorted = unionIds
+      .map((uid) => {
+        const u = data.entities.unions[uid]!
+        const otherId = u.malePartnerId === personId ? u.femalePartnerId : u.malePartnerId
+        const other = data.entities.people[otherId]
+        return { uid, order: other?.partnerOrder ?? 999 }
+      })
+      .sort((a, b) => a.order - b.order)
+
+    const N = sorted.length
+    const personW = personWidth(person.size)
+
+    sorted.forEach(({ uid }, i) => {
+      const offset = -personW / 2 + (personW * (i + 0.5)) / N
+      const yStack = i * LAYOUT.MULTI_PARTNER_STACK_Y
+      const u = data.entities.unions[uid]!
+      const isSource = u.malePartnerId === personId
+      const existing =
+        result.get(uid) ?? { sourceXOffset: 0, targetXOffset: 0, bracketYOffset: 0 }
+      if (isSource) existing.sourceXOffset = offset
+      else existing.targetXOffset = offset
+      // If both partners are multi-partner bases, take the larger stack
+      // index so the bracket clears both stacks.
+      existing.bracketYOffset = Math.max(existing.bracketYOffset, yStack)
+      result.set(uid, existing)
+    })
+  }
+  return result
+}
+
+function pushTo<K, V>(map: Map<K, V[]>, key: K, value: V): void {
+  const existing = map.get(key)
+  if (existing) existing.push(value)
+  else map.set(key, [value])
 }
 
 function pushPersonNodes(
@@ -114,6 +185,7 @@ function pushUnionNodesAndEdges(
   layout: LayoutResult,
   nodes: GenogramNode[],
   edges: GenogramEdge[],
+  unionOffsets: Map<UnionId, UnionEdgeOffsets>,
 ): void {
   for (const union of Object.values(data.entities.unions) as Union[]) {
     const pos = layout.positions[union.id]
@@ -130,20 +202,34 @@ function pushUnionNodesAndEdges(
       },
     })
 
+    // "Ended" state covers both marriage divorce and cohabitation with an
+    // explicit endDate — both render with the same slash decoration and
+    // share drag/persist behavior via DivorceMarker + setUnionEndMark.
+    const isEnded =
+      union.kind === 'marriage' ? !!union.divorce : !!union.endDate
+    const markPosition =
+      union.kind === 'marriage' ? union.divorce?.markPosition : union.endMarkPosition
+    const custodySide =
+      union.kind === 'marriage' ? union.divorce?.custodySide : undefined
+    const offsets = unionOffsets.get(union.id)
+
     edges.push({
       id: `marriage:${union.id}`,
       source: union.malePartnerId,
       target: union.femalePartnerId,
-      sourceHandle: 'right',
-      targetHandle: 'left',
+      sourceHandle: 'bottom',
+      targetHandle: 'bottom-target',
       type: union.kind === 'marriage' ? 'unionMarriage' : 'unionCohabitation',
       data: {
         sourceEntityId: union.malePartnerId,
         targetEntityId: union.femalePartnerId,
-        decorations: union.divorce ? ['divorceSlash'] : undefined,
-        custodySide: union.divorce?.custodySide,
+        decorations: isEnded ? ['divorceSlash'] : undefined,
+        custodySide,
         unionId: union.id,
-        markPosition: union.divorce?.markPosition,
+        markPosition,
+        sourceXOffset: offsets?.sourceXOffset ?? 0,
+        targetXOffset: offsets?.targetXOffset ?? 0,
+        bracketYOffset: offsets?.bracketYOffset ?? 0,
       },
     })
   }
@@ -169,17 +255,9 @@ function pushChildrenHubs(
       },
     })
 
-    edges.push({
-      id: `trunk:${cg.unionId}:${cg.id}`,
-      source: cg.unionId,
-      target: cg.id,
-      type: 'unionTrunk',
-      data: {
-        sourceEntityId: cg.unionId,
-        targetEntityId: cg.id,
-      },
-    })
-
+    // No trunk edge: the children hub sits on the bracket horizontal, so each
+    // child edge can drop straight from the bracket Y at child.x without a
+    // separate vertical between union anchor and hub.
     for (const entry of cg.children) {
       const targetId = entry.kind === 'person' ? entry.personId : entry.lossId
       edges.push({

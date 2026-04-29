@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { computeLayout } from './computeLayout'
-import { LAYOUT } from './constants'
+import { LAYOUT, bracketDropFor } from './constants'
 import {
   newGenogram,
   scenarioCouple,
@@ -57,8 +57,10 @@ describe('computeLayout', () => {
     expect(c1.y).toBe(LAYOUT.GEN_HEIGHT)
     expect(c2.y).toBe(LAYOUT.GEN_HEIGHT)
 
-    // hub between union and child row
-    expect(hub.y).toBe(union.y + LAYOUT.HUB_OFFSET_Y)
+    // hub sits at the union bracket's horizontal Y (= union.y + bracketDrop
+    // for both big partners), so each child's vertical drop starts on the
+    // bracket itself.
+    expect(hub.y).toBe(union.y + bracketDropFor(LAYOUT.PERSON_BIG, LAYOUT.PERSON_BIG))
     expect(hub.x).toBeCloseTo(union.x, 5)
 
     // siblings ordered and spaced

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import type { CustodySide, UnionId } from '../../types'
-import { setUnionDivorce } from '../../yjs/actions'
+import { setUnionEndMark } from '../../yjs/actions'
 import { useDoc } from '../../react-flow/doc-context'
 import { EDGE_STROKE, EDGE_WIDTH } from './constants'
 
@@ -14,6 +14,12 @@ export interface DivorceMarkerProps {
   sourceY: number
   targetX: number
   targetY: number
+  /**
+   * Y of the bracket's horizontal segment — the marker sits at this Y. The
+   * caller computes it (factoring in stack offsets for multi-partner
+   * unions) so the marker tracks the actual rendered horizontal.
+   */
+  bracketY: number
   custodySide?: CustodySide
   /** UnionId used to persist markPosition via Yjs. */
   unionId?: UnionId
@@ -83,7 +89,7 @@ export function DivorceMarker({
         window.removeEventListener('mousemove', onMove)
         window.removeEventListener('mouseup', onUp)
         if (unionId) {
-          setUnionDivorce(doc, unionId, {
+          setUnionEndMark(doc, unionId, {
             custodySide,
             markPosition: localPosRef.current,
           })
@@ -96,15 +102,17 @@ export function DivorceMarker({
     [sourceX, sourceY, targetX, targetY, custodySide, unionId, doc],
   )
 
+  // Marker sits on the horizontal segment of the union bracket.
+  const bracketY = Math.max(sourceY, targetY) + LAYOUT.UNION_BRACKET_DROP
   const cx = sourceX + (targetX - sourceX) * pos
-  const cy = sourceY + (targetY - sourceY) * pos
+  const cy = bracketY
 
+  // Slash perpendicular comes from the bracket's horizontal direction (always
+  // pure horizontal), so this resolves to a vertical pair tilted slightly.
   const dx = targetX - sourceX
-  const dy = targetY - sourceY
-  const len = Math.max(1, Math.hypot(dx, dy))
+  const len = Math.max(1, Math.abs(dx))
   const ux = dx / len
-  const uy = dy / len
-  // Perpendicular unit vector
+  const uy = 0
   const px = -uy
   const py = ux
 

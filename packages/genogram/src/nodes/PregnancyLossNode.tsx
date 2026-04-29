@@ -29,14 +29,33 @@ export function PregnancyLossNode({ data }: NodeProps<LossRfNode>) {
         viewBox={`0 0 ${w} ${w}`}
         style={{ display: 'block', overflow: 'visible' }}
       >
-        <line x1={w / 2} y1={0} x2={w / 2} y2={w} stroke={STROKE_COLOR} strokeWidth={STROKE} />
-        <line x1={0} y1={w / 2} x2={w} y2={w / 2} stroke={STROKE_COLOR} strokeWidth={STROKE} />
+        {/* Diagonal cross. Both legs are truncated at the same fraction of
+            the box (0..0.7w) so they have equal length, leaving the upper-
+            right corner free for the А/В letter. The legs still cross at the
+            box centre, so the X is symmetric apart from the missing
+            upper-right tip. */}
+        <line
+          x1={0}
+          y1={0}
+          x2={w * 0.7}
+          y2={w * 0.7}
+          stroke={STROKE_COLOR}
+          strokeWidth={STROKE}
+        />
+        <line
+          x1={0}
+          y1={w}
+          x2={w * 0.7}
+          y2={w * 0.3}
+          stroke={STROKE_COLOR}
+          strokeWidth={STROKE}
+        />
         <text
-          x={w * 0.75}
-          y={w * 0.35}
+          x={w * 0.86}
+          y={w * 0.1}
           textAnchor="middle"
           dominantBaseline="central"
-          fontSize={w * 0.5}
+          fontSize={w * 0.24}
           fill={STROKE_COLOR}
         >
           {letter}

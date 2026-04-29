@@ -114,6 +114,21 @@ export interface GenogramEdgeData {
   unionId?: UnionId
   /** Divorce mark position along the line (0..1); mirrors union.divorce.markPosition. */
   markPosition?: number
+  /**
+   * Horizontal offsets applied to the source/target connection points of
+   * union-line edges. Used for multi-partner fan-out so each union's bracket
+   * leaves the base shape at a distinct x along its bottom edge instead of
+   * stacking at the same point.
+   */
+  sourceXOffset?: number
+  targetXOffset?: number
+  /**
+   * Extra vertical drop added to the bracket horizontal for multi-partner
+   * unions. Bracket 0 (oldest partner) renders at the standard drop;
+   * subsequent brackets stack downward so the horizontals stay parallel
+   * instead of collinear.
+   */
+  bracketYOffset?: number
   pathHints?: {
     corner?: 'topLeft' | 'topRight'
   }

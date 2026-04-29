@@ -140,9 +140,9 @@ describe('partner placement', () => {
 })
 
 describe('multi-partner layout — base in middle, children placed, anchor at base↔partner', () => {
-  // ── Fix 1: base in the middle ────────────────────────────────────────────
+  // ── Base sits opposite to its partners ───────────────────────────────────
 
-  it('N=2 partners: base is between p1 and p2 (slot 1 of 3)', () => {
+  it('N=2 partners (male base): base is leftmost, partners ordered to its right', () => {
     const data = createEmptyGenogram()
     const baseId = addPerson(data, { sex: 'male', bloodRelation: 'direct', role: 'owner' })
     const p1Id = addPerson(data, { sex: 'female', bloodRelation: 'partner', partnerOrder: 1 })
@@ -155,12 +155,12 @@ describe('multi-partner layout — base in middle, children placed, anchor at ba
     const p1X = layout.positions[p1Id]!.x
     const p2X = layout.positions[p2Id]!.x
 
-    // base must be to the right of p1 and to the left of p2
-    expect(baseX).toBeGreaterThan(p1X)
-    expect(baseX).toBeLessThan(p2X)
+    // base on left, then partners by partnerOrder ascending
+    expect(baseX).toBeLessThan(p1X)
+    expect(p1X).toBeLessThan(p2X)
   })
 
-  it('N=3 partners: base is between p1 and p2 (slot 1 of 4)', () => {
+  it('N=3 partners (male base): base on left, partners ordered to its right', () => {
     const { data, baseId, p1Id, p2Id, p3Id } = buildMultiPartnerFixture()
     const layout = computeLayout(data)
     const baseX = layout.positions[baseId]!.x
@@ -168,13 +168,13 @@ describe('multi-partner layout — base in middle, children placed, anchor at ba
     const p2X = layout.positions[p2Id]!.x
     const p3X = layout.positions[p3Id]!.x
 
-    // linear order: p1 < base < p2 < p3
-    expect(baseX).toBeGreaterThan(p1X)
-    expect(baseX).toBeLessThan(p2X)
+    // linear order: base < p1 < p2 < p3
+    expect(baseX).toBeLessThan(p1X)
+    expect(p1X).toBeLessThan(p2X)
     expect(p2X).toBeLessThan(p3X)
   })
 
-  it('N=4 partners: base is between p2 and p3 (slot 2 of 5)', () => {
+  it('N=4 partners (male base): base on left, partners ordered to its right', () => {
     const data = createEmptyGenogram()
     const baseId = addPerson(data, { sex: 'male', bloodRelation: 'direct', role: 'owner' })
     const p1Id = addPerson(data, { sex: 'female', bloodRelation: 'partner', partnerOrder: 1 })
@@ -188,12 +188,30 @@ describe('multi-partner layout — base in middle, children placed, anchor at ba
 
     const layout = computeLayout(data)
     const baseX = layout.positions[baseId]!.x
-    const p2X = layout.positions[p2Id]!.x
-    const p3X = layout.positions[p3Id]!.x
+    const p1X = layout.positions[p1Id]!.x
+    const p4X = layout.positions[p4Id]!.x
 
-    // linear order: p1 < p2 < base < p3 < p4
-    expect(baseX).toBeGreaterThan(p2X)
-    expect(baseX).toBeLessThan(p3X)
+    // linear order: base < p1 < ... < p4
+    expect(baseX).toBeLessThan(p1X)
+    expect(p1X).toBeLessThan(p4X)
+  })
+
+  it('female base: partners on the left ordered ascending, base on the right', () => {
+    const data = createEmptyGenogram()
+    const baseId = addPerson(data, { sex: 'female', bloodRelation: 'direct', role: 'owner' })
+    const p1Id = addPerson(data, { sex: 'male', bloodRelation: 'partner', partnerOrder: 1 })
+    const p2Id = addPerson(data, { sex: 'male', bloodRelation: 'partner', partnerOrder: 2 })
+    addUnion(data, p1Id, baseId)
+    addUnion(data, p2Id, baseId)
+
+    const layout = computeLayout(data)
+    const baseX = layout.positions[baseId]!.x
+    const p1X = layout.positions[p1Id]!.x
+    const p2X = layout.positions[p2Id]!.x
+
+    // linear order: p1 < p2 < base — newest partner sits closest to base
+    expect(p1X).toBeLessThan(p2X)
+    expect(p2X).toBeLessThan(baseX)
   })
 
   // ── Fix 2: children are placed ───────────────────────────────────────────

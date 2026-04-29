@@ -1,14 +1,16 @@
 import type { Edge, EdgeProps } from '@xyflow/react'
 import type { GenogramEdgeData, GenogramEdgeType } from '../types'
+import { LAYOUT } from '../layout/constants'
 import { DivorceMarker } from './primitives/DivorceMarker'
 import { EDGE_STROKE, EDGE_WIDTH } from './primitives/constants'
 
 type UnionRfEdge = Edge<GenogramEdgeData, GenogramEdgeType>
 
 /**
- * Straight line between union partners. Solid for marriage, dashed for
- * cohabitation. Divorce slashes rendered on top when data.decorations
- * contains "divorceSlash".
+ * Π-shaped bracket between union partners: a vertical drops from each
+ * partner handle, joined at the bottom by a horizontal at right angles.
+ * Solid for marriage, dashed for cohabitation. Divorce slashes are rendered
+ * on the horizontal segment when data.decorations contains "divorceSlash".
  */
 export function UnionLineEdge({
   id,
@@ -23,7 +25,19 @@ export function UnionLineEdge({
   const dashed = type === 'unionCohabitation'
   const hasDivorce = data?.decorations?.includes('divorceSlash') ?? false
 
-  const d = `M ${sourceX} ${sourceY} L ${targetX} ${targetY}`
+  // Multi-partner fan-out: when the source/target person owns more than one
+  // union, domainToFlow gives each union its own offset on that person's
+  // bottom edge so brackets emerge from distinct points, plus a Y offset so
+  // the horizontal segments stack at parallel levels instead of collinear.
+  const baseX = sourceX + (data?.sourceXOffset ?? 0)
+  const partnerX = targetX + (data?.targetXOffset ?? 0)
+  const bracketY =
+    Math.max(sourceY, targetY) + LAYOUT.UNION_BRACKET_DROP + (data?.bracketYOffset ?? 0)
+  const d =
+    `M ${baseX} ${sourceY} ` +
+    `L ${baseX} ${bracketY} ` +
+    `L ${partnerX} ${bracketY} ` +
+    `L ${partnerX} ${targetY}`
 
   return (
     <g>
@@ -46,10 +60,11 @@ export function UnionLineEdge({
       />
       {hasDivorce && (
         <DivorceMarker
-          sourceX={sourceX}
+          sourceX={baseX}
           sourceY={sourceY}
-          targetX={targetX}
+          targetX={partnerX}
           targetY={targetY}
+          bracketY={bracketY}
           custodySide={data?.custodySide}
           unionId={data?.unionId}
           markPosition={data?.markPosition}

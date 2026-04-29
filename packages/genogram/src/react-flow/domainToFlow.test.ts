@@ -68,8 +68,8 @@ describe('domainToFlow', () => {
     expect(edges[0]!.data?.custodySide).toBe('female')
   })
 
-  it('nuclear family → person nodes + union + hub + trunk edge + 2 child edges', () => {
-    const { data, unionId, childGroupId, child1Id, child2Id } = scenarioNuclearFamily()
+  it('nuclear family → person nodes + union + hub + 2 child edges (no trunk)', () => {
+    const { data, childGroupId, child1Id, child2Id } = scenarioNuclearFamily()
     const layout = computeLayout(data)
     const { nodes, edges } = domainToFlow(data, layout)
 
@@ -82,12 +82,10 @@ describe('domainToFlow', () => {
     expect(typeCounts.union).toBe(1)
     expect(typeCounts.childrenHub).toBe(1)
 
+    // Trunk edge is gone — hub sits on the bracket, so child verticals start
+    // there directly.
     const edgeTypes = edges.map((e) => e.type).sort()
-    expect(edgeTypes).toEqual(['child', 'child', 'unionMarriage', 'unionTrunk'])
-
-    const trunk = edges.find((e) => e.type === 'unionTrunk')!
-    expect(trunk.source).toBe(unionId)
-    expect(trunk.target).toBe(childGroupId)
+    expect(edgeTypes).toEqual(['child', 'child', 'unionMarriage'])
 
     const childEdges = edges.filter((e) => e.type === 'child')
     expect(childEdges.map((e) => e.source)).toEqual([childGroupId, childGroupId])
@@ -222,16 +220,15 @@ describe('domainToFlow', () => {
 
   it('person label position honours resolveLabelPosition rule', () => {
     const { data, maleId, child1Id } = scenarioNuclearFamily()
-    // male is direct/partner/owner → big → left
-    // but in this scenario male is "direct" + role "owner" → big → left
     const layout = computeLayout(data)
     const { nodes } = domainToFlow(data, layout)
     const maleNode = nodes.find((n) => n.id === maleId)!
     const child1Node = nodes.find((n) => n.id === child1Id)!
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const getLabelPos = (n: any) => n.data.label.position
-    expect(getLabelPos(maleNode)).toBe('left')
-    expect(getLabelPos(child1Node)).toBe('left') // direct blood child ⇒ big ⇒ left
+    // big shapes → label on the right of the shape
+    expect(getLabelPos(maleNode)).toBe('right')
+    expect(getLabelPos(child1Node)).toBe('right')
   })
 
   describe('creation date node (Task 39)', () => {

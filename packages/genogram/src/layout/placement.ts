@@ -4,13 +4,43 @@ import type {
   ChildGroupId,
   EntityId,
   GenogramPageData,
+  Person,
   PersonId,
   PregnancyLossId,
   UnionId,
 } from '../types'
-import { LAYOUT, personWidth } from './constants'
+import { LAYOUT, bracketDropFor, personWidth } from './constants'
 import type { Relations } from './relations'
 import type { Point } from './types'
+import { rightLabelExtensionPx } from '../utils/labels'
+
+/**
+ * The horizontal pixels reserved on the right of an entry's subtree for
+ * the rightmost person's right-aligned label, so the next sibling can be
+ * placed without covering the text.
+ */
+function entryRightLabelExtension(entry: ChildEntry, ctx: PlacementContext): number {
+  if (entry.kind !== 'person') return 0
+  const p = ctx.data.entities.people[entry.personId]
+  if (!p) return 0
+
+  const unions = ctx.relations.unionsByPerson.get(p.id) ?? []
+  if (unions.length === 0) return rightLabelExtensionPx(p)
+
+  const partners: Person[] = []
+  for (const uid of unions) {
+    const u = ctx.data.entities.unions[uid]
+    if (!u) continue
+    const partnerId = u.malePartnerId === p.id ? u.femalePartnerId : u.malePartnerId
+    const partner = ctx.data.entities.people[partnerId]
+    if (partner) partners.push(partner)
+  }
+  if (partners.length === 0) return rightLabelExtensionPx(p)
+
+  // Rightmost slot is the partner with the highest partnerOrder
+  partners.sort((a, b) => (a.partnerOrder ?? 999) - (b.partnerOrder ?? 999))
+  return rightLabelExtensionPx(partners[partners.length - 1]!)
+}
 
 export interface PlacementContext {
   data: GenogramPageData
@@ -139,18 +169,28 @@ function placeUnionSubtree(unionId: UnionId, leftX: number, ctx: PlacementContex
 
   const maleW = personWidth(male.size)
   const femaleW = personWidth(female.size)
-  const coupleWidth = maleW + LAYOUT.PARTNER_GAP + femaleW
+
+  // Couple gap must clear the male's right-aligned label so the female shape
+  // doesn't overlap the text. partnerGap stays at PARTNER_GAP when male has
+  // no right label or when the label fits within the default gap.
+  const partnerGap = Math.max(LAYOUT.PARTNER_GAP, rightLabelExtensionPx(male))
+  const coupleMin = maleW + partnerGap + femaleW
 
   const cg = u.childGroupId ? ctx.data.entities.childGroups[u.childGroupId] : undefined
   const childrenWidth = cg ? measureChildren(cg, ctx) : 0
-  const totalWidth = Math.max(coupleWidth, childrenWidth)
+
+  // Bracket span (parent bottom-handle distance) must cover the children row
+  // plus a sibling-gap margin on each side, so each child's vertical drop
+  // starts on the bracket horizontal rather than dangling outside it.
+  const coupleWidth = Math.max(coupleMin, childrenWidth + 2 * LAYOUT.SIBLING_GAP)
+  const totalWidth = coupleWidth
 
   const gen = ctx.generations.get(male.id) ?? 0
   const y = yForGen(gen, ctx.minGen)
 
-  const coupleStart = leftX + (totalWidth - coupleWidth) / 2
-  const maleCenter = coupleStart + maleW / 2
-  const femaleCenter = coupleStart + maleW + LAYOUT.PARTNER_GAP + femaleW / 2
+  // Spread parents to the edges of coupleWidth so the bracket spans the row.
+  const maleCenter = leftX + maleW / 2
+  const femaleCenter = leftX + coupleWidth - femaleW / 2
   ctx.positions.set(male.id, { x: maleCenter, y })
   ctx.positions.set(female.id, { x: femaleCenter, y })
 
@@ -159,7 +199,7 @@ function placeUnionSubtree(unionId: UnionId, leftX: number, ctx: PlacementContex
 
   if (cg && cg.children.length > 0) {
     const hubX = unionX
-    const hubY = y + LAYOUT.HUB_OFFSET_Y
+    const hubY = y + bracketDropFor(maleW, femaleW)
     ctx.positions.set(cg.id, { x: hubX, y: hubY })
 
     const childrenStart = leftX + (totalWidth - childrenWidth) / 2
@@ -211,10 +251,21 @@ function placeMultiPartnerSubtree(
   // Sort by partnerOrder ascending (left-to-right)
   entries.sort((a, b) => a.partnerOrder - b.partnerOrder)
 
-  // Base slot: floor(N/2), where N = entries.length.
-  // Build a linear sequence of (N+1) slots: partners[0..K-1], base, partners[K..N-1].
+  // Each between-slot gap must clear the right-aligned label of any base or
+  // partner sitting on its left side. Using a single uniform gap (max across
+  // base + partners) keeps the row visually balanced.
+  const partnerExtensions = [
+    rightLabelExtensionPx(base),
+    ...entries.map((e) => rightLabelExtensionPx(data.entities.people[e.partnerId]!)),
+  ]
+  const partnerGap = Math.max(LAYOUT.PARTNER_GAP, ...partnerExtensions)
+
+  // Base sits opposite to its partners: a male base anchors the left end of
+  // the row (slot 0) so each new female partner is added on its right; a
+  // female base anchors the right end (slot N) so each new male partner is
+  // inserted to her left, just past the previous partner.
   const N = entries.length
-  const baseSlot = Math.floor(N / 2) // index in the N+1 sequence where base sits
+  const baseSlot = base.sex === 'male' ? 0 : N
 
   // Measure per-union children widths for layout
   const childrenWidths = entries.map(({ uid }) => {
@@ -240,7 +291,7 @@ function placeMultiPartnerSubtree(
     }
   }
 
-  const totalWidth = slotWidths.reduce((s, w) => s + w, 0) + N * LAYOUT.PARTNER_GAP
+  const totalWidth = slotWidths.reduce((s, w) => s + w, 0) + N * partnerGap
 
   // Assign x-centers for each slot (left to right)
   const slotCenters: number[] = []
@@ -248,7 +299,7 @@ function placeMultiPartnerSubtree(
   for (let slot = 0; slot <= N; slot++) {
     const w = slotWidths[slot]!
     slotCenters.push(cursor + w / 2)
-    cursor += w + LAYOUT.PARTNER_GAP
+    cursor += w + partnerGap
   }
 
   // Place base
@@ -282,7 +333,7 @@ function placeMultiPartnerSubtree(
     if (cg && cg.children.length > 0) {
       const cw = childrenWidths[partnerSlot]!
       const hubX = unionX
-      const hubY = baseY + LAYOUT.HUB_OFFSET_Y
+      const hubY = baseY + bracketDropFor(baseW, pw)
       ctx.positions.set(cg.id, { x: hubX, y: hubY })
 
       const childrenStart = slotLeft + (slotWidths[slot]! - cw) / 2
@@ -301,20 +352,38 @@ function placeChildren(childGroupId: ChildGroupId, leftX: number, ctx: Placement
 
   let cursorX = leftX
   let i = 0
+  let placedCount = 0
+  let lastLabelExt = 0
+
   while (i < cg.children.length) {
     const entry = cg.children[i]!
+
+    // Inter-sibling gap accounts for the previous entry's right-aligned label
+    // so it never gets covered by the next sibling.
+    if (placedCount > 0) {
+      cursorX += Math.max(LAYOUT.SIBLING_GAP, lastLabelExt)
+    }
+
     if (entry.kind === 'person' && entry.birthGroupId) {
       const run = collectBirthGroupRun(cg.children, i, entry.birthGroupId)
-      const width = placeBirthGroupCluster(entry.birthGroupId, run, cursorX, ctx)
-      cursorX += width + LAYOUT.SIBLING_GAP
+      const w = placeBirthGroupCluster(entry.birthGroupId, run, cursorX, ctx)
+      cursorX += w
+      const lastTwin = run[run.length - 1]
+      const lastTwinPerson = lastTwin ? ctx.data.entities.people[lastTwin.personId] : null
+      lastLabelExt = lastTwinPerson ? rightLabelExtensionPx(lastTwinPerson) : 0
       i += run.length
     } else {
       const w = placeChildEntry(entry, cursorX, ctx)
-      cursorX += w + LAYOUT.SIBLING_GAP
+      cursorX += w
+      lastLabelExt = entryRightLabelExtension(entry, ctx)
       i++
     }
+    placedCount++
   }
-  return Math.max(0, cursorX - leftX - LAYOUT.SIBLING_GAP)
+
+  // Effective span includes the last sibling's right-label extension so the
+  // parent layout reserves enough room for the trailing label.
+  return cursorX - leftX + lastLabelExt
 }
 
 function collectBirthGroupRun(
@@ -372,11 +441,21 @@ function placeBirthGroupCluster(
   ctx: PlacementContext,
 ): number {
   let cursorX = leftX
+  let placedCount = 0
+  let lastLabelExt = 0
   for (const m of members) {
+    if (placedCount > 0) {
+      cursorX += Math.max(LAYOUT.SIBLING_GAP, lastLabelExt)
+    }
     const w = placePersonSolo(m.personId, cursorX, ctx)
-    cursorX += w + LAYOUT.SIBLING_GAP
+    cursorX += w
+    const person = ctx.data.entities.people[m.personId]
+    lastLabelExt = person ? rightLabelExtensionPx(person) : 0
+    placedCount++
   }
-  const width = Math.max(0, cursorX - leftX - LAYOUT.SIBLING_GAP)
+  // Effective span (cursor reflects no trailing gap; add last twin's label
+  // extension so the surrounding row reserves room for the trailing label).
+  const width = cursorX - leftX + lastLabelExt
 
   const first = ctx.positions.get(members[0]!.personId)
   const last = ctx.positions.get(members[members.length - 1]!.personId)
@@ -395,18 +474,29 @@ function placeBirthGroupCluster(
 export function measureChildren(cg: { children: ChildEntry[] }, ctx: PlacementContext): number {
   let width = 0
   let i = 0
+  let placedCount = 0
+  let lastLabelExt = 0
   while (i < cg.children.length) {
     const entry = cg.children[i]!
+    if (placedCount > 0) {
+      width += Math.max(LAYOUT.SIBLING_GAP, lastLabelExt)
+    }
     if (entry.kind === 'person' && entry.birthGroupId) {
       const run = collectBirthGroupRun(cg.children, i, entry.birthGroupId)
-      width += measureBirthGroupCluster(run, ctx) + LAYOUT.SIBLING_GAP
+      width += measureBirthGroupCluster(run, ctx)
+      const lastTwin = run[run.length - 1]
+      const lastTwinPerson = lastTwin ? ctx.data.entities.people[lastTwin.personId] : null
+      lastLabelExt = lastTwinPerson ? rightLabelExtensionPx(lastTwinPerson) : 0
       i += run.length
     } else {
-      width += measureChildEntry(entry, ctx) + LAYOUT.SIBLING_GAP
+      width += measureChildEntry(entry, ctx)
+      lastLabelExt = entryRightLabelExtension(entry, ctx)
       i++
     }
+    placedCount++
   }
-  return Math.max(0, width - LAYOUT.SIBLING_GAP)
+  // Mirror placeChildren: include the last sibling's right-label extension.
+  return width + lastLabelExt
 }
 
 function measureChildEntry(entry: ChildEntry, ctx: PlacementContext): number {
@@ -424,10 +514,13 @@ function measureUnion(unionId: UnionId, ctx: PlacementContext): number {
   const male = ctx.data.entities.people[u.malePartnerId]
   const female = ctx.data.entities.people[u.femalePartnerId]
   if (!male || !female) return 0
-  const coupleWidth = personWidth(male.size) + LAYOUT.PARTNER_GAP + personWidth(female.size)
+  // Mirrors placeUnionSubtree: partner gap clears male's right label; couple
+  // width must also fit children + sibling-gap margins.
+  const partnerGap = Math.max(LAYOUT.PARTNER_GAP, rightLabelExtensionPx(male))
+  const coupleWidth = personWidth(male.size) + partnerGap + personWidth(female.size)
   const cg = u.childGroupId ? ctx.data.entities.childGroups[u.childGroupId] : undefined
   const childrenWidth = cg ? measureChildren(cg, ctx) : 0
-  return Math.max(coupleWidth, childrenWidth)
+  return Math.max(coupleWidth, childrenWidth + 2 * LAYOUT.SIBLING_GAP)
 }
 
 function measureBirthGroupCluster(
@@ -435,10 +528,17 @@ function measureBirthGroupCluster(
   ctx: PlacementContext,
 ): number {
   let width = 0
+  let placedCount = 0
+  let lastLabelExt = 0
   for (const m of members) {
     const p = ctx.data.entities.people[m.personId]
     if (!p) continue
-    width += personWidth(p.size) + LAYOUT.SIBLING_GAP
+    if (placedCount > 0) {
+      width += Math.max(LAYOUT.SIBLING_GAP, lastLabelExt)
+    }
+    width += personWidth(p.size)
+    lastLabelExt = rightLabelExtensionPx(p)
+    placedCount++
   }
-  return Math.max(0, width - LAYOUT.SIBLING_GAP)
+  return width + lastLabelExt
 }

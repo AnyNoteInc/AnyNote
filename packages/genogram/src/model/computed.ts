@@ -20,7 +20,11 @@ export function resolveLabelPosition(p: Person): RenderableLabel['position'] {
   if (p.label.position && p.label.position !== 'auto') {
     return p.label.position
   }
-  return p.size === 'big' ? 'left' : 'bottom'
+  // Big shapes get the label on the right (per design spec); small shapes
+  // get it under the shape. Right-side placement keeps the label outside
+  // the union bracket area for the rightmost partner and keeps text from
+  // overlapping the shape itself.
+  return p.size === 'big' ? 'right' : 'bottom'
 }
 
 export function computeAge(p: Person, now: Date = new Date()): number | undefined {

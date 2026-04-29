@@ -99,6 +99,7 @@ const UnionSchema = z.object({
   startDate: PartialDateSchema.optional(),
   endDate: PartialDateSchema.optional(),
   divorce: UnionDivorceSchema.optional(),
+  endMarkPosition: z.number().min(0).max(1).optional(),
   childGroupId: Id.optional(),
 })
 
