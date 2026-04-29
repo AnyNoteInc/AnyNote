@@ -34,7 +34,7 @@ describe('SignUpForm', () => {
     await userEvent.type(screen.getByLabelText(/имя/i), 'Ivan')
     await userEvent.type(screen.getByLabelText(/^пароль$/i), 'pwd12345')
     await userEvent.type(screen.getByLabelText(/повторите пароль/i), 'pwd12345')
-    await userEvent.click(screen.getByRole('button', { name: /регистрация/i }))
+    await userEvent.click(screen.getByRole('button', { name: /зарегистрироваться/i }))
 
     expect(mocks.signUpEmail).toHaveBeenCalled()
     expect(await screen.findByText(/письмо с подтверждением/i)).toBeTruthy()
