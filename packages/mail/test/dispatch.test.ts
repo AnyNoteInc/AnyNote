@@ -88,14 +88,12 @@ describe('dispatchPending', () => {
     await dispatchPending(prisma, { batch: 10, maxAttempts: 5, workerId: 'test-w-mask' })
     const row = await prisma.outboxEvent.findUniqueOrThrow({ where: { id } })
     expect(row.lastError).not.toContain('SECRET_TOKEN_42')
-    expect(row.lastError).not.toContain('/reset-credentials/SECRET_TOKEN_42')
     expect(row.lastError).toContain('https://anynote.local')
   })
 
   it('marks FAILED after max attempts', async () => {
     sendMailMock.mockRejectedValue(new Error('boom'))
     const id = await insertPending(`fa${TAG}`)
-    // pre-set attempts = 4 so this run is the 5th
     await prisma.outboxEvent.update({ where: { id }, data: { attempts: 4 } })
     await dispatchPending(prisma, { batch: 10, maxAttempts: 5, workerId: 'test-w-3' })
     const row = await prisma.outboxEvent.findUniqueOrThrow({ where: { id } })
