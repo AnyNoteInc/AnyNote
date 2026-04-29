@@ -29,11 +29,7 @@ test.afterAll(async () => {
   if (prisma) await prisma.$disconnect()
 })
 
-async function setupProWorkspace(page: Page, tag: string): Promise<{
-  email: string
-  userId: string
-  workspaceId: string
-}> {
+async function setupProWorkspace(page: Page, tag: string): Promise<{ workspaceId: string }> {
   const email = `embeddings-${tag}+${Date.now()}@example.com`
   await signUpAndAuthAs(page, { email, password, firstName: 'Тест', lastName: 'Векторы' })
   await page.getByRole('textbox', { name: 'Название' }).fill(`Embeddings ${tag}`)
@@ -70,14 +66,18 @@ async function setupProWorkspace(page: Page, tag: string): Promise<{
     },
   })
 
-  return { email, userId: user.id, workspaceId }
+  return { workspaceId }
 }
 
+const embeddingModelIdCache = new Map<string, string>()
 async function getEmbeddingModelIdBySlug(slug: string): Promise<string> {
+  const cached = embeddingModelIdCache.get(slug)
+  if (cached) return cached
   const model = await prisma.aiModel.findFirstOrThrow({
     where: { slug, supportsEmbeddings: true },
     select: { id: true },
   })
+  embeddingModelIdCache.set(slug, model.id)
   return model.id
 }
 
@@ -117,7 +117,6 @@ test('selecting an embeddings model opens confirmation and persists on confirm',
   await page.getByRole('combobox', { name: 'Модель векторизации' }).click()
   await page.getByRole('option', { name: /Nomic Embed Text/ }).click()
 
-  // Save → confirmation dialog
   await page.getByRole('button', { name: 'Сохранить' }).click()
   const dialog = page.getByRole('dialog')
   await expect(dialog).toBeVisible()
