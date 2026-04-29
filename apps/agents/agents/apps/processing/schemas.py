@@ -1,21 +1,84 @@
-from uuid import UUID
+from typing import Annotated, Literal
 
-from pydantic import BaseModel, Field
+from fast_clean.schemas.request_response import RequestResponseSchema
+from pydantic import AliasChoices, ConfigDict, Field
+
+from agents.apps.chat.enums import ModelProviderEnum
+from agents.apps.chat.schemas import ModelConnectionSchema
 
 
-class ContentBlockSchema(BaseModel):
-    blockNumber: int = Field(..., ge=0)
-    content: str = Field(..., min_length=1)
+class BlockContentSchema(RequestResponseSchema):
+    model_config = ConfigDict(populate_by_name=True)
+
+    block_number: int = Field(alias='blockNumber', ge=0)
+    content: str = Field(min_length=1)
+
+    @property
+    def blockNumber(self) -> int:  # noqa: N802
+        return self.block_number
 
 
-class VectorizationRequestSchema(BaseModel):
-    pageId: UUID
-    workspaceId: UUID
+class EmbeddingProviderConfigSchema(RequestResponseSchema):
+    model_config = ConfigDict(populate_by_name=True)
+
+    provider: ModelProviderEnum
+    model_slug: str = Field(alias='modelSlug', min_length=1)
+    vector_size: int = Field(alias='vectorSize', ge=1)
+    connection: ModelConnectionSchema
+
+
+class VectorizationRequestSchema(RequestResponseSchema):
+    model_config = ConfigDict(populate_by_name=True)
+
+    page_id: str = Field(alias='pageId')
+    workspace_id: str = Field(alias='workspaceId')
     title: str
-    pageType: str
-    contents: list[ContentBlockSchema]
+    page_type: str = Field(alias='pageType')
+    contents: Annotated[list[BlockContentSchema], Field(default_factory=list)]
+    embedding: EmbeddingProviderConfigSchema
+
+    @property
+    def pageId(self) -> str:  # noqa: N802
+        return self.page_id
+
+    @property
+    def workspaceId(self) -> str:  # noqa: N802
+        return self.workspace_id
+
+    @property
+    def pageType(self) -> str:  # noqa: N802
+        return self.page_type
 
 
-class VectorizationResponseSchema(BaseModel):
-    indexedChunks: int
-    skippedBlocks: int
+class VectorizationResponseSchema(RequestResponseSchema):
+    model_config = ConfigDict(populate_by_name=True)
+
+    status: Literal['ok'] = 'ok'
+    chunks_indexed: int = Field(
+        alias='chunksIndexed',
+        validation_alias=AliasChoices('chunksIndexed', 'indexedChunks'),
+    )
+    skipped_blocks: int = Field(default=0, validation_alias='skippedBlocks', exclude=True)
+
+    @property
+    def indexedChunks(self) -> int:  # noqa: N802
+        return self.chunks_indexed
+
+    @property
+    def skippedBlocks(self) -> int:  # noqa: N802
+        return self.skipped_blocks
+
+
+class WorkspaceWipeResponseSchema(RequestResponseSchema):
+    model_config = ConfigDict(populate_by_name=True)
+
+    deleted_collections: list[str] = Field(default_factory=list, alias='deletedCollections')
+
+
+class PageWipeResponseSchema(RequestResponseSchema):
+    model_config = ConfigDict(populate_by_name=True)
+
+    deleted_collections: list[str] = Field(default_factory=list, alias='deletedCollections')
+
+
+ContentBlockSchema = BlockContentSchema
