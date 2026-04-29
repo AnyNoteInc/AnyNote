@@ -7,7 +7,6 @@ from collections.abc import AsyncIterator
 from dishka import Provider, Scope, provide
 from fast_clean.repositories import SettingsRepositoryProtocol
 from fast_clean.schemas import BearerTokenAuthSchema
-from langchain_ollama import OllamaEmbeddings
 from qdrant_client import AsyncQdrantClient
 
 from agents.settings import SettingsSchema
@@ -18,7 +17,8 @@ class VectorsProvider(Provider):
 
     @provide
     async def qdrant_client(
-        self, settings_repository: SettingsRepositoryProtocol,
+        self,
+        settings_repository: SettingsRepositoryProtocol,
     ) -> AsyncIterator[AsyncQdrantClient]:
         settings = await settings_repository.get(SettingsSchema)
         auth = settings.qdrant.auth
@@ -31,16 +31,6 @@ class VectorsProvider(Provider):
             yield client
         finally:
             await client.close()
-
-    @provide
-    async def ollama_embeddings(
-        self, settings_repository: SettingsRepositoryProtocol,
-    ) -> OllamaEmbeddings:
-        settings = await settings_repository.get(SettingsSchema)
-        return OllamaEmbeddings(
-            base_url=str(settings.ollama.host).rstrip('/'),
-            model=settings.ollama.embedding_model,
-        )
 
 
 provider = VectorsProvider()

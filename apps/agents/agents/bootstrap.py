@@ -21,25 +21,8 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     - устанавливаем настройки логгирования
     - устанавливаем настройки кеширования
     - устанавливаем настройки стриминга
-    - создаём qdrant-коллекцию `pages`, если её ещё нет
+    - qdrant-коллекции создаются лениво для пары provider/model при векторизации
     """
-    import logging
-
-    from agents.apps.processing.repositories import VectorStoreRepository
-
-    container = ContainerManager.container
-    if container is not None:
-        try:
-            async with container() as req:
-                vsr = await req.get(VectorStoreRepository)
-                await vsr.ensure_collection()
-        except Exception as e:
-            # Don't block boot if Qdrant is briefly unavailable.
-            # Subsequent /vectorization calls will fail loudly until it's back up.
-            logging.getLogger(__name__).warning(
-                "could not ensure qdrant collection on boot, proceeding anyway: %s", e,
-            )
-
     yield
 
     await ContainerManager.close()

@@ -12,7 +12,7 @@ from fastapi.testclient import TestClient
 @pytest.mark.integration
 def test_vectorization_end_to_end() -> None:
     app = create_app([apply_routes])
-    with TestClient(app) as client:  # runs lifespan → ensures collection
+    with TestClient(app) as client:
         page_id = str(uuid4())
         ws_id = str(uuid4())
         payload = {
@@ -23,15 +23,21 @@ def test_vectorization_end_to_end() -> None:
             'contents': [
                 {'blockNumber': 0, 'content': 'Корпоративный кофе называется «Бразильский Медведь».'},
             ],
+            'embedding': {
+                'provider': 'ollama',
+                'modelSlug': 'nomic-embed-text',
+                'vectorSize': 768,
+                'connection': {'baseUrl': 'http://localhost:11434'},
+            },
         }
 
         res = client.post('/vectorization', json=payload)
         assert res.status_code == 200, res.text
         body = res.json()
-        assert body['indexedChunks'] >= 1
-        assert body['skippedBlocks'] == 0
+        assert body['status'] == 'ok'
+        assert body['chunksIndexed'] >= 1
 
         # Second call — should be idempotent (same result, no duplicate points)
         res2 = client.post('/vectorization', json=payload)
         assert res2.status_code == 200
-        assert res2.json()['indexedChunks'] == body['indexedChunks']
+        assert res2.json()['chunksIndexed'] == body['chunksIndexed']

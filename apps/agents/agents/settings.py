@@ -9,12 +9,11 @@ from pydantic import Field
 
 
 class QdrantSettingsSchema(CoreServiceSettingsSchema):
-    collection_name: str = 'pages'
-    vector_size: int = 768
+    pass
 
 
 class OllamaSettingsSchema(CoreServiceSettingsSchema):
-    embedding_model: str = 'nomic-embed-text'
+    pass
 
 
 class SettingsSchema(CoreSettingsSchema):
