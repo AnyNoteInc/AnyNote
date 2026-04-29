@@ -5,8 +5,13 @@ from __future__ import annotations
 from dishka.integrations.fastapi import FromDishka, inject
 from fastapi import APIRouter
 
-from .schemas import PageWipeResponseSchema, VectorizationRequestSchema, VectorizationResponseSchema
-from .use_cases import DeletePageVectorsUseCase, VectorizePageUseCase
+from .schemas import (
+    PageWipeResponseSchema,
+    VectorizationRequestSchema,
+    VectorizationResponseSchema,
+    WorkspaceWipeResponseSchema,
+)
+from .use_cases import DeletePageVectorsUseCase, DeleteWorkspaceVectorsUseCase, VectorizePageUseCase
 
 router = APIRouter(prefix='/vectorization', tags=['Vectorization'])
 
@@ -27,3 +32,12 @@ async def delete_page_vectors(
     use_case: FromDishka[DeletePageVectorsUseCase],
 ) -> PageWipeResponseSchema:
     return await use_case(page_id)
+
+
+@router.delete('/workspaces/{workspace_id}', response_model=WorkspaceWipeResponseSchema)
+@inject
+async def delete_workspace_vectors(
+    workspace_id: str,
+    use_case: FromDishka[DeleteWorkspaceVectorsUseCase],
+) -> WorkspaceWipeResponseSchema:
+    return await use_case(workspace_id)
