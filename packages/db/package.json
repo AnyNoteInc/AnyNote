@@ -16,6 +16,7 @@
   "scripts": {
     "build": "tsc -p tsconfig.json",
     "check-types": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run",
     "prisma:generate": "prisma generate",
     "prisma:db-push": "prisma db push",
     "prisma:apply-sql": "prisma db execute --file",
@@ -25,13 +26,15 @@
     "@prisma/adapter-pg": "^7.0.0",
     "@prisma/client": "^7.0.0",
     "@repo/typescript-config": "workspace:*",
-    "dotenv": "^17.2.3"
+    "dotenv": "^17.2.3",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/node": "^22.19.1",
     "prisma": "^7.0.0",
     "tsx": "^4.21.0",
-    "typescript": "^5.9.2"
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

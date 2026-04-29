@@ -113,3 +113,9 @@ export async function enqueueOutboxEventIgnoreConflict(
 }
 
 export default prisma
+
+export {
+  AiProviderConnectionSchema,
+  parseAiProviderConnection,
+  type AiProviderConnection,
+} from './ai-provider-connection.js'
