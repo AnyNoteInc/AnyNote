@@ -10,10 +10,10 @@ const SLASH_LENGTH = 10
 const SLASH_GAP = 4
 
 export interface DivorceMarkerProps {
+  /** X of the bracket's left vertical leg (= source person bottom + offset). */
   sourceX: number
-  sourceY: number
+  /** X of the bracket's right vertical leg (= target person bottom + offset). */
   targetX: number
-  targetY: number
   /**
    * Y of the bracket's horizontal segment — the marker sits at this Y. The
    * caller computes it (factoring in stack offsets for multi-partner
@@ -33,9 +33,8 @@ export interface DivorceMarkerProps {
  */
 export function DivorceMarker({
   sourceX,
-  sourceY,
   targetX,
-  targetY,
+  bracketY,
   custodySide,
   unionId,
   markPosition,
@@ -70,14 +69,13 @@ export function DivorceMarker({
       const onMove = (m: MouseEvent) => {
         const ds = dragStateRef.current
         if (!ds) return
+        // Bracket horizontal is purely horizontal — project drag onto the X
+        // axis only, ignoring vertical drag noise.
         const dx = m.clientX - ds.mouseStart.x
-        const dy = m.clientY - ds.mouseStart.y
         const lineDx = targetX - sourceX
-        const lineDy = targetY - sourceY
-        const lineLen = Math.hypot(lineDx, lineDy) || 1
-        const ux = lineDx / lineLen
-        const uy = lineDy / lineLen
-        const deltaScalar = (dx * ux + dy * uy) / lineLen
+        const lineLen = Math.max(1, Math.abs(lineDx))
+        const dir = Math.sign(lineDx) || 1
+        const deltaScalar = (dx * dir) / lineLen
         const nextPos = Math.min(1, Math.max(0, ds.posStart + deltaScalar))
         localPosRef.current = nextPos
         setPos(nextPos)
@@ -99,11 +97,11 @@ export function DivorceMarker({
       window.addEventListener('mousemove', onMove)
       window.addEventListener('mouseup', onUp)
     },
-    [sourceX, sourceY, targetX, targetY, custodySide, unionId, doc],
+    [sourceX, targetX, custodySide, unionId, doc],
   )
 
-  // Marker sits on the horizontal segment of the union bracket.
-  const bracketY = Math.max(sourceY, targetY) + LAYOUT.UNION_BRACKET_DROP
+  // Marker sits on the horizontal segment of the union bracket — caller
+  // provides bracketY so multi-partner stacks land on the correct row.
   const cx = sourceX + (targetX - sourceX) * pos
   const cy = bracketY
 

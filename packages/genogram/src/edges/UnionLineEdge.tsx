@@ -61,9 +61,7 @@ export function UnionLineEdge({
       {hasDivorce && (
         <DivorceMarker
           sourceX={baseX}
-          sourceY={sourceY}
           targetX={partnerX}
-          targetY={targetY}
           bracketY={bracketY}
           custodySide={data?.custodySide}
           unionId={data?.unionId}
