@@ -3,6 +3,7 @@ import { prisma } from '@repo/db'
 import {
   getWorkspaceFeatures,
   getAvailableAiModels,
+  getAvailableEmbeddingModels,
   requireWritableWorkspace,
 } from '../src/helpers/plan'
 
@@ -116,6 +117,9 @@ describe('getAvailableAiModels', () => {
     // assumes seed ran; we expect at minimum gigachat-2 and gigachat-2-pro
     expect(slugs).toContain('gigachat-2')
     expect(slugs).toContain('gigachat-2-pro')
+    expect(slugs).not.toContain('nomic-embed-text')
+    expect(slugs).not.toContain('text-embedding-3-small')
+    expect(slugs).not.toContain('embeddings')
     // should NOT include gigachat-2-max (requires Max plan)
     expect(slugs).not.toContain('gigachat-2-max')
   })
@@ -126,6 +130,64 @@ describe('getAvailableAiModels', () => {
     const slugs = models.map((m) => m.slug)
     expect(slugs).not.toContain('gigachat-2-pro')
     expect(slugs).not.toContain('gigachat-2-max')
+  })
+})
+
+describe('getAvailableEmbeddingModels', () => {
+  let workspaceId: string
+  let ownerId: string
+
+  beforeEach(async () => {
+    // clean fixtures from previous runs
+    await prisma.subscription.deleteMany({
+      where: { user: { email: { contains: '+plan-test@anynote.dev' } } },
+    })
+    await prisma.workspace.deleteMany({
+      where: { createdBy: { email: { contains: '+plan-test@anynote.dev' } } },
+    })
+    await prisma.user.deleteMany({
+      where: { email: { contains: '+plan-test@anynote.dev' } },
+    })
+
+    const owner = await prisma.user.create({
+      data: {
+        email: 'wf+plan-test@anynote.dev',
+        emailVerified: true,
+        name: 'Test',
+        firstName: 'Test',
+        lastName: 'User',
+      },
+    })
+    ownerId = owner.id
+    const ws = await prisma.workspace.create({
+      data: { name: 'Test WS', createdById: owner.id },
+      select: { id: true },
+    })
+    workspaceId = ws.id
+  })
+
+  it('returns only Pro-eligible embedding models for Pro workspace', async () => {
+    const pro = await prisma.plan.findUniqueOrThrow({ where: { slug: 'pro' } })
+    await prisma.subscription.create({
+      data: {
+        userId: ownerId,
+        planId: pro.id,
+        status: 'ACTIVE',
+        billingPeriod: 'MONTHLY',
+        currentPeriodStart: new Date(),
+        currentPeriodEnd: new Date(Date.now() + 30 * 86400_000),
+      },
+    })
+
+    const models = await getAvailableEmbeddingModels(workspaceId)
+    const slugs = models.map((m) => m.slug).sort()
+
+    expect(slugs).toContain('nomic-embed-text')
+    expect(slugs).toContain('bge-m3')
+    expect(slugs).toContain('text-embedding-3-small')
+    expect(slugs).toContain('embeddings')
+    expect(slugs).not.toContain('text-embedding-3-large')
+    expect(slugs).not.toContain('gigachat-2')
   })
 })
 

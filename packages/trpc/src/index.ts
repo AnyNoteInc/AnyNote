@@ -15,6 +15,7 @@ export type { PlanFeatures } from './helpers/plan'
 export {
   getWorkspaceFeatures,
   getAvailableAiModels,
+  getAvailableEmbeddingModels,
   requireWritableWorkspace,
   getActivePlanForUser,
 } from './helpers/plan'

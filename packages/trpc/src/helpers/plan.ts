@@ -67,6 +67,28 @@ export async function getAvailableAiModels(
   return prisma.aiModel.findMany({
     where: {
       isActive: true,
+      supportsEmbeddings: false,
+      OR: [{ minPlanSlug: null }, { minPlanSlug: { in: allowedSlugs } }],
+    },
+    include: { provider: true },
+    orderBy: { displayName: 'asc' },
+  })
+}
+
+export async function getAvailableEmbeddingModels(
+  workspaceId: string,
+): Promise<(AiModel & { provider: AiProvider })[]> {
+  const features = await getWorkspaceFeatures(workspaceId)
+  const allowed = await prisma.plan.findMany({
+    where: { sortOrder: { lte: features.sortOrder } },
+    select: { slug: true },
+  })
+  const allowedSlugs = allowed.map((r) => r.slug)
+  return prisma.aiModel.findMany({
+    where: {
+      isActive: true,
+      supportsEmbeddings: true,
+      vectorSize: { not: null },
       OR: [{ minPlanSlug: null }, { minPlanSlug: { in: allowedSlugs } }],
     },
     include: { provider: true },
