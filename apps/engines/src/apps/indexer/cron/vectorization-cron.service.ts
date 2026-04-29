@@ -2,11 +2,14 @@ import { randomUUID } from 'node:crypto'
 
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common'
 import { Cron } from '@nestjs/schedule'
-import type { PrismaClient } from '@repo/db'
+import { parseAiProviderConnection, type PrismaClient } from '@repo/db'
 import { Prisma } from '@repo/db'
 
 import { PRISMA } from '../../../infra/db/db.providers.js'
-import { AgentsClient } from '../services/agents-client.service.js'
+import {
+  AgentsClient,
+  type EmbeddingPayload,
+} from '../services/agents-client.service.js'
 import { PageContentReader, type TiptapNode } from '../services/page-content-reader.service.js'
 import { PlanFeaturesService } from '../services/plan-features.service.js'
 
@@ -102,39 +105,64 @@ export class VectorizationCronService implements OnModuleInit {
       await this.markDone(row.id)
       return
     }
+
     try {
       if (row.event_type === 'page.deleted') {
-        await this.agents.vectorize({
-          pageId: row.page_id,
-          workspaceId: row.workspace_id,
-          title: '',
-          pageType: 'TEXT',
-          contents: [],
-        })
-      } else {
-        const page = await this.prisma.page.findUnique({
-          where: { id: row.page_id },
-          select: {
-            id: true,
-            type: true,
-            deletedAt: true,
-            title: true,
-            content: true,
-            workspaceId: true,
-          },
-        })
-        const isEligible = page && !page.deletedAt && page.type === 'TEXT'
-        const contents = isEligible
-          ? this.reader.blocksFromDoc(page.content as TiptapNode | null)
-          : []
-        await this.agents.vectorize({
-          pageId: row.page_id,
-          workspaceId: row.workspace_id,
-          title: page?.title ?? '',
-          pageType: 'TEXT',
-          contents,
-        })
+        await this.agents.deletePageVectors(row.page_id)
+        await this.markDone(row.id)
+        return
       }
+
+      const aiSettings = await this.prisma.workspaceAiSettings.findUnique({
+        where: { workspaceId: row.workspace_id },
+        select: {
+          embeddingsModel: {
+            select: {
+              slug: true,
+              vectorSize: true,
+              provider: { select: { slug: true, connection: true } },
+            },
+          },
+        },
+      })
+
+      const model = aiSettings?.embeddingsModel
+      if (!model || model.vectorSize === null) {
+        await this.markDone(row.id)
+        return
+      }
+
+      const page = await this.prisma.page.findUnique({
+        where: { id: row.page_id },
+        select: {
+          id: true,
+          type: true,
+          deletedAt: true,
+          title: true,
+          content: true,
+          workspaceId: true,
+        },
+      })
+
+      if (!page || page.deletedAt || page.type !== 'TEXT') {
+        await this.markDone(row.id)
+        return
+      }
+
+      const connection = parseAiProviderConnection(model.provider.slug, model.provider.connection)
+      await this.agents.vectorize({
+        pageId: row.page_id,
+        workspaceId: row.workspace_id,
+        title: page.title ?? '',
+        pageType: 'TEXT',
+        contents: this.reader.blocksFromDoc(page.content as TiptapNode | null),
+        embedding: {
+          provider: model.provider.slug as EmbeddingPayload['provider'],
+          modelSlug: model.slug,
+          vectorSize: model.vectorSize,
+          connection,
+        },
+      })
       await this.markDone(row.id)
     } catch (err) {
       this.log.error(`Indexing failed for page ${row.page_id}: ${(err as Error).message}`)

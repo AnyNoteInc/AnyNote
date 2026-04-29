@@ -5,9 +5,18 @@ import { PageContentReader } from '../services/page-content-reader.service.js'
 import { PlanFeaturesService } from '../services/plan-features.service.js'
 import { VectorizationCronService } from './vectorization-cron.service.js'
 
-function makePrismaMock(opts: { rows: unknown[]; page: unknown }) {
+const embeddingsModel = {
+  slug: 'nomic-embed-text',
+  vectorSize: 768,
+  provider: { slug: 'ollama', connection: { baseUrl: 'http://ollama:11434' } },
+}
+
+const aiSettingsWithEmbeddings = { embeddingsModel }
+
+function makePrismaMock(opts: { rows: unknown[]; page: unknown; aiSettings?: unknown }) {
   const executeRaw = jest.fn(async () => 1)
-  const findUnique = jest.fn(async () => opts.page)
+  const pageFindUnique = jest.fn(async () => opts.page)
+  const workspaceAiSettingsFindUnique = jest.fn(async () => opts.aiSettings ?? aiSettingsWithEmbeddings)
   const queryRaw = jest.fn(async () => opts.rows)
   const tx = { $executeRaw: executeRaw, $queryRaw: queryRaw }
   const transaction = jest.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(tx))
@@ -15,8 +24,15 @@ function makePrismaMock(opts: { rows: unknown[]; page: unknown }) {
     $transaction: transaction,
     $executeRaw: executeRaw,
     $queryRaw: queryRaw,
-    page: { findUnique },
-    __mocks: { executeRaw, findUnique, queryRaw, transaction },
+    page: { findUnique: pageFindUnique },
+    workspaceAiSettings: { findUnique: workspaceAiSettingsFindUnique },
+    __mocks: {
+      executeRaw,
+      pageFindUnique,
+      queryRaw,
+      transaction,
+      workspaceAiSettingsFindUnique,
+    },
   }
 }
 
@@ -29,7 +45,10 @@ function makePlanFeaturesMock(enabled: boolean): PlanFeaturesService {
 describe('VectorizationCronService', () => {
   it('no-op when no rows', async () => {
     const prisma = makePrismaMock({ rows: [], page: null })
-    const agents = { vectorize: jest.fn(async () => undefined) } as unknown as AgentsClient
+    const agents = {
+      vectorize: jest.fn(async () => undefined),
+      deletePageVectors: jest.fn(async () => undefined),
+    } as unknown as AgentsClient
     const reader = new PageContentReader()
     const planFeatures = makePlanFeaturesMock(true)
     const svc = new VectorizationCronService(prisma as never, reader, agents, planFeatures)
@@ -59,17 +78,30 @@ describe('VectorizationCronService', () => {
     }
     const prisma = makePrismaMock({ rows, page })
     const vectorize = jest.fn(async () => undefined)
-    const agents = { vectorize } as unknown as AgentsClient
+    const agents = {
+      vectorize,
+      deletePageVectors: jest.fn(async () => undefined),
+    } as unknown as AgentsClient
     const reader = new PageContentReader()
     const planFeatures = makePlanFeaturesMock(true)
     const svc = new VectorizationCronService(prisma as never, reader, agents, planFeatures)
     await svc.tick()
     expect(vectorize).toHaveBeenCalledTimes(1)
-    const arg = (vectorize.mock.calls[0] as unknown as [{ contents: unknown[] }])[0]
+    const arg = (
+      vectorize.mock.calls[0] as unknown as [
+        { contents: unknown[]; embedding: unknown },
+      ]
+    )[0]
     expect(arg.contents).toHaveLength(1)
+    expect(arg.embedding).toEqual({
+      provider: 'ollama',
+      modelSlug: 'nomic-embed-text',
+      vectorSize: 768,
+      connection: { provider: 'ollama', baseUrl: 'http://ollama:11434' },
+    })
   })
 
-  it('calls agents with empty contents on page.upserted when page is soft-deleted', async () => {
+  it('marks DONE without vectorizing when page.upserted page is soft-deleted', async () => {
     const rows = [
       {
         id: BigInt(2),
@@ -88,7 +120,10 @@ describe('VectorizationCronService', () => {
     }
     const prisma = makePrismaMock({ rows, page })
     const vectorize = jest.fn(async () => undefined)
-    const agents = { vectorize } as unknown as AgentsClient
+    const agents = {
+      vectorize,
+      deletePageVectors: jest.fn(async () => undefined),
+    } as unknown as AgentsClient
     const planFeatures = makePlanFeaturesMock(true)
     const svc = new VectorizationCronService(
       prisma as never,
@@ -97,16 +132,11 @@ describe('VectorizationCronService', () => {
       planFeatures,
     )
     await svc.tick()
-    expect(vectorize).toHaveBeenCalledWith(
-      expect.objectContaining({
-        pageId: 'p2',
-        workspaceId: 'w2',
-        contents: [],
-      }),
-    )
+    expect(vectorize).not.toHaveBeenCalled()
+    expect(prisma.__mocks.executeRaw).toHaveBeenCalledTimes(3)
   })
 
-  it('deletes vectors on page.deleted event without loading the page', async () => {
+  it('deletes vectors on page.deleted event without loading the page or embeddings model', async () => {
     const rows = [
       {
         id: BigInt(3),
@@ -115,9 +145,10 @@ describe('VectorizationCronService', () => {
         event_type: 'page.deleted',
       },
     ]
-    const prisma = makePrismaMock({ rows, page: null })
+    const prisma = makePrismaMock({ rows, page: null, aiSettings: null })
     const vectorize = jest.fn(async () => undefined)
-    const agents = { vectorize } as unknown as AgentsClient
+    const deletePageVectors = jest.fn(async () => undefined)
+    const agents = { vectorize, deletePageVectors } as unknown as AgentsClient
     const planFeatures = makePlanFeaturesMock(true)
     const svc = new VectorizationCronService(
       prisma as never,
@@ -126,14 +157,10 @@ describe('VectorizationCronService', () => {
       planFeatures,
     )
     await svc.tick()
-    expect(prisma.__mocks.findUnique).not.toHaveBeenCalled()
-    expect(vectorize).toHaveBeenCalledWith(
-      expect.objectContaining({
-        pageId: 'p3',
-        workspaceId: 'w3',
-        contents: [],
-      }),
-    )
+    expect(prisma.__mocks.pageFindUnique).not.toHaveBeenCalled()
+    expect(prisma.__mocks.workspaceAiSettingsFindUnique).not.toHaveBeenCalled()
+    expect(vectorize).not.toHaveBeenCalled()
+    expect(deletePageVectors).toHaveBeenCalledWith('p3')
   })
 
   it('issues mark-older-as-DONE update inside the claim transaction', async () => {
@@ -155,7 +182,10 @@ describe('VectorizationCronService', () => {
     }
     const prisma = makePrismaMock({ rows, page })
     const vectorize = jest.fn(async () => undefined)
-    const agents = { vectorize } as unknown as AgentsClient
+    const agents = {
+      vectorize,
+      deletePageVectors: jest.fn(async () => undefined),
+    } as unknown as AgentsClient
     const planFeatures = makePlanFeaturesMock(true)
     const svc = new VectorizationCronService(
       prisma as never,
@@ -189,7 +219,10 @@ describe('VectorizationCronService', () => {
     }
     const prisma = makePrismaMock({ rows, page })
     const vectorize = jest.fn(async () => undefined)
-    const agents = { vectorize } as unknown as AgentsClient
+    const agents = {
+      vectorize,
+      deletePageVectors: jest.fn(async () => undefined),
+    } as unknown as AgentsClient
     const planFeatures = makePlanFeaturesMock(false)
     const svc = new VectorizationCronService(
       prisma as never,
@@ -199,8 +232,123 @@ describe('VectorizationCronService', () => {
     )
     await svc.tick()
     expect(vectorize).not.toHaveBeenCalled()
+    expect(prisma.__mocks.workspaceAiSettingsFindUnique).not.toHaveBeenCalled()
     // claimBatch: 1 SELECT + 2 UPDATE (PROCESSING + collapse-older-to-DONE).
     // processRow skip path: 1 UPDATE (markDone without vectorizing).
+    expect(prisma.__mocks.executeRaw).toHaveBeenCalledTimes(3)
+  })
+
+  it('skips page.upserted and marks DONE when no embeddings model is selected', async () => {
+    const rows = [
+      {
+        id: BigInt(6),
+        page_id: 'p6',
+        workspace_id: 'w6',
+        event_type: 'page.upserted',
+      },
+    ]
+    const prisma = makePrismaMock({
+      rows,
+      page: null,
+      aiSettings: { embeddingsModel: null },
+    })
+    const vectorize = jest.fn(async () => undefined)
+    const agents = {
+      vectorize,
+      deletePageVectors: jest.fn(async () => undefined),
+    } as unknown as AgentsClient
+    const svc = new VectorizationCronService(
+      prisma as never,
+      new PageContentReader(),
+      agents,
+      makePlanFeaturesMock(true),
+    )
+    await svc.tick()
+    expect(prisma.__mocks.workspaceAiSettingsFindUnique).toHaveBeenCalledTimes(1)
+    expect(prisma.__mocks.pageFindUnique).not.toHaveBeenCalled()
+    expect(vectorize).not.toHaveBeenCalled()
+    expect(prisma.__mocks.executeRaw).toHaveBeenCalledTimes(3)
+  })
+
+  it('skips page.upserted and marks DONE when embeddings model has no vector size', async () => {
+    const rows = [
+      {
+        id: BigInt(7),
+        page_id: 'p7',
+        workspace_id: 'w7',
+        event_type: 'page.upserted',
+      },
+    ]
+    const prisma = makePrismaMock({
+      rows,
+      page: null,
+      aiSettings: {
+        embeddingsModel: {
+          ...embeddingsModel,
+          vectorSize: null,
+        },
+      },
+    })
+    const vectorize = jest.fn(async () => undefined)
+    const agents = {
+      vectorize,
+      deletePageVectors: jest.fn(async () => undefined),
+    } as unknown as AgentsClient
+    const svc = new VectorizationCronService(
+      prisma as never,
+      new PageContentReader(),
+      agents,
+      makePlanFeaturesMock(true),
+    )
+    await svc.tick()
+    expect(prisma.__mocks.pageFindUnique).not.toHaveBeenCalled()
+    expect(vectorize).not.toHaveBeenCalled()
+    expect(prisma.__mocks.executeRaw).toHaveBeenCalledTimes(3)
+  })
+
+  it('retries page.upserted when provider connection parsing fails', async () => {
+    const rows = [
+      {
+        id: BigInt(8),
+        page_id: 'p8',
+        workspace_id: 'w8',
+        event_type: 'page.upserted',
+      },
+    ]
+    const page = {
+      id: 'p8',
+      type: 'TEXT',
+      deletedAt: null,
+      title: 'T',
+      content: {
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'hi' }] }],
+      },
+      workspaceId: 'w8',
+    }
+    const prisma = makePrismaMock({
+      rows,
+      page,
+      aiSettings: {
+        embeddingsModel: {
+          ...embeddingsModel,
+          provider: { slug: 'ollama', connection: {} },
+        },
+      },
+    })
+    const vectorize = jest.fn(async () => undefined)
+    const agents = {
+      vectorize,
+      deletePageVectors: jest.fn(async () => undefined),
+    } as unknown as AgentsClient
+    const svc = new VectorizationCronService(
+      prisma as never,
+      new PageContentReader(),
+      agents,
+      makePlanFeaturesMock(true),
+    )
+    await svc.tick()
+    expect(vectorize).not.toHaveBeenCalled()
     expect(prisma.__mocks.executeRaw).toHaveBeenCalledTimes(3)
   })
 })
