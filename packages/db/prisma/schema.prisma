@@ -359,32 +359,38 @@ model AiModel {
   slug              String                @db.VarChar(100)
   displayName       String                @map("display_name") @db.VarChar(150)
   contextTokens     Int                   @map("context_tokens")
-  supportsVision    Boolean               @default(false) @map("supports_vision")
-  minPlanSlug       String?               @map("min_plan_slug")
+  supportsVision     Boolean               @default(false) @map("supports_vision")
+  supportsEmbeddings Boolean              @default(false) @map("supports_embeddings")
+  vectorSize         Int?                  @map("vector_size")
+  minPlanSlug        String?               @map("min_plan_slug")
   isActive          Boolean               @default(true) @map("is_active")
   deprecatedAt      DateTime?             @map("deprecated_at") @db.Timestamptz(6)
   createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt         DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
-  provider          AiProvider            @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  workspaceSettings WorkspaceAiSettings[]
+  provider                     AiProvider            @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  workspaceSettings            WorkspaceAiSettings[] @relation("WorkspaceAiSettings_default")
+  workspaceEmbeddingsSettings  WorkspaceAiSettings[] @relation("WorkspaceAiSettings_embeddings")
 
   @@unique([providerId, slug])
   @@map("ai_models")
 }
 
 model WorkspaceAiSettings {
-  workspaceId    String   @id @map("workspace_id") @db.Uuid
-  defaultModelId String?  @map("default_model_id") @db.Uuid
-  systemPrompt   String?  @map("system_prompt") @db.Text
-  temperature    Float    @default(0.2)
-  topP           Float    @default(0.5) @map("top_p")
-  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  workspaceId       String   @id @map("workspace_id") @db.Uuid
+  defaultModelId    String?  @map("default_model_id") @db.Uuid
+  embeddingsModelId String?  @map("embeddings_model_id") @db.Uuid
+  systemPrompt      String?  @map("system_prompt") @db.Text
+  temperature       Float    @default(0.2)
+  topP              Float    @default(0.5) @map("top_p")
+  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  workspace    Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  defaultModel AiModel?  @relation(fields: [defaultModelId], references: [id], onDelete: SetNull)
+  workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  defaultModel    AiModel?  @relation("WorkspaceAiSettings_default",    fields: [defaultModelId],    references: [id], onDelete: SetNull)
+  embeddingsModel AiModel?  @relation("WorkspaceAiSettings_embeddings", fields: [embeddingsModelId], references: [id], onDelete: SetNull)
 
   @@index([defaultModelId])
+  @@index([embeddingsModelId])
   @@map("workspace_ai_settings")
 }
 
