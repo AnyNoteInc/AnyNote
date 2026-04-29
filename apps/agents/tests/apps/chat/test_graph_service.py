@@ -9,11 +9,13 @@ from agents.apps.chat.repositories import JinjaRendererRepository, McpToolsRepos
 from agents.apps.chat.schemas import (
     GraphStateSchema,
     McpConfigSchema,
+    ModelConnectionSchema,
     QueryRequestSchema,
     RuntimeContext,
     UserContextSchema,
 )
 from agents.apps.chat.services import GraphService, RagRetrievalService
+from agents.apps.processing.schemas import EmbeddingProviderConfigSchema
 from langchain_core.messages import AIMessage
 from langchain_core.tools import StructuredTool
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
@@ -73,11 +75,35 @@ class StubModelFactoryRepository:
 
 
 class StubRagRetrievalService:
-    async def retrieve(self, workspace_id: object, query: str, k: int = 5) -> list[object]:
+    def __init__(self) -> None:
+        self.calls: list[tuple[EmbeddingProviderConfigSchema, object, str, int]] = []
+
+    async def retrieve(
+        self,
+        *,
+        embedding: EmbeddingProviderConfigSchema,
+        workspace_id: object,
+        query: str,
+        k: int = 5,
+    ) -> list[object]:
+        self.calls.append((embedding, workspace_id, query, k))
         return []
 
 
-def make_query_request(*, mcp: McpConfigSchema | None) -> QueryRequestSchema:
+def make_embedding() -> EmbeddingProviderConfigSchema:
+    return EmbeddingProviderConfigSchema(
+        provider=ModelProviderEnum.OLLAMA,
+        modelSlug='nomic-embed-text',
+        vectorSize=768,
+        connection=ModelConnectionSchema(baseUrl='http://localhost:11434'),
+    )
+
+
+def make_query_request(
+    *,
+    mcp: McpConfigSchema | None,
+    embedding: EmbeddingProviderConfigSchema | None = None,
+) -> QueryRequestSchema:
     return QueryRequestSchema.model_validate({
         'threadId': str(uuid4()),
         'model': {
@@ -99,13 +125,18 @@ def make_query_request(*, mcp: McpConfigSchema | None) -> QueryRequestSchema:
             },
         ],
         'mcp': mcp,
+        'embedding': embedding,
         'query': 'Latest question',
     })
 
 
-def make_state(*, mcp: McpConfigSchema | None) -> GraphStateSchema:
+def make_state(
+    *,
+    mcp: McpConfigSchema | None,
+    embedding: EmbeddingProviderConfigSchema | None = None,
+) -> GraphStateSchema:
     return GraphStateSchema(
-        payload=make_query_request(mcp=mcp),
+        payload=make_query_request(mcp=mcp, embedding=embedding),
         system_prompt='base system prompt',
         user_context=UserContextSchema(x_user_id=uuid4(), x_workspace_id=uuid4()),
         messages=[],
@@ -126,11 +157,12 @@ async def test_prepare_prompt_handles_missing_or_empty_mcp_servers(
 ) -> None:
     renderer = StubJinjaRendererRepository()
     mcp_tools = StubMcpToolsRepository()
+    rag_retrieval = StubRagRetrievalService()
     service = GraphService(
         jinja_repository=cast(JinjaRendererRepository, renderer),
         mcp_tools_repository=cast(McpToolsRepository, mcp_tools),
         model_factory_repository=cast(ModelFactoryRepository, object()),
-        rag_retrieval_service=cast(RagRetrievalService, StubRagRetrievalService()),
+        rag_retrieval_service=cast(RagRetrievalService, rag_retrieval),
         checkpointer=cast(AsyncPostgresSaver, object()),
     )
 
@@ -150,6 +182,7 @@ async def test_prepare_prompt_handles_missing_or_empty_mcp_servers(
     result = await service.prepare_prompt(context, make_state(mcp=mcp_config))
 
     assert mcp_tools.calls == []
+    assert rag_retrieval.calls == []
     assert context.tools == []
     assert len(renderer.system_calls) == 1
     assert renderer.system_calls[0][0] == result.payload
@@ -173,6 +206,30 @@ async def test_prepare_prompt_handles_missing_or_empty_mcp_servers(
         'Earlier answer',
         'rendered user prompt',
     ]
+
+
+@pytest.mark.asyncio
+async def test_prepare_prompt_retrieves_rag_documents_when_embedding_is_configured() -> None:
+    renderer = StubJinjaRendererRepository()
+    mcp_tools = StubMcpToolsRepository()
+    rag_retrieval = StubRagRetrievalService()
+    service = GraphService(
+        jinja_repository=cast(JinjaRendererRepository, renderer),
+        mcp_tools_repository=cast(McpToolsRepository, mcp_tools),
+        model_factory_repository=cast(ModelFactoryRepository, object()),
+        rag_retrieval_service=cast(RagRetrievalService, rag_retrieval),
+        checkpointer=cast(AsyncPostgresSaver, object()),
+    )
+    embedding = make_embedding()
+    state = make_state(mcp=None, embedding=embedding)
+
+    result = await service.prepare_prompt(RuntimeContext(), state)
+
+    assert rag_retrieval.calls == [(embedding, state.user_context.x_workspace_id, 'Latest question', 5)]
+    assert renderer.system_calls[0][0] == result.payload
+    assert renderer.system_calls[0][2] == []
+    assert renderer.user_calls[0][0] == result.payload
+    assert renderer.user_calls[0][2] == []
 
 
 @pytest.mark.asyncio

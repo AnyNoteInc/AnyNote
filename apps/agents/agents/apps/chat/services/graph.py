@@ -9,7 +9,7 @@ from langgraph.graph.state import CompiledStateGraph
 from .rag_retrieval import RagRetrievalService
 from ..enums import RoleEnum
 from ..repositories import JinjaRendererRepository, McpToolsRepository, ModelFactoryRepository
-from ..schemas import GraphStateSchema, McpServerToolsSchema, RuntimeContext
+from ..schemas import GraphStateSchema, McpServerToolsSchema, RagDocumentSchema, RuntimeContext
 
 type CompiledGraph = CompiledStateGraph[GraphStateSchema, None, GraphStateSchema, GraphStateSchema]
 
@@ -48,11 +48,14 @@ class GraphService:
         if servers:
             context.tools, mcp_server_tools = await self.mcp_tools_repository.fetch_mcp_tools(servers)
 
-        rag_documents = await self.rag_retrieval_service.retrieve(
-            workspace_id=state.user_context.x_workspace_id,
-            query=payload.query,
-            k=5,
-        )
+        rag_documents: list[RagDocumentSchema] = []
+        if payload.embedding is not None:
+            rag_documents = await self.rag_retrieval_service.retrieve(
+                embedding=payload.embedding,
+                workspace_id=state.user_context.x_workspace_id,
+                query=payload.query,
+                k=5,
+            )
 
         messages: list[BaseMessage] = [SystemMessage(content=state.system_prompt)]
         messages += [
