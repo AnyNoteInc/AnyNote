@@ -171,26 +171,36 @@ async function main() {
         baseUrl: 'http://localhost:11434',
       } satisfies Prisma.InputJsonValue,
     },
+    {
+      slug: 'openai',
+      name: 'OpenAI',
+      connection: {
+        apiKey: process.env.OPENAI_API_KEY ?? '',
+      } satisfies Prisma.InputJsonValue,
+    },
   ] as const
 
   const providerRows = await Promise.all(
-    aiProviders.map((p) =>
-      prisma.aiProvider.upsert({
+    aiProviders.map((p) => {
+      const hasOpenAiApiKey = p.slug === 'openai' && p.connection.apiKey !== ''
+      const shouldUpdateConnection = p.slug !== 'openai' || hasOpenAiApiKey
+
+      return prisma.aiProvider.upsert({
         where: { slug: p.slug },
         update: {
           name: p.name,
-          connection: p.connection,
+          ...(shouldUpdateConnection ? { connection: p.connection } : {}),
           isActive: true,
         },
         create: { ...p, isActive: true },
-      }),
-    ),
+      })
+    }),
   )
 
   const providerBySlug = new Map(providerRows.map((r) => [r.slug, r]))
 
   // ── AI models ─────────────────────────────────────────────────────────────
-  const gigachatModelSlugs = ['gigachat-2', 'gigachat-2-pro', 'gigachat-2-max'] as const
+  const gigachatModelSlugs = ['gigachat-2', 'gigachat-2-pro', 'gigachat-2-max', 'embeddings'] as const
   const aiModels = [
     {
       providerSlug: 'gigachat',
@@ -198,6 +208,8 @@ async function main() {
       displayName: 'GigaChat-2',
       contextTokens: 32000,
       supportsVision: false,
+      supportsEmbeddings: false,
+      vectorSize: null,
       minPlanSlug: 'pro',
     },
     {
@@ -206,6 +218,8 @@ async function main() {
       displayName: 'GigaChat-2 Pro',
       contextTokens: 32000,
       supportsVision: false,
+      supportsEmbeddings: false,
+      vectorSize: null,
       minPlanSlug: 'pro',
     },
     {
@@ -214,6 +228,8 @@ async function main() {
       displayName: 'GigaChat-2 Max',
       contextTokens: 64000,
       supportsVision: false,
+      supportsEmbeddings: false,
+      vectorSize: null,
       minPlanSlug: 'max',
     },
     {
@@ -222,7 +238,59 @@ async function main() {
       displayName: 'Gemma 4 (Ollama)',
       contextTokens: 8192,
       supportsVision: false,
+      supportsEmbeddings: false,
+      vectorSize: null,
       minPlanSlug: null,
+    },
+    {
+      providerSlug: 'ollama',
+      slug: 'nomic-embed-text',
+      displayName: 'Nomic Embed Text (Ollama)',
+      contextTokens: 0,
+      supportsVision: false,
+      supportsEmbeddings: true,
+      vectorSize: 768,
+      minPlanSlug: null,
+    },
+    {
+      providerSlug: 'ollama',
+      slug: 'bge-m3',
+      displayName: 'BGE-M3 (Ollama)',
+      contextTokens: 0,
+      supportsVision: false,
+      supportsEmbeddings: true,
+      vectorSize: 1024,
+      minPlanSlug: null,
+    },
+    {
+      providerSlug: 'openai',
+      slug: 'text-embedding-3-small',
+      displayName: 'OpenAI Embeddings 3 Small',
+      contextTokens: 0,
+      supportsVision: false,
+      supportsEmbeddings: true,
+      vectorSize: 1536,
+      minPlanSlug: 'pro',
+    },
+    {
+      providerSlug: 'openai',
+      slug: 'text-embedding-3-large',
+      displayName: 'OpenAI Embeddings 3 Large',
+      contextTokens: 0,
+      supportsVision: false,
+      supportsEmbeddings: true,
+      vectorSize: 3072,
+      minPlanSlug: 'max',
+    },
+    {
+      providerSlug: 'gigachat',
+      slug: 'embeddings',
+      displayName: 'GigaChat Embeddings',
+      contextTokens: 0,
+      supportsVision: false,
+      supportsEmbeddings: true,
+      vectorSize: 1024,
+      minPlanSlug: 'pro',
     },
   ] as const
 
@@ -235,8 +303,11 @@ async function main() {
         displayName: m.displayName,
         contextTokens: m.contextTokens,
         supportsVision: m.supportsVision,
+        supportsEmbeddings: m.supportsEmbeddings,
+        vectorSize: m.vectorSize,
         minPlanSlug: m.minPlanSlug,
         isActive: true,
+        deprecatedAt: null,
       },
       create: {
         providerId: provider.id,
@@ -244,6 +315,8 @@ async function main() {
         displayName: m.displayName,
         contextTokens: m.contextTokens,
         supportsVision: m.supportsVision,
+        supportsEmbeddings: m.supportsEmbeddings,
+        vectorSize: m.vectorSize,
         minPlanSlug: m.minPlanSlug,
         isActive: true,
       },
@@ -264,7 +337,7 @@ async function main() {
     },
   })
 
-  console.info('Seed complete: 5 providers, 3 active plans, 2 AI providers, 4 AI models')
+  console.info('Seed complete: 5 providers, 3 active plans, 3 AI providers, 9 AI models')
 }
 
 main()
