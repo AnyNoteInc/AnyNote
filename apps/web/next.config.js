@@ -5,6 +5,7 @@ const nextConfig = {
     '@repo/ui',
     '@repo/trpc',
     '@repo/auth',
+    '@repo/db',
     '@repo/storage',
     '@repo/editor',
     '@repo/excalidraw',
