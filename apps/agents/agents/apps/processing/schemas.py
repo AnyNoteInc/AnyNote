@@ -4,7 +4,6 @@ from fast_clean.schemas.request_response import RequestResponseSchema
 from pydantic import AliasChoices, ConfigDict, Field
 
 from agents.apps.chat.enums import ModelProviderEnum
-from agents.apps.chat.schemas import ModelConnectionSchema
 
 
 class BlockContentSchema(RequestResponseSchema):
@@ -16,6 +15,15 @@ class BlockContentSchema(RequestResponseSchema):
     @property
     def blockNumber(self) -> int:  # noqa: N802
         return self.block_number
+
+
+class ModelConnectionSchema(RequestResponseSchema):
+    base_url: str | None = None
+    api_key: str | None = None
+    organization: str | None = None
+    client_id: str | None = None
+    client_secret: str | None = None
+    scope: str | None = None
 
 
 class EmbeddingProviderConfigSchema(RequestResponseSchema):

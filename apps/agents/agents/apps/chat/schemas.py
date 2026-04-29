@@ -7,6 +7,13 @@ from langchain_core.messages import BaseMessage
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, ConfigDict, Field
 
+from agents.apps.processing.schemas import (
+    EmbeddingProviderConfigSchema,
+)
+from agents.apps.processing.schemas import (
+    ModelConnectionSchema as ModelConnectionSchema,
+)
+
 from .enums import ModelProviderEnum, RoleEnum
 
 
@@ -72,15 +79,6 @@ class McpServerToolsSchema(BaseModel):
     name: str
     description: str = ''
     tools: list[McpToolSchema] = Field(default_factory=list)
-
-
-class ModelConnectionSchema(RequestResponseSchema):
-    base_url: str | None = None
-    api_key: str | None = None
-    organization: str | None = None
-    client_id: str | None = None
-    client_secret: str | None = None
-    scope: str | None = None
 
 
 class ModelSettingsSchema(RequestResponseSchema):
@@ -181,6 +179,10 @@ class QueryRequestSchema(RequestResponseSchema):
     mcp: McpConfigSchema | None = None
     """
     Список mcp серверов, доступных для инструментов. Если не указан, инструменты использоваться не будут.
+    """
+    embedding: EmbeddingProviderConfigSchema | None = None
+    """
+    Конфигурация модели для векторного поиска. Если не указана — RAG-фаза пропускается.
     """
     query: str
     """
