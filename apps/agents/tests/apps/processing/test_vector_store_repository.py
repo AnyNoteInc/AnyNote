@@ -1,3 +1,4 @@
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
@@ -9,13 +10,42 @@ COLLECTION = 'pages'
 VECTOR_SIZE = 768
 
 
-def _make_repo(client: Any = None, embeddings: Any = None) -> VectorStoreRepository:
-    return VectorStoreRepository(
-        client=client or AsyncMock(),
-        embeddings=embeddings or MagicMock(),
-        collection_name=COLLECTION,
-        vector_size=VECTOR_SIZE,
+def _not_found() -> Exception:
+    from qdrant_client.http.exceptions import UnexpectedResponse
+
+    return UnexpectedResponse(404, 'not found', b'', httpx.Headers())
+
+
+def _make_repo(client: Any = None) -> VectorStoreRepository:
+    return VectorStoreRepository(client=client or AsyncMock())
+
+
+@pytest.mark.asyncio
+async def test_list_collections_returns_names() -> None:
+    client = AsyncMock()
+    client.get_collections = AsyncMock(
+        return_value=MagicMock(
+            collections=[
+                SimpleNamespace(name='pages_ollama_nomic-embed-text'),
+                SimpleNamespace(name='pages_openai_text-embedding-3-small'),
+            ]
+        ),
     )
+    repo = _make_repo(client=client)
+
+    assert await repo.list_collections() == [
+        'pages_ollama_nomic-embed-text',
+        'pages_openai_text-embedding-3-small',
+    ]
+
+
+@pytest.mark.asyncio
+async def test_collection_exists_returns_false_on_404() -> None:
+    client = AsyncMock()
+    client.get_collection = AsyncMock(side_effect=_not_found())
+    repo = _make_repo(client=client)
+
+    assert await repo.collection_exists(COLLECTION) is False
 
 
 @pytest.mark.asyncio
@@ -24,7 +54,7 @@ async def test_ensure_collection_creates_when_missing() -> None:
     client.create_collection = AsyncMock()
     repo = _make_repo(client=client)
 
-    await repo.ensure_collection()
+    await repo.ensure_collection(COLLECTION, VECTOR_SIZE)
 
     client.create_collection.assert_awaited_once()
     args, kwargs = client.create_collection.call_args
@@ -34,13 +64,14 @@ async def test_ensure_collection_creates_when_missing() -> None:
 @pytest.mark.asyncio
 async def test_ensure_collection_swallows_already_exists() -> None:
     from qdrant_client.http.exceptions import UnexpectedResponse
+
     client = AsyncMock()
     client.create_collection = AsyncMock(
-        side_effect=UnexpectedResponse(409, "already exists", b"", httpx.Headers()),
+        side_effect=UnexpectedResponse(409, 'already exists', b'', httpx.Headers()),
     )
     repo = _make_repo(client=client)
 
-    await repo.ensure_collection()  # should not raise
+    await repo.ensure_collection(COLLECTION, VECTOR_SIZE)  # should not raise
 
     client.create_collection.assert_awaited_once()
 
@@ -48,17 +79,43 @@ async def test_ensure_collection_swallows_already_exists() -> None:
 @pytest.mark.asyncio
 async def test_delete_by_page_calls_client_delete_with_filter() -> None:
     client = AsyncMock()
+    client.get_collection = AsyncMock()
     repo = _make_repo(client=client)
 
-    await repo.delete_by_page('abc-123')
+    await repo.delete_by_page(COLLECTION, 'abc-123')
 
+    client.get_collection.assert_awaited_once_with(COLLECTION)
     client.delete.assert_awaited_once()
     args, kwargs = client.delete.call_args
     assert args[0] == COLLECTION
-    # filter must reference pageId='abc-123'
     filt = kwargs['points_selector']
     assert filt.must[0].key == 'pageId'
     assert filt.must[0].match.value == 'abc-123'
+
+
+@pytest.mark.asyncio
+async def test_delete_by_page_noops_when_collection_missing() -> None:
+    client = AsyncMock()
+    client.get_collection = AsyncMock(side_effect=_not_found())
+    repo = _make_repo(client=client)
+
+    await repo.delete_by_page(COLLECTION, 'abc-123')
+
+    client.delete.assert_not_awaited()
+
+
+@pytest.mark.asyncio
+async def test_delete_by_workspace_calls_client_delete_with_filter() -> None:
+    client = AsyncMock()
+    client.get_collection = AsyncMock()
+    repo = _make_repo(client=client)
+
+    await repo.delete_by_workspace(COLLECTION, 'ws-1')
+
+    client.delete.assert_awaited_once()
+    filt = client.delete.call_args.kwargs['points_selector']
+    assert filt.must[0].key == 'workspaceId'
+    assert filt.must[0].match.value == 'ws-1'
 
 
 @pytest.mark.asyncio
@@ -66,7 +123,7 @@ async def test_upsert_chunks_noop_when_empty() -> None:
     client = AsyncMock()
     repo = _make_repo(client=client)
 
-    await repo.upsert_chunks([])
+    await repo.upsert_chunks(COLLECTION, [])
 
     client.upsert.assert_not_awaited()
 
@@ -77,27 +134,39 @@ async def test_upsert_chunks_calls_client_upsert() -> None:
     repo = _make_repo(client=client)
 
     points = [('point-1', [0.1, 0.2], {'pageId': 'p1'})]
-    await repo.upsert_chunks(points)
+    await repo.upsert_chunks(COLLECTION, points)
 
     client.upsert.assert_awaited_once()
-
-
-def test_instance_fields() -> None:
-    repo = _make_repo()
-    assert repo.collection_name == 'pages'
-    assert repo.vector_size == 768
 
 
 @pytest.mark.asyncio
 async def test_similarity_search_empty_query_returns_empty() -> None:
     repo = _make_repo()
-    assert await repo.similarity_search('ws-1', '') == []
-    assert await repo.similarity_search('ws-1', '   ') == []
+    embeddings = MagicMock()
+    assert (
+        await repo.similarity_search(
+            collection_name=COLLECTION,
+            embeddings=embeddings,
+            workspace_id='ws-1',
+            query='',
+        )
+        == []
+    )
+    assert (
+        await repo.similarity_search(
+            collection_name=COLLECTION,
+            embeddings=embeddings,
+            workspace_id='ws-1',
+            query='   ',
+        )
+        == []
+    )
 
 
 @pytest.mark.asyncio
 async def test_similarity_search_calls_query_points() -> None:
     client = AsyncMock()
+    client.get_collection = AsyncMock()
     embeddings = MagicMock()
     embeddings.aembed_query = AsyncMock(return_value=[0.1] * 768)
 
@@ -105,13 +174,14 @@ async def test_similarity_search_calls_query_points() -> None:
     point.payload = {'content': 'hello', 'pageId': 'p1', 'workspaceId': 'ws-1'}
     client.query_points = AsyncMock(return_value=MagicMock(points=[point]))
 
-    repo = VectorStoreRepository(
-        client=client,
-        embeddings=embeddings,
+    repo = VectorStoreRepository(client=client)
+    docs = await repo.similarity_search(
         collection_name=COLLECTION,
-        vector_size=VECTOR_SIZE,
+        embeddings=embeddings,
+        workspace_id='ws-1',
+        query='test query',
+        k=3,
     )
-    docs = await repo.similarity_search('ws-1', 'test query', k=3)
 
     client.query_points.assert_awaited_once()
     call_kwargs = client.query_points.call_args.kwargs
@@ -120,3 +190,23 @@ async def test_similarity_search_calls_query_points() -> None:
     assert len(docs) == 1
     assert docs[0].page_content == 'hello'
     assert docs[0].metadata['pageId'] == 'p1'
+
+
+@pytest.mark.asyncio
+async def test_similarity_search_noops_when_collection_missing() -> None:
+    client = AsyncMock()
+    client.get_collection = AsyncMock(side_effect=_not_found())
+    embeddings = MagicMock()
+    embeddings.aembed_query = AsyncMock()
+    repo = _make_repo(client=client)
+
+    docs = await repo.similarity_search(
+        collection_name=COLLECTION,
+        embeddings=embeddings,
+        workspace_id='ws-1',
+        query='test query',
+    )
+
+    assert docs == []
+    embeddings.aembed_query.assert_not_awaited()
+    client.query_points.assert_not_awaited()

@@ -2,7 +2,7 @@ from dataclasses import dataclass
 from typing import Any
 
 from langchain_core.documents import Document
-from langchain_ollama import OllamaEmbeddings
+from langchain_core.embeddings import Embeddings
 from qdrant_client import AsyncQdrantClient
 from qdrant_client.http.exceptions import UnexpectedResponse
 from qdrant_client.http.models import (
@@ -17,47 +17,74 @@ from qdrant_client.http.models import (
 
 @dataclass
 class VectorStoreRepository:
-    """Обёртка над Qdrant collection для векторных операций."""
+    """Обёртка над Qdrant для векторных операций."""
 
     client: AsyncQdrantClient
-    embeddings: OllamaEmbeddings
-    collection_name: str
-    vector_size: int
 
-    async def ensure_collection(self) -> None:
+    async def list_collections(self) -> list[str]:
+        res = await self.client.get_collections()
+        return [collection.name for collection in res.collections]
+
+    async def collection_exists(self, name: str) -> bool:
+        try:
+            await self.client.get_collection(name)
+            return True
+        except UnexpectedResponse as e:
+            if e.status_code == 404:
+                return False
+            raise
+
+    async def ensure_collection(self, name: str, vector_size: int) -> None:
         try:
             await self.client.create_collection(
-                self.collection_name,
-                vectors_config=VectorParams(size=self.vector_size, distance=Distance.COSINE),
+                name,
+                vectors_config=VectorParams(size=vector_size, distance=Distance.COSINE),
             )
         except UnexpectedResponse as e:
             # 409: collection already exists — idempotent, safe to ignore.
             if e.status_code != 409:
                 raise
 
-    async def delete_by_page(self, page_id: str) -> None:
+    async def delete_by_page(self, collection_name: str, page_id: str) -> None:
+        if not await self.collection_exists(collection_name):
+            return
         await self.client.delete(
-            self.collection_name,
-            points_selector=Filter(must=[
-                FieldCondition(key='pageId', match=MatchValue(value=page_id))
-            ]),
+            collection_name,
+            points_selector=Filter(
+                must=[FieldCondition(key='pageId', match=MatchValue(value=page_id))],
+            ),
+        )
+
+    async def delete_by_workspace(self, collection_name: str, workspace_id: str) -> None:
+        if not await self.collection_exists(collection_name):
+            return
+        await self.client.delete(
+            collection_name,
+            points_selector=Filter(
+                must=[FieldCondition(key='workspaceId', match=MatchValue(value=workspace_id))],
+            ),
         )
 
     async def upsert_chunks(
-        self, points: list[tuple[str, list[float], dict[str, Any]]],
+        self,
+        collection_name: str,
+        points: list[tuple[str, list[float], dict[str, Any]]],
     ) -> None:
         if not points:
             return
         await self.client.upsert(
-            self.collection_name,
-            points=[
-                PointStruct(id=pid, vector=vec, payload=pl)
-                for (pid, vec, pl) in points
-            ],
+            collection_name,
+            points=[PointStruct(id=pid, vector=vec, payload=pl) for (pid, vec, pl) in points],
         )
 
     async def similarity_search(
-        self, workspace_id: str, query: str, k: int = 5,
+        self,
+        *,
+        collection_name: str,
+        embeddings: Embeddings,
+        workspace_id: str,
+        query: str,
+        k: int = 5,
     ) -> list[Document]:
         """Embed `query`, run a workspace-filtered vector search, return Documents.
 
@@ -66,14 +93,14 @@ class VectorStoreRepository:
         """
         if not query.strip():
             return []
-        vector = await self.embeddings.aembed_query(query)
+        if not await self.collection_exists(collection_name):
+            return []
+        vector = await embeddings.aembed_query(query)
         res = await self.client.query_points(
-            collection_name=self.collection_name,
+            collection_name=collection_name,
             query=vector,
             limit=k,
-            query_filter=Filter(must=[
-                FieldCondition(key='workspaceId', match=MatchValue(value=workspace_id))
-            ]),
+            query_filter=Filter(must=[FieldCondition(key='workspaceId', match=MatchValue(value=workspace_id))]),
             with_payload=True,
             with_vectors=False,
         )
