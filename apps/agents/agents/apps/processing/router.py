@@ -1,12 +1,12 @@
-"""POST /vectorization route."""
+"""Vectorization routes."""
 
 from __future__ import annotations
 
 from dishka.integrations.fastapi import FromDishka, inject
 from fastapi import APIRouter
 
-from .schemas import VectorizationRequestSchema, VectorizationResponseSchema
-from .use_cases import VectorizePageUseCase
+from .schemas import PageWipeResponseSchema, VectorizationRequestSchema, VectorizationResponseSchema
+from .use_cases import DeletePageVectorsUseCase, VectorizePageUseCase
 
 router = APIRouter(prefix='/vectorization', tags=['Vectorization'])
 
@@ -18,3 +18,12 @@ async def vectorize(
     use_case: FromDishka[VectorizePageUseCase],
 ) -> VectorizationResponseSchema:
     return await use_case(payload)
+
+
+@router.delete('/pages/{page_id}', response_model=PageWipeResponseSchema)
+@inject
+async def delete_page_vectors(
+    page_id: str,
+    use_case: FromDishka[DeletePageVectorsUseCase],
+) -> PageWipeResponseSchema:
+    return await use_case(page_id)
