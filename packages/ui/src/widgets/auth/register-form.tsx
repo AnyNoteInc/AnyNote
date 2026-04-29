@@ -139,7 +139,7 @@ export function RegisterForm({
           </Typography>
         </Stack>
         <Button type="submit" variant="contained" size="large" disabled={submitting}>
-          Регистрация
+          Зарегистрироваться
         </Button>
       </Stack>
     </Stack>
