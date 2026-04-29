@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { signUpAndAuthAs } from './helpers/auth'
 
 // Minimal valid 1x1 transparent PNG
 const MIN_PNG_BASE64 =
@@ -9,15 +10,8 @@ const password = 'SuperSecure123!'
 test('avatar upload: upload, persist, serve via /api/files', async ({ page, request }) => {
   const email = `avatar+${Date.now()}@example.com`
 
-  // Sign up (mirrors workspace-flow.spec.ts pattern)
-  await page.goto('/sign-up')
-  await page.getByRole('textbox', { name: 'Email' }).fill(email)
-  await page.getByRole('textbox', { name: 'Фамилия' }).fill('Тестов')
-  await page.getByRole('textbox', { name: 'Имя' }).fill('Аватар')
-  await page.getByRole('textbox', { name: /^пароль$/i }).fill(password)
-  await page.getByRole('textbox', { name: 'Повторите пароль' }).fill(password)
-  await page.getByRole('button', { name: 'Зарегистрироваться' }).click()
-  await page.waitForURL(/\/workspaces\/new/)
+  // Sign up and authenticate
+  await signUpAndAuthAs(page, { email, password, firstName: 'Аватар', lastName: 'Тестов' })
 
   // Go to profile
   await page.goto('/profile')

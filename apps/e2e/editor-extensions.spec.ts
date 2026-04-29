@@ -1,17 +1,11 @@
 import { expect, test } from '@playwright/test'
+import { signUpAndAuthAs } from './helpers/auth'
 
 const password = 'SuperSecure123!'
 
 async function signUp(page: import('@playwright/test').Page, tag: string) {
   const email = `${tag}+${Date.now()}@example.com`
-  await page.goto('/sign-up')
-  await page.getByRole('textbox', { name: 'Email' }).fill(email)
-  await page.getByRole('textbox', { name: 'Фамилия' }).fill('Тестов')
-  await page.getByRole('textbox', { name: 'Имя' }).fill('Экст')
-  await page.getByRole('textbox', { name: /^пароль$/i }).fill(password)
-  await page.getByRole('textbox', { name: 'Повторите пароль' }).fill(password)
-  await page.getByRole('button', { name: 'Зарегистрироваться' }).click()
-  await page.waitForURL(/\/workspaces\/new/)
+  await signUpAndAuthAs(page, { email, password, firstName: 'Экст', lastName: 'Тестов' })
   await page.getByRole('textbox', { name: 'Название' }).fill('Ext Test')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
   await page.waitForURL(/\/workspaces\/[a-f0-9-]+/)

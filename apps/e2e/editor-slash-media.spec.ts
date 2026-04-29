@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { signUpAndAuthAs } from './helpers/auth'
 
 // 1x1 transparent PNG
 const MIN_PNG_BASE64 =
@@ -11,15 +12,7 @@ const password = 'SuperSecure123!'
 
 async function signUpAndCreateWorkspace(page: import('@playwright/test').Page, tag: string) {
   const email = `${tag}+${Date.now()}@example.com`
-  await page.goto('/sign-up')
-  await page.getByRole('textbox', { name: 'Email' }).fill(email)
-  await page.getByRole('textbox', { name: 'Фамилия' }).fill('Тестов')
-  await page.getByRole('textbox', { name: 'Имя' }).fill('Слэш')
-  await page.getByRole('textbox', { name: /^пароль$/i }).fill(password)
-  await page.getByRole('textbox', { name: 'Повторите пароль' }).fill(password)
-  await page.getByRole('button', { name: 'Зарегистрироваться' }).click()
-
-  await page.waitForURL(/\/workspaces\/new/)
+  await signUpAndAuthAs(page, { email, password, firstName: 'Слэш', lastName: 'Тестов' })
   await page.getByRole('textbox', { name: 'Название' }).fill('Slash Media Test')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
   await page.waitForURL(/\/workspaces\/[a-f0-9-]+/)

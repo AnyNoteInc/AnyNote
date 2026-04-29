@@ -1,6 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { signUpAndAuthAs } from './helpers/auth'
 
 import { qdrantHasPointForBlock } from './helpers/qdrant-helpers'
 import { waitUntil } from './helpers/wait-until'
@@ -79,24 +80,9 @@ test('assistant cites page with block-anchor link', async ({ page: browser }) =>
   const email = `rag-anchor+${Date.now()}@example.com`
 
   // --- Register via UI (better-auth hashes credentials) ---
-  await browser.goto('/sign-up')
-  await browser.getByRole('textbox', { name: 'Email' }).fill(email)
-  await browser.getByRole('textbox', { name: 'Фамилия' }).fill('Тестов')
-  await browser.getByRole('textbox', { name: 'Имя' }).fill('РАГ')
-  await browser.getByRole('textbox', { name: /^пароль$/i }).fill(password)
-  await browser.getByRole('textbox', { name: 'Повторите пароль' }).fill(password)
-  await browser.getByRole('button', { name: 'Зарегистрироваться' }).click()
-  await browser.waitForURL(/\/workspaces\/new/)
+  await signUpAndAuthAs(browser, { email, password, firstName: 'РАГ', lastName: 'Тестов' })
 
-  // --- Wait for user row to exist, then seed workspace + page via Prisma ---
-  await expect
-    .poll(
-      async () =>
-        prisma.user.findUniqueOrThrow({ where: { email }, select: { id: true } }).catch(() => null),
-      { timeout: 10_000, intervals: [200, 500, 1000] },
-    )
-    .toBeTruthy()
-
+  // --- Seed workspace + page via Prisma ---
   const user = await prisma.user.findUniqueOrThrow({
     where: { email },
     select: { id: true },

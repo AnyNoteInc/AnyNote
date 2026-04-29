@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { TiptapTransformer } from '@hocuspocus/transformer'
+import { signUpAndAuthAs } from './helpers/auth'
 import Document from '@tiptap/extension-document'
 import Paragraph from '@tiptap/extension-paragraph'
 import Text from '@tiptap/extension-text'
@@ -69,22 +70,7 @@ test('block-anchor URL scrolls to and highlights the indexed block', async ({ pa
   const email = `block-anchor+${Date.now()}@example.com`
 
   // --- Register via UI ---
-  await browser.goto('/sign-up')
-  await browser.getByRole('textbox', { name: 'Email' }).fill(email)
-  await browser.getByRole('textbox', { name: 'Фамилия' }).fill('Тест')
-  await browser.getByRole('textbox', { name: 'Имя' }).fill('Якорь')
-  await browser.getByRole('textbox', { name: /^пароль$/i }).fill(password)
-  await browser.getByRole('textbox', { name: 'Повторите пароль' }).fill(password)
-  await browser.getByRole('button', { name: 'Зарегистрироваться' }).click()
-  await browser.waitForURL(/\/workspaces\/new/)
-
-  await expect
-    .poll(
-      async () =>
-        prisma.user.findUniqueOrThrow({ where: { email }, select: { id: true } }).catch(() => null),
-      { timeout: 10_000, intervals: [200, 500, 1000] },
-    )
-    .toBeTruthy()
+  await signUpAndAuthAs(browser, { email, password, firstName: 'Якорь', lastName: 'Тест' })
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { email },

@@ -2,6 +2,8 @@ import { expect, test } from '@playwright/test'
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
 
+import { signUpAndAuthAs } from './helpers/auth'
+
 let RoleType: { OWNER: string }
 let prisma: {
   $disconnect: () => Promise<void>
@@ -69,28 +71,7 @@ test('chat page opens for an existing workspace chat', async ({ page }) => {
     }
   })
 
-  await page.goto('/sign-up')
-  await page.getByRole('textbox', { name: 'Email' }).fill(email)
-  await page.getByRole('textbox', { name: 'Фамилия' }).fill('Тестов')
-  await page.getByRole('textbox', { name: 'Имя' }).fill('Чат')
-  await page.getByRole('textbox', { name: /^пароль$/i }).fill(password)
-  await page.getByRole('textbox', { name: 'Повторите пароль' }).fill(password)
-  await page.getByRole('button', { name: 'Зарегистрироваться' }).click()
-  await page.waitForURL(/\/workspaces\/new/)
-
-  await expect
-    .poll(
-      async () =>
-        prisma.user.findUnique({
-          where: { email },
-          select: { id: true },
-        }),
-      {
-        timeout: 10_000,
-        intervals: [200, 500, 1000],
-      },
-    )
-    .toBeTruthy()
+  await signUpAndAuthAs(page, { email, password, firstName: 'Чат', lastName: 'Тестов' })
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { email },

@@ -1,21 +1,15 @@
 import { expect, test } from '@playwright/test'
+import { signUpAndAuthAs } from './helpers/auth'
 
 const password = 'SuperSecure123!'
 
 test('text page mounts the AnyNoteEditor', async ({ page }) => {
   const email = `editor+${Date.now()}@example.com`
 
-  // Sign up
-  await page.goto('/sign-up')
-  await page.getByRole('textbox', { name: 'Email' }).fill(email)
-  await page.getByRole('textbox', { name: 'Фамилия' }).fill('Редактор')
-  await page.getByRole('textbox', { name: 'Имя' }).fill('Тест')
-  await page.getByRole('textbox', { name: /^пароль$/i }).fill(password)
-  await page.getByRole('textbox', { name: 'Повторите пароль' }).fill(password)
-  await page.getByRole('button', { name: 'Зарегистрироваться' }).click()
+  // Sign up and authenticate
+  await signUpAndAuthAs(page, { email, password, firstName: 'Тест', lastName: 'Редактор' })
 
   // First-workspace create
-  await page.waitForURL(/\/workspaces\/new/)
   await page.getByRole('textbox', { name: 'Название' }).fill('Editor Smoke')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
   await page.waitForURL(/\/workspaces\/[a-f0-9-]+/)
