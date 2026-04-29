@@ -107,6 +107,18 @@ async function markDone(prisma: PrismaClient, outboxId: bigint): Promise<void> {
   `)
 }
 
+// Replace full URLs in error messages with their origin so verification/reset
+// tokens never end up in logs or `outbox_events.last_error`.
+function maskTokensInMessage(message: string): string {
+  return message.replace(/https?:\/\/[^\s]+/gi, (url) => {
+    try {
+      return new URL(url).origin + '/…'
+    } catch {
+      return '[link]'
+    }
+  })
+}
+
 async function markFailedOrRetry(
   prisma: PrismaClient,
   outboxId: bigint,
@@ -114,7 +126,8 @@ async function markFailedOrRetry(
   maxAttempts: number,
   err: unknown,
 ): Promise<'retried' | 'failed'> {
-  const message = err instanceof Error ? err.message : String(err)
+  const rawMessage = err instanceof Error ? err.message : String(err)
+  const message = maskTokensInMessage(rawMessage)
   const newAttempts = attemptsBefore + 1
   const willFail = newAttempts >= maxAttempts
   const backoffSeconds = Math.min(60 * 16, 60 * 2 ** Math.min(attemptsBefore, 4))

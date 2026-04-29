@@ -80,6 +80,18 @@ describe('dispatchPending', () => {
     expect(row.nextAttemptAt.getTime()).toBeGreaterThan(Date.now())
   })
 
+  it('masks tokens in lastError when SMTP error message includes the link', async () => {
+    sendMailMock.mockRejectedValueOnce(
+      new Error('Bounce: undeliverable https://anynote.local/reset-credentials/SECRET_TOKEN_42'),
+    )
+    const id = await insertPending(`mt${TAG}`)
+    await dispatchPending(prisma, { batch: 10, maxAttempts: 5, workerId: 'test-w-mask' })
+    const row = await prisma.outboxEvent.findUniqueOrThrow({ where: { id } })
+    expect(row.lastError).not.toContain('SECRET_TOKEN_42')
+    expect(row.lastError).not.toContain('/reset-credentials/SECRET_TOKEN_42')
+    expect(row.lastError).toContain('https://anynote.local')
+  })
+
   it('marks FAILED after max attempts', async () => {
     sendMailMock.mockRejectedValue(new Error('boom'))
     const id = await insertPending(`fa${TAG}`)
