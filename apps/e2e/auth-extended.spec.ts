@@ -40,7 +40,7 @@ async function signUpAndVerify(page: import('@playwright/test').Page, email: str
   await page.getByRole('textbox', { name: 'Имя' }).fill('Ivan')
   await page.getByRole('textbox', { name: /^пароль$/i }).fill(password)
   await page.getByRole('textbox', { name: 'Повторите пароль' }).fill(password)
-  await page.getByRole('button', { name: /регистрация/i }).click()
+  await page.getByRole('button', { name: /зарегистрироваться/i }).click()
   await expect(page.getByText(/письмо с подтверждением/i)).toBeVisible()
 
   await flushMailQueue()
