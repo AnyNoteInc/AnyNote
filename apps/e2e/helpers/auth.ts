@@ -61,10 +61,12 @@ export async function signUpAndAuthAs(page: Page, args: SignUpAndAuthArgs): Prom
   }
   await prisma.user.update({ where: { email }, data: { emailVerified: true } })
 
-  // better-auth's emailAndPassword.autoSignIn defaults to true, so signUp
-  // already created a session cookie. Just navigate to /app — the (auth)
-  // layout will bounce signed-in users out, and the (protected) layout will
-  // forward to /workspaces/new for users without a workspace.
-  await page.goto('/app')
-  await page.waitForURL(/\/(app|workspaces)/, { timeout: 15_000 })
+  // Clear any cookies set by signUp's optional autoSignIn so the next sign-in
+  // is deterministic (we don't depend on whether better-auth auto-signed-in).
+  await page.context().clearCookies()
+  await page.goto('/sign-in')
+  await page.getByRole('textbox', { name: 'Email' }).fill(email)
+  await page.getByRole('textbox', { name: /^пароль$/i }).fill(password)
+  await page.getByRole('button', { name: /^войти$/i }).click()
+  await page.waitForURL(/\/(app|workspaces)/, { timeout: 30_000 })
 }
