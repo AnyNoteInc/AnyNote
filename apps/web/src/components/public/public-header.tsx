@@ -42,10 +42,10 @@ export function PublicHeader({ session }: PublicHeaderProps) {
             color: 'inherit',
           }}
         >
-          <BrandMark size={42} aria-label="AnyNote" />
+          <BrandMark size={42} aria-label="Любые заметки" />
           <Stack spacing={0}>
             <Typography variant="subtitle1" fontWeight={800}>
-              AnyNote
+              Любые заметки
             </Typography>
             <Typography variant="caption" color="text.secondary">
               документы команды в одном месте

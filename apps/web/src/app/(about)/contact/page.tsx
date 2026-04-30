@@ -36,7 +36,7 @@ export default function ContactPage() {
           <Stack spacing={2}>
             <Typography variant="h5">Свяжемся по вашему сценарию</Typography>
             <Typography color="text.secondary">
-              Подходит для SaaS-запуска, пилота с AI-поиском, демонстрации редактора и обсуждения
+              Подходит для SaaS-запуска, пилота с ИИ-поиском, демонстрации редактора и обсуждения
               on-prem внедрения.
             </Typography>
             <Typography color="text.secondary">

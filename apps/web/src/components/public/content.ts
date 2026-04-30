@@ -29,7 +29,7 @@ export const pricingCards = [
   {
     title: 'Free',
     price: '0',
-    description: 'Для личной базы знаний, заметок и первого знакомства с AI-поиском.',
+    description: 'Для личной базы знаний, заметок и первого знакомства с ИИ-поиском.',
     items: ['До 3 пространств', 'Базовый markdown-editor', 'Публичные ссылки'],
   },
   {
@@ -37,7 +37,7 @@ export const pricingCards = [
     price: '12',
     description:
       'Для экспертов и маленьких команд, которым нужна система вместо разрозненных файлов.',
-    items: ['AI prompt actions', 'RAG-поиск', 'Медиа и вложения'],
+    items: ['ИИ prompt actions', 'RAG-поиск', 'Медиа и вложения'],
   },
   {
     title: 'Компания',
@@ -146,7 +146,7 @@ export const integrationCards = [
 
 export const roadmapItems = [
   'Запуск редактора текста',
-  'AI умный поиск на RAG',
+  'ИИ умный поиск на RAG',
   'Интеграция с AmoCRM',
   'Интеграция с bitrix24',
   'Интеграция с MangoOffice телефонией',
