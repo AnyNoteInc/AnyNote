@@ -49,7 +49,6 @@ export function Origami({
             ? '4px 6px 16px rgba(0,0,0,0.18)'
             : '6px 8px 24px rgba(0,0,0,0.14)',
         transform: rotate ? `rotate(${rotate}deg)` : undefined,
-        '@media (prefers-reduced-motion: reduce)': { transform: 'none' },
         ...style,
       }}
     />
