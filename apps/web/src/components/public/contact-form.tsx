@@ -54,7 +54,6 @@ export function ContactForm() {
           onChange={handleChange('name')}
           required
           fullWidth
-          inputProps={{ 'aria-label': 'Имя' }}
         />
         <TextField
           label="Компания"
@@ -62,7 +61,6 @@ export function ContactForm() {
           value={form.company}
           onChange={handleChange('company')}
           fullWidth
-          inputProps={{ 'aria-label': 'Компания' }}
         />
         <TextField
           label="Телефон"
@@ -71,7 +69,6 @@ export function ContactForm() {
           onChange={handleChange('phone')}
           required
           fullWidth
-          inputProps={{ 'aria-label': 'Телефон' }}
         />
         <TextField
           label="Email"
@@ -81,7 +78,6 @@ export function ContactForm() {
           onChange={handleChange('email')}
           required
           fullWidth
-          inputProps={{ 'aria-label': 'Email' }}
         />
         <TextField
           label="Что нужно"
@@ -92,7 +88,6 @@ export function ContactForm() {
           multiline
           minRows={3}
           sx={{ gridColumn: { md: '1 / -1' } }}
-          inputProps={{ 'aria-label': 'Что нужно' }}
         />
         <Box sx={{ gridColumn: { md: '1 / -1' }, pt: 0.5 }}>
           <Button type="submit" size="large">
