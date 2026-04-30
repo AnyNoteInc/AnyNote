@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { cookies } from 'next/headers'
 import localFont from 'next/font/local'
+import { Lora } from 'next/font/google'
 
 import { UiProvider } from '@repo/ui/providers'
 
@@ -18,9 +19,16 @@ const geistMono = localFont({
   variable: '--font-geist-mono',
 })
 
+const lora = Lora({
+  subsets: ['latin', 'cyrillic'],
+  weight: ['400', '500', '600'],
+  variable: '--font-serif',
+  display: 'swap',
+})
+
 export const metadata: Metadata = {
-  title: 'AnyNote App',
-  description: 'Приложение для управления знаниями, документами и AI-поиском.',
+  title: 'Любые заметки',
+  description: 'Рабочая память команды с ИИ-поиском. Документы, схемы и заметки в одном пространстве.',
   icons: {
     icon: [
       { url: '/favicon.svg', type: 'image/svg+xml' },
@@ -59,7 +67,7 @@ export default async function RootLayout({
   const mode = await resolveTheme()
   return (
     <html lang="ru" suppressHydrationWarning>
-      <body className={`${geistSans.variable} ${geistMono.variable}`}>
+      <body className={`${geistSans.variable} ${geistMono.variable} ${lora.variable}`}>
         <UiProvider initial={mode}>{children}</UiProvider>
       </body>
     </html>
