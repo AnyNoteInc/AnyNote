@@ -2,24 +2,18 @@ export const publicFooterSections = [
   {
     title: 'Продукт',
     links: [
+      { label: 'Возможности', href: '/#features' },
+      { label: 'Тарифы', href: '/pricing' },
+      { label: 'Roadmap', href: '/roadmap' },
       { label: 'Документация', href: '/docs' },
-      { label: 'Цены', href: '/pricing' },
-      { label: 'Для разработчиков', href: '/developers' },
-    ],
-  },
-  {
-    title: 'Сообщество',
-    links: [
-      { label: 'Контакты', href: '/contact' },
-      { label: 'Наши планы', href: '/roadmap' },
     ],
   },
   {
     title: 'Компания',
     links: [
-      { label: 'Политика конфиденциальности', href: '/privacy' },
-      { label: 'Пользовательское соглашение', href: '/terms' },
-      { label: 'Договор-оферта', href: '/oferta' },
+      { label: 'Контакты', href: '/contact' },
+      { label: 'Оферта', href: '/oferta' },
+      { label: 'Политика', href: '/privacy' },
     ],
   },
 ] as const
@@ -64,7 +58,7 @@ export const landingPricingCards = [
     slug: 'pro',
     name: 'ПРО',
     price: 'от 150 ₽/мес',
-    features: ['3 пространства', 'До 5 участников', 'Чаты с AI', 'Индексация'],
+    features: ['3 пространства', 'До 5 участников', 'Чаты с ИИ', 'Индексация'],
   },
   {
     slug: 'max',
@@ -79,6 +73,45 @@ export const landingPricingCards = [
     features: ['Self-hosted', 'SLA', 'Индивидуальные интеграции'],
   },
 ] as const
+
+export const homeFeatures = [
+  {
+    icon: '⚡',
+    title: 'Мгновенный редактор',
+    body: 'Документы и холсты открываются за доли секунды — Tiptap и кеш страниц вместо ожидания загрузки.',
+  },
+  {
+    icon: '🤝',
+    title: 'Несколько курсоров на странице',
+    body: 'Команда редактирует одну страницу одновременно — без конфликтов и пересохранений.',
+  },
+  {
+    icon: '🌗',
+    title: 'Светлая и тёмная тема',
+    body: 'Интерфейс адаптируется под систему или переключается вручную — глаза не устают в любое время.',
+  },
+  {
+    icon: '🔐',
+    title: 'Гранулярные права',
+    body: 'Чтение или запись для участников, групп и гостей — каждому даёте ровно столько доступа, сколько нужно.',
+  },
+  {
+    icon: '🔗',
+    title: 'Публичные ссылки',
+    body: 'Откройте страницу одной ссылкой — без регистрации для читателя и без рассылок «вот файл в почту».',
+  },
+  {
+    icon: '🛡️',
+    title: 'Без санкционных рисков',
+    body: 'Российский хостинг и self-hosted-сборка — продукт работает в любой ситуации, ваши данные остаются у вас.',
+  },
+] as const
+
+export const publicContact = {
+  email: 'hello@любые-заметки.app',
+  phone: '+7 (495) 123-45-67',
+  telegram: '@anynote_support',
+} as const
 
 export const integrationCards = [
   {
