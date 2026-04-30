@@ -13,7 +13,7 @@ const modes: Mode[] = [
 
 export function HomeModes() {
   return (
-    <Box component="section" id="modes" sx={{ bgcolor: '#fff', borderBlock: `1px solid ${t.line}`, py: { xs: 7, md: 11 } }}>
+    <Box component="section" id="modes" sx={{ bgcolor: 'background.paper', borderBlock: '1px solid', borderColor: 'divider', py: { xs: 7, md: 11 } }}>
       <Container maxWidth="xl">
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '0.8fr 1.2fr' }, gap: { xs: 4, lg: 7 }, alignItems: 'start' }}>
           <Stack spacing={2} sx={{ position: { lg: 'sticky' }, top: { lg: 96 } }}>
@@ -21,19 +21,20 @@ export function HomeModes() {
             <Typography component="h2" sx={sectionTitleSx}>
               Один продукт — <em>четыре режима работы</em>
             </Typography>
-            <Typography sx={{ color: t.inkSoft, fontSize: 16, lineHeight: 1.6, maxWidth: 460 }}>
+            <Typography sx={{ color: 'text.secondary', fontSize: 16, lineHeight: 1.6, maxWidth: 460 }}>
               Текст, схемы, ИИ-чаты и публичные ссылки в одном дереве страниц. Не нужно переключаться между четырьмя инструментами.
             </Typography>
           </Stack>
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, borderTop: `1px solid ${t.line}`, borderLeft: { sm: `1px solid ${t.line}` } }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, borderTop: '1px solid', borderLeft: { sm: '1px solid' }, borderColor: 'divider' }}>
             {modes.map((m) => (
               <Box
                 key={m.title}
                 sx={{
-                  p: 3.25, borderRight: { sm: `1px solid ${t.line}` }, borderBottom: `1px solid ${t.line}`,
-                  bgcolor: '#fff', transition: 'background .2s ease',
-                  '&:hover': { bgcolor: t.paper },
+                  p: 3.25, borderRight: { sm: '1px solid' }, borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  bgcolor: 'background.paper', transition: 'background .2s ease',
+                  '&:hover': { bgcolor: 'background.default' },
                 }}
               >
                 <Box sx={{ width: 38, height: 38, bgcolor: 'rgba(201,100,66,0.12)', borderRadius: 1, display: 'grid', placeItems: 'center', fontSize: 18, color: t.orange, mb: 2.25 }}>
@@ -42,7 +43,7 @@ export function HomeModes() {
                 <Typography sx={{ fontFamily: homeTokens.fonts.serif, fontSize: 22, fontWeight: 500, mb: 1, letterSpacing: '-0.01em' }}>
                   {m.title}
                 </Typography>
-                <Typography sx={{ color: t.inkSoft, fontSize: 14, lineHeight: 1.6, mb: 2.25 }}>{m.body}</Typography>
+                <Typography sx={{ color: 'text.secondary', fontSize: 14, lineHeight: 1.6, mb: 2.25 }}>{m.body}</Typography>
                 <ModeMini variant={m.mini} />
               </Box>
             ))}
@@ -54,7 +55,7 @@ export function HomeModes() {
 }
 
 function ModeMini({ variant }: { variant: Mode['mini'] }) {
-  const wrapper = { bgcolor: homeTokens.palette.paper, border: `1px solid ${homeTokens.palette.line}`, borderRadius: 1, p: 1.5, minHeight: 100, position: 'relative' as const, overflow: 'hidden' }
+  const wrapper = { bgcolor: 'background.default', border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 1.5, minHeight: 100, position: 'relative' as const, overflow: 'hidden' }
   if (variant === 'doc') {
     const lines = [{ h: 10, w: '50%', dark: true }, { h: 7, w: '88%', dark: false }, { h: 7, w: '72%', dark: false }, { h: 7, w: '80%', dark: false }, { h: 7, w: '88%', dark: false }] as const
     return (

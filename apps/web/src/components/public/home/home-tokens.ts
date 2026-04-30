@@ -41,7 +41,7 @@ export const eyebrowSx = {
   fontSize: 11,
   letterSpacing: '0.16em',
   textTransform: 'uppercase' as const,
-  color: homeTokens.palette.inkMute,
+  color: 'text.disabled',
 }
 
 export const sectionTitleSx = {
@@ -50,7 +50,7 @@ export const sectionTitleSx = {
   fontSize: { xs: '2rem', md: '2.75rem' },
   lineHeight: 1.05,
   letterSpacing: '-0.02em',
-  color: homeTokens.palette.ink,
+  color: 'text.primary',
   m: 0,
   maxWidth: 780,
   '& em': { fontStyle: 'italic', color: homeTokens.palette.orange },

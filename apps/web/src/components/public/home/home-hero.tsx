@@ -18,8 +18,9 @@ export function HomeHero({ primaryHref, primaryLabel, showSecondary }: Props) {
       sx={{
         ...homeBaseSx,
         position: 'relative',
-        background: `linear-gradient(180deg, ${t.paper} 0%, ${t.paperDeep} 100%)`,
-        borderBottom: `1px solid ${t.line}`,
+        background: 'linear-gradient(180deg, var(--mui-palette-background-default) 0%, var(--mui-palette-background-paper) 100%)',
+        borderBottom: '1px solid',
+        borderColor: 'divider',
         overflow: 'hidden',
         py: { xs: 6, md: 10 },
       }}
@@ -66,14 +67,14 @@ export function HomeHero({ primaryHref, primaryLabel, showSecondary }: Props) {
                 fontSize: { xs: '2.5rem', sm: '3.4rem', md: '4rem', xl: '4.5rem' },
                 lineHeight: 1.02,
                 letterSpacing: '-0.025em',
-                color: t.ink,
+                color: 'text.primary',
                 m: 0,
                 '& em': { fontStyle: 'italic', color: t.orange },
               }}
             >
               Рабочая память команды <em>с ИИ-поиском</em>
             </Typography>
-            <Typography sx={{ color: t.inkSoft, fontSize: { xs: '1rem', md: '1.06rem' }, lineHeight: 1.55, maxWidth: 480 }}>
+            <Typography sx={{ color: 'text.secondary', fontSize: { xs: '1rem', md: '1.06rem' }, lineHeight: 1.55, maxWidth: 480 }}>
               Соберите документы, заметки, схемы и файлы в одном пространстве. «Любые заметки» отвечает по вашим материалам и помогает быстро передать контекст команде или клиенту.
             </Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
@@ -82,7 +83,7 @@ export function HomeHero({ primaryHref, primaryLabel, showSecondary }: Props) {
                 size="large"
                 endIcon={<ArrowRightOutlinedIcon />}
                 sx={{
-                  bgcolor: t.ink, color: `${t.paperDeep} !important`,
+                  bgcolor: 'secondary.main', color: `${t.paper} !important`,
                   borderRadius: 1.25, minHeight: 50, px: 2.75,
                   '&:hover': { bgcolor: t.orange },
                   '& .MuiButton-endIcon': { color: 'inherit' },
@@ -97,14 +98,14 @@ export function HomeHero({ primaryHref, primaryLabel, showSecondary }: Props) {
                   size="large"
                   sx={{
                     borderRadius: 1.25, minHeight: 50, px: 2.5,
-                    color: t.ink, borderColor: 'rgba(29,29,27,0.18)',
+                    color: 'text.primary', borderColor: 'divider',
                   }}
                 >
                   Смотреть тарифы
                 </Button>
               )}
             </Stack>
-            <Stack direction="row" useFlexGap flexWrap="wrap" sx={{ pt: 1.5, columnGap: 2.5, rowGap: 1, color: 'rgba(29,29,27,0.55)' }}>
+            <Stack direction="row" useFlexGap flexWrap="wrap" sx={{ pt: 1.5, columnGap: 2.5, rowGap: 1, color: 'text.secondary' }}>
               {['Без банковской карты', 'Публичные ссылки', 'ИИ по вашим данным'].map((label) => (
                 <Stack key={label} direction="row" alignItems="center" spacing={1}>
                   <Box aria-hidden sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: t.orange, opacity: 0.8 }} />
@@ -133,7 +134,7 @@ function HeroPreview() {
           position: 'relative', zIndex: 4,
           mt: 2.5, ml: { lg: 2 },
           bgcolor: '#fff', borderRadius: 1.75,
-          border: `1px solid ${homeTokens.palette.line}`,
+          border: '1px solid rgba(0,0,0,0.08)',
           boxShadow: '0 30px 60px rgba(29,29,27,0.12), 0 6px 18px rgba(29,29,27,0.06)',
           overflow: 'hidden',
         }}

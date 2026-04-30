@@ -13,7 +13,7 @@ export function HomeFinalCta({ primaryHref, primaryLabel }: Props) {
       component="section"
       sx={{
         position: 'relative',
-        background: `linear-gradient(180deg, ${t.paper} 0%, ${t.paperDeep} 100%)`,
+        background: 'linear-gradient(180deg, var(--mui-palette-background-default) 0%, var(--mui-palette-background-paper) 100%)',
         py: { xs: 8, md: 11 },
         overflow: 'hidden',
       }}
@@ -34,13 +34,13 @@ export function HomeFinalCta({ primaryHref, primaryLabel }: Props) {
               sx={{
                 fontFamily: homeTokens.fonts.serif, fontWeight: 500,
                 fontSize: { xs: '2.25rem', md: '4rem' }, lineHeight: 1.02, letterSpacing: '-0.025em',
-                color: t.ink, m: 0, maxWidth: 720,
+                color: 'text.primary', m: 0, maxWidth: 720,
                 '& em': { fontStyle: 'italic', color: t.orange },
               }}
             >
               Перенесите рабочие знания туда, <em>где их можно найти</em>
             </Typography>
-            <Typography sx={{ color: t.inkSoft, fontSize: 16, lineHeight: 1.6, maxWidth: 540 }}>
+            <Typography sx={{ color: 'text.secondary', fontSize: 16, lineHeight: 1.6, maxWidth: 540 }}>
               Регистрация занимает пару минут. Начните с личного пространства и подключите команду позже.
             </Typography>
           </Stack>
@@ -48,7 +48,7 @@ export function HomeFinalCta({ primaryHref, primaryLabel }: Props) {
             href={primaryHref}
             size="large"
             endIcon={<ArrowRightOutlinedIcon />}
-            sx={{ bgcolor: t.ink, color: `${t.paperDeep} !important`, borderRadius: 1.5, minHeight: 56, px: 3.5, fontSize: 16, '& .MuiButton-endIcon': { color: 'inherit' }, '&:hover': { bgcolor: t.orange } }}
+            sx={{ bgcolor: 'secondary.main', color: `${t.paper} !important`, borderRadius: 1.5, minHeight: 56, px: 3.5, fontSize: 16, '& .MuiButton-endIcon': { color: 'inherit' }, '&:hover': { bgcolor: t.orange } }}
           >
             {primaryLabel}
           </Button>

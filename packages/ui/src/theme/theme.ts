@@ -1,36 +1,37 @@
 import { createTheme } from '@mui/material/styles'
 import type { PaletteMode } from '@mui/material'
 
+// Claude brand palette
+const paper = '#faf9f5'
+const paperDeep = '#f0eee6'
+const ink = '#1d1d1b'
+const inkSoft = '#2a2a27'
+const orange = '#c96442'
+const orangeWarm = '#d97757'
+
 export function createAppTheme(mode: PaletteMode = 'light') {
+  const isDark = mode === 'dark'
   return createTheme({
     cssVariables: true,
     palette: {
       mode,
-      primary: { main: '#0f766e' },
-      secondary: { main: '#155e75' },
-      background:
-        mode === 'dark'
-          ? {
-              default: '#0c0d10',
-              paper: '#14161a',
-            }
-          : {
-              default: '#fafaf9',
-              paper: '#ffffff',
-            },
-      text:
-        mode === 'dark'
-          ? {
-              primary: '#e7e8ea',
-              secondary: '#a7aab1',
-              disabled: '#6b6e75',
-            }
-          : {
-              primary: '#1f2021',
-              secondary: '#52525b',
-              disabled: '#a1a1aa',
-            },
-      divider: mode === 'dark' ? 'rgba(255,255,255,0.08)' : 'rgba(0,0,0,0.08)',
+      primary: { main: orange, dark: '#a04a2d', light: orangeWarm, contrastText: paper },
+      secondary: { main: ink, contrastText: paper },
+      background: isDark
+        ? { default: ink, paper: inkSoft }
+        : { default: paper, paper: '#ffffff' },
+      text: isDark
+        ? {
+            primary: paperDeep,
+            secondary: 'rgba(240,238,230,0.65)',
+            disabled: 'rgba(240,238,230,0.4)',
+          }
+        : {
+            primary: ink,
+            secondary: 'rgba(29,29,27,0.65)',
+            disabled: 'rgba(29,29,27,0.42)',
+          },
+      divider: isDark ? 'rgba(240,238,230,0.12)' : 'rgba(0,0,0,0.08)',
     },
     shape: { borderRadius: 4 },
     typography: {
