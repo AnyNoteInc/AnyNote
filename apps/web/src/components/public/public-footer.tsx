@@ -93,7 +93,6 @@ export function PublicFooter() {
             {[
               { label: 'Политика', href: '/privacy' },
               { label: 'Оферта', href: '/oferta' },
-              { label: 'Cookies', href: '/privacy#cookies' },
             ].map((l) => (
               <Link key={l.href} href={l.href} style={{ color: 'inherit', textDecoration: 'none' }}>
                 {l.label}
