@@ -1,7 +1,10 @@
 import { expect, test } from '@playwright/test'
 
 test.describe('Home page (redesign)', () => {
-  test('renders the new hero, pricing, and footer', async ({ page }) => {
+  test('renders the new hero, pricing, and footer', async ({ page, context }) => {
+    await context.addCookies([
+      { name: 'cookie-consent', value: 'accepted', domain: 'localhost', path: '/' },
+    ])
     await page.goto('/')
 
     // Hero — new heading
@@ -22,7 +25,10 @@ test.describe('Home page (redesign)', () => {
     await expect(page.locator('body')).not.toContainText('AnyNote')
   })
 
-  test('contact form submits and shows success', async ({ page }) => {
+  test('contact form submits and shows success', async ({ page, context }) => {
+    await context.addCookies([
+      { name: 'cookie-consent', value: 'accepted', domain: 'localhost', path: '/' },
+    ])
     await page.goto('/')
     const contact = page.locator('#contact')
     await contact.scrollIntoViewIfNeeded()

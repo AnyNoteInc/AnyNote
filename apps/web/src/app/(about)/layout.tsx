@@ -2,6 +2,7 @@ import { Box } from '@repo/ui/components'
 
 import { PublicFooter } from '@/components/public/public-footer'
 import { PublicHeader } from '@/components/public/public-header'
+import { CookieBanner } from '@/components/public/cookie-banner'
 import { getSession } from '@/lib/get-session'
 import { TRPCReactProvider } from '@/trpc/client'
 
@@ -40,6 +41,7 @@ export default async function AboutLayout({
           <PublicHeader session={session} />
           <main>{children}</main>
           <PublicFooter />
+          <CookieBanner />
         </Box>
       </TRPCReactProvider>
     </Box>

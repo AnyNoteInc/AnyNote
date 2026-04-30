@@ -2,6 +2,7 @@ import type { Metadata } from 'next'
 
 import { PublicFooter } from '@/components/public/public-footer'
 import { PublicHeader } from '@/components/public/public-header'
+import { CookieBanner } from '@/components/public/cookie-banner'
 import { getSession } from '@/lib/get-session'
 
 import { HomeHero } from '@/components/public/home/home-hero'
@@ -36,6 +37,7 @@ export default async function HomePage() {
         <HomeFinalCta primaryHref={primaryHref} primaryLabel={primaryLabel} />
       </main>
       <PublicFooter />
+      <CookieBanner />
     </>
   )
 }
