@@ -4,7 +4,7 @@ import { Box, Button, Stack, Typography } from '@repo/ui/components'
 import { ChangeColorTheme } from '@repo/ui/widgets'
 
 import { AppUserMenu } from '@/components/app/app-user-menu'
-import { BrandMark } from '@/components/brand/brand-mark'
+import { Origami } from '@/components/public/home/origami'
 import type { SessionType } from '@/lib/get-session'
 
 import { publicNavItems } from './content'
@@ -17,7 +17,7 @@ export function PublicHeader({ session }: PublicHeaderProps) {
   return (
     <Box
       sx={{
-        py: 2.5,
+        py: 1.25,
         position: 'sticky',
         top: 0,
         zIndex: 20,
@@ -42,15 +42,12 @@ export function PublicHeader({ session }: PublicHeaderProps) {
             color: 'inherit',
           }}
         >
-          <BrandMark size={42} aria-label="AnyNote" />
-          <Stack spacing={0}>
-            <Typography variant="subtitle1" fontWeight={800}>
-              AnyNote
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              документы команды в одном месте
-            </Typography>
-          </Stack>
+          <Box sx={{ position: 'relative', width: 28, height: 28, flexShrink: 0 }}>
+            <Origami variant="rhombus" size={28} gradient="warm" style={{ position: 'static' }} />
+          </Box>
+          <Typography sx={{ fontFamily: 'var(--font-serif), Georgia, serif', fontSize: 17, fontWeight: 500, lineHeight: 1.1, letterSpacing: '-0.01em' }}>
+            Любые заметки
+          </Typography>
         </Link>
 
         <Stack

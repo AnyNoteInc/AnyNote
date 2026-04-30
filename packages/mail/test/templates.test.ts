@@ -22,7 +22,7 @@ describe('mail templates', () => {
 
   it('welcome', () => {
     const out = renderTemplate('welcome', { firstName: 'Анна', appUrl: 'https://anynote.local/app' })
-    expect(out.subject).toBe('Добро пожаловать в AnyNote')
+    expect(out.subject).toBe('Добро пожаловать в «Любые заметки»')
     expect(out.text).toContain('Анна')
     expect(out.text).toContain('https://anynote.local/app')
     expect(out.html).toContain('href="https://anynote.local/app"')
@@ -34,7 +34,7 @@ describe('mail templates', () => {
       link: 'https://anynote.local/reset-credentials/T0K3N',
       expiresAtIso: FIXTURE_ISO,
     })
-    expect(out.subject).toBe('Восстановление пароля AnyNote')
+    expect(out.subject).toBe('Восстановление пароля в «Любых заметках»')
     expect(out.text).toContain('https://anynote.local/reset-credentials/T0K3N')
     expect(out.text).toMatch(RU_DATETIME_RX)
     expect(out.html).toContain('href="https://anynote.local/reset-credentials/T0K3N"')

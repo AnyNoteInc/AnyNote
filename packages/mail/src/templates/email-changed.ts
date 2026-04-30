@@ -3,12 +3,12 @@ import type { MailPayloads, RenderedEmail } from '../types.js'
 
 export function renderEmailChanged(p: MailPayloads['email-changed']): RenderedEmail {
   const subject = p.isOldRecipient
-    ? 'Ваш email больше не привязан к учётной записи AnyNote'
-    : 'Ваш email теперь привязан к учётной записи AnyNote'
+    ? 'Ваш email больше не привязан к учётной записи «Любых заметок»'
+    : 'Ваш email теперь привязан к учётной записи «Любых заметок»'
   const body = p.isOldRecipient
-    ? `Адрес ${p.oldEmail} больше не привязан к учётной записи AnyNote. ` +
+    ? `Адрес ${p.oldEmail} больше не привязан к учётной записи «Любых заметок». ` +
       `Новый адрес учётной записи: ${p.newEmail}.`
-    : `Адрес ${p.newEmail} теперь привязан к учётной записи AnyNote. ` +
+    : `Адрес ${p.newEmail} теперь привязан к учётной записи «Любых заметок». ` +
       `Прошлый адрес ${p.oldEmail} больше не используется.`
   return {
     subject,

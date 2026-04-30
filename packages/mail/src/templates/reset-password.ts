@@ -4,7 +4,7 @@ import type { MailPayloads, RenderedEmail } from '../types.js'
 export function renderResetPassword(p: MailPayloads['reset-password']): RenderedEmail {
   const expires = formatRuDateTime(p.expiresAtIso)
   return {
-    subject: 'Восстановление пароля AnyNote',
+    subject: 'Восстановление пароля в «Любых заметках»',
     text:
       `Здравствуйте, ${p.firstName}.\n\n` +
       `Чтобы задать новый пароль, перейдите по ссылке:\n${p.link}\n\n` +

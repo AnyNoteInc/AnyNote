@@ -13,12 +13,12 @@ export default function OfertaPage() {
     <PublicPageShell
       eyebrow="Oferta"
       title="Договор-оферта"
-      description="Юридический документ сервиса AnyNote находится в подготовке."
+      description="Юридический документ сервиса «Любые заметки» находится в подготовке."
     >
       <Stack spacing={3}>
         <Alert severity="info">Документ в подготовке. TODO: legal review.</Alert>
         <Typography color="text.secondary">
-          Эта страница зарезервирована для публичной оферты AnyNote. Финальный текст будет
+          Эта страница зарезервирована для публичной оферты «Любых заметок». Финальный текст будет
           опубликован после юридической проверки условий сервиса, тарифов и платежей.
         </Typography>
       </Stack>

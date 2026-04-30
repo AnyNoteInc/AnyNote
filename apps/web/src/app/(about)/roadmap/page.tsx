@@ -45,7 +45,7 @@ export default function RoadmapPage() {
             <Typography variant="overline" color="text.secondary">
               Фокус 2026
             </Typography>
-            <Typography variant="h5">От редактора к AI knowledge-платформе</Typography>
+            <Typography variant="h5">От редактора к ИИ knowledge-платформе</Typography>
             <Typography color="text.secondary">
               Приоритет у пользовательского сценария, затем у поиска по знаниям и интеграций с
               российскими CRM и телефонией.

@@ -5,14 +5,18 @@ import { Alert, Box, Button, Stack, TextField } from '@repo/ui/components'
 
 type ContactFormState = {
   name: string
+  company: string
   email: string
   phone: string
+  message: string
 }
 
 const initialState: ContactFormState = {
   name: '',
+  company: '',
   email: '',
   phone: '',
+  message: '',
 }
 
 export function ContactForm() {
@@ -20,13 +24,14 @@ export function ContactForm() {
   const [submitted, setSubmitted] = useState(false)
 
   const handleChange =
-    (field: keyof ContactFormState) => (event: ChangeEvent<HTMLInputElement>) => {
+    (field: keyof ContactFormState) =>
+    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       setForm((prev) => ({ ...prev, [field]: event.target.value }))
     }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    console.log('AnyNote contact request', form)
+    console.log('Любые заметки contact request', form)
     setSubmitted(true)
     setForm(initialState)
   }
@@ -51,12 +56,10 @@ export function ContactForm() {
           fullWidth
         />
         <TextField
-          label="Email"
-          name="email"
-          type="email"
-          value={form.email}
-          onChange={handleChange('email')}
-          required
+          label="Компания"
+          name="company"
+          value={form.company}
+          onChange={handleChange('company')}
           fullWidth
         />
         <TextField
@@ -66,18 +69,36 @@ export function ContactForm() {
           onChange={handleChange('phone')}
           required
           fullWidth
+        />
+        <TextField
+          label="Email"
+          name="email"
+          type="email"
+          value={form.email}
+          onChange={handleChange('email')}
+          required
+          fullWidth
+        />
+        <TextField
+          label="Что нужно"
+          name="message"
+          value={form.message}
+          onChange={handleChange('message')}
+          fullWidth
+          multiline
+          minRows={3}
           sx={{ gridColumn: { md: '1 / -1' } }}
         />
         <Box sx={{ gridColumn: { md: '1 / -1' }, pt: 0.5 }}>
           <Button type="submit" size="large">
-            Отправить
+            Отправить запрос
           </Button>
         </Box>
       </Box>
 
       {submitted ? (
         <Alert severity="success">
-          Заявка отправлена в консоль браузера. Серверная отправка будет добавлена следующим этапом.
+          Заявка отправлена. Мы свяжемся в течение дня.
         </Alert>
       ) : null}
     </Stack>

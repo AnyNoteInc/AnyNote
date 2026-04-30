@@ -5,13 +5,13 @@ export function renderAccountDeletionCompleted(
   p: MailPayloads['account-deletion-completed'],
 ): RenderedEmail {
   return {
-    subject: 'Ваша учётная запись AnyNote удалена',
+    subject: 'Ваша учётная запись «Любых заметок» удалена',
     text:
       `Здравствуйте, ${p.firstName}.\n\n` +
-      `Ваша учётная запись AnyNote была удалена. ` +
+      `Ваша учётная запись «Любых заметок» была удалена. ` +
       `Спасибо, что были с нами.`,
     html:
       `<p>Здравствуйте, ${esc(p.firstName)}.</p>` +
-      `<p>Ваша учётная запись AnyNote была удалена. Спасибо, что были с нами.</p>`,
+      `<p>Ваша учётная запись «Любых заметок» была удалена. Спасибо, что были с нами.</p>`,
   }
 }
