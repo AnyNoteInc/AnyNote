@@ -107,7 +107,7 @@ export function WorkspaceLayoutClient({
     document.title = title ? `${title} — AnyNote` : 'AnyNote'
   }, [breadcrumbs])
 
-  const userMenu = <WorkspaceUserMenu user={user} />
+  const userMenu = <WorkspaceUserMenu user={user} features={features} />
 
   const sidebarProps = { workspace, features, pages, userMenu }
 

@@ -3,17 +3,34 @@
 import Link from 'next/link'
 import { useState } from 'react'
 
-import { Avatar, Box, Menu, MenuItem, Stack, Typography } from '@repo/ui/components'
+import {
+  ArrowCircleUpIcon,
+  Avatar,
+  Box,
+  Divider,
+  ListItemIcon,
+  ListItemText,
+  LogoutIcon,
+  Menu,
+  MenuItem,
+  PersonIcon,
+  SettingsIcon,
+  Stack,
+  Typography,
+} from '@repo/ui/components'
 
-import { signOut } from '@/lib/auth-client'
+import type { PlanFeatures } from '@repo/trpc'
 
 type Props = {
   user: { firstName: string; lastName: string; email: string; image: string | null }
+  features: PlanFeatures
 }
 
-export function WorkspaceUserMenu({ user }: Props) {
+export function WorkspaceUserMenu({ user, features }: Props) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
+  const close = () => setAnchor(null)
+  const showUpgrade = features.slug !== 'max'
 
   return (
     <>
@@ -50,20 +67,33 @@ export function WorkspaceUserMenu({ user }: Props) {
           </Typography>
         </Stack>
       </Box>
-      <Menu anchorEl={anchor} open={!!anchor} onClose={() => setAnchor(null)}>
-        <MenuItem component={Link} href="/profile" onClick={() => setAnchor(null)}>
-          Мой профиль
+      <Menu anchorEl={anchor} open={!!anchor} onClose={close}>
+        <MenuItem component={Link} href="/profile" onClick={close}>
+          <ListItemIcon>
+            <PersonIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Профиль</ListItemText>
         </MenuItem>
-        <MenuItem component={Link} href="/settings/general" onClick={() => setAnchor(null)}>
-          Настройки
+        <MenuItem component={Link} href="/settings" onClick={close}>
+          <ListItemIcon>
+            <SettingsIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Настройки</ListItemText>
         </MenuItem>
-        <MenuItem
-          onClick={async () => {
-            setAnchor(null)
-            await signOut()
-          }}
-        >
-          Выйти
+        <Divider />
+        {showUpgrade && (
+          <MenuItem component={Link} href="/pricing" onClick={close}>
+            <ListItemIcon>
+              <ArrowCircleUpIcon fontSize="small" color="primary" />
+            </ListItemIcon>
+            <ListItemText>Обновить план</ListItemText>
+          </MenuItem>
+        )}
+        <MenuItem component={Link} href="/sign-out" onClick={close}>
+          <ListItemIcon>
+            <LogoutIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Выйти</ListItemText>
         </MenuItem>
       </Menu>
     </>

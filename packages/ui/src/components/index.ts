@@ -73,6 +73,8 @@ export { default as ChatBubbleOutlineIcon } from '@mui/icons-material/ChatBubble
 export { default as ArrowUpwardIcon } from '@mui/icons-material/ArrowUpward'
 export { default as LeakAddIcon } from '@mui/icons-material/LeakAdd'
 export { default as PersonIcon } from '@mui/icons-material/Person'
+export { default as LogoutIcon } from '@mui/icons-material/Logout'
+export { default as ArrowCircleUpIcon } from '@mui/icons-material/ArrowCircleUp'
 export { default as PaymentIcon } from '@mui/icons-material/Payment'
 export { default as AddIcon } from '@mui/icons-material/Add'
 export { default as MoreHorizIcon } from '@mui/icons-material/MoreHoriz'

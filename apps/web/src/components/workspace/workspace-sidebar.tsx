@@ -111,22 +111,7 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
       </Stack>
 
       <Stack spacing={0.25} sx={{ py: 0.75 }}>
-        {features.chatsEnabled && (
-          <>
-            <SearchSidebarSection workspaceId={workspace.id} />
-            <NavItem
-              icon={
-                <Box component="span" sx={{ fontSize: 16, lineHeight: 1 }}>
-                  💬
-                </Box>
-              }
-              label="Чаты"
-              href={`/workspaces/${workspace.id}/chats`}
-              matchPrefix={`/workspaces/${workspace.id}/chats`}
-              pathname={pathname}
-            />
-          </>
-        )}
+        {features.chatsEnabled && <SearchSidebarSection workspaceId={workspace.id} />}
         <NavItem
           icon={<SettingsIcon sx={{ fontSize: 16 }} />}
           label="Настройки"
