@@ -36,10 +36,10 @@ export function HomePricing() {
             {landingPricingCards.map((plan) => {
               const isFeatured = plan.slug === 'pro'
               return (
-                <Link key={plan.slug} href="/pricing" style={{ color: 'inherit', textDecoration: 'none' }}>
+                <Link key={plan.slug} href="/pricing" style={{ color: 'inherit', textDecoration: 'none', display: 'block', height: '100%' }}>
                   <Box
                     sx={{
-                      p: 3.5, minHeight: 280, position: 'relative', display: 'flex', flexDirection: 'column',
+                      p: 3.5, minHeight: 280, height: '100%', position: 'relative', display: 'flex', flexDirection: 'column',
                       borderRight: { md: '1px solid rgba(240,238,230,0.16)' },
                       borderBottom: '1px solid rgba(240,238,230,0.16)',
                       bgcolor: isFeatured ? 'rgba(201,100,66,0.14)' : 'transparent',

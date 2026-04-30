@@ -8,7 +8,7 @@ const t = homeTokens.palette
 
 export function HomeContact() {
   return (
-    <Box component="section" id="contact" sx={{ bgcolor: '#fff', py: { xs: 7, md: 11 } }}>
+    <Box component="section" id="contact" sx={{ bgcolor: '#fff', py: { xs: 7, md: 11 }, overflow: 'hidden' }}>
       <Container maxWidth="xl">
         <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1.1fr' }, gap: { xs: 4, lg: 8 }, alignItems: 'center' }}>
           <Stack spacing={2}>
