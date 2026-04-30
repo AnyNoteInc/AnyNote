@@ -55,14 +55,13 @@ export function PublicFooter() {
               </Typography>
               <Stack spacing={1.25}>
                 {section.links.map((link) => (
-                  <Box
+                  <Link
                     key={link.href}
-                    component={Link}
                     href={link.href}
-                    sx={{ color: t.paperDeep, textDecoration: 'none', fontSize: 14, '&:hover': { color: t.orangeWarm } }}
+                    style={{ color: t.paperDeep, textDecoration: 'none', fontSize: 14 }}
                   >
                     {link.label}
-                  </Box>
+                  </Link>
                 ))}
               </Stack>
             </Stack>
@@ -96,9 +95,9 @@ export function PublicFooter() {
               { label: 'Оферта', href: '/oferta' },
               { label: 'Cookies', href: '/privacy#cookies' },
             ].map((l) => (
-              <Box key={l.href} component={Link} href={l.href} sx={{ color: 'inherit', textDecoration: 'none', '&:hover': { color: t.paperDeep } }}>
+              <Link key={l.href} href={l.href} style={{ color: 'inherit', textDecoration: 'none' }}>
                 {l.label}
-              </Box>
+              </Link>
             ))}
           </Stack>
         </Stack>
@@ -119,13 +118,12 @@ function FooterContact({ icon, href, children }: { icon: string; href: string; c
   return (
     <Stack direction="row" alignItems="center" spacing={1}>
       <Box component="span" sx={{ fontSize: 14, opacity: 0.7 }}>{icon}</Box>
-      <Box
-        component={Link}
+      <Link
         href={href}
-        sx={{ color: homeTokens.palette.paperDeep, textDecoration: 'none', fontSize: 14, '&:hover': { color: homeTokens.palette.orangeWarm } }}
+        style={{ color: homeTokens.palette.paperDeep, textDecoration: 'none', fontSize: 14 }}
       >
         {children}
-      </Box>
+      </Link>
     </Stack>
   )
 }
