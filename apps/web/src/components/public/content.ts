@@ -108,7 +108,7 @@ export const homeFeatures = [
 ] as const
 
 export const publicContact = {
-  email: 'hello@любые-заметки.app',
+  email: 'hello@anynote.app',
   phone: '+7 (495) 123-45-67',
   telegram: '@anynote_support',
 } as const
