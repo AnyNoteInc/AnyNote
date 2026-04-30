@@ -5,14 +5,18 @@ import { Alert, Box, Button, Stack, TextField } from '@repo/ui/components'
 
 type ContactFormState = {
   name: string
+  company: string
   email: string
   phone: string
+  message: string
 }
 
 const initialState: ContactFormState = {
   name: '',
+  company: '',
   email: '',
   phone: '',
+  message: '',
 }
 
 export function ContactForm() {
@@ -20,13 +24,14 @@ export function ContactForm() {
   const [submitted, setSubmitted] = useState(false)
 
   const handleChange =
-    (field: keyof ContactFormState) => (event: ChangeEvent<HTMLInputElement>) => {
+    (field: keyof ContactFormState) =>
+    (event: ChangeEvent<HTMLInputElement | HTMLTextAreaElement>) => {
       setForm((prev) => ({ ...prev, [field]: event.target.value }))
     }
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
-    console.log('AnyNote contact request', form)
+    console.log('Любые заметки contact request', form)
     setSubmitted(true)
     setForm(initialState)
   }
@@ -49,6 +54,24 @@ export function ContactForm() {
           onChange={handleChange('name')}
           required
           fullWidth
+          inputProps={{ 'aria-label': 'Имя' }}
+        />
+        <TextField
+          label="Компания"
+          name="company"
+          value={form.company}
+          onChange={handleChange('company')}
+          fullWidth
+          inputProps={{ 'aria-label': 'Компания' }}
+        />
+        <TextField
+          label="Телефон"
+          name="phone"
+          value={form.phone}
+          onChange={handleChange('phone')}
+          required
+          fullWidth
+          inputProps={{ 'aria-label': 'Телефон' }}
         />
         <TextField
           label="Email"
@@ -58,26 +81,29 @@ export function ContactForm() {
           onChange={handleChange('email')}
           required
           fullWidth
+          inputProps={{ 'aria-label': 'Email' }}
         />
         <TextField
-          label="Телефон"
-          name="phone"
-          value={form.phone}
-          onChange={handleChange('phone')}
-          required
+          label="Что нужно"
+          name="message"
+          value={form.message}
+          onChange={handleChange('message')}
           fullWidth
+          multiline
+          minRows={3}
           sx={{ gridColumn: { md: '1 / -1' } }}
+          inputProps={{ 'aria-label': 'Что нужно' }}
         />
         <Box sx={{ gridColumn: { md: '1 / -1' }, pt: 0.5 }}>
           <Button type="submit" size="large">
-            Отправить
+            Отправить запрос
           </Button>
         </Box>
       </Box>
 
       {submitted ? (
         <Alert severity="success">
-          Заявка отправлена в консоль браузера. Серверная отправка будет добавлена следующим этапом.
+          Заявка отправлена. Мы свяжемся в течение дня.
         </Alert>
       ) : null}
     </Stack>
