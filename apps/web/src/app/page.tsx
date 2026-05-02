@@ -26,7 +26,7 @@ export default async function HomePage() {
   return (
     <>
       <PublicHeader session={session} />
-      <main style={{ overflowX: 'hidden' }}>
+      <main>
         <HomeHero primaryHref={primaryHref} primaryLabel={primaryLabel} showSecondary={!session} />
         <HomeMarketFit />
         <HomeModes />

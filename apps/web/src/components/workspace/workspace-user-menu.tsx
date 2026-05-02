@@ -7,6 +7,7 @@ import {
   ArrowCircleUpIcon,
   Avatar,
   Box,
+  Chip,
   Divider,
   ListItemIcon,
   ListItemText,
@@ -20,6 +21,8 @@ import {
 } from '@repo/ui/components'
 
 import type { PlanFeatures } from '@repo/trpc'
+
+import { getPlanDisplayName } from '@/components/billing/plan-labels'
 
 type Props = {
   user: { firstName: string; lastName: string; email: string; image: string | null }
@@ -58,16 +61,26 @@ export function WorkspaceUserMenu({ user, features }: Props) {
         >
           {initials}
         </Avatar>
-        <Stack spacing={0} sx={{ minWidth: 0 }}>
+        <Stack spacing={0.25} sx={{ minWidth: 0, alignItems: 'flex-start' }}>
           <Typography variant="body2" noWrap>
             {user.firstName} {user.lastName}
           </Typography>
-          <Typography variant="caption" color="text.secondary" noWrap>
-            {user.email}
-          </Typography>
+          <Chip
+            label={getPlanDisplayName(features)}
+            size="small"
+            color={features.isPaid ? 'success' : 'default'}
+            variant={features.isPaid ? 'filled' : 'outlined'}
+            sx={{ height: 18, fontSize: 10, '& .MuiChip-label': { px: 0.75 } }}
+          />
         </Stack>
       </Box>
       <Menu anchorEl={anchor} open={!!anchor} onClose={close}>
+        <Box sx={{ px: 2, py: 1, minWidth: 220 }}>
+          <Typography variant="caption" color="text.secondary" noWrap>
+            {user.email}
+          </Typography>
+        </Box>
+        <Divider />
         <MenuItem component={Link} href="/profile" onClick={close}>
           <ListItemIcon>
             <PersonIcon fontSize="small" />

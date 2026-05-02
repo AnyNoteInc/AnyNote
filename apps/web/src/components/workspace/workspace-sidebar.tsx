@@ -1,16 +1,18 @@
 'use client'
 
-import { type ReactNode, useMemo } from 'react'
+import { type ReactNode, useMemo, useState } from 'react'
 
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 import {
+  ArrowDropDownIcon,
   Box,
-  Chip,
   DeleteIcon,
   IconButton,
   KeyboardDoubleArrowLeftIcon,
+  Menu,
+  MenuItem,
   SettingsIcon,
   Stack,
   Tooltip,
@@ -19,7 +21,6 @@ import {
 
 import type { PlanFeatures } from '@repo/trpc'
 
-import { getPlanDisplayName } from '@/components/billing/plan-labels'
 import { trpc } from '@/trpc/client'
 
 import { FavoritesSection } from './favorites-section'
@@ -43,6 +44,13 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
     () => new Set((favorites.data ?? []).map((f) => f.id)),
     [favorites.data],
   )
+
+  const allWorkspaces = trpc.workspace.listMine.useQuery()
+  const hasMultiple = (allWorkspaces.data?.length ?? 0) > 1
+
+  const [switcherAnchor, setSwitcherAnchor] = useState<HTMLElement | null>(null)
+  const closeSwitcher = () => setSwitcherAnchor(null)
+
   return (
     <Box
       component="aside"
@@ -58,49 +66,44 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
         overflow: 'auto',
       }}
     >
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ px: 1, pb: 1.75 }}>
+      <Stack direction="row" alignItems="center" spacing={0.5} sx={{ px: 1, pb: 1.75 }}>
         <Box
+          onClick={hasMultiple ? (event) => setSwitcherAnchor(event.currentTarget) : undefined}
           sx={{
-            width: 24,
-            height: 24,
-            borderRadius: 0.75,
-            background: 'linear-gradient(135deg,#0f766e,#155e75)',
             display: 'flex',
             alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 14,
-            flexShrink: 0,
+            gap: 1,
+            flex: 1,
+            minWidth: 0,
+            borderRadius: 0.75,
+            p: 0.5,
+            mx: -0.5,
+            cursor: hasMultiple ? 'pointer' : 'default',
+            '&:hover': hasMultiple ? { bgcolor: 'action.hover' } : undefined,
           }}
         >
-          {workspace.icon ?? '📒'}
-        </Box>
-        <Stack spacing={0} sx={{ flex: 1, minWidth: 0 }}>
-          <Typography variant="body2" noWrap>
+          <Box
+            sx={{
+              width: 24,
+              height: 24,
+              borderRadius: 0.75,
+              background: 'linear-gradient(135deg,#0f766e,#155e75)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              fontSize: 14,
+              flexShrink: 0,
+            }}
+          >
+            {workspace.icon ?? '📒'}
+          </Box>
+          <Typography variant="body2" noWrap sx={{ flex: 1, minWidth: 0 }}>
             {workspace.name}
           </Typography>
-          <Stack direction="row" alignItems="center" gap={1}>
-            <Chip
-              label={getPlanDisplayName(features)}
-              size="small"
-              color={features.isPaid ? 'success' : 'default'}
-              variant={features.isPaid ? 'filled' : 'outlined'}
-            />
-            {!features.isPaid && (
-              <Box
-                component={Link}
-                href="/pricing"
-                sx={{
-                  fontSize: 12,
-                  color: 'primary.main',
-                  textDecoration: 'none',
-                  '&:hover': { textDecoration: 'underline' },
-                }}
-              >
-                Перейти на ПРО
-              </Box>
-            )}
-          </Stack>
-        </Stack>
+          {hasMultiple && (
+            <ArrowDropDownIcon sx={{ fontSize: 18, color: 'text.secondary', flexShrink: 0 }} />
+          )}
+        </Box>
         {onHide ? (
           <Tooltip title="Скрыть" placement="right">
             <IconButton size="small" onClick={onHide} sx={{ flexShrink: 0 }}>
@@ -109,6 +112,45 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
           </Tooltip>
         ) : null}
       </Stack>
+
+      {hasMultiple && (
+        <Menu
+          anchorEl={switcherAnchor}
+          open={!!switcherAnchor}
+          onClose={closeSwitcher}
+          slotProps={{ paper: { sx: { minWidth: 240 } } }}
+        >
+          {(allWorkspaces.data ?? []).map((w) => (
+            <MenuItem
+              key={w.id}
+              component={Link}
+              href={`/workspaces/${w.id}`}
+              onClick={closeSwitcher}
+              selected={w.id === workspace.id}
+              sx={{ gap: 1 }}
+            >
+              <Box
+                sx={{
+                  width: 22,
+                  height: 22,
+                  borderRadius: 0.5,
+                  background: 'linear-gradient(135deg,#0f766e,#155e75)',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  fontSize: 13,
+                  flexShrink: 0,
+                }}
+              >
+                {w.icon ?? '📒'}
+              </Box>
+              <Typography variant="body2" noWrap>
+                {w.name}
+              </Typography>
+            </MenuItem>
+          ))}
+        </Menu>
+      )}
 
       <Stack spacing={0.25} sx={{ py: 0.75 }}>
         {features.chatsEnabled && <SearchSidebarSection workspaceId={workspace.id} />}

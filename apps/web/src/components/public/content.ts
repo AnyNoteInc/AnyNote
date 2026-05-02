@@ -5,7 +5,6 @@ export const publicFooterSections = [
       { label: 'Возможности', href: '/#features' },
       { label: 'Тарифы', href: '/pricing' },
       { label: 'Roadmap', href: '/roadmap' },
-      { label: 'Документация', href: '/docs' },
     ],
   },
   {
@@ -19,7 +18,6 @@ export const publicFooterSections = [
 ] as const
 
 export const publicNavItems = [
-  { label: 'Документация', href: '/docs' },
   { label: 'Цены', href: '/pricing' },
   { label: 'Разработчикам', href: '/developers' },
   { label: 'Планы', href: '/roadmap' },

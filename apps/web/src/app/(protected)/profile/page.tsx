@@ -1,6 +1,15 @@
 import Link from 'next/link'
 
-import { Box, Button, Container, Paper, Stack, Typography } from '@repo/ui/components'
+import {
+  AddIcon,
+  Box,
+  Button,
+  Container,
+  IconButton,
+  Paper,
+  Stack,
+  Typography,
+} from '@repo/ui/components'
 
 import ProfileAvatarUploader from '@/components/profile/profile-avatar-uploader'
 import { requireSession } from '@/lib/get-session'
@@ -30,9 +39,20 @@ export default async function ProfilePage() {
         </Stack>
 
         <Box sx={{ width: '100%', pt: 2 }}>
-          <Typography variant="overline" color="text.secondary">
-            Рабочие пространства
-          </Typography>
+          <Stack direction="row" alignItems="center" justifyContent="space-between" spacing={0.5}>
+            <Typography variant="overline" color="text.secondary">
+              Рабочие пространства
+            </Typography>
+            <Link
+              href="/workspaces/new"
+              style={{ display: 'inline-flex' }}
+              aria-label="Создать пространство"
+            >
+              <IconButton size="small" component="span">
+                <AddIcon fontSize="small" />
+              </IconButton>
+            </Link>
+          </Stack>
           {workspaces.length === 0 ? (
             <Paper variant="outlined" sx={{ p: 3, textAlign: 'center', mt: 1 }}>
               <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>

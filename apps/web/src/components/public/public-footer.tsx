@@ -12,15 +12,6 @@ export function PublicFooter() {
     <Box component="footer" sx={{ bgcolor: t.ink, color: t.paperDeep, mt: { xs: 8, md: 12 } }}>
       <Container maxWidth="xl" sx={{ position: 'relative', py: { xs: 6, md: 8 } }}>
         <Box
-          aria-hidden
-          sx={{
-            position: 'absolute', right: -50, top: -30, width: 180, height: 180,
-            background: 'radial-gradient(circle at 30% 30%, rgba(217,119,87,0.16), transparent 70%)',
-            pointerEvents: 'none',
-          }}
-        />
-
-        <Box
           sx={{
             position: 'relative',
             display: 'grid',
