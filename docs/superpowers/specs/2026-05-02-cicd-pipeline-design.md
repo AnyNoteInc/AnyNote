@@ -283,7 +283,7 @@ A new file at the repo root. Defines four services (`web`, `yjs`, `agents`, `eng
 | web | `wget -qO- http://localhost:3000/api/health` | New `/api/health` route added to `apps/web` |
 | yjs | `nc -z localhost 1234` | Hocuspocus has no HTTP endpoint; TCP probe is sufficient |
 | agents | `curl -f http://localhost:8080/health` | Existing `fast_clean.contrib.healthcheck.router` (mounted at `/health`) |
-| engines | `wget -qO- http://localhost:8082/health` | Existing `HealthController` (`apps/engines/src/health/`) |
+| engines | `wget -qO- http://localhost:8082/api/health` | Existing `HealthController` (`apps/engines/src/health/`) |
 
 **`depends_on` with `condition: service_healthy`** ensures app containers wait for postgres before starting. `agents` also waits for `qdrant: service_started` (qdrant has no built-in healthcheck endpoint by default).
 

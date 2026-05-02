@@ -312,7 +312,7 @@ docker run --rm --name anynote-engines-smoke -d \
   -p 8082:8082 \
   anynote-engines:dev
 sleep 8
-curl -fsS http://localhost:8082/health
+curl -fsS http://localhost:8082/api/health
 docker stop anynote-engines-smoke
 ```
 
@@ -528,7 +528,7 @@ services:
       BILLING_RENEWAL_BATCH_SIZE: '50'
     ports: ['8082:8082']
     healthcheck:
-      test: ['CMD', 'wget', '-qO-', 'http://localhost:8082/health']
+      test: ['CMD', 'wget', '-qO-', 'http://localhost:8082/api/health']
       interval: 5s
       timeout: 5s
       retries: 12
