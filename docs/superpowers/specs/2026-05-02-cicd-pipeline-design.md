@@ -120,7 +120,7 @@ Service containers (matching `compose.yml` for fidelity with local dev):
 
 1. `actions/checkout@v4`
 2. `./.github/actions/setup` (composite)
-3. Initialize databases — run `docker/postgres-init/*.sql` against the postgres service container so `anynote_agents` exists.
+3. Initialize the `agents` database — execute `docker/postgres-init/01-create-agents-db.sh` against the postgres service container (matches local dev). The script is `psql`-driven and idempotent.
 4. `pnpm --filter @repo/db exec prisma migrate deploy`
 5. `pnpm --filter @repo/db exec prisma db seed`
 6. `pnpm check-types`
@@ -385,7 +385,7 @@ No automated tests of the workflow YAML itself (`act` and similar are heavy). Ma
 | spaCy model downloads bloat agents image (~1.2 GB) | Accepted; cached at the Docker layer level after first build |
 | Token-pushed tags may not trigger `deploy.yml` if org tightens Action-on-Action policy | Document fallback: switch to `secrets.RELEASE_PAT` (fine-grained PAT) |
 | `compose.ci.yml` env drift when `turbo.json` globalEnv changes | Pre-existing CLAUDE.md guidance already calls out env-var-add discipline; document in this design too |
-| `anynote_agents` DB requires `postgres-init` | CI gets fresh volume each run, so SQL reruns; no special handling needed |
+| `agents` DB requires `postgres-init` | CI gets fresh volume each run, so SQL reruns; no special handling needed |
 | Node 26 is "current" not LTS until Oct 2026 | Accepted per user choice; reassess at Node 26 LTS designation (Oct 2026) |
 | Existing engines & agents Dockerfile refactor introduces regression | Verify job catches boot regressions; image size diff watched manually |
 
