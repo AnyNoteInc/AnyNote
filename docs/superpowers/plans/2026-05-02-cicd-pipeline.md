@@ -6,7 +6,7 @@
 
 **Architecture:** Three workflows (`ci.yml`, `release.yml`, `deploy.yml`) share a composite setup action. `release.yml` uses `semantic-release` to cut tags from Conventional Commits on `main`; tags trigger `deploy.yml`, which builds and pushes 4 Docker images via a matrix and verifies them by booting a `compose.yml` + `compose.ci.yml` overlay with healthchecks.
 
-**Tech Stack:** GitHub Actions, Docker Buildx, GHCR, Turborepo (`turbo prune --docker`), Node 26 alpine, Python 3.13 + uv, semantic-release with the angular preset.
+**Tech Stack:** GitHub Actions, Docker Buildx, GHCR, Turborepo (`turbo prune --docker`), Node 24 alpine, Python 3.13 + uv, semantic-release with the angular preset.
 
 **Spec:** [docs/superpowers/specs/2026-05-02-cicd-pipeline-design.md](../specs/2026-05-02-cicd-pipeline-design.md)
 
@@ -83,9 +83,9 @@ git commit -m "feat(web): add /api/health route for container healthchecks"
 
 ## Phase 2 — Dockerfiles: uniform `turbo prune --docker` pattern
 
-Bump existing Dockerfiles to Node 26 and refactor `engines` and `agents` to the same `turbo prune --docker` pattern as `web`. Create a new `yjs` Dockerfile.
+Bump existing Dockerfiles to Node 24 and refactor `engines` and `agents` to the same `turbo prune --docker` pattern as `web`. Create a new `yjs` Dockerfile.
 
-### Task 2.1: Bump `apps/web/Dockerfile` to Node 26
+### Task 2.1: Bump `apps/web/Dockerfile` to Node 24
 
 **Files:**
 - Modify: `apps/web/Dockerfile:1`
@@ -96,7 +96,7 @@ Open `apps/web/Dockerfile`. Change the first line:
 
 ```diff
 -FROM node:22-alpine AS base
-+FROM node:26-alpine AS base
++FROM node:24-alpine AS base
 ```
 
 Also remove the comment block on lines 3–4 referencing copy-paste docs (the docs were removed in commit `d32ac69`):
@@ -157,7 +157,7 @@ Expected: `curl` returns `{"status":"ok"}`. `docker stop` succeeds.
 
 ```bash
 git add apps/web/Dockerfile
-git commit -m "build(web): bump Node to 26-alpine and pin explicit prisma generate"
+git commit -m "build(web): bump Node to 24-alpine and pin explicit prisma generate"
 ```
 
 ### Task 2.2: Create `apps/yjs/Dockerfile`
@@ -170,7 +170,7 @@ git commit -m "build(web): bump Node to 26-alpine and pin explicit prisma genera
 Create `apps/yjs/Dockerfile`:
 
 ```dockerfile
-FROM node:26-alpine AS base
+FROM node:24-alpine AS base
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 RUN corepack enable
@@ -233,7 +233,7 @@ git add apps/yjs/Dockerfile
 git commit -m "build(yjs): add multi-stage Dockerfile using turbo prune"
 ```
 
-### Task 2.3: Refactor `apps/engines/Dockerfile` to `turbo prune` + Node 26
+### Task 2.3: Refactor `apps/engines/Dockerfile` to `turbo prune` + Node 24
 
 **Files:**
 - Modify: `apps/engines/Dockerfile` (full rewrite)
@@ -244,7 +244,7 @@ Replace the entire contents of `apps/engines/Dockerfile`:
 
 ```dockerfile
 # syntax=docker/dockerfile:1.7
-FROM node:26-alpine AS base
+FROM node:24-alpine AS base
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 RUN corepack enable
@@ -302,7 +302,7 @@ Expected: `curl` returns `{"status":"ok"}` (per existing `HealthController`).
 
 ```bash
 git add apps/engines/Dockerfile
-git commit -m "build(engines): refactor to turbo prune pattern and Node 26"
+git commit -m "build(engines): refactor to turbo prune pattern and Node 24"
 ```
 
 ### Task 2.4: Refactor `apps/agents/Dockerfile` to `turbo prune` for monorepo isolation
@@ -320,7 +320,7 @@ Replace the entire contents of `apps/agents/Dockerfile`:
 # syntax=docker/dockerfile:1.7
 
 # ---- Stage 1: prepare (Node container, uses turbo prune to extract agents subworkspace) ----
-FROM node:26-alpine AS prepare
+FROM node:24-alpine AS prepare
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 RUN pnpm add turbo --global
@@ -699,7 +699,7 @@ runs:
     - name: Setup Node
       uses: actions/setup-node@v4
       with:
-        node-version: '26'
+        node-version: '24'
         cache: 'pnpm'
 
     - name: Setup Python
@@ -1293,7 +1293,7 @@ These cannot be configured from YAML.
 | Phase | Tasks | Outcome |
 |---|---|---|
 | 1 | 1.1 | `/api/health` route added with vitest test |
-| 2 | 2.1 – 2.4 | All four Dockerfiles uniform, Node 26, `turbo prune` pattern |
+| 2 | 2.1 – 2.4 | All four Dockerfiles uniform, Node 24, `turbo prune` pattern |
 | 3 | 3.1 | `compose.ci.yml` overlay with healthchecks |
 | 4 | 4.1 – 4.2 | semantic-release configured |
 | 5 | 5.1 – 5.4 | Composite action + 3 workflows |

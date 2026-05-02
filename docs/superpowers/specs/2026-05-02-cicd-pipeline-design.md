@@ -24,7 +24,7 @@ Establish a GitHub Actions-based CI/CD pipeline for the AnyNote monorepo that:
 - Missing `apps/yjs/Dockerfile` (created).
 - Refactor of `apps/engines/Dockerfile` and `apps/agents/Dockerfile` to use the `turbo prune --docker` multi-stage pattern (uniformity).
 - Minimal `/api/health` route in `apps/web`.
-- Bump Node 22 → Node 26 across Dockerfiles and the composite action.
+- Bump Node 22 → Node 24 across Dockerfiles and the composite action.
 
 ### Out of scope
 
@@ -81,7 +81,7 @@ runs:
         version: 9
     - uses: actions/setup-node@v4
       with:
-        node-version: '26'
+        node-version: '24'
         cache: 'pnpm'
     - uses: actions/setup-python@v5
       with:
@@ -296,7 +296,7 @@ A new file at the repo root. Defines four services (`web`, `yjs`, `agents`, `eng
 Multi-stage `turbo prune --docker` build, modeled on `apps/web/Dockerfile`. Outline:
 
 ```dockerfile
-FROM node:26-alpine AS base
+FROM node:24-alpine AS base
 RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
@@ -385,7 +385,7 @@ No automated tests of the workflow YAML itself (`act` and similar are heavy). Ma
 | Token-pushed tags may not trigger `deploy.yml` if org tightens Action-on-Action policy | Document fallback: switch to `secrets.RELEASE_PAT` (fine-grained PAT) |
 | `compose.ci.yml` env drift when `turbo.json` globalEnv changes | Pre-existing CLAUDE.md guidance already calls out env-var-add discipline; document in this design too |
 | `agents` DB requires `postgres-init` | CI gets fresh volume each run, so SQL reruns; no special handling needed |
-| Node 26 is "current" not LTS until Oct 2026 | Accepted per user choice; reassess at Node 26 LTS designation (Oct 2026) |
+| Node 24 is Active LTS, supported through Apr 2027 (maintenance Apr 2027 onward) | No action — pin to a major version like `node:24-alpine` and reassess at LTS end-of-life |
 | Existing engines & agents Dockerfile refactor introduces regression | Verify job catches boot regressions; image size diff watched manually |
 
 ## Files added / changed
@@ -404,8 +404,8 @@ No automated tests of the workflow YAML itself (`act` and similar are heavy). Ma
 
 **Changed (4 files):**
 
-- `apps/web/Dockerfile` — bump base image `node:22-alpine` → `node:26-alpine`
-- `apps/engines/Dockerfile` — refactor to `turbo prune --docker` pattern; bump Node 22 → 26
+- `apps/web/Dockerfile` — bump base image `node:22-alpine` → `node:24-alpine`
+- `apps/engines/Dockerfile` — refactor to `turbo prune --docker` pattern; bump Node 22 → 24
 - `apps/agents/Dockerfile` — refactor to `turbo prune --docker` pattern (Python core unchanged)
 - `package.json` — add `semantic-release` + `@semantic-release/changelog` + `@semantic-release/git` to `devDependencies`
 
