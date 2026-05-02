@@ -1,0 +1,45 @@
+# build artifacts
+.next
+**/.next
+.turbo
+**/.turbo
+dist
+out
+
+# caches
+.mypy_cache
+**/.mypy_cache
+
+# tooling dirs
+.remember
+**/.remember
+.claude
+**/.claude
+
+# deps (Docker installs its own)
+node_modules
+**/node_modules
+
+# Python
+.venv
+**/.venv
+__pycache__
+**/__pycache__
+*.pyc
+
+# dev / test
+.env
+.env.*
+!.env.example
+
+# vcs / IDE
+.git
+.gitignore
+
+# OS
+.DS_Store
+Thumbs.db
+
+# misc
+*.log
+*.local
