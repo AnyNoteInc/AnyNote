@@ -171,9 +171,13 @@ Create `apps/yjs/Dockerfile`:
 
 ```dockerfile
 FROM node:24-alpine AS base
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
 RUN apk add --no-cache libc6-compat
+RUN corepack enable pnpm
 WORKDIR /app
-RUN corepack enable
 
 FROM base AS prepare
 RUN pnpm add turbo --global
@@ -184,6 +188,12 @@ FROM base AS builder
 COPY --from=prepare /app/out/json/ .
 RUN pnpm install --frozen-lockfile
 COPY --from=prepare /app/out/full/ .
+
+# Build-time stub: packages/db/prisma.config.ts eagerly reads DATABASE_URL
+# at generate time and throws if it's missing. Placeholder only — never
+# leaks to the runner stage (this ENV is scoped to the builder stage).
+ENV DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy
+
 RUN pnpm --filter @repo/db prisma:generate
 RUN pnpm --filter yjs build
 
@@ -245,9 +255,13 @@ Replace the entire contents of `apps/engines/Dockerfile`:
 ```dockerfile
 # syntax=docker/dockerfile:1.7
 FROM node:24-alpine AS base
+
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+
 RUN apk add --no-cache libc6-compat
+RUN corepack enable pnpm
 WORKDIR /app
-RUN corepack enable
 
 FROM base AS prepare
 RUN pnpm add turbo --global
@@ -258,6 +272,12 @@ FROM base AS builder
 COPY --from=prepare /app/out/json/ .
 RUN pnpm install --frozen-lockfile
 COPY --from=prepare /app/out/full/ .
+
+# Build-time stub: packages/db/prisma.config.ts eagerly reads DATABASE_URL
+# at generate time and throws if it's missing. Placeholder only — never
+# leaks to the runner stage (this ENV is scoped to the builder stage).
+ENV DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy
+
 RUN pnpm --filter @repo/db prisma:generate
 RUN pnpm --filter engines build
 
