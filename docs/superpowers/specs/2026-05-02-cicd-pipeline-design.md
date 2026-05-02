@@ -337,14 +337,13 @@ Both refactored to follow the same `turbo prune --docker` multi-stage pattern (u
 
 ```ts
 export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
 
 export async function GET() {
   return Response.json({ status: 'ok' })
 }
 ```
 
-`force-dynamic` ensures Next does not try to prerender this route at build time (would otherwise require all build-time env vars to be set).
+`runtime = 'nodejs'` matches the convention used by every other route handler under `apps/web/src/app/api/`. Route handlers are not statically prerendered, so no `dynamic` directive is needed.
 
 ## Data flow
 

@@ -56,14 +56,13 @@ Create `apps/web/src/app/api/health/route.ts`:
 
 ```ts
 export const runtime = 'nodejs'
-export const dynamic = 'force-dynamic'
 
 export async function GET() {
   return Response.json({ status: 'ok' })
 }
 ```
 
-`force-dynamic` ensures Next does not try to prerender this route at build time.
+`runtime = 'nodejs'` matches the convention used by every other route handler under `apps/web/src/app/api/` (e.g. `trpc/[trpc]/route.ts`, `yjs/token/route.ts`).
 
 - [ ] **Step 1.1.4: Run test to verify it passes**
 
