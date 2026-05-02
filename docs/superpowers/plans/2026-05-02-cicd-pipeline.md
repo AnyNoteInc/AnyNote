@@ -542,7 +542,16 @@ services:
       qdrant:
         condition: service_started
     environment:
-      AGENTS_DATABASE_URL: postgresql://user:password@postgres:5432/agents
+      DEBUG: 'false'
+      TITLE: Anynote Agents
+      BASE_URL: http://localhost:8080
+      SECRET_KEY: ci-agents-secret-not-real
+      ENVIRONMENT: dev
+      DB__HOST: postgres
+      DB__PORT: '5432'
+      DB__USER: user
+      DB__PASSWORD: password
+      DB__NAME: agents
       AGENTS_SERVICE_TOKEN: ci-agents-token
       AGENTS_LOG_LEVEL: INFO
       QDRANT__HOST: http://qdrant:6333
