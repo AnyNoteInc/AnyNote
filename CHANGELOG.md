@@ -1,3 +1,10 @@
+## [1.0.5](https://github.com/AnyNoteInc/AnyNote/compare/v1.0.4...v1.0.5) (2026-05-03)
+
+
+### Bug Fixes
+
+* **ci:** show container logs when deploy fails — surface migrate exit code source ([7bdaef2](https://github.com/AnyNoteInc/AnyNote/commit/7bdaef2d8df3a30b8cee5003312fb8ee5f5e5d76))
+
 ## [1.0.4](https://github.com/AnyNoteInc/AnyNote/compare/v1.0.3...v1.0.4) (2026-05-03)
 
 
