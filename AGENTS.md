@@ -7,7 +7,7 @@ AnyNote is a pnpm/Turbo monorepo. Application code lives in `apps/`: `web` is th
 ## Build, Test, and Development Commands
 
 - `pnpm install` installs workspace dependencies.
-- `docker compose up -d` starts local Postgres, MinIO, Qdrant, and Ollama services.
+- `docker compose up -d` starts local Postgres, MinIO, Qdrant, and Mailhog services. No LLM provider runs in compose — `apps/agents` uses per-workspace LLM/embedding connections configured in **Settings → AI агент**.
 - `pnpm dev` runs all app dev servers through Turbo.
 - `pnpm --filter web dev` runs only the Next.js app.
 - `pnpm build`, `pnpm lint`, `pnpm check-types`, and `pnpm test` run the corresponding Turbo tasks.
@@ -29,7 +29,7 @@ Follow Conventional Commits with scopes, for example `feat(trpc): enforce soft d
 
 ## Security & Configuration Tips
 
-Copy `.env.example` to `.env` for local setup and keep secrets out of commits. Update service environment variables before debugging database, Better Auth, S3, Qdrant, Ollama, OpenAI, engines, agents, or YooKassa behavior.
+Copy `.env.example` to `.env` for local setup and keep secrets out of commits. Update service environment variables before debugging database, Better Auth, S3, Qdrant, engines, agents, or YooKassa behavior. LLM/embedding provider connections (OpenAI, GigaChat, Ollama) are configured per-workspace in the UI, not via env.
 
 
 <claude-mem-context>

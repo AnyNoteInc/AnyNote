@@ -27,9 +27,7 @@ of `apps/agents` + `apps/engines`.
 ## Quick start
 
 ```bash
-docker compose up -d                          # postgres, minio, qdrant, ollama
-docker compose exec -T ollama ollama pull qwen2.5:0.5b
-docker compose exec -T ollama ollama pull nomic-embed-text   # for vectorization (engines + agents)
+docker compose up -d                          # postgres, minio, qdrant, mailhog
 cp .env.example .env                          # adjust secrets
 pnpm install
 pnpm --filter @repo/db prisma:generate
@@ -38,7 +36,10 @@ pnpm dev                                      # all apps in parallel
 ```
 
 Open http://localhost:3000. Sign up. Create a workspace. In **Settings → AI агент**
-pick a model. Open **/workspaces/[id]/chats** and start a conversation.
+configure an LLM/embedding provider (OpenAI, GigaChat, or a self-hosted Ollama
+URL of your choice — `apps/agents` reads the connection per-request from the
+workspace settings, no provider runs in compose). Open **/workspaces/[id]/chats**
+and start a conversation.
 
 ## End-to-end AI loop
 
@@ -56,10 +57,11 @@ pick a model. Open **/workspaces/[id]/chats** and start a conversation.
 
 Page mutations in `apps/web` enqueue rows to `outbox_events`.
 `apps/engines` cron drains the outbox and calls `POST /vectorization`
-in `apps/agents`, which normalises + embeds via Ollama and writes points
-to the `pages` Qdrant collection. `apps/engines` also serves those
-results as MCP tools. `apps/agents` discovers tools at request-start
-when `payload.mcp.servers[*].url` is provided (apps/web injects it via
+in `apps/agents`, which normalises + embeds via the workspace's
+configured embedding provider and writes points to a Qdrant collection
+named per-workspace. `apps/engines` also serves those results as MCP
+tools. `apps/agents` discovers tools at request-start when
+`payload.mcp.servers[*].url` is provided (apps/web injects it via
 `ENGINES_MCP_URL`).
 
 ## Gates
@@ -119,22 +121,24 @@ apps/        web · yjs · agents · engines · e2e
 packages/    db · auth · trpc · ui · chat · editor · excalidraw · storage · eslint-config · typescript-config
 docs/        superpowers/specs · superpowers/plans
 docker/      postgres-init scripts
-compose.yml  postgres · minio · qdrant · ollama
+compose.yml  postgres · minio · qdrant · mailhog (dev)
+deploy/      compose.yml · .env.template · traefik · postgres-init (production)
 ```
 
 ## RAG / vectorization setup
 
 Vectorization runs as a cron in `apps/engines` that calls `POST /vectorization`
-in `apps/agents`. Qdrant (`pages` collection, cosine, 768 dims) and Ollama
-(`nomic-embed-text`) must be up before starting the services.
+in `apps/agents`. The embedding provider is per-workspace (configured in
+**Settings → AI агент**) — Qdrant collections are named per provider/model.
 
 ### Pre-flight checklist
 
-1. `docker compose up -d` — brings up Postgres, Qdrant, Ollama.
-2. `ollama pull nomic-embed-text` — pull the embedding model into your local Ollama.
-3. `pnpm --filter @repo/db prisma:db-push` — apply schema if first run.
-4. `pnpm --filter @repo/db prisma:seed` — seeds AI providers (GigaChat, Yandex, etc.).
-5. `pnpm dev` — start web, yjs, engines, agents.
+1. `docker compose up -d` — brings up Postgres, Qdrant, MinIO, Mailhog.
+2. `pnpm --filter @repo/db prisma:db-push` — apply schema if first run.
+3. `pnpm --filter @repo/db prisma:seed` — seeds AI providers (GigaChat, Yandex, etc.).
+4. `pnpm dev` — start web, yjs, engines, agents.
+5. In the UI, open **Settings → AI агент** and set up an LLM + embedding
+   connection (OpenAI key / GigaChat / Ollama URL) before triggering a chat.
 
 ### Initial backfill
 
@@ -161,10 +165,11 @@ Disable the cron by setting an invalid schedule:
 INDEXER_CRON_EXPRESSION="0 0 31 2 *" pnpm --filter engines dev
 ```
 
-Drop the `pages` collection if needed:
+Drop a Qdrant collection if needed (replace `<name>` with the
+provider/model-derived collection name):
 
 ```bash
-curl -X DELETE http://localhost:6333/collections/pages
+curl -X DELETE http://localhost:6333/collections/<name>
 ```
 
-`apps/agents` will recreate it on next startup.
+`apps/agents` will recreate it on the next vectorization request.

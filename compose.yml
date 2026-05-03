@@ -55,21 +55,6 @@ services:
     volumes:
       - qdrant_data:/qdrant/storage
 
-  ollama:
-    image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
-    environment:
-      OLLAMA_KEEP_ALIVE: 24h
-      OLLAMA_ORIGINS: "*"
-    healthcheck:
-      test: ["CMD-SHELL", "ollama list >/dev/null 2>&1 || exit 1"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    volumes:
-      - ollama_data:/root/.ollama
-
   mailhog:
     image: mailhog/mailhog:latest
     ports:
@@ -85,4 +70,3 @@ volumes:
   postgres_data:
   minio_data:
   qdrant_data:
-  ollama_data:
