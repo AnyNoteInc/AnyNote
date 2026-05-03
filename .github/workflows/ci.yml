@@ -94,6 +94,17 @@ jobs:
       YOOKASSA_MOCK_ENABLED: 'true'
       NEXT_PUBLIC_RECAPTCHA_SITE_KEY: ci-recaptcha-key
       RECAPTCHA_SECRET_KEY: ci-recaptcha-secret
+      # apps/agents (FastAPI/pydantic-settings) — fields validated at import time
+      ENVIRONMENT: test
+      DEBUG: 'false'
+      TITLE: agents
+      BASE_URL: http://localhost:8080
+      SECRET_KEY: ci-secret-not-real-32-chars-padding
+      DB__HOST: localhost
+      DB__PORT: '5432'
+      DB__USER: user
+      DB__PASSWORD: password
+      DB__NAME: anynote
 
     steps:
       - uses: actions/checkout@v4
