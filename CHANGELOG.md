@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/AnyNoteInc/AnyNote/compare/v1.0.1...v1.0.2) (2026-05-03)
+
+
+### Bug Fixes
+
+* **web:** switch production build to webpack so transpilePackages resolves .js→.ts ([e852cce](https://github.com/AnyNoteInc/AnyNote/commit/e852cce417d870c0ce7e23223135fc251c017f79))
+
 ## [1.0.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.0.0...v1.0.1) (2026-05-03)
 
 
