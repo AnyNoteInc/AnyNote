@@ -1,0 +1,67 @@
+# Dynamic Traefik config. Reloaded on change (watch: true in static config).
+# Middlewares are referenced from docker compose labels by name@file.
+
+http:
+  middlewares:
+    # Per-IP request rate limit for HTTP routers.
+    ratelimit:
+      rateLimit:
+        average: 100
+        burst: 200
+        period: 1s
+        sourceCriterion:
+          ipStrategy:
+            depth: 1
+
+    # Lower limit for WebSocket — we throttle the *opens*, not in-flight frames.
+    ratelimit-ws:
+      rateLimit:
+        average: 20
+        burst: 40
+        period: 1s
+        sourceCriterion:
+          ipStrategy:
+            depth: 1
+
+    # Cap concurrent in-flight requests per source IP. Basic anti-DDoS.
+    inflight:
+      inFlightReq:
+        amount: 50
+        sourceCriterion:
+          ipStrategy:
+            depth: 1
+
+    # Security headers applied to all browser-facing responses.
+    headers:
+      headers:
+        stsSeconds: 63072000
+        stsIncludeSubdomains: true
+        stsPreload: true
+        contentTypeNosniff: true
+        frameDeny: true
+        referrerPolicy: strict-origin-when-cross-origin
+        browserXssFilter: true
+
+    compress:
+      compress: {}
+
+    # Strip /ws prefix so the request reaches the yjs container as / .
+    strip-ws:
+      stripPrefix:
+        prefixes:
+          - /ws
+
+    # Canonical URL — redirect www.anynote.ru → anynote.ru.
+    www-redirect:
+      redirectRegex:
+        regex: "^https?://www\\.anynote\\.ru/(.*)"
+        replacement: "https://anynote.ru/${1}"
+        permanent: true
+
+    # Basic-auth for the Traefik dashboard.
+    # usersFile is materialised on the server during the deploy step from
+    # the TRAEFIK_DASHBOARD_USERS_LINE secret (one "user:bcrypthash" line).
+    dashboard-auth:
+      basicAuth:
+        usersFile: /etc/traefik/dynamic/dashboard-users
+        removeHeader: true
