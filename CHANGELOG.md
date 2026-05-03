@@ -1,3 +1,10 @@
+## [1.0.4](https://github.com/AnyNoteInc/AnyNote/compare/v1.0.3...v1.0.4) (2026-05-03)
+
+
+### Bug Fixes
+
+* **deploy:** add diagnostic preamble to migrate command for debugging exit 127 ([596123a](https://github.com/AnyNoteInc/AnyNote/commit/596123a11194f5db61e6538f818cef9e3bcd5ee1))
+
 ## [1.0.3](https://github.com/AnyNoteInc/AnyNote/compare/v1.0.2...v1.0.3) (2026-05-03)
 
 
