@@ -59,6 +59,109 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     environment: production
+    concurrency:
+      group: deploy-prod
+      cancel-in-progress: false
 
     steps:
-      - run: echo 'deploy'
+      - uses: actions/checkout@v5
+
+      - name: Render .env from template
+        env:
+          NEXT_PUBLIC_BASE_URL: ${{ secrets.NEXT_PUBLIC_BASE_URL }}
+          BETTER_AUTH_URL: ${{ secrets.BETTER_AUTH_URL }}
+          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+          BETTER_AUTH_JWT_AUDIENCE: ${{ secrets.BETTER_AUTH_JWT_AUDIENCE }}
+          NEXT_PUBLIC_YJS_URL: ${{ secrets.NEXT_PUBLIC_YJS_URL }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          DB__PASSWORD: ${{ secrets.DB__PASSWORD }}
+          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+          S3_REGION: ${{ secrets.S3_REGION }}
+          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          S3_FORCE_PATH_STYLE: ${{ secrets.S3_FORCE_PATH_STYLE }}
+          QDRANT__HOST: ${{ secrets.QDRANT__HOST }}
+          QDRANT__AUTH__TYPE: ${{ secrets.QDRANT__AUTH__TYPE }}
+          QDRANT__AUTH__BEARER_TOKEN: ${{ secrets.QDRANT__AUTH__BEARER_TOKEN }}
+          QDRANT__COLLECTION_NAME: ${{ secrets.QDRANT__COLLECTION_NAME }}
+          AGENTS_SERVICE_URL: ${{ secrets.AGENTS_SERVICE_URL }}
+          AGENTS_SERVICE_TOKEN: ${{ secrets.AGENTS_SERVICE_TOKEN }}
+          AGENTS_SECRET_KEY: ${{ secrets.AGENTS_SECRET_KEY }}
+          ENGINES_URL: ${{ secrets.ENGINES_URL }}
+          ENGINES_PORT: ${{ secrets.ENGINES_PORT }}
+          ENGINES_MCP_TOKEN: ${{ secrets.ENGINES_MCP_TOKEN }}
+          SMTP_HOST: ${{ secrets.SMTP_HOST }}
+          SMTP_PORT: ${{ secrets.SMTP_PORT }}
+          SMTP_SECURE: ${{ secrets.SMTP_SECURE }}
+          SMTP_USER: ${{ secrets.SMTP_USER }}
+          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+          MAIL_FROM: ${{ secrets.MAIL_FROM }}
+          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+          NEXT_PUBLIC_RECAPTCHA_SITE_KEY: ${{ secrets.NEXT_PUBLIC_RECAPTCHA_SITE_KEY }}
+          RECAPTCHA_SECRET_KEY: ${{ secrets.RECAPTCHA_SECRET_KEY }}
+          YOOKASSA_SHOP_ID: ${{ secrets.YOOKASSA_SHOP_ID }}
+          YOOKASSA_SECRET_KEY: ${{ secrets.YOOKASSA_SECRET_KEY }}
+          ACME_EMAIL: ${{ secrets.ACME_EMAIL }}
+          TRAEFIK_DASHBOARD_USERS_LINE: ${{ secrets.TRAEFIK_DASHBOARD_USERS_LINE }}
+        run: |
+          envsubst < deploy/.env.template > /tmp/.env
+          chmod 600 /tmp/.env
+          # Materialise the dashboard-users file for traefik basicAuth.usersFile.
+          # Bcrypt $-chars in the secret are unsafe in compose .env (compose
+          # would interpolate them), so we write this one outside .env.
+          printf '%s\n' "$TRAEFIK_DASHBOARD_USERS_LINE" > /tmp/dashboard-users
+          chmod 600 /tmp/dashboard-users
+          # Sanity-check no unsubstituted placeholders survived.
+          if grep -E '\$\{[A-Z_]+\}' /tmp/.env >/dev/null; then
+            echo "ERROR: .env still contains unsubstituted vars:"
+            grep -nE '\$\{[A-Z_]+\}' /tmp/.env
+            exit 1
+          fi
+
+      - name: Setup SSH
+        uses: webfactory/ssh-agent@v0.9.1
+        with:
+          ssh-private-key: ${{ secrets.DEPLOY_KEY_PRIVATE }}
+
+      - name: Trust deploy host
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -p ${{ secrets.DEPLOY_PORT }} ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Sync deploy artifacts to server
+        run: |
+          ssh -p ${{ secrets.DEPLOY_PORT }} \
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+            "mkdir -p /opt/anynote/traefik/dynamic /opt/anynote/postgres-init"
+          rsync -avz --delete \
+            -e "ssh -p ${{ secrets.DEPLOY_PORT }}" \
+            deploy/compose.yml \
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/anynote/compose.yml
+          rsync -avz --delete \
+            -e "ssh -p ${{ secrets.DEPLOY_PORT }}" \
+            deploy/traefik/ \
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/anynote/traefik/
+          rsync -avz --delete \
+            -e "ssh -p ${{ secrets.DEPLOY_PORT }}" \
+            deploy/postgres-init/ \
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/anynote/postgres-init/
+          scp -P ${{ secrets.DEPLOY_PORT }} /tmp/.env \
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/anynote/.env
+          scp -P ${{ secrets.DEPLOY_PORT }} /tmp/dashboard-users \
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/anynote/traefik/dynamic/dashboard-users
+
+      - name: Pull images and bring stack up
+        env:
+          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHCR_USER: ${{ github.actor }}
+        run: |
+          ssh -p ${{ secrets.DEPLOY_PORT }} \
+            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+            "set -e; cd /opt/anynote && \
+             echo '$GHCR_TOKEN' | docker login ghcr.io -u $GHCR_USER --password-stdin && \
+             docker compose --project-name anynote pull && \
+             docker compose --project-name anynote up -d --remove-orphans && \
+             docker logout ghcr.io"
