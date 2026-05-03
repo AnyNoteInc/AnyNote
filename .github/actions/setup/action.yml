@@ -20,6 +20,10 @@ runs:
 
     - name: Setup uv
       uses: astral-sh/setup-uv@v6
+      env:
+        # setup-uv@v6 still ships on Node 20; force the runner to run it
+        # under Node 24 to silence the deprecation warning.
+        FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
       with:
         version: '0.5.x'
 
