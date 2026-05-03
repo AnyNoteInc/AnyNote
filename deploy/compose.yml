@@ -82,10 +82,11 @@ services:
       postgres:
         condition: service_healthy
     working_dir: /app/packages/db
+    # `prisma db seed` spawns `tsx ./prisma/seed.ts` — needs tsx in PATH.
     command:
       - sh
       - -c
-      - "../../node_modules/.bin/prisma migrate deploy && ../../node_modules/.bin/prisma db seed"
+      - "export PATH=/app/node_modules/.bin:$$PATH && prisma migrate deploy && prisma db seed"
 
   web:
     image: ghcr.io/anynoteinc/anynote-web:latest

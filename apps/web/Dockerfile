@@ -54,5 +54,15 @@ COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
 COPY --from=builder --chown=nextjs:nodejs /app/apps/web/public ./apps/web/public
 
+# For the one-shot `migrate` compose service in deploy/compose.yml: the
+# image needs the full pnpm node_modules tree (Prisma CLI + tsx + dotenv +
+# @prisma/* + transitive deps) and the packages/db source (schema +
+# migrations + seed). Overwrites the trimmed standalone node_modules with
+# the builder's full tree. Image grows by ~700 MB, but makes the same
+# image runnable as both the web server and the migration runner without
+# a second build pipeline.
+COPY --from=builder --chown=nextjs:nodejs /app/node_modules ./node_modules
+COPY --from=builder --chown=nextjs:nodejs /app/packages/db ./packages/db
+
 EXPOSE 3000
 CMD node apps/web/server.js
