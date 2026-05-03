@@ -22,7 +22,7 @@ ENV PYTHONUNBUFFERED=1 \
     UV_SYSTEM_PYTHON=1 \
     UV_NO_CACHE=1
 
-RUN pip install --no-cache-dir uv==0.5.*
+RUN pip install --no-cache-dir uv
 
 WORKDIR /app
 
