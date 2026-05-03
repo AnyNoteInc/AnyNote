@@ -32,8 +32,15 @@ runs:
       shell: bash
 
     - name: Generate Prisma client
+      # Prisma 7 prisma.config.ts evaluates env('DATABASE_URL') at config
+      # load time even for `generate` (which doesn't connect). Provide a
+      # placeholder so jobs without a real DATABASE_URL (e.g. release) can
+      # still run setup. lint-and-test sets a real DATABASE_URL at job
+      # scope, which overrides this in the test steps that follow.
       run: pnpm --filter @repo/db prisma:generate
       shell: bash
+      env:
+        DATABASE_URL: postgresql://dummy:dummy@localhost:5432/dummy
 
     - name: Install Python dependencies
       run: uv sync --frozen
