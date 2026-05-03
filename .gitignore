@@ -56,3 +56,6 @@ __pycache__/
 .mypy_cache/
 .venv/
 *.egg-info/
+
+# Production .env rendered locally for smoke tests — never commit
+deploy/.env
