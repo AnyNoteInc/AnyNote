@@ -38,8 +38,10 @@ jobs:
       # Bitnami runs `minio server` by default and auto-creates buckets from
       # MINIO_DEFAULT_BUCKETS. The official minio/minio image needs
       # `server /data` as a command, which GHA services don't allow overriding.
+      # Bitnami moved free images to `bitnamilegacy/` in Aug 2025; `bitnami/minio`
+      # no longer publishes new tags.
       minio:
-        image: bitnami/minio:latest
+        image: bitnamilegacy/minio:latest
         env:
           MINIO_ROOT_USER: admin
           MINIO_ROOT_PASSWORD: password
