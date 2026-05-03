@@ -1,3 +1,11 @@
+## [1.0.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.0.0...v1.0.1) (2026-05-03)
+
+
+### Bug Fixes
+
+* **ci:** add workflow_dispatch to deploy.yml ([9192141](https://github.com/AnyNoteInc/AnyNote/commit/91921411709a9111acafdc93e80109db5c9d7b12))
+* **web:** teach webpack to resolve .js → .ts in transpilePackages ([b4063bc](https://github.com/AnyNoteInc/AnyNote/commit/b4063bcce71b664a2be51c262d7c76c3ce71f411))
+
 # 1.0.0 (2026-05-03)
 
 
