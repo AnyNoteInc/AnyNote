@@ -107,6 +107,9 @@ jobs:
       - name: Seed Prisma data
         run: pnpm --filter @repo/db exec prisma db seed
 
+      - name: Install agents NLP models
+        run: pnpm --filter agents run install:nlp-models
+
       - name: Type check
         run: pnpm check-types
 
