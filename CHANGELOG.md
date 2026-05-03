@@ -1,3 +1,10 @@
+## [1.0.3](https://github.com/AnyNoteInc/AnyNote/compare/v1.0.2...v1.0.3) (2026-05-03)
+
+
+### Bug Fixes
+
+* **packages:** add 'default' fallback condition + reorder exports for webpack ([7b3d452](https://github.com/AnyNoteInc/AnyNote/commit/7b3d4521ecf876311df6770399a78c7c892ca03d))
+
 ## [1.0.2](https://github.com/AnyNoteInc/AnyNote/compare/v1.0.1...v1.0.2) (2026-05-03)
 
 
