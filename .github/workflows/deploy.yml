@@ -122,46 +122,56 @@ jobs:
           fi
 
       - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.9.1
+        # Pinned to commit SHA (was webfactory/ssh-agent@v0.9.1) for supply-chain
+        # safety — third-party action versions can be re-tagged silently.
+        uses: webfactory/ssh-agent@a6f90b1f127823b31d4d4a8d96047790581349bd
         with:
           ssh-private-key: ${{ secrets.DEPLOY_KEY_PRIVATE }}
 
       - name: Trust deploy host
+        env:
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
           mkdir -p ~/.ssh
-          ssh-keyscan -p ${{ secrets.DEPLOY_PORT }} ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+          ssh-keyscan -p "$DEPLOY_PORT" "$DEPLOY_HOST" >> ~/.ssh/known_hosts
 
       - name: Sync deploy artifacts to server
+        env:
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
-          ssh -p ${{ secrets.DEPLOY_PORT }} \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+          ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
             "mkdir -p /opt/anynote/traefik/dynamic /opt/anynote/postgres-init"
           rsync -avz --delete \
-            -e "ssh -p ${{ secrets.DEPLOY_PORT }}" \
+            -e "ssh -p $DEPLOY_PORT" \
             deploy/compose.yml \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/anynote/compose.yml
+            "$DEPLOY_USER@$DEPLOY_HOST:/opt/anynote/compose.yml"
           rsync -avz --delete \
-            -e "ssh -p ${{ secrets.DEPLOY_PORT }}" \
+            -e "ssh -p $DEPLOY_PORT" \
             deploy/traefik/ \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/anynote/traefik/
+            "$DEPLOY_USER@$DEPLOY_HOST:/opt/anynote/traefik/"
           rsync -avz --delete \
-            -e "ssh -p ${{ secrets.DEPLOY_PORT }}" \
+            -e "ssh -p $DEPLOY_PORT" \
             deploy/postgres-init/ \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/anynote/postgres-init/
-          scp -P ${{ secrets.DEPLOY_PORT }} /tmp/.env \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/anynote/.env
-          scp -P ${{ secrets.DEPLOY_PORT }} /tmp/dashboard-users \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/anynote/traefik/dynamic/dashboard-users
+            "$DEPLOY_USER@$DEPLOY_HOST:/opt/anynote/postgres-init/"
+          scp -P "$DEPLOY_PORT" /tmp/.env \
+            "$DEPLOY_USER@$DEPLOY_HOST:/opt/anynote/.env"
+          scp -P "$DEPLOY_PORT" /tmp/dashboard-users \
+            "$DEPLOY_USER@$DEPLOY_HOST:/opt/anynote/traefik/dynamic/dashboard-users"
 
       - name: Pull images and bring stack up
         env:
+          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_USER: ${{ github.actor }}
         run: |
-          ssh -p ${{ secrets.DEPLOY_PORT }} \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+          ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
             "set -e; cd /opt/anynote && \
-             echo '$GHCR_TOKEN' | docker login ghcr.io -u $GHCR_USER --password-stdin && \
+             echo '$GHCR_TOKEN' | docker login ghcr.io -u '$GHCR_USER' --password-stdin && \
              docker compose --project-name anynote pull && \
              docker compose --project-name anynote up -d --remove-orphans && \
              docker logout ghcr.io"
