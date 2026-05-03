@@ -17,10 +17,13 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['emoji-picker-react'],
   },
-  // Workspace packages exported from src/ (e.g. @repo/mail, @repo/storage)
-  // use TypeScript's NodeNext convention: `import './foo.js'` where the
-  // actual file is `./foo.ts`. Webpack doesn't rewrite `.js`→`.ts` for
-  // transpilePackages by default; this teaches it to.
+  // Production build runs with `next build --webpack` (see package.json).
+  // Workspace packages exported from src/ (e.g. @repo/mail, @repo/storage,
+  // @repo/db, @repo/yookassa) use TypeScript's NodeNext convention:
+  // `import './foo.js'` where the actual file is `./foo.ts`. Webpack doesn't
+  // rewrite `.js`→`.ts` for transpilePackages by default; this teaches it to.
+  // Dev still runs on Turbopack (`next dev --turbo`), which has its own
+  // resolver that handles this case natively.
   webpack: (config) => {
     config.resolve.extensionAlias = {
       '.js': ['.ts', '.tsx', '.js'],
