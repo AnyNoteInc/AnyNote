@@ -1,0 +1,41 @@
+name: Setup
+description: Install pnpm, Node, Python, uv, dependencies, and generate Prisma client
+
+runs:
+  using: composite
+  steps:
+    - name: Setup pnpm
+      uses: pnpm/action-setup@v5
+
+    - name: Setup Node
+      uses: actions/setup-node@v5
+      with:
+        node-version: '24'
+        cache: 'pnpm'
+
+    - name: Setup Python
+      uses: actions/setup-python@v6
+      with:
+        python-version: '3.13'
+
+    - name: Setup uv
+      uses: astral-sh/setup-uv@v6
+      env:
+        # setup-uv@v6 still ships on Node 20; force the runner to run it
+        # under Node 24 to silence the deprecation warning.
+        FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: 'true'
+      with:
+        version: '0.5.x'
+
+    - name: Install Node dependencies
+      run: pnpm install --frozen-lockfile
+      shell: bash
+
+    - name: Generate Prisma client
+      run: pnpm --filter @repo/db prisma:generate
+      shell: bash
+
+    - name: Install Python dependencies
+      run: uv sync --frozen
+      shell: bash
+      working-directory: apps/agents

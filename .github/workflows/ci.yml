@@ -1,0 +1,120 @@
+name: CI
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ci-${{ github.head_ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint-and-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: anynote
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U user -d anynote"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+      qdrant:
+        image: qdrant/qdrant:v1.12.4
+        ports: ['6333:6333']
+
+      mailhog:
+        image: mailhog/mailhog:v1.0.1
+        ports: ['1025:1025', '8025:8025']
+
+      # Bitnami runs `minio server` by default and auto-creates buckets from
+      # MINIO_DEFAULT_BUCKETS. The official minio/minio image needs
+      # `server /data` as a command, which GHA services don't allow overriding.
+      # Bitnami moved free images to `bitnamilegacy/` in Aug 2025; `bitnami/minio`
+      # no longer publishes new tags.
+      minio:
+        image: bitnamilegacy/minio:latest
+        env:
+          MINIO_ROOT_USER: admin
+          MINIO_ROOT_PASSWORD: password
+          MINIO_DEFAULT_BUCKETS: storage
+        ports: ['9000:9000']
+        options: >-
+          --health-cmd "curl -fsS http://localhost:9000/minio/health/live || exit 1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 24
+
+    env:
+      DATABASE_URL: postgresql://user:password@localhost:5432/anynote
+      NEXT_PUBLIC_BASE_URL: http://localhost:3000
+      BETTER_AUTH_URL: http://localhost:3000
+      BETTER_AUTH_SECRET: ci-secret-not-real-32-chars-padding
+      BETTER_AUTH_JWT_AUDIENCE: anynote-yjs
+      NEXT_PUBLIC_YJS_URL: ws://localhost:1234
+      YJS_PORT: '1234'
+      S3_ENDPOINT: http://localhost:9000
+      S3_REGION: us-east-1
+      S3_ACCESS_KEY: admin
+      S3_SECRET_KEY: password
+      S3_BUCKET: storage
+      S3_FORCE_PATH_STYLE: 'true'
+      QDRANT__HOST: http://localhost:6333
+      QDRANT__AUTH__TYPE: bearer_token
+      QDRANT__AUTH__BEARER_TOKEN: dev-qdrant-key
+      AGENTS_SERVICE_URL: http://localhost:8080
+      AGENTS_SERVICE_TOKEN: ci-agents-token
+      AGENTS_LOG_LEVEL: INFO
+      ENGINES_PORT: '8082'
+      ENGINES_SERVICE_URL: http://localhost:8082
+      ENGINES_MCP_TOKEN: ci-engines-token
+      ENGINES_MCP_URL: http://localhost:8082/mcp
+      ANYNOTE_MCP_URL: http://localhost:8082/mcp
+      INDEXER_CRON_EXPRESSION: '0 */5 * * * *'
+      INDEXER_MAX_ATTEMPTS: '5'
+      INDEXER_BATCH: '10'
+      UPLOAD_INLINE_MAX_BYTES: '1048576'
+      SMTP_HOST: localhost
+      SMTP_PORT: '1025'
+      SMTP_SECURE: 'false'
+      MAIL_FROM: ci@example.com
+      MAIL_DISPATCH_CRON_EXPRESSION: '*/30 * * * * *'
+      MAIL_DISPATCH_BATCH: '10'
+      MAIL_DISPATCH_MAX_ATTEMPTS: '5'
+      BILLING_RENEWAL_CRON_EXPRESSION: '0 0 * * *'
+      BILLING_RENEWAL_BATCH_SIZE: '50'
+      YOOKASSA_MOCK_ENABLED: 'true'
+      NEXT_PUBLIC_RECAPTCHA_SITE_KEY: ci-recaptcha-key
+      RECAPTCHA_SECRET_KEY: ci-recaptcha-secret
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Setup toolchain
+        uses: ./.github/actions/setup
+
+      - name: Apply Prisma schema
+        run: pnpm --filter @repo/db exec prisma migrate deploy
+
+      - name: Seed Prisma data
+        run: pnpm --filter @repo/db exec prisma db seed
+
+      - name: Install agents NLP models
+        run: pnpm --filter agents run install:nlp-models
+
+      - name: Type check
+        run: pnpm check-types
+
+      - name: Lint
+        run: pnpm lint
+
+      - name: Test
+        run: pnpm test
