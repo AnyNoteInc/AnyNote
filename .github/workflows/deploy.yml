@@ -25,7 +25,7 @@ jobs:
         service: [web, yjs, agents, engines]
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: docker/setup-buildx-action@v3
 
