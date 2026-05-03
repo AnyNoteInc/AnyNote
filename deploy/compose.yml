@@ -83,10 +83,23 @@ services:
         condition: service_healthy
     working_dir: /app/packages/db
     # `prisma db seed` spawns `tsx ./prisma/seed.ts` — needs tsx in PATH.
+    # Diagnostic preamble prints what's actually present in the image; if
+    # this script ever fails again, the migrate container logs will tell us
+    # exactly what's missing instead of an opaque exit 127.
     command:
       - sh
       - -c
-      - "export PATH=/app/node_modules/.bin:$$PATH && prisma migrate deploy && prisma db seed"
+      - |
+        set -e
+        echo "[migrate] PWD=$$(pwd)"
+        echo "[migrate] /app contents:"; ls /app | head -20
+        echo "[migrate] /app/node_modules/.bin/prisma:"; ls -la /app/node_modules/.bin/prisma 2>&1 | head -3
+        echo "[migrate] /app/packages/db:"; ls /app/packages/db 2>&1 | head -10
+        export PATH=/app/node_modules/.bin:$$PATH
+        echo "[migrate] PATH=$$PATH"
+        which prisma || echo "[migrate] prisma NOT in PATH"
+        prisma migrate deploy
+        prisma db seed
 
   web:
     image: ghcr.io/anynoteinc/anynote-web:latest
