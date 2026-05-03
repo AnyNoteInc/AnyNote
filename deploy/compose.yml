@@ -1,0 +1,151 @@
+services:
+  traefik:
+    image: traefik:v3.5
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
+      - ./traefik/dynamic:/etc/traefik/dynamic:ro
+      - traefik_acme:/letsencrypt
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    environment:
+      # Static traefik.yml does not interpolate env vars; we set ACME email
+      # via Traefik's documented env-var override path instead.
+      TRAEFIK_CERTIFICATESRESOLVERS_LE_ACME_EMAIL: ${ACME_EMAIL}
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.dashboard.rule=Host(`traefik.anynote.ru`)
+      - traefik.http.routers.dashboard.entryPoints=websecure
+      - traefik.http.routers.dashboard.tls.certResolver=le
+      - traefik.http.routers.dashboard.service=api@internal
+      - traefik.http.routers.dashboard.middlewares=dashboard-auth@file,ratelimit@file,headers@file
+
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: anynote
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_DB: anynote
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./postgres-init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U anynote -d anynote"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  minio:
+    image: minio/minio:latest
+    restart: unless-stopped
+    environment:
+      MINIO_ROOT_USER: ${S3_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${S3_SECRET_KEY}
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio-init:
+    image: minio/mc
+    depends_on:
+      minio:
+        condition: service_healthy
+    entrypoint: >
+      /bin/sh -c "
+      mc alias set local http://minio:9000 ${S3_ACCESS_KEY} ${S3_SECRET_KEY} &&
+      mc mb --ignore-existing local/${S3_BUCKET}
+      "
+    restart: "no"
+
+  qdrant:
+    image: qdrant/qdrant:v1.12.4
+    restart: unless-stopped
+    environment:
+      QDRANT__SERVICE__API_KEY: ${QDRANT__AUTH__BEARER_TOKEN}
+      QDRANT__TELEMETRY_DISABLED: "true"
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+  migrate:
+    image: ghcr.io/anynoteinc/anynote-web:latest
+    restart: "no"
+    env_file: .env
+    depends_on:
+      postgres:
+        condition: service_healthy
+    working_dir: /app/packages/db
+    # `prisma db seed` spawns `tsx ./prisma/seed.ts` — needs tsx in PATH.
+    command:
+      - sh
+      - -c
+      - "export PATH=/app/node_modules/.bin:$$PATH && prisma migrate deploy && prisma db seed"
+
+  web:
+    image: ghcr.io/anynoteinc/anynote-web:latest
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      engines:
+        condition: service_started
+      agents:
+        condition: service_started
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.web.rule=Host(`anynote.ru`) || Host(`www.anynote.ru`)
+      - traefik.http.routers.web.entryPoints=websecure
+      - traefik.http.routers.web.tls.certResolver=le
+      - traefik.http.routers.web.middlewares=www-redirect@file,ratelimit@file,inflight@file,headers@file,compress@file
+      - traefik.http.services.web.loadBalancer.server.port=3000
+
+  yjs:
+    image: ghcr.io/anynoteinc/anynote-yjs:latest
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    labels:
+      - traefik.enable=true
+      - traefik.http.routers.yjs.rule=(Host(`anynote.ru`) || Host(`www.anynote.ru`)) && PathPrefix(`/ws`)
+      - traefik.http.routers.yjs.entryPoints=websecure
+      - traefik.http.routers.yjs.tls.certResolver=le
+      - traefik.http.routers.yjs.middlewares=strip-ws@file,ratelimit-ws@file,inflight@file
+      - traefik.http.services.yjs.loadBalancer.server.port=1234
+
+  engines:
+    image: ghcr.io/anynoteinc/anynote-engines:latest
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      qdrant:
+        condition: service_started
+      minio:
+        condition: service_healthy
+
+  agents:
+    image: ghcr.io/anynoteinc/anynote-agents:latest
+    restart: unless-stopped
+    env_file: .env
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      qdrant:
+        condition: service_started
+
+volumes:
+  postgres_data:
+  minio_data:
+  qdrant_data:
+  traefik_acme:

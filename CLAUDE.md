@@ -46,7 +46,7 @@ pnpm exec playwright test                 # browser E2E (config at repo root)
 pnpm exec playwright test apps/e2e/auth.spec.ts
 ```
 
-Local infra (postgres, minio, qdrant, ollama, **mailhog**) — must be up before `pnpm dev`:
+Local infra (postgres, minio, qdrant, **mailhog**) — must be up before `pnpm dev`:
 
 ```bash
 docker compose up -d
@@ -139,7 +139,7 @@ Indexing is decoupled via an outbox:
 
 1. Page mutations in `apps/web` write rows to `outbox_events` (in the main Postgres).
 2. `apps/engines` runs a cron (default `INDEXER_CRON_EXPRESSION="0 */5 * * * *"`) that drains the outbox and POSTs to `apps/agents /vectorization`.
-3. `apps/agents` normalises + embeds via Ollama and writes points to the `pages` Qdrant collection.
+3. `apps/agents` normalises + embeds via the workspace's configured embedding provider (OpenAI, GigaChat, or a self-hosted Ollama URL — connection details come from the request payload, no provider runs in the dev compose) and writes points to a per-workspace Qdrant collection.
 4. `apps/agents` discovers MCP tools at request-start when the request payload includes `mcp.servers[*].url` — `apps/web` injects this from `ENGINES_MCP_URL`.
 
 After schema or normalizer changes, re-enqueue with `pnpm --filter engines backfill:reindex`.
@@ -212,7 +212,7 @@ E2E note: `apps/e2e/helpers/auth.ts` exports `signUpAndAuthAs`, which clears coo
 
 ### Docker compose services
 
-`compose.yml` runs Postgres (5432), MinIO (9000/9001), Qdrant (6333/6334), Ollama (11434), and Mailhog (1025 SMTP / 8025 UI). All have health checks. Run `docker compose up -d` before `pnpm dev`. Mailhog has no persistence — restarting the container drops every message.
+`compose.yml` runs Postgres (5432), MinIO (9000/9001), Qdrant (6333/6334), and Mailhog (1025 SMTP / 8025 UI). All have health checks. Run `docker compose up -d` before `pnpm dev`. Mailhog has no persistence — restarting the container drops every message. No LLM provider runs in compose; configure embedding/LLM connections per-workspace in **Settings → AI агент**.
 
 ### Playwright
 
