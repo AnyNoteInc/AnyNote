@@ -26,19 +26,18 @@ ENV DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy
 RUN pnpm --filter @repo/db prisma:generate
 
 # Build workspace packages whose package.json exports point to src/*.ts
-# (@repo/db, @repo/mail, @repo/yookassa) plus @repo/storage which still
-# ships a dist/ export. This must happen before the NestJS build so Node
-# can resolve the workspace symlinks at runtime.
+# (@repo/db, @repo/mail, @repo/storage, @repo/yookassa). This must happen
+# before the NestJS build so Node can resolve the workspace symlinks at
+# runtime.
 RUN pnpm --filter @repo/db --filter @repo/mail --filter @repo/storage --filter @repo/yookassa build
 
-# Patch package.json exports for packages that still reference src/*.ts so that
+# Patch package.json exports for packages that reference src/*.ts so that
 # the runner (plain node, no TypeScript loader) resolves to compiled dist/*.js.
-# @repo/db, @repo/mail, @repo/yookassa expose raw TS; @repo/storage already
-# uses dist/. The `types` condition maps src/*.ts -> dist/*.d.ts; other
-# conditions use dist/*.js.
+# The `types` condition maps src/*.ts -> dist/*.d.ts; other conditions use
+# dist/*.js.
 RUN <<'EOF' node
 const fs = require('fs');
-for (const pkg of ['packages/db', 'packages/mail', 'packages/yookassa']) {
+for (const pkg of ['packages/db', 'packages/mail', 'packages/storage', 'packages/yookassa']) {
   const p = pkg + '/package.json';
   const d = JSON.parse(fs.readFileSync(p, 'utf8'));
   const fixJs = s => typeof s === 'string' ? s.replace(/^\.\/src\/(.+)\.ts$/, './dist/$1.js') : s;

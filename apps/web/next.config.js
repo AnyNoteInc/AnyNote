@@ -7,6 +7,7 @@ const nextConfig = {
     '@repo/trpc',
     '@repo/auth',
     '@repo/db',
+    '@repo/mail',
     '@repo/storage',
     '@repo/editor',
     '@repo/excalidraw',

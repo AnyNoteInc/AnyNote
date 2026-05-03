@@ -8,7 +8,6 @@ from fast_clean.settings import (
 from pydantic import Field
 
 
-
 class SettingsSchema(CoreSettingsSchema):
     cors_origins: Annotated[list[str], Field(default_factory=list)]
     db: CoreDbSettingsSchema
