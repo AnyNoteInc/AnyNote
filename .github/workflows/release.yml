@@ -35,9 +35,24 @@ jobs:
         image: mailhog/mailhog:v1.0.1
         ports: ['1025:1025', '8025:8025']
 
+      # Bitnami runs `minio server` by default and auto-creates buckets from
+      # MINIO_DEFAULT_BUCKETS. The official minio/minio image needs
+      # `server /data` as a command, which GHA services don't allow overriding.
+      minio:
+        image: bitnami/minio:latest
+        env:
+          MINIO_ROOT_USER: admin
+          MINIO_ROOT_PASSWORD: password
+          MINIO_DEFAULT_BUCKETS: storage
+        ports: ['9000:9000']
+        options: >-
+          --health-cmd "curl -fsS http://localhost:9000/minio/health/live || exit 1"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 24
+
     env:
       DATABASE_URL: postgresql://user:password@localhost:5432/anynote
-      AGENTS_DATABASE_URL: postgresql://user:password@localhost:5432/agents
       NEXT_PUBLIC_BASE_URL: http://localhost:3000
       BETTER_AUTH_URL: http://localhost:3000
       BETTER_AUTH_SECRET: ci-secret-not-real-32-chars-padding
@@ -53,7 +68,6 @@ jobs:
       QDRANT__HOST: http://localhost:6333
       QDRANT__AUTH__TYPE: bearer_token
       QDRANT__AUTH__BEARER_TOKEN: dev-qdrant-key
-      OLLAMA__HOST: http://localhost:11434
       AGENTS_SERVICE_URL: http://localhost:8080
       AGENTS_SERVICE_TOKEN: ci-agents-token
       AGENTS_LOG_LEVEL: INFO
@@ -84,37 +98,6 @@ jobs:
 
       - name: Setup toolchain
         uses: ./.github/actions/setup
-
-      - name: Start MinIO
-        run: |
-          docker run -d --name minio-ci \
-            -p 9000:9000 \
-            -e MINIO_ROOT_USER=admin \
-            -e MINIO_ROOT_PASSWORD=password \
-            minio/minio server /data
-          for _ in $(seq 1 10); do
-            if curl -fsS http://localhost:9000/minio/health/live; then
-              echo "minio ready"
-              exit 0
-            fi
-            sleep 2
-          done
-          echo "minio failed to become healthy" >&2
-          exit 1
-
-      - name: Create MinIO bucket
-        run: |
-          docker run --rm --network host \
-            -e MC_HOST_local=http://admin:password@localhost:9000 \
-            minio/mc mb --ignore-existing local/storage
-
-      - name: Initialize agents database
-        run: |
-          PGPASSWORD=password psql -h localhost -U user -d anynote -v ON_ERROR_STOP=1 <<'SQL'
-          SELECT 'CREATE DATABASE agents'
-            WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'agents')\gexec
-          GRANT ALL PRIVILEGES ON DATABASE agents TO "user";
-          SQL
 
       - name: Apply Prisma schema
         run: pnpm --filter @repo/db exec prisma migrate deploy
