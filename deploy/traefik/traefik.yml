@@ -1,0 +1,41 @@
+# Traefik static configuration. Loaded once at startup.
+# Dynamic config (middlewares, basic-auth users) lives in dynamic/ and is
+# hot-reloaded by Traefik on file change.
+#
+# ACME email is provided via the TRAEFIK_CERTIFICATESRESOLVERS_LE_ACME_EMAIL
+# env var (set on the traefik service in compose.yml) — Traefik static YAML
+# does not expand ${VAR} placeholders.
+
+api:
+  dashboard: true
+
+entryPoints:
+  web:
+    address: ":80"
+    http:
+      redirections:
+        entryPoint:
+          to: websecure
+          scheme: https
+          permanent: true
+  websecure:
+    address: ":443"
+
+providers:
+  docker:
+    exposedByDefault: false
+    network: anynote_default
+  file:
+    directory: /etc/traefik/dynamic
+    watch: true
+
+certificatesResolvers:
+  le:
+    acme:
+      storage: /letsencrypt/acme.json
+      httpChallenge:
+        entryPoint: web
+
+log:
+  level: INFO
+accessLog: {}
