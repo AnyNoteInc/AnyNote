@@ -1,3 +1,10 @@
+## [1.0.6](https://github.com/AnyNoteInc/AnyNote/compare/v1.0.5...v1.0.6) (2026-05-04)
+
+
+### Bug Fixes
+
+* **deploy:** point migrate PATH to packages/db/node_modules/.bin ([6a40651](https://github.com/AnyNoteInc/AnyNote/commit/6a40651d98c1e5fd4a1c02ab6db69aa1bea20012))
+
 ## [1.0.5](https://github.com/AnyNoteInc/AnyNote/compare/v1.0.4...v1.0.5) (2026-05-03)
 
 
