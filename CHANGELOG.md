@@ -1,3 +1,10 @@
+## [1.0.7](https://github.com/AnyNoteInc/AnyNote/compare/v1.0.6...v1.0.7) (2026-05-04)
+
+
+### Bug Fixes
+
+* **deploy:** force traefik docker client API version to 1.45 ([f45f15a](https://github.com/AnyNoteInc/AnyNote/commit/f45f15aed75548838e94078bdbad2602e633b4a7))
+
 ## [1.0.6](https://github.com/AnyNoteInc/AnyNote/compare/v1.0.5...v1.0.6) (2026-05-04)
 
 
