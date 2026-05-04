@@ -16,7 +16,7 @@ import {
 import { Box, CircularProgress } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
-import { yjsUrl, fetchYjsToken } from '@/lib/yjs-config'
+import { resolveYjsUrl, fetchYjsToken } from '@/lib/yjs-config'
 import { createUploadHandler } from '@/lib/upload-handler'
 import {
   PAGE_TREE_ROOT,
@@ -182,7 +182,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
         editor,
         sourcePos: movePos,
         targetPageId: moveTarget,
-        yjsUrl,
+        yjsUrl: resolveYjsUrl(),
         token,
       })
       if (result.ok) {
@@ -204,7 +204,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
       <Board
         pageId={page.id}
         initialContentYjs={page.contentYjs}
-        yjsUrl={yjsUrl}
+        yjsUrl={resolveYjsUrl()}
         yjsToken={fetchYjsToken}
         uploadHandler={uploadHandler}
         user={user}
@@ -213,7 +213,9 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
   }
 
   if (page.type === 'GENOGRAM') {
-    return <Genogram pageId={page.id} yjsUrl={yjsUrl} yjsToken={fetchYjsToken} user={user} />
+    return (
+      <Genogram pageId={page.id} yjsUrl={resolveYjsUrl()} yjsToken={fetchYjsToken} user={user} />
+    )
   }
 
   if (page.type === 'TEXT') {
@@ -223,7 +225,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
           pageId={page.id}
           workspaceId={workspaceId}
           initialContentYjs={page.contentYjs}
-          yjsUrl={yjsUrl}
+          yjsUrl={resolveYjsUrl()}
           yjsToken={fetchYjsToken}
           user={user}
           uploadHandler={uploadHandler}
