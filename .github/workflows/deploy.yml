@@ -195,6 +195,10 @@ jobs:
              docker compose --project-name anynote ps -a && \
              echo '=== migrate logs ===' && \
              docker compose --project-name anynote logs --tail=50 migrate 2>&1 || true && \
+             echo '=== docker daemon version ===' && \
+             docker version --format 'client api={{.Client.APIVersion}} server api={{.Server.APIVersion}} server min={{.Server.MinAPIVersion}}' || true && \
+             echo '=== traefik env ===' && \
+             docker exec anynote-traefik-1 env 2>&1 | grep -E 'DOCKER|TRAEFIK' || true && \
              echo '=== traefik logs ===' && \
              docker compose --project-name anynote logs --tail=80 traefik 2>&1 || true && \
              echo '=== web logs ===' && \
