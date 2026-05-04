@@ -24,6 +24,12 @@ RUN pnpm install --frozen-lockfile
 # Build the project
 COPY --from=prepare /app/out/full/ .
 
+# `turbo prune` only copies workspace packages, so the root-level docs/
+# directory (referenced via the @docs alias in next.config.js) is missing
+# from out/full. Pull it in separately so `next build` can resolve
+# @docs/terms/*.md imports in apps/web.
+COPY --from=prepare /app/docs/terms ./docs/terms
+
 # Dummy build-time values so Next.js static page collection succeeds.
 # These are NEVER baked into the runtime image — they are only used
 # during `next build` to satisfy module-level env reads.
