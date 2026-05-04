@@ -1,7 +1,27 @@
 services:
+  # Read-only proxy in front of the docker socket so traefik's docker
+  # provider doesn't talk to the daemon directly. The host's daemon
+  # rejects API v1.24 (MinAPIVersion=1.40) and traefik's bundled client
+  # uses v1.24 for the initial negotiation /_ping, which fails before
+  # any DOCKER_API_VERSION override can take effect. dockerproxy speaks
+  # whatever API version the daemon needs and exposes a stable endpoint.
+  dockerproxy:
+    image: tecnativa/docker-socket-proxy:latest
+    restart: unless-stopped
+    environment:
+      CONTAINERS: 1   # traefik needs container labels
+      NETWORKS: 1
+      SERVICES: 1
+      TASKS: 1
+      EVENTS: 1
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+
   traefik:
     image: traefik:v3.5
     restart: unless-stopped
+    depends_on:
+      - dockerproxy
     ports:
       - "80:80"
       - "443:443"
@@ -9,15 +29,13 @@ services:
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./traefik/dynamic:/etc/traefik/dynamic:ro
       - traefik_acme:/letsencrypt
-      - /var/run/docker.sock:/var/run/docker.sock:ro
     environment:
       # Static traefik.yml does not interpolate env vars; we set ACME email
       # via Traefik's documented env-var override path instead.
       TRAEFIK_CERTIFICATESRESOLVERS_LE_ACME_EMAIL: ${ACME_EMAIL}
-      # Force the docker client API version. Traefik's bundled client falls
-      # back to v1.24 by default, which modern Docker daemons reject as too
-      # old (min supported = 1.40). 1.45 = Docker 26.x baseline.
-      DOCKER_API_VERSION: "1.45"
+      # Override the docker provider endpoint to point at the socket proxy
+      # (sidecar service above) instead of the host daemon.
+      TRAEFIK_PROVIDERS_DOCKER_ENDPOINT: tcp://dockerproxy:2375
     labels:
       - traefik.enable=true
       - traefik.http.routers.dashboard.rule=Host(`traefik.anynote.ru`)
