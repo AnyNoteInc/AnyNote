@@ -1,3 +1,10 @@
+## [1.1.3](https://github.com/AnyNoteInc/AnyNote/compare/v1.1.2...v1.1.3) (2026-05-04)
+
+
+### Bug Fixes
+
+* google auth ([522ff06](https://github.com/AnyNoteInc/AnyNote/commit/522ff06fcf9d2e7498331d4c6a8096a733bcba54))
+
 ## [1.1.2](https://github.com/AnyNoteInc/AnyNote/compare/v1.1.1...v1.1.2) (2026-05-04)
 
 
