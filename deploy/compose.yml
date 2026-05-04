@@ -74,10 +74,8 @@ services:
       postgres:
         condition: service_healthy
     working_dir: /app/packages/db
-    # pnpm puts workspace devDeps (prisma, tsx) in the *package's* own
-    # node_modules/.bin, not the root node_modules/.bin. We're already
-    # WORKDIR'd into packages/db, so ./node_modules/.bin is the right path.
-    # `prisma db seed` spawns `tsx ./prisma/seed.ts` — needs tsx in PATH too.
+    # pnpm keeps prisma + tsx in the package's own node_modules/.bin (not the
+    # workspace root). `prisma db seed` spawns tsx, so it needs to be on PATH.
     command:
       - sh
       - -c

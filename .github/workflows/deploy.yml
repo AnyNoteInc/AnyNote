@@ -4,11 +4,6 @@ on:
   push:
     tags: ['v*']
   workflow_dispatch:
-    inputs:
-      ref:
-        description: 'Tag or commit to deploy (e.g. v1.0.0)'
-        required: true
-        type: string
 
 concurrency:
   group: deploy-${{ github.ref }}
@@ -68,6 +63,10 @@ jobs:
     concurrency:
       group: deploy-prod
       cancel-in-progress: false
+    env:
+      DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
+      DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
+      DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
 
     steps:
       - uses: actions/checkout@v5
@@ -135,18 +134,11 @@ jobs:
           ssh-private-key: ${{ secrets.DEPLOY_KEY_PRIVATE }}
 
       - name: Trust deploy host
-        env:
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
         run: |
           mkdir -p ~/.ssh
           ssh-keyscan -p "$DEPLOY_PORT" "$DEPLOY_HOST" >> ~/.ssh/known_hosts
 
       - name: Sync deploy artifacts to server
-        env:
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
         run: |
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
             "mkdir -p /opt/anynote/traefik/dynamic /opt/anynote/postgres-init"
@@ -169,38 +161,26 @@ jobs:
 
       - name: Pull images and bring stack up
         env:
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GHCR_USER: ${{ github.actor }}
+        # /opt/anynote is the compose project dir, so docker compose picks
+        # up project name "anynote" automatically — no --project-name needed.
+        # traefik hot-reloads dynamic/*.yml via watch: true; static config
+        # changes (rare) need a manual restart.
         run: |
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
             "set -e; cd /opt/anynote && \
              echo '$GHCR_TOKEN' | docker login ghcr.io -u '$GHCR_USER' --password-stdin && \
-             docker compose --project-name anynote pull && \
-             docker compose --project-name anynote up -d --remove-orphans && \
-             docker compose --project-name anynote restart traefik && \
+             docker compose pull && \
+             docker compose up -d --remove-orphans && \
              docker logout ghcr.io"
 
-      - name: Show container status (always)
-        if: always()
-        env:
-          DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
-          DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
-          DEPLOY_USER: ${{ secrets.DEPLOY_USER }}
+      - name: Show container status on failure
+        if: failure()
         run: |
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
             "cd /opt/anynote && \
-             echo '=== ps ===' && \
-             docker compose --project-name anynote ps -a && \
-             echo '=== migrate logs ===' && \
-             docker compose --project-name anynote logs --tail=50 migrate 2>&1 || true && \
-             echo '=== docker daemon version ===' && \
-             docker version --format 'client api={{.Client.APIVersion}} server api={{.Server.APIVersion}} server min={{.Server.MinAPIVersion}}' || true && \
-             echo '=== traefik env ===' && \
-             docker exec anynote-traefik-1 env 2>&1 | grep -E 'DOCKER|TRAEFIK' || true && \
-             echo '=== traefik logs ===' && \
-             docker compose --project-name anynote logs --tail=80 traefik 2>&1 || true && \
-             echo '=== web logs ===' && \
-             docker compose --project-name anynote logs --tail=30 web 2>&1 || true"
+             docker compose ps -a && \
+             docker compose logs --tail=50 migrate 2>&1 || true; \
+             docker compose logs --tail=80 traefik 2>&1 || true; \
+             docker compose logs --tail=30 web 2>&1 || true"

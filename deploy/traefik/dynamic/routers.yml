@@ -1,8 +1,6 @@
-# Static router definitions. We use file provider instead of docker labels
-# because Traefik 3.5's docker client uses API v1.24 by default, and modern
-# Docker daemons (MinAPIVersion=1.40) reject that during the initial /_ping.
-# Hard-coded service URLs work because every container is on the default
-# anynote_default network and reachable by its compose service name.
+# Router/service definitions for the file provider. See traefik.yml for why
+# we don't use the docker provider. Service URLs reference compose service
+# names — they're resolvable on the default anynote network.
 
 http:
   routers:
