@@ -16,7 +16,9 @@ const aiSettingsWithEmbeddings = { embeddingsModel }
 function makePrismaMock(opts: { rows: unknown[]; page: unknown; aiSettings?: unknown }) {
   const executeRaw = jest.fn(async () => 1)
   const pageFindUnique = jest.fn(async () => opts.page)
-  const workspaceAiSettingsFindUnique = jest.fn(async () => opts.aiSettings ?? aiSettingsWithEmbeddings)
+  const workspaceAiSettingsFindUnique = jest.fn(
+    async () => opts.aiSettings ?? aiSettingsWithEmbeddings,
+  )
   const queryRaw = jest.fn(async () => opts.rows)
   const tx = { $executeRaw: executeRaw, $queryRaw: queryRaw }
   const transaction = jest.fn(async (fn: (tx: unknown) => Promise<unknown>) => fn(tx))
@@ -88,9 +90,7 @@ describe('VectorizationCronService', () => {
     await svc.tick()
     expect(vectorize).toHaveBeenCalledTimes(1)
     const arg = (
-      vectorize.mock.calls[0] as unknown as [
-        { contents: unknown[]; embedding: unknown },
-      ]
+      vectorize.mock.calls[0] as unknown as [{ contents: unknown[]; embedding: unknown }]
     )[0]
     expect(arg.contents).toHaveLength(1)
     expect(arg.embedding).toEqual({

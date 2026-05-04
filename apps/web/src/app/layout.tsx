@@ -28,7 +28,8 @@ const lora = Lora({
 
 export const metadata: Metadata = {
   title: 'Любые заметки',
-  description: 'Рабочая память команды с ИИ-поиском. Документы, схемы и заметки в одном пространстве.',
+  description:
+    'Рабочая память команды с ИИ-поиском. Документы, схемы и заметки в одном пространстве.',
   icons: {
     icon: [
       { url: '/favicon.svg', type: 'image/svg+xml' },

@@ -1,5 +1,14 @@
+import type { ReactNode } from 'react'
 import Link from 'next/link'
-import { Box, Container, Stack, Typography } from '@repo/ui/components'
+import {
+  Box,
+  Container,
+  EmailIcon,
+  LocalPhoneIcon,
+  Stack,
+  TelegramIcon,
+  Typography,
+} from '@repo/ui/components'
 
 import { publicContact, publicFooterSections } from './content'
 import { Origami } from './home/origami'
@@ -15,7 +24,7 @@ export function PublicFooter() {
           sx={{
             position: 'relative',
             display: 'grid',
-            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: '1.4fr 1fr 1fr 1fr' },
+            gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)', lg: '1.2fr 1fr 1.6fr 1fr' },
             gap: { xs: 4, md: 6 },
             pb: { xs: 4, md: 5 },
             borderBottom: '1px solid rgba(240,238,230,0.12)',
@@ -24,14 +33,29 @@ export function PublicFooter() {
           <Stack spacing={2}>
             <Stack direction="row" alignItems="center" spacing={1.25}>
               <Box sx={{ position: 'relative', width: 28, height: 28 }}>
-                <Origami variant="rhombus" size={28} gradient="warm" style={{ position: 'static' }} />
+                <Origami
+                  variant="rhombus"
+                  size={28}
+                  gradient="warm"
+                  style={{ position: 'static' }}
+                />
               </Box>
-              <Typography sx={{ fontFamily: homeTokens.fonts.serif, fontSize: 22, fontWeight: 500, letterSpacing: '-0.01em' }}>
+              <Typography
+                sx={{
+                  fontFamily: homeTokens.fonts.serif,
+                  fontSize: 22,
+                  fontWeight: 500,
+                  letterSpacing: '-0.01em',
+                }}
+              >
                 Любые заметки
               </Typography>
             </Stack>
-            <Typography sx={{ color: 'rgba(240,238,230,0.6)', fontSize: 14, lineHeight: 1.6, maxWidth: 320 }}>
-              Рабочая память команды с ИИ-поиском. Документы, схемы, заметки и файлы — в одном пространстве.
+            <Typography
+              sx={{ color: 'rgba(240,238,230,0.6)', fontSize: 14, lineHeight: 1.6, maxWidth: 320 }}
+            >
+              Рабочая память команды с ИИ-поиском. Документы, схемы, заметки и файлы — в одном
+              пространстве.
             </Typography>
             <Stack direction="row" spacing={1}>
               <FooterBadge>RU · 2026</FooterBadge>
@@ -41,7 +65,15 @@ export function PublicFooter() {
 
           {publicFooterSections.map((section) => (
             <Stack key={section.title} spacing={2}>
-              <Typography sx={{ fontFamily: homeTokens.fonts.mono, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(240,238,230,0.55)' }}>
+              <Typography
+                sx={{
+                  fontFamily: homeTokens.fonts.mono,
+                  fontSize: 11,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.1em',
+                  color: 'rgba(240,238,230,0.55)',
+                }}
+              >
                 {section.title}
               </Typography>
               <Stack spacing={1.25}>
@@ -59,14 +91,37 @@ export function PublicFooter() {
           ))}
 
           <Stack spacing={2}>
-            <Typography sx={{ fontFamily: homeTokens.fonts.mono, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(240,238,230,0.55)' }}>
+            <Typography
+              sx={{
+                fontFamily: homeTokens.fonts.mono,
+                fontSize: 11,
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+                color: 'rgba(240,238,230,0.55)',
+              }}
+            >
               Связаться
             </Typography>
             <Stack spacing={1.25}>
-              <FooterContact icon="✉" href={`mailto:${publicContact.email}`}>{publicContact.email}</FooterContact>
-              <FooterContact icon="📞" href={`tel:${publicContact.phone.replace(/\s|\(|\)|-/g, '')}`}>{publicContact.phone}</FooterContact>
+              <FooterContact
+                icon={<EmailIcon fontSize="small" />}
+                href={`mailto:${publicContact.email}`}
+              >
+                {publicContact.email}
+              </FooterContact>
+              <FooterContact
+                icon={<LocalPhoneIcon fontSize="small" />}
+                href={`tel:${publicContact.phone.replace(/\s|\(|\)|-/g, '')}`}
+              >
+                {publicContact.phone}
+              </FooterContact>
               {publicContact.telegram ? (
-                <FooterContact icon="✈" href={`https://t.me/${publicContact.telegram.replace(/^@/, '')}`}>{publicContact.telegram}</FooterContact>
+                <FooterContact
+                  icon={<TelegramIcon fontSize="small" />}
+                  href={`https://t.me/${publicContact.telegram.replace(/^@/, '')}`}
+                >
+                  {publicContact.telegram}
+                </FooterContact>
               ) : null}
             </Stack>
           </Stack>
@@ -82,8 +137,8 @@ export function PublicFooter() {
           <span>© {new Date().getFullYear()} «Любые заметки». Все права защищены.</span>
           <Stack direction="row" spacing={2.25}>
             {[
-              { label: 'Политика', href: '/privacy' },
-              { label: 'Оферта', href: '/oferta' },
+              { label: 'Политика', href: '/terms/privacy-policy' },
+              { label: 'Оферта', href: '/terms/public-offer' },
             ].map((l) => (
               <Link key={l.href} href={l.href} style={{ color: 'inherit', textDecoration: 'none' }}>
                 {l.label}
@@ -98,16 +153,39 @@ export function PublicFooter() {
 
 function FooterBadge({ children }: { children: React.ReactNode }) {
   return (
-    <Box component="span" sx={{ fontFamily: homeTokens.fonts.mono, fontSize: 10, px: 1.125, py: 0.5, borderRadius: 999, border: '1px solid rgba(240,238,230,0.18)', color: 'rgba(240,238,230,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+    <Box
+      component="span"
+      sx={{
+        fontFamily: homeTokens.fonts.mono,
+        fontSize: 10,
+        px: 1.125,
+        py: 0.5,
+        borderRadius: 999,
+        border: '1px solid rgba(240,238,230,0.18)',
+        color: 'rgba(240,238,230,0.7)',
+        textTransform: 'uppercase',
+        letterSpacing: '0.08em',
+      }}
+    >
       {children}
     </Box>
   )
 }
 
-function FooterContact({ icon, href, children }: { icon: string; href: string; children: React.ReactNode }) {
+function FooterContact({
+  icon,
+  href,
+  children,
+}: {
+  icon: ReactNode
+  href: string
+  children: ReactNode
+}) {
   return (
     <Stack direction="row" alignItems="center" spacing={1}>
-      <Box component="span" sx={{ fontSize: 14, opacity: 0.7 }}>{icon}</Box>
+      <Box sx={{ display: 'inline-flex', opacity: 0.7, color: homeTokens.palette.paperDeep }}>
+        {icon}
+      </Box>
       <Link
         href={href}
         style={{ color: homeTokens.palette.paperDeep, textDecoration: 'none', fontSize: 14 }}

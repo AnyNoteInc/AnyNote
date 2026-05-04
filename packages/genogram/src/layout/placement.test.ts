@@ -16,18 +16,12 @@ function addPerson(
   input: Parameters<typeof createPerson>[0],
   customId?: PersonId,
 ): PersonId {
-  const p = customId
-    ? createPerson({ ...input, id: customId })
-    : createPerson(input)
+  const p = customId ? createPerson({ ...input, id: customId }) : createPerson(input)
   data.entities.people[p.id] = p
   return p.id
 }
 
-function addUnion(
-  data: GenogramPageData,
-  maleId: PersonId,
-  femaleId: PersonId,
-): UnionId {
+function addUnion(data: GenogramPageData, maleId: PersonId, femaleId: PersonId): UnionId {
   const u = createUnion({ malePartnerId: maleId, femalePartnerId: femaleId })
   data.entities.unions[u.id] = u
   return u.id
@@ -280,8 +274,12 @@ describe('children placement', () => {
   it('places children left-to-right in ChildGroup.children order', () => {
     const data = buildFixtureWithChildren()
     const layout = computeLayout(data)
-    expect(layout.positions['c1' as PersonId]!.x).toBeLessThan(layout.positions['c2' as PersonId]!.x)
-    expect(layout.positions['c2' as PersonId]!.x).toBeLessThan(layout.positions['c3' as PersonId]!.x)
+    expect(layout.positions['c1' as PersonId]!.x).toBeLessThan(
+      layout.positions['c2' as PersonId]!.x,
+    )
+    expect(layout.positions['c2' as PersonId]!.x).toBeLessThan(
+      layout.positions['c3' as PersonId]!.x,
+    )
   })
 })
 

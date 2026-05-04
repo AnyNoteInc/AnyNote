@@ -193,7 +193,10 @@ describe('aiSettings.update embeddings model change', () => {
       embeddingModel(MODEL_A_ID),
       embeddingModel(MODEL_B_ID),
     ])
-    vi.stubGlobal('fetch', vi.fn(async () => new Response(null, { status: 204 })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response(null, { status: 204 })),
+    )
   })
 
   it('does not enqueue events or wipe vectors when embeddingsModelId is unchanged', async () => {

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { YookassaClient, parseWebhookEvent, verifyTrustedIp } from './index.js'
+import { YookassaClient, parseWebhookEvent, verifyTrustedIp } from './index.ts'
 
 describe('@repo/yookassa scaffold', () => {
   it('exports planned public API placeholders', () => {

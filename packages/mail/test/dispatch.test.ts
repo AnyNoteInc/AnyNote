@@ -3,7 +3,7 @@ import { prisma } from '@repo/db'
 
 vi.mock('server-only', () => ({}))
 
-import { dispatchPending } from '../src/dispatch.js'
+import { dispatchPending } from '../src/dispatch.ts'
 
 const TAG = '+dispatch-test@anynote.dev'
 

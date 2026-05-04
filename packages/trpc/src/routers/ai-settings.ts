@@ -242,7 +242,8 @@ export const aiSettingsRouter = router({
           updateData.embeddingsModelId = input.embeddingsModelId
         }
         if (input.systemPrompt !== undefined) {
-          const systemPrompt = input.systemPrompt === null ? null : input.systemPrompt.trim() || null
+          const systemPrompt =
+            input.systemPrompt === null ? null : input.systemPrompt.trim() || null
           createData.systemPrompt = systemPrompt
           updateData.systemPrompt = systemPrompt
         }

@@ -11,7 +11,7 @@ interface Props {
 
 function useNumberField(
   externalValue: number | undefined,
-  onCommit: (n: number | undefined) => void
+  onCommit: (n: number | undefined) => void,
 ) {
   const [text, setText] = useState(externalValue !== undefined ? String(externalValue) : '')
 
@@ -66,7 +66,9 @@ export function PartialDateInput({ value, onChange, label }: Props) {
         >
           <MenuItem value="">—</MenuItem>
           {RU.months.nominative.map((m, idx) => (
-            <MenuItem key={idx} value={idx + 1}>{m}</MenuItem>
+            <MenuItem key={idx} value={idx + 1}>
+              {m}
+            </MenuItem>
           ))}
         </TextField>
         <TextField

@@ -1,5 +1,5 @@
-import { esc } from '../utils.js'
-import type { MailPayloads, RenderedEmail } from '../types.js'
+import { esc } from '../utils.ts'
+import type { MailPayloads, RenderedEmail } from '../types.ts'
 
 export function renderWelcome(p: MailPayloads['welcome']): RenderedEmail {
   return {

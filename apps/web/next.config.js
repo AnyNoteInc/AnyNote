@@ -1,3 +1,17 @@
+import path from 'node:path'
+import { fileURLToPath } from 'node:url'
+import createMDX from '@next/mdx'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const docsDir = path.resolve(__dirname, '../../docs')
+
+const withMDX = createMDX({
+  extension: /\.mdx?$/,
+  options: {
+    remarkPlugins: ['remark-gfm'],
+  },
+})
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   output: 'standalone',
@@ -17,17 +31,23 @@ const nextConfig = {
   experimental: {
     optimizePackageImports: ['emoji-picker-react'],
   },
-  // Map .js → .ts/.tsx for webpack so transpilePackages can resolve
-  // TypeScript NodeNext-style relative imports from src/-exporting workspace
-  // packages. Used by `next build --webpack`; Turbopack (dev) handles natively.
+  turbopack: {
+    resolveAlias: {
+      '@docs': docsDir,
+    },
+  },
   webpack: (config) => {
     config.resolve.extensionAlias = {
       '.js': ['.ts', '.tsx', '.js'],
       '.mjs': ['.mts', '.mjs'],
       '.cjs': ['.cts', '.cjs'],
     }
+    config.resolve.alias = {
+      ...(config.resolve.alias ?? {}),
+      '@docs': docsDir,
+    }
     return config
   },
 }
 
-export default nextConfig
+export default withMDX(nextConfig)

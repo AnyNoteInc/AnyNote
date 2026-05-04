@@ -42,13 +42,7 @@ export function UnionLineEdge({
   return (
     <g>
       {/* Invisible wide hit-area so Playwright (and touch) can click the line */}
-      <path
-        d={d}
-        fill="none"
-        stroke="transparent"
-        strokeWidth={20}
-        data-testid="union-line-hit"
-      />
+      <path d={d} fill="none" stroke="transparent" strokeWidth={20} data-testid="union-line-hit" />
       <path
         id={id}
         d={d}

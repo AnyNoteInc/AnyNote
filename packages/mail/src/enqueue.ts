@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 import type { PrismaClient } from '@repo/db'
-import type { MailKind, MailPayloads } from './types.js'
+import type { MailKind, MailPayloads } from './types.ts'
 
 export type EnqueueMailEventArgs<K extends MailKind> = {
   kind: K

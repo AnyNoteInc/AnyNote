@@ -17,9 +17,7 @@ export function createAppTheme(mode: PaletteMode = 'light') {
       mode,
       primary: { main: orange, dark: '#a04a2d', light: orangeWarm, contrastText: paper },
       secondary: { main: ink, contrastText: paper },
-      background: isDark
-        ? { default: ink, paper: inkSoft }
-        : { default: paper, paper: '#ffffff' },
+      background: isDark ? { default: ink, paper: inkSoft } : { default: paper, paper: '#ffffff' },
       text: isDark
         ? {
             primary: paperDeep,

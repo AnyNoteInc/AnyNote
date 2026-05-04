@@ -60,7 +60,7 @@ processRow:
                                                                 ├─ collection name = pages_{provider}_{modelSlug}
                                                                 ├─ ensure_collection(name, size=vectorSize)
                                                                 ├─ embed_batch + upsert
-                                                                
+
 chat generate (apps/web → apps/agents)
    apps/web fetches workspace's embeddings model in the same join shape
    payload now includes: embedding | null
@@ -119,9 +119,19 @@ model WorkspaceAiSettings {
 
 ```ts
 export const AiProviderConnectionSchema = z.discriminatedUnion('provider', [
-  z.object({ provider: z.literal('ollama'),   baseUrl: z.string().url() }),
-  z.object({ provider: z.literal('openai'),   apiKey: z.string().min(1), organization: z.string().optional(), baseUrl: z.string().url().optional() }),
-  z.object({ provider: z.literal('gigachat'), clientId: z.string().min(1), clientSecret: z.string().min(1), scope: z.string().optional() }),
+  z.object({ provider: z.literal('ollama'), baseUrl: z.string().url() }),
+  z.object({
+    provider: z.literal('openai'),
+    apiKey: z.string().min(1),
+    organization: z.string().optional(),
+    baseUrl: z.string().url().optional(),
+  }),
+  z.object({
+    provider: z.literal('gigachat'),
+    clientId: z.string().min(1),
+    clientSecret: z.string().min(1),
+    scope: z.string().optional(),
+  }),
 ])
 export type AiProviderConnection = z.infer<typeof AiProviderConnectionSchema>
 ```
@@ -218,12 +228,12 @@ Behaviour per request:
 async def __call__(self, payload: VectorizationRequestSchema) -> VectorizationResponseSchema:
     embedder    = self._embedding_factory.make(payload.embedding)
     collection  = collection_name_for(payload.embedding.provider, payload.embedding.model_slug)
-    
+
     await self._vector_store.ensure_collection(collection, payload.embedding.vector_size)
     await self._vector_store.delete_by_page(collection, payload.page_id)
-    
+
     # ... existing chunk + normalize logic unchanged ...
-    
+
     vectors = await embedder.aembed_documents(normalized_texts)
     points  = [...]  # existing assembly
     await self._vector_store.upsert_chunks(collection, points)
@@ -284,6 +294,7 @@ Used by the indexer cron to handle `page.deleted` events without depending on th
 ### 2.7 Settings cleanup
 
 `apps/agents/agents/settings.py`:
+
 - Remove `OllamaSettingsSchema.embedding_model` (no longer used; only the chat side still relies on `OllamaSettingsSchema.host`).
 - Remove `QdrantSettingsSchema.collection_name` and `QdrantSettingsSchema.vector_size`.
 
@@ -358,8 +369,12 @@ export type VectorizationPayload = {
 export class AgentsClient {
   // ... existing constructor + vectorize ...
 
-  async deleteWorkspaceVectors(workspaceId: string): Promise<void> { /* DELETE /vectorization/workspaces/:id */ }
-  async deletePageVectors(pageId: string): Promise<void>           { /* DELETE /vectorization/pages/:id */ }
+  async deleteWorkspaceVectors(workspaceId: string): Promise<void> {
+    /* DELETE /vectorization/workspaces/:id */
+  }
+  async deletePageVectors(pageId: string): Promise<void> {
+    /* DELETE /vectorization/pages/:id */
+  }
 }
 ```
 
@@ -396,6 +411,7 @@ listAvailableEmbeddingModels: protectedProcedure
 Input adds `embeddingsModelId: z.string().uuid().nullable().optional()`.
 
 Validation:
+
 - If `embeddingsModelId !== undefined`, validate the model exists, is not deprecated, has `supportsEmbeddings = true`, has a non-null `vectorSize`, and meets the workspace's `minPlanSlug` gate.
 - If `null`, no model lookup needed.
 
@@ -491,7 +507,7 @@ If, on save, the chosen `embeddingsModelId` differs from the loaded value, inter
 
 > **Сменить модель векторизации?**
 > Все ранее проиндексированные данные будут удалены, и страницы начнут векторизироваться заново. На больших пространствах это может занять время.
-> 
+>
 > [ Отмена ] [ Подтвердить ]
 
 If confirmed → proceed with the existing `aiSettings.update` mutation. The LLM model and system prompt fields are sent in the same call; that's already atomic by virtue of `update` writing all three.

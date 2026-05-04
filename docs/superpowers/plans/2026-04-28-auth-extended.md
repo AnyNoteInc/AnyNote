@@ -126,6 +126,7 @@ apps/engines/package.json                                   # +@repo/mail
 ### Task 1: Mailhog + новые env vars + turbo.json globalEnv
 
 **Files:**
+
 - Modify: `compose.yml`
 - Modify: `.env.example`
 - Modify: `turbo.json`
@@ -135,16 +136,17 @@ apps/engines/package.json                                   # +@repo/mail
 В файл `/Users/victor/Projects/anynote/compose.yml`, перед секцией `volumes:` (после `ollama` сервиса), вставить:
 
 ```yaml
-  mailhog:
-    image: mailhog/mailhog:latest
-    ports:
-      - "1025:1025"
-      - "8025:8025"
-    healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:8025/api/v2/messages | grep -q 'total' || exit 1"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
+mailhog:
+  image: mailhog/mailhog:latest
+  ports:
+    - '1025:1025'
+    - '8025:8025'
+  healthcheck:
+    test:
+      ['CMD-SHELL', "wget -qO- http://localhost:8025/api/v2/messages | grep -q 'total' || exit 1"]
+    interval: 10s
+    timeout: 3s
+    retries: 5
 ```
 
 Без `volumes:` — стейт эфемерный (для dev/E2E).
@@ -223,6 +225,7 @@ git commit -m "infra: add Mailhog + mail/google/recaptcha env vars"
 ### Task 2: Scaffold @repo/mail (package + types + utils)
 
 **Files:**
+
 - Create: `packages/mail/package.json`
 - Create: `packages/mail/tsconfig.json`
 - Create: `packages/mail/eslint.config.mjs`
@@ -431,6 +434,7 @@ git commit -m "feat(mail): scaffold @repo/mail package with types and utils"
 ### Task 3: Mail templates + registry (TDD, все 10 шаблонов)
 
 **Files:**
+
 - Create: `packages/mail/src/templates/verify-email.ts`
 - Create: `packages/mail/src/templates/welcome.ts`
 - Create: `packages/mail/src/templates/reset-password.ts`
@@ -486,7 +490,10 @@ describe('mail templates', () => {
   })
 
   it('welcome', () => {
-    const out = renderTemplate('welcome', { firstName: 'Анна', appUrl: 'https://anynote.local/app' })
+    const out = renderTemplate('welcome', {
+      firstName: 'Анна',
+      appUrl: 'https://anynote.local/app',
+    })
     expect(out.subject).toBe('Добро пожаловать в AnyNote')
     expect(out.text).toContain('Анна')
     expect(out.text).toContain('https://anynote.local/app')
@@ -774,14 +781,10 @@ export function renderNewLogin(p: MailPayloads['new-login']): RenderedEmail {
 import { esc, formatRuDateTime } from '../utils.js'
 import type { MailPayloads, RenderedEmail } from '../types.js'
 
-export function renderSuspiciousActivity(
-  p: MailPayloads['suspicious-activity'],
-): RenderedEmail {
+export function renderSuspiciousActivity(p: MailPayloads['suspicious-activity']): RenderedEmail {
   const lockedUntil = p.lockedUntilIso ? formatRuDateTime(p.lockedUntilIso) : null
   const lockedLine = lockedUntil ? `\nДоступ временно ограничен до: ${lockedUntil}` : ''
-  const lockedHtml = lockedUntil
-    ? `<p>Доступ временно ограничен до: ${esc(lockedUntil)}</p>`
-    : ''
+  const lockedHtml = lockedUntil ? `<p>Доступ временно ограничен до: ${esc(lockedUntil)}</p>` : ''
   return {
     subject: 'Подозрительная активность в AnyNote',
     text:
@@ -807,7 +810,9 @@ import type { MailPayloads, RenderedEmail } from '../types.js'
 
 export function renderInvitation(p: MailPayloads['invitation']): RenderedEmail {
   const greeting = p.firstName ? `Здравствуйте, ${p.firstName}.` : 'Здравствуйте.'
-  const greetingHtml = p.firstName ? `<p>Здравствуйте, ${esc(p.firstName)}.</p>` : `<p>Здравствуйте.</p>`
+  const greetingHtml = p.firstName
+    ? `<p>Здравствуйте, ${esc(p.firstName)}.</p>`
+    : `<p>Здравствуйте.</p>`
   return {
     subject: `${p.inviterName} приглашает вас в AnyNote`,
     text:
@@ -888,10 +893,7 @@ import { renderInvitation } from './invitation.js'
 import { renderAccountDeletionRequested } from './account-deletion-requested.js'
 import { renderAccountDeletionCompleted } from './account-deletion-completed.js'
 
-export function renderTemplate<K extends MailKind>(
-  kind: K,
-  data: MailPayloads[K],
-): RenderedEmail {
+export function renderTemplate<K extends MailKind>(kind: K, data: MailPayloads[K]): RenderedEmail {
   switch (kind) {
     case 'verify-email':
       return renderVerifyEmail(data as MailPayloads['verify-email'])
@@ -910,13 +912,9 @@ export function renderTemplate<K extends MailKind>(
     case 'invitation':
       return renderInvitation(data as MailPayloads['invitation'])
     case 'account-deletion-requested':
-      return renderAccountDeletionRequested(
-        data as MailPayloads['account-deletion-requested'],
-      )
+      return renderAccountDeletionRequested(data as MailPayloads['account-deletion-requested'])
     case 'account-deletion-completed':
-      return renderAccountDeletionCompleted(
-        data as MailPayloads['account-deletion-completed'],
-      )
+      return renderAccountDeletionCompleted(data as MailPayloads['account-deletion-completed'])
     default: {
       const _exhaustive: never = kind
       throw new Error(`renderTemplate: unsupported kind ${String(_exhaustive)}`)
@@ -953,6 +951,7 @@ git commit -m "feat(mail): add 10 templates with renderer registry"
 ### Task 4: enqueueMailEvent helper (live Prisma integration test)
 
 **Files:**
+
 - Create: `packages/mail/src/enqueue.ts`
 - Modify: `packages/mail/src/index.ts`
 - Create: `packages/mail/test/setup.ts`
@@ -1151,6 +1150,7 @@ git commit -m "feat(mail): add enqueueMailEvent helper with live Prisma test"
 ### Task 5: Mail transport + dispatch (TDD)
 
 **Files:**
+
 - Create: `packages/mail/src/transport.ts`
 - Create: `packages/mail/src/dispatch.ts`
 - Modify: `packages/mail/src/index.ts`
@@ -1366,13 +1366,7 @@ export async function dispatchPending(
         await markDone(prisma, row.id)
         succeeded += 1
       } catch (err) {
-        const result = await markFailedOrRetry(
-          prisma,
-          row.id,
-          row.attempts,
-          opts.maxAttempts,
-          err,
-        )
+        const result = await markFailedOrRetry(prisma, row.id, row.attempts, opts.maxAttempts, err)
         if (result === 'retried') retried += 1
         else failed += 1
       }
@@ -1384,10 +1378,7 @@ export async function dispatchPending(
 
 type RawRow = { id: bigint; payload: MailEventPayload; attempts: number }
 
-async function claimBatch(
-  prisma: PrismaClient,
-  opts: DispatchOptions,
-): Promise<ClaimedRow[]> {
+async function claimBatch(prisma: PrismaClient, opts: DispatchOptions): Promise<ClaimedRow[]> {
   return prisma.$transaction(async (tx) => {
     const rows = await tx.$queryRaw<RawRow[]>(Prisma.sql`
       SELECT id, payload, attempts
@@ -1454,11 +1445,7 @@ export type { MailKind, MailPayloads, MailEventPayload, RenderedEmail } from './
 export { renderTemplate } from './templates/index.js'
 export { enqueueMailEvent, type EnqueueMailEventArgs } from './enqueue.js'
 export { getMailTransport, __resetMailTransport } from './transport.js'
-export {
-  dispatchPending,
-  type DispatchResult,
-  type DispatchOptions,
-} from './dispatch.js'
+export { dispatchPending, type DispatchResult, type DispatchOptions } from './dispatch.js'
 ```
 
 - [ ] **Step 6: Запустить тесты — должны пройти**
@@ -1497,6 +1484,7 @@ git commit -m "feat(mail): add transport and dispatchPending with retry/back-off
 ### Task 6: Engines mailer module + cron service
 
 **Files:**
+
 - Create: `apps/engines/src/apps/mailer/mailer.module.ts`
 - Create: `apps/engines/src/apps/mailer/cron/mail-dispatch-cron.service.ts`
 - Modify: `apps/engines/src/app.module.ts`
@@ -1632,6 +1620,7 @@ git commit -m "feat(engines): add MailerModule with dispatch cron service"
 ### Task 7: Engines mailer cron unit tests (Jest)
 
 **Files:**
+
 - Create: `apps/engines/src/apps/mailer/cron/mail-dispatch-cron.service.spec.ts`
 
 - [ ] **Step 1: Написать spec в стиле vectorization-cron.service.spec.ts**
@@ -1672,7 +1661,10 @@ describe('MailDispatchCronService', () => {
     process.env.HOSTNAME = 'test-host'
     const svc = new MailDispatchCronService({ tag: 'prisma' } as never)
     await svc.tick()
-    const call = dispatchMock.mock.calls[0] as unknown as [unknown, { batch: number; maxAttempts: number; workerId: string }]
+    const call = dispatchMock.mock.calls[0] as unknown as [
+      unknown,
+      { batch: number; maxAttempts: number; workerId: string },
+    ]
     expect(call[1].batch).toBe(7)
     expect(call[1].maxAttempts).toBe(3)
     expect(call[1].workerId).toContain('engines-mailer-')
@@ -1694,11 +1686,12 @@ describe('MailDispatchCronService', () => {
       retried: 0,
     })
     const svc = new MailDispatchCronService({} as never)
-    const logSpy = jest.spyOn((svc as unknown as { log: { log: (msg: string) => void } }).log, 'log')
-    await svc.tick()
-    expect(logSpy).toHaveBeenCalledWith(
-      expect.stringContaining('processed=3'),
+    const logSpy = jest.spyOn(
+      (svc as unknown as { log: { log: (msg: string) => void } }).log,
+      'log',
     )
+    await svc.tick()
+    expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('processed=3'))
   })
 })
 ```
@@ -1731,6 +1724,7 @@ git commit -m "test(engines): add MailDispatchCronService unit tests"
 ### Task 8: Set up vitest in @repo/auth
 
 **Files:**
+
 - Modify: `packages/auth/package.json`
 - Create: `packages/auth/vitest.config.ts`
 - Create: `packages/auth/test/setup.ts`
@@ -1831,6 +1825,7 @@ git commit -m "chore(auth): set up vitest harness in @repo/auth"
 ### Task 9: better-auth — Google OAuth + emailVerification + welcome callbacks
 
 **Files:**
+
 - Modify: `packages/auth/src/auth.ts`
 - Create: `packages/auth/test/auth.test.ts`
 
@@ -1949,13 +1944,7 @@ Expected: первый тест падает (нет verify-email события
 ```ts
 import { betterAuth } from 'better-auth'
 import { prismaAdapter } from 'better-auth/adapters/prisma'
-import {
-  magicLink,
-  bearer,
-  jwt,
-  deviceAuthorization,
-  lastLoginMethod,
-} from 'better-auth/plugins'
+import { magicLink, bearer, jwt, deviceAuthorization, lastLoginMethod } from 'better-auth/plugins'
 import { nextCookies } from 'better-auth/next-js'
 
 import { prisma, SubscriptionStatus } from '@repo/db'
@@ -2121,6 +2110,7 @@ git commit -m "feat(auth): add Google OAuth provider + email verification with w
 ### Task 10: better-auth — sendResetPassword via enqueue + welcome on Google sign-up
 
 **Files:**
+
 - Modify: `packages/auth/src/auth.ts`
 - Modify: `packages/auth/test/auth.test.ts`
 
@@ -2129,91 +2119,94 @@ git commit -m "feat(auth): add Google OAuth provider + email verification with w
 Добавить новые `it()` блоки в `describe('auth callbacks', ...)`:
 
 ```ts
-  it('forgetPassword enqueues reset-password event with custom URL', async () => {
-    const email = `forget${TAG}`
-    // First create the user via signUp
-    await auth.api.signUpEmail({
-      body: {
-        email,
-        password: 'StrongPass123!',
-        name: 'Test User',
-        firstName: 'Test',
-        lastName: 'User',
-      },
-    })
-    // clear verify event
-    await prisma.outboxEvent.deleteMany({
-      where: { payload: { path: ['kind'], equals: 'verify-email' }, AND: { payload: { path: ['to'], equals: email } } },
-    })
-    await auth.api.forgetPassword({ body: { email } })
-    const evt = await prisma.outboxEvent.findFirstOrThrow({
-      where: {
-        aggregateType: 'email',
-        payload: { path: ['kind'], equals: 'reset-password' },
-        AND: { payload: { path: ['to'], equals: email } },
-      },
-    })
-    const payload = evt.payload as { data: { link: string; expiresAtIso: string } }
-    expect(payload.data.link).toContain('/reset-credentials/')
-    expect(payload.data.link).not.toContain('/api/auth/reset-password')
-    const expiresAt = new Date(payload.data.expiresAtIso).getTime()
-    expect(expiresAt).toBeGreaterThan(Date.now())
+it('forgetPassword enqueues reset-password event with custom URL', async () => {
+  const email = `forget${TAG}`
+  // First create the user via signUp
+  await auth.api.signUpEmail({
+    body: {
+      email,
+      password: 'StrongPass123!',
+      name: 'Test User',
+      firstName: 'Test',
+      lastName: 'User',
+    },
   })
+  // clear verify event
+  await prisma.outboxEvent.deleteMany({
+    where: {
+      payload: { path: ['kind'], equals: 'verify-email' },
+      AND: { payload: { path: ['to'], equals: email } },
+    },
+  })
+  await auth.api.forgetPassword({ body: { email } })
+  const evt = await prisma.outboxEvent.findFirstOrThrow({
+    where: {
+      aggregateType: 'email',
+      payload: { path: ['kind'], equals: 'reset-password' },
+      AND: { payload: { path: ['to'], equals: email } },
+    },
+  })
+  const payload = evt.payload as { data: { link: string; expiresAtIso: string } }
+  expect(payload.data.link).toContain('/reset-credentials/')
+  expect(payload.data.link).not.toContain('/api/auth/reset-password')
+  const expiresAt = new Date(payload.data.expiresAtIso).getTime()
+  expect(expiresAt).toBeGreaterThan(Date.now())
+})
 
-  it('databaseHooks.user.create.after enqueues welcome when emailVerified=true (Google path simulation)', async () => {
-    const email = `googled${TAG}`
-    // Simulate Google flow: create user directly with emailVerified=true.
-    // We bypass auth.api here because Google OAuth flow can't be fully exercised in a unit test;
-    // instead, use prisma.user.create which still triggers Prisma hooks via better-auth.
-    // NOTE: better-auth `databaseHooks.user.create.after` fires only when better-auth itself
-    // creates the user (auth.api.* methods). For this assertion, we use the better-auth
-    // signUpEmail with `disableEmailVerification` workaround NOT available — so we instead
-    // simulate by manually setting emailVerified=true *after* signup and checking that
-    // a separately-triggered Google-style flow would result in welcome enqueue.
-    //
-    // Pragmatic approach: directly call the after-hook would be more direct, but it's a
-    // closure inside better-auth config. Instead, this test reproduces the user.create.after
-    // behavior by using auth.api.signUpEmail with email verification disabled at the body level
-    // is not available either. We rely on the welcome being enqueued from the
-    // afterEmailVerification path (covered separately) and from a manual call of the same
-    // helper here:
-    const personalPlan = await prisma.plan.findUniqueOrThrow({ where: { slug: 'personal' } })
-    const created = await prisma.user.create({
-      data: {
-        email,
-        emailVerified: true,
-        name: 'G User',
-        firstName: 'G',
-        lastName: 'User',
-      },
-    })
-    // Manually invoke what databaseHooks would do (covered by integration in better-auth itself):
-    await prisma.subscription.create({
-      data: {
-        userId: created.id,
-        planId: personalPlan.id,
-        status: SubscriptionStatus.ACTIVE,
-        billingPeriod: 'MONTHLY',
-      },
-    })
-    if (created.emailVerified) {
-      const { enqueueMailEvent } = await import('@repo/mail')
-      await enqueueMailEvent(prisma, {
-        kind: 'welcome',
-        to: created.email,
-        data: { firstName: created.firstName, appUrl: 'http://localhost:3000/app' },
-        userId: created.id,
-      })
-    }
-    const welcome = await prisma.outboxEvent.findFirstOrThrow({
-      where: {
-        aggregateType: 'email',
-        payload: { path: ['kind'], equals: 'welcome' },
-        AND: { payload: { path: ['to'], equals: email } },
-      },
-    })
-    expect(welcome).toBeTruthy()
+it('databaseHooks.user.create.after enqueues welcome when emailVerified=true (Google path simulation)', async () => {
+  const email = `googled${TAG}`
+  // Simulate Google flow: create user directly with emailVerified=true.
+  // We bypass auth.api here because Google OAuth flow can't be fully exercised in a unit test;
+  // instead, use prisma.user.create which still triggers Prisma hooks via better-auth.
+  // NOTE: better-auth `databaseHooks.user.create.after` fires only when better-auth itself
+  // creates the user (auth.api.* methods). For this assertion, we use the better-auth
+  // signUpEmail with `disableEmailVerification` workaround NOT available — so we instead
+  // simulate by manually setting emailVerified=true *after* signup and checking that
+  // a separately-triggered Google-style flow would result in welcome enqueue.
+  //
+  // Pragmatic approach: directly call the after-hook would be more direct, but it's a
+  // closure inside better-auth config. Instead, this test reproduces the user.create.after
+  // behavior by using auth.api.signUpEmail with email verification disabled at the body level
+  // is not available either. We rely on the welcome being enqueued from the
+  // afterEmailVerification path (covered separately) and from a manual call of the same
+  // helper here:
+  const personalPlan = await prisma.plan.findUniqueOrThrow({ where: { slug: 'personal' } })
+  const created = await prisma.user.create({
+    data: {
+      email,
+      emailVerified: true,
+      name: 'G User',
+      firstName: 'G',
+      lastName: 'User',
+    },
   })
+  // Manually invoke what databaseHooks would do (covered by integration in better-auth itself):
+  await prisma.subscription.create({
+    data: {
+      userId: created.id,
+      planId: personalPlan.id,
+      status: SubscriptionStatus.ACTIVE,
+      billingPeriod: 'MONTHLY',
+    },
+  })
+  if (created.emailVerified) {
+    const { enqueueMailEvent } = await import('@repo/mail')
+    await enqueueMailEvent(prisma, {
+      kind: 'welcome',
+      to: created.email,
+      data: { firstName: created.firstName, appUrl: 'http://localhost:3000/app' },
+      userId: created.id,
+    })
+  }
+  const welcome = await prisma.outboxEvent.findFirstOrThrow({
+    where: {
+      aggregateType: 'email',
+      payload: { path: ['kind'], equals: 'welcome' },
+      AND: { payload: { path: ['to'], equals: email } },
+    },
+  })
+  expect(welcome).toBeTruthy()
+})
 ```
 
 > Примечание: тест `databaseHooks.user.create.after` через Google полностью смоделировать без живого OIDC сложно — поэтому проверяем код-путь (`if (user.emailVerified) { enqueueMailEvent('welcome') }`) в `auth.ts` через статический анализ или интеграционный e2e (Task 24). Здесь — sanity-проверка, что код-путь как минимум не падает.
@@ -2257,17 +2250,17 @@ Expected: новый `forgetPassword` тест падает (no reset-password e
 (б) Внутри `databaseHooks.user.create.after`, после `userPreference.upsert(...)` добавить:
 
 ```ts
-          if (user.emailVerified) {
-            await enqueueMailEvent(prisma, {
-              kind: 'welcome',
-              to: user.email,
-              data: {
-                firstName: user.firstName ?? '',
-                appUrl: `${appUrl()}/app`,
-              },
-              userId: user.id,
-            })
-          }
+if (user.emailVerified) {
+  await enqueueMailEvent(prisma, {
+    kind: 'welcome',
+    to: user.email,
+    data: {
+      firstName: user.firstName ?? '',
+      appUrl: `${appUrl()}/app`,
+    },
+    userId: user.id,
+  })
+}
 ```
 
 - [ ] **Step 4: Запустить тесты — все должны пройти**
@@ -2296,6 +2289,7 @@ git commit -m "feat(auth): wire sendResetPassword + Google welcome through @repo
 ### Task 11: better-auth — captcha plugin
 
 **Files:**
+
 - Modify: `packages/auth/src/auth.ts`
 
 - [ ] **Step 1: Добавить captcha в импорт better-auth/plugins**
@@ -2303,13 +2297,7 @@ git commit -m "feat(auth): wire sendResetPassword + Google welcome through @repo
 В файле `packages/auth/src/auth.ts`, заменить строку
 
 ```ts
-import {
-  magicLink,
-  bearer,
-  jwt,
-  deviceAuthorization,
-  lastLoginMethod,
-} from 'better-auth/plugins'
+import { magicLink, bearer, jwt, deviceAuthorization, lastLoginMethod } from 'better-auth/plugins'
 ```
 
 на
@@ -2387,6 +2375,7 @@ git commit -m "feat(auth): add reCAPTCHA v3 plugin (gated by env var)"
 ### Task 12: BrandIcon component + AuthHeader widget
 
 **Files:**
+
 - Create: `packages/ui/src/components/brand-icon.tsx`
 - Modify: `packages/ui/src/components/index.ts`
 - Create: `packages/ui/src/widgets/auth/auth-header.tsx`
@@ -2522,6 +2511,7 @@ git commit -m "feat(ui): add BrandIcon component and AuthHeader widget"
 ### Task 13: LoginForm refactor (rememberMe, links, AuthHeader, Google сверху)
 
 **Files:**
+
 - Modify: `packages/ui/src/widgets/auth/login-form.tsx`
 
 - [ ] **Step 1: Заменить login-form.tsx целиком**
@@ -2685,6 +2675,7 @@ git commit -m "feat(ui): refactor LoginForm — Google CTA + rememberMe + reset/
 ### Task 14: RegisterForm refactor (AuthHeader + back-link)
 
 **Files:**
+
 - Modify: `packages/ui/src/widgets/auth/register-form.tsx`
 
 - [ ] **Step 1: Заменить register-form.tsx целиком**
@@ -2856,6 +2847,7 @@ git commit -m "feat(ui): refactor RegisterForm with AuthHeader and back-to-signi
 ### Task 15: ResetPasswordRequestForm + ResetPasswordConfirmForm widgets
 
 **Files:**
+
 - Create: `packages/ui/src/widgets/auth/reset-password-request-form.tsx`
 - Create: `packages/ui/src/widgets/auth/reset-password-confirm-form.tsx`
 - Modify: `packages/ui/src/widgets/auth/index.ts`
@@ -2868,14 +2860,7 @@ git commit -m "feat(ui): refactor RegisterForm with AuthHeader and back-to-signi
 import { useForm } from 'react-hook-form'
 import Link from 'next/link'
 import KeyboardDoubleArrowLeftIcon from '@mui/icons-material/KeyboardDoubleArrowLeft'
-import {
-  Stack,
-  TextField,
-  Button,
-  Divider,
-  Typography,
-  Alert,
-} from '@repo/ui/components'
+import { Stack, TextField, Button, Divider, Typography, Alert } from '@repo/ui/components'
 
 import { AuthHeader } from './auth-header'
 
@@ -3080,6 +3065,7 @@ git commit -m "feat(ui): add ResetPasswordRequest and ResetPasswordConfirm widge
 ### Task 16: reCAPTCHA frontend infrastructure (deps + provider + hook)
 
 **Files:**
+
 - Modify: `apps/web/package.json`
 - Create: `apps/web/src/components/recaptcha-provider.tsx`
 - Create: `apps/web/src/lib/use-recaptcha-v3.ts`
@@ -3170,6 +3156,7 @@ git commit -m "feat(web): add reCAPTCHA v3 provider, hook, and dependencies"
 ### Task 17: Auth layout update — remove back-link, add RecaptchaProvider
 
 **Files:**
+
 - Modify: `apps/web/src/app/(auth)/layout.tsx`
 
 - [ ] **Step 1: Заменить layout.tsx целиком**
@@ -3239,6 +3226,7 @@ git commit -m "feat(web): replace bottom back-link with per-page nav, mount Reca
 ### Task 18: SignInForm + SignUpForm wiring (Google + captcha + post-signup state)
 
 **Files:**
+
 - Modify: `apps/web/src/app/(auth)/sign-in/sign-in-form.tsx`
 - Modify: `apps/web/src/app/(auth)/sign-up/page.tsx`
 - Modify: `apps/web/src/app/(auth)/sign-up/sign-up-form.tsx`
@@ -3296,11 +3284,7 @@ export function SignInForm() {
   return (
     <>
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
-      <LoginForm
-        onSubmit={handleSubmit}
-        onGoogle={handleGoogle}
-        isSubmitting={isSubmitting}
-      />
+      <LoginForm onSubmit={handleSubmit} onGoogle={handleGoogle} isSubmitting={isSubmitting} />
     </>
   )
 }
@@ -3370,8 +3354,8 @@ export function SignUpForm() {
   if (submitted) {
     return (
       <Alert severity="success">
-        Письмо с подтверждением отправлено на указанный email. Перейдите по ссылке в письме,
-        чтобы завершить регистрацию.
+        Письмо с подтверждением отправлено на указанный email. Перейдите по ссылке в письме, чтобы
+        завершить регистрацию.
       </Alert>
     )
   }
@@ -3403,6 +3387,7 @@ git commit -m "feat(web): wire SignInForm + SignUpForm with Google, captcha, pos
 ### Task 19: /reset-credentials request page
 
 **Files:**
+
 - Create: `apps/web/src/app/(auth)/reset-credentials/page.tsx`
 - Create: `apps/web/src/app/(auth)/reset-credentials/reset-request-form.tsx`
 
@@ -3429,10 +3414,7 @@ export default function ResetCredentialsPage() {
 
 import { useState } from 'react'
 
-import {
-  ResetPasswordRequestForm,
-  type ResetPasswordRequestFormValues,
-} from '@repo/ui/widgets'
+import { ResetPasswordRequestForm, type ResetPasswordRequestFormValues } from '@repo/ui/widgets'
 import { Alert } from '@repo/ui/components'
 
 import { authClient } from '@/lib/auth-client'
@@ -3541,6 +3523,7 @@ git commit -m "feat(web): add /reset-credentials request page with reCAPTCHA"
 ### Task 20: /reset-credentials/[token] confirm page
 
 **Files:**
+
 - Create: `apps/web/src/app/(auth)/reset-credentials/[token]/page.tsx`
 - Create: `apps/web/src/app/(auth)/reset-credentials/[token]/reset-confirm-form.tsx`
 
@@ -3555,11 +3538,7 @@ export const metadata: Metadata = {
   title: 'Новый пароль',
 }
 
-export default async function ResetTokenPage({
-  params,
-}: {
-  params: Promise<{ token: string }>
-}) {
+export default async function ResetTokenPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
   return <ResetConfirmForm token={token} />
 }
@@ -3634,6 +3613,7 @@ git commit -m "feat(web): add /reset-credentials/[token] confirm page"
 ### Task 21: /verify-email page
 
 **Files:**
+
 - Create: `apps/web/src/app/(auth)/verify-email/page.tsx`
 - Create: `apps/web/src/app/(auth)/verify-email/verify-email-view.tsx`
 
@@ -3692,16 +3672,12 @@ export function VerifyEmailView({ status }: { status: VerifyEmailStatus }) {
     <Stack spacing={3}>
       <AuthHeader title="Подтверждение email" />
       {status === 'success' ? (
-        <Alert severity="success">
-          Email подтверждён. Перенаправляем в приложение…
-        </Alert>
+        <Alert severity="success">Email подтверждён. Перенаправляем в приложение…</Alert>
       ) : null}
       {status === 'pending' ? (
-        <Alert severity="info">
-          Проверьте почту: мы отправили ссылку для подтверждения email.
-        </Alert>
+        <Alert severity="info">Проверьте почту: мы отправили ссылку для подтверждения email.</Alert>
       ) : null}
-      {(status === 'error' || status === 'expired') ? (
+      {status === 'error' || status === 'expired' ? (
         <>
           <Alert severity="error">
             Ссылка недействительна или истекла. Пожалуйста, запросите подтверждение заново.
@@ -3739,6 +3715,7 @@ git commit -m "feat(web): add /verify-email page with success/error/pending stat
 ### Task 22: Vitest UI form tests in apps/web
 
 **Files:**
+
 - Create: `apps/web/test/(auth)/sign-in-form.test.tsx`
 - Create: `apps/web/test/(auth)/sign-up-form.test.tsx`
 - Create: `apps/web/test/(auth)/reset-request-form.test.tsx`
@@ -4018,6 +3995,7 @@ git commit -m "test(web): add Vitest tests for auth forms (sign-in, sign-up, res
 ### Task 23: E2E helpers (mailhog + dispatch)
 
 **Files:**
+
 - Create: `apps/e2e/helpers/mailhog.ts`
 - Create: `apps/e2e/helpers/dispatch-emails.ts`
 
@@ -4062,9 +4040,7 @@ export async function findLastMessageTo(
 }
 
 export function extractFirstUrl(content: string, prefix?: string): string | null {
-  const re = prefix
-    ? new RegExp(`(${escapeRegex(prefix)}[^\\s<>"']+)`)
-    : /(https?:\/\/[^\s<>"']+)/
+  const re = prefix ? new RegExp(`(${escapeRegex(prefix)}[^\\s<>"']+)`) : /(https?:\/\/[^\s<>"']+)/
   const m = re.exec(content)
   return m?.[1] ?? null
 }
@@ -4085,9 +4061,9 @@ function decodeMimeWord(s: string): string {
       return s
     }
   }
-  return payload!.replace(/_/g, ' ').replace(/=([0-9A-F]{2})/g, (_, hex) =>
-    String.fromCharCode(parseInt(hex, 16)),
-  )
+  return payload!
+    .replace(/_/g, ' ')
+    .replace(/=([0-9A-F]{2})/g, (_, hex) => String.fromCharCode(parseInt(hex, 16)))
 }
 ```
 
@@ -4150,6 +4126,7 @@ git commit -m "test(e2e): add mailhog and mail-queue flush helpers"
 ### Task 24: E2E auth-extended.spec.ts (verify, reset happy path, reset одноразовый, captcha-reject)
 
 **Files:**
+
 - Create: `apps/e2e/auth-extended.spec.ts`
 
 - [ ] **Step 1: Создать apps/e2e/auth-extended.spec.ts**
@@ -4159,11 +4136,7 @@ import { test, expect } from '@playwright/test'
 
 import { prisma } from '@repo/db'
 
-import {
-  clearMailhog,
-  extractFirstUrl,
-  findLastMessageTo,
-} from './helpers/mailhog'
+import { clearMailhog, extractFirstUrl, findLastMessageTo } from './helpers/mailhog'
 import { flushMailQueue } from './helpers/dispatch-emails'
 import { waitUntil } from './helpers/wait-until'
 
@@ -4327,6 +4300,7 @@ git commit -m "test(e2e): add auth-extended scenarios — verify, reset, captcha
 ### Task 25: Final pnpm gates run + cleanup
 
 **Files:**
+
 - (no file changes; verification only)
 
 - [ ] **Step 1: Полный type-check всех воркспейсов**

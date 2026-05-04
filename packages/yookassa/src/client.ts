@@ -1,5 +1,5 @@
-import { YookassaApiError } from './errors.js'
-import type { CreatePaymentInput, CreateRefundInput, Payment, Refund } from './types.js'
+import { YookassaApiError } from './errors.ts'
+import type { CreatePaymentInput, CreateRefundInput, Payment, Refund } from './types.ts'
 
 export type ChargeSavedInput = Omit<
   CreatePaymentInput,

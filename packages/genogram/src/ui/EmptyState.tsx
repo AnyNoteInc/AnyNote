@@ -15,7 +15,9 @@ export function EmptyState({ mode, onCreate }: Props) {
       sx={{ height: '100%', minHeight: 300 }}
     >
       <Typography variant="h5">{RU.emptyState.title}</Typography>
-      <Typography variant="body2" color="text.secondary">{RU.emptyState.subtitle}</Typography>
+      <Typography variant="body2" color="text.secondary">
+        {RU.emptyState.subtitle}
+      </Typography>
       {mode === 'editor' && (
         <Button variant="contained" size="large" onClick={onCreate}>
           {RU.emptyState.cta}

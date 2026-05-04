@@ -89,7 +89,7 @@ services:
   traefik:
     image: traefik:v3.5
     restart: unless-stopped
-    ports: ["80:80", "443:443"]
+    ports: ['80:80', '443:443']
     volumes:
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./traefik/dynamic:/etc/traefik/dynamic:ro
@@ -115,7 +115,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U anynote -d anynote"]
+      test: ['CMD-SHELL', 'pg_isready -U anynote -d anynote']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -129,7 +129,7 @@ services:
     command: server /data --console-address ":9001"
     volumes: [minio_data:/data]
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -144,19 +144,19 @@ services:
       mc alias set local http://minio:9000 ${S3_ACCESS_KEY} ${S3_SECRET_KEY} &&
       mc mb --ignore-existing local/${S3_BUCKET}
       "
-    restart: "no"
+    restart: 'no'
 
   qdrant:
     image: qdrant/qdrant:v1.12.4
     restart: unless-stopped
     environment:
       QDRANT__SERVICE__API_KEY: ${QDRANT__AUTH__BEARER_TOKEN}
-      QDRANT__TELEMETRY_DISABLED: "true"
+      QDRANT__TELEMETRY_DISABLED: 'true'
     volumes: [qdrant_data:/qdrant/storage]
 
   migrate:
     image: ghcr.io/anynoteinc/anynote-web:latest
-    restart: "no"
+    restart: 'no'
     env_file: .env
     depends_on:
       postgres:
@@ -239,7 +239,7 @@ api:
 
 entryPoints:
   web:
-    address: ":80"
+    address: ':80'
     http:
       redirections:
         entryPoint:
@@ -247,12 +247,12 @@ entryPoints:
           scheme: https
           permanent: true
   websecure:
-    address: ":443"
+    address: ':443'
 
 providers:
   docker:
     exposedByDefault: false
-    network: anynote_default   # set explicitly so traefik picks the right network
+    network: anynote_default # set explicitly so traefik picks the right network
   file:
     directory: /etc/traefik/dynamic
     watch: true
@@ -309,11 +309,11 @@ http:
       compress: {}
     strip-ws:
       stripPrefix:
-        prefixes: ["/ws"]
+        prefixes: ['/ws']
     www-redirect:
       redirectRegex:
         regex: "^https?://www\\.anynote\\.ru/(.*)"
-        replacement: "https://anynote.ru/${1}"
+        replacement: 'https://anynote.ru/${1}'
         permanent: true
     dashboard-auth:
       basicAuth:

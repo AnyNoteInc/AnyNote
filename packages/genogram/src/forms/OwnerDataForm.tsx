@@ -27,9 +27,21 @@ export function OwnerDataForm({ mode, initial, onSubmit, onCancel }: Props) {
 
   return (
     <Stack spacing={2}>
-      <TextField label={RU.fields.lastName} value={draft.lastName ?? ''} onChange={(e) => update('lastName', e.target.value)} />
-      <TextField label={RU.fields.firstName} value={draft.firstName ?? ''} onChange={(e) => update('firstName', e.target.value)} />
-      <TextField label={RU.fields.middleName} value={draft.middleName ?? ''} onChange={(e) => update('middleName', e.target.value)} />
+      <TextField
+        label={RU.fields.lastName}
+        value={draft.lastName ?? ''}
+        onChange={(e) => update('lastName', e.target.value)}
+      />
+      <TextField
+        label={RU.fields.firstName}
+        value={draft.firstName ?? ''}
+        onChange={(e) => update('firstName', e.target.value)}
+      />
+      <TextField
+        label={RU.fields.middleName}
+        value={draft.middleName ?? ''}
+        onChange={(e) => update('middleName', e.target.value)}
+      />
       <SexToggle value={draft.sex} onChange={(v) => update('sex', v)} />
       <PartialDateInput
         label={RU.fields.birthDate}

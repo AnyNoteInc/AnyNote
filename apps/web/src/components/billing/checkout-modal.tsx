@@ -93,7 +93,7 @@ export function CheckoutModal({ planSlug, defaultPeriod, onClose }: Props) {
             />
             <Typography variant="body2">
               Принимаю условия{' '}
-              <Box component={Link} href="/oferta" sx={{ color: 'primary.main' }}>
+              <Box component={Link} href="/terms/public-offer" sx={{ color: 'primary.main' }}>
                 договора-оферты
               </Box>
             </Typography>

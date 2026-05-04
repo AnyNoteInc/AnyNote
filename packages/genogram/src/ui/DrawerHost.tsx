@@ -31,7 +31,7 @@ interface Props {
 const DRAWER_WIDTH = 360
 
 const TITLES: Record<DrawerState['mode'], string> = {
-  'closed': '',
+  closed: '',
   'create-genogram': RU.drawer.titleCreate,
   'edit-data': RU.drawer.titleEditData,
   'edit-owner-data': RU.drawer.titleEditOwner,
@@ -92,7 +92,12 @@ function renderForm(doc: Y.Doc, drawer: DrawerState, onClose: () => void) {
         onSubmit={(d) => {
           updatePerson(doc, drawer.personId, {
             sex: d.sex,
-            identity: { ...owner.identity, firstName: d.firstName, lastName: d.lastName, middleName: d.middleName },
+            identity: {
+              ...owner.identity,
+              firstName: d.firstName,
+              lastName: d.lastName,
+              middleName: d.middleName,
+            },
             lifeDates: { ...owner.lifeDates, birthDate: d.birthDate },
           })
           onClose()
@@ -110,7 +115,9 @@ function renderForm(doc: Y.Doc, drawer: DrawerState, onClose: () => void) {
     const childGroup = getChildGroupOf(drawer.personId, domain.entities.childGroups)
     const isChild = !!childGroup
     const childOrder = childGroup
-      ? childGroup.children.findIndex((c) => c.kind === 'person' && c.personId === drawer.personId) + 1
+      ? childGroup.children.findIndex(
+          (c) => c.kind === 'person' && c.personId === drawer.personId,
+        ) + 1
       : undefined
     return (
       <PersonDataForm
@@ -139,7 +146,12 @@ function renderForm(doc: Y.Doc, drawer: DrawerState, onClose: () => void) {
         onSubmit={(d) => {
           updatePerson(doc, drawer.personId, {
             sex: d.sex,
-            identity: { ...p.identity, firstName: d.firstName, lastName: d.lastName, middleName: d.middleName },
+            identity: {
+              ...p.identity,
+              firstName: d.firstName,
+              lastName: d.lastName,
+              middleName: d.middleName,
+            },
             lifeDates: {
               birthMode: d.birthMode,
               lifeStatus: d.lifeStatus,

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseAiProviderConnection } from './ai-provider-connection.js'
+import { parseAiProviderConnection } from './ai-provider-connection.ts'
 
 describe('parseAiProviderConnection', () => {
   it('parses Ollama with explicit provider key', () => {

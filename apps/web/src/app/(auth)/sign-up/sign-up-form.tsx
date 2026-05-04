@@ -43,8 +43,8 @@ export function SignUpForm() {
   if (submitted) {
     return (
       <Alert severity="success">
-        Письмо с подтверждением отправлено на указанный email. Перейдите по ссылке в письме,
-        чтобы завершить регистрацию.
+        Письмо с подтверждением отправлено на указанный email. Перейдите по ссылке в письме, чтобы
+        завершить регистрацию.
       </Alert>
     )
   }
@@ -52,7 +52,15 @@ export function SignUpForm() {
   return (
     <>
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
-      <RegisterForm onSubmit={handleSubmit} isSubmitting={isSubmitting} />
+      <RegisterForm
+        onSubmit={handleSubmit}
+        isSubmitting={isSubmitting}
+        termsUrls={{
+          userAgreement: '/terms/user-agreement',
+          privacyPolicy: '/terms/privacy-policy',
+          publicOffer: '/terms/public-offer',
+        }}
+      />
     </>
   )
 }

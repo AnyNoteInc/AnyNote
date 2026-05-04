@@ -13,7 +13,10 @@ function loadEnvFromRoot(): void {
     const eqIdx = trimmed.indexOf('=')
     if (eqIdx === -1) continue
     const key = trimmed.slice(0, eqIdx).trim()
-    const value = trimmed.slice(eqIdx + 1).trim().replace(/^"|"$/g, '')
+    const value = trimmed
+      .slice(eqIdx + 1)
+      .trim()
+      .replace(/^"|"$/g, '')
     process.env[key] = process.env[key] ?? value
   }
 }
@@ -43,6 +46,7 @@ export async function signUpAndAuthAs(page: Page, args: SignUpAndAuthArgs): Prom
   await page.getByRole('textbox', { name: 'Имя' }).fill(firstName)
   await page.getByRole('textbox', { name: /^пароль$/i }).fill(password)
   await page.getByRole('textbox', { name: 'Повторите пароль' }).fill(password)
+  await page.getByTestId('register-terms-checkbox').check()
   await page.getByRole('button', { name: 'Зарегистрироваться' }).click()
 
   loadEnvFromRoot()

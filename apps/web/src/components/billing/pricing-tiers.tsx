@@ -314,7 +314,12 @@ export function PricingTiers({ plans, currentPlanSlug, isAuthenticated }: Props)
               ))}
             </Stack>
 
-            <Button fullWidth variant="outlined" color="inherit" href="/contact">
+            <Button
+              fullWidth
+              variant="outlined"
+              color="inherit"
+              href="mailto:anynote@yandex.ru"
+            >
               Связаться
             </Button>
           </Stack>

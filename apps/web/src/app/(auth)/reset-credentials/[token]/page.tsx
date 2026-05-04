@@ -6,11 +6,7 @@ export const metadata: Metadata = {
   title: 'Новый пароль',
 }
 
-export default async function ResetTokenPage({
-  params,
-}: {
-  params: Promise<{ token: string }>
-}) {
+export default async function ResetTokenPage({ params }: { params: Promise<{ token: string }> }) {
   const { token } = await params
   return <ResetConfirmForm token={token} />
 }

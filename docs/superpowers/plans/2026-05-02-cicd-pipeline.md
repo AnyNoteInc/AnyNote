@@ -19,6 +19,7 @@ This is the only application code change. TDD.
 ### Task 1.1: Add `/api/health` route in `apps/web` (TDD)
 
 **Files:**
+
 - Create: `apps/web/test/api-health.test.ts`
 - Create: `apps/web/src/app/api/health/route.ts`
 
@@ -44,6 +45,7 @@ describe('GET /api/health', () => {
 - [ ] **Step 1.1.2: Run test to verify it fails**
 
 Run from repo root:
+
 ```bash
 pnpm --filter web test -- --run test/api-health.test.ts
 ```
@@ -88,6 +90,7 @@ Bump existing Dockerfiles to Node 24 and refactor `engines` and `agents` to the 
 ### Task 2.1: Bump `apps/web/Dockerfile` to Node 24
 
 **Files:**
+
 - Modify: `apps/web/Dockerfile:1`
 
 - [ ] **Step 2.1.1: Bump base image**
@@ -163,6 +166,7 @@ git commit -m "build(web): bump Node to 24-alpine and pin explicit prisma genera
 ### Task 2.2: Create `apps/yjs/Dockerfile`
 
 **Files:**
+
 - Create: `apps/yjs/Dockerfile`
 
 - [ ] **Step 2.2.1: Write the Dockerfile**
@@ -246,6 +250,7 @@ git commit -m "build(yjs): add multi-stage Dockerfile using turbo prune"
 ### Task 2.3: Refactor `apps/engines/Dockerfile` to `turbo prune` + Node 24
 
 **Files:**
+
 - Modify: `apps/engines/Dockerfile` (full rewrite)
 
 - [ ] **Step 2.3.1: Rewrite the Dockerfile**
@@ -328,6 +333,7 @@ git commit -m "build(engines): refactor to turbo prune pattern and Node 24"
 ### Task 2.4: Refactor `apps/agents/Dockerfile` to `turbo prune` for monorepo isolation
 
 **Files:**
+
 - Modify: `apps/agents/Dockerfile` (full rewrite)
 
 The Python core (uv + spaCy) is unchanged; only the build context isolation pattern changes for uniformity.
@@ -429,6 +435,7 @@ A new compose file that pulls the four service images alongside the existing `co
 ### Task 3.1: Create `compose.ci.yml`
 
 **Files:**
+
 - Create: `compose.ci.yml`
 
 - [ ] **Step 3.1.1: Write the overlay**
@@ -569,6 +576,7 @@ services:
 ```
 
 **Notes:**
+
 - `${ANYNOTE_VERSION:?...}` makes compose fail loudly if the var is missing.
 - The `web` healthcheck uses `wget` because alpine images bundle `wget` (busybox); `curl` requires a separate package.
 - `agents` start_period is 60s (heaviest startup — uvicorn + spaCy load).
@@ -624,6 +632,7 @@ git commit -m "build(ci): add compose.ci.yml overlay for production-shape verify
 ### Task 4.1: Add semantic-release dev dependencies
 
 **Files:**
+
 - Modify: `package.json` (devDependencies block)
 
 - [ ] **Step 4.1.1: Install semantic-release packages**
@@ -655,6 +664,7 @@ git commit -m "build(release): add semantic-release dev dependencies"
 ### Task 4.2: Add `.releaserc.json`
 
 **Files:**
+
 - Create: `.releaserc.json`
 
 - [ ] **Step 4.2.1: Write the config**
@@ -667,10 +677,7 @@ Create `.releaserc.json` at the repo root:
   "plugins": [
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
-    [
-      "@semantic-release/changelog",
-      { "changelogFile": "CHANGELOG.md" }
-    ],
+    ["@semantic-release/changelog", { "changelogFile": "CHANGELOG.md" }],
     [
       "@semantic-release/git",
       {
@@ -707,6 +714,7 @@ git commit -m "build(release): configure semantic-release with angular preset an
 ### Task 5.1: Create the composite setup action
 
 **Files:**
+
 - Create: `.github/actions/setup/action.yml`
 
 - [ ] **Step 5.1.1: Write the composite action**
@@ -773,6 +781,7 @@ git commit -m "ci: add composite setup action for pnpm/Node/Python/uv toolchain"
 ### Task 5.2: Create `ci.yml` (PR pipeline)
 
 **Files:**
+
 - Create: `.github/workflows/ci.yml`
 
 - [ ] **Step 5.2.1: Write the workflow**
@@ -934,6 +943,7 @@ git commit -m "ci: add CI workflow for PRs (lint + tests with service containers
 ### Task 5.3: Create `release.yml` (merge to main → semantic-release)
 
 **Files:**
+
 - Create: `.github/workflows/release.yml`
 
 - [ ] **Step 5.3.1: Write the workflow**
@@ -1102,6 +1112,7 @@ git commit -m "ci: add release workflow with semantic-release on main"
 ### Task 5.4: Create `deploy.yml` (tag → build → verify → mock deploy)
 
 **Files:**
+
 - Create: `.github/workflows/deploy.yml`
 
 - [ ] **Step 5.4.1: Write the workflow**
@@ -1319,13 +1330,13 @@ These cannot be configured from YAML.
 
 ## Summary
 
-| Phase | Tasks | Outcome |
-|---|---|---|
-| 1 | 1.1 | `/api/health` route added with vitest test |
-| 2 | 2.1 – 2.4 | All four Dockerfiles uniform, Node 24, `turbo prune` pattern |
-| 3 | 3.1 | `compose.ci.yml` overlay with healthchecks |
-| 4 | 4.1 – 4.2 | semantic-release configured |
-| 5 | 5.1 – 5.4 | Composite action + 3 workflows |
-| 6 | 6.1 | Repo-wide verification |
+| Phase | Tasks     | Outcome                                                      |
+| ----- | --------- | ------------------------------------------------------------ |
+| 1     | 1.1       | `/api/health` route added with vitest test                   |
+| 2     | 2.1 – 2.4 | All four Dockerfiles uniform, Node 24, `turbo prune` pattern |
+| 3     | 3.1       | `compose.ci.yml` overlay with healthchecks                   |
+| 4     | 4.1 – 4.2 | semantic-release configured                                  |
+| 5     | 5.1 – 5.4 | Composite action + 3 workflows                               |
+| 6     | 6.1       | Repo-wide verification                                       |
 
 11 commits total. Each commit is independent and reversible.

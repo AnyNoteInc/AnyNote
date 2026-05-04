@@ -2,10 +2,7 @@
 
 import { useState } from 'react'
 
-import {
-  ResetPasswordRequestForm,
-  type ResetPasswordRequestFormValues,
-} from '@repo/ui/widgets'
+import { ResetPasswordRequestForm, type ResetPasswordRequestFormValues } from '@repo/ui/widgets'
 import { Alert } from '@repo/ui/components'
 
 import { authClient } from '@/lib/auth-client'

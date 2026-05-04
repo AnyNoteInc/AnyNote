@@ -8,7 +8,7 @@ import {
 } from '@aws-sdk/client-s3'
 import { Upload } from '@aws-sdk/lib-storage'
 
-import type { PutOptions, StorageClient } from './contract.js'
+import type { PutOptions, StorageClient } from './contract.ts'
 
 type S3Config = {
   endpoint: string

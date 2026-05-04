@@ -4,24 +4,21 @@ export const publicFooterSections = [
     links: [
       { label: 'Возможности', href: '/#features' },
       { label: 'Тарифы', href: '/pricing' },
-      { label: 'Roadmap', href: '/roadmap' },
     ],
   },
   {
-    title: 'Компания',
+    title: 'Юридические документы',
     links: [
-      { label: 'Контакты', href: '/contact' },
-      { label: 'Оферта', href: '/oferta' },
-      { label: 'Политика', href: '/privacy' },
+      { label: 'Пользовательское соглашение', href: '/terms/user-agreement' },
+      { label: 'Политика обработки персональных данных', href: '/terms/privacy-policy' },
+      { label: 'Согласие на обработку персональных данных', href: '/terms/consent' },
+      { label: 'Публичная оферта', href: '/terms/public-offer' },
+      { label: 'Информация о самозанятом', href: '/terms/information' },
     ],
   },
 ] as const
 
-export const publicNavItems = [
-  { label: 'Цены', href: '/pricing' },
-  { label: 'Разработчикам', href: '/developers' },
-  { label: 'Планы', href: '/roadmap' },
-] as const
+export const publicNavItems = [{ label: 'Цены', href: '/pricing' }] as const
 
 export const pricingCards = [
   {
@@ -106,8 +103,8 @@ export const homeFeatures = [
 ] as const
 
 export const publicContact = {
-  email: 'hello@anynote.app',
-  phone: '+7 (495) 123-45-67',
+  email: 'anynote@yandex.ru',
+  phone: '+7(910)716-61-68',
   telegram: '@anynote_support',
 } as const
 

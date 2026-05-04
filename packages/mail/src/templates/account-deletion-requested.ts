@@ -1,5 +1,5 @@
-import { esc, formatRuDateTime } from '../utils.js'
-import type { MailPayloads, RenderedEmail } from '../types.js'
+import { esc, formatRuDateTime } from '../utils.ts'
+import type { MailPayloads, RenderedEmail } from '../types.ts'
 
 export function renderAccountDeletionRequested(
   p: MailPayloads['account-deletion-requested'],

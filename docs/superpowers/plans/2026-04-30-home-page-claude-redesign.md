@@ -15,6 +15,7 @@
 ## File Structure
 
 **Created:**
+
 - `apps/web/src/components/public/home/home-tokens.ts` — palette, typography, motion CSS-in-JS
 - `apps/web/src/components/public/home/origami.tsx` — rhombus/triangle/circle primitive
 - `apps/web/src/components/public/home/home-hero.tsx` — section 1
@@ -28,6 +29,7 @@
 - `apps/e2e/home-redesign.spec.ts` — e2e gate
 
 **Modified:**
+
 - `apps/web/src/app/layout.tsx` — register Crimson Pro font
 - `apps/web/src/app/page.tsx` — slim composer (~80 lines target)
 - `apps/web/src/components/public/content.ts` — pricing string fix, new `homeFeatures` / `publicContact`, restructured `publicFooterSections`
@@ -41,6 +43,7 @@
 ### Task 1: Add Crimson Pro serif font
 
 **Files:**
+
 - Modify: `apps/web/src/app/layout.tsx`
 
 - [ ] **Step 1: Add the Google font import**
@@ -75,7 +78,8 @@ Change the `metadata.title` literal:
 ```ts
 export const metadata: Metadata = {
   title: 'Любые заметки',
-  description: 'Рабочая память команды с ИИ-поиском. Документы, схемы и заметки в одном пространстве.',
+  description:
+    'Рабочая память команды с ИИ-поиском. Документы, схемы и заметки в одном пространстве.',
   // ...icons unchanged
 }
 ```
@@ -97,6 +101,7 @@ git commit -m "feat(web): add Crimson Pro serif font and rebrand metadata"
 ### Task 2: Create shared design tokens
 
 **Files:**
+
 - Create: `apps/web/src/components/public/home/home-tokens.ts`
 
 - [ ] **Step 1: Create the tokens file**
@@ -179,6 +184,7 @@ git commit -m "feat(public): add home page design tokens"
 ### Task 3: Origami primitive component
 
 **Files:**
+
 - Create: `apps/web/src/components/public/home/origami.tsx`
 
 - [ ] **Step 1: Create the file**
@@ -232,9 +238,7 @@ export function Origami({
         clipPath: clipPaths[variant],
         borderRadius: variant === 'circle' ? '50%' : 0,
         boxShadow:
-          variant === 'circle'
-            ? '4px 6px 16px rgba(0,0,0,0.18)'
-            : '6px 8px 24px rgba(0,0,0,0.14)',
+          variant === 'circle' ? '4px 6px 16px rgba(0,0,0,0.18)' : '6px 8px 24px rgba(0,0,0,0.14)',
         transform: rotate ? `rotate(${rotate}deg)` : undefined,
         '@media (prefers-reduced-motion: reduce)': { transform: 'none' },
         ...style,
@@ -261,6 +265,7 @@ git commit -m "feat(public): add Origami shape primitive"
 ### Task 4: Update content data
 
 **Files:**
+
 - Modify: `apps/web/src/components/public/content.ts`
 
 - [ ] **Step 1: Fix the existing pricing string**
@@ -361,6 +366,7 @@ git commit -m "feat(public): rebrand pricing copy and add home content data"
 ### Task 5: Extend ContactForm with company and message fields
 
 **Files:**
+
 - Modify: `apps/web/src/components/public/contact-form.tsx`
 - Test: `apps/web/test/contact-form.test.tsx`
 
@@ -498,9 +504,7 @@ export function ContactForm() {
       </Box>
 
       {submitted ? (
-        <Alert severity="success">
-          Заявка отправлена. Мы свяжемся в течение дня.
-        </Alert>
+        <Alert severity="success">Заявка отправлена. Мы свяжемся в течение дня.</Alert>
       ) : null}
     </Stack>
   )
@@ -524,13 +528,21 @@ git commit -m "feat(public): extend ContactForm with company and message fields"
 ### Task 6: Hero section component
 
 **Files:**
+
 - Create: `apps/web/src/components/public/home/home-hero.tsx`
 
 - [ ] **Step 1: Create the file**
 
 ```tsx
 // apps/web/src/components/public/home/home-hero.tsx
-import { ArrowRightOutlinedIcon, Box, Button, Container, Stack, Typography } from '@repo/ui/components'
+import {
+  ArrowRightOutlinedIcon,
+  Box,
+  Button,
+  Container,
+  Stack,
+  Typography,
+} from '@repo/ui/components'
 
 import { Origami } from './origami'
 import { homeBaseSx, homeTokens } from './home-tokens'
@@ -579,12 +591,24 @@ export function HomeHero({ primaryHref, primaryLabel, showSecondary }: Props) {
           <Stack spacing={3} sx={{ animation: 'anHeroIn 520ms ease-out both', maxWidth: 580 }}>
             <Box
               sx={{
-                display: 'inline-flex', alignSelf: 'flex-start', alignItems: 'center', gap: 1,
-                px: 1.5, py: 0.6, borderRadius: 999, bgcolor: '#fff',
-                border: `1px solid ${t.line}`, fontSize: 12, color: '#444',
+                display: 'inline-flex',
+                alignSelf: 'flex-start',
+                alignItems: 'center',
+                gap: 1,
+                px: 1.5,
+                py: 0.6,
+                borderRadius: 999,
+                bgcolor: '#fff',
+                border: `1px solid ${t.line}`,
+                fontSize: 12,
+                color: '#444',
                 '&::before': {
-                  content: '""', width: 7, height: 7, borderRadius: '50%',
-                  background: t.orange, boxShadow: `0 0 0 4px rgba(201,100,66,0.16)`,
+                  content: '""',
+                  width: 7,
+                  height: 7,
+                  borderRadius: '50%',
+                  background: t.orange,
+                  boxShadow: `0 0 0 4px rgba(201,100,66,0.16)`,
                 },
               }}
             >
@@ -605,8 +629,16 @@ export function HomeHero({ primaryHref, primaryLabel, showSecondary }: Props) {
             >
               Рабочая память команды <em>с ИИ-поиском</em>
             </Typography>
-            <Typography sx={{ color: t.inkSoft, fontSize: { xs: '1rem', md: '1.06rem' }, lineHeight: 1.55, maxWidth: 480 }}>
-              Соберите документы, заметки, схемы и файлы в одном пространстве. «Любые заметки» отвечает по вашим материалам и помогает быстро передать контекст команде или клиенту.
+            <Typography
+              sx={{
+                color: t.inkSoft,
+                fontSize: { xs: '1rem', md: '1.06rem' },
+                lineHeight: 1.55,
+                maxWidth: 480,
+              }}
+            >
+              Соберите документы, заметки, схемы и файлы в одном пространстве. «Любые заметки»
+              отвечает по вашим материалам и помогает быстро передать контекст команде или клиенту.
             </Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
               <Button
@@ -614,8 +646,11 @@ export function HomeHero({ primaryHref, primaryLabel, showSecondary }: Props) {
                 size="large"
                 endIcon={<ArrowRightOutlinedIcon />}
                 sx={{
-                  bgcolor: t.ink, color: `${t.paperDeep} !important`,
-                  borderRadius: 1.25, minHeight: 50, px: 2.75,
+                  bgcolor: t.ink,
+                  color: `${t.paperDeep} !important`,
+                  borderRadius: 1.25,
+                  minHeight: 50,
+                  px: 2.75,
                   '&:hover': { bgcolor: t.orange },
                   '& .MuiButton-endIcon': { color: 'inherit' },
                 }}
@@ -628,18 +663,35 @@ export function HomeHero({ primaryHref, primaryLabel, showSecondary }: Props) {
                   variant="outlined"
                   size="large"
                   sx={{
-                    borderRadius: 1.25, minHeight: 50, px: 2.5,
-                    color: t.ink, borderColor: 'rgba(29,29,27,0.18)',
+                    borderRadius: 1.25,
+                    minHeight: 50,
+                    px: 2.5,
+                    color: t.ink,
+                    borderColor: 'rgba(29,29,27,0.18)',
                   }}
                 >
                   Смотреть тарифы
                 </Button>
               )}
             </Stack>
-            <Stack direction="row" useFlexGap flexWrap="wrap" sx={{ pt: 1.5, columnGap: 2.5, rowGap: 1, color: 'rgba(29,29,27,0.55)' }}>
+            <Stack
+              direction="row"
+              useFlexGap
+              flexWrap="wrap"
+              sx={{ pt: 1.5, columnGap: 2.5, rowGap: 1, color: 'rgba(29,29,27,0.55)' }}
+            >
               {['Без банковской карты', 'Публичные ссылки', 'ИИ по вашим данным'].map((label) => (
                 <Stack key={label} direction="row" alignItems="center" spacing={1}>
-                  <Box aria-hidden sx={{ width: 6, height: 6, borderRadius: '50%', bgcolor: t.orange, opacity: 0.8 }} />
+                  <Box
+                    aria-hidden
+                    sx={{
+                      width: 6,
+                      height: 6,
+                      borderRadius: '50%',
+                      bgcolor: t.orange,
+                      opacity: 0.8,
+                    }}
+                  />
                   <Typography variant="body2">{label}</Typography>
                 </Stack>
               ))}
@@ -655,16 +707,42 @@ export function HomeHero({ primaryHref, primaryLabel, showSecondary }: Props) {
 
 function HeroPreview() {
   return (
-    <Box sx={{ position: 'relative', minHeight: { xs: 320, sm: 460, lg: 520 }, animation: 'anSurfaceFloat 6s ease-in-out infinite' }}>
-      <Origami variant="rhombus" size={96} gradient="warm" rotate={8} style={{ top: -10, left: '4%', zIndex: 3 }} />
-      <Origami variant="triangle" size={70} gradient="deep" rotate={-15} style={{ bottom: 30, right: -8, zIndex: 3 }} />
-      <Origami variant="circle" size={50} gradient="ink" style={{ bottom: -14, left: '16%', zIndex: 2 }} />
+    <Box
+      sx={{
+        position: 'relative',
+        minHeight: { xs: 320, sm: 460, lg: 520 },
+        animation: 'anSurfaceFloat 6s ease-in-out infinite',
+      }}
+    >
+      <Origami
+        variant="rhombus"
+        size={96}
+        gradient="warm"
+        rotate={8}
+        style={{ top: -10, left: '4%', zIndex: 3 }}
+      />
+      <Origami
+        variant="triangle"
+        size={70}
+        gradient="deep"
+        rotate={-15}
+        style={{ bottom: 30, right: -8, zIndex: 3 }}
+      />
+      <Origami
+        variant="circle"
+        size={50}
+        gradient="ink"
+        style={{ bottom: -14, left: '16%', zIndex: 2 }}
+      />
 
       <Box
         sx={{
-          position: 'relative', zIndex: 4,
-          mt: 2.5, ml: { lg: 2 },
-          bgcolor: '#fff', borderRadius: 1.75,
+          position: 'relative',
+          zIndex: 4,
+          mt: 2.5,
+          ml: { lg: 2 },
+          bgcolor: '#fff',
+          borderRadius: 1.75,
           border: `1px solid ${homeTokens.palette.line}`,
           boxShadow: '0 30px 60px rgba(29,29,27,0.12), 0 6px 18px rgba(29,29,27,0.06)',
           overflow: 'hidden',
@@ -682,11 +760,31 @@ function HeroPreview() {
 
 function BrowserChrome() {
   return (
-    <Stack direction="row" alignItems="center" spacing={0.75} sx={{ px: 1.5, py: 1.1, bgcolor: homeTokens.palette.paper, borderBottom: `1px solid ${homeTokens.palette.line}` }}>
+    <Stack
+      direction="row"
+      alignItems="center"
+      spacing={0.75}
+      sx={{
+        px: 1.5,
+        py: 1.1,
+        bgcolor: homeTokens.palette.paper,
+        borderBottom: `1px solid ${homeTokens.palette.line}`,
+      }}
+    >
       {[0, 1, 2].map((i) => (
-        <Box key={i} sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'rgba(0,0,0,0.12)' }} />
+        <Box
+          key={i}
+          sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: 'rgba(0,0,0,0.12)' }}
+        />
       ))}
-      <Typography sx={{ ml: 1.25, fontFamily: homeTokens.fonts.mono, fontSize: 10.5, color: 'rgba(0,0,0,0.42)' }}>
+      <Typography
+        sx={{
+          ml: 1.25,
+          fontFamily: homeTokens.fonts.mono,
+          fontSize: 10.5,
+          color: 'rgba(0,0,0,0.42)',
+        }}
+      >
         любые-заметки.app / workspaces / база-знаний
       </Typography>
     </Stack>
@@ -696,13 +794,47 @@ function BrowserChrome() {
 function PreviewSidebar() {
   const t = homeTokens.palette
   return (
-    <Box component="aside" sx={{ bgcolor: t.paper, borderRight: `1px solid ${t.line}`, p: '10px 8px', fontSize: 12 }}>
-      <Stack direction="row" alignItems="center" spacing={0.875} sx={{ p: '4px 6px 8px', borderBottom: `1px solid ${t.line}`, mb: 0.75 }}>
-        <Box sx={{ width: 22, height: 22, borderRadius: 0.625, background: 'linear-gradient(135deg,#0f766e,#155e75)', display: 'grid', placeItems: 'center', fontSize: 12 }}>📒</Box>
+    <Box
+      component="aside"
+      sx={{ bgcolor: t.paper, borderRight: `1px solid ${t.line}`, p: '10px 8px', fontSize: 12 }}
+    >
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={0.875}
+        sx={{ p: '4px 6px 8px', borderBottom: `1px solid ${t.line}`, mb: 0.75 }}
+      >
+        <Box
+          sx={{
+            width: 22,
+            height: 22,
+            borderRadius: 0.625,
+            background: 'linear-gradient(135deg,#0f766e,#155e75)',
+            display: 'grid',
+            placeItems: 'center',
+            fontSize: 12,
+          }}
+        >
+          📒
+        </Box>
         <Box>
-          <Typography sx={{ fontWeight: 500, fontSize: 12.5, lineHeight: 1.1 }}>База знаний</Typography>
+          <Typography sx={{ fontWeight: 500, fontSize: 12.5, lineHeight: 1.1 }}>
+            База знаний
+          </Typography>
           <Box sx={{ mt: 0.25 }}>
-            <Box component="span" sx={{ px: 0.75, py: '1px', borderRadius: 999, border: '1px solid rgba(0,0,0,0.15)', fontSize: 9.5, color: 'rgba(0,0,0,0.55)' }}>Бесплатный</Box>
+            <Box
+              component="span"
+              sx={{
+                px: 0.75,
+                py: '1px',
+                borderRadius: 999,
+                border: '1px solid rgba(0,0,0,0.15)',
+                fontSize: 9.5,
+                color: 'rgba(0,0,0,0.55)',
+              }}
+            >
+              Бесплатный
+            </Box>
           </Box>
         </Box>
       </Stack>
@@ -726,8 +858,15 @@ function PreviewSidebar() {
 
 function NavRow({ icon, label }: { icon: string; label: string }) {
   return (
-    <Stack direction="row" alignItems="center" spacing={0.875} sx={{ p: '5px 7px', borderRadius: 0.625, color: 'rgba(0,0,0,0.65)', my: '1px' }}>
-      <Box component="span" sx={{ fontSize: 12, opacity: 0.7 }}>{icon}</Box>
+    <Stack
+      direction="row"
+      alignItems="center"
+      spacing={0.875}
+      sx={{ p: '5px 7px', borderRadius: 0.625, color: 'rgba(0,0,0,0.65)', my: '1px' }}
+    >
+      <Box component="span" sx={{ fontSize: 12, opacity: 0.7 }}>
+        {icon}
+      </Box>
       <span>{label}</span>
     </Stack>
   )
@@ -735,18 +874,60 @@ function NavRow({ icon, label }: { icon: string; label: string }) {
 
 function SectionLabel({ children, right }: { children: React.ReactNode; right?: string }) {
   return (
-    <Stack direction="row" justifyContent="space-between" sx={{ mt: 1.25, p: '4px 7px 2px', fontSize: 10, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'rgba(0,0,0,0.42)' }}>
+    <Stack
+      direction="row"
+      justifyContent="space-between"
+      sx={{
+        mt: 1.25,
+        p: '4px 7px 2px',
+        fontSize: 10,
+        textTransform: 'uppercase',
+        letterSpacing: '0.08em',
+        color: 'rgba(0,0,0,0.42)',
+      }}
+    >
       <span>{children}</span>
       {right && <span>{right}</span>}
     </Stack>
   )
 }
 
-function TreeItem({ chev, emoji, label, active, nested }: { chev?: string; emoji: string; label: string; active?: boolean; nested?: boolean }) {
+function TreeItem({
+  chev,
+  emoji,
+  label,
+  active,
+  nested,
+}: {
+  chev?: string
+  emoji: string
+  label: string
+  active?: boolean
+  nested?: boolean
+}) {
   return (
-    <Stack direction="row" alignItems="center" spacing={0.75} sx={{ p: '4px 7px', pl: nested ? '22px' : '7px', borderRadius: 0.625, color: active ? homeTokens.palette.ink : 'rgba(0,0,0,0.74)', bgcolor: active ? 'rgba(0,0,0,0.06)' : 'transparent', fontWeight: active ? 500 : 400, my: '1px' }}>
-      {chev && <Box component="span" sx={{ width: 9, color: 'rgba(0,0,0,0.35)', fontSize: 9 }}>{chev}</Box>}
-      <Box component="span" sx={{ fontSize: 12 }}>{emoji}</Box>
+    <Stack
+      direction="row"
+      alignItems="center"
+      spacing={0.75}
+      sx={{
+        p: '4px 7px',
+        pl: nested ? '22px' : '7px',
+        borderRadius: 0.625,
+        color: active ? homeTokens.palette.ink : 'rgba(0,0,0,0.74)',
+        bgcolor: active ? 'rgba(0,0,0,0.06)' : 'transparent',
+        fontWeight: active ? 500 : 400,
+        my: '1px',
+      }}
+    >
+      {chev && (
+        <Box component="span" sx={{ width: 9, color: 'rgba(0,0,0,0.35)', fontSize: 9 }}>
+          {chev}
+        </Box>
+      )}
+      <Box component="span" sx={{ fontSize: 12 }}>
+        {emoji}
+      </Box>
       <span>{label}</span>
     </Stack>
   )
@@ -756,20 +937,73 @@ function PreviewMain() {
   const t = homeTokens.palette
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', position: 'relative' }}>
-      <Stack direction="row" alignItems="center" spacing={1} sx={{ p: '10px 16px', borderBottom: `1px solid ${t.line}`, fontSize: 11.5, color: 'rgba(0,0,0,0.5)' }}>
-        <span>База знаний</span><span style={{ opacity: 0.45 }}>/</span>
-        <span>Стратегия 2026</span><span style={{ opacity: 0.45 }}>/</span>
-        <Box component="span" sx={{ color: t.ink, fontWeight: 500 }}>Q2 цели</Box>
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={1}
+        sx={{
+          p: '10px 16px',
+          borderBottom: `1px solid ${t.line}`,
+          fontSize: 11.5,
+          color: 'rgba(0,0,0,0.5)',
+        }}
+      >
+        <span>База знаний</span>
+        <span style={{ opacity: 0.45 }}>/</span>
+        <span>Стратегия 2026</span>
+        <span style={{ opacity: 0.45 }}>/</span>
+        <Box component="span" sx={{ color: t.ink, fontWeight: 500 }}>
+          Q2 цели
+        </Box>
       </Stack>
       <Box sx={{ p: '22px 28px 18px', flex: 1 }}>
-        <Box sx={{ width: 32, height: 32, bgcolor: 'rgba(201,100,66,0.12)', borderRadius: 0.75, display: 'grid', placeItems: 'center', fontSize: 18, mb: 1.25 }}>🎯</Box>
-        <Typography sx={{ fontFamily: homeTokens.fonts.serif, fontSize: 22, fontWeight: 500, lineHeight: 1.15, letterSpacing: '-0.01em', mb: 1.75 }}>Q2 цели</Typography>
+        <Box
+          sx={{
+            width: 32,
+            height: 32,
+            bgcolor: 'rgba(201,100,66,0.12)',
+            borderRadius: 0.75,
+            display: 'grid',
+            placeItems: 'center',
+            fontSize: 18,
+            mb: 1.25,
+          }}
+        >
+          🎯
+        </Box>
+        <Typography
+          sx={{
+            fontFamily: homeTokens.fonts.serif,
+            fontSize: 22,
+            fontWeight: 500,
+            lineHeight: 1.15,
+            letterSpacing: '-0.01em',
+            mb: 1.75,
+          }}
+        >
+          Q2 цели
+        </Typography>
         {['92%', '78%', '86%'].map((w, i) => (
-          <Box key={i} sx={{ height: 9, width: w, borderRadius: 0.375, bgcolor: 'rgba(0,0,0,0.08)', mb: 1 }} />
+          <Box
+            key={i}
+            sx={{ height: 9, width: w, borderRadius: 0.375, bgcolor: 'rgba(0,0,0,0.08)', mb: 1 }}
+          />
         ))}
-        <Box sx={{ height: 14, width: '38%', borderRadius: 0.375, bgcolor: 'rgba(0,0,0,0.18)', mt: 2, mb: 1.25 }} />
+        <Box
+          sx={{
+            height: 14,
+            width: '38%',
+            borderRadius: 0.375,
+            bgcolor: 'rgba(0,0,0,0.18)',
+            mt: 2,
+            mb: 1.25,
+          }}
+        />
         {['92%', '86%', '78%'].map((w, i) => (
-          <Box key={`b${i}`} sx={{ height: 9, width: w, borderRadius: 0.375, bgcolor: 'rgba(0,0,0,0.08)', mb: 1 }} />
+          <Box
+            key={`b${i}`}
+            sx={{ height: 9, width: w, borderRadius: 0.375, bgcolor: 'rgba(0,0,0,0.08)', mb: 1 }}
+          />
         ))}
       </Box>
       <AiPanel />
@@ -780,9 +1014,41 @@ function PreviewMain() {
 function AiPanel() {
   const t = homeTokens.palette
   return (
-    <Box sx={{ position: 'absolute', right: 18, bottom: 18, width: 270, bgcolor: t.ink, color: t.paperDeep, borderRadius: 1.5, p: '14px 16px', boxShadow: '0 24px 50px rgba(0,0,0,0.35)', zIndex: 5, overflow: 'hidden', '&::after': { content: '""', position: 'absolute', top: 0, bottom: 0, left: '-30%', width: '30%', background: 'linear-gradient(90deg, transparent, rgba(217,119,87,0.25), transparent)', animation: 'anScan 2.8s ease-in-out infinite' }, '@media (prefers-reduced-motion: reduce)': { '&::after': { display: 'none' } } }}>
-      <Stack direction="row" alignItems="center" spacing={0.875} sx={{ fontSize: 12, color: 'rgba(240,238,230,0.65)', mb: 1 }}>
-        <Box component="span" sx={{ color: t.orangeWarm }}>✦</Box>
+    <Box
+      sx={{
+        position: 'absolute',
+        right: 18,
+        bottom: 18,
+        width: 270,
+        bgcolor: t.ink,
+        color: t.paperDeep,
+        borderRadius: 1.5,
+        p: '14px 16px',
+        boxShadow: '0 24px 50px rgba(0,0,0,0.35)',
+        zIndex: 5,
+        overflow: 'hidden',
+        '&::after': {
+          content: '""',
+          position: 'absolute',
+          top: 0,
+          bottom: 0,
+          left: '-30%',
+          width: '30%',
+          background: 'linear-gradient(90deg, transparent, rgba(217,119,87,0.25), transparent)',
+          animation: 'anScan 2.8s ease-in-out infinite',
+        },
+        '@media (prefers-reduced-motion: reduce)': { '&::after': { display: 'none' } },
+      }}
+    >
+      <Stack
+        direction="row"
+        alignItems="center"
+        spacing={0.875}
+        sx={{ fontSize: 12, color: 'rgba(240,238,230,0.65)', mb: 1 }}
+      >
+        <Box component="span" sx={{ color: t.orangeWarm }}>
+          ✦
+        </Box>
         <span>Что мы обещали в марте?</span>
       </Stack>
       <Typography sx={{ fontSize: 13, lineHeight: 1.45, mb: 1.25 }}>
@@ -793,8 +1059,15 @@ function AiPanel() {
           { em: '📄', name: 'Стратегия 2026' },
           { em: '📝', name: 'Заметка встречи 18.03' },
         ].map((s) => (
-          <Stack key={s.name} direction="row" spacing={0.75} alignItems="center" sx={{ fontSize: 11, color: 'rgba(240,238,230,0.7)' }}>
-            <span>{s.em}</span><span>{s.name}</span>
+          <Stack
+            key={s.name}
+            direction="row"
+            spacing={0.75}
+            alignItems="center"
+            sx={{ fontSize: 11, color: 'rgba(240,238,230,0.7)' }}
+          >
+            <span>{s.em}</span>
+            <span>{s.name}</span>
           </Stack>
         ))}
       </Stack>
@@ -815,7 +1088,7 @@ In `apps/web/src/app/page.tsx`, at the top of the existing `HomePage` return sta
 ```tsx
 import { HomeHero } from '@/components/public/home/home-hero'
 // ...
-<HomeHero
+;<HomeHero
   primaryHref={session ? '/app' : '/registration'}
   primaryLabel={session ? 'Открыть рабочее пространство' : 'Начать бесплатно'}
   showSecondary={!session}
@@ -836,6 +1109,7 @@ git commit -m "feat(public): add HomeHero section with workspace preview"
 ### Task 7: Market-fit section component
 
 **Files:**
+
 - Create: `apps/web/src/components/public/home/home-market-fit.tsx`
 
 - [ ] **Step 1: Create the file**
@@ -847,9 +1121,21 @@ import { eyebrowSx, sectionTitleSx, homeTokens } from './home-tokens'
 const t = homeTokens.palette
 
 const rows = [
-  { value: '10 секунд', title: 'Понятно, что делает продукт', body: 'Главная сразу показывает рабочее пространство, ИИ-поиск и сценарий команды. Никаких абстрактных обещаний.' },
-  { value: '1 ссылка', title: 'Меньше трения для клиента', body: 'Материалы, файлы, схемы и решения открываются в одном аккуратном пространстве — без «вот вам 12 файлов в почту».' },
-  { value: '0 карт', title: 'Старт без лишних барьеров', body: 'Бесплатный персональный план помогает попробовать продукт до разговора о покупке.' },
+  {
+    value: '10 секунд',
+    title: 'Понятно, что делает продукт',
+    body: 'Главная сразу показывает рабочее пространство, ИИ-поиск и сценарий команды. Никаких абстрактных обещаний.',
+  },
+  {
+    value: '1 ссылка',
+    title: 'Меньше трения для клиента',
+    body: 'Материалы, файлы, схемы и решения открываются в одном аккуратном пространстве — без «вот вам 12 файлов в почту».',
+  },
+  {
+    value: '0 карт',
+    title: 'Старт без лишних барьеров',
+    body: 'Бесплатный персональный план помогает попробовать продукт до разговора о покупке.',
+  },
 ] as const
 
 export function HomeMarketFit() {
@@ -862,7 +1148,8 @@ export function HomeMarketFit() {
             Команда покупает не хранилище — <em>а быстрый доступ к контексту</em>
           </Typography>
           <Typography sx={{ color: t.inkSoft, fontSize: 16, lineHeight: 1.6, maxWidth: 620 }}>
-            Современный продукт даёт посетителю увидеть сценарий и начать без созвона. «Любые заметки» работает на этой логике с первой страницы.
+            Современный продукт даёт посетителю увидеть сценарий и начать без созвона. «Любые
+            заметки» работает на этой логике с первой страницы.
           </Typography>
         </Stack>
 
@@ -882,8 +1169,19 @@ export function HomeMarketFit() {
                 '@media (prefers-reduced-motion: reduce)': { '&:hover': { pl: 0 } },
               }}
             >
-              <Typography sx={{ fontFamily: homeTokens.fonts.mono, color: t.orange, fontSize: 18 }}>{row.value}</Typography>
-              <Typography sx={{ fontFamily: homeTokens.fonts.serif, fontSize: 22, fontWeight: 500, lineHeight: 1.2 }}>{row.title}</Typography>
+              <Typography sx={{ fontFamily: homeTokens.fonts.mono, color: t.orange, fontSize: 18 }}>
+                {row.value}
+              </Typography>
+              <Typography
+                sx={{
+                  fontFamily: homeTokens.fonts.serif,
+                  fontSize: 22,
+                  fontWeight: 500,
+                  lineHeight: 1.2,
+                }}
+              >
+                {row.title}
+              </Typography>
               <Typography sx={{ color: t.inkSoft, lineHeight: 1.65 }}>{row.body}</Typography>
             </Box>
           ))}
@@ -907,6 +1205,7 @@ git commit -m "feat(public): add HomeMarketFit section"
 ### Task 8: Workspace modes section component
 
 **Files:**
+
 - Create: `apps/web/src/components/public/home/home-modes.tsx`
 
 - [ ] **Step 1: Create the file**
@@ -919,44 +1218,108 @@ const t = homeTokens.palette
 
 type Mode = { icon: string; title: string; body: string; mini: 'doc' | 'canvas' | 'chat' | 'share' }
 const modes: Mode[] = [
-  { icon: '📄', title: 'Документы', body: 'Заметки, договоры, брифы и регламенты живут в структуре, которую понимает вся команда.', mini: 'doc' },
-  { icon: '🎨', title: 'Схемы и холсты', body: 'Сложные процессы можно объяснять визуально рядом с текстом — без отдельной Miro.', mini: 'canvas' },
-  { icon: '💬', title: 'ИИ-чаты', body: 'Помощник отвечает по материалам пространства и сохраняет контекст для следующего шага.', mini: 'chat' },
-  { icon: '🔗', title: 'Публичные ссылки', body: 'Клиент видит чистую страницу с нужными материалами — без пересылки десятков вложений.', mini: 'share' },
+  {
+    icon: '📄',
+    title: 'Документы',
+    body: 'Заметки, договоры, брифы и регламенты живут в структуре, которую понимает вся команда.',
+    mini: 'doc',
+  },
+  {
+    icon: '🎨',
+    title: 'Схемы и холсты',
+    body: 'Сложные процессы можно объяснять визуально рядом с текстом — без отдельной Miro.',
+    mini: 'canvas',
+  },
+  {
+    icon: '💬',
+    title: 'ИИ-чаты',
+    body: 'Помощник отвечает по материалам пространства и сохраняет контекст для следующего шага.',
+    mini: 'chat',
+  },
+  {
+    icon: '🔗',
+    title: 'Публичные ссылки',
+    body: 'Клиент видит чистую страницу с нужными материалами — без пересылки десятков вложений.',
+    mini: 'share',
+  },
 ]
 
 export function HomeModes() {
   return (
-    <Box component="section" id="modes" sx={{ bgcolor: '#fff', borderBlock: `1px solid ${t.line}`, py: { xs: 7, md: 11 } }}>
+    <Box
+      component="section"
+      id="modes"
+      sx={{ bgcolor: '#fff', borderBlock: `1px solid ${t.line}`, py: { xs: 7, md: 11 } }}
+    >
       <Container maxWidth="xl">
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '0.8fr 1.2fr' }, gap: { xs: 4, lg: 7 }, alignItems: 'start' }}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', lg: '0.8fr 1.2fr' },
+            gap: { xs: 4, lg: 7 },
+            alignItems: 'start',
+          }}
+        >
           <Stack spacing={2} sx={{ position: { lg: 'sticky' }, top: { lg: 96 } }}>
             <Typography sx={eyebrowSx}>РАБОЧЕЕ ПРОСТРАНСТВО</Typography>
             <Typography component="h2" sx={sectionTitleSx}>
               Один продукт — <em>четыре режима работы</em>
             </Typography>
             <Typography sx={{ color: t.inkSoft, fontSize: 16, lineHeight: 1.6, maxWidth: 460 }}>
-              Текст, схемы, ИИ-чаты и публичные ссылки в одном дереве страниц. Не нужно переключаться между четырьмя инструментами.
+              Текст, схемы, ИИ-чаты и публичные ссылки в одном дереве страниц. Не нужно
+              переключаться между четырьмя инструментами.
             </Typography>
           </Stack>
 
-          <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' }, borderTop: `1px solid ${t.line}`, borderLeft: { sm: `1px solid ${t.line}` } }}>
+          <Box
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: { xs: '1fr', sm: 'repeat(2, 1fr)' },
+              borderTop: `1px solid ${t.line}`,
+              borderLeft: { sm: `1px solid ${t.line}` },
+            }}
+          >
             {modes.map((m) => (
               <Box
                 key={m.title}
                 sx={{
-                  p: 3.25, borderRight: { sm: `1px solid ${t.line}` }, borderBottom: `1px solid ${t.line}`,
-                  bgcolor: '#fff', transition: 'background .2s ease',
+                  p: 3.25,
+                  borderRight: { sm: `1px solid ${t.line}` },
+                  borderBottom: `1px solid ${t.line}`,
+                  bgcolor: '#fff',
+                  transition: 'background .2s ease',
                   '&:hover': { bgcolor: t.paper },
                 }}
               >
-                <Box sx={{ width: 38, height: 38, bgcolor: 'rgba(201,100,66,0.12)', borderRadius: 1, display: 'grid', placeItems: 'center', fontSize: 18, color: t.orange, mb: 2.25 }}>
+                <Box
+                  sx={{
+                    width: 38,
+                    height: 38,
+                    bgcolor: 'rgba(201,100,66,0.12)',
+                    borderRadius: 1,
+                    display: 'grid',
+                    placeItems: 'center',
+                    fontSize: 18,
+                    color: t.orange,
+                    mb: 2.25,
+                  }}
+                >
                   {m.icon}
                 </Box>
-                <Typography sx={{ fontFamily: homeTokens.fonts.serif, fontSize: 22, fontWeight: 500, mb: 1, letterSpacing: '-0.01em' }}>
+                <Typography
+                  sx={{
+                    fontFamily: homeTokens.fonts.serif,
+                    fontSize: 22,
+                    fontWeight: 500,
+                    mb: 1,
+                    letterSpacing: '-0.01em',
+                  }}
+                >
                   {m.title}
                 </Typography>
-                <Typography sx={{ color: t.inkSoft, fontSize: 14, lineHeight: 1.6, mb: 2.25 }}>{m.body}</Typography>
+                <Typography sx={{ color: t.inkSoft, fontSize: 14, lineHeight: 1.6, mb: 2.25 }}>
+                  {m.body}
+                </Typography>
                 <ModeMini variant={m.mini} />
               </Box>
             ))}
@@ -968,33 +1331,129 @@ export function HomeModes() {
 }
 
 function ModeMini({ variant }: { variant: Mode['mini'] }) {
-  const wrapper = { bgcolor: homeTokens.palette.paper, border: `1px solid ${homeTokens.palette.line}`, borderRadius: 1, p: 1.5, minHeight: 100, position: 'relative' as const, overflow: 'hidden' }
+  const wrapper = {
+    bgcolor: homeTokens.palette.paper,
+    border: `1px solid ${homeTokens.palette.line}`,
+    borderRadius: 1,
+    p: 1.5,
+    minHeight: 100,
+    position: 'relative' as const,
+    overflow: 'hidden',
+  }
   if (variant === 'doc') {
-    const lines = [{ h: 10, w: '50%', dark: true }, { h: 7, w: '88%' }, { h: 7, w: '72%' }, { h: 7, w: '80%' }, { h: 7, w: '88%' }] as const
+    const lines = [
+      { h: 10, w: '50%', dark: true },
+      { h: 7, w: '88%' },
+      { h: 7, w: '72%' },
+      { h: 7, w: '80%' },
+      { h: 7, w: '88%' },
+    ] as const
     return (
       <Box sx={wrapper}>
         {lines.map((l, i) => (
-          <Box key={i} sx={{ height: l.h, width: l.w, borderRadius: 0.25, bgcolor: l.dark ? homeTokens.palette.ink : 'rgba(0,0,0,0.1)', mb: 0.75 }} />
+          <Box
+            key={i}
+            sx={{
+              height: l.h,
+              width: l.w,
+              borderRadius: 0.25,
+              bgcolor: l.dark ? homeTokens.palette.ink : 'rgba(0,0,0,0.1)',
+              mb: 0.75,
+            }}
+          />
         ))}
       </Box>
     )
   }
   if (variant === 'canvas') {
     return (
-      <Box sx={{ ...wrapper, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 1.25 }}>
-        <Box aria-hidden sx={{ position: 'absolute', top: '50%', left: '12%', right: '12%', height: '1px', bgcolor: 'rgba(0,0,0,0.15)' }} />
-        <Box sx={{ width: 36, height: 36, borderRadius: '50%', bgcolor: homeTokens.palette.ink, boxShadow: '2px 2px 6px rgba(0,0,0,0.1)', position: 'relative' }} />
-        <Box sx={{ width: 40, height: 40, bgcolor: homeTokens.palette.orange, clipPath: 'polygon(50% 0, 100% 100%, 0 100%)', boxShadow: '2px 2px 6px rgba(0,0,0,0.1)', position: 'relative' }} />
-        <Box sx={{ width: 36, height: 36, borderRadius: 0.75, bgcolor: homeTokens.palette.orangeWarm, transform: 'rotate(15deg)', boxShadow: '2px 2px 6px rgba(0,0,0,0.1)', position: 'relative' }} />
+      <Box
+        sx={{
+          ...wrapper,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 1.25,
+        }}
+      >
+        <Box
+          aria-hidden
+          sx={{
+            position: 'absolute',
+            top: '50%',
+            left: '12%',
+            right: '12%',
+            height: '1px',
+            bgcolor: 'rgba(0,0,0,0.15)',
+          }}
+        />
+        <Box
+          sx={{
+            width: 36,
+            height: 36,
+            borderRadius: '50%',
+            bgcolor: homeTokens.palette.ink,
+            boxShadow: '2px 2px 6px rgba(0,0,0,0.1)',
+            position: 'relative',
+          }}
+        />
+        <Box
+          sx={{
+            width: 40,
+            height: 40,
+            bgcolor: homeTokens.palette.orange,
+            clipPath: 'polygon(50% 0, 100% 100%, 0 100%)',
+            boxShadow: '2px 2px 6px rgba(0,0,0,0.1)',
+            position: 'relative',
+          }}
+        />
+        <Box
+          sx={{
+            width: 36,
+            height: 36,
+            borderRadius: 0.75,
+            bgcolor: homeTokens.palette.orangeWarm,
+            transform: 'rotate(15deg)',
+            boxShadow: '2px 2px 6px rgba(0,0,0,0.1)',
+            position: 'relative',
+          }}
+        />
       </Box>
     )
   }
   if (variant === 'chat') {
     return (
       <Stack spacing={0.75} sx={wrapper}>
-        <Box sx={{ alignSelf: 'flex-end', bgcolor: homeTokens.palette.ink, color: homeTokens.palette.paperDeep, borderRadius: 1.25, px: 1.25, py: 0.75, fontSize: 11, maxWidth: '80%' }}>Что мы обещали клиенту?</Box>
-        <Box sx={{ alignSelf: 'flex-start', bgcolor: 'rgba(201,100,66,0.12)', color: homeTokens.palette.ink, border: '1px solid rgba(201,100,66,0.22)', borderRadius: 1.25, px: 1.25, py: 0.75, fontSize: 11, maxWidth: '80%' }}>
-          <Box component="span" sx={{ color: homeTokens.palette.orange, mr: 0.5 }}>✦</Box>
+        <Box
+          sx={{
+            alignSelf: 'flex-end',
+            bgcolor: homeTokens.palette.ink,
+            color: homeTokens.palette.paperDeep,
+            borderRadius: 1.25,
+            px: 1.25,
+            py: 0.75,
+            fontSize: 11,
+            maxWidth: '80%',
+          }}
+        >
+          Что мы обещали клиенту?
+        </Box>
+        <Box
+          sx={{
+            alignSelf: 'flex-start',
+            bgcolor: 'rgba(201,100,66,0.12)',
+            color: homeTokens.palette.ink,
+            border: '1px solid rgba(201,100,66,0.22)',
+            borderRadius: 1.25,
+            px: 1.25,
+            py: 0.75,
+            fontSize: 11,
+            maxWidth: '80%',
+          }}
+        >
+          <Box component="span" sx={{ color: homeTokens.palette.orange, mr: 0.5 }}>
+            ✦
+          </Box>
           Редизайн сайта и отчёт. Срок — 25 апреля.
         </Box>
       </Stack>
@@ -1002,10 +1461,36 @@ function ModeMini({ variant }: { variant: Mode['mini'] }) {
   }
   return (
     <Stack spacing={1} sx={wrapper}>
-      <Box sx={{ fontFamily: homeTokens.fonts.mono, fontSize: 10, bgcolor: '#fff', border: '1px dashed rgba(0,0,0,0.2)', p: '6px 9px', borderRadius: 0.75, color: 'rgba(0,0,0,0.6)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-        любые-заметки.app/<Box component="span" sx={{ color: homeTokens.palette.orange }}>share/abc123</Box>
+      <Box
+        sx={{
+          fontFamily: homeTokens.fonts.mono,
+          fontSize: 10,
+          bgcolor: '#fff',
+          border: '1px dashed rgba(0,0,0,0.2)',
+          p: '6px 9px',
+          borderRadius: 0.75,
+          color: 'rgba(0,0,0,0.6)',
+          whiteSpace: 'nowrap',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+        }}
+      >
+        любые-заметки.app/
+        <Box component="span" sx={{ color: homeTokens.palette.orange }}>
+          share/abc123
+        </Box>
       </Box>
-      <Box sx={{ display: 'grid', gridTemplateColumns: '30px 1fr', gap: 1, bgcolor: '#fff', border: `1px solid ${homeTokens.palette.line}`, borderRadius: 0.75, p: 0.875 }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: '30px 1fr',
+          gap: 1,
+          bgcolor: '#fff',
+          border: `1px solid ${homeTokens.palette.line}`,
+          borderRadius: 0.75,
+          p: 0.875,
+        }}
+      >
         <Box sx={{ bgcolor: homeTokens.palette.ink, borderRadius: 0.5 }} />
         <Stack spacing={0.5} justifyContent="center">
           <Box sx={{ height: 5, width: '80%', borderRadius: 0.25, bgcolor: 'rgba(0,0,0,0.18)' }} />
@@ -1030,6 +1515,7 @@ git commit -m "feat(public): add HomeModes section with 4 mode cards"
 ### Task 9: ИИ-поиск section component
 
 **Files:**
+
 - Create: `apps/web/src/components/public/home/home-search.tsx`
 
 - [ ] **Step 1: Create the file**
@@ -1055,44 +1541,110 @@ const sources = [
 
 export function HomeSearch() {
   return (
-    <Box component="section" id="search" sx={{ ...homeBaseSx, bgcolor: t.paper, py: { xs: 7, md: 11 } }}>
+    <Box
+      component="section"
+      id="search"
+      sx={{ ...homeBaseSx, bgcolor: t.paper, py: { xs: 7, md: 11 } }}
+    >
       <Container maxWidth="xl">
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '0.9fr 1.1fr' }, gap: { xs: 4, lg: 8 }, alignItems: 'start' }}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', lg: '0.9fr 1.1fr' },
+            gap: { xs: 4, lg: 8 },
+            alignItems: 'start',
+          }}
+        >
           <Stack spacing={2}>
             <Typography sx={eyebrowSx}>ИИ-ПОИСК</Typography>
             <Typography component="h2" sx={sectionTitleSx}>
               Ответ должен приходить из ваших документов — <em>не из догадок</em>
             </Typography>
             <Typography sx={{ color: t.inkSoft, fontSize: 16, lineHeight: 1.6, maxWidth: 560 }}>
-              Вместо поиска по папкам команда спрашивает «Любые заметки» обычными словами и сразу видит, на какие материалы опирается ответ.
+              Вместо поиска по папкам команда спрашивает «Любые заметки» обычными словами и сразу
+              видит, на какие материалы опирается ответ.
             </Typography>
             <Stack spacing={1.75} sx={{ mt: 3 }}>
               {steps.map((step, i) => (
                 <Stack key={step} direction="row" spacing={1.75} alignItems="flex-start">
-                  <Box sx={{ width: 28, height: 28, borderRadius: '50%', bgcolor: t.ink, color: t.paperDeep, display: 'grid', placeItems: 'center', fontFamily: homeTokens.fonts.mono, fontSize: 12, flexShrink: 0 }}>{i + 1}</Box>
+                  <Box
+                    sx={{
+                      width: 28,
+                      height: 28,
+                      borderRadius: '50%',
+                      bgcolor: t.ink,
+                      color: t.paperDeep,
+                      display: 'grid',
+                      placeItems: 'center',
+                      fontFamily: homeTokens.fonts.mono,
+                      fontSize: 12,
+                      flexShrink: 0,
+                    }}
+                  >
+                    {i + 1}
+                  </Box>
                   <Typography sx={{ fontSize: 16, lineHeight: 1.5, pt: '3px' }}>{step}</Typography>
                 </Stack>
               ))}
             </Stack>
           </Stack>
 
-          <Box sx={{ bgcolor: '#fff', border: `1px solid ${t.line}`, borderRadius: 1.75, boxShadow: '0 30px 60px rgba(29,29,27,0.08)', overflow: 'hidden' }}>
+          <Box
+            sx={{
+              bgcolor: '#fff',
+              border: `1px solid ${t.line}`,
+              borderRadius: 1.75,
+              boxShadow: '0 30px 60px rgba(29,29,27,0.08)',
+              overflow: 'hidden',
+            }}
+          >
             <Stack
               direction="row"
               alignItems="center"
               spacing={1.25}
               sx={{
-                bgcolor: t.ink, color: t.paperDeep, p: '18px 22px', position: 'relative', overflow: 'hidden',
-                '&::after': { content: '""', position: 'absolute', top: 0, bottom: 0, left: '-30%', width: '30%', background: 'linear-gradient(90deg, transparent, rgba(217,119,87,0.28), transparent)', animation: 'anScan 3s ease-in-out infinite' },
+                bgcolor: t.ink,
+                color: t.paperDeep,
+                p: '18px 22px',
+                position: 'relative',
+                overflow: 'hidden',
+                '&::after': {
+                  content: '""',
+                  position: 'absolute',
+                  top: 0,
+                  bottom: 0,
+                  left: '-30%',
+                  width: '30%',
+                  background:
+                    'linear-gradient(90deg, transparent, rgba(217,119,87,0.28), transparent)',
+                  animation: 'anScan 3s ease-in-out infinite',
+                },
                 '@media (prefers-reduced-motion: reduce)': { '&::after': { display: 'none' } },
               }}
             >
-              <Box component="span" sx={{ color: t.orangeWarm, fontSize: 14 }}>✦</Box>
-              <Typography sx={{ fontWeight: 500, fontSize: 15 }}>Что мы обещали клиенту в марте?</Typography>
+              <Box component="span" sx={{ color: t.orangeWarm, fontSize: 14 }}>
+                ✦
+              </Box>
+              <Typography sx={{ fontWeight: 500, fontSize: 15 }}>
+                Что мы обещали клиенту в марте?
+              </Typography>
             </Stack>
             <Box sx={{ p: '22px 24px 18px' }}>
-              <Typography sx={{ fontFamily: homeTokens.fonts.serif, fontSize: 19, lineHeight: 1.45, mb: 2.25, letterSpacing: '-0.005em' }}>
-                В марте команда согласовала редизайн сайта, запуск рекламной кампании и еженедельные отчёты. Крайний срок первого макета — <Box component="span" sx={{ borderRight: `2px solid ${t.orange}`, pr: '2px' }}>25 апреля</Box>.
+              <Typography
+                sx={{
+                  fontFamily: homeTokens.fonts.serif,
+                  fontSize: 19,
+                  lineHeight: 1.45,
+                  mb: 2.25,
+                  letterSpacing: '-0.005em',
+                }}
+              >
+                В марте команда согласовала редизайн сайта, запуск рекламной кампании и еженедельные
+                отчёты. Крайний срок первого макета —{' '}
+                <Box component="span" sx={{ borderRight: `2px solid ${t.orange}`, pr: '2px' }}>
+                  25 апреля
+                </Box>
+                .
               </Typography>
               <Box sx={{ height: 1, bgcolor: t.line, mx: -3, mb: 2 }} />
               <Typography sx={{ ...eyebrowSx, mb: 1.25 }}>ИСТОЧНИКИ</Typography>
@@ -1103,11 +1655,23 @@ export function HomeSearch() {
                     direction="row"
                     spacing={1.25}
                     alignItems="center"
-                    sx={{ p: '8px 10px', borderRadius: 1, bgcolor: t.paper, transition: 'background .18s ease', '&:hover': { bgcolor: t.paperDeep } }}
+                    sx={{
+                      p: '8px 10px',
+                      borderRadius: 1,
+                      bgcolor: t.paper,
+                      transition: 'background .18s ease',
+                      '&:hover': { bgcolor: t.paperDeep },
+                    }}
                   >
-                    <Box component="span" sx={{ fontSize: 16 }}>{s.em}</Box>
+                    <Box component="span" sx={{ fontSize: 16 }}>
+                      {s.em}
+                    </Box>
                     <Typography sx={{ fontSize: 13, flex: 1 }}>{s.name}</Typography>
-                    <Typography sx={{ fontFamily: homeTokens.fonts.mono, fontSize: 11, color: t.inkMute }}>{s.meta}</Typography>
+                    <Typography
+                      sx={{ fontFamily: homeTokens.fonts.mono, fontSize: 11, color: t.inkMute }}
+                    >
+                      {s.meta}
+                    </Typography>
                   </Stack>
                 ))}
               </Stack>
@@ -1133,6 +1697,7 @@ git commit -m "feat(public): add HomeSearch section with answer card"
 ### Task 10: Что ещё (features) section component
 
 **Files:**
+
 - Create: `apps/web/src/components/public/home/home-features.tsx`
 
 - [ ] **Step 1: Create the file**
@@ -1154,7 +1719,8 @@ export function HomeFeatures() {
             Что ещё <em>стоит знать</em>
           </Typography>
           <Typography sx={{ color: t.inkSoft, fontSize: 16, lineHeight: 1.6, maxWidth: 620 }}>
-            Шесть свойств, на которые мы зашили инженерные часы, чтобы продукт был приятным в ежедневной работе.
+            Шесть свойств, на которые мы зашили инженерные часы, чтобы продукт был приятным в
+            ежедневной работе.
           </Typography>
         </Stack>
 
@@ -1170,7 +1736,16 @@ export function HomeFeatures() {
           {homeFeatures.map((f) => (
             <Box key={f.title}>
               <Box sx={{ fontSize: 22, lineHeight: 1, mb: 2.25 }}>{f.icon}</Box>
-              <Typography sx={{ fontFamily: homeTokens.fonts.serif, fontSize: 20, fontWeight: 500, lineHeight: 1.2, letterSpacing: '-0.01em', mb: 0.5 }}>
+              <Typography
+                sx={{
+                  fontFamily: homeTokens.fonts.serif,
+                  fontSize: 20,
+                  fontWeight: 500,
+                  lineHeight: 1.2,
+                  letterSpacing: '-0.01em',
+                  mb: 0.5,
+                }}
+              >
                 {f.title}
               </Typography>
               <Typography sx={{ fontSize: 14, lineHeight: 1.6, color: t.inkSoft, maxWidth: 320 }}>
@@ -1198,6 +1773,7 @@ git commit -m "feat(public): add HomeFeatures section (Что ещё)"
 ### Task 11: Pricing section component
 
 **Files:**
+
 - Create: `apps/web/src/components/public/home/home-pricing.tsx`
 
 - [ ] **Step 1: Create the file**
@@ -1213,9 +1789,20 @@ const t = homeTokens.palette
 
 export function HomePricing() {
   return (
-    <Box component="section" id="pricing" sx={{ bgcolor: t.ink, color: t.paperDeep, py: { xs: 7, md: 11 } }}>
+    <Box
+      component="section"
+      id="pricing"
+      sx={{ bgcolor: t.ink, color: t.paperDeep, py: { xs: 7, md: 11 } }}
+    >
       <Container maxWidth="xl">
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '0.7fr 1.3fr' }, gap: { xs: 4, lg: 7 }, alignItems: 'start' }}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', lg: '0.7fr 1.3fr' },
+            gap: { xs: 4, lg: 7 },
+            alignItems: 'start',
+          }}
+        >
           <Stack spacing={2}>
             <Typography sx={{ ...eyebrowSx, color: 'rgba(240,238,230,0.55)' }}>ТАРИФЫ</Typography>
             <Typography component="h2" sx={{ ...sectionTitleSx, color: t.paperDeep }}>
@@ -1224,7 +1811,12 @@ export function HomePricing() {
             <Button
               href="/pricing"
               variant="outlined"
-              sx={{ alignSelf: 'flex-start', mt: 1, color: t.paperDeep, borderColor: 'rgba(240,238,230,0.28)' }}
+              sx={{
+                alignSelf: 'flex-start',
+                mt: 1,
+                color: t.paperDeep,
+                borderColor: 'rgba(240,238,230,0.28)',
+              }}
             >
               Сравнить планы
             </Button>
@@ -1241,51 +1833,113 @@ export function HomePricing() {
             {landingPricingCards.map((plan) => {
               const isFeatured = plan.slug === 'pro'
               return (
-                <Link key={plan.slug} href="/pricing" style={{ color: 'inherit', textDecoration: 'none' }}>
+                <Link
+                  key={plan.slug}
+                  href="/pricing"
+                  style={{ color: 'inherit', textDecoration: 'none' }}
+                >
                   <Box
                     sx={{
-                      p: 3.5, minHeight: 280, position: 'relative', display: 'flex', flexDirection: 'column',
+                      p: 3.5,
+                      minHeight: 280,
+                      position: 'relative',
+                      display: 'flex',
+                      flexDirection: 'column',
                       borderRight: { md: '1px solid rgba(240,238,230,0.16)' },
                       borderBottom: '1px solid rgba(240,238,230,0.16)',
                       bgcolor: isFeatured ? 'rgba(201,100,66,0.14)' : 'transparent',
                       transition: 'background-color .2s ease',
-                      '&:hover': { bgcolor: isFeatured ? 'rgba(201,100,66,0.18)' : 'rgba(240,238,230,0.04)' },
+                      '&:hover': {
+                        bgcolor: isFeatured ? 'rgba(201,100,66,0.18)' : 'rgba(240,238,230,0.04)',
+                      },
                     }}
                   >
                     {isFeatured && (
                       <Box
                         aria-hidden
                         sx={{
-                          position: 'absolute', top: -16, right: 18, width: 32, height: 32,
+                          position: 'absolute',
+                          top: -16,
+                          right: 18,
+                          width: 32,
+                          height: 32,
                           background: `linear-gradient(135deg, ${t.orangeWarm}, ${t.orange})`,
                           clipPath: 'polygon(50% 0, 100% 50%, 50% 100%, 0 50%)',
-                          boxShadow: '4px 6px 14px rgba(0,0,0,0.3)', transform: 'rotate(8deg)',
+                          boxShadow: '4px 6px 14px rgba(0,0,0,0.3)',
+                          transform: 'rotate(8deg)',
                         }}
                       />
                     )}
-                    <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1.25 }}>
-                      <Typography sx={{ fontFamily: homeTokens.fonts.serif, fontSize: 22, fontWeight: 500, color: t.paperDeep }}>{plan.name}</Typography>
+                    <Stack
+                      direction="row"
+                      alignItems="center"
+                      justifyContent="space-between"
+                      sx={{ mb: 1.25 }}
+                    >
+                      <Typography
+                        sx={{
+                          fontFamily: homeTokens.fonts.serif,
+                          fontSize: 22,
+                          fontWeight: 500,
+                          color: t.paperDeep,
+                        }}
+                      >
+                        {plan.name}
+                      </Typography>
                       {isFeatured && (
-                        <Box component="span" sx={{ bgcolor: t.paperDeep, color: t.ink, fontSize: 10, px: 1, py: '3px', borderRadius: 999, fontFamily: homeTokens.fonts.mono, textTransform: 'uppercase', letterSpacing: '0.08em' }}>популярный</Box>
+                        <Box
+                          component="span"
+                          sx={{
+                            bgcolor: t.paperDeep,
+                            color: t.ink,
+                            fontSize: 10,
+                            px: 1,
+                            py: '3px',
+                            borderRadius: 999,
+                            fontFamily: homeTokens.fonts.mono,
+                            textTransform: 'uppercase',
+                            letterSpacing: '0.08em',
+                          }}
+                        >
+                          популярный
+                        </Box>
                       )}
                     </Stack>
                     <Typography
                       sx={{
-                        fontFamily: homeTokens.fonts.serif, fontSize: 28, fontWeight: 500, letterSpacing: '-0.01em', mb: 1.75,
+                        fontFamily: homeTokens.fonts.serif,
+                        fontSize: 28,
+                        fontWeight: 500,
+                        letterSpacing: '-0.01em',
+                        mb: 1.75,
                         color: plan.slug === 'personal' ? t.orangeWarm : t.paperDeep,
                       }}
                     >
                       {plan.price}
                     </Typography>
-                    <Stack component="ul" spacing={0.875} sx={{ flex: 1, p: 0, m: 0, listStyle: 'none' }}>
+                    <Stack
+                      component="ul"
+                      spacing={0.875}
+                      sx={{ flex: 1, p: 0, m: 0, listStyle: 'none' }}
+                    >
                       {plan.features.map((item) => (
                         <Typography
                           component="li"
                           key={item}
                           sx={{
-                            position: 'relative', pl: 2.25, fontSize: 13, lineHeight: 1.55,
+                            position: 'relative',
+                            pl: 2.25,
+                            fontSize: 13,
+                            lineHeight: 1.55,
                             color: 'rgba(240,238,230,0.72)',
-                            '&::before': { content: '"+"', position: 'absolute', left: 0, top: 0, color: t.orangeWarm, fontFamily: homeTokens.fonts.mono },
+                            '&::before': {
+                              content: '"+"',
+                              position: 'absolute',
+                              left: 0,
+                              top: 0,
+                              color: t.orangeWarm,
+                              fontFamily: homeTokens.fonts.mono,
+                            },
                           }}
                         >
                           {item}
@@ -1293,7 +1947,9 @@ export function HomePricing() {
                       ))}
                     </Stack>
                     <Stack direction="row" spacing={0.5} alignItems="center" sx={{ mt: 2 }}>
-                      <Typography sx={{ fontSize: 13, color: 'rgba(240,238,230,0.85)' }}>Подробнее →</Typography>
+                      <Typography sx={{ fontSize: 13, color: 'rgba(240,238,230,0.85)' }}>
+                        Подробнее →
+                      </Typography>
                     </Stack>
                   </Box>
                 </Link>
@@ -1320,6 +1976,7 @@ git commit -m "feat(public): add HomePricing dark section"
 ### Task 12: Особое решение (contact) section component
 
 **Files:**
+
 - Create: `apps/web/src/components/public/home/home-contact.tsx`
 
 - [ ] **Step 1: Create the file**
@@ -1337,30 +1994,80 @@ export function HomeContact() {
   return (
     <Box component="section" id="contact" sx={{ bgcolor: '#fff', py: { xs: 7, md: 11 } }}>
       <Container maxWidth="xl">
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', lg: '1fr 1.1fr' }, gap: { xs: 4, lg: 8 }, alignItems: 'center' }}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', lg: '1fr 1.1fr' },
+            gap: { xs: 4, lg: 8 },
+            alignItems: 'center',
+          }}
+        >
           <Stack spacing={2}>
             <Typography sx={eyebrowSx}>ОСОБОЕ РЕШЕНИЕ</Typography>
             <Typography component="h2" sx={sectionTitleSx}>
               Нужна <em>нестандартная конфигурация?</em>
             </Typography>
             <Typography sx={{ color: t.inkSoft, fontSize: 16, lineHeight: 1.6, maxWidth: 540 }}>
-              On-prem, выделенный домен, SSO, индивидуальные интеграции, корпоративный тариф — оставьте контакты, обсудим за день.
+              On-prem, выделенный домен, SSO, индивидуальные интеграции, корпоративный тариф —
+              оставьте контакты, обсудим за день.
             </Typography>
 
-            <Box sx={{ position: 'relative', minHeight: 280, mt: 3, display: { xs: 'none', md: 'block' } }}>
-              <Origami variant="rhombus" size={140} gradient="warm" rotate={8} style={{ top: 0, left: 24 }} />
-              <Origami variant="triangle" size={90} gradient="deep" rotate={-12} style={{ top: 60, right: 30 }} />
+            <Box
+              sx={{
+                position: 'relative',
+                minHeight: 280,
+                mt: 3,
+                display: { xs: 'none', md: 'block' },
+              }}
+            >
+              <Origami
+                variant="rhombus"
+                size={140}
+                gradient="warm"
+                rotate={8}
+                style={{ top: 0, left: 24 }}
+              />
+              <Origami
+                variant="triangle"
+                size={90}
+                gradient="deep"
+                rotate={-12}
+                style={{ top: 60, right: 30 }}
+              />
               <Origami variant="circle" size={70} gradient="ink" style={{ bottom: 0, left: 110 }} />
-              <Box sx={{ position: 'absolute', bottom: 18, right: 0, bgcolor: '#fff', border: `1px solid ${t.line}`, borderRadius: 1.5, p: '14px 16px', boxShadow: '0 18px 40px rgba(0,0,0,0.08)', maxWidth: 240, zIndex: 2 }}>
+              <Box
+                sx={{
+                  position: 'absolute',
+                  bottom: 18,
+                  right: 0,
+                  bgcolor: '#fff',
+                  border: `1px solid ${t.line}`,
+                  borderRadius: 1.5,
+                  p: '14px 16px',
+                  boxShadow: '0 18px 40px rgba(0,0,0,0.08)',
+                  maxWidth: 240,
+                  zIndex: 2,
+                }}
+              >
                 <Typography sx={{ ...eyebrowSx, mb: 0.75 }}>СРЕДНЕЕ ВРЕМЯ ОТВЕТА</Typography>
-                <Typography sx={{ fontFamily: homeTokens.fonts.serif, fontSize: 14, lineHeight: 1.4, m: 0 }}>
+                <Typography
+                  sx={{ fontFamily: homeTokens.fonts.serif, fontSize: 14, lineHeight: 1.4, m: 0 }}
+                >
                   «Связались в тот же день и собрали стенд за неделю».
                 </Typography>
               </Box>
             </Box>
           </Stack>
 
-          <Box sx={{ bgcolor: '#fff', border: `1px solid ${t.line}`, borderRadius: 1.75, p: { xs: 3, md: 3.5 }, boxShadow: '0 24px 48px rgba(0,0,0,0.06)' }}>
+          <Box
+            sx={{
+              bgcolor: '#fff',
+              border: `1px solid ${t.line}`,
+              borderRadius: 1.75,
+              p: { xs: 3, md: 3.5 },
+              boxShadow: '0 24px 48px rgba(0,0,0,0.06)',
+            }}
+          >
             <ContactForm />
           </Box>
         </Box>
@@ -1383,12 +2090,20 @@ git commit -m "feat(public): add HomeContact section with origami illustration"
 ### Task 13: Final CTA section component
 
 **Files:**
+
 - Create: `apps/web/src/components/public/home/home-final-cta.tsx`
 
 - [ ] **Step 1: Create the file**
 
 ```tsx
-import { ArrowRightOutlinedIcon, Box, Button, Container, Stack, Typography } from '@repo/ui/components'
+import {
+  ArrowRightOutlinedIcon,
+  Box,
+  Button,
+  Container,
+  Stack,
+  Typography,
+} from '@repo/ui/components'
 
 import { Origami } from './origami'
 import { homeTokens } from './home-tokens'
@@ -1412,33 +2127,66 @@ export function HomeFinalCta({ primaryHref, primaryLabel }: Props) {
         variant="rhombus"
         size={260}
         gradient="warm"
-        style={{ top: '50%', right: -60, transform: 'translateY(-50%) rotate(0deg)', boxShadow: '-20px 20px 60px rgba(201,100,66,0.3)', opacity: 0.85 }}
+        style={{
+          top: '50%',
+          right: -60,
+          transform: 'translateY(-50%) rotate(0deg)',
+          boxShadow: '-20px 20px 60px rgba(201,100,66,0.3)',
+          opacity: 0.85,
+        }}
       />
-      <Origami variant="circle" size={80} gradient="ink" style={{ bottom: 30, left: 60, boxShadow: '8px 12px 30px rgba(0,0,0,0.2)' }} />
+      <Origami
+        variant="circle"
+        size={80}
+        gradient="ink"
+        style={{ bottom: 30, left: 60, boxShadow: '8px 12px 30px rgba(0,0,0,0.2)' }}
+      />
 
       <Container maxWidth="xl" sx={{ position: 'relative', zIndex: 2 }}>
-        <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', md: '1fr auto' }, gap: { xs: 3, md: 5 }, alignItems: 'end' }}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: { xs: '1fr', md: '1fr auto' },
+            gap: { xs: 3, md: 5 },
+            alignItems: 'end',
+          }}
+        >
           <Stack spacing={2}>
             <Typography
               component="h2"
               sx={{
-                fontFamily: homeTokens.fonts.serif, fontWeight: 500,
-                fontSize: { xs: '2.25rem', md: '4rem' }, lineHeight: 1.02, letterSpacing: '-0.025em',
-                color: t.ink, m: 0, maxWidth: 720,
+                fontFamily: homeTokens.fonts.serif,
+                fontWeight: 500,
+                fontSize: { xs: '2.25rem', md: '4rem' },
+                lineHeight: 1.02,
+                letterSpacing: '-0.025em',
+                color: t.ink,
+                m: 0,
+                maxWidth: 720,
                 '& em': { fontStyle: 'italic', color: t.orange },
               }}
             >
               Перенесите рабочие знания туда, <em>где их можно найти</em>
             </Typography>
             <Typography sx={{ color: t.inkSoft, fontSize: 16, lineHeight: 1.6, maxWidth: 540 }}>
-              Регистрация занимает пару минут. Начните с личного пространства и подключите команду позже.
+              Регистрация занимает пару минут. Начните с личного пространства и подключите команду
+              позже.
             </Typography>
           </Stack>
           <Button
             href={primaryHref}
             size="large"
             endIcon={<ArrowRightOutlinedIcon />}
-            sx={{ bgcolor: t.ink, color: `${t.paperDeep} !important`, borderRadius: 1.5, minHeight: 56, px: 3.5, fontSize: 16, '& .MuiButton-endIcon': { color: 'inherit' }, '&:hover': { bgcolor: t.orange } }}
+            sx={{
+              bgcolor: t.ink,
+              color: `${t.paperDeep} !important`,
+              borderRadius: 1.5,
+              minHeight: 56,
+              px: 3.5,
+              fontSize: 16,
+              '& .MuiButton-endIcon': { color: 'inherit' },
+              '&:hover': { bgcolor: t.orange },
+            }}
           >
             {primaryLabel}
           </Button>
@@ -1462,6 +2210,7 @@ git commit -m "feat(public): add HomeFinalCta section"
 ### Task 14: Slim down page.tsx composer
 
 **Files:**
+
 - Modify: `apps/web/src/app/page.tsx`
 
 - [ ] **Step 1: Replace the entire file**
@@ -1526,6 +2275,7 @@ git commit -m "refactor(web): compose home page from new section components"
 ### Task 15: Repaint public footer
 
 **Files:**
+
 - Modify: `apps/web/src/components/public/public-footer.tsx`
 
 - [ ] **Step 1: Replace the file content**
@@ -1547,8 +2297,13 @@ export function PublicFooter() {
         <Box
           aria-hidden
           sx={{
-            position: 'absolute', right: -50, top: -30, width: 180, height: 180,
-            background: 'radial-gradient(circle at 30% 30%, rgba(217,119,87,0.16), transparent 70%)',
+            position: 'absolute',
+            right: -50,
+            top: -30,
+            width: 180,
+            height: 180,
+            background:
+              'radial-gradient(circle at 30% 30%, rgba(217,119,87,0.16), transparent 70%)',
             pointerEvents: 'none',
           }}
         />
@@ -1566,14 +2321,29 @@ export function PublicFooter() {
           <Stack spacing={2}>
             <Stack direction="row" alignItems="center" spacing={1.25}>
               <Box sx={{ position: 'relative', width: 28, height: 28 }}>
-                <Origami variant="rhombus" size={28} gradient="warm" style={{ position: 'static' }} />
+                <Origami
+                  variant="rhombus"
+                  size={28}
+                  gradient="warm"
+                  style={{ position: 'static' }}
+                />
               </Box>
-              <Typography sx={{ fontFamily: homeTokens.fonts.serif, fontSize: 22, fontWeight: 500, letterSpacing: '-0.01em' }}>
+              <Typography
+                sx={{
+                  fontFamily: homeTokens.fonts.serif,
+                  fontSize: 22,
+                  fontWeight: 500,
+                  letterSpacing: '-0.01em',
+                }}
+              >
                 Любые заметки
               </Typography>
             </Stack>
-            <Typography sx={{ color: 'rgba(240,238,230,0.6)', fontSize: 14, lineHeight: 1.6, maxWidth: 320 }}>
-              Рабочая память команды с ИИ-поиском. Документы, схемы, заметки и файлы — в одном пространстве.
+            <Typography
+              sx={{ color: 'rgba(240,238,230,0.6)', fontSize: 14, lineHeight: 1.6, maxWidth: 320 }}
+            >
+              Рабочая память команды с ИИ-поиском. Документы, схемы, заметки и файлы — в одном
+              пространстве.
             </Typography>
             <Stack direction="row" spacing={1}>
               <FooterBadge>RU · 2026</FooterBadge>
@@ -1583,7 +2353,15 @@ export function PublicFooter() {
 
           {publicFooterSections.map((section) => (
             <Stack key={section.title} spacing={2}>
-              <Typography sx={{ fontFamily: homeTokens.fonts.mono, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(240,238,230,0.55)' }}>
+              <Typography
+                sx={{
+                  fontFamily: homeTokens.fonts.mono,
+                  fontSize: 11,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.1em',
+                  color: 'rgba(240,238,230,0.55)',
+                }}
+              >
                 {section.title}
               </Typography>
               <Stack spacing={1.25}>
@@ -1592,7 +2370,12 @@ export function PublicFooter() {
                     key={link.href}
                     component={Link}
                     href={link.href}
-                    sx={{ color: t.paperDeep, textDecoration: 'none', fontSize: 14, '&:hover': { color: t.orangeWarm } }}
+                    sx={{
+                      color: t.paperDeep,
+                      textDecoration: 'none',
+                      fontSize: 14,
+                      '&:hover': { color: t.orangeWarm },
+                    }}
                   >
                     {link.label}
                   </Box>
@@ -1602,14 +2385,34 @@ export function PublicFooter() {
           ))}
 
           <Stack spacing={2}>
-            <Typography sx={{ fontFamily: homeTokens.fonts.mono, fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.1em', color: 'rgba(240,238,230,0.55)' }}>
+            <Typography
+              sx={{
+                fontFamily: homeTokens.fonts.mono,
+                fontSize: 11,
+                textTransform: 'uppercase',
+                letterSpacing: '0.1em',
+                color: 'rgba(240,238,230,0.55)',
+              }}
+            >
               Связаться
             </Typography>
             <Stack spacing={1.25}>
-              <FooterContact icon="✉" href={`mailto:${publicContact.email}`}>{publicContact.email}</FooterContact>
-              <FooterContact icon="📞" href={`tel:${publicContact.phone.replace(/\s|\(|\)|-/g, '')}`}>{publicContact.phone}</FooterContact>
+              <FooterContact icon="✉" href={`mailto:${publicContact.email}`}>
+                {publicContact.email}
+              </FooterContact>
+              <FooterContact
+                icon="📞"
+                href={`tel:${publicContact.phone.replace(/\s|\(|\)|-/g, '')}`}
+              >
+                {publicContact.phone}
+              </FooterContact>
               {publicContact.telegram ? (
-                <FooterContact icon="✈" href={`https://t.me/${publicContact.telegram.replace(/^@/, '')}`}>{publicContact.telegram}</FooterContact>
+                <FooterContact
+                  icon="✈"
+                  href={`https://t.me/${publicContact.telegram.replace(/^@/, '')}`}
+                >
+                  {publicContact.telegram}
+                </FooterContact>
               ) : null}
             </Stack>
           </Stack>
@@ -1629,7 +2432,12 @@ export function PublicFooter() {
               { label: 'Оферта', href: '/oferta' },
               { label: 'Cookies', href: '/privacy#cookies' },
             ].map((l) => (
-              <Box key={l.href} component={Link} href={l.href} sx={{ color: 'inherit', textDecoration: 'none', '&:hover': { color: t.paperDeep } }}>
+              <Box
+                key={l.href}
+                component={Link}
+                href={l.href}
+                sx={{ color: 'inherit', textDecoration: 'none', '&:hover': { color: t.paperDeep } }}
+              >
                 {l.label}
               </Box>
             ))}
@@ -1642,20 +2450,48 @@ export function PublicFooter() {
 
 function FooterBadge({ children }: { children: React.ReactNode }) {
   return (
-    <Box component="span" sx={{ fontFamily: homeTokens.fonts.mono, fontSize: 10, px: 1.125, py: 0.5, borderRadius: 999, border: '1px solid rgba(240,238,230,0.18)', color: 'rgba(240,238,230,0.7)', textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+    <Box
+      component="span"
+      sx={{
+        fontFamily: homeTokens.fonts.mono,
+        fontSize: 10,
+        px: 1.125,
+        py: 0.5,
+        borderRadius: 999,
+        border: '1px solid rgba(240,238,230,0.18)',
+        color: 'rgba(240,238,230,0.7)',
+        textTransform: 'uppercase',
+        letterSpacing: '0.08em',
+      }}
+    >
       {children}
     </Box>
   )
 }
 
-function FooterContact({ icon, href, children }: { icon: string; href: string; children: React.ReactNode }) {
+function FooterContact({
+  icon,
+  href,
+  children,
+}: {
+  icon: string
+  href: string
+  children: React.ReactNode
+}) {
   return (
     <Stack direction="row" alignItems="center" spacing={1}>
-      <Box component="span" sx={{ fontSize: 14, opacity: 0.7 }}>{icon}</Box>
+      <Box component="span" sx={{ fontSize: 14, opacity: 0.7 }}>
+        {icon}
+      </Box>
       <Box
         component={Link}
         href={href}
-        sx={{ color: homeTokens.palette.paperDeep, textDecoration: 'none', fontSize: 14, '&:hover': { color: homeTokens.palette.orangeWarm } }}
+        sx={{
+          color: homeTokens.palette.paperDeep,
+          textDecoration: 'none',
+          fontSize: 14,
+          '&:hover': { color: homeTokens.palette.orangeWarm },
+        }}
       >
         {children}
       </Box>
@@ -1680,6 +2516,7 @@ git commit -m "feat(public): repaint footer in Claude editorial style"
 ### Task 16: Update header brand and rebrand sweep
 
 **Files:**
+
 - Modify: `apps/web/src/components/public/public-header.tsx`
 - Modify: `apps/web/src/components/public/public-page-shell.tsx` (if it references "AnyNote")
 - Modify: `apps/web/src/app/(about)/contact/page.tsx`, `pricing/page.tsx`, `roadmap/page.tsx`, `docs/page.tsx`, `oferta/page.tsx`, `terms/page.tsx`, `privacy/page.tsx`, `developers/page.tsx`, `offer/page.tsx`
@@ -1739,6 +2576,7 @@ git commit -m "feat(public): rebrand AnyNote→Любые заметки, AI→�
 ### Task 17: Playwright e2e for the home page
 
 **Files:**
+
 - Create: `apps/e2e/home-redesign.spec.ts`
 
 - [ ] **Step 1: Write the test**
@@ -1844,31 +2682,32 @@ git commit -m "fix(public): address gate failures from home redesign"
 
 **Spec coverage check:**
 
-| Spec section | Task |
-|---|---|
-| Visual language (palette, fonts, motif, motion) | Tasks 1, 2, 3 |
-| Section 1 Hero | Task 6 |
-| Section 2 Market-fit | Task 7 |
-| Section 3 Modes | Task 8 |
-| Section 4 ИИ-поиск | Task 9 |
-| Section 5 Что ещё (new) | Task 10 + content in Task 4 |
-| Section 6 Тарифы | Task 11 |
-| Section 7 Особое решение (new) | Tasks 5 + 12 |
-| Section 8 Final CTA | Task 13 |
-| Section 9 Footer (redesigned) | Task 15 |
-| Page composer | Task 14 |
-| Rebrand pass (header, public pages, mail templates) | Task 16 |
-| `homeFeatures`, `publicContact`, restructured `publicFooterSections` | Task 4 |
-| ContactForm extension | Task 5 |
-| RSC boundaries (Server Components except contact) | Implicit — only `home-contact.tsx` imports a `"use client"` form; the rest are pure RSC |
-| Tests (e2e + contact-form unit) | Tasks 5, 17 |
-| Final gate | Task 18 |
+| Spec section                                                         | Task                                                                                    |
+| -------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Visual language (palette, fonts, motif, motion)                      | Tasks 1, 2, 3                                                                           |
+| Section 1 Hero                                                       | Task 6                                                                                  |
+| Section 2 Market-fit                                                 | Task 7                                                                                  |
+| Section 3 Modes                                                      | Task 8                                                                                  |
+| Section 4 ИИ-поиск                                                   | Task 9                                                                                  |
+| Section 5 Что ещё (new)                                              | Task 10 + content in Task 4                                                             |
+| Section 6 Тарифы                                                     | Task 11                                                                                 |
+| Section 7 Особое решение (new)                                       | Tasks 5 + 12                                                                            |
+| Section 8 Final CTA                                                  | Task 13                                                                                 |
+| Section 9 Footer (redesigned)                                        | Task 15                                                                                 |
+| Page composer                                                        | Task 14                                                                                 |
+| Rebrand pass (header, public pages, mail templates)                  | Task 16                                                                                 |
+| `homeFeatures`, `publicContact`, restructured `publicFooterSections` | Task 4                                                                                  |
+| ContactForm extension                                                | Task 5                                                                                  |
+| RSC boundaries (Server Components except contact)                    | Implicit — only `home-contact.tsx` imports a `"use client"` form; the rest are pure RSC |
+| Tests (e2e + contact-form unit)                                      | Tasks 5, 17                                                                             |
+| Final gate                                                           | Task 18                                                                                 |
 
 All sections, all rebrand items, all data-shape changes, and the form extension have a task. No gaps found.
 
 **Placeholder scan:** No "TODO", "TBD", "fill in", or "implement later" inside the task bodies. Code blocks contain real TSX. The font fallback note ("Source Serif 4 if Crimson Pro renders poorly") is informational text in the spec, not a task placeholder — Task 1 commits Crimson Pro deterministically.
 
 **Type consistency:**
+
 - `HomeHero` props: `{ primaryHref, primaryLabel, showSecondary }` — used the same way in Task 14.
 - `HomeFinalCta` props: `{ primaryHref, primaryLabel }` — matches Task 14.
 - `Origami` props: `{ variant, size, gradient?, rotate?, style?, ariaHidden? }` — consumed identically in Tasks 6, 12, 13, 15.

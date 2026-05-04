@@ -45,9 +45,7 @@ export function Origami({
         clipPath: clipPaths[variant],
         borderRadius: variant === 'circle' ? '50%' : 0,
         boxShadow:
-          variant === 'circle'
-            ? '4px 6px 16px rgba(0,0,0,0.18)'
-            : '6px 8px 24px rgba(0,0,0,0.14)',
+          variant === 'circle' ? '4px 6px 16px rgba(0,0,0,0.18)' : '6px 8px 24px rgba(0,0,0,0.14)',
         transform: rotate ? `rotate(${rotate}deg)` : undefined,
         ...style,
       }}

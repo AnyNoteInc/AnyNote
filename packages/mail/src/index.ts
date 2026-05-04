@@ -1,9 +1,5 @@
-export type { MailKind, MailPayloads, MailEventPayload, RenderedEmail } from './types.js'
-export { renderTemplate } from './templates/index.js'
-export { enqueueMailEvent, type EnqueueMailEventArgs } from './enqueue.js'
-export { getMailTransport } from './transport.js'
-export {
-  dispatchPending,
-  type DispatchResult,
-  type DispatchOptions,
-} from './dispatch.js'
+export type { MailKind, MailPayloads, MailEventPayload, RenderedEmail } from './types.ts'
+export { renderTemplate } from './templates/index.ts'
+export { enqueueMailEvent, type EnqueueMailEventArgs } from './enqueue.ts'
+export { getMailTransport } from './transport.ts'
+export { dispatchPending, type DispatchResult, type DispatchOptions } from './dispatch.ts'

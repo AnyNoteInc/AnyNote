@@ -19,7 +19,10 @@ export function ChildEntryRow({ value, onChange, readOnly }: Props) {
         value={value.type}
         onChange={(_e, next) => {
           if (next === 'person') {
-            onChange({ type: 'person', data: { sex: 'male', lifeStatus: 'alive', birthMode: 'date' } })
+            onChange({
+              type: 'person',
+              data: { sex: 'male', lifeStatus: 'alive', birthMode: 'date' },
+            })
           } else if (next === 'miscarriage' || next === 'abortion') {
             onChange({ type: next })
           }
@@ -32,7 +35,11 @@ export function ChildEntryRow({ value, onChange, readOnly }: Props) {
 
       {value.type === 'person' ? (
         readOnly ? (
-          <span>{[value.data.lastName, value.data.firstName, value.data.middleName].filter(Boolean).join(' ')}</span>
+          <span>
+            {[value.data.lastName, value.data.firstName, value.data.middleName]
+              .filter(Boolean)
+              .join(' ')}
+          </span>
         ) : (
           <PersonDataForm
             initial={value.data}
@@ -47,7 +54,9 @@ export function ChildEntryRow({ value, onChange, readOnly }: Props) {
         <PartialDateInput
           label={RU.fields.eventDate}
           value={value.date ?? {}}
-          onChange={(v) => onChange({ type: value.type, date: Object.keys(v).length ? v : undefined })}
+          onChange={(v) =>
+            onChange({ type: value.type, date: Object.keys(v).length ? v : undefined })
+          }
         />
       )}
     </Stack>

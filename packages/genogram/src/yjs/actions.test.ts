@@ -71,7 +71,10 @@ describe('yjs actions', () => {
     const female = addPerson(doc, { sex: 'female', bloodRelation: 'partner' })
     const union = addUnion(doc, { malePartnerId: male.id, femalePartnerId: female.id })
 
-    setUnionDivorce(doc, union.id, { date: { day: 1, month: 6, year: 2020 }, custodySide: 'female' })
+    setUnionDivorce(doc, union.id, {
+      date: { day: 1, month: 6, year: 2020 },
+      custodySide: 'female',
+    })
     let domain = assembleDomain(doc)
     expect(domain.entities.unions[union.id]!.divorce).toEqual({
       date: { day: 1, month: 6, year: 2020 },
@@ -295,12 +298,20 @@ describe('addPartner', () => {
   it('with newPartnerOrder=2 numbers existing partner=1 and new partner=2', () => {
     const doc = new Y.Doc()
     const owner = createOwnerWithParents(doc, { sex: 'male' })
-    const wife1 = addPartner(doc, owner.ownerId,
+    const wife1 = addPartner(
+      doc,
+      owner.ownerId,
       { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
-      { kind: 'marriage' }, 1)
-    const wife2 = addPartner(doc, owner.ownerId,
+      { kind: 'marriage' },
+      1,
+    )
+    const wife2 = addPartner(
+      doc,
+      owner.ownerId,
       { firstName: 'Мария', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
-      { kind: 'marriage' }, 2)
+      { kind: 'marriage' },
+      2,
+    )
 
     const domain = assembleDomain(doc)
     expect(domain.entities.people[wife1.partnerId]!.partnerOrder).toBe(1)
@@ -312,12 +323,20 @@ describe('setPartnerOrder', () => {
   it('swaps partner ordinals when moving partner #1 to #2', () => {
     const doc = new Y.Doc()
     const owner = createOwnerWithParents(doc, { sex: 'male' })
-    const w1 = addPartner(doc, owner.ownerId,
+    const w1 = addPartner(
+      doc,
+      owner.ownerId,
       { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
-      { kind: 'marriage' }, 1)
-    const w2 = addPartner(doc, owner.ownerId,
+      { kind: 'marriage' },
+      1,
+    )
+    const w2 = addPartner(
+      doc,
+      owner.ownerId,
       { firstName: 'Мария', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
-      { kind: 'marriage' }, 2)
+      { kind: 'marriage' },
+      2,
+    )
 
     setPartnerOrder(doc, w1.partnerId, 2)
 
@@ -329,12 +348,20 @@ describe('setPartnerOrder', () => {
   it('throws when newOrder out of range', () => {
     const doc = new Y.Doc()
     const owner = createOwnerWithParents(doc, { sex: 'male' })
-    const w1 = addPartner(doc, owner.ownerId,
+    const w1 = addPartner(
+      doc,
+      owner.ownerId,
       { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
-      { kind: 'marriage' }, 1)
-    const w2 = addPartner(doc, owner.ownerId,
+      { kind: 'marriage' },
+      1,
+    )
+    const w2 = addPartner(
+      doc,
+      owner.ownerId,
       { firstName: 'Мария', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
-      { kind: 'marriage' }, 2)
+      { kind: 'marriage' },
+      2,
+    )
     void w2
 
     expect(() => setPartnerOrder(doc, w1.partnerId, 0)).toThrow(RangeError)
@@ -357,15 +384,27 @@ describe('setPartnerOrder', () => {
   it('reorders 3 partners moving #1 to #3 → ordinals dense 1..3', () => {
     const doc = new Y.Doc()
     const owner = createOwnerWithParents(doc, { sex: 'male' })
-    const w1 = addPartner(doc, owner.ownerId,
+    const w1 = addPartner(
+      doc,
+      owner.ownerId,
       { firstName: 'A', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
-      { kind: 'marriage' }, 1)
-    const w2 = addPartner(doc, owner.ownerId,
+      { kind: 'marriage' },
+      1,
+    )
+    const w2 = addPartner(
+      doc,
+      owner.ownerId,
       { firstName: 'B', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
-      { kind: 'marriage' }, 2)
-    const w3 = addPartner(doc, owner.ownerId,
+      { kind: 'marriage' },
+      2,
+    )
+    const w3 = addPartner(
+      doc,
+      owner.ownerId,
       { firstName: 'C', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
-      { kind: 'marriage' }, 3)
+      { kind: 'marriage' },
+      3,
+    )
 
     setPartnerOrder(doc, w1.partnerId, 3)
 
@@ -380,12 +419,19 @@ describe('addChildren', () => {
   it('adds Person and PregnancyLoss entries to ChildGroup', () => {
     const doc = new Y.Doc()
     const owner = createOwnerWithParents(doc, { sex: 'male' })
-    const partner = addPartner(doc, owner.ownerId,
+    const partner = addPartner(
+      doc,
+      owner.ownerId,
       { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
-      { kind: 'marriage' }, 1)
+      { kind: 'marriage' },
+      1,
+    )
 
     addChildren(doc, partner.unionId, [
-      { type: 'person', data: { firstName: 'Лиза', sex: 'female', lifeStatus: 'alive', birthMode: 'date' } },
+      {
+        type: 'person',
+        data: { firstName: 'Лиза', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      },
       { type: 'miscarriage', date: { day: 5, month: 4, year: 2020 } },
     ])
 
@@ -404,13 +450,23 @@ describe('addChildren', () => {
   it('reorders existing children when reorderExisting is provided', () => {
     const doc = new Y.Doc()
     const owner = createOwnerWithParents(doc, { sex: 'male' })
-    const partner = addPartner(doc, owner.ownerId,
+    const partner = addPartner(
+      doc,
+      owner.ownerId,
       { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
-      { kind: 'marriage' }, 1)
+      { kind: 'marriage' },
+      1,
+    )
 
     addChildren(doc, partner.unionId, [
-      { type: 'person', data: { firstName: 'A', sex: 'female', lifeStatus: 'alive', birthMode: 'date' } },
-      { type: 'person', data: { firstName: 'B', sex: 'male', lifeStatus: 'alive', birthMode: 'date' } },
+      {
+        type: 'person',
+        data: { firstName: 'A', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      },
+      {
+        type: 'person',
+        data: { firstName: 'B', sex: 'male', lifeStatus: 'alive', birthMode: 'date' },
+      },
     ])
 
     let domain = assembleDomain(doc)
@@ -429,14 +485,27 @@ describe('setChildOrder', () => {
   it('moves child to new position', () => {
     const doc = new Y.Doc()
     const owner = createOwnerWithParents(doc, { sex: 'male' })
-    const partner = addPartner(doc, owner.ownerId,
+    const partner = addPartner(
+      doc,
+      owner.ownerId,
       { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
-      { kind: 'marriage' }, 1)
+      { kind: 'marriage' },
+      1,
+    )
 
     addChildren(doc, partner.unionId, [
-      { type: 'person', data: { firstName: 'A', sex: 'female', lifeStatus: 'alive', birthMode: 'date' } },
-      { type: 'person', data: { firstName: 'B', sex: 'female', lifeStatus: 'alive', birthMode: 'date' } },
-      { type: 'person', data: { firstName: 'C', sex: 'female', lifeStatus: 'alive', birthMode: 'date' } },
+      {
+        type: 'person',
+        data: { firstName: 'A', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      },
+      {
+        type: 'person',
+        data: { firstName: 'B', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      },
+      {
+        type: 'person',
+        data: { firstName: 'C', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      },
     ])
 
     let domain = assembleDomain(doc)
@@ -453,14 +522,26 @@ describe('setChildOrder', () => {
   it('throws RangeError when newOrder out of range', () => {
     const doc = new Y.Doc()
     const owner = createOwnerWithParents(doc, { sex: 'male' })
-    const partner = addPartner(doc, owner.ownerId,
+    const partner = addPartner(
+      doc,
+      owner.ownerId,
       { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
-      { kind: 'marriage' }, 1)
+      { kind: 'marriage' },
+      1,
+    )
     addChildren(doc, partner.unionId, [
-      { type: 'person', data: { firstName: 'A', sex: 'female', lifeStatus: 'alive', birthMode: 'date' } },
-      { type: 'person', data: { firstName: 'B', sex: 'female', lifeStatus: 'alive', birthMode: 'date' } },
+      {
+        type: 'person',
+        data: { firstName: 'A', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      },
+      {
+        type: 'person',
+        data: { firstName: 'B', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      },
     ])
-    const cg = Object.values(assembleDomain(doc).entities.childGroups).find((c) => c.unionId === partner.unionId)!
+    const cg = Object.values(assembleDomain(doc).entities.childGroups).find(
+      (c) => c.unionId === partner.unionId,
+    )!
     const aId = (cg.children[0] as { kind: 'person'; personId: PersonId }).personId
     expect(() => setChildOrder(doc, aId, 0)).toThrow(RangeError)
     expect(() => setChildOrder(doc, aId, 5)).toThrow(RangeError)
@@ -482,17 +563,31 @@ describe('setChildOrder', () => {
   it('no-op when newOrder equals current position', () => {
     const doc = new Y.Doc()
     const owner = createOwnerWithParents(doc, { sex: 'male' })
-    const partner = addPartner(doc, owner.ownerId,
+    const partner = addPartner(
+      doc,
+      owner.ownerId,
       { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
-      { kind: 'marriage' }, 1)
+      { kind: 'marriage' },
+      1,
+    )
     addChildren(doc, partner.unionId, [
-      { type: 'person', data: { firstName: 'A', sex: 'female', lifeStatus: 'alive', birthMode: 'date' } },
-      { type: 'person', data: { firstName: 'B', sex: 'female', lifeStatus: 'alive', birthMode: 'date' } },
+      {
+        type: 'person',
+        data: { firstName: 'A', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      },
+      {
+        type: 'person',
+        data: { firstName: 'B', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      },
     ])
-    const cgBefore = Object.values(assembleDomain(doc).entities.childGroups).find((c) => c.unionId === partner.unionId)!
+    const cgBefore = Object.values(assembleDomain(doc).entities.childGroups).find(
+      (c) => c.unionId === partner.unionId,
+    )!
     const aId = (cgBefore.children[0] as { kind: 'person'; personId: PersonId }).personId
     setChildOrder(doc, aId, 1) // already first
-    const cgAfter = Object.values(assembleDomain(doc).entities.childGroups).find((c) => c.unionId === partner.unionId)!
+    const cgAfter = Object.values(assembleDomain(doc).entities.childGroups).find(
+      (c) => c.unionId === partner.unionId,
+    )!
     expect(cgAfter.children).toEqual(cgBefore.children)
   })
 })
@@ -527,9 +622,13 @@ describe('setUnionDivorce — markPosition', () => {
   it('persists markPosition independently of date', () => {
     const doc = new Y.Doc()
     const owner = createOwnerWithParents(doc, { sex: 'male' })
-    const partner = addPartner(doc, owner.ownerId,
+    const partner = addPartner(
+      doc,
+      owner.ownerId,
       { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
-      { kind: 'marriage' }, 1)
+      { kind: 'marriage' },
+      1,
+    )
 
     setUnionDivorce(doc, partner.unionId, {
       date: { day: 1, month: 1, year: 2025 },

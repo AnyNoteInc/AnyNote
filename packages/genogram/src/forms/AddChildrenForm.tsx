@@ -44,7 +44,11 @@ export function AddChildrenForm({ existingChildren, initialCount, onSubmit, onCa
           ...prev,
           ...Array.from({ length: need - prev.length }, () => ({
             type: 'person' as const,
-            data: { sex: 'male' as const, lifeStatus: 'alive' as const, birthMode: 'date' as const },
+            data: {
+              sex: 'male' as const,
+              lifeStatus: 'alive' as const,
+              birthMode: 'date' as const,
+            },
           })),
         ]
       } else {
@@ -94,7 +98,11 @@ export function AddChildrenForm({ existingChildren, initialCount, onSubmit, onCa
           <Button size="small" onClick={() => move(i, -1)} disabled={i === 0}>
             ↑
           </Button>
-          <Button size="small" onClick={() => move(i, 1)} disabled={i === orderedExisting.length - 1}>
+          <Button
+            size="small"
+            onClick={() => move(i, 1)}
+            disabled={i === orderedExisting.length - 1}
+          >
             ↓
           </Button>
           <span>{i + 1}.</span>

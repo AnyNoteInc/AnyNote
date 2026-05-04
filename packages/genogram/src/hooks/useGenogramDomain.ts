@@ -68,17 +68,29 @@ export function useGenogramDomain(doc: Y.Doc): GenogramPageData {
     if (cacheRef.current.snapshot === null) {
       const maps = getGenogramMaps(doc)
       const people: Record<PersonId, Person> = {}
-      maps.people.forEach((v, k) => { people[k as PersonId] = v })
+      maps.people.forEach((v, k) => {
+        people[k as PersonId] = v
+      })
       const unions: Record<UnionId, Union> = {}
-      maps.unions.forEach((v, k) => { unions[k as UnionId] = v })
+      maps.unions.forEach((v, k) => {
+        unions[k as UnionId] = v
+      })
       const childGroups: Record<ChildGroupId, ChildGroup> = {}
-      maps.childGroups.forEach((v, k) => { childGroups[k as ChildGroupId] = v })
+      maps.childGroups.forEach((v, k) => {
+        childGroups[k as ChildGroupId] = v
+      })
       const birthGroups: Record<BirthGroupId, BirthGroup> = {}
-      maps.birthGroups.forEach((v, k) => { birthGroups[k as BirthGroupId] = v })
+      maps.birthGroups.forEach((v, k) => {
+        birthGroups[k as BirthGroupId] = v
+      })
       const pregnancyLosses: Record<PregnancyLossId, PregnancyLoss> = {}
-      maps.pregnancyLosses.forEach((v, k) => { pregnancyLosses[k as PregnancyLossId] = v })
+      maps.pregnancyLosses.forEach((v, k) => {
+        pregnancyLosses[k as PregnancyLossId] = v
+      })
       const annotations: Record<AnnotationId, Annotation> = {}
-      maps.annotations.forEach((v, k) => { annotations[k as AnnotationId] = v })
+      maps.annotations.forEach((v, k) => {
+        annotations[k as AnnotationId] = v
+      })
 
       cacheRef.current.snapshot = {
         version: GENOGRAM_SCHEMA_VERSION,

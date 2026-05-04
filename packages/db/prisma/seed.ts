@@ -200,7 +200,12 @@ async function main() {
   const providerBySlug = new Map(providerRows.map((r) => [r.slug, r]))
 
   // ── AI models ─────────────────────────────────────────────────────────────
-  const gigachatModelSlugs = ['gigachat-2', 'gigachat-2-pro', 'gigachat-2-max', 'embeddings'] as const
+  const gigachatModelSlugs = [
+    'gigachat-2',
+    'gigachat-2-pro',
+    'gigachat-2-max',
+    'embeddings',
+  ] as const
   const aiModels = [
     {
       providerSlug: 'gigachat',

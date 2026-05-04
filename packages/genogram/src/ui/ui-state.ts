@@ -1,9 +1,6 @@
 import type { PersonId, UnionId } from '../types'
 
-export type Selection =
-  | { kind: 'node'; id: string }
-  | { kind: 'edge'; id: string }
-  | null
+export type Selection = { kind: 'node'; id: string } | { kind: 'edge'; id: string } | null
 
 export type DrawerState =
   | { mode: 'closed' }

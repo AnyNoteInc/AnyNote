@@ -141,7 +141,8 @@ function findRoots(ctx: PlacementContext): Unit[] {
 
 function placeUnit(unit: Unit, leftX: number, ctx: PlacementContext): number {
   if (unit.kind === 'union') return placeUnionSubtree(unit.unionId, leftX, ctx)
-  if (unit.kind === 'multiUnion') return placeMultiPartnerSubtree(unit.baseId, unit.unionIds, leftX, ctx)
+  if (unit.kind === 'multiUnion')
+    return placeMultiPartnerSubtree(unit.baseId, unit.unionIds, leftX, ctx)
   return placePersonSolo(unit.personId, leftX, ctx)
 }
 
@@ -336,8 +337,7 @@ function placeMultiPartnerSubtree(
       // Multi-partner stack: each subsequent union's bracket sits one
       // STACK_Y deeper, so hub.y must follow so ChildEdge verticals start
       // on the actual bracket horizontal of THIS union.
-      const hubY =
-        baseY + bracketDropFor(baseW, pw) + partnerSlot * LAYOUT.MULTI_PARTNER_STACK_Y
+      const hubY = baseY + bracketDropFor(baseW, pw) + partnerSlot * LAYOUT.MULTI_PARTNER_STACK_Y
       ctx.positions.set(cg.id, { x: hubX, y: hubY })
 
       const childrenStart = slotLeft + (slotWidths[slot]! - cw) / 2

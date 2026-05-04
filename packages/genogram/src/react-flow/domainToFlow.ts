@@ -13,7 +13,12 @@ import type {
 } from '../types'
 import type { LayoutResult } from '../layout/types'
 import { LAYOUT, personWidth } from '../layout/constants'
-import { isoToPartial, resolveLabelPosition, shouldShowDeathCross, shouldShowPartnerOrder } from '../model/computed'
+import {
+  isoToPartial,
+  resolveLabelPosition,
+  shouldShowDeathCross,
+  shouldShowPartnerOrder,
+} from '../model/computed'
 import { formatPartialDate } from '../i18n/format-date'
 import { formatPersonLabelLines } from '../utils/labels'
 
@@ -61,9 +66,7 @@ interface UnionEdgeOffsets {
  * Single-partner unions get all zero offsets and render with the default
  * straight bottom-handle bracket at the standard drop.
  */
-function computeUnionFanOutOffsets(
-  data: GenogramPageData,
-): Map<UnionId, UnionEdgeOffsets> {
+function computeUnionFanOutOffsets(data: GenogramPageData): Map<UnionId, UnionEdgeOffsets> {
   const result = new Map<UnionId, UnionEdgeOffsets>()
   const personUnions = new Map<PersonId, UnionId[]>()
   for (const u of Object.values(data.entities.unions) as Union[]) {
@@ -93,8 +96,7 @@ function computeUnionFanOutOffsets(
       const yStack = i * LAYOUT.MULTI_PARTNER_STACK_Y
       const u = data.entities.unions[uid]!
       const isSource = u.malePartnerId === personId
-      const existing =
-        result.get(uid) ?? { sourceXOffset: 0, targetXOffset: 0, bracketYOffset: 0 }
+      const existing = result.get(uid) ?? { sourceXOffset: 0, targetXOffset: 0, bracketYOffset: 0 }
       if (isSource) existing.sourceXOffset = offset
       else existing.targetXOffset = offset
       // If both partners are multi-partner bases, take the larger stack
@@ -205,12 +207,10 @@ function pushUnionNodesAndEdges(
     // "Ended" state covers both marriage divorce and cohabitation with an
     // explicit endDate — both render with the same slash decoration and
     // share drag/persist behavior via DivorceMarker + setUnionEndMark.
-    const isEnded =
-      union.kind === 'marriage' ? !!union.divorce : !!union.endDate
+    const isEnded = union.kind === 'marriage' ? !!union.divorce : !!union.endDate
     const markPosition =
       union.kind === 'marriage' ? union.divorce?.markPosition : union.endMarkPosition
-    const custodySide =
-      union.kind === 'marriage' ? union.divorce?.custodySide : undefined
+    const custodySide = union.kind === 'marriage' ? union.divorce?.custodySide : undefined
     const offsets = unionOffsets.get(union.id)
 
     edges.push({
