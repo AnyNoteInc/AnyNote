@@ -127,6 +127,7 @@ jobs:
       contents: write
       issues: write
       pull-requests: write
+      actions: write
 
     steps:
       - uses: actions/checkout@v5
@@ -137,7 +138,25 @@ jobs:
       - name: Setup toolchain
         uses: ./.github/actions/setup
 
+      - name: Capture pre-release tag
+        id: pre
+        run: echo "tag=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)" >> "$GITHUB_OUTPUT"
+
       - name: Run semantic-release
         run: pnpm exec semantic-release
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Capture post-release tag
+        id: post
+        run: echo "tag=$(git describe --tags --abbrev=0 --match 'v*' 2>/dev/null || true)" >> "$GITHUB_OUTPUT"
+
+      # Dispatching Deploy via workflow_dispatch is the GitHub-sanctioned
+      # exception to the rule that GITHUB_TOKEN-driven push events do not
+      # trigger downstream workflows — without this, the tag pushed by
+      # semantic-release wouldn't fire Deploy's `on.push.tags` listener.
+      - name: Trigger Deploy on new tag
+        if: steps.post.outputs.tag != '' && steps.post.outputs.tag != steps.pre.outputs.tag
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh workflow run Deploy --ref "${{ steps.post.outputs.tag }}"
