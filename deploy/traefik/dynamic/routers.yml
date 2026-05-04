@@ -1,0 +1,58 @@
+# Static router definitions. We use file provider instead of docker labels
+# because Traefik 3.5's docker client uses API v1.24 by default, and modern
+# Docker daemons (MinAPIVersion=1.40) reject that during the initial /_ping.
+# Hard-coded service URLs work because every container is on the default
+# anynote_default network and reachable by its compose service name.
+
+http:
+  routers:
+    # Public web app (Next.js)
+    web:
+      rule: "Host(`anynote.ru`) || Host(`www.anynote.ru`)"
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: le
+      service: web
+      middlewares:
+        - www-redirect@file
+        - ratelimit@file
+        - inflight@file
+        - headers@file
+        - compress@file
+
+    # WebSocket / Hocuspocus (yjs)
+    yjs:
+      rule: "(Host(`anynote.ru`) || Host(`www.anynote.ru`)) && PathPrefix(`/ws`)"
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: le
+      service: yjs
+      middlewares:
+        - strip-ws@file
+        - ratelimit-ws@file
+        - inflight@file
+
+    # Traefik dashboard (basic-auth)
+    dashboard:
+      rule: "Host(`traefik.anynote.ru`)"
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: le
+      service: api@internal
+      middlewares:
+        - dashboard-auth@file
+        - ratelimit@file
+        - headers@file
+
+  services:
+    web:
+      loadBalancer:
+        servers:
+          - url: "http://web:3000"
+    yjs:
+      loadBalancer:
+        servers:
+          - url: "http://yjs:1234"

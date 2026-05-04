@@ -1,27 +1,7 @@
 services:
-  # Read-only proxy in front of the docker socket so traefik's docker
-  # provider doesn't talk to the daemon directly. The host's daemon
-  # rejects API v1.24 (MinAPIVersion=1.40) and traefik's bundled client
-  # uses v1.24 for the initial negotiation /_ping, which fails before
-  # any DOCKER_API_VERSION override can take effect. dockerproxy speaks
-  # whatever API version the daemon needs and exposes a stable endpoint.
-  dockerproxy:
-    image: tecnativa/docker-socket-proxy:latest
-    restart: unless-stopped
-    environment:
-      CONTAINERS: 1   # traefik needs container labels
-      NETWORKS: 1
-      SERVICES: 1
-      TASKS: 1
-      EVENTS: 1
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock:ro
-
   traefik:
     image: traefik:v3.5
     restart: unless-stopped
-    depends_on:
-      - dockerproxy
     ports:
       - "80:80"
       - "443:443"
@@ -33,16 +13,6 @@ services:
       # Static traefik.yml does not interpolate env vars; we set ACME email
       # via Traefik's documented env-var override path instead.
       TRAEFIK_CERTIFICATESRESOLVERS_LE_ACME_EMAIL: ${ACME_EMAIL}
-      # Override the docker provider endpoint to point at the socket proxy
-      # (sidecar service above) instead of the host daemon.
-      TRAEFIK_PROVIDERS_DOCKER_ENDPOINT: tcp://dockerproxy:2375
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.dashboard.rule=Host(`traefik.anynote.ru`)
-      - traefik.http.routers.dashboard.entryPoints=websecure
-      - traefik.http.routers.dashboard.tls.certResolver=le
-      - traefik.http.routers.dashboard.service=api@internal
-      - traefik.http.routers.dashboard.middlewares=dashboard-auth@file,ratelimit@file,headers@file
 
   postgres:
     image: postgres:16-alpine
@@ -124,13 +94,7 @@ services:
         condition: service_started
       agents:
         condition: service_started
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.web.rule=Host(`anynote.ru`) || Host(`www.anynote.ru`)
-      - traefik.http.routers.web.entryPoints=websecure
-      - traefik.http.routers.web.tls.certResolver=le
-      - traefik.http.routers.web.middlewares=www-redirect@file,ratelimit@file,inflight@file,headers@file,compress@file
-      - traefik.http.services.web.loadBalancer.server.port=3000
+    # Routing via traefik file provider in deploy/traefik/dynamic/routers.yml.
 
   yjs:
     image: ghcr.io/anynoteinc/anynote-yjs:latest
@@ -139,13 +103,7 @@ services:
     depends_on:
       migrate:
         condition: service_completed_successfully
-    labels:
-      - traefik.enable=true
-      - traefik.http.routers.yjs.rule=(Host(`anynote.ru`) || Host(`www.anynote.ru`)) && PathPrefix(`/ws`)
-      - traefik.http.routers.yjs.entryPoints=websecure
-      - traefik.http.routers.yjs.tls.certResolver=le
-      - traefik.http.routers.yjs.middlewares=strip-ws@file,ratelimit-ws@file,inflight@file
-      - traefik.http.services.yjs.loadBalancer.server.port=1234
+    # Routing via traefik file provider in deploy/traefik/dynamic/routers.yml.
 
   engines:
     image: ghcr.io/anynoteinc/anynote-engines:latest
