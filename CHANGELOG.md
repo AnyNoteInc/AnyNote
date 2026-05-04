@@ -1,3 +1,13 @@
+## [1.0.8](https://github.com/AnyNoteInc/AnyNote/compare/v1.0.7...v1.0.8) (2026-05-04)
+
+
+### Bug Fixes
+
+* **ci:** force-restart traefik after deploy to pick up traefik.yml changes ([345b76a](https://github.com/AnyNoteInc/AnyNote/commit/345b76a154899d831600b03e4e419b8bfe9ad9f1))
+* **deploy:** route traefik docker provider through socket-proxy sidecar ([2ef839a](https://github.com/AnyNoteInc/AnyNote/commit/2ef839a31f202b363391619ede2ff978c8dd2103))
+* **deploy:** set traefik docker endpoint in traefik.yml (env override didn't apply) ([5233b2c](https://github.com/AnyNoteInc/AnyNote/commit/5233b2cd6e7541a157f685450ee1e4ae2d056f7a))
+* **deploy:** switch traefik routing to file provider, drop docker provider ([9c482e6](https://github.com/AnyNoteInc/AnyNote/commit/9c482e643a6e53d7bca1b71c0c6d6eb718f3948e))
+
 ## [1.0.7](https://github.com/AnyNoteInc/AnyNote/compare/v1.0.6...v1.0.7) (2026-05-04)
 
 
