@@ -90,6 +90,18 @@ const auth = betterAuth({
           google: {
             clientId: process.env.GOOGLE_CLIENT_ID,
             clientSecret: process.env.GOOGLE_CLIENT_SECRET,
+            mapProfileToUser: (profile) => {
+              const fallback = profile.name?.trim().split(/\s+/) ?? []
+              return {
+                id: profile.sub,
+                name: profile.name,
+                email: profile.email,
+                emailVerified: profile.email_verified,
+                image: profile.picture,
+                firstName: profile.given_name?.trim() || fallback[0] || '',
+                lastName: profile.family_name?.trim() || fallback.slice(1).join(' ') || '',
+              }
+            },
           },
         }
       : {}),

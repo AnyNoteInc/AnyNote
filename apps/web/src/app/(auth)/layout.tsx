@@ -11,9 +11,10 @@ export default async function AuthLayout({ children }: { children: ReactNode }) 
   if (session) {
     redirect('/app')
   }
+  const recaptchaSiteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY
 
   return (
-    <RecaptchaProvider>
+    <RecaptchaProvider siteKey={recaptchaSiteKey}>
       <Container
         component="main"
         maxWidth="sm"

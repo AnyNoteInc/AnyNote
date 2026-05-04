@@ -7,7 +7,6 @@ export function useRecaptchaV3(): (action: string) => Promise<string | null> {
   const { executeRecaptcha } = useGoogleReCaptcha()
   return useCallback(
     async (action: string): Promise<string | null> => {
-      if (!process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY) return null
       if (!executeRecaptcha) return null
       return executeRecaptcha(action)
     },

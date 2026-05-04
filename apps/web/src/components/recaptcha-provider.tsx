@@ -3,8 +3,13 @@
 import type { ReactNode } from 'react'
 import { GoogleReCaptchaProvider } from 'react-google-recaptcha-v3'
 
-export function RecaptchaProvider({ children }: { children: ReactNode }) {
-  const siteKey = process.env.NEXT_PUBLIC_RECAPTCHA_SITE_KEY
+export function RecaptchaProvider({
+  children,
+  siteKey,
+}: {
+  children: ReactNode
+  siteKey?: string
+}) {
   if (!siteKey) {
     return <>{children}</>
   }
