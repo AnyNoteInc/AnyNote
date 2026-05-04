@@ -23,6 +23,10 @@ entryPoints:
 
 providers:
   docker:
+    # Talk to docker via the dockerproxy sidecar (TCP), not the host socket.
+    # Host's daemon has MinAPIVersion=1.40 and rejects traefik's initial
+    # /v1.24/_ping; the proxy speaks whatever the daemon needs.
+    endpoint: tcp://dockerproxy:2375
     exposedByDefault: false
     network: anynote_default
   file:
