@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.1.0...v1.1.1) (2026-05-04)
+
+
+### Bug Fixes
+
+* **web:** include docs/terms in docker build context ([7f8c770](https://github.com/AnyNoteInc/AnyNote/commit/7f8c770540d0f8a6e31ec16ed72f629ee8f9f649))
+
 # [1.1.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.0.9...v1.1.0) (2026-05-04)
 
 
