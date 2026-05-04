@@ -61,23 +61,6 @@ RUN addgroup --system --gid 1001 nodejs && adduser --system --uid 1001 nodejs
 COPY --from=builder --chown=nodejs:nodejs /app/node_modules ./node_modules
 COPY --from=builder --chown=nodejs:nodejs /app/packages ./packages
 
-# @repo/mail imports 'server-only' which throws outside Next.js.
-# Replace it with a no-op so the NestJS mailer cron can load the module.
-# Use a glob to be robust against future server-only version bumps.
-RUN set -e; \
-    found=0; \
-    for d in node_modules/.pnpm/server-only@*/node_modules/server-only; do \
-      if [ -d "$d" ]; then \
-        printf '// no-op: server-only guard disabled outside Next.js\n' > "$d/index.js"; \
-        echo "stubbed $d/index.js"; \
-        found=1; \
-      fi; \
-    done; \
-    if [ "$found" -eq 0 ]; then \
-      echo "ERROR: no server-only@* directory found - check pnpm layout" >&2; \
-      exit 1; \
-    fi
-
 USER nodejs
 COPY --from=builder --chown=nodejs:nodejs /app/apps/engines/dist ./apps/engines/dist
 COPY --from=builder --chown=nodejs:nodejs /app/apps/engines/node_modules ./apps/engines/node_modules

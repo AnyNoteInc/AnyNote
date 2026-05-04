@@ -74,20 +74,18 @@ export function ProfileSection({ initial }: Props) {
           {initial.emailVerified ? 'Подтверждён' : 'Не подтверждён'}
         </Box>
       </Stack>
-      <Stack direction="row" spacing={1}>
-        <TextField
-          size="small"
-          value={initial.email}
-          sx={{ flex: 1 }}
-          InputProps={{ readOnly: true }}
-        />
-        <Button variant="outlined" size="small" disabled>
-          Изменить
-        </Button>
-      </Stack>
-      <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
-        Смена email потребует повторного подтверждения по ссылке
-      </Typography>
+      <Box
+        sx={{
+          border: '1px solid',
+          borderColor: 'divider',
+          borderRadius: 1,
+          px: 1.5,
+          py: 1,
+          backgroundColor: 'action.hover',
+        }}
+      >
+        <Typography variant="body2">{initial.email}</Typography>
+      </Box>
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
         <Button
           variant="contained"

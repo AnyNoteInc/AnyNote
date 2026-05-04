@@ -1,4 +1,3 @@
-import 'server-only'
 import { Prisma, type PrismaClient } from '@repo/db'
 import type { MailEventPayload, MailKind, MailPayloads } from './types.ts'
 import { renderTemplate } from './templates/index.ts'

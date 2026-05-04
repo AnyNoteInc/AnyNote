@@ -205,4 +205,32 @@ describe('auth callbacks', () => {
       lastName: 'User',
     })
   })
+
+  it('stores long OAuth tokens for social accounts', async () => {
+    const email = `long-oauth-token${TAG}`
+    const user = await prisma.user.create({
+      data: {
+        email,
+        emailVerified: true,
+        name: 'Google User',
+        firstName: 'Google',
+        lastName: 'User',
+      },
+    })
+
+    const longToken = ['header', 'payload'.repeat(220), 'signature'].join('.')
+
+    const account = await prisma.account.create({
+      data: {
+        userId: user.id,
+        providerId: 'google',
+        accountId: 'google-long-token-user-id',
+        accessToken: longToken,
+        refreshToken: longToken,
+        idToken: longToken,
+      },
+    })
+
+    expect(account.idToken).toHaveLength(longToken.length)
+  })
 })

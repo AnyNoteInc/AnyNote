@@ -16,6 +16,10 @@ async function collectSourceFiles(dir: string): Promise<string[]> {
 }
 
 describe('runtime module imports', () => {
+  it('can import the mail dispatcher in the NestJS runtime', async () => {
+    await expect(import('@repo/mail/dispatch')).resolves.toHaveProperty('dispatchPending')
+  })
+
   it('does not use @src aliases in application source files', async () => {
     const sourceFiles = await collectSourceFiles(join(process.cwd(), 'src'))
     const runtimeFiles = sourceFiles.filter(
