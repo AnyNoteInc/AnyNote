@@ -1,3 +1,10 @@
+## [1.1.4](https://github.com/AnyNoteInc/AnyNote/compare/v1.1.3...v1.1.4) (2026-05-04)
+
+
+### Bug Fixes
+
+* **web:** derive yjs ws URL from window.location on HTTPS pages ([f15dd9c](https://github.com/AnyNoteInc/AnyNote/commit/f15dd9c110c74a1eaaad18abdcfef606d8c383fb))
+
 ## [1.1.3](https://github.com/AnyNoteInc/AnyNote/compare/v1.1.2...v1.1.3) (2026-05-04)
 
 
