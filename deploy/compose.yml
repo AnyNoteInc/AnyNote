@@ -14,6 +14,10 @@ services:
       # Static traefik.yml does not interpolate env vars; we set ACME email
       # via Traefik's documented env-var override path instead.
       TRAEFIK_CERTIFICATESRESOLVERS_LE_ACME_EMAIL: ${ACME_EMAIL}
+      # Force the docker client API version. Traefik's bundled client falls
+      # back to v1.24 by default, which modern Docker daemons reject as too
+      # old (min supported = 1.40). 1.45 = Docker 26.x baseline.
+      DOCKER_API_VERSION: "1.45"
     labels:
       - traefik.enable=true
       - traefik.http.routers.dashboard.rule=Host(`traefik.anynote.ru`)
