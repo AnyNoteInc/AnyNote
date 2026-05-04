@@ -66,7 +66,7 @@ export function PartialDateInput({ value, onChange, label }: Props) {
         >
           <MenuItem value="">—</MenuItem>
           {RU.months.nominative.map((m, idx) => (
-            <MenuItem key={idx} value={idx + 1}>
+            <MenuItem key={m} value={idx + 1}>
               {m}
             </MenuItem>
           ))}

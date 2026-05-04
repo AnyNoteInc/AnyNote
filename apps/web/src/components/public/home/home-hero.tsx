@@ -363,13 +363,13 @@ function TreeItem({
   label,
   active,
   nested,
-}: {
+}: Readonly<{
   chev?: string
   emoji: string
   label: string
   active?: boolean
   nested?: boolean
-}) {
+}>) {
   return (
     <Stack
       direction="row"
@@ -448,9 +448,9 @@ function PreviewMain() {
         >
           Q2 цели
         </Typography>
-        {['92%', '78%', '86%'].map((w, i) => (
+        {['92%', '78%', '86%'].map((w) => (
           <Box
-            key={i}
+            key={`a-${w}`}
             sx={{ height: 9, width: w, borderRadius: 0.375, bgcolor: 'rgba(0,0,0,0.08)', mb: 1 }}
           />
         ))}
@@ -464,9 +464,9 @@ function PreviewMain() {
             mb: 1.25,
           }}
         />
-        {['92%', '86%', '78%'].map((w, i) => (
+        {['92%', '86%', '78%'].map((w) => (
           <Box
-            key={`b${i}`}
+            key={`b-${w}`}
             sx={{ height: 9, width: w, borderRadius: 0.375, bgcolor: 'rgba(0,0,0,0.08)', mb: 1 }}
           />
         ))}

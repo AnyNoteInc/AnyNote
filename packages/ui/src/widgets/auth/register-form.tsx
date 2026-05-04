@@ -46,7 +46,7 @@ export function RegisterForm({
   signInHref = '/sign-in',
   isSubmitting,
   termsUrls,
-}: RegisterFormProps) {
+}: Readonly<RegisterFormProps>) {
   const formDefaults: RegisterFormValues = {
     email: '',
     lastName: '',

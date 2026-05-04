@@ -22,7 +22,7 @@ export function ElementMenu({
   hasParents,
   onClose,
   onAction,
-}: Props) {
+}: Readonly<Props>) {
   const items: { action: ElementAction; label: string }[] = []
   if (personSize === 'small') {
     items.push({ action: 'edit-data', label: RU.menu.editData })

@@ -18,7 +18,7 @@ const documentComponents: Record<LegalDocumentSlug, ComponentType> = {
   information: Information,
 }
 
-export function LegalDocumentRenderer({ slug }: { slug: LegalDocumentSlug }) {
+export function LegalDocumentRenderer({ slug }: Readonly<{ slug: LegalDocumentSlug }>) {
   const Component = documentComponents[slug]
   return <Component />
 }

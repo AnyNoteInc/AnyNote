@@ -140,7 +140,7 @@ function loadEnvFromRoot(): void {
     const value = trimmed
       .slice(eqIdx + 1)
       .trim()
-      .replace(/^"|"$/g, '')
+      .replaceAll(/^"|"$/g, '')
     process.env[key] = process.env[key] ?? value
   }
 }

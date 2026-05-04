@@ -141,17 +141,17 @@ function ModeMini({ variant }: { variant: Mode['mini'] }) {
   }
   if (variant === 'doc') {
     const lines = [
-      { h: 10, w: '50%', dark: true },
-      { h: 7, w: '88%', dark: false },
-      { h: 7, w: '72%', dark: false },
-      { h: 7, w: '80%', dark: false },
-      { h: 7, w: '88%', dark: false },
+      { id: 'title', h: 10, w: '50%', dark: true },
+      { id: 'p1', h: 7, w: '88%', dark: false },
+      { id: 'p2', h: 7, w: '72%', dark: false },
+      { id: 'p3', h: 7, w: '80%', dark: false },
+      { id: 'p4', h: 7, w: '88%', dark: false },
     ] as const
     return (
       <Box sx={wrapper}>
-        {lines.map((l, i) => (
+        {lines.map((l) => (
           <Box
-            key={i}
+            key={l.id}
             sx={{
               height: l.h,
               width: l.w,

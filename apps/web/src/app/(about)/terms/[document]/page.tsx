@@ -22,9 +22,9 @@ export async function generateMetadata({
 
 export default async function LegalDocumentPage({
   params,
-}: {
+}: Readonly<{
   params: Promise<{ document: string }>
-}) {
+}>) {
   const { document } = await params
   const meta = legalDocumentBySlug[document as LegalDocumentSlug]
   if (!meta) notFound()

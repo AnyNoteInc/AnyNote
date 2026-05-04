@@ -111,7 +111,7 @@ export function PublicFooter() {
               </FooterContact>
               <FooterContact
                 icon={<LocalPhoneIcon fontSize="small" />}
-                href={`tel:${publicContact.phone.replace(/\s|\(|\)|-/g, '')}`}
+                href={`tel:${publicContact.phone.replaceAll(/\s|\(|\)|-/g, '')}`}
               >
                 {publicContact.phone}
               </FooterContact>
@@ -176,11 +176,11 @@ function FooterContact({
   icon,
   href,
   children,
-}: {
+}: Readonly<{
   icon: ReactNode
   href: string
   children: ReactNode
-}) {
+}>) {
   return (
     <Stack direction="row" alignItems="center" spacing={1}>
       <Box sx={{ display: 'inline-flex', opacity: 0.7, color: homeTokens.palette.paperDeep }}>

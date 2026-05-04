@@ -228,11 +228,11 @@ test('Drag divorce mark, verify position changes', async ({ page }) => {
       )
       // Simulate 10 incremental moves so the drag handler accumulates delta
       for (let i = 1; i <= 10; i++) {
-        window.dispatchEvent(
+        globalThis.dispatchEvent(
           new MouseEvent('mousemove', { bubbles: true, clientX: x + (dx * i) / 10, clientY: y }),
         )
       }
-      window.dispatchEvent(
+      globalThis.dispatchEvent(
         new MouseEvent('mouseup', { bubbles: true, clientX: x + dx, clientY: y }),
       )
     },

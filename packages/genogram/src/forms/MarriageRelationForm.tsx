@@ -28,7 +28,7 @@ export function MarriageRelationForm({
   onCancel,
   submitLabel = RU.drawer.save,
   embedded = false,
-}: Props) {
+}: Readonly<Props>) {
   const [kind, setKind] = useState<UnionKind>(initial.kind ?? 'marriage')
   const [startDate, setStartDate] = useState<PartialDate | undefined>(initial.startDate)
   const [endDate, setEndDate] = useState<PartialDate | undefined>(initial.endDate)

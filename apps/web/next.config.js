@@ -43,7 +43,7 @@ const nextConfig = {
       '.cjs': ['.cts', '.cjs'],
     }
     config.resolve.alias = {
-      ...(config.resolve.alias ?? {}),
+      ...config.resolve.alias,
       '@docs': docsDir,
     }
     return config
