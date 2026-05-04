@@ -1,3 +1,15 @@
+# [1.1.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.0.9...v1.1.0) (2026-05-04)
+
+
+### Bug Fixes
+
+* **ci:** unblock sign-up test + sonarcloud quality gate ([2e7e569](https://github.com/AnyNoteInc/AnyNote/commit/2e7e5690cf005ad927ffe6f15228e1f27d658f9d))
+
+
+### Features
+
+* **terms:** legal documents pages, footer revamp, ts extension migration ([0b805f4](https://github.com/AnyNoteInc/AnyNote/commit/0b805f4c6bdbda3319ae92af3247b2355e7def62))
+
 ## [1.0.9](https://github.com/AnyNoteInc/AnyNote/compare/v1.0.8...v1.0.9) (2026-05-04)
 
 ### Bug Fixes
