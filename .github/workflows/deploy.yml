@@ -182,8 +182,8 @@ jobs:
              docker compose --project-name anynote up -d --remove-orphans && \
              docker logout ghcr.io"
 
-      - name: Show container logs on failure
-        if: failure()
+      - name: Show container status (always)
+        if: always()
         env:
           DEPLOY_PORT: ${{ secrets.DEPLOY_PORT }}
           DEPLOY_HOST: ${{ secrets.DEPLOY_HOST }}
@@ -191,7 +191,11 @@ jobs:
         run: |
           ssh -p "$DEPLOY_PORT" "$DEPLOY_USER@$DEPLOY_HOST" \
             "cd /opt/anynote && \
-             echo '=== migrate logs ===' && \
-             docker compose --project-name anynote logs --tail=200 migrate || true && \
              echo '=== ps ===' && \
-             docker compose --project-name anynote ps -a"
+             docker compose --project-name anynote ps -a && \
+             echo '=== migrate logs ===' && \
+             docker compose --project-name anynote logs --tail=50 migrate 2>&1 || true && \
+             echo '=== traefik logs ===' && \
+             docker compose --project-name anynote logs --tail=80 traefik 2>&1 || true && \
+             echo '=== web logs ===' && \
+             docker compose --project-name anynote logs --tail=30 web 2>&1 || true"
