@@ -180,6 +180,7 @@ jobs:
              echo '$GHCR_TOKEN' | docker login ghcr.io -u '$GHCR_USER' --password-stdin && \
              docker compose --project-name anynote pull && \
              docker compose --project-name anynote up -d --remove-orphans && \
+             docker compose --project-name anynote restart traefik && \
              docker logout ghcr.io"
 
       - name: Show container status (always)
