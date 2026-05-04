@@ -1,3 +1,10 @@
+## [1.1.2](https://github.com/AnyNoteInc/AnyNote/compare/v1.1.1...v1.1.2) (2026-05-04)
+
+
+### Bug Fixes
+
+* capcha and google auth ([fa2a281](https://github.com/AnyNoteInc/AnyNote/commit/fa2a281c70dbc814d15ecba3750bc7659d709a22))
+
 ## [1.1.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.1.0...v1.1.1) (2026-05-04)
 
 
