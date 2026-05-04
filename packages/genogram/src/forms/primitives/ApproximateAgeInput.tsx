@@ -8,7 +8,10 @@ interface Props {
   onChange: (next: ApproximateAge | undefined) => void
 }
 
-function useNumberField(externalValue: number | undefined, onCommit: (next: number | undefined) => void) {
+function useNumberField(
+  externalValue: number | undefined,
+  onCommit: (next: number | undefined) => void,
+) {
   const [text, setText] = useState<string>(externalValue !== undefined ? String(externalValue) : '')
   useEffect(() => {
     setText(externalValue !== undefined ? String(externalValue) : '')
@@ -23,9 +26,7 @@ function useNumberField(externalValue: number | undefined, onCommit: (next: numb
 }
 
 export function ApproximateAgeInput({ value, onChange }: Props) {
-  const [mode, setMode] = useState<'single' | 'range'>(
-    value?.kind === 'range' ? 'range' : 'single',
-  )
+  const [mode, setMode] = useState<'single' | 'range'>(value?.kind === 'range' ? 'range' : 'single')
 
   const singleValue = value?.kind === 'value' ? value.value : undefined
   const fromValue = value?.kind === 'range' ? value.from : undefined
@@ -38,8 +39,12 @@ export function ApproximateAgeInput({ value, onChange }: Props) {
   const toRef = useRef<number | undefined>(toValue)
 
   // When controlled value changes externally, sync refs (e.g. reset from parent)
-  useEffect(() => { fromRef.current = fromValue }, [fromValue])
-  useEffect(() => { toRef.current = toValue }, [toValue])
+  useEffect(() => {
+    fromRef.current = fromValue
+  }, [fromValue])
+  useEffect(() => {
+    toRef.current = toValue
+  }, [toValue])
 
   const single = useNumberField(singleValue, (n) =>
     onChange(n === undefined ? undefined : { kind: 'value', value: n }),

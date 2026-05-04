@@ -10,9 +10,8 @@ export async function flushMailQueue(opts?: {
 
   const db = await import('../../../packages/db/src/index')
   const templates = await import('../../../packages/mail/src/templates/index')
-  const nodemailerModule = await import(
-    '../../../packages/mail/node_modules/nodemailer/lib/nodemailer.js'
-  )
+  const nodemailerModule =
+    await import('../../../packages/mail/node_modules/nodemailer/lib/nodemailer.js')
   const nodemailer = nodemailerModule.default as typeof import('nodemailer')
   const batch = opts?.batch ?? 50
   const workerId = opts?.workerId ?? 'e2e-flush'

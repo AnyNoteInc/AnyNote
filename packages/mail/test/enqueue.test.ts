@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { prisma } from '@repo/db'
-import { enqueueMailEvent } from '../src/enqueue.js'
+import { enqueueMailEvent } from '../src/enqueue.ts'
 
 const TAG = '+enqueue-test@anynote.dev'
 

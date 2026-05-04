@@ -61,7 +61,7 @@ async function clickMarriageEdge(page: Page) {
   // synthetic onClick which ReactFlow wires to the onEdgeClick callback.
   await page.evaluate(() => {
     const els = document.querySelectorAll<SVGGElement>('.react-flow__edge[data-id^="marriage:"]')
-    const el = els[els.length - 1]  // last marriage edge = owner's own marriage
+    const el = els[els.length - 1] // last marriage edge = owner's own marriage
     if (!el) throw new Error('marriage edge not found')
     const path = el.querySelector('path')
     const target = path ?? el
@@ -223,12 +223,18 @@ test('Drag divorce mark, verify position changes', async ({ page }) => {
     ({ x, y, dx }) => {
       const el = document.querySelector<SVGGElement>('[data-testid="divorce-mark"]')
       if (!el) throw new Error('divorce-mark not found')
-      el.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, cancelable: true, clientX: x, clientY: y }))
+      el.dispatchEvent(
+        new MouseEvent('mousedown', { bubbles: true, cancelable: true, clientX: x, clientY: y }),
+      )
       // Simulate 10 incremental moves so the drag handler accumulates delta
       for (let i = 1; i <= 10; i++) {
-        window.dispatchEvent(new MouseEvent('mousemove', { bubbles: true, clientX: x + (dx * i) / 10, clientY: y }))
+        globalThis.dispatchEvent(
+          new MouseEvent('mousemove', { bubbles: true, clientX: x + (dx * i) / 10, clientY: y }),
+        )
       }
-      window.dispatchEvent(new MouseEvent('mouseup', { bubbles: true, clientX: x + dx, clientY: y }))
+      globalThis.dispatchEvent(
+        new MouseEvent('mouseup', { bubbles: true, clientX: x + dx, clientY: y }),
+      )
     },
     { x: cx, y: cy, dx: 80 },
   )

@@ -26,9 +26,9 @@ export type ApproximateAge =
   | { kind: 'range'; from: number; to: number }
 
 export interface PartialDate {
-  year?: number   // 4-digit, e.g. 2026
-  month?: number  // 1-12
-  day?: number    // 1-31
+  year?: number // 4-digit, e.g. 2026
+  month?: number // 1-12
+  day?: number // 1-31
 }
 
 export interface PersonIdentity {
@@ -44,7 +44,7 @@ export interface LifeDates {
   birthDate?: PartialDate
   deathDate?: PartialDate
   birthMode: BirthMode
-  approximateAge?: ApproximateAge  // only meaningful when birthMode='approximate'
+  approximateAge?: ApproximateAge // only meaningful when birthMode='approximate'
   lifeStatus: LifeStatus
   tragically?: boolean
 }

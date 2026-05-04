@@ -83,7 +83,6 @@ function GenogramFlowInner({
     edges: GenogramEdge[]
   }
 
-
   const onChangeRef = useRef(onChange)
   onChangeRef.current = onChange
   const lastSnapshotRef = useRef<GenogramPageData | null>(null)
@@ -206,7 +205,9 @@ function GenogramFlowInner({
             // Edge IDs are prefixed: "marriage:<uuid>" or "cohabitation:<uuid>".
             // Strip the prefix to get the raw union ID for DrawerHost lookups.
             const edgeId = ui.menu!.targetId
-            const unionId = (edgeId.includes(':') ? edgeId.slice(edgeId.indexOf(':') + 1) : edgeId) as UnionId
+            const unionId = (
+              edgeId.includes(':') ? edgeId.slice(edgeId.indexOf(':') + 1) : edgeId
+            ) as UnionId
             if (action === 'edit-connection')
               dispatch({
                 type: 'open-drawer',

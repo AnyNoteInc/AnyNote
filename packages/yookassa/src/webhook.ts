@@ -1,5 +1,5 @@
-import type { WebhookEvent } from './types.js'
-import { YookassaError } from './errors.js'
+import type { WebhookEvent } from './types.ts'
+import { YookassaError } from './errors.ts'
 
 const KNOWN_EVENTS = new Set([
   'payment.succeeded',

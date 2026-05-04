@@ -143,14 +143,7 @@ export function DivorceMarker({
       data-testid="divorce-mark"
     >
       {/* Invisible hit area for easier dragging */}
-      <rect
-        x={cx - 12}
-        y={cy - 12}
-        width={24}
-        height={24}
-        fill="transparent"
-        stroke="none"
-      />
+      <rect x={cx - 12} y={cy - 12} width={24} height={24} fill="transparent" stroke="none" />
       {slashes}
     </g>
   )

@@ -1,14 +1,10 @@
-import { esc, formatRuDateTime } from '../utils.js'
-import type { MailPayloads, RenderedEmail } from '../types.js'
+import { esc, formatRuDateTime } from '../utils.ts'
+import type { MailPayloads, RenderedEmail } from '../types.ts'
 
-export function renderSuspiciousActivity(
-  p: MailPayloads['suspicious-activity'],
-): RenderedEmail {
+export function renderSuspiciousActivity(p: MailPayloads['suspicious-activity']): RenderedEmail {
   const lockedUntil = p.lockedUntilIso ? formatRuDateTime(p.lockedUntilIso) : null
   const lockedLine = lockedUntil ? `\nДоступ временно ограничен до: ${lockedUntil}` : ''
-  const lockedHtml = lockedUntil
-    ? `<p>Доступ временно ограничен до: ${esc(lockedUntil)}</p>`
-    : ''
+  const lockedHtml = lockedUntil ? `<p>Доступ временно ограничен до: ${esc(lockedUntil)}</p>` : ''
   return {
     subject: 'Подозрительная активность в «Любых заметках»',
     text:

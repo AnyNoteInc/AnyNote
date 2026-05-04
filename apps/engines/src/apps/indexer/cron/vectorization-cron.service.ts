@@ -6,10 +6,7 @@ import { parseAiProviderConnection, type PrismaClient } from '@repo/db'
 import { Prisma } from '@repo/db'
 
 import { PRISMA } from '../../../infra/db/db.providers.js'
-import {
-  AgentsClient,
-  type EmbeddingPayload,
-} from '../services/agents-client.service.js'
+import { AgentsClient, type EmbeddingPayload } from '../services/agents-client.service.js'
 import { PageContentReader, type TiptapNode } from '../services/page-content-reader.service.js'
 import { PlanFeaturesService } from '../services/plan-features.service.js'
 

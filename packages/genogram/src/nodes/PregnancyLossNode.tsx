@@ -34,22 +34,8 @@ export function PregnancyLossNode({ data }: NodeProps<LossRfNode>) {
             right corner free for the А/В letter. The legs still cross at the
             box centre, so the X is symmetric apart from the missing
             upper-right tip. */}
-        <line
-          x1={0}
-          y1={0}
-          x2={w * 0.7}
-          y2={w * 0.7}
-          stroke={STROKE_COLOR}
-          strokeWidth={STROKE}
-        />
-        <line
-          x1={0}
-          y1={w}
-          x2={w * 0.7}
-          y2={w * 0.3}
-          stroke={STROKE_COLOR}
-          strokeWidth={STROKE}
-        />
+        <line x1={0} y1={0} x2={w * 0.7} y2={w * 0.7} stroke={STROKE_COLOR} strokeWidth={STROKE} />
+        <line x1={0} y1={w} x2={w * 0.7} y2={w * 0.3} stroke={STROKE_COLOR} strokeWidth={STROKE} />
         <text
           x={w * 0.86}
           y={w * 0.1}

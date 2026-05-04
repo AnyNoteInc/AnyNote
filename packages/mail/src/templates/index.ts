@@ -1,19 +1,16 @@
-import type { MailKind, MailPayloads, RenderedEmail } from '../types.js'
-import { renderVerifyEmail } from './verify-email.js'
-import { renderWelcome } from './welcome.js'
-import { renderResetPassword } from './reset-password.js'
-import { renderPasswordChanged } from './password-changed.js'
-import { renderEmailChanged } from './email-changed.js'
-import { renderNewLogin } from './new-login.js'
-import { renderSuspiciousActivity } from './suspicious-activity.js'
-import { renderInvitation } from './invitation.js'
-import { renderAccountDeletionRequested } from './account-deletion-requested.js'
-import { renderAccountDeletionCompleted } from './account-deletion-completed.js'
+import type { MailKind, MailPayloads, RenderedEmail } from '../types.ts'
+import { renderVerifyEmail } from './verify-email.ts'
+import { renderWelcome } from './welcome.ts'
+import { renderResetPassword } from './reset-password.ts'
+import { renderPasswordChanged } from './password-changed.ts'
+import { renderEmailChanged } from './email-changed.ts'
+import { renderNewLogin } from './new-login.ts'
+import { renderSuspiciousActivity } from './suspicious-activity.ts'
+import { renderInvitation } from './invitation.ts'
+import { renderAccountDeletionRequested } from './account-deletion-requested.ts'
+import { renderAccountDeletionCompleted } from './account-deletion-completed.ts'
 
-export function renderTemplate<K extends MailKind>(
-  kind: K,
-  data: MailPayloads[K],
-): RenderedEmail {
+export function renderTemplate<K extends MailKind>(kind: K, data: MailPayloads[K]): RenderedEmail {
   switch (kind) {
     case 'verify-email':
       return renderVerifyEmail(data as MailPayloads['verify-email'])
@@ -32,13 +29,9 @@ export function renderTemplate<K extends MailKind>(
     case 'invitation':
       return renderInvitation(data as MailPayloads['invitation'])
     case 'account-deletion-requested':
-      return renderAccountDeletionRequested(
-        data as MailPayloads['account-deletion-requested'],
-      )
+      return renderAccountDeletionRequested(data as MailPayloads['account-deletion-requested'])
     case 'account-deletion-completed':
-      return renderAccountDeletionCompleted(
-        data as MailPayloads['account-deletion-completed'],
-      )
+      return renderAccountDeletionCompleted(data as MailPayloads['account-deletion-completed'])
     default: {
       const _exhaustive: never = kind
       throw new Error(`renderTemplate: unsupported kind ${String(_exhaustive)}`)

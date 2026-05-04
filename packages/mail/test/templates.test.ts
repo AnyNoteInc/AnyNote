@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { renderTemplate } from '../src/templates/index.js'
-import type { MailPayloads } from '../src/types.js'
+import { renderTemplate } from '../src/templates/index.ts'
+import type { MailPayloads } from '../src/types.ts'
 
 const FIXTURE_ISO = '2026-04-28T18:00:00.000Z'
 const RU_DATETIME_RX = /\d{2}\.\d{2}\.\d{4}, \d{2}:\d{2}/
@@ -21,7 +21,10 @@ describe('mail templates', () => {
   })
 
   it('welcome', () => {
-    const out = renderTemplate('welcome', { firstName: 'Анна', appUrl: 'https://anynote.local/app' })
+    const out = renderTemplate('welcome', {
+      firstName: 'Анна',
+      appUrl: 'https://anynote.local/app',
+    })
     expect(out.subject).toBe('Добро пожаловать в «Любые заметки»')
     expect(out.text).toContain('Анна')
     expect(out.text).toContain('https://anynote.local/app')

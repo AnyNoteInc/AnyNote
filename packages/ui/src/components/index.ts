@@ -37,6 +37,7 @@ export { default as TableBody, type TableBodyProps } from '@mui/material/TableBo
 export { default as TableCell, type TableCellProps } from '@mui/material/TableCell'
 export { default as TableHead, type TableHeadProps } from '@mui/material/TableHead'
 export { default as TableRow, type TableRowProps } from '@mui/material/TableRow'
+export { default as TableContainer, type TableContainerProps } from '@mui/material/TableContainer'
 export {
   default as TablePagination,
   type TablePaginationProps,
@@ -99,6 +100,9 @@ export { default as DescriptionIcon } from '@mui/icons-material/Description'
 export { default as BrushIcon } from '@mui/icons-material/Brush'
 export { default as AccountTreeIcon } from '@mui/icons-material/AccountTree'
 export { default as ArrowRightOutlinedIcon } from '@mui/icons-material/ArrowRightOutlined'
+export { default as EmailIcon } from '@mui/icons-material/Email'
+export { default as LocalPhoneIcon } from '@mui/icons-material/LocalPhone'
+export { default as TelegramIcon } from '@mui/icons-material/Telegram'
 export { default as VisibilityIcon } from '@mui/icons-material/Visibility'
 export { default as VisibilityOffIcon } from '@mui/icons-material/VisibilityOff'
 export { default as DownloadIcon } from '@mui/icons-material/Download'

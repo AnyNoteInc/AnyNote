@@ -1,5 +1,5 @@
-import { esc, formatRuDateTime } from '../utils.js'
-import type { MailPayloads, RenderedEmail } from '../types.js'
+import { esc, formatRuDateTime } from '../utils.ts'
+import type { MailPayloads, RenderedEmail } from '../types.ts'
 
 export function renderNewLogin(p: MailPayloads['new-login']): RenderedEmail {
   const at = formatRuDateTime(p.loggedAtIso)

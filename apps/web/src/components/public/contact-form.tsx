@@ -97,9 +97,7 @@ export function ContactForm() {
       </Box>
 
       {submitted ? (
-        <Alert severity="success">
-          Заявка отправлена. Мы свяжемся в течение дня.
-        </Alert>
+        <Alert severity="success">Заявка отправлена. Мы свяжемся в течение дня.</Alert>
       ) : null}
     </Stack>
   )

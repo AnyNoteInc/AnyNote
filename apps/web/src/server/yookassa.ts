@@ -7,9 +7,7 @@ import { handlePaymentSucceeded } from '@/server/billing/webhook-handlers'
 let client: YookassaClient | null = null
 
 class MockYookassaClient implements Pick<YookassaClient, 'createPayment' | 'getPayment'> {
-  async createPayment(
-    input: Parameters<YookassaClient['createPayment']>[0],
-  ): Promise<Payment> {
+  async createPayment(input: Parameters<YookassaClient['createPayment']>[0]): Promise<Payment> {
     const orderId = input.metadata?.orderId
     const paymentId = `mock_${orderId ?? crypto.randomUUID()}`
     if (orderId) {

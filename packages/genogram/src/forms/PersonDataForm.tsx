@@ -1,5 +1,13 @@
 import { useCallback, useState } from 'react'
-import { Button, Checkbox, FormControlLabel, Stack, TextField, ToggleButton, ToggleButtonGroup } from '@mui/material'
+import {
+  Button,
+  Checkbox,
+  FormControlLabel,
+  Stack,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+} from '@mui/material'
 import type { PersonDataDraft } from '../yjs/actions'
 import type { ApproximateAge, BirthMode, LifeStatus, PartialDate } from '../types/domain'
 import { SexToggle } from './primitives/SexToggle'
@@ -25,8 +33,12 @@ const DEFAULT_CONTEXT: FormContext = { kind: 'edit-data' }
 interface Props {
   initial: Partial<PersonDataDraft & { partnerOrder?: number; childOrder?: number }>
   context?: FormContext
-  onSubmit: (draft: PersonDataDraft & { partnerOrder?: number; childOrder?: number; partnerCount?: number }) => void
-  onChange?: (draft: PersonDataDraft & { partnerOrder?: number; childOrder?: number; partnerCount?: number }) => void
+  onSubmit: (
+    draft: PersonDataDraft & { partnerOrder?: number; childOrder?: number; partnerCount?: number },
+  ) => void
+  onChange?: (
+    draft: PersonDataDraft & { partnerOrder?: number; childOrder?: number; partnerCount?: number },
+  ) => void
   onCancel: () => void
   submitLabel?: string
   embedded?: boolean
@@ -71,7 +83,11 @@ export function PersonDataForm({
       po: number | undefined,
       co: number | undefined,
     ): PersonDataDraft & { partnerOrder?: number; childOrder?: number; partnerCount?: number } => {
-      const payload: PersonDataDraft & { partnerOrder?: number; childOrder?: number; partnerCount?: number } = { ...d }
+      const payload: PersonDataDraft & {
+        partnerOrder?: number
+        childOrder?: number
+        partnerCount?: number
+      } = { ...d }
       if (context.kind === 'add-partner') {
         payload.partnerCount = pc
       }
@@ -118,9 +134,21 @@ export function PersonDataForm({
 
   return (
     <Stack spacing={2}>
-      <TextField label={RU.fields.lastName} value={draft.lastName ?? ''} onChange={(e) => update('lastName', e.target.value)} />
-      <TextField label={RU.fields.firstName} value={draft.firstName ?? ''} onChange={(e) => update('firstName', e.target.value)} />
-      <TextField label={RU.fields.middleName} value={draft.middleName ?? ''} onChange={(e) => update('middleName', e.target.value)} />
+      <TextField
+        label={RU.fields.lastName}
+        value={draft.lastName ?? ''}
+        onChange={(e) => update('lastName', e.target.value)}
+      />
+      <TextField
+        label={RU.fields.firstName}
+        value={draft.firstName ?? ''}
+        onChange={(e) => update('firstName', e.target.value)}
+      />
+      <TextField
+        label={RU.fields.middleName}
+        value={draft.middleName ?? ''}
+        onChange={(e) => update('middleName', e.target.value)}
+      />
 
       <SexToggle value={draft.sex} onChange={(v) => update('sex', v)} />
 
@@ -147,14 +175,19 @@ export function PersonDataForm({
         />
       )}
 
-      <LifeStatusToggle value={draft.lifeStatus} onChange={(v: LifeStatus) => update('lifeStatus', v)} />
+      <LifeStatusToggle
+        value={draft.lifeStatus}
+        onChange={(v: LifeStatus) => update('lifeStatus', v)}
+      />
 
       {draft.lifeStatus === 'deceased' && (
         <>
           <PartialDateInput
             label={RU.fields.deathDate}
             value={draft.deathDate ?? {}}
-            onChange={(v: PartialDate) => update('deathDate', Object.keys(v).length ? v : undefined)}
+            onChange={(v: PartialDate) =>
+              update('deathDate', Object.keys(v).length ? v : undefined)
+            }
           />
           <FormControlLabel
             control={
@@ -201,7 +234,9 @@ export function PersonDataForm({
       {!embedded && (
         <Stack direction="row" spacing={1} justifyContent="flex-end">
           <Button onClick={onCancel}>{RU.drawer.cancel}</Button>
-          <Button variant="contained" onClick={handleSubmit}>{submitLabel}</Button>
+          <Button variant="contained" onClick={handleSubmit}>
+            {submitLabel}
+          </Button>
         </Stack>
       )}
     </Stack>

@@ -20,7 +20,9 @@ type PasswordResetArgs = {
 }
 
 export type AuthClient = {
-  requestPasswordReset?: (args: PasswordResetArgs) => Promise<{ error?: { message?: string } | null }>
+  requestPasswordReset?: (
+    args: PasswordResetArgs,
+  ) => Promise<{ error?: { message?: string } | null }>
   forgetPassword?: (args: PasswordResetArgs) => Promise<{ error?: { message?: string } | null }>
   resetPassword: (args: {
     newPassword: string

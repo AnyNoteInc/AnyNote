@@ -118,4 +118,4 @@ export {
   AiProviderConnectionSchema,
   parseAiProviderConnection,
   type AiProviderConnection,
-} from './ai-provider-connection.js'
+} from './ai-provider-connection.ts'

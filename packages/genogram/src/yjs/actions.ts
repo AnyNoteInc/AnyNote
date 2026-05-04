@@ -576,9 +576,7 @@ export function setChildOrder(doc: Y.Doc, childPersonId: PersonId, newOrder: num
     const cg = getChildGroupOf(childPersonId, domain.entities.childGroups)
     if (!cg) throw new Error(`Person ${childPersonId} is not a child in any group`)
 
-    const idx = cg.children.findIndex(
-      (c) => c.kind === 'person' && c.personId === childPersonId,
-    )
+    const idx = cg.children.findIndex((c) => c.kind === 'person' && c.personId === childPersonId)
     if (idx === -1) throw new Error('inconsistent state')
 
     if (newOrder < 1 || newOrder > cg.children.length) {

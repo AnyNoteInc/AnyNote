@@ -17,6 +17,7 @@
 ### Task 1: Prisma schema — add embeddings columns and relation
 
 **Files:**
+
 - Modify: `packages/db/prisma/schema.prisma`
 - Create: `packages/db/prisma/migrations/<timestamp>_add_workspace_embeddings_model/migration.sql` (auto-generated)
 
@@ -78,6 +79,7 @@ model WorkspaceAiSettings {
 - [ ] **Step 3: Generate the migration**
 
 Run from repo root:
+
 ```bash
 pnpm --filter @repo/db exec prisma migrate dev --name add_workspace_embeddings_model
 ```
@@ -87,6 +89,7 @@ Expected: a new directory under `packages/db/prisma/migrations/`, auto-generated
 - [ ] **Step 4: Verify the generated SQL**
 
 Open the generated `migration.sql`. It should contain (at minimum):
+
 - `ALTER TABLE "ai_models" ADD COLUMN "supports_embeddings" BOOLEAN NOT NULL DEFAULT false`
 - `ALTER TABLE "ai_models" ADD COLUMN "vector_size" INTEGER`
 - `ALTER TABLE "workspace_ai_settings" ADD COLUMN "embeddings_model_id" UUID`
@@ -113,6 +116,7 @@ git commit -m "feat(db): add embeddings model fields to AiModel and WorkspaceAiS
 ### Task 2: Typed `AiProviderConnection` Zod schema in `@repo/db`
 
 **Files:**
+
 - Create: `packages/db/src/ai-provider-connection.ts`
 - Modify: `packages/db/src/index.ts`
 
@@ -126,7 +130,9 @@ import { parseAiProviderConnection } from './ai-provider-connection'
 
 describe('parseAiProviderConnection', () => {
   it('parses Ollama with explicit provider key', () => {
-    expect(parseAiProviderConnection('ollama', { provider: 'ollama', baseUrl: 'http://x:11434' })).toEqual({
+    expect(
+      parseAiProviderConnection('ollama', { provider: 'ollama', baseUrl: 'http://x:11434' }),
+    ).toEqual({
       provider: 'ollama',
       baseUrl: 'http://x:11434',
     })
@@ -150,7 +156,9 @@ describe('parseAiProviderConnection', () => {
   it('parses GigaChat', () => {
     expect(
       parseAiProviderConnection('gigachat', {
-        clientId: 'a', clientSecret: 'b', scope: 'GIGACHAT_API_PERS',
+        clientId: 'a',
+        clientSecret: 'b',
+        scope: 'GIGACHAT_API_PERS',
       }),
     ).toEqual({
       provider: 'gigachat',
@@ -253,6 +261,7 @@ git commit -m "feat(db): add AiProviderConnection Zod schema and parser"
 ### Task 3: Seed — embeddings models + OpenAI provider
 
 **Files:**
+
 - Modify: `packages/db/prisma/seed.ts`
 
 - [ ] **Step 1: Add OpenAI to the providers block**
@@ -414,6 +423,7 @@ console.info('Seed complete: 5 providers, 3 active plans, 3 AI providers, 9 AI m
 - [ ] **Step 7: Run the seed against the local DB**
 
 Make sure docker compose is up:
+
 ```bash
 docker compose up -d
 pnpm --filter @repo/db exec prisma db seed
@@ -443,6 +453,7 @@ git commit -m "feat(db): seed embeddings models and OpenAI provider"
 ### Task 4: New schemas — `EmbeddingProviderConfigSchema` and extended `VectorizationRequestSchema`
 
 **Files:**
+
 - Modify: `apps/agents/agents/apps/processing/schemas.py`
 
 - [ ] **Step 1: Read the current schema file to identify the exact existing shape**
@@ -523,6 +534,7 @@ git commit -m "feat(agents): add EmbeddingProviderConfigSchema and require embed
 ### Task 5: `EmbeddingFactoryRepository`
 
 **Files:**
+
 - Create: `apps/agents/agents/apps/processing/repositories/embedding_factory.py`
 - Create: `apps/agents/tests/processing/test_embedding_factory.py`
 - Modify: `apps/agents/agents/apps/processing/repositories/__init__.py`
@@ -698,6 +710,7 @@ git commit -m "feat(agents): add EmbeddingFactoryRepository for ollama/openai/gi
 ### Task 6: `collection_name_for` helper + `VectorStoreRepository` parameterization
 
 **Files:**
+
 - Create: `apps/agents/agents/apps/processing/utils.py`
 - Modify: `apps/agents/agents/apps/processing/repositories/vector_store_repository.py`
 - Create: `apps/agents/tests/processing/test_collection_name.py`
@@ -887,6 +900,7 @@ git commit -m "refactor(agents): make VectorStoreRepository stateless, add colle
 ### Task 7: `VectorizePageUseCase` rewrite + Dishka rewiring + bootstrap cleanup + settings cleanup
 
 **Files:**
+
 - Modify: `apps/agents/agents/apps/processing/use_cases/vectorize_page.py`
 - Modify: `apps/agents/agents/apps/processing/depends.py`
 - Modify: `apps/agents/agents/bootstrap.py`
@@ -1027,6 +1041,7 @@ Open `apps/agents/agents/core/depends.py`. Delete the entire `ollama_embeddings`
 - [ ] **Step 5: Strip `embedding_model` and Qdrant collection settings from `settings.py`**
 
 Edit `apps/agents/agents/settings.py`:
+
 - In `OllamaSettingsSchema`, remove the `embedding_model: str = 'nomic-embed-text'` field.
 - In `QdrantSettingsSchema`, remove the `collection_name: str = 'pages'` and `vector_size: int = 768` fields.
 
@@ -1093,6 +1108,7 @@ git commit -m "refactor(agents): per-request embedder and collection in vectoriz
 ### Task 8: `DELETE /vectorization/pages/{page_id}` endpoint
 
 **Files:**
+
 - Modify: `apps/agents/agents/apps/processing/router.py`
 - Create: `apps/agents/agents/apps/processing/use_cases/delete_page_vectors.py`
 - Modify: `apps/agents/agents/apps/processing/use_cases/__init__.py`
@@ -1214,6 +1230,7 @@ git commit -m "feat(agents): DELETE /vectorization/pages/{id} endpoint"
 ### Task 9: `DELETE /vectorization/workspaces/{workspace_id}` endpoint
 
 **Files:**
+
 - Create: `apps/agents/agents/apps/processing/use_cases/delete_workspace_vectors.py`
 - Modify: `apps/agents/agents/apps/processing/router.py`
 
@@ -1303,6 +1320,7 @@ git commit -m "feat(agents): DELETE /vectorization/workspaces/{id} endpoint"
 ### Task 10: Chat schema accepts optional `embedding` field
 
 **Files:**
+
 - Modify: `apps/agents/agents/apps/chat/schemas.py`
 
 - [ ] **Step 1: Edit `QueryRequestSchema` to include optional embedding**
@@ -1344,6 +1362,7 @@ git commit -m "feat(agents): chat payload accepts optional embedding config"
 ### Task 11: `RagRetrievalService` rewrite (stateless w.r.t. embedder)
 
 **Files:**
+
 - Modify: `apps/agents/agents/apps/chat/services/rag_retrieval.py`
 - Modify: `apps/agents/agents/apps/chat/depends.py`
 
@@ -1447,6 +1466,7 @@ git commit -m "refactor(agents): RagRetrievalService takes embedder per call"
 ### Task 12: `GraphService.make_graph` — conditional RAG retrieval
 
 **Files:**
+
 - Modify: `apps/agents/agents/apps/chat/services/graph.py`
 
 - [ ] **Step 1: Replace `prepare_prompt` to skip retrieval when embedding is null**
@@ -1521,6 +1541,7 @@ git commit -m "feat(agents): skip RAG retrieval when embedding payload is null"
 ### Task 13: Extend `agents-client.service.ts` with embedding payload + delete methods
 
 **Files:**
+
 - Modify: `apps/engines/src/apps/indexer/services/agents-client.service.ts`
 
 - [ ] **Step 1: Replace the file with the extended client**
@@ -1608,6 +1629,7 @@ git commit -m "feat(engines): agents-client adds embedding payload and delete me
 ### Task 14: `vectorization-cron.service.ts` — late-binding model lookup + page.deleted handling
 
 **Files:**
+
 - Modify: `apps/engines/src/apps/indexer/cron/vectorization-cron.service.ts`
 
 - [ ] **Step 1: Update `processRow` to handle deletes via `deletePageVectors`**
@@ -1753,6 +1775,7 @@ git commit -m "feat(engines): late-binding embeddings model + page.deleted via d
 ### Task 15: Add `getAvailableEmbeddingModels` helper
 
 **Files:**
+
 - Modify: `packages/trpc/src/helpers/plan.ts`
 
 - [ ] **Step 1: Add a helper that filters by `supportsEmbeddings`**
@@ -1799,7 +1822,7 @@ export async function getAvailableAiModels(
   return prisma.aiModel.findMany({
     where: {
       isActive: true,
-      supportsEmbeddings: false,    // <-- new filter
+      supportsEmbeddings: false, // <-- new filter
       OR: [{ minPlanSlug: null }, { minPlanSlug: { in: allowedSlugs } }],
     },
     include: { provider: true },
@@ -1828,6 +1851,7 @@ git commit -m "feat(trpc): add getAvailableEmbeddingModels helper, exclude embed
 ### Task 16: tRPC `aiSettings.listAvailableEmbeddingModels`
 
 **Files:**
+
 - Modify: `packages/trpc/src/routers/ai-settings.ts`
 
 - [ ] **Step 1: Add the procedure**
@@ -1886,7 +1910,11 @@ listAvailableEmbeddingModels: protectedProcedure.input(z.object({ workspaceId: z
 Add the import at the top (line 6):
 
 ```ts
-import { getAvailableAiModels, getAvailableEmbeddingModels, requireWritableWorkspace } from '../helpers/plan'
+import {
+  getAvailableAiModels,
+  getAvailableEmbeddingModels,
+  requireWritableWorkspace,
+} from '../helpers/plan'
 ```
 
 - [ ] **Step 2: Run trpc tests + check-types**
@@ -1910,6 +1938,7 @@ git commit -m "feat(trpc): listAvailableEmbeddingModels procedure"
 ### Task 17: `aiSettings.get` — include `embeddingsModelId` in result
 
 **Files:**
+
 - Modify: `packages/trpc/src/routers/ai-settings.ts`
 
 - [ ] **Step 1: Extend the result interface**
@@ -1971,6 +2000,7 @@ git commit -m "feat(trpc): aiSettings.get returns embeddingsModelId"
 ### Task 18: `aiSettings.update` — wipe-and-reindex on embeddings model change
 
 **Files:**
+
 - Modify: `packages/trpc/src/routers/ai-settings.ts`
 
 - [ ] **Step 1: Add helper for HTTP DELETE to apps/agents**
@@ -2169,6 +2199,7 @@ git commit -m "feat(trpc): aiSettings.update wipes and re-enqueues on embeddings
 ### Task 19: AI settings page — pre-fetch embedding models for RSC
 
 **Files:**
+
 - Modify: `apps/web/src/app/(protected)/workspaces/[workspaceId]/settings/ai/page.tsx`
 
 - [ ] **Step 1: Read the current page to identify the existing pre-fetch pattern**
@@ -2219,6 +2250,7 @@ Commit together with Task 20 since types depend.
 ### Task 20: `WorkspaceAiSection` — Векторизация section + confirm dialog
 
 **Files:**
+
 - Modify: `apps/web/src/components/workspace/settings/ai-section.tsx`
 
 - [ ] **Step 1: Replace the component with the extended version**
@@ -2265,11 +2297,7 @@ type Props = {
   initialEmbeddingModels?: InitialEmbeddingModel[]
 }
 
-export function WorkspaceAiSection({
-  workspaceId,
-  initialModels,
-  initialEmbeddingModels,
-}: Props) {
+export function WorkspaceAiSection({ workspaceId, initialModels, initialEmbeddingModels }: Props) {
   const utils = trpc.useUtils()
   const settingsQuery = trpc.aiSettings.get.useQuery({ workspaceId })
   const modelsQuery = trpc.aiSettings.listAvailableModels.useQuery(
@@ -2450,12 +2478,7 @@ export function WorkspaceAiSection({
       </Paper>
 
       <Stack direction="row">
-        <Button
-          variant="contained"
-          onClick={onSave}
-          loading={update.isPending}
-          disabled={disabled}
-        >
+        <Button variant="contained" onClick={onSave} loading={update.isPending} disabled={disabled}>
           Сохранить
         </Button>
       </Stack>
@@ -2470,7 +2493,9 @@ export function WorkspaceAiSection({
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setConfirmOpen(false)}>Отмена</Button>
-          <Button onClick={onConfirm} variant="contained">Подтвердить</Button>
+          <Button onClick={onConfirm} variant="contained">
+            Подтвердить
+          </Button>
         </DialogActions>
       </Dialog>
     </Stack>
@@ -2514,6 +2539,7 @@ git commit -m "feat(web): Векторизация section in AI settings with c
 ### Task 21: Chat `/api/agents/generate` payload includes `embedding`
 
 **Files:**
+
 - Modify: `apps/web/src/app/api/agents/generate/route.ts`
 - Modify: `apps/web/src/lib/chat/agents-payload.ts`
 
@@ -2523,7 +2549,9 @@ Open `apps/web/src/lib/chat/agents-payload.ts` (the helper that builds the agent
 
 ```ts
 export type WorkspaceSettingsSnapshot = {
-  defaultModel: { /* unchanged */ }
+  defaultModel: {
+    /* unchanged */
+  }
   embeddingsModel: {
     slug: string
     vectorSize: number
@@ -2584,16 +2612,17 @@ const settingsSnapshot: WorkspaceSettingsSnapshot = {
       connection: settings.defaultModel.provider.connection,
     },
   },
-  embeddingsModel: settings.embeddingsModel && settings.embeddingsModel.vectorSize !== null
-    ? {
-        slug: settings.embeddingsModel.slug,
-        vectorSize: settings.embeddingsModel.vectorSize,
-        provider: {
-          slug: settings.embeddingsModel.provider.slug,
-          connection: settings.embeddingsModel.provider.connection,
-        },
-      }
-    : null,
+  embeddingsModel:
+    settings.embeddingsModel && settings.embeddingsModel.vectorSize !== null
+      ? {
+          slug: settings.embeddingsModel.slug,
+          vectorSize: settings.embeddingsModel.vectorSize,
+          provider: {
+            slug: settings.embeddingsModel.provider.slug,
+            connection: settings.embeddingsModel.provider.connection,
+          },
+        }
+      : null,
   systemPrompt: settings.systemPrompt,
   temperature: settings.temperature,
   topP: settings.topP,
@@ -2623,6 +2652,7 @@ git commit -m "feat(web): include embedding config in agents chat payload"
 ### Task 22: Drop deprecated env vars
 
 **Files:**
+
 - Modify: `.env.example`
 - Modify: `turbo.json`
 
@@ -2654,6 +2684,7 @@ git commit -m "chore: drop deprecated embedding-model env vars"
 ### Task 23: Manual rollout note — drop the legacy `pages` Qdrant collection
 
 **Files:**
+
 - Modify: `docs/superpowers/specs/2026-04-29-per-workspace-embeddings-design.md` (already exists; update Roll-out section)
 
 - [ ] **Step 1: Verify the spec's Roll-out section already covers this**
@@ -2663,6 +2694,7 @@ Re-read the spec's "Roll-out" section. It already states the legacy collection i
 - [ ] **Step 2: Communicate to the deploy operator**
 
 When merging to `main` and deploying:
+
 1. Run `pnpm --filter @repo/db exec prisma migrate deploy` to apply the schema migration.
 2. Run `pnpm --filter @repo/db exec prisma db seed` to upsert the new providers/models.
 3. (Optional, in production) Connect to Qdrant and run `delete_collection('pages')` to free space. Skip in staging if you want to preserve test data.
@@ -2676,34 +2708,34 @@ No commit required — this task is documentation/communication only.
 
 This section was filled during plan authoring. Confirms spec coverage:
 
-| Spec section | Plan task(s) |
-|---|---|
-| 1.1 AiModel schema | Task 1 |
-| 1.2 WorkspaceAiSettings schema | Task 1 |
-| 1.3 Typed connection schema | Task 2 |
-| 1.4 Seed additions | Task 3 |
-| 2.1 EmbeddingFactoryRepository | Task 5 |
-| 2.2 Schema additions | Task 4 |
-| 2.3 Collection naming | Task 6 |
-| 2.4 VectorizePageUseCase rewrite | Task 7 |
-| 2.5.1 DELETE /vectorization/workspaces | Task 9 |
-| 2.5.2 DELETE /vectorization/pages | Task 8 |
-| 2.6 Dishka changes | Task 7 |
-| 2.7 Settings cleanup | Task 7 (settings.py + bootstrap.py) + Task 22 (env) |
-| 3.1 Indexer late-binding lookup + page.deleted | Task 14 |
-| 3.2 agents-client.service.ts | Task 13 |
-| 3.3 Plan-features unchanged | (no task — confirmed unchanged) |
-| 4.1 listAvailableEmbeddingModels | Task 16 |
-| 4.2 get extension | Task 17 |
-| 4.3 update extension | Task 18 |
-| 4.4 agentsClient injection | Task 18 (via inline helper, not full context plumbing) |
-| 5.1 UI visual layout | Task 20 |
-| 5.2 Confirmation gate | Task 20 |
-| 5.3 Success messaging | Task 20 |
-| 5.4 Initial render | Task 19 |
-| 6.1 Chat payload extension | Task 21 |
-| 6.2 GraphService conditional | Task 12 |
-| 6.3 Prompt rendering (no change needed) | (no task — confirmed unchanged) |
-| 6.4 MCP tools unaffected | (no task — confirmed unchanged) |
+| Spec section                                   | Plan task(s)                                           |
+| ---------------------------------------------- | ------------------------------------------------------ |
+| 1.1 AiModel schema                             | Task 1                                                 |
+| 1.2 WorkspaceAiSettings schema                 | Task 1                                                 |
+| 1.3 Typed connection schema                    | Task 2                                                 |
+| 1.4 Seed additions                             | Task 3                                                 |
+| 2.1 EmbeddingFactoryRepository                 | Task 5                                                 |
+| 2.2 Schema additions                           | Task 4                                                 |
+| 2.3 Collection naming                          | Task 6                                                 |
+| 2.4 VectorizePageUseCase rewrite               | Task 7                                                 |
+| 2.5.1 DELETE /vectorization/workspaces         | Task 9                                                 |
+| 2.5.2 DELETE /vectorization/pages              | Task 8                                                 |
+| 2.6 Dishka changes                             | Task 7                                                 |
+| 2.7 Settings cleanup                           | Task 7 (settings.py + bootstrap.py) + Task 22 (env)    |
+| 3.1 Indexer late-binding lookup + page.deleted | Task 14                                                |
+| 3.2 agents-client.service.ts                   | Task 13                                                |
+| 3.3 Plan-features unchanged                    | (no task — confirmed unchanged)                        |
+| 4.1 listAvailableEmbeddingModels               | Task 16                                                |
+| 4.2 get extension                              | Task 17                                                |
+| 4.3 update extension                           | Task 18                                                |
+| 4.4 agentsClient injection                     | Task 18 (via inline helper, not full context plumbing) |
+| 5.1 UI visual layout                           | Task 20                                                |
+| 5.2 Confirmation gate                          | Task 20                                                |
+| 5.3 Success messaging                          | Task 20                                                |
+| 5.4 Initial render                             | Task 19                                                |
+| 6.1 Chat payload extension                     | Task 21                                                |
+| 6.2 GraphService conditional                   | Task 12                                                |
+| 6.3 Prompt rendering (no change needed)        | (no task — confirmed unchanged)                        |
+| 6.4 MCP tools unaffected                       | (no task — confirmed unchanged)                        |
 
 All spec sections mapped. Concurrency notes are realized in Task 14 (late-binding) + Task 18 (transaction ordering). Roll-out is Task 23.

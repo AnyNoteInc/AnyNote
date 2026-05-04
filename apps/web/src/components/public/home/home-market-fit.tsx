@@ -4,9 +4,21 @@ import { eyebrowSx, sectionTitleSx, homeTokens } from './home-tokens'
 const t = homeTokens.palette
 
 const rows = [
-  { value: '10 секунд', title: 'Понятно, что делает продукт', body: 'Главная сразу показывает рабочее пространство, ИИ-поиск и сценарий команды. Никаких абстрактных обещаний.' },
-  { value: '1 ссылка', title: 'Меньше трения для клиента', body: 'Материалы, файлы, схемы и решения открываются в одном аккуратном пространстве — без «вот вам 12 файлов в почту».' },
-  { value: '0 карт', title: 'Старт без лишних барьеров', body: 'Бесплатный персональный план помогает попробовать продукт до разговора о покупке.' },
+  {
+    value: '10 секунд',
+    title: 'Понятно, что делает продукт',
+    body: 'Главная сразу показывает рабочее пространство, ИИ-поиск и сценарий команды. Никаких абстрактных обещаний.',
+  },
+  {
+    value: '1 ссылка',
+    title: 'Меньше трения для клиента',
+    body: 'Материалы, файлы, схемы и решения открываются в одном аккуратном пространстве — без «вот вам 12 файлов в почту».',
+  },
+  {
+    value: '0 карт',
+    title: 'Старт без лишних барьеров',
+    body: 'Бесплатный персональный план помогает попробовать продукт до разговора о покупке.',
+  },
 ] as const
 
 export function HomeMarketFit() {
@@ -18,8 +30,11 @@ export function HomeMarketFit() {
           <Typography component="h2" sx={sectionTitleSx}>
             Команда покупает не хранилище — <em>а быстрый доступ к контексту</em>
           </Typography>
-          <Typography sx={{ color: 'text.secondary', fontSize: 16, lineHeight: 1.6, maxWidth: 620 }}>
-            Современный продукт даёт посетителю увидеть сценарий и начать без созвона. «Любые заметки» работает на этой логике с первой страницы.
+          <Typography
+            sx={{ color: 'text.secondary', fontSize: 16, lineHeight: 1.6, maxWidth: 620 }}
+          >
+            Современный продукт даёт посетителю увидеть сценарий и начать без созвона. «Любые
+            заметки» работает на этой логике с первой страницы.
           </Typography>
         </Stack>
 
@@ -40,8 +55,19 @@ export function HomeMarketFit() {
                 '@media (prefers-reduced-motion: reduce)': { '&:hover': { pl: 0 } },
               }}
             >
-              <Typography sx={{ fontFamily: homeTokens.fonts.mono, color: t.orange, fontSize: 18 }}>{row.value}</Typography>
-              <Typography sx={{ fontFamily: homeTokens.fonts.serif, fontSize: 22, fontWeight: 500, lineHeight: 1.2 }}>{row.title}</Typography>
+              <Typography sx={{ fontFamily: homeTokens.fonts.mono, color: t.orange, fontSize: 18 }}>
+                {row.value}
+              </Typography>
+              <Typography
+                sx={{
+                  fontFamily: homeTokens.fonts.serif,
+                  fontSize: 22,
+                  fontWeight: 500,
+                  lineHeight: 1.2,
+                }}
+              >
+                {row.title}
+              </Typography>
               <Typography sx={{ color: 'text.secondary', lineHeight: 1.65 }}>{row.body}</Typography>
             </Box>
           ))}

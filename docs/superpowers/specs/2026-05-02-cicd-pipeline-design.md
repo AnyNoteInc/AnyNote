@@ -109,12 +109,12 @@ runs:
 
 Service containers (matching `compose.yml` for fidelity with local dev):
 
-| Service | Image | Purpose |
-|---|---|---|
-| postgres | `postgres:16-alpine` | Prisma migrate + tests |
-| minio | `minio/minio` | `@repo/storage` integration tests |
-| qdrant | `qdrant/qdrant:v1.12.4` | agents vectorization unit tests |
-| mailhog | `mailhog/mailhog:latest` | mail outbox tests |
+| Service  | Image                    | Purpose                           |
+| -------- | ------------------------ | --------------------------------- |
+| postgres | `postgres:16-alpine`     | Prisma migrate + tests            |
+| minio    | `minio/minio`            | `@repo/storage` integration tests |
+| qdrant   | `qdrant/qdrant:v1.12.4`  | agents vectorization unit tests   |
+| mailhog  | `mailhog/mailhog:latest` | mail outbox tests                 |
 
 **Steps:**
 
@@ -164,10 +164,7 @@ steps:
   "plugins": [
     "@semantic-release/commit-analyzer",
     "@semantic-release/release-notes-generator",
-    [
-      "@semantic-release/changelog",
-      { "changelogFile": "CHANGELOG.md" }
-    ],
+    ["@semantic-release/changelog", { "changelogFile": "CHANGELOG.md" }],
     [
       "@semantic-release/git",
       {
@@ -278,12 +275,12 @@ A new file at the repo root. Defines four services (`web`, `yjs`, `agents`, `eng
 
 **Healthchecks:**
 
-| Service | Probe | Justification |
-|---|---|---|
-| web | `wget -qO- http://localhost:3000/api/health` | New `/api/health` route added to `apps/web` |
-| yjs | `nc -z localhost 1234` | Hocuspocus has no HTTP endpoint; TCP probe is sufficient |
-| agents | `curl -f http://localhost:8080/health` | Existing `fast_clean.contrib.healthcheck.router` (mounted at `/health`) |
-| engines | `wget -qO- http://localhost:8082/api/health` | Existing `HealthController` (`apps/engines/src/health/`) |
+| Service | Probe                                        | Justification                                                           |
+| ------- | -------------------------------------------- | ----------------------------------------------------------------------- |
+| web     | `wget -qO- http://localhost:3000/api/health` | New `/api/health` route added to `apps/web`                             |
+| yjs     | `nc -z localhost 1234`                       | Hocuspocus has no HTTP endpoint; TCP probe is sufficient                |
+| agents  | `curl -f http://localhost:8080/health`       | Existing `fast_clean.contrib.healthcheck.router` (mounted at `/health`) |
+| engines | `wget -qO- http://localhost:8082/api/health` | Existing `HealthController` (`apps/engines/src/health/`)                |
 
 **`depends_on` with `condition: service_healthy`** ensures app containers wait for postgres before starting. `agents` also waits for `qdrant: service_started` (qdrant has no built-in healthcheck endpoint by default).
 
@@ -356,15 +353,15 @@ The pipeline does not move application data; it moves CI artifacts:
 
 ## Error handling
 
-| Failure mode | Behavior |
-|---|---|
-| Lint or typecheck fails on PR | `ci.yml` fails red; merge blocked by branch protection |
-| Test fails on PR | `ci.yml` fails red; same as above |
-| Lint/test fails on merge to main | `release.yml` fails red; no tag is cut. Fix forward via a follow-up PR |
-| `semantic-release` finds no releasable commits | Job exits 0; no tag pushed; `deploy.yml` does not fire. Expected for `chore:`-only merges |
-| Single matrix image build fails | Other 3 still build (`fail-fast: false`); `verify` job does not run (depends on full `build` success); release artifacts incomplete |
-| `verify` boot times out | `deploy.yml` fails red; logs printed via `if: failure()`. Deploy mock does not run |
-| `deploy` mock | Always succeeds (`echo 'deploy'`) when reached |
+| Failure mode                                   | Behavior                                                                                                                            |
+| ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------- |
+| Lint or typecheck fails on PR                  | `ci.yml` fails red; merge blocked by branch protection                                                                              |
+| Test fails on PR                               | `ci.yml` fails red; same as above                                                                                                   |
+| Lint/test fails on merge to main               | `release.yml` fails red; no tag is cut. Fix forward via a follow-up PR                                                              |
+| `semantic-release` finds no releasable commits | Job exits 0; no tag pushed; `deploy.yml` does not fire. Expected for `chore:`-only merges                                           |
+| Single matrix image build fails                | Other 3 still build (`fail-fast: false`); `verify` job does not run (depends on full `build` success); release artifacts incomplete |
+| `verify` boot times out                        | `deploy.yml` fails red; logs printed via `if: failure()`. Deploy mock does not run                                                  |
+| `deploy` mock                                  | Always succeeds (`echo 'deploy'`) when reached                                                                                      |
 
 ## Testing strategy
 
@@ -378,15 +375,15 @@ No automated tests of the workflow YAML itself (`act` and similar are heavy). Ma
 
 ## Risks & mitigations
 
-| Risk | Mitigation |
-|---|---|
-| `uv sync` slow on cold cache (~2–3 min) | pnpm/uv lockfile caching via `actions/cache`; subsequent runs warm |
-| spaCy model downloads bloat agents image (~1.2 GB) | Accepted; cached at the Docker layer level after first build |
-| Token-pushed tags may not trigger `deploy.yml` if org tightens Action-on-Action policy | Document fallback: switch to `secrets.RELEASE_PAT` (fine-grained PAT) |
-| `compose.ci.yml` env drift when `turbo.json` globalEnv changes | Pre-existing CLAUDE.md guidance already calls out env-var-add discipline; document in this design too |
-| `agents` DB requires `postgres-init` | CI gets fresh volume each run, so SQL reruns; no special handling needed |
-| Node 24 is Active LTS, supported through Apr 2027 (maintenance Apr 2027 onward) | No action — pin to a major version like `node:24-alpine` and reassess at LTS end-of-life |
-| Existing engines & agents Dockerfile refactor introduces regression | Verify job catches boot regressions; image size diff watched manually |
+| Risk                                                                                   | Mitigation                                                                                            |
+| -------------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------- |
+| `uv sync` slow on cold cache (~2–3 min)                                                | pnpm/uv lockfile caching via `actions/cache`; subsequent runs warm                                    |
+| spaCy model downloads bloat agents image (~1.2 GB)                                     | Accepted; cached at the Docker layer level after first build                                          |
+| Token-pushed tags may not trigger `deploy.yml` if org tightens Action-on-Action policy | Document fallback: switch to `secrets.RELEASE_PAT` (fine-grained PAT)                                 |
+| `compose.ci.yml` env drift when `turbo.json` globalEnv changes                         | Pre-existing CLAUDE.md guidance already calls out env-var-add discipline; document in this design too |
+| `agents` DB requires `postgres-init`                                                   | CI gets fresh volume each run, so SQL reruns; no special handling needed                              |
+| Node 24 is Active LTS, supported through Apr 2027 (maintenance Apr 2027 onward)        | No action — pin to a major version like `node:24-alpine` and reassess at LTS end-of-life              |
+| Existing engines & agents Dockerfile refactor introduces regression                    | Verify job catches boot regressions; image size diff watched manually                                 |
 
 ## Files added / changed
 

@@ -1,5 +1,16 @@
 import { describe, expect, it } from 'vitest'
-import { calcAge, calcAgeAtDeath, shouldShowDeathCross, hasParents, getChildGroupOf, getChildrenOf, getBaseOf, getPartnersOf, countPartnersOf, shouldShowPartnerOrder } from './computed'
+import {
+  calcAge,
+  calcAgeAtDeath,
+  shouldShowDeathCross,
+  hasParents,
+  getChildGroupOf,
+  getChildrenOf,
+  getBaseOf,
+  getPartnersOf,
+  countPartnersOf,
+  shouldShowPartnerOrder,
+} from './computed'
 import type { ChildGroup, ChildGroupId, Person, PersonId, Union, UnionId } from '../types'
 
 describe('calcAge', () => {
@@ -172,20 +183,35 @@ describe('getChildrenOf', () => {
 })
 
 describe('partner helpers', () => {
-  const owner: Person = personWith({}); owner.id = 'owner' as PersonId
-  const wife1: Person = personWith({}); wife1.id = 'w1' as PersonId; wife1.sex = 'female'; wife1.partnerOrder = 1
-  const wife2: Person = personWith({}); wife2.id = 'w2' as PersonId; wife2.sex = 'female'; wife2.partnerOrder = 2
+  const owner: Person = personWith({})
+  owner.id = 'owner' as PersonId
+  const wife1: Person = personWith({})
+  wife1.id = 'w1' as PersonId
+  wife1.sex = 'female'
+  wife1.partnerOrder = 1
+  const wife2: Person = personWith({})
+  wife2.id = 'w2' as PersonId
+  wife2.sex = 'female'
+  wife2.partnerOrder = 2
 
   const u1: Union = {
-    id: 'u1' as UnionId, kind: 'marriage',
-    malePartnerId: 'owner' as PersonId, femalePartnerId: 'w1' as PersonId,
+    id: 'u1' as UnionId,
+    kind: 'marriage',
+    malePartnerId: 'owner' as PersonId,
+    femalePartnerId: 'w1' as PersonId,
   }
   const u2: Union = {
-    id: 'u2' as UnionId, kind: 'marriage',
-    malePartnerId: 'owner' as PersonId, femalePartnerId: 'w2' as PersonId,
+    id: 'u2' as UnionId,
+    kind: 'marriage',
+    malePartnerId: 'owner' as PersonId,
+    femalePartnerId: 'w2' as PersonId,
   }
   const unions: Record<UnionId, Union> = { [u1.id]: u1, [u2.id]: u2 }
-  const people: Record<PersonId, Person> = { [owner.id]: owner, [wife1.id]: wife1, [wife2.id]: wife2 }
+  const people: Record<PersonId, Person> = {
+    [owner.id]: owner,
+    [wife1.id]: wife1,
+    [wife2.id]: wife2,
+  }
 
   it('getBaseOf returns the other side when partner has 1 union', () => {
     expect(getBaseOf('w1' as PersonId, unions)).toBe('owner')

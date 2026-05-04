@@ -84,10 +84,16 @@ Packages (selected):
 
 ```js
 transpilePackages: [
-  '@repo/ui', '@repo/trpc', '@repo/auth', '@repo/storage',
-  '@repo/editor', '@repo/excalidraw', '@repo/genogram', '@repo/yookassa',
+  '@repo/ui',
+  '@repo/trpc',
+  '@repo/auth',
+  '@repo/storage',
+  '@repo/editor',
+  '@repo/excalidraw',
+  '@repo/genogram',
+  '@repo/yookassa',
 ]
-serverExternalPackages: ['pg', '@prisma/client']  // never bundle Prisma
+serverExternalPackages: ['pg', '@prisma/client'] // never bundle Prisma
 ```
 
 If you add a new workspace package consumed by `apps/web`, you must list it in `transpilePackages` or Next will try to import its `dist/` (which doesn't exist in dev).

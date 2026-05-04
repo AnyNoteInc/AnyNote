@@ -28,9 +28,7 @@ export function VerifyEmailView({ status }: { status: VerifyEmailStatus }) {
         <Alert severity="success">Email подтверждён. Перенаправляем в приложение...</Alert>
       ) : null}
       {status === 'pending' ? (
-        <Alert severity="info">
-          Проверьте почту: мы отправили ссылку для подтверждения email.
-        </Alert>
+        <Alert severity="info">Проверьте почту: мы отправили ссылку для подтверждения email.</Alert>
       ) : null}
       {status === 'error' || status === 'expired' ? (
         <>

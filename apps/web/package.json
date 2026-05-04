@@ -12,6 +12,9 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@mdx-js/loader": "^3.1.1",
+    "@mdx-js/react": "^3.1.1",
+    "@next/mdx": "^16.2.4",
     "@prisma/client": "^7.0.0",
     "@repo/auth": "workspace:*",
     "@repo/db": "workspace:*",
@@ -33,6 +36,7 @@
     "react": "^19.2.3",
     "react-dom": "^19.2.0",
     "react-google-recaptcha-v3": "^1.10.1",
+    "remark-gfm": "^4.0.1",
     "turndown": "^7.2.4"
   },
   "devDependencies": {
@@ -42,6 +46,7 @@
     "@testing-library/jest-dom": "^6.6.0",
     "@testing-library/react": "^16.3.0",
     "@testing-library/user-event": "^14.6.1",
+    "@types/mdx": "^2.0.13",
     "@types/node": "^22.15.3",
     "@types/react": "^19.2.2",
     "@types/react-dom": "^19.2.2",

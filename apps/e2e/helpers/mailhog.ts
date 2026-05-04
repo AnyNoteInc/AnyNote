@@ -48,7 +48,7 @@ export function extractFirstUrl(content: string, prefix?: string): string | null
     .replace(/=\r?\n/g, '')
     .replace(/=([0-9A-F]{2})/gi, (_, hex: string) => String.fromCharCode(parseInt(hex, 16)))
   const re = prefix
-    ? new RegExp(`(${escapeRegex(prefix)}[^\\s<>"']+)`)
+    ? new RegExp(String.raw`(${escapeRegex(prefix)}[^\s<>"']+)`)
     : /(https?:\/\/[^\s<>"']+)/
   const match = re.exec(normalized)
   return match?.[1]?.replace(/&amp;/g, '&') ?? null

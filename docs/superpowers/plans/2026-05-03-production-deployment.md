@@ -15,6 +15,7 @@
 ## File Map
 
 **New files:**
+
 - `deploy/compose.yml` — production compose with all services
 - `deploy/.env.template` — envsubst input
 - `deploy/.env.example` — documentation companion
@@ -24,6 +25,7 @@
 - `docker/postgres-init/01-create-agents-db.sql` — same script mirrored into dev compose's mounted init dir
 
 **Modified files:**
+
 - `apps/web/Dockerfile` — runner stage adds Prisma CLI + `packages/db/` (schema + migrations + seed) for the one-shot `migrate` compose service
 - `.github/workflows/deploy.yml` — replace `echo 'deploy'` with the real deploy job (env render, rsync, compose up)
 
@@ -45,6 +47,7 @@ These steps are out of scope for the code plan but **must be done by an operator
 ## Task 1: Create the `deploy/` directory tree
 
 **Files:**
+
 - Create: `deploy/postgres-init/01-create-agents-db.sql`
 - Create: `docker/postgres-init/01-create-agents-db.sql`
 
@@ -88,6 +91,7 @@ git commit -m "feat(deploy): add postgres init script creating anynote_agents DB
 ## Task 2: Write `deploy/.env.template`
 
 **Files:**
+
 - Create: `deploy/.env.template`
 
 This file is the source of truth for the `.env` rendered by the deploy job via `envsubst`. It contains every variable any container reads, with `${VAR}` placeholders for values that come from GH secrets.
@@ -219,6 +223,7 @@ git commit -m "feat(deploy): add envsubst-rendered .env template"
 ## Task 3: Write `deploy/.env.example`
 
 **Files:**
+
 - Create: `deploy/.env.example`
 
 Documentation companion. Same keys as `.env.template` but with placeholder values + inline comments. An operator should be able to read this and understand what every variable is for without reading the deploy workflow.
@@ -337,6 +342,7 @@ git commit -m "docs(deploy): add .env.example for production secrets"
 ## Task 4: Write `deploy/traefik/traefik.yml` (static config)
 
 **Files:**
+
 - Create: `deploy/traefik/traefik.yml`
 
 Traefik static config: entrypoints (80 + 443), Docker provider (auto-discovery via labels), file provider (middlewares), Let's Encrypt resolver via HTTP-01.
@@ -355,7 +361,7 @@ api:
 
 entryPoints:
   web:
-    address: ":80"
+    address: ':80'
     http:
       redirections:
         entryPoint:
@@ -363,7 +369,7 @@ entryPoints:
           scheme: https
           permanent: true
   websecure:
-    address: ":443"
+    address: ':443'
 
 providers:
   docker:
@@ -400,6 +406,7 @@ git commit -m "feat(deploy): add traefik static config (entrypoints, ACME, provi
 ## Task 5: Write `deploy/traefik/dynamic/middlewares.yml`
 
 **Files:**
+
 - Create: `deploy/traefik/dynamic/middlewares.yml`
 
 Dynamic config — Traefik watches the directory and reloads on change. Defines all middlewares referenced from compose labels.
@@ -459,13 +466,13 @@ http:
     # Strip /ws prefix so the request reaches the yjs container as / .
     strip-ws:
       stripPrefix:
-        prefixes: ["/ws"]
+        prefixes: ['/ws']
 
     # Canonical URL — redirect www.anynote.ru → anynote.ru.
     www-redirect:
       redirectRegex:
         regex: "^https?://www\\.anynote\\.ru/(.*)"
-        replacement: "https://anynote.ru/${1}"
+        replacement: 'https://anynote.ru/${1}'
         permanent: true
 
     # Basic-auth for the Traefik dashboard.
@@ -497,6 +504,7 @@ git commit -m "feat(deploy): add traefik middlewares (rate limit, headers, www r
 ## Task 6: Write `deploy/compose.yml`
 
 **Files:**
+
 - Create: `deploy/compose.yml`
 
 The full production compose file. Pulls 4 GHCR images (web/yjs/engines/agents) at `:latest`, plus stock images for postgres/minio/qdrant/traefik/minio-mc. Dependency order: postgres healthy → minio-init + migrate → web/yjs/engines/agents.
@@ -511,8 +519,8 @@ services:
     image: traefik:v3.5
     restart: unless-stopped
     ports:
-      - "80:80"
-      - "443:443"
+      - '80:80'
+      - '443:443'
     volumes:
       - ./traefik/traefik.yml:/etc/traefik/traefik.yml:ro
       - ./traefik/dynamic:/etc/traefik/dynamic:ro
@@ -539,7 +547,7 @@ services:
       - postgres_data:/var/lib/postgresql/data
       - ./postgres-init:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U anynote -d anynote"]
+      test: ['CMD-SHELL', 'pg_isready -U anynote -d anynote']
       interval: 5s
       timeout: 5s
       retries: 10
@@ -554,7 +562,7 @@ services:
     volumes:
       - minio_data:/data
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      test: ['CMD', 'curl', '-f', 'http://localhost:9000/minio/health/live']
       interval: 10s
       timeout: 5s
       retries: 5
@@ -569,20 +577,20 @@ services:
       mc alias set local http://minio:9000 ${S3_ACCESS_KEY} ${S3_SECRET_KEY} &&
       mc mb --ignore-existing local/${S3_BUCKET}
       "
-    restart: "no"
+    restart: 'no'
 
   qdrant:
     image: qdrant/qdrant:v1.12.4
     restart: unless-stopped
     environment:
       QDRANT__SERVICE__API_KEY: ${QDRANT__AUTH__BEARER_TOKEN}
-      QDRANT__TELEMETRY_DISABLED: "true"
+      QDRANT__TELEMETRY_DISABLED: 'true'
     volumes:
       - qdrant_data:/qdrant/storage
 
   migrate:
     image: ghcr.io/anynoteinc/anynote-web:latest
-    restart: "no"
+    restart: 'no'
     env_file: .env
     depends_on:
       postgres:
@@ -591,7 +599,7 @@ services:
     command:
       - sh
       - -c
-      - "../../node_modules/.bin/prisma migrate deploy && ../../node_modules/.bin/prisma db seed"
+      - '../../node_modules/.bin/prisma migrate deploy && ../../node_modules/.bin/prisma db seed'
 
   web:
     image: ghcr.io/anynoteinc/anynote-web:latest
@@ -693,6 +701,7 @@ git commit -m "feat(deploy): add production compose with traefik routing for web
 ## Task 7: Modify `apps/web/Dockerfile` to bundle Prisma CLI for the migrate service
 
 **Files:**
+
 - Modify: `apps/web/Dockerfile` (runner stage, lines 50-58 area)
 
 The runner stage of `apps/web/Dockerfile` currently produces a Next.js standalone bundle with no Prisma CLI. The `migrate` compose service reuses this image, so we need to add the Prisma binary, the `@prisma/client` engine, and the `packages/db/` directory (schema + migrations + seed.ts + prisma.config.ts + package.json).
@@ -779,6 +788,7 @@ git commit -m "feat(web): bundle Prisma CLI + db package into runner image for m
 ## Task 8: Replace `deploy` job in `.github/workflows/deploy.yml`
 
 **Files:**
+
 - Modify: `.github/workflows/deploy.yml` (replace `deploy:` job at the bottom — currently `runs: echo 'deploy'`)
 
 This adds the real deploy job: render `.env` with envsubst, materialise dashboard-users, rsync everything to the server over SSH, and run `docker compose pull && up -d --remove-orphans`.
@@ -796,126 +806,126 @@ You should see the placeholder `deploy:` job at the end. Note: the workflow curr
 Edit `.github/workflows/deploy.yml`. Find:
 
 ```yaml
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment: production
+deploy:
+  needs: build
+  runs-on: ubuntu-latest
+  environment: production
 
-    steps:
-      - run: echo 'deploy'
+  steps:
+    - run: echo 'deploy'
 ```
 
 Replace with:
 
 ```yaml
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment: production
-    concurrency:
-      group: deploy-prod
-      cancel-in-progress: false
+deploy:
+  needs: build
+  runs-on: ubuntu-latest
+  environment: production
+  concurrency:
+    group: deploy-prod
+    cancel-in-progress: false
 
-    steps:
-      - uses: actions/checkout@v5
+  steps:
+    - uses: actions/checkout@v5
 
-      - name: Render .env from template
-        env:
-          NEXT_PUBLIC_BASE_URL: ${{ secrets.NEXT_PUBLIC_BASE_URL }}
-          BETTER_AUTH_URL: ${{ secrets.BETTER_AUTH_URL }}
-          BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
-          BETTER_AUTH_JWT_AUDIENCE: ${{ secrets.BETTER_AUTH_JWT_AUDIENCE }}
-          NEXT_PUBLIC_YJS_URL: ${{ secrets.NEXT_PUBLIC_YJS_URL }}
-          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
-          DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          DB__PASSWORD: ${{ secrets.DB__PASSWORD }}
-          S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
-          S3_REGION: ${{ secrets.S3_REGION }}
-          S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
-          S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
-          S3_BUCKET: ${{ secrets.S3_BUCKET }}
-          S3_FORCE_PATH_STYLE: ${{ secrets.S3_FORCE_PATH_STYLE }}
-          QDRANT__HOST: ${{ secrets.QDRANT__HOST }}
-          QDRANT__AUTH__TYPE: ${{ secrets.QDRANT__AUTH__TYPE }}
-          QDRANT__AUTH__BEARER_TOKEN: ${{ secrets.QDRANT__AUTH__BEARER_TOKEN }}
-          QDRANT__COLLECTION_NAME: ${{ secrets.QDRANT__COLLECTION_NAME }}
-          AGENTS_SERVICE_URL: ${{ secrets.AGENTS_SERVICE_URL }}
-          AGENTS_SERVICE_TOKEN: ${{ secrets.AGENTS_SERVICE_TOKEN }}
-          AGENTS_SECRET_KEY: ${{ secrets.AGENTS_SECRET_KEY }}
-          ENGINES_URL: ${{ secrets.ENGINES_URL }}
-          ENGINES_PORT: ${{ secrets.ENGINES_PORT }}
-          ENGINES_MCP_TOKEN: ${{ secrets.ENGINES_MCP_TOKEN }}
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_SECURE: ${{ secrets.SMTP_SECURE }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-          MAIL_FROM: ${{ secrets.MAIL_FROM }}
-          GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
-          GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
-          NEXT_PUBLIC_RECAPTCHA_SITE_KEY: ${{ secrets.NEXT_PUBLIC_RECAPTCHA_SITE_KEY }}
-          RECAPTCHA_SECRET_KEY: ${{ secrets.RECAPTCHA_SECRET_KEY }}
-          YOOKASSA_SHOP_ID: ${{ secrets.YOOKASSA_SHOP_ID }}
-          YOOKASSA_SECRET_KEY: ${{ secrets.YOOKASSA_SECRET_KEY }}
-          ACME_EMAIL: ${{ secrets.ACME_EMAIL }}
-          TRAEFIK_DASHBOARD_USERS_LINE: ${{ secrets.TRAEFIK_DASHBOARD_USERS_LINE }}
-        run: |
-          envsubst < deploy/.env.template > /tmp/.env
-          chmod 600 /tmp/.env
-          # Materialise the dashboard-users file for traefik basicAuth.usersFile.
-          printf '%s\n' "$TRAEFIK_DASHBOARD_USERS_LINE" > /tmp/dashboard-users
-          chmod 600 /tmp/dashboard-users
-          # Sanity-check no unsubstituted vars remain.
-          if grep -E '\$\{[A-Z_]+\}' /tmp/.env > /dev/null; then
-            echo "ERROR: .env still contains unsubstituted vars:"
-            grep -nE '\$\{[A-Z_]+\}' /tmp/.env
-            exit 1
-          fi
+    - name: Render .env from template
+      env:
+        NEXT_PUBLIC_BASE_URL: ${{ secrets.NEXT_PUBLIC_BASE_URL }}
+        BETTER_AUTH_URL: ${{ secrets.BETTER_AUTH_URL }}
+        BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
+        BETTER_AUTH_JWT_AUDIENCE: ${{ secrets.BETTER_AUTH_JWT_AUDIENCE }}
+        NEXT_PUBLIC_YJS_URL: ${{ secrets.NEXT_PUBLIC_YJS_URL }}
+        POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+        DATABASE_URL: ${{ secrets.DATABASE_URL }}
+        DB__PASSWORD: ${{ secrets.DB__PASSWORD }}
+        S3_ENDPOINT: ${{ secrets.S3_ENDPOINT }}
+        S3_REGION: ${{ secrets.S3_REGION }}
+        S3_ACCESS_KEY: ${{ secrets.S3_ACCESS_KEY }}
+        S3_SECRET_KEY: ${{ secrets.S3_SECRET_KEY }}
+        S3_BUCKET: ${{ secrets.S3_BUCKET }}
+        S3_FORCE_PATH_STYLE: ${{ secrets.S3_FORCE_PATH_STYLE }}
+        QDRANT__HOST: ${{ secrets.QDRANT__HOST }}
+        QDRANT__AUTH__TYPE: ${{ secrets.QDRANT__AUTH__TYPE }}
+        QDRANT__AUTH__BEARER_TOKEN: ${{ secrets.QDRANT__AUTH__BEARER_TOKEN }}
+        QDRANT__COLLECTION_NAME: ${{ secrets.QDRANT__COLLECTION_NAME }}
+        AGENTS_SERVICE_URL: ${{ secrets.AGENTS_SERVICE_URL }}
+        AGENTS_SERVICE_TOKEN: ${{ secrets.AGENTS_SERVICE_TOKEN }}
+        AGENTS_SECRET_KEY: ${{ secrets.AGENTS_SECRET_KEY }}
+        ENGINES_URL: ${{ secrets.ENGINES_URL }}
+        ENGINES_PORT: ${{ secrets.ENGINES_PORT }}
+        ENGINES_MCP_TOKEN: ${{ secrets.ENGINES_MCP_TOKEN }}
+        SMTP_HOST: ${{ secrets.SMTP_HOST }}
+        SMTP_PORT: ${{ secrets.SMTP_PORT }}
+        SMTP_SECURE: ${{ secrets.SMTP_SECURE }}
+        SMTP_USER: ${{ secrets.SMTP_USER }}
+        SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
+        MAIL_FROM: ${{ secrets.MAIL_FROM }}
+        GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
+        GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+        NEXT_PUBLIC_RECAPTCHA_SITE_KEY: ${{ secrets.NEXT_PUBLIC_RECAPTCHA_SITE_KEY }}
+        RECAPTCHA_SECRET_KEY: ${{ secrets.RECAPTCHA_SECRET_KEY }}
+        YOOKASSA_SHOP_ID: ${{ secrets.YOOKASSA_SHOP_ID }}
+        YOOKASSA_SECRET_KEY: ${{ secrets.YOOKASSA_SECRET_KEY }}
+        ACME_EMAIL: ${{ secrets.ACME_EMAIL }}
+        TRAEFIK_DASHBOARD_USERS_LINE: ${{ secrets.TRAEFIK_DASHBOARD_USERS_LINE }}
+      run: |
+        envsubst < deploy/.env.template > /tmp/.env
+        chmod 600 /tmp/.env
+        # Materialise the dashboard-users file for traefik basicAuth.usersFile.
+        printf '%s\n' "$TRAEFIK_DASHBOARD_USERS_LINE" > /tmp/dashboard-users
+        chmod 600 /tmp/dashboard-users
+        # Sanity-check no unsubstituted vars remain.
+        if grep -E '\$\{[A-Z_]+\}' /tmp/.env > /dev/null; then
+          echo "ERROR: .env still contains unsubstituted vars:"
+          grep -nE '\$\{[A-Z_]+\}' /tmp/.env
+          exit 1
+        fi
 
-      - name: Setup SSH
-        uses: webfactory/ssh-agent@v0.9.1
-        with:
-          ssh-private-key: ${{ secrets.DEPLOY_KEY_PRIVATE }}
+    - name: Setup SSH
+      uses: webfactory/ssh-agent@v0.9.1
+      with:
+        ssh-private-key: ${{ secrets.DEPLOY_KEY_PRIVATE }}
 
-      - name: Trust deploy host
-        run: |
-          mkdir -p ~/.ssh
-          ssh-keyscan -p ${{ secrets.DEPLOY_PORT }} ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
+    - name: Trust deploy host
+      run: |
+        mkdir -p ~/.ssh
+        ssh-keyscan -p ${{ secrets.DEPLOY_PORT }} ${{ secrets.DEPLOY_HOST }} >> ~/.ssh/known_hosts
 
-      - name: Sync deploy artifacts to server
-        run: |
-          ssh -p ${{ secrets.DEPLOY_PORT }} \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-            "mkdir -p /opt/anynote/traefik/dynamic /opt/anynote/postgres-init"
-          rsync -avz --delete \
-            -e "ssh -p ${{ secrets.DEPLOY_PORT }}" \
-            deploy/compose.yml \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/anynote/compose.yml
-          rsync -avz --delete \
-            -e "ssh -p ${{ secrets.DEPLOY_PORT }}" \
-            deploy/traefik/ \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/anynote/traefik/
-          rsync -avz --delete \
-            -e "ssh -p ${{ secrets.DEPLOY_PORT }}" \
-            deploy/postgres-init/ \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/anynote/postgres-init/
-          scp -P ${{ secrets.DEPLOY_PORT }} /tmp/.env \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/anynote/.env
-          scp -P ${{ secrets.DEPLOY_PORT }} /tmp/dashboard-users \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/anynote/traefik/dynamic/dashboard-users
+    - name: Sync deploy artifacts to server
+      run: |
+        ssh -p ${{ secrets.DEPLOY_PORT }} \
+          ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+          "mkdir -p /opt/anynote/traefik/dynamic /opt/anynote/postgres-init"
+        rsync -avz --delete \
+          -e "ssh -p ${{ secrets.DEPLOY_PORT }}" \
+          deploy/compose.yml \
+          ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/anynote/compose.yml
+        rsync -avz --delete \
+          -e "ssh -p ${{ secrets.DEPLOY_PORT }}" \
+          deploy/traefik/ \
+          ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/anynote/traefik/
+        rsync -avz --delete \
+          -e "ssh -p ${{ secrets.DEPLOY_PORT }}" \
+          deploy/postgres-init/ \
+          ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/anynote/postgres-init/
+        scp -P ${{ secrets.DEPLOY_PORT }} /tmp/.env \
+          ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/anynote/.env
+        scp -P ${{ secrets.DEPLOY_PORT }} /tmp/dashboard-users \
+          ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }}:/opt/anynote/traefik/dynamic/dashboard-users
 
-      - name: Pull images and bring stack up
-        env:
-          GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GHCR_USER: ${{ github.actor }}
-        run: |
-          ssh -p ${{ secrets.DEPLOY_PORT }} \
-            ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
-            "set -e; cd /opt/anynote && \
-             echo '$GHCR_TOKEN' | docker login ghcr.io -u $GHCR_USER --password-stdin && \
-             docker compose --project-name anynote pull && \
-             docker compose --project-name anynote up -d --remove-orphans && \
-             docker logout ghcr.io"
+    - name: Pull images and bring stack up
+      env:
+        GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        GHCR_USER: ${{ github.actor }}
+      run: |
+        ssh -p ${{ secrets.DEPLOY_PORT }} \
+          ${{ secrets.DEPLOY_USER }}@${{ secrets.DEPLOY_HOST }} \
+          "set -e; cd /opt/anynote && \
+           echo '$GHCR_TOKEN' | docker login ghcr.io -u $GHCR_USER --password-stdin && \
+           docker compose --project-name anynote pull && \
+           docker compose --project-name anynote up -d --remove-orphans && \
+           docker logout ghcr.io"
 ```
 
 - [ ] **Step 3: Lint the workflow YAML**
@@ -1113,5 +1123,5 @@ The `gh pr create` command prints the URL. Surface it in the chat so the user ca
 3. **Type/path consistency:**
    - Image names in compose: `ghcr.io/anynoteinc/anynote-{web,yjs,engines,agents}:latest` — match `IMAGE_NAMESPACE: ${{ github.repository_owner }}/anynote` and matrix in build job ✓
    - Compose project name: `anynote` (set by `--project-name anynote` in deploy ssh) — must match `network: anynote_default` in `traefik.yml` ✓
-   - DB user: `anynote` everywhere (compose env, .env DB__USER, init script) ✓
+   - DB user: `anynote` everywhere (compose env, .env DB\_\_USER, init script) ✓
    - Compose service names: `traefik`, `postgres`, `minio`, `minio-init`, `qdrant`, `migrate`, `web`, `yjs`, `engines`, `agents` — referenced consistently in env (e.g. `S3_ENDPOINT=http://minio:9000`, `AGENTS_SERVICE_URL=http://agents:8080`) ✓

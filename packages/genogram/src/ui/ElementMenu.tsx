@@ -14,7 +14,15 @@ interface Props {
   onAction: (action: ElementAction) => void
 }
 
-export function ElementMenu({ open, anchorEl, personSize, personRole, hasParents, onClose, onAction }: Props) {
+export function ElementMenu({
+  open,
+  anchorEl,
+  personSize,
+  personRole,
+  hasParents,
+  onClose,
+  onAction,
+}: Readonly<Props>) {
   const items: { action: ElementAction; label: string }[] = []
   if (personSize === 'small') {
     items.push({ action: 'edit-data', label: RU.menu.editData })

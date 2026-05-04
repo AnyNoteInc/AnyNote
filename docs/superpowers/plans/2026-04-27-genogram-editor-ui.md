@@ -9,6 +9,7 @@
 **Tech Stack:** TypeScript, React 19, MUI v7, React Flow v12, Yjs, Vitest (+ jsdom для component tests), Playwright (E2E). Спека: [docs/superpowers/specs/2026-04-27-genogram-editor-ui-design.md](../specs/2026-04-27-genogram-editor-ui-design.md).
 
 **Соглашения**:
+
 - Vitest для unit и component тестов; co-located `*.test.ts` / `*.test.tsx` рядом с кодом (как существующий `src/yjs/actions.test.ts`).
 - Component-тесты добавляют `// @vitest-environment jsdom` в первой строке.
 - Прод-данных нет — миграции не требуются.
@@ -22,6 +23,7 @@
 ### Task 1: Add MUI dependencies and configure Vitest for component tests
 
 **Files:**
+
 - Modify: `packages/genogram/package.json`
 - Modify: `packages/genogram/vitest.config.ts`
 - Create: `packages/genogram/test-setup.ts`
@@ -104,6 +106,7 @@ git commit -m "chore(genogram): add MUI + RTL deps; configure vitest for compone
 ### Task 2: Extend LifeDates with new fields and PartialDate
 
 **Files:**
+
 - Modify: `packages/genogram/src/types/domain.ts`
 
 - [ ] **Step 1: Add new types and extend LifeDates**
@@ -197,6 +200,7 @@ git commit -m "feat(genogram): extend domain model with PartialDate, LifeStatus,
 ### Task 3: Update factories to use new domain shape
 
 **Files:**
+
 - Modify: `packages/genogram/src/model/factories.ts`
 
 - [ ] **Step 1: Read current factories.ts to know exact shape**
@@ -265,6 +269,7 @@ git commit -m "feat(genogram): factories produce new LifeDates shape; add create
 ### Task 4: Create i18n/format-date.ts (TDD)
 
 **Files:**
+
 - Create: `packages/genogram/src/i18n/format-date.ts`
 - Create: `packages/genogram/src/i18n/format-date.test.ts`
 
@@ -327,13 +332,33 @@ Create `packages/genogram/src/i18n/format-date.ts`:
 import type { PartialDate } from '../types/domain'
 
 const MONTHS_NOMINATIVE = [
-  'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
-  'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь',
+  'январь',
+  'февраль',
+  'март',
+  'апрель',
+  'май',
+  'июнь',
+  'июль',
+  'август',
+  'сентябрь',
+  'октябрь',
+  'ноябрь',
+  'декабрь',
 ] as const
 
 const MONTHS_GENITIVE = [
-  'января', 'февраля', 'марта', 'апреля', 'мая', 'июня',
-  'июля', 'августа', 'сентября', 'октября', 'ноября', 'декабря',
+  'января',
+  'февраля',
+  'марта',
+  'апреля',
+  'мая',
+  'июня',
+  'июля',
+  'августа',
+  'сентября',
+  'октября',
+  'ноября',
+  'декабря',
 ] as const
 
 export function formatPartialDate(d: PartialDate | undefined): string {
@@ -371,6 +396,7 @@ git commit -m "feat(genogram): add formatPartialDate with Russian declension"
 ### Task 5: Create i18n/ru.ts with all strings
 
 **Files:**
+
 - Create: `packages/genogram/src/i18n/ru.ts`
 - Create: `packages/genogram/src/i18n/ru.test.ts`
 
@@ -475,6 +501,7 @@ git commit -m "feat(genogram): add Russian i18n strings with declension helpers"
 ### Task 6: calcAge and calcAgeAtDeath
 
 **Files:**
+
 - Modify: `packages/genogram/src/model/computed.ts`
 - Modify: `packages/genogram/src/model/computed.test.ts` (create if absent)
 
@@ -568,14 +595,25 @@ Add to `packages/genogram/src/model/computed.ts`:
 ```ts
 import type { PartialDate, Person } from '../types/domain'
 
-export function calcAge(birth: PartialDate | undefined, ref: PartialDate | string | undefined): number | undefined {
+export function calcAge(
+  birth: PartialDate | undefined,
+  ref: PartialDate | string | undefined,
+): number | undefined {
   if (!birth || birth.year === undefined || !ref) return undefined
   const refPartial = typeof ref === 'string' ? isoToPartial(ref) : ref
   if (!refPartial || refPartial.year === undefined) return undefined
 
-  if (birth.day !== undefined && birth.month !== undefined && refPartial.day !== undefined && refPartial.month !== undefined) {
+  if (
+    birth.day !== undefined &&
+    birth.month !== undefined &&
+    refPartial.day !== undefined &&
+    refPartial.month !== undefined
+  ) {
     let age = refPartial.year - birth.year
-    if (refPartial.month < birth.month || (refPartial.month === birth.month && refPartial.day < birth.day)) {
+    if (
+      refPartial.month < birth.month ||
+      (refPartial.month === birth.month && refPartial.day < birth.day)
+    ) {
       age -= 1
     }
     return age
@@ -617,6 +655,7 @@ git commit -m "feat(genogram): add calcAge and calcAgeAtDeath helpers"
 ### Task 7: shouldShowDeathCross
 
 **Files:**
+
 - Modify: `packages/genogram/src/model/computed.ts`
 - Modify: `packages/genogram/src/model/computed.test.ts`
 
@@ -708,6 +747,7 @@ git commit -m "feat(genogram): shouldShowDeathCross combines tragically flag and
 ### Task 8: hasParents, getChildGroupOf, getChildrenOf
 
 **Files:**
+
 - Modify: `packages/genogram/src/model/computed.ts`
 - Modify: `packages/genogram/src/model/computed.test.ts`
 
@@ -817,6 +857,7 @@ git commit -m "feat(genogram): add hasParents/getChildGroupOf/getChildrenOf"
 ### Task 9: Partner helpers (getBaseOf, getPartnersOf, countPartnersOf, shouldShowPartnerOrder)
 
 **Files:**
+
 - Modify: `packages/genogram/src/model/computed.ts`
 - Modify: `packages/genogram/src/model/computed.test.ts`
 
@@ -829,17 +870,28 @@ import { getBaseOf, getPartnersOf, countPartnersOf, shouldShowPartnerOrder } fro
 import type { Union, UnionId } from '../types/domain'
 
 describe('partner helpers', () => {
-  const owner: Person = personWith({}); owner.id = 'owner' as PersonId
-  const wife1: Person = personWith({}); wife1.id = 'w1' as PersonId; wife1.sex = 'female'; wife1.partnerOrder = 1
-  const wife2: Person = personWith({}); wife2.id = 'w2' as PersonId; wife2.sex = 'female'; wife2.partnerOrder = 2
+  const owner: Person = personWith({})
+  owner.id = 'owner' as PersonId
+  const wife1: Person = personWith({})
+  wife1.id = 'w1' as PersonId
+  wife1.sex = 'female'
+  wife1.partnerOrder = 1
+  const wife2: Person = personWith({})
+  wife2.id = 'w2' as PersonId
+  wife2.sex = 'female'
+  wife2.partnerOrder = 2
 
   const u1: Union = {
-    id: 'u1' as UnionId, kind: 'marriage',
-    malePartnerId: 'owner' as PersonId, femalePartnerId: 'w1' as PersonId,
+    id: 'u1' as UnionId,
+    kind: 'marriage',
+    malePartnerId: 'owner' as PersonId,
+    femalePartnerId: 'w1' as PersonId,
   }
   const u2: Union = {
-    id: 'u2' as UnionId, kind: 'marriage',
-    malePartnerId: 'owner' as PersonId, femalePartnerId: 'w2' as PersonId,
+    id: 'u2' as UnionId,
+    kind: 'marriage',
+    malePartnerId: 'owner' as PersonId,
+    femalePartnerId: 'w2' as PersonId,
   }
   const unions = { u1, u2 }
   const people = { owner, w1: wife1, w2: wife2 }
@@ -949,6 +1001,7 @@ git commit -m "feat(genogram): add partner helpers (getBaseOf, getPartnersOf, et
 ### Task 10: Add meta map to Yjs schema and getMeta/setMeta
 
 **Files:**
+
 - Modify: `packages/genogram/src/yjs/schema.ts`
 - Modify: `packages/genogram/src/yjs/actions.ts`
 - Modify: `packages/genogram/src/yjs/actions.test.ts`
@@ -1039,6 +1092,7 @@ git commit -m "feat(genogram): add genogram.meta Y.Map with getMeta/setMeta"
 ### Task 11: createOwnerWithParents
 
 **Files:**
+
 - Modify: `packages/genogram/src/yjs/actions.ts`
 - Modify: `packages/genogram/src/yjs/actions.test.ts`
 
@@ -1202,6 +1256,7 @@ git commit -m "feat(genogram): createOwnerWithParents composes owner + parents +
 ### Task 12: addParents (with hasParents guard)
 
 **Files:**
+
 - Modify: `packages/genogram/src/yjs/actions.ts`
 - Modify: `packages/genogram/src/yjs/actions.test.ts`
 
@@ -1213,7 +1268,15 @@ import { addParents } from './actions'
 describe('addParents', () => {
   it('creates two unknown parents and a marriage union with the child', () => {
     const doc = new Y.Doc()
-    const child = addPerson(doc, { sex: 'male', bloodRelation: 'direct', role: 'regular', size: 'big', identity: {}, lifeDates: { birthMode: 'date', lifeStatus: 'alive' }, profile: {} })
+    const child = addPerson(doc, {
+      sex: 'male',
+      bloodRelation: 'direct',
+      role: 'regular',
+      size: 'big',
+      identity: {},
+      lifeDates: { birthMode: 'date', lifeStatus: 'alive' },
+      profile: {},
+    })
     const result = addParents(doc, child.id)
 
     const domain = assembleDomain(doc)
@@ -1239,7 +1302,10 @@ describe('addParents', () => {
 ```ts
 import { hasParents } from '../model/computed'
 
-export function addParents(doc: Y.Doc, childPersonId: PersonId): {
+export function addParents(
+  doc: Y.Doc,
+  childPersonId: PersonId,
+): {
   fatherId: PersonId
   motherId: PersonId
   unionId: UnionId
@@ -1253,19 +1319,27 @@ export function addParents(doc: Y.Doc, childPersonId: PersonId): {
   let result!: ReturnType<typeof addParents>
   doc.transact(() => {
     const father = addPerson(doc, {
-      sex: 'male', bloodRelation: 'direct', role: 'regular', size: 'big',
+      sex: 'male',
+      bloodRelation: 'direct',
+      role: 'regular',
+      size: 'big',
       identity: { isUnknown: true },
       lifeDates: { birthMode: 'date', lifeStatus: 'unknown' },
       profile: {},
     })
     const mother = addPerson(doc, {
-      sex: 'female', bloodRelation: 'direct', role: 'regular', size: 'big',
+      sex: 'female',
+      bloodRelation: 'direct',
+      role: 'regular',
+      size: 'big',
       identity: { isUnknown: true },
       lifeDates: { birthMode: 'date', lifeStatus: 'unknown' },
       profile: {},
     })
     const union = addUnion(doc, {
-      kind: 'marriage', malePartnerId: father.id, femalePartnerId: mother.id,
+      kind: 'marriage',
+      malePartnerId: father.id,
+      femalePartnerId: mother.id,
     })
     const cg = addChildGroup(doc, { unionId: union.id })
     appendChild(doc, cg.id, { kind: 'person', personId: childPersonId })
@@ -1289,6 +1363,7 @@ git commit -m "feat(genogram): addParents with hasParents guard"
 ### Task 13: addPartner with newPartnerOrder
 
 **Files:**
+
 - Modify: `packages/genogram/src/yjs/actions.ts`
 - Modify: `packages/genogram/src/yjs/actions.test.ts`
 
@@ -1319,12 +1394,20 @@ describe('addPartner', () => {
   it('with newPartnerOrder=2 numbers existing partner=1 and new partner=2', () => {
     const doc = new Y.Doc()
     const owner = createOwnerWithParents(doc, { sex: 'male' })
-    const wife1 = addPartner(doc, owner.ownerId,
+    const wife1 = addPartner(
+      doc,
+      owner.ownerId,
       { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
-      { kind: 'marriage' }, 1)
-    const wife2 = addPartner(doc, owner.ownerId,
+      { kind: 'marriage' },
+      1,
+    )
+    const wife2 = addPartner(
+      doc,
+      owner.ownerId,
       { firstName: 'Мария', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
-      { kind: 'marriage' }, 2)
+      { kind: 'marriage' },
+      2,
+    )
 
     const domain = assembleDomain(doc)
     expect(domain.entities.people[wife1.partnerId]!.partnerOrder).toBe(1)
@@ -1432,6 +1515,7 @@ git commit -m "feat(genogram): addPartner with auto-numbering of multi-partner o
 ### Task 14: setPartnerOrder
 
 **Files:**
+
 - Modify: `packages/genogram/src/yjs/actions.ts`
 - Modify: `packages/genogram/src/yjs/actions.test.ts`
 
@@ -1444,12 +1528,20 @@ describe('setPartnerOrder', () => {
   it('swaps partner ordinals when moving partner #1 to #2', () => {
     const doc = new Y.Doc()
     const owner = createOwnerWithParents(doc, { sex: 'male' })
-    const w1 = addPartner(doc, owner.ownerId,
+    const w1 = addPartner(
+      doc,
+      owner.ownerId,
       { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
-      { kind: 'marriage' }, 1)
-    const w2 = addPartner(doc, owner.ownerId,
+      { kind: 'marriage' },
+      1,
+    )
+    const w2 = addPartner(
+      doc,
+      owner.ownerId,
       { firstName: 'Мария', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
-      { kind: 'marriage' }, 2)
+      { kind: 'marriage' },
+      2,
+    )
 
     setPartnerOrder(doc, w1.partnerId, 2)
 
@@ -1499,6 +1591,7 @@ git commit -m "feat(genogram): setPartnerOrder with consistent renumbering"
 ### Task 15: addChildren
 
 **Files:**
+
 - Modify: `packages/genogram/src/yjs/actions.ts`
 - Modify: `packages/genogram/src/yjs/actions.test.ts`
 
@@ -1511,12 +1604,19 @@ describe('addChildren', () => {
   it('adds Person and PregnancyLoss entries to ChildGroup', () => {
     const doc = new Y.Doc()
     const owner = createOwnerWithParents(doc, { sex: 'male' })
-    const partner = addPartner(doc, owner.ownerId,
+    const partner = addPartner(
+      doc,
+      owner.ownerId,
       { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
-      { kind: 'marriage' }, 1)
+      { kind: 'marriage' },
+      1,
+    )
 
     addChildren(doc, partner.unionId, [
-      { type: 'person', data: { firstName: 'Лиза', sex: 'female', lifeStatus: 'alive', birthMode: 'date' } },
+      {
+        type: 'person',
+        data: { firstName: 'Лиза', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      },
       { type: 'miscarriage', date: { day: 5, month: 4, year: 2020 } },
     ])
 
@@ -1531,13 +1631,23 @@ describe('addChildren', () => {
   it('reorders existing children when reorderExisting is provided', () => {
     const doc = new Y.Doc()
     const owner = createOwnerWithParents(doc, { sex: 'male' })
-    const partner = addPartner(doc, owner.ownerId,
+    const partner = addPartner(
+      doc,
+      owner.ownerId,
       { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
-      { kind: 'marriage' }, 1)
+      { kind: 'marriage' },
+      1,
+    )
 
     addChildren(doc, partner.unionId, [
-      { type: 'person', data: { firstName: 'A', sex: 'female', lifeStatus: 'alive', birthMode: 'date' } },
-      { type: 'person', data: { firstName: 'B', sex: 'male', lifeStatus: 'alive', birthMode: 'date' } },
+      {
+        type: 'person',
+        data: { firstName: 'A', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      },
+      {
+        type: 'person',
+        data: { firstName: 'B', sex: 'male', lifeStatus: 'alive', birthMode: 'date' },
+      },
     ])
 
     let domain = assembleDomain(doc)
@@ -1640,6 +1750,7 @@ git commit -m "feat(genogram): addChildren with optional reorderExisting"
 ### Task 16: setChildOrder
 
 **Files:**
+
 - Modify: `packages/genogram/src/yjs/actions.ts`
 - Modify: `packages/genogram/src/yjs/actions.test.ts`
 
@@ -1652,14 +1763,27 @@ describe('setChildOrder', () => {
   it('moves child to new position', () => {
     const doc = new Y.Doc()
     const owner = createOwnerWithParents(doc, { sex: 'male' })
-    const partner = addPartner(doc, owner.ownerId,
+    const partner = addPartner(
+      doc,
+      owner.ownerId,
       { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
-      { kind: 'marriage' }, 1)
+      { kind: 'marriage' },
+      1,
+    )
 
     addChildren(doc, partner.unionId, [
-      { type: 'person', data: { firstName: 'A', sex: 'female', lifeStatus: 'alive', birthMode: 'date' } },
-      { type: 'person', data: { firstName: 'B', sex: 'female', lifeStatus: 'alive', birthMode: 'date' } },
-      { type: 'person', data: { firstName: 'C', sex: 'female', lifeStatus: 'alive', birthMode: 'date' } },
+      {
+        type: 'person',
+        data: { firstName: 'A', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      },
+      {
+        type: 'person',
+        data: { firstName: 'B', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      },
+      {
+        type: 'person',
+        data: { firstName: 'C', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
+      },
     ])
 
     let domain = assembleDomain(doc)
@@ -1688,9 +1812,7 @@ export function setChildOrder(doc: Y.Doc, childPersonId: PersonId, newOrder: num
     const cg = getChildGroupOf(childPersonId, domain.entities.childGroups)
     if (!cg) throw new Error(`Person ${childPersonId} is not a child in any group`)
 
-    const idx = cg.children.findIndex(
-      (c) => c.kind === 'person' && c.personId === childPersonId,
-    )
+    const idx = cg.children.findIndex((c) => c.kind === 'person' && c.personId === childPersonId)
     if (idx === -1) throw new Error('inconsistent state')
 
     const next = [...cg.children]
@@ -1715,6 +1837,7 @@ git commit -m "feat(genogram): setChildOrder reorders ChildGroup.children"
 ### Task 17: Verify updatePerson handles new LifeDates fields
 
 **Files:**
+
 - Modify: `packages/genogram/src/yjs/actions.ts` (only if needed)
 - Modify: `packages/genogram/src/yjs/actions.test.ts`
 
@@ -1765,7 +1888,9 @@ export function updatePerson(doc: Y.Doc, id: PersonId, patch: Partial<Person>): 
   const map = doc.getMap('genogram.people') as Y.Map<Person>
   const current = map.get(id)
   if (!current) return
-  doc.transact(() => map.set(id, { ...current, ...patch, lifeDates: { ...current.lifeDates, ...patch.lifeDates } }))
+  doc.transact(() =>
+    map.set(id, { ...current, ...patch, lifeDates: { ...current.lifeDates, ...patch.lifeDates } }),
+  )
 }
 ```
 
@@ -1783,6 +1908,7 @@ git commit -m "test(genogram): updatePerson accepts extended LifeDates fields"
 ### Task 18: setUnionDivorce supports markPosition
 
 **Files:**
+
 - Modify: `packages/genogram/src/yjs/actions.ts`
 - Modify: `packages/genogram/src/yjs/actions.test.ts`
 
@@ -1793,9 +1919,13 @@ describe('setUnionDivorce — markPosition', () => {
   it('persists markPosition independently of date', () => {
     const doc = new Y.Doc()
     const owner = createOwnerWithParents(doc, { sex: 'male' })
-    const partner = addPartner(doc, owner.ownerId,
+    const partner = addPartner(
+      doc,
+      owner.ownerId,
       { firstName: 'Анна', sex: 'female', lifeStatus: 'alive', birthMode: 'date' },
-      { kind: 'marriage' }, 1)
+      { kind: 'marriage' },
+      1,
+    )
 
     setUnionDivorce(doc, partner.unionId, {
       date: { day: 1, month: 1, year: 2025 },
@@ -1831,6 +1961,7 @@ git commit -m "feat(genogram): setUnionDivorce persists markPosition"
 ### Task 19: Layout — partner placement (single by sex; multi by partnerOrder)
 
 **Files:**
+
 - Modify: `packages/genogram/src/layout/placement.ts`
 - Create: `packages/genogram/src/layout/placement.test.ts`
 
@@ -1959,6 +2090,7 @@ git commit -m "feat(genogram): partner placement by sex (single) and partnerOrde
 ### Task 20: Layout — children by ChildGroup.children order
 
 **Files:**
+
 - Modify: `packages/genogram/src/layout/placement.ts`
 - Modify: `packages/genogram/src/layout/placement.test.ts`
 
@@ -1968,7 +2100,8 @@ git commit -m "feat(genogram): partner placement by sex (single) and partnerOrde
 describe('children placement', () => {
   it('places children left-to-right in ChildGroup.children order', () => {
     const data = buildFixtureWithChildren({
-      father: 'f', mother: 'm',
+      father: 'f',
+      mother: 'm',
       children: ['c1', 'c2', 'c3'], // in this order
     })
     const layout = computeLayout(data)
@@ -2012,6 +2145,7 @@ git commit -m "feat(genogram): children placement honors ChildGroup.children ord
 ### Task 21: SexToggle and LifeStatusToggle
 
 **Files:**
+
 - Create: `packages/genogram/src/forms/primitives/SexToggle.tsx`
 - Create: `packages/genogram/src/forms/primitives/SexToggle.test.tsx`
 - Create: `packages/genogram/src/forms/primitives/LifeStatusToggle.tsx`
@@ -2154,6 +2288,7 @@ git commit -m "feat(genogram): SexToggle + LifeStatusToggle primitives"
 ### Task 22: PartialDateInput
 
 **Files:**
+
 - Create: `packages/genogram/src/forms/primitives/PartialDateInput.tsx`
 - Create: `packages/genogram/src/forms/primitives/PartialDateInput.test.tsx`
 
@@ -2212,8 +2347,18 @@ interface Props {
 }
 
 const MONTHS = [
-  'январь', 'февраль', 'март', 'апрель', 'май', 'июнь',
-  'июль', 'август', 'сентябрь', 'октябрь', 'ноябрь', 'декабрь',
+  'январь',
+  'февраль',
+  'март',
+  'апрель',
+  'май',
+  'июнь',
+  'июль',
+  'август',
+  'сентябрь',
+  'октябрь',
+  'ноябрь',
+  'декабрь',
 ]
 
 export function PartialDateInput({ value, onChange, label }: Props) {
@@ -2255,7 +2400,9 @@ export function PartialDateInput({ value, onChange, label }: Props) {
         >
           <MenuItem value="">—</MenuItem>
           {MONTHS.map((m, idx) => (
-            <MenuItem key={idx} value={idx + 1}>{m}</MenuItem>
+            <MenuItem key={idx} value={idx + 1}>
+              {m}
+            </MenuItem>
           ))}
         </TextField>
         <TextField
@@ -2289,6 +2436,7 @@ git commit -m "feat(genogram): PartialDateInput primitive (day/month/year indepe
 ### Task 23: ApproximateAgeInput
 
 **Files:**
+
 - Create: `packages/genogram/src/forms/primitives/ApproximateAgeInput.tsx`
 - Create: `packages/genogram/src/forms/primitives/ApproximateAgeInput.test.tsx`
 
@@ -2336,9 +2484,7 @@ interface Props {
 }
 
 export function ApproximateAgeInput({ value, onChange }: Props) {
-  const [mode, setMode] = useState<'single' | 'range'>(
-    value?.kind === 'range' ? 'range' : 'single',
-  )
+  const [mode, setMode] = useState<'single' | 'range'>(value?.kind === 'range' ? 'range' : 'single')
 
   return (
     <Stack spacing={1}>
@@ -2416,6 +2562,7 @@ git commit -m "feat(genogram): ApproximateAgeInput with single/range modes"
 ### Task 24: OwnerDataForm
 
 **Files:**
+
 - Create: `packages/genogram/src/forms/OwnerDataForm.tsx`
 - Create: `packages/genogram/src/forms/OwnerDataForm.test.tsx`
 
@@ -2431,34 +2578,52 @@ import { OwnerDataForm } from './OwnerDataForm'
 describe('OwnerDataForm', () => {
   it('mode=create — submit emits owner draft with sex', async () => {
     const onSubmit = vi.fn()
-    render(<OwnerDataForm mode="create" initial={{ sex: 'male' }} onSubmit={onSubmit} onCancel={() => {}} />)
+    render(
+      <OwnerDataForm
+        mode="create"
+        initial={{ sex: 'male' }}
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+      />,
+    )
 
     await userEvent.type(screen.getByLabelText('Фамилия'), 'Иванов')
     await userEvent.type(screen.getByLabelText('Имя'), 'Иван')
     await userEvent.click(screen.getByRole('button', { name: 'Создать генограмму' }))
 
-    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
-      lastName: 'Иванов',
-      firstName: 'Иван',
-      sex: 'male',
-    }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        lastName: 'Иванов',
+        firstName: 'Иван',
+        sex: 'male',
+      }),
+    )
   })
 
   it('mode=edit — submit emits patch', async () => {
     const onSubmit = vi.fn()
-    render(<OwnerDataForm
-      mode="edit"
-      initial={{ firstName: 'Иван', sex: 'male' }}
-      onSubmit={onSubmit}
-      onCancel={() => {}}
-    />)
+    render(
+      <OwnerDataForm
+        mode="edit"
+        initial={{ firstName: 'Иван', sex: 'male' }}
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+      />,
+    )
     await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
     expect(onSubmit).toHaveBeenCalled()
   })
 
   it('Cancel button calls onCancel', async () => {
     const onCancel = vi.fn()
-    render(<OwnerDataForm mode="create" initial={{ sex: 'male' }} onSubmit={() => {}} onCancel={onCancel} />)
+    render(
+      <OwnerDataForm
+        mode="create"
+        initial={{ sex: 'male' }}
+        onSubmit={() => {}}
+        onCancel={onCancel}
+      />,
+    )
     await userEvent.click(screen.getByRole('button', { name: 'Отменить' }))
     expect(onCancel).toHaveBeenCalled()
   })
@@ -2499,9 +2664,21 @@ export function OwnerDataForm({ mode, initial, onSubmit, onCancel }: Props) {
 
   return (
     <Stack spacing={2}>
-      <TextField label={RU.fields.lastName} value={draft.lastName ?? ''} onChange={(e) => update('lastName', e.target.value)} />
-      <TextField label={RU.fields.firstName} value={draft.firstName ?? ''} onChange={(e) => update('firstName', e.target.value)} />
-      <TextField label={RU.fields.middleName} value={draft.middleName ?? ''} onChange={(e) => update('middleName', e.target.value)} />
+      <TextField
+        label={RU.fields.lastName}
+        value={draft.lastName ?? ''}
+        onChange={(e) => update('lastName', e.target.value)}
+      />
+      <TextField
+        label={RU.fields.firstName}
+        value={draft.firstName ?? ''}
+        onChange={(e) => update('firstName', e.target.value)}
+      />
+      <TextField
+        label={RU.fields.middleName}
+        value={draft.middleName ?? ''}
+        onChange={(e) => update('middleName', e.target.value)}
+      />
       <SexToggle value={draft.sex} onChange={(v) => update('sex', v)} />
       <PartialDateInput
         label={RU.fields.birthDate}
@@ -2533,6 +2710,7 @@ git commit -m "feat(genogram): OwnerDataForm (create + edit modes)"
 ### Task 25: PersonDataForm (basic fields)
 
 **Files:**
+
 - Create: `packages/genogram/src/forms/PersonDataForm.tsx`
 - Create: `packages/genogram/src/forms/PersonDataForm.test.tsx`
 
@@ -2579,7 +2757,15 @@ describe('PersonDataForm — basic', () => {
 
 ```tsx
 import { useState } from 'react'
-import { Button, Checkbox, FormControlLabel, Stack, TextField, ToggleButton, ToggleButtonGroup } from '@mui/material'
+import {
+  Button,
+  Checkbox,
+  FormControlLabel,
+  Stack,
+  TextField,
+  ToggleButton,
+  ToggleButtonGroup,
+} from '@mui/material'
 import type { PersonDataDraft } from '../yjs/actions'
 import type { ApproximateAge, BirthMode, LifeStatus, PartialDate } from '../types/domain'
 import { SexToggle } from './primitives/SexToggle'
@@ -2595,7 +2781,12 @@ interface Props {
   submitLabel?: string
 }
 
-export function PersonDataForm({ initial, onSubmit, onCancel, submitLabel = RU.drawer.save }: Props) {
+export function PersonDataForm({
+  initial,
+  onSubmit,
+  onCancel,
+  submitLabel = RU.drawer.save,
+}: Props) {
   const [draft, setDraft] = useState<PersonDataDraft>({
     sex: initial.sex ?? 'male',
     birthMode: initial.birthMode ?? 'date',
@@ -2614,9 +2805,21 @@ export function PersonDataForm({ initial, onSubmit, onCancel, submitLabel = RU.d
 
   return (
     <Stack spacing={2}>
-      <TextField label={RU.fields.lastName} value={draft.lastName ?? ''} onChange={(e) => update('lastName', e.target.value)} />
-      <TextField label={RU.fields.firstName} value={draft.firstName ?? ''} onChange={(e) => update('firstName', e.target.value)} />
-      <TextField label={RU.fields.middleName} value={draft.middleName ?? ''} onChange={(e) => update('middleName', e.target.value)} />
+      <TextField
+        label={RU.fields.lastName}
+        value={draft.lastName ?? ''}
+        onChange={(e) => update('lastName', e.target.value)}
+      />
+      <TextField
+        label={RU.fields.firstName}
+        value={draft.firstName ?? ''}
+        onChange={(e) => update('firstName', e.target.value)}
+      />
+      <TextField
+        label={RU.fields.middleName}
+        value={draft.middleName ?? ''}
+        onChange={(e) => update('middleName', e.target.value)}
+      />
 
       <SexToggle value={draft.sex} onChange={(v) => update('sex', v)} />
 
@@ -2643,14 +2846,19 @@ export function PersonDataForm({ initial, onSubmit, onCancel, submitLabel = RU.d
         />
       )}
 
-      <LifeStatusToggle value={draft.lifeStatus} onChange={(v: LifeStatus) => update('lifeStatus', v)} />
+      <LifeStatusToggle
+        value={draft.lifeStatus}
+        onChange={(v: LifeStatus) => update('lifeStatus', v)}
+      />
 
       {draft.lifeStatus === 'deceased' && (
         <>
           <PartialDateInput
             label={RU.fields.deathDate}
             value={draft.deathDate ?? {}}
-            onChange={(v: PartialDate) => update('deathDate', Object.keys(v).length ? v : undefined)}
+            onChange={(v: PartialDate) =>
+              update('deathDate', Object.keys(v).length ? v : undefined)
+            }
           />
           <FormControlLabel
             control={
@@ -2666,7 +2874,9 @@ export function PersonDataForm({ initial, onSubmit, onCancel, submitLabel = RU.d
 
       <Stack direction="row" spacing={1} justifyContent="flex-end">
         <Button onClick={onCancel}>{RU.drawer.cancel}</Button>
-        <Button variant="contained" onClick={() => onSubmit(draft)}>{submitLabel}</Button>
+        <Button variant="contained" onClick={() => onSubmit(draft)}>
+          {submitLabel}
+        </Button>
       </Stack>
     </Stack>
   )
@@ -2687,6 +2897,7 @@ git commit -m "feat(genogram): PersonDataForm with conditional birth/death/tragi
 ### Task 26: PersonDataForm conditional ordinal fields
 
 **Files:**
+
 - Modify: `packages/genogram/src/forms/PersonDataForm.tsx`
 - Modify: `packages/genogram/src/forms/PersonDataForm.test.tsx`
 
@@ -2695,40 +2906,48 @@ git commit -m "feat(genogram): PersonDataForm with conditional birth/death/tragi
 ```tsx
 describe('PersonDataForm — conditional ordinal fields', () => {
   it('shows "Укажите количество партнёров" only when context=add-partner', () => {
-    const { rerender } = render(<PersonDataForm
-      initial={{ sex: 'male' }}
-      context={{ kind: 'add-partner', existingPartnersOfBase: 1 }}
-      onSubmit={() => {}}
-      onCancel={() => {}}
-    />)
+    const { rerender } = render(
+      <PersonDataForm
+        initial={{ sex: 'male' }}
+        context={{ kind: 'add-partner', existingPartnersOfBase: 1 }}
+        onSubmit={() => {}}
+        onCancel={() => {}}
+      />,
+    )
     expect(screen.getByLabelText(RU.fields.partnerCount)).toBeInTheDocument()
 
-    rerender(<PersonDataForm
-      initial={{ sex: 'male' }}
-      context={{ kind: 'edit-data' }}
-      onSubmit={() => {}}
-      onCancel={() => {}}
-    />)
+    rerender(
+      <PersonDataForm
+        initial={{ sex: 'male' }}
+        context={{ kind: 'edit-data' }}
+        onSubmit={() => {}}
+        onCancel={() => {}}
+      />,
+    )
     expect(screen.queryByLabelText(RU.fields.partnerCount)).not.toBeInTheDocument()
   })
 
   it('shows "Порядковый номер партнёра" only when editing partner of base with >1 partners', () => {
-    render(<PersonDataForm
-      initial={{ sex: 'female', partnerOrder: 1 }}
-      context={{ kind: 'edit-data', isPartnerOfMultiBase: true, totalPartnersOfBase: 2 }}
-      onSubmit={() => {}}
-      onCancel={() => {}}
-    />)
+    render(
+      <PersonDataForm
+        initial={{ sex: 'female', partnerOrder: 1 }}
+        context={{ kind: 'edit-data', isPartnerOfMultiBase: true, totalPartnersOfBase: 2 }}
+        onSubmit={() => {}}
+        onCancel={() => {}}
+      />,
+    )
     expect(screen.getByLabelText(RU.fields.partnerOrder)).toBeInTheDocument()
   })
 
   it('shows "Порядковый номер ребёнка" only when editing a child', () => {
-    render(<PersonDataForm
-      initial={{ sex: 'female' }}
-      context={{ kind: 'edit-data', isChild: true, childOrder: 1, siblingsCount: 3 }}
-      onSubmit={() => {}}
-      onCancel={() => {}}
-    />)
+    render(
+      <PersonDataForm
+        initial={{ sex: 'female' }}
+        context={{ kind: 'edit-data', isChild: true, childOrder: 1, siblingsCount: 3 }}
+        onSubmit={() => {}}
+        onCancel={() => {}}
+      />,
+    )
     expect(screen.getByLabelText(RU.fields.childOrder)).toBeInTheDocument()
   })
 })
@@ -2742,14 +2961,23 @@ Extend the Props interface:
 
 ```tsx
 type FormContext =
-  | { kind: 'edit-data'; isPartnerOfMultiBase?: boolean; totalPartnersOfBase?: number; isChild?: boolean; childOrder?: number; siblingsCount?: number }
+  | {
+      kind: 'edit-data'
+      isPartnerOfMultiBase?: boolean
+      totalPartnersOfBase?: number
+      isChild?: boolean
+      childOrder?: number
+      siblingsCount?: number
+    }
   | { kind: 'add-partner'; existingPartnersOfBase: number }
   | { kind: 'add-child' }
 
 interface Props {
   initial: Partial<PersonDataDraft & { partnerOrder?: number }>
   context: FormContext
-  onSubmit: (draft: PersonDataDraft & { partnerOrder?: number; childOrder?: number; partnerCount?: number }) => void
+  onSubmit: (
+    draft: PersonDataDraft & { partnerOrder?: number; childOrder?: number; partnerCount?: number },
+  ) => void
   onCancel: () => void
   submitLabel?: string
 }
@@ -2758,35 +2986,41 @@ interface Props {
 In the component body, render extra fields based on context. Default `partnerCount = existingPartnersOfBase + 1`. After collecting them in state, include in `onSubmit` payload.
 
 ```tsx
-{context.kind === 'add-partner' && (
-  <TextField
-    label={RU.fields.partnerCount}
-    type="number"
-    inputProps={{ min: context.existingPartnersOfBase + 1 }}
-    value={partnerCount}
-    onChange={(e) => setPartnerCount(Number(e.target.value))}
-  />
-)}
+{
+  context.kind === 'add-partner' && (
+    <TextField
+      label={RU.fields.partnerCount}
+      type="number"
+      inputProps={{ min: context.existingPartnersOfBase + 1 }}
+      value={partnerCount}
+      onChange={(e) => setPartnerCount(Number(e.target.value))}
+    />
+  )
+}
 
-{context.kind === 'edit-data' && context.isPartnerOfMultiBase && (
-  <TextField
-    label={RU.fields.partnerOrder}
-    type="number"
-    inputProps={{ min: 1, max: context.totalPartnersOfBase }}
-    value={partnerOrder ?? ''}
-    onChange={(e) => setPartnerOrder(Number(e.target.value))}
-  />
-)}
+{
+  context.kind === 'edit-data' && context.isPartnerOfMultiBase && (
+    <TextField
+      label={RU.fields.partnerOrder}
+      type="number"
+      inputProps={{ min: 1, max: context.totalPartnersOfBase }}
+      value={partnerOrder ?? ''}
+      onChange={(e) => setPartnerOrder(Number(e.target.value))}
+    />
+  )
+}
 
-{context.kind === 'edit-data' && context.isChild && (
-  <TextField
-    label={RU.fields.childOrder}
-    type="number"
-    inputProps={{ min: 1, max: context.siblingsCount }}
-    value={childOrder ?? ''}
-    onChange={(e) => setChildOrder(Number(e.target.value))}
-  />
-)}
+{
+  context.kind === 'edit-data' && context.isChild && (
+    <TextField
+      label={RU.fields.childOrder}
+      type="number"
+      inputProps={{ min: 1, max: context.siblingsCount }}
+      value={childOrder ?? ''}
+      onChange={(e) => setChildOrder(Number(e.target.value))}
+    />
+  )
+}
 ```
 
 `partnerCount`, `partnerOrder`, `childOrder` are local state. Include them in the submit payload.
@@ -2805,6 +3039,7 @@ git commit -m "feat(genogram): PersonDataForm conditional partner/child ordinal 
 ### Task 27: MarriageRelationForm
 
 **Files:**
+
 - Create: `packages/genogram/src/forms/MarriageRelationForm.tsx`
 - Create: `packages/genogram/src/forms/MarriageRelationForm.test.tsx`
 
@@ -2819,19 +3054,37 @@ import { MarriageRelationForm } from './MarriageRelationForm'
 
 describe('MarriageRelationForm', () => {
   it('marriage default — shows wedding date and divorced checkbox', () => {
-    render(<MarriageRelationForm initial={{ kind: 'marriage' }} onSubmit={() => {}} onCancel={() => {}} />)
+    render(
+      <MarriageRelationForm
+        initial={{ kind: 'marriage' }}
+        onSubmit={() => {}}
+        onCancel={() => {}}
+      />,
+    )
     expect(screen.getByText('Дата свадьбы')).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Брак расторгнут' })).toBeInTheDocument()
   })
 
   it('shows divorce date when divorced toggled', async () => {
-    render(<MarriageRelationForm initial={{ kind: 'marriage' }} onSubmit={() => {}} onCancel={() => {}} />)
+    render(
+      <MarriageRelationForm
+        initial={{ kind: 'marriage' }}
+        onSubmit={() => {}}
+        onCancel={() => {}}
+      />,
+    )
     await userEvent.click(screen.getByRole('checkbox', { name: 'Брак расторгнут' }))
     expect(screen.getByText('Дата развода')).toBeInTheDocument()
   })
 
   it('cohabitation — shows start date and ended checkbox', async () => {
-    render(<MarriageRelationForm initial={{ kind: 'marriage' }} onSubmit={() => {}} onCancel={() => {}} />)
+    render(
+      <MarriageRelationForm
+        initial={{ kind: 'marriage' }}
+        onSubmit={() => {}}
+        onCancel={() => {}}
+      />,
+    )
     await userEvent.click(screen.getByRole('button', { name: 'Отношения' }))
     expect(screen.getByText('Дата начала')).toBeInTheDocument()
     expect(screen.getByRole('checkbox', { name: 'Отношения закончены' })).toBeInTheDocument()
@@ -2839,13 +3092,21 @@ describe('MarriageRelationForm', () => {
 
   it('submit emits union draft with divorce', async () => {
     const onSubmit = vi.fn()
-    render(<MarriageRelationForm initial={{ kind: 'marriage' }} onSubmit={onSubmit} onCancel={() => {}} />)
+    render(
+      <MarriageRelationForm
+        initial={{ kind: 'marriage' }}
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+      />,
+    )
     await userEvent.click(screen.getByRole('checkbox', { name: 'Брак расторгнут' }))
     await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
-    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({
-      kind: 'marriage',
-      divorce: expect.any(Object),
-    }))
+    expect(onSubmit).toHaveBeenCalledWith(
+      expect.objectContaining({
+        kind: 'marriage',
+        divorce: expect.any(Object),
+      }),
+    )
   })
 })
 ```
@@ -2856,7 +3117,14 @@ describe('MarriageRelationForm', () => {
 
 ```tsx
 import { useState } from 'react'
-import { Button, Checkbox, FormControlLabel, Stack, ToggleButton, ToggleButtonGroup } from '@mui/material'
+import {
+  Button,
+  Checkbox,
+  FormControlLabel,
+  Stack,
+  ToggleButton,
+  ToggleButtonGroup,
+} from '@mui/material'
 import type { UnionDraft } from '../yjs/actions'
 import type { PartialDate, UnionKind } from '../types/domain'
 import { PartialDateInput } from './primitives/PartialDateInput'
@@ -2869,7 +3137,12 @@ interface Props {
   submitLabel?: string
 }
 
-export function MarriageRelationForm({ initial, onSubmit, onCancel, submitLabel = RU.drawer.save }: Props) {
+export function MarriageRelationForm({
+  initial,
+  onSubmit,
+  onCancel,
+  submitLabel = RU.drawer.save,
+}: Props) {
   const [kind, setKind] = useState<UnionKind>(initial.kind ?? 'marriage')
   const [startDate, setStartDate] = useState<PartialDate | undefined>(initial.startDate)
   const [endDate, setEndDate] = useState<PartialDate | undefined>(initial.endDate)
@@ -2882,7 +3155,9 @@ export function MarriageRelationForm({ initial, onSubmit, onCancel, submitLabel 
       onSubmit({
         kind: 'marriage',
         startDate,
-        divorce: divorced ? { date: divorceDate, markPosition: initial.divorce?.markPosition } : undefined,
+        divorce: divorced
+          ? { date: divorceDate, markPosition: initial.divorce?.markPosition }
+          : undefined,
       })
     } else {
       onSubmit({
@@ -2898,7 +3173,9 @@ export function MarriageRelationForm({ initial, onSubmit, onCancel, submitLabel 
       <ToggleButtonGroup
         exclusive
         value={kind}
-        onChange={(_e, next: UnionKind | null) => { if (next) setKind(next) }}
+        onChange={(_e, next: UnionKind | null) => {
+          if (next) setKind(next)
+        }}
       >
         <ToggleButton value="marriage">{RU.fields.marriage}</ToggleButton>
         <ToggleButton value="cohabitation">{RU.fields.cohabitation}</ToggleButton>
@@ -2906,31 +3183,51 @@ export function MarriageRelationForm({ initial, onSubmit, onCancel, submitLabel 
 
       {kind === 'marriage' ? (
         <>
-          <PartialDateInput label={RU.fields.weddingDate} value={startDate ?? {}} onChange={(v) => setStartDate(Object.keys(v).length ? v : undefined)} />
+          <PartialDateInput
+            label={RU.fields.weddingDate}
+            value={startDate ?? {}}
+            onChange={(v) => setStartDate(Object.keys(v).length ? v : undefined)}
+          />
           <FormControlLabel
-            control={<Checkbox checked={divorced} onChange={(e) => setDivorced(e.target.checked)} />}
+            control={
+              <Checkbox checked={divorced} onChange={(e) => setDivorced(e.target.checked)} />
+            }
             label={RU.fields.divorced}
           />
           {divorced && (
-            <PartialDateInput label={RU.fields.divorceDate} value={divorceDate ?? {}} onChange={(v) => setDivorceDate(Object.keys(v).length ? v : undefined)} />
+            <PartialDateInput
+              label={RU.fields.divorceDate}
+              value={divorceDate ?? {}}
+              onChange={(v) => setDivorceDate(Object.keys(v).length ? v : undefined)}
+            />
           )}
         </>
       ) : (
         <>
-          <PartialDateInput label={RU.fields.relationStartDate} value={startDate ?? {}} onChange={(v) => setStartDate(Object.keys(v).length ? v : undefined)} />
+          <PartialDateInput
+            label={RU.fields.relationStartDate}
+            value={startDate ?? {}}
+            onChange={(v) => setStartDate(Object.keys(v).length ? v : undefined)}
+          />
           <FormControlLabel
             control={<Checkbox checked={ended} onChange={(e) => setEnded(e.target.checked)} />}
             label={RU.fields.relationEnded}
           />
           {ended && (
-            <PartialDateInput label={RU.fields.relationEndDate} value={endDate ?? {}} onChange={(v) => setEndDate(Object.keys(v).length ? v : undefined)} />
+            <PartialDateInput
+              label={RU.fields.relationEndDate}
+              value={endDate ?? {}}
+              onChange={(v) => setEndDate(Object.keys(v).length ? v : undefined)}
+            />
           )}
         </>
       )}
 
       <Stack direction="row" spacing={1} justifyContent="flex-end">
         <Button onClick={onCancel}>{RU.drawer.cancel}</Button>
-        <Button variant="contained" onClick={submit}>{submitLabel}</Button>
+        <Button variant="contained" onClick={submit}>
+          {submitLabel}
+        </Button>
       </Stack>
     </Stack>
   )
@@ -2951,6 +3248,7 @@ git commit -m "feat(genogram): MarriageRelationForm with marriage/cohabitation t
 ### Task 28: ChildEntryRow
 
 **Files:**
+
 - Create: `packages/genogram/src/forms/ChildEntryRow.tsx`
 - Create: `packages/genogram/src/forms/ChildEntryRow.test.tsx`
 
@@ -2965,13 +3263,23 @@ import { ChildEntryRow } from './ChildEntryRow'
 
 describe('ChildEntryRow', () => {
   it('default child shows person fields', () => {
-    render(<ChildEntryRow value={{ type: 'person', data: { sex: 'male', lifeStatus: 'alive', birthMode: 'date' } }} onChange={() => {}} />)
+    render(
+      <ChildEntryRow
+        value={{ type: 'person', data: { sex: 'male', lifeStatus: 'alive', birthMode: 'date' } }}
+        onChange={() => {}}
+      />,
+    )
     expect(screen.getByLabelText('Имя')).toBeInTheDocument()
   })
 
   it('switching to "Выкидыш" shows date input only', async () => {
     const onChange = vi.fn()
-    render(<ChildEntryRow value={{ type: 'person', data: { sex: 'male', lifeStatus: 'alive', birthMode: 'date' } }} onChange={onChange} />)
+    render(
+      <ChildEntryRow
+        value={{ type: 'person', data: { sex: 'male', lifeStatus: 'alive', birthMode: 'date' } }}
+        onChange={onChange}
+      />,
+    )
     await userEvent.click(screen.getByRole('button', { name: 'Выкидыш' }))
     expect(onChange).toHaveBeenLastCalledWith(expect.objectContaining({ type: 'miscarriage' }))
   })
@@ -3004,7 +3312,10 @@ export function ChildEntryRow({ value, onChange, readOnly }: Props) {
         value={value.type}
         onChange={(_e, next) => {
           if (next === 'person') {
-            onChange({ type: 'person', data: { sex: 'male', lifeStatus: 'alive', birthMode: 'date' } })
+            onChange({
+              type: 'person',
+              data: { sex: 'male', lifeStatus: 'alive', birthMode: 'date' },
+            })
           } else if (next === 'miscarriage' || next === 'abortion') {
             onChange({ type: next })
           }
@@ -3017,7 +3328,11 @@ export function ChildEntryRow({ value, onChange, readOnly }: Props) {
 
       {value.type === 'person' ? (
         readOnly ? (
-          <span>{[value.data.lastName, value.data.firstName, value.data.middleName].filter(Boolean).join(' ')}</span>
+          <span>
+            {[value.data.lastName, value.data.firstName, value.data.middleName]
+              .filter(Boolean)
+              .join(' ')}
+          </span>
         ) : (
           <PersonDataForm
             initial={value.data}
@@ -3028,7 +3343,13 @@ export function ChildEntryRow({ value, onChange, readOnly }: Props) {
           />
         )
       ) : (
-        <PartialDateInput label={RU.fields.eventDate} value={value.date ?? {}} onChange={(v) => onChange({ type: value.type, date: Object.keys(v).length ? v : undefined })} />
+        <PartialDateInput
+          label={RU.fields.eventDate}
+          value={value.date ?? {}}
+          onChange={(v) =>
+            onChange({ type: value.type, date: Object.keys(v).length ? v : undefined })
+          }
+        />
       )}
     </Stack>
   )
@@ -3051,6 +3372,7 @@ git commit -m "feat(genogram): ChildEntryRow with person/miscarriage/abortion mo
 ### Task 29: AddChildrenForm
 
 **Files:**
+
 - Create: `packages/genogram/src/forms/AddChildrenForm.tsx`
 - Create: `packages/genogram/src/forms/AddChildrenForm.test.tsx`
 
@@ -3065,24 +3387,42 @@ import { AddChildrenForm } from './AddChildrenForm'
 
 describe('AddChildrenForm', () => {
   it('renders count rows for empty existing', () => {
-    render(<AddChildrenForm existingChildren={[]} initialCount={2} onSubmit={() => {}} onCancel={() => {}} />)
+    render(
+      <AddChildrenForm
+        existingChildren={[]}
+        initialCount={2}
+        onSubmit={() => {}}
+        onCancel={() => {}}
+      />,
+    )
     // 2 rows
     expect(screen.getAllByRole('group').length).toBeGreaterThanOrEqual(2)
   })
 
   it('renders existing children first as readOnly rows', () => {
-    render(<AddChildrenForm
-      existingChildren={[{ entry: { kind: 'person', personId: 'p1' as never }, label: 'Иванов И.' }]}
-      initialCount={3}
-      onSubmit={() => {}}
-      onCancel={() => {}}
-    />)
+    render(
+      <AddChildrenForm
+        existingChildren={[
+          { entry: { kind: 'person', personId: 'p1' as never }, label: 'Иванов И.' },
+        ]}
+        initialCount={3}
+        onSubmit={() => {}}
+        onCancel={() => {}}
+      />,
+    )
     expect(screen.getByText('Иванов И.')).toBeInTheDocument()
   })
 
   it('submit emits new entries and reorder if changed', async () => {
     const onSubmit = vi.fn()
-    render(<AddChildrenForm existingChildren={[]} initialCount={1} onSubmit={onSubmit} onCancel={() => {}} />)
+    render(
+      <AddChildrenForm
+        existingChildren={[]}
+        initialCount={1}
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+      />,
+    )
     await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
     expect(onSubmit).toHaveBeenCalled()
   })
@@ -3118,7 +3458,10 @@ export function AddChildrenForm({ existingChildren, initialCount, onSubmit, onCa
   const [count, setCount] = useState<number>(initialCount ?? K + 1)
   const [orderedExisting, setOrderedExisting] = useState<ExistingChildView[]>(existingChildren)
   const [newEntries, setNewEntries] = useState<ChildEntryDraft[]>(() =>
-    Array.from({ length: Math.max(0, count - K) }, () => ({ type: 'person', data: { sex: 'male', lifeStatus: 'alive', birthMode: 'date' } })),
+    Array.from({ length: Math.max(0, count - K) }, () => ({
+      type: 'person',
+      data: { sex: 'male', lifeStatus: 'alive', birthMode: 'date' },
+    })),
   )
 
   const updateCount = (n: number) => {
@@ -3126,7 +3469,18 @@ export function AddChildrenForm({ existingChildren, initialCount, onSubmit, onCa
     setCount(n)
     setNewEntries((prev) => {
       const need = n - K
-      if (need > prev.length) return [...prev, ...Array.from({ length: need - prev.length }, () => ({ type: 'person' as const, data: { sex: 'male' as const, lifeStatus: 'alive' as const, birthMode: 'date' as const } }))]
+      if (need > prev.length)
+        return [
+          ...prev,
+          ...Array.from({ length: need - prev.length }, () => ({
+            type: 'person' as const,
+            data: {
+              sex: 'male' as const,
+              lifeStatus: 'alive' as const,
+              birthMode: 'date' as const,
+            },
+          })),
+        ]
       return prev.slice(0, need)
     })
   }
@@ -3146,7 +3500,8 @@ export function AddChildrenForm({ existingChildren, initialCount, onSubmit, onCa
 
   const submit = () => {
     const reordered = orderedExisting.map((x) => x.entry)
-    const reorderChanged = JSON.stringify(reordered) !== JSON.stringify(existingChildren.map((x) => x.entry))
+    const reorderChanged =
+      JSON.stringify(reordered) !== JSON.stringify(existingChildren.map((x) => x.entry))
     onSubmit(newEntries, reorderChanged ? reordered : undefined)
   }
 
@@ -3161,8 +3516,12 @@ export function AddChildrenForm({ existingChildren, initialCount, onSubmit, onCa
       />
       {orderedExisting.map((c, i) => (
         <Stack key={i} direction="row" alignItems="center" spacing={1} role="group">
-          <Button size="small" onClick={() => move(i, -1)}>↑</Button>
-          <Button size="small" onClick={() => move(i, 1)}>↓</Button>
+          <Button size="small" onClick={() => move(i, -1)}>
+            ↑
+          </Button>
+          <Button size="small" onClick={() => move(i, 1)}>
+            ↓
+          </Button>
           <span>{i + 1}.</span>
           <span>{c.label}</span>
         </Stack>
@@ -3175,7 +3534,9 @@ export function AddChildrenForm({ existingChildren, initialCount, onSubmit, onCa
       ))}
       <Stack direction="row" spacing={1} justifyContent="flex-end">
         <Button onClick={onCancel}>{RU.drawer.cancel}</Button>
-        <Button variant="contained" onClick={submit}>{RU.drawer.save}</Button>
+        <Button variant="contained" onClick={submit}>
+          {RU.drawer.save}
+        </Button>
       </Stack>
     </Stack>
   )
@@ -3198,6 +3559,7 @@ git commit -m "feat(genogram): AddChildrenForm with reorderable existing rows + 
 ### Task 30: ui-state reducer
 
 **Files:**
+
 - Create: `packages/genogram/src/ui/ui-state.ts`
 - Create: `packages/genogram/src/ui/ui-state.test.ts`
 
@@ -3209,20 +3571,34 @@ import { initialUiState, uiReducer } from './ui-state'
 
 describe('uiReducer', () => {
   it('select-node sets menu', () => {
-    const state = uiReducer(initialUiState, { type: 'select-node', id: 'n1', anchorEl: {} as HTMLElement })
+    const state = uiReducer(initialUiState, {
+      type: 'select-node',
+      id: 'n1',
+      anchorEl: {} as HTMLElement,
+    })
     expect(state.menu).toEqual({ anchorEl: expect.any(Object), kind: 'node', targetId: 'n1' })
     expect(state.selection).toEqual({ kind: 'node', id: 'n1' })
   })
 
   it('open-drawer closes menu', () => {
-    let state = uiReducer(initialUiState, { type: 'select-node', id: 'n1', anchorEl: {} as HTMLElement })
-    state = uiReducer(state, { type: 'open-drawer', drawer: { mode: 'edit-data', personId: 'n1' as never } })
+    let state = uiReducer(initialUiState, {
+      type: 'select-node',
+      id: 'n1',
+      anchorEl: {} as HTMLElement,
+    })
+    state = uiReducer(state, {
+      type: 'open-drawer',
+      drawer: { mode: 'edit-data', personId: 'n1' as never },
+    })
     expect(state.menu).toBeNull()
     expect(state.drawer.mode).toBe('edit-data')
   })
 
   it('cancel resets drawer to closed and menu to null', () => {
-    let state = uiReducer(initialUiState, { type: 'open-drawer', drawer: { mode: 'edit-data', personId: 'n1' as never } })
+    let state = uiReducer(initialUiState, {
+      type: 'open-drawer',
+      drawer: { mode: 'edit-data', personId: 'n1' as never },
+    })
     state = uiReducer(state, { type: 'cancel' })
     expect(state.drawer.mode).toBe('closed')
     expect(state.menu).toBeNull()
@@ -3242,10 +3618,7 @@ describe('uiReducer', () => {
 ```ts
 import type { PersonId, UnionId } from '../types/domain'
 
-export type Selection =
-  | { kind: 'node'; id: string }
-  | { kind: 'edge'; id: string }
-  | null
+export type Selection = { kind: 'node'; id: string } | { kind: 'edge'; id: string } | null
 
 export type DrawerState =
   | { mode: 'closed' }
@@ -3279,9 +3652,17 @@ export const initialUiState: UiState = {
 export function uiReducer(state: UiState, action: UiAction): UiState {
   switch (action.type) {
     case 'select-node':
-      return { ...state, selection: { kind: 'node', id: action.id }, menu: { anchorEl: action.anchorEl, kind: 'node', targetId: action.id } }
+      return {
+        ...state,
+        selection: { kind: 'node', id: action.id },
+        menu: { anchorEl: action.anchorEl, kind: 'node', targetId: action.id },
+      }
     case 'select-edge':
-      return { ...state, selection: { kind: 'edge', id: action.id }, menu: { anchorEl: action.anchorEl, kind: 'edge', targetId: action.id } }
+      return {
+        ...state,
+        selection: { kind: 'edge', id: action.id },
+        menu: { anchorEl: action.anchorEl, kind: 'edge', targetId: action.id },
+      }
     case 'close-menu':
       return { ...state, menu: null }
     case 'open-create':
@@ -3308,6 +3689,7 @@ git commit -m "feat(genogram): UI state reducer for selection, menu, drawer"
 ### Task 31: ElementMenu
 
 **Files:**
+
 - Create: `packages/genogram/src/ui/ElementMenu.tsx`
 - Create: `packages/genogram/src/ui/ElementMenu.test.tsx`
 
@@ -3323,34 +3705,66 @@ describe('ElementMenu', () => {
   const anchor = document.createElement('div')
 
   it('small element shows only "Редактировать данные"', () => {
-    render(<ElementMenu
-      open
-      anchorEl={anchor}
-      personSize="small"
-      personRole="regular"
-      hasParents
-      onClose={() => {}}
-      onAction={() => {}}
-    />)
+    render(
+      <ElementMenu
+        open
+        anchorEl={anchor}
+        personSize="small"
+        personRole="regular"
+        hasParents
+        onClose={() => {}}
+        onAction={() => {}}
+      />,
+    )
     expect(screen.getByText('Редактировать данные')).toBeInTheDocument()
     expect(screen.queryByText('Добавить партнёра')).not.toBeInTheDocument()
     expect(screen.queryByText('Добавить родителей')).not.toBeInTheDocument()
   })
 
   it('big regular without parents shows three items', () => {
-    render(<ElementMenu open anchorEl={anchor} personSize="big" personRole="regular" hasParents={false} onClose={() => {}} onAction={() => {}} />)
+    render(
+      <ElementMenu
+        open
+        anchorEl={anchor}
+        personSize="big"
+        personRole="regular"
+        hasParents={false}
+        onClose={() => {}}
+        onAction={() => {}}
+      />,
+    )
     expect(screen.getByText('Редактировать данные')).toBeInTheDocument()
     expect(screen.getByText('Добавить партнёра')).toBeInTheDocument()
     expect(screen.getByText('Добавить родителей')).toBeInTheDocument()
   })
 
   it('big regular WITH parents hides "Добавить родителей"', () => {
-    render(<ElementMenu open anchorEl={anchor} personSize="big" personRole="regular" hasParents onClose={() => {}} onAction={() => {}} />)
+    render(
+      <ElementMenu
+        open
+        anchorEl={anchor}
+        personSize="big"
+        personRole="regular"
+        hasParents
+        onClose={() => {}}
+        onAction={() => {}}
+      />,
+    )
     expect(screen.queryByText('Добавить родителей')).not.toBeInTheDocument()
   })
 
   it('big owner shows owner-specific menu', () => {
-    render(<ElementMenu open anchorEl={anchor} personSize="big" personRole="owner" hasParents onClose={() => {}} onAction={() => {}} />)
+    render(
+      <ElementMenu
+        open
+        anchorEl={anchor}
+        personSize="big"
+        personRole="owner"
+        hasParents
+        onClose={() => {}}
+        onAction={() => {}}
+      />,
+    )
     expect(screen.getByText('Редактировать данные владельца')).toBeInTheDocument()
     expect(screen.getByText('Добавить партнёра')).toBeInTheDocument()
     expect(screen.queryByText('Добавить родителей')).not.toBeInTheDocument()
@@ -3379,7 +3793,15 @@ interface Props {
   onAction: (action: ElementAction) => void
 }
 
-export function ElementMenu({ open, anchorEl, personSize, personRole, hasParents, onClose, onAction }: Props) {
+export function ElementMenu({
+  open,
+  anchorEl,
+  personSize,
+  personRole,
+  hasParents,
+  onClose,
+  onAction,
+}: Props) {
   const items: { action: ElementAction; label: string }[] = []
   if (personSize === 'small') {
     items.push({ action: 'edit-data', label: RU.menu.editData })
@@ -3424,6 +3846,7 @@ git commit -m "feat(genogram): ElementMenu — context-aware actions per node ty
 ### Task 32: EdgeMenu
 
 **Files:**
+
 - Create: `packages/genogram/src/ui/EdgeMenu.tsx`
 - Create: `packages/genogram/src/ui/EdgeMenu.test.tsx`
 
@@ -3479,7 +3902,15 @@ export function EdgeMenu({ open, anchorEl, onClose, onAction }: Props) {
   return (
     <Menu open={open} anchorEl={anchorEl} onClose={onClose}>
       {items.map((it) => (
-        <MenuItem key={it.action} onClick={() => { onAction(it.action); onClose() }}>{it.label}</MenuItem>
+        <MenuItem
+          key={it.action}
+          onClick={() => {
+            onAction(it.action)
+            onClose()
+          }}
+        >
+          {it.label}
+        </MenuItem>
       ))}
     </Menu>
   )
@@ -3500,6 +3931,7 @@ git commit -m "feat(genogram): EdgeMenu — edit connection + add children"
 ### Task 33: EmptyState
 
 **Files:**
+
 - Create: `packages/genogram/src/ui/EmptyState.tsx`
 - Create: `packages/genogram/src/ui/EmptyState.test.tsx`
 
@@ -3554,7 +3986,9 @@ export function EmptyState({ mode, onCreate }: Props) {
       sx={{ height: '100%', minHeight: 300 }}
     >
       <Typography variant="h5">{RU.emptyState.title}</Typography>
-      <Typography variant="body2" color="text.secondary">{RU.emptyState.subtitle}</Typography>
+      <Typography variant="body2" color="text.secondary">
+        {RU.emptyState.subtitle}
+      </Typography>
       {mode === 'editor' && (
         <Button variant="contained" size="large" onClick={onCreate}>
           {RU.emptyState.cta}
@@ -3579,6 +4013,7 @@ git commit -m "feat(genogram): EmptyState with conditional CTA"
 ### Task 34: DrawerHost
 
 **Files:**
+
 - Create: `packages/genogram/src/ui/DrawerHost.tsx`
 
 - [ ] **Step 1: Implement**
@@ -3615,7 +4050,7 @@ interface Props {
 const DRAWER_WIDTH = 360
 
 const TITLES: Record<DrawerState['mode'], string> = {
-  'closed': '',
+  closed: '',
   'create-genogram': RU.drawer.titleCreate,
   'edit-data': RU.drawer.titleEditData,
   'edit-owner-data': RU.drawer.titleEditOwner,
@@ -3644,139 +4079,174 @@ export function DrawerHost({ doc, drawer, onClose }: Props) {
 function renderForm(doc: Y.Doc, drawer: DrawerState, onClose: () => void) {
   const domain = assembleDomain(doc)
   if (drawer.mode === 'create-genogram') {
-    return <OwnerDataForm
-      mode="create"
-      initial={{ sex: 'male' }}
-      onCancel={onClose}
-      onSubmit={(d) => { createOwnerWithParents(doc, d); onClose() }}
-    />
+    return (
+      <OwnerDataForm
+        mode="create"
+        initial={{ sex: 'male' }}
+        onCancel={onClose}
+        onSubmit={(d) => {
+          createOwnerWithParents(doc, d)
+          onClose()
+        }}
+      />
+    )
   }
   if (drawer.mode === 'edit-owner-data') {
     const owner = domain.entities.people[drawer.personId]
     if (!owner) return null
-    return <OwnerDataForm
-      mode="edit"
-      initial={{
-        sex: owner.sex,
-        firstName: owner.identity.firstName,
-        lastName: owner.identity.lastName,
-        middleName: owner.identity.middleName,
-        birthDate: owner.lifeDates.birthDate,
-      }}
-      onCancel={onClose}
-      onSubmit={(d) => {
-        updatePerson(doc, drawer.personId, {
-          sex: d.sex,
-          identity: { ...owner.identity, firstName: d.firstName, lastName: d.lastName, middleName: d.middleName },
-          lifeDates: { ...owner.lifeDates, birthDate: d.birthDate },
-        })
-        onClose()
-      }}
-    />
+    return (
+      <OwnerDataForm
+        mode="edit"
+        initial={{
+          sex: owner.sex,
+          firstName: owner.identity.firstName,
+          lastName: owner.identity.lastName,
+          middleName: owner.identity.middleName,
+          birthDate: owner.lifeDates.birthDate,
+        }}
+        onCancel={onClose}
+        onSubmit={(d) => {
+          updatePerson(doc, drawer.personId, {
+            sex: d.sex,
+            identity: {
+              ...owner.identity,
+              firstName: d.firstName,
+              lastName: d.lastName,
+              middleName: d.middleName,
+            },
+            lifeDates: { ...owner.lifeDates, birthDate: d.birthDate },
+          })
+          onClose()
+        }}
+      />
+    )
   }
   if (drawer.mode === 'edit-data') {
     const p = domain.entities.people[drawer.personId]
     if (!p) return null
     const baseId = getBaseOf(drawer.personId, domain.entities.unions)
-    const isPartnerOfMultiBase = baseId ? countPartnersOf(baseId, domain.entities.unions) > 1 : false
+    const isPartnerOfMultiBase = baseId
+      ? countPartnersOf(baseId, domain.entities.unions) > 1
+      : false
     const childGroup = getChildGroupOf(drawer.personId, domain.entities.childGroups)
     const isChild = !!childGroup
-    const childOrder = childGroup ? childGroup.children.findIndex((c) => c.kind === 'person' && c.personId === drawer.personId) + 1 : undefined
-    return <PersonDataForm
-      initial={{
-        sex: p.sex,
-        firstName: p.identity.firstName,
-        lastName: p.identity.lastName,
-        middleName: p.identity.middleName,
-        birthMode: p.lifeDates.birthMode,
-        lifeStatus: p.lifeDates.lifeStatus,
-        birthDate: p.lifeDates.birthDate,
-        approximateAge: p.lifeDates.approximateAge,
-        deathDate: p.lifeDates.deathDate,
-        tragically: p.lifeDates.tragically,
-        partnerOrder: p.partnerOrder,
-      }}
-      context={{
-        kind: 'edit-data',
-        isPartnerOfMultiBase,
-        totalPartnersOfBase: baseId ? countPartnersOf(baseId, domain.entities.unions) : undefined,
-        isChild,
-        childOrder,
-        siblingsCount: childGroup?.children.length,
-      }}
-      onCancel={onClose}
-      onSubmit={(d) => {
-        updatePerson(doc, drawer.personId, {
-          sex: d.sex,
-          identity: { ...p.identity, firstName: d.firstName, lastName: d.lastName, middleName: d.middleName },
-          lifeDates: {
-            birthMode: d.birthMode,
-            lifeStatus: d.lifeStatus,
-            birthDate: d.birthDate,
-            approximateAge: d.approximateAge,
-            deathDate: d.deathDate,
-            tragically: d.tragically,
-          },
-        })
-        if (d.partnerOrder !== undefined && d.partnerOrder !== p.partnerOrder) {
-          setPartnerOrder(doc, drawer.personId, d.partnerOrder)
-        }
-        if (d.childOrder !== undefined && d.childOrder !== childOrder) {
-          setChildOrder(doc, drawer.personId, d.childOrder)
-        }
-        onClose()
-      }}
-    />
+    const childOrder = childGroup
+      ? childGroup.children.findIndex(
+          (c) => c.kind === 'person' && c.personId === drawer.personId,
+        ) + 1
+      : undefined
+    return (
+      <PersonDataForm
+        initial={{
+          sex: p.sex,
+          firstName: p.identity.firstName,
+          lastName: p.identity.lastName,
+          middleName: p.identity.middleName,
+          birthMode: p.lifeDates.birthMode,
+          lifeStatus: p.lifeDates.lifeStatus,
+          birthDate: p.lifeDates.birthDate,
+          approximateAge: p.lifeDates.approximateAge,
+          deathDate: p.lifeDates.deathDate,
+          tragically: p.lifeDates.tragically,
+          partnerOrder: p.partnerOrder,
+        }}
+        context={{
+          kind: 'edit-data',
+          isPartnerOfMultiBase,
+          totalPartnersOfBase: baseId ? countPartnersOf(baseId, domain.entities.unions) : undefined,
+          isChild,
+          childOrder,
+          siblingsCount: childGroup?.children.length,
+        }}
+        onCancel={onClose}
+        onSubmit={(d) => {
+          updatePerson(doc, drawer.personId, {
+            sex: d.sex,
+            identity: {
+              ...p.identity,
+              firstName: d.firstName,
+              lastName: d.lastName,
+              middleName: d.middleName,
+            },
+            lifeDates: {
+              birthMode: d.birthMode,
+              lifeStatus: d.lifeStatus,
+              birthDate: d.birthDate,
+              approximateAge: d.approximateAge,
+              deathDate: d.deathDate,
+              tragically: d.tragically,
+            },
+          })
+          if (d.partnerOrder !== undefined && d.partnerOrder !== p.partnerOrder) {
+            setPartnerOrder(doc, drawer.personId, d.partnerOrder)
+          }
+          if (d.childOrder !== undefined && d.childOrder !== childOrder) {
+            setChildOrder(doc, drawer.personId, d.childOrder)
+          }
+          onClose()
+        }}
+      />
+    )
   }
   if (drawer.mode === 'add-partner') {
     const baseId = drawer.basePersonId
     const existingPartnersOfBase = countPartnersOf(baseId, domain.entities.unions)
-    return <AddPartnerForm
-      doc={doc}
-      basePersonId={baseId}
-      existingPartnersOfBase={existingPartnersOfBase}
-      onCancel={onClose}
-      onSubmit={onClose}
-    />
+    return (
+      <AddPartnerForm
+        doc={doc}
+        basePersonId={baseId}
+        existingPartnersOfBase={existingPartnersOfBase}
+        onCancel={onClose}
+        onSubmit={onClose}
+      />
+    )
   }
   if (drawer.mode === 'edit-connection') {
     const u = domain.entities.unions[drawer.unionId]
     if (!u) return null
-    return <MarriageRelationForm
-      initial={{ kind: u.kind, startDate: u.startDate, endDate: u.endDate, divorce: u.divorce }}
-      onCancel={onClose}
-      onSubmit={(draft) => {
-        // updateUnion or setUnionDivorce calls
-        if (draft.divorce) {
-          setUnionDivorce(doc, drawer.unionId, draft.divorce)
-        }
-        // For the rest of fields, use a hypothetical updateUnion or write through schema
-        // (Use existing or add new updateUnion in actions.ts as part of this task.)
-        onClose()
-      }}
-    />
+    return (
+      <MarriageRelationForm
+        initial={{ kind: u.kind, startDate: u.startDate, endDate: u.endDate, divorce: u.divorce }}
+        onCancel={onClose}
+        onSubmit={(draft) => {
+          // updateUnion or setUnionDivorce calls
+          if (draft.divorce) {
+            setUnionDivorce(doc, drawer.unionId, draft.divorce)
+          }
+          // For the rest of fields, use a hypothetical updateUnion or write through schema
+          // (Use existing or add new updateUnion in actions.ts as part of this task.)
+          onClose()
+        }}
+      />
+    )
   }
   if (drawer.mode === 'add-children') {
     const cg = Object.values(domain.entities.childGroups).find((c) => c.unionId === drawer.unionId)
     const existing = (cg?.children ?? []).map((entry) => {
       if (entry.kind === 'person') {
         const p = domain.entities.people[entry.personId]
-        return { entry, label: [p?.identity.lastName, p?.identity.firstName, p?.identity.middleName].filter(Boolean).join(' ') }
+        return {
+          entry,
+          label: [p?.identity.lastName, p?.identity.firstName, p?.identity.middleName]
+            .filter(Boolean)
+            .join(' '),
+        }
       }
       return { entry, label: '(потеря)' }
     })
-    return <AddChildrenForm
-      existingChildren={existing}
-      onCancel={onClose}
-      onSubmit={(newEntries, reorderExisting) => {
-        addChildren(doc, drawer.unionId, newEntries, reorderExisting)
-        onClose()
-      }}
-    />
+    return (
+      <AddChildrenForm
+        existingChildren={existing}
+        onCancel={onClose}
+        onSubmit={(newEntries, reorderExisting) => {
+          addChildren(doc, drawer.unionId, newEntries, reorderExisting)
+          onClose()
+        }}
+      />
+    )
   }
   return null
 }
-
 ```
 
 - [ ] **Step 2: Implement AddPartnerForm composite (inline in DrawerHost.tsx)**
@@ -3799,7 +4269,11 @@ function AddPartnerForm({
   onCancel: () => void
   onSubmit: () => void
 }) {
-  const [personDraft, setPersonDraft] = useState<PersonDataDraft>({ sex: 'female', lifeStatus: 'alive', birthMode: 'date' })
+  const [personDraft, setPersonDraft] = useState<PersonDataDraft>({
+    sex: 'female',
+    lifeStatus: 'alive',
+    birthMode: 'date',
+  })
   const [unionDraft, setUnionDraft] = useState<UnionDraft>({ kind: 'marriage' })
   const [partnerCount, setPartnerCount] = useState<number>(existingPartnersOfBase + 1)
 
@@ -3841,12 +4315,16 @@ function AddPartnerForm({
 `embedded` prop on `PersonDataForm` and `MarriageRelationForm` skips their internal save/cancel button row (the wrapper renders its own buttons). Add this prop to both forms' Props interface and gate the trailing button `<Stack>`:
 
 ```tsx
-{!embedded && (
-  <Stack direction="row" spacing={1} justifyContent="flex-end">
-    <Button onClick={onCancel}>{RU.drawer.cancel}</Button>
-    <Button variant="contained" onClick={() => onSubmit(draft)}>{submitLabel}</Button>
-  </Stack>
-)}
+{
+  !embedded && (
+    <Stack direction="row" spacing={1} justifyContent="flex-end">
+      <Button onClick={onCancel}>{RU.drawer.cancel}</Button>
+      <Button variant="contained" onClick={() => onSubmit(draft)}>
+        {submitLabel}
+      </Button>
+    </Stack>
+  )
+}
 ```
 
 While in `embedded` mode, treat each call to `setPersonDraft` / `setUnionDraft` (i.e., field change) as an autosave to local draft — the wrapper triggers the actual `addPartner` only on its own primary button click. To make this work with internal `useState` of the inner forms, lift the `onSubmit` callback to fire on every meaningful change instead of just on click. Simpler: switch the inner forms in embedded mode to a "controlled" style — accept `value` and `onChange` props instead of `initial` + `onSubmit`. Add this controlled mode now.
@@ -3869,6 +4347,7 @@ git commit -m "feat(genogram): DrawerHost dispatches forms by drawer.mode; AddPa
 ### Task 35: PersonNode — owner inner shape
 
 **Files:**
+
 - Modify: `packages/genogram/src/nodes/PersonNode.tsx`
 
 - [ ] **Step 1: Inspect existing PersonNode**
@@ -3899,6 +4378,7 @@ git commit -m "fix(genogram): PersonNode references lifeStatus and shouldShowDea
 ### Task 36: PersonNode — partner ordinal number inside element
 
 **Files:**
+
 - Modify: `packages/genogram/src/nodes/PersonNode.tsx`
 
 - [ ] **Step 1: Add partner ordinal rendering**
@@ -3906,18 +4386,13 @@ git commit -m "fix(genogram): PersonNode references lifeStatus and shouldShowDea
 In the SVG body of `PersonNode`, after rendering shape and possibly X-marker, add:
 
 ```tsx
-{showOrdinal && (
-  <text
-    x={cx}
-    y={cy + 6}
-    textAnchor="middle"
-    fontSize={18}
-    fontWeight="bold"
-    fill="currentColor"
-  >
-    {person.partnerOrder}
-  </text>
-)}
+{
+  showOrdinal && (
+    <text x={cx} y={cy + 6} textAnchor="middle" fontSize={18} fontWeight="bold" fill="currentColor">
+      {person.partnerOrder}
+    </text>
+  )
+}
 ```
 
 `showOrdinal` is computed from props (passed in from `domainToFlow`):
@@ -3949,11 +4424,13 @@ git commit -m "feat(genogram): render partner ordinal number inside element when
 ### Task 37: PersonLabel — new positioning rules and "?" suffix
 
 **Files:**
+
 - Modify: `packages/genogram/src/nodes/primitives/PersonLabel.tsx`
 
 - [ ] **Step 1: Replace label rendering**
 
 Update `PersonLabel.tsx` to:
+
 - For `size='big'` → render right of element (existing behaviour).
 - For `size='small'` → render below element.
 - Append `?` to first line if `lifeDates.lifeStatus === 'unknown'`.
@@ -3967,21 +4444,34 @@ import { calcAge } from '../../model/computed'
 
 // Within label content:
 const fioParts = [identity.lastName, identity.firstName, identity.middleName].filter(Boolean)
-const fio = fioParts.length ? fioParts.join(' ')
-  : (identity.isUnknown ? (sex === 'male' ? RU.labels.unknownPerson.male : RU.labels.unknownPerson.female) : '')
+const fio = fioParts.length
+  ? fioParts.join(' ')
+  : identity.isUnknown
+    ? sex === 'male'
+      ? RU.labels.unknownPerson.male
+      : RU.labels.unknownPerson.female
+    : ''
 const fioWithMark = lifeStatus === 'unknown' && fio ? `${fio} ?` : fio
 
-const age = lifeDates.birthMode === 'date'
-  ? calcAge(lifeDates.birthDate, meta.createdAt)
-  : undefined
-const ageText = lifeDates.birthMode === 'approximate' && lifeDates.approximateAge
-  ? (lifeDates.approximateAge.kind === 'value'
+const age =
+  lifeDates.birthMode === 'date' ? calcAge(lifeDates.birthDate, meta.createdAt) : undefined
+const ageText =
+  lifeDates.birthMode === 'approximate' && lifeDates.approximateAge
+    ? lifeDates.approximateAge.kind === 'value'
       ? RU.labels.yearsOldApprox(lifeDates.approximateAge.value)
-      : RU.labels.yearsOldRange(lifeDates.approximateAge.from, lifeDates.approximateAge.to))
-  : age !== undefined ? RU.labels.yearsOld(age) : ''
+      : RU.labels.yearsOldRange(lifeDates.approximateAge.from, lifeDates.approximateAge.to)
+    : age !== undefined
+      ? RU.labels.yearsOld(age)
+      : ''
 
-const birthText = lifeDates.birthMode === 'date' && lifeDates.birthDate ? formatPartialDate(lifeDates.birthDate) : ''
-const deathText = lifeStatus === 'deceased' && lifeDates.deathDate ? `† ${formatPartialDate(lifeDates.deathDate)}` : ''
+const birthText =
+  lifeDates.birthMode === 'date' && lifeDates.birthDate
+    ? formatPartialDate(lifeDates.birthDate)
+    : ''
+const deathText =
+  lifeStatus === 'deceased' && lifeDates.deathDate
+    ? `† ${formatPartialDate(lifeDates.deathDate)}`
+    : ''
 
 const lines = [fioWithMark, ageText, birthText, deathText].filter((l) => l && l.length)
 ```
@@ -4012,6 +4502,7 @@ git commit -m "feat(genogram): PersonLabel uses formatPartialDate, RU.yearsOld, 
 ### Task 38: PregnancyLossNode — Cyrillic А/В
 
 **Files:**
+
 - Modify: `packages/genogram/src/nodes/PregnancyLossNode.tsx`
 
 - [ ] **Step 1: Replace 'A'/'B' with 'А'/'В'**
@@ -4036,6 +4527,7 @@ git commit -m "fix(genogram): PregnancyLoss uses Cyrillic А/В (abortion/miscar
 ### Task 39: OwnerCreationDateNode
 
 **Files:**
+
 - Create: `packages/genogram/src/nodes/OwnerCreationDateNode.tsx`
 - Modify: `packages/genogram/src/react-flow/domainToFlow.ts`
 - Modify: `packages/genogram/src/react-flow/index.ts` (or wherever `nodeTypes` map is)
@@ -4098,6 +4590,7 @@ git commit -m "feat(genogram): OwnerCreationDateNode renders creation date right
 ### Task 40: UnionLineEdge — draggable divorce mark
 
 **Files:**
+
 - Modify: `packages/genogram/src/edges/UnionLineEdge.tsx`
 
 - [ ] **Step 1: Add markPosition rendering and drag handlers**
@@ -4120,45 +4613,64 @@ useEffect(() => {
   localPosRef.current = divorce.markPosition ?? 0.5
 }, [divorce.markPosition])
 
-const onDragStart = useCallback((e: React.MouseEvent) => {
-  e.stopPropagation()
-  dragStateRef.current = { posStart: localPosRef.current, mouseStart: { x: e.clientX, y: e.clientY } }
-  setDragging(true)
-  const onMove = (m: MouseEvent) => {
-    const ds = dragStateRef.current
-    if (!ds) return
-    const dx = m.clientX - ds.mouseStart.x
-    const dy = m.clientY - ds.mouseStart.y
-    const lineDx = x2 - x1, lineDy = y2 - y1
-    const lineLen = Math.hypot(lineDx, lineDy) || 1
-    const ux = lineDx / lineLen, uy = lineDy / lineLen
-    const deltaScalar = (dx * ux + dy * uy) / lineLen
-    const nextPos = Math.min(1, Math.max(0, ds.posStart + deltaScalar))
-    localPosRef.current = nextPos
-    setPos(nextPos)
-  }
-  const onUp = () => {
-    setDragging(false)
-    dragStateRef.current = null
-    window.removeEventListener('mousemove', onMove)
-    window.removeEventListener('mouseup', onUp)
-    setUnionDivorce(doc, unionId, { ...divorce, markPosition: localPosRef.current })
-  }
-  window.addEventListener('mousemove', onMove)
-  window.addEventListener('mouseup', onUp)
-}, [x1, y1, x2, y2, divorce, doc, unionId])
+const onDragStart = useCallback(
+  (e: React.MouseEvent) => {
+    e.stopPropagation()
+    dragStateRef.current = {
+      posStart: localPosRef.current,
+      mouseStart: { x: e.clientX, y: e.clientY },
+    }
+    setDragging(true)
+    const onMove = (m: MouseEvent) => {
+      const ds = dragStateRef.current
+      if (!ds) return
+      const dx = m.clientX - ds.mouseStart.x
+      const dy = m.clientY - ds.mouseStart.y
+      const lineDx = x2 - x1,
+        lineDy = y2 - y1
+      const lineLen = Math.hypot(lineDx, lineDy) || 1
+      const ux = lineDx / lineLen,
+        uy = lineDy / lineLen
+      const deltaScalar = (dx * ux + dy * uy) / lineLen
+      const nextPos = Math.min(1, Math.max(0, ds.posStart + deltaScalar))
+      localPosRef.current = nextPos
+      setPos(nextPos)
+    }
+    const onUp = () => {
+      setDragging(false)
+      dragStateRef.current = null
+      window.removeEventListener('mousemove', onMove)
+      window.removeEventListener('mouseup', onUp)
+      setUnionDivorce(doc, unionId, { ...divorce, markPosition: localPosRef.current })
+    }
+    window.addEventListener('mousemove', onMove)
+    window.addEventListener('mouseup', onUp)
+  },
+  [x1, y1, x2, y2, divorce, doc, unionId],
+)
 
 const markX = x1 + (x2 - x1) * pos
 const markY = y1 + (y2 - y1) * pos
 
 return (
-  <g
-    onMouseDown={onDragStart}
-    style={{ cursor: dragging ? 'grabbing' : 'grab' }}
-  >
+  <g onMouseDown={onDragStart} style={{ cursor: dragging ? 'grabbing' : 'grab' }}>
     <rect x={markX - 12} y={markY - 12} width={24} height={24} fill="transparent" />
-    <line x1={markX - 7} y1={markY + 7} x2={markX + 7} y2={markY - 7} stroke="currentColor" strokeWidth={2} />
-    <line x1={markX - 4} y1={markY + 10} x2={markX + 10} y2={markY - 4} stroke="currentColor" strokeWidth={2} />
+    <line
+      x1={markX - 7}
+      y1={markY + 7}
+      x2={markX + 7}
+      y2={markY - 7}
+      stroke="currentColor"
+      strokeWidth={2}
+    />
+    <line
+      x1={markX - 4}
+      y1={markY + 10}
+      x2={markX + 10}
+      y2={markY - 4}
+      stroke="currentColor"
+      strokeWidth={2}
+    />
   </g>
 )
 ```
@@ -4198,6 +4710,7 @@ git commit -m "feat(genogram): draggable divorce mark with markPosition persiste
 ### Task 41: Wire up reducer + DrawerHost + Menus + EmptyState in GenogramFlow
 
 **Files:**
+
 - Modify: `packages/genogram/src/react-flow/GenogramFlow.tsx`
 
 - [ ] **Step 1: Add UI state and wire components**
@@ -4271,9 +4784,21 @@ export function GenogramFlow({ doc, mode = 'editor' }: Props) {
             hasParents={hasParents(menuPerson.id, domain.entities.childGroups)}
             onClose={() => dispatch({ type: 'close-menu' })}
             onAction={(action) => {
-              if (action === 'edit-data') dispatch({ type: 'open-drawer', drawer: { mode: 'edit-data', personId: menuPerson.id } })
-              if (action === 'edit-owner') dispatch({ type: 'open-drawer', drawer: { mode: 'edit-owner-data', personId: menuPerson.id } })
-              if (action === 'add-partner') dispatch({ type: 'open-drawer', drawer: { mode: 'add-partner', basePersonId: menuPerson.id } })
+              if (action === 'edit-data')
+                dispatch({
+                  type: 'open-drawer',
+                  drawer: { mode: 'edit-data', personId: menuPerson.id },
+                })
+              if (action === 'edit-owner')
+                dispatch({
+                  type: 'open-drawer',
+                  drawer: { mode: 'edit-owner-data', personId: menuPerson.id },
+                })
+              if (action === 'add-partner')
+                dispatch({
+                  type: 'open-drawer',
+                  drawer: { mode: 'add-partner', basePersonId: menuPerson.id },
+                })
               if (action === 'add-parents') {
                 addParents(doc, menuPerson.id)
                 dispatch({ type: 'close-menu' })
@@ -4289,17 +4814,15 @@ export function GenogramFlow({ doc, mode = 'editor' }: Props) {
             onClose={() => dispatch({ type: 'close-menu' })}
             onAction={(action) => {
               const unionId = ui.menu!.targetId as UnionId
-              if (action === 'edit-connection') dispatch({ type: 'open-drawer', drawer: { mode: 'edit-connection', unionId } })
-              if (action === 'add-children') dispatch({ type: 'open-drawer', drawer: { mode: 'add-children', unionId } })
+              if (action === 'edit-connection')
+                dispatch({ type: 'open-drawer', drawer: { mode: 'edit-connection', unionId } })
+              if (action === 'add-children')
+                dispatch({ type: 'open-drawer', drawer: { mode: 'add-children', unionId } })
             }}
           />
         )}
 
-        <DrawerHost
-          doc={doc}
-          drawer={ui.drawer}
-          onClose={() => dispatch({ type: 'cancel' })}
-        />
+        <DrawerHost doc={doc} drawer={ui.drawer} onClose={() => dispatch({ type: 'cancel' })} />
       </ReactFlowProvider>
     </DocContext.Provider>
   )
@@ -4336,6 +4859,7 @@ git commit -m "feat(genogram): integrate reducer + DrawerHost + Menus + EmptySta
 ### Task 42: E2E — Create genogram
 
 **Files:**
+
 - Create: `apps/e2e/genogram.spec.ts`
 
 - [ ] **Step 1: Write E2E test**
@@ -4393,12 +4917,15 @@ git commit -m "test(genogram): E2E for create-genogram flow"
 ### Task 43: E2E — Add partner + edit connection
 
 **Files:**
+
 - Modify: `apps/e2e/genogram.spec.ts`
 
 - [ ] **Step 1: Append test**
 
 ```ts
-test('Add partner with marriage, then switch to cohabitation via edit connection', async ({ page }) => {
+test('Add partner with marriage, then switch to cohabitation via edit connection', async ({
+  page,
+}) => {
   // ... navigate to a freshly created genogram page (reuse setup)
 
   // Click owner element
@@ -4437,12 +4964,15 @@ git commit -m "test(genogram): E2E for add-partner + edit-connection"
 ### Task 44: E2E — Add children + tragically marker
 
 **Files:**
+
 - Modify: `apps/e2e/genogram.spec.ts`
 
 - [ ] **Step 1: Append test**
 
 ```ts
-test('Add 2 children (one person, one miscarriage), edit child to tragically deceased', async ({ page }) => {
+test('Add 2 children (one person, one miscarriage), edit child to tragically deceased', async ({
+  page,
+}) => {
   // ... setup with owner + partner already added
 
   // Click union line
@@ -4474,7 +5004,9 @@ test('Add 2 children (one person, one miscarriage), edit child to tragically dec
   await page.getByRole('button', { name: 'Сохранить' }).click()
 
   // X marker visible inside child element
-  await expect(page.locator('.react-flow__node').filter({ hasText: 'Лиза' }).locator('line')).toHaveCount(2)
+  await expect(
+    page.locator('.react-flow__node').filter({ hasText: 'Лиза' }).locator('line'),
+  ).toHaveCount(2)
 })
 ```
 
@@ -4491,6 +5023,7 @@ git commit -m "test(genogram): E2E for add-children + tragically marker"
 ### Task 45: E2E — Drag divorce mark persistence
 
 **Files:**
+
 - Modify: `apps/e2e/genogram.spec.ts`
 
 - [ ] **Step 1: Append test**
@@ -4503,7 +5036,9 @@ test('Drag divorce mark, reload, verify persistence', async ({ page }) => {
   await expect(mark).toBeVisible()
   const before = await mark.boundingBox()
   // Drag right
-  await mark.dragTo(page.locator('canvas'), { targetPosition: { x: (before?.x ?? 0) + 80, y: before?.y ?? 0 } })
+  await mark.dragTo(page.locator('canvas'), {
+    targetPosition: { x: (before?.x ?? 0) + 80, y: before?.y ?? 0 },
+  })
   await page.waitForTimeout(500)
 
   // Reload
@@ -4529,6 +5064,7 @@ git commit -m "test(genogram): E2E for divorce mark drag persistence"
 ### Task 46: E2E — Multi-partner ordering
 
 **Files:**
+
 - Modify: `apps/e2e/genogram.spec.ts`
 
 - [ ] **Step 1: Append test**
@@ -4540,7 +5076,9 @@ test('Multi-partner ordinals appear and reorder via edit', async ({ page }) => {
   // Add partner #1 (count=1) — no number visible
   // (helper: addPartner(owner, name, sex, count))
   await addPartner(page, 'Анна', 'female', 1)
-  await expect(page.locator('.react-flow__node').filter({ hasText: 'Анна' }).locator('text')).not.toContainText('1')
+  await expect(
+    page.locator('.react-flow__node').filter({ hasText: 'Анна' }).locator('text'),
+  ).not.toContainText('1')
 
   // Add partner #2 (count=2) — both partners get ordinals
   await addPartner(page, 'Мария', 'female', 2)
@@ -4555,8 +5093,12 @@ test('Multi-partner ordinals appear and reorder via edit', async ({ page }) => {
   await page.getByRole('button', { name: 'Сохранить' }).click()
 
   // Anna now shows "2", Maria shows "1"
-  await expect(page.locator('.react-flow__node').filter({ hasText: 'Анна' }).getByText('2', { exact: true })).toBeVisible()
-  await expect(page.locator('.react-flow__node').filter({ hasText: 'Мария' }).getByText('1', { exact: true })).toBeVisible()
+  await expect(
+    page.locator('.react-flow__node').filter({ hasText: 'Анна' }).getByText('2', { exact: true }),
+  ).toBeVisible()
+  await expect(
+    page.locator('.react-flow__node').filter({ hasText: 'Мария' }).getByText('1', { exact: true }),
+  ).toBeVisible()
 })
 
 async function addPartner(page, name: string, sex: 'male' | 'female', count: number) {
@@ -4584,11 +5126,13 @@ git commit -m "test(genogram): E2E for multi-partner ordinal numbering and reord
 ### Task 47: Update package exports
 
 **Files:**
+
 - Modify: `packages/genogram/src/index.ts`
 
 - [ ] **Step 1: Verify all new public symbols are re-exported**
 
 Ensure `index.ts` exports:
+
 - All actions (`yjs/actions.ts`)
 - All form components
 - All UI components (DrawerHost, EmptyState, ElementMenu, EdgeMenu)
@@ -4680,6 +5224,7 @@ Expected: all 5 E2E scenarios pass.
 - [ ] **Step 5: Final smoke test in browser**
 
 Manually create a GENOGRAM page in the running dev server and walk through:
+
 - Empty state → Create
 - Add partner → marriage with date
 - Add children (1 person + 1 miscarriage)
@@ -4709,5 +5254,3 @@ git commit -m "fix(genogram): polish from smoke test"
 - **Persist Y.Doc consistency** — when a partner's `partnerOrder` changes, ensure all sibling partners' ordinals are also updated atomically inside `doc.transact()`.
 - **Keep forms cancellable** — clicking outside drawer dispatches `cancel`; no confirmations.
 - **No prod data migration** is needed (confirmed in spec). Don't write migration code.
-
-

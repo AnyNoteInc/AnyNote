@@ -1,5 +1,5 @@
-import { esc } from '../utils.js'
-import type { MailPayloads, RenderedEmail } from '../types.js'
+import { esc } from '../utils.ts'
+import type { MailPayloads, RenderedEmail } from '../types.ts'
 
 export function renderPasswordChanged(p: MailPayloads['password-changed']): RenderedEmail {
   const ipLine = p.ipAddress ? `\nIP-адрес: ${p.ipAddress}` : ''

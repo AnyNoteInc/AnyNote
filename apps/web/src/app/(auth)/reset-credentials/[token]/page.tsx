@@ -8,9 +8,7 @@ export const metadata: Metadata = {
 
 export default async function ResetTokenPage({
   params,
-}: {
-  params: Promise<{ token: string }>
-}) {
+}: Readonly<{ params: Promise<{ token: string }> }>) {
   const { token } = await params
   return <ResetConfirmForm token={token} />
 }

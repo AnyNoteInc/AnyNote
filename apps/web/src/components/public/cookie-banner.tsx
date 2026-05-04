@@ -74,7 +74,7 @@ export function CookieBanner() {
             соглашаетесь с нашей{' '}
             <Box
               component="a"
-              href="/privacy"
+              href="/terms/privacy-policy"
               sx={{ color: 'primary.main', textDecoration: 'underline' }}
             >
               политикой
@@ -87,7 +87,12 @@ export function CookieBanner() {
             onClick={reject}
             variant="outlined"
             size="small"
-            sx={{ minWidth: 110, borderRadius: 1.25, color: 'text.primary', borderColor: 'divider' }}
+            sx={{
+              minWidth: 110,
+              borderRadius: 1.25,
+              color: 'text.primary',
+              borderColor: 'divider',
+            }}
           >
             Отклонить
           </Button>

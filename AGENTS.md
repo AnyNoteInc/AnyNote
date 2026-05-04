@@ -31,7 +31,6 @@ Follow Conventional Commits with scopes, for example `feat(trpc): enforce soft d
 
 Copy `.env.example` to `.env` for local setup and keep secrets out of commits. Update service environment variables before debugging database, Better Auth, S3, Qdrant, engines, agents, or YooKassa behavior. LLM/embedding provider connections (OpenAI, GigaChat, Ollama) are configured per-workspace in the UI, not via env.
 
-
 <claude-mem-context>
 # Memory Context
 
@@ -44,6 +43,7 @@ Fetch details: get_observations([IDs]) | Search: mem-search skill
 Stats: 50 obs (19,151t read) | 1,282,260t work | 99% savings
 
 ### Apr 29, 2026
+
 S32 Per-workspace embeddings model selection — Qdrant + agents contract design (Section 2/6), moving to engines/indexer flow next (Apr 29 at 4:47 PM)
 S33 Per-workspace embeddings model selection — indexer cron + outbox→agents flow design (Section 3/6) (Apr 29 at 4:47 PM)
 S31 Per-workspace embeddings model selection — Qdrant strategy and agents contract design presented (Section 2/6) (Apr 29 at 4:47 PM)

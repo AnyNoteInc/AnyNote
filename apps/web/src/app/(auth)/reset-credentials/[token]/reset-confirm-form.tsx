@@ -21,7 +21,9 @@ export function ResetConfirmForm({ token }: { token: string }) {
         token,
       })
       if (error) {
-        setErrorMessage('Ссылка недействительна или истекла. Запросите восстановление пароля заново.')
+        setErrorMessage(
+          'Ссылка недействительна или истекла. Запросите восстановление пароля заново.',
+        )
         return
       }
       router.push('/sign-in')

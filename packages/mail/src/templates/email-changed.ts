@@ -1,5 +1,5 @@
-import { esc } from '../utils.js'
-import type { MailPayloads, RenderedEmail } from '../types.js'
+import { esc } from '../utils.ts'
+import type { MailPayloads, RenderedEmail } from '../types.ts'
 
 export function renderEmailChanged(p: MailPayloads['email-changed']): RenderedEmail {
   const subject = p.isOldRecipient

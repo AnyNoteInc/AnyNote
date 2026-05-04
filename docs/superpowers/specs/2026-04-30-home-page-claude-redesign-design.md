@@ -38,16 +38,16 @@ A new "Что ещё" capability grid, a "Особое решение" contact s
 
 ### Palette (CSS custom properties on the page root)
 
-| Token | Hex | Usage |
-|---|---|---|
-| `--paper` | `#faf9f5` | section backgrounds, sidebar in mockup |
-| `--paper-deep` | `#f0eee6` | hero gradient end, button text on dark |
-| `--ink` | `#1d1d1b` | primary text, dark sections, primary button |
-| `--ink-soft` | `rgba(29,29,27,0.65)` | body copy on light |
-| `--ink-mute` | `rgba(29,29,27,0.42)` | eyebrows, captions |
-| `--orange` | `#c96442` | accent (italic in headings, indicators, CTA hover) |
-| `--orange-warm` | `#d97757` | secondary accent (origami highlights, gradients) |
-| `--line` | `rgba(0,0,0,0.08)` | hairlines and subtle borders |
+| Token           | Hex                   | Usage                                              |
+| --------------- | --------------------- | -------------------------------------------------- |
+| `--paper`       | `#faf9f5`             | section backgrounds, sidebar in mockup             |
+| `--paper-deep`  | `#f0eee6`             | hero gradient end, button text on dark             |
+| `--ink`         | `#1d1d1b`             | primary text, dark sections, primary button        |
+| `--ink-soft`    | `rgba(29,29,27,0.65)` | body copy on light                                 |
+| `--ink-mute`    | `rgba(29,29,27,0.42)` | eyebrows, captions                                 |
+| `--orange`      | `#c96442`             | accent (italic in headings, indicators, CTA hover) |
+| `--orange-warm` | `#d97757`             | secondary accent (origami highlights, gradients)   |
+| `--line`        | `rgba(0,0,0,0.08)`    | hairlines and subtle borders                       |
 
 The teal `#0f766e` from the current page is retired from public surfaces (it remains the workspace-icon brand color in-product, no change there).
 
@@ -94,18 +94,18 @@ Order matches the home page top-to-bottom. Section IDs are anchor names for the 
 
 Two-column grid, 1fr / 1.15fr at ≥980px, single-column below.
 
-- **Left column**: pill ("Любые заметки · ИИ-пространство") → serif h1 ("Рабочая память команды *с ИИ-поиском*") with italic orange `<em>` on "с ИИ-поиском" → body lede → primary CTA "Начать бесплатно" (signed-in users see "Открыть рабочее пространство" as today) and secondary "Смотреть тарифы" (hidden when signed in) → trust row (3 dot-prefixed lines: "Без банковской карты", "Публичные ссылки", "ИИ по вашим данным").
+- **Left column**: pill ("Любые заметки · ИИ-пространство") → serif h1 ("Рабочая память команды _с ИИ-поиском_") with italic orange `<em>` on "с ИИ-поиском" → body lede → primary CTA "Начать бесплатно" (signed-in users see "Открыть рабочее пространство" as today) and secondary "Смотреть тарифы" (hidden when signed in) → trust row (3 dot-prefixed lines: "Без банковской карты", "Публичные ссылки", "ИИ по вашим данным").
 - **Right column**: "stage" — three origami shapes (rhombus top-left, triangle bottom-right, dark circle bottom-left) absolutely positioned around a workspace preview card.
 - **Workspace preview card**: realistic mirror of `/workspaces/{id}`:
   - Browser chrome bar with three LEDs and URL `любые-заметки.app / workspaces / база-знаний`.
-  - Sidebar (168px): workspace icon (gradient teal box, 📒) + name "База знаний" + plan chip "Бесплатный". Below: "Поиск и чаты" row, "Настройки" row, "Избранное" section with one item (⭐ Roadmap 2026), "Страницы" tree section with items (📝 Заметки встреч, 📄 Стратегия 2026 expanded → 🎯 Q2 цели *active* + 📊 Метрики, 🎨 Архитектура, 🌳 Команда). Footer: "Корзина".
+  - Sidebar (168px): workspace icon (gradient teal box, 📒) + name "База знаний" + plan chip "Бесплатный". Below: "Поиск и чаты" row, "Настройки" row, "Избранное" section with one item (⭐ Roadmap 2026), "Страницы" tree section with items (📝 Заметки встреч, 📄 Стратегия 2026 expanded → 🎯 Q2 цели _active_ + 📊 Метрики, 🎨 Архитектура, 🌳 Команда). Footer: "Корзина".
   - Main: toolbar with breadcrumbs "База знаний / Стратегия 2026 / Q2 цели" → page-icon emoji 🎯 in orange-tint square → serif h5 "Q2 цели" → seven editor lines + one h3 mock.
   - AI panel pinned bottom-right of main: dark card with question "Что мы обещали в марте?", short answer, two source items (📄 Стратегия 2026, 📝 Заметка встречи 18.03). Carries the `scan` animation.
 - The misleading "контекст найден в N источниках" badge from the current page is removed; sources now live inside the AI panel.
 
 ### 2. Market-fit ("Почему это важно")
 
-Editorial three-row table on paper. Eyebrow → serif h2 ("Команда покупает не хранилище — *а быстрый доступ к контексту*") → lede → three rows.
+Editorial three-row table on paper. Eyebrow → serif h2 ("Команда покупает не хранилище — _а быстрый доступ к контексту_") → lede → three rows.
 
 Each row: 3-column grid `200px 0.85fr 1fr`, baseline-aligned, 32px vertical padding, hairline border-bottom. Row hover shifts content `padding-left: 12px` over 250ms.
 
@@ -119,7 +119,7 @@ Mobile: collapses to single column with 8px gap, padding-shift disabled.
 
 White card on paper, `1fr 1fr` modes-head/grid layout at ≥980px.
 
-Left column: eyebrow "РАБОЧЕЕ ПРОСТРАНСТВО", serif h2 "Один продукт — *четыре режима работы*", lede.
+Left column: eyebrow "РАБОЧЕЕ ПРОСТРАНСТВО", serif h2 "Один продукт — _четыре режима работы_", lede.
 
 Right column: 2×2 card grid (single column on mobile). Each card: 38×38 orange-tinted icon box with emoji → serif h6 → body → mini-illustration in 100px-tall paper-tinted box.
 
@@ -136,7 +136,7 @@ Hover: card background `#fff → var(--paper)`.
 
 Two-column `0.9fr 1.1fr` on paper.
 
-- **Left**: eyebrow "ИИ-ПОИСК" → h2 "Ответ должен приходить из ваших документов — *не из догадок*" → lede → 4-step list. Each step is `[28px circle with mono number]  text`. Steps:
+- **Left**: eyebrow "ИИ-ПОИСК" → h2 "Ответ должен приходить из ваших документов — _не из догадок_" → lede → 4-step list. Each step is `[28px circle with mono number]  text`. Steps:
   1. Загрузите документы, заметки и вложения команды
   2. Разложите их по рабочим пространствам и страницам
   3. Задайте вопрос обычными словами
@@ -145,28 +145,28 @@ Two-column `0.9fr 1.1fr` on paper.
 
 ### 5. Что ещё
 
-New section. Paper background, eyebrow "ВОЗМОЖНОСТИ", serif h2 "Что ещё *стоит знать*", lede.
+New section. Paper background, eyebrow "ВОЗМОЖНОСТИ", serif h2 "Что ещё _стоит знать_", lede.
 
 3-column × 2-row grid below at ≥880px (2 cols at 560–880, 1 col below). Each card is column-stack: emoji 22px → serif h6 (20px) → body 14px (max 320px wide). No card border, no background — just typography and rhythm; emulates the reference screenshot but with our typeface and copy.
 
 Six items:
 
-| Icon | Title | Body |
-|---|---|---|
-| ⚡ | Мгновенный редактор | Документы и холсты открываются за доли секунды — Tiptap + кеш страниц вместо ожидания загрузки. |
-| 🤝 | Несколько курсоров на странице | Команда редактирует одну страницу одновременно — без конфликтов и пересохранений. |
-| 🌗 | Светлая и тёмная тема | Интерфейс адаптируется под систему или переключается вручную — глаза не устают в любое время. |
-| 🔐 | Гранулярные права | Чтение или запись для участников, групп и гостей — каждому даёте ровно столько доступа, сколько нужно. |
-| 🔗 | Публичные ссылки | Откройте страницу одной ссылкой — без регистрации для читателя и без рассылок «вот файл в почту». |
-| 🛡️ | Без санкционных рисков | Российский хостинг и self-hosted-сборка — продукт работает в любой ситуации, ваши данные остаются у вас. |
+| Icon | Title                          | Body                                                                                                     |
+| ---- | ------------------------------ | -------------------------------------------------------------------------------------------------------- |
+| ⚡   | Мгновенный редактор            | Документы и холсты открываются за доли секунды — Tiptap + кеш страниц вместо ожидания загрузки.          |
+| 🤝   | Несколько курсоров на странице | Команда редактирует одну страницу одновременно — без конфликтов и пересохранений.                        |
+| 🌗   | Светлая и тёмная тема          | Интерфейс адаптируется под систему или переключается вручную — глаза не устают в любое время.            |
+| 🔐   | Гранулярные права              | Чтение или запись для участников, групп и гостей — каждому даёте ровно столько доступа, сколько нужно.   |
+| 🔗   | Публичные ссылки               | Откройте страницу одной ссылкой — без регистрации для читателя и без рассылок «вот файл в почту».        |
+| 🛡️   | Без санкционных рисков         | Российский хостинг и self-hosted-сборка — продукт работает в любой ситуации, ваши данные остаются у вас. |
 
-Copy is *paraphrased* from the reference screenshot, not copied — titles and bodies all rewritten.
+Copy is _paraphrased_ from the reference screenshot, not copied — titles and bodies all rewritten.
 
 ### 6. Тарифы
 
 Dark Claude section (`#1d1d1b`). `0.7fr 1.3fr` head/grid layout.
 
-Left: eyebrow "ТАРИФЫ", h2 "Начните бесплатно — *расширяйте по мере роста*", outline button "Сравнить планы" → `/pricing`.
+Left: eyebrow "ТАРИФЫ", h2 "Начните бесплатно — _расширяйте по мере роста_", outline button "Сравнить планы" → `/pricing`.
 
 Right: 4-column pricing grid in 2×2 on tablet, 1col on mobile, with hairline borders top + left so each cell becomes a clean grid cell.
 
@@ -182,7 +182,7 @@ Each plan column (data from `landingPricingCards`):
 Plan list (locked):
 
 1. Персональный — Бесплатно — 1 пространство, базовый редактор
-2. ПРО — от 150 ₽/мес — 3 пространства, до 5 участников, **Чаты с ИИ**, индексация *(rename "AI" → "ИИ" in `content.ts`)*
+2. ПРО — от 150 ₽/мес — 3 пространства, до 5 участников, **Чаты с ИИ**, индексация _(rename "AI" → "ИИ" in `content.ts`)_
 3. МАКС — от 1500 ₽/мес — ∞ пространств, до 100, все модели GigaChat, MCP-серверы
 4. Своя инфраструктура — Связаться — Self-hosted, SLA, индивидуальные интеграции
 
@@ -190,7 +190,7 @@ Plan list (locked):
 
 White section, `1fr 1.1fr` two-column at ≥980px.
 
-- **Left**: eyebrow "ОСОБОЕ РЕШЕНИЕ", h2 "Нужна *нестандартная конфигурация?*", lede explaining on-prem / SSO / custom plans, plus an origami illustration block (rhombus + triangle + dark circle) with a small white quote card overlapping the bottom-right ("Среднее время ответа — связались в тот же день и собрали стенд за неделю").
+- **Left**: eyebrow "ОСОБОЕ РЕШЕНИЕ", h2 "Нужна _нестандартная конфигурация?_", lede explaining on-prem / SSO / custom plans, plus an origami illustration block (rhombus + triangle + dark circle) with a small white quote card overlapping the bottom-right ("Среднее время ответа — связались в тот же день и собрали стенд за неделю").
 - **Right**: form card on white with `0 24px 48px rgba(0,0,0,0.06)` shadow.
   - Row 1: Имя / Компания
   - Row 2: Телефон / E-mail
@@ -207,7 +207,7 @@ Paper-gradient section (same gradient as hero) with two large origami decor piec
 - Big rhombus (260×260, orange gradient, right edge bleeding `-60px`, vertically centered).
 - Dark circle (80×80, bottom-left corner).
 
-Content `1fr auto` grid at ≥880px: serif h3 "Перенесите рабочие знания туда, *где их можно найти*" + body lede on the left, large "Начать бесплатно →" button right-aligned. Mobile: stacked, button full-width.
+Content `1fr auto` grid at ≥880px: serif h3 "Перенесите рабочие знания туда, _где их можно найти_" + body lede on the left, large "Начать бесплатно →" button right-aligned. Mobile: stacked, button full-width.
 
 Primary CTA href flips to `/app` for signed-in users (matching current `primaryHref` logic).
 
@@ -267,6 +267,7 @@ The `origami.tsx` primitive accepts `size`, `variant` (`rhombus | triangle | cir
 Each section is a Server Component except `home-contact` (form is interactive, has `"use client"`).
 
 Reasons for the split:
+
 - The 908-line file is hard to scan and AI-edit; per-section files allow surgical changes.
 - Section components become discoverable for future iteration / A-B tests.
 - It keeps the rebrand diff readable — the section structure is committed first, then each file repainted.

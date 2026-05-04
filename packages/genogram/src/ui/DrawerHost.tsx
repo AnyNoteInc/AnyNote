@@ -20,6 +20,7 @@ import {
 } from '../yjs/actions'
 import type { PersonDataDraft, UnionDraft } from '../yjs/actions'
 import { assembleDomain } from '../yjs/assembleDomain'
+import type { GenogramPageData } from '../types/page'
 import { getBaseOf, countPartnersOf, getChildGroupOf } from '../model/computed'
 
 interface Props {
@@ -31,7 +32,7 @@ interface Props {
 const DRAWER_WIDTH = 360
 
 const TITLES: Record<DrawerState['mode'], string> = {
-  'closed': '',
+  closed: '',
   'create-genogram': RU.drawer.titleCreate,
   'edit-data': RU.drawer.titleEditData,
   'edit-owner-data': RU.drawer.titleEditOwner,
@@ -40,7 +41,7 @@ const TITLES: Record<DrawerState['mode'], string> = {
   'add-children': RU.drawer.titleAddChildren,
 }
 
-export function DrawerHost({ doc, drawer, onClose }: Props) {
+export function DrawerHost({ doc, drawer, onClose }: Readonly<Props>) {
   const open = drawer.mode !== 'closed'
   return (
     <Drawer
@@ -92,7 +93,12 @@ function renderForm(doc: Y.Doc, drawer: DrawerState, onClose: () => void) {
         onSubmit={(d) => {
           updatePerson(doc, drawer.personId, {
             sex: d.sex,
-            identity: { ...owner.identity, firstName: d.firstName, lastName: d.lastName, middleName: d.middleName },
+            identity: {
+              ...owner.identity,
+              firstName: d.firstName,
+              lastName: d.lastName,
+              middleName: d.middleName,
+            },
             lifeDates: { ...owner.lifeDates, birthDate: d.birthDate },
           })
           onClose()
@@ -102,63 +108,7 @@ function renderForm(doc: Y.Doc, drawer: DrawerState, onClose: () => void) {
   }
 
   if (drawer.mode === 'edit-data') {
-    const p = domain.entities.people[drawer.personId]
-    if (!p) return null
-    const baseId = getBaseOf(drawer.personId, domain.entities.unions)
-    const totalPartnersOfBase = baseId ? countPartnersOf(baseId, domain.entities.unions) : 0
-    const isPartnerOfMultiBase = totalPartnersOfBase > 1
-    const childGroup = getChildGroupOf(drawer.personId, domain.entities.childGroups)
-    const isChild = !!childGroup
-    const childOrder = childGroup
-      ? childGroup.children.findIndex((c) => c.kind === 'person' && c.personId === drawer.personId) + 1
-      : undefined
-    return (
-      <PersonDataForm
-        initial={{
-          sex: p.sex,
-          firstName: p.identity.firstName,
-          lastName: p.identity.lastName,
-          middleName: p.identity.middleName,
-          birthMode: p.lifeDates.birthMode,
-          lifeStatus: p.lifeDates.lifeStatus,
-          birthDate: p.lifeDates.birthDate,
-          approximateAge: p.lifeDates.approximateAge,
-          deathDate: p.lifeDates.deathDate,
-          tragically: p.lifeDates.tragically,
-          partnerOrder: p.partnerOrder,
-        }}
-        context={{
-          kind: 'edit-data',
-          isPartnerOfMultiBase,
-          totalPartnersOfBase: totalPartnersOfBase || undefined,
-          isChild,
-          childOrder,
-          siblingsCount: childGroup?.children.length,
-        }}
-        onCancel={onClose}
-        onSubmit={(d) => {
-          updatePerson(doc, drawer.personId, {
-            sex: d.sex,
-            identity: { ...p.identity, firstName: d.firstName, lastName: d.lastName, middleName: d.middleName },
-            lifeDates: {
-              birthMode: d.birthMode,
-              lifeStatus: d.lifeStatus,
-              birthDate: d.birthDate,
-              approximateAge: d.approximateAge,
-              deathDate: d.deathDate,
-              tragically: d.tragically,
-            },
-          })
-          if (d.partnerOrder !== undefined && d.partnerOrder !== p.partnerOrder) {
-            setPartnerOrder(doc, drawer.personId, d.partnerOrder)
-          }
-          if (d.childOrder !== undefined && d.childOrder !== childOrder) {
-            setChildOrder(doc, drawer.personId, d.childOrder)
-          }
-          onClose()
-        }}
-      />
-    )
+    return renderEditDataForm(doc, drawer.personId, domain, onClose)
   }
 
   if (drawer.mode === 'add-partner') {
@@ -227,6 +177,76 @@ function renderForm(doc: Y.Doc, drawer: DrawerState, onClose: () => void) {
   return null
 }
 
+function renderEditDataForm(
+  doc: Y.Doc,
+  personId: PersonId,
+  domain: GenogramPageData,
+  onClose: () => void,
+) {
+  const p = domain.entities.people[personId]
+  if (!p) return null
+  const baseId = getBaseOf(personId, domain.entities.unions)
+  const totalPartnersOfBase = baseId ? countPartnersOf(baseId, domain.entities.unions) : 0
+  const isPartnerOfMultiBase = totalPartnersOfBase > 1
+  const childGroup = getChildGroupOf(personId, domain.entities.childGroups)
+  const isChild = !!childGroup
+  const childOrder = childGroup
+    ? childGroup.children.findIndex((c) => c.kind === 'person' && c.personId === personId) + 1
+    : undefined
+  return (
+    <PersonDataForm
+      initial={{
+        sex: p.sex,
+        firstName: p.identity.firstName,
+        lastName: p.identity.lastName,
+        middleName: p.identity.middleName,
+        birthMode: p.lifeDates.birthMode,
+        lifeStatus: p.lifeDates.lifeStatus,
+        birthDate: p.lifeDates.birthDate,
+        approximateAge: p.lifeDates.approximateAge,
+        deathDate: p.lifeDates.deathDate,
+        tragically: p.lifeDates.tragically,
+        partnerOrder: p.partnerOrder,
+      }}
+      context={{
+        kind: 'edit-data',
+        isPartnerOfMultiBase,
+        totalPartnersOfBase: totalPartnersOfBase || undefined,
+        isChild,
+        childOrder,
+        siblingsCount: childGroup?.children.length,
+      }}
+      onCancel={onClose}
+      onSubmit={(d) => {
+        updatePerson(doc, personId, {
+          sex: d.sex,
+          identity: {
+            ...p.identity,
+            firstName: d.firstName,
+            lastName: d.lastName,
+            middleName: d.middleName,
+          },
+          lifeDates: {
+            birthMode: d.birthMode,
+            lifeStatus: d.lifeStatus,
+            birthDate: d.birthDate,
+            approximateAge: d.approximateAge,
+            deathDate: d.deathDate,
+            tragically: d.tragically,
+          },
+        })
+        if (d.partnerOrder !== undefined && d.partnerOrder !== p.partnerOrder) {
+          setPartnerOrder(doc, personId, d.partnerOrder)
+        }
+        if (d.childOrder !== undefined && d.childOrder !== childOrder) {
+          setChildOrder(doc, personId, d.childOrder)
+        }
+        onClose()
+      }}
+    />
+  )
+}
+
 // AddPartnerForm composite — combines PersonDataForm + MarriageRelationForm in embedded mode
 function AddPartnerForm({
   doc,
@@ -234,13 +254,13 @@ function AddPartnerForm({
   existingPartnersOfBase,
   onCancel,
   onSubmit,
-}: {
+}: Readonly<{
   doc: Y.Doc
   basePersonId: PersonId
   existingPartnersOfBase: number
   onCancel: () => void
   onSubmit: () => void
-}) {
+}>) {
   // Use refs so the save-button click closure always reads the latest draft
   // regardless of whether React has re-rendered since the last onChange call.
   const personDraftRef = useRef<PersonDataDraft & { partnerCount?: number }>({

@@ -64,7 +64,10 @@ export function calcAge(
     refPartial.month !== undefined
   ) {
     let age = refPartial.year - birth.year
-    if (refPartial.month < birth.month || (refPartial.month === birth.month && refPartial.day < birth.day)) {
+    if (
+      refPartial.month < birth.month ||
+      (refPartial.month === birth.month && refPartial.day < birth.day)
+    ) {
       age -= 1
     }
     return age

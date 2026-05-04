@@ -45,7 +45,15 @@ export function PublicHeader({ session }: PublicHeaderProps) {
           <Box sx={{ position: 'relative', width: 28, height: 28, flexShrink: 0 }}>
             <Origami variant="rhombus" size={28} gradient="warm" style={{ position: 'static' }} />
           </Box>
-          <Typography sx={{ fontFamily: 'var(--font-serif), Georgia, serif', fontSize: 17, fontWeight: 500, lineHeight: 1.1, letterSpacing: '-0.01em' }}>
+          <Typography
+            sx={{
+              fontFamily: 'var(--font-serif), Georgia, serif',
+              fontSize: 17,
+              fontWeight: 500,
+              lineHeight: 1.1,
+              letterSpacing: '-0.01em',
+            }}
+          >
             Любые заметки
           </Typography>
         </Link>

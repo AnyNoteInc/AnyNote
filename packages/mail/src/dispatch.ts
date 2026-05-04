@@ -1,8 +1,8 @@
 import 'server-only'
 import { Prisma, type PrismaClient } from '@repo/db'
-import type { MailEventPayload, MailKind, MailPayloads } from './types.js'
-import { renderTemplate } from './templates/index.js'
-import { getMailTransport } from './transport.js'
+import type { MailEventPayload, MailKind, MailPayloads } from './types.ts'
+import { renderTemplate } from './templates/index.ts'
+import { getMailTransport } from './transport.ts'
 
 export type DispatchResult = {
   processed: number
@@ -54,13 +54,7 @@ export async function dispatchPending(
         await markDone(prisma, row.id)
         succeeded += 1
       } catch (err) {
-        const result = await markFailedOrRetry(
-          prisma,
-          row.id,
-          row.attempts,
-          opts.maxAttempts,
-          err,
-        )
+        const result = await markFailedOrRetry(prisma, row.id, row.attempts, opts.maxAttempts, err)
         if (result === 'retried') retried += 1
         else failed += 1
       }
@@ -72,10 +66,7 @@ export async function dispatchPending(
 
 type RawRow = { id: bigint; payload: MailEventPayload; attempts: number }
 
-async function claimBatch(
-  prisma: PrismaClient,
-  opts: DispatchOptions,
-): Promise<ClaimedRow[]> {
+async function claimBatch(prisma: PrismaClient, opts: DispatchOptions): Promise<ClaimedRow[]> {
   return prisma.$transaction(async (tx) => {
     const rows = await tx.$queryRaw<RawRow[]>(Prisma.sql`
       SELECT id, payload, attempts

@@ -2,8 +2,11 @@
 
 import { useForm } from 'react-hook-form'
 import {
+  Box,
   Button,
+  Checkbox,
   Divider,
+  FormControlLabel,
   KeyboardDoubleArrowLeftIcon,
   Stack,
   TextField,
@@ -18,15 +21,23 @@ export type RegisterFormValues = {
   lastName: string
   password: string
   confirmPassword: string
+  agreedToTerms: boolean
 }
 
-export type RegisterSubmitPayload = Omit<RegisterFormValues, 'confirmPassword'>
+export type RegisterSubmitPayload = Omit<RegisterFormValues, 'confirmPassword' | 'agreedToTerms'>
+
+export type TermsUrls = {
+  userAgreement: string
+  privacyPolicy: string
+  publicOffer: string
+}
 
 export type RegisterFormProps = {
   defaultValues?: Partial<RegisterFormValues>
   onSubmit?: (values: RegisterSubmitPayload) => Promise<void>
   signInHref?: string
   isSubmitting?: boolean
+  termsUrls?: TermsUrls
 }
 
 export function RegisterForm({
@@ -34,13 +45,15 @@ export function RegisterForm({
   onSubmit,
   signInHref = '/sign-in',
   isSubmitting,
-}: RegisterFormProps) {
+  termsUrls,
+}: Readonly<RegisterFormProps>) {
   const formDefaults: RegisterFormValues = {
     email: '',
     lastName: '',
     firstName: '',
     password: '',
     confirmPassword: '',
+    agreedToTerms: false,
     ...defaultValues,
   }
 
@@ -57,15 +70,16 @@ export function RegisterForm({
 
   const submitting = isSubmitting ?? rhfSubmitting
 
-  const handleFormSubmit = handleSubmit(async ({ confirmPassword, ...values }) => {
-    if (values.password !== confirmPassword) {
+  const handleFormSubmit = handleSubmit(async (formValues) => {
+    if (formValues.password !== formValues.confirmPassword) {
       setError('confirmPassword', {
         type: 'validate',
         message: 'Пароли не совпадают',
       })
       return
     }
-    await onSubmit?.(values)
+    const { email, firstName, lastName, password } = formValues
+    await onSubmit?.({ email, firstName, lastName, password })
   })
 
   return (
@@ -138,6 +152,61 @@ export function RegisterForm({
             Назад ко входу
           </Typography>
         </Stack>
+        {termsUrls ? (
+          <Box>
+            <FormControlLabel
+              control={
+                <Checkbox
+                  {...register('agreedToTerms', {
+                    required: 'Необходимо принять условия',
+                  })}
+                  size="small"
+                  data-testid="register-terms-checkbox"
+                />
+              }
+              sx={{ alignItems: 'flex-start', m: 0 }}
+              label={
+                <Typography variant="body2" color="text.secondary" sx={{ pt: 0.75 }}>
+                  Я принимаю{' '}
+                  <Box
+                    component="a"
+                    href={termsUrls.userAgreement}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{ color: 'primary.main' }}
+                  >
+                    пользовательское соглашение
+                  </Box>
+                  ,{' '}
+                  <Box
+                    component="a"
+                    href={termsUrls.privacyPolicy}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{ color: 'primary.main' }}
+                  >
+                    политику обработки персональных данных
+                  </Box>{' '}
+                  и{' '}
+                  <Box
+                    component="a"
+                    href={termsUrls.publicOffer}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{ color: 'primary.main' }}
+                  >
+                    оферту на оказание услуг
+                  </Box>
+                </Typography>
+              }
+            />
+            {errors.agreedToTerms ? (
+              <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5, ml: 4 }}>
+                {errors.agreedToTerms.message}
+              </Typography>
+            ) : null}
+          </Box>
+        ) : null}
         <Button type="submit" variant="contained" size="large" disabled={submitting}>
           Зарегистрироваться
         </Button>
