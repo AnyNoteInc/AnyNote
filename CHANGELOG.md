@@ -1,3 +1,10 @@
+## [1.0.9](https://github.com/AnyNoteInc/AnyNote/compare/v1.0.8...v1.0.9) (2026-05-04)
+
+
+### Bug Fixes
+
+* **deploy:** set ENVIRONMENT=prod for agents (pydantic Literal['dev','test','prod']) ([88dd85e](https://github.com/AnyNoteInc/AnyNote/commit/88dd85efdfe336cc247e9c892fae8b7ac1f0f3d6))
+
 ## [1.0.8](https://github.com/AnyNoteInc/AnyNote/compare/v1.0.7...v1.0.8) (2026-05-04)
 
 
