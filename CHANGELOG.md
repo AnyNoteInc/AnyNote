@@ -1,3 +1,10 @@
+# [1.2.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.1.6...v1.2.0) (2026-05-05)
+
+
+### Features
+
+* **mail:** send verification, reset, and resend emails synchronously ([#4](https://github.com/AnyNoteInc/AnyNote/issues/4)) ([ff83068](https://github.com/AnyNoteInc/AnyNote/commit/ff830685a8e94b1c0c8ca15f05337ffd6a87a8a3))
+
 ## [1.1.6](https://github.com/AnyNoteInc/AnyNote/compare/v1.1.5...v1.1.6) (2026-05-05)
 
 
