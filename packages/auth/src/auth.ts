@@ -1,3 +1,5 @@
+import { AsyncLocalStorage } from 'node:async_hooks'
+
 import { betterAuth } from 'better-auth'
 import { prismaAdapter } from 'better-auth/adapters/prisma'
 import {
@@ -11,7 +13,20 @@ import {
 import { nextCookies } from 'better-auth/next-js'
 
 import { prisma, SubscriptionStatus } from '@repo/db'
-import { enqueueMailEvent } from '@repo/mail'
+import { enqueueMailEvent, sendMailNow } from '@repo/mail'
+
+type VerificationEmailContext = { skipUserCleanupOnFailure: boolean }
+const verificationEmailContext = new AsyncLocalStorage<VerificationEmailContext>()
+
+/**
+ * Run a callback that triggers `sendVerificationEmail` without the default
+ * sign-up-flow side effect of deleting the user on send failure. Used by the
+ * resend-from-settings flow where the user already exists and shouldn't be
+ * removed if SMTP is briefly down.
+ */
+export function withVerificationResendContext<T>(fn: () => Promise<T>): Promise<T> {
+  return verificationEmailContext.run({ skipUserCleanupOnFailure: true }, fn)
+}
 
 const VERIFY_EXPIRES_S = 60 * 60 * 3
 
@@ -30,16 +45,24 @@ const auth = betterAuth({
       const userWithName = user as { firstName?: string; email: string; id: string }
       const link = `${appUrl()}/reset-credentials/${token}`
       const expiresAtIso = new Date(Date.now() + VERIFY_EXPIRES_S * 1000).toISOString()
-      await enqueueMailEvent(prisma, {
-        kind: 'reset-password',
-        to: userWithName.email,
-        data: {
-          firstName: userWithName.firstName ?? '',
-          link,
-          expiresAtIso,
-        },
-        userId: userWithName.id,
-      })
+      try {
+        await sendMailNow({
+          kind: 'reset-password',
+          to: userWithName.email,
+          data: {
+            firstName: userWithName.firstName ?? '',
+            link,
+            expiresAtIso,
+          },
+        })
+      } catch (err) {
+        // better-auth stores reset tokens with identifier `reset-password:<token>`
+        // (see better-auth/dist/api/routes/password.mjs). Match on that exact key.
+        await prisma.verification
+          .deleteMany({ where: { identifier: `reset-password:${token}` } })
+          .catch(() => {})
+        throw err
+      }
     },
   },
   emailVerification: {
@@ -49,16 +72,23 @@ const auth = betterAuth({
     sendVerificationEmail: async ({ user, url }) => {
       const expiresAtIso = new Date(Date.now() + VERIFY_EXPIRES_S * 1000).toISOString()
       const userWithName = user as { firstName?: string; email: string; id: string }
-      await enqueueMailEvent(prisma, {
-        kind: 'verify-email',
-        to: userWithName.email,
-        data: {
-          firstName: userWithName.firstName ?? '',
-          link: url,
-          expiresAtIso,
-        },
-        userId: userWithName.id,
-      })
+      try {
+        await sendMailNow({
+          kind: 'verify-email',
+          to: userWithName.email,
+          data: {
+            firstName: userWithName.firstName ?? '',
+            link: url,
+            expiresAtIso,
+          },
+        })
+      } catch (err) {
+        const ctx = verificationEmailContext.getStore()
+        if (!ctx?.skipUserCleanupOnFailure) {
+          await prisma.user.delete({ where: { id: userWithName.id } }).catch(() => {})
+        }
+        throw err
+      }
     },
     afterEmailVerification: async (user) => {
       const userWithName = user as { firstName?: string; email: string; id: string }

@@ -1,6 +1,8 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 
+import { auth, withVerificationResendContext } from '@repo/auth'
+
 import { router, protectedProcedure } from '../trpc'
 
 const ThemeSchema = z.enum(['light', 'dark', 'system'])
@@ -83,4 +85,25 @@ export const userRouter = router({
       await ctx.prisma.session.delete({ where: { id: input.sessionId } })
       return { ok: true }
     }),
+
+  resendVerificationEmail: protectedProcedure.mutation(async ({ ctx }) => {
+    if (ctx.user.emailVerified) {
+      throw new TRPCError({
+        code: 'BAD_REQUEST',
+        message: 'Email уже подтверждён',
+      })
+    }
+    try {
+      await withVerificationResendContext(() =>
+        auth.api.sendVerificationEmail({
+          body: { email: ctx.user.email },
+          headers: ctx.headers,
+        }),
+      )
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Не удалось отправить письмо'
+      throw new TRPCError({ code: 'INTERNAL_SERVER_ERROR', message })
+    }
+    return { ok: true }
+  }),
 })
