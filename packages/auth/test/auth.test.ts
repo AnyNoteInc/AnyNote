@@ -206,6 +206,15 @@ describe('auth callbacks', () => {
     })
   })
 
+  it('better-auth jwt plugin uses BETTER_AUTH_JWT_AUDIENCE as the aud claim', async () => {
+    vi.resetModules()
+    vi.stubEnv('BETTER_AUTH_JWT_AUDIENCE', 'anynote-yjs-test')
+    const { auth: scopedAuth } = await import('../src/auth.js')
+    type JwtPlugin = { id: string; options?: { jwt?: { audience?: string; issuer?: string } } }
+    const jwtPlugin = (scopedAuth.options.plugins as JwtPlugin[]).find((p) => p.id === 'jwt')
+    expect(jwtPlugin?.options?.jwt?.audience).toBe('anynote-yjs-test')
+  })
+
   it('stores long OAuth tokens for social accounts', async () => {
     const email = `long-oauth-token${TAG}`
     const user = await prisma.user.create({

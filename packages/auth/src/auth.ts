@@ -133,6 +133,7 @@ const auth = betterAuth({
     jwt({
       jwt: {
         issuer: process.env.BETTER_AUTH_URL,
+        audience: process.env.BETTER_AUTH_JWT_AUDIENCE,
       },
     }),
     lastLoginMethod(),
