@@ -1,3 +1,10 @@
+## [1.1.6](https://github.com/AnyNoteInc/AnyNote/compare/v1.1.5...v1.1.6) (2026-05-05)
+
+
+### Bug Fixes
+
+* **excalidraw:** pass loaded elements via initialData to prevent binding-startup wipe ([f5bac98](https://github.com/AnyNoteInc/AnyNote/commit/f5bac9831da80b778742447756b012dc853ea7f9))
+
 ## [1.1.5](https://github.com/AnyNoteInc/AnyNote/compare/v1.1.4...v1.1.5) (2026-05-05)
 
 
