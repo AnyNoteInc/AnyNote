@@ -1,3 +1,10 @@
+## [1.1.5](https://github.com/AnyNoteInc/AnyNote/compare/v1.1.4...v1.1.5) (2026-05-05)
+
+
+### Bug Fixes
+
+* **auth:** set audience on better-auth jwt plugin so yjs verifyJwt accepts the token ([56cc14d](https://github.com/AnyNoteInc/AnyNote/commit/56cc14d236ce76449863325b43395459e1b8a8ae))
+
 ## [1.1.4](https://github.com/AnyNoteInc/AnyNote/compare/v1.1.3...v1.1.4) (2026-05-04)
 
 
