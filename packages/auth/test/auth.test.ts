@@ -1,4 +1,15 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+
+const sendMailNowMock = vi.fn<(args: unknown) => Promise<void>>(async () => {})
+
+vi.mock('@repo/mail', async () => {
+  const actual = await vi.importActual<typeof import('@repo/mail')>('@repo/mail')
+  return {
+    ...actual,
+    sendMailNow: (args: unknown) => sendMailNowMock(args),
+  }
+})
+
 import { prisma, SubscriptionStatus } from '@repo/db'
 import { auth } from '../src/auth.js'
 
@@ -17,11 +28,22 @@ async function cleanup(): Promise<void> {
   await prisma.account.deleteMany({
     where: { user: { email: { contains: TAG } } },
   })
+  const usersInRange = await prisma.user.findMany({
+    where: { email: { contains: TAG } },
+    select: { id: true },
+  })
+  if (usersInRange.length > 0) {
+    await prisma.verification.deleteMany({
+      where: { value: { in: usersInRange.map((u) => u.id) } },
+    })
+  }
   await prisma.user.deleteMany({ where: { email: { contains: TAG } } })
 }
 
 describe('auth callbacks', () => {
   beforeEach(async () => {
+    sendMailNowMock.mockReset()
+    sendMailNowMock.mockResolvedValue(undefined)
     await cleanup()
   })
 
@@ -30,7 +52,7 @@ describe('auth callbacks', () => {
     vi.unstubAllEnvs()
   })
 
-  it('signUpEmail enqueues verify-email event', async () => {
+  it('signUpEmail sends verify-email synchronously via sendMailNow', async () => {
     const email = `vsignup${TAG}`
     await auth.api.signUpEmail({
       body: {
@@ -41,18 +63,36 @@ describe('auth callbacks', () => {
         lastName: 'User',
       },
     })
-    const evt = await prisma.outboxEvent.findFirstOrThrow({
-      where: {
-        aggregateType: 'email',
-        payload: { path: ['to'], equals: email },
-      },
-    })
-    const payload = evt.payload as { kind: string; data: { link: string; expiresAtIso: string } }
-    expect(payload.kind).toBe('verify-email')
-    expect(payload.data.link).toContain('/api/auth/verify-email')
-    const expiresAt = new Date(payload.data.expiresAtIso).getTime()
+    expect(sendMailNowMock).toHaveBeenCalledTimes(1)
+    const args = sendMailNowMock.mock.calls[0][0] as {
+      kind: string
+      to: string
+      data: { link: string; expiresAtIso: string }
+    }
+    expect(args.kind).toBe('verify-email')
+    expect(args.to).toBe(email)
+    expect(args.data.link).toContain('/api/auth/verify-email')
+    const expiresAt = new Date(args.data.expiresAtIso).getTime()
     const expected = Date.now() + 1000 * 60 * 60 * 3
     expect(Math.abs(expiresAt - expected)).toBeLessThan(60_000)
+  })
+
+  it('signUpEmail rolls back the user when verify-email send fails', async () => {
+    const email = `vfail${TAG}`
+    sendMailNowMock.mockRejectedValueOnce(new Error('SMTP down'))
+    await expect(
+      auth.api.signUpEmail({
+        body: {
+          email,
+          password: 'StrongPass123!',
+          name: 'Test User',
+          firstName: 'Test',
+          lastName: 'User',
+        },
+      }),
+    ).rejects.toThrow()
+    const remaining = await prisma.user.findUnique({ where: { email } })
+    expect(remaining).toBeNull()
   })
 
   it('does not enqueue welcome at user.create when emailVerified=false', async () => {
@@ -94,7 +134,7 @@ describe('auth callbacks', () => {
     expect(pref).not.toBeNull()
   })
 
-  it('forgetPassword enqueues reset-password event with custom URL', async () => {
+  it('forgetPassword sends reset-password synchronously with custom URL', async () => {
     const email = `forget${TAG}`
     await auth.api.signUpEmail({
       body: {
@@ -105,27 +145,51 @@ describe('auth callbacks', () => {
         lastName: 'User',
       },
     })
-    await prisma.outboxEvent.deleteMany({
-      where: {
-        payload: { path: ['kind'], equals: 'verify-email' },
-        AND: { payload: { path: ['to'], equals: email } },
-      },
-    })
+    sendMailNowMock.mockClear()
 
     await auth.api.requestPasswordReset({ body: { email } })
 
-    const evt = await prisma.outboxEvent.findFirstOrThrow({
-      where: {
-        aggregateType: 'email',
-        payload: { path: ['kind'], equals: 'reset-password' },
-        AND: { payload: { path: ['to'], equals: email } },
+    expect(sendMailNowMock).toHaveBeenCalledTimes(1)
+    const args = sendMailNowMock.mock.calls[0][0] as {
+      kind: string
+      to: string
+      data: { link: string; expiresAtIso: string }
+    }
+    expect(args.kind).toBe('reset-password')
+    expect(args.to).toBe(email)
+    expect(args.data.link).toContain('/reset-credentials/')
+    expect(args.data.link).not.toContain('/api/auth/reset-password')
+    const expiresAt = new Date(args.data.expiresAtIso).getTime()
+    expect(expiresAt).toBeGreaterThan(Date.now())
+  })
+
+  it('forgetPassword removes the verification row when reset-password send fails', async () => {
+    const email = `forgetfail${TAG}`
+    const signUp = await auth.api.signUpEmail({
+      body: {
+        email,
+        password: 'StrongPass123!',
+        name: 'Test User',
+        firstName: 'Test',
+        lastName: 'User',
       },
     })
-    const payload = evt.payload as { data: { link: string; expiresAtIso: string } }
-    expect(payload.data.link).toContain('/reset-credentials/')
-    expect(payload.data.link).not.toContain('/api/auth/reset-password')
-    const expiresAt = new Date(payload.data.expiresAtIso).getTime()
-    expect(expiresAt).toBeGreaterThan(Date.now())
+    sendMailNowMock.mockRejectedValueOnce(new Error('SMTP down'))
+
+    // better-auth returns a generic success response on requestPasswordReset to
+    // prevent email enumeration even when our hook throws — what matters is
+    // that the verification row is cleaned up so the stale token can't be used.
+    await auth.api.requestPasswordReset({ body: { email } }).catch(() => {})
+
+    // The verification row has identifier `reset-password:<token>` and
+    // value=user.id, so checking by user id is the most reliable filter.
+    const resetVerifications = await prisma.verification.findMany({
+      where: {
+        identifier: { startsWith: 'reset-password:' },
+        value: signUp.user.id,
+      },
+    })
+    expect(resetVerifications).toHaveLength(0)
   })
 
   it('Google-style verified user welcome enqueue path is valid', async () => {

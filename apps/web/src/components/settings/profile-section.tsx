@@ -2,12 +2,12 @@
 
 import { useState } from 'react'
 
-import { Box, Button, Stack, TextField, Typography } from '@repo/ui/components'
+import { Alert, Box, Button, Stack, TextField, Typography } from '@repo/ui/components'
 
 import ProfileAvatarUploader from '@/components/profile/profile-avatar-uploader'
 import { trpc } from '@/trpc/client'
 
-type Props = {
+type Props = Readonly<{
   initial: {
     firstName: string
     lastName: string
@@ -15,13 +15,36 @@ type Props = {
     emailVerified: boolean
     image: string | null
   }
-}
+}>
 
 export function ProfileSection({ initial }: Props) {
   const [firstName, setFirstName] = useState(initial.firstName)
   const [lastName, setLastName] = useState(initial.lastName)
+  const [verifyMessage, setVerifyMessage] = useState<{
+    severity: 'success' | 'error'
+    text: string
+  } | null>(null)
   const updateProfile = trpc.user.updateProfile.useMutation()
+  const resendVerification = trpc.user.resendVerificationEmail.useMutation({
+    onSuccess: () => {
+      setVerifyMessage({
+        severity: 'success',
+        text: 'Письмо с подтверждением отправлено на ваш email',
+      })
+    },
+    onError: (error) => {
+      setVerifyMessage({
+        severity: 'error',
+        text: error.message || 'Не удалось отправить письмо. Попробуйте позже.',
+      })
+    },
+  })
   const initials = `${firstName.charAt(0)}${lastName.charAt(0)}`.toUpperCase()
+  const handleResendVerification = (): void => {
+    if (initial.emailVerified || resendVerification.isPending) return
+    setVerifyMessage(null)
+    resendVerification.mutate()
+  }
 
   return (
     <Box
@@ -61,17 +84,32 @@ export function ProfileSection({ initial }: Props) {
           Email
         </Typography>
         <Box
+          component={initial.emailVerified ? 'span' : 'button'}
+          type={initial.emailVerified ? undefined : 'button'}
+          onClick={initial.emailVerified ? undefined : handleResendVerification}
+          disabled={initial.emailVerified ? undefined : resendVerification.isPending}
+          aria-label={initial.emailVerified ? undefined : 'Отправить письмо подтверждения'}
           sx={{
             px: 1,
             py: 0.25,
+            border: 'none',
             borderRadius: 10,
             fontSize: 10,
             fontWeight: 600,
             color: initial.emailVerified ? 'success.dark' : 'warning.dark',
             backgroundColor: initial.emailVerified ? 'success.light' : 'warning.light',
+            cursor: initial.emailVerified ? 'default' : 'pointer',
+            opacity: !initial.emailVerified && resendVerification.isPending ? 0.6 : 1,
+            transition: 'opacity 0.15s ease',
+            '&:hover': initial.emailVerified
+              ? undefined
+              : { backgroundColor: 'warning.main', color: 'warning.contrastText' },
           }}
         >
-          {initial.emailVerified ? 'Подтверждён' : 'Не подтверждён'}
+          {(() => {
+            if (initial.emailVerified) return 'Подтверждён'
+            return resendVerification.isPending ? 'Отправка…' : 'Не подтверждён'
+          })()}
         </Box>
       </Stack>
       <Box
@@ -86,6 +124,11 @@ export function ProfileSection({ initial }: Props) {
       >
         <Typography variant="body2">{initial.email}</Typography>
       </Box>
+      {verifyMessage ? (
+        <Alert severity={verifyMessage.severity} sx={{ mt: 1.5 }}>
+          {verifyMessage.text}
+        </Alert>
+      ) : null}
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', mt: 3 }}>
         <Button
           variant="contained"
