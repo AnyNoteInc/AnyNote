@@ -1,10 +1,14 @@
 import { Fragment } from 'react'
 
+const REGEX_META = /[.*+?^${}()|[\]\\]/g
+
 function escapeRegex(input: string): string {
-  return input.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return input.replaceAll(REGEX_META, String.raw`\$&`)
 }
 
-export function HighlightMatches({ text, query }: { text: string; query: string }) {
+type Props = Readonly<{ text: string; query: string }>
+
+export function HighlightMatches({ text, query }: Props) {
   const trimmed = query.trim()
   if (!trimmed) return <>{text}</>
 
@@ -14,7 +18,11 @@ export function HighlightMatches({ text, query }: { text: string; query: string 
   return (
     <>
       {parts.map((part, index) =>
-        index % 2 === 1 ? <mark key={index}>{part}</mark> : <Fragment key={index}>{part}</Fragment>,
+        index % 2 === 1 ? (
+          <mark key={`m-${index}-${part}`}>{part}</mark>
+        ) : (
+          <Fragment key={`p-${index}-${part}`}>{part}</Fragment>
+        ),
       )}
     </>
   )

@@ -45,8 +45,8 @@ function useDebouncedValue<T>(value: T, delayMs: number): T {
   const [debounced, setDebounced] = useState(value)
 
   useEffect(() => {
-    const timeout = window.setTimeout(() => setDebounced(value), delayMs)
-    return () => window.clearTimeout(timeout)
+    const timeout = globalThis.setTimeout(() => setDebounced(value), delayMs)
+    return () => globalThis.clearTimeout(timeout)
   }, [delayMs, value])
 
   return debounced
@@ -76,8 +76,8 @@ export function SearchDialog({
   )
 
   const invalidateHistory = useCallback(() => {
-    void utils.search.history.list.invalidate({ workspaceId })
-    void utils.page.listFavorites.invalidate({ workspaceId })
+    utils.search.history.list.invalidate({ workspaceId }).catch(() => undefined)
+    utils.page.listFavorites.invalidate({ workspaceId }).catch(() => undefined)
   }, [utils, workspaceId])
 
   const addToHistory = trpc.search.history.add.useMutation({ onSuccess: invalidateHistory })
@@ -90,13 +90,13 @@ export function SearchDialog({
   const results = searchQuery.data ?? []
 
   function navigateToPage(pageId: string, blockNumber: number | null) {
-    void addToHistory.mutateAsync({ workspaceId, pageId }).catch(() => undefined)
+    addToHistory.mutateAsync({ workspaceId, pageId }).catch(() => undefined)
     onClose()
-    const hash = blockNumber !== null ? `#${blockNumber}` : ''
-    window.setTimeout(() => router.push(`/workspaces/${workspaceId}/pages/${pageId}${hash}`), 0)
+    const hash = blockNumber === null ? '' : `#${blockNumber}`
+    globalThis.setTimeout(() => router.push(`/workspaces/${workspaceId}/pages/${pageId}${hash}`), 0)
     if (hash) {
       for (const delay of [250, 750, 1500, 2500]) {
-        window.setTimeout(() => window.dispatchEvent(new HashChangeEvent('hashchange')), delay)
+        globalThis.setTimeout(() => globalThis.dispatchEvent(new HashChangeEvent('hashchange')), delay)
       }
     }
   }

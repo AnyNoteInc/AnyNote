@@ -33,7 +33,7 @@ export function useSearchHotkey(workspaceId: string) {
       }
     }
 
-    window.addEventListener('keydown', handler, { capture: true })
-    return () => window.removeEventListener('keydown', handler, { capture: true })
+    globalThis.addEventListener('keydown', handler, { capture: true })
+    return () => globalThis.removeEventListener('keydown', handler, { capture: true })
   }, [open, router, workspaceId])
 }

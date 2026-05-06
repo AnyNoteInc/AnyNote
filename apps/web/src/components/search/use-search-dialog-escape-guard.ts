@@ -15,7 +15,7 @@ export function useSearchDialogEscapeGuard(onClose: () => void) {
       onClose()
     }
 
-    window.addEventListener('keydown', handler, { capture: true })
-    return () => window.removeEventListener('keydown', handler, { capture: true })
+    globalThis.addEventListener('keydown', handler, { capture: true })
+    return () => globalThis.removeEventListener('keydown', handler, { capture: true })
   }, [onClose])
 }
