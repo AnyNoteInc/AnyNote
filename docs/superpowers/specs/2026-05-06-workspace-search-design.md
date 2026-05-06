@@ -126,6 +126,7 @@ CREATE INDEX "Page_searchVector_idx" ON "Page" USING GIN ("searchVector");
 ```
 
 Rationale:
+
 - `setweight(..., 'A')` on title and `'B'` on content tilts ranking toward title hits.
 - `jsonb_to_tsvector(..., '["string"]')` extracts every string literal from the Tiptap
   JSON snapshot — equivalent to concatenating the text of every Tiptap text node, with no
@@ -225,8 +226,8 @@ type SearchResultItem = {
   pageId: string
   title: string
   icon: string | null
-  blockNumber: number | null  // null for non-TEXT pages or title-only matches
-  excerpt: string | null      // null for non-TEXT pages or title-only matches
+  blockNumber: number | null // null for non-TEXT pages or title-only matches
+  excerpt: string | null // null for non-TEXT pages or title-only matches
   source: 'postgres' | 'qdrant'
 }
 
@@ -257,10 +258,15 @@ export async function searchPg(
   const query = rawQuery.trim().slice(0, 200)
   if (query.length < 2) return []
 
-  const rows = await prisma.$queryRaw<Array<{
-    id: string; title: string | null; icon: string | null;
-    content: Prisma.JsonValue | null; type: string;
-  }>>`
+  const rows = await prisma.$queryRaw<
+    Array<{
+      id: string
+      title: string | null
+      icon: string | null
+      content: Prisma.JsonValue | null
+      type: string
+    }>
+  >`
     SELECT id, title, icon, content, type
     FROM "Page"
     WHERE "workspaceId" = ${workspaceId}::uuid
@@ -274,13 +280,19 @@ export async function searchPg(
   return rows.map((row) => {
     if (row.type !== 'TEXT' || !row.content) {
       return {
-        pageId: row.id, title: row.title ?? '', icon: row.icon,
-        blockNumber: null, excerpt: null, source: 'postgres',
+        pageId: row.id,
+        title: row.title ?? '',
+        icon: row.icon,
+        blockNumber: null,
+        excerpt: null,
+        source: 'postgres',
       }
     }
     const hit = findFirstMatchingBlock(row.content, query)
     return {
-      pageId: row.id, title: row.title ?? '', icon: row.icon,
+      pageId: row.id,
+      title: row.title ?? '',
+      icon: row.icon,
       blockNumber: hit?.blockNumber ?? null,
       excerpt: hit?.excerpt ?? null,
       source: 'postgres',
@@ -323,17 +335,24 @@ export async function searchQdrant(
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-workspace-id': workspaceId },
       body: JSON.stringify({
-        workspaceId, query: trimmed, limit: 10, embedding: ai.embedding,
+        workspaceId,
+        query: trimmed,
+        limit: 10,
+        embedding: ai.embedding,
       }),
       signal: AbortSignal.timeout(5000),
     })
     if (!res.ok) return []
-    const data = await res.json() as { results: Array<{ pageId: string; title: string;
-      blockNumber: number; content: string }> }
+    const data = (await res.json()) as {
+      results: Array<{ pageId: string; title: string; blockNumber: number; content: string }>
+    }
     const ids = data.results.map((r) => r.pageId)
     const pages = await prisma.page.findMany({
       where: {
-        id: { in: ids }, workspaceId, deletedAt: null, archived: false,
+        id: { in: ids },
+        workspaceId,
+        deletedAt: null,
+        archived: false,
       },
       select: { id: true, icon: true },
     })
@@ -342,11 +361,15 @@ export async function searchQdrant(
     return data.results
       .filter((r) => aliveIds.has(r.pageId))
       .map((r) => ({
-        pageId: r.pageId, title: r.title, icon: iconMap.get(r.pageId) ?? null,
-        blockNumber: r.blockNumber, excerpt: r.content, source: 'qdrant' as const,
+        pageId: r.pageId,
+        title: r.title,
+        icon: iconMap.get(r.pageId) ?? null,
+        blockNumber: r.blockNumber,
+        excerpt: r.content,
+        source: 'qdrant' as const,
       }))
   } catch {
-    return []  // soft-fail: timeout, network error, agents 5xx
+    return [] // soft-fail: timeout, network error, agents 5xx
   }
 }
 ```
@@ -368,7 +391,7 @@ search: protectedProcedure
       searchQdrant(ctx.prisma, input.workspaceId, input.query),
     ])
 
-    if (pgRes.status === 'rejected') throw pgRes.reason  // PG failure is real
+    if (pgRes.status === 'rejected') throw pgRes.reason // PG failure is real
     const pg = pgRes.value
     if (pg.length > 0) return pg
     return qdRes.status === 'fulfilled' ? qdRes.value : []
@@ -422,8 +445,12 @@ type Ctx = { open: () => void; close: () => void; isOpen: boolean }
 const SearchDialogContext = createContext<Ctx | null>(null)
 
 export function SearchDialogProvider({
-  workspaceId, children,
-}: { workspaceId: string; children: ReactNode }) {
+  workspaceId,
+  children,
+}: {
+  workspaceId: string
+  children: ReactNode
+}) {
   const [isOpen, setOpen] = useState(false)
   const value = useMemo<Ctx>(
     () => ({ open: () => setOpen(true), close: () => setOpen(false), isOpen }),
@@ -432,9 +459,7 @@ export function SearchDialogProvider({
   return (
     <SearchDialogContext.Provider value={value}>
       {children}
-      {isOpen && (
-        <SearchDialog workspaceId={workspaceId} onClose={() => setOpen(false)} />
-      )}
+      {isOpen && <SearchDialog workspaceId={workspaceId} onClose={() => setOpen(false)} />}
     </SearchDialogContext.Provider>
   )
 }
@@ -465,14 +490,17 @@ import { useSearchDialog } from '../search/search-dialog-provider'
 
 export function SidebarSearchTrigger() {
   const { open } = useSearchDialog()
-  const isMac = typeof navigator !== 'undefined'
-    && /Mac|iPhone|iPad/.test(navigator.platform)
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
   const hint = isMac ? '⌘K' : 'Alt+K'
   return (
     <ListItemButton onClick={open} dense>
-      <ListItemIcon><SearchIcon fontSize="small" /></ListItemIcon>
+      <ListItemIcon>
+        <SearchIcon fontSize="small" />
+      </ListItemIcon>
       <ListItemText primary="Поиск" />
-      <Typography variant="caption" color="text.secondary">{hint}</Typography>
+      <Typography variant="caption" color="text.secondary">
+        {hint}
+      </Typography>
     </ListItemButton>
   )
 }
@@ -499,12 +527,12 @@ Layout:
 
 State machine (all derived from local `query` string):
 
-| State | Condition | Render |
-|---|---|---|
-| Empty | `query.trim() === ''` | "Ранее искали" + history list |
-| Loading | `query.trim().length >= 2 && search.search.isFetching` | `<LinearProgress />` (top-of-content); previous results stay visible underneath until new ones arrive |
-| Results | search returned non-empty | result list |
-| NoResults | search returned empty | text "Ничего не найдено по запросу «...»" |
+| State     | Condition                                              | Render                                                                                                |
+| --------- | ------------------------------------------------------ | ----------------------------------------------------------------------------------------------------- |
+| Empty     | `query.trim() === ''`                                  | "Ранее искали" + history list                                                                         |
+| Loading   | `query.trim().length >= 2 && search.search.isFetching` | `<LinearProgress />` (top-of-content); previous results stay visible underneath until new ones arrive |
+| Results   | search returned non-empty                              | result list                                                                                           |
+| NoResults | search returned empty                                  | text "Ничего не найдено по запросу «...»"                                                             |
 
 Debounce: 250 ms via `useDebouncedValue(query, 250)`. The tRPC query key is
 `['search.search', { workspaceId, query: debouncedQuery }]` so React Query naturally
@@ -624,12 +652,12 @@ which already re-exports MUI icons.
 
 ## Section 5: Testing
 
-| Layer | File | Coverage |
-|---|---|---|
-| Unit | `packages/trpc/src/services/__tests__/page-search.test.ts` (vitest) | `findFirstMatchingBlock`, `extractExcerpt` against multiple Tiptap-JSON shapes; multi-byte / Cyrillic input; no-match path |
-| Integration tRPC | `packages/trpc/test/search.test.ts` (vitest, real Postgres via dev compose) | PG-branch with seeded pages (title-only, content match, archived/deleted excluded); merge precedence; Qdrant branch with mocked `fetch`; soft-fail; history upsert/prune/list/remove |
-| Integration agents | `apps/agents/tests/test_search.py` (pytest) | `POST /v1/search` happy path with mocked Qdrant; workspace filter; dedupe; missing collection → 200 with empty list |
-| E2E | `apps/e2e/search.spec.ts` (Playwright) | `signUpAndAuthAs` → seed two pages → open dialog via `Cmd+K` → type → click result → assert URL has `#blockNumber` and the target block has `block-flash` class → reopen dialog → empty state lists the page in history |
+| Layer              | File                                                                        | Coverage                                                                                                                                                                                                                |
+| ------------------ | --------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Unit               | `packages/trpc/src/services/__tests__/page-search.test.ts` (vitest)         | `findFirstMatchingBlock`, `extractExcerpt` against multiple Tiptap-JSON shapes; multi-byte / Cyrillic input; no-match path                                                                                              |
+| Integration tRPC   | `packages/trpc/test/search.test.ts` (vitest, real Postgres via dev compose) | PG-branch with seeded pages (title-only, content match, archived/deleted excluded); merge precedence; Qdrant branch with mocked `fetch`; soft-fail; history upsert/prune/list/remove                                    |
+| Integration agents | `apps/agents/tests/test_search.py` (pytest)                                 | `POST /v1/search` happy path with mocked Qdrant; workspace filter; dedupe; missing collection → 200 with empty list                                                                                                     |
+| E2E                | `apps/e2e/search.spec.ts` (Playwright)                                      | `signUpAndAuthAs` → seed two pages → open dialog via `Cmd+K` → type → click result → assert URL has `#blockNumber` and the target block has `block-flash` class → reopen dialog → empty state lists the page in history |
 
 ## Section 6: Verification before completion
 
@@ -642,7 +670,8 @@ pnpm run check-types
 ```
 
 Additionally — and matching repo convention — `pnpm gates` before commit (lint + types
-+ build + test). Husky enforces `pnpm gates` on commit.
+
+- build + test). Husky enforces `pnpm gates` on commit.
 
 ## Section 7: Sequencing summary
 

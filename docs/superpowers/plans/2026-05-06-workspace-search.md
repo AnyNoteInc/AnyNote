@@ -15,6 +15,7 @@
 ## File map
 
 **Created:**
+
 - `packages/db/prisma/migrations/<ts>_search_index_and_history/migration.sql`
 - `apps/agents/agents/apps/search/__init__.py`
 - `apps/agents/agents/apps/search/router.py`
@@ -34,6 +35,7 @@
 - `apps/e2e/search.spec.ts`
 
 **Modified:**
+
 - `packages/db/prisma/schema.prisma` (add `SearchHistory` model, `Page.searchVector`, reciprocal relations)
 - `apps/agents/agents/router.py` (mount `search_router`)
 - `packages/trpc/src/index.ts` (mount `search` router)
@@ -46,6 +48,7 @@
 ## Task 1: Database schema and migration
 
 **Files:**
+
 - Modify: `packages/db/prisma/schema.prisma`
 - Create: `packages/db/prisma/migrations/<ts>_search_index_and_history/migration.sql` (Prisma generates filename)
 
@@ -96,6 +99,7 @@ model SearchHistory {
 - [ ] **Step 2: Generate migration skeleton (without applying)**
 
 Run:
+
 ```bash
 pnpm --filter @repo/db exec prisma migrate dev --name search_index_and_history --create-only
 ```
@@ -120,6 +124,7 @@ Keep the `CREATE INDEX "Page_searchVector_idx" ON "pages" USING GIN ("search_vec
 - [ ] **Step 4: Apply the migration**
 
 Run:
+
 ```bash
 pnpm --filter @repo/db exec prisma migrate dev
 ```
@@ -129,6 +134,7 @@ Expected: migration applies, `prisma generate` runs.
 - [ ] **Step 5: Verify the FTS column populates**
 
 Run:
+
 ```bash
 docker compose exec postgres psql -U postgres -d anynote -c 'SELECT id, search_vector IS NOT NULL AS has_vec FROM pages LIMIT 5;'
 ```
@@ -147,6 +153,7 @@ git commit -m "feat(db): add Page.searchVector and SearchHistory model"
 ## Task 2: apps/agents — search Pydantic schemas
 
 **Files:**
+
 - Create: `apps/agents/agents/apps/search/__init__.py`
 - Create: `apps/agents/agents/apps/search/schemas.py`
 
@@ -189,6 +196,7 @@ class SearchResponseSchema(RequestResponseSchema):
 ```
 
 Notes:
+
 - We reuse `EmbeddingProviderConfigSchema` from `processing/schemas.py` (the same one consumed by `/vectorization`).
 - `RequestResponseSchema` is the project's base schema (snake_case + camelCase aliases). Confirmed by existing `RagDocumentSchema` use.
 
@@ -204,6 +212,7 @@ git commit -m "feat(agents): add page-search schemas"
 ## Task 3: apps/agents — search router + mount + integration test
 
 **Files:**
+
 - Create: `apps/agents/agents/apps/search/router.py`
 - Modify: `apps/agents/agents/router.py` (mount)
 - Create: `apps/agents/tests/apps/search/__init__.py`
@@ -295,6 +304,7 @@ def test_search_rejects_long_query():
 - [ ] **Step 2: Run the test and confirm it fails**
 
 Run:
+
 ```bash
 pnpm --filter agents exec pytest tests/apps/search/test_router.py -v
 ```
@@ -368,6 +378,7 @@ def apply_routes(app: FastAPI) -> None:
 - [ ] **Step 5: Run the tests and confirm they pass**
 
 Run:
+
 ```bash
 pnpm --filter agents exec pytest tests/apps/search/test_router.py -v
 ```
@@ -377,6 +388,7 @@ Expected: 3 passed.
 - [ ] **Step 6: Run the full agents test suite to confirm no regression**
 
 Run:
+
 ```bash
 pnpm --filter agents test
 ```
@@ -395,6 +407,7 @@ git commit -m "feat(agents): expose /v1/search endpoint over RagRetrievalService
 ## Task 4: tRPC service helpers — `findFirstMatchingBlock` + `extractExcerpt`
 
 **Files:**
+
 - Create: `packages/trpc/src/services/page-search.ts` (helpers only; PG/Qdrant branches added in Task 5/6)
 - Create: `packages/trpc/src/services/__tests__/page-search.test.ts`
 
@@ -457,9 +470,7 @@ describe('findFirstMatchingBlock', () => {
   it('handles Cyrillic input', () => {
     const doc = {
       type: 'doc',
-      content: [
-        { type: 'paragraph', content: [{ type: 'text', text: 'Это поиск по тексту' }] },
-      ],
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Это поиск по тексту' }] }],
     }
     expect(findFirstMatchingBlock(doc, 'поиск')?.blockNumber).toBe(0)
   })
@@ -494,6 +505,7 @@ describe('extractExcerpt', () => {
 - [ ] **Step 2: Run the tests and confirm they fail**
 
 Run:
+
 ```bash
 pnpm --filter @repo/trpc test -- page-search
 ```
@@ -566,6 +578,7 @@ export type SearchResultItem = {
 - [ ] **Step 4: Run the tests and confirm they pass**
 
 Run:
+
 ```bash
 pnpm --filter @repo/trpc test -- page-search
 ```
@@ -584,6 +597,7 @@ git commit -m "feat(trpc): add page-search text helpers (findFirstMatchingBlock,
 ## Task 5: tRPC service — `searchPg` Postgres FTS branch
 
 **Files:**
+
 - Modify: `packages/trpc/src/services/page-search.ts`
 
 - [ ] **Step 1: Write a failing unit test for `searchPg`**
@@ -595,7 +609,9 @@ import { vi } from 'vitest'
 import { searchPg } from '../page-search'
 
 const WS = '11111111-1111-1111-1111-111111111111'
-const PG_ROW = (overrides: Partial<{ id: string; title: string; type: string; content: unknown }> = {}) => ({
+const PG_ROW = (
+  overrides: Partial<{ id: string; title: string; type: string; content: unknown }> = {},
+) => ({
   id: '22222222-2222-2222-2222-222222222222',
   title: 'A doc',
   icon: null,
@@ -648,7 +664,10 @@ describe('searchPg', () => {
     const prisma = mockPrisma([
       PG_ROW({
         title: 'matchword title',
-        content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'unrelated' }] }] },
+        content: {
+          type: 'doc',
+          content: [{ type: 'paragraph', content: [{ type: 'text', text: 'unrelated' }] }],
+        },
       }),
     ])
     const out = await searchPg(prisma, WS, 'matchword')
@@ -661,6 +680,7 @@ describe('searchPg', () => {
 - [ ] **Step 2: Run and confirm fail**
 
 Run:
+
 ```bash
 pnpm --filter @repo/trpc test -- page-search
 ```
@@ -732,6 +752,7 @@ export async function searchPg(
 - [ ] **Step 4: Run and confirm pass**
 
 Run:
+
 ```bash
 pnpm --filter @repo/trpc test -- page-search
 ```
@@ -750,6 +771,7 @@ git commit -m "feat(trpc): add searchPg Postgres FTS branch"
 ## Task 6: tRPC service — `searchQdrant` agents-backed branch
 
 **Files:**
+
 - Modify: `packages/trpc/src/services/page-search.ts`
 - Modify: `packages/trpc/src/services/__tests__/page-search.test.ts`
 
@@ -814,7 +836,10 @@ describe('searchQdrant', () => {
 
   it('returns [] on agents 5xx', async () => {
     const prisma = prismaWithAi({ aiSettings: VALID_AI })
-    vi.stubGlobal('fetch', vi.fn(async () => new Response('boom', { status: 500 })))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => new Response('boom', { status: 500 })),
+    )
     expect(await searchQdrant(prisma, WS, 'matchword')).toEqual([])
   })
 
@@ -825,12 +850,18 @@ describe('searchQdrant', () => {
       aiSettings: VALID_AI,
       pages: [{ id: aliveId, icon: '📄' }],
     })
-    const fetchMock = vi.fn(async () => new Response(JSON.stringify({
-      results: [
-        { pageId: aliveId, title: 'Alive', blockNumber: 3, content: 'snippet text' },
-        { pageId: deletedId, title: 'Gone', blockNumber: 0, content: '...' },
-      ],
-    }), { status: 200, headers: { 'content-type': 'application/json' } }))
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({
+            results: [
+              { pageId: aliveId, title: 'Alive', blockNumber: 3, content: 'snippet text' },
+              { pageId: deletedId, title: 'Gone', blockNumber: 0, content: '...' },
+            ],
+          }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+    )
     vi.stubGlobal('fetch', fetchMock)
     const out = await searchQdrant(prisma, WS, 'matchword')
     expect(fetchMock).toHaveBeenCalledOnce()
@@ -851,6 +882,7 @@ describe('searchQdrant', () => {
 - [ ] **Step 2: Run and confirm fail**
 
 Run:
+
 ```bash
 pnpm --filter @repo/trpc test -- page-search
 ```
@@ -959,6 +991,7 @@ export async function searchQdrant(
 - [ ] **Step 4: Run and confirm pass**
 
 Run:
+
 ```bash
 pnpm --filter @repo/trpc test -- page-search
 ```
@@ -977,6 +1010,7 @@ git commit -m "feat(trpc): add searchQdrant agents-backed branch"
 ## Task 7: tRPC search router — `search.search` + history procs
 
 **Files:**
+
 - Create: `packages/trpc/src/routers/search.ts`
 - Create: `packages/trpc/test/search-router.test.ts`
 
@@ -1031,10 +1065,24 @@ describe('search.search', () => {
 
   it('returns postgres results when non-empty', async () => {
     vi.mocked(searchPg).mockResolvedValue([
-      { pageId: PAGE_A, title: 'PG hit', icon: null, blockNumber: 1, excerpt: '…hit…', source: 'postgres' },
+      {
+        pageId: PAGE_A,
+        title: 'PG hit',
+        icon: null,
+        blockNumber: 1,
+        excerpt: '…hit…',
+        source: 'postgres',
+      },
     ])
     vi.mocked(searchQdrant).mockResolvedValue([
-      { pageId: PAGE_B, title: 'should be ignored', icon: null, blockNumber: 0, excerpt: 'x', source: 'qdrant' },
+      {
+        pageId: PAGE_B,
+        title: 'should be ignored',
+        icon: null,
+        blockNumber: 0,
+        excerpt: 'x',
+        source: 'qdrant',
+      },
     ])
     const caller = createCallerFactory(searchRouter)(ctx(memberPrisma()))
     const out = await caller.search({ workspaceId: WS, query: 'q' })
@@ -1046,7 +1094,14 @@ describe('search.search', () => {
   it('falls back to qdrant when postgres empty', async () => {
     vi.mocked(searchPg).mockResolvedValue([])
     vi.mocked(searchQdrant).mockResolvedValue([
-      { pageId: PAGE_B, title: 'Qd hit', icon: null, blockNumber: 0, excerpt: 'x', source: 'qdrant' },
+      {
+        pageId: PAGE_B,
+        title: 'Qd hit',
+        icon: null,
+        blockNumber: 0,
+        excerpt: 'x',
+        source: 'qdrant',
+      },
     ])
     const caller = createCallerFactory(searchRouter)(ctx(memberPrisma()))
     const out = await caller.search({ workspaceId: WS, query: 'q' })
@@ -1122,13 +1177,15 @@ describe('search.history', () => {
     const err = new Error('FK') as Error & { code?: string }
     err.code = 'P2003'
     const prisma = memberPrisma({
-      searchHistory: { upsert: vi.fn(async () => { throw err }) },
+      searchHistory: {
+        upsert: vi.fn(async () => {
+          throw err
+        }),
+      },
       $executeRaw: vi.fn(),
     })
     const caller = createCallerFactory(searchRouter)(ctx(prisma))
-    await expect(
-      caller.history.add({ workspaceId: WS, pageId: PAGE_A }),
-    ).resolves.toBeUndefined()
+    await expect(caller.history.add({ workspaceId: WS, pageId: PAGE_A })).resolves.toBeUndefined()
   })
 
   it('history.remove deletes the unique row', async () => {
@@ -1148,6 +1205,7 @@ describe('search.history', () => {
 - [ ] **Step 2: Run and confirm fail**
 
 Run:
+
 ```bash
 pnpm --filter @repo/trpc test -- search-router
 ```
@@ -1191,10 +1249,12 @@ export type HistoryItem = {
 
 export const searchRouter = router({
   search: protectedProcedure
-    .input(z.object({
-      workspaceId: z.string().uuid(),
-      query: z.string().max(200),
-    }))
+    .input(
+      z.object({
+        workspaceId: z.string().uuid(),
+        query: z.string().max(200),
+      }),
+    )
     .query(async ({ input, ctx }): Promise<SearchResultItem[]> => {
       await assertWorkspaceMember(ctx, input.workspaceId)
       const [pg, vec] = await Promise.allSettled([
@@ -1216,7 +1276,9 @@ export const searchRouter = router({
           orderBy: { lastVisitedAt: 'desc' },
           take: HISTORY_LIMIT_DISPLAYED * 2,
           include: {
-            page: { select: { id: true, title: true, icon: true, deletedAt: true, archived: true } },
+            page: {
+              select: { id: true, title: true, icon: true, deletedAt: true, archived: true },
+            },
           },
         })
         const live = rows.filter((r) => r.page.deletedAt === null && r.page.archived === false)
@@ -1295,6 +1357,7 @@ export const searchRouter = router({
 - [ ] **Step 4: Run and confirm pass**
 
 Run:
+
 ```bash
 pnpm --filter @repo/trpc test -- search-router
 ```
@@ -1313,6 +1376,7 @@ git commit -m "feat(trpc): add search router with parallel PG/Qdrant + history p
 ## Task 8: Mount the search router in `appRouter`
 
 **Files:**
+
 - Modify: `packages/trpc/src/index.ts`
 
 - [ ] **Step 1: Locate and edit**
@@ -1333,6 +1397,7 @@ Find the `appRouter = router({...})` definition and add the entry alphabetically
 - [ ] **Step 2: Verify type-checking still passes**
 
 Run:
+
 ```bash
 pnpm --filter @repo/trpc check-types
 ```
@@ -1351,6 +1416,7 @@ git commit -m "feat(trpc): mount search router on appRouter"
 ## Task 9: Add missing UI exports
 
 **Files:**
+
 - Modify: `packages/ui/src/components/index.ts`
 
 - [ ] **Step 1: Edit exports**
@@ -1360,7 +1426,10 @@ Open `packages/ui/src/components/index.ts`. Add these export lines (group with t
 ```typescript
 export { default as LinearProgress, type LinearProgressProps } from '@mui/material/LinearProgress'
 export { default as InputBase, type InputBaseProps } from '@mui/material/InputBase'
-export { default as CircularProgress, type CircularProgressProps } from '@mui/material/CircularProgress'
+export {
+  default as CircularProgress,
+  type CircularProgressProps,
+} from '@mui/material/CircularProgress'
 export { default as HistoryIcon } from '@mui/icons-material/History'
 export { default as CloseIcon } from '@mui/icons-material/Close'
 ```
@@ -1368,6 +1437,7 @@ export { default as CloseIcon } from '@mui/icons-material/Close'
 - [ ] **Step 2: Verify build**
 
 Run:
+
 ```bash
 pnpm --filter @repo/ui check-types
 ```
@@ -1386,6 +1456,7 @@ git commit -m "feat(ui): export LinearProgress, InputBase, CircularProgress, His
 ## Task 10: `highlight-matches` helper + tests
 
 **Files:**
+
 - Create: `apps/web/src/components/search/highlight-matches.tsx`
 - Create: `apps/web/src/components/search/__tests__/highlight-matches.test.tsx`
 
@@ -1429,6 +1500,7 @@ describe('HighlightMatches', () => {
 - [ ] **Step 2: Run and confirm fail**
 
 Run:
+
 ```bash
 pnpm --filter web exec vitest run src/components/search/__tests__/highlight-matches.test.tsx
 ```
@@ -1465,6 +1537,7 @@ export function HighlightMatches({ text, query }: { text: string; query: string 
 - [ ] **Step 4: Run and confirm pass**
 
 Run:
+
 ```bash
 pnpm --filter web exec vitest run src/components/search/__tests__/highlight-matches.test.tsx
 ```
@@ -1483,6 +1556,7 @@ git commit -m "feat(web): add HighlightMatches component"
 ## Task 11: `SearchDialogProvider` + hook
 
 **Files:**
+
 - Create: `apps/web/src/components/search/search-dialog-provider.tsx`
 
 - [ ] **Step 1: Implement the provider**
@@ -1543,6 +1617,7 @@ This change is incomplete on its own; commit at the end of Task 12.
 ## Task 12: `SearchDialog` component
 
 **Files:**
+
 - Create: `apps/web/src/components/search/search-dialog.tsx`
 
 - [ ] **Step 1: Implement the dialog**
@@ -1667,9 +1742,7 @@ export function SearchDialog({
             onPick={(item) => navigateToPage(item.pageId, null)}
             onRemove={(pageId) => removeFromHistory.mutate({ workspaceId, pageId })}
             onToggleFavorite={(pageId, isFav) =>
-              isFav
-                ? removeFavorite.mutate({ pageId })
-                : addFavorite.mutate({ pageId })
+              isFav ? removeFavorite.mutate({ pageId }) : addFavorite.mutate({ pageId })
             }
           />
         ) : results.length === 0 && !searchQuery.isFetching ? (
@@ -1751,11 +1824,7 @@ function EmptyState({
       </Typography>
       <List dense>
         {items.map((item) => (
-          <ListItemButton
-            key={item.pageId}
-            onClick={() => onPick(item)}
-            sx={{ pr: 1 }}
-          >
+          <ListItemButton key={item.pageId} onClick={() => onPick(item)} sx={{ pr: 1 }}>
             <ListItemIcon sx={{ minWidth: 32 }}>
               <HistoryIcon fontSize="small" />
             </ListItemIcon>
@@ -1799,6 +1868,7 @@ Note on imports: the `Box`, `Chip`, `Stack`, `Typography`, `IconButton`, `InputB
 - [ ] **Step 2: Type-check the web package**
 
 Run:
+
 ```bash
 pnpm --filter web check-types
 ```
@@ -1817,6 +1887,7 @@ git commit -m "feat(web): add SearchDialog and provider"
 ## Task 13: `SidebarSearchTrigger` + insert into sidebar
 
 **Files:**
+
 - Create: `apps/web/src/components/search/sidebar-search-trigger.tsx`
 - Modify: `apps/web/src/components/workspace/workspace-sidebar.tsx`
 
@@ -1839,18 +1910,14 @@ import { useSearchDialog } from './search-dialog-provider'
 
 export function SidebarSearchTrigger() {
   const { open } = useSearchDialog()
-  const isMac =
-    typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
+  const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
   const hint = isMac ? '⌘K' : 'Alt+K'
   return (
     <ListItemButton onClick={open} dense aria-label="Открыть поиск">
       <ListItemIcon sx={{ minWidth: 28 }}>
         <SearchIcon sx={{ fontSize: 16 }} />
       </ListItemIcon>
-      <ListItemText
-        primary="Поиск"
-        primaryTypographyProps={{ fontSize: 14 }}
-      />
+      <ListItemText primary="Поиск" primaryTypographyProps={{ fontSize: 14 }} />
       <Typography variant="caption" color="text.secondary">
         {hint}
       </Typography>
@@ -1886,6 +1953,7 @@ Replace the Stack contents to put `SidebarSearchTrigger` first:
 - [ ] **Step 3: Type-check**
 
 Run:
+
 ```bash
 pnpm --filter web check-types
 ```
@@ -1904,6 +1972,7 @@ git commit -m "feat(web): add Поиск trigger to workspace sidebar"
 ## Task 14: `useSearchHotkey` + wire `SearchDialogProvider` into workspace layout
 
 **Files:**
+
 - Create: `apps/web/src/components/search/use-search-hotkey.ts`
 - Modify: `apps/web/src/components/workspace/workspace-layout-client.tsx`
 
@@ -1925,8 +1994,7 @@ export function useSearchHotkey() {
       if (e.repeat) return
       const platform = typeof navigator !== 'undefined' ? navigator.platform : ''
       const isMac = /Mac|iPhone|iPad/.test(platform)
-      const matchMac =
-        isMac && e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === 'k'
+      const matchMac = isMac && e.metaKey && !e.ctrlKey && !e.altKey && e.key.toLowerCase() === 'k'
       const matchOther =
         !isMac && e.altKey && !e.metaKey && !e.ctrlKey && e.key.toLowerCase() === 'k'
       if (!matchMac && !matchOther) return
@@ -1974,6 +2042,7 @@ return (
 - [ ] **Step 3: Type-check + lint**
 
 Run:
+
 ```bash
 pnpm --filter web check-types
 pnpm --filter web lint
@@ -1990,6 +2059,7 @@ pnpm --filter web dev
 ```
 
 In the browser:
+
 1. Sign in, enter a workspace.
 2. Press `Cmd+K` (or `Alt+K` on non-Mac). Dialog opens.
 3. Type a known page title — see results.
@@ -2010,6 +2080,7 @@ git commit -m "feat(web): wire SearchDialogProvider and Cmd/Alt+K hotkey into wo
 ## Task 15: E2E Playwright spec
 
 **Files:**
+
 - Create: `apps/e2e/search.spec.ts`
 
 - [ ] **Step 1: Write the spec**
@@ -2029,14 +2100,20 @@ test('Cmd+K search → click result → block highlight + history', async ({ pag
 
   // Create two text pages with known content.
   // (We piggy-back on the page tree; specifics of the create flow may vary slightly.)
-  await page.getByRole('button', { name: /создать|new page|плюс/i }).first().click()
+  await page
+    .getByRole('button', { name: /создать|new page|плюс/i })
+    .first()
+    .click()
   await page.keyboard.type('Alpha doc')
   await page.keyboard.press('Enter')
   await page.locator('[contenteditable="true"]').first().click()
   await page.keyboard.type('first paragraph\nsecond paragraph with needle word')
 
   await page.goBack()
-  await page.getByRole('button', { name: /создать|new page|плюс/i }).first().click()
+  await page
+    .getByRole('button', { name: /создать|new page|плюс/i })
+    .first()
+    .click()
   await page.keyboard.type('Beta doc')
   await page.keyboard.press('Enter')
   await page.locator('[contenteditable="true"]').first().click()
@@ -2066,9 +2143,9 @@ test('Cmd+K search → click result → block highlight + history', async ({ pag
   expect(Number.isFinite(blockIndex)).toBe(true)
 
   // Block-flash class should appear on the target block within 500 ms of navigation.
-  await expect(
-    page.locator(`[data-block-index="${blockIndex}"].block-flash`),
-  ).toBeVisible({ timeout: 1500 })
+  await expect(page.locator(`[data-block-index="${blockIndex}"].block-flash`)).toBeVisible({
+    timeout: 1500,
+  })
 
   // Reopen the dialog: empty state should now list Alpha doc in history.
   await page.keyboard.press(isMac ? 'Meta+K' : 'Alt+K')
@@ -2083,6 +2160,7 @@ test('Cmd+K search → click result → block highlight + history', async ({ pag
 Pre-req: `docker compose up -d` (Postgres + Mailhog).
 
 Run:
+
 ```bash
 pnpm exec playwright test apps/e2e/search.spec.ts
 ```
@@ -2164,6 +2242,7 @@ The plan has been re-read against [the spec](../specs/2026-05-06-workspace-searc
 - ✅ Spec §6 (verification commands) → Task 16.
 
 Type/symbol consistency verified:
+
 - `SearchResultItem` shape matches across `page-search.ts`, `search.ts` router, and `search-dialog.tsx` consumption.
 - `HistoryItem` shape matches between router (Task 7) and dialog (Task 12).
 - `searchHistory` Prisma model camelCase fields used consistently (`lastVisitedAt`).

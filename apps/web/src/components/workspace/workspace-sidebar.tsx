@@ -159,7 +159,11 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
         <NavItem
           icon={<SettingsIcon sx={{ fontSize: 16 }} />}
           label="Настройки"
-          shortcut={typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘S' : 'Alt+S'}
+          shortcut={
+            typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
+              ? '⌘S'
+              : 'Alt+S'
+          }
           href={`/workspaces/${workspace.id}/settings`}
           matchPrefix={`/workspaces/${workspace.id}/settings`}
           pathname={pathname}
@@ -228,7 +232,16 @@ function NavItem({
       }}
     >
       {icon}
-      <Box component="span" sx={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+      <Box
+        component="span"
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
+        }}
+      >
         {label}
       </Box>
       {shortcut ? (
