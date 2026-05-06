@@ -137,7 +137,7 @@ export function PublicFooter() {
           <span>© {new Date().getFullYear()} «Любые заметки». Все права защищены.</span>
           <Stack direction="row" spacing={2.25}>
             {[
-              { label: 'Политика', href: '/terms/privacy-policy' },
+              { label: 'Политика конфиденциальности', href: '/terms/privacy-policy' },
               { label: 'Оферта', href: '/terms/public-offer' },
             ].map((l) => (
               <Link key={l.href} href={l.href} style={{ color: 'inherit', textDecoration: 'none' }}>
