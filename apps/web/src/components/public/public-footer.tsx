@@ -100,9 +100,13 @@ export function PublicFooter() {
                 color: 'rgba(240,238,230,0.55)',
               }}
             >
-              Связаться
+              Контакты
             </Typography>
             <Stack spacing={1.25}>
+              <Typography sx={{ color: t.paperDeep, fontSize: 14 }}>Луферова Е.А.</Typography>
+              <Typography sx={{ color: t.paperDeep, fontSize: 14 }}>
+                ИНН: 673205843311
+              </Typography>
               <FooterContact
                 icon={<EmailIcon fontSize="small" />}
                 href={`mailto:${publicContact.email}`}
