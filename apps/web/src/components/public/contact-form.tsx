@@ -1,7 +1,18 @@
 'use client'
 
+import Link from 'next/link'
 import { useState, type ChangeEvent, type FormEvent } from 'react'
-import { Alert, Box, Button, Stack, TextField } from '@repo/ui/components'
+import {
+  Alert,
+  Box,
+  Button,
+  Checkbox,
+  FormControlLabel,
+  FormHelperText,
+  Stack,
+  TextField,
+  Typography,
+} from '@repo/ui/components'
 
 type ContactFormState = {
   name: string
@@ -21,6 +32,8 @@ const initialState: ContactFormState = {
 
 export function ContactForm() {
   const [form, setForm] = useState<ContactFormState>(initialState)
+  const [agree, setAgree] = useState(false)
+  const [agreeError, setAgreeError] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
   const handleChange =
@@ -31,9 +44,15 @@ export function ContactForm() {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    if (!agree) {
+      setAgreeError(true)
+      return
+    }
     console.log('Любые заметки contact request', form)
     setSubmitted(true)
     setForm(initialState)
+    setAgree(false)
+    setAgreeError(false)
   }
 
   return (
@@ -89,6 +108,43 @@ export function ContactForm() {
           minRows={3}
           sx={{ gridColumn: { md: '1 / -1' } }}
         />
+        <Box sx={{ gridColumn: { md: '1 / -1' } }}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={agree}
+                onChange={(event) => {
+                  setAgree(event.target.checked)
+                  if (event.target.checked) setAgreeError(false)
+                }}
+                inputProps={{
+                  'aria-label': 'Согласие на обработку персональных данных',
+                  'aria-required': true,
+                }}
+                data-testid="contact-form-consent"
+              />
+            }
+            label={
+              <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.5 }}>
+                Даю согласие на обработку своих персональных данных в соответствии с{' '}
+                <Link
+                  href="/terms/privacy-policy"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: 'inherit', textDecoration: 'underline' }}
+                >
+                  политикой обработки персональных данных
+                </Link>
+              </Typography>
+            }
+            sx={{ alignItems: 'flex-start', m: 0, '& .MuiCheckbox-root': { pt: 0.25 } }}
+          />
+          {agreeError ? (
+            <FormHelperText error sx={{ ml: 4 }}>
+              Необходимо дать согласие на обработку персональных данных
+            </FormHelperText>
+          ) : null}
+        </Box>
         <Box sx={{ gridColumn: { md: '1 / -1' }, pt: 0.5 }}>
           <Button type="submit" size="large">
             Отправить запрос
