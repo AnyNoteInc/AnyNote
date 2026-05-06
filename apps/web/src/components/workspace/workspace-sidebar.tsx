@@ -28,6 +28,7 @@ import { PageTreeSection } from './page-tree-section'
 import type { PageItem } from './types'
 import { SearchSidebarSection } from './search-sidebar-section'
 import { SIDEBAR_WIDTH } from './workspace-layout-client'
+import { SidebarSearchTrigger } from '../search/sidebar-search-trigger'
 
 type Props = {
   workspace: { id: string; name: string; icon: string | null }
@@ -153,10 +154,12 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
       )}
 
       <Stack spacing={0.25} sx={{ py: 0.75 }}>
+        <SidebarSearchTrigger />
         {features.chatsEnabled && <SearchSidebarSection workspaceId={workspace.id} />}
         <NavItem
           icon={<SettingsIcon sx={{ fontSize: 16 }} />}
           label="Настройки"
+          shortcut={typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform) ? '⌘S' : 'Alt+S'}
           href={`/workspaces/${workspace.id}/settings`}
           matchPrefix={`/workspaces/${workspace.id}/settings`}
           pathname={pathname}
@@ -195,6 +198,7 @@ function NavItem({
   matchPrefix,
   pathname,
   muted,
+  shortcut,
 }: {
   icon: ReactNode
   label: string
@@ -202,6 +206,7 @@ function NavItem({
   matchPrefix?: string
   pathname: string
   muted?: boolean
+  shortcut?: string
 }) {
   const active = matchPrefix ? pathname.startsWith(matchPrefix) : false
   return (
@@ -223,7 +228,14 @@ function NavItem({
       }}
     >
       {icon}
-      <span>{label}</span>
+      <Box component="span" sx={{ flex: 1, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        {label}
+      </Box>
+      {shortcut ? (
+        <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto', flexShrink: 0 }}>
+          {shortcut}
+        </Typography>
+      ) : null}
     </Box>
   )
 }
