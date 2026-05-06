@@ -1,3 +1,15 @@
+# [1.4.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.3.0...v1.4.0) (2026-05-06)
+
+
+### Features
+
+* **agents:** add page-search schemas ([5091b97](https://github.com/AnyNoteInc/AnyNote/commit/5091b971dfec6e7d18d20589ebfc262e9ceade59))
+* **agents:** expose /v1/search endpoint over RagRetrievalService ([91ce4f1](https://github.com/AnyNoteInc/AnyNote/commit/91ce4f15785f1debc3a440568f5776a1faf48adb))
+* **db:** add Page.searchVector and SearchHistory model ([c15b593](https://github.com/AnyNoteInc/AnyNote/commit/c15b59304113b3ff1c58310379e7825a34c37997))
+* **trpc:** add search router with parallel PG/Qdrant + history procs ([74c7384](https://github.com/AnyNoteInc/AnyNote/commit/74c7384011af1b7a6856f62d38d686866a4eeed4))
+* **ui:** export LinearProgress, InputBase, CircularProgress, HistoryIcon, CloseIcon ([56b32b3](https://github.com/AnyNoteInc/AnyNote/commit/56b32b3b7d00a0d91d38b63a8cfb2bd7e2353791))
+* **web:** add workspace search dialog with Cmd/Alt+K hotkey and sidebar entry ([105d392](https://github.com/AnyNoteInc/AnyNote/commit/105d392fbdb3b7475579238bd6c3f7eb84a7e14b)), closes [#blockNumber](https://github.com/AnyNoteInc/AnyNote/issues/blockNumber)
+
 # [1.3.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.2.0...v1.3.0) (2026-05-06)
 
 
