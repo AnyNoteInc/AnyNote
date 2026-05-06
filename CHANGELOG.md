@@ -7,57 +7,49 @@
 
 ## [1.1.6](https://github.com/AnyNoteInc/AnyNote/compare/v1.1.5...v1.1.6) (2026-05-05)
 
-
 ### Bug Fixes
 
-* **excalidraw:** pass loaded elements via initialData to prevent binding-startup wipe ([f5bac98](https://github.com/AnyNoteInc/AnyNote/commit/f5bac9831da80b778742447756b012dc853ea7f9))
+- **excalidraw:** pass loaded elements via initialData to prevent binding-startup wipe ([f5bac98](https://github.com/AnyNoteInc/AnyNote/commit/f5bac9831da80b778742447756b012dc853ea7f9))
 
 ## [1.1.5](https://github.com/AnyNoteInc/AnyNote/compare/v1.1.4...v1.1.5) (2026-05-05)
 
-
 ### Bug Fixes
 
-* **auth:** set audience on better-auth jwt plugin so yjs verifyJwt accepts the token ([56cc14d](https://github.com/AnyNoteInc/AnyNote/commit/56cc14d236ce76449863325b43395459e1b8a8ae))
+- **auth:** set audience on better-auth jwt plugin so yjs verifyJwt accepts the token ([56cc14d](https://github.com/AnyNoteInc/AnyNote/commit/56cc14d236ce76449863325b43395459e1b8a8ae))
 
 ## [1.1.4](https://github.com/AnyNoteInc/AnyNote/compare/v1.1.3...v1.1.4) (2026-05-04)
 
-
 ### Bug Fixes
 
-* **web:** derive yjs ws URL from window.location on HTTPS pages ([f15dd9c](https://github.com/AnyNoteInc/AnyNote/commit/f15dd9c110c74a1eaaad18abdcfef606d8c383fb))
+- **web:** derive yjs ws URL from window.location on HTTPS pages ([f15dd9c](https://github.com/AnyNoteInc/AnyNote/commit/f15dd9c110c74a1eaaad18abdcfef606d8c383fb))
 
 ## [1.1.3](https://github.com/AnyNoteInc/AnyNote/compare/v1.1.2...v1.1.3) (2026-05-04)
 
-
 ### Bug Fixes
 
-* google auth ([522ff06](https://github.com/AnyNoteInc/AnyNote/commit/522ff06fcf9d2e7498331d4c6a8096a733bcba54))
+- google auth ([522ff06](https://github.com/AnyNoteInc/AnyNote/commit/522ff06fcf9d2e7498331d4c6a8096a733bcba54))
 
 ## [1.1.2](https://github.com/AnyNoteInc/AnyNote/compare/v1.1.1...v1.1.2) (2026-05-04)
 
-
 ### Bug Fixes
 
-* capcha and google auth ([fa2a281](https://github.com/AnyNoteInc/AnyNote/commit/fa2a281c70dbc814d15ecba3750bc7659d709a22))
+- capcha and google auth ([fa2a281](https://github.com/AnyNoteInc/AnyNote/commit/fa2a281c70dbc814d15ecba3750bc7659d709a22))
 
 ## [1.1.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.1.0...v1.1.1) (2026-05-04)
 
-
 ### Bug Fixes
 
-* **web:** include docs/terms in docker build context ([7f8c770](https://github.com/AnyNoteInc/AnyNote/commit/7f8c770540d0f8a6e31ec16ed72f629ee8f9f649))
+- **web:** include docs/terms in docker build context ([7f8c770](https://github.com/AnyNoteInc/AnyNote/commit/7f8c770540d0f8a6e31ec16ed72f629ee8f9f649))
 
 # [1.1.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.0.9...v1.1.0) (2026-05-04)
 
-
 ### Bug Fixes
 
-* **ci:** unblock sign-up test + sonarcloud quality gate ([2e7e569](https://github.com/AnyNoteInc/AnyNote/commit/2e7e5690cf005ad927ffe6f15228e1f27d658f9d))
-
+- **ci:** unblock sign-up test + sonarcloud quality gate ([2e7e569](https://github.com/AnyNoteInc/AnyNote/commit/2e7e5690cf005ad927ffe6f15228e1f27d658f9d))
 
 ### Features
 
-* **terms:** legal documents pages, footer revamp, ts extension migration ([0b805f4](https://github.com/AnyNoteInc/AnyNote/commit/0b805f4c6bdbda3319ae92af3247b2355e7def62))
+- **terms:** legal documents pages, footer revamp, ts extension migration ([0b805f4](https://github.com/AnyNoteInc/AnyNote/commit/0b805f4c6bdbda3319ae92af3247b2355e7def62))
 
 ## [1.0.9](https://github.com/AnyNoteInc/AnyNote/compare/v1.0.8...v1.0.9) (2026-05-04)
 

@@ -43,6 +43,7 @@ Fetch details: get_observations([IDs]) | Search: mem-search skill
 Stats: 50 obs (17,715t read) | 304,708t work | 94% savings
 
 ### May 4, 2026
+
 781 4:11p 🔵 Better Auth API Route Location in anynote Project
 782 " 🔵 Better Auth Base URL Configuration in anynote
 783 4:24p 🔵 RegisterForm terms checkbox silently blocks sign-up test submissions
@@ -74,7 +75,7 @@ S186 Fix failing Deploy on v1.1.0 — COMPLETE: v1.1.1 deployed to production, f
 803 5:31p 🔴 Deploy v1.1.1 Succeeded — All Jobs Green, Production Updated
 804 " 🔵 Semantic-Release Config: Tag Push via GITHUB_TOKEN Explains Missing Deploy Auto-Trigger
 S185 Fix failing Deploy on v1.1.0 — COMPLETE: v1.1.1 deployed to production successfully (May 4 at 5:31 PM)
-S189 Fix failing Deploy workflow on tag v1.1.0 + auto-trigger Deploy when v* tag appears (May 4 at 5:31 PM)
+S189 Fix failing Deploy workflow on tag v1.1.0 + auto-trigger Deploy when v\* tag appears (May 4 at 5:31 PM)
 805 5:34p 🔵 Google OAuth Credentials Found in anynote .env
 806 " 🔵 Better Auth Google OAuth Config — Required additionalFields May Break Social Login
 807 5:35p 🔵 Auth Client Architecture and Google Sign-In Call Site Mapped
