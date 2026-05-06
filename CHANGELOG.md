@@ -1,3 +1,15 @@
+# [1.3.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.2.0...v1.3.0) (2026-05-06)
+
+
+### Bug Fixes
+
+* **auth:** move /sign-out out of (auth) route group ([3f3183d](https://github.com/AnyNoteInc/AnyNote/commit/3f3183d6146e20494a96c015a197932889faad8c))
+
+
+### Features
+
+* **home:** require privacy consent before submitting contact form ([6fc671d](https://github.com/AnyNoteInc/AnyNote/commit/6fc671dba409d1e120dfe072bb4ada1ff8b126e1))
+
 # [1.2.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.1.6...v1.2.0) (2026-05-05)
 
 
