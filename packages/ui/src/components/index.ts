@@ -7,6 +7,7 @@ export {
   default as CircularProgress,
   type CircularProgressProps,
 } from '@mui/material/CircularProgress'
+export { default as LinearProgress, type LinearProgressProps } from '@mui/material/LinearProgress'
 export { default as Skeleton, type SkeletonProps } from '@mui/material/Skeleton'
 export { default as Popover, type PopoverProps } from '@mui/material/Popover'
 export { EmojiPicker, type EmojiPickerProps } from './ui/emoji-picker'
@@ -64,9 +65,12 @@ export {
 } from '@mui/material/DialogContentText'
 export { default as DialogActions, type DialogActionsProps } from '@mui/material/DialogActions'
 export { default as InputAdornment, type InputAdornmentProps } from '@mui/material/InputAdornment'
+export { default as InputBase, type InputBaseProps } from '@mui/material/InputBase'
 export { default as Popper, type PopperProps } from '@mui/material/Popper'
 
+export { default as CloseIcon } from '@mui/icons-material/Close'
 export { default as SearchIcon } from '@mui/icons-material/Search'
+export { default as HistoryIcon } from '@mui/icons-material/History'
 export { default as SettingsIcon } from '@mui/icons-material/Settings'
 export { default as DeleteIcon } from '@mui/icons-material/Delete'
 export { default as EditIcon } from '@mui/icons-material/Edit'

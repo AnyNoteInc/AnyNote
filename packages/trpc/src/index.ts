@@ -7,6 +7,7 @@ import { pageRouter } from './routers/page'
 import { chatRouter } from './routers/chat'
 import { fileRouter } from './routers/file'
 import { aiSettingsRouter } from './routers/ai-settings'
+import { searchRouter } from './routers/search'
 
 export { createContext, createServerContext } from './trpc'
 export type { Context } from './trpc'
@@ -27,6 +28,7 @@ export const appRouter = router({
   subscription: subscriptionRouter,
   integration: integrationRouter,
   page: pageRouter,
+  search: searchRouter,
   chat: chatRouter,
   file: fileRouter,
   aiSettings: aiSettingsRouter,

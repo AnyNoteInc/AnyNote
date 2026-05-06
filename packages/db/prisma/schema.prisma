@@ -32,6 +32,7 @@ model User {
   chats                Chat[]            @relation("ChatCreator")
   favoritePages        FavoritePage[]
   files                File[]
+  searchHistory        SearchHistory[]
 
   @@map("users")
 }
@@ -170,6 +171,7 @@ model Workspace {
   chats                 Chat[]
   files                 File[]
   aiSettings            WorkspaceAiSettings?
+  searchHistory         SearchHistory[]
 
   @@index([createdById])
   @@map("workspaces")
@@ -201,7 +203,8 @@ model Page {
   title       String?       @db.Text
   icon        String?       @db.Text
   content     Json?
-  contentYjs  Bytes?        @map("content_yjs")
+  contentYjs   Bytes?                       @map("content_yjs")
+  searchVector Unsupported("tsvector")?    @map("search_vector")
   archived    Boolean       @default(false)
   prevPageId  String?       @unique @map("prev_page_id") @db.Uuid
   deletedAt   DateTime?     @map("deleted_at") @db.Timestamptz(6)
@@ -217,13 +220,15 @@ model Page {
   nextPage  Page?          @relation("PageOrder")
   children  Page[]         @relation("PageTree")
   parent    Page?          @relation("PageTree", fields: [parentId], references: [id], onDelete: SetNull)
-  favorites FavoritePage[]
-  files     PageFile[]
+  favorites     FavoritePage[]
+  files         PageFile[]
+  searchHistory SearchHistory[]
 
   @@index([workspaceId])
   @@index([parentId])
   @@index([archived])
   @@index([workspaceId, ownership])
+  @@index([searchVector], type: Gin, name: "Page_searchVector_idx")
   @@map("pages")
 }
 
@@ -562,6 +567,22 @@ model PageFile {
   @@id([pageId, fileId])
   @@index([fileId])
   @@map("page_files")
+}
+
+model SearchHistory {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  workspaceId   String   @map("workspace_id") @db.Uuid
+  pageId        String   @map("page_id") @db.Uuid
+  lastVisitedAt DateTime @default(now()) @map("last_visited_at") @db.Timestamptz(6)
+
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  page      Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, workspaceId, pageId])
+  @@index([userId, workspaceId, lastVisitedAt(sort: Desc)])
+  @@map("search_history")
 }
 
 enum OutboxEventStatus {

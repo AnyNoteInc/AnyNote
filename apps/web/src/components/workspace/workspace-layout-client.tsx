@@ -13,6 +13,8 @@ import { useFullWidth } from '@/hooks/use-full-width'
 
 import type { PlanFeatures } from '@repo/trpc'
 
+import { SearchDialogProvider } from '../search/search-dialog-provider'
+import { useSearchHotkey } from '../search/use-search-hotkey'
 import { WorkspaceShell } from './workspace-shell'
 import { WorkspaceSidebar } from './workspace-sidebar'
 import { WorkspaceToolbar } from './workspace-toolbar'
@@ -143,10 +145,18 @@ export function WorkspaceLayoutClient({
   )
 
   return (
-    <WorkspaceShell
-      sidebarHidden={hidden}
-      sidebar={<WorkspaceSidebar {...sidebarProps} onHide={() => setHidden(true)} />}
-      main={activePageId ? <PageEditorProvider>{mainContent}</PageEditorProvider> : mainContent}
-    />
+    <SearchDialogProvider workspaceId={workspace.id}>
+      <WorkspaceHotkeyMount workspaceId={workspace.id} />
+      <WorkspaceShell
+        sidebarHidden={hidden}
+        sidebar={<WorkspaceSidebar {...sidebarProps} onHide={() => setHidden(true)} />}
+        main={activePageId ? <PageEditorProvider>{mainContent}</PageEditorProvider> : mainContent}
+      />
+    </SearchDialogProvider>
   )
+}
+
+function WorkspaceHotkeyMount({ workspaceId }: { workspaceId: string }) {
+  useSearchHotkey(workspaceId)
+  return null
 }
