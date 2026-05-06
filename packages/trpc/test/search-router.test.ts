@@ -10,7 +10,7 @@ vi.mock('../src/services/page-search', () => ({
   searchQdrant: vi.fn(),
 }))
 
-import type { PrismaClient } from '@repo/db'
+import { Prisma, type PrismaClient } from '@repo/db'
 
 import { searchRouter } from '../src/routers/search'
 import { searchPg, searchQdrant } from '../src/services/page-search'
@@ -44,50 +44,37 @@ describe('search.search', () => {
 
   it('returns postgres results when non-empty', async () => {
     vi.mocked(searchPg).mockResolvedValue([
-      {
-        pageId: PAGE_A,
-        title: 'PG hit',
-        icon: null,
-        blockNumber: 1,
-        excerpt: 'hit',
-        source: 'postgres',
-      },
+      { pageId: PAGE_A, title: 'PG hit', icon: null, blockNumber: 1, excerpt: 'hit' },
     ])
     vi.mocked(searchQdrant).mockResolvedValue([
-      {
-        pageId: PAGE_B,
-        title: 'should be ignored',
-        icon: null,
-        blockNumber: 0,
-        excerpt: 'x',
-        source: 'qdrant',
-      },
+      { pageId: PAGE_B, title: 'should be ignored', icon: null, blockNumber: 0, excerpt: 'x' },
     ])
 
     const caller = createCallerFactory(searchRouter)(ctx(memberPrisma()))
     const out = await caller.search({ workspaceId: WS, query: 'query' })
 
     expect(out).toHaveLength(1)
-    expect(out[0]?.source).toBe('postgres')
     expect(out[0]?.pageId).toBe(PAGE_A)
+  })
+
+  it('does not call qdrant when postgres returns rows', async () => {
+    vi.mocked(searchPg).mockResolvedValue([
+      { pageId: PAGE_A, title: 'PG hit', icon: null, blockNumber: 0, excerpt: 'x' },
+    ])
+    const caller = createCallerFactory(searchRouter)(ctx(memberPrisma()))
+    await caller.search({ workspaceId: WS, query: 'query' })
+    expect(searchQdrant).not.toHaveBeenCalled()
   })
 
   it('falls back to qdrant when postgres empty', async () => {
     vi.mocked(searchPg).mockResolvedValue([])
     vi.mocked(searchQdrant).mockResolvedValue([
-      {
-        pageId: PAGE_B,
-        title: 'Qd hit',
-        icon: null,
-        blockNumber: 0,
-        excerpt: 'x',
-        source: 'qdrant',
-      },
+      { pageId: PAGE_B, title: 'Qd hit', icon: null, blockNumber: 0, excerpt: 'x' },
     ])
     const caller = createCallerFactory(searchRouter)(ctx(memberPrisma()))
     const out = await caller.search({ workspaceId: WS, query: 'query' })
     expect(out).toHaveLength(1)
-    expect(out[0]?.source).toBe('qdrant')
+    expect(out[0]?.pageId).toBe(PAGE_B)
   })
 
   it('rejects non-members', async () => {
@@ -100,7 +87,6 @@ describe('search.search', () => {
 
   it('propagates postgres failure as a real error', async () => {
     vi.mocked(searchPg).mockRejectedValue(new Error('DB down'))
-    vi.mocked(searchQdrant).mockResolvedValue([])
     const caller = createCallerFactory(searchRouter)(ctx(memberPrisma()))
     await expect(caller.search({ workspaceId: WS, query: 'query' })).rejects.toThrow('DB down')
   })
@@ -117,17 +103,13 @@ describe('search.search', () => {
 describe('search.history', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('history.list returns favorited flag and excludes deleted or archived pages', async () => {
+  it('history.list returns favorited flag for live pages only', async () => {
     const prisma = memberPrisma({
       searchHistory: {
         findMany: vi.fn(async () => [
           {
             pageId: PAGE_A,
-            page: { id: PAGE_A, title: 'A', icon: 'doc', deletedAt: null, archived: false },
-          },
-          {
-            pageId: PAGE_B,
-            page: { id: PAGE_B, title: 'Gone', icon: null, deletedAt: new Date(), archived: false },
+            page: { id: PAGE_A, title: 'A', icon: 'doc' },
           },
         ]),
       },
@@ -137,13 +119,7 @@ describe('search.history', () => {
     })
     const caller = createCallerFactory(searchRouter)(ctx(prisma))
     const out = await caller.history.list({ workspaceId: WS })
-    expect(out).toHaveLength(1)
-    expect(out[0]).toEqual({
-      pageId: PAGE_A,
-      title: 'A',
-      icon: 'doc',
-      isFavorite: true,
-    })
+    expect(out).toEqual([{ pageId: PAGE_A, title: 'A', icon: 'doc', isFavorite: true }])
   })
 
   it('history.add upserts and prunes', async () => {
@@ -160,12 +136,14 @@ describe('search.history', () => {
   })
 
   it('history.add swallows P2003 FK violation', async () => {
-    const err = new Error('FK') as Error & { code?: string }
-    err.code = 'P2003'
+    const fkError = new Prisma.PrismaClientKnownRequestError('FK', {
+      code: 'P2003',
+      clientVersion: 'test',
+    })
     const prisma = memberPrisma({
       searchHistory: {
         upsert: vi.fn(async () => {
-          throw err
+          throw fkError
         }),
       },
       $executeRaw: vi.fn(),

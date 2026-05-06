@@ -140,7 +140,6 @@ describe('searchPg', () => {
     expect(out[0].pageId).toBe('22222222-2222-2222-2222-222222222222')
     expect(out[0].blockNumber).toBe(1)
     expect(out[0].excerpt).toContain('matchword')
-    expect(out[0].source).toBe('postgres')
   })
 
   it('returns null block and excerpt for non-TEXT pages', async () => {
@@ -258,7 +257,6 @@ describe('searchQdrant', () => {
       icon: 'doc',
       blockNumber: 3,
       excerpt: 'snippet text',
-      source: 'qdrant',
     })
   })
 })

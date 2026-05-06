@@ -21,6 +21,7 @@ import {
 
 import type { PlanFeatures } from '@repo/trpc'
 
+import { isMac } from '@/lib/platform'
 import { trpc } from '@/trpc/client'
 
 import { FavoritesSection } from './favorites-section'
@@ -159,11 +160,7 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
         <NavItem
           icon={<SettingsIcon sx={{ fontSize: 16 }} />}
           label="Настройки"
-          shortcut={
-            typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
-              ? '⌘S'
-              : 'Alt+S'
-          }
+          shortcut={isMac() ? '⌘S' : 'Alt+S'}
           href={`/workspaces/${workspace.id}/settings`}
           matchPrefix={`/workspaces/${workspace.id}/settings`}
           pathname={pathname}

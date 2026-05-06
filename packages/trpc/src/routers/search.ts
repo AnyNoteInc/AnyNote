@@ -1,22 +1,9 @@
-import { Prisma, type PrismaClient } from '@repo/db'
-import { TRPCError } from '@trpc/server'
+import { Prisma } from '@repo/db'
 import { z } from 'zod'
 
+import { assertWorkspaceMember } from '../helpers/workspace'
 import { searchPg, searchQdrant, type SearchResultItem } from '../services/page-search'
 import { protectedProcedure, router } from '../trpc'
-
-async function assertWorkspaceMember(
-  ctx: { prisma: PrismaClient; user: { id: string } },
-  workspaceId: string,
-) {
-  const member = await ctx.prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
-  })
-  if (!member) {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Вы не являетесь участником воркспейса' })
-  }
-  return member
-}
 
 const HISTORY_LIMIT_DISPLAYED = 5
 const HISTORY_LIMIT_STORED = 20
@@ -34,14 +21,13 @@ export const searchRouter = router({
     .query(async ({ input, ctx }): Promise<SearchResultItem[]> => {
       await assertWorkspaceMember(ctx, input.workspaceId)
 
-      const [pg, qdrant] = await Promise.allSettled([
-        searchPg(ctx.prisma, input.workspaceId, input.query),
-        searchQdrant(ctx.prisma, input.workspaceId, input.query),
-      ])
-
-      if (pg.status === 'rejected') throw pg.reason
-      if (pg.value.length > 0) return pg.value
-      return qdrant.status === 'fulfilled' ? qdrant.value : []
+      const pg = await searchPg(ctx.prisma, input.workspaceId, input.query)
+      if (pg.length > 0) return pg
+      try {
+        return await searchQdrant(ctx.prisma, input.workspaceId, input.query)
+      } catch {
+        return []
+      }
     }),
 
   history: router({
@@ -51,26 +37,25 @@ export const searchRouter = router({
         await assertWorkspaceMember(ctx, input.workspaceId)
 
         const rows = await ctx.prisma.searchHistory.findMany({
-          where: { userId: ctx.user.id, workspaceId: input.workspaceId },
+          where: {
+            userId: ctx.user.id,
+            workspaceId: input.workspaceId,
+            page: { deletedAt: null, archived: false },
+          },
           orderBy: { lastVisitedAt: 'desc' },
-          take: HISTORY_LIMIT_DISPLAYED * 2,
+          take: HISTORY_LIMIT_DISPLAYED,
           include: {
-            page: {
-              select: { id: true, title: true, icon: true, deletedAt: true, archived: true },
-            },
+            page: { select: { id: true, title: true, icon: true } },
           },
         })
-        const liveRows = rows.filter(
-          (row) => row.page.deletedAt === null && row.page.archived === false,
-        )
-        const pageIds = liveRows.map((row) => row.pageId)
+        const pageIds = rows.map((row) => row.pageId)
         const favorites = await ctx.prisma.favoritePage.findMany({
           where: { userId: ctx.user.id, pageId: { in: pageIds } },
           select: { pageId: true },
         })
         const favoritePageIds = new Set(favorites.map((favorite) => favorite.pageId))
 
-        return liveRows.slice(0, HISTORY_LIMIT_DISPLAYED).map((row) => ({
+        return rows.map((row) => ({
           pageId: row.pageId,
           title: row.page.title ?? '',
           icon: row.page.icon,
@@ -113,7 +98,6 @@ export const searchRouter = router({
           `
         } catch (err) {
           if (err instanceof Prisma.PrismaClientKnownRequestError && err.code === 'P2003') return
-          if (err instanceof Error && (err as Error & { code?: string }).code === 'P2003') return
           throw err
         }
       }),

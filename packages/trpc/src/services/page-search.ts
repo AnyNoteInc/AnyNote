@@ -1,8 +1,12 @@
-import type { Prisma, PrismaClient } from '@repo/db'
+import { PageType, parseAiProviderConnection, type Prisma, type PrismaClient } from '@repo/db'
 
 import { getWorkspaceFeatures } from '../helpers/plan'
 
 const MAX_EXCERPT_WINDOW = 100
+const MAX_QUERY_LENGTH = 200
+const MIN_QUERY_LENGTH = 2
+const PG_DICT = 'russian'
+const RESULT_LIMIT = 10
 
 type TiptapNode = {
   type?: string
@@ -52,13 +56,17 @@ export function extractExcerpt(text: string, query: string, window: number): str
   return `${prefix}${flat.slice(start, end)}${suffix}`
 }
 
+function normalizeQuery(raw: string): string | null {
+  const query = raw.trim().slice(0, MAX_QUERY_LENGTH)
+  return query.length < MIN_QUERY_LENGTH ? null : query
+}
+
 export type SearchResultItem = {
   pageId: string
   title: string
   icon: string | null
   blockNumber: number | null
   excerpt: string | null
-  source: 'postgres' | 'qdrant'
 }
 
 type PgRow = {
@@ -74,8 +82,8 @@ export async function searchPg(
   workspaceId: string,
   rawQuery: string,
 ): Promise<SearchResultItem[]> {
-  const query = rawQuery.trim().slice(0, 200)
-  if (query.length < 2) return []
+  const query = normalizeQuery(rawQuery)
+  if (!query) return []
 
   const rows = await prisma.$queryRaw<PgRow[]>`
     SELECT id, title, icon, content, type::text AS type
@@ -83,31 +91,25 @@ export async function searchPg(
     WHERE "workspace_id" = ${workspaceId}::uuid
       AND "deleted_at" IS NULL
       AND "archived" = false
-      AND "search_vector" @@ websearch_to_tsquery('russian', ${query})
-    ORDER BY ts_rank("search_vector", websearch_to_tsquery('russian', ${query})) DESC
-    LIMIT 10
+      AND "search_vector" @@ websearch_to_tsquery(${PG_DICT}, ${query})
+    ORDER BY ts_rank("search_vector", websearch_to_tsquery(${PG_DICT}, ${query})) DESC
+    LIMIT ${RESULT_LIMIT}
   `
 
   return rows.map((row) => {
-    if (row.type !== 'TEXT' || !row.content) {
-      return {
-        pageId: row.id,
-        title: row.title ?? '',
-        icon: row.icon,
-        blockNumber: null,
-        excerpt: null,
-        source: 'postgres' as const,
-      }
-    }
-
-    const hit = findFirstMatchingBlock(row.content, query)
-    return {
+    const base = {
       pageId: row.id,
       title: row.title ?? '',
       icon: row.icon,
+    }
+    if (row.type !== PageType.TEXT || !row.content) {
+      return { ...base, blockNumber: null, excerpt: null }
+    }
+    const hit = findFirstMatchingBlock(row.content, query)
+    return {
+      ...base,
       blockNumber: hit?.blockNumber ?? null,
       excerpt: hit?.excerpt ?? null,
-      source: 'postgres' as const,
     }
   })
 }
@@ -124,27 +126,22 @@ type EmbeddingPayload = {
   provider: string
   modelSlug: string
   vectorSize: number
-  connection: Record<string, string>
-}
-
-function normalizeConnection(value: unknown): Record<string, string> {
-  if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
-
-  const out: Record<string, string> = {}
-  for (const [key, item] of Object.entries(value as Record<string, unknown>)) {
-    if (typeof item === 'string') out[key] = item
-  }
-  return out
+  connection: ReturnType<typeof parseAiProviderConnection>
 }
 
 function buildEmbedding(ai: WorkspaceAiSettingsRow): EmbeddingPayload | null {
   if (!ai?.embeddingsModel?.vectorSize) return null
 
-  return {
-    provider: ai.embeddingsModel.provider.slug,
-    modelSlug: ai.embeddingsModel.slug,
-    vectorSize: ai.embeddingsModel.vectorSize,
-    connection: normalizeConnection(ai.embeddingsModel.provider.connection),
+  const { slug, vectorSize, provider } = ai.embeddingsModel
+  try {
+    return {
+      provider: provider.slug,
+      modelSlug: slug,
+      vectorSize,
+      connection: parseAiProviderConnection(provider.slug, provider.connection),
+    }
+  } catch {
+    return null
   }
 }
 
@@ -160,19 +157,20 @@ export async function searchQdrant(
   workspaceId: string,
   rawQuery: string,
 ): Promise<SearchResultItem[]> {
-  const query = rawQuery.trim().slice(0, 200)
-  if (query.length < 2) return []
+  const query = normalizeQuery(rawQuery)
+  if (!query) return []
 
-  const ai = (await prisma.workspaceAiSettings.findUnique({
-    where: { workspaceId },
-    include: { embeddingsModel: { include: { provider: true } } },
-  })) as WorkspaceAiSettingsRow
+  const [ai, features] = await Promise.all([
+    prisma.workspaceAiSettings.findUnique({
+      where: { workspaceId },
+      include: { embeddingsModel: { include: { provider: true } } },
+    }) as Promise<WorkspaceAiSettingsRow>,
+    getWorkspaceFeatures(workspaceId),
+  ])
 
+  if (!features.pageIndexingEnabled) return []
   const embedding = buildEmbedding(ai)
   if (!embedding) return []
-
-  const features = await getWorkspaceFeatures(workspaceId)
-  if (!features.pageIndexingEnabled) return []
 
   const baseUrl = process.env.AGENTS_SERVICE_URL ?? 'http://localhost:8080'
   try {
@@ -182,7 +180,7 @@ export async function searchQdrant(
         'content-type': 'application/json',
         'x-workspace-id': workspaceId,
       },
-      body: JSON.stringify({ workspaceId, query, limit: 10, embedding }),
+      body: JSON.stringify({ workspaceId, query, limit: RESULT_LIMIT, embedding }),
       signal: AbortSignal.timeout(5000),
     })
     if (!response.ok) return []
@@ -196,17 +194,15 @@ export async function searchQdrant(
       select: { id: true, icon: true },
     })
     const iconMap = new Map(pages.map((page) => [page.id, page.icon]))
-    const aliveIds = new Set(pages.map((page) => page.id))
 
     return body.results
-      .filter((result) => aliveIds.has(result.pageId))
+      .filter((result) => iconMap.has(result.pageId))
       .map((result) => ({
         pageId: result.pageId,
         title: result.title,
         icon: iconMap.get(result.pageId) ?? null,
         blockNumber: result.blockNumber,
         excerpt: result.content,
-        source: 'qdrant' as const,
       }))
   } catch {
     return []

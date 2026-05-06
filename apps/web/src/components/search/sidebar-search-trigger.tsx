@@ -8,12 +8,13 @@ import {
   Typography,
 } from '@repo/ui/components'
 
+import { isMac } from '@/lib/platform'
+
 import { useSearchDialog } from './search-dialog-provider'
 
 export function SidebarSearchTrigger() {
   const { open } = useSearchDialog()
-  const isMac = typeof navigator !== 'undefined' && /Mac|iPhone|iPad/.test(navigator.platform)
-  const hint = isMac ? '⌘K' : 'Alt+K'
+  const hint = isMac() ? '⌘K' : 'Alt+K'
 
   return (
     <ListItemButton

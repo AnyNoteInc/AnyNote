@@ -1,7 +1,7 @@
 'use client'
 
 import { useRouter } from 'next/navigation'
-import { useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 
 import {
   Box,
@@ -75,25 +75,22 @@ export function SearchDialog({
     { enabled: trimmed.length === 0 },
   )
 
-  const invalidateHistory = () => {
+  const invalidateHistory = useCallback(() => {
     void utils.search.history.list.invalidate({ workspaceId })
     void utils.page.listFavorites.invalidate({ workspaceId })
-  }
+  }, [utils, workspaceId])
 
-  const addToHistory = trpc.search.history.add.useMutation()
+  const addToHistory = trpc.search.history.add.useMutation({ onSuccess: invalidateHistory })
   const removeFromHistory = trpc.search.history.remove.useMutation({ onSuccess: invalidateHistory })
   const addFavorite = trpc.page.addFavorite.useMutation({ onSuccess: invalidateHistory })
   const removeFavorite = trpc.page.removeFavorite.useMutation({ onSuccess: invalidateHistory })
 
   const isShowingResults = trimmed.length >= MIN_QUERY
   const showLoading = isShowingResults && searchQuery.isFetching
-  const results = useMemo(() => searchQuery.data ?? [], [searchQuery.data])
+  const results = searchQuery.data ?? []
 
   function navigateToPage(pageId: string, blockNumber: number | null) {
-    void addToHistory
-      .mutateAsync({ workspaceId, pageId })
-      .then(() => utils.search.history.list.invalidate({ workspaceId }))
-      .catch(() => undefined)
+    void addToHistory.mutateAsync({ workspaceId, pageId }).catch(() => undefined)
     onClose()
     const hash = blockNumber !== null ? `#${blockNumber}` : ''
     window.setTimeout(() => router.push(`/workspaces/${workspaceId}/pages/${pageId}${hash}`), 0)
@@ -102,6 +99,74 @@ export function SearchDialog({
         window.setTimeout(() => window.dispatchEvent(new HashChangeEvent('hashchange')), delay)
       }
     }
+  }
+
+  function renderBody() {
+    if (!isShowingResults) {
+      return (
+        <EmptyState
+          isLoading={historyQuery.isLoading}
+          items={historyQuery.data ?? []}
+          onPick={(item) => navigateToPage(item.pageId, null)}
+          onRemove={(pageId) => removeFromHistory.mutate({ workspaceId, pageId })}
+          onToggleFavorite={(pageId, isFavorite) =>
+            isFavorite ? removeFavorite.mutate({ pageId }) : addFavorite.mutate({ pageId })
+          }
+        />
+      )
+    }
+    if (searchQuery.isError) {
+      return (
+        <Box sx={{ p: 3 }}>
+          <Typography variant="body2" color="error">
+            Не удалось выполнить поиск
+          </Typography>
+        </Box>
+      )
+    }
+    if (results.length === 0 && !searchQuery.isFetching) {
+      return (
+        <Box sx={{ p: 3 }}>
+          <Typography variant="body2" color="text.secondary">
+            Ничего не найдено по запросу «{trimmed}»
+          </Typography>
+        </Box>
+      )
+    }
+    return (
+      <List dense role="listbox" aria-label="Результаты поиска">
+        {results.map((item) => (
+          <ListItemButton
+            key={`${item.pageId}-${item.blockNumber ?? 'title'}`}
+            role="option"
+            onClick={() => navigateToPage(item.pageId, item.blockNumber)}
+            sx={{ alignItems: 'flex-start', gap: 1 }}
+          >
+            <ListItemIcon sx={{ minWidth: 28, pt: 0.5 }}>
+              {item.icon ? (
+                <Typography component="span" sx={{ fontSize: 16, lineHeight: 1 }}>
+                  {item.icon}
+                </Typography>
+              ) : (
+                <DescriptionIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+              )}
+            </ListItemIcon>
+            <ListItemText
+              primary={item.title || 'Без названия'}
+              primaryTypographyProps={{ noWrap: true }}
+              secondary={
+                item.blockNumber !== null && item.excerpt ? (
+                  <Box component="span" sx={{ display: 'block' }}>
+                    Блок {item.blockNumber + 1}:{' '}
+                    <HighlightMatches text={item.excerpt} query={trimmed} />
+                  </Box>
+                ) : null
+              }
+            />
+          </ListItemButton>
+        ))}
+      </List>
+    )
   }
 
   return (
@@ -141,64 +206,7 @@ export function SearchDialog({
 
       {showLoading && <LinearProgress />}
 
-      <Box sx={{ minHeight: 200, maxHeight: 480, overflowY: 'auto' }}>
-        {!isShowingResults ? (
-          <EmptyState
-            isLoading={historyQuery.isLoading}
-            items={historyQuery.data ?? []}
-            onPick={(item) => navigateToPage(item.pageId, null)}
-            onRemove={(pageId) => removeFromHistory.mutate({ workspaceId, pageId })}
-            onToggleFavorite={(pageId, isFavorite) =>
-              isFavorite ? removeFavorite.mutate({ pageId }) : addFavorite.mutate({ pageId })
-            }
-          />
-        ) : searchQuery.isError ? (
-          <Box sx={{ p: 3 }}>
-            <Typography variant="body2" color="error">
-              Не удалось выполнить поиск
-            </Typography>
-          </Box>
-        ) : results.length === 0 && !searchQuery.isFetching ? (
-          <Box sx={{ p: 3 }}>
-            <Typography variant="body2" color="text.secondary">
-              Ничего не найдено по запросу «{trimmed}»
-            </Typography>
-          </Box>
-        ) : (
-          <List dense role="listbox" aria-label="Результаты поиска">
-            {results.map((item) => (
-              <ListItemButton
-                key={`${item.pageId}-${item.blockNumber ?? 'title'}`}
-                role="option"
-                onClick={() => navigateToPage(item.pageId, item.blockNumber)}
-                sx={{ alignItems: 'flex-start', gap: 1 }}
-              >
-                <ListItemIcon sx={{ minWidth: 28, pt: 0.5 }}>
-                  {item.icon ? (
-                    <Typography component="span" sx={{ fontSize: 16, lineHeight: 1 }}>
-                      {item.icon}
-                    </Typography>
-                  ) : (
-                    <DescriptionIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-                  )}
-                </ListItemIcon>
-                <ListItemText
-                  primary={item.title || 'Без названия'}
-                  primaryTypographyProps={{ noWrap: true }}
-                  secondary={
-                    item.blockNumber !== null && item.excerpt ? (
-                      <Box component="span" sx={{ display: 'block' }}>
-                        Блок {item.blockNumber + 1}:{' '}
-                        <HighlightMatches text={item.excerpt} query={trimmed} />
-                      </Box>
-                    ) : null
-                  }
-                />
-              </ListItemButton>
-            ))}
-          </List>
-        )}
-      </Box>
+      <Box sx={{ minHeight: 200, maxHeight: 480, overflowY: 'auto' }}>{renderBody()}</Box>
     </Dialog>
   )
 }
