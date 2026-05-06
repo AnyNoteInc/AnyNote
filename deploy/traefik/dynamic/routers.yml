@@ -45,6 +45,18 @@ http:
         - ratelimit@file
         - headers@file
 
+    # Portainer (Docker stack management UI). Auth handled by Portainer itself.
+    portainer:
+      rule: "Host(`portainer.anynote.ru`)"
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: le
+      service: portainer
+      middlewares:
+        - ratelimit@file
+        - headers@file
+
   services:
     web:
       loadBalancer:
@@ -54,3 +66,7 @@ http:
       loadBalancer:
         servers:
           - url: "http://yjs:1234"
+    portainer:
+      loadBalancer:
+        servers:
+          - url: "http://portainer:9000"

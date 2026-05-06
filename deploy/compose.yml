@@ -125,8 +125,18 @@ services:
       qdrant:
         condition: service_started
 
+  portainer:
+    image: portainer/portainer-ce:latest
+    restart: unless-stopped
+    command: -H unix:///var/run/docker.sock
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - portainer_data:/data
+    # Routing via traefik file provider in deploy/traefik/dynamic/routers.yml.
+
 volumes:
   postgres_data:
   minio_data:
   qdrant_data:
   traefik_acme:
+  portainer_data:
