@@ -1,3 +1,4 @@
+/// <reference path="./sendsay-api.d.ts" />
 import Sendsay from 'sendsay-api'
 
 type SendsayClient = { request: (payload: Record<string, unknown>) => Promise<unknown> }
