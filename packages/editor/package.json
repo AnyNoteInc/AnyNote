@@ -12,6 +12,11 @@
       "import": "./src/styles/content.css",
       "default": "./src/styles/content.css"
     },
+    "./extensions/server": {
+      "types": "./src/extensions/server.ts",
+      "import": "./src/extensions/server.ts",
+      "default": "./src/extensions/server.ts"
+    },
     "./*": {
       "types": "./src/*",
       "import": "./src/*",
