@@ -1,3 +1,10 @@
+# [1.6.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.5.0...v1.6.0) (2026-05-07)
+
+
+### Features
+
+* **deploy:** add gotenberg sidecar for server-side PDF export ([ab0a27c](https://github.com/AnyNoteInc/AnyNote/commit/ab0a27c0d53025a58ed6a3e319d0644c8ba87362))
+
 # [1.5.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.4.0...v1.5.0) (2026-05-07)
 
 
