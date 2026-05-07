@@ -66,6 +66,25 @@ services:
     volumes:
       - qdrant_data:/qdrant/storage
 
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    restart: unless-stopped
+    # No port mapping: Gotenberg has no built-in auth, so we keep it on the
+    # internal compose network. Reached by `web` at http://gotenberg:3000.
+    # api-timeout must be >= GOTENBERG_TIMEOUT_MS used by the web client.
+    command:
+      - "gotenberg"
+      - "--api-port=3000"
+      - "--api-timeout=60s"
+      - "--chromium-disable-javascript=true"
+      - "--chromium-incognito=true"
+      - "--log-level=warn"
+    healthcheck:
+      test: ["CMD", "curl", "-fsSL", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
   migrate:
     image: ghcr.io/anynoteinc/anynote-web:latest
     restart: "no"
@@ -91,6 +110,8 @@ services:
       engines:
         condition: service_started
       agents:
+        condition: service_started
+      gotenberg:
         condition: service_started
     # Routing via traefik file provider in deploy/traefik/dynamic/routers.yml.
 
