@@ -161,7 +161,7 @@
   white-space: nowrap;
 }
 
-/* Task list: MUI Checkbox + text, checkbox visually centered on first line of content. */
+/* Task list: MUI Checkbox + text, checkbox centered against the item content. */
 .anynote-editor ul[data-type="taskList"] {
   list-style: none;
   padding: 0;
@@ -170,19 +170,15 @@
 .anynote-editor .anynote-task-item,
 .anynote-editor ul[data-type="taskList"] > li {
   display: flex;
-  align-items: flex-start;
+  align-items: center;
   gap: 4px;
   margin: 0.15rem 0;
 }
 
-/* The MUI Checkbox size="small" is ~30px tall (svg 20 + 5px padding on each side).
-   The editor's line-height is 1.6em, giving a ~25.6px first-line box at 16px font.
-   We pull the checkbox up so the SVG center lands on the first line's vertical
-   center: margin-top = (line-height - checkbox-height) / 2 ≈ -2.2px. */
 .anynote-editor .anynote-task-item__checkbox,
 .anynote-editor ul[data-type="taskList"] > li > label {
   flex-shrink: 0;
-  margin-top: calc((1em * 1.6 - 30px) / 2);
+  margin-top: 0;
 }
 
 .anynote-editor .anynote-task-item__content,

@@ -10,7 +10,26 @@ test('workspace + settings happy path', async ({ page }) => {
   await page.getByRole('button', { name: 'Создать пространство' }).click()
 
   await page.waitForURL(/\/workspaces\/[a-f0-9-]+$/)
-  await expect(page.getByRole('heading', { name: 'Welcome to AnyNote' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Добро пожаловать в AnyNote' })).toBeVisible()
+
+  await page.getByText('Тест Ревьюер', { exact: true }).click()
+  const userMenu = page.getByRole('menu')
+  await expect(userMenu.getByText('Тема', { exact: true })).toBeVisible()
+  await expect(userMenu.getByRole('group', { name: 'Тема' })).toBeVisible()
+  await expect(userMenu.getByRole('button', { name: 'Системная тема' })).toBeVisible()
+  await expect(userMenu.getByRole('button', { name: 'Светлая тема' })).toBeVisible()
+  await expect(userMenu.getByRole('button', { name: 'Тёмная тема' })).toBeVisible()
+  const upgradeAction = userMenu.getByRole('menuitem', { name: 'Обновить план' })
+  const logoutAction = userMenu.getByRole('menuitem', { name: 'Выйти' })
+  await expect(upgradeAction).toBeVisible()
+  await expect(logoutAction).toBeVisible()
+  await expect(userMenu.locator('.MuiDivider-vertical')).toHaveCount(0)
+  const [upgradeBox, logoutBox] = await Promise.all([
+    upgradeAction.boundingBox(),
+    logoutAction.boundingBox(),
+  ])
+  expect(upgradeBox?.y).toBeLessThan(logoutBox?.y ?? 0)
+  await page.keyboard.press('Escape')
 
   await page.getByRole('link', { name: 'Настройки' }).click()
   await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/settings\/general$/)

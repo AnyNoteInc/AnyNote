@@ -172,5 +172,5 @@ a { color: #2563eb; text-decoration: underline; }
   font-weight: 500;
 }
 
-@page { size: A4; margin: 0; }
+@page { size: A4; margin: 20mm; }
 `

@@ -75,22 +75,51 @@ test('slash date: opens a picker initialized to today and inserts the selected d
 
   await page.getByText('Дата', { exact: true }).click()
 
-  const dateInput = page.getByLabel('Дата')
+  const picker = page.locator('.MuiDateCalendar-root')
   const today = new Date()
-  const todayInputValue = [
-    today.getFullYear(),
-    String(today.getMonth() + 1).padStart(2, '0'),
-    String(today.getDate()).padStart(2, '0'),
-  ].join('-')
   const expectedText = new Intl.DateTimeFormat('ru-RU', {
     day: '2-digit',
     month: '2-digit',
     year: 'numeric',
   }).format(today)
 
-  await expect(dateInput).toHaveValue(todayInputValue)
+  await expect(picker).toBeVisible()
+  await expect(
+    page.getByRole('gridcell', { name: String(today.getDate()), selected: true }),
+  ).toBeVisible()
   await page.getByRole('button', { name: 'Вставить дату' }).click()
   await expect(editor).toContainText(expectedText)
+})
+
+test('slash task list centers the task control beside the item content', async ({ page }) => {
+  await signUpAndCreateWorkspace(page, 'slash-task-align')
+  const editor = await createTextPage(page)
+  await openSlashMenu(editor)
+  await page.keyboard.type('todo')
+
+  await page.getByText('Список задач', { exact: true }).click()
+  await editor.type('Задача с текстом')
+
+  const taskItem = editor.locator('.anynote-task-item').first()
+  const checkbox = taskItem.locator('.anynote-task-item__checkbox').first()
+  const content = taskItem.locator('.anynote-task-item__content').first()
+
+  await expect(checkbox).toBeVisible()
+  await expect(content).toContainText('Задача с текстом')
+
+  const centers = await taskItem.evaluate((node) => {
+    const checkboxNode = node.querySelector('.anynote-task-item__checkbox')
+    const contentNode = node.querySelector('.anynote-task-item__content')
+    if (!checkboxNode || !contentNode) throw new Error('Task item parts not found')
+    const checkboxRect = checkboxNode.getBoundingClientRect()
+    const contentRect = contentNode.getBoundingClientRect()
+    return {
+      checkbox: checkboxRect.top + checkboxRect.height / 2,
+      content: contentRect.top + contentRect.height / 2,
+    }
+  })
+
+  expect(Math.abs(centers.checkbox - centers.content)).toBeLessThanOrEqual(2)
 })
 
 test('slash datetime inserts the current local date and time', async ({ page }) => {

@@ -37,4 +37,10 @@ describe('wrapHtmlDocument', () => {
     expect(out).toContain('document-title')
     expect(out).toContain('@page')
   })
+
+  it('inlines A4 print margins instead of edge-to-edge pages', () => {
+    const out = wrapHtmlDocument({ bodyHtml: '', title: 'Page', icon: null })
+    expect(out).toContain('@page { size: A4; margin: 20mm; }')
+    expect(out).not.toContain('@page { size: A4; margin: 0; }')
+  })
 })

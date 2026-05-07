@@ -1,10 +1,20 @@
 'use client'
 
-import { Box, Button, Popover, Stack, TextField } from '@mui/material'
+import {
+  AdapterDateFns,
+  Box,
+  Button,
+  LocalizationProvider,
+  Popover,
+  Stack,
+  StaticDatePicker,
+  dateFnsRu,
+  datePickerRuRU,
+} from '@repo/ui/components'
 import type { Editor } from '@tiptap/core'
 import { useCallback, useEffect, useState } from 'react'
 
-import { dateFromInputValue, formatDateText, toDateInputValue } from '../lib/date-format'
+import { formatDateText } from '../lib/date-format'
 import type { SlashRange, VirtualAnchor } from '../types'
 
 type Props = {
@@ -16,28 +26,18 @@ type Props = {
 }
 
 export function DateInsertPopover({ open, anchorEl, range, editor, onClose }: Props) {
-  const [value, setValue] = useState(() => toDateInputValue(new Date()))
+  const [value, setValue] = useState<Date | null>(() => new Date())
 
   useEffect(() => {
-    if (open) setValue(toDateInputValue(new Date()))
+    if (open) setValue(new Date())
   }, [open])
 
-  const insertDate = useCallback(() => {
+  const insertDate = useCallback((date: Date | null) => {
     if (!range) return
-    const date = dateFromInputValue(value) ?? new Date()
-    editor.chain().focus().deleteRange(range).insertContent(`${formatDateText(date)} `).run()
+    const selectedDate = date ?? new Date()
+    editor.chain().focus().deleteRange(range).insertContent(`${formatDateText(selectedDate)} `).run()
     onClose()
-  }, [editor, onClose, range, value])
-
-  const handleKeyDown = useCallback(
-    (event: React.KeyboardEvent<HTMLInputElement>) => {
-      if (event.key === 'Enter') {
-        event.preventDefault()
-        insertDate()
-      }
-    },
-    [insertDate],
-  )
+  }, [editor, onClose, range])
 
   return (
     <Popover
@@ -46,29 +46,30 @@ export function DateInsertPopover({ open, anchorEl, range, editor, onClose }: Pr
       onClose={onClose}
       anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
       transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-      slotProps={{ paper: { sx: { width: 300 } } }}
+      slotProps={{ paper: { sx: { width: 332, maxWidth: 'calc(100vw - 32px)' } } }}
     >
-      <Box sx={{ p: 2 }}>
-        <Stack spacing={1.5}>
-          <TextField
-            autoFocus
-            label="Дата"
-            type="date"
-            size="small"
+      <Box>
+        <LocalizationProvider
+          dateAdapter={AdapterDateFns}
+          adapterLocale={dateFnsRu}
+          localeText={datePickerRuRU.components.MuiLocalizationProvider.defaultProps.localeText}
+        >
+          <StaticDatePicker
             value={value}
-            fullWidth
-            onChange={(event) => setValue(event.target.value)}
-            onKeyDown={handleKeyDown}
-            slotProps={{ inputLabel: { shrink: true } }}
+            onChange={(nextValue) => setValue(nextValue)}
+            onAccept={(acceptedValue) => insertDate(acceptedValue)}
+            onClose={onClose}
+            displayStaticWrapperAs="desktop"
+            slotProps={{ actionBar: { actions: [] } }}
           />
-          <Stack direction="row" spacing={1} justifyContent="flex-end">
-            <Button size="small" onClick={onClose}>
-              Отмена
-            </Button>
-            <Button size="small" variant="contained" onClick={insertDate}>
-              Вставить дату
-            </Button>
-          </Stack>
+        </LocalizationProvider>
+        <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ px: 2, pb: 2 }}>
+          <Button size="small" onClick={onClose}>
+            Отмена
+          </Button>
+          <Button size="small" variant="contained" onClick={() => insertDate(value)}>
+            Вставить дату
+          </Button>
         </Stack>
       </Box>
     </Popover>

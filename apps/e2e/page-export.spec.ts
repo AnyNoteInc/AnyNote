@@ -129,6 +129,8 @@ test('downloads PDF, HTML, and Markdown for a TEXT page', async ({ page }) => {
       } else if (fmt === 'html') {
         const html = body.toString('utf-8')
         expect(html.toLowerCase()).toContain('<!doctype html>')
+        expect(html).toContain('@page { size: A4; margin: 20mm; }')
+        expect(html).not.toContain('@page { size: A4; margin: 0; }')
         expect(html).toContain('Заметка')
         expect(html).toContain('Hello world')
         expect(html).not.toContain('<script')

@@ -19,6 +19,7 @@ export { default as Alert, type AlertProps } from '@mui/material/Alert'
 export { default as Avatar, type AvatarProps } from '@mui/material/Avatar'
 export { default as TextField, type TextFieldProps } from '@mui/material/TextField'
 export { default as IconButton, type IconButtonProps } from '@mui/material/IconButton'
+export { default as ButtonGroup, type ButtonGroupProps } from '@mui/material/ButtonGroup'
 export { default as Tooltip, type TooltipProps } from '@mui/material/Tooltip'
 export { default as Chip, type ChipProps } from '@mui/material/Chip'
 export { default as Stepper, type StepperProps } from '@mui/material/Stepper'
@@ -110,6 +111,9 @@ export { default as TelegramIcon } from '@mui/icons-material/Telegram'
 export { default as VisibilityIcon } from '@mui/icons-material/Visibility'
 export { default as VisibilityOffIcon } from '@mui/icons-material/VisibilityOff'
 export { default as DownloadIcon } from '@mui/icons-material/Download'
+export { default as DarkModeRoundedIcon } from '@mui/icons-material/DarkModeRounded'
+export { default as DevicesRoundedIcon } from '@mui/icons-material/DevicesRounded'
+export { default as LightModeRoundedIcon } from '@mui/icons-material/LightModeRounded'
 export { default as PictureAsPdfIcon } from '@mui/icons-material/PictureAsPdf'
 export { default as ImageIcon } from '@mui/icons-material/Image'
 export { default as VideoFileIcon } from '@mui/icons-material/VideoFile'
@@ -126,6 +130,18 @@ export { default as ListItemText, type ListItemTextProps } from '@mui/material/L
 export { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView'
 export { RichTreeView } from '@mui/x-tree-view/RichTreeView'
 export { TreeItem } from '@mui/x-tree-view/TreeItem'
+
+export {
+  StaticDatePicker,
+  type StaticDatePickerProps,
+} from '@mui/x-date-pickers/StaticDatePicker'
+export {
+  LocalizationProvider,
+  type LocalizationProviderProps,
+} from '@mui/x-date-pickers/LocalizationProvider'
+export { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
+export { ruRU as datePickerRuRU } from '@mui/x-date-pickers/locales'
+export { ru as dateFnsRu } from 'date-fns/locale/ru'
 
 export * from './ui/button'
 export { BrandIcon, type BrandIconProps } from './brand-icon'
