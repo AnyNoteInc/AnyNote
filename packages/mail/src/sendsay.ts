@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/triple-slash-reference -- sendsay-api ships no .d.ts; the shim must follow the file when consumers compile it transitively.
 /// <reference path="./sendsay-api.d.ts" />
 import Sendsay from 'sendsay-api'
 
