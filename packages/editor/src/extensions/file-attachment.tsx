@@ -1,12 +1,12 @@
 'use client'
 
-import { Node, mergeAttributes } from '@tiptap/core'
 import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
 import { Box, Typography } from '@mui/material'
 
 import { getFileIcon } from '../assets/files/index'
 import { DownloadIcon } from '../assets/index'
+import { FileAttachmentSchema } from './file-attachment.schema'
 
 export type FileAttachmentAttrs = {
   url: string
@@ -93,56 +93,7 @@ function FileAttachmentView({ node }: NodeViewProps) {
   )
 }
 
-export const FileAttachment = Node.create({
-  name: 'fileAttachment',
-  group: 'block',
-  atom: true,
-  draggable: true,
-  selectable: true,
-
-  addAttributes() {
-    return {
-      url: { default: '' },
-      name: { default: '' },
-      size: { default: 0 },
-      mimeType: { default: '' },
-      ext: { default: '' },
-    }
-  },
-
-  parseHTML() {
-    return [
-      {
-        tag: 'div[data-type="file-attachment"]',
-        getAttrs: (element) => {
-          const el = element as HTMLElement
-          return {
-            url: el.getAttribute('data-url') ?? '',
-            name: el.getAttribute('data-name') ?? '',
-            size: Number(el.getAttribute('data-size') ?? 0),
-            mimeType: el.getAttribute('data-mime') ?? '',
-            ext: el.getAttribute('data-ext') ?? '',
-          }
-        },
-      },
-    ]
-  },
-
-  renderHTML({ HTMLAttributes, node }) {
-    const attrs = node.attrs as FileAttachmentAttrs
-    return [
-      'div',
-      mergeAttributes(HTMLAttributes, {
-        'data-type': 'file-attachment',
-        'data-url': attrs.url,
-        'data-name': attrs.name,
-        'data-size': String(attrs.size),
-        'data-mime': attrs.mimeType,
-        'data-ext': attrs.ext,
-      }),
-    ]
-  },
-
+export const FileAttachment = FileAttachmentSchema.extend({
   addNodeView() {
     return ReactNodeViewRenderer(FileAttachmentView)
   },
