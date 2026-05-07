@@ -13,7 +13,7 @@ import {
 import { nextCookies } from 'better-auth/next-js'
 
 import { prisma, SubscriptionStatus } from '@repo/db'
-import { enqueueMailEvent, sendMailNow } from '@repo/mail'
+import { sendMailNow } from '@repo/mail'
 
 type VerificationEmailContext = { skipUserCleanupOnFailure: boolean }
 const verificationEmailContext = new AsyncLocalStorage<VerificationEmailContext>()
@@ -92,14 +92,13 @@ const auth = betterAuth({
     },
     afterEmailVerification: async (user) => {
       const userWithName = user as { firstName?: string; email: string; id: string }
-      await enqueueMailEvent(prisma, {
+      await sendMailNow({
         kind: 'welcome',
         to: userWithName.email,
         data: {
           firstName: userWithName.firstName ?? '',
           appUrl: `${appUrl()}/app`,
         },
-        userId: userWithName.id,
       })
     },
   },
@@ -202,14 +201,13 @@ const auth = betterAuth({
             update: {},
           })
           if (userWithName.emailVerified) {
-            await enqueueMailEvent(prisma, {
+            await sendMailNow({
               kind: 'welcome',
               to: userWithName.email,
               data: {
                 firstName: userWithName.firstName ?? '',
                 appUrl: `${appUrl()}/app`,
               },
-              userId: userWithName.id,
             })
           }
         },
