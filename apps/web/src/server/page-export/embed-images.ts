@@ -42,7 +42,8 @@ async function withLimit<T, R>(
   const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
     while (next < items.length) {
       const i = next++
-      results[i] = await worker(items[i])
+      const item = items[i]!
+      results[i] = await worker(item)
     }
   })
   await Promise.all(runners)

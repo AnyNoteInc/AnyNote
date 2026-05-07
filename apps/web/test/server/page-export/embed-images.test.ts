@@ -2,6 +2,8 @@ import { Readable } from 'node:stream'
 
 import { describe, expect, it, vi } from 'vitest'
 
+import type { PrismaClient } from '@repo/db'
+
 import { embedImagesAndRewriteLinks } from '@/server/page-export/embed-images'
 
 const baseUrl = 'https://anynote.test'
@@ -26,7 +28,7 @@ function makePrisma(files: Array<{ id: string; path: string; mimeType: string }>
         files.filter((f) => where.id.in.includes(f.id)),
       ),
     },
-  } as const
+  } as unknown as Pick<PrismaClient, 'file'>
 }
 
 describe('embedImagesAndRewriteLinks', () => {
