@@ -158,7 +158,12 @@ export function PageActionsMenu({
         />
       ) : null}
 
-      <PageExportDialog open={exportOpen} onClose={() => setExportOpen(false)} pageId={pageId} />
+      <PageExportDialog
+        open={exportOpen}
+        onClose={() => setExportOpen(false)}
+        pageId={pageId}
+        workspaceId={workspaceId}
+      />
     </>
   )
 }

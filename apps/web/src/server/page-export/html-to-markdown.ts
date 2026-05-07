@@ -1,6 +1,6 @@
 import TurndownService from 'turndown'
 
-export function editorHtmlToMarkdown(html: string): string {
+export function htmlToMarkdown(html: string): string {
   const td = new TurndownService({
     headingStyle: 'atx',
     bulletListMarker: '-',
@@ -10,12 +10,10 @@ export function editorHtmlToMarkdown(html: string): string {
   td.addRule('callout', {
     filter: (n) => {
       if (n.nodeName !== 'DIV') return false
-      const el = n as HTMLElement
-      return el.dataset?.type === 'callout'
+      return n.getAttribute('data-type') === 'callout'
     },
     replacement: (content, node) => {
-      const el = node as HTMLElement
-      const icon = el.dataset?.emoji ?? el.dataset?.icon ?? '💡'
+      const icon = node.getAttribute('data-emoji') ?? node.getAttribute('data-icon') ?? '💡'
       return `\n> ${icon} ${content.trim()}\n`
     },
   })
@@ -23,8 +21,7 @@ export function editorHtmlToMarkdown(html: string): string {
   td.addRule('toggle', {
     filter: (n) => {
       if (n.nodeName !== 'DIV') return false
-      const el = n as HTMLElement
-      return el.dataset?.type === 'toggle'
+      return n.getAttribute('data-type') === 'toggle'
     },
     replacement: (content) => {
       const trimmed = content.trim()
@@ -38,8 +35,7 @@ export function editorHtmlToMarkdown(html: string): string {
   td.addRule('hiddenText', {
     filter: (n) => {
       if (n.nodeName !== 'DIV') return false
-      const el = n as HTMLElement
-      return el.dataset?.type === 'hidden-text'
+      return n.getAttribute('data-type') === 'hidden-text'
     },
     replacement: (content) => `<span class="hidden">${content.trim()}</span>`,
   })
@@ -47,13 +43,11 @@ export function editorHtmlToMarkdown(html: string): string {
   td.addRule('fileAttachment', {
     filter: (n) => {
       if (n.nodeName !== 'DIV') return false
-      const el = n as HTMLElement
-      return el.dataset?.type === 'file-attachment'
+      return n.getAttribute('data-type') === 'file-attachment'
     },
     replacement: (_content, node) => {
-      const el = node as HTMLElement
-      const name = el.dataset?.name ?? 'file'
-      const url = el.dataset?.url ?? el.dataset?.href ?? '#'
+      const name = node.getAttribute('data-name') ?? 'file'
+      const url = node.getAttribute('data-url') ?? node.getAttribute('data-href') ?? '#'
       return `[${name}](${url})`
     },
   })
@@ -63,5 +57,5 @@ export function editorHtmlToMarkdown(html: string): string {
   // (markdown renderers still treat these as paragraph breaks for rendering
   // purposes because of hard line breaks at the block level).
   const raw = td.turndown(html)
-  return raw.replace(/\n{2,}/g, '\n').trim() + '\n'
+  return raw.replaceAll(/\n{2,}/g, '\n').trim() + '\n'
 }

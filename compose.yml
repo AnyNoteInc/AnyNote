@@ -66,6 +66,25 @@ services:
       timeout: 3s
       retries: 5
 
+  gotenberg:
+    image: gotenberg/gotenberg:8
+    container_name: anynote-gotenberg
+    command:
+      - "gotenberg"
+      - "--api-port=3000"
+      - "--api-timeout=60s"
+      - "--chromium-disable-javascript=true"
+      - "--chromium-incognito=true"
+      - "--log-level=warn"
+    ports:
+      - "3001:3000"
+    healthcheck:
+      test: ["CMD", "curl", "-fsSL", "http://localhost:3000/health"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
 volumes:
   postgres_data:
   minio_data:

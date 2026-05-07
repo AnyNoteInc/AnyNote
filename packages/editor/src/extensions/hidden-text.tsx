@@ -1,10 +1,11 @@
 import React, { useState } from 'react'
-import { Node, mergeAttributes } from '@tiptap/core'
 import type { NodeViewProps } from '@tiptap/react'
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 import { Box, IconButton } from '@mui/material'
 import VisibilityIcon from '@mui/icons-material/Visibility'
 import VisibilityOffIcon from '@mui/icons-material/VisibilityOff'
+
+import { HiddenTextSchema } from './hidden-text.schema'
 
 // Hidden text should be visible immediately after insertion (so the author can
 // type into it) but hidden by default after a reload. We distinguish the two
@@ -63,36 +64,7 @@ function HiddenTextView({ node }: NodeViewProps) {
   )
 }
 
-export const HiddenText = Node.create({
-  name: 'hiddenText',
-  group: 'block',
-  content: 'block+',
-  defining: true,
-
-  addAttributes() {
-    return {
-      created: {
-        default: null,
-        parseHTML: (el) => {
-          const raw = el.getAttribute('data-created')
-          if (!raw) return null
-          const value = Number.parseInt(raw, 10)
-          return Number.isFinite(value) ? value : null
-        },
-        renderHTML: (attrs) =>
-          typeof attrs.created === 'number' ? { 'data-created': String(attrs.created) } : {},
-      },
-    }
-  },
-
-  parseHTML() {
-    return [{ tag: 'div[data-type="hidden-text"]' }]
-  },
-
-  renderHTML({ HTMLAttributes }) {
-    return ['div', mergeAttributes(HTMLAttributes, { 'data-type': 'hidden-text' }), 0]
-  },
-
+export const HiddenText = HiddenTextSchema.extend({
   addNodeView() {
     return ReactNodeViewRenderer(HiddenTextView)
   },

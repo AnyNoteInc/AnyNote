@@ -1,12 +1,13 @@
 'use client'
 
 import { Box, IconButton, Popover } from '@mui/material'
-import { Node, mergeAttributes } from '@tiptap/core'
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
 import Picker, { EmojiStyle, Theme as EmojiTheme, type EmojiClickData } from 'emoji-picker-react'
 import { useTheme } from '@mui/material/styles'
 import { useCallback, useState } from 'react'
+
+import { CalloutSchema } from './callout.schema'
 
 const DEFAULT_EMOJI = '💡'
 
@@ -83,44 +84,7 @@ function CalloutView({ node, updateAttributes, editor }: NodeViewProps) {
   )
 }
 
-export const Callout = Node.create({
-  name: 'callout',
-  group: 'block',
-  content: 'block+',
-  defining: true,
-  draggable: true,
-
-  addAttributes() {
-    return {
-      emoji: { default: DEFAULT_EMOJI },
-    }
-  },
-
-  parseHTML() {
-    return [
-      {
-        tag: 'div[data-type="callout"]',
-        getAttrs: (element) => {
-          const el = element as HTMLElement
-          return {
-            emoji: el.getAttribute('data-emoji') || DEFAULT_EMOJI,
-          }
-        },
-      },
-    ]
-  },
-
-  renderHTML({ HTMLAttributes, node }) {
-    return [
-      'div',
-      mergeAttributes(HTMLAttributes, {
-        'data-type': 'callout',
-        'data-emoji': (node.attrs.emoji as string) || DEFAULT_EMOJI,
-      }),
-      0,
-    ]
-  },
-
+export const Callout = CalloutSchema.extend({
   addNodeView() {
     return ReactNodeViewRenderer(CalloutView)
   },
