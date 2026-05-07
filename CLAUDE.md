@@ -75,7 +75,7 @@ Packages (selected):
 - `packages/editor` — Tiptap-based collaborative text editor (loaded via `next/dynamic`, `ssr: false`).
 - `packages/excalidraw` — Excalidraw board renderer (same dynamic-import pattern).
 - `packages/genogram` — React Flow genogram canvas.
-- `packages/mail` — outbox-backed transactional email (`enqueueMailEvent`, `dispatchPending`, templates).
+- `packages/mail` — synchronous transactional email via SendSay HTTP API (`sendMailNow`, templates).
 - `packages/storage` — typed S3/MinIO client.
 - `packages/yookassa` — billing client + webhook signature verification.
 - `packages/eslint-config`, `packages/typescript-config` — consumed via `workspace:*`.
@@ -150,12 +150,11 @@ Indexing is decoupled via an outbox:
 
 After schema or normalizer changes, re-enqueue with `pnpm --filter engines backfill:reindex`.
 
-### Outbox pattern (mail + indexer)
+### Outbox pattern (indexer only)
 
-Both transactional email and vectorization use the same shape: write a row in a transaction, drain via a NestJS cron in `apps/engines`. When debugging "the email never sent" or "the page wasn't indexed", check the outbox table first — it's almost always a stuck row, not a transport issue.
+Vectorization is decoupled via an outbox: write a row to `outbox_events` in a transaction, drain via a NestJS cron in `apps/engines/src/apps/indexer/`. When the page wasn't indexed, check the table first — it's almost always a stuck row (`status='PENDING'` with retries), not a transport issue.
 
-- Mail outbox: `packages/mail/src/dispatch.ts` (claim → render → send → mark sent/retry). Cron lives in `apps/engines/src/apps/mailer/`. Templates in `packages/mail/src/templates/` use the XSS-safe `escapeHtml` from `utils.ts`.
-- Indexer outbox: `outbox_events` in the main DB; cron in `apps/engines/src/apps/indexer/`.
+Email no longer uses this pattern. `@repo/mail`'s `sendMailNow` calls SendSay's HTTP API synchronously inside the request that triggers the send (sign-up, verify, reset-password, welcome). Templates in `packages/mail/src/templates/` use the XSS-safe `esc()` from `utils.ts`.
 
 ### Realtime collaboration (apps/yjs + PageRenderer)
 
