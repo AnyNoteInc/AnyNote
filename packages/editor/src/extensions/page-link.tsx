@@ -1,11 +1,11 @@
 'use client'
 
-import { Node, mergeAttributes } from '@tiptap/core'
 import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
 import { Box } from '@mui/material'
 
 import { PageLinkIcon } from '../assets/index'
+import { PageLinkSchema } from './page-link.schema'
 
 export type PageLinkAttrs = {
   pageId: string
@@ -60,54 +60,9 @@ function PageLinkView({ node, extension }: NodeViewProps) {
   )
 }
 
-export const PageLink = Node.create<PageLinkOptions>({
-  name: 'pageLink',
-  group: 'inline',
-  inline: true,
-  atom: true,
-  selectable: true,
-  draggable: false,
-
+export const PageLink = PageLinkSchema.extend<PageLinkOptions>({
   addOptions() {
     return { onNavigate: () => {} }
-  },
-
-  addAttributes() {
-    return {
-      pageId: { default: '' },
-      workspaceId: { default: '' },
-      title: { default: '' },
-    }
-  },
-
-  parseHTML() {
-    return [
-      {
-        tag: 'span[data-type="page-link"]',
-        getAttrs: (element) => {
-          const el = element as HTMLElement
-          return {
-            pageId: el.getAttribute('data-page-id') ?? '',
-            workspaceId: el.getAttribute('data-workspace-id') ?? '',
-            title: el.getAttribute('data-title') ?? '',
-          }
-        },
-      },
-    ]
-  },
-
-  renderHTML({ HTMLAttributes, node }) {
-    const attrs = node.attrs as PageLinkAttrs
-    return [
-      'span',
-      mergeAttributes(HTMLAttributes, {
-        'data-type': 'page-link',
-        'data-page-id': attrs.pageId,
-        'data-workspace-id': attrs.workspaceId,
-        'data-title': attrs.title,
-      }),
-      attrs.title || 'Без названия',
-    ]
   },
 
   addNodeView() {
