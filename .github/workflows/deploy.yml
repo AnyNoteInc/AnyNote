@@ -97,12 +97,8 @@ jobs:
           ENGINES_URL: ${{ secrets.ENGINES_URL }}
           ENGINES_PORT: ${{ secrets.ENGINES_PORT }}
           ENGINES_MCP_TOKEN: ${{ secrets.ENGINES_MCP_TOKEN }}
-          SMTP_HOST: ${{ secrets.SMTP_HOST }}
-          SMTP_PORT: ${{ secrets.SMTP_PORT }}
-          SMTP_SECURE: ${{ secrets.SMTP_SECURE }}
-          SMTP_USER: ${{ secrets.SMTP_USER }}
-          SMTP_PASSWORD: ${{ secrets.SMTP_PASSWORD }}
-          MAIL_FROM: ${{ secrets.MAIL_FROM }}
+          SENDSAY_API_URL: ${{ secrets.SENDSAY_API_URL }}
+          SENDSAY_API_KEY: ${{ secrets.SENDSAY_API_KEY }}
           GOOGLE_CLIENT_ID: ${{ secrets.GOOGLE_CLIENT_ID }}
           GOOGLE_CLIENT_SECRET: ${{ secrets.GOOGLE_CLIENT_SECRET }}
           NEXT_PUBLIC_RECAPTCHA_SITE_KEY: ${{ secrets.NEXT_PUBLIC_RECAPTCHA_SITE_KEY }}
