@@ -1,9 +1,10 @@
-import { Node, mergeAttributes } from '@tiptap/core'
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
 import type { MouseEvent as ReactMouseEvent } from 'react'
 import { Box, IconButton } from '@mui/material'
 import ArrowRightOutlinedIcon from '@mui/icons-material/ArrowRightOutlined'
+
+import { ToggleSchema } from './toggle.schema'
 
 function ToggleView({ node, updateAttributes }: NodeViewProps) {
   const open = node.attrs.open !== false
@@ -57,30 +58,7 @@ function ToggleView({ node, updateAttributes }: NodeViewProps) {
   )
 }
 
-export const Toggle = Node.create({
-  name: 'toggle',
-  group: 'block',
-  content: 'block+',
-  defining: true,
-
-  addAttributes() {
-    return {
-      open: {
-        default: true,
-        parseHTML: (el) => el.getAttribute('data-open') !== 'false',
-        renderHTML: (attrs) => ({ 'data-open': attrs.open ? 'true' : 'false' }),
-      },
-    }
-  },
-
-  parseHTML() {
-    return [{ tag: 'div[data-type="toggle"]' }]
-  },
-
-  renderHTML({ HTMLAttributes }) {
-    return ['div', mergeAttributes(HTMLAttributes, { 'data-type': 'toggle' }), 0]
-  },
-
+export const Toggle = ToggleSchema.extend({
   addNodeView() {
     return ReactNodeViewRenderer(ToggleView)
   },
