@@ -1,4 +1,6 @@
 import { createElement } from 'react'
+import AccessTimeIcon from '@mui/icons-material/AccessTime'
+import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
 
 import {
   BulletListIcon,
@@ -21,9 +23,11 @@ import {
   TextIcon,
   ToggleIcon,
 } from './assets/index'
+import { formatDateTimeText } from './lib/date-format'
 import type { SlashCommandItem, SlashRange } from './types'
 
 export type SlashMediaHandlers = {
+  openDatePopover: (range: SlashRange) => void
   openFilePopover: (range: SlashRange) => void
   openMarkdownPopover: (range: SlashRange) => void
   openPageLinkPopover: (range: SlashRange) => void
@@ -195,6 +199,30 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
           attrs: { created: Date.now() },
           content: [{ type: 'paragraph' }],
         })
+        .run(),
+  },
+  {
+    id: 'date',
+    group: 'base',
+    label: 'Дата',
+    description: 'Вставить дату',
+    keywords: ['date', 'today', 'дата', 'сегодня'],
+    icon: createElement(CalendarTodayIcon, { fontSize: 'small' }),
+    run: ({ range }) => handlers.openDatePopover(range),
+  },
+  {
+    id: 'datetime',
+    group: 'base',
+    label: 'Дата и время',
+    description: 'Вставить дату и время',
+    keywords: ['datetime', 'time', 'now', 'дата', 'время', 'сейчас'],
+    icon: createElement(AccessTimeIcon, { fontSize: 'small' }),
+    run: ({ editor, range }) =>
+      editor
+        .chain()
+        .focus()
+        .deleteRange(range)
+        .insertContent(`${formatDateTimeText(new Date())} `)
         .run(),
   },
   {

@@ -99,6 +99,26 @@ img {
 
 a { color: #2563eb; text-decoration: underline; }
 
+.anynote-bg-gray { background-color: rgba(107, 107, 107, 0.12); }
+.anynote-bg-brown { background-color: rgba(138, 93, 61, 0.14); }
+.anynote-bg-orange { background-color: rgba(180, 83, 9, 0.14); }
+.anynote-bg-yellow { background-color: rgba(161, 98, 7, 0.14); }
+.anynote-bg-green { background-color: rgba(52, 125, 71, 0.14); }
+.anynote-bg-blue { background-color: rgba(26, 107, 179, 0.14); }
+.anynote-bg-purple { background-color: rgba(107, 63, 160, 0.14); }
+.anynote-bg-pink { background-color: rgba(181, 51, 142, 0.14); }
+.anynote-bg-red { background-color: rgba(180, 35, 24, 0.14); }
+
+[class*="anynote-bg-"] {
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+:is(p, h1, h2, h3, h4, h5, h6, ul, ol, blockquote)[class*="anynote-bg-"] {
+  display: table;
+  max-width: 100%;
+}
+
 [data-type="callout"] {
   display: flex;
   gap: 10px;

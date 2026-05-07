@@ -5,6 +5,9 @@ import {
 } from './errors'
 
 const DEFAULT_TIMEOUT_MS = 30_000
+const A4_PAPER_WIDTH_IN = '8.27'
+const A4_PAPER_HEIGHT_IN = '11.69'
+const A4_STANDARD_MARGIN_IN = '0.79'
 
 function getEnv(key: string, fallback?: string): string {
   const v = process.env[key]
@@ -19,12 +22,12 @@ export async function htmlToPdf(html: string): Promise<ReadableStream<Uint8Array
 
   const fd = new FormData()
   fd.append('files', new Blob([html], { type: 'text/html' }), 'index.html')
-  fd.append('paperWidth', '8.27')
-  fd.append('paperHeight', '11.69')
-  fd.append('marginTop', '0.7')
-  fd.append('marginBottom', '0.7')
-  fd.append('marginLeft', '0.7')
-  fd.append('marginRight', '0.7')
+  fd.append('paperWidth', A4_PAPER_WIDTH_IN)
+  fd.append('paperHeight', A4_PAPER_HEIGHT_IN)
+  fd.append('marginTop', A4_STANDARD_MARGIN_IN)
+  fd.append('marginBottom', A4_STANDARD_MARGIN_IN)
+  fd.append('marginLeft', A4_STANDARD_MARGIN_IN)
+  fd.append('marginRight', A4_STANDARD_MARGIN_IN)
   fd.append('printBackground', 'true')
 
   let res: Response

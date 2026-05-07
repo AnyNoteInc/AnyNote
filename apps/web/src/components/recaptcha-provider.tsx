@@ -1,7 +1,7 @@
 'use client'
 
 import type { ReactNode } from 'react'
-import { GoogleReCaptchaProvider } from 'react-google-recaptcha-v3'
+import { GoogleReCaptchaContext, GoogleReCaptchaProvider } from 'react-google-recaptcha-v3'
 
 export function RecaptchaProvider({
   children,
@@ -11,7 +11,11 @@ export function RecaptchaProvider({
   siteKey?: string
 }) {
   if (!siteKey) {
-    return <>{children}</>
+    return (
+      <GoogleReCaptchaContext.Provider value={{ executeRecaptcha: undefined }}>
+        {children}
+      </GoogleReCaptchaContext.Provider>
+    )
   }
 
   return (

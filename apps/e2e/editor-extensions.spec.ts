@@ -86,3 +86,35 @@ test('drag handle click opens block menu with convert + color items', async ({ p
   await expect(page.getByRole('menuitem', { name: 'Переместить' })).toBeVisible()
   await expect(page.getByRole('menuitem', { name: 'Удалить' })).toBeVisible()
 })
+
+test('paragraph background color hugs text width', async ({ page }) => {
+  await signUp(page, 'ext-bg')
+  const editor = await createTextPage(page)
+  await editor.click()
+  await editor.type('Короткая строка')
+
+  await editor.hover()
+  const dragIcon = page
+    .locator('.tiptap-drag-handle-wrapper button:has([data-testid="DragIndicatorIcon"])')
+    .first()
+  await expect(dragIcon).toBeVisible()
+  await dragIcon.click()
+
+  await page.getByRole('menuitem', { name: 'Цвет' }).click()
+  await page.getByRole('menuitem', { name: 'Жёлтый' }).nth(1).click()
+
+  const highlighted = editor.locator('p.anynote-bg-yellow').first()
+  await expect(highlighted).toBeVisible()
+
+  const widths = await highlighted.evaluate((node) => {
+    const editorColumn = node.closest('.ProseMirror')
+    if (!editorColumn) throw new Error('Editor column not found')
+    return {
+      highlight: node.getBoundingClientRect().width,
+      editor: editorColumn.getBoundingClientRect().width,
+    }
+  })
+
+  expect(widths.highlight).toBeGreaterThan(60)
+  expect(widths.highlight).toBeLessThan(widths.editor * 0.7)
+})

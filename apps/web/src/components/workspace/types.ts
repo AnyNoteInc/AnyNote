@@ -25,3 +25,8 @@ export function orderSiblings(pages: PageItem[]): PageItem[] {
   }
   return out
 }
+
+export function firstPageInTreeOrder(pages: PageItem[]): PageItem | undefined {
+  const firstRootPage = orderSiblings(pages.filter((p) => p.parentId === null))[0]
+  return firstRootPage ?? orderSiblings(pages)[0]
+}

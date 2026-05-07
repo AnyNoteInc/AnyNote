@@ -65,6 +65,52 @@ test('slash menu renders grouped items including media commands', async ({ page 
   await expect(page.getByText('Файл', { exact: true })).toBeVisible()
 })
 
+test('slash date: opens a picker initialized to today and inserts the selected date', async ({
+  page,
+}) => {
+  await signUpAndCreateWorkspace(page, 'slash-date')
+  const editor = await createTextPage(page)
+  await openSlashMenu(editor)
+  await page.keyboard.type('date')
+
+  await page.getByText('Дата', { exact: true }).click()
+
+  const dateInput = page.getByLabel('Дата')
+  const today = new Date()
+  const todayInputValue = [
+    today.getFullYear(),
+    String(today.getMonth() + 1).padStart(2, '0'),
+    String(today.getDate()).padStart(2, '0'),
+  ].join('-')
+  const expectedText = new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(today)
+
+  await expect(dateInput).toHaveValue(todayInputValue)
+  await page.getByRole('button', { name: 'Вставить дату' }).click()
+  await expect(editor).toContainText(expectedText)
+})
+
+test('slash datetime inserts the current local date and time', async ({ page }) => {
+  await signUpAndCreateWorkspace(page, 'slash-datetime')
+  const editor = await createTextPage(page)
+  await openSlashMenu(editor)
+  await page.keyboard.type('datetime')
+
+  await page.getByText('Дата и время', { exact: true }).click()
+
+  const expectedDate = new Intl.DateTimeFormat('ru-RU', {
+    day: '2-digit',
+    month: '2-digit',
+    year: 'numeric',
+  }).format(new Date())
+
+  await expect(editor).toContainText(expectedDate)
+  await expect(editor).toContainText(/\d{2}:\d{2}/)
+})
+
 test('slash image: inserts empty dashed block, click replaces with uploaded image', async ({
   page,
 }) => {

@@ -8,6 +8,7 @@ import tippy, { type Instance } from 'tippy.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Y from 'yjs'
 
+import { DateInsertPopover } from './components/date-insert-popover'
 import { EditorDragHandle } from './components/drag-handle'
 import { FileUploadPopover } from './components/file-upload-popover'
 import { FloatingToolbar } from './components/floating-toolbar'
@@ -25,7 +26,7 @@ type SlashSuggestionProps = SuggestionProps<SlashCommandItem, SlashCommandItem>
 
 type YjsResources = { ydoc: Y.Doc; provider: HocuspocusProvider }
 
-type PopoverKind = 'file' | 'markdown' | 'pageLink'
+type PopoverKind = 'date' | 'file' | 'markdown' | 'pageLink'
 
 type OpenPopover = {
   kind: PopoverKind
@@ -121,6 +122,7 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
   const slashItems = useMemo(
     () =>
       createSlashItems({
+        openDatePopover: (range) => openKind('date', range),
         openFilePopover: (range) => openKind('file', range),
         openMarkdownPopover: (range) => openKind('markdown', range),
         openPageLinkPopover: (range) => openKind('pageLink', range),
@@ -229,6 +231,13 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
       <EditorContent editor={editor} />
       {editor ? (
         <>
+          <DateInsertPopover
+            open={popover?.kind === 'date'}
+            anchorEl={anchorEl}
+            range={range}
+            editor={editor}
+            onClose={closePopover}
+          />
           <FileUploadPopover
             open={popover?.kind === 'file'}
             anchorEl={anchorEl}

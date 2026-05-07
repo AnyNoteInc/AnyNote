@@ -11,7 +11,7 @@ const options: Array<{ value: Theme; label: string; preview: React.CSSProperties
   {
     value: 'light',
     label: 'Светлая',
-    preview: { background: '#fff', border: '1px solid #e5e7eb' },
+    preview: { background: '#fffdf7', border: '1px solid #e5e7eb' },
   },
   {
     value: 'dark',
@@ -22,7 +22,7 @@ const options: Array<{ value: Theme; label: string; preview: React.CSSProperties
     value: 'system',
     label: 'Системная',
     preview: {
-      background: 'linear-gradient(90deg,#fff 50%,#0c0d10 50%)',
+      background: 'linear-gradient(90deg,#fffdf7 50%,#0c0d10 50%)',
       border: '1px solid #d1d5db',
     },
   },

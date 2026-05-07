@@ -34,76 +34,75 @@ Copy `.env.example` to `.env` for local setup and keep secrets out of commits. U
 <claude-mem-context>
 # Memory Context
 
-# [anynote] recent context, 2026-05-04 8:45pm GMT+1
+# [anynote] recent context, 2026-05-07 7:59pm GMT+1
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (17,715t read) | 304,708t work | 94% savings
+Stats: 50 obs (15,889t read) | 722,911t work | 98% savings
 
-### May 4, 2026
+### May 7, 2026
+1109 6:18a 🔵 Existing TiptapNode JSON Walker in page-search.ts
+1110 " 🔵 No Server-Side PDF Library Exists — Must Be Added
+1111 6:19a 🔵 apps/web Dependencies Confirm TurndownService Server-Side Reuse
+1112 " 🔵 Custom Tiptap Extensions Have Server-Compatible renderHTML Methods
+1113 " 🔵 Critical Gap: tRPC page.getById Excludes content JSON Snapshot
+1114 6:30a 🔵 Page.content JSON Snapshot Written by apps/yjs Persistence Layer
+1115 " 🔵 @hocuspocus/transformer Used to Convert YJS Doc to Tiptap JSON in apps/yjs
+1116 " ⚖️ All 6 Export Scoping Decisions Finalized
+S261 Export feature architecture design — Sections 4 and 5 presented (print-stylesheet design + Gotenberg deployment configuration) (May 7 at 6:43 AM)
+S263 Export feature architecture design — Sections 4–6 presented (print-stylesheet, Gotenberg deployment, testing strategy) (May 7 at 6:44 AM)
+1117 6:44a ✅ Server-side page export design spec written to docs/superpowers/specs/
+S266 Repeated investigation reads — no new findings; primary session still pre-plan (May 7 at 6:45 AM)
+S267 Design and document a complete server-side page export system for Anynote Next.js app — spec + 27-task implementation plan (May 7 at 6:52 AM)
+S268 Observer session monitoring 27-task TDD implementation of server-side page export for Anynote — all tasks complete, PR opened (May 7 at 7:06 AM)
+1119 7:47a 🔴 GOTENBERG_URL added to canonical .env
+1120 " 🔴 Created apps/web/.env symlink in git worktree
+1121 " 🔴 Fixed E2E spec: removed redundant page.goto('/sign-up') before signUpAndAuthAs
+1122 " 🔵 Task 26 subagent hit Anthropic rate limit mid-execution
+1123 11:12a 🔵 apps/web/.env symlink is transient — lost between sessions
+1124 " 🔵 E2E signUpAndAuthAs failure persists: user row never appears after sign-up
+1125 " 🔵 Anynote worktree current state: Task 26 spec written but uncommitted, 28 commits ahead
+1126 11:14a 🔵 signUpAndAuthAs failure affects ALL E2E specs in worktree — not page-export-specific
+S269 Merge and deploy: push feat/server-page-export branch and create PR for server-side page export feature (May 7 at 11:15 AM)
+S270 Merge and deploy: push feat/server-page-export, create PR #6, verify CI, and squash-merge to main (May 7 at 11:23 AM)
+S271 мердж и делай деплой — merge feat/server-page-export PR and deploy AnyNote v1.5.0 to production (May 7 at 11:36 AM)
+1127 11:36a 🟣 feat/server-page-export merged to main; Release workflow triggered automatically
+1128 11:44a 🟣 Release workflow created v1.5.0 tag and triggered Deploy to production
+1129 " ✅ main branch updated to v1.5.0 with automated release commit after squash merge
+1130 11:54a 🟣 Squash merge commit 58be901 ships server-side page export: 41 files, 1940 insertions
+1131 11:55a 🔵 AnyNote has 13+ active feature branches across multiple domains
+1132 11:57a 🟣 Tag v1.5.0 created on main HEAD, confirming release tagging pipeline works
+1133 " 🟣 Deploy workflow v1.5.0 completed successfully — server-side page export is live in production
+1134 " 🟣 Production smoke test passed — anynote.ru live and healthy post v1.5.0 deploy
+1135 " ✅ feat/server-page-export worktree and local branch cleaned up post-merge
+1136 11:58a 🔵 origin/feat/server-page-export remote branch persists after squash merge — requires manual deletion
+S272 Add Gotenberg PDF export service to production deployment — compose.yml, env template, deploy workflow, and GitHub secrets (May 7 at 11:58 AM)
+1137 12:02p 🟣 Gotenberg PDF Export Service Integration
+1138 " 🔵 Anynote deploy/compose.yml Service Architecture
+1139 " 🔵 Anynote GitHub Actions Deploy Pipeline Architecture
+1140 " 🔵 Gotenberg Already Integrated in Application Code
+1141 " 🔵 Gotenberg Already Configured in Local Dev compose.yml
+1142 12:03p 🔵 GitHub Secrets Stored at Repository Level, Not Environment Level
+1143 " 🟣 Gotenberg Service Added to Production deploy/compose.yml
+1144 12:04p ✅ Web Service Now Depends on Gotenberg Starting
+1145 " ✅ GOTENBERG_URL and GOTENBERG_TIMEOUT_MS Added to deploy/.env.template
+1146 " ✅ GOTENBERG_URL and GOTENBERG_TIMEOUT_MS Added to GitHub Actions Deploy Workflow
+1147 " 🟣 GOTENBERG GitHub Secrets Created with Production Values
+1148 " 🔵 Gotenberg Env Substitution and Compose Syntax Verified
+1149 " 🔵 Full Compose Config Validation Confirms Gotenberg Integration Correct
+1150 " 🟣 Gotenberg PDF Export Integration Complete — 3 Files Changed, 28 Insertions
+1151 12:06p 🟣 Gotenberg Deploy Integration Committed to main (ab0a27c)
+1152 " 🟣 Gotenberg Deploy Commit Pushed to main on AnyNoteInc/AnyNote
+1153 " 🔵 Release Workflow Triggered Automatically by Gotenberg Commit Push
+1154 12:11p 🟣 Release Workflow 25492049984 Completed Successfully
+1156 " 🔵 Deploy Workflow for v1.6.0 Backgrounded While Awaiting Completion
+1157 12:19p 🟣 v1.6.0 Deploy Workflow Completed Successfully — Gotenberg Now Live in Production
+1155 12:20p 🟣 Release Workflow Created v1.6.0 Tag; Deploy Workflow In Progress
+1158 12:30p 🟣 Production Smoke Test Passed After v1.6.0 Deploy
+S273 Commit Gotenberg deploy integration to main and deploy to production — completed as v1.6.0 (May 7 at 12:31 PM)
+1159 7:59p 🔵 PDF Export Current Margin Implementation in anynote
 
-781 4:11p 🔵 Better Auth API Route Location in anynote Project
-782 " 🔵 Better Auth Base URL Configuration in anynote
-783 4:24p 🔵 RegisterForm terms checkbox silently blocks sign-up test submissions
-784 " 🔴 CI pipeline and SonarCloud both passing on PR #3
-785 " 🔵 SonarCloud Auto-Analysis ignores sonar-project.properties — settings must be via API
-786 " 🔴 SonarCloud CPD false positive from prettier reformatting .ts extension migration
-787 " 🔴 21 SonarQube code-quality issues fixed across codebase on PR #3
-S182 Fix failing GitHub Actions Deploy on tag v1.1.0 — root cause fully identified, fix defined, awaiting user decision on release strategy (May 4 at 4:24 PM)
-788 4:31p 🔵 AnyNote repo merge strategy: all methods allowed, merge commits used historically
-789 4:50p 🟣 PR #3 feat/terms-pages merged to main — legal docs pages, TS migration, CI and SonarQube fixes
-790 5:05p 🔵 Deploy Workflow Failed on Tag v1.1.0
-791 " 🔵 Anynote Project Has Three GitHub Actions Workflows
-792 " 🔵 Deploy v1.1.0 Failure: Docker Build for Web App Fails on `pnpm turbo build`
-793 5:06p 🔵 Root Cause: Missing `@docs/terms/*.md` Files in Web Docker Build
-794 " 🔵 Root Cause Confirmed: `turbo prune` Excludes `docs/` Directory from Docker Build Context
-795 5:07p 🔵 Complete Fix Path: Add `COPY docs/ ./docs/` to Dockerfile Builder Stage
-S183 Fix failing GitHub Actions Deploy on tag v1.1.0 — fix committed and pushed, Release workflow running to produce v1.1.1 (May 4 at 5:07 PM)
-S180 Fix failing GitHub Actions Deploy workflow on tag v1.1.0 — root cause identified as missing docs/ directory in Docker build context (May 4 at 5:07 PM)
-S181 Fix failing GitHub Actions Deploy on tag v1.1.0 — root cause fully identified, fix defined, awaiting user decision on release strategy (May 4 at 5:07 PM)
-796 " 🔵 Deploy Workflow Structure and Scope of Fix Confirmed
-797 5:13p 🔴 Fixed: Added `COPY --from=prepare /app/docs/terms ./docs/terms` to Web Dockerfile Builder Stage
-798 " 🔴 Committed Dockerfile Fix: `fix(web): include docs/terms in docker build context`
-799 " 🔴 Fix Pushed to origin/main — Semantic-Release Will Create v1.1.1 Tag
-800 " 🔵 Release Workflow Triggered for Fix Commit — In Progress
-801 5:14p 🔴 Release Workflow Succeeded — v1.1.1 Tag Created by Semantic-Release
-S184 Fix failing Deploy on v1.1.0 — Deploy run 25330086840 on v1.1.1 now queued and being watched (May 4 at 5:14 PM)
-802 5:21p 🔵 Deploy Workflow Did Not Auto-Trigger on v1.1.1 Tag — Manually Dispatched
-S186 Fix failing Deploy on v1.1.0 — COMPLETE: v1.1.1 deployed to production, full pipeline documented (May 4 at 5:21 PM)
-803 5:31p 🔴 Deploy v1.1.1 Succeeded — All Jobs Green, Production Updated
-804 " 🔵 Semantic-Release Config: Tag Push via GITHUB_TOKEN Explains Missing Deploy Auto-Trigger
-S185 Fix failing Deploy on v1.1.0 — COMPLETE: v1.1.1 deployed to production successfully (May 4 at 5:31 PM)
-S189 Fix failing Deploy workflow on tag v1.1.0 + auto-trigger Deploy when v\* tag appears (May 4 at 5:31 PM)
-805 5:34p 🔵 Google OAuth Credentials Found in anynote .env
-806 " 🔵 Better Auth Google OAuth Config — Required additionalFields May Break Social Login
-807 5:35p 🔵 Auth Client Architecture and Google Sign-In Call Site Mapped
-809 " 🟣 Release Workflow Now Auto-Triggers Deploy After Semantic-Release Creates a Tag
-808 " 🔵 Auth Package Exports Source Directly; better-auth v1.4.9; Turbo Env Vars Correct
-811 " 🔵 Full .env Reveals Dev-Only Config; reCAPTCHA Keys Empty; Previous Session Context Loaded
-812 " 🔵 Dev Infrastructure: Docker Services Running; Next.js Runs Natively Outside Docker
-810 " ✅ Release Workflow Auto-Deploy Fix Committed and Pushed to main
-813 " ✅ Next.js Dev Server Started in Background for Live Auth Testing
-S187 Fix failing Deploy on v1.1.0 — fix shipped + Release workflow now auto-triggers Deploy, verifying ci() commit doesn't create spurious release (May 4 at 5:35 PM)
-814 5:37p 🔵 Better Auth Google OAuth Initiation Works Correctly; Bug is Post-Redirect
-815 " 🔵 Google Console Accepts redirect_uri; Bug Confirmed to Be in OAuth Callback Handler
-816 " 🔵 Root Cause Found: Plan Table Missing — Database Not Migrated
-817 5:38p 🔵 Database IS Migrated; P1014 Was False Alarm — Table is "plans" Not "Plan"
-818 " 🔵 Better Auth Google Provider Maps given_name/family_name But Doesn't Pass firstName/lastName to User
-819 5:39p 🔵 Confirmed Root Cause: users.firstName and users.lastName Are NOT NULL; Google Profile Doesn't Supply Them
-820 " 🔵 mapProfileToUser API Confirmed in better-auth ProviderOptions at oauth-provider.ts:171
-821 " 🔵 Auth Test Coverage Gap: Google OAuth Test Manually Injects firstName/lastName, Misses Profile Mapping Bug
-822 " 🔴 Fixed Google OAuth: Added mapProfileToUser to Map given_name/family_name → firstName/lastName
-823 5:40p 🔴 Google OAuth Fix Validated: TypeScript, ESLint, and Next.js Dev Server All Pass
-824 " 🔴 Google OAuth Fix Fully Verified: All 5 Auth Tests Pass, Social Endpoint Still Works
-825 " ✅ Project Memory Written: Better Auth additionalFields Require mapProfileToUser Per OAuth Provider
-826 5:41p ✅ MEMORY.md Updated With Better Auth additionalFields Lesson
-S188 Fix broken Google OAuth login in anynote project (Better Auth + Next.js monorepo) (May 4 at 5:41 PM)
-827 5:45p 🔵 Google OAuth mapProfileToUser Does Not Return Email — Investigation
-828 " 🔵 Prisma User Schema — Email and Additional Fields Layout
-830 " 🔵 mapProfileToUser Type Allows Overriding Email — Potential Root Cause Found
-829 5:47p 🔵 Auth Test Suite — Google OAuth Welcome Email Path Tested Manually
-
-Access 305k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 723k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

@@ -2,7 +2,7 @@ import { createTheme } from '@mui/material/styles'
 import type { PaletteMode } from '@mui/material'
 
 // Claude brand palette
-const paper = '#faf9f5'
+const paper = '#fffdf7'
 const paperDeep = '#f0eee6'
 const ink = '#1d1d1b'
 const inkSoft = '#2a2a27'
