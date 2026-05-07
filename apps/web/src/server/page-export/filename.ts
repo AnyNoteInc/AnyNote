@@ -1,13 +1,19 @@
 const FORMAT_EXT = { pdf: 'pdf', html: 'html', md: 'md' } as const
-const UNSAFE = /[/\\:*?"<>|\x00-\x1f]+/g
+
+// Filesystem-unsafe characters plus ASCII control range; built via String.fromCharCode
+// so the source file stays free of literal control characters.
+const UNSAFE = new RegExp(
+  `[/\\\\:*?"<>|${String.fromCharCode(0)}-${String.fromCharCode(31)}]+`,
+  'g',
+)
 
 export type ExportFormat = keyof typeof FORMAT_EXT
 
 export function buildFilename(rawTitle: string | null, format: ExportFormat): string {
   const trimmed = (rawTitle ?? '').trim() || 'Без названия'
   const safe = trimmed
-    .replace(UNSAFE, ' ')
-    .replace(/\s+/g, ' ')
+    .replaceAll(UNSAFE, ' ')
+    .replaceAll(/\s+/g, ' ')
     .trim()
     .slice(0, 100)
   return `${safe || 'page'}.${FORMAT_EXT[format]}`

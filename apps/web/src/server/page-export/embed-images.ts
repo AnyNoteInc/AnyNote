@@ -78,7 +78,6 @@ export async function embedImagesAndRewriteLinks(html: string, ctx: Ctx): Promis
         const base64 = await streamToBase64(stream)
         el.setAttribute('src', `data:${rec.mimeType};base64,${base64}`)
       } catch (err) {
-        // eslint-disable-next-line no-console
         console.warn('[page-export] image embed failed', { fileId, err: (err as Error).message })
       }
     })

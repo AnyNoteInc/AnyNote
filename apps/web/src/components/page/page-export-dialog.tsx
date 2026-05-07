@@ -78,7 +78,7 @@ export function PageExportDialog({ open, onClose, pageId, workspaceId }: Props) 
         `page.${format}`
       triggerBlobDownload(blob, filename)
       onClose()
-    } catch (e) {
+    } catch {
       setError(`Не удалось скачать ${FORMAT_LABEL[format]}. Попробуйте ещё раз.`)
     } finally {
       setPending(null)
