@@ -705,9 +705,9 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../db
-      nodemailer:
-        specifier: ^6.9.16
-        version: 6.10.1
+      sendsay-api:
+        specifier: ^2.4.0
+        version: 2.4.0
     devDependencies:
       '@repo/eslint-config':
         specifier: workspace:*
@@ -718,9 +718,6 @@ importers:
       '@types/node':
         specifier: ^22.19.1
         version: 22.19.17
-      '@types/nodemailer':
-        specifier: ^6.4.17
-        version: 6.4.23
       eslint:
         specifier: ^9.39.1
         version: 9.39.4(jiti@2.6.1)
@@ -4087,9 +4084,6 @@ packages:
   '@types/node@22.19.17':
     resolution: {integrity: sha512-wGdMcf+vPYM6jikpS/qhg6WiqSV/OhG+jeeHT/KlVqxYfD40iYJf9/AE1uQxVWFvU7MipKRkRv8NSHiCGgPr8Q==}
 
-  '@types/nodemailer@6.4.23':
-    resolution: {integrity: sha512-aFV3/NsYFLSx9mbb5gtirBSXJnAlrusoKNuPbxsASWc7vrKLmIrTQRpdcxNcSFL3VW2A2XpeLEavwb2qMi6nlQ==}
-
   '@types/normalize-package-data@2.4.4':
     resolution: {integrity: sha512-37i+OaWTh9qeK4LSHPsyRC7NahnGotNuZvjLSgcPzblpHB3rrCJxAOgI5gCdKm7coonsaX1Of0ILiTcnZjbfxA==}
 
@@ -7379,10 +7373,6 @@ packages:
   node-releases@2.0.37:
     resolution: {integrity: sha512-1h5gKZCF+pO/o3Iqt5Jp7wc9rH3eJJ0+nh/CIoiRwjRxde/hAHyLPXYN4V3CqKAbiZPSeJFSWHmJsbkicta0Eg==}
 
-  nodemailer@6.10.1:
-    resolution: {integrity: sha512-Z+iLaBGVaSjbIzQ4pX6XV41HrooLsQ10ZWPUehGmuantvzWoDVBnmsdUcOIDM1t+yPor5pDhVlDESgOMEGxhHA==}
-    engines: {node: '>=6.0.0'}
-
   non-layered-tidy-tree-layout@2.0.2:
     resolution: {integrity: sha512-gkXMxRzUH+PB0ax9dUN0yYF0S25BqeAYqhgMaLUFmpXLEk7Fcu8f4emJuOAY0V8kjDICxROIKsTAKsV/v355xw==}
 
@@ -8364,6 +8354,10 @@ packages:
   send@1.2.1:
     resolution: {integrity: sha512-1gnZf7DFcoIcajTjTwjwuDjzuz4PPcY2StKPlsGAQ1+YH20IRVrBaXSWmdjowTJ6u8Rc01PoYOGHXfP1mYcZNQ==}
     engines: {node: '>= 18'}
+
+  sendsay-api@2.4.0:
+    resolution: {integrity: sha512-4xZV9M7MVM/jllWA4IdU+N0+LnkcQqBPS3GO/kf53c2gSsSq/Bv14KkZQ2F02ORQyo3/3W/FrpQEsCPxDdfLoQ==}
+    engines: {node: '>=10.9.0', yarn: '>=1.9.4'}
 
   seq-queue@0.0.5:
     resolution: {integrity: sha512-hr3Wtp/GZIc/6DAGPDcV4/9WoZhjrkXsi5B/07QgX8tsdc6ilr7BFM6PM6rbdAX1kFSDYeZGLipIZZKyQP0O5Q==}
@@ -13126,10 +13120,6 @@ snapshots:
     dependencies:
       undici-types: 6.21.0
 
-  '@types/nodemailer@6.4.23':
-    dependencies:
-      '@types/node': 22.19.17
-
   '@types/normalize-package-data@2.4.4': {}
 
   '@types/parse-json@4.0.2': {}
@@ -17249,8 +17239,6 @@ snapshots:
 
   node-releases@2.0.37: {}
 
-  nodemailer@6.10.1: {}
-
   non-layered-tidy-tree-layout@2.0.2: {}
 
   normalize-package-data@6.0.2:
@@ -18336,6 +18324,8 @@ snapshots:
       statuses: 2.0.2
     transitivePeerDependencies:
       - supports-color
+
+  sendsay-api@2.4.0: {}
 
   seq-queue@0.0.5: {}
 
