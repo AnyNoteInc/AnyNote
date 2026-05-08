@@ -1,3 +1,10 @@
+## [1.7.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.7.0...v1.7.1) (2026-05-08)
+
+
+### Bug Fixes
+
+* **engines:** drop stale packages/mail from Dockerfile package.json patch ([0f20b0f](https://github.com/AnyNoteInc/AnyNote/commit/0f20b0f30590d1d659a23ba295a8cbcc200a2804))
+
 # [1.7.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.6.0...v1.7.0) (2026-05-08)
 
 
