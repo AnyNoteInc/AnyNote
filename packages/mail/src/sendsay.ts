@@ -38,7 +38,9 @@ type SendsayResponse = {
 export async function sendEmail(args: SendEmailArgs): Promise<void> {
   const client = getClient()
   if (!client) {
-    console.info(`[mail] sendsay disabled (no SENDSAY_API_KEY); would send to ${args.to}: ${args.subject}`)
+    console.info(
+      `[mail] sendsay disabled (no SENDSAY_API_KEY); would send to ${args.to}: ${args.subject}`,
+    )
     return
   }
   const response = (await client.request({

@@ -96,7 +96,10 @@ export function SearchDialog({
     globalThis.setTimeout(() => router.push(`/workspaces/${workspaceId}/pages/${pageId}${hash}`), 0)
     if (hash) {
       for (const delay of [250, 750, 1500, 2500]) {
-        globalThis.setTimeout(() => globalThis.dispatchEvent(new HashChangeEvent('hashchange')), delay)
+        globalThis.setTimeout(
+          () => globalThis.dispatchEvent(new HashChangeEvent('hashchange')),
+          delay,
+        )
       }
     }
   }

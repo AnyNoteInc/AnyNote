@@ -10,6 +10,7 @@ import { trpc } from '@/trpc/client'
 import { PageActionsToolbar } from '@/components/page/page-actions-toolbar'
 import { PageEditorProvider } from '@/components/page/editor-context'
 import { useFullWidth } from '@/hooks/use-full-width'
+import { useOutlineMode } from '@/hooks/use-outline-mode'
 
 import type { PlanFeatures } from '@repo/trpc'
 
@@ -117,6 +118,7 @@ export function WorkspaceLayoutClient({
   const activePageId = pageIdMatch?.[1] ?? null
 
   const [fullWidth] = useFullWidth(activePageId ?? '')
+  const [outlineMode] = useOutlineMode(activePageId ?? '')
 
   // PageEditorProvider wraps BOTH the toolbar (so PageActionsMenu → PageExportDialog
   // can read the editor via usePageEditor) and the editor content (so PageRenderer
@@ -137,6 +139,7 @@ export function WorkspaceLayoutClient({
       <Box
         sx={{ flex: 1, overflow: 'auto' }}
         data-full-width={fullWidth ? 'true' : 'false'}
+        data-outline-mode={activePageId ? outlineMode : undefined}
         className="page-content-scroll"
       >
         {children}

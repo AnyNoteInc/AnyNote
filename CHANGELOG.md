@@ -1,67 +1,58 @@
 ## [1.7.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.7.0...v1.7.1) (2026-05-08)
 
-
 ### Bug Fixes
 
-* **engines:** drop stale packages/mail from Dockerfile package.json patch ([0f20b0f](https://github.com/AnyNoteInc/AnyNote/commit/0f20b0f30590d1d659a23ba295a8cbcc200a2804))
+- **engines:** drop stale packages/mail from Dockerfile package.json patch ([0f20b0f](https://github.com/AnyNoteInc/AnyNote/commit/0f20b0f30590d1d659a23ba295a8cbcc200a2804))
 
 # [1.7.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.6.0...v1.7.0) (2026-05-08)
 
-
 ### Bug Fixes
 
-* some issue ([d952fd5](https://github.com/AnyNoteInc/AnyNote/commit/d952fd5e0f4f1af76a3adfa4ba4dec50ae4330ad))
-
+- some issue ([d952fd5](https://github.com/AnyNoteInc/AnyNote/commit/d952fd5e0f4f1af76a3adfa4ba4dec50ae4330ad))
 
 ### Features
 
-* add themes ([72f65ce](https://github.com/AnyNoteInc/AnyNote/commit/72f65ce1ccb17a3a2e2835eb2fcd09e0b038c33f))
-* **mail:** migrate from SMTP/outbox to SendSay synchronous send ([#7](https://github.com/AnyNoteInc/AnyNote/issues/7)) ([2eee485](https://github.com/AnyNoteInc/AnyNote/commit/2eee48534f7788d88167f4ada4764edb6e77cda1))
+- add themes ([72f65ce](https://github.com/AnyNoteInc/AnyNote/commit/72f65ce1ccb17a3a2e2835eb2fcd09e0b038c33f))
+- **mail:** migrate from SMTP/outbox to SendSay synchronous send ([#7](https://github.com/AnyNoteInc/AnyNote/issues/7)) ([2eee485](https://github.com/AnyNoteInc/AnyNote/commit/2eee48534f7788d88167f4ada4764edb6e77cda1))
 
 # [1.6.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.5.0...v1.6.0) (2026-05-07)
 
-
 ### Features
 
-* **deploy:** add gotenberg sidecar for server-side PDF export ([ab0a27c](https://github.com/AnyNoteInc/AnyNote/commit/ab0a27c0d53025a58ed6a3e319d0644c8ba87362))
+- **deploy:** add gotenberg sidecar for server-side PDF export ([ab0a27c](https://github.com/AnyNoteInc/AnyNote/commit/ab0a27c0d53025a58ed6a3e319d0644c8ba87362))
 
 # [1.5.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.4.0...v1.5.0) (2026-05-07)
 
-
 ### Features
 
-* server-side page export (PDF/HTML/Markdown) ([#6](https://github.com/AnyNoteInc/AnyNote/issues/6)) ([58be901](https://github.com/AnyNoteInc/AnyNote/commit/58be901bd81dc6c9072e9a492425c98d79be36f3))
+- server-side page export (PDF/HTML/Markdown) ([#6](https://github.com/AnyNoteInc/AnyNote/issues/6)) ([58be901](https://github.com/AnyNoteInc/AnyNote/commit/58be901bd81dc6c9072e9a492425c98d79be36f3))
 
 # [1.4.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.3.0...v1.4.0) (2026-05-06)
 
-
 ### Features
 
-* **agents:** add page-search schemas ([5091b97](https://github.com/AnyNoteInc/AnyNote/commit/5091b971dfec6e7d18d20589ebfc262e9ceade59))
-* **agents:** expose /v1/search endpoint over RagRetrievalService ([91ce4f1](https://github.com/AnyNoteInc/AnyNote/commit/91ce4f15785f1debc3a440568f5776a1faf48adb))
-* **db:** add Page.searchVector and SearchHistory model ([c15b593](https://github.com/AnyNoteInc/AnyNote/commit/c15b59304113b3ff1c58310379e7825a34c37997))
-* **trpc:** add search router with parallel PG/Qdrant + history procs ([74c7384](https://github.com/AnyNoteInc/AnyNote/commit/74c7384011af1b7a6856f62d38d686866a4eeed4))
-* **ui:** export LinearProgress, InputBase, CircularProgress, HistoryIcon, CloseIcon ([56b32b3](https://github.com/AnyNoteInc/AnyNote/commit/56b32b3b7d00a0d91d38b63a8cfb2bd7e2353791))
-* **web:** add workspace search dialog with Cmd/Alt+K hotkey and sidebar entry ([105d392](https://github.com/AnyNoteInc/AnyNote/commit/105d392fbdb3b7475579238bd6c3f7eb84a7e14b)), closes [#blockNumber](https://github.com/AnyNoteInc/AnyNote/issues/blockNumber)
+- **agents:** add page-search schemas ([5091b97](https://github.com/AnyNoteInc/AnyNote/commit/5091b971dfec6e7d18d20589ebfc262e9ceade59))
+- **agents:** expose /v1/search endpoint over RagRetrievalService ([91ce4f1](https://github.com/AnyNoteInc/AnyNote/commit/91ce4f15785f1debc3a440568f5776a1faf48adb))
+- **db:** add Page.searchVector and SearchHistory model ([c15b593](https://github.com/AnyNoteInc/AnyNote/commit/c15b59304113b3ff1c58310379e7825a34c37997))
+- **trpc:** add search router with parallel PG/Qdrant + history procs ([74c7384](https://github.com/AnyNoteInc/AnyNote/commit/74c7384011af1b7a6856f62d38d686866a4eeed4))
+- **ui:** export LinearProgress, InputBase, CircularProgress, HistoryIcon, CloseIcon ([56b32b3](https://github.com/AnyNoteInc/AnyNote/commit/56b32b3b7d00a0d91d38b63a8cfb2bd7e2353791))
+- **web:** add workspace search dialog with Cmd/Alt+K hotkey and sidebar entry ([105d392](https://github.com/AnyNoteInc/AnyNote/commit/105d392fbdb3b7475579238bd6c3f7eb84a7e14b)), closes [#blockNumber](https://github.com/AnyNoteInc/AnyNote/issues/blockNumber)
 
 # [1.3.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.2.0...v1.3.0) (2026-05-06)
 
-
 ### Bug Fixes
 
-* **auth:** move /sign-out out of (auth) route group ([3f3183d](https://github.com/AnyNoteInc/AnyNote/commit/3f3183d6146e20494a96c015a197932889faad8c))
-
+- **auth:** move /sign-out out of (auth) route group ([3f3183d](https://github.com/AnyNoteInc/AnyNote/commit/3f3183d6146e20494a96c015a197932889faad8c))
 
 ### Features
 
-* **home:** require privacy consent before submitting contact form ([6fc671d](https://github.com/AnyNoteInc/AnyNote/commit/6fc671dba409d1e120dfe072bb4ada1ff8b126e1))
+- **home:** require privacy consent before submitting contact form ([6fc671d](https://github.com/AnyNoteInc/AnyNote/commit/6fc671dba409d1e120dfe072bb4ada1ff8b126e1))
 
 # [1.2.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.1.6...v1.2.0) (2026-05-05)
 
-
 ### Features
 
-* **mail:** send verification, reset, and resend emails synchronously ([#4](https://github.com/AnyNoteInc/AnyNote/issues/4)) ([ff83068](https://github.com/AnyNoteInc/AnyNote/commit/ff830685a8e94b1c0c8ca15f05337ffd6a87a8a3))
+- **mail:** send verification, reset, and resend emails synchronously ([#4](https://github.com/AnyNoteInc/AnyNote/issues/4)) ([ff83068](https://github.com/AnyNoteInc/AnyNote/commit/ff830685a8e94b1c0c8ca15f05337ffd6a87a8a3))
 
 ## [1.1.6](https://github.com/AnyNoteInc/AnyNote/compare/v1.1.5...v1.1.6) (2026-05-05)
 

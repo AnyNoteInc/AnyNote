@@ -36,7 +36,13 @@ export const FileAttachmentSchema = Node.create({
   },
 
   renderHTML({ HTMLAttributes, node }) {
-    const attrs = node.attrs as { url: string; name: string; size: number; mimeType: string; ext: string }
+    const attrs = node.attrs as {
+      url: string
+      name: string
+      size: number
+      mimeType: string
+      ext: string
+    }
     return [
       'div',
       mergeAttributes(HTMLAttributes, {

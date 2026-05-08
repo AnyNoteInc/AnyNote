@@ -24,8 +24,11 @@ import {
   type PageTreeSelection,
 } from '@/components/workspace/page-tree-picker'
 
+import { useOutlineMode } from '@/hooks/use-outline-mode'
+
 import { usePageEditor } from './editor-context'
 import { EditorContentSkeleton } from './editor-content-skeleton'
+import { EditorOutline } from './editor-outline'
 
 const AnyNoteEditor = dynamic(() => import('@repo/editor').then((m) => m.AnyNoteEditor), {
   ssr: false,
@@ -72,6 +75,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
   const pageEditor = usePageEditor()
   const pagesQuery = trpc.page.listByWorkspace.useQuery({ workspaceId })
   const editorRef = useRef<Editor | null>(null)
+  const [outlineMode] = useOutlineMode(page.id)
 
   const [editor, setEditor] = useState<Editor | null>(null)
   const [movePos, setMovePos] = useState<number | null>(null)
@@ -235,6 +239,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
           onRequestBlockMove={handleRequestBlockMove}
           loadingFallback={<EditorContentSkeleton />}
         />
+        <EditorOutline editor={editor} mode={outlineMode} />
         <BlockMoveDialog
           open={movePos != null}
           onClose={handleCloseMove}

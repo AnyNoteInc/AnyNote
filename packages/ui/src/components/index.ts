@@ -110,6 +110,8 @@ export { default as LocalPhoneIcon } from '@mui/icons-material/LocalPhone'
 export { default as TelegramIcon } from '@mui/icons-material/Telegram'
 export { default as VisibilityIcon } from '@mui/icons-material/Visibility'
 export { default as VisibilityOffIcon } from '@mui/icons-material/VisibilityOff'
+export { default as TocIcon } from '@mui/icons-material/Toc'
+export { default as DehazeIcon } from '@mui/icons-material/Dehaze'
 export { default as DownloadIcon } from '@mui/icons-material/Download'
 export { default as DarkModeRoundedIcon } from '@mui/icons-material/DarkModeRounded'
 export { default as DevicesRoundedIcon } from '@mui/icons-material/DevicesRounded'
@@ -131,10 +133,7 @@ export { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView'
 export { RichTreeView } from '@mui/x-tree-view/RichTreeView'
 export { TreeItem } from '@mui/x-tree-view/TreeItem'
 
-export {
-  StaticDatePicker,
-  type StaticDatePickerProps,
-} from '@mui/x-date-pickers/StaticDatePicker'
+export { StaticDatePicker, type StaticDatePickerProps } from '@mui/x-date-pickers/StaticDatePicker'
 export {
   LocalizationProvider,
   type LocalizationProviderProps,

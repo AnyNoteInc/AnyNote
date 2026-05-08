@@ -99,15 +99,15 @@ After this work:
 Five architectural choices, each picked from 2–3 alternatives during
 brainstorming:
 
-| Decision | Chosen | Rejected |
-| --- | --- | --- |
-| Page-type scope | TEXT only | Include Excalidraw / Genogram |
-| Visual style | Documental layout + branded blocks (callout, code, table preserved) | Plain document; full WYSIWYG of editor |
-| PDF rendering tech | **Gotenberg as separate compose service** | Playwright in `apps/web`; WeasyPrint in `apps/agents` |
-| Delivery mechanism | Next.js route handler that streams `Response` with `Content-Disposition` | tRPC procedure returning base64; tRPC + S3 signed URL |
-| Content source | `Page.content` JSON snapshot | Decode `Page.contentYjs` server-side; hybrid with force-flush |
-| Image / asset handling | Embed `<img>` as `data:` URIs (HTML/MD/PDF self-contained); `fileAttachment` as absolute URL | Presigned S3 URLs; embed only for PDF |
-| Internal page links (`PageLink`) | Replace with absolute URL using `NEXT_PUBLIC_BASE_URL` | Strip to plain text |
+| Decision                         | Chosen                                                                                       | Rejected                                                      |
+| -------------------------------- | -------------------------------------------------------------------------------------------- | ------------------------------------------------------------- |
+| Page-type scope                  | TEXT only                                                                                    | Include Excalidraw / Genogram                                 |
+| Visual style                     | Documental layout + branded blocks (callout, code, table preserved)                          | Plain document; full WYSIWYG of editor                        |
+| PDF rendering tech               | **Gotenberg as separate compose service**                                                    | Playwright in `apps/web`; WeasyPrint in `apps/agents`         |
+| Delivery mechanism               | Next.js route handler that streams `Response` with `Content-Disposition`                     | tRPC procedure returning base64; tRPC + S3 signed URL         |
+| Content source                   | `Page.content` JSON snapshot                                                                 | Decode `Page.contentYjs` server-side; hybrid with force-flush |
+| Image / asset handling           | Embed `<img>` as `data:` URIs (HTML/MD/PDF self-contained); `fileAttachment` as absolute URL | Presigned S3 URLs; embed only for PDF                         |
+| Internal page links (`PageLink`) | Replace with absolute URL using `NEXT_PUBLIC_BASE_URL`                                       | Strip to plain text                                           |
 
 Gotenberg is chosen over Playwright-in-`apps/web` to keep the Chromium binary
 out of the `apps/web` image and isolate the heavy renderer behind a private
@@ -279,6 +279,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<...> }) {
 ```
 
 Errors mapped:
+
 - Unauth → 302 to `/sign-in?next=...`.
 - `assertWorkspaceMember` throws → 403 JSON `{ error: 'Forbidden' }`.
 - Page missing / non-TEXT / soft-deleted → 404.
@@ -323,9 +324,14 @@ import { CodeBlockLowlight } from '@tiptap/extension-code-block-lowlight'
 import { common, createLowlight } from 'lowlight'
 
 import {
-  Callout, Toggle, HiddenText, FileAttachment, PageLink,
-  BlockBackground, AnynoteTextColor,
-} from '@repo/editor/extensions/server'  // new sub-export, see below
+  Callout,
+  Toggle,
+  HiddenText,
+  FileAttachment,
+  PageLink,
+  BlockBackground,
+  AnynoteTextColor,
+} from '@repo/editor/extensions/server' // new sub-export, see below
 
 const lowlight = createLowlight(common)
 
@@ -336,13 +342,19 @@ export function buildServerExtensions() {
     Typography,
     AnynoteTextColor,
     BlockBackground,
-    Image,                                            // plain image, no upload
+    Image, // plain image, no upload
     TaskList,
     TaskItem.configure({ nested: true }),
     Table.configure({ resizable: false }),
-    TableRow, TableHeader, TableCell,
+    TableRow,
+    TableHeader,
+    TableCell,
     CodeBlockLowlight.configure({ lowlight }),
-    Callout, Toggle, HiddenText, FileAttachment, PageLink,
+    Callout,
+    Toggle,
+    HiddenText,
+    FileAttachment,
+    PageLink,
   ]
 }
 ```
@@ -404,9 +416,9 @@ const GOTENBERG_URL = requireEnv('GOTENBERG_URL')
 export async function htmlToPdf(html: string): Promise<ReadableStream<Uint8Array>> {
   const fd = new FormData()
   fd.append('files', new Blob([html], { type: 'text/html' }), 'index.html')
-  fd.append('paperWidth', '8.27')      // A4 in inches
+  fd.append('paperWidth', '8.27') // A4 in inches
   fd.append('paperHeight', '11.69')
-  fd.append('marginTop', '0.7')        // ≈ 18 mm
+  fd.append('marginTop', '0.7') // ≈ 18 mm
   fd.append('marginBottom', '0.7')
   fd.append('marginLeft', '0.7')
   fd.append('marginRight', '0.7')
@@ -495,11 +507,7 @@ const UNSAFE = /[/\\:*?"<>|\x00-\x1f]+/g
 
 export function buildFilename(rawTitle: string | null, format: 'pdf' | 'html' | 'md'): string {
   const trimmed = (rawTitle ?? '').trim() || 'Без названия'
-  const safe = trimmed
-    .replace(UNSAFE, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 100)
+  const safe = trimmed.replace(UNSAFE, ' ').replace(/\s+/g, ' ').trim().slice(0, 100)
   return `${safe || 'page'}.${FORMAT_EXT[format]}`
 }
 
@@ -524,15 +532,16 @@ const [pending, setPending] = useState<null | 'pdf' | 'html' | 'md'>(null)
 const [error, setError] = useState<string | null>(null)
 
 async function downloadAs(format: 'pdf' | 'html' | 'md') {
-  setPending(format); setError(null)
+  setPending(format)
+  setError(null)
   try {
     const url = buildExportUrl(workspaceId, pageId, format)
     const res = await fetch(url, { credentials: 'same-origin' })
-    if (!res.ok) throw new Error(await res.text() || `HTTP ${res.status}`)
+    if (!res.ok) throw new Error((await res.text()) || `HTTP ${res.status}`)
     const blob = await res.blob()
-    const filename = parseFilenameFromContentDisposition(
-      res.headers.get('content-disposition'),
-    ) ?? `page.${format}`
+    const filename =
+      parseFilenameFromContentDisposition(res.headers.get('content-disposition')) ??
+      `page.${format}`
     triggerBlobDownload(blob, filename)
     onClose()
   } catch (e) {
@@ -555,16 +564,16 @@ gotenberg:
   image: gotenberg/gotenberg:8
   container_name: anynote-gotenberg
   command:
-    - "gotenberg"
-    - "--api-port=3000"
-    - "--api-timeout=60s"
-    - "--chromium-disable-javascript=true"
-    - "--chromium-incognito=true"
-    - "--log-level=warn"
+    - 'gotenberg'
+    - '--api-port=3000'
+    - '--api-timeout=60s'
+    - '--chromium-disable-javascript=true'
+    - '--chromium-incognito=true'
+    - '--log-level=warn'
   ports:
-    - "3001:3000"
+    - '3001:3000'
   healthcheck:
-    test: ["CMD", "curl", "-fsSL", "http://localhost:3000/health"]
+    test: ['CMD', 'curl', '-fsSL', 'http://localhost:3000/health']
     interval: 10s
     timeout: 3s
     retries: 5
@@ -622,13 +631,13 @@ for tRPC paths.
 7. `htmlToPdf(fullHtml)` POSTs multipart to Gotenberg and returns the response
    `ReadableStream`.
 8. Route handler returns `new Response(stream, { headers: 'application/pdf'
-   + attachment Content-Disposition })`.
+   - attachment Content-Disposition })`.
 9. Browser receives the response, calls `await res.blob()`, triggers a
    blob-URL download with the parsed filename. Dialog closes.
 
 ### Markdown export
 
-Steps 1–5 same as above. Step 6 is skipped — turndown receives the *body* HTML
+Steps 1–5 same as above. Step 6 is skipped — turndown receives the _body_ HTML
 (no `<style>` / `<head>`) and produces clean Markdown. The route handler
 prepends `# ${title}\n\n` to the turndown output before responding. Recipients
 opening the `.md` file see a normal heading and content; embedded images render
@@ -653,27 +662,27 @@ intact; user can retry.
 
 ## Error handling
 
-| Condition | Response | Client behavior |
-| --- | --- | --- |
-| No session | 302 → `/sign-in?next=/api/...` | Browser follows redirect. |
-| Session, not workspace member | 403 JSON `{ error: 'Forbidden' }` | Dialog error message. |
-| Page not found / soft-deleted / non-TEXT | 404 (empty) | Dialog error message. |
-| Invalid UUID / unknown format | 404 (empty) | Same. |
-| Gotenberg timeout | 504 | Dialog error message: "Не удалось сгенерировать PDF". |
-| Gotenberg 5xx | 502 | Same. |
-| Gotenberg unreachable (DNS / ECONNREFUSED) | 502 | Same. |
-| Storage fetch failure (single image) | export proceeds, image src untouched | None — silent. |
-| Tiptap JSON malformed | 500 | Dialog error message. |
-| Any uncaught exception | 500 with stack to log only | Dialog generic error. |
+| Condition                                  | Response                             | Client behavior                                       |
+| ------------------------------------------ | ------------------------------------ | ----------------------------------------------------- |
+| No session                                 | 302 → `/sign-in?next=/api/...`       | Browser follows redirect.                             |
+| Session, not workspace member              | 403 JSON `{ error: 'Forbidden' }`    | Dialog error message.                                 |
+| Page not found / soft-deleted / non-TEXT   | 404 (empty)                          | Dialog error message.                                 |
+| Invalid UUID / unknown format              | 404 (empty)                          | Same.                                                 |
+| Gotenberg timeout                          | 504                                  | Dialog error message: "Не удалось сгенерировать PDF". |
+| Gotenberg 5xx                              | 502                                  | Same.                                                 |
+| Gotenberg unreachable (DNS / ECONNREFUSED) | 502                                  | Same.                                                 |
+| Storage fetch failure (single image)       | export proceeds, image src untouched | None — silent.                                        |
+| Tiptap JSON malformed                      | 500                                  | Dialog error message.                                 |
+| Any uncaught exception                     | 500 with stack to log only           | Dialog generic error.                                 |
 
 ## Environment variables
 
 Added to `.env.example` (root) **and** `turbo.json` `globalEnv`:
 
-| Key | Default | Purpose |
-| --- | --- | --- |
-| `GOTENBERG_URL` | `http://localhost:3001` | Base URL for `apps/web` → Gotenberg HTTP API. Must be a private endpoint in production. |
-| `GOTENBERG_TIMEOUT_MS` | `30000` | Per-request timeout (ms) for Gotenberg. Must be ≤ Gotenberg `--api-timeout`. |
+| Key                    | Default                 | Purpose                                                                                 |
+| ---------------------- | ----------------------- | --------------------------------------------------------------------------------------- |
+| `GOTENBERG_URL`        | `http://localhost:3001` | Base URL for `apps/web` → Gotenberg HTTP API. Must be a private endpoint in production. |
+| `GOTENBERG_TIMEOUT_MS` | `30000`                 | Per-request timeout (ms) for Gotenberg. Must be ≤ Gotenberg `--api-timeout`.            |
 
 `NEXT_PUBLIC_BASE_URL` is already present and reused for absolute URL
 rewrites (page links, file attachment URLs).
@@ -690,7 +699,7 @@ rewrites (page links, file attachment URLs).
   data URI replacement; ignored data-URIs and external URLs; failure path
   (warn + unchanged); 30-image semaphore concurrency.
 - `html-to-markdown.spec.ts` — port of any existing tests for `editor-to-
-  markdown.ts`; cover callout/toggle/hiddenText/fileAttachment.
+markdown.ts`; cover callout/toggle/hiddenText/fileAttachment.
 - `html-to-pdf.spec.ts` — mock `fetch`; assert multipart fields including
   `paperWidth=8.27`, `printBackground=true`, body contains expected HTML;
   stream pass-through; map TimeoutError → `GotenbergTimeoutError`, 503 →
@@ -724,12 +733,12 @@ Requires `docker compose up -d` (now including `gotenberg`).
    a. Click the button.
    b. Use `page.waitForEvent('download')` to capture the file.
    c. Assert:
-      - PDF: file starts with `%PDF-` magic bytes; size > 1 KB.
-      - HTML: contains `<title>${title}</title>`; contains the typed
-        paragraph text; contains `<style>` with our print stylesheet
-        markers; contains no `<script>` or `prosemirror`-prefixed classes.
-      - MD: contains `# ${title}`; contains the typed paragraph text;
-        callout rendered as `> 💡 ...`.
+   - PDF: file starts with `%PDF-` magic bytes; size > 1 KB.
+   - HTML: contains `<title>${title}</title>`; contains the typed
+     paragraph text; contains `<style>` with our print stylesheet
+     markers; contains no `<script>` or `prosemirror`-prefixed classes.
+   - MD: contains `# ${title}`; contains the typed paragraph text;
+     callout rendered as `> 💡 ...`.
 5. Empty-content edge case: create a page, do not type, export each format;
    each succeeds and contains the title.
 
@@ -746,15 +755,15 @@ update).
 
 ## Risks and mitigations
 
-| Risk | Mitigation |
-| --- | --- |
-| `@repo/editor` extensions tied to browser globals (window, Yjs) at module load → server-side `generateHTML` crashes. | Implementation phase audits each extension. If found, add `@repo/editor/extensions/server` subpath that exports schema-only nodes / marks. Fallback: duplicate schema definitions in `apps/web/src/server/page-export/server-extensions.ts`. |
-| `@tiptap/html` SSR DOM (zeed-dom) emits HTML that diverges from `editor.getHTML()` on the client → snapshot tests catch divergences. | Golden-test corpus from current client output captured during implementation; any diff is a bug to fix before merge. |
-| Pages with very large `Page.content` (10k+ blocks) make Gotenberg or `embedImages` slow. | Synchronous flow with 30 s timeout. If real users hit it, follow-up adds async generation. Spec accepts the limit. |
-| `Page.content` snapshot stale by one Hocuspocus debounce window when user types and immediately exports. | Documented and accepted. Future iteration may add Yjs decoding. |
-| Gotenberg crash on malformed HTML or pathological CSS. | Tiptap controls the HTML; print stylesheet is fixed. Risk is low, but `htmlToPdf` errors are mapped to 5xx so users get a clear failure rather than a hang. |
-| Production Gotenberg accidentally exposed to the public internet → open PDF relay / SSRF. | Spec hard-requires private endpoint. DevOps deploy story explicitly captures this; deployment review must check it. |
-| Storage fetch latency for image embedding bottlenecks small documents with many images. | Semaphore (limit 8 concurrent) prevents pool exhaustion; per-image error is non-fatal. |
+| Risk                                                                                                                                 | Mitigation                                                                                                                                                                                                                                   |
+| ------------------------------------------------------------------------------------------------------------------------------------ | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `@repo/editor` extensions tied to browser globals (window, Yjs) at module load → server-side `generateHTML` crashes.                 | Implementation phase audits each extension. If found, add `@repo/editor/extensions/server` subpath that exports schema-only nodes / marks. Fallback: duplicate schema definitions in `apps/web/src/server/page-export/server-extensions.ts`. |
+| `@tiptap/html` SSR DOM (zeed-dom) emits HTML that diverges from `editor.getHTML()` on the client → snapshot tests catch divergences. | Golden-test corpus from current client output captured during implementation; any diff is a bug to fix before merge.                                                                                                                         |
+| Pages with very large `Page.content` (10k+ blocks) make Gotenberg or `embedImages` slow.                                             | Synchronous flow with 30 s timeout. If real users hit it, follow-up adds async generation. Spec accepts the limit.                                                                                                                           |
+| `Page.content` snapshot stale by one Hocuspocus debounce window when user types and immediately exports.                             | Documented and accepted. Future iteration may add Yjs decoding.                                                                                                                                                                              |
+| Gotenberg crash on malformed HTML or pathological CSS.                                                                               | Tiptap controls the HTML; print stylesheet is fixed. Risk is low, but `htmlToPdf` errors are mapped to 5xx so users get a clear failure rather than a hang.                                                                                  |
+| Production Gotenberg accidentally exposed to the public internet → open PDF relay / SSRF.                                            | Spec hard-requires private endpoint. DevOps deploy story explicitly captures this; deployment review must check it.                                                                                                                          |
+| Storage fetch latency for image embedding bottlenecks small documents with many images.                                              | Semaphore (limit 8 concurrent) prevents pool exhaustion; per-image error is non-fatal.                                                                                                                                                       |
 
 ## Migration
 

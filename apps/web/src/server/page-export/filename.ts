@@ -11,11 +11,7 @@ export type ExportFormat = keyof typeof FORMAT_EXT
 
 export function buildFilename(rawTitle: string | null, format: ExportFormat): string {
   const trimmed = (rawTitle ?? '').trim() || 'Без названия'
-  const safe = trimmed
-    .replaceAll(UNSAFE, ' ')
-    .replaceAll(/\s+/g, ' ')
-    .trim()
-    .slice(0, 100)
+  const safe = trimmed.replaceAll(UNSAFE, ' ').replaceAll(/\s+/g, ' ').trim().slice(0, 100)
   return `${safe || 'page'}.${FORMAT_EXT[format]}`
 }
 

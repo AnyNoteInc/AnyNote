@@ -134,18 +134,14 @@ describe('GET /api/workspaces/:ws/pages/:p/export/:format', () => {
   })
 
   it('returns 504 when Gotenberg times out', async () => {
-    const { GotenbergTimeoutError } = await import(
-      '../../src/server/page-export/errors'
-    )
+    const { GotenbergTimeoutError } = await import('../../src/server/page-export/errors')
     mocks.htmlToPdf.mockRejectedValue(new GotenbergTimeoutError())
     const res = await callRoute('pdf')
     expect(res.status).toBe(504)
   })
 
   it('returns 502 when Gotenberg upstream errors', async () => {
-    const { GotenbergUpstreamError } = await import(
-      '../../src/server/page-export/errors'
-    )
+    const { GotenbergUpstreamError } = await import('../../src/server/page-export/errors')
     mocks.htmlToPdf.mockRejectedValue(new GotenbergUpstreamError(503, 'down'))
     const res = await callRoute('pdf')
     expect(res.status).toBe(502)

@@ -12,9 +12,7 @@ describe('tiptapJsonToHtml', () => {
   it('renders a paragraph with text', () => {
     const json = {
       type: 'doc',
-      content: [
-        { type: 'paragraph', content: [{ type: 'text', text: 'Hello' }] },
-      ],
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hello' }] }],
     }
     expect(tiptapJsonToHtml(json)).toBe('<p>Hello</p>')
   })
@@ -94,13 +92,19 @@ describe('tiptapJsonToHtml', () => {
         {
           type: 'bulletList',
           content: [
-            { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'a' }] }] },
+            {
+              type: 'listItem',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'a' }] }],
+            },
           ],
         },
         {
           type: 'orderedList',
           content: [
-            { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'b' }] }] },
+            {
+              type: 'listItem',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'b' }] }],
+            },
           ],
         },
         {

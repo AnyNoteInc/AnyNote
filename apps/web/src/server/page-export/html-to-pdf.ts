@@ -1,8 +1,4 @@
-import {
-  GotenbergTimeoutError,
-  GotenbergUnreachableError,
-  GotenbergUpstreamError,
-} from './errors'
+import { GotenbergTimeoutError, GotenbergUnreachableError, GotenbergUpstreamError } from './errors'
 
 const DEFAULT_TIMEOUT_MS = 30_000
 const A4_PAPER_WIDTH_IN = '8.27'

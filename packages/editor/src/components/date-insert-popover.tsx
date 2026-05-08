@@ -32,12 +32,20 @@ export function DateInsertPopover({ open, anchorEl, range, editor, onClose }: Pr
     if (open) setValue(new Date())
   }, [open])
 
-  const insertDate = useCallback((date: Date | null) => {
-    if (!range) return
-    const selectedDate = date ?? new Date()
-    editor.chain().focus().deleteRange(range).insertContent(`${formatDateText(selectedDate)} `).run()
-    onClose()
-  }, [editor, onClose, range])
+  const insertDate = useCallback(
+    (date: Date | null) => {
+      if (!range) return
+      const selectedDate = date ?? new Date()
+      editor
+        .chain()
+        .focus()
+        .deleteRange(range)
+        .insertContent(`${formatDateText(selectedDate)} `)
+        .run()
+      onClose()
+    },
+    [editor, onClose, range],
+  )
 
   return (
     <Popover

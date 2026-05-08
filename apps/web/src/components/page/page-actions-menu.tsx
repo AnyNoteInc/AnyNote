@@ -4,7 +4,10 @@ import { useState, type MouseEvent } from 'react'
 
 import {
   Box,
+  Button,
+  ButtonGroup,
   ContentCopyIcon,
+  DehazeIcon,
   DeleteIcon,
   Divider,
   HeightIcon,
@@ -18,10 +21,14 @@ import {
   MovingIcon,
   PublishIcon,
   Switch,
+  TocIcon,
+  Tooltip,
+  VisibilityOffIcon,
 } from '@repo/ui/components'
 
 import { usePageActions } from '@/hooks/use-page-actions'
 import { useFullWidth } from '@/hooks/use-full-width'
+import { useOutlineMode } from '@/hooks/use-outline-mode'
 
 import { MovePageDialog } from '@/components/workspace/move-page-dialog'
 import type { PageItem } from '@/components/workspace/types'
@@ -56,6 +63,7 @@ export function PageActionsMenu({
 
   const actions = usePageActions({ id: pageId, title: pageTitle }, workspaceId, isFavorite)
   const [fullWidth, setFullWidth] = useFullWidth(pageId)
+  const [outlineMode, setOutlineMode] = useOutlineMode(pageId)
 
   const openMenu = (e: MouseEvent<HTMLElement>) => setAnchor(e.currentTarget)
   const closeMenu = () => setAnchor(null)
@@ -135,6 +143,63 @@ export function PageActionsMenu({
             <Switch checked={fullWidth} size="small" edge="end" />
           </Box>
         </MenuItem>
+
+        {pageType === 'TEXT' ? (
+          <Box
+            component="li"
+            sx={{
+              listStyle: 'none',
+              px: 2,
+              py: 1.25,
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.5,
+              fontSize: 13,
+            }}
+          >
+            <Box
+              component="span"
+              sx={{ color: 'text.primary', fontSize: 13, flex: 1, lineHeight: 1.4 }}
+            >
+              Навигация
+            </Box>
+            <ButtonGroup size="small" variant="outlined" aria-label="Режим навигации">
+              <Tooltip title="Скрыть навигацию">
+                <Button
+                  onClick={() => setOutlineMode('off')}
+                  variant={outlineMode === 'off' ? 'contained' : 'outlined'}
+                  aria-label="Скрыть навигацию"
+                  aria-pressed={outlineMode === 'off'}
+                  sx={{ minWidth: 32, px: 1 }}
+                >
+                  <VisibilityOffIcon fontSize="small" />
+                </Button>
+              </Tooltip>
+              <Tooltip title="Мини-навигация">
+                <Button
+                  onClick={() => setOutlineMode('mini')}
+                  variant={outlineMode === 'mini' ? 'contained' : 'outlined'}
+                  aria-label="Мини-навигация"
+                  aria-pressed={outlineMode === 'mini'}
+                  sx={{ minWidth: 32, px: 1 }}
+                >
+                  <DehazeIcon fontSize="small" />
+                </Button>
+              </Tooltip>
+              <Tooltip title="Полная навигация">
+                <Button
+                  onClick={() => setOutlineMode('full')}
+                  variant={outlineMode === 'full' ? 'contained' : 'outlined'}
+                  aria-label="Полная навигация"
+                  aria-pressed={outlineMode === 'full'}
+                  sx={{ minWidth: 32, px: 1 }}
+                >
+                  <TocIcon fontSize="small" />
+                </Button>
+              </Tooltip>
+            </ButtonGroup>
+          </Box>
+        ) : null}
 
         <Divider />
 

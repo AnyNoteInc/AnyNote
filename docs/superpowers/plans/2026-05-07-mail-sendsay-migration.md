@@ -17,10 +17,12 @@
 ## File Structure
 
 **Create:**
+
 - `packages/mail/src/sendsay.ts` — typed wrapper around the `sendsay-api` Node client (singleton + `sendEmail` function).
 - `packages/mail/test/sendsay.test.ts` — unit tests for the wrapper.
 
 **Modify:**
+
 - `packages/mail/package.json` — remove `nodemailer` + `@types/nodemailer`; add `sendsay-api`.
 - `packages/mail/src/send-now.ts` — replace transport+sendMail with `sendEmail` from `./sendsay.ts`.
 - `packages/mail/src/index.ts` — drop `enqueueMailEvent`, `dispatchPending`, `getMailTransport` exports; keep `sendMailNow`, `renderTemplate`, types.
@@ -36,6 +38,7 @@
 - `CLAUDE.md`, `AGENTS.md`, `README.md` — drop Mailhog mentions and SMTP wording; describe sendsay + dev fallback.
 
 **Delete:**
+
 - `packages/mail/src/transport.ts`
 - `packages/mail/src/dispatch.ts`
 - `packages/mail/src/enqueue.ts`
@@ -51,6 +54,7 @@
 ### Task 1: Add sendsay-api dependency and remove nodemailer
 
 **Files:**
+
 - Modify: `packages/mail/package.json`
 
 - [ ] **Step 1: Update `packages/mail/package.json` dependencies**
@@ -89,6 +93,7 @@ git commit -m "chore(mail): swap nodemailer dependency for sendsay-api"
 ### Task 2: Write failing test for the SendSay wrapper
 
 **Files:**
+
 - Create: `packages/mail/test/sendsay.test.ts`
 
 - [ ] **Step 1: Write the failing test file**
@@ -165,9 +170,7 @@ describe('sendsay wrapper', () => {
       text: 'Hi',
     })
     expect(requestMock).not.toHaveBeenCalled()
-    expect(infoSpy).toHaveBeenCalledWith(
-      expect.stringContaining('[mail] sendsay disabled'),
-    )
+    expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('[mail] sendsay disabled'))
     infoSpy.mockRestore()
   })
 
@@ -207,6 +210,7 @@ Expected: FAIL — `Failed to resolve import "../src/sendsay.ts"` or equivalent.
 ### Task 3: Implement the SendSay wrapper to make the test pass
 
 **Files:**
+
 - Create: `packages/mail/src/sendsay.ts`
 
 - [ ] **Step 1: Implement the wrapper**
@@ -252,7 +256,9 @@ type SendsayResponse = {
 export async function sendEmail(args: SendEmailArgs): Promise<void> {
   const client = getClient()
   if (!client) {
-    console.info(`[mail] sendsay disabled (no SENDSAY_API_KEY); would send to ${args.to}: ${args.subject}`)
+    console.info(
+      `[mail] sendsay disabled (no SENDSAY_API_KEY); would send to ${args.to}: ${args.subject}`,
+    )
     return
   }
   const response = (await client.request({
@@ -291,6 +297,7 @@ git commit -m "feat(mail): add sendsay-api wrapper with dev fallback"
 ### Task 4: Rewrite `sendMailNow` to delegate to the SendSay wrapper
 
 **Files:**
+
 - Modify: `packages/mail/src/send-now.ts`
 - Modify: `packages/mail/test/send-now.test.ts`
 
@@ -395,6 +402,7 @@ git commit -m "refactor(mail): route sendMailNow through sendsay wrapper"
 ### Task 5: Delete outbox/SMTP-only files from `@repo/mail`
 
 **Files:**
+
 - Delete: `packages/mail/src/transport.ts`
 - Delete: `packages/mail/src/dispatch.ts`
 - Delete: `packages/mail/src/enqueue.ts`
@@ -404,6 +412,7 @@ git commit -m "refactor(mail): route sendMailNow through sendsay wrapper"
 - [ ] **Step 1: Delete the files**
 
 Run:
+
 ```bash
 rm packages/mail/src/transport.ts \
    packages/mail/src/dispatch.ts \
@@ -449,6 +458,7 @@ git commit -m "refactor(mail): remove SMTP transport and outbox dispatcher"
 ### Task 6: Switch `@repo/auth` to synchronous sends only
 
 **Files:**
+
 - Modify: `packages/auth/src/auth.ts`
 - Modify: `packages/auth/test/auth.test.ts`
 
@@ -485,64 +495,64 @@ async function cleanup(): Promise<void> {
 b) Replace the `does not enqueue welcome at user.create when emailVerified=false` test with:
 
 ```ts
-  it('does not send welcome at user.create when emailVerified=false', async () => {
-    const email = `nowelcome${TAG}`
-    sendMailNowMock.mockClear()
-    await auth.api.signUpEmail({
-      body: {
-        email,
-        password: 'StrongPass123!',
-        name: 'Test User',
-        firstName: 'Test',
-        lastName: 'User',
-      },
-    })
-    const welcomeCalls = sendMailNowMock.mock.calls.filter(
-      (call) => (call[0] as { kind: string }).kind === 'welcome',
-    )
-    expect(welcomeCalls).toHaveLength(0)
+it('does not send welcome at user.create when emailVerified=false', async () => {
+  const email = `nowelcome${TAG}`
+  sendMailNowMock.mockClear()
+  await auth.api.signUpEmail({
+    body: {
+      email,
+      password: 'StrongPass123!',
+      name: 'Test User',
+      firstName: 'Test',
+      lastName: 'User',
+    },
   })
+  const welcomeCalls = sendMailNowMock.mock.calls.filter(
+    (call) => (call[0] as { kind: string }).kind === 'welcome',
+  )
+  expect(welcomeCalls).toHaveLength(0)
+})
 ```
 
 c) Replace the `Google-style verified user welcome enqueue path is valid` test with a direct `sendMailNow` call:
 
 ```ts
-  it('Google-style verified user welcome send path is valid', async () => {
-    const email = `googled${TAG}`
-    const personalPlan = await prisma.plan.findUniqueOrThrow({ where: { slug: 'personal' } })
-    const created = await prisma.user.create({
-      data: {
-        email,
-        emailVerified: true,
-        name: 'G User',
-        firstName: 'G',
-        lastName: 'User',
-      },
-    })
-    await prisma.subscription.create({
-      data: {
-        userId: created.id,
-        planId: personalPlan.id,
-        status: SubscriptionStatus.ACTIVE,
-        billingPeriod: 'MONTHLY',
-      },
-    })
-    await prisma.userPreference.create({ data: { userId: created.id } })
-
-    sendMailNowMock.mockClear()
-    if (created.emailVerified) {
-      const { sendMailNow } = await import('@repo/mail')
-      await sendMailNow({
-        kind: 'welcome',
-        to: created.email,
-        data: { firstName: created.firstName, appUrl: 'http://localhost:3000/app' },
-      })
-    }
-    expect(sendMailNowMock).toHaveBeenCalledTimes(1)
-    const call = sendMailNowMock.mock.calls[0][0] as { kind: string; to: string }
-    expect(call.kind).toBe('welcome')
-    expect(call.to).toBe(email)
+it('Google-style verified user welcome send path is valid', async () => {
+  const email = `googled${TAG}`
+  const personalPlan = await prisma.plan.findUniqueOrThrow({ where: { slug: 'personal' } })
+  const created = await prisma.user.create({
+    data: {
+      email,
+      emailVerified: true,
+      name: 'G User',
+      firstName: 'G',
+      lastName: 'User',
+    },
   })
+  await prisma.subscription.create({
+    data: {
+      userId: created.id,
+      planId: personalPlan.id,
+      status: SubscriptionStatus.ACTIVE,
+      billingPeriod: 'MONTHLY',
+    },
+  })
+  await prisma.userPreference.create({ data: { userId: created.id } })
+
+  sendMailNowMock.mockClear()
+  if (created.emailVerified) {
+    const { sendMailNow } = await import('@repo/mail')
+    await sendMailNow({
+      kind: 'welcome',
+      to: created.email,
+      data: { firstName: created.firstName, appUrl: 'http://localhost:3000/app' },
+    })
+  }
+  expect(sendMailNowMock).toHaveBeenCalledTimes(1)
+  const call = sendMailNowMock.mock.calls[0][0] as { kind: string; to: string }
+  expect(call.kind).toBe('welcome')
+  expect(call.to).toBe(email)
+})
 ```
 
 (Leave the other six tests in the file as-is — they already mock `sendMailNow` and don't query the outbox.)
@@ -579,16 +589,16 @@ b) Replace the `afterEmailVerification` callback (currently lines 93-104) and th
 ```
 
 ```ts
-          if (userWithName.emailVerified) {
-            await sendMailNow({
-              kind: 'welcome',
-              to: userWithName.email,
-              data: {
-                firstName: userWithName.firstName ?? '',
-                appUrl: `${appUrl()}/app`,
-              },
-            })
-          }
+if (userWithName.emailVerified) {
+  await sendMailNow({
+    kind: 'welcome',
+    to: userWithName.email,
+    data: {
+      firstName: userWithName.firstName ?? '',
+      appUrl: `${appUrl()}/app`,
+    },
+  })
+}
 ```
 
 - [ ] **Step 4: Run tests again**
@@ -608,6 +618,7 @@ git commit -m "refactor(auth): send welcome mail synchronously via sendMailNow"
 ### Task 7: Remove the `MailerModule` from `apps/engines`
 
 **Files:**
+
 - Modify: `apps/engines/src/app.module.ts`
 - Delete: `apps/engines/src/apps/mailer/mailer.module.ts`
 - Delete: `apps/engines/src/apps/mailer/cron/mail-dispatch-cron.service.ts`
@@ -669,6 +680,7 @@ git commit -m "refactor(engines): drop mailer cron module"
 ### Task 8: Strip Mailhog and SMTP/dispatch helpers from the E2E setup
 
 **Files:**
+
 - Delete: `apps/e2e/helpers/mailhog.ts`
 - Delete: `apps/e2e/helpers/dispatch-emails.ts`
 - Delete: `apps/e2e/auth-extended.spec.ts`
@@ -694,6 +706,7 @@ git commit -m "test(e2e): remove mailhog-dependent helpers and spec"
 ### Task 9: Remove the Mailhog container from `compose.yml`
 
 **Files:**
+
 - Modify: `compose.yml`
 
 - [ ] **Step 1: Delete the `mailhog:` service block**
@@ -717,6 +730,7 @@ git commit -m "chore(compose): drop mailhog dev container"
 ### Task 10: Update `playwright.config.ts` and `turbo.json`
 
 **Files:**
+
 - Modify: `playwright.config.ts`
 - Modify: `turbo.json`
 
@@ -725,6 +739,7 @@ git commit -m "chore(compose): drop mailhog dev container"
 Inside `webServer.env`, drop these four lines and replace them with the two SendSay placeholders so the dev server starts in dev-fallback mode (no actual sends during E2E):
 
 Remove:
+
 ```ts
 MAIL_FROM: 'AnyNote <noreply@anynote.local>',
 SMTP_HOST: 'localhost',
@@ -751,6 +766,7 @@ The resulting `env` block should look like:
 In the `globalEnv` array:
 
 Remove these entries:
+
 ```
 "SMTP_HOST",
 "SMTP_PORT",
@@ -764,6 +780,7 @@ Remove these entries:
 ```
 
 Add these entries (place them anywhere in the array; conventionally near other URL/key vars):
+
 ```
 "SENDSAY_API_URL",
 "SENDSAY_API_KEY",
@@ -786,6 +803,7 @@ git commit -m "chore(config): swap SMTP/MAIL env vars for SENDSAY_*"
 ### Task 11: Update `deploy/.env.template`
 
 **Files:**
+
 - Modify: `deploy/.env.template`
 
 - [ ] **Step 1: Replace the `# === Mail ===` block**
@@ -798,7 +816,7 @@ SENDSAY_API_URL=${SENDSAY_API_URL}
 SENDSAY_API_KEY=${SENDSAY_API_KEY}
 ```
 
-- [ ] **Step 2: Verify no SMTP/MAIL_FROM/MAIL_DISPATCH_* placeholders remain**
+- [ ] **Step 2: Verify no SMTP/MAIL*FROM/MAIL_DISPATCH*\* placeholders remain**
 
 Run: `grep -E "SMTP|MAIL_FROM|MAIL_DISPATCH" deploy/.env.template`
 Expected: no output.
@@ -815,11 +833,13 @@ git commit -m "chore(deploy): switch env template from SMTP to SENDSAY"
 ### Task 12: Update the Deploy GitHub Actions workflow
 
 **Files:**
+
 - Modify: `.github/workflows/deploy.yml`
 
 - [ ] **Step 1: Edit the `Render .env from template` step's `env:` block**
 
 Remove:
+
 ```yaml
 SMTP_HOST: ${{ secrets.SMTP_HOST }}
 SMTP_PORT: ${{ secrets.SMTP_PORT }}
@@ -830,6 +850,7 @@ MAIL_FROM: ${{ secrets.MAIL_FROM }}
 ```
 
 Add (placing them where the SMTP block used to live keeps the diff readable):
+
 ```yaml
 SENDSAY_API_URL: ${{ secrets.SENDSAY_API_URL }}
 SENDSAY_API_KEY: ${{ secrets.SENDSAY_API_KEY }}
@@ -837,7 +858,7 @@ SENDSAY_API_KEY: ${{ secrets.SENDSAY_API_KEY }}
 
 - [ ] **Step 2: Validate workflow YAML**
 
-Run: `gh workflow view deploy.yml --json name,path 2>&1 | head -3` *(if `gh` is available locally)* — informational only.
+Run: `gh workflow view deploy.yml --json name,path 2>&1 | head -3` _(if `gh` is available locally)_ — informational only.
 
 Run: `python3 -c "import yaml,sys; yaml.safe_load(open('.github/workflows/deploy.yml'))"`
 Expected: exit 0, no parse errors.
@@ -858,6 +879,7 @@ git commit -m "chore(deploy-ci): pass SENDSAY_* secrets, drop SMTP/MAIL_FROM"
 ### Task 13: Update repo docs (Mailhog → sendsay narrative)
 
 **Files:**
+
 - Modify: `CLAUDE.md`
 - Modify: `AGENTS.md`
 - Modify: `README.md`
@@ -918,7 +940,7 @@ git commit -m "docs: replace mailhog/SMTP narrative with sendsay synchronous sen
 
 ### Task 14: Final verification — run the merge gate
 
-**Files:** *(none — checks only)*
+**Files:** _(none — checks only)_
 
 - [ ] **Step 1: Run lint, type-check, build, and tests**
 
@@ -928,9 +950,11 @@ Expected: PASS for every workspace.
 - [ ] **Step 2: Run a quick local sanity check on the dev fallback**
 
 Run:
+
 ```bash
 SENDSAY_API_KEY= pnpm --filter @repo/mail test
 ```
+
 Expected: PASS — the dev-fallback test confirms no HTTP call is attempted.
 
 - [ ] **Step 3: Run the playwright suite headless**
@@ -941,11 +965,13 @@ Expected: PASS — none of the surviving specs reach into Mailhog. (Specs that n
 - [ ] **Step 4: If gates pass, confirm there are no orphan references**
 
 Run:
+
 ```bash
 grep -rE "nodemailer|getMailTransport|enqueueMailEvent|dispatchPending|MAIL_DISPATCH|MAIL_FROM|SMTP_(HOST|PORT|SECURE|USER|PASSWORD)" \
   --include="*.ts" --include="*.tsx" --include="*.json" --include="*.yml" --include="*.yaml" --include="*.md" \
   apps packages compose.yml deploy .github CLAUDE.md AGENTS.md README.md turbo.json playwright.config.ts
 ```
+
 Expected: no matches in source/config/canonical docs (historical `docs/superpowers/plans/*.md` files are excluded from the search and may still mention old names).
 
 ---
@@ -953,6 +979,7 @@ Expected: no matches in source/config/canonical docs (historical `docs/superpowe
 ## Self-Review Notes
 
 **Spec coverage check:**
+
 1. Remove SMTP packages → Task 1 (drop nodemailer + types) and Task 5 (delete transport.ts).
 2. Install sendsay-api → Task 1.
 3. Replace sending without changing the user-facing API → Tasks 2-4 (sendMailNow keeps signature; private deletes only outbox-coupled exports that have to go because §5 removes the outbox itself).

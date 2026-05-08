@@ -92,24 +92,24 @@ All paths below are relative to the worktree root.
 Add at the bottom of the `services:` block (preserve existing services):
 
 ```yaml
-  gotenberg:
-    image: gotenberg/gotenberg:8
-    container_name: anynote-gotenberg
-    command:
-      - "gotenberg"
-      - "--api-port=3000"
-      - "--api-timeout=60s"
-      - "--chromium-disable-javascript=true"
-      - "--chromium-incognito=true"
-      - "--log-level=warn"
-    ports:
-      - "3001:3000"
-    healthcheck:
-      test: ["CMD", "curl", "-fsSL", "http://localhost:3000/health"]
-      interval: 10s
-      timeout: 3s
-      retries: 5
-    restart: unless-stopped
+gotenberg:
+  image: gotenberg/gotenberg:8
+  container_name: anynote-gotenberg
+  command:
+    - 'gotenberg'
+    - '--api-port=3000'
+    - '--api-timeout=60s'
+    - '--chromium-disable-javascript=true'
+    - '--chromium-incognito=true'
+    - '--log-level=warn'
+  ports:
+    - '3001:3000'
+  healthcheck:
+    test: ['CMD', 'curl', '-fsSL', 'http://localhost:3000/health']
+    interval: 10s
+    timeout: 3s
+    retries: 5
+  restart: unless-stopped
 ```
 
 - [ ] **Step 2: Pull image and start the service**
@@ -343,7 +343,7 @@ export const CalloutSchema = Node.create({
 })
 ```
 
-The exact `name`, `group`, `content`, and `defining` values must match `callout.tsx`. Read the existing `Node.create({...})` call there before writing this file so the schema is identical. If the existing extension declares `addOptions`, `addCommands`, `addKeyboardShortcuts`, or `addInputRules`, **leave them out of the schema file** — they belong on the client wrapper. Only `addAttributes`, `parseHTML`, `renderHTML` (and any non-React schema methods like `addStorage`, `addProseMirrorPlugins` *iff* server-safe) move here.
+The exact `name`, `group`, `content`, and `defining` values must match `callout.tsx`. Read the existing `Node.create({...})` call there before writing this file so the schema is identical. If the existing extension declares `addOptions`, `addCommands`, `addKeyboardShortcuts`, or `addInputRules`, **leave them out of the schema file** — they belong on the client wrapper. Only `addAttributes`, `parseHTML`, `renderHTML` (and any non-React schema methods like `addStorage`, `addProseMirrorPlugins` _iff_ server-safe) move here.
 
 - [ ] **Step 2: Rewrite `callout.tsx` to extend the schema**
 
@@ -398,7 +398,6 @@ git commit -m "refactor(editor): extract Callout schema into server-safe sibling
 - Modify: `packages/editor/src/extensions/toggle.tsx`
 
 - [ ] **Step 1: Read `packages/editor/src/extensions/toggle.tsx` carefully and identify**
-
   - The `Node.create({...})` call's `name`, `group`, `content`, `defining`, `isolating`, etc.
   - All `addAttributes`, `parseHTML`, `renderHTML` methods.
   - Any non-React schema methods.
@@ -525,7 +524,7 @@ git commit -m "refactor(editor): extract FileAttachment schema into server-safe 
 - [ ] **Step 2: Create `packages/editor/src/extensions/hidden-text.schema.ts`**
 
 ```ts
-import { Node, mergeAttributes } from '@tiptap/core'   // or { Mark, mergeAttributes } if a mark
+import { Node, mergeAttributes } from '@tiptap/core' // or { Mark, mergeAttributes } if a mark
 
 export const HiddenTextSchema = Node.create({
   // OR Mark.create({...})
@@ -810,11 +809,7 @@ export type ExportFormat = keyof typeof FORMAT_EXT
 
 export function buildFilename(rawTitle: string | null, format: ExportFormat): string {
   const trimmed = (rawTitle ?? '').trim() || 'Без названия'
-  const safe = trimmed
-    .replace(UNSAFE, ' ')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .slice(0, 100)
+  const safe = trimmed.replace(UNSAFE, ' ').replace(/\s+/g, ' ').trim().slice(0, 100)
   return `${safe || 'page'}.${FORMAT_EXT[format]}`
 }
 
@@ -948,9 +943,7 @@ describe('tiptapJsonToHtml', () => {
   it('renders a paragraph with text', () => {
     const json = {
       type: 'doc',
-      content: [
-        { type: 'paragraph', content: [{ type: 'text', text: 'Hello' }] },
-      ],
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hello' }] }],
     }
     expect(tiptapJsonToHtml(json)).toBe('<p>Hello</p>')
   })
@@ -1030,13 +1023,19 @@ describe('tiptapJsonToHtml', () => {
         {
           type: 'bulletList',
           content: [
-            { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'a' }] }] },
+            {
+              type: 'listItem',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'a' }] }],
+            },
           ],
         },
         {
           type: 'orderedList',
           content: [
-            { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'b' }] }] },
+            {
+              type: 'listItem',
+              content: [{ type: 'paragraph', content: [{ type: 'text', text: 'b' }] }],
+            },
           ],
         },
         {
@@ -1196,7 +1195,9 @@ describe('embedImagesAndRewriteLinks', () => {
       get: vi.fn(async () => {
         throw new Error('S3 down')
       }),
-      put: vi.fn(), delete: vi.fn(), exists: vi.fn(),
+      put: vi.fn(),
+      delete: vi.fn(),
+      exists: vi.fn(),
     }
     const prisma = makePrisma([{ id: 'abc', path: 'pages/abc/x.png', mimeType: 'image/png' }])
     const html = '<img src="/api/files/abc">'
@@ -1215,7 +1216,8 @@ describe('embedImagesAndRewriteLinks', () => {
   it('rewrites file-attachment data-url + wrapping <a href>', async () => {
     const storage = makeStorage({})
     const prisma = makePrisma([])
-    const html = '<div data-type="file-attachment" data-url="/api/files/zzz" data-name="doc.pdf"></div>'
+    const html =
+      '<div data-type="file-attachment" data-url="/api/files/zzz" data-name="doc.pdf"></div>'
     const out = await embedImagesAndRewriteLinks(html, { storage, prisma, baseUrl })
     expect(out).toContain('data-url="https://anynote.test/api/files/zzz"')
   })
@@ -1364,7 +1366,7 @@ git commit -m "feat(web): embed images as data URIs and rewrite links for export
 
 - [ ] **Step 1: Write tests covering all custom rules**
 
-```ts
+````ts
 // apps/web/test/server/page-export/html-to-markdown.test.ts
 import { describe, expect, it } from 'vitest'
 
@@ -1413,7 +1415,7 @@ describe('htmlToMarkdown', () => {
     expect(md).not.toContain('\n\n\n')
   })
 })
-```
+````
 
 - [ ] **Step 2: Run tests — expect failures**
 
@@ -1831,7 +1833,12 @@ describe('htmlToPdf', () => {
     globalThis.fetch = vi.fn(async (url: string, init?: RequestInit) => {
       capturedUrl = url
       capturedInit = init
-      const stream = new ReadableStream<Uint8Array>({ start(c) { c.enqueue(new Uint8Array([0x25, 0x50, 0x44, 0x46])); c.close() } })
+      const stream = new ReadableStream<Uint8Array>({
+        start(c) {
+          c.enqueue(new Uint8Array([0x25, 0x50, 0x44, 0x46]))
+          c.close()
+        },
+      })
       return new Response(stream, { status: 200, headers: { 'content-type': 'application/pdf' } })
     }) as typeof fetch
 
@@ -1852,7 +1859,9 @@ describe('htmlToPdf', () => {
 
   it('throws GotenbergTimeoutError on AbortError/TimeoutError', async () => {
     globalThis.fetch = vi.fn(async () => {
-      const e = new Error('aborted'); e.name = 'TimeoutError'; throw e
+      const e = new Error('aborted')
+      e.name = 'TimeoutError'
+      throw e
     }) as typeof fetch
     await expect(htmlToPdf('<html></html>')).rejects.toBeInstanceOf(GotenbergTimeoutError)
   })
@@ -1865,9 +1874,7 @@ describe('htmlToPdf', () => {
   })
 
   it('throws GotenbergUpstreamError on non-2xx', async () => {
-    globalThis.fetch = vi.fn(async () =>
-      new Response('boom', { status: 503 }),
-    ) as typeof fetch
+    globalThis.fetch = vi.fn(async () => new Response('boom', { status: 503 })) as typeof fetch
     await expect(htmlToPdf('<html></html>')).rejects.toBeInstanceOf(GotenbergUpstreamError)
   })
 
@@ -1883,11 +1890,7 @@ describe('htmlToPdf', () => {
 - [ ] **Step 3: Implement `apps/web/src/server/page-export/html-to-pdf.ts`**
 
 ```ts
-import {
-  GotenbergTimeoutError,
-  GotenbergUnreachableError,
-  GotenbergUpstreamError,
-} from './errors'
+import { GotenbergTimeoutError, GotenbergUnreachableError, GotenbergUpstreamError } from './errors'
 
 const DEFAULT_TIMEOUT_MS = 30_000
 
@@ -1988,11 +1991,7 @@ export { renderPageBodyHtml } from './render-page'
 export { wrapHtmlDocument } from './wrap-html-document'
 export { htmlToMarkdown } from './html-to-markdown'
 export { htmlToPdf } from './html-to-pdf'
-export {
-  GotenbergTimeoutError,
-  GotenbergUnreachableError,
-  GotenbergUpstreamError,
-} from './errors'
+export { GotenbergTimeoutError, GotenbergUnreachableError, GotenbergUpstreamError } from './errors'
 ```
 
 - [ ] **Step 3: Type-check**
@@ -2206,14 +2205,16 @@ const TEXT_PAGE = {
   id: '11111111-1111-4111-8111-111111111111',
   title: 'Demo',
   icon: null,
-  content: { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hello' }] }] },
+  content: {
+    type: 'doc',
+    content: [{ type: 'paragraph', content: [{ type: 'text', text: 'Hello' }] }],
+  },
 }
 const WS_ID = '22222222-2222-4222-8222-222222222222'
 
 async function callRoute(format: 'pdf' | 'html' | 'md') {
-  const { GET } = await import(
-    '@/app/api/workspaces/[workspaceId]/pages/[pageId]/export/[format]/route'
-  )
+  const { GET } =
+    await import('@/app/api/workspaces/[workspaceId]/pages/[pageId]/export/[format]/route')
   const url = `http://localhost:3000/api/workspaces/${WS_ID}/pages/${TEXT_PAGE.id}/export/${format}`
   const req = new Request(url) as unknown as import('next/server').NextRequest
   return GET(req, { params: Promise.resolve({ workspaceId: WS_ID, pageId: TEXT_PAGE.id, format }) })
@@ -2235,7 +2236,9 @@ describe('GET /api/workspaces/:ws/pages/:p/export/:format', () => {
     htmlToPdfMock = (await import('@/server/page-export/html-to-pdf')).htmlToPdf as any
 
     getSessionMock.mockReset().mockResolvedValue({ user: { id: 'user-1' } })
-    prismaMock.workspaceMember.findUnique.mockReset().mockResolvedValue({ workspaceId: WS_ID, userId: 'user-1' })
+    prismaMock.workspaceMember.findUnique
+      .mockReset()
+      .mockResolvedValue({ workspaceId: WS_ID, userId: 'user-1' })
     prismaMock.page.findFirst.mockReset().mockResolvedValue(TEXT_PAGE)
     prismaMock.file.findMany.mockReset().mockResolvedValue([])
     storageMock.get.mockReset()
@@ -2264,7 +2267,12 @@ describe('GET /api/workspaces/:ws/pages/:p/export/:format', () => {
   })
 
   it('returns 200 application/pdf for format=pdf via htmlToPdf', async () => {
-    const stream = new ReadableStream<Uint8Array>({ start(c) { c.enqueue(new Uint8Array([0x25, 0x50, 0x44, 0x46])); c.close() } })
+    const stream = new ReadableStream<Uint8Array>({
+      start(c) {
+        c.enqueue(new Uint8Array([0x25, 0x50, 0x44, 0x46]))
+        c.close()
+      },
+    })
     htmlToPdfMock.mockResolvedValue(stream)
     const res = await callRoute('pdf')
     expect(res.status).toBe(200)
@@ -2316,9 +2324,8 @@ describe('GET /api/workspaces/:ws/pages/:p/export/:format', () => {
   })
 
   it('returns 404 for invalid format', async () => {
-    const { GET } = await import(
-      '@/app/api/workspaces/[workspaceId]/pages/[pageId]/export/[format]/route'
-    )
+    const { GET } =
+      await import('@/app/api/workspaces/[workspaceId]/pages/[pageId]/export/[format]/route')
     const url = `http://localhost:3000/api/workspaces/${WS_ID}/pages/${TEXT_PAGE.id}/export/zip`
     const req = new Request(url) as unknown as import('next/server').NextRequest
     const res = await GET(req, {
@@ -2357,11 +2364,7 @@ git commit -m "test(web): integration tests for export route handler"
 It currently looks like:
 
 ```tsx
-<PageExportDialog
-  open={exportOpen}
-  onClose={() => setExportOpen(false)}
-  pageId={pageId}
-/>
+<PageExportDialog open={exportOpen} onClose={() => setExportOpen(false)} pageId={pageId} />
 ```
 
 (Inspect the exact prop list — there may be more props.)
@@ -2586,7 +2589,7 @@ pnpm --filter web check-types
 pnpm --filter web lint
 ```
 
-Expected: both pass. If lint flags `turndown` as an unused dep in `apps/web/package.json` — *don't* remove it; the server-side `html-to-markdown.ts` uses it.
+Expected: both pass. If lint flags `turndown` as an unused dep in `apps/web/package.json` — _don't_ remove it; the server-side `html-to-markdown.ts` uses it.
 
 - [ ] **Step 4: Commit**
 

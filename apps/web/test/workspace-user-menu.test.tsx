@@ -97,7 +97,10 @@ describe('WorkspaceUserMenu', () => {
     const actions = within(menu).getByTestId('workspace-user-menu-actions')
     expect(within(actions).getByText('Обновить план')).toBeInTheDocument()
     expect(within(actions).getByText('Выйти')).toBeInTheDocument()
-    expect(within(actions).getByRole('separator')).not.toHaveAttribute('aria-orientation', 'vertical')
+    expect(within(actions).getByRole('separator')).not.toHaveAttribute(
+      'aria-orientation',
+      'vertical',
+    )
 
     await actor.click(within(themeGroup).getByRole('button', { name: 'Тёмная тема' }))
 

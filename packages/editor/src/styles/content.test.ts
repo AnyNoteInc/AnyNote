@@ -9,8 +9,6 @@ describe('editor task list styles', () => {
     const css = readFileSync(contentCssPath, 'utf8')
 
     expect(css).toMatch(/\.anynote-editor \.anynote-task-item,[\s\S]*align-items:\s*center;/)
-    expect(css).toMatch(
-      /\.anynote-editor \.anynote-task-item__checkbox,[\s\S]*margin-top:\s*0;/,
-    )
+    expect(css).toMatch(/\.anynote-editor \.anynote-task-item__checkbox,[\s\S]*margin-top:\s*0;/)
   })
 })

@@ -67,9 +67,7 @@ describe('sendsay wrapper', () => {
       text: 'Hi',
     })
     expect(requestMock).not.toHaveBeenCalled()
-    expect(infoSpy).toHaveBeenCalledWith(
-      expect.stringContaining('[mail] sendsay disabled'),
-    )
+    expect(infoSpy).toHaveBeenCalledWith(expect.stringContaining('[mail] sendsay disabled'))
     infoSpy.mockRestore()
   })
 
