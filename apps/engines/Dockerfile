@@ -36,7 +36,7 @@ RUN pnpm --filter @repo/db --filter @repo/storage --filter @repo/yookassa build
 # dist/*.js.
 RUN <<'EOF' node
 const fs = require('fs');
-for (const pkg of ['packages/db', 'packages/mail', 'packages/storage', 'packages/yookassa']) {
+for (const pkg of ['packages/db', 'packages/storage', 'packages/yookassa']) {
   const p = pkg + '/package.json';
   const d = JSON.parse(fs.readFileSync(p, 'utf8'));
   const fixJs = s => typeof s === 'string' ? s.replace(/^\.\/src\/(.+)\.ts$/, './dist/$1.js') : s;
