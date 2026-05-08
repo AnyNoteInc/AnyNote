@@ -1,3 +1,16 @@
+# [1.7.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.6.0...v1.7.0) (2026-05-08)
+
+
+### Bug Fixes
+
+* some issue ([d952fd5](https://github.com/AnyNoteInc/AnyNote/commit/d952fd5e0f4f1af76a3adfa4ba4dec50ae4330ad))
+
+
+### Features
+
+* add themes ([72f65ce](https://github.com/AnyNoteInc/AnyNote/commit/72f65ce1ccb17a3a2e2835eb2fcd09e0b038c33f))
+* **mail:** migrate from SMTP/outbox to SendSay synchronous send ([#7](https://github.com/AnyNoteInc/AnyNote/issues/7)) ([2eee485](https://github.com/AnyNoteInc/AnyNote/commit/2eee48534f7788d88167f4ada4764edb6e77cda1))
+
 # [1.6.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.5.0...v1.6.0) (2026-05-07)
 
 
