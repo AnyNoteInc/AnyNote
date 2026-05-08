@@ -26,10 +26,9 @@ ENV DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy
 RUN pnpm --filter @repo/db prisma:generate
 
 # Build workspace packages whose package.json exports point to src/*.ts
-# (@repo/db, @repo/mail, @repo/storage, @repo/yookassa). This must happen
-# before the NestJS build so Node can resolve the workspace symlinks at
-# runtime.
-RUN pnpm --filter @repo/db --filter @repo/mail --filter @repo/storage --filter @repo/yookassa build
+# (@repo/db, @repo/storage, @repo/yookassa). This must happen before the
+# NestJS build so Node can resolve the workspace symlinks at runtime.
+RUN pnpm --filter @repo/db --filter @repo/storage --filter @repo/yookassa build
 
 # Patch package.json exports for packages that reference src/*.ts so that
 # the runner (plain node, no TypeScript loader) resolves to compiled dist/*.js.

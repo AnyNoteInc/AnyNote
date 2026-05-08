@@ -31,10 +31,6 @@ jobs:
         image: qdrant/qdrant:v1.12.4
         ports: ['6333:6333']
 
-      mailhog:
-        image: mailhog/mailhog:v1.0.1
-        ports: ['1025:1025', '8025:8025']
-
       # Bitnami runs `minio server` by default and auto-creates buckets from
       # MINIO_DEFAULT_BUCKETS. The official minio/minio image needs
       # `server /data` as a command, which GHA services don't allow overriding.
@@ -82,13 +78,6 @@ jobs:
       INDEXER_MAX_ATTEMPTS: '5'
       INDEXER_BATCH: '10'
       UPLOAD_INLINE_MAX_BYTES: '1048576'
-      SMTP_HOST: localhost
-      SMTP_PORT: '1025'
-      SMTP_SECURE: 'false'
-      MAIL_FROM: ci@example.com
-      MAIL_DISPATCH_CRON_EXPRESSION: '*/30 * * * * *'
-      MAIL_DISPATCH_BATCH: '10'
-      MAIL_DISPATCH_MAX_ATTEMPTS: '5'
       BILLING_RENEWAL_CRON_EXPRESSION: '0 0 * * *'
       BILLING_RENEWAL_BATCH_SIZE: '50'
       YOOKASSA_MOCK_ENABLED: 'true'

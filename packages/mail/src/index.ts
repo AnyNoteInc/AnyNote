@@ -1,6 +1,3 @@
 export type { MailKind, MailPayloads, MailEventPayload, RenderedEmail } from './types.ts'
 export { renderTemplate } from './templates/index.ts'
-export { enqueueMailEvent, type EnqueueMailEventArgs } from './enqueue.ts'
-export { getMailTransport } from './transport.ts'
-export { dispatchPending, type DispatchResult, type DispatchOptions } from './dispatch.ts'
 export { sendMailNow, type SendMailNowArgs } from './send-now.ts'

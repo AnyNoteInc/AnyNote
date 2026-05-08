@@ -46,7 +46,7 @@ pnpm exec playwright test                 # browser E2E (config at repo root)
 pnpm exec playwright test apps/e2e/auth.spec.ts
 ```
 
-Local infra (postgres, minio, qdrant, **mailhog**) — must be up before `pnpm dev`:
+Local infra (postgres, minio, qdrant) — must be up before `pnpm dev`:
 
 ```bash
 docker compose up -d
@@ -75,7 +75,7 @@ Packages (selected):
 - `packages/editor` — Tiptap-based collaborative text editor (loaded via `next/dynamic`, `ssr: false`).
 - `packages/excalidraw` — Excalidraw board renderer (same dynamic-import pattern).
 - `packages/genogram` — React Flow genogram canvas.
-- `packages/mail` — outbox-backed transactional email (`enqueueMailEvent`, `dispatchPending`, templates).
+- `packages/mail` — synchronous transactional email via SendSay HTTP API (`sendMailNow`, templates).
 - `packages/storage` — typed S3/MinIO client.
 - `packages/yookassa` — billing client + webhook signature verification.
 - `packages/eslint-config`, `packages/typescript-config` — consumed via `workspace:*`.
@@ -150,12 +150,11 @@ Indexing is decoupled via an outbox:
 
 After schema or normalizer changes, re-enqueue with `pnpm --filter engines backfill:reindex`.
 
-### Outbox pattern (mail + indexer)
+### Outbox pattern (indexer only)
 
-Both transactional email and vectorization use the same shape: write a row in a transaction, drain via a NestJS cron in `apps/engines`. When debugging "the email never sent" or "the page wasn't indexed", check the outbox table first — it's almost always a stuck row, not a transport issue.
+Vectorization is decoupled via an outbox: write a row to `outbox_events` in a transaction, drain via a NestJS cron in `apps/engines/src/apps/indexer/`. When the page wasn't indexed, check the table first — it's almost always a stuck row (`status='PENDING'` with retries), not a transport issue.
 
-- Mail outbox: `packages/mail/src/dispatch.ts` (claim → render → send → mark sent/retry). Cron lives in `apps/engines/src/apps/mailer/`. Templates in `packages/mail/src/templates/` use the XSS-safe `escapeHtml` from `utils.ts`.
-- Indexer outbox: `outbox_events` in the main DB; cron in `apps/engines/src/apps/indexer/`.
+Email no longer uses this pattern. `@repo/mail`'s `sendMailNow` calls SendSay's HTTP API synchronously inside the request that triggers the send (sign-up, verify, reset-password, welcome). Templates in `packages/mail/src/templates/` use the XSS-safe `esc()` from `utils.ts`.
 
 ### Realtime collaboration (apps/yjs + PageRenderer)
 
@@ -204,9 +203,9 @@ better-auth runs with:
 
 Schema is tracked in `packages/db/prisma/schema.prisma`; do **not** let better-auth auto-generate tables.
 
-`sendResetPassword`, `sendVerificationEmail`, and `afterEmailVerification` all enqueue rows via `enqueueMailEvent` — the actual SMTP send happens in `apps/engines` mailer cron. So locally, sign-up emails appear in **Mailhog** at http://localhost:8025, not in your terminal.
+`sendResetPassword`, `sendVerificationEmail`, and `afterEmailVerification` all call `sendMailNow` from `@repo/mail` directly — sends are synchronous and go through the SendSay HTTP API. When `SENDSAY_API_KEY` is not set (default in dev/CI), `sendMailNow` logs a one-line `[mail] sendsay disabled` message and returns successfully so the rest of the app keeps working. Production must set both `SENDSAY_API_URL` and `SENDSAY_API_KEY`.
 
-E2E note: `apps/e2e/helpers/auth.ts` exports `signUpAndAuthAs`, which clears cookies, signs up, polls Mailhog for the verification link, and signs in via the UI. `autoSignIn` produces a stale cookie that doesn't survive the `emailVerified` DB update, so the helper deliberately re-logs in. Don't "simplify" by trusting the auto-sign-in cookie.
+E2E note: `apps/e2e/helpers/auth.ts` exports `signUpAndAuthAs`, which clears cookies, signs up, marks the user `emailVerified=true` directly via Prisma, and signs in via the UI. There is no longer a Mailhog-based verification flow in E2E — sends fall back to the console log under Playwright.
 
 ### Prisma environment
 
@@ -218,11 +217,11 @@ E2E note: `apps/e2e/helpers/auth.ts` exports `signUpAndAuthAs`, which clears coo
 
 ### Docker compose services
 
-`compose.yml` runs Postgres (5432), MinIO (9000/9001), Qdrant (6333/6334), and Mailhog (1025 SMTP / 8025 UI). All have health checks. Run `docker compose up -d` before `pnpm dev`. Mailhog has no persistence — restarting the container drops every message. No LLM provider runs in compose; configure embedding/LLM connections per-workspace in **Settings → AI агент**.
+`compose.yml` runs Postgres (5432), MinIO (9000/9001), Qdrant (6333/6334), and Gotenberg (3001). All have health checks. Run `docker compose up -d` before `pnpm dev`. No LLM provider runs in compose; configure embedding/LLM connections per-workspace in **Settings → AI агент**. No mail server runs locally — `@repo/mail` calls SendSay directly when `SENDSAY_API_KEY` is set, otherwise it logs and returns.
 
 ### Playwright
 
-`playwright.config.ts` runs its **own** dev server on port 3100 via `webServer` with `BETTER_AUTH_URL`/`NEXT_PUBLIC_BASE_URL` overridden, `YOOKASSA_MOCK_ENABLED=true`, and `PLAYWRIGHT=true`. So you don't need `pnpm dev` running for `playwright test` — but you **do** need `docker compose up -d` (the dev server still talks to Postgres/Mailhog).
+`playwright.config.ts` runs its **own** dev server on port 3100 via `webServer` with `BETTER_AUTH_URL`/`NEXT_PUBLIC_BASE_URL` overridden, `YOOKASSA_MOCK_ENABLED=true`, and `PLAYWRIGHT=true`. So you don't need `pnpm dev` running for `playwright test` — but you **do** need `docker compose up -d` (the dev server still talks to Postgres).
 
 Specs in `apps/e2e/`. The `signUpAndAuthAs` helper above is the safe path for any spec that needs an authenticated user.
 

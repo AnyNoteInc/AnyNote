@@ -27,7 +27,7 @@ of `apps/agents` + `apps/engines`.
 ## Quick start
 
 ```bash
-docker compose up -d                          # postgres, minio, qdrant, mailhog
+docker compose up -d                          # postgres, minio, qdrant
 cp .env.example .env                          # adjust secrets
 pnpm install
 pnpm --filter @repo/db prisma:generate
@@ -121,7 +121,7 @@ apps/        web · yjs · agents · engines · e2e
 packages/    db · auth · trpc · ui · chat · editor · excalidraw · storage · eslint-config · typescript-config
 docs/        superpowers/specs · superpowers/plans
 docker/      postgres-init scripts
-compose.yml  postgres · minio · qdrant · mailhog (dev)
+compose.yml  postgres · minio · qdrant · gotenberg (dev)
 deploy/      compose.yml · .env.template · traefik · postgres-init (production)
 ```
 
@@ -133,7 +133,7 @@ in `apps/agents`. The embedding provider is per-workspace (configured in
 
 ### Pre-flight checklist
 
-1. `docker compose up -d` — brings up Postgres, Qdrant, MinIO, Mailhog.
+1. `docker compose up -d` — brings up Postgres, Qdrant, MinIO, Gotenberg.
 2. `pnpm --filter @repo/db prisma:db-push` — apply schema if first run.
 3. `pnpm --filter @repo/db prisma:seed` — seeds AI providers (GigaChat, Yandex, etc.).
 4. `pnpm dev` — start web, yjs, engines, agents.

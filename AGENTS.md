@@ -7,7 +7,7 @@ AnyNote is a pnpm/Turbo monorepo. Application code lives in `apps/`: `web` is th
 ## Build, Test, and Development Commands
 
 - `pnpm install` installs workspace dependencies.
-- `docker compose up -d` starts local Postgres, MinIO, Qdrant, and Mailhog services. No LLM provider runs in compose — `apps/agents` uses per-workspace LLM/embedding connections configured in **Settings → AI агент**.
+- `docker compose up -d` starts local Postgres, MinIO, Qdrant services. No LLM provider runs in compose — `apps/agents` uses per-workspace LLM/embedding connections configured in **Settings → AI агент**.
 - `pnpm dev` runs all app dev servers through Turbo.
 - `pnpm --filter web dev` runs only the Next.js app.
 - `pnpm build`, `pnpm lint`, `pnpm check-types`, and `pnpm test` run the corresponding Turbo tasks.

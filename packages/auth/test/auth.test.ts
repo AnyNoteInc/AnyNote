@@ -16,9 +16,6 @@ import { auth } from '../src/auth.js'
 const TAG = '+auth-callback-test@anynote.dev'
 
 async function cleanup(): Promise<void> {
-  await prisma.outboxEvent.deleteMany({
-    where: { aggregateType: 'email', payload: { path: ['to'], string_contains: TAG } },
-  })
   await prisma.subscription.deleteMany({
     where: { user: { email: { contains: TAG } } },
   })
@@ -95,8 +92,9 @@ describe('auth callbacks', () => {
     expect(remaining).toBeNull()
   })
 
-  it('does not enqueue welcome at user.create when emailVerified=false', async () => {
+  it('does not send welcome at user.create when emailVerified=false', async () => {
     const email = `nowelcome${TAG}`
+    sendMailNowMock.mockClear()
     await auth.api.signUpEmail({
       body: {
         email,
@@ -106,14 +104,10 @@ describe('auth callbacks', () => {
         lastName: 'User',
       },
     })
-    const welcome = await prisma.outboxEvent.findFirst({
-      where: {
-        aggregateType: 'email',
-        payload: { path: ['kind'], equals: 'welcome' },
-        AND: { payload: { path: ['to'], equals: email } },
-      },
-    })
-    expect(welcome).toBeNull()
+    const welcomeCalls = sendMailNowMock.mock.calls.filter(
+      (call) => (call[0] as { kind: string }).kind === 'welcome',
+    )
+    expect(welcomeCalls).toHaveLength(0)
   })
 
   it('subscription + userPreference still created in databaseHooks.user.create.after', async () => {
@@ -192,7 +186,7 @@ describe('auth callbacks', () => {
     expect(resetVerifications).toHaveLength(0)
   })
 
-  it('Google-style verified user welcome enqueue path is valid', async () => {
+  it('Google-style verified user welcome send path is valid', async () => {
     const email = `googled${TAG}`
     const personalPlan = await prisma.plan.findUniqueOrThrow({ where: { slug: 'personal' } })
     const created = await prisma.user.create({
@@ -214,24 +208,19 @@ describe('auth callbacks', () => {
     })
     await prisma.userPreference.create({ data: { userId: created.id } })
 
+    sendMailNowMock.mockClear()
     if (created.emailVerified) {
-      const { enqueueMailEvent } = await import('@repo/mail')
-      await enqueueMailEvent(prisma, {
+      const { sendMailNow } = await import('@repo/mail')
+      await sendMailNow({
         kind: 'welcome',
         to: created.email,
         data: { firstName: created.firstName, appUrl: 'http://localhost:3000/app' },
-        userId: created.id,
       })
     }
-
-    const welcome = await prisma.outboxEvent.findFirstOrThrow({
-      where: {
-        aggregateType: 'email',
-        payload: { path: ['kind'], equals: 'welcome' },
-        AND: { payload: { path: ['to'], equals: email } },
-      },
-    })
-    expect(welcome).toBeTruthy()
+    expect(sendMailNowMock).toHaveBeenCalledTimes(1)
+    const call = sendMailNowMock.mock.calls[0][0] as { kind: string; to: string }
+    expect(call.kind).toBe('welcome')
+    expect(call.to).toBe(email)
   })
 
   it('Google profile mapping preserves email fields with required profile names', async () => {
