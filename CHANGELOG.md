@@ -1,3 +1,10 @@
+# [1.8.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.7.1...v1.8.0) (2026-05-08)
+
+
+### Features
+
+* add navigation ([88c3c5f](https://github.com/AnyNoteInc/AnyNote/commit/88c3c5f5b9dcd5131789f460454ab9dfdcd347ac))
+
 ## [1.7.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.7.0...v1.7.1) (2026-05-08)
 
 ### Bug Fixes
