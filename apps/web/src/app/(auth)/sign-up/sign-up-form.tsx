@@ -1,6 +1,7 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 
 import { RegisterForm, type RegisterSubmitPayload } from '@repo/ui/widgets'
 import { Alert } from '@repo/ui/components'
@@ -9,9 +10,18 @@ import { captchaHeader, useRecaptchaV3 } from '@/lib/use-recaptcha-v3'
 
 export function SignUpForm() {
   const executeRecaptcha = useRecaptchaV3()
+  const router = useRouter()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+
+  useEffect(() => {
+    if (!submitted) return
+    const timer = setTimeout(() => {
+      router.push('/profile')
+    }, 3000)
+    return () => clearTimeout(timer)
+  }, [submitted, router])
 
   const handleSubmit = async (values: RegisterSubmitPayload): Promise<void> => {
     setErrorMessage(null)
