@@ -1,3 +1,15 @@
+# [1.9.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.8.0...v1.9.0) (2026-05-09)
+
+
+### Bug Fixes
+
+* **mail:** swallow sendsay errors instead of throwing plain objects ([bf2e0df](https://github.com/AnyNoteInc/AnyNote/commit/bf2e0df7750e7057ee2bb8cf2333cf40e25d0d0b))
+
+
+### Features
+
+* **web:** redirect to /profile 3s after sign-up success ([ec4f2bc](https://github.com/AnyNoteInc/AnyNote/commit/ec4f2bc12dd2200fb25ee8e5c11cca3ddb328c3d))
+
 # [1.8.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.7.1...v1.8.0) (2026-05-08)
 
 
