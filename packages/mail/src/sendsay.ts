@@ -43,20 +43,47 @@ export async function sendEmail(args: SendEmailArgs): Promise<void> {
     )
     return
   }
-  const response = (await client.request({
-    action: 'issue.send',
-    sendwhen: 'now',
-    letter: {
-      subject: args.subject,
-      'from.name': FROM_NAME,
-      'from.email': FROM_EMAIL,
-      message: { html: args.html, text: args.text },
-    },
-    'users.list': args.to,
-    group: 'transactional',
-  })) as SendsayResponse
-  if (response?.errors && response.errors.length > 0) {
-    const first = response.errors[0]
-    throw new Error(`sendsay error: ${first?.id ?? 'unknown'} - ${first?.explain ?? ''}`)
+  try {
+    const response = (await client.request({
+      action: 'issue.send',
+      sendwhen: 'now',
+      letter: {
+        subject: args.subject,
+        'from.name': FROM_NAME,
+        'from.email': FROM_EMAIL,
+        message: { html: args.html, text: args.text },
+      },
+      'users.list': args.to,
+      group: 'transactional',
+    })) as SendsayResponse
+    if (response?.errors && response.errors.length > 0) {
+      console.warn(
+        `[mail] sendsay rejected ${args.to}: ${formatSendsayError(response.errors[0])}`,
+      )
+    }
+  } catch (err) {
+    // sendsay-api throws res.errors[0] as a plain object {id, explain, action, ...},
+    // not an Error, so propagating it would surface as an opaque rejection in callers.
+    // Mail is best-effort (matches the missing-key fallback above) — log and continue
+    // so a transient mail outage doesn't roll back sign-up or other write paths.
+    console.warn(`[mail] failed to send to ${args.to}: ${formatSendsayError(err)}`)
   }
+}
+
+function formatSendsayError(err: unknown): string {
+  if (err instanceof Error) return err.message
+  if (err && typeof err === 'object') {
+    const e = err as { id?: string; explain?: string; action?: string }
+    const parts: string[] = []
+    if (e.action) parts.push(`action=${e.action}`)
+    if (e.id) parts.push(`id=${e.id}`)
+    if (e.explain) parts.push(`explain=${e.explain}`)
+    if (parts.length > 0) return parts.join(' ')
+    try {
+      return JSON.stringify(err)
+    } catch {
+      return String(err)
+    }
+  }
+  return String(err)
 }

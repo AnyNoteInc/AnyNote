@@ -71,8 +71,9 @@ describe('sendsay wrapper', () => {
     infoSpy.mockRestore()
   })
 
-  it('throws when sendsay returns an error envelope', async () => {
+  it('logs and swallows when sendsay returns an error envelope', async () => {
     requestMock.mockResolvedValueOnce({ errors: [{ id: 'auth/invalid', explain: 'bad key' }] })
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     await expect(
       sendEmail({
         to: 'user@example.com',
@@ -80,11 +81,22 @@ describe('sendsay wrapper', () => {
         html: '<p>Hi</p>',
         text: 'Hi',
       }),
-    ).rejects.toThrow(/sendsay.*auth\/invalid.*bad key/)
+    ).resolves.toBeUndefined()
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringMatching(/auth\/invalid.*bad key/))
+    warnSpy.mockRestore()
   })
 
-  it('propagates network errors thrown by the sendsay client', async () => {
-    requestMock.mockRejectedValueOnce(new Error('ECONNRESET'))
+  it('logs and swallows the plain-object error thrown by sendsay-api on access denial', async () => {
+    // The real sendsay-api SDK throws res.errors[0] as a plain object before
+    // returning, not an Error — exercise that path so callers (auth sign-up,
+    // password reset) don't see opaque rejections.
+    requestMock.mockRejectedValueOnce({
+      sublogin: 'luferovaea',
+      account: 'x_17781667411017429',
+      action: 'issue.send',
+      id: 'access_denied',
+    })
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
     await expect(
       sendEmail({
         to: 'user@example.com',
@@ -92,6 +104,23 @@ describe('sendsay wrapper', () => {
         html: '<p>Hi</p>',
         text: 'Hi',
       }),
-    ).rejects.toThrow(/ECONNRESET/)
+    ).resolves.toBeUndefined()
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringMatching(/access_denied/))
+    warnSpy.mockRestore()
+  })
+
+  it('logs and swallows network errors thrown by the sendsay client', async () => {
+    requestMock.mockRejectedValueOnce(new Error('ECONNRESET'))
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    await expect(
+      sendEmail({
+        to: 'user@example.com',
+        subject: 'Hello',
+        html: '<p>Hi</p>',
+        text: 'Hi',
+      }),
+    ).resolves.toBeUndefined()
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringMatching(/ECONNRESET/))
+    warnSpy.mockRestore()
   })
 })
