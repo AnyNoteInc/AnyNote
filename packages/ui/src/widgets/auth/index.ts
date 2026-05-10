@@ -16,3 +16,9 @@ export {
   type ResetPasswordConfirmFormProps,
   type ResetPasswordConfirmFormValues,
 } from './reset-password-confirm-form'
+export {
+  ConsentsCheckboxes,
+  type ConsentsCheckboxesValues,
+  type ConsentsCheckboxesUrls,
+  type ConsentsCheckboxesProps,
+} from './consents-checkboxes'
