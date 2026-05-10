@@ -33,6 +33,12 @@ export type SignUpAndAuthArgs = {
  * Prisma directly (bypassing the sign-up form) or as a safety net after
  * sign-up to guarantee the (protected) layout consent gate is satisfied.
  */
+export async function seedDefaultNotificationPreferences(_userId: string): Promise<void> {
+  // No-op: production code resolves preferences lazily from EVENT_CATALOG when no
+  // override row exists. Hook kept so future per-test preference overrides have a
+  // single place to plug in.
+}
+
 export async function writeConsentsForUserId(userId: string): Promise<void> {
   loadEnvFromRoot()
   const { prisma } = await import('../../../packages/db/src/index')
