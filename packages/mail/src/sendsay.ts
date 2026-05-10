@@ -54,7 +54,10 @@ export async function sendEmail(args: SendEmailArgs): Promise<void> {
         message: { html: args.html, text: args.text },
       },
       'users.list': args.to,
-      group: 'transactional',
+      // 'personal' is Sendsay's preset list id for transactional issues
+      // ("Транзакционные выпуски"). The slug 'transactional' does not exist
+      // and the API rejects it with wrong_arg/group.
+      group: 'personal',
     })) as SendsayResponse
     if (response?.errors && response.errors.length > 0) {
       console.warn(
