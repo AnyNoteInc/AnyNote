@@ -75,6 +75,10 @@ export type {
   OutboxEvent,
   UserConsent,
   PushSubscription,
+  NotificationEvent,
+  NotificationInApp,
+  NotificationDelivery,
+  NotificationPreference,
 } from '@prisma/client'
 export { OutboxEventStatus } from '@prisma/client'
 
