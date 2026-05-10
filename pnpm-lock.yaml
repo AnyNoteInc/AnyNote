@@ -816,6 +816,9 @@ importers:
       '@repo/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
+      '@repo/notifications':
+        specifier: workspace:*
+        version: link:../notifications
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config

@@ -10,6 +10,7 @@ import { consentRouter } from './routers/consent'
 import { fileRouter } from './routers/file'
 import { aiSettingsRouter } from './routers/ai-settings'
 import { searchRouter } from './routers/search'
+import { notificationRouter } from './routers/notification'
 
 export { createContext, createServerContext } from './trpc'
 export type { Context } from './trpc'
@@ -36,6 +37,7 @@ export const appRouter = router({
   consent: consentRouter,
   file: fileRouter,
   aiSettings: aiSettingsRouter,
+  notification: notificationRouter,
 })
 
 export const createCaller = createCallerFactory(appRouter)
