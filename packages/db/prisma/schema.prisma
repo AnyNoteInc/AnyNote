@@ -33,6 +33,7 @@ model User {
   favoritePages        FavoritePage[]
   files                File[]
   searchHistory        SearchHistory[]
+  consents             UserConsent[]
 
   @@map("users")
 }
@@ -96,6 +97,37 @@ model Jwks {
   expiresAt  DateTime? @map("expires_at") @db.Timestamptz(6)
 
   @@map("jwks")
+}
+
+model UserConsent {
+  id              String              @id @default(uuid(7)) @db.Uuid()
+  userId          String              @map("user_id") @db.Uuid()
+  documentType    ConsentDocumentType @map("document_type")
+  granted         Boolean
+  documentVersion String              @map("document_version") @db.VarChar(80)
+  source          ConsentSource
+  ipAddress       String?             @map("ip_address") @db.VarChar(45)
+  userAgent       String?             @map("user_agent") @db.VarChar(1024)
+  createdAt       DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, documentType, createdAt(sort: Desc)])
+  @@map("user_consents")
+}
+
+enum ConsentDocumentType {
+  USER_AGREEMENT
+  PRIVACY_POLICY
+  PII_PROCESSING
+  MARKETING
+  PUBLIC_OFFER
+}
+
+enum ConsentSource {
+  SIGN_UP
+  ONBOARDING
+  SETTINGS
 }
 
 enum RoleType {
@@ -195,31 +227,31 @@ model WorkspaceMember {
 }
 
 model Page {
-  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  workspaceId String        @map("workspace_id") @db.Uuid
-  parentId    String?       @map("parent_id") @db.Uuid
-  type        PageType      @default(TEXT)
-  ownership   PageOwnership @default(TEXT)
-  title       String?       @db.Text
-  icon        String?       @db.Text
-  content     Json?
-  contentYjs   Bytes?                       @map("content_yjs")
-  searchVector Unsupported("tsvector")?    @map("search_vector")
-  archived    Boolean       @default(false)
-  prevPageId  String?       @unique @map("prev_page_id") @db.Uuid
-  deletedAt   DateTime?     @map("deleted_at") @db.Timestamptz(6)
-  createdById String?       @map("created_by_id") @db.Uuid
-  updatedById String?       @map("updated_by_id") @db.Uuid
-  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id           String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId  String                   @map("workspace_id") @db.Uuid
+  parentId     String?                  @map("parent_id") @db.Uuid
+  type         PageType                 @default(TEXT)
+  ownership    PageOwnership            @default(TEXT)
+  title        String?                  @db.Text
+  icon         String?                  @db.Text
+  content      Json?
+  contentYjs   Bytes?                   @map("content_yjs")
+  searchVector Unsupported("tsvector")? @map("search_vector")
+  archived     Boolean                  @default(false)
+  prevPageId   String?                  @unique @map("prev_page_id") @db.Uuid
+  deletedAt    DateTime?                @map("deleted_at") @db.Timestamptz(6)
+  createdById  String?                  @map("created_by_id") @db.Uuid
+  updatedById  String?                  @map("updated_by_id") @db.Uuid
+  createdAt    DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdBy User?          @relation("PageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy User?          @relation("PageUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-  prevPage  Page?          @relation("PageOrder", fields: [prevPageId], references: [id], onDelete: SetNull)
-  nextPage  Page?          @relation("PageOrder")
-  children  Page[]         @relation("PageTree")
-  parent    Page?          @relation("PageTree", fields: [parentId], references: [id], onDelete: SetNull)
+  workspace     Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy     User?           @relation("PageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy     User?           @relation("PageUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  prevPage      Page?           @relation("PageOrder", fields: [prevPageId], references: [id], onDelete: SetNull)
+  nextPage      Page?           @relation("PageOrder")
+  children      Page[]          @relation("PageTree")
+  parent        Page?           @relation("PageTree", fields: [parentId], references: [id], onDelete: SetNull)
   favorites     FavoritePage[]
   files         PageFile[]
   searchHistory SearchHistory[]
@@ -359,22 +391,22 @@ model AiProvider {
 }
 
 model AiModel {
-  id                String                @id @default(uuid(7)) @db.Uuid
-  providerId        String                @map("provider_id") @db.Uuid
-  slug              String                @db.VarChar(100)
-  displayName       String                @map("display_name") @db.VarChar(150)
-  contextTokens     Int                   @map("context_tokens")
-  supportsVision     Boolean               @default(false) @map("supports_vision")
-  supportsEmbeddings Boolean              @default(false) @map("supports_embeddings")
-  vectorSize         Int?                  @map("vector_size")
-  minPlanSlug        String?               @map("min_plan_slug")
-  isActive          Boolean               @default(true) @map("is_active")
-  deprecatedAt      DateTime?             @map("deprecated_at") @db.Timestamptz(6)
-  createdAt         DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
-  provider                     AiProvider            @relation(fields: [providerId], references: [id], onDelete: Cascade)
-  workspaceSettings            WorkspaceAiSettings[] @relation("WorkspaceAiSettings_default")
-  workspaceEmbeddingsSettings  WorkspaceAiSettings[] @relation("WorkspaceAiSettings_embeddings")
+  id                          String                @id @default(uuid(7)) @db.Uuid
+  providerId                  String                @map("provider_id") @db.Uuid
+  slug                        String                @db.VarChar(100)
+  displayName                 String                @map("display_name") @db.VarChar(150)
+  contextTokens               Int                   @map("context_tokens")
+  supportsVision              Boolean               @default(false) @map("supports_vision")
+  supportsEmbeddings          Boolean               @default(false) @map("supports_embeddings")
+  vectorSize                  Int?                  @map("vector_size")
+  minPlanSlug                 String?               @map("min_plan_slug")
+  isActive                    Boolean               @default(true) @map("is_active")
+  deprecatedAt                DateTime?             @map("deprecated_at") @db.Timestamptz(6)
+  createdAt                   DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                   DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  provider                    AiProvider            @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  workspaceSettings           WorkspaceAiSettings[] @relation("WorkspaceAiSettings_default")
+  workspaceEmbeddingsSettings WorkspaceAiSettings[] @relation("WorkspaceAiSettings_embeddings")
 
   @@unique([providerId, slug])
   @@map("ai_models")
@@ -391,7 +423,7 @@ model WorkspaceAiSettings {
   updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  defaultModel    AiModel?  @relation("WorkspaceAiSettings_default",    fields: [defaultModelId],    references: [id], onDelete: SetNull)
+  defaultModel    AiModel?  @relation("WorkspaceAiSettings_default", fields: [defaultModelId], references: [id], onDelete: SetNull)
   embeddingsModel AiModel?  @relation("WorkspaceAiSettings_embeddings", fields: [embeddingsModelId], references: [id], onDelete: SetNull)
 
   @@index([defaultModelId])
@@ -400,70 +432,70 @@ model WorkspaceAiSettings {
 }
 
 model Plan {
-  id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  slug                     String   @unique @db.VarChar(50)
-  name                     String   @db.VarChar(100)
-  description              String?  @db.Text
+  id          String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug        String  @unique @db.VarChar(50)
+  name        String  @db.VarChar(100)
+  description String? @db.Text
 
-  priceMonthlyKopecks      Int      @default(0) @map("price_monthly_kopecks")
-  priceYearlyKopecks       Int      @default(0) @map("price_yearly_kopecks")
-  currency                 String   @default("RUB") @db.VarChar(3)
+  priceMonthlyKopecks Int    @default(0) @map("price_monthly_kopecks")
+  priceYearlyKopecks  Int    @default(0) @map("price_yearly_kopecks")
+  currency            String @default("RUB") @db.VarChar(3)
 
-  maxWorkspaces            Int?     @map("max_workspaces")
-  maxMembersPerWorkspace   Int      @default(1) @map("max_members_per_workspace")
+  maxWorkspaces          Int? @map("max_workspaces")
+  maxMembersPerWorkspace Int  @default(1) @map("max_members_per_workspace")
 
-  chatsEnabled             Boolean  @default(false) @map("chats_enabled")
-  pageIndexingEnabled      Boolean  @default(false) @map("page_indexing_enabled")
-  membersSettingsEnabled   Boolean  @default(false) @map("members_settings_enabled")
-  aiSettingsEnabled        Boolean  @default(false) @map("ai_settings_enabled")
-  customMcpEnabled         Boolean  @default(false) @map("custom_mcp_enabled")
-  prioritySupport          Boolean  @default(false) @map("priority_support")
-  developerSpaceEnabled    Boolean  @default(false) @map("developer_space_enabled")
+  chatsEnabled           Boolean @default(false) @map("chats_enabled")
+  pageIndexingEnabled    Boolean @default(false) @map("page_indexing_enabled")
+  membersSettingsEnabled Boolean @default(false) @map("members_settings_enabled")
+  aiSettingsEnabled      Boolean @default(false) @map("ai_settings_enabled")
+  customMcpEnabled       Boolean @default(false) @map("custom_mcp_enabled")
+  prioritySupport        Boolean @default(false) @map("priority_support")
+  developerSpaceEnabled  Boolean @default(false) @map("developer_space_enabled")
 
-  features                 Json     @default("[]")
-  isActive                 Boolean  @default(true) @map("is_active")
-  sortOrder                Int      @default(0) @map("sort_order")
+  features  Json    @default("[]")
+  isActive  Boolean @default(true) @map("is_active")
+  sortOrder Int     @default(0) @map("sort_order")
 
-  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  subscriptions            Subscription[]
-  orders                   Order[]
+  subscriptions Subscription[]
+  orders        Order[]
 
   @@map("plans")
 }
 
 model Subscription {
-  id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId                   String   @map("user_id") @db.Uuid
-  planId                   String   @map("plan_id") @db.Uuid
+  id     String @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId String @map("user_id") @db.Uuid
+  planId String @map("plan_id") @db.Uuid
 
-  status                   SubscriptionStatus  @default(ACTIVE)
-  billingPeriod            BillingPeriod       @default(MONTHLY) @map("billing_period")
+  status        SubscriptionStatus @default(ACTIVE)
+  billingPeriod BillingPeriod      @default(MONTHLY) @map("billing_period")
 
-  currentPeriodStart       DateTime? @map("current_period_start") @db.Timestamptz(6)
-  currentPeriodEnd         DateTime? @map("current_period_end") @db.Timestamptz(6)
+  currentPeriodStart DateTime? @map("current_period_start") @db.Timestamptz(6)
+  currentPeriodEnd   DateTime? @map("current_period_end") @db.Timestamptz(6)
 
-  cancelAtPeriodEnd        Boolean   @default(false) @map("cancel_at_period_end")
-  cancelledAt              DateTime? @map("cancelled_at") @db.Timestamptz(6)
+  cancelAtPeriodEnd Boolean   @default(false) @map("cancel_at_period_end")
+  cancelledAt       DateTime? @map("cancelled_at") @db.Timestamptz(6)
 
-  paymentMethodId          String?   @map("payment_method_id") @db.VarChar(64)
-  paymentMethodLast4       String?   @map("payment_method_last4") @db.VarChar(4)
-  paymentMethodBrand       String?   @map("payment_method_brand") @db.VarChar(32)
+  paymentMethodId    String? @map("payment_method_id") @db.VarChar(64)
+  paymentMethodLast4 String? @map("payment_method_last4") @db.VarChar(4)
+  paymentMethodBrand String? @map("payment_method_brand") @db.VarChar(32)
 
-  paymentProvider          String?   @map("payment_provider") @db.VarChar(32)
-  providerSubscriptionId   String?   @map("provider_subscription_id") @db.VarChar(64)
-  amountPaid               Int?      @map("amount_paid")
-  currency                 String    @default("RUB") @db.VarChar(3)
-  metadata                 Json?
+  paymentProvider        String? @map("payment_provider") @db.VarChar(32)
+  providerSubscriptionId String? @map("provider_subscription_id") @db.VarChar(64)
+  amountPaid             Int?    @map("amount_paid")
+  currency               String  @default("RUB") @db.VarChar(3)
+  metadata               Json?
 
-  expiredAt                DateTime? @map("expired_at") @db.Timestamptz(6)
-  createdAt                DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  expiredAt DateTime? @map("expired_at") @db.Timestamptz(6)
+  createdAt DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  user                     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan                     Plan     @relation(fields: [planId], references: [id])
-  orders                   Order[]
+  user   User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan   Plan    @relation(fields: [planId], references: [id])
+  orders Order[]
 
   @@index([userId])
   @@index([currentPeriodEnd, status, cancelAtPeriodEnd])
@@ -476,33 +508,33 @@ enum BillingPeriod {
 }
 
 model Order {
-  id                       String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId                   String   @map("user_id") @db.Uuid
-  planId                   String   @map("plan_id") @db.Uuid
-  subscriptionId           String?  @map("subscription_id") @db.Uuid
+  id             String  @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId         String  @map("user_id") @db.Uuid
+  planId         String  @map("plan_id") @db.Uuid
+  subscriptionId String? @map("subscription_id") @db.Uuid
 
-  billingPeriod            BillingPeriod @map("billing_period")
-  amountKopecks            Int      @map("amount_kopecks")
-  currency                 String   @default("RUB") @db.VarChar(3)
-  status                   OrderStatus @default(PENDING)
+  billingPeriod BillingPeriod @map("billing_period")
+  amountKopecks Int           @map("amount_kopecks")
+  currency      String        @default("RUB") @db.VarChar(3)
+  status        OrderStatus   @default(PENDING)
 
-  yookassaPaymentId        String?  @unique @map("yookassa_payment_id") @db.VarChar(64)
-  yookassaIdempotencyKey   String   @unique @map("yookassa_idempotency_key") @db.VarChar(64)
-  yookassaRefundId         String?  @map("yookassa_refund_id") @db.VarChar(64)
+  yookassaPaymentId      String? @unique @map("yookassa_payment_id") @db.VarChar(64)
+  yookassaIdempotencyKey String  @unique @map("yookassa_idempotency_key") @db.VarChar(64)
+  yookassaRefundId       String? @map("yookassa_refund_id") @db.VarChar(64)
 
-  isInitial                Boolean  @default(false) @map("is_initial")
-  savedPaymentMethod       Boolean  @default(false) @map("saved_payment_method")
+  isInitial          Boolean @default(false) @map("is_initial")
+  savedPaymentMethod Boolean @default(false) @map("saved_payment_method")
 
-  refundedAt               DateTime? @map("refunded_at") @db.Timestamptz(6)
-  paidAt                   DateTime? @map("paid_at") @db.Timestamptz(6)
+  refundedAt DateTime? @map("refunded_at") @db.Timestamptz(6)
+  paidAt     DateTime? @map("paid_at") @db.Timestamptz(6)
 
-  metadata                 Json?
-  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  metadata  Json?
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  user                     User          @relation(fields: [userId], references: [id])
-  plan                     Plan          @relation(fields: [planId], references: [id])
-  subscription             Subscription? @relation(fields: [subscriptionId], references: [id])
+  user         User          @relation(fields: [userId], references: [id])
+  plan         Plan          @relation(fields: [planId], references: [id])
+  subscription Subscription? @relation(fields: [subscriptionId], references: [id])
 
   @@index([userId])
   @@index([status])
