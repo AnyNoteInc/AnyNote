@@ -42,6 +42,8 @@ export {
   SubscriptionStatus,
   ChatMessageRole,
   FileStatus,
+  ConsentDocumentType,
+  ConsentSource,
 } from '@prisma/client'
 export type { ChatMessageStatus } from '@prisma/client'
 export type {
@@ -67,6 +69,7 @@ export type {
   File,
   PageFile,
   OutboxEvent,
+  UserConsent,
 } from '@prisma/client'
 export { OutboxEventStatus } from '@prisma/client'
 
