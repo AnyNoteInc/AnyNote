@@ -26,7 +26,7 @@ vi.mock('@/trpc/client', () => ({
   },
 }))
 
-import { ConsentsOnboardingForm } from '@/app/(onboarding)/consents/consents-form'
+import { ConsentsOnboardingForm } from '@/app/onboarding/consents/consents-form'
 
 describe('ConsentsOnboardingForm', () => {
   beforeEach(() => {
