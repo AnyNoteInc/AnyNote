@@ -6,7 +6,12 @@ import { EVENT_CATALOG } from '@repo/notifications'
 
 import { router, protectedProcedure } from '../trpc'
 
-const cursorSchema = z.object({ createdAt: z.coerce.date(), id: z.string().uuid() }).optional()
+const cursorSchema = z
+  .object({
+    createdAt: z.union([z.date(), z.string()]).transform((v) => new Date(v)),
+    id: z.string().uuid(),
+  })
+  .optional()
 
 export const notificationRouter = router({
   list: protectedProcedure
