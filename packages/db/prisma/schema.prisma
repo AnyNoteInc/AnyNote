@@ -237,7 +237,7 @@ model Page {
   icon         String?                  @db.Text
   content      Json?
   contentYjs   Bytes?                   @map("content_yjs")
-  searchVector Unsupported("tsvector")? @map("search_vector")
+  searchVector Unsupported("tsvector")? @default(dbgenerated()) @map("search_vector")
   archived     Boolean                  @default(false)
   prevPageId   String?                  @unique @map("prev_page_id") @db.Uuid
   deletedAt    DateTime?                @map("deleted_at") @db.Timestamptz(6)
