@@ -1,3 +1,10 @@
+# [1.10.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.9.0...v1.10.0) (2026-05-10)
+
+
+### Features
+
+* legal-grade user consent tracking ([#8](https://github.com/AnyNoteInc/AnyNote/issues/8)) ([c2cdadb](https://github.com/AnyNoteInc/AnyNote/commit/c2cdadb20ffdc27264f323d9c062b183af8118fd))
+
 # [1.9.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.8.0...v1.9.0) (2026-05-09)
 
 
