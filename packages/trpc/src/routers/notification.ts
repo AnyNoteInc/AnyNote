@@ -33,12 +33,10 @@ export const notificationRouter = router({
         take: input.limit,
         include: { event: true },
       })
+      const last = items[items.length - 1]
       const nextCursor =
-        items.length === input.limit
-          ? {
-              createdAt: items[items.length - 1].createdAt,
-              id: items[items.length - 1].id,
-            }
+        items.length === input.limit && last
+          ? { createdAt: last.createdAt, id: last.id }
           : null
       return { items, nextCursor }
     }),
@@ -93,11 +91,15 @@ export const notificationRouter = router({
         const inDefaults = sample?.defaultChannels.includes(channel) ?? false
         const isLocked = sample?.lockedChannels.includes(channel) ?? false
         const overrideKey = `${category}:${channel}`
-        const enabled = isLocked
-          ? true
-          : overrideMap.has(overrideKey)
-            ? (overrideMap.get(overrideKey) ?? inDefaults)
-            : inDefaults
+        const override = overrideMap.get(overrideKey)
+        let enabled: boolean
+        if (isLocked) {
+          enabled = true
+        } else if (override === undefined) {
+          enabled = inDefaults
+        } else {
+          enabled = override
+        }
         result[category][channel] = { enabled, locked: isLocked }
       }
     }
