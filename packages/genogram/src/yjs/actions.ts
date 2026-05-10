@@ -249,6 +249,19 @@ export function removeAnnotation(doc: Y.Doc, annotationId: AnnotationId): void {
   })
 }
 
+export function updateAnnotation(
+  doc: Y.Doc,
+  annotationId: AnnotationId,
+  patch: Partial<Pick<Annotation, 'text' | 'position' | 'targetId'>>,
+): void {
+  const maps = getGenogramMaps(doc)
+  const existing = maps.annotations.get(annotationId)
+  if (!existing) return
+  doc.transact(() => {
+    maps.annotations.set(annotationId, { ...existing, ...patch, id: annotationId })
+  })
+}
+
 // ── meta ──────────────────────────────────────────────────
 
 export function getMeta(doc: Y.Doc): GenogramMeta | null {

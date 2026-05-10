@@ -16,7 +16,9 @@ export const RU = {
     titleCreate: 'Создание генограммы',
     titleEditData: 'Редактирование данных',
     titleEditOwner: 'Данные владельца',
-    titleAddPartner: 'Добавление партнёра',
+    titleAddPartner: 'Данные партнёра',
+    titleEditPartner: 'Данные партнёра',
+    titleEditPredecessor: 'Данные предка',
     titleEditConnection: 'Редактирование связи',
     titleAddChildren: 'Добавление детей',
     save: 'Сохранить',
@@ -65,10 +67,21 @@ export const RU = {
   menu: {
     editData: 'Редактировать данные',
     editOwnerData: 'Редактировать данные владельца',
+    editPredecessorData: 'Редактировать данные предка',
+    editPartnerData: 'Редактировать данные партнёра',
     addPartner: 'Добавить партнёра',
     addParents: 'Добавить родителей',
     editConnection: 'Редактировать связь',
     addChildren: 'Добавить детей',
+    addNote: 'Добавить заметку',
+    editNote: 'Редактировать заметку',
+    moveNote: 'Изменить положение заметки',
+    deleteNote: 'Удалить заметку',
+  },
+  noteForm: {
+    titleCreate: 'Новая заметка',
+    titleEdit: 'Редактирование заметки',
+    placeholder: 'Текст заметки',
   },
   months: {
     nominative: [

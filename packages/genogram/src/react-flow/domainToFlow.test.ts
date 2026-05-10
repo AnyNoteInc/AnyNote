@@ -231,7 +231,7 @@ describe('domainToFlow', () => {
     expect(getLabelPos(child1Node)).toBe('right')
   })
 
-  describe('creation date node (Task 39)', () => {
+  describe('creation date is no longer pushed onto the canvas', () => {
     it('no creation date node when meta is absent', () => {
       const { data } = scenarioSolo()
       const layout = computeLayout(data)
@@ -239,40 +239,12 @@ describe('domainToFlow', () => {
       expect(nodes.find((n) => n.id === '__creation_date__')).toBeUndefined()
     })
 
-    it('creation date node appears at owner.x+280 when meta is provided', () => {
+    it('no creation date node when meta is provided — surfaced in Panel beside zoom controls instead', () => {
       const { data, ownerId } = scenarioSolo()
       const layout = computeLayout(data)
       const meta = { ownerId, createdAt: '2026-04-15' }
       const { nodes } = domainToFlow(data, layout, meta)
-      const dateNode = nodes.find((n) => n.id === '__creation_date__')
-      expect(dateNode).toBeDefined()
-      expect(dateNode!.type).toBe('genogramCreationDate')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect((dateNode!.data as any).formattedDate).toBe('15 апреля 2026')
-      const ownerPos = layout.positions[ownerId]!
-      expect(dateNode!.position.x).toBe(ownerPos.x + 280)
-      expect(dateNode!.position.y).toBe(ownerPos.y)
-    })
-
-    it('creation date node formats full date correctly', () => {
-      const { data, ownerId } = scenarioSolo()
-      const layout = computeLayout(data)
-      const meta = { ownerId, createdAt: '2026-04-15T10:00:00Z' }
-      const { nodes } = domainToFlow(data, layout, meta)
-      const dateNode = nodes.find((n) => n.id === '__creation_date__')
-      expect(dateNode).toBeDefined()
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      expect((dateNode!.data as any).formattedDate).toBe('15 апреля 2026')
-    })
-
-    it('creation date node is not draggable or selectable', () => {
-      const { data, ownerId } = scenarioSolo()
-      const layout = computeLayout(data)
-      const meta = { ownerId, createdAt: '2026-04-15' }
-      const { nodes } = domainToFlow(data, layout, meta)
-      const dateNode = nodes.find((n) => n.id === '__creation_date__')!
-      expect(dateNode.draggable).toBe(false)
-      expect(dateNode.selectable).toBe(false)
+      expect(nodes.find((n) => n.id === '__creation_date__')).toBeUndefined()
     })
   })
 })

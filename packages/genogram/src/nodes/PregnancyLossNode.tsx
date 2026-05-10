@@ -29,19 +29,35 @@ export function PregnancyLossNode({ data }: NodeProps<LossRfNode>) {
         viewBox={`0 0 ${w} ${w}`}
         style={{ display: 'block', overflow: 'visible' }}
       >
-        {/* Diagonal cross. Both legs are truncated at the same fraction of
-            the box (0..0.7w) so they have equal length, leaving the upper-
-            right corner free for the А/В letter. The legs still cross at the
-            box centre, so the X is symmetric apart from the missing
-            upper-right tip. */}
-        <line x1={0} y1={0} x2={w * 0.7} y2={w * 0.7} stroke={STROKE_COLOR} strokeWidth={STROKE} />
-        <line x1={0} y1={w} x2={w * 0.7} y2={w * 0.3} stroke={STROKE_COLOR} strokeWidth={STROKE} />
+        {/* Symmetric X cross inset by 0.15w on every side. Both legs span
+            from one diagonal corner to the opposite (in their inset square)
+            and have identical length (0.7w·√2). The inset leaves the upper-
+            right corner free for the А/В letter so no cross line ever
+            enters the glyph area. The X centre is still at the box centre,
+            so the cross visually occupies the same footprint as a
+            small-square element. */}
+        <line
+          x1={w * 0.15}
+          y1={w * 0.15}
+          x2={w * 0.85}
+          y2={w * 0.85}
+          stroke={STROKE_COLOR}
+          strokeWidth={STROKE}
+        />
+        <line
+          x1={w * 0.15}
+          y1={w * 0.85}
+          x2={w * 0.85}
+          y2={w * 0.15}
+          stroke={STROKE_COLOR}
+          strokeWidth={STROKE}
+        />
         <text
-          x={w * 0.86}
-          y={w * 0.1}
+          x={w * 0.92}
+          y={w * 0.08}
           textAnchor="middle"
           dominantBaseline="central"
-          fontSize={w * 0.24}
+          fontSize={w * 0.18}
           fill={STROKE_COLOR}
         >
           {letter}

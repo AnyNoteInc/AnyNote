@@ -58,10 +58,206 @@ function yForGen(gen: number, minGen: number): number {
 
 export function placeAll(ctx: PlacementContext): void {
   const roots = findRoots(ctx)
+  // Sort top-gen roots so subtrees that produce a *male* partner of a
+  // cross-subtree union land on the left and *female*-producing subtrees
+  // land on the right. Insertion-order alone (the previous behaviour) put
+  // whichever set of grandparents the user added first on the left, which
+  // could leave father's lineage on the right and break the
+  // "men on the left, women on the right" rule.
+  const order: Record<RootLeaning, number> = { left: 0, neutral: 1, right: 2 }
+  roots.sort((a, b) => order[rootLeaning(a, ctx)] - order[rootLeaning(b, ctx)])
   let cursorX = 0
   for (const root of roots) {
     const w = placeUnit(root, cursorX, ctx)
     cursorX += w + LAYOUT.SIBLING_GAP * 2
+  }
+  // Cross-subtree unions get their non-base partner overwritten by a later
+  // root's processing. Re-centre every union's children on its final
+  // partner midpoint so child verticals stay inside the rendered bracket.
+  reconcileCrossSubtreeChildren(ctx)
+}
+
+type RootLeaning = 'left' | 'neutral' | 'right'
+
+/**
+ * Determine whether a root subtree should be placed on the left, the right,
+ * or doesn't matter ('neutral'). A subtree leans LEFT when it has a male
+ * descendant who is a partner in a union with someone OUTSIDE this root —
+ * because that male partner needs to sit on the left side of his union.
+ * Symmetric logic for female partners ⇒ 'right'.
+ */
+function rootLeaning(unit: Unit, ctx: PlacementContext): RootLeaning {
+  if (unit.kind !== 'union') return 'neutral'
+  const u = ctx.data.entities.unions[unit.unionId]
+  if (!u || !u.childGroupId) return 'neutral'
+  const cg = ctx.data.entities.childGroups[u.childGroupId]
+  if (!cg) return 'neutral'
+
+  for (const entry of cg.children) {
+    if (entry.kind !== 'person') continue
+    const childUnions = ctx.relations.unionsByPerson.get(entry.personId) ?? []
+    for (const cuid of childUnions) {
+      const cu = ctx.data.entities.unions[cuid]
+      if (!cu) continue
+      const otherId =
+        cu.malePartnerId === entry.personId ? cu.femalePartnerId : cu.malePartnerId
+      if (isDescendantOfUnion(otherId, unit.unionId, ctx)) continue
+      return cu.malePartnerId === entry.personId ? 'left' : 'right'
+    }
+  }
+  return 'neutral'
+}
+
+function isDescendantOfUnion(
+  personId: PersonId,
+  rootUnionId: UnionId,
+  ctx: PlacementContext,
+): boolean {
+  const seen = new Set<UnionId>()
+  const walk = (pid: PersonId): boolean => {
+    const parentUnion = ctx.relations.parentUnionByPerson.get(pid)
+    if (!parentUnion || seen.has(parentUnion)) return false
+    if (parentUnion === rootUnionId) return true
+    seen.add(parentUnion)
+    const u = ctx.data.entities.unions[parentUnion]
+    if (!u) return false
+    return walk(u.malePartnerId) || walk(u.femalePartnerId)
+  }
+  return walk(personId)
+}
+
+/**
+ * Cross-subtree partners — for example, the owner's father and mother when
+ * each has their own grandparent root — get their X coordinates set by
+ * whichever root is processed last (the second root's `placePersonSolo`
+ * overwrites the partner that the first root had positioned via
+ * `placeUnionSubtree`). The children placed during the first root then
+ * end up off-centre relative to the now-final bracket, sometimes outside
+ * its horizontal span entirely.
+ *
+ * This pass walks every union top-down and:
+ *   - re-derives the union anchor and hub X as the midpoint of the two
+ *     partners' final X coordinates,
+ *   - re-runs `placeChildren` so child verticals start at the actual
+ *     bracket midpoint, AND
+ *   - shifts each moved child's *floating* relatives (partners with no
+ *     own parents and any descendants of theirs) by the same delta so
+ *     couple distance and downstream layout are preserved.
+ *
+ * Floating subtrees can't be re-laid-out independently — their absolute
+ * positions came from the parent's `placeUnionSubtree` call — so shifting
+ * is the only way to keep them coupled to the moved child.
+ */
+function reconcileCrossSubtreeChildren(ctx: PlacementContext): void {
+  const unionsByGen = Object.values(ctx.data.entities.unions)
+    .map((u) => ({
+      union: u,
+      gen: ctx.generations.get(u.malePartnerId) ?? 0,
+    }))
+    .sort((a, b) => a.gen - b.gen)
+
+  for (const { union } of unionsByGen) {
+    const cg = union.childGroupId
+      ? ctx.data.entities.childGroups[union.childGroupId]
+      : undefined
+    if (!cg || cg.children.length === 0) continue
+
+    const malePos = ctx.positions.get(union.malePartnerId)
+    const femalePos = ctx.positions.get(union.femalePartnerId)
+    if (!malePos || !femalePos) continue
+
+    const newUnionX = (malePos.x + femalePos.x) / 2
+    const oldUnionPos = ctx.positions.get(union.id)
+    if (oldUnionPos && oldUnionPos.x !== newUnionX) {
+      ctx.positions.set(union.id, { x: newUnionX, y: oldUnionPos.y })
+    }
+    const oldHubPos = ctx.positions.get(cg.id)
+    if (oldHubPos && oldHubPos.x !== newUnionX) {
+      ctx.positions.set(cg.id, { x: newUnionX, y: oldHubPos.y })
+    }
+
+    // Capture child positions before re-layout so we can compute deltas.
+    const oldChildX = new Map<PersonId, number>()
+    for (const entry of cg.children) {
+      if (entry.kind !== 'person') continue
+      const pos = ctx.positions.get(entry.personId)
+      if (pos) oldChildX.set(entry.personId, pos.x)
+    }
+
+    const childrenWidth = measureChildren(cg, ctx)
+    placeChildren(cg.id, newUnionX - childrenWidth / 2, ctx)
+
+    // Shift floating relatives (partners without own parents + their
+    // descendants) by the same delta the child moved by.
+    for (const entry of cg.children) {
+      if (entry.kind !== 'person') continue
+      const oldX = oldChildX.get(entry.personId)
+      const newX = ctx.positions.get(entry.personId)?.x
+      if (oldX === undefined || newX === undefined) continue
+      const delta = newX - oldX
+      if (Math.abs(delta) < 0.001) continue
+      shiftFloatingRelatives(entry.personId, delta, ctx)
+    }
+  }
+}
+
+/**
+ * Shift `personId`'s floating partner(s) — those with no own parent union,
+ * meaning they were placed inline with `personId` rather than as a
+ * separate root subtree — and the descendants of those floating unions
+ * by `delta` along the X axis. Walks transitively so a floating partner's
+ * own floating couple (and so on) all move together.
+ *
+ * Doesn't touch `personId` itself because the caller already updated
+ * their position via `placeChildren`.
+ */
+function shiftFloatingRelatives(
+  personId: PersonId,
+  delta: number,
+  ctx: PlacementContext,
+): void {
+  const visitedPersons = new Set<PersonId>([personId])
+  const visitedUnions = new Set<UnionId>()
+  const queue: PersonId[] = [personId]
+
+  const shiftEntity = (id: EntityId) => {
+    const pos = ctx.positions.get(id)
+    if (pos) ctx.positions.set(id, { x: pos.x + delta, y: pos.y })
+  }
+
+  while (queue.length > 0) {
+    const pid = queue.shift()!
+    const personUnions = ctx.relations.unionsByPerson.get(pid) ?? []
+    for (const uid of personUnions) {
+      if (visitedUnions.has(uid)) continue
+      visitedUnions.add(uid)
+      const u = ctx.data.entities.unions[uid]
+      if (!u) continue
+      const otherId = u.malePartnerId === pid ? u.femalePartnerId : u.malePartnerId
+      // Only follow unions where the partner is "floating" — has no parent
+      // union of their own. A partner with their own parents is in a
+      // separate subtree and was placed with its own coordinate frame; we
+      // must NOT drag them along.
+      if (ctx.relations.parentUnionByPerson.has(otherId)) continue
+      if (!visitedPersons.has(otherId)) {
+        visitedPersons.add(otherId)
+        shiftEntity(otherId)
+      }
+      shiftEntity(uid)
+      if (u.childGroupId) {
+        const cg = ctx.data.entities.childGroups[u.childGroupId]
+        if (cg) {
+          shiftEntity(cg.id)
+          for (const entry of cg.children) {
+            if (entry.kind !== 'person') continue
+            if (visitedPersons.has(entry.personId)) continue
+            visitedPersons.add(entry.personId)
+            shiftEntity(entry.personId)
+            queue.push(entry.personId)
+          }
+        }
+      }
+    }
   }
 }
 
@@ -317,7 +513,6 @@ function placeMultiPartnerSubtree(
     const partner = data.entities.people[partnerId]!
     const pw = personWidth(partner.size)
     const slotCenter = slotCenters[slot]!
-    const slotLeft = slotCenter - slotWidths[slot]! / 2
 
     // Partner is centered within its slot
     const partnerX = slotCenter - slotWidths[slot]! / 2 + pw / 2
@@ -328,7 +523,7 @@ function placeMultiPartnerSubtree(
     const unionX = (baseCenterX + partnerX) / 2
     positions.set(uid, { x: unionX, y: baseY })
 
-    // Fix 2: place children below the union anchor
+    // Fix 2: place children below the union midpoint
     const u = data.entities.unions[uid]
     const cg = u?.childGroupId ? data.entities.childGroups[u.childGroupId] : undefined
     if (cg && cg.children.length > 0) {
@@ -340,7 +535,13 @@ function placeMultiPartnerSubtree(
       const hubY = baseY + bracketDropFor(baseW, pw) + partnerSlot * LAYOUT.MULTI_PARTNER_STACK_Y
       ctx.positions.set(cg.id, { x: hubX, y: hubY })
 
-      const childrenStart = slotLeft + (slotWidths[slot]! - cw) / 2
+      // Centre children on the union anchor instead of the partner's slot.
+      // Slot-centering would put a solo child at partner.x, making the
+      // child's vertical leg collinear with the partner's bracket leg —
+      // visually the line then extends straight from the partner shape
+      // down through the child, which breaks the "child line should not
+      // continue from a parent element" rule.
+      const childrenStart = unionX - cw / 2
       placeChildren(cg.id, childrenStart, ctx)
     }
 

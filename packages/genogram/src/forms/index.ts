@@ -1,6 +1,7 @@
 export { AddChildrenForm } from './AddChildrenForm'
 export { ChildEntryRow } from './ChildEntryRow'
 export { MarriageRelationForm } from './MarriageRelationForm'
+export { NoteForm } from './NoteForm'
 export { OwnerDataForm } from './OwnerDataForm'
 export { PersonDataForm } from './PersonDataForm'
 export { ApproximateAgeInput } from './primitives/ApproximateAgeInput'

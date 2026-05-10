@@ -19,7 +19,8 @@ import { RU } from '../i18n/ru'
 type FormContext =
   | {
       kind: 'edit-data'
-      isPartnerOfMultiBase?: boolean
+      /** True for any non-blood partner (bloodRelation === 'partner'). */
+      isPartner?: boolean
       totalPartnersOfBase?: number
       isChild?: boolean
       childOrder?: number
@@ -66,32 +67,29 @@ export function PersonDataForm({
     tragically: initial.tragically,
   })
 
-  const [partnerCount, setPartnerCount] = useState<number | undefined>(
-    context.kind === 'add-partner' ? context.existingPartnersOfBase + 1 : undefined,
-  )
-
   const [partnerOrder, setPartnerOrder] = useState<number | undefined>(initial.partnerOrder)
 
   const [childOrder, setChildOrder] = useState<number | undefined>(
     context.kind === 'edit-data' ? context.childOrder : undefined,
   )
 
+  // partnerOrder field is shown both for "add-partner" (empty by default —
+  // user fills in or leaves blank to append at the end) and for "edit-data"
+  // when the person being edited is itself a partner.
+  const showPartnerOrder =
+    context.kind === 'add-partner' || (context.kind === 'edit-data' && !!context.isPartner)
+
   const buildPayload = useCallback(
     (
       d: PersonDataDraft,
-      pc: number | undefined,
       po: number | undefined,
       co: number | undefined,
-    ): PersonDataDraft & { partnerOrder?: number; childOrder?: number; partnerCount?: number } => {
-      const payload: PersonDataDraft & {
-        partnerOrder?: number
-        childOrder?: number
-        partnerCount?: number
-      } = { ...d }
-      if (context.kind === 'add-partner') {
-        payload.partnerCount = pc
-      }
-      if (context.kind === 'edit-data' && context.isPartnerOfMultiBase) {
+    ): PersonDataDraft & { partnerOrder?: number; childOrder?: number } => {
+      const payload: PersonDataDraft & { partnerOrder?: number; childOrder?: number } = { ...d }
+      if (
+        po !== undefined &&
+        (context.kind === 'add-partner' || (context.kind === 'edit-data' && context.isPartner))
+      ) {
         payload.partnerOrder = po
       }
       if (context.kind === 'edit-data' && context.isChild) {
@@ -110,30 +108,34 @@ export function PersonDataForm({
   const update = <K extends keyof PersonDataDraft>(k: K, v: PersonDataDraft[K]) => {
     const next = { ...draft, [k]: v }
     setDraft(next)
-    onChange?.(buildPayload(next, partnerCount, partnerOrder, childOrder))
+    onChange?.(buildPayload(next, partnerOrder, childOrder))
   }
 
-  const handlePartnerCount = (v: number) => {
-    setPartnerCount(v)
-    onChange?.(buildPayload(draft, v, partnerOrder, childOrder))
-  }
-
-  const handlePartnerOrder = (v: number) => {
+  const handlePartnerOrder = (raw: string) => {
+    const v = raw === '' ? undefined : Number(raw)
     setPartnerOrder(v)
-    onChange?.(buildPayload(draft, partnerCount, v, childOrder))
+    onChange?.(buildPayload(draft, v, childOrder))
   }
 
   const handleChildOrder = (v: number) => {
     setChildOrder(v)
-    onChange?.(buildPayload(draft, partnerCount, partnerOrder, v))
+    onChange?.(buildPayload(draft, partnerOrder, v))
   }
 
   const handleSubmit = () => {
-    onSubmit(buildPayload(draft, partnerCount, partnerOrder, childOrder))
+    onSubmit(buildPayload(draft, partnerOrder, childOrder))
   }
 
   return (
     <Stack spacing={2}>
+      {showPartnerOrder && (
+        <TextField
+          label={RU.fields.partnerOrder}
+          type="number"
+          value={partnerOrder ?? ''}
+          onChange={(e) => handlePartnerOrder(e.target.value)}
+        />
+      )}
       <TextField
         label={RU.fields.lastName}
         value={draft.lastName ?? ''}
@@ -199,26 +201,6 @@ export function PersonDataForm({
             label={RU.fields.tragically}
           />
         </>
-      )}
-
-      {context.kind === 'add-partner' && (
-        <TextField
-          label="Укажите количество партнёров"
-          type="number"
-          value={partnerCount ?? ''}
-          onChange={(e) => handlePartnerCount(Number(e.target.value))}
-          inputProps={{ min: context.existingPartnersOfBase + 1 }}
-        />
-      )}
-
-      {context.kind === 'edit-data' && context.isPartnerOfMultiBase && (
-        <TextField
-          label="Порядковый номер партнёра"
-          type="number"
-          value={partnerOrder ?? ''}
-          onChange={(e) => handlePartnerOrder(Number(e.target.value))}
-          inputProps={{ min: 1, max: context.totalPartnersOfBase }}
-        />
       )}
 
       {context.kind === 'edit-data' && context.isChild && (

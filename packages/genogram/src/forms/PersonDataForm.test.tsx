@@ -80,8 +80,8 @@ describe('PersonDataForm — basic', () => {
 })
 
 describe('PersonDataForm — conditional ordinal fields', () => {
-  it('shows "Укажите количество партнёров" only when context=add-partner', () => {
-    const { rerender } = render(
+  it('shows "Порядковый номер партнёра" (above lastName) for add-partner context, empty by default', () => {
+    render(
       <PersonDataForm
         initial={{ sex: 'male' }}
         context={{ kind: 'add-partner', existingPartnersOfBase: 1 }}
@@ -89,29 +89,22 @@ describe('PersonDataForm — conditional ordinal fields', () => {
         onCancel={() => {}}
       />,
     )
-    expect(screen.getByLabelText('Укажите количество партнёров')).toBeInTheDocument()
-
-    rerender(
-      <PersonDataForm
-        initial={{ sex: 'male' }}
-        context={{ kind: 'edit-data' }}
-        onSubmit={() => {}}
-        onCancel={() => {}}
-      />,
-    )
-    expect(screen.queryByLabelText('Укажите количество партнёров')).not.toBeInTheDocument()
+    const field = screen.getByLabelText('Порядковый номер партнёра') as HTMLInputElement
+    expect(field).toBeInTheDocument()
+    expect(field.value).toBe('')
   })
 
-  it('shows "Порядковый номер партнёра" only when editing partner of base with >1 partners', () => {
+  it('shows "Порядковый номер партнёра" pre-filled when editing a partner', () => {
     render(
       <PersonDataForm
-        initial={{ sex: 'female' }}
-        context={{ kind: 'edit-data', isPartnerOfMultiBase: true, totalPartnersOfBase: 2 }}
+        initial={{ sex: 'female', partnerOrder: 2 }}
+        context={{ kind: 'edit-data', isPartner: true, totalPartnersOfBase: 3 }}
         onSubmit={() => {}}
         onCancel={() => {}}
       />,
     )
-    expect(screen.getByLabelText('Порядковый номер партнёра')).toBeInTheDocument()
+    const field = screen.getByLabelText('Порядковый номер партнёра') as HTMLInputElement
+    expect(field.value).toBe('2')
   })
 
   it('shows "Порядковый номер ребёнка" only when editing a child', () => {
@@ -126,7 +119,7 @@ describe('PersonDataForm — conditional ordinal fields', () => {
     expect(screen.getByLabelText('Порядковый номер ребёнка')).toBeInTheDocument()
   })
 
-  it('hides all ordinal fields when context=edit-data with no flags', () => {
+  it('hides all ordinal fields when context=edit-data with no partner/child flag', () => {
     render(
       <PersonDataForm
         initial={{ sex: 'male' }}
@@ -135,12 +128,13 @@ describe('PersonDataForm — conditional ordinal fields', () => {
         onCancel={() => {}}
       />,
     )
-    expect(screen.queryByLabelText('Укажите количество партнёров')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Порядковый номер партнёра')).not.toBeInTheDocument()
     expect(screen.queryByLabelText('Порядковый номер ребёнка')).not.toBeInTheDocument()
+    // The legacy "Укажите количество партнёров" field has been removed entirely.
+    expect(screen.queryByLabelText('Укажите количество партнёров')).not.toBeInTheDocument()
   })
 
-  it('submit emits partnerCount when in add-partner context', async () => {
+  it('submit omits partnerOrder when add-partner field is left empty (caller falls back to append)', async () => {
     const onSubmit = vi.fn()
     render(
       <PersonDataForm
@@ -150,9 +144,24 @@ describe('PersonDataForm — conditional ordinal fields', () => {
         onCancel={() => {}}
       />,
     )
-    // partnerCount default = existingPartnersOfBase + 1 = 2
     await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
-    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ partnerCount: 2 }))
+    const arg = onSubmit.mock.calls[0]![0] as { partnerOrder?: number }
+    expect(arg.partnerOrder).toBeUndefined()
+  })
+
+  it('submit emits partnerOrder typed into add-partner field', async () => {
+    const onSubmit = vi.fn()
+    render(
+      <PersonDataForm
+        initial={{ sex: 'female' }}
+        context={{ kind: 'add-partner', existingPartnersOfBase: 1 }}
+        onSubmit={onSubmit}
+        onCancel={() => {}}
+      />,
+    )
+    await userEvent.type(screen.getByLabelText('Порядковый номер партнёра'), '3')
+    await userEvent.click(screen.getByRole('button', { name: 'Сохранить' }))
+    expect(onSubmit).toHaveBeenCalledWith(expect.objectContaining({ partnerOrder: 3 }))
   })
 })
 

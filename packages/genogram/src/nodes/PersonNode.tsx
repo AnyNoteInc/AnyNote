@@ -1,5 +1,4 @@
-import { Handle, Position, type NodeProps } from '@xyflow/react'
-import type { Node } from '@xyflow/react'
+import { Handle, Position, type Node, type NodeProps } from '@xyflow/react'
 import { personWidth } from '../layout/constants'
 import type { PersonNodeData } from '../types'
 import { PersonLabel } from './primitives/PersonLabel'
@@ -112,7 +111,66 @@ export function PersonNode({ data }: NodeProps<PersonRfNode>) {
             />
           ))}
 
-        {data.shouldShowPartnerOrder && data.partnerOrder !== undefined && !data.isOwner && (
+        {showCross &&
+          (data.sex === 'male' ? (
+            <>
+              <line
+                x1={STROKE}
+                y1={STROKE}
+                x2={w - STROKE}
+                y2={h - STROKE}
+                stroke={STROKE_COLOR}
+                strokeWidth={STROKE}
+              />
+              <line
+                x1={w - STROKE}
+                y1={STROKE}
+                x2={STROKE}
+                y2={h - STROKE}
+                stroke={STROKE_COLOR}
+                strokeWidth={STROKE}
+              />
+            </>
+          ) : (
+            (() => {
+              // For circles we inscribe the cross inside the disc — the
+              // diagonal endpoints sit exactly on the stroke at 45° so no
+              // line segment leaves the circle. r matches the circle's
+              // radius from the rendered <circle> below.
+              const cx = w / 2
+              const cy = h / 2
+              const r = w / 2 - STROKE / 2
+              const offset = r / Math.SQRT2
+              return (
+                <>
+                  <line
+                    x1={cx - offset}
+                    y1={cy - offset}
+                    x2={cx + offset}
+                    y2={cy + offset}
+                    stroke={STROKE_COLOR}
+                    strokeWidth={STROKE}
+                  />
+                  <line
+                    x1={cx + offset}
+                    y1={cy - offset}
+                    x2={cx - offset}
+                    y2={cy + offset}
+                    stroke={STROKE_COLOR}
+                    strokeWidth={STROKE}
+                  />
+                </>
+              )
+            })()
+          ))}
+
+        {/* partnerOrder is rendered AFTER the death cross so the digit stays
+            visible even on a deceased partner — the user wanted the number
+            placed inside the element regardless of life status. The
+            shouldShowPartnerOrder data flag is honoured for backwards-compat
+            but the display now also covers single-partner cases when the
+            user explicitly typed an ordinal. */}
+        {data.partnerOrder !== undefined && !data.isOwner && (
           <text
             x={w / 2}
             y={h / 2}
@@ -120,30 +178,13 @@ export function PersonNode({ data }: NodeProps<PersonRfNode>) {
             dominantBaseline="central"
             fontSize={w * 0.35}
             fill={STROKE_COLOR}
+            paintOrder="stroke"
+            stroke="var(--genogram-fill, #fff)"
+            strokeWidth={2.5}
+            strokeLinejoin="round"
           >
             {data.partnerOrder}
           </text>
-        )}
-
-        {showCross && (
-          <>
-            <line
-              x1={STROKE}
-              y1={STROKE}
-              x2={w - STROKE}
-              y2={h - STROKE}
-              stroke={STROKE_COLOR}
-              strokeWidth={STROKE}
-            />
-            <line
-              x1={w - STROKE}
-              y1={STROKE}
-              x2={STROKE}
-              y2={h - STROKE}
-              stroke={STROKE_COLOR}
-              strokeWidth={STROKE}
-            />
-          </>
         )}
       </svg>
 
