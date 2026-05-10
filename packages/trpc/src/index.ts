@@ -1,4 +1,5 @@
 import { router, publicProcedure, createCallerFactory } from './trpc'
+import { authRouter } from './routers/auth'
 import { userRouter } from './routers/user'
 import { workspaceRouter } from './routers/workspace'
 import { subscriptionRouter } from './routers/subscription'
@@ -24,6 +25,7 @@ export {
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ ok: true })),
+  auth: authRouter,
   user: userRouter,
   workspace: workspaceRouter,
   subscription: subscriptionRouter,
