@@ -44,6 +44,10 @@ export {
   FileStatus,
   ConsentDocumentType,
   ConsentSource,
+  NotificationCategory,
+  NotificationChannel,
+  NotificationEventType,
+  DeliveryStatus,
 } from '@prisma/client'
 export type { ChatMessageStatus } from '@prisma/client'
 export type {
@@ -70,6 +74,7 @@ export type {
   PageFile,
   OutboxEvent,
   UserConsent,
+  PushSubscription,
 } from '@prisma/client'
 export { OutboxEventStatus } from '@prisma/client'
 
