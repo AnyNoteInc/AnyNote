@@ -8,6 +8,7 @@ import { getCurrentConsents, hasAllRequiredConsents } from '@repo/trpc'
 
 import { requireSession } from '@/lib/get-session'
 import { TRPCReactProvider } from '@/trpc/client'
+import { ServiceWorkerMount } from '@/components/notifications/service-worker-mount'
 
 export default async function ProtectedLayout({ children }: { children: ReactNode }) {
   const session = await requireSession()
@@ -18,6 +19,7 @@ export default async function ProtectedLayout({ children }: { children: ReactNod
   return (
     <TRPCReactProvider>
       <EditorThemeBridge />
+      <ServiceWorkerMount />
       {children}
     </TRPCReactProvider>
   )
