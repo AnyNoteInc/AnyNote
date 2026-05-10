@@ -5,6 +5,7 @@ import type { ComponentType } from 'react'
 import UserAgreement from '@docs/terms/UserAgreement.md'
 import PrivacyPolicy from '@docs/terms/PrivacyPolicy.md'
 import Consent from '@docs/terms/ConsentToProcessing.md'
+import MarketingConsent from '@docs/terms/MarketingConsent.md'
 import PublicOffer from '@docs/terms/PublicOffer.md'
 import Information from '@docs/terms/Information.md'
 
@@ -14,6 +15,7 @@ const documentComponents: Record<LegalDocumentSlug, ComponentType> = {
   'user-agreement': UserAgreement,
   'privacy-policy': PrivacyPolicy,
   consent: Consent,
+  'marketing-consent': MarketingConsent,
   'public-offer': PublicOffer,
   information: Information,
 }

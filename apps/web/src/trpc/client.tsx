@@ -9,6 +9,8 @@ import { type CreateTRPCReact, createTRPCReact } from '@trpc/react-query'
 
 import type { AppRouter } from '@repo/trpc'
 
+import { consumePendingCaptchaToken } from '@/lib/captcha-token-store'
+
 import { getQueryClient } from './query-client'
 
 export const trpc: CreateTRPCReact<AppRouter, unknown> = createTRPCReact<AppRouter>()
@@ -27,6 +29,10 @@ export function TRPCReactProvider({ children }: PropsWithChildren) {
       links: [
         httpBatchLink({
           url: `${getBaseUrl()}/api/trpc`,
+          headers() {
+            const token = consumePendingCaptchaToken()
+            return token ? { 'x-captcha-response': token } : {}
+          },
         }),
       ],
     }),

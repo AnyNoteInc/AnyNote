@@ -229,6 +229,10 @@ Specs in `apps/e2e/`. The `signUpAndAuthAs` helper above is the safe path for an
 
 `packages/db/prisma/seed.ts` populates integration providers (Yandex, GitHub, Telegram, AmoCRM, MangoOffice) and plans (Free, Personal, Corporate). Run after initial schema push (`pnpm --filter @repo/db exec prisma db seed`).
 
+### Consents
+
+`(protected)/layout.tsx` redirects users without all required consents (`USER_AGREEMENT`, `PRIVACY_POLICY`, `PII_PROCESSING`, `PUBLIC_OFFER`) to `/onboarding/consents`. The `user_consents` table is **immutable**: every action (sign-up, onboarding accept, marketing toggle in `/settings/consents`) inserts a new row; current state per `(userId, documentType)` is the row with the latest `createdAt`. `consent.acceptRequired` is idempotent; `consent.setMarketing` dedupes against the previous marketing row. When creating users via Prisma directly (tests, seed scripts, migrations) you MUST also write the 5 consent rows or the user will hit the onboarding gate on first request — `apps/e2e/helpers/auth.ts` exports `writeConsentsForUserId(userId)` for this. Document versions live in `apps/web/src/lib/legal-documents.ts`; bump the `version` field whenever a `.md` in `docs/terms/` changes meaningfully.
+
 ### Commits
 
 Conventional Commits with scope: `feat(trpc): …`, `fix(auth): …`, `refactor(mail): …`, `test(e2e): …`. Husky runs lint-staged + the gates check on commit; do not bypass with `--no-verify`.

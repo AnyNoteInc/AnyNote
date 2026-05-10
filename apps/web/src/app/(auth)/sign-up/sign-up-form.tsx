@@ -5,15 +5,25 @@ import { useRouter } from 'next/navigation'
 
 import { RegisterForm, type RegisterSubmitPayload } from '@repo/ui/widgets'
 import { Alert } from '@repo/ui/components'
-import { signUp } from '@/lib/auth-client'
-import { captchaHeader, useRecaptchaV3 } from '@/lib/use-recaptcha-v3'
+
+import { trpc } from '@/trpc/client'
+import { setPendingCaptchaToken } from '@/lib/captcha-token-store'
+import { useRecaptchaV3 } from '@/lib/use-recaptcha-v3'
+
+const TERMS_URLS = {
+  userAgreement: '/terms/user-agreement',
+  privacyPolicy: '/terms/privacy-policy',
+  piiConsent: '/terms/consent',
+  publicOffer: '/terms/public-offer',
+  marketingConsent: '/terms/marketing-consent',
+} as const
 
 export function SignUpForm() {
   const executeRecaptcha = useRecaptchaV3()
   const router = useRouter()
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
-  const [isSubmitting, setIsSubmitting] = useState(false)
   const [submitted, setSubmitted] = useState(false)
+  const signUp = trpc.auth.signUp.useMutation()
 
   useEffect(() => {
     if (!submitted) return
@@ -25,28 +35,19 @@ export function SignUpForm() {
 
   const handleSubmit = async (values: RegisterSubmitPayload): Promise<void> => {
     setErrorMessage(null)
-    setIsSubmitting(true)
     try {
       const token = await executeRecaptcha('sign_up')
-      const payload = {
-        name: `${values.lastName} ${values.firstName}`,
+      setPendingCaptchaToken(token)
+      await signUp.mutateAsync({
         email: values.email,
         password: values.password,
         firstName: values.firstName,
         lastName: values.lastName,
-        callbackURL: '/verify-email?status=success',
-        fetchOptions: { headers: captchaHeader(token) },
-      }
-      const { error } = await signUp.email(payload)
-      if (error) {
-        setErrorMessage(error.message ?? 'Не удалось зарегистрироваться.')
-        return
-      }
+        marketing: values.agreedToMarketing,
+      })
       setSubmitted(true)
     } catch (e) {
       setErrorMessage((e as Error).message ?? 'Не удалось зарегистрироваться.')
-    } finally {
-      setIsSubmitting(false)
     }
   }
 
@@ -64,12 +65,8 @@ export function SignUpForm() {
       {errorMessage ? <Alert severity="error">{errorMessage}</Alert> : null}
       <RegisterForm
         onSubmit={handleSubmit}
-        isSubmitting={isSubmitting}
-        termsUrls={{
-          userAgreement: '/terms/user-agreement',
-          privacyPolicy: '/terms/privacy-policy',
-          publicOffer: '/terms/public-offer',
-        }}
+        isSubmitting={signUp.isPending}
+        termsUrls={TERMS_URLS}
       />
     </>
   )
