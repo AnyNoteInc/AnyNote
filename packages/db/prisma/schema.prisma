@@ -99,6 +99,7 @@ model Jwks {
   @@map("jwks")
 }
 
+/// Immutable append-only audit log. Each consent action (sign-up, onboarding, marketing toggle) inserts a new row; no updates. Current state per (userId, documentType) = the row with the latest createdAt.
 model UserConsent {
   id              String              @id @default(uuid(7)) @db.Uuid()
   userId          String              @map("user_id") @db.Uuid()
