@@ -1,3 +1,10 @@
+## [1.10.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.10.0...v1.10.1) (2026-05-10)
+
+
+### Bug Fixes
+
+* **mail:** use 'personal' as sendsay transactional group id ([6eccc78](https://github.com/AnyNoteInc/AnyNote/commit/6eccc78bd32d35d622fd13748931bdd0b8333a3d))
+
 # [1.10.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.9.0...v1.10.0) (2026-05-10)
 
 
