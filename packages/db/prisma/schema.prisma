@@ -323,14 +323,13 @@ model FavoritePage {
 }
 
 model UserPreference {
-  id                   String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId               String   @unique @map("user_id") @db.Uuid
-  theme                String?  @db.VarChar(16)
-  locale               String?  @db.VarChar(16)
-  defaultWorkspaceId   String?  @map("default_workspace_id") @db.Uuid
-  notificationSettings Json?    @map("notification_settings")
-  createdAt            DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                 String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId             String   @unique @map("user_id") @db.Uuid
+  theme              String?  @db.VarChar(16)
+  locale             String?  @db.VarChar(16)
+  defaultWorkspaceId String?  @map("default_workspace_id") @db.Uuid
+  createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   user             User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   defaultWorkspace Workspace? @relation("DefaultWorkspace", fields: [defaultWorkspaceId], references: [id], onDelete: SetNull)
