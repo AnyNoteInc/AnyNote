@@ -2,7 +2,6 @@ import type {
   NotificationCategory,
   NotificationChannel,
   NotificationEventType,
-  DeliveryStatus,
   PushSubscription,
 } from '@repo/db'
 

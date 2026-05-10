@@ -4,6 +4,55 @@ import type { EventDescriptor, ResolvedTargets } from './types.ts'
 
 type Tx = Prisma.TransactionClient | PrismaClient
 
+async function resolveEmail(
+  tx: Tx,
+  userId: string,
+  descriptor: EventDescriptor,
+  user: { email: string | null; emailVerified: boolean },
+): Promise<string | null> {
+  if (!descriptor.defaultChannels.includes('EMAIL')) return null
+
+  const prefRow = await tx.notificationPreference.findFirst({
+    where: { userId, category: descriptor.category, channel: 'EMAIL' },
+  })
+  const emailLocked = descriptor.lockedChannels.includes('EMAIL')
+  const enabled = emailLocked || prefRow?.enabled !== false
+  if (!enabled) return null
+
+  // SERVICE emails (verify-email, reset-password, etc.) skip the
+  // emailVerified gate — verify-email by definition goes to unverified users.
+  const emailReachable =
+    !!user.email && (descriptor.category === 'SERVICE' || user.emailVerified)
+  if (!emailReachable) return null
+
+  if (descriptor.requiresConsent === 'MARKETING') {
+    const latest = await tx.userConsent.findFirst({
+      where: { userId, documentType: 'MARKETING' },
+      orderBy: { createdAt: 'desc' },
+    })
+    if (!latest?.granted) return null
+  }
+
+  return user.email
+}
+
+async function resolvePushSubscriptions(
+  tx: Tx,
+  userId: string,
+  descriptor: EventDescriptor,
+): Promise<ResolvedTargets['pushSubscriptions']> {
+  if (!descriptor.defaultChannels.includes('WEB_PUSH')) return []
+
+  const prefRow = await tx.notificationPreference.findFirst({
+    where: { userId, category: descriptor.category, channel: 'WEB_PUSH' },
+  })
+  const pushLocked = descriptor.lockedChannels.includes('WEB_PUSH')
+  const enabled = pushLocked || prefRow?.enabled !== false
+  if (!enabled) return []
+
+  return tx.pushSubscription.findMany({ where: { userId } })
+}
+
 export async function resolvePreferences(
   tx: Tx,
   userId: string,
@@ -20,39 +69,10 @@ export async function resolvePreferences(
     select: { email: true, emailVerified: true },
   })
 
-  let email: string | null = null
-  if (wantEmail) {
-    const emailLocked = descriptor.lockedChannels.includes('EMAIL')
-    const prefRow = await tx.notificationPreference.findFirst({
-      where: { userId, category: descriptor.category, channel: 'EMAIL' },
-    })
-    const enabled = emailLocked || prefRow?.enabled !== false
-    if (enabled && user.email && user.emailVerified) {
-      if (descriptor.requiresConsent === 'MARKETING') {
-        const latest = await tx.userConsent.findFirst({
-          where: { userId, documentType: 'MARKETING' },
-          orderBy: { createdAt: 'desc' },
-        })
-        if (latest?.granted) {
-          email = user.email
-        }
-      } else {
-        email = user.email
-      }
-    }
-  }
-
-  let pushSubscriptions: ResolvedTargets['pushSubscriptions'] = []
-  if (wantPush) {
-    const pushLocked = descriptor.lockedChannels.includes('WEB_PUSH')
-    const prefRow = await tx.notificationPreference.findFirst({
-      where: { userId, category: descriptor.category, channel: 'WEB_PUSH' },
-    })
-    const enabled = pushLocked || prefRow?.enabled !== false
-    if (enabled) {
-      pushSubscriptions = await tx.pushSubscription.findMany({ where: { userId } })
-    }
-  }
+  const [email, pushSubscriptions] = await Promise.all([
+    resolveEmail(tx, userId, descriptor, user),
+    resolvePushSubscriptions(tx, userId, descriptor),
+  ])
 
   return { email, pushSubscriptions }
 }

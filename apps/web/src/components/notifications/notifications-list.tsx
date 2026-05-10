@@ -35,17 +35,20 @@ export function NotificationsList() {
   })
 
   const sentinelRef = useRef<HTMLDivElement | null>(null)
+  const hasNextPage = list.hasNextPage
+  const isFetchingNextPage = list.isFetchingNextPage
+  const fetchNextPage = list.fetchNextPage
   useEffect(() => {
     const node = sentinelRef.current
-    if (!node || !list.hasNextPage) return
+    if (!node || !hasNextPage) return
     const obs = new IntersectionObserver((entries) => {
-      if (entries[0]?.isIntersecting && !list.isFetchingNextPage) {
-        list.fetchNextPage()
+      if (entries[0]?.isIntersecting && !isFetchingNextPage) {
+        fetchNextPage()
       }
     })
     obs.observe(node)
     return () => obs.disconnect()
-  }, [list.hasNextPage, list.isFetchingNextPage, list.fetchNextPage])
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage])
 
   const items = list.data?.pages.flatMap((p) => p.items) ?? []
 
