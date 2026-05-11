@@ -25,10 +25,17 @@ export async function isReminderEventStillValid(
   if (!payload?.reminderId) return false
   const r = await prisma.reminder.findUnique({
     where: { id: payload.reminderId },
-    select: { deletedAt: true, doneAt: true },
+    select: {
+      deletedAt: true,
+      doneAt: true,
+      page: { select: { deletedAt: true } },
+    },
   })
   if (!r) return false
-  return r.deletedAt === null && r.doneAt === null
+  if (r.deletedAt !== null) return false
+  if (r.doneAt !== null) return false
+  if (r.page.deletedAt !== null) return false
+  return true
 }
 
 export type DispatcherOpts = { workerId: string; batchSize: number; maxAttempts: number }

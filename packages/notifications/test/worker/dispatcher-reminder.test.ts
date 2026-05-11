@@ -26,7 +26,11 @@ describe('isReminderEventStillValid', () => {
   it('returns false when reminder is soft-deleted', async () => {
     const prisma = {
       reminder: {
-        findUnique: vi.fn().mockResolvedValue({ deletedAt: new Date(), doneAt: null }),
+        findUnique: vi.fn().mockResolvedValue({
+          deletedAt: new Date(),
+          doneAt: null,
+          page: { deletedAt: null },
+        }),
       },
     }
     const res = await isReminderEventStillValid(prisma as unknown as PrismaClient, {
@@ -39,7 +43,11 @@ describe('isReminderEventStillValid', () => {
   it('returns false when reminder is done', async () => {
     const prisma = {
       reminder: {
-        findUnique: vi.fn().mockResolvedValue({ deletedAt: null, doneAt: new Date() }),
+        findUnique: vi.fn().mockResolvedValue({
+          deletedAt: null,
+          doneAt: new Date(),
+          page: { deletedAt: null },
+        }),
       },
     }
     const res = await isReminderEventStillValid(prisma as unknown as PrismaClient, {
@@ -52,7 +60,11 @@ describe('isReminderEventStillValid', () => {
   it('returns true for an active reminder', async () => {
     const prisma = {
       reminder: {
-        findUnique: vi.fn().mockResolvedValue({ deletedAt: null, doneAt: null }),
+        findUnique: vi.fn().mockResolvedValue({
+          deletedAt: null,
+          doneAt: null,
+          page: { deletedAt: null },
+        }),
       },
     }
     const res = await isReminderEventStillValid(prisma as unknown as PrismaClient, {
@@ -60,5 +72,22 @@ describe('isReminderEventStillValid', () => {
       payload: { reminderId: 'rem-1' },
     })
     expect(res).toBe(true)
+  })
+
+  it('returns false when the page is soft-deleted', async () => {
+    const prisma = {
+      reminder: {
+        findUnique: vi.fn().mockResolvedValue({
+          deletedAt: null,
+          doneAt: null,
+          page: { deletedAt: new Date() },
+        }),
+      },
+    }
+    const res = await isReminderEventStillValid(prisma as unknown as PrismaClient, {
+      type: 'REMINDER_DUE',
+      payload: { reminderId: 'rem-1' },
+    })
+    expect(res).toBe(false)
   })
 })
