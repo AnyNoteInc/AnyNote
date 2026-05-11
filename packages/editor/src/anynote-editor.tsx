@@ -126,8 +126,9 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
         openFilePopover: (range) => openKind('file', range),
         openMarkdownPopover: (range) => openKind('markdown', range),
         openPageLinkPopover: (range) => openKind('pageLink', range),
+        openReminderCreate: props.onReminderCreate,
       }),
-    [openKind],
+    [openKind, props.onReminderCreate],
   )
 
   const slashItemsRef = useRef(slashItems)
@@ -217,6 +218,13 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
     },
     [ydoc, provider],
   )
+
+  useEffect(() => {
+    if (!editor) return
+    ;(editor.storage as unknown as Record<string, unknown>).reminderCallbacks = {
+      onClick: props.onReminderClick,
+    }
+  }, [editor, props.onReminderClick])
 
   const anchorEl = popover?.anchorEl ?? null
   const range = popover?.range ?? null

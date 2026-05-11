@@ -95,6 +95,24 @@ export function renderEmailForEvent(
           link: p.link ?? '',
         },
       }
+    case 'REMINDER_DUE': {
+      const reminderId = typeof p.reminderId === 'string' ? p.reminderId : ''
+      const pageId = typeof p.pageId === 'string' ? p.pageId : ''
+      const workspaceId = typeof p.workspaceId === 'string' ? p.workspaceId : ''
+      const offset = typeof payload.offsetMinutes === 'number' ? payload.offsetMinutes : 0
+      return {
+        kind: 'reminder-due',
+        data: {
+          workspaceId,
+          pageId,
+          reminderId,
+          label: typeof p.label === 'string' ? p.label : null,
+          dueAtIso: p.dueAt ?? '',
+          offsetMinutes: offset,
+          baseUrl: process.env.NEXT_PUBLIC_BASE_URL ?? '',
+        },
+      }
+    }
     default:
       return null
   }

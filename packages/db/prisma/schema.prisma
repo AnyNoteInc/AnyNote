@@ -39,6 +39,9 @@ model User {
   notificationDeliveries     NotificationDelivery[]   @relation("NotificationDeliveryOwner")
   notificationPreferences    NotificationPreference[] @relation("NotificationPreferenceOwner")
   pushSubscriptions          PushSubscription[]       @relation("PushSubscriptionOwner")
+  remindersAuthored          Reminder[]               @relation("ReminderAuthor")
+  remindersCompleted         Reminder[]               @relation("ReminderDoneBy")
+  reminderRecipients         ReminderRecipient[]      @relation("ReminderRecipient")
 
   @@map("users")
 }
@@ -211,6 +214,7 @@ model Workspace {
   aiSettings            WorkspaceAiSettings?
   searchHistory         SearchHistory[]
   notificationEvents    NotificationEvent[]  @relation("WorkspaceNotifications")
+  reminders             Reminder[]
 
   @@index([createdById])
   @@map("workspaces")
@@ -262,6 +266,7 @@ model Page {
   favorites     FavoritePage[]
   files         PageFile[]
   searchHistory SearchHistory[]
+  reminders     Reminder[]
 
   @@index([workspaceId])
   @@index([parentId])
@@ -653,6 +658,7 @@ enum NotificationEventType {
   COMMENT_CREATED
   WEEKLY_DIGEST
   PRODUCT_UPDATE
+  REMINDER_DUE
 }
 
 enum NotificationChannel {
@@ -780,4 +786,49 @@ model PushSubscription {
 
   @@index([userId])
   @@map("push_subscriptions")
+}
+
+enum ReminderAudience {
+  ME
+  WORKSPACE
+  LIST
+}
+
+model Reminder {
+  id          String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pageId      String           @map("page_id") @db.Uuid
+  workspaceId String           @map("workspace_id") @db.Uuid
+  createdById String?          @map("created_by_id") @db.Uuid
+  label       String?          @db.VarChar(200)
+  dueAt       DateTime         @map("due_at") @db.Timestamptz(6)
+  offsets     Int[]            @default([])
+  audience    ReminderAudience @default(ME)
+  doneAt      DateTime?        @map("done_at") @db.Timestamptz(6)
+  doneById    String?          @map("done_by_id") @db.Uuid
+  deletedAt   DateTime?        @map("deleted_at") @db.Timestamptz(6)
+  createdAt   DateTime         @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime         @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  page       Page                @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  workspace  Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy  User?               @relation("ReminderAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  doneBy     User?               @relation("ReminderDoneBy", fields: [doneById], references: [id], onDelete: SetNull)
+  recipients ReminderRecipient[]
+
+  @@index([pageId, deletedAt])
+  @@index([workspaceId, dueAt])
+  @@index([doneAt])
+  @@map("reminders")
+}
+
+model ReminderRecipient {
+  reminderId String @map("reminder_id") @db.Uuid
+  userId     String @map("user_id") @db.Uuid
+
+  reminder Reminder @relation(fields: [reminderId], references: [id], onDelete: Cascade)
+  user     User     @relation("ReminderRecipient", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([reminderId, userId])
+  @@index([userId])
+  @@map("reminder_recipients")
 }
