@@ -6,6 +6,7 @@ import { useState } from 'react'
 import {
   ArrowCircleUpIcon,
   Avatar,
+  Badge,
   Box,
   Button,
   ButtonGroup,
@@ -19,7 +20,9 @@ import {
   LogoutIcon,
   Menu,
   MenuItem,
+  NotificationsIcon,
   PersonIcon,
+  Popover,
   SettingsIcon,
   Stack,
   Typography,
@@ -29,6 +32,7 @@ import { useThemeMode } from '@repo/ui/providers'
 import type { PlanFeatures } from '@repo/trpc'
 
 import { getPlanDisplayName } from '@/components/billing/plan-labels'
+import { NotificationsPopoverCard } from '@/components/notifications/notifications-popover-card'
 import { trpc } from '@/trpc/client'
 
 type Props = {
@@ -50,6 +54,13 @@ const themeOptions: Array<{
 
 export function WorkspaceUserMenu({ user, features }: Props) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
+  const [notifAnchor, setNotifAnchor] = useState<HTMLElement | null>(null)
+  const unread = trpc.notification.unreadCount.useQuery(undefined, { refetchInterval: 30_000 })
+  const closeNotif = () => setNotifAnchor(null)
+  const openNotifications = () => {
+    setNotifAnchor(anchor)
+    setAnchor(null)
+  }
   const { preference, setPreference } = useThemeMode()
   const setTheme = trpc.user.setTheme.useMutation()
   const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
@@ -113,6 +124,14 @@ export function WorkspaceUserMenu({ user, features }: Props) {
           </ListItemIcon>
           <ListItemText>Профиль</ListItemText>
         </MenuItem>
+        <MenuItem onClick={openNotifications}>
+          <ListItemIcon>
+            <Badge badgeContent={unread.data ?? 0} max={99} color="error">
+              <NotificationsIcon fontSize="small" />
+            </Badge>
+          </ListItemIcon>
+          <ListItemText>Уведомления</ListItemText>
+        </MenuItem>
         <MenuItem component={Link} href="/settings" onClick={close}>
           <ListItemIcon>
             <SettingsIcon fontSize="small" />
@@ -165,6 +184,15 @@ export function WorkspaceUserMenu({ user, features }: Props) {
           </MenuItem>
         </Box>
       </Menu>
+      <Popover
+        open={!!notifAnchor}
+        anchorEl={notifAnchor}
+        onClose={closeNotif}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+      >
+        <NotificationsPopoverCard onNavigate={closeNotif} />
+      </Popover>
     </>
   )
 }
