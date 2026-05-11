@@ -56,21 +56,21 @@ describe('useSearchHotkey', () => {
     expect(event.defaultPrevented).toBe(true)
   })
 
-  test('opens workspace settings on Command+S for macOS', () => {
+  test('opens workspace settings on Command+, for macOS', () => {
     setPlatform('MacIntel')
     renderHook(() => useSearchHotkey('workspace-1'))
 
-    const event = dispatchShortcut({ key: 's', metaKey: true })
+    const event = dispatchShortcut({ key: ',', metaKey: true })
 
     expect(mocks.push).toHaveBeenCalledWith('/workspaces/workspace-1/settings')
     expect(event.defaultPrevented).toBe(true)
   })
 
-  test('opens workspace settings on Alt+S outside macOS', () => {
+  test('opens workspace settings on Alt+, outside macOS', () => {
     setPlatform('Win32')
     renderHook(() => useSearchHotkey('workspace-1'))
 
-    const event = dispatchShortcut({ key: 's', altKey: true })
+    const event = dispatchShortcut({ key: ',', altKey: true })
 
     expect(mocks.push).toHaveBeenCalledWith('/workspaces/workspace-1/settings')
     expect(event.defaultPrevented).toBe(true)
