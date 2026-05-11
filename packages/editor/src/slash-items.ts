@@ -1,6 +1,7 @@
 import { createElement } from 'react'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
+import NotificationsIcon from '@mui/icons-material/Notifications'
 
 import {
   BulletListIcon,
@@ -31,6 +32,7 @@ export type SlashMediaHandlers = {
   openFilePopover: (range: SlashRange) => void
   openMarkdownPopover: (range: SlashRange) => void
   openPageLinkPopover: (range: SlashRange) => void
+  openReminderCreate?: (reminderId: string) => void
 }
 
 const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
@@ -224,6 +226,29 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
         .deleteRange(range)
         .insertContent(`${formatDateTimeText(new Date())} `)
         .run(),
+  },
+  {
+    id: 'reminder',
+    group: 'base',
+    label: 'Напоминание',
+    keywords: ['reminder', 'напоминание', 'дедлайн', 'deadline', 'todo'],
+    icon: createElement(NotificationsIcon, { fontSize: 'small' }),
+    run: ({ editor, range }) => {
+      const id =
+        typeof crypto !== 'undefined' && 'randomUUID' in crypto
+          ? crypto.randomUUID()
+          : `${Date.now()}-${Math.random().toString(36).slice(2)}`
+      editor
+        .chain()
+        .focus()
+        .deleteRange(range)
+        .insertContent({
+          type: 'reminder',
+          attrs: { id, dueAt: '', offsets: [1440, 0], audience: 'ME', label: null, recipients: [], doneAt: null },
+        })
+        .run()
+      handlers.openReminderCreate?.(id)
+    },
   },
   {
     id: 'pageLink',
