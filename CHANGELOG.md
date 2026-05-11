@@ -1,3 +1,10 @@
+# [1.12.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.11.1...v1.12.0) (2026-05-11)
+
+
+### Features
+
+* **web:** sidebar redesign — full/hidden modes, notifications bell, trash + ⌘, shortcuts ([#10](https://github.com/AnyNoteInc/AnyNote/issues/10)) ([8693af0](https://github.com/AnyNoteInc/AnyNote/commit/8693af0ef717ff7ce13efc2709651d7fcc2b4956))
+
 ## [1.11.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.11.0...v1.11.1) (2026-05-11)
 
 
