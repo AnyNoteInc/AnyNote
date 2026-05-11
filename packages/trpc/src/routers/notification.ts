@@ -70,6 +70,13 @@ export const notificationRouter = router({
     return { updated: result.count }
   }),
 
+  deleteAll: protectedProcedure.mutation(async ({ ctx }) => {
+    const result = await ctx.prisma.notificationInApp.deleteMany({
+      where: { userId: ctx.user.id },
+    })
+    return { deleted: result.count }
+  }),
+
   getPreferences: protectedProcedure.query(async ({ ctx }) => {
     const rows = await ctx.prisma.notificationPreference.findMany({
       where: { userId: ctx.user.id },

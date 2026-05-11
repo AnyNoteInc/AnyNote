@@ -1,11 +1,26 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState, type MouseEvent } from 'react'
 
 import { useRouter } from 'next/navigation'
 
 import type { NotificationEvent } from '@repo/db'
-import { Box, Button, Stack, Typography } from '@repo/ui/components'
+import {
+  Box,
+  Button,
+  DeleteIcon,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogContentText,
+  DialogTitle,
+  IconButton,
+  Menu,
+  MenuItem,
+  MoreHorizIcon,
+  Stack,
+  Typography,
+} from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
 
@@ -17,6 +32,8 @@ type EventForFormat = Pick<NotificationEvent, 'type' | 'payload' | 'resourceUrl'
 export function NotificationsList() {
   const router = useRouter()
   const utils = trpc.useUtils()
+  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
+  const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false)
   const list = trpc.notification.list.useInfiniteQuery(
     { limit: 20 },
     { getNextPageParam: (page) => page.nextCursor ?? undefined },
@@ -33,6 +50,26 @@ export function NotificationsList() {
       utils.notification.unreadCount.invalidate()
     },
   })
+  const deleteAll = trpc.notification.deleteAll.useMutation({
+    onSuccess: () => {
+      setDeleteConfirmOpen(false)
+      utils.notification.list.invalidate()
+      utils.notification.unreadCount.invalidate()
+    },
+  })
+
+  const openMenu = (event: MouseEvent<HTMLElement>) => setMenuAnchor(event.currentTarget)
+  const closeMenu = () => setMenuAnchor(null)
+
+  const handleMarkAllRead = () => {
+    markAllRead.mutate()
+    closeMenu()
+  }
+
+  const handleOpenDeleteConfirm = () => {
+    setDeleteConfirmOpen(true)
+    closeMenu()
+  }
 
   const sentinelRef = useRef<HTMLDivElement | null>(null)
   const hasNextPage = list.hasNextPage
@@ -58,10 +95,23 @@ export function NotificationsList() {
         <Typography variant="h5" fontWeight={700}>
           Уведомления
         </Typography>
-        <Button size="small" onClick={() => markAllRead.mutate()} disabled={markAllRead.isPending}>
-          Отметить всё прочитанным
-        </Button>
+        <IconButton size="small" onClick={openMenu} aria-label="Действия с уведомлениями">
+          <MoreHorizIcon fontSize="small" />
+        </IconButton>
       </Stack>
+      <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={closeMenu}>
+        <MenuItem onClick={handleMarkAllRead} disabled={markAllRead.isPending}>
+          Отметить все как прочитанное
+        </MenuItem>
+        <MenuItem
+          onClick={handleOpenDeleteConfirm}
+          disabled={deleteAll.isPending}
+          sx={{ color: 'error.main' }}
+        >
+          <DeleteIcon fontSize="small" sx={{ mr: 1 }} />
+          Удалить все уведомления
+        </MenuItem>
+      </Menu>
       {items.length === 0 ? (
         <Typography variant="body2" color="text.secondary">
           Здесь будут ваши уведомления
@@ -91,6 +141,32 @@ export function NotificationsList() {
           Загрузка…
         </Typography>
       ) : null}
+      <Dialog
+        open={deleteConfirmOpen}
+        onClose={deleteAll.isPending ? undefined : () => setDeleteConfirmOpen(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Удалить все уведомления?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            Все уведомления будут удалены из списка. Это действие нельзя отменить.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setDeleteConfirmOpen(false)} disabled={deleteAll.isPending}>
+            Отмена
+          </Button>
+          <Button
+            color="error"
+            variant="contained"
+            onClick={() => deleteAll.mutate()}
+            disabled={deleteAll.isPending}
+          >
+            Удалить все
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Stack>
   )
 }

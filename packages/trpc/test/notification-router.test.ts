@@ -130,6 +130,17 @@ describe('notification.markAllRead', () => {
   })
 })
 
+describe('notification.deleteAll', () => {
+  it('deletes only the calling user rows', async () => {
+    const deleteMany = vi.fn().mockResolvedValue({ count: 4 })
+    const prisma = { notificationInApp: { deleteMany } } as unknown as PrismaClient
+    const caller = createCallerFactory(notificationRouter)(ctx(prisma))
+    const result = await caller.deleteAll()
+    expect(result.deleted).toBe(4)
+    expect(deleteMany).toHaveBeenCalledWith({ where: { userId: 'u1' } })
+  })
+})
+
 describe('notification.getPreferences', () => {
   it('returns full matrix with locked flags from EVENT_CATALOG', async () => {
     const findMany = vi.fn().mockResolvedValue([
