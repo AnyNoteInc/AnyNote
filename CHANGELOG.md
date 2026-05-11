@@ -1,3 +1,13 @@
+## [1.13.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.13.0...v1.13.1) (2026-05-11)
+
+
+### Bug Fixes
+
+* add delete all notifications ([4803ed4](https://github.com/AnyNoteInc/AnyNote/commit/4803ed4936e5ce81d75216538ed1233a45313485))
+* notify poppover position ([4474fd1](https://github.com/AnyNoteInc/AnyNote/commit/4474fd1e9e8d8d5f1d11f35021afbae6ea25e76d))
+* remove trash to bottom of left side ([f4e570e](https://github.com/AnyNoteInc/AnyNote/commit/f4e570ed6d750dd42819c7fd3ecad6b9956d5638))
+* slash with reminder ([50fa166](https://github.com/AnyNoteInc/AnyNote/commit/50fa1666e93a3885ccaf402d3be7576c513da309))
+
 # [1.13.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.12.1...v1.13.0) (2026-05-11)
 
 
