@@ -23,6 +23,7 @@ import type { PlanFeatures } from '@repo/trpc'
 import { isMac } from '@/lib/platform'
 import { trpc } from '@/trpc/client'
 
+import { NotificationsBell } from '../notifications/notifications-bell'
 import { FavoritesSection } from './favorites-section'
 import { PageTreeSection } from './page-tree-section'
 import type { PageItem } from './types'
@@ -181,7 +182,19 @@ export function WorkspaceSidebar({ workspace, features, pages, onCollapse, userM
 
       <Box sx={{ flex: 1 }} />
 
-      <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>{userMenu}</Box>
+      <Box
+        sx={{
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          pt: 1,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.5,
+        }}
+      >
+        <Box sx={{ flex: 1, minWidth: 0 }}>{userMenu}</Box>
+        <NotificationsBell tooltipPlacement="top" />
+      </Box>
     </Box>
   )
 }

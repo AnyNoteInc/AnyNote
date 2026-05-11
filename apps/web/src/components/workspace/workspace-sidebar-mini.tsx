@@ -23,6 +23,7 @@ import {
 import type { PlanFeatures } from '@repo/trpc'
 
 import { isMac } from '@/lib/platform'
+import { NotificationsBell } from '@/components/notifications/notifications-bell'
 import { useSearchDialog } from '@/components/search/search-dialog-provider'
 import { trpc } from '@/trpc/client'
 
@@ -205,7 +206,12 @@ export function WorkspaceSidebarMini({ workspace, features, user, onExpand }: Pr
 
       <Box sx={{ flex: 1 }} />
 
-      <Stack alignItems="center" sx={{ pt: 1, borderTop: '1px solid', borderColor: 'divider', width: '100%' }}>
+      <Stack
+        alignItems="center"
+        spacing={0.5}
+        sx={{ pt: 1, borderTop: '1px solid', borderColor: 'divider', width: '100%' }}
+      >
+        <NotificationsBell tooltipPlacement="right" />
         <WorkspaceUserMenu user={user} features={features} variant="compact" />
       </Stack>
     </Box>
