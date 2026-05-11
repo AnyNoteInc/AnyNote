@@ -1,5 +1,4 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
-import type { Mock } from 'vitest'
 import type { Prisma } from '@repo/db'
 
 import { formatHumanOffset, rebuildDeliveries, cancelPendingDeliveries } from '../src/reminders.ts'
@@ -25,6 +24,7 @@ type Tx = Prisma.TransactionClient
 
 function makeTx(overrides: Partial<Record<string, unknown>> = {}): Tx {
   const base = {
+    $executeRaw: vi.fn().mockResolvedValue(1),
     workspaceMember: { findMany: vi.fn().mockResolvedValue([]) },
     reminderRecipient: { findMany: vi.fn().mockResolvedValue([]) },
     user: { findUniqueOrThrow: vi.fn().mockResolvedValue({ email: 'a@b.c', emailVerified: true }) },
@@ -115,17 +115,15 @@ describe('cancelPendingDeliveries', () => {
     const tx = makeTx()
     await cancelPendingDeliveries(tx, ['rem-1', 'rem-2'], 'test reason')
 
-    const updateMany = tx.notificationDelivery.updateMany as unknown as Mock
-    expect(updateMany).toHaveBeenCalledTimes(1)
-    const call = updateMany.mock.calls[0][0]
-    expect(call.where.status).toBe('PENDING')
-    expect(call.data.status).toBe('SKIPPED')
-    expect(call.data.lastError).toBe('test reason')
+    const executeRaw = vi.mocked(tx.$executeRaw)
+    expect(executeRaw).toHaveBeenCalledTimes(1)
+    const values = executeRaw.mock.calls[0]?.slice(1)
+    expect(values).toEqual(expect.arrayContaining(['test reason', ['rem-1', 'rem-2']]))
   })
 
   it('is a no-op for an empty reminder list', async () => {
     const tx = makeTx()
     await cancelPendingDeliveries(tx, [], 'test')
-    expect(vi.mocked(tx.notificationDelivery.updateMany)).not.toHaveBeenCalled()
+    expect(vi.mocked(tx.$executeRaw)).not.toHaveBeenCalled()
   })
 })

@@ -244,7 +244,15 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
         .deleteRange(range)
         .insertContent({
           type: 'reminder',
-          attrs: { id, dueAt: '', offsets: [1440, 0], audience: 'ME', label: null, recipients: [], doneAt: null },
+          attrs: {
+            id,
+            dueAt: '',
+            offsets: [0],
+            audience: 'ME',
+            label: null,
+            recipients: [],
+            doneAt: null,
+          },
         })
         .run()
       handlers.openReminderCreate?.(id)

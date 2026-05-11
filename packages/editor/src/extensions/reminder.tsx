@@ -8,6 +8,7 @@ import NotificationsIcon from '@mui/icons-material/Notifications'
 import { ReminderSchema } from './reminder.schema'
 import { computeReminderState } from './reminder/state'
 import { REMINDER_COLORS } from './reminder/colors'
+import { REMINDER_CHIP_SX, REMINDER_WRAPPER_STYLE } from './reminder/layout'
 
 function useTick(intervalMs: number): Date {
   const [now, setNow] = useState(() => new Date())
@@ -26,7 +27,8 @@ function formatRelative(iso: string, now: Date): string {
   const absMinutes = Math.abs(minutes)
   if (absMinutes < 60) return minutes >= 0 ? `через ${absMinutes} мин` : `${absMinutes} мин назад`
   const hours = Math.round(minutes / 60)
-  if (Math.abs(hours) < 24) return hours >= 0 ? `через ${Math.abs(hours)} ч` : `${Math.abs(hours)} ч назад`
+  if (Math.abs(hours) < 24)
+    return hours >= 0 ? `через ${Math.abs(hours)} ч` : `${Math.abs(hours)} ч назад`
   return due.toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })
 }
 
@@ -56,18 +58,17 @@ function ReminderView({ node, editor }: NodeViewProps) {
   }
 
   return (
-    <NodeViewWrapper as="span" data-id={`reminder-${node.attrs.id}`} contentEditable={false}>
+    <NodeViewWrapper
+      as="span"
+      data-id={`reminder-${node.attrs.id}`}
+      contentEditable={false}
+      style={REMINDER_WRAPPER_STYLE}
+    >
       <Box
         component="span"
         onClick={handleClick}
         sx={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          gap: 0.5,
-          px: 0.75,
-          mx: 0.25,
-          py: '1px',
-          borderRadius: 1,
+          ...REMINDER_CHIP_SX,
           bgcolor: palette.bg,
           color: palette.fg,
           border: `1px solid ${palette.border}`,

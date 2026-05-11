@@ -60,8 +60,8 @@ test.describe('Page reminders', () => {
     await page.keyboard.type('14')
     await page.keyboard.type('00')
 
-    // Ensure "В момент истечения" (offset 0) is checked — it's on by default in slash-item attrs
-    // (offsets: [1440, 0]) so offset 0 is already checked. Verify it is.
+    // Ensure "В момент истечения" (offset 0) is checked by default on the advance tab.
+    await popover.getByRole('tab', { name: 'Заранее' }).click()
     const atMomentCheckbox = page.getByLabel('В момент истечения')
     await expect(atMomentCheckbox).toBeChecked()
 

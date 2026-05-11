@@ -12,6 +12,10 @@ const HUMAN_OFFSETS: Record<number, string> = {
   43200: '1 месяц',
 }
 
+// Allows a reminder saved just after a fire point to be picked up by the next dispatch tick.
+const RECENT_PAST_DELIVERY_GRACE_MS = 60_000
+const UNKNOWN_OFFSET_MINUTES = -1
+
 export function formatHumanOffset(minutes: number): string {
   return HUMAN_OFFSETS[minutes] ?? 'напоминание'
 }
@@ -29,6 +33,19 @@ export type ReminderForRebuild = {
   label: string | null
   recipients: string[]
   doneAt: Date | null
+}
+
+function deliveryKey(userId: string, offsetMinutes: number, channel: string): string {
+  return `${userId}|${offsetMinutes}|${channel}`
+}
+
+function readOffsetMinutes(payload: Prisma.JsonValue): number {
+  if (!payload || typeof payload !== 'object' || Array.isArray(payload)) {
+    return UNKNOWN_OFFSET_MINUTES
+  }
+
+  const offsetMinutes = (payload as { offsetMinutes?: unknown }).offsetMinutes
+  return typeof offsetMinutes === 'number' ? offsetMinutes : UNKNOWN_OFFSET_MINUTES
 }
 
 async function resolveRecipientUserIds(tx: Tx, r: ReminderForRebuild): Promise<string[]> {
@@ -69,21 +86,16 @@ export async function rebuildDeliveries(tx: Tx, r: ReminderForRebuild): Promise<
     include: { event: true },
   })
 
-  type Key = string
-  const keyOf = (userId: string, offsetMinutes: number, channel: string): Key =>
-    `${userId}|${offsetMinutes}|${channel}`
-  const existingByKey = new Map<Key, (typeof existing)[number]>()
+  const existingByKey = new Map<string, (typeof existing)[number]>()
   for (const d of existing) {
-    const payload = d.event.payload as { offsetMinutes?: number }
-    const off = typeof payload?.offsetMinutes === 'number' ? payload.offsetMinutes : -1
-    existingByKey.set(keyOf(d.userId, off, d.channel), d)
+    existingByKey.set(deliveryKey(d.userId, readOffsetMinutes(d.event.payload), d.channel), d)
   }
 
-  const wantedKeys = new Set<Key>()
+  const wantedKeys = new Set<string>()
 
   for (const offsetMinutes of r.offsets) {
     const fireAt = new Date(r.dueAt.getTime() - offsetMinutes * 60_000)
-    if (fireAt.getTime() < now - 60_000) continue
+    if (fireAt.getTime() < now - RECENT_PAST_DELIVERY_GRACE_MS) continue
 
     for (const userId of recipientIds) {
       const targets = await resolvePreferences(tx, userId, descriptor)
@@ -119,7 +131,7 @@ export async function rebuildDeliveries(tx: Tx, r: ReminderForRebuild): Promise<
       }
 
       if (targets.email) {
-        const k = keyOf(userId, offsetMinutes, 'EMAIL')
+        const k = deliveryKey(userId, offsetMinutes, 'EMAIL')
         wantedKeys.add(k)
         const prev = existingByKey.get(k)
         if (prev) {
@@ -144,7 +156,7 @@ export async function rebuildDeliveries(tx: Tx, r: ReminderForRebuild): Promise<
       }
 
       for (const sub of targets.pushSubscriptions) {
-        const k = keyOf(userId, offsetMinutes, 'WEB_PUSH')
+        const k = deliveryKey(userId, offsetMinutes, 'WEB_PUSH')
         wantedKeys.add(k)
         const prev = existingByKey.get(k)
         if (prev) {
@@ -171,9 +183,7 @@ export async function rebuildDeliveries(tx: Tx, r: ReminderForRebuild): Promise<
   }
 
   const stale = existing.filter((d) => {
-    const payload = d.event.payload as { offsetMinutes?: number }
-    const off = typeof payload?.offsetMinutes === 'number' ? payload.offsetMinutes : -1
-    return !wantedKeys.has(keyOf(d.userId, off, d.channel))
+    return !wantedKeys.has(deliveryKey(d.userId, readOffsetMinutes(d.event.payload), d.channel))
   })
   if (stale.length) {
     await tx.notificationDelivery.updateMany({
@@ -195,24 +205,17 @@ export async function cancelPendingDeliveries(
   reason: string,
 ): Promise<void> {
   if (reminderIds.length === 0) return
-  await tx.notificationDelivery.updateMany({
-    where: {
-      status: 'PENDING',
-      event: {
-        is: {
-          type: 'REMINDER_DUE',
-          OR: reminderIds.map((id) => ({
-            payload: { path: ['reminderId'], equals: id },
-          })),
-        },
-      },
-    },
-    data: {
-      status: 'SKIPPED',
-      processedAt: new Date(),
-      lastError: reason,
-      lockedAt: null,
-      lockedBy: null,
-    },
-  })
+  await tx.$executeRaw`
+    UPDATE notification_deliveries d
+    SET status = 'SKIPPED',
+        processed_at = NOW(),
+        last_error = ${reason},
+        locked_at = NULL,
+        locked_by = NULL
+    FROM notification_events e
+    WHERE d.event_id = e.id
+      AND d.status = 'PENDING'
+      AND e.type = 'REMINDER_DUE'
+      AND e.payload->>'reminderId' = ANY(${reminderIds}::text[])
+  `
 }
