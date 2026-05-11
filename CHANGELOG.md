@@ -1,3 +1,10 @@
+# [1.13.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.12.1...v1.13.0) (2026-05-11)
+
+
+### Features
+
+* add page reminders ([#11](https://github.com/AnyNoteInc/AnyNote/issues/11)) ([9a5f8da](https://github.com/AnyNoteInc/AnyNote/commit/9a5f8da5890cbea3a976a7c3a0e1ce3a34a9ce28))
+
 ## [1.12.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.12.0...v1.12.1) (2026-05-11)
 
 
