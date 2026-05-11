@@ -16,7 +16,6 @@ import type { PlanFeatures } from '@repo/trpc'
 
 import { SearchDialogProvider } from '../search/search-dialog-provider'
 import { useSearchHotkey } from '../search/use-search-hotkey'
-import { WorkspaceSidebarMini } from './workspace-sidebar-mini'
 import { WorkspaceShell } from './workspace-shell'
 import type { SidebarMode } from './workspace-shell'
 import { WorkspaceSidebar } from './workspace-sidebar'
@@ -33,7 +32,7 @@ type Props = {
 }
 
 const STORAGE_KEY = 'workspace.sidebar.mode'
-const DEFAULT_MODE: SidebarMode = 'mini'
+const DEFAULT_MODE: SidebarMode = 'full'
 export const SIDEBAR_WIDTH = 313
 
 export function WorkspaceLayoutClient({
@@ -56,7 +55,7 @@ export function WorkspaceLayoutClient({
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY)
-    if (stored === 'mini' || stored === 'full' || stored === 'hidden') setMode(stored)
+    if (stored === 'full' || stored === 'hidden') setMode(stored)
   }, [])
 
   useEffect(() => {
@@ -150,19 +149,10 @@ export function WorkspaceLayoutClient({
     </Box>
   )
 
-  let sidebar: ReactNode = null
-  if (mode === 'mini') {
-    sidebar = (
-      <WorkspaceSidebarMini
-        workspace={workspace}
-        features={features}
-        user={user}
-        onExpand={() => setMode('full')}
-      />
-    )
-  } else if (mode === 'full') {
-    sidebar = <WorkspaceSidebar {...sidebarProps} onHide={() => setMode('hidden')} />
-  }
+  const sidebar =
+    mode === 'full' ? (
+      <WorkspaceSidebar {...sidebarProps} onHide={() => setMode('hidden')} />
+    ) : null
 
   return (
     <SearchDialogProvider workspaceId={workspace.id}>
