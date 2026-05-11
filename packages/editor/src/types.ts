@@ -48,6 +48,8 @@ export type AnyNoteEditorProps = {
   onReady?: (editor: Editor) => void
   onRequestBlockMove?: (pos: number) => void
   loadingFallback?: ReactNode
+  onReminderClick?: (reminderId: string, anchor: HTMLElement) => void
+  onReminderCreate?: (reminderId: string) => void
 }
 
 export type SlashCommandItem = {

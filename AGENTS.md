@@ -34,95 +34,75 @@ Copy `.env.example` to `.env` for local setup and keep secrets out of commits. U
 <claude-mem-context>
 # Memory Context
 
-# [anynote] recent context, 2026-05-10 12:26pm GMT+1
+# [anynote] recent context, 2026-05-11 7:19pm GMT+1
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (18,002t read) | 655,385t work | 97% savings
+Stats: 50 obs (17,209t read) | 1,260,022t work | 99% savings
 
-### May 9, 2026
-1289 7:00a 🔵 Actual sendsay.ts Codebase State: Singleton Client + Dev Fallback + Dead-Code Error Check
-1290 " 🔵 sendsay.test.ts Actual State: 4 Tests, Error Envelope Still Uses False-Passing mockResolvedValueOnce
-1291 " 🔵 auth.ts sendMailNow Called in 4 Places — afterEmailVerification and databaseHooks.user.create.after Unguarded
-1292 " 🔴 sendsay.ts Fixed: try/catch Wraps client.request() Preserving All Existing Features
-1297 7:03a ⚖️ Design Decision: Email Sending Made Best-Effort — Failures Swallowed, Not Propagated
-1298 " 🔴 Registration Bug Fully Fixed and Verified: User Persisted Despite Sendsay access_denied
-1299 " 🔴 @repo/mail Package: 20 Tests Pass, Lint Clean, TypeScript Types Valid
-1300 7:14a 🟣 Post-Registration Redirect to /profile After 3-Second Delay
-1301 7:15a 🔵 AnyNote Web App Auth & Profile Route Structure
-1302 " 🔵 RegisterForm Component Is a Controlled UI Widget With onSubmit Callback
-1303 " 🔵 SignUpForm Currently Shows Success Alert With No Redirect
-1304 7:16a 🔵 Email Verification Required Before Auto-Sign-In — Redirect to /profile After Registration Will Fail
-1305 " 🟣 3-Second Auto-Redirect to /profile Added After Successful Registration
-1306 " ✅ TypeScript Type-Check Passes After Redirect Implementation
-1307 " 🔵 Pre-Existing Unstaged Changes in packages/mail Alongside Sign-Up Fix
-1308 7:22a 🔴 SendSay Email Delivery Made Best-Effort — Errors No Longer Propagate to Callers
-1309 7:23a ✅ Two Commits Pushed to main — Triggering Semantic Release Pipeline
-1310 7:42a 🔵 Release CI Failed on feat(web) Commit — All Prior Releases Were Successful
-1311 " 🔵 CI Failure: SignUpForm Test Breaks Due to useRouter() Requiring App Router Context
-1312 " 🔵 SignUpForm Test Mocks auth-client and recaptcha But Not next/navigation
-1313 " 🔴 SignUpForm Test Fixed — Mocked next/navigation useRouter to Resolve App Router Invariant
-1314 " 🔴 SignUpForm Test Passes Locally After Adding next/navigation Mock
-1315 " ✅ act Imported in SignUpForm Test — Preparing for Timer-Based Redirect Assertion
-1316 7:43a 🟣 New Test Added: Verifies 3-Second Redirect to /profile After Sign-Up
-1317 " 🔵 New Redirect Test Times Out — userEvent With Fake Timers Deadlocks in jsdom
-1318 " 🔴 Redirect Test Approach Switched From Fake Timers to waitFor With Real Timers
-1319 " ✅ Redirect Test Rewrote Using setTimeout Spy Instead of Fake Timers
-1320 7:44a 🔴 Both SignUpForm Tests Pass — setTimeout Spy Approach Resolves Timer Test Deadlock
-1321 " 🔴 Full Web Test Suite Passes After SignUpForm Test Fix — 34 Files, 112 Tests Green
-1322 " 🔴 CI Fix Committed and Pushed — test(web) Commit Unblocks Release Pipeline
-1323 7:51a 🟣 v1.9.0 Released Successfully — CI Pipeline Fully Recovered
-### May 10, 2026
-1324 7:50a 🟣 Legal Consent Tracking System — Feature Requirements Defined
-1325 " 🔵 Existing Sign-Up Flow and Legal Document Structure Mapped
-1326 7:51a 🔵 Legal Document Registry and Settings Nav — Detailed Structure Confirmed
-1328 " ⚖️ Legal Consent Tracking System — Architecture Specified
-1329 " ⚖️ MarketingConsent.md — Produce as Final, No Draft Marker
-1327 7:52a ⚖️ Consent Tracking Feature — Architecture Decisions Finalized via Subagent Exploration
-1330 8:05a ⚖️ Sign-Up Consent Persistence Strategy — tRPC Wrapper Chosen
-S305 Legal consent tracking — design sections 1-3 presented; key architectural question raised about sign-up consent persistence strategy (May 10 at 8:09 AM)
-S306 Legal consent tracking — user chose tRPC wrapper as sign-up strategy; sections 1-3 design finalized (May 10 at 8:09 AM)
-S308 Legal consent tracking — section 4/5 presented: full UI and page flow design including RegisterForm changes, onboarding page, settings consents table (May 10 at 8:14 AM)
-S309 Legal consent tracking — all 5 design sections complete; awaiting approval to write spec and begin implementation (May 10 at 8:15 AM)
-S310 User consents design spec written and committed; awaiting user review before implementation plan is written (May 10 at 8:16 AM)
-1331 8:21a 🔵 Existing Terms Pages Design Spec Found — Prior Legal Infrastructure Context
-1333 " ✅ User Consents Design Spec Written to docs/superpowers/specs/
-S311 User consents design spec finalized and self-reviewed; pre-commit git state checked before committing (May 10 at 8:21 AM)
-S312 Observer session monitoring feat/user-consents branch — legal consent tracking system for Anynote app (24-task plan) (May 10 at 8:21 AM)
-1332 8:22a 🔵 Current Sign-Up Form Implementation — Exact State Before Consent Changes
-1334 8:24a ✅ User Consents Design Spec Committed to main
-1335 8:26a 🔵 Confirmed Baseline State of Settings, tRPC Routers, and UI Widgets Before Implementation
-1336 8:36a 🔵 tRPC context structure in Anynote
-1337 8:37a 🔵 Auth and protected layout structure in Anynote web app
-1338 " 🔵 tRPC test pattern and client setup in Anynote
-1339 " 🔵 E2E auth helper signUpAndAuthAs needs consent rows after user creation
-1340 8:38a 🔵 legal-documents.ts uses slug-based structure not matching ConsentDocumentType enum
-1341 8:44a 🟣 User consents implementation plan written and committed
-1342 8:45a ✅ User consents implementation plan committed to main
-S313 Observer session monitoring feat/user-consents — 24-task legal consent tracking system, now complete and verified (May 10 at 8:45 AM)
-S314 Observer session monitoring feat/user-consents — feature complete, branch pushed to GitHub (May 10 at 9:41 AM)
-S315 Observer session monitoring feat/user-consents — feature complete, PR #8 opened on GitHub (May 10 at 9:46 AM)
-**Investigated**: PR creation via `gh pr create` with full title, body covering summary, design choices, test plan, and files of interest. Warning about 1 uncommitted change (MEMORY.md only — not feature code).
+### May 11, 2026
+1495 9:49a 🔄 Notifications fully removed from WorkspaceUserMenu, NotificationsBell imported into workspace-sidebar
+1496 9:50a 🟣 NotificationsBell wired into full sidebar user row and mini sidebar (imports added)
+1497 " 🟣 NotificationsBell added to mini sidebar above user avatar
+1498 " 🟣 Notifications bell iteration 2 passes check-types and lint — changes staged
+1499 " 🟣 Iteration 2 Task 9 committed — notifications bell in sidebars, commit ae2171d on feat/sidebar-mini
+1500 9:51a 🔵 workspace-shell.tsx current state — SidebarMode only 'mini' | 'full', no hidden state
+1501 " 🟣 workspace-shell.tsx updated — SidebarMode gains 'hidden', sidebar column omitted when hidden
+1502 10:11a 🔵 feat/sidebar-mini branch has 15 commits ahead of main
+1503 10:16a 🟣 feat/sidebar-mini branch pushed to GitHub remote
+1504 " 🟣 Pull Request #10 created: sidebar redesign — full/hidden modes, notifications bell, trash + ⌘, shortcuts
+1505 10:24a 🔵 PR #10 CI Failure on feat/sidebar-mini
+1506 " 🔵 CI Failure Isolated to apps/web Test Suite
+1507 10:25a 🔵 Root Cause: Settings Shortcut Changed from ⌘S to ⌘, in useSearchHotkey
+1508 " 🔵 Commit d2ebd1c Changed Hotkey But Forgot to Update Tests
+1509 " 🔵 Only Remaining 's' Hotkey References Are in the Test File
+1510 10:26a 🔴 Fixed Failing Tests: Updated Settings Hotkey from 's' to ',' in search-hotkeys.test.tsx
+1511 " 🔴 Fix Verified: All 3 search-hotkeys Tests Now Pass Locally
+1512 " 🔴 Full Web Test Suite Passes: 36 Files, 120 Tests All Green
+1513 " 🔴 TypeScript Type Check Passes After Fix
+1514 " 🔴 Fix Committed and Pushed: test(web): align settings hotkey tests with ⌘,/Alt+, binding
+1515 10:42a 🔵 Task List Editor Structure in anynote
+1516 " 🔵 PageView Component with Fullscreen Mode and Page Properties Menu
+1517 10:53a 🔵 anynote Database Schema: users Table Uses snake_case, user_consents Has Specific Schema
+1518 10:54a 🔵 anynote Auth Flow: New Users Redirected to /workspaces/new After Sign-In
+1519 " 🔵 Page View UI Structure: Header Buttons and Page Properties Dialog
+1520 4:32p 🟣 Reminder Slash Command Feature Specification for TipTap Page Editor
+1521 " 🔵 Anynote Editor Package Structure for /reminder Feature Implementation
+1522 " 🔵 Existing Notification Infrastructure and Settings Matrix in Anynote
+1523 4:33p 🔵 TipTap Inline Node Pattern: PageLink as Template for Reminder Extension
+1524 " 🔵 Notification Architecture: EVENT_CATALOG Controls Defaults and Channel Locks
+1525 " 🔵 Slash Command Registration Pattern: Handler Injection via SlashMediaHandlers
+1526 4:34p 🔵 AnyNoteEditor Popover System: Exact Integration Point for Reminder UI
+1527 " 🔵 Notification Emit() API and Outbox Pattern for Reminder Dispatch
+1529 " ⚖️ Reminder Feature Architecture Decisions Finalized After Full Codebase Exploration
+1528 " 🔵 Editor Package Uses TipTap v3.22.3 with MUI v7 and Hocuspocus Provider
+S364 Implement /reminder slash command in AnyNote TipTap editor — spec fully finalized with two additional refinements (May 11 at 5:10 PM)
+S365 Implement /reminder slash command in AnyNote TipTap editor — spec finalized with pre-fire validity check added to notification dispatcher (May 11 at 5:11 PM)
+S366 Implement /reminder slash command in AnyNote TipTap editor — spec fully finalized and sent to user for review before implementation plan (May 11 at 5:11 PM)
+S367 Implement /reminder slash command in AnyNote TipTap editor — spec committed, moving to implementation plan (May 11 at 5:12 PM)
+S368 Implement /reminder slash command in AnyNote TipTap editor — spec committed to main, moving to implementation plan (May 11 at 5:13 PM)
+S369 Implement /reminder slash command — exploring packages/notifications and packages/trpc structure for implementation planning (May 11 at 5:14 PM)
+S370 Implement /reminder slash command — exploring key source files for implementation planning (catalog, emit, resolve-preferences, dispatcher, types, trpc/index) (May 11 at 5:14 PM)
+S373 Page Reminders — subagent-driven execution confirmed, environment validated, ready to dispatch Task 1 (May 11 at 5:15 PM)
+1530 5:19p ⚖️ Reminder notification payload includes workspaceId field
+1531 5:22p 🟣 Page Reminders Implementation Plan Committed
+S371 Page Reminders feature — implementation plan written and committed, awaiting execution approach decision (May 11 at 5:22 PM)
+S372 Page Reminders feature — implementation plan committed, feature branch created, subagent-driven execution approach selected and being prepared (May 11 at 5:23 PM)
+1532 5:24p 🟣 REMINDER_DUE Added to NotificationEventType Enum
+1533 " 🟣 User Model Extended with Reminder Relations
+1534 5:25p 🟣 Reminder and ReminderRecipient Models Added to Prisma Schema
+1535 " 🔵 Task 1 Subagent Did Not Commit — Schema Changes Uncommitted
+1536 " 🔴 MUI v9 DateTimePicker Playwright Locator Fix
+1537 " 🟣 E2E Spec: /reminder Slash Command Golden Path
+1538 " 🟣 feat/page-reminders Branch Complete — 18 Commits
+1539 6:23p 🔵 Primary Session Entering Branch-Completion Workflow
+1540 " 🔵 Final Implementation: reminders.ts Delivery Logic
+1541 " 🔵 Final Implementation: tRPC Reminder Router
+1542 " 🔵 Final Implementation: Reminder Chip NodeView
+1543 " 🔵 Final Implementation: PageRenderer Reminder Wiring
+1544 " 🔵 Prisma Migration: 20260511162530_reminders
 
-**Learned**: - `gh pr create` warns about uncommitted changes but still creates the PR successfully.
-    - The uncommitted MEMORY.md is the auto-memory file managed by the superpowers observer framework — not part of the feature and correctly excluded from the PR.
-
-**Completed**: **PR #8 opened: https://github.com/AnyNoteInc/AnyNote/pull/8**
-
-    Title: `feat: legal-grade user consent tracking`
-
-    PR body covers:
-    - Summary: immutable user_consents table, 5 legal documents (152-ФЗ + ФЗ-38), sign-up → trpc.auth.signUp, consent gate in (protected)/layout.tsx, /onboarding/consents, /settings/consents marketing toggle
-    - Notable design choices: immutable log, manual version field (vs sha256), no backfill migration for existing users, onDelete Cascade
-    - Full test plan: pnpm gates ✅ (23 tasks, 120 tests), 13+3+2+5+3+3+4 unit tests, 2 E2E tests, signUpAndAuthAs backfill for existing E2E specs
-    - Files of interest: schema, migration, consents.ts helpers, consent/auth routers, ConsentsCheckboxes widget, onboarding/settings routes, protected layout, MarketingConsent.md, CLAUDE.md
-
-    Branch: feat/user-consents — 22 commits, 43 files changed, +1922/-246 lines
-
-**Next Steps**: Feature development is complete. PR is open for review. No active implementation work remains. The session is effectively done — awaiting code review or merge decision from the team.
-
-
-Access 655k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 1260k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

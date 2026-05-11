@@ -16,6 +16,28 @@ function nextAttemptAt(attempts: number): Date {
   return new Date(Date.now() + delay)
 }
 
+export async function isReminderEventStillValid(
+  prisma: PrismaClient,
+  event: { type: string; payload: unknown },
+): Promise<boolean> {
+  if (event.type !== 'REMINDER_DUE') return true
+  const payload = event.payload as { reminderId?: string }
+  if (!payload?.reminderId) return false
+  const r = await prisma.reminder.findUnique({
+    where: { id: payload.reminderId },
+    select: {
+      deletedAt: true,
+      doneAt: true,
+      page: { select: { deletedAt: true } },
+    },
+  })
+  if (!r) return false
+  if (r.deletedAt !== null) return false
+  if (r.doneAt !== null) return false
+  if (r.page.deletedAt !== null) return false
+  return true
+}
+
 export type DispatcherOpts = { workerId: string; batchSize: number; maxAttempts: number }
 
 export async function runDispatcherTick(
@@ -35,6 +57,20 @@ export async function runDispatcherTick(
         include: { event: true, targetSubscription: true },
       })
       if (!delivery) return
+      const stillValid = await isReminderEventStillValid(prisma, delivery.event)
+      if (!stillValid) {
+        await prisma.notificationDelivery.update({
+          where: { id },
+          data: {
+            status: 'SKIPPED',
+            processedAt: new Date(),
+            lockedAt: null,
+            lockedBy: null,
+            lastError: 'reminder no longer valid',
+          },
+        })
+        return
+      }
       try {
         if (delivery.channel === 'EMAIL') {
           await sendDeliveryEmail(delivery as unknown as DeliveryWithEvent)

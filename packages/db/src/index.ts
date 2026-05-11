@@ -48,6 +48,7 @@ export {
   NotificationChannel,
   NotificationEventType,
   DeliveryStatus,
+  ReminderAudience,
 } from '@prisma/client'
 export type { ChatMessageStatus } from '@prisma/client'
 export type {
@@ -79,6 +80,8 @@ export type {
   NotificationInApp,
   NotificationDelivery,
   NotificationPreference,
+  Reminder,
+  ReminderRecipient,
 } from '@prisma/client'
 export { OutboxEventStatus } from '@prisma/client'
 

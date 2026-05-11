@@ -9,6 +9,8 @@ export { FileAttachmentSchema as FileAttachment } from './file-attachment.schema
 export { HiddenTextSchema as HiddenText } from './hidden-text.schema'
 export { PageLinkSchema as PageLink } from './page-link.schema'
 
+export { ReminderSchema as Reminder } from './reminder.schema'
+
 // These two have no React imports — re-export as-is.
 export { AnynoteTextColor } from './text-color'
 export { BlockBackground, BACKGROUND_SUPPORTED_TYPES } from './block-background'

@@ -9,6 +9,7 @@ export type MailKind =
   | 'invitation'
   | 'account-deletion-requested'
   | 'account-deletion-completed'
+  | 'reminder-due'
 
 export type RenderedEmail = { subject: string; html: string; text: string }
 
@@ -39,6 +40,15 @@ export type MailPayloads = {
   }
   'account-deletion-requested': { firstName: string; link: string; expiresAtIso: string }
   'account-deletion-completed': { firstName: string }
+  'reminder-due': {
+    workspaceId: string
+    pageId: string
+    reminderId: string
+    label: string | null
+    dueAtIso: string
+    offsetMinutes: number
+    baseUrl: string
+  }
 }
 
 export type MailEventPayload = {

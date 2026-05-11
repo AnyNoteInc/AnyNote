@@ -11,6 +11,7 @@ import { fileRouter } from './routers/file'
 import { aiSettingsRouter } from './routers/ai-settings'
 import { searchRouter } from './routers/search'
 import { notificationRouter } from './routers/notification'
+import { reminderRouter } from './routers/reminder'
 
 export { createContext, createServerContext } from './trpc'
 export type { Context } from './trpc'
@@ -38,6 +39,7 @@ export const appRouter = router({
   file: fileRouter,
   aiSettings: aiSettingsRouter,
   notification: notificationRouter,
+  reminder: reminderRouter,
 })
 
 export const createCaller = createCallerFactory(appRouter)
