@@ -55,6 +55,11 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
+          # NEXT_PUBLIC_* vars consumed by client components must be baked
+          # at build time — Next.js inlines them into the static bundle.
+          # Only used by the `web` Dockerfile; ignored by others.
+          build-args: |
+            NEXT_PUBLIC_VAPID_PUBLIC_KEY=${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
 
   deploy:
     needs: build
@@ -109,6 +114,10 @@ jobs:
           GOTENBERG_TIMEOUT_MS: ${{ secrets.GOTENBERG_TIMEOUT_MS }}
           ACME_EMAIL: ${{ secrets.ACME_EMAIL }}
           TRAEFIK_DASHBOARD_USERS_LINE: ${{ secrets.TRAEFIK_DASHBOARD_USERS_LINE }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          NEXT_PUBLIC_VAPID_PUBLIC_KEY: ${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_SUBJECT: ${{ secrets.VAPID_SUBJECT }}
         run: |
           envsubst < deploy/.env.template > /tmp/.env
           chmod 600 /tmp/.env

@@ -44,6 +44,14 @@ ENV S3_SECRET_KEY=dummy
 ENV S3_BUCKET=dummy
 ENV NEXT_PUBLIC_YJS_URL=ws://localhost:1234
 
+# NEXT_PUBLIC_VAPID_PUBLIC_KEY is consumed by 'use client' code
+# (apps/web/src/lib/push/vapid.ts) and Next.js inlines it into the
+# client bundle at build time — there's no runtime swap path like
+# resolveYjsUrl(). The value is supplied as a build-arg in the deploy
+# workflow; an empty default keeps `pnpm build` working locally.
+ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY=""
+ENV NEXT_PUBLIC_VAPID_PUBLIC_KEY=$NEXT_PUBLIC_VAPID_PUBLIC_KEY
+
 RUN pnpm --filter @repo/db prisma:generate
 RUN pnpm turbo build
 
