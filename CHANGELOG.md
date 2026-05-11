@@ -1,3 +1,10 @@
+## [1.11.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.11.0...v1.11.1) (2026-05-11)
+
+
+### Bug Fixes
+
+* **deploy:** wire VAPID env vars through to web push runtime ([fe4f712](https://github.com/AnyNoteInc/AnyNote/commit/fe4f71223c95e6c94b8a98a18f45237c99719ecd))
+
 # [1.11.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.10.1...v1.11.0) (2026-05-11)
 
 
