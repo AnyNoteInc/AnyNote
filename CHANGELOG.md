@@ -1,3 +1,10 @@
+# [1.11.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.10.1...v1.11.0) (2026-05-11)
+
+
+### Features
+
+* notifications system (events, deliveries, in-app, email, web push) ([#9](https://github.com/AnyNoteInc/AnyNote/issues/9)) ([13cc85e](https://github.com/AnyNoteInc/AnyNote/commit/13cc85edbbd37b5a7b0efbdd3d98e24061638646))
+
 ## [1.10.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.10.0...v1.10.1) (2026-05-10)
 
 
