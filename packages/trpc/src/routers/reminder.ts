@@ -47,6 +47,31 @@ export const reminderRouter = router({
       })
       await assertRole(ctx, page.workspaceId, ['OWNER', 'ADMIN', 'EDITOR'])
 
+      // Validate LIST recipients are workspace members (security)
+      const listRemindersWithRecipients = input.reminders.filter(
+        (r) => r.audience === 'LIST' && r.recipients.length > 0,
+      )
+      if (listRemindersWithRecipients.length > 0) {
+        const allRecipientIds = Array.from(
+          new Set(listRemindersWithRecipients.flatMap((r) => r.recipients)),
+        )
+        const members = await ctx.prisma.workspaceMember.findMany({
+          where: {
+            workspaceId: page.workspaceId,
+            userId: { in: allRecipientIds },
+          },
+          select: { userId: true },
+        })
+        const memberSet = new Set(members.map((m) => m.userId))
+        const invalid = allRecipientIds.filter((id) => !memberSet.has(id))
+        if (invalid.length > 0) {
+          throw new TRPCError({
+            code: 'BAD_REQUEST',
+            message: `Some recipients are not workspace members: ${invalid.join(', ')}`,
+          })
+        }
+      }
+
       await ctx.prisma.$transaction(async (tx) => {
         const existing = await tx.reminder.findMany({
           where: { pageId: input.pageId },

@@ -219,3 +219,41 @@ describe('reminder.syncForPage — rejects VIEWER role', () => {
     expect(prisma.$transaction).not.toHaveBeenCalled()
   })
 })
+
+describe('reminder.syncForPage — rejects LIST audience with non-member recipients', () => {
+  it('throws BAD_REQUEST when a recipient is not a workspace member', async () => {
+    const NON_MEMBER_ID = '00000000-0000-0000-0000-000000000099'
+
+    const prisma = {
+      page: {
+        findUniqueOrThrow: vi.fn().mockResolvedValue({ workspaceId: WORKSPACE_ID }),
+      },
+      workspaceMember: {
+        findUnique: vi.fn().mockResolvedValue({ role: 'EDITOR', workspaceId: WORKSPACE_ID, userId: USER_ID }),
+        findMany: vi.fn().mockResolvedValue([]), // no members match the recipient
+      },
+      $transaction: vi.fn(),
+    } as unknown as PrismaClient
+
+    const caller = createCallerFactory(reminderRouter)(ctx(prisma))
+    await expect(
+      caller.syncForPage({
+        pageId: PAGE_ID,
+        reminders: [
+          {
+            id: REMINDER_ID,
+            dueAt: new Date(Date.now() + 86_400_000).toISOString(),
+            offsets: [0],
+            audience: 'LIST',
+            label: 'X',
+            recipients: [NON_MEMBER_ID],
+            doneAt: null,
+          },
+        ],
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+
+    // Transaction should never have been entered
+    expect(prisma.$transaction).not.toHaveBeenCalled()
+  })
+})
