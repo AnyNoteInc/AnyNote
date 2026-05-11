@@ -56,7 +56,7 @@ export function WorkspaceLayoutClient({
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY)
-    if (stored === 'mini' || stored === 'full') setMode(stored)
+    if (stored === 'mini' || stored === 'full' || stored === 'hidden') setMode(stored)
   }, [])
 
   useEffect(() => {
@@ -130,6 +130,9 @@ export function WorkspaceLayoutClient({
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <WorkspaceToolbar
         breadcrumbs={breadcrumbs}
+        sidebarHidden={mode === 'hidden'}
+        onOpenSidebar={() => setMode('full')}
+        sidebarContent={<WorkspaceSidebar {...sidebarProps} />}
         rightSlot={
           activePageId ? (
             <PageActionsToolbar pageId={activePageId} workspaceId={workspace.id} />
@@ -147,23 +150,26 @@ export function WorkspaceLayoutClient({
     </Box>
   )
 
+  let sidebar: ReactNode = null
+  if (mode === 'mini') {
+    sidebar = (
+      <WorkspaceSidebarMini
+        workspace={workspace}
+        features={features}
+        user={user}
+        onExpand={() => setMode('full')}
+      />
+    )
+  } else if (mode === 'full') {
+    sidebar = <WorkspaceSidebar {...sidebarProps} onHide={() => setMode('hidden')} />
+  }
+
   return (
     <SearchDialogProvider workspaceId={workspace.id}>
       <WorkspaceHotkeyMount workspaceId={workspace.id} />
       <WorkspaceShell
         mode={mode}
-        sidebar={
-          mode === 'mini' ? (
-            <WorkspaceSidebarMini
-              workspace={workspace}
-              features={features}
-              user={user}
-              onExpand={() => setMode('full')}
-            />
-          ) : (
-            <WorkspaceSidebar {...sidebarProps} onCollapse={() => setMode('mini')} />
-          )
-        }
+        sidebar={sidebar}
         main={activePageId ? <PageEditorProvider>{mainContent}</PageEditorProvider> : mainContent}
       />
     </SearchDialogProvider>

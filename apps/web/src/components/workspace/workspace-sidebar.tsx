@@ -31,15 +31,15 @@ import { SearchSidebarSection } from './search-sidebar-section'
 import { SIDEBAR_WIDTH } from './workspace-layout-client'
 import { SidebarSearchTrigger } from '../search/sidebar-search-trigger'
 
-type Props = {
+type Props = Readonly<{
   workspace: { id: string; name: string; icon: string | null }
   features: PlanFeatures
   pages: PageItem[]
-  onCollapse?: () => void
+  onHide?: () => void
   userMenu: ReactNode
-}
+}>
 
-export function WorkspaceSidebar({ workspace, features, pages, onCollapse, userMenu }: Props) {
+export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu }: Props) {
   const pathname = usePathname()
   const favorites = trpc.page.listFavorites.useQuery({ workspaceId: workspace.id })
   const favoritePageIds = useMemo(
@@ -106,12 +106,12 @@ export function WorkspaceSidebar({ workspace, features, pages, onCollapse, userM
             <ArrowDropDownIcon sx={{ fontSize: 18, color: 'text.secondary', flexShrink: 0 }} />
           )}
         </Box>
-        {onCollapse ? (
-          <Tooltip title="Свернуть" placement="right">
+        {onHide ? (
+          <Tooltip title="Скрыть" placement="right">
             <IconButton
               size="small"
-              onClick={onCollapse}
-              aria-label="Свернуть"
+              onClick={onHide}
+              aria-label="Скрыть"
               sx={{ flexShrink: 0 }}
             >
               <KeyboardDoubleArrowLeftIcon sx={{ fontSize: 16 }} />
