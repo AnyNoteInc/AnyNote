@@ -104,7 +104,29 @@ describe('useReminderSync', () => {
     act(() => editor.emitUpdate())
     act(() => vi.advanceTimersByTime(1_000))
 
-    expect(mocks.mutate).toHaveBeenCalledWith({ pageId: 'page-1', reminders: [] })
+    expect(mocks.mutate).toHaveBeenCalledWith(
+      { pageId: 'page-1', reminders: [] },
+      expect.anything(),
+    )
+  })
+
+  it('retries the same reminder snapshot after a failed sync', () => {
+    const editor = makeEditor(makeDoc([{ type: 'paragraph' }]))
+    mocks.mutate.mockImplementation((_input, options?: { onError?: () => void }) => {
+      options?.onError?.()
+    })
+
+    renderHook(() => useReminderSync(editor as unknown as Editor, 'page-1'))
+    editor.state.doc = makeDoc([
+      { type: 'reminder', attrs: reminderAttrs('11111111-1111-1111-1111-111111111111') },
+    ])
+
+    act(() => editor.emitUpdate())
+    act(() => vi.advanceTimersByTime(1_000))
+    act(() => editor.emitUpdate())
+    act(() => vi.advanceTimersByTime(1_000))
+
+    expect(mocks.mutate).toHaveBeenCalledTimes(2)
   })
 })
 

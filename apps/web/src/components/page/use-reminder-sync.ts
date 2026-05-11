@@ -64,11 +64,13 @@ function debounce<T extends (...args: never[]) => unknown>(fn: T, ms: number) {
 export function useReminderSync(editor: Editor | null, pageId: string) {
   const sync = trpc.reminder.syncForPage.useMutation()
   const lastSnapshotRef = useRef<string | null>(null)
+  const pendingSnapshotRef = useRef<string | null>(null)
 
   useEffect(() => {
     lastSnapshotRef.current = editor
       ? serializeReminderInputs(collectReminderInputs(editor.state.doc))
       : null
+    pendingSnapshotRef.current = null
   }, [editor, pageId])
 
   const debounced = useMemo(
@@ -79,8 +81,23 @@ export function useReminderSync(editor: Editor | null, pageId: string) {
         const reminders = collectReminderInputs(editor.state.doc)
         const nextSnapshot = serializeReminderInputs(reminders)
         if (lastSnapshotRef.current === nextSnapshot) return
-        lastSnapshotRef.current = nextSnapshot
-        sync.mutate({ pageId, reminders })
+        if (pendingSnapshotRef.current === nextSnapshot) return
+        pendingSnapshotRef.current = nextSnapshot
+        sync.mutate(
+          { pageId, reminders },
+          {
+            onSuccess: () => {
+              if (pendingSnapshotRef.current !== nextSnapshot) return
+              lastSnapshotRef.current = nextSnapshot
+              pendingSnapshotRef.current = null
+            },
+            onError: () => {
+              if (pendingSnapshotRef.current === nextSnapshot) {
+                pendingSnapshotRef.current = null
+              }
+            },
+          },
+        )
       }, 1_000),
     [editor, pageId, sync],
   )

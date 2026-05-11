@@ -68,6 +68,32 @@ describe('rebuildDeliveries', () => {
     expect(vi.mocked(tx.notificationEvent.create)).toHaveBeenCalledTimes(2)
   })
 
+  it('creates scheduled IN_APP deliveries even when the user has no email or push target', async () => {
+    const tx = makeTx({
+      user: { findUniqueOrThrow: vi.fn().mockResolvedValue({ email: null, emailVerified: false }) },
+    })
+    const reminder = { ...baseReminder, offsets: [60] }
+
+    await rebuildDeliveries(tx, reminder)
+
+    expect(vi.mocked(tx.notificationEvent.create)).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(tx.notificationDelivery.create)).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        channel: 'IN_APP',
+        userId: 'user-1',
+        nextAttemptAt: new Date(reminder.dueAt.getTime() - 60 * 60_000),
+      }),
+    })
+  })
+
+  it('does not create the in-app notification while scheduling a future reminder', async () => {
+    const tx = makeTx()
+
+    await rebuildDeliveries(tx, { ...baseReminder, offsets: [60] })
+
+    expect(vi.mocked(tx.notificationInApp.create)).not.toHaveBeenCalled()
+  })
+
   it('skips offsets whose fireAt is already in the past', async () => {
     const tx = makeTx()
     const reminder = {

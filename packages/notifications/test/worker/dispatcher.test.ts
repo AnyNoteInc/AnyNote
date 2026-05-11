@@ -26,6 +26,7 @@ type MockPrisma = {
     findUnique: ReturnType<typeof vi.fn>
     update: ReturnType<typeof vi.fn>
   }
+  notificationInApp: { upsert: ReturnType<typeof vi.fn> }
   pushSubscription: { delete: ReturnType<typeof vi.fn> }
 }
 
@@ -35,6 +36,7 @@ function makeMock(delivery: Record<string, unknown>): MockPrisma {
       findUnique: vi.fn(async () => delivery),
       update: vi.fn(async () => undefined),
     },
+    notificationInApp: { upsert: vi.fn(async () => undefined) },
     pushSubscription: { delete: vi.fn(async () => undefined) },
   }
 }
@@ -53,6 +55,31 @@ describe('runDispatcherTick', () => {
       targetSubscription: null,
     })
     await runDispatcherTick(asPrisma(mock), { workerId: 'w1', batchSize: 10, maxAttempts: 5 })
+    expect(mock.notificationDelivery.update.mock.calls[0][0]).toMatchObject({
+      where: { id: 'd1' },
+      data: { status: 'DELIVERED' },
+    })
+  })
+
+  it('creates the in-app notification when an IN_APP delivery fires', async () => {
+    lockMock.mockResolvedValueOnce(['d1'])
+    const mock = makeMock({
+      id: 'd1',
+      channel: 'IN_APP',
+      attempts: 0,
+      userId: 'user-1',
+      eventId: 'evt-1',
+      event: {},
+      targetSubscription: null,
+    })
+
+    await runDispatcherTick(asPrisma(mock), { workerId: 'w1', batchSize: 10, maxAttempts: 5 })
+
+    expect(mock.notificationInApp.upsert).toHaveBeenCalledWith({
+      where: { eventId: 'evt-1' },
+      create: { eventId: 'evt-1', userId: 'user-1' },
+      update: {},
+    })
     expect(mock.notificationDelivery.update.mock.calls[0][0]).toMatchObject({
       where: { id: 'd1' },
       data: { status: 'DELIVERED' },

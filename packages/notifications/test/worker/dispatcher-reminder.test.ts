@@ -63,15 +63,67 @@ describe('isReminderEventStillValid', () => {
         findUnique: vi.fn().mockResolvedValue({
           deletedAt: null,
           doneAt: null,
+          dueAt: new Date('2026-06-01T10:00:00.000Z'),
+          offsets: [60, 0],
           page: { deletedAt: null },
         }),
       },
     }
     const res = await isReminderEventStillValid(prisma as unknown as PrismaClient, {
       type: 'REMINDER_DUE',
-      payload: { reminderId: 'rem-1' },
+      payload: {
+        reminderId: 'rem-1',
+        dueAt: '2026-06-01T10:00:00.000Z',
+        offsetMinutes: 60,
+      },
     })
     expect(res).toBe(true)
+  })
+
+  it('returns false when the reminder dueAt changed after the event was scheduled', async () => {
+    const prisma = {
+      reminder: {
+        findUnique: vi.fn().mockResolvedValue({
+          deletedAt: null,
+          doneAt: null,
+          dueAt: new Date('2026-06-01T11:00:00.000Z'),
+          offsets: [60, 0],
+          page: { deletedAt: null },
+        }),
+      },
+    }
+    const res = await isReminderEventStillValid(prisma as unknown as PrismaClient, {
+      type: 'REMINDER_DUE',
+      payload: {
+        reminderId: 'rem-1',
+        dueAt: '2026-06-01T10:00:00.000Z',
+        offsetMinutes: 60,
+      },
+    })
+    expect(res).toBe(false)
+  })
+
+  it('returns false when the event offset is no longer configured on the reminder', async () => {
+    const prisma = {
+      reminder: {
+        findUnique: vi.fn().mockResolvedValue({
+          deletedAt: null,
+          doneAt: null,
+          dueAt: new Date('2026-06-01T10:00:00.000Z'),
+          offsets: [0],
+          page: { deletedAt: null },
+        }),
+      },
+    }
+    const res = await isReminderEventStillValid(prisma as unknown as PrismaClient, {
+      type: 'REMINDER_DUE',
+      payload: {
+        reminderId: 'rem-1',
+        dueAt: '2026-06-01T10:00:00.000Z',
+        offsetMinutes: 60,
+      },
+    })
+    expect(res).toBe(false)
   })
 
   it('returns false when the page is soft-deleted', async () => {

@@ -35,8 +35,13 @@ export type ReminderForRebuild = {
   doneAt: Date | null
 }
 
-function deliveryKey(userId: string, offsetMinutes: number, channel: string): string {
-  return `${userId}|${offsetMinutes}|${channel}`
+function deliveryKey(
+  userId: string,
+  offsetMinutes: number,
+  channel: string,
+  targetSubscriptionId?: string | null,
+): string {
+  return [userId, offsetMinutes, channel, targetSubscriptionId ?? ''].join('|')
 }
 
 function readOffsetMinutes(payload: Prisma.JsonValue): number {
@@ -88,7 +93,10 @@ export async function rebuildDeliveries(tx: Tx, r: ReminderForRebuild): Promise<
 
   const existingByKey = new Map<string, (typeof existing)[number]>()
   for (const d of existing) {
-    existingByKey.set(deliveryKey(d.userId, readOffsetMinutes(d.event.payload), d.channel), d)
+    existingByKey.set(
+      deliveryKey(d.userId, readOffsetMinutes(d.event.payload), d.channel, d.targetSubscriptionId),
+      d,
+    )
   }
 
   const wantedKeys = new Set<string>()
@@ -124,10 +132,31 @@ export async function rebuildDeliveries(tx: Tx, r: ReminderForRebuild): Promise<
           },
         })
         eventId = evt.id
-        if (inAppWanted) {
-          await tx.notificationInApp.create({ data: { eventId: evt.id, userId } })
-        }
         return eventId
+      }
+
+      if (inAppWanted) {
+        const k = deliveryKey(userId, offsetMinutes, 'IN_APP')
+        wantedKeys.add(k)
+        const prev = existingByKey.get(k)
+        if (prev) {
+          if (prev.nextAttemptAt.getTime() !== fireAt.getTime()) {
+            await tx.notificationDelivery.update({
+              where: { id: prev.id },
+              data: { nextAttemptAt: fireAt },
+            })
+          }
+        } else {
+          const evtId = await ensureEvent()
+          await tx.notificationDelivery.create({
+            data: {
+              eventId: evtId,
+              userId,
+              channel: 'IN_APP',
+              nextAttemptAt: fireAt,
+            },
+          })
+        }
       }
 
       if (targets.email) {
@@ -156,7 +185,7 @@ export async function rebuildDeliveries(tx: Tx, r: ReminderForRebuild): Promise<
       }
 
       for (const sub of targets.pushSubscriptions) {
-        const k = deliveryKey(userId, offsetMinutes, 'WEB_PUSH')
+        const k = deliveryKey(userId, offsetMinutes, 'WEB_PUSH', sub.id)
         wantedKeys.add(k)
         const prev = existingByKey.get(k)
         if (prev) {
@@ -183,7 +212,9 @@ export async function rebuildDeliveries(tx: Tx, r: ReminderForRebuild): Promise<
   }
 
   const stale = existing.filter((d) => {
-    return !wantedKeys.has(deliveryKey(d.userId, readOffsetMinutes(d.event.payload), d.channel))
+    return !wantedKeys.has(
+      deliveryKey(d.userId, readOffsetMinutes(d.event.payload), d.channel, d.targetSubscriptionId),
+    )
   })
   if (stale.length) {
     await tx.notificationDelivery.updateMany({

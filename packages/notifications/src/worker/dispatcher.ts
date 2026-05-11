@@ -21,13 +21,19 @@ export async function isReminderEventStillValid(
   event: { type: string; payload: unknown },
 ): Promise<boolean> {
   if (event.type !== 'REMINDER_DUE') return true
-  const payload = event.payload as { reminderId?: string }
+  const payload = event.payload as {
+    reminderId?: string
+    dueAt?: string
+    offsetMinutes?: number
+  }
   if (!payload?.reminderId) return false
   const r = await prisma.reminder.findUnique({
     where: { id: payload.reminderId },
     select: {
       deletedAt: true,
       doneAt: true,
+      dueAt: true,
+      offsets: true,
       page: { select: { deletedAt: true } },
     },
   })
@@ -35,6 +41,10 @@ export async function isReminderEventStillValid(
   if (r.deletedAt !== null) return false
   if (r.doneAt !== null) return false
   if (r.page.deletedAt !== null) return false
+  if (typeof payload.dueAt !== 'string') return false
+  if (new Date(payload.dueAt).getTime() !== r.dueAt.getTime()) return false
+  if (typeof payload.offsetMinutes !== 'number') return false
+  if (!r.offsets.includes(payload.offsetMinutes)) return false
   return true
 }
 
@@ -72,7 +82,13 @@ export async function runDispatcherTick(
         return
       }
       try {
-        if (delivery.channel === 'EMAIL') {
+        if (delivery.channel === 'IN_APP') {
+          await prisma.notificationInApp.upsert({
+            where: { eventId: delivery.eventId },
+            create: { eventId: delivery.eventId, userId: delivery.userId },
+            update: {},
+          })
+        } else if (delivery.channel === 'EMAIL') {
           await sendDeliveryEmail(delivery as unknown as DeliveryWithEvent)
         } else if (delivery.channel === 'WEB_PUSH') {
           await sendDeliveryWebPush(delivery as unknown as DeliveryWithEventAndSub)
