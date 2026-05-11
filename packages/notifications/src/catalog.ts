@@ -83,6 +83,12 @@ export const EVENT_CATALOG: Record<NotificationEventType, EventDescriptor> = {
     lockedChannels: ['IN_APP'],
     requiresConsent: null,
   },
+  REMINDER_DUE: {
+    category: 'COLLABORATION',
+    defaultChannels: ['IN_APP', 'EMAIL', 'WEB_PUSH'],
+    lockedChannels: ['IN_APP'],
+    requiresConsent: null,
+  },
   // MARKETING
   WEEKLY_DIGEST: {
     category: 'MARKETING',
