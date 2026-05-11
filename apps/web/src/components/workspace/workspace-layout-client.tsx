@@ -17,6 +17,7 @@ import type { PlanFeatures } from '@repo/trpc'
 import { SearchDialogProvider } from '../search/search-dialog-provider'
 import { useSearchHotkey } from '../search/use-search-hotkey'
 import { WorkspaceShell } from './workspace-shell'
+import type { SidebarMode } from './workspace-shell'
 import { WorkspaceSidebar } from './workspace-sidebar'
 import { WorkspaceToolbar } from './workspace-toolbar'
 import { WorkspaceUserMenu } from './workspace-user-menu'
@@ -30,7 +31,8 @@ type Props = {
   children: ReactNode
 }
 
-const STORAGE_KEY = 'workspace.sidebar.collapsed'
+const STORAGE_KEY = 'workspace.sidebar.mode'
+const DEFAULT_MODE: SidebarMode = 'full'
 export const SIDEBAR_WIDTH = 313
 
 export function WorkspaceLayoutClient({
@@ -48,17 +50,17 @@ export function WorkspaceLayoutClient({
     { staleTime: 0 },
   )
   const pages: PageItem[] = pagesQuery.data ?? initialPages
-  const [hidden, setHidden] = useState(false)
+  const [mode, setMode] = useState<SidebarMode>(DEFAULT_MODE)
   const pathname = usePathname()
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY)
-    if (stored === 'true') setHidden(true)
+    if (stored === 'full' || stored === 'hidden') setMode(stored)
   }, [])
 
   useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, String(hidden))
-  }, [hidden])
+    window.localStorage.setItem(STORAGE_KEY, mode)
+  }, [mode])
 
   const chatIdMatch = pathname.match(/\/chats\/([a-f0-9-]{36})$/)
   const activeChatId = chatIdMatch?.[1] ?? null
@@ -127,8 +129,8 @@ export function WorkspaceLayoutClient({
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <WorkspaceToolbar
         breadcrumbs={breadcrumbs}
-        sidebarHidden={hidden}
-        onOpenSidebar={() => setHidden(false)}
+        sidebarHidden={mode === 'hidden'}
+        onOpenSidebar={() => setMode('full')}
         sidebarContent={<WorkspaceSidebar {...sidebarProps} />}
         rightSlot={
           activePageId ? (
@@ -147,12 +149,17 @@ export function WorkspaceLayoutClient({
     </Box>
   )
 
+  const sidebar =
+    mode === 'full' ? (
+      <WorkspaceSidebar {...sidebarProps} onHide={() => setMode('hidden')} />
+    ) : null
+
   return (
     <SearchDialogProvider workspaceId={workspace.id}>
       <WorkspaceHotkeyMount workspaceId={workspace.id} />
       <WorkspaceShell
-        sidebarHidden={hidden}
-        sidebar={<WorkspaceSidebar {...sidebarProps} onHide={() => setHidden(true)} />}
+        mode={mode}
+        sidebar={sidebar}
         main={activePageId ? <PageEditorProvider>{mainContent}</PageEditorProvider> : mainContent}
       />
     </SearchDialogProvider>

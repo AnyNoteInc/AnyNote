@@ -10,6 +10,7 @@ import {
   Box,
   BrushIcon,
   ChevronRightIcon,
+  DeleteIcon,
   DescriptionIcon,
   IconButton,
   ListItemIcon,
@@ -17,6 +18,7 @@ import {
   Menu,
   MenuItem,
   MoreHorizIcon,
+  Tooltip,
   Typography,
   AddIcon,
 } from '@repo/ui/components'
@@ -295,6 +297,17 @@ export function PageTreeSection({ workspaceId, pages: initialPages, favoritePage
             <ArrowDropDownIcon sx={{ fontSize: 16 }} />
           )}
         </Box>
+        <Tooltip title="Корзина" placement="top">
+          <IconButton
+            size="small"
+            component={Link}
+            href={`/workspaces/${workspaceId}/trash`}
+            aria-label="Корзина"
+            sx={{ p: 0.25 }}
+          >
+            <DeleteIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+          </IconButton>
+        </Tooltip>
         <IconButton
           size="small"
           onClick={(e: MouseEvent<HTMLElement>) => setCreateAnchor(e.currentTarget)}
