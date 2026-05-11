@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useMemo } from 'react'
+import { useEffect, useMemo, useRef } from 'react'
 import type { Editor } from '@repo/editor'
 
 import { trpc } from '@/trpc/client'
@@ -44,6 +44,10 @@ export function collectReminderInputs(doc: DocLike): ReminderSyncInput[] {
   return out
 }
 
+function serializeReminderInputs(reminders: ReminderSyncInput[]) {
+  return JSON.stringify(reminders)
+}
+
 function debounce<T extends (...args: never[]) => unknown>(fn: T, ms: number) {
   let t: ReturnType<typeof setTimeout> | null = null
   const wrapped = (...args: Parameters<T>) => {
@@ -59,12 +63,23 @@ function debounce<T extends (...args: never[]) => unknown>(fn: T, ms: number) {
 
 export function useReminderSync(editor: Editor | null, pageId: string) {
   const sync = trpc.reminder.syncForPage.useMutation()
+  const lastSnapshotRef = useRef<string | null>(null)
+
+  useEffect(() => {
+    lastSnapshotRef.current = editor
+      ? serializeReminderInputs(collectReminderInputs(editor.state.doc))
+      : null
+  }, [editor, pageId])
+
   const debounced = useMemo(
     () =>
       debounce(() => {
         if (!editor) return
         if (!editor.isEditable) return
         const reminders = collectReminderInputs(editor.state.doc)
+        const nextSnapshot = serializeReminderInputs(reminders)
+        if (lastSnapshotRef.current === nextSnapshot) return
+        lastSnapshotRef.current = nextSnapshot
         sync.mutate({ pageId, reminders })
       }, 1_000),
     [editor, pageId, sync],

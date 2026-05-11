@@ -1,6 +1,112 @@
-import { describe, expect, it } from 'vitest'
+// @vitest-environment jsdom
 
-import { collectReminderInputs, type DocLike } from '@/components/page/use-reminder-sync'
+import { act, cleanup, renderHook } from '@testing-library/react'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
+import type { Editor } from '@repo/editor'
+
+import {
+  collectReminderInputs,
+  type DocLike,
+  useReminderSync,
+} from '@/components/page/use-reminder-sync'
+
+const mocks = vi.hoisted(() => ({
+  mutate: vi.fn(),
+}))
+
+vi.mock('@/trpc/client', () => ({
+  trpc: {
+    reminder: {
+      syncForPage: {
+        useMutation: () => ({ mutate: mocks.mutate }),
+      },
+    },
+  },
+}))
+
+type FakeEditor = {
+  isEditable: boolean
+  state: { doc: DocLike }
+  on: (event: 'update', handler: () => void) => void
+  off: (event: 'update', handler: () => void) => void
+  emitUpdate: () => void
+}
+
+function reminderAttrs(id: string, dueAt = '2026-06-01T00:00:00Z') {
+  return {
+    id,
+    dueAt,
+    offsets: [0],
+    audience: 'ME',
+    label: 'x',
+    recipients: [],
+    doneAt: null,
+  }
+}
+
+function makeDoc(nodes: Array<{ type: string; attrs?: Record<string, unknown> }>): DocLike {
+  return {
+    descendants(visit) {
+      for (const node of nodes) {
+        visit({ type: { name: node.type }, attrs: node.attrs ?? {} })
+      }
+    },
+  }
+}
+
+function makeEditor(doc: DocLike): FakeEditor {
+  const handlers = new Set<() => void>()
+  return {
+    isEditable: true,
+    state: { doc },
+    on: (_event, handler) => {
+      handlers.add(handler)
+    },
+    off: (_event, handler) => {
+      handlers.delete(handler)
+    },
+    emitUpdate: () => {
+      for (const handler of handlers) handler()
+    },
+  }
+}
+
+describe('useReminderSync', () => {
+  beforeEach(() => {
+    vi.useFakeTimers()
+    mocks.mutate.mockClear()
+  })
+
+  afterEach(() => {
+    cleanup()
+    vi.useRealTimers()
+  })
+
+  it('does not sync when editor updates without reminder changes', () => {
+    const editor = makeEditor(makeDoc([{ type: 'paragraph' }]))
+
+    renderHook(() => useReminderSync(editor as unknown as Editor, 'page-1'))
+
+    act(() => editor.emitUpdate())
+    act(() => vi.advanceTimersByTime(1_000))
+
+    expect(mocks.mutate).not.toHaveBeenCalled()
+  })
+
+  it('syncs an empty list when the last reminder is removed', () => {
+    const editor = makeEditor(
+      makeDoc([{ type: 'reminder', attrs: reminderAttrs('11111111-1111-1111-1111-111111111111') }]),
+    )
+
+    renderHook(() => useReminderSync(editor as unknown as Editor, 'page-1'))
+    editor.state.doc = makeDoc([{ type: 'paragraph' }])
+
+    act(() => editor.emitUpdate())
+    act(() => vi.advanceTimersByTime(1_000))
+
+    expect(mocks.mutate).toHaveBeenCalledWith({ pageId: 'page-1', reminders: [] })
+  })
+})
 
 describe('collectReminderInputs', () => {
   it('skips reminder nodes without an id or dueAt', () => {
