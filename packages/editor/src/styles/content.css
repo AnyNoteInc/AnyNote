@@ -170,7 +170,7 @@
 .anynote-editor .anynote-task-item,
 .anynote-editor ul[data-type="taskList"] > li {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 4px;
   margin: 0.15rem 0;
 }
@@ -178,7 +178,7 @@
 .anynote-editor .anynote-task-item__checkbox,
 .anynote-editor ul[data-type="taskList"] > li > label {
   flex-shrink: 0;
-  margin-top: 0;
+  margin-top: -3px;
 }
 
 .anynote-editor .anynote-task-item__content,

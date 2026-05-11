@@ -11,8 +11,8 @@ function isOutlineMode(value: string | null): value is OutlineMode {
 const OPTIONS: UsePagePrefOptions<OutlineMode> = {
   storageKeyPrefix: 'page-outline-mode',
   eventName: 'anynote:outline-mode-change',
-  defaultValue: 'full',
-  parse: (raw) => (isOutlineMode(raw) ? raw : 'full'),
+  defaultValue: 'mini',
+  parse: (raw) => (isOutlineMode(raw) ? raw : 'mini'),
   serialize: (v) => v,
 }
 

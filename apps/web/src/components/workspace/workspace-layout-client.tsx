@@ -139,7 +139,7 @@ export function WorkspaceLayoutClient({
         }
       />
       <Box
-        sx={{ flex: 1, overflow: 'auto' }}
+        sx={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}
         data-full-width={fullWidth ? 'true' : 'false'}
         data-outline-mode={activePageId ? outlineMode : undefined}
         className="page-content-scroll"
