@@ -1,4 +1,5 @@
 import { describe, expect, it, vi, beforeEach } from 'vitest'
+import type { Mock } from 'vitest'
 import type { Prisma } from '@repo/db'
 
 import { formatHumanOffset, rebuildDeliveries, cancelPendingDeliveries } from '../src/reminders.ts'
@@ -64,7 +65,7 @@ describe('rebuildDeliveries', () => {
   it('creates one event + one delivery per (recipient, offset, channel) for ME audience', async () => {
     const tx = makeTx()
     await rebuildDeliveries(tx, baseReminder)
-    expect((tx.notificationEvent as any).create).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(tx.notificationEvent.create)).toHaveBeenCalledTimes(2)
   })
 
   it('skips offsets whose fireAt is already in the past', async () => {
@@ -75,14 +76,14 @@ describe('rebuildDeliveries', () => {
       offsets: [1440, 0],
     }
     await rebuildDeliveries(tx, reminder)
-    expect((tx.notificationEvent as any).create).toHaveBeenCalledTimes(1)
+    expect(vi.mocked(tx.notificationEvent.create)).toHaveBeenCalledTimes(1)
   })
 
   it('skips all deliveries when doneAt is set', async () => {
     const tx = makeTx()
     const reminder = { ...baseReminder, doneAt: new Date() }
     await rebuildDeliveries(tx, reminder)
-    expect((tx.notificationEvent as any).create).not.toHaveBeenCalled()
+    expect(vi.mocked(tx.notificationEvent.create)).not.toHaveBeenCalled()
   })
 
   it('resolves WORKSPACE audience to all current workspace members', async () => {
@@ -93,7 +94,7 @@ describe('rebuildDeliveries', () => {
     })
     const reminder = { ...baseReminder, audience: 'WORKSPACE' as const, offsets: [0] }
     await rebuildDeliveries(tx, reminder)
-    expect((tx.notificationEvent as any).create).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(tx.notificationEvent.create)).toHaveBeenCalledTimes(2)
   })
 
   it('resolves LIST audience to provided recipients', async () => {
@@ -105,7 +106,7 @@ describe('rebuildDeliveries', () => {
       offsets: [0],
     }
     await rebuildDeliveries(tx, reminder)
-    expect((tx.notificationEvent as any).create).toHaveBeenCalledTimes(2)
+    expect(vi.mocked(tx.notificationEvent.create)).toHaveBeenCalledTimes(2)
   })
 })
 
@@ -114,7 +115,7 @@ describe('cancelPendingDeliveries', () => {
     const tx = makeTx()
     await cancelPendingDeliveries(tx, ['rem-1', 'rem-2'], 'test reason')
 
-    const updateMany = (tx.notificationDelivery as any).updateMany
+    const updateMany = tx.notificationDelivery.updateMany as unknown as Mock
     expect(updateMany).toHaveBeenCalledTimes(1)
     const call = updateMany.mock.calls[0][0]
     expect(call.where.status).toBe('PENDING')
@@ -125,6 +126,6 @@ describe('cancelPendingDeliveries', () => {
   it('is a no-op for an empty reminder list', async () => {
     const tx = makeTx()
     await cancelPendingDeliveries(tx, [], 'test')
-    expect((tx.notificationDelivery as any).updateMany).not.toHaveBeenCalled()
+    expect(vi.mocked(tx.notificationDelivery.updateMany)).not.toHaveBeenCalled()
   })
 })

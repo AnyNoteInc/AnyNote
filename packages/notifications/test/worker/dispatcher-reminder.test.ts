@@ -1,24 +1,25 @@
 import { describe, expect, it, vi } from 'vitest'
+import type { PrismaClient } from '@repo/db'
 
 import { isReminderEventStillValid } from '../../src/worker/dispatcher.ts'
 
 describe('isReminderEventStillValid', () => {
   it('returns true for a non-reminder event', async () => {
     const prisma = { reminder: { findUnique: vi.fn() } }
-    const res = await isReminderEventStillValid(prisma as any, {
+    const res = await isReminderEventStillValid(prisma as unknown as PrismaClient, {
       type: 'WORKSPACE_INVITE',
       payload: {},
-    } as any)
+    })
     expect(res).toBe(true)
     expect(prisma.reminder.findUnique).not.toHaveBeenCalled()
   })
 
   it('returns false when reminder is missing', async () => {
     const prisma = { reminder: { findUnique: vi.fn().mockResolvedValue(null) } }
-    const res = await isReminderEventStillValid(prisma as any, {
+    const res = await isReminderEventStillValid(prisma as unknown as PrismaClient, {
       type: 'REMINDER_DUE',
       payload: { reminderId: 'rem-1' },
-    } as any)
+    })
     expect(res).toBe(false)
   })
 
@@ -28,10 +29,10 @@ describe('isReminderEventStillValid', () => {
         findUnique: vi.fn().mockResolvedValue({ deletedAt: new Date(), doneAt: null }),
       },
     }
-    const res = await isReminderEventStillValid(prisma as any, {
+    const res = await isReminderEventStillValid(prisma as unknown as PrismaClient, {
       type: 'REMINDER_DUE',
       payload: { reminderId: 'rem-1' },
-    } as any)
+    })
     expect(res).toBe(false)
   })
 
@@ -41,10 +42,10 @@ describe('isReminderEventStillValid', () => {
         findUnique: vi.fn().mockResolvedValue({ deletedAt: null, doneAt: new Date() }),
       },
     }
-    const res = await isReminderEventStillValid(prisma as any, {
+    const res = await isReminderEventStillValid(prisma as unknown as PrismaClient, {
       type: 'REMINDER_DUE',
       payload: { reminderId: 'rem-1' },
-    } as any)
+    })
     expect(res).toBe(false)
   })
 
@@ -54,10 +55,10 @@ describe('isReminderEventStillValid', () => {
         findUnique: vi.fn().mockResolvedValue({ deletedAt: null, doneAt: null }),
       },
     }
-    const res = await isReminderEventStillValid(prisma as any, {
+    const res = await isReminderEventStillValid(prisma as unknown as PrismaClient, {
       type: 'REMINDER_DUE',
       payload: { reminderId: 'rem-1' },
-    } as any)
+    })
     expect(res).toBe(true)
   })
 })
