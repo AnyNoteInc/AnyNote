@@ -38,6 +38,7 @@ import { trpc } from '@/trpc/client'
 type Props = {
   user: { firstName: string; lastName: string; email: string; image: string | null }
   features: PlanFeatures
+  variant?: 'default' | 'compact'
 }
 
 type Theme = 'light' | 'dark' | 'system'
@@ -52,7 +53,7 @@ const themeOptions: Array<{
   { value: 'dark', label: 'Тёмная тема', icon: <DarkModeRoundedIcon fontSize="small" /> },
 ]
 
-export function WorkspaceUserMenu({ user, features }: Props) {
+export function WorkspaceUserMenu({ user, features, variant = 'default' }: Props) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const [notifAnchor, setNotifAnchor] = useState<HTMLElement | null>(null)
   const unread = trpc.notification.unreadCount.useQuery(undefined, { refetchInterval: 30_000 })
@@ -74,43 +75,73 @@ export function WorkspaceUserMenu({ user, features }: Props) {
 
   return (
     <>
-      <Box
-        onClick={(event) => setAnchor(event.currentTarget)}
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          p: 0.75,
-          borderRadius: 0.75,
-          cursor: 'pointer',
-          justifyContent: 'flex-start',
-          '&:hover': { bgcolor: 'action.hover' },
-        }}
-      >
-        <Avatar
-          src={user.image ?? undefined}
+      {variant === 'compact' ? (
+        <Box
+          onClick={(event) => setAnchor(event.currentTarget)}
+          role="button"
+          aria-label={`Меню пользователя ${user.firstName} ${user.lastName}`}
           sx={{
-            width: 28,
-            height: 28,
-            fontSize: 13,
-            background: 'linear-gradient(135deg,#0f766e,#155e75)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 40,
+            height: 40,
+            borderRadius: 0.75,
+            cursor: 'pointer',
+            '&:hover': { bgcolor: 'action.hover' },
           }}
         >
-          {initials}
-        </Avatar>
-        <Stack spacing={0.25} sx={{ minWidth: 0, alignItems: 'flex-start' }}>
-          <Typography variant="body2" noWrap>
-            {user.firstName} {user.lastName}
-          </Typography>
-          <Chip
-            label={getPlanDisplayName(features)}
-            size="small"
-            color={features.isPaid ? 'success' : 'default'}
-            variant={features.isPaid ? 'filled' : 'outlined'}
-            sx={{ height: 18, fontSize: 10, '& .MuiChip-label': { px: 0.75 } }}
-          />
-        </Stack>
-      </Box>
+          <Avatar
+            src={user.image ?? undefined}
+            sx={{
+              width: 28,
+              height: 28,
+              fontSize: 13,
+              background: 'linear-gradient(135deg,#0f766e,#155e75)',
+            }}
+          >
+            {initials}
+          </Avatar>
+        </Box>
+      ) : (
+        <Box
+          onClick={(event) => setAnchor(event.currentTarget)}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            p: 0.75,
+            borderRadius: 0.75,
+            cursor: 'pointer',
+            justifyContent: 'flex-start',
+            '&:hover': { bgcolor: 'action.hover' },
+          }}
+        >
+          <Avatar
+            src={user.image ?? undefined}
+            sx={{
+              width: 28,
+              height: 28,
+              fontSize: 13,
+              background: 'linear-gradient(135deg,#0f766e,#155e75)',
+            }}
+          >
+            {initials}
+          </Avatar>
+          <Stack spacing={0.25} sx={{ minWidth: 0, alignItems: 'flex-start' }}>
+            <Typography variant="body2" noWrap>
+              {user.firstName} {user.lastName}
+            </Typography>
+            <Chip
+              label={getPlanDisplayName(features)}
+              size="small"
+              color={features.isPaid ? 'success' : 'default'}
+              variant={features.isPaid ? 'filled' : 'outlined'}
+              sx={{ height: 18, fontSize: 10, '& .MuiChip-label': { px: 0.75 } }}
+            />
+          </Stack>
+        </Box>
+      )}
       <Menu anchorEl={anchor} open={!!anchor} onClose={close}>
         <Box sx={{ px: 2, py: 1, minWidth: 220 }}>
           <Typography variant="caption" color="text.secondary" noWrap>
