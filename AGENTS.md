@@ -34,76 +34,95 @@ Copy `.env.example` to `.env` for local setup and keep secrets out of commits. U
 <claude-mem-context>
 # Memory Context
 
-# [anynote] recent context, 2026-05-07 9:10pm GMT+1
+# [anynote] recent context, 2026-05-10 12:26pm GMT+1
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (17,364t read) | 827,574t work | 98% savings
+Stats: 50 obs (18,002t read) | 655,385t work | 97% savings
 
-### May 7, 2026
+### May 9, 2026
+1289 7:00a 🔵 Actual sendsay.ts Codebase State: Singleton Client + Dev Fallback + Dead-Code Error Check
+1290 " 🔵 sendsay.test.ts Actual State: 4 Tests, Error Envelope Still Uses False-Passing mockResolvedValueOnce
+1291 " 🔵 auth.ts sendMailNow Called in 4 Places — afterEmailVerification and databaseHooks.user.create.after Unguarded
+1292 " 🔴 sendsay.ts Fixed: try/catch Wraps client.request() Preserving All Existing Features
+1297 7:03a ⚖️ Design Decision: Email Sending Made Best-Effort — Failures Swallowed, Not Propagated
+1298 " 🔴 Registration Bug Fully Fixed and Verified: User Persisted Despite Sendsay access_denied
+1299 " 🔴 @repo/mail Package: 20 Tests Pass, Lint Clean, TypeScript Types Valid
+1300 7:14a 🟣 Post-Registration Redirect to /profile After 3-Second Delay
+1301 7:15a 🔵 AnyNote Web App Auth & Profile Route Structure
+1302 " 🔵 RegisterForm Component Is a Controlled UI Widget With onSubmit Callback
+1303 " 🔵 SignUpForm Currently Shows Success Alert With No Redirect
+1304 7:16a 🔵 Email Verification Required Before Auto-Sign-In — Redirect to /profile After Registration Will Fail
+1305 " 🟣 3-Second Auto-Redirect to /profile Added After Successful Registration
+1306 " ✅ TypeScript Type-Check Passes After Redirect Implementation
+1307 " 🔵 Pre-Existing Unstaged Changes in packages/mail Alongside Sign-Up Fix
+1308 7:22a 🔴 SendSay Email Delivery Made Best-Effort — Errors No Longer Propagate to Callers
+1309 7:23a ✅ Two Commits Pushed to main — Triggering Semantic Release Pipeline
+1310 7:42a 🔵 Release CI Failed on feat(web) Commit — All Prior Releases Were Successful
+1311 " 🔵 CI Failure: SignUpForm Test Breaks Due to useRouter() Requiring App Router Context
+1312 " 🔵 SignUpForm Test Mocks auth-client and recaptcha But Not next/navigation
+1313 " 🔴 SignUpForm Test Fixed — Mocked next/navigation useRouter to Resolve App Router Invariant
+1314 " 🔴 SignUpForm Test Passes Locally After Adding next/navigation Mock
+1315 " ✅ act Imported in SignUpForm Test — Preparing for Timer-Based Redirect Assertion
+1316 7:43a 🟣 New Test Added: Verifies 3-Second Redirect to /profile After Sign-Up
+1317 " 🔵 New Redirect Test Times Out — userEvent With Fake Timers Deadlocks in jsdom
+1318 " 🔴 Redirect Test Approach Switched From Fake Timers to waitFor With Real Timers
+1319 " ✅ Redirect Test Rewrote Using setTimeout Spy Instead of Fake Timers
+1320 7:44a 🔴 Both SignUpForm Tests Pass — setTimeout Spy Approach Resolves Timer Test Deadlock
+1321 " 🔴 Full Web Test Suite Passes After SignUpForm Test Fix — 34 Files, 112 Tests Green
+1322 " 🔴 CI Fix Committed and Pushed — test(web) Commit Unblocks Release Pipeline
+1323 7:51a 🟣 v1.9.0 Released Successfully — CI Pipeline Fully Recovered
+### May 10, 2026
+1324 7:50a 🟣 Legal Consent Tracking System — Feature Requirements Defined
+1325 " 🔵 Existing Sign-Up Flow and Legal Document Structure Mapped
+1326 7:51a 🔵 Legal Document Registry and Settings Nav — Detailed Structure Confirmed
+1328 " ⚖️ Legal Consent Tracking System — Architecture Specified
+1329 " ⚖️ MarketingConsent.md — Produce as Final, No Draft Marker
+1327 7:52a ⚖️ Consent Tracking Feature — Architecture Decisions Finalized via Subagent Exploration
+1330 8:05a ⚖️ Sign-Up Consent Persistence Strategy — tRPC Wrapper Chosen
+S305 Legal consent tracking — design sections 1-3 presented; key architectural question raised about sign-up consent persistence strategy (May 10 at 8:09 AM)
+S306 Legal consent tracking — user chose tRPC wrapper as sign-up strategy; sections 1-3 design finalized (May 10 at 8:09 AM)
+S308 Legal consent tracking — section 4/5 presented: full UI and page flow design including RegisterForm changes, onboarding page, settings consents table (May 10 at 8:14 AM)
+S309 Legal consent tracking — all 5 design sections complete; awaiting approval to write spec and begin implementation (May 10 at 8:15 AM)
+S310 User consents design spec written and committed; awaiting user review before implementation plan is written (May 10 at 8:16 AM)
+1331 8:21a 🔵 Existing Terms Pages Design Spec Found — Prior Legal Infrastructure Context
+1333 " ✅ User Consents Design Spec Written to docs/superpowers/specs/
+S311 User consents design spec finalized and self-reviewed; pre-commit git state checked before committing (May 10 at 8:21 AM)
+S312 Observer session monitoring feat/user-consents branch — legal consent tracking system for Anynote app (24-task plan) (May 10 at 8:21 AM)
+1332 8:22a 🔵 Current Sign-Up Form Implementation — Exact State Before Consent Changes
+1334 8:24a ✅ User Consents Design Spec Committed to main
+1335 8:26a 🔵 Confirmed Baseline State of Settings, tRPC Routers, and UI Widgets Before Implementation
+1336 8:36a 🔵 tRPC context structure in Anynote
+1337 8:37a 🔵 Auth and protected layout structure in Anynote web app
+1338 " 🔵 tRPC test pattern and client setup in Anynote
+1339 " 🔵 E2E auth helper signUpAndAuthAs needs consent rows after user creation
+1340 8:38a 🔵 legal-documents.ts uses slug-based structure not matching ConsentDocumentType enum
+1341 8:44a 🟣 User consents implementation plan written and committed
+1342 8:45a ✅ User consents implementation plan committed to main
+S313 Observer session monitoring feat/user-consents — 24-task legal consent tracking system, now complete and verified (May 10 at 8:45 AM)
+S314 Observer session monitoring feat/user-consents — feature complete, branch pushed to GitHub (May 10 at 9:41 AM)
+S315 Observer session monitoring feat/user-consents — feature complete, PR #8 opened on GitHub (May 10 at 9:46 AM)
+**Investigated**: PR creation via `gh pr create` with full title, body covering summary, design choices, test plan, and files of interest. Warning about 1 uncommitted change (MEMORY.md only — not feature code).
 
-S266 Repeated investigation reads — no new findings; primary session still pre-plan (May 7 at 6:45 AM)
-S267 Design and document a complete server-side page export system for Anynote Next.js app — spec + 27-task implementation plan (May 7 at 6:52 AM)
-S268 Observer session monitoring 27-task TDD implementation of server-side page export for Anynote — all tasks complete, PR opened (May 7 at 7:06 AM)
-S269 Merge and deploy: push feat/server-page-export branch and create PR for server-side page export feature (May 7 at 11:15 AM)
-S270 Merge and deploy: push feat/server-page-export, create PR #6, verify CI, and squash-merge to main (May 7 at 11:23 AM)
-S271 мердж и делай деплой — merge feat/server-page-export PR and deploy AnyNote v1.5.0 to production (May 7 at 11:36 AM)
-S272 Add Gotenberg PDF export service to production deployment — compose.yml, env template, deploy workflow, and GitHub secrets (May 7 at 11:58 AM)
-S273 Commit Gotenberg deploy integration to main and deploy to production — completed as v1.6.0 (May 7 at 12:05 PM)
-S274 Migrate email notifications in @repo/mail from SMTP (nodemailer) to Sendsay API provider with synchronous sends, removing transactional outbox and cron patterns (May 7 at 12:31 PM)
-1166 8:00p 🟣 A4 Standard Margin PDF Export — All 5 Vitest Tests Pass
-1167 " ⚖️ Email Delivery Migrated from SMTP to Sendsay API
-1168 " 🔵 Full Audit of Existing SMTP Mail Architecture Before Sendsay Migration
-1169 8:04p 🔵 Sendsay API Package Investigation: No Official TypeScript Types, CJS-Only Distribution
-1170 8:05p ⚖️ Email Provider Migration: SMTP → Sendsay API
-1171 8:11p 🔵 Sendsay API: `issue.send` method with `users.list` for transactional email
-1172 8:20p 🔵 Sendsay API: Authoritative request shape for transactional email via `issue.send`
-1173 8:21p 🔵 Current SMTP dependencies in anynote monorepo lockfile
-1174 " ⚖️ Email Notification Mechanism Migration: SMTP → Sendsay API
-1175 " ✅ Detailed 14-Task Implementation Plan Written for SMTP→SendSay Migration
-1176 8:29p 🔵 Git Worktree Directory Pattern for anynote Project
-1177 " 🔵 .env.example Already Contains SENDSAY Vars — No SMTP Vars Present
-1178 " ✅ Feature Worktree Created for SendSay Migration Branch
-1181 8:30p ✅ Migration Worktree Fully Initialized — .env Symlinked, Dependencies Installed
-1182 " 🔵 Baseline @repo/mail Tests: dispatch and enqueue Fail Due to Missing Prisma Client in Worktree
-1179 8:31p 🔵 Migration Worktree Has No .env File — Subagents Need Symlink or Copy
-1180 " 🟣 Multi-Task UI Enhancement Sprint Planned
-1183 " 🔵 Anynote Project Structure Mapped for UI Enhancement Tasks
-1184 " 🔵 Clean Baseline Established After Prisma Client Generation — 24/24 Tests Pass
-1189 " 🔄 Task 1 Complete: packages/mail/package.json Swapped nodemailer for sendsay-api
-1201 " 🔴 PDF Export: Zero @page Margin Fixed to 20mm in Print Stylesheet
-1185 " 🔵 PDF Export Margin Bug: @page margin Explicitly Set to Zero
-1186 " 🔵 Date Slash Command Uses Plain MUI TextField, Not MUI X DatePicker
-1187 " 🔵 Task Item View Has No Explicit Vertical Centering CSS
-1188 " 🟣 Four Parallel Subagents Dispatched for UI Enhancement Sprint
-1193 8:32p ✅ pnpm install Completed — sendsay-api Downloaded, nodemailer Removed from Lockfile
-1190 " 🔵 PDF Margin Conflict: Gotenberg API Sets Margins But CSS @page Overrides Them
-1191 " 🔵 Theme System Architecture: UiProvider Supports system/light/dark, ThemeSection Has Full Implementation
-1192 " 🔵 @repo/ui Missing @mui/x-date-pickers Dependency for MUI X DatePicker
-1194 8:33p ✅ Lockfile Verified Clean — sendsay-api@2.4.0 Present, nodemailer Fully Removed
-1195 " ✅ Task 1 Committed — Dependency Swap Landed on feat/mail-sendsay-migration
-1199 " 🔵 packages/mail Source File Inventory Before sendsay Migration Tasks 2-5
-1196 " 🔴 PDF Export Margins Fixed: @page margin: 0 Changed to margin: 20mm
-1197 " 🔵 Other Three Agents Still Running — New Test Files Already Created
-1200 " ✅ Task 2: sendsay.test.ts Written — TDD Red Phase Started
-1198 " 🔴 TipTap Task List Vertical Alignment Fixed: align-items: center + margin-top: 0
-S275 SendSay email migration: complete @repo/mail SMTP→SendSay HTTP API migration on feat/mail-sendsay-migration branch (May 7 at 8:35 PM)
-1202 8:36p 🟣 MUI X DatePicker Integration via /date Slash Command
-1203 " 🔴 Vertical Centering of Task List Control Buttons in Tiptap
-1204 " 🔴 PDF Export Page Margin Fix with Playwright Verification
-1205 " 🟣 Workspace Sidebar User Profile Menu Redesign
-1206 8:40p ✅ Updated E2E tests for /date slash command to expect MUI X DateCalendar picker
-1207 " ✅ Refined MUI DateCalendar selector in E2E test for slash /date command
-1208 " ✅ E2E test for workspace user menu updated to assert theme switcher and vertical divider
-1209 8:41p ✅ E2E test for PDF export now asserts A4 margins of 20mm in @page CSS rule
-1210 " 🔵 Playwright test run reveals 2 failures: slash date picker and workspace theme menu not yet implemented
-1211 " 🔵 Full Playwright run: 10/12 passed; 2 specific failures with detailed error messages
-1212 8:42p 🔵 MUI X DateCalendar selected day uses ARIA `selected` attribute not CSS class; confirm button is "Ок" (Cyrillic)
-1213 " 🔴 Fixed workspace welcome heading assertion: page is now in Russian ("Добро пожаловать в AnyNote")
-1214 " 🔵 workspace-flow happy path now passes; slash date test fails at insertion step — picker works but date isn't inserted into editor
-1215 8:43p 🔵 @mui/x-date-pickers not at standard node_modules path; installed via pnpm virtual store
+**Learned**: - `gh pr create` warns about uncommitted changes but still creates the PR successfully.
+    - The uncommitted MEMORY.md is the auto-memory file managed by the superpowers observer framework — not part of the feature and correctly excluded from the PR.
 
-Access 828k tokens of past work via get_observations([IDs]) or mem-search skill.
+**Completed**: **PR #8 opened: https://github.com/AnyNoteInc/AnyNote/pull/8**
+
+    Title: `feat: legal-grade user consent tracking`
+
+    PR body covers:
+    - Summary: immutable user_consents table, 5 legal documents (152-ФЗ + ФЗ-38), sign-up → trpc.auth.signUp, consent gate in (protected)/layout.tsx, /onboarding/consents, /settings/consents marketing toggle
+    - Notable design choices: immutable log, manual version field (vs sha256), no backfill migration for existing users, onDelete Cascade
+    - Full test plan: pnpm gates ✅ (23 tasks, 120 tests), 13+3+2+5+3+3+4 unit tests, 2 E2E tests, signUpAndAuthAs backfill for existing E2E specs
+    - Files of interest: schema, migration, consents.ts helpers, consent/auth routers, ConsentsCheckboxes widget, onboarding/settings routes, protected layout, MarketingConsent.md, CLAUDE.md
+
+    Branch: feat/user-consents — 22 commits, 43 files changed, +1922/-246 lines
+
+**Next Steps**: Feature development is complete. PR is open for review. No active implementation work remains. The session is effectively done — awaiting code review or merge decision from the team.
+
+
+Access 655k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

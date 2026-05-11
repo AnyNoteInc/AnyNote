@@ -30,6 +30,7 @@ import type { PageItem } from './types'
 import { SearchSidebarSection } from './search-sidebar-section'
 import { SIDEBAR_WIDTH } from './workspace-layout-client'
 import { SidebarSearchTrigger } from '../search/sidebar-search-trigger'
+import { SidebarNotificationsTrigger } from '../notifications/sidebar-notifications-trigger'
 
 type Props = {
   workspace: { id: string; name: string; icon: string | null }
@@ -185,6 +186,10 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
           matchPrefix={`/workspaces/${workspace.id}/trash`}
           pathname={pathname}
         />
+      </Box>
+
+      <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>
+        <SidebarNotificationsTrigger />
       </Box>
 
       <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>{userMenu}</Box>

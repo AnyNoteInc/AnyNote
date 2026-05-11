@@ -1,0 +1,38 @@
+{
+  "name": "@repo/notifications",
+  "version": "0.1.0",
+  "type": "module",
+  "private": true,
+  "exports": {
+    ".": {
+      "types": "./src/index.ts",
+      "import": "./src/index.ts",
+      "default": "./src/index.ts"
+    },
+    "./worker": {
+      "types": "./src/worker/dispatcher.ts",
+      "import": "./src/worker/dispatcher.ts",
+      "default": "./src/worker/dispatcher.ts"
+    }
+  },
+  "scripts": {
+    "lint": "eslint . --max-warnings 0",
+    "build": "tsc -p tsconfig.json",
+    "check-types": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@repo/db": "workspace:*",
+    "@repo/mail": "workspace:*",
+    "web-push": "^3.6.7"
+  },
+  "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
+    "@types/node": "^22.19.1",
+    "@types/web-push": "^3.6.4",
+    "eslint": "^9.39.1",
+    "typescript": "^5.9.2",
+    "vitest": "^3.2.4"
+  }
+}

@@ -7,14 +7,6 @@ import { router, protectedProcedure } from '../trpc'
 
 const ThemeSchema = z.enum(['light', 'dark', 'system'])
 
-const NotificationSettingsSchema = z.object({
-  email: z.object({
-    mentions: z.boolean(),
-    comments: z.boolean(),
-    weeklyDigest: z.boolean(),
-  }),
-})
-
 export const userRouter = router({
   getPreferences: protectedProcedure.query(async ({ ctx }) => {
     return ctx.prisma.userPreference.findUnique({
@@ -29,16 +21,6 @@ export const userRouter = router({
         where: { userId: ctx.user.id },
         create: { userId: ctx.user.id, theme: input.theme },
         update: { theme: input.theme },
-      })
-    }),
-
-  setNotificationSettings: protectedProcedure
-    .input(NotificationSettingsSchema)
-    .mutation(async ({ ctx, input }) => {
-      return ctx.prisma.userPreference.upsert({
-        where: { userId: ctx.user.id },
-        create: { userId: ctx.user.id, notificationSettings: input },
-        update: { notificationSettings: input },
       })
     }),
 

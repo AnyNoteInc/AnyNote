@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 import type { PrismaClient } from '@repo/db'
+import { notify } from '@repo/notifications'
 
 import { router, protectedProcedure } from '../trpc'
 import { getActivePlanForUser, getPlanDisplayName, requireWritableWorkspace } from '../helpers/plan'
@@ -163,11 +164,68 @@ export const workspaceRouter = router({
         })
       }
 
-      return ctx.prisma.workspaceMember.upsert({
+      const workspace = await ctx.prisma.workspace.findUniqueOrThrow({
+        where: { id: input.workspaceId },
+        select: { id: true, name: true },
+      })
+
+      const member = await ctx.prisma.workspaceMember.upsert({
         where: { workspaceId_userId: { workspaceId: input.workspaceId, userId: user.id } },
         create: { workspaceId: input.workspaceId, userId: user.id, role: input.role },
         update: { role: input.role },
       })
+
+      const inviterFirst = (ctx.user as { firstName?: string }).firstName ?? ''
+      const inviterLast = (ctx.user as { lastName?: string }).lastName ?? ''
+      await notify.workspaceInvite(ctx.prisma, {
+        userId: user.id,
+        workspaceId: workspace.id,
+        actorId: ctx.user.id,
+        firstName: (user as { firstName?: string }).firstName,
+        inviterName: `${inviterFirst} ${inviterLast}`.trim() || ctx.user.email,
+        workspaceName: workspace.name,
+        link: `${ctx.returnUrlBase}/workspaces/${workspace.id}`,
+      })
+
+      return member
+    }),
+
+  updateMemberRole: protectedProcedure
+    .input(
+      z.object({
+        workspaceId: z.string().uuid(),
+        userId: z.string().uuid(),
+        role: z.enum(['ADMIN', 'EDITOR', 'COMMENTER', 'VIEWER']),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertRole(ctx, input.workspaceId, ['OWNER'])
+      await requireWritableWorkspace(input.workspaceId)
+
+      const member = await ctx.prisma.workspaceMember.update({
+        where: {
+          workspaceId_userId: { workspaceId: input.workspaceId, userId: input.userId },
+        },
+        data: { role: input.role },
+      })
+
+      const workspace = await ctx.prisma.workspace.findUniqueOrThrow({
+        where: { id: input.workspaceId },
+        select: { id: true, name: true },
+      })
+      const actorFirst = (ctx.user as { firstName?: string }).firstName ?? ''
+      const actorLast = (ctx.user as { lastName?: string }).lastName ?? ''
+
+      await notify.roleChanged(ctx.prisma, {
+        userId: input.userId,
+        workspaceId: workspace.id,
+        actorId: ctx.user.id,
+        newRole: input.role,
+        workspaceName: workspace.name,
+        actorName: `${actorFirst} ${actorLast}`.trim() || ctx.user.email,
+      })
+
+      return member
     }),
 
   removeMember: protectedProcedure

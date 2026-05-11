@@ -6,7 +6,9 @@ import {
   Button,
   Container,
   IconButton,
+  NotificationsIcon,
   Paper,
+  SettingsIcon,
   Stack,
   Typography,
 } from '@repo/ui/components'
@@ -26,7 +28,7 @@ export default async function ProfilePage() {
     `${session.user.firstName.charAt(0)}${session.user.lastName.charAt(0)}`.toUpperCase()
 
   return (
-    <Container maxWidth="sm" sx={{ py: { xs: 4, md: 8 } }}>
+    <Container maxWidth="md" sx={{ py: { xs: 4, md: 8 } }}>
       <Stack alignItems="center" spacing={3}>
         <ProfileAvatarUploader currentImage={session.user.image ?? null} initials={initials} />
         <Stack alignItems="center" spacing={0.5}>
@@ -36,6 +38,45 @@ export default async function ProfilePage() {
           <Typography variant="body2" color="text.secondary">
             {session.user.email}
           </Typography>
+        </Stack>
+
+        <Stack
+          direction={{ xs: 'column', sm: 'row' }}
+          spacing={2}
+          sx={{ width: '100%', pt: 2 }}
+        >
+          <Link href="/settings" style={{ flex: 1, textDecoration: 'none' }}>
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 2.5,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                cursor: 'pointer',
+                '&:hover': { bgcolor: 'action.hover' },
+              }}
+            >
+              <SettingsIcon />
+              <Typography variant="body1">Настройки</Typography>
+            </Paper>
+          </Link>
+          <Link href="/notifications" style={{ flex: 1, textDecoration: 'none' }}>
+            <Paper
+              variant="outlined"
+              sx={{
+                p: 2.5,
+                display: 'flex',
+                alignItems: 'center',
+                gap: 1.5,
+                cursor: 'pointer',
+                '&:hover': { bgcolor: 'action.hover' },
+              }}
+            >
+              <NotificationsIcon />
+              <Typography variant="body1">Уведомления</Typography>
+            </Paper>
+          </Link>
         </Stack>
 
         <Box sx={{ width: '100%', pt: 2 }}>
