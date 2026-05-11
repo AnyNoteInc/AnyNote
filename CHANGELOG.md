@@ -1,3 +1,10 @@
+## [1.12.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.12.0...v1.12.1) (2026-05-11)
+
+
+### Bug Fixes
+
+* **editor:** align nested task checkboxes, kill full-width overflow, default TOC to mini ([66e30df](https://github.com/AnyNoteInc/AnyNote/commit/66e30df2365dddde3aca7b923b56fc3be531b8de))
+
 # [1.12.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.11.1...v1.12.0) (2026-05-11)
 
 
