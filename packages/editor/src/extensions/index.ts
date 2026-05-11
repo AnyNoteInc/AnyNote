@@ -19,6 +19,7 @@ import { FileAttachment } from './file-attachment'
 import { buildFileUpload } from './file-upload'
 import { HiddenText } from './hidden-text'
 import { PageLink } from './page-link'
+import { Reminder } from './reminder'
 import { buildPlaceholder } from './placeholder'
 import { ResizableImage } from './resizable-image'
 import { SlashMenu, type SlashMenuRender } from './slash-menu'
@@ -60,6 +61,7 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   HiddenText,
   FileAttachment,
   PageLink.configure({ onNavigate: opts.onNavigateToPage }),
+  Reminder,
   ...buildCollaboration({ ydoc: opts.ydoc, provider: opts.provider, user: opts.user }),
   buildFileUpload(opts.uploadHandler),
   SlashMenu.configure({
