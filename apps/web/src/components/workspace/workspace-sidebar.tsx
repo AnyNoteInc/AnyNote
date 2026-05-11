@@ -8,7 +8,6 @@ import { usePathname } from 'next/navigation'
 import {
   ArrowDropDownIcon,
   Box,
-  DeleteIcon,
   IconButton,
   KeyboardDoubleArrowLeftIcon,
   Menu,
@@ -30,17 +29,16 @@ import type { PageItem } from './types'
 import { SearchSidebarSection } from './search-sidebar-section'
 import { SIDEBAR_WIDTH } from './workspace-layout-client'
 import { SidebarSearchTrigger } from '../search/sidebar-search-trigger'
-import { SidebarNotificationsTrigger } from '../notifications/sidebar-notifications-trigger'
 
 type Props = {
   workspace: { id: string; name: string; icon: string | null }
   features: PlanFeatures
   pages: PageItem[]
-  onHide?: () => void
+  onCollapse?: () => void
   userMenu: ReactNode
 }
 
-export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu }: Props) {
+export function WorkspaceSidebar({ workspace, features, pages, onCollapse, userMenu }: Props) {
   const pathname = usePathname()
   const favorites = trpc.page.listFavorites.useQuery({ workspaceId: workspace.id })
   const favoritePageIds = useMemo(
@@ -107,9 +105,14 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
             <ArrowDropDownIcon sx={{ fontSize: 18, color: 'text.secondary', flexShrink: 0 }} />
           )}
         </Box>
-        {onHide ? (
-          <Tooltip title="Скрыть" placement="right">
-            <IconButton size="small" onClick={onHide} sx={{ flexShrink: 0 }}>
+        {onCollapse ? (
+          <Tooltip title="Свернуть" placement="right">
+            <IconButton
+              size="small"
+              onClick={onCollapse}
+              aria-label="Свернуть"
+              sx={{ flexShrink: 0 }}
+            >
               <KeyboardDoubleArrowLeftIcon sx={{ fontSize: 16 }} />
             </IconButton>
           </Tooltip>
@@ -177,20 +180,6 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
       <PageTreeSection workspaceId={workspace.id} pages={pages} favoritePageIds={favoritePageIds} />
 
       <Box sx={{ flex: 1 }} />
-
-      <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1.25 }}>
-        <NavItem
-          icon={<DeleteIcon sx={{ fontSize: 16 }} />}
-          label="Корзина"
-          href={`/workspaces/${workspace.id}/trash`}
-          matchPrefix={`/workspaces/${workspace.id}/trash`}
-          pathname={pathname}
-        />
-      </Box>
-
-      <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>
-        <SidebarNotificationsTrigger />
-      </Box>
 
       <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>{userMenu}</Box>
     </Box>

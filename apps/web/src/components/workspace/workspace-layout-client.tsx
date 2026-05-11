@@ -152,7 +152,7 @@ export function WorkspaceLayoutClient({
       <WorkspaceHotkeyMount workspaceId={workspace.id} />
       <WorkspaceShell
         sidebarHidden={hidden}
-        sidebar={<WorkspaceSidebar {...sidebarProps} onHide={() => setHidden(true)} />}
+        sidebar={<WorkspaceSidebar {...sidebarProps} onCollapse={() => setHidden(true)} />}
         main={activePageId ? <PageEditorProvider>{mainContent}</PageEditorProvider> : mainContent}
       />
     </SearchDialogProvider>
