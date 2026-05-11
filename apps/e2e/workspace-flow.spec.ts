@@ -12,6 +12,7 @@ test('workspace + settings happy path', async ({ page }) => {
   await page.waitForURL(/\/workspaces\/[a-f0-9-]+$/)
   await expect(page.getByRole('heading', { name: 'Добро пожаловать в AnyNote' })).toBeVisible()
 
+  await page.getByRole('button', { name: 'Развернуть' }).click()
   await page.getByText('Тест Ревьюер', { exact: true }).click()
   const userMenu = page.getByRole('menu')
   await expect(userMenu.getByText('Тема', { exact: true })).toBeVisible()
