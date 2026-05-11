@@ -157,5 +157,9 @@ export { default as FormControl, type FormControlProps } from '@mui/material/For
 export { default as InputLabel, type InputLabelProps } from '@mui/material/InputLabel'
 export { default as FormHelperText, type FormHelperTextProps } from '@mui/material/FormHelperText'
 export { default as Slider, type SliderProps } from '@mui/material/Slider'
+export { default as FormLabel, type FormLabelProps } from '@mui/material/FormLabel'
+export { default as Radio, type RadioProps } from '@mui/material/Radio'
+export { default as RadioGroup, type RadioGroupProps } from '@mui/material/RadioGroup'
+export { DateTimePicker, type DateTimePickerProps } from '@mui/x-date-pickers/DateTimePicker'
 
 export * from './chat'
