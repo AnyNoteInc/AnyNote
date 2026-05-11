@@ -33,7 +33,7 @@ export const SIDEBAR_MINI_WIDTH = 56
 type Props = {
   workspace: { id: string; name: string; icon: string | null }
   features: PlanFeatures
-  user: { id: string; firstName: string; lastName: string; email: string; image: string | null }
+  user: { firstName: string; lastName: string; email: string; image: string | null }
   onExpand: () => void
 }
 
@@ -72,6 +72,17 @@ export function WorkspaceSidebarMini({ workspace, features, user, onExpand }: Pr
       >
         <Box
           onClick={hasMultiple ? (event) => setSwitcherAnchor(event.currentTarget) : undefined}
+          onKeyDown={
+            hasMultiple
+              ? (event) => {
+                  if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault()
+                    setSwitcherAnchor(event.currentTarget)
+                  }
+                }
+              : undefined
+          }
+          tabIndex={hasMultiple ? 0 : undefined}
           aria-label={workspace.name}
           role={hasMultiple ? 'button' : undefined}
           sx={{
@@ -84,6 +95,9 @@ export function WorkspaceSidebarMini({ workspace, features, user, onExpand }: Pr
             justifyContent: 'center',
             fontSize: 16,
             cursor: hasMultiple ? 'pointer' : 'default',
+            '&:focus-visible': hasMultiple
+              ? { outline: '2px solid', outlineColor: 'primary.main', outlineOffset: 2 }
+              : undefined,
           }}
         >
           {workspace.icon ?? '📒'}
