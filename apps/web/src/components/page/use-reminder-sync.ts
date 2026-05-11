@@ -1,10 +1,18 @@
 'use client'
 
 import { useEffect, useMemo } from 'react'
-import type { Editor } from '@tiptap/core'
-import type { Node as PMNode } from '@tiptap/pm/model'
+import type { Editor } from '@repo/editor'
 
 import { trpc } from '@/trpc/client'
+
+type PMNode = {
+  type: { name: string }
+  attrs: Record<string, unknown>
+}
+
+export type DocLike = {
+  descendants(visit: (node: PMNode) => void): void
+}
 
 export type ReminderSyncInput = {
   id: string
@@ -16,9 +24,7 @@ export type ReminderSyncInput = {
   doneAt: string | null
 }
 
-export function collectReminderInputs(doc: {
-  descendants(visit: (node: PMNode) => void): void
-}): ReminderSyncInput[] {
+export function collectReminderInputs(doc: DocLike): ReminderSyncInput[] {
   const out: ReminderSyncInput[] = []
   doc.descendants((node) => {
     if (node.type.name !== 'reminder') return
@@ -61,7 +67,6 @@ export function useReminderSync(editor: Editor | null, pageId: string) {
         const reminders = collectReminderInputs(editor.state.doc)
         sync.mutate({ pageId, reminders })
       }, 1_000),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [editor, pageId, sync],
   )
 

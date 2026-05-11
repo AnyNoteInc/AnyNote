@@ -29,6 +29,8 @@ import { useOutlineMode } from '@/hooks/use-outline-mode'
 import { usePageEditor } from './editor-context'
 import { EditorContentSkeleton } from './editor-content-skeleton'
 import { EditorOutline } from './editor-outline'
+import { ReminderPopover, type ReminderFormValue } from './reminder-popover'
+import { useReminderSync } from './use-reminder-sync'
 
 const AnyNoteEditor = dynamic(() => import('@repo/editor').then((m) => m.AnyNoteEditor), {
   ssr: false,
@@ -82,6 +84,113 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
   const [moveTarget, setMoveTarget] = useState<PageTreeSelection | null>(null)
   const [moveBusy, setMoveBusy] = useState(false)
   const [moveError, setMoveError] = useState<string | null>(null)
+
+  const [reminderUI, setReminderUI] = useState<
+    | { open: false }
+    | { open: true; mode: 'create' | 'edit'; anchorEl: HTMLElement | null; initial: ReminderFormValue }
+  >({ open: false })
+
+  const findReminderNode = useCallback(
+    (id: string): { attrs: ReminderFormValue; pos: number } | null => {
+      if (!editor) return null
+      let found: { attrs: ReminderFormValue; pos: number } | null = null
+      editor.state.doc.descendants((node, pos) => {
+        if (node.type.name === 'reminder' && node.attrs.id === id) {
+          found = {
+            attrs: {
+              id: node.attrs.id,
+              dueAt: node.attrs.dueAt || null,
+              offsets: node.attrs.offsets ?? [],
+              audience: node.attrs.audience ?? 'ME',
+              label: node.attrs.label ?? null,
+              recipients: node.attrs.recipients ?? [],
+              doneAt: node.attrs.doneAt ?? null,
+            },
+            pos,
+          }
+          return false
+        }
+        return true
+      })
+      return found
+    },
+    [editor],
+  )
+
+  const handleReminderCreate = useCallback(
+    (id: string) => {
+      setTimeout(() => {
+        const anchor = document.querySelector(`[data-id="reminder-${id}"]`) as HTMLElement | null
+        const found = findReminderNode(id)
+        if (!found) return
+        setReminderUI({ open: true, mode: 'create', anchorEl: anchor, initial: found.attrs })
+      }, 0)
+    },
+    [findReminderNode],
+  )
+
+  const handleReminderClick = useCallback(
+    (id: string, anchor: HTMLElement) => {
+      const found = findReminderNode(id)
+      if (!found) return
+      setReminderUI({ open: true, mode: 'edit', anchorEl: anchor, initial: found.attrs })
+    },
+    [findReminderNode],
+  )
+
+  const saveReminder = useCallback(
+    (value: ReminderFormValue) => {
+      if (!editor) return
+      let pos: number | null = null
+      editor.state.doc.descendants((node, p) => {
+        if (node.type.name === 'reminder' && node.attrs.id === value.id) {
+          pos = p
+          return false
+        }
+        return true
+      })
+      if (pos === null) return
+      editor
+        .chain()
+        .focus()
+        .setNodeSelection(pos)
+        .updateAttributes('reminder', {
+          dueAt: value.dueAt ?? '',
+          offsets: value.offsets,
+          audience: value.audience,
+          label: value.label,
+          recipients: value.recipients,
+          doneAt: value.doneAt,
+        })
+        .run()
+    },
+    [editor],
+  )
+
+  const deleteReminder = useCallback(
+    (id: string) => {
+      if (!editor) return
+      let pos: number | null = null
+      let size = 0
+      editor.state.doc.descendants((node, p) => {
+        if (node.type.name === 'reminder' && node.attrs.id === id) {
+          pos = p
+          size = node.nodeSize
+          return false
+        }
+        return true
+      })
+      if (pos === null) return
+      editor
+        .chain()
+        .focus()
+        .deleteRange({ from: pos, to: pos + size })
+        .run()
+    },
+    [editor],
+  )
+
+  useReminderSync(editor, page.id)
 
   const attachToPage = useCallback(
     async (fileId: string) => {
@@ -152,6 +261,22 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
       if (timer) window.clearTimeout(timer)
       window.removeEventListener('hashchange', apply)
     }
+  }, [editor])
+
+  useEffect(() => {
+    if (!editor) return
+    const hash = typeof window !== 'undefined' ? window.location.hash : ''
+    const match = /^#reminder-([0-9a-f-]{36})$/i.exec(hash)
+    if (!match) return
+    const id = match[1]
+    const t = setTimeout(() => {
+      const el = document.querySelector(`[data-id="reminder-${id}"]`) as HTMLElement | null
+      if (!el) return
+      el.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      el.classList.add('reminder-flash')
+      setTimeout(() => el.classList.remove('reminder-flash'), 2000)
+    }, 200)
+    return () => clearTimeout(t)
   }, [editor])
 
   const handleRequestBlockMove = useCallback((pos: number) => {
@@ -237,8 +362,22 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
           onNavigateToPage={onNavigateToPage}
           onReady={handleEditorReady}
           onRequestBlockMove={handleRequestBlockMove}
+          onReminderCreate={handleReminderCreate}
+          onReminderClick={handleReminderClick}
           loadingFallback={<EditorContentSkeleton />}
         />
+        {reminderUI.open && (
+          <ReminderPopover
+            open
+            anchorEl={reminderUI.anchorEl}
+            mode={reminderUI.mode}
+            initial={reminderUI.initial}
+            workspaceId={workspaceId}
+            onClose={() => setReminderUI({ open: false })}
+            onSave={saveReminder}
+            onDelete={() => deleteReminder(reminderUI.initial.id)}
+          />
+        )}
         <EditorOutline editor={editor} mode={outlineMode} />
         <BlockMoveDialog
           open={movePos != null}

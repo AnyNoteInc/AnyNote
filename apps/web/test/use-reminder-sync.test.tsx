@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
-import { collectReminderInputs } from '@/components/page/use-reminder-sync'
+import { collectReminderInputs, type DocLike } from '@/components/page/use-reminder-sync'
 
 describe('collectReminderInputs', () => {
   it('skips reminder nodes without an id or dueAt', () => {
-    const fakeDoc = {
-      descendants(visit: (node: any) => void) {
+    const fakeDoc: DocLike = {
+      descendants(visit) {
         visit({ type: { name: 'paragraph' }, attrs: {} })
         visit({ type: { name: 'reminder' }, attrs: { id: '', dueAt: '2026-01-01T00:00:00Z' } })
         visit({ type: { name: 'reminder' }, attrs: { id: 'r1', dueAt: '' } })
@@ -23,7 +23,7 @@ describe('collectReminderInputs', () => {
         })
       },
     }
-    expect(collectReminderInputs(fakeDoc as any)).toEqual([
+    expect(collectReminderInputs(fakeDoc)).toEqual([
       {
         id: 'r2',
         dueAt: '2026-06-01T00:00:00Z',
