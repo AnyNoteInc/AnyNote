@@ -1,3 +1,10 @@
+## [1.13.2](https://github.com/AnyNoteInc/AnyNote/compare/v1.13.1...v1.13.2) (2026-05-11)
+
+
+### Bug Fixes
+
+* reminder ([dbde8ea](https://github.com/AnyNoteInc/AnyNote/commit/dbde8eac3528e87a77efdd451a8e1b36732a1fda))
+
 ## [1.13.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.13.0...v1.13.1) (2026-05-11)
 
 
