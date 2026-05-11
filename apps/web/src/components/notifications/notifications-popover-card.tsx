@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useLayoutEffect, useRef } from 'react'
 
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -15,9 +15,15 @@ import { formatNotification } from './format-notification'
 
 type EventForFormat = Pick<NotificationEvent, 'type' | 'payload' | 'resourceUrl'>
 
-export function NotificationsPopoverCard({ onNavigate }: Readonly<{ onNavigate: () => void }>) {
+type Props = Readonly<{
+  onNavigate: () => void
+  onLayoutChange?: () => void
+}>
+
+export function NotificationsPopoverCard({ onNavigate, onLayoutChange }: Props) {
   const router = useRouter()
   const utils = trpc.useUtils()
+  const containerRef = useRef<HTMLDivElement | null>(null)
   const list = trpc.notification.list.useInfiniteQuery(
     { limit: 20 },
     { getNextPageParam: (p) => p.nextCursor ?? undefined },
@@ -28,6 +34,19 @@ export function NotificationsPopoverCard({ onNavigate }: Readonly<{ onNavigate: 
 
   const items = list.data?.pages.flatMap((p) => p.items) ?? []
   const unreadIds = items.filter((i) => i.readAt === null).map((i) => i.id)
+  const itemCount = items.length
+
+  useLayoutEffect(() => {
+    onLayoutChange?.()
+  }, [itemCount, list.isFetching, onLayoutChange])
+
+  useEffect(() => {
+    const node = containerRef.current
+    if (!node || typeof ResizeObserver === 'undefined') return
+    const observer = new ResizeObserver(() => onLayoutChange?.())
+    observer.observe(node)
+    return () => observer.disconnect()
+  }, [onLayoutChange])
 
   // Mark visible unread as read (debounced).
   const seenRef = useRef(new Set<string>())
@@ -44,7 +63,10 @@ export function NotificationsPopoverCard({ onNavigate }: Readonly<{ onNavigate: 
   }, [unreadKey])
 
   return (
-    <Box sx={{ width: 360, maxHeight: 480, display: 'flex', flexDirection: 'column' }}>
+    <Box
+      ref={containerRef}
+      sx={{ width: 360, maxHeight: 480, display: 'flex', flexDirection: 'column' }}
+    >
       <Stack
         direction="row"
         justifyContent="space-between"

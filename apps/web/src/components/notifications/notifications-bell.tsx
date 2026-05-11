@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useCallback, useRef, useState } from 'react'
 
 import { Badge, IconButton, NotificationsIcon, Popover, Tooltip } from '@repo/ui/components'
 
@@ -13,10 +13,18 @@ type Props = Readonly<{
   tooltipPlacement?: 'top' | 'right' | 'bottom' | 'left'
 }>
 
+type PopoverAction = {
+  updatePosition: () => void
+}
+
 export function NotificationsBell({ size = 'medium', tooltipPlacement = 'top' }: Props) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
+  const popoverActionRef = useRef<PopoverAction | null>(null)
   const unread = trpc.notification.unreadCount.useQuery(undefined, { refetchInterval: 30_000 })
   const close = () => setAnchor(null)
+  const updatePopoverPosition = useCallback(() => {
+    popoverActionRef.current?.updatePosition()
+  }, [])
 
   return (
     <>
@@ -41,11 +49,12 @@ export function NotificationsBell({ size = 'medium', tooltipPlacement = 'top' }:
       <Popover
         open={!!anchor}
         anchorEl={anchor}
+        action={popoverActionRef}
         onClose={close}
         anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
       >
-        <NotificationsPopoverCard onNavigate={close} />
+        <NotificationsPopoverCard onNavigate={close} onLayoutChange={updatePopoverPosition} />
       </Popover>
     </>
   )
