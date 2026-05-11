@@ -1,13 +1,16 @@
 'use client'
 
+import type { NotificationCategory, NotificationChannel } from '@repo/notifications'
 import { Box, Button, Stack, Switch, Tooltip, Typography } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
 
 import { PushToggle } from '../notifications/push-toggle'
 
-type Category = 'SECURITY' | 'COLLABORATION' | 'MARKETING'
-type Channel = 'EMAIL' | 'IN_APP' | 'WEB_PUSH'
+// Subset of categories surfaced in the matrix UI. SERVICE is hidden — its
+// channels are all locked/required, so users have nothing to toggle.
+type Category = Exclude<NotificationCategory, 'SERVICE'>
+type Channel = NotificationChannel
 type Cell = { enabled: boolean; locked: boolean }
 type PrefsMatrix = Record<Category, Record<Channel, Cell>>
 
@@ -69,6 +72,7 @@ function CategoryRow({
       <Typography variant="body2">{category.label}</Typography>
       {CHANNELS.map((ch) => {
         const cell = matrix[category.key][ch.key]
+        if (!cell) return null
         if (ch.key === 'WEB_PUSH') {
           return (
             <Box key={ch.key} sx={{ textAlign: 'center' }}>

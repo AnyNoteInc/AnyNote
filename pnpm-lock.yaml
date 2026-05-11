@@ -182,6 +182,9 @@ importers:
       '@repo/mail':
         specifier: workspace:*
         version: link:../../packages/mail
+      '@repo/notifications':
+        specifier: workspace:*
+        version: link:../../packages/notifications
       '@repo/storage':
         specifier: workspace:*
         version: link:../../packages/storage

@@ -1,12 +1,13 @@
 'use client'
 
+import type { NotificationCategory } from '@repo/notifications'
 import { Switch } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
 import { subscribePush, unsubscribePush } from '@/lib/push/register-sw'
 
 type Props = Readonly<{
-  category: 'SECURITY' | 'COLLABORATION' | 'MARKETING'
+  category: NotificationCategory
   enabled: boolean
   locked: boolean
   onAfterChange: () => void

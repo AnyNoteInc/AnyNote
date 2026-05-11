@@ -27,13 +27,13 @@ export async function subscribePush(): Promise<SerializedSubscription | null> {
     userVisibleOnly: true,
     applicationServerKey: urlBase64ToUint8Array(VAPID_PUBLIC_KEY),
   })
-  const json = sub.toJSON()
-  if (!json.endpoint || !json.keys?.p256dh || !json.keys?.auth) return null
-  return { endpoint: json.endpoint, keys: { p256dh: json.keys.p256dh, auth: json.keys.auth } }
+  const { endpoint, keys } = sub.toJSON()
+  if (!endpoint || !keys?.p256dh || !keys?.auth) return null
+  return { endpoint, keys: { p256dh: keys.p256dh, auth: keys.auth } }
 }
 
 export async function unsubscribePush(): Promise<void> {
-  if (typeof globalThis.window === 'undefined' || !('serviceWorker' in navigator)) return
+  if (globalThis.window === undefined || !('serviceWorker' in navigator)) return
   const reg = await navigator.serviceWorker.getRegistration('/')
   if (!reg) return
   const sub = await reg.pushManager.getSubscription()
