@@ -8,12 +8,12 @@ import { trpc } from '@/trpc/client'
 
 import { NotificationsPopoverCard } from './notifications-popover-card'
 
-type Props = {
+type Props = Readonly<{
   size?: 'small' | 'medium'
   tooltipPlacement?: 'top' | 'right' | 'bottom' | 'left'
-}
+}>
 
-export function NotificationsBell({ size = 'small', tooltipPlacement = 'top' }: Props) {
+export function NotificationsBell({ size = 'medium', tooltipPlacement = 'top' }: Props) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const unread = trpc.notification.unreadCount.useQuery(undefined, { refetchInterval: 30_000 })
   const close = () => setAnchor(null)
@@ -26,15 +26,15 @@ export function NotificationsBell({ size = 'small', tooltipPlacement = 'top' }: 
           onClick={(event) => setAnchor(event.currentTarget)}
           aria-label="Уведомления"
           sx={{
-            width: 40,
-            height: 40,
+            width: 44,
+            height: 44,
             borderRadius: 0.75,
             color: 'text.secondary',
             '&:hover': { bgcolor: 'action.hover' },
           }}
         >
           <Badge badgeContent={unread.data ?? 0} max={99} color="error">
-            <NotificationsIcon sx={{ fontSize: 18 }} />
+            <NotificationsIcon sx={{ fontSize: 26 }} />
           </Badge>
         </IconButton>
       </Tooltip>

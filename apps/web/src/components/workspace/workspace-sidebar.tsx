@@ -165,7 +165,7 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
         <NavItem
           icon={<SettingsIcon sx={{ fontSize: 16 }} />}
           label="Настройки"
-          shortcut={isMac() ? '⌘S' : 'Alt+S'}
+          shortcut={isMac() ? '⌘,' : 'Alt+,'}
           href={`/workspaces/${workspace.id}/settings`}
           matchPrefix={`/workspaces/${workspace.id}/settings`}
           pathname={pathname}
