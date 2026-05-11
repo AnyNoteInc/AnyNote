@@ -8,17 +8,92 @@ import { PushToggle } from '../notifications/push-toggle'
 
 type Category = 'SECURITY' | 'COLLABORATION' | 'MARKETING'
 type Channel = 'EMAIL' | 'IN_APP' | 'WEB_PUSH'
+type Cell = { enabled: boolean; locked: boolean }
+type PrefsMatrix = Record<Category, Record<Channel, Cell>>
 
-const CATEGORIES: { key: Category; label: string }[] = [
+const CATEGORIES: ReadonlyArray<{ key: Category; label: string }> = [
   { key: 'SECURITY', label: 'Безопасность' },
   { key: 'COLLABORATION', label: 'Совместная работа' },
   { key: 'MARKETING', label: 'Маркетинг и дайджест' },
 ]
-const CHANNELS: { key: Channel; label: string }[] = [
+const CHANNELS: ReadonlyArray<{ key: Channel; label: string }> = [
   { key: 'EMAIL', label: 'Email' },
   { key: 'IN_APP', label: 'In-app' },
   { key: 'WEB_PUSH', label: 'Web push' },
 ]
+
+type SwitchCellProps = Readonly<{
+  cell: Cell
+  onChange: (checked: boolean) => Promise<void>
+  isPending: boolean
+}>
+
+function SwitchCell({ cell, onChange, isPending }: SwitchCellProps) {
+  const tooltip = cell.locked ? 'Это уведомление обязательное' : ''
+  return (
+    <Box sx={{ textAlign: 'center' }}>
+      <Tooltip title={tooltip}>
+        <span>
+          <Switch
+            checked={cell.enabled}
+            disabled={cell.locked || isPending}
+            onChange={(_e, checked) => {
+              void onChange(checked)
+            }}
+          />
+        </span>
+      </Tooltip>
+    </Box>
+  )
+}
+
+type CategoryRowProps = Readonly<{
+  category: { key: Category; label: string }
+  matrix: PrefsMatrix
+  hasAnySubscription: boolean
+  refresh: () => void
+  onChangePreference: (category: Category, channel: Channel, enabled: boolean) => Promise<void>
+  isPending: boolean
+}>
+
+function CategoryRow({
+  category,
+  matrix,
+  hasAnySubscription,
+  refresh,
+  onChangePreference,
+  isPending,
+}: CategoryRowProps) {
+  return (
+    <Box sx={{ display: 'contents' }}>
+      <Typography variant="body2">{category.label}</Typography>
+      {CHANNELS.map((ch) => {
+        const cell = matrix[category.key][ch.key]
+        if (ch.key === 'WEB_PUSH') {
+          return (
+            <Box key={ch.key} sx={{ textAlign: 'center' }}>
+              <PushToggle
+                category={category.key}
+                enabled={cell.enabled}
+                locked={cell.locked}
+                onAfterChange={refresh}
+                hasAnySubscription={hasAnySubscription}
+              />
+            </Box>
+          )
+        }
+        return (
+          <SwitchCell
+            key={ch.key}
+            cell={cell}
+            isPending={isPending}
+            onChange={(checked) => onChangePreference(category.key, ch.key, checked)}
+          />
+        )
+      })}
+    </Box>
+  )
+}
 
 export function PreferencesMatrix() {
   const utils = trpc.useUtils()
@@ -36,7 +111,14 @@ export function PreferencesMatrix() {
     utils.notification.listPushSubscriptions.invalidate()
   }
 
+  const onChangePreference = async (category: Category, channel: Channel, enabled: boolean) => {
+    await setPref.mutateAsync({ category, channel, enabled }).catch(() => undefined)
+  }
+
   if (!prefs.data) return null
+
+  const hasAnySubscription = (subs.data?.length ?? 0) > 0
+  const matrix = prefs.data as PrefsMatrix
 
   return (
     <Box
@@ -69,47 +151,15 @@ export function PreferencesMatrix() {
           </Typography>
         ))}
         {CATEGORIES.map((cat) => (
-          <Box key={cat.key} sx={{ display: 'contents' }}>
-            <Typography variant="body2">{cat.label}</Typography>
-            {CHANNELS.map((ch) => {
-              const cell = prefs.data[cat.key][ch.key]
-              if (ch.key === 'WEB_PUSH') {
-                return (
-                  <Box key={ch.key} sx={{ textAlign: 'center' }}>
-                    <PushToggle
-                      category={cat.key}
-                      enabled={cell.enabled}
-                      locked={cell.locked}
-                      onAfterChange={refresh}
-                      hasAnySubscription={(subs.data?.length ?? 0) > 0}
-                    />
-                  </Box>
-                )
-              }
-              const tooltip = cell.locked ? 'Это уведомление обязательное' : ''
-              return (
-                <Box key={ch.key} sx={{ textAlign: 'center' }}>
-                  <Tooltip title={tooltip}>
-                    <span>
-                      <Switch
-                        checked={cell.enabled}
-                        disabled={cell.locked || setPref.isPending}
-                        onChange={async (_e, checked) => {
-                          await setPref
-                            .mutateAsync({
-                              category: cat.key,
-                              channel: ch.key,
-                              enabled: checked,
-                            })
-                            .catch(() => undefined)
-                        }}
-                      />
-                    </span>
-                  </Tooltip>
-                </Box>
-              )
-            })}
-          </Box>
+          <CategoryRow
+            key={cat.key}
+            category={cat}
+            matrix={matrix}
+            hasAnySubscription={hasAnySubscription}
+            refresh={refresh}
+            onChangePreference={onChangePreference}
+            isPending={setPref.isPending}
+          />
         ))}
       </Box>
       <Stack

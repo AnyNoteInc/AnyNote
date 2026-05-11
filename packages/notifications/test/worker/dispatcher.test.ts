@@ -1,5 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
+import type { PrismaClient } from '@repo/db'
+
 const { lockMock, sendEmailMock, sendPushMock, GoneSubscriptionError } = vi.hoisted(() => {
   class GoneSubscriptionError extends Error {}
   return {
@@ -19,32 +21,39 @@ vi.mock('../../src/worker/send-web-push.ts', () => ({
 
 import { runDispatcherTick } from '../../src/worker/dispatcher.ts'
 
-function makePrisma(delivery: Record<string, unknown>) {
+type MockPrisma = {
+  notificationDelivery: {
+    findUnique: ReturnType<typeof vi.fn>
+    update: ReturnType<typeof vi.fn>
+  }
+  pushSubscription: { delete: ReturnType<typeof vi.fn> }
+}
+
+function makeMock(delivery: Record<string, unknown>): MockPrisma {
   return {
     notificationDelivery: {
       findUnique: vi.fn(async () => delivery),
       update: vi.fn(async () => undefined),
     },
     pushSubscription: { delete: vi.fn(async () => undefined) },
-  } as never
+  }
 }
+
+const asPrisma = (mock: MockPrisma): PrismaClient => mock as unknown as PrismaClient
 
 describe('runDispatcherTick', () => {
   it('marks delivery DELIVERED on success', async () => {
     lockMock.mockResolvedValueOnce(['d1'])
     sendEmailMock.mockResolvedValueOnce(undefined)
-    const prisma = makePrisma({
+    const mock = makeMock({
       id: 'd1',
       channel: 'EMAIL',
       attempts: 0,
       event: {},
       targetSubscription: null,
     })
-    await runDispatcherTick(prisma, { workerId: 'w1', batchSize: 10, maxAttempts: 5 })
-    const updateCalls = (prisma as never as {
-      notificationDelivery: { update: { mock: { calls: Array<[Record<string, unknown>]> } } }
-    }).notificationDelivery.update.mock.calls
-    expect(updateCalls[0][0]).toMatchObject({
+    await runDispatcherTick(asPrisma(mock), { workerId: 'w1', batchSize: 10, maxAttempts: 5 })
+    expect(mock.notificationDelivery.update.mock.calls[0][0]).toMatchObject({
       where: { id: 'd1' },
       data: { status: 'DELIVERED' },
     })
@@ -53,45 +62,38 @@ describe('runDispatcherTick', () => {
   it('increments attempts and reschedules on failure', async () => {
     lockMock.mockResolvedValueOnce(['d1'])
     sendEmailMock.mockRejectedValueOnce(new Error('boom'))
-    const prisma = makePrisma({
+    const mock = makeMock({
       id: 'd1',
       channel: 'EMAIL',
       attempts: 1,
       event: {},
       targetSubscription: null,
     })
-    await runDispatcherTick(prisma, { workerId: 'w1', batchSize: 10, maxAttempts: 5 })
-    const updateCalls = (prisma as never as {
-      notificationDelivery: {
-        update: { mock: { calls: Array<[{ data: { attempts: number; status: string; nextAttemptAt: unknown } }]> } }
-      }
-    }).notificationDelivery.update.mock.calls
-    expect(updateCalls[0][0].data.attempts).toBe(2)
-    expect(updateCalls[0][0].data.status).toBe('PENDING')
-    expect(updateCalls[0][0].data.nextAttemptAt).toBeInstanceOf(Date)
+    await runDispatcherTick(asPrisma(mock), { workerId: 'w1', batchSize: 10, maxAttempts: 5 })
+    const call = mock.notificationDelivery.update.mock.calls[0][0]
+    expect(call.data.attempts).toBe(2)
+    expect(call.data.status).toBe('PENDING')
+    expect(call.data.nextAttemptAt).toBeInstanceOf(Date)
   })
 
   it('marks FAILED after max attempts', async () => {
     lockMock.mockResolvedValueOnce(['d1'])
     sendEmailMock.mockRejectedValueOnce(new Error('boom'))
-    const prisma = makePrisma({
+    const mock = makeMock({
       id: 'd1',
       channel: 'EMAIL',
       attempts: 4,
       event: {},
       targetSubscription: null,
     })
-    await runDispatcherTick(prisma, { workerId: 'w1', batchSize: 10, maxAttempts: 5 })
-    const updateCalls = (prisma as never as {
-      notificationDelivery: { update: { mock: { calls: Array<[{ data: { status: string } }]> } } }
-    }).notificationDelivery.update.mock.calls
-    expect(updateCalls[0][0].data.status).toBe('FAILED')
+    await runDispatcherTick(asPrisma(mock), { workerId: 'w1', batchSize: 10, maxAttempts: 5 })
+    expect(mock.notificationDelivery.update.mock.calls[0][0].data.status).toBe('FAILED')
   })
 
   it('deletes push subscription and marks FAILED on GoneSubscriptionError', async () => {
     lockMock.mockResolvedValueOnce(['d1'])
     sendPushMock.mockRejectedValueOnce(new GoneSubscriptionError('gone'))
-    const prisma = makePrisma({
+    const mock = makeMock({
       id: 'd1',
       channel: 'WEB_PUSH',
       attempts: 0,
@@ -99,14 +101,8 @@ describe('runDispatcherTick', () => {
       event: {},
       targetSubscription: { id: 'sub1' },
     })
-    await runDispatcherTick(prisma, { workerId: 'w1', batchSize: 10, maxAttempts: 5 })
-    const pushDelete = (prisma as never as {
-      pushSubscription: { delete: { mock: { calls: Array<[{ where: { id: string } }]> } } }
-    }).pushSubscription.delete
-    expect(pushDelete).toHaveBeenCalledWith({ where: { id: 'sub1' } })
-    const updateCalls = (prisma as never as {
-      notificationDelivery: { update: { mock: { calls: Array<[{ data: { status: string } }]> } } }
-    }).notificationDelivery.update.mock.calls
-    expect(updateCalls[0][0].data.status).toBe('FAILED')
+    await runDispatcherTick(asPrisma(mock), { workerId: 'w1', batchSize: 10, maxAttempts: 5 })
+    expect(mock.pushSubscription.delete).toHaveBeenCalledWith({ where: { id: 'sub1' } })
+    expect(mock.notificationDelivery.update.mock.calls[0][0].data.status).toBe('FAILED')
   })
 })

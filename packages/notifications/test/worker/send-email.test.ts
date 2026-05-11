@@ -1,11 +1,15 @@
 import { describe, expect, it, vi } from 'vitest'
 
+type RenderResult = { kind: string; data: Record<string, unknown> } | null
+
 const { sendMailNowMock, renderMock } = vi.hoisted(() => ({
   sendMailNowMock: vi.fn(async () => undefined),
-  renderMock: vi.fn(() => ({
-    kind: 'invitation',
-    data: { firstName: 'A', inviterName: 'B', workspaceName: 'X', link: 'l' },
-  })),
+  renderMock: vi.fn(
+    (): RenderResult => ({
+      kind: 'invitation',
+      data: { firstName: 'A', inviterName: 'B', workspaceName: 'X', link: 'l' },
+    }),
+  ),
 }))
 
 vi.mock('@repo/mail', () => ({ sendMailNow: sendMailNowMock }))
@@ -31,7 +35,7 @@ describe('sendDeliveryEmail', () => {
   })
 
   it('throws if no template registered for event type', async () => {
-    renderMock.mockReturnValueOnce(null as never)
+    renderMock.mockReturnValueOnce(null)
     const delivery = {
       id: 'd1',
       channel: 'EMAIL',

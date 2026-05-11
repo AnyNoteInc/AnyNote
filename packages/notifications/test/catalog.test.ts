@@ -5,7 +5,8 @@ import { EVENT_CATALOG } from '../src/catalog.ts'
 
 describe('EVENT_CATALOG', () => {
   it('has an entry for every NotificationEventType enum value', () => {
-    for (const value of Object.values(NotificationEventType)) {
+    const values = Object.values(NotificationEventType) as string[]
+    for (const value of values) {
       expect(EVENT_CATALOG, `missing entry for ${value}`).toHaveProperty(value)
     }
   })

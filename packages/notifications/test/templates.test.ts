@@ -25,7 +25,8 @@ describe('renderInApp', () => {
   })
 
   it('produces a row for NEW_LOGIN', () => {
-    const result = renderInApp('NEW_LOGIN', { ipAddress: '1.2.3.4', userAgent: 'Chrome' })
+    // RFC 5737: 192.0.2.0/24 is reserved for documentation, never routed.
+    const result = renderInApp('NEW_LOGIN', { ipAddress: '192.0.2.1', userAgent: 'Chrome' })
     expect(result.title).toBeTruthy()
     expect(result.icon).toBe('security')
   })
@@ -38,8 +39,8 @@ describe('renderPushPayload', () => {
       { workspaceName: 'Marketing', inviterName: 'Anna' },
       '/workspaces/abc',
     )
-    expect(result).not.toBeNull()
-    expect(result!.url).toBe('/workspaces/abc')
+    if (result === null) throw new Error('renderPushPayload returned null')
+    expect(result.url).toBe('/workspaces/abc')
   })
 })
 

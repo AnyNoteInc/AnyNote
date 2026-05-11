@@ -18,5 +18,5 @@ export async function sendDeliveryEmail(delivery: DeliveryWithEvent): Promise<vo
       `sendDeliveryEmail: no email template for event type ${delivery.event.type}`,
     )
   }
-  await sendMailNow({ kind: rendered.kind, to: delivery.targetEmail, data: rendered.data } as never)
+  await sendMailNow({ kind: rendered.kind, to: delivery.targetEmail, data: rendered.data })
 }

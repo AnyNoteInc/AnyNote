@@ -5,13 +5,13 @@ import { Switch } from '@repo/ui/components'
 import { trpc } from '@/trpc/client'
 import { subscribePush, unsubscribePush } from '@/lib/push/register-sw'
 
-type Props = {
+type Props = Readonly<{
   category: 'SECURITY' | 'COLLABORATION' | 'MARKETING'
   enabled: boolean
   locked: boolean
   onAfterChange: () => void
   hasAnySubscription: boolean
-}
+}>
 
 export function PushToggle({
   category,

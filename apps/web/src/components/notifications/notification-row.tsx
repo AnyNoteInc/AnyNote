@@ -25,12 +25,12 @@ const ICON_MAP = {
   system: EmailIcon,
 } as const
 
-type Props = {
+type Props = Readonly<{
   formatted: FormattedNotification
   unread: boolean
   createdAt: Date
   onClick: () => void
-}
+}>
 
 function timeAgo(d: Date): string {
   const sec = Math.round((Date.now() - d.getTime()) / 1000)

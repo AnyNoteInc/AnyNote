@@ -12,7 +12,7 @@ function makeTx(overrides: {
   return {
     user: {
       findUniqueOrThrow: vi.fn(async () => ({
-        email: overrides.user?.email !== undefined ? overrides.user.email : 'u@e.com',
+        email: overrides.user ? overrides.user.email : 'u@e.com',
         emailVerified: overrides.user?.emailVerified ?? true,
       })),
     },

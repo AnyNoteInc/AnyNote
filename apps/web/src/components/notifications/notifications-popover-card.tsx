@@ -15,7 +15,7 @@ import { formatNotification } from './format-notification'
 
 type EventForFormat = Pick<NotificationEvent, 'type' | 'payload' | 'resourceUrl'>
 
-export function NotificationsPopoverCard({ onNavigate }: { onNavigate: () => void }) {
+export function NotificationsPopoverCard({ onNavigate }: Readonly<{ onNavigate: () => void }>) {
   const router = useRouter()
   const utils = trpc.useUtils()
   const list = trpc.notification.list.useInfiniteQuery(
