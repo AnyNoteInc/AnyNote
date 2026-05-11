@@ -8,6 +8,7 @@ import { usePathname } from 'next/navigation'
 import {
   ArrowDropDownIcon,
   Box,
+  DeleteIcon,
   IconButton,
   KeyboardDoubleArrowLeftIcon,
   Menu,
@@ -181,6 +182,16 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
       <PageTreeSection workspaceId={workspace.id} pages={pages} favoritePageIds={favoritePageIds} />
 
       <Box sx={{ flex: 1 }} />
+
+      <Stack spacing={0.25} sx={{ pb: 1 }}>
+        <NavItem
+          icon={<DeleteIcon sx={{ fontSize: 16 }} />}
+          label="Корзина"
+          href={`/workspaces/${workspace.id}/trash`}
+          matchPrefix={`/workspaces/${workspace.id}/trash`}
+          pathname={pathname}
+        />
+      </Stack>
 
       <Box
         sx={{

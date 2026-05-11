@@ -4,8 +4,11 @@ import type { NotificationDelivery, NotificationEvent, PushSubscription } from '
 import { renderPushPayload } from '../templates/push.ts'
 
 export class GoneSubscriptionError extends Error {
-  constructor(public endpoint: string) {
+  readonly endpoint: string
+
+  constructor(endpoint: string) {
     super(`Push subscription gone: ${endpoint}`)
+    this.endpoint = endpoint
     this.name = 'GoneSubscriptionError'
   }
 }
