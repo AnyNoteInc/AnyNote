@@ -600,27 +600,23 @@ function resolveHoverTarget(view: EditorView, $pos: ResolvedPos): HoverTarget | 
   return null
 }
 
-function renderIndicatorDecoration(state: PluginState): DecorationSet {
-  // Decoration via `Decoration.widget` placed at the target node's start, with
-  // an absolutely-positioned overlay so CSS handles the visual.
+function renderIndicatorDecoration(doc: PMNode, state: PluginState): DecorationSet {
+  // Decoration via `Decoration.widget` placed at the start of the target node's
+  // content. The overlay div is absolutely-positioned via CSS against the
+  // target's wrapper, so the bar sits at the inner edge of the target.
   if (!state.zone || !state.target) return DecorationSet.empty
   const target = state.target
   const targetPos = target.kind === 'cell' ? target.cellPos : target.pos
   const overlay = document.createElement('div')
   overlay.className = `column-drop-indicator column-drop-indicator--${state.zone.toLowerCase()}`
   overlay.setAttribute('aria-hidden', 'true')
-  // Use a widget decoration anchored at the *start* of the target node.
-  // The overlay positions itself via CSS absolute against the target's wrapper.
-  return DecorationSet.empty.add(
-    state.target.kind === 'cell' ? state.target.cellNode.content : state.target.node.content,
-    [
-      Decoration.widget(targetPos + 1, overlay, {
-        side: -1,
-        ignoreSelection: true,
-        key: `drop-${state.zone}`,
-      }),
-    ],
-  )
+  return DecorationSet.create(doc, [
+    Decoration.widget(targetPos + 1, overlay, {
+      side: -1,
+      ignoreSelection: true,
+      key: `drop-${state.zone}`,
+    }),
+  ])
 }
 
 export const DropPlacement = Extension.create({
@@ -638,7 +634,7 @@ export const DropPlacement = Extension.create({
         },
         props: {
           decorations(state) {
-            return renderIndicatorDecoration(dropPlacementKey.getState(state)!)
+            return renderIndicatorDecoration(state.doc, dropPlacementKey.getState(state)!)
           },
           handleDOMEvents: {
             dragover(view, event) {
