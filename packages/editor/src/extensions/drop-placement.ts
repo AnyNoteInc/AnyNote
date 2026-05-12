@@ -75,6 +75,83 @@ export const DropPlacement = Extension.create({
           decorations(state) {
             return renderIndicatorDecoration(state.doc, dropPlacementKey.getState(state)!)
           },
+          handleDrop(view, event, slice, moved) {
+            const placement = dropPlacementKey.getState(view.state)
+            if (!placement?.zone || !placement.target) return false
+
+            const { zone, target } = placement
+            let tr = view.state.tr
+
+            // For in-editor moves, capture the source range *before* we insert anywhere
+            // (positions before insertion are stable).
+            let sourceFrom: number | null = null
+            let sourceTo: number | null = null
+            if (moved && view.dragging) {
+              const dragSelection = view.dragging.move ? view.state.selection : null
+              if (dragSelection && !dragSelection.empty) {
+                sourceFrom = dragSelection.from
+                sourceTo = dragSelection.to
+              }
+            }
+
+            const schema = view.state.schema
+            const columnType = schema.nodes.column
+            const layoutType = schema.nodes.columnLayout
+            if (!columnType || !layoutType) return false
+
+            if (zone === 'TOP' || zone === 'BOTTOM') {
+              const insertPos =
+                target.kind === 'cell'
+                  ? zone === 'TOP'
+                    ? target.cellPos + 1
+                    : target.cellPos + target.cellNode.nodeSize - 1
+                  : zone === 'TOP'
+                    ? target.pos
+                    : target.pos + target.node.nodeSize
+              if (sourceFrom !== null && sourceTo !== null) {
+                tr = tr.delete(sourceFrom, sourceTo)
+                // Re-map insertPos through the deletion mapping
+                const mapped = tr.mapping.map(insertPos)
+                tr.insert(mapped, slice.content)
+              } else {
+                tr.insert(insertPos, slice.content)
+              }
+            } else {
+              // LEFT or RIGHT — column work
+              const newCell = columnType.create(null, slice.content)
+
+              if (target.kind === 'block') {
+                const wrappedCells =
+                  zone === 'LEFT'
+                    ? [newCell, columnType.create(null, target.node)]
+                    : [columnType.create(null, target.node), newCell]
+                const layout = layoutType.create(null, wrappedCells)
+                if (sourceFrom !== null && sourceTo !== null) {
+                  tr = tr.delete(sourceFrom, sourceTo)
+                  const start = tr.mapping.map(target.pos)
+                  const end = tr.mapping.map(target.pos + target.node.nodeSize)
+                  tr.replaceWith(start, end, layout)
+                } else {
+                  tr.replaceWith(target.pos, target.pos + target.node.nodeSize, layout)
+                }
+              } else {
+                if (target.layoutNode.childCount >= 3) return false
+                const cellInsertPos =
+                  zone === 'LEFT' ? target.cellPos : target.cellPos + target.cellNode.nodeSize
+                if (sourceFrom !== null && sourceTo !== null) {
+                  tr = tr.delete(sourceFrom, sourceTo)
+                  const mapped = tr.mapping.map(cellInsertPos)
+                  tr.insert(mapped, newCell)
+                } else {
+                  tr.insert(cellInsertPos, newCell)
+                }
+              }
+            }
+
+            view.dispatch(tr.setMeta(dropPlacementKey, { zone: null, target: null }))
+            event.preventDefault()
+            return true
+          },
           handleDOMEvents: {
             dragover(view, event) {
               const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })
