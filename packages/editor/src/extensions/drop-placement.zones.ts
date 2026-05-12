@@ -6,7 +6,7 @@ export type DropRect = { left: number; top: number; right: number; bottom: numbe
 
 export type ZoneOptions = { canSide: boolean }
 
-const SIDE_FRACTION = 0.25
+const SIDE_FRACTION = 0.1
 
 export function computeDropZone(
   point: DropPoint,
