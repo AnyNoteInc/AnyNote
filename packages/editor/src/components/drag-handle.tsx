@@ -206,6 +206,19 @@ export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
         pos={menuPos}
         onClose={closeBlockMenu}
         onRequestMove={onRequestBlockMove ?? (() => undefined)}
+        context={
+          hoverNodeRef.current
+            ? {
+                kind: hoverNodeRef.current.kind,
+                rowFrom: hoverNodeRef.current.rowFrom,
+                rowTo: hoverNodeRef.current.rowTo,
+                cellFrom:
+                  hoverNodeRef.current.kind === 'cell' ? hoverNodeRef.current.from : undefined,
+                cellTo:
+                  hoverNodeRef.current.kind === 'cell' ? hoverNodeRef.current.to : undefined,
+              }
+            : undefined
+        }
       />
     </>
   )
