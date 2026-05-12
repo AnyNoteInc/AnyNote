@@ -40,22 +40,22 @@ function resolveHoverTarget(view: EditorView, $pos: ResolvedPos): HoverTarget | 
 }
 
 function renderIndicatorDecoration(doc: PMNode, state: PluginState): DecorationSet {
-  // Decoration via `Decoration.widget` placed at the start of the target node's
-  // content. The overlay div is absolutely-positioned via CSS against the
-  // target's wrapper, so the bar sits at the inner edge of the target.
+  // `Decoration.node` adds a class to the target's own DOM node, and a ::before
+  // pseudo-element draws the bar. Widget-based decorations are anchored to the
+  // insertion point in the DOM tree, which for atom blocks (e.g. images) sits
+  // BETWEEN top-level elements with no positioned ancestor — the bar then
+  // stretches to the editor's height. The node-class approach keeps the bar
+  // inside the target's box so it always matches its height/width.
   if (!state.zone || !state.target) return DecorationSet.empty
   const target = state.target
-  const targetPos = target.kind === 'cell' ? target.cellPos : target.pos
-  // <span> avoids HTML-parsing edge cases where <div> inside <p> auto-closes
-  // the paragraph; CSS gives it display:block so it still fills the area.
-  const overlay = document.createElement('span')
-  overlay.className = `column-drop-indicator column-drop-indicator--${state.zone.toLowerCase()}`
-  overlay.setAttribute('aria-hidden', 'true')
+  const start = target.kind === 'cell' ? target.cellPos : target.pos
+  const end =
+    target.kind === 'cell'
+      ? target.cellPos + target.cellNode.nodeSize
+      : target.pos + target.node.nodeSize
   return DecorationSet.create(doc, [
-    Decoration.widget(targetPos + 1, overlay, {
-      side: -1,
-      ignoreSelection: true,
-      key: `drop-${state.zone}`,
+    Decoration.node(start, end, {
+      class: `column-drop-target column-drop-target--${state.zone.toLowerCase()}`,
     }),
   ])
 }

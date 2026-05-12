@@ -410,31 +410,26 @@
   animation: reminder-flash 2s ease-out;
 }
 
-/* Column layout — every top-level child gets position:relative so absolute
-   widget overlays (drop indicators) anchor to the right element. The .column
-   inside a layout also gets it for its own internal indicators. */
+/* Column layout — every top-level child gets position:relative so the
+   drop-target ::before pseudo-elements anchor to the right element. The
+   .column inside a layout also gets it for its own internal indicators. */
 .anynote-editor .ProseMirror > * {
   position: relative;
 }
 
 .anynote-editor .column-layout {
   position: relative;
-  margin: 0.5rem 0;
-}
-/* @tiptap/react's NodeViewContent inserts an inner data-node-view-content-react
-   wrapper between our .column-layout-content and the actual cells. The grid has
-   to live on THAT wrapper, otherwise the cells stack inside a single grid item. */
-.anynote-editor .column-layout-content > [data-node-view-content-react] {
   display: grid;
   gap: 24px;
+  margin: 0.5rem 0;
 }
-.anynote-editor .column-layout--1 .column-layout-content > [data-node-view-content-react] {
+.anynote-editor .column-layout--1 {
   grid-template-columns: 1fr;
 }
-.anynote-editor .column-layout--2 .column-layout-content > [data-node-view-content-react] {
+.anynote-editor .column-layout--2 {
   grid-template-columns: 1fr 1fr;
 }
-.anynote-editor .column-layout--3 .column-layout-content > [data-node-view-content-react] {
+.anynote-editor .column-layout--3 {
   grid-template-columns: 1fr 1fr 1fr;
 }
 
@@ -443,36 +438,37 @@
   min-width: 0;
 }
 
-/* Drop indicators — overlay on the target node. Rendered as a block-display
-   span so HTML parsing inside <p> doesn't auto-close the paragraph. */
-.anynote-editor .column-drop-indicator {
-  display: block;
+/* Drop targets — the plugin adds .column-drop-target--<zone> to the hovered
+   block via Decoration.node; the ::before pseudo-element sits inside the
+   target's box so the bar always matches its height/width. */
+.anynote-editor .column-drop-target::before {
+  content: '';
   position: absolute;
   pointer-events: none;
   background: #1976d2;
   z-index: 5;
 }
-.anynote-editor .column-drop-indicator--left {
+.anynote-editor .column-drop-target--left::before {
   top: 0;
   left: 0;
   bottom: 0;
   width: 3px;
   border-radius: 2px;
 }
-.anynote-editor .column-drop-indicator--right {
+.anynote-editor .column-drop-target--right::before {
   top: 0;
   right: 0;
   bottom: 0;
   width: 3px;
   border-radius: 2px;
 }
-.anynote-editor .column-drop-indicator--top {
+.anynote-editor .column-drop-target--top::before {
   top: 0;
   left: 0;
   right: 0;
   height: 2px;
 }
-.anynote-editor .column-drop-indicator--bottom {
+.anynote-editor .column-drop-target--bottom::before {
   bottom: 0;
   left: 0;
   right: 0;
@@ -480,23 +476,9 @@
 }
 
 @media (max-width: 600px) {
-  .anynote-editor .column-layout--2 .column-layout-content > [data-node-view-content-react],
-  .anynote-editor .column-layout--3 .column-layout-content > [data-node-view-content-react] {
+  .anynote-editor .column-layout--2,
+  .anynote-editor .column-layout--3 {
     grid-template-columns: 1fr;
   }
-}
-
-/* Row drag handle — sits in the gutter to the left of the row */
-.anynote-editor .row-drag-handle {
-  position: absolute;
-  left: -32px;
-  top: 4px;
-  opacity: 0;
-  transition: opacity 120ms ease;
-  padding: 2px;
-}
-.anynote-editor .column-layout:hover .row-drag-handle,
-.anynote-editor .row-drag-handle:focus-visible {
-  opacity: 1;
 }
 

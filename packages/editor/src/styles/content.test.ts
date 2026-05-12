@@ -22,11 +22,11 @@ describe('editor column layout styles', () => {
     expect(css).toMatch(/@media \(max-width: 600px\)[\s\S]*grid-template-columns:\s*1fr;/)
   })
 
-  it('declares drop indicators with primary color', () => {
+  it('declares drop targets with primary color', () => {
     const css = readFileSync(contentCssPath, 'utf8')
-    expect(css).toMatch(/\.column-drop-indicator--left[\s\S]*width:\s*3px/)
-    expect(css).toMatch(/\.column-drop-indicator--right[\s\S]*width:\s*3px/)
-    expect(css).toMatch(/\.column-drop-indicator\b[\s\S]*background:\s*#1976d2/)
+    expect(css).toMatch(/\.column-drop-target--left::before[\s\S]*width:\s*3px/)
+    expect(css).toMatch(/\.column-drop-target--right::before[\s\S]*width:\s*3px/)
+    expect(css).toMatch(/\.column-drop-target::before[\s\S]*background:\s*#1976d2/)
   })
 
   it('anchors absolute widgets on every top-level ProseMirror child', () => {
