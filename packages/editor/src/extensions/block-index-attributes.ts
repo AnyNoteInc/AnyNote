@@ -28,9 +28,25 @@ export const BlockIndexAttributes = Extension.create({
             const decos: Decoration[] = []
             const flashIndex = blockFlashKey.getState(state)?.flashIndex ?? null
             state.doc.content.forEach((node, offset, index) => {
-              const attrs: Record<string, string> = { 'data-block-index': String(index) }
-              if (index === flashIndex) attrs.class = 'block-flash'
-              decos.push(Decoration.node(offset, offset + node.nodeSize, attrs))
+              const baseAttrs: Record<string, string> = { 'data-block-index': String(index) }
+              if (index === flashIndex) baseAttrs.class = 'block-flash'
+              decos.push(Decoration.node(offset, offset + node.nodeSize, baseAttrs))
+
+              if (node.type.name === 'columnLayout') {
+                let cellOffset = offset + 1
+                node.forEach((cell, _co, cellIdx) => {
+                  let innerOffset = cellOffset + 1
+                  cell.forEach((inner, _io, innerIdx) => {
+                    decos.push(
+                      Decoration.node(innerOffset, innerOffset + inner.nodeSize, {
+                        'data-block-index': `${index}.${cellIdx}.${innerIdx}`,
+                      }),
+                    )
+                    innerOffset += inner.nodeSize
+                  })
+                  cellOffset += cell.nodeSize
+                })
+              }
             })
             return DecorationSet.create(state.doc, decos)
           },
