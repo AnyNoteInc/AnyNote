@@ -15,6 +15,8 @@ import { BlockBackground } from './block-background'
 import { BlockIndexAttributes } from './block-index-attributes'
 import { Callout } from './callout'
 import { buildCollaboration } from './collaboration'
+import { Column, ColumnLayout } from './column-layout'
+import { DropPlacement } from './drop-placement'
 import { FileAttachment } from './file-attachment'
 import { buildFileUpload } from './file-upload'
 import { HiddenText } from './hidden-text'
@@ -42,7 +44,7 @@ export type BuildExtensionsOptions = {
 }
 
 export const buildExtensions = (opts: BuildExtensionsOptions) => [
-  StarterKit.configure({ undoRedo: false }),
+  StarterKit.configure({ undoRedo: false, dropcursor: false }),
   buildPlaceholder(opts.placeholder),
   Link.configure({ openOnClick: false }),
   Typography,
@@ -69,4 +71,7 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
     render: opts.slashRender,
   }),
   BlockIndexAttributes,
+  ColumnLayout,
+  Column,
+  DropPlacement,
 ]
