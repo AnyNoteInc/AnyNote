@@ -99,6 +99,23 @@ export const DropPlacement = Extension.create({
             const layoutType = schema.nodes.columnLayout
             if (!columnType || !layoutType) return false
 
+            // Source-overlaps-target guard: if the dragged range covers the target node
+            // we'd delete and re-wrap our own target — produces nonsense. Bail out.
+            const targetPos = target.kind === 'cell' ? target.cellPos : target.pos
+            const targetEnd =
+              target.kind === 'cell' ? targetPos + target.cellNode.nodeSize : targetPos + target.node.nodeSize
+            if (sourceFrom !== null && sourceTo !== null) {
+              if (sourceFrom <= targetPos && targetEnd <= sourceTo) return false
+            }
+
+            // If the drag source is itself a column (cell-handle drag), drop its
+            // content, not the column wrapper — wrapping a column in another column
+            // produces a schema-invalid `column > column > block+` tree that
+            // NodeType.create silently allows.
+            const sourceFirstChild = slice.content.firstChild
+            const sliceIsColumn = sourceFirstChild?.type === columnType
+            const droppedContent = sliceIsColumn ? sourceFirstChild.content : slice.content
+
             if (zone === 'TOP' || zone === 'BOTTOM') {
               const insertPos =
                 target.kind === 'cell'
@@ -112,13 +129,13 @@ export const DropPlacement = Extension.create({
                 tr = tr.delete(sourceFrom, sourceTo)
                 // Re-map insertPos through the deletion mapping
                 const mapped = tr.mapping.map(insertPos)
-                tr.insert(mapped, slice.content)
+                tr.insert(mapped, droppedContent)
               } else {
-                tr.insert(insertPos, slice.content)
+                tr.insert(insertPos, droppedContent)
               }
             } else {
               // LEFT or RIGHT — column work
-              const newCell = columnType.create(null, slice.content)
+              const newCell = columnType.create(null, droppedContent)
 
               if (target.kind === 'block') {
                 const wrappedCells =
