@@ -1,9 +1,12 @@
 import { Extension } from '@tiptap/core'
 import type { Node as PMNode, ResolvedPos } from '@tiptap/pm/model'
-import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
+import { Plugin, PluginKey, type Transaction, TextSelection } from '@tiptap/pm/state'
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
 
 import { computeDropZone, type DropZone } from './drop-placement.zones'
+
+// Mirrors `column{1,3}` in column-layout.schema.ts — keep in sync.
+const MAX_COLUMNS = 3
 
 type HoverTarget =
   | { kind: 'block'; pos: number; node: PMNode }
@@ -13,22 +16,40 @@ type HoverTarget =
       cellNode: PMNode
       layoutPos: number
       layoutNode: PMNode
-      cellIndex: number
     }
 
 type PluginState = { zone: DropZone | null; target: HoverTarget | null }
 
 export const dropPlacementKey = new PluginKey<PluginState>('dropPlacement')
 
-function resolveHoverTarget(view: EditorView, $pos: ResolvedPos): HoverTarget | null {
+function targetStart(target: HoverTarget): number {
+  return target.kind === 'cell' ? target.cellPos : target.pos
+}
+
+function targetEnd(target: HoverTarget): number {
+  return target.kind === 'cell'
+    ? target.cellPos + target.cellNode.nodeSize
+    : target.pos + target.node.nodeSize
+}
+
+// For TOP/BOTTOM zone on a block: insert before/after the block itself. On a
+// cell: insert at the very start/end of the cell's content (cellPos+1 and
+// cellPos+nodeSize-1 are inside the open/close tokens).
+function computeReorderPos(target: HoverTarget, zone: 'TOP' | 'BOTTOM'): number {
+  if (target.kind === 'cell') {
+    return zone === 'TOP' ? target.cellPos + 1 : target.cellPos + target.cellNode.nodeSize - 1
+  }
+  return zone === 'TOP' ? target.pos : target.pos + target.node.nodeSize
+}
+
+function resolveHoverTarget($pos: ResolvedPos): HoverTarget | null {
   for (let depth = $pos.depth; depth >= 0; depth--) {
     const node = $pos.node(depth)
     if (node.type.name === 'column') {
       const layoutNode = $pos.node(depth - 1)
       const layoutPos = $pos.before(depth - 1)
       const cellPos = $pos.before(depth)
-      const cellIndex = $pos.index(depth - 1)
-      return { kind: 'cell', cellPos, cellNode: node, layoutPos, layoutNode, cellIndex }
+      return { kind: 'cell', cellPos, cellNode: node, layoutPos, layoutNode }
     }
     if (depth === 1) {
       // top-level child of doc
@@ -64,19 +85,21 @@ function findBestCellInLayout(
       else dist = 0
       if (dist < bestDist) {
         bestDist = dist
-        best = {
-          kind: 'cell',
-          cellPos,
-          cellNode: cell,
-          layoutPos,
-          layoutNode,
-          cellIndex: j,
-        }
+        best = { kind: 'cell', cellPos, cellNode: cell, layoutPos, layoutNode }
       }
     }
     cellPos += cell.nodeSize
   }
   return best
+}
+
+function refineLayoutToCell(
+  view: EditorView,
+  target: HoverTarget,
+  cursorX: number,
+): HoverTarget {
+  if (target.kind !== 'block' || target.node.type.name !== 'columnLayout') return target
+  return findBestCellInLayout(view, target.node, target.pos, cursorX) ?? target
 }
 
 // Unified hover-target lookup: tries posAtCoords first (covers cursor over
@@ -89,12 +112,8 @@ function findHoverTarget(view: EditorView, cursorX: number, cursorY: number): Ho
   const pos = view.posAtCoords({ left: cursorX, top: cursorY })
   if (pos) {
     const $pos = view.state.doc.resolve(pos.pos)
-    const target = resolveHoverTarget(view, $pos)
-    if (target?.kind === 'block' && target.node.type.name === 'columnLayout') {
-      const refined = findBestCellInLayout(view, target.node, target.pos, cursorX)
-      if (refined) return refined
-    }
-    if (target) return target
+    const target = resolveHoverTarget($pos)
+    if (target) return refineLayoutToCell(view, target, cursorX)
   }
   const doc = view.state.doc
   let scan = 0
@@ -104,16 +123,66 @@ function findHoverTarget(view: EditorView, cursorX: number, cursorY: number): Ho
     if (dom) {
       const rect = dom.getBoundingClientRect()
       if (cursorY >= rect.top && cursorY <= rect.bottom) {
-        if (child.type.name === 'columnLayout') {
-          const refined = findBestCellInLayout(view, child, scan, cursorX)
-          if (refined) return refined
-        }
-        return { kind: 'block', pos: scan, node: child }
+        return refineLayoutToCell(view, { kind: 'block', pos: scan, node: child }, cursorX)
       }
     }
     scan += child.nodeSize
   }
   return null
+}
+
+function samePlacement(a: PluginState, b: PluginState): boolean {
+  if (a.zone !== b.zone) return false
+  if (a.target === b.target) return true
+  if (!a.target || !b.target) return false
+  if (a.target.kind !== b.target.kind) return false
+  return targetStart(a.target) === targetStart(b.target)
+}
+
+// `dragover` fires ~60Hz so dispatching every event would force PM to rebuild
+// the DecorationSet and re-render on each tick even when the placement hasn't
+// changed. Compare to the current state and skip the dispatch when identical.
+function setPlacement(view: EditorView, next: PluginState): void {
+  const current = dropPlacementKey.getState(view.state)
+  if (current && samePlacement(current, next)) return
+  view.dispatch(view.state.tr.setMeta(dropPlacementKey, next))
+}
+
+const CLEARED: PluginState = { zone: null, target: null }
+
+// In-editor drag moves: delete the source range, then insert at `pos`
+// re-mapped through the deletion. Otherwise just insert (paste / external
+// drop). Returns the (possibly re-assigned) transaction since `delete`
+// returns a new tr instance.
+function insertContent(
+  tr: Transaction,
+  pos: number,
+  content: PMNode | PMNode['content'],
+  source: { from: number; to: number } | null,
+): Transaction {
+  if (source) {
+    const next = tr.delete(source.from, source.to)
+    next.insert(next.mapping.map(pos), content)
+    return next
+  }
+  tr.insert(pos, content)
+  return tr
+}
+
+function replaceContent(
+  tr: Transaction,
+  from: number,
+  to: number,
+  content: PMNode | PMNode['content'],
+  source: { from: number; to: number } | null,
+): Transaction {
+  if (source) {
+    const next = tr.delete(source.from, source.to)
+    next.replaceWith(next.mapping.map(from), next.mapping.map(to), content)
+    return next
+  }
+  tr.replaceWith(from, to, content)
+  return tr
 }
 
 function renderIndicatorDecoration(doc: PMNode, state: PluginState): DecorationSet {
@@ -124,14 +193,8 @@ function renderIndicatorDecoration(doc: PMNode, state: PluginState): DecorationS
   // stretches to the editor's height. The node-class approach keeps the bar
   // inside the target's box so it always matches its height/width.
   if (!state.zone || !state.target) return DecorationSet.empty
-  const target = state.target
-  const start = target.kind === 'cell' ? target.cellPos : target.pos
-  const end =
-    target.kind === 'cell'
-      ? target.cellPos + target.cellNode.nodeSize
-      : target.pos + target.node.nodeSize
   return DecorationSet.create(doc, [
-    Decoration.node(start, end, {
+    Decoration.node(targetStart(state.target), targetEnd(state.target), {
       class: `column-drop-target column-drop-target--${state.zone.toLowerCase()}`,
     }),
   ])
@@ -163,14 +226,10 @@ export const DropPlacement = Extension.create({
 
             // For in-editor moves, capture the source range *before* we insert anywhere
             // (positions before insertion are stable).
-            let sourceFrom: number | null = null
-            let sourceTo: number | null = null
-            if (moved && view.dragging) {
-              const dragSelection = view.dragging.move ? view.state.selection : null
-              if (dragSelection && !dragSelection.empty) {
-                sourceFrom = dragSelection.from
-                sourceTo = dragSelection.to
-              }
+            let source: { from: number; to: number } | null = null
+            if (moved && view.dragging?.move) {
+              const sel = view.state.selection
+              if (!sel.empty) source = { from: sel.from, to: sel.to }
             }
 
             const schema = view.state.schema
@@ -180,68 +239,35 @@ export const DropPlacement = Extension.create({
 
             // Source-overlaps-target guard: if the dragged range covers the target node
             // we'd delete and re-wrap our own target — produces nonsense. Bail out.
-            const targetPos = target.kind === 'cell' ? target.cellPos : target.pos
-            const targetEnd =
-              target.kind === 'cell' ? targetPos + target.cellNode.nodeSize : targetPos + target.node.nodeSize
-            if (sourceFrom !== null && sourceTo !== null) {
-              if (sourceFrom <= targetPos && targetEnd <= sourceTo) return false
-            }
+            const tStart = targetStart(target)
+            const tEnd = targetEnd(target)
+            if (source && source.from <= tStart && tEnd <= source.to) return false
 
             // If the drag source is itself a column (cell-handle drag), drop its
             // content, not the column wrapper — wrapping a column in another column
             // produces a schema-invalid `column > column > block+` tree that
             // NodeType.create silently allows.
             const sourceFirstChild = slice.content.firstChild
-            const sliceIsColumn = sourceFirstChild?.type === columnType
-            const droppedContent = sliceIsColumn ? sourceFirstChild.content : slice.content
+            const droppedContent =
+              sourceFirstChild?.type === columnType ? sourceFirstChild.content : slice.content
 
             if (zone === 'TOP' || zone === 'BOTTOM') {
-              const insertPos =
-                target.kind === 'cell'
-                  ? zone === 'TOP'
-                    ? target.cellPos + 1
-                    : target.cellPos + target.cellNode.nodeSize - 1
-                  : zone === 'TOP'
-                    ? target.pos
-                    : target.pos + target.node.nodeSize
-              if (sourceFrom !== null && sourceTo !== null) {
-                tr = tr.delete(sourceFrom, sourceTo)
-                // Re-map insertPos through the deletion mapping
-                const mapped = tr.mapping.map(insertPos)
-                tr.insert(mapped, droppedContent)
-              } else {
-                tr.insert(insertPos, droppedContent)
-              }
-            } else {
-              // LEFT or RIGHT — column work
+              const insertPos = computeReorderPos(target, zone)
+              tr = insertContent(tr, insertPos, droppedContent, source)
+            } else if (target.kind === 'block') {
+              // LEFT/RIGHT on a top-level block — wrap it in a new layout.
               const newCell = columnType.create(null, droppedContent)
-
-              if (target.kind === 'block') {
-                const wrappedCells =
-                  zone === 'LEFT'
-                    ? [newCell, columnType.create(null, target.node)]
-                    : [columnType.create(null, target.node), newCell]
-                const layout = layoutType.create(null, wrappedCells)
-                if (sourceFrom !== null && sourceTo !== null) {
-                  tr = tr.delete(sourceFrom, sourceTo)
-                  const start = tr.mapping.map(target.pos)
-                  const end = tr.mapping.map(target.pos + target.node.nodeSize)
-                  tr.replaceWith(start, end, layout)
-                } else {
-                  tr.replaceWith(target.pos, target.pos + target.node.nodeSize, layout)
-                }
-              } else {
-                if (target.layoutNode.childCount >= 3) return false
-                const cellInsertPos =
-                  zone === 'LEFT' ? target.cellPos : target.cellPos + target.cellNode.nodeSize
-                if (sourceFrom !== null && sourceTo !== null) {
-                  tr = tr.delete(sourceFrom, sourceTo)
-                  const mapped = tr.mapping.map(cellInsertPos)
-                  tr.insert(mapped, newCell)
-                } else {
-                  tr.insert(cellInsertPos, newCell)
-                }
-              }
+              const existingCell = columnType.create(null, target.node)
+              const cells = zone === 'LEFT' ? [newCell, existingCell] : [existingCell, newCell]
+              const layout = layoutType.create(null, cells)
+              tr = replaceContent(tr, target.pos, target.pos + target.node.nodeSize, layout, source)
+            } else {
+              // LEFT/RIGHT on a cell — insert a sibling cell into the layout.
+              if (target.layoutNode.childCount >= MAX_COLUMNS) return false
+              const newCell = columnType.create(null, droppedContent)
+              const cellInsertPos =
+                zone === 'LEFT' ? target.cellPos : target.cellPos + target.cellNode.nodeSize
+              tr = insertContent(tr, cellInsertPos, newCell, source)
             }
 
             // Drop sources set a NodeSelection on the dragged row/cell; if we
@@ -251,7 +277,7 @@ export const DropPlacement = Extension.create({
             if (docSize > 0) {
               tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(tr.selection.from, docSize))))
             }
-            view.dispatch(tr.setMeta(dropPlacementKey, { zone: null, target: null }))
+            view.dispatch(tr.setMeta(dropPlacementKey, CLEARED))
             event.preventDefault()
             return true
           },
@@ -259,18 +285,19 @@ export const DropPlacement = Extension.create({
             dragover(view, event) {
               const target = findHoverTarget(view, event.clientX, event.clientY)
               if (!target) {
-                view.dispatch(view.state.tr.setMeta(dropPlacementKey, { zone: null, target: null }))
+                setPlacement(view, CLEARED)
                 return false
               }
-              const targetDomPos = target.kind === 'cell' ? target.cellPos : target.pos
-              const dom = view.nodeDOM(targetDomPos) as HTMLElement | null
+              const dom = view.nodeDOM(targetStart(target)) as HTMLElement | null
               if (!dom) return false
-              const rect = dom.getBoundingClientRect()
-              const canSide = target.kind === 'cell' ? target.layoutNode.childCount < 3 : true
-              const zone = computeDropZone({ x: event.clientX, y: event.clientY }, rect, {
-                canSide,
-              })
-              view.dispatch(view.state.tr.setMeta(dropPlacementKey, { zone, target }))
+              const canSide =
+                target.kind === 'cell' ? target.layoutNode.childCount < MAX_COLUMNS : true
+              const zone = computeDropZone(
+                { x: event.clientX, y: event.clientY },
+                dom.getBoundingClientRect(),
+                { canSide },
+              )
+              setPlacement(view, { zone, target })
               event.preventDefault()
               return true
             },
@@ -280,13 +307,13 @@ export const DropPlacement = Extension.create({
               // actually left the editor — otherwise the indicator flickers.
               const next = (event as DragEvent).relatedTarget as Node | null
               if (next && view.dom.contains(next)) return false
-              view.dispatch(view.state.tr.setMeta(dropPlacementKey, { zone: null, target: null }))
+              setPlacement(view, CLEARED)
               return false
             },
             dragend(view) {
               // Fires when the drag finishes (drop or Escape). Without this,
               // an aborted drag leaves the indicator stuck visible.
-              view.dispatch(view.state.tr.setMeta(dropPlacementKey, { zone: null, target: null }))
+              setPlacement(view, CLEARED)
               return false
             },
           },
