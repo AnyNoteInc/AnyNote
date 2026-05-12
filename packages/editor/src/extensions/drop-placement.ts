@@ -100,7 +100,18 @@ export const DropPlacement = Extension.create({
               event.preventDefault()
               return true
             },
-            dragleave(view) {
+            dragleave(view, event) {
+              // Browsers fire dragleave when crossing into a child element of
+              // view.dom (e.g. between cells). Only clear when the cursor has
+              // actually left the editor — otherwise the indicator flickers.
+              const next = (event as DragEvent).relatedTarget as Node | null
+              if (next && view.dom.contains(next)) return false
+              view.dispatch(view.state.tr.setMeta(dropPlacementKey, { zone: null, target: null }))
+              return false
+            },
+            dragend(view) {
+              // Fires when the drag finishes (drop or Escape). Without this,
+              // an aborted drag leaves the indicator stuck visible.
               view.dispatch(view.state.tr.setMeta(dropPlacementKey, { zone: null, target: null }))
               return false
             },
