@@ -421,19 +421,20 @@
   position: relative;
   margin: 0.5rem 0;
 }
-/* Grid lives on the NodeViewContent inner div so the absolute-positioned
-   row drag handle (a sibling of the content) doesn't take up a grid cell. */
-.anynote-editor .column-layout-content {
+/* @tiptap/react's NodeViewContent inserts an inner data-node-view-content-react
+   wrapper between our .column-layout-content and the actual cells. The grid has
+   to live on THAT wrapper, otherwise the cells stack inside a single grid item. */
+.anynote-editor .column-layout-content > [data-node-view-content-react] {
   display: grid;
   gap: 24px;
 }
-.anynote-editor .column-layout--1 > .column-layout-content {
+.anynote-editor .column-layout--1 .column-layout-content > [data-node-view-content-react] {
   grid-template-columns: 1fr;
 }
-.anynote-editor .column-layout--2 > .column-layout-content {
+.anynote-editor .column-layout--2 .column-layout-content > [data-node-view-content-react] {
   grid-template-columns: 1fr 1fr;
 }
-.anynote-editor .column-layout--3 > .column-layout-content {
+.anynote-editor .column-layout--3 .column-layout-content > [data-node-view-content-react] {
   grid-template-columns: 1fr 1fr 1fr;
 }
 
@@ -479,8 +480,8 @@
 }
 
 @media (max-width: 600px) {
-  .anynote-editor .column-layout--2 > .column-layout-content,
-  .anynote-editor .column-layout--3 > .column-layout-content {
+  .anynote-editor .column-layout--2 .column-layout-content > [data-node-view-content-react],
+  .anynote-editor .column-layout--3 .column-layout-content > [data-node-view-content-react] {
     grid-template-columns: 1fr;
   }
 }
