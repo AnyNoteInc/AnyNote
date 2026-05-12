@@ -39,6 +39,83 @@ function resolveHoverTarget(view: EditorView, $pos: ResolvedPos): HoverTarget | 
   return null
 }
 
+// Within a columnLayout, find the cell whose horizontal range either contains
+// cursorX or is closest to it. Used when posAtCoords lands "between cells" or
+// the Y-scan fallback only finds the layout — without this we'd treat the
+// whole layout rect as the drop target, and X outside the gap would be
+// mis-classified.
+function findBestCellInLayout(
+  view: EditorView,
+  layoutNode: PMNode,
+  layoutPos: number,
+  cursorX: number,
+): HoverTarget | null {
+  let cellPos = layoutPos + 1
+  let best: HoverTarget | null = null
+  let bestDist = Infinity
+  for (let j = 0; j < layoutNode.childCount; j++) {
+    const cell = layoutNode.child(j)
+    const cellDom = view.nodeDOM(cellPos) as HTMLElement | null
+    if (cellDom) {
+      const cellRect = cellDom.getBoundingClientRect()
+      let dist: number
+      if (cursorX < cellRect.left) dist = cellRect.left - cursorX
+      else if (cursorX > cellRect.right) dist = cursorX - cellRect.right
+      else dist = 0
+      if (dist < bestDist) {
+        bestDist = dist
+        best = {
+          kind: 'cell',
+          cellPos,
+          cellNode: cell,
+          layoutPos,
+          layoutNode,
+          cellIndex: j,
+        }
+      }
+    }
+    cellPos += cell.nodeSize
+  }
+  return best
+}
+
+// Unified hover-target lookup: tries posAtCoords first (covers cursor over
+// real content), then falls back to a Y-scan of top-level children (covers
+// cursors in side gutters where posAtCoords lands at depth 0). When the
+// matched top-level node is a columnLayout, drill into the closest cell so
+// LEFT/RIGHT/TOP/BOTTOM is computed against the cell's bounds, not the
+// layout's full width.
+function findHoverTarget(view: EditorView, cursorX: number, cursorY: number): HoverTarget | null {
+  const pos = view.posAtCoords({ left: cursorX, top: cursorY })
+  if (pos) {
+    const $pos = view.state.doc.resolve(pos.pos)
+    const target = resolveHoverTarget(view, $pos)
+    if (target?.kind === 'block' && target.node.type.name === 'columnLayout') {
+      const refined = findBestCellInLayout(view, target.node, target.pos, cursorX)
+      if (refined) return refined
+    }
+    if (target) return target
+  }
+  const doc = view.state.doc
+  let scan = 0
+  for (let i = 0; i < doc.childCount; i++) {
+    const child = doc.child(i)
+    const dom = view.nodeDOM(scan) as HTMLElement | null
+    if (dom) {
+      const rect = dom.getBoundingClientRect()
+      if (cursorY >= rect.top && cursorY <= rect.bottom) {
+        if (child.type.name === 'columnLayout') {
+          const refined = findBestCellInLayout(view, child, scan, cursorX)
+          if (refined) return refined
+        }
+        return { kind: 'block', pos: scan, node: child }
+      }
+    }
+    scan += child.nodeSize
+  }
+  return null
+}
+
 function renderIndicatorDecoration(doc: PMNode, state: PluginState): DecorationSet {
   // `Decoration.node` adds a class to the target's own DOM node, and a ::before
   // pseudo-element draws the bar. Widget-based decorations are anchored to the
@@ -180,34 +257,7 @@ export const DropPlacement = Extension.create({
           },
           handleDOMEvents: {
             dragover(view, event) {
-              const pos = view.posAtCoords({ left: event.clientX, top: event.clientY })
-              if (!pos) {
-                view.dispatch(view.state.tr.setMeta(dropPlacementKey, { zone: null, target: null }))
-                return false
-              }
-              const $pos = view.state.doc.resolve(pos.pos)
-              let target = resolveHoverTarget(view, $pos)
-              // Centered atoms (e.g. images) have a full-width NodeViewWrapper
-              // but their visible content only fills the middle. Cursors in the
-              // empty side-gutters resolve to depth 0 (between blocks), and
-              // for atom nodes there is no "inside" position to re-resolve to.
-              // Fall back to a Y-scan of top-level children.
-              if (!target && $pos.depth === 0) {
-                const doc = view.state.doc
-                let scan = 0
-                for (let i = 0; i < doc.childCount; i++) {
-                  const child = doc.child(i)
-                  const dom = view.nodeDOM(scan) as HTMLElement | null
-                  if (dom) {
-                    const rect = dom.getBoundingClientRect()
-                    if (event.clientY >= rect.top && event.clientY <= rect.bottom) {
-                      target = { kind: 'block', pos: scan, node: child }
-                      break
-                    }
-                  }
-                  scan += child.nodeSize
-                }
-              }
+              const target = findHoverTarget(view, event.clientX, event.clientY)
               if (!target) {
                 view.dispatch(view.state.tr.setMeta(dropPlacementKey, { zone: null, target: null }))
                 return false
