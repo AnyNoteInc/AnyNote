@@ -45,6 +45,8 @@ type HoverNodePos = {
   kind: HoverKind
   rowFrom?: number
   rowTo?: number
+  cellFrom?: number
+  cellTo?: number
   cellIndex?: number
 } | null
 
@@ -69,6 +71,8 @@ export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
     let kind: HoverKind = 'block'
     let rowFrom: number | undefined
     let rowTo: number | undefined
+    let cellFrom: number | undefined
+    let cellTo: number | undefined
     let cellIndex: number | undefined
     const $pos = ed.state.doc.resolve(pos + 1)
     for (let d = $pos.depth; d >= 0; d--) {
@@ -78,6 +82,12 @@ export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
         rowFrom = $pos.before(d)
         rowTo = rowFrom + ancestor.nodeSize
         cellIndex = $pos.index(d)
+        // The column cell is the child of columnLayout that contains us.
+        const cellDepth = d + 1
+        if (cellDepth <= $pos.depth) {
+          cellFrom = $pos.before(cellDepth)
+          cellTo = cellFrom + $pos.node(cellDepth).nodeSize
+        }
         break
       }
     }
@@ -88,6 +98,8 @@ export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
       kind,
       rowFrom,
       rowTo,
+      cellFrom,
+      cellTo,
       cellIndex,
     }
   }
@@ -212,10 +224,8 @@ export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
                 kind: hoverNodeRef.current.kind,
                 rowFrom: hoverNodeRef.current.rowFrom,
                 rowTo: hoverNodeRef.current.rowTo,
-                cellFrom:
-                  hoverNodeRef.current.kind === 'cell' ? hoverNodeRef.current.from : undefined,
-                cellTo:
-                  hoverNodeRef.current.kind === 'cell' ? hoverNodeRef.current.to : undefined,
+                cellFrom: hoverNodeRef.current.cellFrom,
+                cellTo: hoverNodeRef.current.cellTo,
               }
             : undefined
         }

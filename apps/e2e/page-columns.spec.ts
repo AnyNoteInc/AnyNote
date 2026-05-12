@@ -32,7 +32,9 @@ async function createTextPage(page: Page) {
 
 async function dragBlockTo(page: Page, sourceLocator: ReturnType<Page['locator']>, x: number, y: number) {
   await sourceLocator.hover()
-  const handle = page.locator('.tiptap-drag-handle [aria-label="Действия блока"]').first()
+  const handle = page
+    .locator('.tiptap-drag-handle-wrapper button[aria-label="Действия блока"]')
+    .first()
   await expect(handle).toBeVisible({ timeout: 5_000 })
   const handleBox = await handle.boundingBox()
   if (!handleBox) throw new Error('drag handle not visible')

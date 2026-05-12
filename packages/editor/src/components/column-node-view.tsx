@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type DragEvent, type MouseEvent } from 'react'
+import { useState, type MouseEvent } from 'react'
 import { IconButton, Menu, MenuItem } from '@mui/material'
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
 import { NodeViewContent, NodeViewWrapper, type NodeViewProps } from '@tiptap/react'
@@ -16,7 +16,10 @@ export function ColumnNodeView({ editor, getPos, node }: NodeViewProps) {
     editor.view.dispatch(tr)
   }
 
-  const onDragStart = (event: DragEvent<HTMLButtonElement>) => {
+  // Set the NodeSelection on mousedown so ProseMirror's dragstart listener
+  // (attached to view.dom, fires BEFORE React's onDragStart) captures the
+  // correct slice. onDragStart would be too late.
+  const onMouseDown = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
     selectCell()
   }
@@ -24,7 +27,6 @@ export function ColumnNodeView({ editor, getPos, node }: NodeViewProps) {
   const onOpenMenu = (event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation()
     event.preventDefault()
-    selectCell()
     setAnchor(event.currentTarget)
   }
 
@@ -64,8 +66,7 @@ export function ColumnNodeView({ editor, getPos, node }: NodeViewProps) {
         className="cell-drag-handle"
         size="small"
         draggable
-        onDragStart={onDragStart}
-        onMouseDown={(e) => e.stopPropagation()}
+        onMouseDown={onMouseDown}
         onClick={onOpenMenu}
         aria-label="Действия ячейки"
       >
