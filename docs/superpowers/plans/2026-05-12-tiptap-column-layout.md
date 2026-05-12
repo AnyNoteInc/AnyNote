@@ -365,12 +365,8 @@ describe('dissolveColumnLayouts', () => {
     expect(next.child(1).textContent).toBe('b')
   })
 
-  it('removes empty columns from a 3-column layout, keeping the others', () => {
-    const state = stateFrom(lay(col(para('a')), col(para('')), col(para('c'))))
-    // mid column has a paragraph with no text — still a "non-empty" cell because
-    // it has a paragraph child. Dissolution removes columns whose entire content
-    // is empty — i.e. a column with no children or only zero-size children.
-    // Here all three cells have one paragraph child, so dissolution leaves them alone.
+  it('leaves a 3-column layout alone when every cell has content', () => {
+    const state = stateFrom(lay(col(para('a')), col(para('b')), col(para('c'))))
     expect(dissolveColumnLayouts(state)).toBeNull()
   })
 
@@ -424,14 +420,19 @@ Expected: FAIL — module not found.
 import type { Node as PMNode } from '@tiptap/pm/model'
 import type { EditorState, Transaction } from '@tiptap/pm/state'
 
+// A column is empty if it has no children OR every child is an empty paragraph
+// (a paragraph with content.size === 0). This handles the production case where
+// dragging the last block out of a cell leaves ProseMirror's schema-fill
+// placeholder behind.
 function isColumnEmpty(column: PMNode): boolean {
   if (column.childCount === 0) return true
-  // A column is empty if every child is an empty paragraph (no inline content)
-  let empty = true
+  let allEmptyParagraphs = true
   column.forEach((child) => {
-    if (child.content.size > 0 || child.type.name !== 'paragraph') empty = false
+    if (child.type.name !== 'paragraph' || child.content.size > 0) {
+      allEmptyParagraphs = false
+    }
   })
-  return empty && column.childCount > 0 ? false : column.childCount === 0
+  return allEmptyParagraphs
 }
 
 export function dissolveColumnLayouts(state: EditorState): Transaction | null {
