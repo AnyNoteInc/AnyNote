@@ -36,22 +36,59 @@ type Props = {
   onRequestBlockMove?: (pos: number) => void
 }
 
-type HoverNodePos = { from: number; to: number; isEmpty: boolean } | null
+type HoverKind = 'block' | 'cell'
+
+type HoverNodePos = {
+  from: number
+  to: number
+  isEmpty: boolean
+  kind: HoverKind
+  rowFrom?: number
+  rowTo?: number
+  cellIndex?: number
+} | null
 
 export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
   const hoverNodeRef = useRef<HoverNodePos>(null)
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
   const [menuPos, setMenuPos] = useState<number | null>(null)
 
-  const onNodeChange = ({ node, pos }: { node: PMNode | null; editor: Editor; pos: number }) => {
+  const onNodeChange = ({
+    node,
+    pos,
+    editor: ed,
+  }: {
+    node: PMNode | null
+    editor: Editor
+    pos: number
+  }) => {
     if (!node) {
       hoverNodeRef.current = null
       return
+    }
+    let kind: HoverKind = 'block'
+    let rowFrom: number | undefined
+    let rowTo: number | undefined
+    let cellIndex: number | undefined
+    const $pos = ed.state.doc.resolve(pos + 1)
+    for (let d = $pos.depth; d >= 0; d--) {
+      const ancestor = $pos.node(d)
+      if (ancestor.type.name === 'columnLayout') {
+        kind = 'cell'
+        rowFrom = $pos.before(d)
+        rowTo = rowFrom + ancestor.nodeSize
+        cellIndex = $pos.index(d)
+        break
+      }
     }
     hoverNodeRef.current = {
       from: pos,
       to: pos + node.nodeSize,
       isEmpty: node.textContent.length === 0,
+      kind,
+      rowFrom,
+      rowTo,
+      cellIndex,
     }
   }
 
