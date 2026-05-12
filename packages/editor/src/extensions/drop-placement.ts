@@ -186,7 +186,28 @@ export const DropPlacement = Extension.create({
                 return false
               }
               const $pos = view.state.doc.resolve(pos.pos)
-              const target = resolveHoverTarget(view, $pos)
+              let target = resolveHoverTarget(view, $pos)
+              // Centered atoms (e.g. images) have a full-width NodeViewWrapper
+              // but their visible content only fills the middle. Cursors in the
+              // empty side-gutters resolve to depth 0 (between blocks), and
+              // for atom nodes there is no "inside" position to re-resolve to.
+              // Fall back to a Y-scan of top-level children.
+              if (!target && $pos.depth === 0) {
+                const doc = view.state.doc
+                let scan = 0
+                for (let i = 0; i < doc.childCount; i++) {
+                  const child = doc.child(i)
+                  const dom = view.nodeDOM(scan) as HTMLElement | null
+                  if (dom) {
+                    const rect = dom.getBoundingClientRect()
+                    if (event.clientY >= rect.top && event.clientY <= rect.bottom) {
+                      target = { kind: 'block', pos: scan, node: child }
+                      break
+                    }
+                  }
+                  scan += child.nodeSize
+                }
+              }
               if (!target) {
                 view.dispatch(view.state.tr.setMeta(dropPlacementKey, { zone: null, target: null }))
                 return false
