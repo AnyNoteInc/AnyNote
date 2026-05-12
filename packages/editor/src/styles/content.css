@@ -418,17 +418,22 @@
 }
 
 .anynote-editor .column-layout {
-  display: grid;
-  gap: 24px;
+  position: relative;
   margin: 0.5rem 0;
 }
-.anynote-editor .column-layout--1 {
+/* Grid lives on the NodeViewContent inner div so the absolute-positioned
+   row drag handle (a sibling of the content) doesn't take up a grid cell. */
+.anynote-editor .column-layout-content {
+  display: grid;
+  gap: 24px;
+}
+.anynote-editor .column-layout--1 > .column-layout-content {
   grid-template-columns: 1fr;
 }
-.anynote-editor .column-layout--2 {
+.anynote-editor .column-layout--2 > .column-layout-content {
   grid-template-columns: 1fr 1fr;
 }
-.anynote-editor .column-layout--3 {
+.anynote-editor .column-layout--3 > .column-layout-content {
   grid-template-columns: 1fr 1fr 1fr;
 }
 
@@ -437,8 +442,10 @@
   min-width: 0;
 }
 
-/* Drop indicators — overlay on the target node */
+/* Drop indicators — overlay on the target node. Rendered as a block-display
+   span so HTML parsing inside <p> doesn't auto-close the paragraph. */
 .anynote-editor .column-drop-indicator {
+  display: block;
   position: absolute;
   pointer-events: none;
   background: #1976d2;
@@ -472,8 +479,8 @@
 }
 
 @media (max-width: 600px) {
-  .anynote-editor .column-layout--2,
-  .anynote-editor .column-layout--3 {
+  .anynote-editor .column-layout--2 > .column-layout-content,
+  .anynote-editor .column-layout--3 > .column-layout-content {
     grid-template-columns: 1fr;
   }
 }

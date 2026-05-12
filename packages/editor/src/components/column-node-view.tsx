@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, type MouseEvent } from 'react'
-import { IconButton, Menu, MenuItem } from '@mui/material'
+import { IconButton, Menu, MenuItem, Tooltip } from '@mui/material'
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
 import { NodeViewContent, NodeViewWrapper, type NodeViewProps } from '@tiptap/react'
 import { NodeSelection } from '@tiptap/pm/state'
@@ -62,16 +62,18 @@ export function ColumnNodeView({ editor, getPos, node }: NodeViewProps) {
 
   return (
     <NodeViewWrapper as="div" data-type="column" className="column">
-      <IconButton
-        className="cell-drag-handle"
-        size="small"
-        draggable
-        onMouseDown={onMouseDown}
-        onClick={onOpenMenu}
-        aria-label="Действия ячейки"
-      >
-        <DragIndicatorIcon fontSize="inherit" />
-      </IconButton>
+      <Tooltip title="Перетащить или удалить ячейку" placement="top">
+        <IconButton
+          className="cell-drag-handle"
+          size="small"
+          draggable
+          onMouseDown={onMouseDown}
+          onClick={onOpenMenu}
+          aria-label="Действия ячейки"
+        >
+          <DragIndicatorIcon fontSize="inherit" />
+        </IconButton>
+      </Tooltip>
       <NodeViewContent as="div" className="column-content" />
       <Menu anchorEl={anchor} open={Boolean(anchor)} onClose={closeMenu}>
         <MenuItem onClick={deleteCell}>Удалить ячейку</MenuItem>

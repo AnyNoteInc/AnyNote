@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, type MouseEvent } from 'react'
-import { IconButton, Menu, MenuItem } from '@mui/material'
+import { IconButton, Menu, MenuItem, Tooltip } from '@mui/material'
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
 import { NodeViewContent, NodeViewWrapper, type NodeViewProps } from '@tiptap/react'
 import { NodeSelection } from '@tiptap/pm/state'
@@ -50,16 +50,18 @@ export function ColumnLayoutNodeView({ editor, getPos, node }: NodeViewProps) {
       data-columns={String(node.childCount)}
       className={`column-layout column-layout--${node.childCount}`}
     >
-      <IconButton
-        className="row-drag-handle"
-        size="small"
-        draggable
-        onMouseDown={onMouseDown}
-        onClick={onOpenMenu}
-        aria-label="Действия ряда"
-      >
-        <DragIndicatorIcon fontSize="small" />
-      </IconButton>
+      <Tooltip title="Перетащить или удалить ряд" placement="left">
+        <IconButton
+          className="row-drag-handle"
+          size="small"
+          draggable
+          onMouseDown={onMouseDown}
+          onClick={onOpenMenu}
+          aria-label="Действия ряда"
+        >
+          <DragIndicatorIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
       <NodeViewContent as="div" className="column-layout-content" />
       <Menu anchorEl={anchor} open={Boolean(anchor)} onClose={closeMenu}>
         <MenuItem onClick={deleteRow}>Удалить ряд</MenuItem>

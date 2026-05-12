@@ -1,6 +1,6 @@
 import { Extension } from '@tiptap/core'
 import type { Node as PMNode, ResolvedPos } from '@tiptap/pm/model'
-import { Plugin, PluginKey } from '@tiptap/pm/state'
+import { Plugin, PluginKey, TextSelection } from '@tiptap/pm/state'
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
 
 import { computeDropZone, type DropZone } from './drop-placement.zones'
@@ -46,7 +46,9 @@ function renderIndicatorDecoration(doc: PMNode, state: PluginState): DecorationS
   if (!state.zone || !state.target) return DecorationSet.empty
   const target = state.target
   const targetPos = target.kind === 'cell' ? target.cellPos : target.pos
-  const overlay = document.createElement('div')
+  // <span> avoids HTML-parsing edge cases where <div> inside <p> auto-closes
+  // the paragraph; CSS gives it display:block so it still fills the area.
+  const overlay = document.createElement('span')
   overlay.className = `column-drop-indicator column-drop-indicator--${state.zone.toLowerCase()}`
   overlay.setAttribute('aria-hidden', 'true')
   return DecorationSet.create(doc, [
@@ -165,6 +167,13 @@ export const DropPlacement = Extension.create({
               }
             }
 
+            // Drop sources set a NodeSelection on the dragged row/cell; if we
+            // leave it as-is the user sees a stale highlight on the original
+            // position. Collapse to a text cursor in the new document state.
+            const docSize = tr.doc.content.size
+            if (docSize > 0) {
+              tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(tr.selection.from, docSize))))
+            }
             view.dispatch(tr.setMeta(dropPlacementKey, { zone: null, target: null }))
             event.preventDefault()
             return true
