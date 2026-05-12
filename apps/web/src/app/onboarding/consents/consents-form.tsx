@@ -68,19 +68,43 @@ export function ConsentsOnboardingForm() {
           label={
             <Typography variant="body2" color="text.secondary" sx={{ pt: 0.75 }}>
               Я принимаю{' '}
-              <Box component="a" href={URLS.userAgreement} target="_blank" rel="noopener noreferrer" sx={linkSx}>
+              <Box
+                component="a"
+                href={URLS.userAgreement}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={linkSx}
+              >
                 пользовательское соглашение
               </Box>
               ,{' '}
-              <Box component="a" href={URLS.privacyPolicy} target="_blank" rel="noopener noreferrer" sx={linkSx}>
+              <Box
+                component="a"
+                href={URLS.privacyPolicy}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={linkSx}
+              >
                 политику обработки персональных данных
               </Box>
               ,{' '}
-              <Box component="a" href={URLS.piiConsent} target="_blank" rel="noopener noreferrer" sx={linkSx}>
+              <Box
+                component="a"
+                href={URLS.piiConsent}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={linkSx}
+              >
                 согласие на обработку персональных данных
               </Box>{' '}
               и{' '}
-              <Box component="a" href={URLS.publicOffer} target="_blank" rel="noopener noreferrer" sx={linkSx}>
+              <Box
+                component="a"
+                href={URLS.publicOffer}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={linkSx}
+              >
                 оферту на оказание услуг
               </Box>
             </Typography>
@@ -104,7 +128,13 @@ export function ConsentsOnboardingForm() {
           label={
             <Typography variant="body2" color="text.secondary" sx={{ pt: 0.75 }}>
               Я согласен получать{' '}
-              <Box component="a" href={URLS.marketingConsent} target="_blank" rel="noopener noreferrer" sx={linkSx}>
+              <Box
+                component="a"
+                href={URLS.marketingConsent}
+                target="_blank"
+                rel="noopener noreferrer"
+                sx={linkSx}
+              >
                 информационные и рекламные рассылки
               </Box>{' '}
               на указанный email.
@@ -112,12 +142,7 @@ export function ConsentsOnboardingForm() {
           }
         />
       </Box>
-      <Button
-        type="submit"
-        variant="contained"
-        size="large"
-        disabled={accept.isPending}
-      >
+      <Button type="submit" variant="contained" size="large" disabled={accept.isPending}>
         Принять и продолжить
       </Button>
     </Stack>

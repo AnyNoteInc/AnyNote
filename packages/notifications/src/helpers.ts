@@ -29,20 +29,16 @@ export const notify = {
     },
   ) => emit(prisma, { type: 'EMAIL_CHANGED', userId: args.userId, payload: args }),
 
-  welcome: (
-    prisma: PrismaClient,
-    args: { userId: string; firstName: string; appUrl: string },
-  ) => emit(prisma, { type: 'WELCOME', userId: args.userId, payload: args }),
+  welcome: (prisma: PrismaClient, args: { userId: string; firstName: string; appUrl: string }) =>
+    emit(prisma, { type: 'WELCOME', userId: args.userId, payload: args }),
 
   accountDeletionRequested: (
     prisma: PrismaClient,
     args: { userId: string; firstName: string; link: string; expiresAtIso: string },
   ) => emit(prisma, { type: 'ACCOUNT_DELETION_REQUESTED', userId: args.userId, payload: args }),
 
-  accountDeletionCompleted: (
-    prisma: PrismaClient,
-    args: { userId: string; firstName: string },
-  ) => emit(prisma, { type: 'ACCOUNT_DELETION_COMPLETED', userId: args.userId, payload: args }),
+  accountDeletionCompleted: (prisma: PrismaClient, args: { userId: string; firstName: string }) =>
+    emit(prisma, { type: 'ACCOUNT_DELETION_COMPLETED', userId: args.userId, payload: args }),
 
   newLogin: (
     prisma: PrismaClient,
@@ -149,10 +145,8 @@ export const notify = {
       payload: args,
     }),
 
-  weeklyDigest: (
-    prisma: PrismaClient,
-    args: { userId: string; period: string; summary: string },
-  ) => emit(prisma, { type: 'WEEKLY_DIGEST', userId: args.userId, payload: args }),
+  weeklyDigest: (prisma: PrismaClient, args: { userId: string; period: string; summary: string }) =>
+    emit(prisma, { type: 'WEEKLY_DIGEST', userId: args.userId, payload: args }),
 
   productUpdate: (
     prisma: PrismaClient,

@@ -28,8 +28,7 @@ export async function emit(prisma: PrismaClient, args: EmitArgs): Promise<Notifi
     })
 
     const wantsInApp =
-      descriptor.defaultChannels.includes('IN_APP') ||
-      descriptor.lockedChannels.includes('IN_APP')
+      descriptor.defaultChannels.includes('IN_APP') || descriptor.lockedChannels.includes('IN_APP')
     if (wantsInApp) {
       await tx.notificationInApp.create({
         data: { eventId: created.id, userId: args.userId },

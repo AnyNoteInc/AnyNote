@@ -19,7 +19,9 @@ function makeTx(overrides: {
     notificationPreference: {
       findFirst: vi.fn(async ({ where }: { where: { category: string; channel: string } }) => {
         const list = overrides.prefs ?? []
-        return list.find((p) => p.category === where.category && p.channel === where.channel) ?? null
+        return (
+          list.find((p) => p.category === where.category && p.channel === where.channel) ?? null
+        )
       }),
     },
     pushSubscription: { findMany: vi.fn(async () => overrides.pushSubs ?? []) },
@@ -52,13 +54,17 @@ describe('resolvePreferences', () => {
   })
 
   it('blocks MARKETING email if no MARKETING consent or granted=false', async () => {
-    const tx = makeTx({ consents: [{ documentType: 'MARKETING', granted: false, createdAt: new Date() }] })
+    const tx = makeTx({
+      consents: [{ documentType: 'MARKETING', granted: false, createdAt: new Date() }],
+    })
     const result = await resolvePreferences(tx, 'u1', EVENT_CATALOG.WEEKLY_DIGEST)
     expect(result.email).toBeNull()
   })
 
   it('allows MARKETING email when granted=true', async () => {
-    const tx = makeTx({ consents: [{ documentType: 'MARKETING', granted: true, createdAt: new Date() }] })
+    const tx = makeTx({
+      consents: [{ documentType: 'MARKETING', granted: true, createdAt: new Date() }],
+    })
     const result = await resolvePreferences(tx, 'u1', EVENT_CATALOG.WEEKLY_DIGEST)
     expect(result.email).toBe('u@e.com')
   })

@@ -166,10 +166,7 @@ export function PreferencesMatrix() {
           />
         ))}
       </Box>
-      <Stack
-        spacing={1}
-        sx={{ mt: 3, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}
-      >
+      <Stack spacing={1} sx={{ mt: 3, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
         <Typography variant="subtitle2">Устройства для push</Typography>
         {(subs.data ?? []).length === 0 ? (
           <Typography variant="caption" color="text.secondary">

@@ -4,7 +4,12 @@ import { signUpAndAuthAs } from './helpers/auth'
 
 test('notifications page renders empty state for a fresh user', async ({ page }) => {
   const email = `notify-${Date.now()}@example.com`
-  await signUpAndAuthAs(page, { email, password: 'pass1234', firstName: 'Notify', lastName: 'User' })
+  await signUpAndAuthAs(page, {
+    email,
+    password: 'pass1234',
+    firstName: 'Notify',
+    lastName: 'User',
+  })
 
   await page.goto('/notifications')
   await expect(page.getByRole('heading', { name: 'Уведомления' })).toBeVisible()

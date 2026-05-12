@@ -21,8 +21,7 @@ async function resolveEmail(
 
   // SERVICE emails (verify-email, reset-password, etc.) skip the
   // emailVerified gate — verify-email by definition goes to unverified users.
-  const emailReachable =
-    !!user.email && (descriptor.category === 'SERVICE' || user.emailVerified)
+  const emailReachable = !!user.email && (descriptor.category === 'SERVICE' || user.emailVerified)
   if (!emailReachable) return null
 
   if (descriptor.requiresConsent === 'MARKETING') {

@@ -43,6 +43,7 @@ Fetch details: get_observations([IDs]) | Search: mem-search skill
 Stats: 50 obs (17,209t read) | 1,260,022t work | 99% savings
 
 ### May 11, 2026
+
 1495 9:49a 🔄 Notifications fully removed from WorkspaceUserMenu, NotificationsBell imported into workspace-sidebar
 1496 9:50a 🟣 NotificationsBell wired into full sidebar user row and mini sidebar (imports added)
 1497 " 🟣 NotificationsBell added to mini sidebar above user avatar

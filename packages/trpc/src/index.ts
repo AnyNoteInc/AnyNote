@@ -45,9 +45,5 @@ export const appRouter = router({
 export const createCaller = createCallerFactory(appRouter)
 export type AppRouter = typeof appRouter
 
-export {
-  getCurrentConsents,
-  hasAllRequiredConsents,
-  type CurrentConsent,
-} from './lib/consents'
+export { getCurrentConsents, hasAllRequiredConsents, type CurrentConsent } from './lib/consents'
 export { setDocumentVersionResolver } from './lib/document-versions'

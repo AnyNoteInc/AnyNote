@@ -8,7 +8,7 @@
 
 Build a unified notification system covering:
 
-- **Service** — transactional auth (verify-email, reset-password, password-changed, email-changed, welcome, account-deletion-*).
+- **Service** — transactional auth (verify-email, reset-password, password-changed, email-changed, welcome, account-deletion-\*).
 - **Security** — new-login, suspicious-activity.
 - **Collaboration** — workspace-invite, role-changed (in v1); page-mention, comment-created (helpers reserved, no trigger points).
 - **Marketing/Digest** — weekly-digest, product-update (helpers reserved, no trigger points). Gated by `MARKETING` user consent.
@@ -290,31 +290,106 @@ Single source of truth — Preferences UI, worker, and tests all read from it.
 ```ts
 type EventDescriptor = {
   category: NotificationCategory
-  defaultChannels: NotificationChannel[]      // delivered to (if user hasn't disabled)
-  lockedChannels: NotificationChannel[]       // user CAN'T disable
-  requiresConsent: 'MARKETING' | null         // gate before delivery
+  defaultChannels: NotificationChannel[] // delivered to (if user hasn't disabled)
+  lockedChannels: NotificationChannel[] // user CAN'T disable
+  requiresConsent: 'MARKETING' | null // gate before delivery
 }
 
 export const EVENT_CATALOG = {
   // SERVICE
-  VERIFY_EMAIL:     { category: 'SERVICE', defaultChannels: ['EMAIL'], lockedChannels: ['EMAIL'], requiresConsent: null },
-  RESET_PASSWORD:   { category: 'SERVICE', defaultChannels: ['EMAIL'], lockedChannels: ['EMAIL'], requiresConsent: null },
-  PASSWORD_CHANGED: { category: 'SERVICE', defaultChannels: ['EMAIL'], lockedChannels: ['EMAIL'], requiresConsent: null },
-  EMAIL_CHANGED:    { category: 'SERVICE', defaultChannels: ['EMAIL'], lockedChannels: ['EMAIL'], requiresConsent: null },
-  WELCOME:          { category: 'SERVICE', defaultChannels: ['EMAIL'], lockedChannels: ['EMAIL'], requiresConsent: null },
-  ACCOUNT_DELETION_REQUESTED: { category: 'SERVICE', defaultChannels: ['EMAIL'], lockedChannels: ['EMAIL'], requiresConsent: null },
-  ACCOUNT_DELETION_COMPLETED: { category: 'SERVICE', defaultChannels: ['EMAIL'], lockedChannels: ['EMAIL'], requiresConsent: null },
+  VERIFY_EMAIL: {
+    category: 'SERVICE',
+    defaultChannels: ['EMAIL'],
+    lockedChannels: ['EMAIL'],
+    requiresConsent: null,
+  },
+  RESET_PASSWORD: {
+    category: 'SERVICE',
+    defaultChannels: ['EMAIL'],
+    lockedChannels: ['EMAIL'],
+    requiresConsent: null,
+  },
+  PASSWORD_CHANGED: {
+    category: 'SERVICE',
+    defaultChannels: ['EMAIL'],
+    lockedChannels: ['EMAIL'],
+    requiresConsent: null,
+  },
+  EMAIL_CHANGED: {
+    category: 'SERVICE',
+    defaultChannels: ['EMAIL'],
+    lockedChannels: ['EMAIL'],
+    requiresConsent: null,
+  },
+  WELCOME: {
+    category: 'SERVICE',
+    defaultChannels: ['EMAIL'],
+    lockedChannels: ['EMAIL'],
+    requiresConsent: null,
+  },
+  ACCOUNT_DELETION_REQUESTED: {
+    category: 'SERVICE',
+    defaultChannels: ['EMAIL'],
+    lockedChannels: ['EMAIL'],
+    requiresConsent: null,
+  },
+  ACCOUNT_DELETION_COMPLETED: {
+    category: 'SERVICE',
+    defaultChannels: ['EMAIL'],
+    lockedChannels: ['EMAIL'],
+    requiresConsent: null,
+  },
   // SECURITY
-  NEW_LOGIN:           { category: 'SECURITY', defaultChannels: ['EMAIL', 'IN_APP'], lockedChannels: ['IN_APP'], requiresConsent: null },
-  SUSPICIOUS_ACTIVITY: { category: 'SECURITY', defaultChannels: ['EMAIL', 'IN_APP'], lockedChannels: ['IN_APP'], requiresConsent: null },
+  NEW_LOGIN: {
+    category: 'SECURITY',
+    defaultChannels: ['EMAIL', 'IN_APP'],
+    lockedChannels: ['IN_APP'],
+    requiresConsent: null,
+  },
+  SUSPICIOUS_ACTIVITY: {
+    category: 'SECURITY',
+    defaultChannels: ['EMAIL', 'IN_APP'],
+    lockedChannels: ['IN_APP'],
+    requiresConsent: null,
+  },
   // COLLABORATION
-  WORKSPACE_INVITE: { category: 'COLLABORATION', defaultChannels: ['EMAIL', 'IN_APP'], lockedChannels: ['IN_APP'], requiresConsent: null },
-  ROLE_CHANGED:     { category: 'COLLABORATION', defaultChannels: ['IN_APP'],          lockedChannels: ['IN_APP'], requiresConsent: null },
-  PAGE_MENTION:     { category: 'COLLABORATION', defaultChannels: ['EMAIL', 'IN_APP'], lockedChannels: ['IN_APP'], requiresConsent: null },
-  COMMENT_CREATED:  { category: 'COLLABORATION', defaultChannels: ['EMAIL', 'IN_APP'], lockedChannels: ['IN_APP'], requiresConsent: null },
+  WORKSPACE_INVITE: {
+    category: 'COLLABORATION',
+    defaultChannels: ['EMAIL', 'IN_APP'],
+    lockedChannels: ['IN_APP'],
+    requiresConsent: null,
+  },
+  ROLE_CHANGED: {
+    category: 'COLLABORATION',
+    defaultChannels: ['IN_APP'],
+    lockedChannels: ['IN_APP'],
+    requiresConsent: null,
+  },
+  PAGE_MENTION: {
+    category: 'COLLABORATION',
+    defaultChannels: ['EMAIL', 'IN_APP'],
+    lockedChannels: ['IN_APP'],
+    requiresConsent: null,
+  },
+  COMMENT_CREATED: {
+    category: 'COLLABORATION',
+    defaultChannels: ['EMAIL', 'IN_APP'],
+    lockedChannels: ['IN_APP'],
+    requiresConsent: null,
+  },
   // MARKETING
-  WEEKLY_DIGEST:  { category: 'MARKETING', defaultChannels: ['EMAIL'], lockedChannels: [], requiresConsent: 'MARKETING' },
-  PRODUCT_UPDATE: { category: 'MARKETING', defaultChannels: ['EMAIL'], lockedChannels: [], requiresConsent: 'MARKETING' },
+  WEEKLY_DIGEST: {
+    category: 'MARKETING',
+    defaultChannels: ['EMAIL'],
+    lockedChannels: [],
+    requiresConsent: 'MARKETING',
+  },
+  PRODUCT_UPDATE: {
+    category: 'MARKETING',
+    defaultChannels: ['EMAIL'],
+    lockedChannels: [],
+    requiresConsent: 'MARKETING',
+  },
 } as const satisfies Record<NotificationEventType, EventDescriptor>
 ```
 
@@ -332,6 +407,7 @@ emit(prisma: PrismaClient | TransactionClient, args: {
 ```
 
 Behavior inside the transaction:
+
 1. `INSERT notification_events` (category derived from catalog).
 2. If `IN_APP` is in `defaultChannels` or `lockedChannels`: `INSERT notification_in_app`.
 3. Resolve preferences for `userId` × catalog row.
@@ -373,6 +449,7 @@ async function resolvePreferences(
 ```
 
 Logic:
+
 - For each non-IN_APP channel in `descriptor.defaultChannels`:
   - Read `notification_preferences` for `(userId, descriptor.category, channel)`. If row exists with `enabled=false` AND channel is not in `descriptor.lockedChannels`, skip.
   - For `EMAIL` + `requiresConsent='MARKETING'`: read latest `user_consents` row for `(userId, MARKETING)`. If `accepted=false`, skip.
@@ -384,6 +461,7 @@ Logic:
 ### 6.1 Schema migration
 
 `packages/db/prisma/migrations/<timestamp>_notifications_v1/migration.sql`:
+
 - Generated by `prisma migrate dev`: 5 new tables, 4 enums, FKs and indexes per §4.
 - **Manual amendment after generation**: add two partial unique indexes for delivery idempotency. Plain `UNIQUE` including `target_subscription_id` is insufficient because Postgres treats NULLs as distinct, so two EMAIL deliveries (both with NULL `target_subscription_id`) for the same event×user would not collide. Partial indexes work on any Postgres ≥9.0:
 
@@ -444,19 +522,19 @@ ALTER TABLE user_preferences DROP COLUMN notification_settings;
 
 ## 7. Trigger points (where `notify.*` is called)
 
-| Event | Where | Notes |
-|---|---|---|
-| `VERIFY_EMAIL` | `packages/auth/src/auth.ts:sendVerificationEmail` | Replace direct `sendMailNow` call. SERVICE → synchronous email + event row. |
-| `RESET_PASSWORD` | `packages/auth/src/auth.ts:sendResetPassword` | Same. |
-| `PASSWORD_CHANGED` | `packages/auth/src/auth.ts:onPasswordReset` (better-auth hook) | Same. |
-| `EMAIL_CHANGED` | `packages/auth/src/auth.ts` (after change-email confirm hook) | Same. |
-| `WELCOME` | `packages/auth/src/auth.ts:afterEmailVerification` | Same. |
-| `ACCOUNT_DELETION_REQUESTED` / `_COMPLETED` | wherever current calls live (search via grep) | Same. |
-| `NEW_LOGIN` | `packages/auth/src/auth.ts` better-auth `signIn.after` hook (new) | Async via worker. |
-| `SUSPICIOUS_ACTIVITY` | trigger location TBD by future code (placeholder helper exists) | Async. |
-| `WORKSPACE_INVITE` | `packages/trpc/src/routers/workspace.ts:144 inviteMember` | Replace direct invitation `sendMailNow`. Async via worker. |
-| `ROLE_CHANGED` | `packages/trpc/src/routers/workspace.ts:updateMemberRole` (add if missing) | IN_APP only by default. |
-| `PAGE_MENTION`, `COMMENT_CREATED`, `WEEKLY_DIGEST`, `PRODUCT_UPDATE` | helper exists, no caller | Stubs for future. |
+| Event                                                                | Where                                                                      | Notes                                                                       |
+| -------------------------------------------------------------------- | -------------------------------------------------------------------------- | --------------------------------------------------------------------------- |
+| `VERIFY_EMAIL`                                                       | `packages/auth/src/auth.ts:sendVerificationEmail`                          | Replace direct `sendMailNow` call. SERVICE → synchronous email + event row. |
+| `RESET_PASSWORD`                                                     | `packages/auth/src/auth.ts:sendResetPassword`                              | Same.                                                                       |
+| `PASSWORD_CHANGED`                                                   | `packages/auth/src/auth.ts:onPasswordReset` (better-auth hook)             | Same.                                                                       |
+| `EMAIL_CHANGED`                                                      | `packages/auth/src/auth.ts` (after change-email confirm hook)              | Same.                                                                       |
+| `WELCOME`                                                            | `packages/auth/src/auth.ts:afterEmailVerification`                         | Same.                                                                       |
+| `ACCOUNT_DELETION_REQUESTED` / `_COMPLETED`                          | wherever current calls live (search via grep)                              | Same.                                                                       |
+| `NEW_LOGIN`                                                          | `packages/auth/src/auth.ts` better-auth `signIn.after` hook (new)          | Async via worker.                                                           |
+| `SUSPICIOUS_ACTIVITY`                                                | trigger location TBD by future code (placeholder helper exists)            | Async.                                                                      |
+| `WORKSPACE_INVITE`                                                   | `packages/trpc/src/routers/workspace.ts:144 inviteMember`                  | Replace direct invitation `sendMailNow`. Async via worker.                  |
+| `ROLE_CHANGED`                                                       | `packages/trpc/src/routers/workspace.ts:updateMemberRole` (add if missing) | IN_APP only by default.                                                     |
+| `PAGE_MENTION`, `COMMENT_CREATED`, `WEEKLY_DIGEST`, `PRODUCT_UPDATE` | helper exists, no caller                                                   | Stubs for future.                                                           |
 
 `packages/auth/src/auth.ts` imports the `prisma` singleton from `@repo/db` (already imported there) — no signature changes to better-auth callbacks needed.
 
@@ -526,6 +604,7 @@ apps/engines/src/apps/notifier/
 Wired in `apps/engines/src/main.ts` next to `IndexerModule`. Uses `@repo/notifications/worker/dispatcher`.
 
 Env vars (added to `.env.example` and `turbo.json` `globalEnv`):
+
 - `NOTIFIER_CRON_EXPRESSION` (default `*/5 * * * * *`)
 - `NOTIFIER_BATCH_SIZE` (default `50`)
 - `NOTIFIER_MAX_ATTEMPTS` (default `5`)
@@ -548,7 +627,7 @@ self.addEventListener('push', (event) => {
       body: data.body,
       icon: '/icon-192.png',
       data: { url: data.url },
-    })
+    }),
   )
 })
 
@@ -577,6 +656,7 @@ Generation: `npx web-push generate-vapid-keys`. Documented in `.env.example` com
 ### 11.1 `/notifications` page
 
 Files:
+
 ```
 apps/web/src/app/(protected)/notifications/page.tsx        # RSC, Container maxWidth="md"
 apps/web/src/components/notifications/
@@ -587,6 +667,7 @@ apps/web/src/components/notifications/
 ```
 
 Behavior:
+
 - RSC renders first page via `getServerTRPC().notification.list({ limit: 20 })`.
 - Client uses `useInfiniteQuery` with cursor `{ createdAt, id }`.
 - "Mark all read" button → `notification.markAllRead.useMutation()`, invalidates list and badge.
@@ -625,6 +706,7 @@ File: `apps/web/src/components/notifications/sidebar-notifications-trigger.tsx`.
 ### 11.3 `/profile` cards
 
 `apps/web/src/app/(protected)/profile/page.tsx` change:
+
 - Container width grows to `maxWidth="md"`.
 - Above the "Рабочие пространства" block, add a `Stack direction={{ xs: 'column', sm: 'row' }} spacing={2}` of two cards:
   - `⚙ Настройки` → `/settings`
@@ -676,18 +758,19 @@ Reads `notification.getPreferences` and `notification.listPushSubscriptions`. Wr
 
 ## 12. Tests
 
-| Layer | Files | Coverage |
-|---|---|---|
-| `packages/notifications` | `test/emit.test.ts`, `test/resolve-preferences.test.ts`, `test/catalog.test.ts`, `test/worker/*.test.ts` | emit writes correct rows; resolver respects locked + consent gate; catalog covers every EventType; worker dispatches to correct handler; backoff math; HTTP 410 cleans subscription. |
-| `packages/trpc` | `test/notification.test.ts` | each procedure: list pagination, markRead doesn't touch other users' rows, MARKETING without consent → FORBIDDEN, locked channel → BAD_REQUEST. |
-| `apps/web` | `test/notifications-list.test.tsx`, `test/sidebar-trigger.test.tsx`, `test/notifications-section.test.tsx` | infinite scroll, mark-as-read on visibility, badge count, preferences matrix locked-cell behavior. |
-| `apps/e2e` | `apps/e2e/notifications.spec.ts` | full flow: invite → recipient sees badge → opens popover → click navigates to workspace and marks read. |
+| Layer                    | Files                                                                                                      | Coverage                                                                                                                                                                             |
+| ------------------------ | ---------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `packages/notifications` | `test/emit.test.ts`, `test/resolve-preferences.test.ts`, `test/catalog.test.ts`, `test/worker/*.test.ts`   | emit writes correct rows; resolver respects locked + consent gate; catalog covers every EventType; worker dispatches to correct handler; backoff math; HTTP 410 cleans subscription. |
+| `packages/trpc`          | `test/notification.test.ts`                                                                                | each procedure: list pagination, markRead doesn't touch other users' rows, MARKETING without consent → FORBIDDEN, locked channel → BAD_REQUEST.                                      |
+| `apps/web`               | `test/notifications-list.test.tsx`, `test/sidebar-trigger.test.tsx`, `test/notifications-section.test.tsx` | infinite scroll, mark-as-read on visibility, badge count, preferences matrix locked-cell behavior.                                                                                   |
+| `apps/e2e`               | `apps/e2e/notifications.spec.ts`                                                                           | full flow: invite → recipient sees badge → opens popover → click navigates to workspace and marks read.                                                                              |
 
 `apps/e2e/helpers/auth.ts:writeConsentsForUserId` — also seeds default `notification_preferences` rows for the new user (so e2e specs don't hit empty-state branches unintentionally). Production code path remains lazy: missing row → use catalog default.
 
 ## 13. Acceptance criteria
 
 A user can:
+
 - Sign up → receive verify email (existing flow, now also writes `NotificationEvent` row for audit).
 - Get invited to a workspace → see in-app badge update within 30s, see notification in `/notifications`, receive email within ~5s if EMAIL preference on.
 - Open `/notifications` → see paginated list, scroll to load more, click "Mark all read".
@@ -697,6 +780,7 @@ A user can:
 - Revoke a push device in settings → no more push to that device.
 
 A developer can:
+
 - Add a new event type by: appending to `NotificationEventType` enum, adding entry to `EVENT_CATALOG`, adding helper in `helpers.ts`, adding template file in `templates/`. No worker or UI code changes needed.
 
 ## 14. Open questions / future work (non-blocking)

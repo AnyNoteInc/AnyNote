@@ -17,8 +17,8 @@ Status: approved (brainstorm)
 - A `Reminder` table in Postgres that is reconciled against the Y.Doc state on
   every editor change. Reminder fan-out reuses the existing notifications/v1
   pipeline: `NotificationEvent` (type `REMINDER_DUE`, category `COLLABORATION`)
-  + `NotificationDelivery` rows with `nextAttemptAt = dueAt - offsetMinutes·60s`,
-  picked up by the existing notifier cron.
+  - `NotificationDelivery` rows with `nextAttemptAt = dueAt - offsetMinutes·60s`,
+    picked up by the existing notifier cron.
 - The chip's visual state is dynamic: gray (plenty of time), yellow (between
   earliest pending offset and the deadline), red (overdue), green (done — wins
   unconditionally).
@@ -141,7 +141,7 @@ Adds `addNodeView(ReactNodeViewRenderer(ReminderView))`. The `ReminderView`
 component:
 
 - Renders an inline `Box` chip via `NodeViewWrapper as="span"
-  contentEditable={false}`.
+contentEditable={false}`.
 - Reads `node.attrs`, computes `state` via `computeReminderState(attrs, now)`
   (see "Color logic" below), looks up colours from `REMINDER_COLORS`.
 - On click (when `editor.isEditable`): calls the editor-context method
@@ -225,15 +225,15 @@ already used for outline / move-dialog). The chip's `onClick` calls
    `@repo/ui` if not present, with `LocalizationProvider`/`AdapterDateFns` and
    `ru` locale).
 3. **Напомнить заранее** — six checkboxes rendered top-down in order
-   *closest-to-deadline first*:
-   - `0`   — В момент истечения
-   - `60`  — За 1 час
+   _closest-to-deadline first_:
+   - `0` — В момент истечения
+   - `60` — За 1 час
    - `1440` — За 1 день
    - `4320` — За 3 дня
    - `10080` — За 1 неделю
    - `43200` — За 1 месяц
 4. **Для кого** — radio group `Только я` / `Весь workspace` / `Выбрать
-   участников`. The list option expands a multi-select using
+участников`. The list option expands a multi-select using
    `trpc.workspace.listMembers.useQuery({ workspaceId })`.
 
 Validation: submit disabled when `dueAt` is in the past, `dueAt` is empty, or
@@ -268,24 +268,35 @@ present in the doc.
 ```ts
 function useReminderSync(editor: Editor, pageId: string) {
   const sync = trpc.reminder.syncForPage.useMutation()
-  const debounced = useMemo(() => debounce(() => {
-    const reminders: ReminderSyncInput[] = []
-    editor.state.doc.descendants(node => {
-      if (node.type.name !== 'reminder') return
-      const a = node.attrs
-      if (!a.id || !a.dueAt) return       // placeholders skipped
-      reminders.push({
-        id: a.id, dueAt: a.dueAt, offsets: a.offsets,
-        audience: a.audience, label: a.label,
-        recipients: a.recipients ?? [], doneAt: a.doneAt,
-      })
-    })
-    sync.mutate({ pageId, reminders })
-  }, 1_000), [editor, pageId, sync])
+  const debounced = useMemo(
+    () =>
+      debounce(() => {
+        const reminders: ReminderSyncInput[] = []
+        editor.state.doc.descendants((node) => {
+          if (node.type.name !== 'reminder') return
+          const a = node.attrs
+          if (!a.id || !a.dueAt) return // placeholders skipped
+          reminders.push({
+            id: a.id,
+            dueAt: a.dueAt,
+            offsets: a.offsets,
+            audience: a.audience,
+            label: a.label,
+            recipients: a.recipients ?? [],
+            doneAt: a.doneAt,
+          })
+        })
+        sync.mutate({ pageId, reminders })
+      }, 1_000),
+    [editor, pageId, sync],
+  )
 
   useEffect(() => {
     editor.on('update', debounced)
-    return () => { editor.off('update', debounced); debounced.cancel() }
+    return () => {
+      editor.off('update', debounced)
+      debounced.cancel()
+    }
   }, [editor, debounced])
 }
 ```
@@ -299,10 +310,12 @@ Single mutation (also used as the only write path for reminder state):
 
 ```ts
 syncForPage: protectedProcedure
-  .input(z.object({
-    pageId: z.string().uuid(),
-    reminders: z.array(reminderSyncSchema).max(500),
-  }))
+  .input(
+    z.object({
+      pageId: z.string().uuid(),
+      reminders: z.array(reminderSyncSchema).max(500),
+    }),
+  )
   .mutation(async ({ ctx, input }) => {
     const page = await ctx.prisma.page.findUniqueOrThrow({
       where: { id: input.pageId },
@@ -310,30 +323,41 @@ syncForPage: protectedProcedure
     })
     await assertRole(ctx, page.workspaceId, ['OWNER', 'ADMIN', 'EDITOR'])
 
-    await ctx.prisma.$transaction(async tx => {
+    await ctx.prisma.$transaction(async (tx) => {
       const existing = await tx.reminder.findMany({
         where: { pageId: input.pageId },
         select: {
-          id: true, deletedAt: true, doneAt: true, dueAt: true,
-          offsets: true, audience: true,
+          id: true,
+          deletedAt: true,
+          doneAt: true,
+          dueAt: true,
+          offsets: true,
+          audience: true,
         },
       })
-      const existingById = new Map(existing.map(r => [r.id, r]))
-      const incomingIds = new Set(input.reminders.map(r => r.id))
+      const existingById = new Map(existing.map((r) => [r.id, r]))
+      const incomingIds = new Set(input.reminders.map((r) => r.id))
 
       for (const r of input.reminders) {
         const prev = existingById.get(r.id)
         await tx.reminder.upsert({
           where: { id: r.id },
           create: {
-            id: r.id, pageId: input.pageId, workspaceId: page.workspaceId,
+            id: r.id,
+            pageId: input.pageId,
+            workspaceId: page.workspaceId,
             createdById: ctx.user.id,
-            dueAt: new Date(r.dueAt), offsets: r.offsets,
-            audience: r.audience, label: r.label, doneAt: r.doneAt ? new Date(r.doneAt) : null,
+            dueAt: new Date(r.dueAt),
+            offsets: r.offsets,
+            audience: r.audience,
+            label: r.label,
+            doneAt: r.doneAt ? new Date(r.doneAt) : null,
           },
           update: {
-            dueAt: new Date(r.dueAt), offsets: r.offsets,
-            audience: r.audience, label: r.label,
+            dueAt: new Date(r.dueAt),
+            offsets: r.offsets,
+            audience: r.audience,
+            label: r.label,
             doneAt: r.doneAt ? new Date(r.doneAt) : null,
             deletedAt: null,
             doneById: r.doneAt && !prev?.doneAt ? ctx.user.id : undefined,
@@ -344,7 +368,7 @@ syncForPage: protectedProcedure
         await tx.reminderRecipient.deleteMany({ where: { reminderId: r.id } })
         if (r.audience === 'LIST') {
           await tx.reminderRecipient.createMany({
-            data: r.recipients.map(uid => ({ reminderId: r.id, userId: uid })),
+            data: r.recipients.map((uid) => ({ reminderId: r.id, userId: uid })),
           })
         }
 
@@ -352,7 +376,7 @@ syncForPage: protectedProcedure
       }
 
       // Soft-delete reminders present in DB but missing from doc
-      const toDelete = [...existingById.keys()].filter(id => !incomingIds.has(id))
+      const toDelete = [...existingById.keys()].filter((id) => !incomingIds.has(id))
       if (toDelete.length) {
         await tx.reminder.updateMany({
           where: { id: { in: toDelete }, deletedAt: null },
@@ -373,7 +397,7 @@ For one reminder:
    - `WORKSPACE` → `workspaceMember.findMany({ workspaceId })` userIds
    - `LIST` → `recipients`
 2. For each `(userId, offsetMinutes)` pair compute `fireAt = dueAt -
-   offsetMinutes·60_000` and:
+offsetMinutes·60_000` and:
    - If `r.doneAt != null` OR `fireAt <= now()`: skip (no future fire).
    - Otherwise create one `NotificationEvent` (type `REMINDER_DUE`, payload
      `{ reminderId, offsetMinutes, dueAt, label, pageId, workspaceId }`) and
@@ -434,11 +458,11 @@ Per-channel handlers:
   used by the existing dispatcher. Subject:
   - `offsetMinutes > 0`: `🔔 Через ${humanOffset}: ${label || 'Напоминание'}`
   - `offsetMinutes === 0`: `🔔 Напоминание: ${label || 'Дедлайн'}`
-  Body: label, formatted dueAt in user locale, link to `resourceUrl`.
-  Helper `formatHumanOffset(minutes)` lives in
-  `packages/notifications/src/reminders.ts` and returns Russian strings
-  ("1 час", "1 день", "1 неделя", "1 месяц" — fixed presets so no
-  pluralisation logic is needed).
+    Body: label, formatted dueAt in user locale, link to `resourceUrl`.
+    Helper `formatHumanOffset(minutes)` lives in
+    `packages/notifications/src/reminders.ts` and returns Russian strings
+    ("1 час", "1 день", "1 неделя", "1 месяц" — fixed presets so no
+    pluralisation logic is needed).
 - **WEB_PUSH** — reuses existing VAPID flow; title/body mirror email,
   `data.url = resourceUrl`.
 
@@ -457,18 +481,18 @@ running during sync.
 
 ## Edge cases
 
-| Scenario | Behaviour |
-|----------|-----------|
-| Slash command run, popover closed without saving | Placeholder chip remains until next keystroke; if the popover Cancel button is clicked, the chip is deleted via an editor command. Sync ignores chips without `dueAt`. |
-| User deletes chip, then ctrl+z | Y.Doc restores the node with same UUID; next debounced sync upserts and clears `deletedAt`; rebuildDeliveries re-creates pending deliveries. |
-| Page deleted | Cascade nukes Reminder rows. Pending NotificationDelivery rows referencing them stay; dispatcher pre-fire check `Reminder.findUnique({ id }) === null OR deletedAt != null` → SKIPPED. |
-| Workspace member removed | `ReminderRecipient` cascades. WORKSPACE-audience pending deliveries for that user are SKIPPED on dispatch (membership check). |
-| dueAt postponed forward | Existing DELIVERED rows untouched. PENDING rows for offsets whose new `fireAt > now()` get `nextAttemptAt` updated; offsets whose `fireAt` is still in the past stay SKIPPED. |
-| dueAt postponed backwards (validator prevents past) | Submission disabled. |
-| Sync mutation fails (network) | Local state in Y.Doc preserved; next `editor.on('update')` retriggers debounced sync. The mutation is idempotent. |
-| Two collaborators concurrently mutate the same chip | Y.Doc resolves attrs via CRDT; both clients eventually sync; last write wins on the server (the upsert is set-based, never accumulative). |
+| Scenario                                                       | Behaviour                                                                                                                                                                                                                                                          |
+| -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Slash command run, popover closed without saving               | Placeholder chip remains until next keystroke; if the popover Cancel button is clicked, the chip is deleted via an editor command. Sync ignores chips without `dueAt`.                                                                                             |
+| User deletes chip, then ctrl+z                                 | Y.Doc restores the node with same UUID; next debounced sync upserts and clears `deletedAt`; rebuildDeliveries re-creates pending deliveries.                                                                                                                       |
+| Page deleted                                                   | Cascade nukes Reminder rows. Pending NotificationDelivery rows referencing them stay; dispatcher pre-fire check `Reminder.findUnique({ id }) === null OR deletedAt != null` → SKIPPED.                                                                             |
+| Workspace member removed                                       | `ReminderRecipient` cascades. WORKSPACE-audience pending deliveries for that user are SKIPPED on dispatch (membership check).                                                                                                                                      |
+| dueAt postponed forward                                        | Existing DELIVERED rows untouched. PENDING rows for offsets whose new `fireAt > now()` get `nextAttemptAt` updated; offsets whose `fireAt` is still in the past stay SKIPPED.                                                                                      |
+| dueAt postponed backwards (validator prevents past)            | Submission disabled.                                                                                                                                                                                                                                               |
+| Sync mutation fails (network)                                  | Local state in Y.Doc preserved; next `editor.on('update')` retriggers debounced sync. The mutation is idempotent.                                                                                                                                                  |
+| Two collaborators concurrently mutate the same chip            | Y.Doc resolves attrs via CRDT; both clients eventually sync; last write wins on the server (the upsert is set-based, never accumulative).                                                                                                                          |
 | WORKSPACE-audience reminder, new member added before fire time | Member is included on the next sync's `rebuildDeliveries` call (because the doc updates ≥ once between member-add and fire on a live page). Edge: if the doc isn't touched between member-add and fire, the new member is missed — accepted as a known limitation. |
-| 50 reminders × 100 recipients × 6 offsets | 30k pending rows. `NotificationDelivery` already has `(status, nextAttemptAt)` partial-equivalent indexes from notifications/v1; verify during migration. `rebuildDeliveries` is idempotent so steady-state sync writes near-zero rows. |
+| 50 reminders × 100 recipients × 6 offsets                      | 30k pending rows. `NotificationDelivery` already has `(status, nextAttemptAt)` partial-equivalent indexes from notifications/v1; verify during migration. `rebuildDeliveries` is idempotent so steady-state sync writes near-zero rows.                            |
 
 ## Testing
 

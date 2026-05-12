@@ -16,7 +16,9 @@ describe('EVENT_CATALOG', () => {
       for (const locked of descriptor.lockedChannels) {
         const inDefaults = descriptor.defaultChannels.includes(locked)
         const isInApp = locked === 'IN_APP'
-        expect(inDefaults || isInApp, `${type}: locked channel ${locked} not in defaults`).toBe(true)
+        expect(inDefaults || isInApp, `${type}: locked channel ${locked} not in defaults`).toBe(
+          true,
+        )
       }
     }
   })
@@ -24,7 +26,9 @@ describe('EVENT_CATALOG', () => {
   it('MARKETING events require MARKETING consent', () => {
     for (const [type, descriptor] of Object.entries(EVENT_CATALOG)) {
       if (descriptor.category === 'MARKETING') {
-        expect(descriptor.requiresConsent, `${type}: must require MARKETING consent`).toBe('MARKETING')
+        expect(descriptor.requiresConsent, `${type}: must require MARKETING consent`).toBe(
+          'MARKETING',
+        )
       }
     }
   })

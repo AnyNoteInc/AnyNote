@@ -150,9 +150,7 @@ export function WorkspaceLayoutClient({
   )
 
   const sidebar =
-    mode === 'full' ? (
-      <WorkspaceSidebar {...sidebarProps} onHide={() => setMode('hidden')} />
-    ) : null
+    mode === 'full' ? <WorkspaceSidebar {...sidebarProps} onHide={() => setMode('hidden')} /> : null
 
   return (
     <SearchDialogProvider workspaceId={workspace.id}>

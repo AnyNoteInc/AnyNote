@@ -59,7 +59,11 @@ describe('auth.signUp', () => {
     expect(callArg.body.name).toBe('Фамилия Имя')
 
     expect(createMany).toHaveBeenCalledOnce()
-    const data = createMany.mock.calls[0][0].data as Array<{ source: string; granted: boolean; documentType: string }>
+    const data = createMany.mock.calls[0][0].data as Array<{
+      source: string
+      granted: boolean
+      documentType: string
+    }>
     expect(data).toHaveLength(5)
     expect(data.every((d) => d.source === 'SIGN_UP')).toBe(true)
     expect(data.find((d) => d.documentType === 'MARKETING')?.granted).toBe(true)
@@ -73,7 +77,13 @@ describe('auth.signUp', () => {
     const caller = createCallerFactory(authRouter)(ctx(prisma))
 
     await expect(
-      caller.signUp({ email: 'e@e.com', password: 'pass1234', firstName: 'A', lastName: 'B', marketing: false }),
+      caller.signUp({
+        email: 'e@e.com',
+        password: 'pass1234',
+        firstName: 'A',
+        lastName: 'B',
+        marketing: false,
+      }),
     ).rejects.toThrow('captcha failed')
 
     expect(createMany).not.toHaveBeenCalled()

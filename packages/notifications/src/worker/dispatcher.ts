@@ -50,10 +50,7 @@ export async function isReminderEventStillValid(
 
 export type DispatcherOpts = { workerId: string; batchSize: number; maxAttempts: number }
 
-export async function runDispatcherTick(
-  prisma: PrismaClient,
-  opts: DispatcherOpts,
-): Promise<void> {
+export async function runDispatcherTick(prisma: PrismaClient, opts: DispatcherOpts): Promise<void> {
   const ids = await lockPendingDeliveries(prisma, {
     workerId: opts.workerId,
     batchSize: opts.batchSize,

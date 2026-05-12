@@ -40,9 +40,7 @@ export const notificationRouter = router({
       })
       const last = items[items.length - 1]
       const nextCursor =
-        items.length === input.limit && last
-          ? { createdAt: last.createdAt, id: last.id }
-          : null
+        items.length === input.limit && last ? { createdAt: last.createdAt, id: last.id } : null
       return { items, nextCursor }
     }),
 

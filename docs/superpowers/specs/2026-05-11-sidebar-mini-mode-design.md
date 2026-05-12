@@ -44,8 +44,8 @@ Prop change: `sidebarHidden: boolean` → `mode: SidebarMode`.
 
 Grid columns:
 
-- `mode === 'mini'`  → `'56px minmax(0, 1fr)'`
-- `mode === 'full'`  → `'${SIDEBAR_WIDTH}px minmax(0, 1fr)'`
+- `mode === 'mini'` → `'56px minmax(0, 1fr)'`
+- `mode === 'full'` → `'${SIDEBAR_WIDTH}px minmax(0, 1fr)'`
 
 Both modes always render the sidebar slot — the parent decides which sidebar
 component to mount.
@@ -113,8 +113,8 @@ add a second `IconButton` immediately to the right of `+`:
 
 - Icon: `DeleteIcon` at `fontSize: 16`, `color: 'text.secondary'`.
 - Wrapped in `Tooltip title="Корзина"`.
-- Wrapped in `Link href={\`/workspaces/${workspaceId}/trash\`}` so click
-  navigates. The `IconButton` uses `component={Link}` directly to avoid an
+- Wrapped in `Link href={\`/workspaces/${workspaceId}/trash\`}`so click
+navigates. The`IconButton`uses`component={Link}` directly to avoid an
   extra nesting layer.
 - Active state when `pathname` starts with the trash route — applies the
   `action.selected` background so users see when they're already on

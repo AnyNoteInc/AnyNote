@@ -24,12 +24,12 @@ another block; existing vertical drag-and-drop is preserved.
 
 Cursor position over the target's bounding rect determines what happens on drop:
 
-| Zone | Width / height | Action |
-|---|---|---|
-| LEFT | x ∈ [rect.left, rect.left + 0.25·w) | New column inserted at left of target's row, or wrap target+source into a new row if target is plain top-level |
-| RIGHT | x ∈ (rect.right − 0.25·w, rect.right] | Same as LEFT but on the right side |
-| TOP | otherwise; y ∈ [rect.top, rect.top + h/2) | Insert above target — vertical drop, semantically the same as today's `dropcursor` |
-| BOTTOM | otherwise; y ∈ [rect.top + h/2, rect.bottom] | Insert below target — vertical drop |
+| Zone   | Width / height                               | Action                                                                                                         |
+| ------ | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
+| LEFT   | x ∈ [rect.left, rect.left + 0.25·w)          | New column inserted at left of target's row, or wrap target+source into a new row if target is plain top-level |
+| RIGHT  | x ∈ (rect.right − 0.25·w, rect.right]        | Same as LEFT but on the right side                                                                             |
+| TOP    | otherwise; y ∈ [rect.top, rect.top + h/2)    | Insert above target — vertical drop, semantically the same as today's `dropcursor`                             |
+| BOTTOM | otherwise; y ∈ [rect.top + h/2, rect.bottom] | Insert below target — vertical drop                                                                            |
 
 The TOP/BOTTOM action is rebuilt in our plugin (not delegated to the disabled
 `dropcursor`), but it produces the same document mutation a plain block drop
@@ -38,7 +38,7 @@ would today.
 If the target is a `column` cell within a 3-cell row, LEFT and RIGHT zones are
 disabled — no indicator appears, drop in those zones is a no-op.
 
-LEFT vs RIGHT insertion index is relative to the *target cell's* position
+LEFT vs RIGHT insertion index is relative to the _target cell's_ position
 inside its row: dropping on the LEFT of the middle cell in a 2-cell row makes
 the new column index 1 (between the two existing); dropping on the RIGHT makes
 it index 2 (rightmost).
@@ -158,7 +158,7 @@ drop event
 ```
 
 Source position is captured from the existing `EditorDragHandle` via
-`view.dragging`. We don't change how drags *start*; only how drops resolve.
+`view.dragging`. We don't change how drags _start_; only how drops resolve.
 
 ### Auto-dissolution algorithm
 
@@ -179,18 +179,18 @@ The transaction is appended in a single step so undo collapses correctly.
 
 ## Edge cases
 
-| Case | Behavior |
-|---|---|
-| Drag cell-handle to top/bottom of an outside block | Cell becomes a top-level node; source row dissolves if 1 column remains |
-| Drag row-handle to top/bottom of another block | Entire row moves as one unit |
-| Drag cell within its own row | Swap positions (still 2 or 3 columns) |
-| Drag onto empty cell (no children) | TOP/BOTTOM treated as "insert as first child"; LEFT/RIGHT still create new column |
-| Undo/redo | Single drop = single transaction including auto-dissolve; one undo step |
-| YJS concurrent edits | `appendTransaction` is deterministic over `doc`, converges after rebase |
-| Server-side export | New nodes registered in `server.ts` schema; HTML output uses same `.column-layout` markup |
-| PageRenderer (read-only) | Reuses `@repo/editor` runtime, inherits column rendering |
-| Selection across cell boundaries | Blocked by `isolating: true` on `column` — same as table cells |
-| Existing documents without columns | Schema permits old content unchanged; no migration |
+| Case                                               | Behavior                                                                                  |
+| -------------------------------------------------- | ----------------------------------------------------------------------------------------- |
+| Drag cell-handle to top/bottom of an outside block | Cell becomes a top-level node; source row dissolves if 1 column remains                   |
+| Drag row-handle to top/bottom of another block     | Entire row moves as one unit                                                              |
+| Drag cell within its own row                       | Swap positions (still 2 or 3 columns)                                                     |
+| Drag onto empty cell (no children)                 | TOP/BOTTOM treated as "insert as first child"; LEFT/RIGHT still create new column         |
+| Undo/redo                                          | Single drop = single transaction including auto-dissolve; one undo step                   |
+| YJS concurrent edits                               | `appendTransaction` is deterministic over `doc`, converges after rebase                   |
+| Server-side export                                 | New nodes registered in `server.ts` schema; HTML output uses same `.column-layout` markup |
+| PageRenderer (read-only)                           | Reuses `@repo/editor` runtime, inherits column rendering                                  |
+| Selection across cell boundaries                   | Blocked by `isolating: true` on `column` — same as table cells                            |
+| Existing documents without columns                 | Schema permits old content unchanged; no migration                                        |
 
 ## Testing
 

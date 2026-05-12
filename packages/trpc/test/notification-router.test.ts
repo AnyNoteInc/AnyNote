@@ -143,9 +143,9 @@ describe('notification.deleteAll', () => {
 
 describe('notification.getPreferences', () => {
   it('returns full matrix with locked flags from EVENT_CATALOG', async () => {
-    const findMany = vi.fn().mockResolvedValue([
-      { category: 'COLLABORATION', channel: 'EMAIL', enabled: false },
-    ])
+    const findMany = vi
+      .fn()
+      .mockResolvedValue([{ category: 'COLLABORATION', channel: 'EMAIL', enabled: false }])
     const prisma = { notificationPreference: { findMany } } as unknown as PrismaClient
     const caller = createCallerFactory(notificationRouter)(ctx(prisma))
     const result = await caller.getPreferences()
@@ -192,9 +192,9 @@ describe('notification.setPreference', () => {
 
 describe('notification.listPushSubscriptions', () => {
   it('returns own subs only', async () => {
-    const findMany = vi.fn().mockResolvedValue([
-      { id: 's1', endpoint: 'e', userAgent: 'ua', createdAt: new Date() },
-    ])
+    const findMany = vi
+      .fn()
+      .mockResolvedValue([{ id: 's1', endpoint: 'e', userAgent: 'ua', createdAt: new Date() }])
     const prisma = { pushSubscription: { findMany } } as unknown as PrismaClient
     const caller = createCallerFactory(notificationRouter)(ctx(prisma))
     const result = await caller.listPushSubscriptions()

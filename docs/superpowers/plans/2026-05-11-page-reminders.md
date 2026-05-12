@@ -15,6 +15,7 @@
 ## Task 1: DB schema — Reminder, ReminderRecipient, ReminderAudience, REMINDER_DUE
 
 **Files:**
+
 - Modify: `packages/db/prisma/schema.prisma`
 - Create: `packages/db/prisma/migrations/<timestamp>_reminders/migration.sql` (generated)
 
@@ -115,6 +116,7 @@ model ReminderRecipient {
 - [ ] **Step 2: Generate migration**
 
 Run:
+
 ```bash
 pnpm --filter @repo/db exec prisma migrate dev --name reminders
 ```
@@ -124,6 +126,7 @@ Expected: migration SQL is generated in `packages/db/prisma/migrations/<timestam
 - [ ] **Step 3: Verify client types compile**
 
 Run:
+
 ```bash
 pnpm --filter @repo/db check-types
 ```
@@ -157,6 +160,7 @@ git commit -m "feat(db): add Reminder, ReminderRecipient, REMINDER_DUE event typ
 ## Task 2: Notification catalog — REMINDER_DUE descriptor
 
 **Files:**
+
 - Modify: `packages/notifications/src/catalog.ts`
 
 - [ ] **Step 1: Add descriptor entry**
@@ -175,6 +179,7 @@ Open `packages/notifications/src/catalog.ts`. Inside the `EVENT_CATALOG` object,
 - [ ] **Step 2: Verify exhaustiveness**
 
 Run:
+
 ```bash
 pnpm --filter @repo/notifications check-types
 ```
@@ -193,6 +198,7 @@ git commit -m "feat(notifications): catalog REMINDER_DUE under COLLABORATION"
 ## Task 3: Notification helpers — formatHumanOffset
 
 **Files:**
+
 - Create: `packages/notifications/src/reminders.ts`
 - Create: `packages/notifications/src/reminders.test.ts`
 
@@ -226,6 +232,7 @@ describe('formatHumanOffset', () => {
 - [ ] **Step 2: Run test to verify it fails**
 
 Run:
+
 ```bash
 pnpm --filter @repo/notifications test reminders
 ```
@@ -254,6 +261,7 @@ export function formatHumanOffset(minutes: number): string {
 - [ ] **Step 4: Run test to verify it passes**
 
 Run:
+
 ```bash
 pnpm --filter @repo/notifications test reminders
 ```
@@ -272,6 +280,7 @@ git commit -m "feat(notifications): formatHumanOffset helper for reminder copy"
 ## Task 4: Reminder delivery rebuild + cancellation
 
 **Files:**
+
 - Modify: `packages/notifications/src/reminders.ts`
 - Modify: `packages/notifications/src/reminders.test.ts`
 
@@ -315,7 +324,7 @@ describe('rebuildDeliveries', () => {
     pageId: '22222222-2222-2222-2222-222222222222',
     workspaceId: '11111111-1111-1111-1111-111111111111',
     createdById: 'user-1',
-    dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000),  // 1 day from now
+    dueAt: new Date(Date.now() + 24 * 60 * 60 * 1000), // 1 day from now
     offsets: [1440, 0],
     audience: 'ME' as const,
     label: 'Test',
@@ -337,8 +346,8 @@ describe('rebuildDeliveries', () => {
     const tx = makeTx()
     const reminder = {
       ...baseReminder,
-      dueAt: new Date(Date.now() + 30 * 60 * 1000),  // 30 min from now
-      offsets: [1440, 0],                                // 1d-out is past, in-moment is future
+      dueAt: new Date(Date.now() + 30 * 60 * 1000), // 30 min from now
+      offsets: [1440, 0], // 1d-out is past, in-moment is future
     }
     await rebuildDeliveries(tx, reminder)
     expect((tx.notificationEvent as any).create).toHaveBeenCalledTimes(1)
@@ -354,10 +363,7 @@ describe('rebuildDeliveries', () => {
   it('resolves WORKSPACE audience to all current workspace members', async () => {
     const tx = makeTx({
       workspaceMember: {
-        findMany: vi.fn().mockResolvedValue([
-          { userId: 'user-1' },
-          { userId: 'user-2' },
-        ]),
+        findMany: vi.fn().mockResolvedValue([{ userId: 'user-1' }, { userId: 'user-2' }]),
       },
     })
     const reminder = { ...baseReminder, audience: 'WORKSPACE' as const, offsets: [0] }
@@ -403,6 +409,7 @@ describe('cancelPendingDeliveries', () => {
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run:
+
 ```bash
 pnpm --filter @repo/notifications test reminders
 ```
@@ -577,13 +584,11 @@ export async function rebuildDeliveries(tx: Tx, r: ReminderForRebuild): Promise<
   }
 
   // 3. Anything in existing PENDING that we don't want → SKIPPED.
-  const stale = existing.filter(
-    (d) => {
-      const payload = d.event.payload as { offsetMinutes?: number }
-      const off = typeof payload?.offsetMinutes === 'number' ? payload.offsetMinutes : -1
-      return !wantedKeys.has(keyOf(d.userId, off, d.channel))
-    },
-  )
+  const stale = existing.filter((d) => {
+    const payload = d.event.payload as { offsetMinutes?: number }
+    const off = typeof payload?.offsetMinutes === 'number' ? payload.offsetMinutes : -1
+    return !wantedKeys.has(keyOf(d.userId, off, d.channel))
+  })
   if (stale.length) {
     await tx.notificationDelivery.updateMany({
       where: { id: { in: stale.map((d) => d.id) } },
@@ -626,6 +631,7 @@ export async function cancelPendingDeliveries(
 - [ ] **Step 4: Run tests to verify they pass**
 
 Run:
+
 ```bash
 pnpm --filter @repo/notifications test reminders
 ```
@@ -657,6 +663,7 @@ git commit -m "feat(notifications): rebuildDeliveries + cancelPendingDeliveries 
 ## Task 5: Email template — reminder-due
 
 **Files:**
+
 - Modify: `packages/mail/src/types.ts`
 - Create: `packages/mail/src/templates/reminder-due.ts`
 - Modify: `packages/mail/src/templates/index.ts`
@@ -726,7 +733,10 @@ export function renderReminderDue(p: MailPayloads['reminder-due']): RenderedEmai
       : `🔔 Напоминание: ${label}`
 
   const link = `${p.baseUrl}/workspaces/${encodeURIComponent(p.workspaceId)}/pages/${encodeURIComponent(p.pageId)}#reminder-${encodeURIComponent(p.reminderId)}`
-  const dueLocal = new Date(p.dueAtIso).toLocaleString('ru-RU', { dateStyle: 'long', timeStyle: 'short' })
+  const dueLocal = new Date(p.dueAtIso).toLocaleString('ru-RU', {
+    dateStyle: 'long',
+    timeStyle: 'short',
+  })
 
   const html = `<!doctype html>
 <html lang="ru">
@@ -792,6 +802,7 @@ Note: `renderEmailForEvent` only receives `payload`, so the renderer reads `work
 - [ ] **Step 5: Type-check**
 
 Run:
+
 ```bash
 pnpm --filter @repo/mail check-types && pnpm --filter @repo/notifications check-types
 ```
@@ -810,6 +821,7 @@ git commit -m "feat(mail): reminder-due email template + REMINDER_DUE renderer"
 ## Task 6: Dispatcher pre-fire validity check
 
 **Files:**
+
 - Modify: `packages/notifications/src/worker/dispatcher.ts`
 - Modify: `packages/notifications/src/reminders.test.ts` (or new file)
 
@@ -829,20 +841,26 @@ import { isReminderEventStillValid } from './dispatcher.ts'
 describe('isReminderEventStillValid', () => {
   it('returns true for a non-reminder event', async () => {
     const prisma = { reminder: { findUnique: vi.fn() } }
-    const res = await isReminderEventStillValid(prisma as any, {
-      type: 'WORKSPACE_INVITE',
-      payload: {},
-    } as any)
+    const res = await isReminderEventStillValid(
+      prisma as any,
+      {
+        type: 'WORKSPACE_INVITE',
+        payload: {},
+      } as any,
+    )
     expect(res).toBe(true)
     expect(prisma.reminder.findUnique).not.toHaveBeenCalled()
   })
 
   it('returns false when reminder is missing', async () => {
     const prisma = { reminder: { findUnique: vi.fn().mockResolvedValue(null) } }
-    const res = await isReminderEventStillValid(prisma as any, {
-      type: 'REMINDER_DUE',
-      payload: { reminderId: 'rem-1' },
-    } as any)
+    const res = await isReminderEventStillValid(
+      prisma as any,
+      {
+        type: 'REMINDER_DUE',
+        payload: { reminderId: 'rem-1' },
+      } as any,
+    )
     expect(res).toBe(false)
   })
 
@@ -852,10 +870,13 @@ describe('isReminderEventStillValid', () => {
         findUnique: vi.fn().mockResolvedValue({ deletedAt: new Date(), doneAt: null }),
       },
     }
-    const res = await isReminderEventStillValid(prisma as any, {
-      type: 'REMINDER_DUE',
-      payload: { reminderId: 'rem-1' },
-    } as any)
+    const res = await isReminderEventStillValid(
+      prisma as any,
+      {
+        type: 'REMINDER_DUE',
+        payload: { reminderId: 'rem-1' },
+      } as any,
+    )
     expect(res).toBe(false)
   })
 
@@ -865,10 +886,13 @@ describe('isReminderEventStillValid', () => {
         findUnique: vi.fn().mockResolvedValue({ deletedAt: null, doneAt: new Date() }),
       },
     }
-    const res = await isReminderEventStillValid(prisma as any, {
-      type: 'REMINDER_DUE',
-      payload: { reminderId: 'rem-1' },
-    } as any)
+    const res = await isReminderEventStillValid(
+      prisma as any,
+      {
+        type: 'REMINDER_DUE',
+        payload: { reminderId: 'rem-1' },
+      } as any,
+    )
     expect(res).toBe(false)
   })
 
@@ -878,10 +902,13 @@ describe('isReminderEventStillValid', () => {
         findUnique: vi.fn().mockResolvedValue({ deletedAt: null, doneAt: null }),
       },
     }
-    const res = await isReminderEventStillValid(prisma as any, {
-      type: 'REMINDER_DUE',
-      payload: { reminderId: 'rem-1' },
-    } as any)
+    const res = await isReminderEventStillValid(
+      prisma as any,
+      {
+        type: 'REMINDER_DUE',
+        payload: { reminderId: 'rem-1' },
+      } as any,
+    )
     expect(res).toBe(true)
   })
 })
@@ -890,6 +917,7 @@ describe('isReminderEventStillValid', () => {
 - [ ] **Step 3: Run test to verify it fails**
 
 Run:
+
 ```bash
 pnpm --filter @repo/notifications test dispatcher-reminder
 ```
@@ -941,6 +969,7 @@ if (!stillValid) {
 - [ ] **Step 5: Run tests to verify they pass**
 
 Run:
+
 ```bash
 pnpm --filter @repo/notifications test dispatcher-reminder
 ```
@@ -959,6 +988,7 @@ git commit -m "feat(notifications): dispatcher skips invalid REMINDER_DUE delive
 ## Task 7: tRPC reminder router — input schema and skeleton
 
 **Files:**
+
 - Create: `packages/trpc/src/routers/reminder.ts`
 - Modify: `packages/trpc/src/index.ts`
 
@@ -1084,6 +1114,7 @@ export const reminderRouter = router({
 - [ ] **Step 2: Verify assertRole helper exists**
 
 Run:
+
 ```bash
 grep -rln "export function assertRole\|export async function assertRole" packages/trpc/src/
 ```
@@ -1107,6 +1138,7 @@ In the `appRouter = router({ ... })` block, add:
 - [ ] **Step 4: Type-check**
 
 Run:
+
 ```bash
 pnpm --filter @repo/trpc check-types
 ```
@@ -1125,11 +1157,13 @@ git commit -m "feat(trpc): add reminder router with syncForPage mutation"
 ## Task 8: Integration test — syncForPage upsert/soft-delete/undo
 
 **Files:**
+
 - Create: `packages/trpc/src/routers/reminder.test.ts`
 
 - [ ] **Step 1: Find existing integration test pattern**
 
 Run:
+
 ```bash
 ls packages/trpc/src/routers/*.test.ts | head -3 && head -30 "$(ls packages/trpc/src/routers/*.test.ts | head -1)"
 ```
@@ -1144,14 +1178,19 @@ Create `packages/trpc/src/routers/reminder.test.ts`:
 import { describe, expect, it, beforeEach, afterAll } from 'vitest'
 import { prisma } from '@repo/db'
 import { createCaller } from '..'
-import { createTestUser, createTestWorkspace, createTestPage, cleanupTestData } from '../test-utils'  // adapt to actual helper path
+import { createTestUser, createTestWorkspace, createTestPage, cleanupTestData } from '../test-utils' // adapt to actual helper path
 
 const ownerCtx = async () => {
   const user = await createTestUser()
   const workspace = await createTestWorkspace({ ownerId: user.id })
   const page = await createTestPage({ workspaceId: workspace.id, createdById: user.id })
   return {
-    caller: createCaller({ prisma, user, headers: new Headers(), resHeaders: new Headers() } as any),
+    caller: createCaller({
+      prisma,
+      user,
+      headers: new Headers(),
+      resHeaders: new Headers(),
+    } as any),
     user,
     workspace,
     page,
@@ -1166,10 +1205,17 @@ describe('reminder.syncForPage', () => {
     const id = crypto.randomUUID()
     await caller.reminder.syncForPage({
       pageId: page.id,
-      reminders: [{
-        id, dueAt: new Date(Date.now() + 86_400_000).toISOString(),
-        offsets: [0], audience: 'ME', label: 'Test', recipients: [], doneAt: null,
-      }],
+      reminders: [
+        {
+          id,
+          dueAt: new Date(Date.now() + 86_400_000).toISOString(),
+          offsets: [0],
+          audience: 'ME',
+          label: 'Test',
+          recipients: [],
+          doneAt: null,
+        },
+      ],
     })
     const row = await prisma.reminder.findUniqueOrThrow({ where: { id } })
     expect(row.deletedAt).toBeNull()
@@ -1182,7 +1228,9 @@ describe('reminder.syncForPage', () => {
     const dueAt = new Date(Date.now() + 86_400_000).toISOString()
     await caller.reminder.syncForPage({
       pageId: page.id,
-      reminders: [{ id, dueAt, offsets: [0], audience: 'ME', label: 'A', recipients: [], doneAt: null }],
+      reminders: [
+        { id, dueAt, offsets: [0], audience: 'ME', label: 'A', recipients: [], doneAt: null },
+      ],
     })
     await caller.reminder.syncForPage({ pageId: page.id, reminders: [] })
     const row = await prisma.reminder.findUniqueOrThrow({ where: { id } })
@@ -1193,8 +1241,13 @@ describe('reminder.syncForPage', () => {
     const { caller, page } = await ownerCtx()
     const id = crypto.randomUUID()
     const payload = {
-      id, dueAt: new Date(Date.now() + 86_400_000).toISOString(),
-      offsets: [0], audience: 'ME' as const, label: 'B', recipients: [], doneAt: null,
+      id,
+      dueAt: new Date(Date.now() + 86_400_000).toISOString(),
+      offsets: [0],
+      audience: 'ME' as const,
+      label: 'B',
+      recipients: [],
+      doneAt: null,
     }
     await caller.reminder.syncForPage({ pageId: page.id, reminders: [payload] })
     await caller.reminder.syncForPage({ pageId: page.id, reminders: [] })
@@ -1210,15 +1263,26 @@ describe('reminder.syncForPage', () => {
     await prisma.workspaceMember.create({
       data: { workspaceId: page.workspaceId, userId: viewer.id, role: 'VIEWER' },
     })
-    const viewerCaller = createCaller({ prisma, user: viewer, headers: new Headers(), resHeaders: new Headers() } as any)
+    const viewerCaller = createCaller({
+      prisma,
+      user: viewer,
+      headers: new Headers(),
+      resHeaders: new Headers(),
+    } as any)
     await expect(
       viewerCaller.reminder.syncForPage({
         pageId: page.id,
-        reminders: [{
-          id: crypto.randomUUID(),
-          dueAt: new Date(Date.now() + 86_400_000).toISOString(),
-          offsets: [0], audience: 'ME', label: 'X', recipients: [], doneAt: null,
-        }],
+        reminders: [
+          {
+            id: crypto.randomUUID(),
+            dueAt: new Date(Date.now() + 86_400_000).toISOString(),
+            offsets: [0],
+            audience: 'ME',
+            label: 'X',
+            recipients: [],
+            doneAt: null,
+          },
+        ],
       }),
     ).rejects.toThrow()
     // suppress unused
@@ -1232,6 +1296,7 @@ Adjust imports / helper paths to match the actual test utilities exposed by `pac
 - [ ] **Step 3: Run test to verify it fails / passes correctly**
 
 Run:
+
 ```bash
 pnpm --filter @repo/trpc test reminder
 ```
@@ -1250,6 +1315,7 @@ git commit -m "test(trpc): reminder.syncForPage upsert/soft-delete/undo/permissi
 ## Task 9: Editor — reminder.schema.ts
 
 **Files:**
+
 - Create: `packages/editor/src/extensions/reminder.schema.ts`
 - Modify: `packages/editor/src/extensions/server.ts`
 
@@ -1293,7 +1359,8 @@ export const ReminderSchema = Node.create({
       },
       audience: {
         default: 'ME' as 'ME' | 'WORKSPACE' | 'LIST',
-        parseHTML: (el) => (el.getAttribute('data-audience') ?? 'ME') as 'ME' | 'WORKSPACE' | 'LIST',
+        parseHTML: (el) =>
+          (el.getAttribute('data-audience') ?? 'ME') as 'ME' | 'WORKSPACE' | 'LIST',
         renderHTML: (attrs) => ({ 'data-audience': attrs.audience }),
       },
       label: {
@@ -1348,6 +1415,7 @@ Also append `ReminderSchema` to whatever array is consumed by Hocuspocus / SSR (
 - [ ] **Step 3: Type-check**
 
 Run:
+
 ```bash
 pnpm --filter @repo/editor check-types
 ```
@@ -1366,6 +1434,7 @@ git commit -m "feat(editor): reminder Tiptap inline atom schema"
 ## Task 10: Editor — color state logic with unit tests
 
 **Files:**
+
 - Create: `packages/editor/src/extensions/reminder/state.ts`
 - Create: `packages/editor/src/extensions/reminder/state.test.ts`
 - Create: `packages/editor/src/extensions/reminder/colors.ts`
@@ -1397,10 +1466,7 @@ describe('computeReminderState', () => {
 
   it('returns red when now is past dueAt', () => {
     expect(
-      computeReminderState(
-        { dueAt: '2026-05-11T11:59:00.000Z', offsets: [0], doneAt: null },
-        now,
-      ),
+      computeReminderState({ dueAt: '2026-05-11T11:59:00.000Z', offsets: [0], doneAt: null }, now),
     ).toBe('red')
   })
 
@@ -1426,10 +1492,7 @@ describe('computeReminderState', () => {
 
   it('treats no offsets as instantaneous fire — yellow only at dueAt', () => {
     expect(
-      computeReminderState(
-        { dueAt: '2026-05-11T13:00:00.000Z', offsets: [], doneAt: null },
-        now,
-      ),
+      computeReminderState({ dueAt: '2026-05-11T13:00:00.000Z', offsets: [], doneAt: null }, now),
     ).toBe('gray')
   })
 })
@@ -1438,6 +1501,7 @@ describe('computeReminderState', () => {
 - [ ] **Step 2: Run to confirm failure**
 
 Run:
+
 ```bash
 pnpm --filter @repo/editor test state
 ```
@@ -1473,6 +1537,7 @@ export function computeReminderState(attrs: ReminderStateInput, now: Date): Remi
 - [ ] **Step 4: Verify tests pass**
 
 Run:
+
 ```bash
 pnpm --filter @repo/editor test state
 ```
@@ -1493,10 +1558,10 @@ export type ReminderPalette = {
 }
 
 export const REMINDER_COLORS: Record<ReminderColor, ReminderPalette> = {
-  gray:   { bg: 'rgba(120, 120, 130, 0.10)', fg: '#5f5f6a', border: 'rgba(120, 120, 130, 0.25)' },
-  yellow: { bg: 'rgba(255, 167, 38, 0.12)',  fg: '#b75d00', border: 'rgba(255, 167, 38, 0.40)' },
-  red:    { bg: 'rgba(244,  67, 54, 0.12)',  fg: '#b3261e', border: 'rgba(244,  67, 54, 0.40)' },
-  green:  { bg: 'rgba( 76, 175, 80, 0.12)',  fg: '#1e7e2c', border: 'rgba( 76, 175, 80, 0.40)' },
+  gray: { bg: 'rgba(120, 120, 130, 0.10)', fg: '#5f5f6a', border: 'rgba(120, 120, 130, 0.25)' },
+  yellow: { bg: 'rgba(255, 167, 38, 0.12)', fg: '#b75d00', border: 'rgba(255, 167, 38, 0.40)' },
+  red: { bg: 'rgba(244,  67, 54, 0.12)', fg: '#b3261e', border: 'rgba(244,  67, 54, 0.40)' },
+  green: { bg: 'rgba( 76, 175, 80, 0.12)', fg: '#1e7e2c', border: 'rgba( 76, 175, 80, 0.40)' },
 }
 ```
 
@@ -1512,6 +1577,7 @@ git commit -m "feat(editor): reminder color state + palette with unit tests"
 ## Task 11: Editor — reminder.tsx React view
 
 **Files:**
+
 - Create: `packages/editor/src/extensions/reminder.tsx`
 - Modify: `packages/editor/src/extensions/index.ts`
 
@@ -1546,18 +1612,23 @@ function formatRelative(iso: string, now: Date): string {
   const absMinutes = Math.abs(minutes)
   if (absMinutes < 60) return minutes >= 0 ? `через ${absMinutes} мин` : `${absMinutes} мин назад`
   const hours = Math.round(minutes / 60)
-  if (Math.abs(hours) < 24) return hours >= 0 ? `через ${Math.abs(hours)} ч` : `${Math.abs(hours)} ч назад`
+  if (Math.abs(hours) < 24)
+    return hours >= 0 ? `через ${Math.abs(hours)} ч` : `${Math.abs(hours)} ч назад`
   return due.toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })
 }
 
 function ReminderView({ node, editor }: NodeViewProps) {
   const now = useTick(60_000)
   const state = useMemo(
-    () => computeReminderState({
-      dueAt: node.attrs.dueAt,
-      offsets: node.attrs.offsets,
-      doneAt: node.attrs.doneAt,
-    }, now),
+    () =>
+      computeReminderState(
+        {
+          dueAt: node.attrs.dueAt,
+          offsets: node.attrs.offsets,
+          doneAt: node.attrs.doneAt,
+        },
+        now,
+      ),
     [node.attrs.dueAt, node.attrs.offsets, node.attrs.doneAt, now],
   )
   const palette = REMINDER_COLORS[state]
@@ -1565,16 +1636,14 @@ function ReminderView({ node, editor }: NodeViewProps) {
 
   const handleClick = (e: React.MouseEvent<HTMLElement>) => {
     if (!editor.isEditable) return
-    const ctx = (editor.storage as { reminderCallbacks?: { onClick?: (id: string, anchor: HTMLElement) => void } })
+    const ctx = editor.storage as {
+      reminderCallbacks?: { onClick?: (id: string, anchor: HTMLElement) => void }
+    }
     ctx.reminderCallbacks?.onClick?.(node.attrs.id, e.currentTarget)
   }
 
   return (
-    <NodeViewWrapper
-      as="span"
-      data-id={`reminder-${node.attrs.id}`}
-      contentEditable={false}
-    >
+    <NodeViewWrapper as="span" data-id={`reminder-${node.attrs.id}`} contentEditable={false}>
       <Box
         component="span"
         onClick={handleClick}
@@ -1627,6 +1696,7 @@ Insert `Reminder` into the returned array next to other inline atoms (`PageLink`
 - [ ] **Step 3: Type-check + lint**
 
 Run:
+
 ```bash
 pnpm --filter @repo/editor check-types && pnpm --filter @repo/editor lint
 ```
@@ -1645,6 +1715,7 @@ git commit -m "feat(editor): reminder inline node view + click callback hook"
 ## Task 12: Editor — slash command + handler type
 
 **Files:**
+
 - Modify: `packages/editor/src/slash-items.ts`
 - Modify: `packages/editor/src/types.ts`
 
@@ -1696,6 +1767,7 @@ If the surrounding items don't use `createElement(NotificationsIcon)` and instea
 - [ ] **Step 3: Type-check**
 
 Run:
+
 ```bash
 pnpm --filter @repo/editor check-types
 ```
@@ -1714,6 +1786,7 @@ git commit -m "feat(editor): /reminder slash command + openReminderCreate handle
 ## Task 13: Editor — wire click callbacks via editor storage
 
 **Files:**
+
 - Modify: `packages/editor/src/anynote-editor.tsx`
 - Modify: `packages/editor/src/types.ts`
 
@@ -1736,7 +1809,7 @@ Open `packages/editor/src/anynote-editor.tsx`. Locate the place where the editor
 ```tsx
 useEffect(() => {
   if (!editor) return
-  (editor.storage as Record<string, unknown>).reminderCallbacks = {
+  ;(editor.storage as Record<string, unknown>).reminderCallbacks = {
     onClick: props.onReminderClick,
   }
 }, [editor, props.onReminderClick])
@@ -1747,6 +1820,7 @@ Pipe `onReminderCreate` into `createSlashItems({ ..., openReminderCreate: props.
 - [ ] **Step 3: Type-check**
 
 Run:
+
 ```bash
 pnpm --filter @repo/editor check-types
 ```
@@ -1765,11 +1839,13 @@ git commit -m "feat(editor): pipe reminder click + create callbacks to editor"
 ## Task 14: Web — ReminderPopover component
 
 **Files:**
+
 - Create: `apps/web/src/components/page/reminder-popover.tsx`
 
 - [ ] **Step 1: Check @mui/x-date-pickers availability**
 
 Run:
+
 ```bash
 grep -rln "DateTimePicker\|x-date-pickers" apps/web/src packages/ui/src 2>/dev/null | head -5
 ```
@@ -1822,10 +1898,10 @@ export type ReminderFormValue = {
 }
 
 const OFFSET_PRESETS: { value: number; label: string }[] = [
-  { value: 0,     label: 'В момент истечения' },
-  { value: 60,    label: 'За 1 час' },
-  { value: 1440,  label: 'За 1 день' },
-  { value: 4320,  label: 'За 3 дня' },
+  { value: 0, label: 'В момент истечения' },
+  { value: 60, label: 'За 1 час' },
+  { value: 1440, label: 'За 1 день' },
+  { value: 4320, label: 'За 3 дня' },
   { value: 10080, label: 'За 1 неделю' },
   { value: 43200, label: 'За 1 месяц' },
 ]
@@ -1843,11 +1919,21 @@ type Props = {
 }
 
 export function ReminderPopover({
-  open, anchorEl, mode, initial, workspaceId, readOnly, onClose, onSave, onDelete,
+  open,
+  anchorEl,
+  mode,
+  initial,
+  workspaceId,
+  readOnly,
+  onClose,
+  onSave,
+  onDelete,
 }: Props) {
   const [value, setValue] = useState<ReminderFormValue>(initial)
 
-  useEffect(() => { setValue(initial) }, [initial])
+  useEffect(() => {
+    setValue(initial)
+  }, [initial])
 
   const members = trpc.workspace.listMembers.useQuery(
     { workspaceId },
@@ -1870,7 +1956,10 @@ export function ReminderPopover({
     }))
   }
 
-  const handleSubmit = () => { onSave(value); onClose() }
+  const handleSubmit = () => {
+    onSave(value)
+    onClose()
+  }
   const postpone = (deltaDays: number) => {
     if (!value.dueAt) return
     const d = new Date(value.dueAt)
@@ -1892,12 +1981,19 @@ export function ReminderPopover({
   }
 
   return (
-    <Popover open={open} anchorEl={anchorEl} onClose={onClose} anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}>
+    <Popover
+      open={open}
+      anchorEl={anchorEl}
+      onClose={onClose}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+    >
       <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ru}>
         <Box sx={{ p: 2, width: 360 }}>
           <Stack direction="row" justifyContent="space-between" alignItems="center" mb={1}>
             <Typography variant="subtitle1">Напоминание</Typography>
-            <IconButton size="small" onClick={onClose} aria-label="Закрыть"><CloseIcon fontSize="small" /></IconButton>
+            <IconButton size="small" onClick={onClose} aria-label="Закрыть">
+              <CloseIcon fontSize="small" />
+            </IconButton>
           </Stack>
 
           <Stack spacing={2}>
@@ -1926,7 +2022,13 @@ export function ReminderPopover({
                 {OFFSET_PRESETS.map((o) => (
                   <FormControlLabel
                     key={o.value}
-                    control={<Checkbox size="small" checked={value.offsets.includes(o.value)} onChange={() => toggleOffset(o.value)} />}
+                    control={
+                      <Checkbox
+                        size="small"
+                        checked={value.offsets.includes(o.value)}
+                        onChange={() => toggleOffset(o.value)}
+                      />
+                    }
                     label={o.label}
                   />
                 ))}
@@ -1937,11 +2039,25 @@ export function ReminderPopover({
               <FormLabel>Для кого</FormLabel>
               <RadioGroup
                 value={value.audience}
-                onChange={(_, v) => setValue({ ...value, audience: v as Audience, recipients: v === 'LIST' ? value.recipients : [] })}
+                onChange={(_, v) =>
+                  setValue({
+                    ...value,
+                    audience: v as Audience,
+                    recipients: v === 'LIST' ? value.recipients : [],
+                  })
+                }
               >
                 <FormControlLabel value="ME" control={<Radio size="small" />} label="Только я" />
-                <FormControlLabel value="WORKSPACE" control={<Radio size="small" />} label="Весь workspace" />
-                <FormControlLabel value="LIST" control={<Radio size="small" />} label="Выбрать участников" />
+                <FormControlLabel
+                  value="WORKSPACE"
+                  control={<Radio size="small" />}
+                  label="Весь workspace"
+                />
+                <FormControlLabel
+                  value="LIST"
+                  control={<Radio size="small" />}
+                  label="Выбрать участников"
+                />
               </RadioGroup>
               {value.audience === 'LIST' && (
                 <Stack sx={{ pl: 3, maxHeight: 180, overflow: 'auto' }}>
@@ -1962,7 +2078,9 @@ export function ReminderPopover({
                           }}
                         />
                       }
-                      label={`${m.user.firstName ?? ''} ${m.user.lastName ?? ''}`.trim() || m.user.email}
+                      label={
+                        `${m.user.firstName ?? ''} ${m.user.lastName ?? ''}`.trim() || m.user.email
+                      }
                     />
                   ))}
                 </Stack>
@@ -1973,10 +2091,18 @@ export function ReminderPopover({
               <>
                 <Divider />
                 <Stack direction="row" spacing={1}>
-                  <Typography variant="caption" alignSelf="center">Перенести:</Typography>
-                  <Button size="small" onClick={() => postpone(1)}>+1 день</Button>
-                  <Button size="small" onClick={() => postpone(7)}>+1 неделя</Button>
-                  <Button size="small" onClick={postponeMonth}>+1 месяц</Button>
+                  <Typography variant="caption" alignSelf="center">
+                    Перенести:
+                  </Typography>
+                  <Button size="small" onClick={() => postpone(1)}>
+                    +1 день
+                  </Button>
+                  <Button size="small" onClick={() => postpone(7)}>
+                    +1 неделя
+                  </Button>
+                  <Button size="small" onClick={postponeMonth}>
+                    +1 месяц
+                  </Button>
                 </Stack>
 
                 <FormControlLabel
@@ -1989,16 +2115,31 @@ export function ReminderPopover({
             <Divider />
             <Stack direction="row" justifyContent="space-between">
               {mode === 'edit' && !readOnly ? (
-                <Button size="small" color="error" startIcon={<DeleteIcon />} onClick={() => { onDelete?.(); onClose() }}>
+                <Button
+                  size="small"
+                  color="error"
+                  startIcon={<DeleteIcon />}
+                  onClick={() => {
+                    onDelete?.()
+                    onClose()
+                  }}
+                >
                   Удалить
                 </Button>
               ) : (
                 <span />
               )}
               <Stack direction="row" spacing={1}>
-                <Button size="small" onClick={onClose}>Отмена</Button>
+                <Button size="small" onClick={onClose}>
+                  Отмена
+                </Button>
                 {!readOnly && (
-                  <Button size="small" variant="contained" disabled={submitDisabled} onClick={handleSubmit}>
+                  <Button
+                    size="small"
+                    variant="contained"
+                    disabled={submitDisabled}
+                    onClick={handleSubmit}
+                  >
                     {mode === 'create' ? 'Создать' : 'Сохранить'}
                   </Button>
                 )}
@@ -2015,6 +2156,7 @@ export function ReminderPopover({
 - [ ] **Step 3: Type-check**
 
 Run:
+
 ```bash
 pnpm --filter web check-types
 ```
@@ -2033,6 +2175,7 @@ git commit -m "feat(web): ReminderPopover with create/edit modes and DateTimePic
 ## Task 15: Web — useReminderSync hook
 
 **Files:**
+
 - Create: `apps/web/src/components/page/use-reminder-sync.ts`
 - Create: `apps/web/src/components/page/use-reminder-sync.test.tsx`
 
@@ -2085,6 +2228,7 @@ describe('collectReminderInputs', () => {
 - [ ] **Step 2: Run to confirm failure**
 
 Run:
+
 ```bash
 pnpm --filter web test use-reminder-sync
 ```
@@ -2114,7 +2258,9 @@ export type ReminderSyncInput = {
   doneAt: string | null
 }
 
-export function collectReminderInputs(doc: { descendants(visit: (node: PMNode) => void): void }): ReminderSyncInput[] {
+export function collectReminderInputs(doc: {
+  descendants(visit: (node: PMNode) => void): void
+}): ReminderSyncInput[] {
   const out: ReminderSyncInput[] = []
   doc.descendants((node) => {
     if (node.type.name !== 'reminder') return
@@ -2140,23 +2286,33 @@ function debounce<T extends (...args: never[]) => unknown>(fn: T, ms: number) {
     if (t) clearTimeout(t)
     t = setTimeout(() => fn(...args), ms)
   }
-  wrapped.cancel = () => { if (t) clearTimeout(t); t = null }
+  wrapped.cancel = () => {
+    if (t) clearTimeout(t)
+    t = null
+  }
   return wrapped as T & { cancel: () => void }
 }
 
 export function useReminderSync(editor: Editor | null, pageId: string) {
   const sync = trpc.reminder.syncForPage.useMutation()
-  const debounced = useMemo(() => debounce(() => {
-    if (!editor) return
-    if (!editor.isEditable) return
-    const reminders = collectReminderInputs(editor.state.doc)
-    sync.mutate({ pageId, reminders })
-  }, 1_000), [editor, pageId, sync])
+  const debounced = useMemo(
+    () =>
+      debounce(() => {
+        if (!editor) return
+        if (!editor.isEditable) return
+        const reminders = collectReminderInputs(editor.state.doc)
+        sync.mutate({ pageId, reminders })
+      }, 1_000),
+    [editor, pageId, sync],
+  )
 
   useEffect(() => {
     if (!editor) return
     editor.on('update', debounced)
-    return () => { editor.off('update', debounced); debounced.cancel() }
+    return () => {
+      editor.off('update', debounced)
+      debounced.cancel()
+    }
   }, [editor, debounced])
 }
 ```
@@ -2164,6 +2320,7 @@ export function useReminderSync(editor: Editor | null, pageId: string) {
 - [ ] **Step 4: Verify tests pass**
 
 Run:
+
 ```bash
 pnpm --filter web test use-reminder-sync
 ```
@@ -2182,6 +2339,7 @@ git commit -m "feat(web): useReminderSync — debounced Y.Doc → DB reconciliat
 ## Task 16: Web — page-renderer + editor-context wiring
 
 **Files:**
+
 - Modify: `apps/web/src/components/page/page-renderer.tsx`
 - Modify: `apps/web/src/components/page/editor-context.tsx` (or wherever `pageEditor` lives)
 
@@ -2196,85 +2354,114 @@ import { useReminderSync } from './use-reminder-sync'
 // inside PageRenderer():
 const [reminderUI, setReminderUI] = useState<
   | { open: false }
-  | { open: true; mode: 'create' | 'edit'; anchorEl: HTMLElement | null; initial: ReminderFormValue }
+  | {
+      open: true
+      mode: 'create' | 'edit'
+      anchorEl: HTMLElement | null
+      initial: ReminderFormValue
+    }
 >({ open: false })
 
-const findReminderNode = useCallback((id: string) => {
-  if (!editor) return null
-  let found: { attrs: ReminderFormValue; pos: number } | null = null
-  editor.state.doc.descendants((node, pos) => {
-    if (node.type.name === 'reminder' && node.attrs.id === id) {
-      found = {
-        attrs: {
-          id: node.attrs.id,
-          dueAt: node.attrs.dueAt || null,
-          offsets: node.attrs.offsets ?? [],
-          audience: node.attrs.audience ?? 'ME',
-          label: node.attrs.label ?? null,
-          recipients: node.attrs.recipients ?? [],
-          doneAt: node.attrs.doneAt ?? null,
-        },
-        pos,
+const findReminderNode = useCallback(
+  (id: string) => {
+    if (!editor) return null
+    let found: { attrs: ReminderFormValue; pos: number } | null = null
+    editor.state.doc.descendants((node, pos) => {
+      if (node.type.name === 'reminder' && node.attrs.id === id) {
+        found = {
+          attrs: {
+            id: node.attrs.id,
+            dueAt: node.attrs.dueAt || null,
+            offsets: node.attrs.offsets ?? [],
+            audience: node.attrs.audience ?? 'ME',
+            label: node.attrs.label ?? null,
+            recipients: node.attrs.recipients ?? [],
+            doneAt: node.attrs.doneAt ?? null,
+          },
+          pos,
+        }
+        return false
       }
-      return false
-    }
-    return true
-  })
-  return found
-}, [editor])
+      return true
+    })
+    return found
+  },
+  [editor],
+)
 
-const handleReminderCreate = useCallback((id: string) => {
-  // anchor will resolve once the DOM node mounts
-  setTimeout(() => {
-    const anchor = document.querySelector(`[data-id="reminder-${id}"]`) as HTMLElement | null
+const handleReminderCreate = useCallback(
+  (id: string) => {
+    // anchor will resolve once the DOM node mounts
+    setTimeout(() => {
+      const anchor = document.querySelector(`[data-id="reminder-${id}"]`) as HTMLElement | null
+      const found = findReminderNode(id)
+      if (!found) return
+      setReminderUI({ open: true, mode: 'create', anchorEl: anchor, initial: found.attrs })
+    }, 0)
+  },
+  [findReminderNode],
+)
+
+const handleReminderClick = useCallback(
+  (id: string, anchor: HTMLElement) => {
     const found = findReminderNode(id)
     if (!found) return
-    setReminderUI({ open: true, mode: 'create', anchorEl: anchor, initial: found.attrs })
-  }, 0)
-}, [findReminderNode])
+    setReminderUI({ open: true, mode: 'edit', anchorEl: anchor, initial: found.attrs })
+  },
+  [findReminderNode],
+)
 
-const handleReminderClick = useCallback((id: string, anchor: HTMLElement) => {
-  const found = findReminderNode(id)
-  if (!found) return
-  setReminderUI({ open: true, mode: 'edit', anchorEl: anchor, initial: found.attrs })
-}, [findReminderNode])
+const saveReminder = useCallback(
+  (value: ReminderFormValue) => {
+    if (!editor) return
+    let pos: number | null = null
+    editor.state.doc.descendants((node, p) => {
+      if (node.type.name === 'reminder' && node.attrs.id === value.id) {
+        pos = p
+        return false
+      }
+      return true
+    })
+    if (pos === null) return
+    editor
+      .chain()
+      .focus()
+      .setNodeSelection(pos)
+      .updateAttributes('reminder', {
+        dueAt: value.dueAt ?? '',
+        offsets: value.offsets,
+        audience: value.audience,
+        label: value.label,
+        recipients: value.recipients,
+        doneAt: value.doneAt,
+      })
+      .run()
+  },
+  [editor],
+)
 
-const saveReminder = useCallback((value: ReminderFormValue) => {
-  if (!editor) return
-  let pos: number | null = null
-  editor.state.doc.descendants((node, p) => {
-    if (node.type.name === 'reminder' && node.attrs.id === value.id) {
-      pos = p
-      return false
-    }
-    return true
-  })
-  if (pos === null) return
-  editor.chain().focus().setNodeSelection(pos).updateAttributes('reminder', {
-    dueAt: value.dueAt ?? '',
-    offsets: value.offsets,
-    audience: value.audience,
-    label: value.label,
-    recipients: value.recipients,
-    doneAt: value.doneAt,
-  }).run()
-}, [editor])
-
-const deleteReminder = useCallback((id: string) => {
-  if (!editor) return
-  let pos: number | null = null
-  let size = 0
-  editor.state.doc.descendants((node, p) => {
-    if (node.type.name === 'reminder' && node.attrs.id === id) {
-      pos = p
-      size = node.nodeSize
-      return false
-    }
-    return true
-  })
-  if (pos === null) return
-  editor.chain().focus().deleteRange({ from: pos, to: pos + size }).run()
-}, [editor])
+const deleteReminder = useCallback(
+  (id: string) => {
+    if (!editor) return
+    let pos: number | null = null
+    let size = 0
+    editor.state.doc.descendants((node, p) => {
+      if (node.type.name === 'reminder' && node.attrs.id === id) {
+        pos = p
+        size = node.nodeSize
+        return false
+      }
+      return true
+    })
+    if (pos === null) return
+    editor
+      .chain()
+      .focus()
+      .deleteRange({ from: pos, to: pos + size })
+      .run()
+  },
+  [editor],
+)
 
 useReminderSync(editor, page.id)
 ```
@@ -2292,19 +2479,21 @@ In the `<AnyNoteEditor ... />` block, pass the two callbacks:
 After `<AnyNoteEditor />` (still inside the returned tree), render the popover:
 
 ```tsx
-{reminderUI.open && (
-  <ReminderPopover
-    open
-    anchorEl={reminderUI.anchorEl}
-    mode={reminderUI.mode}
-    initial={reminderUI.initial}
-    workspaceId={workspaceId}
-    readOnly={!!readOnly}
-    onClose={() => setReminderUI({ open: false })}
-    onSave={saveReminder}
-    onDelete={() => deleteReminder(reminderUI.initial.id)}
-  />
-)}
+{
+  reminderUI.open && (
+    <ReminderPopover
+      open
+      anchorEl={reminderUI.anchorEl}
+      mode={reminderUI.mode}
+      initial={reminderUI.initial}
+      workspaceId={workspaceId}
+      readOnly={!!readOnly}
+      onClose={() => setReminderUI({ open: false })}
+      onSave={saveReminder}
+      onDelete={() => deleteReminder(reminderUI.initial.id)}
+    />
+  )
+}
 ```
 
 - [ ] **Step 2: Hash-anchor scroll**
@@ -2334,8 +2523,12 @@ Add a CSS rule in the editor content styles for `.reminder-flash` (find `package
 
 ```css
 @keyframes reminder-flash {
-  0%   { box-shadow: 0 0 0 2px rgba(255, 167, 38, 0.6); }
-  100% { box-shadow: 0 0 0 2px rgba(255, 167, 38, 0); }
+  0% {
+    box-shadow: 0 0 0 2px rgba(255, 167, 38, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 0 2px rgba(255, 167, 38, 0);
+  }
 }
 .reminder-flash {
   animation: reminder-flash 2s ease-out;
@@ -2345,6 +2538,7 @@ Add a CSS rule in the editor content styles for `.reminder-flash` (find `package
 - [ ] **Step 3: Type-check + lint**
 
 Run:
+
 ```bash
 pnpm --filter web check-types && pnpm --filter web lint
 ```
@@ -2404,6 +2598,7 @@ If anything fails: capture the error, debug, fix, **then** continue. Do not mark
 ## Task 18: E2E test
 
 **Files:**
+
 - Create: `apps/e2e/reminders.spec.ts`
 
 - [ ] **Step 1: Inspect helpers**
@@ -2421,7 +2616,11 @@ import { signUpAndAuthAs } from './helpers/auth'
 
 test.describe('Page reminders', () => {
   test('creates a reminder via slash command and shows the chip', async ({ page }) => {
-    await signUpAndAuthAs(page, { email: `reminder-${Date.now()}@example.com`, firstName: 'R', lastName: 'T' })
+    await signUpAndAuthAs(page, {
+      email: `reminder-${Date.now()}@example.com`,
+      firstName: 'R',
+      lastName: 'T',
+    })
 
     // Create or open a workspace + page. Reuse helpers from sibling specs that do this.
     await page.goto('/workspaces/new')
@@ -2430,7 +2629,10 @@ test.describe('Page reminders', () => {
     await page.waitForURL(/\/workspaces\/[0-9a-f-]+/i)
 
     // Create a page (adapt to current sidebar/create-page UI)
-    await page.getByRole('button', { name: /новая страница|\+/i }).first().click()
+    await page
+      .getByRole('button', { name: /новая страница|\+/i })
+      .first()
+      .click()
     await page.waitForURL(/\/workspaces\/[0-9a-f-]+\/pages\//i)
 
     const editor = page.locator('.ProseMirror').first()
@@ -2461,14 +2663,21 @@ test.describe('Page reminders', () => {
   })
 
   test('marking done turns the chip green and is reversible', async ({ page }) => {
-    await signUpAndAuthAs(page, { email: `reminder-done-${Date.now()}@example.com`, firstName: 'R', lastName: 'T' })
+    await signUpAndAuthAs(page, {
+      email: `reminder-done-${Date.now()}@example.com`,
+      firstName: 'R',
+      lastName: 'T',
+    })
 
     // Reach the editor (copy steps from the previous test or extract into a helper)
     await page.goto('/workspaces/new')
     await page.getByLabel('Название').fill('Reminder Done WS')
     await page.getByRole('button', { name: /создать/i }).click()
     await page.waitForURL(/\/workspaces\/[0-9a-f-]+/i)
-    await page.getByRole('button', { name: /новая страница|\+/i }).first().click()
+    await page
+      .getByRole('button', { name: /новая страница|\+/i })
+      .first()
+      .click()
     await page.waitForURL(/\/workspaces\/[0-9a-f-]+\/pages\//i)
 
     const editor = page.locator('.ProseMirror').first()
@@ -2500,6 +2709,7 @@ test.describe('Page reminders', () => {
 - [ ] **Step 3: Run E2E**
 
 Run:
+
 ```bash
 pnpm exec playwright test apps/e2e/reminders.spec.ts
 ```
@@ -2530,6 +2740,7 @@ Expected: PASS for check-types + lint + build + test across all workspaces.
 - [ ] **Step 2: Fix any failures**
 
 If gates fail:
+
 - type errors → fix the source file, re-run the affected workspace's `check-types`
 - lint errors → fix or run `pnpm format` for prettier issues
 - test failures → diagnose, fix code or test, re-run
@@ -2539,6 +2750,7 @@ Repeat until gates pass cleanly. Do NOT bypass hooks with `--no-verify` (the pro
 - [ ] **Step 3: Verify worktree state**
 
 Run:
+
 ```bash
 git status --short && git log --oneline -10
 ```

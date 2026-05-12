@@ -40,11 +40,7 @@ export default async function ProfilePage() {
           </Typography>
         </Stack>
 
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={2}
-          sx={{ width: '100%', pt: 2 }}
-        >
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ width: '100%', pt: 2 }}>
           <Link href="/settings" style={{ flex: 1, textDecoration: 'none' }}>
             <Paper
               variant="outlined"

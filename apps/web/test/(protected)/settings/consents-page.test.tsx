@@ -27,7 +27,10 @@ vi.mock('@/trpc/client', () => ({
   },
 }))
 
-import { ConsentsTable, type ConsentsTableRow } from '@/app/(protected)/settings/consents/consents-table'
+import {
+  ConsentsTable,
+  type ConsentsTableRow,
+} from '@/app/(protected)/settings/consents/consents-table'
 
 const ROWS: ConsentsTableRow[] = [
   {

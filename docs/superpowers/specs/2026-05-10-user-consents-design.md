@@ -16,13 +16,13 @@
 
 Из `apps/web/src/lib/legal-documents.ts` и `apps/web/docs/terms/`:
 
-| `ConsentDocumentType` | Слаг                | Файл                     | Заголовок                                          | Обязательность |
-| --------------------- | ------------------- | ------------------------ | -------------------------------------------------- | -------------- |
-| `USER_AGREEMENT`      | `user-agreement`    | `UserAgreement.md`       | Пользовательское соглашение                        | Обязательно    |
-| `PRIVACY_POLICY`      | `privacy-policy`    | `PrivacyPolicy.md`       | Политика обработки персональных данных             | Обязательно    |
-| `PII_PROCESSING`      | `consent`           | `ConsentToProcessing.md` | Согласие на обработку персональных данных          | Обязательно    |
-| `MARKETING`           | `marketing-consent` | `MarketingConsent.md`    | Согласие на получение рекламных рассылок           | Опционально    |
-| `PUBLIC_OFFER`        | `public-offer`      | `PublicOffer.md`         | Оферта на оказание услуг                           | Обязательно    |
+| `ConsentDocumentType` | Слаг                | Файл                     | Заголовок                                 | Обязательность |
+| --------------------- | ------------------- | ------------------------ | ----------------------------------------- | -------------- |
+| `USER_AGREEMENT`      | `user-agreement`    | `UserAgreement.md`       | Пользовательское соглашение               | Обязательно    |
+| `PRIVACY_POLICY`      | `privacy-policy`    | `PrivacyPolicy.md`       | Политика обработки персональных данных    | Обязательно    |
+| `PII_PROCESSING`      | `consent`           | `ConsentToProcessing.md` | Согласие на обработку персональных данных | Обязательно    |
+| `MARKETING`           | `marketing-consent` | `MarketingConsent.md`    | Согласие на получение рекламных рассылок  | Опционально    |
+| `PUBLIC_OFFER`        | `public-offer`      | `PublicOffer.md`         | Оферта на оказание услуг                  | Обязательно    |
 
 `information` (страница самозанятого) в систему consents не входит — это
 информационная страница, не подлежащая принятию.
@@ -112,8 +112,8 @@ export type LegalDocument = {
   slug: LegalDocumentSlug
   title: string
   file: string
-  consentType: ConsentDocumentType | null  // null → не входит в consents (information)
-  required: boolean                         // marketing → false; information → false
+  consentType: ConsentDocumentType | null // null → не входит в consents (information)
+  required: boolean // marketing → false; information → false
 }
 ```
 
@@ -229,13 +229,15 @@ export const consentRouter = router({
 ```typescript
 export const authRouter = router({
   signUp: publicProcedure
-    .input(z.object({
-      email: z.string().email(),
-      password: z.string().min(8),
-      firstName: z.string().min(1),
-      lastName: z.string().min(1),
-      marketing: z.boolean(),
-    }))
+    .input(
+      z.object({
+        email: z.string().email(),
+        password: z.string().min(8),
+        firstName: z.string().min(1),
+        lastName: z.string().min(1),
+        marketing: z.boolean(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const { marketing, ...rest } = input
       const fullName = `${rest.lastName} ${rest.firstName}`
@@ -343,16 +345,16 @@ UI идентичен sign-up чекбоксам (через общий комп
 
 ```typescript
 export type ConsentsCheckboxesValues = {
-  agreedToTerms: boolean       // объединённый обязательный
-  agreedToMarketing: boolean   // опциональный
+  agreedToTerms: boolean // объединённый обязательный
+  agreedToMarketing: boolean // опциональный
 }
 
 export type ConsentsCheckboxesUrls = {
   userAgreement: string
   privacyPolicy: string
-  piiConsent: string           // НОВЫЙ — ссылка на /terms/consent
+  piiConsent: string // НОВЫЙ — ссылка на /terms/consent
   publicOffer: string
-  marketingConsent: string     // НОВЫЙ — ссылка на /terms/marketing-consent
+  marketingConsent: string // НОВЫЙ — ссылка на /terms/marketing-consent
 }
 
 export type ConsentsCheckboxesProps = {
@@ -500,6 +502,7 @@ export default async function ConsentsSettingsPage() {
 ## Документация
 
 - В `CLAUDE.md` добавить блок в «Conventions that bite»:
+
   > **Consents**: `(protected)/layout.tsx` редиректит пользователей без обязательных consents на `/onboarding/consents`. При создании пользователя через Prisma напрямую (тесты, миграции) нужно вручную записать 5 строк в `user_consents`. Marketing — единственный toggleable consent через `consent.setMarketing`.
 
 - E2E хелпер `signUpAndAuthAs` обновляется и комментируется.
