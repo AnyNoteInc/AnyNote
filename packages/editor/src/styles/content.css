@@ -409,3 +409,71 @@
 .reminder-flash {
   animation: reminder-flash 2s ease-out;
 }
+
+/* Column layout — every top-level child gets position:relative so absolute
+   widget overlays (drop indicators) anchor to the right element. The .column
+   inside a layout also gets it for its own internal indicators. */
+.anynote-editor .ProseMirror > * {
+  position: relative;
+}
+
+.anynote-editor .column-layout {
+  display: grid;
+  gap: 24px;
+  margin: 0.5rem 0;
+}
+.anynote-editor .column-layout--1 {
+  grid-template-columns: 1fr;
+}
+.anynote-editor .column-layout--2 {
+  grid-template-columns: 1fr 1fr;
+}
+.anynote-editor .column-layout--3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
+
+.anynote-editor .column {
+  position: relative;
+  min-width: 0;
+}
+
+/* Drop indicators — overlay on the target node */
+.anynote-editor .column-drop-indicator {
+  position: absolute;
+  pointer-events: none;
+  background: #1976d2;
+  z-index: 5;
+}
+.anynote-editor .column-drop-indicator--left {
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 2px;
+}
+.anynote-editor .column-drop-indicator--right {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 2px;
+}
+.anynote-editor .column-drop-indicator--top {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+}
+.anynote-editor .column-drop-indicator--bottom {
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+}
+
+@media (max-width: 600px) {
+  .anynote-editor .column-layout--2,
+  .anynote-editor .column-layout--3 {
+    grid-template-columns: 1fr;
+  }
+}
