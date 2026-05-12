@@ -17,6 +17,7 @@
 Build a pure function that computes which zone a cursor falls into. No editor instance, no DOM — just math. We isolate this so the bulk of drop-placement logic is unit-testable.
 
 **Files:**
+
 - Create: `packages/editor/src/extensions/drop-placement.zones.ts`
 - Create: `packages/editor/src/extensions/drop-placement.zones.test.ts`
 
@@ -123,6 +124,7 @@ git commit -m "feat(editor): pure drop-zone math for column layout"
 Declare the two ProseMirror nodes. Schema-only — no commands, no dissolution. Tested via `@tiptap/pm/{model,state}` (no DOM, no Editor instance).
 
 **Files:**
+
 - Create: `packages/editor/src/extensions/column-layout.schema.ts`
 - Create: `packages/editor/src/extensions/column-layout.schema.test.ts`
 
@@ -174,7 +176,7 @@ describe('column-layout schema', () => {
 
   it('rejects a layout with 4 columns', () => {
     expect(() =>
-      schema.nodes.columnLayout.create(null, [
+      schema.nodes.columnLayout.createChecked(null, [
         column(paragraph()),
         column(paragraph()),
         column(paragraph()),
@@ -184,15 +186,15 @@ describe('column-layout schema', () => {
   })
 
   it('rejects a layout with 0 columns', () => {
-    expect(() => schema.nodes.columnLayout.create(null, [])).toThrow()
+    expect(() => schema.nodes.columnLayout.createChecked(null, [])).toThrow()
   })
 
   it('rejects a column at the top level (must be inside layout)', () => {
-    expect(() => schema.nodes.doc.create(null, [column(paragraph())])).toThrow()
+    expect(() => schema.nodes.doc.createChecked(null, [column(paragraph())])).toThrow()
   })
 
   it('rejects a column with no children (block+ requires at least one)', () => {
-    expect(() => schema.nodes.column.create(null, [])).toThrow()
+    expect(() => schema.nodes.column.createChecked(null, [])).toThrow()
   })
 
   it('renders columnLayout as div[data-type=column-layout] with column count', () => {
@@ -308,6 +310,7 @@ git commit -m "feat(editor): schema for columnLayout and column nodes"
 The function takes the current document and returns a transaction (or null) that normalizes any malformed `columnLayout` nodes: 0 non-empty columns → remove layout; 1 non-empty column → unwrap; remove empty columns from 2/3-cell rows.
 
 **Files:**
+
 - Create: `packages/editor/src/extensions/column-layout.dissolve.ts`
 - Create: `packages/editor/src/extensions/column-layout.dissolve.test.ts`
 
@@ -339,10 +342,8 @@ const schema = new Schema({
 })
 
 const para = (text: string) => schema.nodes.paragraph.create(null, text ? schema.text(text) : null)
-const col = (...children: ReturnType<typeof para>[]) =>
-  schema.nodes.column.create(null, children)
-const lay = (...cells: ReturnType<typeof col>[]) =>
-  schema.nodes.columnLayout.create(null, cells)
+const col = (...children: ReturnType<typeof para>[]) => schema.nodes.column.create(null, children)
+const lay = (...cells: ReturnType<typeof col>[]) => schema.nodes.columnLayout.create(null, cells)
 
 const stateFrom = (...top: ReturnType<typeof para>[] | ReturnType<typeof lay>[]) =>
   EditorState.create({ schema, doc: schema.nodes.doc.create(null, top) })
@@ -365,9 +366,7 @@ describe('dissolveColumnLayouts', () => {
   })
 
   it('removes empty columns from a 3-column layout, keeping the others', () => {
-    const state = stateFrom(
-      lay(col(para('a')), col(para('')), col(para('c'))),
-    )
+    const state = stateFrom(lay(col(para('a')), col(para('')), col(para('c'))))
     // mid column has a paragraph with no text — still a "non-empty" cell because
     // it has a paragraph child. Dissolution removes columns whose entire content
     // is empty — i.e. a column with no children or only zero-size children.
@@ -474,11 +473,7 @@ export function dissolveColumnLayouts(state: EditorState): Transaction | null {
         layout.attrs,
         nonEmpty.map((c) => c.node),
       )
-      tr.replaceWith(
-        tr.mapping.map(pos),
-        tr.mapping.map(pos + layout.nodeSize),
-        replacement,
-      )
+      tr.replaceWith(tr.mapping.map(pos), tr.mapping.map(pos + layout.nodeSize), replacement)
       mutated = true
     }
   }
@@ -505,6 +500,7 @@ git commit -m "feat(editor): auto-dissolution for column layouts"
 Extend the schema Nodes from Task 2 with the dissolution `appendTransaction` plugin. This is the client-side aggregate that gets registered in `buildExtensions`. Task 11 rewrites this same file to add `addNodeView` once the React node-view components exist — this task's version is a stepping stone that boots without React.
 
 **Files:**
+
 - Create: `packages/editor/src/extensions/column-layout.ts`
 
 - [ ] **Step 1: Implement the extension**
@@ -554,6 +550,7 @@ git commit -m "feat(editor): ColumnLayout extension with appendTransaction disso
 The plugin listens to `dragover`, finds the hover target's DOM node, computes the zone via the pure function from Task 1, and renders a Decoration. The actual `drop` handling comes in Task 6.
 
 **Files:**
+
 - Create: `packages/editor/src/extensions/drop-placement.ts`
 
 - [ ] **Step 1: Implement the dragover side**
@@ -570,7 +567,14 @@ import { computeDropZone, type DropZone } from './drop-placement.zones'
 
 type HoverTarget =
   | { kind: 'block'; pos: number; node: PMNode }
-  | { kind: 'cell'; cellPos: number; cellNode: PMNode; layoutPos: number; layoutNode: PMNode; cellIndex: number }
+  | {
+      kind: 'cell'
+      cellPos: number
+      cellNode: PMNode
+      layoutPos: number
+      layoutNode: PMNode
+      cellIndex: number
+    }
 
 type PluginState = { zone: DropZone | null; target: HoverTarget | null }
 
@@ -609,7 +613,11 @@ function renderIndicatorDecoration(state: PluginState): DecorationSet {
   return DecorationSet.empty.add(
     state.target.kind === 'cell' ? state.target.cellNode.content : state.target.node.content,
     [
-      Decoration.widget(targetPos + 1, overlay, { side: -1, ignoreSelection: true, key: `drop-${state.zone}` }),
+      Decoration.widget(targetPos + 1, overlay, {
+        side: -1,
+        ignoreSelection: true,
+        key: `drop-${state.zone}`,
+      }),
     ],
   )
 }
@@ -648,11 +656,10 @@ export const DropPlacement = Extension.create({
               const dom = view.nodeDOM(targetDomPos) as HTMLElement | null
               if (!dom) return false
               const rect = dom.getBoundingClientRect()
-              const canSide =
-                target.kind === 'cell'
-                  ? target.layoutNode.childCount < 3
-                  : true
-              const zone = computeDropZone({ x: event.clientX, y: event.clientY }, rect, { canSide })
+              const canSide = target.kind === 'cell' ? target.layoutNode.childCount < 3 : true
+              const zone = computeDropZone({ x: event.clientX, y: event.clientY }, rect, {
+                canSide,
+              })
               view.dispatch(view.state.tr.setMeta(dropPlacementKey, { zone, target }))
               event.preventDefault()
               return true
@@ -688,6 +695,7 @@ git commit -m "feat(editor): drop-placement plugin renders zone decorations"
 Add `handleDrop` to the plugin that uses the captured zone and target to build the correct mutation. Source range comes from `view.dragging.slice` (set by ProseMirror when the drag starts inside the editor).
 
 **Files:**
+
 - Modify: `packages/editor/src/extensions/drop-placement.ts`
 
 - [ ] **Step 1: Add the drop handler**
@@ -793,6 +801,7 @@ git commit -m "feat(editor): drop-placement plugin handles drops into columns"
 Add layout styles for rows/cells, drop indicators, and the responsive media query.
 
 **Files:**
+
 - Modify: `packages/editor/src/styles/content.css`
 - Modify: `packages/editor/src/styles/content.test.ts`
 
@@ -807,9 +816,15 @@ Append to `packages/editor/src/styles/content.css` (at the end, before any final
   gap: 24px;
   margin: 0.5rem 0;
 }
-.anynote-editor .column-layout--1 { grid-template-columns: 1fr; }
-.anynote-editor .column-layout--2 { grid-template-columns: 1fr 1fr; }
-.anynote-editor .column-layout--3 { grid-template-columns: 1fr 1fr 1fr; }
+.anynote-editor .column-layout--1 {
+  grid-template-columns: 1fr;
+}
+.anynote-editor .column-layout--2 {
+  grid-template-columns: 1fr 1fr;
+}
+.anynote-editor .column-layout--3 {
+  grid-template-columns: 1fr 1fr 1fr;
+}
 
 .anynote-editor .column {
   position: relative;
@@ -900,6 +915,7 @@ git commit -m "feat(editor): column layout and drop indicator styles"
 Disable StarterKit's default `dropcursor`, register the two new ColumnLayout extensions and the DropPlacement plugin.
 
 **Files:**
+
 - Modify: `packages/editor/src/extensions/index.ts`
 
 - [ ] **Step 1: Make edits**
@@ -952,6 +968,7 @@ git commit -m "feat(editor): register column-layout and drop-placement"
 `EditorDragHandle.onNodeChange` currently captures the hovered top-level node only. Extend it so that when the hovered DOM is inside a `column`, the handle understands it can drag (a) the whole row from the gutter handle or (b) just the cell from a small inner handle.
 
 **Files:**
+
 - Modify: `packages/editor/src/components/drag-handle.tsx`
 
 - [ ] **Step 1: Read current state**
@@ -984,7 +1001,15 @@ type HoverNodePos = {
 Replace the `onNodeChange` callback body:
 
 ```ts
-const onNodeChange = ({ node, pos, editor: ed }: { node: PMNode | null; editor: Editor; pos: number }) => {
+const onNodeChange = ({
+  node,
+  pos,
+  editor: ed,
+}: {
+  node: PMNode | null
+  editor: Editor
+  pos: number
+}) => {
   if (!node) {
     hoverNodeRef.current = null
     return
@@ -1035,6 +1060,7 @@ git commit -m "feat(editor): drag-handle distinguishes row, cell, and block cont
 When the hovered node is inside a column, the menu under the drag handle should offer row-level and cell-level operations: "Delete row", "Delete cell", "Unwrap cell to blocks".
 
 **Files:**
+
 - Modify: `packages/editor/src/components/drag-handle-menu.tsx`
 - Modify: `packages/editor/src/components/drag-handle.tsx` (pass new context to menu)
 
@@ -1061,48 +1087,48 @@ context?: {
 After the existing menu items, before the closing `</Menu>`, add:
 
 ```tsx
-{context?.kind === 'cell' && context.rowFrom !== undefined && context.rowTo !== undefined && (
-  <MenuItem
-    onClick={() => {
-      editor.chain().focus().deleteRange({ from: context.rowFrom!, to: context.rowTo! }).run()
-      onClose()
-    }}
-  >
-    Удалить ряд
-  </MenuItem>
-)}
-{context?.kind === 'cell' && context.cellFrom !== undefined && context.cellTo !== undefined && (
-  <>
+{
+  context?.kind === 'cell' && context.rowFrom !== undefined && context.rowTo !== undefined && (
     <MenuItem
       onClick={() => {
-        editor.chain().focus().deleteRange({ from: context.cellFrom!, to: context.cellTo! }).run()
+        editor.chain().focus().deleteRange({ from: context.rowFrom!, to: context.rowTo! }).run()
         onClose()
       }}
     >
-      Удалить ячейку
+      Удалить ряд
     </MenuItem>
-    <MenuItem
-      onClick={() => {
-        // Unwrap: replace cell with its children at parent position
-        const { state } = editor
-        const $from = state.doc.resolve(context.cellFrom! + 1)
-        const cellNode = $from.parent
-        const layoutPos = $from.before($from.depth - 1)
-        const layoutNode = state.doc.nodeAt(layoutPos)
-        if (!layoutNode) return onClose()
-        // Replace entire layout with cell contents (auto-dissolve will tidy)
-        editor
-          .chain()
-          .focus()
-          .deleteRange({ from: context.cellFrom!, to: context.cellTo! })
-          .run()
-        onClose()
-      }}
-    >
-      Развернуть ячейку в блоки
-    </MenuItem>
-  </>
-)}
+  )
+}
+{
+  context?.kind === 'cell' && context.cellFrom !== undefined && context.cellTo !== undefined && (
+    <>
+      <MenuItem
+        onClick={() => {
+          editor.chain().focus().deleteRange({ from: context.cellFrom!, to: context.cellTo! }).run()
+          onClose()
+        }}
+      >
+        Удалить ячейку
+      </MenuItem>
+      <MenuItem
+        onClick={() => {
+          // Unwrap: replace cell with its children at parent position
+          const { state } = editor
+          const $from = state.doc.resolve(context.cellFrom! + 1)
+          const cellNode = $from.parent
+          const layoutPos = $from.before($from.depth - 1)
+          const layoutNode = state.doc.nodeAt(layoutPos)
+          if (!layoutNode) return onClose()
+          // Replace entire layout with cell contents (auto-dissolve will tidy)
+          editor.chain().focus().deleteRange({ from: context.cellFrom!, to: context.cellTo! }).run()
+          onClose()
+        }}
+      >
+        Развернуть ячейку в блоки
+      </MenuItem>
+    </>
+  )
+}
 ```
 
 - [ ] **Step 4: Pass context from drag-handle.tsx**
@@ -1149,6 +1175,7 @@ git commit -m "feat(editor): row/cell delete and unwrap menu items"
 Render the row's `⠿` handle at the top-left of `columnLayout` and a smaller `⠿` at the top-left of each `column`. Both buttons are `draggable="true"`. On `dragstart` they set a `NodeSelection` on the row/cell so ProseMirror picks the right slice; on `click` they open a small Material UI Menu (Move / Delete / Unwrap).
 
 **Files:**
+
 - Create: `packages/editor/src/components/column-layout-node-view.tsx`
 - Create: `packages/editor/src/components/column-node-view.tsx`
 - Modify: `packages/editor/src/extensions/column-layout.ts` (wire `addNodeView` for both)
@@ -1164,11 +1191,7 @@ Render the row's `⠿` handle at the top-left of `columnLayout` and a smaller `�
 import { useState, type DragEvent, type MouseEvent } from 'react'
 import { IconButton, Menu, MenuItem } from '@mui/material'
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
-import {
-  NodeViewContent,
-  NodeViewWrapper,
-  type NodeViewProps,
-} from '@tiptap/react'
+import { NodeViewContent, NodeViewWrapper, type NodeViewProps } from '@tiptap/react'
 import { NodeSelection, TextSelection } from '@tiptap/pm/state'
 
 export function ColumnLayoutNodeView({ editor, getPos, node }: NodeViewProps) {
@@ -1246,11 +1269,7 @@ export function ColumnLayoutNodeView({ editor, getPos, node }: NodeViewProps) {
 import { useState, type DragEvent, type MouseEvent } from 'react'
 import { IconButton, Menu, MenuItem } from '@mui/material'
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
-import {
-  NodeViewContent,
-  NodeViewWrapper,
-  type NodeViewProps,
-} from '@tiptap/react'
+import { NodeViewContent, NodeViewWrapper, type NodeViewProps } from '@tiptap/react'
 import { NodeSelection } from '@tiptap/pm/state'
 
 export function ColumnNodeView({ editor, getPos, node }: NodeViewProps) {
@@ -1447,6 +1466,7 @@ git commit -m "feat(editor): node views with row and cell drag handles"
 `BlockIndexAttributes` decorates top-level nodes with `data-block-index="N"`. With columns, deep-link scroll targets need to resolve to inner blocks. Extend the plugin to additionally decorate cell-nested blocks with `data-block-index="rowIdx.cellIdx.innerIdx"`.
 
 **Files:**
+
 - Modify: `packages/editor/src/extensions/block-index-attributes.ts`
 
 - [ ] **Step 1: Edit the plugin**
@@ -1501,6 +1521,7 @@ git commit -m "feat(editor): composite block-index for cell-nested blocks"
 `packages/editor/src/extensions/server.ts` is a schema-only barrel that re-exports `*.schema.ts` exports for server-side rendering (no React, no NodeViews, no plugins). Add the column nodes from `column-layout.schema.ts` so exported HTML / SSR includes columns correctly.
 
 **Files:**
+
 - Modify: `packages/editor/src/extensions/server.ts`
 
 - [ ] **Step 1: Add the re-export**
@@ -1508,10 +1529,7 @@ git commit -m "feat(editor): composite block-index for cell-nested blocks"
 Append to `packages/editor/src/extensions/server.ts`, alongside the other `Schema as Name` re-exports:
 
 ```ts
-export {
-  ColumnLayoutSchema as ColumnLayout,
-  ColumnSchema as Column,
-} from './column-layout.schema'
+export { ColumnLayoutSchema as ColumnLayout, ColumnSchema as Column } from './column-layout.schema'
 ```
 
 Do NOT re-export from `./column-layout` (that file imports React NodeViews via `./column-layout-node-view` and is not server-safe). Do NOT add `DropPlacement` — it's a browser-only interaction plugin.
@@ -1535,6 +1553,7 @@ git commit -m "feat(editor): register column nodes for server-side rendering"
 End-to-end test that drives the actual editor in a real browser via the Playwright dev server.
 
 **Files:**
+
 - Create: `apps/e2e/page-columns.spec.ts`
 
 - [ ] **Step 1: Write the test**
@@ -1572,7 +1591,9 @@ test.describe('column layout drag and drop', () => {
     const dragHandle = page.locator('.tiptap-drag-handle [aria-label="Действия блока"]').first()
     await dragHandle.hover()
     await page.mouse.down()
-    await page.mouse.move(alphaBox.x + alphaBox.width - 8, alphaBox.y + alphaBox.height / 2, { steps: 10 })
+    await page.mouse.move(alphaBox.x + alphaBox.width - 8, alphaBox.y + alphaBox.height / 2, {
+      steps: 10,
+    })
     await page.mouse.up()
 
     await expect(page.locator('.column-layout--2')).toHaveCount(1)
@@ -1630,7 +1651,9 @@ test.describe('column layout drag and drop', () => {
     await expect(page.locator('.column-layout')).toHaveCount(0)
   })
 
-  test('row dissolves to plain block when dragged-out cell leaves one remaining', async ({ page }) => {
+  test('row dissolves to plain block when dragged-out cell leaves one remaining', async ({
+    page,
+  }) => {
     const { user } = await signUpAndAuthAs(page)
     await writeConsentsForUserId(user.id)
     await page.goto('/app')
@@ -1651,7 +1674,9 @@ test.describe('column layout drag and drop', () => {
     let handle = page.locator('.tiptap-drag-handle [aria-label="Действия блока"]').first()
     await handle.hover()
     await page.mouse.down()
-    await page.mouse.move(firstBox.x + firstBox.width - 8, firstBox.y + firstBox.height / 2, { steps: 10 })
+    await page.mouse.move(firstBox.x + firstBox.width - 8, firstBox.y + firstBox.height / 2, {
+      steps: 10,
+    })
     await page.mouse.up()
     await expect(page.locator('.column-layout--2')).toHaveCount(1)
 
