@@ -362,6 +362,14 @@ function buildBlockTargetTransaction(
   )
 }
 
+function sourceCoversTarget(
+  source: { from: number; to: number } | null,
+  target: HoverTarget,
+): boolean {
+  if (!source) return false
+  return source.from <= targetStart(target) && targetEnd(target) <= source.to
+}
+
 function applyPlacementDrop(
   view: EditorView,
   event: DragEvent,
@@ -384,9 +392,7 @@ function applyPlacementDrop(
 
   // Source-overlaps-target guard: if the dragged range covers the target node
   // we'd delete and re-wrap our own target — produces nonsense. Bail out.
-  const tStart = targetStart(target)
-  const tEnd = targetEnd(target)
-  if (source && source.from <= tStart && tEnd <= source.to) return false
+  if (sourceCoversTarget(source, target)) return false
 
   // If the drag source is itself a column (cell-handle drag), drop its
   // content, not the column wrapper — wrapping a column in another column
