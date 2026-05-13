@@ -1,3 +1,10 @@
+## [1.15.3](https://github.com/AnyNoteInc/AnyNote/compare/v1.15.2...v1.15.3) (2026-05-13)
+
+
+### Bug Fixes
+
+* **billing:** gate YooKassa save_payment_method behind env var and surface API error descriptions ([72b6774](https://github.com/AnyNoteInc/AnyNote/commit/72b67744bc6d448212a6f19f8f8a2594d4eeb5af))
+
 ## [1.15.2](https://github.com/AnyNoteInc/AnyNote/compare/v1.15.1...v1.15.2) (2026-05-13)
 
 
