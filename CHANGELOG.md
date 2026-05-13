@@ -1,3 +1,10 @@
+## [1.15.4](https://github.com/AnyNoteInc/AnyNote/compare/v1.15.3...v1.15.4) (2026-05-13)
+
+
+### Bug Fixes
+
+* **billing:** actively sync order status from YooKassa on return page so payments confirm without webhook ([526c073](https://github.com/AnyNoteInc/AnyNote/commit/526c07355e0772d2c43358db302fb8ed9ae95849))
+
 ## [1.15.3](https://github.com/AnyNoteInc/AnyNote/compare/v1.15.2...v1.15.3) (2026-05-13)
 
 
