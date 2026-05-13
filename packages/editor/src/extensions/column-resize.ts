@@ -142,8 +142,21 @@ function beginDrag(view: EditorView, event: MouseEvent, dividerEl: HTMLElement):
   }
 }
 
+// Only one divider can be dragged at a time per page, so the active cleanup
+// lives module-locally. The plugin's `view().destroy()` reads this so an
+// editor unmount mid-drag still tears down document listeners and the
+// `is-dragging` class.
+let activeCleanup: (() => void) | null = null
+
 export const columnResizePlugin = new Plugin({
   key: columnResizeKey,
+  view() {
+    return {
+      destroy() {
+        activeCleanup?.()
+      },
+    }
+  },
   props: {
     decorations(state: EditorState) {
       return DecorationSet.create(state.doc, buildDividers(state.doc))
@@ -156,33 +169,79 @@ export const columnResizePlugin = new Plugin({
         const drag = beginDrag(view, event, target)
         if (!drag) return false
 
-        const onMove = (moveEvent: MouseEvent) => {
-          const deltaPx = moveEvent.clientX - drag.startX
-          const deltaFraction = deltaPx / drag.pixelsPerShare
-          const { left, right } = computeResizedWidths(
-            drag.initialLeft,
-            drag.initialRight,
-            deltaFraction,
-            MIN_WIDTH_FRACTION,
-          )
-          dispatchWidths(view, drag.layoutPos, drag.rightIndex, left, right, false)
-        }
-        const onUp = (upEvent: MouseEvent) => {
-          const deltaPx = upEvent.clientX - drag.startX
-          const deltaFraction = deltaPx / drag.pixelsPerShare
-          const { left, right } = computeResizedWidths(
-            drag.initialLeft,
-            drag.initialRight,
-            deltaFraction,
-            MIN_WIDTH_FRACTION,
-          )
-          dispatchWidths(view, drag.layoutPos, drag.rightIndex, left, right, true)
-          drag.dividerEl.classList.remove('is-dragging')
+        // Coalesce mousemove dispatches to one per animation frame. Raw
+        // mousemove can fire faster than the display refresh rate, and each
+        // dispatch reshapes the doc + (in collab) emits a Yjs update — so
+        // throttling here cuts churn down to the display rate.
+        let latestClientX = event.clientX
+        let rafId: number | null = null
+
+        const cleanup = () => {
+          if (rafId !== null) {
+            cancelAnimationFrame(rafId)
+            rafId = null
+          }
           document.removeEventListener('mousemove', onMove)
           document.removeEventListener('mouseup', onUp)
+          document.removeEventListener('keydown', onKeyDown)
+          window.removeEventListener('blur', onBlur)
+          drag.dividerEl.classList.remove('is-dragging')
+          activeCleanup = null
         }
+
+        const dispatchForX = (clientX: number, addToHistory: boolean) => {
+          const deltaPx = clientX - drag.startX
+          const deltaFraction = deltaPx / drag.pixelsPerShare
+          const { left, right } = computeResizedWidths(
+            drag.initialLeft,
+            drag.initialRight,
+            deltaFraction,
+            MIN_WIDTH_FRACTION,
+          )
+          dispatchWidths(view, drag.layoutPos, drag.rightIndex, left, right, addToHistory)
+        }
+
+        const onMove = (moveEvent: MouseEvent) => {
+          latestClientX = moveEvent.clientX
+          if (rafId !== null) return
+          rafId = requestAnimationFrame(() => {
+            rafId = null
+            dispatchForX(latestClientX, false)
+          })
+        }
+        const onUp = (upEvent: MouseEvent) => {
+          dispatchForX(upEvent.clientX, true)
+          cleanup()
+        }
+        const onKeyDown = (keyEvent: KeyboardEvent) => {
+          if (keyEvent.key !== 'Escape') return
+          dispatchWidths(
+            view,
+            drag.layoutPos,
+            drag.rightIndex,
+            drag.initialLeft,
+            drag.initialRight,
+            true,
+          )
+          cleanup()
+        }
+        const onBlur = () => {
+          dispatchWidths(
+            view,
+            drag.layoutPos,
+            drag.rightIndex,
+            drag.initialLeft,
+            drag.initialRight,
+            true,
+          )
+          cleanup()
+        }
+
         document.addEventListener('mousemove', onMove)
         document.addEventListener('mouseup', onUp)
+        document.addEventListener('keydown', onKeyDown)
+        window.addEventListener('blur', onBlur)
+        activeCleanup = cleanup
 
         event.preventDefault()
         return true
