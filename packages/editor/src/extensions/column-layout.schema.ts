@@ -6,15 +6,26 @@ import type { NodeSpec } from '@tiptap/pm/model'
 export const columnLayoutSpec: NodeSpec = {
   group: 'block',
   content: 'column{1,3}',
+  attrs: {
+    columns: { default: null },
+  },
   defining: true,
   isolating: false,
-  parseDOM: [{ tag: 'div[data-type="column-layout"]' }],
+  parseDOM: [
+    {
+      tag: 'div[data-type="column-layout"]',
+      getAttrs: (dom) => ({
+        columns:
+          dom instanceof HTMLElement ? Number(dom.getAttribute('data-columns')) || null : null,
+      }),
+    },
+  ],
   toDOM: (node) => [
     'div',
     {
       'data-type': 'column-layout',
-      'data-columns': String(node.childCount),
-      class: `column-layout column-layout--${node.childCount}`,
+      'data-columns': String(node.attrs.columns ?? node.childCount),
+      class: `column-layout column-layout--${node.attrs.columns ?? node.childCount}`,
     },
     0,
   ],
@@ -30,11 +41,20 @@ export const columnSpec: NodeSpec = {
 // Tiptap Nodes that mirror the specs above. These are the "schema-only"
 // extensions consumed by server-side rendering (no NodeView, no plugins).
 // The client extension in `column-layout.ts` extends these with the
-// appendTransaction dissolve plugin and NodeViews.
+// appendTransaction dissolve plugin.
 export const ColumnLayoutSchema = Node.create({
   name: 'columnLayout',
   group: 'block',
   content: 'column{1,3}',
+  addAttributes() {
+    return {
+      columns: {
+        default: null,
+        parseHTML: (element) => Number(element.getAttribute('data-columns')) || null,
+        renderHTML: () => ({}),
+      },
+    }
+  },
   defining: true,
   parseHTML() {
     return [{ tag: 'div[data-type="column-layout"]' }]
@@ -44,8 +64,8 @@ export const ColumnLayoutSchema = Node.create({
       'div',
       {
         'data-type': 'column-layout',
-        'data-columns': String(node.childCount),
-        class: `column-layout column-layout--${node.childCount}`,
+        'data-columns': String(node.attrs.columns ?? node.childCount),
+        class: `column-layout column-layout--${node.attrs.columns ?? node.childCount}`,
       },
       0,
     ]

@@ -1,8 +1,8 @@
 # Tiptap Column Layout — Design
 
 Drag-and-drop column layout for the AnyNote Tiptap editor. Users can split a
-row into 2 or 3 columns by dragging a block onto the left or right edge of
-another block; existing vertical drag-and-drop is preserved.
+row into 2 or 3 columns by dragging a block past the left or right edge of
+another block; dragging inside the block width preserves vertical reordering.
 
 ## Goals
 
@@ -26,17 +26,18 @@ Cursor position over the target's bounding rect determines what happens on drop:
 
 | Zone   | Width / height                               | Action                                                                                                         |
 | ------ | -------------------------------------------- | -------------------------------------------------------------------------------------------------------------- |
-| LEFT   | x ∈ [rect.left, rect.left + 0.25·w)          | New column inserted at left of target's row, or wrap target+source into a new row if target is plain top-level |
-| RIGHT  | x ∈ (rect.right − 0.25·w, rect.right]        | Same as LEFT but on the right side                                                                             |
-| TOP    | otherwise; y ∈ [rect.top, rect.top + h/2)    | Insert above target — vertical drop, semantically the same as today's `dropcursor`                             |
-| BOTTOM | otherwise; y ∈ [rect.top + h/2, rect.bottom] | Insert below target — vertical drop                                                                            |
+| LEFT   | x < rect.left; y inside target rect          | New column inserted at left of target's row, or wrap target+source into a new row if target is plain top-level |
+| RIGHT  | x > rect.right; y inside target rect         | Same as LEFT but on the right side                                                                             |
+| TOP    | rect.left ≤ x ≤ rect.right; upper half       | Insert above target — vertical drop, semantically the same as today's `dropcursor`                             |
+| BOTTOM | rect.left ≤ x ≤ rect.right; lower half       | Insert below target — vertical drop                                                                            |
 
 The TOP/BOTTOM action is rebuilt in our plugin (not delegated to the disabled
 `dropcursor`), but it produces the same document mutation a plain block drop
 would today.
 
 If the target is a `column` cell within a 3-cell row, LEFT and RIGHT zones are
-disabled — no indicator appears, drop in those zones is a no-op.
+disabled; even outside the cell horizontally, the drop falls back to TOP/BOTTOM
+for vertical reordering of the whole `columnLayout`.
 
 LEFT vs RIGHT insertion index is relative to the _target cell's_ position
 inside its row: dropping on the LEFT of the middle cell in a 2-cell row makes
@@ -50,22 +51,18 @@ it index 2 (rightmost).
 - **TOP / BOTTOM** — horizontal line of the same color across the target's
   width, between blocks
 
-Both are ProseMirror `Decoration` widgets attached by a single plugin. The
-default `dropcursor` extension from `StarterKit` is disabled.
+Both are ProseMirror `Decoration.node` classes attached by a single plugin.
+The default `dropcursor` extension from `StarterKit` is disabled.
 
 ### Row controls
 
-Two distinct drag handles:
-
-- **Row handle** — `⠿` and `+` in the left 48px gutter of the page (same
-  position as the current single-block handle). Drags the entire row.
-- **Cell handle** — a smaller `⠿` at top-left inside each cell, visible on
-  hover only. Drags one column out of the row.
+The current implementation keeps the existing page-gutter drag handle. When
+the hovered block is inside a column cell, the same block menu receives
+cell-aware actions.
 
 The block menu under each handle adapts:
 
-- Row menu: "Move row", "Delete row"
-- Cell menu: "Move cell", "Delete cell", "Unwrap cell to blocks"
+- Cell menu additions: "Delete cell", "Unwrap cell to blocks", "Delete row"
 - Plain block menu (unchanged): "Move block", "Delete block"
 
 ### Auto-dissolution
@@ -109,25 +106,30 @@ column
   toDOM: <div class="column">
 ```
 
-Top-level node spec stays `(columnLayout | block)+`. Containers
-(`callout`, `toggle`, `hiddenText`) keep their existing `content: "block+"`
-restriction — schema disallows `columnLayout` inside.
+`columnLayout` remains a `block` node so it can coexist with the existing
+StarterKit document schema. The drop-placement plugin keeps user-created rows
+at the top level; nested layouts remain a non-goal and should not be produced
+by editor controls.
 
 ### Files
 
 **New:**
 
-- [packages/editor/src/extensions/column-layout.ts](packages/editor/src/extensions/column-layout.ts) — Tiptap extension declaring both nodes, commands (`splitIntoColumns`, `insertColumn`, `dissolveColumn`, `unwrapCell`), `appendTransaction` for auto-dissolution
+- [packages/editor/src/extensions/column-layout.schema.ts](packages/editor/src/extensions/column-layout.schema.ts) — schema-only `columnLayout` and `column` nodes for client and server rendering
+- [packages/editor/src/extensions/column-layout.dissolve.ts](packages/editor/src/extensions/column-layout.dissolve.ts) — auto-dissolution transaction builder
+- [packages/editor/src/extensions/column-layout.ts](packages/editor/src/extensions/column-layout.ts) — client extension adding the `appendTransaction` dissolve plugin
 - [packages/editor/src/extensions/drop-placement.ts](packages/editor/src/extensions/drop-placement.ts) — ProseMirror plugin: zone detection, decoration rendering, drop transaction builder; replaces the default `dropcursor`
-- [packages/editor/src/extensions/drop-placement.test.ts](packages/editor/src/extensions/drop-placement.test.ts) — Vitest unit tests on zone math and transaction shape
-- [packages/editor/src/extensions/column-layout.test.ts](packages/editor/src/extensions/column-layout.test.ts) — Vitest unit tests on schema and auto-dissolution
+- [packages/editor/src/extensions/drop-placement.zones.ts](packages/editor/src/extensions/drop-placement.zones.ts) — pure zone calculation helper
+- [packages/editor/src/extensions/drop-placement.zones.test.ts](packages/editor/src/extensions/drop-placement.zones.test.ts) — Vitest unit tests on zone math
+- [packages/editor/src/extensions/column-layout.schema.test.ts](packages/editor/src/extensions/column-layout.schema.test.ts) — Vitest schema tests
+- [packages/editor/src/extensions/column-layout.dissolve.test.ts](packages/editor/src/extensions/column-layout.dissolve.test.ts) — Vitest auto-dissolution tests
 - [apps/e2e/page-columns.spec.ts](apps/e2e/page-columns.spec.ts) — Playwright e2e flow
 
 **Modified:**
 
 - [packages/editor/src/extensions/index.ts](packages/editor/src/extensions/index.ts) — `StarterKit.configure({ undoRedo: false, dropcursor: false })`, register `ColumnLayout` and `DropPlacement`
-- [packages/editor/src/components/drag-handle.tsx](packages/editor/src/components/drag-handle.tsx) — `onNodeChange` resolves whether the hovered position is inside a `column` (cell) or under `columnLayout` (row); render distinguishes between row handle (gutter) and cell handle (inside cell)
-- [packages/editor/src/components/drag-handle-menu.tsx](packages/editor/src/components/drag-handle-menu.tsx) — Conditional menu items based on target kind (row / cell / plain block)
+- [packages/editor/src/components/drag-handle.tsx](packages/editor/src/components/drag-handle.tsx) — `onNodeChange` resolves whether the hovered position is inside a `column` cell and passes cell/row ranges to the menu
+- [packages/editor/src/components/drag-handle-menu.tsx](packages/editor/src/components/drag-handle-menu.tsx) — Conditional menu items based on target kind (cell / plain block)
 - [packages/editor/src/styles/content.css](packages/editor/src/styles/content.css) — `.column-layout`, `.column`, drop-indicator classes, responsive media query
 - [packages/editor/src/extensions/block-index-attributes.ts](packages/editor/src/extensions/block-index-attributes.ts) — Account for cell-nested blocks when computing scroll-to-block indices (composite key `row[i].cell[j].block[k]`)
 - [packages/editor/src/server.ts](packages/editor/src/server.ts) — Register new nodes in server-side schema for export / `PageRenderer`
@@ -138,7 +140,7 @@ restriction — schema disallows `columnLayout` inside.
 dragover event
   │
   ├─ pos = view.posAtCoords({left, top})
-  ├─ resolve pos → { target, kind: 'block' | 'cell' | 'row-cell' }
+  ├─ resolve pos → { target, kind: 'block' | 'cell' }
   ├─ rect = view.nodeDOM(targetPos).getBoundingClientRect()
   ├─ compute zone from (x, y, rect)
   ├─ if zone is LEFT|RIGHT and targetCellRow.columnCount === 3 → zone = null
@@ -150,10 +152,10 @@ drop event
   ├─ srcPos = view.dragging.move ? deleted source range
   ├─ build tr based on zone × target.kind:
   │    TOP/BOTTOM, block        → standard insert before/after
-  │    TOP/BOTTOM, cell         → insert inside cell, before/after target block
+  │    TOP/BOTTOM, cell         → bubble to the whole layout, then insert before/after it
   │    LEFT/RIGHT, block        → wrap target and source in new columnLayout
   │    LEFT/RIGHT, cell, < 3    → insert new column at cellIndex or cellIndex+1
-  │    LEFT/RIGHT, cell, 3      → no-op (zone already gated)
+  │    LEFT/RIGHT, cell, 3      → TOP/BOTTOM fallback because side zones are gated
   └─ dispatch tr (auto-dissolution runs in appendTransaction after)
 ```
 
@@ -172,7 +174,7 @@ for each columnLayout node in newState.doc:
   else if count === 1:
     replace columnLayout with its single column's children
   else:
-    remove any empty columns, then update columnCount attr
+    remove any empty columns
 ```
 
 The transaction is appended in a single step so undo collapses correctly.
@@ -181,10 +183,10 @@ The transaction is appended in a single step so undo collapses correctly.
 
 | Case                                               | Behavior                                                                                  |
 | -------------------------------------------------- | ----------------------------------------------------------------------------------------- |
-| Drag cell-handle to top/bottom of an outside block | Cell becomes a top-level node; source row dissolves if 1 column remains                   |
-| Drag row-handle to top/bottom of another block     | Entire row moves as one unit                                                              |
+| Drag a cell block to top/bottom of an outside block | Block becomes top-level; source row dissolves if 1 column remains                        |
+| Drag row to top/bottom of another block             | Entire row moves as one unit if the row itself is selected                               |
 | Drag cell within its own row                       | Swap positions (still 2 or 3 columns)                                                     |
-| Drag onto empty cell (no children)                 | TOP/BOTTOM treated as "insert as first child"; LEFT/RIGHT still create new column         |
+| Drag over a cell and stay inside its width         | TOP/BOTTOM reorders around the whole row; LEFT/RIGHT still create a new column            |
 | Undo/redo                                          | Single drop = single transaction including auto-dissolve; one undo step                   |
 | YJS concurrent edits                               | `appendTransaction` is deterministic over `doc`, converges after rebase                   |
 | Server-side export                                 | New nodes registered in `server.ts` schema; HTML output uses same `.column-layout` markup |
@@ -197,13 +199,14 @@ The transaction is appended in a single step so undo collapses correctly.
 **Unit (Vitest in `packages/editor`):**
 
 - Editor package has no vitest config yet — add one (mirroring `apps/web/vitest.config.ts`). One-time cost.
-- `drop-placement.test.ts`: zone calculation for representative (cursor, rect) pairs; gating for max-3 row; resolve helper for `block` vs `cell` vs `row-cell` targets
-- `column-layout.test.ts`: schema accepts valid trees, rejects invalid (column outside layout, layout inside callout); `appendTransaction` produces expected document for each dissolution case
+- `drop-placement.zones.test.ts`: zone calculation for representative (cursor, rect) pairs, including side-zone gating
+- `column-layout.schema.test.ts`: schema accepts valid trees and rejects invalid column counts / top-level columns
+- `column-layout.dissolve.test.ts`: auto-dissolution produces expected documents, including a fully empty only-child layout under `doc: block+`
 
 **E2E (`apps/e2e/page-columns.spec.ts`, runs against Playwright dev server):**
 
-- Drag paragraph B onto right edge of A → row of 2 (assert grid template, assert order)
-- Drag third paragraph onto right edge → row of 3
+- Drag paragraph B past the right edge of A → row of 2 (assert grid template, assert order)
+- Drag third paragraph past the right edge → row of 3
 - Drag fourth onto edge of full row → no indicator on side zones, drops above/below
 - Drag second cell out of row to top of outside block → row dissolves, both blocks become top-level
 - Vertical drag of two plain blocks (no columns) — current behavior unchanged

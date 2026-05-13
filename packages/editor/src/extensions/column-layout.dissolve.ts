@@ -16,8 +16,12 @@ function isColumnEmpty(column: PMNode): boolean {
   return allEmptyParagraphs
 }
 
-export function dissolveColumnLayouts(state: EditorState): Transaction | null {
-  const { doc, tr } = state
+function layoutAttrs(layout: PMNode, columns: number): Record<string, unknown> {
+  return { ...layout.attrs, columns }
+}
+
+export function dissolveColumnLayoutsInTransaction(tr: Transaction): boolean {
+  const { doc } = tr
   let mutated = false
   // Walk top-level children right-to-left so position math stays valid as we splice.
   const layouts: { node: PMNode; pos: number }[] = []
@@ -28,16 +32,14 @@ export function dissolveColumnLayouts(state: EditorState): Transaction | null {
     const entry = layouts[i]
     if (!entry) continue
     const { node: layout, pos } = entry
-    const cells: { node: PMNode; localStart: number; empty: boolean }[] = []
-    let cursor = 0
+    const cells: { node: PMNode; empty: boolean }[] = []
     layout.forEach((cell: PMNode) => {
-      cells.push({ node: cell, localStart: cursor, empty: isColumnEmpty(cell) })
-      cursor += cell.nodeSize
+      cells.push({ node: cell, empty: isColumnEmpty(cell) })
     })
     const nonEmpty = cells.filter((c) => !c.empty)
 
     if (nonEmpty.length === 0) {
-      tr.delete(tr.mapping.map(pos), tr.mapping.map(pos + layout.nodeSize))
+      tr.delete(pos, pos + layout.nodeSize)
       mutated = true
       continue
     }
@@ -47,7 +49,7 @@ export function dissolveColumnLayouts(state: EditorState): Transaction | null {
       if (!onlyCellEntry) continue
       const onlyCell = onlyCellEntry.node
       const inner = onlyCell.content
-      tr.replaceWith(tr.mapping.map(pos), tr.mapping.map(pos + layout.nodeSize), inner)
+      tr.replaceWith(pos, pos + layout.nodeSize, inner)
       mutated = true
       continue
     }
@@ -56,12 +58,24 @@ export function dissolveColumnLayouts(state: EditorState): Transaction | null {
     const hasEmpty = cells.some((c) => c.empty)
     if (hasEmpty) {
       const replacement = layout.type.create(
-        layout.attrs,
+        layoutAttrs(layout, nonEmpty.length),
         nonEmpty.map((c) => c.node),
       )
-      tr.replaceWith(tr.mapping.map(pos), tr.mapping.map(pos + layout.nodeSize), replacement)
+      tr.replaceWith(pos, pos + layout.nodeSize, replacement)
+      mutated = true
+      continue
+    }
+
+    if (layout.attrs.columns !== layout.childCount) {
+      tr.setNodeMarkup(pos, undefined, layoutAttrs(layout, layout.childCount))
       mutated = true
     }
   }
+  return mutated
+}
+
+export function dissolveColumnLayouts(state: EditorState): Transaction | null {
+  const tr = state.tr
+  const mutated = dissolveColumnLayoutsInTransaction(tr)
   return mutated ? tr : null
 }

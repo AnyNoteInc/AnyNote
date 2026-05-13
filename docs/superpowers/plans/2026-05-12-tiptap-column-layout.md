@@ -2,9 +2,9 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Ship a drag-and-drop column layout in the AnyNote Tiptap editor: dropping a block on the left or right 25% edge of another block splits the row into 2 or 3 columns (max 3); existing vertical drag/drop is preserved.
+**Goal:** Ship a drag-and-drop column layout in the AnyNote Tiptap editor: dropping a block past the left or right edge of another block splits the row into 2 or 3 columns (max 3); dragging within the block width preserves vertical reordering.
 
-**Architecture:** Two new ProseMirror nodes (`columnLayout`, `column`) registered top-level only. A single `dropPlacement` plugin replaces the default `dropcursor`: it computes which of four zones (LEFT/RIGHT/TOP/BOTTOM) the dragover cursor occupies over the hover target, draws the matching decoration, and on drop builds the transaction. Auto-dissolution lives in `appendTransaction` on the ColumnLayout extension, runs after every local and remote change, and unwraps rows down to 1 cell.
+**Architecture:** Two new ProseMirror nodes (`columnLayout`, `column`) render rows that editor controls keep at the top level. A single `dropPlacement` plugin replaces the default `dropcursor`: it computes which of four zones (LEFT/RIGHT/TOP/BOTTOM) the dragover cursor occupies over the hover target, draws the matching decoration, and on drop builds the transaction. Auto-dissolution lives in `appendTransaction` on the ColumnLayout extension, runs after every local and remote change, and unwraps rows down to 1 cell.
 
 **Tech Stack:** Tiptap 3.22.3 + ProseMirror (packages/editor), `@tiptap/pm/{model,state,view}`, YJS via HocuspocusProvider, MUI v7 for icons/buttons, vitest for unit tests, Playwright for e2e.
 
@@ -32,37 +32,39 @@ import { computeDropZone, type DropZone } from './drop-placement.zones'
 
 const rect = { left: 100, top: 100, right: 300, bottom: 200 } as const
 // width = 200, height = 100
-// LEFT zone = [100, 150), RIGHT zone = (250, 300]
+// LEFT zone = x < 100, RIGHT zone = x > 300
 
 describe('computeDropZone', () => {
-  it('returns LEFT when cursor is in the left 25%', () => {
-    expect(computeDropZone({ x: 120, y: 150 }, rect, { canSide: true })).toBe<DropZone>('LEFT')
-    expect(computeDropZone({ x: 149, y: 150 }, rect, { canSide: true })).toBe<DropZone>('LEFT')
+  it('returns LEFT when cursor is past the rect on the left', () => {
+    expect(computeDropZone({ x: 50, y: 150 }, rect, { canSide: true })).toBe<DropZone>('LEFT')
+    expect(computeDropZone({ x: 99, y: 150 }, rect, { canSide: true })).toBe<DropZone>('LEFT')
   })
 
-  it('returns RIGHT when cursor is in the right 25%', () => {
-    expect(computeDropZone({ x: 251, y: 150 }, rect, { canSide: true })).toBe<DropZone>('RIGHT')
-    expect(computeDropZone({ x: 299, y: 150 }, rect, { canSide: true })).toBe<DropZone>('RIGHT')
+  it('returns RIGHT when cursor is past the rect on the right', () => {
+    expect(computeDropZone({ x: 301, y: 150 }, rect, { canSide: true })).toBe<DropZone>('RIGHT')
+    expect(computeDropZone({ x: 500, y: 150 }, rect, { canSide: true })).toBe<DropZone>('RIGHT')
   })
 
-  it('returns TOP when cursor is in the middle 50% and upper half', () => {
+  it('returns TOP across the full width when cursor is in the upper half', () => {
+    expect(computeDropZone({ x: 100, y: 110 }, rect, { canSide: true })).toBe<DropZone>('TOP')
     expect(computeDropZone({ x: 200, y: 110 }, rect, { canSide: true })).toBe<DropZone>('TOP')
-    expect(computeDropZone({ x: 200, y: 149 }, rect, { canSide: true })).toBe<DropZone>('TOP')
+    expect(computeDropZone({ x: 300, y: 100 }, rect, { canSide: true })).toBe<DropZone>('TOP')
   })
 
-  it('returns BOTTOM when cursor is in the middle 50% and lower half', () => {
-    expect(computeDropZone({ x: 200, y: 151 }, rect, { canSide: true })).toBe<DropZone>('BOTTOM')
+  it('returns BOTTOM across the full width when cursor is in the lower half', () => {
+    expect(computeDropZone({ x: 100, y: 151 }, rect, { canSide: true })).toBe<DropZone>('BOTTOM')
     expect(computeDropZone({ x: 200, y: 199 }, rect, { canSide: true })).toBe<DropZone>('BOTTOM')
+    expect(computeDropZone({ x: 300, y: 200 }, rect, { canSide: true })).toBe<DropZone>('BOTTOM')
   })
 
-  it('falls back to TOP/BOTTOM in side zones when canSide is false', () => {
-    expect(computeDropZone({ x: 120, y: 110 }, rect, { canSide: false })).toBe<DropZone>('TOP')
-    expect(computeDropZone({ x: 251, y: 199 }, rect, { canSide: false })).toBe<DropZone>('BOTTOM')
+  it('falls back to TOP/BOTTOM when canSide is false and cursor is outside horizontally', () => {
+    expect(computeDropZone({ x: 50, y: 110 }, rect, { canSide: false })).toBe<DropZone>('TOP')
+    expect(computeDropZone({ x: 500, y: 199 }, rect, { canSide: false })).toBe<DropZone>('BOTTOM')
   })
 
-  it('returns null when cursor is outside the rect', () => {
-    expect(computeDropZone({ x: 50, y: 150 }, rect, { canSide: true })).toBeNull()
-    expect(computeDropZone({ x: 150, y: 250 }, rect, { canSide: true })).toBeNull()
+  it('returns null when cursor is outside the rect vertically', () => {
+    expect(computeDropZone({ x: 200, y: 50 }, rect, { canSide: true })).toBeNull()
+    expect(computeDropZone({ x: 200, y: 250 }, rect, { canSide: true })).toBeNull()
   })
 })
 ```
@@ -85,21 +87,16 @@ export type DropRect = { left: number; top: number; right: number; bottom: numbe
 
 export type ZoneOptions = { canSide: boolean }
 
-const SIDE_FRACTION = 0.25
-
 export function computeDropZone(
   point: DropPoint,
   rect: DropRect,
   options: ZoneOptions,
 ): DropZone | null {
-  if (point.x < rect.left || point.x > rect.right) return null
   if (point.y < rect.top || point.y > rect.bottom) return null
-  const width = rect.right - rect.left
-  const sideThreshold = width * SIDE_FRACTION
-  const inLeftBand = point.x < rect.left + sideThreshold
-  const inRightBand = point.x > rect.right - sideThreshold
-  if (options.canSide && inLeftBand) return 'LEFT'
-  if (options.canSide && inRightBand) return 'RIGHT'
+  if (options.canSide) {
+    if (point.x < rect.left) return 'LEFT'
+    if (point.x > rect.right) return 'RIGHT'
+  }
   const midY = rect.top + (rect.bottom - rect.top) / 2
   return point.y < midY ? 'TOP' : 'BOTTOM'
 }
@@ -1563,7 +1560,7 @@ import { test, expect } from '@playwright/test'
 import { signUpAndAuthAs, writeConsentsForUserId } from './helpers/auth'
 
 test.describe('column layout drag and drop', () => {
-  test('drag block onto right edge creates a 2-column row, then 3-column', async ({ page }) => {
+  test('drag block past right edge creates a 2-column row, then 3-column', async ({ page }) => {
     const { user } = await signUpAndAuthAs(page)
     await writeConsentsForUserId(user.id)
 
@@ -1576,7 +1573,7 @@ test.describe('column layout drag and drop', () => {
     await editor.click()
     await editor.type('Alpha\nBravo\nCharlie')
 
-    // Drag Bravo onto the right edge of Alpha → 2-column row
+    // Drag Bravo past the right edge of Alpha → 2-column row
     const alpha = page.locator('p', { hasText: 'Alpha' }).first()
     const bravo = page.locator('p', { hasText: 'Bravo' }).first()
     const alphaBox = await alpha.boundingBox()
@@ -1588,7 +1585,7 @@ test.describe('column layout drag and drop', () => {
     const dragHandle = page.locator('.tiptap-drag-handle [aria-label="Действия блока"]').first()
     await dragHandle.hover()
     await page.mouse.down()
-    await page.mouse.move(alphaBox.x + alphaBox.width - 8, alphaBox.y + alphaBox.height / 2, {
+    await page.mouse.move(alphaBox.x + alphaBox.width + 16, alphaBox.y + alphaBox.height / 2, {
       steps: 10,
     })
     await page.mouse.up()
@@ -1599,7 +1596,7 @@ test.describe('column layout drag and drop', () => {
     await expect(cells.nth(0)).toContainText('Alpha')
     await expect(cells.nth(1)).toContainText('Bravo')
 
-    // Drag Charlie onto the right edge of the row's second cell
+    // Drag Charlie past the right edge of the row's second cell
     const charlie = page.locator('p', { hasText: 'Charlie' }).first()
     const secondCellBox = await cells.nth(1).boundingBox()
     if (!secondCellBox) throw new Error('second cell not found')
@@ -1609,7 +1606,7 @@ test.describe('column layout drag and drop', () => {
     await charlieHandle.hover()
     await page.mouse.down()
     await page.mouse.move(
-      secondCellBox.x + secondCellBox.width - 8,
+      secondCellBox.x + secondCellBox.width + 16,
       secondCellBox.y + secondCellBox.height / 2,
       { steps: 10 },
     )
@@ -1741,7 +1738,7 @@ git commit -m "chore: gates pass for column layout"
 - [ ] **Step 4: Optional — verify in the running app**
 
 In one terminal: `docker compose up -d && pnpm dev`
-In a browser: open a workspace page (`/workspaces/<id>/pages/<id>`), type three paragraphs, drag one onto the right edge of another, observe a 2-column row appearing. Drag a third in. Drag the last out. Reload to confirm YJS persistence.
+In a browser: open a workspace page (`/workspaces/<id>/pages/<id>`), type three paragraphs, drag one past the right edge of another, observe a 2-column row appearing. Drag a third in. Drag the last out. Reload to confirm YJS persistence.
 
 ---
 

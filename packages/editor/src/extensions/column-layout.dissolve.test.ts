@@ -7,7 +7,7 @@ import { dissolveColumnLayouts } from './column-layout.dissolve'
 
 const schema = new Schema({
   nodes: {
-    doc: { content: 'block*' },
+    doc: { content: 'block+' },
     text: { group: 'inline' },
     paragraph: {
       group: 'block',
@@ -22,7 +22,8 @@ const schema = new Schema({
 
 const para = (text: string) => schema.nodes.paragraph.create(null, text ? schema.text(text) : null)
 const col = (...children: ReturnType<typeof para>[]) => schema.nodes.column.create(null, children)
-const lay = (...cells: ReturnType<typeof col>[]) => schema.nodes.columnLayout.create(null, cells)
+const lay = (...cells: ReturnType<typeof col>[]) =>
+  schema.nodes.columnLayout.create({ columns: cells.length }, cells)
 
 const stateFrom = (...top: ReturnType<typeof para>[] | ReturnType<typeof lay>[]) =>
   EditorState.create({ schema, doc: schema.nodes.doc.create(null, top) })
@@ -49,6 +50,18 @@ describe('dissolveColumnLayouts', () => {
     expect(dissolveColumnLayouts(state)).toBeNull()
   })
 
+  it('removes an empty middle column from a 3-column layout', () => {
+    const state = stateFrom(lay(col(para('a')), col(para('')), col(para('c'))))
+    const tr = dissolveColumnLayouts(state)
+    expect(tr).not.toBeNull()
+    const next = state.apply(tr!).doc
+    const layout = next.firstChild!
+    expect(layout.type.name).toBe('columnLayout')
+    expect(layout.childCount).toBe(2)
+    expect(layout.child(0).textContent).toBe('a')
+    expect(layout.child(1).textContent).toBe('c')
+  })
+
   it('removes empty columns and may unwrap if only 1 non-empty remains', () => {
     // Build a layout with one cell that has zero children. Schema doesn't
     // allow this at create time, but a transaction can produce a transient
@@ -71,16 +84,13 @@ describe('dissolveColumnLayouts', () => {
     expect(next.child(0).textContent).toBe('a')
   })
 
-  it('removes a layout that ends up with 0 non-empty columns', () => {
-    const original = stateFrom(lay(col(para('a'))))
-    const tr = original.tr
-    tr.delete(2, 2 + para('a').nodeSize)
-    const intermediate = original.apply(tr)
-    // Now layout has one column with no children; column itself is invalid
-    // (schema requires block+). We treat it as 0 non-empty → remove layout.
-    const dissolveTr = dissolveColumnLayouts(intermediate)
+  it('replaces a fully empty only-child layout with an empty paragraph', () => {
+    const state = stateFrom(lay(col(para('')), col(para(''))))
+    const dissolveTr = dissolveColumnLayouts(state)
     expect(dissolveTr).not.toBeNull()
-    const next = intermediate.apply(dissolveTr!).doc
-    expect(next.childCount).toBe(0)
+    const next = state.apply(dissolveTr!).doc
+    expect(next.childCount).toBe(1)
+    expect(next.child(0).type.name).toBe('paragraph')
+    expect(next.child(0).textContent).toBe('')
   })
 })

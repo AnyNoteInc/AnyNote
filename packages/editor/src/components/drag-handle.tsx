@@ -47,7 +47,6 @@ type HoverNodePos = {
   rowTo?: number
   cellFrom?: number
   cellTo?: number
-  cellIndex?: number
 } | null
 
 export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
@@ -73,7 +72,6 @@ export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
     let rowTo: number | undefined
     let cellFrom: number | undefined
     let cellTo: number | undefined
-    let cellIndex: number | undefined
     const $pos = ed.state.doc.resolve(pos + 1)
     for (let d = $pos.depth; d >= 0; d--) {
       const ancestor = $pos.node(d)
@@ -81,7 +79,6 @@ export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
         kind = 'cell'
         rowFrom = $pos.before(d)
         rowTo = rowFrom + ancestor.nodeSize
-        cellIndex = $pos.index(d)
         // The column cell is the child of columnLayout that contains us.
         const cellDepth = d + 1
         if (cellDepth <= $pos.depth) {
@@ -100,7 +97,6 @@ export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
       rowTo,
       cellFrom,
       cellTo,
-      cellIndex,
     }
   }
 
