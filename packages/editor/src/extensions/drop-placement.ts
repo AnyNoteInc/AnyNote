@@ -23,8 +23,13 @@ type HoverTarget =
     }
 
 type PluginState = { zone: DropZone | null; target: HoverTarget | null }
-type DraggingWithNodeSelection = NonNullable<EditorView['dragging']> & {
-  node?: { from: number; to: number }
+
+function getDragNodeRange(
+  dragging: EditorView['dragging'],
+): { from: number; to: number } | null {
+  if (!dragging || !('node' in dragging)) return null
+  const node = (dragging as { node?: { from: number; to: number } }).node
+  return node ? { from: node.from, to: node.to } : null
 }
 
 export const dropPlacementKey = new PluginKey<PluginState>('dropPlacement')
@@ -244,9 +249,9 @@ function expandSingleListItemSource(
 }
 
 function dragSourceRange(view: EditorView, content: Fragment): { from: number; to: number } | null {
-  const dragging = view.dragging as DraggingWithNodeSelection | null
-  if (dragging?.node) {
-    return expandSingleListItemSource(view, { from: dragging.node.from, to: dragging.node.to })
+  const nodeRange = getDragNodeRange(view.dragging)
+  if (nodeRange) {
+    return expandSingleListItemSource(view, nodeRange)
   }
   const { selection } = view.state
   if (selection.empty) return null
@@ -314,6 +319,49 @@ function wrapForContent(content: Fragment, parentType: NodeType): Fragment | nul
   return result
 }
 
+function buildBlockTargetTransaction(
+  view: EditorView,
+  zone: DropZone,
+  target: Extract<HoverTarget, { kind: 'block' }>,
+  source: { from: number; to: number } | null,
+  droppedFitted: Fragment,
+  columnType: NodeType,
+  layoutType: NodeType,
+): Transaction | null {
+  const tr = view.state.tr
+  // If the source lives inside target.node, the captured reference is stale
+  // (still contains the source). Delete first and re-read from the
+  // post-deletion doc so we don't duplicate the source across both columns.
+  const sourceInsideTarget =
+    !!source &&
+    source.from >= target.pos + 1 &&
+    source.to <= target.pos + target.node.nodeSize - 1
+
+  let existingNode = target.node
+  let existingPos = target.pos
+  let effectiveSource = source
+  if (sourceInsideTarget && source) {
+    tr.delete(source.from, source.to)
+    existingPos = tr.mapping.map(target.pos)
+    const live = tr.doc.nodeAt(existingPos)
+    if (!live || live.type !== target.node.type) return null
+    existingNode = live
+    effectiveSource = null
+  }
+
+  const newCell = columnType.create(null, droppedFitted)
+  const existingCell = columnType.create(null, existingNode)
+  const cells = zone === 'LEFT' ? [newCell, existingCell] : [existingCell, newCell]
+  const layout = layoutType.create({ columns: cells.length }, cells)
+  return replaceContent(
+    tr,
+    existingPos,
+    existingPos + existingNode.nodeSize,
+    layout,
+    effectiveSource,
+  )
+}
+
 function applyPlacementDrop(
   view: EditorView,
   event: DragEvent,
@@ -328,10 +376,7 @@ function applyPlacementDrop(
 
   // For in-editor moves, capture the source range *before* we insert anywhere
   // (positions before insertion are stable).
-  let source: { from: number; to: number } | null = null
-  if (moved || view.dragging) {
-    source = dragSourceRange(view, slice.content)
-  }
+  const source = moved || view.dragging ? dragSourceRange(view, slice.content) : null
   const schema = view.state.schema
   const columnType = schema.nodes.column
   const layoutType = schema.nodes.columnLayout
@@ -361,37 +406,17 @@ function applyPlacementDrop(
     const insertPos = computeReorderPos(target, zone)
     tr = insertContent(tr, insertPos, droppedFitted, source)
   } else if (target.kind === 'block') {
-    // If the source lives inside target.node, the captured reference is stale
-    // (still contains the source). Delete first and re-read from the
-    // post-deletion doc so we don't duplicate the source across both columns.
-    const sourceInsideTarget =
-      !!source &&
-      source.from >= target.pos + 1 &&
-      source.to <= target.pos + target.node.nodeSize - 1
-
-    let existingNode = target.node
-    let existingPos = target.pos
-    let effectiveSource = source
-    if (sourceInsideTarget && source) {
-      tr.delete(source.from, source.to)
-      existingPos = tr.mapping.map(target.pos)
-      const live = tr.doc.nodeAt(existingPos)
-      if (!live || live.type !== target.node.type) return false
-      existingNode = live
-      effectiveSource = null
-    }
-
-    const newCell = columnType.create(null, droppedFitted)
-    const existingCell = columnType.create(null, existingNode)
-    const cells = zone === 'LEFT' ? [newCell, existingCell] : [existingCell, newCell]
-    const layout = layoutType.create({ columns: cells.length }, cells)
-    tr = replaceContent(
-      tr,
-      existingPos,
-      existingPos + existingNode.nodeSize,
-      layout,
-      effectiveSource,
+    const built = buildBlockTargetTransaction(
+      view,
+      zone,
+      target,
+      source,
+      droppedFitted,
+      columnType,
+      layoutType,
     )
+    if (!built) return false
+    tr = built
   } else {
     // LEFT/RIGHT on a cell — insert a sibling cell into the layout.
     const newCell = columnType.create(null, droppedFitted)
@@ -417,14 +442,14 @@ function applyPlacementDrop(
   return true
 }
 
-function renderIndicatorDecoration(doc: PMNode, state: PluginState): DecorationSet {
+function renderIndicatorDecoration(doc: PMNode, state: PluginState | undefined): DecorationSet {
   // `Decoration.node` adds a class to the target's own DOM node, and a ::before
   // pseudo-element draws the bar. Widget-based decorations are anchored to the
   // insertion point in the DOM tree, which for atom blocks (e.g. images) sits
   // BETWEEN top-level elements with no positioned ancestor — the bar then
   // stretches to the editor's height. The node-class approach keeps the bar
   // inside the target's box so it always matches its height/width.
-  if (!state.zone || !state.target) return DecorationSet.empty
+  if (!state?.zone || !state.target) return DecorationSet.empty
   return DecorationSet.create(doc, [
     Decoration.node(targetStart(state.target), targetEnd(state.target), {
       class: `column-drop-target column-drop-target--${state.zone.toLowerCase()}`,
@@ -480,7 +505,7 @@ export const DropPlacement = Extension.create({
         },
         props: {
           decorations(state) {
-            return renderIndicatorDecoration(state.doc, dropPlacementKey.getState(state)!)
+            return renderIndicatorDecoration(state.doc, dropPlacementKey.getState(state))
           },
           handleDrop(view, event, slice, moved) {
             return applyPlacementDrop(view, event, slice, moved)
@@ -518,8 +543,7 @@ export const DropPlacement = Extension.create({
               // view.dom (e.g. between cells). Only clear when the cursor has
               // actually left the editor — otherwise the indicator flickers.
               const next = (event as DragEvent).relatedTarget as Node | null
-              if (next && view.dom.contains(next)) return false
-              setPlacement(view, CLEARED)
+              if (!next || !view.dom.contains(next)) setPlacement(view, CLEARED)
               return false
             },
             dragend(view) {

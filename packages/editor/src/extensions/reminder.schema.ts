@@ -34,7 +34,10 @@ export const ReminderSchema = Node.create({
       audience: {
         default: 'ME' as 'ME' | 'WORKSPACE' | 'LIST',
         parseHTML: (el) =>
-          (el.getAttribute('data-audience') ?? 'ME') as 'ME' | 'WORKSPACE' | 'LIST',
+          (el instanceof HTMLElement ? (el.dataset.audience ?? 'ME') : 'ME') as
+            | 'ME'
+            | 'WORKSPACE'
+            | 'LIST',
         renderHTML: (attrs) => ({ 'data-audience': attrs.audience }),
       },
       label: {

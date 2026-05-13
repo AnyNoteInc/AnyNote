@@ -87,7 +87,7 @@ function dispatchWidths(
   addToHistory: boolean,
 ) {
   const layout = view.state.doc.nodeAt(layoutPos)
-  if (!layout || layout.type.name !== 'columnLayout') return
+  if (layout?.type.name !== 'columnLayout') return
   const positions = cellPositions(layout, layoutPos)
   const leftPos = positions[rightIndex - 1]
   const rightPos = positions[rightIndex]
@@ -107,7 +107,7 @@ function beginDrag(view: EditorView, event: MouseEvent, dividerEl: HTMLElement):
   if (!Number.isFinite(layoutPos) || !Number.isFinite(rightIndex) || rightIndex < 1) return null
 
   const layout = view.state.doc.nodeAt(layoutPos)
-  if (!layout || layout.type.name !== 'columnLayout') return null
+  if (layout?.type.name !== 'columnLayout') return null
   if (rightIndex >= layout.childCount) return null
 
   const positions = cellPositions(layout, layoutPos)

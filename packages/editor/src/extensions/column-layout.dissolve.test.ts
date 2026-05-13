@@ -5,6 +5,10 @@ import { EditorState } from '@tiptap/pm/state'
 import { columnLayoutSpec, columnSpec } from './column-layout.schema'
 import { dissolveColumnLayouts } from './column-layout.dissolve'
 
+function assertNonNull<T>(value: T | null): asserts value is T {
+  if (value === null) throw new Error('expected non-null value')
+}
+
 const schema = new Schema({
   nodes: {
     doc: { content: 'block+' },
@@ -37,8 +41,8 @@ describe('dissolveColumnLayouts', () => {
   it('unwraps a 1-column layout, lifting its children to top level', () => {
     const state = stateFrom(lay(col(para('a'), para('b'))))
     const tr = dissolveColumnLayouts(state)
-    expect(tr).not.toBeNull()
-    const next = state.apply(tr!).doc
+    assertNonNull(tr)
+    const next = state.apply(tr).doc
     expect(next.childCount).toBe(2)
     expect(next.child(0).type.name).toBe('paragraph')
     expect(next.child(0).textContent).toBe('a')
@@ -53,8 +57,8 @@ describe('dissolveColumnLayouts', () => {
   it('removes an empty middle column from a 3-column layout', () => {
     const state = stateFrom(lay(col(para('a')), col(para('')), col(para('c'))))
     const tr = dissolveColumnLayouts(state)
-    expect(tr).not.toBeNull()
-    const next = state.apply(tr!).doc
+    assertNonNull(tr)
+    const next = state.apply(tr).doc
     const layout = next.firstChild!
     expect(layout.type.name).toBe('columnLayout')
     expect(layout.childCount).toBe(2)
@@ -65,8 +69,8 @@ describe('dissolveColumnLayouts', () => {
   it('removes an empty middle column from a 4-column layout', () => {
     const state = stateFrom(lay(col(para('a')), col(para('')), col(para('c')), col(para('d'))))
     const tr = dissolveColumnLayouts(state)
-    expect(tr).not.toBeNull()
-    const next = state.apply(tr!).doc
+    assertNonNull(tr)
+    const next = state.apply(tr).doc
     const layout = next.firstChild!
     expect(layout.type.name).toBe('columnLayout')
     expect(layout.childCount).toBe(3)
@@ -96,8 +100,8 @@ describe('dissolveColumnLayouts', () => {
     const intermediate = original.apply(tr)
 
     const dissolveTr = dissolveColumnLayouts(intermediate)
-    expect(dissolveTr).not.toBeNull()
-    const next = intermediate.apply(dissolveTr!).doc
+    assertNonNull(dissolveTr)
+    const next = intermediate.apply(dissolveTr).doc
     // Empty column removed → only 1 non-empty column → unwrap → top-level paragraph
     expect(next.childCount).toBe(1)
     expect(next.child(0).type.name).toBe('paragraph')
@@ -107,8 +111,8 @@ describe('dissolveColumnLayouts', () => {
   it('replaces a fully empty only-child layout with an empty paragraph', () => {
     const state = stateFrom(lay(col(para('')), col(para(''))))
     const dissolveTr = dissolveColumnLayouts(state)
-    expect(dissolveTr).not.toBeNull()
-    const next = state.apply(dissolveTr!).doc
+    assertNonNull(dissolveTr)
+    const next = state.apply(dissolveTr).doc
     expect(next.childCount).toBe(1)
     expect(next.child(0).type.name).toBe('paragraph')
     expect(next.child(0).textContent).toBe('')

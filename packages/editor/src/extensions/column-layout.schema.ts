@@ -15,8 +15,7 @@ export const columnLayoutSpec: NodeSpec = {
     {
       tag: 'div[data-type="column-layout"]',
       getAttrs: (dom) => ({
-        columns:
-          dom instanceof HTMLElement ? Number(dom.getAttribute('data-columns')) || null : null,
+        columns: dom instanceof HTMLElement ? Number(dom.dataset.columns) || null : null,
       }),
     },
   ],
@@ -72,7 +71,8 @@ export const ColumnLayoutSchema = Node.create({
     return {
       columns: {
         default: null,
-        parseHTML: (element) => Number(element.getAttribute('data-columns')) || null,
+        parseHTML: (element) =>
+          element instanceof HTMLElement ? Number(element.dataset.columns) || null : null,
         renderHTML: () => ({}),
       },
     }
@@ -102,7 +102,8 @@ export const ColumnSchema = Node.create({
     return {
       width: {
         default: 1,
-        parseHTML: (element) => Number(element.getAttribute('data-width')) || 1,
+        parseHTML: (element) =>
+          element instanceof HTMLElement ? Number(element.dataset.width) || 1 : 1,
         renderHTML: (attrs) => ({
           'data-width': String(attrs.width ?? 1),
           style: `--column-width: ${attrs.width ?? 1}`,
