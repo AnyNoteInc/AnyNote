@@ -5,7 +5,7 @@ import type { NodeSpec } from '@tiptap/pm/model'
 // directly without spinning up a Tiptap Editor.
 export const columnLayoutSpec: NodeSpec = {
   group: 'block',
-  content: 'column{1,3}',
+  content: 'column+',
   attrs: {
     columns: { default: null },
   },
@@ -25,7 +25,7 @@ export const columnLayoutSpec: NodeSpec = {
     {
       'data-type': 'column-layout',
       'data-columns': String(node.attrs.columns ?? node.childCount),
-      class: `column-layout column-layout--${node.attrs.columns ?? node.childCount}`,
+      class: 'column-layout',
     },
     0,
   ],
@@ -34,8 +34,30 @@ export const columnLayoutSpec: NodeSpec = {
 export const columnSpec: NodeSpec = {
   content: 'block+',
   isolating: true,
-  parseDOM: [{ tag: 'div[data-type="column"]' }],
-  toDOM: () => ['div', { 'data-type': 'column', class: 'column' }, 0],
+  attrs: {
+    width: { default: 1 },
+  },
+  parseDOM: [
+    {
+      tag: 'div[data-type="column"]',
+      getAttrs: (dom) => {
+        const el = dom as { getAttribute?: (key: string) => string | null }
+        return {
+          width: Number(el.getAttribute?.('data-width')) || 1,
+        }
+      },
+    },
+  ],
+  toDOM: (node) => [
+    'div',
+    {
+      'data-type': 'column',
+      'data-width': String(node.attrs.width),
+      class: 'column',
+      style: `--column-width: ${node.attrs.width}`,
+    },
+    0,
+  ],
 }
 
 // Tiptap Nodes that mirror the specs above. These are the "schema-only"
@@ -45,7 +67,7 @@ export const columnSpec: NodeSpec = {
 export const ColumnLayoutSchema = Node.create({
   name: 'columnLayout',
   group: 'block',
-  content: 'column{1,3}',
+  content: 'column+',
   addAttributes() {
     return {
       columns: {
@@ -65,7 +87,7 @@ export const ColumnLayoutSchema = Node.create({
       {
         'data-type': 'column-layout',
         'data-columns': String(node.attrs.columns ?? node.childCount),
-        class: `column-layout column-layout--${node.attrs.columns ?? node.childCount}`,
+        class: 'column-layout',
       },
       0,
     ]
@@ -76,10 +98,31 @@ export const ColumnSchema = Node.create({
   name: 'column',
   content: 'block+',
   isolating: true,
+  addAttributes() {
+    return {
+      width: {
+        default: 1,
+        parseHTML: (element) => Number(element.getAttribute('data-width')) || 1,
+        renderHTML: (attrs) => ({
+          'data-width': String(attrs.width ?? 1),
+          style: `--column-width: ${attrs.width ?? 1}`,
+        }),
+      },
+    }
+  },
   parseHTML() {
     return [{ tag: 'div[data-type="column"]' }]
   },
-  renderHTML() {
-    return ['div', { 'data-type': 'column', class: 'column' }, 0]
+  renderHTML({ node }) {
+    return [
+      'div',
+      {
+        'data-type': 'column',
+        'data-width': String(node.attrs.width),
+        class: 'column',
+        style: `--column-width: ${node.attrs.width}`,
+      },
+      0,
+    ]
   },
 })
