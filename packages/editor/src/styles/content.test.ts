@@ -14,12 +14,29 @@ describe('editor task list styles', () => {
 })
 
 describe('editor column layout styles', () => {
-  it('declares grid template for 1, 2, 3 column variants and a responsive collapse', () => {
+  it('declares column-layout as a flex container with column children using --column-width', () => {
     const css = readFileSync(contentCssPath, 'utf8')
-    expect(css).toMatch(/\.column-layout--1[\s\S]*grid-template-columns:\s*1fr\b/)
-    expect(css).toMatch(/\.column-layout--2[\s\S]*grid-template-columns:\s*1fr 1fr\b/)
-    expect(css).toMatch(/\.column-layout--3[\s\S]*grid-template-columns:\s*1fr 1fr 1fr\b/)
-    expect(css).toMatch(/@media \(max-width: 600px\)[\s\S]*grid-template-columns:\s*1fr;/)
+    expect(css).toMatch(/\.anynote-editor \.column-layout[\s\S]*display:\s*flex/)
+    expect(css).toMatch(
+      /\.anynote-editor \.column[\s\S]*flex:\s*var\(--column-width,\s*1\)\s*1\s*0/,
+    )
+    expect(css).toMatch(/@media \(max-width: 600px\)[\s\S]*flex-direction:\s*column/)
+  })
+
+  it('declares column-divider hit-zone and visible bar on hover', () => {
+    const css = readFileSync(contentCssPath, 'utf8')
+    expect(css).toMatch(/\.anynote-editor \.column-divider\s*{[\s\S]*cursor:\s*col-resize/)
+    expect(css).toMatch(/\.anynote-editor \.column-divider::before[\s\S]*background:\s*transparent/)
+    expect(css).toMatch(
+      /\.anynote-editor \.column-divider:hover::before[\s\S]*background:\s*var\(--editor-text-muted/,
+    )
+  })
+
+  it('hides column-divider on narrow viewports', () => {
+    const css = readFileSync(contentCssPath, 'utf8')
+    expect(css).toMatch(
+      /@media \(max-width: 600px\)[\s\S]*\.anynote-editor \.column-divider[\s\S]*display:\s*none/,
+    )
   })
 
   it('declares drop targets with primary color', () => {

@@ -419,23 +419,46 @@
 
 .anynote-editor .column-layout {
   position: relative;
-  display: grid;
+  display: flex;
   gap: 24px;
   margin: 0.5rem 0;
-}
-.anynote-editor .column-layout--1 {
-  grid-template-columns: 1fr;
-}
-.anynote-editor .column-layout--2 {
-  grid-template-columns: 1fr 1fr;
-}
-.anynote-editor .column-layout--3 {
-  grid-template-columns: 1fr 1fr 1fr;
 }
 
 .anynote-editor .column {
   position: relative;
+  flex: var(--column-width, 1) 1 0;
   min-width: 0;
+}
+
+/* Divider widgets injected by columnResizePlugin sit in each gap between
+   columns. A 12px transparent hit-zone catches mousedown; ::before draws
+   the visible bar (transparent until hover or active drag). */
+.anynote-editor .column-divider {
+  position: absolute;
+  left: -12px;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  cursor: col-resize;
+  user-select: none;
+  z-index: 4;
+}
+
+.anynote-editor .column-divider::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: transparent;
+  border-radius: 1px;
+  transition: background-color 120ms ease;
+}
+
+.anynote-editor .column-divider:hover::before,
+.anynote-editor .column-divider.is-dragging::before {
+  background: var(--editor-text-muted, rgba(0, 0, 0, 0.5));
 }
 
 /* Drop targets — the plugin adds .column-drop-target--<zone> to the hovered
@@ -476,8 +499,10 @@
 }
 
 @media (max-width: 600px) {
-  .anynote-editor .column-layout--2,
-  .anynote-editor .column-layout--3 {
-    grid-template-columns: 1fr;
+  .anynote-editor .column-layout {
+    flex-direction: column;
+  }
+  .anynote-editor .column-divider {
+    display: none;
   }
 }
