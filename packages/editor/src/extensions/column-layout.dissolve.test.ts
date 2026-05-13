@@ -62,6 +62,26 @@ describe('dissolveColumnLayouts', () => {
     expect(layout.child(1).textContent).toBe('c')
   })
 
+  it('removes an empty middle column from a 4-column layout', () => {
+    const state = stateFrom(lay(col(para('a')), col(para('')), col(para('c')), col(para('d'))))
+    const tr = dissolveColumnLayouts(state)
+    expect(tr).not.toBeNull()
+    const next = state.apply(tr!).doc
+    const layout = next.firstChild!
+    expect(layout.type.name).toBe('columnLayout')
+    expect(layout.childCount).toBe(3)
+    expect(layout.child(0).textContent).toBe('a')
+    expect(layout.child(1).textContent).toBe('c')
+    expect(layout.child(2).textContent).toBe('d')
+  })
+
+  it('leaves a 5-column layout alone when every cell has content', () => {
+    const state = stateFrom(
+      lay(col(para('a')), col(para('b')), col(para('c')), col(para('d')), col(para('e'))),
+    )
+    expect(dissolveColumnLayouts(state)).toBeNull()
+  })
+
   it('removes empty columns and may unwrap if only 1 non-empty remains', () => {
     // Build a layout with one cell that has zero children. Schema doesn't
     // allow this at create time, but a transaction can produce a transient
