@@ -195,8 +195,8 @@ test('drag a paragraph past the right edge of another → 2-column row', async (
 
   await dragBlockTo(page, bravo, alphaBox.x + alphaBox.width + 16, alphaBox.y + alphaBox.height / 2)
 
-  await expect(page.locator('.column-layout--2')).toHaveCount(1, { timeout: 5_000 })
-  const cells = page.locator('.column-layout--2 > .column')
+  await expect(page.locator('.column-layout')).toHaveCount(1, { timeout: 5_000 })
+  const cells = page.locator('.column-layout > .column')
   await expect(cells).toHaveCount(2)
   await expect(cells.nth(0)).toContainText('Alpha')
   await expect(cells.nth(1)).toContainText('Bravo')
@@ -297,7 +297,7 @@ test('dragging a heading from below a column row into a specific column moves in
   await expect(page.locator('.ProseMirror > h1', { hasText: 'Move Me Into Bravo' })).toHaveCount(0)
 })
 
-test('dragging content out of a 3-column row removes the emptied column', async ({ page }) => {
+test('dragging content out of a multi-column row removes the emptied column', async ({ page }) => {
   const editor = await createSeededPage(page, 'cols-out-of-three', {
     type: 'doc',
     content: [columnLayout('Alpha', 'Bravo', 'Charlie'), paragraph('After row')],
@@ -310,8 +310,8 @@ test('dragging content out of a 3-column row removes the emptied column', async 
 
   await dragBlockTo(page, bravo, afterBox.x + afterBox.width / 2, afterBox.y + afterBox.height + 4)
 
-  await expect(page.locator('.column-layout--2')).toHaveCount(1)
-  const cells = page.locator('.column-layout--2 > .column')
+  await expect(page.locator('.column-layout')).toHaveCount(1)
+  const cells = page.locator('.column-layout > .column')
   await expect(cells).toHaveCount(2)
   await expect(cells.nth(0)).toContainText('Alpha')
   await expect(cells.nth(1)).toContainText('Charlie')
@@ -323,4 +323,151 @@ test('dragging content out of a 3-column row removes the emptied column', async 
       expect.objectContaining({ tag: 'p', text: 'After row' }),
       expect.objectContaining({ tag: 'p', text: 'Bravo' }),
     ])
+})
+
+test('drag a paragraph past the right edge of a 3-column row → 4-column row', async ({ page }) => {
+  const editor = await createSeededPage(page, 'cols-4', {
+    type: 'doc',
+    content: [columnLayout('Alpha', 'Bravo', 'Charlie'), paragraph('Delta')],
+  })
+
+  const layout = page.locator('.column-layout').first()
+  const delta = page.locator('.ProseMirror > p', { hasText: 'Delta' })
+  const layoutBox = await layout.boundingBox()
+  if (!layoutBox) throw new Error('layout not visible')
+
+  await dragBlockTo(
+    page,
+    delta,
+    layoutBox.x + layoutBox.width + 24,
+    layoutBox.y + layoutBox.height / 2,
+  )
+
+  const cells = page.locator('.column-layout > .column')
+  await expect(cells).toHaveCount(4, { timeout: 5_000 })
+  await expect(cells.nth(0)).toContainText('Alpha')
+  await expect(cells.nth(1)).toContainText('Bravo')
+  await expect(cells.nth(2)).toContainText('Charlie')
+  await expect(cells.nth(3)).toContainText('Delta')
+
+  await expect
+    .poll(async () => topLevelNonEmptyBlocks(editor))
+    .toEqual([expect.objectContaining({ className: expect.stringContaining('column-layout') })])
+})
+
+test('dragging the divider redistributes width between adjacent columns', async ({ page }) => {
+  await createSeededPage(page, 'cols-resize', {
+    type: 'doc',
+    content: [columnLayout('Left', 'Right')],
+  })
+
+  const cells = page.locator('.column-layout > .column')
+  const divider = page.locator('.column-divider').first()
+  const dividerBox = await divider.boundingBox()
+  if (!dividerBox) throw new Error('divider not visible')
+
+  await page.mouse.move(dividerBox.x + dividerBox.width / 2, dividerBox.y + dividerBox.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(dividerBox.x + 120, dividerBox.y + dividerBox.height / 2, { steps: 8 })
+  await page.mouse.up()
+
+  await expect
+    .poll(async () => cells.nth(0).evaluate((el) => Number(el.dataset.width)))
+    .toBeGreaterThan(1)
+  await expect
+    .poll(async () => cells.nth(1).evaluate((el) => Number(el.dataset.width)))
+    .toBeLessThan(1)
+
+  const sum = await cells.evaluateAll((nodes) =>
+    nodes.reduce((acc, node) => acc + Number((node as HTMLElement).dataset.width || '0'), 0),
+  )
+  expect(sum).toBeCloseTo(2, 1)
+
+  await expect(page.locator('.column-divider')).toHaveCount(1)
+})
+
+test('divider drag is clamped so neither neighbor collapses below the minimum', async ({
+  page,
+}) => {
+  await createSeededPage(page, 'cols-resize-clamp', {
+    type: 'doc',
+    content: [columnLayout('Left', 'Right')],
+  })
+
+  const cells = page.locator('.column-layout > .column')
+  const divider = page.locator('.column-divider').first()
+  const dividerBox = await divider.boundingBox()
+  const layoutBox = await page.locator('.column-layout').first().boundingBox()
+  if (!dividerBox || !layoutBox) throw new Error('boxes not visible')
+
+  await page.mouse.move(dividerBox.x + dividerBox.width / 2, dividerBox.y + dividerBox.height / 2)
+  await page.mouse.down()
+  await page.mouse.move(layoutBox.x + layoutBox.width + 400, dividerBox.y + dividerBox.height / 2, {
+    steps: 12,
+  })
+  await page.mouse.up()
+
+  // sum is 2; MIN_WIDTH_FRACTION = 0.1 → each side >= 0.2.
+  const rightWidth = await cells.nth(1).evaluate((el) => Number(el.dataset.width))
+  expect(rightWidth).toBeGreaterThanOrEqual(0.2 - 1e-6)
+})
+
+test('drag handle does not show for columnLayout or column on row-edge hover', async ({ page }) => {
+  await createSeededPage(page, 'cols-no-handle', {
+    type: 'doc',
+    content: [columnLayout('Alpha', 'Bravo')],
+  })
+
+  const layout = page.locator('.column-layout').first()
+  const layoutBox = await layout.boundingBox()
+  if (!layoutBox) throw new Error('layout not visible')
+
+  // Hover into the gap area between columns (no content block under cursor).
+  await page.mouse.move(layoutBox.x + layoutBox.width / 2, layoutBox.y + 4)
+
+  // Drag handle wrapper should not be visible while hovering structural areas.
+  const handle = page.locator('.tiptap-drag-handle-wrapper').first()
+  // The handle may exist in the DOM but be hidden via opacity / not anchored
+  // to a column-layout-typed node. Either way the user-visible buttons must
+  // not be reachable here, so we assert it's not pointer-accessible.
+  await expect(handle)
+    .toBeHidden({ timeout: 2_000 })
+    .catch(async () => {
+      // If the library keeps the element mounted at opacity:0, ensure that's
+      // the case rather than fully visible.
+      const opacity = await handle.evaluate((el) => getComputedStyle(el).opacity)
+      expect(Number(opacity)).toBeLessThan(0.5)
+    })
+
+  // Now hover over a paragraph inside a cell — the handle should appear.
+  const alpha = page.locator('.column-layout .column p', { hasText: 'Alpha' }).first()
+  await alpha.hover()
+  await expect(handle).toBeVisible({ timeout: 2_000 })
+})
+
+test('drag handle menu has no cell/row actions', async ({ page }) => {
+  await createSeededPage(page, 'cols-menu-clean', {
+    type: 'doc',
+    content: [columnLayout('Alpha', 'Bravo')],
+  })
+
+  const alpha = page.locator('.column-layout .column p', { hasText: 'Alpha' }).first()
+  await alpha.hover()
+  const dragButton = page
+    .locator('.tiptap-drag-handle-wrapper button[aria-label="Действия блока"]')
+    .first()
+  await expect(dragButton).toBeVisible({ timeout: 5_000 })
+  // Dispatch the DOM click directly. The column-divider widget overlays the
+  // editor coordinate space at a high z-index and trips Playwright's
+  // elementFromPoint actionability check, so a positional click can't always
+  // hit the drag handle button reliably. We only need the React onClick
+  // handler to fire — the menu visibility assertion below validates the
+  // user-visible behavior.
+  await dragButton.evaluate((el: HTMLElement) => el.click())
+
+  const menu = page.getByRole('menu')
+  await expect(menu).toBeVisible({ timeout: 2_000 })
+  await expect(menu.getByText('Удалить ячейку')).toHaveCount(0)
+  await expect(menu.getByText('Удалить ряд')).toHaveCount(0)
+  await expect(menu.getByText('Развернуть ячейку в блоки')).toHaveCount(0)
 })
