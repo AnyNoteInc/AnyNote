@@ -1,3 +1,10 @@
+# [1.15.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.14.0...v1.15.0) (2026-05-13)
+
+
+### Features
+
+* **billing:** update Pro and Max plan pricing ([94fa00a](https://github.com/AnyNoteInc/AnyNote/commit/94fa00afb08b7333161ef02fe41133b1e1ae2413))
+
 # [1.14.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.13.2...v1.14.0) (2026-05-13)
 
 
