@@ -1,3 +1,10 @@
+## [1.15.2](https://github.com/AnyNoteInc/AnyNote/compare/v1.15.1...v1.15.2) (2026-05-13)
+
+
+### Bug Fixes
+
+* update remainder fix ([22b3ac2](https://github.com/AnyNoteInc/AnyNote/commit/22b3ac2232138527dccab0d149091d993b196053))
+
 ## [1.15.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.15.0...v1.15.1) (2026-05-13)
 
 
