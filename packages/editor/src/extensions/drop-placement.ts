@@ -238,11 +238,10 @@ function replaceContent(
   return tr
 }
 
-// Wrap a fragment so it fits the given parent's content rule. Plain blocks
-// (paragraph, heading, image, etc.) pass through unchanged. Non-block children
-// like `taskItem` get wrapped in their schema-required parent (`taskList`) so
-// they satisfy `column.content = 'block+'` or the doc's top-level `block+`
-// rule. Returns null if no wrapping path exists.
+// Wrap a fragment so it satisfies `parentType`'s content rule. If the fragment
+// already fits, returns it unchanged; otherwise climbs the schema via
+// `findWrapping` (e.g. taskItem → taskList). Returns null if no wrapping path
+// exists.
 function wrapForContent(content: Fragment, parentType: NodeType): Fragment | null {
   if (parentType.contentMatch.matchFragment(content)) return content
   const firstChild = content.firstChild
@@ -299,53 +298,49 @@ function applyPlacementDrop(
     sourceFirstChild?.type === columnType ? sourceFirstChild.content : slice.content
 
   // Wrap non-block sources (e.g. a `taskItem` dragged out of its list) so they
-  // satisfy the parent's content rule on landing — `column.content = 'block+'`
-  // for column children, and `doc.content = 'block+'` for top-level reorder.
-  const droppedForColumn = wrapForContent(droppedContent, columnType)
-  if (!droppedForColumn) return false
+  // satisfy `block+` — the content rule shared by `column` and the top-level
+  // doc, which covers every insertion site below.
+  const droppedFitted = wrapForContent(droppedContent, columnType)
+  if (!droppedFitted) return false
 
   if (zone === 'TOP' || zone === 'BOTTOM') {
-    // Top-level reorder: target's parent decides what's legal at the insert
-    // position. For top-level blocks that's the doc; for cell targets it's
-    // the column (same `block+` rule, but we resolve via the schema).
-    const containerType = target.kind === 'cell' ? columnType : tr.doc.type
-    const droppedForContainer = wrapForContent(droppedContent, containerType)
-    if (!droppedForContainer) return false
     const insertPos = computeReorderPos(target, zone)
-    tr = insertContent(tr, insertPos, droppedForContainer, source)
+    tr = insertContent(tr, insertPos, droppedFitted, source)
   } else if (target.kind === 'block') {
-    // LEFT/RIGHT on a top-level block — wrap it in a new layout.
-    //
-    // If the source lives inside target.node (e.g. dragging a `taskItem` out
-    // of its `taskList` to spawn a column row), the captured `target.node`
-    // still contains the source. Building `existingCell` from that stale
-    // reference duplicates the source across both columns. Delete the source
-    // first and re-read the (now-shrunk) target from the post-deletion doc.
+    // If the source lives inside target.node, the captured reference is stale
+    // (still contains the source). Delete first and re-read from the
+    // post-deletion doc so we don't duplicate the source across both columns.
     const sourceInsideTarget =
       !!source &&
       source.from >= target.pos + 1 &&
       source.to <= target.pos + target.node.nodeSize - 1
 
+    let existingNode = target.node
+    let existingPos = target.pos
+    let effectiveSource = source
     if (sourceInsideTarget && source) {
       tr.delete(source.from, source.to)
-      const livePos = tr.mapping.map(target.pos)
-      const liveTarget = tr.doc.nodeAt(livePos)
-      if (!liveTarget || liveTarget.type !== target.node.type) return false
-      const newCell = columnType.create(null, droppedForColumn)
-      const existingCell = columnType.create(null, liveTarget)
-      const cells = zone === 'LEFT' ? [newCell, existingCell] : [existingCell, newCell]
-      const layout = layoutType.create({ columns: cells.length }, cells)
-      tr.replaceWith(livePos, livePos + liveTarget.nodeSize, layout)
-    } else {
-      const newCell = columnType.create(null, droppedForColumn)
-      const existingCell = columnType.create(null, target.node)
-      const cells = zone === 'LEFT' ? [newCell, existingCell] : [existingCell, newCell]
-      const layout = layoutType.create({ columns: cells.length }, cells)
-      tr = replaceContent(tr, target.pos, target.pos + target.node.nodeSize, layout, source)
+      existingPos = tr.mapping.map(target.pos)
+      const live = tr.doc.nodeAt(existingPos)
+      if (!live || live.type !== target.node.type) return false
+      existingNode = live
+      effectiveSource = null
     }
+
+    const newCell = columnType.create(null, droppedFitted)
+    const existingCell = columnType.create(null, existingNode)
+    const cells = zone === 'LEFT' ? [newCell, existingCell] : [existingCell, newCell]
+    const layout = layoutType.create({ columns: cells.length }, cells)
+    tr = replaceContent(
+      tr,
+      existingPos,
+      existingPos + existingNode.nodeSize,
+      layout,
+      effectiveSource,
+    )
   } else {
     // LEFT/RIGHT on a cell — insert a sibling cell into the layout.
-    const newCell = columnType.create(null, droppedForColumn)
+    const newCell = columnType.create(null, droppedFitted)
     const cellInsertPos =
       zone === 'LEFT' ? target.cellPos : target.cellPos + target.cellNode.nodeSize
     tr = insertContent(tr, cellInsertPos, newCell, source)
