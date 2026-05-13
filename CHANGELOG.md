@@ -1,3 +1,10 @@
+# [1.14.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.13.2...v1.14.0) (2026-05-13)
+
+
+### Features
+
+* **editor:** column layout with unlimited columns, resizable dividers, and task-list support ([#12](https://github.com/AnyNoteInc/AnyNote/issues/12)) ([4cb24de](https://github.com/AnyNoteInc/AnyNote/commit/4cb24de354b1d8496ae3d40d5d411623f4dfb35a))
+
 ## [1.13.2](https://github.com/AnyNoteInc/AnyNote/compare/v1.13.1...v1.13.2) (2026-05-11)
 
 ### Bug Fixes
