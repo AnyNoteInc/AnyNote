@@ -41,12 +41,7 @@ describe('column-layout schema', () => {
 
   it('accepts a layout with 4 columns (no upper cap)', () => {
     const doc = schema.nodes.doc.create(null, [
-      layout(
-        column(paragraph()),
-        column(paragraph()),
-        column(paragraph()),
-        column(paragraph()),
-      ),
+      layout(column(paragraph()), column(paragraph()), column(paragraph()), column(paragraph())),
     ])
     expect(() => doc.check()).not.toThrow()
   })
