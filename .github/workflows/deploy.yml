@@ -110,6 +110,7 @@ jobs:
           RECAPTCHA_SECRET_KEY: ${{ secrets.RECAPTCHA_SECRET_KEY }}
           YOOKASSA_SHOP_ID: ${{ secrets.YOOKASSA_SHOP_ID }}
           YOOKASSA_SECRET_KEY: ${{ secrets.YOOKASSA_SECRET_KEY }}
+          YOOKASSA_SAVE_PAYMENT_METHOD: ${{ vars.YOOKASSA_SAVE_PAYMENT_METHOD }}
           GOTENBERG_URL: ${{ secrets.GOTENBERG_URL }}
           GOTENBERG_TIMEOUT_MS: ${{ secrets.GOTENBERG_TIMEOUT_MS }}
           ACME_EMAIL: ${{ secrets.ACME_EMAIL }}

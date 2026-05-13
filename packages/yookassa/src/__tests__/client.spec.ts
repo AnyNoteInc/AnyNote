@@ -135,6 +135,85 @@ describe('YookassaClient', () => {
   })
 })
 
+describe('YookassaClient error handling', () => {
+  it('includes code and description from YooKassa error body in the message', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          type: 'error',
+          code: 'forbidden',
+          description: 'Магазин не имеет права на проведение операции',
+        }),
+        { status: 403, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+    const client = new YookassaClient({
+      shopId: 'shop',
+      secretKey: 'secret',
+      fetch: fetchMock as unknown as typeof fetch,
+    })
+
+    await expect(
+      client.createPayment(
+        {
+          amount: { value: '150.00', currency: 'RUB' },
+          capture: true,
+          confirmation: { type: 'redirect', return_url: 'https://e.com/r' },
+        },
+        'idem',
+      ),
+    ).rejects.toMatchObject({
+      status: 403,
+      message: 'forbidden: Магазин не имеет права на проведение операции',
+    })
+  })
+
+  it('appends parameter when YooKassa returns it', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          code: 'invalid_request',
+          description: 'Receipt is required',
+          parameter: 'receipt',
+        }),
+        { status: 400, headers: { 'Content-Type': 'application/json' } },
+      ),
+    )
+    const client = new YookassaClient({
+      shopId: 'shop',
+      secretKey: 'secret',
+      fetch: fetchMock as unknown as typeof fetch,
+    })
+
+    await expect(
+      client.createPayment(
+        {
+          amount: { value: '150.00', currency: 'RUB' },
+          capture: true,
+          confirmation: { type: 'redirect', return_url: 'https://e.com/r' },
+        },
+        'idem',
+      ),
+    ).rejects.toMatchObject({
+      status: 400,
+      message: 'invalid_request: Receipt is required: parameter=receipt',
+    })
+  })
+
+  it('falls back to generic message when body has no code/description', async () => {
+    const fetchMock = vi.fn().mockResolvedValue(new Response('plain text', { status: 502 }))
+    const client = new YookassaClient({
+      shopId: 'shop',
+      secretKey: 'secret',
+      fetch: fetchMock as unknown as typeof fetch,
+    })
+
+    await expect(
+      client.getPayment('pmt_1'),
+    ).rejects.toMatchObject({ status: 502, message: 'YooKassa API request failed' })
+  })
+})
+
 describe('YookassaClient.createRefund', () => {
   it('posts to /refunds with idempotency', async () => {
     const fetchMock = vi.fn().mockResolvedValue(
