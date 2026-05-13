@@ -14,6 +14,7 @@ import { createCallerFactory } from '../src/trpc'
 
 type MockYookassa = {
   createPayment: ReturnType<typeof vi.fn>
+  getPayment?: ReturnType<typeof vi.fn>
 }
 
 function ctx(prisma: PrismaClient, yookassa: MockYookassa) {
@@ -132,5 +133,126 @@ describe('subscription.startCheckout', () => {
       where: { id: 'order-1' },
       data: { status: 'FAILED' },
     })
+  })
+})
+
+describe('subscription.syncOrder', () => {
+  const PENDING_ORDER = {
+    userId: 'user-1',
+    status: 'PENDING',
+    yookassaPaymentId: 'pmt_yk_1',
+  }
+  const PAID_ORDER = {
+    id: 'order-1',
+    userId: 'user-1',
+    status: 'PAID',
+    plan: { name: 'Pro', slug: 'pro' },
+  }
+  const STILL_PENDING_ORDER = {
+    id: 'order-1',
+    userId: 'user-1',
+    status: 'PENDING',
+    plan: { name: 'Pro', slug: 'pro' },
+  }
+
+  function buildSyncPrisma(opts: {
+    initialOrder: typeof PENDING_ORDER | null
+    finalOrder: unknown
+    transactionImpl?: (cb: (tx: unknown) => Promise<unknown>) => Promise<unknown>
+  }): { prisma: PrismaClient; transaction: ReturnType<typeof vi.fn> } {
+    const transaction = vi.fn().mockImplementation(opts.transactionImpl ?? (async (cb) => cb({
+      subscription: { updateMany: vi.fn(), findFirst: vi.fn().mockResolvedValue(null), create: vi.fn().mockResolvedValue({ id: 'sub-1' }), update: vi.fn().mockResolvedValue({ id: 'sub-1' }) },
+      order: { update: vi.fn().mockResolvedValue({}) },
+    })))
+    const prisma = {
+      order: {
+        findUnique: vi.fn().mockImplementation(async ({ where, select, include }: { where: { id?: string; yookassaPaymentId?: string }; select?: unknown; include?: unknown }) => {
+          if (where.yookassaPaymentId) {
+            return opts.initialOrder
+              ? { ...opts.initialOrder, id: 'order-1', planId: 'plan-pro', billingPeriod: 'MONTHLY', plan: { id: 'plan-pro', slug: 'pro' } }
+              : null
+          }
+          if (select) return opts.initialOrder
+          if (include) return opts.finalOrder
+          return null
+        }),
+        findUniqueOrThrow: vi.fn().mockResolvedValue(opts.finalOrder),
+      },
+      $transaction: transaction,
+    } as unknown as PrismaClient
+    return { prisma, transaction }
+  }
+
+  it('returns the order without calling YooKassa when status is not PENDING', async () => {
+    const { prisma } = buildSyncPrisma({
+      initialOrder: { ...PENDING_ORDER, status: 'PAID' } as never,
+      finalOrder: PAID_ORDER,
+    })
+    const yookassa: MockYookassa = {
+      createPayment: vi.fn(),
+      getPayment: vi.fn(),
+    }
+    const caller = createCallerFactory(subscriptionRouter)(ctx(prisma, yookassa))
+
+    const result = await caller.syncOrder({ orderId: '00000000-0000-0000-0000-000000000001' })
+
+    expect(yookassa.getPayment).not.toHaveBeenCalled()
+    expect(result.status).toBe('PAID')
+  })
+
+  it('queries YooKassa when order is PENDING and applies succeeded transition', async () => {
+    const { prisma } = buildSyncPrisma({
+      initialOrder: PENDING_ORDER,
+      finalOrder: PAID_ORDER,
+    })
+    const yookassa: MockYookassa = {
+      createPayment: vi.fn(),
+      getPayment: vi.fn().mockResolvedValue({
+        id: 'pmt_yk_1',
+        status: 'succeeded',
+        paid: true,
+        amount: { value: '390.00', currency: 'RUB' },
+        payment_method: { id: 'pm_1', type: 'bank_card', saved: true, card: { last4: '4242' } },
+        created_at: '2026-05-13T00:00:00Z',
+      }),
+    }
+    const caller = createCallerFactory(subscriptionRouter)(ctx(prisma, yookassa))
+
+    const result = await caller.syncOrder({ orderId: '00000000-0000-0000-0000-000000000001' })
+
+    expect(yookassa.getPayment).toHaveBeenCalledWith('pmt_yk_1')
+    expect(result.status).toBe('PAID')
+  })
+
+  it('swallows YooKassa errors and still returns the local order', async () => {
+    const { prisma } = buildSyncPrisma({
+      initialOrder: PENDING_ORDER,
+      finalOrder: STILL_PENDING_ORDER,
+    })
+    const yookassa: MockYookassa = {
+      createPayment: vi.fn(),
+      getPayment: vi.fn().mockRejectedValue(new Error('network blip')),
+    }
+    const caller = createCallerFactory(subscriptionRouter)(ctx(prisma, yookassa))
+
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {})
+    const result = await caller.syncOrder({ orderId: '00000000-0000-0000-0000-000000000001' })
+    errorSpy.mockRestore()
+
+    expect(result.status).toBe('PENDING')
+  })
+
+  it('throws NOT_FOUND when order belongs to another user', async () => {
+    const { prisma } = buildSyncPrisma({
+      initialOrder: { ...PENDING_ORDER, userId: 'someone-else' },
+      finalOrder: null,
+    })
+    const yookassa: MockYookassa = { createPayment: vi.fn(), getPayment: vi.fn() }
+    const caller = createCallerFactory(subscriptionRouter)(ctx(prisma, yookassa))
+
+    await expect(
+      caller.syncOrder({ orderId: '00000000-0000-0000-0000-000000000001' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    expect(yookassa.getPayment).not.toHaveBeenCalled()
   })
 })

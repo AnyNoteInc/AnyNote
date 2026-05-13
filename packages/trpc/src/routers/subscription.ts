@@ -4,6 +4,7 @@ import { TRPCError } from '@trpc/server'
 import { YookassaApiError } from '@repo/yookassa'
 import { router, protectedProcedure } from '../trpc'
 import { getActivePlanForUser, getPlanDisplayName } from '../helpers/plan'
+import { syncOrderFromProvider } from '../services/billing'
 
 function shouldSavePaymentMethod(): boolean {
   return (process.env.YOOKASSA_SAVE_PAYMENT_METHOD ?? 'true').toLowerCase() !== 'false'
@@ -59,6 +60,36 @@ export const subscriptionRouter = router({
         throw new TRPCError({ code: 'NOT_FOUND' })
       }
       return order
+    }),
+
+  syncOrder: protectedProcedure
+    .input(z.object({ orderId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const existing = await ctx.prisma.order.findUnique({
+        where: { id: input.orderId },
+        select: { userId: true, status: true, yookassaPaymentId: true },
+      })
+      if (!existing || existing.userId !== ctx.user.id) {
+        throw new TRPCError({ code: 'NOT_FOUND' })
+      }
+      if (existing.status === 'PENDING' && existing.yookassaPaymentId) {
+        try {
+          await syncOrderFromProvider(
+            { yookassa: ctx.yookassa, prisma: ctx.prisma },
+            existing.yookassaPaymentId,
+          )
+        } catch (err) {
+          console.error('[subscription.syncOrder] YooKassa sync failed', {
+            orderId: input.orderId,
+            yookassaPaymentId: existing.yookassaPaymentId,
+            error: err instanceof Error ? err.message : err,
+          })
+        }
+      }
+      return ctx.prisma.order.findUniqueOrThrow({
+        where: { id: input.orderId },
+        include: { plan: { select: { name: true, slug: true } } },
+      })
     }),
 
   listOrders: protectedProcedure.query(async ({ ctx }) => {

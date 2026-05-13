@@ -12,10 +12,12 @@ export function OrderProgress({ orderId }: { orderId: string }) {
   }, [])
 
   const [shouldPoll, setShouldPoll] = useState(true)
-  const query = trpc.subscription.getOrder.useQuery(
+  const query = trpc.subscription.syncOrder.useQuery(
     { orderId },
     {
-      refetchInterval: shouldPoll ? 2000 : false,
+      refetchInterval: shouldPoll ? 3000 : false,
+      refetchOnWindowFocus: false,
+      staleTime: 0,
     },
   )
 
