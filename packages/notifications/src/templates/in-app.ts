@@ -6,6 +6,37 @@ export type InAppRendered = {
   icon: 'invite' | 'security' | 'role' | 'mention' | 'comment' | 'system' | 'marketing'
 }
 
+const HUMAN_OFFSETS: Record<number, string> = {
+  0: 'в момент истечения',
+  60: '1 час',
+  1440: '1 день',
+  4320: '3 дня',
+  10080: '1 неделя',
+  43200: '1 месяц',
+}
+
+function formatHumanOffset(minutes: number): string {
+  return HUMAN_OFFSETS[minutes] ?? 'напоминание'
+}
+
+function formatReminderDue(payload: Record<string, unknown>): InAppRendered {
+  const label = typeof payload.label === 'string' && payload.label ? payload.label : 'Напоминание'
+  const offsetMinutes = typeof payload.offsetMinutes === 'number' ? payload.offsetMinutes : 0
+  const dueAt = typeof payload.dueAt === 'string' ? payload.dueAt : ''
+  const due = dueAt
+    ? new Date(dueAt).toLocaleString('ru-RU', { dateStyle: 'short', timeStyle: 'short' })
+    : ''
+
+  return {
+    title:
+      offsetMinutes > 0
+        ? `Через ${formatHumanOffset(offsetMinutes)}: ${label}`
+        : `Напоминание: ${label}`,
+    body: due ? `Дедлайн: ${due}` : '',
+    icon: 'system',
+  }
+}
+
 export function renderInApp(
   type: NotificationEventType,
   payload: Record<string, unknown>,
@@ -48,6 +79,8 @@ export function renderInApp(
         body: p.snippet ?? '',
         icon: 'comment',
       }
+    case 'REMINDER_DUE':
+      return formatReminderDue(payload)
     default:
       return { title: 'Уведомление', body: '', icon: 'system' }
   }

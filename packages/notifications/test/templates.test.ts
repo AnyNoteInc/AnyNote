@@ -30,6 +30,18 @@ describe('renderInApp', () => {
     expect(result.title).toBeTruthy()
     expect(result.icon).toBe('security')
   })
+
+  it('formats REMINDER_DUE as an actionable reminder notification', () => {
+    const result = renderInApp('REMINDER_DUE', {
+      label: 'Сдать отчет',
+      dueAt: '2026-06-15T11:00:00.000Z',
+      offsetMinutes: 0,
+    })
+
+    expect(result.title).toBe('Напоминание: Сдать отчет')
+    expect(result.body).toContain('Дедлайн:')
+    expect(result.icon).toBe('system')
+  })
 })
 
 describe('renderPushPayload', () => {
@@ -41,6 +53,19 @@ describe('renderPushPayload', () => {
     )
     if (result === null) throw new Error('renderPushPayload returned null')
     expect(result.url).toBe('/workspaces/abc')
+  })
+
+  it('uses reminder-specific copy for REMINDER_DUE push payloads', () => {
+    const result = renderPushPayload(
+      'REMINDER_DUE',
+      { label: 'Сдать отчет', dueAt: '2026-06-15T11:00:00.000Z', offsetMinutes: 0 },
+      '/workspaces/ws/pages/page#reminder-rem',
+    )
+
+    expect(result).toMatchObject({
+      title: 'Напоминание: Сдать отчет',
+      url: '/workspaces/ws/pages/page#reminder-rem',
+    })
   })
 })
 

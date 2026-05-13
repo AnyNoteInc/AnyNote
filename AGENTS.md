@@ -34,75 +34,93 @@ Copy `.env.example` to `.env` for local setup and keep secrets out of commits. U
 <claude-mem-context>
 # Memory Context
 
-# [anynote] recent context, 2026-05-13 2:59pm GMT+1
+# [anynote] recent context, 2026-05-13 9:37pm GMT+1
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (20,105t read) | 647,461t work | 97% savings
+Stats: 50 obs (16,157t read) | 558,492t work | 97% savings
 
 ### May 13, 2026
-1639 4:39a 🔵 MAX_COLUMNS=3 Constant Enforced in Drop Placement Plugin at Two Points
-1641 4:40a 🔵 CSS Column Grid Has Hardcoded Rules Only for 1–3 Columns
-1642 " 🔵 Existing E2E Column Tests Use Six-Dot Button to Initiate Drags
-1643 4:45a 🔵 Tiptap Drag Handle is Custom Implementation, Not npm Package
-1644 " 🔵 Tiptap Drag Handle Package Uses pnpm, Not Symlinked to node_modules Root
-1645 4:46a 🔵 Tiptap DragHandle v3.22.3 Uses Rule-Based Scoring System to Select Drag Targets
-1646 5:01a 🔵 Prior Tiptap Column Layout Spec Exists from 2026-05-12
-1647 " ✅ Design Spec Written: Column Layout Unlimited Columns + Resizable Dividers
-1648 " ✅ Spec Refined: Column Divider Decoration Uses data-right-index and Position Walking
-1649 5:02a ✅ Spec Doc Staged on feat/tiptap-column-layout Branch, Implementation About to Begin
-S418 Observer session monitoring primary session implementing 11-task plan for anynote Tiptap editor: unlimited columns, draggable dividers, hidden controls, Playwright tests, pnpm gates (May 13 at 5:02 AM)
-1650 5:04a 🔵 column-layout.schema.test.ts Has Explicit 4-Column Rejection Test That Must Be Inverted
-1651 " 🔵 Dissolve Test Already Tests 3-Column Logic; Only 4-Column Case Needs Adding
-1652 5:05a 🔵 content.test.ts Has Four Regex Assertions That Will Break After CSS Grid-to-Flex Migration
-1653 " 🔵 Prior Tiptap Column Layout Implementation Plan Exists at docs/superpowers/plans/
-S420 Fix column layout bugs with taskList/taskItem nodes — drag-to-column fails to create layout, and checkbox splits from text during drag (May 13 at 5:07 AM)
-1654 5:52a 🔵 Bug report: column layout breaks with taskList nodes
-S421 Fix column layout bugs with taskList/taskItem nodes — drag-to-column fails, divider missing, checkbox splits from text on drag (May 13 at 5:52 AM)
-S419 Implement unlimited columns + resizable dividers for anynote Tiptap editor, then fix newly reported bug: column layout broken when dragging taskList/taskItem nodes (May 13 at 5:53 AM)
-S422 Fix two bugs when combining task lists with drag-to-column: invalid schema (bare taskItem in column without taskList wrapper) and content duplication when source is nested inside target (May 13 at 7:48 AM)
-1655 7:49a 🔵 TaskItemWithCheckbox extension uses ReactNodeViewRenderer with composite DOM structure
-1656 " 🔵 TaskItem schema has `defining: true` and content `paragraph+`, nested inside taskList
-1657 " 🔵 TaskList is a top-level block (group: 'block list') but taskItem is not — only whole-list drag can create columns
-1658 7:50a 🔵 Drag handle defaultRules target taskItem nodes; dragHandler at depth-0 promotes drag to top-level taskList
-1659 7:51a 🔵 Drag handle plugin in non-nested mode always targets the top-level block via getOuterDomNode/getOuterNode
-1660 " 🔵 page-columns.spec.ts yjsExtensions missing TaskList/TaskItem — seeding task list pages will fail
-1662 " 🔵 StarterKit does not include TaskList or TaskItem extensions
-1661 " 🔵 Editor registers TaskList + TaskItemWithCheckbox with nested:true; test yjsExtensions missing both
-1663 7:52a 🔵 No dev server running on port 3000 or 3100 — Playwright tests not yet started for taskList bug
-1664 " 🔵 Root cause confirmed: drop-placement.ts PLACEABLE_TYPES excludes taskList — drops are silently rejected
-1665 " 🟣 Repro test added to page-columns.spec.ts for taskList column drag debugging
-1666 7:54a 🔵 Repro test fails: taskList input rule '[ ] ' does not trigger reliably in Playwright headless typing
-S423 Fix taskItem+column drag bugs (schema-invalid bare taskItem in column, content duplication) — then /simplify the committed changes (May 13 at 7:54 AM)
-S424 /simplify review of commit 0c77c82 on feat/tiptap-column-layout — code reuse, quality, and efficiency cleanup of the drop-placement task-item bug fixes (May 13 at 2:16 PM)
-S425 Add mandatory marketing newsletter consent checkbox to the "Особое решение" (special solutions) contact section on the main page, matching the registration form pattern (May 13 at 2:16 PM)
-1667 2:30p 🔵 TipTap Column Layout Bugs with Task Lists Identified
-1668 2:31p 🔵 Column Layout + Task List Bug Root Cause: React NodeView Serialization Gap
-1669 2:32p 🔵 Column Layout Architecture: Full System Map of Key Files and CSS
-1670 " 🔵 E2E Tests for Task List Column Bugs: First 6 of 13 Tests Passing
-1671 2:33p 🟣 TipTap Column Layout with Task Lists: All 13 E2E Tests Pass (13/13)
-1672 " 🟣 New E2E Test: Checkbox Preserved When Dragging Task Item Out of Column
-1673 " 🔵 New Test Reveals Bug: Dragging Task Item Out of Column Creates 3 Checkboxes Instead of 2
-1674 " 🔵 Drag-Handle Source Package Not Found in node_modules; Bug Isolated to Second Drag
-1675 2:35p 🔵 Search for "особые решения" section found no matching files
-1676 " 🔵 "Особое решение" section located in home-contact component
-1677 2:36p 🔵 ContactForm has privacy consent but lacks marketing newsletter checkbox
-S427 Add mandatory marketing newsletter consent checkbox to the "Особое решение" contact form on the main page, matching the registration form pattern — COMPLETED (May 13 at 2:36 PM)
-1678 2:37p 🟣 Added mandatory marketing consent state and validation to ContactForm
-1679 " 🟣 Mandatory marketing newsletter consent checkbox added to ContactForm on main page
-1680 " 🟣 Marketing consent checkbox feature passes TypeScript and ESLint checks
-S426 Add mandatory marketing newsletter consent checkbox to the "Особое решение" contact form on the main page, matching the registration form pattern (May 13 at 2:38 PM)
-1681 2:43p 🔵 Tiptap Column Layout — Editing Bar Visibility Bug Identified
-1682 2:44p 🔵 Column Layout Architecture: Divider Widgets vs Drop-Placement Decorations in anynote Editor
-1683 " 🟣 New E2E Test: Task Item Drag-Out of Column Preserves Checkbox
-1684 2:45p 🟣 E2E Test Added: Column Dividers Positioned Between Every Non-First Column Pair
-1685 " 🔵 Column Divider Bug Confirmed: Divider Renders at Wrong DOM Position (Left of First Column)
-1686 " 🔴 First Fix Attempt for Column Divider Position: Widget Anchor +1 and CSS left -18px
-1687 " 🔴 Column Divider Bug Fixed: Widget Anchor +1 and CSS left -18px Combination Passes E2E Test
-1689 " 🔵 Full E2E Suite Reveals Pre-existing or Introduced Regression: Empty Column Not Dissolved After Drag-Out
-1688 2:46p 🔴 All Three Divider E2E Tests Pass After Fix: Positioning, Width Redistribution, and Drag Clamp
+1719 3:14p 🔵 feat/tiptap-column-layout Branch Full Scope — 50 Commits, 66 Files, 6263 Insertions
+1720 " ✅ PR #12 Created: feat(editor): column layout with unlimited columns, resizable dividers, and task-list support
+1723 3:15p 🔵 SonarQube Reports Zero Open Issues on feat/tiptap-column-layout
+1724 " 🔵 sonar CLI Does Not Support --pr Flag for PR-Scoped Issue Queries
+1725 " 🔵 SonarQube PR #12 Has 16 Open Issues — Correct Flag is --pull-request Not --pr
+1726 " 🔵 Full SonarQube Issue List for PR #12 — 16 Issues Across 5 Files
+1727 3:16p 🔵 SonarQube BLOCKER S3516 Identified — dragend Handler in drop-placement.ts Always Returns false
+1728 3:17p 🔵 S2004 CRITICAL — block-index-attributes.ts Exceeds 4-Level Function Nesting Due to Triple-Nested forEach
+1729 " 🔵 column-resize.ts S6582 Context — Optional Chain Candidates in dispatchWidths and beginDrag
+1730 " 🔵 column-layout.schema.ts S7761 Sources — Three getAttribute Calls to Replace with .dataset
+1731 3:18p 🔵 reminder.schema.ts S7761 — getAttribute('data-audience') at Line 37 to Replace with .dataset.audience
+1732 " 🔴 SonarQube Fixes Applied to drop-placement.ts — dragleave Refactored and Non-null Assertion Removed
+1733 " 🔴 renderIndicatorDecoration Signature Updated to Accept PluginState | undefined
+1734 3:24p 🔵 CI Checks Passed for AnyNote PR #12
+1735 " 🔵 Open SonarQube CRITICAL Issue on PR #12 — Cognitive Complexity Violation
+1736 " 🔴 Reduced Cognitive Complexity in applyPlacementDrop to Fix SonarQube S3776
+1737 3:32p 🔴 Editor Package Local Gates Pass After Cognitive Complexity Fix
+1738 " ✅ Cognitive Complexity Fix Committed and Pushed to PR Branch
+1739 3:39p 🔴 SonarQube CRITICAL Issue Resolved — PR #12 Now Clean and Mergeable
+1740 " 🔵 AnyNote Uses Semantic Release on Main Branch — Currently at v1.13.2
+1741 " 🔵 PR #12 Squash-Merge Failed Due to Diverged Local Main Branch
+1742 3:40p 🔵 PR #12 Successfully Merged to Main Despite Local Fast-Forward Error
+1743 " 🟣 Release Pipeline Triggered for Column Layout Feature After PR #12 Merge
+1744 " 🔵 Monitor Shell Script Failed Due to `status` Being a Read-Only Variable in zsh
+1745 " 🟣 AnyNote v1.14.0 Released — Column Layout Feature Shipped to Production
+1746 8:28p 🔵 Anynote main branch diverged from origin/main with merge conflicts
+1747 " 🔵 Anynote merge conflict root cause: local doc-only commits vs origin v1.14.0 release
+1748 " 🔵 Column layout drop-zone algorithm changed from 25%-edge to outside-bounding-rect
+S437 Update AnyNote subscription plan pricing across website and legal offer — Pro: 390₽/mo 3900₽/yr; Max: 5900₽/mo 59000₽/yr, max 20 participants, page indexing, custom LLM models (May 13 at 8:29 PM)
+1749 8:33p ✅ Pricing Updated for Pro and Max Plans on Website and Offer Documents
+1750 8:34p 🔵 Anynote Monorepo Structure: Pricing and Billing File Locations Mapped
+1751 " 🔵 Pricing Is Database-Driven via Prisma Seed — Stored in Kopecks
+1752 " 🔵 CheckoutModal Has Hardcoded Prices — Critical Second Source of Truth
+1753 8:35p 🔵 Complete Pricing Audit: Exactly 3 Files Require Manual Updates
+1754 " ✅ Pro Plan Prices Updated in Prisma Seed
+S438 Update AnyNote subscription plan pricing across website and legal offer — Pro: 390₽/mo 3900₽/yr; Max: 5900₽/mo 59000₽/yr, max 20 participants, page indexing, custom LLM models (May 13 at 8:37 PM)
+S435 Update AnyNote subscription plan pricing across website and legal offer document — Pro: 390₽/mo, 3900₽/yr; Max: 5900₽/mo, 59000₽/yr with max 20 participants, page indexing, custom LLM models (May 13 at 8:37 PM)
+S436 Update AnyNote subscription plan pricing across website and legal offer — Pro: 390₽/mo 3900₽/yr; Max: 5900₽/mo 59000₽/yr, max 20 participants, page indexing, custom LLM models (May 13 at 8:37 PM)
+S439 Update AnyNote subscription plan pricing across website and legal offer — Pro: 390₽/mo 3900₽/yr; Max: 5900₽/mo 59000₽/yr, max 20 participants, page indexing, custom LLM models (May 13 at 8:43 PM)
+1755 8:43p 🟣 AnyNote v1.15.0 released — pricing update deployed to production
+S440 Deploy AnyNote v1.15.0 — pricing update fully through Release pipeline, Deploy workflow in progress (May 13 at 8:43 PM)
+S441 Fix stale/old brand icon appearing in browser tabs — replace old icon assets with orange diamond (rhombus) (May 13 at 8:52 PM)
+1756 8:58p 🔵 Anynote App Icon Files Located in Public Directory
+1757 " 🔵 Anynote Uses Dual Icon System: Dynamic TSX + Static PNG/SVG Files
+1758 8:59p 🔵 Two Competing Brand Icon Designs Exist in Anynote
+1759 " 🔴 Brand icon updated from old triangle design to orange diamond (rhombus)
+1760 9:03p 🔵 Pillow (PIL 12.2.0) used to programmatically generate favicon PNG files in anynote agents venv
+1761 " 🔴 favicon.ico regenerated from updated favicon.png using Pillow
+1762 " ⚖️ Pillow installed and removed transiently to avoid polluting pyproject.toml
+1763 " ✅ Icon update changeset: 2 files modified, favicon.ico shrunk 75%, brand-icon.tsx simplified
+1764 " 🔵 renderBrandIconArt consumed by both Next.js dynamic icon routes via ImageResponse
+1765 " 🔵 Separate BrandIcon MUI component in packages/ui already uses the correct orange diamond design
+1766 9:04p 🔵 BrandIcon used only in auth-header widget in source code
+S442 Deploy AnyNote pricing update — v1.15.0 fully deployed to production, pricing live (May 13 at 9:05 PM)
+1767 9:06p 🟣 AnyNote v1.15.0 Deploy workflow completed successfully — pricing live in production
+S444 Commit and release brand icon fix — "закоммить и сделай релиз" (May 13 at 9:06 PM)
+1768 9:10p ✅ Brand icon fix committed to main as 9463fc9
+1769 " ✅ Brand icon fix pushed to origin/main on GitHub (AnyNoteInc/AnyNote)
+1770 9:11p ✅ GitHub Actions "Release" workflow queued for commit 9463fc9
+S443 Commit and release the brand icon fix — stale favicon replaced with orange diamond (May 13 at 9:11 PM)
+**Investigated**: - Confirmed pre-commit state: 2 modified files (favicon.ico, brand-icon.tsx) unstaged on main
+    - Verified git diff matched expected orange diamond changes
+    - Checked GitHub Actions run list after push to confirm Release workflow triggered
 
-Access 647k tokens of past work via get_observations([IDs]) or mem-search skill.
+**Learned**: - The project uses a GitHub Actions workflow named "Release" triggered on push to `main` as the deployment mechanism
+    - semantic-release is expected to create a patch version tag (v1.15.1) from the `fix:` conventional commit prefix
+    - A separate Deploy workflow triggers on the new tag after Release completes
+    - The last two Release workflow runs (for `94fa00a` and `4cb24de`) both completed with `success`
+    - Remote repository is `github.com:AnyNoteInc/AnyNote.git`
+
+**Completed**: - Staged and committed `apps/web/src/app/favicon.ico` and `apps/web/src/lib/brand-icon.tsx` as commit `9463fc9`: "fix(web): replace stale favicon and brand icon art with orange rhombus"
+    - Pushed commit `9463fc9` to `origin/main`, advancing from `341efc9`
+    - GitHub Actions Release workflow run `25823707763` confirmed queued at 2026-05-13T20:11:13Z
+    - Background task `bparfq69l` watching the Release workflow run for completion
+
+**Next Steps**: - Waiting for Release workflow run `25823707763` to complete (background watch task `bparfq69l`)
+    - Expected outcome: semantic-release creates tag v1.15.1, triggering Deploy workflow
+
+
+Access 558k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>
