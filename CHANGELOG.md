@@ -1,3 +1,10 @@
+## [1.15.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.15.0...v1.15.1) (2026-05-13)
+
+
+### Bug Fixes
+
+* **web:** replace stale favicon and brand icon art with orange rhombus ([9463fc9](https://github.com/AnyNoteInc/AnyNote/commit/9463fc9d799f33df48ec1559ece35272aec79913))
+
 # [1.15.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.14.0...v1.15.0) (2026-05-13)
 
 
