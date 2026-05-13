@@ -69,7 +69,10 @@ type WriteBatchArgs = {
   userAgent: string | null
 }
 
-export const writeConsentBatch = async (prisma: PrismaClient, args: WriteBatchArgs): Promise<void> => {
+export const writeConsentBatch = async (
+  prisma: PrismaClient,
+  args: WriteBatchArgs,
+): Promise<void> => {
   const current = await getCurrentConsents(prisma, args.userId)
   const desired = new Map<ConsentDocumentType, boolean>()
   for (const t of REQUIRED_TYPES) desired.set(t, true)
@@ -101,7 +104,10 @@ type WriteMarketingArgs = {
   userAgent: string | null
 }
 
-export const writeMarketingToggle = async (prisma: PrismaClient, args: WriteMarketingArgs): Promise<void> => {
+export const writeMarketingToggle = async (
+  prisma: PrismaClient,
+  args: WriteMarketingArgs,
+): Promise<void> => {
   const last = await prisma.userConsent.findFirst({
     where: { userId: args.userId, documentType: ConsentDocumentType.MARKETING },
     orderBy: { createdAt: 'desc' },

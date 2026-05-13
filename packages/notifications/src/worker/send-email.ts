@@ -14,9 +14,7 @@ export async function sendDeliveryEmail(delivery: DeliveryWithEvent): Promise<vo
     (delivery.event.payload ?? {}) as Record<string, unknown>,
   )
   if (!rendered) {
-    throw new Error(
-      `sendDeliveryEmail: no email template for event type ${delivery.event.type}`,
-    )
+    throw new Error(`sendDeliveryEmail: no email template for event type ${delivery.event.type}`)
   }
   await sendMailNow({ kind: rendered.kind, to: delivery.targetEmail, data: rendered.data })
 }

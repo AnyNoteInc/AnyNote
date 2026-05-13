@@ -17,7 +17,8 @@ export async function subscribePush(): Promise<SerializedSubscription | null> {
   if (globalThis.window === undefined) return null
   if (!('serviceWorker' in navigator) || !('PushManager' in globalThis)) return null
 
-  const reg = (await navigator.serviceWorker.getRegistration('/')) ?? (await registerServiceWorker())
+  const reg =
+    (await navigator.serviceWorker.getRegistration('/')) ?? (await registerServiceWorker())
   if (!reg) return null
 
   const permission = await Notification.requestPermission()

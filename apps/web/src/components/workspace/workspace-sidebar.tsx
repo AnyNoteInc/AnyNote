@@ -109,12 +109,7 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
         </Box>
         {onHide ? (
           <Tooltip title="Скрыть" placement="right">
-            <IconButton
-              size="small"
-              onClick={onHide}
-              aria-label="Скрыть"
-              sx={{ flexShrink: 0 }}
-            >
+            <IconButton size="small" onClick={onHide} aria-label="Скрыть" sx={{ flexShrink: 0 }}>
               <KeyboardDoubleArrowLeftIcon sx={{ fontSize: 16 }} />
             </IconButton>
           </Tooltip>

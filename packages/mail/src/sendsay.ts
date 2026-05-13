@@ -60,9 +60,7 @@ export async function sendEmail(args: SendEmailArgs): Promise<void> {
       group: 'personal',
     })) as SendsayResponse
     if (response?.errors && response.errors.length > 0) {
-      console.warn(
-        `[mail] sendsay rejected ${args.to}: ${formatSendsayError(response.errors[0])}`,
-      )
+      console.warn(`[mail] sendsay rejected ${args.to}: ${formatSendsayError(response.errors[0])}`)
     }
   } catch (err) {
     // sendsay-api throws res.errors[0] as a plain object {id, explain, action, ...},

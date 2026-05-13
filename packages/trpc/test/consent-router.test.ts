@@ -32,9 +32,16 @@ describe('consent.list', () => {
   it('returns 5 entries (one per type), with granted=false for missing ones', async () => {
     const prisma = {
       userConsent: {
-        findMany: vi.fn().mockResolvedValue([
-          { documentType: 'USER_AGREEMENT', granted: true, createdAt: new Date('2026-05-10'), documentVersion: 'sha256:ua' },
-        ]),
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            {
+              documentType: 'USER_AGREEMENT',
+              granted: true,
+              createdAt: new Date('2026-05-10'),
+              documentVersion: 'sha256:ua',
+            },
+          ]),
       },
     } as unknown as PrismaClient
 
@@ -79,7 +86,9 @@ describe('consent.setMarketing', () => {
     const prisma = {
       userConsent: {
         create,
-        findFirst: vi.fn().mockResolvedValue({ granted: false, documentType: 'MARKETING', createdAt: new Date() }),
+        findFirst: vi
+          .fn()
+          .mockResolvedValue({ granted: false, documentType: 'MARKETING', createdAt: new Date() }),
       },
     } as unknown as PrismaClient
 

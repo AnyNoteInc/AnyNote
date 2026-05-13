@@ -78,6 +78,10 @@ function ResizableImageView({
 
   const handleDrop = useCallback(
     (e: React.DragEvent<HTMLDivElement>) => {
+      // Only intercept OS file drops; let in-editor drags bubble to the
+      // editor's drop-placement plugin so an empty placeholder can be wrapped
+      // into a column layout like any other block.
+      if (!e.dataTransfer.types.includes('Files')) return
       e.preventDefault()
       e.stopPropagation()
       setDragOver(false)
@@ -123,6 +127,7 @@ function ResizableImageView({
         <Box
           onClick={() => fileInputRef.current?.click()}
           onDragOver={(e) => {
+            if (!e.dataTransfer.types.includes('Files')) return
             e.preventDefault()
             e.stopPropagation()
             setDragOver(true)

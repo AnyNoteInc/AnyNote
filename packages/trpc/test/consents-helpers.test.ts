@@ -102,9 +102,24 @@ describe('hasAllRequiredConsents', () => {
 describe('getCurrentConsents', () => {
   it('returns the most recent row per documentType', async () => {
     const rows = [
-      { documentType: 'MARKETING', granted: false, createdAt: new Date('2026-05-10'), documentVersion: 'sha256:mk' },
-      { documentType: 'MARKETING', granted: true, createdAt: new Date('2026-05-09'), documentVersion: 'sha256:mk' },
-      { documentType: 'USER_AGREEMENT', granted: true, createdAt: new Date('2026-05-09'), documentVersion: 'sha256:ua' },
+      {
+        documentType: 'MARKETING',
+        granted: false,
+        createdAt: new Date('2026-05-10'),
+        documentVersion: 'sha256:mk',
+      },
+      {
+        documentType: 'MARKETING',
+        granted: true,
+        createdAt: new Date('2026-05-09'),
+        documentVersion: 'sha256:mk',
+      },
+      {
+        documentType: 'USER_AGREEMENT',
+        granted: true,
+        createdAt: new Date('2026-05-09'),
+        documentVersion: 'sha256:ua',
+      },
     ]
     const prisma = {
       userConsent: {
@@ -137,11 +152,19 @@ describe('writeConsentBatch', () => {
     expect(createMany).toHaveBeenCalledOnce()
     const arg = createMany.mock.calls[0][0]
     expect(arg.data).toHaveLength(5)
-    expect(arg.data.find((d: { documentType: string }) => d.documentType === 'MARKETING').granted).toBe(true)
+    expect(
+      arg.data.find((d: { documentType: string }) => d.documentType === 'MARKETING').granted,
+    ).toBe(true)
   })
 
   it('is idempotent: does nothing when current state already matches', async () => {
-    const required = ['USER_AGREEMENT', 'PRIVACY_POLICY', 'PII_PROCESSING', 'PUBLIC_OFFER', 'MARKETING'] as const
+    const required = [
+      'USER_AGREEMENT',
+      'PRIVACY_POLICY',
+      'PII_PROCESSING',
+      'PUBLIC_OFFER',
+      'MARKETING',
+    ] as const
     const findMany = vi.fn().mockResolvedValue(
       required.map((t) => ({
         documentType: t,
@@ -186,7 +209,9 @@ describe('writeMarketingToggle', () => {
   })
 
   it('dedupes: does not create when last MARKETING already matches', async () => {
-    const findFirst = vi.fn().mockResolvedValue({ granted: true, documentType: 'MARKETING', createdAt: new Date() })
+    const findFirst = vi
+      .fn()
+      .mockResolvedValue({ granted: true, documentType: 'MARKETING', createdAt: new Date() })
     const create = vi.fn()
     const prisma = { userConsent: { findFirst, create } } as unknown as PrismaClient
 

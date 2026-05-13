@@ -28,10 +28,7 @@ export type RegisterFormValues = {
   agreedToMarketing: boolean
 }
 
-export type RegisterSubmitPayload = Omit<
-  RegisterFormValues,
-  'confirmPassword' | 'agreedToTerms'
->
+export type RegisterSubmitPayload = Omit<RegisterFormValues, 'confirmPassword' | 'agreedToTerms'>
 
 export type TermsUrls = ConsentsCheckboxesUrls
 

@@ -1,87 +1,75 @@
 ## [1.13.2](https://github.com/AnyNoteInc/AnyNote/compare/v1.13.1...v1.13.2) (2026-05-11)
 
-
 ### Bug Fixes
 
-* reminder ([dbde8ea](https://github.com/AnyNoteInc/AnyNote/commit/dbde8eac3528e87a77efdd451a8e1b36732a1fda))
+- reminder ([dbde8ea](https://github.com/AnyNoteInc/AnyNote/commit/dbde8eac3528e87a77efdd451a8e1b36732a1fda))
 
 ## [1.13.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.13.0...v1.13.1) (2026-05-11)
 
-
 ### Bug Fixes
 
-* add delete all notifications ([4803ed4](https://github.com/AnyNoteInc/AnyNote/commit/4803ed4936e5ce81d75216538ed1233a45313485))
-* notify poppover position ([4474fd1](https://github.com/AnyNoteInc/AnyNote/commit/4474fd1e9e8d8d5f1d11f35021afbae6ea25e76d))
-* remove trash to bottom of left side ([f4e570e](https://github.com/AnyNoteInc/AnyNote/commit/f4e570ed6d750dd42819c7fd3ecad6b9956d5638))
-* slash with reminder ([50fa166](https://github.com/AnyNoteInc/AnyNote/commit/50fa1666e93a3885ccaf402d3be7576c513da309))
+- add delete all notifications ([4803ed4](https://github.com/AnyNoteInc/AnyNote/commit/4803ed4936e5ce81d75216538ed1233a45313485))
+- notify poppover position ([4474fd1](https://github.com/AnyNoteInc/AnyNote/commit/4474fd1e9e8d8d5f1d11f35021afbae6ea25e76d))
+- remove trash to bottom of left side ([f4e570e](https://github.com/AnyNoteInc/AnyNote/commit/f4e570ed6d750dd42819c7fd3ecad6b9956d5638))
+- slash with reminder ([50fa166](https://github.com/AnyNoteInc/AnyNote/commit/50fa1666e93a3885ccaf402d3be7576c513da309))
 
 # [1.13.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.12.1...v1.13.0) (2026-05-11)
 
-
 ### Features
 
-* add page reminders ([#11](https://github.com/AnyNoteInc/AnyNote/issues/11)) ([9a5f8da](https://github.com/AnyNoteInc/AnyNote/commit/9a5f8da5890cbea3a976a7c3a0e1ce3a34a9ce28))
+- add page reminders ([#11](https://github.com/AnyNoteInc/AnyNote/issues/11)) ([9a5f8da](https://github.com/AnyNoteInc/AnyNote/commit/9a5f8da5890cbea3a976a7c3a0e1ce3a34a9ce28))
 
 ## [1.12.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.12.0...v1.12.1) (2026-05-11)
 
-
 ### Bug Fixes
 
-* **editor:** align nested task checkboxes, kill full-width overflow, default TOC to mini ([66e30df](https://github.com/AnyNoteInc/AnyNote/commit/66e30df2365dddde3aca7b923b56fc3be531b8de))
+- **editor:** align nested task checkboxes, kill full-width overflow, default TOC to mini ([66e30df](https://github.com/AnyNoteInc/AnyNote/commit/66e30df2365dddde3aca7b923b56fc3be531b8de))
 
 # [1.12.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.11.1...v1.12.0) (2026-05-11)
 
-
 ### Features
 
-* **web:** sidebar redesign — full/hidden modes, notifications bell, trash + ⌘, shortcuts ([#10](https://github.com/AnyNoteInc/AnyNote/issues/10)) ([8693af0](https://github.com/AnyNoteInc/AnyNote/commit/8693af0ef717ff7ce13efc2709651d7fcc2b4956))
+- **web:** sidebar redesign — full/hidden modes, notifications bell, trash + ⌘, shortcuts ([#10](https://github.com/AnyNoteInc/AnyNote/issues/10)) ([8693af0](https://github.com/AnyNoteInc/AnyNote/commit/8693af0ef717ff7ce13efc2709651d7fcc2b4956))
 
 ## [1.11.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.11.0...v1.11.1) (2026-05-11)
 
-
 ### Bug Fixes
 
-* **deploy:** wire VAPID env vars through to web push runtime ([fe4f712](https://github.com/AnyNoteInc/AnyNote/commit/fe4f71223c95e6c94b8a98a18f45237c99719ecd))
+- **deploy:** wire VAPID env vars through to web push runtime ([fe4f712](https://github.com/AnyNoteInc/AnyNote/commit/fe4f71223c95e6c94b8a98a18f45237c99719ecd))
 
 # [1.11.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.10.1...v1.11.0) (2026-05-11)
 
-
 ### Features
 
-* notifications system (events, deliveries, in-app, email, web push) ([#9](https://github.com/AnyNoteInc/AnyNote/issues/9)) ([13cc85e](https://github.com/AnyNoteInc/AnyNote/commit/13cc85edbbd37b5a7b0efbdd3d98e24061638646))
+- notifications system (events, deliveries, in-app, email, web push) ([#9](https://github.com/AnyNoteInc/AnyNote/issues/9)) ([13cc85e](https://github.com/AnyNoteInc/AnyNote/commit/13cc85edbbd37b5a7b0efbdd3d98e24061638646))
 
 ## [1.10.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.10.0...v1.10.1) (2026-05-10)
 
-
 ### Bug Fixes
 
-* **mail:** use 'personal' as sendsay transactional group id ([6eccc78](https://github.com/AnyNoteInc/AnyNote/commit/6eccc78bd32d35d622fd13748931bdd0b8333a3d))
+- **mail:** use 'personal' as sendsay transactional group id ([6eccc78](https://github.com/AnyNoteInc/AnyNote/commit/6eccc78bd32d35d622fd13748931bdd0b8333a3d))
 
 # [1.10.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.9.0...v1.10.0) (2026-05-10)
 
-
 ### Features
 
-* legal-grade user consent tracking ([#8](https://github.com/AnyNoteInc/AnyNote/issues/8)) ([c2cdadb](https://github.com/AnyNoteInc/AnyNote/commit/c2cdadb20ffdc27264f323d9c062b183af8118fd))
+- legal-grade user consent tracking ([#8](https://github.com/AnyNoteInc/AnyNote/issues/8)) ([c2cdadb](https://github.com/AnyNoteInc/AnyNote/commit/c2cdadb20ffdc27264f323d9c062b183af8118fd))
 
 # [1.9.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.8.0...v1.9.0) (2026-05-09)
 
-
 ### Bug Fixes
 
-* **mail:** swallow sendsay errors instead of throwing plain objects ([bf2e0df](https://github.com/AnyNoteInc/AnyNote/commit/bf2e0df7750e7057ee2bb8cf2333cf40e25d0d0b))
-
+- **mail:** swallow sendsay errors instead of throwing plain objects ([bf2e0df](https://github.com/AnyNoteInc/AnyNote/commit/bf2e0df7750e7057ee2bb8cf2333cf40e25d0d0b))
 
 ### Features
 
-* **web:** redirect to /profile 3s after sign-up success ([ec4f2bc](https://github.com/AnyNoteInc/AnyNote/commit/ec4f2bc12dd2200fb25ee8e5c11cca3ddb328c3d))
+- **web:** redirect to /profile 3s after sign-up success ([ec4f2bc](https://github.com/AnyNoteInc/AnyNote/commit/ec4f2bc12dd2200fb25ee8e5c11cca3ddb328c3d))
 
 # [1.8.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.7.1...v1.8.0) (2026-05-08)
 
-
 ### Features
 
-* add navigation ([88c3c5f](https://github.com/AnyNoteInc/AnyNote/commit/88c3c5f5b9dcd5131789f460454ab9dfdcd347ac))
+- add navigation ([88c3c5f](https://github.com/AnyNoteInc/AnyNote/commit/88c3c5f5b9dcd5131789f460454ab9dfdcd347ac))
 
 ## [1.7.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.7.0...v1.7.1) (2026-05-08)
 

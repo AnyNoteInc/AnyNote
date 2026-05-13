@@ -20,10 +20,7 @@ describe('computeReminderState', () => {
 
   it('returns red when now is past dueAt', () => {
     expect(
-      computeReminderState(
-        { dueAt: '2026-05-11T11:59:00.000Z', offsets: [0], doneAt: null },
-        now,
-      ),
+      computeReminderState({ dueAt: '2026-05-11T11:59:00.000Z', offsets: [0], doneAt: null }, now),
     ).toBe('red')
   })
 
@@ -47,10 +44,7 @@ describe('computeReminderState', () => {
 
   it('treats no offsets as instantaneous fire — yellow only at dueAt', () => {
     expect(
-      computeReminderState(
-        { dueAt: '2026-05-11T13:00:00.000Z', offsets: [], doneAt: null },
-        now,
-      ),
+      computeReminderState({ dueAt: '2026-05-11T13:00:00.000Z', offsets: [], doneAt: null }, now),
     ).toBe('gray')
   })
 })

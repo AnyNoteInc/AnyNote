@@ -61,8 +61,8 @@ export default async function ConsentsSettingsPage() {
           Согласия
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Документы, которые вы приняли при регистрации. Маркетинговые рассылки можно
-          включить или отключить в любой момент.
+          Документы, которые вы приняли при регистрации. Маркетинговые рассылки можно включить или
+          отключить в любой момент.
         </Typography>
       </Stack>
       <ConsentsTable rows={rows} />

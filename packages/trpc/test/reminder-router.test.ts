@@ -37,11 +37,13 @@ function ctx(prisma: PrismaClient, userId = USER_ID) {
   }
 }
 
-function makeReminder(overrides: Partial<{
-  id: string
-  dueAt: string
-  label: string | null
-}> = {}) {
+function makeReminder(
+  overrides: Partial<{
+    id: string
+    dueAt: string
+    label: string | null
+  }> = {},
+) {
   return {
     id: overrides.id ?? REMINDER_ID,
     dueAt: overrides.dueAt ?? new Date(Date.now() + 86_400_000).toISOString(),
@@ -75,9 +77,13 @@ describe('reminder.syncForPage — upsert new reminder', () => {
         findUniqueOrThrow: vi.fn().mockResolvedValue({ workspaceId: WORKSPACE_ID }),
       },
       workspaceMember: {
-        findUnique: vi.fn().mockResolvedValue({ role: 'EDITOR', workspaceId: WORKSPACE_ID, userId: USER_ID }),
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ role: 'EDITOR', workspaceId: WORKSPACE_ID, userId: USER_ID }),
       },
-      $transaction: vi.fn().mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(txClient)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(txClient)),
     } as unknown as PrismaClient
 
     const caller = createCallerFactory(reminderRouter)(ctx(prisma))
@@ -130,9 +136,13 @@ describe('reminder.syncForPage — soft-delete when missing from payload', () =>
         findUniqueOrThrow: vi.fn().mockResolvedValue({ workspaceId: WORKSPACE_ID }),
       },
       workspaceMember: {
-        findUnique: vi.fn().mockResolvedValue({ role: 'EDITOR', workspaceId: WORKSPACE_ID, userId: USER_ID }),
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ role: 'EDITOR', workspaceId: WORKSPACE_ID, userId: USER_ID }),
       },
-      $transaction: vi.fn().mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(txClient)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(txClient)),
     } as unknown as PrismaClient
 
     const caller = createCallerFactory(reminderRouter)(ctx(prisma))
@@ -179,9 +189,13 @@ describe('reminder.syncForPage — undo restoration (soft-deleted UUID re-synced
         findUniqueOrThrow: vi.fn().mockResolvedValue({ workspaceId: WORKSPACE_ID }),
       },
       workspaceMember: {
-        findUnique: vi.fn().mockResolvedValue({ role: 'EDITOR', workspaceId: WORKSPACE_ID, userId: USER_ID }),
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ role: 'EDITOR', workspaceId: WORKSPACE_ID, userId: USER_ID }),
       },
-      $transaction: vi.fn().mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(txClient)),
+      $transaction: vi
+        .fn()
+        .mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(txClient)),
     } as unknown as PrismaClient
 
     const caller = createCallerFactory(reminderRouter)(ctx(prisma))
@@ -205,7 +219,9 @@ describe('reminder.syncForPage — rejects VIEWER role', () => {
         findUniqueOrThrow: vi.fn().mockResolvedValue({ workspaceId: WORKSPACE_ID }),
       },
       workspaceMember: {
-        findUnique: vi.fn().mockResolvedValue({ role: 'VIEWER', workspaceId: WORKSPACE_ID, userId: USER_ID }),
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ role: 'VIEWER', workspaceId: WORKSPACE_ID, userId: USER_ID }),
       },
       $transaction: vi.fn(),
     } as unknown as PrismaClient
@@ -229,7 +245,9 @@ describe('reminder.syncForPage — rejects LIST audience with non-member recipie
         findUniqueOrThrow: vi.fn().mockResolvedValue({ workspaceId: WORKSPACE_ID }),
       },
       workspaceMember: {
-        findUnique: vi.fn().mockResolvedValue({ role: 'EDITOR', workspaceId: WORKSPACE_ID, userId: USER_ID }),
+        findUnique: vi
+          .fn()
+          .mockResolvedValue({ role: 'EDITOR', workspaceId: WORKSPACE_ID, userId: USER_ID }),
         findMany: vi.fn().mockResolvedValue([]), // no members match the recipient
       },
       $transaction: vi.fn(),

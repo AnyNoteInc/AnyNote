@@ -13,6 +13,7 @@
 ## File map
 
 **New files:**
+
 - `packages/db/prisma/migrations/<ts>_notifications_v1/migration.sql` — schema + backfill (keeps `user_preferences.notification_settings` column)
 - `packages/db/prisma/migrations/<ts>_notifications_drop_legacy_settings/migration.sql` — drop legacy column at the end
 - `packages/notifications/` — new workspace package
@@ -55,6 +56,7 @@
 - `apps/e2e/notifications.spec.ts`
 
 **Modified files:**
+
 - `packages/db/prisma/schema.prisma` — add 4 enums + 5 models, relations on `User` and `Workspace`
 - `packages/auth/src/auth.ts` — replace 4 direct `sendMailNow` calls with `notify.*` helpers
 - `packages/auth/package.json` — add `@repo/notifications` workspace dep
@@ -93,6 +95,7 @@
 ### Task 1: Add Prisma schema (enums + tables, no destructive changes yet)
 
 **Files:**
+
 - Modify: `packages/db/prisma/schema.prisma`
 
 - [ ] **Step 1: Add enums to schema**
@@ -341,6 +344,7 @@ git commit -m "feat(db): add notifications schema (events, in-app, deliveries, p
 ### Task 2: Create the notifications workspace package
 
 **Files:**
+
 - Create: `packages/notifications/package.json`
 - Create: `packages/notifications/tsconfig.json`
 - Create: `packages/notifications/vitest.config.ts`
@@ -472,6 +476,7 @@ git commit -m "feat(notifications): scaffold @repo/notifications workspace packa
 ### Task 3: Define types and re-export Prisma enums
 
 **Files:**
+
 - Create: `packages/notifications/src/types.ts`
 - Modify: `packages/notifications/src/index.ts`
 
@@ -543,6 +548,7 @@ git commit -m "feat(notifications): types and prisma enum re-exports"
 ### Task 4: EVENT_CATALOG and exhaustiveness test
 
 **Files:**
+
 - Create: `packages/notifications/src/catalog.ts`
 - Create: `packages/notifications/test/catalog.test.ts`
 - Modify: `packages/notifications/src/index.ts`
@@ -569,7 +575,9 @@ describe('EVENT_CATALOG', () => {
       for (const locked of descriptor.lockedChannels) {
         const inDefaults = descriptor.defaultChannels.includes(locked)
         const isInApp = locked === 'IN_APP'
-        expect(inDefaults || isInApp, `${type}: locked channel ${locked} not in defaults`).toBe(true)
+        expect(inDefaults || isInApp, `${type}: locked channel ${locked} not in defaults`).toBe(
+          true,
+        )
       }
     }
   })
@@ -577,7 +585,9 @@ describe('EVENT_CATALOG', () => {
   it('MARKETING events require MARKETING consent', () => {
     for (const [type, descriptor] of Object.entries(EVENT_CATALOG)) {
       if (descriptor.category === 'MARKETING') {
-        expect(descriptor.requiresConsent, `${type}: must require MARKETING consent`).toBe('MARKETING')
+        expect(descriptor.requiresConsent, `${type}: must require MARKETING consent`).toBe(
+          'MARKETING',
+        )
       }
     }
   })
@@ -608,24 +618,99 @@ import type { NotificationEventType } from '@repo/db'
 
 export const EVENT_CATALOG: Record<NotificationEventType, EventDescriptor> = {
   // SERVICE
-  VERIFY_EMAIL:               { category: 'SERVICE',       defaultChannels: ['EMAIL'],            lockedChannels: ['EMAIL'],   requiresConsent: null },
-  RESET_PASSWORD:             { category: 'SERVICE',       defaultChannels: ['EMAIL'],            lockedChannels: ['EMAIL'],   requiresConsent: null },
-  PASSWORD_CHANGED:           { category: 'SERVICE',       defaultChannels: ['EMAIL'],            lockedChannels: ['EMAIL'],   requiresConsent: null },
-  EMAIL_CHANGED:              { category: 'SERVICE',       defaultChannels: ['EMAIL'],            lockedChannels: ['EMAIL'],   requiresConsent: null },
-  WELCOME:                    { category: 'SERVICE',       defaultChannels: ['EMAIL'],            lockedChannels: ['EMAIL'],   requiresConsent: null },
-  ACCOUNT_DELETION_REQUESTED: { category: 'SERVICE',       defaultChannels: ['EMAIL'],            lockedChannels: ['EMAIL'],   requiresConsent: null },
-  ACCOUNT_DELETION_COMPLETED: { category: 'SERVICE',       defaultChannels: ['EMAIL'],            lockedChannels: ['EMAIL'],   requiresConsent: null },
+  VERIFY_EMAIL: {
+    category: 'SERVICE',
+    defaultChannels: ['EMAIL'],
+    lockedChannels: ['EMAIL'],
+    requiresConsent: null,
+  },
+  RESET_PASSWORD: {
+    category: 'SERVICE',
+    defaultChannels: ['EMAIL'],
+    lockedChannels: ['EMAIL'],
+    requiresConsent: null,
+  },
+  PASSWORD_CHANGED: {
+    category: 'SERVICE',
+    defaultChannels: ['EMAIL'],
+    lockedChannels: ['EMAIL'],
+    requiresConsent: null,
+  },
+  EMAIL_CHANGED: {
+    category: 'SERVICE',
+    defaultChannels: ['EMAIL'],
+    lockedChannels: ['EMAIL'],
+    requiresConsent: null,
+  },
+  WELCOME: {
+    category: 'SERVICE',
+    defaultChannels: ['EMAIL'],
+    lockedChannels: ['EMAIL'],
+    requiresConsent: null,
+  },
+  ACCOUNT_DELETION_REQUESTED: {
+    category: 'SERVICE',
+    defaultChannels: ['EMAIL'],
+    lockedChannels: ['EMAIL'],
+    requiresConsent: null,
+  },
+  ACCOUNT_DELETION_COMPLETED: {
+    category: 'SERVICE',
+    defaultChannels: ['EMAIL'],
+    lockedChannels: ['EMAIL'],
+    requiresConsent: null,
+  },
   // SECURITY
-  NEW_LOGIN:           { category: 'SECURITY',      defaultChannels: ['EMAIL', 'IN_APP'],  lockedChannels: ['IN_APP'],  requiresConsent: null },
-  SUSPICIOUS_ACTIVITY: { category: 'SECURITY',      defaultChannels: ['EMAIL', 'IN_APP'],  lockedChannels: ['IN_APP'],  requiresConsent: null },
+  NEW_LOGIN: {
+    category: 'SECURITY',
+    defaultChannels: ['EMAIL', 'IN_APP'],
+    lockedChannels: ['IN_APP'],
+    requiresConsent: null,
+  },
+  SUSPICIOUS_ACTIVITY: {
+    category: 'SECURITY',
+    defaultChannels: ['EMAIL', 'IN_APP'],
+    lockedChannels: ['IN_APP'],
+    requiresConsent: null,
+  },
   // COLLABORATION
-  WORKSPACE_INVITE: { category: 'COLLABORATION', defaultChannels: ['EMAIL', 'IN_APP'],  lockedChannels: ['IN_APP'],  requiresConsent: null },
-  ROLE_CHANGED:     { category: 'COLLABORATION', defaultChannels: ['IN_APP'],           lockedChannels: ['IN_APP'],  requiresConsent: null },
-  PAGE_MENTION:     { category: 'COLLABORATION', defaultChannels: ['EMAIL', 'IN_APP'],  lockedChannels: ['IN_APP'],  requiresConsent: null },
-  COMMENT_CREATED:  { category: 'COLLABORATION', defaultChannels: ['EMAIL', 'IN_APP'],  lockedChannels: ['IN_APP'],  requiresConsent: null },
+  WORKSPACE_INVITE: {
+    category: 'COLLABORATION',
+    defaultChannels: ['EMAIL', 'IN_APP'],
+    lockedChannels: ['IN_APP'],
+    requiresConsent: null,
+  },
+  ROLE_CHANGED: {
+    category: 'COLLABORATION',
+    defaultChannels: ['IN_APP'],
+    lockedChannels: ['IN_APP'],
+    requiresConsent: null,
+  },
+  PAGE_MENTION: {
+    category: 'COLLABORATION',
+    defaultChannels: ['EMAIL', 'IN_APP'],
+    lockedChannels: ['IN_APP'],
+    requiresConsent: null,
+  },
+  COMMENT_CREATED: {
+    category: 'COLLABORATION',
+    defaultChannels: ['EMAIL', 'IN_APP'],
+    lockedChannels: ['IN_APP'],
+    requiresConsent: null,
+  },
   // MARKETING
-  WEEKLY_DIGEST:  { category: 'MARKETING', defaultChannels: ['EMAIL'], lockedChannels: [], requiresConsent: 'MARKETING' },
-  PRODUCT_UPDATE: { category: 'MARKETING', defaultChannels: ['EMAIL'], lockedChannels: [], requiresConsent: 'MARKETING' },
+  WEEKLY_DIGEST: {
+    category: 'MARKETING',
+    defaultChannels: ['EMAIL'],
+    lockedChannels: [],
+    requiresConsent: 'MARKETING',
+  },
+  PRODUCT_UPDATE: {
+    category: 'MARKETING',
+    defaultChannels: ['EMAIL'],
+    lockedChannels: [],
+    requiresConsent: 'MARKETING',
+  },
 }
 ```
 
@@ -662,6 +747,7 @@ git commit -m "feat(notifications): EVENT_CATALOG with exhaustiveness tests"
 ### Task 5: `resolvePreferences()`
 
 **Files:**
+
 - Create: `packages/notifications/src/resolve-preferences.ts`
 - Create: `packages/notifications/test/resolve-preferences.test.ts`
 
@@ -682,7 +768,13 @@ function makeTx(overrides: {
   consents?: Array<{ documentType: string; accepted: boolean; createdAt: Date }>
 }) {
   return {
-    user: { findUniqueOrThrow: vi.fn(async () => ({ email: 'u@e.com', emailVerified: true, ...overrides.user })) },
+    user: {
+      findUniqueOrThrow: vi.fn(async () => ({
+        email: 'u@e.com',
+        emailVerified: true,
+        ...overrides.user,
+      })),
+    },
     notificationPreference: { findMany: vi.fn(async () => overrides.prefs ?? []) },
     pushSubscription: { findMany: vi.fn(async () => overrides.pushSubs ?? []) },
     userConsent: { findFirst: vi.fn(async () => overrides.consents?.[0] ?? null) },
@@ -714,13 +806,17 @@ describe('resolvePreferences', () => {
   })
 
   it('blocks MARKETING email if no MARKETING consent or accepted=false', async () => {
-    const tx = makeTx({ consents: [{ documentType: 'MARKETING', accepted: false, createdAt: new Date() }] })
+    const tx = makeTx({
+      consents: [{ documentType: 'MARKETING', accepted: false, createdAt: new Date() }],
+    })
     const result = await resolvePreferences(tx, 'u1', EVENT_CATALOG.WEEKLY_DIGEST)
     expect(result.email).toBeNull()
   })
 
   it('allows MARKETING email when consent=true', async () => {
-    const tx = makeTx({ consents: [{ documentType: 'MARKETING', accepted: true, createdAt: new Date() }] })
+    const tx = makeTx({
+      consents: [{ documentType: 'MARKETING', accepted: true, createdAt: new Date() }],
+    })
     const result = await resolvePreferences(tx, 'u1', EVENT_CATALOG.WEEKLY_DIGEST)
     expect(result.email).toBe('u@e.com')
   })
@@ -824,6 +920,7 @@ git commit -m "feat(notifications): preference resolver with consent gate and lo
 ### Task 6: `emit()` core
 
 **Files:**
+
 - Create: `packages/notifications/src/emit.ts`
 - Create: `packages/notifications/test/emit.test.ts`
 - Modify: `packages/notifications/src/index.ts`
@@ -851,10 +948,30 @@ function makeTx(overrides?: {
     notificationDelivery: [],
   }
   const tx = {
-    notificationEvent: { create: vi.fn(async ({ data }) => { created.notificationEvent.push(data); return { id: 'evt1', ...data } }) },
-    notificationInApp: { create: vi.fn(async ({ data }) => { created.notificationInApp.push(data); return data }) },
-    notificationDelivery: { create: vi.fn(async ({ data }) => { created.notificationDelivery.push(data); return data }) },
-    user: { findUniqueOrThrow: vi.fn(async () => ({ email: overrides?.email ?? 'u@e.com', emailVerified: true })) },
+    notificationEvent: {
+      create: vi.fn(async ({ data }) => {
+        created.notificationEvent.push(data)
+        return { id: 'evt1', ...data }
+      }),
+    },
+    notificationInApp: {
+      create: vi.fn(async ({ data }) => {
+        created.notificationInApp.push(data)
+        return data
+      }),
+    },
+    notificationDelivery: {
+      create: vi.fn(async ({ data }) => {
+        created.notificationDelivery.push(data)
+        return data
+      }),
+    },
+    user: {
+      findUniqueOrThrow: vi.fn(async () => ({
+        email: overrides?.email ?? 'u@e.com',
+        emailVerified: true,
+      })),
+    },
     notificationPreference: { findFirst: vi.fn(async () => null) },
     pushSubscription: { findMany: vi.fn(async () => overrides?.pushSubs ?? []) },
     userConsent: { findFirst: vi.fn(async () => null) },
@@ -879,7 +996,10 @@ describe('emit', () => {
       payload: { workspaceName: 'X' },
     })
     expect(created.notificationEvent).toHaveLength(1)
-    expect(created.notificationEvent[0]).toMatchObject({ type: 'WORKSPACE_INVITE', category: 'COLLABORATION' })
+    expect(created.notificationEvent[0]).toMatchObject({
+      type: 'WORKSPACE_INVITE',
+      category: 'COLLABORATION',
+    })
   })
 
   it('writes notification_in_app for events with IN_APP locked or default', async () => {
@@ -892,7 +1012,11 @@ describe('emit', () => {
   it('skips notification_in_app for SERVICE events (no IN_APP in catalog)', async () => {
     const { tx, created } = makeTx()
     const prisma = makePrisma(tx)
-    await emit(prisma, { type: 'VERIFY_EMAIL', userId: 'u1', payload: { link: 'x', expiresAtIso: '2026-01-01T00:00:00Z' } })
+    await emit(prisma, {
+      type: 'VERIFY_EMAIL',
+      userId: 'u1',
+      payload: { link: 'x', expiresAtIso: '2026-01-01T00:00:00Z' },
+    })
     expect(created.notificationInApp).toHaveLength(0)
   })
 
@@ -900,7 +1024,9 @@ describe('emit', () => {
     const { tx, created } = makeTx()
     const prisma = makePrisma(tx)
     await emit(prisma, { type: 'WORKSPACE_INVITE', userId: 'u1', payload: {} })
-    const emailDeliveries = created.notificationDelivery.filter((d: { channel: string }) => d.channel === 'EMAIL')
+    const emailDeliveries = created.notificationDelivery.filter(
+      (d: { channel: string }) => d.channel === 'EMAIL',
+    )
     expect(emailDeliveries).toHaveLength(1)
   })
 
@@ -914,7 +1040,9 @@ describe('emit', () => {
       payload: { firstName: 'A', link: 'l', expiresAtIso: '2026-01-01T00:00:00Z' },
     })
     expect(sendMailNowMock).toHaveBeenCalledOnce()
-    const emailDeliveries = created.notificationDelivery.filter((d: { channel: string }) => d.channel === 'EMAIL')
+    const emailDeliveries = created.notificationDelivery.filter(
+      (d: { channel: string }) => d.channel === 'EMAIL',
+    )
     expect(emailDeliveries).toHaveLength(0)
   })
 
@@ -924,7 +1052,9 @@ describe('emit', () => {
     await emit(prisma, { type: 'NEW_LOGIN', userId: 'u1', payload: {} })
     // NEW_LOGIN has IN_APP + EMAIL by default; push not in defaults (we'd need to opt in)
     // So zero push subs because WEB_PUSH not in defaultChannels.
-    const pushDeliveries = created.notificationDelivery.filter((d: { channel: string }) => d.channel === 'WEB_PUSH')
+    const pushDeliveries = created.notificationDelivery.filter(
+      (d: { channel: string }) => d.channel === 'WEB_PUSH',
+    )
     expect(pushDeliveries).toHaveLength(0)
   })
 })
@@ -951,10 +1081,7 @@ import type { EmitArgs } from './types.ts'
 
 type Tx = Prisma.TransactionClient
 
-export async function emit(
-  prisma: PrismaClient,
-  args: EmitArgs,
-): Promise<NotificationEvent> {
+export async function emit(prisma: PrismaClient, args: EmitArgs): Promise<NotificationEvent> {
   const descriptor = EVENT_CATALOG[args.type]
   if (!descriptor) throw new Error(`emit: unknown event type ${args.type}`)
 
@@ -972,8 +1099,7 @@ export async function emit(
     })
 
     const wantsInApp =
-      descriptor.defaultChannels.includes('IN_APP') ||
-      descriptor.lockedChannels.includes('IN_APP')
+      descriptor.defaultChannels.includes('IN_APP') || descriptor.lockedChannels.includes('IN_APP')
     if (wantsInApp) {
       await tx.notificationInApp.create({
         data: { eventId: event.id, userId: args.userId },
@@ -1061,7 +1187,10 @@ Expected: PASS for 5 tests; the SERVICE-sendMailNow test PASSES because the regi
 In `test/emit.test.ts`, add a hoisted mock for the registry returning a fake email:
 
 ```ts
-const renderEmailMock = vi.fn(() => ({ kind: 'verify-email', data: { firstName: '', link: 'l', expiresAtIso: '2026-01-01T00:00:00Z' } }))
+const renderEmailMock = vi.fn(() => ({
+  kind: 'verify-email',
+  data: { firstName: '', link: 'l', expiresAtIso: '2026-01-01T00:00:00Z' },
+}))
 vi.mock('../src/templates/registry.ts', () => ({ renderEmailForEvent: renderEmailMock }))
 ```
 
@@ -1089,6 +1218,7 @@ git commit -m "feat(notifications): emit() core with sync SERVICE email + transa
 ### Task 7: In-app + push template registry per event type
 
 **Files:**
+
 - Create: `packages/notifications/src/templates/in-app.ts`
 - Create: `packages/notifications/src/templates/push.ts`
 - Create: `packages/notifications/src/templates/email.ts`
@@ -1134,7 +1264,11 @@ describe('renderInApp', () => {
 
 describe('renderPushPayload', () => {
   it('returns title + body + url for WORKSPACE_INVITE', () => {
-    const result = renderPushPayload('WORKSPACE_INVITE', { workspaceName: 'Marketing', inviterName: 'Anna' }, '/workspaces/abc')
+    const result = renderPushPayload(
+      'WORKSPACE_INVITE',
+      { workspaceName: 'Marketing', inviterName: 'Anna' },
+      '/workspaces/abc',
+    )
     expect(result).not.toBeNull()
     expect(result!.url).toBe('/workspaces/abc')
   })
@@ -1142,12 +1276,21 @@ describe('renderPushPayload', () => {
 
 describe('renderEmailForEvent', () => {
   it('maps VERIFY_EMAIL to mail kind', () => {
-    const result = renderEmailForEvent('VERIFY_EMAIL', { firstName: 'A', link: 'l', expiresAtIso: '2026-01-01T00:00:00Z' })
+    const result = renderEmailForEvent('VERIFY_EMAIL', {
+      firstName: 'A',
+      link: 'l',
+      expiresAtIso: '2026-01-01T00:00:00Z',
+    })
     expect(result?.kind).toBe('verify-email')
   })
 
   it('maps WORKSPACE_INVITE to invitation', () => {
-    const result = renderEmailForEvent('WORKSPACE_INVITE', { firstName: 'A', inviterName: 'B', workspaceName: 'X', link: 'http://l' })
+    const result = renderEmailForEvent('WORKSPACE_INVITE', {
+      firstName: 'A',
+      inviterName: 'B',
+      workspaceName: 'X',
+      link: 'http://l',
+    })
     expect(result?.kind).toBe('invitation')
   })
 
@@ -1258,25 +1401,85 @@ export function renderEmailForEvent(
   const p = payload as Record<string, string | undefined>
   switch (type) {
     case 'VERIFY_EMAIL':
-      return { kind: 'verify-email', data: { firstName: p.firstName ?? '', link: p.link ?? '', expiresAtIso: p.expiresAtIso ?? '' } }
+      return {
+        kind: 'verify-email',
+        data: {
+          firstName: p.firstName ?? '',
+          link: p.link ?? '',
+          expiresAtIso: p.expiresAtIso ?? '',
+        },
+      }
     case 'RESET_PASSWORD':
-      return { kind: 'reset-password', data: { firstName: p.firstName ?? '', link: p.link ?? '', expiresAtIso: p.expiresAtIso ?? '' } }
+      return {
+        kind: 'reset-password',
+        data: {
+          firstName: p.firstName ?? '',
+          link: p.link ?? '',
+          expiresAtIso: p.expiresAtIso ?? '',
+        },
+      }
     case 'PASSWORD_CHANGED':
-      return { kind: 'password-changed', data: { firstName: p.firstName ?? '', supportEmail: p.supportEmail ?? 'support@anynote.dev', ipAddress: p.ipAddress } }
+      return {
+        kind: 'password-changed',
+        data: {
+          firstName: p.firstName ?? '',
+          supportEmail: p.supportEmail ?? 'support@anynote.dev',
+          ipAddress: p.ipAddress,
+        },
+      }
     case 'EMAIL_CHANGED':
-      return { kind: 'email-changed', data: { firstName: p.firstName ?? '', oldEmail: p.oldEmail ?? '', newEmail: p.newEmail ?? '', isOldRecipient: payload.isOldRecipient === true } }
+      return {
+        kind: 'email-changed',
+        data: {
+          firstName: p.firstName ?? '',
+          oldEmail: p.oldEmail ?? '',
+          newEmail: p.newEmail ?? '',
+          isOldRecipient: payload.isOldRecipient === true,
+        },
+      }
     case 'WELCOME':
       return { kind: 'welcome', data: { firstName: p.firstName ?? '', appUrl: p.appUrl ?? '' } }
     case 'ACCOUNT_DELETION_REQUESTED':
-      return { kind: 'account-deletion-requested', data: { firstName: p.firstName ?? '', link: p.link ?? '', expiresAtIso: p.expiresAtIso ?? '' } }
+      return {
+        kind: 'account-deletion-requested',
+        data: {
+          firstName: p.firstName ?? '',
+          link: p.link ?? '',
+          expiresAtIso: p.expiresAtIso ?? '',
+        },
+      }
     case 'ACCOUNT_DELETION_COMPLETED':
       return { kind: 'account-deletion-completed', data: { firstName: p.firstName ?? '' } }
     case 'NEW_LOGIN':
-      return { kind: 'new-login', data: { firstName: p.firstName ?? '', ipAddress: p.ipAddress ?? '', userAgent: p.userAgent ?? '', location: p.location, loggedAtIso: p.loggedAtIso ?? new Date().toISOString() } }
+      return {
+        kind: 'new-login',
+        data: {
+          firstName: p.firstName ?? '',
+          ipAddress: p.ipAddress ?? '',
+          userAgent: p.userAgent ?? '',
+          location: p.location,
+          loggedAtIso: p.loggedAtIso ?? new Date().toISOString(),
+        },
+      }
     case 'SUSPICIOUS_ACTIVITY':
-      return { kind: 'suspicious-activity', data: { firstName: p.firstName ?? '', reason: p.reason ?? '', lockedUntilIso: p.lockedUntilIso } }
+      return {
+        kind: 'suspicious-activity',
+        data: {
+          firstName: p.firstName ?? '',
+          reason: p.reason ?? '',
+          lockedUntilIso: p.lockedUntilIso,
+        },
+      }
     case 'WORKSPACE_INVITE':
-      return { kind: 'invitation', data: { firstName: p.firstName, inviterName: p.inviterName ?? '', workspaceName: p.workspaceName ?? '', link: p.link ?? '' } }
+      return {
+        kind: 'invitation',
+        data: {
+          firstName: p.firstName,
+          inviterName: p.inviterName ?? '',
+          workspaceName: p.workspaceName ?? '',
+          link: p.link ?? '',
+        },
+      }
     // ROLE_CHANGED, PAGE_MENTION, COMMENT_CREATED, WEEKLY_DIGEST, PRODUCT_UPDATE: no email template yet (return null)
     default:
       return null
@@ -1311,7 +1514,10 @@ const rendered = renderEmailForEvent(args.type, args.payload)
 In `test/emit.test.ts`, the hoisted mock:
 
 ```ts
-const renderEmailMock = vi.fn(() => ({ kind: 'verify-email', data: { firstName: '', link: 'l', expiresAtIso: '2026-01-01T00:00:00Z' } }))
+const renderEmailMock = vi.fn(() => ({
+  kind: 'verify-email',
+  data: { firstName: '', link: 'l', expiresAtIso: '2026-01-01T00:00:00Z' },
+}))
 vi.mock('../src/templates/registry.ts', () => ({ renderEmailForEvent: renderEmailMock }))
 ```
 
@@ -1337,6 +1543,7 @@ git commit -m "feat(notifications): templates for in-app, push payload, and emai
 ### Task 8: Typed `notify.*` helpers
 
 **Files:**
+
 - Create: `packages/notifications/src/helpers.ts`
 - Create: `packages/notifications/test/helpers.test.ts`
 - Modify: `packages/notifications/src/index.ts`
@@ -1366,12 +1573,15 @@ describe('notify helpers', () => {
       firstName: 'Bob',
       link: 'https://x/inv/abc',
     })
-    expect(emitMock).toHaveBeenCalledWith(prisma, expect.objectContaining({
-      type: 'WORKSPACE_INVITE',
-      userId: 'u1',
-      workspaceId: 'w1',
-      resourceUrl: '/workspaces/w1',
-    }))
+    expect(emitMock).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({
+        type: 'WORKSPACE_INVITE',
+        userId: 'u1',
+        workspaceId: 'w1',
+        resourceUrl: '/workspaces/w1',
+      }),
+    )
   })
 
   it('verifyEmail builds correct payload', async () => {
@@ -1383,10 +1593,13 @@ describe('notify helpers', () => {
       link: 'l',
       expiresAtIso: '2026-01-01T00:00:00Z',
     })
-    expect(emitMock).toHaveBeenCalledWith(prisma, expect.objectContaining({
-      type: 'VERIFY_EMAIL',
-      userId: 'u1',
-    }))
+    expect(emitMock).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({
+        type: 'VERIFY_EMAIL',
+        userId: 'u1',
+      }),
+    )
   })
 })
 ```
@@ -1407,25 +1620,68 @@ import type { PrismaClient } from '@repo/db'
 import { emit } from './emit.ts'
 
 export const notify = {
-  verifyEmail: (prisma: PrismaClient, args: { userId: string; firstName: string; link: string; expiresAtIso: string }) =>
-    emit(prisma, { type: 'VERIFY_EMAIL', userId: args.userId, payload: args }),
-  resetPassword: (prisma: PrismaClient, args: { userId: string; firstName: string; link: string; expiresAtIso: string }) =>
-    emit(prisma, { type: 'RESET_PASSWORD', userId: args.userId, payload: args }),
-  passwordChanged: (prisma: PrismaClient, args: { userId: string; firstName: string; ipAddress?: string; supportEmail?: string }) =>
-    emit(prisma, { type: 'PASSWORD_CHANGED', userId: args.userId, payload: args }),
-  emailChanged: (prisma: PrismaClient, args: { userId: string; firstName: string; oldEmail: string; newEmail: string; isOldRecipient: boolean }) =>
-    emit(prisma, { type: 'EMAIL_CHANGED', userId: args.userId, payload: args }),
+  verifyEmail: (
+    prisma: PrismaClient,
+    args: { userId: string; firstName: string; link: string; expiresAtIso: string },
+  ) => emit(prisma, { type: 'VERIFY_EMAIL', userId: args.userId, payload: args }),
+  resetPassword: (
+    prisma: PrismaClient,
+    args: { userId: string; firstName: string; link: string; expiresAtIso: string },
+  ) => emit(prisma, { type: 'RESET_PASSWORD', userId: args.userId, payload: args }),
+  passwordChanged: (
+    prisma: PrismaClient,
+    args: { userId: string; firstName: string; ipAddress?: string; supportEmail?: string },
+  ) => emit(prisma, { type: 'PASSWORD_CHANGED', userId: args.userId, payload: args }),
+  emailChanged: (
+    prisma: PrismaClient,
+    args: {
+      userId: string
+      firstName: string
+      oldEmail: string
+      newEmail: string
+      isOldRecipient: boolean
+    },
+  ) => emit(prisma, { type: 'EMAIL_CHANGED', userId: args.userId, payload: args }),
   welcome: (prisma: PrismaClient, args: { userId: string; firstName: string; appUrl: string }) =>
     emit(prisma, { type: 'WELCOME', userId: args.userId, payload: args }),
-  accountDeletionRequested: (prisma: PrismaClient, args: { userId: string; firstName: string; link: string; expiresAtIso: string }) =>
-    emit(prisma, { type: 'ACCOUNT_DELETION_REQUESTED', userId: args.userId, payload: args }),
+  accountDeletionRequested: (
+    prisma: PrismaClient,
+    args: { userId: string; firstName: string; link: string; expiresAtIso: string },
+  ) => emit(prisma, { type: 'ACCOUNT_DELETION_REQUESTED', userId: args.userId, payload: args }),
   accountDeletionCompleted: (prisma: PrismaClient, args: { userId: string; firstName: string }) =>
     emit(prisma, { type: 'ACCOUNT_DELETION_COMPLETED', userId: args.userId, payload: args }),
-  newLogin: (prisma: PrismaClient, args: { userId: string; firstName: string; ipAddress: string; userAgent: string; location?: string; loggedAtIso?: string }) =>
-    emit(prisma, { type: 'NEW_LOGIN', userId: args.userId, payload: { ...args, loggedAtIso: args.loggedAtIso ?? new Date().toISOString() } }),
-  suspiciousActivity: (prisma: PrismaClient, args: { userId: string; firstName: string; reason: string; lockedUntilIso?: string }) =>
-    emit(prisma, { type: 'SUSPICIOUS_ACTIVITY', userId: args.userId, payload: args }),
-  workspaceInvite: (prisma: PrismaClient, args: { userId: string; workspaceId: string; actorId?: string; firstName?: string; inviterName: string; workspaceName: string; link: string }) =>
+  newLogin: (
+    prisma: PrismaClient,
+    args: {
+      userId: string
+      firstName: string
+      ipAddress: string
+      userAgent: string
+      location?: string
+      loggedAtIso?: string
+    },
+  ) =>
+    emit(prisma, {
+      type: 'NEW_LOGIN',
+      userId: args.userId,
+      payload: { ...args, loggedAtIso: args.loggedAtIso ?? new Date().toISOString() },
+    }),
+  suspiciousActivity: (
+    prisma: PrismaClient,
+    args: { userId: string; firstName: string; reason: string; lockedUntilIso?: string },
+  ) => emit(prisma, { type: 'SUSPICIOUS_ACTIVITY', userId: args.userId, payload: args }),
+  workspaceInvite: (
+    prisma: PrismaClient,
+    args: {
+      userId: string
+      workspaceId: string
+      actorId?: string
+      firstName?: string
+      inviterName: string
+      workspaceName: string
+      link: string
+    },
+  ) =>
     emit(prisma, {
       type: 'WORKSPACE_INVITE',
       userId: args.userId,
@@ -1434,7 +1690,17 @@ export const notify = {
       resourceUrl: `/workspaces/${args.workspaceId}`,
       payload: args,
     }),
-  roleChanged: (prisma: PrismaClient, args: { userId: string; workspaceId: string; actorId?: string; newRole: string; workspaceName: string; actorName?: string }) =>
+  roleChanged: (
+    prisma: PrismaClient,
+    args: {
+      userId: string
+      workspaceId: string
+      actorId?: string
+      newRole: string
+      workspaceName: string
+      actorName?: string
+    },
+  ) =>
     emit(prisma, {
       type: 'ROLE_CHANGED',
       userId: args.userId,
@@ -1444,7 +1710,17 @@ export const notify = {
       payload: args,
     }),
   // Reserved stubs (no trigger points wired in v1).
-  pageMention: (prisma: PrismaClient, args: { userId: string; workspaceId: string; pageId: string; actorId: string; actorName: string; snippet: string }) =>
+  pageMention: (
+    prisma: PrismaClient,
+    args: {
+      userId: string
+      workspaceId: string
+      pageId: string
+      actorId: string
+      actorName: string
+      snippet: string
+    },
+  ) =>
     emit(prisma, {
       type: 'PAGE_MENTION',
       userId: args.userId,
@@ -1453,7 +1729,18 @@ export const notify = {
       resourceUrl: `/workspaces/${args.workspaceId}/pages/${args.pageId}`,
       payload: args,
     }),
-  commentCreated: (prisma: PrismaClient, args: { userId: string; workspaceId: string; pageId: string; commentId: string; actorId: string; actorName: string; snippet: string }) =>
+  commentCreated: (
+    prisma: PrismaClient,
+    args: {
+      userId: string
+      workspaceId: string
+      pageId: string
+      commentId: string
+      actorId: string
+      actorName: string
+      snippet: string
+    },
+  ) =>
     emit(prisma, {
       type: 'COMMENT_CREATED',
       userId: args.userId,
@@ -1464,8 +1751,16 @@ export const notify = {
     }),
   weeklyDigest: (prisma: PrismaClient, args: { userId: string; period: string; summary: string }) =>
     emit(prisma, { type: 'WEEKLY_DIGEST', userId: args.userId, payload: args }),
-  productUpdate: (prisma: PrismaClient, args: { userId: string; title: string; body: string; url?: string }) =>
-    emit(prisma, { type: 'PRODUCT_UPDATE', userId: args.userId, resourceUrl: args.url, payload: args }),
+  productUpdate: (
+    prisma: PrismaClient,
+    args: { userId: string; title: string; body: string; url?: string },
+  ) =>
+    emit(prisma, {
+      type: 'PRODUCT_UPDATE',
+      userId: args.userId,
+      resourceUrl: args.url,
+      payload: args,
+    }),
 }
 ```
 
@@ -1504,6 +1799,7 @@ git commit -m "feat(notifications): typed notify.* helpers per event type"
 ### Task 9: Lock helper
 
 **Files:**
+
 - Create: `packages/notifications/src/worker/lock.ts`
 - Create: `packages/notifications/test/worker/lock.test.ts`
 
@@ -1521,7 +1817,9 @@ describe('lockPendingDeliveries', () => {
     const queryRaw = vi.fn(async () => [{ id: 'd1' }, { id: 'd2' }])
     const updateMany = vi.fn(async () => ({ count: 2 }))
     const tx = { $queryRaw: queryRaw, notificationDelivery: { updateMany } }
-    const prisma = { $transaction: vi.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)) } as never
+    const prisma = {
+      $transaction: vi.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
+    } as never
 
     const ids = await lockPendingDeliveries(prisma, { workerId: 'w1', batchSize: 50 })
     expect(ids).toEqual(['d1', 'd2'])
@@ -1535,7 +1833,9 @@ describe('lockPendingDeliveries', () => {
   it('returns empty array if nothing pending', async () => {
     const queryRaw = vi.fn(async () => [])
     const tx = { $queryRaw: queryRaw, notificationDelivery: { updateMany: vi.fn() } }
-    const prisma = { $transaction: vi.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)) } as never
+    const prisma = {
+      $transaction: vi.fn(async (fn: (t: typeof tx) => Promise<unknown>) => fn(tx)),
+    } as never
     const ids = await lockPendingDeliveries(prisma, { workerId: 'w1', batchSize: 10 })
     expect(ids).toEqual([])
   })
@@ -1600,6 +1900,7 @@ git commit -m "feat(notifications): worker lock helper with SKIP LOCKED"
 ### Task 10: `sendEmail` worker handler
 
 **Files:**
+
 - Create: `packages/notifications/src/worker/send-email.ts`
 - Create: `packages/notifications/test/worker/send-email.test.ts`
 
@@ -1613,7 +1914,10 @@ import { describe, expect, it, vi } from 'vitest'
 const sendMailNowMock = vi.fn(async () => undefined)
 vi.mock('@repo/mail', () => ({ sendMailNow: sendMailNowMock }))
 
-const renderMock = vi.fn(() => ({ kind: 'invitation', data: { firstName: 'A', inviterName: 'B', workspaceName: 'X', link: 'l' } }))
+const renderMock = vi.fn(() => ({
+  kind: 'invitation',
+  data: { firstName: 'A', inviterName: 'B', workspaceName: 'X', link: 'l' },
+}))
 vi.mock('../../src/templates/email.ts', () => ({ renderEmailForEvent: renderMock }))
 
 import { sendDeliveryEmail } from '../../src/worker/send-email.ts'
@@ -1708,6 +2012,7 @@ git commit -m "feat(notifications): email delivery handler"
 ### Task 11: `sendWebPush` worker handler
 
 **Files:**
+
 - Create: `packages/notifications/src/worker/send-web-push.ts`
 - Create: `packages/notifications/test/worker/send-web-push.test.ts`
 
@@ -1742,7 +2047,11 @@ describe('sendDeliveryWebPush', () => {
       id: 'd1',
       channel: 'WEB_PUSH',
       targetSubscription: { endpoint: 'https://push/x', p256dh: 'p', auth: 'a' },
-      event: { type: 'WORKSPACE_INVITE', payload: { workspaceName: 'X', inviterName: 'A' }, resourceUrl: '/workspaces/x' },
+      event: {
+        type: 'WORKSPACE_INVITE',
+        payload: { workspaceName: 'X', inviterName: 'A' },
+        resourceUrl: '/workspaces/x',
+      },
     } as never
     await sendDeliveryWebPush(delivery)
     expect(sendNotificationMock).toHaveBeenCalledOnce()
@@ -1887,6 +2196,7 @@ git commit -m "feat(notifications): web push delivery handler with 410/404 clean
 ### Task 12: Dispatcher
 
 **Files:**
+
 - Create: `packages/notifications/src/worker/dispatcher.ts`
 - Create: `packages/notifications/test/worker/dispatcher.test.ts`
 
@@ -1905,7 +2215,10 @@ vi.mock('../../src/worker/send-email.ts', () => ({ sendDeliveryEmail: sendEmailM
 
 const sendPushMock = vi.fn(async () => undefined)
 const GoneSubscriptionError = class extends Error {}
-vi.mock('../../src/worker/send-web-push.ts', () => ({ sendDeliveryWebPush: sendPushMock, GoneSubscriptionError }))
+vi.mock('../../src/worker/send-web-push.ts', () => ({
+  sendDeliveryWebPush: sendPushMock,
+  GoneSubscriptionError,
+}))
 
 import { runDispatcherTick } from '../../src/worker/dispatcher.ts'
 
@@ -1923,7 +2236,13 @@ describe('runDispatcherTick', () => {
   it('marks delivery DELIVERED on success', async () => {
     lockMock.mockResolvedValueOnce(['d1'])
     sendEmailMock.mockResolvedValueOnce(undefined)
-    const prisma = makePrisma({ id: 'd1', channel: 'EMAIL', attempts: 0, event: {}, targetSubscription: null })
+    const prisma = makePrisma({
+      id: 'd1',
+      channel: 'EMAIL',
+      attempts: 0,
+      event: {},
+      targetSubscription: null,
+    })
     await runDispatcherTick(prisma, { workerId: 'w1', batchSize: 10, maxAttempts: 5 })
     const updateCalls = (prisma as any).notificationDelivery.update.mock.calls
     expect(updateCalls[0][0]).toMatchObject({ where: { id: 'd1' }, data: { status: 'DELIVERED' } })
@@ -1932,7 +2251,13 @@ describe('runDispatcherTick', () => {
   it('increments attempts and reschedules on failure', async () => {
     lockMock.mockResolvedValueOnce(['d1'])
     sendEmailMock.mockRejectedValueOnce(new Error('boom'))
-    const prisma = makePrisma({ id: 'd1', channel: 'EMAIL', attempts: 1, event: {}, targetSubscription: null })
+    const prisma = makePrisma({
+      id: 'd1',
+      channel: 'EMAIL',
+      attempts: 1,
+      event: {},
+      targetSubscription: null,
+    })
     await runDispatcherTick(prisma, { workerId: 'w1', batchSize: 10, maxAttempts: 5 })
     const updateCalls = (prisma as any).notificationDelivery.update.mock.calls
     expect(updateCalls[0][0].data.attempts).toBe(2)
@@ -1943,7 +2268,13 @@ describe('runDispatcherTick', () => {
   it('marks FAILED after max attempts', async () => {
     lockMock.mockResolvedValueOnce(['d1'])
     sendEmailMock.mockRejectedValueOnce(new Error('boom'))
-    const prisma = makePrisma({ id: 'd1', channel: 'EMAIL', attempts: 4, event: {}, targetSubscription: null })
+    const prisma = makePrisma({
+      id: 'd1',
+      channel: 'EMAIL',
+      attempts: 4,
+      event: {},
+      targetSubscription: null,
+    })
     await runDispatcherTick(prisma, { workerId: 'w1', batchSize: 10, maxAttempts: 5 })
     const updateCalls = (prisma as any).notificationDelivery.update.mock.calls
     expect(updateCalls[0][0].data.status).toBe('FAILED')
@@ -1952,7 +2283,13 @@ describe('runDispatcherTick', () => {
   it('deletes push subscription and marks FAILED on GoneSubscriptionError', async () => {
     lockMock.mockResolvedValueOnce(['d1'])
     sendPushMock.mockRejectedValueOnce(new GoneSubscriptionError('gone'))
-    const prisma = makePrisma({ id: 'd1', channel: 'WEB_PUSH', attempts: 0, event: {}, targetSubscription: { id: 'sub1' } })
+    const prisma = makePrisma({
+      id: 'd1',
+      channel: 'WEB_PUSH',
+      attempts: 0,
+      event: {},
+      targetSubscription: { id: 'sub1' },
+    })
     await runDispatcherTick(prisma, { workerId: 'w1', batchSize: 10, maxAttempts: 5 })
     expect((prisma as any).pushSubscription.delete).toHaveBeenCalledWith({ where: { id: 'sub1' } })
     const updateCalls = (prisma as any).notificationDelivery.update.mock.calls
@@ -1976,7 +2313,11 @@ import type { PrismaClient } from '@repo/db'
 
 import { lockPendingDeliveries } from './lock.ts'
 import { sendDeliveryEmail, type DeliveryWithEvent } from './send-email.ts'
-import { sendDeliveryWebPush, GoneSubscriptionError, type DeliveryWithEventAndSub } from './send-web-push.ts'
+import {
+  sendDeliveryWebPush,
+  GoneSubscriptionError,
+  type DeliveryWithEventAndSub,
+} from './send-web-push.ts'
 
 const BACKOFF_BASE_MS = 60_000
 const BACKOFF_CAP_MS = 30 * 60_000
@@ -1989,7 +2330,10 @@ function nextAttemptAt(attempts: number): Date {
 export type DispatcherOpts = { workerId: string; batchSize: number; maxAttempts: number }
 
 export async function runDispatcherTick(prisma: PrismaClient, opts: DispatcherOpts): Promise<void> {
-  const ids = await lockPendingDeliveries(prisma, { workerId: opts.workerId, batchSize: opts.batchSize })
+  const ids = await lockPendingDeliveries(prisma, {
+    workerId: opts.workerId,
+    batchSize: opts.batchSize,
+  })
   if (ids.length === 0) return
 
   await Promise.allSettled(
@@ -2012,7 +2356,9 @@ export async function runDispatcherTick(prisma: PrismaClient, opts: DispatcherOp
       } catch (err) {
         const isGone = err instanceof GoneSubscriptionError
         if (isGone && delivery.targetSubscriptionId) {
-          await prisma.pushSubscription.delete({ where: { id: delivery.targetSubscriptionId } }).catch(() => undefined)
+          await prisma.pushSubscription
+            .delete({ where: { id: delivery.targetSubscriptionId } })
+            .catch(() => undefined)
         }
         const attempts = delivery.attempts + 1
         const isTerminal = isGone || attempts >= opts.maxAttempts
@@ -2063,6 +2409,7 @@ git commit -m "feat(notifications): worker dispatcher with retry/backoff and gon
 ### Task 13: NestJS notifier module + cron service
 
 **Files:**
+
 - Create: `apps/engines/src/apps/notifier/notifier.service.ts`
 - Create: `apps/engines/src/apps/notifier/notifier.module.ts`
 - Create: `apps/engines/src/apps/notifier/notifier.service.spec.ts`
@@ -2103,11 +2450,14 @@ describe('NotifierService', () => {
     const prisma = {} as never
     const svc = new NotifierService(prisma)
     await svc.tick()
-    expect(runDispatcherTickMock).toHaveBeenCalledWith(prisma, expect.objectContaining({
-      batchSize: expect.any(Number),
-      maxAttempts: expect.any(Number),
-      workerId: expect.any(String),
-    }))
+    expect(runDispatcherTickMock).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({
+        batchSize: expect.any(Number),
+        maxAttempts: expect.any(Number),
+        workerId: expect.any(String),
+      }),
+    )
   })
 })
 ```
@@ -2220,6 +2570,7 @@ git commit -m "feat(engines): notifier cron module wraps @repo/notifications dis
 ### Task 14: auth.ts uses `notify.*` for SERVICE events
 
 **Files:**
+
 - Modify: `packages/auth/src/auth.ts`
 - Modify: `packages/auth/package.json`
 
@@ -2358,6 +2709,7 @@ git commit -m "refactor(auth): route service emails through @repo/notifications 
 ### Task 15: List, unreadCount, markRead, markAllRead procedures
 
 **Files:**
+
 - Create: `packages/trpc/src/routers/notification.ts`
 - Create: `packages/trpc/test/notification-router.test.ts`
 - Modify: `packages/trpc/src/index.ts`
@@ -2383,7 +2735,13 @@ import { createCallerFactory } from '../src/trpc'
 function ctx(prisma: PrismaClient) {
   return {
     prisma,
-    user: { id: 'u1', email: 'u@e.com', firstName: 'A', lastName: 'B', emailVerified: true } as never,
+    user: {
+      id: 'u1',
+      email: 'u@e.com',
+      firstName: 'A',
+      lastName: 'B',
+      emailVerified: true,
+    } as never,
     headers: new Headers(),
     resHeaders: new Headers(),
     yookassa: {} as never,
@@ -2394,8 +2752,34 @@ function ctx(prisma: PrismaClient) {
 describe('notification.list', () => {
   it('returns items + nextCursor when results equal limit', async () => {
     const findMany = vi.fn().mockResolvedValue([
-      { id: 'a', createdAt: new Date('2026-05-10T10:00:00Z'), readAt: null, event: { type: 'WORKSPACE_INVITE', payload: {}, resourceUrl: '/x', createdAt: new Date(), category: 'COLLABORATION', actorId: null, workspaceId: null } },
-      { id: 'b', createdAt: new Date('2026-05-10T09:00:00Z'), readAt: new Date(), event: { type: 'NEW_LOGIN', payload: {}, resourceUrl: null, createdAt: new Date(), category: 'SECURITY', actorId: null, workspaceId: null } },
+      {
+        id: 'a',
+        createdAt: new Date('2026-05-10T10:00:00Z'),
+        readAt: null,
+        event: {
+          type: 'WORKSPACE_INVITE',
+          payload: {},
+          resourceUrl: '/x',
+          createdAt: new Date(),
+          category: 'COLLABORATION',
+          actorId: null,
+          workspaceId: null,
+        },
+      },
+      {
+        id: 'b',
+        createdAt: new Date('2026-05-10T09:00:00Z'),
+        readAt: new Date(),
+        event: {
+          type: 'NEW_LOGIN',
+          payload: {},
+          resourceUrl: null,
+          createdAt: new Date(),
+          category: 'SECURITY',
+          actorId: null,
+          workspaceId: null,
+        },
+      },
     ])
     const prisma = { notificationInApp: { findMany } } as unknown as PrismaClient
     const caller = createCallerFactory(notificationRouter)(ctx(prisma))
@@ -2405,9 +2789,24 @@ describe('notification.list', () => {
   })
 
   it('returns null nextCursor when results below limit', async () => {
-    const findMany = vi.fn().mockResolvedValue([
-      { id: 'a', createdAt: new Date(), readAt: null, event: { type: 'WORKSPACE_INVITE', payload: {}, resourceUrl: null, createdAt: new Date(), category: 'COLLABORATION', actorId: null, workspaceId: null } },
-    ])
+    const findMany = vi
+      .fn()
+      .mockResolvedValue([
+        {
+          id: 'a',
+          createdAt: new Date(),
+          readAt: null,
+          event: {
+            type: 'WORKSPACE_INVITE',
+            payload: {},
+            resourceUrl: null,
+            createdAt: new Date(),
+            category: 'COLLABORATION',
+            actorId: null,
+            workspaceId: null,
+          },
+        },
+      ])
     const prisma = { notificationInApp: { findMany } } as unknown as PrismaClient
     const caller = createCallerFactory(notificationRouter)(ctx(prisma))
     const result = await caller.list({ limit: 5 })
@@ -2567,6 +2966,7 @@ git commit -m "feat(trpc): notification router (list, unreadCount, markRead, mar
 ### Task 16: Preferences procedures
 
 **Files:**
+
 - Modify: `packages/trpc/src/routers/notification.ts`
 - Modify: `packages/trpc/test/notification-router.test.ts`
 
@@ -2577,9 +2977,9 @@ Append to `packages/trpc/test/notification-router.test.ts`:
 ```ts
 describe('notification.getPreferences', () => {
   it('returns full matrix with locked flags from EVENT_CATALOG', async () => {
-    const findMany = vi.fn().mockResolvedValue([
-      { category: 'COLLABORATION', channel: 'EMAIL', enabled: false },
-    ])
+    const findMany = vi
+      .fn()
+      .mockResolvedValue([{ category: 'COLLABORATION', channel: 'EMAIL', enabled: false }])
     const prisma = { notificationPreference: { findMany } } as unknown as PrismaClient
     const caller = createCallerFactory(notificationRouter)(ctx(prisma))
     const result = await caller.getPreferences()
@@ -2716,6 +3116,7 @@ git commit -m "feat(trpc): notification preferences (getPreferences, setPreferen
 ### Task 17: Push subscription procedures
 
 **Files:**
+
 - Modify: `packages/trpc/src/routers/notification.ts`
 - Modify: `packages/trpc/test/notification-router.test.ts`
 
@@ -2726,12 +3127,17 @@ Append to `packages/trpc/test/notification-router.test.ts`:
 ```ts
 describe('notification.listPushSubscriptions', () => {
   it('returns own subs only', async () => {
-    const findMany = vi.fn().mockResolvedValue([{ id: 's1', endpoint: 'e', userAgent: 'ua', createdAt: new Date() }])
+    const findMany = vi
+      .fn()
+      .mockResolvedValue([{ id: 's1', endpoint: 'e', userAgent: 'ua', createdAt: new Date() }])
     const prisma = { pushSubscription: { findMany } } as unknown as PrismaClient
     const caller = createCallerFactory(notificationRouter)(ctx(prisma))
     const result = await caller.listPushSubscriptions()
     expect(result).toHaveLength(1)
-    expect(findMany).toHaveBeenCalledWith({ where: { userId: 'u1' }, orderBy: { createdAt: 'desc' } })
+    expect(findMany).toHaveBeenCalledWith({
+      where: { userId: 'u1' },
+      orderBy: { createdAt: 'desc' },
+    })
   })
 })
 
@@ -2766,7 +3172,9 @@ describe('notification.revokePushSubscription', () => {
     const findUnique = vi.fn().mockResolvedValue({ id: 's1', userId: 'other-user' })
     const prisma = { pushSubscription: { findUnique, delete: vi.fn() } } as unknown as PrismaClient
     const caller = createCallerFactory(notificationRouter)(ctx(prisma))
-    await expect(caller.revokePushSubscription({ id: 's1' })).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    await expect(caller.revokePushSubscription({ id: 's1' })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    })
   })
 })
 ```
@@ -2859,6 +3267,7 @@ git commit -m "feat(trpc): push subscription register/list/revoke procedures"
 ### Task 18: workspace.inviteMember writes notification + updateMemberRole emits role change
 
 **Files:**
+
 - Modify: `packages/trpc/src/routers/workspace.ts`
 
 - [ ] **Step 1: Update `inviteMember` to call `notify.workspaceInvite`**
@@ -2987,6 +3396,7 @@ git commit -m "feat(trpc): workspace inviteMember and updateMemberRole emit noti
 ### Task 19: Generate VAPID keys and wire env
 
 **Files:**
+
 - Modify: `.env.example`
 - Modify: `turbo.json`
 
@@ -3055,6 +3465,7 @@ git commit -m "chore(env): VAPID and NOTIFIER env vars"
 ### Task 20: Service worker + client registration
 
 **Files:**
+
 - Create: `apps/web/public/sw.js`
 - Create: `apps/web/src/lib/push/register-sw.ts`
 - Create: `apps/web/src/lib/push/vapid.ts`
@@ -3065,7 +3476,11 @@ git commit -m "chore(env): VAPID and NOTIFIER env vars"
 ```js
 self.addEventListener('push', (event) => {
   let data = {}
-  try { data = event.data?.json() ?? {} } catch { data = {} }
+  try {
+    data = event.data?.json() ?? {}
+  } catch {
+    data = {}
+  }
   const title = data.title || 'Уведомление'
   const options = {
     body: data.body || '',
@@ -3079,12 +3494,14 @@ self.addEventListener('push', (event) => {
 self.addEventListener('notificationclick', (event) => {
   event.notification.close()
   const url = event.notification.data?.url || '/notifications'
-  event.waitUntil((async () => {
-    const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
-    const open = all.find((c) => c.url.includes(url))
-    if (open) return open.focus()
-    return self.clients.openWindow(url)
-  })())
+  event.waitUntil(
+    (async () => {
+      const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true })
+      const open = all.find((c) => c.url.includes(url))
+      if (open) return open.focus()
+      return self.clients.openWindow(url)
+    })(),
+  )
 })
 ```
 
@@ -3115,11 +3532,15 @@ export async function registerServiceWorker(): Promise<ServiceWorkerRegistration
   return navigator.serviceWorker.register('/sw.js', { scope: '/' })
 }
 
-export async function subscribePush(): Promise<{ endpoint: string; keys: { p256dh: string; auth: string } } | null> {
+export async function subscribePush(): Promise<{
+  endpoint: string
+  keys: { p256dh: string; auth: string }
+} | null> {
   if (!VAPID_PUBLIC_KEY) throw new Error('NEXT_PUBLIC_VAPID_PUBLIC_KEY missing')
   if (!('serviceWorker' in navigator) || !('PushManager' in window)) return null
 
-  const reg = (await navigator.serviceWorker.getRegistration('/')) ?? (await registerServiceWorker())
+  const reg =
+    (await navigator.serviceWorker.getRegistration('/')) ?? (await registerServiceWorker())
   if (!reg) return null
 
   const permission = await Notification.requestPermission()
@@ -3188,6 +3609,7 @@ git commit -m "feat(web): service worker + VAPID push subscription helpers"
 ### Task 21: `format-notification.tsx` helper
 
 **Files:**
+
 - Create: `apps/web/src/components/notifications/format-notification.tsx`
 - Create: `apps/web/test/format-notification.test.ts`
 
@@ -3246,7 +3668,9 @@ export type FormattedNotification = {
   icon: 'invite' | 'security' | 'role' | 'mention' | 'comment' | 'marketing' | 'system'
 }
 
-export function formatNotification(event: Pick<NotificationEvent, 'type' | 'payload' | 'resourceUrl' | 'createdAt'>): FormattedNotification {
+export function formatNotification(
+  event: Pick<NotificationEvent, 'type' | 'payload' | 'resourceUrl' | 'createdAt'>,
+): FormattedNotification {
   const p = (event.payload ?? {}) as Record<string, string | undefined>
   switch (event.type) {
     case 'WORKSPACE_INVITE':
@@ -3262,13 +3686,25 @@ export function formatNotification(event: Pick<NotificationEvent, 'type' | 'payl
         icon: 'role',
       }
     case 'NEW_LOGIN':
-      return { title: 'Новый вход в аккаунт', body: [p.ipAddress, p.userAgent].filter(Boolean).join(' · '), icon: 'security' }
+      return {
+        title: 'Новый вход в аккаунт',
+        body: [p.ipAddress, p.userAgent].filter(Boolean).join(' · '),
+        icon: 'security',
+      }
     case 'SUSPICIOUS_ACTIVITY':
       return { title: 'Подозрительная активность', body: p.reason ?? '', icon: 'security' }
     case 'PAGE_MENTION':
-      return { title: `${p.actorName ?? 'Кто-то'} упомянул вас`, body: p.snippet ?? '', icon: 'mention' }
+      return {
+        title: `${p.actorName ?? 'Кто-то'} упомянул вас`,
+        body: p.snippet ?? '',
+        icon: 'mention',
+      }
     case 'COMMENT_CREATED':
-      return { title: `${p.actorName ?? 'Кто-то'} оставил комментарий`, body: p.snippet ?? '', icon: 'comment' }
+      return {
+        title: `${p.actorName ?? 'Кто-то'} оставил комментарий`,
+        body: p.snippet ?? '',
+        icon: 'comment',
+      }
     case 'WEEKLY_DIGEST':
       return { title: p.title ?? 'Дайджест за неделю', body: p.summary ?? '', icon: 'marketing' }
     case 'PRODUCT_UPDATE':
@@ -3307,6 +3743,7 @@ git commit -m "feat(web): formatNotification helper for in-app rendering"
 ### Task 22: NotificationRow component
 
 **Files:**
+
 - Create: `apps/web/src/components/notifications/notification-row.tsx`
 
 - [ ] **Step 1: Implement (no test — purely presentational, covered by list test in Task 24)**
@@ -3413,6 +3850,7 @@ git commit -m "feat(web): NotificationRow presentational component"
 ### Task 23: NotificationsList with infinite scroll
 
 **Files:**
+
 - Create: `apps/web/src/components/notifications/notifications-list.tsx`
 - Create: `apps/web/test/notifications-list.test.tsx`
 
@@ -3457,9 +3895,25 @@ function renderList() {
 describe('NotificationsList', () => {
   it('renders rows from the first page', () => {
     useInfiniteQueryMock.mockReturnValue({
-      data: { pages: [{ items: [
-        { id: 'a', readAt: null, createdAt: new Date(), event: { type: 'WORKSPACE_INVITE', payload: { workspaceName: 'X', inviterName: 'Y' }, resourceUrl: '/x' } },
-      ], nextCursor: null }] },
+      data: {
+        pages: [
+          {
+            items: [
+              {
+                id: 'a',
+                readAt: null,
+                createdAt: new Date(),
+                event: {
+                  type: 'WORKSPACE_INVITE',
+                  payload: { workspaceName: 'X', inviterName: 'Y' },
+                  resourceUrl: '/x',
+                },
+              },
+            ],
+            nextCursor: null,
+          },
+        ],
+      },
       hasNextPage: false,
       fetchNextPage: vi.fn(),
       isFetchingNextPage: false,
@@ -3543,13 +3997,17 @@ export function NotificationsList() {
   return (
     <Stack spacing={1.5}>
       <Stack direction="row" justifyContent="space-between" alignItems="center">
-        <Typography variant="h5" fontWeight={700}>Уведомления</Typography>
+        <Typography variant="h5" fontWeight={700}>
+          Уведомления
+        </Typography>
         <Button size="small" onClick={() => markAllRead.mutate()} disabled={markAllRead.isPending}>
           Отметить всё прочитанным
         </Button>
       </Stack>
       {items.length === 0 ? (
-        <Typography variant="body2" color="text.secondary">Здесь будут ваши уведомления</Typography>
+        <Typography variant="body2" color="text.secondary">
+          Здесь будут ваши уведомления
+        </Typography>
       ) : (
         <Stack spacing={0.5}>
           {items.map((item) => (
@@ -3568,7 +4026,9 @@ export function NotificationsList() {
       )}
       <Box ref={sentinelRef} sx={{ height: 1 }} />
       {list.isFetchingNextPage ? (
-        <Typography variant="caption" color="text.secondary" textAlign="center">Загрузка…</Typography>
+        <Typography variant="caption" color="text.secondary" textAlign="center">
+          Загрузка…
+        </Typography>
       ) : null}
     </Stack>
   )
@@ -3595,6 +4055,7 @@ git commit -m "feat(web): NotificationsList with infinite scroll and mark-all-re
 ### Task 24: `/notifications` RSC page
 
 **Files:**
+
 - Create: `apps/web/src/app/(protected)/notifications/page.tsx`
 
 - [ ] **Step 1: Implement page**
@@ -3637,6 +4098,7 @@ git commit -m "feat(web): /notifications page"
 ### Task 25: Sidebar trigger with badge + popover
 
 **Files:**
+
 - Create: `apps/web/src/components/notifications/sidebar-notifications-trigger.tsx`
 - Create: `apps/web/src/components/notifications/notifications-popover-card.tsx`
 - Create: `apps/web/test/sidebar-notifications-trigger.test.tsx`
@@ -3687,9 +4149,18 @@ export function NotificationsPopoverCard({ onNavigate }: { onNavigate: () => voi
 
   return (
     <Box sx={{ width: 360, maxHeight: 480, display: 'flex', flexDirection: 'column' }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider' }}>
-        <Typography variant="subtitle2" fontWeight={700}>Уведомления</Typography>
-        <Button size="small" component={Link} href="/notifications" onClick={onNavigate}>Все →</Button>
+      <Stack
+        direction="row"
+        justifyContent="space-between"
+        alignItems="center"
+        sx={{ p: 1.5, borderBottom: 1, borderColor: 'divider' }}
+      >
+        <Typography variant="subtitle2" fontWeight={700}>
+          Уведомления
+        </Typography>
+        <Button size="small" component={Link} href="/notifications" onClick={onNavigate}>
+          Все →
+        </Button>
       </Stack>
       <Box sx={{ flex: 1, overflowY: 'auto', p: 0.5 }}>
         {items.length === 0 ? (
@@ -3764,7 +4235,9 @@ export function SidebarNotificationsTrigger() {
         <Badge badgeContent={unread.data ?? 0} max={99} color="error">
           <NotificationsIcon sx={{ fontSize: 16 }} />
         </Badge>
-        <Box component="span" sx={{ flex: 1 }}>Уведомления</Box>
+        <Box component="span" sx={{ flex: 1 }}>
+          Уведомления
+        </Box>
       </Stack>
       <Popover
         open={!!anchor}
@@ -3795,9 +4268,9 @@ If not present, add `export { default as NotificationsIcon } from '@mui/icons-ma
 In `apps/web/src/components/workspace/workspace-sidebar.tsx`, between the trash block (line 188 closing `</Box>`) and the userMenu block (line 190), insert:
 
 ```tsx
-      <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>
-        <SidebarNotificationsTrigger />
-      </Box>
+<Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>
+  <SidebarNotificationsTrigger />
+</Box>
 ```
 
 And add the import at the top of the file:
@@ -3818,7 +4291,14 @@ vi.mock('@/trpc/client', () => ({
   trpc: {
     notification: {
       unreadCount: { useQuery: vi.fn(() => ({ data: 3 })) },
-      list: { useInfiniteQuery: vi.fn(() => ({ data: { pages: [{ items: [], nextCursor: null }] }, hasNextPage: false, fetchNextPage: vi.fn(), isFetchingNextPage: false })) },
+      list: {
+        useInfiniteQuery: vi.fn(() => ({
+          data: { pages: [{ items: [], nextCursor: null }] },
+          hasNextPage: false,
+          fetchNextPage: vi.fn(),
+          isFetchingNextPage: false,
+        })),
+      },
       markRead: { useMutation: () => ({ mutate: vi.fn(), mutateAsync: vi.fn() }) },
     },
     useUtils: vi.fn(() => ({ notification: { unreadCount: { invalidate: vi.fn() } } })),
@@ -3865,6 +4345,7 @@ git commit -m "feat(web): sidebar notifications bell with unread badge and popov
 ### Task 26: Add Settings + Notifications cards above workspaces
 
 **Files:**
+
 - Modify: `apps/web/src/app/(protected)/profile/page.tsx`
 
 - [ ] **Step 1: Update page.tsx**
@@ -3880,44 +4361,40 @@ import { NotificationsIcon, SettingsIcon } from '@repo/ui/components'
 Insert between the email Stack (closing `</Stack>` at the end of avatar/name section) and the existing `<Box sx={{ width: '100%', pt: 2 }}>`:
 
 ```tsx
-        <Stack
-          direction={{ xs: 'column', sm: 'row' }}
-          spacing={2}
-          sx={{ width: '100%', pt: 2 }}
-        >
-          <Link href="/settings" style={{ flex: 1, textDecoration: 'none' }}>
-            <Paper
-              variant="outlined"
-              sx={{
-                p: 2.5,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1.5,
-                cursor: 'pointer',
-                '&:hover': { bgcolor: 'action.hover' },
-              }}
-            >
-              <SettingsIcon />
-              <Typography variant="body1">Настройки</Typography>
-            </Paper>
-          </Link>
-          <Link href="/notifications" style={{ flex: 1, textDecoration: 'none' }}>
-            <Paper
-              variant="outlined"
-              sx={{
-                p: 2.5,
-                display: 'flex',
-                alignItems: 'center',
-                gap: 1.5,
-                cursor: 'pointer',
-                '&:hover': { bgcolor: 'action.hover' },
-              }}
-            >
-              <NotificationsIcon />
-              <Typography variant="body1">Уведомления</Typography>
-            </Paper>
-          </Link>
-        </Stack>
+<Stack direction={{ xs: 'column', sm: 'row' }} spacing={2} sx={{ width: '100%', pt: 2 }}>
+  <Link href="/settings" style={{ flex: 1, textDecoration: 'none' }}>
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 2.5,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1.5,
+        cursor: 'pointer',
+        '&:hover': { bgcolor: 'action.hover' },
+      }}
+    >
+      <SettingsIcon />
+      <Typography variant="body1">Настройки</Typography>
+    </Paper>
+  </Link>
+  <Link href="/notifications" style={{ flex: 1, textDecoration: 'none' }}>
+    <Paper
+      variant="outlined"
+      sx={{
+        p: 2.5,
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1.5,
+        cursor: 'pointer',
+        '&:hover': { bgcolor: 'action.hover' },
+      }}
+    >
+      <NotificationsIcon />
+      <Typography variant="body1">Уведомления</Typography>
+    </Paper>
+  </Link>
+</Stack>
 ```
 
 - [ ] **Step 2: Verify SettingsIcon is exported from `@repo/ui/components`**
@@ -3950,6 +4427,7 @@ git commit -m "feat(web): Settings and Notifications cards on /profile"
 ### Task 27: PreferencesMatrix component (replaces NotificationsSection)
 
 **Files:**
+
 - Create: `apps/web/src/components/settings/preferences-matrix.tsx`
 - Create: `apps/web/src/components/notifications/push-toggle.tsx`
 - Create: `apps/web/test/preferences-matrix.test.tsx`
@@ -3975,9 +4453,17 @@ type Props = {
   hasAnySubscription: boolean
 }
 
-export function PushToggle({ category, enabled, locked, onAfterChange, hasAnySubscription }: Props) {
+export function PushToggle({
+  category,
+  enabled,
+  locked,
+  onAfterChange,
+  hasAnySubscription,
+}: Props) {
   const setPref = trpc.notification.setPreference.useMutation({ onSuccess: onAfterChange })
-  const register = trpc.notification.registerPushSubscription.useMutation({ onSuccess: onAfterChange })
+  const register = trpc.notification.registerPushSubscription.useMutation({
+    onSuccess: onAfterChange,
+  })
 
   return (
     <Switch
@@ -3987,7 +4473,11 @@ export function PushToggle({ category, enabled, locked, onAfterChange, hasAnySub
         if (checked && !hasAnySubscription) {
           const sub = await subscribePush()
           if (!sub) return
-          await register.mutateAsync({ endpoint: sub.endpoint, keys: sub.keys, userAgent: navigator.userAgent })
+          await register.mutateAsync({
+            endpoint: sub.endpoint,
+            keys: sub.keys,
+            userAgent: navigator.userAgent,
+          })
         }
         if (!checked && hasAnySubscription) {
           await unsubscribePush().catch(() => undefined)
@@ -4011,17 +4501,38 @@ const setPrefMutate = vi.fn()
 vi.mock('@/trpc/client', () => ({
   trpc: {
     notification: {
-      getPreferences: { useQuery: vi.fn(() => ({ data: {
-        SECURITY:      { EMAIL: { enabled: true, locked: false }, IN_APP: { enabled: true, locked: true }, WEB_PUSH: { enabled: false, locked: false } },
-        COLLABORATION: { EMAIL: { enabled: true, locked: false }, IN_APP: { enabled: true, locked: true }, WEB_PUSH: { enabled: false, locked: false } },
-        MARKETING:     { EMAIL: { enabled: false, locked: false }, IN_APP: { enabled: true, locked: false }, WEB_PUSH: { enabled: false, locked: false } },
-      } })) },
+      getPreferences: {
+        useQuery: vi.fn(() => ({
+          data: {
+            SECURITY: {
+              EMAIL: { enabled: true, locked: false },
+              IN_APP: { enabled: true, locked: true },
+              WEB_PUSH: { enabled: false, locked: false },
+            },
+            COLLABORATION: {
+              EMAIL: { enabled: true, locked: false },
+              IN_APP: { enabled: true, locked: true },
+              WEB_PUSH: { enabled: false, locked: false },
+            },
+            MARKETING: {
+              EMAIL: { enabled: false, locked: false },
+              IN_APP: { enabled: true, locked: false },
+              WEB_PUSH: { enabled: false, locked: false },
+            },
+          },
+        })),
+      },
       setPreference: { useMutation: () => ({ mutateAsync: setPrefMutate }) },
       listPushSubscriptions: { useQuery: vi.fn(() => ({ data: [] })) },
       revokePushSubscription: { useMutation: () => ({ mutate: vi.fn() }) },
       registerPushSubscription: { useMutation: () => ({ mutateAsync: vi.fn() }) },
     },
-    useUtils: vi.fn(() => ({ notification: { getPreferences: { invalidate: vi.fn() }, listPushSubscriptions: { invalidate: vi.fn() } } })),
+    useUtils: vi.fn(() => ({
+      notification: {
+        getPreferences: { invalidate: vi.fn() },
+        listPushSubscriptions: { invalidate: vi.fn() },
+      },
+    })),
   },
 }))
 
@@ -4089,15 +4600,34 @@ export function PreferencesMatrix() {
   if (!prefs.data) return null
 
   return (
-    <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 2, p: { xs: 2.5, md: 3 }, bgcolor: 'background.paper' }}>
-      <Typography variant="subtitle1" fontWeight={700}>Уведомления</Typography>
+    <Box
+      sx={{
+        border: '1px solid',
+        borderColor: 'divider',
+        borderRadius: 2,
+        p: { xs: 2.5, md: 3 },
+        bgcolor: 'background.paper',
+      }}
+    >
+      <Typography variant="subtitle1" fontWeight={700}>
+        Уведомления
+      </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
         Когда присылать email, in-app и web push
       </Typography>
-      <Box sx={{ display: 'grid', gridTemplateColumns: '1fr repeat(3, 96px)', alignItems: 'center', rowGap: 1 }}>
+      <Box
+        sx={{
+          display: 'grid',
+          gridTemplateColumns: '1fr repeat(3, 96px)',
+          alignItems: 'center',
+          rowGap: 1,
+        }}
+      >
         <div />
         {CHANNELS.map((c) => (
-          <Typography key={c.key} variant="caption" color="text.secondary" textAlign="center">{c.label}</Typography>
+          <Typography key={c.key} variant="caption" color="text.secondary" textAlign="center">
+            {c.label}
+          </Typography>
         ))}
         {CATEGORIES.map((cat) => (
           <Box key={cat.key} sx={{ display: 'contents' }}>
@@ -4126,7 +4656,9 @@ export function PreferencesMatrix() {
                         checked={cell.enabled}
                         disabled={cell.locked || setPref.isPending}
                         onChange={async (_e, checked) => {
-                          await setPref.mutateAsync({ category: cat.key, channel: ch.key, enabled: checked }).catch(() => undefined)
+                          await setPref
+                            .mutateAsync({ category: cat.key, channel: ch.key, enabled: checked })
+                            .catch(() => undefined)
                         }}
                       />
                     </span>
@@ -4140,7 +4672,9 @@ export function PreferencesMatrix() {
       <Stack spacing={1} sx={{ mt: 3, pt: 2, borderTop: '1px solid', borderColor: 'divider' }}>
         <Typography variant="subtitle2">Устройства для push</Typography>
         {(subs.data ?? []).length === 0 ? (
-          <Typography variant="caption" color="text.secondary">Нет зарегистрированных устройств</Typography>
+          <Typography variant="caption" color="text.secondary">
+            Нет зарегистрированных устройств
+          </Typography>
         ) : (
           (subs.data ?? []).map((s) => (
             <Stack key={s.id} direction="row" alignItems="center" justifyContent="space-between">
@@ -4150,7 +4684,9 @@ export function PreferencesMatrix() {
                   Добавлено {new Date(s.createdAt).toLocaleDateString('ru-RU')}
                 </Typography>
               </Stack>
-              <Button size="small" onClick={() => revoke.mutate({ id: s.id })}>Отозвать</Button>
+              <Button size="small" onClick={() => revoke.mutate({ id: s.id })}>
+                Отозвать
+              </Button>
             </Stack>
           ))
         )}
@@ -4181,8 +4717,12 @@ export default async function GeneralSettingsPage() {
   return (
     <Stack spacing={2}>
       <Stack spacing={0.5} sx={{ mb: 1 }}>
-        <Typography variant="h5" fontWeight={700}>Общее</Typography>
-        <Typography variant="body2" color="text.secondary">Настройки профиля, темы и уведомлений</Typography>
+        <Typography variant="h5" fontWeight={700}>
+          Общее
+        </Typography>
+        <Typography variant="body2" color="text.secondary">
+          Настройки профиля, темы и уведомлений
+        </Typography>
       </Stack>
       <ProfileSection
         initial={{
@@ -4232,6 +4772,7 @@ git commit -m "feat(web): preferences matrix UI replaces legacy notifications-se
 ### Task 28: Drop `user_preferences.notification_settings`
 
 **Files:**
+
 - Create: `packages/db/prisma/migrations/<ts>_notifications_drop_legacy_settings/migration.sql`
 - Modify: `packages/db/prisma/schema.prisma`
 
@@ -4277,6 +4818,7 @@ git commit -m "feat(db): drop legacy user_preferences.notification_settings JSON
 ### Task 29: Update e2e auth helper to seed default preferences
 
 **Files:**
+
 - Modify: `apps/e2e/helpers/auth.ts`
 
 - [ ] **Step 1: Add helper function**
@@ -4305,6 +4847,7 @@ git commit -m "test(e2e): notification preference seeding hook (no-op stub)"
 ### Task 30: E2E spec — invite triggers in-app notification
 
 **Files:**
+
 - Create: `apps/e2e/notifications.spec.ts`
 
 - [ ] **Step 1: Implement spec**
@@ -4314,7 +4857,10 @@ import { test, expect } from '@playwright/test'
 
 import { signUpAndAuthAs } from './helpers/auth'
 
-test('workspace invite produces an in-app notification visible in /notifications', async ({ page, browser }) => {
+test('workspace invite produces an in-app notification visible in /notifications', async ({
+  page,
+  browser,
+}) => {
   // Owner: create workspace + invite a second user
   const owner = await signUpAndAuthAs(page, { firstName: 'Owner', lastName: 'One' })
   await page.goto('/workspaces/new')
@@ -4328,7 +4874,10 @@ test('workspace invite produces an in-app notification visible in /notifications
   const invitee = await signUpAndAuthAs(inviteePage, { firstName: 'Bob', lastName: 'Recipient' })
 
   // Owner invites the invitee via settings UI
-  await page.getByRole('link', { name: /настройки/i }).first().click()
+  await page
+    .getByRole('link', { name: /настройки/i })
+    .first()
+    .click()
   await page.getByRole('button', { name: /пригласить/i }).click()
   await page.getByLabel(/email/i).fill(invitee.email)
   await page.getByRole('button', { name: /^пригласить$/i }).click()
@@ -4390,6 +4939,7 @@ Expected: all specs pass.
 - [ ] **Step 3: Manual smoke checklist**
 
 Verify in dev (`pnpm dev`):
+
 - [ ] Sign up new user → verify email lands (or console fallback if SENDSAY_API_KEY unset).
 - [ ] Sign in second user, get invited → badge appears in sidebar within 30s.
 - [ ] Click bell → popover opens, item visible, click navigates to workspace.

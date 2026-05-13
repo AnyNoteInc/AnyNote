@@ -15,9 +15,11 @@
 ## File structure
 
 **Create:**
+
 - `apps/web/src/components/workspace/workspace-sidebar-mini.tsx` — 56px icon column with workspace icon, expand, search, chats, settings, trash, user avatar.
 
 **Modify:**
+
 - `apps/web/src/components/workspace/workspace-user-menu.tsx` — add Notifications menu item + popover; add `variant: 'default' | 'compact'`.
 - `apps/web/src/components/workspace/page-tree-section.tsx` — add Trash icon after the `+` button in the Pages header.
 - `apps/web/src/components/workspace/workspace-sidebar.tsx` — remove bottom Trash & Notifications blocks; rename `onHide` → `onCollapse`, tooltip "Свернуть".
@@ -27,9 +29,11 @@
 - `apps/e2e/workspace-flow.spec.ts` — update assertions that depended on the full sidebar being default.
 
 **Delete:**
+
 - `apps/web/src/components/notifications/sidebar-notifications-trigger.tsx` — replaced by user-menu item.
 
 **Add:**
+
 - `apps/e2e/sidebar-mini-mode.spec.ts` — covers default mini, toggle to full + persistence, trash icon in pages header, notifications in user menu.
 
 ---
@@ -37,6 +41,7 @@
 ## Task 1: Add Notifications item + popover to user menu
 
 **Files:**
+
 - Modify: `apps/web/src/components/workspace/workspace-user-menu.tsx`
 
 Add the unread query, a Notifications menu item between Профиль and Настройки, and a separate Popover that hosts `NotificationsPopoverCard`. Clicking the menu item closes the user menu and re-anchors the popover to the original avatar element.
@@ -169,6 +174,7 @@ git commit -m "feat(web): add notifications popover entry to workspace user menu
 ## Task 2: Trash icon in Pages section header
 
 **Files:**
+
 - Modify: `apps/web/src/components/workspace/page-tree-section.tsx`
 
 Add a Trash `IconButton` immediately after the `+` button in the "Страницы" header row. It is a navigational link to `/workspaces/{id}/trash` with a tooltip.
@@ -204,17 +210,17 @@ import {
 In the same file, find the section header `IconButton` for create (the one wrapping `<AddIcon ...>`) inside `PageTreeSection`. After `</CreatePageMenu>` but still inside the outer `<Box>` that holds the header row, insert:
 
 ```tsx
-        <Tooltip title="Корзина" placement="top">
-          <IconButton
-            size="small"
-            component={Link}
-            href={`/workspaces/${workspaceId}/trash`}
-            aria-label="Корзина"
-            sx={{ p: 0.25 }}
-          >
-            <DeleteIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
-          </IconButton>
-        </Tooltip>
+<Tooltip title="Корзина" placement="top">
+  <IconButton
+    size="small"
+    component={Link}
+    href={`/workspaces/${workspaceId}/trash`}
+    aria-label="Корзина"
+    sx={{ p: 0.25 }}
+  >
+    <DeleteIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+  </IconButton>
+</Tooltip>
 ```
 
 The final order in the header row is: clickable label-and-caret → `+` IconButton → CreatePageMenu → new Trash IconButton.
@@ -239,6 +245,7 @@ git commit -m "feat(web): add trash shortcut next to + in pages sidebar header"
 ## Task 3: Full sidebar — remove bottom Trash & Notifications, rename onHide → onCollapse
 
 **Files:**
+
 - Modify: `apps/web/src/components/workspace/workspace-sidebar.tsx`
 
 After tasks 1 and 2, Trash is reachable from the Pages header and Notifications from the user menu, so the bottom blocks are redundant. Rename `onHide` to `onCollapse` and update the tooltip to "Свернуть" so the meaning matches the new state model.
@@ -305,30 +312,29 @@ export function WorkspaceSidebar({ workspace, features, pages, onCollapse, userM
 Find the existing block:
 
 ```tsx
-{onHide ? (
-  <Tooltip title="Скрыть" placement="right">
-    <IconButton size="small" onClick={onHide} sx={{ flexShrink: 0 }}>
-      <KeyboardDoubleArrowLeftIcon sx={{ fontSize: 16 }} />
-    </IconButton>
-  </Tooltip>
-) : null}
+{
+  onHide ? (
+    <Tooltip title="Скрыть" placement="right">
+      <IconButton size="small" onClick={onHide} sx={{ flexShrink: 0 }}>
+        <KeyboardDoubleArrowLeftIcon sx={{ fontSize: 16 }} />
+      </IconButton>
+    </Tooltip>
+  ) : null
+}
 ```
 
 Replace with:
 
 ```tsx
-{onCollapse ? (
-  <Tooltip title="Свернуть" placement="right">
-    <IconButton
-      size="small"
-      onClick={onCollapse}
-      aria-label="Свернуть"
-      sx={{ flexShrink: 0 }}
-    >
-      <KeyboardDoubleArrowLeftIcon sx={{ fontSize: 16 }} />
-    </IconButton>
-  </Tooltip>
-) : null}
+{
+  onCollapse ? (
+    <Tooltip title="Свернуть" placement="right">
+      <IconButton size="small" onClick={onCollapse} aria-label="Свернуть" sx={{ flexShrink: 0 }}>
+        <KeyboardDoubleArrowLeftIcon sx={{ fontSize: 16 }} />
+      </IconButton>
+    </Tooltip>
+  ) : null
+}
 ```
 
 - [ ] **Step 3.4: Delete the bottom Trash and Notifications blocks**
@@ -402,6 +408,7 @@ git commit -m "refactor(web): drop bottom trash/notifications, rename onHide→o
 ## Task 4: User menu compact variant
 
 **Files:**
+
 - Modify: `apps/web/src/components/workspace/workspace-user-menu.tsx`
 
 The mini sidebar needs to render only the avatar (no name + plan chip). Add a `variant` prop and branch on it.
@@ -429,73 +436,75 @@ export function WorkspaceUserMenu({ user, features, variant = 'default' }: Props
 Find the existing `<Box>` that opens the menu (currently `<Box onClick={(event) => setAnchor(event.currentTarget)} sx={{...}}>...<Avatar/>...<Stack>...name/plan...</Stack></Box>`). Replace the entire block (from that opening `<Box>` up to its matching `</Box>` that contains the Stack with name and plan chip) with:
 
 ```tsx
-{variant === 'compact' ? (
-  <Box
-    onClick={(event) => setAnchor(event.currentTarget)}
-    role="button"
-    aria-label={`Меню пользователя ${user.firstName} ${user.lastName}`}
-    sx={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      width: 40,
-      height: 40,
-      borderRadius: 0.75,
-      cursor: 'pointer',
-      '&:hover': { bgcolor: 'action.hover' },
-    }}
-  >
-    <Avatar
-      src={user.image ?? undefined}
+{
+  variant === 'compact' ? (
+    <Box
+      onClick={(event) => setAnchor(event.currentTarget)}
+      role="button"
+      aria-label={`Меню пользователя ${user.firstName} ${user.lastName}`}
       sx={{
-        width: 28,
-        height: 28,
-        fontSize: 13,
-        background: 'linear-gradient(135deg,#0f766e,#155e75)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        width: 40,
+        height: 40,
+        borderRadius: 0.75,
+        cursor: 'pointer',
+        '&:hover': { bgcolor: 'action.hover' },
       }}
     >
-      {initials}
-    </Avatar>
-  </Box>
-) : (
-  <Box
-    onClick={(event) => setAnchor(event.currentTarget)}
-    sx={{
-      display: 'flex',
-      alignItems: 'center',
-      gap: 1,
-      p: 0.75,
-      borderRadius: 0.75,
-      cursor: 'pointer',
-      justifyContent: 'flex-start',
-      '&:hover': { bgcolor: 'action.hover' },
-    }}
-  >
-    <Avatar
-      src={user.image ?? undefined}
+      <Avatar
+        src={user.image ?? undefined}
+        sx={{
+          width: 28,
+          height: 28,
+          fontSize: 13,
+          background: 'linear-gradient(135deg,#0f766e,#155e75)',
+        }}
+      >
+        {initials}
+      </Avatar>
+    </Box>
+  ) : (
+    <Box
+      onClick={(event) => setAnchor(event.currentTarget)}
       sx={{
-        width: 28,
-        height: 28,
-        fontSize: 13,
-        background: 'linear-gradient(135deg,#0f766e,#155e75)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: 1,
+        p: 0.75,
+        borderRadius: 0.75,
+        cursor: 'pointer',
+        justifyContent: 'flex-start',
+        '&:hover': { bgcolor: 'action.hover' },
       }}
     >
-      {initials}
-    </Avatar>
-    <Stack spacing={0.25} sx={{ minWidth: 0, alignItems: 'flex-start' }}>
-      <Typography variant="body2" noWrap>
-        {user.firstName} {user.lastName}
-      </Typography>
-      <Chip
-        label={getPlanDisplayName(features)}
-        size="small"
-        color={features.isPaid ? 'success' : 'default'}
-        variant={features.isPaid ? 'filled' : 'outlined'}
-        sx={{ height: 18, fontSize: 10, '& .MuiChip-label': { px: 0.75 } }}
-      />
-    </Stack>
-  </Box>
-)}
+      <Avatar
+        src={user.image ?? undefined}
+        sx={{
+          width: 28,
+          height: 28,
+          fontSize: 13,
+          background: 'linear-gradient(135deg,#0f766e,#155e75)',
+        }}
+      >
+        {initials}
+      </Avatar>
+      <Stack spacing={0.25} sx={{ minWidth: 0, alignItems: 'flex-start' }}>
+        <Typography variant="body2" noWrap>
+          {user.firstName} {user.lastName}
+        </Typography>
+        <Chip
+          label={getPlanDisplayName(features)}
+          size="small"
+          color={features.isPaid ? 'success' : 'default'}
+          variant={features.isPaid ? 'filled' : 'outlined'}
+          sx={{ height: 18, fontSize: 10, '& .MuiChip-label': { px: 0.75 } }}
+        />
+      </Stack>
+    </Box>
+  )
+}
 ```
 
 The `<Menu>` and `<Popover>` that follow remain unchanged — they re-use `anchor` / `notifAnchor` and work for both layouts.
@@ -520,6 +529,7 @@ git commit -m "feat(web): add compact variant to WorkspaceUserMenu"
 ## Task 5: Create the mini sidebar component
 
 **Files:**
+
 - Create: `apps/web/src/components/workspace/workspace-sidebar-mini.tsx`
 
 A 56px-wide icon column with workspace icon (with switcher), expand button, search, chats (conditional), settings, trash, spacer, user avatar (compact menu).
@@ -597,10 +607,7 @@ export function WorkspaceSidebarMini({ workspace, features, user, onExpand }: Pr
         gap: 0.5,
       }}
     >
-      <Tooltip
-        title={hasMultiple ? 'Сменить пространство' : workspace.name}
-        placement="right"
-      >
+      <Tooltip title={hasMultiple ? 'Сменить пространство' : workspace.name} placement="right">
         <Box
           onClick={hasMultiple ? (event) => setSwitcherAnchor(event.currentTarget) : undefined}
           aria-label={workspace.name}
@@ -672,12 +679,7 @@ export function WorkspaceSidebarMini({ workspace, features, user, onExpand }: Pr
       </Tooltip>
 
       <Tooltip title={`Поиск (${searchHint})`} placement="right">
-        <IconButton
-          size="small"
-          onClick={openSearch}
-          aria-label="Поиск"
-          sx={iconButtonSx(false)}
-        >
+        <IconButton size="small" onClick={openSearch} aria-label="Поиск" sx={iconButtonSx(false)}>
           <SearchIcon sx={{ fontSize: 18 }} />
         </IconButton>
       </Tooltip>
@@ -722,7 +724,10 @@ export function WorkspaceSidebarMini({ workspace, features, user, onExpand }: Pr
 
       <Box sx={{ flex: 1 }} />
 
-      <Stack alignItems="center" sx={{ pt: 1, borderTop: '1px solid', borderColor: 'divider', width: '100%' }}>
+      <Stack
+        alignItems="center"
+        sx={{ pt: 1, borderTop: '1px solid', borderColor: 'divider', width: '100%' }}
+      >
         <WorkspaceUserMenu user={user} features={features} variant="compact" />
       </Stack>
     </Box>
@@ -782,6 +787,7 @@ git commit -m "feat(web): add WorkspaceSidebarMini icon column"
 ## Task 6: Wire `mode: 'mini' | 'full'` through shell, layout client, and toolbar
 
 **Files:**
+
 - Modify: `apps/web/src/components/workspace/workspace-shell.tsx`
 - Modify: `apps/web/src/components/workspace/workspace-layout-client.tsx`
 - Modify: `apps/web/src/components/workspace/workspace-toolbar.tsx`
@@ -812,9 +818,7 @@ type Props = {
 
 export function WorkspaceShell({ sidebar, main, mode }: Props) {
   const columns =
-    mode === 'mini'
-      ? `${SIDEBAR_MINI_WIDTH}px minmax(0, 1fr)`
-      : `${SIDEBAR_WIDTH}px minmax(0, 1fr)`
+    mode === 'mini' ? `${SIDEBAR_MINI_WIDTH}px minmax(0, 1fr)` : `${SIDEBAR_WIDTH}px minmax(0, 1fr)`
 
   return (
     <Box
@@ -901,9 +905,7 @@ useEffect(() => {
 <WorkspaceToolbar
   breadcrumbs={breadcrumbs}
   rightSlot={
-    activePageId ? (
-      <PageActionsToolbar pageId={activePageId} workspaceId={workspace.id} />
-    ) : null
+    activePageId ? <PageActionsToolbar pageId={activePageId} workspaceId={workspace.id} /> : null
   }
 />
 ```
@@ -1060,6 +1062,7 @@ git commit -m "feat(web): default workspace sidebar to mini, wire mode through s
 ## Task 7: Delete the unused `sidebar-notifications-trigger.tsx`
 
 **Files:**
+
 - Delete: `apps/web/src/components/notifications/sidebar-notifications-trigger.tsx`
 
 The component is no longer imported anywhere. Removing it now keeps the tree tidy.
@@ -1100,6 +1103,7 @@ git commit -m "chore(web): drop unused sidebar-notifications-trigger"
 ## Task 8: E2E tests for new sidebar behavior + fix existing assertions
 
 **Files:**
+
 - Modify: `apps/e2e/workspace-flow.spec.ts`
 - Create: `apps/e2e/sidebar-mini-mode.spec.ts`
 

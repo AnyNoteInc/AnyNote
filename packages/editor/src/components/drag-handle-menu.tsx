@@ -2,6 +2,7 @@
 
 import { useMemo, useState, type MouseEvent } from 'react'
 import type { Editor } from '@tiptap/core'
+import type { ResolvedPos } from '@tiptap/pm/model'
 
 import { Box, Divider, ListItemIcon, ListItemText, Menu, MenuItem, Typography } from '@mui/material'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
@@ -38,6 +39,38 @@ type Props = {
 }
 
 type Submenu = 'convert' | 'color' | null
+
+function taskItemDeleteRange(
+  $pos: ResolvedPos,
+  pos: number,
+  nodeName: string,
+): { from: number; to: number } | null {
+  if (nodeName === 'taskItem' && $pos.parent.type.name === 'taskList') {
+    if ($pos.parent.childCount === 1) {
+      const from = $pos.before($pos.depth)
+      return { from, to: from + $pos.parent.nodeSize }
+    }
+
+    const node = $pos.nodeAfter
+    return node ? { from: pos, to: pos + node.nodeSize } : null
+  }
+
+  for (let depth = $pos.depth; depth > 0; depth--) {
+    const node = $pos.node(depth)
+    if (node.type.name !== 'taskItem') continue
+
+    const parent = depth > 0 ? $pos.node(depth - 1) : null
+    if (parent?.type.name === 'taskList' && parent.childCount === 1) {
+      const from = $pos.before(depth - 1)
+      return { from, to: from + parent.nodeSize }
+    }
+
+    const from = $pos.before(depth)
+    return { from, to: from + node.nodeSize }
+  }
+
+  return null
+}
 
 export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }: Props) {
   const [submenu, setSubmenu] = useState<Submenu>(null)
@@ -102,10 +135,13 @@ export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }
 
   const handleDelete = () => {
     if (pos == null || !node) return
+    const taskItemRange = taskItemDeleteRange(editor.state.doc.resolve(pos), pos, node.type.name)
+    const range = taskItemRange ?? { from: pos, to: pos + node.nodeSize }
+
     editor
       .chain()
       .focus()
-      .deleteRange({ from: pos, to: pos + node.nodeSize })
+      .deleteRange(range)
       .run()
     handleClose()
   }

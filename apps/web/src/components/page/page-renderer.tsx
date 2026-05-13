@@ -87,7 +87,12 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
 
   const [reminderUI, setReminderUI] = useState<
     | { open: false }
-    | { open: true; mode: 'create' | 'edit'; anchorEl: HTMLElement | null; initial: ReminderFormValue }
+    | {
+        open: true
+        mode: 'create' | 'edit'
+        anchorEl: HTMLElement | null
+        initial: ReminderFormValue
+      }
   >({ open: false })
 
   const findReminderNode = useCallback(
