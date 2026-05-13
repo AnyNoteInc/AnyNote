@@ -24,29 +24,36 @@ const firstChildOfContainer: DragHandleRule = {
   },
 }
 
+// columnLayout / column are structural — the user never drags the row or the
+// cell itself; only blocks of content inside cells get a handle. Deduct enough
+// to push the score < 0, which the library treats as "not a candidate".
+const excludeColumnNodes: DragHandleRule = {
+  id: 'excludeColumnNodes',
+  evaluate: ({ node }) => {
+    if (node.type.name === 'columnLayout' || node.type.name === 'column') return 10000
+    return 0
+  },
+}
+
 // `edgeDetection: 'none'` disables the 12px band where deeper nodes lose score
 // near their left edge. With it on, mousing from an inner block toward the
 // handle (which sits in the gutter) would flip the target to the parent mid-
 // motion, so the handle would jump to the outer container before the cursor
 // even reached it.
-const nestedOptions = { rules: [firstChildOfContainer], edgeDetection: 'none' as const }
+const nestedOptions = {
+  rules: [firstChildOfContainer, excludeColumnNodes],
+  edgeDetection: 'none' as const,
+}
 
 type Props = {
   editor: Editor
   onRequestBlockMove?: (pos: number) => void
 }
 
-type HoverKind = 'block' | 'cell'
-
 type HoverNodePos = {
   from: number
   to: number
   isEmpty: boolean
-  kind: HoverKind
-  rowFrom?: number
-  rowTo?: number
-  cellFrom?: number
-  cellTo?: number
 } | null
 
 export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
@@ -54,49 +61,15 @@ export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
   const [menuPos, setMenuPos] = useState<number | null>(null)
 
-  const onNodeChange = ({
-    node,
-    pos,
-    editor: ed,
-  }: {
-    node: PMNode | null
-    editor: Editor
-    pos: number
-  }) => {
+  const onNodeChange = ({ node, pos }: { node: PMNode | null; editor: Editor; pos: number }) => {
     if (!node) {
       hoverNodeRef.current = null
       return
-    }
-    let kind: HoverKind = 'block'
-    let rowFrom: number | undefined
-    let rowTo: number | undefined
-    let cellFrom: number | undefined
-    let cellTo: number | undefined
-    const $pos = ed.state.doc.resolve(pos + 1)
-    for (let d = $pos.depth; d >= 0; d--) {
-      const ancestor = $pos.node(d)
-      if (ancestor.type.name === 'columnLayout') {
-        kind = 'cell'
-        rowFrom = $pos.before(d)
-        rowTo = rowFrom + ancestor.nodeSize
-        // The column cell is the child of columnLayout that contains us.
-        const cellDepth = d + 1
-        if (cellDepth <= $pos.depth) {
-          cellFrom = $pos.before(cellDepth)
-          cellTo = cellFrom + $pos.node(cellDepth).nodeSize
-        }
-        break
-      }
     }
     hoverNodeRef.current = {
       from: pos,
       to: pos + node.nodeSize,
       isEmpty: node.textContent.length === 0,
-      kind,
-      rowFrom,
-      rowTo,
-      cellFrom,
-      cellTo,
     }
   }
 
@@ -133,7 +106,6 @@ export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
     const alt = event.altKey
     const chain = editor.chain().focus()
     if (alt) {
-      // Insert empty paragraph above the hovered node, then slash
       chain
         .insertContentAt(info.from, { type: 'paragraph' })
         .setTextSelection(info.from + 1)
@@ -148,7 +120,6 @@ export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
         .run()
       return
     }
-    // Non-empty: put cursor at end of node and insert new paragraph below
     chain
       .setTextSelection(info.to - 1)
       .insertContentAt(info.to, { type: 'paragraph' })
@@ -214,17 +185,6 @@ export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
         pos={menuPos}
         onClose={closeBlockMenu}
         onRequestMove={onRequestBlockMove ?? (() => undefined)}
-        context={
-          hoverNodeRef.current
-            ? {
-                kind: hoverNodeRef.current.kind,
-                rowFrom: hoverNodeRef.current.rowFrom,
-                rowTo: hoverNodeRef.current.rowTo,
-                cellFrom: hoverNodeRef.current.cellFrom,
-                cellTo: hoverNodeRef.current.cellTo,
-              }
-            : undefined
-        }
       />
     </>
   )
