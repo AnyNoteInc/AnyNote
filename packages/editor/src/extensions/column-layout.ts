@@ -2,6 +2,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state'
 
 import { ColumnLayoutSchema } from './column-layout.schema'
 import { dissolveColumnLayouts } from './column-layout.dissolve'
+import { columnResizePlugin } from './column-resize'
 
 export { ColumnSchema as Column } from './column-layout.schema'
 
@@ -16,6 +17,7 @@ export const ColumnLayout = ColumnLayoutSchema.extend({
           return dissolveColumnLayouts(newState) ?? undefined
         },
       }),
+      columnResizePlugin,
     ]
   },
 })
