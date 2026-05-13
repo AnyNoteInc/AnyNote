@@ -35,25 +35,11 @@ type Props = {
   pos: number | null
   onClose: () => void
   onRequestMove: (pos: number) => void
-  context?: {
-    kind: 'block' | 'cell'
-    rowFrom?: number
-    rowTo?: number
-    cellFrom?: number
-    cellTo?: number
-  }
 }
 
 type Submenu = 'convert' | 'color' | null
 
-export function DragHandleMenu({
-  editor,
-  anchorEl,
-  pos,
-  onClose,
-  onRequestMove,
-  context,
-}: Props) {
+export function DragHandleMenu({ editor, anchorEl, pos, onClose, onRequestMove }: Props) {
   const [submenu, setSubmenu] = useState<Submenu>(null)
   const [submenuAnchor, setSubmenuAnchor] = useState<HTMLElement | null>(null)
 
@@ -130,35 +116,6 @@ export function DragHandleMenu({
     handleClose()
   }
 
-  const handleDeleteRow = () => {
-    if (context?.rowFrom == null || context.rowTo == null) return
-    editor.chain().focus().deleteRange({ from: context.rowFrom, to: context.rowTo }).run()
-    handleClose()
-  }
-
-  const handleDeleteCell = () => {
-    if (context?.cellFrom == null || context.cellTo == null) return
-    editor.chain().focus().deleteRange({ from: context.cellFrom, to: context.cellTo }).run()
-    handleClose()
-  }
-
-  const handleUnwrapCell = () => {
-    if (context?.cellFrom == null || context.cellTo == null) return
-    const cellFrom = context.cellFrom
-    const cellTo = context.cellTo
-    editor
-      .chain()
-      .focus()
-      .command(({ tr, state }) => {
-        const cellNode = state.doc.nodeAt(cellFrom)
-        if (!cellNode || cellNode.type.name !== 'column') return false
-        tr.replaceWith(cellFrom, cellTo, cellNode.content)
-        return true
-      })
-      .run()
-    handleClose()
-  }
-
   return (
     <>
       <Menu
@@ -217,33 +174,6 @@ export function DragHandleMenu({
           </ListItemIcon>
           <ListItemText>Удалить</ListItemText>
         </MenuItem>
-
-        {context?.kind === 'cell' && context.cellFrom != null && context.cellTo != null && (
-          <MenuItem onClick={handleUnwrapCell}>
-            <ListItemIcon>
-              <SyncAltOutlinedIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>Развернуть ячейку в блоки</ListItemText>
-          </MenuItem>
-        )}
-
-        {context?.kind === 'cell' && context.cellFrom != null && context.cellTo != null && (
-          <MenuItem onClick={handleDeleteCell} sx={{ color: 'error.main' }}>
-            <ListItemIcon>
-              <DeleteIcon fontSize="small" sx={{ color: 'error.main' }} />
-            </ListItemIcon>
-            <ListItemText>Удалить ячейку</ListItemText>
-          </MenuItem>
-        )}
-
-        {context?.kind === 'cell' && context.rowFrom != null && context.rowTo != null && (
-          <MenuItem onClick={handleDeleteRow} sx={{ color: 'error.main' }}>
-            <ListItemIcon>
-              <DeleteIcon fontSize="small" sx={{ color: 'error.main' }} />
-            </ListItemIcon>
-            <ListItemText>Удалить ряд</ListItemText>
-          </MenuItem>
-        )}
       </Menu>
 
       <Menu
