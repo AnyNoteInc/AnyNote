@@ -223,6 +223,44 @@ test('dragging a task item past the right edge of its list creates a 2-column ro
   await expect(page.locator('.column-divider')).toHaveCount(1)
 })
 
+test('dragging a task item out of a column moves the checkbox with its text', async ({
+  page,
+}) => {
+  const editor = await createTaskListPage(page, 'task-cols-out')
+
+  const task2 = page.locator('.anynote-task-item').nth(1)
+  const task2Box = await task2.boundingBox()
+  const list = page.locator('ul[data-type="taskList"]').first()
+  const listBox = await list.boundingBox()
+  if (!task2Box || !listBox) throw new Error('task list/items not visible')
+
+  await dragBlockTo(page, task2, listBox.x + listBox.width + 32, task2Box.y + task2Box.height / 2)
+  await expect(page.locator('.column-layout')).toHaveCount(1, { timeout: 5_000 })
+
+  const layout = page.locator('.column-layout').first()
+  const rightTask = layout.locator('.column').nth(1).locator('.anynote-task-item')
+  const layoutBox = await layout.boundingBox()
+  if (!layoutBox) throw new Error('column layout not visible')
+
+  await dragBlockTo(page, rightTask, layoutBox.x + layoutBox.width / 2, layoutBox.y + layoutBox.height + 24)
+
+  await expect(editor.locator('.anynote-task-item input[type="checkbox"]')).toHaveCount(2)
+  await expect(editor.locator('.anynote-task-item', { hasText: 'Task 2' })).toHaveCount(1)
+  await expect
+    .poll(async () =>
+      editor.locator('.anynote-task-item').evaluateAll((items) =>
+        items.map((item) => ({
+          text: (item.textContent ?? '').trim(),
+          hasCheckbox: Boolean(item.querySelector('input[type="checkbox"]')),
+        })),
+      ),
+    )
+    .toEqual([
+      { text: 'Task 1', hasCheckbox: true },
+      { text: 'Task 2', hasCheckbox: true },
+    ])
+})
+
 test('dragging a task item above its task list reorders it above without losing the checkbox', async ({
   page,
 }) => {
@@ -451,6 +489,43 @@ test('dragging the divider redistributes width between adjacent columns', async 
   expect(sum).toBeCloseTo(2, 1)
 
   await expect(page.locator('.column-divider')).toHaveCount(1)
+})
+
+test('column dividers appear between columns after every column except the first', async ({
+  page,
+}) => {
+  await createSeededPage(page, 'cols-divider-position', {
+    type: 'doc',
+    content: [columnLayout('Alpha', 'Bravo', 'Charlie')],
+  })
+
+  const cells = page.locator('.column-layout > .column')
+  const dividers = page.locator('.column-divider')
+  await expect(cells).toHaveCount(3)
+  await expect(dividers).toHaveCount(2)
+
+  const boxes = await cells.evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const rect = node.getBoundingClientRect()
+      return { left: rect.left, right: rect.right }
+    }),
+  )
+  const dividerBoxes = await dividers.evaluateAll((nodes) =>
+    nodes.map((node) => {
+      const rect = node.getBoundingClientRect()
+      return { left: rect.left, right: rect.right }
+    }),
+  )
+
+  for (let i = 1; i < boxes.length; i++) {
+    const dividerBox = dividerBoxes[i - 1]
+    const previousCell = boxes[i - 1]
+    const currentCell = boxes[i]
+    if (!dividerBox || !previousCell || !currentCell) throw new Error('column boxes missing')
+
+    expect(dividerBox.left).toBeGreaterThan(previousCell.right)
+    expect(dividerBox.right).toBeLessThan(currentCell.left)
+  }
 })
 
 test('divider drag is clamped so neither neighbor collapses below the minimum', async ({

@@ -39,24 +39,23 @@ function buildDividers(doc: PMNode): Decoration[] {
     if (node.type.name !== 'columnLayout') return true
     if (node.childCount < 2) return false
     let cellPos = pos + 1
-    for (let i = 0; i < node.childCount; i++) {
+    for (let i = 0; i < node.childCount - 1; i++) {
       const cell = node.child(i)
-      if (i >= 1) {
-        decorations.push(
-          Decoration.widget(
-            cellPos,
-            () => {
-              const el = document.createElement('div')
-              el.className = 'column-divider'
-              el.contentEditable = 'false'
-              el.dataset.layoutPos = String(pos)
-              el.dataset.rightIndex = String(i)
-              return el
-            },
-            { side: -1, key: `column-divider:${pos}:${i}` },
-          ),
-        )
-      }
+      const rightIndex = i + 1
+      decorations.push(
+        Decoration.widget(
+          cellPos + cell.nodeSize - 1,
+          () => {
+            const el = document.createElement('div')
+            el.className = 'column-divider'
+            el.contentEditable = 'false'
+            el.dataset.layoutPos = String(pos)
+            el.dataset.rightIndex = String(rightIndex)
+            return el
+          },
+          { side: 1, key: `column-divider:${pos}:${rightIndex}` },
+        ),
+      )
       cellPos += cell.nodeSize
     }
     return false

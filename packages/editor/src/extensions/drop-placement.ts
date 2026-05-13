@@ -23,6 +23,9 @@ type HoverTarget =
     }
 
 type PluginState = { zone: DropZone | null; target: HoverTarget | null }
+type DraggingWithNodeSelection = NonNullable<EditorView['dragging']> & {
+  node?: { from: number; to: number }
+}
 
 export const dropPlacementKey = new PluginKey<PluginState>('dropPlacement')
 
@@ -202,6 +205,58 @@ function setPlacement(view: EditorView, next: PluginState): void {
 }
 
 const CLEARED: PluginState = { zone: null, target: null }
+const LIST_TYPES = new Set(['bulletList', 'orderedList', 'taskList'])
+
+function expandSourceRangeToDraggedNode(
+  view: EditorView,
+  source: { from: number; to: number },
+  content: Fragment,
+): { from: number; to: number } {
+  const draggedNode = content.firstChild
+  if (!draggedNode) return source
+  const $from = view.state.doc.resolve(Math.min(source.from + 1, view.state.doc.content.size))
+  for (let depth = $from.depth; depth > 0; depth--) {
+    const node = $from.node(depth)
+    if (node.type !== draggedNode.type) continue
+    const from = $from.before(depth)
+    const to = from + node.nodeSize
+    if (source.from >= from && source.to <= to) return { from, to }
+  }
+  return source
+}
+
+function expandSingleListItemSource(
+  view: EditorView,
+  source: { from: number; to: number },
+): { from: number; to: number } {
+  const $from = view.state.doc.resolve(Math.min(source.from + 1, view.state.doc.content.size))
+  for (let depth = $from.depth; depth > 1; depth--) {
+    const node = $from.node(depth)
+    const from = $from.before(depth)
+    const to = from + node.nodeSize
+    if (from !== source.from || to !== source.to) continue
+    const parent = $from.node(depth - 1)
+    if (parent.childCount !== 1 || !LIST_TYPES.has(parent.type.name)) return source
+    const parentFrom = $from.before(depth - 1)
+    return { from: parentFrom, to: parentFrom + parent.nodeSize }
+  }
+  return source
+}
+
+function dragSourceRange(view: EditorView, content: Fragment): { from: number; to: number } | null {
+  const dragging = view.dragging as DraggingWithNodeSelection | null
+  if (dragging?.node) {
+    return expandSingleListItemSource(view, { from: dragging.node.from, to: dragging.node.to })
+  }
+  const { selection } = view.state
+  if (selection.empty) return null
+  const source = expandSourceRangeToDraggedNode(
+    view,
+    { from: selection.from, to: selection.to },
+    content,
+  )
+  return expandSingleListItemSource(view, source)
+}
 
 // In-editor drag moves: delete the source range, then insert at `pos`
 // re-mapped through the deletion. Otherwise just insert (paste / external
@@ -274,9 +329,8 @@ function applyPlacementDrop(
   // For in-editor moves, capture the source range *before* we insert anywhere
   // (positions before insertion are stable).
   let source: { from: number; to: number } | null = null
-  if ((moved || view.dragging) && !view.state.selection.empty) {
-    const sel = view.state.selection
-    source = { from: sel.from, to: sel.to }
+  if (moved || view.dragging) {
+    source = dragSourceRange(view, slice.content)
   }
   const schema = view.state.schema
   const columnType = schema.nodes.column

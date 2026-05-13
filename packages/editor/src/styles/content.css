@@ -210,6 +210,11 @@
   transition: opacity 120ms ease;
 }
 
+.anynote-editor .drag-handle,
+.anynote-editor .tiptap-drag-handle {
+  z-index: 6;
+}
+
 .anynote-editor .tiptap-drag-handle:hover,
 .anynote-editor .ProseMirror:hover ~ .tiptap-drag-handle,
 .anynote-editor:hover .tiptap-drag-handle {
@@ -430,12 +435,12 @@
   min-width: 0;
 }
 
-/* Divider widgets injected by columnResizePlugin sit in each gap between
-   columns. A 12px transparent hit-zone catches mousedown; ::before draws
-   the visible bar (transparent until hover or active drag). */
+/* Divider widgets are injected into every column except the last, then shifted
+   right into the gap after that column. A 12px transparent hit-zone catches
+   mousedown; ::before draws the visible bar. */
 .anynote-editor .column-divider {
   position: absolute;
-  left: -12px;
+  right: -18px;
   top: 0;
   bottom: 0;
   width: 12px;
