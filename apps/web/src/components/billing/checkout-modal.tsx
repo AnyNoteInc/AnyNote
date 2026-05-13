@@ -30,8 +30,8 @@ type Props = {
 }
 
 const PRICES_RUB: Record<CheckoutPlanSlug, Record<BillingPeriod, number>> = {
-  pro: { MONTHLY: 150, YEARLY: 1000 },
-  max: { MONTHLY: 1500, YEARLY: 12000 },
+  pro: { MONTHLY: 390, YEARLY: 3900 },
+  max: { MONTHLY: 5900, YEARLY: 59000 },
 }
 
 export function CheckoutModal({ planSlug, defaultPeriod, onClose }: Props) {
