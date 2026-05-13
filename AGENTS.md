@@ -34,93 +34,75 @@ Copy `.env.example` to `.env` for local setup and keep secrets out of commits. U
 <claude-mem-context>
 # Memory Context
 
-# [anynote] recent context, 2026-05-12 8:36pm GMT+1
+# [anynote] recent context, 2026-05-13 2:59pm GMT+1
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (18,939t read) | 1,077,862t work | 98% savings
+Stats: 50 obs (20,105t read) | 647,461t work | 97% savings
 
-### May 12, 2026
-1587 6:35p 🔵 columnLayout node programmatically injected via pmRoot.editor.view.dispatch in Playwright
-1588 " 🔵 Critical: Tiptap NodeViewContent renders an extra data-node-view-content wrapper that breaks the CSS Grid
-1589 " 🔴 CSS Grid moved to data-node-view-content-react wrapper: columns now render horizontally
-1590 6:36p 🔴 Columns render horizontally: CSS grid fix to [data-node-view-content-react] confirmed working via Playwright
-1591 6:50p 🔵 Image placeholder column layout regression reported by user
-1592 7:02p 🔴 Drop indicator switched from Decoration.widget to Decoration.node to fix full-page bar height
-S399 Fix full-page drop indicator height when dragging image placeholder; remove controls from columnLayout column component (May 12 at 7:03 PM)
-1593 7:16p ✅ Removed ColumnLayoutNodeView React component from columnLayout TipTap extension
-1594 " ✅ Deleted ColumnLayoutNodeView component file and confirmed no stale references
-1595 " 🔵 CSS drop indicator class names are stale after Decoration.widget→Decoration.node migration
-1596 7:17p ✅ content.css updated for Decoration.node drop targets and NodeView-free column grid
-1597 " 🔵 One test failing after CSS/decoration migration — lint and types pass
-1598 " 🔵 content.test.ts still asserts old .column-drop-indicator CSS class names after migration to .column-drop-target
-1599 " 🔴 Updated content.test.ts CSS assertions to match renamed .column-drop-target class
-1600 " 🔵 Playwright verification confirms drop indicator height matches image placeholder exactly
-1601 7:18p 🔵 Playwright confirms column layout renders as CSS grid without React NodeView
-1602 " 🔴 Committed be22c0b: drop indicator scoped to target box, ColumnLayoutNodeView removed
-1603 " 🟣 Column creation zone algorithm redesigned: outside-bounds X triggers LEFT/RIGHT, 100% width gives TOP/BOTTOM
-1604 " 🔄 Added findBestCellInLayout() and findHoverTarget() to drop-placement.ts, replacing inline dragover logic
-S405 User asked if it's possible to revert to TipTap's native drag & drop given the current custom drop-placement override — answered with full revert instructions and compatibility analysis (May 12 at 7:18 PM)
-1605 7:28p ⚖️ User questioned feasibility of reverting to TipTap native drag &amp; drop
-S403 Code review of current branch (page reminders feature) — bugs, inconsistencies, and simplification opportunities in anynote monorepo (May 12 at 7:28 PM)
-S400 Redesign column drop zone mechanism: outside-bounds X triggers LEFT/RIGHT column creation; full 100% width inside block triggers TOP/BOTTOM reorder (May 12 at 7:28 PM)
-S404 User asked: "you overrode tiptap drag & drop, is it possible to switch to tiptap with this configuration?" — answered with explanation of new zone algorithm; commit 6617dbf shipped (May 12 at 7:28 PM)
-S406 User asked if the custom TipTap drag & drop override can be reverted — answered yes with full revert steps and TipTap upgrade compatibility analysis (May 12 at 7:33 PM)
-S401 Code review of current branch changes - checking for bugs, inconsistencies, and simplification opportunities in page reminders feature (May 12 at 7:33 PM)
-S402 Code review of current branch (page reminders feature) — checking for bugs, inconsistencies, and simplification opportunities (May 12 at 7:33 PM)
-1606 7:42p 🔵 feat/tiptap-column-layout Branch State Discovered
-1607 " 🔵 Full Branch Diff Scope: 60 Files, 3178 Insertions Across Multiple Features
-1609 " 🟣 drop-placement.ts: ProseMirror Plugin for Column Drag-and-Drop
-1610 " 🟣 column-layout Schema, Dissolve Logic, and Client Extension
-1611 " 🟣 DragHandle and DragHandleMenu Extended for Row/Cell Context
-1612 " 🟣 Column Layout and Drop Indicator CSS Added to content.css
-S407 Refactor drop-placement.ts plugin (feat/tiptap-column-layout branch) for quality, efficiency, and code reuse — /simplify task (May 12 at 7:42 PM)
-1608 7:44p 🔵 feat/tiptap-column-layout branch scope: 28 commits, 60 files vs main
-1613 " 🔵 Full session diff read for /simplify review — 606 lines, 9 files
-1614 " 🟣 drop-placement.zones.ts: Pure Zone Computation with Unit Tests
-1615 " 🟣 Column Layout Unit Tests Cover Schema Validation and Dissolve Logic
-1616 " 🟣 Extension Registration and ResizableImage Fix for Column Drop Passthrough
-1617 " 🟣 E2E Tests for Column Layout: Two Golden-Path Playwright Specs
-1618 7:45p 🔵 Non-Editor Branch Changes Are Exclusively Prettier Reformatting
-1635 7:50p 🔵 Two drag-and-drop bugs reported for drop-placement plugin
-1636 " 🔴 Added bubbleCellToLayoutForReorder to fix H1 drag above/between columnLayouts
-1619 7:52p 🔵 Active branch: feat/tiptap-column-layout with column drag-and-drop work
-1620 " 🔵 feat/tiptap-column-layout branch scope: 60 files, 3205 insertions across multiple features
-1621 " 🔵 drop-placement.ts: 324-line ProseMirror plugin implementing column drag-and-drop
-1622 " 🔵 Trailing blank line at EOF in content.css detected by git diff --check
-1623 7:54p 🔵 column-layout.schema.ts: dual export pattern for SSR vs client use
-1624 " 🔵 column-layout.dissolve.ts: appendTransaction cleanup for empty/single-column layouts
-1625 " 🔵 EditorDragHandle updated to track column context for cell-aware menu actions
-1626 " 🔵 DragHandleMenu extended with cell-specific actions: unwrap cell, delete cell, delete row
-1627 " 🔵 content.css: column layout CSS uses position:relative on ProseMirror children for drop indicator anchoring
-1628 7:55p 🔵 column-layout.ts: thin wrapper that extends ColumnLayoutSchema with dissolve appendTransaction
-1629 " 🔴 resizable-image.tsx handleDrop: only intercepts OS file drops, lets in-editor drags bubble to DropPlacement
-1630 " 🟣 BlockIndexAttributes extended to emit nested data-block-index for columnLayout cells
-1631 " 🔵 All notification/trpc/web non-editor diffs are pure formatting — no logic changes found
-1632 7:56p 🟣 page-columns.spec.ts: 2 Playwright e2e tests covering column creation and vertical reorder
-1633 " 🔵 No dependency or config file changes in branch — column layout uses existing Tiptap packages
-1634 " ⚖️ Column layout spec deviates from plan: NodeViews/row handles not implemented, using drag-handle extension instead
-S408 Fix two drag-and-drop bugs: H1 cannot be dragged above a columnLayout, and H1 cannot be dragged between two columnLayouts (May 12 at 8:02 PM)
-**Investigated**: User reported two specific failing drag scenarios in the column layout feature on feat/tiptap-column-layout branch. Both involve dragging a top-level block to a position adjacent to (above or between) columnLayout nodes.
+### May 13, 2026
+1639 4:39a 🔵 MAX_COLUMNS=3 Constant Enforced in Drop Placement Plugin at Two Points
+1641 4:40a 🔵 CSS Column Grid Has Hardcoded Rules Only for 1–3 Columns
+1642 " 🔵 Existing E2E Column Tests Use Six-Dot Button to Initiate Drags
+1643 4:45a 🔵 Tiptap Drag Handle is Custom Implementation, Not npm Package
+1644 " 🔵 Tiptap Drag Handle Package Uses pnpm, Not Symlinked to node_modules Root
+1645 4:46a 🔵 Tiptap DragHandle v3.22.3 Uses Rule-Based Scoring System to Select Drag Targets
+1646 5:01a 🔵 Prior Tiptap Column Layout Spec Exists from 2026-05-12
+1647 " ✅ Design Spec Written: Column Layout Unlimited Columns + Resizable Dividers
+1648 " ✅ Spec Refined: Column Divider Decoration Uses data-right-index and Position Walking
+1649 5:02a ✅ Spec Doc Staged on feat/tiptap-column-layout Branch, Implementation About to Begin
+S418 Observer session monitoring primary session implementing 11-task plan for anynote Tiptap editor: unlimited columns, draggable dividers, hidden controls, Playwright tests, pnpm gates (May 13 at 5:02 AM)
+1650 5:04a 🔵 column-layout.schema.test.ts Has Explicit 4-Column Rejection Test That Must Be Inverted
+1651 " 🔵 Dissolve Test Already Tests 3-Column Logic; Only 4-Column Case Needs Adding
+1652 5:05a 🔵 content.test.ts Has Four Regex Assertions That Will Break After CSS Grid-to-Flex Migration
+1653 " 🔵 Prior Tiptap Column Layout Implementation Plan Exists at docs/superpowers/plans/
+S420 Fix column layout bugs with taskList/taskItem nodes — drag-to-column fails to create layout, and checkbox splits from text during drag (May 13 at 5:07 AM)
+1654 5:52a 🔵 Bug report: column layout breaks with taskList nodes
+S421 Fix column layout bugs with taskList/taskItem nodes — drag-to-column fails, divider missing, checkbox splits from text on drag (May 13 at 5:52 AM)
+S419 Implement unlimited columns + resizable dividers for anynote Tiptap editor, then fix newly reported bug: column layout broken when dragging taskList/taskItem nodes (May 13 at 5:53 AM)
+S422 Fix two bugs when combining task lists with drag-to-column: invalid schema (bare taskItem in column without taskList wrapper) and content duplication when source is nested inside target (May 13 at 7:48 AM)
+1655 7:49a 🔵 TaskItemWithCheckbox extension uses ReactNodeViewRenderer with composite DOM structure
+1656 " 🔵 TaskItem schema has `defining: true` and content `paragraph+`, nested inside taskList
+1657 " 🔵 TaskList is a top-level block (group: 'block list') but taskItem is not — only whole-list drag can create columns
+1658 7:50a 🔵 Drag handle defaultRules target taskItem nodes; dragHandler at depth-0 promotes drag to top-level taskList
+1659 7:51a 🔵 Drag handle plugin in non-nested mode always targets the top-level block via getOuterDomNode/getOuterNode
+1660 " 🔵 page-columns.spec.ts yjsExtensions missing TaskList/TaskItem — seeding task list pages will fail
+1662 " 🔵 StarterKit does not include TaskList or TaskItem extensions
+1661 " 🔵 Editor registers TaskList + TaskItemWithCheckbox with nested:true; test yjsExtensions missing both
+1663 7:52a 🔵 No dev server running on port 3000 or 3100 — Playwright tests not yet started for taskList bug
+1664 " 🔵 Root cause confirmed: drop-placement.ts PLACEABLE_TYPES excludes taskList — drops are silently rejected
+1665 " 🟣 Repro test added to page-columns.spec.ts for taskList column drag debugging
+1666 7:54a 🔵 Repro test fails: taskList input rule '[ ] ' does not trigger reliably in Playwright headless typing
+S423 Fix taskItem+column drag bugs (schema-invalid bare taskItem in column, content duplication) — then /simplify the committed changes (May 13 at 7:54 AM)
+S424 /simplify review of commit 0c77c82 on feat/tiptap-column-layout — code reuse, quality, and efficiency cleanup of the drop-placement task-item bug fixes (May 13 at 2:16 PM)
+S425 Add mandatory marketing newsletter consent checkbox to the "Особое решение" (special solutions) contact section on the main page, matching the registration form pattern (May 13 at 2:16 PM)
+1667 2:30p 🔵 TipTap Column Layout Bugs with Task Lists Identified
+1668 2:31p 🔵 Column Layout + Task List Bug Root Cause: React NodeView Serialization Gap
+1669 2:32p 🔵 Column Layout Architecture: Full System Map of Key Files and CSS
+1670 " 🔵 E2E Tests for Task List Column Bugs: First 6 of 13 Tests Passing
+1671 2:33p 🟣 TipTap Column Layout with Task Lists: All 13 E2E Tests Pass (13/13)
+1672 " 🟣 New E2E Test: Checkbox Preserved When Dragging Task Item Out of Column
+1673 " 🔵 New Test Reveals Bug: Dragging Task Item Out of Column Creates 3 Checkboxes Instead of 2
+1674 " 🔵 Drag-Handle Source Package Not Found in node_modules; Bug Isolated to Second Drag
+1675 2:35p 🔵 Search for "особые решения" section found no matching files
+1676 " 🔵 "Особое решение" section located in home-contact component
+1677 2:36p 🔵 ContactForm has privacy consent but lacks marketing newsletter checkbox
+S427 Add mandatory marketing newsletter consent checkbox to the "Особое решение" contact form on the main page, matching the registration form pattern — COMPLETED (May 13 at 2:36 PM)
+1678 2:37p 🟣 Added mandatory marketing consent state and validation to ContactForm
+1679 " 🟣 Mandatory marketing newsletter consent checkbox added to ContactForm on main page
+1680 " 🟣 Marketing consent checkbox feature passes TypeScript and ESLint checks
+S426 Add mandatory marketing newsletter consent checkbox to the "Особое решение" contact form on the main page, matching the registration form pattern (May 13 at 2:38 PM)
+1681 2:43p 🔵 Tiptap Column Layout — Editing Bar Visibility Bug Identified
+1682 2:44p 🔵 Column Layout Architecture: Divider Widgets vs Drop-Placement Decorations in anynote Editor
+1683 " 🟣 New E2E Test: Task Item Drag-Out of Column Preserves Checkbox
+1684 2:45p 🟣 E2E Test Added: Column Dividers Positioned Between Every Non-First Column Pair
+1685 " 🔵 Column Divider Bug Confirmed: Divider Renders at Wrong DOM Position (Left of First Column)
+1686 " 🔴 First Fix Attempt for Column Divider Position: Widget Anchor +1 and CSS left -18px
+1687 " 🔴 Column Divider Bug Fixed: Widget Anchor +1 and CSS left -18px Combination Passes E2E Test
+1689 " 🔵 Full E2E Suite Reveals Pre-existing or Introduced Regression: Empty Column Not Dissolved After Drag-Out
+1688 2:46p 🔴 All Three Divider E2E Tests Pass After Fix: Positioning, Width Redistribution, and Drag Clamp
 
-**Learned**: - Bug case 1: Dragging H1 above a columnLayout (TOP zone) does not execute the drop
-- Bug case 2: Dragging H1 between two adjacent columnLayout nodes does not work — inter-layout gap position is not resolved
-- Both failures involve top-level block placement at boundaries relative to columnLayout nodes
-- findHoverTarget Y-scan fallback and refineLayoutToCell may be implicated — when cursor is above the first layout or in the gap between two layouts, the target resolution may fail or return wrong result
-
-**Completed**: Previous session: Drop-placement refactor committed as 11f383a "refactor(editor): tighten drop-placement plugin":
-- 60Hz no-op guard (samePlacement + setPlacement) — Playwright-verified: 4/5 identical dragovers short-circuit
-- Removed unused cellIndex from HoverTarget
-- Extracted MAX_COLUMNS=3 constant
-- Factored refineLayoutToCell, insertContent, replaceContent, computeReorderPos helpers
-- 30/30 tests, lint clean, types clean
-
-Current session: New bug report received, fix work not yet started.
-
-**Next Steps**: Debug and fix the two drag-and-drop failures: (1) H1 drag above columnLayout not working, (2) H1 drag between two columnLayouts not working. Root cause likely in findHoverTarget Y-scan logic or computeReorderPos for TOP zone on a columnLayout target.
-
-
-Access 1078k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 647k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>
