@@ -6,9 +6,6 @@ import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
 import { dissolveColumnLayouts, dissolveColumnLayoutsInTransaction } from './column-layout.dissolve'
 import { computeDropZone, type DropZone } from './drop-placement.zones'
 
-// Mirrors `column{1,3}` in column-layout.schema.ts — keep in sync.
-const MAX_COLUMNS = 3
-
 type HoverTarget =
   | { kind: 'block'; pos: number; node: PMNode }
   | {
@@ -176,9 +173,8 @@ function computeZoneForTarget(
 ): DropZone | null {
   const dom = view.nodeDOM(targetStart(target)) as HTMLElement | null
   if (!dom) return null
-  const canSide = target.kind === 'cell' ? target.layoutNode.childCount < MAX_COLUMNS : true
   return computeDropZone({ x: event.clientX, y: event.clientY }, dom.getBoundingClientRect(), {
-    canSide,
+    canSide: true,
   })
 }
 
@@ -286,7 +282,6 @@ function applyPlacementDrop(
     tr = replaceContent(tr, target.pos, target.pos + target.node.nodeSize, layout, source)
   } else {
     // LEFT/RIGHT on a cell — insert a sibling cell into the layout.
-    if (target.layoutNode.childCount >= MAX_COLUMNS) return false
     const newCell = columnType.create(null, droppedContent)
     const cellInsertPos =
       zone === 'LEFT' ? target.cellPos : target.cellPos + target.cellNode.nodeSize
