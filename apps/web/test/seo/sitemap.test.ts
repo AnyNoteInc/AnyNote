@@ -10,7 +10,7 @@ describe('sitemap', () => {
   it('includes the homepage', () => {
     const home = entries.find((e) => e.url === `${siteConfig.url}/`)
     expect(home).toBeDefined()
-    expect(home?.priority).toBe(1.0)
+    expect(home?.priority).toBe(1)
   })
 
   it('includes /pricing and /terms', () => {

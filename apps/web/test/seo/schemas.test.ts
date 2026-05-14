@@ -51,8 +51,8 @@ describe('productOffersSchema', () => {
       { name: 'Personal', price: 0 },
       { name: 'Pro', price: 599 },
     ])
-    expect(schema).not.toBeNull()
-    const offers = (schema as Record<string, unknown>).offers as unknown[]
+    if (!schema) throw new Error('expected productOffersSchema to return a value')
+    const offers = schema.offers as unknown[]
     expect(offers).toHaveLength(2)
     expect(offers[0]).toMatchObject({
       '@type': 'Offer',
@@ -84,9 +84,9 @@ describe('faqSchema', () => {
 
   it('maps items to FAQPage', () => {
     const schema = faqSchema([{ q: 'Q1', a: 'A1' }])
-    expect(schema).not.toBeNull()
-    expect((schema as Record<string, unknown>)['@type']).toBe('FAQPage')
-    const entities = (schema as Record<string, unknown>).mainEntity as Array<Record<string, unknown>>
+    if (!schema) throw new Error('expected faqSchema to return a value')
+    expect(schema['@type']).toBe('FAQPage')
+    const entities = schema.mainEntity as Array<Record<string, unknown>>
     expect(entities[0]).toMatchObject({
       '@type': 'Question',
       name: 'Q1',

@@ -16,7 +16,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
       url: `${base}/`,
       lastModified: STATIC_PAGES_LAST_MODIFIED,
       changeFrequency: 'weekly',
-      priority: 1.0,
+      priority: 1,
     },
     {
       url: `${base}/pricing`,
