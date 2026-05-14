@@ -1,7 +1,17 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type APIRequestContext, type Page } from '@playwright/test'
+
+async function expectOgImageReachable(page: Page, request: APIRequestContext) {
+  const image = page.locator('meta[property="og:image"]')
+  await expect(image).toHaveCount(1)
+  const url = await image.getAttribute('content')
+  expect(url).toBeTruthy()
+  const res = await request.get(url!)
+  expect(res.status()).toBe(200)
+  expect(res.headers()['content-type']).toContain('image/png')
+}
 
 test.describe('SEO surface (public pages)', () => {
-  test('homepage exposes canonical, OG, and JSON-LD', async ({ page }) => {
+  test('homepage exposes canonical, OG, and JSON-LD', async ({ page, request }) => {
     await page.goto('/')
 
     const canonical = page.locator('link[rel="canonical"]')
@@ -10,7 +20,7 @@ test.describe('SEO surface (public pages)', () => {
 
     await expect(page.locator('meta[property="og:title"]')).toHaveCount(1)
     await expect(page.locator('meta[property="og:description"]')).toHaveCount(1)
-    await expect(page.locator('meta[property="og:image"]')).toHaveCount(1)
+    await expectOgImageReachable(page, request)
     await expect(page.locator('meta[property="og:locale"]')).toHaveAttribute('content', 'ru_RU')
 
     const ldScripts = await page.locator('script[type="application/ld+json"]').allTextContents()
@@ -24,8 +34,9 @@ test.describe('SEO surface (public pages)', () => {
     expect(parsed.some((x) => x['@type'] === 'SoftwareApplication')).toBe(true)
   })
 
-  test('pricing page exposes Product/Offer JSON-LD', async ({ page }) => {
+  test('pricing page exposes Product/Offer JSON-LD', async ({ page, request }) => {
     await page.goto('/pricing')
+    await expectOgImageReachable(page, request)
     const ldScripts = await page.locator('script[type="application/ld+json"]').allTextContents()
     const parsed = ldScripts.flatMap((raw) => {
       const data = JSON.parse(raw)
@@ -36,8 +47,9 @@ test.describe('SEO surface (public pages)', () => {
     expect(Array.isArray(product?.offers)).toBe(true)
   })
 
-  test('legal doc page exposes BreadcrumbList JSON-LD', async ({ page }) => {
+  test('legal doc page exposes BreadcrumbList JSON-LD', async ({ page, request }) => {
     await page.goto('/terms/user-agreement')
+    await expectOgImageReachable(page, request)
     const ldScripts = await page.locator('script[type="application/ld+json"]').allTextContents()
     const parsed = ldScripts.flatMap((raw) => {
       const data = JSON.parse(raw)

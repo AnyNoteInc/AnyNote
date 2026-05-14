@@ -4,15 +4,13 @@ import { legalDocumentBySlug, type LegalDocumentSlug } from '@/lib/legal-documen
 import { siteConfig } from '@/lib/seo/site-config'
 
 export const runtime = 'nodejs'
-export const alt = `Документ · ${siteConfig.brandRu}`
-export const size = { width: 1200, height: 630 }
-export const contentType = 'image/png'
 
-export default async function OpenGraphImage({
-  params,
-}: {
-  params: Promise<{ document: string }>
-}) {
+const size = { width: 1200, height: 630 }
+
+export async function GET(
+  _request: Request,
+  { params }: { params: Promise<{ document: string }> },
+) {
   const { document } = await params
   const meta = legalDocumentBySlug[document as LegalDocumentSlug]
   const eyebrow = meta?.eyebrow ?? 'Документ'

@@ -20,15 +20,12 @@ describe('organizationSchema', () => {
 })
 
 describe('websiteSchema', () => {
-  it('returns WebSite with SearchAction', () => {
+  it('returns WebSite without a SearchAction until public search exists', () => {
     const schema = websiteSchema()
     expect(schema['@type']).toBe('WebSite')
     expect(schema.url).toBe(siteConfig.url)
     expect(schema.name).toBe(siteConfig.brandRu)
-    const action = schema.potentialAction as Record<string, unknown>
-    expect(action['@type']).toBe('SearchAction')
-    expect(action.target).toContain('{query}')
-    expect(action['query-input']).toBe('required name=query')
+    expect(schema).not.toHaveProperty('potentialAction')
   })
 })
 

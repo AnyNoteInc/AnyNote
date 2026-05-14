@@ -34,93 +34,75 @@ Copy `.env.example` to `.env` for local setup and keep secrets out of commits. U
 <claude-mem-context>
 # Memory Context
 
-# [anynote] recent context, 2026-05-13 9:37pm GMT+1
+# [anynote] recent context, 2026-05-14 8:18pm GMT+1
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (16,157t read) | 558,492t work | 97% savings
+Stats: 50 obs (20,128t read) | 448,809t work | 96% savings
 
-### May 13, 2026
-1719 3:14p 🔵 feat/tiptap-column-layout Branch Full Scope — 50 Commits, 66 Files, 6263 Insertions
-1720 " ✅ PR #12 Created: feat(editor): column layout with unlimited columns, resizable dividers, and task-list support
-1723 3:15p 🔵 SonarQube Reports Zero Open Issues on feat/tiptap-column-layout
-1724 " 🔵 sonar CLI Does Not Support --pr Flag for PR-Scoped Issue Queries
-1725 " 🔵 SonarQube PR #12 Has 16 Open Issues — Correct Flag is --pull-request Not --pr
-1726 " 🔵 Full SonarQube Issue List for PR #12 — 16 Issues Across 5 Files
-1727 3:16p 🔵 SonarQube BLOCKER S3516 Identified — dragend Handler in drop-placement.ts Always Returns false
-1728 3:17p 🔵 S2004 CRITICAL — block-index-attributes.ts Exceeds 4-Level Function Nesting Due to Triple-Nested forEach
-1729 " 🔵 column-resize.ts S6582 Context — Optional Chain Candidates in dispatchWidths and beginDrag
-1730 " 🔵 column-layout.schema.ts S7761 Sources — Three getAttribute Calls to Replace with .dataset
-1731 3:18p 🔵 reminder.schema.ts S7761 — getAttribute('data-audience') at Line 37 to Replace with .dataset.audience
-1732 " 🔴 SonarQube Fixes Applied to drop-placement.ts — dragleave Refactored and Non-null Assertion Removed
-1733 " 🔴 renderIndicatorDecoration Signature Updated to Accept PluginState | undefined
-1734 3:24p 🔵 CI Checks Passed for AnyNote PR #12
-1735 " 🔵 Open SonarQube CRITICAL Issue on PR #12 — Cognitive Complexity Violation
-1736 " 🔴 Reduced Cognitive Complexity in applyPlacementDrop to Fix SonarQube S3776
-1737 3:32p 🔴 Editor Package Local Gates Pass After Cognitive Complexity Fix
-1738 " ✅ Cognitive Complexity Fix Committed and Pushed to PR Branch
-1739 3:39p 🔴 SonarQube CRITICAL Issue Resolved — PR #12 Now Clean and Mergeable
-1740 " 🔵 AnyNote Uses Semantic Release on Main Branch — Currently at v1.13.2
-1741 " 🔵 PR #12 Squash-Merge Failed Due to Diverged Local Main Branch
-1742 3:40p 🔵 PR #12 Successfully Merged to Main Despite Local Fast-Forward Error
-1743 " 🟣 Release Pipeline Triggered for Column Layout Feature After PR #12 Merge
-1744 " 🔵 Monitor Shell Script Failed Due to `status` Being a Read-Only Variable in zsh
-1745 " 🟣 AnyNote v1.14.0 Released — Column Layout Feature Shipped to Production
-1746 8:28p 🔵 Anynote main branch diverged from origin/main with merge conflicts
-1747 " 🔵 Anynote merge conflict root cause: local doc-only commits vs origin v1.14.0 release
-1748 " 🔵 Column layout drop-zone algorithm changed from 25%-edge to outside-bounding-rect
-S437 Update AnyNote subscription plan pricing across website and legal offer — Pro: 390₽/mo 3900₽/yr; Max: 5900₽/mo 59000₽/yr, max 20 participants, page indexing, custom LLM models (May 13 at 8:29 PM)
-1749 8:33p ✅ Pricing Updated for Pro and Max Plans on Website and Offer Documents
-1750 8:34p 🔵 Anynote Monorepo Structure: Pricing and Billing File Locations Mapped
-1751 " 🔵 Pricing Is Database-Driven via Prisma Seed — Stored in Kopecks
-1752 " 🔵 CheckoutModal Has Hardcoded Prices — Critical Second Source of Truth
-1753 8:35p 🔵 Complete Pricing Audit: Exactly 3 Files Require Manual Updates
-1754 " ✅ Pro Plan Prices Updated in Prisma Seed
-S438 Update AnyNote subscription plan pricing across website and legal offer — Pro: 390₽/mo 3900₽/yr; Max: 5900₽/mo 59000₽/yr, max 20 participants, page indexing, custom LLM models (May 13 at 8:37 PM)
-S435 Update AnyNote subscription plan pricing across website and legal offer document — Pro: 390₽/mo, 3900₽/yr; Max: 5900₽/mo, 59000₽/yr with max 20 participants, page indexing, custom LLM models (May 13 at 8:37 PM)
-S436 Update AnyNote subscription plan pricing across website and legal offer — Pro: 390₽/mo 3900₽/yr; Max: 5900₽/mo 59000₽/yr, max 20 participants, page indexing, custom LLM models (May 13 at 8:37 PM)
-S439 Update AnyNote subscription plan pricing across website and legal offer — Pro: 390₽/mo 3900₽/yr; Max: 5900₽/mo 59000₽/yr, max 20 participants, page indexing, custom LLM models (May 13 at 8:43 PM)
-1755 8:43p 🟣 AnyNote v1.15.0 released — pricing update deployed to production
-S440 Deploy AnyNote v1.15.0 — pricing update fully through Release pipeline, Deploy workflow in progress (May 13 at 8:43 PM)
-S441 Fix stale/old brand icon appearing in browser tabs — replace old icon assets with orange diamond (rhombus) (May 13 at 8:52 PM)
-1756 8:58p 🔵 Anynote App Icon Files Located in Public Directory
-1757 " 🔵 Anynote Uses Dual Icon System: Dynamic TSX + Static PNG/SVG Files
-1758 8:59p 🔵 Two Competing Brand Icon Designs Exist in Anynote
-1759 " 🔴 Brand icon updated from old triangle design to orange diamond (rhombus)
-1760 9:03p 🔵 Pillow (PIL 12.2.0) used to programmatically generate favicon PNG files in anynote agents venv
-1761 " 🔴 favicon.ico regenerated from updated favicon.png using Pillow
-1762 " ⚖️ Pillow installed and removed transiently to avoid polluting pyproject.toml
-1763 " ✅ Icon update changeset: 2 files modified, favicon.ico shrunk 75%, brand-icon.tsx simplified
-1764 " 🔵 renderBrandIconArt consumed by both Next.js dynamic icon routes via ImageResponse
-1765 " 🔵 Separate BrandIcon MUI component in packages/ui already uses the correct orange diamond design
-1766 9:04p 🔵 BrandIcon used only in auth-header widget in source code
-S442 Deploy AnyNote pricing update — v1.15.0 fully deployed to production, pricing live (May 13 at 9:05 PM)
-1767 9:06p 🟣 AnyNote v1.15.0 Deploy workflow completed successfully — pricing live in production
-S444 Commit and release brand icon fix — "закоммить и сделай релиз" (May 13 at 9:06 PM)
-1768 9:10p ✅ Brand icon fix committed to main as 9463fc9
-1769 " ✅ Brand icon fix pushed to origin/main on GitHub (AnyNoteInc/AnyNote)
-1770 9:11p ✅ GitHub Actions "Release" workflow queued for commit 9463fc9
-S443 Commit and release the brand icon fix — stale favicon replaced with orange diamond (May 13 at 9:11 PM)
-**Investigated**: - Confirmed pre-commit state: 2 modified files (favicon.ico, brand-icon.tsx) unstaged on main
-    - Verified git diff matched expected orange diamond changes
-    - Checked GitHub Actions run list after push to confirm Release workflow triggered
+### May 14, 2026
+1863 11:28a 🔴 Added posOf() helper to placement.test.ts to replace ! assertions with type-safe position lookup
+1864 11:29a 🔵 PR #13 CI Status: SonarCloud Passed, lint-and-test Still Pending
+1865 11:40a 🔵 SonarCloud API Reports 20 Total Issues But 0 Open — All Are CLOSED
+1866 " 🟣 PR #13 All CI Checks Passed — Ready to Merge
+1867 11:41a 🟣 feat/genogram Branch Merged into main via PR #13
+1868 1:09p 🔵 SEO Implementation Planned for Next.js Project at anynote
+1869 " 🔵 anynote Next.js App Router Structure and Existing SEO State Mapped
+1870 1:10p 🔵 anynote Root Metadata and Base URL Configuration Examined
+1871 1:23p 🔵 Anynote Next.js App Structure for SEO Implementation
+S464 SEO Option B design — All 5 sections now presented; Section 5 covers env vars, error handling, security, and testing strategy (May 14 at 1:32 PM)
+S466 SEO Option B design — All 5 sections fully presented; spec file about to be written; discovered existing spec naming convention (May 14 at 1:33 PM)
+S470 SEO implementation prep — vitest config, turbo.json globalEnv, .env.example format, and test style inspected before writing implementation plan (May 14 at 1:34 PM)
+S471 SEO implementation prep — pricing page structure, turbo.json full globalEnv, e2e test conventions, and web package scripts all inspected (May 14 at 1:35 PM)
+S469 SEO design spec committed to git; awaiting user review before writing implementation plan (May 14 at 1:35 PM)
+S473 SEO production implementation for Anynote Next.js app — executing 22-task plan targeting Yandex + Google (May 14 at 1:38 PM)
+1872 1:41p ✅ SEO Implementation Plan Written — 22 Tasks, TDD-first
+S474 SEO production implementation for Anynote Next.js app — executing 22-task plan targeting Yandex + Google (May 14 at 1:42 PM)
+S472 SEO implementation for Anynote Next.js app (Russian search engines: Yandex + Google) — executing 22-task implementation plan (May 14 at 1:42 PM)
+S475 Observer session monitoring feat/seo SEO implementation — checking for git push and PR creation after all 22 tasks complete (May 14 at 1:49 PM)
+1873 1:50p 🔵 SEO implementation base SHA and lib directory state confirmed
+1874 " 🟣 Task 1 complete: apps/web/src/lib/seo/site-config.ts created
+1875 1:51p 🟣 Task 1 shipped: site-config.ts committed to feat/seo (8fe1fd6)
+1876 " 🟣 Task 1 implementer subagent completed: DONE, all checks passed
+1877 1:52p 🟣 Task 1 spec compliance review passed — proceeding to Task 2
+1878 " 🟣 Task 1 fully approved — all three review gates passed, proceeding to Task 2
+1879 " 🔴 T19 legal document OG image fixed to use async params (Next.js 15/16 convention)
+1880 2:27p 🔵 Severe replay loop: T19 async params fix applied 3+ times with identical edit patches
+1881 7:39p 🔴 T19 async params fix committed: SHA 3899549
+1882 " 🔵 apps/e2e directory contains 21 existing spec files — no seo.spec.ts yet
+1883 " 🟣 T21: apps/e2e/seo.spec.ts created — 5 Playwright E2E smoke tests for SEO routes
+1884 7:40p 🔵 playwright.config.ts: E2E suite runs Next.js dev server on port 3100 with PLAYWRIGHT=true env
+1885 " 🔵 Anynote plans table: 3 rows — Персональный, ПРО, МАКС
+1886 " 🔵 Next.js dev server conflict: port 3000 already running (PID 50926) blocks new dev instance on 3100
+1887 " 🔴 Existing Next.js dev server (PID 50926) killed to unblock Playwright E2E test run
+1888 7:41p 🔵 buildMetadata utility: canonical + OG metadata builder used across all public pages
+1889 " 🔵 Homepage page.tsx: renders Organization + WebSite + SoftwareApplication JSON-LD in one JsonLd call
+1890 " 🔵 CRITICAL: T21 canonical assertion will fail — actual href is `http://localhost:3100` (no trailing slash)
+1891 7:42p 🔵 Homepage JSON-LD confirmed live: 3-schema array with Organization, WebSite+SearchAction, SoftwareApplication
+1892 " 🔵 og:image absent from homepage SSR HTML — file-based opengraph-image.tsx not auto-injecting meta tag
+1893 7:43p 🔵 Next.js 16.2.0 canonical URL rendering strips trailing slash — metadata.js uses canonical.url.toString() directly
+S476 Observer monitoring feat/seo SEO implementation — checking git push and PR status after all 22 tasks complete (May 14 at 8:03 PM)
+1894 8:07p 🔵 AnyNote feat/seo branch audit initiated
+1895 " 🔵 feat/seo branch commit history fully reconstructed
+1896 8:08p 🟣 AnyNote feat/seo branch implements complete SEO infrastructure for public web pages
+1897 " 🔵 AnyNote SEO architecture: buildMetadata, robots.ts, sitemap.ts implementation details confirmed
+1898 " 🔵 SEO integration confirmed across all public pages and protected layouts
+1899 8:09p 🔵 SEO unit tests and e2e spec fully examined — test strategy and key gotchas confirmed
+1900 " 🔵 SEO env vars missing from CI workflows and deploy pipeline — production wiring gap identified
+1901 " 🔵 Brand assets confirmed: logo.png exists for Organization schema, icon/apple-icon generated via brand-icon component
+1902 " 🔵 WebSite SearchAction target URL /app/search does not exist as a real route
+1903 8:10p 🔵 /registration and /sign-out routes missing from robots.txt disallow list
+1904 " 🔵 All 24 SEO unit tests pass — feat/seo branch is green
+1905 " 🔵 TypeScript type-check and ESLint both pass clean on feat/seo branch
+1906 " 🔵 Server-side TypeError during legal doc e2e test — swallowed error with digest 3122224828
+1907 8:11p 🔵 All 6 Playwright SEO e2e tests pass — branch fully verified end-to-end
+1908 " 🔵 Next.js production build succeeds — route table confirms SEO routes deployed correctly, standalone output caveat noted
+1909 " 🔵 OG image 404 bug in production build: Next.js hashes opengraph-image route names but og:image meta tags use unhashed paths
+1910 8:12p 🔵 Root cause confirmed: e2e runs in dev mode (no hash), production uses hashed OG routes — defaultOgImagePath must be removed
+1911 " 🔵 OG image 404 bug exists in both dev (Turbopack) and production — e2e tests only check tag presence, not URL reachability
+1912 " 🔵 TypeError digest 3122224828 linked to both OG image 404 responses and legal doc page render — likely MDX module resolution failure
 
-**Learned**: - The project uses a GitHub Actions workflow named "Release" triggered on push to `main` as the deployment mechanism
-    - semantic-release is expected to create a patch version tag (v1.15.1) from the `fix:` conventional commit prefix
-    - A separate Deploy workflow triggers on the new tag after Release completes
-    - The last two Release workflow runs (for `94fa00a` and `4cb24de`) both completed with `success`
-    - Remote repository is `github.com:AnyNoteInc/AnyNote.git`
-
-**Completed**: - Staged and committed `apps/web/src/app/favicon.ico` and `apps/web/src/lib/brand-icon.tsx` as commit `9463fc9`: "fix(web): replace stale favicon and brand icon art with orange rhombus"
-    - Pushed commit `9463fc9` to `origin/main`, advancing from `341efc9`
-    - GitHub Actions Release workflow run `25823707763` confirmed queued at 2026-05-13T20:11:13Z
-    - Background task `bparfq69l` watching the Release workflow run for completion
-
-**Next Steps**: - Waiting for Release workflow run `25823707763` to complete (background watch task `bparfq69l`)
-    - Expected outcome: semantic-release creates tag v1.15.1, triggering Deploy workflow
-
-
-Access 558k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 449k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

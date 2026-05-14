@@ -56,9 +56,13 @@ jobs:
           cache-from: type=gha,scope=${{ matrix.service }}
           cache-to: type=gha,mode=max,scope=${{ matrix.service }}
           # NEXT_PUBLIC_* vars consumed by client components must be baked
-          # at build time — Next.js inlines them into the static bundle.
+          # at build time. SEO metadata also reads env during route build.
           # Only used by the `web` Dockerfile; ignored by others.
           build-args: |
+            NEXT_PUBLIC_BASE_URL=${{ secrets.NEXT_PUBLIC_BASE_URL }}
+            YANDEX_VERIFICATION=${{ secrets.YANDEX_VERIFICATION }}
+            GOOGLE_SITE_VERIFICATION=${{ secrets.GOOGLE_SITE_VERIFICATION }}
+            SEO_NOINDEX_ALL=${{ vars.SEO_NOINDEX_ALL || 'false' }}
             NEXT_PUBLIC_VAPID_PUBLIC_KEY=${{ secrets.NEXT_PUBLIC_VAPID_PUBLIC_KEY }}
 
   deploy:
@@ -79,6 +83,9 @@ jobs:
       - name: Render .env from template
         env:
           NEXT_PUBLIC_BASE_URL: ${{ secrets.NEXT_PUBLIC_BASE_URL }}
+          YANDEX_VERIFICATION: ${{ secrets.YANDEX_VERIFICATION }}
+          GOOGLE_SITE_VERIFICATION: ${{ secrets.GOOGLE_SITE_VERIFICATION }}
+          SEO_NOINDEX_ALL: ${{ vars.SEO_NOINDEX_ALL || 'false' }}
           BETTER_AUTH_URL: ${{ secrets.BETTER_AUTH_URL }}
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
           BETTER_AUTH_JWT_AUDIENCE: ${{ secrets.BETTER_AUTH_JWT_AUDIENCE }}

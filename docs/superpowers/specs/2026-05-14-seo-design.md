@@ -24,8 +24,9 @@
 - `metadataBase` + `title.template` в корневом `app/layout.tsx`.
 - Фабрика `buildMetadata({...})` в `lib/seo/build-metadata.ts` — единая точка
   для canonical, OG, robots-настроек.
-- Динамические OG-картинки 1200×630 через `opengraph-image.tsx`
-  (дефолтная + per-page для `/pricing` и `/terms/[document]`).
+- Динамические OG-картинки 1200×630: дефолтная через корневой
+  `opengraph-image.tsx`, per-page для `/pricing` и `/terms/[document]` через
+  стабильные route handlers `opengraph-image/route.tsx`.
 - Расширенный JSON-LD: `Organization`, `WebSite` (с SearchAction),
   `SoftwareApplication`, `Product`/`Offer` для тарифов, `BreadcrumbList`
   для `/terms/*`. `FAQPage` — файл-заглушка без подключения до появления
@@ -63,12 +64,12 @@ apps/web/
 │   │       ├── page.tsx                       [MOD]  buildMetadata + JsonLd
 │   │       ├── pricing/
 │   │       │   ├── page.tsx                   [MOD]  buildMetadata + Product schema
-│   │       │   └── opengraph-image.tsx        [NEW]  per-page OG
+│   │       │   └── opengraph-image/route.tsx  [NEW]  per-page OG
 │   │       └── terms/
 │   │           ├── page.tsx                   [MOD]
 │   │           └── [document]/
 │   │               ├── page.tsx               [MOD]  buildMetadata + breadcrumbs
-│   │               └── opengraph-image.tsx    [NEW]  dynamic OG из params
+│   │               └── opengraph-image/route.tsx [NEW] dynamic OG из params
 │   └── lib/
 │       └── seo/
 │           ├── build-metadata.ts              [NEW]
@@ -103,7 +104,8 @@ turbo.json                                     [MOD]  globalEnv +3 ключа
 | `lib/seo/schemas/*.ts` | Чистые функции, возвращают JSON-LD объект | `<schemaName>(input?): object \| null` | `siteConfig` (для статичных полей) |
 | `app/robots.ts` | Генерация robots.txt | Next route convention | `siteConfig`, `SEO_NOINDEX_ALL` |
 | `app/sitemap.ts` | Генерация sitemap.xml | Next route convention | `siteConfig`, `legalDocuments` |
-| `app/**/opengraph-image.tsx` | OG PNG 1200×630 | Next file convention | `siteConfig`, `legalDocumentBySlug` |
+| `app/opengraph-image.tsx` | Дефолтный OG PNG 1200×630 | Next file convention | `siteConfig` |
+| `app/**/opengraph-image/route.tsx` | Per-page OG PNG 1200×630 | Route handler со стабильным URL | `siteConfig`, `legalDocumentBySlug` |
 
 Schema-функции принимают только то, что не выводится из `siteConfig`
 (динамические данные: список тарифов, breadcrumbs). Это позволяет тестировать
@@ -152,7 +154,8 @@ opengraph-image.tsx
    ├── @vercel/og рендерит SVG → PNG 1200×630
    └── отдаёт image/png
 
-URL картинки автоматически попадает в og:image через metadataBase.
+URL картинки попадает в `og:image` из `buildMetadata`. Для вложенных страниц
+используются route handlers, чтобы URL оставался стабильным в production build.
 ```
 
 ### Sitemap и robots
@@ -250,7 +253,7 @@ tRPC прямо на странице `/pricing` чтобы не тянуть Pr
 | `legalDocuments` пуст | `sitemap.ts` возвращает только статичные URL. Не падает. |
 | `productOffersSchema([])` | Возвращает `null`, `<JsonLd>` не рендерит ничего. Schema.org не любит пустой `offers`. |
 | OG-генератор валится в runtime | Edge isolation: страница отдаётся без `og:image`, `<head>` не ломается, ошибка идёт в логи (не глотаем). |
-| Неизвестный slug в `/terms/[document]/opengraph-image.tsx` | Рендерим дефолтный текст «Документ», не сам `params.document` (защита от XSS в OG). |
+| Неизвестный slug в `/terms/[document]/opengraph-image/route.tsx` | Рендерим дефолтный текст «Документ», не сам `params.document` (защита от XSS в OG). |
 
 ## Безопасность
 

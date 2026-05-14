@@ -18,8 +18,6 @@ export function buildMetadata(input: BuildMetadataInput): Metadata {
     ? { index: false, follow: false }
     : { index: true, follow: true, googleBot: { index: true, follow: true } }
 
-  const ogImage = input.ogImage ?? defaultOgImagePath(input.path)
-
   return {
     title: input.title,
     description,
@@ -33,7 +31,7 @@ export function buildMetadata(input: BuildMetadataInput): Metadata {
       description,
       siteName: siteConfig.name,
       locale: siteConfig.locale,
-      images: [ogImage],
+      images: [input.ogImage ?? defaultOgImagePath(input.path)],
     },
   }
 }

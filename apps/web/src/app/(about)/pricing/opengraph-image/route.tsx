@@ -3,11 +3,10 @@ import { ImageResponse } from 'next/og'
 import { siteConfig } from '@/lib/seo/site-config'
 
 export const runtime = 'edge'
-export const alt = `Тарифы · ${siteConfig.brandRu}`
-export const size = { width: 1200, height: 630 }
-export const contentType = 'image/png'
 
-export default async function OpenGraphImage() {
+const size = { width: 1200, height: 630 }
+
+export async function GET() {
   return new ImageResponse(
     (
       <div
