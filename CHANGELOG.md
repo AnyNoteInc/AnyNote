@@ -1,3 +1,36 @@
+# [1.17.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.16.0...v1.17.0) (2026-05-14)
+
+
+### Bug Fixes
+
+* **seo:** await dynamic params in legal doc opengraph-image ([3899549](https://github.com/AnyNoteInc/AnyNote/commit/3899549f10fe65d238cd1fcaa9685b5453b11e4c))
+* **seo:** default ogImage to file-convention path + relax canonical regex ([6383a41](https://github.com/AnyNoteInc/AnyNote/commit/6383a41b33120b6c9f8aa2bf6d72ba30c90005f4))
+* **seo:** use nodejs runtime for legal doc opengraph-image ([f03ce74](https://github.com/AnyNoteInc/AnyNote/commit/f03ce74e47447629abaac4ec577b44f8ea80a97e))
+
+
+### Features
+
+* **seo:** add BreadcrumbList JSON-LD schema ([ea982ba](https://github.com/AnyNoteInc/AnyNote/commit/ea982ba7676e2a315ea66deede2e3f5db8ee3e5f))
+* **seo:** add buildMetadata factory with canonical, OG, robots ([1e8a2e1](https://github.com/AnyNoteInc/AnyNote/commit/1e8a2e1b1194c06a83cbda71b300b1fad3b32448))
+* **seo:** add default Open Graph image with brand gradient + tagline ([255786b](https://github.com/AnyNoteInc/AnyNote/commit/255786bc0f1ff249ec18909dc8ecccdd38ca730a))
+* **seo:** add dynamic OG image for legal document pages ([47ff6c5](https://github.com/AnyNoteInc/AnyNote/commit/47ff6c54426e2fc7f0da16bfbc941487a8d56460))
+* **seo:** add FAQPage JSON-LD schema stub ([69d161c](https://github.com/AnyNoteInc/AnyNote/commit/69d161ccb660eec423772e2c3db1d33ab001ccd1))
+* **seo:** add JsonLd server component with </script> escaping ([29148d2](https://github.com/AnyNoteInc/AnyNote/commit/29148d2eb5fa7af0532e4cf84853a5d1fe68b9c7))
+* **seo:** add Organization JSON-LD schema ([0e74440](https://github.com/AnyNoteInc/AnyNote/commit/0e7444040e7aa5e9c8d9cbdbd2fd752274ad1d43))
+* **seo:** add per-page OG image for /pricing ([c5e409c](https://github.com/AnyNoteInc/AnyNote/commit/c5e409cae1e65fd229b1a00755f9aaf8efe6610e))
+* **seo:** add Product/Offer JSON-LD schema for pricing ([e58e022](https://github.com/AnyNoteInc/AnyNote/commit/e58e022005f6957de4df0c2fd9dd094f377ff2d6))
+* **seo:** add robots.ts with default allowlist + SEO_NOINDEX_ALL kill-switch ([37e277d](https://github.com/AnyNoteInc/AnyNote/commit/37e277d159c7a3e040b576a07b515d84569359ba))
+* **seo:** add site-config constants for canonical url, brand, locale ([8fe1fd6](https://github.com/AnyNoteInc/AnyNote/commit/8fe1fd6091cd6c9129ea0c089a3f5850af1ca5e3))
+* **seo:** add sitemap.ts driven by legalDocuments with version-based lastModified ([0bef109](https://github.com/AnyNoteInc/AnyNote/commit/0bef1095685d90426e1d88b4304aec65ed8d4798))
+* **seo:** add SoftwareApplication JSON-LD schema ([b38df27](https://github.com/AnyNoteInc/AnyNote/commit/b38df27dd4822e23019e1440c438f7c526cab6d8))
+* **seo:** add WebSite JSON-LD schema with SearchAction ([4681f85](https://github.com/AnyNoteInc/AnyNote/commit/4681f85bc9ef3b86ee360b9e29a09d3e5a21c463))
+* **seo:** home page uses buildMetadata + Organization/WebSite/SoftwareApplication JSON-LD ([b479382](https://github.com/AnyNoteInc/AnyNote/commit/b479382aa5ee895509e83e6e346883aca1483294))
+* **seo:** legal doc page uses buildMetadata + BreadcrumbList JSON-LD ([ef8be7c](https://github.com/AnyNoteInc/AnyNote/commit/ef8be7c9ee147cbdfe33be1bbdfa218eed272d16))
+* **seo:** noindex robots meta on (auth) and (protected) layouts ([6fc8c4d](https://github.com/AnyNoteInc/AnyNote/commit/6fc8c4d49031384c6bc741d4e13d7f777e118777))
+* **seo:** pricing page uses buildMetadata + Product/Offer JSON-LD from DB plans ([0bac4d5](https://github.com/AnyNoteInc/AnyNote/commit/0bac4d54f7ae060ff2a9e890c3abc25a8a994809))
+* **seo:** terms list page uses buildMetadata ([6ac7bff](https://github.com/AnyNoteInc/AnyNote/commit/6ac7bffcfaff31f1ed4fbad489bc61daae9225cf))
+* **seo:** wire metadataBase, title.template, and webmaster verification in root layout ([d1ec2af](https://github.com/AnyNoteInc/AnyNote/commit/d1ec2affc5f5c3d2c85da34b0c07056461a5a423))
+
 # [1.16.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.15.4...v1.16.0) (2026-05-14)
 
 
