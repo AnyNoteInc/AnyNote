@@ -14,4 +14,6 @@ export const siteConfig = {
   },
 } as const
 
+export const siteDisplayHost = siteConfig.url.replace(/^https?:\/\//, '')
+
 export type SiteConfig = typeof siteConfig

@@ -1,40 +1,23 @@
 import { ImageResponse } from 'next/og'
 
-import { legalDocumentBySlug, type LegalDocumentSlug } from '@/lib/legal-documents'
-import { siteConfig } from '@/lib/seo/site-config'
+import { legalDocLabels, type LegalDocumentSlug } from '@/lib/legal-doc-labels'
+import { OgShell, OG_SIZE } from '@/lib/seo/og-shell'
 
-export const runtime = 'nodejs'
-
-const size = { width: 1200, height: 630 }
+export const runtime = 'edge'
 
 export async function GET(
   _request: Request,
   { params }: { params: Promise<{ document: string }> },
 ) {
   const { document } = await params
-  const meta = legalDocumentBySlug[document as LegalDocumentSlug]
+  const meta = legalDocLabels[document as LegalDocumentSlug]
   const eyebrow = meta?.eyebrow ?? 'Документ'
   const title = meta?.title ?? 'Юридический документ'
 
   return new ImageResponse(
     (
-      <div
-        style={{
-          height: '100%',
-          width: '100%',
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'center',
-          padding: 80,
-          background:
-            'linear-gradient(135deg, #1e293b 0%, #0f172a 100%)',
-          color: 'white',
-          fontFamily: 'system-ui, sans-serif',
-        }}
-      >
-        <div style={{ fontSize: 26, opacity: 0.8, letterSpacing: 1.5 }}>
-          {eyebrow.toUpperCase()}
-        </div>
+      <OgShell background="linear-gradient(135deg, #1e293b 0%, #0f172a 100%)">
+        <div style={{ fontSize: 26, opacity: 0.8, letterSpacing: 1.5 }}>{eyebrow.toUpperCase()}</div>
         <div
           style={{
             fontSize: 72,
@@ -46,13 +29,8 @@ export async function GET(
         >
           {title}
         </div>
-        <div
-          style={{ fontSize: 22, marginTop: 56, opacity: 0.7, display: 'flex' }}
-        >
-          {siteConfig.brandRu} · {siteConfig.url.replace(/^https?:\/\//, '')}
-        </div>
-      </div>
+      </OgShell>
     ),
-    size,
+    OG_SIZE,
   )
 }

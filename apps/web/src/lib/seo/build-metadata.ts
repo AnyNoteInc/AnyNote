@@ -11,6 +11,10 @@ export type BuildMetadataInput = {
   keywords?: string[]
 }
 
+export const NOINDEX_METADATA: Metadata = {
+  robots: { index: false, follow: false },
+}
+
 export function buildMetadata(input: BuildMetadataInput): Metadata {
   const url = new URL(input.path, `${siteConfig.url}/`).toString()
   const description = input.description ?? siteConfig.description
@@ -37,6 +41,5 @@ export function buildMetadata(input: BuildMetadataInput): Metadata {
 }
 
 function defaultOgImagePath(path: string): string {
-  const normalized = path === '/' ? '' : path.replace(/\/$/, '')
-  return `${normalized}/opengraph-image`
+  return `${path.replace(/\/$/, '')}/opengraph-image`
 }
