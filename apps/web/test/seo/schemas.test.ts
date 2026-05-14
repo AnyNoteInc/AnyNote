@@ -5,6 +5,7 @@ import { productOffersSchema } from '../../src/lib/seo/schemas/product-offers'
 import { softwareAppSchema } from '../../src/lib/seo/schemas/software-app'
 import { websiteSchema } from '../../src/lib/seo/schemas/website'
 import { breadcrumbsSchema } from '../../src/lib/seo/schemas/breadcrumbs'
+import { faqSchema } from '../../src/lib/seo/schemas/faq'
 import { siteConfig } from '../../src/lib/seo/site-config'
 
 describe('organizationSchema', () => {
@@ -76,5 +77,23 @@ describe('breadcrumbsSchema', () => {
     const items = schema.itemListElement as Array<Record<string, unknown>>
     expect(items[0]).toMatchObject({ '@type': 'ListItem', position: 1, name: 'Главная' })
     expect(items[1]).toMatchObject({ position: 2, name: 'Условия' })
+  })
+})
+
+describe('faqSchema', () => {
+  it('returns null for empty list', () => {
+    expect(faqSchema([])).toBeNull()
+  })
+
+  it('maps items to FAQPage', () => {
+    const schema = faqSchema([{ q: 'Q1', a: 'A1' }])
+    expect(schema).not.toBeNull()
+    expect((schema as Record<string, unknown>)['@type']).toBe('FAQPage')
+    const entities = (schema as Record<string, unknown>).mainEntity as Array<Record<string, unknown>>
+    expect(entities[0]).toMatchObject({
+      '@type': 'Question',
+      name: 'Q1',
+      acceptedAnswer: { '@type': 'Answer', text: 'A1' },
+    })
   })
 })
