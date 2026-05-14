@@ -14,12 +14,10 @@ import type {
 import type { LayoutResult } from '../layout/types'
 import { LAYOUT, personWidth } from '../layout/constants'
 import {
-  isoToPartial,
   resolveLabelPosition,
   shouldShowDeathCross,
   shouldShowPartnerOrder,
 } from '../model/computed'
-import { formatPartialDate } from '../i18n/format-date'
 import { formatPersonLabelLines } from '../utils/labels'
 
 const ANCHOR_SIZE = 1
@@ -45,7 +43,8 @@ export function domainToFlow(
   pushChildrenHubs(data, layout, nodes, edges)
   pushBirthGroupNodesAndEdges(data, layout, nodes, edges)
   pushAnnotations(data, nodes)
-  pushCreationDateNode(meta ?? null, layout, nodes)
+  // Creation date is no longer pushed as a canvas node — GenogramFlow
+  // surfaces it in the Panel beside the zoom controls instead.
 
   return { nodes, edges }
 }
@@ -348,23 +347,3 @@ function pushAnnotations(data: GenogramPageData, out: GenogramNode[]): void {
   }
 }
 
-function pushCreationDateNode(
-  meta: GenogramMeta | null,
-  layout: LayoutResult,
-  out: GenogramNode[],
-): void {
-  if (!meta?.createdAt || !meta?.ownerId) return
-  const ownerPos = layout.positions[meta.ownerId]
-  if (!ownerPos) return
-  const partial = isoToPartial(meta.createdAt)
-  const formattedDate = partial ? formatPartialDate(partial) : ''
-  if (!formattedDate) return
-  out.push({
-    id: '__creation_date__',
-    type: 'genogramCreationDate',
-    position: { x: ownerPos.x + 280, y: ownerPos.y },
-    data: { formattedDate },
-    draggable: false,
-    selectable: false,
-  })
-}

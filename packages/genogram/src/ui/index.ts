@@ -1,6 +1,8 @@
+export { AnnotationMenu } from './AnnotationMenu'
 export { DrawerHost } from './DrawerHost'
 export { EdgeMenu } from './EdgeMenu'
 export { ElementMenu } from './ElementMenu'
 export { EmptyState } from './EmptyState'
+export { PaneMenu } from './PaneMenu'
 export { initialUiState, uiReducer } from './ui-state'
 export type { DrawerState, UiAction, UiState } from './ui-state'

@@ -1,13 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import { computeLayout } from './computeLayout'
+import type { LayoutResult, Point } from './types'
 import type { GenogramPageData } from '../types/page'
-import type { PersonId, UnionId } from '../types/ids'
+import type { EntityId, PersonId, UnionId } from '../types/ids'
 import {
   createEmptyGenogram,
   createPerson,
   createUnion,
   createChildGroup,
 } from '../model/factories'
+
+function posOf(layout: LayoutResult, id: EntityId): Point {
+  const p = layout.positions[id]
+  if (!p) throw new Error(`expected position for ${id}`)
+  return p
+}
 
 // ── fixture helpers ─────────────────────────────────────────────────────────
 
@@ -280,6 +287,188 @@ describe('children placement', () => {
     expect(layout.positions['c2' as PersonId]!.x).toBeLessThan(
       layout.positions['c3' as PersonId]!.x,
     )
+  })
+})
+
+describe('cross-subtree placement bugs (regression)', () => {
+  it('only mother has parents: father+mother couple stays apart, owner inside their bracket', () => {
+    // Reproduces the user-reported scenario: owner with both parents,
+    // then "Add parents" called only on the mother. Previously the
+    // reconciliation centred mother under her grandparents but didn't
+    // shift father with her, so father and mother shapes overlapped and
+    // father's label was hidden under mother's circle. The fix shifts
+    // father (a "floating" partner with no own parents) along with mother
+    // by the same delta, preserving couple distance.
+    const data = createEmptyGenogram()
+    const fatherId = addPerson(data, { sex: 'male', bloodRelation: 'direct' })
+    const motherId = addPerson(data, { sex: 'female', bloodRelation: 'direct' })
+    const ownerId = addPerson(data, { sex: 'male', bloodRelation: 'direct', role: 'owner' })
+
+    const cgOwner = createChildGroup({
+      unionId: 'placeholder' as UnionId,
+      children: [{ kind: 'person', personId: ownerId }],
+    })
+    const uOwner = createUnion({
+      malePartnerId: fatherId,
+      femalePartnerId: motherId,
+      childGroupId: cgOwner.id,
+    })
+    cgOwner.unionId = uOwner.id
+    data.entities.unions[uOwner.id] = uOwner
+    data.entities.childGroups[cgOwner.id] = cgOwner
+
+    // Only mother gets parents
+    const motherFather = addPerson(data, { sex: 'male', bloodRelation: 'direct' })
+    const motherMother = addPerson(data, { sex: 'female', bloodRelation: 'direct' })
+    const cgMother = createChildGroup({
+      unionId: 'placeholder' as UnionId,
+      children: [{ kind: 'person', personId: motherId }],
+    })
+    const uMother = createUnion({
+      malePartnerId: motherFather,
+      femalePartnerId: motherMother,
+      childGroupId: cgMother.id,
+    })
+    cgMother.unionId = uMother.id
+    data.entities.unions[uMother.id] = uMother
+    data.entities.childGroups[cgMother.id] = cgMother
+
+    const layout = computeLayout(data)
+    const fatherX = posOf(layout, fatherId).x
+    const motherX = posOf(layout, motherId).x
+    const ownerX = posOf(layout, ownerId).x
+
+    // Father stays left of mother (men on the left).
+    expect(fatherX).toBeLessThan(motherX)
+    // Couple distance preserved — father shape (PERSON_BIG=80) and mother
+    // shape don't overlap. Center distance must be ≥ PERSON_BIG so that
+    // their right/left edges meet exactly at PARTNER_GAP=0 in the worst
+    // case; the layout actually keeps PARTNER_GAP=48 so distance ≥ 128.
+    expect(motherX - fatherX).toBeGreaterThanOrEqual(80)
+    // Owner stays inside the father+mother bracket horizontal.
+    expect(ownerX).toBeGreaterThan(fatherX)
+    expect(ownerX).toBeLessThan(motherX)
+  })
+
+
+  it("solo child of multi-partner couple: owner.x ≠ mother.x so the child's vertical isn't collinear with the partner's bracket leg", () => {
+    // Reproduces the user-reported scenario: owner with two parents, then
+    // father gets a second wife. Before the fix, the owner sat directly
+    // under mother (the partner-slot centre), so the cross+child line
+    // looked like one straight line from mother through the bracket down
+    // to owner. The fix is to centre children under the union midpoint.
+    const data = createEmptyGenogram()
+    const fatherId = addPerson(data, { sex: 'male', bloodRelation: 'direct', role: 'owner' })
+    const motherId = addPerson(data, {
+      sex: 'female',
+      bloodRelation: 'partner',
+      partnerOrder: 1,
+    })
+    const stepMotherId = addPerson(data, {
+      sex: 'female',
+      bloodRelation: 'partner',
+      partnerOrder: 2,
+    })
+    const ownerId = addPerson(data, { sex: 'male', bloodRelation: 'direct' })
+
+    const cg1 = createChildGroup({
+      unionId: 'placeholder' as UnionId,
+      children: [{ kind: 'person', personId: ownerId }],
+    })
+    const u1 = createUnion({
+      malePartnerId: fatherId,
+      femalePartnerId: motherId,
+      childGroupId: cg1.id,
+    })
+    cg1.unionId = u1.id
+    data.entities.unions[u1.id] = u1
+    data.entities.childGroups[cg1.id] = cg1
+    addUnion(data, fatherId, stepMotherId)
+
+    const layout = computeLayout(data)
+    const fatherX = posOf(layout, fatherId).x
+    const motherX = posOf(layout, motherId).x
+    const ownerX = posOf(layout, ownerId).x
+
+    // Owner must be strictly between mother and father — never collinear
+    // with the partner's bracket leg.
+    expect(ownerX).not.toBe(motherX)
+    expect(ownerX).not.toBe(fatherX)
+    expect(ownerX).toBeGreaterThan(fatherX)
+    expect(ownerX).toBeLessThan(motherX)
+  })
+
+  it('grandparents on both sides: father lineage on the left, mother on the right (regardless of insertion order)', () => {
+    // Reproduces the user-reported scenario: mother gets parents first,
+    // then father gets parents. Insertion order alone would put mother's
+    // parents on the left, violating the "men on the left" rule. The
+    // root-leaning sort fixes the placement.
+    const data = createEmptyGenogram()
+    const fatherId = addPerson(data, { sex: 'male', bloodRelation: 'direct' })
+    const motherId = addPerson(data, { sex: 'female', bloodRelation: 'direct' })
+    const ownerId = addPerson(data, { sex: 'male', bloodRelation: 'direct', role: 'owner' })
+
+    const cg = createChildGroup({
+      unionId: 'placeholder' as UnionId,
+      children: [{ kind: 'person', personId: ownerId }],
+    })
+    const u = createUnion({
+      malePartnerId: fatherId,
+      femalePartnerId: motherId,
+      childGroupId: cg.id,
+    })
+    cg.unionId = u.id
+    data.entities.unions[u.id] = u
+    data.entities.childGroups[cg.id] = cg
+
+    // Mother's parents added FIRST (mimics step 2 of the user's scenario)
+    const motherFather = addPerson(data, { sex: 'male', bloodRelation: 'direct' })
+    const motherMother = addPerson(data, { sex: 'female', bloodRelation: 'direct' })
+    const cgMother = createChildGroup({
+      unionId: 'placeholder' as UnionId,
+      children: [{ kind: 'person', personId: motherId }],
+    })
+    const uMother = createUnion({
+      malePartnerId: motherFather,
+      femalePartnerId: motherMother,
+      childGroupId: cgMother.id,
+    })
+    cgMother.unionId = uMother.id
+    data.entities.unions[uMother.id] = uMother
+    data.entities.childGroups[cgMother.id] = cgMother
+
+    // Father's parents added SECOND (mimics step 3 of the user's scenario)
+    const fatherFather = addPerson(data, { sex: 'male', bloodRelation: 'direct' })
+    const fatherMother = addPerson(data, { sex: 'female', bloodRelation: 'direct' })
+    const cgFather = createChildGroup({
+      unionId: 'placeholder' as UnionId,
+      children: [{ kind: 'person', personId: fatherId }],
+    })
+    const uFather = createUnion({
+      malePartnerId: fatherFather,
+      femalePartnerId: fatherMother,
+      childGroupId: cgFather.id,
+    })
+    cgFather.unionId = uFather.id
+    data.entities.unions[uFather.id] = uFather
+    data.entities.childGroups[cgFather.id] = cgFather
+
+    const layout = computeLayout(data)
+    const fatherX = posOf(layout, fatherId).x
+    const motherX = posOf(layout, motherId).x
+    const ownerX = posOf(layout, ownerId).x
+    const fatherFatherX = posOf(layout, fatherFather).x
+    const motherFatherX = posOf(layout, motherFather).x
+
+    // Father's lineage on the left, mother's on the right
+    expect(fatherFatherX).toBeLessThan(motherFatherX)
+    // Father (male) on the left of his own union
+    expect(fatherX).toBeLessThan(motherX)
+    // Owner stays inside the father+mother bracket horizontal — the
+    // post-placement reconciliation re-centres owner on the final bracket
+    // midpoint instead of an off-screen, stale x from the first root.
+    expect(ownerX).toBeGreaterThanOrEqual(fatherX)
+    expect(ownerX).toBeLessThanOrEqual(motherX)
   })
 })
 

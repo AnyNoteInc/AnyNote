@@ -8,13 +8,16 @@ import { OwnerDataForm } from '../forms/OwnerDataForm'
 import { PersonDataForm } from '../forms/PersonDataForm'
 import { MarriageRelationForm } from '../forms/MarriageRelationForm'
 import { AddChildrenForm } from '../forms/AddChildrenForm'
+import { NoteForm } from '../forms/NoteForm'
 import {
+  addAnnotation,
   addChildren,
   addPartner,
   createOwnerWithParents,
   setChildOrder,
   setPartnerOrder,
   setUnionDivorce,
+  updateAnnotation,
   updatePerson,
   updateUnion,
 } from '../yjs/actions'
@@ -31,7 +34,7 @@ interface Props {
 
 const DRAWER_WIDTH = 360
 
-const TITLES: Record<DrawerState['mode'], string> = {
+const STATIC_TITLES: Record<DrawerState['mode'], string> = {
   closed: '',
   'create-genogram': RU.drawer.titleCreate,
   'edit-data': RU.drawer.titleEditData,
@@ -39,6 +42,25 @@ const TITLES: Record<DrawerState['mode'], string> = {
   'add-partner': RU.drawer.titleAddPartner,
   'edit-connection': RU.drawer.titleEditConnection,
   'add-children': RU.drawer.titleAddChildren,
+  'add-note': RU.noteForm.titleCreate,
+  'edit-note': RU.noteForm.titleEdit,
+}
+
+/**
+ * Pick the drawer title. For "edit-data" the title varies with the role of
+ * the person being edited (predecessor vs partner vs other), so this is
+ * computed against the live domain rather than a static map.
+ */
+function resolveTitle(doc: Y.Doc, drawer: DrawerState): string {
+  if (drawer.mode !== 'edit-data') return STATIC_TITLES[drawer.mode]
+  const domain = assembleDomain(doc)
+  const person = domain.entities.people[drawer.personId]
+  if (!person) return RU.drawer.titleEditData
+  if (person.bloodRelation === 'partner') return RU.drawer.titleEditPartner
+  if (person.bloodRelation === 'direct' && person.role !== 'owner') {
+    return RU.drawer.titleEditPredecessor
+  }
+  return RU.drawer.titleEditData
 }
 
 export function DrawerHost({ doc, drawer, onClose }: Readonly<Props>) {
@@ -51,7 +73,7 @@ export function DrawerHost({ doc, drawer, onClose }: Readonly<Props>) {
       PaperProps={{ sx: { width: DRAWER_WIDTH, p: 2 } }}
     >
       <Stack spacing={2}>
-        <Typography variant="h6">{TITLES[drawer.mode]}</Typography>
+        <Typography variant="h6">{resolveTitle(doc, drawer)}</Typography>
         {renderForm(doc, drawer, onClose)}
       </Stack>
     </Drawer>
@@ -174,6 +196,33 @@ function renderForm(doc: Y.Doc, drawer: DrawerState, onClose: () => void) {
     )
   }
 
+  if (drawer.mode === 'add-note') {
+    return (
+      <NoteForm
+        onCancel={onClose}
+        onSubmit={(text) => {
+          addAnnotation(doc, { text, position: drawer.position })
+          onClose()
+        }}
+      />
+    )
+  }
+
+  if (drawer.mode === 'edit-note') {
+    const annotation = domain.annotations[drawer.annotationId]
+    if (!annotation) return null
+    return (
+      <NoteForm
+        initialText={annotation.text}
+        onCancel={onClose}
+        onSubmit={(text) => {
+          updateAnnotation(doc, drawer.annotationId, { text })
+          onClose()
+        }}
+      />
+    )
+  }
+
   return null
 }
 
@@ -187,7 +236,9 @@ function renderEditDataForm(
   if (!p) return null
   const baseId = getBaseOf(personId, domain.entities.unions)
   const totalPartnersOfBase = baseId ? countPartnersOf(baseId, domain.entities.unions) : 0
-  const isPartnerOfMultiBase = totalPartnersOfBase > 1
+  // The "Партнёр" data form shows partnerOrder for any partner (not just
+  // multi-base ones) — the field always sits above lastName per the spec.
+  const isPartner = p.bloodRelation === 'partner'
   const childGroup = getChildGroupOf(personId, domain.entities.childGroups)
   const isChild = !!childGroup
   const childOrder = childGroup
@@ -210,7 +261,7 @@ function renderEditDataForm(
       }}
       context={{
         kind: 'edit-data',
-        isPartnerOfMultiBase,
+        isPartner,
         totalPartnersOfBase: totalPartnersOfBase || undefined,
         isChild,
         childOrder,
@@ -263,7 +314,7 @@ function AddPartnerForm({
 }>) {
   // Use refs so the save-button click closure always reads the latest draft
   // regardless of whether React has re-rendered since the last onChange call.
-  const personDraftRef = useRef<PersonDataDraft & { partnerCount?: number }>({
+  const personDraftRef = useRef<PersonDataDraft & { partnerOrder?: number }>({
     sex: 'female',
     lifeStatus: 'alive',
     birthMode: 'date',
@@ -272,7 +323,7 @@ function AddPartnerForm({
 
   // Keep state in sync so that PersonDataForm / MarriageRelationForm receive
   // up-to-date `initial` values when the embedded forms need to re-render.
-  const [personDraft, setPersonDraft] = useState<PersonDataDraft & { partnerCount?: number }>(
+  const [personDraft, setPersonDraft] = useState<PersonDataDraft & { partnerOrder?: number }>(
     personDraftRef.current,
   )
   const [unionDraft, setUnionDraft] = useState<UnionDraft>(unionDraftRef.current)
@@ -285,7 +336,7 @@ function AddPartnerForm({
         onCancel={onCancel}
         onSubmit={() => {}}
         onChange={(d) => {
-          personDraftRef.current = d as PersonDataDraft & { partnerCount?: number }
+          personDraftRef.current = d as PersonDataDraft & { partnerOrder?: number }
           setPersonDraft(personDraftRef.current)
         }}
         embedded
@@ -305,12 +356,13 @@ function AddPartnerForm({
         <Button
           variant="contained"
           onClick={() => {
-            // Read from refs to get the latest draft even if React hasn't re-rendered yet
-            const latest = personDraftRef.current
-            const partnerCount = latest.partnerCount ?? existingPartnersOfBase + 1
-            const { partnerCount: _pc, ...rest } = latest
-            void _pc
-            addPartner(doc, basePersonId, rest, unionDraftRef.current, partnerCount)
+            // Read from refs to get the latest draft even if React hasn't re-rendered yet.
+            // partnerOrder replaces the old partnerCount field — when the
+            // user leaves it empty we append the partner at position
+            // existingPartnersOfBase+1 (i.e. last slot).
+            const { partnerOrder, ...rest } = personDraftRef.current
+            const order = partnerOrder ?? existingPartnersOfBase + 1
+            addPartner(doc, basePersonId, rest, unionDraftRef.current, order)
             onSubmit()
           }}
         >
