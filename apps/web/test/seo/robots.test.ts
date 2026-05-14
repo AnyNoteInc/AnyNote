@@ -4,6 +4,14 @@ import { siteConfig } from '../../src/lib/seo/site-config'
 
 const ENV_KEY = 'SEO_NOINDEX_ALL'
 
+type Rule = { allow?: string | string[]; disallow?: string | string[] }
+
+function firstRule(rules: Rule | Rule[]): Rule {
+  const rule = Array.isArray(rules) ? rules[0] : rules
+  if (!rule) throw new Error('robots config has no rules')
+  return rule
+}
+
 describe('robots', () => {
   let originalEnv: string | undefined
 
@@ -21,8 +29,7 @@ describe('robots', () => {
     delete process.env[ENV_KEY]
     const { default: robots } = await import('../../src/app/robots')
     const config = robots()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rule = (config.rules as any[])[0]
+    const rule = firstRule(config.rules)
     expect(rule.allow).toBe('/')
     expect(rule.disallow).toEqual(
       expect.arrayContaining(['/app/', '/api/', '/sign-in', '/sign-up', '/settings/']),
@@ -34,8 +41,7 @@ describe('robots', () => {
     process.env[ENV_KEY] = 'true'
     const { default: robots } = await import('../../src/app/robots')
     const config = robots()
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const rule = (config.rules as any[])[0]
+    const rule = firstRule(config.rules)
     expect(rule.disallow).toEqual(['/'])
   })
 })
