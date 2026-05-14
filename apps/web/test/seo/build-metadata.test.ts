@@ -51,6 +51,16 @@ describe('buildMetadata', () => {
     expect(meta.openGraph?.images).toEqual(['/custom.png'])
   })
 
+  it('defaults ogImage to /opengraph-image for the root path', () => {
+    const meta = buildMetadata({ title: 'Home', path: '/' })
+    expect(meta.openGraph?.images).toEqual(['/opengraph-image'])
+  })
+
+  it('defaults ogImage to nested /opengraph-image for nested paths', () => {
+    const meta = buildMetadata({ title: 'Pricing', path: '/pricing' })
+    expect(meta.openGraph?.images).toEqual(['/pricing/opengraph-image'])
+  })
+
   it('attaches keywords when provided', () => {
     const meta = buildMetadata({ title: 'X', path: '/x', keywords: ['a', 'b'] })
     expect(meta.keywords).toEqual(['a', 'b'])

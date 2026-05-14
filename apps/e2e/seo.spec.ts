@@ -6,7 +6,7 @@ test.describe('SEO surface (public pages)', () => {
 
     const canonical = page.locator('link[rel="canonical"]')
     await expect(canonical).toHaveCount(1)
-    await expect(canonical).toHaveAttribute('href', /\/$/)
+    await expect(canonical).toHaveAttribute('href', /^https?:\/\/[^/]+\/?$/)
 
     await expect(page.locator('meta[property="og:title"]')).toHaveCount(1)
     await expect(page.locator('meta[property="og:description"]')).toHaveCount(1)

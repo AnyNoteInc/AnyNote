@@ -18,16 +18,13 @@ export function buildMetadata(input: BuildMetadataInput): Metadata {
     ? { index: false, follow: false }
     : { index: true, follow: true, googleBot: { index: true, follow: true } }
 
-  // Next.js normalises root-path canonical to origin (no trailing slash).
-  // Callers that need a guaranteed trailing-slash canonical (e.g. the homepage)
-  // should render <link rel="canonical"> directly in JSX instead.
-  const canonical = url.endsWith('/') && url.replace(/\/$/, '') === siteConfig.url ? undefined : url
+  const ogImage = input.ogImage ?? defaultOgImagePath(input.path)
 
   return {
     title: input.title,
     description,
     keywords: input.keywords,
-    alternates: canonical ? { canonical } : undefined,
+    alternates: { canonical: url },
     robots,
     openGraph: {
       type: 'website',
@@ -36,7 +33,12 @@ export function buildMetadata(input: BuildMetadataInput): Metadata {
       description,
       siteName: siteConfig.name,
       locale: siteConfig.locale,
-      images: input.ogImage ? [input.ogImage] : undefined,
+      images: [ogImage],
     },
   }
+}
+
+function defaultOgImagePath(path: string): string {
+  const normalized = path === '/' ? '' : path.replace(/\/$/, '')
+  return `${normalized}/opengraph-image`
 }
