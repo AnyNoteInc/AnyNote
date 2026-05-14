@@ -1,9 +1,12 @@
-import type { Metadata } from 'next'
-
 import { PublicFooter } from '@/components/public/public-footer'
 import { PublicHeader } from '@/components/public/public-header'
 import { CookieBanner } from '@/components/public/cookie-banner'
 import { getSession } from '@/lib/get-session'
+import { buildMetadata } from '@/lib/seo/build-metadata'
+import { JsonLd } from '@/lib/seo/json-ld'
+import { organizationSchema } from '@/lib/seo/schemas/organization'
+import { softwareAppSchema } from '@/lib/seo/schemas/software-app'
+import { websiteSchema } from '@/lib/seo/schemas/website'
 
 import { HomeHero } from '@/components/public/home/home-hero'
 import { HomeMarketFit } from '@/components/public/home/home-market-fit'
@@ -14,9 +17,17 @@ import { HomePricing } from '@/components/public/home/home-pricing'
 import { HomeContact } from '@/components/public/home/home-contact'
 import { HomeFinalCta } from '@/components/public/home/home-final-cta'
 
-export const metadata: Metadata = {
-  title: 'Любые заметки — рабочая память команды',
-}
+export const metadata = buildMetadata({
+  title: 'Любые заметки — рабочая память команды с ИИ-поиском',
+  path: '/',
+  keywords: [
+    'заметки команды',
+    'база знаний',
+    'ИИ-поиск по документам',
+    'wiki для команды',
+    'совместное редактирование',
+  ],
+})
 
 export default async function HomePage() {
   const session = await getSession()
@@ -25,6 +36,7 @@ export default async function HomePage() {
 
   return (
     <>
+      <JsonLd data={[organizationSchema(), websiteSchema(), softwareAppSchema()]} />
       <PublicHeader session={session} />
       <main>
         <HomeHero primaryHref={primaryHref} primaryLabel={primaryLabel} showSecondary={!session} />

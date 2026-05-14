@@ -30,13 +30,20 @@ COPY --from=prepare /app/out/full/ .
 # @docs/terms/*.md imports in apps/web.
 COPY --from=prepare /app/docs/terms ./docs/terms
 
-# Dummy build-time values so Next.js static page collection succeeds.
-# These are NEVER baked into the runtime image — they are only used
-# during `next build` to satisfy module-level env reads.
+# Build-time values consumed by Next.js route metadata and static page collection.
+# Public SEO values are supplied as build args in production; defaults keep local
+# Docker builds usable.
+ARG NEXT_PUBLIC_BASE_URL=http://localhost:3000
+ARG YANDEX_VERIFICATION=""
+ARG GOOGLE_SITE_VERIFICATION=""
+ARG SEO_NOINDEX_ALL=false
 ENV DATABASE_URL=postgresql://dummy:dummy@localhost:5432/dummy
 ENV BETTER_AUTH_URL=http://localhost:3000
 ENV BETTER_AUTH_SECRET=build-time-secret-placeholder-32ch
-ENV NEXT_PUBLIC_BASE_URL=http://localhost:3000
+ENV NEXT_PUBLIC_BASE_URL=$NEXT_PUBLIC_BASE_URL
+ENV YANDEX_VERIFICATION=$YANDEX_VERIFICATION
+ENV GOOGLE_SITE_VERIFICATION=$GOOGLE_SITE_VERIFICATION
+ENV SEO_NOINDEX_ALL=$SEO_NOINDEX_ALL
 ENV S3_ENDPOINT=http://localhost:9000
 ENV S3_REGION=us-east-1
 ENV S3_ACCESS_KEY=dummy

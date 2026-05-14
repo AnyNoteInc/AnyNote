@@ -6,6 +6,7 @@ import { Lora } from 'next/font/google'
 import { UiProvider } from '@repo/ui/providers'
 
 import { getSession } from '@/lib/get-session'
+import { siteConfig } from '@/lib/seo/site-config'
 import { getServerTRPC } from '@/trpc/server'
 
 import './globals.css'
@@ -27,9 +28,17 @@ const lora = Lora({
 })
 
 export const metadata: Metadata = {
-  title: 'Любые заметки',
-  description:
-    'Рабочая память команды с ИИ-поиском. Документы, схемы и заметки в одном пространстве.',
+  metadataBase: new URL(siteConfig.url),
+  title: {
+    default: siteConfig.brandRu,
+    template: `%s · ${siteConfig.brandRu}`,
+  },
+  description: siteConfig.description,
+  applicationName: siteConfig.name,
+  verification: {
+    yandex: process.env.YANDEX_VERIFICATION,
+    google: process.env.GOOGLE_SITE_VERIFICATION,
+  },
   icons: {
     icon: [
       { url: '/favicon.svg', type: 'image/svg+xml' },

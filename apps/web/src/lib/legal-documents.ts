@@ -1,12 +1,8 @@
 import { ConsentDocumentType } from '@repo/db'
 
-export type LegalDocumentSlug =
-  | 'user-agreement'
-  | 'privacy-policy'
-  | 'consent'
-  | 'marketing-consent'
-  | 'public-offer'
-  | 'information'
+import type { LegalDocumentSlug } from './legal-doc-labels'
+
+export type { LegalDocumentSlug }
 
 export type LegalDocument = {
   slug: LegalDocumentSlug

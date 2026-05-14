@@ -1,14 +1,17 @@
-import type { Metadata } from 'next'
 import Link from 'next/link'
 
 import { Box, Stack, Typography } from '@repo/ui/components'
 
 import { PublicPageShell } from '@/components/public/public-page-shell'
 import { legalDocuments } from '@/lib/legal-documents'
+import { buildMetadata } from '@/lib/seo/build-metadata'
 
-export const metadata: Metadata = {
+export const metadata = buildMetadata({
   title: 'Юридические документы',
-}
+  path: '/terms',
+  description:
+    'Пользовательское соглашение, политика обработки персональных данных и публичная оферта AnyNote.',
+})
 
 export default function TermsIndexPage() {
   return (

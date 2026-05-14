@@ -10,7 +10,9 @@ import { requireSession } from '@/lib/get-session'
 import { TRPCReactProvider } from '@/trpc/client'
 import { ServiceWorkerMount } from '@/components/notifications/service-worker-mount'
 
-export default async function ProtectedLayout({ children }: { children: ReactNode }) {
+export { NOINDEX_METADATA as metadata } from '@/lib/seo/build-metadata'
+
+export default async function ProtectedLayout({ children }: Readonly<{ children: ReactNode }>) {
   const session = await requireSession()
   const consents = await getCurrentConsents(prisma, session.user.id)
   if (!hasAllRequiredConsents(consents)) {
