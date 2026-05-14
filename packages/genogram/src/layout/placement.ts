@@ -1,6 +1,7 @@
 import type {
   BirthGroupId,
   ChildEntry,
+  ChildGroup,
   ChildGroupId,
   EntityId,
   GenogramPageData,
@@ -86,24 +87,33 @@ type RootLeaning = 'left' | 'neutral' | 'right'
  * because that male partner needs to sit on the left side of his union.
  * Symmetric logic for female partners ⇒ 'right'.
  */
+function childLeaning(
+  childId: PersonId,
+  rootUnionId: UnionId,
+  ctx: PlacementContext,
+): RootLeaning {
+  const childUnions = ctx.relations.unionsByPerson.get(childId) ?? []
+  for (const cuid of childUnions) {
+    const cu = ctx.data.entities.unions[cuid]
+    if (!cu) continue
+    const otherId = cu.malePartnerId === childId ? cu.femalePartnerId : cu.malePartnerId
+    if (isDescendantOfUnion(otherId, rootUnionId, ctx)) continue
+    return cu.malePartnerId === childId ? 'left' : 'right'
+  }
+  return 'neutral'
+}
+
 function rootLeaning(unit: Unit, ctx: PlacementContext): RootLeaning {
   if (unit.kind !== 'union') return 'neutral'
   const u = ctx.data.entities.unions[unit.unionId]
-  if (!u || !u.childGroupId) return 'neutral'
+  if (!u?.childGroupId) return 'neutral'
   const cg = ctx.data.entities.childGroups[u.childGroupId]
   if (!cg) return 'neutral'
 
   for (const entry of cg.children) {
     if (entry.kind !== 'person') continue
-    const childUnions = ctx.relations.unionsByPerson.get(entry.personId) ?? []
-    for (const cuid of childUnions) {
-      const cu = ctx.data.entities.unions[cuid]
-      if (!cu) continue
-      const otherId =
-        cu.malePartnerId === entry.personId ? cu.femalePartnerId : cu.malePartnerId
-      if (isDescendantOfUnion(otherId, unit.unionId, ctx)) continue
-      return cu.malePartnerId === entry.personId ? 'left' : 'right'
-    }
+    const leaning = childLeaning(entry.personId, unit.unionId, ctx)
+    if (leaning !== 'neutral') return leaning
   }
   return 'neutral'
 }
@@ -148,6 +158,48 @@ function isDescendantOfUnion(
  * positions came from the parent's `placeUnionSubtree` call — so shifting
  * is the only way to keep them coupled to the moved child.
  */
+function recenterUnionAnchor(
+  unionId: UnionId,
+  hubId: ChildGroupId,
+  newX: number,
+  ctx: PlacementContext,
+): void {
+  const oldUnionPos = ctx.positions.get(unionId)
+  if (oldUnionPos && oldUnionPos.x !== newX) {
+    ctx.positions.set(unionId, { x: newX, y: oldUnionPos.y })
+  }
+  const oldHubPos = ctx.positions.get(hubId)
+  if (oldHubPos && oldHubPos.x !== newX) {
+    ctx.positions.set(hubId, { x: newX, y: oldHubPos.y })
+  }
+}
+
+function captureChildXs(cg: ChildGroup, ctx: PlacementContext): Map<PersonId, number> {
+  const oldChildX = new Map<PersonId, number>()
+  for (const entry of cg.children) {
+    if (entry.kind !== 'person') continue
+    const pos = ctx.positions.get(entry.personId)
+    if (pos) oldChildX.set(entry.personId, pos.x)
+  }
+  return oldChildX
+}
+
+function shiftMovedChildrenRelatives(
+  cg: ChildGroup,
+  oldChildX: Map<PersonId, number>,
+  ctx: PlacementContext,
+): void {
+  for (const entry of cg.children) {
+    if (entry.kind !== 'person') continue
+    const oldX = oldChildX.get(entry.personId)
+    const newX = ctx.positions.get(entry.personId)?.x
+    if (oldX === undefined || newX === undefined) continue
+    const delta = newX - oldX
+    if (Math.abs(delta) < 0.001) continue
+    shiftFloatingRelatives(entry.personId, delta, ctx)
+  }
+}
+
 function reconcileCrossSubtreeChildren(ctx: PlacementContext): void {
   const unionsByGen = Object.values(ctx.data.entities.unions)
     .map((u) => ({
@@ -167,37 +219,17 @@ function reconcileCrossSubtreeChildren(ctx: PlacementContext): void {
     if (!malePos || !femalePos) continue
 
     const newUnionX = (malePos.x + femalePos.x) / 2
-    const oldUnionPos = ctx.positions.get(union.id)
-    if (oldUnionPos && oldUnionPos.x !== newUnionX) {
-      ctx.positions.set(union.id, { x: newUnionX, y: oldUnionPos.y })
-    }
-    const oldHubPos = ctx.positions.get(cg.id)
-    if (oldHubPos && oldHubPos.x !== newUnionX) {
-      ctx.positions.set(cg.id, { x: newUnionX, y: oldHubPos.y })
-    }
+    recenterUnionAnchor(union.id, cg.id, newUnionX, ctx)
 
     // Capture child positions before re-layout so we can compute deltas.
-    const oldChildX = new Map<PersonId, number>()
-    for (const entry of cg.children) {
-      if (entry.kind !== 'person') continue
-      const pos = ctx.positions.get(entry.personId)
-      if (pos) oldChildX.set(entry.personId, pos.x)
-    }
+    const oldChildX = captureChildXs(cg, ctx)
 
     const childrenWidth = measureChildren(cg, ctx)
     placeChildren(cg.id, newUnionX - childrenWidth / 2, ctx)
 
     // Shift floating relatives (partners without own parents + their
     // descendants) by the same delta the child moved by.
-    for (const entry of cg.children) {
-      if (entry.kind !== 'person') continue
-      const oldX = oldChildX.get(entry.personId)
-      const newX = ctx.positions.get(entry.personId)?.x
-      if (oldX === undefined || newX === undefined) continue
-      const delta = newX - oldX
-      if (Math.abs(delta) < 0.001) continue
-      shiftFloatingRelatives(entry.personId, delta, ctx)
-    }
+    shiftMovedChildrenRelatives(cg, oldChildX, ctx)
   }
 }
 
@@ -225,38 +257,40 @@ function shiftFloatingRelatives(
     if (pos) ctx.positions.set(id, { x: pos.x + delta, y: pos.y })
   }
 
+  const processUnion = (uid: UnionId, pid: PersonId): void => {
+    visitedUnions.add(uid)
+    const u = ctx.data.entities.unions[uid]
+    if (!u) return
+    const otherId = u.malePartnerId === pid ? u.femalePartnerId : u.malePartnerId
+    // Only follow unions where the partner is "floating" — has no parent
+    // union of their own. A partner with their own parents is in a
+    // separate subtree and was placed with its own coordinate frame; we
+    // must NOT drag them along.
+    if (ctx.relations.parentUnionByPerson.has(otherId)) return
+    if (!visitedPersons.has(otherId)) {
+      visitedPersons.add(otherId)
+      shiftEntity(otherId)
+    }
+    shiftEntity(uid)
+    if (!u.childGroupId) return
+    const cg = ctx.data.entities.childGroups[u.childGroupId]
+    if (!cg) return
+    shiftEntity(cg.id)
+    for (const entry of cg.children) {
+      if (entry.kind !== 'person' || visitedPersons.has(entry.personId)) continue
+      visitedPersons.add(entry.personId)
+      shiftEntity(entry.personId)
+      queue.push(entry.personId)
+    }
+  }
+
   while (queue.length > 0) {
-    const pid = queue.shift()!
+    const pid = queue.shift()
+    if (!pid) break
     const personUnions = ctx.relations.unionsByPerson.get(pid) ?? []
     for (const uid of personUnions) {
       if (visitedUnions.has(uid)) continue
-      visitedUnions.add(uid)
-      const u = ctx.data.entities.unions[uid]
-      if (!u) continue
-      const otherId = u.malePartnerId === pid ? u.femalePartnerId : u.malePartnerId
-      // Only follow unions where the partner is "floating" — has no parent
-      // union of their own. A partner with their own parents is in a
-      // separate subtree and was placed with its own coordinate frame; we
-      // must NOT drag them along.
-      if (ctx.relations.parentUnionByPerson.has(otherId)) continue
-      if (!visitedPersons.has(otherId)) {
-        visitedPersons.add(otherId)
-        shiftEntity(otherId)
-      }
-      shiftEntity(uid)
-      if (u.childGroupId) {
-        const cg = ctx.data.entities.childGroups[u.childGroupId]
-        if (cg) {
-          shiftEntity(cg.id)
-          for (const entry of cg.children) {
-            if (entry.kind !== 'person') continue
-            if (visitedPersons.has(entry.personId)) continue
-            visitedPersons.add(entry.personId)
-            shiftEntity(entry.personId)
-            queue.push(entry.personId)
-          }
-        }
-      }
+      processUnion(uid, pid)
     }
   }
 }

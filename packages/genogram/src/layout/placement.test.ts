@@ -1,13 +1,20 @@
 import { describe, expect, it } from 'vitest'
 import { computeLayout } from './computeLayout'
+import type { LayoutResult, Point } from './types'
 import type { GenogramPageData } from '../types/page'
-import type { PersonId, UnionId } from '../types/ids'
+import type { EntityId, PersonId, UnionId } from '../types/ids'
 import {
   createEmptyGenogram,
   createPerson,
   createUnion,
   createChildGroup,
 } from '../model/factories'
+
+function posOf(layout: LayoutResult, id: EntityId): Point {
+  const p = layout.positions[id]
+  if (!p) throw new Error(`expected position for ${id}`)
+  return p
+}
 
 // ── fixture helpers ─────────────────────────────────────────────────────────
 
@@ -327,9 +334,9 @@ describe('cross-subtree placement bugs (regression)', () => {
     data.entities.childGroups[cgMother.id] = cgMother
 
     const layout = computeLayout(data)
-    const fatherX = layout.positions[fatherId]!.x
-    const motherX = layout.positions[motherId]!.x
-    const ownerX = layout.positions[ownerId]!.x
+    const fatherX = posOf(layout, fatherId).x
+    const motherX = posOf(layout, motherId).x
+    const ownerX = posOf(layout, ownerId).x
 
     // Father stays left of mother (men on the left).
     expect(fatherX).toBeLessThan(motherX)
@@ -379,9 +386,9 @@ describe('cross-subtree placement bugs (regression)', () => {
     addUnion(data, fatherId, stepMotherId)
 
     const layout = computeLayout(data)
-    const fatherX = layout.positions[fatherId]!.x
-    const motherX = layout.positions[motherId]!.x
-    const ownerX = layout.positions[ownerId]!.x
+    const fatherX = posOf(layout, fatherId).x
+    const motherX = posOf(layout, motherId).x
+    const ownerX = posOf(layout, ownerId).x
 
     // Owner must be strictly between mother and father — never collinear
     // with the partner's bracket leg.
@@ -447,11 +454,11 @@ describe('cross-subtree placement bugs (regression)', () => {
     data.entities.childGroups[cgFather.id] = cgFather
 
     const layout = computeLayout(data)
-    const fatherX = layout.positions[fatherId]!.x
-    const motherX = layout.positions[motherId]!.x
-    const ownerX = layout.positions[ownerId]!.x
-    const fatherFatherX = layout.positions[fatherFather]!.x
-    const motherFatherX = layout.positions[motherFather]!.x
+    const fatherX = posOf(layout, fatherId).x
+    const motherX = posOf(layout, motherId).x
+    const ownerX = posOf(layout, ownerId).x
+    const fatherFatherX = posOf(layout, fatherFather).x
+    const motherFatherX = posOf(layout, motherFather).x
 
     // Father's lineage on the left, mother's on the right
     expect(fatherFatherX).toBeLessThan(motherFatherX)

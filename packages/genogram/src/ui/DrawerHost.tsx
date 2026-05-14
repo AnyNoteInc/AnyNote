@@ -360,10 +360,8 @@ function AddPartnerForm({
             // partnerOrder replaces the old partnerCount field — when the
             // user leaves it empty we append the partner at position
             // existingPartnersOfBase+1 (i.e. last slot).
-            const latest = personDraftRef.current
-            const order = latest.partnerOrder ?? existingPartnersOfBase + 1
-            const { partnerOrder: _po, ...rest } = latest
-            void _po
+            const { partnerOrder, ...rest } = personDraftRef.current
+            const order = partnerOrder ?? existingPartnersOfBase + 1
             addPartner(doc, basePersonId, rest, unionDraftRef.current, order)
             onSubmit()
           }}

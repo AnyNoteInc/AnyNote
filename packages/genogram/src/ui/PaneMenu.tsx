@@ -4,10 +4,10 @@ import { RU } from '../i18n/ru'
 export type PaneAction = 'add-note'
 
 interface Props {
-  open: boolean
-  anchorEl: HTMLElement | null
-  onClose: () => void
-  onAction: (action: PaneAction) => void
+  readonly open: boolean
+  readonly anchorEl: HTMLElement | null
+  readonly onClose: () => void
+  readonly onAction: (action: PaneAction) => void
 }
 
 /**

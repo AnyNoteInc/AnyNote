@@ -3,9 +3,9 @@ import { Button, Stack, TextField } from '@mui/material'
 import { RU } from '../i18n/ru'
 
 interface Props {
-  initialText?: string
-  onCancel: () => void
-  onSubmit: (text: string) => void
+  readonly initialText?: string
+  readonly onCancel: () => void
+  readonly onSubmit: (text: string) => void
 }
 
 /**
