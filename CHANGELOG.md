@@ -1,3 +1,10 @@
+# [1.16.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.15.4...v1.16.0) (2026-05-14)
+
+
+### Features
+
+* **genogram:** notes, predecessor/partner roles, layout fixes for cross-subtree placements ([1cb0d35](https://github.com/AnyNoteInc/AnyNote/commit/1cb0d35d2ef78b9baefb87b9fe709ac071044a15))
+
 ## [1.15.4](https://github.com/AnyNoteInc/AnyNote/compare/v1.15.3...v1.15.4) (2026-05-13)
 
 
