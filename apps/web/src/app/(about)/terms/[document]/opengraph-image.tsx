@@ -11,9 +11,10 @@ export const contentType = 'image/png'
 export default async function OpenGraphImage({
   params,
 }: {
-  params: { document: string }
+  params: Promise<{ document: string }>
 }) {
-  const meta = legalDocumentBySlug[params.document as LegalDocumentSlug]
+  const { document } = await params
+  const meta = legalDocumentBySlug[document as LegalDocumentSlug]
   const eyebrow = meta?.eyebrow ?? 'Документ'
   const title = meta?.title ?? 'Юридический документ'
 
