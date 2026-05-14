@@ -1,4 +1,4 @@
-import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { siteConfig } from '../../src/lib/seo/site-config'
 
@@ -9,6 +9,7 @@ describe('robots', () => {
 
   beforeEach(() => {
     originalEnv = process.env[ENV_KEY]
+    vi.resetModules()
   })
 
   afterEach(() => {
@@ -18,9 +19,10 @@ describe('robots', () => {
 
   it('allows root and disallows protected/auth paths by default', async () => {
     delete process.env[ENV_KEY]
-    const mod = await import(`../../src/app/robots?cache=${Date.now()}`)
-    const config = mod.default()
-    const rule = config.rules[0]
+    const { default: robots } = await import('../../src/app/robots')
+    const config = robots()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rule = (config.rules as any[])[0]
     expect(rule.allow).toBe('/')
     expect(rule.disallow).toEqual(
       expect.arrayContaining(['/app/', '/api/', '/sign-in', '/sign-up', '/settings/']),
@@ -30,9 +32,10 @@ describe('robots', () => {
 
   it('disallows the entire site when SEO_NOINDEX_ALL=true', async () => {
     process.env[ENV_KEY] = 'true'
-    const mod = await import(`../../src/app/robots?cache=${Date.now() + 1}`)
-    const config = mod.default()
-    const rule = config.rules[0]
+    const { default: robots } = await import('../../src/app/robots')
+    const config = robots()
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const rule = (config.rules as any[])[0]
     expect(rule.disallow).toEqual(['/'])
   })
 })
