@@ -4,6 +4,7 @@ import { organizationSchema } from '../../src/lib/seo/schemas/organization'
 import { productOffersSchema } from '../../src/lib/seo/schemas/product-offers'
 import { softwareAppSchema } from '../../src/lib/seo/schemas/software-app'
 import { websiteSchema } from '../../src/lib/seo/schemas/website'
+import { breadcrumbsSchema } from '../../src/lib/seo/schemas/breadcrumbs'
 import { siteConfig } from '../../src/lib/seo/site-config'
 
 describe('organizationSchema', () => {
@@ -62,5 +63,18 @@ describe('productOffersSchema', () => {
       priceCurrency: 'RUB',
       availability: 'https://schema.org/InStock',
     })
+  })
+})
+
+describe('breadcrumbsSchema', () => {
+  it('emits position-indexed ListItems', () => {
+    const schema = breadcrumbsSchema([
+      { name: 'Главная', url: 'https://x.test/' },
+      { name: 'Условия', url: 'https://x.test/terms' },
+    ])
+    expect(schema['@type']).toBe('BreadcrumbList')
+    const items = schema.itemListElement as Array<Record<string, unknown>>
+    expect(items[0]).toMatchObject({ '@type': 'ListItem', position: 1, name: 'Главная' })
+    expect(items[1]).toMatchObject({ position: 2, name: 'Условия' })
   })
 })
