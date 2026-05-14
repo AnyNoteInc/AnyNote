@@ -63,4 +63,12 @@ test.describe('SEO surface (public pages)', () => {
     expect(body).toContain('Disallow: /api/')
     expect(body).toContain('Sitemap:')
   })
+
+  test('auth routes emit meta robots noindex (defence-in-depth)', async ({ page }) => {
+    await page.goto('/sign-in')
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+      'content',
+      /noindex/i,
+    )
+  })
 })

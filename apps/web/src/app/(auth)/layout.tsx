@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import { redirect } from 'next/navigation'
 
@@ -6,6 +7,10 @@ import { Container, Paper, Stack } from '@repo/ui/components'
 import { getSession } from '@/lib/get-session'
 import { RecaptchaProvider } from '@/components/recaptcha-provider'
 import { TRPCReactProvider } from '@/trpc/client'
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+}
 
 export default async function AuthLayout({ children }: { children: ReactNode }) {
   const session = await getSession()

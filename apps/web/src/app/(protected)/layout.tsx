@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import type { ReactNode } from 'react'
 import { redirect } from 'next/navigation'
 
@@ -9,6 +10,10 @@ import { getCurrentConsents, hasAllRequiredConsents } from '@repo/trpc'
 import { requireSession } from '@/lib/get-session'
 import { TRPCReactProvider } from '@/trpc/client'
 import { ServiceWorkerMount } from '@/components/notifications/service-worker-mount'
+
+export const metadata: Metadata = {
+  robots: { index: false, follow: false },
+}
 
 export default async function ProtectedLayout({ children }: { children: ReactNode }) {
   const session = await requireSession()
