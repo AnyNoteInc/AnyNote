@@ -1,8 +1,11 @@
-import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 
 import { PublicPageShell } from '@/components/public/public-page-shell'
 import { legalDocumentBySlug, legalDocuments, type LegalDocumentSlug } from '@/lib/legal-documents'
+import { buildMetadata } from '@/lib/seo/build-metadata'
+import { JsonLd } from '@/lib/seo/json-ld'
+import { breadcrumbsSchema } from '@/lib/seo/schemas/breadcrumbs'
+import { siteConfig } from '@/lib/seo/site-config'
 
 import { LegalDocumentRenderer } from './legal-document-renderer'
 
@@ -14,10 +17,17 @@ export async function generateMetadata({
   params,
 }: {
   params: Promise<{ document: string }>
-}): Promise<Metadata> {
+}) {
   const { document } = await params
   const meta = legalDocumentBySlug[document as LegalDocumentSlug]
-  return { title: meta?.title ?? 'Документ' }
+  if (!meta) {
+    return buildMetadata({ title: 'Документ', path: `/terms/${document}`, noIndex: true })
+  }
+  return buildMetadata({
+    title: meta.title,
+    description: meta.summary,
+    path: `/terms/${meta.slug}`,
+  })
 }
 
 export default async function LegalDocumentPage({
@@ -28,9 +38,17 @@ export default async function LegalDocumentPage({
   const { document } = await params
   const meta = legalDocumentBySlug[document as LegalDocumentSlug]
   if (!meta) notFound()
+  const crumbs = breadcrumbsSchema([
+    { name: 'Главная', url: `${siteConfig.url}/` },
+    { name: 'Документы', url: `${siteConfig.url}/terms` },
+    { name: meta.title, url: `${siteConfig.url}/terms/${meta.slug}` },
+  ])
   return (
-    <PublicPageShell eyebrow={meta.eyebrow} title={meta.title} description={meta.summary}>
-      <LegalDocumentRenderer slug={meta.slug} />
-    </PublicPageShell>
+    <>
+      <JsonLd data={crumbs} />
+      <PublicPageShell eyebrow={meta.eyebrow} title={meta.title} description={meta.summary}>
+        <LegalDocumentRenderer slug={meta.slug} />
+      </PublicPageShell>
+    </>
   )
 }
