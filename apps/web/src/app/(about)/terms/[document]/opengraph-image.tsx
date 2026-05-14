@@ -3,7 +3,7 @@ import { ImageResponse } from 'next/og'
 import { legalDocumentBySlug, type LegalDocumentSlug } from '@/lib/legal-documents'
 import { siteConfig } from '@/lib/seo/site-config'
 
-export const runtime = 'edge'
+export const runtime = 'nodejs'
 export const alt = `Документ · ${siteConfig.brandRu}`
 export const size = { width: 1200, height: 630 }
 export const contentType = 'image/png'
