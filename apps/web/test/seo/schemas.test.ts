@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { organizationSchema } from '../../src/lib/seo/schemas/organization'
+import { productOffersSchema } from '../../src/lib/seo/schemas/product-offers'
 import { softwareAppSchema } from '../../src/lib/seo/schemas/software-app'
 import { websiteSchema } from '../../src/lib/seo/schemas/website'
 import { siteConfig } from '../../src/lib/seo/site-config'
@@ -38,5 +39,28 @@ describe('softwareAppSchema', () => {
     const offers = schema.offers as Record<string, unknown>
     expect(offers['@type']).toBe('Offer')
     expect(offers.priceCurrency).toBe('RUB')
+  })
+})
+
+describe('productOffersSchema', () => {
+  it('returns null for empty plan list', () => {
+    expect(productOffersSchema([])).toBeNull()
+  })
+
+  it('maps plans to Schema.org Offers', () => {
+    const schema = productOffersSchema([
+      { name: 'Personal', price: 0 },
+      { name: 'Pro', price: 599 },
+    ])
+    expect(schema).not.toBeNull()
+    const offers = (schema as Record<string, unknown>).offers as unknown[]
+    expect(offers).toHaveLength(2)
+    expect(offers[0]).toMatchObject({
+      '@type': 'Offer',
+      name: 'Personal',
+      price: 0,
+      priceCurrency: 'RUB',
+      availability: 'https://schema.org/InStock',
+    })
   })
 })
