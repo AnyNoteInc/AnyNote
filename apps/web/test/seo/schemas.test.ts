@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import { organizationSchema } from '../../src/lib/seo/schemas/organization'
+import { softwareAppSchema } from '../../src/lib/seo/schemas/software-app'
 import { websiteSchema } from '../../src/lib/seo/schemas/website'
 import { siteConfig } from '../../src/lib/seo/site-config'
 
@@ -25,5 +26,17 @@ describe('websiteSchema', () => {
     expect(action['@type']).toBe('SearchAction')
     expect(action.target).toContain('{query}')
     expect(action['query-input']).toBe('required name=query')
+  })
+})
+
+describe('softwareAppSchema', () => {
+  it('returns SoftwareApplication with free Offer', () => {
+    const schema = softwareAppSchema()
+    expect(schema['@type']).toBe('SoftwareApplication')
+    expect(schema.applicationCategory).toBe('BusinessApplication')
+    expect(schema.operatingSystem).toBe('Web')
+    const offers = schema.offers as Record<string, unknown>
+    expect(offers['@type']).toBe('Offer')
+    expect(offers.priceCurrency).toBe('RUB')
   })
 })
