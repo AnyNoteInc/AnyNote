@@ -44,9 +44,13 @@ export class YookassaClient {
     const body = await response.json().catch(() => undefined)
 
     if (!response.ok) {
-      const code =
-        typeof body === 'object' && body !== null && 'code' in body ? String(body.code) : undefined
-      throw new YookassaApiError(code ?? 'YooKassa API request failed', response.status, body)
+      const obj = typeof body === 'object' && body !== null ? (body as Record<string, unknown>) : {}
+      const code = 'code' in obj ? String(obj.code) : undefined
+      const description = 'description' in obj ? String(obj.description) : undefined
+      const parameter = 'parameter' in obj ? String(obj.parameter) : undefined
+      const parts = [code, description, parameter && `parameter=${parameter}`].filter(Boolean)
+      const message = parts.length > 0 ? parts.join(': ') : 'YooKassa API request failed'
+      throw new YookassaApiError(message, response.status, body)
     }
 
     return body as T

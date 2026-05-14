@@ -10,11 +10,11 @@ import { SIDEBAR_WIDTH } from './workspace-layout-client'
 type Breadcrumb = { label: string; href?: string }
 
 type Props = {
-  breadcrumbs: Breadcrumb[]
-  sidebarHidden: boolean
-  onOpenSidebar: () => void
-  sidebarContent: ReactNode
-  rightSlot?: ReactNode
+  readonly breadcrumbs: Breadcrumb[]
+  readonly sidebarHidden: boolean
+  readonly onOpenSidebar: () => void
+  readonly sidebarContent: ReactNode
+  readonly rightSlot?: ReactNode
 }
 
 export function WorkspaceToolbar({
@@ -29,8 +29,6 @@ export function WorkspaceToolbar({
   const closeTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
   const suppressUntil = useRef(0)
 
-  // Suppress popper for 300ms after sidebar becomes hidden,
-  // so the cursor landing on the newly-appeared MenuIcon doesn't trigger it.
   useEffect(() => {
     if (sidebarHidden) {
       suppressUntil.current = Date.now() + 500
@@ -86,6 +84,7 @@ export function WorkspaceToolbar({
             onClick={onOpenSidebar}
             onMouseEnter={handleMouseEnter}
             onMouseLeave={handleMouseLeave}
+            aria-label="Открыть сайдбар"
             sx={{ color: 'text.secondary' }}
           >
             <MenuIcon sx={{ fontSize: 20 }} />

@@ -24,6 +24,7 @@ import type { PlanFeatures } from '@repo/trpc'
 import { isMac } from '@/lib/platform'
 import { trpc } from '@/trpc/client'
 
+import { NotificationsBell } from '../notifications/notifications-bell'
 import { FavoritesSection } from './favorites-section'
 import { PageTreeSection } from './page-tree-section'
 import type { PageItem } from './types'
@@ -31,13 +32,13 @@ import { SearchSidebarSection } from './search-sidebar-section'
 import { SIDEBAR_WIDTH } from './workspace-layout-client'
 import { SidebarSearchTrigger } from '../search/sidebar-search-trigger'
 
-type Props = {
+type Props = Readonly<{
   workspace: { id: string; name: string; icon: string | null }
   features: PlanFeatures
   pages: PageItem[]
   onHide?: () => void
   userMenu: ReactNode
-}
+}>
 
 export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu }: Props) {
   const pathname = usePathname()
@@ -108,7 +109,7 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
         </Box>
         {onHide ? (
           <Tooltip title="Скрыть" placement="right">
-            <IconButton size="small" onClick={onHide} sx={{ flexShrink: 0 }}>
+            <IconButton size="small" onClick={onHide} aria-label="Скрыть" sx={{ flexShrink: 0 }}>
               <KeyboardDoubleArrowLeftIcon sx={{ fontSize: 16 }} />
             </IconButton>
           </Tooltip>
@@ -160,7 +161,7 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
         <NavItem
           icon={<SettingsIcon sx={{ fontSize: 16 }} />}
           label="Настройки"
-          shortcut={isMac() ? '⌘S' : 'Alt+S'}
+          shortcut={isMac() ? '⌘,' : 'Alt+,'}
           href={`/workspaces/${workspace.id}/settings`}
           matchPrefix={`/workspaces/${workspace.id}/settings`}
           pathname={pathname}
@@ -177,7 +178,7 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
 
       <Box sx={{ flex: 1 }} />
 
-      <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1.25 }}>
+      <Stack spacing={0.25} sx={{ pb: 1 }}>
         <NavItem
           icon={<DeleteIcon sx={{ fontSize: 16 }} />}
           label="Корзина"
@@ -185,9 +186,21 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
           matchPrefix={`/workspaces/${workspace.id}/trash`}
           pathname={pathname}
         />
-      </Box>
+      </Stack>
 
-      <Box sx={{ borderTop: '1px solid', borderColor: 'divider', pt: 1 }}>{userMenu}</Box>
+      <Box
+        sx={{
+          borderTop: '1px solid',
+          borderColor: 'divider',
+          pt: 1,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 0.5,
+        }}
+      >
+        <Box sx={{ flex: 1, minWidth: 0 }}>{userMenu}</Box>
+        <NotificationsBell tooltipPlacement="top" />
+      </Box>
     </Box>
   )
 }

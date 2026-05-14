@@ -1,6 +1,7 @@
 import { fetchRequestHandler } from '@trpc/server/adapters/fetch'
 import { appRouter, createContext } from '@repo/trpc'
 import { getYookassaClient, getReturnUrlBase } from '@/server/yookassa'
+import '@/lib/register-consent-versions'
 
 export const runtime = 'nodejs'
 

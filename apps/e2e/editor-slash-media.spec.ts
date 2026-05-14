@@ -63,6 +63,10 @@ test('slash menu renders grouped items including media commands', async ({ page 
   // Media items
   await expect(page.getByText('Картинка', { exact: true })).toBeVisible()
   await expect(page.getByText('Файл', { exact: true })).toBeVisible()
+
+  await page.waitForTimeout(4_000)
+  await expect(page.getByText('Базовые блоки', { exact: true })).toBeVisible()
+  await expect(page.getByText('Текст', { exact: true })).toBeVisible()
 })
 
 test('slash date: opens a picker initialized to today and inserts the selected date', async ({

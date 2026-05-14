@@ -23,6 +23,7 @@
   "dependencies": {
     "@repo/db": "workspace:*",
     "@repo/mail": "workspace:*",
+    "@repo/notifications": "workspace:*",
     "better-auth": "^1.4.9"
   },
   "devDependencies": {

@@ -7,6 +7,7 @@ import { usePathname } from 'next/navigation'
 
 import {
   Box,
+  GavelIcon,
   LeakAddIcon,
   PaymentIcon,
   PersonIcon,
@@ -18,6 +19,7 @@ import {
 const items: Array<{ href: string; label: string; icon: ReactNode }> = [
   { href: '/settings/general', label: 'Общее', icon: <SettingsIcon fontSize="small" /> },
   { href: '/settings/account', label: 'Аккаунт', icon: <PersonIcon fontSize="small" /> },
+  { href: '/settings/consents', label: 'Согласия', icon: <GavelIcon fontSize="small" /> },
   { href: '/settings/billing', label: 'Оплата', icon: <PaymentIcon fontSize="small" /> },
   {
     href: '/settings/integrations',

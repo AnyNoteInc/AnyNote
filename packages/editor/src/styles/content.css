@@ -170,7 +170,7 @@
 .anynote-editor .anynote-task-item,
 .anynote-editor ul[data-type="taskList"] > li {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: 4px;
   margin: 0.15rem 0;
 }
@@ -178,7 +178,7 @@
 .anynote-editor .anynote-task-item__checkbox,
 .anynote-editor ul[data-type="taskList"] > li > label {
   flex-shrink: 0;
-  margin-top: 0;
+  margin-top: -3px;
 }
 
 .anynote-editor .anynote-task-item__content,
@@ -208,6 +208,11 @@
   cursor: grab;
   opacity: 0;
   transition: opacity 120ms ease;
+}
+
+.anynote-editor .drag-handle,
+.anynote-editor .tiptap-drag-handle {
+  z-index: 6;
 }
 
 .anynote-editor .tiptap-drag-handle:hover,
@@ -398,4 +403,111 @@
   background-color: var(--anynote-bg-yellow);
   border-radius: 4px;
   transition: background-color 0.6s ease-out;
+}
+
+/* Reminder-anchor flash: applied for 2s when the user navigates to a
+   /workspaces/.../pages/.../#reminder-<uuid> URL. */
+@keyframes reminder-flash {
+  0%   { box-shadow: 0 0 0 2px rgba(255, 167, 38, 0.6); }
+  100% { box-shadow: 0 0 0 2px rgba(255, 167, 38, 0); }
+}
+.reminder-flash {
+  animation: reminder-flash 2s ease-out;
+}
+
+/* Column layout — every top-level child gets position:relative so the
+   drop-target ::before pseudo-elements anchor to the right element. The
+   .column inside a layout also gets it for its own internal indicators. */
+.anynote-editor .ProseMirror > * {
+  position: relative;
+}
+
+.anynote-editor .column-layout {
+  position: relative;
+  display: flex;
+  gap: 24px;
+  margin: 0.5rem 0;
+}
+
+.anynote-editor .column {
+  position: relative;
+  flex: var(--column-width, 1) 1 0;
+  min-width: 0;
+}
+
+/* Divider widgets are injected into every column except the last, then shifted
+   right into the gap after that column. A 12px transparent hit-zone catches
+   mousedown; ::before draws the visible bar. */
+.anynote-editor .column-divider {
+  position: absolute;
+  right: -18px;
+  top: 0;
+  bottom: 0;
+  width: 12px;
+  cursor: col-resize;
+  user-select: none;
+  z-index: 4;
+}
+
+.anynote-editor .column-divider::before {
+  content: '';
+  position: absolute;
+  left: 5px;
+  top: 0;
+  bottom: 0;
+  width: 2px;
+  background: transparent;
+  border-radius: 1px;
+  transition: background-color 120ms ease;
+}
+
+.anynote-editor .column-divider:hover::before,
+.anynote-editor .column-divider.is-dragging::before {
+  background: var(--editor-text-muted, rgba(0, 0, 0, 0.5));
+}
+
+/* Drop targets — the plugin adds .column-drop-target--<zone> to the hovered
+   block via Decoration.node; the ::before pseudo-element sits inside the
+   target's box so the bar always matches its height/width. */
+.anynote-editor .column-drop-target::before {
+  content: '';
+  position: absolute;
+  pointer-events: none;
+  background: #1976d2;
+  z-index: 5;
+}
+.anynote-editor .column-drop-target--left::before {
+  top: 0;
+  left: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 2px;
+}
+.anynote-editor .column-drop-target--right::before {
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 2px;
+}
+.anynote-editor .column-drop-target--top::before {
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+}
+.anynote-editor .column-drop-target--bottom::before {
+  bottom: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+}
+
+@media (max-width: 600px) {
+  .anynote-editor .column-layout {
+    flex-direction: column;
+  }
+  .anynote-editor .column-divider {
+    display: none;
+  }
 }

@@ -34,6 +34,8 @@ export function ContactForm() {
   const [form, setForm] = useState<ContactFormState>(initialState)
   const [agree, setAgree] = useState(false)
   const [agreeError, setAgreeError] = useState(false)
+  const [agreeMarketing, setAgreeMarketing] = useState(false)
+  const [agreeMarketingError, setAgreeMarketingError] = useState(false)
   const [submitted, setSubmitted] = useState(false)
 
   const handleChange =
@@ -44,15 +46,23 @@ export function ContactForm() {
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
+    let hasError = false
     if (!agree) {
       setAgreeError(true)
-      return
+      hasError = true
     }
+    if (!agreeMarketing) {
+      setAgreeMarketingError(true)
+      hasError = true
+    }
+    if (hasError) return
     console.log('Любые заметки contact request', form)
     setSubmitted(true)
     setForm(initialState)
     setAgree(false)
     setAgreeError(false)
+    setAgreeMarketing(false)
+    setAgreeMarketingError(false)
   }
 
   return (
@@ -142,6 +152,44 @@ export function ContactForm() {
           {agreeError ? (
             <FormHelperText error sx={{ ml: 4 }}>
               Необходимо дать согласие на обработку персональных данных
+            </FormHelperText>
+          ) : null}
+        </Box>
+        <Box sx={{ gridColumn: { md: '1 / -1' } }}>
+          <FormControlLabel
+            control={
+              <Checkbox
+                checked={agreeMarketing}
+                onChange={(event) => {
+                  setAgreeMarketing(event.target.checked)
+                  if (event.target.checked) setAgreeMarketingError(false)
+                }}
+                inputProps={{
+                  'aria-label': 'Согласие на получение информационных и рекламных рассылок',
+                  'aria-required': true,
+                }}
+                data-testid="contact-form-marketing"
+              />
+            }
+            label={
+              <Typography variant="body2" sx={{ color: 'text.secondary', lineHeight: 1.5 }}>
+                Я согласен получать{' '}
+                <Link
+                  href="/terms/marketing-consent"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: 'inherit', textDecoration: 'underline' }}
+                >
+                  информационные и рекламные рассылки
+                </Link>{' '}
+                на указанный email
+              </Typography>
+            }
+            sx={{ alignItems: 'flex-start', m: 0, '& .MuiCheckbox-root': { pt: 0.25 } }}
+          />
+          {agreeMarketingError ? (
+            <FormHelperText error sx={{ ml: 4 }}>
+              Необходимо согласиться на получение рассылок
             </FormHelperText>
           ) : null}
         </Box>

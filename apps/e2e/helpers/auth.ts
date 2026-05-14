@@ -29,6 +29,40 @@ export type SignUpAndAuthArgs = {
 }
 
 /**
+ * Backfill 5 consent rows for a user. Used by tests that create users via
+ * Prisma directly (bypassing the sign-up form) or as a safety net after
+ * sign-up to guarantee the (protected) layout consent gate is satisfied.
+ */
+export async function seedDefaultNotificationPreferences(_userId: string): Promise<void> {
+  // No-op: production code resolves preferences lazily from EVENT_CATALOG when no
+  // override row exists. Hook kept so future per-test preference overrides have a
+  // single place to plug in.
+}
+
+export async function writeConsentsForUserId(userId: string): Promise<void> {
+  loadEnvFromRoot()
+  const { prisma } = await import('../../../packages/db/src/index')
+  const types = [
+    'USER_AGREEMENT',
+    'PRIVACY_POLICY',
+    'PII_PROCESSING',
+    'PUBLIC_OFFER',
+    'MARKETING',
+  ] as const
+  await prisma.userConsent.createMany({
+    data: types.map((type) => ({
+      userId,
+      documentType: type,
+      granted: type !== 'MARKETING',
+      documentVersion: 'e2e',
+      source: 'SIGN_UP' as const,
+      ipAddress: '127.0.0.1',
+      userAgent: 'playwright',
+    })),
+  })
+}
+
+/**
  * Test helper: register via the /sign-up form, mark the user as emailVerified=true
  * directly in the database (bypassing the email verification flow), then sign in
  * and wait for the post-login redirect.
@@ -59,6 +93,13 @@ export async function signUpAndAuthAs(page: Page, args: SignUpAndAuthArgs): Prom
   }
   if (!user) throw new Error(`signUpAndAuthAs: user row never appeared for ${email}`)
   await prisma.user.update({ where: { email }, data: { emailVerified: true } })
+
+  // Sign-up writes 5 consent rows via the tRPC procedure. Backfill if absent so
+  // the user always passes the (protected) layout consent gate.
+  const consentCount = await prisma.userConsent.count({ where: { userId: user.id } })
+  if (consentCount < 5) {
+    await writeConsentsForUserId(user.id)
+  }
 
   // Clear any cookies set by signUp's optional autoSignIn so the next sign-in
   // is deterministic (we don't depend on whether better-auth auto-signed-in).

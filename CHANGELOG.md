@@ -1,21 +1,117 @@
-# [1.9.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.8.0...v1.9.0) (2026-05-09)
+## [1.15.4](https://github.com/AnyNoteInc/AnyNote/compare/v1.15.3...v1.15.4) (2026-05-13)
 
 
 ### Bug Fixes
 
-* **mail:** swallow sendsay errors instead of throwing plain objects ([bf2e0df](https://github.com/AnyNoteInc/AnyNote/commit/bf2e0df7750e7057ee2bb8cf2333cf40e25d0d0b))
+* **billing:** actively sync order status from YooKassa on return page so payments confirm without webhook ([526c073](https://github.com/AnyNoteInc/AnyNote/commit/526c07355e0772d2c43358db302fb8ed9ae95849))
+
+## [1.15.3](https://github.com/AnyNoteInc/AnyNote/compare/v1.15.2...v1.15.3) (2026-05-13)
+
+
+### Bug Fixes
+
+* **billing:** gate YooKassa save_payment_method behind env var and surface API error descriptions ([72b6774](https://github.com/AnyNoteInc/AnyNote/commit/72b67744bc6d448212a6f19f8f8a2594d4eeb5af))
+
+## [1.15.2](https://github.com/AnyNoteInc/AnyNote/compare/v1.15.1...v1.15.2) (2026-05-13)
+
+
+### Bug Fixes
+
+* update remainder fix ([22b3ac2](https://github.com/AnyNoteInc/AnyNote/commit/22b3ac2232138527dccab0d149091d993b196053))
+
+## [1.15.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.15.0...v1.15.1) (2026-05-13)
+
+
+### Bug Fixes
+
+* **web:** replace stale favicon and brand icon art with orange rhombus ([9463fc9](https://github.com/AnyNoteInc/AnyNote/commit/9463fc9d799f33df48ec1559ece35272aec79913))
+
+# [1.15.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.14.0...v1.15.0) (2026-05-13)
 
 
 ### Features
 
-* **web:** redirect to /profile 3s after sign-up success ([ec4f2bc](https://github.com/AnyNoteInc/AnyNote/commit/ec4f2bc12dd2200fb25ee8e5c11cca3ddb328c3d))
+* **billing:** update Pro and Max plan pricing ([94fa00a](https://github.com/AnyNoteInc/AnyNote/commit/94fa00afb08b7333161ef02fe41133b1e1ae2413))
+
+# [1.14.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.13.2...v1.14.0) (2026-05-13)
+
+
+### Features
+
+* **editor:** column layout with unlimited columns, resizable dividers, and task-list support ([#12](https://github.com/AnyNoteInc/AnyNote/issues/12)) ([4cb24de](https://github.com/AnyNoteInc/AnyNote/commit/4cb24de354b1d8496ae3d40d5d411623f4dfb35a))
+
+## [1.13.2](https://github.com/AnyNoteInc/AnyNote/compare/v1.13.1...v1.13.2) (2026-05-11)
+
+### Bug Fixes
+
+- reminder ([dbde8ea](https://github.com/AnyNoteInc/AnyNote/commit/dbde8eac3528e87a77efdd451a8e1b36732a1fda))
+
+## [1.13.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.13.0...v1.13.1) (2026-05-11)
+
+### Bug Fixes
+
+- add delete all notifications ([4803ed4](https://github.com/AnyNoteInc/AnyNote/commit/4803ed4936e5ce81d75216538ed1233a45313485))
+- notify poppover position ([4474fd1](https://github.com/AnyNoteInc/AnyNote/commit/4474fd1e9e8d8d5f1d11f35021afbae6ea25e76d))
+- remove trash to bottom of left side ([f4e570e](https://github.com/AnyNoteInc/AnyNote/commit/f4e570ed6d750dd42819c7fd3ecad6b9956d5638))
+- slash with reminder ([50fa166](https://github.com/AnyNoteInc/AnyNote/commit/50fa1666e93a3885ccaf402d3be7576c513da309))
+
+# [1.13.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.12.1...v1.13.0) (2026-05-11)
+
+### Features
+
+- add page reminders ([#11](https://github.com/AnyNoteInc/AnyNote/issues/11)) ([9a5f8da](https://github.com/AnyNoteInc/AnyNote/commit/9a5f8da5890cbea3a976a7c3a0e1ce3a34a9ce28))
+
+## [1.12.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.12.0...v1.12.1) (2026-05-11)
+
+### Bug Fixes
+
+- **editor:** align nested task checkboxes, kill full-width overflow, default TOC to mini ([66e30df](https://github.com/AnyNoteInc/AnyNote/commit/66e30df2365dddde3aca7b923b56fc3be531b8de))
+
+# [1.12.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.11.1...v1.12.0) (2026-05-11)
+
+### Features
+
+- **web:** sidebar redesign — full/hidden modes, notifications bell, trash + ⌘, shortcuts ([#10](https://github.com/AnyNoteInc/AnyNote/issues/10)) ([8693af0](https://github.com/AnyNoteInc/AnyNote/commit/8693af0ef717ff7ce13efc2709651d7fcc2b4956))
+
+## [1.11.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.11.0...v1.11.1) (2026-05-11)
+
+### Bug Fixes
+
+- **deploy:** wire VAPID env vars through to web push runtime ([fe4f712](https://github.com/AnyNoteInc/AnyNote/commit/fe4f71223c95e6c94b8a98a18f45237c99719ecd))
+
+# [1.11.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.10.1...v1.11.0) (2026-05-11)
+
+### Features
+
+- notifications system (events, deliveries, in-app, email, web push) ([#9](https://github.com/AnyNoteInc/AnyNote/issues/9)) ([13cc85e](https://github.com/AnyNoteInc/AnyNote/commit/13cc85edbbd37b5a7b0efbdd3d98e24061638646))
+
+## [1.10.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.10.0...v1.10.1) (2026-05-10)
+
+### Bug Fixes
+
+- **mail:** use 'personal' as sendsay transactional group id ([6eccc78](https://github.com/AnyNoteInc/AnyNote/commit/6eccc78bd32d35d622fd13748931bdd0b8333a3d))
+
+# [1.10.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.9.0...v1.10.0) (2026-05-10)
+
+### Features
+
+- legal-grade user consent tracking ([#8](https://github.com/AnyNoteInc/AnyNote/issues/8)) ([c2cdadb](https://github.com/AnyNoteInc/AnyNote/commit/c2cdadb20ffdc27264f323d9c062b183af8118fd))
+
+# [1.9.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.8.0...v1.9.0) (2026-05-09)
+
+### Bug Fixes
+
+- **mail:** swallow sendsay errors instead of throwing plain objects ([bf2e0df](https://github.com/AnyNoteInc/AnyNote/commit/bf2e0df7750e7057ee2bb8cf2333cf40e25d0d0b))
+
+### Features
+
+- **web:** redirect to /profile 3s after sign-up success ([ec4f2bc](https://github.com/AnyNoteInc/AnyNote/commit/ec4f2bc12dd2200fb25ee8e5c11cca3ddb328c3d))
 
 # [1.8.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.7.1...v1.8.0) (2026-05-08)
 
-
 ### Features
 
-* add navigation ([88c3c5f](https://github.com/AnyNoteInc/AnyNote/commit/88c3c5f5b9dcd5131789f460454ab9dfdcd347ac))
+- add navigation ([88c3c5f](https://github.com/AnyNoteInc/AnyNote/commit/88c3c5f5b9dcd5131789f460454ab9dfdcd347ac))
 
 ## [1.7.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.7.0...v1.7.1) (2026-05-08)
 

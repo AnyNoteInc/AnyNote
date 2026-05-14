@@ -1,0 +1,161 @@
+import type { PrismaClient } from '@repo/db'
+
+import { emit } from './emit.ts'
+
+export const notify = {
+  verifyEmail: (
+    prisma: PrismaClient,
+    args: { userId: string; firstName: string; link: string; expiresAtIso: string },
+  ) => emit(prisma, { type: 'VERIFY_EMAIL', userId: args.userId, payload: args }),
+
+  resetPassword: (
+    prisma: PrismaClient,
+    args: { userId: string; firstName: string; link: string; expiresAtIso: string },
+  ) => emit(prisma, { type: 'RESET_PASSWORD', userId: args.userId, payload: args }),
+
+  passwordChanged: (
+    prisma: PrismaClient,
+    args: { userId: string; firstName: string; ipAddress?: string; supportEmail?: string },
+  ) => emit(prisma, { type: 'PASSWORD_CHANGED', userId: args.userId, payload: args }),
+
+  emailChanged: (
+    prisma: PrismaClient,
+    args: {
+      userId: string
+      firstName: string
+      oldEmail: string
+      newEmail: string
+      isOldRecipient: boolean
+    },
+  ) => emit(prisma, { type: 'EMAIL_CHANGED', userId: args.userId, payload: args }),
+
+  welcome: (prisma: PrismaClient, args: { userId: string; firstName: string; appUrl: string }) =>
+    emit(prisma, { type: 'WELCOME', userId: args.userId, payload: args }),
+
+  accountDeletionRequested: (
+    prisma: PrismaClient,
+    args: { userId: string; firstName: string; link: string; expiresAtIso: string },
+  ) => emit(prisma, { type: 'ACCOUNT_DELETION_REQUESTED', userId: args.userId, payload: args }),
+
+  accountDeletionCompleted: (prisma: PrismaClient, args: { userId: string; firstName: string }) =>
+    emit(prisma, { type: 'ACCOUNT_DELETION_COMPLETED', userId: args.userId, payload: args }),
+
+  newLogin: (
+    prisma: PrismaClient,
+    args: {
+      userId: string
+      firstName: string
+      ipAddress: string
+      userAgent: string
+      location?: string
+      loggedAtIso?: string
+    },
+  ) =>
+    emit(prisma, {
+      type: 'NEW_LOGIN',
+      userId: args.userId,
+      payload: { ...args, loggedAtIso: args.loggedAtIso ?? new Date().toISOString() },
+    }),
+
+  suspiciousActivity: (
+    prisma: PrismaClient,
+    args: { userId: string; firstName: string; reason: string; lockedUntilIso?: string },
+  ) => emit(prisma, { type: 'SUSPICIOUS_ACTIVITY', userId: args.userId, payload: args }),
+
+  workspaceInvite: (
+    prisma: PrismaClient,
+    args: {
+      userId: string
+      workspaceId: string
+      actorId?: string
+      firstName?: string
+      inviterName: string
+      workspaceName: string
+      link: string
+    },
+  ) =>
+    emit(prisma, {
+      type: 'WORKSPACE_INVITE',
+      userId: args.userId,
+      workspaceId: args.workspaceId,
+      actorId: args.actorId,
+      resourceUrl: `/workspaces/${args.workspaceId}`,
+      payload: args,
+    }),
+
+  roleChanged: (
+    prisma: PrismaClient,
+    args: {
+      userId: string
+      workspaceId: string
+      actorId?: string
+      newRole: string
+      workspaceName: string
+      actorName?: string
+    },
+  ) =>
+    emit(prisma, {
+      type: 'ROLE_CHANGED',
+      userId: args.userId,
+      workspaceId: args.workspaceId,
+      actorId: args.actorId,
+      resourceUrl: `/workspaces/${args.workspaceId}/settings`,
+      payload: args,
+    }),
+
+  // Reserved stubs (no trigger points wired in v1).
+  pageMention: (
+    prisma: PrismaClient,
+    args: {
+      userId: string
+      workspaceId: string
+      pageId: string
+      actorId: string
+      actorName: string
+      snippet: string
+    },
+  ) =>
+    emit(prisma, {
+      type: 'PAGE_MENTION',
+      userId: args.userId,
+      workspaceId: args.workspaceId,
+      actorId: args.actorId,
+      resourceUrl: `/workspaces/${args.workspaceId}/pages/${args.pageId}`,
+      payload: args,
+    }),
+
+  commentCreated: (
+    prisma: PrismaClient,
+    args: {
+      userId: string
+      workspaceId: string
+      pageId: string
+      commentId: string
+      actorId: string
+      actorName: string
+      snippet: string
+    },
+  ) =>
+    emit(prisma, {
+      type: 'COMMENT_CREATED',
+      userId: args.userId,
+      workspaceId: args.workspaceId,
+      actorId: args.actorId,
+      resourceUrl: `/workspaces/${args.workspaceId}/pages/${args.pageId}#comment-${args.commentId}`,
+      payload: args,
+    }),
+
+  weeklyDigest: (prisma: PrismaClient, args: { userId: string; period: string; summary: string }) =>
+    emit(prisma, { type: 'WEEKLY_DIGEST', userId: args.userId, payload: args }),
+
+  productUpdate: (
+    prisma: PrismaClient,
+    args: { userId: string; title: string; body: string; url?: string },
+  ) =>
+    emit(prisma, {
+      type: 'PRODUCT_UPDATE',
+      userId: args.userId,
+      resourceUrl: args.url,
+      payload: args,
+    }),
+}

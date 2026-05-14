@@ -6,6 +6,7 @@ import type { CreatePaymentInput, Payment } from '@repo/yookassa'
 
 type YookassaClientLike = {
   createPayment(input: CreatePaymentInput, idempotencyKey: string): Promise<Payment>
+  getPayment(paymentId: string): Promise<Payment>
 }
 
 type CreateContextOptions = {

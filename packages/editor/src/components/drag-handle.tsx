@@ -24,19 +24,37 @@ const firstChildOfContainer: DragHandleRule = {
   },
 }
 
+// columnLayout / column are structural — the user never drags the row or the
+// cell itself; only blocks of content inside cells get a handle. Deduct enough
+// to push the score < 0, which the library treats as "not a candidate".
+const excludeColumnNodes: DragHandleRule = {
+  id: 'excludeColumnNodes',
+  evaluate: ({ node }) => {
+    if (node.type.name === 'columnLayout' || node.type.name === 'column') return 10000
+    return 0
+  },
+}
+
 // `edgeDetection: 'none'` disables the 12px band where deeper nodes lose score
 // near their left edge. With it on, mousing from an inner block toward the
 // handle (which sits in the gutter) would flip the target to the parent mid-
 // motion, so the handle would jump to the outer container before the cursor
 // even reached it.
-const nestedOptions = { rules: [firstChildOfContainer], edgeDetection: 'none' as const }
+const nestedOptions = {
+  rules: [firstChildOfContainer, excludeColumnNodes],
+  edgeDetection: 'none' as const,
+}
 
 type Props = {
   editor: Editor
   onRequestBlockMove?: (pos: number) => void
 }
 
-type HoverNodePos = { from: number; to: number; isEmpty: boolean } | null
+type HoverNodePos = {
+  from: number
+  to: number
+  isEmpty: boolean
+} | null
 
 export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
   const hoverNodeRef = useRef<HoverNodePos>(null)
@@ -88,7 +106,6 @@ export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
     const alt = event.altKey
     const chain = editor.chain().focus()
     if (alt) {
-      // Insert empty paragraph above the hovered node, then slash
       chain
         .insertContentAt(info.from, { type: 'paragraph' })
         .setTextSelection(info.from + 1)
@@ -103,7 +120,6 @@ export function EditorDragHandle({ editor, onRequestBlockMove }: Props) {
         .run()
       return
     }
-    // Non-empty: put cursor at end of node and insert new paragraph below
     chain
       .setTextSelection(info.to - 1)
       .insertContentAt(info.to, { type: 'paragraph' })

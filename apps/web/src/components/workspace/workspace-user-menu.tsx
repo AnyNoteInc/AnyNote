@@ -31,10 +31,10 @@ import type { PlanFeatures } from '@repo/trpc'
 import { getPlanDisplayName } from '@/components/billing/plan-labels'
 import { trpc } from '@/trpc/client'
 
-type Props = {
+type Props = Readonly<{
   user: { firstName: string; lastName: string; email: string; image: string | null }
   features: PlanFeatures
-}
+}>
 
 type Theme = 'light' | 'dark' | 'system'
 

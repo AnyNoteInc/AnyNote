@@ -27,7 +27,7 @@ export function useSearchHotkey(workspaceId: string) {
         open()
         return
       }
-      if (key === 's') {
+      if (event.key === ',') {
         event.preventDefault()
         router.push(`/workspaces/${workspaceId}/settings`)
       }

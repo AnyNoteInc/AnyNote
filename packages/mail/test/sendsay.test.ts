@@ -53,7 +53,7 @@ describe('sendsay wrapper', () => {
     expect(payload['users.list']).toBe('user@example.com')
     expect(payload.letter['from.email']).toBe('noreply@anynote.ru')
     expect(payload.letter['from.name']).toBe('AnyNote')
-    expect(payload.group).toBe('transactional')
+    expect(payload.group).toBe('personal')
   })
 
   it('logs and skips the request when SENDSAY_API_KEY is empty (dev fallback)', async () => {

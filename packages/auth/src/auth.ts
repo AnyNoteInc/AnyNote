@@ -13,7 +13,7 @@ import {
 import { nextCookies } from 'better-auth/next-js'
 
 import { prisma, SubscriptionStatus } from '@repo/db'
-import { sendMailNow } from '@repo/mail'
+import { notify } from '@repo/notifications'
 
 type VerificationEmailContext = { skipUserCleanupOnFailure: boolean }
 const verificationEmailContext = new AsyncLocalStorage<VerificationEmailContext>()
@@ -46,14 +46,11 @@ const auth = betterAuth({
       const link = `${appUrl()}/reset-credentials/${token}`
       const expiresAtIso = new Date(Date.now() + VERIFY_EXPIRES_S * 1000).toISOString()
       try {
-        await sendMailNow({
-          kind: 'reset-password',
-          to: userWithName.email,
-          data: {
-            firstName: userWithName.firstName ?? '',
-            link,
-            expiresAtIso,
-          },
+        await notify.resetPassword(prisma, {
+          userId: userWithName.id,
+          firstName: userWithName.firstName ?? '',
+          link,
+          expiresAtIso,
         })
       } catch (err) {
         // better-auth stores reset tokens with identifier `reset-password:<token>`
@@ -73,14 +70,11 @@ const auth = betterAuth({
       const expiresAtIso = new Date(Date.now() + VERIFY_EXPIRES_S * 1000).toISOString()
       const userWithName = user as { firstName?: string; email: string; id: string }
       try {
-        await sendMailNow({
-          kind: 'verify-email',
-          to: userWithName.email,
-          data: {
-            firstName: userWithName.firstName ?? '',
-            link: url,
-            expiresAtIso,
-          },
+        await notify.verifyEmail(prisma, {
+          userId: userWithName.id,
+          firstName: userWithName.firstName ?? '',
+          link: url,
+          expiresAtIso,
         })
       } catch (err) {
         const ctx = verificationEmailContext.getStore()
@@ -92,13 +86,10 @@ const auth = betterAuth({
     },
     afterEmailVerification: async (user) => {
       const userWithName = user as { firstName?: string; email: string; id: string }
-      await sendMailNow({
-        kind: 'welcome',
-        to: userWithName.email,
-        data: {
-          firstName: userWithName.firstName ?? '',
-          appUrl: `${appUrl()}/app`,
-        },
+      await notify.welcome(prisma, {
+        userId: userWithName.id,
+        firstName: userWithName.firstName ?? '',
+        appUrl: `${appUrl()}/app`,
       })
     },
   },
@@ -201,13 +192,10 @@ const auth = betterAuth({
             update: {},
           })
           if (userWithName.emailVerified) {
-            await sendMailNow({
-              kind: 'welcome',
-              to: userWithName.email,
-              data: {
-                firstName: userWithName.firstName ?? '',
-                appUrl: `${appUrl()}/app`,
-              },
+            await notify.welcome(prisma, {
+              userId: userWithName.id,
+              firstName: userWithName.firstName ?? '',
+              appUrl: `${appUrl()}/app`,
             })
           }
         },

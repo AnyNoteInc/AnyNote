@@ -87,6 +87,30 @@ test('drag handle click opens block menu with convert + color items', async ({ p
   await expect(page.getByRole('menuitem', { name: 'Удалить' })).toBeVisible()
 })
 
+test('drag handle delete removes a task item together with its checkbox', async ({ page }) => {
+  await signUp(page, 'ext-task-delete')
+  const editor = await createTextPage(page)
+  await editor.click()
+  await page.keyboard.type('/')
+  await page.locator('[data-slash-item-id="task"]').click()
+  await page.keyboard.type('Удалить меня')
+
+  const taskItem = page.locator('.anynote-task-item', { hasText: 'Удалить меня' }).first()
+  await expect(taskItem).toBeVisible()
+  await taskItem.hover()
+
+  const dragIcon = page
+    .locator('.tiptap-drag-handle-wrapper button:has([data-testid="DragIndicatorIcon"])')
+    .first()
+  await expect(dragIcon).toBeVisible()
+  await dragIcon.click()
+  await page.getByRole('menuitem', { name: 'Удалить' }).click()
+
+  await expect(page.locator('.anynote-task-item')).toHaveCount(0)
+  await expect(editor.locator('input[type="checkbox"]')).toHaveCount(0)
+  await expect(editor).not.toContainText('Удалить меня')
+})
+
 test('paragraph background color hugs text width', async ({ page }) => {
   await signUp(page, 'ext-bg')
   const editor = await createTextPage(page)

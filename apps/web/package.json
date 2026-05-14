@@ -22,6 +22,7 @@
     "@repo/excalidraw": "workspace:*",
     "@repo/genogram": "workspace:*",
     "@repo/mail": "workspace:*",
+    "@repo/notifications": "workspace:*",
     "@repo/storage": "workspace:*",
     "@repo/trpc": "workspace:*",
     "@repo/ui": "workspace:*",

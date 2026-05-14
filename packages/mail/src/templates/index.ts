@@ -9,6 +9,7 @@ import { renderSuspiciousActivity } from './suspicious-activity.ts'
 import { renderInvitation } from './invitation.ts'
 import { renderAccountDeletionRequested } from './account-deletion-requested.ts'
 import { renderAccountDeletionCompleted } from './account-deletion-completed.ts'
+import { renderReminderDue } from './reminder-due.ts'
 
 export function renderTemplate<K extends MailKind>(kind: K, data: MailPayloads[K]): RenderedEmail {
   switch (kind) {
@@ -32,6 +33,8 @@ export function renderTemplate<K extends MailKind>(kind: K, data: MailPayloads[K
       return renderAccountDeletionRequested(data as MailPayloads['account-deletion-requested'])
     case 'account-deletion-completed':
       return renderAccountDeletionCompleted(data as MailPayloads['account-deletion-completed'])
+    case 'reminder-due':
+      return renderReminderDue(data as MailPayloads['reminder-due'])
     default: {
       const _exhaustive: never = kind
       throw new Error(`renderTemplate: unsupported kind ${String(_exhaustive)}`)

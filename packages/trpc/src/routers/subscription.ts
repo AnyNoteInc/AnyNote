@@ -1,8 +1,14 @@
 import { randomUUID } from 'node:crypto'
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
+import { YookassaApiError } from '@repo/yookassa'
 import { router, protectedProcedure } from '../trpc'
 import { getActivePlanForUser, getPlanDisplayName } from '../helpers/plan'
+import { syncOrderFromProvider } from '../services/billing'
+
+function shouldSavePaymentMethod(): boolean {
+  return (process.env.YOOKASSA_SAVE_PAYMENT_METHOD ?? 'true').toLowerCase() !== 'false'
+}
 
 export const subscriptionRouter = router({
   getCurrent: protectedProcedure.query(async ({ ctx }) => {
@@ -56,6 +62,36 @@ export const subscriptionRouter = router({
       return order
     }),
 
+  syncOrder: protectedProcedure
+    .input(z.object({ orderId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const existing = await ctx.prisma.order.findUnique({
+        where: { id: input.orderId },
+        select: { userId: true, status: true, yookassaPaymentId: true },
+      })
+      if (!existing || existing.userId !== ctx.user.id) {
+        throw new TRPCError({ code: 'NOT_FOUND' })
+      }
+      if (existing.status === 'PENDING' && existing.yookassaPaymentId) {
+        try {
+          await syncOrderFromProvider(
+            { yookassa: ctx.yookassa, prisma: ctx.prisma },
+            existing.yookassaPaymentId,
+          )
+        } catch (err) {
+          console.error('[subscription.syncOrder] YooKassa sync failed', {
+            orderId: input.orderId,
+            yookassaPaymentId: existing.yookassaPaymentId,
+            error: err instanceof Error ? err.message : err,
+          })
+        }
+      }
+      return ctx.prisma.order.findUniqueOrThrow({
+        where: { id: input.orderId },
+        include: { plan: { select: { name: true, slug: true } } },
+      })
+    }),
+
   listOrders: protectedProcedure.query(async ({ ctx }) => {
     return ctx.prisma.order.findMany({
       where: { userId: ctx.user.id },
@@ -84,6 +120,7 @@ export const subscriptionRouter = router({
       const amountKopecks =
         input.period === 'MONTHLY' ? plan.priceMonthlyKopecks : plan.priceYearlyKopecks
       const idempotencyKey = randomUUID()
+      const savePaymentMethod = shouldSavePaymentMethod()
 
       const order = await ctx.prisma.order.create({
         data: {
@@ -94,7 +131,7 @@ export const subscriptionRouter = router({
           currency: 'RUB',
           status: 'PENDING',
           isInitial: true,
-          savedPaymentMethod: true,
+          savedPaymentMethod: savePaymentMethod,
           yookassaIdempotencyKey: idempotencyKey,
         },
       })
@@ -102,25 +139,43 @@ export const subscriptionRouter = router({
       const rub = (amountKopecks / 100).toFixed(2)
       const periodLabel = input.period === 'MONTHLY' ? 'Месяц' : 'Год'
 
-      const payment = await ctx.yookassa.createPayment(
-        {
-          amount: { value: rub, currency: 'RUB' },
-          capture: true,
-          save_payment_method: true,
-          confirmation: {
-            type: 'redirect',
-            return_url: `${ctx.returnUrlBase}/billing/return?orderId=${order.id}`,
+      let payment
+      try {
+        payment = await ctx.yookassa.createPayment(
+          {
+            amount: { value: rub, currency: 'RUB' },
+            capture: true,
+            ...(savePaymentMethod ? { save_payment_method: true } : {}),
+            confirmation: {
+              type: 'redirect',
+              return_url: `${ctx.returnUrlBase}/billing/return?orderId=${order.id}`,
+            },
+            description: `Подписка ${getPlanDisplayName(plan)} (${periodLabel})`,
+            metadata: {
+              orderId: order.id,
+              userId: ctx.user.id,
+              planSlug: plan.slug,
+              period: input.period,
+            },
           },
-          description: `Подписка ${getPlanDisplayName(plan)} (${periodLabel})`,
-          metadata: {
+          idempotencyKey,
+        )
+      } catch (err) {
+        await ctx.prisma.order.update({
+          where: { id: order.id },
+          data: { status: 'FAILED' },
+        })
+        if (err instanceof YookassaApiError) {
+          console.error('[subscription.startCheckout] YooKassa rejected payment', {
             orderId: order.id,
-            userId: ctx.user.id,
-            planSlug: plan.slug,
-            period: input.period,
-          },
-        },
-        idempotencyKey,
-      )
+            status: err.status,
+            body: err.body,
+          })
+          const code = err.status === 403 ? 'FORBIDDEN' : 'BAD_REQUEST'
+          throw new TRPCError({ code, message: err.message, cause: err })
+        }
+        throw err
+      }
 
       await ctx.prisma.order.update({
         where: { id: order.id },

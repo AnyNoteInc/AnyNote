@@ -1,12 +1,10 @@
 'use client'
 
-import { useForm } from 'react-hook-form'
+import { useForm, type FieldErrors, type UseFormRegister } from 'react-hook-form'
+
 import {
-  Box,
   Button,
-  Checkbox,
   Divider,
-  FormControlLabel,
   KeyboardDoubleArrowLeftIcon,
   Stack,
   TextField,
@@ -14,6 +12,11 @@ import {
 } from '@repo/ui/components'
 
 import { AuthHeader } from './auth-header'
+import {
+  ConsentsCheckboxes,
+  type ConsentsCheckboxesUrls,
+  type ConsentsCheckboxesValues,
+} from './consents-checkboxes'
 
 export type RegisterFormValues = {
   email: string
@@ -22,15 +25,12 @@ export type RegisterFormValues = {
   password: string
   confirmPassword: string
   agreedToTerms: boolean
+  agreedToMarketing: boolean
 }
 
 export type RegisterSubmitPayload = Omit<RegisterFormValues, 'confirmPassword' | 'agreedToTerms'>
 
-export type TermsUrls = {
-  userAgreement: string
-  privacyPolicy: string
-  publicOffer: string
-}
+export type TermsUrls = ConsentsCheckboxesUrls
 
 export type RegisterFormProps = {
   defaultValues?: Partial<RegisterFormValues>
@@ -54,6 +54,7 @@ export function RegisterForm({
     password: '',
     confirmPassword: '',
     agreedToTerms: false,
+    agreedToMarketing: false,
     ...defaultValues,
   }
 
@@ -72,14 +73,11 @@ export function RegisterForm({
 
   const handleFormSubmit = handleSubmit(async (formValues) => {
     if (formValues.password !== formValues.confirmPassword) {
-      setError('confirmPassword', {
-        type: 'validate',
-        message: 'Пароли не совпадают',
-      })
+      setError('confirmPassword', { type: 'validate', message: 'Пароли не совпадают' })
       return
     }
-    const { email, firstName, lastName, password } = formValues
-    await onSubmit?.({ email, firstName, lastName, password })
+    const { email, firstName, lastName, password, agreedToMarketing } = formValues
+    await onSubmit?.({ email, firstName, lastName, password, agreedToMarketing })
   })
 
   return (
@@ -89,10 +87,7 @@ export function RegisterForm({
         <TextField
           {...register('email', {
             required: 'Введите email',
-            pattern: {
-              value: /\S+@\S+\.\S+/,
-              message: 'Введите корректный email',
-            },
+            pattern: { value: /\S+@\S+\.\S+/, message: 'Введите корректный email' },
           })}
           type="email"
           label="Email"
@@ -131,9 +126,7 @@ export function RegisterForm({
           helperText={errors.password?.message}
         />
         <TextField
-          {...register('confirmPassword', {
-            required: 'Повторите пароль',
-          })}
+          {...register('confirmPassword', { required: 'Повторите пароль' })}
           label="Повторите пароль"
           type="password"
           fullWidth
@@ -153,59 +146,11 @@ export function RegisterForm({
           </Typography>
         </Stack>
         {termsUrls ? (
-          <Box>
-            <FormControlLabel
-              control={
-                <Checkbox
-                  {...register('agreedToTerms', {
-                    required: 'Необходимо принять условия',
-                  })}
-                  size="small"
-                  data-testid="register-terms-checkbox"
-                />
-              }
-              sx={{ alignItems: 'flex-start', m: 0 }}
-              label={
-                <Typography variant="body2" color="text.secondary" sx={{ pt: 0.75 }}>
-                  Я принимаю{' '}
-                  <Box
-                    component="a"
-                    href={termsUrls.userAgreement}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    sx={{ color: 'primary.main' }}
-                  >
-                    пользовательское соглашение
-                  </Box>
-                  ,{' '}
-                  <Box
-                    component="a"
-                    href={termsUrls.privacyPolicy}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    sx={{ color: 'primary.main' }}
-                  >
-                    политику обработки персональных данных
-                  </Box>{' '}
-                  и{' '}
-                  <Box
-                    component="a"
-                    href={termsUrls.publicOffer}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    sx={{ color: 'primary.main' }}
-                  >
-                    оферту на оказание услуг
-                  </Box>
-                </Typography>
-              }
-            />
-            {errors.agreedToTerms ? (
-              <Typography variant="caption" color="error" sx={{ display: 'block', mt: 0.5, ml: 4 }}>
-                {errors.agreedToTerms.message}
-              </Typography>
-            ) : null}
-          </Box>
+          <ConsentsCheckboxes
+            register={register as unknown as UseFormRegister<ConsentsCheckboxesValues>}
+            errors={errors as FieldErrors<ConsentsCheckboxesValues>}
+            urls={termsUrls}
+          />
         ) : null}
         <Button type="submit" variant="contained" size="large" disabled={submitting}>
           Зарегистрироваться

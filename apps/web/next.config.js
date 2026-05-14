@@ -22,6 +22,7 @@ const nextConfig = {
     '@repo/auth',
     '@repo/db',
     '@repo/mail',
+    '@repo/notifications',
     '@repo/storage',
     '@repo/editor',
     '@repo/excalidraw',

@@ -35,6 +35,7 @@
     "@hocuspocus/transformer": "^3.4.4",
     "@repo/auth": "workspace:*",
     "@repo/db": "workspace:*",
+    "@repo/notifications": "workspace:*",
     "@repo/yookassa": "workspace:*",
     "@repo/eslint-config": "workspace:*",
     "@repo/typescript-config": "workspace:*",
