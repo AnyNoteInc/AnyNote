@@ -358,7 +358,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
   }
 
   if (page.type === 'KANBAN') {
-    return <KanbanBoardPage pageId={page.id} workspaceId={workspaceId} />
+    return <KanbanBoardPage pageId={page.id} />
   }
 
   if (page.type === 'TEXT') {

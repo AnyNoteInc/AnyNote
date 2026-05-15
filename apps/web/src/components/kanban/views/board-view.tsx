@@ -11,11 +11,12 @@ import type { BoardData, BoardColumnWithTasks } from '../types'
 import { positionBetween } from '../lib/positions'
 
 interface BoardViewProps {
-  pageId: string
-  board: BoardData
+  readonly pageId: string
+  readonly board: BoardData
+  readonly visibleTasks: BoardData['tasks']
 }
 
-export function BoardView({ pageId, board }: BoardViewProps) {
+export function BoardView({ pageId, board, visibleTasks }: BoardViewProps) {
   const utils = trpc.useUtils()
   const moveTask = trpc.kanban.task.move.useMutation({
     onError: () => utils.kanban.board.getBoard.invalidate({ pageId }),
@@ -24,11 +25,11 @@ export function BoardView({ pageId, board }: BoardViewProps) {
   const columnsWithTasks = useMemo<BoardColumnWithTasks[]>(() => {
     return board.columns.map((c) => ({
       ...c,
-      tasks: board.tasks
+      tasks: visibleTasks
         .filter((t) => t.columnId === c.id)
         .sort((a, b) => a.position - b.position),
     }))
-  }, [board])
+  }, [board.columns, visibleTasks])
 
   async function handleDragEnd(result: DropResult) {
     if (!result.destination) return
