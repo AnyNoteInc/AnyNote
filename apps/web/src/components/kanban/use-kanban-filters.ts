@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import type { KanbanFilters } from './filters/apply-filters'
 import { EMPTY_FILTERS } from './filters/apply-filters'
 
-export type KanbanView = 'board' | 'table'
+export type KanbanView = 'board' | 'table' | 'gantt'
 
 function parseCsv(value: string | null): string[] {
   if (!value) return []
@@ -19,7 +19,9 @@ export function useKanbanFilters() {
 
   const view: KanbanView = useMemo(() => {
     const v = searchParams?.get('view')
-    return v === 'table' ? 'table' : 'board'
+    if (v === 'table') return 'table'
+    if (v === 'gantt') return 'gantt'
+    return 'board'
   }, [searchParams])
 
   const filters: KanbanFilters = useMemo(() => {
@@ -48,7 +50,7 @@ export function useKanbanFilters() {
         else current.set(key, value)
       }
       const qs = current.toString()
-      router.replace(qs ? `?${qs}` : window.location.pathname)
+      router.replace(qs ? `?${qs}` : globalThis.location.pathname)
     },
     [searchParams, router],
   )
@@ -60,7 +62,10 @@ export function useKanbanFilters() {
 
   const setSprintFilter = useCallback(
     (next: KanbanFilters['sprint']) => {
-      const value = next === 'all' ? null : Array.isArray(next) ? next.join(',') : next
+      let value: string | null
+      if (next === 'all') value = null
+      else if (Array.isArray(next)) value = next.join(',')
+      else value = next
       updateParams({ sprint: value })
     },
     [updateParams],

@@ -9,6 +9,7 @@ import { KanbanToolbar } from './kanban-toolbar'
 import { KanbanFiltersUI } from './kanban-filters'
 import { BoardView } from './views/board-view'
 import { TableView } from './views/table-view'
+import { GanttView } from './views/gantt-view'
 import { TaskDetailContainer } from './task/task-detail-container'
 import { useKanbanEvents } from './realtime/use-kanban-events'
 import { useKanbanFilters } from './use-kanban-filters'
@@ -55,15 +56,19 @@ export function KanbanBoardPage({ pageId }: KanbanBoardPageProps) {
 
   return (
     <Stack sx={{ height: '100vh', overflow: 'hidden' }}>
-      <KanbanToolbar pageId={pageId} filtersBag={filtersBag} />
+      <KanbanToolbar pageId={pageId} filtersBag={filtersBag} board={board} />
       <Box sx={{ px: 3, py: 1, borderBottom: 1, borderColor: 'divider' }}>
         <KanbanFiltersUI board={board} bag={filtersBag} />
       </Box>
       <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
-        {filtersBag.view === 'board' ? (
+        {filtersBag.view === 'board' && (
           <BoardView pageId={pageId} board={board} visibleTasks={visibleTasks} />
-        ) : (
+        )}
+        {filtersBag.view === 'table' && (
           <TableView pageId={pageId} board={board} visibleTasks={visibleTasks} />
+        )}
+        {filtersBag.view === 'gantt' && (
+          <GanttView pageId={pageId} board={board} visibleTasks={visibleTasks} />
         )}
       </Box>
       <TaskDetailContainer pageId={pageId} board={board} />
