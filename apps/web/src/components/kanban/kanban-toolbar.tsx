@@ -82,7 +82,7 @@ export function KanbanToolbar({ pageId, filtersBag, board }: KanbanToolbarProps)
         >
           Создать задачу
         </Button>
-        <IconButton onClick={openMenu} size="small">
+        <IconButton onClick={openMenu} size="small" aria-label="Меню канбана">
           <MoreHorizIcon />
         </IconButton>
         <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={closeMenu}>
