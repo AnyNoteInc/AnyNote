@@ -59,6 +59,7 @@ export interface BoardData {
   tasks: BoardTaskData[]
   members: BoardMember[]
   currentUserId: string
+  workspaceId: string
 }
 
 export type BoardColumnWithTasks = BoardColumnRow & { tasks: BoardTaskData[] }

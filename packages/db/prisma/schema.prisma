@@ -639,6 +639,7 @@ model File {
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   pages     PageFile[]
+  tasks     TaskAttachment[]
 
   @@index([userId])
   @@index([createdAt])
@@ -1065,20 +1066,18 @@ model TaskActivity {
 }
 
 model TaskAttachment {
-  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   taskId       String    @map("task_id") @db.Uuid
+  fileId       String    @map("file_id") @db.Uuid
   uploadedById String    @map("uploaded_by_id") @db.Uuid
-  fileName     String    @map("file_name")
-  mimeType     String    @map("mime_type")
-  size         BigInt
-  storageKey   String    @map("storage_key")
-  finalizedAt  DateTime? @map("finalized_at")
   createdAt    DateTime  @default(now()) @map("created_at")
   deletedAt    DateTime? @map("deleted_at")
 
   task       Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  file       File @relation(fields: [fileId], references: [id], onDelete: Cascade)
   uploadedBy User @relation(fields: [uploadedById], references: [id])
 
+  @@id([taskId, fileId])
+  @@index([fileId])
   @@index([taskId, createdAt])
   @@map("task_attachments")
 }

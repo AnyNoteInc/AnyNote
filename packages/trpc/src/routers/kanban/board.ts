@@ -59,6 +59,7 @@ export const boardRouter = router({
         tasks,
         members,
         currentUserId: ctx.user.id,
+        workspaceId: page.workspaceId,
       }
     }),
 

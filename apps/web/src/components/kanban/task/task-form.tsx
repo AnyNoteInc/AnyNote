@@ -18,6 +18,7 @@ import { trpc } from '@/trpc/client'
 import type { BoardData, BoardTaskData } from '../types'
 import { TaskComments } from './task-comments'
 import { TaskActivityList } from './task-activity-list'
+import { TaskAttachments } from './task-attachments'
 
 interface TaskFormProps {
   readonly pageId: string
@@ -320,6 +321,15 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
           </Button>
         )}
       </Stack>
+
+      <Divider />
+
+      <TaskAttachments
+        pageId={pageId}
+        workspaceId={board.workspaceId}
+        taskId={task.id}
+        currentUserId={currentUserId}
+      />
 
       <Divider />
 

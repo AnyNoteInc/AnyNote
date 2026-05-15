@@ -8,6 +8,7 @@ import { labelRouter } from './label'
 import { sprintRouter } from './sprint'
 import { taskRouter } from './task'
 import { commentRouter } from './comment'
+import { attachmentRouter } from './attachment'
 import { eventsRouter } from './events'
 
 export const kanbanRouter = router({
@@ -19,5 +20,6 @@ export const kanbanRouter = router({
   sprint: sprintRouter,
   task: taskRouter,
   comment: commentRouter,
+  attachment: attachmentRouter,
   events: eventsRouter,
 })
