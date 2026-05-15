@@ -82,8 +82,19 @@ export type {
   NotificationPreference,
   Reminder,
   ReminderRecipient,
+  KanbanColumn,
+  KanbanType,
+  KanbanPriority,
+  KanbanLabel,
+  Sprint,
+  Task,
+  TaskAssignee,
+  KanbanLabelOnTask,
+  TaskComment,
+  TaskActivity,
+  TaskAttachment,
 } from '@prisma/client'
-export { OutboxEventStatus } from '@prisma/client'
+export { OutboxEventStatus, KanbanColumnKind, SprintStatus, TaskActivityType } from '@prisma/client'
 
 export type OutboxAggregateType = 'page' | 'file'
 
