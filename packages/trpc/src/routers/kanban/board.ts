@@ -50,6 +50,34 @@ export const boardRouter = router({
         }),
       ])
 
-      return { columns, types, priorities, labels, sprints, tasks, members }
+      return {
+        columns,
+        types,
+        priorities,
+        labels,
+        sprints,
+        tasks,
+        members,
+        currentUserId: ctx.user.id,
+      }
+    }),
+
+  getActivity: protectedProcedure
+    .input(z.object({ pageId: z.string().uuid(), taskId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertPageAccess(ctx, input.pageId)
+      const task = await ctx.prisma.task.findUniqueOrThrow({
+        where: { id: input.taskId },
+        select: { pageId: true },
+      })
+      if (task.pageId !== input.pageId) return []
+      return ctx.prisma.taskActivity.findMany({
+        where: { taskId: input.taskId },
+        include: {
+          actor: { select: { id: true, firstName: true, lastName: true, email: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 100,
+      })
     }),
 })

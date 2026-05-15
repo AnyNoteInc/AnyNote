@@ -14,12 +14,12 @@ import type { BoardData, BoardTaskData } from '../types'
 import { TaskForm } from './task-form'
 
 interface TaskDetailModalProps {
-  pageId: string
-  task: BoardTaskData
-  members: BoardData['members']
+  readonly pageId: string
+  readonly task: BoardTaskData
+  readonly board: BoardData
 }
 
-export function TaskDetailModal({ pageId, task, members }: TaskDetailModalProps) {
+export function TaskDetailModal({ pageId, task, board }: TaskDetailModalProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
 
@@ -27,7 +27,7 @@ export function TaskDetailModal({ pageId, task, members }: TaskDetailModalProps)
     const params = new URLSearchParams(searchParams?.toString() ?? '')
     params.delete('taskId')
     const qs = params.toString()
-    router.replace(qs ? `?${qs}` : window.location.pathname)
+    router.replace(qs ? `?${qs}` : globalThis.location.pathname)
   }
 
   return (
@@ -41,7 +41,12 @@ export function TaskDetailModal({ pageId, task, members }: TaskDetailModalProps)
         </IconButton>
       </DialogTitle>
       <DialogContent>
-        <TaskForm pageId={pageId} task={task} members={members} />
+        <TaskForm
+          pageId={pageId}
+          task={task}
+          board={board}
+          currentUserId={board.currentUserId}
+        />
       </DialogContent>
     </Dialog>
   )

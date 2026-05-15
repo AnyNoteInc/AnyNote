@@ -425,4 +425,48 @@ export const taskRouter = router({
       kanbanBus.emit(page.id, { kind: 'task.deleted', taskId: input.id })
       return { ok: true as const }
     }),
+
+  archive: protectedProcedure
+    .input(z.object({ pageId: z.string().uuid(), id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const page = await assertPageAccess(ctx, input.pageId)
+      const task = await ctx.prisma.task.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { pageId: true },
+      })
+      if (task.pageId !== page.id) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Задача не найдена' })
+      }
+      await ctx.prisma.$transaction(async (tx) => {
+        await tx.task.update({
+          where: { id: input.id },
+          data: { archived: true, updatedById: ctx.user.id },
+        })
+        await recordActivity(tx, { taskId: input.id, actorId: ctx.user.id, type: 'ARCHIVED' })
+      })
+      kanbanBus.emit(page.id, { kind: 'task.updated', taskId: input.id })
+      return { ok: true as const }
+    }),
+
+  unarchive: protectedProcedure
+    .input(z.object({ pageId: z.string().uuid(), id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const page = await assertPageAccess(ctx, input.pageId)
+      const task = await ctx.prisma.task.findUniqueOrThrow({
+        where: { id: input.id },
+        select: { pageId: true },
+      })
+      if (task.pageId !== page.id) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Задача не найдена' })
+      }
+      await ctx.prisma.$transaction(async (tx) => {
+        await tx.task.update({
+          where: { id: input.id },
+          data: { archived: false, updatedById: ctx.user.id },
+        })
+        await recordActivity(tx, { taskId: input.id, actorId: ctx.user.id, type: 'UNARCHIVED' })
+      })
+      kanbanBus.emit(page.id, { kind: 'task.updated', taskId: input.id })
+      return { ok: true as const }
+    }),
 })

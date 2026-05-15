@@ -1,3 +1,5 @@
+export type DateInput = Date | string | null
+
 export interface BoardMember {
   userId: string
   role: string
@@ -35,11 +37,11 @@ export interface BoardTaskData {
   parentId: string | null
   title: string
   description: unknown
-  startDate: Date | string | null
-  dueDate: Date | string | null
+  startDate: DateInput
+  dueDate: DateInput
   position: number
   archived: boolean
-  deletedAt: Date | string | null
+  deletedAt: DateInput
   createdById: string
   assignees: Array<{
     userId: string
@@ -56,6 +58,7 @@ export interface BoardData {
   sprints: Array<{ id: string; name: string; status: string; position: number }>
   tasks: BoardTaskData[]
   members: BoardMember[]
+  currentUserId: string
 }
 
 export type BoardColumnWithTasks = BoardColumnRow & { tasks: BoardTaskData[] }

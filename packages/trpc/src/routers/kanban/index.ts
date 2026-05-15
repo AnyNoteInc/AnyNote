@@ -7,6 +7,7 @@ import { priorityRouter } from './priority'
 import { labelRouter } from './label'
 import { sprintRouter } from './sprint'
 import { taskRouter } from './task'
+import { commentRouter } from './comment'
 import { eventsRouter } from './events'
 
 export const kanbanRouter = router({
@@ -17,5 +18,6 @@ export const kanbanRouter = router({
   label: labelRouter,
   sprint: sprintRouter,
   task: taskRouter,
+  comment: commentRouter,
   events: eventsRouter,
 })

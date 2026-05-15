@@ -6,8 +6,8 @@ import type { BoardData } from '../types'
 import { TaskDetailModal } from './task-detail-modal'
 
 interface TaskDetailContainerProps {
-  pageId: string
-  board: BoardData
+  readonly pageId: string
+  readonly board: BoardData
 }
 
 export function TaskDetailContainer({ pageId, board }: TaskDetailContainerProps) {
@@ -15,5 +15,5 @@ export function TaskDetailContainer({ pageId, board }: TaskDetailContainerProps)
   if (!taskId) return null
   const task = board.tasks.find((t) => t.id === taskId)
   if (!task) return null
-  return <TaskDetailModal pageId={pageId} task={task} members={board.members} />
+  return <TaskDetailModal pageId={pageId} task={task} board={board} />
 }
