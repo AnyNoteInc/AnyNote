@@ -1,6 +1,6 @@
 'use client'
 
-import { Button, Stack } from '@repo/ui/components'
+import { Button, ButtonGroup } from '@repo/ui/components'
 
 import type { KanbanView } from './use-kanban-filters'
 
@@ -17,17 +17,16 @@ const VIEWS: Array<{ value: KanbanView; label: string }> = [
 
 export function ViewSwitcher({ view, onChange }: ViewSwitcherProps) {
   return (
-    <Stack direction="row" spacing={0.5}>
+    <ButtonGroup size="small">
       {VIEWS.map((v) => (
         <Button
           key={v.value}
-          size="small"
           variant={view === v.value ? 'contained' : 'outlined'}
           onClick={() => onChange(v.value)}
         >
           {v.label}
         </Button>
       ))}
-    </Stack>
+    </ButtonGroup>
   )
 }

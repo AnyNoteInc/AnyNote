@@ -3,14 +3,16 @@
 import { Droppable } from '@hello-pangea/dnd'
 import { Box, Paper, Stack, Typography } from '@repo/ui/components'
 
-import type { BoardColumnWithTasks } from '../types'
+import type { BoardColumnWithTasks, BoardData } from '../types'
 import { BoardCard } from './board-card'
 
 interface BoardColumnProps {
-  column: BoardColumnWithTasks
+  readonly pageId: string
+  readonly column: BoardColumnWithTasks
+  readonly board: BoardData
 }
 
-export function BoardColumn({ column }: BoardColumnProps) {
+export function BoardColumn({ pageId, column, board }: BoardColumnProps) {
   return (
     <Paper
       variant="outlined"
@@ -26,7 +28,13 @@ export function BoardColumn({ column }: BoardColumnProps) {
         {(provided) => (
           <Box ref={provided.innerRef} {...provided.droppableProps} sx={{ minHeight: 40 }}>
             {column.tasks.map((task, index) => (
-              <BoardCard key={task.id} task={task} index={index} />
+              <BoardCard
+                key={task.id}
+                pageId={pageId}
+                task={task}
+                index={index}
+                board={board}
+              />
             ))}
             {provided.placeholder}
           </Box>

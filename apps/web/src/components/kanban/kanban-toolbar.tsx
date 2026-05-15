@@ -4,15 +4,13 @@ import { useState, type MouseEvent } from 'react'
 import { useRouter } from 'next/navigation'
 import {
   AddIcon,
-  Box,
   Button,
   IconButton,
   ListItemText,
   Menu,
   MenuItem,
-  MoreHorizIcon,
+  SettingsIcon,
   Stack,
-  Typography,
 } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
@@ -58,14 +56,9 @@ export function KanbanToolbar({ pageId, filtersBag, board }: KanbanToolbarProps)
       alignItems="center"
       justifyContent="space-between"
       spacing={2}
-      sx={{ px: 3, py: 1.5, borderBottom: 1, borderColor: 'divider' }}
+      sx={{ px: 4, py: 1, borderBottom: 1, borderColor: 'divider' }}
     >
-      <Stack direction="row" alignItems="center" spacing={2}>
-        <Box>
-          <Typography variant="h6">Канбан</Typography>
-        </Box>
-        <ViewSwitcher view={filtersBag.view} onChange={filtersBag.setView} />
-      </Stack>
+      <ViewSwitcher view={filtersBag.view} onChange={filtersBag.setView} />
       <Stack direction="row" spacing={1} alignItems="center">
         <Button
           variant="contained"
@@ -82,8 +75,8 @@ export function KanbanToolbar({ pageId, filtersBag, board }: KanbanToolbarProps)
         >
           Создать задачу
         </Button>
-        <IconButton onClick={openMenu} size="small" aria-label="Меню канбана">
-          <MoreHorizIcon />
+        <IconButton onClick={openMenu} size="small" aria-label="Настройки канбана">
+          <SettingsIcon />
         </IconButton>
         <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={closeMenu}>
           <MenuItem

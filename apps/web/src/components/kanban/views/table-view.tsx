@@ -8,15 +8,24 @@ import { trpc } from '@/trpc/client'
 
 import { SprintCreateDialog } from '../sprint/sprint-create-dialog'
 import { SprintSection } from './sprint-section'
+import { positionBetween } from '../lib/positions'
 import type { BoardData, BoardTaskData } from '../types'
 
 const BACKLOG_DROPPABLE = 'backlog'
 const SPRINT_PREFIX = 'sprint:'
 
 interface TableViewProps {
-  pageId: string
-  board: BoardData
-  visibleTasks: BoardTaskData[]
+  readonly pageId: string
+  readonly board: BoardData
+  readonly visibleTasks: BoardTaskData[]
+}
+
+function sectionKey(droppableId: string): string | null {
+  return droppableId === BACKLOG_DROPPABLE ? null : droppableId.replace(SPRINT_PREFIX, '')
+}
+
+function tasksSortKey(t: BoardTaskData): number {
+  return t.sprintPosition ?? t.position
 }
 
 export function TableView({ pageId, board, visibleTasks }: TableViewProps) {
@@ -37,7 +46,7 @@ export function TableView({ pageId, board, visibleTasks }: TableViewProps) {
       bySprint.set(key, list)
     }
     for (const list of bySprint.values()) {
-      list.sort((a, b) => a.position - b.position)
+      list.sort((a, b) => tasksSortKey(a) - tasksSortKey(b))
     }
     return bySprint
   }, [visibleTasks, board.sprints])
@@ -48,11 +57,21 @@ export function TableView({ pageId, board, visibleTasks }: TableViewProps) {
     const destId = result.destination.droppableId
     if (sourceId === destId && result.source.index === result.destination.index) return
 
-    const targetSprintId = destId === BACKLOG_DROPPABLE ? null : destId.replace(SPRINT_PREFIX, '')
+    const targetSprintId = sectionKey(destId)
+    const destList = grouped.get(targetSprintId) ?? []
+    const filtered = destList.filter((t) => t.id !== result.draggableId)
+    const before = filtered[result.destination.index - 1] ?? null
+    const after = filtered[result.destination.index] ?? null
+    const newSprintPosition = positionBetween(
+      before ? tasksSortKey(before) : null,
+      after ? tasksSortKey(after) : null,
+    )
+
     await updateTask.mutateAsync({
       pageId,
       id: result.draggableId,
       sprintId: targetSprintId,
+      sprintPosition: newSprintPosition,
     })
   }
 

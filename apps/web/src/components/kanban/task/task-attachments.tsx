@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef, useState, type DragEvent } from 'react'
 import {
   Box,
   Button,
@@ -49,6 +49,7 @@ export function TaskAttachments({
   const utils = trpc.useUtils()
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [busy, setBusy] = useState(false)
+  const [dragOver, setDragOver] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
   const { data } = trpc.kanban.attachment.list.useQuery({ pageId, taskId })
@@ -58,8 +59,7 @@ export function TaskAttachments({
   const attach = trpc.kanban.attachment.attach.useMutation({ onSuccess: invalidate })
   const detach = trpc.kanban.attachment.detach.useMutation({ onSuccess: invalidate })
 
-  async function upload(file: File) {
-    setBusy(true)
+  async function uploadFile(file: File) {
     setError(null)
     try {
       const fd = new FormData()
@@ -69,73 +69,110 @@ export function TaskAttachments({
         { method: 'POST', body: fd, credentials: 'include' },
       )
       if (!res.ok) {
-        setError(`Не удалось загрузить файл (${res.status})`)
+        setError(`Не удалось загрузить «${file.name}» (${res.status})`)
         return
       }
       const json = (await res.json()) as { file: { id: string } }
       await attach.mutateAsync({ pageId, taskId, fileId: json.file.id })
     } catch (e) {
       setError(e instanceof Error ? e.message : String(e))
+    }
+  }
+
+  async function uploadAll(files: FileList | File[]) {
+    setBusy(true)
+    try {
+      for (const file of Array.from(files)) {
+        await uploadFile(file)
+      }
     } finally {
       setBusy(false)
     }
+  }
+
+  function handleDragOver(e: DragEvent<HTMLDivElement>) {
+    if (e.dataTransfer.types.includes('Files')) {
+      e.preventDefault()
+      setDragOver(true)
+    }
+  }
+  function handleDragLeave() {
+    setDragOver(false)
+  }
+  async function handleDrop(e: DragEvent<HTMLDivElement>) {
+    e.preventDefault()
+    setDragOver(false)
+    const files = e.dataTransfer.files
+    if (files.length > 0) await uploadAll(files)
   }
 
   return (
     <Stack spacing={1.5}>
       <Typography variant="subtitle2">Вложения</Typography>
 
-      <Stack spacing={0.75}>
-        {attachments.map((a) => (
-          <Stack
-            key={a.fileId}
-            direction="row"
-            alignItems="center"
-            spacing={1}
-            sx={{
-              p: 1,
-              borderRadius: 1,
-              bgcolor: 'action.hover',
-            }}
-          >
-            <Box sx={{ flex: 1 }}>
-              <a
-                href={`/api/files/${a.file.id}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{ color: 'inherit', textDecoration: 'underline' }}
-              >
-                {a.file.name}
-              </a>
-              <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
-                {formatBytes(a.file.fileSize)} · {a.file.mimeType}
-              </Typography>
-            </Box>
-            {a.uploadedById === currentUserId ? (
-              <IconButton
-                size="small"
-                onClick={() => detach.mutate({ pageId, taskId, fileId: a.fileId })}
-              >
-                <CloseIcon fontSize="small" />
-              </IconButton>
-            ) : null}
-          </Stack>
-        ))}
-        {attachments.length === 0 ? (
-          <Typography variant="caption" color="text.secondary">
-            Вложений пока нет.
-          </Typography>
-        ) : null}
-      </Stack>
+      <Box
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+        sx={{
+          p: 1.5,
+          border: 2,
+          borderStyle: 'dashed',
+          borderColor: dragOver ? 'primary.main' : 'divider',
+          borderRadius: 1,
+          bgcolor: dragOver ? 'action.hover' : 'background.paper',
+          transition: 'border-color 120ms, background-color 120ms',
+        }}
+      >
+        <Stack spacing={0.75}>
+          {attachments.map((a) => (
+            <Stack
+              key={a.fileId}
+              direction="row"
+              alignItems="center"
+              spacing={1}
+              sx={{ p: 0.5, borderRadius: 0.5, bgcolor: 'action.hover' }}
+            >
+              <Box sx={{ flex: 1 }}>
+                <a
+                  href={`/api/files/${a.file.id}`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ color: 'inherit', textDecoration: 'underline' }}
+                >
+                  {a.file.name}
+                </a>
+                <Typography variant="caption" color="text.secondary" sx={{ ml: 1 }}>
+                  {formatBytes(a.file.fileSize)} · {a.file.mimeType}
+                </Typography>
+              </Box>
+              {a.uploadedById === currentUserId ? (
+                <IconButton
+                  size="small"
+                  onClick={() => detach.mutate({ pageId, taskId, fileId: a.fileId })}
+                >
+                  <CloseIcon fontSize="small" />
+                </IconButton>
+              ) : null}
+            </Stack>
+          ))}
+          {attachments.length === 0 ? (
+            <Typography variant="caption" color="text.secondary">
+              Перетащите файлы сюда или нажмите «Прикрепить файл».
+            </Typography>
+          ) : null}
+        </Stack>
+      </Box>
 
       <Stack direction="row" spacing={1} alignItems="center">
         <input
           ref={inputRef}
           type="file"
           hidden
+          multiple
           onChange={(e) => {
-            const file = e.target.files?.[0]
-            if (file) void upload(file)
+            const files = e.target.files
+            if (files && files.length > 0) void uploadAll(files)
             e.target.value = ''
           }}
         />

@@ -109,6 +109,7 @@ export { default as DeleteForeverIcon } from '@mui/icons-material/DeleteForever'
 export { default as DescriptionIcon } from '@mui/icons-material/Description'
 export { default as BrushIcon } from '@mui/icons-material/Brush'
 export { default as ViewKanbanIcon } from '@mui/icons-material/ViewKanban'
+export { default as MoreVertIcon } from '@mui/icons-material/MoreVert'
 export { default as AccountTreeIcon } from '@mui/icons-material/AccountTree'
 export { default as ArrowRightOutlinedIcon } from '@mui/icons-material/ArrowRightOutlined'
 export { default as EmailIcon } from '@mui/icons-material/Email'
@@ -146,6 +147,7 @@ export { RichTreeView } from '@mui/x-tree-view/RichTreeView'
 export { TreeItem } from '@mui/x-tree-view/TreeItem'
 
 export { StaticDatePicker, type StaticDatePickerProps } from '@mui/x-date-pickers/StaticDatePicker'
+export { DatePicker, type DatePickerProps } from '@mui/x-date-pickers/DatePicker'
 export {
   LocalizationProvider,
   type LocalizationProviderProps,

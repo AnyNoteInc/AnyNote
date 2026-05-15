@@ -35,6 +35,7 @@ function task(id: string, overrides: Partial<BoardTaskData> = {}): BoardTaskData
     startDate: null,
     dueDate: null,
     position: 1,
+    sprintPosition: null,
     archived: false,
     deletedAt: null,
     createdById: 'u',

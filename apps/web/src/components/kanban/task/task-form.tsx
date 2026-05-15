@@ -2,11 +2,14 @@
 
 import { useState } from 'react'
 import {
+  AdapterDateFns,
   Box,
-  Button,
   Checkbox,
+  DatePicker,
   Divider,
+  dateFnsRu,
   ListItemText,
+  LocalizationProvider,
   MenuItem,
   Select,
   Stack,
@@ -39,14 +42,18 @@ function readDescriptionText(value: unknown): string {
   return typeof value === 'string' ? value : ''
 }
 
+function toDate(value: Date | string | null | undefined): Date | null {
+  if (!value) return null
+  if (value instanceof Date) return value
+  return new Date(value)
+}
+
 export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) {
   const utils = trpc.useUtils()
   const invalidateBoard = () => utils.kanban.board.getBoard.invalidate({ pageId })
   const updateTask = trpc.kanban.task.update.useMutation({ onSuccess: invalidateBoard })
   const setAssignees = trpc.kanban.task.setAssignees.useMutation({ onSuccess: invalidateBoard })
   const setLabels = trpc.kanban.task.setLabels.useMutation({ onSuccess: invalidateBoard })
-  const archive = trpc.kanban.task.archive.useMutation({ onSuccess: invalidateBoard })
-  const unarchive = trpc.kanban.task.unarchive.useMutation({ onSuccess: invalidateBoard })
 
   const [title, setTitle] = useState(task.title)
   const [description, setDescription] = useState(readDescriptionText(task.description))
@@ -56,275 +63,244 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
   const [priorityId, setPriorityId] = useState<string>(task.priorityId ?? '')
   const [sprintId, setSprintId] = useState<string>(task.sprintId ?? '')
   const [parentId, setParentId] = useState<string>(task.parentId ?? '')
-  const [dueDate, setDueDate] = useState<string>(
-    task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 10) : '',
-  )
-  const [startDate, setStartDate] = useState<string>(
-    task.startDate ? new Date(task.startDate).toISOString().slice(0, 10) : '',
-  )
+  const [dueDate, setDueDate] = useState<Date | null>(toDate(task.dueDate))
+  const [startDate, setStartDate] = useState<Date | null>(toDate(task.startDate))
 
   const parentCandidates = board.tasks.filter((t) => t.id !== task.id)
 
   return (
-    <Stack spacing={3}>
-      <TextField
-        label="Название"
-        value={title}
-        onChange={(e) => setTitle(e.target.value)}
-        onBlur={() => {
-          if (title !== task.title) updateTask.mutate({ pageId, id: task.id, title })
-        }}
-        fullWidth
-      />
+    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={dateFnsRu}>
+      <Stack spacing={3}>
+        <Stack direction="row" spacing={2}>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+              Тип
+            </Typography>
+            <Select
+              size="small"
+              fullWidth
+              value={typeId}
+              onChange={(e) => {
+                const value = e.target.value
+                setTypeId(value)
+                updateTask.mutate({ pageId, id: task.id, typeId: value || null })
+              }}
+            >
+              <MenuItem value="">—</MenuItem>
+              {board.types.map((t) => (
+                <MenuItem key={t.id} value={t.id}>
+                  {t.title}
+                </MenuItem>
+              ))}
+            </Select>
+          </Box>
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+              Приоритет
+            </Typography>
+            <Select
+              size="small"
+              fullWidth
+              value={priorityId}
+              onChange={(e) => {
+                const value = e.target.value
+                setPriorityId(value)
+                updateTask.mutate({ pageId, id: task.id, priorityId: value || null })
+              }}
+            >
+              <MenuItem value="">—</MenuItem>
+              {board.priorities.map((p) => (
+                <MenuItem key={p.id} value={p.id}>
+                  {p.title}
+                </MenuItem>
+              ))}
+            </Select>
+          </Box>
+        </Stack>
 
-      <TextField
-        label="Описание"
-        value={description}
-        multiline
-        minRows={3}
-        onChange={(e) => setDescription(e.target.value)}
-        onBlur={() => {
-          const next = description
-          const prev = readDescriptionText(task.description)
-          if (next !== prev) {
-            updateTask.mutate({
-              pageId,
-              id: task.id,
-              description: next ? { text: next } : null,
-            })
-          }
-        }}
-        fullWidth
-      />
-
-      <Stack direction="row" spacing={2}>
-        <Box sx={{ flex: 1 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-            Тип
-          </Typography>
-          <Select
-            size="small"
-            fullWidth
-            value={typeId}
-            onChange={(e) => {
-              const value = e.target.value
-              setTypeId(value)
-              updateTask.mutate({ pageId, id: task.id, typeId: value || null })
-            }}
-          >
-            <MenuItem value="">—</MenuItem>
-            {board.types.map((t) => (
-              <MenuItem key={t.id} value={t.id}>
-                {t.title}
-              </MenuItem>
-            ))}
-          </Select>
-        </Box>
-        <Box sx={{ flex: 1 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-            Приоритет
-          </Typography>
-          <Select
-            size="small"
-            fullWidth
-            value={priorityId}
-            onChange={(e) => {
-              const value = e.target.value
-              setPriorityId(value)
-              updateTask.mutate({ pageId, id: task.id, priorityId: value || null })
-            }}
-          >
-            <MenuItem value="">—</MenuItem>
-            {board.priorities.map((p) => (
-              <MenuItem key={p.id} value={p.id}>
-                {p.title}
-              </MenuItem>
-            ))}
-          </Select>
-        </Box>
-      </Stack>
-
-      <Box>
-        <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-          Исполнители
-        </Typography>
-        <Select
-          multiple
-          value={assigneeIds}
-          onChange={(e) => {
-            const value = Array.isArray(e.target.value) ? e.target.value : [e.target.value]
-            setAssigneeIds(value)
-            setAssignees.mutate({ pageId, id: task.id, userIds: value })
+        <TextField
+          label="Название"
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onBlur={() => {
+            if (title !== task.title) updateTask.mutate({ pageId, id: task.id, title })
           }}
-          renderValue={(selected) =>
-            board.members
-              .filter((m) => (selected as string[]).includes(m.user.id))
-              .map(memberLabel)
-              .join(', ')
-          }
           fullWidth
-          size="small"
-        >
-          {board.members.map((m) => (
-            <MenuItem key={m.user.id} value={m.user.id}>
-              <Checkbox checked={assigneeIds.includes(m.user.id)} />
-              <ListItemText primary={memberLabel(m)} />
-            </MenuItem>
-          ))}
-        </Select>
-      </Box>
+        />
 
-      {board.labels.length > 0 ? (
+        <TextField
+          label="Описание"
+          value={description}
+          multiline
+          minRows={3}
+          onChange={(e) => setDescription(e.target.value)}
+          onBlur={() => {
+            const prev = readDescriptionText(task.description)
+            if (description !== prev) {
+              updateTask.mutate({
+                pageId,
+                id: task.id,
+                description: description ? { text: description } : null,
+              })
+            }
+          }}
+          fullWidth
+        />
+
+        <TaskAttachments
+          pageId={pageId}
+          workspaceId={board.workspaceId}
+          taskId={task.id}
+          currentUserId={currentUserId}
+        />
+
         <Box>
           <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-            Метки
+            Исполнители
           </Typography>
           <Select
             multiple
-            value={labelIds}
+            value={assigneeIds}
             onChange={(e) => {
               const value = Array.isArray(e.target.value) ? e.target.value : [e.target.value]
-              setLabelIds(value)
-              setLabels.mutate({ pageId, id: task.id, labelIds: value })
+              setAssigneeIds(value)
+              setAssignees.mutate({ pageId, id: task.id, userIds: value })
             }}
             renderValue={(selected) =>
-              board.labels
-                .filter((l) => (selected as string[]).includes(l.id))
-                .map((l) => l.name)
+              board.members
+                .filter((m) => (selected as string[]).includes(m.user.id))
+                .map(memberLabel)
                 .join(', ')
             }
             fullWidth
             size="small"
           >
-            {board.labels.map((l) => (
-              <MenuItem key={l.id} value={l.id}>
-                <Checkbox checked={labelIds.includes(l.id)} />
-                <Box
-                  sx={{
-                    width: 12,
-                    height: 12,
-                    borderRadius: '50%',
-                    bgcolor: l.color,
-                    mr: 1,
-                  }}
-                />
-                <ListItemText primary={l.name} />
+            {board.members.map((m) => (
+              <MenuItem key={m.user.id} value={m.user.id}>
+                <Checkbox checked={assigneeIds.includes(m.user.id)} />
+                <ListItemText primary={memberLabel(m)} />
               </MenuItem>
             ))}
           </Select>
         </Box>
-      ) : null}
 
-      <Stack direction="row" spacing={2}>
-        <TextField
-          label="Дата старта"
-          type="date"
-          fullWidth
-          value={startDate}
-          slotProps={{ inputLabel: { shrink: true } }}
-          onChange={(e) => setStartDate(e.target.value)}
-          onBlur={() =>
-            updateTask.mutate({
-              pageId,
-              id: task.id,
-              startDate: startDate ? new Date(startDate) : null,
-            })
-          }
-        />
-        <TextField
-          label="Срок"
-          type="date"
-          fullWidth
-          value={dueDate}
-          slotProps={{ inputLabel: { shrink: true } }}
-          onChange={(e) => setDueDate(e.target.value)}
-          onBlur={() =>
-            updateTask.mutate({
-              pageId,
-              id: task.id,
-              dueDate: dueDate ? new Date(dueDate) : null,
-            })
-          }
-        />
-      </Stack>
-
-      <Stack direction="row" spacing={2}>
-        {board.sprints.length > 0 ? (
-          <Box sx={{ flex: 1 }}>
+        {board.labels.length > 0 ? (
+          <Box>
             <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-              Спринт
+              Метки
             </Typography>
             <Select
-              size="small"
-              fullWidth
-              value={sprintId}
+              multiple
+              value={labelIds}
               onChange={(e) => {
-                const value = e.target.value
-                setSprintId(value)
-                updateTask.mutate({ pageId, id: task.id, sprintId: value || null })
+                const value = Array.isArray(e.target.value) ? e.target.value : [e.target.value]
+                setLabelIds(value)
+                setLabels.mutate({ pageId, id: task.id, labelIds: value })
               }}
+              renderValue={(selected) =>
+                board.labels
+                  .filter((l) => (selected as string[]).includes(l.id))
+                  .map((l) => l.name)
+                  .join(', ')
+              }
+              fullWidth
+              size="small"
             >
-              <MenuItem value="">Беклог</MenuItem>
-              {board.sprints.map((s) => (
-                <MenuItem key={s.id} value={s.id}>
-                  {s.name}
+              {board.labels.map((l) => (
+                <MenuItem key={l.id} value={l.id}>
+                  <Checkbox checked={labelIds.includes(l.id)} />
+                  <Box
+                    sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: l.color, mr: 1 }}
+                  />
+                  <ListItemText primary={l.name} />
                 </MenuItem>
               ))}
             </Select>
           </Box>
         ) : null}
-        <Box sx={{ flex: 1 }}>
-          <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-            Зависит от
-          </Typography>
-          <Select
-            size="small"
-            fullWidth
-            value={parentId}
-            onChange={(e) => {
-              const value = e.target.value
-              setParentId(value)
-              updateTask.mutate({ pageId, id: task.id, parentId: value || null })
-            }}
-          >
-            <MenuItem value="">—</MenuItem>
-            {parentCandidates.map((p) => (
-              <MenuItem key={p.id} value={p.id}>
-                {p.title}
-              </MenuItem>
-            ))}
-          </Select>
-        </Box>
+
+        <Stack direction="row" spacing={2}>
+          <Box sx={{ flex: 1 }}>
+            <DatePicker
+              label="Дата старта"
+              value={startDate}
+              onChange={(value) => {
+                setStartDate(value)
+                updateTask.mutate({ pageId, id: task.id, startDate: value })
+              }}
+              slotProps={{ textField: { size: 'small', fullWidth: true } }}
+            />
+          </Box>
+          <Box sx={{ flex: 1 }}>
+            <DatePicker
+              label="Срок"
+              value={dueDate}
+              onChange={(value) => {
+                setDueDate(value)
+                updateTask.mutate({ pageId, id: task.id, dueDate: value })
+              }}
+              slotProps={{ textField: { size: 'small', fullWidth: true } }}
+            />
+          </Box>
+        </Stack>
+
+        <Stack direction="row" spacing={2}>
+          {board.sprints.length > 0 ? (
+            <Box sx={{ flex: 1 }}>
+              <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+                Спринт
+              </Typography>
+              <Select
+                size="small"
+                fullWidth
+                value={sprintId}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setSprintId(value)
+                  updateTask.mutate({ pageId, id: task.id, sprintId: value || null })
+                }}
+              >
+                <MenuItem value="">Беклог</MenuItem>
+                {board.sprints.map((s) => (
+                  <MenuItem key={s.id} value={s.id}>
+                    {s.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </Box>
+          ) : null}
+          <Box sx={{ flex: 1 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
+              Зависит от
+            </Typography>
+            <Select
+              size="small"
+              fullWidth
+              value={parentId}
+              onChange={(e) => {
+                const value = e.target.value
+                setParentId(value)
+                updateTask.mutate({ pageId, id: task.id, parentId: value || null })
+              }}
+            >
+              <MenuItem value="">—</MenuItem>
+              {parentCandidates.map((p) => (
+                <MenuItem key={p.id} value={p.id}>
+                  {p.title}
+                </MenuItem>
+              ))}
+            </Select>
+          </Box>
+        </Stack>
+
+        <Divider />
+
+        <TaskComments pageId={pageId} taskId={task.id} currentUserId={currentUserId} />
+
+        <Divider />
+
+        <TaskActivityList pageId={pageId} taskId={task.id} />
       </Stack>
-
-      <Stack direction="row" spacing={1}>
-        {task.archived ? (
-          <Button size="small" onClick={() => unarchive.mutate({ pageId, id: task.id })}>
-            Из архива
-          </Button>
-        ) : (
-          <Button size="small" onClick={() => archive.mutate({ pageId, id: task.id })}>
-            В архив
-          </Button>
-        )}
-      </Stack>
-
-      <Divider />
-
-      <TaskAttachments
-        pageId={pageId}
-        workspaceId={board.workspaceId}
-        taskId={task.id}
-        currentUserId={currentUserId}
-      />
-
-      <Divider />
-
-      <TaskComments pageId={pageId} taskId={task.id} currentUserId={currentUserId} />
-
-      <Divider />
-
-      <TaskActivityList pageId={pageId} taskId={task.id} />
-    </Stack>
+    </LocalizationProvider>
   )
 }

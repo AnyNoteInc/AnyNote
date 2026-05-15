@@ -4,6 +4,7 @@ import { useMemo } from 'react'
 import { Box, CircularProgress, Stack, Typography } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
+import { PageHeader } from '@/components/page/page-header'
 
 import { KanbanToolbar } from './kanban-toolbar'
 import { KanbanFiltersUI } from './kanban-filters'
@@ -55,12 +56,20 @@ export function KanbanBoardPage({ pageId }: KanbanBoardPageProps) {
   }
 
   return (
-    <Stack sx={{ height: '100vh', overflow: 'hidden' }}>
+    <Stack sx={{ height: '100vh', overflow: 'hidden', bgcolor: 'background.paper' }}>
+      <Box sx={{ px: 4, pt: 4, pb: 1 }}>
+        <PageHeader
+          id={pageId}
+          workspaceId={board.workspaceId}
+          initialTitle={null}
+          initialIcon={null}
+        />
+      </Box>
       <KanbanToolbar pageId={pageId} filtersBag={filtersBag} board={board} />
       <Box sx={{ px: 3, py: 1, borderBottom: 1, borderColor: 'divider' }}>
         <KanbanFiltersUI board={board} bag={filtersBag} />
       </Box>
-      <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
+      <Box sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: 'background.paper' }}>
         {filtersBag.view === 'board' && (
           <BoardView pageId={pageId} board={board} visibleTasks={visibleTasks} />
         )}

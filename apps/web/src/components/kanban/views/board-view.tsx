@@ -72,7 +72,7 @@ export function BoardView({ pageId, board, visibleTasks }: BoardViewProps) {
     <DragDropContext onDragEnd={handleDragEnd}>
       <Stack direction="row" spacing={2} sx={{ height: '100%', overflowX: 'auto', pb: 2 }}>
         {columnsWithTasks.map((column) => (
-          <BoardColumn key={column.id} column={column} />
+          <BoardColumn key={column.id} pageId={pageId} column={column} board={board} />
         ))}
       </Stack>
     </DragDropContext>

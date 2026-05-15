@@ -40,6 +40,7 @@ export interface BoardTaskData {
   startDate: DateInput
   dueDate: DateInput
   position: number
+  sprintPosition: number | null
   archived: boolean
   deletedAt: DateInput
   createdById: string

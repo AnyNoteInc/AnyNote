@@ -99,6 +99,7 @@ export const taskRouter = router({
         typeId: z.string().uuid().nullable().optional(),
         priorityId: z.string().uuid().nullable().optional(),
         sprintId: z.string().uuid().nullable().optional(),
+        sprintPosition: z.number().nullable().optional(),
         parentId: z.string().uuid().nullable().optional(),
       }),
     )
@@ -133,6 +134,7 @@ export const taskRouter = router({
             typeId: input.typeId,
             priorityId: input.priorityId,
             sprintId: input.sprintId,
+            sprintPosition: input.sprintPosition,
             parentId: input.parentId,
             updatedById: ctx.user.id,
           },

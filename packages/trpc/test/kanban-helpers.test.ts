@@ -67,7 +67,7 @@ describe('seedKanbanDefaults', () => {
     ])
     expect(priorityCreateMany.mock.calls[0][0].data).toHaveLength(5)
     expect(priorityCreateMany.mock.calls[0][0].data.map((p: { title: string }) => p.title)).toEqual(
-      ['Highest', 'High', 'Medium', 'Low', 'Lowest'],
+      ['Критичный', 'Высокий', 'Средний', 'Низкий', 'Минимальный'],
     )
   })
 })

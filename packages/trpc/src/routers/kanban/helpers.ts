@@ -43,11 +43,11 @@ export async function seedKanbanDefaults(tx: TxClient, pageId: string): Promise<
   })
   await tx.kanbanPriority.createMany({
     data: [
-      { pageId, title: 'Highest', position: 1024 },
-      { pageId, title: 'High', position: 2048 },
-      { pageId, title: 'Medium', position: 3072 },
-      { pageId, title: 'Low', position: 4096 },
-      { pageId, title: 'Lowest', position: 5120 },
+      { pageId, title: 'Критичный', position: 1024 },
+      { pageId, title: 'Высокий', position: 2048 },
+      { pageId, title: 'Средний', position: 3072 },
+      { pageId, title: 'Низкий', position: 4096 },
+      { pageId, title: 'Минимальный', position: 5120 },
     ],
   })
 }
