@@ -9,6 +9,7 @@ import {
   assertPageAccess,
   assertPageOwnership,
 } from '../helpers/page-access'
+import { seedKanbanDefaults } from './kanban/helpers'
 
 // ── Router ───────────────────────────────────────────────────────────────────
 
@@ -134,6 +135,10 @@ export const pageRouter = router({
           aggregateId: newPage.id,
           workspaceId: input.workspaceId,
         })
+
+        if (newPage.type === PageType.KANBAN) {
+          await seedKanbanDefaults(tx, newPage.id)
+        }
 
         return { id: newPage.id }
       })
