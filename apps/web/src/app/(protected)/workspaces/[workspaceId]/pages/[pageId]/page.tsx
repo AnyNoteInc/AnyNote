@@ -31,7 +31,8 @@ export default async function PageView({
     [session.user.firstName, session.user.lastName].filter(Boolean).join(' ').trim() ||
     session.user.email
 
-  const isFullBleed = page.type === 'EXCALIDRAW' || page.type === 'GENOGRAM'
+  const isFullBleed =
+    page.type === 'EXCALIDRAW' || page.type === 'GENOGRAM' || page.type === 'KANBAN'
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>

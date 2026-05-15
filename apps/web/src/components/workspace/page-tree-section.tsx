@@ -19,6 +19,7 @@ import {
   MoreHorizIcon,
   Typography,
   AddIcon,
+  ViewKanbanIcon,
 } from '@repo/ui/components'
 import type { PageType } from '@repo/db'
 import { trpc } from '@/trpc/client'
@@ -26,7 +27,7 @@ import { PageContextMenu } from './page-context-menu'
 import { MovePageDialog } from './move-page-dialog'
 import { type PageItem, orderSiblings } from './types'
 
-type CreatablePageType = Extract<PageType, 'TEXT' | 'EXCALIDRAW' | 'GENOGRAM'>
+type CreatablePageType = Extract<PageType, 'TEXT' | 'EXCALIDRAW' | 'GENOGRAM' | 'KANBAN'>
 
 type Props = {
   workspaceId: string
@@ -82,6 +83,17 @@ function CreatePageMenu({
           <AccountTreeIcon fontSize="small" />
         </ListItemIcon>
         <ListItemText primary="Генограмма" />
+      </MenuItem>
+      <MenuItem
+        onClick={() => {
+          onCreate('KANBAN')
+          onClose()
+        }}
+      >
+        <ListItemIcon>
+          <ViewKanbanIcon fontSize="small" />
+        </ListItemIcon>
+        <ListItemText primary="Канбан" />
       </MenuItem>
     </Menu>
   )

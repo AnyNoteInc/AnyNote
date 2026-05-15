@@ -4,10 +4,13 @@ import { useState, type PropsWithChildren } from 'react'
 
 import { QueryClientProvider } from '@tanstack/react-query'
 import { ReactQueryDevtools } from '@tanstack/react-query-devtools'
-import { httpBatchLink } from '@trpc/client'
+import { httpBatchLink, httpSubscriptionLink, splitLink } from '@trpc/client'
 import { type CreateTRPCReact, createTRPCReact } from '@trpc/react-query'
+import type { inferRouterOutputs } from '@trpc/server'
 
 import type { AppRouter } from '@repo/trpc'
+
+export type RouterOutputs = inferRouterOutputs<AppRouter>
 
 import { consumePendingCaptchaToken } from '@/lib/captcha-token-store'
 
@@ -27,12 +30,18 @@ export function TRPCReactProvider({ children }: PropsWithChildren) {
   const [trpcClient] = useState(() =>
     trpc.createClient({
       links: [
-        httpBatchLink({
-          url: `${getBaseUrl()}/api/trpc`,
-          headers() {
-            const token = consumePendingCaptchaToken()
-            return token ? { 'x-captcha-response': token } : {}
-          },
+        splitLink({
+          condition: (op) => op.type === 'subscription',
+          true: httpSubscriptionLink({
+            url: `${getBaseUrl()}/api/trpc`,
+          }),
+          false: httpBatchLink({
+            url: `${getBaseUrl()}/api/trpc`,
+            headers() {
+              const token = consumePendingCaptchaToken()
+              return token ? { 'x-captcha-response': token } : {}
+            },
+          }),
         }),
       ],
     }),
