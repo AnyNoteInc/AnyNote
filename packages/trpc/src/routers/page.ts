@@ -4,68 +4,11 @@ import { PageType, enqueueOutboxEvent, type PrismaClient } from '@repo/db'
 
 import { router, protectedProcedure } from '../trpc'
 import { requireWritableWorkspace } from '../helpers/plan'
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-async function assertWorkspaceMember(
-  ctx: { prisma: PrismaClient; user: { id: string } },
-  workspaceId: string,
-) {
-  const member = await ctx.prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
-  })
-  if (!member) {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Вы не являетесь участником воркспейса' })
-  }
-  return member
-}
-
-async function assertPageAccess(
-  ctx: { prisma: PrismaClient; user: { id: string } },
-  pageId: string,
-) {
-  const page = await ctx.prisma.page.findFirst({
-    where: {
-      id: pageId,
-      workspace: { members: { some: { userId: ctx.user.id } } },
-    },
-  })
-  if (!page) {
-    throw new TRPCError({ code: 'NOT_FOUND', message: 'Страница не найдена' })
-  }
-  return page
-}
-
-async function assertPageOwnership(
-  ctx: { prisma: PrismaClient; user: { id: string } },
-  pageId: string,
-  workspaceId: string,
-) {
-  const [page, member] = await Promise.all([
-    ctx.prisma.page.findFirst({
-      where: {
-        id: pageId,
-        workspaceId,
-        workspace: { members: { some: { userId: ctx.user.id } } },
-      },
-    }),
-    ctx.prisma.workspaceMember.findUnique({
-      where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
-    }),
-  ])
-  if (!page) {
-    throw new TRPCError({ code: 'NOT_FOUND', message: 'Страница не найдена' })
-  }
-  if (!member) {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Вы не являетесь участником воркспейса' })
-  }
-  const isOwner = member.role === 'OWNER'
-  const isCreator = page.createdById === ctx.user.id
-  if (!isOwner && !isCreator) {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
-  }
-  return page
-}
+import {
+  assertWorkspaceMember,
+  assertPageAccess,
+  assertPageOwnership,
+} from '../helpers/page-access'
 
 // ── Router ───────────────────────────────────────────────────────────────────
 

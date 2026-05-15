@@ -17,10 +17,11 @@ export function positionBetween(prev: number | null, next: number | null): numbe
 }
 
 export function endPosition(items: { position: number }[]): number {
-  if (items.length === 0) return 0
-  let max = items[0].position
-  for (const item of items) if (item.position > max) max = item.position
-  return max + POSITION_GAP
+  let max: number | null = null
+  for (const item of items) {
+    if (max === null || item.position > max) max = item.position
+  }
+  return max === null ? 0 : max + POSITION_GAP
 }
 
 type TxClient = Prisma.TransactionClient
@@ -56,7 +57,7 @@ export async function recordActivity(
     taskId: string
     actorId: string
     type: TaskActivityType
-    payload?: Record<string, unknown>
+    payload?: Prisma.InputJsonValue
   },
 ): Promise<void> {
   await tx.taskActivity.create({
