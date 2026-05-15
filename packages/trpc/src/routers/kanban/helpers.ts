@@ -1,15 +1,4 @@
-import type { Prisma, PrismaClient, TaskActivityType } from '@repo/db'
-
-export async function pageWorkspaceId(
-  ctx: { prisma: PrismaClient },
-  pageId: string,
-): Promise<string> {
-  const page = await ctx.prisma.page.findUniqueOrThrow({
-    where: { id: pageId },
-    select: { workspaceId: true },
-  })
-  return page.workspaceId
-}
+import type { Prisma, TaskActivityType } from '@repo/db'
 
 
 export const POSITION_GAP = 1024

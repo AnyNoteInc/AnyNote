@@ -3,7 +3,7 @@ import { TRPCError } from '@trpc/server'
 
 import { router, protectedProcedure } from '../../trpc'
 import { assertPageOwnership } from '../../helpers/page-access'
-import { endPosition, pageWorkspaceId, positionBetween } from './helpers'
+import { endPosition, positionBetween } from './helpers'
 import { kanbanBus } from '../../realtime/kanban-bus'
 
 const ColumnKindEnum = z.enum(['ACTIVE', 'DONE', 'CANCELLED'])
@@ -19,11 +19,7 @@ export const columnRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const page = await assertPageOwnership(
-        ctx,
-        input.pageId,
-        await pageWorkspaceId(ctx, input.pageId),
-      )
+      const page = await assertPageOwnership(ctx, input.pageId)
       const existing = await ctx.prisma.kanbanColumn.findMany({
         where: { pageId: page.id },
         select: { position: true },
@@ -52,11 +48,7 @@ export const columnRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const page = await assertPageOwnership(
-        ctx,
-        input.pageId,
-        await pageWorkspaceId(ctx, input.pageId),
-      )
+      const page = await assertPageOwnership(ctx, input.pageId)
       const column = await ctx.prisma.kanbanColumn.update({
         where: { id: input.id },
         data: {
@@ -79,11 +71,7 @@ export const columnRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const page = await assertPageOwnership(
-        ctx,
-        input.pageId,
-        await pageWorkspaceId(ctx, input.pageId),
-      )
+      const page = await assertPageOwnership(ctx, input.pageId)
       const cols = await ctx.prisma.kanbanColumn.findMany({
         where: { pageId: page.id },
         select: { id: true, position: true },
@@ -106,11 +94,7 @@ export const columnRouter = router({
   delete: protectedProcedure
     .input(z.object({ pageId: z.string().uuid(), id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const page = await assertPageOwnership(
-        ctx,
-        input.pageId,
-        await pageWorkspaceId(ctx, input.pageId),
-      )
+      const page = await assertPageOwnership(ctx, input.pageId)
       const cols = await ctx.prisma.kanbanColumn.findMany({
         where: { pageId: page.id },
         orderBy: { position: 'asc' },

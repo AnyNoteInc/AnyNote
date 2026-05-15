@@ -260,10 +260,10 @@ describe('kanban.task.setAssignees', () => {
   it('diffs against current: writes UNASSIGNED for removed, ASSIGNED for added', async () => {
     const createMany = vi.fn().mockResolvedValue({ count: 1 })
     const deleteMany = vi.fn().mockResolvedValue({ count: 1 })
-    const activityCreate = vi.fn().mockResolvedValue({})
+    const activityCreateMany = vi.fn().mockResolvedValue({ count: 2 })
     const txClient = {
       taskAssignee: { createMany, deleteMany },
-      taskActivity: { create: activityCreate },
+      taskActivity: { createMany: activityCreateMany },
     }
     const prisma = {
       page: { findFirst: vi.fn().mockResolvedValue(pageRow) },
@@ -288,7 +288,7 @@ describe('kanban.task.setAssignees', () => {
     expect(createMany).toHaveBeenCalledWith({
       data: [{ taskId: '00000000-0000-0000-0000-0000000000a1', userId: '00000000-0000-0000-0000-0000000000b2' }],
     })
-    const types = activityCreate.mock.calls.map((c) => c[0].data.type)
+    const types = activityCreateMany.mock.calls[0][0].data.map((d: { type: string }) => d.type)
     expect(types).toEqual(expect.arrayContaining(['UNASSIGNED', 'ASSIGNED']))
   })
 })

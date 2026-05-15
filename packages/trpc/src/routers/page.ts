@@ -157,7 +157,7 @@ export const pageRouter = router({
         ctx,
         input,
       }): Promise<{ id: string; title: string | null; icon: string | null; updatedAt: Date }> => {
-        await assertPageOwnership(ctx, input.id, input.workspaceId)
+        await assertPageOwnership(ctx, input.id)
         await requireWritableWorkspace(input.workspaceId)
         return ctx.prisma.$transaction(async (tx) => {
           const updated = await tx.page.update({
@@ -191,7 +191,7 @@ export const pageRouter = router({
         ctx,
         input,
       }): Promise<{ id: string; title: string | null; icon: string | null; updatedAt: Date }> => {
-        await assertPageOwnership(ctx, input.id, input.workspaceId)
+        await assertPageOwnership(ctx, input.id)
         await requireWritableWorkspace(input.workspaceId)
         const data: {
           title?: string
@@ -227,7 +227,7 @@ export const pageRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const page = await assertPageOwnership(ctx, input.id, input.workspaceId)
+      const page = await assertPageOwnership(ctx, input.id)
       await requireWritableWorkspace(input.workspaceId)
       const now = new Date()
 
@@ -296,7 +296,7 @@ export const pageRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await assertPageOwnership(ctx, input.id, input.workspaceId)
+      await assertPageOwnership(ctx, input.id)
       await requireWritableWorkspace(input.workspaceId)
 
       return ctx.prisma.$transaction(async (tx) => {
@@ -386,7 +386,7 @@ export const pageRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await assertPageOwnership(ctx, input.id, input.workspaceId)
+      await assertPageOwnership(ctx, input.id)
       await requireWritableWorkspace(input.workspaceId)
 
       return ctx.prisma.$transaction(async (tx) => {
@@ -486,7 +486,7 @@ export const pageRouter = router({
       const page = await assertPageAccess(ctx, input.pageId)
 
       // Check ownership: must be creator or workspace OWNER
-      await assertPageOwnership(ctx, input.pageId, page.workspaceId)
+      await assertPageOwnership(ctx, input.pageId)
       await requireWritableWorkspace(page.workspaceId)
 
       return ctx.prisma.$transaction(async (tx) => {

@@ -312,27 +312,28 @@ export const taskRouter = router({
           await tx.taskAssignee.deleteMany({
             where: { taskId: input.id, userId: { in: toRemove } },
           })
-          for (const userId of toRemove) {
-            await recordActivity(tx, {
-              taskId: input.id,
-              actorId: ctx.user.id,
-              type: 'UNASSIGNED',
-              payload: { userId },
-            })
-          }
         }
         if (toAdd.length > 0) {
           await tx.taskAssignee.createMany({
             data: toAdd.map((userId) => ({ taskId: input.id, userId })),
           })
-          for (const userId of toAdd) {
-            await recordActivity(tx, {
-              taskId: input.id,
-              actorId: ctx.user.id,
-              type: 'ASSIGNED',
-              payload: { userId },
-            })
-          }
+        }
+        const activityRows = [
+          ...toRemove.map((userId) => ({
+            taskId: input.id,
+            actorId: ctx.user.id,
+            type: 'UNASSIGNED' as const,
+            payload: { userId },
+          })),
+          ...toAdd.map((userId) => ({
+            taskId: input.id,
+            actorId: ctx.user.id,
+            type: 'ASSIGNED' as const,
+            payload: { userId },
+          })),
+        ]
+        if (activityRows.length > 0) {
+          await tx.taskActivity.createMany({ data: activityRows })
         }
       })
 
@@ -367,27 +368,28 @@ export const taskRouter = router({
           await tx.kanbanLabelOnTask.deleteMany({
             where: { taskId: input.id, labelId: { in: toRemove } },
           })
-          for (const labelId of toRemove) {
-            await recordActivity(tx, {
-              taskId: input.id,
-              actorId: ctx.user.id,
-              type: 'UNLABELED',
-              payload: { labelId },
-            })
-          }
         }
         if (toAdd.length > 0) {
           await tx.kanbanLabelOnTask.createMany({
             data: toAdd.map((labelId) => ({ taskId: input.id, labelId })),
           })
-          for (const labelId of toAdd) {
-            await recordActivity(tx, {
-              taskId: input.id,
-              actorId: ctx.user.id,
-              type: 'LABELED',
-              payload: { labelId },
-            })
-          }
+        }
+        const activityRows = [
+          ...toRemove.map((labelId) => ({
+            taskId: input.id,
+            actorId: ctx.user.id,
+            type: 'UNLABELED' as const,
+            payload: { labelId },
+          })),
+          ...toAdd.map((labelId) => ({
+            taskId: input.id,
+            actorId: ctx.user.id,
+            type: 'LABELED' as const,
+            payload: { labelId },
+          })),
+        ]
+        if (activityRows.length > 0) {
+          await tx.taskActivity.createMany({ data: activityRows })
         }
       })
 
@@ -398,24 +400,26 @@ export const taskRouter = router({
   softDelete: protectedProcedure
     .input(z.object({ pageId: z.string().uuid(), id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const page = await assertPageAccess(ctx, input.pageId)
-      const task = await ctx.prisma.task.findUniqueOrThrow({
-        where: { id: input.id },
-        select: { id: true, pageId: true, createdById: true },
-      })
+      const [page, task] = await Promise.all([
+        assertPageAccess(ctx, input.pageId),
+        ctx.prisma.task.findUniqueOrThrow({
+          where: { id: input.id },
+          select: { id: true, pageId: true, createdById: true },
+        }),
+      ])
       if (task.pageId !== page.id) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Задача не найдена' })
       }
-      const member = await ctx.prisma.workspaceMember.findUnique({
-        where: { workspaceId_userId: { workspaceId: page.workspaceId, userId: ctx.user.id } },
-      })
-      const isOwner = member?.role === 'OWNER'
-      const isCreator = task.createdById === ctx.user.id
-      if (!isOwner && !isCreator) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'Недостаточно прав на удаление задачи',
+      if (task.createdById !== ctx.user.id) {
+        const member = await ctx.prisma.workspaceMember.findUnique({
+          where: { workspaceId_userId: { workspaceId: page.workspaceId, userId: ctx.user.id } },
         })
+        if (member?.role !== 'OWNER') {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: 'Недостаточно прав на удаление задачи',
+          })
+        }
       }
 
       await ctx.prisma.task.update({

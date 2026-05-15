@@ -1,21 +1,62 @@
 'use client'
 
+import { useCallback } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { Draggable, Droppable } from '@hello-pangea/dnd'
+import {
+  Draggable,
+  Droppable,
+  type DraggableProvided,
+  type DroppableProvided,
+} from '@hello-pangea/dnd'
 import { Box, Paper, Stack, Typography } from '@repo/ui/components'
 
 import type { BoardData, BoardTaskData } from '../types'
+import { AssigneeAvatars } from '../components/assignee-avatars'
 
 interface SprintSectionProps {
-  droppableId: string
-  title: string
-  subtitle?: string
-  tasks: BoardTaskData[]
-  members: BoardData['members']
+  readonly droppableId: string
+  readonly title: string
+  readonly subtitle?: string
+  readonly tasks: BoardTaskData[]
+  readonly members: BoardData['members']
 }
 
-function memberFor(members: BoardData['members'], id: string) {
-  return members.find((m) => m.user.id === id)
+interface TaskRowProps {
+  readonly task: BoardTaskData
+  readonly provided: DraggableProvided
+  readonly memberLookup: (userId: string) => { firstName: string | null; email: string } | undefined
+  readonly onOpen: (taskId: string) => void
+}
+
+function TaskRow({ task, provided, memberLookup, onOpen }: TaskRowProps) {
+  return (
+    <Stack
+      ref={provided.innerRef}
+      {...provided.draggableProps}
+      {...provided.dragHandleProps}
+      onClick={() => onOpen(task.id)}
+      direction="row"
+      alignItems="center"
+      spacing={1.5}
+      sx={{
+        py: 1,
+        px: 1.25,
+        borderRadius: 1,
+        cursor: 'pointer',
+        '&:hover': { bgcolor: 'action.hover' },
+      }}
+    >
+      <Typography variant="body2" sx={{ flex: 1 }}>
+        {task.title}
+      </Typography>
+      <AssigneeAvatars assignees={task.assignees} memberLookup={memberLookup} size={22} />
+      {task.dueDate ? (
+        <Typography variant="caption" color="text.secondary">
+          {new Date(task.dueDate).toLocaleDateString('ru-RU')}
+        </Typography>
+      ) : null}
+    </Stack>
+  )
 }
 
 export function SprintSection({
@@ -27,11 +68,34 @@ export function SprintSection({
 }: SprintSectionProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  function open(taskId: string) {
-    const params = new URLSearchParams(searchParams?.toString() ?? '')
-    params.set('taskId', taskId)
-    router.replace(`?${params.toString()}`)
-  }
+  const open = useCallback(
+    (taskId: string) => {
+      const params = new URLSearchParams(searchParams?.toString() ?? '')
+      params.set('taskId', taskId)
+      router.replace(`?${params.toString()}`)
+    },
+    [router, searchParams],
+  )
+  const memberLookup = useCallback(
+    (userId: string) => {
+      const m = members.find((x) => x.user.id === userId)
+      return m ? { firstName: m.user.firstName, email: m.user.email } : undefined
+    },
+    [members],
+  )
+
+  const renderDroppable = (provided: DroppableProvided) => (
+    <Box ref={provided.innerRef} {...provided.droppableProps} sx={{ minHeight: 32 }}>
+      {tasks.map((task, index) => (
+        <Draggable key={task.id} draggableId={task.id} index={index}>
+          {(p) => (
+            <TaskRow task={task} provided={p} memberLookup={memberLookup} onOpen={open} />
+          )}
+        </Draggable>
+      ))}
+      {provided.placeholder}
+    </Box>
+  )
 
   return (
     <Paper variant="outlined" sx={{ mb: 2, p: 1.5 }}>
@@ -46,76 +110,7 @@ export function SprintSection({
           {tasks.length}
         </Typography>
       </Stack>
-      <Droppable droppableId={droppableId}>
-        {(provided) => (
-          <Box ref={provided.innerRef} {...provided.droppableProps} sx={{ minHeight: 32 }}>
-            {tasks.map((task, index) => (
-              <Draggable key={task.id} draggableId={task.id} index={index}>
-                {(p) => (
-                  <Stack
-                    ref={p.innerRef}
-                    {...p.draggableProps}
-                    {...p.dragHandleProps}
-                    onClick={() => open(task.id)}
-                    direction="row"
-                    alignItems="center"
-                    spacing={1.5}
-                    sx={{
-                      py: 1,
-                      px: 1.25,
-                      borderRadius: 1,
-                      cursor: 'pointer',
-                      '&:hover': { bgcolor: 'action.hover' },
-                    }}
-                  >
-                    <Typography variant="body2" sx={{ flex: 1 }}>
-                      {task.title}
-                    </Typography>
-                    {task.assignees.length > 0 ? (
-                      <Stack direction="row" spacing={-0.5}>
-                        {task.assignees.slice(0, 3).map((a) => {
-                          const m = memberFor(members, a.userId)
-                          const initial = (
-                            m?.user.firstName?.[0] ??
-                            m?.user.email[0] ??
-                            '?'
-                          ).toUpperCase()
-                          return (
-                            <Box
-                              key={a.userId}
-                              sx={{
-                                width: 22,
-                                height: 22,
-                                borderRadius: '50%',
-                                bgcolor: 'primary.main',
-                                color: 'primary.contrastText',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: 11,
-                                border: 2,
-                                borderColor: 'background.paper',
-                              }}
-                            >
-                              {initial}
-                            </Box>
-                          )
-                        })}
-                      </Stack>
-                    ) : null}
-                    {task.dueDate ? (
-                      <Typography variant="caption" color="text.secondary">
-                        {new Date(task.dueDate).toLocaleDateString('ru-RU')}
-                      </Typography>
-                    ) : null}
-                  </Stack>
-                )}
-              </Draggable>
-            ))}
-            {provided.placeholder}
-          </Box>
-        )}
-      </Droppable>
+      <Droppable droppableId={droppableId}>{renderDroppable}</Droppable>
     </Paper>
   )
 }

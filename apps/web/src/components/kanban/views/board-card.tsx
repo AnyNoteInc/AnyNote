@@ -2,13 +2,14 @@
 
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Draggable } from '@hello-pangea/dnd'
-import { Box, Card, Stack, Typography } from '@repo/ui/components'
+import { Card, Typography } from '@repo/ui/components'
 
 import type { BoardTaskData } from '../types'
+import { AssigneeAvatars } from '../components/assignee-avatars'
 
 interface BoardCardProps {
-  task: BoardTaskData
-  index: number
+  readonly task: BoardTaskData
+  readonly index: number
 }
 
 export function BoardCard({ task, index }: BoardCardProps) {
@@ -45,28 +46,9 @@ export function BoardCard({ task, index }: BoardCardProps) {
             </Typography>
           ) : null}
           {task.assignees.length > 0 ? (
-            <Stack direction="row" spacing={-0.5} sx={{ mt: 0.5 }}>
-              {task.assignees.slice(0, 3).map((a) => (
-                <Box
-                  key={a.user.id}
-                  sx={{
-                    width: 24,
-                    height: 24,
-                    bgcolor: 'primary.main',
-                    color: 'primary.contrastText',
-                    borderRadius: '50%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontSize: 11,
-                    border: 2,
-                    borderColor: 'background.paper',
-                  }}
-                >
-                  {(a.user.firstName?.[0] ?? a.user.email[0] ?? '?').toUpperCase()}
-                </Box>
-              ))}
-            </Stack>
+            <div style={{ marginTop: 4 }}>
+              <AssigneeAvatars assignees={task.assignees} />
+            </div>
           ) : null}
         </Card>
       )}

@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import {
   Box,
   Button,
@@ -62,19 +62,6 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
   const [startDate, setStartDate] = useState<string>(
     task.startDate ? new Date(task.startDate).toISOString().slice(0, 10) : '',
   )
-
-  useEffect(() => {
-    setTitle(task.title)
-    setDescription(readDescriptionText(task.description))
-    setAssigneeIds(task.assignees.map((a) => a.user.id))
-    setLabelIds(task.labels.map((l) => l.labelId))
-    setTypeId(task.typeId ?? '')
-    setPriorityId(task.priorityId ?? '')
-    setSprintId(task.sprintId ?? '')
-    setParentId(task.parentId ?? '')
-    setDueDate(task.dueDate ? new Date(task.dueDate).toISOString().slice(0, 10) : '')
-    setStartDate(task.startDate ? new Date(task.startDate).toISOString().slice(0, 10) : '')
-  }, [task])
 
   const parentCandidates = board.tasks.filter((t) => t.id !== task.id)
 

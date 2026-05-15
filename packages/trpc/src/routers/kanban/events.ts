@@ -10,6 +10,7 @@ export const eventsRouter = router({
     .subscription(async function* ({ ctx, input, signal }) {
       await assertPageAccess(ctx, input.pageId)
 
+      const MAX_QUEUE = 500
       const queue: KanbanEvent[] = []
       let resolveNext: ((value: KanbanEvent | null) => void) | null = null
 
@@ -20,6 +21,7 @@ export const eventsRouter = router({
           r(event)
         } else {
           queue.push(event)
+          if (queue.length > MAX_QUEUE) queue.shift()
         }
       })
 
@@ -34,8 +36,9 @@ export const eventsRouter = router({
 
       try {
         while (!signal?.aborted) {
-          if (queue.length > 0) {
-            yield queue.shift()!
+          const buffered = queue.shift()
+          if (buffered) {
+            yield buffered
             continue
           }
           const event = await new Promise<KanbanEvent | null>((resolve) => {

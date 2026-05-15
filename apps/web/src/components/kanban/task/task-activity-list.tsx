@@ -1,6 +1,7 @@
 'use client'
 
 import { Box, Stack, Typography } from '@repo/ui/components'
+import type { TaskActivityType } from '@repo/db'
 
 import { trpc } from '@/trpc/client'
 
@@ -11,7 +12,7 @@ interface TaskActivityListProps {
 
 interface ActivityRow {
   id: string
-  type: string
+  type: TaskActivityType
   payload: unknown
   createdAt: Date | string
   actor: { firstName: string | null; lastName: string | null; email: string }
@@ -30,7 +31,7 @@ function asString(value: unknown, fallback = '—'): string {
   return typeof value === 'string' ? value : fallback
 }
 
-function describe(type: string, payload: unknown): string {
+function describe(type: TaskActivityType, payload: unknown): string {
   const p = (payload ?? {}) as Record<string, unknown>
   switch (type) {
     case 'CREATED':

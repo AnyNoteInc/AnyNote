@@ -4,7 +4,7 @@ import { KANBAN_LABEL_COLOR_HEXES } from '@repo/ui/lib/kanban-colors'
 
 import { router, protectedProcedure } from '../../trpc'
 import { assertPageOwnership } from '../../helpers/page-access'
-import { endPosition, pageWorkspaceId, positionBetween } from './helpers'
+import { endPosition, positionBetween } from './helpers'
 import { kanbanBus } from '../../realtime/kanban-bus'
 
 function assertColor(color: string) {
@@ -27,11 +27,7 @@ export const labelRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       assertColor(input.color)
-      const page = await assertPageOwnership(
-        ctx,
-        input.pageId,
-        await pageWorkspaceId(ctx, input.pageId),
-      )
+      const page = await assertPageOwnership(ctx, input.pageId)
       const existing = await ctx.prisma.kanbanLabel.findMany({
         where: { pageId: page.id },
         select: { position: true },
@@ -59,11 +55,7 @@ export const labelRouter = router({
     )
     .mutation(async ({ ctx, input }) => {
       if (input.color !== undefined) assertColor(input.color)
-      const page = await assertPageOwnership(
-        ctx,
-        input.pageId,
-        await pageWorkspaceId(ctx, input.pageId),
-      )
+      const page = await assertPageOwnership(ctx, input.pageId)
       const row = await ctx.prisma.kanbanLabel.update({
         where: { id: input.id },
         data: { name: input.name, color: input.color },
@@ -82,11 +74,7 @@ export const labelRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const page = await assertPageOwnership(
-        ctx,
-        input.pageId,
-        await pageWorkspaceId(ctx, input.pageId),
-      )
+      const page = await assertPageOwnership(ctx, input.pageId)
       const rows = await ctx.prisma.kanbanLabel.findMany({
         where: { pageId: page.id },
         select: { id: true, position: true },
@@ -108,11 +96,7 @@ export const labelRouter = router({
   delete: protectedProcedure
     .input(z.object({ pageId: z.string().uuid(), id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const page = await assertPageOwnership(
-        ctx,
-        input.pageId,
-        await pageWorkspaceId(ctx, input.pageId),
-      )
+      const page = await assertPageOwnership(ctx, input.pageId)
       await ctx.prisma.kanbanLabel.delete({ where: { id: input.id } })
       kanbanBus.emit(page.id, { kind: 'settings.upserted', entity: 'label' })
       return { ok: true as const }

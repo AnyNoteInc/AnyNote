@@ -3,7 +3,7 @@ import { TRPCError } from '@trpc/server'
 
 import { router, protectedProcedure } from '../../trpc'
 import { assertPageOwnership } from '../../helpers/page-access'
-import { endPosition, pageWorkspaceId, positionBetween } from './helpers'
+import { endPosition, positionBetween } from './helpers'
 import { kanbanBus } from '../../realtime/kanban-bus'
 
 export const sprintRouter = router({
@@ -18,11 +18,7 @@ export const sprintRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const page = await assertPageOwnership(
-        ctx,
-        input.pageId,
-        await pageWorkspaceId(ctx, input.pageId),
-      )
+      const page = await assertPageOwnership(ctx, input.pageId)
       const existing = await ctx.prisma.sprint.findMany({
         where: { pageId: page.id },
         select: { position: true },
@@ -54,11 +50,7 @@ export const sprintRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const page = await assertPageOwnership(
-        ctx,
-        input.pageId,
-        await pageWorkspaceId(ctx, input.pageId),
-      )
+      const page = await assertPageOwnership(ctx, input.pageId)
       const sprint = await ctx.prisma.sprint.update({
         where: { id: input.id },
         data: {
@@ -75,11 +67,7 @@ export const sprintRouter = router({
   activate: protectedProcedure
     .input(z.object({ pageId: z.string().uuid(), id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const page = await assertPageOwnership(
-        ctx,
-        input.pageId,
-        await pageWorkspaceId(ctx, input.pageId),
-      )
+      const page = await assertPageOwnership(ctx, input.pageId)
       try {
         await ctx.prisma.$transaction(async (tx) => {
           await tx.sprint.updateMany({
@@ -108,11 +96,7 @@ export const sprintRouter = router({
   complete: protectedProcedure
     .input(z.object({ pageId: z.string().uuid(), id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const page = await assertPageOwnership(
-        ctx,
-        input.pageId,
-        await pageWorkspaceId(ctx, input.pageId),
-      )
+      const page = await assertPageOwnership(ctx, input.pageId)
       await ctx.prisma.sprint.update({
         where: { id: input.id },
         data: { status: 'COMPLETED' },
@@ -131,11 +115,7 @@ export const sprintRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const page = await assertPageOwnership(
-        ctx,
-        input.pageId,
-        await pageWorkspaceId(ctx, input.pageId),
-      )
+      const page = await assertPageOwnership(ctx, input.pageId)
       const rows = await ctx.prisma.sprint.findMany({
         where: { pageId: page.id },
         select: { id: true, position: true },
@@ -157,11 +137,7 @@ export const sprintRouter = router({
   delete: protectedProcedure
     .input(z.object({ pageId: z.string().uuid(), id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const page = await assertPageOwnership(
-        ctx,
-        input.pageId,
-        await pageWorkspaceId(ctx, input.pageId),
-      )
+      const page = await assertPageOwnership(ctx, input.pageId)
       await ctx.prisma.sprint.delete({ where: { id: input.id } })
       kanbanBus.emit(page.id, { kind: 'sprint.deleted', sprintId: input.id })
       return { ok: true as const }

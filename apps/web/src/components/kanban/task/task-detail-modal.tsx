@@ -42,6 +42,7 @@ export function TaskDetailModal({ pageId, task, board }: TaskDetailModalProps) {
       </DialogTitle>
       <DialogContent>
         <TaskForm
+          key={task.id}
           pageId={pageId}
           task={task}
           board={board}

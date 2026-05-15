@@ -2,7 +2,7 @@ import { z } from 'zod'
 
 import { router, protectedProcedure } from '../../trpc'
 import { assertPageOwnership } from '../../helpers/page-access'
-import { endPosition, pageWorkspaceId, positionBetween } from './helpers'
+import { endPosition, positionBetween } from './helpers'
 import { kanbanBus } from '../../realtime/kanban-bus'
 
 export const typeRouter = router({
@@ -15,11 +15,7 @@ export const typeRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const page = await assertPageOwnership(
-        ctx,
-        input.pageId,
-        await pageWorkspaceId(ctx, input.pageId),
-      )
+      const page = await assertPageOwnership(ctx, input.pageId)
       const existing = await ctx.prisma.kanbanType.findMany({
         where: { pageId: page.id },
         select: { position: true },
@@ -46,11 +42,7 @@ export const typeRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const page = await assertPageOwnership(
-        ctx,
-        input.pageId,
-        await pageWorkspaceId(ctx, input.pageId),
-      )
+      const page = await assertPageOwnership(ctx, input.pageId)
       const row = await ctx.prisma.kanbanType.update({
         where: { id: input.id },
         data: { title: input.title, color: input.color },
@@ -69,11 +61,7 @@ export const typeRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const page = await assertPageOwnership(
-        ctx,
-        input.pageId,
-        await pageWorkspaceId(ctx, input.pageId),
-      )
+      const page = await assertPageOwnership(ctx, input.pageId)
       const rows = await ctx.prisma.kanbanType.findMany({
         where: { pageId: page.id },
         select: { id: true, position: true },
@@ -95,11 +83,7 @@ export const typeRouter = router({
   delete: protectedProcedure
     .input(z.object({ pageId: z.string().uuid(), id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const page = await assertPageOwnership(
-        ctx,
-        input.pageId,
-        await pageWorkspaceId(ctx, input.pageId),
-      )
+      const page = await assertPageOwnership(ctx, input.pageId)
       await ctx.prisma.kanbanType.delete({ where: { id: input.id } })
       kanbanBus.emit(page.id, { kind: 'settings.upserted', entity: 'type' })
       return { ok: true as const }
