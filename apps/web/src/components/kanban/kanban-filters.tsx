@@ -5,16 +5,18 @@ import {
   Box,
   Checkbox,
   Chip,
+  Divider,
   ListItemText,
   Menu,
   MenuItem,
   Radio,
   Stack,
-  TextField,
 } from '@repo/ui/components'
 
 import type { BoardData } from './types'
 import type { KanbanFilters as Filters } from './filters/apply-filters'
+import { sprintStatusLabel } from './sprint/sprint-status-label'
+import { visibleSprintFilterOptions } from './sprint-filter-options'
 import type { useKanbanFilters } from './use-kanban-filters'
 
 type FiltersBag = ReturnType<typeof useKanbanFilters>
@@ -30,18 +32,25 @@ function userLabel(m: BoardData['members'][number]) {
 
 export function KanbanFiltersUI({ board, bag }: KanbanFiltersProps) {
   const [anchors, setAnchors] = useState<Record<string, HTMLElement | null>>({})
+  const [showCompletedSprints, setShowCompletedSprints] = useState(false)
 
   const open = (key: string) => (e: MouseEvent<HTMLElement>) =>
     setAnchors((s) => ({ ...s, [key]: e.currentTarget }))
   const close = (key: string) => () => setAnchors((s) => ({ ...s, [key]: null }))
 
   const showSprintFilter = board.sprints.length > 0
-  const activeSprint = board.sprints.find((s) => s.status === 'ACTIVE')
+  const selectedSprintIds = Array.isArray(bag.filters.sprint) ? bag.filters.sprint : []
+  const hasCompletedSprints = board.sprints.some((s) => s.status === 'COMPLETED')
+  const sprintOptions = visibleSprintFilterOptions(
+    board.sprints,
+    showCompletedSprints,
+    selectedSprintIds,
+  )
 
   const sprintLabel = (() => {
     const value = bag.filters.sprint
     if (value === 'all') return 'Спринт: все'
-    if (value === 'current') return `Спринт: текущий${activeSprint ? ` (${activeSprint.name})` : ''}`
+    if (value === 'current') return 'Спринт: текущий'
     return `Спринт: ${value.length}`
   })()
 
@@ -51,8 +60,6 @@ export function KanbanFiltersUI({ board, bag }: KanbanFiltersProps) {
       : `Пользователи (${bag.filters.userIds.length})`
   const labelLabelText =
     bag.filters.labelIds.length === 0 ? 'Метки' : `Метки (${bag.filters.labelIds.length})`
-  const dateLabelText =
-    bag.filters.dateFrom || bag.filters.dateTo || bag.filters.overdueOnly ? 'Сроки ✓' : 'Сроки'
 
   return (
     <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
@@ -77,8 +84,15 @@ export function KanbanFiltersUI({ board, bag }: KanbanFiltersProps) {
               <Radio checked={bag.filters.sprint === 'current'} />
               <ListItemText primary="Текущий" />
             </MenuItem>
-            {board.sprints.map((s) => {
-              const arr = Array.isArray(bag.filters.sprint) ? bag.filters.sprint : []
+            {hasCompletedSprints ? <Divider /> : null}
+            {hasCompletedSprints ? (
+              <MenuItem onClick={() => setShowCompletedSprints((value) => !value)}>
+                <Checkbox checked={showCompletedSprints} />
+                <ListItemText primary="Показывать завершённые" />
+              </MenuItem>
+            ) : null}
+            {sprintOptions.map((s) => {
+              const arr = selectedSprintIds
               const checked = arr.includes(s.id)
               return (
                 <MenuItem
@@ -89,7 +103,7 @@ export function KanbanFiltersUI({ board, bag }: KanbanFiltersProps) {
                   }}
                 >
                   <Checkbox checked={checked} />
-                  <ListItemText primary={s.name} secondary={s.status} />
+                  <ListItemText primary={s.name} secondary={sprintStatusLabel(s.status)} />
                 </MenuItem>
               )
             })}
@@ -161,64 +175,6 @@ export function KanbanFiltersUI({ board, bag }: KanbanFiltersProps) {
           </Menu>
         </>
       ) : null}
-
-      <Chip
-        label={dateLabelText}
-        variant={bag.filters.dateFrom || bag.filters.dateTo || bag.filters.overdueOnly ? 'filled' : 'outlined'}
-        color={bag.filters.dateFrom || bag.filters.dateTo || bag.filters.overdueOnly ? 'primary' : 'default'}
-        onClick={open('dates')}
-        onDelete={
-          bag.filters.dateFrom || bag.filters.dateTo || bag.filters.overdueOnly
-            ? () => bag.setDateFilter({ from: null, to: null, overdue: false })
-            : undefined
-        }
-      />
-      <Menu anchorEl={anchors.dates} open={Boolean(anchors.dates)} onClose={close('dates')}>
-        <Box sx={{ px: 2, py: 1, minWidth: 240 }}>
-          <Stack spacing={1.5}>
-            <TextField
-              label="От"
-              type="date"
-              size="small"
-              value={bag.filters.dateFrom ?? ''}
-              InputLabelProps={{ shrink: true }}
-              onChange={(e) =>
-                bag.setDateFilter({
-                  from: e.target.value || null,
-                  to: bag.filters.dateTo,
-                  overdue: bag.filters.overdueOnly,
-                })
-              }
-            />
-            <TextField
-              label="До"
-              type="date"
-              size="small"
-              value={bag.filters.dateTo ?? ''}
-              InputLabelProps={{ shrink: true }}
-              onChange={(e) =>
-                bag.setDateFilter({
-                  from: bag.filters.dateFrom,
-                  to: e.target.value || null,
-                  overdue: bag.filters.overdueOnly,
-                })
-              }
-            />
-            <MenuItem
-              onClick={() =>
-                bag.setDateFilter({
-                  from: bag.filters.dateFrom,
-                  to: bag.filters.dateTo,
-                  overdue: !bag.filters.overdueOnly,
-                })
-              }
-            >
-              <Checkbox checked={bag.filters.overdueOnly} />
-              <ListItemText primary="Только просроченные" />
-            </MenuItem>
-          </Stack>
-        </Box>
-      </Menu>
     </Stack>
   )
 }

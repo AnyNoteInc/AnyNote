@@ -3,6 +3,12 @@ import { z } from 'zod'
 
 
 export const POSITION_GAP = 1024
+const DEFAULT_PRIORITY_COLORS = {
+  low: '#6B7280',
+  medium: '#3B82F6',
+  high: '#F97316',
+  critical: '#EF4444',
+} as const
 
 export const dateInput = z
   .preprocess((v) => {
@@ -56,10 +62,10 @@ export async function seedKanbanDefaults(tx: TxClient, pageId: string): Promise<
   })
   await tx.kanbanPriority.createMany({
     data: [
-      { pageId, title: 'Низкий', position: 1024 },
-      { pageId, title: 'Средний', position: 2048 },
-      { pageId, title: 'Высокий', position: 3072 },
-      { pageId, title: 'Критичный', position: 4096 },
+      { pageId, title: 'Низкий', color: DEFAULT_PRIORITY_COLORS.low, position: 1024 },
+      { pageId, title: 'Средний', color: DEFAULT_PRIORITY_COLORS.medium, position: 2048 },
+      { pageId, title: 'Высокий', color: DEFAULT_PRIORITY_COLORS.high, position: 3072 },
+      { pageId, title: 'Критичный', color: DEFAULT_PRIORITY_COLORS.critical, position: 4096 },
     ],
   })
 }

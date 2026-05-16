@@ -66,9 +66,17 @@ describe('seedKanbanDefaults', () => {
       { pageId: 'page-1', title: 'Баг', position: 2048 },
     ])
     expect(priorityCreateMany.mock.calls[0][0].data).toHaveLength(4)
-    expect(priorityCreateMany.mock.calls[0][0].data.map((p: { title: string }) => p.title)).toEqual(
-      ['Низкий', 'Средний', 'Высокий', 'Критичный'],
-    )
+    expect(
+      priorityCreateMany.mock.calls[0][0].data.map((p: { title: string; color: string }) => ({
+        title: p.title,
+        color: p.color,
+      })),
+    ).toEqual([
+      { title: 'Низкий', color: '#6B7280' },
+      { title: 'Средний', color: '#3B82F6' },
+      { title: 'Высокий', color: '#F97316' },
+      { title: 'Критичный', color: '#EF4444' },
+    ])
   })
 })
 

@@ -49,16 +49,14 @@ export function KanbanBoardPage({ pageId }: KanbanBoardPageProps) {
     if (!board) return []
     return applyFilters(
       board.tasks,
-      { ...filtersBag.filters, sprint: 'all' },
+      { ...filtersBag.filters, sprint: 'all', hideTerminalColumns: false },
       { columns: board.columns, sprints: board.sprints },
     )
   }, [board, filtersBag.filters])
 
   if (isLoading) {
     return (
-      <Box
-        sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}
-      >
+      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
         <CircularProgress />
       </Box>
     )

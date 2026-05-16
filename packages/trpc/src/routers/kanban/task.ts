@@ -24,6 +24,7 @@ export const taskRouter = router({
         columnId: z.string().uuid().optional(),
         typeId: z.string().uuid().optional(),
         priorityId: z.string().uuid().optional(),
+        sprintId: z.string().uuid().optional(),
         title: z.string().min(1).max(500),
       }),
     )
@@ -43,6 +44,15 @@ export const taskRouter = router({
           code: 'BAD_REQUEST',
           message: 'У доски нет колонок — создайте хотя бы одну',
         })
+      }
+
+      if (input.sprintId) {
+        const sprint = await ctx.prisma.sprint.findFirst({
+          where: { id: input.sprintId, pageId: page.id },
+        })
+        if (!sprint) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: 'Спринт не найден' })
+        }
       }
 
       const [type, priority] = await Promise.all([
@@ -66,6 +76,17 @@ export const taskRouter = router({
         where: { pageId: page.id, columnId: column.id, deletedAt: null },
         select: { position: true },
       })
+      const tasksInSprint = input.sprintId
+        ? await ctx.prisma.task.findMany({
+            where: { pageId: page.id, sprintId: input.sprintId, deletedAt: null },
+            select: { sprintPosition: true },
+          })
+        : []
+      const sprintPosition = input.sprintId
+        ? endPosition(
+            tasksInSprint.map((task) => ({ position: task.sprintPosition ?? 0 })),
+          )
+        : null
 
       const task = await ctx.prisma.$transaction(async (tx) => {
         const created = await tx.task.create({
@@ -76,6 +97,8 @@ export const taskRouter = router({
             priorityId: priority?.id ?? null,
             title: input.title,
             position: endPosition(tasksInColumn),
+            sprintId: input.sprintId ?? null,
+            sprintPosition,
             createdById: ctx.user.id,
           },
         })

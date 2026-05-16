@@ -112,12 +112,37 @@ export function KanbanSettingsDialog({
           <SortableList
             items={asItems(board.priorities)}
             addPlaceholder="Новый приоритет"
-            onAdd={(title) => createPriority.mutateAsync({ pageId, title })}
+            onAdd={(title) =>
+              createPriority.mutateAsync({
+                pageId,
+                title,
+                color: KANBAN_LABEL_COLORS[0]!.hex,
+              })
+            }
             onRename={(id, title) => updatePriority.mutateAsync({ pageId, id, title })}
             onReorder={(id, beforeId, afterId) =>
               reorderPriority.mutateAsync({ pageId, id, beforeId, afterId })
             }
             onDelete={(id) => deletePriority.mutateAsync({ pageId, id })}
+            extraColumn={(item) => (
+              <Select
+                size="small"
+                value={item.color ?? KANBAN_LABEL_COLORS[0]!.hex}
+                onChange={(e) =>
+                  updatePriority.mutate({ pageId, id: item.id, color: e.target.value as string })
+                }
+                sx={{ minWidth: 96 }}
+              >
+                {KANBAN_LABEL_COLORS.map((c) => (
+                  <MenuItem key={c.hex} value={c.hex}>
+                    <Stack direction="row" alignItems="center" spacing={1}>
+                      <Box sx={{ width: 12, height: 12, borderRadius: '50%', bgcolor: c.hex }} />
+                      <span>{c.name}</span>
+                    </Stack>
+                  </MenuItem>
+                ))}
+              </Select>
+            )}
           />
         ) : null}
 

@@ -1,6 +1,13 @@
 'use client'
 
-import { useCallback, useState, type MouseEvent } from 'react'
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  type KeyboardEvent,
+  type MouseEvent,
+} from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Draggable,
@@ -11,9 +18,11 @@ import {
 import { format } from 'date-fns'
 import { ru as dateFnsRuLocale } from 'date-fns/locale'
 import {
+  AddIcon,
   Box,
   Chip,
   DeleteIcon,
+  Divider,
   IconButton,
   ListItemIcon,
   ListItemText,
@@ -21,7 +30,9 @@ import {
   MenuItem,
   MoreVertIcon,
   Paper,
+  PersonAddIcon,
   Stack,
+  TextField,
   Typography,
 } from '@repo/ui/components'
 
@@ -30,6 +41,7 @@ import { AssigneeAvatars } from '../components/assignee-avatars'
 import { toDate } from '../lib/dates'
 import { SprintMenu } from '../sprint/sprint-menu'
 import { sprintStatusColor, sprintStatusLabel } from '../sprint/sprint-status-label'
+import { isTerminalTask } from './table-view-model'
 
 type SprintHeaderProps = {
   readonly id: string
@@ -38,6 +50,14 @@ type SprintHeaderProps = {
   readonly description?: string | null
   readonly startDate?: Date | string | null
   readonly endDate?: Date | string | null
+}
+
+interface CreateTaskDraftProps {
+  readonly title: string
+  readonly disabled?: boolean
+  readonly onTitleChange: (title: string) => void
+  readonly onCommit: () => void
+  readonly onCancel: () => void
 }
 
 type SprintSectionProps =
@@ -50,25 +70,54 @@ type SprintSectionProps =
       readonly allTasks: BoardTaskData[]
       readonly tasks: BoardTaskData[]
       readonly members: BoardData['members']
+      readonly currentUserId: string
       readonly droppableId: string
+      readonly onStartCreateTask?: () => void
+      readonly createTaskDraft?: CreateTaskDraftProps
+      readonly onAssignTaskToMe?: (taskId: string) => void
       readonly onRemoveTaskFromSprint?: (taskId: string) => void
+      readonly onDeleteTask?: (taskId: string) => void
     }
   | {
       readonly kind: 'backlog'
       readonly tasks: BoardTaskData[]
       readonly members: BoardData['members']
+      readonly currentUserId: string
       readonly droppableId: string
+      readonly onStartCreateTask?: () => void
+      readonly createTaskDraft?: CreateTaskDraftProps
+      readonly onAssignTaskToMe?: (taskId: string) => void
+      readonly onDeleteTask?: (taskId: string) => void
     }
 
 interface TaskRowProps {
   readonly task: BoardTaskData
   readonly provided: DraggableProvided
   readonly memberLookup: (userId: string) => { firstName: string | null; email: string } | undefined
+  readonly currentUserId: string
   readonly onOpen: (taskId: string) => void
+  readonly onAssignToMe?: () => void
   readonly onRemoveFromSprint?: () => void
+  readonly onDeleteTask?: () => void
+  readonly strikeTitle?: boolean
 }
 
-function TaskRow({ task, provided, memberLookup, onOpen, onRemoveFromSprint }: TaskRowProps) {
+function TaskRow({
+  task,
+  provided,
+  memberLookup,
+  currentUserId,
+  onOpen,
+  onAssignToMe,
+  onRemoveFromSprint,
+  onDeleteTask,
+  strikeTitle = false,
+}: TaskRowProps) {
+  const canAssignToMe = Boolean(
+    onAssignToMe && !task.assignees.some((assignee) => assignee.userId === currentUserId),
+  )
+  const hasActions = canAssignToMe || Boolean(onRemoveFromSprint || onDeleteTask)
+
   return (
     <Stack
       ref={provided.innerRef}
@@ -86,7 +135,14 @@ function TaskRow({ task, provided, memberLookup, onOpen, onRemoveFromSprint }: T
         '&:hover': { bgcolor: 'action.hover' },
       }}
     >
-      <Typography variant="body2" sx={{ flex: 1 }}>
+      <Typography
+        variant="body2"
+        sx={{
+          flex: 1,
+          textDecoration: strikeTitle ? 'line-through' : undefined,
+          color: strikeTitle ? 'text.secondary' : undefined,
+        }}
+      >
         {task.title}
       </Typography>
       <AssigneeAvatars assignees={task.assignees} memberLookup={memberLookup} size={22} />
@@ -95,20 +151,34 @@ function TaskRow({ task, provided, memberLookup, onOpen, onRemoveFromSprint }: T
           {new Date(task.dueDate).toLocaleDateString('ru-RU')}
         </Typography>
       ) : null}
-      {onRemoveFromSprint ? <TaskRowMenu onRemoveFromSprint={onRemoveFromSprint} /> : null}
+      {hasActions ? (
+        <TaskRowMenu
+          onAssignToMe={canAssignToMe ? onAssignToMe : undefined}
+          onRemoveFromSprint={onRemoveFromSprint}
+          onDeleteTask={onDeleteTask}
+        />
+      ) : null}
     </Stack>
   )
 }
 
 interface TaskRowMenuProps {
-  readonly onRemoveFromSprint: () => void
+  readonly onAssignToMe?: () => void
+  readonly onRemoveFromSprint?: () => void
+  readonly onDeleteTask?: () => void
 }
 
-function TaskRowMenu({ onRemoveFromSprint }: TaskRowMenuProps) {
+function TaskRowMenu({ onAssignToMe, onRemoveFromSprint, onDeleteTask }: TaskRowMenuProps) {
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
   const stop = (e: MouseEvent) => {
     e.stopPropagation()
   }
+  function selectAction(e: MouseEvent, action: () => void) {
+    e.stopPropagation()
+    setAnchorEl(null)
+    action()
+  }
+
   function close(e?: MouseEvent | object) {
     if (e && 'stopPropagation' in e && typeof e.stopPropagation === 'function') {
       e.stopPropagation()
@@ -131,24 +201,138 @@ function TaskRowMenu({ onRemoveFromSprint }: TaskRowMenuProps) {
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={close}
+        disableRestoreFocus
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
         slotProps={{ paper: { sx: { minWidth: 200 } } }}
       >
-        <MenuItem
-          onClick={(e) => {
-            e.stopPropagation()
-            setAnchorEl(null)
-            onRemoveFromSprint()
-          }}
-          sx={{ color: 'error.main' }}
-        >
-          <ListItemIcon sx={{ color: 'error.main' }}>
-            <DeleteIcon fontSize="small" />
+        {onAssignToMe ? (
+          <MenuItem onClick={(e) => selectAction(e, onAssignToMe)}>
+            <ListItemIcon>
+              <PersonAddIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Назначить на меня</ListItemText>
+          </MenuItem>
+        ) : null}
+        {onRemoveFromSprint ? (
+          <MenuItem onClick={(e) => selectAction(e, onRemoveFromSprint)}>
+            <ListItemIcon>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Удалить из спринта</ListItemText>
+          </MenuItem>
+        ) : null}
+        {onRemoveFromSprint && onDeleteTask ? <Divider /> : null}
+        {onDeleteTask ? (
+          <MenuItem
+            onClick={(e) => selectAction(e, onDeleteTask)}
+            sx={{ color: 'error.main' }}
+          >
+            <ListItemIcon sx={{ color: 'error.main' }}>
+              <DeleteIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Удалить</ListItemText>
+          </MenuItem>
+        ) : null}
+      </Menu>
+    </Box>
+  )
+}
+
+interface BacklogMenuProps {
+  readonly onStartCreateTask: () => void
+}
+
+function BacklogMenu({ onStartCreateTask }: BacklogMenuProps) {
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
+
+  function close() {
+    setAnchorEl(null)
+  }
+
+  function startCreateTask() {
+    close()
+    onStartCreateTask()
+  }
+
+  return (
+    <>
+      <IconButton
+        aria-label="Действия с беклогом"
+        size="small"
+        onClick={(e) => setAnchorEl(e.currentTarget)}
+      >
+        <MoreVertIcon fontSize="small" />
+      </IconButton>
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={close}
+        disableRestoreFocus
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        slotProps={{ paper: { sx: { minWidth: 200 } } }}
+      >
+        <MenuItem onClick={startCreateTask}>
+          <ListItemIcon>
+            <AddIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Удалить из спринта</ListItemText>
+          <ListItemText>Создать задачу</ListItemText>
         </MenuItem>
       </Menu>
+    </>
+  )
+}
+
+function CreateTaskDraftRow({
+  title,
+  disabled,
+  onTitleChange,
+  onCommit,
+  onCancel,
+}: CreateTaskDraftProps) {
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const skipBlurRef = useRef(false)
+
+  useEffect(() => {
+    const frame = requestAnimationFrame(() => {
+      inputRef.current?.scrollIntoView?.({ block: 'center', inline: 'nearest' })
+      inputRef.current?.focus()
+    })
+    return () => cancelAnimationFrame(frame)
+  }, [])
+
+  function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      onCommit()
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      skipBlurRef.current = true
+      onCancel()
+    }
+  }
+
+  return (
+    <Box sx={{ py: 0.5, px: 1.25 }}>
+      <TextField
+        inputRef={inputRef}
+        label="Название задачи"
+        value={title}
+        onChange={(e) => onTitleChange(e.target.value)}
+        onKeyDown={onKeyDown}
+        onBlur={() => {
+          if (skipBlurRef.current) {
+            skipBlurRef.current = false
+            return
+          }
+          onCommit()
+        }}
+        size="small"
+        fullWidth
+        autoFocus
+        disabled={disabled}
+      />
     </Box>
   )
 }
@@ -185,11 +369,15 @@ export function SprintSection(props: SprintSectionProps) {
     [props.members],
   )
 
-  const onRemoveTaskFromSprint =
-    props.kind === 'sprint' ? props.onRemoveTaskFromSprint : undefined
+  const onRemoveTaskFromSprint = props.kind === 'sprint' ? props.onRemoveTaskFromSprint : undefined
+  const onAssignTaskToMe = props.onAssignTaskToMe
+  const onDeleteTask = props.onDeleteTask
+  const createTaskDraft = props.createTaskDraft
+  const shouldStrikeTerminalTasks = props.kind === 'sprint'
 
   const renderDroppable = (provided: DroppableProvided) => (
     <Box ref={provided.innerRef} {...provided.droppableProps} sx={{ minHeight: 32 }}>
+      {createTaskDraft ? <CreateTaskDraftRow {...createTaskDraft} /> : null}
       {props.tasks.map((task, index) => (
         <Draggable key={task.id} draggableId={task.id} index={index}>
           {(p) => (
@@ -197,9 +385,17 @@ export function SprintSection(props: SprintSectionProps) {
               task={task}
               provided={p}
               memberLookup={memberLookup}
+              currentUserId={props.currentUserId}
               onOpen={open}
+              onAssignToMe={onAssignTaskToMe ? () => onAssignTaskToMe(task.id) : undefined}
               onRemoveFromSprint={
                 onRemoveTaskFromSprint ? () => onRemoveTaskFromSprint(task.id) : undefined
+              }
+              onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
+              strikeTitle={
+                shouldStrikeTerminalTasks && props.kind === 'sprint'
+                  ? isTerminalTask(task, props.columns)
+                  : false
               }
             />
           )}
@@ -252,6 +448,7 @@ export function SprintSection(props: SprintSectionProps) {
               allSprints={props.allSprints}
               columns={props.columns}
               tasks={props.allTasks}
+              onCreateTask={props.onStartCreateTask}
             />
           </>
         ) : (
@@ -259,9 +456,13 @@ export function SprintSection(props: SprintSectionProps) {
             <Typography variant="subtitle1" fontWeight={600}>
               Беклог
             </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+            <Box sx={{ flexGrow: 1 }} />
+            <Typography variant="caption" color="text.secondary">
               {props.tasks.length}
             </Typography>
+            {props.onStartCreateTask ? (
+              <BacklogMenu onStartCreateTask={props.onStartCreateTask} />
+            ) : null}
           </>
         )}
       </Stack>

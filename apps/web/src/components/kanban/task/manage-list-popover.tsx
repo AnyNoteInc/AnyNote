@@ -40,7 +40,7 @@ interface ManageListPopoverProps {
   readonly withColor?: boolean
   readonly onToggle: (id: string) => void
   readonly onCreate: (input: { readonly name: string; readonly color?: string }) => void
-  readonly onDelete: (id: string) => void
+  readonly onDelete?: (id: string) => void
 }
 
 export function ManageListPopover(props: ManageListPopoverProps) {
@@ -174,7 +174,7 @@ interface VirtualizedRowsProps {
   readonly mode: ManageListMode
   readonly selectedIds: ReadonlyArray<string>
   readonly onToggle: (id: string) => void
-  readonly onDelete: (id: string) => void
+  readonly onDelete?: (id: string) => void
 }
 
 function VirtualizedRows({
@@ -221,7 +221,7 @@ interface ListRowProps {
   readonly mode: ManageListMode
   readonly selected: boolean
   readonly onToggle: (id: string) => void
-  readonly onDelete: (id: string) => void
+  readonly onDelete?: (id: string) => void
   readonly top?: number
   readonly height?: number
 }
@@ -290,9 +290,11 @@ function ListRow({
       >
         {item.label}
       </Box>
-      <IconButton aria-label="Удалить" size="small" onClick={() => onDelete(item.id)}>
-        <DeleteIcon fontSize="small" />
-      </IconButton>
+      {onDelete ? (
+        <IconButton aria-label="Удалить" size="small" onClick={() => onDelete(item.id)}>
+          <DeleteIcon fontSize="small" />
+        </IconButton>
+      ) : null}
     </Stack>
   )
 }

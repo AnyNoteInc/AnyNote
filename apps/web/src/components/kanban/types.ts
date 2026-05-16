@@ -54,7 +54,7 @@ export interface BoardTaskData {
 export interface BoardData {
   columns: BoardColumnRow[]
   types: Array<{ id: string; title: string; position: number }>
-  priorities: Array<{ id: string; title: string; position: number }>
+  priorities: Array<{ id: string; title: string; position: number; color: string | null }>
   labels: BoardLabelRow[]
   sprints: Array<{
     id: string

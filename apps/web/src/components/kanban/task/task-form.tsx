@@ -27,6 +27,7 @@ import {
   TextField,
   Typography,
 } from '@repo/ui/components'
+import { KANBAN_LABEL_COLORS } from '@repo/ui/lib/kanban-colors'
 import { AnyNotePlainEditor, type JSONContent } from '@repo/editor'
 
 import { trpc } from '@/trpc/client'
@@ -94,11 +95,7 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
   const setLabels = trpc.kanban.task.setLabels.useMutation({ onSuccess: invalidateBoard })
 
   const typeCreate = trpc.kanban.type.create.useMutation({ onSuccess: invalidateBoard })
-  const typeDelete = trpc.kanban.type.delete.useMutation({ onSuccess: invalidateBoard })
-
   const priorityCreate = trpc.kanban.priority.create.useMutation({ onSuccess: invalidateBoard })
-  const priorityDelete = trpc.kanban.priority.delete.useMutation({ onSuccess: invalidateBoard })
-
   const labelCreate = trpc.kanban.label.create.useMutation({ onSuccess: invalidateBoard })
   const labelDelete = trpc.kanban.label.delete.useMutation({ onSuccess: invalidateBoard })
 
@@ -111,6 +108,7 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
   const [priorityId, setPriorityId] = useState<string>(task.priorityId ?? '')
   const [sprintId, setSprintId] = useState<string>(task.sprintId ?? '')
   const [parentId, setParentId] = useState<string>(task.parentId ?? '')
+  const [parentSearch, setParentSearch] = useState('')
   const [dueDate, setDueDate] = useState<Date | null>(toDate(task.dueDate))
   const [startDate, setStartDate] = useState<Date | null>(toDate(task.startDate))
 
@@ -127,6 +125,13 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
     () => board.tasks.filter((t) => t.id !== task.id),
     [board.tasks, task.id],
   )
+  const filteredParentCandidates = useMemo(() => {
+    const query = parentSearch.trim().toLocaleLowerCase('ru-RU')
+    if (!query) return parentCandidates
+    return parentCandidates.filter((candidate) =>
+      candidate.title.toLocaleLowerCase('ru-RU').includes(query),
+    )
+  }, [parentCandidates, parentSearch])
   const selectedType = board.types.find((t) => t.id === typeId)
   const selectedPriority = board.priorities.find((p) => p.id === priorityId)
 
@@ -151,7 +156,7 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
       board.priorities
         .slice()
         .sort((a, b) => a.position - b.position)
-        .map((p) => ({ id: p.id, label: p.title })),
+        .map((p) => ({ id: p.id, label: p.title, color: p.color })),
     [board.priorities],
   )
   const labelItems = useMemo(
@@ -174,6 +179,7 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
   function closePopover() {
     setPopover(null)
     setPopoverAnchor(null)
+    setParentSearch('')
   }
 
   function selectType(id: string) {
@@ -197,6 +203,11 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
       : [...assigneeIds, userId]
     setAssigneeIds(next)
     setAssignees.mutate({ pageId, id: task.id, userIds: next })
+  }
+  function selectParent(value: string) {
+    setParentId(value)
+    updateTask.mutate({ pageId, id: task.id, parentId: value || null })
+    closePopover()
   }
 
   return (
@@ -318,13 +329,6 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
           addPlaceholder="Новый тип…"
           onToggle={selectType}
           onCreate={({ name }) => typeCreate.mutate({ pageId, title: name })}
-          onDelete={(id) => {
-            if (typeId === id) {
-              setTypeId('')
-              updateTask.mutate({ pageId, id: task.id, typeId: null })
-            }
-            typeDelete.mutate({ pageId, id })
-          }}
         />
 
         <ManageListPopover
@@ -333,18 +337,18 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
           onClose={closePopover}
           title="Срочность"
           mode="single"
+          withColor
           items={priorityItems}
           selectedIds={priorityId ? [priorityId] : []}
           addPlaceholder="Новая срочность…"
           onToggle={selectPriority}
-          onCreate={({ name }) => priorityCreate.mutate({ pageId, title: name })}
-          onDelete={(id) => {
-            if (priorityId === id) {
-              setPriorityId('')
-              updateTask.mutate({ pageId, id: task.id, priorityId: null })
-            }
-            priorityDelete.mutate({ pageId, id })
-          }}
+          onCreate={({ name, color }) =>
+            priorityCreate.mutate({
+              pageId,
+              title: name,
+              color: color ?? KANBAN_LABEL_COLORS[0]!.hex,
+            })
+          }
         />
 
         <ManageListPopover
@@ -509,7 +513,7 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
           transitionDuration={0}
         >
           {popover === 'parent' ? (
-            <Box sx={{ p: 1.5, minWidth: 280 }}>
+            <Box sx={{ p: 1.5, minWidth: 320, maxWidth: 420 }}>
               <Typography
                 variant="caption"
                 color="text.secondary"
@@ -517,23 +521,34 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
               >
                 Родительская задача
               </Typography>
-              <Select
+              <TextField
+                label="Поиск по названию задачи"
                 size="small"
                 fullWidth
-                value={parentId}
-                onChange={(e) => {
-                  const value = e.target.value
-                  setParentId(value)
-                  updateTask.mutate({ pageId, id: task.id, parentId: value || null })
-                }}
-              >
-                <MenuItem value="">—</MenuItem>
-                {parentCandidates.map((p) => (
-                  <MenuItem key={p.id} value={p.id}>
+                value={parentSearch}
+                onChange={(e) => setParentSearch(e.target.value)}
+                autoFocus
+                sx={{ mb: 1 }}
+              />
+              <Stack spacing={0.25} sx={{ maxHeight: 320, overflowY: 'auto' }}>
+                <MenuItem selected={!parentId} onClick={() => selectParent('')}>
+                  <ListItemText primary="—" />
+                </MenuItem>
+                {filteredParentCandidates.map((p) => (
+                  <MenuItem
+                    key={p.id}
+                    selected={parentId === p.id}
+                    onClick={() => selectParent(p.id)}
+                  >
                     <ListItemText primary={p.title} />
                   </MenuItem>
                 ))}
-              </Select>
+                {filteredParentCandidates.length === 0 ? (
+                  <Typography variant="body2" color="text.secondary" sx={{ px: 2, py: 1 }}>
+                    Ничего не найдено
+                  </Typography>
+                ) : null}
+              </Stack>
             </Box>
           ) : null}
         </Popover>

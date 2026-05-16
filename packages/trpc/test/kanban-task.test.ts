@@ -82,6 +82,52 @@ describe('kanban.task.create', () => {
     expect(result.id).toBe('task-1')
   })
 
+  it('creates directly in a sprint when sprintId is provided', async () => {
+    const taskCreate = vi.fn().mockResolvedValue({ id: 'task-1', title: 'Sprint task' })
+    const activityCreate = vi.fn().mockResolvedValue({})
+    const txClient = {
+      task: { create: taskCreate, findMany: vi.fn().mockResolvedValue([]) },
+      taskActivity: { create: activityCreate },
+    }
+    const sprintId = '00000000-0000-0000-0000-0000000000f0'
+    const prisma = {
+      page: { findFirst: vi.fn().mockResolvedValue(pageRow) },
+      kanbanColumn: {
+        findFirst: vi
+          .fn()
+          .mockResolvedValue({ id: '00000000-0000-0000-0000-0000000000c0', pageId: PAGE_ID, position: 1024 }),
+      },
+      kanbanType: {
+        findFirst: vi.fn().mockResolvedValue({ id: '00000000-0000-0000-0000-0000000000d0', position: 1024 }),
+      },
+      kanbanPriority: {
+        findFirst: vi.fn().mockResolvedValue({ id: '00000000-0000-0000-0000-0000000000e0', position: 1024 }),
+      },
+      sprint: { findFirst: vi.fn().mockResolvedValue({ id: sprintId, pageId: PAGE_ID }) },
+      task: {
+        findMany: vi
+          .fn()
+          .mockResolvedValueOnce([])
+          .mockResolvedValueOnce([{ sprintPosition: 2048 }]),
+      },
+      $transaction: vi
+        .fn()
+        .mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(txClient)),
+    } as unknown as PrismaClient
+
+    const caller = createCallerFactory(taskRouter)(ctx(prisma))
+    await caller.create({ pageId: PAGE_ID, title: 'Sprint task', sprintId })
+
+    expect(taskCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          sprintId,
+          sprintPosition: 3072,
+        }),
+      }),
+    )
+  })
+
   it('throws BAD_REQUEST when board has no columns', async () => {
     const prisma = {
       page: { findFirst: vi.fn().mockResolvedValue(pageRow) },

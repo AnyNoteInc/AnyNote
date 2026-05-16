@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import {
+  AddIcon,
   DeleteIcon,
   Divider,
   EditIcon,
@@ -30,11 +31,19 @@ interface SprintMenuProps {
   readonly allSprints: BoardData['sprints']
   readonly columns: BoardColumnRow[]
   readonly tasks: BoardTaskData[]
+  readonly onCreateTask?: () => void
 }
 
 type OpenDialog = 'edit' | 'complete' | 'delete' | null
 
-export function SprintMenu({ pageId, sprint, allSprints, columns, tasks }: SprintMenuProps) {
+export function SprintMenu({
+  pageId,
+  sprint,
+  allSprints,
+  columns,
+  tasks,
+  onCreateTask,
+}: SprintMenuProps) {
   const utils = trpc.useUtils()
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
   const [dialog, setDialog] = useState<OpenDialog>(null)
@@ -50,6 +59,11 @@ export function SprintMenu({ pageId, sprint, allSprints, columns, tasks }: Sprin
   function handleStart() {
     close()
     activate.mutate({ pageId, id: sprint.id })
+  }
+
+  function handleCreateTask() {
+    close()
+    onCreateTask?.()
   }
 
   function openDialog(d: Exclude<OpenDialog, null>) {
@@ -70,6 +84,7 @@ export function SprintMenu({ pageId, sprint, allSprints, columns, tasks }: Sprin
         anchorEl={anchorEl}
         open={Boolean(anchorEl)}
         onClose={close}
+        disableRestoreFocus
         anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
         transformOrigin={{ vertical: 'top', horizontal: 'right' }}
         slotProps={{ paper: { sx: { minWidth: 220 } } }}
@@ -77,6 +92,15 @@ export function SprintMenu({ pageId, sprint, allSprints, columns, tasks }: Sprin
         <ListSubheader sx={{ lineHeight: '32px', bgcolor: 'transparent' }}>
           Действия со спринтом
         </ListSubheader>
+
+        {onCreateTask ? (
+          <MenuItem onClick={handleCreateTask}>
+            <ListItemIcon>
+              <AddIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Создать задачу</ListItemText>
+          </MenuItem>
+        ) : null}
 
         {sprint.status === 'PLANNED' ? (
           <MenuItem onClick={handleStart} disabled={activate.isPending}>
