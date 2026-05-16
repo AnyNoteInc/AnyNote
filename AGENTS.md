@@ -34,75 +34,84 @@ Copy `.env.example` to `.env` for local setup and keep secrets out of commits. U
 <claude-mem-context>
 # Memory Context
 
-# [anynote] recent context, 2026-05-14 8:18pm GMT+1
+# [anynote] recent context, 2026-05-15 6:51am GMT+1
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (20,128t read) | 448,809t work | 96% savings
+Stats: 50 obs (17,938t read) | 396,943t work | 95% savings
 
 ### May 14, 2026
-1863 11:28a 🔴 Added posOf() helper to placement.test.ts to replace ! assertions with type-safe position lookup
-1864 11:29a 🔵 PR #13 CI Status: SonarCloud Passed, lint-and-test Still Pending
-1865 11:40a 🔵 SonarCloud API Reports 20 Total Issues But 0 Open — All Are CLOSED
-1866 " 🟣 PR #13 All CI Checks Passed — Ready to Merge
-1867 11:41a 🟣 feat/genogram Branch Merged into main via PR #13
-1868 1:09p 🔵 SEO Implementation Planned for Next.js Project at anynote
-1869 " 🔵 anynote Next.js App Router Structure and Existing SEO State Mapped
-1870 1:10p 🔵 anynote Root Metadata and Base URL Configuration Examined
-1871 1:23p 🔵 Anynote Next.js App Structure for SEO Implementation
-S464 SEO Option B design — All 5 sections now presented; Section 5 covers env vars, error handling, security, and testing strategy (May 14 at 1:32 PM)
-S466 SEO Option B design — All 5 sections fully presented; spec file about to be written; discovered existing spec naming convention (May 14 at 1:33 PM)
-S470 SEO implementation prep — vitest config, turbo.json globalEnv, .env.example format, and test style inspected before writing implementation plan (May 14 at 1:34 PM)
-S471 SEO implementation prep — pricing page structure, turbo.json full globalEnv, e2e test conventions, and web package scripts all inspected (May 14 at 1:35 PM)
-S469 SEO design spec committed to git; awaiting user review before writing implementation plan (May 14 at 1:35 PM)
-S473 SEO production implementation for Anynote Next.js app — executing 22-task plan targeting Yandex + Google (May 14 at 1:38 PM)
-1872 1:41p ✅ SEO Implementation Plan Written — 22 Tasks, TDD-first
-S474 SEO production implementation for Anynote Next.js app — executing 22-task plan targeting Yandex + Google (May 14 at 1:42 PM)
-S472 SEO implementation for Anynote Next.js app (Russian search engines: Yandex + Google) — executing 22-task implementation plan (May 14 at 1:42 PM)
-S475 Observer session monitoring feat/seo SEO implementation — checking for git push and PR creation after all 22 tasks complete (May 14 at 1:49 PM)
-1873 1:50p 🔵 SEO implementation base SHA and lib directory state confirmed
-1874 " 🟣 Task 1 complete: apps/web/src/lib/seo/site-config.ts created
-1875 1:51p 🟣 Task 1 shipped: site-config.ts committed to feat/seo (8fe1fd6)
-1876 " 🟣 Task 1 implementer subagent completed: DONE, all checks passed
-1877 1:52p 🟣 Task 1 spec compliance review passed — proceeding to Task 2
-1878 " 🟣 Task 1 fully approved — all three review gates passed, proceeding to Task 2
-1879 " 🔴 T19 legal document OG image fixed to use async params (Next.js 15/16 convention)
-1880 2:27p 🔵 Severe replay loop: T19 async params fix applied 3+ times with identical edit patches
-1881 7:39p 🔴 T19 async params fix committed: SHA 3899549
-1882 " 🔵 apps/e2e directory contains 21 existing spec files — no seo.spec.ts yet
-1883 " 🟣 T21: apps/e2e/seo.spec.ts created — 5 Playwright E2E smoke tests for SEO routes
-1884 7:40p 🔵 playwright.config.ts: E2E suite runs Next.js dev server on port 3100 with PLAYWRIGHT=true env
-1885 " 🔵 Anynote plans table: 3 rows — Персональный, ПРО, МАКС
-1886 " 🔵 Next.js dev server conflict: port 3000 already running (PID 50926) blocks new dev instance on 3100
-1887 " 🔴 Existing Next.js dev server (PID 50926) killed to unblock Playwright E2E test run
-1888 7:41p 🔵 buildMetadata utility: canonical + OG metadata builder used across all public pages
-1889 " 🔵 Homepage page.tsx: renders Organization + WebSite + SoftwareApplication JSON-LD in one JsonLd call
-1890 " 🔵 CRITICAL: T21 canonical assertion will fail — actual href is `http://localhost:3100` (no trailing slash)
-1891 7:42p 🔵 Homepage JSON-LD confirmed live: 3-schema array with Organization, WebSite+SearchAction, SoftwareApplication
-1892 " 🔵 og:image absent from homepage SSR HTML — file-based opengraph-image.tsx not auto-injecting meta tag
-1893 7:43p 🔵 Next.js 16.2.0 canonical URL rendering strips trailing slash — metadata.js uses canonical.url.toString() directly
-S476 Observer monitoring feat/seo SEO implementation — checking git push and PR status after all 22 tasks complete (May 14 at 8:03 PM)
-1894 8:07p 🔵 AnyNote feat/seo branch audit initiated
-1895 " 🔵 feat/seo branch commit history fully reconstructed
-1896 8:08p 🟣 AnyNote feat/seo branch implements complete SEO infrastructure for public web pages
-1897 " 🔵 AnyNote SEO architecture: buildMetadata, robots.ts, sitemap.ts implementation details confirmed
-1898 " 🔵 SEO integration confirmed across all public pages and protected layouts
-1899 8:09p 🔵 SEO unit tests and e2e spec fully examined — test strategy and key gotchas confirmed
-1900 " 🔵 SEO env vars missing from CI workflows and deploy pipeline — production wiring gap identified
-1901 " 🔵 Brand assets confirmed: logo.png exists for Organization schema, icon/apple-icon generated via brand-icon component
-1902 " 🔵 WebSite SearchAction target URL /app/search does not exist as a real route
-1903 8:10p 🔵 /registration and /sign-out routes missing from robots.txt disallow list
-1904 " 🔵 All 24 SEO unit tests pass — feat/seo branch is green
-1905 " 🔵 TypeScript type-check and ESLint both pass clean on feat/seo branch
-1906 " 🔵 Server-side TypeError during legal doc e2e test — swallowed error with digest 3122224828
-1907 8:11p 🔵 All 6 Playwright SEO e2e tests pass — branch fully verified end-to-end
-1908 " 🔵 Next.js production build succeeds — route table confirms SEO routes deployed correctly, standalone output caveat noted
-1909 " 🔵 OG image 404 bug in production build: Next.js hashes opengraph-image route names but og:image meta tags use unhashed paths
+S478 /simplify review of feat/seo branch — three parallel subagents running: reuse review, quality review, efficiency review (May 14 at 8:03 PM)
+1909 8:11p 🔵 OG image 404 bug in production build: Next.js hashes opengraph-image route names but og:image meta tags use unhashed paths
 1910 8:12p 🔵 Root cause confirmed: e2e runs in dev mode (no hash), production uses hashed OG routes — defaultOgImagePath must be removed
 1911 " 🔵 OG image 404 bug exists in both dev (Turbopack) and production — e2e tests only check tag presence, not URL reachability
 1912 " 🔵 TypeError digest 3122224828 linked to both OG image 404 responses and legal doc page render — likely MDX module resolution failure
+1913 8:18p ⚖️ SEO Branch Fixes Initiated — User Confirmed "Fix the Problems You Found"
+1914 " 🔵 Next.js OG Image Hash Fix — Codex Consulting Official Docs Before Rewriting buildMetadata
+1915 8:19p 🔵 Next.js Official Docs Confirm: opengraph-image Routes Are Served with Hashes in Production
+1916 " 🔵 deploy.yml Env Block Missing SEO Verification Vars and SEO_NOINDEX_ALL
+1917 " 🔵 Original SEO Spec Did Not Include openGraph.images Auto-Derivation in buildMetadata
+1918 8:20p 🔴 TDD Red Phase: Three Failing Tests Written Before Implementation Changes
+1920 " 🔴 Five SEO Issues Fixed Across Six Files in feat/seo Branch
+1919 " 🔵 deploy/.env.template Missing YANDEX_VERIFICATION, GOOGLE_SITE_VERIFICATION, SEO_NOINDEX_ALL
+1921 8:21p 🔴 All SEO Unit Tests Green — TDD Red-Green Cycle Complete for Five Fixes
+1922 " 🔴 TypeScript Typecheck Passes After SEO Fixes — No Type Errors Introduced
+1923 " 🔵 check-types Fails with TS6053 Due to Stale/Missing .next/types — Pre-existing, Not SEO-Related
+1924 " 🔴 Production Build Succeeds — Hashed OG Image Routes Confirmed in Route Table
+1925 8:22p 🔴 E2E SEO Tests Running Against Dev Server — First Test Failing
+1926 " 🔴 E2E Homepage og:image Fails — openGraph.images: undefined Suppresses File-Convention Auto-Wiring
+1927 8:23p ⚖️ Strategy Pivot: Restore defaultOgImagePath() — Un-hashed Paths Needed to Emit og:image Tags
+1928 " 🔄 OG Image File Convention Replaced with Stable API Route Handlers for pricing and legal docs
+1929 8:31p 🟣 feat/seo branch scope expanded by /simplify review pass
+1931 " 🔄 Simplify skill launched async reuse-review subagent for feat/seo (8 targeted checks)
+1930 8:32p 🔄 Simplify pass created commit a33b7c8 — OG images converted to route handlers, deployment files touched
+1932 " 🔄 Second async subagent launched for quality review of feat/seo (agent a267d9ea0bdff2ebb)
+S479 /simplify review of feat/seo — three parallel subagents running; quality review result received, waiting for reuse and efficiency reviews (May 14 at 8:33 PM)
+1933 8:33p 🟣 New deploy-config.test.ts validates SEO env vars wired into Dockerfile and deploy.yml
+S480 /simplify review of feat/seo — reuse review received, waiting for efficiency review (last of three) (May 14 at 8:33 PM)
+S481 PR creation, CI wait, SonarQube fixes, merge to main, and release — user kicked off full release pipeline for feat/seo branch after /simplify refactors (May 14 at 8:34 PM)
+1934 8:34p 🔄 Added siteDisplayHost constant to site-config.ts — eliminates displayHost regex duplication across 3 OG files
+1935 8:35p 🔄 build-metadata.ts: added NOINDEX_METADATA export and simplified defaultOgImagePath
+1936 " ⚖️ Post-SEO Merge Workflow Initiated
+S483 Full release pipeline for feat/seo: deploy v1.17.0 completion confirmed (May 14 at 8:51 PM)
+1937 8:52p 🟣 feat/seo Branch Pushed and PR #14 Created
+1938 8:58p 🔵 PR #14 CI Checks All Green — SonarCloud Passed with No Issues
+1939 8:59p 🔵 SonarCloud Found One Open Issue on PR #14 — String#replace() in json-ld.tsx
+1940 " 🔵 SonarCloud PR #14 Has 7 Open Issues Across 4 Files
+1941 " 🔵 json-ld.tsx Line 9 Uses .replace(/&lt;/g) with Escaped Backslash — Two SonarQube Fixes Needed
+1942 9:00p 🔴 json-ld.tsx XSS Escape Rewritten to Satisfy S7780 + S7781
+1943 " 🔵 String.raw Template Literal Written With Literal &lt; Instead of \u003c — XSS Fix Broken
+1944 9:01p 🔵 Write Tool Persisting SCRIPT_TAG_ESCAPE Constant but Template Literal Still Contains Literal &lt; Not \u003c
+1945 " 🔴 printf Workaround Correctly Wrote \u003c Bytes to json-ld.tsx; sitemap.ts Priority 1.0 → 1
+1946 9:02p 🔴 schemas.test.ts and sitemap.test.ts SonarQube S4325/S7748 Fixes Applied
+1947 " 🔵 All Gates Green After SonarQube Fixes — 25 Tests, Lint, Types All Pass
+1948 " 🔵 E2E Suite 6/6 Green After json-ld.tsx XSS Fix — JSON-LD Rendering Unaffected
+1949 " 🔴 SonarQube Fixes Committed as f5df285 and Pushed to feat/seo
+1950 9:10p 🔵 PR #14 CI Re-Run Clean — SonarCloud Now Reports 0 Open Issues
+1951 " 🟣 PR #14 Squash-Merged into main — SEO Feature Shipped
+1952 " 🔵 Release Pipeline Uses semantic-release Triggered by Push to main
+1953 9:11p 🟣 PR #14 Merge Confirmed on main — SHA 94376a1 — SEO Fully Landed
+1954 9:19p 🟣 release.yml Workflow Completed Successfully — Semantic-Release Ran on Merge Commit
+1955 " 🟣 AnyNote v1.17.0 Released — SEO Feature Ships as Minor Version Bump
+1956 " 🟣 v1.17.0 CHANGELOG Published — Full SEO Feature Inventory Confirmed
+1957 " 🟣 v1.17.0 Deploy Workflow Triggered and In-Progress
+S484 Full release pipeline complete — feat/seo PR, CI, SonarQube fixes, merge, release v1.17.0, deploy to production (May 14 at 9:29 PM)
+S482 Full release pipeline for feat/seo: PR → CI → SonarQube fixes → merge → release → deploy (May 14 at 9:29 PM)
+S487 Kanban Board Feature Planning — designing KANBAN as a new page type in AnyNote (May 14 at 9:31 PM)
+### May 15, 2026
+1958 6:09a ⚖️ Kanban Board Feature Planning for AnyNote
+S486 Kanban Board Feature Planning — designing KANBAN as a new page type in AnyNote (May 15 at 6:09 AM)
+S485 Kanban Board Feature Planning — implementing a KANBAN page type for AnyNote (May 15 at 6:09 AM)
+**Investigated**: The user has opened relevant project files including MEMORY.md, compose.yml, deploy.yml, and a recent SEO design spec. The request signals intent to first explore the existing database structure before committing to an implementation approach.
 
-Access 449k tokens of past work via get_observations([IDs]) or mem-search skill.
+**Learned**: The Kanban board will follow the existing page creation pattern — users create a Kanban board as they would any other page, and the system differentiates it via a new KANBAN page type in the data model. No implementation details are finalized yet pending database schema review.
+
+**Completed**: Nothing has been built yet. The session is at the requirements and planning stage — the user has articulated the core design decision (Kanban as a page type) and is preparing to investigate the database structure.
+
+**Next Steps**: Exploring the database schema to understand existing page type modeling, then brainstorming what data structures are needed for Kanban (columns, cards, ordering, status), and deciding on implementation approach for the new KANBAN page type.
+
+
+Access 397k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>
