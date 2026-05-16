@@ -13,9 +13,14 @@ function parseCsv(value: string | null): string[] {
   return value.split(',').filter(Boolean)
 }
 
-export function useKanbanFilters() {
+interface UseKanbanFiltersOptions {
+  readonly defaultSprint?: 'current' | 'all'
+}
+
+export function useKanbanFilters(options: UseKanbanFiltersOptions = {}) {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const defaultSprint = options.defaultSprint ?? 'all'
 
   const view: KanbanView = useMemo(() => {
     const v = searchParams?.get('view')
@@ -26,9 +31,10 @@ export function useKanbanFilters() {
 
   const filters: KanbanFilters = useMemo(() => {
     const sprintParam = searchParams?.get('sprint') ?? null
-    let sprint: KanbanFilters['sprint'] = 'all'
+    let sprint: KanbanFilters['sprint'] = defaultSprint
     if (sprintParam === 'current') sprint = 'current'
-    else if (sprintParam && sprintParam !== 'all') sprint = parseCsv(sprintParam)
+    else if (sprintParam === 'all') sprint = 'all'
+    else if (sprintParam) sprint = parseCsv(sprintParam)
 
     return {
       ...EMPTY_FILTERS,
@@ -40,7 +46,7 @@ export function useKanbanFilters() {
       overdueOnly: searchParams?.get('overdue') === '1',
       hideTerminalColumns: view === 'table',
     }
-  }, [searchParams, view])
+  }, [searchParams, view, defaultSprint])
 
   const updateParams = useCallback(
     (mutations: Record<string, string | null>) => {

@@ -21,11 +21,17 @@ interface KanbanBoardPageProps {
 
 export function KanbanBoardPage({ pageId }: KanbanBoardPageProps) {
   const { data, isLoading, error } = trpc.kanban.board.getBoard.useQuery({ pageId })
-  const filtersBag = useKanbanFilters()
-
-  useKanbanEvents({ pageId })
 
   const board = data as BoardData | undefined
+  const hasActiveSprint = useMemo(
+    () => board?.sprints?.some((s) => s.status === 'ACTIVE') ?? false,
+    [board?.sprints],
+  )
+  const filtersBag = useKanbanFilters({
+    defaultSprint: hasActiveSprint ? 'current' : 'all',
+  })
+
+  useKanbanEvents({ pageId })
   const visibleTasks = useMemo(() => {
     if (!board) return []
     return applyFilters(board.tasks, filtersBag.filters, {
