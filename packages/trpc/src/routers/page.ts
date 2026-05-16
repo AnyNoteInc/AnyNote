@@ -1,71 +1,15 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
-import { PageType, enqueueOutboxEvent, type PrismaClient } from '@repo/db'
+import { PageType, enqueueOutboxEvent } from '@repo/db'
 
 import { router, protectedProcedure } from '../trpc'
 import { requireWritableWorkspace } from '../helpers/plan'
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-async function assertWorkspaceMember(
-  ctx: { prisma: PrismaClient; user: { id: string } },
-  workspaceId: string,
-) {
-  const member = await ctx.prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
-  })
-  if (!member) {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Вы не являетесь участником воркспейса' })
-  }
-  return member
-}
-
-async function assertPageAccess(
-  ctx: { prisma: PrismaClient; user: { id: string } },
-  pageId: string,
-) {
-  const page = await ctx.prisma.page.findFirst({
-    where: {
-      id: pageId,
-      workspace: { members: { some: { userId: ctx.user.id } } },
-    },
-  })
-  if (!page) {
-    throw new TRPCError({ code: 'NOT_FOUND', message: 'Страница не найдена' })
-  }
-  return page
-}
-
-async function assertPageOwnership(
-  ctx: { prisma: PrismaClient; user: { id: string } },
-  pageId: string,
-  workspaceId: string,
-) {
-  const [page, member] = await Promise.all([
-    ctx.prisma.page.findFirst({
-      where: {
-        id: pageId,
-        workspaceId,
-        workspace: { members: { some: { userId: ctx.user.id } } },
-      },
-    }),
-    ctx.prisma.workspaceMember.findUnique({
-      where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
-    }),
-  ])
-  if (!page) {
-    throw new TRPCError({ code: 'NOT_FOUND', message: 'Страница не найдена' })
-  }
-  if (!member) {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Вы не являетесь участником воркспейса' })
-  }
-  const isOwner = member.role === 'OWNER'
-  const isCreator = page.createdById === ctx.user.id
-  if (!isOwner && !isCreator) {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
-  }
-  return page
-}
+import {
+  assertWorkspaceMember,
+  assertPageAccess,
+  assertPageOwnership,
+} from '../helpers/page-access'
+import { seedKanbanDefaults } from './kanban/helpers'
 
 // ── Router ───────────────────────────────────────────────────────────────────
 
@@ -192,6 +136,10 @@ export const pageRouter = router({
           workspaceId: input.workspaceId,
         })
 
+        if (newPage.type === PageType.KANBAN) {
+          await seedKanbanDefaults(tx, newPage.id)
+        }
+
         return { id: newPage.id }
       })
     }),
@@ -209,7 +157,7 @@ export const pageRouter = router({
         ctx,
         input,
       }): Promise<{ id: string; title: string | null; icon: string | null; updatedAt: Date }> => {
-        await assertPageOwnership(ctx, input.id, input.workspaceId)
+        await assertPageOwnership(ctx, input.id)
         await requireWritableWorkspace(input.workspaceId)
         return ctx.prisma.$transaction(async (tx) => {
           const updated = await tx.page.update({
@@ -243,7 +191,7 @@ export const pageRouter = router({
         ctx,
         input,
       }): Promise<{ id: string; title: string | null; icon: string | null; updatedAt: Date }> => {
-        await assertPageOwnership(ctx, input.id, input.workspaceId)
+        await assertPageOwnership(ctx, input.id)
         await requireWritableWorkspace(input.workspaceId)
         const data: {
           title?: string
@@ -279,7 +227,7 @@ export const pageRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const page = await assertPageOwnership(ctx, input.id, input.workspaceId)
+      const page = await assertPageOwnership(ctx, input.id)
       await requireWritableWorkspace(input.workspaceId)
       const now = new Date()
 
@@ -348,7 +296,7 @@ export const pageRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await assertPageOwnership(ctx, input.id, input.workspaceId)
+      await assertPageOwnership(ctx, input.id)
       await requireWritableWorkspace(input.workspaceId)
 
       return ctx.prisma.$transaction(async (tx) => {
@@ -438,7 +386,7 @@ export const pageRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await assertPageOwnership(ctx, input.id, input.workspaceId)
+      await assertPageOwnership(ctx, input.id)
       await requireWritableWorkspace(input.workspaceId)
 
       return ctx.prisma.$transaction(async (tx) => {
@@ -538,7 +486,7 @@ export const pageRouter = router({
       const page = await assertPageAccess(ctx, input.pageId)
 
       // Check ownership: must be creator or workspace OWNER
-      await assertPageOwnership(ctx, input.pageId, page.workspaceId)
+      await assertPageOwnership(ctx, input.pageId)
       await requireWritableWorkspace(page.workspaceId)
 
       return ctx.prisma.$transaction(async (tx) => {

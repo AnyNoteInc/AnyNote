@@ -28,6 +28,11 @@
       "import": "./src/providers/index.ts",
       "default": "./src/providers/index.ts"
     },
+    "./lib/*": {
+      "types": "./src/lib/*.ts",
+      "import": "./src/lib/*.ts",
+      "default": "./src/lib/*.ts"
+    },
     "./*": {
       "types": "./src/*",
       "import": "./src/*",

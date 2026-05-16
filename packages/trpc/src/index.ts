@@ -12,6 +12,7 @@ import { aiSettingsRouter } from './routers/ai-settings'
 import { searchRouter } from './routers/search'
 import { notificationRouter } from './routers/notification'
 import { reminderRouter } from './routers/reminder'
+import { kanbanRouter } from './routers/kanban'
 
 export { createContext, createServerContext } from './trpc'
 export type { Context } from './trpc'
@@ -40,6 +41,7 @@ export const appRouter = router({
   aiSettings: aiSettingsRouter,
   notification: notificationRouter,
   reminder: reminderRouter,
+  kanban: kanbanRouter,
 })
 
 export const createCaller = createCallerFactory(appRouter)

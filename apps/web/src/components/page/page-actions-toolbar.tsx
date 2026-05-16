@@ -23,8 +23,8 @@ export function PageActionsToolbar({ pageId, workspaceId }: Props) {
 
   const title = pageQ.data?.title ?? null
   const rawType = pageQ.data?.type
-  const pageType: 'TEXT' | 'EXCALIDRAW' | 'GENOGRAM' =
-    rawType === 'EXCALIDRAW' || rawType === 'GENOGRAM' ? rawType : 'TEXT'
+  const pageType: 'TEXT' | 'EXCALIDRAW' | 'GENOGRAM' | 'KANBAN' =
+    rawType === 'EXCALIDRAW' || rawType === 'GENOGRAM' || rawType === 'KANBAN' ? rawType : 'TEXT'
   const isFavorite = (favoritesQ.data ?? []).some((p) => p.id === pageId)
   const pages: PageItem[] = pagesQ.data ?? []
   const movedPage = pages.find((p) => p.id === pageId)

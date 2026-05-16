@@ -76,7 +76,7 @@ export default async function RootLayout({
 }>) {
   const mode = await resolveTheme()
   return (
-    <html lang="ru" suppressHydrationWarning>
+    <html lang="ru" data-scroll-behavior="smooth" suppressHydrationWarning>
       <body className={`${geistSans.variable} ${geistMono.variable} ${lora.variable}`}>
         <UiProvider initial={mode}>{children}</UiProvider>
       </body>

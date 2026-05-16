@@ -42,6 +42,12 @@ model User {
   remindersAuthored          Reminder[]               @relation("ReminderAuthor")
   remindersCompleted         Reminder[]               @relation("ReminderDoneBy")
   reminderRecipients         ReminderRecipient[]      @relation("ReminderRecipient")
+  tasksCreated               Task[]                   @relation("TaskCreator")
+  tasksUpdated               Task[]                   @relation("TaskUpdater")
+  taskAssignments            TaskAssignee[]
+  taskComments               TaskComment[]
+  taskActivity               TaskActivity[]
+  taskAttachments            TaskAttachment[]
 
   @@map("users")
 }
@@ -178,6 +184,41 @@ enum PageType {
   FORM
 }
 
+enum KanbanColumnKind {
+  ACTIVE
+  DONE
+  CANCELLED
+}
+
+enum SprintStatus {
+  PLANNED
+  ACTIVE
+  COMPLETED
+}
+
+enum TaskActivityType {
+  CREATED
+  MOVED
+  STATUS_CHANGED
+  PRIORITY_CHANGED
+  TYPE_CHANGED
+  ASSIGNED
+  UNASSIGNED
+  LABELED
+  UNLABELED
+  RENAMED
+  DESCRIPTION_CHANGED
+  DUE_DATE_CHANGED
+  START_DATE_CHANGED
+  SPRINT_CHANGED
+  PARENT_CHANGED
+  ARCHIVED
+  UNARCHIVED
+  ATTACHMENT_ADDED
+  ATTACHMENT_REMOVED
+  COMMENTED
+}
+
 enum ChatMessageRole {
   USER
   ASSISTANT
@@ -263,10 +304,16 @@ model Page {
   nextPage      Page?           @relation("PageOrder")
   children      Page[]          @relation("PageTree")
   parent        Page?           @relation("PageTree", fields: [parentId], references: [id], onDelete: SetNull)
-  favorites     FavoritePage[]
-  files         PageFile[]
-  searchHistory SearchHistory[]
-  reminders     Reminder[]
+  favorites        FavoritePage[]
+  files            PageFile[]
+  searchHistory    SearchHistory[]
+  reminders        Reminder[]
+  kanbanColumns    KanbanColumn[]
+  kanbanTypes      KanbanType[]
+  kanbanPriorities KanbanPriority[]
+  kanbanLabels     KanbanLabel[]
+  sprints          Sprint[]
+  tasks            Task[]
 
   @@index([workspaceId])
   @@index([parentId])
@@ -592,6 +639,7 @@ model File {
   user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   pages     PageFile[]
+  tasks     TaskAttachment[]
 
   @@index([userId])
   @@index([createdAt])
@@ -831,4 +879,205 @@ model ReminderRecipient {
   @@id([reminderId, userId])
   @@index([userId])
   @@map("reminder_recipients")
+}
+
+model KanbanColumn {
+  id        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pageId    String           @map("page_id") @db.Uuid
+  title     String
+  kind      KanbanColumnKind @default(ACTIVE)
+  position  Float
+  color     String?
+  createdAt DateTime         @default(now()) @map("created_at")
+  updatedAt DateTime         @updatedAt @map("updated_at")
+
+  page  Page   @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  tasks Task[]
+
+  @@index([pageId, position])
+  @@map("kanban_columns")
+}
+
+model KanbanType {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pageId    String   @map("page_id") @db.Uuid
+  title     String
+  position  Float
+  color     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  page  Page   @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  tasks Task[]
+
+  @@index([pageId, position])
+  @@map("kanban_types")
+}
+
+model KanbanPriority {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pageId    String   @map("page_id") @db.Uuid
+  title     String
+  position  Float
+  color     String?
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  page  Page   @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  tasks Task[]
+
+  @@index([pageId, position])
+  @@map("kanban_priorities")
+}
+
+model KanbanLabel {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pageId    String   @map("page_id") @db.Uuid
+  name      String
+  color     String
+  position  Float
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  page  Page                @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  tasks KanbanLabelOnTask[]
+
+  @@unique([pageId, name])
+  @@index([pageId, position])
+  @@map("kanban_labels")
+}
+
+model Sprint {
+  id          String       @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pageId      String       @map("page_id") @db.Uuid
+  name        String
+  description String?      @db.Text
+  startDate   DateTime?    @map("start_date")
+  endDate     DateTime?    @map("end_date")
+  status      SprintStatus @default(PLANNED)
+  position    Float
+  createdAt   DateTime     @default(now()) @map("created_at")
+  updatedAt   DateTime     @updatedAt @map("updated_at")
+
+  page  Page   @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  tasks Task[]
+
+  @@index([pageId, status])
+  @@map("sprints")
+}
+
+model Task {
+  id             String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pageId         String    @map("page_id") @db.Uuid
+  columnId       String    @map("column_id") @db.Uuid
+  typeId         String?   @map("type_id") @db.Uuid
+  priorityId     String?   @map("priority_id") @db.Uuid
+  sprintId       String?   @map("sprint_id") @db.Uuid
+  parentId       String?   @map("parent_id") @db.Uuid
+  title          String
+  description    Json?
+  startDate      DateTime? @map("start_date")
+  dueDate        DateTime? @map("due_date")
+  position       Float
+  sprintPosition Float?    @map("sprint_position")
+  archived       Boolean   @default(false)
+  deletedAt      DateTime? @map("deleted_at")
+  createdById    String    @map("created_by_id") @db.Uuid
+  updatedById    String?   @map("updated_by_id") @db.Uuid
+  createdAt      DateTime  @default(now()) @map("created_at")
+  updatedAt      DateTime  @updatedAt @map("updated_at")
+
+  page     Page            @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  column   KanbanColumn    @relation(fields: [columnId], references: [id], onDelete: Restrict)
+  type     KanbanType?     @relation(fields: [typeId], references: [id], onDelete: SetNull)
+  priority KanbanPriority? @relation(fields: [priorityId], references: [id], onDelete: SetNull)
+  sprint   Sprint?         @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+  parent   Task?           @relation("TaskHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children Task[]          @relation("TaskHierarchy")
+  createdBy User           @relation("TaskCreator", fields: [createdById], references: [id])
+  updatedBy User?          @relation("TaskUpdater", fields: [updatedById], references: [id])
+
+  assignees   TaskAssignee[]
+  labels      KanbanLabelOnTask[]
+  comments    TaskComment[]
+  activity    TaskActivity[]
+  attachments TaskAttachment[]
+
+  @@index([pageId, columnId, position])
+  @@index([pageId, sprintId])
+  @@index([pageId, deletedAt, archived])
+  @@map("tasks")
+}
+
+model TaskAssignee {
+  taskId    String   @map("task_id") @db.Uuid
+  userId    String   @map("user_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at")
+
+  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, userId])
+  @@index([userId])
+  @@map("task_assignees")
+}
+
+model KanbanLabelOnTask {
+  taskId  String @map("task_id") @db.Uuid
+  labelId String @map("label_id") @db.Uuid
+
+  task  Task        @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  label KanbanLabel @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@id([taskId, labelId])
+  @@index([labelId])
+  @@map("kanban_labels_on_tasks")
+}
+
+model TaskComment {
+  id        String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  taskId    String    @map("task_id") @db.Uuid
+  authorId  String    @map("author_id") @db.Uuid
+  content   Json
+  createdAt DateTime  @default(now()) @map("created_at")
+  updatedAt DateTime  @updatedAt @map("updated_at")
+  deletedAt DateTime? @map("deleted_at")
+
+  task   Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  author User @relation(fields: [authorId], references: [id])
+
+  @@index([taskId, createdAt])
+  @@map("task_comments")
+}
+
+model TaskActivity {
+  id        String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  taskId    String           @map("task_id") @db.Uuid
+  actorId   String           @map("actor_id") @db.Uuid
+  type      TaskActivityType
+  payload   Json?
+  createdAt DateTime         @default(now()) @map("created_at")
+
+  task  Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  actor User @relation(fields: [actorId], references: [id])
+
+  @@index([taskId, createdAt])
+  @@map("task_activity")
+}
+
+model TaskAttachment {
+  taskId       String    @map("task_id") @db.Uuid
+  fileId       String    @map("file_id") @db.Uuid
+  uploadedById String    @map("uploaded_by_id") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at")
+  deletedAt    DateTime? @map("deleted_at")
+
+  task       Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  file       File @relation(fields: [fileId], references: [id], onDelete: Cascade)
+  uploadedBy User @relation(fields: [uploadedById], references: [id])
+
+  @@id([taskId, fileId])
+  @@index([fileId])
+  @@index([taskId, createdAt])
+  @@map("task_attachments")
 }

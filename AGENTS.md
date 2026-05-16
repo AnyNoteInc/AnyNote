@@ -34,75 +34,75 @@ Copy `.env.example` to `.env` for local setup and keep secrets out of commits. U
 <claude-mem-context>
 # Memory Context
 
-# [anynote] recent context, 2026-05-14 8:18pm GMT+1
+# [anynote] recent context, 2026-05-16 9:24pm GMT+1
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (20,128t read) | 448,809t work | 96% savings
+Stats: 50 obs (16,440t read) | 601,856t work | 97% savings
 
-### May 14, 2026
-1863 11:28a 🔴 Added posOf() helper to placement.test.ts to replace ! assertions with type-safe position lookup
-1864 11:29a 🔵 PR #13 CI Status: SonarCloud Passed, lint-and-test Still Pending
-1865 11:40a 🔵 SonarCloud API Reports 20 Total Issues But 0 Open — All Are CLOSED
-1866 " 🟣 PR #13 All CI Checks Passed — Ready to Merge
-1867 11:41a 🟣 feat/genogram Branch Merged into main via PR #13
-1868 1:09p 🔵 SEO Implementation Planned for Next.js Project at anynote
-1869 " 🔵 anynote Next.js App Router Structure and Existing SEO State Mapped
-1870 1:10p 🔵 anynote Root Metadata and Base URL Configuration Examined
-1871 1:23p 🔵 Anynote Next.js App Structure for SEO Implementation
-S464 SEO Option B design — All 5 sections now presented; Section 5 covers env vars, error handling, security, and testing strategy (May 14 at 1:32 PM)
-S466 SEO Option B design — All 5 sections fully presented; spec file about to be written; discovered existing spec naming convention (May 14 at 1:33 PM)
-S470 SEO implementation prep — vitest config, turbo.json globalEnv, .env.example format, and test style inspected before writing implementation plan (May 14 at 1:34 PM)
-S471 SEO implementation prep — pricing page structure, turbo.json full globalEnv, e2e test conventions, and web package scripts all inspected (May 14 at 1:35 PM)
-S469 SEO design spec committed to git; awaiting user review before writing implementation plan (May 14 at 1:35 PM)
-S473 SEO production implementation for Anynote Next.js app — executing 22-task plan targeting Yandex + Google (May 14 at 1:38 PM)
-1872 1:41p ✅ SEO Implementation Plan Written — 22 Tasks, TDD-first
-S474 SEO production implementation for Anynote Next.js app — executing 22-task plan targeting Yandex + Google (May 14 at 1:42 PM)
-S472 SEO implementation for Anynote Next.js app (Russian search engines: Yandex + Google) — executing 22-task implementation plan (May 14 at 1:42 PM)
-S475 Observer session monitoring feat/seo SEO implementation — checking for git push and PR creation after all 22 tasks complete (May 14 at 1:49 PM)
-1873 1:50p 🔵 SEO implementation base SHA and lib directory state confirmed
-1874 " 🟣 Task 1 complete: apps/web/src/lib/seo/site-config.ts created
-1875 1:51p 🟣 Task 1 shipped: site-config.ts committed to feat/seo (8fe1fd6)
-1876 " 🟣 Task 1 implementer subagent completed: DONE, all checks passed
-1877 1:52p 🟣 Task 1 spec compliance review passed — proceeding to Task 2
-1878 " 🟣 Task 1 fully approved — all three review gates passed, proceeding to Task 2
-1879 " 🔴 T19 legal document OG image fixed to use async params (Next.js 15/16 convention)
-1880 2:27p 🔵 Severe replay loop: T19 async params fix applied 3+ times with identical edit patches
-1881 7:39p 🔴 T19 async params fix committed: SHA 3899549
-1882 " 🔵 apps/e2e directory contains 21 existing spec files — no seo.spec.ts yet
-1883 " 🟣 T21: apps/e2e/seo.spec.ts created — 5 Playwright E2E smoke tests for SEO routes
-1884 7:40p 🔵 playwright.config.ts: E2E suite runs Next.js dev server on port 3100 with PLAYWRIGHT=true env
-1885 " 🔵 Anynote plans table: 3 rows — Персональный, ПРО, МАКС
-1886 " 🔵 Next.js dev server conflict: port 3000 already running (PID 50926) blocks new dev instance on 3100
-1887 " 🔴 Existing Next.js dev server (PID 50926) killed to unblock Playwright E2E test run
-1888 7:41p 🔵 buildMetadata utility: canonical + OG metadata builder used across all public pages
-1889 " 🔵 Homepage page.tsx: renders Organization + WebSite + SoftwareApplication JSON-LD in one JsonLd call
-1890 " 🔵 CRITICAL: T21 canonical assertion will fail — actual href is `http://localhost:3100` (no trailing slash)
-1891 7:42p 🔵 Homepage JSON-LD confirmed live: 3-schema array with Organization, WebSite+SearchAction, SoftwareApplication
-1892 " 🔵 og:image absent from homepage SSR HTML — file-based opengraph-image.tsx not auto-injecting meta tag
-1893 7:43p 🔵 Next.js 16.2.0 canonical URL rendering strips trailing slash — metadata.js uses canonical.url.toString() directly
-S476 Observer monitoring feat/seo SEO implementation — checking git push and PR status after all 22 tasks complete (May 14 at 8:03 PM)
-1894 8:07p 🔵 AnyNote feat/seo branch audit initiated
-1895 " 🔵 feat/seo branch commit history fully reconstructed
-1896 8:08p 🟣 AnyNote feat/seo branch implements complete SEO infrastructure for public web pages
-1897 " 🔵 AnyNote SEO architecture: buildMetadata, robots.ts, sitemap.ts implementation details confirmed
-1898 " 🔵 SEO integration confirmed across all public pages and protected layouts
-1899 8:09p 🔵 SEO unit tests and e2e spec fully examined — test strategy and key gotchas confirmed
-1900 " 🔵 SEO env vars missing from CI workflows and deploy pipeline — production wiring gap identified
-1901 " 🔵 Brand assets confirmed: logo.png exists for Organization schema, icon/apple-icon generated via brand-icon component
-1902 " 🔵 WebSite SearchAction target URL /app/search does not exist as a real route
-1903 8:10p 🔵 /registration and /sign-out routes missing from robots.txt disallow list
-1904 " 🔵 All 24 SEO unit tests pass — feat/seo branch is green
-1905 " 🔵 TypeScript type-check and ESLint both pass clean on feat/seo branch
-1906 " 🔵 Server-side TypeError during legal doc e2e test — swallowed error with digest 3122224828
-1907 8:11p 🔵 All 6 Playwright SEO e2e tests pass — branch fully verified end-to-end
-1908 " 🔵 Next.js production build succeeds — route table confirms SEO routes deployed correctly, standalone output caveat noted
-1909 " 🔵 OG image 404 bug in production build: Next.js hashes opengraph-image route names but og:image meta tags use unhashed paths
-1910 8:12p 🔵 Root cause confirmed: e2e runs in dev mode (no hash), production uses hashed OG routes — defaultOgImagePath must be removed
-1911 " 🔵 OG image 404 bug exists in both dev (Turbopack) and production — e2e tests only check tag presence, not URL reachability
-1912 " 🔵 TypeError digest 3122224828 linked to both OG image 404 responses and legal doc page render — likely MDX module resolution failure
+### May 16, 2026
+S563 Kanban table-view sprint management: three-dot menu, complete/edit/delete dialogs, status translation, date display, active-sprint highlight, default filter (May 16 at 9:25 AM)
+S564 Kanban table-view sprint management: three-dot menu with start/complete/edit/delete, status translation, inline dates, active-sprint highlight, default-to-current filter (May 16 at 9:27 AM)
+S565 Add sprint lifecycle controls to kanban table view — start/complete/edit/delete via three-dot menu, Russian status labels, date display, active sprint accent, default-to-current filter. 14-task TDD plan being executed via subagent-driven development. (May 16 at 9:29 AM)
+S567 Observer session monitoring primary Claude Code session: `/simplify` skill invoked after all 14 kanban sprint management plan tasks completed — code quality review of feat/kanban-p1 branch (22 files, 1145+/118- lines) (May 16 at 9:30 AM)
+S568 Simplify kanban sprint subsystem via /simplify — security, DRY, efficiency, style improvements (May 16 at 5:06 PM)
+S566 Observer monitoring primary session implementing kanban sprint management plan — all 14 tasks complete, finishing-a-development-branch workflow in progress, final holistic code review completed (May 16 at 5:06 PM)
+S569 7-item kanban UI/UX bug batch + simplify refactor commit — anynote sprint table view (May 16 at 5:21 PM)
+2222 5:44p 🔵 Pre-commit state clarified — manage-list-popover.tsx has unstaged changes; task-form.tsx has 12 deletions from HEAD
+2223 5:45p 🔴 Kanban filter popover slowness fixed — complete changeset confirmed via git diff HEAD
+2225 5:58p 🔵 Kanban Task Filters Work-in-Progress State
+2230 5:59p 🔴 Next.js scroll-behavior warning fix requested
+2226 " 🔵 Web Package TypeScript Check Passes Clean
+2227 " 🔵 GanttView Component Implementation — gantt-task-react Integration
+2228 " 🔵 Lint and Editor Type Checks Both Pass — Error Is Runtime or Build-Time
+2229 " 🔵 GanttView SSR Safety Via Parent Dynamic Import — Not Individually Wrapped
+2231 6:00p 🔵 Next.js Production Build Passes Webpack and TypeScript Phases
+2233 " 🔵 Full Production Build Succeeds — Error Is Not Build-Time
+2232 " 🔴 Fixed Next.js scroll-behavior warning in root layout
+2234 " 🔵 kanban-task-filters.spec.ts — Performance and DOM Cleanliness Test for Filter Popovers
+2235 " 🔵 Full Staged Changeset — Kanban Filter Refactor Scope
+2236 6:01p 🔵 Full Monorepo Turbo check-types Passes — All 17 Packages Clean
+2237 " ✅ layout.tsx — data-scroll-behavior="smooth" Added to html Element (Unstaged)
+2238 " 🔄 manage-list-popover.tsx — DnD Removed, Custom VirtualizedRows Implemented
+2239 " 🔴 kanban-board-page.tsx — Board Views Hidden When Task Detail Open (DOM Count Fix)
+2240 " 🔵 Playwright Config — Root-Level, port 3100, Turbo Dev Server, No reuseExistingServer
+2241 6:02p 🔴 kanban-task-filters e2e Test PASSES — Fix Verified in 21 Seconds
+2242 " 🔵 Playwright Dev Server Conflict — reuseExistingServer:false Blocks If port 3000 Has Running Dev Server
+S570 Fix 7 kanban UI/UX bugs + task card popover performance issues (May 16 at 6:06 PM)
+2244 6:06p 🔵 task-side-panel showDetails defaults to true — should be false
+2245 6:07p 🔵 Sprint filter X button logic and sprint-section header alignment root cause found
+2246 " 🔵 Sprint filter "All" bug root cause: URL param deletion conflicts with defaultSprint='current'
+2247 6:08p 🔵 task-form.tsx architecture: monolithic 660-line component with all popovers and mutations inline
+2248 " 🔵 task-form.tsx parent task popover: unmemoized parentCandidates computed on every render
+2249 " 🔴 Issues 1 & 3 fixed: showDetails default false, SprintMenu right-aligned
+2250 6:09p 🔴 Issues 4 & 5 fixed: sprint filter X removed, "All" selection now works with defaultSprint='current'
+2251 " 🔴 Issue 2 fixed: drag-drop flicker eliminated with optimistic update in TableView
+2252 " 🔴 Type error in optimistic update: columnId/position not in task.update input type
+2253 " 🔵 TS2589 persists on useMutation line 33 after removing invalid fields
+2254 6:10p 🔴 Drag-drop flicker fix moved from onMutate to handleDragEnd to avoid TS2589
+2255 " 🔴 TS2589 on setData: switched from object form to updater function form
+2256 " 🔵 TS2589 persists on setData regardless of object vs updater form — type assertion likely needed
+2257 " 🔵 Established pattern for tRPC setData TS2589: cast setData to explicit function type before calling
+2258 " 🔴 TS2589 resolved in table-view.tsx: applied board-view setData cast pattern
+2259 6:11p 🟣 Issue 6: task row context menu begun — adding MUI menu imports to sprint-section.tsx
+2260 " 🟣 Issue 6: TaskRowMenu component added to sprint-section.tsx with "Remove from sprint" action
+2261 " 🟣 TaskRowMenu passes type-check and lint — now needs wiring in TableView and SprintSection render
+2262 " 🟣 table-view.tsx wiring point identified for onRemoveTaskFromSprint
+2263 6:12p 🟣 Issue 6 complete: "Remove from sprint" fully wired — TableView → SprintSection → TaskRow → TaskRowMenu
+2264 " 🔵 AnyNotePlainEditor is not memoized — re-renders on every TaskForm state change
+2265 6:13p 🔴 Issue 7 perf fix begun: useMemo imported to task-form.tsx for parentCandidates memoization
+S571 3 additional kanban fixes: TaskRowMenu icon missing, sprint menu alignment, sprint sort order (May 16 at 6:13 PM)
+2266 6:17p 🔵 Sprint sort order uses position:asc in backend; TaskRowMenu icon is wrong
+2267 6:24p 🔵 sprint-section.tsx imports MoreVertIcon but not DeleteIcon
+2268 6:25p 🔴 TaskRowMenu "Удалить из спринта" now shows DeleteIcon in error color
+2269 " 🔴 Sprint header menu now truly right-aligned via flexGrow spacer
+2270 " 🔴 Sprint list now sorted by startDate desc, newest sprint first
+S572 3 additional kanban fixes: TaskRowMenu missing DeleteIcon, sprint header alignment, sprint sort by startDate desc (May 16 at 6:26 PM)
+2271 6:32p 🔵 Task disappears on drag-to-backlog due to active sprint filter
+2272 6:33p 🔴 Task disappearing on drag-to-backlog fixed with sprint-agnostic tableViewTasks
+2273 " 🔴 Drag-to-backlog disappearing task fixed and committed as f50de5b
 
-Access 449k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 602k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

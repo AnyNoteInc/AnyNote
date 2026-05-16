@@ -47,6 +47,11 @@ const Genogram = dynamic(() => import('@repo/genogram').then((m) => m.GenogramBo
   loading: () => <CenteredSpinner />,
 })
 
+const KanbanBoardPage = dynamic(
+  () => import('@/components/kanban/kanban-board-page').then((m) => m.KanbanBoardPage),
+  { ssr: false, loading: () => <CenteredSpinner /> },
+)
+
 function CenteredSpinner() {
   return (
     <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
@@ -350,6 +355,10 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
     return (
       <Genogram pageId={page.id} yjsUrl={resolveYjsUrl()} yjsToken={fetchYjsToken} user={user} />
     )
+  }
+
+  if (page.type === 'KANBAN') {
+    return <KanbanBoardPage pageId={page.id} />
   }
 
   if (page.type === 'TEXT') {
