@@ -215,4 +215,70 @@ describe('kanban.sprint.complete', () => {
     expect(taskUpdateMany).not.toHaveBeenCalled()
     expect(sprintUpdate).not.toHaveBeenCalled()
   })
+
+  it('rejects when source sprint does not exist', async () => {
+    const sprintUpdate = vi.fn().mockResolvedValue({})
+    const taskUpdateMany = vi.fn().mockResolvedValue({ count: 0 })
+    const txClient = {
+      kanbanColumn: { findMany: vi.fn().mockResolvedValue([{ id: COL_ACTIVE, kind: 'ACTIVE' }]) },
+      sprint: {
+        findUnique: vi.fn().mockResolvedValue(null),
+        update: sprintUpdate,
+      },
+      task: { updateMany: taskUpdateMany },
+    }
+    const prisma = {
+      page: {
+        findFirst: vi.fn().mockResolvedValue(pageRow),
+        findUniqueOrThrow: vi.fn().mockResolvedValue({ workspaceId: WORKSPACE_ID }),
+      },
+      workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) },
+      $transaction: vi
+        .fn()
+        .mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(txClient)),
+    } as unknown as PrismaClient
+    const caller = createCallerFactory(sprintRouter)(ctx(prisma))
+
+    await expect(
+      caller.complete({ pageId: PAGE_ID, id: SPRINT_TARGET, moveUndoneTo: null }),
+    ).rejects.toThrow(/спринт/i)
+    expect(taskUpdateMany).not.toHaveBeenCalled()
+    expect(sprintUpdate).not.toHaveBeenCalled()
+  })
+
+  it('rejects when source sprint belongs to a different page', async () => {
+    const OTHER_PAGE_LOCAL = '00000000-0000-0000-0000-0000000000c2'
+    const sprintUpdate = vi.fn().mockResolvedValue({})
+    const taskUpdateMany = vi.fn().mockResolvedValue({ count: 0 })
+    const txClient = {
+      kanbanColumn: { findMany: vi.fn().mockResolvedValue([{ id: COL_ACTIVE, kind: 'ACTIVE' }]) },
+      sprint: {
+        findUnique: vi
+          .fn()
+          .mockImplementation(({ where: { id } }: { where: { id: string } }) => {
+            if (id === SPRINT_TARGET) return Promise.resolve({ id, pageId: OTHER_PAGE_LOCAL })
+            return Promise.resolve(null)
+          }),
+        update: sprintUpdate,
+      },
+      task: { updateMany: taskUpdateMany },
+    }
+    const prisma = {
+      page: {
+        findFirst: vi.fn().mockResolvedValue(pageRow),
+        findUniqueOrThrow: vi.fn().mockResolvedValue({ workspaceId: WORKSPACE_ID }),
+      },
+      workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) },
+      $transaction: vi
+        .fn()
+        .mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(txClient)),
+    } as unknown as PrismaClient
+    const caller = createCallerFactory(sprintRouter)(ctx(prisma))
+
+    await expect(
+      caller.complete({ pageId: PAGE_ID, id: SPRINT_TARGET, moveUndoneTo: null }),
+    ).rejects.toThrow(/спринт/i)
+    expect(taskUpdateMany).not.toHaveBeenCalled()
+    expect(sprintUpdate).not.toHaveBeenCalled()
+  })
 })

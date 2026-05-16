@@ -110,6 +110,13 @@ export const sprintRouter = router({
         })
       }
       await ctx.prisma.$transaction(async (tx) => {
+        const sprint = await tx.sprint.findUnique({
+          where: { id: input.id },
+          select: { id: true, pageId: true },
+        })
+        if (!sprint || sprint.pageId !== page.id) {
+          throw new TRPCError({ code: 'NOT_FOUND', message: 'Спринт не найден' })
+        }
         if (input.moveUndoneTo) {
           const dest = await tx.sprint.findUnique({
             where: { id: input.moveUndoneTo },
@@ -117,7 +124,7 @@ export const sprintRouter = router({
           })
           if (!dest || dest.pageId !== page.id) {
             throw new TRPCError({
-              code: 'BAD_REQUEST',
+              code: 'NOT_FOUND',
               message: 'Целевой спринт не найден на этой доске',
             })
           }
