@@ -9,18 +9,16 @@ export type KanbanEvent =
 type Listener = (event: KanbanEvent) => void
 
 export class KanbanBus {
-  private listeners = new Map<string, Set<Listener>>()
+  private readonly listeners = new Map<string, Set<Listener>>()
 
   on(pageId: string, listener: Listener): () => void {
-    let set = this.listeners.get(pageId)
-    if (!set) {
-      set = new Set()
-      this.listeners.set(pageId, set)
-    }
+    const existing = this.listeners.get(pageId)
+    const set = existing ?? new Set<Listener>()
+    if (!existing) this.listeners.set(pageId, set)
     set.add(listener)
     return () => {
-      set!.delete(listener)
-      if (set!.size === 0) this.listeners.delete(pageId)
+      set.delete(listener)
+      if (set.size === 0) this.listeners.delete(pageId)
     }
   }
 

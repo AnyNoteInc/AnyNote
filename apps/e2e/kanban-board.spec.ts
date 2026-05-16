@@ -164,7 +164,7 @@ test('Gantt: empty state when no dated tasks; renders chart when a task has date
   const { pageIdRaw, taskIdRaw } = await page.evaluate(() => {
     const url = new URL(globalThis.location.href)
     const taskMatch = url.searchParams.get('taskId')
-    const pageMatch = url.pathname.match(/pages\/([0-9a-f-]+)/)
+    const pageMatch = /pages\/([0-9a-f-]+)/.exec(url.pathname)
     return { pageIdRaw: pageMatch?.[1] ?? null, taskIdRaw: taskMatch ?? null }
   })
   if (!pageIdRaw || !taskIdRaw) throw new Error('Could not resolve pageId/taskId from URL')

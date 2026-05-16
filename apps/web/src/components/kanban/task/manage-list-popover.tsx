@@ -241,8 +241,8 @@ function ListRow({
       alignItems="center"
       spacing={0.5}
       sx={{
-        ...(top !== undefined ? { position: 'absolute', top, left: 0, right: 0 } : {}),
-        ...(height !== undefined ? { height } : {}),
+        ...(top === undefined ? {} : { position: 'absolute', top, left: 0, right: 0 }),
+        ...(height === undefined ? {} : { height }),
         px: 0.5,
         py: 0.25,
         borderRadius: 1,

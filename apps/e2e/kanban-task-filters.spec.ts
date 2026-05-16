@@ -29,7 +29,7 @@ test('task filter popovers stay lightweight after repeated openings', async ({ p
 
   await expect(page.getByText('Todo', { exact: true })).toBeVisible({ timeout: 15_000 })
   const pageId = await page.evaluate(() => {
-    const match = globalThis.location.pathname.match(/pages\/([0-9a-f-]+)/)
+    const match = /pages\/([0-9a-f-]+)/.exec(globalThis.location.pathname)
     return match?.[1] ?? null
   })
   if (!pageId) throw new Error('Could not resolve pageId from URL')

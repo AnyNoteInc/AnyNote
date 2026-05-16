@@ -106,7 +106,8 @@ const TOOLBAR: ReadonlyArray<ToolbarButtonConfig | 'divider'> = [
     isActive: (ed) => ed.isActive('link'),
     run: (ed) => {
       const prev = ed.getAttributes('link').href as string | undefined
-      const next = typeof window !== 'undefined' ? window.prompt('URL', prev ?? 'https://') : null
+      const next =
+        globalThis.window === undefined ? null : globalThis.window.prompt('URL', prev ?? 'https://')
       if (next === null) return
       if (next === '') {
         ed.chain().focus().extendMarkRange('link').unsetLink().run()

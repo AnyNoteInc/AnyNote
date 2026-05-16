@@ -83,7 +83,7 @@ describe('applyFilters', () => {
       { ...EMPTY_FILTERS, sprint: [SPRINT_OLD, 'backlog'] },
       { columns, sprints },
     )
-    expect(result.map((t) => t.id).sort()).toEqual(['a', 'c'])
+    expect(result.map((t) => t.id).sort((a, b) => a.localeCompare(b))).toEqual(['a', 'c'])
   })
 
   it('userIds filter requires task assignee intersect', () => {

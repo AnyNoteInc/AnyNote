@@ -183,7 +183,7 @@ test('table sprint status filter shows completed sprint terminal tasks as struck
   await setupKanbanPage(page)
 
   const pageId = await page.evaluate(() => {
-    const match = globalThis.location.pathname.match(/pages\/([0-9a-f-]+)/)
+    const match = /pages\/([0-9a-f-]+)/.exec(globalThis.location.pathname)
     return match?.[1] ?? null
   })
   if (!pageId) throw new Error('Could not resolve pageId from URL')
