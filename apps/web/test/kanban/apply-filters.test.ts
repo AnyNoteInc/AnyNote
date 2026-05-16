@@ -17,8 +17,8 @@ const columns: BoardData['columns'] = [
   { id: COL_DONE, pageId: 'p', title: 'Done', kind: 'DONE', position: 2, color: null },
 ]
 const sprints: BoardData['sprints'] = [
-  { id: SPRINT_ACTIVE, name: 'Current', status: 'ACTIVE', position: 1 },
-  { id: SPRINT_OLD, name: 'Old', status: 'COMPLETED', position: 2 },
+  { id: SPRINT_ACTIVE, name: 'Current', status: 'ACTIVE', position: 1, description: null, startDate: null, endDate: null },
+  { id: SPRINT_OLD, name: 'Old', status: 'COMPLETED', position: 2, description: null, startDate: null, endDate: null },
 ]
 
 function task(id: string, overrides: Partial<BoardTaskData> = {}): BoardTaskData {

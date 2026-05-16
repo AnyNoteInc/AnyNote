@@ -56,7 +56,15 @@ export interface BoardData {
   types: Array<{ id: string; title: string; position: number }>
   priorities: Array<{ id: string; title: string; position: number }>
   labels: BoardLabelRow[]
-  sprints: Array<{ id: string; name: string; status: string; position: number }>
+  sprints: Array<{
+    id: string
+    name: string
+    status: string
+    position: number
+    description: string | null
+    startDate: Date | string | null
+    endDate: Date | string | null
+  }>
   tasks: BoardTaskData[]
   members: BoardMember[]
   currentUserId: string

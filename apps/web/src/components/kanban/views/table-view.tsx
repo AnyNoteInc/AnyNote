@@ -87,16 +87,20 @@ export function TableView({ pageId, board, visibleTasks }: TableViewProps) {
         {board.sprints.map((sprint) => (
           <SprintSection
             key={sprint.id}
-            droppableId={`${SPRINT_PREFIX}${sprint.id}`}
-            title={sprint.name}
-            subtitle={sprint.status}
+            kind="sprint"
+            pageId={pageId}
+            sprint={sprint}
+            allSprints={board.sprints}
+            columns={board.columns}
+            allTasks={board.tasks}
             tasks={grouped.get(sprint.id) ?? []}
             members={board.members}
+            droppableId={`${SPRINT_PREFIX}${sprint.id}`}
           />
         ))}
         <SprintSection
+          kind="backlog"
           droppableId={BACKLOG_DROPPABLE}
-          title="Беклог"
           tasks={grouped.get(null) ?? []}
           members={board.members}
         />
