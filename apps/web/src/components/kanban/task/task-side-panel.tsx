@@ -16,6 +16,7 @@ import type { TaskActivityType } from '@repo/db'
 
 import { trpc } from '@/trpc/client'
 import type { BoardData } from '../types'
+import { pluralizeRu } from '../lib/pluralize-ru'
 
 interface TaskSidePanelProps {
   readonly pageId: string
@@ -123,7 +124,7 @@ function formatDate(date: Date) {
   if (days === 0) return `сегодня в ${time}`
   if (days === 1) return `вчера в ${time}`
   if (days === -1) return `завтра в ${time}`
-  if (days > 1 && days < 7) return `${days} ${pluralDays(days)} назад в ${time}`
+  if (days > 1 && days < 7) return `${days} ${pluralizeRu(days, ['день', 'дня', 'дней'])} назад в ${time}`
   const sameYear = now.getFullYear() === date.getFullYear()
   const datePart = date.toLocaleDateString('ru-RU', {
     day: 'numeric',
@@ -131,15 +132,6 @@ function formatDate(date: Date) {
     year: sameYear ? undefined : 'numeric',
   })
   return `${datePart} в ${time}`
-}
-
-function pluralDays(n: number): string {
-  const last = n % 10
-  const lastTwo = n % 100
-  if (lastTwo >= 11 && lastTwo <= 14) return 'дней'
-  if (last === 1) return 'день'
-  if (last >= 2 && last <= 4) return 'дня'
-  return 'дней'
 }
 
 export function TaskSidePanel({ pageId, taskId, currentUserId, board }: TaskSidePanelProps) {

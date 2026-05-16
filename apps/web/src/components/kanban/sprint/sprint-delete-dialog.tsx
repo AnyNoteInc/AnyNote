@@ -14,7 +14,7 @@ import {
 import { trpc } from '@/trpc/client'
 
 import type { BoardTaskData } from '../types'
-import { pluralizeRu } from './pluralize-ru'
+import { pluralizeRu } from '../lib/pluralize-ru'
 
 interface SprintDeleteDialogProps {
   readonly pageId: string

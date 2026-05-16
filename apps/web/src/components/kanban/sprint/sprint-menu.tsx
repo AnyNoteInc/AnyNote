@@ -22,15 +22,7 @@ import type { BoardColumnRow, BoardData, BoardTaskData } from '../types'
 import { SprintCompleteDialog } from './sprint-complete-dialog'
 import { SprintDeleteDialog } from './sprint-delete-dialog'
 import { SprintEditDialog } from './sprint-edit-dialog'
-
-interface SprintLike {
-  readonly id: string
-  readonly name: string
-  readonly status: string
-  readonly description?: string | null
-  readonly startDate?: Date | string | null
-  readonly endDate?: Date | string | null
-}
+import type { SprintLike } from './types'
 
 interface SprintMenuProps {
   readonly pageId: string

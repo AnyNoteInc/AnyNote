@@ -60,7 +60,7 @@ describe('kanban.sprint.activate', () => {
       data: { status: 'PLANNED' },
     })
     expect(update).toHaveBeenCalledWith({
-      where: { id: SPRINT_B },
+      where: { id: SPRINT_B, pageId: PAGE_ID },
       data: { status: 'ACTIVE' },
     })
   })

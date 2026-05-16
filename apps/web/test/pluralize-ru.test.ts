@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { pluralizeRu } from '@/components/kanban/sprint/pluralize-ru'
+import { pluralizeRu } from '@/components/kanban/lib/pluralize-ru'
 
 const FORMS: [string, string, string] = ['задача', 'задачи', 'задач']
 

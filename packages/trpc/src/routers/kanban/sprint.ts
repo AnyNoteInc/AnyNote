@@ -52,7 +52,7 @@ export const sprintRouter = router({
     .mutation(async ({ ctx, input }) => {
       const page = await assertPageOwnership(ctx, input.pageId)
       const sprint = await ctx.prisma.sprint.update({
-        where: { id: input.id },
+        where: { id: input.id, pageId: page.id },
         data: {
           name: input.name,
           description: input.description,
@@ -75,7 +75,7 @@ export const sprintRouter = router({
             data: { status: 'PLANNED' },
           })
           await tx.sprint.update({
-            where: { id: input.id },
+            where: { id: input.id, pageId: page.id },
             data: { status: 'ACTIVE' },
           })
         })
@@ -110,29 +110,31 @@ export const sprintRouter = router({
         })
       }
       await ctx.prisma.$transaction(async (tx) => {
-        const sprint = await tx.sprint.findUnique({
-          where: { id: input.id },
-          select: { id: true, pageId: true },
-        })
+        const [sprint, dest, undoneColumns] = await Promise.all([
+          tx.sprint.findUnique({
+            where: { id: input.id },
+            select: { id: true, pageId: true },
+          }),
+          input.moveUndoneTo
+            ? tx.sprint.findUnique({
+                where: { id: input.moveUndoneTo },
+                select: { id: true, pageId: true },
+              })
+            : Promise.resolve(null),
+          tx.kanbanColumn.findMany({
+            where: { pageId: page.id, kind: 'ACTIVE' },
+            select: { id: true },
+          }),
+        ])
         if (!sprint || sprint.pageId !== page.id) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Спринт не найден' })
         }
-        if (input.moveUndoneTo) {
-          const dest = await tx.sprint.findUnique({
-            where: { id: input.moveUndoneTo },
-            select: { id: true, pageId: true },
+        if (input.moveUndoneTo && (!dest || dest.pageId !== page.id)) {
+          throw new TRPCError({
+            code: 'NOT_FOUND',
+            message: 'Целевой спринт не найден на этой доске',
           })
-          if (!dest || dest.pageId !== page.id) {
-            throw new TRPCError({
-              code: 'NOT_FOUND',
-              message: 'Целевой спринт не найден на этой доске',
-            })
-          }
         }
-        const undoneColumns = await tx.kanbanColumn.findMany({
-          where: { pageId: page.id, kind: 'ACTIVE' },
-          select: { id: true },
-        })
         const undoneColumnIds = undoneColumns.map((c) => c.id)
         await tx.task.updateMany({
           where: { sprintId: input.id, columnId: { in: undoneColumnIds } },
@@ -183,7 +185,12 @@ export const sprintRouter = router({
     .input(z.object({ pageId: z.string().uuid(), id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const page = await assertPageOwnership(ctx, input.pageId)
-      await ctx.prisma.sprint.delete({ where: { id: input.id } })
+      const { count } = await ctx.prisma.sprint.deleteMany({
+        where: { id: input.id, pageId: page.id },
+      })
+      if (count === 0) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Спринт не найден' })
+      }
       kanbanBus.emit(page.id, { kind: 'sprint.deleted', sprintId: input.id })
       return { ok: true as const }
     }),

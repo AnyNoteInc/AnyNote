@@ -14,6 +14,7 @@ import { Box, Chip, Paper, Stack, Typography } from '@repo/ui/components'
 
 import type { BoardColumnRow, BoardData, BoardTaskData } from '../types'
 import { AssigneeAvatars } from '../components/assignee-avatars'
+import { toDate } from '../lib/dates'
 import { SprintMenu } from '../sprint/sprint-menu'
 import { sprintStatusColor, sprintStatusLabel } from '../sprint/sprint-status-label'
 
@@ -83,11 +84,6 @@ function TaskRow({ task, provided, memberLookup, onOpen }: TaskRowProps) {
   )
 }
 
-function toDate(value: Date | string | null | undefined): Date | null {
-  if (!value) return null
-  return value instanceof Date ? value : new Date(value)
-}
-
 function formatSprintDates(start: Date | null, end: Date | null): string | null {
   if (!start && !end) return null
   const currentYear = new Date().getFullYear()
@@ -134,6 +130,10 @@ export function SprintSection(props: SprintSectionProps) {
   )
 
   const isActive = props.kind === 'sprint' && props.sprint.status === 'ACTIVE'
+  const datesText =
+    props.kind === 'sprint'
+      ? formatSprintDates(toDate(props.sprint.startDate), toDate(props.sprint.endDate))
+      : null
 
   return (
     <Paper
@@ -151,17 +151,11 @@ export function SprintSection(props: SprintSectionProps) {
             <Typography variant="subtitle1" fontWeight={600}>
               {props.sprint.name}
             </Typography>
-            {(() => {
-              const datesText = formatSprintDates(
-                toDate(props.sprint.startDate),
-                toDate(props.sprint.endDate),
-              )
-              return datesText ? (
-                <Typography variant="caption" color="text.secondary">
-                  {datesText}
-                </Typography>
-              ) : null
-            })()}
+            {datesText ? (
+              <Typography variant="caption" color="text.secondary">
+                {datesText}
+              </Typography>
+            ) : null}
             <Chip
               size="small"
               label={sprintStatusLabel(props.sprint.status)}

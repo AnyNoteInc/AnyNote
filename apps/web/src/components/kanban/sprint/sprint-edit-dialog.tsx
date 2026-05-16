@@ -12,26 +12,15 @@ import {
 
 import { trpc } from '@/trpc/client'
 
+import { toDate } from '../lib/dates'
 import { SprintFormFields, type SprintFormValues } from './sprint-form-fields'
-
-interface SprintLike {
-  readonly id: string
-  readonly name: string
-  readonly description?: string | null
-  readonly startDate?: Date | string | null
-  readonly endDate?: Date | string | null
-}
+import type { SprintLike } from './types'
 
 interface SprintEditDialogProps {
   readonly pageId: string
   readonly sprint: SprintLike
   readonly open: boolean
   readonly onClose: () => void
-}
-
-function toDate(value: Date | string | null | undefined): Date | null {
-  if (!value) return null
-  return value instanceof Date ? value : new Date(value)
 }
 
 export function SprintEditDialog({ pageId, sprint, open, onClose }: SprintEditDialogProps) {
