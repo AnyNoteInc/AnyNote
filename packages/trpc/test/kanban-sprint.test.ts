@@ -112,3 +112,109 @@ describe('kanban.sprint.create', () => {
     })
   })
 })
+
+describe('kanban.sprint.complete', () => {
+  const SPRINT_TARGET = '00000000-0000-0000-0000-0000000000b1'
+  const SPRINT_DEST = '00000000-0000-0000-0000-0000000000b2'
+  const OTHER_PAGE = '00000000-0000-0000-0000-0000000000c1'
+  const COL_ACTIVE = '00000000-0000-0000-0000-0000000000d1'
+  const COL_DONE = '00000000-0000-0000-0000-0000000000d2'
+
+  function buildPrismaWithColumns(opts: { destPageId?: string } = {}): {
+    prisma: PrismaClient
+    sprintUpdate: ReturnType<typeof vi.fn>
+    taskUpdateMany: ReturnType<typeof vi.fn>
+  } {
+    const destPageId = opts.destPageId ?? PAGE_ID
+    const sprintUpdate = vi.fn().mockResolvedValue({})
+    const taskUpdateMany = vi.fn().mockResolvedValue({ count: 0 })
+    const txClient = {
+      kanbanColumn: {
+        findMany: vi
+          .fn()
+          .mockResolvedValue([
+            { id: COL_ACTIVE, kind: 'ACTIVE' },
+            { id: COL_DONE, kind: 'DONE' },
+          ]),
+      },
+      sprint: {
+        findUnique: vi
+          .fn()
+          .mockImplementation(({ where: { id } }: { where: { id: string } }) => {
+            if (id === SPRINT_TARGET) return Promise.resolve({ id, pageId: PAGE_ID })
+            if (id === SPRINT_DEST) return Promise.resolve({ id, pageId: destPageId })
+            return Promise.resolve(null)
+          }),
+        update: sprintUpdate,
+      },
+      task: { updateMany: taskUpdateMany },
+    }
+    const prisma = {
+      page: {
+        findFirst: vi.fn().mockResolvedValue(pageRow),
+        findUniqueOrThrow: vi.fn().mockResolvedValue({ workspaceId: WORKSPACE_ID }),
+      },
+      workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) },
+      $transaction: vi
+        .fn()
+        .mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(txClient)),
+    } as unknown as PrismaClient
+    return { prisma, sprintUpdate, taskUpdateMany }
+  }
+
+  it('moves undone tasks (ACTIVE-kind columns) to destination sprint and flips status', async () => {
+    const { prisma, sprintUpdate, taskUpdateMany } = buildPrismaWithColumns()
+    const caller = createCallerFactory(sprintRouter)(ctx(prisma))
+
+    await caller.complete({
+      pageId: PAGE_ID,
+      id: SPRINT_TARGET,
+      moveUndoneTo: SPRINT_DEST,
+    })
+
+    expect(taskUpdateMany).toHaveBeenCalledWith({
+      where: { sprintId: SPRINT_TARGET, columnId: { in: [COL_ACTIVE] } },
+      data: { sprintId: SPRINT_DEST, sprintPosition: null },
+    })
+    expect(sprintUpdate).toHaveBeenCalledWith({
+      where: { id: SPRINT_TARGET },
+      data: { status: 'COMPLETED' },
+    })
+  })
+
+  it('moves undone tasks to backlog when moveUndoneTo is null', async () => {
+    const { prisma, taskUpdateMany } = buildPrismaWithColumns()
+    const caller = createCallerFactory(sprintRouter)(ctx(prisma))
+
+    await caller.complete({ pageId: PAGE_ID, id: SPRINT_TARGET, moveUndoneTo: null })
+
+    expect(taskUpdateMany).toHaveBeenCalledWith({
+      where: { sprintId: SPRINT_TARGET, columnId: { in: [COL_ACTIVE] } },
+      data: { sprintId: null, sprintPosition: null },
+    })
+  })
+
+  it('rejects moveUndoneTo pointing to a sprint on a different page', async () => {
+    const { prisma, sprintUpdate, taskUpdateMany } = buildPrismaWithColumns({
+      destPageId: OTHER_PAGE,
+    })
+    const caller = createCallerFactory(sprintRouter)(ctx(prisma))
+
+    await expect(
+      caller.complete({ pageId: PAGE_ID, id: SPRINT_TARGET, moveUndoneTo: SPRINT_DEST }),
+    ).rejects.toThrow(/спринт/i)
+    expect(taskUpdateMany).not.toHaveBeenCalled()
+    expect(sprintUpdate).not.toHaveBeenCalled()
+  })
+
+  it('rejects moveUndoneTo equal to the sprint being completed', async () => {
+    const { prisma, taskUpdateMany, sprintUpdate } = buildPrismaWithColumns()
+    const caller = createCallerFactory(sprintRouter)(ctx(prisma))
+
+    await expect(
+      caller.complete({ pageId: PAGE_ID, id: SPRINT_TARGET, moveUndoneTo: SPRINT_TARGET }),
+    ).rejects.toThrow(/спринт/i)
+    expect(taskUpdateMany).not.toHaveBeenCalled()
+    expect(sprintUpdate).not.toHaveBeenCalled()
+  })
+})
