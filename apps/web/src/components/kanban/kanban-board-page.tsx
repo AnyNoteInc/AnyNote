@@ -45,6 +45,14 @@ export function KanbanBoardPage({ pageId }: KanbanBoardPageProps) {
       sprints: board.sprints,
     })
   }, [board, filtersBag.filters])
+  const tableViewTasks = useMemo(() => {
+    if (!board) return []
+    return applyFilters(
+      board.tasks,
+      { ...filtersBag.filters, sprint: 'all' },
+      { columns: board.columns, sprints: board.sprints },
+    )
+  }, [board, filtersBag.filters])
 
   if (isLoading) {
     return (
@@ -75,7 +83,7 @@ export function KanbanBoardPage({ pageId }: KanbanBoardPageProps) {
               <BoardView pageId={pageId} board={board} visibleTasks={visibleTasks} />
             )}
             {filtersBag.view === 'table' && (
-              <TableView pageId={pageId} board={board} visibleTasks={visibleTasks} />
+              <TableView pageId={pageId} board={board} visibleTasks={tableViewTasks} />
             )}
             {filtersBag.view === 'gantt' && (
               <GanttView pageId={pageId} board={board} visibleTasks={visibleTasks} />
