@@ -1,20 +1,11 @@
 'use client'
 
-import { useEffect, useState, type KeyboardEvent, type ReactNode } from 'react'
-import {
-  DragDropContext,
-  Draggable,
-  type DraggableProvidedDragHandleProps,
-  type DraggableProvidedDraggableProps,
-  Droppable,
-  type DropResult,
-} from '@hello-pangea/dnd'
+import { useState, type KeyboardEvent } from 'react'
 import {
   AddIcon,
   Box,
   Checkbox,
   DeleteIcon,
-  DragIndicatorIcon,
   IconButton,
   Popover,
   Radio,
@@ -33,6 +24,10 @@ export interface ManageListItem {
 
 export type ManageListMode = 'single' | 'multi'
 
+const LIST_MAX_HEIGHT = 280
+const ROW_HEIGHT = 34
+const ROW_OVERSCAN = 6
+
 interface ManageListPopoverProps {
   readonly open: boolean
   readonly anchorEl: HTMLElement | null
@@ -46,11 +41,6 @@ interface ManageListPopoverProps {
   readonly onToggle: (id: string) => void
   readonly onCreate: (input: { readonly name: string; readonly color?: string }) => void
   readonly onDelete: (id: string) => void
-  readonly onReorder: (
-    id: string,
-    beforeId: string | null,
-    afterId: string | null,
-  ) => void
 }
 
 export function ManageListPopover(props: ManageListPopoverProps) {
@@ -77,18 +67,11 @@ function ManageListBody({
   onToggle,
   onCreate,
   onDelete,
-  onReorder,
 }: ManageListPopoverProps) {
   const [draft, setDraft] = useState('')
   const [draftColor, setDraftColor] = useState<string>(
     KANBAN_LABEL_COLORS[0]?.hex ?? '#6B7280',
   )
-  const [dndReady, setDndReady] = useState(false)
-
-  useEffect(() => {
-    const id = globalThis.setTimeout(() => setDndReady(true), 0)
-    return () => globalThis.clearTimeout(id)
-  }, [])
 
   function submit() {
     const trimmed = draft.trim()
@@ -102,19 +85,6 @@ function ManageListBody({
       e.preventDefault()
       submit()
     }
-  }
-
-  function handleDragEnd(result: DropResult) {
-    if (!result.destination) return
-    const fromIndex = result.source.index
-    const toIndex = result.destination.index
-    if (fromIndex === toIndex) return
-    const moved = items[fromIndex]
-    if (!moved) return
-    const remaining = items.filter((_, i) => i !== fromIndex)
-    const before = remaining[toIndex - 1] ?? null
-    const after = remaining[toIndex] ?? null
-    onReorder(moved.id, before?.id ?? null, after?.id ?? null)
   }
 
   return (
@@ -186,61 +156,63 @@ function ManageListBody({
         </Typography>
       )
     }
-    if (!dndReady) {
-      return (
-        <Stack spacing={0.25} sx={{ maxHeight: 280, overflowY: 'auto' }}>
-          {items.map((item) => (
-            <ListRow
-              key={item.id}
-              item={item}
-              mode={mode}
-              selected={selectedIds.includes(item.id)}
-              onToggle={onToggle}
-              onDelete={onDelete}
-            />
-          ))}
-        </Stack>
-      )
-    }
     return (
-      <DragDropContext onDragEnd={handleDragEnd}>
-        <Droppable droppableId="manage-list">{renderDroppable}</Droppable>
-      </DragDropContext>
+      <VirtualizedRows
+        items={items}
+        mode={mode}
+        selectedIds={selectedIds}
+        onToggle={onToggle}
+        onDelete={onDelete}
+      />
     )
   }
+}
 
-  function renderDroppable(provided: Parameters<Parameters<typeof Droppable>[0]['children']>[0]) {
-    return (
-      <Stack
-        ref={provided.innerRef}
-        {...provided.droppableProps}
-        spacing={0.25}
-        sx={{ maxHeight: 280, overflowY: 'auto' }}
-      >
-        {items.map((item, index) => renderDraggable(item, index))}
-        {provided.placeholder}
-      </Stack>
-    )
-  }
+interface VirtualizedRowsProps {
+  readonly items: ReadonlyArray<ManageListItem>
+  readonly mode: ManageListMode
+  readonly selectedIds: ReadonlyArray<string>
+  readonly onToggle: (id: string) => void
+  readonly onDelete: (id: string) => void
+}
 
-  function renderDraggable(item: ManageListItem, index: number) {
-    return (
-      <Draggable key={item.id} draggableId={item.id} index={index}>
-        {(dp) => (
+function VirtualizedRows({
+  items,
+  mode,
+  selectedIds,
+  onToggle,
+  onDelete,
+}: VirtualizedRowsProps) {
+  const [scrollTop, setScrollTop] = useState(0)
+  const viewportHeight = Math.min(LIST_MAX_HEIGHT, items.length * ROW_HEIGHT)
+  const firstIndex = Math.max(0, Math.floor(scrollTop / ROW_HEIGHT) - ROW_OVERSCAN)
+  const lastIndex = Math.min(
+    items.length,
+    Math.ceil((scrollTop + viewportHeight) / ROW_HEIGHT) + ROW_OVERSCAN,
+  )
+  const visibleItems = items.slice(firstIndex, lastIndex)
+
+  return (
+    <Box
+      onScroll={(e) => setScrollTop(e.currentTarget.scrollTop)}
+      sx={{ height: viewportHeight, maxHeight: LIST_MAX_HEIGHT, overflowY: 'auto' }}
+    >
+      <Box sx={{ height: items.length * ROW_HEIGHT, position: 'relative' }}>
+        {visibleItems.map((item, offset) => (
           <ListRow
+            key={item.id}
             item={item}
             mode={mode}
             selected={selectedIds.includes(item.id)}
             onToggle={onToggle}
             onDelete={onDelete}
-            rowRef={dp.innerRef}
-            draggableProps={dp.draggableProps}
-            dragHandleProps={dp.dragHandleProps}
+            top={(firstIndex + offset) * ROW_HEIGHT}
+            height={ROW_HEIGHT}
           />
-        )}
-      </Draggable>
-    )
-  }
+        ))}
+      </Box>
+    </Box>
+  )
 }
 
 interface ListRowProps {
@@ -249,9 +221,8 @@ interface ListRowProps {
   readonly selected: boolean
   readonly onToggle: (id: string) => void
   readonly onDelete: (id: string) => void
-  readonly rowRef?: (el: HTMLElement | null) => void
-  readonly draggableProps?: DraggableProvidedDraggableProps
-  readonly dragHandleProps?: DraggableProvidedDragHandleProps | null
+  readonly top?: number
+  readonly height?: number
 }
 
 function ListRow({
@@ -260,34 +231,17 @@ function ListRow({
   selected,
   onToggle,
   onDelete,
-  rowRef,
-  draggableProps,
-  dragHandleProps,
+  top,
+  height,
 }: ListRowProps) {
-  const handleStyle = {
-    display: 'flex',
-    alignItems: 'center',
-    color: 'text.disabled',
-    cursor: dragHandleProps ? 'grab' : 'default',
-    '&:active': { cursor: dragHandleProps ? 'grabbing' : 'default' },
-  }
-  const dragHandle: ReactNode = dragHandleProps ? (
-    <Box {...dragHandleProps} sx={handleStyle}>
-      <DragIndicatorIcon fontSize="small" />
-    </Box>
-  ) : (
-    <Box sx={handleStyle}>
-      <DragIndicatorIcon fontSize="small" />
-    </Box>
-  )
   return (
     <Stack
-      ref={rowRef}
-      {...(draggableProps ?? {})}
       direction="row"
       alignItems="center"
       spacing={0.5}
       sx={{
+        ...(top !== undefined ? { position: 'absolute', top, left: 0, right: 0 } : {}),
+        ...(height !== undefined ? { height } : {}),
         px: 0.5,
         py: 0.25,
         borderRadius: 1,
@@ -295,7 +249,6 @@ function ListRow({
         '&:hover': { bgcolor: 'action.hover' },
       }}
     >
-      {dragHandle}
       {mode === 'multi' ? (
         <Checkbox
           checked={selected}

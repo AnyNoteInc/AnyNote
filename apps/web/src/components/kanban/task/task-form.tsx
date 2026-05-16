@@ -91,15 +91,12 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
   const setLabels = trpc.kanban.task.setLabels.useMutation({ onSuccess: invalidateBoard })
 
   const typeCreate = trpc.kanban.type.create.useMutation({ onSuccess: invalidateBoard })
-  const typeReorder = trpc.kanban.type.reorder.useMutation({ onSuccess: invalidateBoard })
   const typeDelete = trpc.kanban.type.delete.useMutation({ onSuccess: invalidateBoard })
 
   const priorityCreate = trpc.kanban.priority.create.useMutation({ onSuccess: invalidateBoard })
-  const priorityReorder = trpc.kanban.priority.reorder.useMutation({ onSuccess: invalidateBoard })
   const priorityDelete = trpc.kanban.priority.delete.useMutation({ onSuccess: invalidateBoard })
 
   const labelCreate = trpc.kanban.label.create.useMutation({ onSuccess: invalidateBoard })
-  const labelReorder = trpc.kanban.label.reorder.useMutation({ onSuccess: invalidateBoard })
   const labelDelete = trpc.kanban.label.delete.useMutation({ onSuccess: invalidateBoard })
 
   const [description, setDescription] = useState<JSONContent | null>(
@@ -311,9 +308,6 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
             }
             typeDelete.mutate({ pageId, id })
           }}
-          onReorder={(id, beforeId, afterId) =>
-            typeReorder.mutate({ pageId, id, beforeId, afterId })
-          }
         />
 
         <ManageListPopover
@@ -337,9 +331,6 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
             }
             priorityDelete.mutate({ pageId, id })
           }}
-          onReorder={(id, beforeId, afterId) =>
-            priorityReorder.mutate({ pageId, id, beforeId, afterId })
-          }
         />
 
         <ManageListPopover
@@ -367,9 +358,6 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
             }
             labelDelete.mutate({ pageId, id })
           }}
-          onReorder={(id, beforeId, afterId) =>
-            labelReorder.mutate({ pageId, id, beforeId, afterId })
-          }
         />
 
         <Popover

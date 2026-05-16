@@ -34,84 +34,75 @@ Copy `.env.example` to `.env` for local setup and keep secrets out of commits. U
 <claude-mem-context>
 # Memory Context
 
-# [anynote] recent context, 2026-05-15 6:51am GMT+1
+# [anynote] recent context, 2026-05-16 5:58pm GMT+1
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (17,938t read) | 396,943t work | 95% savings
+Stats: 50 obs (19,090t read) | 966,803t work | 98% savings
 
-### May 14, 2026
-S478 /simplify review of feat/seo branch — three parallel subagents running: reuse review, quality review, efficiency review (May 14 at 8:03 PM)
-1909 8:11p 🔵 OG image 404 bug in production build: Next.js hashes opengraph-image route names but og:image meta tags use unhashed paths
-1910 8:12p 🔵 Root cause confirmed: e2e runs in dev mode (no hash), production uses hashed OG routes — defaultOgImagePath must be removed
-1911 " 🔵 OG image 404 bug exists in both dev (Turbopack) and production — e2e tests only check tag presence, not URL reachability
-1912 " 🔵 TypeError digest 3122224828 linked to both OG image 404 responses and legal doc page render — likely MDX module resolution failure
-1913 8:18p ⚖️ SEO Branch Fixes Initiated — User Confirmed "Fix the Problems You Found"
-1914 " 🔵 Next.js OG Image Hash Fix — Codex Consulting Official Docs Before Rewriting buildMetadata
-1915 8:19p 🔵 Next.js Official Docs Confirm: opengraph-image Routes Are Served with Hashes in Production
-1916 " 🔵 deploy.yml Env Block Missing SEO Verification Vars and SEO_NOINDEX_ALL
-1917 " 🔵 Original SEO Spec Did Not Include openGraph.images Auto-Derivation in buildMetadata
-1918 8:20p 🔴 TDD Red Phase: Three Failing Tests Written Before Implementation Changes
-1920 " 🔴 Five SEO Issues Fixed Across Six Files in feat/seo Branch
-1919 " 🔵 deploy/.env.template Missing YANDEX_VERIFICATION, GOOGLE_SITE_VERIFICATION, SEO_NOINDEX_ALL
-1921 8:21p 🔴 All SEO Unit Tests Green — TDD Red-Green Cycle Complete for Five Fixes
-1922 " 🔴 TypeScript Typecheck Passes After SEO Fixes — No Type Errors Introduced
-1923 " 🔵 check-types Fails with TS6053 Due to Stale/Missing .next/types — Pre-existing, Not SEO-Related
-1924 " 🔴 Production Build Succeeds — Hashed OG Image Routes Confirmed in Route Table
-1925 8:22p 🔴 E2E SEO Tests Running Against Dev Server — First Test Failing
-1926 " 🔴 E2E Homepage og:image Fails — openGraph.images: undefined Suppresses File-Convention Auto-Wiring
-1927 8:23p ⚖️ Strategy Pivot: Restore defaultOgImagePath() — Un-hashed Paths Needed to Emit og:image Tags
-1928 " 🔄 OG Image File Convention Replaced with Stable API Route Handlers for pricing and legal docs
-1929 8:31p 🟣 feat/seo branch scope expanded by /simplify review pass
-1931 " 🔄 Simplify skill launched async reuse-review subagent for feat/seo (8 targeted checks)
-1930 8:32p 🔄 Simplify pass created commit a33b7c8 — OG images converted to route handlers, deployment files touched
-1932 " 🔄 Second async subagent launched for quality review of feat/seo (agent a267d9ea0bdff2ebb)
-S479 /simplify review of feat/seo — three parallel subagents running; quality review result received, waiting for reuse and efficiency reviews (May 14 at 8:33 PM)
-1933 8:33p 🟣 New deploy-config.test.ts validates SEO env vars wired into Dockerfile and deploy.yml
-S480 /simplify review of feat/seo — reuse review received, waiting for efficiency review (last of three) (May 14 at 8:33 PM)
-S481 PR creation, CI wait, SonarQube fixes, merge to main, and release — user kicked off full release pipeline for feat/seo branch after /simplify refactors (May 14 at 8:34 PM)
-1934 8:34p 🔄 Added siteDisplayHost constant to site-config.ts — eliminates displayHost regex duplication across 3 OG files
-1935 8:35p 🔄 build-metadata.ts: added NOINDEX_METADATA export and simplified defaultOgImagePath
-1936 " ⚖️ Post-SEO Merge Workflow Initiated
-S483 Full release pipeline for feat/seo: deploy v1.17.0 completion confirmed (May 14 at 8:51 PM)
-1937 8:52p 🟣 feat/seo Branch Pushed and PR #14 Created
-1938 8:58p 🔵 PR #14 CI Checks All Green — SonarCloud Passed with No Issues
-1939 8:59p 🔵 SonarCloud Found One Open Issue on PR #14 — String#replace() in json-ld.tsx
-1940 " 🔵 SonarCloud PR #14 Has 7 Open Issues Across 4 Files
-1941 " 🔵 json-ld.tsx Line 9 Uses .replace(/&lt;/g) with Escaped Backslash — Two SonarQube Fixes Needed
-1942 9:00p 🔴 json-ld.tsx XSS Escape Rewritten to Satisfy S7780 + S7781
-1943 " 🔵 String.raw Template Literal Written With Literal &lt; Instead of \u003c — XSS Fix Broken
-1944 9:01p 🔵 Write Tool Persisting SCRIPT_TAG_ESCAPE Constant but Template Literal Still Contains Literal &lt; Not \u003c
-1945 " 🔴 printf Workaround Correctly Wrote \u003c Bytes to json-ld.tsx; sitemap.ts Priority 1.0 → 1
-1946 9:02p 🔴 schemas.test.ts and sitemap.test.ts SonarQube S4325/S7748 Fixes Applied
-1947 " 🔵 All Gates Green After SonarQube Fixes — 25 Tests, Lint, Types All Pass
-1948 " 🔵 E2E Suite 6/6 Green After json-ld.tsx XSS Fix — JSON-LD Rendering Unaffected
-1949 " 🔴 SonarQube Fixes Committed as f5df285 and Pushed to feat/seo
-1950 9:10p 🔵 PR #14 CI Re-Run Clean — SonarCloud Now Reports 0 Open Issues
-1951 " 🟣 PR #14 Squash-Merged into main — SEO Feature Shipped
-1952 " 🔵 Release Pipeline Uses semantic-release Triggered by Push to main
-1953 9:11p 🟣 PR #14 Merge Confirmed on main — SHA 94376a1 — SEO Fully Landed
-1954 9:19p 🟣 release.yml Workflow Completed Successfully — Semantic-Release Ran on Merge Commit
-1955 " 🟣 AnyNote v1.17.0 Released — SEO Feature Ships as Minor Version Bump
-1956 " 🟣 v1.17.0 CHANGELOG Published — Full SEO Feature Inventory Confirmed
-1957 " 🟣 v1.17.0 Deploy Workflow Triggered and In-Progress
-S484 Full release pipeline complete — feat/seo PR, CI, SonarQube fixes, merge, release v1.17.0, deploy to production (May 14 at 9:29 PM)
-S482 Full release pipeline for feat/seo: PR → CI → SonarQube fixes → merge → release → deploy (May 14 at 9:29 PM)
-S487 Kanban Board Feature Planning — designing KANBAN as a new page type in AnyNote (May 14 at 9:31 PM)
-### May 15, 2026
-1958 6:09a ⚖️ Kanban Board Feature Planning for AnyNote
-S486 Kanban Board Feature Planning — designing KANBAN as a new page type in AnyNote (May 15 at 6:09 AM)
-S485 Kanban Board Feature Planning — implementing a KANBAN page type for AnyNote (May 15 at 6:09 AM)
-**Investigated**: The user has opened relevant project files including MEMORY.md, compose.yml, deploy.yml, and a recent SEO design spec. The request signals intent to first explore the existing database structure before committing to an implementation approach.
+### May 16, 2026
+2174 9:19a 🔵 Sprint Router Already Has activate/complete/delete Mutations
+2175 " 🔵 BoardData Type Missing startDate/endDate in Sprint Interface
+2177 " 🔵 Complete Sprint Feature Architecture Map for Implementation
+S559 Add sprint management features to Kanban table view — Section 2 design: sprint-section.tsx header redesign with dates, status badge, menu button, and active sprint accent (May 16 at 9:24 AM)
+S561 Add sprint management features to Kanban table view — Sections 3 and 4 design: SprintMenu component and three new dialog components (Edit, Complete, Delete) (May 16 at 9:24 AM)
+S562 Add sprint management features to Kanban table view — Section 5 (final design): default-to-current-sprint filter behavior via useKanbanFilters hook enhancement (May 16 at 9:24 AM)
+S560 Add sprint management features to Kanban table view — Section 3 design: SprintMenu component with four actions gated by sprint status (May 16 at 9:24 AM)
+S563 Kanban table-view sprint management: three-dot menu, complete/edit/delete dialogs, status translation, date display, active-sprint highlight, default filter (May 16 at 9:25 AM)
+2178 9:25a 🔵 Design Spec Naming Convention in docs/superpowers/specs/
+2179 " 🟣 Sprint Management Design Spec Written to docs/superpowers/specs/
+S564 Kanban table-view sprint management: three-dot menu with start/complete/edit/delete, status translation, inline dates, active-sprint highlight, default-to-current filter (May 16 at 9:27 AM)
+S565 Add sprint lifecycle controls to kanban table view — start/complete/edit/delete via three-dot menu, Russian status labels, date display, active sprint accent, default-to-current filter. 14-task TDD plan being executed via subagent-driven development. (May 16 at 9:29 AM)
+S567 Observer session monitoring primary Claude Code session: `/simplify` skill invoked after all 14 kanban sprint management plan tasks completed — code quality review of feat/kanban-p1 branch (22 files, 1145+/118- lines) (May 16 at 9:30 AM)
+2180 9:40a 🟣 Task 12: useKanbanFilters defaultSprint option wired from hasActiveSprint
+2181 " 🔵 Task 12 reviewer verified URL-param vs defaultSprint precedence logic
+2182 4:59p 🔵 Task 12 reviewer subagent enters caching loop (same agentId a27893f7b7a98a947)
+2183 " 🔵 Docker infrastructure confirmed healthy for E2E test environment
+2184 " 🔵 Existing kanban-board.spec.ts read as context for Task 13 sprint lifecycle spec
+2185 5:00p 🟣 Task 13: sprint-lifecycle.spec.ts E2E test created
+2186 5:01p 🟣 Task 13: sprint-lifecycle.spec.ts passes green in 10s
+2187 5:02p 🔴 E2E: getByText('Выполнено') strict-mode violation — substring matched 'Не выполнено'
+2188 " 🟣 Task 13 committed: sprint-lifecycle.spec.ts at b6dc2b6
+2189 " 🔵 Task 13 reviewer: MuiPaper-root XPath selector is moderately brittle but team-accepted pattern
+2191 " 🟣 Task 14: pnpm gates passes — 47 test files, 173 tests all green
+2192 " 🔵 Final kanban sprint management file structure confirmed post-implementation
+2190 5:03p 🟣 Kanban sprint management plan: complete 15-commit implementation on feat/kanban-p1
+S566 Observer monitoring primary session implementing kanban sprint management plan — all 14 tasks complete, finishing-a-development-branch workflow in progress, final holistic code review completed (May 16 at 5:06 PM)
+2193 5:15p 🔄 Sprint Router Security and Performance Hardening
+2194 " 🔄 Parallelized DB Lookups in Sprint Complete Transaction
+2195 5:16p 🔄 Sprint Delete Mutation Switched to deleteMany with PageId Scope
+2196 " ⚖️ P2002 Error Handling Re-added to Sprint Activate After Simplify Review
+2197 5:17p 🔄 pluralize-ru Utility Moved to Shared kanban/lib Directory
+2198 " 🔄 Import Paths Updated and pluralDays Inline Function Removed from task-side-panel
+2199 " 🔵 Type Check and Lint Pass After Sprint Router and pluralize-ru Refactoring
+2200 " 🔄 Shared toDate Utility and SprintLike Interface Extracted to kanban/lib and sprint/types
+2201 5:18p 🔄 Sprint Components Now Import Shared SprintLike and toDate Instead of Inline Definitions
+2202 " 🔄 sprint-section.tsx Adopts Shared toDate and Removes JSX IIFE Pattern
+2203 " 🔵 Sprint Activate Test Fails After pageId Added to Prisma Where Clause
+2204 5:21p 🔵 kanban-sprint.test.ts Line 63 Needs Where Clause Updated to Include pageId
+2206 " 🔵 All Gates Pass After Full Simplify Session
+S568 Simplify kanban sprint subsystem via /simplify — security, DRY, efficiency, style improvements (May 16 at 5:21 PM)
+2205 5:22p 🔴 kanban-sprint.test.ts Updated to Match pageId-Scoped Sprint Activate Assertion
+2207 5:29p 🔵 Kanban Filter Dropdown Slowdown Root Cause Identified
+2208 " 🔴 Fixed Progressive Dropdown Slowdown in Kanban Card Detail
+2209 " ✅ TypeCheck and Lint Pass After Kanban Performance Fix
+2210 5:34p 🔴 E2E Test Confirms Kanban Filter Popover Slowdown Is Fixed
+2211 " 🔵 Real Kanban Architecture Uses tRPC, Not Zustand — Different Root Cause
+2212 " 🔵 Double Board Invalidation — Every Filter Click Triggers Two Board Refetches
+2213 " 🔴 Debounced Board Invalidation in task-form.tsx Fixes Progressive Filter Slowdown
+2214 5:42p 🔵 Kanban filter popover still slow after initial fixes — further investigation requested
+2215 " 🔵 Filter popover still slow after initial fixes — second investigation phase started
+2216 " 🔵 task-form.tsx still uses un-debounced invalidateBoard — previous debounce fix was never saved
+2217 5:43p 🟣 E2E test gains DOM-count assertion to catch un-virtualized popover rendering
+2218 " 🔵 Playwright confirms ManageListPopover renders all 252 items in DOM — root cause of slowness confirmed
+2219 " 🟣 ManageListPopover gains custom scroll-based virtual list to fix un-virtualized rendering
+2220 " 🔴 Playwright test passes GREEN after VirtualizedRows fix — kanban filter popover DOM nodes reduced from 252 to &lt;80
+2221 5:44p ✅ Web gates passing — TypeScript, ESLint, and git diff all clean after VirtualizedRows fix
+2222 " 🔵 Pre-commit state clarified — manage-list-popover.tsx has unstaged changes; task-form.tsx has 12 deletions from HEAD
+2224 " 🔵 Filter menu slowness persists after VirtualizedRows fix — deeper root cause investigation requested
+2223 5:45p 🔴 Kanban filter popover slowness fixed — complete changeset confirmed via git diff HEAD
 
-**Learned**: The Kanban board will follow the existing page creation pattern — users create a Kanban board as they would any other page, and the system differentiates it via a new KANBAN page type in the data model. No implementation details are finalized yet pending database schema review.
-
-**Completed**: Nothing has been built yet. The session is at the requirements and planning stage — the user has articulated the core design decision (Kanban as a page type) and is preparing to investigate the database structure.
-
-**Next Steps**: Exploring the database schema to understand existing page type modeling, then brainstorming what data structures are needed for Kanban (columns, cards, ordering, status), and deciding on implementation approach for the new KANBAN page type.
-
-
-Access 397k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 967k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

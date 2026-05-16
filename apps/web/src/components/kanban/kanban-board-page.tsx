@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Box, CircularProgress, Stack, Typography } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
@@ -20,9 +21,14 @@ interface KanbanBoardPageProps {
 }
 
 export function KanbanBoardPage({ pageId }: KanbanBoardPageProps) {
+  const searchParams = useSearchParams()
   const { data, isLoading, error } = trpc.kanban.board.getBoard.useQuery({ pageId })
 
   const board = data as BoardData | undefined
+  const selectedTaskId = searchParams.get('taskId')
+  const isTaskDetailOpen = Boolean(
+    selectedTaskId && board?.tasks.some((task) => task.id === selectedTaskId),
+  )
   const hasActiveSprint = useMemo(
     () => board?.sprints?.some((s) => s.status === 'ACTIVE') ?? false,
     [board?.sprints],
@@ -63,14 +69,18 @@ export function KanbanBoardPage({ pageId }: KanbanBoardPageProps) {
     <Stack sx={{ height: '100%', minHeight: 0, overflow: 'hidden', bgcolor: 'background.paper' }}>
       <KanbanToolbar pageId={pageId} filtersBag={filtersBag} board={board} />
       <Box sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: 'background.paper' }}>
-        {filtersBag.view === 'board' && (
-          <BoardView pageId={pageId} board={board} visibleTasks={visibleTasks} />
-        )}
-        {filtersBag.view === 'table' && (
-          <TableView pageId={pageId} board={board} visibleTasks={visibleTasks} />
-        )}
-        {filtersBag.view === 'gantt' && (
-          <GanttView pageId={pageId} board={board} visibleTasks={visibleTasks} />
+        {!isTaskDetailOpen && (
+          <>
+            {filtersBag.view === 'board' && (
+              <BoardView pageId={pageId} board={board} visibleTasks={visibleTasks} />
+            )}
+            {filtersBag.view === 'table' && (
+              <TableView pageId={pageId} board={board} visibleTasks={visibleTasks} />
+            )}
+            {filtersBag.view === 'gantt' && (
+              <GanttView pageId={pageId} board={board} visibleTasks={visibleTasks} />
+            )}
+          </>
         )}
       </Box>
       <TaskDetailContainer pageId={pageId} board={board} />
