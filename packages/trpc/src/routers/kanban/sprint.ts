@@ -94,14 +94,52 @@ export const sprintRouter = router({
     }),
 
   complete: protectedProcedure
-    .input(z.object({ pageId: z.string().uuid(), id: z.string().uuid() }))
+    .input(
+      z.object({
+        pageId: z.string().uuid(),
+        id: z.string().uuid(),
+        moveUndoneTo: z.string().uuid().nullable(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       const page = await assertPageOwnership(ctx, input.pageId)
-      await ctx.prisma.sprint.update({
-        where: { id: input.id },
-        data: { status: 'COMPLETED' },
+      if (input.moveUndoneTo === input.id) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Невозможно перенести задачи в тот же спринт',
+        })
+      }
+      await ctx.prisma.$transaction(async (tx) => {
+        if (input.moveUndoneTo) {
+          const dest = await tx.sprint.findUnique({
+            where: { id: input.moveUndoneTo },
+            select: { id: true, pageId: true },
+          })
+          if (!dest || dest.pageId !== page.id) {
+            throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: 'Целевой спринт не найден на этой доске',
+            })
+          }
+        }
+        const undoneColumns = await tx.kanbanColumn.findMany({
+          where: { pageId: page.id, kind: 'ACTIVE' },
+          select: { id: true },
+        })
+        const undoneColumnIds = undoneColumns.map((c) => c.id)
+        await tx.task.updateMany({
+          where: { sprintId: input.id, columnId: { in: undoneColumnIds } },
+          data: { sprintId: input.moveUndoneTo, sprintPosition: null },
+        })
+        await tx.sprint.update({
+          where: { id: input.id },
+          data: { status: 'COMPLETED' },
+        })
       })
       kanbanBus.emit(page.id, { kind: 'sprint.upserted', sprintId: input.id })
+      if (input.moveUndoneTo) {
+        kanbanBus.emit(page.id, { kind: 'sprint.upserted', sprintId: input.moveUndoneTo })
+      }
       return { ok: true as const }
     }),
 
