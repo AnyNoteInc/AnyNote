@@ -85,15 +85,17 @@ export function BoardCard({ pageId, task, index, board }: BoardCardProps) {
               <Typography variant="body2" sx={{ mb: 0.5 }}>
                 {task.title}
               </Typography>
-              {task.dueDate ? (
-                <Typography variant="caption" color="text.secondary">
-                  до {new Date(task.dueDate).toLocaleDateString('ru-RU')}
-                </Typography>
-              ) : null}
-              {task.assignees.length > 0 ? (
-                <Box sx={{ mt: 0.5 }}>
-                  <AssigneeAvatars assignees={task.assignees} />
-                </Box>
+              {task.assignees.length > 0 || task.dueDate ? (
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 0.5 }}>
+                  {task.assignees.length > 0 ? (
+                    <AssigneeAvatars assignees={task.assignees} />
+                  ) : null}
+                  {task.dueDate ? (
+                    <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+                      {new Date(task.dueDate).toLocaleDateString('ru-RU')}
+                    </Typography>
+                  ) : null}
+                </Stack>
               ) : null}
             </Box>
             <IconButton

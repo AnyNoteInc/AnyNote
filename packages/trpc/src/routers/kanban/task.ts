@@ -3,7 +3,7 @@ import { TRPCError } from '@trpc/server'
 
 import { router, protectedProcedure } from '../../trpc'
 import { assertPageAccess } from '../../helpers/page-access'
-import { endPosition, positionBetween, recordActivity } from './helpers'
+import { dateInput, endPosition, positionBetween, recordActivity } from './helpers'
 import { kanbanBus } from '../../realtime/kanban-bus'
 
 function sameDate(a: Date | null | undefined, b: Date | null | undefined): boolean {
@@ -94,8 +94,8 @@ export const taskRouter = router({
         id: z.string().uuid(),
         title: z.string().min(1).max(500).optional(),
         description: z.unknown().optional(),
-        startDate: z.date().nullable().optional(),
-        dueDate: z.date().nullable().optional(),
+        startDate: dateInput,
+        dueDate: dateInput,
         typeId: z.string().uuid().nullable().optional(),
         priorityId: z.string().uuid().nullable().optional(),
         sprintId: z.string().uuid().nullable().optional(),

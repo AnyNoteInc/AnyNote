@@ -1,7 +1,20 @@
 import type { Prisma, TaskActivityType } from '@repo/db'
+import { z } from 'zod'
 
 
 export const POSITION_GAP = 1024
+
+export const dateInput = z
+  .preprocess((v) => {
+    if (v === null || v === undefined) return v
+    if (v instanceof Date) return v
+    if (typeof v === 'string') {
+      const parsed = new Date(v)
+      return Number.isNaN(parsed.getTime()) ? v : parsed
+    }
+    return v
+  }, z.date().nullable())
+  .optional()
 const PRECISION_FLOOR = Number.EPSILON * 1024
 
 export function positionBetween(prev: number | null, next: number | null): number {
@@ -43,11 +56,10 @@ export async function seedKanbanDefaults(tx: TxClient, pageId: string): Promise<
   })
   await tx.kanbanPriority.createMany({
     data: [
-      { pageId, title: 'Критичный', position: 1024 },
-      { pageId, title: 'Высокий', position: 2048 },
-      { pageId, title: 'Средний', position: 3072 },
-      { pageId, title: 'Низкий', position: 4096 },
-      { pageId, title: 'Минимальный', position: 5120 },
+      { pageId, title: 'Низкий', position: 1024 },
+      { pageId, title: 'Средний', position: 2048 },
+      { pageId, title: 'Высокий', position: 3072 },
+      { pageId, title: 'Критичный', position: 4096 },
     ],
   })
 }

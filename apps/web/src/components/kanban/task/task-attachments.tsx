@@ -1,14 +1,7 @@
 'use client'
 
-import { useRef, useState, type DragEvent } from 'react'
-import {
-  Box,
-  Button,
-  CloseIcon,
-  IconButton,
-  Stack,
-  Typography,
-} from '@repo/ui/components'
+import { useRef, useState, type DragEvent, type KeyboardEvent } from 'react'
+import { Box, CloseIcon, IconButton, Stack, Typography } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
 
@@ -24,7 +17,7 @@ interface AttachmentRow {
   fileId: string
   uploadedById: string
   createdAt: Date | string
-  file: { id: string; name: string; mimeType: string; fileSize: bigint }
+  file: { id: string; name: string; mimeType: string; fileSize: string }
   uploadedBy: {
     id: string
     firstName: string | null
@@ -33,8 +26,9 @@ interface AttachmentRow {
   }
 }
 
-function formatBytes(n: bigint | number): string {
-  const size = typeof n === 'bigint' ? Number(n) : n
+function formatBytes(input: string | number): string {
+  const size = typeof input === 'string' ? Number(input) : input
+  if (!Number.isFinite(size)) return ''
   if (size < 1024) return `${size} B`
   if (size < 1024 * 1024) return `${(size / 1024).toFixed(1)} KB`
   return `${(size / (1024 * 1024)).toFixed(1)} MB`
@@ -106,14 +100,31 @@ export function TaskAttachments({
     if (files.length > 0) await uploadAll(files)
   }
 
+  function openPicker() {
+    if (!busy) inputRef.current?.click()
+  }
+  function handleKey(e: KeyboardEvent<HTMLDivElement>) {
+    if (e.key === 'Enter' || e.key === ' ') {
+      e.preventDefault()
+      openPicker()
+    }
+  }
+
+  const emptyHint = busy ? 'Загрузка…' : 'Перетащите файлы сюда или нажмите, чтобы выбрать'
+
   return (
-    <Stack spacing={1.5}>
+    <Stack spacing={1}>
       <Typography variant="subtitle2">Вложения</Typography>
 
       <Box
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
+        onClick={openPicker}
+        onKeyDown={handleKey}
+        role="button"
+        tabIndex={0}
+        aria-label="Загрузить файлы"
         sx={{
           p: 1.5,
           border: 2,
@@ -122,6 +133,13 @@ export function TaskAttachments({
           borderRadius: 1,
           bgcolor: dragOver ? 'action.hover' : 'background.paper',
           transition: 'border-color 120ms, background-color 120ms',
+          cursor: busy ? 'wait' : 'pointer',
+          '&:hover': { borderColor: 'primary.main' },
+          '&:focus-visible': {
+            outline: 2,
+            outlineColor: 'primary.main',
+            outlineOffset: 2,
+          },
         }}
       >
         <Stack spacing={0.75}>
@@ -132,6 +150,7 @@ export function TaskAttachments({
               alignItems="center"
               spacing={1}
               sx={{ p: 0.5, borderRadius: 0.5, bgcolor: 'action.hover' }}
+              onClick={(e) => e.stopPropagation()}
             >
               <Box sx={{ flex: 1 }}>
                 <a
@@ -149,47 +168,38 @@ export function TaskAttachments({
               {a.uploadedById === currentUserId ? (
                 <IconButton
                   size="small"
-                  onClick={() => detach.mutate({ pageId, taskId, fileId: a.fileId })}
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    detach.mutate({ pageId, taskId, fileId: a.fileId })
+                  }}
                 >
                   <CloseIcon fontSize="small" />
                 </IconButton>
               ) : null}
             </Stack>
           ))}
-          {attachments.length === 0 ? (
-            <Typography variant="caption" color="text.secondary">
-              Перетащите файлы сюда или нажмите «Прикрепить файл».
-            </Typography>
-          ) : null}
+          <Typography variant="caption" color="text.secondary" align="center">
+            {emptyHint}
+          </Typography>
         </Stack>
       </Box>
 
-      <Stack direction="row" spacing={1} alignItems="center">
-        <input
-          ref={inputRef}
-          type="file"
-          hidden
-          multiple
-          onChange={(e) => {
-            const files = e.target.files
-            if (files && files.length > 0) void uploadAll(files)
-            e.target.value = ''
-          }}
-        />
-        <Button
-          size="small"
-          variant="outlined"
-          disabled={busy}
-          onClick={() => inputRef.current?.click()}
-        >
-          {busy ? 'Загрузка…' : 'Прикрепить файл'}
-        </Button>
-        {error ? (
-          <Typography variant="caption" color="error">
-            {error}
-          </Typography>
-        ) : null}
-      </Stack>
+      <input
+        ref={inputRef}
+        type="file"
+        hidden
+        multiple
+        onChange={(e) => {
+          const files = e.target.files
+          if (files && files.length > 0) void uploadAll(files)
+          e.target.value = ''
+        }}
+      />
+      {error ? (
+        <Typography variant="caption" color="error">
+          {error}
+        </Typography>
+      ) : null}
     </Stack>
   )
 }

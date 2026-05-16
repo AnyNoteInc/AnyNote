@@ -1,8 +1,15 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd'
-import { Stack } from '@repo/ui/components'
+import {
+  AddIcon,
+  Box,
+  Button,
+  Paper,
+  Stack,
+  TextField,
+} from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
 
@@ -74,7 +81,136 @@ export function BoardView({ pageId, board, visibleTasks }: BoardViewProps) {
         {columnsWithTasks.map((column) => (
           <BoardColumn key={column.id} pageId={pageId} column={column} board={board} />
         ))}
+        <AddColumnForm pageId={pageId} />
       </Stack>
     </DragDropContext>
+  )
+}
+
+interface AddColumnFormProps {
+  readonly pageId: string
+}
+
+function AddColumnForm({ pageId }: AddColumnFormProps) {
+  const utils = trpc.useUtils()
+  const createColumn = trpc.kanban.column.create.useMutation({
+    onSuccess: () => utils.kanban.board.getBoard.invalidate({ pageId }),
+  })
+
+  const [editing, setEditing] = useState(false)
+  const [title, setTitle] = useState('')
+  const inputRef = useRef<HTMLInputElement | null>(null)
+  const skipBlurRef = useRef(false)
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus()
+  }, [editing])
+
+  function open() {
+    setTitle('')
+    setEditing(true)
+  }
+  function close() {
+    setEditing(false)
+    setTitle('')
+  }
+  async function commit() {
+    const trimmed = title.trim()
+    if (!trimmed) {
+      close()
+      return
+    }
+    setTitle('')
+    await createColumn.mutateAsync({ pageId, title: trimmed })
+    inputRef.current?.focus()
+  }
+  function onKeyDown(e: KeyboardEvent<HTMLInputElement>) {
+    if (e.key === 'Enter') {
+      e.preventDefault()
+      void commit()
+    } else if (e.key === 'Escape') {
+      e.preventDefault()
+      skipBlurRef.current = true
+      close()
+    }
+  }
+
+  if (!editing) {
+    return (
+      <Box sx={{ width: 320, flexShrink: 0, alignSelf: 'flex-start' }}>
+        <Button
+          startIcon={<AddIcon fontSize="small" />}
+          onClick={open}
+          size="small"
+          variant="outlined"
+          color="inherit"
+          disableRipple
+          fullWidth
+          sx={{
+            justifyContent: 'flex-start',
+            color: 'text.secondary',
+            textTransform: 'none',
+            borderColor: 'divider',
+            borderStyle: 'dashed',
+            py: 1.25,
+            '&:hover': { bgcolor: 'action.hover', borderColor: 'divider' },
+          }}
+        >
+          Добавить ещё одну колонку
+        </Button>
+      </Box>
+    )
+  }
+
+  return (
+    <Paper
+      variant="outlined"
+      sx={{ width: 320, flexShrink: 0, p: 1.5, bgcolor: 'background.default', alignSelf: 'flex-start' }}
+    >
+      <Stack spacing={1}>
+        <TextField
+          inputRef={inputRef}
+          value={title}
+          onChange={(e) => setTitle(e.target.value)}
+          onKeyDown={onKeyDown}
+          onBlur={() => {
+            if (skipBlurRef.current) {
+              skipBlurRef.current = false
+              return
+            }
+            void commit()
+          }}
+          placeholder="Введите название колонки…"
+          size="small"
+          fullWidth
+          autoFocus
+          sx={{ bgcolor: 'background.paper' }}
+        />
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Button
+            variant="contained"
+            size="small"
+            onMouseDown={(e) => {
+              e.preventDefault()
+              skipBlurRef.current = true
+            }}
+            onClick={() => void commit()}
+            disabled={createColumn.isPending}
+          >
+            Добавить колонку
+          </Button>
+          <Button
+            size="small"
+            onMouseDown={(e) => {
+              e.preventDefault()
+              skipBlurRef.current = true
+            }}
+            onClick={close}
+          >
+            Отмена
+          </Button>
+        </Stack>
+      </Stack>
+    </Paper>
   )
 }

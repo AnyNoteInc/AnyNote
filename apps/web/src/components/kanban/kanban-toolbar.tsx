@@ -1,24 +1,22 @@
 'use client'
 
-import { useState, type MouseEvent } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState } from 'react'
 import {
-  AddIcon,
+  AccountTreeIcon,
   Button,
+  ButtonGroup,
   IconButton,
-  ListItemText,
-  Menu,
-  MenuItem,
   SettingsIcon,
   Stack,
+  TableChartIcon,
+  Tooltip,
+  ViewKanbanIcon,
 } from '@repo/ui/components'
 
-import { trpc } from '@/trpc/client'
-
 import type { BoardData } from './types'
-import type { useKanbanFilters } from './use-kanban-filters'
+import type { KanbanView, useKanbanFilters } from './use-kanban-filters'
+import { KanbanFiltersUI } from './kanban-filters'
 import { KanbanSettingsDialog } from './settings/kanban-settings-dialog'
-import { ViewSwitcher } from './view-switcher'
 
 type FiltersBag = ReturnType<typeof useKanbanFilters>
 
@@ -28,66 +26,53 @@ interface KanbanToolbarProps {
   readonly board: BoardData
 }
 
-export function KanbanToolbar({ pageId, filtersBag, board }: KanbanToolbarProps) {
-  const router = useRouter()
-  const utils = trpc.useUtils()
-  const createTask = trpc.kanban.task.create.useMutation({
-    onSuccess: async (task: { id: string }) => {
-      await utils.kanban.board.getBoard.invalidate({ pageId })
-      const params = new URLSearchParams(globalThis.location.search)
-      params.set('taskId', task.id)
-      router.replace(`?${params.toString()}`)
-    },
-  })
-  const [busy, setBusy] = useState(false)
-  const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
-  const [settingsOpen, setSettingsOpen] = useState(false)
+const VIEWS: ReadonlyArray<{ value: KanbanView; tooltip: string; Icon: typeof ViewKanbanIcon }> = [
+  { value: 'board', tooltip: 'Доска', Icon: ViewKanbanIcon },
+  { value: 'table', tooltip: 'Таблица', Icon: TableChartIcon },
+  { value: 'gantt', tooltip: 'Гант', Icon: AccountTreeIcon },
+]
 
-  function openMenu(e: MouseEvent<HTMLElement>) {
-    setMenuAnchor(e.currentTarget)
-  }
-  function closeMenu() {
-    setMenuAnchor(null)
-  }
+export function KanbanToolbar({ pageId, filtersBag, board }: KanbanToolbarProps) {
+  const [settingsOpen, setSettingsOpen] = useState(false)
 
   return (
     <Stack
       direction="row"
       alignItems="center"
-      justifyContent="space-between"
       spacing={2}
       sx={{ px: 4, py: 1, borderBottom: 1, borderColor: 'divider' }}
     >
-      <ViewSwitcher view={filtersBag.view} onChange={filtersBag.setView} />
+      <Stack direction="row" spacing={1} alignItems="center" sx={{ flex: 1, flexWrap: 'wrap' }}>
+        <KanbanFiltersUI board={board} bag={filtersBag} />
+      </Stack>
       <Stack direction="row" spacing={1} alignItems="center">
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          disabled={busy || createTask.isPending}
-          onClick={async () => {
-            setBusy(true)
-            try {
-              await createTask.mutateAsync({ pageId, title: 'Новая задача' })
-            } finally {
-              setBusy(false)
-            }
-          }}
-        >
-          Создать задачу
-        </Button>
-        <IconButton onClick={openMenu} size="small" aria-label="Настройки канбана">
-          <SettingsIcon />
-        </IconButton>
-        <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={closeMenu}>
-          <MenuItem
-            onClick={() => {
-              closeMenu()
-              setSettingsOpen(true)
-            }}
+        <ButtonGroup size="small" variant="outlined">
+          {VIEWS.map(({ value, tooltip, Icon }) => {
+            const active = filtersBag.view === value
+            return (
+              <Tooltip key={value} title={tooltip} arrow>
+                <Button
+                  variant={active ? 'contained' : 'outlined'}
+                  onClick={() => filtersBag.setView(value)}
+                  aria-label={tooltip}
+                  aria-pressed={active}
+                  sx={{ minWidth: 36, px: 1 }}
+                >
+                  <Icon fontSize="small" />
+                </Button>
+              </Tooltip>
+            )
+          })}
+        </ButtonGroup>
+        <Tooltip title="Настройки канбана" arrow>
+          <IconButton
+            onClick={() => setSettingsOpen(true)}
+            size="small"
+            aria-label="Настройки канбана"
           >
-            <ListItemText primary="Настройки канбана" />
-          </MenuItem>
-        </Menu>
+            <SettingsIcon />
+          </IconButton>
+        </Tooltip>
       </Stack>
       <KanbanSettingsDialog
         pageId={pageId}

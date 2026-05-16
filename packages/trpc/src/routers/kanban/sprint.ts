@@ -3,7 +3,7 @@ import { TRPCError } from '@trpc/server'
 
 import { router, protectedProcedure } from '../../trpc'
 import { assertPageOwnership } from '../../helpers/page-access'
-import { endPosition, positionBetween } from './helpers'
+import { dateInput, endPosition, positionBetween } from './helpers'
 import { kanbanBus } from '../../realtime/kanban-bus'
 
 export const sprintRouter = router({
@@ -13,8 +13,8 @@ export const sprintRouter = router({
         pageId: z.string().uuid(),
         name: z.string().min(1).max(120),
         description: z.string().max(2000).optional(),
-        startDate: z.date().nullable().optional(),
-        endDate: z.date().nullable().optional(),
+        startDate: dateInput,
+        endDate: dateInput,
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -45,8 +45,8 @@ export const sprintRouter = router({
         id: z.string().uuid(),
         name: z.string().min(1).max(120).optional(),
         description: z.string().nullable().optional(),
-        startDate: z.date().nullable().optional(),
-        endDate: z.date().nullable().optional(),
+        startDate: dateInput,
+        endDate: dateInput,
       }),
     )
     .mutation(async ({ ctx, input }) => {

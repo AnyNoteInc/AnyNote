@@ -4,10 +4,8 @@ import { useMemo } from 'react'
 import { Box, CircularProgress, Stack, Typography } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
-import { PageHeader } from '@/components/page/page-header'
 
 import { KanbanToolbar } from './kanban-toolbar'
-import { KanbanFiltersUI } from './kanban-filters'
 import { BoardView } from './views/board-view'
 import { TableView } from './views/table-view'
 import { GanttView } from './views/gantt-view'
@@ -39,7 +37,7 @@ export function KanbanBoardPage({ pageId }: KanbanBoardPageProps) {
   if (isLoading) {
     return (
       <Box
-        sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100vh' }}
+        sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}
       >
         <CircularProgress />
       </Box>
@@ -56,19 +54,8 @@ export function KanbanBoardPage({ pageId }: KanbanBoardPageProps) {
   }
 
   return (
-    <Stack sx={{ height: '100vh', overflow: 'hidden', bgcolor: 'background.paper' }}>
-      <Box sx={{ px: 4, pt: 4, pb: 1 }}>
-        <PageHeader
-          id={pageId}
-          workspaceId={board.workspaceId}
-          initialTitle={null}
-          initialIcon={null}
-        />
-      </Box>
+    <Stack sx={{ height: '100%', minHeight: 0, overflow: 'hidden', bgcolor: 'background.paper' }}>
       <KanbanToolbar pageId={pageId} filtersBag={filtersBag} board={board} />
-      <Box sx={{ px: 3, py: 1, borderBottom: 1, borderColor: 'divider' }}>
-        <KanbanFiltersUI board={board} bag={filtersBag} />
-      </Box>
       <Box sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: 'background.paper' }}>
         {filtersBag.view === 'board' && (
           <BoardView pageId={pageId} board={board} visibleTasks={visibleTasks} />

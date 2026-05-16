@@ -41,10 +41,10 @@ describe('endPosition', () => {
 })
 
 describe('seedKanbanDefaults', () => {
-  it('inserts 3 columns, 2 types, 5 priorities into the given tx', async () => {
+  it('inserts 3 columns, 2 types, 4 priorities into the given tx', async () => {
     const columnCreateMany = vi.fn().mockResolvedValue({ count: 3 })
     const typeCreateMany = vi.fn().mockResolvedValue({ count: 2 })
-    const priorityCreateMany = vi.fn().mockResolvedValue({ count: 5 })
+    const priorityCreateMany = vi.fn().mockResolvedValue({ count: 4 })
     const tx = {
       kanbanColumn: { createMany: columnCreateMany },
       kanbanType: { createMany: typeCreateMany },
@@ -65,9 +65,9 @@ describe('seedKanbanDefaults', () => {
       { pageId: 'page-1', title: 'Задача', position: 1024 },
       { pageId: 'page-1', title: 'Баг', position: 2048 },
     ])
-    expect(priorityCreateMany.mock.calls[0][0].data).toHaveLength(5)
+    expect(priorityCreateMany.mock.calls[0][0].data).toHaveLength(4)
     expect(priorityCreateMany.mock.calls[0][0].data.map((p: { title: string }) => p.title)).toEqual(
-      ['Критичный', 'Высокий', 'Средний', 'Низкий', 'Минимальный'],
+      ['Низкий', 'Средний', 'Высокий', 'Критичный'],
     )
   })
 })

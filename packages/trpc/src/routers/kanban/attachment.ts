@@ -18,7 +18,7 @@ export const attachmentRouter = router({
       if (task.pageId !== input.pageId) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Задача не найдена' })
       }
-      return ctx.prisma.taskAttachment.findMany({
+      const rows = await ctx.prisma.taskAttachment.findMany({
         where: { taskId: input.taskId, deletedAt: null },
         include: {
           file: {
@@ -30,6 +30,10 @@ export const attachmentRouter = router({
         },
         orderBy: { createdAt: 'asc' },
       })
+      return rows.map((r) => ({
+        ...r,
+        file: { ...r.file, fileSize: r.file.fileSize.toString() },
+      }))
     }),
 
   attach: protectedProcedure
