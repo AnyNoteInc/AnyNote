@@ -118,7 +118,6 @@ describe('kanban.sprint.complete', () => {
   const SPRINT_DEST = '00000000-0000-0000-0000-0000000000b2'
   const OTHER_PAGE = '00000000-0000-0000-0000-0000000000c1'
   const COL_ACTIVE = '00000000-0000-0000-0000-0000000000d1'
-  const COL_DONE = '00000000-0000-0000-0000-0000000000d2'
 
   function buildPrismaWithColumns(opts: { destPageId?: string } = {}): {
     prisma: PrismaClient
@@ -130,12 +129,7 @@ describe('kanban.sprint.complete', () => {
     const taskUpdateMany = vi.fn().mockResolvedValue({ count: 0 })
     const txClient = {
       kanbanColumn: {
-        findMany: vi
-          .fn()
-          .mockResolvedValue([
-            { id: COL_ACTIVE, kind: 'ACTIVE' },
-            { id: COL_DONE, kind: 'DONE' },
-          ]),
+        findMany: vi.fn().mockResolvedValue([{ id: COL_ACTIVE, kind: 'ACTIVE' }]),
       },
       sprint: {
         findUnique: vi
@@ -183,7 +177,7 @@ describe('kanban.sprint.complete', () => {
   })
 
   it('moves undone tasks to backlog when moveUndoneTo is null', async () => {
-    const { prisma, taskUpdateMany } = buildPrismaWithColumns()
+    const { prisma, sprintUpdate, taskUpdateMany } = buildPrismaWithColumns()
     const caller = createCallerFactory(sprintRouter)(ctx(prisma))
 
     await caller.complete({ pageId: PAGE_ID, id: SPRINT_TARGET, moveUndoneTo: null })
@@ -191,6 +185,10 @@ describe('kanban.sprint.complete', () => {
     expect(taskUpdateMany).toHaveBeenCalledWith({
       where: { sprintId: SPRINT_TARGET, columnId: { in: [COL_ACTIVE] } },
       data: { sprintId: null, sprintPosition: null },
+    })
+    expect(sprintUpdate).toHaveBeenCalledWith({
+      where: { id: SPRINT_TARGET },
+      data: { status: 'COMPLETED' },
     })
   })
 
