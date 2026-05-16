@@ -1,3 +1,45 @@
+# [1.18.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.17.0...v1.18.0) (2026-05-16)
+
+
+### Bug Fixes
+
+* html drag ([f4a7e50](https://github.com/AnyNoteInc/AnyNote/commit/f4a7e50d34698649024351d79d80e24a6c0b73b7))
+* **kanban:** invalidate activity + comments on SSE events; e2e coverage ([a396526](https://github.com/AnyNoteInc/AnyNote/commit/a396526662a938778fa7e2324b5f9f4182850491))
+* **kanban:** table view ignores sprint filter so drag-to-backlog stays visible ([f50de5b](https://github.com/AnyNoteInc/AnyNote/commit/f50de5b6aaf3f5d21f02e5fe5d5e7c04710b16c4))
+* **kanban:** TaskRowMenu delete icon, sprint header alignment, newest-first sort ([65475ed](https://github.com/AnyNoteInc/AnyNote/commit/65475ed88763032980a6f2784f63dd2e6786f323))
+* **kanban:** UX polish + task popover perf fixes ([78a302b](https://github.com/AnyNoteInc/AnyNote/commit/78a302bbe0ece431655b9c9b3a45db8f0d036391)), closes [#7](https://github.com/AnyNoteInc/AnyNote/issues/7)
+* **sonar:** reliability bug, ergonomic cleanup in kanban/editor ([3aabdf7](https://github.com/AnyNoteInc/AnyNote/commit/3aabdf789b88cb9fa57dc60fac77fc5c274e35f1))
+* **trpc:** sprint.complete validates source sprint belongs to page ([a63fa0c](https://github.com/AnyNoteInc/AnyNote/commit/a63fa0cac824df590eacf6c76db4765354462606))
+
+
+### Features
+
+* **db:** add kanban schema (columns, tasks, sprints, labels, activity) ([176a27d](https://github.com/AnyNoteInc/AnyNote/commit/176a27d2e784cf53d4bf1fcd1b5a38167e6b5192))
+* **kanban:** board UI with DnD, task detail modal, realtime hook ([234ab29](https://github.com/AnyNoteInc/AnyNote/commit/234ab2990f4230cce0b0028ba84e8e3607a32cc5))
+* **kanban:** board.getBoard query with permission check ([5c47311](https://github.com/AnyNoteInc/AnyNote/commit/5c473117243aeb46967f0cf4394d60ee34ac6710))
+* **kanban:** column router with task reassignment on delete ([bba3567](https://github.com/AnyNoteInc/AnyNote/commit/bba3567db5d7bcdc92b8db0cf8026573458a1697))
+* **kanban:** default sprint filter to current when active sprint exists ([214c29e](https://github.com/AnyNoteInc/AnyNote/commit/214c29e44d64641b96037684d025ba086c51e91f))
+* **kanban:** in-memory event bus for SSE fan-out ([4faa629](https://github.com/AnyNoteInc/AnyNote/commit/4faa62948c4b611ccb39a1c2dedb907e843d0b42))
+* **kanban:** mount kanban router and seed defaults on page.create ([43ba4ad](https://github.com/AnyNoteInc/AnyNote/commit/43ba4ad4182db48f2c4ae98ac1b7ba3863c3ff38))
+* **kanban:** P2 — sprints, table view, filters, view switcher ([52ecbb6](https://github.com/AnyNoteInc/AnyNote/commit/52ecbb61d23eec8a9256eb78586f38e38bbd84da))
+* **kanban:** P3 — Gantt view, settings dialog, sortable lists ([9598ce5](https://github.com/AnyNoteInc/AnyNote/commit/9598ce5d6a0f77756449a7e8e38d5f4d1d9ffe8d))
+* **kanban:** P4 — comments, activity log UI, archive, parent picker ([4445900](https://github.com/AnyNoteInc/AnyNote/commit/44459006b357bec1b9e35b27299b67f212f8a1b3))
+* **kanban:** pluralize-ru helper with Russian plural form rules ([9c8ef86](https://github.com/AnyNoteInc/AnyNote/commit/9c8ef860a0d7ebdfbea546a5b94609eed756d642))
+* **kanban:** polish pass — header, view switcher, card menu, DatePicker, save fixes ([4ac0e3b](https://github.com/AnyNoteInc/AnyNote/commit/4ac0e3b1a6f2fd6c509eea99bec8df284e3e34e5)), closes [#1](https://github.com/AnyNoteInc/AnyNote/issues/1) [#2](https://github.com/AnyNoteInc/AnyNote/issues/2) [#3](https://github.com/AnyNoteInc/AnyNote/issues/3) [#5](https://github.com/AnyNoteInc/AnyNote/issues/5) [#6](https://github.com/AnyNoteInc/AnyNote/issues/6) [#7](https://github.com/AnyNoteInc/AnyNote/issues/7) [#8](https://github.com/AnyNoteInc/AnyNote/issues/8) [#9](https://github.com/AnyNoteInc/AnyNote/issues/9) [#14](https://github.com/AnyNoteInc/AnyNote/issues/14) [#15](https://github.com/AnyNoteInc/AnyNote/issues/15) [#11](https://github.com/AnyNoteInc/AnyNote/issues/11) [#10](https://github.com/AnyNoteInc/AnyNote/issues/10) [#12](https://github.com/AnyNoteInc/AnyNote/issues/12)
+* **kanban:** position math, default-seed, and activity-log helpers ([dc1e8d4](https://github.com/AnyNoteInc/AnyNote/commit/dc1e8d411058548f33e71a5b70e9f845df2e9748))
+* **kanban:** sprint complete dialog with destination picker ([88bd2ea](https://github.com/AnyNoteInc/AnyNote/commit/88bd2eab43c73afe68e4fbe061c706c797339076))
+* **kanban:** sprint delete confirm dialog ([c0d5bff](https://github.com/AnyNoteInc/AnyNote/commit/c0d5bff59429527f7b9594e89e52e7fd40eb5bd8))
+* **kanban:** sprint edit dialog ([30c0860](https://github.com/AnyNoteInc/AnyNote/commit/30c0860aee4f54ba5a8af17d5d186abfc4d6b7e7))
+* **kanban:** sprint section header with dates, status badge, accent, menu ([e77fe9f](https://github.com/AnyNoteInc/AnyNote/commit/e77fe9f82462d82213e122242eb1de73b3601d23))
+* **kanban:** sprint status label/color helpers ([bda0d38](https://github.com/AnyNoteInc/AnyNote/commit/bda0d389075ab680144f7f24276202f76f1a66f3))
+* **kanban:** sprint three-dot menu with start/complete/edit/delete ([5eb7d83](https://github.com/AnyNoteInc/AnyNote/commit/5eb7d83396d1121f91777fa6bc2fa1ab4f15f600))
+* **kanban:** task attachments via existing /api/files upload ([50cf209](https://github.com/AnyNoteInc/AnyNote/commit/50cf20989c32916ae119f6d0426dff017c3d06e4))
+* **kanban:** task modal redesign, column menu, gantt UX polish ([61ffa8a](https://github.com/AnyNoteInc/AnyNote/commit/61ffa8a3b5b49f4e9475931a84d2ca6a8d84b280))
+* **kanban:** task router (create/update/move/assignees/labels/softDelete) ([eccc881](https://github.com/AnyNoteInc/AnyNote/commit/eccc8814b3b7ff77ba44c5c3b25348752b5b5422))
+* **kanban:** type/priority/label routers + shared color palette ([c025af7](https://github.com/AnyNoteInc/AnyNote/commit/c025af7cdb3069119df07cd5681ae2c7771a4e5b))
+* **trpc:** sprint.complete accepts moveUndoneTo destination ([475783e](https://github.com/AnyNoteInc/AnyNote/commit/475783e16c35196de4439bf568c94d7e3e1b612b))
+* **ui:** export PlayArrow and Flag icons for sprint menu ([be33e74](https://github.com/AnyNoteInc/AnyNote/commit/be33e7437116576836e1cd50058b06fa84b316ae))
+
 # [1.17.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.16.0...v1.17.0) (2026-05-14)
 
 
