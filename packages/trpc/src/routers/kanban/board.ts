@@ -28,7 +28,7 @@ export const boardRouter = router({
         }),
         ctx.prisma.sprint.findMany({
           where: { pageId: page.id },
-          orderBy: { position: 'asc' },
+          orderBy: [{ startDate: 'desc' }, { createdAt: 'desc' }],
         }),
         ctx.prisma.task.findMany({
           where: { pageId: page.id, deletedAt: null, archived: false },

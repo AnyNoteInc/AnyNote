@@ -13,6 +13,7 @@ import { ru as dateFnsRuLocale } from 'date-fns/locale'
 import {
   Box,
   Chip,
+  DeleteIcon,
   IconButton,
   ListItemIcon,
   ListItemText,
@@ -140,9 +141,10 @@ function TaskRowMenu({ onRemoveFromSprint }: TaskRowMenuProps) {
             setAnchorEl(null)
             onRemoveFromSprint()
           }}
+          sx={{ color: 'error.main' }}
         >
-          <ListItemIcon>
-            <MoreVertIcon fontSize="small" sx={{ visibility: 'hidden' }} />
+          <ListItemIcon sx={{ color: 'error.main' }}>
+            <DeleteIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>Удалить из спринта</ListItemText>
         </MenuItem>
@@ -240,18 +242,17 @@ export function SprintSection(props: SprintSectionProps) {
               color={sprintStatusColor(props.sprint.status)}
               variant={props.sprint.status === 'PLANNED' ? 'outlined' : 'filled'}
             />
+            <Box sx={{ flexGrow: 1 }} />
             <Typography variant="caption" color="text.secondary">
               {props.tasks.length}
             </Typography>
-            <Box sx={{ ml: 'auto' }}>
-              <SprintMenu
-                pageId={props.pageId}
-                sprint={props.sprint}
-                allSprints={props.allSprints}
-                columns={props.columns}
-                tasks={props.allTasks}
-              />
-            </Box>
+            <SprintMenu
+              pageId={props.pageId}
+              sprint={props.sprint}
+              allSprints={props.allSprints}
+              columns={props.columns}
+              tasks={props.allTasks}
+            />
           </>
         ) : (
           <>
