@@ -139,7 +139,7 @@ export function TaskSidePanel({ pageId, taskId, currentUserId, board }: TaskSide
   const { data: commentsData } = trpc.kanban.comment.list.useQuery({ pageId, taskId })
   const { data: activityData } = trpc.kanban.board.getActivity.useQuery({ pageId, taskId })
 
-  const [showDetails, setShowDetails] = useState(true)
+  const [showDetails, setShowDetails] = useState(false)
   const [draft, setDraft] = useState('')
   const me = board.members.find((m) => m.user.id === currentUserId)
 

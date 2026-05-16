@@ -63,7 +63,6 @@ export function KanbanFiltersUI({ board, bag }: KanbanFiltersProps) {
             variant={bag.filters.sprint === 'all' ? 'outlined' : 'filled'}
             color={bag.filters.sprint === 'all' ? 'default' : 'primary'}
             onClick={open('sprint')}
-            onDelete={bag.filters.sprint === 'all' ? undefined : () => bag.setSprintFilter('all')}
           />
           <Menu
             anchorEl={anchors.sprint}

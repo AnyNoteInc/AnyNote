@@ -51,6 +51,21 @@ export function TableView({ pageId, board, visibleTasks }: TableViewProps) {
     return bySprint
   }, [visibleTasks, board.sprints])
 
+  const setData = utils.kanban.board.getBoard.setData as (
+    input: { pageId: string },
+    updater: (prev: BoardData | undefined) => BoardData | undefined,
+  ) => void
+
+  function patchTaskOptimistic(taskId: string, patch: Partial<BoardTaskData>) {
+    setData({ pageId }, (current) => {
+      if (!current) return current
+      return {
+        ...current,
+        tasks: current.tasks.map((t) => (t.id === taskId ? { ...t, ...patch } : t)),
+      }
+    })
+  }
+
   async function handleDragEnd(result: DropResult) {
     if (!result.destination) return
     const sourceId = result.source.droppableId
@@ -67,12 +82,22 @@ export function TableView({ pageId, board, visibleTasks }: TableViewProps) {
       after ? tasksSortKey(after) : null,
     )
 
+    patchTaskOptimistic(result.draggableId, {
+      sprintId: targetSprintId,
+      sprintPosition: newSprintPosition,
+    })
+
     await updateTask.mutateAsync({
       pageId,
       id: result.draggableId,
       sprintId: targetSprintId,
       sprintPosition: newSprintPosition,
     })
+  }
+
+  function removeFromSprint(taskId: string) {
+    patchTaskOptimistic(taskId, { sprintId: null, sprintPosition: null })
+    updateTask.mutate({ pageId, id: taskId, sprintId: null, sprintPosition: null })
   }
 
   return (
@@ -96,6 +121,7 @@ export function TableView({ pageId, board, visibleTasks }: TableViewProps) {
             tasks={grouped.get(sprint.id) ?? []}
             members={board.members}
             droppableId={`${SPRINT_PREFIX}${sprint.id}`}
+            onRemoveTaskFromSprint={removeFromSprint}
           />
         ))}
         <SprintSection

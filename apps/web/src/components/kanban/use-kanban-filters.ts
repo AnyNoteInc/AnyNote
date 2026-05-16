@@ -69,7 +69,7 @@ export function useKanbanFilters(options: UseKanbanFiltersOptions = {}) {
   const setSprintFilter = useCallback(
     (next: KanbanFilters['sprint']) => {
       let value: string | null
-      if (next === 'all') value = null
+      if (next === 'all') value = 'all'
       else if (Array.isArray(next)) value = next.join(',')
       else value = next
       updateParams({ sprint: value })

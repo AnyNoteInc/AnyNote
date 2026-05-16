@@ -51,6 +51,7 @@ export function ManageListPopover(props: ManageListPopoverProps) {
       anchorEl={anchorEl}
       onClose={onClose}
       anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+      transitionDuration={0}
     >
       {open ? <ManageListBody {...props} /> : null}
     </Popover>

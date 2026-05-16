@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback } from 'react'
+import { useCallback, useState, type MouseEvent } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   Draggable,
@@ -10,7 +10,19 @@ import {
 } from '@hello-pangea/dnd'
 import { format } from 'date-fns'
 import { ru as dateFnsRuLocale } from 'date-fns/locale'
-import { Box, Chip, Paper, Stack, Typography } from '@repo/ui/components'
+import {
+  Box,
+  Chip,
+  IconButton,
+  ListItemIcon,
+  ListItemText,
+  Menu,
+  MenuItem,
+  MoreVertIcon,
+  Paper,
+  Stack,
+  Typography,
+} from '@repo/ui/components'
 
 import type { BoardColumnRow, BoardData, BoardTaskData } from '../types'
 import { AssigneeAvatars } from '../components/assignee-avatars'
@@ -38,6 +50,7 @@ type SprintSectionProps =
       readonly tasks: BoardTaskData[]
       readonly members: BoardData['members']
       readonly droppableId: string
+      readonly onRemoveTaskFromSprint?: (taskId: string) => void
     }
   | {
       readonly kind: 'backlog'
@@ -51,9 +64,10 @@ interface TaskRowProps {
   readonly provided: DraggableProvided
   readonly memberLookup: (userId: string) => { firstName: string | null; email: string } | undefined
   readonly onOpen: (taskId: string) => void
+  readonly onRemoveFromSprint?: () => void
 }
 
-function TaskRow({ task, provided, memberLookup, onOpen }: TaskRowProps) {
+function TaskRow({ task, provided, memberLookup, onOpen, onRemoveFromSprint }: TaskRowProps) {
   return (
     <Stack
       ref={provided.innerRef}
@@ -80,7 +94,60 @@ function TaskRow({ task, provided, memberLookup, onOpen }: TaskRowProps) {
           {new Date(task.dueDate).toLocaleDateString('ru-RU')}
         </Typography>
       ) : null}
+      {onRemoveFromSprint ? <TaskRowMenu onRemoveFromSprint={onRemoveFromSprint} /> : null}
     </Stack>
+  )
+}
+
+interface TaskRowMenuProps {
+  readonly onRemoveFromSprint: () => void
+}
+
+function TaskRowMenu({ onRemoveFromSprint }: TaskRowMenuProps) {
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
+  const stop = (e: MouseEvent) => {
+    e.stopPropagation()
+  }
+  function close(e?: MouseEvent | object) {
+    if (e && 'stopPropagation' in e && typeof e.stopPropagation === 'function') {
+      e.stopPropagation()
+    }
+    setAnchorEl(null)
+  }
+  return (
+    <Box onClick={stop}>
+      <IconButton
+        aria-label="Действия с задачей"
+        size="small"
+        onClick={(e) => {
+          e.stopPropagation()
+          setAnchorEl(e.currentTarget)
+        }}
+      >
+        <MoreVertIcon fontSize="small" />
+      </IconButton>
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={close}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        slotProps={{ paper: { sx: { minWidth: 200 } } }}
+      >
+        <MenuItem
+          onClick={(e) => {
+            e.stopPropagation()
+            setAnchorEl(null)
+            onRemoveFromSprint()
+          }}
+        >
+          <ListItemIcon>
+            <MoreVertIcon fontSize="small" sx={{ visibility: 'hidden' }} />
+          </ListItemIcon>
+          <ListItemText>Удалить из спринта</ListItemText>
+        </MenuItem>
+      </Menu>
+    </Box>
   )
 }
 
@@ -116,12 +183,23 @@ export function SprintSection(props: SprintSectionProps) {
     [props.members],
   )
 
+  const onRemoveTaskFromSprint =
+    props.kind === 'sprint' ? props.onRemoveTaskFromSprint : undefined
+
   const renderDroppable = (provided: DroppableProvided) => (
     <Box ref={provided.innerRef} {...provided.droppableProps} sx={{ minHeight: 32 }}>
       {props.tasks.map((task, index) => (
         <Draggable key={task.id} draggableId={task.id} index={index}>
           {(p) => (
-            <TaskRow task={task} provided={p} memberLookup={memberLookup} onOpen={open} />
+            <TaskRow
+              task={task}
+              provided={p}
+              memberLookup={memberLookup}
+              onOpen={open}
+              onRemoveFromSprint={
+                onRemoveTaskFromSprint ? () => onRemoveTaskFromSprint(task.id) : undefined
+              }
+            />
           )}
         </Draggable>
       ))}
@@ -162,16 +240,18 @@ export function SprintSection(props: SprintSectionProps) {
               color={sprintStatusColor(props.sprint.status)}
               variant={props.sprint.status === 'PLANNED' ? 'outlined' : 'filled'}
             />
-            <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
+            <Typography variant="caption" color="text.secondary">
               {props.tasks.length}
             </Typography>
-            <SprintMenu
-              pageId={props.pageId}
-              sprint={props.sprint}
-              allSprints={props.allSprints}
-              columns={props.columns}
-              tasks={props.allTasks}
-            />
+            <Box sx={{ ml: 'auto' }}>
+              <SprintMenu
+                pageId={props.pageId}
+                sprint={props.sprint}
+                allSprints={props.allSprints}
+                columns={props.columns}
+                tasks={props.allTasks}
+              />
+            </Box>
           </>
         ) : (
           <>

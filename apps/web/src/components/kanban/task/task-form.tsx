@@ -1,7 +1,10 @@
 'use client'
 
 import {
+  memo,
+  useCallback,
   useEffect,
+  useMemo,
   useRef,
   useState,
   type KeyboardEvent,
@@ -120,9 +123,45 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
   useEffect(() => setDueDate(toDate(task.dueDate)), [task.dueDate])
   useEffect(() => setStartDate(toDate(task.startDate)), [task.startDate])
 
-  const parentCandidates = board.tasks.filter((t) => t.id !== task.id)
+  const parentCandidates = useMemo(
+    () => board.tasks.filter((t) => t.id !== task.id),
+    [board.tasks, task.id],
+  )
   const selectedType = board.types.find((t) => t.id === typeId)
   const selectedPriority = board.priorities.find((p) => p.id === priorityId)
+
+  const onDescriptionSave = useCallback(
+    (value: JSONContent | null) => {
+      setDescription(value)
+      updateTask.mutate({ pageId, id: task.id, description: value })
+    },
+    [pageId, task.id, updateTask],
+  )
+
+  const typeItems = useMemo(
+    () =>
+      board.types
+        .slice()
+        .sort((a, b) => a.position - b.position)
+        .map((t) => ({ id: t.id, label: t.title })),
+    [board.types],
+  )
+  const priorityItems = useMemo(
+    () =>
+      board.priorities
+        .slice()
+        .sort((a, b) => a.position - b.position)
+        .map((p) => ({ id: p.id, label: p.title })),
+    [board.priorities],
+  )
+  const labelItems = useMemo(
+    () =>
+      board.labels
+        .slice()
+        .sort((a, b) => a.position - b.position)
+        .map((l) => ({ id: l.id, label: l.name, color: l.color })),
+    [board.labels],
+  )
 
   const [popover, setPopover] = useState<PopoverKey>(null)
   const [popoverAnchor, setPopoverAnchor] = useState<HTMLElement | null>(null)
@@ -258,26 +297,7 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
         </Stack>
 
         <Section heading="Описание">
-          <Box
-            sx={{
-              border: 1,
-              borderColor: 'divider',
-              borderRadius: 1,
-              minHeight: 120,
-              transition: 'border-color 120ms',
-              '&:focus-within': { borderColor: 'primary.main' },
-              '& .ProseMirror': { outline: 'none', minHeight: 96, px: 1.5, py: 1 },
-            }}
-          >
-            <AnyNotePlainEditor
-              value={description}
-              placeholder="Добавить более подробное описание..."
-              onBlurSave={(value) => {
-                setDescription(value)
-                updateTask.mutate({ pageId, id: task.id, description: value })
-              }}
-            />
-          </Box>
+          <DescriptionEditor value={description} onBlurSave={onDescriptionSave} />
         </Section>
 
         <TaskAttachments
@@ -293,10 +313,7 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
           onClose={closePopover}
           title="Тип задачи"
           mode="single"
-          items={board.types
-            .slice()
-            .sort((a, b) => a.position - b.position)
-            .map((t) => ({ id: t.id, label: t.title }))}
+          items={typeItems}
           selectedIds={typeId ? [typeId] : []}
           addPlaceholder="Новый тип…"
           onToggle={selectType}
@@ -316,10 +333,7 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
           onClose={closePopover}
           title="Срочность"
           mode="single"
-          items={board.priorities
-            .slice()
-            .sort((a, b) => a.position - b.position)
-            .map((p) => ({ id: p.id, label: p.title }))}
+          items={priorityItems}
           selectedIds={priorityId ? [priorityId] : []}
           addPlaceholder="Новая срочность…"
           onToggle={selectPriority}
@@ -340,10 +354,7 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
           title="Метки"
           mode="multi"
           withColor
-          items={board.labels
-            .slice()
-            .sort((a, b) => a.position - b.position)
-            .map((l) => ({ id: l.id, label: l.name, color: l.color }))}
+          items={labelItems}
           selectedIds={labelIds}
           addPlaceholder="Новая метка…"
           onToggle={toggleLabel}
@@ -365,27 +376,30 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
           anchorEl={popoverAnchor}
           onClose={closePopover}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          transitionDuration={0}
         >
-          <Stack spacing={2} sx={{ p: 2, minWidth: 280 }}>
-            <DatePicker
-              label="Дата старта"
-              value={startDate}
-              onChange={(value) => {
-                setStartDate(value)
-                updateTask.mutate({ pageId, id: task.id, startDate: value })
-              }}
-              slotProps={{ textField: { size: 'small', fullWidth: true } }}
-            />
-            <DatePicker
-              label="Срок"
-              value={dueDate}
-              onChange={(value) => {
-                setDueDate(value)
-                updateTask.mutate({ pageId, id: task.id, dueDate: value })
-              }}
-              slotProps={{ textField: { size: 'small', fullWidth: true } }}
-            />
-          </Stack>
+          {popover === 'dates' ? (
+            <Stack spacing={2} sx={{ p: 2, minWidth: 280 }}>
+              <DatePicker
+                label="Дата старта"
+                value={startDate}
+                onChange={(value) => {
+                  setStartDate(value)
+                  updateTask.mutate({ pageId, id: task.id, startDate: value })
+                }}
+                slotProps={{ textField: { size: 'small', fullWidth: true } }}
+              />
+              <DatePicker
+                label="Срок"
+                value={dueDate}
+                onChange={(value) => {
+                  setDueDate(value)
+                  updateTask.mutate({ pageId, id: task.id, dueDate: value })
+                }}
+                slotProps={{ textField: { size: 'small', fullWidth: true } }}
+              />
+            </Stack>
+          ) : null}
         </Popover>
 
         <Popover
@@ -393,58 +407,61 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
           anchorEl={popoverAnchor}
           onClose={closePopover}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          transitionDuration={0}
         >
-          <Box sx={{ p: 1.5, minWidth: 280, maxWidth: 320 }}>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ display: 'block', mb: 1, fontWeight: 600 }}
-            >
-              Исполнители
-            </Typography>
-            {board.members.length === 0 ? (
-              <Typography variant="body2" color="text.secondary">
-                В рабочей области нет участников
+          {popover === 'assignees' ? (
+            <Box sx={{ p: 1.5, minWidth: 280, maxWidth: 320 }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: 'block', mb: 1, fontWeight: 600 }}
+              >
+                Исполнители
               </Typography>
-            ) : (
-              <Stack spacing={0.25} sx={{ maxHeight: 320, overflowY: 'auto' }}>
-                {board.members.map((m) => {
-                  const checked = assigneeIds.includes(m.user.id)
-                  return (
-                    <Stack
-                      key={m.user.id}
-                      direction="row"
-                      alignItems="center"
-                      spacing={1}
-                      onClick={() => toggleAssignee(m.user.id)}
-                      sx={{
-                        px: 0.5,
-                        py: 0.25,
-                        borderRadius: 1,
-                        cursor: 'pointer',
-                        bgcolor: checked ? 'action.selected' : 'transparent',
-                        '&:hover': { bgcolor: 'action.hover' },
-                      }}
-                    >
-                      <Checkbox checked={checked} size="small" sx={{ p: 0.5 }} />
-                      <Box
+              {board.members.length === 0 ? (
+                <Typography variant="body2" color="text.secondary">
+                  В рабочей области нет участников
+                </Typography>
+              ) : (
+                <Stack spacing={0.25} sx={{ maxHeight: 320, overflowY: 'auto' }}>
+                  {board.members.map((m) => {
+                    const checked = assigneeIds.includes(m.user.id)
+                    return (
+                      <Stack
+                        key={m.user.id}
+                        direction="row"
+                        alignItems="center"
+                        spacing={1}
+                        onClick={() => toggleAssignee(m.user.id)}
                         sx={{
-                          flex: 1,
-                          minWidth: 0,
-                          fontSize: 14,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                          whiteSpace: 'nowrap',
+                          px: 0.5,
+                          py: 0.25,
+                          borderRadius: 1,
+                          cursor: 'pointer',
+                          bgcolor: checked ? 'action.selected' : 'transparent',
+                          '&:hover': { bgcolor: 'action.hover' },
                         }}
                       >
-                        {memberLabel(m)}
-                      </Box>
-                    </Stack>
-                  )
-                })}
-              </Stack>
-            )}
-          </Box>
+                        <Checkbox checked={checked} size="small" sx={{ p: 0.5 }} />
+                        <Box
+                          sx={{
+                            flex: 1,
+                            minWidth: 0,
+                            fontSize: 14,
+                            overflow: 'hidden',
+                            textOverflow: 'ellipsis',
+                            whiteSpace: 'nowrap',
+                          }}
+                        >
+                          {memberLabel(m)}
+                        </Box>
+                      </Stack>
+                    )
+                  })}
+                </Stack>
+              )}
+            </Box>
+          ) : null}
         </Popover>
 
         <Popover
@@ -452,7 +469,9 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
           anchorEl={popoverAnchor}
           onClose={closePopover}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          transitionDuration={0}
         >
+          {popover === 'sprint' ? (
           <Box sx={{ p: 1.5, minWidth: 240 }}>
             <Typography
               variant="caption"
@@ -479,6 +498,7 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
               ))}
             </Select>
           </Box>
+          ) : null}
         </Popover>
 
         <Popover
@@ -486,33 +506,36 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
           anchorEl={popoverAnchor}
           onClose={closePopover}
           anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          transitionDuration={0}
         >
-          <Box sx={{ p: 1.5, minWidth: 280 }}>
-            <Typography
-              variant="caption"
-              color="text.secondary"
-              sx={{ display: 'block', mb: 1, fontWeight: 600 }}
-            >
-              Родительская задача
-            </Typography>
-            <Select
-              size="small"
-              fullWidth
-              value={parentId}
-              onChange={(e) => {
-                const value = e.target.value
-                setParentId(value)
-                updateTask.mutate({ pageId, id: task.id, parentId: value || null })
-              }}
-            >
-              <MenuItem value="">—</MenuItem>
-              {parentCandidates.map((p) => (
-                <MenuItem key={p.id} value={p.id}>
-                  <ListItemText primary={p.title} />
-                </MenuItem>
-              ))}
-            </Select>
-          </Box>
+          {popover === 'parent' ? (
+            <Box sx={{ p: 1.5, minWidth: 280 }}>
+              <Typography
+                variant="caption"
+                color="text.secondary"
+                sx={{ display: 'block', mb: 1, fontWeight: 600 }}
+              >
+                Родительская задача
+              </Typography>
+              <Select
+                size="small"
+                fullWidth
+                value={parentId}
+                onChange={(e) => {
+                  const value = e.target.value
+                  setParentId(value)
+                  updateTask.mutate({ pageId, id: task.id, parentId: value || null })
+                }}
+              >
+                <MenuItem value="">—</MenuItem>
+                {parentCandidates.map((p) => (
+                  <MenuItem key={p.id} value={p.id}>
+                    <ListItemText primary={p.title} />
+                  </MenuItem>
+                ))}
+              </Select>
+            </Box>
+          ) : null}
         </Popover>
       </Stack>
     </LocalizationProvider>
@@ -658,3 +681,33 @@ function formatDateRange(start: Date | null, due: Date | null): string {
   if (start) return `с ${fmt(start)}`
   return ''
 }
+
+interface DescriptionEditorProps {
+  readonly value: JSONContent | null
+  readonly onBlurSave: (value: JSONContent | null) => void
+}
+
+const DescriptionEditor = memo(function DescriptionEditor({
+  value,
+  onBlurSave,
+}: DescriptionEditorProps) {
+  return (
+    <Box
+      sx={{
+        border: 1,
+        borderColor: 'divider',
+        borderRadius: 1,
+        minHeight: 120,
+        transition: 'border-color 120ms',
+        '&:focus-within': { borderColor: 'primary.main' },
+        '& .ProseMirror': { outline: 'none', minHeight: 96, px: 1.5, py: 1 },
+      }}
+    >
+      <AnyNotePlainEditor
+        value={value}
+        placeholder="Добавить более подробное описание..."
+        onBlurSave={onBlurSave}
+      />
+    </Box>
+  )
+})
