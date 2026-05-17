@@ -2,10 +2,20 @@ from __future__ import annotations
 
 import base64
 import os
+from collections.abc import AsyncIterator
 from typing import Annotated
 
 import jwt
+from dishka import Provider, Scope, provide
+from fast_clean.repositories import SettingsRepositoryProtocol
 from fastapi import Header, HTTPException, status
+from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
+
+from agents.apps.agent.repositories import ActionLogRepository, AgentJinjaRenderer, MemoryWriterClient
+from agents.apps.agent.repositories.mcp_client import McpClient
+from agents.apps.chat.repositories.model_factory import ModelFactoryRepository
+from agents.apps.chat.services.rag_retrieval import RagRetrievalService
+from agents.settings import SettingsSchema
 
 from .errors import JwtVerificationError
 from .schemas import AgentContext
@@ -70,3 +80,41 @@ async def verify_agents_jwt(
 # Test seam — bypasses Header dependency for direct test calls.
 async def verify_agents_jwt_for_test(token: str) -> AgentContext:
     return claims_to_context(_decode(token))
+
+
+def _web_url() -> str:
+    return os.environ.get('WEB_BASE_URL', 'http://localhost:3000')
+
+
+class AgentProvider(Provider):
+    scope = Scope.REQUEST
+
+    @provide(scope=Scope.APP)
+    async def jinja_renderer(self, settings_repo: SettingsRepositoryProtocol) -> AgentJinjaRenderer:
+        settings = await settings_repo.get(SettingsSchema)
+        return AgentJinjaRenderer(settings)
+
+    @provide(scope=Scope.APP)
+    def action_log_repo(self) -> ActionLogRepository:
+        return ActionLogRepository(web_base_url=_web_url())
+
+    @provide(scope=Scope.APP)
+    def memory_writer_client(self) -> MemoryWriterClient:
+        return MemoryWriterClient(web_base_url=_web_url())
+
+    @provide(scope=Scope.APP)
+    def mcp_client(self) -> McpClient:
+        return McpClient()
+
+    model_factory_repository = provide(ModelFactoryRepository, scope=Scope.APP)
+    rag_retrieval_service = provide(RagRetrievalService)
+
+    @provide(scope=Scope.APP)
+    async def checkpointer(self, settings_repo: SettingsRepositoryProtocol) -> AsyncIterator[AsyncPostgresSaver]:
+        settings = await settings_repo.get(SettingsSchema)
+        async with AsyncPostgresSaver.from_conn_string(settings.db.dsn) as saver:
+            await saver.setup()
+            yield saver
+
+
+agent_provider = AgentProvider()
