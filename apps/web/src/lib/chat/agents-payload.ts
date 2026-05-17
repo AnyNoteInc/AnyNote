@@ -26,11 +26,43 @@ export type AgentConversationMessage = {
   content: string
 }
 
+export type McpServerEntry = {
+  name: string
+  description: string
+  url: string
+  transport: 'HTTP_JSONRPC' | 'SSE'
+  headers: Record<string, string>
+  tools: string[]
+  retries: number
+  verify: boolean
+}
+
+export type AgentRunPayload = {
+  chat_id: string
+  user_message: string
+  chat_history: AgentConversationMessage[]
+  model: {
+    provider: string
+    name: string
+    connection: Record<string, string>
+    settings: { temperature: number | null; topP: number | null }
+  }
+  embedding_config: {
+    provider: string
+    modelSlug: string
+    vectorSize: number
+    connection: Record<string, string>
+  } | null
+  mcp_servers: McpServerEntry[]
+  agent_system_prompt: string | null
+  long_term_memories: Array<{ key: string; content: string; scope: 'workspace' | 'user' }>
+  allow_destructive: boolean
+}
+
 function normalizeConnection(value: unknown): Record<string, string> {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     return {}
   }
-
   const connection: Record<string, string> = {}
   for (const [key, candidate] of Object.entries(value as Record<string, unknown>)) {
     if (typeof candidate === 'string') {
@@ -40,28 +72,33 @@ function normalizeConnection(value: unknown): Record<string, string> {
   return connection
 }
 
-export function buildAgentsPayload(args: {
+export function buildAgentRunPayload(args: {
   chatId: string
-  workspaceId: string
-  userId: string
-  text: string
+  userMessage: string
+  chatHistory: AgentConversationMessage[]
   settings: WorkspaceSettingsSnapshot
-  messages?: AgentConversationMessage[]
-}) {
-  const embedding = args.settings.embeddingsModel
+  mcpServers: McpServerEntry[]
+  longTermMemories: AgentRunPayload['long_term_memories']
+  allowDestructive?: boolean
+}): AgentRunPayload {
+  const embeddingConfig = args.settings.embeddingsModel
     ? {
         provider: args.settings.embeddingsModel.provider.slug,
         modelSlug: args.settings.embeddingsModel.slug,
         vectorSize: args.settings.embeddingsModel.vectorSize,
-        connection: parseAiProviderConnection(
-          args.settings.embeddingsModel.provider.slug,
-          args.settings.embeddingsModel.provider.connection,
+        connection: normalizeConnection(
+          parseAiProviderConnection(
+            args.settings.embeddingsModel.provider.slug,
+            args.settings.embeddingsModel.provider.connection,
+          ),
         ),
       }
     : null
 
   return {
-    threadId: args.chatId,
+    chat_id: args.chatId,
+    user_message: args.userMessage,
+    chat_history: args.chatHistory,
     model: {
       provider: args.settings.defaultModel.provider.slug,
       name: args.settings.defaultModel.slug,
@@ -71,30 +108,10 @@ export function buildAgentsPayload(args: {
         topP: args.settings.topP,
       },
     },
-    systemPrompt: args.settings.systemPrompt ?? '',
-    messages: args.messages ?? [],
-    mcp: {
-      servers: [
-        {
-          name: 'AnyNote MCP Server',
-          url: process.env.ANYNOTE_MCP_URL ?? 'http://localhost:8090/api/mcp',
-          headers: {
-            'Content-Type': 'application/json',
-            Accept: 'application/json, text/event-stream',
-            'X-User-Id': args.userId,
-            'X-Workspace-Id': args.workspaceId,
-          },
-          retries: 3,
-          verify: false,
-        },
-      ],
-    },
-    embedding,
-    instruction: {
-      format: 'markdown',
-      language: 'ru',
-      citationsRequired: true,
-    },
-    query: args.text,
+    embedding_config: embeddingConfig,
+    mcp_servers: args.mcpServers,
+    agent_system_prompt: args.settings.systemPrompt ?? null,
+    long_term_memories: args.longTermMemories,
+    allow_destructive: args.allowDestructive ?? false,
   }
 }
