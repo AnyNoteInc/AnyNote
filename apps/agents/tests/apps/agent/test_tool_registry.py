@@ -2,7 +2,7 @@ from agents.apps.agent.services.tool_registry import (
     DEFAULT_ENGINES_TOOLS,
     build_registry_for_servers,
 )
-from agents.apps.chat.schemas import McpServerSchema
+from agents.apps.agent.schemas import McpServerSchema
 
 
 def test_engines_read_only_tools_do_not_require_confirmation() -> None:

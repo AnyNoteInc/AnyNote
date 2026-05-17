@@ -63,7 +63,6 @@ asyncio_mode = "auto"
 addopts = "-ra --strict-markers"
 markers = [
     "integration: integration tests that require live services",
-    "legacy: tests for deprecated endpoints scheduled for removal",
 ]
 pythonpath = ["."]
 testpaths = ["tests"]
@@ -105,7 +104,6 @@ ignore = ["E501"]
 # Schema fields use camelCase to match HTTP wire format expected by apps/engines.
 "agents/apps/processing/schemas.py" = ["N815"]
 # Russian docstrings contain Cyrillic letters that ruff confuses with Latin.
-"agents/apps/chat/services/rag_retrieval.py" = ["RUF002"]
 "agents/apps/processing/services/chunker.py" = ["RUF002"]
 # Domain errors don't follow Exception/Error suffix — they carry `code` instead.
 "agents/apps/agent/errors.py" = ["N818"]

@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock
 import pytest
 import respx
 from agents.apps.agent.repositories.mcp_client import McpClient, McpToolDescriptor
-from agents.apps.chat.schemas import McpServerSchema
+from agents.apps.agent.schemas import McpServerSchema
 from httpx import Response
 
 

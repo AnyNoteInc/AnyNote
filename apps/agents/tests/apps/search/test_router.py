@@ -2,8 +2,8 @@ from typing import Any
 from uuid import uuid4
 
 import pytest
-from agents.apps.chat.schemas import RagDocumentSchema
-from agents.apps.chat.services.rag_retrieval import RagRetrievalService
+from agents.apps.agent.schemas import RagDocumentSchema
+from agents.apps.agent.services.rag_retrieval import RagRetrievalService
 from agents.bootstrap import create_app
 from agents.router import apply_routes
 from fastapi import FastAPI

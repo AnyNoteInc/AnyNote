@@ -1,6 +1,6 @@
 from agents.apps.agent.services.history_compactor import trim_chat_history
-from agents.apps.chat.enums import RoleEnum
-from agents.apps.chat.schemas import ConversationMessageSchema
+from agents.apps.agent.enums_shared import RoleEnum
+from agents.apps.agent.schemas import ConversationMessageSchema
 
 
 def msg(i: int) -> ConversationMessageSchema:

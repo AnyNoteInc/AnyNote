@@ -3,8 +3,8 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID
 
 import pytest
-from agents.apps.chat.enums import ModelProviderEnum
-from agents.apps.chat.schemas import ModelConnectionSchema
+from agents.apps.agent.enums_shared import ModelProviderEnum
+from agents.apps.processing.schemas import ModelConnectionSchema
 from agents.apps.processing.schemas import (
     ContentBlockSchema,
     EmbeddingProviderConfigSchema,

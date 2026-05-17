@@ -12,7 +12,7 @@ import httpx
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field, create_model
 
-from agents.apps.chat.schemas import McpServerSchema
+from agents.apps.agent.schemas import McpServerSchema
 
 log = logging.getLogger(__name__)
 
