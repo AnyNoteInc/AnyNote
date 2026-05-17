@@ -25,7 +25,7 @@ def _secret() -> bytes:
     return key
 
 
-def _decode(token: str) -> dict:
+def _decode(token: str) -> dict[str, object]:
     try:
         return jwt.decode(
             token,
@@ -37,12 +37,14 @@ def _decode(token: str) -> dict:
         raise JwtVerificationError(str(exc)) from exc
 
 
-def claims_to_context(claims: dict) -> AgentContext:
+def claims_to_context(claims: dict[str, object]) -> AgentContext:
+    raw_scopes = claims.get('scopes', [])
+    scopes: frozenset[str] = frozenset(s for s in (raw_scopes if isinstance(raw_scopes, list) else []) if isinstance(s, str))
     return AgentContext(
         user_id=claims['sub'],
         workspace_id=claims['wsid'],
         chat_id=claims['cid'],
-        scopes=frozenset(claims.get('scopes', [])),
+        scopes=scopes,
     )
 
 
