@@ -16,6 +16,8 @@ from agents.apps.agent.enums import (
 from agents.apps.agent.enums_shared import ModelProviderEnum, RoleEnum
 from agents.apps.processing.schemas import (
     EmbeddingProviderConfigSchema,
+)
+from agents.apps.processing.schemas import (
     ModelConnectionSchema as ModelConnectionSchema,
 )
 

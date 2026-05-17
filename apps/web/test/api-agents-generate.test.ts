@@ -94,7 +94,7 @@ describe('POST /api/agents/generate', () => {
     mocks.prisma.workspaceAgentMemory.findMany.mockResolvedValue([])
     mocks.prisma.chatMessage.findMany.mockResolvedValue([])
     mocks.prisma.file.findMany.mockResolvedValue([])
-    mocks.prisma.$transaction.mockImplementation(async (cb: (tx: typeof mocks.prisma) => Promise<unknown>) =>
+    mocks.prisma.$transaction.mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) =>
       cb({
         ...mocks.prisma,
         chat: { update: vi.fn() },
@@ -172,7 +172,7 @@ describe('POST /api/agents/generate', () => {
     mocks.prisma.workspaceAgentMemory.findMany.mockResolvedValue([])
     mocks.prisma.chatMessage.findMany.mockResolvedValue([])
     mocks.prisma.file.findMany.mockResolvedValue([])
-    mocks.prisma.$transaction.mockImplementation(async (cb: (tx: typeof mocks.prisma) => Promise<unknown>) =>
+    mocks.prisma.$transaction.mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) =>
       cb({
         ...mocks.prisma,
         chat: { update: vi.fn() },
@@ -232,7 +232,7 @@ describe('POST /api/agents/generate', () => {
     mocks.prisma.workspaceAgentMemory.findMany.mockResolvedValue([])
     mocks.prisma.chatMessage.findMany.mockResolvedValue([])
     mocks.prisma.file.findMany.mockResolvedValue([])
-    mocks.prisma.$transaction.mockImplementation(async (cb: (tx: typeof mocks.prisma) => Promise<unknown>) =>
+    mocks.prisma.$transaction.mockImplementation(async (cb: (tx: unknown) => Promise<unknown>) =>
       cb({
         ...mocks.prisma,
         chat: { update: vi.fn() },

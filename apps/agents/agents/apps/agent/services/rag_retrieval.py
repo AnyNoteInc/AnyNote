@@ -3,16 +3,15 @@ from uuid import UUID
 
 from langchain_core.documents import Document
 
+from agents.apps.agent.schemas import RagDocumentSchema
 from agents.apps.processing.repositories import EmbeddingFactoryRepository, VectorStoreRepository
 from agents.apps.processing.schemas import EmbeddingProviderConfigSchema
 from agents.apps.processing.utils import collection_name_for
 
-from agents.apps.agent.schemas import RagDocumentSchema
-
 
 @dataclass
 class RagRetrievalService:
-    """Поиск top-K релевантных чанков из Qdrant с dedup по (pageId, blockNumber)."""
+    """Поиск top-K релевантных чанков из Qdrant с dedup по (pageId, blockNumber)."""  # noqa: RUF002
 
     vector_store_repository: VectorStoreRepository
     embedding_factory_repository: EmbeddingFactoryRepository

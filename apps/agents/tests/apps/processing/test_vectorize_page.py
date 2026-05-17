@@ -4,10 +4,10 @@ from uuid import UUID
 
 import pytest
 from agents.apps.agent.enums_shared import ModelProviderEnum
-from agents.apps.processing.schemas import ModelConnectionSchema
 from agents.apps.processing.schemas import (
     ContentBlockSchema,
     EmbeddingProviderConfigSchema,
+    ModelConnectionSchema,
     VectorizationRequestSchema,
 )
 from agents.apps.processing.use_cases.vectorize_page import VectorizePageUseCase

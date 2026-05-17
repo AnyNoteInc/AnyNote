@@ -347,7 +347,6 @@ export async function POST(request: NextRequest): Promise<Response> {
           transport: true,
           headers: true,
           toolsAllowlist: true,
-          retries: true,
           verifyTls: true,
         },
       }),
@@ -401,7 +400,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     transport: s.transport as 'HTTP_JSONRPC' | 'SSE',
     headers: decryptedHeadersMap[s.id] ?? {},
     tools: s.toolsAllowlist,
-    retries: s.retries,
+    retries: 3,
     verify: s.verifyTls,
   }))
 

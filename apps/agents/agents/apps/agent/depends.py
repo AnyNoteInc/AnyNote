@@ -13,10 +13,10 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from agents.apps.agent.repositories import ActionLogRepository, AgentJinjaRenderer, MemoryWriterClient
 from agents.apps.agent.repositories.mcp_client import McpClient
-from agents.apps.agent.use_cases.resume_agent import ResumeAgentUseCase
-from agents.apps.agent.use_cases.run_agent import RunAgentUseCase
 from agents.apps.agent.repositories.model_factory import ModelFactoryRepository
 from agents.apps.agent.services.rag_retrieval import RagRetrievalService
+from agents.apps.agent.use_cases.resume_agent import ResumeAgentUseCase
+from agents.apps.agent.use_cases.run_agent import RunAgentUseCase
 from agents.settings import SettingsSchema
 
 from .errors import JwtVerificationError
