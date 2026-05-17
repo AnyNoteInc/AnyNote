@@ -13,6 +13,7 @@ import { searchRouter } from './routers/search'
 import { notificationRouter } from './routers/notification'
 import { reminderRouter } from './routers/reminder'
 import { kanbanRouter } from './routers/kanban'
+import { mcpServerRouter } from './routers/mcp-server'
 
 export { createContext, createServerContext } from './trpc'
 export type { Context } from './trpc'
@@ -42,6 +43,7 @@ export const appRouter = router({
   notification: notificationRouter,
   reminder: reminderRouter,
   kanban: kanbanRouter,
+  mcpServer: mcpServerRouter,
 })
 
 export const createCaller = createCallerFactory(appRouter)
