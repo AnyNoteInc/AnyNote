@@ -33,6 +33,13 @@ export class AgentsInternalAuthGuard implements CanActivate {
     const tsRaw = pick(headers['x-agents-timestamp'])
 
     if (!auth?.startsWith('Bearer ') || !userId || !workspaceId || !tsRaw) {
+      // Backward-compat: legacy callers (apps/web /api/agents/generate →
+      // /chat/generate) pass x-user-id/x-workspace-id without HMAC. The
+      // downstream WorkspaceMemberGuard / McpTokenGuard still validates
+      // workspace membership.
+      const legacyUser = pick(headers['x-user-id'])
+      const legacyWorkspace = pick(headers['x-workspace-id'])
+      if (legacyUser && legacyWorkspace) return true
       throw new UnauthorizedException('missing agents internal auth headers')
     }
 
