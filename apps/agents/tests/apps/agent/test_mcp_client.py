@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 import pytest
 import respx
 from httpx import Response
-from unittest.mock import AsyncMock
+from unittest.mock import AsyncMock, patch
 
 from agents.apps.agent.repositories.mcp_client import McpClient, McpToolDescriptor
 from agents.apps.chat.schemas import McpServerSchema
@@ -73,3 +73,27 @@ async def test_allowlist_filters_tools():
     server = make_server('https://mcp.test/', allowlist=['allowed'])
     tools = await client.list_tools(server)
     assert [t.name for t in tools] == ['allowed']
+
+
+@pytest.mark.asyncio
+async def test_sse_list_tools_delegates_to_mcp_sdk(monkeypatch):
+    # Mock the SDK session factory used in mcp_client._sse_session
+    fake_tool = AsyncMock()
+    fake_tool.name = 'echo'
+    fake_tool.description = 'd'
+    fake_tool.inputSchema = {}
+
+    fake_session = AsyncMock()
+    fake_session.list_tools = AsyncMock(return_value=AsyncMock(tools=[fake_tool]))
+
+    @asynccontextmanager
+    async def fake_session_factory(*args, **kwargs):
+        yield fake_session
+
+    from agents.apps.agent.repositories import mcp_client as mc
+    monkeypatch.setattr(mc, '_open_sse_session', fake_session_factory)
+
+    client = McpClient()
+    server = make_server('https://mcp.test/sse', transport='SSE')
+    tools = await client.list_tools(server)
+    assert tools and tools[0].name == 'echo'
