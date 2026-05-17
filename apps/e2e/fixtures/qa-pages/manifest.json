@@ -1,0 +1,17 @@
+{
+  "title_to_file": {
+    "Архитектура платежей": "01-payments-architecture.md",
+    "Решения по архитектуре платежей": "02-payments-decisions.md",
+    "Onboarding": "03-onboarding.md",
+    "Roadmap Q3": "04-roadmap.md",
+    "Security review": "05-security-review.md",
+    "Vendor list": "06-vendor-list.md",
+    "FAQ": "07-faq.md"
+  },
+  "expected_substrings_for_payments_question": [
+    "YooKassa",
+    "Plans",
+    "Renewal",
+    "Webhook-подпись"
+  ]
+}

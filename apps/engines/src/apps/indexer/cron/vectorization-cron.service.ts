@@ -48,6 +48,61 @@ export class VectorizationCronService implements OnModuleInit {
     await this.processBatch(rows)
   }
 
+  /**
+   * Test-only: synchronously drain all PENDING outbox events for a single
+   * workspace. Used by the PLAYWRIGHT-gated POST /indexer/test/index-now
+   * endpoint to trigger indexing without waiting for the cron tick.
+   */
+  async drainOutboxForWorkspace(workspaceId: string): Promise<void> {
+    const rows = await this.claimBatchForWorkspace(workspaceId)
+    if (rows.length === 0) return
+    await this.processBatch(rows)
+    // Recurse in case there were more rows than the batch size.
+    await this.drainOutboxForWorkspace(workspaceId)
+  }
+
+  private async claimBatchForWorkspace(workspaceId: string): Promise<Row[]> {
+    return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+      const rows = await tx.$queryRaw<Row[]>(Prisma.sql`
+        SELECT id, event_type, aggregate_id AS page_id, workspace_id
+        FROM outbox_events
+        WHERE id IN (
+          SELECT DISTINCT ON (aggregate_id, workspace_id) id
+          FROM outbox_events
+          WHERE status = 'PENDING'
+            AND next_attempt_at <= now()
+            AND aggregate_type = 'page'
+            AND event_type IN ('page.upserted', 'page.deleted')
+            AND workspace_id = ${workspaceId}::uuid
+          ORDER BY aggregate_id, workspace_id, created_at DESC, id DESC
+        )
+        ORDER BY id
+        LIMIT ${this.batch}
+        FOR UPDATE SKIP LOCKED
+      `)
+      if (rows.length === 0) return rows
+      const ids = rows.map((r) => r.id)
+      await tx.$executeRaw(Prisma.sql`
+        UPDATE outbox_events
+        SET status='PROCESSING', locked_at=now(), locked_by=${this.workerId}
+        WHERE id IN (${Prisma.join(ids)})
+      `)
+      await tx.$executeRaw(Prisma.sql`
+        UPDATE outbox_events
+        SET status='DONE', processed_at=now()
+        WHERE status='PENDING'
+          AND aggregate_type='page'
+          AND id NOT IN (${Prisma.join(ids)})
+          AND (aggregate_id, workspace_id) IN (
+            SELECT aggregate_id, workspace_id
+            FROM outbox_events
+            WHERE id IN (${Prisma.join(ids)})
+          )
+      `)
+      return rows
+    })
+  }
+
   private async claimBatch(): Promise<Row[]> {
     return this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
       // Pick the latest PENDING event per (aggregate_type, aggregate_id, workspace_id) tuple.
