@@ -9,14 +9,6 @@ export type ServiceBlock = {
   result?: string
 }
 
-export type AgentsStreamEvent =
-  | { type: 'token'; text: string }
-  | ({
-      type: 'status'
-    } & ServiceBlock)
-  | { type: 'done' }
-  | { type: 'error'; code: string; message: string }
-
 export type PlanStepEvent = {
   type: 'plan_step'
   id: string
