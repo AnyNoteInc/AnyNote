@@ -4,10 +4,12 @@ import logging
 import time
 from collections.abc import Sequence
 from typing import Any
+from uuid import uuid4
 
 from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import AIMessage, BaseMessage, SystemMessage, ToolMessage
 from langchain_core.tools import StructuredTool
+from langgraph.types import interrupt
 
 from agents.apps.agent.enums import PlanStepStatus
 from agents.apps.agent.schemas import AgentState, PlanStep
@@ -78,6 +80,18 @@ async def _run_tool(
             content=f'Permission denied: tool {name} requires scope {meta.required_scope}',
             tool_call_id=call_id,
         )
+    if meta and meta.requires_confirmation and not state.context.allow_destructive:
+        decision = interrupt({
+            'confirmation_id': str(uuid4()),
+            'tool': name,
+            'args_preview': meta.preview(args),
+            'summary': meta.summarize(args),
+        })
+        if isinstance(decision, dict) and decision.get('action') == 'deny':
+            return ToolMessage(
+                content=f'User denied calling {name}.',
+                tool_call_id=call_id,
+            )
     tool = next((t for t in tools if t.name == name), None)
     if tool is None:
         return ToolMessage(content=f"tool '{name}' not registered", tool_call_id=call_id)
