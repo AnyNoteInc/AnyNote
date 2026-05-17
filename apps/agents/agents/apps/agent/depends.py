@@ -13,6 +13,8 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from agents.apps.agent.repositories import ActionLogRepository, AgentJinjaRenderer, MemoryWriterClient
 from agents.apps.agent.repositories.mcp_client import McpClient
+from agents.apps.agent.use_cases.resume_agent import ResumeAgentUseCase
+from agents.apps.agent.use_cases.run_agent import RunAgentUseCase
 from agents.apps.chat.repositories.model_factory import ModelFactoryRepository
 from agents.apps.chat.services.rag_retrieval import RagRetrievalService
 from agents.settings import SettingsSchema
@@ -115,6 +117,42 @@ class AgentProvider(Provider):
         async with AsyncPostgresSaver.from_conn_string(settings.db.dsn) as saver:
             await saver.setup()
             yield saver
+
+    @provide
+    def run_agent_use_case(
+        self,
+        mcp_client: McpClient,
+        memory_writer_client: MemoryWriterClient,
+        action_log_repo: ActionLogRepository,
+        renderer: AgentJinjaRenderer,
+        model_factory: ModelFactoryRepository,
+        checkpointer: AsyncPostgresSaver,
+        rag_service: RagRetrievalService,
+    ) -> RunAgentUseCase:
+        return RunAgentUseCase(
+            llm_factory=model_factory.make,
+            mcp_client=mcp_client,
+            rag_service=rag_service,
+            memory_writer_client=memory_writer_client,
+            action_log_repo=action_log_repo,
+            renderer=renderer,
+            checkpointer=checkpointer,
+        )
+
+    @provide
+    def resume_agent_use_case(
+        self,
+        checkpointer: AsyncPostgresSaver,
+    ) -> ResumeAgentUseCase:
+        from agents.apps.agent.services.graph import build_agent_graph
+
+        def _build_graph() -> object:
+            return build_agent_graph(checkpointer=checkpointer)
+
+        return ResumeAgentUseCase(
+            build_graph=_build_graph,
+            run_streamer=lambda graph, config: None,  # unused; stream_graph called directly
+        )
 
 
 agent_provider = AgentProvider()
