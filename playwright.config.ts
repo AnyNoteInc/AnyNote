@@ -14,6 +14,20 @@ export default defineConfig({
       PLAYWRIGHT: 'true',
       YOOKASSA_MOCK_ENABLED: 'true',
       YOOKASSA_RETURN_URL_BASE: 'http://localhost:3100',
+      // Agent OS — pass through from the outer shell if set.
+      // These are needed by the chat API route (agents proxy) and the
+      // encryptFixture helper in agent-qa-citations.spec.ts.
+      ...(process.env.SECRETS_ENCRYPTION_KEY
+        ? { SECRETS_ENCRYPTION_KEY: process.env.SECRETS_ENCRYPTION_KEY }
+        : {}),
+      ...(process.env.AGENTS_URL ? { AGENTS_URL: process.env.AGENTS_URL } : {}),
+      ...(process.env.AGENTS_TO_ENGINES_SECRET
+        ? { AGENTS_TO_ENGINES_SECRET: process.env.AGENTS_TO_ENGINES_SECRET }
+        : {}),
+      ...(process.env.BETTER_AUTH_JWT_AGENTS_AUDIENCE
+        ? { BETTER_AUTH_JWT_AGENTS_AUDIENCE: process.env.BETTER_AUTH_JWT_AGENTS_AUDIENCE }
+        : {}),
+      ...(process.env.OPENAI_API_KEY ? { OPENAI_API_KEY: process.env.OPENAI_API_KEY } : {}),
     },
   },
   use: {
