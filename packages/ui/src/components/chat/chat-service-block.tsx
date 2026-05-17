@@ -48,11 +48,16 @@ export function ChatServiceBlock({ part }: ChatServiceBlockProps) {
           alignItems="center"
           data-testid="chat-service-block-summary"
           display="flex"
-          flexWrap="nowrap"
+          flexWrap="wrap"
           gap={1}
           minWidth={0}
+          rowGap={0.25}
         >
-          <Typography component="span" noWrap variant="body2">
+          <Typography
+            component="span"
+            sx={{ whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}
+            variant="body2"
+          >
             {part.title}
           </Typography>
           <Typography color="text.secondary" component="span" variant="body2">
