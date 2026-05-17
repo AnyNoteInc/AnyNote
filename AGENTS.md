@@ -34,75 +34,76 @@ Copy `.env.example` to `.env` for local setup and keep secrets out of commits. U
 <claude-mem-context>
 # Memory Context
 
-# [anynote] recent context, 2026-05-16 9:24pm GMT+1
+# [anynote] recent context, 2026-05-17 8:22am GMT+1
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (16,440t read) | 601,856t work | 97% savings
+Stats: 50 obs (18,558t read) | 680,793t work | 97% savings
 
 ### May 16, 2026
-S563 Kanban table-view sprint management: three-dot menu, complete/edit/delete dialogs, status translation, date display, active-sprint highlight, default filter (May 16 at 9:25 AM)
-S564 Kanban table-view sprint management: three-dot menu with start/complete/edit/delete, status translation, inline dates, active-sprint highlight, default-to-current filter (May 16 at 9:27 AM)
-S565 Add sprint lifecycle controls to kanban table view — start/complete/edit/delete via three-dot menu, Russian status labels, date display, active sprint accent, default-to-current filter. 14-task TDD plan being executed via subagent-driven development. (May 16 at 9:29 AM)
-S567 Observer session monitoring primary Claude Code session: `/simplify` skill invoked after all 14 kanban sprint management plan tasks completed — code quality review of feat/kanban-p1 branch (22 files, 1145+/118- lines) (May 16 at 9:30 AM)
-S568 Simplify kanban sprint subsystem via /simplify — security, DRY, efficiency, style improvements (May 16 at 5:06 PM)
-S566 Observer monitoring primary session implementing kanban sprint management plan — all 14 tasks complete, finishing-a-development-branch workflow in progress, final holistic code review completed (May 16 at 5:06 PM)
-S569 7-item kanban UI/UX bug batch + simplify refactor commit — anynote sprint table view (May 16 at 5:21 PM)
-2222 5:44p 🔵 Pre-commit state clarified — manage-list-popover.tsx has unstaged changes; task-form.tsx has 12 deletions from HEAD
-2223 5:45p 🔴 Kanban filter popover slowness fixed — complete changeset confirmed via git diff HEAD
-2225 5:58p 🔵 Kanban Task Filters Work-in-Progress State
-2230 5:59p 🔴 Next.js scroll-behavior warning fix requested
-2226 " 🔵 Web Package TypeScript Check Passes Clean
-2227 " 🔵 GanttView Component Implementation — gantt-task-react Integration
-2228 " 🔵 Lint and Editor Type Checks Both Pass — Error Is Runtime or Build-Time
-2229 " 🔵 GanttView SSR Safety Via Parent Dynamic Import — Not Individually Wrapped
-2231 6:00p 🔵 Next.js Production Build Passes Webpack and TypeScript Phases
-2233 " 🔵 Full Production Build Succeeds — Error Is Not Build-Time
-2232 " 🔴 Fixed Next.js scroll-behavior warning in root layout
-2234 " 🔵 kanban-task-filters.spec.ts — Performance and DOM Cleanliness Test for Filter Popovers
-2235 " 🔵 Full Staged Changeset — Kanban Filter Refactor Scope
-2236 6:01p 🔵 Full Monorepo Turbo check-types Passes — All 17 Packages Clean
-2237 " ✅ layout.tsx — data-scroll-behavior="smooth" Added to html Element (Unstaged)
-2238 " 🔄 manage-list-popover.tsx — DnD Removed, Custom VirtualizedRows Implemented
-2239 " 🔴 kanban-board-page.tsx — Board Views Hidden When Task Detail Open (DOM Count Fix)
-2240 " 🔵 Playwright Config — Root-Level, port 3100, Turbo Dev Server, No reuseExistingServer
-2241 6:02p 🔴 kanban-task-filters e2e Test PASSES — Fix Verified in 21 Seconds
-2242 " 🔵 Playwright Dev Server Conflict — reuseExistingServer:false Blocks If port 3000 Has Running Dev Server
-S570 Fix 7 kanban UI/UX bugs + task card popover performance issues (May 16 at 6:06 PM)
-2244 6:06p 🔵 task-side-panel showDetails defaults to true — should be false
-2245 6:07p 🔵 Sprint filter X button logic and sprint-section header alignment root cause found
-2246 " 🔵 Sprint filter "All" bug root cause: URL param deletion conflicts with defaultSprint='current'
-2247 6:08p 🔵 task-form.tsx architecture: monolithic 660-line component with all popovers and mutations inline
-2248 " 🔵 task-form.tsx parent task popover: unmemoized parentCandidates computed on every render
-2249 " 🔴 Issues 1 & 3 fixed: showDetails default false, SprintMenu right-aligned
-2250 6:09p 🔴 Issues 4 & 5 fixed: sprint filter X removed, "All" selection now works with defaultSprint='current'
-2251 " 🔴 Issue 2 fixed: drag-drop flicker eliminated with optimistic update in TableView
-2252 " 🔴 Type error in optimistic update: columnId/position not in task.update input type
-2253 " 🔵 TS2589 persists on useMutation line 33 after removing invalid fields
-2254 6:10p 🔴 Drag-drop flicker fix moved from onMutate to handleDragEnd to avoid TS2589
-2255 " 🔴 TS2589 on setData: switched from object form to updater function form
-2256 " 🔵 TS2589 persists on setData regardless of object vs updater form — type assertion likely needed
-2257 " 🔵 Established pattern for tRPC setData TS2589: cast setData to explicit function type before calling
-2258 " 🔴 TS2589 resolved in table-view.tsx: applied board-view setData cast pattern
-2259 6:11p 🟣 Issue 6: task row context menu begun — adding MUI menu imports to sprint-section.tsx
-2260 " 🟣 Issue 6: TaskRowMenu component added to sprint-section.tsx with "Remove from sprint" action
-2261 " 🟣 TaskRowMenu passes type-check and lint — now needs wiring in TableView and SprintSection render
-2262 " 🟣 table-view.tsx wiring point identified for onRemoveTaskFromSprint
-2263 6:12p 🟣 Issue 6 complete: "Remove from sprint" fully wired — TableView → SprintSection → TaskRow → TaskRowMenu
-2264 " 🔵 AnyNotePlainEditor is not memoized — re-renders on every TaskForm state change
-2265 6:13p 🔴 Issue 7 perf fix begun: useMemo imported to task-form.tsx for parentCandidates memoization
-S571 3 additional kanban fixes: TaskRowMenu icon missing, sprint menu alignment, sprint sort order (May 16 at 6:13 PM)
-2266 6:17p 🔵 Sprint sort order uses position:asc in backend; TaskRowMenu icon is wrong
-2267 6:24p 🔵 sprint-section.tsx imports MoreVertIcon but not DeleteIcon
-2268 6:25p 🔴 TaskRowMenu "Удалить из спринта" now shows DeleteIcon in error color
-2269 " 🔴 Sprint header menu now truly right-aligned via flexGrow spacer
-2270 " 🔴 Sprint list now sorted by startDate desc, newest sprint first
-S572 3 additional kanban fixes: TaskRowMenu missing DeleteIcon, sprint header alignment, sprint sort by startDate desc (May 16 at 6:26 PM)
-2271 6:32p 🔵 Task disappears on drag-to-backlog due to active sprint filter
-2272 6:33p 🔴 Task disappearing on drag-to-backlog fixed with sprint-agnostic tableViewTasks
-2273 " 🔴 Drag-to-backlog disappearing task fixed and committed as f50de5b
+2296 10:01p ✅ All 3 SonarCloud Security Hotspots Marked REVIEWED/SAFE via API
+2297 " 🔵 Quality Gate Still ERROR: Hotspots Fixed, Reliability Still Failing (Needs New Analysis)
+2298 " 🔴 Fixed S6594: Replaced String.match() with RegExp.exec() in 3 E2E Test Files
+2299 " 🔴 Fixed S2933: KanbanBus.listeners Marked readonly, Non-null Assertions Removed
+2300 10:02p 🔴 Fixed S7735/S7764: Eliminated Negated Conditions and window → globalThis in Two Files
+2301 " 🔵 TypeScript Type Check Passes After SonarCloud Fixes
+2302 " 🔵 @repo/trpc Tests All Pass After kanban-bus.ts Refactor
+2303 " 🔵 Web App Tests All Pass After SonarCloud Fixes
+2304 " ✅ SonarCloud Fixes Committed to feat/kanban-p1 (commit 3aabdf7)
+2305 " ✅ SonarCloud Fix Commit Pushed to origin/feat/kanban-p1
+2306 " 🔵 New CI Run Triggered for PR #15 After SonarCloud Fix Push
+2321 " 🔵 PR #15 CI Pipeline Passed All Checks
+2322 " 🔵 AnyNote Release Workflow: Semantic-Release with Auto-Deploy Trigger
+2323 " 🔵 AnyNote Deploy Workflow: Matrix Docker Build + SSH rsync Deployment
+2324 10:10p 🟣 PR #15 (feat/kanban-p1) Merged into Main
+2329 " ✅ CI/CD Workflow Initiated: Commit → PR → SonarQube → Release → Deploy
+2325 " 🔵 Release Workflow Auto-Triggered After kanban-p1 Merge
+2330 10:20p 🟣 feat/kanban-p1 Merged and Release v1.18.0 Triggered
+2343 10:29p 🟣 GitHub Actions Pipeline Completed Successfully for anynote
+2344 10:30p 🔵 AnyNote CI/CD Pipeline Architecture: Parallel Docker Builds + SSH Deploy
+2345 " 🔵 AnyNote Pipeline Warnings: Dockerfile Security Issues and Node.js 20 Deprecations
+### May 17, 2026
+2346 5:02a 🔵 Anynote Project Structure and Agent Use Case Exploration Initiated
+2347 " 🔵 Anynote Project Architecture and Prior Work Discovered via MEMORY.md
+2348 " 🔵 Anynote Full Feature Map and Agents App Structure Discovered
+2349 " 🔵 Anynote tRPC Router Surface Shows AI-Integrated Feature Domains
+2350 5:03a 🔵 Anynote LangGraph Pipeline Architecture Fully Documented
+2351 " 🔵 MCP Tool Surface Exposed to LLM Agent: Page and Workspace Operations
+2352 " 🔵 Prisma Schema Reveals Full Kanban and Notification Data Models
+2353 5:09a 🔵 Anynote Project Docker Compose Configuration
+2354 " 🔵 Deploy Compose Intentionally Omits PostgreSQL Port Mapping
+2355 5:12a ✅ Production PostgreSQL Port Bound to Loopback for SSH Access
+2356 5:23a ⚖️ AnyNote Personal Agent OS — Architectural Vision Defined
+2357 " ⚖️ 12 Core Agent Capability Scenarios Defined for AnyNote Agent
+2358 " ⚖️ Six-Point Implementation Plan for apps/agents Agent OS
+2359 " 🔵 Async Subagent Launched to Reverse-Engineer openclaw Agent
+2360 " 🔵 openclaw Identified as TypeScript Multi-Channel AI Gateway (Not a Single Agent)
+2361 " 🔵 claudecode Agent is TypeScript with Rich Context Compaction and Remote Session Architecture
+2362 " ⚖️ Parallel Async Subagents Dispatched for Both Reference Agent Deep-Dives
+2363 5:26a ⚖️ AnyNote Agent Operating System — Vision and Architecture Plan Added to MEMORY.md
+2364 " ✅ PostgreSQL Loopback Port Change Committed and Pushed to main
+2365 5:40a ⚖️ AnyNote Personal Agent OS — Architecture Synthesis Plan
+S586 AnyNote Agent OS — Section 5/9 approved (user said "yes"), now presenting Section 5/9 content again as confirmation checkpoint — MCP integration design approved and session advancing (May 17 at 5:44 AM)
+S587 AnyNote Agent OS — Section 6/9: Three-layer memory architecture — session history, RAG, and long-term WorkspaceAgentMemory with explicit v1 scope boundaries (May 17 at 5:49 AM)
+S585 AnyNote Agent OS — Section 5/9: MCP client integration — multi-server tool registry, transport support, namespacing, allowlist, discovery UI, and engines MCP auth hardening (May 17 at 5:49 AM)
+S588 AnyNote Agent OS — Section 7/9: Confirmation/interrupt flow for destructive tools — LangGraph interrupt(), SSE events, resume endpoint, timeout cleanup, and v1 scope limits (May 17 at 5:54 AM)
+S590 AnyNote Agent OS — Section 8/9 (repeated): Complete SSE streaming protocol — 13 event types, web handling, discriminated union schema, event ordering invariant — awaiting approval (May 17 at 5:54 AM)
+S591 AnyNote Agent OS — Section 9/9 (final): E2E golden-path scenario "Q&A with citations" + full test pyramid strategy covering unit, integration, and Playwright E2E layers (May 17 at 5:56 AM)
+S589 AnyNote Agent OS — Section 8/9: Complete SSE streaming protocol — full event type taxonomy, web-side handling per event, discriminated union schema, and guaranteed event ordering invariant (May 17 at 5:56 AM)
+S593 AnyNote Agent OS v1 design spec — committed; now generating implementation plan (May 17 at 5:58 AM)
+2366 5:58a 🔵 AnyNote Specs Folder Contains Prior Agent Design Documents
+2367 " 🟣 AnyNote Agent OS v1 Design Spec Written to Disk
+2368 6:01a ✅ Agent OS Spec Post-Write QA: Single TBD Found and Model Strategy Clarified
+S592 AnyNote Agent OS v1 design spec — authored, reviewed, and committed (May 17 at 6:01 AM)
+2369 6:15a 🟣 Agent OS v1 Implementation Plan — Phase 1 written
+2370 " 🟣 Agent OS v1 Plan — Phase 2 written (Tasks 6-10): JWT auth + HMAC guard
+2371 " 🟣 Agent OS v1 Plan — Phase 3 written (Tasks 11-16): schemas, events, services
+S594 AnyNote Agent OS v1 implementation plan — created, committed, and Task 1 executed on feat/agent-os-v1 branch (May 17 at 6:15 AM)
+2372 6:26a 🔵 Task 1 verified SPEC_COMPLIANT and APPROVED via dual subagent review
+2373 " 🔵 @repo/auth package structure before Task 2 implementation
+2374 " 🔵 @repo/auth vitest config requires tests in test/ not src/ — plan spec conflict
 
-Access 602k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 681k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>
