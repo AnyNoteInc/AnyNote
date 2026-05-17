@@ -48,6 +48,17 @@ class McpServerSchema(RequestResponseSchema):
     verify: bool = True
 
 
+class RagDocumentSchema(RequestResponseSchema):
+    model_config = ConfigDict(populate_by_name=True)
+
+    page_id: UUID
+    workspace_id: UUID
+    title: str
+    page_type: str
+    block_number: int
+    content: str
+
+
 class AgentContext(BaseModel):
     user_id: UUID
     workspace_id: UUID
