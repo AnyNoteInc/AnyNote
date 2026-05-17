@@ -27,26 +27,34 @@ export async function POST(req: NextRequest) {
       return new NextResponse('forbidden', { status: 403 })
     }
     const scopedUserId = e.scope === 'USER' ? e.userId : null
-    await prisma.workspaceAgentMemory.upsert({
+    // Prisma's compound-unique upsert can't match rows where userId IS NULL
+    // (SQL null comparison). Find + update or create explicitly.
+    const existing = await prisma.workspaceAgentMemory.findFirst({
       where: {
-        workspaceId_scope_userId_key: {
-          workspaceId: e.workspaceId,
-          scope: e.scope,
-          // Prisma compound unique supports null for nullable columns — cast required
-          userId: scopedUserId as string,
-          key: e.key,
-        },
-      },
-      create: {
         workspaceId: e.workspaceId,
         scope: e.scope,
         userId: scopedUserId,
         key: e.key,
-        content: e.content,
-        source: 'AGENT',
       },
-      update: { content: e.content },
+      select: { id: true },
     })
+    if (existing) {
+      await prisma.workspaceAgentMemory.update({
+        where: { id: existing.id },
+        data: { content: e.content },
+      })
+    } else {
+      await prisma.workspaceAgentMemory.create({
+        data: {
+          workspaceId: e.workspaceId,
+          scope: e.scope,
+          userId: scopedUserId,
+          key: e.key,
+          content: e.content,
+          source: 'AGENT',
+        },
+      })
+    }
   }
   return NextResponse.json({ written: parsed.data.entries.length })
 }

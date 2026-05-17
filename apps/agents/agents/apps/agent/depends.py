@@ -147,16 +147,22 @@ class AgentProvider(Provider):
     @provide
     def resume_agent_use_case(
         self,
+        mcp_client: McpClient,
+        memory_writer_client: MemoryWriterClient,
+        action_log_repo: ActionLogRepository,
+        renderer: AgentJinjaRenderer,
+        model_factory: ModelFactoryRepository,
         checkpointer: AsyncPostgresSaver,
+        rag_service: RagRetrievalService,
     ) -> ResumeAgentUseCase:
-        from agents.apps.agent.services.graph import build_agent_graph
-
-        def _build_graph() -> object:
-            return build_agent_graph(checkpointer=checkpointer)
-
         return ResumeAgentUseCase(
-            build_graph=_build_graph,
-            run_streamer=lambda graph, config: None,  # unused; stream_graph called directly
+            llm_factory=model_factory.make,
+            mcp_client=mcp_client,
+            rag_service=rag_service,
+            memory_writer_client=memory_writer_client,
+            action_log_repo=action_log_repo,
+            renderer=renderer,
+            checkpointer=checkpointer,
         )
 
 

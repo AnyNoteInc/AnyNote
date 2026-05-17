@@ -17,22 +17,50 @@ class _SaveMemoryArgs(BaseModel):
     content: str = Field(..., min_length=1, max_length=2000)
 
 
-def make_save_memory_tool(pending: list[MemoryWrite]) -> StructuredTool:
+def make_save_memory_tool(
+    pending: list[MemoryWrite],
+    *,
+    memory_client: Any | None = None,
+    jwt: str | None = None,
+    workspace_id: str | None = None,
+    user_id: str | None = None,
+) -> StructuredTool:
+    """Build a save_memory tool.
+
+    Behaviour: appends the write to ``pending`` so the memory_writer node sees
+    it via state; AND — when ``memory_client`` is supplied — persists
+    immediately so the write survives even if the critic verdict path doesn't
+    propagate ``pending_memory_writes`` back through the graph state (which is
+    the current v1 behaviour, see comment in run_agent.py).
+    """
     async def call(**kwargs: Any) -> str:
         args = _SaveMemoryArgs(**kwargs)
-        pending.append(MemoryWrite(
-            scope=AgentMemoryScope(args.scope),
-            key=args.key,
-            content=args.content,
-        ))
-        return f'Memory recorded: {args.key} (will persist if the answer is approved).'
+        scope = AgentMemoryScope(args.scope)
+        pending.append(MemoryWrite(scope=scope, key=args.key, content=args.content))
+        if memory_client and jwt and workspace_id and user_id:
+            try:
+                await memory_client.write_batch(
+                    jwt=jwt,
+                    entries=[{
+                        'workspaceId': workspace_id,
+                        'userId': user_id,
+                        'scope': scope.value.upper(),
+                        'key': args.key,
+                        'content': args.content,
+                    }],
+                )
+                return f'Memory saved: {args.key}'
+            except Exception as exc:
+                return f'Memory recorded locally (persist failed: {exc}).'
+        return f'Memory recorded: {args.key} (deferred persist).'
 
     return StructuredTool.from_function(
         coroutine=call,
         name='save_memory',
         description=(
-            'Record a durable fact for this workspace or user. Persisted '
-            'only after the critic approves the final answer.'
+            'Record a durable fact for this workspace or user (visible across '
+            'future chats). scope is "workspace" or "user". key is a short '
+            'slug; content is the fact in markdown (up to 2000 chars).'
         ),
         args_schema=_SaveMemoryArgs,
     )

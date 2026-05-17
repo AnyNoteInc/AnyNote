@@ -44,12 +44,21 @@ async def critic_node(
         update['revision_count'] = state.revision_count + 1
         update['last_critic_feedback'] = feedback
         if revised_plan:
-            update['plan'] = [
-                PlanStep(id=str(p['id']), title=str(p['title']),
-                         status=PlanStepStatus.PENDING)
-                for p in revised_plan
-            ]
-            update['current_step_id'] = revised_plan[0]['id'] if revised_plan else None
+            # The critic LLM sometimes returns `revised_plan` as a list of
+            # plain strings (titles) instead of {id, title} dicts. Normalise.
+            normalised: list[PlanStep] = []
+            for idx, entry in enumerate(revised_plan, start=1):
+                if isinstance(entry, dict):
+                    raw_id = entry.get('id')
+                    raw_title = entry.get('title')
+                    step_id = str(raw_id) if raw_id is not None else str(idx)
+                    step_title = str(raw_title) if raw_title is not None else f'Step {idx}'
+                else:
+                    step_id = str(idx)
+                    step_title = str(entry)
+                normalised.append(PlanStep(id=step_id, title=step_title, status=PlanStepStatus.PENDING))
+            update['plan'] = normalised
+            update['current_step_id'] = normalised[0].id if normalised else None
             update['draft_answer'] = ''
             update['messages'] = []
     else:  # REJECT

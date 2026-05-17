@@ -9,9 +9,13 @@ from typing import Any
 from langchain_core.runnables import RunnableConfig
 
 from agents.apps.agent.events import ServerEvent
-from agents.apps.agent.schemas import AgentContext, AgentRunRequest, AgentState
+from agents.apps.agent.schemas import AgentContext, AgentRunRequest, AgentState, MemoryWrite
 from agents.apps.agent.services.graph import build_agent_graph
 from agents.apps.agent.services.history_compactor import trim_chat_history
+from agents.apps.agent.services.internal_tools import (
+    make_save_memory_tool,
+    make_search_pages_tool,
+)
 from agents.apps.agent.services.tool_registry import build_registry_for_servers
 from agents.apps.agent.use_cases._streaming import stream_graph
 
@@ -42,12 +46,42 @@ class RunAgentUseCase:
         from agents.apps.agent.services.nodes.router import route_node
 
         # Discover MCP tools up front so planner sees descriptions.
+        log.info('MCP servers in payload count=%d names=%s', len(request.mcp_servers),
+                 [s.name for s in request.mcp_servers])
         discovered = await self.mcp_client.discover_all(request.mcp_servers)
+        log.info('MCP discover_all: %s', {k: len(v) for k, v in discovered.items()})
         tools = self.mcp_client.build_langchain_tools(discovered, request.mcp_servers)
+        log.info('LangChain tools count=%d', len(tools))
         tool_registry = build_registry_for_servers(
             request.mcp_servers,
             discovered={k: [t.name for t in v] for k, v in discovered.items()},
         )
+
+        # Internal agent tools — live inside apps/agents (no MCP). Share the
+        # same tool list given to the executor so the LLM calls them the same
+        # way as MCP tools. recall_memory not wired here in v1 — relevant facts
+        # are already loaded by web into request.long_term_memories and
+        # surfaced to the planner via the prompt.
+        pending_memory_writes: list[MemoryWrite] = []
+        tools = [
+            *tools,
+            make_save_memory_tool(
+                pending_memory_writes,
+                memory_client=self.memory_writer_client,
+                jwt=jwt,
+                workspace_id=str(context.workspace_id),
+                user_id=str(context.user_id),
+            ),
+        ]
+        if request.embedding_config is not None:
+            tools.append(
+                make_search_pages_tool(
+                    workspace_id=str(context.workspace_id),
+                    embedding=request.embedding_config,
+                    rag_service=self.rag_service,
+                ),
+            )
+        log.info('Total tools count=%d (incl. internal)', len(tools))
 
         llm = self.llm_factory(request.model_config_)
 

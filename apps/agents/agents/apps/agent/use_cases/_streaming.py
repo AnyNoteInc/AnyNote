@@ -34,26 +34,34 @@ async def stream_graph(
     async for chunk in graph.astream(input, config, stream_mode=['values', 'updates']):
         mode, data = chunk
         if mode == 'values':
-            state = AgentState.model_validate(data)
+            try:
+                state = AgentState.model_validate(data)
+            except Exception:
+                # values-mode for intermediate states can carry non-state shapes
+                # (e.g. interrupt tuples). Skip — interrupts are surfaced below.
+                continue
             for ev in _diff_plan_events(state, last_plan_ids):
                 yield ev
             last_plan_ids = {s.id for s in state.plan}
         elif mode == 'updates':
+            # On interrupt LangGraph emits {'__interrupt__': (Interrupt(...),)}.
+            interrupts = data.get('__interrupt__') if isinstance(data, dict) else None
+            if interrupts:
+                for itr in interrupts:
+                    payload = getattr(itr, 'value', None) or {}
+                    if isinstance(payload, dict) and 'confirmation_id' in payload:
+                        yield ServerEvent.confirmation_required(
+                            confirmation_id=str(payload['confirmation_id']),
+                            tool=str(payload.get('tool', '')),
+                            summary=str(payload.get('summary', '')),
+                            args_preview=payload.get('args_preview') or {},
+                        )
+                return
             for node_name, partial_data in data.items():
+                if not isinstance(partial_data, dict):
+                    continue
                 async for ev in _node_events(node_name, partial_data, initial_state):
                     yield ev
-
-        snap = await graph.aget_state(config)
-        if snap and snap.interrupts:
-            for itr in snap.interrupts:
-                payload = itr.value
-                yield ServerEvent.confirmation_required(
-                    confirmation_id=payload['confirmation_id'],
-                    tool=payload['tool'],
-                    summary=payload['summary'],
-                    args_preview=payload['args_preview'],
-                )
-            return
 
     final_snap = await graph.aget_state(config)
     if final_snap:

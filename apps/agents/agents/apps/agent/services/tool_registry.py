@@ -109,7 +109,13 @@ def build_registry_for_servers(
     if discovered:
         for server_name, tool_names in discovered.items():
             for tool_name in tool_names:
-                registry[f'{server_name}__{tool_name}'] = ToolMeta(
+                namespaced = f'{server_name}__{tool_name}'
+                # Do not overwrite a more specific entry already set from
+                # DEFAULT_ENGINES_TOOLS (which carries the real scope and
+                # confirmation policy for engines-built-in tools).
+                if namespaced in registry:
+                    continue
+                registry[namespaced] = ToolMeta(
                     name=tool_name,
                     required_scope=None,
                     requires_confirmation=True,
