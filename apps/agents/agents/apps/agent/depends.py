@@ -15,7 +15,7 @@ from agents.apps.agent.repositories import ActionLogRepository, AgentJinjaRender
 from agents.apps.agent.repositories.mcp_client import McpClient
 from agents.apps.agent.use_cases.resume_agent import ResumeAgentUseCase
 from agents.apps.agent.use_cases.run_agent import RunAgentUseCase
-from agents.apps.chat.repositories.model_factory import ModelFactoryRepository
+from agents.apps.agent.repositories.model_factory import ModelFactoryRepository
 from agents.apps.chat.services.rag_retrieval import RagRetrievalService
 from agents.settings import SettingsSchema
 
@@ -114,7 +114,12 @@ class AgentProvider(Provider):
     @provide(scope=Scope.APP)
     async def checkpointer(self, settings_repo: SettingsRepositoryProtocol) -> AsyncIterator[AsyncPostgresSaver]:
         settings = await settings_repo.get(SettingsSchema)
-        async with AsyncPostgresSaver.from_conn_string(settings.db.dsn) as saver:
+        # `settings.db.dsn` includes SQLAlchemy driver prefix (e.g. postgresql+psycopg_async://).
+        # LangGraph's AsyncPostgresSaver wraps libpq directly and only accepts the raw
+        # `postgresql://` form.
+        db = settings.db
+        conn = f'postgresql://{db.user}:{db.password}@{db.host}:{db.port}/{db.name}'
+        async with AsyncPostgresSaver.from_conn_string(conn) as saver:
             await saver.setup()
             yield saver
 
