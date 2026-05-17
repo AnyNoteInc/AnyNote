@@ -118,3 +118,24 @@ async def test_discover_all_isolates_failure_per_server():
     results = await client.discover_all(servers)
     assert set(results.keys()) == {'ok'}
     assert results['ok'][0].name == 'echo'
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_build_langchain_tools_namespaces_by_server():
+    respx.post('https://srv.test/').mock(
+        return_value=Response(200, json={
+            'jsonrpc': '2.0', 'id': 1,
+            'result': {'tools': [
+                {'name': 'echo', 'description': 'd',
+                 'inputSchema': {'type': 'object',
+                                 'properties': {'text': {'type': 'string'}},
+                                 'required': ['text']}},
+            ]},
+        })
+    )
+    client = McpClient()
+    server = make_server('https://srv.test/', name='Notion')
+    discovered = await client.discover_all([server])
+    tools = client.build_langchain_tools(discovered, [server])
+    assert [t.name for t in tools] == ['Notion__echo']
