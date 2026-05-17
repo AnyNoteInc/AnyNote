@@ -6,7 +6,6 @@ from uuid import uuid4
 
 import jwt
 import pytest
-
 from agents.apps.agent.depends import verify_agents_jwt_for_test
 from agents.apps.agent.errors import JwtVerificationError
 
@@ -31,7 +30,7 @@ def sign(claims: dict, *, aud: str = 'agents', ttl: int = 300, secret_b64: str |
 
 
 @pytest.mark.asyncio
-async def test_accepts_valid_token():
+async def test_accepts_valid_token() -> None:
     user_id, ws_id, chat_id = str(uuid4()), str(uuid4()), str(uuid4())
     token = sign({
         'sub': user_id,
@@ -47,7 +46,7 @@ async def test_accepts_valid_token():
 
 
 @pytest.mark.asyncio
-async def test_rejects_expired():
+async def test_rejects_expired() -> None:
     token = sign(
         {'sub': str(uuid4()), 'wsid': str(uuid4()), 'cid': str(uuid4()), 'scopes': []},
         ttl=-100,
@@ -57,7 +56,7 @@ async def test_rejects_expired():
 
 
 @pytest.mark.asyncio
-async def test_rejects_wrong_audience():
+async def test_rejects_wrong_audience() -> None:
     token = sign(
         {'sub': str(uuid4()), 'wsid': str(uuid4()), 'cid': str(uuid4()), 'scopes': []},
         aud='wrong',

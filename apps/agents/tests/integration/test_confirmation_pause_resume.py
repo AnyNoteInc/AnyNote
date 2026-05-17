@@ -7,11 +7,6 @@ import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from langchain_core.messages import AIMessage
-from langchain_core.tools import StructuredTool
-from langgraph.types import Command
-from pydantic import BaseModel
-
 from agents.apps.agent.schemas import AgentState
 from agents.apps.agent.services.graph import build_agent_graph
 from agents.apps.agent.services.nodes.critic import critic_node
@@ -20,6 +15,11 @@ from agents.apps.agent.services.nodes.memory_writer import memory_writer_node
 from agents.apps.agent.services.nodes.planner import planner_node
 from agents.apps.agent.services.nodes.router import route_node
 from agents.apps.agent.services.tool_registry import ToolMeta
+from langchain_core.messages import AIMessage
+from langchain_core.tools import StructuredTool
+from langgraph.types import Command
+from pydantic import BaseModel
+
 from tests.apps.agent.factories import make_state
 
 
@@ -76,7 +76,7 @@ def _llm_complex_then_tool_then_done():
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_confirmation_pause_then_resume_allow(pg_saver):
+async def test_confirmation_pause_then_resume_allow(pg_saver) -> None:
     """Interrupt on a confirmation-gated tool call, then resume with allow."""
     llm = _llm_complex_then_tool_then_done()
 

@@ -2,7 +2,7 @@ from agents.apps.agent.repositories.jinja_renderer import AgentJinjaRenderer
 from agents.settings import settings
 
 
-def test_router_template_renders_with_message():
+def test_router_template_renders_with_message() -> None:
     renderer = AgentJinjaRenderer(settings)
     out = renderer.render_router(user_message='Привет', chat_history=[])
     assert 'Привет' in out
@@ -10,7 +10,7 @@ def test_router_template_renders_with_message():
     assert 'complex' in out
 
 
-def test_planner_template_renders_without_extras():
+def test_planner_template_renders_without_extras() -> None:
     renderer = AgentJinjaRenderer(settings)
     out = renderer.render_planner(
         user_message='Найди договоры',
@@ -25,7 +25,7 @@ def test_planner_template_renders_without_extras():
     assert '(no relevant facts recorded)' in out
 
 
-def test_executor_template_lists_plan():
+def test_executor_template_lists_plan() -> None:
     renderer = AgentJinjaRenderer(settings)
     out = renderer.render_executor(
         current_step={'id': '1', 'title': 'Найти страницы'},
@@ -35,7 +35,7 @@ def test_executor_template_lists_plan():
     assert '1. [running] Найти страницы' in out
 
 
-def test_critic_template_includes_revision_count():
+def test_critic_template_includes_revision_count() -> None:
     renderer = AgentJinjaRenderer(settings)
     out = renderer.render_critic(
         user_message='Q',

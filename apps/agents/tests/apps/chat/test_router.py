@@ -1,6 +1,6 @@
 import pytest
-from agents.apps.chat.utils import serialize_server_event
 from agents.apps.chat.schemas import ServerEvent
+from agents.apps.chat.utils import serialize_server_event
 from sse_starlette.event import ensure_bytes
 
 

@@ -75,6 +75,13 @@ warn_return_any = true
 warn_unused_ignores = true
 plugins = ["pydantic.mypy"]
 
+[[tool.mypy.overrides]]
+# Relax strictness on agent-module tests — test fixtures intentionally use
+# minimal/dynamic typing for ergonomics. The production agent code itself
+# stays under full strict checking.
+module = ["tests.apps.agent.*", "tests.integration.*"]
+disable_error_code = ["no-untyped-def", "no-untyped-call", "type-arg", "call-overload", "union-attr", "arg-type"]
+
 
 [tool.ruff]
 line-length = 120
@@ -100,6 +107,12 @@ ignore = ["E501"]
 # Russian docstrings contain Cyrillic letters that ruff confuses with Latin.
 "agents/apps/chat/services/rag_retrieval.py" = ["RUF002"]
 "agents/apps/processing/services/chunker.py" = ["RUF002"]
+# Domain errors don't follow Exception/Error suffix — they carry `code` instead.
+"agents/apps/agent/errors.py" = ["N818"]
+# FastAPI Depends in default arg is the canonical pattern.
+"agents/apps/agent/router.py" = ["B008"]
+# Summary helpers intentionally mirror camelCase MCP tool names.
+"agents/apps/agent/services/tool_registry.py" = ["N802"]
 
 [tool.ruff.format]
 quote-style = "single"

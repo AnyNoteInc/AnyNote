@@ -1,13 +1,12 @@
 import pytest
 import respx
-from httpx import Response
-
 from agents.apps.agent.repositories.action_log import ActionLogRepository
+from httpx import Response
 
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_writes_log_entry():
+async def test_writes_log_entry() -> None:
     route = respx.post('https://web.test/api/agent/action-log').mock(
         return_value=Response(202, json={'ok': True})
     )
@@ -33,7 +32,7 @@ async def test_writes_log_entry():
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_failure_is_swallowed():
+async def test_failure_is_swallowed() -> None:
     respx.post('https://web.test/api/agent/action-log').mock(return_value=Response(500))
     repo = ActionLogRepository(web_base_url='https://web.test')
     # Should not raise — action logging is best-effort.

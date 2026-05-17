@@ -2,15 +2,15 @@ import json
 from unittest.mock import AsyncMock
 
 import pytest
-from langchain_core.messages import AIMessage
-
 from agents.apps.agent.enums import PlanStepStatus
 from agents.apps.agent.services.nodes.planner import planner_node
+from langchain_core.messages import AIMessage
+
 from tests.apps.agent.factories import make_state
 
 
 @pytest.mark.asyncio
-async def test_planner_emits_plan_steps_from_model_output():
+async def test_planner_emits_plan_steps_from_model_output() -> None:
     fake_llm = AsyncMock()
     fake_llm.ainvoke = AsyncMock(return_value=AIMessage(content=json.dumps({
         'plan': [
@@ -27,7 +27,7 @@ async def test_planner_emits_plan_steps_from_model_output():
 
 
 @pytest.mark.asyncio
-async def test_planner_falls_back_to_single_step_on_invalid_output():
+async def test_planner_falls_back_to_single_step_on_invalid_output() -> None:
     fake_llm = AsyncMock()
     fake_llm.ainvoke = AsyncMock(return_value=AIMessage(content='garbage'))
     state = make_state(user_message='Q')
@@ -37,7 +37,7 @@ async def test_planner_falls_back_to_single_step_on_invalid_output():
 
 
 @pytest.mark.asyncio
-async def test_planner_clears_critic_feedback_after_replan():
+async def test_planner_clears_critic_feedback_after_replan() -> None:
     fake_llm = AsyncMock()
     fake_llm.ainvoke = AsyncMock(return_value=AIMessage(content=json.dumps({
         'plan': [{'id': '1', 'title': 't'}],

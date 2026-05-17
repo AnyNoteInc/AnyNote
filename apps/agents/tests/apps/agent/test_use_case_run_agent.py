@@ -4,17 +4,17 @@ import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
+from agents.apps.agent.events import ServerEvent
+from agents.apps.agent.schemas import AgentRunRequest
+from agents.apps.agent.use_cases.run_agent import RunAgentUseCase
 from langchain_core.messages import AIMessage
 from langgraph.checkpoint.memory import MemorySaver
 
-from agents.apps.agent.events import ServerEvent
-from agents.apps.agent.schemas import AgentRunRequest, AgentContext
-from agents.apps.agent.use_cases.run_agent import RunAgentUseCase
 from tests.apps.agent.factories import make_context
 
 
 @pytest.mark.asyncio
-async def test_run_agent_streams_router_decision_first():
+async def test_run_agent_streams_router_decision_first() -> None:
     # Stub LLM so router → planner → executor → critic → memory_writer all complete
     # quickly with deterministic outputs.
     router_resp = json.dumps({'kind': 'trivial', 'reason': 'ok'})

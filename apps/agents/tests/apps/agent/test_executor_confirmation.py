@@ -1,12 +1,12 @@
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import patch
 
 import pytest
-from langchain_core.messages import AIMessage, ToolMessage
+from agents.apps.agent.services.nodes.executor import _run_tool
+from agents.apps.agent.services.tool_registry import ToolMeta
+from langchain_core.messages import ToolMessage
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel
 
-from agents.apps.agent.services.nodes.executor import _run_tool
-from agents.apps.agent.services.tool_registry import ToolMeta
 from tests.apps.agent.factories import make_state
 
 
@@ -19,7 +19,7 @@ async def _coroutine(**kwargs):
 
 
 @pytest.mark.asyncio
-async def test_run_tool_calls_interrupt_for_destructive_tool():
+async def test_run_tool_calls_interrupt_for_destructive_tool() -> None:
     tool = StructuredTool.from_function(coroutine=_coroutine, name='anynote__createPage',
                                          description='', args_schema=_Args)
     meta = ToolMeta(
@@ -39,7 +39,7 @@ async def test_run_tool_calls_interrupt_for_destructive_tool():
 
 
 @pytest.mark.asyncio
-async def test_run_tool_returns_deny_message_when_user_denies():
+async def test_run_tool_returns_deny_message_when_user_denies() -> None:
     tool = StructuredTool.from_function(coroutine=_coroutine, name='anynote__createPage',
                                          description='', args_schema=_Args)
     meta = ToolMeta(
@@ -56,7 +56,7 @@ async def test_run_tool_returns_deny_message_when_user_denies():
 
 
 @pytest.mark.asyncio
-async def test_run_tool_skips_interrupt_when_allow_destructive_set():
+async def test_run_tool_skips_interrupt_when_allow_destructive_set() -> None:
     tool = StructuredTool.from_function(coroutine=_coroutine, name='anynote__createPage',
                                          description='', args_schema=_Args)
     meta = ToolMeta(

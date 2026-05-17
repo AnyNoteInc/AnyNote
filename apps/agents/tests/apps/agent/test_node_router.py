@@ -2,15 +2,15 @@ import json
 from unittest.mock import AsyncMock
 
 import pytest
-from langchain_core.messages import AIMessage
-
 from agents.apps.agent.enums import RoutingKind
 from agents.apps.agent.services.nodes.router import route_node
+from langchain_core.messages import AIMessage
+
 from tests.apps.agent.factories import make_state
 
 
 @pytest.mark.asyncio
-async def test_router_returns_complex_when_llm_says_complex():
+async def test_router_returns_complex_when_llm_says_complex() -> None:
     fake_llm = AsyncMock()
     fake_llm.ainvoke = AsyncMock(return_value=AIMessage(
         content=json.dumps({'kind': 'complex', 'reason': 'multi step'}),
@@ -21,7 +21,7 @@ async def test_router_returns_complex_when_llm_says_complex():
 
 
 @pytest.mark.asyncio
-async def test_router_returns_trivial_for_lookup():
+async def test_router_returns_trivial_for_lookup() -> None:
     fake_llm = AsyncMock()
     fake_llm.ainvoke = AsyncMock(return_value=AIMessage(
         content=json.dumps({'kind': 'trivial', 'reason': 'pure lookup'}),
@@ -34,7 +34,7 @@ async def test_router_returns_trivial_for_lookup():
 
 
 @pytest.mark.asyncio
-async def test_router_falls_back_to_complex_on_bad_json():
+async def test_router_falls_back_to_complex_on_bad_json() -> None:
     fake_llm = AsyncMock()
     fake_llm.ainvoke = AsyncMock(return_value=AIMessage(content='not json'))
     state = make_state(user_message='X')

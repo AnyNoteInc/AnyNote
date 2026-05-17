@@ -2,9 +2,9 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from agents.apps.agent.schemas import AgentState, AgentContext
-from agents.apps.chat.schemas import ModelConfigSchema, ModelConnectionSchema, ModelSettingsSchema
+from agents.apps.agent.schemas import AgentContext, AgentState
 from agents.apps.chat.enums import ModelProviderEnum
+from agents.apps.chat.schemas import ModelConnectionSchema, ModelSettingsSchema
 
 
 def make_context(**overrides) -> AgentContext:

@@ -7,12 +7,12 @@ def msg(i: int) -> ConversationMessageSchema:
     return ConversationMessageSchema(role=RoleEnum.USER, content=f'm{i}')
 
 
-def test_returns_input_when_under_limit():
+def test_returns_input_when_under_limit() -> None:
     history = [msg(i) for i in range(10)]
     assert trim_chat_history(history, max_messages=30) == history
 
 
-def test_keeps_first_five_and_last_fifteen_with_placeholder():
+def test_keeps_first_five_and_last_fifteen_with_placeholder() -> None:
     history = [msg(i) for i in range(40)]
     out = trim_chat_history(history, max_messages=30)
     assert len(out) == 21

@@ -1,12 +1,11 @@
 from contextlib import asynccontextmanager
+from unittest.mock import AsyncMock
 
 import pytest
 import respx
-from httpx import Response
-from unittest.mock import AsyncMock, patch
-
 from agents.apps.agent.repositories.mcp_client import McpClient, McpToolDescriptor
 from agents.apps.chat.schemas import McpServerSchema
+from httpx import Response
 
 
 def make_server(url: str, name: str = 'srv', transport: str = 'HTTP_JSONRPC',
@@ -25,7 +24,7 @@ def make_server(url: str, name: str = 'srv', transport: str = 'HTTP_JSONRPC',
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_list_tools_http_jsonrpc():
+async def test_list_tools_http_jsonrpc() -> None:
     respx.post('https://mcp.test/').mock(
         return_value=Response(200, json={
             'jsonrpc': '2.0', 'id': 1,
@@ -44,7 +43,7 @@ async def test_list_tools_http_jsonrpc():
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_call_tool_returns_text_content():
+async def test_call_tool_returns_text_content() -> None:
     respx.post('https://mcp.test/').mock(
         return_value=Response(200, json={
             'jsonrpc': '2.0', 'id': 2,
@@ -59,7 +58,7 @@ async def test_call_tool_returns_text_content():
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_allowlist_filters_tools():
+async def test_allowlist_filters_tools() -> None:
     respx.post('https://mcp.test/').mock(
         return_value=Response(200, json={
             'jsonrpc': '2.0', 'id': 1,
@@ -76,7 +75,7 @@ async def test_allowlist_filters_tools():
 
 
 @pytest.mark.asyncio
-async def test_sse_list_tools_delegates_to_mcp_sdk(monkeypatch):
+async def test_sse_list_tools_delegates_to_mcp_sdk(monkeypatch) -> None:
     # Mock the SDK session factory used in mcp_client._sse_session
     fake_tool = AsyncMock()
     fake_tool.name = 'echo'
@@ -101,7 +100,7 @@ async def test_sse_list_tools_delegates_to_mcp_sdk(monkeypatch):
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_discover_all_isolates_failure_per_server():
+async def test_discover_all_isolates_failure_per_server() -> None:
     respx.post('https://ok.test/').mock(
         return_value=Response(200, json={
             'jsonrpc': '2.0', 'id': 1,
@@ -122,7 +121,7 @@ async def test_discover_all_isolates_failure_per_server():
 
 @pytest.mark.asyncio
 @respx.mock
-async def test_build_langchain_tools_namespaces_by_server():
+async def test_build_langchain_tools_namespaces_by_server() -> None:
     respx.post('https://srv.test/').mock(
         return_value=Response(200, json={
             'jsonrpc': '2.0', 'id': 1,

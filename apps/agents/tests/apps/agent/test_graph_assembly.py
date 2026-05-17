@@ -1,10 +1,8 @@
-import pytest
+from agents.apps.agent.services.graph import build_agent_graph
 from langgraph.checkpoint.memory import MemorySaver
 
-from agents.apps.agent.services.graph import build_agent_graph
 
-
-def test_build_agent_graph_compiles():
+def test_build_agent_graph_compiles() -> None:
     saver = MemorySaver()
     g = build_agent_graph(checkpointer=saver)
     nodes = set(g.get_graph().nodes.keys())

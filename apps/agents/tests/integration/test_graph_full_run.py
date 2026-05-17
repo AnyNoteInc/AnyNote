@@ -7,15 +7,15 @@ import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from langchain_core.messages import AIMessage
-
+from agents.apps.agent.schemas import AgentState
 from agents.apps.agent.services.graph import build_agent_graph
 from agents.apps.agent.services.nodes.critic import critic_node
 from agents.apps.agent.services.nodes.executor import executor_node
 from agents.apps.agent.services.nodes.memory_writer import memory_writer_node
 from agents.apps.agent.services.nodes.planner import planner_node
 from agents.apps.agent.services.nodes.router import route_node
-from agents.apps.agent.schemas import AgentState
+from langchain_core.messages import AIMessage
+
 from tests.apps.agent.factories import make_state
 
 
@@ -33,7 +33,7 @@ def _fake_llm(outputs: list[str]):
 
 @pytest.mark.integration
 @pytest.mark.asyncio
-async def test_full_run_router_planner_executor_critic_memory(pg_saver):
+async def test_full_run_router_planner_executor_critic_memory(pg_saver) -> None:
     """End-to-end through real Postgres checkpointer.
 
     Uses COMPLEX routing so the planner runs and sets current_step_id; trivial

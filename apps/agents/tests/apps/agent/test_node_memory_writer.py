@@ -1,15 +1,15 @@
 from unittest.mock import AsyncMock
 
 import pytest
-
 from agents.apps.agent.enums import AgentMemoryScope, CriticVerdict
 from agents.apps.agent.schemas import MemoryWrite
 from agents.apps.agent.services.nodes.memory_writer import memory_writer_node
+
 from tests.apps.agent.factories import make_state
 
 
 @pytest.mark.asyncio
-async def test_memory_writer_persists_pending_writes_on_approve():
+async def test_memory_writer_persists_pending_writes_on_approve() -> None:
     fake_client = AsyncMock()
     state = make_state()
     state = state.model_copy(update={
@@ -24,7 +24,7 @@ async def test_memory_writer_persists_pending_writes_on_approve():
 
 
 @pytest.mark.asyncio
-async def test_memory_writer_skips_on_reject():
+async def test_memory_writer_skips_on_reject() -> None:
     fake_client = AsyncMock()
     state = make_state()
     state = state.model_copy(update={

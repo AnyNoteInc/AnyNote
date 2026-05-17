@@ -1,18 +1,18 @@
 from unittest.mock import AsyncMock
 
 import pytest
-
 from agents.apps.agent.enums import AgentMemoryScope
 from agents.apps.agent.services.internal_tools import (
     make_recall_memory_tool,
     make_save_memory_tool,
     make_search_pages_tool,
 )
+
 from tests.apps.agent.factories import make_state
 
 
 @pytest.mark.asyncio
-async def test_save_memory_tool_appends_to_state():
+async def test_save_memory_tool_appends_to_state() -> None:
     pending: list = []
     tool = make_save_memory_tool(pending)
     out = await tool.ainvoke({'scope': 'workspace', 'key': 'k', 'content': 'c'})
@@ -22,7 +22,7 @@ async def test_save_memory_tool_appends_to_state():
 
 
 @pytest.mark.asyncio
-async def test_recall_memory_tool_returns_top_k():
+async def test_recall_memory_tool_returns_top_k() -> None:
     state = make_state()
     state.long_term_memories = []  # not used; tool searches externally
     fake_repo = AsyncMock()
@@ -35,7 +35,7 @@ async def test_recall_memory_tool_returns_top_k():
 
 
 @pytest.mark.asyncio
-async def test_search_pages_tool_delegates_to_rag_service():
+async def test_search_pages_tool_delegates_to_rag_service() -> None:
     fake_rag = AsyncMock()
     fake_rag.retrieve = AsyncMock(return_value=[])
     # Pass a truthy embedding sentinel so the guard is not hit

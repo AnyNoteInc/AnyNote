@@ -3,9 +3,9 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
-from agents.apps.agent.use_cases.resume_agent import ResumeAgentUseCase
 from agents.apps.agent.schemas import AgentResumeRequest
+from agents.apps.agent.use_cases.resume_agent import ResumeAgentUseCase
+
 from tests.apps.agent.factories import make_context
 
 
@@ -15,7 +15,7 @@ async def _async_iter(items):
 
 
 @pytest.mark.asyncio
-async def test_resume_uses_command_resume_with_action(monkeypatch):
+async def test_resume_uses_command_resume_with_action(monkeypatch) -> None:
     context = make_context()
     confirmation_id = 'cid-123'
 
@@ -61,7 +61,7 @@ async def test_resume_uses_command_resume_with_action(monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_resume_emits_error_on_confirmation_mismatch():
+async def test_resume_emits_error_on_confirmation_mismatch() -> None:
     context = make_context()
 
     fake_snap = MagicMock()

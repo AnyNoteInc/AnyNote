@@ -1,15 +1,15 @@
 from unittest.mock import AsyncMock
 
 import pytest
-from langchain_core.messages import AIMessage, ToolMessage
-
 from agents.apps.agent.enums import PlanStepStatus
 from agents.apps.agent.services.nodes.executor import executor_node
+from langchain_core.messages import AIMessage
+
 from tests.apps.agent.factories import make_state
 
 
 @pytest.mark.asyncio
-async def test_executor_marks_step_done_on_plain_text_response():
+async def test_executor_marks_step_done_on_plain_text_response() -> None:
     fake_llm = AsyncMock()
     fake_llm.bind_tools = lambda tools: fake_llm
     fake_llm.ainvoke = AsyncMock(return_value=AIMessage(content='готово'))
@@ -26,7 +26,7 @@ async def test_executor_marks_step_done_on_plain_text_response():
 
 
 @pytest.mark.asyncio
-async def test_executor_advances_to_next_step():
+async def test_executor_advances_to_next_step() -> None:
     fake_llm = AsyncMock()
     fake_llm.bind_tools = lambda tools: fake_llm
     fake_llm.ainvoke = AsyncMock(return_value=AIMessage(content='step1 done'))

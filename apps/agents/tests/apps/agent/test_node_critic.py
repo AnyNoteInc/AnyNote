@@ -2,15 +2,15 @@ import json
 from unittest.mock import AsyncMock
 
 import pytest
-from langchain_core.messages import AIMessage
-
 from agents.apps.agent.enums import CriticVerdict
 from agents.apps.agent.services.nodes.critic import critic_node
+from langchain_core.messages import AIMessage
+
 from tests.apps.agent.factories import make_state
 
 
 @pytest.mark.asyncio
-async def test_critic_approve_promotes_draft_to_final():
+async def test_critic_approve_promotes_draft_to_final() -> None:
     fake_llm = AsyncMock()
     fake_llm.ainvoke = AsyncMock(return_value=AIMessage(content=json.dumps({
         'verdict': 'approve', 'feedback': 'lgtm', 'revised_plan': None,
@@ -23,7 +23,7 @@ async def test_critic_approve_promotes_draft_to_final():
 
 
 @pytest.mark.asyncio
-async def test_critic_revise_increments_revision_count_and_swaps_plan():
+async def test_critic_revise_increments_revision_count_and_swaps_plan() -> None:
     fake_llm = AsyncMock()
     fake_llm.ainvoke = AsyncMock(return_value=AIMessage(content=json.dumps({
         'verdict': 'revise', 'feedback': 'cite sources',
@@ -39,7 +39,7 @@ async def test_critic_revise_increments_revision_count_and_swaps_plan():
 
 
 @pytest.mark.asyncio
-async def test_critic_at_revision_cap_can_only_approve_or_reject():
+async def test_critic_at_revision_cap_can_only_approve_or_reject() -> None:
     fake_llm = AsyncMock()
     fake_llm.ainvoke = AsyncMock(return_value=AIMessage(content=json.dumps({
         'verdict': 'revise', 'feedback': 'try again', 'revised_plan': None,
