@@ -25,4 +25,42 @@ describe('secret-encryption', () => {
     const tampered = { ...payload, ciphertext: payload.ciphertext.replace(/.$/, 'A') }
     expect(() => decryptSecret(tampered)).toThrow()
   })
+
+  it('throws on tampered IV', () => {
+    const payload = encryptSecret('hello')
+    const tamperedIv = Buffer.alloc(12).toString('base64')
+    expect(() => decryptSecret({ ...payload, iv: tamperedIv })).toThrow()
+  })
+
+  it('throws on tampered tag', () => {
+    const payload = encryptSecret('hello')
+    const tamperedTag = Buffer.alloc(16).toString('base64')
+    expect(() => decryptSecret({ ...payload, tag: tamperedTag })).toThrow()
+  })
+
+  it('throws on truncated tag (downgrade attack)', () => {
+    const payload = encryptSecret('hello')
+    const truncated = Buffer.from(payload.tag, 'base64').slice(0, 4).toString('base64')
+    expect(() => decryptSecret({ ...payload, tag: truncated })).toThrow(/auth tag length/)
+  })
+
+  it('throws when SECRETS_ENCRYPTION_KEY is missing', () => {
+    const original = process.env.SECRETS_ENCRYPTION_KEY
+    delete process.env.SECRETS_ENCRYPTION_KEY
+    try {
+      expect(() => encryptSecret('x')).toThrow(/SECRETS_ENCRYPTION_KEY is not set/)
+    } finally {
+      process.env.SECRETS_ENCRYPTION_KEY = original
+    }
+  })
+
+  it('throws when SECRETS_ENCRYPTION_KEY is wrong length', () => {
+    const original = process.env.SECRETS_ENCRYPTION_KEY
+    process.env.SECRETS_ENCRYPTION_KEY = Buffer.alloc(31).toString('base64')
+    try {
+      expect(() => encryptSecret('x')).toThrow(/must decode to 32 bytes/)
+    } finally {
+      process.env.SECRETS_ENCRYPTION_KEY = original
+    }
+  })
 })

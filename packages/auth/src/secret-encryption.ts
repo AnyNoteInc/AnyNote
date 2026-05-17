@@ -30,12 +30,16 @@ export function encryptSecret(plaintext: string): EncryptedPayload {
 }
 
 export function decryptSecret(payload: EncryptedPayload): string {
-  const decipher = crypto.createDecipheriv(
-    ALGO,
-    getKey(),
-    Buffer.from(payload.iv, 'base64'),
-  )
-  decipher.setAuthTag(Buffer.from(payload.tag, 'base64'))
+  const iv = Buffer.from(payload.iv, 'base64')
+  if (iv.length !== 12) {
+    throw new Error('Invalid IV length: expected 12 bytes')
+  }
+  const tag = Buffer.from(payload.tag, 'base64')
+  if (tag.length !== 16) {
+    throw new Error('Invalid auth tag length: expected 16 bytes')
+  }
+  const decipher = crypto.createDecipheriv(ALGO, getKey(), iv)
+  decipher.setAuthTag(tag)
   const plain = Buffer.concat([
     decipher.update(Buffer.from(payload.ciphertext, 'base64')),
     decipher.final(),
