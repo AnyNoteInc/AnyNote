@@ -1,3 +1,10 @@
+## [1.18.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.18.0...v1.18.1) (2026-05-17)
+
+
+### Bug Fixes
+
+* **deploy:** bind postgres to host loopback for SSH-tunnel access ([5303cd9](https://github.com/AnyNoteInc/AnyNote/commit/5303cd9210133719980c1137ead999a8ceb3eba5))
+
 # [1.18.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.17.0...v1.18.0) (2026-05-16)
 
 
