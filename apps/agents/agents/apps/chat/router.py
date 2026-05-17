@@ -1,30 +1,16 @@
-from typing import Annotated
+from fastapi import APIRouter, Response, status
 
-from dishka.integrations.fastapi import FromDishka, inject
-from fastapi import APIRouter, Header
-from sse_starlette.sse import EventSourceResponse
-
-from agents.apps.chat.use_cases import GenerateStreamUseCase
-
-from .schemas import QueryRequestSchema, UserContextSchema
-from .utils import (
-    serialize_server_event as serialize_server_event,
-)
-from .utils import (
-    serialize_server_events,
-)
-
-router = APIRouter(prefix="/chat", tags=["Chat"])
+router = APIRouter(prefix='/chat', tags=['Chat (deprecated)'])
 
 
-@router.post('/generate', response_model=None, response_class=EventSourceResponse)
-@inject
-async def generate(
-    query_reqyest: QueryRequestSchema,
-    generate_stream_use_case: FromDishka[GenerateStreamUseCase],
-    user_context: Annotated[UserContextSchema, Header()],
-) -> EventSourceResponse:
-    return EventSourceResponse(
-        serialize_server_events(generate_stream_use_case(query_reqyest, user_context)),
-        ping=15,
+@router.post('/generate', status_code=status.HTTP_308_PERMANENT_REDIRECT)
+async def generate_deprecated() -> Response:
+    return Response(
+        status_code=status.HTTP_308_PERMANENT_REDIRECT,
+        headers={
+            'Location': '/agent/run',
+            'Deprecation': 'true',
+            'Sunset': 'Wed, 01 Jul 2026 00:00:00 GMT',
+            'Link': '</agent/run>; rel="successor-version"',
+        },
     )

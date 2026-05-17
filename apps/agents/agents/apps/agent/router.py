@@ -22,7 +22,7 @@ def _serialize(events: AsyncIterator[ServerEvent]) -> AsyncIterator[dict[str, An
     return gen()
 
 
-@router.post('/run')
+@router.post('/run', response_model=None, response_class=EventSourceResponse)
 @inject
 async def run(
     payload: AgentRunRequest,
@@ -39,7 +39,7 @@ async def run(
     )
 
 
-@router.post('/resume')
+@router.post('/resume', response_model=None, response_class=EventSourceResponse)
 @inject
 async def resume(
     payload: AgentResumeRequest,

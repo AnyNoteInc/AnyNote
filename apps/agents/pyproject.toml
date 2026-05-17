@@ -63,6 +63,7 @@ asyncio_mode = "auto"
 addopts = "-ra --strict-markers"
 markers = [
     "integration: integration tests that require live services",
+    "legacy: tests for deprecated endpoints scheduled for removal",
 ]
 pythonpath = ["."]
 testpaths = ["tests"]
