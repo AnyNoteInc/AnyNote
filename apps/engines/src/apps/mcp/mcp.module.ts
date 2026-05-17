@@ -3,6 +3,7 @@ import { APP_FILTER } from '@nestjs/core'
 import { McpModule as McpNestModule } from '@rekog/mcp-nest'
 import { storage } from '@repo/storage'
 
+import { AgentsInternalAuthGuard } from '../../auth/agents-internal-auth.guard.js'
 import { McpExceptionFilter } from './errors/mcp-exception.filter.js'
 import { McpTokenGuard } from './guards/mcp-token.guard.js'
 import { WorkspaceMemberGuard } from './guards/workspace-member.guard.js'
@@ -19,10 +20,11 @@ import { WorkspaceTools } from './tools/workspace.tools.js'
     McpNestModule.forRoot({
       name: 'anynote-engines',
       version: '0.1.0',
-      guards: [McpTokenGuard],
+      guards: [AgentsInternalAuthGuard, McpTokenGuard],
     }),
   ],
   providers: [
+    AgentsInternalAuthGuard,
     McpTokenGuard,
     WorkspaceMemberGuard,
     MarkdownRenderer,

@@ -52,7 +52,7 @@ describe('McpTokenGuard', () => {
           },
         }),
       ),
-    ).rejects.toThrow(/missing X-User-Id/i)
+    ).rejects.toThrow(/missing X-Agents-User \/ X-User-Id/i)
   })
 
   it('normalizes params.args into params.arguments', async () => {

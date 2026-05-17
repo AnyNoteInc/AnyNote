@@ -39,12 +39,16 @@ export function normalizeMcpRequestBody(body: unknown): void {
 }
 
 export function readMcpRequestContext(headers: HeaderMap): McpRequestContext {
-  const userId = getHeader(headers, 'x-user-id')
-  if (!userId) throw new UnauthorizedException('Unauthorized: missing X-User-Id header')
+  const userId = getHeader(headers, 'x-agents-user') ?? getHeader(headers, 'x-user-id')
+  if (!userId)
+    throw new UnauthorizedException('Unauthorized: missing X-Agents-User / X-User-Id header')
 
-  const workspaceId = getHeader(headers, 'x-workspace-id')
+  const workspaceId =
+    getHeader(headers, 'x-agents-workspace') ?? getHeader(headers, 'x-workspace-id')
   if (!workspaceId) {
-    throw new UnauthorizedException('Unauthorized: missing x-Workspace-Id header')
+    throw new UnauthorizedException(
+      'Unauthorized: missing X-Agents-Workspace / X-Workspace-Id header',
+    )
   }
 
   const parsed = McpRequestContextSchema.safeParse({ userId, workspaceId })
