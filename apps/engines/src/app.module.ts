@@ -3,6 +3,7 @@ import { ConfigModule } from '@nestjs/config'
 import { ScheduleModule } from '@nestjs/schedule'
 
 import { BillingModule } from './apps/billing/billing.module.js'
+import { CleanupModule } from './apps/cleanup/cleanup.module.js'
 import { IndexerModule } from './apps/indexer/indexer.module.js'
 import { McpModule } from './apps/mcp/mcp.module.js'
 import { NotifierModule } from './apps/notifier/notifier.module.js'
@@ -15,6 +16,7 @@ import { DbModule } from './infra/db/db.module.js'
     ScheduleModule.forRoot(),
     DbModule,
     BillingModule,
+    CleanupModule,
     IndexerModule,
     NotifierModule,
     McpModule,
