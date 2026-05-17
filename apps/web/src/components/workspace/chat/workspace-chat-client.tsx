@@ -6,6 +6,11 @@ import { Alert, Box, ChatThread, Stack, type ChatSendPayload } from '@repo/ui/co
 
 import { trpc } from '@/trpc/client'
 
+import {
+  ConfirmationDialog,
+  type PendingConfirmation,
+} from '@/components/chat/ConfirmationDialog'
+import { PlanPanel, type PlanStepView } from '@/components/chat/PlanPanel'
 import { renderChatLink } from '@/components/chat/chat-link-renderer'
 import { findResumableAssistantMessageId, type ServerChatMessage } from './chat-message-mappers'
 import { useChatStream } from './use-chat-stream'
@@ -24,6 +29,8 @@ export function WorkspaceChatClient({
 }: WorkspaceChatClientProps) {
   const [draft, setDraft] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
+  const [planSteps, setPlanSteps] = useState<PlanStepView[]>([])
+  const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null)
   const utils = trpc.useUtils()
   const query = trpc.chat.getChat.useQuery({ chatId })
   const draftAttachments = useDraftAttachments(workspaceId)
@@ -47,6 +54,31 @@ export function WorkspaceChatClient({
     chatId,
     initialMessages,
     onSettled: handleStreamSettled,
+    onPlanStep: (event) => {
+      const view: PlanStepView = {
+        id: event.id,
+        title: event.title,
+        position: event.position,
+        status: event.status,
+      }
+      setPlanSteps((prev) => {
+        const idx = prev.findIndex((s) => s.id === view.id)
+        if (idx >= 0) {
+          const next = [...prev]
+          next[idx] = view
+          return next
+        }
+        return [...prev, view]
+      })
+    },
+    onConfirmationRequired: (event) => {
+      setPendingConfirmation({
+        confirmationId: event.confirmation_id,
+        tool: event.tool,
+        summary: event.summary,
+        argsPreview: event.args_preview,
+      })
+    },
   })
 
   const serverMessages = useMemo(
@@ -133,6 +165,7 @@ export function WorkspaceChatClient({
     >
       <Stack flex={1} minHeight={0} spacing={2}>
         {combinedError ? <Alert severity="error">{combinedError}</Alert> : null}
+        <PlanPanel steps={planSteps} />
         <ChatThread
           composerAttachments={draftAttachments.attachments}
           composerPlaceholder="Спросите что-нибудь..."
@@ -147,6 +180,10 @@ export function WorkspaceChatClient({
           scrollKey={chatId}
         />
       </Stack>
+      <ConfirmationDialog
+        pending={pendingConfirmation}
+        onResolve={() => setPendingConfirmation(null)}
+      />
     </Box>
   )
 }

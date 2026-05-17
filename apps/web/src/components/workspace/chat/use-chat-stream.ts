@@ -5,7 +5,7 @@ import { useEffect, useEffectEvent, useRef, useState, startTransition } from 're
 import type { ChatThreadMessage } from '@repo/ui/components'
 
 import { decodeWebSseEvents } from '@/lib/chat/sse'
-import type { WebChatSseEvent } from '@/lib/chat/types'
+import type { ConfirmationRequiredEvent, PlanStepEvent, WebChatSseEvent } from '@/lib/chat/types'
 
 import {
   appendAssistantText,
@@ -27,6 +27,8 @@ type UseChatStreamArgs = {
   chatId: string
   initialMessages: ServerChatMessage[]
   onSettled?: () => void | Promise<void>
+  onPlanStep?: (event: PlanStepEvent) => void
+  onConfirmationRequired?: (event: ConfirmationRequiredEvent) => void
 }
 
 type StartSendArgs = PendingSend
@@ -35,7 +37,13 @@ function getErrorMessage(value: unknown, fallback: string) {
   return value instanceof Error ? value.message : fallback
 }
 
-export function useChatStream({ chatId, initialMessages, onSettled }: UseChatStreamArgs) {
+export function useChatStream({
+  chatId,
+  initialMessages,
+  onSettled,
+  onPlanStep,
+  onConfirmationRequired,
+}: UseChatStreamArgs) {
   const [error, setError] = useState<string | null>(null)
   const [isStreaming, setIsStreaming] = useState(false)
   const [messages, setMessages] = useState<ChatThreadMessage[]>(() =>
@@ -116,6 +124,17 @@ export function useChatStream({ chatId, initialMessages, onSettled }: UseChatStr
 
       case 'message.done': {
         void finishStream()
+        return
+      }
+
+      case 'plan_step': {
+        onPlanStep?.(event)
+        return
+      }
+
+      case 'confirmation_required': {
+        onConfirmationRequired?.(event)
+        return
       }
     }
   })
