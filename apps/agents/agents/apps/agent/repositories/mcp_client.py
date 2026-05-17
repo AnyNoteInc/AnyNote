@@ -48,17 +48,39 @@ _JSON_TYPE: dict[str, type] = {
 }
 
 
+def _resolve_json_type(raw_type: Any) -> tuple[Any, bool]:
+    """Map a JSON-Schema `type` field to a Python type.
+
+    Returns (python_type, allow_null). Handles three shapes:
+      - string: `'string'`
+      - list (nullable union): `['string', 'null']`
+      - missing: defaults to Any, allow_null=False
+    """
+    if isinstance(raw_type, str):
+        return _JSON_TYPE.get(raw_type, Any), False
+    if isinstance(raw_type, list):
+        allow_null = 'null' in raw_type
+        for entry in raw_type:
+            if isinstance(entry, str) and entry != 'null' and entry in _JSON_TYPE:
+                return _JSON_TYPE[entry], allow_null
+        return Any, allow_null
+    return Any, False
+
+
 def _arg_model(name: str, schema: dict[str, Any]) -> type[BaseModel]:
     props = (schema or {}).get('properties') or {}
     required = set((schema or {}).get('required') or [])
     fields: dict[str, Any] = {}
     for pname, pspec in props.items():
-        ptype: Any = _JSON_TYPE.get(pspec.get('type', ''), Any)
+        ptype, allow_null = _resolve_json_type(pspec.get('type'))
         desc = pspec.get('description')
+        if allow_null and ptype is not Any:
+            ptype = ptype | None
         if pname in required:
             fields[pname] = (ptype, Field(..., description=desc))
         else:
-            fields[pname] = (ptype | None, Field(default=None, description=desc))
+            optional_type = ptype if ptype is Any else ptype | None
+            fields[pname] = (optional_type, Field(default=None, description=desc))
     return create_model(f'{name}Args', **fields)
 
 
