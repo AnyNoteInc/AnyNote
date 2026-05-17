@@ -97,3 +97,24 @@ async def test_sse_list_tools_delegates_to_mcp_sdk(monkeypatch):
     server = make_server('https://mcp.test/sse', transport='SSE')
     tools = await client.list_tools(server)
     assert tools and tools[0].name == 'echo'
+
+
+@pytest.mark.asyncio
+@respx.mock
+async def test_discover_all_isolates_failure_per_server():
+    respx.post('https://ok.test/').mock(
+        return_value=Response(200, json={
+            'jsonrpc': '2.0', 'id': 1,
+            'result': {'tools': [{'name': 'echo', 'description': '', 'inputSchema': {}}]},
+        })
+    )
+    respx.post('https://broken.test/').mock(return_value=Response(503))
+
+    client = McpClient()
+    servers = [
+        make_server('https://ok.test/', name='ok'),
+        make_server('https://broken.test/', name='broken'),
+    ]
+    results = await client.discover_all(servers)
+    assert set(results.keys()) == {'ok'}
+    assert results['ok'][0].name == 'echo'
