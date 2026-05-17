@@ -47,3 +47,8 @@ export type ChatSendPayload = {
   text: string
   attachments: ChatComposerAttachment[]
 }
+
+export type ChatConfirmHandler = (
+  confirmationId: string,
+  action: 'allow' | 'deny',
+) => void | Promise<void>
