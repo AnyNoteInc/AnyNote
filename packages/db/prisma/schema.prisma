@@ -48,6 +48,9 @@ model User {
   taskComments               TaskComment[]
   taskActivity               TaskActivity[]
   taskAttachments            TaskAttachment[]
+  mcpServersCreated          WorkspaceMcpServer[]     @relation("WorkspaceMcpServerCreatedBy")
+  agentMemories              WorkspaceAgentMemory[]   @relation("WorkspaceAgentMemoryUser")
+  agentActionLogs            AgentActionLog[]         @relation("AgentActionLogUser")
 
   @@map("users")
 }
@@ -236,6 +239,27 @@ enum PageOwnership {
   AGENT
 }
 
+enum McpTransport {
+  HTTP_JSONRPC
+  SSE
+}
+
+enum AgentMemoryScope {
+  WORKSPACE
+  USER
+}
+
+enum AgentMemorySource {
+  USER
+  AGENT
+}
+
+enum AgentActionStatus {
+  OK
+  ERROR
+  DENIED
+}
+
 model Workspace {
   id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   name        String   @db.VarChar(255)
@@ -256,6 +280,9 @@ model Workspace {
   searchHistory         SearchHistory[]
   notificationEvents    NotificationEvent[]  @relation("WorkspaceNotifications")
   reminders             Reminder[]
+  mcpServers            WorkspaceMcpServer[]
+  agentMemories         WorkspaceAgentMemory[]
+  agentActionLogs       AgentActionLog[]
 
   @@index([createdById])
   @@map("workspaces")
@@ -471,14 +498,18 @@ model AiModel {
 }
 
 model WorkspaceAiSettings {
-  workspaceId       String   @id @map("workspace_id") @db.Uuid
-  defaultModelId    String?  @map("default_model_id") @db.Uuid
-  embeddingsModelId String?  @map("embeddings_model_id") @db.Uuid
-  systemPrompt      String?  @map("system_prompt") @db.Text
-  temperature       Float    @default(0.2)
-  topP              Float    @default(0.5) @map("top_p")
-  createdAt         DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt         DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  workspaceId              String   @id @map("workspace_id") @db.Uuid
+  defaultModelId           String?  @map("default_model_id") @db.Uuid
+  embeddingsModelId        String?  @map("embeddings_model_id") @db.Uuid
+  systemPrompt             String?  @map("system_prompt") @db.Text
+  temperature              Float    @default(0.2)
+  topP                     Float    @default(0.5) @map("top_p")
+  chatModelConnection      Json?    @map("chat_model_connection")
+  embeddingModelConnection Json?    @map("embedding_model_connection")
+  agentSystemPrompt        String?  @map("agent_system_prompt") @db.Text
+  allowDestructive         Boolean  @default(false) @map("allow_destructive")
+  createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   workspace       Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   defaultModel    AiModel?  @relation("WorkspaceAiSettings_default", fields: [defaultModelId], references: [id], onDelete: SetNull)
@@ -1080,4 +1111,68 @@ model TaskAttachment {
   @@index([fileId])
   @@index([taskId, createdAt])
   @@map("task_attachments")
+}
+
+model WorkspaceMcpServer {
+  id             String       @id @default(uuid()) @db.Uuid
+  workspaceId    String       @map("workspace_id") @db.Uuid
+  name           String       @db.VarChar(255)
+  description    String?      @db.Text
+  url            String       @db.Text
+  transport      McpTransport @default(HTTP_JSONRPC)
+  headers        Json         @default("{}")
+  toolsAllowlist String[]     @map("tools_allowlist")
+  enabled        Boolean      @default(true)
+  verifyTls      Boolean      @default(true) @map("verify_tls")
+  createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
+  createdById    String       @map("created_by_id") @db.Uuid
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User      @relation("WorkspaceMcpServerCreatedBy", fields: [createdById], references: [id])
+
+  @@unique([workspaceId, name])
+  @@index([workspaceId, enabled])
+  @@map("workspace_mcp_servers")
+}
+
+model WorkspaceAgentMemory {
+  id          String            @id @default(uuid()) @db.Uuid
+  workspaceId String            @map("workspace_id") @db.Uuid
+  scope       AgentMemoryScope
+  userId      String?           @map("user_id") @db.Uuid
+  key         String            @db.VarChar(255)
+  content     String            @db.Text
+  source      AgentMemorySource
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User?     @relation("WorkspaceAgentMemoryUser", fields: [userId], references: [id])
+
+  @@unique([workspaceId, scope, userId, key])
+  @@index([workspaceId, scope])
+  @@map("workspace_agent_memories")
+}
+
+model AgentActionLog {
+  id           String            @id @default(uuid()) @db.Uuid
+  chatId       String?           @map("chat_id") @db.Uuid
+  messageId    String?           @map("message_id") @db.Uuid
+  workspaceId  String            @map("workspace_id") @db.Uuid
+  userId       String            @map("user_id") @db.Uuid
+  toolName     String            @map("tool_name") @db.VarChar(255)
+  toolInput    Json              @map("tool_input")
+  toolOutput   Json?             @map("tool_output")
+  status       AgentActionStatus
+  durationMs   Int               @map("duration_ms")
+  errorMessage String?           @map("error_message") @db.Text
+  createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation("AgentActionLogUser", fields: [userId], references: [id])
+
+  @@index([workspaceId, createdAt])
+  @@index([chatId, createdAt])
+  @@map("agent_action_logs")
 }
