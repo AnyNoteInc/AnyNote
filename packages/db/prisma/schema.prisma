@@ -1126,10 +1126,10 @@ model WorkspaceMcpServer {
   verifyTls      Boolean      @default(true) @map("verify_tls")
   createdAt      DateTime     @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime     @updatedAt @map("updated_at") @db.Timestamptz(6)
-  createdById    String       @map("created_by_id") @db.Uuid
+  createdById    String?      @map("created_by_id") @db.Uuid
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdBy User      @relation("WorkspaceMcpServerCreatedBy", fields: [createdById], references: [id])
+  createdBy User?     @relation("WorkspaceMcpServerCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
   @@unique([workspaceId, name])
   @@index([workspaceId, enabled])
@@ -1152,6 +1152,7 @@ model WorkspaceAgentMemory {
 
   @@unique([workspaceId, scope, userId, key])
   @@index([workspaceId, scope])
+  @@index([workspaceId, scope, userId])
   @@map("workspace_agent_memories")
 }
 
@@ -1160,7 +1161,7 @@ model AgentActionLog {
   chatId       String?           @map("chat_id") @db.Uuid
   messageId    String?           @map("message_id") @db.Uuid
   workspaceId  String            @map("workspace_id") @db.Uuid
-  userId       String            @map("user_id") @db.Uuid
+  userId       String?           @map("user_id") @db.Uuid
   toolName     String            @map("tool_name") @db.VarChar(255)
   toolInput    Json              @map("tool_input")
   toolOutput   Json?             @map("tool_output")
@@ -1170,7 +1171,7 @@ model AgentActionLog {
   createdAt    DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
 
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  user      User      @relation("AgentActionLogUser", fields: [userId], references: [id])
+  user      User?     @relation("AgentActionLogUser", fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId, createdAt])
   @@index([chatId, createdAt])
