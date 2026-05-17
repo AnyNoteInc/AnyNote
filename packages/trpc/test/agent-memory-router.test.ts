@@ -48,7 +48,8 @@ describe('agentMemory.list', () => {
     const rows = await caller.list({ workspaceId: WORKSPACE_ID })
 
     expect(rows.map((r) => r.key).sort()).toEqual(['lang', 'tone'])
-    const callArgs = (prismaMock.workspaceAgentMemory as any).findMany.mock.calls[0][0]
+    const findMany = vi.mocked(prismaMock.workspaceAgentMemory.findMany)
+    const callArgs = findMany.mock.calls[0][0]
     expect(callArgs.where.workspaceId).toBe(WORKSPACE_ID)
     expect(callArgs.where.OR).toEqual([
       { scope: 'WORKSPACE' },
@@ -90,7 +91,8 @@ describe('agentMemory.delete', () => {
     const caller = createCallerFactory(agentMemoryRouter)(baseContext(prismaMock))
     const out = await caller.delete({ id: ROW_ID })
     expect(out.ok).toBe(true)
-    expect((prismaMock.workspaceAgentMemory as any).delete).toHaveBeenCalledWith({ where: { id: ROW_ID } })
+    const deleteSpy = vi.mocked(prismaMock.workspaceAgentMemory.delete)
+    expect(deleteSpy).toHaveBeenCalledWith({ where: { id: ROW_ID } })
   })
 
   it('allows workspace OWNER to delete a row authored by another user', async () => {
@@ -138,7 +140,8 @@ describe('agentMemory.delete', () => {
 
     const caller = createCallerFactory(agentMemoryRouter)(baseContext(prismaMock))
     await expect(caller.delete({ id: ROW_ID })).rejects.toThrow(/FORBIDDEN|Недостаточно/i)
-    expect((prismaMock.workspaceAgentMemory as any).delete).not.toHaveBeenCalled()
+    const deleteSpy = vi.mocked(prismaMock.workspaceAgentMemory.delete)
+    expect(deleteSpy).not.toHaveBeenCalled()
   })
 
   it('throws NOT_FOUND for nonexistent row', async () => {

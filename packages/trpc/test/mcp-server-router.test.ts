@@ -50,7 +50,7 @@ describe('mcpServer.create', () => {
     const prismaMock = {
       workspaceMember: { findUnique: vi.fn().mockResolvedValue(ownerMember()) },
       workspaceMcpServer: {
-        create: vi.fn(async ({ data }: any) => {
+        create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
           storedHeadersJson = JSON.stringify(data.headers)
           return {
             id: 'srv-1',
@@ -81,7 +81,7 @@ describe('mcpServer.create', () => {
     })
 
     expect(result.name).toBe('Notion')
-    expect((result as any).headers).toBeUndefined()
+    expect((result as { headers?: unknown }).headers).toBeUndefined()
     expect(storedHeadersJson).not.toContain('secret-token')
   })
 
@@ -135,6 +135,6 @@ describe('mcpServer.list', () => {
     const caller = createCallerFactory(mcpServerRouter)(baseContext(prismaMock))
     const rows = await caller.list({ workspaceId: WORKSPACE_ID })
     expect(rows).toHaveLength(1)
-    expect((rows[0] as any).headers).toBeUndefined()
+    expect((rows[0] as { headers?: unknown } | undefined)?.headers).toBeUndefined()
   })
 })

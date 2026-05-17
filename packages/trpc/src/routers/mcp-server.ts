@@ -48,8 +48,9 @@ async function assertRole(
 }
 
 function stripHeaders<T extends { headers: unknown }>(row: T): Omit<T, 'headers'> {
-  const { headers: _omit, ...rest } = row
-  return rest
+  const copy = { ...row } as T & { headers?: unknown }
+  delete copy.headers
+  return copy
 }
 
 const READERS: RoleAllowed[] = ['OWNER', 'ADMIN', 'EDITOR', 'COMMENTER', 'VIEWER']
