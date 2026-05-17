@@ -3,6 +3,7 @@ from __future__ import annotations
 from typing import Annotated, Literal
 from uuid import UUID
 
+from fast_clean.schemas.request_response import RequestResponseSchema
 from langchain_core.messages import BaseMessage
 from pydantic import BaseModel, ConfigDict, Field
 
@@ -12,12 +13,39 @@ from agents.apps.agent.enums import (
     PlanStepStatus,
     RoutingKind,
 )
-from agents.apps.chat.schemas import (
-    ConversationMessageSchema,
-    McpServerSchema,
-    ModelConfigSchema,
+from agents.apps.agent.enums_shared import ModelProviderEnum, RoleEnum
+from agents.apps.processing.schemas import (
+    EmbeddingProviderConfigSchema,
+    ModelConnectionSchema as ModelConnectionSchema,
 )
-from agents.apps.processing.schemas import EmbeddingProviderConfigSchema
+
+
+class ModelSettingsSchema(RequestResponseSchema):
+    temperature: float | None = None
+    top_p: float | None = None
+
+
+class ModelConfigSchema(RequestResponseSchema):
+    provider: ModelProviderEnum
+    name: str
+    connection: ModelConnectionSchema = Field(default_factory=ModelConnectionSchema)
+    settings: ModelSettingsSchema = Field(default_factory=ModelSettingsSchema)
+
+
+class ConversationMessageSchema(RequestResponseSchema):
+    role: RoleEnum
+    content: str
+
+
+class McpServerSchema(RequestResponseSchema):
+    name: str
+    description: str = ''
+    url: str
+    transport: Literal['HTTP_JSONRPC', 'SSE'] = 'HTTP_JSONRPC'
+    tools: list[str] = Field(default_factory=list)
+    headers: dict[str, str] = Field(default_factory=dict)
+    retries: int = 3
+    verify: bool = True
 
 
 class AgentContext(BaseModel):
