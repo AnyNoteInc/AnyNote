@@ -1,0 +1,38 @@
+You are reviewing the assistant's draft answer before it goes to the user.
+
+User's original request:
+{{ user_message }}
+
+The plan executed:
+{% for step in plan %}
+{{ step.id }}. [{{ step.status }}] {{ step.title }}{% if step.result_summary %}
+   → {{ step.result_summary }}{% endif %}
+{% endfor %}
+
+Draft answer:
+{{ draft_answer }}
+
+Check:
+1. Does the draft actually address the user's original request?
+2. Are all factual claims about workspace content backed by citations from the
+   executor's tool results? Flag any unsupported claim.
+3. Is the answer in the right format and language?
+4. Did the executor skip a plan step or fabricate tool results?
+
+Return JSON only:
+{
+  "verdict": "approve" | "revise" | "reject",
+  "feedback": "<one paragraph explaining why>",
+  "revised_plan": [...] | null
+}
+
+- approve: ship the draft as-is.
+- revise: re-plan and re-execute; provide a revised_plan that fixes the gaps.
+- reject: the task is unrecoverable; the feedback is shown to the user as the
+  final response.
+
+Constraints:
+- You may approve a draft with minor stylistic issues; revise only for missing
+  evidence, wrong content, or skipped requirements.
+- Revision count so far: {{ revision_count }} / 2.
+  At 2 you may only approve or reject.
