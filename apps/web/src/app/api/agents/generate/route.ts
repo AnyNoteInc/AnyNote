@@ -255,7 +255,12 @@ async function streamAgentRunToRegistry(args: {
               kind: 'confirmation',
               state: 'required',
               title: event.summary,
-              detail: JSON.stringify({ confirmation_id: event.confirmation_id, tool: event.tool }),
+              detail: JSON.stringify({
+                confirmation_id: event.confirmation_id,
+                tool: event.tool,
+                summary: event.summary,
+                args_preview: event.args_preview,
+              }),
             }),
           )
           continue
