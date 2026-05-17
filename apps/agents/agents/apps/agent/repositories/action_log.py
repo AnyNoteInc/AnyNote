@@ -24,5 +24,5 @@ class ActionLogRepository:
                     json={'entries': entries},
                     headers={'Authorization': f'Bearer {jwt}'},
                 )
-        except Exception as exc:  # noqa: BLE001 — best effort
+        except Exception as exc:
             log.warning('action-log write failed: %s', exc)

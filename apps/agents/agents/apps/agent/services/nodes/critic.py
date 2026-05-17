@@ -7,8 +7,8 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import SystemMessage
 
 from agents.apps.agent.enums import CriticVerdict, PlanStepStatus
-from agents.apps.agent.schemas import AgentState, PlanStep
 from agents.apps.agent.repositories import AgentJinjaRenderer
+from agents.apps.agent.schemas import AgentState, PlanStep
 
 log = logging.getLogger(__name__)
 
@@ -67,7 +67,7 @@ def _parse(text: str) -> tuple[CriticVerdict, str, list[dict[str, object]] | Non
             'reject': CriticVerdict.REJECT,
         }.get(verdict_raw, CriticVerdict.APPROVE)
         return verdict, str(data.get('feedback', '')), data.get('revised_plan')
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.warning('critic parse failure, defaulting to approve: %s', exc)
         return CriticVerdict.APPROVE, '(critic output unparseable; defaulting to approve)', None
 

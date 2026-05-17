@@ -9,7 +9,6 @@ from pydantic import BaseModel, Field
 from agents.apps.agent.enums import AgentMemoryScope
 from agents.apps.agent.schemas import AgentState, MemoryWrite
 
-
 # ── save_memory ──────────────────────────────────────────────────────────────
 
 class _SaveMemoryArgs(BaseModel):

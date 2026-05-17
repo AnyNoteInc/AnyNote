@@ -8,8 +8,8 @@ from langchain_core.language_models import BaseChatModel
 from langchain_core.messages import SystemMessage
 
 from agents.apps.agent.enums import PlanStepStatus, RoutingKind
-from agents.apps.agent.schemas import AgentState, PlanStep
 from agents.apps.agent.repositories import AgentJinjaRenderer
+from agents.apps.agent.schemas import AgentState, PlanStep
 
 log = logging.getLogger(__name__)
 
@@ -40,7 +40,7 @@ def _parse(text: str) -> tuple[RoutingKind, str]:
         reason = str(data.get('reason', ''))
         kind = RoutingKind.TRIVIAL if kind_raw == 'trivial' else RoutingKind.COMPLEX
         return kind, reason
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.warning('router parse failure, defaulting to complex: %s', exc)
         return RoutingKind.COMPLEX, 'fallback (router parse failure)'
 

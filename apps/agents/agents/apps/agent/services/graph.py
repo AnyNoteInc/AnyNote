@@ -10,7 +10,6 @@ from langgraph.graph.state import CompiledStateGraph
 from agents.apps.agent.enums import CriticVerdict, RoutingKind
 from agents.apps.agent.schemas import AgentState
 
-
 type CompiledAgentGraph = CompiledStateGraph[AgentState, None, AgentState, AgentState]
 
 
@@ -28,11 +27,11 @@ def build_agent_graph(
     Node implementations are passed in to keep the builder pure and testable.
     The use-case layer wires real ones via Dishka.
     """
-    from agents.apps.agent.services.nodes.router import route_node as _r
-    from agents.apps.agent.services.nodes.planner import planner_node as _p
-    from agents.apps.agent.services.nodes.executor import executor_node as _e
     from agents.apps.agent.services.nodes.critic import critic_node as _c
+    from agents.apps.agent.services.nodes.executor import executor_node as _e
     from agents.apps.agent.services.nodes.memory_writer import memory_writer_node as _m
+    from agents.apps.agent.services.nodes.planner import planner_node as _p
+    from agents.apps.agent.services.nodes.router import route_node as _r
 
     router_node = router_node or _r
     planner_node = planner_node or _p

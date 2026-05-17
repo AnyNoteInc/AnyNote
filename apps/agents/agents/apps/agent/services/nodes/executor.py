@@ -12,8 +12,8 @@ from langchain_core.tools import StructuredTool
 from langgraph.types import interrupt
 
 from agents.apps.agent.enums import PlanStepStatus
-from agents.apps.agent.schemas import AgentState, PlanStep
 from agents.apps.agent.repositories import AgentJinjaRenderer
+from agents.apps.agent.schemas import AgentState, PlanStep
 from agents.apps.agent.services.tool_registry import ToolMeta
 
 log = logging.getLogger(__name__)
@@ -99,7 +99,7 @@ async def _run_tool(
     try:
         result = await tool.ainvoke(args)
         return ToolMessage(content=str(result), tool_call_id=call_id)
-    except Exception as exc:  # noqa: BLE001
+    except Exception as exc:
         log.warning('tool %s raised: %s', name, exc)
         return ToolMessage(content=f"tool '{name}' error: {exc}", tool_call_id=call_id)
 

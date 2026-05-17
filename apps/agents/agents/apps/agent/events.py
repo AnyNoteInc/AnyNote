@@ -5,7 +5,6 @@ from uuid import UUID
 
 from pydantic import BaseModel
 
-
 EventType = Literal[
     'router_decision', 'plan_step', 'step_started', 'step_completed',
     'token', 'tool_status', 'confirmation_required',
