@@ -1,3 +1,11 @@
+## [1.19.3](https://github.com/AnyNoteInc/AnyNote/compare/v1.19.2...v1.19.3) (2026-05-18)
+
+
+### Bug Fixes
+
+* **agents:** register custom types in LangGraph checkpoint serde ([4a29e64](https://github.com/AnyNoteInc/AnyNote/commit/4a29e64c11ad65074a5c4dde1b518f039f3ce520))
+* **deploy:** point ENGINES_MCP_URL to /api/mcp prefix ([506bc65](https://github.com/AnyNoteInc/AnyNote/commit/506bc65acafdf21fb22bc9d4990a7666f01d1a09))
+
 ## [1.19.2](https://github.com/AnyNoteInc/AnyNote/compare/v1.19.1...v1.19.2) (2026-05-18)
 
 
