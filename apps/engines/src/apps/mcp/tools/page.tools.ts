@@ -46,7 +46,14 @@ export class PageTools {
 
   @Tool({
     name: 'createPage',
-    description: 'Create a new page in a workspace',
+    description:
+      'Создаёт новую страницу-заметку в рабочем пространстве. Вызывай ' +
+      'когда пользователь просит "создай страницу", "добавь заметку", ' +
+      '"заведи новую страницу про X". Требует подтверждения пользователя ' +
+      'через UI confirmation. Параметры: title (string, обязательный), ' +
+      'ownership (TEXT|SKILL|AGENT, по умолчанию TEXT — обычная заметка; ' +
+      'SKILL — навык агента; AGENT — описание агента), parentId (uuid, ' +
+      'опционально — id родительской страницы).',
     parameters: CreatePageInput,
   })
   async createPage(
@@ -68,7 +75,12 @@ export class PageTools {
 
   @Tool({
     name: 'updatePage',
-    description: 'Update page title/icon/content',
+    description:
+      'Меняет существующую страницу: title, icon, content. Вызывай когда ' +
+      'пользователь просит "переименуй страницу", "обнови заголовок", ' +
+      '"измени содержимое страницы X". Требует подтверждения. Сначала ' +
+      'прочитай страницу через getPageMarkdown — никогда не пиши ' +
+      'содержимое вслепую.',
     parameters: UpdatePageInput,
   })
   async updatePage(
@@ -88,7 +100,10 @@ export class PageTools {
 
   @Tool({
     name: 'movePage',
-    description: 'Move a page to a new parent or reorder',
+    description:
+      'Перемещает страницу к новому родителю или меняет её порядок в ' +
+      'списке. Вызывай когда пользователь просит "перенеси страницу", ' +
+      '"переставь", "сделай дочерней для". Требует подтверждения.',
     parameters: MovePageInput,
   })
   async movePage(
@@ -108,7 +123,10 @@ export class PageTools {
 
   @Tool({
     name: 'getPageMarkdown',
-    description: 'Render page content as Markdown',
+    description:
+      'Возвращает содержимое страницы целиком как Markdown. Вызывай ' +
+      'когда нужно прочитать страницу — для пересказа, цитирования, ' +
+      'поиска фактов или перед updatePage. Не модифицирует данные.',
     parameters: PageIdInput,
   })
   async getPageMarkdown(
@@ -130,7 +148,10 @@ export class PageTools {
 
   @Tool({
     name: 'getPageStats',
-    description: 'Return page metadata (creator, creation date, type, ownership)',
+    description:
+      'Возвращает метаданные страницы: автор, дата создания, тип, ' +
+      'ownership, иконка. Вызывай когда пользователь спрашивает "кто ' +
+      'создал страницу", "когда сделали заметку", "какой тип у страницы X".',
     parameters: PageIdInput,
   })
   async getPageStats(
