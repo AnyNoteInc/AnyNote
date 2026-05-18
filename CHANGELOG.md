@@ -1,3 +1,10 @@
+## [1.19.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.19.0...v1.19.1) (2026-05-18)
+
+
+### Bug Fixes
+
+* **deploy:** wire Agent OS v1 env vars into production ([294132e](https://github.com/AnyNoteInc/AnyNote/commit/294132ecace3878cd5e138f73672710779e19ffc))
+
 # [1.19.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.18.1...v1.19.0) (2026-05-18)
 
 
