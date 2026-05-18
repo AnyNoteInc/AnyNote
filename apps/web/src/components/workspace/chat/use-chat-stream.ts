@@ -11,6 +11,7 @@ import {
   appendAssistantText,
   appendPendingMessagePair,
   createServerMessagesSyncKey,
+  findAssistantMessageIdByBlockId,
   mapServerMessagesToThreadMessages,
   replaceAssistantToolBlocks,
   updateAssistantStatus,
@@ -51,8 +52,13 @@ export function useChatStream({
   )
   const activeAssistantMessageIdRef = useRef<string | null>(null)
   const lastServerSyncKeyRef = useRef(createServerMessagesSyncKey(initialMessages))
+  const messagesRef = useRef(messages)
   const pendingSendRef = useRef<PendingSend | null>(null)
   const streamControllerRef = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
 
   const resetStream = useEffectEvent(() => {
     activeAssistantMessageIdRef.current = null
@@ -257,6 +263,26 @@ export function useChatStream({
     )
   })
 
+  const confirmResume = useEffectEvent(
+    async (confirmationId: string, action: 'allow' | 'deny') => {
+      if (isStreaming) return false
+      const targetMessageId = findAssistantMessageIdByBlockId(messagesRef.current, confirmationId)
+      if (!targetMessageId) {
+        setError('Не найдено сообщение с подтверждением.')
+        return false
+      }
+      activeAssistantMessageIdRef.current = targetMessageId
+      return await openStream((signal) =>
+        fetch('/api/agent/resume', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ chatId, confirmationId, action }),
+          signal,
+        }),
+      )
+    },
+  )
+
   const resume = useEffectEvent(async (assistantMessageId: string) => {
     if (!assistantMessageId || isStreaming) {
       return false
@@ -280,6 +306,7 @@ export function useChatStream({
   }, [])
 
   return {
+    confirmResume,
     error,
     isStreaming,
     messages,
