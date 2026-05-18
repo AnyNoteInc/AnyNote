@@ -7,16 +7,18 @@ import { z } from 'zod'
 import { PRISMA } from '../../../infra/db/db.providers.js'
 import { PageNotFoundError } from '../errors/mcp.errors.js'
 import { WorkspaceMemberGuard } from '../guards/workspace-member.guard.js'
+import { MarkdownParser } from '../services/markdown-parser.service.js'
 import { MarkdownRenderer } from '../services/markdown-renderer.service.js'
 import { PageWriter } from '../services/page-writer.service.js'
 import { StatsService } from '../services/stats.service.js'
 import { mcpInput, mcpNullableUuidOptional, mcpUuid } from '../utils/mcp-input.js'
 import { getMcpRequestContext, type McpRequestWithContext } from '../utils/mcp-request-context.js'
 
-const CreatePageInput = z.object({
+export const CreatePageInput = z.object({
   parentId: mcpNullableUuidOptional(),
   title: z.string().min(1).max(255),
   ownership: mcpInput(z.enum(['TEXT', 'SKILL', 'AGENT']).default('TEXT')),
+  markdown: z.string().max(50_000).optional(),
 })
 
 const UpdatePageInput = z.object({
@@ -41,6 +43,7 @@ export class PageTools {
     private readonly guard: WorkspaceMemberGuard,
     private readonly writer: PageWriter,
     private readonly renderer: MarkdownRenderer,
+    private readonly parser: MarkdownParser,
     private readonly stats: StatsService,
   ) {}
 
@@ -49,11 +52,18 @@ export class PageTools {
     description:
       'Создаёт новую страницу-заметку в рабочем пространстве. Вызывай ' +
       'когда пользователь просит "создай страницу", "добавь заметку", ' +
-      '"заведи новую страницу про X". Требует подтверждения пользователя ' +
-      'через UI confirmation. Параметры: title (string, обязательный), ' +
-      'ownership (TEXT|SKILL|AGENT, по умолчанию TEXT — обычная заметка; ' +
+      '"заведи новую страницу про X". Если пользователь говорит ' +
+      '"создай страницу из разговора / чата / диалога" или ' +
+      '"сохрани обсуждение в страницу" — сначала суммаризируй историю ' +
+      'беседы в структурированный Markdown (заголовок + основные ' +
+      'шаги/факты списками) и передай его в параметре `markdown`. ' +
+      'Требует подтверждения пользователя через UI confirmation. ' +
+      'Параметры: title (string, обязательный), ownership ' +
+      '(TEXT|SKILL|AGENT, по умолчанию TEXT — обычная заметка; ' +
       'SKILL — навык агента; AGENT — описание агента), parentId (uuid, ' +
-      'опционально — id родительской страницы).',
+      'опционально — id родительской страницы; по умолчанию страница ' +
+      'создаётся в корне), markdown (string до 50 000 символов, ' +
+      'опционально — содержимое страницы в Markdown).',
     parameters: CreatePageInput,
   })
   async createPage(
@@ -63,14 +73,19 @@ export class PageTools {
   ) {
     const requestContext = getMcpRequestContext(req)
     await this.guard.assert(requestContext.workspaceId, requestContext.userId)
+    const content = args.markdown ? this.parser.parse(args.markdown) : undefined
     const pageId = await this.writer.createPage({
       userId: requestContext.userId,
       workspaceId: requestContext.workspaceId,
       parentId: args.parentId,
       title: args.title,
       ownership: args.ownership,
+      content,
     })
-    return { pageId }
+    return {
+      pageId,
+      url: `/workspaces/${requestContext.workspaceId}/pages/${pageId}`,
+    }
   }
 
   @Tool({

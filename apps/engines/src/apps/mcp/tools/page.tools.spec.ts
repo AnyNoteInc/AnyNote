@@ -1,14 +1,16 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+import type { Context } from '@rekog/mcp-nest'
 
 import type { PrismaClient } from '@repo/db'
 
 import { PageNotFoundError } from '../errors/mcp.errors.js'
 import type { WorkspaceMemberGuard } from '../guards/workspace-member.guard.js'
+import type { MarkdownParser } from '../services/markdown-parser.service.js'
 import type { MarkdownRenderer } from '../services/markdown-renderer.service.js'
 import type { PageWriter } from '../services/page-writer.service.js'
 import type { StatsService } from '../services/stats.service.js'
 import type { McpRequestWithContext } from '../utils/mcp-request-context.js'
-import { PageTools } from './page.tools.js'
+import { CreatePageInput, PageTools } from './page.tools.js'
 
 describe('PageTools', () => {
   const userId = '11111111-1111-4111-8111-111111111111'
@@ -31,6 +33,9 @@ describe('PageTools', () => {
   const mockRenderer = {
     render: jest.fn<(content: unknown) => string>(),
   } as unknown as MarkdownRenderer
+  const mockParser = {
+    parse: jest.fn<(markdown: string) => unknown>(),
+  } as unknown as MarkdownParser
   const mockStats = {
     getPageStats: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
   } as unknown as StatsService
@@ -49,8 +54,9 @@ describe('PageTools', () => {
     ;(mockWriter.updatePage as jest.Mock).mockReset()
     ;(mockWriter.movePage as jest.Mock).mockReset()
     ;(mockRenderer.render as jest.Mock).mockReset()
+    ;(mockParser.parse as jest.Mock).mockReset()
     ;(mockStats.getPageStats as jest.Mock).mockReset()
-    tools = new PageTools(mockPrisma, mockGuard, mockWriter, mockRenderer, mockStats)
+    tools = new PageTools(mockPrisma, mockGuard, mockWriter, mockRenderer, mockParser, mockStats)
   })
 
   it('createPage returns pageId and forwards args to writer', async () => {
@@ -68,7 +74,10 @@ describe('PageTools', () => {
       req,
     )
 
-    expect(result).toEqual({ pageId: '44444444-4444-4444-8444-444444444444' })
+    expect(result).toEqual({
+      pageId: '44444444-4444-4444-8444-444444444444',
+      url: `/workspaces/${workspaceId}/pages/44444444-4444-4444-8444-444444444444`,
+    })
     expect(mockGuard.assert).toHaveBeenCalledWith(workspaceId, userId)
     expect(mockWriter.createPage).toHaveBeenCalledWith({
       userId,
@@ -77,6 +86,51 @@ describe('PageTools', () => {
       title: 'New page',
       ownership: 'AGENT',
     })
+  })
+
+  it('returns the in-app URL alongside pageId', async () => {
+    // NOSONAR S4325 — jest.Mock erases the resolved type to `never`; tsc requires the cast.
+    ;(mockWriter.createPage as jest.Mock).mockResolvedValue(
+      '44444444-4444-4444-8444-444444444444' as never,
+    )
+
+    const result = await tools.createPage(
+      { title: 'No body', ownership: 'TEXT' },
+      {} as Context,
+      req,
+    )
+
+    expect(result.pageId).toBe('44444444-4444-4444-8444-444444444444')
+    expect(result.url).toBe(`/workspaces/${workspaceId}/pages/${result.pageId}`)
+  })
+
+  it('persists markdown content via MarkdownParser when supplied', async () => {
+    const markdown = '# Eggs\n\nWhisk and fry.'
+    const parsedContent = {
+      type: 'doc',
+      content: [
+        { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Eggs' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'Whisk and fry.' }] },
+      ],
+    }
+    // NOSONAR S4325 — jest.Mock erases the resolved/return type to `never`; tsc requires the cast.
+    ;(mockParser.parse as jest.Mock).mockReturnValue(parsedContent as never)
+    ;(mockWriter.createPage as jest.Mock).mockResolvedValue(
+      '44444444-4444-4444-8444-444444444444' as never,
+    )
+
+    await tools.createPage({ title: 'Eggs', markdown, ownership: 'TEXT' }, {} as Context, req)
+
+    expect(mockParser.parse).toHaveBeenCalledWith(markdown)
+    expect(mockWriter.createPage).toHaveBeenCalledWith(
+      expect.objectContaining({ content: parsedContent }),
+    )
+  })
+
+  it('CreatePageInput schema rejects markdown longer than 50 000 chars', () => {
+    const tooLong = 'x'.repeat(50_001)
+    const result = CreatePageInput.safeParse({ title: 'Too big', markdown: tooLong })
+    expect(result.success).toBe(false)
   })
 
   it('updatePage returns ok and forwards workspace context', async () => {

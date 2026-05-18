@@ -4,6 +4,7 @@ import type { PrismaClient } from '@repo/db'
 
 import { WorkspaceAccessDeniedError } from '../errors/mcp.errors.js'
 import { WorkspaceMemberGuard } from '../guards/workspace-member.guard.js'
+import type { MarkdownParser } from '../services/markdown-parser.service.js'
 import type { MarkdownRenderer } from '../services/markdown-renderer.service.js'
 import type { PageWriter } from '../services/page-writer.service.js'
 import type { StatsService } from '../services/stats.service.js'
@@ -29,6 +30,7 @@ describe('Tools access control', () => {
       guard,
       {} as PageWriter,
       {} as MarkdownRenderer,
+      {} as MarkdownParser,
       {} as StatsService,
     )
     await expect(
