@@ -62,7 +62,7 @@ async def test_full_run_router_planner_executor_critic_memory(pg_saver) -> None:
         router_node=functools.partial(route_node, llm=llm, renderer=renderer),
         planner_node=functools.partial(planner_node, llm=llm, renderer=renderer),
         executor_node=functools.partial(
-            executor_node, llm=llm, tools=[], tool_registry={}, renderer=renderer,
+            executor_node, llm=llm, tools=[], renderer=renderer,
         ),
         critic_node=functools.partial(critic_node, llm=llm, renderer=renderer),
         memory_writer_node=functools.partial(

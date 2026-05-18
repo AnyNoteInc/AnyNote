@@ -44,6 +44,7 @@ class RunAgentUseCase:
         from agents.apps.agent.services.nodes.memory_writer import memory_writer_node
         from agents.apps.agent.services.nodes.planner import planner_node
         from agents.apps.agent.services.nodes.router import route_node
+        from agents.apps.agent.services.nodes.tool_runner import tool_runner_node
 
         # Discover MCP tools up front so planner sees descriptions.
         log.info('MCP servers in payload count=%d names=%s', len(request.mcp_servers),
@@ -90,8 +91,10 @@ class RunAgentUseCase:
             router_node=functools.partial(route_node, llm=llm, renderer=self.renderer),
             planner_node=functools.partial(planner_node, llm=llm, renderer=self.renderer),
             executor_node=functools.partial(
-                executor_node, llm=llm, tools=tools,
-                tool_registry=tool_registry, renderer=self.renderer,
+                executor_node, llm=llm, tools=tools, renderer=self.renderer,
+            ),
+            tool_runner_node=functools.partial(
+                tool_runner_node, tools=tools, tool_registry=tool_registry,
             ),
             critic_node=functools.partial(critic_node, llm=llm, renderer=self.renderer),
             memory_writer_node=functools.partial(

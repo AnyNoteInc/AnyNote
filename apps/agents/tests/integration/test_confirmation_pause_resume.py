@@ -14,6 +14,7 @@ from agents.apps.agent.services.nodes.executor import executor_node
 from agents.apps.agent.services.nodes.memory_writer import memory_writer_node
 from agents.apps.agent.services.nodes.planner import planner_node
 from agents.apps.agent.services.nodes.router import route_node
+from agents.apps.agent.services.nodes.tool_runner import tool_runner_node
 from agents.apps.agent.services.tool_registry import ToolMeta
 from langchain_core.messages import AIMessage
 from langchain_core.tools import StructuredTool
@@ -97,8 +98,12 @@ async def test_confirmation_pause_then_resume_allow(pg_saver) -> None:
             executor_node,
             llm=llm,
             tools=[_CREATE_PAGE_TOOL],
-            tool_registry=_TOOL_REGISTRY,
             renderer=renderer,
+        ),
+        tool_runner_node=functools.partial(
+            tool_runner_node,
+            tools=[_CREATE_PAGE_TOOL],
+            tool_registry=_TOOL_REGISTRY,
         ),
         critic_node=functools.partial(critic_node, llm=llm, renderer=renderer),
         memory_writer_node=functools.partial(

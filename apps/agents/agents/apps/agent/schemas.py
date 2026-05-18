@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Annotated, Literal
+from typing import Annotated, Any, Literal
 from uuid import UUID
 
 from fast_clean.schemas.request_response import RequestResponseSchema
@@ -23,11 +23,17 @@ from agents.apps.processing.schemas import (
 
 
 class ModelSettingsSchema(RequestResponseSchema):
+    # LangGraph checkpoint dumps with field names (top_p), so accept both
+    # field names and camelCase aliases when re-validating.
+    model_config = ConfigDict(populate_by_name=True)
+
     temperature: float | None = None
     top_p: float | None = None
 
 
 class ModelConfigSchema(RequestResponseSchema):
+    model_config = ConfigDict(populate_by_name=True)
+
     provider: ModelProviderEnum
     name: str
     connection: ModelConnectionSchema = Field(default_factory=ModelConnectionSchema)
@@ -146,6 +152,7 @@ class AgentState(BaseModel):
     # execution
     messages: list[BaseMessage] = []
     tool_calls_made: int = 0
+    pending_tool_calls: list[dict[str, Any]] = []
     last_critic_feedback: str | None = None
     revision_count: int = 0
     draft_answer: str = ''

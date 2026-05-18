@@ -19,6 +19,7 @@ def build_agent_graph(
     router_node: Callable[..., Any] | None = None,
     planner_node: Callable[..., Any] | None = None,
     executor_node: Callable[..., Any] | None = None,
+    tool_runner_node: Callable[..., Any] | None = None,
     critic_node: Callable[..., Any] | None = None,
     memory_writer_node: Callable[..., Any] | None = None,
 ) -> CompiledAgentGraph:
@@ -32,10 +33,12 @@ def build_agent_graph(
     from agents.apps.agent.services.nodes.memory_writer import memory_writer_node as _m
     from agents.apps.agent.services.nodes.planner import planner_node as _p
     from agents.apps.agent.services.nodes.router import route_node as _r
+    from agents.apps.agent.services.nodes.tool_runner import tool_runner_node as _tr
 
     router_node = router_node or _r
     planner_node = planner_node or _p
     executor_node = executor_node or _e
+    tool_runner_node = tool_runner_node or _tr
     critic_node = critic_node or _c
     memory_writer_node = memory_writer_node or _m
 
@@ -43,6 +46,7 @@ def build_agent_graph(
     g.add_node('router', router_node)
     g.add_node('planner', planner_node)
     g.add_node('executor', executor_node)
+    g.add_node('tool_runner', tool_runner_node)
     g.add_node('critic', critic_node)
     g.add_node('memory_writer', memory_writer_node)
 
@@ -52,8 +56,9 @@ def build_agent_graph(
     })
     g.add_edge('planner', 'executor')
     g.add_conditional_edges('executor', _after_executor, {
-        'executor': 'executor', 'critic': 'critic',
+        'executor': 'executor', 'tool_runner': 'tool_runner', 'critic': 'critic',
     })
+    g.add_edge('tool_runner', 'executor')
     g.add_conditional_edges('critic', _after_critic, {
         'planner': 'planner', 'memory_writer': 'memory_writer',
     })
@@ -67,6 +72,8 @@ def _after_router(state: AgentState) -> str:
 
 
 def _after_executor(state: AgentState) -> str:
+    if state.pending_tool_calls:
+        return 'tool_runner'
     return 'executor' if state.current_step_id is not None else 'critic'
 
 
