@@ -12,9 +12,17 @@ from agents.apps.agent.schemas import AgentState, MemoryWrite
 # ── save_memory ──────────────────────────────────────────────────────────────
 
 class _SaveMemoryArgs(BaseModel):
-    scope: Literal['workspace', 'user'] = Field(...)
-    key: str = Field(..., min_length=1, max_length=120)
-    content: str = Field(..., min_length=1, max_length=2000)
+    scope: Literal['workspace', 'user'] = Field(
+        ..., description='workspace — общий для всех; user — личный для текущего пользователя',
+    )
+    key: str = Field(
+        ..., min_length=1, max_length=120,
+        description='Короткий уникальный слаг для факта, например "tone-formal" или "любимый-напиток"',
+    )
+    content: str = Field(
+        ..., min_length=1, max_length=2000,
+        description='Сам факт в Markdown, до 2000 символов',
+    )
 
 
 def make_save_memory_tool(
@@ -58,9 +66,13 @@ def make_save_memory_tool(
         coroutine=call,
         name='save_memory',
         description=(
-            'Record a durable fact for this workspace or user (visible across '
-            'future chats). scope is "workspace" or "user". key is a short '
-            'slug; content is the fact in markdown (up to 2000 chars).'
+            'Сохраняет долгосрочный факт о пользователе или рабочем '
+            'пространстве (виден во всех будущих чатах). Вызывай когда '
+            'пользователь говорит "запомни", "сохрани на будущее", '
+            '"запиши факт", "не забывай что". scope="workspace" — общий '
+            'для всех участников; scope="user" — личный для текущего '
+            'пользователя. key — короткий слаг (≤120 симв.), content — '
+            'факт в markdown (≤2000 симв.).'
         ),
         args_schema=_SaveMemoryArgs,
     )
@@ -69,8 +81,8 @@ def make_save_memory_tool(
 # ── recall_memory ────────────────────────────────────────────────────────────
 
 class _RecallMemoryArgs(BaseModel):
-    query: str
-    k: int = Field(default=5, ge=1, le=20)
+    query: str = Field(..., description='Поисковая фраза по сохранённым фактам')
+    k: int = Field(default=5, ge=1, le=20, description='Сколько фактов вернуть (1-20)')
 
 
 def make_recall_memory_tool(state: AgentState, *, repo: Any) -> StructuredTool:
@@ -89,7 +101,14 @@ def make_recall_memory_tool(state: AgentState, *, repo: Any) -> StructuredTool:
     return StructuredTool.from_function(
         coroutine=call,
         name='recall_memory',
-        description='Look up durable workspace/user facts by lexical query.',
+        description=(
+            'Ищет ранее сохранённые факты воркспейса/пользователя по '
+            'лексическому запросу. Вызывай когда нужно "вспомни что я '
+            'говорил про X", "найди мой ранее сохранённый факт", "что мы '
+            'знаем о Y". Возвращает до k=5 совпадений (1-20). Не путать '
+            'со search_pages — здесь только короткие факты-памятки, не '
+            'содержимое страниц.'
+        ),
         args_schema=_RecallMemoryArgs,
     )
 
@@ -97,8 +116,8 @@ def make_recall_memory_tool(state: AgentState, *, repo: Any) -> StructuredTool:
 # ── search_pages ─────────────────────────────────────────────────────────────
 
 class _SearchPagesArgs(BaseModel):
-    query: str
-    k: int = Field(default=10, ge=1, le=30)
+    query: str = Field(..., description='Поисковый запрос по смыслу содержимого страниц')
+    k: int = Field(default=10, ge=1, le=30, description='Сколько блоков вернуть (1-30)')
 
 
 def make_search_pages_tool(*, workspace_id: str, embedding: Any, rag_service: Any) -> StructuredTool:
@@ -120,8 +139,12 @@ def make_search_pages_tool(*, workspace_id: str, embedding: Any, rag_service: An
         coroutine=call,
         name='search_pages',
         description=(
-            'Semantic RAG search over the workspace. Returns matching '
-            'block excerpts with pageId, blockNumber, title.'
+            'Семантический RAG-поиск по содержимому страниц рабочего '
+            'пространства через embeddings. Вызывай когда пользователь '
+            'спрашивает по смыслу — "найди заметки про X", "что я писал '
+            'о Y", "где упоминается Z". Возвращает релевантные блоки с '
+            'pageId, blockNumber, заголовком. Параметры: query (string), '
+            'k (1-30, default 10).'
         ),
         args_schema=_SearchPagesArgs,
     )

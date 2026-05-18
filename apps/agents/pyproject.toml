@@ -105,6 +105,8 @@ ignore = ["E501"]
 "agents/apps/processing/schemas.py" = ["N815"]
 # Russian docstrings contain Cyrillic letters that ruff confuses with Latin.
 "agents/apps/processing/services/chunker.py" = ["RUF002"]
+# Russian tool descriptions with intentional Cyrillic letters.
+"agents/apps/agent/services/internal_tools.py" = ["RUF001"]
 # Domain errors don't follow Exception/Error suffix — they carry `code` instead.
 "agents/apps/agent/errors.py" = ["N818"]
 # FastAPI Depends in default arg is the canonical pattern.

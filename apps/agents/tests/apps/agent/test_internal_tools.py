@@ -43,3 +43,22 @@ async def test_search_pages_tool_delegates_to_rag_service() -> None:
     out = await tool.ainvoke({'query': 'q', 'k': 10})
     fake_rag.retrieve.assert_awaited_once()
     assert 'no results' in out.lower() or out == '[]'
+
+
+def test_save_memory_description_mentions_remember_keyword() -> None:
+    pending: list = []
+    tool = make_save_memory_tool(pending)
+    description = (tool.description or '').lower()
+    assert 'запомни' in description or 'сохрани' in description, description
+
+
+def test_recall_memory_description_mentions_recall_keyword() -> None:
+    tool = make_recall_memory_tool(make_state(), repo=AsyncMock())
+    description = (tool.description or '').lower()
+    assert 'вспомни' in description or 'найди' in description, description
+
+
+def test_search_pages_description_mentions_workspace_search() -> None:
+    tool = make_search_pages_tool(workspace_id='w', embedding=object(), rag_service=AsyncMock())
+    description = (tool.description or '').lower()
+    assert 'страниц' in description, description
