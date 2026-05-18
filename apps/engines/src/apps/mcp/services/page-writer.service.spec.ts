@@ -143,7 +143,7 @@ describe('PageWriter', () => {
         title: 'No content',
       })
 
-      const callArg = (mockPrisma.page.create as jest.Mock).mock.calls[0][0] as {
+      const callArg = (mockPrisma.page.create as jest.Mock).mock.calls[0]?.[0] as {
         data: Record<string, unknown>
       }
       expect(callArg.data.content).toBeUndefined()

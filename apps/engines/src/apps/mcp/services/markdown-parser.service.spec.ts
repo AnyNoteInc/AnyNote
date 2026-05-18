@@ -133,8 +133,8 @@ describe('MarkdownParser', () => {
   it('stacks nested marks (bold + italic)', () => {
     const doc = parser.parse('**_both_**')
     const para = doc.content[0]
-    expect(para.type).toBe('paragraph')
-    const text = para.content?.[0]
+    expect(para?.type).toBe('paragraph')
+    const text = para?.content?.[0]
     expect(text?.text).toBe('both')
     const markTypes = (text?.marks ?? []).map((m) => m.type).sort()
     expect(markTypes).toEqual(['bold', 'italic'])
@@ -158,8 +158,8 @@ describe('MarkdownParser', () => {
     // produces multiple text nodes whose combined text equals the unescaped string.
     const doc = parser.parse('\\*not bold\\*')
     const para = doc.content[0]
-    expect(para.type).toBe('paragraph')
-    const combined = (para.content ?? []).map((n) => n.text ?? '').join('')
+    expect(para?.type).toBe('paragraph')
+    const combined = (para?.content ?? []).map((n) => n.text ?? '').join('')
     expect(combined).toBe('*not bold*')
   })
 
@@ -175,8 +175,8 @@ describe('MarkdownParser', () => {
     const doc = parser.parse('**line one  \nline two**')
     // Expect: text(bold) + hardBreak(bold) + text(bold) all inside one paragraph.
     const para = doc.content[0]
-    expect(para.type).toBe('paragraph')
-    const nodes = para.content ?? []
+    expect(para?.type).toBe('paragraph')
+    const nodes = para?.content ?? []
     expect(nodes).toHaveLength(3)
     expect(nodes[0]).toMatchObject({
       type: 'text',
