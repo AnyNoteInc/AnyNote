@@ -9,6 +9,7 @@ import { WorkspaceMemberGuard } from './guards/workspace-member.guard.js'
 import { McpTokenGuard } from './guards/mcp-token.guard.js'
 import { createAgentsSearchClient } from './services/agents-search.client.js'
 import { FileUploader, STORAGE } from './services/file-uploader.service.js'
+import { MarkdownParser } from './services/markdown-parser.service.js'
 import { MarkdownRenderer } from './services/markdown-renderer.service.js'
 import { PageWriter } from './services/page-writer.service.js'
 import { StatsService } from './services/stats.service.js'
@@ -29,6 +30,7 @@ import { WorkspaceTools } from './tools/workspace.tools.js'
     AgentsInternalAuthGuard,
     McpTokenGuard,
     WorkspaceMemberGuard,
+    MarkdownParser,
     MarkdownRenderer,
     PageWriter,
     FileUploader,
