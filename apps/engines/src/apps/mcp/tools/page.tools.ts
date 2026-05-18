@@ -14,7 +14,7 @@ import { StatsService } from '../services/stats.service.js'
 import { mcpInput, mcpNullableUuidOptional, mcpUuid } from '../utils/mcp-input.js'
 import { getMcpRequestContext, type McpRequestWithContext } from '../utils/mcp-request-context.js'
 
-const CreatePageInput = z.object({
+export const CreatePageInput = z.object({
   parentId: mcpNullableUuidOptional(),
   title: z.string().min(1).max(255),
   ownership: mcpInput(z.enum(['TEXT', 'SKILL', 'AGENT']).default('TEXT')),
@@ -66,9 +66,6 @@ export class PageTools {
   ) {
     const requestContext = getMcpRequestContext(req)
     await this.guard.assert(requestContext.workspaceId, requestContext.userId)
-    if (args.markdown !== undefined && args.markdown.length > 50_000) {
-      throw new Error('markdown must not exceed 50000 characters')
-    }
     const content = args.markdown ? this.parser.parse(args.markdown) : undefined
     const pageId = await this.writer.createPage({
       userId: requestContext.userId,

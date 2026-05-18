@@ -9,7 +9,7 @@ import type { MarkdownRenderer } from '../services/markdown-renderer.service.js'
 import type { PageWriter } from '../services/page-writer.service.js'
 import type { StatsService } from '../services/stats.service.js'
 import type { McpRequestWithContext } from '../utils/mcp-request-context.js'
-import { PageTools } from './page.tools.js'
+import { CreatePageInput, PageTools } from './page.tools.js'
 
 describe('PageTools', () => {
   const userId = '11111111-1111-4111-8111-111111111111'
@@ -124,15 +124,10 @@ describe('PageTools', () => {
     )
   })
 
-  it('rejects markdown longer than 50 000 chars before writing', async () => {
+  it('CreatePageInput schema rejects markdown longer than 50 000 chars', () => {
     const tooLong = 'x'.repeat(50_001)
-    await expect(
-      tools.createPage(
-        { title: 'Too big', markdown: tooLong, ownership: 'TEXT' },
-        {} as never,
-        req,
-      ),
-    ).rejects.toThrow(/markdown|50_?000|too/i)
+    const result = CreatePageInput.safeParse({ title: 'Too big', markdown: tooLong })
+    expect(result.success).toBe(false)
   })
 
   it('updatePage returns ok and forwards workspace context', async () => {
