@@ -117,7 +117,7 @@ export class MarkdownParser {
         )
       }
       case 'br':
-        return [{ type: 'hardBreak' }]
+        return [{ type: 'hardBreak', ...(marks.length ? { marks } : {}) }]
       default: {
         const text = (token as { text?: string }).text ?? ''
         if (!text) return []

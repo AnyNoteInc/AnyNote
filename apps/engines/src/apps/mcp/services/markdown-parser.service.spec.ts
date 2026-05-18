@@ -153,6 +153,47 @@ describe('MarkdownParser', () => {
     })
   })
 
+  it('preserves escaped markdown characters as literal text', () => {
+    // marked emits each escaped character as its own text token, so the parser
+    // produces multiple text nodes whose combined text equals the unescaped string.
+    const doc = parser.parse('\\*not bold\\*')
+    const para = doc.content[0]
+    expect(para.type).toBe('paragraph')
+    const combined = (para.content ?? []).map((n) => n.text ?? '').join('')
+    expect(combined).toBe('*not bold*')
+  })
+
+  it('downgrades images to their alt text (images are a non-goal)', () => {
+    const doc = parser.parse('![alt text](https://example.com/img.png)')
+    expect(doc.content[0]).toMatchObject({
+      type: 'paragraph',
+      content: [{ type: 'text', text: 'alt text' }],
+    })
+  })
+
+  it('preserves accumulated marks on hard breaks inside marked spans', () => {
+    const doc = parser.parse('**line one  \nline two**')
+    // Expect: text(bold) + hardBreak(bold) + text(bold) all inside one paragraph.
+    const para = doc.content[0]
+    expect(para.type).toBe('paragraph')
+    const nodes = para.content ?? []
+    expect(nodes).toHaveLength(3)
+    expect(nodes[0]).toMatchObject({
+      type: 'text',
+      text: 'line one',
+      marks: [{ type: 'bold' }],
+    })
+    expect(nodes[1]).toMatchObject({
+      type: 'hardBreak',
+      marks: [{ type: 'bold' }],
+    })
+    expect(nodes[2]).toMatchObject({
+      type: 'text',
+      text: 'line two',
+      marks: [{ type: 'bold' }],
+    })
+  })
+
   it('round-trips through MarkdownRenderer for supported nodes', async () => {
     const { MarkdownRenderer } = await import('./markdown-renderer.service.js')
     const renderer = new MarkdownRenderer()
