@@ -29,7 +29,11 @@ async def stream_graph(
     plan_step events on new plan entries, critic_verdict on critic updates,
     confirmation_required on interrupts, and final token/citation events.
     """
-    last_plan_ids: set[str] = set()
+    # Track each plan step we've emitted by (id -> last status) so we can
+    # re-emit plan_step events when status changes (PENDING → RUNNING → DONE).
+    # Without this the UI block stays at "Pending" forever even after the
+    # executor finishes the step.
+    last_plan_states: dict[str, str] = {}
 
     async for chunk in graph.astream(input, config, stream_mode=['values', 'updates']):
         mode, data = chunk
@@ -40,9 +44,9 @@ async def stream_graph(
                 # values-mode for intermediate states can carry non-state shapes
                 # (e.g. interrupt tuples). Skip — interrupts are surfaced below.
                 continue
-            for ev in _diff_plan_events(state, last_plan_ids):
+            for ev in _diff_plan_events(state, last_plan_states):
                 yield ev
-            last_plan_ids = {s.id for s in state.plan}
+            last_plan_states = {s.id: s.status.value for s in state.plan}
         elif mode == 'updates':
             # On interrupt LangGraph emits {'__interrupt__': (Interrupt(...),)}.
             interrupts = data.get('__interrupt__') if isinstance(data, dict) else None
@@ -75,14 +79,21 @@ async def stream_graph(
             )
 
 
-def _diff_plan_events(state: AgentState, last_ids: set[str]) -> list[ServerEvent]:
-    """Return plan_step events for steps that are new since the last snapshot."""
-    new_ids = {s.id for s in state.plan} - last_ids
-    return [
-        ServerEvent.plan_step(id=s.id, title=s.title, position=idx, status=s.status.value)
-        for idx, s in enumerate(state.plan)
-        if s.id in new_ids
-    ]
+def _diff_plan_events(state: AgentState, last_states: dict[str, str]) -> list[ServerEvent]:
+    """Return plan_step events for steps that are new OR whose status changed
+    since the last snapshot. The web translator upserts blocks by id, so
+    re-emitting an existing step with a new status flips the UI block from
+    Pending → Running → Done.
+    """
+    out: list[ServerEvent] = []
+    for idx, s in enumerate(state.plan):
+        prev_status = last_states.get(s.id)
+        if prev_status == s.status.value:
+            continue
+        out.append(
+            ServerEvent.plan_step(id=s.id, title=s.title, position=idx, status=s.status.value),
+        )
+    return out
 
 
 async def _node_events(
