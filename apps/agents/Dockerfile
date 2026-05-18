@@ -19,7 +19,6 @@ FROM python:3.13-slim AS builder
 
 ENV PYTHONUNBUFFERED=1 \
     PYTHONDONTWRITEBYTECODE=1 \
-    UV_SYSTEM_PYTHON=1 \
     UV_NO_CACHE=1
 
 RUN pip install --no-cache-dir uv
@@ -31,6 +30,10 @@ COPY --from=prepare /app/out/full/apps/agents/pyproject.toml ./pyproject.toml
 COPY --from=prepare /app/out/full/apps/agents/uv.lock ./uv.lock
 
 RUN uv sync --frozen --no-dev
+# spacy download shells out to a package installer; the uv-created venv has no
+# pip, so it falls back to `uv pip install`. Without UV_SYSTEM_PYTHON=1, that
+# install targets the project venv at /app/.venv (which the runner stage
+# preserves via `COPY --from=builder /app /app`).
 RUN uv run python -m spacy download ru_core_news_sm \
  && uv run python -m spacy download en_core_web_sm
 
