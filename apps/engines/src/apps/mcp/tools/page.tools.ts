@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { PRISMA } from '../../../infra/db/db.providers.js'
 import { PageNotFoundError } from '../errors/mcp.errors.js'
 import { WorkspaceMemberGuard } from '../guards/workspace-member.guard.js'
+import { MarkdownParser } from '../services/markdown-parser.service.js'
 import { MarkdownRenderer } from '../services/markdown-renderer.service.js'
 import { PageWriter } from '../services/page-writer.service.js'
 import { StatsService } from '../services/stats.service.js'
@@ -17,6 +18,7 @@ const CreatePageInput = z.object({
   parentId: mcpNullableUuidOptional(),
   title: z.string().min(1).max(255),
   ownership: mcpInput(z.enum(['TEXT', 'SKILL', 'AGENT']).default('TEXT')),
+  markdown: z.string().max(50_000).optional(),
 })
 
 const UpdatePageInput = z.object({
@@ -41,6 +43,7 @@ export class PageTools {
     private readonly guard: WorkspaceMemberGuard,
     private readonly writer: PageWriter,
     private readonly renderer: MarkdownRenderer,
+    private readonly parser: MarkdownParser,
     private readonly stats: StatsService,
   ) {}
 
@@ -63,14 +66,22 @@ export class PageTools {
   ) {
     const requestContext = getMcpRequestContext(req)
     await this.guard.assert(requestContext.workspaceId, requestContext.userId)
+    if (args.markdown !== undefined && args.markdown.length > 50_000) {
+      throw new Error('markdown must not exceed 50000 characters')
+    }
+    const content = args.markdown ? this.parser.parse(args.markdown) : undefined
     const pageId = await this.writer.createPage({
       userId: requestContext.userId,
       workspaceId: requestContext.workspaceId,
       parentId: args.parentId,
       title: args.title,
       ownership: args.ownership,
+      content,
     })
-    return { pageId }
+    return {
+      pageId,
+      url: `/workspaces/${requestContext.workspaceId}/pages/${pageId}`,
+    }
   }
 
   @Tool({
