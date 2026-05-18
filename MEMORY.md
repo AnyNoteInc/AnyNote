@@ -2805,3 +2805,10 @@ view == 'gantt'
 4. Нужно в настроках workspaces для пользователя подключать внешние MCP сервера, по умолчанию всегда есть подключение MCP apps/engines
 5. Необходимо создать различные тесты с помощью Playwright и проверить, что все работает
 6. Для локальных экспериментов будем использовать openai
+
+---
+
+Давай проверим эти кейсы с помощью playwright с использованием gigachat pro
+- Plan-Execute-Critic граф (router → planner → executor → critic → memory_writer) — заблокирован DSN-багом
+- Confirmation flow через SSE (interrupt/resume) — нужно сначала починить DSN
+- save_memory/recall_memory tools — нужен прогон через /agent/run после DSN-фикса
