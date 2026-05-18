@@ -66,7 +66,7 @@ export function ChatThread({
   scrollKey,
   renderLink,
   onConfirm,
-}: ChatThreadProps) {
+}: Readonly<ChatThreadProps>) {
   const pinnedToBottomRef = useRef(true)
   const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null)
   const [showScrollDown, setShowScrollDown] = useState(false)

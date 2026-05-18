@@ -108,14 +108,14 @@ export async function POST(req: NextRequest) {
         }
       : null,
     embedding:
-      embeddingsModel && embeddingsModel.vectorSize != null
-        ? {
+      embeddingsModel?.vectorSize == null
+        ? null
+        : {
             provider: embeddingsModel.provider.slug,
             modelSlug: embeddingsModel.slug,
             vectorSize: embeddingsModel.vectorSize,
             connection: decryptedEmbedConn ?? {},
-          }
-        : null,
+          },
     mcp: {
       servers: [
         {

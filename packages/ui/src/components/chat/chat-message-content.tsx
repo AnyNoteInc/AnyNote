@@ -29,7 +29,7 @@ function getPartOrder(part: ChatMessagePart) {
   }
 }
 
-export function ChatMessageContent({ parts, renderLink, onConfirm }: ChatMessageContentProps) {
+export function ChatMessageContent({ parts, renderLink, onConfirm }: Readonly<ChatMessageContentProps>) {
   const sortedParts = [...parts].sort((left, right) => getPartOrder(left) - getPartOrder(right))
   const markdownComponents = renderLink
     ? {

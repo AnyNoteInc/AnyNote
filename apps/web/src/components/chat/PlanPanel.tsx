@@ -20,7 +20,7 @@ const STATUS_LABEL: Record<
   skipped: { label: 'пропущено', color: 'default' },
 }
 
-export function PlanPanel({ steps }: { steps: PlanStepView[] }) {
+export function PlanPanel({ steps }: Readonly<{ steps: PlanStepView[] }>) {
   if (steps.length === 0) return null
   const sorted = [...steps].sort((a, b) => a.position - b.position)
   return (

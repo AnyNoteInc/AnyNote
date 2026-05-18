@@ -90,7 +90,6 @@ class ResumeAgentUseCase:
         discovered = await self.mcp_client.discover_all(mcp_servers)
         tools = self.mcp_client.build_langchain_tools(discovered, mcp_servers)
         tool_registry = build_registry_for_servers(
-            mcp_servers,
             discovered={k: [t.name for t in v] for k, v in discovered.items()},
         )
 

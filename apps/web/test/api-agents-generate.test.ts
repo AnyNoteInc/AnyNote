@@ -209,9 +209,10 @@ describe('POST /api/agents/generate', () => {
     await upstreamTask
 
     expect(entry.publishBlocks).toHaveBeenCalledTimes(2)
-    const firstCall = (entry.publishBlocks as ReturnType<typeof vi.fn>).mock.calls[0]![0]
+    const publishBlocksMock = vi.mocked(entry.publishBlocks)
+    const firstCall = publishBlocksMock.mock.calls[0]![0]
     expect(firstCall[0]).toMatchObject({ id: 't1', kind: 'tool', state: 'running', title: 'Searching' })
-    const secondCall = (entry.publishBlocks as ReturnType<typeof vi.fn>).mock.calls[1]![0]
+    const secondCall = publishBlocksMock.mock.calls[1]![0]
     expect(secondCall[0]).toMatchObject({ id: 't1', kind: 'tool', state: 'done', detail: '3 results' })
   })
 

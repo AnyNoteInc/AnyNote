@@ -16,10 +16,10 @@ export type PendingConfirmation = {
   argsPreview: unknown
 }
 
-export function ConfirmationDialog(props: {
+export function ConfirmationDialog(props: Readonly<{
   pending: PendingConfirmation | null
   onResolve: (confirmationId: string, action: 'allow' | 'deny') => void
-}) {
+}>) {
   const { pending, onResolve } = props
   return (
     <Dialog

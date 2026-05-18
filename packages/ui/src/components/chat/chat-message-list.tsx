@@ -85,7 +85,7 @@ export function ChatMessageList({
   scrollMode = 'internal',
   renderLink,
   onConfirm,
-}: ChatMessageListProps) {
+}: Readonly<ChatMessageListProps>) {
   const providerMessages = useMemo(() => buildProviderMessages(messages), [messages])
   const partRenderers = useMemo(() => buildChatPartRenderers({ onConfirm }), [onConfirm])
   const usesPageScroll = scrollMode === 'page'

@@ -60,7 +60,7 @@ def claims_to_context(claims: dict[str, object]) -> AgentContext:
     )
 
 
-async def verify_agents_jwt(
+def verify_agents_jwt(
     authorization: Annotated[str, Header()],
 ) -> AgentContext:
     """FastAPI dependency: verifies the agents JWT and returns the context."""
@@ -80,7 +80,7 @@ async def verify_agents_jwt(
 
 
 # Test seam — bypasses Header dependency for direct test calls.
-async def verify_agents_jwt_for_test(token: str) -> AgentContext:
+def verify_agents_jwt_for_test(token: str) -> AgentContext:
     return claims_to_context(_decode(token))
 
 

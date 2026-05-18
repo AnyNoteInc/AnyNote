@@ -2,7 +2,7 @@ import { prisma } from '@repo/db'
 
 import { activeStreamRegistry } from './active-stream-registry'
 import { decodeSseEvents, encodeSseEvent } from './sse'
-import type { ServiceBlock, WebChatSseEvent } from './types'
+import type { ServiceBlock } from './types'
 
 // ---------------------------------------------------------------------------
 // Part builders
@@ -141,10 +141,95 @@ function upsertServiceBlock(blocks: ServiceBlock[], block: ServiceBlock): Servic
   return next
 }
 
+type EntryHandle = ReturnType<typeof activeStreamRegistry.create>
+type PersistHandle = ReturnType<typeof createDebouncedPersist>
+
+function handleAgentEvent(
+  event: AgentRunSseEvent,
+  entry: EntryHandle,
+  flush: PersistHandle,
+): boolean {
+  switch (event.type) {
+    case 'token':
+      entry.publishDelta(event.text)
+      flush.schedule()
+      return false
+    case 'tool_status':
+      entry.publishBlocks(
+        upsertServiceBlock(entry.blocks, {
+          id: event.id,
+          kind: 'tool',
+          state: event.state,
+          title: event.title,
+          detail: event.detail,
+        }),
+      )
+      flush.schedule()
+      return false
+    case 'plan_step':
+      entry.publishBlocks(
+        upsertServiceBlock(entry.blocks, {
+          id: `plan-${event.id}`,
+          kind: 'tool',
+          state: mapPlanStepStatus(event.status),
+          title: event.title,
+        }),
+      )
+      return false
+    case 'step_started':
+      updateExistingPlanBlock(entry, event.step_id, { state: 'running' })
+      return false
+    case 'step_completed':
+      updateExistingPlanBlock(entry, event.step_id, {
+        state: 'done',
+        result: event.result_summary,
+      })
+      return false
+    case 'confirmation_required':
+      entry.publishBlocks(
+        upsertServiceBlock(entry.blocks, {
+          id: event.confirmation_id,
+          kind: 'confirmation',
+          state: 'required',
+          title: event.summary,
+          detail: JSON.stringify({
+            confirmation_id: event.confirmation_id,
+            tool: event.tool,
+            summary: event.summary,
+            args_preview: event.args_preview,
+          }),
+        }),
+      )
+      return false
+    case 'error':
+      entry.publishStatus('ERROR', event.message)
+      return true
+    case 'done':
+      entry.publishStatus('DONE')
+      return true
+    default:
+      // router_decision, memory_write_proposed, critic_verdict, citation, usage — no-op
+      return false
+  }
+}
+
+function updateExistingPlanBlock(
+  entry: EntryHandle,
+  stepId: string,
+  patch: Partial<ServiceBlock>,
+): void {
+  const planBlockId = `plan-${stepId}`
+  const existing = entry.blocks.find((b) => b.id === planBlockId)
+  if (!existing) return
+  entry.publishBlocks(
+    upsertServiceBlock(entry.blocks, { ...existing, ...patch } as ServiceBlock),
+  )
+}
+
 export async function streamAgentSseToRegistry(args: {
   assistantMessageId: string
   chatId: string
-  entry: ReturnType<typeof activeStreamRegistry.create>
+  entry: EntryHandle
   jwt: string
   upstreamUrl: string
   upstreamBody: unknown
@@ -169,113 +254,7 @@ export async function streamAgentSseToRegistry(args: {
       return
     }
 
-    const reader = upstream.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-    let completed = false
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      const chunk = decoder.decode(value, { stream: true })
-      const parsed = decodeSseEvents<AgentRunSseEvent>({ buffer, chunk })
-      buffer = parsed.buffer
-
-      for (const event of parsed.events) {
-        if (event.type === 'token') {
-          args.entry.publishDelta(event.text)
-          flush.schedule()
-          continue
-        }
-
-        if (event.type === 'tool_status') {
-          args.entry.publishBlocks(
-            upsertServiceBlock(args.entry.blocks, {
-              id: event.id,
-              kind: 'tool',
-              state: event.state,
-              title: event.title,
-              detail: event.detail,
-            }),
-          )
-          flush.schedule()
-          continue
-        }
-
-        if (event.type === 'plan_step') {
-          args.entry.publishBlocks(
-            upsertServiceBlock(args.entry.blocks, {
-              id: `plan-${event.id}`,
-              kind: 'tool',
-              state: mapPlanStepStatus(event.status),
-              title: event.title,
-            }),
-          )
-          continue
-        }
-
-        if (event.type === 'step_started') {
-          const planBlockId = `plan-${event.step_id}`
-          const existing = args.entry.blocks.find((b) => b.id === planBlockId)
-          if (existing) {
-            args.entry.publishBlocks(
-              upsertServiceBlock(args.entry.blocks, { ...existing, state: 'running' }),
-            )
-          }
-          continue
-        }
-
-        if (event.type === 'step_completed') {
-          const planBlockId = `plan-${event.step_id}`
-          const existing = args.entry.blocks.find((b) => b.id === planBlockId)
-          if (existing) {
-            args.entry.publishBlocks(
-              upsertServiceBlock(args.entry.blocks, {
-                ...existing,
-                state: 'done',
-                result: event.result_summary,
-              }),
-            )
-          }
-          continue
-        }
-
-        if (event.type === 'confirmation_required') {
-          args.entry.publishBlocks(
-            upsertServiceBlock(args.entry.blocks, {
-              id: event.confirmation_id,
-              kind: 'confirmation',
-              state: 'required',
-              title: event.summary,
-              detail: JSON.stringify({
-                confirmation_id: event.confirmation_id,
-                tool: event.tool,
-                summary: event.summary,
-                args_preview: event.args_preview,
-              }),
-            }),
-          )
-          continue
-        }
-
-        if (event.type === 'error') {
-          args.entry.publishStatus('ERROR', event.message)
-          completed = true
-          break
-        }
-
-        if (event.type === 'done') {
-          args.entry.publishStatus('DONE')
-          completed = true
-          break
-        }
-
-        // router_decision, memory_write_proposed, critic_verdict, citation, usage — no-op
-      }
-
-      if (completed) break
-    }
-
+    const completed = await consumeAgentSse(upstream.body, args.entry, flush)
     if (!completed) args.entry.publishStatus('DONE')
   } catch (error) {
     args.entry.publishStatus(
@@ -289,5 +268,32 @@ export async function streamAgentSseToRegistry(args: {
   }
 }
 
-// Re-export the WebChatSseEvent type so callers can use it via this module
-export type { WebChatSseEvent }
+async function consumeAgentSse(
+  body: ReadableStream<Uint8Array>,
+  entry: EntryHandle,
+  flush: PersistHandle,
+): Promise<boolean> {
+  const reader = body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let completed = false
+
+  while (!completed) {
+    const { done, value } = await reader.read()
+    if (done) break
+    const chunk = decoder.decode(value, { stream: true })
+    const parsed = decodeSseEvents<AgentRunSseEvent>({ buffer, chunk })
+    buffer = parsed.buffer
+
+    for (const event of parsed.events) {
+      if (handleAgentEvent(event, entry, flush)) {
+        completed = true
+        break
+      }
+    }
+  }
+
+  return completed
+}
+
+export type { WebChatSseEvent } from './types'

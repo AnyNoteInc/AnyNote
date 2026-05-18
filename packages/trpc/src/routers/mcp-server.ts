@@ -102,7 +102,7 @@ export const mcpServerRouter = router({
       if (input.verifyTls !== undefined) data.verifyTls = input.verifyTls
       if (input.enabled !== undefined) data.enabled = input.enabled
       if (input.headers !== undefined) {
-        data.headers = encryptSecret(JSON.stringify(input.headers)) as unknown as object
+        data.headers = encryptSecret(JSON.stringify(input.headers)) as object
       }
       const row = await ctx.prisma.workspaceMcpServer.update({
         where: { id: input.id },

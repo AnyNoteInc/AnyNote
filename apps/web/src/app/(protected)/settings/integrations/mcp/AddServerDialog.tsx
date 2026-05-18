@@ -15,11 +15,11 @@ import {
 
 import { trpc } from '@/trpc/client'
 
-export function AddServerDialog(props: {
+export function AddServerDialog(props: Readonly<{
   open: boolean
   onClose: () => void
   workspaceId: string
-}) {
+}>) {
   const utils = trpc.useUtils()
   const create = trpc.mcpServer.create.useMutation({
     onSuccess: () => {

@@ -1,12 +1,12 @@
 import { jest } from '@jest/globals'
-import type { Pool, QueryResultRow } from 'pg'
+import type { Pool } from 'pg'
 
 import { CleanupService } from './cleanup.service.js'
 
 describe('CleanupService.purgeOrphanedInterrupts', () => {
   it('returns the deleted count from the cleanup CTE', async () => {
     const query = jest.fn<Pool['query']>().mockResolvedValue({
-      rows: [{ deleted: 7 } as QueryResultRow],
+      rows: [{ deleted: 7 }],
       rowCount: 1,
       command: 'SELECT',
       oid: 0,
@@ -28,7 +28,7 @@ describe('CleanupService.purgeOrphanedInterrupts', () => {
 
   it('returns 0 when no rows match', async () => {
     const query = jest.fn<Pool['query']>().mockResolvedValue({
-      rows: [{ deleted: 0 } as QueryResultRow],
+      rows: [{ deleted: 0 }],
       rowCount: 1,
       command: 'SELECT',
       oid: 0,

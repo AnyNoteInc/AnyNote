@@ -54,7 +54,6 @@ class RunAgentUseCase:
         tools = self.mcp_client.build_langchain_tools(discovered, request.mcp_servers)
         log.info('LangChain tools count=%d', len(tools))
         tool_registry = build_registry_for_servers(
-            request.mcp_servers,
             discovered={k: [t.name for t in v] for k, v in discovered.items()},
         )
 

@@ -53,7 +53,7 @@ export const agentMemoryRouter = router({
         const member = await ctx.prisma.workspaceMember.findUnique({
           where: { workspaceId_userId: { workspaceId: row.workspaceId, userId: ctx.user.id } },
         })
-        if (!member || member.role !== 'OWNER') {
+        if (member?.role !== 'OWNER') {
           throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
         }
       }

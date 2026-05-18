@@ -44,7 +44,7 @@ export async function POST(req: NextRequest) {
       userId: e.userId,
       toolName: e.toolName,
       toolInput: e.toolInput as object,
-      toolOutput: e.toolOutput != null ? (e.toolOutput as Prisma.InputJsonValue) : Prisma.JsonNull,
+      toolOutput: e.toolOutput == null ? Prisma.JsonNull : (e.toolOutput as Prisma.InputJsonValue),
       status: e.status,
       durationMs: e.durationMs,
       errorMessage: e.errorMessage ?? null,

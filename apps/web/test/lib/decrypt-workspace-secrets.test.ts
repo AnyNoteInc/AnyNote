@@ -17,7 +17,7 @@ describe('decryptModelConnection', () => {
 
   it('round-trips a JSON connection object', () => {
     const stored = encryptSecret(JSON.stringify({ apiKey: 'sk-X' }))
-    expect(decryptModelConnection(stored as unknown as object)).toEqual({ apiKey: 'sk-X' })
+    expect(decryptModelConnection(stored as object)).toEqual({ apiKey: 'sk-X' })
   })
 })
 

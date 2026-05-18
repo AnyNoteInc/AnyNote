@@ -28,7 +28,7 @@ async def run(
     payload: AgentRunRequest,
     authorization: Annotated[str, Header()],
     use_case: FromDishka[RunAgentUseCase],
-    context: AgentContext = Depends(verify_agents_jwt),
+    context: Annotated[AgentContext, Depends(verify_agents_jwt)],
 ) -> EventSourceResponse:
     if str(context.chat_id) != str(payload.chat_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='chat mismatch')
@@ -45,7 +45,7 @@ async def resume(
     payload: AgentResumeRequest,
     authorization: Annotated[str, Header()],
     use_case: FromDishka[ResumeAgentUseCase],
-    context: AgentContext = Depends(verify_agents_jwt),
+    context: Annotated[AgentContext, Depends(verify_agents_jwt)],
 ) -> EventSourceResponse:
     if str(context.chat_id) != str(payload.chat_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='chat mismatch')

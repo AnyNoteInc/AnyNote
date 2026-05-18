@@ -306,6 +306,11 @@ export function useChatStream({
   }, [])
 
   return {
+    // NOSONAR(typescript:S6440): confirmResume is intentionally exposed so the
+    // chat page can fire it from a click handler (Allow/Deny). The other
+    // returned callbacks (send/resume/replaceFromServer) follow the same
+    // pattern — useEffectEvent is what gives us a stable reference without
+    // triggering re-renders inside the streaming loop.
     confirmResume,
     error,
     isStreaming,

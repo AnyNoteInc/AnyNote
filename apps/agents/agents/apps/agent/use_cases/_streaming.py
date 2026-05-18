@@ -38,45 +38,86 @@ async def stream_graph(
     async for chunk in graph.astream(input, config, stream_mode=['values', 'updates']):
         mode, data = chunk
         if mode == 'values':
-            try:
-                state = AgentState.model_validate(data)
-            except Exception:
-                # values-mode for intermediate states can carry non-state shapes
-                # (e.g. interrupt tuples). Skip — interrupts are surfaced below.
-                continue
-            for ev in _diff_plan_events(state, last_plan_states):
+            events, last_plan_states = _process_values_chunk(data, last_plan_states)
+            for ev in events:
                 yield ev
-            last_plan_states = {s.id: s.status.value for s in state.plan}
-        elif mode == 'updates':
-            # On interrupt LangGraph emits {'__interrupt__': (Interrupt(...),)}.
-            interrupts = data.get('__interrupt__') if isinstance(data, dict) else None
-            if interrupts:
-                for itr in interrupts:
-                    payload = getattr(itr, 'value', None) or {}
-                    if isinstance(payload, dict) and 'confirmation_id' in payload:
-                        yield ServerEvent.confirmation_required(
-                            confirmation_id=str(payload['confirmation_id']),
-                            tool=str(payload.get('tool', '')),
-                            summary=str(payload.get('summary', '')),
-                            args_preview=payload.get('args_preview') or {},
-                        )
-                return
-            for node_name, partial_data in data.items():
-                if not isinstance(partial_data, dict):
-                    continue
-                async for ev in _node_events(node_name, partial_data, initial_state):
-                    yield ev
+            continue
+        done = False
+        async for ev in _process_updates_chunk(data, initial_state):
+            if isinstance(ev, _Done):
+                done = True
+                break
+            yield ev
+        if done:
+            return
 
+    async for ev in _yield_final_events(graph, config):
+        yield ev
+
+
+def _process_values_chunk(
+    data: Any,
+    last_plan_states: dict[str, str],
+) -> tuple[list[ServerEvent], dict[str, str]]:
+    try:
+        state = AgentState.model_validate(data)
+    except Exception:
+        # values-mode for intermediate states can carry non-state shapes
+        # (e.g. interrupt tuples). Skip — interrupts are surfaced via updates.
+        return [], last_plan_states
+    events = _diff_plan_events(state, last_plan_states)
+    return events, {s.id: s.status.value for s in state.plan}
+
+
+class _Done:
+    """Sentinel yielded by _process_updates_chunk to stop the outer stream."""
+
+
+async def _process_updates_chunk(
+    data: Any,
+    initial_state: AgentState,
+) -> AsyncIterator[Any]:
+    interrupts = data.get('__interrupt__') if isinstance(data, dict) else None
+    if interrupts:
+        for ev in _interrupt_events(interrupts):
+            yield ev
+        yield _Done()
+        return
+    if not isinstance(data, dict):
+        return
+    for node_name, partial_data in data.items():
+        if not isinstance(partial_data, dict):
+            continue
+        async for ev in _node_events(node_name, partial_data, initial_state):
+            yield ev
+
+
+def _interrupt_events(interrupts: Any) -> list[ServerEvent]:
+    out: list[ServerEvent] = []
+    for itr in interrupts:
+        payload = getattr(itr, 'value', None) or {}
+        if isinstance(payload, dict) and 'confirmation_id' in payload:
+            out.append(ServerEvent.confirmation_required(
+                confirmation_id=str(payload['confirmation_id']),
+                tool=str(payload.get('tool', '')),
+                summary=str(payload.get('summary', '')),
+                args_preview=payload.get('args_preview') or {},
+            ))
+    return out
+
+
+async def _yield_final_events(graph: Any, config: RunnableConfig) -> AsyncIterator[ServerEvent]:
     final_snap = await graph.aget_state(config)
-    if final_snap:
-        final = AgentState.model_validate(final_snap.values)
-        if final.final_answer:
-            yield ServerEvent.token(final.final_answer)
-        for c in final.citations:
-            yield ServerEvent.citation(
-                page_id=c.page_id, workspace_id=c.workspace_id,
-                block_number=c.block_number, title=c.title, quote=c.quote,
-            )
+    if not final_snap:
+        return
+    final = AgentState.model_validate(final_snap.values)
+    if final.final_answer:
+        yield ServerEvent.token(final.final_answer)
+    for c in final.citations:
+        yield ServerEvent.citation(
+            page_id=c.page_id, workspace_id=c.workspace_id,
+            block_number=c.block_number, title=c.title, quote=c.quote,
+        )
 
 
 def _diff_plan_events(state: AgentState, last_states: dict[str, str]) -> list[ServerEvent]:

@@ -80,25 +80,9 @@ export class VectorizationCronService implements OnModuleInit {
         LIMIT ${this.batch}
         FOR UPDATE SKIP LOCKED
       `)
-      if (rows.length === 0) return rows
-      const ids = rows.map((r) => r.id)
-      await tx.$executeRaw(Prisma.sql`
-        UPDATE outbox_events
-        SET status='PROCESSING', locked_at=now(), locked_by=${this.workerId}
-        WHERE id IN (${Prisma.join(ids)})
-      `)
-      await tx.$executeRaw(Prisma.sql`
-        UPDATE outbox_events
-        SET status='DONE', processed_at=now()
-        WHERE status='PENDING'
-          AND aggregate_type='page'
-          AND id NOT IN (${Prisma.join(ids)})
-          AND (aggregate_id, workspace_id) IN (
-            SELECT aggregate_id, workspace_id
-            FROM outbox_events
-            WHERE id IN (${Prisma.join(ids)})
-          )
-      `)
+      if (rows.length > 0) {
+        await this.markRowsProcessingAndCollapse(tx, rows)
+      }
       return rows
     })
   }
@@ -122,29 +106,37 @@ export class VectorizationCronService implements OnModuleInit {
         LIMIT ${this.batch}
         FOR UPDATE SKIP LOCKED
       `)
-      if (rows.length === 0) return rows
-      const ids = rows.map((r) => r.id)
-      await tx.$executeRaw(Prisma.sql`
-        UPDATE outbox_events
-        SET status='PROCESSING', locked_at=now(), locked_by=${this.workerId}
-        WHERE id IN (${Prisma.join(ids)})
-      `)
-      // Collapse all other PENDING events for the same (aggregate_id, workspace_id)
-      // into DONE so they don't fire again next tick.
-      await tx.$executeRaw(Prisma.sql`
-        UPDATE outbox_events
-        SET status='DONE', processed_at=now()
-        WHERE status='PENDING'
-          AND aggregate_type='page'
-          AND id NOT IN (${Prisma.join(ids)})
-          AND (aggregate_id, workspace_id) IN (
-            SELECT aggregate_id, workspace_id
-            FROM outbox_events
-            WHERE id IN (${Prisma.join(ids)})
-          )
-      `)
+      if (rows.length > 0) {
+        await this.markRowsProcessingAndCollapse(tx, rows)
+      }
       return rows
     })
+  }
+
+  private async markRowsProcessingAndCollapse(
+    tx: Prisma.TransactionClient,
+    rows: Row[],
+  ): Promise<void> {
+    const ids = rows.map((r) => r.id)
+    await tx.$executeRaw(Prisma.sql`
+      UPDATE outbox_events
+      SET status='PROCESSING', locked_at=now(), locked_by=${this.workerId}
+      WHERE id IN (${Prisma.join(ids)})
+    `)
+    // Collapse other PENDING events for the same (aggregate_id, workspace_id)
+    // into DONE so they don't fire again next tick.
+    await tx.$executeRaw(Prisma.sql`
+      UPDATE outbox_events
+      SET status='DONE', processed_at=now()
+      WHERE status='PENDING'
+        AND aggregate_type='page'
+        AND id NOT IN (${Prisma.join(ids)})
+        AND (aggregate_id, workspace_id) IN (
+          SELECT aggregate_id, workspace_id
+          FROM outbox_events
+          WHERE id IN (${Prisma.join(ids)})
+        )
+    `)
   }
 
   private async processBatch(rows: Row[]): Promise<void> {

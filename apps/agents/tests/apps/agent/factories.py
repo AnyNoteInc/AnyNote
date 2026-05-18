@@ -18,20 +18,20 @@ def make_context(**overrides) -> AgentContext:
 
 
 def make_state(*, user_message: str = 'Hi', **overrides) -> AgentState:
-    base = dict(
-        context=make_context(),
-        user_message=user_message,
-        chat_history=[],
-        model={
+    base: dict[str, object] = {
+        'context': make_context(),
+        'user_message': user_message,
+        'chat_history': [],
+        'model': {
             'provider': ModelProviderEnum.OPENAI,
             'name': 'gpt-4o-mini',
             'connection': ModelConnectionSchema(api_key='sk-test'),
             'settings': ModelSettingsSchema(temperature=0.2),
         },
-        embedding_config=None,
-        mcp_servers=[],
-        agent_system_prompt=None,
-        long_term_memories=[],
-    )
+        'embedding_config': None,
+        'mcp_servers': [],
+        'agent_system_prompt': None,
+        'long_term_memories': [],
+    }
     base.update(overrides)
     return AgentState.model_validate(base)

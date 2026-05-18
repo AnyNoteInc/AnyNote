@@ -61,7 +61,7 @@ function parseDetail(detail: string | undefined): ParsedDetail {
   }
 }
 
-export function ChatServiceBlock({ part, onConfirm }: ChatServiceBlockProps) {
+export function ChatServiceBlock({ part, onConfirm }: Readonly<ChatServiceBlockProps>) {
   const [resultOpen, setResultOpen] = useState(false)
   const [argsOpen, setArgsOpen] = useState(false)
   const resultDialogTitle = `Результат: ${part.title}`

@@ -29,8 +29,7 @@ def sign(claims: dict, *, aud: str = 'agents', ttl: int = 300, secret_b64: str |
     return jwt.encode(payload, key, algorithm='HS256')
 
 
-@pytest.mark.asyncio
-async def test_accepts_valid_token() -> None:
+def test_accepts_valid_token() -> None:
     user_id, ws_id, chat_id = str(uuid4()), str(uuid4()), str(uuid4())
     token = sign({
         'sub': user_id,
@@ -38,28 +37,26 @@ async def test_accepts_valid_token() -> None:
         'cid': chat_id,
         'scopes': ['pages:read'],
     })
-    ctx = await verify_agents_jwt_for_test(token)
+    ctx = verify_agents_jwt_for_test(token)
     assert str(ctx.user_id) == user_id
     assert str(ctx.workspace_id) == ws_id
     assert str(ctx.chat_id) == chat_id
     assert ctx.scopes == frozenset({'pages:read'})
 
 
-@pytest.mark.asyncio
-async def test_rejects_expired() -> None:
+def test_rejects_expired() -> None:
     token = sign(
         {'sub': str(uuid4()), 'wsid': str(uuid4()), 'cid': str(uuid4()), 'scopes': []},
         ttl=-100,
     )
     with pytest.raises(JwtVerificationError):
-        await verify_agents_jwt_for_test(token)
+        verify_agents_jwt_for_test(token)
 
 
-@pytest.mark.asyncio
-async def test_rejects_wrong_audience() -> None:
+def test_rejects_wrong_audience() -> None:
     token = sign(
         {'sub': str(uuid4()), 'wsid': str(uuid4()), 'cid': str(uuid4()), 'scopes': []},
         aud='wrong',
     )
     with pytest.raises(JwtVerificationError):
-        await verify_agents_jwt_for_test(token)
+        verify_agents_jwt_for_test(token)
