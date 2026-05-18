@@ -247,11 +247,12 @@ asserts the UI plumbing using a stubbed SSE response from `/api/agents/generate`
 | Unit | `page.tools.spec.ts` | MCP tool returns `{ pageId, url }`, calls parser + writer, validates Zod cap |
 | E2E | `create-page-from-chat.spec.ts` | Full UX: chat → confirm → link → page contents present |
 
-## Open items the plan step will resolve
+## Open items — resolved
 
-- Which `marked` version to pin — match the editor or upgrade?
-- Whether existing Playwright fixtures already provide a deterministic LLM stub
-  for chat (search `apps/e2e/agents/` and `apps/agents/agents/apps/agent/llm/`
-  during plan writing). If not, decide between (a) building a tiny stub
-  provider behind an env flag or (b) restricting the E2E to the MCP-tool layer
-  with a Vitest integration test plus a UI plumbing check.
+- **`marked` version**: pinned to `^14.1.3` in `apps/engines/package.json` to
+  match `packages/editor`.
+- **E2E LLM stub**: none built. The new spec
+  `apps/e2e/create-page-from-chat.spec.ts` follows the existing pattern from
+  `apps/e2e/agent-qa-citations.spec.ts` (`test.skip(!OPENAI_API_KEY)`) so CI
+  without LLM keys stays green-by-skip. A future iteration can introduce a
+  shared stub provider if flakiness becomes a problem.
