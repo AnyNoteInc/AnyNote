@@ -18,6 +18,11 @@ class BlockContentSchema(RequestResponseSchema):
 
 
 class ModelConnectionSchema(RequestResponseSchema):
+    # Checkpointed via LangGraph msgpack which always dumps with snake_case
+    # field names — populate_by_name lets the restore path find values stored
+    # under field names in addition to camelCase aliases.
+    model_config = ConfigDict(populate_by_name=True)
+
     base_url: str | None = None
     api_key: str | None = None
     organization: str | None = None
