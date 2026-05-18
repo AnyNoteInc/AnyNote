@@ -152,4 +152,37 @@ describe('MarkdownParser', () => {
       ],
     })
   })
+
+  it('round-trips through MarkdownRenderer for supported nodes', async () => {
+    const { MarkdownRenderer } = await import('./markdown-renderer.service.js')
+    const renderer = new MarkdownRenderer()
+
+    const markdown = [
+      '# Heading 1',
+      '',
+      'A paragraph with **bold**, _italic_, `code` and a [link](https://ex.com).',
+      '',
+      '## Sub',
+      '',
+      '- one',
+      '- two',
+      '',
+      '1. first',
+      '2. second',
+      '',
+      '> quoted',
+      '',
+      '```ts',
+      'const x = 1',
+      '```',
+      '',
+      '---',
+    ].join('\n')
+
+    const doc = parser.parse(markdown)
+    const rendered = renderer.render(doc)
+
+    // Renderer output should re-parse back to the same doc.
+    expect(parser.parse(rendered)).toEqual(doc)
+  })
 })
