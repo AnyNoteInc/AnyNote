@@ -175,39 +175,29 @@ test.describe('agent — create page from chat', () => {
       'Нужно ли накрывать сковороду крышкой при жарке яичницы?',
     ]
 
-    for (const turn of turns) {
+    for (const [idx, turn] of turns.entries()) {
+      const expectedAssistantCount = idx + 1
       await composer.fill(turn)
       await sendBtn.click()
 
-      // Wait for an assistant reply to appear (LLM calls can be slow)
-      await expect(async () => {
-        const messageList = page.getByTestId('chat-message-list')
-        // Look for at least one article with role=article that is the assistant reply
-        const articles = messageList.locator('[role="article"]')
-        const count = await articles.count()
-        expect(count).toBeGreaterThan(0)
-      }).toPass({ timeout: 60_000 })
+      // Wait until the chat URL has a chatId — happens on first send. After
+      // that, poll the DB for THIS turn's assistant reply (status=DONE).
+      // Per-turn counter avoids the false-positive of "any prior reply
+      // counts" when sending turn 2/3.
+      await expect
+        .poll(() => /\/chats\/[0-9a-f-]{36}/.test(page.url()), { timeout: 30_000 })
+        .toBe(true)
 
-      // Also verify via DB that an assistant message with status=DONE exists
-      const chatIdMatch = page.url().match(/\/chats\/([0-9a-f-]{36})/)
-      if (chatIdMatch) {
-        await expect
-          .poll(
-            async () => {
-              const msgs = await prisma.chatMessage.findMany({
-                where: {
-                  chatId: chatIdMatch[1],
-                  role: 'ASSISTANT',
-                  status: 'DONE',
-                },
-                select: { id: true },
-              })
-              return msgs.length
-            },
-            { timeout: 60_000, intervals: [1000, 2000, 3000] },
-          )
-          .toBeGreaterThan(0)
-      }
+      const chatId = page.url().match(/\/chats\/([0-9a-f-]{36})/)![1]
+      await expect
+        .poll(
+          () =>
+            prisma.chatMessage.count({
+              where: { chatId, role: 'ASSISTANT', status: 'DONE' },
+            }),
+          { timeout: 60_000, intervals: [1000, 2000, 3000] },
+        )
+        .toBeGreaterThanOrEqual(expectedAssistantCount)
     }
 
     // -----------------------------------------------------------------------
