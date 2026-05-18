@@ -1,3 +1,22 @@
+# [1.20.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.19.3...v1.20.0) (2026-05-18)
+
+
+### Bug Fixes
+
+* address SonarCloud findings on PR [#17](https://github.com/AnyNoteInc/AnyNote/issues/17) ([1d580e4](https://github.com/AnyNoteInc/AnyNote/commit/1d580e42d719ead4614b9ae712f0dcdb719b9b48))
+* **engines:** MarkdownParser preserves marks on hard breaks + covers edge cases ([86b329e](https://github.com/AnyNoteInc/AnyNote/commit/86b329ed5761d66d23d202ee00d3a2d5686f114e))
+* **engines:** typecheck cleanup after PageTools ctor + parser test additions ([312f611](https://github.com/AnyNoteInc/AnyNote/commit/312f61162360f47aa9e0e5d316b6eb07a6a7f691))
+
+
+### Features
+
+* **engines:** createPage MCP tool persists markdown body and returns URL ([177b650](https://github.com/AnyNoteInc/AnyNote/commit/177b65009aeca17cb00055320618cf4f4fe29ffe))
+* **engines:** intent-first createPage description covers chat-summary flow ([b775852](https://github.com/AnyNoteInc/AnyNote/commit/b7758521d71f30952c320e8804bb2b30ddac8df3))
+* **engines:** MarkdownParser handles inline marks and hard breaks ([8c884d8](https://github.com/AnyNoteInc/AnyNote/commit/8c884d80063c285162ed944bf19b244e94f60f55))
+* **engines:** MarkdownParser handles lists, blockquotes, code, hr ([d75c638](https://github.com/AnyNoteInc/AnyNote/commit/d75c638d01145d6c68fd8e9f07342afa9cd2fccc))
+* **engines:** MarkdownParser handles paragraphs and headings ([95578d3](https://github.com/AnyNoteInc/AnyNote/commit/95578d350d1b463ec3ed62cea7afe922b585ce59))
+* **engines:** PageWriter.createPage accepts optional Tiptap content ([d1eebdc](https://github.com/AnyNoteInc/AnyNote/commit/d1eebdc1e1051d615b01db3f77b3962da6a47f9d))
+
 ## [1.19.3](https://github.com/AnyNoteInc/AnyNote/compare/v1.19.2...v1.19.3) (2026-05-18)
 
 
