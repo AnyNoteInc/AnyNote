@@ -165,7 +165,11 @@ export function ChatMessageList({
                         },
                       }}
                     >
-                      <ChatMessageContent parts={message.parts} renderLink={renderLink} />
+                      <ChatMessageContent
+                        onConfirm={onConfirm}
+                        parts={message.parts}
+                        renderLink={renderLink}
+                      />
                     </Box>
                   )}
                   {timestamp || status || isEmptyStreamingAssistant ? (
