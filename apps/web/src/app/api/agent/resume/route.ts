@@ -32,6 +32,15 @@ function isToolPart(p: PersistedPart): p is Extract<PersistedPart, { type: 'tool
   return p.type === 'tool'
 }
 
+function resolveConfirmationBlock(
+  part: Extract<PersistedPart, { type: 'tool' }>,
+  action: 'allow' | 'deny',
+): ServiceBlock {
+  const state: ServiceBlock['state'] = action === 'allow' ? 'running' : 'done'
+  const title = action === 'deny' ? `${part.title} — отклонено` : part.title
+  return { id: part.id, kind: part.kind, state, title, detail: part.detail, result: part.result }
+}
+
 export async function POST(req: NextRequest) {
   const session = await getSession()
   if (!session) return new Response('unauthorized', { status: 401 })
@@ -104,22 +113,21 @@ export async function POST(req: NextRequest) {
 
   // Pre-seed entry with existing content and blocks from the persisted parts
   // so the translator's upserts merge into the existing bubble rather than starting fresh.
+  // While doing so, flip the confirmation block we just acted on: allow → running
+  // (agent is now running the tool), deny → done. This removes the inline buttons
+  // immediately and survives a page refresh because the debounced persist writes
+  // the updated blocks back to the chat message row.
   for (const part of persistedParts) {
     if (isTextPart(part)) {
       entry.content = part.text
-    } else if (isToolPart(part)) {
-      entry.blocks = [
-        ...entry.blocks,
-        {
-          id: part.id,
-          kind: part.kind,
-          state: part.state,
-          title: part.title,
-          detail: part.detail,
-          result: part.result,
-        },
-      ]
+      continue
     }
+    if (!isToolPart(part)) continue
+    const isResolved = part.kind === 'confirmation' && part.id === confirmationId
+    const block = isResolved
+      ? resolveConfirmationBlock(part, action)
+      : { id: part.id, kind: part.kind, state: part.state, title: part.title, detail: part.detail, result: part.result }
+    entry.blocks = [...entry.blocks, block]
   }
 
   const agentsUrl = process.env.AGENTS_URL ?? 'http://localhost:8080'
@@ -137,6 +145,12 @@ export async function POST(req: NextRequest) {
   })
   entry.setUpstreamTask(upstreamTask)
 
-  // No message.created event — the bubble already exists in the UI
-  return createEntryResponse({ entry, initialEvents: [] })
+  // Push the resolved-confirmation blocks immediately so the UI buttons
+  // disappear before the agent even starts streaming events back.
+  return createEntryResponse({
+    entry,
+    initialEvents: [
+      { type: 'message.service', assistantMessageId, blocks: entry.blocks },
+    ],
+  })
 }
