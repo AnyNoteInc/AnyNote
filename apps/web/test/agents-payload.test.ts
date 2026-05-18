@@ -90,7 +90,7 @@ describe('buildAgentRunPayload', () => {
     const server = {
       name: 'anynote',
       description: '',
-      url: 'http://localhost:8082/mcp',
+      url: 'http://localhost:8082/api/mcp',
       transport: 'HTTP_JSONRPC' as const,
       headers: { authorization: 'Bearer sig' },
       tools: [],
