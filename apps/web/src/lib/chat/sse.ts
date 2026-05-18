@@ -1,4 +1,4 @@
-import type { AgentsStreamEvent, WebChatSseEvent } from './types'
+import type { WebChatSseEvent } from './types'
 
 const encoder = new TextEncoder()
 
@@ -6,7 +6,7 @@ export function encodeSseEvent(event: WebChatSseEvent): Uint8Array {
   return encoder.encode(`data: ${JSON.stringify(event)}\n\n`)
 }
 
-function decodeSseEvents<T extends { type: string }>(args: {
+export function decodeSseEvents<T extends { type: string }>(args: {
   buffer: string
   chunk: string
 }): { buffer: string; events: T[] } {
@@ -40,13 +40,6 @@ function decodeSseEvents<T extends { type: string }>(args: {
     buffer: trailing,
     events,
   }
-}
-
-export function decodeAgentsSseEvents(args: { buffer: string; chunk: string }): {
-  buffer: string
-  events: AgentsStreamEvent[]
-} {
-  return decodeSseEvents<AgentsStreamEvent>(args)
 }
 
 export function decodeWebSseEvents(args: { buffer: string; chunk: string }): {

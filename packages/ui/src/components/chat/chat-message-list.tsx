@@ -12,23 +12,24 @@ import { ChatEmptyState } from './chat-empty-state'
 import { ChatLoadingPhrases } from './chat-loading-phrases'
 import { ChatMessageContent, type ChatRenderLink } from './chat-message-content'
 import {
+  buildChatPartRenderers,
   buildProviderMessages,
   CHAT_CONVERSATION_ID,
   CHAT_CONVERSATIONS,
   CHAT_MEMBERS,
-  chatPartRenderers,
   noopChatAdapter,
 } from './chat-provider-utils'
-import type { ChatThreadMessage } from './chat-types'
+import type { ChatConfirmHandler, ChatThreadMessage } from './chat-types'
 
-type ChatMessageListProps = {
+type ChatMessageListProps = Readonly<{
   messages: ChatThreadMessage[]
   emptyTitle?: string
   emptyDescription?: string
   showEmptyState?: boolean
   scrollMode?: 'internal' | 'page'
   renderLink?: ChatRenderLink
-}
+  onConfirm?: ChatConfirmHandler
+}>
 
 function formatTimestamp(value: ChatThreadMessage['createdAt']) {
   if (!value) {
@@ -83,8 +84,10 @@ export function ChatMessageList({
   showEmptyState = true,
   scrollMode = 'internal',
   renderLink,
+  onConfirm,
 }: ChatMessageListProps) {
   const providerMessages = useMemo(() => buildProviderMessages(messages), [messages])
+  const partRenderers = useMemo(() => buildChatPartRenderers({ onConfirm }), [onConfirm])
   const usesPageScroll = scrollMode === 'page'
 
   return (
@@ -94,7 +97,7 @@ export function ChatMessageList({
       conversations={CHAT_CONVERSATIONS}
       members={CHAT_MEMBERS}
       messages={providerMessages}
-      partRenderers={chatPartRenderers}
+      partRenderers={partRenderers}
     >
       <MuiChatMessageList
         autoScroll={!usesPageScroll}
@@ -162,7 +165,11 @@ export function ChatMessageList({
                         },
                       }}
                     >
-                      <ChatMessageContent parts={message.parts} renderLink={renderLink} />
+                      <ChatMessageContent
+                        onConfirm={onConfirm}
+                        parts={message.parts}
+                        renderLink={renderLink}
+                      />
                     </Box>
                   )}
                   {timestamp || status || isEmptyStreamingAssistant ? (

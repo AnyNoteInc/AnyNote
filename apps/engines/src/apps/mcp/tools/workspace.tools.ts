@@ -38,7 +38,12 @@ export class WorkspaceTools {
 
   @Tool({
     name: 'getWorkspaceStats',
-    description: 'Workspace members, pages-by-type, total pages',
+    description:
+      'Возвращает счётчики и состав рабочего пространства: число страниц ' +
+      'по типам (TEXT/KANBAN/EXCALIDRAW), общее число страниц и список ' +
+      'участников. Вызывай когда пользователь спрашивает "сколько страниц", ' +
+      '"сколько заметок", "кто в команде", "статистика воркспейса" или ' +
+      'просит общий обзор. Без параметров.',
     parameters: z.object({}),
   })
   async getWorkspaceStats(
@@ -53,7 +58,11 @@ export class WorkspaceTools {
 
   @Tool({
     name: 'listWorkspaceFiles',
-    description: 'List all files in a workspace',
+    description:
+      'Возвращает список загруженных файлов рабочего пространства ' +
+      '(имя, mime, размер, дата загрузки) с пагинацией. Вызывай когда ' +
+      'пользователь просит показать вложения, файлы, аплоады, документы ' +
+      'воркспейса. Поддерживает limit (1-100) и offset.',
     parameters: PaginationInput,
   })
   async listWorkspaceFiles(
@@ -83,7 +92,11 @@ export class WorkspaceTools {
 
   @Tool({
     name: 'listSkills',
-    description: 'List skill pages (ownership=SKILL) in a workspace',
+    description:
+      'Возвращает страницы-навыки (ownership=SKILL) рабочего пространства. ' +
+      'Вызывай когда пользователь спрашивает про доступные навыки, скиллы, ' +
+      'промпт-страницы или просит показать "что умеет агент в этом ' +
+      'воркспейсе". Параметр limit (1-100).',
     parameters: LimitInput,
   })
   async listSkills(
@@ -98,7 +111,11 @@ export class WorkspaceTools {
 
   @Tool({
     name: 'listAgents',
-    description: 'List agent pages (ownership=AGENT) in a workspace',
+    description:
+      'Возвращает страницы-агенты (ownership=AGENT) рабочего пространства. ' +
+      'Вызывай когда пользователь спрашивает про доступных агентов, ' +
+      'персонажей, ассистентов или просит "список агентов". Параметр ' +
+      'limit (1-100).',
     parameters: LimitInput,
   })
   async listAgents(

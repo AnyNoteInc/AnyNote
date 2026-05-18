@@ -12,11 +12,11 @@ import { ChatComposer } from './chat-composer'
 import { ChatEmptyState } from './chat-empty-state'
 import { ChatMessageList } from './chat-message-list'
 import type { ChatRenderLink } from './chat-message-content'
-import type { ChatComposerAttachment, ChatSendPayload, ChatThreadMessage } from './chat-types'
+import type { ChatComposerAttachment, ChatConfirmHandler, ChatSendPayload, ChatThreadMessage } from './chat-types'
 
 const BOTTOM_THRESHOLD_PX = 120
 
-type ChatThreadProps = {
+type ChatThreadProps = Readonly<{
   messages: ChatThreadMessage[]
   composerValue: string
   composerAttachments: ChatComposerAttachment[]
@@ -30,7 +30,8 @@ type ChatThreadProps = {
   scrollContainerSelector?: string
   scrollKey?: string
   renderLink?: ChatRenderLink
-}
+  onConfirm?: ChatConfirmHandler
+}>
 
 function isNearBottom(element: HTMLElement) {
   return element.scrollHeight - element.scrollTop - element.clientHeight <= BOTTOM_THRESHOLD_PX
@@ -64,6 +65,7 @@ export function ChatThread({
   scrollContainerSelector,
   scrollKey,
   renderLink,
+  onConfirm,
 }: ChatThreadProps) {
   const pinnedToBottomRef = useRef(true)
   const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null)
@@ -139,6 +141,7 @@ export function ChatThread({
         emptyDescription={emptyDescription}
         emptyTitle={emptyTitle}
         messages={messages}
+        onConfirm={onConfirm}
         renderLink={renderLink}
         showEmptyState={false}
         scrollMode={usesPageScroll ? 'page' : 'internal'}

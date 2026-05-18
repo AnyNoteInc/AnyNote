@@ -1,0 +1,21 @@
+You classify the user message into one category for routing.
+
+Conversation history (last few turns):
+{% for msg in chat_history %}
+{{ msg.role }}: {{ msg.content }}
+{% endfor %}
+
+Current user message:
+{{ user_message }}
+
+Categories:
+- "trivial": pure factual lookup that needs at most one tool call.
+  Examples: "What is the URL of page X?", "Who created this page?",
+  "When is the next sprint?"
+- "complex": multi-step task or anything requiring synthesis, planning,
+  multiple tool calls, or judgment.
+  Examples: "Summarize all client meetings", "Refactor my project structure",
+  "Create kanban tasks from this transcript", "Find duplicate pages".
+
+Return JSON only:
+{"kind": "trivial" | "complex", "reason": "<one short sentence>"}

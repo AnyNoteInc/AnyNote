@@ -6,14 +6,15 @@ import ReactMarkdown from 'react-markdown'
 
 import { ChatFileChip } from './chat-file-chip'
 import { ChatServiceBlock } from './chat-service-block'
-import type { ChatMessagePart } from './chat-types'
+import type { ChatConfirmHandler, ChatMessagePart } from './chat-types'
 
 export type ChatRenderLink = (href: string, children: ReactNode) => ReactNode
 
-type ChatMessageContentProps = {
+type ChatMessageContentProps = Readonly<{
   parts: ChatMessagePart[]
   renderLink?: ChatRenderLink
-}
+  onConfirm?: ChatConfirmHandler
+}>
 
 function getPartOrder(part: ChatMessagePart) {
   switch (part.type) {
@@ -28,7 +29,8 @@ function getPartOrder(part: ChatMessagePart) {
   }
 }
 
-export function ChatMessageContent({ parts, renderLink }: ChatMessageContentProps) {
+// eslint-disable-next-line react/prop-types -- plugin can't unwrap Readonly<> generic
+export function ChatMessageContent({ parts, renderLink, onConfirm }: ChatMessageContentProps) {
   const sortedParts = [...parts].sort((left, right) => getPartOrder(left) - getPartOrder(right))
   const markdownComponents = renderLink
     ? {
@@ -91,7 +93,7 @@ export function ChatMessageContent({ parts, renderLink }: ChatMessageContentProp
         }
 
         if (part.type === 'tool') {
-          return <ChatServiceBlock key={part.id} part={part} />
+          return <ChatServiceBlock key={part.id} onConfirm={onConfirm} part={part} />
         }
 
         return null

@@ -27,6 +27,8 @@ dependencies = [
     "psycopg[binary]>=3.3.3",
     "spacy>=3.8.14",
     "langdetect>=1.0.9",
+    "pyjwt>=2.9",
+    "mcp>=1.10",
 ]
 
 [dependency-groups]
@@ -42,6 +44,7 @@ dev = [
     "pytest-env>=1.6.0",
     "pytest-httpx>=0.36.2",
     "pytest-mock>=3.15.1",
+    "respx>=0.21",
     "pytest-sugar>=1.1.1",
     "pytest-xdist>=3.8.0",
     "ruff>=0.15.11",
@@ -71,6 +74,13 @@ warn_return_any = true
 warn_unused_ignores = true
 plugins = ["pydantic.mypy"]
 
+[[tool.mypy.overrides]]
+# Relax strictness on agent-module tests — test fixtures intentionally use
+# minimal/dynamic typing for ergonomics. The production agent code itself
+# stays under full strict checking.
+module = ["tests.apps.agent.*", "tests.integration.*"]
+disable_error_code = ["no-untyped-def", "no-untyped-call", "type-arg", "call-overload", "union-attr", "arg-type"]
+
 
 [tool.ruff]
 line-length = 120
@@ -94,8 +104,15 @@ ignore = ["E501"]
 # Schema fields use camelCase to match HTTP wire format expected by apps/engines.
 "agents/apps/processing/schemas.py" = ["N815"]
 # Russian docstrings contain Cyrillic letters that ruff confuses with Latin.
-"agents/apps/chat/services/rag_retrieval.py" = ["RUF002"]
 "agents/apps/processing/services/chunker.py" = ["RUF002"]
+# Russian tool descriptions with intentional Cyrillic letters.
+"agents/apps/agent/services/internal_tools.py" = ["RUF001"]
+# Domain errors don't follow Exception/Error suffix — they carry `code` instead.
+"agents/apps/agent/errors.py" = ["N818"]
+# FastAPI Depends in default arg is the canonical pattern.
+"agents/apps/agent/router.py" = ["B008"]
+# Summary helpers intentionally mirror camelCase MCP tool names.
+"agents/apps/agent/services/tool_registry.py" = ["N802"]
 
 [tool.ruff.format]
 quote-style = "single"

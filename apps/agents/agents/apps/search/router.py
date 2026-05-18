@@ -5,7 +5,7 @@ from __future__ import annotations
 from dishka.integrations.fastapi import FromDishka, inject
 from fastapi import APIRouter
 
-from agents.apps.chat.services import RagRetrievalService
+from agents.apps.agent.services.rag_retrieval import RagRetrievalService
 
 from .schemas import SearchRequestSchema, SearchResponseSchema, SearchResultSchema
 

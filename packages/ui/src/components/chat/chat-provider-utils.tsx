@@ -14,7 +14,7 @@ import type {
 
 import { ChatFileChip } from './chat-file-chip'
 import { ChatServiceBlock } from './chat-service-block'
-import type { ChatSendPayload, ChatThreadMessage, ChatToolPart } from './chat-types'
+import type { ChatConfirmHandler, ChatSendPayload, ChatThreadMessage, ChatToolPart } from './chat-types'
 
 export const CHAT_CONVERSATION_ID = 'workspace-chat-thread'
 export const CHAT_COMPOSER_MAX_ROWS = 12
@@ -121,9 +121,19 @@ export function buildProviderMessages(messages: ChatThreadMessage[]): ChatMessag
   }))
 }
 
-export const chatPartRenderers: ChatPartRendererMap = {
-  attacment: ({ part }) => {
-    return <ChatFileChip href={part.downloadUrl} name={part.name} secondaryLabel={part.fileSize} />
-  },
-  tool: ({ part }) => <ChatServiceBlock part={part as ChatToolPart} />,
+export type BuildChatPartRenderersOptions = {
+  onConfirm?: ChatConfirmHandler
+}
+
+export function buildChatPartRenderers(
+  options: BuildChatPartRenderersOptions = {},
+): ChatPartRendererMap {
+  return {
+    attacment: ({ part }) => (
+      <ChatFileChip href={part.downloadUrl} name={part.name} secondaryLabel={part.fileSize} />
+    ),
+    tool: ({ part }) => (
+      <ChatServiceBlock onConfirm={options.onConfirm} part={part as ChatToolPart} />
+    ),
+  }
 }

@@ -1,4 +1,6 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+import { beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals'
+import { fileURLToPath } from 'node:url'
+import { dirname } from 'node:path'
 
 import type { PrismaClient } from '@repo/db'
 
@@ -8,6 +10,8 @@ import type { PageWriter } from '../services/page-writer.service.js'
 import type { StatsService } from '../services/stats.service.js'
 import type { McpRequestWithContext } from '../utils/mcp-request-context.js'
 import { WorkspaceTools } from './workspace.tools.js'
+
+const __dirname = dirname(fileURLToPath(import.meta.url))
 
 describe('WorkspaceTools', () => {
   const userId = '11111111-1111-4111-8111-111111111111'
@@ -244,5 +248,44 @@ describe('WorkspaceTools', () => {
     await expect(
       tools.createPageFromFile({ parentId, fileId }, {} as never, req),
     ).rejects.toBeInstanceOf(PageNotFoundError)
+  })
+
+  describe('WorkspaceTools — intent-first descriptions', () => {
+    // The Tool decorator stores metadata on the prototype via reflect-metadata.
+    // We assert against the source descriptors by reading the @Tool() arg.
+    // Simplest portable check: ensure each method's @Tool description contains
+    // a Russian trigger phrase so the planner can match natural language.
+    let source: string
+
+    beforeAll(async () => {
+      const fs = await import('node:fs/promises')
+      const path = await import('node:path')
+      source = await fs.readFile(
+        path.join(__dirname, 'workspace.tools.ts'),
+        'utf8',
+      )
+    })
+
+    it('getWorkspaceStats description mentions "сколько страниц" or "статистик"', () => {
+      const match = /name: 'getWorkspaceStats'[\s\S]*?description:\s*([\s\S]*?),\s*parameters:/.exec(source)
+      expect(match).not.toBeNull()
+      const desc = match![1]!
+      expect(desc).toMatch(/сколько страниц|статистик/i)
+    })
+
+    it('listWorkspaceFiles description mentions "файл" or "вложен"', () => {
+      const match = /name: 'listWorkspaceFiles'[\s\S]*?description:\s*([\s\S]*?),\s*parameters:/.exec(source)
+      expect(match![1]).toMatch(/файл|вложен/i)
+    })
+
+    it('listSkills description mentions "навык" or "skill"', () => {
+      const match = /name: 'listSkills'[\s\S]*?description:\s*([\s\S]*?),\s*parameters:/.exec(source)
+      expect(match![1]).toMatch(/навык|skill/i)
+    })
+
+    it('listAgents description mentions "агент" or "agent"', () => {
+      const match = /name: 'listAgents'[\s\S]*?description:\s*([\s\S]*?),\s*parameters:/.exec(source)
+      expect(match![1]).toMatch(/агент|agent/i)
+    })
   })
 })

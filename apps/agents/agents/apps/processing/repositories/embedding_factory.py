@@ -7,8 +7,8 @@ from langchain_ollama import OllamaEmbeddings
 from langchain_openai import OpenAIEmbeddings
 from pydantic import SecretStr
 
-from agents.apps.chat.enums import ModelProviderEnum
-from agents.apps.chat.errors import InvalidPayloadError
+from agents.apps.agent.enums_shared import ModelProviderEnum
+from agents.apps.agent.errors_shared import InvalidPayloadError
 
 from ..schemas import EmbeddingProviderConfigSchema
 

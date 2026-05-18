@@ -5,12 +5,13 @@ import { useEffect, useEffectEvent, useRef, useState, startTransition } from 're
 import type { ChatThreadMessage } from '@repo/ui/components'
 
 import { decodeWebSseEvents } from '@/lib/chat/sse'
-import type { WebChatSseEvent } from '@/lib/chat/types'
+import type { ConfirmationRequiredEvent, PlanStepEvent, WebChatSseEvent } from '@/lib/chat/types'
 
 import {
   appendAssistantText,
   appendPendingMessagePair,
   createServerMessagesSyncKey,
+  findAssistantMessageIdByBlockId,
   mapServerMessagesToThreadMessages,
   replaceAssistantToolBlocks,
   updateAssistantStatus,
@@ -27,6 +28,8 @@ type UseChatStreamArgs = {
   chatId: string
   initialMessages: ServerChatMessage[]
   onSettled?: () => void | Promise<void>
+  onPlanStep?: (event: PlanStepEvent) => void
+  onConfirmationRequired?: (event: ConfirmationRequiredEvent) => void
 }
 
 type StartSendArgs = PendingSend
@@ -35,7 +38,13 @@ function getErrorMessage(value: unknown, fallback: string) {
   return value instanceof Error ? value.message : fallback
 }
 
-export function useChatStream({ chatId, initialMessages, onSettled }: UseChatStreamArgs) {
+export function useChatStream({
+  chatId,
+  initialMessages,
+  onSettled,
+  onPlanStep,
+  onConfirmationRequired,
+}: UseChatStreamArgs) {
   const [error, setError] = useState<string | null>(null)
   const [isStreaming, setIsStreaming] = useState(false)
   const [messages, setMessages] = useState<ChatThreadMessage[]>(() =>
@@ -43,8 +52,13 @@ export function useChatStream({ chatId, initialMessages, onSettled }: UseChatStr
   )
   const activeAssistantMessageIdRef = useRef<string | null>(null)
   const lastServerSyncKeyRef = useRef(createServerMessagesSyncKey(initialMessages))
+  const messagesRef = useRef(messages)
   const pendingSendRef = useRef<PendingSend | null>(null)
   const streamControllerRef = useRef<AbortController | null>(null)
+
+  useEffect(() => {
+    messagesRef.current = messages
+  }, [messages])
 
   const resetStream = useEffectEvent(() => {
     activeAssistantMessageIdRef.current = null
@@ -116,6 +130,17 @@ export function useChatStream({ chatId, initialMessages, onSettled }: UseChatStr
 
       case 'message.done': {
         void finishStream()
+        return
+      }
+
+      case 'plan_step': {
+        onPlanStep?.(event)
+        return
+      }
+
+      case 'confirmation_required': {
+        onConfirmationRequired?.(event)
+        return
       }
     }
   })
@@ -238,6 +263,26 @@ export function useChatStream({ chatId, initialMessages, onSettled }: UseChatStr
     )
   })
 
+  const confirmResume = useEffectEvent(
+    async (confirmationId: string, action: 'allow' | 'deny') => {
+      if (isStreaming) return false
+      const targetMessageId = findAssistantMessageIdByBlockId(messagesRef.current, confirmationId)
+      if (!targetMessageId) {
+        setError('Не найдено сообщение с подтверждением.')
+        return false
+      }
+      activeAssistantMessageIdRef.current = targetMessageId
+      return await openStream((signal) =>
+        fetch('/api/agent/resume', {
+          method: 'POST',
+          headers: { 'content-type': 'application/json' },
+          body: JSON.stringify({ chatId, confirmationId, action }),
+          signal,
+        }),
+      )
+    },
+  )
+
   const resume = useEffectEvent(async (assistantMessageId: string) => {
     if (!assistantMessageId || isStreaming) {
       return false
@@ -260,7 +305,12 @@ export function useChatStream({ chatId, initialMessages, onSettled }: UseChatStr
     }
   }, [])
 
+  // confirmResume is intentionally exposed so the chat page can fire it from
+  // a click handler (Allow/Deny). The other returned callbacks
+  // (send/resume/replaceFromServer) follow the same pattern — useEffectEvent
+  // gives a stable reference without re-renders inside the streaming loop.
   return {
+    confirmResume, // NOSONAR — S6440: useEffectEvent intentionally returned for click-handler use; whole hook uses this pattern
     error,
     isStreaming,
     messages,
