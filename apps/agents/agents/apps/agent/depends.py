@@ -14,6 +14,7 @@ from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from agents.apps.agent.repositories import ActionLogRepository, AgentJinjaRenderer, MemoryWriterClient
 from agents.apps.agent.repositories.mcp_client import McpClient
 from agents.apps.agent.repositories.model_factory import ModelFactoryRepository
+from agents.apps.agent.services.checkpoint_serde import build_checkpoint_serde
 from agents.apps.agent.services.rag_retrieval import RagRetrievalService
 from agents.apps.agent.use_cases.resume_agent import ResumeAgentUseCase
 from agents.apps.agent.use_cases.run_agent import RunAgentUseCase
@@ -119,7 +120,7 @@ class AgentProvider(Provider):
         # `postgresql://` form.
         db = settings.db
         conn = f'postgresql://{db.user}:{db.password}@{db.host}:{db.port}/{db.name}'
-        async with AsyncPostgresSaver.from_conn_string(conn) as saver:
+        async with AsyncPostgresSaver.from_conn_string(conn, serde=build_checkpoint_serde()) as saver:
             await saver.setup()
             yield saver
 
