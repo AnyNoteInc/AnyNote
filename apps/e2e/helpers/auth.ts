@@ -3,7 +3,7 @@ import { join } from 'node:path'
 
 import type { Page } from '@playwright/test'
 
-function loadEnvFromRoot(): void {
+export function loadEnvFromRoot(): void {
   if (process.env.DATABASE_URL) return
   const envPath = join(process.cwd(), '.env')
   const envFile = readFileSync(envPath, 'utf8')
