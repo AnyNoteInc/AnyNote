@@ -37,6 +37,29 @@ export class MarkdownParser {
           },
         ]
       }
+      case 'list':
+        return [this.parseList(token as Tokens.List)]
+      case 'blockquote': {
+        const t = token as Tokens.Blockquote
+        return [
+          {
+            type: 'blockquote',
+            content: t.tokens.flatMap((child) => this.parseBlock(child)),
+          },
+        ]
+      }
+      case 'code': {
+        const t = token as Tokens.Code
+        return [
+          {
+            type: 'codeBlock',
+            attrs: t.lang ? { language: t.lang } : {},
+            content: [{ type: 'text', text: t.text }],
+          },
+        ]
+      }
+      case 'hr':
+        return [{ type: 'horizontalRule' }]
       case 'space':
         return []
       default: {
@@ -44,6 +67,16 @@ export class MarkdownParser {
         if (!raw) return []
         return [{ type: 'paragraph', content: [{ type: 'text', text: raw }] }]
       }
+    }
+  }
+
+  private parseList(token: Tokens.List): TiptapNode {
+    return {
+      type: token.ordered ? 'orderedList' : 'bulletList',
+      content: token.items.map((item) => ({
+        type: 'listItem',
+        content: item.tokens.flatMap((child) => this.parseBlock(child)),
+      })),
     }
   }
 

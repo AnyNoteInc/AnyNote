@@ -28,4 +28,65 @@ describe('MarkdownParser', () => {
       })
     })
   })
+
+  it('parses bullet lists', () => {
+    const doc = parser.parse('- one\n- two')
+    expect(doc.content).toEqual([
+      {
+        type: 'bulletList',
+        content: [
+          { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'one' }] }] },
+          { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'two' }] }] },
+        ],
+      },
+    ])
+  })
+
+  it('parses ordered lists', () => {
+    const doc = parser.parse('1. first\n2. second')
+    expect(doc.content[0]).toMatchObject({
+      type: 'orderedList',
+      content: [
+        { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'first' }] }] },
+        { type: 'listItem', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'second' }] }] },
+      ],
+    })
+  })
+
+  it('parses blockquotes', () => {
+    const doc = parser.parse('> quoted line')
+    expect(doc.content).toEqual([
+      {
+        type: 'blockquote',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'quoted line' }] }],
+      },
+    ])
+  })
+
+  it('parses fenced code blocks with language', () => {
+    const doc = parser.parse('```ts\nconst x = 1\n```')
+    expect(doc.content).toEqual([
+      {
+        type: 'codeBlock',
+        attrs: { language: 'ts' },
+        content: [{ type: 'text', text: 'const x = 1' }],
+      },
+    ])
+  })
+
+  it('parses fenced code blocks without language', () => {
+    const doc = parser.parse('```\nplain\n```')
+    expect(doc.content).toEqual([
+      {
+        type: 'codeBlock',
+        attrs: {},
+        content: [{ type: 'text', text: 'plain' }],
+      },
+    ])
+  })
+
+  it('parses horizontal rules', () => {
+    const doc = parser.parse('---')
+    expect(doc.content).toEqual([{ type: 'horizontalRule' }])
+  })
 })
