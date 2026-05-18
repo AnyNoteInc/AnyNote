@@ -89,4 +89,67 @@ describe('MarkdownParser', () => {
     const doc = parser.parse('---')
     expect(doc.content).toEqual([{ type: 'horizontalRule' }])
   })
+
+  it('parses bold marks', () => {
+    const doc = parser.parse('**bold**')
+    expect(doc.content[0]).toEqual({
+      type: 'paragraph',
+      content: [{ type: 'text', text: 'bold', marks: [{ type: 'bold' }] }],
+    })
+  })
+
+  it('parses italic marks', () => {
+    const doc = parser.parse('_italic_')
+    expect(doc.content[0]).toEqual({
+      type: 'paragraph',
+      content: [{ type: 'text', text: 'italic', marks: [{ type: 'italic' }] }],
+    })
+  })
+
+  it('parses inline code marks', () => {
+    const doc = parser.parse('use `npm` here')
+    expect(doc.content[0]).toMatchObject({
+      type: 'paragraph',
+      content: [
+        { type: 'text', text: 'use ' },
+        { type: 'text', text: 'npm', marks: [{ type: 'code' }] },
+        { type: 'text', text: ' here' },
+      ],
+    })
+  })
+
+  it('parses link marks with href attr', () => {
+    const doc = parser.parse('see [docs](https://example.com) please')
+    expect(doc.content[0]).toMatchObject({
+      type: 'paragraph',
+      content: [
+        { type: 'text', text: 'see ' },
+        { type: 'text', text: 'docs', marks: [{ type: 'link', attrs: { href: 'https://example.com' } }] },
+        { type: 'text', text: ' please' },
+      ],
+    })
+  })
+
+  it('stacks nested marks (bold + italic)', () => {
+    const doc = parser.parse('**_both_**')
+    const para = doc.content[0]
+    expect(para.type).toBe('paragraph')
+    const text = para.content?.[0]
+    expect(text?.text).toBe('both')
+    const markTypes = (text?.marks ?? []).map((m) => m.type).sort()
+    expect(markTypes).toEqual(['bold', 'italic'])
+  })
+
+  it('parses hard breaks inside paragraphs', () => {
+    // Markdown hard break = two trailing spaces + newline
+    const doc = parser.parse('line one  \nline two')
+    expect(doc.content[0]).toMatchObject({
+      type: 'paragraph',
+      content: [
+        { type: 'text', text: 'line one' },
+        { type: 'hardBreak' },
+        { type: 'text', text: 'line two' },
+      ],
+    })
+  })
 })

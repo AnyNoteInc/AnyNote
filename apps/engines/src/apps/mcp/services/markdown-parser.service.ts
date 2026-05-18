@@ -93,6 +93,31 @@ export class MarkdownParser {
         if (t.tokens) return t.tokens.flatMap((nested) => this.parseInlineToken(nested, marks))
         return [{ type: 'text', text: t.text, ...(marks.length ? { marks } : {}) }]
       }
+      case 'strong': {
+        const t = token as Tokens.Strong
+        return t.tokens.flatMap((nested) =>
+          this.parseInlineToken(nested, [...marks, { type: 'bold' }]),
+        )
+      }
+      case 'em': {
+        const t = token as Tokens.Em
+        return t.tokens.flatMap((nested) =>
+          this.parseInlineToken(nested, [...marks, { type: 'italic' }]),
+        )
+      }
+      case 'codespan': {
+        const t = token as Tokens.Codespan
+        return [{ type: 'text', text: t.text, marks: [...marks, { type: 'code' }] }]
+      }
+      case 'link': {
+        const t = token as Tokens.Link
+        const linkMark: Mark = { type: 'link', attrs: { href: t.href } }
+        return t.tokens.flatMap((nested) =>
+          this.parseInlineToken(nested, [...marks, linkMark]),
+        )
+      }
+      case 'br':
+        return [{ type: 'hardBreak' }]
       default: {
         const text = (token as { text?: string }).text ?? ''
         if (!text) return []
