@@ -110,6 +110,44 @@ describe('PageWriter', () => {
       ).rejects.toThrow(/not found/i)
       expect(mockPrisma.page.create).not.toHaveBeenCalled()
     })
+
+    it('persists content when supplied on create', async () => {
+      const content = {
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'hello' }] }],
+      }
+      ;(mockPrisma.page.create as jest.Mock).mockResolvedValue({ id: 'p-content' } as never)
+
+      const id = await writer.createPage({
+        userId: 'u1',
+        workspaceId: 'w1',
+        parentId: null,
+        title: 'With content',
+        content,
+      })
+
+      expect(id).toBe('p-content')
+      expect(mockPrisma.page.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ content }),
+        select: { id: true },
+      })
+    })
+
+    it('leaves content undefined when not supplied (backwards-compatible)', async () => {
+      ;(mockPrisma.page.create as jest.Mock).mockResolvedValue({ id: 'p-no-content' } as never)
+
+      await writer.createPage({
+        userId: 'u1',
+        workspaceId: 'w1',
+        parentId: null,
+        title: 'No content',
+      })
+
+      const callArg = (mockPrisma.page.create as jest.Mock).mock.calls[0][0] as {
+        data: Record<string, unknown>
+      }
+      expect(callArg.data.content).toBeUndefined()
+    })
   })
 
   describe('updatePage', () => {

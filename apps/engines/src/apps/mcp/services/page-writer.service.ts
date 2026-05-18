@@ -11,6 +11,7 @@ export type CreatePageInput = {
   parentId?: string | null
   title: string
   ownership?: 'TEXT' | 'SKILL' | 'AGENT'
+  content?: unknown
 }
 
 export type UpdatePageInput = {
@@ -44,6 +45,7 @@ export class PageWriter {
           title: input.title,
           ownership: input.ownership ?? 'TEXT',
           type: 'TEXT',
+          content: input.content === undefined ? undefined : (input.content as never),
           createdById: input.userId,
           updatedById: input.userId,
         },
