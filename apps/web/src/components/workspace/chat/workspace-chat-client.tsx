@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } from 'react'
 
 import { Alert, Box, ChatThread, Stack, type ChatSendPayload } from '@repo/ui/components'
 
@@ -44,6 +44,7 @@ export function WorkspaceChatClient({
   })
 
   const {
+    confirmResume,
     error: streamError,
     isStreaming,
     messages,
@@ -148,6 +149,13 @@ export function WorkspaceChatClient({
     setDraft(value)
   })
 
+  const handleConfirm = useCallback(
+    async (confirmationId: string, action: 'allow' | 'deny') => {
+      await confirmResume(confirmationId, action)
+    },
+    [confirmResume],
+  )
+
   const combinedError =
     actionError ?? draftAttachments.error ?? streamError ?? query.error?.message ?? null
 
@@ -174,6 +182,7 @@ export function WorkspaceChatClient({
           messages={messages}
           onComposerAttachmentsChange={handleComposerAttachmentsChange}
           onComposerValueChange={handleComposerValueChange}
+          onConfirm={handleConfirm}
           onSend={handleComposerSend}
           renderLink={renderChatLink}
           scrollContainerSelector=".page-content-scroll"
