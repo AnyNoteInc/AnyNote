@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+import type { Context } from '@rekog/mcp-nest'
 
 import type { PrismaClient } from '@repo/db'
 
@@ -88,13 +89,14 @@ describe('PageTools', () => {
   })
 
   it('returns the in-app URL alongside pageId', async () => {
+    // NOSONAR S4325 — jest.Mock erases the resolved type to `never`; tsc requires the cast.
     ;(mockWriter.createPage as jest.Mock).mockResolvedValue(
       '44444444-4444-4444-8444-444444444444' as never,
     )
 
     const result = await tools.createPage(
       { title: 'No body', ownership: 'TEXT' },
-      {} as never,
+      {} as Context,
       req,
     )
 
@@ -111,12 +113,13 @@ describe('PageTools', () => {
         { type: 'paragraph', content: [{ type: 'text', text: 'Whisk and fry.' }] },
       ],
     }
+    // NOSONAR S4325 — jest.Mock erases the resolved/return type to `never`; tsc requires the cast.
     ;(mockParser.parse as jest.Mock).mockReturnValue(parsedContent as never)
     ;(mockWriter.createPage as jest.Mock).mockResolvedValue(
       '44444444-4444-4444-8444-444444444444' as never,
     )
 
-    await tools.createPage({ title: 'Eggs', markdown, ownership: 'TEXT' }, {} as never, req)
+    await tools.createPage({ title: 'Eggs', markdown, ownership: 'TEXT' }, {} as Context, req)
 
     expect(mockParser.parse).toHaveBeenCalledWith(markdown)
     expect(mockWriter.createPage).toHaveBeenCalledWith(

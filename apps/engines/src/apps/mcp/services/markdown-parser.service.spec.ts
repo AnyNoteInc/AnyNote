@@ -136,7 +136,7 @@ describe('MarkdownParser', () => {
     expect(para?.type).toBe('paragraph')
     const text = para?.content?.[0]
     expect(text?.text).toBe('both')
-    const markTypes = (text?.marks ?? []).map((m) => m.type).sort()
+    const markTypes = (text?.marks ?? []).map((m) => m.type).sort((a, b) => a.localeCompare(b))
     expect(markTypes).toEqual(['bold', 'italic'])
   })
 
@@ -156,7 +156,7 @@ describe('MarkdownParser', () => {
   it('preserves escaped markdown characters as literal text', () => {
     // marked emits each escaped character as its own text token, so the parser
     // produces multiple text nodes whose combined text equals the unescaped string.
-    const doc = parser.parse('\\*not bold\\*')
+    const doc = parser.parse(String.raw`\*not bold\*`)
     const para = doc.content[0]
     expect(para?.type).toBe('paragraph')
     const combined = (para?.content ?? []).map((n) => n.text ?? '').join('')

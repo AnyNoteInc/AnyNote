@@ -116,6 +116,7 @@ describe('PageWriter', () => {
         type: 'doc',
         content: [{ type: 'paragraph', content: [{ type: 'text', text: 'hello' }] }],
       }
+      // NOSONAR S4325 — jest.Mock erases the resolved type to `never`; tsc requires the cast.
       ;(mockPrisma.page.create as jest.Mock).mockResolvedValue({ id: 'p-content' } as never)
 
       const id = await writer.createPage({
@@ -134,6 +135,7 @@ describe('PageWriter', () => {
     })
 
     it('leaves content undefined when not supplied (backwards-compatible)', async () => {
+      // NOSONAR S4325 — jest.Mock erases the resolved type to `never`; tsc requires the cast.
       ;(mockPrisma.page.create as jest.Mock).mockResolvedValue({ id: 'p-no-content' } as never)
 
       await writer.createPage({

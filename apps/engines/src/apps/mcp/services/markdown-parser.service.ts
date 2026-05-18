@@ -16,7 +16,7 @@ export type TiptapDoc = { type: 'doc'; content: TiptapNode[] }
 @Injectable()
 export class MarkdownParser {
   parse(markdown: string): TiptapDoc {
-    if (!markdown || !markdown.trim()) return { type: 'doc', content: [] }
+    if (!markdown?.trim()) return { type: 'doc', content: [] }
     const tokens = marked.lexer(markdown, { gfm: true })
     return { type: 'doc', content: tokens.flatMap((t) => this.parseBlock(t)) }
   }
