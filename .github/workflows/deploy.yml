@@ -106,6 +106,9 @@ jobs:
           AGENTS_SERVICE_URL: ${{ secrets.AGENTS_SERVICE_URL }}
           AGENTS_SERVICE_TOKEN: ${{ secrets.AGENTS_SERVICE_TOKEN }}
           AGENTS_SECRET_KEY: ${{ secrets.AGENTS_SECRET_KEY }}
+          AGENTS_JWT_SECRET: ${{ secrets.AGENTS_JWT_SECRET }}
+          AGENTS_TO_ENGINES_SECRET: ${{ secrets.AGENTS_TO_ENGINES_SECRET }}
+          SECRETS_ENCRYPTION_KEY: ${{ secrets.SECRETS_ENCRYPTION_KEY }}
           ENGINES_URL: ${{ secrets.ENGINES_URL }}
           ENGINES_PORT: ${{ secrets.ENGINES_PORT }}
           ENGINES_MCP_TOKEN: ${{ secrets.ENGINES_MCP_TOKEN }}
