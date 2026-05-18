@@ -6,7 +6,7 @@ export function encodeSseEvent(event: WebChatSseEvent): Uint8Array {
   return encoder.encode(`data: ${JSON.stringify(event)}\n\n`)
 }
 
-function decodeSseEvents<T extends { type: string }>(args: {
+export function decodeSseEvents<T extends { type: string }>(args: {
   buffer: string
   chunk: string
 }): { buffer: string; events: T[] } {

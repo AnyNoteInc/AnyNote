@@ -69,6 +69,9 @@ export async function POST(req: NextRequest) {
 
   // Find the assistant message that contains a confirmation block with this id.
   // Use raw SQL with Prisma.sql to safely query JSONB.
+  // ORDER BY DESC is defensive — confirmation_ids are uuid4 so collisions are
+  // astronomically unlikely, but if the same id ever recurs across messages we
+  // resume against the most recent (which is the one currently shown to the user).
   type MessageRow = { id: string; parts: unknown }
   const rows = await prisma.$queryRaw<MessageRow[]>(
     Prisma.sql`

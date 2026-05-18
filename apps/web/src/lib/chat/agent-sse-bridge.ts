@@ -1,7 +1,7 @@
 import { prisma } from '@repo/db'
 
 import { activeStreamRegistry } from './active-stream-registry'
-import { encodeSseEvent } from './sse'
+import { decodeSseEvents, encodeSseEvent } from './sse'
 import type { ServiceBlock, WebChatSseEvent } from './types'
 
 // ---------------------------------------------------------------------------
@@ -141,31 +141,6 @@ function upsertServiceBlock(blocks: ServiceBlock[], block: ServiceBlock): Servic
   return next
 }
 
-function decodeAgentSseEvents(args: {
-  buffer: string
-  chunk: string
-}): { buffer: string; events: AgentRunSseEvent[] } {
-  const combined = args.buffer + args.chunk
-  const frames = combined.split(/\r?\n\r?\n/)
-  const trailing = frames.pop() ?? ''
-  const events: AgentRunSseEvent[] = []
-  for (const frame of frames) {
-    const data = frame
-      .split(/\r?\n/)
-      .filter((line) => line.startsWith('data:'))
-      .map((line) => line.slice(5).trim())
-      .join('\n')
-    if (!data) continue
-    try {
-      const parsed = JSON.parse(data) as AgentRunSseEvent
-      if (parsed && typeof parsed === 'object' && 'type' in parsed) events.push(parsed)
-    } catch {
-      continue
-    }
-  }
-  return { buffer: trailing, events }
-}
-
 export async function streamAgentSseToRegistry(args: {
   assistantMessageId: string
   chatId: string
@@ -203,7 +178,7 @@ export async function streamAgentSseToRegistry(args: {
       const { done, value } = await reader.read()
       if (done) break
       const chunk = decoder.decode(value, { stream: true })
-      const parsed = decodeAgentSseEvents({ buffer, chunk })
+      const parsed = decodeSseEvents<AgentRunSseEvent>({ buffer, chunk })
       buffer = parsed.buffer
 
       for (const event of parsed.events) {
