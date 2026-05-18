@@ -1,3 +1,10 @@
+## [1.19.2](https://github.com/AnyNoteInc/AnyNote/compare/v1.19.1...v1.19.2) (2026-05-18)
+
+
+### Bug Fixes
+
+* **agents:** install spaCy models into project venv ([c77e1db](https://github.com/AnyNoteInc/AnyNote/commit/c77e1db19e8671322fcc34f43198dbde2e121767))
+
 ## [1.19.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.19.0...v1.19.1) (2026-05-18)
 
 
