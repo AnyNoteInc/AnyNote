@@ -23,8 +23,11 @@ export class SearchTools {
   @Tool({
     name: 'search_pages',
     description:
-      'Semantic RAG search across the current workspace. Returns matching block excerpts ' +
-      'with pageId, blockNumber, title, and content.',
+      'Семантический поиск по страницам рабочего пространства через embeddings. ' +
+      'Вызывай когда пользователь спрашивает по смыслу — "найди заметки про X", ' +
+      '"что мы писали о Y", "где упоминается Z". Возвращает релевантные блоки ' +
+      'с pageId, blockNumber, заголовком и контентом. ' +
+      'Параметры: query (string, 1-500 символов), k (1-20, default 10).',
     parameters: SearchPagesInput,
   })
   async searchPages(
