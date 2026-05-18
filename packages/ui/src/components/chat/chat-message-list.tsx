@@ -21,7 +21,7 @@ import {
 } from './chat-provider-utils'
 import type { ChatConfirmHandler, ChatThreadMessage } from './chat-types'
 
-type ChatMessageListProps = {
+type ChatMessageListProps = Readonly<{
   messages: ChatThreadMessage[]
   emptyTitle?: string
   emptyDescription?: string
@@ -29,7 +29,7 @@ type ChatMessageListProps = {
   scrollMode?: 'internal' | 'page'
   renderLink?: ChatRenderLink
   onConfirm?: ChatConfirmHandler
-}
+}>
 
 function formatTimestamp(value: ChatThreadMessage['createdAt']) {
   if (!value) {
@@ -85,7 +85,7 @@ export function ChatMessageList({
   scrollMode = 'internal',
   renderLink,
   onConfirm,
-}: Readonly<ChatMessageListProps>) {
+}: ChatMessageListProps) {
   const providerMessages = useMemo(() => buildProviderMessages(messages), [messages])
   const partRenderers = useMemo(() => buildChatPartRenderers({ onConfirm }), [onConfirm])
   const usesPageScroll = scrollMode === 'page'

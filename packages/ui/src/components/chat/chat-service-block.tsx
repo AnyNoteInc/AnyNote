@@ -17,10 +17,10 @@ import { useState } from 'react'
 
 import type { ChatConfirmHandler, ChatToolPart } from './chat-types'
 
-type ChatServiceBlockProps = {
+type ChatServiceBlockProps = Readonly<{
   part: ChatToolPart
   onConfirm?: ChatConfirmHandler
-}
+}>
 
 function getSeverity(state: ChatToolPart['state']): AlertColor {
   const state_maps: Record<ChatToolPart['state'], AlertColor> = {
@@ -55,13 +55,13 @@ function parseDetail(detail: string | undefined): ParsedDetail {
   if (!detail) return {}
   try {
     const value = JSON.parse(detail) as unknown
-    return typeof value === 'object' && value !== null ? (value as ParsedDetail) : {}
+    return typeof value === 'object' && value !== null ? value : {}
   } catch {
     return {}
   }
 }
 
-export function ChatServiceBlock({ part, onConfirm }: Readonly<ChatServiceBlockProps>) {
+export function ChatServiceBlock({ part, onConfirm }: ChatServiceBlockProps) {
   const [resultOpen, setResultOpen] = useState(false)
   const [argsOpen, setArgsOpen] = useState(false)
   const resultDialogTitle = `Результат: ${part.title}`

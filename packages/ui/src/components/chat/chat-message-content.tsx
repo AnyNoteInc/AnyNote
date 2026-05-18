@@ -10,11 +10,11 @@ import type { ChatConfirmHandler, ChatMessagePart } from './chat-types'
 
 export type ChatRenderLink = (href: string, children: ReactNode) => ReactNode
 
-type ChatMessageContentProps = {
+type ChatMessageContentProps = Readonly<{
   parts: ChatMessagePart[]
   renderLink?: ChatRenderLink
   onConfirm?: ChatConfirmHandler
-}
+}>
 
 function getPartOrder(part: ChatMessagePart) {
   switch (part.type) {
@@ -29,7 +29,8 @@ function getPartOrder(part: ChatMessagePart) {
   }
 }
 
-export function ChatMessageContent({ parts, renderLink, onConfirm }: Readonly<ChatMessageContentProps>) {
+// eslint-disable-next-line react/prop-types -- plugin can't unwrap Readonly<> generic
+export function ChatMessageContent({ parts, renderLink, onConfirm }: ChatMessageContentProps) {
   const sortedParts = [...parts].sort((left, right) => getPartOrder(left) - getPartOrder(right))
   const markdownComponents = renderLink
     ? {
