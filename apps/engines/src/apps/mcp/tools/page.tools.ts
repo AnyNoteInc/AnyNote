@@ -18,14 +18,14 @@ export const CreatePageInput = z.object({
   parentId: mcpNullableUuidOptional(),
   title: z.string().min(1).max(255),
   ownership: mcpInput(z.enum(['TEXT', 'SKILL', 'AGENT']).default('TEXT')),
-  markdown: z.string().max(50_000).optional(),
+  markdown: mcpInput(z.string().max(50_000).optional()),
 })
 
 const UpdatePageInput = z.object({
   pageId: mcpUuid(),
-  title: z.string().max(255).optional(),
+  title: mcpInput(z.string().max(255).optional()),
   icon: z.string().nullable().optional(),
-  content: z.unknown().optional(),
+  content: mcpInput(z.unknown().optional()),
 })
 
 const MovePageInput = z.object({
@@ -57,6 +57,13 @@ export class PageTools {
       '"сохрани обсуждение в страницу" — сначала суммаризируй историю ' +
       'беседы в структурированный Markdown (заголовок + основные ' +
       'шаги/факты списками) и передай его в параметре `markdown`. ' +
+      'Если пользователь просит создать страницу с текстом/содержанием ' +
+      'из текущей беседы (например, "создай страницу с текстом, который ' +
+      'описан выше", "запиши это на страницу") — извлеки нужный ' +
+      'текст из истории переписки и передай его в параметре `markdown`. ' +
+      'ВАЖНО: всегда вызывай createPage ОДИН РАЗ, передавая ' +
+      'параметры `title` и `markdown` вместе — не делай ' +
+      'двух вызовов сначала с title, потом с markdown. ' +
       'Требует подтверждения пользователя через UI confirmation. ' +
       'Параметры: title (string, обязательный), ownership ' +
       '(TEXT|SKILL|AGENT, по умолчанию TEXT — обычная заметка; ' +

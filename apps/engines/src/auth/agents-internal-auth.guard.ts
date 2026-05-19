@@ -6,7 +6,12 @@ import {
   UnauthorizedException,
 } from '@nestjs/common'
 
-const SKEW_SECONDS = 60
+// Skew window must comfortably exceed the time a user takes to read and click
+// a destructive-action confirmation card in the chat UI — the agent re-uses
+// the timestamp signed by the original /agent/run request on every MCP call
+// it makes during /agent/resume, so the same Bearer must still be valid 5+
+// minutes later.
+const SKEW_SECONDS = 600
 
 function safeEqualB64(a: string, b: string): boolean {
   const ba = Buffer.from(a, 'base64')
