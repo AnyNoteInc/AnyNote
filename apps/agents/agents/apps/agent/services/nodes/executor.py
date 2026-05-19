@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import BaseMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
 from langchain_core.tools import StructuredTool
 
 from agents.apps.agent.enums import PlanStepStatus
@@ -38,15 +38,25 @@ async def executor_node(
         current_step=step.model_dump(),
         plan=[s.model_dump() for s in state.plan],
         long_term_memories=[m.model_dump() for m in state.long_term_memories],
+        chat_history=[m.model_dump() for m in state.chat_history],
     )
 
     # GigaChat requires system at position 0 and at least one user/assistant
-    # message after. Seed the user message the first time we enter the
-    # executor for this run; subsequent calls extend state.messages.
+    # message after. Seed the prior chat_history + user message the first time
+    # we enter the executor for this run so the model can quote/copy text from
+    # earlier turns (e.g. when the user says "create a page with the text
+    # above"). Subsequent calls extend state.messages and skip re-seeding.
     if state.messages:
         messages: list[BaseMessage] = [SystemMessage(content=prompt), *state.messages]
     else:
-        messages = [SystemMessage(content=prompt), HumanMessage(content=state.user_message)]
+        messages = [SystemMessage(content=prompt)]
+        for prior in state.chat_history:
+            content = prior.content
+            if prior.role.value == 'user':
+                messages.append(HumanMessage(content=content))
+            elif prior.role.value == 'assistant':
+                messages.append(AIMessage(content=content))
+        messages.append(HumanMessage(content=state.user_message))
 
     bound = llm.bind_tools(list(tools)) if tools else llm
     ai = await bound.ainvoke(messages)

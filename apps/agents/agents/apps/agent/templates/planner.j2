@@ -20,6 +20,20 @@ Produce a SHORT plan (1–6 steps). Each step must be:
 - written so a user reading the plan understands what will happen
 - ordered: prerequisites first
 
+CRITICAL: do NOT split a single tool call across multiple steps. If a user
+asks "create a page with text/content from the conversation above", that is
+ONE step that calls `createPage` once with BOTH `title` AND `markdown` filled
+in. Do NOT plan "create empty page" then "add text" — that produces two
+confirmations and two tool calls. The same rule applies to any tool that
+already accepts a content parameter: pass everything in a single call.
+
+Also do NOT add trailing "respond to the user" / "add link to the answer" /
+"compose final reply" / "сформируй итоговый ответ" steps. The executor
+automatically produces a text reply after the last tool call returns. Adding
+such a step makes the executor call the previous tool a second time and
+triggers a duplicate confirmation. Plan only the actual work; the response
+is implicit.
+
 Do NOT execute anything. Do NOT call tools. Just output the plan.
 
 If the user's request is unclear, output a single step:

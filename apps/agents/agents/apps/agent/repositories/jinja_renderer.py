@@ -51,11 +51,13 @@ class AgentJinjaRenderer:
         current_step: dict[str, Any],
         plan: list[dict[str, Any]],
         long_term_memories: list[Any],
+        chat_history: list[Any] | None = None,
     ) -> str:
         return self.env.get_template('executor.j2').render(
             current_step=current_step,
             plan=plan,
             long_term_memories=long_term_memories,
+            chat_history=chat_history or [],
         )
 
     def render_critic(

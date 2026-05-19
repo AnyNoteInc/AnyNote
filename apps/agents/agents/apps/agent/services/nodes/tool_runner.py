@@ -1,11 +1,12 @@
 from __future__ import annotations
 
+import json
 import logging
 from collections.abc import Sequence
 from typing import Any
 from uuid import uuid4
 
-from langchain_core.messages import ToolMessage
+from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.tools import StructuredTool
 from langgraph.types import interrupt
 
@@ -13,6 +14,55 @@ from agents.apps.agent.schemas import AgentState
 from agents.apps.agent.services.tool_registry import ToolMeta
 
 log = logging.getLogger(__name__)
+
+# Tool calls whose args differ only in fields outside this allowlist count as
+# duplicates of an earlier call within the same run. Keeps the deduper from
+# treating, e.g., createPage({title}) and createPage({title, markdown}) as
+# different calls when GigaChat flips between the two within one turn.
+_DEDUP_KEY_FIELDS: dict[str, tuple[str, ...]] = {
+    'anynote__createPage': ('title',),
+    'createPage': ('title',),
+}
+
+
+def _dedup_key(name: str, args: dict[str, Any]) -> str | None:
+    fields = _DEDUP_KEY_FIELDS.get(name)
+    if not fields:
+        return None
+    payload = {f: args.get(f) for f in fields}
+    return json.dumps(payload, sort_keys=True, ensure_ascii=False)
+
+
+def _prior_tool_result(
+    name: str, args: dict[str, Any], messages: Sequence[Any]
+) -> str | None:
+    """Return the content of a previous successful tool call with the same
+    deduplication key, or None if no match.
+
+    Walks state.messages backwards: for each ToolMessage we find, locate the
+    AIMessage that issued it and compare names + args. This survives across
+    interrupt-resume because state.messages is the canonical run log.
+    """
+    key = _dedup_key(name, args)
+    if key is None:
+        return None
+    ai_calls: dict[str, tuple[str, dict[str, Any]]] = {}
+    for msg in messages:
+        if isinstance(msg, AIMessage):
+            for call in getattr(msg, 'tool_calls', None) or []:
+                ai_calls[str(call.get('id'))] = (
+                    str(call.get('name')),
+                    call.get('args') or {},
+                )
+            continue
+        if isinstance(msg, ToolMessage):
+            prior_name, prior_args = ai_calls.get(str(msg.tool_call_id), ('', {}))
+            if not prior_name:
+                continue
+            if _dedup_key(prior_name, prior_args) == key:
+                content = msg.content
+                return content if isinstance(content, str) else json.dumps(content)
+    return None
 
 
 async def tool_runner_node(
@@ -36,6 +86,14 @@ async def tool_runner_node(
 
     for call in state.pending_tool_calls:
         tool_calls_made += 1
+        prior = _prior_tool_result(str(call['name']), call.get('args') or {}, state.messages)
+        if prior is not None:
+            log.info(
+                'tool_runner: deduping duplicate %s call; reusing prior result',
+                call['name'],
+            )
+            new_tool_messages.append(ToolMessage(content=prior, tool_call_id=str(call['id'])))
+            continue
         new_tool_messages.append(await _run_tool(call, tools, tool_registry, state))
 
     return state.model_copy(update={
