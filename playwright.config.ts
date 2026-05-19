@@ -28,6 +28,8 @@ export default defineConfig({
         ? { BETTER_AUTH_JWT_AGENTS_AUDIENCE: process.env.BETTER_AUTH_JWT_AGENTS_AUDIENCE }
         : {}),
       ...(process.env.OPENAI_API_KEY ? { OPENAI_API_KEY: process.env.OPENAI_API_KEY } : {}),
+      ...(process.env.AGENTS_JWT_SECRET ? { AGENTS_JWT_SECRET: process.env.AGENTS_JWT_SECRET } : {}),
+      ...(process.env.ENGINES_MCP_URL ? { ENGINES_MCP_URL: process.env.ENGINES_MCP_URL } : {}),
     },
   },
   use: {
