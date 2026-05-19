@@ -62,7 +62,7 @@ describe('useSearchHotkey', () => {
 
     const event = dispatchShortcut({ key: ',', metaKey: true })
 
-    expect(mocks.push).toHaveBeenCalledWith('/workspaces/workspace-1/settings')
+    expect(mocks.push).toHaveBeenCalledWith('/workspaces/workspace-1/settings/general')
     expect(event.defaultPrevented).toBe(true)
   })
 
@@ -72,7 +72,7 @@ describe('useSearchHotkey', () => {
 
     const event = dispatchShortcut({ key: ',', altKey: true })
 
-    expect(mocks.push).toHaveBeenCalledWith('/workspaces/workspace-1/settings')
+    expect(mocks.push).toHaveBeenCalledWith('/workspaces/workspace-1/settings/general')
     expect(event.defaultPrevented).toBe(true)
   })
 })
