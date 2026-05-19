@@ -132,7 +132,7 @@ function ChatTreeItem({
           display: 'flex',
           alignItems: 'center',
           pr: 0.5,
-          pl: depth * 1.5,
+          pl: 0.5 + depth * 1.5,
           borderRadius: 0.75,
           bgcolor: isActive ? 'action.selected' : 'transparent',
           '&:hover': { bgcolor: isActive ? 'action.selected' : 'action.hover' },
