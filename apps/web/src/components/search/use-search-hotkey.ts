@@ -7,7 +7,11 @@ import { isMac } from '@/lib/platform'
 
 import { useSearchDialog } from './search-dialog-provider'
 
-export function useSearchHotkey(workspaceId: string) {
+type WorkspaceHotkeyHandlers = {
+  onPages?: () => void
+}
+
+export function useSearchHotkey(workspaceId: string, handlers: WorkspaceHotkeyHandlers = {}) {
   const { open } = useSearchDialog()
   const router = useRouter()
 
@@ -27,13 +31,23 @@ export function useSearchHotkey(workspaceId: string) {
         open()
         return
       }
+      if (key === 'p') {
+        event.preventDefault()
+        router.push(`/workspaces/${workspaceId}/chats/new`)
+        return
+      }
+      if (key === 'd') {
+        event.preventDefault()
+        handlers.onPages?.()
+        return
+      }
       if (event.key === ',') {
         event.preventDefault()
-        router.push(`/workspaces/${workspaceId}/settings`)
+        router.push(`/workspaces/${workspaceId}/settings/general`)
       }
     }
 
     globalThis.addEventListener('keydown', handler, { capture: true })
     return () => globalThis.removeEventListener('keydown', handler, { capture: true })
-  }, [open, router, workspaceId])
+  }, [handlers, open, router, workspaceId])
 }

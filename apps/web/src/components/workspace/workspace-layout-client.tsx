@@ -1,7 +1,7 @@
 'use client'
 
 import { usePathname } from 'next/navigation'
-import { useEffect, useMemo, useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import { Box } from '@repo/ui/components'
 
@@ -34,6 +34,14 @@ type Props = {
 const STORAGE_KEY = 'workspace.sidebar.mode'
 const DEFAULT_MODE: SidebarMode = 'full'
 export const SIDEBAR_WIDTH = 313
+export type WorkspaceSidebarSection = 'chats' | 'pages' | 'settings'
+
+function sidebarSectionFromPathname(pathname: string): WorkspaceSidebarSection | null {
+  if (pathname.includes('/chats')) return 'chats'
+  if (pathname.includes('/settings')) return 'settings'
+  if (pathname.includes('/pages') || pathname.includes('/trash')) return 'pages'
+  return null
+}
 
 export function WorkspaceLayoutClient({
   workspace,
@@ -52,6 +60,10 @@ export function WorkspaceLayoutClient({
   const pages: PageItem[] = pagesQuery.data ?? initialPages
   const [mode, setMode] = useState<SidebarMode>(DEFAULT_MODE)
   const pathname = usePathname()
+  const lastSidebarPathnameRef = useRef(pathname)
+  const [sidebarSection, setSidebarSection] = useState<WorkspaceSidebarSection>(
+    () => sidebarSectionFromPathname(pathname) ?? 'chats',
+  )
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY)
@@ -61,6 +73,13 @@ export function WorkspaceLayoutClient({
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, mode)
   }, [mode])
+
+  useEffect(() => {
+    if (lastSidebarPathnameRef.current === pathname) return
+    lastSidebarPathnameRef.current = pathname
+    const nextSection = sidebarSectionFromPathname(pathname)
+    if (nextSection) setSidebarSection(nextSection)
+  }, [pathname])
 
   const chatIdMatch = pathname.match(/\/chats\/([a-f0-9-]{36})$/)
   const activeChatId = chatIdMatch?.[1] ?? null
@@ -114,7 +133,13 @@ export function WorkspaceLayoutClient({
 
   const userMenu = <WorkspaceUserMenu user={user} features={features} />
 
-  const sidebarProps = { workspace, features, pages, userMenu }
+  const sidebarProps = {
+    workspace,
+    pages,
+    userMenu,
+    activeSection: sidebarSection,
+    onSectionChange: setSidebarSection,
+  }
 
   const pageIdMatch = pathname.match(/\/pages\/([a-f0-9-]{36})/)
   const activePageId = pageIdMatch?.[1] ?? null
@@ -139,6 +164,7 @@ export function WorkspaceLayoutClient({
         }
       />
       <Box
+        component="main"
         sx={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}
         data-full-width={fullWidth ? 'true' : 'false'}
         data-outline-mode={activePageId ? outlineMode : undefined}
@@ -154,7 +180,7 @@ export function WorkspaceLayoutClient({
 
   return (
     <SearchDialogProvider workspaceId={workspace.id}>
-      <WorkspaceHotkeyMount workspaceId={workspace.id} />
+      <WorkspaceHotkeyMount workspaceId={workspace.id} onPages={() => setSidebarSection('pages')} />
       <WorkspaceShell
         mode={mode}
         sidebar={sidebar}
@@ -164,7 +190,13 @@ export function WorkspaceLayoutClient({
   )
 }
 
-function WorkspaceHotkeyMount({ workspaceId }: { workspaceId: string }) {
-  useSearchHotkey(workspaceId)
+function WorkspaceHotkeyMount({
+  workspaceId,
+  onPages,
+}: {
+  workspaceId: string
+  onPages: () => void
+}) {
+  useSearchHotkey(workspaceId, { onPages })
   return null
 }

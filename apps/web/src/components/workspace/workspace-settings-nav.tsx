@@ -5,18 +5,16 @@ import { usePathname } from 'next/navigation'
 
 import { Box, Stack } from '@repo/ui/components'
 
-import type { PlanFeatures } from '@repo/trpc'
+type Props = { workspaceId: string }
 
-type Props = { workspaceId: string; features: PlanFeatures }
-
-export function WorkspaceSettingsNav({ workspaceId, features }: Props) {
+export function WorkspaceSettingsNav({ workspaceId }: Props) {
   const pathname = usePathname()
   const base = `/workspaces/${workspaceId}/settings`
 
   const items = [
     { label: 'Общее', slug: 'general', show: true },
-    { label: 'Участники', slug: 'members', show: features.membersSettingsEnabled },
-    { label: 'AI агент', slug: 'ai', show: features.aiSettingsEnabled },
+    { label: 'Участники', slug: 'members', show: true },
+    { label: 'AI агент', slug: 'ai', show: true },
     { label: 'Файлы', slug: 'files', show: true },
     { label: 'Опасная зона', slug: 'danger', show: true },
   ].filter((item) => item.show)
@@ -31,6 +29,7 @@ export function WorkspaceSettingsNav({ workspaceId, features }: Props) {
             key={item.slug}
             component={Link}
             href={href}
+            aria-current={active ? 'page' : undefined}
             sx={{
               display: 'block',
               padding: '6px 10px',

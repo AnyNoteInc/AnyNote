@@ -3,23 +3,26 @@
 import { type ReactNode, useMemo, useState } from 'react'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 
 import {
   ArrowDropDownIcon,
   Box,
+  Button,
+  ButtonGroup,
+  ChatBubbleOutlineIcon,
   DeleteIcon,
+  DescriptionIcon,
   IconButton,
   KeyboardDoubleArrowLeftIcon,
   Menu,
   MenuItem,
+  SearchIcon,
   SettingsIcon,
   Stack,
   Tooltip,
   Typography,
 } from '@repo/ui/components'
-
-import type { PlanFeatures } from '@repo/trpc'
 
 import { isMac } from '@/lib/platform'
 import { trpc } from '@/trpc/client'
@@ -30,18 +33,30 @@ import { PageTreeSection } from './page-tree-section'
 import type { PageItem } from './types'
 import { SearchSidebarSection } from './search-sidebar-section'
 import { SIDEBAR_WIDTH } from './workspace-layout-client'
-import { SidebarSearchTrigger } from '../search/sidebar-search-trigger'
+import type { WorkspaceSidebarSection } from './workspace-layout-client'
+import { useSearchDialog } from '../search/search-dialog-provider'
+import { WorkspaceSettingsNav } from './workspace-settings-nav'
 
 type Props = Readonly<{
   workspace: { id: string; name: string; icon: string | null }
-  features: PlanFeatures
   pages: PageItem[]
   onHide?: () => void
   userMenu: ReactNode
+  activeSection: WorkspaceSidebarSection
+  onSectionChange: (section: WorkspaceSidebarSection) => void
 }>
 
-export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu }: Props) {
+export function WorkspaceSidebar({
+  workspace,
+  pages,
+  onHide,
+  userMenu,
+  activeSection,
+  onSectionChange,
+}: Props) {
   const pathname = usePathname()
+  const router = useRouter()
+  const searchDialog = useSearchDialog()
   const favorites = trpc.page.listFavorites.useQuery({ workspaceId: workspace.id })
   const favoritePageIds = useMemo(
     () => new Set((favorites.data ?? []).map((f) => f.id)),
@@ -155,36 +170,61 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
         </Menu>
       )}
 
-      <Stack spacing={0.25} sx={{ py: 0.75 }}>
-        <SidebarSearchTrigger />
-        {features.chatsEnabled && <SearchSidebarSection workspaceId={workspace.id} />}
-        <NavItem
-          icon={<SettingsIcon sx={{ fontSize: 16 }} />}
-          label="Настройки"
-          shortcut={isMac() ? '⌘,' : 'Alt+,'}
-          href={`/workspaces/${workspace.id}/settings`}
-          matchPrefix={`/workspaces/${workspace.id}/settings`}
-          pathname={pathname}
-        />
-      </Stack>
-
-      <FavoritesSection
-        workspaceId={workspace.id}
-        allPages={pages}
-        favoritePageIds={favoritePageIds}
+      <WorkspaceSectionSwitcher
+        activeSection={activeSection}
+        onChats={() => {
+          onSectionChange('chats')
+        }}
+        onPages={() => onSectionChange('pages')}
+        onSearch={searchDialog.open}
+        onSettings={() => {
+          onSectionChange('settings')
+          router.push(`/workspaces/${workspace.id}/settings/general`)
+        }}
       />
 
-      <PageTreeSection workspaceId={workspace.id} pages={pages} favoritePageIds={favoritePageIds} />
+      <Box
+        sx={{
+          display: 'flex',
+          flex: 1,
+          flexDirection: 'column',
+          gap: 1,
+          minHeight: 0,
+          py: 0.75,
+        }}
+      >
+        {activeSection === 'chats' ? (
+          <SearchSidebarSection workspaceId={workspace.id} />
+        ) : null}
 
-      <Stack spacing={0.25} sx={{ pb: 1 }}>
-        <NavItem
-          icon={<DeleteIcon sx={{ fontSize: 16 }} />}
-          label="Корзина"
-          href={`/workspaces/${workspace.id}/trash`}
-          matchPrefix={`/workspaces/${workspace.id}/trash`}
-          pathname={pathname}
-        />
-      </Stack>
+        {activeSection === 'pages' ? (
+          <>
+            <FavoritesSection
+              workspaceId={workspace.id}
+              allPages={pages}
+              favoritePageIds={favoritePageIds}
+            />
+            <PageTreeSection
+              workspaceId={workspace.id}
+              pages={pages}
+              favoritePageIds={favoritePageIds}
+            />
+            <Stack spacing={0.25} sx={{ pb: 1 }}>
+              <NavItem
+                icon={<DeleteIcon sx={{ fontSize: 16 }} />}
+                label="Корзина"
+                href={`/workspaces/${workspace.id}/trash`}
+                matchPrefix={`/workspaces/${workspace.id}/trash`}
+                pathname={pathname}
+              />
+            </Stack>
+          </>
+        ) : null}
+
+        {activeSection === 'settings' ? (
+          <WorkspaceSettingsNav workspaceId={workspace.id} />
+        ) : null}
+      </Box>
 
       <Box
         sx={{
@@ -200,6 +240,72 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
         <NotificationsBell tooltipPlacement="top" />
       </Box>
     </Box>
+  )
+}
+
+function WorkspaceSectionSwitcher({
+  activeSection,
+  onChats,
+  onPages,
+  onSearch,
+  onSettings,
+}: {
+  activeSection: WorkspaceSidebarSection
+  onChats: () => void
+  onPages: () => void
+  onSearch: () => void
+  onSettings: () => void
+}) {
+  const mac = isMac()
+  const shortcut = (macLabel: string, otherLabel: string) => (mac ? macLabel : otherLabel)
+  const activeButtonStyle = {
+    backgroundColor: 'rgba(201, 100, 66, 0.14)',
+    color: '#c96442',
+  }
+
+  return (
+    <ButtonGroup
+      aria-label="Разделы рабочего пространства"
+      fullWidth
+      size="medium"
+      variant="text"
+    >
+      <Tooltip title={`Поиск (${shortcut('⌘K', 'Alt+K')})`}>
+        <Button aria-label="Поиск" onClick={onSearch}>
+          <SearchIcon fontSize="small" />
+        </Button>
+      </Tooltip>
+      <Tooltip title={`Чаты (${shortcut('⌘P', 'Alt+P')})`}>
+        <Button
+          aria-label="Чаты"
+          aria-pressed={activeSection === 'chats'}
+          onClick={onChats}
+          style={activeSection === 'chats' ? activeButtonStyle : undefined}
+        >
+          <ChatBubbleOutlineIcon fontSize="small" />
+        </Button>
+      </Tooltip>
+      <Tooltip title={`Страницы (${shortcut('⌘D', 'Alt+D')})`}>
+        <Button
+          aria-label="Страницы"
+          aria-pressed={activeSection === 'pages'}
+          onClick={onPages}
+          style={activeSection === 'pages' ? activeButtonStyle : undefined}
+        >
+          <DescriptionIcon fontSize="small" />
+        </Button>
+      </Tooltip>
+      <Tooltip title={`Настройки (${shortcut('⌘,', 'Alt+,')})`}>
+        <Button
+          aria-label="Настройки"
+          aria-pressed={activeSection === 'settings'}
+          onClick={onSettings}
+          style={activeSection === 'settings' ? activeButtonStyle : undefined}
+        >
+          <SettingsIcon fontSize="small" />
+        </Button>
+      </Tooltip>
+    </ButtonGroup>
   )
 }
 

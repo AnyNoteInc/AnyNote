@@ -6,10 +6,7 @@ import { useMemo, useState } from 'react'
 
 import {
   AddIcon,
-  ArrowDropDownIcon,
-  ChatBubbleOutlineIcon,
   ChevronRightIcon,
-  ArrowDropUpIcon,
   Box,
   Button,
   DeleteIcon,
@@ -265,16 +262,8 @@ function ChatTreeItem({
 }
 
 export function SearchSidebarSection({ workspaceId }: Props) {
-  const [open, setOpen] = useState(true)
   const router = useRouter()
-  const utils = trpc.useUtils()
   const chats = trpc.chat.listChats.useQuery({ workspaceId })
-  const create = trpc.chat.createChat.useMutation({
-    onSuccess: async (data) => {
-      await utils.chat.listChats.invalidate({ workspaceId })
-      navigateToChat(router, workspaceId, data.id)
-    },
-  })
 
   const rootChats = useMemo(
     () =>
@@ -285,50 +274,26 @@ export function SearchSidebarSection({ workspaceId }: Props) {
   )
 
   return (
-    <Box>
-      <Box
-        onClick={() => setOpen((prev) => !prev)}
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1,
-          px: 1,
-          py: 0.75,
-          cursor: 'pointer',
-          color: 'text.secondary',
-          '&:hover': { color: 'text.primary' },
-        }}
+    <Box sx={{ display: 'flex', minHeight: 0, flex: 1, flexDirection: 'column', gap: 1 }}>
+      <Button
+        startIcon={<AddIcon />}
+        variant="text"
+        fullWidth
+        onClick={() => router.push(`/workspaces/${workspaceId}/chats/new`)}
+        sx={{ justifyContent: 'flex-start' }}
       >
-        <ChatBubbleOutlineIcon sx={{ fontSize: 16 }} />
-        <span style={{ fontSize: 13, flex: 1 }}>Чаты</span>
-        {open ? (
-          <ArrowDropUpIcon sx={{ fontSize: 16 }} />
-        ) : (
-          <ArrowDropDownIcon sx={{ fontSize: 16 }} />
-        )}
-        <IconButton
-          size="small"
-          onClick={(e) => {
-            e.stopPropagation()
-            create.mutate({ workspaceId })
-          }}
-          sx={{ p: 0.25, ml: 0.5 }}
-        >
-          <AddIcon sx={{ fontSize: 16 }} />
-        </IconButton>
-      </Box>
-      {open ? (
-        <Stack spacing={0.25} sx={{ pl: 3, maxHeight: 200, overflow: 'auto' }}>
-          {rootChats.map((chat) => (
-            <ChatTreeItem
-              key={chat.id}
-              chat={chat}
-              workspaceId={workspaceId}
-              allChats={chats.data ?? []}
-            />
-          ))}
-        </Stack>
-      ) : null}
+        Новый чат
+      </Button>
+      <Stack spacing={0.25} sx={{ minHeight: 0, overflow: 'auto' }}>
+        {rootChats.map((chat) => (
+          <ChatTreeItem
+            key={chat.id}
+            chat={chat}
+            workspaceId={workspaceId}
+            allChats={chats.data ?? []}
+          />
+        ))}
+      </Stack>
     </Box>
   )
 }

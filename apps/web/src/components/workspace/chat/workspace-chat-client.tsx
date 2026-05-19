@@ -15,9 +15,10 @@ import { renderChatLink } from '@/components/chat/chat-link-renderer'
 import { findResumableAssistantMessageId, type ServerChatMessage } from './chat-message-mappers'
 import { useChatStream } from './use-chat-stream'
 import { useDraftAttachments } from './use-draft-attachments'
+import { buildChatHref } from './navigation'
 
 type WorkspaceChatClientProps = {
-  chatId: string
+  chatId: string | null
   workspaceId: string
   initialMessages: ServerChatMessage[]
 }
@@ -27,18 +28,38 @@ export function WorkspaceChatClient({
   workspaceId,
   initialMessages,
 }: WorkspaceChatClientProps) {
+  const [activeChatId, setActiveChatId] = useState<string | null>(chatId)
   const [draft, setDraft] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
   const [planSteps, setPlanSteps] = useState<PlanStepView[]>([])
   const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null)
   const utils = trpc.useUtils()
-  const query = trpc.chat.getChat.useQuery({ chatId })
+  const query = trpc.chat.getChat.useQuery(
+    { chatId: activeChatId ?? '00000000-0000-0000-0000-000000000000' },
+    { enabled: activeChatId !== null },
+  )
+  const createChat = trpc.chat.createChat.useMutation()
   const draftAttachments = useDraftAttachments(workspaceId)
   const resumeAttemptRef = useRef<string | null>(null)
 
+  useEffect(() => {
+    setActiveChatId(chatId)
+  }, [chatId])
+
+  const ensureChat = useEffectEvent(async () => {
+    if (activeChatId) return activeChatId
+
+    const created = await createChat.mutateAsync({ workspaceId })
+    const href = buildChatHref(workspaceId, created.id)
+    setActiveChatId(created.id)
+    window.history.replaceState(null, '', href)
+    await utils.chat.listChats.invalidate({ workspaceId })
+    return created.id
+  })
+
   const handleStreamSettled = useEffectEvent(async () => {
     await Promise.all([
-      utils.chat.getChat.invalidate({ chatId }),
+      activeChatId ? utils.chat.getChat.invalidate({ chatId: activeChatId }) : Promise.resolve(),
       utils.chat.listChats.invalidate({ workspaceId }),
     ])
   })
@@ -52,7 +73,8 @@ export function WorkspaceChatClient({
     resume,
     send,
   } = useChatStream({
-    chatId,
+    chatId: activeChatId,
+    ensureChat,
     initialMessages,
     onSettled: handleStreamSettled,
     onPlanStep: (event) => {
@@ -178,7 +200,7 @@ export function WorkspaceChatClient({
           composerAttachments={draftAttachments.attachments}
           composerPlaceholder="Спросите что-нибудь..."
           composerValue={draft}
-          disabled={isStreaming}
+          disabled={isStreaming || createChat.isPending}
           messages={messages}
           onComposerAttachmentsChange={handleComposerAttachmentsChange}
           onComposerValueChange={handleComposerValueChange}
@@ -186,7 +208,7 @@ export function WorkspaceChatClient({
           onSend={handleComposerSend}
           renderLink={renderChatLink}
           scrollContainerSelector=".page-content-scroll"
-          scrollKey={chatId}
+          scrollKey={activeChatId ?? 'new-chat'}
         />
       </Stack>
       <ConfirmationDialog

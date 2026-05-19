@@ -25,7 +25,8 @@ type PendingSend = {
 }
 
 type UseChatStreamArgs = {
-  chatId: string
+  chatId: string | null
+  ensureChat?: () => Promise<string | null>
   initialMessages: ServerChatMessage[]
   onSettled?: () => void | Promise<void>
   onPlanStep?: (event: PlanStepEvent) => void
@@ -40,6 +41,7 @@ function getErrorMessage(value: unknown, fallback: string) {
 
 export function useChatStream({
   chatId,
+  ensureChat,
   initialMessages,
   onSettled,
   onPlanStep,
@@ -242,6 +244,12 @@ export function useChatStream({
       return false
     }
 
+    const targetChatId = chatId ?? (await ensureChat?.())
+    if (!targetChatId) {
+      setError('Не удалось создать чат.')
+      return false
+    }
+
     pendingSendRef.current = {
       attachments,
       text: trimmedText,
@@ -254,7 +262,7 @@ export function useChatStream({
           'content-type': 'application/json',
         },
         body: JSON.stringify({
-          chatId,
+          chatId: targetChatId,
           text: trimmedText,
           fileIds: attachments.map((attachment) => attachment.fileId),
         }),

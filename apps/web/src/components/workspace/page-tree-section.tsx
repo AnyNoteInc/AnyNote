@@ -5,8 +5,6 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useState, type MouseEvent } from 'react'
 import {
   AccountTreeIcon,
-  ArrowDropDownIcon,
-  ArrowDropUpIcon,
   Box,
   BrushIcon,
   ChevronRightIcon,
@@ -259,7 +257,6 @@ function PageTreeItem({
 }
 
 export function PageTreeSection({ workspaceId, pages: initialPages, favoritePageIds }: Props) {
-  const [open, setOpen] = useState(true)
   const [createAnchor, setCreateAnchor] = useState<HTMLElement | null>(null)
   const router = useRouter()
   const utils = trpc.useUtils()
@@ -277,43 +274,25 @@ export function PageTreeSection({ workspaceId, pages: initialPages, favoritePage
   const rootPages = orderSiblings(pages.filter((p) => p.parentId === null))
 
   return (
-    <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+    <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
       <Box
         sx={{
           display: 'flex',
           alignItems: 'center',
-          px: 1,
-          py: 0.75,
+          justifyContent: 'space-between',
           flexShrink: 0,
+          gap: 1,
         }}
       >
-        <Box
-          onClick={() => setOpen((prev) => !prev)}
-          sx={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 1,
-            flex: 1,
-            cursor: 'pointer',
-            color: 'text.secondary',
-            '&:hover': { color: 'text.primary' },
-          }}
-        >
-          <Typography variant="overline" sx={{ color: 'inherit', letterSpacing: '0.06em' }}>
-            Страницы
-          </Typography>
-          {open ? (
-            <ArrowDropUpIcon sx={{ fontSize: 16 }} />
-          ) : (
-            <ArrowDropDownIcon sx={{ fontSize: 16 }} />
-          )}
-        </Box>
+        <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: '0.06em' }}>
+          Страницы
+        </Typography>
         <IconButton
+          aria-label="Новая страница"
           size="small"
           onClick={(e: MouseEvent<HTMLElement>) => setCreateAnchor(e.currentTarget)}
-          sx={{ p: 0.25 }}
         >
-          <AddIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+          <AddIcon sx={{ fontSize: 16 }} />
         </IconButton>
         <CreatePageMenu
           anchorEl={createAnchor}
@@ -328,20 +307,18 @@ export function PageTreeSection({ workspaceId, pages: initialPages, favoritePage
         />
       </Box>
 
-      {open ? (
-        <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-          {rootPages.map((page) => (
-            <PageTreeItem
-              key={page.id}
-              page={page}
-              pages={pages}
-              workspaceId={workspaceId}
-              favoritePageIds={favoritePageIds}
-              depth={0}
-            />
-          ))}
-        </Box>
-      ) : null}
+      <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+        {rootPages.map((page) => (
+          <PageTreeItem
+            key={page.id}
+            page={page}
+            pages={pages}
+            workspaceId={workspaceId}
+            favoritePageIds={favoritePageIds}
+            depth={0}
+          />
+        ))}
+      </Box>
     </Box>
   )
 }

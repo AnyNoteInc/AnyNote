@@ -12,6 +12,7 @@ import {
   MoreHorizIcon,
   Stack,
   StarIcon,
+  Typography,
 } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
@@ -78,7 +79,12 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
         }}
       >
         <StarIcon sx={{ fontSize: 16 }} />
-        <span style={{ fontSize: 13, flex: 1 }}>Избранное</span>
+        <Typography
+          variant="overline"
+          sx={{ color: 'inherit', flex: 1, letterSpacing: '0.06em', lineHeight: 1.4 }}
+        >
+          ИЗБРАННОЕ
+        </Typography>
         {open ? (
           <ArrowDropUpIcon sx={{ fontSize: 16 }} />
         ) : (

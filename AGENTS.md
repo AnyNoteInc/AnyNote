@@ -34,13 +34,13 @@ Copy `.env.example` to `.env` for local setup and keep secrets out of commits. U
 <claude-mem-context>
 # Memory Context
 
-# [anynote] recent context, 2026-05-19 2:59pm GMT+1
+# [anynote] recent context, 2026-05-19 4:15pm GMT+1
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (19,411t read) | 811,202t work | 98% savings
+Stats: 50 obs (20,274t read) | 1,098,367t work | 98% savings
 
 ### May 19, 2026
 S653 E2E create-page-from-chat with GigaChat-2 Pro — test confirmed passing, services stopped, git commit still pending (May 19 at 6:20 AM)
@@ -51,19 +51,7 @@ S656 New bug reported: "create page from text above" chat flow broken with GigaC
 S658 Fix two-turn banya chat bug: "расскажи мне про русскую баню" → confirm → "создай страницу с текстом, который описан выше" → ONE confirmation, ONE page with content. Verify with Playwright E2E and fix all issues. (May 19 at 7:37 AM)
 S659 Fix two-turn banya chat bug + verify with E2E: "расскажи мне про русскую баню" → "создай страницу с текстом, который описан выше" → ONE confirmation, ONE page with full content (May 19 at 11:00 AM)
 S660 Fix two-turn banya chat scenario (turn 1: banya description, turn 2: create page with that content) — verified with Playwright plugin (May 19 at 11:16 AM)
-2811 11:26a 🟣 Live Banya Test — Turn 1 Confirmed DONE in DB
-2812 " 🟣 Live Banya Test — Second Turn Sent
-2813 " 🟣 Live Banya Test — Confirmation Dialog Appeared for createPage
-2814 " 🔵 Live Browser Test — Send Button Clicked Instead of Разрешить
-2815 " 🟣 Live Banya Test — Confirmation Approved, Agent Resumed
-2816 11:28a 🔵 Confirmation Dialog Still Visible After Multiple Разрешить Clicks
-2817 " 🟣 Live Banya Browser Test — Page Created with Content, Scenario Fully Verified
-2818 11:29a 🔴 planner.j2: Forbid trailing "respond to user" steps that cause duplicate confirmations
-2819 " 🔵 Live banya test: turn 2 completes in ~27s, page pre-exists from previous run
-2820 11:31a 🔵 Banya turn 2 regression: critic rejects response, plan stuck at state=pending with no page created
 2821 11:41a 🔵 Planner JSON parse failure causes verbatim user message as plan step, then critic loop gets stuck
-2822 " 🔵 Agent log confirms last run for turn 2 at 10:31:22; subsequent browser resends at 10:36 and 10:41 produced no new runs
-2823 " 🔵 UI shows confirmation dialog at state=Pending with critic text above it — user must click Confirm to proceed
 2824 11:43a 🔵 Turn 2 executor made zero MCP tool calls — only 2 GigaChat completions in the entire run
 2825 " 🔵 executor.j2 confirmed current state: chat_history block present, MUST-use-markdown rule present
 2826 11:44a 🔵 New banya test attempt started: fresh chat a9fbedeb, turn 1 banya completed, turn 2 typed
@@ -103,6 +91,18 @@ S661 Fix and verify banya two-turn chat scenario (turn 1: describe banya, turn 2
 S662 Fix workspace sidebar vertical stretch — page output area not reaching trash section when sidebar is open with many pages (May 19 at 12:29 PM)
 2859 1:13p 🔵 AnyNote workspace chat "create page from chat" bug investigation started
 2860 " 🔵 Full create-page-from-chat architecture mapped: executor→tool_runner→MCP→confirmation interrupt
+2861 3:19p 🟣 AnyNote sidebar UI polish: chat icon nav, button labels, and switcher styling
+2862 3:59p 🟣 Two new UI fixes requested for AnyNote sidebar
+2863 4:09p 🟣 WorkspaceSectionSwitcher ButtonGroup finalized with fullWidth and size="medium"
+2864 " 🔵 Location of "Избранное" label and ButtonGroup active-state bug root cause
+2865 4:10p 🔴 Favorites header uppercased and ButtonGroup active-state highlight restored
+2866 " 🟣 E2E spec extended with visual background-highlight assertions for active sidebar buttons
+2867 " 🔵 Playwright WebServer conflict — Next.js dev server already running on port 3000 (PID 63851)
+2868 4:11p 🔴 ButtonGroup aria-pressed background sx fix FAILS in Playwright — computed color is still transparent
+2869 " 🔵 Page snapshot confirms aria-pressed works but MUI sx background not applied — specificity issue
+2870 " 🔴 ButtonGroup active highlight refactored to per-button conditional sx — awaiting new test result
+2871 " 🔵 Per-button conditional sx ALSO fails — MUI ButtonGroup grouped styles override child Button sx
+2872 " 🔵 MUI `&&` doubled-selector sx trick also fails — ButtonGroup children cannot be styled with background via sx
 
-Access 811k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 1098k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>
