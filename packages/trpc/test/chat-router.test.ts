@@ -136,4 +136,68 @@ describe('chatRouter', () => {
 
     expect('sendMessage' in caller).toBe(false)
   })
+
+  it('adds, removes, and lists favorite chats for the current workspace user', async () => {
+    const workspaceId = '22222222-2222-2222-2222-222222222222'
+    const chatId = '11111111-1111-1111-1111-111111111111'
+    const favorite = {
+      chat: {
+        id: chatId,
+        title: 'Важный чат',
+        parentId: null,
+        updatedAt: new Date('2026-05-19T12:00:00.000Z'),
+        createdAt: new Date('2026-05-19T10:00:00.000Z'),
+        createdById: 'user-1',
+      },
+    }
+
+    const prisma = {
+      workspaceMember: {
+        findUnique: vi.fn(async () => ({ role: 'OWNER' })),
+      },
+      chat: {
+        findFirst: vi.fn(async () => ({ id: chatId, workspaceId })),
+      },
+      favoriteChat: {
+        upsert: vi.fn(async () => ({ userId: 'user-1', chatId })),
+        deleteMany: vi.fn(async () => ({ count: 1 })),
+        findMany: vi.fn(async () => [favorite]),
+      },
+    } as unknown as PrismaClient
+
+    const caller = createCaller(createContext(prisma))
+
+    await caller.addFavorite({ chatId })
+    await caller.removeFavorite({ chatId })
+    const favorites = await caller.listFavorites({ workspaceId })
+
+    expect(prisma.favoriteChat.upsert).toHaveBeenCalledWith({
+      where: { userId_chatId: { userId: 'user-1', chatId } },
+      create: { userId: 'user-1', chatId },
+      update: {},
+    })
+    expect(prisma.favoriteChat.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'user-1', chatId },
+    })
+    expect(prisma.favoriteChat.findMany).toHaveBeenCalledWith({
+      where: {
+        userId: 'user-1',
+        chat: { workspaceId },
+      },
+      include: {
+        chat: {
+          select: {
+            id: true,
+            title: true,
+            parentId: true,
+            updatedAt: true,
+            createdAt: true,
+            createdById: true,
+          },
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+    })
+    expect(favorites).toEqual([favorite.chat])
+  })
 })

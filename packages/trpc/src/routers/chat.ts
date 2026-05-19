@@ -240,4 +240,51 @@ export const chatRouter = router({
       await ctx.prisma.chat.delete({ where: { id: input.chatId } })
       return { ok: true }
     }),
+
+  addFavorite: protectedProcedure
+    .input(z.object({ chatId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await assertChatAccess(ctx, input.chatId)
+      return ctx.prisma.favoriteChat.upsert({
+        where: { userId_chatId: { userId: ctx.user.id, chatId: input.chatId } },
+        create: { userId: ctx.user.id, chatId: input.chatId },
+        update: {},
+      })
+    }),
+
+  removeFavorite: protectedProcedure
+    .input(z.object({ chatId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await assertChatAccess(ctx, input.chatId)
+      await ctx.prisma.favoriteChat.deleteMany({
+        where: { userId: ctx.user.id, chatId: input.chatId },
+      })
+      return { chatId: input.chatId }
+    }),
+
+  listFavorites: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertWorkspaceMember(ctx, input.workspaceId)
+      const favorites = await ctx.prisma.favoriteChat.findMany({
+        where: {
+          userId: ctx.user.id,
+          chat: { workspaceId: input.workspaceId },
+        },
+        include: {
+          chat: {
+            select: {
+              id: true,
+              title: true,
+              parentId: true,
+              updatedAt: true,
+              createdAt: true,
+              createdById: true,
+            },
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+      return favorites.map((f) => f.chat)
+    }),
 })

@@ -154,9 +154,7 @@ function PageTreeItem({
               }}
             />
           </IconButton>
-        ) : (
-          <Box sx={{ width: 20 }} />
-        )}
+        ) : null}
         <Link
           href={`/workspaces/${workspaceId}/pages/${page.id}`}
           onClick={(e) => e.stopPropagation()}

@@ -10,6 +10,7 @@ import {
   Box,
   Button,
   DeleteIcon,
+  Divider,
   Dialog,
   DialogActions,
   DialogContent,
@@ -17,10 +18,14 @@ import {
   DialogTitle,
   DriveFileRenameOutlineIcon,
   IconButton,
+  ArrowDropDownIcon,
+  ArrowDropUpIcon,
   Menu,
   MenuItem,
   MoreHorizIcon,
   Stack,
+  StarBorderIcon,
+  StarIcon,
   TextField,
   Typography,
 } from '@repo/ui/components'
@@ -44,10 +49,14 @@ function ChatTreeItem({
   chat,
   workspaceId,
   allChats,
+  favoriteChatIds,
+  depth = 0,
 }: {
   chat: ChatItem
   workspaceId: string
   allChats: ChatItem[]
+  favoriteChatIds: Set<string>
+  depth?: number
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -60,6 +69,7 @@ function ChatTreeItem({
   const [expanded, setExpanded] = useState(true)
 
   const isActive = pathname === `/workspaces/${workspaceId}/chats/${chat.id}`
+  const isFavorite = favoriteChatIds.has(chat.id)
 
   const children = useMemo(
     () =>
@@ -78,7 +88,10 @@ function ChatTreeItem({
 
   const deleteChat = trpc.chat.deleteChat.useMutation({
     onSuccess: async () => {
-      await utils.chat.listChats.invalidate({ workspaceId })
+      await Promise.all([
+        utils.chat.listChats.invalidate({ workspaceId }),
+        utils.chat.listFavorites.invalidate({ workspaceId }),
+      ])
       setDeleteOpen(false)
       if (isActive) router.push(`/workspaces/${workspaceId}/chats`)
     },
@@ -91,6 +104,27 @@ function ChatTreeItem({
     },
   })
 
+  const addFavorite = trpc.chat.addFavorite.useMutation({
+    onSuccess: async () => {
+      await utils.chat.listFavorites.invalidate({ workspaceId })
+    },
+  })
+
+  const removeFavorite = trpc.chat.removeFavorite.useMutation({
+    onSuccess: async () => {
+      await utils.chat.listFavorites.invalidate({ workspaceId })
+    },
+  })
+
+  const toggleFavorite = () => {
+    setMenuAnchor(null)
+    if (isFavorite) {
+      removeFavorite.mutate({ chatId: chat.id })
+    } else {
+      addFavorite.mutate({ chatId: chat.id })
+    }
+  }
+
   return (
     <>
       <Box
@@ -98,6 +132,7 @@ function ChatTreeItem({
           display: 'flex',
           alignItems: 'center',
           pr: 0.5,
+          pl: depth * 1.5,
           borderRadius: 0.75,
           bgcolor: isActive ? 'action.selected' : 'transparent',
           '&:hover': { bgcolor: isActive ? 'action.selected' : 'action.hover' },
@@ -108,7 +143,7 @@ function ChatTreeItem({
           <IconButton
             size="small"
             onClick={() => setExpanded((v) => !v)}
-            sx={{ p: 0, flexShrink: 0 }}
+            sx={{ p: 0, mr: 0.25, flexShrink: 0 }}
           >
             <ChevronRightIcon
               sx={{
@@ -167,22 +202,27 @@ function ChatTreeItem({
         </Box>
       </Box>
 
-      {/* Children rendered indented */}
-      {expanded && children.length > 0 && (
-        <Stack spacing={0.25} sx={{ pl: 2 }}>
-          {children.map((child) => (
-            <ChatTreeItem
-              key={child.id}
-              chat={child}
-              workspaceId={workspaceId}
-              allChats={allChats}
-            />
-          ))}
-        </Stack>
-      )}
+      {expanded &&
+        children.map((child) => (
+          <ChatTreeItem
+            key={child.id}
+            chat={child}
+            workspaceId={workspaceId}
+            allChats={allChats}
+            favoriteChatIds={favoriteChatIds}
+            depth={depth + 1}
+          />
+        ))}
 
       {/* Context menu */}
       <Menu anchorEl={menuAnchor} open={Boolean(menuAnchor)} onClose={() => setMenuAnchor(null)}>
+        <MenuItem onClick={toggleFavorite} sx={{ gap: 1, fontSize: 13 }}>
+          {isFavorite ? <StarIcon fontSize="small" /> : <StarBorderIcon fontSize="small" />}
+          {isFavorite ? 'Убрать из избранного' : 'В избранное'}
+        </MenuItem>
+
+        <Divider />
+
         <MenuItem
           onClick={() => {
             setMenuAnchor(null)
@@ -261,9 +301,76 @@ function ChatTreeItem({
   )
 }
 
+function FavoriteChatsSection({
+  workspaceId,
+  allChats,
+  favoriteChatIds,
+}: {
+  workspaceId: string
+  allChats: ChatItem[]
+  favoriteChatIds: Set<string>
+}) {
+  const [open, setOpen] = useState(true)
+  const favorites = trpc.chat.listFavorites.useQuery({ workspaceId })
+  const favChats = favorites.data ?? []
+  const hasFavorites = favChats.length > 0 || favoriteChatIds.size > 0
+
+  if (!hasFavorites && favorites.isFetched) return null
+
+  return (
+    <Box>
+      <Box
+        onClick={() => setOpen((prev) => !prev)}
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 1,
+          px: 1,
+          py: 0.75,
+          cursor: 'pointer',
+          color: 'text.secondary',
+          '&:hover': { color: 'text.primary' },
+        }}
+      >
+        <StarIcon sx={{ fontSize: 16 }} />
+        <Typography
+          variant="overline"
+          sx={{ color: 'inherit', flex: 1, letterSpacing: '0.06em', lineHeight: 1.4 }}
+        >
+          ИЗБРАННОЕ
+        </Typography>
+        {open ? (
+          <ArrowDropUpIcon sx={{ fontSize: 16 }} />
+        ) : (
+          <ArrowDropDownIcon sx={{ fontSize: 16 }} />
+        )}
+      </Box>
+
+      {open ? (
+        <Stack spacing={0.25} sx={{ maxHeight: 200, overflow: 'auto' }}>
+          {favChats.map((chat) => (
+            <ChatTreeItem
+              key={chat.id}
+              chat={allChats.find((item) => item.id === chat.id) ?? chat}
+              workspaceId={workspaceId}
+              allChats={allChats}
+              favoriteChatIds={favoriteChatIds}
+            />
+          ))}
+        </Stack>
+      ) : null}
+    </Box>
+  )
+}
+
 export function SearchSidebarSection({ workspaceId }: Props) {
   const router = useRouter()
   const chats = trpc.chat.listChats.useQuery({ workspaceId })
+  const favorites = trpc.chat.listFavorites.useQuery({ workspaceId })
+  const favoriteChatIds = useMemo(
+    () => new Set((favorites.data ?? []).map((chat) => chat.id)),
+    [favorites.data],
+  )
 
   const rootChats = useMemo(
     () =>
@@ -275,25 +382,46 @@ export function SearchSidebarSection({ workspaceId }: Props) {
 
   return (
     <Box sx={{ display: 'flex', minHeight: 0, flex: 1, flexDirection: 'column', gap: 1 }}>
-      <Button
-        startIcon={<AddIcon />}
-        variant="text"
-        fullWidth
-        onClick={() => router.push(`/workspaces/${workspaceId}/chats/new`)}
-        sx={{ justifyContent: 'flex-start' }}
-      >
-        Новый чат
-      </Button>
-      <Stack spacing={0.25} sx={{ minHeight: 0, overflow: 'auto' }}>
-        {rootChats.map((chat) => (
-          <ChatTreeItem
-            key={chat.id}
-            chat={chat}
-            workspaceId={workspaceId}
-            allChats={chats.data ?? []}
-          />
-        ))}
-      </Stack>
+      <FavoriteChatsSection
+        workspaceId={workspaceId}
+        allChats={chats.data ?? []}
+        favoriteChatIds={favoriteChatIds}
+      />
+
+      <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexShrink: 0,
+            gap: 1,
+          }}
+        >
+          <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: '0.06em' }}>
+            Чаты
+          </Typography>
+          <IconButton
+            aria-label="Новый чат"
+            size="small"
+            onClick={() => router.push(`/workspaces/${workspaceId}/chats/new`)}
+          >
+            <AddIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Box>
+
+        <Stack spacing={0.25} sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
+          {rootChats.map((chat) => (
+            <ChatTreeItem
+              key={chat.id}
+              chat={chat}
+              workspaceId={workspaceId}
+              allChats={chats.data ?? []}
+              favoriteChatIds={favoriteChatIds}
+            />
+          ))}
+        </Stack>
+      </Box>
     </Box>
   )
 }

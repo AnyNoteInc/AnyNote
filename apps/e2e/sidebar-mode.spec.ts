@@ -48,15 +48,26 @@ function workspaceIdFromUrl(page: import('@playwright/test').Page) {
   return match[1]!
 }
 
-async function expectSidebarButtonHighlighted(
-  page: import('@playwright/test').Page,
-  name: string,
-) {
+async function expectSidebarButtonHighlighted(page: import('@playwright/test').Page, name: string) {
   const backgroundColor = await page.getByRole('button', { name }).evaluate((element) => {
     return window.getComputedStyle(element).backgroundColor
   })
   expect(backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
   expect(backgroundColor).not.toBe('transparent')
+}
+
+async function expectSidebarLinkAlignedWithSection(
+  page: import('@playwright/test').Page,
+  linkName: string,
+  sectionName: string,
+) {
+  const sidebar = page.locator('aside')
+  const sectionBox = await sidebar.getByText(sectionName, { exact: true }).boundingBox()
+  const linkBox = await sidebar.getByRole('link', { name: linkName }).first().boundingBox()
+
+  expect(sectionBox).not.toBeNull()
+  expect(linkBox).not.toBeNull()
+  expect(Math.abs((linkBox?.x ?? 0) - (sectionBox?.x ?? 0))).toBeLessThanOrEqual(8)
 }
 
 async function seedNotificationsForEmail(email: string, count: number) {
@@ -190,7 +201,10 @@ test('workspace sidebar switches between agent-oriented sections', async ({ page
   await expect(page.locator('main').getByRole('link', { name: 'Общее' })).toHaveCount(0)
 
   await page.keyboard.press(process.platform === 'darwin' ? 'Meta+D' : 'Alt+D')
-  await expect(page.getByRole('button', { name: 'Страницы' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(page.getByRole('button', { name: 'Страницы' })).toHaveAttribute(
+    'aria-pressed',
+    'true',
+  )
   await expectSidebarButtonHighlighted(page, 'Страницы')
 
   await page.getByRole('button', { name: 'Чаты' }).click()
@@ -198,6 +212,78 @@ test('workspace sidebar switches between agent-oriented sections', async ({ page
   await expect(page.getByRole('button', { name: 'Чаты' })).toHaveAttribute('aria-pressed', 'true')
   await expectSidebarButtonHighlighted(page, 'Чаты')
   await expect(page.getByRole('button', { name: 'Новый чат' })).toBeVisible()
+})
+
+test('chat sidebar mirrors pages with header create action and favorite chats', async ({
+  page,
+}) => {
+  const email = await signInToWorkspace(page, 'favorite-chat-sidebar')
+  const workspaceId = workspaceIdFromUrl(page)
+
+  loadEnvFromRoot()
+  const { prisma } = await import('../../packages/db/src/index')
+  const user = await prisma.user.findUniqueOrThrow({ where: { email }, select: { id: true } })
+  const chat = await prisma.chat.create({
+    data: {
+      workspaceId,
+      createdById: user.id,
+      title: 'Чат про баню',
+    },
+  })
+
+  await page.goto(`/workspaces/${workspaceId}/chats/${chat.id}`)
+
+  const sidebar = page.locator('aside')
+  await expect(sidebar.getByText('Чаты', { exact: true })).toBeVisible()
+  await expect(sidebar.getByRole('button', { name: 'Новый чат' })).toBeVisible()
+  await expect(sidebar.getByRole('link', { name: 'Чат про баню' })).toBeVisible()
+
+  await sidebar.getByRole('link', { name: 'Чат про баню' }).hover()
+  await sidebar.locator('.chat-actions').first().getByRole('button').last().click()
+  const chatMenu = page.getByRole('menu')
+  await expect(chatMenu.getByRole('menuitem')).toHaveText([
+    'В избранное',
+    'Переименовать',
+    'Удалить',
+  ])
+  await expect(chatMenu.locator('hr')).toHaveCount(1)
+  await page.keyboard.press('Escape')
+
+  await page.getByRole('button', { name: 'Добавить в избранное' }).click()
+  await expect(page.getByRole('button', { name: 'Убрать из избранного' })).toBeVisible()
+  await expect(sidebar.getByText('ИЗБРАННОЕ')).toBeVisible()
+  await expect(sidebar.getByRole('link', { name: 'Чат про баню' })).toHaveCount(2)
+})
+
+test('root page and chat rows do not render extra leading spacer', async ({ page }) => {
+  const email = await signInToWorkspace(page, 'sidebar-leading-spacer')
+  const workspaceId = workspaceIdFromUrl(page)
+
+  loadEnvFromRoot()
+  const { prisma } = await import('../../packages/db/src/index')
+  const user = await prisma.user.findUniqueOrThrow({ where: { email }, select: { id: true } })
+  await prisma.chat.create({
+    data: {
+      workspaceId,
+      createdById: user.id,
+      title: 'Чат без отступа',
+    },
+  })
+  await prisma.page.create({
+    data: {
+      workspaceId,
+      createdById: user.id,
+      updatedById: user.id,
+      title: 'Страница без отступа',
+      type: 'TEXT',
+    },
+  })
+
+  await page.goto(`/workspaces/${workspaceId}/chats/new`)
+  await expectSidebarLinkAlignedWithSection(page, 'Чат без отступа', 'Чаты')
+
+  await page.getByRole('button', { name: 'Страницы' }).click()
+  await expectSidebarLinkAlignedWithSection(page, 'Страница без отступа', 'Страницы')
 })
 
 test('new chat draft is created only after the first message', async ({ page }) => {
@@ -208,15 +294,11 @@ test('new chat draft is created only after the first message', async ({ page }) 
   const { prisma } = await import('../../packages/db/src/index')
 
   await expect(page).toHaveURL(new RegExp(`/workspaces/${workspaceId}/chats/new$`))
-  await expect
-    .poll(() => prisma.chat.count({ where: { workspaceId } }))
-    .toBe(0)
+  await expect.poll(() => prisma.chat.count({ where: { workspaceId } })).toBe(0)
 
   await page.getByTestId('chat-composer-textarea').fill('Привет, агент')
   await page.getByRole('button', { name: 'Send' }).click()
 
   await page.waitForURL(new RegExp(`/workspaces/${workspaceId}/chats/[a-f0-9-]{36}$`))
-  await expect
-    .poll(() => prisma.chat.count({ where: { workspaceId } }))
-    .toBe(1)
+  await expect.poll(() => prisma.chat.count({ where: { workspaceId } })).toBe(1)
 })

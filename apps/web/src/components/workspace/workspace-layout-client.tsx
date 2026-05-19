@@ -9,6 +9,7 @@ import { trpc } from '@/trpc/client'
 
 import { PageActionsToolbar } from '@/components/page/page-actions-toolbar'
 import { PageEditorProvider } from '@/components/page/editor-context'
+import { ChatActionsToolbar } from '@/components/workspace/chat/chat-actions-toolbar'
 import { useFullWidth } from '@/hooks/use-full-width'
 import { useOutlineMode } from '@/hooks/use-outline-mode'
 
@@ -158,7 +159,9 @@ export function WorkspaceLayoutClient({
         onOpenSidebar={() => setMode('full')}
         sidebarContent={<WorkspaceSidebar {...sidebarProps} />}
         rightSlot={
-          activePageId ? (
+          activeChatId ? (
+            <ChatActionsToolbar chatId={activeChatId} workspaceId={workspace.id} />
+          ) : activePageId ? (
             <PageActionsToolbar pageId={activePageId} workspaceId={workspace.id} />
           ) : null
         }

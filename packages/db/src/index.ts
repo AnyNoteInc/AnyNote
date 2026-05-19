@@ -71,6 +71,7 @@ export type {
   AiModel,
   WorkspaceAiSettings,
   FavoritePage,
+  FavoriteChat,
   File,
   PageFile,
   OutboxEvent,
