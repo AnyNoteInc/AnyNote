@@ -176,8 +176,6 @@ export function WorkspaceSidebar({ workspace, features, pages, onHide, userMenu 
 
       <PageTreeSection workspaceId={workspace.id} pages={pages} favoritePageIds={favoritePageIds} />
 
-      <Box sx={{ flex: 1 }} />
-
       <Stack spacing={0.25} sx={{ pb: 1 }}>
         <NavItem
           icon={<DeleteIcon sx={{ fontSize: 16 }} />}

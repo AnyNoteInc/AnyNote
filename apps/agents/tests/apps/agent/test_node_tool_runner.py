@@ -16,6 +16,11 @@ class _Args(BaseModel):
     x: int = 0
 
 
+class _CreatePageArgs(BaseModel):
+    title: str
+    markdown: str | None = None
+
+
 def _fake_tool(name: str, returns: str = 'OK') -> StructuredTool:
     async def _call(**kwargs):
         return returns
@@ -125,3 +130,69 @@ async def test_tool_runner_returns_deny_message_on_user_deny() -> None:
         last = out.messages[-1]
         assert isinstance(last, ToolMessage)
         assert 'denied' in str(last.content).lower()
+
+
+@pytest.mark.asyncio
+async def test_tool_runner_fills_create_page_markdown_from_previous_assistant_reply() -> None:
+    captured: dict[str, object] = {}
+
+    async def _create_page(**kwargs):
+        captured.update(kwargs)
+        return {'pageId': 'page-1'}
+
+    tool = StructuredTool.from_function(
+        coroutine=_create_page,
+        name='anynote__createPage',
+        description='create page',
+        args_schema=_CreatePageArgs,
+    )
+    state = make_state(
+        user_message='создай стараницу',
+        chat_history=[
+            {'role': 'user', 'content': 'напиши как готовить яичницу'},
+            {
+                'role': 'assistant',
+                'content': 'Чтобы приготовить яичницу, разогрейте сковороду и разбейте яйца.',
+            },
+        ],
+        pending_tool_calls=[
+            {'name': 'anynote__createPage', 'args': {'title': 'Как готовить яичницу'}, 'id': 'call-page'},
+        ],
+    )
+
+    out = await tool_runner_node(state, tools=[tool], tool_registry={})
+
+    assert out.pending_tool_calls == []
+    assert captured['markdown'] == 'Чтобы приготовить яичницу, разогрейте сковороду и разбейте яйца.'
+
+
+@pytest.mark.asyncio
+async def test_tool_runner_fills_create_page_markdown_for_matching_short_topic_followup() -> None:
+    captured: dict[str, object] = {}
+
+    async def _create_page(**kwargs):
+        captured.update(kwargs)
+        return {'pageId': 'page-1'}
+
+    tool = StructuredTool.from_function(
+        coroutine=_create_page,
+        name='anynote__createPage',
+        description='create page',
+        args_schema=_CreatePageArgs,
+    )
+    previous = '## Русская баня\n\nРусская баня — это пар, веник и традиционный отдых.'
+    state = make_state(
+        user_message='создай страницу о бане',
+        chat_history=[
+            {'role': 'user', 'content': 'расскажи мне про русскую баню'},
+            {'role': 'assistant', 'content': previous},
+        ],
+        pending_tool_calls=[
+            {'name': 'anynote__createPage', 'args': {'title': 'Русская баня'}, 'id': 'call-page'},
+        ],
+    )
+
+    out = await tool_runner_node(state, tools=[tool], tool_registry={})
+
+    assert out.pending_tool_calls == []
+    assert captured['markdown'] == previous

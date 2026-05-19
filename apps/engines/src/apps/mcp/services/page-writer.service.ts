@@ -1,6 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common'
+import { TiptapTransformer } from '@hocuspocus/transformer'
 import type { PrismaClient } from '@repo/db'
 import { Prisma } from '@repo/db'
+import StarterKit from '@tiptap/starter-kit'
+import * as Y from 'yjs'
 
 import { PRISMA } from '../../../infra/db/db.providers.js'
 import { PageNotFoundError } from '../errors/mcp.errors.js'
@@ -38,6 +41,7 @@ export class PageWriter {
   async createPage(input: CreatePageInput): Promise<string> {
     return this.prisma.$transaction(async (tx) => {
       await this.ensureParent(tx, input.parentId, input.workspaceId)
+      const contentYjs = input.content === undefined ? undefined : buildContentYjs(input.content)
       const page = await tx.page.create({
         data: {
           workspaceId: input.workspaceId,
@@ -46,6 +50,7 @@ export class PageWriter {
           ownership: input.ownership ?? 'TEXT',
           type: 'TEXT',
           content: input.content === undefined ? undefined : (input.content as never),
+          contentYjs,
           createdById: input.userId,
           updatedById: input.userId,
         },
@@ -188,4 +193,12 @@ export class PageWriter {
       throw new PageNotFoundError(parentId)
     }
   }
+}
+
+function buildContentYjs(content: unknown): Uint8Array<ArrayBuffer> {
+  const ydoc = TiptapTransformer.toYdoc(content, 'default', [StarterKit])
+  const src = Y.encodeStateAsUpdate(ydoc)
+  const contentYjs = new Uint8Array(new ArrayBuffer(src.byteLength))
+  contentYjs.set(src)
+  return contentYjs
 }

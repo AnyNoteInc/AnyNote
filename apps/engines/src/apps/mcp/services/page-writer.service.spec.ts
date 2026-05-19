@@ -134,6 +134,28 @@ describe('PageWriter', () => {
       })
     })
 
+    it('persists contentYjs when supplied content is created', async () => {
+      const content = {
+        type: 'doc',
+        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'hello body' }] }],
+      }
+      ;(mockPrisma.page.create as jest.Mock).mockResolvedValue({ id: 'p-content-yjs' } as never)
+
+      await writer.createPage({
+        userId: 'u1',
+        workspaceId: 'w1',
+        parentId: null,
+        title: 'With editor body',
+        content,
+      })
+
+      const callArg = (mockPrisma.page.create as jest.Mock).mock.calls[0]?.[0] as {
+        data: Record<string, unknown>
+      }
+      expect(callArg.data.content).toEqual(content)
+      expect(callArg.data.contentYjs).toBeInstanceOf(Uint8Array)
+    })
+
     it('leaves content undefined when not supplied (backwards-compatible)', async () => {
       // NOSONAR S4325 — jest.Mock erases the resolved type to `never`; tsc requires the cast.
       ;(mockPrisma.page.create as jest.Mock).mockResolvedValue({ id: 'p-no-content' } as never)

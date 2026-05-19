@@ -29,6 +29,13 @@ function getPartOrder(part: ChatMessagePart) {
   }
 }
 
+function linkifyWorkspacePageReferences(text: string): string {
+  return text.replace(
+    /(здесь)\s*:\s*(\/workspaces\/[0-9a-f-]{8}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{12}\/pages\/[0-9a-f-]{8}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{4}-[0-9a-f-]{12})/giu,
+    '[$1]($2)',
+  )
+}
+
 // eslint-disable-next-line react/prop-types -- plugin can't unwrap Readonly<> generic
 export function ChatMessageContent({ parts, renderLink, onConfirm }: ChatMessageContentProps) {
   const sortedParts = [...parts].sort((left, right) => getPartOrder(left) - getPartOrder(right))
@@ -76,7 +83,9 @@ export function ChatMessageContent({ parts, renderLink, onConfirm }: ChatMessage
                 overflowWrap: 'anywhere',
               }}
             >
-              <ReactMarkdown components={markdownComponents}>{part.text}</ReactMarkdown>
+              <ReactMarkdown components={markdownComponents}>
+                {linkifyWorkspacePageReferences(part.text)}
+              </ReactMarkdown>
             </Box>
           )
         }

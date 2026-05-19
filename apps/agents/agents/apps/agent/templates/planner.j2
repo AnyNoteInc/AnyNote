@@ -27,6 +27,11 @@ in. Do NOT plan "create empty page" then "add text" — that produces two
 confirmations and two tool calls. The same rule applies to any tool that
 already accepts a content parameter: pass everything in a single call.
 
+If the current request is a short follow-up like "создай страницу",
+"создай стараницу" (common typo), or "create a page" after the assistant has
+just written useful content, treat it as "create a page from the latest
+assistant reply" unless the user explicitly asked for an empty page.
+
 Also do NOT add trailing "respond to the user" / "add link to the answer" /
 "compose final reply" / "сформируй итоговый ответ" steps. The executor
 automatically produces a text reply after the last tool call returns. Adding

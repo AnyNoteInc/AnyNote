@@ -1,11 +1,12 @@
 from __future__ import annotations
 
 import logging
+import re
 from collections.abc import Sequence
 from typing import Any
 
 from langchain_core.language_models import BaseChatModel
-from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage
+from langchain_core.messages import AIMessage, BaseMessage, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import StructuredTool
 
 from agents.apps.agent.enums import PlanStepStatus
@@ -13,6 +14,11 @@ from agents.apps.agent.repositories import AgentJinjaRenderer
 from agents.apps.agent.schemas import AgentState, PlanStep
 
 log = logging.getLogger(__name__)
+_PAGE_URL_RE = re.compile(
+    r'/workspaces/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}'
+    r'/pages/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}',
+    re.IGNORECASE,
+)
 
 
 async def executor_node(
@@ -33,6 +39,20 @@ async def executor_node(
     step = _current_step(state)
     if step is None:
         return state.model_copy(update={'current_step_id': None})
+
+    create_page_url = _latest_create_page_url(state)
+    if create_page_url and _is_create_page_request(state.user_message):
+        final_text = _create_page_answer(create_page_url)
+        new_plan = _mark_done(state.plan, step.id, summary=final_text[:200])
+        next_id = _next_pending(new_plan)
+        if next_id is not None:
+            new_plan = _mark_running(new_plan, next_id)
+        return state.model_copy(update={
+            'plan': new_plan,
+            'current_step_id': next_id,
+            'pending_tool_calls': [],
+            'draft_answer': final_text,
+        })
 
     prompt = (renderer or _renderer()).render_executor(
         current_step=step.model_dump(),
@@ -129,6 +149,42 @@ def _next_pending(plan: list[PlanStep]) -> str | None:
         if s.status == PlanStepStatus.PENDING:
             return s.id
     return None
+
+
+def _latest_create_page_url(state: AgentState) -> str | None:
+    tool_call_names: dict[str, str] = {}
+    latest_url: str | None = None
+    for message in state.messages:
+        if isinstance(message, AIMessage):
+            for call in getattr(message, 'tool_calls', None) or []:
+                tool_call_names[str(call.get('id'))] = str(call.get('name'))
+            continue
+        if not isinstance(message, ToolMessage):
+            continue
+        if tool_call_names.get(str(message.tool_call_id)) not in {'anynote__createPage', 'createPage'}:
+            continue
+        content = str(message.content)
+        lowered = content.lower()
+        if 'error' in lowered or 'denied' in lowered or 'permission denied' in lowered:
+            continue
+        match = _PAGE_URL_RE.search(content)
+        if match:
+            latest_url = match.group(0)
+    return latest_url
+
+
+def _is_create_page_request(user_message: str) -> bool:
+    text = user_message.lower().replace('\u0451', '\u0435')
+    has_create_intent = any(
+        token in text
+        for token in ('создай', 'создать', 'сделай', 'сохрани', 'запиши', 'create', 'save')
+    )
+    has_page_target = any(token in text for token in ('страниц', 'стараниц', 'page', 'note'))
+    return has_create_intent and has_page_target
+
+
+def _create_page_answer(url: str) -> str:
+    return f'Страница создана: [здесь]({url}).'
 
 
 def _renderer() -> AgentJinjaRenderer:

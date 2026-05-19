@@ -21,6 +21,14 @@ Rules:
   the `markdown` argument to `createPage` in the SAME call as `title`. Never
   call `createPage` with only `title` when the user wants content saved —
   that produces an empty page and is the wrong behaviour.
+- If the latest user message is a short follow-up like "создай страницу",
+  "создай стараницу" (common typo), or "create a page" after you have just
+  written useful content, treat it as a request to create a page from the
+  latest assistant reply unless the user explicitly asked for an empty page.
+- After `createPage` succeeds, always return the created page URL as a
+  markdown link with the label `здесь`, for example:
+  [здесь](/workspaces/{workspaceId}/pages/{pageId}). Do not output the bare
+  URL as plain text.
 
 Plan (so you know context):
 {% for step in plan %}
@@ -35,4 +43,5 @@ Long-term memory facts that may help:
 The previous turns of this chat are seeded as message history right after
 this system prompt. Treat the latest assistant message there as the source
 of truth when the user refers to text "выше" / "above" / "из разговора" —
-copy that text verbatim into the `markdown` argument of `createPage`.
+or sends a short "создай страницу" follow-up — copy that text verbatim into
+the `markdown` argument of `createPage`.

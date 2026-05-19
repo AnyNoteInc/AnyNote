@@ -34,76 +34,75 @@ Copy `.env.example` to `.env` for local setup and keep secrets out of commits. U
 <claude-mem-context>
 # Memory Context
 
-# [anynote] recent context, 2026-05-17 8:22am GMT+1
+# [anynote] recent context, 2026-05-19 1:45pm GMT+1
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (18,558t read) | 680,793t work | 97% savings
+Stats: 50 obs (19,411t read) | 811,202t work | 98% savings
 
-### May 16, 2026
-2296 10:01p ✅ All 3 SonarCloud Security Hotspots Marked REVIEWED/SAFE via API
-2297 " 🔵 Quality Gate Still ERROR: Hotspots Fixed, Reliability Still Failing (Needs New Analysis)
-2298 " 🔴 Fixed S6594: Replaced String.match() with RegExp.exec() in 3 E2E Test Files
-2299 " 🔴 Fixed S2933: KanbanBus.listeners Marked readonly, Non-null Assertions Removed
-2300 10:02p 🔴 Fixed S7735/S7764: Eliminated Negated Conditions and window → globalThis in Two Files
-2301 " 🔵 TypeScript Type Check Passes After SonarCloud Fixes
-2302 " 🔵 @repo/trpc Tests All Pass After kanban-bus.ts Refactor
-2303 " 🔵 Web App Tests All Pass After SonarCloud Fixes
-2304 " ✅ SonarCloud Fixes Committed to feat/kanban-p1 (commit 3aabdf7)
-2305 " ✅ SonarCloud Fix Commit Pushed to origin/feat/kanban-p1
-2306 " 🔵 New CI Run Triggered for PR #15 After SonarCloud Fix Push
-2321 " 🔵 PR #15 CI Pipeline Passed All Checks
-2322 " 🔵 AnyNote Release Workflow: Semantic-Release with Auto-Deploy Trigger
-2323 " 🔵 AnyNote Deploy Workflow: Matrix Docker Build + SSH rsync Deployment
-2324 10:10p 🟣 PR #15 (feat/kanban-p1) Merged into Main
-2329 " ✅ CI/CD Workflow Initiated: Commit → PR → SonarQube → Release → Deploy
-2325 " 🔵 Release Workflow Auto-Triggered After kanban-p1 Merge
-2330 10:20p 🟣 feat/kanban-p1 Merged and Release v1.18.0 Triggered
-2343 10:29p 🟣 GitHub Actions Pipeline Completed Successfully for anynote
-2344 10:30p 🔵 AnyNote CI/CD Pipeline Architecture: Parallel Docker Builds + SSH Deploy
-2345 " 🔵 AnyNote Pipeline Warnings: Dockerfile Security Issues and Node.js 20 Deprecations
-### May 17, 2026
-2346 5:02a 🔵 Anynote Project Structure and Agent Use Case Exploration Initiated
-2347 " 🔵 Anynote Project Architecture and Prior Work Discovered via MEMORY.md
-2348 " 🔵 Anynote Full Feature Map and Agents App Structure Discovered
-2349 " 🔵 Anynote tRPC Router Surface Shows AI-Integrated Feature Domains
-2350 5:03a 🔵 Anynote LangGraph Pipeline Architecture Fully Documented
-2351 " 🔵 MCP Tool Surface Exposed to LLM Agent: Page and Workspace Operations
-2352 " 🔵 Prisma Schema Reveals Full Kanban and Notification Data Models
-2353 5:09a 🔵 Anynote Project Docker Compose Configuration
-2354 " 🔵 Deploy Compose Intentionally Omits PostgreSQL Port Mapping
-2355 5:12a ✅ Production PostgreSQL Port Bound to Loopback for SSH Access
-2356 5:23a ⚖️ AnyNote Personal Agent OS — Architectural Vision Defined
-2357 " ⚖️ 12 Core Agent Capability Scenarios Defined for AnyNote Agent
-2358 " ⚖️ Six-Point Implementation Plan for apps/agents Agent OS
-2359 " 🔵 Async Subagent Launched to Reverse-Engineer openclaw Agent
-2360 " 🔵 openclaw Identified as TypeScript Multi-Channel AI Gateway (Not a Single Agent)
-2361 " 🔵 claudecode Agent is TypeScript with Rich Context Compaction and Remote Session Architecture
-2362 " ⚖️ Parallel Async Subagents Dispatched for Both Reference Agent Deep-Dives
-2363 5:26a ⚖️ AnyNote Agent Operating System — Vision and Architecture Plan Added to MEMORY.md
-2364 " ✅ PostgreSQL Loopback Port Change Committed and Pushed to main
-2365 5:40a ⚖️ AnyNote Personal Agent OS — Architecture Synthesis Plan
-S586 AnyNote Agent OS — Section 5/9 approved (user said "yes"), now presenting Section 5/9 content again as confirmation checkpoint — MCP integration design approved and session advancing (May 17 at 5:44 AM)
-S587 AnyNote Agent OS — Section 6/9: Three-layer memory architecture — session history, RAG, and long-term WorkspaceAgentMemory with explicit v1 scope boundaries (May 17 at 5:49 AM)
-S585 AnyNote Agent OS — Section 5/9: MCP client integration — multi-server tool registry, transport support, namespacing, allowlist, discovery UI, and engines MCP auth hardening (May 17 at 5:49 AM)
-S588 AnyNote Agent OS — Section 7/9: Confirmation/interrupt flow for destructive tools — LangGraph interrupt(), SSE events, resume endpoint, timeout cleanup, and v1 scope limits (May 17 at 5:54 AM)
-S590 AnyNote Agent OS — Section 8/9 (repeated): Complete SSE streaming protocol — 13 event types, web handling, discriminated union schema, event ordering invariant — awaiting approval (May 17 at 5:54 AM)
-S591 AnyNote Agent OS — Section 9/9 (final): E2E golden-path scenario "Q&A with citations" + full test pyramid strategy covering unit, integration, and Playwright E2E layers (May 17 at 5:56 AM)
-S589 AnyNote Agent OS — Section 8/9: Complete SSE streaming protocol — full event type taxonomy, web-side handling per event, discriminated union schema, and guaranteed event ordering invariant (May 17 at 5:56 AM)
-S593 AnyNote Agent OS v1 design spec — committed; now generating implementation plan (May 17 at 5:58 AM)
-2366 5:58a 🔵 AnyNote Specs Folder Contains Prior Agent Design Documents
-2367 " 🟣 AnyNote Agent OS v1 Design Spec Written to Disk
-2368 6:01a ✅ Agent OS Spec Post-Write QA: Single TBD Found and Model Strategy Clarified
-S592 AnyNote Agent OS v1 design spec — authored, reviewed, and committed (May 17 at 6:01 AM)
-2369 6:15a 🟣 Agent OS v1 Implementation Plan — Phase 1 written
-2370 " 🟣 Agent OS v1 Plan — Phase 2 written (Tasks 6-10): JWT auth + HMAC guard
-2371 " 🟣 Agent OS v1 Plan — Phase 3 written (Tasks 11-16): schemas, events, services
-S594 AnyNote Agent OS v1 implementation plan — created, committed, and Task 1 executed on feat/agent-os-v1 branch (May 17 at 6:15 AM)
-2372 6:26a 🔵 Task 1 verified SPEC_COMPLIANT and APPROVED via dual subagent review
-2373 " 🔵 @repo/auth package structure before Task 2 implementation
-2374 " 🔵 @repo/auth vitest config requires tests in test/ not src/ — plan spec conflict
+### May 19, 2026
+S653 E2E create-page-from-chat with GigaChat-2 Pro — test confirmed passing, services stopped, git commit still pending (May 19 at 6:20 AM)
+S654 E2E create-page-from-chat GigaChat-2 Pro — test passing, services stopped, git status reveals uncommitted changes ready to commit (May 19 at 6:47 AM)
+S657 Stale wakeup for completed task — no new work; new bug investigation ("create page from text above") is the active task (May 19 at 6:47 AM)
+S655 Fix Qdrant 401 Unauthorized error in the anynote agents service on dev (May 19 at 6:49 AM)
+S656 New bug reported: "create page from text above" chat flow broken with GigaChat — verify with Playwright and fix (May 19 at 7:34 AM)
+S658 Fix two-turn banya chat bug: "расскажи мне про русскую баню" → confirm → "создай страницу с текстом, который описан выше" → ONE confirmation, ONE page with content. Verify with Playwright E2E and fix all issues. (May 19 at 7:37 AM)
+S659 Fix two-turn banya chat bug + verify with E2E: "расскажи мне про русскую баню" → "создай страницу с текстом, который описан выше" → ONE confirmation, ONE page with full content (May 19 at 11:00 AM)
+S660 Fix two-turn banya chat scenario (turn 1: banya description, turn 2: create page with that content) — verified with Playwright plugin (May 19 at 11:16 AM)
+2811 11:26a 🟣 Live Banya Test — Turn 1 Confirmed DONE in DB
+2812 " 🟣 Live Banya Test — Second Turn Sent
+2813 " 🟣 Live Banya Test — Confirmation Dialog Appeared for createPage
+2814 " 🔵 Live Browser Test — Send Button Clicked Instead of Разрешить
+2815 " 🟣 Live Banya Test — Confirmation Approved, Agent Resumed
+2816 11:28a 🔵 Confirmation Dialog Still Visible After Multiple Разрешить Clicks
+2817 " 🟣 Live Banya Browser Test — Page Created with Content, Scenario Fully Verified
+2818 11:29a 🔴 planner.j2: Forbid trailing "respond to user" steps that cause duplicate confirmations
+2819 " 🔵 Live banya test: turn 2 completes in ~27s, page pre-exists from previous run
+2820 11:31a 🔵 Banya turn 2 regression: critic rejects response, plan stuck at state=pending with no page created
+2821 11:41a 🔵 Planner JSON parse failure causes verbatim user message as plan step, then critic loop gets stuck
+2822 " 🔵 Agent log confirms last run for turn 2 at 10:31:22; subsequent browser resends at 10:36 and 10:41 produced no new runs
+2823 " 🔵 UI shows confirmation dialog at state=Pending with critic text above it — user must click Confirm to proceed
+2824 11:43a 🔵 Turn 2 executor made zero MCP tool calls — only 2 GigaChat completions in the entire run
+2825 " 🔵 executor.j2 confirmed current state: chat_history block present, MUST-use-markdown rule present
+2826 11:44a 🔵 New banya test attempt started: fresh chat a9fbedeb, turn 1 banya completed, turn 2 typed
+2827 " 🔴 Confirmation poll query fixed: now watches for state=required OR state=running
+2828 11:45a 🔵 Third banya attempt: planner produced valid plan, ONE confirmation at state=required — but args_preview shows only title, no markdown
+2829 11:46a 🔵 _preview_default includes markdown in args_preview — its absence confirms createPage was called with title only, no markdown
+2830 " 🔵 Third banya test: page created with NULL content AND 2 confirmations appeared — both core issues remain unfixed
+2831 " 🔵 Full 4-part ASSISTANT message reveals planner split create+content into two createPage calls, both with title only
+2832 11:47a 🔵 tool_runner.py confirms args_preview == actual tool args: interrupt() passes meta.preview(args) where args are the real tool call arguments
+2833 11:48a 🔴 tool_runner.py: deduplication layer added to suppress duplicate createPage calls from 2-step plans
+2834 11:49a 🔵 Fourth banya test attempt launched with dedup-enabled agents service on fresh chat 552b98a4
+2835 " 🔵 Confirmation dialog appeared within ~29 seconds of turn 2 send; Разрешить clicked without waiting for poll
+2836 11:51a 🔵 Multiple Разрешить clicks pattern: session approving confirmations as fast as they appear, now polling for 2 DONE ASSISTANT messages
+2837 " 🔵 BREAKTHROUGH: Page created with content (4442 chars) and markdown in args_preview — executor correctly included banya text in createPage call
+2838 11:53a 🔴 SKEW_SECONDS increased 60→600 in agents-internal-auth.guard.ts to fix resume 401
+2839 " 🔴 executor.j2 chat_history rendering removed; LLM now reads history from seeded message context
+2840 " 🔵 Single-step plan generated and confirmation fired with full banya markdown in args_preview
+2841 " 🔵 Engines watch-mode spawns duplicate process causing EADDRINUSE on every restart attempt
+2842 12:12p 🟣 Banya two-turn create-page scenario working end-to-end: page created with content
+2843 " 🔵 Chat sidebar shows 7+ banya-titled chats and 3+ banya pages from repeated test loop
+S661 Fix and verify banya two-turn chat scenario (turn 1: describe banya, turn 2: create page with that content) — verified with Playwright plugin, then committed all fixes (May 19 at 12:14 PM)
+2844 12:15p 🔄 tool_runner.py: removed debug log lines after verification complete
+2845 " ✅ Full set of modified files ready for commit after banya two-turn fix
+2846 " ✅ agents package.json dev script: added --env-file .env to uvicorn command
+2847 " 🔴 Committed engines fixes: null tool args tolerance + HMAC skew widening (5a43d31)
+2848 12:16p 🔴 Committed agents fixes: reliable create-page-from-chat on GigaChat-2 Pro (2b1b766)
+2849 " 🟣 Committed e2e specs: banya repro spec added + create-page spec migrated to GigaChat-2-Pro (6b2bb88)
+2850 " ✅ Three-commit banya fix series landed on main; working tree clean
+2851 12:22p 🔴 Sidebar Pages Section Vertical Stretch Fix
+2852 12:23p 🔵 WorkspaceSidebar Architecture: Two Separate Implementations Discovered
+2853 " 🔵 PageTreeSection Hard-Capped at 300px maxHeight
+2854 12:24p 🔵 FavoritesSection Also Hard-Capped at 200px maxHeight
+2855 " 🔴 PageTreeSection Outer Box Converted to Flex Column
+2856 12:27p 🔴 PageTreeSection Inner List Box: maxHeight:300 Replaced with Flex-Fill
+2857 " 🔴 Flex Spacer Removed from WorkspaceSidebar Between PageTree and Trash
+2858 12:28p ✅ Sidebar Stretch Fix Type-Checks Clean
+S662 Fix workspace sidebar vertical stretch — page output area not reaching trash section when sidebar is open with many pages (May 19 at 12:29 PM)
+2859 1:13p 🔵 AnyNote workspace chat "create page from chat" bug investigation started
+2860 " 🔵 Full create-page-from-chat architecture mapped: executor→tool_runner→MCP→confirmation interrupt
 
-Access 681k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 811k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

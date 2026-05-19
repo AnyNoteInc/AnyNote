@@ -63,6 +63,8 @@ export class MarkdownParser {
       case 'space':
         return []
       default: {
+        const inlineTokens = (token as { tokens?: Token[] }).tokens
+        if (inlineTokens) return [{ type: 'paragraph', content: this.parseInline(inlineTokens) }]
         const raw = (token as { text?: string }).text ?? ''
         if (!raw) return []
         return [{ type: 'paragraph', content: [{ type: 'text', text: raw }] }]

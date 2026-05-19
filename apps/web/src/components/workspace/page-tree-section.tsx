@@ -277,13 +277,14 @@ export function PageTreeSection({ workspaceId, pages: initialPages, favoritePage
   const rootPages = orderSiblings(pages.filter((p) => p.parentId === null))
 
   return (
-    <Box>
+    <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
       <Box
         sx={{
           display: 'flex',
           alignItems: 'center',
           px: 1,
           py: 0.75,
+          flexShrink: 0,
         }}
       >
         <Box
@@ -328,7 +329,7 @@ export function PageTreeSection({ workspaceId, pages: initialPages, favoritePage
       </Box>
 
       {open ? (
-        <Box sx={{ maxHeight: 300, overflow: 'auto' }}>
+        <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
           {rootPages.map((page) => (
             <PageTreeItem
               key={page.id}

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from collections.abc import Sequence
 from typing import Any
 from uuid import uuid4
@@ -86,6 +87,7 @@ async def tool_runner_node(
 
     for call in state.pending_tool_calls:
         tool_calls_made += 1
+        call = _enrich_call_from_chat_history(call, state)
         prior = _prior_tool_result(str(call['name']), call.get('args') or {}, state.messages)
         if prior is not None:
             log.info(
@@ -101,6 +103,105 @@ async def tool_runner_node(
         'pending_tool_calls': [],
         'tool_calls_made': tool_calls_made,
     })
+
+
+def _enrich_call_from_chat_history(call: dict[str, Any], state: AgentState) -> dict[str, Any]:
+    name = str(call.get('name', ''))
+    if name not in {'anynote__createPage', 'createPage'}:
+        return call
+
+    args = call.get('args') or {}
+    if not isinstance(args, dict):
+        return call
+    markdown = args.get('markdown')
+    if isinstance(markdown, str) and markdown.strip():
+        return call
+    previous_reply = _latest_assistant_reply(state)
+    if previous_reply is None:
+        return call
+    if not _should_fill_create_page_markdown(state.user_message, previous_reply):
+        return call
+
+    return {**call, 'args': {**args, 'markdown': previous_reply}}
+
+
+def _latest_assistant_reply(state: AgentState) -> str | None:
+    for message in reversed(state.chat_history):
+        if message.role.value != 'assistant':
+            continue
+        content = message.content.strip()
+        if content:
+            return content
+    return None
+
+
+def _should_fill_create_page_markdown(user_message: str, previous_reply: str | None = None) -> bool:
+    text = user_message.lower().replace('\u0451', '\u0435').strip()
+    if not text:
+        return False
+    if any(token in text for token in ('пуст', 'empty', 'blank')):
+        return False
+    has_create_intent = any(
+        token in text
+        for token in (
+            'создай',
+            'создать',
+            'сделай',
+            'сохрани',
+            'запиши',
+            'create',
+            'save',
+        )
+    )
+    has_page_target = any(token in text for token in ('страниц', 'стараниц', 'page', 'note'))
+    if not (has_create_intent and has_page_target):
+        return False
+    if any(
+        token in text
+        for token in (
+            'выше',
+            'это',
+            'из разговора',
+            'из диалога',
+            'из чата',
+            'обсуждени',
+            'above',
+            'conversation',
+            'chat',
+        )
+    ):
+        return True
+    words = [word for word in text.replace(',', ' ').replace('.', ' ').split() if word]
+    has_explicit_new_topic = any(token in words for token in ('про', '\u043e', 'about'))
+    if has_explicit_new_topic:
+        return _topic_matches_previous_reply(words, previous_reply)
+    return len(words) <= 4
+
+
+def _topic_matches_previous_reply(words: Sequence[str], previous_reply: str | None) -> bool:
+    if not previous_reply:
+        return False
+    reply = previous_reply.lower().replace('\u0451', '\u0435')
+    for word in words:
+        token = re.sub(r'[^\w-]+', '', word, flags=re.UNICODE)
+        if len(token) < 4 or token in {
+            'создай',
+            'создать',
+            'сделай',
+            'сохрани',
+            'запиши',
+            'страницу',
+            'стараницу',
+            'страница',
+            'стараница',
+            'page',
+            'note',
+            'about',
+        }:
+            continue
+        if token[:3] in reply:
+            return True
+    return False
 
 
 async def _run_tool(

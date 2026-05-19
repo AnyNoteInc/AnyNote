@@ -53,6 +53,28 @@ describe('MarkdownParser', () => {
     })
   })
 
+  it('parses bold marks inside list items', () => {
+    const doc = parser.parse('1. **Подготовка сковороды:** Разогрейте сковороду.')
+
+    expect(doc.content[0]).toMatchObject({
+      type: 'orderedList',
+      content: [
+        {
+          type: 'listItem',
+          content: [
+            {
+              type: 'paragraph',
+              content: [
+                { type: 'text', text: 'Подготовка сковороды:', marks: [{ type: 'bold' }] },
+                { type: 'text', text: ' Разогрейте сковороду.' },
+              ],
+            },
+          ],
+        },
+      ],
+    })
+  })
+
   it('parses blockquotes', () => {
     const doc = parser.parse('> quoted line')
     expect(doc.content).toEqual([

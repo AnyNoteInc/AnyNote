@@ -84,4 +84,28 @@ describe('ChatMessageContent', () => {
     expect(span?.textContent).toBe('link')
     expect(container.querySelector('a')).toBeNull()
   })
+
+  it('converts workspace page URL after "здесь" into a markdown link', () => {
+    const href = '/workspaces/28531e45-1bf1-4640-90f2-12b9bd17f5f3/pages/96409533-ddbc-422e-941d-2c4d2abf3098'
+    render(
+      <ChatMessageContent
+        parts={[
+          {
+            type: 'text',
+            text: `Страница создана. Вы можете найти её здесь: ${href}`,
+          },
+        ]}
+        renderLink={(linkHref, children) => (
+          <a href={linkHref} data-testid="chat-link">
+            {children}
+          </a>
+        )}
+      />,
+    )
+
+    const link = screen.getByTestId('chat-link')
+    expect(link.getAttribute('href')).toBe(href)
+    expect(link.textContent).toBe('здесь')
+    expect(screen.queryByText(href)).toBeNull()
+  })
 })
