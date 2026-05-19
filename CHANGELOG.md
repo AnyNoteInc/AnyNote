@@ -1,3 +1,21 @@
+# [1.21.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.20.0...v1.21.0) (2026-05-19)
+
+
+### Bug Fixes
+
+* **agents:** make create-page-from-chat reliable on GigaChat-2 Pro ([2b1b766](https://github.com/AnyNoteInc/AnyNote/commit/2b1b766909301a9fac812f70737872cfd1c28b98))
+* createPages ([66bca68](https://github.com/AnyNoteInc/AnyNote/commit/66bca6862a41717c85edfb4fec1444e0403d5d72))
+* **engines:** tolerate GigaChat null tool args + widen confirmation auth skew ([5a43d31](https://github.com/AnyNoteInc/AnyNote/commit/5a43d3171181631b921d97d1cdf65036594d6fb3))
+* **engines:** widen expired-timestamp offset past new 600s skew window ([7865f1b](https://github.com/AnyNoteInc/AnyNote/commit/7865f1b6c1ef4439b5e545ca87dff208651193a5))
+* tests ([7a3c48a](https://github.com/AnyNoteInc/AnyNote/commit/7a3c48aa545348327e5b4717e33b86321cdbed43))
+* **web:** align tests with redesigned workspace root + settings hotkey ([0ddc478](https://github.com/AnyNoteInc/AnyNote/commit/0ddc4781cff2f408dd5aff7006939b346d7e0d08))
+
+
+### Features
+
+* Add favorits chat ([a8bb079](https://github.com/AnyNoteInc/AnyNote/commit/a8bb079efb839c5c38ffc5a73755022a799816bd))
+* redesign workspaces ([7223ecc](https://github.com/AnyNoteInc/AnyNote/commit/7223eccc5a129cad596084a9e985371c8260e556))
+
 # [1.20.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.19.3...v1.20.0) (2026-05-18)
 
 
