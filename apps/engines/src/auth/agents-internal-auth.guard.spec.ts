@@ -43,7 +43,7 @@ describe('AgentsInternalAuthGuard', () => {
   })
 
   it('rejects an expired timestamp', async () => {
-    const ts = Math.floor(Date.now() / 1000) - 300
+    const ts = Math.floor(Date.now() / 1000) - 700
     const moduleRef = await Test.createTestingModule({
       providers: [AgentsInternalAuthGuard],
     }).compile()
