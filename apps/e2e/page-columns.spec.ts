@@ -482,6 +482,34 @@ test('dragging a nested paragraph sideways creates columns inside its parent blo
   await expect(cells.nth(1)).toContainText('Nested Bravo')
 })
 
+test('dragging a paragraph to the right of a callout creates a top-level column row', async ({
+  page,
+}) => {
+  await createSeededPage(page, 'cols-callout-right', {
+    type: 'doc',
+    content: [callout(paragraph('Callout text')), paragraph('Outside paragraph')],
+  })
+
+  const calloutBlock = page.locator('[data-type="callout"]').first()
+  const outside = page.locator('.ProseMirror > p', { hasText: 'Outside paragraph' })
+  const calloutBox = await calloutBlock.boundingBox()
+  if (!calloutBox) throw new Error('callout not visible')
+
+  await dragBlockTo(
+    page,
+    outside,
+    calloutBox.x + calloutBox.width + 24,
+    calloutBox.y + calloutBox.height / 2,
+  )
+
+  await expect(calloutBlock.locator('p', { hasText: 'Outside paragraph' })).toHaveCount(0)
+  await expect(page.locator('.ProseMirror > .column-layout')).toHaveCount(1, { timeout: 5_000 })
+  const cells = page.locator('.ProseMirror > .column-layout > .column')
+  await expect(cells).toHaveCount(2)
+  await expect(cells.nth(0).locator('[data-type="callout"]')).toContainText('Callout text')
+  await expect(cells.nth(1)).toContainText('Outside paragraph')
+})
+
 test('dragging a paragraph into a toggle moves it inside the toggle content', async ({ page }) => {
   await createSeededPage(page, 'cols-toggle-in', {
     type: 'doc',

@@ -71,7 +71,62 @@ function canTargetBlock(node: PMNode): boolean {
   return node.isBlock && node.type.name !== 'columnLayout' && node.type.name !== 'column'
 }
 
-function resolveHoverTarget($pos: ResolvedPos): HoverTarget | null {
+function isOutsideHorizontalBounds(
+  view: EditorView,
+  target: HoverTarget,
+  cursorX: number,
+): boolean {
+  const dom = view.nodeDOM(targetStart(target)) as HTMLElement | null
+  if (!dom) return false
+  const rect = dom.getBoundingClientRect()
+  return cursorX < rect.left || cursorX > rect.right
+}
+
+function sourceInsideBlock(
+  source: { from: number; to: number } | null,
+  target: Extract<HoverTarget, { kind: 'block' }>,
+): boolean {
+  return (
+    !!source &&
+    source.from >= target.pos + 1 &&
+    source.to <= target.pos + target.node.nodeSize - 1
+  )
+}
+
+function resolveHoverTarget(
+  view: EditorView,
+  $pos: ResolvedPos,
+  cursorX: number,
+  source: { from: number; to: number } | null,
+): HoverTarget | null {
+  const blockTargets: Array<Extract<HoverTarget, { kind: 'block' }>> = []
+
+  for (let depth = $pos.depth; depth >= 0; depth--) {
+    const node = $pos.node(depth)
+    if (
+      depth > 0 &&
+      canTargetBlock(node) &&
+      !isFirstChildOfListItem($pos, depth)
+    ) {
+      const pos = $pos.before(depth)
+      blockTargets.push({ kind: 'block', pos, node })
+    }
+  }
+
+  if (blockTargets.length > 0) {
+    for (let i = blockTargets.length - 1; i >= 0; i--) {
+      const target = blockTargets[i]
+      if (
+        target &&
+        isOutsideHorizontalBounds(view, target, cursorX) &&
+        !sourceInsideBlock(source, target)
+      ) {
+        return target
+      }
+    }
+    return blockTargets[0] ?? null
+  }
+
   for (let depth = $pos.depth; depth >= 0; depth--) {
     const node = $pos.node(depth)
     if (node.type.name === 'column') {
@@ -79,14 +134,6 @@ function resolveHoverTarget($pos: ResolvedPos): HoverTarget | null {
       const layoutPos = $pos.before(depth - 1)
       const cellPos = $pos.before(depth)
       return { kind: 'cell', cellPos, cellNode: node, layoutPos, layoutNode }
-    }
-    if (
-      depth > 0 &&
-      canTargetBlock(node) &&
-      !isFirstChildOfListItem($pos, depth)
-    ) {
-      const pos = $pos.before(depth)
-      return { kind: 'block', pos, node }
     }
   }
   return null
@@ -136,9 +183,14 @@ function findNestedBlockTargetByY(
 function refineNestedBlockTarget(
   view: EditorView,
   target: HoverTarget,
+  cursorX: number,
   cursorY: number,
+  source: { from: number; to: number } | null,
 ): HoverTarget {
   if (target.kind !== 'block') return target
+  if (isOutsideHorizontalBounds(view, target, cursorX) && !sourceInsideBlock(source, target)) {
+    return target
+  }
   return findNestedBlockTargetByY(view, target, cursorY) ?? target
 }
 
@@ -221,13 +273,22 @@ function resolveLayoutTarget(view: EditorView, target: HoverTarget, cursorX: num
 // cursors in side gutters where posAtCoords lands at depth 0). The result
 // always passes through resolveLayoutTarget so cell-vs-layout targeting
 // matches the cursor's X position relative to the cells.
-function findHoverTarget(view: EditorView, cursorX: number, cursorY: number): HoverTarget | null {
+function findHoverTarget(
+  view: EditorView,
+  cursorX: number,
+  cursorY: number,
+  source: { from: number; to: number } | null,
+): HoverTarget | null {
   const pos = view.posAtCoords({ left: cursorX, top: cursorY })
   if (pos) {
     const $pos = view.state.doc.resolve(pos.pos)
-    const target = resolveHoverTarget($pos)
+    const target = resolveHoverTarget(view, $pos, cursorX, source)
     if (target) {
-      return resolveLayoutTarget(view, refineNestedBlockTarget(view, target, cursorY), cursorX)
+      return resolveLayoutTarget(
+        view,
+        refineNestedBlockTarget(view, target, cursorX, cursorY, source),
+        cursorX,
+      )
     }
   }
   const doc = view.state.doc
@@ -612,7 +673,10 @@ export const DropPlacement = Extension.create({
           },
           handleDOMEvents: {
             dragover(view, event) {
-              const target = findHoverTarget(view, event.clientX, event.clientY)
+              const source = view.dragging
+                ? dragSourceRange(view, view.dragging.slice.content)
+                : null
+              const target = findHoverTarget(view, event.clientX, event.clientY, source)
               if (!target) {
                 const gapPlacement = findVerticalGapPlacement(view, event.clientY)
                 if (!gapPlacement) {
