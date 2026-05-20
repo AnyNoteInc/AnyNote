@@ -41,6 +41,7 @@ describe('editor column layout styles', () => {
 
   it('declares drop targets with primary color', () => {
     const css = readFileSync(contentCssPath, 'utf8')
+    expect(css).toMatch(/\.column-drop-target\s*{[\s\S]*position:\s*relative/)
     expect(css).toMatch(/\.column-drop-target--left::before[\s\S]*width:\s*3px/)
     expect(css).toMatch(/\.column-drop-target--right::before[\s\S]*width:\s*3px/)
     expect(css).toMatch(/\.column-drop-target::before[\s\S]*background:\s*#1976d2/)

@@ -11,19 +11,6 @@ import type { Node as PMNode } from '@tiptap/pm/model'
 
 import { DragHandleMenu } from './drag-handle-menu'
 
-const CONTAINER_TYPES = ['callout', 'toggle', 'hiddenText']
-
-// First child of a container block is not independently draggable — dragging
-// the first row should pick the parent container instead. Mirrors the library's
-// built-in `listItemFirstChild` rule but for our block types.
-const firstChildOfContainer: DragHandleRule = {
-  id: 'firstChildOfContainer',
-  evaluate: ({ parent, isFirst }) => {
-    if (!isFirst || !parent) return 0
-    return CONTAINER_TYPES.includes(parent.type.name) ? 1000 : 0
-  },
-}
-
 // columnLayout / column are structural — the user never drags the row or the
 // cell itself; only blocks of content inside cells get a handle. Deduct enough
 // to push the score < 0, which the library treats as "not a candidate".
@@ -41,7 +28,7 @@ const excludeColumnNodes: DragHandleRule = {
 // motion, so the handle would jump to the outer container before the cursor
 // even reached it.
 const nestedOptions = {
-  rules: [firstChildOfContainer, excludeColumnNodes],
+  rules: [excludeColumnNodes],
   edgeDetection: 'none' as const,
 }
 

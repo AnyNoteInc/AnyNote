@@ -6,7 +6,7 @@ import {
   type ResolvedPos,
   type Slice,
 } from '@tiptap/pm/model'
-import { Plugin, PluginKey, type Transaction, TextSelection } from '@tiptap/pm/state'
+import { Plugin, PluginKey, Selection, TextSelection, type Transaction } from '@tiptap/pm/state'
 import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view'
 
 import { dissolveColumnLayouts, dissolveColumnLayoutsInTransaction } from './column-layout.dissolve'
@@ -54,6 +54,23 @@ function computeReorderPos(target: HoverTarget, zone: 'TOP' | 'BOTTOM'): number 
   return zone === 'TOP' ? target.pos : target.pos + target.node.nodeSize
 }
 
+function isFirstChildOfListItem($pos: ResolvedPos, depth: number): boolean {
+  if (depth <= 1) return false
+  const parent = $pos.node(depth - 1)
+  return (
+    $pos.index(depth - 1) === 0 &&
+    (parent.type.name === 'listItem' || parent.type.name === 'taskItem')
+  )
+}
+
+function isListItemFirstChild(parent: PMNode, index: number): boolean {
+  return index === 0 && (parent.type.name === 'listItem' || parent.type.name === 'taskItem')
+}
+
+function canTargetBlock(node: PMNode): boolean {
+  return node.isBlock && node.type.name !== 'columnLayout' && node.type.name !== 'column'
+}
+
 function resolveHoverTarget($pos: ResolvedPos): HoverTarget | null {
   for (let depth = $pos.depth; depth >= 0; depth--) {
     const node = $pos.node(depth)
@@ -63,13 +80,88 @@ function resolveHoverTarget($pos: ResolvedPos): HoverTarget | null {
       const cellPos = $pos.before(depth)
       return { kind: 'cell', cellPos, cellNode: node, layoutPos, layoutNode }
     }
-    if (depth === 1) {
-      // top-level child of doc
+    if (
+      depth > 0 &&
+      canTargetBlock(node) &&
+      !isFirstChildOfListItem($pos, depth)
+    ) {
       const pos = $pos.before(depth)
       return { kind: 'block', pos, node }
     }
   }
   return null
+}
+
+function childHoverTarget(
+  parent: Extract<HoverTarget, { kind: 'block' }>,
+  index: number,
+): HoverTarget | null {
+  const child = parent.node.child(index)
+  if (isListItemFirstChild(parent.node, index)) return null
+  if (!canTargetBlock(child)) return null
+  let pos = parent.pos + 1
+  for (let i = 0; i < index; i++) {
+    pos += parent.node.child(i).nodeSize
+  }
+  return { kind: 'block', pos, node: child }
+}
+
+function findNestedBlockTargetByY(
+  view: EditorView,
+  parent: Extract<HoverTarget, { kind: 'block' }>,
+  cursorY: number,
+): HoverTarget | null {
+  let previous: { target: HoverTarget; rect: DOMRect } | null = null
+
+  for (let i = 0; i < parent.node.childCount; i++) {
+    const childTarget = childHoverTarget(parent, i)
+    if (!childTarget) continue
+    const dom = view.nodeDOM(targetStart(childTarget)) as HTMLElement | null
+    if (!dom) continue
+
+    const rect = dom.getBoundingClientRect()
+    if (cursorY < rect.top) return childTarget
+    if (cursorY <= rect.bottom) {
+      if (childTarget.kind === 'block') {
+        return findNestedBlockTargetByY(view, childTarget, cursorY) ?? childTarget
+      }
+      return childTarget
+    }
+    previous = { target: childTarget, rect }
+  }
+
+  return previous?.target ?? null
+}
+
+function refineNestedBlockTarget(
+  view: EditorView,
+  target: HoverTarget,
+  cursorY: number,
+): HoverTarget {
+  if (target.kind !== 'block') return target
+  return findNestedBlockTargetByY(view, target, cursorY) ?? target
+}
+
+function nearestTextSelection(doc: PMNode, pos: number): Selection {
+  const clamped = Math.max(0, Math.min(pos, doc.content.size))
+  let nearestPos: number | null = null
+  let nearestDistance = Infinity
+
+  doc.descendants((node, nodePos) => {
+    if (!node.isTextblock) return true
+    const from = nodePos + 1
+    const to = nodePos + node.content.size
+    const cursor = Math.max(from, Math.min(to, clamped))
+    const distance = clamped < from ? from - clamped : Math.max(0, clamped - to)
+    if (distance < nearestDistance) {
+      nearestPos = cursor
+      nearestDistance = distance
+    }
+    return true
+  })
+
+  if (nearestPos !== null) return TextSelection.create(doc, nearestPos)
+  return Selection.near(doc.resolve(clamped))
 }
 
 // Normalize a hover target that lives in (or IS) a columnLayout based on
@@ -134,7 +226,9 @@ function findHoverTarget(view: EditorView, cursorX: number, cursorY: number): Ho
   if (pos) {
     const $pos = view.state.doc.resolve(pos.pos)
     const target = resolveHoverTarget($pos)
-    if (target) return resolveLayoutTarget(view, target, cursorX)
+    if (target) {
+      return resolveLayoutTarget(view, refineNestedBlockTarget(view, target, cursorY), cursorX)
+    }
   }
   const doc = view.state.doc
   let scan = 0
@@ -437,7 +531,7 @@ function applyPlacementDrop(
   dissolveColumnLayoutsInTransaction(tr)
   const docSize = tr.doc.content.size
   if (docSize > 0) {
-    tr.setSelection(TextSelection.near(tr.doc.resolve(Math.min(tr.selection.from, docSize))))
+    tr.setSelection(nearestTextSelection(tr.doc, tr.selection.from))
   }
   view.dispatch(tr.setMeta(dropPlacementKey, CLEARED))
   const cleanup = dissolveColumnLayouts(view.state)

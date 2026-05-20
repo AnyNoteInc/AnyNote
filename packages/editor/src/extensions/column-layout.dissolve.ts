@@ -23,10 +23,14 @@ function layoutAttrs(layout: PMNode, columns: number): Record<string, unknown> {
 export function dissolveColumnLayoutsInTransaction(tr: Transaction): boolean {
   const { doc } = tr
   let mutated = false
-  // Walk top-level children right-to-left so position math stays valid as we splice.
+  // Walk every column layout right-to-left so position math stays valid as we splice.
   const layouts: { node: PMNode; pos: number }[] = []
-  doc.forEach((node, offset) => {
-    if (node.type.name === 'columnLayout') layouts.push({ node, pos: offset })
+  doc.descendants((node, pos) => {
+    if (node.type.name === 'columnLayout') {
+      layouts.push({ node, pos })
+      return false
+    }
+    return true
   })
   for (let i = layouts.length - 1; i >= 0; i--) {
     const entry = layouts[i]

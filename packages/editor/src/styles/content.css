@@ -476,6 +476,9 @@
   background: #1976d2;
   z-index: 5;
 }
+.anynote-editor .column-drop-target {
+  position: relative;
+}
 .anynote-editor .column-drop-target--left::before {
   top: 0;
   left: 0;
