@@ -32,7 +32,10 @@ export default async function PageView({
     session.user.email
 
   const isFullBleed =
-    page.type === 'EXCALIDRAW' || page.type === 'GENOGRAM' || page.type === 'KANBAN'
+    page.type === 'EXCALIDRAW' ||
+    page.type === 'GENOGRAM' ||
+    page.type === 'MERMAID' ||
+    page.type === 'KANBAN'
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
