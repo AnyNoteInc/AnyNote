@@ -14,7 +14,7 @@ const mockTransaction = jest.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
 
 jest.unstable_mockModule('@repo/db', () => ({
   prisma: { $transaction: mockTransaction },
-  PageType: { TEXT: 'TEXT', EXCALIDRAW: 'EXCALIDRAW', GENOGRAM: 'GENOGRAM' },
+  PageType: { TEXT: 'TEXT', EXCALIDRAW: 'EXCALIDRAW', GENOGRAM: 'GENOGRAM', MERMAID: 'MERMAID' },
   Prisma: { sql: (s: TemplateStringsArray, ...v: unknown[]) => ({ s, v }) },
   enqueueOutboxEventIgnoreConflict: mockEnqueueOutboxEventIgnoreConflict,
 }))
@@ -95,6 +95,25 @@ describe('storePageDocument', () => {
       data: { content?: unknown }
     }
     expect(call.data.content).toBeUndefined()
+    expect(mockEnqueueOutboxEventIgnoreConflict).not.toHaveBeenCalled()
+  })
+
+  it('MERMAID: saves { source } JSON to content + NO outbox', async () => {
+    const doc = new Y.Doc()
+    doc.getText('mermaid').insert(0, 'graph TD; A-->B;')
+
+    await storePageDocument({
+      pageId: '00000000-0000-0000-0000-000000000001',
+      workspaceId: '00000000-0000-0000-0000-000000000002',
+      document: doc,
+      pageType: 'MERMAID' as never,
+    })
+
+    const call = mockTxPageUpdate.mock.calls[0]![0] as {
+      data: { content: { source: string }; contentYjs: unknown }
+    }
+    expect(call.data.content).toEqual({ source: 'graph TD; A-->B;' })
+    expect(call.data.contentYjs).toBeInstanceOf(Uint8Array)
     expect(mockEnqueueOutboxEventIgnoreConflict).not.toHaveBeenCalled()
   })
 })

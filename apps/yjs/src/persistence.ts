@@ -40,6 +40,8 @@ export async function storePageDocument(args: {
     const yElements = document.getArray('elements')
     const snapshot = { elements: yElements.toJSON() }
     data.content = snapshot as Prisma.InputJsonValue
+  } else if (pageType === PageType.MERMAID) {
+    data.content = { source: document.getText('mermaid').toString() } as Prisma.InputJsonValue
   }
 
   await prisma.$transaction(async (tx) => {
