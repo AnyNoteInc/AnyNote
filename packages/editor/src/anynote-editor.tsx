@@ -200,7 +200,7 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
   )
 
   const muiTheme = useTheme()
-  const mode = muiTheme.palette.mode === 'dark' ? 'dark' : 'light'
+  const mode = muiTheme.palette.mode
 
   const editor = useEditor(
     {

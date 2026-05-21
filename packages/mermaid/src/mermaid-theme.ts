@@ -1,4 +1,6 @@
-export type ColorMode = 'light' | 'dark'
+import type { PaletteMode } from '@mui/material'
+
+export type ColorMode = PaletteMode
 
 /** Mermaid built-in theme name for the given site color mode. */
 export function mermaidThemeForMode(mode: ColorMode): 'default' | 'dark' {

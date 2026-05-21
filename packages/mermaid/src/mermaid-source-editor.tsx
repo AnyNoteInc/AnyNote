@@ -2,7 +2,6 @@
 
 import { useEffect, useRef } from 'react'
 import Editor, { type OnMount } from '@monaco-editor/react'
-import type { editor } from 'monaco-editor'
 import { MonacoBinding } from 'y-monaco'
 import type { HocuspocusProvider } from '@hocuspocus/provider'
 import type * as Y from 'yjs'
@@ -26,10 +25,11 @@ export function MermaidSourceEditor({ ytext, provider, mode, editable }: Props) 
   const handleMount: OnMount = (editorInstance, monaco) => {
     registerMermaidLanguage(monaco)
     const model = editorInstance.getModel()
-    if (model) monaco.editor.setModelLanguage(model, MERMAID_LANGUAGE_ID)
+    if (!model) return
+    monaco.editor.setModelLanguage(model, MERMAID_LANGUAGE_ID)
     bindingRef.current = new MonacoBinding(
       ytext,
-      editorInstance.getModel() as editor.ITextModel,
+      model,
       new Set([editorInstance]),
       provider.awareness ?? null,
     )

@@ -1,1 +1,3 @@
-export type ColorMode = 'light' | 'dark'
+import type { PaletteMode } from '@mui/material'
+
+export type ColorMode = PaletteMode

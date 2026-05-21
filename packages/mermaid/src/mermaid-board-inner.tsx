@@ -19,7 +19,7 @@ export function MermaidBoardInner({
   className,
 }: MermaidBoardProps) {
   const theme = useTheme()
-  const mode = theme.palette.mode === 'dark' ? 'dark' : 'light'
+  const mode = theme.palette.mode
   const resources = useMermaidYjs({ pageId, yjsUrl, yjsToken, initialContentYjs })
 
   // Publish this user's identity so collaborators see name/color on the Monaco

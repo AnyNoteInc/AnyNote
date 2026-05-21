@@ -25,10 +25,13 @@ export function MermaidPreview({ ytext, mode }: Props) {
   const zoomRef = useRef<ReactZoomPanPinchRef>(null)
   const [error, setError] = useState<string | null>(null)
   const lastGoodSvg = useRef<string>('')
+  const lastSource = useRef<string | null>(null)
   const genRef = useRef(0)
 
   const draw = useCallback(
     async (source: string) => {
+      if (source === lastSource.current) return // skip no-op updates (remote sync, undo-to-same)
+      lastSource.current = source
       const gen = ++genRef.current
       const id = `mermaid-svg-${Math.random().toString(36).slice(2)}`
       const result = await renderMermaid(id, source, mode)
@@ -45,6 +48,7 @@ export function MermaidPreview({ ytext, mode }: Props) {
   )
 
   useEffect(() => {
+    lastSource.current = null // force a render on (re)subscribe and on mode change
     let timer: number | null = null
     const schedule = () => {
       if (timer) window.clearTimeout(timer)
@@ -60,16 +64,21 @@ export function MermaidPreview({ ytext, mode }: Props) {
 
   const currentSvgEl = () => containerRef.current?.querySelector('svg') ?? null
 
+  const renderPngBlob = async (): Promise<Blob | null> => {
+    const svgEl = currentSvgEl()
+    if (!svgEl || !lastGoodSvg.current) return null
+    const rect = svgEl.getBoundingClientRect()
+    return svgToPngBlob(lastGoodSvg.current, rect.width, rect.height)
+  }
+
   const exportSvg = () => {
     if (!lastGoodSvg.current) return
     triggerDownload(svgStringToDataUrl(lastGoodSvg.current), downloadFilename('svg'))
   }
 
   const exportPng = async () => {
-    const svgEl = currentSvgEl()
-    if (!svgEl || !lastGoodSvg.current) return
-    const rect = svgEl.getBoundingClientRect()
-    const blob = await svgToPngBlob(lastGoodSvg.current, rect.width, rect.height)
+    const blob = await renderPngBlob()
+    if (!blob) return
     const url = URL.createObjectURL(blob)
     triggerDownload(url, downloadFilename('png'))
     // Revoke after the download has started; immediate revocation can cancel it.
@@ -77,10 +86,8 @@ export function MermaidPreview({ ytext, mode }: Props) {
   }
 
   const copyPng = async () => {
-    const svgEl = currentSvgEl()
-    if (!svgEl || !lastGoodSvg.current) return
-    const rect = svgEl.getBoundingClientRect()
-    const blob = await svgToPngBlob(lastGoodSvg.current, rect.width, rect.height)
+    const blob = await renderPngBlob()
+    if (!blob) return
     await navigator.clipboard.write([new ClipboardItem({ 'image/png': blob })])
   }
 
