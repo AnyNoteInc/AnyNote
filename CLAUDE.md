@@ -75,6 +75,7 @@ Packages (selected):
 - `packages/editor` — Tiptap-based collaborative text editor (loaded via `next/dynamic`, `ssr: false`).
 - `packages/excalidraw` — Excalidraw board renderer (same dynamic-import pattern).
 - `packages/genogram` — React Flow genogram canvas.
+- `packages/mermaid` — Mermaid diagram page: a bundled Monaco source editor (via `y-monaco`, 30%) + a live diagram preview with zoom/pan and SVG/PNG export (70%). Same dynamic-import (`ssr: false`) pattern; the source lives in a `Y.Text` named `mermaid`.
 - `packages/mail` — synchronous transactional email via SendSay HTTP API (`sendMailNow`, templates).
 - `packages/storage` — typed S3/MinIO client.
 - `packages/yookassa` — billing client + webhook signature verification.
@@ -91,6 +92,7 @@ transpilePackages: [
   '@repo/editor',
   '@repo/excalidraw',
   '@repo/genogram',
+  '@repo/mermaid',
   '@repo/yookassa',
 ]
 serverExternalPackages: ['pg', '@prisma/client'] // never bundle Prisma
@@ -163,11 +165,15 @@ Pages are collaboratively edited through Hocuspocus in `apps/yjs` (`@repo/yjs-se
 - `NEXT_PUBLIC_YJS_URL` — websocket URL the browser connects to.
 - `BETTER_AUTH_JWT_AUDIENCE` — audience claim used by `apps/web /api/yjs/token` to issue short-lived tokens; the yjs server verifies it.
 
-`apps/web/src/components/page/page-renderer.tsx` is the **single dispatch point** for page rendering — it switches on `Page.type` (`TEXT` → `@repo/editor`, `EXCALIDRAW` → `@repo/excalidraw`). Both load via `next/dynamic` with `ssr: false`.
+`apps/web/src/components/page/page-renderer.tsx` is the **single dispatch point** for page rendering — it switches on `Page.type` (`TEXT` → `@repo/editor`, `EXCALIDRAW` → `@repo/excalidraw`, `GENOGRAM` → `@repo/genogram`, `MERMAID` → `@repo/mermaid`). All load via `next/dynamic` with `ssr: false`.
 
 The block model has been removed; page content lives in `Page.contentYjs` (bytes) plus `Page.content` (JSON snapshot). Don't re-introduce blocks without first reading `docs/superpowers/specs/2026-04-16-collaborative-editor-design.md`.
 
-`@repo/editor` and `@repo/excalidraw` are compiled with `moduleResolution: "Bundler"` (not the repo default `NodeNext`) because Next's `transpilePackages` consumes their `src/` directly. This is also why they use extensionless relative imports.
+`@repo/editor`, `@repo/excalidraw`, and `@repo/mermaid` are compiled with `moduleResolution: "Bundler"` (not the repo default `NodeNext`) because Next's `transpilePackages` consumes their `src/` directly. This is also why they use extensionless relative imports.
+
+`@repo/mermaid` self-hosts Monaco (no CDN): `monaco-env.ts` sets `MonacoEnvironment.getWorker` via `new Worker(new URL('monaco-editor/esm/vs/editor/editor.worker', import.meta.url), { type: 'module' })`, which both Turbopack (dev) and webpack (build) understand. `configureMonaco()` runs at module load (guarded by `typeof window`) so `loader.config({ monaco })` lands before `@monaco-editor/react` initializes.
+
+The text editor's code block is `@tiptap-codeless/extension-code-block-pro` (mermaid + lowlight for python/js/ts/bash, locale `en`, theme follows MUI mode). It self-injects its CSS (no stylesheet to import) and requires `@tiptap/core >= 3.22.5` (for `isNodeViewSelected`) — pinned via the root `pnpm.overrides` since the rest of the stack is 3.22.3. `@repo/editor` declares `highlight.js` directly (lowlight bundles it transitively, but the `highlight.js/lib/languages/*` imports need it as a real dep under pnpm).
 
 Known deviation: Excalidraw image assets are currently duplicated in S3 and in `Page.contentYjs`. See `packages/excalidraw/README.md` "Known limitations".
 
