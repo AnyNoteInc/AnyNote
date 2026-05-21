@@ -25,11 +25,14 @@ export function MermaidPreview({ ytext, mode }: Props) {
   const zoomRef = useRef<ReactZoomPanPinchRef>(null)
   const [error, setError] = useState<string | null>(null)
   const lastGoodSvg = useRef<string>('')
+  const genRef = useRef(0)
 
   const draw = useCallback(
     async (source: string) => {
+      const gen = ++genRef.current
       const id = `mermaid-svg-${Math.random().toString(36).slice(2)}`
       const result = await renderMermaid(id, source, mode)
+      if (genRef.current !== gen) return // superseded by a newer render
       if (result.ok) {
         setError(null)
         lastGoodSvg.current = result.svg
@@ -67,7 +70,10 @@ export function MermaidPreview({ ytext, mode }: Props) {
     if (!svgEl || !lastGoodSvg.current) return
     const rect = svgEl.getBoundingClientRect()
     const blob = await svgToPngBlob(lastGoodSvg.current, rect.width, rect.height)
-    triggerDownload(URL.createObjectURL(blob), downloadFilename('png'))
+    const url = URL.createObjectURL(blob)
+    triggerDownload(url, downloadFilename('png'))
+    // Revoke after the download has started; immediate revocation can cancel it.
+    setTimeout(() => URL.revokeObjectURL(url), 10_000)
   }
 
   const copyPng = async () => {

@@ -33,8 +33,3 @@ export async function renderMermaid(id: string, source: string, mode: ColorMode)
     return { ok: false, error: err instanceof Error ? err.message : String(err) }
   }
 }
-
-/** Force re-initialization on the next render (call when color mode flips). */
-export function resetMermaidTheme(): void {
-  lastTheme = null
-}
