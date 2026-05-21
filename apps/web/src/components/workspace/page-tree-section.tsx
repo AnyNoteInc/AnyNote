@@ -15,6 +15,7 @@ import {
   Menu,
   MenuItem,
   MoreHorizIcon,
+  SchemaIcon,
   Typography,
   AddIcon,
   ViewKanbanIcon,
@@ -25,7 +26,7 @@ import { PageContextMenu } from './page-context-menu'
 import { MovePageDialog } from './move-page-dialog'
 import { type PageItem, orderSiblings } from './types'
 
-type CreatablePageType = Extract<PageType, 'TEXT' | 'EXCALIDRAW' | 'GENOGRAM' | 'KANBAN'>
+type CreatablePageType = Extract<PageType, 'TEXT' | 'EXCALIDRAW' | 'GENOGRAM' | 'MERMAID' | 'KANBAN'>
 
 type Props = {
   workspaceId: string
@@ -92,6 +93,17 @@ function CreatePageMenu({
           <ViewKanbanIcon fontSize="small" />
         </ListItemIcon>
         <ListItemText primary="Канбан" />
+      </MenuItem>
+      <MenuItem
+        onClick={() => {
+          onCreate('MERMAID')
+          onClose()
+        }}
+      >
+        <ListItemIcon>
+          <SchemaIcon fontSize="small" />
+        </ListItemIcon>
+        <ListItemText primary="Диаграмма" />
       </MenuItem>
     </Menu>
   )
