@@ -1,6 +1,7 @@
 'use client'
 
 import { Box } from '@mui/material'
+import { useTheme } from '@mui/material/styles'
 import { HocuspocusProvider } from '@hocuspocus/provider'
 import { EditorContent, ReactRenderer, useEditor } from '@tiptap/react'
 import type { SuggestionProps } from '@tiptap/suggestion'
@@ -198,6 +199,9 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
     [],
   )
 
+  const muiTheme = useTheme()
+  const mode = muiTheme.palette.mode === 'dark' ? 'dark' : 'light'
+
   const editor = useEditor(
     {
       editable,
@@ -211,6 +215,7 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
         slashItems: (query: string) => slashItemsRef.current(query),
         slashRender,
         onNavigateToPage,
+        mode,
       }),
       onCreate: ({ editor: ed }) => {
         props.onReady?.(ed)
