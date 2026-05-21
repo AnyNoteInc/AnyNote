@@ -47,6 +47,11 @@ const Genogram = dynamic(() => import('@repo/genogram').then((m) => m.GenogramBo
   loading: () => <CenteredSpinner />,
 })
 
+const MermaidBoard = dynamic(() => import('@repo/mermaid').then((m) => m.MermaidBoard), {
+  ssr: false,
+  loading: () => <CenteredSpinner />,
+})
+
 const KanbanBoardPage = dynamic(
   () => import('@/components/kanban/kanban-board-page').then((m) => m.KanbanBoardPage),
   { ssr: false, loading: () => <CenteredSpinner /> },
@@ -354,6 +359,18 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
   if (page.type === 'GENOGRAM') {
     return (
       <Genogram pageId={page.id} yjsUrl={resolveYjsUrl()} yjsToken={fetchYjsToken} user={user} />
+    )
+  }
+
+  if (page.type === 'MERMAID') {
+    return (
+      <MermaidBoard
+        pageId={page.id}
+        initialContentYjs={page.contentYjs}
+        yjsUrl={resolveYjsUrl()}
+        yjsToken={fetchYjsToken}
+        user={user}
+      />
     )
   }
 
