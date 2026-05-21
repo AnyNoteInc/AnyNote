@@ -27,6 +27,7 @@ const nextConfig = {
     '@repo/editor',
     '@repo/excalidraw',
     '@repo/genogram',
+    '@repo/mermaid',
     '@repo/yookassa',
   ],
   experimental: {
