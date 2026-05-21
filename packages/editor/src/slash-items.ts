@@ -129,12 +129,7 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
     keywords: ['mermaid', 'diagram', 'диаграмма', 'график', 'схема'],
     icon: createElement(CodeIcon),
     run: ({ editor, range }) =>
-      editor
-        .chain()
-        .focus()
-        .deleteRange(range)
-        .insertContent({ type: 'codeBlock', attrs: { language: 'mermaid' } })
-        .run(),
+      editor.chain().focus().deleteRange(range).setCodeBlock({ language: 'mermaid' }).run(),
   },
   {
     id: 'divider',
