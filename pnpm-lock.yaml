@@ -203,6 +203,9 @@ importers:
       '@repo/mail':
         specifier: workspace:*
         version: link:../../packages/mail
+      '@repo/mermaid':
+        specifier: workspace:*
+        version: link:../../packages/mermaid
       '@repo/notifications':
         specifier: workspace:*
         version: link:../../packages/notifications
