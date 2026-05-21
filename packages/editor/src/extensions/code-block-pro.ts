@@ -27,7 +27,13 @@ export function buildCodeBlockLowlight() {
   return lowlight
 }
 
-/** Configured CodeBlockPro extension. `mode` drives the light/dark code-block theme. */
+/**
+ * Configured CodeBlockPro extension. `mode` drives the light/dark code-block
+ * theme. Note: the theme is fixed at editor-creation time — toggling the site
+ * theme mid-session recolors code blocks only after a reload (the extension's
+ * own `'auto'` follows OS `prefers-color-scheme`, not the in-app MUI toggle, so
+ * we pass the explicit mode instead of re-creating the collaborative editor).
+ */
 export function buildCodeBlockPro(mode: ColorMode) {
   return CodeBlockPro.configure({
     lowlight: buildCodeBlockLowlight(),

@@ -36,7 +36,6 @@
     "@tiptap-codeless/extension-code-block-pro": "^1.0.0",
     "@tiptap-codeless/extension-file-upload": "^0.1.1",
     "@tiptap/core": "^3.22.3",
-    "@tiptap/extension-code-block-lowlight": "^3.22.3",
     "@tiptap/extension-collaboration": "^3.22.3",
     "@tiptap/extension-collaboration-caret": "^3.22.3",
     "@tiptap/extension-drag-handle": "^3.22.3",

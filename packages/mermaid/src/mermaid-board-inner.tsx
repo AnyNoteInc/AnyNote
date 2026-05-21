@@ -92,6 +92,9 @@ export function MermaidBoardInner({
         <MermaidSourceEditor ytext={resources.ytext} provider={resources.provider} mode={mode} editable={editable} />
       </Box>
       <Box
+        role="separator"
+        aria-orientation="vertical"
+        aria-label="Изменить ширину панелей"
         onMouseDown={startDrag}
         data-testid="mermaid-divider"
         sx={{ width: '6px', cursor: 'col-resize', flexShrink: 0, bgcolor: 'divider', '&:hover': { bgcolor: 'primary.main' } }}
