@@ -7,7 +7,7 @@ import { useTheme } from '@mui/material/styles'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { renderMermaid, type RenderResult } from '@repo/mermaid/render-mermaid'
 
 function CopyButton({ source }: { source: string }) {
@@ -42,14 +42,16 @@ function CodeBlockView({ node }: NodeViewProps) {
   const [view, setView] = useState<'code' | 'preview'>('code')
   const [svg, setSvg] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const idRef = useRef(`cb-mermaid-${Math.random().toString(36).slice(2)}`)
   const source = node.textContent
   const showPreview = isMermaid && view === 'preview'
 
   useEffect(() => {
     if (!showPreview) return
     let cancelled = false
-    void renderMermaid(idRef.current, source, mode).then((result: RenderResult) => {
+    // Fresh id per render: reusing one id makes mermaid.render throw an
+    // "element already exists" error across repeated renders (cf. mermaid-preview.tsx).
+    const renderId = `cb-mermaid-${Math.random().toString(36).slice(2)}`
+    void renderMermaid(renderId, source, mode).then((result: RenderResult) => {
       if (cancelled) return
       if (result.ok) {
         setSvg(result.svg)
