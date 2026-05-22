@@ -14,8 +14,7 @@ import { renderMermaid, type RenderResult } from '@repo/mermaid/render-mermaid'
 type CodeLanguage = { value: string; label: string }
 
 // Curated list for the in-block language picker. '' = Авто (lowlight auto-detects
-// via highlightAuto). mermaid/plantuml/d2 set the diagram language — mermaid also
-// gets the Код↔Просмотр preview toggle.
+// via highlightAuto). 'mermaid' also gets the Код↔Просмотр preview toggle.
 const CODE_LANGUAGES: CodeLanguage[] = [
   { value: '', label: 'Авто' },
   { value: 'bash', label: 'Bash' },
@@ -24,22 +23,11 @@ const CODE_LANGUAGES: CodeLanguage[] = [
   { value: 'python', label: 'Python' },
   { value: 'javascript', label: 'JavaScript' },
   { value: 'typescript', label: 'TypeScript' },
-  { value: 'java', label: 'Java' },
-  { value: 'go', label: 'Go' },
-  { value: 'rust', label: 'Rust' },
-  { value: 'c', label: 'C' },
-  { value: 'cpp', label: 'C++' },
-  { value: 'csharp', label: 'C#' },
-  { value: 'php', label: 'PHP' },
-  { value: 'ruby', label: 'Ruby' },
   { value: 'sql', label: 'SQL' },
   { value: 'html', label: 'HTML' },
   { value: 'css', label: 'CSS' },
-  { value: 'markdown', label: 'Markdown' },
   { value: 'xml', label: 'XML' },
   { value: 'mermaid', label: 'Mermaid' },
-  { value: 'plantuml', label: 'PlantUML' },
-  { value: 'd2', label: 'd2' },
 ]
 
 function CopyButton({ source }: { source: string }) {
@@ -98,10 +86,12 @@ function LanguageSelect({ value, onChange }: { value: string; onChange: (next: s
 function CodeBlockView({ node, updateAttributes }: NodeViewProps) {
   const isMermaid = node.attrs.language === 'mermaid'
   const mode = useTheme().palette.mode
-  const [view, setView] = useState<'code' | 'preview'>('code')
+  const source = node.textContent
+  // Default an existing (non-empty) block to the rendered preview; a freshly
+  // inserted empty block opens in Код so the author can type the source first.
+  const [view, setView] = useState<'code' | 'preview'>(() => (source.trim() ? 'preview' : 'code'))
   const [svg, setSvg] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const source = node.textContent
   const showPreview = isMermaid && view === 'preview'
 
   useEffect(() => {
