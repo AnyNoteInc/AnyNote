@@ -28,7 +28,7 @@ async function typeIntoMonaco(page: Page, text: string) {
 
 test('renders a plantuml diagram from typed source', async ({ page }) => {
   await setupPlantumlPage(page)
-  await typeIntoMonaco(page, '@startuml\nAlice -> Bob: hi\n@enduml')
+  await typeIntoMonaco(page, '@startuml\nAlice->Bob : Hello\nreturn ok\n@enduml')
 
   const svg = page.locator('[data-testid="plantuml-preview"] svg')
   await expect(svg).toBeVisible({ timeout: 20_000 })
@@ -36,7 +36,7 @@ test('renders a plantuml diagram from typed source', async ({ page }) => {
 
 test('export SVG control is present once a plantuml diagram renders', async ({ page }) => {
   await setupPlantumlPage(page)
-  await typeIntoMonaco(page, '@startuml\nAlice -> Bob: hi\n@enduml')
+  await typeIntoMonaco(page, '@startuml\nAlice->Bob : Hello\nreturn ok\n@enduml')
   await expect(page.locator('[data-testid="plantuml-preview"] svg')).toBeVisible({ timeout: 20_000 })
   await expect(page.locator('[data-testid="plantuml-export-svg"]')).toBeVisible()
 })
