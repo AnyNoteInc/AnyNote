@@ -6,6 +6,7 @@ import type { ColorMode, RenderResult } from '@repo/diagram-board/render-types'
  * `id`/`mode` satisfy the DiagramRenderer contract but are unused — the server
  * renders the source as-is. Empty source short-circuits with no request.
  */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function renderPlantuml(_id: string, source: string, _mode: ColorMode): Promise<RenderResult> {
   if (!source.trim()) return { ok: true, svg: '' }
   try {
