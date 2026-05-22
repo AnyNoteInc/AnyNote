@@ -29,7 +29,7 @@ test('code block highlights syntax and exposes a copy button', async ({ page }) 
   await editor.click()
   await editor.press('/')
   await page.keyboard.type('код')
-  await page.getByText('Код', { exact: true }).click()
+  await page.getByRole('button', { name: 'Код', exact: true }).click()
   await page.keyboard.type('def hello():\n    return 1')
 
   // lowlight auto-detects the language and emits highlight.js token spans;
@@ -39,4 +39,19 @@ test('code block highlights syntax and exposes a copy button', async ({ page }) 
   })
   // the custom node view renders a copy button to the right of the block
   await expect(page.getByTestId('code-block-copy').first()).toBeVisible()
+})
+
+test('mermaid code block toggles to a rendered preview', async ({ page }) => {
+  const editor = await setupTextPage(page)
+  await editor.click()
+  await editor.press('/')
+  await page.keyboard.type('mermaid')
+  await page.getByRole('button', { name: 'Mermaid' }).click()
+  await page.keyboard.type('graph TD; A-->B;')
+
+  // toolbar toggle switches the block from source to a rendered diagram
+  await page.getByRole('button', { name: 'Просмотр' }).click()
+  await expect(page.locator('.anynote-code-block__preview svg').first()).toBeVisible({
+    timeout: 15_000,
+  })
 })
