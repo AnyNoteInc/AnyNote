@@ -209,6 +209,9 @@ importers:
       '@repo/notifications':
         specifier: workspace:*
         version: link:../../packages/notifications
+      '@repo/plantuml':
+        specifier: workspace:*
+        version: link:../../packages/plantuml
       '@repo/storage':
         specifier: workspace:*
         version: link:../../packages/storage

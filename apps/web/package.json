@@ -24,6 +24,7 @@
     "@repo/genogram": "workspace:*",
     "@repo/mail": "workspace:*",
     "@repo/mermaid": "workspace:*",
+    "@repo/plantuml": "workspace:*",
     "@repo/notifications": "workspace:*",
     "@repo/storage": "workspace:*",
     "@repo/trpc": "workspace:*",

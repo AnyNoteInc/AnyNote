@@ -52,6 +52,11 @@ const MermaidBoard = dynamic(() => import('@repo/mermaid').then((m) => m.Mermaid
   loading: () => <CenteredSpinner />,
 })
 
+const PlantumlBoard = dynamic(() => import('@repo/plantuml').then((m) => m.PlantumlBoard), {
+  ssr: false,
+  loading: () => <CenteredSpinner />,
+})
+
 const KanbanBoardPage = dynamic(
   () => import('@/components/kanban/kanban-board-page').then((m) => m.KanbanBoardPage),
   { ssr: false, loading: () => <CenteredSpinner /> },
@@ -365,6 +370,18 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
   if (page.type === 'MERMAID') {
     return (
       <MermaidBoard
+        pageId={page.id}
+        initialContentYjs={page.contentYjs}
+        yjsUrl={resolveYjsUrl()}
+        yjsToken={fetchYjsToken}
+        user={user}
+      />
+    )
+  }
+
+  if (page.type === 'PLANTUML') {
+    return (
+      <PlantumlBoard
         pageId={page.id}
         initialContentYjs={page.contentYjs}
         yjsUrl={resolveYjsUrl()}
