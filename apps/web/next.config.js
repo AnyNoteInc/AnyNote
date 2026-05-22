@@ -29,6 +29,7 @@ const nextConfig = {
     '@repo/genogram',
     '@repo/diagram-board',
     '@repo/mermaid',
+    '@repo/plantuml',
     '@repo/yookassa',
   ],
   experimental: {

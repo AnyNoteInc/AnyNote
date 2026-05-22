@@ -932,6 +932,43 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.17)(happy-dom@20.9.0)(jiti@2.6.1)(jsdom@26.1.0)(sass@1.51.0)(terser@5.46.1)(tsx@4.21.0)(yaml@1.10.3)
 
+  packages/plantuml:
+    dependencies:
+      '@repo/diagram-board':
+        specifier: workspace:*
+        version: link:../diagram-board
+      monaco-editor:
+        specifier: ^0.52.2
+        version: 0.52.2
+      react:
+        specifier: ^19.2.0
+        version: 19.2.5
+    devDependencies:
+      '@repo/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/react':
+        specifier: ^19.2.2
+        version: 19.2.2
+      '@types/react-dom':
+        specifier: ^19.2.2
+        version: 19.2.2(@types/react@19.2.2)
+      eslint:
+        specifier: ^9.39.1
+        version: 9.39.4(jiti@2.6.1)
+      next:
+        specifier: ^16.0.0
+        version: 16.2.0(@opentelemetry/api@1.9.1)(@playwright/test@1.59.1)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(sass@1.51.0)
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.2
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.17)(happy-dom@20.9.0)(jiti@2.6.1)(jsdom@26.1.0)(sass@1.51.0)(terser@5.46.1)(tsx@4.21.0)(yaml@1.10.3)
+
   packages/storage:
     dependencies:
       '@aws-sdk/client-s3':
