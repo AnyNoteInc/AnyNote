@@ -14,6 +14,7 @@ export default defineConfig({
       PLAYWRIGHT: 'true',
       YOOKASSA_MOCK_ENABLED: 'true',
       YOOKASSA_RETURN_URL_BASE: 'http://localhost:3100',
+      PLANTUML_URL: process.env.PLANTUML_URL ?? 'http://localhost:3002',
       // Agent OS — pass through from the outer shell if set.
       // These are needed by the chat API route (agents proxy) and the
       // encryptFixture helper in agent-qa-citations.spec.ts.
