@@ -10,6 +10,7 @@ import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap
 import type { NodeViewProps } from '@tiptap/react'
 import { useCallback, useEffect, useState } from 'react'
 import { renderMermaid, type RenderResult } from '@repo/mermaid/render-mermaid'
+import { renderPlantuml } from '@repo/plantuml/render-plantuml'
 
 type CodeLanguage = { value: string; label: string }
 
@@ -28,6 +29,7 @@ const CODE_LANGUAGES: CodeLanguage[] = [
   { value: 'css', label: 'CSS' },
   { value: 'xml', label: 'XML' },
   { value: 'mermaid', label: 'Mermaid' },
+  { value: 'plantuml', label: 'PlantUML' },
 ]
 
 function CopyButton({ source }: { source: string }) {
@@ -85,6 +87,8 @@ function LanguageSelect({ value, onChange }: { value: string; onChange: (next: s
 
 function CodeBlockView({ node, updateAttributes }: NodeViewProps) {
   const isMermaid = node.attrs.language === 'mermaid'
+  const isPlantuml = node.attrs.language === 'plantuml'
+  const isDiagram = isMermaid || isPlantuml
   const mode = useTheme().palette.mode
   const source = node.textContent
   // Default an existing (non-empty) block to the rendered preview; a freshly
@@ -92,15 +96,17 @@ function CodeBlockView({ node, updateAttributes }: NodeViewProps) {
   const [view, setView] = useState<'code' | 'preview'>(() => (source.trim() ? 'preview' : 'code'))
   const [svg, setSvg] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const showPreview = isMermaid && view === 'preview'
+  const showPreview = isDiagram && view === 'preview'
 
   useEffect(() => {
     if (!showPreview) return
     let cancelled = false
-    // Fresh id per render: reusing one id makes mermaid.render throw an
-    // "element already exists" error across repeated renders (cf. mermaid-preview.tsx).
-    const renderId = `cb-mermaid-${Math.random().toString(36).slice(2)}`
-    void renderMermaid(renderId, source, mode).then((result: RenderResult) => {
+    // mermaid renders client-side; plantuml renders server-side via the proxy
+    // (renderPlantuml POSTs to /api/plantuml/render). Fresh id per render avoids
+    // mermaid's "element already exists" error across repeated renders.
+    const render = isPlantuml ? renderPlantuml : renderMermaid
+    const renderId = `cb-diagram-${Math.random().toString(36).slice(2)}`
+    void render(renderId, source, mode).then((result: RenderResult) => {
       if (cancelled) return
       if (result.ok) {
         setSvg(result.svg)
@@ -112,7 +118,7 @@ function CodeBlockView({ node, updateAttributes }: NodeViewProps) {
     return () => {
       cancelled = true
     }
-  }, [showPreview, source, mode])
+  }, [showPreview, isPlantuml, source, mode])
 
   return (
     <NodeViewWrapper className="anynote-code-block" data-language={node.attrs.language ?? undefined}>
@@ -137,7 +143,7 @@ function CodeBlockView({ node, updateAttributes }: NodeViewProps) {
           value={(node.attrs.language as string | null) ?? ''}
           onChange={(next) => updateAttributes({ language: next || null })}
         />
-        {isMermaid && (
+        {isDiagram && (
           <ToggleButtonGroup
             size="small"
             exclusive

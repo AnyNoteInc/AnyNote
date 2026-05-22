@@ -550,6 +550,9 @@ importers:
       '@repo/mermaid':
         specifier: workspace:*
         version: link:../mermaid
+      '@repo/plantuml':
+        specifier: workspace:*
+        version: link:../plantuml
       '@repo/ui':
         specifier: workspace:*
         version: link:../ui
