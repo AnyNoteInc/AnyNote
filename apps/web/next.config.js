@@ -27,6 +27,7 @@ const nextConfig = {
     '@repo/editor',
     '@repo/excalidraw',
     '@repo/genogram',
+    '@repo/diagram-board',
     '@repo/mermaid',
     '@repo/yookassa',
   ],
