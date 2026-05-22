@@ -1,0 +1,42 @@
+import { type Page, expect, test } from '@playwright/test'
+import { signUpAndAuthAs } from './helpers/auth'
+
+const password = 'SuperSecure123!'
+
+async function setupTextPage(page: Page) {
+  const email = `codeblock+${Date.now()}@example.com`
+  await signUpAndAuthAs(page, { email, password, firstName: 'Тест', lastName: 'Тест' })
+  await page.getByRole('textbox', { name: 'Название' }).fill('CodeBlock WS')
+  await page.getByRole('button', { name: 'Создать пространство' }).click()
+  // Wait for the /chats redirect to settle before switching sections (the
+  // pathname→section sync would otherwise revert the section mid-click).
+  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/chats/, { timeout: 30_000 })
+
+  await page.getByRole('button', { name: 'Страницы' }).click()
+  const createBtn = page.getByRole('button', { name: 'Новая страница' })
+  await expect(createBtn).toBeVisible()
+  await createBtn.click()
+  await page.getByRole('menuitem', { name: 'Текст' }).click()
+  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
+
+  const editor = page.locator('.anynote-editor .ProseMirror')
+  await expect(editor).toBeVisible({ timeout: 15_000 })
+  return editor
+}
+
+test('code block highlights syntax and exposes a copy button', async ({ page }) => {
+  const editor = await setupTextPage(page)
+  await editor.click()
+  await editor.press('/')
+  await page.keyboard.type('код')
+  await page.getByText('Код', { exact: true }).click()
+  await page.keyboard.type('def hello():\n    return 1')
+
+  // lowlight auto-detects the language and emits highlight.js token spans;
+  // the content.css theme colors them.
+  await expect(page.locator('.anynote-editor .hljs-keyword').first()).toBeVisible({
+    timeout: 10_000,
+  })
+  // the custom node view renders a copy button to the right of the block
+  await expect(page.getByTestId('code-block-copy').first()).toBeVisible()
+})

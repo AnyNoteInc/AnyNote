@@ -119,6 +119,109 @@
   padding: 0 4px;
 }
 
+/* Code block: custom node view (copy button) + highlight.js syntax colors.
+   lowlight emits .hljs-* spans as ProseMirror decorations; without the color
+   rules below the tokens render but stay uncolored. */
+.anynote-editor .anynote-code-block {
+  position: relative;
+}
+
+.anynote-editor pre code {
+  background: none;
+  padding: 0;
+}
+
+.anynote-editor .hljs-comment,
+.anynote-editor .hljs-quote {
+  color: #6a737d;
+  font-style: italic;
+}
+.anynote-editor .hljs-keyword,
+.anynote-editor .hljs-selector-tag,
+.anynote-editor .hljs-literal,
+.anynote-editor .hljs-doctag,
+.anynote-editor .hljs-name {
+  color: #d73a49;
+}
+.anynote-editor .hljs-string,
+.anynote-editor .hljs-regexp,
+.anynote-editor .hljs-addition {
+  color: #032f62;
+}
+.anynote-editor .hljs-number,
+.anynote-editor .hljs-symbol,
+.anynote-editor .hljs-bullet,
+.anynote-editor .hljs-link {
+  color: #005cc5;
+}
+.anynote-editor .hljs-title,
+.anynote-editor .hljs-section,
+.anynote-editor .hljs-attr {
+  color: #6f42c1;
+}
+.anynote-editor .hljs-built_in,
+.anynote-editor .hljs-type,
+.anynote-editor .hljs-params,
+.anynote-editor .hljs-attribute,
+.anynote-editor .hljs-variable,
+.anynote-editor .hljs-template-variable {
+  color: #e36209;
+}
+.anynote-editor .hljs-tag {
+  color: #22863a;
+}
+.anynote-editor .hljs-meta {
+  color: #6a737d;
+}
+.anynote-editor .hljs-emphasis {
+  font-style: italic;
+}
+.anynote-editor .hljs-strong {
+  font-weight: 600;
+}
+
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-comment,
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-quote {
+  color: #8b949e;
+}
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-keyword,
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-selector-tag,
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-literal,
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-doctag,
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-name {
+  color: #ff7b72;
+}
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-string,
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-regexp,
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-addition {
+  color: #a5d6ff;
+}
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-number,
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-symbol,
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-bullet,
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-link {
+  color: #79c0ff;
+}
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-title,
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-section,
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-attr {
+  color: #d2a8ff;
+}
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-built_in,
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-type,
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-params,
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-attribute,
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-variable,
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-template-variable {
+  color: #ffa657;
+}
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-tag {
+  color: #7ee787;
+}
+[data-mui-color-scheme="dark"] .anynote-editor .hljs-meta {
+  color: #8b949e;
+}
+
 .anynote-editor hr {
   border: none;
   border-top: 1px solid var(--editor-divider, rgba(0, 0, 0, 0.12));

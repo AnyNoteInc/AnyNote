@@ -1,4 +1,3 @@
-import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import Link from '@tiptap/extension-link'
 import { Table } from '@tiptap/extension-table'
 import TableCell from '@tiptap/extension-table-cell'
@@ -14,6 +13,7 @@ import type * as Y from 'yjs'
 import { BlockBackground } from './block-background'
 import { BlockIndexAttributes } from './block-index-attributes'
 import { Callout } from './callout'
+import { CodeBlock } from './code-block'
 import { buildCollaboration } from './collaboration'
 import { Column, ColumnLayout } from './column-layout'
 import { DropPlacement } from './drop-placement'
@@ -44,7 +44,7 @@ export type BuildExtensionsOptions = {
 }
 
 export const buildExtensions = (opts: BuildExtensionsOptions) => [
-  StarterKit.configure({ undoRedo: false, dropcursor: false }),
+  StarterKit.configure({ undoRedo: false, dropcursor: false, codeBlock: false }),
   buildPlaceholder(opts.placeholder),
   Link.configure({ openOnClick: false }),
   Typography,
@@ -57,7 +57,7 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   TableRow,
   TableHeader,
   TableCell,
-  CodeBlockLowlight.configure({ lowlight }),
+  CodeBlock.configure({ lowlight }),
   Callout,
   Toggle,
   HiddenText,
