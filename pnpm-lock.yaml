@@ -848,18 +848,6 @@ importers:
 
   packages/mermaid:
     dependencies:
-      '@hocuspocus/provider':
-        specifier: ^3.4.4
-        version: 3.4.4(y-protocols@1.0.7(yjs@13.6.30))(yjs@13.6.30)
-      '@monaco-editor/react':
-        specifier: ^4.7.0
-        version: 4.7.0(monaco-editor@0.52.2)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      '@mui/icons-material':
-        specifier: ^7.3.10
-        version: 7.3.10(@mui/material@7.3.10(@emotion/react@11.14.0(@types/react@19.2.2)(react@19.2.5))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.2)(react@19.2.5))(@types/react@19.2.2)(react@19.2.5))(@types/react@19.2.2)(react-dom@19.2.5(react@19.2.5))(react@19.2.5))(@types/react@19.2.2)(react@19.2.5)
-      '@mui/material':
-        specifier: ^7.3.10
-        version: 7.3.10(@emotion/react@11.14.0(@types/react@19.2.2)(react@19.2.5))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.2)(react@19.2.5))(@types/react@19.2.2)(react@19.2.5))(@types/react@19.2.2)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
       '@repo/diagram-board':
         specifier: workspace:*
         version: link:../diagram-board
@@ -872,15 +860,6 @@ importers:
       react:
         specifier: ^19.2.0
         version: 19.2.5
-      react-zoom-pan-pinch:
-        specifier: ^3.7.0
-        version: 3.7.0(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      y-monaco:
-        specifier: ^0.1.6
-        version: 0.1.6(monaco-editor@0.52.2)(yjs@13.6.30)
-      yjs:
-        specifier: ^13.6.30
-        version: 13.6.30
     devDependencies:
       '@repo/eslint-config':
         specifier: workspace:*

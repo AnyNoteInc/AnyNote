@@ -34,7 +34,8 @@ export async function renderPlantumlSvg(source: string): Promise<string> {
   }
 
   const body = await res.text()
-  const looksLikeSvg = body.includes('<svg')
+  const contentType = res.headers.get('content-type') ?? ''
+  const looksLikeSvg = contentType.includes('svg') || body.includes('<svg')
   if (res.ok || (res.status >= 400 && res.status < 500 && looksLikeSvg)) {
     if (!looksLikeSvg) throw new PlantumlUpstreamError(res.status, body.slice(0, 500))
     return body

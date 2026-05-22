@@ -1,7 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { renderPlantumlSvg } from '../src/server/plantuml/render'
-import { PlantumlTimeoutError, PlantumlUpstreamError } from '../src/server/plantuml/errors'
+import { PlantumlTimeoutError, PlantumlUnreachableError, PlantumlUpstreamError } from '../src/server/plantuml/errors'
 
 beforeEach(() => {
   process.env.PLANTUML_URL = 'http://plantuml.test'
@@ -29,5 +29,15 @@ describe('renderPlantumlSvg', () => {
   it('throws PlantumlTimeoutError when fetch aborts', async () => {
     vi.spyOn(globalThis, 'fetch').mockRejectedValue(Object.assign(new Error('t'), { name: 'TimeoutError' }))
     await expect(renderPlantumlSvg('x')).rejects.toBeInstanceOf(PlantumlTimeoutError)
+  })
+
+  it('throws PlantumlUnreachableError on a generic fetch failure', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new Error('ECONNREFUSED'))
+    await expect(renderPlantumlSvg('x')).rejects.toBeInstanceOf(PlantumlUnreachableError)
+  })
+
+  it('throws PlantumlUpstreamError on a non-SVG 4xx', async () => {
+    vi.spyOn(globalThis, 'fetch').mockResolvedValue(new Response('Bad Request', { status: 400 }))
+    await expect(renderPlantumlSvg('x')).rejects.toBeInstanceOf(PlantumlUpstreamError)
   })
 })
