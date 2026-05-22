@@ -87,6 +87,20 @@ services:
       timeout: 3s
       retries: 5
 
+  plantuml:
+    image: plantuml/plantuml-server:jetty
+    restart: unless-stopped
+    # No port mapping: plantuml-server has no built-in auth, so we keep it on the
+    # internal compose network. Reached by `web` at http://plantuml:8080 via the
+    # /api/plantuml/render proxy.
+    environment:
+      PLANTUML_SECURITY_PROFILE: SANDBOX
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:8080/ >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
   migrate:
     image: ghcr.io/anynoteinc/anynote-web:latest
     restart: "no"
@@ -114,6 +128,8 @@ services:
       agents:
         condition: service_started
       gotenberg:
+        condition: service_started
+      plantuml:
         condition: service_started
     # Routing via traefik file provider in deploy/traefik/dynamic/routers.yml.
 
