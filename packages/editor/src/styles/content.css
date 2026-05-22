@@ -126,6 +126,27 @@
   position: relative;
 }
 
+.anynote-editor .anynote-code-block__preview {
+  display: flex;
+  justify-content: center;
+  padding: 12px;
+  overflow: auto;
+}
+.anynote-editor .anynote-code-block__preview svg {
+  max-width: 100%;
+  height: auto;
+}
+.anynote-editor .anynote-code-block__error {
+  width: 100%;
+  padding: 8px 10px;
+  border-radius: 6px;
+  background: var(--editor-code-bg, rgba(0, 0, 0, 0.04));
+  color: #d73a49;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.8rem;
+  white-space: pre-wrap;
+}
+
 .anynote-editor pre code {
   background: none;
   padding: 0;

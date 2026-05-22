@@ -8,6 +8,11 @@
       "import": "./src/index.ts",
       "default": "./src/index.ts"
     },
+    "./render-mermaid": {
+      "types": "./src/render-mermaid.ts",
+      "import": "./src/render-mermaid.ts",
+      "default": "./src/render-mermaid.ts"
+    },
     "./*": {
       "types": "./src/*",
       "import": "./src/*",
