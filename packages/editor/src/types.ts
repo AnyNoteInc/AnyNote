@@ -20,7 +20,7 @@ export type PageLookupItem = {
   icon: string | null
 }
 
-export type SlashCommandGroup = 'base' | 'media'
+export type SlashCommandGroup = 'base' | 'code' | 'media'
 
 export type SlashRange = { from: number; to: number }
 

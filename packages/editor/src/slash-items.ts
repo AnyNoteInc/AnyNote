@@ -115,11 +115,38 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
   },
   {
     id: 'code',
-    group: 'base',
+    group: 'code',
     label: 'Код',
     keywords: ['code', 'pre', 'код'],
     icon: createElement(CodeIcon),
     run: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleCodeBlock().run(),
+  },
+  {
+    id: 'mermaid',
+    group: 'code',
+    label: 'Mermaid',
+    keywords: ['mermaid', 'diagram', 'диаграмма', 'схема'],
+    icon: createElement(CodeIcon),
+    run: ({ editor, range }) =>
+      editor.chain().focus().deleteRange(range).setCodeBlock({ language: 'mermaid' }).run(),
+  },
+  {
+    id: 'plantuml',
+    group: 'code',
+    label: 'PlantUML',
+    keywords: ['plantuml', 'uml', 'диаграмма'],
+    icon: createElement(CodeIcon),
+    run: ({ editor, range }) =>
+      editor.chain().focus().deleteRange(range).setCodeBlock({ language: 'plantuml' }).run(),
+  },
+  {
+    id: 'd2',
+    group: 'code',
+    label: 'd2',
+    keywords: ['d2', 'diagram', 'диаграмма'],
+    icon: createElement(CodeIcon),
+    run: ({ editor, range }) =>
+      editor.chain().focus().deleteRange(range).setCodeBlock({ language: 'd2' }).run(),
   },
   {
     id: 'divider',
