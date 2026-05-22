@@ -69,3 +69,17 @@ test('code block language picker sets the highlight language', async ({ page }) 
   await page.getByRole('option', { name: 'Python', exact: true }).click()
   await expect(page.locator('.anynote-code-block[data-language="python"]')).toBeVisible()
 })
+
+test('plantuml code block toggles to a rendered preview', async ({ page }) => {
+  const editor = await setupTextPage(page)
+  await editor.click()
+  await editor.press('/')
+  await page.keyboard.type('plantuml')
+  await page.getByRole('button', { name: 'PlantUML' }).click()
+  await page.keyboard.type('@startuml\nAlice->Bob: hi\n@enduml')
+
+  await page.getByRole('button', { name: 'Просмотр' }).click()
+  await expect(page.locator('.anynote-code-block__preview svg').first()).toBeVisible({
+    timeout: 20_000,
+  })
+})

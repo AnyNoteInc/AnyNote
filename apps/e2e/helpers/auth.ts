@@ -94,6 +94,15 @@ export async function signUpAndAuthAs(page: Page, args: SignUpAndAuthArgs): Prom
   if (!user) throw new Error(`signUpAndAuthAs: user row never appeared for ${email}`)
   await prisma.user.update({ where: { email }, data: { emailVerified: true } })
 
+  // The databaseHooks.user.create.after hook creates the subscription
+  // asynchronously. Poll until it appears so workspace creation never hits
+  // "User X has no active subscription" when the hook is slow.
+  for (let i = 0; i < 50; i += 1) {
+    const sub = await prisma.subscription.findFirst({ where: { userId: user.id } })
+    if (sub) break
+    await new Promise((r) => setTimeout(r, 100))
+  }
+
   // Sign-up writes 5 consent rows via the tRPC procedure. Backfill if absent so
   // the user always passes the (protected) layout consent gate.
   const consentCount = await prisma.userConsent.count({ where: { userId: user.id } })
