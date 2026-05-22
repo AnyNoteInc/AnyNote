@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import * as Y from 'yjs'
 import { HocuspocusProvider } from '@hocuspocus/provider'
 
-export type MermaidYjsResources = {
+export type DiagramYjsResources = {
   ydoc: Y.Doc
   provider: HocuspocusProvider
   ytext: Y.Text
@@ -13,16 +13,17 @@ export type MermaidYjsResources = {
 /**
  * Create the Y.Doc + HocuspocusProvider inside useEffect (not useState init) so
  * React StrictMode's mount→unmount→remount doesn't leave destroyed resources in
- * state. The mermaid source is a single Y.Text root named 'mermaid'.
+ * state. The diagram source is a single Y.Text root named `docName`.
  */
-export function useMermaidYjs(args: {
+export function useDiagramYjs(args: {
   pageId: string
   yjsUrl: string
   yjsToken: () => Promise<string>
   initialContentYjs?: string | null
-}): MermaidYjsResources | null {
-  const { pageId, yjsUrl, yjsToken, initialContentYjs } = args
-  const [resources, setResources] = useState<MermaidYjsResources | null>(null)
+  docName: string
+}): DiagramYjsResources | null {
+  const { pageId, yjsUrl, yjsToken, initialContentYjs, docName } = args
+  const [resources, setResources] = useState<DiagramYjsResources | null>(null)
 
   useEffect(() => {
     const ydoc = new Y.Doc()
@@ -30,7 +31,7 @@ export function useMermaidYjs(args: {
       const bytes = Uint8Array.from(atob(initialContentYjs), (c) => c.charCodeAt(0))
       Y.applyUpdate(ydoc, bytes)
     }
-    const ytext = ydoc.getText('mermaid')
+    const ytext = ydoc.getText(docName)
     const provider = new HocuspocusProvider({ url: yjsUrl, name: pageId, document: ydoc, token: yjsToken })
     setResources({ ydoc, provider, ytext })
     return () => {
@@ -41,7 +42,7 @@ export function useMermaidYjs(args: {
         ydoc.destroy()
       }, 300)
     }
-  }, [pageId, yjsUrl, yjsToken, initialContentYjs])
+  }, [pageId, yjsUrl, yjsToken, initialContentYjs, docName])
 
   return resources
 }

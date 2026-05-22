@@ -1,16 +1,20 @@
 'use client'
 
-import dynamic from 'next/dynamic'
+import { DiagramBoard, type DiagramConfig } from '@repo/diagram-board'
 
+import { renderMermaid } from './render-mermaid'
+import { MERMAID_LANGUAGE_ID, registerMermaidLanguage } from './mermaid-language'
 import type { MermaidBoardProps } from './types'
 
-// Monaco + mermaid touch window/document at module-eval time, so the inner
-// component is loaded via next/dynamic with ssr:false.
-const MermaidBoardInnerDynamic = dynamic(
-  () => import('./mermaid-board-inner').then((m) => m.MermaidBoardInner),
-  { ssr: false },
-)
+const mermaidConfig: DiagramConfig = {
+  docName: 'mermaid',
+  languageId: MERMAID_LANGUAGE_ID,
+  registerLanguage: registerMermaidLanguage,
+  render: renderMermaid,
+  idPrefix: 'mermaid',
+  placeholder: 'graph TD;\n  A --> B;',
+}
 
 export function MermaidBoard(props: MermaidBoardProps) {
-  return <MermaidBoardInnerDynamic {...props} />
+  return <DiagramBoard config={mermaidConfig} {...props} />
 }

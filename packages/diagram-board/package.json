@@ -8,6 +8,11 @@
       "import": "./src/index.ts",
       "default": "./src/index.ts"
     },
+    "./render-types": {
+      "types": "./src/render-types.ts",
+      "import": "./src/render-types.ts",
+      "default": "./src/render-types.ts"
+    },
     "./*": {
       "types": "./src/*",
       "import": "./src/*",

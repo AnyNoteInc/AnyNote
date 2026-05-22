@@ -1,1 +1,6 @@
-export {}
+export { DiagramBoard } from './board'
+export { configureMonaco } from './monaco-env'
+export { monacoThemeForMode } from './theme'
+export * from './export'
+export type { DiagramBoardProps, DiagramUser, DiagramConfig } from './types'
+export type { ColorMode, RenderResult, DiagramRenderer } from './render-types'

@@ -1,9 +1,9 @@
 import mermaid from 'mermaid'
 
-import type { ColorMode } from './mermaid-theme'
+import type { ColorMode, RenderResult } from '@repo/diagram-board/render-types'
 import { mermaidThemeForMode } from './mermaid-theme'
 
-export type RenderResult = { ok: true; svg: string } | { ok: false; error: string }
+export type { RenderResult }
 
 let lastTheme: ColorMode | null = null
 

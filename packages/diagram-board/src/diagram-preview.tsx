@@ -11,16 +11,17 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import { TransformWrapper, TransformComponent, type ReactZoomPanPinchRef } from 'react-zoom-pan-pinch'
 import type * as Y from 'yjs'
 
-import { renderMermaid } from './render-mermaid'
 import { downloadFilename, svgStringToDataUrl, svgToPngBlob, triggerDownload } from './export'
-import type { ColorMode } from './mermaid-theme'
+import type { ColorMode, DiagramRenderer } from './render-types'
 
 type Props = {
   ytext: Y.Text
   mode: ColorMode
+  render: DiagramRenderer
+  idPrefix: string
 }
 
-export function MermaidPreview({ ytext, mode }: Props) {
+export function DiagramPreview({ ytext, mode, render, idPrefix }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const zoomRef = useRef<ReactZoomPanPinchRef>(null)
   const [error, setError] = useState<string | null>(null)
@@ -33,8 +34,8 @@ export function MermaidPreview({ ytext, mode }: Props) {
       if (source === lastSource.current) return // skip no-op updates (remote sync, undo-to-same)
       lastSource.current = source
       const gen = ++genRef.current
-      const id = `mermaid-svg-${Math.random().toString(36).slice(2)}`
-      const result = await renderMermaid(id, source, mode)
+      const id = `${idPrefix}-svg-${Math.random().toString(36).slice(2)}`
+      const result = await render(id, source, mode)
       if (genRef.current !== gen) return // superseded by a newer render
       if (result.ok) {
         setError(null)
@@ -44,7 +45,7 @@ export function MermaidPreview({ ytext, mode }: Props) {
         setError(result.error)
       }
     },
-    [mode],
+    [mode, render, idPrefix],
   )
 
   useEffect(() => {
@@ -81,7 +82,6 @@ export function MermaidPreview({ ytext, mode }: Props) {
     if (!blob) return
     const url = URL.createObjectURL(blob)
     triggerDownload(url, downloadFilename('png'))
-    // Revoke after the download has started; immediate revocation can cancel it.
     setTimeout(() => URL.revokeObjectURL(url), 10_000)
   }
 
@@ -108,7 +108,7 @@ export function MermaidPreview({ ytext, mode }: Props) {
           <IconButton size="small" onClick={() => zoomRef.current?.resetTransform()}><FitScreenIcon fontSize="small" /></IconButton>
         </Tooltip>
         <Tooltip title="Скачать SVG">
-          <IconButton size="small" onClick={exportSvg} data-testid="mermaid-export-svg"><DownloadIcon fontSize="small" /></IconButton>
+          <IconButton size="small" onClick={exportSvg} data-testid={`${idPrefix}-export-svg`}><DownloadIcon fontSize="small" /></IconButton>
         </Tooltip>
         <Tooltip title="Скачать PNG">
           <IconButton size="small" onClick={() => void exportPng()}><ImageIcon fontSize="small" /></IconButton>
@@ -122,7 +122,7 @@ export function MermaidPreview({ ytext, mode }: Props) {
         <TransformComponent wrapperStyle={{ width: '100%', height: '100%' }} contentStyle={{ width: '100%', height: '100%' }}>
           <Box
             ref={containerRef}
-            data-testid="mermaid-preview"
+            data-testid={`${idPrefix}-preview`}
             sx={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', p: 2, '& svg': { maxWidth: 'none' } }}
           />
         </TransformComponent>
@@ -130,7 +130,7 @@ export function MermaidPreview({ ytext, mode }: Props) {
 
       {error && (
         <Box
-          data-testid="mermaid-error"
+          data-testid={`${idPrefix}-error`}
           sx={{ position: 'absolute', bottom: 8, left: 8, right: 8, zIndex: 2, bgcolor: 'error.main', color: 'error.contrastText', borderRadius: 1, p: 1 }}
         >
           <Typography variant="caption" sx={{ fontFamily: 'monospace', whiteSpace: 'pre-wrap' }}>{error}</Typography>

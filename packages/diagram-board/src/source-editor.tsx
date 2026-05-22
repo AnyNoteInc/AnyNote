@@ -5,10 +5,11 @@ import Editor, { type OnMount } from '@monaco-editor/react'
 import { MonacoBinding } from 'y-monaco'
 import type { HocuspocusProvider } from '@hocuspocus/provider'
 import type * as Y from 'yjs'
+import type * as monaco from 'monaco-editor'
 
 import { configureMonaco } from './monaco-env'
-import { MERMAID_LANGUAGE_ID, registerMermaidLanguage } from './mermaid-language'
-import { monacoThemeForMode, type ColorMode } from './mermaid-theme'
+import { monacoThemeForMode } from './theme'
+import type { ColorMode } from './render-types'
 
 configureMonaco()
 
@@ -17,16 +18,27 @@ type Props = {
   provider: HocuspocusProvider
   mode: ColorMode
   editable: boolean
+  languageId: string
+  registerLanguage: (m: typeof monaco) => void
+  placeholder?: string
 }
 
-export function MermaidSourceEditor({ ytext, provider, mode, editable }: Props) {
+export function DiagramSourceEditor({
+  ytext,
+  provider,
+  mode,
+  editable,
+  languageId,
+  registerLanguage,
+  placeholder,
+}: Props) {
   const bindingRef = useRef<MonacoBinding | null>(null)
 
   const handleMount: OnMount = (editorInstance, monaco) => {
-    registerMermaidLanguage(monaco)
+    registerLanguage(monaco)
     const model = editorInstance.getModel()
     if (!model) return
-    monaco.editor.setModelLanguage(model, MERMAID_LANGUAGE_ID)
+    monaco.editor.setModelLanguage(model, languageId)
     bindingRef.current = new MonacoBinding(
       ytext,
       model,
@@ -45,7 +57,7 @@ export function MermaidSourceEditor({ ytext, provider, mode, editable }: Props) 
   return (
     <Editor
       height="100%"
-      defaultLanguage={MERMAID_LANGUAGE_ID}
+      defaultLanguage={languageId}
       theme={monacoThemeForMode(mode)}
       onMount={handleMount}
       options={{
@@ -57,7 +69,7 @@ export function MermaidSourceEditor({ ytext, provider, mode, editable }: Props) 
         automaticLayout: true,
         tabSize: 2,
         lineNumbersMinChars: 3,
-        placeholder: 'graph TD;\n  A --> B;',
+        placeholder,
       }}
     />
   )
