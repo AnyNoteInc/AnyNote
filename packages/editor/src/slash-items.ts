@@ -122,16 +122,6 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
     run: ({ editor, range }) => editor.chain().focus().deleteRange(range).toggleCodeBlock().run(),
   },
   {
-    id: 'mermaid',
-    group: 'base',
-    label: 'Mermaid',
-    description: 'Блок с диаграммой Mermaid',
-    keywords: ['mermaid', 'diagram', 'диаграмма', 'график', 'схема'],
-    icon: createElement(CodeIcon),
-    run: ({ editor, range }) =>
-      editor.chain().focus().deleteRange(range).setCodeBlock({ language: 'mermaid' }).run(),
-  },
-  {
     id: 'divider',
     group: 'base',
     label: 'Разделитель',

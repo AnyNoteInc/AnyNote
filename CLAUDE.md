@@ -173,8 +173,6 @@ The block model has been removed; page content lives in `Page.contentYjs` (bytes
 
 `@repo/mermaid` self-hosts Monaco (no CDN): `monaco-env.ts` sets `MonacoEnvironment.getWorker` via `new Worker(new URL('monaco-editor/esm/vs/editor/editor.worker', import.meta.url), { type: 'module' })`, which both Turbopack (dev) and webpack (build) understand. `configureMonaco()` runs at module load (guarded by `typeof window`) so `loader.config({ monaco })` lands before `@monaco-editor/react` initializes.
 
-The text editor's code block is `@tiptap-codeless/extension-code-block-pro` (mermaid + lowlight for python/js/ts/bash, locale `en`, theme follows MUI mode). It self-injects its CSS (no stylesheet to import) and requires `@tiptap/core >= 3.22.5` (for `isNodeViewSelected`) — pinned via the root `pnpm.overrides` since the rest of the stack is 3.22.3. `@repo/editor` declares `highlight.js` directly (lowlight bundles it transitively, but the `highlight.js/lib/languages/*` imports need it as a real dep under pnpm).
-
 Known deviation: Excalidraw image assets are currently duplicated in S3 and in `Page.contentYjs`. See `packages/excalidraw/README.md` "Known limitations".
 
 ## Conventions that bite

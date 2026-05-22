@@ -1,3 +1,4 @@
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import Link from '@tiptap/extension-link'
 import { Table } from '@tiptap/extension-table'
 import TableCell from '@tiptap/extension-table-cell'
@@ -7,11 +8,11 @@ import TaskList from '@tiptap/extension-task-list'
 import Typography from '@tiptap/extension-typography'
 import StarterKit from '@tiptap/starter-kit'
 import type { HocuspocusProvider } from '@hocuspocus/provider'
+import { common, createLowlight } from 'lowlight'
 import type * as Y from 'yjs'
 
 import { BlockBackground } from './block-background'
 import { BlockIndexAttributes } from './block-index-attributes'
-import { buildCodeBlockPro } from './code-block-pro'
 import { Callout } from './callout'
 import { buildCollaboration } from './collaboration'
 import { Column, ColumnLayout } from './column-layout'
@@ -27,8 +28,9 @@ import { SlashMenu, type SlashMenuRender } from './slash-menu'
 import { TaskItemWithCheckbox } from './task-item-view'
 import { AnynoteTextColor } from './text-color'
 import { Toggle } from './toggle'
-import type { ColorMode } from '../theme-mode'
 import type { AnyNoteEditorUser, SlashCommandItem, UploadHandler } from '../types'
+
+const lowlight = createLowlight(common)
 
 export type BuildExtensionsOptions = {
   ydoc: Y.Doc
@@ -39,11 +41,10 @@ export type BuildExtensionsOptions = {
   slashItems: (query: string) => SlashCommandItem[]
   slashRender: () => SlashMenuRender
   onNavigateToPage: (pageId: string) => void
-  mode: ColorMode
 }
 
 export const buildExtensions = (opts: BuildExtensionsOptions) => [
-  StarterKit.configure({ undoRedo: false, dropcursor: false, codeBlock: false }),
+  StarterKit.configure({ undoRedo: false, dropcursor: false }),
   buildPlaceholder(opts.placeholder),
   Link.configure({ openOnClick: false }),
   Typography,
@@ -56,7 +57,7 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   TableRow,
   TableHeader,
   TableCell,
-  buildCodeBlockPro(opts.mode),
+  CodeBlockLowlight.configure({ lowlight }),
   Callout,
   Toggle,
   HiddenText,

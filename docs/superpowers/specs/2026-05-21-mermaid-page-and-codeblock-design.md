@@ -1,10 +1,8 @@
-# Mermaid Page Type + Tiptap Mermaid Code Block — Design Spec
+# Mermaid Page Type — Design Spec
 
 **Date:** 2026-05-21
 **Status:** Draft, awaiting user review
-**Scope:** Two independent, separately-shippable features that both render Mermaid diagrams:
-1. A new `MERMAID` page type — a split-pane collaborative page (Monaco source editor 30% / live diagram canvas 70%) backed by a new `@repo/mermaid` package, persisted through the existing Hocuspocus/Yjs pipeline.
-2. A Tiptap extension upgrade in `@repo/editor` — replace `CodeBlockLowlight` with `@tiptap-codeless/extension-code-block-pro`, which adds inline Mermaid rendering, scoped syntax highlighting (python/javascript/typescript/bash), site-synced theme, and English locale.
+**Scope:** A new `MERMAID` page type — a split-pane collaborative page (Monaco source editor 30% / live diagram canvas 70%) backed by a new `@repo/mermaid` package, persisted through the existing Hocuspocus/Yjs pipeline.
 
 ---
 
@@ -12,10 +10,8 @@
 
 ### Goals
 
-- **Feature 1:** Author Mermaid diagrams on a dedicated page. Left 30% is a Monaco editor with Mermaid syntax highlighting; right 70% is a live-rendered diagram canvas with zoom/pan and SVG/PNG export. Source text collaborates in real time via Yjs exactly like other page types (TEXT, EXCALIDRAW, GENOGRAM).
-- **Feature 2:** Inside TEXT pages, a `mermaid`-language code block renders as a diagram; code blocks for python/javascript/typescript/bash are syntax-highlighted. Code-block theme follows the site's light/dark mode. UI locale is English.
+- Author Mermaid diagrams on a dedicated page. Left 30% is a Monaco editor with Mermaid syntax highlighting; right 70% is a live-rendered diagram canvas with zoom/pan and SVG/PNG export. Source text collaborates in real time via Yjs exactly like other page types (TEXT, EXCALIDRAW, GENOGRAM).
 - Monaco is **self-hosted (bundled)** so the editor works fully offline / in an air-gapped corporate deployment — no runtime CDN dependency.
-- No regression to existing code blocks in existing TEXT documents (same `codeBlock` node name).
 
 ### Non-goals (this spec)
 
@@ -23,7 +19,6 @@
 - A visual/WYSIWYG diagram builder. The only authoring surface is the Mermaid text source.
 - Real-time collaborative cursors *inside* the Mermaid preview canvas (awareness is wired for the Monaco source editor only).
 - Seeding starter diagram content server-side. New pages open empty with a Monaco placeholder hint.
-- Changing the `@repo/editor` language set beyond the four requested languages + `mermaid`. Existing code blocks tagged with other languages render as plain (un-highlighted) text — accepted trade-off.
 
 ---
 
@@ -36,7 +31,6 @@ Browser  apps/web  /workspaces/{wsId}/pages/{pageId}
        ├─ type=GENOGRAM   → <GenogramBoard/>   (packages/genogram,   dynamic ssr:false)
        ├─ type=MERMAID    → <MermaidBoard/>     (packages/mermaid,    dynamic ssr:false)  ← NEW
        └─ type=TEXT       → <AnyNoteEditor/>    (packages/editor,     dynamic ssr:false)
-                                 └─ CodeBlockPro (mermaid + lowlight)  ← CHANGED
 
 Browser ↔ apps/yjs (WebSocket, Hocuspocus)   — unchanged transport
   onStoreDocument → persistence.ts switches on PageType:
@@ -59,7 +53,7 @@ Postgres
 
 ---
 
-## 3. Feature 1 — `MERMAID` page type
+## 3. `MERMAID` page type
 
 ### 3.1 New package `@repo/mermaid`
 
@@ -87,7 +81,7 @@ Mirrors `@repo/excalidraw`/`@repo/genogram`. Files:
 - `MonacoBinding` from `y-monaco` binds the `Y.Text` to the Monaco model; `provider.awareness` is passed for remote selection awareness.
 - `initialContentYjs` (base64) is decoded and `Y.applyUpdate`-d before binding (same flash-prevention as `@repo/excalidraw`), even though Hocuspocus also hydrates server-side.
 
-### 3.3 Monaco bundling & web workers (PRIMARY RISK — Feature 1)
+### 3.3 Monaco bundling & web workers (PRIMARY RISK)
 
 Bundled Monaco needs a web worker. Under Next 16 + Turbopack, `monaco-editor-webpack-plugin` is unavailable. Strategy:
 
@@ -140,95 +134,28 @@ No outbox enqueue (MVP). Add a `persistence.spec.ts` case asserting `content ===
 
 ---
 
-## 4. Feature 2 — `code-block-pro` in `@repo/editor`
-
-### 4.1 Dependencies
-
-Add to `packages/editor/package.json`: `@tiptap-codeless/extension-code-block-pro@^1` and `mermaid@^11`. (The `@tiptap-codeless` vendor is already in use via `extension-file-upload`.)
-
-### 4.2 New module `src/extensions/code-block-pro.ts`
-
-Register only the four requested languages on a fresh lowlight instance, configure the extension:
-
-```ts
-import { CodeBlockPro } from '@tiptap-codeless/extension-code-block-pro'
-import { createLowlight } from 'lowlight'
-import javascript from 'highlight.js/lib/languages/javascript'
-import typescript from 'highlight.js/lib/languages/typescript'
-import python from 'highlight.js/lib/languages/python'
-import bash from 'highlight.js/lib/languages/bash'
-
-const lowlight = createLowlight()
-lowlight.register('javascript', javascript)
-lowlight.register('typescript', typescript)
-lowlight.register('python', python)
-lowlight.register('bash', bash)
-
-export const buildCodeBlockPro = (mode: 'light' | 'dark') =>
-  CodeBlockPro.configure({
-    lowlight,
-    locale: 'en',
-    theme: mode,
-    languages: [/* mermaid, javascript, typescript, python, bash — LanguageConfig[] */],
-  })
-```
-
-(The exact `LanguageConfig` shape is read from the package's published types during implementation.)
-
-### 4.3 `buildExtensions` changes ([`extensions/index.ts`](../../packages/editor/src/extensions/index.ts))
-
-- `StarterKit.configure({ ..., codeBlock: false })` — disable StarterKit's built-in code block.
-- Remove `CodeBlockLowlight.configure({ lowlight })` and the `createLowlight(common)` import; add `buildCodeBlockPro(mode)`.
-- The node name stays `codeBlock`, so existing serialized code blocks keep parsing — **verify against an existing TEXT document**.
-
-### 4.4 Theme sync (PRIMARY RISK — Feature 2)
-
-The extension's `theme: 'auto'` detection mechanism is undocumented. Plan:
-
-1. Pass an explicit `theme` derived from `theme.palette.mode`.
-2. Drive code-block colors with CSS variables overridden in [`theme-bridge.tsx`](../../packages/editor/src/theme-bridge.tsx), which already toggles `data-mui-color-scheme` on `documentElement` — scope overrides to `[data-mui-color-scheme="dark"] .code-block-pro-wrapper { ... }`.
-3. Re-initialize Mermaid theme on mode change for diagrams rendered inside code blocks.
-
-Verify the real `auto`/mermaid-config behavior at the start of implementation; the CSS-variable override is the fallback (the pattern already exists in the repo). If a live theme change requires editor re-creation, prefer the CSS-variable path to avoid disrupting the collab session.
-
-### 4.5 Slash menu & locale
-
-- The existing "code block" slash command keeps working (same node).
-- Add a "Mermaid" slash item that inserts a `codeBlock` with `language: 'mermaid'`.
-- `locale: 'en'` on the extension.
-
-### 4.6 CSS
-
-Import the extension's stylesheet into the editor's CSS entry (exact path confirmed during implementation, e.g. `@tiptap-codeless/extension-code-block-pro/style.css`).
-
----
-
-## 5. Risks & mitigations
+## 4. Risks & mitigations
 
 | Risk | Mitigation |
 |---|---|
 | Monaco web worker under Next 16 + Turbopack | `new URL(..., import.meta.url)` worker pattern; spike-validate in dev + build before full build-out |
-| `code-block-pro` `theme:'auto'` mechanism unknown; mermaid theme inside code blocks | Explicit `theme` + CSS-variable overrides via `EditorThemeBridge`; re-init mermaid on mode change |
-| Replacing `CodeBlockLowlight` breaks existing code blocks | Same `codeBlock` node name; verify rendering of an existing document; covered by E2E |
-| Bundle size (Monaco + mermaid) | Both load only via `next/dynamic ssr:false`, only on the relevant page/feature; not in the marketing/RSC bundle |
+| Bundle size (Monaco + mermaid) | Both load only via `next/dynamic ssr:false`, only on the relevant page; not in the marketing/RSC bundle |
 | Mermaid `securityLevel` / XSS via diagram source | `securityLevel: 'strict'`; source is per-page collaborative content, same trust boundary as page text |
 
 ---
 
-## 6. Testing strategy
+## 5. Testing strategy
 
 - **TDD unit (vitest):**
   - `@repo/mermaid`: `mermaid-theme.ts` mapping; `export.ts` SVG→PNG / serialize; preview render wrapper with a mocked `mermaid.render` (success + reject → error state); Mermaid Monarch tokenizer smoke test.
-  - `@repo/editor`: `buildCodeBlockPro` registers exactly the four languages; `buildExtensions` includes `CodeBlockPro` and excludes the old lowlight node.
   - `apps/yjs`: `persistence.spec.ts` MERMAID snapshot case.
 - **E2E (Playwright):**
   - Create a MERMAID page, type `graph TD; A-->B;`, assert `<svg>` appears in the preview; type invalid syntax, assert the error panel; exercise an export control.
-  - In a TEXT page, insert a `mermaid` code block and a `python` code block; assert the diagram renders and python tokens are highlighted.
 - **Gates:** `pnpm gates` (check-types + lint + build + test) must pass.
 
 ---
 
-## 7. Decisions & defaults (confirmed)
+## 6. Decisions & defaults (confirmed)
 
 - Monaco: **self-hosted / bundled** (offline-safe).
 - Preview canvas: **zoom/pan + SVG/PNG export + copy**.
@@ -239,7 +166,7 @@ Import the extension's stylesheet into the editor's CSS entry (exact path confir
 
 ---
 
-## 8. File-change checklist
+## 7. File-change checklist
 
 **New (`@repo/mermaid`):** `package.json`, `tsconfig.json`, `README.md`, `src/{index,mermaid-board,mermaid-board-inner,use-mermaid-yjs,mermaid-source-editor,mermaid-preview,mermaid-theme,mermaid-language,export,types}.ts(x)` + tests.
 
@@ -252,10 +179,5 @@ Import the extension's stylesheet into the editor's CSS entry (exact path confir
 - `apps/web/src/app/(protected)/workspaces/[workspaceId]/pages/[pageId]/page.tsx`
 - `apps/yjs/src/persistence.ts` (+ `persistence.spec.ts`)
 - `packages/db/prisma/schema.prisma` (+ migration)
-- `packages/editor/package.json`
-- `packages/editor/src/extensions/index.ts` (+ new `code-block-pro.ts`)
-- `packages/editor/src/theme-bridge.tsx` (code-block CSS vars)
-- `packages/editor/src/styles/content.css` (or CSS import location)
-- `packages/editor/src/slash-items.ts` (Mermaid slash item)
 - `CLAUDE.md` (page-renderer dispatch note, transpilePackages list)
 - `apps/e2e/` (new specs)
