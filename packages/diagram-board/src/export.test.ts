@@ -7,8 +7,8 @@ describe('export helpers', () => {
     expect(url.startsWith('data:image/svg+xml;base64,')).toBe(true)
   })
 
-  it('builds a timestamped filename with the given extension', () => {
-    const name = downloadFilename('svg')
+  it('builds a timestamped filename with the given prefix and extension', () => {
+    const name = downloadFilename('mermaid', 'svg')
     expect(name).toMatch(/^mermaid-\d+\.svg$/)
   })
 })

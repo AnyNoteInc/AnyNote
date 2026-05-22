@@ -74,14 +74,14 @@ export function DiagramPreview({ ytext, mode, render, idPrefix }: Props) {
 
   const exportSvg = () => {
     if (!lastGoodSvg.current) return
-    triggerDownload(svgStringToDataUrl(lastGoodSvg.current), downloadFilename('svg'))
+    triggerDownload(svgStringToDataUrl(lastGoodSvg.current), downloadFilename(idPrefix, 'svg'))
   }
 
   const exportPng = async () => {
     const blob = await renderPngBlob()
     if (!blob) return
     const url = URL.createObjectURL(blob)
-    triggerDownload(url, downloadFilename('png'))
+    triggerDownload(url, downloadFilename(idPrefix, 'png'))
     setTimeout(() => URL.revokeObjectURL(url), 10_000)
   }
 

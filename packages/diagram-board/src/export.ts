@@ -6,9 +6,9 @@ export function svgStringToDataUrl(svg: string): string {
   return `data:image/svg+xml;base64,${btoa(binary)}`
 }
 
-/** `mermaid-<epoch-ms>.<ext>` */
-export function downloadFilename(ext: 'svg' | 'png'): string {
-  return `mermaid-${Date.now()}.${ext}`
+/** `<prefix>-<epoch-ms>.<ext>` */
+export function downloadFilename(prefix: string, ext: 'svg' | 'png'): string {
+  return `${prefix}-${Date.now()}.${ext}`
 }
 
 /** Trigger a browser download of a Blob or data URL. */
