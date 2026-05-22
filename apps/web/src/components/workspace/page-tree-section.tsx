@@ -26,12 +26,62 @@ import { PageContextMenu } from './page-context-menu'
 import { MovePageDialog } from './move-page-dialog'
 import { type PageItem, orderSiblings } from './types'
 
-type CreatablePageType = Extract<PageType, 'TEXT' | 'EXCALIDRAW' | 'GENOGRAM' | 'MERMAID' | 'KANBAN'>
+type CreatablePageType = Extract<
+  PageType,
+  'TEXT' | 'EXCALIDRAW' | 'GENOGRAM' | 'MERMAID' | 'PLANTUML' | 'KANBAN'
+>
 
 type Props = {
   workspaceId: string
   pages: PageItem[]
   favoritePageIds: Set<string>
+}
+
+function DiagramSubmenu({
+  onCreate,
+  onClose,
+}: {
+  onCreate: (type: CreatablePageType) => void
+  onClose: () => void
+}) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null)
+  const choose = (type: CreatablePageType) => {
+    onCreate(type)
+    setAnchor(null)
+    onClose()
+  }
+  return (
+    <>
+      <MenuItem onClick={(e) => setAnchor(e.currentTarget)}>
+        <ListItemIcon>
+          <SchemaIcon fontSize="small" />
+        </ListItemIcon>
+        <ListItemText primary="Диаграмма" />
+        <ChevronRightIcon fontSize="small" sx={{ ml: 'auto', color: 'text.secondary' }} />
+      </MenuItem>
+      <Menu
+        anchorEl={anchor}
+        open={Boolean(anchor)}
+        onClose={() => setAnchor(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <MenuItem onClick={() => choose('MERMAID')}>
+          <ListItemIcon>
+            <SchemaIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="MermaidJS" />
+        </MenuItem>
+        <MenuItem onClick={() => choose('PLANTUML')}>
+          <ListItemIcon>
+            <SchemaIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="PlantUML" />
+        </MenuItem>
+      </Menu>
+    </>
+  )
 }
 
 function CreatePageMenu({
@@ -94,17 +144,7 @@ function CreatePageMenu({
         </ListItemIcon>
         <ListItemText primary="Канбан" />
       </MenuItem>
-      <MenuItem
-        onClick={() => {
-          onCreate('MERMAID')
-          onClose()
-        }}
-      >
-        <ListItemIcon>
-          <SchemaIcon fontSize="small" />
-        </ListItemIcon>
-        <ListItemText primary="Диаграмма" />
-      </MenuItem>
+      <DiagramSubmenu onCreate={onCreate} onClose={onClose} />
     </Menu>
   )
 }
