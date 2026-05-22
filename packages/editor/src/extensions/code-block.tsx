@@ -2,13 +2,45 @@
 
 import CheckIcon from '@mui/icons-material/Check'
 import ContentCopyIcon from '@mui/icons-material/ContentCopy'
-import { Box, IconButton, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material'
+import { Box, IconButton, MenuItem, Select, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material'
+import type { SelectChangeEvent } from '@mui/material'
 import { useTheme } from '@mui/material/styles'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
 import { useCallback, useEffect, useState } from 'react'
 import { renderMermaid, type RenderResult } from '@repo/mermaid/render-mermaid'
+
+type CodeLanguage = { value: string; label: string }
+
+// Curated list for the in-block language picker. '' = Авто (lowlight auto-detects
+// via highlightAuto). mermaid/plantuml/d2 set the diagram language — mermaid also
+// gets the Код↔Просмотр preview toggle.
+const CODE_LANGUAGES: CodeLanguage[] = [
+  { value: '', label: 'Авто' },
+  { value: 'bash', label: 'Bash' },
+  { value: 'json', label: 'JSON' },
+  { value: 'yaml', label: 'YAML' },
+  { value: 'python', label: 'Python' },
+  { value: 'javascript', label: 'JavaScript' },
+  { value: 'typescript', label: 'TypeScript' },
+  { value: 'java', label: 'Java' },
+  { value: 'go', label: 'Go' },
+  { value: 'rust', label: 'Rust' },
+  { value: 'c', label: 'C' },
+  { value: 'cpp', label: 'C++' },
+  { value: 'csharp', label: 'C#' },
+  { value: 'php', label: 'PHP' },
+  { value: 'ruby', label: 'Ruby' },
+  { value: 'sql', label: 'SQL' },
+  { value: 'html', label: 'HTML' },
+  { value: 'css', label: 'CSS' },
+  { value: 'markdown', label: 'Markdown' },
+  { value: 'xml', label: 'XML' },
+  { value: 'mermaid', label: 'Mermaid' },
+  { value: 'plantuml', label: 'PlantUML' },
+  { value: 'd2', label: 'd2' },
+]
 
 function CopyButton({ source }: { source: string }) {
   const [copied, setCopied] = useState(false)
@@ -36,7 +68,34 @@ function CopyButton({ source }: { source: string }) {
   )
 }
 
-function CodeBlockView({ node }: NodeViewProps) {
+function LanguageSelect({ value, onChange }: { value: string; onChange: (next: string) => void }) {
+  // Map an unknown stored language onto 'Авто' so MUI doesn't warn about an out-of-range value.
+  const current = CODE_LANGUAGES.some((lang) => lang.value === value) ? value : ''
+  return (
+    <Select
+      size="small"
+      variant="standard"
+      value={current}
+      onChange={(event: SelectChangeEvent) => onChange(event.target.value)}
+      aria-label="Язык подсветки"
+      sx={{
+        fontSize: '0.7rem',
+        bgcolor: 'background.paper',
+        borderRadius: 1,
+        '&::before, &::after': { display: 'none' },
+        '& .MuiSelect-select': { py: 0.25, pl: 0.75, pr: '20px !important' },
+      }}
+    >
+      {CODE_LANGUAGES.map((lang) => (
+        <MenuItem key={lang.value || 'auto'} value={lang.value} sx={{ fontSize: '0.8rem' }}>
+          {lang.label}
+        </MenuItem>
+      ))}
+    </Select>
+  )
+}
+
+function CodeBlockView({ node, updateAttributes }: NodeViewProps) {
   const isMermaid = node.attrs.language === 'mermaid'
   const mode = useTheme().palette.mode
   const [view, setView] = useState<'code' | 'preview'>('code')
@@ -84,6 +143,10 @@ function CodeBlockView({ node }: NodeViewProps) {
           '.anynote-code-block:hover &': { opacity: 1 },
         }}
       >
+        <LanguageSelect
+          value={(node.attrs.language as string | null) ?? ''}
+          onChange={(next) => updateAttributes({ language: next || null })}
+        />
         {isMermaid && (
           <ToggleButtonGroup
             size="small"
@@ -131,10 +194,10 @@ function CodeBlockView({ node }: NodeViewProps) {
 }
 
 /**
- * CodeBlockLowlight + a React node view: a copy button on every block, and for
- * `language === 'mermaid'` a Код↔Просмотр toggle that renders the diagram
- * client-side (renderMermaid). lowlight auto-detects plain blocks (highlightAuto
- * over `common`), so no language picker is needed.
+ * CodeBlockLowlight + a React node view: every block gets a language picker and a
+ * copy button; `language === 'mermaid'` additionally gets a Код↔Просмотр toggle
+ * that renders the diagram client-side (renderMermaid). With language 'Авто' (null)
+ * lowlight auto-detects via highlightAuto over `common`.
  */
 export const CodeBlock = CodeBlockLowlight.extend({
   addNodeView() {

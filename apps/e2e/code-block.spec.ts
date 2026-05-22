@@ -55,3 +55,17 @@ test('mermaid code block toggles to a rendered preview', async ({ page }) => {
     timeout: 15_000,
   })
 })
+
+test('code block language picker sets the highlight language', async ({ page }) => {
+  const editor = await setupTextPage(page)
+  await editor.click()
+  await editor.press('/')
+  await page.keyboard.type('код')
+  await page.getByRole('button', { name: 'Код', exact: true }).click()
+  await page.keyboard.type('print(1)')
+
+  // pick a language from the in-block dropdown → sets node.attrs.language
+  await page.locator('.anynote-code-block').getByRole('combobox').click()
+  await page.getByRole('option', { name: 'Python', exact: true }).click()
+  await expect(page.locator('.anynote-code-block[data-language="python"]')).toBeVisible()
+})
