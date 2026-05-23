@@ -50,6 +50,13 @@ const nextConfig = {
     config.resolve.alias = {
       ...config.resolve.alias,
       '@docs': docsDir,
+      // @likec4/language-services/browser transitively imports @likec4/config's
+      // node entry, which top-level-imports esbuild + bundle-require (node-only
+      // build tools). Neither is executed for fromSource(string) parsing, but
+      // webpack can't bundle esbuild's native binary / .d.ts. Stub them to empty
+      // modules. (Turbopack/dev tolerates them, so only the webpack build needs this.)
+      esbuild: false,
+      'bundle-require': false,
     }
     return config
   },
