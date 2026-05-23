@@ -25,6 +25,7 @@ const nextConfig = {
     '@repo/notifications',
     '@repo/storage',
     '@repo/editor',
+    '@repo/likec4',
     '@repo/excalidraw',
     '@repo/genogram',
     '@repo/diagram-board',

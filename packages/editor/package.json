@@ -55,6 +55,7 @@
     "@tiptap/react": "^3.22.3",
     "@tiptap/starter-kit": "^3.22.3",
     "@tiptap/suggestion": "^3.22.3",
+    "@repo/likec4": "workspace:*",
     "@repo/mermaid": "workspace:*",
     "@repo/plantuml": "workspace:*",
     "@repo/ui": "workspace:*",
