@@ -140,6 +140,15 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
       editor.chain().focus().deleteRange(range).setCodeBlock({ language: 'plantuml' }).run(),
   },
   {
+    id: 'likec4',
+    group: 'code',
+    label: 'LikeC4',
+    keywords: ['likec4', 'c4', 'architecture', 'архитектура', 'диаграмма'],
+    icon: createElement(CodeIcon),
+    run: ({ editor, range }) =>
+      editor.chain().focus().deleteRange(range).setCodeBlock({ language: 'likec4' }).run(),
+  },
+  {
     id: 'd2',
     group: 'code',
     label: 'd2',

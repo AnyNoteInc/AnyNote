@@ -8,9 +8,20 @@ import { useTheme } from '@mui/material/styles'
 import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
+import dynamic from 'next/dynamic'
 import { useCallback, useEffect, useState } from 'react'
 import { renderMermaid, type RenderResult } from '@repo/mermaid/render-mermaid'
 import { renderPlantuml } from '@repo/plantuml/render-plantuml'
+
+// Lazy-load the LikeC4 React diagram to keep @likec4/diagram + xyflow out of the
+// editor's initial chunk. Must use next/dynamic with ssr:false (not React.lazy):
+// ssr:false excludes the chunk from the SSR compile — otherwise Turbopack pulls in
+// @likec4/language-services' node entry (bundle-require → esbuild) during Client
+// Component SSR and fails with "Unknown module type" on esbuild's native binary.
+const Likec4Diagram = dynamic(
+  () => import('@repo/likec4/likec4-diagram').then((m) => m.Likec4Diagram),
+  { ssr: false },
+)
 
 type CodeLanguage = { value: string; label: string }
 
@@ -30,6 +41,7 @@ const CODE_LANGUAGES: CodeLanguage[] = [
   { value: 'xml', label: 'XML' },
   { value: 'mermaid', label: 'Mermaid' },
   { value: 'plantuml', label: 'PlantUML' },
+  { value: 'likec4', label: 'LikeC4' },
 ]
 
 function CopyButton({ source }: { source: string }) {
@@ -88,7 +100,8 @@ function LanguageSelect({ value, onChange }: { value: string; onChange: (next: s
 function CodeBlockView({ node, updateAttributes }: NodeViewProps) {
   const isMermaid = node.attrs.language === 'mermaid'
   const isPlantuml = node.attrs.language === 'plantuml'
-  const isDiagram = isMermaid || isPlantuml
+  const isLikec4 = node.attrs.language === 'likec4'
+  const isDiagram = isMermaid || isPlantuml || isLikec4
   const mode = useTheme().palette.mode
   const source = node.textContent
   // Default an existing (non-empty) block to the rendered preview; a freshly
@@ -99,7 +112,7 @@ function CodeBlockView({ node, updateAttributes }: NodeViewProps) {
   const showPreview = isDiagram && view === 'preview'
 
   useEffect(() => {
-    if (!showPreview) return
+    if (!showPreview || isLikec4) return
     let cancelled = false
     // mermaid renders client-side; plantuml renders server-side via the proxy
     // (renderPlantuml POSTs to /api/plantuml/render). Fresh id per render avoids
@@ -118,7 +131,7 @@ function CodeBlockView({ node, updateAttributes }: NodeViewProps) {
     return () => {
       cancelled = true
     }
-  }, [showPreview, isPlantuml, source, mode])
+  }, [showPreview, isLikec4, isPlantuml, source, mode])
 
   return (
     <NodeViewWrapper className="anynote-code-block" data-language={node.attrs.language ?? undefined}>
@@ -175,7 +188,11 @@ function CodeBlockView({ node, updateAttributes }: NodeViewProps) {
 
       {showPreview && (
         <Box className="anynote-code-block__preview" contentEditable={false}>
-          {error ? (
+          {isLikec4 ? (
+            <Box sx={{ width: '100%', height: 360 }}>
+              <Likec4Diagram source={source} mode={mode} />
+            </Box>
+          ) : error ? (
             <Box className="anynote-code-block__error">{error}</Box>
           ) : (
             <Box
