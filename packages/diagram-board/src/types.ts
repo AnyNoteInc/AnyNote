@@ -26,7 +26,7 @@ export type DiagramPreviewProps = {
   idPrefix: string
 }
 
-export type DiagramConfig = {
+type DiagramConfigBase = {
   /** Y.Text root name (the collaborative source document). */
   docName: string
   /** Monaco language id set on the editor model. */
@@ -37,14 +37,16 @@ export type DiagramConfig = {
   idPrefix: string
   /** Optional Monaco placeholder shown when the source is empty. */
   placeholder?: string
-  /**
-   * SVG render path (mermaid, plantuml): produces SVG markup injected into the
-   * preview. Supply exactly one of `render` / `Preview`.
-   */
-  render?: DiagramRenderer
-  /**
-   * Custom React preview (likec4): renders a component tree instead of SVG.
-   * Supply exactly one of `render` / `Preview`.
-   */
-  Preview?: ComponentType<DiagramPreviewProps>
 }
+
+/**
+ * A diagram board is parametrised by EXACTLY ONE preview backend (enforced by the
+ * union):
+ * - `render`: SVG path (mermaid, plantuml) — produces SVG markup injected into the preview.
+ * - `Preview`: custom React preview (likec4) — renders a component tree instead of SVG.
+ */
+export type DiagramConfig = DiagramConfigBase &
+  (
+    | { render: DiagramRenderer; Preview?: never }
+    | { render?: never; Preview: ComponentType<DiagramPreviewProps> }
+  )
