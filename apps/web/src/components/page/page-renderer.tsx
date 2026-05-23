@@ -57,6 +57,11 @@ const PlantumlBoard = dynamic(() => import('@repo/plantuml').then((m) => m.Plant
   loading: () => <CenteredSpinner />,
 })
 
+const Likec4Board = dynamic(() => import('@repo/likec4').then((m) => m.Likec4Board), {
+  ssr: false,
+  loading: () => <CenteredSpinner />,
+})
+
 const KanbanBoardPage = dynamic(
   () => import('@/components/kanban/kanban-board-page').then((m) => m.KanbanBoardPage),
   { ssr: false, loading: () => <CenteredSpinner /> },
@@ -382,6 +387,18 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
   if (page.type === 'PLANTUML') {
     return (
       <PlantumlBoard
+        pageId={page.id}
+        initialContentYjs={page.contentYjs}
+        yjsUrl={resolveYjsUrl()}
+        yjsToken={fetchYjsToken}
+        user={user}
+      />
+    )
+  }
+
+  if (page.type === 'LIKEC4') {
+    return (
+      <Likec4Board
         pageId={page.id}
         initialContentYjs={page.contentYjs}
         yjsUrl={resolveYjsUrl()}

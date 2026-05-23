@@ -28,7 +28,7 @@ import { type PageItem, orderSiblings } from './types'
 
 type CreatablePageType = Extract<
   PageType,
-  'TEXT' | 'EXCALIDRAW' | 'GENOGRAM' | 'MERMAID' | 'PLANTUML' | 'KANBAN'
+  'TEXT' | 'EXCALIDRAW' | 'GENOGRAM' | 'MERMAID' | 'PLANTUML' | 'LIKEC4' | 'KANBAN'
 >
 
 type Props = {
@@ -78,6 +78,12 @@ function DiagramSubmenu({
             <SchemaIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText primary="PlantUML" />
+        </MenuItem>
+        <MenuItem onClick={() => choose('LIKEC4')}>
+          <ListItemIcon>
+            <SchemaIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="LikeC4" />
         </MenuItem>
       </Menu>
     </>
