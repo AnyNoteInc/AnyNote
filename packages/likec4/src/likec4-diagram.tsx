@@ -31,14 +31,11 @@ export function Likec4Diagram({ source, mode, idPrefix = 'likec4' }: Props) {
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const genRef = useRef(0)
-  const lastSource = useRef<string | null>(null)
   // Mirror of `views` for event handlers (onNavigateTo) so they never read a stale snapshot.
   const viewsRef = useRef<ViewLike[]>([])
 
   useEffect(() => {
     const trimmed = source.trim()
-    if (trimmed === lastSource.current) return
-    lastSource.current = trimmed
     const gen = ++genRef.current
 
     if (!trimmed) {
@@ -50,6 +47,11 @@ export function Likec4Diagram({ source, mode, idPrefix = 'likec4' }: Props) {
       return
     }
 
+    // Debounce: each source change reschedules; the generation counter drops
+    // superseded renders. Deliberately NO source-equality short-circuit — under
+    // React StrictMode the effect is re-run after a setup/cleanup pair, and a
+    // ref-based "same source, skip" guard would clear the scheduled timer on the
+    // cleanup and then skip rescheduling, leaving the preview stuck on a spinner.
     setLoading(true)
     const timer = window.setTimeout(async () => {
       try {
