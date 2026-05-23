@@ -1,5 +1,7 @@
+import type { ComponentType } from 'react'
+import type * as Y from 'yjs'
 import type * as monaco from 'monaco-editor'
-import type { DiagramRenderer } from './render-types'
+import type { ColorMode, DiagramRenderer } from './render-types'
 
 export type DiagramUser = {
   id: string
@@ -17,6 +19,13 @@ export type DiagramBoardProps = {
   className?: string
 }
 
+/** Props a custom diagram preview component receives from the board. */
+export type DiagramPreviewProps = {
+  ytext: Y.Text
+  mode: ColorMode
+  idPrefix: string
+}
+
 export type DiagramConfig = {
   /** Y.Text root name (the collaborative source document). */
   docName: string
@@ -24,10 +33,18 @@ export type DiagramConfig = {
   languageId: string
   /** Registers the Monarch language on a Monaco instance (idempotent). */
   registerLanguage: (m: typeof monaco) => void
-  /** Produces SVG from source — client-side (mermaid) or server-proxied (plantuml). */
-  render: DiagramRenderer
-  /** Prefix for render ids and data-testids (e.g. 'mermaid' | 'plantuml'). */
+  /** Prefix for render ids and data-testids (e.g. 'mermaid' | 'plantuml' | 'likec4'). */
   idPrefix: string
   /** Optional Monaco placeholder shown when the source is empty. */
   placeholder?: string
+  /**
+   * SVG render path (mermaid, plantuml): produces SVG markup injected into the
+   * preview. Supply exactly one of `render` / `Preview`.
+   */
+  render?: DiagramRenderer
+  /**
+   * Custom React preview (likec4): renders a component tree instead of SVG.
+   * Supply exactly one of `render` / `Preview`.
+   */
+  Preview?: ComponentType<DiagramPreviewProps>
 }

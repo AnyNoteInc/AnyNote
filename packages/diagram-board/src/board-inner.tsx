@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { Box, CircularProgress } from '@mui/material'
 import { useTheme } from '@mui/material/styles'
 
@@ -83,6 +83,22 @@ export function DiagramBoardInner({
     )
   }
 
+  // Assign to a capitalized variable: ESLint disallows lowercase member expressions as
+  // JSX element types. Placed after the early return so it is always used immediately below.
+  const Preview = config.Preview
+
+  // Exactly one of Preview / render is supplied (see DiagramConfig). Narrow on config.render
+  // instead of asserting it, so a config that supplies neither degrades to an empty preview
+  // rather than crashing inside DiagramPreview with "render is not a function".
+  let previewNode: ReactNode = null
+  if (Preview) {
+    previewNode = <Preview ytext={resources.ytext} mode={mode} idPrefix={config.idPrefix} />
+  } else if (config.render) {
+    previewNode = (
+      <DiagramPreview ytext={resources.ytext} mode={mode} render={config.render} idPrefix={config.idPrefix} />
+    )
+  }
+
   return (
     <Box ref={wrapRef} className={className} sx={{ display: 'flex', height: '100%', width: '100%', minHeight: 0 }}>
       <Box sx={{ width: `${leftPct}%`, minWidth: 0, borderRight: 1, borderColor: 'divider' }}>
@@ -104,9 +120,7 @@ export function DiagramBoardInner({
         data-testid={`${config.idPrefix}-divider`}
         sx={{ width: '6px', cursor: 'col-resize', flexShrink: 0, bgcolor: 'divider', '&:hover': { bgcolor: 'primary.main' } }}
       />
-      <Box sx={{ flex: 1, minWidth: 0 }}>
-        <DiagramPreview ytext={resources.ytext} mode={mode} render={config.render} idPrefix={config.idPrefix} />
-      </Box>
+      <Box sx={{ flex: 1, minWidth: 0 }}>{previewNode}</Box>
     </Box>
   )
 }
