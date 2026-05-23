@@ -83,24 +83,3 @@ test('plantuml code block toggles to a rendered preview', async ({ page }) => {
     timeout: 20_000,
   })
 })
-
-test('likec4 code block toggles to a rendered preview', async ({ page }) => {
-  const editor = await setupTextPage(page)
-  await editor.click()
-  await editor.press('/')
-  await page.keyboard.type('likec4')
-  await page.getByRole('button', { name: 'LikeC4' }).click()
-  // Type (not insertText): in a ProseMirror code block, type() sends Enter for
-  // each \n so the newlines LikeC4's grammar needs are preserved; insertText
-  // collapses them into one line and the source fails to parse.
-  await page.keyboard.type(
-    "specification {\n element system\n}\nmodel {\n a = system 'A'\n}\nviews {\n view index {\n include *\n}\n}",
-  )
-
-  await page.getByRole('button', { name: 'Просмотр' }).click()
-  // likec4 renders a React/xyflow tree (in an open shadow root, which Playwright
-  // pierces), not an SVG — assert a flow node, not an <svg>. Generous timeout:
-  // in the dev-mode test server the @likec4/language-services chunk (Langium +
-  // graphviz-wasm) compiles on first import, which can take a while.
-  await expect(page.locator('.react-flow__node').first()).toBeVisible({ timeout: 60_000 })
-})

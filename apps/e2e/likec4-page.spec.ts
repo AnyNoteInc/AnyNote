@@ -3,6 +3,8 @@ import { signUpAndAuthAs } from './helpers/auth'
 
 const password = 'SuperSecure123!'
 
+// Two views on purpose: the old custom view-picker combobox only rendered when
+// views.length > 1, so a multi-view model is what guards its removal.
 const MODEL = `specification {
   element system
   element person
@@ -16,7 +18,19 @@ views {
   view index {
     include *
   }
+  view people {
+    title 'People'
+    include user
+  }
 }`
+
+// Unclosed `model {` brace — a parse error. LikeC4's fromSource resolves such
+// invalid source (it doesn't throw), so the model used to flow into ReactLikeC4
+// and crash the page on render.
+const INVALID_MODEL = `specification {
+  element system
+model {
+  app = system 'App'`
 
 async function setupLikec4Page(page: Page) {
   const email = `likec4+${Date.now()}@example.com`
@@ -44,13 +58,38 @@ async function setMonacoSource(page: Page, text: string) {
   await page.keyboard.insertText(text)
 }
 
-test('renders a likec4 diagram from typed source', async ({ page }) => {
+test('renders a multi-view diagram full-width with no view combobox', async ({ page }) => {
   await setupLikec4Page(page)
   await setMonacoSource(page, MODEL)
 
   // The xyflow canvas mounts nodes once parse + graphviz-wasm layout succeed.
   // (ReactLikeC4 renders into an open shadow root; Playwright's CSS locators
   // pierce it, so .react-flow__node still matches.)
-  await expect(page.locator('[data-testid="likec4-preview"]')).toBeVisible({ timeout: 30_000 })
+  const preview = page.locator('[data-testid="likec4-preview"]')
+  await expect(preview).toBeVisible({ timeout: 30_000 })
   await expect(page.locator('.react-flow__node').first()).toBeVisible({ timeout: 30_000 })
+
+  // View navigation is LikeC4's own (ReactLikeC4) — the custom combobox is gone,
+  // even though the model has two views.
+  await expect(page.locator('[data-testid="likec4-view-select"]')).toHaveCount(0)
+
+  // The diagram host fills the preview width instead of being letterboxed to its
+  // aspect ratio (the removed keepAspectRatio behaviour).
+  const previewBox = await preview.boundingBox()
+  const viewBox = await page.locator('.likec4-view').first().boundingBox()
+  expect(previewBox).not.toBeNull()
+  expect(viewBox).not.toBeNull()
+  expect(viewBox!.width).toBeGreaterThan(previewBox!.width * 0.95)
+})
+
+test('shows a compile error for invalid source instead of crashing', async ({ page }) => {
+  await setupLikec4Page(page)
+  await setMonacoSource(page, INVALID_MODEL)
+
+  // The compile error must surface as the error chip, and the preview container
+  // must stay mounted — i.e. the page did not crash.
+  const error = page.locator('[data-testid="likec4-error"]')
+  await expect(error).toBeVisible({ timeout: 30_000 })
+  await expect(error).toContainText(/Line \d+:/)
+  await expect(page.locator('[data-testid="likec4-preview"]')).toBeVisible()
 })

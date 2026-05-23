@@ -1,17 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { resolveSelectedViewId, viewLabel } from './view-utils'
+import { formatLikec4Errors, resolveSelectedViewId } from './view-utils'
 
 const v = (id: string, title: string | null) => ({ id, title })
-
-describe('viewLabel', () => {
-  it('uses the title when present', () => {
-    expect(viewLabel(v('index', 'Landscape'))).toBe('Landscape')
-  })
-  it('falls back to the id when title is null/empty', () => {
-    expect(viewLabel(v('index', null))).toBe('index')
-    expect(viewLabel(v('index', ''))).toBe('index')
-  })
-})
 
 describe('resolveSelectedViewId', () => {
   const views = [v('index', 'Landscape'), v('ctx', 'Context')]
@@ -23,5 +13,24 @@ describe('resolveSelectedViewId', () => {
   })
   it('returns undefined for an empty model', () => {
     expect(resolveSelectedViewId([], 'index')).toBeUndefined()
+  })
+})
+
+describe('formatLikec4Errors', () => {
+  it('returns null when there are no errors', () => {
+    expect(formatLikec4Errors([])).toBeNull()
+  })
+  it('formats a diagnostic with a 1-based line number (getErrors reports 0-based)', () => {
+    expect(formatLikec4Errors([{ line: 2, message: "Expecting token of type '}' but found `model`." }])).toBe(
+      "Line 3: Expecting token of type '}' but found `model`.",
+    )
+  })
+  it('joins multiple diagnostics with newlines', () => {
+    expect(
+      formatLikec4Errors([
+        { line: 4, message: "Could not resolve reference to Referenceable named 'ghost'." },
+        { line: 4, message: 'Target not resolved' },
+      ]),
+    ).toBe("Line 5: Could not resolve reference to Referenceable named 'ghost'.\nLine 5: Target not resolved")
   })
 })

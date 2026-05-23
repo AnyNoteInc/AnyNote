@@ -550,9 +550,6 @@ importers:
       '@mui/material':
         specifier: ^7.3.10
         version: 7.3.10(@emotion/react@11.14.0(@types/react@19.2.2)(react@19.2.5))(@emotion/styled@11.14.1(@emotion/react@11.14.0(@types/react@19.2.2)(react@19.2.5))(@types/react@19.2.2)(react@19.2.5))(@types/react@19.2.2)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)
-      '@repo/likec4':
-        specifier: workspace:*
-        version: link:../likec4
       '@repo/mermaid':
         specifier: workspace:*
         version: link:../mermaid

@@ -1,11 +1,11 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Box, CircularProgress, MenuItem, Select, Typography } from '@mui/material'
+import { Box, CircularProgress, Typography } from '@mui/material'
 import { LikeC4ModelProvider, ReactLikeC4 } from '@likec4/diagram'
 import type { ColorMode } from '@repo/diagram-board/render-types'
 
-import { resolveSelectedViewId, viewLabel, type ViewLike } from './view-utils'
+import { formatLikec4Errors, resolveSelectedViewId, type ViewLike } from './view-utils'
 
 // LikeC4Model.Layouted (from @likec4/core). Typed loosely here to avoid pulling
 // the heavy type graph through this component's public surface.
@@ -26,12 +26,12 @@ type Props = {
  */
 export function Likec4Diagram({ source, mode, idPrefix = 'likec4' }: Props) {
   const [model, setModel] = useState<LayoutedModel | null>(null)
-  const [views, setViews] = useState<ViewLike[]>([])
   const [viewId, setViewId] = useState<string | undefined>(undefined)
   const [error, setError] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const genRef = useRef(0)
-  // Mirror of `views` for event handlers (onNavigateTo) so they never read a stale snapshot.
+  // Latest views list for event handlers (onNavigateTo) so they never read a stale snapshot.
+  // ReactLikeC4 renders the diagram and its own view navigation, so no view-picker UI lives here.
   const viewsRef = useRef<ViewLike[]>([])
 
   useEffect(() => {
@@ -40,7 +40,6 @@ export function Likec4Diagram({ source, mode, idPrefix = 'likec4' }: Props) {
 
     if (!trimmed) {
       setModel(null)
-      setViews([])
       viewsRef.current = []
       setError(null)
       setLoading(false)
@@ -59,11 +58,22 @@ export function Likec4Diagram({ source, mode, idPrefix = 'likec4' }: Props) {
         // initial chunk — only loaded when a diagram actually renders.
         const { fromSource } = await import('@likec4/language-services/browser')
         const likec4 = await fromSource(trimmed)
+        if (genRef.current !== gen) return // superseded by a newer source
+
+        // fromSource RESOLVES even when the source is invalid (throwIfInvalid
+        // defaults to false — it only console-logs), so a parse error never
+        // reaches the catch below. Surface it from getErrors() instead: feeding
+        // the broken model to layoutedModel()/ReactLikeC4 throws during render
+        // and, with no error boundary above, takes down the whole page.
+        if (likec4.hasErrors()) {
+          setError(formatLikec4Errors(likec4.getErrors()) ?? 'Invalid LikeC4 model') // keep last good model mounted
+          return
+        }
+
         const layouted = (await likec4.layoutedModel()) as unknown as LayoutedModel
         if (genRef.current !== gen) return // superseded by a newer source
         const list = [...layouted.views()].map((v) => ({ id: String(v.id), title: v.title }))
         setModel(layouted)
-        setViews(list)
         viewsRef.current = list
         setViewId((cur) => resolveSelectedViewId(list, cur))
         setError(null)
@@ -83,29 +93,6 @@ export function Likec4Diagram({ source, mode, idPrefix = 'likec4' }: Props) {
       data-testid={`${idPrefix}-preview`}
       sx={{ position: 'relative', height: '100%', width: '100%', overflow: 'hidden' }}
     >
-      {views.length > 1 && (
-        <Select
-          size="small"
-          value={viewId ?? ''}
-          onChange={(e) => setViewId(e.target.value)}
-          data-testid={`${idPrefix}-view-select`}
-          sx={{
-            position: 'absolute',
-            top: 8,
-            left: 8,
-            zIndex: 2,
-            bgcolor: 'background.paper',
-            minWidth: 160,
-          }}
-        >
-          {views.map((v) => (
-            <MenuItem key={v.id} value={v.id}>
-              {viewLabel(v)}
-            </MenuItem>
-          ))}
-        </Select>
-      )}
-
       {model && viewId ? (
         <LikeC4ModelProvider likec4model={model as never}>
           <ReactLikeC4
@@ -113,7 +100,6 @@ export function Likec4Diagram({ source, mode, idPrefix = 'likec4' }: Props) {
             colorScheme={mode}
             pannable
             zoomable
-            keepAspectRatio
             showNavigationButtons
             onNavigateTo={(to) =>
               setViewId((cur) => resolveSelectedViewId(viewsRef.current, String(to)) ?? cur)
