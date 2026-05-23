@@ -150,6 +150,7 @@ export const pageRouter = router({
         id: z.string().uuid(),
         workspaceId: z.string().uuid(),
         title: z.string(),
+        icon: z.string().nullable().optional(),
       }),
     )
     .mutation(
@@ -159,10 +160,16 @@ export const pageRouter = router({
       }): Promise<{ id: string; title: string | null; icon: string | null; updatedAt: Date }> => {
         await assertPageOwnership(ctx, input.id)
         await requireWritableWorkspace(input.workspaceId)
+        const data: {
+          title: string
+          icon?: string | null
+          updatedById: string
+        } = { title: input.title, updatedById: ctx.user.id }
+        if (input.icon !== undefined) data.icon = input.icon
         return ctx.prisma.$transaction(async (tx) => {
           const updated = await tx.page.update({
             where: { id: input.id },
-            data: { title: input.title, updatedById: ctx.user.id },
+            data,
             select: { id: true, title: true, icon: true, updatedAt: true },
           })
           await enqueueOutboxEvent(tx, {

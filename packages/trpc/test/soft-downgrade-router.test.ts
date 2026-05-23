@@ -119,6 +119,38 @@ describe('soft-downgrade router guards', () => {
     expect(prisma.workspace.update).toHaveBeenCalled()
   })
 
+  it('saves the selected icon when renaming a page', async () => {
+    const tx = {
+      page: {
+        update: vi.fn(async () => ({
+          id: PAGE_ID,
+          title: 'Renamed',
+          icon: '🚀',
+          updatedAt: new Date('2026-05-23T00:00:00Z'),
+        })),
+      },
+    }
+    const prisma = {
+      page: {
+        findFirst: vi.fn(async () => ({
+          id: PAGE_ID,
+          workspaceId: WORKSPACE_ID,
+          createdById: USER_ID,
+        })),
+      },
+      $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
+    } as unknown as PrismaClient
+
+    const caller = createCallerFactory(pageRouter)(baseContext(prisma))
+    await caller.rename({ id: PAGE_ID, workspaceId: WORKSPACE_ID, title: 'Renamed', icon: '🚀' })
+
+    expect(tx.page.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ title: 'Renamed', icon: '🚀', updatedById: USER_ID }),
+      }),
+    )
+  })
+
   it('blocks member invite on Personal plan', async () => {
     planMocks.getActivePlanForUser.mockResolvedValueOnce({
       plan: { slug: 'personal', name: 'Personal' },

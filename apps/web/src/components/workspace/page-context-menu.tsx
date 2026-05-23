@@ -11,6 +11,8 @@ import {
   DialogActions,
   TextField,
   Button,
+  EmojiIconButton,
+  Stack,
   StarIcon,
   StarBorderIcon,
   LinkIcon,
@@ -47,6 +49,7 @@ export function PageContextMenu({
 
   const [renameOpen, setRenameOpen] = useState(false)
   const [renameValue, setRenameValue] = useState('')
+  const [renameIcon, setRenameIcon] = useState<string | null>(null)
 
   const rename = trpc.page.rename.useMutation({
     onSuccess: () => {
@@ -72,12 +75,13 @@ export function PageContextMenu({
 
   const handleOpenRename = () => {
     setRenameValue(page.title ?? '')
+    setRenameIcon(page.icon)
     setRenameOpen(true)
     onClose()
   }
 
   const handleRenameSubmit = () => {
-    rename.mutate({ id: page.id, workspaceId, title: renameValue })
+    rename.mutate({ id: page.id, workspaceId, title: renameValue, icon: renameIcon })
     setRenameOpen(false)
   }
 
@@ -130,20 +134,29 @@ export function PageContextMenu({
       <Dialog open={renameOpen} onClose={() => setRenameOpen(false)} maxWidth="xs" fullWidth>
         <DialogTitle>Переименовать</DialogTitle>
         <DialogContent>
-          <TextField
-            autoFocus
-            fullWidth
-            size="small"
-            value={renameValue}
-            onChange={(e) => setRenameValue(e.target.value)}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                handleRenameSubmit()
-              }
-            }}
-            sx={{ mt: 1 }}
-          />
+          <Stack direction="row" spacing={1} alignItems="center" sx={{ mt: 1 }}>
+            <EmojiIconButton
+              value={renameIcon}
+              onChange={setRenameIcon}
+              onRemove={() => setRenameIcon(null)}
+              aria-label="Изменить иконку"
+              sx={{ width: 40, height: 40, p: 0.5, borderRadius: 1 }}
+              emojiSize={28}
+            />
+            <TextField
+              autoFocus
+              fullWidth
+              size="small"
+              value={renameValue}
+              onChange={(e) => setRenameValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  handleRenameSubmit()
+                }
+              }}
+            />
+          </Stack>
         </DialogContent>
         <DialogActions>
           <Button variant="text" onClick={() => setRenameOpen(false)}>
