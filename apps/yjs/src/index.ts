@@ -1,7 +1,7 @@
 import { Server } from '@hocuspocus/server'
 
 import { loadEnv } from './env.js'
-import { initJwks, verifyJwt, canAccessPage } from './auth.js'
+import { initJwks, verifyJwt, canAccessPage, verifyShareToken, loadPageMeta } from './auth.js'
 import { loadPageDocument, storePageDocument } from './persistence.js'
 import { log } from './logger.js'
 import type { PageType } from '@repo/db'
@@ -14,8 +14,35 @@ initJwks(env.jwksUrl)
 const server = new Server({
   port: env.port,
 
-  async onAuthenticate({ token, documentName }) {
+  async onAuthenticate({ token, documentName, connectionConfig }) {
     if (!token) throw new Error('Missing auth token')
+
+    // Share-token path (anonymous or non-member viewers via /s/{shareId}).
+    const share = await verifyShareToken(token, env.shareTokenSecret)
+    if (share) {
+      if (share.pageId !== documentName) throw new Error('Forbidden')
+      const meta = await loadPageMeta(documentName)
+      if (!meta) throw new Error('Forbidden')
+      // Reader/commenter connections are read-only; the server rejects their writes
+      // regardless of any client-side editable flag. Editor is writable.
+      if (share.role === 'READER' || share.role === 'COMMENTER') {
+        connectionConfig.readOnly = true
+      }
+      log.info('authenticated (share)', {
+        userId: share.userId,
+        pageId: documentName,
+        role: share.role,
+        readOnly: connectionConfig.readOnly,
+      })
+      const ctx: AuthContext = {
+        userId: share.userId,
+        pageType: meta.pageType,
+        workspaceId: meta.workspaceId,
+      }
+      return ctx
+    }
+
+    // Workspace-member path (unchanged).
     const { userId } = await verifyJwt(token, env.jwtAudience)
     const access = await canAccessPage(userId, documentName)
     if (!access) {
