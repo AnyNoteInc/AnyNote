@@ -2,6 +2,7 @@ import { createElement } from 'react'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
 import NotificationsIcon from '@mui/icons-material/Notifications'
+import SchemaIcon from '@mui/icons-material/Schema'
 
 import {
   BulletListIcon,
@@ -33,6 +34,7 @@ export type SlashMediaHandlers = {
   openMarkdownPopover: (range: SlashRange) => void
   openPageLinkPopover: (range: SlashRange) => void
   openReminderCreate?: (reminderId: string) => void
+  openDrawioCreate?: (range: SlashRange) => void
 }
 
 const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
@@ -323,6 +325,15 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
     keywords: ['markdown', 'md', 'импорт'],
     icon: createElement(MarkdownIcon),
     run: ({ range }) => handlers.openMarkdownPopover(range),
+  },
+  {
+    id: 'drawio',
+    group: 'embedding',
+    label: 'Draw.io',
+    description: 'Встроить диаграмму draw.io',
+    keywords: ['drawio', 'diagram', 'диаграмма', 'схема', 'embed', 'встраивание'],
+    icon: createElement(SchemaIcon, { fontSize: 'small' }),
+    run: ({ range }) => handlers.openDrawioCreate?.(range),
   },
 ]
 

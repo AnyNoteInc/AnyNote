@@ -26,7 +26,7 @@ export type MentionLookupItem = {
   email: string | null
 }
 
-export type SlashCommandGroup = 'base' | 'code' | 'media'
+export type SlashCommandGroup = 'base' | 'code' | 'media' | 'embedding'
 
 export type SlashRange = { from: number; to: number }
 

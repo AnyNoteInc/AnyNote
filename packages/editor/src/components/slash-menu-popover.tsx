@@ -21,12 +21,13 @@ type Props = {
   command: (item: SlashCommandItem) => void
 }
 
-const GROUP_ORDER: SlashCommandGroup[] = ['base', 'code', 'media']
+const GROUP_ORDER: SlashCommandGroup[] = ['base', 'code', 'media', 'embedding']
 
 const GROUP_TITLES: Record<SlashCommandGroup, string> = {
   base: 'Базовые блоки',
   code: 'Код',
   media: 'Медиа',
+  embedding: 'Встраивание',
 }
 
 export const SlashMenuPopover = forwardRef<SlashMenuPopoverHandle, Props>(function SlashMenuPopover(
