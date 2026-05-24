@@ -197,8 +197,8 @@ The public route + token endpoint use the **server helper** `resolveShareAccess`
 - `auth.ts` — branch on the token. If it decodes with `typ:"share"`, verify with `YJS_SHARE_TOKEN_SECRET` and return `{ kind:"share", userId: sub, pageId, shareId, role, name }`. Otherwise the **existing** JWKS workspace-member path runs unchanged.
 - `index.ts` `onAuthenticate` — for a share token:
   - assert `documentName === token.pageId`;
-  - **re-validate in DB**: the `PageShare` exists; if `role` came from `linkRole`, `access` is still `PUBLIC`; if from a grant, the `PageShareUser` still exists → this is the revocation mechanism (on reconnect/expiry);
-  - return `{ readOnly: role === 'READER' || role === 'COMMENTER', ...identity }`. Hocuspocus then rejects document writes from `READER`/`COMMENTER` connections; `EDITOR` is writable.
+  - load page meta (`pageType`, `workspaceId`) for persistence — **the signed token is the authority for its ~10-min TTL; the yjs server does not re-query the `PageShare`/grant.** Revocation-on-reconnect is achieved upstream: the browser re-mints the token on each (re)connect via `/api/yjs/share-token`, which re-runs `resolveShareAccess` against current DB state and denies a revoked viewer. Only an already-open live connection survives until it drops (≤ token TTL) — see the "no instant revocation" non-goal.
+  - set `connectionConfig.readOnly = true` for `READER`/`COMMENTER` (Hocuspocus v3.4.4 exposes `connectionConfig`, not `connection`, in the `onAuthenticate` payload); `EDITOR` stays writable. Hocuspocus then rejects document writes from read-only connections server-side, regardless of any client `editable` flag.
 - **Persistence must tolerate anonymous editors.** `storePageDocument` (and any handler writing `updatedById`) must **not** set `updatedById` for an `anon:*` subject (no matching `User` row → FK violation). For anonymous edits, leave `updatedById` unchanged / null.
 
 **Env:** add `YJS_SHARE_TOKEN_SECRET` to `.env.example`, `turbo.json` `globalEnv`, and the `apps/yjs` env loader (shared secret between `apps/web` and `apps/yjs`).

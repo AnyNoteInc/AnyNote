@@ -399,7 +399,7 @@ export function PageRenderer({ page, workspaceId, user, yjsToken, editable = tru
 
   if (page.type === 'GENOGRAM') {
     return (
-      <Genogram pageId={page.id} yjsUrl={resolveYjsUrl()} yjsToken={fetchYjsToken} user={user} />
+      <Genogram pageId={page.id} yjsUrl={resolveYjsUrl()} yjsToken={token} user={user} />
     )
   }
 

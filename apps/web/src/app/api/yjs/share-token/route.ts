@@ -26,7 +26,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
       session.user.email
     : `Гость · ${ANIMALS[Math.floor(Math.random() * ANIMALS.length)]}`
 
-  const secret = new TextEncoder().encode(process.env.YJS_SHARE_TOKEN_SECRET)
+  const secretRaw = process.env.YJS_SHARE_TOKEN_SECRET
+  if (!secretRaw) {
+    return NextResponse.json({ error: 'Share tokens are not configured' }, { status: 500 })
+  }
+  const secret = new TextEncoder().encode(secretRaw)
   const token = await new SignJWT({ typ: 'share', pageId: page.id, shareId, role, name })
     .setProtectedHeader({ alg: 'HS256' })
     .setSubject(sub)
