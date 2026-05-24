@@ -79,9 +79,13 @@ export function ShareDialog({ open, onClose, pageId }: Props) {
 
   async function copyLink() {
     if (!shareUrl) return
-    await navigator.clipboard.writeText(shareUrl)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
+    try {
+      await navigator.clipboard.writeText(shareUrl)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 1500)
+    } catch {
+      // Clipboard may be unavailable (non-secure context / permission denied).
+    }
   }
 
   const isPublic = data?.access === 'PUBLIC'

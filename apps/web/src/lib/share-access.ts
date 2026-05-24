@@ -1,6 +1,6 @@
 import 'server-only'
 
-import type { PrismaClient } from '@repo/db'
+import type { PrismaClient, PageType } from '@repo/db'
 
 export type EffectiveRole = 'OWNER' | 'EDITOR' | 'COMMENTER' | 'READER'
 
@@ -8,7 +8,7 @@ type SessionLike = { user: { id: string } } | null
 
 type SharePage = {
   id: string
-  type: string
+  type: PageType
   title: string | null
   icon: string | null
   contentYjs: Uint8Array | Buffer | null

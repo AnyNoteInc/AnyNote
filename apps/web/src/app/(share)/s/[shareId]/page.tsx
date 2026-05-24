@@ -93,7 +93,7 @@ export default async function SharePage({ params }: { params: Promise<{ shareId:
       <Box sx={{ flex: 1, minHeight: 0 }}>
         <SharePageClient
           shareId={shareId}
-          page={{ id: page.id, type: page.type as never, contentYjs }}
+          page={{ id: page.id, type: page.type, contentYjs }}
           workspaceId={page.workspaceId}
           user={user}
           editable={editable}

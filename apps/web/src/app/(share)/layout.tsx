@@ -1,11 +1,18 @@
+import '@repo/editor/styles'
+import { EditorThemeBridge } from '@repo/editor'
 import { Box } from '@repo/ui/components'
 
 import { TRPCReactProvider } from '@/trpc/client'
 
+export { NOINDEX_METADATA as metadata } from '@/lib/seo/build-metadata'
+
 export default function ShareLayout({ children }: Readonly<{ children: React.ReactNode }>) {
   return (
     <Box sx={{ minHeight: '100vh', color: 'text.primary' }}>
-      <TRPCReactProvider>{children}</TRPCReactProvider>
+      <TRPCReactProvider>
+        <EditorThemeBridge />
+        {children}
+      </TRPCReactProvider>
     </Box>
   )
 }
