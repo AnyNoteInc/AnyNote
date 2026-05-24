@@ -92,10 +92,14 @@ type Props = {
   page: PageInput
   workspaceId: string
   user: { id: string; name: string; color: string }
+  yjsToken?: () => Promise<string>
+  editable?: boolean
 }
 
-export function PageRenderer({ page, workspaceId, user }: Props) {
+export function PageRenderer({ page, workspaceId, user, yjsToken, editable = true }: Props) {
   const router = useRouter()
+  // Share routes inject a share-scoped token; in-app callers use the default.
+  const token = yjsToken ?? fetchYjsToken
   const attachFile = trpc.file.attachToPage.useMutation()
   const attachFileRef = useRef(attachFile)
   attachFileRef.current = attachFile
@@ -386,7 +390,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
         pageId={page.id}
         initialContentYjs={page.contentYjs}
         yjsUrl={resolveYjsUrl()}
-        yjsToken={fetchYjsToken}
+        yjsToken={token}
         uploadHandler={uploadHandler}
         user={user}
       />
@@ -405,7 +409,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
         pageId={page.id}
         initialContentYjs={page.contentYjs}
         yjsUrl={resolveYjsUrl()}
-        yjsToken={fetchYjsToken}
+        yjsToken={token}
         user={user}
       />
     )
@@ -417,7 +421,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
         pageId={page.id}
         initialContentYjs={page.contentYjs}
         yjsUrl={resolveYjsUrl()}
-        yjsToken={fetchYjsToken}
+        yjsToken={token}
         user={user}
       />
     )
@@ -429,7 +433,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
         pageId={page.id}
         initialContentYjs={page.contentYjs}
         yjsUrl={resolveYjsUrl()}
-        yjsToken={fetchYjsToken}
+        yjsToken={token}
         user={user}
       />
     )
@@ -441,7 +445,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
         pageId={page.id}
         initialContentYjs={page.contentYjs}
         yjsUrl={resolveYjsUrl()}
-        yjsToken={fetchYjsToken}
+        yjsToken={token}
         user={user}
         drawioUrl={resolveDrawioUrl()}
       />
@@ -460,7 +464,8 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
           workspaceId={workspaceId}
           initialContentYjs={page.contentYjs}
           yjsUrl={resolveYjsUrl()}
-          yjsToken={fetchYjsToken}
+          yjsToken={token}
+          editable={editable}
           user={user}
           uploadHandler={uploadHandler}
           pageSearch={pageSearch}
