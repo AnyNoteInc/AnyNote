@@ -49,6 +49,7 @@ export type AnyNoteEditorProps = {
   pageSearch: (query: string) => Promise<PageLookupItem[]>
   mentionSearch: (query: string) => Promise<MentionLookupItem[]>
   onNavigateToPage: (pageId: string) => void
+  drawioUrl: string
   editable?: boolean
   className?: string
   placeholder?: string

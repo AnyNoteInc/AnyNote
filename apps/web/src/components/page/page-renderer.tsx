@@ -466,6 +466,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
           pageSearch={pageSearch}
           mentionSearch={mentionSearch}
           onNavigateToPage={onNavigateToPage}
+          drawioUrl={resolveDrawioUrl()}
           onReady={handleEditorReady}
           onRequestBlockMove={handleRequestBlockMove}
           onReminderCreate={handleReminderCreate}

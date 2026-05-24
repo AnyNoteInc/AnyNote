@@ -10,6 +10,7 @@ import * as Y from 'yjs'
 
 import { DateInsertPopover } from './components/date-insert-popover'
 import { EditorDragHandle } from './components/drag-handle'
+import { DrawioEditorDialog } from './components/drawio-editor-dialog'
 import { FileUploadPopover } from './components/file-upload-popover'
 import { FloatingToolbar } from './components/floating-toolbar'
 import { MarkdownUploadPopover } from './components/markdown-upload-popover'
@@ -101,6 +102,7 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
   const placeholder = props.placeholder ?? "Введите '/' для команд"
 
   const [popover, setPopover] = useState<OpenPopover | null>(null)
+  const [drawioCreate, setDrawioCreate] = useState<{ range: SlashRange } | null>(null)
 
   const slashClientRectRef = useRef<() => DOMRect>(() => new DOMRect(0, 0, 0, 0))
 
@@ -142,6 +144,11 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
 
   const closePopover = useCallback(() => setPopover(null), [])
 
+  const openDrawioCreate = useCallback((range: SlashRange) => {
+    slashRendererRef.current.popup?.hide()
+    setDrawioCreate({ range })
+  }, [])
+
   const slashItems = useMemo(
     () =>
       createSlashItems({
@@ -150,8 +157,9 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
         openMarkdownPopover: (range) => openKind('markdown', range),
         openPageLinkPopover: (range) => openKind('pageLink', range),
         openReminderCreate: props.onReminderCreate,
+        openDrawioCreate,
       }),
-    [openKind, props.onReminderCreate],
+    [openKind, props.onReminderCreate, openDrawioCreate],
   )
 
   const slashItemsRef = useRef(slashItems)
@@ -291,6 +299,7 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
         mentionItems: mentionSearch,
         mentionRender,
         onNavigateToPage,
+        drawioUrl: props.drawioUrl,
       }),
       onCreate: ({ editor: ed }) => {
         props.onReady?.(ed)
@@ -349,6 +358,23 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
             workspaceId={workspaceId}
             pageSearch={pageSearch}
             onClose={closePopover}
+          />
+          <DrawioEditorDialog
+            open={drawioCreate != null}
+            initialXml=""
+            drawioUrl={props.drawioUrl}
+            onSave={(attrs) => {
+              if (drawioCreate) {
+                editor
+                  .chain()
+                  .focus()
+                  .deleteRange(drawioCreate.range)
+                  .insertContent({ type: 'drawio', attrs })
+                  .run()
+              }
+              setDrawioCreate(null)
+            }}
+            onCancel={() => setDrawioCreate(null)}
           />
         </>
       ) : null}

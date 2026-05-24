@@ -24,6 +24,7 @@ import { CodeBlock } from './code-block'
 import { buildCollaboration } from './collaboration'
 import { Column, ColumnLayout } from './column-layout'
 import { DropPlacement } from './drop-placement'
+import { Drawio } from './drawio'
 import { FileAttachment } from './file-attachment'
 import { buildFileUpload } from './file-upload'
 import { HiddenText } from './hidden-text'
@@ -56,6 +57,7 @@ export type BuildExtensionsOptions = {
   mentionItems: (query: string) => Promise<MentionLookupItem[]> | MentionLookupItem[]
   mentionRender: MentionRender
   onNavigateToPage: (pageId: string) => void
+  drawioUrl: string
 }
 
 export const buildExtensions = (opts: BuildExtensionsOptions) => [
@@ -104,6 +106,7 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   Callout,
   HiddenText,
   FileAttachment,
+  Drawio.configure({ drawioUrl: opts.drawioUrl }),
   PageLink.configure({ onNavigate: opts.onNavigateToPage }),
   Reminder,
   ...buildCollaboration({ ydoc: opts.ydoc, provider: opts.provider, user: opts.user }),
