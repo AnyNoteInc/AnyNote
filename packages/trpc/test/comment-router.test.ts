@@ -213,4 +213,31 @@ describe('comment access boundaries + mention validation', () => {
       expect.objectContaining({ userId: 'owner' }),
     )
   })
+
+  it('notifies a mentioned workspace member via pageMention', async () => {
+    const MENTION = '88888888-8888-8888-8888-888888888888'
+    const tx = {
+      pageCommentThread: { create: vi.fn(async () => ({ id: 't1' })) },
+      pageComment: { create: vi.fn(async () => ({ id: 'c1' })) },
+    }
+    const prisma = {
+      page: { findUnique: vi.fn(async () => PAGE) },
+      workspaceMember: {
+        findUnique: vi.fn(async () => ({ role: 'COMMENTER' })),
+        findMany: vi.fn(async () => [{ userId: MENTION }]),
+      },
+      user: { findUnique: vi.fn(async () => ({ firstName: 'A', lastName: '', email: 'a@b.c' })) },
+      $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
+      pageComment: { findFirst: vi.fn(async () => ({ id: 'c1' })) },
+      pageCommentThread: { findUnique: vi.fn(async () => ({ page: { createdById: 'owner' }, comments: [] })) },
+    } as never
+    await caller(ctx(prisma, { id: 'u1' })).createThread({
+      pageId: PAGE_ID, anchorStart: 'x', anchorEnd: 'y', quotedText: 'q',
+      content: { text: 'hi', mentions: [MENTION] },
+    })
+    expect(notify.pageMention).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ userId: MENTION }),
+    )
+  })
 })
