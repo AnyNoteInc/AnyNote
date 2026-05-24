@@ -153,4 +153,64 @@ describe('comment edit/delete/resolve', () => {
     const res = await caller(ctx(prisma, { id: 'u1' })).resolveThread({ pageId: PAGE_ID, threadId: THREAD_ID })
     expect(res.resolvedAt).toBeTruthy()
   })
+
+  it('auto-resolves a thread when its last comment is deleted', async () => {
+    const prisma = memberPrisma('COMMENTER', {
+      pageComment: {
+        findUnique: vi.fn(async () => ({
+          authorId: 'u1',
+          authorAnonId: null,
+          threadId: THREAD_ID,
+          thread: { pageId: PAGE_ID },
+        })),
+        update: vi.fn(async () => ({ id: COMMENT_ID })),
+        count: vi.fn(async () => 0),
+      },
+      pageCommentThread: { update: vi.fn(async () => ({})) },
+    })
+    await caller(ctx(prisma, { id: 'u1' })).deleteComment({ pageId: PAGE_ID, commentId: COMMENT_ID })
+    expect(prisma.pageCommentThread.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: { resolvedAt: expect.any(Date) } }),
+    )
+  })
+})
+
+describe('comment access boundaries + mention validation', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('denies listThreads for a no-access viewer (role null)', async () => {
+    const prisma = {
+      page: { findUnique: vi.fn(async () => PAGE) },
+      workspaceMember: { findUnique: vi.fn(async () => null) },
+      pageShare: { findUnique: vi.fn(async () => null) },
+      pageShareUser: { findFirst: vi.fn(async () => null) },
+      user: { findUnique: vi.fn(async () => ({ firstName: 'X', lastName: '', email: 'x@y.z' })) },
+    } as never
+    await expect(caller(ctx(prisma, { id: 'u9' })).listThreads({ pageId: PAGE_ID })).rejects.toThrow(/Нет доступа/)
+  })
+
+  it('drops mentions of non-workspace-members (no pageMention, snippet not leaked)', async () => {
+    const tx = {
+      pageCommentThread: { create: vi.fn(async () => ({ id: 't1' })) },
+      pageComment: { create: vi.fn(async () => ({ id: 'c1' })) },
+    }
+    const prisma = {
+      page: { findUnique: vi.fn(async () => PAGE) },
+      workspaceMember: { findUnique: vi.fn(async () => ({ role: 'COMMENTER' })), findMany: vi.fn(async () => []) },
+      user: { findUnique: vi.fn(async () => ({ firstName: 'A', lastName: '', email: 'a@b.c' })) },
+      $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
+      pageComment: { findFirst: vi.fn(async () => ({ id: 'c1' })) },
+      pageCommentThread: { findUnique: vi.fn(async () => ({ page: { createdById: 'owner' }, comments: [] })) },
+    } as never
+    await caller(ctx(prisma, { id: 'u1' })).createThread({
+      pageId: PAGE_ID, anchorStart: 'x', anchorEnd: 'y', quotedText: 'q',
+      content: { text: 'hi', mentions: ['77777777-7777-7777-7777-777777777777'] },
+    })
+    expect(prisma.workspaceMember.findMany).toHaveBeenCalled()
+    expect(notify.pageMention).not.toHaveBeenCalled()
+    expect(notify.commentCreated).toHaveBeenCalledWith(
+      expect.anything(),
+      expect.objectContaining({ userId: 'owner' }),
+    )
+  })
 })

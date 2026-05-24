@@ -45,41 +45,56 @@ async function notifyNewComment(
     mentions: string[]
   },
 ): Promise<void> {
-  const thread = await prisma.pageCommentThread.findUnique({
-    where: { id: args.threadId },
-    select: {
-      page: { select: { createdById: true } },
-      comments: { select: { authorId: true } },
-    },
-  })
-  const recipients = new Set<string>()
-  if (thread?.page.createdById) recipients.add(thread.page.createdById)
-  for (const c of thread?.comments ?? []) if (c.authorId) recipients.add(c.authorId)
-  if (args.actor.userId) recipients.delete(args.actor.userId)
-  const mentioned = new Set(args.mentions)
-  const snippet = args.text.slice(0, 140)
-  for (const userId of recipients) {
-    if (mentioned.has(userId)) continue // a PAGE_MENTION will cover them
-    await notify.commentCreated(prisma as never, {
-      userId,
-      workspaceId: args.workspaceId,
-      pageId: args.pageId,
-      commentId: args.commentId,
-      actorId: args.actor.userId,
-      actorName: args.actor.name,
-      snippet,
+  // Notifications are a side effect: a failure here must never fail the write.
+  try {
+    const thread = await prisma.pageCommentThread.findUnique({
+      where: { id: args.threadId },
+      select: {
+        page: { select: { createdById: true } },
+        comments: { select: { authorId: true } },
+      },
     })
-  }
-  for (const userId of mentioned) {
-    if (userId === args.actor.userId) continue
-    await notify.pageMention(prisma as never, {
-      userId,
-      workspaceId: args.workspaceId,
-      pageId: args.pageId,
-      actorId: args.actor.userId,
-      actorName: args.actor.name,
-      snippet,
-    })
+    const recipients = new Set<string>()
+    if (thread?.page.createdById) recipients.add(thread.page.createdById)
+    for (const c of thread?.comments ?? []) if (c.authorId) recipients.add(c.authorId)
+    if (args.actor.userId) recipients.delete(args.actor.userId)
+
+    // Validate mentions against workspace membership: prevents notifying (and
+    // leaking the snippet/link to) arbitrary users by id (spec §6).
+    const validMentions = args.mentions.length
+      ? await prisma.workspaceMember.findMany({
+          where: { workspaceId: args.workspaceId, userId: { in: args.mentions } },
+          select: { userId: true },
+        })
+      : []
+    const mentioned = new Set(validMentions.map((m) => m.userId))
+    const snippet = args.text.slice(0, 140)
+
+    for (const userId of recipients) {
+      if (mentioned.has(userId)) continue // a PAGE_MENTION will cover them
+      await notify.commentCreated(prisma as never, {
+        userId,
+        workspaceId: args.workspaceId,
+        pageId: args.pageId,
+        commentId: args.commentId,
+        actorId: args.actor.userId,
+        actorName: args.actor.name,
+        snippet,
+      })
+    }
+    for (const userId of mentioned) {
+      if (userId === args.actor.userId) continue
+      await notify.pageMention(prisma as never, {
+        userId,
+        workspaceId: args.workspaceId,
+        pageId: args.pageId,
+        actorId: args.actor.userId,
+        actorName: args.actor.name,
+        snippet,
+      })
+    }
+  } catch (err) {
+    console.error('[comment] notification fan-out failed', err)
   }
 }
 
