@@ -26,8 +26,9 @@ import {
 } from '@mui/material'
 import type { SelectChangeEvent } from '@mui/material'
 import type { Editor } from '@tiptap/core'
+import { NodeSelection } from '@tiptap/pm/state'
 import { BubbleMenu } from '@tiptap/react/menus'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { findClickedLink, openLinkInNewWindow, shouldOpenLink } from '../extensions/link-click-handler'
 import { selectionToAnchor } from '../comment-anchor'
 import type { CommentsStorage } from '../extensions/comments'
@@ -123,9 +124,17 @@ export function FloatingToolbar({ editor }: Props) {
   const [linkDialogOpen, setLinkDialogOpen] = useState(false)
   const [linkValue, setLinkValue] = useState('')
   const [toolbarState, setToolbarState] = useState(() => readToolbarState(editor))
+  const lastCommentAnchorRef = useRef<ReturnType<typeof selectionToAnchor>>(null)
 
   useEffect(() => {
-    const updateToolbarState = () => setToolbarState(readToolbarState(editor))
+    const updateToolbarState = () => {
+      setToolbarState(readToolbarState(editor))
+      if (editor.state.selection.empty || editor.state.selection instanceof NodeSelection) {
+        lastCommentAnchorRef.current = null
+        return
+      }
+      lastCommentAnchorRef.current = selectionToAnchor(editor.state) ?? lastCommentAnchorRef.current
+    }
 
     updateToolbarState()
     editor.on('focus', updateToolbarState)
@@ -299,7 +308,7 @@ export function FloatingToolbar({ editor }: Props) {
                   size="small"
                   onMouseDown={(e) => e.preventDefault()}
                   onClick={() => {
-                    const anchor = selectionToAnchor(editor.state)
+                    const anchor = selectionToAnchor(editor.state) ?? lastCommentAnchorRef.current
                     const cb = ((editor.storage as unknown as { comments?: CommentsStorage }).comments)?.onCreateComment
                     if (anchor && cb) cb(anchor)
                   }}

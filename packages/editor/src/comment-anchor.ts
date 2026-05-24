@@ -3,7 +3,7 @@ import {
   ySyncPluginKey,
   absolutePositionToRelativePosition,
   relativePositionToAbsolutePosition,
-} from 'y-prosemirror'
+} from '@tiptap/y-tiptap'
 import type { EditorState } from '@tiptap/pm/state'
 import type { Node as PMNode } from '@tiptap/pm/model'
 
@@ -25,8 +25,8 @@ export function decodeAnchor(b64: string): Y.RelativePosition {
   return Y.decodeRelativePosition(fromBase64(b64))
 }
 
-// y-prosemirror's ProsemirrorMapping type isn't re-exported from the package
-// root, so mirror its shape locally to type the binding without `any`.
+// The Y binding mapping type is not exported, so mirror its shape locally to
+// type the binding without `any`.
 type ProsemirrorMapping = Map<Y.AbstractType<unknown>, PMNode | PMNode[]>
 type YState = { doc: Y.Doc; type: Y.XmlFragment; binding: { mapping: ProsemirrorMapping } }
 

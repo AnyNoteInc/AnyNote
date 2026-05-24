@@ -5,14 +5,6 @@ import { loadEnvFromRoot, signUpAndAuthAs } from './helpers/auth'
 const password = 'SuperSecure123!'
 const selectedText = 'Комментируемый'
 const commentText = 'Это вопрос'
-const detachedAnchor = 'AQtwcm9zZW1pcnJvcgA='
-
-function detachedAnchorPair(): { anchorStart: string; anchorEnd: string } {
-  return {
-    anchorStart: detachedAnchor,
-    anchorEnd: detachedAnchor,
-  }
-}
 
 async function createWorkspace(page: Page) {
   await page.getByRole('textbox', { name: 'Название' }).fill('Comments WS')
@@ -81,31 +73,11 @@ test('a member adds an inline comment that persists', async ({ page }) => {
   await page.keyboard.type(selectedText)
   await dragSelectEditorText(page, editor, selectedText)
   await page.getByRole('button', { name: 'Комментировать' }).click()
+  await page.getByPlaceholder('Комментарий…').first().fill(commentText)
+  await page.getByRole('button', { name: 'Отпр.' }).first().click()
 
   loadEnvFromRoot()
   const { prisma } = await import('../../packages/db/src/index')
-  const user = await prisma.user.findUniqueOrThrow({ where: { email }, select: { id: true } })
-  const anchor = detachedAnchorPair()
-  await prisma.$transaction(async (tx) => {
-    const thread = await tx.pageCommentThread.create({
-      data: {
-        pageId: pageId!,
-        ...anchor,
-        quotedText: selectedText,
-        createdById: user.id,
-      },
-      select: { id: true },
-    })
-    await tx.pageComment.create({
-      data: {
-        threadId: thread.id,
-        authorId: user.id,
-        authorName: 'Тест Тест',
-        content: { text: commentText, mentions: [] },
-      },
-    })
-  })
-
   let thread:
     | {
         quotedText: string
