@@ -2,9 +2,11 @@
 
 import { useEffect, useMemo, useRef } from 'react'
 import { Box } from '@mui/material'
+import { useTheme } from '@mui/material/styles'
 import { DrawIoEmbed, type DrawIoEmbedRef, type EventAutoSave } from 'react-drawio'
 import type * as Y from 'yjs'
 
+import { getDrawioThemeParameters } from './theme'
 import { useDrawioYjs } from './use-drawio-yjs'
 import { writeXmlToYText } from './sync'
 import type { DrawioBoardProps } from './types'
@@ -17,8 +19,13 @@ export function DrawioBoardInner({
   drawioUrl,
   className,
 }: DrawioBoardProps) {
+  const theme = useTheme()
   const resources = useDrawioYjs({ pageId, yjsUrl, yjsToken, initialContentYjs })
   const drawioRef = useRef<DrawIoEmbedRef>(null)
+  const drawioThemeParameters = useMemo(
+    () => getDrawioThemeParameters(theme.palette.mode),
+    [theme.palette.mode],
+  )
   // Read the stored XML once for the iframe's initial load. Remote updates after
   // mount are applied imperatively via load() in the observer below.
   const initialXml = useMemo(() => resources?.ytext.toString() ?? '', [resources])
@@ -72,7 +79,7 @@ export function DrawioBoardInner({
         baseUrl={drawioUrl}
         autosave
         xml={initialXml || undefined}
-        urlParameters={{ spin: true, noExitBtn: true }}
+        urlParameters={{ ...drawioThemeParameters, spin: true, noExitBtn: true }}
         onAutoSave={handleAutoSave}
       />
     </Box>

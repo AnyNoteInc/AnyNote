@@ -2,6 +2,7 @@
 
 import { useEffect, useRef } from 'react'
 import { AppBar, Box, Button, Dialog, Toolbar, Typography } from '@mui/material'
+import { useTheme } from '@mui/material/styles'
 import {
   DrawIoEmbed,
   type DrawIoEmbedRef,
@@ -9,6 +10,7 @@ import {
   type EventExport,
 } from 'react-drawio'
 
+import { getDrawioThemeParameters } from '../extensions/drawio-theme'
 import { finalizeDrawioSave, type DrawioNodeAttrs } from '../extensions/drawio-save'
 
 type Props = {
@@ -20,8 +22,10 @@ type Props = {
 }
 
 export function DrawioEditorDialog({ open, initialXml, drawioUrl, onSave, onCancel }: Props) {
+  const theme = useTheme()
   const drawioRef = useRef<DrawIoEmbedRef>(null)
   const latestXml = useRef(initialXml)
+  const drawioThemeParameters = getDrawioThemeParameters(theme.palette.mode)
 
   useEffect(() => {
     if (open) latestXml.current = initialXml
@@ -72,7 +76,13 @@ export function DrawioEditorDialog({ open, initialXml, drawioUrl, onSave, onCanc
             autosave
             xml={initialXml || undefined}
             exportFormat="xmlsvg"
-            urlParameters={{ spin: true, noSaveBtn: true, saveAndExit: false, noExitBtn: true }}
+            urlParameters={{
+              ...drawioThemeParameters,
+              spin: true,
+              noSaveBtn: true,
+              saveAndExit: false,
+              noExitBtn: true,
+            }}
             onAutoSave={handleAutoSave}
             onExport={handleExport}
           />
