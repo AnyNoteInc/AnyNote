@@ -1,6 +1,6 @@
 'use client'
 
-import { createContext, useCallback, useContext, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useId, useRef, useState, type ReactNode } from 'react'
 
 import { Avatar, Box, Button, Paper, Stack, TextField, Typography } from '@repo/ui/components'
 
@@ -32,15 +32,36 @@ type Props = {
 
 const TOKEN_RE = /@([^\s@]*)$/
 
+const escapeRegExp = (value: string) => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+
+const selectedMentionIdsInText = (text: string, mentions: CommentMentionItem[]) => {
+  const seen = new Set<string>()
+
+  return mentions
+    .filter((mention) => {
+      if (seen.has(mention.id)) return false
+      const token = new RegExp(`(^|\\s)@${escapeRegExp(mention.label)}(?=$|\\s|[.,!?;:)\\]])`)
+      const isVisible = token.test(text)
+      if (isVisible) seen.add(mention.id)
+      return isVisible
+    })
+    .map((mention) => mention.id)
+}
+
 export function CommentComposer({ onSubmit, autoFocus, pending, mentionSearch }: Props) {
   const contextMentionSearch = useContext(CommentMentionSearchContext)
   const resolvedMentionSearch = mentionSearch ?? contextMentionSearch
+  const listboxId = useId()
   const [text, setText] = useState('')
-  const [mentions, setMentions] = useState<string[]>([])
+  const [selectedMentions, setSelectedMentions] = useState<CommentMentionItem[]>([])
   const [results, setResults] = useState<CommentMentionItem[]>([])
+  const [activeResultIndex, setActiveResultIndex] = useState(0)
   const [mentionRange, setMentionRange] = useState<{ from: number; to: number } | null>(null)
   const inputRef = useRef<HTMLInputElement | HTMLTextAreaElement | null>(null)
   const requestIdRef = useRef(0)
+  const mentionListboxId = `${listboxId}-mention-results`
+  const activeOptionId =
+    mentionRange && results[activeResultIndex] ? `${mentionListboxId}-${results[activeResultIndex].id}` : undefined
 
   const updateMentionToken = useCallback(
     (value: string, caret: number | null) => {
@@ -59,10 +80,16 @@ export function CommentComposer({ onSubmit, autoFocus, pending, mentionSearch }:
       setMentionRange({ from: beforeCaret.length - match[0].length, to: beforeCaret.length })
       void resolvedMentionSearch(match[1] ?? '')
         .then((items) => {
-          if (requestIdRef.current === requestId) setResults(items)
+          if (requestIdRef.current === requestId) {
+            setResults(items)
+            setActiveResultIndex(0)
+          }
         })
         .catch(() => {
-          if (requestIdRef.current === requestId) setResults([])
+          if (requestIdRef.current === requestId) {
+            setResults([])
+            setActiveResultIndex(0)
+          }
         })
     },
     [resolvedMentionSearch],
@@ -78,31 +105,36 @@ export function CommentComposer({ onSubmit, autoFocus, pending, mentionSearch }:
     if (text && input) updateMentionToken(input.value, input.selectionStart)
   }
 
+  const closeMentionResults = () => {
+    requestIdRef.current += 1
+    setMentionRange(null)
+    setResults([])
+    setActiveResultIndex(0)
+  }
+
   const pick = (item: CommentMentionItem) => {
     if (!mentionRange) return
     const nextText = `${text.slice(0, mentionRange.from)}@${item.label} ${text.slice(mentionRange.to)}`
     setText(nextText)
-    setMentions((prev) => (prev.includes(item.id) ? prev : [...prev, item.id]))
-    requestIdRef.current += 1
-    setMentionRange(null)
-    setResults([])
+    setSelectedMentions((prev) => (prev.some((mention) => mention.id === item.id) ? prev : [...prev, item]))
+    closeMentionResults()
   }
 
   const reset = () => {
     setText('')
-    setMentions([])
-    requestIdRef.current += 1
-    setMentionRange(null)
-    setResults([])
+    setSelectedMentions([])
+    closeMentionResults()
   }
 
   const submit = () => {
     if (pending) return
     const t = text.trim()
     if (!t) return
-    onSubmit({ text: t, mentions })
+    onSubmit({ text: t, mentions: selectedMentionIdsInText(t, selectedMentions) })
     reset()
   }
+
+  const hasMentionResults = Boolean(mentionRange && results.length > 0)
 
   return (
     <Box sx={{ position: 'relative' }}>
@@ -116,13 +148,40 @@ export function CommentComposer({ onSubmit, autoFocus, pending, mentionSearch }:
           value={text}
           autoFocus={autoFocus}
           inputRef={inputRef}
+          inputProps={{
+            'aria-activedescendant': activeOptionId,
+            'aria-autocomplete': 'list',
+            'aria-controls': hasMentionResults ? mentionListboxId : undefined,
+            'aria-expanded': hasMentionResults,
+          }}
           onChange={(e) => handleChange(e.target.value, e.target.selectionStart)}
           onClick={refreshTokenFromInput}
-          onKeyUp={refreshTokenFromInput}
+          onKeyUp={(e) => {
+            if (['ArrowDown', 'ArrowUp', 'Enter', 'Escape'].includes(e.key)) return
+            refreshTokenFromInput()
+          }}
           onKeyDown={(e) => {
             if ((e.metaKey || e.ctrlKey) && e.key === 'Enter') {
               e.preventDefault()
               submit()
+              return
+            }
+
+            if (!hasMentionResults) return
+
+            if (e.key === 'ArrowDown') {
+              e.preventDefault()
+              setActiveResultIndex((index) => (index + 1) % results.length)
+            } else if (e.key === 'ArrowUp') {
+              e.preventDefault()
+              setActiveResultIndex((index) => (index - 1 + results.length) % results.length)
+            } else if (e.key === 'Enter') {
+              e.preventDefault()
+              const activeResult = results[activeResultIndex] ?? results[0]
+              if (activeResult) pick(activeResult)
+            } else if (e.key === 'Escape') {
+              e.preventDefault()
+              closeMentionResults()
             }
           }}
         />
@@ -135,8 +194,12 @@ export function CommentComposer({ onSubmit, autoFocus, pending, mentionSearch }:
           Отпр.
         </Button>
       </Stack>
-      {mentionRange && results.length > 0 && (
+      {hasMentionResults && (
         <Paper
+          id={mentionListboxId}
+          role="listbox"
+          aria-label="Упоминания"
+          aria-activedescendant={activeOptionId}
           sx={{
             position: 'absolute',
             zIndex: 20,
@@ -147,11 +210,16 @@ export function CommentComposer({ onSubmit, autoFocus, pending, mentionSearch }:
             overflow: 'auto',
           }}
         >
-          {results.map((r) => (
+          {results.map((r, index) => (
             <Box
               key={r.id}
+              id={`${mentionListboxId}-${r.id}`}
+              role="option"
+              aria-label={r.label}
+              aria-selected={index === activeResultIndex}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => pick(r)}
+              onMouseEnter={() => setActiveResultIndex(index)}
               sx={{
                 display: 'flex',
                 alignItems: 'center',
@@ -159,6 +227,7 @@ export function CommentComposer({ onSubmit, autoFocus, pending, mentionSearch }:
                 px: 1.5,
                 py: 0.75,
                 cursor: 'pointer',
+                bgcolor: index === activeResultIndex ? 'action.selected' : undefined,
                 '&:hover': { bgcolor: 'action.hover' },
               }}
             >
