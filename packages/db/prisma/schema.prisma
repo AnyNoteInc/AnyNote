@@ -375,15 +375,14 @@ model PageShare {
   shareId     String          @unique @map("share_id") @db.VarChar(64)
   access      PageShareAccess @default(RESTRICTED)
   linkRole    PageShareRole   @default(READER) @map("link_role")
-  createdById String          @map("created_by_id") @db.Uuid
+  createdById String?         @map("created_by_id") @db.Uuid
   createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   page      Page            @relation(fields: [pageId], references: [id], onDelete: Cascade)
-  createdBy User            @relation("PageShareCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  createdBy User?           @relation("PageShareCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   users     PageShareUser[]
 
-  @@index([shareId])
   @@map("page_shares")
 }
 
