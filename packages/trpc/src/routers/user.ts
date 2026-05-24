@@ -14,6 +14,29 @@ export const userRouter = router({
     })
   }),
 
+  // Search registered platform users to grant page access to people who are
+  // NOT workspace members. Anti-enumeration: min 3 chars, prefix match,
+  // capped results, display-only fields, excludes the caller.
+  search: protectedProcedure
+    .input(z.object({ query: z.string() }))
+    .query(async ({ ctx, input }) => {
+      const q = input.query.trim()
+      if (q.length < 3) return []
+      return ctx.prisma.user.findMany({
+        where: {
+          id: { not: ctx.user.id },
+          OR: [
+            { email: { startsWith: q, mode: 'insensitive' } },
+            { firstName: { startsWith: q, mode: 'insensitive' } },
+            { lastName: { startsWith: q, mode: 'insensitive' } },
+          ],
+        },
+        take: 8,
+        orderBy: { email: 'asc' },
+        select: { id: true, firstName: true, lastName: true, email: true, image: true },
+      })
+    }),
+
   setTheme: protectedProcedure
     .input(z.object({ theme: ThemeSchema }))
     .mutation(async ({ ctx, input }) => {
