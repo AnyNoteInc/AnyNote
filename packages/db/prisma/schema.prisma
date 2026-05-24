@@ -25,6 +25,8 @@ model User {
   workspaceMemberships WorkspaceMember[]
   createdPages         Page[]            @relation("PageCreatedBy")
   updatedPages         Page[]            @relation("PageUpdatedBy")
+  pageSharesCreated    PageShare[]       @relation("PageShareCreatedBy")
+  pageShareGrants      PageShareUser[]   @relation("PageShareGrant")
   preferences          UserPreference?
   userIntegrations     Integration[]     @relation("UserIntegrations")
   subscriptions        Subscription[]
@@ -192,6 +194,17 @@ enum PageType {
   FORM
 }
 
+enum PageShareAccess {
+  RESTRICTED
+  PUBLIC
+}
+
+enum PageShareRole {
+  READER
+  COMMENTER
+  EDITOR
+}
+
 enum KanbanColumnKind {
   ACTIVE
   DONE
@@ -336,6 +349,7 @@ model Page {
   nextPage      Page?           @relation("PageOrder")
   children      Page[]          @relation("PageTree")
   parent        Page?           @relation("PageTree", fields: [parentId], references: [id], onDelete: SetNull)
+  share            PageShare?
   favorites        FavoritePage[]
   files            PageFile[]
   searchHistory    SearchHistory[]
@@ -353,6 +367,39 @@ model Page {
   @@index([workspaceId, ownership])
   @@index([searchVector], type: Gin, name: "Page_searchVector_idx")
   @@map("pages")
+}
+
+model PageShare {
+  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pageId      String          @unique @map("page_id") @db.Uuid
+  shareId     String          @unique @map("share_id") @db.VarChar(64)
+  access      PageShareAccess @default(RESTRICTED)
+  linkRole    PageShareRole   @default(READER) @map("link_role")
+  createdById String          @map("created_by_id") @db.Uuid
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  page      Page            @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  createdBy User            @relation("PageShareCreatedBy", fields: [createdById], references: [id], onDelete: Cascade)
+  users     PageShareUser[]
+
+  @@index([shareId])
+  @@map("page_shares")
+}
+
+model PageShareUser {
+  id          String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pageShareId String        @map("page_share_id") @db.Uuid
+  userId      String        @map("user_id") @db.Uuid
+  role        PageShareRole @default(READER)
+  createdAt   DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  pageShare PageShare @relation(fields: [pageShareId], references: [id], onDelete: Cascade)
+  user      User      @relation("PageShareGrant", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([pageShareId, userId])
+  @@index([userId])
+  @@map("page_share_users")
 }
 
 model Chat {
