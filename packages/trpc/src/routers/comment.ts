@@ -201,4 +201,108 @@ export const commentRouter = router({
       pageCommentBus.emit(c.pageId, { kind: 'thread.upserted', threadId: input.threadId })
       return comment
     }),
+
+  editComment: publicProcedure
+    .input(z.object({ ...Target, commentId: z.string().uuid(), content: ContentSchema }))
+    .mutation(async ({ ctx, input }) => {
+      const c = await resolveCommentContext(ctx, input)
+      if (!canWriteComment(c.role)) throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
+      const existing = await ctx.prisma.pageComment.findUnique({
+        where: { id: input.commentId },
+        select: { authorId: true, authorAnonId: true, thread: { select: { pageId: true } } },
+      })
+      if (!existing || existing.thread.pageId !== c.pageId) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Комментарий не найден' })
+      }
+      const isAuthor =
+        (!!c.author.userId && existing.authorId === c.author.userId) ||
+        (!!c.author.anonId && existing.authorAnonId === c.author.anonId)
+      if (!isAuthor) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Можно редактировать только свои комментарии' })
+      }
+      return ctx.prisma.pageComment.update({
+        where: { id: input.commentId },
+        data: { content: input.content },
+        select: { id: true },
+      })
+    }),
+
+  deleteComment: publicProcedure
+    .input(z.object({ ...Target, commentId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const c = await resolveCommentContext(ctx, input)
+      if (!canWriteComment(c.role)) throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
+      const existing = await ctx.prisma.pageComment.findUnique({
+        where: { id: input.commentId },
+        select: { authorId: true, authorAnonId: true, threadId: true, thread: { select: { pageId: true } } },
+      })
+      if (!existing || existing.thread.pageId !== c.pageId) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Комментарий не найден' })
+      }
+      const isAuthor =
+        (!!c.author.userId && existing.authorId === c.author.userId) ||
+        (!!c.author.anonId && existing.authorAnonId === c.author.anonId)
+      const canModerate =
+        c.role === 'OWNER' ||
+        c.role === 'EDITOR' ||
+        (!!c.author.userId && c.author.userId === c.page.createdById)
+      if (!isAuthor && !canModerate) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав на удаление' })
+      }
+      await ctx.prisma.pageComment.update({
+        where: { id: input.commentId },
+        data: { deletedAt: new Date() },
+      })
+      const remaining = await ctx.prisma.pageComment.count({
+        where: { threadId: existing.threadId, deletedAt: null },
+      })
+      if (remaining === 0) {
+        await ctx.prisma.pageCommentThread.update({
+          where: { id: existing.threadId },
+          data: { resolvedAt: new Date() },
+        })
+        pageCommentBus.emit(c.pageId, { kind: 'thread.deleted', threadId: existing.threadId })
+      } else {
+        pageCommentBus.emit(c.pageId, { kind: 'thread.upserted', threadId: existing.threadId })
+      }
+      return { ok: true as const }
+    }),
+
+  resolveThread: publicProcedure
+    .input(z.object({ ...Target, threadId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const c = await resolveCommentContext(ctx, input)
+      if (!canWriteComment(c.role)) throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
+      const thread = await ctx.prisma.pageCommentThread.findUnique({
+        where: { id: input.threadId },
+        select: { pageId: true },
+      })
+      if (!thread || thread.pageId !== c.pageId) throw new TRPCError({ code: 'NOT_FOUND', message: 'Тред не найден' })
+      const updated = await ctx.prisma.pageCommentThread.update({
+        where: { id: input.threadId },
+        data: { resolvedAt: new Date(), resolvedById: c.author.userId ?? null },
+        select: { id: true, resolvedAt: true },
+      })
+      pageCommentBus.emit(c.pageId, { kind: 'thread.upserted', threadId: input.threadId })
+      return updated
+    }),
+
+  reopenThread: publicProcedure
+    .input(z.object({ ...Target, threadId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const c = await resolveCommentContext(ctx, input)
+      if (!canWriteComment(c.role)) throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
+      const thread = await ctx.prisma.pageCommentThread.findUnique({
+        where: { id: input.threadId },
+        select: { pageId: true },
+      })
+      if (!thread || thread.pageId !== c.pageId) throw new TRPCError({ code: 'NOT_FOUND', message: 'Тред не найден' })
+      const updated = await ctx.prisma.pageCommentThread.update({
+        where: { id: input.threadId },
+        data: { resolvedAt: null, resolvedById: null },
+        select: { id: true, resolvedAt: true },
+      })
+      pageCommentBus.emit(c.pageId, { kind: 'thread.upserted', threadId: input.threadId })
+      return updated
+    }),
 })

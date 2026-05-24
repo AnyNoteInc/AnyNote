@@ -93,3 +93,64 @@ describe('comment.listThreads / createThread', () => {
     )
   })
 })
+
+describe('comment edit/delete/resolve', () => {
+  const COMMENT_ID = '55555555-5555-5555-5555-555555555555'
+  const THREAD_ID = '66666666-6666-6666-6666-666666666666'
+  beforeEach(() => vi.clearAllMocks())
+
+  function memberPrisma(role: string, extra: Record<string, unknown>) {
+    return {
+      page: { findUnique: vi.fn(async () => PAGE) },
+      workspaceMember: { findUnique: vi.fn(async () => ({ role })) },
+      user: { findUnique: vi.fn(async () => ({ firstName: 'A', lastName: '', email: 'a@b.c' })) },
+      ...extra,
+    } as never
+  }
+
+  it('lets the author edit own comment', async () => {
+    const prisma = memberPrisma('COMMENTER', {
+      pageComment: {
+        findUnique: vi.fn(async () => ({ authorId: 'u1', authorAnonId: null, thread: { pageId: PAGE_ID } })),
+        update: vi.fn(async () => ({ id: COMMENT_ID })),
+      },
+    })
+    await caller(ctx(prisma, { id: 'u1' })).editComment({ pageId: PAGE_ID, commentId: COMMENT_ID, content: { text: 'x', mentions: [] } })
+    expect(prisma.pageComment.update).toHaveBeenCalled()
+  })
+
+  it('forbids editing someone else’s comment', async () => {
+    const prisma = memberPrisma('COMMENTER', {
+      pageComment: { findUnique: vi.fn(async () => ({ authorId: 'other', authorAnonId: null, thread: { pageId: PAGE_ID } })) },
+    })
+    await expect(
+      caller(ctx(prisma, { id: 'u1' })).editComment({ pageId: PAGE_ID, commentId: COMMENT_ID, content: { text: 'x', mentions: [] } }),
+    ).rejects.toThrow(/только свои/)
+  })
+
+  it('lets an EDITOR delete any comment (moderation)', async () => {
+    const prisma = memberPrisma('EDITOR', {
+      pageComment: {
+        findUnique: vi.fn(async () => ({ authorId: 'other', authorAnonId: null, threadId: THREAD_ID, thread: { pageId: PAGE_ID } })),
+        update: vi.fn(async () => ({ id: COMMENT_ID })),
+        count: vi.fn(async () => 1),
+      },
+      pageCommentThread: { update: vi.fn() },
+    })
+    await caller(ctx(prisma, { id: 'u1' })).deleteComment({ pageId: PAGE_ID, commentId: COMMENT_ID })
+    expect(prisma.pageComment.update).toHaveBeenCalledWith(
+      expect.objectContaining({ data: expect.objectContaining({ deletedAt: expect.any(Date) }) }),
+    )
+  })
+
+  it('resolves a thread', async () => {
+    const prisma = memberPrisma('COMMENTER', {
+      pageCommentThread: {
+        findUnique: vi.fn(async () => ({ pageId: PAGE_ID })),
+        update: vi.fn(async () => ({ id: THREAD_ID, resolvedAt: new Date() })),
+      },
+    })
+    const res = await caller(ctx(prisma, { id: 'u1' })).resolveThread({ pageId: PAGE_ID, threadId: THREAD_ID })
+    expect(res.resolvedAt).toBeTruthy()
+  })
+})
