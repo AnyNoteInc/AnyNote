@@ -27,6 +27,8 @@ model User {
   updatedPages         Page[]            @relation("PageUpdatedBy")
   pageSharesCreated    PageShare[]       @relation("PageShareCreatedBy")
   pageShareGrants      PageShareUser[]   @relation("PageShareGrant")
+  pageCommentThreadsAuthored PageCommentThread[] @relation("PageCommentThreadAuthor")
+  pageCommentsAuthored       PageComment[]       @relation("PageCommentAuthor")
   preferences          UserPreference?
   userIntegrations     Integration[]     @relation("UserIntegrations")
   subscriptions        Subscription[]
@@ -350,6 +352,7 @@ model Page {
   children      Page[]          @relation("PageTree")
   parent        Page?           @relation("PageTree", fields: [parentId], references: [id], onDelete: SetNull)
   share            PageShare?
+  commentThreads   PageCommentThread[]
   favorites        FavoritePage[]
   files            PageFile[]
   searchHistory    SearchHistory[]
@@ -399,6 +402,44 @@ model PageShareUser {
   @@unique([pageShareId, userId])
   @@index([userId])
   @@map("page_share_users")
+}
+
+model PageCommentThread {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pageId       String    @map("page_id") @db.Uuid
+  anchorStart  String    @map("anchor_start") @db.Text
+  anchorEnd    String    @map("anchor_end") @db.Text
+  quotedText   String    @map("quoted_text") @db.Text
+  resolvedAt   DateTime? @map("resolved_at") @db.Timestamptz(6)
+  resolvedById String?   @map("resolved_by_id") @db.Uuid
+  createdById  String?   @map("created_by_id") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  page      Page          @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  createdBy User?         @relation("PageCommentThreadAuthor", fields: [createdById], references: [id], onDelete: SetNull)
+  comments  PageComment[]
+
+  @@index([pageId])
+  @@map("page_comment_threads")
+}
+
+model PageComment {
+  id           String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  threadId     String    @map("thread_id") @db.Uuid
+  authorId     String?   @map("author_id") @db.Uuid
+  authorName   String    @map("author_name") @db.VarChar(255)
+  authorAnonId String?   @map("author_anon_id") @db.VarChar(64)
+  content      Json
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
+
+  thread PageCommentThread @relation(fields: [threadId], references: [id], onDelete: Cascade)
+  author User?             @relation("PageCommentAuthor", fields: [authorId], references: [id], onDelete: SetNull)
+
+  @@index([threadId, createdAt])
+  @@map("page_comments")
 }
 
 model Chat {
