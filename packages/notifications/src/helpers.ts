@@ -110,7 +110,7 @@ export const notify = {
       userId: string
       workspaceId: string
       pageId: string
-      actorId: string
+      actorId?: string
       actorName: string
       snippet: string
     },
@@ -131,7 +131,7 @@ export const notify = {
       workspaceId: string
       pageId: string
       commentId: string
-      actorId: string
+      actorId?: string
       actorName: string
       snippet: string
     },

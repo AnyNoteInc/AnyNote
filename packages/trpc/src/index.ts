@@ -13,6 +13,7 @@ import { searchRouter } from './routers/search'
 import { notificationRouter } from './routers/notification'
 import { reminderRouter } from './routers/reminder'
 import { kanbanRouter } from './routers/kanban'
+import { commentRouter } from './routers/comment'
 import { mcpServerRouter } from './routers/mcp-server'
 import { agentMemoryRouter } from './routers/agent-memory'
 
@@ -44,6 +45,7 @@ export const appRouter = router({
   notification: notificationRouter,
   reminder: reminderRouter,
   kanban: kanbanRouter,
+  comment: commentRouter,
   mcpServer: mcpServerRouter,
   agentMemory: agentMemoryRouter,
 })
