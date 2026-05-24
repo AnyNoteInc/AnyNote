@@ -8,6 +8,7 @@ import FormatUnderlinedIcon from '@mui/icons-material/FormatUnderlined'
 import LinkIcon from '@mui/icons-material/Link'
 import LinkOffIcon from '@mui/icons-material/LinkOff'
 import StrikethroughSIcon from '@mui/icons-material/StrikethroughS'
+import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline'
 import {
   Button,
   Dialog,
@@ -28,6 +29,8 @@ import type { Editor } from '@tiptap/core'
 import { BubbleMenu } from '@tiptap/react/menus'
 import { useEffect, useState } from 'react'
 import { findClickedLink, openLinkInNewWindow, shouldOpenLink } from '../extensions/link-click-handler'
+import { selectionToAnchor } from '../comment-anchor'
+import type { CommentsStorage } from '../extensions/comments'
 
 type Props = { editor: Editor }
 
@@ -287,6 +290,23 @@ export function FloatingToolbar({ editor }: Props) {
                   sx={{ color: 'text.secondary' }}
                 >
                   <LinkOffIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            ) : null}
+            {((editor.storage as unknown as { comments?: CommentsStorage }).comments)?.canComment ? (
+              <Tooltip title="Комментировать">
+                <IconButton
+                  size="small"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    const anchor = selectionToAnchor(editor.state)
+                    const cb = ((editor.storage as unknown as { comments?: CommentsStorage }).comments)?.onCreateComment
+                    if (anchor && cb) cb(anchor)
+                  }}
+                  aria-label="Комментировать"
+                  sx={{ color: 'text.secondary' }}
+                >
+                  <ChatBubbleOutlineIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
             ) : null}
