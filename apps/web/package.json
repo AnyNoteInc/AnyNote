@@ -19,6 +19,7 @@
     "@prisma/client": "^7.0.0",
     "@repo/auth": "workspace:*",
     "@repo/db": "workspace:*",
+    "@repo/drawio": "workspace:*",
     "@repo/editor": "workspace:*",
     "@repo/excalidraw": "workspace:*",
     "@repo/genogram": "workspace:*",

@@ -18,6 +18,7 @@ import { Box, CircularProgress } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
 import { resolveYjsUrl, fetchYjsToken } from '@/lib/yjs-config'
+import { resolveDrawioUrl } from '@/lib/drawio-config'
 import { createUploadHandler } from '@/lib/upload-handler'
 import {
   PAGE_TREE_ROOT,
@@ -59,6 +60,11 @@ const PlantumlBoard = dynamic(() => import('@repo/plantuml').then((m) => m.Plant
 })
 
 const Likec4Board = dynamic(() => import('@repo/likec4').then((m) => m.Likec4Board), {
+  ssr: false,
+  loading: () => <CenteredSpinner />,
+})
+
+const DrawioBoard = dynamic(() => import('@repo/drawio').then((m) => m.DrawioBoard), {
   ssr: false,
   loading: () => <CenteredSpinner />,
 })
@@ -425,6 +431,19 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
         yjsUrl={resolveYjsUrl()}
         yjsToken={fetchYjsToken}
         user={user}
+      />
+    )
+  }
+
+  if (page.type === 'DRAWIO') {
+    return (
+      <DrawioBoard
+        pageId={page.id}
+        initialContentYjs={page.contentYjs}
+        yjsUrl={resolveYjsUrl()}
+        yjsToken={fetchYjsToken}
+        user={user}
+        drawioUrl={resolveDrawioUrl()}
       />
     )
   }

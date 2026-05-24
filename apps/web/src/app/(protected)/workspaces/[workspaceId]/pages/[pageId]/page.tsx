@@ -37,6 +37,7 @@ export default async function PageView({
     page.type === 'MERMAID' ||
     page.type === 'PLANTUML' ||
     page.type === 'LIKEC4' ||
+    page.type === 'DRAWIO' ||
     page.type === 'KANBAN'
 
   return (

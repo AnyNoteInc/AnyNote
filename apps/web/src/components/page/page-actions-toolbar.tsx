@@ -23,12 +23,21 @@ export function PageActionsToolbar({ pageId, workspaceId }: Props) {
 
   const title = pageQ.data?.title ?? null
   const rawType = pageQ.data?.type
-  const pageType: 'TEXT' | 'EXCALIDRAW' | 'GENOGRAM' | 'MERMAID' | 'PLANTUML' | 'LIKEC4' | 'KANBAN' =
+  const pageType:
+    | 'TEXT'
+    | 'EXCALIDRAW'
+    | 'GENOGRAM'
+    | 'MERMAID'
+    | 'PLANTUML'
+    | 'LIKEC4'
+    | 'DRAWIO'
+    | 'KANBAN' =
     rawType === 'EXCALIDRAW' ||
     rawType === 'GENOGRAM' ||
     rawType === 'MERMAID' ||
     rawType === 'PLANTUML' ||
     rawType === 'LIKEC4' ||
+    rawType === 'DRAWIO' ||
     rawType === 'KANBAN'
       ? rawType
       : 'TEXT'

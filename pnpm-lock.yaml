@@ -191,6 +191,9 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../../packages/db
+      '@repo/drawio':
+        specifier: workspace:*
+        version: link:../../packages/drawio
       '@repo/editor':
         specifier: workspace:*
         version: link:../../packages/editor

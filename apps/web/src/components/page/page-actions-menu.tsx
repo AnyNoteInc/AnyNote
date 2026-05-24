@@ -39,7 +39,15 @@ type Props = {
   pageId: string
   pageTitle: string | null
   workspaceId: string
-  pageType: 'TEXT' | 'EXCALIDRAW' | 'GENOGRAM' | 'MERMAID' | 'PLANTUML' | 'LIKEC4' | 'KANBAN'
+  pageType:
+    | 'TEXT'
+    | 'EXCALIDRAW'
+    | 'GENOGRAM'
+    | 'MERMAID'
+    | 'PLANTUML'
+    | 'LIKEC4'
+    | 'DRAWIO'
+    | 'KANBAN'
   isFavorite: boolean
   // Full page row needed by MovePageDialog; undefined until parent's query settles.
   movedPage: PageItem | undefined

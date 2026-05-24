@@ -26,6 +26,7 @@ const nextConfig = {
     '@repo/storage',
     '@repo/editor',
     '@repo/likec4',
+    '@repo/drawio',
     '@repo/excalidraw',
     '@repo/genogram',
     '@repo/diagram-board',
