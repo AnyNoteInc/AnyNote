@@ -28,7 +28,7 @@ import { type PageItem, orderSiblings } from './types'
 
 type CreatablePageType = Extract<
   PageType,
-  'TEXT' | 'EXCALIDRAW' | 'GENOGRAM' | 'MERMAID' | 'PLANTUML' | 'LIKEC4' | 'KANBAN'
+  'TEXT' | 'EXCALIDRAW' | 'GENOGRAM' | 'MERMAID' | 'PLANTUML' | 'LIKEC4' | 'DRAWIO' | 'KANBAN'
 >
 
 type Props = {
@@ -90,6 +90,53 @@ function DiagramSubmenu({
   )
 }
 
+function HolstSubmenu({
+  onCreate,
+  onClose,
+}: {
+  onCreate: (type: CreatablePageType) => void
+  onClose: () => void
+}) {
+  const [anchor, setAnchor] = useState<HTMLElement | null>(null)
+  const choose = (type: CreatablePageType) => {
+    onCreate(type)
+    setAnchor(null)
+    onClose()
+  }
+  return (
+    <>
+      <MenuItem onClick={(e) => setAnchor(e.currentTarget)}>
+        <ListItemIcon>
+          <BrushIcon fontSize="small" />
+        </ListItemIcon>
+        <ListItemText primary="Холст" />
+        <ChevronRightIcon fontSize="small" sx={{ ml: 'auto', color: 'text.secondary' }} />
+      </MenuItem>
+      <Menu
+        anchorEl={anchor}
+        open={Boolean(anchor)}
+        onClose={() => setAnchor(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <MenuItem onClick={() => choose('EXCALIDRAW')}>
+          <ListItemIcon>
+            <BrushIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Excalidraw" />
+        </MenuItem>
+        <MenuItem onClick={() => choose('DRAWIO')}>
+          <ListItemIcon>
+            <SchemaIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Draw.io" />
+        </MenuItem>
+      </Menu>
+    </>
+  )
+}
+
 function CreatePageMenu({
   anchorEl,
   onClose,
@@ -117,17 +164,7 @@ function CreatePageMenu({
         </ListItemIcon>
         <ListItemText primary="Текст" />
       </MenuItem>
-      <MenuItem
-        onClick={() => {
-          onCreate('EXCALIDRAW')
-          onClose()
-        }}
-      >
-        <ListItemIcon>
-          <BrushIcon fontSize="small" />
-        </ListItemIcon>
-        <ListItemText primary="Холст" />
-      </MenuItem>
+      <HolstSubmenu onCreate={onCreate} onClose={onClose} />
       <MenuItem
         onClick={() => {
           onCreate('GENOGRAM')

@@ -17,6 +17,7 @@ async function setupExcalidrawPage(page: Page) {
     .locator('xpath=ancestor::*[.//button][1]')
   await pagesHeaderRow.getByRole('button').click()
   await page.getByRole('menuitem', { name: 'Холст' }).click()
+  await page.getByRole('menuitem', { name: 'Excalidraw' }).click()
 
   await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
   await page.getByTitle(/Rectangle — R or/).waitFor({ state: 'visible', timeout: 15_000 })
