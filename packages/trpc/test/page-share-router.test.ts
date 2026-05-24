@@ -85,3 +85,56 @@ describe('page.share.get (read-only) + ensure (lazy create)', () => {
     expect(res.shareId).toHaveLength(64)
   })
 })
+
+describe('page.share mutations', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  function manageablePrisma(extra: Record<string, unknown>) {
+    return {
+      page: { findFirst: vi.fn(async () => ownedPage) },
+      workspaceMember: { findUnique: vi.fn(async () => ({ role: 'OWNER' })) },
+      ...extra,
+    } as never
+  }
+
+  it('setAccess updates access + linkRole', async () => {
+    const prisma = manageablePrisma({
+      pageShare: {
+        update: vi.fn(async () => ({ id: SHARE_ID, access: 'PUBLIC', linkRole: 'EDITOR' })),
+      },
+    })
+    const res = await caller(ctx(prisma)).setAccess({ pageId: PAGE_ID, access: 'PUBLIC', linkRole: 'EDITOR' })
+    expect(res.access).toBe('PUBLIC')
+    expect(prisma.pageShare.update).toHaveBeenCalledWith({
+      where: { pageId: PAGE_ID },
+      data: { access: 'PUBLIC', linkRole: 'EDITOR' },
+      select: { id: true, access: true, linkRole: true },
+    })
+  })
+
+  it('addUser rejects an existing workspace member', async () => {
+    const prisma = manageablePrisma({
+      pageShare: { findUnique: vi.fn(async () => ({ id: SHARE_ID })) },
+      workspaceMember: {
+        findUnique: vi
+          .fn()
+          .mockResolvedValueOnce({ role: 'OWNER' }) // assertCanManageShare
+          .mockResolvedValueOnce({ role: 'VIEWER' }), // target already a member
+      },
+    })
+    await expect(
+      caller(ctx(prisma)).addUser({ pageId: PAGE_ID, userId: '55555555-5555-5555-5555-555555555555', role: 'READER' }),
+    ).rejects.toThrow(/уже имеет доступ/)
+  })
+
+  it('removeUser deletes the grant', async () => {
+    const prisma = manageablePrisma({
+      pageShare: { findUnique: vi.fn(async () => ({ id: SHARE_ID })) },
+      pageShareUser: { deleteMany: vi.fn(async () => ({ count: 1 })) },
+    })
+    await caller(ctx(prisma)).removeUser({ pageId: PAGE_ID, userId: '55555555-5555-5555-5555-555555555555' })
+    expect(prisma.pageShareUser.deleteMany).toHaveBeenCalledWith({
+      where: { pageShareId: SHARE_ID, userId: '55555555-5555-5555-5555-555555555555' },
+    })
+  })
+})
