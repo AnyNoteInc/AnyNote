@@ -701,6 +701,9 @@ importers:
       react:
         specifier: ^19.2.0
         version: 19.2.5
+      react-drawio:
+        specifier: ^1.0.7
+        version: 1.0.7(react@19.2.5)
       tippy.js:
         specifier: ^6.3.7
         version: 6.3.7
