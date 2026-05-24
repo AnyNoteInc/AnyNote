@@ -1,5 +1,6 @@
 import { TRPCError } from '@trpc/server'
 import type { PrismaClient } from '@repo/db'
+import { createHash } from 'node:crypto'
 
 export type EffectiveRole = 'OWNER' | 'EDITOR' | 'COMMENTER' | 'READER'
 export type CommentAuthor = { userId?: string; anonId?: string; name: string }
@@ -27,6 +28,19 @@ function mapMemberRole(role: string): EffectiveRole {
 
 function displayName(u: { firstName: string | null; lastName: string | null; email: string }): string {
   return [u.firstName, u.lastName].filter(Boolean).join(' ').trim() || u.email
+}
+
+const GUEST_NAMES = ['Лис', 'Сокол', 'Клен', 'Ирис', 'Оникс', 'Север', 'Луч', 'Нота'] as const
+
+function normalizeAnonId(anonId: string | undefined): string | undefined {
+  const trimmed = anonId?.trim()
+  return trimmed ? trimmed : undefined
+}
+
+function guestDisplayName(anonId: string | undefined): string {
+  if (!anonId) return 'Гость'
+  const digest = createHash('sha256').update(anonId).digest()
+  return `Гость · ${GUEST_NAMES[(digest[0] ?? 0) % GUEST_NAMES.length]}`
 }
 
 export type CommentContext = {
@@ -98,8 +112,8 @@ export async function resolveCommentContext(ctx: Ctx, input: Input): Promise<Com
     return { ...base, role: null, author }
   }
 
-  const anonId = input.anonId ?? 'anon'
-  const author = { anonId, name: `Гость · ${anonId}` }
+  const anonId = normalizeAnonId(input.anonId)
+  const author: CommentAuthor = { name: guestDisplayName(anonId), ...(anonId ? { anonId } : {}) }
   if (shareForPage?.access === 'PUBLIC') return { ...base, role: shareForPage.linkRole as EffectiveRole, author }
   return { ...base, role: null, author }
 }

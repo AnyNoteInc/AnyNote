@@ -84,7 +84,19 @@ describe('resolveCommentContext (anonymous public links)', () => {
     expect(res.pageId).toBe('p2')
     expect(res.workspaceId).toBe('w1')
     expect(res.role).toBe('COMMENTER')
-    expect(res.author).toEqual({ anonId: 'anon-123', name: 'Гость · anon-123' })
+    expect(res.author.anonId).toBe('anon-123')
+    expect(res.author.name).toMatch(/^Гость · /)
+    expect(res.author.name).not.toContain('anon-123')
+  })
+
+  it('allows anonymous public viewing without creating shared anonymous ownership', async () => {
+    const prisma = {
+      pageShare: { findUnique: vi.fn(async () => PUBLIC_SHARE) },
+    }
+    const res = await resolveCommentContext(ctx(prisma, null), { shareId: 'public-share' })
+    expect(res.role).toBe('COMMENTER')
+    expect(res.author.anonId).toBeUndefined()
+    expect(res.author.name).toMatch(/^Гость/)
   })
 
   it('denies an anonymous restricted link', async () => {
@@ -93,6 +105,8 @@ describe('resolveCommentContext (anonymous public links)', () => {
     }
     const res = await resolveCommentContext(ctx(prisma, null), { shareId: 'restricted-share', anonId: 'anon-123' })
     expect(res.role).toBeNull()
-    expect(res.author).toEqual({ anonId: 'anon-123', name: 'Гость · anon-123' })
+    expect(res.author.anonId).toBe('anon-123')
+    expect(res.author.name).toMatch(/^Гость · /)
+    expect(res.author.name).not.toContain('anon-123')
   })
 })

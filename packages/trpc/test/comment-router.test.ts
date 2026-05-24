@@ -92,6 +92,91 @@ describe('comment.listThreads / createThread', () => {
       expect.objectContaining({ userId: 'owner' }),
     )
   })
+
+  it('rejects anonymous createThread without anonId on a public commenter link', async () => {
+    const prisma = {
+      pageShare: {
+        findUnique: vi.fn(async () => ({
+          id: 'share1',
+          access: 'PUBLIC',
+          linkRole: 'COMMENTER',
+          pageId: PAGE_ID,
+          page: PAGE,
+        })),
+      },
+    } as never
+    await expect(
+      caller(ctx(prisma, null)).createThread({
+        shareId: 'public-share',
+        anchorStart: 'x',
+        anchorEnd: 'y',
+        quotedText: 'q',
+        content: { text: 'hi', mentions: [] },
+      }),
+    ).rejects.toThrow(/anonymous identity/i)
+  })
+
+  it('creates anonymous public thread with anonId without exposing raw anonId as author name', async () => {
+    const tx = {
+      pageCommentThread: { create: vi.fn(async () => ({ id: 't1' })) },
+      pageComment: { create: vi.fn(async () => ({ id: 'c1' })) },
+    }
+    const prisma = {
+      pageShare: {
+        findUnique: vi.fn(async () => ({
+          id: 'share1',
+          access: 'PUBLIC',
+          linkRole: 'COMMENTER',
+          pageId: PAGE_ID,
+          page: PAGE,
+        })),
+      },
+      $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
+      pageComment: { findFirst: vi.fn(async () => ({ id: 'c1' })) },
+      pageCommentThread: { findUnique: vi.fn(async () => ({ id: 't1', page: { createdById: 'owner' }, comments: [] })) },
+      workspaceMember: { findMany: vi.fn(async () => []) },
+    } as never
+    await caller(ctx(prisma, null)).createThread({
+      shareId: 'public-share',
+      anonId: 'anon-123',
+      anchorStart: 'x',
+      anchorEnd: 'y',
+      quotedText: 'q',
+      content: { text: 'hi', mentions: [] },
+    })
+    expect(tx.pageComment.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          authorAnonId: 'anon-123',
+          authorName: expect.stringMatching(/^Гость · /),
+        }),
+      }),
+    )
+    expect(tx.pageComment.create.mock.calls[0]?.[0].data.authorName).not.toContain('anon-123')
+  })
+
+  it('rejects anonymous addComment without anonId on a public commenter link', async () => {
+    const prisma = {
+      pageShare: {
+        findUnique: vi.fn(async () => ({
+          id: 'share1',
+          access: 'PUBLIC',
+          linkRole: 'COMMENTER',
+          pageId: PAGE_ID,
+          page: PAGE,
+        })),
+      },
+      pageCommentThread: { findUnique: vi.fn() },
+    } as never
+    await expect(
+      caller(ctx(prisma, null)).addComment({
+        shareId: 'public-share',
+        threadId: '66666666-6666-6666-6666-666666666666',
+        content: { text: 'reply', mentions: [] },
+      }),
+    ).rejects.toThrow(/anonymous identity/i)
+    expect(prisma.pageCommentThread.findUnique).not.toHaveBeenCalled()
+  })
 })
 
 describe('comment edit/delete/resolve', () => {
@@ -126,6 +211,58 @@ describe('comment edit/delete/resolve', () => {
     await expect(
       caller(ctx(prisma, { id: 'u1' })).editComment({ pageId: PAGE_ID, commentId: COMMENT_ID, content: { text: 'x', mentions: [] } }),
     ).rejects.toThrow(/только свои/)
+  })
+
+  it('does not let missing anonymous anonId match an anonymous owner for edit', async () => {
+    const prisma = {
+      pageShare: {
+        findUnique: vi.fn(async () => ({
+          id: 'share1',
+          access: 'PUBLIC',
+          linkRole: 'COMMENTER',
+          pageId: PAGE_ID,
+          page: PAGE,
+        })),
+      },
+      pageComment: {
+        findUnique: vi.fn(async () => ({
+          authorId: null,
+          authorAnonId: 'anon',
+          thread: { pageId: PAGE_ID },
+        })),
+        update: vi.fn(),
+      },
+    } as never
+    await expect(
+      caller(ctx(prisma, null)).editComment({
+        shareId: 'public-share',
+        commentId: COMMENT_ID,
+        content: { text: 'x', mentions: [] },
+      }),
+    ).rejects.toThrow(/anonymous identity/i)
+    expect(prisma.pageComment.update).not.toHaveBeenCalled()
+  })
+
+  it('rejects anonymous deleteComment without anonId before owner matching', async () => {
+    const prisma = {
+      pageShare: {
+        findUnique: vi.fn(async () => ({
+          id: 'share1',
+          access: 'PUBLIC',
+          linkRole: 'COMMENTER',
+          pageId: PAGE_ID,
+          page: PAGE,
+        })),
+      },
+      pageComment: { findUnique: vi.fn(), update: vi.fn() },
+    } as never
+    await expect(
+      caller(ctx(prisma, null)).deleteComment({
+        shareId: 'public-share',
+        commentId: COMMENT_ID,
+      }),
+    ).rejects.toThrow(/anonymous identity/i)
+    expect(prisma.pageComment.findUnique).not.toHaveBeenCalled()
   })
 
   it('lets an EDITOR delete any comment (moderation)', async () => {

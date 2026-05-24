@@ -32,6 +32,13 @@ const threadInclude = {
 } as const
 
 type CommentPrisma = Parameters<typeof resolveCommentContext>[0]['prisma']
+type ResolvedCommentContext = Awaited<ReturnType<typeof resolveCommentContext>>
+
+function requireAnonymousAuthorIdentity(c: ResolvedCommentContext): void {
+  if (!c.author.userId && !c.author.anonId) {
+    throw new TRPCError({ code: 'FORBIDDEN', message: 'Missing anonymous identity' })
+  }
+}
 
 async function notifyNewComment(
   prisma: CommentPrisma,
@@ -130,6 +137,7 @@ export const commentRouter = router({
     .mutation(async ({ ctx, input }) => {
       const c = await resolveCommentContext(ctx, input)
       if (!canWriteComment(c.role)) throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
+      requireAnonymousAuthorIdentity(c)
       const thread = await ctx.prisma.$transaction(async (tx) => {
         const t = await tx.pageCommentThread.create({
           data: {
@@ -187,6 +195,7 @@ export const commentRouter = router({
     .mutation(async ({ ctx, input }) => {
       const c = await resolveCommentContext(ctx, input)
       if (!canWriteComment(c.role)) throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
+      requireAnonymousAuthorIdentity(c)
       const thread = await ctx.prisma.pageCommentThread.findUnique({
         where: { id: input.threadId },
         select: { pageId: true },
@@ -222,6 +231,7 @@ export const commentRouter = router({
     .mutation(async ({ ctx, input }) => {
       const c = await resolveCommentContext(ctx, input)
       if (!canWriteComment(c.role)) throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
+      requireAnonymousAuthorIdentity(c)
       const existing = await ctx.prisma.pageComment.findUnique({
         where: { id: input.commentId },
         select: { authorId: true, authorAnonId: true, thread: { select: { pageId: true } } },
@@ -247,6 +257,7 @@ export const commentRouter = router({
     .mutation(async ({ ctx, input }) => {
       const c = await resolveCommentContext(ctx, input)
       if (!canWriteComment(c.role)) throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
+      requireAnonymousAuthorIdentity(c)
       const existing = await ctx.prisma.pageComment.findUnique({
         where: { id: input.commentId },
         select: { authorId: true, authorAnonId: true, threadId: true, thread: { select: { pageId: true } } },
