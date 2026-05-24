@@ -70,7 +70,7 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
     underline: false,
   }),
   buildPlaceholder(opts.placeholder),
-  Link.configure({ openOnClick: false }),
+  Link.configure({ openOnClick: false, enableClickSelection: true }),
   Code,
   Highlight.configure({ multicolor: true }),
   Underline,

@@ -27,6 +27,7 @@ import type { SelectChangeEvent } from '@mui/material'
 import type { Editor } from '@tiptap/core'
 import { BubbleMenu } from '@tiptap/react/menus'
 import { useEffect, useState } from 'react'
+import { findClickedLink, openLinkInNewWindow, shouldOpenLink } from '../extensions/link-click-handler'
 
 type Props = { editor: Editor }
 
@@ -142,6 +143,27 @@ export function FloatingToolbar({ editor }: Props) {
     const current = editor.getAttributes('link').href as string | undefined
     setLinkValue(current ?? 'https://')
   }, [editor, linkDialogOpen])
+
+  useEffect(() => {
+    const handleEditorClick = (event: MouseEvent) => {
+      if (event.button !== 0 || !editor.isEditable) return
+
+      const link = findClickedLink(event.target, editor.view.dom)
+      if (!link) return
+
+      if (shouldOpenLink(event)) {
+        event.preventDefault()
+        event.stopPropagation()
+        openLinkInNewWindow(link)
+      }
+    }
+
+    editor.view.dom.addEventListener('click', handleEditorClick, { capture: true })
+
+    return () => {
+      editor.view.dom.removeEventListener('click', handleEditorClick, { capture: true })
+    }
+  }, [editor])
 
   const setFontFamily = (event: SelectChangeEvent) => {
     const value = event.target.value

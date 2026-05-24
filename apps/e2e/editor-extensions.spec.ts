@@ -84,11 +84,40 @@ test('bubble menu applies inline formatting and link attributes', async ({ page 
   await expect(editor.locator('u', { hasText: 'Format me' })).toBeVisible()
   await expect(editor.locator('s', { hasText: 'Format me' })).toBeVisible()
   await expect(editor.locator('mark', { hasText: 'Format me' })).toBeVisible()
-  await expect(editor.locator('a[href="https://example.com/format"]', { hasText: 'Format me' })).toBeVisible()
+  const link = editor.locator('a[href="https://example.com/format"]', { hasText: 'Format me' })
+  await expect(link).toBeVisible()
 
   await page.getByRole('button', { name: 'Инлайн-код' }).click()
   await expect(editor.locator('code', { hasText: 'Format me' })).toBeVisible()
   await page.getByRole('button', { name: 'Инлайн-код' }).click()
+})
+
+test('editor link modifier click opens a new tab without showing a tooltip', async ({ page }) => {
+  await signUp(page, 'ext-link-click')
+  const editor = await createTextPage(page)
+  await editor.click()
+  await editor.type('Open me')
+  await page.keyboard.down('Shift')
+  for (let i = 0; i < 'Open me'.length; i++) {
+    await page.keyboard.press('ArrowLeft')
+  }
+  await page.keyboard.up('Shift')
+
+  await page.getByRole('button', { name: 'Ссылка' }).click()
+  await page.getByLabel('URL').fill('https://example.com/format')
+  await page.getByRole('button', { name: 'Сохранить' }).click()
+
+  const link = editor.locator('a[href="https://example.com/format"]', { hasText: 'Open me' })
+  await expect(link).toBeVisible()
+
+  await link.click()
+  await expect(page.getByRole('tooltip', { name: /Нажмите Command/ })).toHaveCount(0)
+
+  const popupPromise = page.waitForEvent('popup')
+  await link.click({ modifiers: ['Alt'] })
+  const popup = await popupPromise
+  await expect(popup).toHaveURL('https://example.com/format')
+  await popup.close()
 })
 
 test('bubble menu keeps font selects in sync with selected text', async ({ page }) => {
