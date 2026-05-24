@@ -22,6 +22,7 @@ import { BlockIndexAttributes } from './block-index-attributes'
 import { Callout } from './callout'
 import { CodeBlock } from './code-block'
 import { buildCollaboration } from './collaboration'
+import { Comments } from './comments'
 import { Column, ColumnLayout } from './column-layout'
 import { DropPlacement } from './drop-placement'
 import { Drawio } from './drawio'
@@ -58,6 +59,7 @@ export type BuildExtensionsOptions = {
   mentionRender: MentionRender
   onNavigateToPage: (pageId: string) => void
   drawioUrl: string
+  onOpenThread: (threadId: string) => void
 }
 
 export const buildExtensions = (opts: BuildExtensionsOptions) => [
@@ -151,4 +153,5 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   ColumnLayout,
   Column,
   DropPlacement,
+  Comments.configure({ onOpenThread: opts.onOpenThread }),
 ]

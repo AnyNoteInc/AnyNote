@@ -58,7 +58,13 @@ export type AnyNoteEditorProps = {
   loadingFallback?: ReactNode
   onReminderClick?: (reminderId: string, anchor: HTMLElement) => void
   onReminderCreate?: (reminderId: string) => void
+  commentThreads?: import('./types-comments').CommentThreadAnchor[]
+  onCreateComment?: (anchor: { anchorStart: string; anchorEnd: string; quotedText: string }) => void
+  onOpenThread?: (threadId: string) => void
+  canComment?: boolean
 }
+
+export type { CommentThreadAnchor } from './types-comments'
 
 export type SlashCommandItem = {
   id: string

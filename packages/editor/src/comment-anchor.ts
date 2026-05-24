@@ -4,7 +4,7 @@ import {
   absolutePositionToRelativePosition,
   relativePositionToAbsolutePosition,
 } from 'y-prosemirror'
-import type { EditorView } from '@tiptap/pm/view'
+import type { EditorState } from '@tiptap/pm/state'
 import type { Node as PMNode } from '@tiptap/pm/model'
 
 import type { CommentThreadAnchor } from './types-comments'
@@ -30,34 +30,34 @@ export function decodeAnchor(b64: string): Y.RelativePosition {
 type ProsemirrorMapping = Map<Y.AbstractType<unknown>, PMNode | PMNode[]>
 type YState = { doc: Y.Doc; type: Y.XmlFragment; binding: { mapping: ProsemirrorMapping } }
 
-function ystate(view: EditorView): YState | null {
-  const st = ySyncPluginKey.getState(view.state) as YState | undefined
+function ystate(state: EditorState): YState | null {
+  const st = ySyncPluginKey.getState(state) as YState | undefined
   return st?.binding ? st : null
 }
 
 /** Current selection → encoded anchor + quoted text. Read-only safe. Null if empty/no-binding. */
 export function selectionToAnchor(
-  view: EditorView,
+  state: EditorState,
 ): { anchorStart: string; anchorEnd: string; quotedText: string } | null {
-  const st = ystate(view)
+  const st = ystate(state)
   if (!st) return null
-  const { from, to } = view.state.selection
+  const { from, to } = state.selection
   if (from === to) return null
   const relStart = absolutePositionToRelativePosition(from, st.type, st.binding.mapping)
   const relEnd = absolutePositionToRelativePosition(to, st.type, st.binding.mapping)
   return {
     anchorStart: encodeAnchor(relStart),
     anchorEnd: encodeAnchor(relEnd),
-    quotedText: view.state.doc.textBetween(from, to, ' ').slice(0, 2000),
+    quotedText: state.doc.textBetween(from, to, ' ').slice(0, 2000),
   }
 }
 
 /** Encoded anchor → absolute PM range, or null if the anchored text is gone (orphan). */
 export function anchorToRange(
-  view: EditorView,
+  state: EditorState,
   anchor: Pick<CommentThreadAnchor, 'anchorStart' | 'anchorEnd'>,
 ): { from: number; to: number } | null {
-  const st = ystate(view)
+  const st = ystate(state)
   if (!st) return null
   const from = relativePositionToAbsolutePosition(
     st.doc,

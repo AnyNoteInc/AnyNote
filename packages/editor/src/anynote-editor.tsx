@@ -300,6 +300,7 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
         mentionRender,
         onNavigateToPage,
         drawioUrl: props.drawioUrl,
+        onOpenThread: props.onOpenThread ?? (() => undefined),
       }),
       onCreate: ({ editor: ed }) => {
         props.onReady?.(ed)
@@ -314,6 +315,19 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
       onClick: props.onReminderClick,
     }
   }, [editor, props.onReminderClick])
+
+  useEffect(() => {
+    if (!editor) return
+    editor.commands.setCommentThreads(props.commentThreads ?? [])
+  }, [editor, props.commentThreads])
+
+  useEffect(() => {
+    if (!editor) return
+    ;(editor.storage as unknown as Record<string, unknown>).comments = {
+      canComment: props.canComment ?? false,
+      onCreateComment: props.onCreateComment,
+    }
+  }, [editor, props.canComment, props.onCreateComment])
 
   const anchorEl = popover?.anchorEl ?? null
   const range = popover?.range ?? null

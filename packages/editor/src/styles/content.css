@@ -731,3 +731,9 @@
     display: none;
   }
 }
+
+.anynote-editor .comment-highlight {
+  background: color-mix(in srgb, #ffb300 28%, transparent);
+  border-bottom: 2px solid #ffb300;
+  cursor: pointer;
+}
