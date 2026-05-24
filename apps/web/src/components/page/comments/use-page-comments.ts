@@ -1,5 +1,7 @@
 'use client'
 
+import { skipToken } from '@tanstack/react-query'
+
 import { trpc } from '@/trpc/client'
 
 import { getAnonId } from './anon-id'
@@ -34,12 +36,19 @@ export function usePageComments(
   opts?: { enabled?: boolean },
 ): UsePageCommentsResult {
   const utils = trpc.useUtils()
-  const base = 'pageId' in target ? { pageId: target.pageId } : { shareId: target.shareId, anonId: getAnonId() }
+  const isPageTarget = 'pageId' in target
+  const base = isPageTarget ? { pageId: target.pageId } : { shareId: target.shareId, anonId: getAnonId() }
+  const subscriptionInput = isPageTarget && (opts?.enabled ?? true) ? { pageId: target.pageId } : skipToken
   const threadsQ = trpc.comment.listThreads.useQuery(base, {
     refetchOnWindowFocus: true,
     enabled: opts?.enabled ?? true,
   })
   const invalidate = () => utils.comment.listThreads.invalidate()
+
+  trpc.comment.events.subscribe.useSubscription(
+    subscriptionInput,
+    { onData: () => invalidate() },
+  )
 
   const createThread = trpc.comment.createThread.useMutation({ onSuccess: invalidate })
   const addComment = trpc.comment.addComment.useMutation({ onSuccess: invalidate })

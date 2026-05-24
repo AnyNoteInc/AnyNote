@@ -4,7 +4,7 @@ import { notify } from '@repo/notifications'
 
 import { router, publicProcedure } from '../trpc'
 import { resolveCommentContext, canWriteComment } from '../helpers/comment-access'
-import { pageCommentBus } from '../realtime/page-comment-bus'
+import { pageCommentBus, type PageCommentEvent } from '../realtime/page-comment-bus'
 
 const ContentSchema = z.object({
   text: z.string().trim().min(1).max(5000),
@@ -106,6 +106,57 @@ async function notifyNewComment(
 }
 
 export const commentRouter = router({
+  events: router({
+    subscribe: publicProcedure
+      .input(z.object({ pageId: z.string().uuid() }))
+      .subscription(async function* ({ ctx, input, signal }) {
+        const c = await resolveCommentContext(ctx, { pageId: input.pageId })
+        if (!c.role) throw new TRPCError({ code: 'FORBIDDEN', message: 'Нет доступа' })
+
+        const MAX_QUEUE = 500
+        const queue: PageCommentEvent[] = []
+        let resolveNext: ((value: PageCommentEvent | null) => void) | null = null
+
+        const unsubscribe = pageCommentBus.on(input.pageId, (event) => {
+          if (resolveNext) {
+            const r = resolveNext
+            resolveNext = null
+            r(event)
+          } else {
+            queue.push(event)
+            if (queue.length > MAX_QUEUE) queue.shift()
+          }
+        })
+
+        const onAbort = () => {
+          if (resolveNext) {
+            const r = resolveNext
+            resolveNext = null
+            r(null)
+          }
+        }
+        signal?.addEventListener('abort', onAbort)
+
+        try {
+          while (!signal?.aborted) {
+            const buffered = queue.shift()
+            if (buffered) {
+              yield buffered
+              continue
+            }
+            const event = await new Promise<PageCommentEvent | null>((resolve) => {
+              resolveNext = resolve
+            })
+            if (event === null || signal?.aborted) break
+            yield event
+          }
+        } finally {
+          unsubscribe()
+          signal?.removeEventListener('abort', onAbort)
+        }
+      }),
+  }),
+
   listThreads: publicProcedure.input(z.object({ ...Target })).query(async ({ ctx, input }) => {
     const c = await resolveCommentContext(ctx, input)
     if (!c.role) throw new TRPCError({ code: 'FORBIDDEN', message: 'Нет доступа' })
