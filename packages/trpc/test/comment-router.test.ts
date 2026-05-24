@@ -291,6 +291,52 @@ describe('comment edit/delete/resolve', () => {
     expect(res.resolvedAt).toBeTruthy()
   })
 
+  it('rejects anonymous resolveThread without anonId on a public commenter link', async () => {
+    const prisma = {
+      pageShare: {
+        findUnique: vi.fn(async () => ({
+          id: 'share1',
+          access: 'PUBLIC',
+          linkRole: 'COMMENTER',
+          pageId: PAGE_ID,
+          page: PAGE,
+        })),
+      },
+      pageCommentThread: { findUnique: vi.fn(), update: vi.fn() },
+    } as never
+    await expect(
+      caller(ctx(prisma, null)).resolveThread({
+        shareId: 'public-share',
+        threadId: THREAD_ID,
+      }),
+    ).rejects.toThrow(/anonymous identity/i)
+    expect(prisma.pageCommentThread.findUnique).not.toHaveBeenCalled()
+    expect(prisma.pageCommentThread.update).not.toHaveBeenCalled()
+  })
+
+  it('rejects anonymous reopenThread without anonId on a public commenter link', async () => {
+    const prisma = {
+      pageShare: {
+        findUnique: vi.fn(async () => ({
+          id: 'share1',
+          access: 'PUBLIC',
+          linkRole: 'COMMENTER',
+          pageId: PAGE_ID,
+          page: PAGE,
+        })),
+      },
+      pageCommentThread: { findUnique: vi.fn(), update: vi.fn() },
+    } as never
+    await expect(
+      caller(ctx(prisma, null)).reopenThread({
+        shareId: 'public-share',
+        threadId: THREAD_ID,
+      }),
+    ).rejects.toThrow(/anonymous identity/i)
+    expect(prisma.pageCommentThread.findUnique).not.toHaveBeenCalled()
+    expect(prisma.pageCommentThread.update).not.toHaveBeenCalled()
+  })
+
   it('auto-resolves a thread when its last comment is deleted', async () => {
     const prisma = memberPrisma('COMMENTER', {
       pageComment: {

@@ -299,6 +299,7 @@ export const commentRouter = router({
     .mutation(async ({ ctx, input }) => {
       const c = await resolveCommentContext(ctx, input)
       if (!canWriteComment(c.role)) throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
+      requireAnonymousAuthorIdentity(c)
       const thread = await ctx.prisma.pageCommentThread.findUnique({
         where: { id: input.threadId },
         select: { pageId: true },
@@ -318,6 +319,7 @@ export const commentRouter = router({
     .mutation(async ({ ctx, input }) => {
       const c = await resolveCommentContext(ctx, input)
       if (!canWriteComment(c.role)) throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
+      requireAnonymousAuthorIdentity(c)
       const thread = await ctx.prisma.pageCommentThread.findUnique({
         where: { id: input.threadId },
         select: { pageId: true },
