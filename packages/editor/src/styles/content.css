@@ -111,7 +111,7 @@
   border-radius: 6px;
   line-height: 1.25;
   margin: 0.5rem 0;
-  padding: 1.25em 12px;
+  padding: 12px;
   overflow-x: auto;
 }
 
@@ -163,8 +163,10 @@
   white-space: pre-wrap;
 }
 
-.anynote-editor pre code {
-  background: none;
+.anynote-editor pre code,
+.anynote-editor pre code:not([class]) {
+  background: transparent;
+  border-radius: 0;
   display: block;
   line-height: inherit;
   padding: 0;

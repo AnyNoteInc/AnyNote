@@ -72,7 +72,7 @@ export function DrawioBoardInner({
         baseUrl={drawioUrl}
         autosave
         xml={initialXml || undefined}
-        urlParameters={{ spin: true }}
+        urlParameters={{ spin: true, noExitBtn: true }}
         onAutoSave={handleAutoSave}
       />
     </Box>

@@ -157,17 +157,25 @@ export function FloatingToolbar({ editor }: Props) {
 
   const saveLink = () => {
     const next = linkValue.trim()
+    const chain = editor.chain().focus()
     if (!next) {
-      editor.chain().focus().extendMarkRange('link').unsetLink().run()
+      if (toolbarState.isLink) chain.extendMarkRange('link')
+      chain.unsetLink().run()
     } else {
-      editor.chain().focus().extendMarkRange('link').setLink({ href: next }).run()
+      if (toolbarState.isLink) chain.extendMarkRange('link')
+      chain.setLink({ href: next }).run()
     }
     setLinkDialogOpen(false)
   }
 
   return (
     <>
-      <BubbleMenu editor={editor} shouldShow={shouldShowTextToolbar}>
+      <BubbleMenu
+        editor={editor}
+        shouldShow={shouldShowTextToolbar}
+        className="anynote-text-bubble-menu"
+        style={{ zIndex: 8 }}
+      >
         <Paper elevation={6} sx={{ display: 'inline-flex', borderRadius: 1, px: 0.5, py: 0.25 }}>
           <Stack direction="row" alignItems="center" spacing={0.25}>
             <Tooltip title="Жирный">
@@ -236,31 +244,29 @@ export function FloatingToolbar({ editor }: Props) {
                 <CodeIcon fontSize="small" />
               </IconButton>
             </Tooltip>
+            <Tooltip title="Ссылка">
+              <IconButton
+                size="small"
+                onMouseDown={(e) => e.preventDefault()}
+                onClick={() => setLinkDialogOpen(true)}
+                aria-label="Ссылка"
+                sx={markButtonSx(toolbarState.isLink)}
+              >
+                <LinkIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
             {toolbarState.isLink ? (
-              <>
-                <Tooltip title="Ссылка">
-                  <IconButton
-                    size="small"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => setLinkDialogOpen(true)}
-                    aria-label="Ссылка"
-                    sx={markButtonSx(true)}
-                  >
-                    <LinkIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-                <Tooltip title="Удалить ссылку">
-                  <IconButton
-                    size="small"
-                    onMouseDown={(e) => e.preventDefault()}
-                    onClick={() => editor.chain().focus().extendMarkRange('link').unsetLink().run()}
-                    aria-label="Удалить ссылку"
-                    sx={{ color: 'text.secondary' }}
-                  >
-                    <LinkOffIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              </>
+              <Tooltip title="Удалить ссылку">
+                <IconButton
+                  size="small"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => editor.chain().focus().extendMarkRange('link').unsetLink().run()}
+                  aria-label="Удалить ссылку"
+                  sx={{ color: 'text.secondary' }}
+                >
+                  <LinkOffIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
             ) : null}
             <Divider orientation="vertical" flexItem sx={{ mx: 0.5 }} />
             <Select

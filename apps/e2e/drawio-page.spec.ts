@@ -24,4 +24,7 @@ test('creates a DRAWIO page that mounts the draw.io embed iframe', async ({ page
   await createDrawioPage(page)
   const frame = page.locator('iframe[src*="diagrams.net"], iframe[src*="drawio"]')
   await expect(frame.first()).toBeAttached({ timeout: 20_000 })
+  await expect(frame.first()).not.toHaveAttribute('src', /noSaveBtn=1/)
+  await expect(frame.first()).not.toHaveAttribute('src', /saveAndExit=0/)
+  await expect(frame.first()).toHaveAttribute('src', /noExitBtn=1/)
 })

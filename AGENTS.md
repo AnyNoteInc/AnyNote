@@ -34,47 +34,25 @@ Copy `.env.example` to `.env` for local setup and keep secrets out of commits. U
 <claude-mem-context>
 # Memory Context
 
-# [anynote] recent context, 2026-05-24 6:23am GMT+1
+# [anynote] recent context, 2026-05-24 9:48am GMT+1
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (19,476t read) | 1,127,534t work | 98% savings
+Stats: 50 obs (19,998t read) | 1,476,501t work | 99% savings
 
 ### May 23, 2026
-S713 Add LikeC4 as a new diagram type in the anynote monorepo — both as a LIKEC4 collaborative page (Monaco + live preview) and as a ```likec4 code block in the Tiptap editor with Код↔Просмотр toggle defaulting to rendered diagram (May 23 at 5:34 AM)
 S714 Observer monitoring feat/mermaid branch — Task 10 LikeC4 code-block E2E fix, committing, and running final quality gates (May 23 at 5:36 AM)
-S711 LikeC4 API verification complete — checking plans directory naming convention before writing implementation plan (May 23 at 5:36 AM)
-S712 LikeC4 API verification complete — writing implementation plan to docs/superpowers/plans/ (May 23 at 5:36 AM)
 S715 Observer monitoring feat/mermaid branch — Task 10 commits complete, pnpm gates run reveals production build still broken by esbuild import chain (May 23 at 10:57 AM)
 S717 Observer monitoring feat/mermaid — web production build PASSES with esbuild/bundle-require webpack aliases; full pnpm gates re-run in progress (May 23 at 11:04 AM)
 S718 Simplify skill review of completed LikeC4 feature on feat/mermaid branch — reuse, quality, efficiency review cycle and applying the one identified fix (May 23 at 11:05 AM)
 S716 Observer monitoring feat/mermaid — production build fix: webpack alias stubs for esbuild + bundle-require in next.config.js, web build running (May 23 at 11:05 AM)
 S719 Fix LikeC4 model page crash on compile error — page should show error chip instead of crashing (May 23 at 12:30 PM)
-3045 12:44p 🔵 LikeC4.getErrors() Returns Structured Array with message, line, range, sourceFsPath
-3047 12:45p 🔵 Reproduction Confirms: Both fromSource and layoutedModel Resolve Successfully on Parse Errors — ReactLikeC4 Gets Broken Model
-3048 " 🔵 Existing LikeC4 E2E Test Only Covers Happy Path; No Error Handling Test Exists
-3049 " 🔵 No React ErrorBoundary Exists Anywhere in the Codebase
-3050 " 🔵 ErrorBoundary Exists Only in Next.js Build Output, Not in Source Code
-3051 12:49p 🟣 TDD: Red Tests Written for formatLikec4Errors Helper Function
-3052 " 🟣 Implemented formatLikec4Errors in view-utils.ts
-3053 " 🔴 Unit Tests Green; formatLikec4Errors Wired into Likec4Diagram Import
-3054 " 🔴 Fixed: Likec4Diagram Now Guards Against Invalid Models Before Calling layoutedModel()
-3055 12:50p 🟣 E2E Test: INVALID_MODEL Constant Added to Cover Parse Error Regression
-3056 " 🟣 E2E Regression Test Added: "shows a compile error for invalid source instead of crashing"
-3057 " 🔴 LikeC4 Parse Error Fix Passes TypeScript Type Check and ESLint
-3059 " 🔴 Both E2E Tests Pass: LikeC4 Parse Error Now Shows Error Chip Instead of Crashing (Confirmed Live)
-3060 " 🔴 LikeC4 Parse Error Bugfix Complete: 4 Files Changed, 66 Insertions
-3058 12:51p 🔵 E2E Test Infrastructure Ready: Docker Services Up, Playwright Uses Next.js Dev Server on Port 3100
-3061 12:52p ✅ Project Memory Saved: fromSource No-Throw Gotcha Documented for Future Sessions
-3062 12:53p ✅ MEMORY.md Index Updated with LikeC4 fromSource No-Throw Entry
-3063 12:57p 🔵 Two UI Issues Identified on LikeC4 Page Type
-3064 " 🔵 Likec4Diagram JSX: Combobox Location and ReactLikeC4 Width Issue Identified in Source
-S720 Fix 2 UI bugs on LikeC4 page: remove view-selector combobox and fix diagram shrinking instead of filling full width — then verify with Playwright e2e tests (May 23 at 12:58 PM)
+S720 Fix 2 UI bugs on LikeC4 page: remove view-selector combobox and fix diagram shrinking instead of filling full width — then verify with Playwright e2e tests (May 23 at 12:53 PM)
+S721 Add DrawIO integration to workspace editor: sidebar canvas submenu (Excalidraw/DrawIO choice) + DrawIO slash block with create/view/edit lifecycle (May 23 at 12:58 PM)
 3065 2:00p ✅ Remove LikeC4 and D2 from TipTap Slash Command Menu and Code Block
 3066 " 🔵 LikeC4 and D2 Slash Items and Code Block Language Locations Mapped
-3067 " 🔵 E2E Tests Exist for LikeC4 Code Block That Must Be Removed or Updated
 3068 2:01p 🟣 TDD Red Tests Written for LikeC4/D2 Removal from Slash Menu and Code Block
 3069 " ✅ LikeC4 and D2 Removed from TipTap Slash Menu and Code Block
 3070 2:02p ✅ TDD Green: LikeC4/D2 Removal Tests Pass After Implementation
@@ -104,6 +82,28 @@ S720 Fix 2 UI bugs on LikeC4 page: remove view-selector combobox and fix diagram
 3093 6:12a 🔵 Bounding-box test confirms code block blank-lines bug: 41px top gap measured
 3094 " 🔵 CSS padding fix reduces gap from 41px to 33px but does not eliminate blank-line space
 3095 6:13a 🔵 ARIA snapshot reveals code block DOM: toolbar + pre sibling in NodeViewWrapper
+3096 6:38a ⚖️ DrawIO Integration Planned for Workspace Editor
+3097 6:39a 🔵 Anynote Monorepo Package Structure
+3098 " 🔵 PageRenderer Routing Architecture for Canvas Page Types
+3099 " 🔵 Prisma PageType Enum Does Not Include DRAWIO
+3100 " 🔵 Excalidraw Package Structure as Template for DrawIO Package
+3101 " 🔵 Workspace Sidebar Component Located for DrawIO Menu Addition
+3102 6:40a 🔵 CreatePageMenu in page-tree-section.tsx is Where DRAWIO Canvas Option Needs Adding
+3103 " 🔵 Slash Menu Architecture for Adding DrawIO Embed Block
+3104 " 🔵 Tiptap Extension Pattern for New Block Nodes (Schema + NodeView)
+3105 " 🔵 Diagram Board Package Provides Reusable Split-Pane Code+Preview Pattern
+3106 6:41a ⚖️ DrawIO Integration Planned for Workspace Editor
+3107 " 🔵 Existing Slash Menu and Sidebar Structure Confirmed
+3108 " 🔵 react-drawio DrawIoEmbed Full API Documented
+S723 User said "write" — session resumed; primary session re-confirmed spec committed and presented summary to user for approval before writing the implementation plan (May 24 at 6:47 AM)
+3109 6:50a 🔵 Spec File Naming Convention and LikeC4 Integration Pattern Confirmed
+3110 " ✅ Created feat/drawio Branch
+3111 " 🟣 DrawIO Design Spec Written to docs/superpowers/specs/
+3112 6:53a ✅ DrawIO Design Spec Committed to feat/drawio (c4925ed)
+3113 " 🔵 useDiagramYjs and FileAttachment Node Internals Confirmed for DrawIO Implementation
+S722 Add DrawIO integration to workspace editor — spec written, committed to feat/drawio, awaiting user review before writing implementation plan (May 24 at 6:53 AM)
+3114 6:59a 🔵 page-renderer.tsx and anynote-editor.tsx Full Structure Confirmed for Implementation
+3115 " 🔵 All Remaining Wiring File States Confirmed Before Plan Writing
 
-Access 1128k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 1477k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

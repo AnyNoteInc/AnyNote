@@ -27,7 +27,7 @@ const GROUP_TITLES: Record<SlashCommandGroup, string> = {
   base: 'Базовые блоки',
   code: 'Код',
   media: 'Медиа',
-  embedding: 'Встраивание',
+  embedding: 'Встраиваемые',
 }
 
 export const SlashMenuPopover = forwardRef<SlashMenuPopoverHandle, Props>(function SlashMenuPopover(

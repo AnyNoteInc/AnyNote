@@ -7,6 +7,7 @@ import type { NodeViewProps } from '@tiptap/react'
 
 import { DrawioEditorDialog } from '../components/drawio-editor-dialog'
 import { DrawioViewerDialog } from '../components/drawio-viewer-dialog'
+import { getDrawioClickTarget } from './drawio-interaction'
 import { DrawioSchema } from './drawio.schema'
 import type { DrawioNodeAttrs } from './drawio-save'
 
@@ -29,7 +30,10 @@ function DrawioView({ node, updateAttributes, extension, editor }: NodeViewProps
 
   const handleClick = () => {
     if (clickTimer.current) clearTimeout(clickTimer.current)
-    clickTimer.current = setTimeout(() => setView('viewer'), 250)
+    clickTimer.current = setTimeout(
+      () => setView(getDrawioClickTarget({ isEditable: editor.isEditable })),
+      250,
+    )
   }
 
   const handleDoubleClick = () => {

@@ -29,21 +29,25 @@ async function createTextPage(page: Page, tag: string) {
   return editor
 }
 
-test('Встраивание slash group opens the Draw.io editor modal; Отмена inserts nothing', async ({
+test('Встраиваемые slash group opens the Draw.io editor modal; Отмена inserts nothing', async ({
   page,
 }) => {
   const editor = await createTextPage(page, 'drawio-block')
   await editor.click()
   await editor.press('/')
 
-  await expect(page.getByText('Встраивание', { exact: true })).toBeVisible()
+  await expect(page.getByText('Встраиваемые', { exact: true })).toBeVisible()
   await page.locator('[data-slash-item-id="drawio"]').click()
 
   await expect(page.getByRole('button', { name: 'Сохранить' })).toBeVisible({ timeout: 10_000 })
   await expect(page.getByRole('button', { name: 'Отмена' })).toBeVisible()
-  await expect(page.locator('iframe[src*="diagrams.net"], iframe[src*="drawio"]')).toBeAttached({
+  const frame = page.locator('iframe[src*="diagrams.net"], iframe[src*="drawio"]')
+  await expect(frame).toBeAttached({
     timeout: 15_000,
   })
+  await expect(frame).toHaveAttribute('src', /noSaveBtn=1/)
+  await expect(frame).toHaveAttribute('src', /saveAndExit=0/)
+  await expect(frame).toHaveAttribute('src', /noExitBtn=1/)
 
   await page.getByRole('button', { name: 'Отмена' }).click()
   await expect(editor.locator('[data-type="drawio"]')).toHaveCount(0)

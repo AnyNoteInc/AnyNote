@@ -72,7 +72,7 @@ export function DrawioEditorDialog({ open, initialXml, drawioUrl, onSave, onCanc
             autosave
             xml={initialXml || undefined}
             exportFormat="xmlsvg"
-            urlParameters={{ spin: true, noSaveBtn: true, noExitBtn: true }}
+            urlParameters={{ spin: true, noSaveBtn: true, saveAndExit: false, noExitBtn: true }}
             onAutoSave={handleAutoSave}
             onExport={handleExport}
           />

@@ -52,7 +52,7 @@ test('code block language picker shows Auto mode by default', async ({ page }) =
   await expect(page.locator('.anynote-code-block').getByRole('combobox')).toHaveText(/Авто/)
 })
 
-test('code block uses one line of vertical padding', async ({ page }) => {
+test('code block uses uniform background and equal padding', async ({ page }) => {
   test.setTimeout(120_000)
   const editor = await setupTextPage(page)
   await editor.click()
@@ -73,7 +73,7 @@ test('code block uses one line of vertical padding', async ({ page }) => {
       childTexts: ['import datetime as dt'],
     })
 
-  const verticalGaps = await page.locator('.anynote-code-block pre').evaluate((pre) => {
+  const metrics = await page.locator('.anynote-code-block pre').evaluate((pre) => {
     const code = pre.querySelector('code')
     if (!code) return null
 
@@ -87,25 +87,32 @@ test('code block uses one line of vertical padding', async ({ page }) => {
     const textRect = range.getBoundingClientRect()
     const codeRect = code.getBoundingClientRect()
     const preRect = pre.getBoundingClientRect()
-    const lineHeight = Number.parseFloat(getComputedStyle(pre).lineHeight)
+    const codeStyles = getComputedStyle(code)
 
     return {
       elementTop: Math.round(codeRect.top - preRect.top),
       elementBottom: Math.round(preRect.bottom - codeRect.bottom),
+      elementLeft: Math.round(codeRect.left - preRect.left),
+      elementRight: Math.round(preRect.right - codeRect.right),
       textTop: Math.round(textRect.top - preRect.top),
       textBottom: Math.round(preRect.bottom - textRect.bottom),
       preHeight: Math.round(preRect.height),
       textHeight: Math.round(textRect.height),
-      lineHeight: Math.round(lineHeight),
+      codeBackground: codeStyles.backgroundColor,
+      codeBorderRadius: codeStyles.borderRadius,
     }
   })
 
-  expect(verticalGaps).not.toBeNull()
-  expect(verticalGaps!.elementTop).toBeGreaterThanOrEqual(verticalGaps!.lineHeight - 2)
-  expect(verticalGaps!.elementTop).toBeLessThanOrEqual(verticalGaps!.lineHeight + 2)
-  expect(verticalGaps!.elementBottom).toBeGreaterThanOrEqual(verticalGaps!.lineHeight - 2)
-  expect(verticalGaps!.elementBottom).toBeLessThanOrEqual(verticalGaps!.lineHeight + 2)
-  expect(verticalGaps!.preHeight).toBeGreaterThanOrEqual(verticalGaps!.textHeight + verticalGaps!.lineHeight * 2)
+  expect(metrics).not.toBeNull()
+  expect(metrics!.elementTop).toBeGreaterThanOrEqual(metrics!.elementLeft - 1)
+  expect(metrics!.elementTop).toBeLessThanOrEqual(metrics!.elementLeft + 1)
+  expect(metrics!.elementBottom).toBeGreaterThanOrEqual(metrics!.elementLeft - 1)
+  expect(metrics!.elementBottom).toBeLessThanOrEqual(metrics!.elementLeft + 1)
+  expect(metrics!.elementRight).toBeGreaterThanOrEqual(metrics!.elementLeft - 1)
+  expect(metrics!.elementRight).toBeLessThanOrEqual(metrics!.elementLeft + 1)
+  expect(metrics!.preHeight).toBeGreaterThanOrEqual(metrics!.textHeight + metrics!.elementLeft * 2)
+  expect(metrics!.codeBackground).toBe('rgba(0, 0, 0, 0)')
+  expect(metrics!.codeBorderRadius).toBe('0px')
 })
 
 test('mermaid code block toggles to a rendered preview', async ({ page }) => {

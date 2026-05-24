@@ -63,21 +63,28 @@ test('bubble menu applies inline formatting and link attributes', async ({ page 
   const editor = await createTextPage(page)
   await editor.click()
   await editor.type('Format me')
-  await page.keyboard.press('ControlOrMeta+A')
+  await page.keyboard.down('Shift')
+  for (let i = 0; i < 'Format me'.length; i++) {
+    await page.keyboard.press('ArrowLeft')
+  }
+  await page.keyboard.up('Shift')
 
   await page.getByRole('button', { name: 'Жирный' }).click()
   await page.getByRole('button', { name: 'Курсив' }).click()
   await page.getByRole('button', { name: 'Подчеркнуть' }).click()
   await page.getByRole('button', { name: 'Зачеркнуть' }).click()
   await page.getByRole('button', { name: 'Подсветить' }).click()
-  await expect(page.getByRole('button', { name: 'Ссылка' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Удалить ссылку' })).toHaveCount(0)
+  await page.getByRole('button', { name: 'Ссылка' }).click()
+  await page.getByLabel('URL').fill('https://example.com/format')
+  await page.getByRole('button', { name: 'Сохранить' }).click()
 
   await expect(editor.locator('strong', { hasText: 'Format me' })).toBeVisible()
   await expect(editor.locator('em', { hasText: 'Format me' })).toBeVisible()
   await expect(editor.locator('u', { hasText: 'Format me' })).toBeVisible()
   await expect(editor.locator('s', { hasText: 'Format me' })).toBeVisible()
   await expect(editor.locator('mark', { hasText: 'Format me' })).toBeVisible()
+  await expect(editor.locator('a[href="https://example.com/format"]', { hasText: 'Format me' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Инлайн-код' }).click()
   await expect(editor.locator('code', { hasText: 'Format me' })).toBeVisible()
@@ -111,6 +118,50 @@ test('bubble menu keeps font selects in sync with selected text', async ({ page 
   await expect(fontSelect).toHaveText(/Авто/)
   await fontSelect.click()
   await expect(page.getByRole('option', { name: 'Авто' })).toHaveAttribute('aria-selected', 'true')
+})
+
+test('bubble menu stacks above block controls', async ({ page }) => {
+  await signUp(page, 'ext-bubble-stack')
+  const editor = await createTextPage(page)
+  await editor.click()
+  await editor.type('Stack me')
+  await page.keyboard.down('Shift')
+  for (let i = 0; i < 'Stack me'.length; i++) {
+    await page.keyboard.press('ArrowLeft')
+  }
+  await page.keyboard.up('Shift')
+  await expect(page.getByRole('button', { name: 'Жирный' })).toBeVisible()
+
+  await editor.hover()
+  const dragHandle = page
+    .locator('.tiptap-drag-handle-wrapper button:has([data-testid="DragIndicatorIcon"])')
+    .first()
+  await expect(dragHandle).toBeVisible()
+
+  const levels = await page.evaluate(() => {
+    const parseZIndex = (value: string) => (value === 'auto' ? 0 : Number(value))
+    const nearestZIndex = (element: Element | null) => {
+      let current: Element | null = element
+      while (current) {
+        const zIndex = parseZIndex(getComputedStyle(current).zIndex)
+        if (Number.isFinite(zIndex) && zIndex > 0) return zIndex
+        current = current.parentElement
+      }
+      return 0
+    }
+    const boldButton = document.querySelector('button[aria-label="Жирный"]')
+    const bubbleMenu = boldButton?.closest<HTMLElement>('div[style*="position"]')
+    const handle = document.querySelector(
+      '.tiptap-drag-handle-wrapper button:has([data-testid="DragIndicatorIcon"])',
+    )
+    if (!bubbleMenu || !handle) throw new Error('Editor controls were not rendered')
+    return {
+      bubbleMenu: nearestZIndex(bubbleMenu),
+      handle: nearestZIndex(handle),
+    }
+  })
+
+  expect(levels.bubbleMenu).toBeGreaterThan(levels.handle)
 })
 
 test('breadcrumb actions: star + more menu items render', async ({ page }) => {
