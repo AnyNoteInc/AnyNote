@@ -3,6 +3,9 @@ import { describe, expect, it, vi } from 'vitest'
 import { resolveCommentContext, canWriteComment } from '../src/helpers/comment-access'
 
 const PAGE = { id: 'p1', workspaceId: 'w1', createdById: 'owner' }
+const SHARE_PAGE = { id: 'p2', workspaceId: 'w1', createdById: 'owner' }
+const PUBLIC_SHARE = { id: 's1', access: 'PUBLIC', linkRole: 'COMMENTER', pageId: 'p2', page: SHARE_PAGE }
+const RESTRICTED_SHARE = { id: 's2', access: 'RESTRICTED', linkRole: 'COMMENTER', pageId: 'p2', page: SHARE_PAGE }
 
 function ctx(prisma: unknown, user: { id: string } | null) {
   return { prisma, user } as never
@@ -55,5 +58,41 @@ describe('resolveCommentContext (signed-in)', () => {
     }
     const res = await resolveCommentContext(ctx(prisma, { id: 'u1' }), { pageId: 'p1' })
     expect(res.role).toBeNull()
+  })
+
+  it('falls back to a public link role for a signed-in non-member non-grant', async () => {
+    const prisma = {
+      page: { findUnique: vi.fn() },
+      workspaceMember: { findUnique: vi.fn(async () => null) },
+      pageShare: { findUnique: vi.fn(async () => PUBLIC_SHARE) },
+      pageShareUser: { findFirst: vi.fn(async () => null) },
+      user: { findUnique: vi.fn(async () => ({ firstName: 'X', lastName: '', email: 'x@y.z' })) },
+    }
+    const res = await resolveCommentContext(ctx(prisma, { id: 'u1' }), { shareId: 'public-share' })
+    expect(res.pageId).toBe('p2')
+    expect(res.role).toBe('COMMENTER')
+    expect(prisma.page.findUnique).not.toHaveBeenCalled()
+  })
+})
+
+describe('resolveCommentContext (anonymous public links)', () => {
+  it('resolves an anonymous public commenter link', async () => {
+    const prisma = {
+      pageShare: { findUnique: vi.fn(async () => PUBLIC_SHARE) },
+    }
+    const res = await resolveCommentContext(ctx(prisma, null), { shareId: 'public-share', anonId: 'anon-123' })
+    expect(res.pageId).toBe('p2')
+    expect(res.workspaceId).toBe('w1')
+    expect(res.role).toBe('COMMENTER')
+    expect(res.author).toEqual({ anonId: 'anon-123', name: 'Гость · anon-123' })
+  })
+
+  it('denies an anonymous restricted link', async () => {
+    const prisma = {
+      pageShare: { findUnique: vi.fn(async () => RESTRICTED_SHARE) },
+    }
+    const res = await resolveCommentContext(ctx(prisma, null), { shareId: 'restricted-share', anonId: 'anon-123' })
+    expect(res.role).toBeNull()
+    expect(res.author).toEqual({ anonId: 'anon-123', name: 'Гость · anon-123' })
   })
 })

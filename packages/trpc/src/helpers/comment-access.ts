@@ -37,21 +37,28 @@ export type CommentContext = {
   author: CommentAuthor
 }
 
-/**
- * Resolve the viewer's effective role on a page for commenting, plus their
- * author identity. Signed-in: member ▸ named grant. (The public-link /
- * anonymous branch is added in Task 11.) Throws NOT_FOUND if `pageId` does not
- * resolve to a page.
- */
 export async function resolveCommentContext(ctx: Ctx, input: Input): Promise<CommentContext> {
+  const share = input.shareId
+    ? await ctx.prisma.pageShare.findUnique({
+        where: { shareId: input.shareId },
+        select: {
+          id: true,
+          access: true,
+          linkRole: true,
+          pageId: true,
+          page: { select: { id: true, workspaceId: true, createdById: true } },
+        },
+      })
+    : null
   const page = input.pageId
     ? await ctx.prisma.page.findUnique({
         where: { id: input.pageId },
         select: { id: true, workspaceId: true, createdById: true },
       })
-    : null
+    : (share?.page ?? null)
   if (!page) throw new TRPCError({ code: 'NOT_FOUND', message: 'Страница не найдена' })
 
+  const shareForPage = share?.pageId === page.id ? share : null
   const base = {
     pageId: page.id,
     workspaceId: page.workspaceId,
@@ -74,20 +81,25 @@ export async function resolveCommentContext(ctx: Ctx, input: Input): Promise<Com
     })
     if (member) return { ...base, role: mapMemberRole(member.role), author }
 
-    const share = await ctx.prisma.pageShare.findUnique({
-      where: { pageId: page.id },
-      select: { id: true },
-    })
-    if (share) {
+    const pageShare =
+      shareForPage ??
+      (await ctx.prisma.pageShare.findUnique({
+        where: { pageId: page.id },
+        select: { id: true, access: true, linkRole: true, pageId: true },
+      }))
+    if (pageShare) {
       const grant = await ctx.prisma.pageShareUser.findFirst({
-        where: { pageShareId: share.id, userId: ctx.user.id },
+        where: { pageShareId: pageShare.id, userId: ctx.user.id },
         select: { role: true },
       })
       if (grant) return { ...base, role: grant.role as EffectiveRole, author }
+      if (pageShare.access === 'PUBLIC') return { ...base, role: pageShare.linkRole as EffectiveRole, author }
     }
     return { ...base, role: null, author }
   }
 
-  // Anonymous handled in Task 11.
-  return { ...base, role: null, author: { name: 'Гость' } }
+  const anonId = input.anonId ?? 'anon'
+  const author = { anonId, name: `Гость · ${anonId}` }
+  if (shareForPage?.access === 'PUBLIC') return { ...base, role: shareForPage.linkRole as EffectiveRole, author }
+  return { ...base, role: null, author }
 }
