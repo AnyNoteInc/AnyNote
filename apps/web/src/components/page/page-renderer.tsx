@@ -409,6 +409,7 @@ export function PageRenderer({
     top: number
     left: number
   } | null>(null)
+  const commentToggleRef = useRef<HTMLButtonElement>(null)
 
   // tRPC infers a deeply-nested type for the thread list; cast to a flat local
   // shape so the .map chains below don't blow TS's instantiation depth (TS2589).
@@ -560,6 +561,7 @@ export function PageRenderer({
           />
           <Tooltip title="Комментарии">
             <IconButton
+              ref={commentToggleRef}
               size="small"
               onClick={() => setPanelOpen((v) => !v)}
               aria-label="Комментарии"
@@ -625,9 +627,9 @@ export function PageRenderer({
           <Popover
             open={openThread != null}
             anchorEl={
-              openThreadId
+              (openThreadId
                 ? (document.querySelector(`[data-thread-id="${openThreadId}"]`) as HTMLElement | null)
-                : null
+                : null) ?? commentToggleRef.current
             }
             onClose={() => setOpenThreadId(null)}
             anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
