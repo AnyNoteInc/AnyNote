@@ -3,6 +3,7 @@ type Env = {
   authBaseUrl: string
   jwksUrl: string
   jwtAudience: string | undefined
+  shareTokenSecret: string
 }
 
 function required(name: string): string {
@@ -20,5 +21,6 @@ export function loadEnv(): Env {
     authBaseUrl,
     jwksUrl: `${authBaseUrl}/api/auth/jwks`,
     jwtAudience: process.env.BETTER_AUTH_JWT_AUDIENCE,
+    shareTokenSecret: required('YJS_SHARE_TOKEN_SECRET'),
   }
 }
