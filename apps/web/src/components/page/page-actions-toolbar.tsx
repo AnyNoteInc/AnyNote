@@ -7,6 +7,7 @@ import type { PageItem } from '@/components/workspace/types'
 
 import { FavoriteStar } from './favorite-star'
 import { PageActionsMenu } from './page-actions-menu'
+import { ShareButton } from './share-button'
 
 type Props = {
   pageId: string
@@ -47,6 +48,7 @@ export function PageActionsToolbar({ pageId, workspaceId }: Props) {
 
   return (
     <Stack direction="row" spacing={0.5} alignItems="center" className="page-actions-toolbar">
+      <ShareButton pageId={pageId} />
       <FavoriteStar
         pageId={pageId}
         pageTitle={title}
