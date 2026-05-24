@@ -110,8 +110,17 @@ export const commentRouter = router({
     subscribe: publicProcedure
       .input(z.object({ pageId: z.string().uuid() }))
       .subscription(async function* ({ ctx, input, signal }) {
-        const c = await resolveCommentContext(ctx, { pageId: input.pageId })
-        if (!c.role) throw new TRPCError({ code: 'FORBIDDEN', message: 'Нет доступа' })
+        if (!ctx.user) throw new TRPCError({ code: 'FORBIDDEN', message: 'Нет доступа' })
+        const page = await ctx.prisma.page.findUnique({
+          where: { id: input.pageId },
+          select: { workspaceId: true },
+        })
+        if (!page) throw new TRPCError({ code: 'NOT_FOUND', message: 'Страница не найдена' })
+        const member = await ctx.prisma.workspaceMember.findUnique({
+          where: { workspaceId_userId: { workspaceId: page.workspaceId, userId: ctx.user.id } },
+          select: { userId: true },
+        })
+        if (!member) throw new TRPCError({ code: 'FORBIDDEN', message: 'Нет доступа' })
 
         const MAX_QUEUE = 500
         const queue: PageCommentEvent[] = []
@@ -285,7 +294,7 @@ export const commentRouter = router({
       requireAnonymousAuthorIdentity(c)
       const existing = await ctx.prisma.pageComment.findUnique({
         where: { id: input.commentId },
-        select: { authorId: true, authorAnonId: true, thread: { select: { pageId: true } } },
+        select: { authorId: true, authorAnonId: true, threadId: true, thread: { select: { pageId: true } } },
       })
       if (!existing || existing.thread.pageId !== c.pageId) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Комментарий не найден' })
@@ -296,11 +305,13 @@ export const commentRouter = router({
       if (!isAuthor) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Можно редактировать только свои комментарии' })
       }
-      return ctx.prisma.pageComment.update({
+      const updated = await ctx.prisma.pageComment.update({
         where: { id: input.commentId },
         data: { content: input.content },
         select: { id: true },
       })
+      pageCommentBus.emit(c.pageId, { kind: 'thread.upserted', threadId: existing.threadId })
+      return updated
     }),
 
   deleteComment: publicProcedure

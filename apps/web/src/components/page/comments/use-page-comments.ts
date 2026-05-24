@@ -43,7 +43,7 @@ export function usePageComments(
     refetchOnWindowFocus: true,
     enabled: opts?.enabled ?? true,
   })
-  const invalidate = () => utils.comment.listThreads.invalidate()
+  const invalidate = () => utils.comment.listThreads.invalidate(base)
 
   trpc.comment.events.subscribe.useSubscription(
     subscriptionInput,

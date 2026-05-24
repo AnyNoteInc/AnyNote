@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 vi.mock('@repo/auth', () => ({ getUserFromRequest: vi.fn() }))
 vi.mock('@repo/db', async (importOriginal) => {
@@ -10,6 +10,7 @@ vi.mock('@repo/notifications', () => ({ notify: { commentCreated: vi.fn(), pageM
 import type { PrismaClient } from '@repo/db'
 import { notify } from '@repo/notifications'
 import { commentRouter } from '../src/routers/comment'
+import { pageCommentBus } from '../src/realtime/page-comment-bus'
 import { createCallerFactory } from '../src/trpc'
 
 const PAGE_ID = '33333333-3333-3333-3333-333333333333'
@@ -28,6 +29,27 @@ function ctx(prisma: PrismaClient, user: { id: string } | null) {
 
 describe('comment.listThreads / createThread', () => {
   beforeEach(() => vi.clearAllMocks())
+  afterEach(() => vi.restoreAllMocks())
+
+  it('rejects realtime subscriptions for signed-in public-link non-members', async () => {
+    const prisma = {
+      page: { findUnique: vi.fn(async () => PAGE) },
+      user: { findUnique: vi.fn(async () => ({ firstName: 'A', lastName: '', email: 'a@b.c' })) },
+      workspaceMember: { findUnique: vi.fn(async () => null) },
+      pageShare: { findUnique: vi.fn(async () => ({ id: 'share1', access: 'PUBLIC', linkRole: 'COMMENTER', pageId: PAGE_ID })) },
+      pageShareUser: { findFirst: vi.fn(async () => null) },
+    } as never
+    const subscription = await caller(ctx(prisma, { id: 'u1' })).events.subscribe({ pageId: PAGE_ID })
+
+    const next = subscription.next().then(
+      () => ({ ok: true as const, message: '' }),
+      (error: Error) => ({ ok: false as const, message: error.message }),
+    )
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    pageCommentBus.emit(PAGE_ID, { kind: 'thread.upserted', threadId: '66666666-6666-6666-6666-666666666666' })
+
+    await expect(next).resolves.toEqual({ ok: false, message: 'Нет доступа' })
+  })
 
   it('lists threads for a viewer with access', async () => {
     const prisma = {
@@ -183,6 +205,7 @@ describe('comment edit/delete/resolve', () => {
   const COMMENT_ID = '55555555-5555-5555-5555-555555555555'
   const THREAD_ID = '66666666-6666-6666-6666-666666666666'
   beforeEach(() => vi.clearAllMocks())
+  afterEach(() => vi.restoreAllMocks())
 
   function memberPrisma(role: string, extra: Record<string, unknown>) {
     return {
@@ -194,14 +217,16 @@ describe('comment edit/delete/resolve', () => {
   }
 
   it('lets the author edit own comment', async () => {
+    const emit = vi.spyOn(pageCommentBus, 'emit')
     const prisma = memberPrisma('COMMENTER', {
       pageComment: {
-        findUnique: vi.fn(async () => ({ authorId: 'u1', authorAnonId: null, thread: { pageId: PAGE_ID } })),
+        findUnique: vi.fn(async () => ({ authorId: 'u1', authorAnonId: null, threadId: THREAD_ID, thread: { pageId: PAGE_ID } })),
         update: vi.fn(async () => ({ id: COMMENT_ID })),
       },
     })
     await caller(ctx(prisma, { id: 'u1' })).editComment({ pageId: PAGE_ID, commentId: COMMENT_ID, content: { text: 'x', mentions: [] } })
     expect(prisma.pageComment.update).toHaveBeenCalled()
+    expect(emit).toHaveBeenCalledWith(PAGE_ID, { kind: 'thread.upserted', threadId: THREAD_ID })
   })
 
   it('forbids editing someone else’s comment', async () => {
