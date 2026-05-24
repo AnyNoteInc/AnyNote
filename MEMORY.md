@@ -2899,3 +2899,29 @@ SearchIcon, ChatIcon, DescriptionIcon, SettingsIcon
 - тему синхронизируй с темой сайта
 - локаль en
 
+
+---
+на странице /workspaces/{workspaceId}/pages/{pageId} нужно 
+
+---
+
+Давай кое что добавим для titap редактора
+1. замени текущий компонент переключатель, который сделан в системе на DetailsContent extension из tiptap @tiptap/extension-details
+2. Добавь @tiptap/extension-mention с теггированием людей, которые есть в workspaces, при нажатии на @ я должен теггировать пользователей, которые есть в пространстве
+3. Добавь компонент inline code @tiptap/extension-code, оставив при этом без изменений существуеющие компонент кода
+4. Добавь компонент подсветки @tiptap/extension-highlight
+5. Добавь также компонент @tiptap/extension-underline для подчеркивания текста
+6. Добавь расширение позволяющее менять FontFamily @tiptap/extension-text-style
+6. Давай добавим buble-menu @tiptap/extension-bubble-menu, в которой будет следующие пункты
+- bold
+- italic
+- strike
+- highlight
+- code
+- вставить/удалить ссылку - переделать модальное окно под mui
+- вертикальная черта
+- выбор шрифта
+- FontFamily - меню с выбором популярных шрифтов, по умолчанию авто - стандартный
+- FontSize - с выбором размера шрифта, по умолчанию авто - стандартный
+
+после выполнения работы проверь все с помощью playwright

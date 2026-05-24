@@ -3,7 +3,7 @@
 import { Box } from '@mui/material'
 import { HocuspocusProvider } from '@hocuspocus/provider'
 import { EditorContent, ReactRenderer, useEditor } from '@tiptap/react'
-import type { SuggestionProps } from '@tiptap/suggestion'
+import type { SuggestionKeyDownProps, SuggestionProps } from '@tiptap/suggestion'
 import tippy, { type Instance } from 'tippy.js'
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import * as Y from 'yjs'
@@ -13,6 +13,8 @@ import { EditorDragHandle } from './components/drag-handle'
 import { FileUploadPopover } from './components/file-upload-popover'
 import { FloatingToolbar } from './components/floating-toolbar'
 import { MarkdownUploadPopover } from './components/markdown-upload-popover'
+import { MentionMenuPopover } from './components/mention-menu-popover'
+import type { MentionMenuPopoverHandle } from './components/mention-menu-popover'
 import { PageLinkPopover } from './components/page-link-popover'
 import { SlashMenuPopover } from './components/slash-menu-popover'
 import type { SlashMenuPopoverHandle } from './components/slash-menu-popover'
@@ -20,9 +22,16 @@ import { TableToolbar } from './components/table-toolbar'
 import { buildExtensions } from './extensions/index'
 import type { SlashMenuRender } from './extensions/slash-menu'
 import { createSlashItems } from './slash-items'
-import type { AnyNoteEditorProps, SlashCommandItem, SlashRange, VirtualAnchor } from './types'
+import type {
+  AnyNoteEditorProps,
+  MentionLookupItem,
+  SlashCommandItem,
+  SlashRange,
+  VirtualAnchor,
+} from './types'
 
 type SlashSuggestionProps = SuggestionProps<SlashCommandItem, SlashCommandItem>
+type MentionSuggestionProps = SuggestionProps<MentionLookupItem, MentionLookupItem>
 
 type YjsResources = { ydoc: Y.Doc; provider: HocuspocusProvider }
 
@@ -83,6 +92,7 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
     uploadHandler,
     workspaceId,
     pageSearch,
+    mentionSearch,
     onNavigateToPage,
     editable = true,
     resources,
@@ -104,6 +114,19 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
 
   const slashRendererRef = useRef<{
     component: SlashMenuRenderer | null
+    popup: Instance | null
+  }>({ component: null, popup: null })
+
+  type MentionMenuRenderer = ReactRenderer<
+    MentionMenuPopoverHandle,
+    {
+      items: MentionLookupItem[]
+      command: (item: MentionLookupItem) => void
+    }
+  >
+
+  const mentionRendererRef = useRef<{
+    component: MentionMenuRenderer | null
     popup: Instance | null
   }>({ component: null, popup: null })
 
@@ -198,6 +221,61 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
     [],
   )
 
+  const mentionRender = useMemo(
+    () => () => ({
+      onStart: (suggestionProps: MentionSuggestionProps) => {
+        const component: MentionMenuRenderer = new ReactRenderer(MentionMenuPopover, {
+          props: {
+            items: suggestionProps.items,
+            command: (item: MentionLookupItem) => suggestionProps.command(item),
+          },
+          editor: suggestionProps.editor,
+        })
+        mentionRendererRef.current.component = component
+
+        if (!suggestionProps.clientRect) return
+        const getRect = suggestionProps.clientRect
+        const [popup] = tippy('body', {
+          getReferenceClientRect: () => getRect() ?? new DOMRect(0, 0, 0, 0),
+          appendTo: () => document.body,
+          content: component.element,
+          showOnCreate: true,
+          interactive: true,
+          trigger: 'manual',
+          placement: 'bottom-start',
+          offset: [0, 6],
+        })
+        mentionRendererRef.current.popup = popup ?? null
+      },
+      onUpdate: (suggestionProps: MentionSuggestionProps) => {
+        mentionRendererRef.current.component?.updateProps({
+          items: suggestionProps.items,
+          command: (item: MentionLookupItem) => suggestionProps.command(item),
+        })
+        const clientRect = suggestionProps.clientRect
+        if (clientRect) {
+          mentionRendererRef.current.popup?.setProps({
+            getReferenceClientRect: () => clientRect() ?? new DOMRect(0, 0, 0, 0),
+          })
+        }
+      },
+      onKeyDown: (suggestionProps: SuggestionKeyDownProps) => {
+        if (suggestionProps.event.key === 'Escape') {
+          mentionRendererRef.current.popup?.hide()
+          return true
+        }
+        return mentionRendererRef.current.component?.ref?.onKeyDown(suggestionProps.event) ?? false
+      },
+      onExit: () => {
+        mentionRendererRef.current.popup?.destroy()
+        mentionRendererRef.current.component?.destroy()
+        mentionRendererRef.current.component = null
+        mentionRendererRef.current.popup = null
+      },
+    }),
+    [],
+  )
+
   const editor = useEditor(
     {
       editable,
@@ -210,6 +288,8 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
         placeholder,
         slashItems: (query: string) => slashItemsRef.current(query),
         slashRender,
+        mentionItems: mentionSearch,
+        mentionRender,
         onNavigateToPage,
       }),
       onCreate: ({ editor: ed }) => {

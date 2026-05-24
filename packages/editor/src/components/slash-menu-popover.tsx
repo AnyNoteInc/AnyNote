@@ -48,6 +48,7 @@ export const SlashMenuPopover = forwardRef<SlashMenuPopoverHandle, Props>(functi
       items: byGroup.get(g)!,
     }))
   }, [items])
+  const orderedItems = useMemo(() => grouped.flatMap((group) => group.items), [grouped])
 
   useEffect(() => {
     setActive(0)
@@ -62,17 +63,17 @@ export const SlashMenuPopover = forwardRef<SlashMenuPopoverHandle, Props>(functi
 
   useImperativeHandle(ref, () => ({
     onKeyDown: (event: KeyboardEvent) => {
-      if (items.length === 0) return false
+      if (orderedItems.length === 0) return false
       if (event.key === 'ArrowDown') {
-        setActive((i) => (i + 1) % items.length)
+        setActive((i) => (i + 1) % orderedItems.length)
         return true
       }
       if (event.key === 'ArrowUp') {
-        setActive((i) => (i - 1 + items.length) % items.length)
+        setActive((i) => (i - 1 + orderedItems.length) % orderedItems.length)
         return true
       }
       if (event.key === 'Enter') {
-        const item = items[active]
+        const item = orderedItems[active]
         if (item) {
           command(item)
           return true
@@ -82,7 +83,7 @@ export const SlashMenuPopover = forwardRef<SlashMenuPopoverHandle, Props>(functi
     },
   }))
 
-  if (items.length === 0) return null
+  if (orderedItems.length === 0) return null
 
   let running = 0
 

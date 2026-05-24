@@ -20,6 +20,12 @@ export type PageLookupItem = {
   icon: string | null
 }
 
+export type MentionLookupItem = {
+  id: string
+  label: string
+  email: string | null
+}
+
 export type SlashCommandGroup = 'base' | 'code' | 'media'
 
 export type SlashRange = { from: number; to: number }
@@ -41,6 +47,7 @@ export type AnyNoteEditorProps = {
   user: AnyNoteEditorUser
   uploadHandler: UploadHandler
   pageSearch: (query: string) => Promise<PageLookupItem[]>
+  mentionSearch: (query: string) => Promise<MentionLookupItem[]>
   onNavigateToPage: (pageId: string) => void
   editable?: boolean
   className?: string

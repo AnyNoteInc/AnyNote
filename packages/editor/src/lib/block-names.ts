@@ -14,7 +14,7 @@ const BASE: Record<string, string> = {
   fileAttachment: 'Файл',
   pageLink: 'Ссылка на страницу',
   callout: 'Подсказка',
-  toggle: 'Переключатель',
+  details: 'Переключатель',
   hiddenText: 'Скрытый текст',
 }
 

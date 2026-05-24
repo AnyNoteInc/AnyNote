@@ -21,7 +21,7 @@ export const BACKGROUND_SUPPORTED_TYPES = [
   'blockquote',
   'codeBlock',
   'callout',
-  'toggle',
+  'details',
   'hiddenText',
   'resizableImage',
   'fileAttachment',

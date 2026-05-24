@@ -53,7 +53,7 @@
   margin: 0.75rem 0 0.5rem;
 }
 .anynote-editor h4 {
-  font-size: 1.00rem;
+  font-size: 1rem;
   font-weight: 600;
   margin: 0.5rem 0 0.25rem;
 }
@@ -68,18 +68,18 @@
    the handle. Reset the padding and render markers inside each `li` via a
    `::before` pseudo-element, matching how task lists already shift their
    checkbox into the content box. */
-.anynote-editor ul:not([data-type="taskList"]),
+.anynote-editor ul:not([data-type='taskList']),
 .anynote-editor ol {
   list-style: none;
   padding-left: 0;
 }
-.anynote-editor ul:not([data-type="taskList"]) > li,
+.anynote-editor ul:not([data-type='taskList']) > li,
 .anynote-editor ol > li {
   position: relative;
   padding-left: 1.75em;
 }
-.anynote-editor ul:not([data-type="taskList"]) > li::before {
-  content: "•";
+.anynote-editor ul:not([data-type='taskList']) > li::before {
+  content: '•';
   position: absolute;
   left: 0.5em;
   top: 0;
@@ -92,7 +92,7 @@
   counter-increment: anynote-ol;
 }
 .anynote-editor ol > li::before {
-  content: counter(anynote-ol) ".";
+  content: counter(anynote-ol) '.';
   position: absolute;
   left: 0.25em;
   top: 0;
@@ -109,14 +109,30 @@
 .anynote-editor pre {
   background: var(--editor-code-bg, rgba(0, 0, 0, 0.04));
   border-radius: 6px;
-  padding: 12px;
+  line-height: 1.25;
+  margin: 0.5rem 0;
+  padding: 1.25em 12px;
   overflow-x: auto;
 }
 
-.anynote-editor code {
+.anynote-editor code:not([class]) {
   background: var(--editor-code-bg, rgba(0, 0, 0, 0.04));
   border-radius: 4px;
   padding: 0 4px;
+}
+
+.anynote-editor mark {
+  background: #fff59d;
+  border-radius: 3px;
+  padding: 0 2px;
+}
+
+.anynote-editor .mention {
+  border-radius: 999px;
+  background: rgba(25, 118, 210, 0.12);
+  color: #1565c0;
+  padding: 0 6px;
+  white-space: nowrap;
 }
 
 /* Code block: custom node view (copy button) + highlight.js syntax colors.
@@ -149,6 +165,8 @@
 
 .anynote-editor pre code {
   background: none;
+  display: block;
+  line-height: inherit;
   padding: 0;
 }
 
@@ -201,45 +219,45 @@
   font-weight: 600;
 }
 
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-comment,
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-quote {
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-comment,
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-quote {
   color: #8b949e;
 }
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-keyword,
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-selector-tag,
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-literal,
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-doctag,
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-name {
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-keyword,
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-selector-tag,
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-literal,
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-doctag,
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-name {
   color: #ff7b72;
 }
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-string,
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-regexp,
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-addition {
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-string,
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-regexp,
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-addition {
   color: #a5d6ff;
 }
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-number,
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-symbol,
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-bullet,
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-link {
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-number,
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-symbol,
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-bullet,
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-link {
   color: #79c0ff;
 }
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-title,
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-section,
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-attr {
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-title,
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-section,
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-attr {
   color: #d2a8ff;
 }
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-built_in,
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-type,
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-params,
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-attribute,
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-variable,
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-template-variable {
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-built_in,
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-type,
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-params,
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-attribute,
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-variable,
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-template-variable {
   color: #ffa657;
 }
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-tag {
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-tag {
   color: #7ee787;
 }
-[data-mui-color-scheme="dark"] .anynote-editor .hljs-meta {
+[data-mui-color-scheme='dark'] .anynote-editor .hljs-meta {
   color: #8b949e;
 }
 
@@ -286,13 +304,13 @@
 }
 
 /* Task list: MUI Checkbox + text, checkbox centered against the item content. */
-.anynote-editor ul[data-type="taskList"] {
+.anynote-editor ul[data-type='taskList'] {
   list-style: none;
   padding: 0;
 }
 
 .anynote-editor .anynote-task-item,
-.anynote-editor ul[data-type="taskList"] > li {
+.anynote-editor ul[data-type='taskList'] > li {
   display: flex;
   align-items: flex-start;
   gap: 4px;
@@ -300,25 +318,25 @@
 }
 
 .anynote-editor .anynote-task-item__checkbox,
-.anynote-editor ul[data-type="taskList"] > li > label {
+.anynote-editor ul[data-type='taskList'] > li > label {
   flex-shrink: 0;
   margin-top: -3px;
 }
 
 .anynote-editor .anynote-task-item__content,
-.anynote-editor ul[data-type="taskList"] > li > div {
+.anynote-editor ul[data-type='taskList'] > li > div {
   flex: 1 1 auto;
   min-width: 0;
 }
 
 .anynote-editor .anynote-task-item__content > p,
-.anynote-editor ul[data-type="taskList"] > li > div > p {
+.anynote-editor ul[data-type='taskList'] > li > div > p {
   margin: 0;
 }
 
 /* Checked: dim + strike-through the content. Unchecked stays default. */
-.anynote-editor .anynote-task-item[data-checked="true"] .anynote-task-item__content,
-.anynote-editor ul[data-type="taskList"] > li[data-checked="true"] > div {
+.anynote-editor .anynote-task-item[data-checked='true'] .anynote-task-item__content,
+.anynote-editor ul[data-type='taskList'] > li[data-checked='true'] > div {
   color: var(--editor-text-muted, rgba(0, 0, 0, 0.5));
   text-decoration: line-through;
 }
@@ -374,7 +392,7 @@
 }
 
 /* Slash menu popup via tippy */
-.tippy-box[data-animation="fade"][data-state="hidden"] {
+.tippy-box[data-animation='fade'][data-state='hidden'] {
   opacity: 0;
 }
 .tippy-box {
@@ -386,87 +404,123 @@
 
 /* === Anynote color palette (keyword-driven, theme-aware) === */
 :root {
-  --anynote-color-gray:   #6b6b6b;
-  --anynote-color-brown:  #8a5d3d;
+  --anynote-color-gray: #6b6b6b;
+  --anynote-color-brown: #8a5d3d;
   --anynote-color-orange: #b45309;
   --anynote-color-yellow: #a16207;
-  --anynote-color-green:  #347d47;
-  --anynote-color-blue:   #1a6bb3;
+  --anynote-color-green: #347d47;
+  --anynote-color-blue: #1a6bb3;
   --anynote-color-purple: #6b3fa0;
-  --anynote-color-pink:   #b5338e;
-  --anynote-color-red:    #b42318;
+  --anynote-color-pink: #b5338e;
+  --anynote-color-red: #b42318;
 
-  --anynote-bg-gray:   rgba(107, 107, 107, 0.12);
-  --anynote-bg-brown:  rgba(138, 93, 61, 0.14);
+  --anynote-bg-gray: rgba(107, 107, 107, 0.12);
+  --anynote-bg-brown: rgba(138, 93, 61, 0.14);
   --anynote-bg-orange: rgba(180, 83, 9, 0.14);
   --anynote-bg-yellow: rgba(161, 98, 7, 0.14);
-  --anynote-bg-green:  rgba(52, 125, 71, 0.14);
-  --anynote-bg-blue:   rgba(26, 107, 179, 0.14);
+  --anynote-bg-green: rgba(52, 125, 71, 0.14);
+  --anynote-bg-blue: rgba(26, 107, 179, 0.14);
   --anynote-bg-purple: rgba(107, 63, 160, 0.14);
-  --anynote-bg-pink:   rgba(181, 51, 142, 0.14);
-  --anynote-bg-red:    rgba(180, 35, 24, 0.14);
+  --anynote-bg-pink: rgba(181, 51, 142, 0.14);
+  --anynote-bg-red: rgba(180, 35, 24, 0.14);
 }
 
-[data-mui-color-scheme="dark"] {
-  --anynote-color-gray:   #b5bac0;
-  --anynote-color-brown:  #c9a07a;
+[data-mui-color-scheme='dark'] {
+  --anynote-color-gray: #b5bac0;
+  --anynote-color-brown: #c9a07a;
   --anynote-color-orange: #e58a2b;
   --anynote-color-yellow: #d7b54c;
-  --anynote-color-green:  #6fd389;
-  --anynote-color-blue:   #7cbcff;
+  --anynote-color-green: #6fd389;
+  --anynote-color-blue: #7cbcff;
   --anynote-color-purple: #c395f0;
-  --anynote-color-pink:   #f09ad0;
-  --anynote-color-red:    #f28a80;
+  --anynote-color-pink: #f09ad0;
+  --anynote-color-red: #f28a80;
 
-  --anynote-bg-gray:   rgba(181, 186, 192, 0.22);
-  --anynote-bg-brown:  rgba(201, 160, 122, 0.22);
+  --anynote-bg-gray: rgba(181, 186, 192, 0.22);
+  --anynote-bg-brown: rgba(201, 160, 122, 0.22);
   --anynote-bg-orange: rgba(229, 138, 43, 0.22);
   --anynote-bg-yellow: rgba(215, 181, 76, 0.22);
-  --anynote-bg-green:  rgba(111, 211, 137, 0.22);
-  --anynote-bg-blue:   rgba(124, 188, 255, 0.22);
+  --anynote-bg-green: rgba(111, 211, 137, 0.22);
+  --anynote-bg-blue: rgba(124, 188, 255, 0.22);
   --anynote-bg-purple: rgba(195, 149, 240, 0.22);
-  --anynote-bg-pink:   rgba(240, 154, 208, 0.22);
-  --anynote-bg-red:    rgba(242, 138, 128, 0.22);
+  --anynote-bg-pink: rgba(240, 154, 208, 0.22);
+  --anynote-bg-red: rgba(242, 138, 128, 0.22);
 }
 
-.anynote-color-gray   { color: var(--anynote-color-gray); }
-.anynote-color-brown  { color: var(--anynote-color-brown); }
-.anynote-color-orange { color: var(--anynote-color-orange); }
-.anynote-color-yellow { color: var(--anynote-color-yellow); }
-.anynote-color-green  { color: var(--anynote-color-green); }
-.anynote-color-blue   { color: var(--anynote-color-blue); }
-.anynote-color-purple { color: var(--anynote-color-purple); }
-.anynote-color-pink   { color: var(--anynote-color-pink); }
-.anynote-color-red    { color: var(--anynote-color-red); }
+.anynote-color-gray {
+  color: var(--anynote-color-gray);
+}
+.anynote-color-brown {
+  color: var(--anynote-color-brown);
+}
+.anynote-color-orange {
+  color: var(--anynote-color-orange);
+}
+.anynote-color-yellow {
+  color: var(--anynote-color-yellow);
+}
+.anynote-color-green {
+  color: var(--anynote-color-green);
+}
+.anynote-color-blue {
+  color: var(--anynote-color-blue);
+}
+.anynote-color-purple {
+  color: var(--anynote-color-purple);
+}
+.anynote-color-pink {
+  color: var(--anynote-color-pink);
+}
+.anynote-color-red {
+  color: var(--anynote-color-red);
+}
 
-.anynote-bg-gray   { background-color: var(--anynote-bg-gray); }
-.anynote-bg-brown  { background-color: var(--anynote-bg-brown); }
-.anynote-bg-orange { background-color: var(--anynote-bg-orange); }
-.anynote-bg-yellow { background-color: var(--anynote-bg-yellow); }
-.anynote-bg-green  { background-color: var(--anynote-bg-green); }
-.anynote-bg-blue   { background-color: var(--anynote-bg-blue); }
-.anynote-bg-purple { background-color: var(--anynote-bg-purple); }
-.anynote-bg-pink   { background-color: var(--anynote-bg-pink); }
-.anynote-bg-red    { background-color: var(--anynote-bg-red); }
+.anynote-bg-gray {
+  background-color: var(--anynote-bg-gray);
+}
+.anynote-bg-brown {
+  background-color: var(--anynote-bg-brown);
+}
+.anynote-bg-orange {
+  background-color: var(--anynote-bg-orange);
+}
+.anynote-bg-yellow {
+  background-color: var(--anynote-bg-yellow);
+}
+.anynote-bg-green {
+  background-color: var(--anynote-bg-green);
+}
+.anynote-bg-blue {
+  background-color: var(--anynote-bg-blue);
+}
+.anynote-bg-purple {
+  background-color: var(--anynote-bg-purple);
+}
+.anynote-bg-pink {
+  background-color: var(--anynote-bg-pink);
+}
+.anynote-bg-red {
+  background-color: var(--anynote-bg-red);
+}
 
 /* Block-level background keeps padding/radius so highlights look intentional. */
-.anynote-editor [class*="anynote-bg-"] {
+.anynote-editor [class*='anynote-bg-'] {
   padding: 2px 6px;
   border-radius: 4px;
 }
 
 /* Text-like blocks shrink to their content so a line highlight does not fill
    the whole editor column. Rich node views keep their own block geometry. */
-.anynote-editor :is(p, h1, h2, h3, h4, h5, h6, ul, ol, blockquote)[class*="anynote-bg-"] {
+.anynote-editor :is(p, h1, h2, h3, h4, h5, h6, ul, ol, blockquote)[class*='anynote-bg-'] {
   display: table;
   max-width: 100%;
 }
 
 /* === Full-width page mode === */
-[data-full-width="true"] .anynote-editor .ProseMirror {
+[data-full-width='true'] .anynote-editor .ProseMirror {
   max-width: none;
 }
-[data-full-width="true"] .page-column {
+[data-full-width='true'] .page-column {
   max-width: none !important;
 }
 
@@ -478,25 +532,56 @@
    the outline panel without the panel overlapping the text. The mini
    outline doesn't reserve space — its bars sit in the existing gutter. */
 @media (min-width: 1200px) {
-  .page-content-scroll[data-outline-mode="full"] {
+  .page-content-scroll[data-outline-mode='full'] {
     padding-right: 272px;
   }
 }
 
-/* === Toggle block === */
-.anynote-toggle .anynote-toggle-content {
-  flex: 1;
+/* === Details block === */
+.anynote-editor .anynote-details {
+  display: grid;
+  grid-template-columns: 24px minmax(0, 1fr);
+  align-items: start;
+  gap: 4px;
+  border: 1px solid var(--editor-divider, rgba(0, 0, 0, 0.12));
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 0.5rem 0;
+}
+.anynote-editor .anynote-details__toggle {
+  width: 22px;
+  height: 22px;
+  border: 0;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--editor-text-muted, rgba(0, 0, 0, 0.55));
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+  transform: rotate(0deg);
+  transition:
+    transform 120ms,
+    background-color 120ms;
+}
+.anynote-editor .anynote-details__toggle:hover {
+  background: rgba(0, 0, 0, 0.06);
+}
+.anynote-editor .anynote-details.is-open .anynote-details__toggle {
+  transform: rotate(90deg);
+}
+.anynote-editor .anynote-details > div {
   min-width: 0;
 }
-/* TipTap React NodeViewContent wraps the actual children in an inner
-   [data-node-view-content-react] div, so we descend through it. */
-.anynote-toggle[data-open="false"]
-  .anynote-toggle-content
-  [data-node-view-content-react]
-  > *:not(:first-child) {
-  display: none;
+.anynote-editor .anynote-details__summary {
+  font-weight: 500;
+  min-height: 22px;
+  outline: none;
 }
-.anynote-toggle .anynote-toggle-content [data-node-view-content-react] > * + * {
+.anynote-editor .anynote-details__content {
+  margin-top: 6px;
+}
+.anynote-editor .anynote-details__content > * + * {
   margin-top: 6px;
 }
 
@@ -505,12 +590,14 @@
   flex: 1;
   min-width: 0;
 }
-.anynote-hidden-text[data-visible="false"] .anynote-hidden-text-content [data-node-view-content-react] {
+.anynote-hidden-text[data-visible='false']
+  .anynote-hidden-text-content
+  [data-node-view-content-react] {
   -webkit-text-security: disc;
   text-security: disc;
 }
 @supports not ((-webkit-text-security: disc) or (text-security: disc)) {
-  .anynote-hidden-text[data-visible="false"]
+  .anynote-hidden-text[data-visible='false']
     .anynote-hidden-text-content
     [data-node-view-content-react] {
     filter: blur(5px);
@@ -532,8 +619,12 @@
 /* Reminder-anchor flash: applied for 2s when the user navigates to a
    /workspaces/.../pages/.../#reminder-<uuid> URL. */
 @keyframes reminder-flash {
-  0%   { box-shadow: 0 0 0 2px rgba(255, 167, 38, 0.6); }
-  100% { box-shadow: 0 0 0 2px rgba(255, 167, 38, 0); }
+  0% {
+    box-shadow: 0 0 0 2px rgba(255, 167, 38, 0.6);
+  }
+  100% {
+    box-shadow: 0 0 0 2px rgba(255, 167, 38, 0);
+  }
 }
 .reminder-flash {
   animation: reminder-flash 2s ease-out;

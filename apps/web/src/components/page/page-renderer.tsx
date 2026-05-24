@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 import type { PageType } from '@repo/db'
 import {
   BlockMoveDialog,
+  filterMentionItems,
   moveBlockToPage,
   scrollToBlockIndex,
   type Editor,
@@ -241,6 +242,26 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
     [page.id, trpcUtils, workspaceId],
   )
 
+  const mentionSearch = useCallback(
+    async (query: string) => {
+      const members = await trpcUtils.workspace.listMembers.ensureData({ workspaceId })
+      return filterMentionItems(
+        members.map((member) => {
+          const name =
+            [member.user.firstName, member.user.lastName].filter(Boolean).join(' ').trim() ||
+            member.user.email
+          return {
+            id: member.user.id,
+            name,
+            email: member.user.email,
+          }
+        }),
+        query,
+      )
+    },
+    [trpcUtils, workspaceId],
+  )
+
   const onNavigateToPage = useCallback(
     (pageId: string) => {
       router.push(`/workspaces/${workspaceId}/pages/${pageId}`)
@@ -424,6 +445,7 @@ export function PageRenderer({ page, workspaceId, user }: Props) {
           user={user}
           uploadHandler={uploadHandler}
           pageSearch={pageSearch}
+          mentionSearch={mentionSearch}
           onNavigateToPage={onNavigateToPage}
           onReady={handleEditorReady}
           onRequestBlockMove={handleRequestBlockMove}

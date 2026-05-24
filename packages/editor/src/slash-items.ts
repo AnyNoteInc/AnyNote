@@ -181,7 +181,7 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
         .run(),
   },
   {
-    id: 'toggle',
+    id: 'details',
     group: 'base',
     label: 'Переключатель',
     description: 'Скрываемое содержимое',
@@ -193,9 +193,15 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
         .focus()
         .deleteRange(range)
         .insertContent({
-          type: 'toggle',
+          type: 'details',
           attrs: { open: true },
-          content: [{ type: 'paragraph' }],
+          content: [
+            {
+              type: 'detailsSummary',
+              content: [{ type: 'text', text: 'Заголовок' }],
+            },
+            { type: 'detailsContent', content: [{ type: 'paragraph' }] },
+          ],
         })
         .run(),
   },

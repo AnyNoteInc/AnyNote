@@ -11,7 +11,7 @@ import {
   ColumnSchema,
 } from '../../packages/editor/src/extensions/column-layout.schema'
 import { CalloutSchema } from '../../packages/editor/src/extensions/callout.schema'
-import { ToggleSchema } from '../../packages/editor/src/extensions/toggle.schema'
+import { Details, DetailsContent, DetailsSummary } from '@tiptap/extension-details'
 
 const password = 'SuperSecure123!'
 
@@ -64,7 +64,15 @@ type TiptapContent = {
   content: Array<Record<string, unknown>>
 }
 
-const yjsExtensions = [StarterKit, ColumnLayoutSchema, ColumnSchema, CalloutSchema, ToggleSchema]
+const yjsExtensions = [
+  StarterKit,
+  ColumnLayoutSchema,
+  ColumnSchema,
+  CalloutSchema,
+  Details.configure({ persist: true }),
+  DetailsSummary,
+  DetailsContent,
+]
 
 function buildContentYjs(content: TiptapContent): Uint8Array<ArrayBuffer> {
   const ydoc = TiptapTransformer.toYdoc(content, 'default', yjsExtensions)
@@ -101,11 +109,14 @@ function callout(...blocks: Array<Record<string, unknown>>) {
   }
 }
 
-function toggle(...blocks: Array<Record<string, unknown>>) {
+function details(...blocks: Array<Record<string, unknown>>) {
   return {
-    type: 'toggle',
+    type: 'details',
     attrs: { open: true },
-    content: blocks,
+    content: [
+      { type: 'detailsSummary', content: [{ type: 'text', text: 'Details' }] },
+      { type: 'detailsContent', content: blocks },
+    ],
   }
 }
 
@@ -254,9 +265,7 @@ test('dragging a task item past the right edge of its list creates a 2-column ro
   await expect(page.locator('.column-divider')).toHaveCount(1)
 })
 
-test('dragging a task item out of a column moves the checkbox with its text', async ({
-  page,
-}) => {
+test('dragging a task item out of a column moves the checkbox with its text', async ({ page }) => {
   const editor = await createTaskListPage(page, 'task-cols-out')
 
   const task2 = page.locator('.anynote-task-item').nth(1)
@@ -273,7 +282,12 @@ test('dragging a task item out of a column moves the checkbox with its text', as
   const layoutBox = await layout.boundingBox()
   if (!layoutBox) throw new Error('column layout not visible')
 
-  await dragBlockTo(page, rightTask, layoutBox.x + layoutBox.width / 2, layoutBox.y + layoutBox.height + 24)
+  await dragBlockTo(
+    page,
+    rightTask,
+    layoutBox.x + layoutBox.width / 2,
+    layoutBox.y + layoutBox.height + 24,
+  )
 
   await expect(editor.locator('.anynote-task-item input[type="checkbox"]')).toHaveCount(2)
   await expect(editor.locator('.anynote-task-item', { hasText: 'Task 2' })).toHaveCount(1)
@@ -450,9 +464,11 @@ test('dragging a nested paragraph reorders it inside its parent block', async ({
   await expect(page.locator('.ProseMirror > .column-layout')).toHaveCount(0)
   await expect
     .poll(async () =>
-      calloutBlock.locator('p').evaluateAll((nodes) =>
-        nodes.map((node) => (node.textContent ?? '').trim()).filter(Boolean),
-      ),
+      calloutBlock
+        .locator('p')
+        .evaluateAll((nodes) =>
+          nodes.map((node) => (node.textContent ?? '').trim()).filter(Boolean),
+        ),
     )
     .toEqual(['Nested Bravo', 'Nested Alpha'])
 })
@@ -510,26 +526,27 @@ test('dragging a paragraph to the right of a callout creates a top-level column 
   await expect(cells.nth(1)).toContainText('Outside paragraph')
 })
 
-test('dragging a paragraph into a toggle moves it inside the toggle content', async ({ page }) => {
-  await createSeededPage(page, 'cols-toggle-in', {
+test('dragging a paragraph into details moves it inside the details content', async ({ page }) => {
+  await createSeededPage(page, 'cols-details-in', {
     type: 'doc',
-    content: [toggle(emptyParagraph()), paragraph('Move into toggle')],
+    content: [details(emptyParagraph()), paragraph('Move into details')],
   })
 
-  const toggleBlock = page.locator('.anynote-toggle').first()
-  const source = page.locator('.ProseMirror > p', { hasText: 'Move into toggle' })
-  const toggleBox = await toggleBlock.boundingBox()
-  if (!toggleBox) throw new Error('toggle not visible')
+  const detailsBlock = page.locator('.anynote-details').first()
+  const detailsContent = detailsBlock.locator('.anynote-details__content').first()
+  const source = page.locator('.ProseMirror > p', { hasText: 'Move into details' })
+  const detailsContentBox = await detailsContent.boundingBox()
+  if (!detailsContentBox) throw new Error('details content not visible')
 
   await dragBlockTo(
     page,
     source,
-    toggleBox.x + toggleBox.width / 2,
-    toggleBox.y + 8,
+    detailsContentBox.x + detailsContentBox.width / 2,
+    detailsContentBox.y + detailsContentBox.height / 2,
   )
 
-  await expect(page.locator('.ProseMirror > p', { hasText: 'Move into toggle' })).toHaveCount(0)
-  await expect(toggleBlock.locator('p', { hasText: 'Move into toggle' })).toHaveCount(1)
+  await expect(page.locator('.ProseMirror > p', { hasText: 'Move into details' })).toHaveCount(0)
+  await expect(detailsBlock.locator('p', { hasText: 'Move into details' })).toHaveCount(1)
 })
 
 test('nested drop placeholder is anchored to the highlighted block while dragging', async ({
@@ -537,18 +554,24 @@ test('nested drop placeholder is anchored to the highlighted block while draggin
 }) => {
   await createSeededPage(page, 'cols-nested-placeholder', {
     type: 'doc',
-    content: [toggle(emptyParagraph()), paragraph('Move into toggle')],
+    content: [details(emptyParagraph()), paragraph('Move into details')],
   })
 
-  const toggleBlock = page.locator('.anynote-toggle').first()
-  const source = page.locator('.ProseMirror > p', { hasText: 'Move into toggle' })
-  const toggleBox = await toggleBlock.boundingBox()
-  if (!toggleBox) throw new Error('toggle not visible')
+  const detailsBlock = page.locator('.anynote-details').first()
+  const detailsContent = detailsBlock.locator('.anynote-details__content').first()
+  const source = page.locator('.ProseMirror > p', { hasText: 'Move into details' })
+  const detailsContentBox = await detailsContent.boundingBox()
+  if (!detailsContentBox) throw new Error('details content not visible')
 
   try {
-    await moveBlockHandleTo(page, source, toggleBox.x + toggleBox.width / 2, toggleBox.y + 8)
+    await moveBlockHandleTo(
+      page,
+      source,
+      detailsContentBox.x + detailsContentBox.width / 2,
+      detailsContentBox.y + detailsContentBox.height / 2,
+    )
 
-    const target = toggleBlock.locator('.column-drop-target').first()
+    const target = detailsBlock.locator('.column-drop-target').first()
     await expect(target).toBeVisible({ timeout: 2_000 })
     await expect
       .poll(async () => target.evaluate((node) => getComputedStyle(node).position))
@@ -558,42 +581,42 @@ test('nested drop placeholder is anchored to the highlighted block while draggin
   }
 })
 
-test('dragging the right paragraph out of nested toggle columns dissolves the empty column row', async ({
+test('dragging the right paragraph out of nested details columns dissolves the empty column row', async ({
   page,
 }) => {
-  await createSeededPage(page, 'cols-toggle-dissolve', {
+  await createSeededPage(page, 'cols-details-dissolve', {
     type: 'doc',
-    content: [toggle(paragraph('Right in toggle')), paragraph('Left outside')],
+    content: [details(paragraph('Right in details')), paragraph('Left outside')],
   })
 
-  const toggleBlock = page.locator('.anynote-toggle').first()
+  const detailsBlock = page.locator('.anynote-details').first()
   const outside = page.locator('.ProseMirror > p', { hasText: 'Left outside' })
-  const rightInToggle = toggleBlock.locator('p', { hasText: 'Right in toggle' })
-  const rightBox = await rightInToggle.boundingBox()
-  if (!rightBox) throw new Error('toggle paragraph not visible')
+  const rightInDetails = detailsBlock.locator('p', { hasText: 'Right in details' })
+  const rightBox = await rightInDetails.boundingBox()
+  if (!rightBox) throw new Error('details paragraph not visible')
 
   await dragBlockTo(page, outside, rightBox.x - 24, rightBox.y + rightBox.height / 2)
 
-  const nestedLayout = toggleBlock.locator('.column-layout')
+  const nestedLayout = detailsBlock.locator('.column-layout')
   await expect(nestedLayout).toHaveCount(1, { timeout: 5_000 })
   const cells = nestedLayout.locator('> .column')
   await expect(cells).toHaveCount(2)
   await expect(cells.nth(0)).toContainText('Left outside')
-  await expect(cells.nth(1)).toContainText('Right in toggle')
+  await expect(cells.nth(1)).toContainText('Right in details')
 
-  const toggleBox = await toggleBlock.boundingBox()
-  if (!toggleBox) throw new Error('toggle not visible after creating columns')
-  const rightCellParagraph = cells.nth(1).locator('p', { hasText: 'Right in toggle' })
+  const detailsBox = await detailsBlock.boundingBox()
+  if (!detailsBox) throw new Error('details not visible after creating columns')
+  const rightCellParagraph = cells.nth(1).locator('p', { hasText: 'Right in details' })
   await dragBlockTo(
     page,
     rightCellParagraph,
-    toggleBox.x + toggleBox.width / 2,
-    toggleBox.y + toggleBox.height + 24,
+    detailsBox.x + detailsBox.width / 2,
+    detailsBox.y + detailsBox.height + 24,
   )
 
-  await expect(toggleBlock.locator('.column-layout')).toHaveCount(0)
-  await expect(toggleBlock.locator('p', { hasText: 'Left outside' })).toHaveCount(1)
-  await expect(page.locator('.ProseMirror > p', { hasText: 'Right in toggle' })).toHaveCount(1)
+  await expect(detailsBlock.locator('.column-layout')).toHaveCount(0)
+  await expect(detailsBlock.locator('p', { hasText: 'Left outside' })).toHaveCount(1)
+  await expect(page.locator('.ProseMirror > p', { hasText: 'Right in details' })).toHaveCount(1)
 })
 
 test('dragging content out of a multi-column row removes the emptied column', async ({ page }) => {

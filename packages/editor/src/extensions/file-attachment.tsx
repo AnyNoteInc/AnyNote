@@ -37,11 +37,6 @@ function FileAttachmentView({ node }: NodeViewProps) {
       contentEditable={false}
     >
       <Box
-        component="a"
-        href={attrs.url}
-        target="_blank"
-        rel="noopener noreferrer"
-        download={attrs.name}
         sx={{
           display: 'flex',
           alignItems: 'center',
@@ -58,7 +53,7 @@ function FileAttachmentView({ node }: NodeViewProps) {
           '&:hover': {
             backgroundColor: 'action.hover',
             borderColor: 'text.secondary',
-            '& .download-icon': { opacity: 1 },
+            '& .download-link': { opacity: 1 },
           },
         }}
       >
@@ -83,8 +78,25 @@ function FileAttachmentView({ node }: NodeViewProps) {
           </Typography>
         </Box>
         <Box
-          className="download-icon"
-          sx={{ color: 'text.secondary', opacity: 0.6, display: 'flex', alignItems: 'center' }}
+          component="a"
+          className="download-link"
+          href={attrs.url}
+          target="_blank"
+          rel="noopener noreferrer"
+          download={attrs.name}
+          aria-label={`Скачать ${attrs.name}`}
+          onMouseDown={(event) => event.stopPropagation()}
+          onClick={(event) => event.stopPropagation()}
+          sx={{
+            color: 'text.secondary',
+            opacity: 0.6,
+            display: 'flex',
+            alignItems: 'center',
+            borderRadius: 1,
+            p: 0.5,
+            transition: 'opacity .15s, background-color .15s',
+            '&:hover': { backgroundColor: 'action.hover' },
+          }}
         >
           <DownloadIcon width={18} height={18} />
         </Box>

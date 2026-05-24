@@ -137,10 +137,19 @@ a { color: #2563eb; text-decoration: underline; }
 }
 [data-type="callout"] > * { margin: 0.15em 0; }
 
-[data-type="toggle"] {
+details,
+[data-type="details"] {
   margin: 0.5em 0;
   padding-left: 18px;
   border-left: 2px solid #e2e8f0;
+}
+
+mark { background: #fff59d; border-radius: 3px; padding: 0 2px; }
+.mention {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
+  border-radius: 999px;
+  padding: 0 6px;
 }
 
 [data-type="hiddenText"], .hidden-text {

@@ -52,3 +52,13 @@ describe('editor column layout styles', () => {
     expect(css).toMatch(/\.ProseMirror\s*>\s*\*[\s\S]*position:\s*relative/)
   })
 })
+
+describe('editor inline formatting styles', () => {
+  it('styles mentions, inline code, and highlight marks', () => {
+    const css = readFileSync(contentCssPath, 'utf8')
+
+    expect(css).toMatch(/\.anynote-editor \.mention/)
+    expect(css).toMatch(/\.anynote-editor mark/)
+    expect(css).toMatch(/\.anynote-editor code:not\(\[class\]\)/)
+  })
+})

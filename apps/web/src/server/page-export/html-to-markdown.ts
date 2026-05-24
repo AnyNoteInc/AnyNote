@@ -18,10 +18,9 @@ export function htmlToMarkdown(html: string): string {
     },
   })
 
-  td.addRule('toggle', {
+  td.addRule('details', {
     filter: (n) => {
-      if (n.nodeName !== 'DIV') return false
-      return n.getAttribute('data-type') === 'toggle'
+      return n.nodeName === 'DETAILS' || n.getAttribute('data-type') === 'details'
     },
     replacement: (content) => {
       const trimmed = content.trim()

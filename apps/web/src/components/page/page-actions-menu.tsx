@@ -115,7 +115,7 @@ export function PageActionsMenu({
           <ListItemIcon>
             <ContentCopyIcon fontSize="small" />
           </ListItemIcon>
-          <ListItemText>Копия</ListItemText>
+          <ListItemText>Дублировать</ListItemText>
         </MenuItem>
 
         <MenuItem onClick={handleOpenMove} sx={menuItemSx}>

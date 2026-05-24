@@ -10,6 +10,14 @@ const handlers: SlashMediaHandlers = {
 }
 
 describe('createSlashItems', () => {
+  it('uses Tiptap details for the toggle command instead of the legacy toggle node', () => {
+    const slashItems = createSlashItems(handlers)
+    const ids = slashItems('').map((item) => item.id)
+
+    expect(ids).toContain('details')
+    expect(ids).not.toContain('toggle')
+  })
+
   it('does not expose LikeC4 or d2 diagram commands', () => {
     const slashItems = createSlashItems(handlers)
 

@@ -41,6 +41,73 @@ test('code block highlights syntax and exposes a copy button', async ({ page }) 
   await expect(page.getByTestId('code-block-copy').first()).toBeVisible()
 })
 
+test('code block language picker shows Auto mode by default', async ({ page }) => {
+  test.setTimeout(120_000)
+  const editor = await setupTextPage(page)
+  await editor.click()
+  await editor.press('/')
+  await page.keyboard.type('код')
+  await page.getByRole('button', { name: 'Код', exact: true }).click()
+
+  await expect(page.locator('.anynote-code-block').getByRole('combobox')).toHaveText(/Авто/)
+})
+
+test('code block uses one line of vertical padding', async ({ page }) => {
+  test.setTimeout(120_000)
+  const editor = await setupTextPage(page)
+  await editor.click()
+  await editor.press('/')
+  await page.keyboard.type('код')
+  await page.getByRole('button', { name: 'Код', exact: true }).click()
+  await page.keyboard.type('import datetime as dt')
+
+  await expect
+    .poll(async () =>
+      page.locator('.anynote-code-block pre').evaluate((pre) => ({
+        text: pre.textContent,
+        childTexts: Array.from(pre.childNodes).map((child) => child.textContent),
+      })),
+    )
+    .toEqual({
+      text: 'import datetime as dt',
+      childTexts: ['import datetime as dt'],
+    })
+
+  const verticalGaps = await page.locator('.anynote-code-block pre').evaluate((pre) => {
+    const code = pre.querySelector('code')
+    if (!code) return null
+
+    const walker = document.createTreeWalker(code, NodeFilter.SHOW_TEXT)
+    const textNode = walker.nextNode()
+    if (!textNode?.textContent) return null
+
+    const range = document.createRange()
+    range.setStart(textNode, 0)
+    range.setEnd(textNode, textNode.textContent.length)
+    const textRect = range.getBoundingClientRect()
+    const codeRect = code.getBoundingClientRect()
+    const preRect = pre.getBoundingClientRect()
+    const lineHeight = Number.parseFloat(getComputedStyle(pre).lineHeight)
+
+    return {
+      elementTop: Math.round(codeRect.top - preRect.top),
+      elementBottom: Math.round(preRect.bottom - codeRect.bottom),
+      textTop: Math.round(textRect.top - preRect.top),
+      textBottom: Math.round(preRect.bottom - textRect.bottom),
+      preHeight: Math.round(preRect.height),
+      textHeight: Math.round(textRect.height),
+      lineHeight: Math.round(lineHeight),
+    }
+  })
+
+  expect(verticalGaps).not.toBeNull()
+  expect(verticalGaps!.elementTop).toBeGreaterThanOrEqual(verticalGaps!.lineHeight - 2)
+  expect(verticalGaps!.elementTop).toBeLessThanOrEqual(verticalGaps!.lineHeight + 2)
+  expect(verticalGaps!.elementBottom).toBeGreaterThanOrEqual(verticalGaps!.lineHeight - 2)
+  expect(verticalGaps!.elementBottom).toBeLessThanOrEqual(verticalGaps!.lineHeight + 2)
+  expect(verticalGaps!.preHeight).toBeGreaterThanOrEqual(verticalGaps!.textHeight + verticalGaps!.lineHeight * 2)
+})
+
 test('mermaid code block toggles to a rendered preview', async ({ page }) => {
   const editor = await setupTextPage(page)
   await editor.click()

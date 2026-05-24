@@ -20,11 +20,12 @@ describe('htmlToMarkdown', () => {
     expect(md).toContain('> 💡 Hello')
   })
 
-  it('renders toggle as <details><summary>', () => {
-    const html = '<div data-type="toggle" data-summary="Sum"><p>Body</p></div>'
+  it('preserves details and summary blocks', () => {
+    const html =
+      '<details open><summary>Sum</summary><div data-type="detailsContent"><p>Body</p></div></details>'
     const md = htmlToMarkdown(html)
     expect(md).toContain('<details>')
-    expect(md).toContain('<summary>')
+    expect(md).toContain('<summary>Sum</summary>')
   })
 
   it('keeps hidden text as a span', () => {

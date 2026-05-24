@@ -3,20 +3,20 @@ import { signUpAndAuthAs } from './helpers/auth'
 
 const password = 'SuperSecure123!'
 
+test.setTimeout(120_000)
+
 async function signUp(page: import('@playwright/test').Page, tag: string) {
   const email = `${tag}+${Date.now()}@example.com`
   await signUpAndAuthAs(page, { email, password, firstName: 'Экст', lastName: 'Тестов' })
   await page.getByRole('textbox', { name: 'Название' }).fill('Ext Test')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+/)
+  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/chats/, { timeout: 30_000 })
 }
 
 async function createTextPage(page: import('@playwright/test').Page) {
   const previousUrl = page.url()
-  const pagesSection = page
-    .getByText('Страницы', { exact: true })
-    .locator('xpath=ancestor::*[.//*[@data-testid="AddIcon"]][1]')
-  await pagesSection.locator('button:has([data-testid="AddIcon"])').first().click()
+  await page.getByRole('button', { name: 'Страницы' }).click()
+  await page.getByRole('button', { name: 'Новая страница' }).click()
   await page.getByRole('menuitem', { name: 'Текст' }).click()
   await page.waitForURL(
     (url) =>
@@ -29,14 +29,14 @@ async function createTextPage(page: import('@playwright/test').Page) {
   return editor
 }
 
-test('slash menu inserts toggle and hidden blocks', async ({ page }) => {
+test('slash menu inserts details and hidden blocks', async ({ page }) => {
   await signUp(page, 'ext-slash')
   const editor = await createTextPage(page)
   await editor.click()
 
   await editor.press('/')
   await page.getByText('Переключатель', { exact: true }).click()
-  await expect(page.locator('.anynote-toggle')).toBeVisible()
+  await expect(page.locator('.anynote-editor .anynote-details[data-type="details"]')).toBeVisible()
 
   await editor.click()
   await editor.press('End')
@@ -44,6 +44,73 @@ test('slash menu inserts toggle and hidden blocks', async ({ page }) => {
   await editor.press('/')
   await page.getByText('Скрытый текст', { exact: true }).click()
   await expect(page.locator('.anynote-hidden-text')).toBeVisible()
+})
+
+test('mention menu tags a workspace member with @', async ({ page }) => {
+  await signUp(page, 'ext-mention')
+  const editor = await createTextPage(page)
+  await editor.click()
+
+  await editor.type('@')
+  await expect(page.getByRole('listbox', { name: 'Участники пространства' })).toBeVisible()
+  await page.getByRole('option', { name: /Экст Тестов/ }).click()
+
+  await expect(editor.locator('.mention', { hasText: '@Экст Тестов' })).toBeVisible()
+})
+
+test('bubble menu applies inline formatting and link attributes', async ({ page }) => {
+  await signUp(page, 'ext-bubble')
+  const editor = await createTextPage(page)
+  await editor.click()
+  await editor.type('Format me')
+  await page.keyboard.press('ControlOrMeta+A')
+
+  await page.getByRole('button', { name: 'Жирный' }).click()
+  await page.getByRole('button', { name: 'Курсив' }).click()
+  await page.getByRole('button', { name: 'Подчеркнуть' }).click()
+  await page.getByRole('button', { name: 'Зачеркнуть' }).click()
+  await page.getByRole('button', { name: 'Подсветить' }).click()
+  await expect(page.getByRole('button', { name: 'Ссылка' })).toHaveCount(0)
+  await expect(page.getByRole('button', { name: 'Удалить ссылку' })).toHaveCount(0)
+
+  await expect(editor.locator('strong', { hasText: 'Format me' })).toBeVisible()
+  await expect(editor.locator('em', { hasText: 'Format me' })).toBeVisible()
+  await expect(editor.locator('u', { hasText: 'Format me' })).toBeVisible()
+  await expect(editor.locator('s', { hasText: 'Format me' })).toBeVisible()
+  await expect(editor.locator('mark', { hasText: 'Format me' })).toBeVisible()
+
+  await page.getByRole('button', { name: 'Инлайн-код' }).click()
+  await expect(editor.locator('code', { hasText: 'Format me' })).toBeVisible()
+  await page.getByRole('button', { name: 'Инлайн-код' }).click()
+})
+
+test('bubble menu keeps font selects in sync with selected text', async ({ page }) => {
+  await signUp(page, 'ext-fonts')
+  const editor = await createTextPage(page)
+  await editor.click()
+  await editor.type('Styled plain')
+  await page.keyboard.down('Shift')
+  for (let i = 0; i < 'Styled plain'.length; i++) {
+    await page.keyboard.press('ArrowLeft')
+  }
+  await page.keyboard.up('Shift')
+
+  const fontSelect = page.locator('[aria-label="Шрифт"] [role="combobox"]')
+  await expect(fontSelect).toHaveText(/Авто/)
+  await fontSelect.click()
+  await expect(page.getByRole('option', { name: 'Авто' })).toHaveAttribute('aria-selected', 'true')
+  await page.getByRole('option', { name: 'Georgia' }).click()
+  await expect(fontSelect).toHaveText(/Georgia/)
+  await fontSelect.click()
+  await expect(page.getByRole('option', { name: 'Georgia' })).toHaveAttribute(
+    'aria-selected',
+    'true',
+  )
+  await page.getByRole('option', { name: 'Авто' }).click()
+
+  await expect(fontSelect).toHaveText(/Авто/)
+  await fontSelect.click()
+  await expect(page.getByRole('option', { name: 'Авто' })).toHaveAttribute('aria-selected', 'true')
 })
 
 test('breadcrumb actions: star + more menu items render', async ({ page }) => {
@@ -59,7 +126,7 @@ test('breadcrumb actions: star + more menu items render', async ({ page }) => {
   // MoreHoriz menu
   await page.getByRole('button', { name: 'Действия страницы' }).click()
   await expect(page.getByRole('menuitem', { name: 'Копировать ссылку' })).toBeVisible()
-  await expect(page.getByRole('menuitem', { name: 'Копия' })).toBeVisible()
+  await expect(page.getByRole('menuitem', { name: 'Дублировать' })).toBeVisible()
   await expect(page.getByRole('menuitem', { name: 'Переместить' })).toBeVisible()
   await expect(page.getByRole('menuitem', { name: 'Удалить' })).toBeVisible()
   await expect(page.getByRole('menuitem', { name: 'Полноэкранный' })).toBeVisible()

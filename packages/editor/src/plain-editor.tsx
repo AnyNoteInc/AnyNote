@@ -141,12 +141,7 @@ function PlainEditorToolbar({ editor }: { readonly editor: Editor }) {
       {TOOLBAR.map((item, idx) => {
         if (item === 'divider') {
           return (
-            <Divider
-              key={`d-${idx}`}
-              orientation="vertical"
-              flexItem
-              sx={{ mx: 0.5, my: 0.5 }}
-            />
+            <Divider key={`d-${idx}`} orientation="vertical" flexItem sx={{ mx: 0.5, my: 0.5 }} />
           )
         }
         const active = item.isActive(editor)
@@ -182,7 +177,7 @@ export function AnyNotePlainEditor({
     immediatelyRender: false,
     content: value ?? undefined,
     extensions: [
-      StarterKit.configure({ dropcursor: false }),
+      StarterKit.configure({ dropcursor: false, link: false }),
       Link.configure({ openOnClick: false }),
       Typography,
       buildPlaceholder(placeholder),

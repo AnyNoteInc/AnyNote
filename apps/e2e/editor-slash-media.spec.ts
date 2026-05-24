@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test'
+import { expect, test, type Page } from '@playwright/test'
 import { signUpAndAuthAs } from './helpers/auth'
 
 // 1x1 transparent PNG
@@ -42,6 +42,41 @@ async function createTextPage(page: import('@playwright/test').Page) {
   return editor
 }
 
+async function createSeededTextPage(page: Page, tag: string) {
+  const email = `${tag}+${Date.now()}@example.com`
+  await signUpAndAuthAs(page, { email, password, firstName: 'Слэш', lastName: 'Тестов' })
+
+  const { prisma, RoleType } = await import('../../packages/db/src/index')
+  const user = await prisma.user.findUniqueOrThrow({
+    where: { email },
+    select: { id: true },
+  })
+  const workspace = await prisma.workspace.create({
+    data: { name: `Slash ${Date.now()}`, createdById: user.id },
+    select: { id: true },
+  })
+  await prisma.workspaceMember.create({
+    data: { workspaceId: workspace.id, userId: user.id, role: RoleType.OWNER },
+  })
+  const pageRow = await prisma.page.create({
+    data: {
+      workspaceId: workspace.id,
+      title: 'Slash Keyboard',
+      type: 'TEXT',
+      ownership: 'TEXT',
+      content: { type: 'doc', content: [{ type: 'paragraph' }] },
+      createdById: user.id,
+      updatedById: user.id,
+    },
+    select: { id: true },
+  })
+
+  await page.goto(`/workspaces/${workspace.id}/pages/${pageRow.id}`)
+  const editor = page.locator('.anynote-editor .ProseMirror')
+  await expect(editor).toBeVisible({ timeout: 15_000 })
+  return editor
+}
+
 async function openSlashMenu(editor: import('@playwright/test').Locator) {
   await editor.click()
   await editor.press('/')
@@ -67,6 +102,21 @@ test('slash menu renders grouped items including media commands', async ({ page 
   await page.waitForTimeout(4_000)
   await expect(page.getByText('Базовые блоки', { exact: true })).toBeVisible()
   await expect(page.getByText('Текст', { exact: true })).toBeVisible()
+})
+
+test('slash menu enter chooses the highlighted grouped item', async ({ page }) => {
+  const editor = await createSeededTextPage(page, 'slash-keyboard-grouped')
+  await openSlashMenu(editor)
+
+  for (let i = 0; i < 9; i++) {
+    await page.keyboard.press('ArrowDown')
+  }
+
+  await expect(page.locator('[data-slash-item-id="divider"].Mui-selected')).toBeVisible()
+  await page.keyboard.press('Enter')
+
+  await expect(editor.locator('hr')).toBeVisible()
+  await expect(editor.locator('pre')).toHaveCount(0)
 })
 
 test('slash date: opens a picker initialized to today and inserts the selected date', async ({
@@ -203,6 +253,34 @@ test('slash file: upload inserts multiple file attachments', async ({ page }) =>
   await expect(attachments).toHaveCount(2, { timeout: 15_000 })
   await expect(attachments.first()).toContainText('slash-test.pdf')
   await expect(attachments.nth(1)).toContainText('slash-second.pdf')
+})
+
+test('file attachment downloads only from the download icon', async ({ page }) => {
+  const editor = await createSeededTextPage(page, 'slash-file-download-icon')
+  await openSlashMenu(editor)
+
+  await page.getByText('Файл', { exact: true }).click()
+
+  const fileChooserPromise = page.waitForEvent('filechooser')
+  await page.getByRole('button', { name: 'Выбрать файлы' }).click()
+  const chooser = await fileChooserPromise
+  await chooser.setFiles({
+    name: 'download-only.pdf',
+    mimeType: 'application/pdf',
+    buffer: Buffer.from(MIN_PDF, 'binary'),
+  })
+
+  const attachment = editor.locator('.anynote-file-attachment', { hasText: 'download-only.pdf' })
+  await expect(attachment).toBeVisible({ timeout: 15_000 })
+
+  const accidentalDownload = page.waitForEvent('download', { timeout: 1_500 }).catch(() => null)
+  await attachment.click()
+  expect(await accidentalDownload).toBeNull()
+
+  const downloadPromise = page.waitForEvent('download')
+  await attachment.getByRole('link', { name: 'Скачать download-only.pdf' }).click()
+  const download = await downloadPromise
+  expect(download.suggestedFilename()).toContain('download-only.pdf')
 })
 
 test('slash page link: picks a page and navigates inside the app', async ({ page }) => {

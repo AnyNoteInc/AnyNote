@@ -34,13 +34,13 @@ Copy `.env.example` to `.env` for local setup and keep secrets out of commits. U
 <claude-mem-context>
 # Memory Context
 
-# [anynote] recent context, 2026-05-23 2:14pm GMT+1
+# [anynote] recent context, 2026-05-24 6:23am GMT+1
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (18,931t read) | 1,875,063t work | 99% savings
+Stats: 50 obs (19,476t read) | 1,127,534t work | 98% savings
 
 ### May 23, 2026
 S713 Add LikeC4 as a new diagram type in the anynote monorepo — both as a LIKEC4 collaborative page (Monaco + live preview) and as a ```likec4 code block in the Tiptap editor with Код↔Просмотр toggle defaulting to rendered diagram (May 23 at 5:34 AM)
@@ -51,31 +51,8 @@ S715 Observer monitoring feat/mermaid branch — Task 10 commits complete, pnpm 
 S717 Observer monitoring feat/mermaid — web production build PASSES with esbuild/bundle-require webpack aliases; full pnpm gates re-run in progress (May 23 at 11:04 AM)
 S718 Simplify skill review of completed LikeC4 feature on feat/mermaid branch — reuse, quality, efficiency review cycle and applying the one identified fix (May 23 at 11:05 AM)
 S716 Observer monitoring feat/mermaid — production build fix: webpack alias stubs for esbuild + bundle-require in next.config.js, web build running (May 23 at 11:05 AM)
-3021 11:55a ⚖️ DiagramConfig extended with optional Preview component for React-based previews
-3022 " 🟣 @repo/likec4 package: complete LikeC4 diagram integration for anynote
-3023 " 🔵 Direct @mui/material imports in packages are the established convention, not a violation
-3026 11:57a 🔄 DiagramConfig Discriminated Union Type Enforcement
-3027 " 🟣 LikeC4 Integration — Full Feature Complete on feat/mermaid
-3028 " 🔵 @likec4/core ViewId Is a Branded String — `as never` Cast Required
-3029 " 🔵 Vectorization Pipeline Handles Non-TEXT Page Types Gracefully
-3030 12:28p 🔵 LikeC4 feature scope: 28 files, 635 insertions
-3031 " 🟣 Likec4Diagram: browser-side parse/layout/render component with StrictMode-safe generation counter
-3032 " 🟣 DiagramBoardInner supports dual preview backends: SVG render fn or React Preview component
-3033 " 🟣 Editor code-block bypasses SVG render pipeline for LikeC4, renders Likec4Diagram directly
-3034 12:30p 🔵 DiagramPreview uses lastSource dedup safely; Likec4Diagram intentionally omits it
-3035 " 🔵 Likec4BoardProps and Likec4User are thin type aliases over DiagramBoardProps/DiagramUser
 S719 Fix LikeC4 model page crash on compile error — page should show error chip instead of crashing (May 23 at 12:30 PM)
-3036 12:41p 🔵 LikeC4 Model Page Crashes Instead of Showing Compilation Error
-3037 " 🔵 LikeC4 Package Source Structure in Anynote Monorepo
-3038 12:42p 🔵 LikeC4 Git Context: feat/mermaid Branch with Recent LikeC4 Feature Work
-3039 " 🔵 Likec4Diagram Has Async Error Handling But Lacks React Error Boundary
-3040 " 🔵 LikeC4 Rendering Chain: Likec4Board → DiagramBoard → Likec4PagePreview
-3042 " 🔵 @likec4/language-services v1.57.0 Has Separate browser/ and node/ Dist Directories
-3041 " 🔵 DiagramPreview Uses Safe SVG Pattern; Likec4Diagram Uses React Components — Different Error Surfaces
-3043 12:43p 🔵 fromSource Wraps Single Source as Named File; Does Not Throw on Parse Errors at API Level
-3044 12:44p 🔵 Root Cause Confirmed: fromSource Resolves Successfully Even on Parse Errors; Crash Happens in layoutedModel()
-3045 " 🔵 LikeC4.getErrors() Returns Structured Array with message, line, range, sourceFsPath
-3046 " 🔵 layoutedModel() Returns Promise&lt;LikeC4Model.Layouted&gt; — Not a Result Type
+3045 12:44p 🔵 LikeC4.getErrors() Returns Structured Array with message, line, range, sourceFsPath
 3047 12:45p 🔵 Reproduction Confirms: Both fromSource and layoutedModel Resolve Successfully on Parse Errors — ReactLikeC4 Gets Broken Model
 3048 " 🔵 Existing LikeC4 E2E Test Only Covers Happy Path; No Error Handling Test Exists
 3049 " 🔵 No React ErrorBoundary Exists Anywhere in the Codebase
@@ -103,6 +80,30 @@ S720 Fix 2 UI bugs on LikeC4 page: remove view-selector combobox and fix diagram
 3070 2:02p ✅ TDD Green: LikeC4/D2 Removal Tests Pass After Implementation
 3071 2:08p 🔵 Page Rename Dialog Architecture in AnyNote
 3072 " 🔵 EmojiIconButton Component Interface and Icon Picker Integration Pattern
+3073 2:55p ✅ New floating toolbar UI fix requests queued
+3074 8:24p 🔵 FloatingToolbar source analysis: two confirmed UI bugs
+3075 " 🔵 packages/editor vitest environment has no DOM/React test setup
+3076 " 🟣 TDD red-phase: E2E tests added for link button visibility and font select reactivity
+3077 8:25p ✅ Bubble menu test revised to use autolink for link-button visibility assertion
+3079 " 🔵 Cache loop: write_stdin to already-closed session 58031 returns stale PID 60464 error
+3078 " 🔵 Playwright test failed on startup: stale Next.js dev server on port 3000
+3080 8:26p 🔵 TDD red confirmed: both new bubble menu tests fail as expected
+3081 8:59p 🔵 Root cause of Tiptap slash command arrow-key selection bug identified
+3082 9:00p 🔵 SlashMenuPopover architecture: items are grouped into base/code/media with flat active index
+3083 " 🟣 Added Playwright regression test for slash menu keyboard navigation bug
+3084 9:01p 🔵 Playwright keyboard-navigation test failed: `.Mui-selected` class not applied on arrow-key nav
+3085 " 🔵 New Playwright test failed due to sidebar navigation state, not the slash-menu bug
+3086 9:02p ✅ Fixed `createTextPage` helper in editor-slash-media.spec.ts to navigate to Pages section first
+3087 " 🔵 `.Mui-selected` class not applied by keyboard arrow navigation in slash menu — test assertion must change
+3088 9:04p ✅ New Tiptap editor bug fixes requested: file attachment click and code block auto mode
+3089 9:19p 🔵 Code block renders with empty first and last lines
+### May 24, 2026
+3090 6:10a 🔵 Code block structure investigated for empty-lines bug
+3091 6:11a 🔴 TDD RED: failing test written for code block blank first/last lines bug
+3092 " 🔵 Blank-lines test passed immediately without any fix — bug is CSS/visual, not DOM
+3093 6:12a 🔵 Bounding-box test confirms code block blank-lines bug: 41px top gap measured
+3094 " 🔵 CSS padding fix reduces gap from 41px to 33px but does not eliminate blank-line space
+3095 6:13a 🔵 ARIA snapshot reveals code block DOM: toolbar + pre sibling in NodeViewWrapper
 
-Access 1875k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 1128k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

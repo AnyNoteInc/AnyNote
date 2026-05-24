@@ -15,18 +15,58 @@ import {
   AnynoteTextColor,
   BlockBackground,
   Callout,
+  Code,
+  Details,
+  DetailsContent,
+  DetailsSummary,
   FileAttachment,
+  Highlight,
   HiddenText,
+  Mention,
   PageLink,
-  Toggle,
+  TextStyleKit,
+  Underline,
 } from '@repo/editor/extensions/server'
 
 const lowlight = createLowlight(common)
 
 export function buildServerExtensions() {
   return [
-    StarterKit.configure({ undoRedo: false }),
+    StarterKit.configure({
+      undoRedo: false,
+      code: false,
+      codeBlock: false,
+      link: false,
+      underline: false,
+    }),
     Link.configure({ openOnClick: false }),
+    Code,
+    Highlight.configure({ multicolor: true }),
+    Underline,
+    TextStyleKit.configure({
+      backgroundColor: false,
+      color: false,
+      lineHeight: false,
+      fontFamily: { types: ['textStyle'] },
+      fontSize: { types: ['textStyle'] },
+    }),
+    Details.configure({ persist: true, HTMLAttributes: { class: 'anynote-details' } }),
+    DetailsSummary.configure({ HTMLAttributes: { class: 'anynote-details__summary' } }),
+    DetailsContent.configure({ HTMLAttributes: { class: 'anynote-details__content' } }),
+    Mention.configure({
+      HTMLAttributes: { class: 'mention' },
+      renderText: ({ node }) => `@${node.attrs.label ?? node.attrs.id}`,
+      renderHTML: ({ node }) => [
+        'span',
+        {
+          class: 'mention',
+          'data-type': 'mention',
+          'data-id': node.attrs.id,
+          'data-label': node.attrs.label,
+        },
+        `@${node.attrs.label ?? node.attrs.id}`,
+      ],
+    }),
     Typography,
     AnynoteTextColor,
     BlockBackground,
@@ -39,7 +79,6 @@ export function buildServerExtensions() {
     TableCell,
     CodeBlockLowlight.configure({ lowlight }),
     Callout,
-    Toggle,
     HiddenText,
     FileAttachment,
     PageLink,

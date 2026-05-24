@@ -19,12 +19,22 @@ const schema = new Schema({
       parseDOM: [{ tag: 'p' }],
       toDOM: () => ['p', 0],
     },
-    toggle: {
+    details: {
       group: 'block',
-      content: 'block+',
+      content: 'detailsSummary detailsContent',
       attrs: { open: { default: true } },
-      parseDOM: [{ tag: 'div[data-type="toggle"]' }],
-      toDOM: () => ['div', { 'data-type': 'toggle' }, 0],
+      parseDOM: [{ tag: 'details' }],
+      toDOM: () => ['details', 0],
+    },
+    detailsSummary: {
+      content: 'inline*',
+      parseDOM: [{ tag: 'summary' }],
+      toDOM: () => ['summary', 0],
+    },
+    detailsContent: {
+      content: 'block+',
+      parseDOM: [{ tag: 'div[data-type="detailsContent"]' }],
+      toDOM: () => ['div', { 'data-type': 'detailsContent' }, 0],
     },
     columnLayout: columnLayoutSpec,
     column: columnSpec,
@@ -35,13 +45,15 @@ const para = (text: string) => schema.nodes.paragraph.create(null, text ? schema
 const col = (...children: ReturnType<typeof para>[]) => schema.nodes.column.create(null, children)
 const lay = (...cells: ReturnType<typeof col>[]) =>
   schema.nodes.columnLayout.create({ columns: cells.length }, cells)
-const toggle = (...children: Array<ReturnType<typeof para> | ReturnType<typeof lay>>) =>
-  schema.nodes.toggle.create({ open: true }, children)
+const details = (...children: Array<ReturnType<typeof para> | ReturnType<typeof lay>>) =>
+  schema.nodes.details.create({ open: true }, [
+    schema.nodes.detailsSummary.create(null, schema.text('Details')),
+    schema.nodes.detailsContent.create(null, children),
+  ])
 
 const stateFrom = (
-  ...top: Array<ReturnType<typeof para> | ReturnType<typeof lay> | ReturnType<typeof toggle>>
-) =>
-  EditorState.create({ schema, doc: schema.nodes.doc.create(null, top) })
+  ...top: Array<ReturnType<typeof para> | ReturnType<typeof lay> | ReturnType<typeof details>>
+) => EditorState.create({ schema, doc: schema.nodes.doc.create(null, top) })
 
 describe('dissolveColumnLayouts', () => {
   it('returns null when no layouts need dissolution', () => {
@@ -119,13 +131,21 @@ describe('dissolveColumnLayouts', () => {
     expect(next.child(0).textContent).toBe('a')
   })
 
-  it('unwraps a nested layout inside a toggle after one column becomes empty', () => {
-    const original = stateFrom(toggle(lay(col(para('left')), col(para('right')))))
+  it('unwraps a nested layout inside details after one column becomes empty', () => {
+    const original = stateFrom(details(lay(col(para('left')), col(para('right')))))
     const tr = original.tr
-    const toggleNode = original.doc.firstChild!
-    const layoutNode = toggleNode.firstChild!
+    let layoutStart = -1
+    let layoutNode = original.doc.firstChild!
+    original.doc.descendants((node, pos) => {
+      if (node.type.name === 'columnLayout') {
+        layoutStart = pos
+        layoutNode = node
+        return false
+      }
+      return true
+    })
+    expect(layoutStart).toBeGreaterThan(0)
     const secondCol = layoutNode.child(1)
-    const layoutStart = 1
     const secondColStart = layoutStart + 1 + layoutNode.child(0).nodeSize + 1
     tr.delete(secondColStart, secondColStart + secondCol.child(0).nodeSize)
     const intermediate = original.apply(tr)
@@ -133,11 +153,13 @@ describe('dissolveColumnLayouts', () => {
     const dissolveTr = dissolveColumnLayouts(intermediate)
     assertNonNull(dissolveTr)
     const next = intermediate.apply(dissolveTr).doc
-    const nextToggle = next.firstChild!
-    expect(nextToggle.type.name).toBe('toggle')
-    expect(nextToggle.childCount).toBe(1)
-    expect(nextToggle.firstChild?.type.name).toBe('paragraph')
-    expect(nextToggle.firstChild?.textContent).toBe('left')
+    const nextDetails = next.firstChild!
+    expect(nextDetails.type.name).toBe('details')
+    const detailsContent = nextDetails.child(1)
+    expect(detailsContent.type.name).toBe('detailsContent')
+    expect(detailsContent.childCount).toBe(1)
+    expect(detailsContent.firstChild?.type.name).toBe('paragraph')
+    expect(detailsContent.firstChild?.textContent).toBe('left')
   })
 
   it('replaces a fully empty only-child layout with an empty paragraph', () => {

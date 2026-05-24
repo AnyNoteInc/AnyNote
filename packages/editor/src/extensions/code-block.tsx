@@ -66,6 +66,10 @@ function LanguageSelect({ value, onChange }: { value: string; onChange: (next: s
       size="small"
       variant="standard"
       value={current}
+      displayEmpty
+      renderValue={(selected) =>
+        CODE_LANGUAGES.find((lang) => lang.value === selected)?.label ?? CODE_LANGUAGES[0]!.label
+      }
       onChange={(event: SelectChangeEvent) => onChange(event.target.value)}
       aria-label="Язык подсветки"
       sx={{
