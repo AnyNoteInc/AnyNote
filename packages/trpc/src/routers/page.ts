@@ -10,10 +10,12 @@ import {
   assertPageOwnership,
 } from '../helpers/page-access'
 import { seedKanbanDefaults } from './kanban/helpers'
+import { pageShareRouter } from './page-share'
 
 // ── Router ───────────────────────────────────────────────────────────────────
 
 export const pageRouter = router({
+  share: pageShareRouter,
   getById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {

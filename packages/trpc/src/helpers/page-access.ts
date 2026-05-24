@@ -47,3 +47,23 @@ export async function assertPageOwnership(ctx: Ctx, pageId: string) {
   }
   return page
 }
+
+export async function assertCanManageShare(ctx: Ctx, pageId: string) {
+  const page = await ctx.prisma.page.findFirst({
+    where: {
+      id: pageId,
+      workspace: { members: { some: { userId: ctx.user.id } } },
+    },
+  })
+  if (!page) {
+    throw new TRPCError({ code: 'NOT_FOUND', message: 'Страница не найдена' })
+  }
+  if (page.createdById === ctx.user.id) return page
+  const member = await ctx.prisma.workspaceMember.findUnique({
+    where: { workspaceId_userId: { workspaceId: page.workspaceId, userId: ctx.user.id } },
+  })
+  if (member?.role !== 'OWNER' && member?.role !== 'ADMIN') {
+    throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
+  }
+  return page
+}
