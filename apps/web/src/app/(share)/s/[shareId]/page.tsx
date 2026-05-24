@@ -97,6 +97,7 @@ export default async function SharePage({ params }: { params: Promise<{ shareId:
           workspaceId={page.workspaceId}
           user={user}
           editable={editable}
+          role={role}
         />
       </Box>
     </Box>

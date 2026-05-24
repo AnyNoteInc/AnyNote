@@ -4,15 +4,18 @@ import type { PageType } from '@repo/db'
 
 import { PageRenderer } from '@/components/page/page-renderer'
 
+type EffectiveRole = 'OWNER' | 'EDITOR' | 'COMMENTER' | 'READER'
+
 type Props = {
   shareId: string
   page: { id: string; type: PageType; contentYjs: string | null }
   workspaceId: string
   user: { id: string; name: string; color: string }
   editable: boolean
+  role: EffectiveRole
 }
 
-export function SharePageClient({ shareId, page, workspaceId, user, editable }: Props) {
+export function SharePageClient({ shareId, page, workspaceId, user, editable, role }: Props) {
   const yjsToken = async () => {
     const res = await fetch('/api/yjs/share-token', {
       method: 'POST',
@@ -25,6 +28,14 @@ export function SharePageClient({ shareId, page, workspaceId, user, editable }: 
   }
 
   return (
-    <PageRenderer page={page} workspaceId={workspaceId} user={user} yjsToken={yjsToken} editable={editable} />
+    <PageRenderer
+      page={page}
+      workspaceId={workspaceId}
+      user={user}
+      yjsToken={yjsToken}
+      editable={editable}
+      commentTarget={{ shareId }}
+      canComment={role !== 'READER'}
+    />
   )
 }
