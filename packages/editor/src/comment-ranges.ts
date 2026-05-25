@@ -28,3 +28,23 @@ export function mergeRanges(ranges: DecoRange[]): DecoRange[] {
   }
   return merged
 }
+
+export type DecoSpec = { from: number; to: number; className: string }
+
+/**
+ * Decoration specs for the comments plugin: flat `comment-highlight` ranges for
+ * all comment anchors (merged so translucent highlights never compound), plus
+ * an optional `comment-highlight-active` emphasis for the currently selected
+ * anchor — a separate, non-translucent layer so it can't darken the base.
+ */
+export function commentDecorationSpecs(base: DecoRange[], active: DecoRange | null): DecoSpec[] {
+  const specs: DecoSpec[] = mergeRanges(base).map((r) => ({
+    from: r.from,
+    to: r.to,
+    className: 'comment-highlight',
+  }))
+  if (active && active.to > active.from) {
+    specs.push({ from: active.from, to: active.to, className: 'comment-highlight-active' })
+  }
+  return specs
+}

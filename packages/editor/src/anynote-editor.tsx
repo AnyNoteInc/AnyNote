@@ -324,6 +324,11 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
 
   useEffect(() => {
     if (!editor) return
+    editor.commands.setActiveCommentAnchor(props.activeCommentAnchor ?? null)
+  }, [editor, props.activeCommentAnchor])
+
+  useEffect(() => {
+    if (!editor) return
     ;(editor.storage as unknown as Record<string, unknown>).comments = {
       canComment: props.canComment ?? false,
       onCreateComment: props.onCreateComment,

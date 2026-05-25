@@ -737,3 +737,10 @@
   border-bottom: 2px solid #ffb300;
   cursor: pointer;
 }
+
+/* Emphasis for the selected/active comment: a solid ring with no extra
+   translucent layer, so it never darkens the flat base highlight. */
+.anynote-editor .comment-highlight-active {
+  box-shadow: 0 0 0 2px #ffb300;
+  border-radius: 2px;
+}

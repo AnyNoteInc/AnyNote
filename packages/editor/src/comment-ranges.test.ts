@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { mergeRanges } from './comment-ranges'
+import { commentDecorationSpecs, mergeRanges } from './comment-ranges'
 
 // Comment highlights are translucent, so two threads covering intersecting text
 // get nested spans whose backgrounds compound into a darker patch. Merging the
@@ -80,5 +80,40 @@ describe('mergeRanges', () => {
     const snapshot = structuredClone(input)
     mergeRanges(input)
     expect(input).toEqual(snapshot)
+  })
+})
+
+describe('commentDecorationSpecs', () => {
+  it('merges base ranges and omits an active spec when none is set', () => {
+    expect(
+      commentDecorationSpecs(
+        [
+          { from: 0, to: 5 },
+          { from: 3, to: 8 },
+        ],
+        null,
+      ),
+    ).toEqual([{ from: 0, to: 8, className: 'comment-highlight' }])
+  })
+
+  it('adds one comment-highlight-active spec on top of the merged base', () => {
+    expect(
+      commentDecorationSpecs(
+        [
+          { from: 0, to: 5 },
+          { from: 3, to: 8 },
+        ],
+        { from: 3, to: 8 },
+      ),
+    ).toEqual([
+      { from: 0, to: 8, className: 'comment-highlight' },
+      { from: 3, to: 8, className: 'comment-highlight-active' },
+    ])
+  })
+
+  it('drops a zero-length active range', () => {
+    expect(commentDecorationSpecs([{ from: 0, to: 5 }], { from: 2, to: 2 })).toEqual([
+      { from: 0, to: 5, className: 'comment-highlight' },
+    ])
   })
 })

@@ -3,16 +3,22 @@ import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 
 import { anchorToRange } from '../comment-anchor'
-import { mergeRanges, type DecoRange } from '../comment-ranges'
+import { commentDecorationSpecs, type DecoRange } from '../comment-ranges'
 import type { CommentThreadAnchor } from '../types-comments'
 
-type PluginState = { threads: CommentThreadAnchor[] }
+type PluginState = {
+  threads: CommentThreadAnchor[]
+  activeAnchor: Pick<CommentThreadAnchor, 'anchorStart' | 'anchorEnd'> | null
+}
 export const commentsPluginKey = new PluginKey<PluginState>('comments')
 
 declare module '@tiptap/core' {
   interface Commands<ReturnType> {
     comments: {
       setCommentThreads: (threads: CommentThreadAnchor[]) => ReturnType
+      setActiveCommentAnchor: (
+        anchor: Pick<CommentThreadAnchor, 'anchorStart' | 'anchorEnd'> | null,
+      ) => ReturnType
     }
   }
 }
@@ -43,6 +49,12 @@ export const Comments = Extension.create<CommentsOptions, CommentsStorage>({
           if (dispatch) dispatch(tr.setMeta(commentsPluginKey, { threads }))
           return true
         },
+      setActiveCommentAnchor:
+        (anchor) =>
+        ({ tr, dispatch }) => {
+          if (dispatch) dispatch(tr.setMeta(commentsPluginKey, { activeAnchor: anchor }))
+          return true
+        },
     }
   },
 
@@ -52,10 +64,10 @@ export const Comments = Extension.create<CommentsOptions, CommentsStorage>({
       new Plugin<PluginState>({
         key: commentsPluginKey,
         state: {
-          init: () => ({ threads: [] }),
+          init: () => ({ threads: [], activeAnchor: null }),
           apply(tr, value) {
-            const meta = tr.getMeta(commentsPluginKey) as PluginState | undefined
-            return meta ?? value
+            const meta = tr.getMeta(commentsPluginKey) as Partial<PluginState> | undefined
+            return meta ? { ...value, ...meta } : value
           },
         },
         props: {
@@ -64,18 +76,20 @@ export const Comments = Extension.create<CommentsOptions, CommentsStorage>({
           // never write marks into the doc (read-only commenters can render).
           decorations(state) {
             const pstate = commentsPluginKey.getState(state)
-            if (!pstate || pstate.threads.length === 0) return DecorationSet.empty
-            const ranges: DecoRange[] = []
+            if (!pstate) return DecorationSet.empty
+            // Flatten overlapping thread ranges (translucent highlights would
+            // otherwise nest and darken), then add one emphasis layer for the
+            // active anchor.
+            const base: DecoRange[] = []
             for (const t of pstate.threads) {
               if (t.resolvedAt) continue
               const range = anchorToRange(state, t)
-              if (range) ranges.push(range)
+              if (range) base.push(range)
             }
-            // Flatten overlapping thread ranges into one span each: translucent
-            // highlights would otherwise nest and compound into a darker patch.
-            const decos = mergeRanges(ranges).map((r) =>
-              Decoration.inline(r.from, r.to, { class: 'comment-highlight' }),
-            )
+            const active = pstate.activeAnchor ? anchorToRange(state, pstate.activeAnchor) : null
+            const specs = commentDecorationSpecs(base, active)
+            if (specs.length === 0) return DecorationSet.empty
+            const decos = specs.map((s) => Decoration.inline(s.from, s.to, { class: s.className }))
             return DecorationSet.create(state.doc, decos)
           },
           handleClick(view, pos) {

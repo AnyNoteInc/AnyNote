@@ -62,6 +62,7 @@ export type AnyNoteEditorProps = {
   commentThreads?: import('./types-comments').CommentThreadAnchor[]
   onCreateComment?: (anchor: { anchorStart: string; anchorEnd: string; quotedText: string }) => void
   onOpenThread?: (threadId: string) => void
+  activeCommentAnchor?: { anchorStart: string; anchorEnd: string } | null
   canComment?: boolean
   plantumlRenderAuth?: PlantumlRenderAuth
 }
