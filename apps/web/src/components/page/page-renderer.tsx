@@ -7,7 +7,6 @@ import { useRouter } from 'next/navigation'
 import type { PageType } from '@repo/db'
 import {
   BlockMoveDialog,
-  filterMentionItems,
   moveBlockToPage,
   scrollToBlockIndex,
   type Editor,
@@ -42,6 +41,7 @@ import { EditorOutline } from './editor-outline'
 import { ReminderPopover, type ReminderFormValue } from './reminder-popover'
 import { useReminderSync } from './use-reminder-sync'
 import { usePageComments, type CommentTarget } from './comments/use-page-comments'
+import { useWorkspaceMentionSearch } from './comments/use-mention-search'
 import { CommentsPanel } from './comments/comments-panel'
 import { ThreadCard } from './comments/thread-popover'
 import { CommentComposer, CommentMentionSearchProvider } from './comments/comment-composer'
@@ -277,29 +277,7 @@ export function PageRenderer({
     [page.id, trpcUtils, workspaceId],
   )
 
-  const mentionSearch = useCallback(
-    async (query: string) => {
-      try {
-        const members = await trpcUtils.workspace.listMembers.ensureData({ workspaceId })
-        return filterMentionItems(
-          members.map((member) => {
-            const name =
-              [member.user.firstName, member.user.lastName].filter(Boolean).join(' ').trim() ||
-              member.user.email
-            return {
-              id: member.user.id,
-              name,
-              email: member.user.email,
-            }
-          }),
-          query,
-        )
-      } catch {
-        return []
-      }
-    },
-    [trpcUtils, workspaceId],
-  )
+  const mentionSearch = useWorkspaceMentionSearch(workspaceId)
 
   const onNavigateToPage = useCallback(
     (pageId: string) => {
