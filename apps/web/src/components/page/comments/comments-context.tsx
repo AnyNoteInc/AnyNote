@@ -63,6 +63,9 @@ export function deriveCommentViews(rawThreads: RawThread[]): {
 
 export type NewThreadAnchor = { anchorStart: string; anchorEnd: string; quotedText: string }
 
+/** Which thread the in-text popover is showing, or a pending new-comment composer. */
+export type CommentPopover = { kind: 'thread'; threadId: string } | { kind: 'new' }
+
 export type PageCommentsContextValue = {
   enabled: boolean
   threads: UiThread[]
@@ -71,16 +74,23 @@ export type PageCommentsContextValue = {
   canComment: boolean
   canDeleteComments: boolean
 
+  // Right sidebar — the "all discussions" view (toolbar icon + #comment deep-link).
   panelOpen: boolean
   closePanel: () => void
   togglePanel: () => void
-
   openThreadId: string | null
-  openThread: (id: string) => void
+  openThreadInSidebar: (id: string) => void
 
+  // In-text popover — per-thread view and new-comment creation.
+  popover: CommentPopover | null
+  openThreadPopover: (id: string) => void
+  closePopover: () => void
   newAnchor: NewThreadAnchor | null
   startNewThread: (anchor: NewThreadAnchor) => void
   cancelNewThread: () => void
+
+  // The single highlighted anchor in the text (derived from popover/sidebar state).
+  activeAnchor: { anchorStart: string; anchorEnd: string } | null
 
   createThread: (content: CommentContent) => void
   addComment: (threadId: string, content: CommentContent) => void
@@ -125,6 +135,7 @@ export function PageCommentsProvider({
   const [panelOpen, setPanelOpen] = useState(false)
   const [openThreadId, setOpenThreadId] = useState<string | null>(null)
   const [newAnchor, setNewAnchor] = useState<NewThreadAnchor | null>(null)
+  const [popover, setPopover] = useState<CommentPopover | null>(null)
 
   // Reset transient comment UI when navigating to a different page/share target,
   // without remounting the provider (which would otherwise remount the toolbar chrome).
@@ -135,19 +146,30 @@ export function PageCommentsProvider({
     setPanelOpen(false)
     setOpenThreadId(null)
     setNewAnchor(null)
+    setPopover(null)
   }
 
   const closePanel = useCallback(() => setPanelOpen(false), [])
   const togglePanel = useCallback(() => setPanelOpen((v) => !v), [])
-  const openThread = useCallback((id: string) => {
+  const openThreadInSidebar = useCallback((id: string) => {
     setOpenThreadId(id)
     setPanelOpen(true)
   }, [])
+  const openThreadPopover = useCallback((id: string) => {
+    setPopover({ kind: 'thread', threadId: id })
+  }, [])
+  const closePopover = useCallback(() => {
+    setPopover(null)
+    setNewAnchor(null)
+  }, [])
   const startNewThread = useCallback((anchor: NewThreadAnchor) => {
     setNewAnchor(anchor)
-    setPanelOpen(true)
+    setPopover({ kind: 'new' })
   }, [])
-  const cancelNewThread = useCallback(() => setNewAnchor(null), [])
+  const cancelNewThread = useCallback(() => {
+    setNewAnchor(null)
+    setPopover(null)
+  }, [])
 
   const createThread = useCallback(
     (content: CommentContent) => {
@@ -155,6 +177,7 @@ export function PageCommentsProvider({
       const c = commentsRef.current
       c.createThread({ ...c.base, ...newAnchor, content })
       setNewAnchor(null)
+      setPopover(null)
     },
     [newAnchor],
   )
@@ -175,6 +198,15 @@ export function PageCommentsProvider({
     c.deleteComment({ ...c.base, commentId })
   }, [])
 
+  // The active anchor drives the in-text emphasis decoration: the popover's
+  // thread (or its pending new selection), else the sidebar's open thread.
+  const activeThreadId = popover?.kind === 'thread' ? popover.threadId : panelOpen ? openThreadId : null
+  const activeRaw =
+    popover?.kind === 'new' ? newAnchor : (anchors.find((a) => a.id === activeThreadId) ?? null)
+  const activeAnchor = activeRaw
+    ? { anchorStart: activeRaw.anchorStart, anchorEnd: activeRaw.anchorEnd }
+    : null
+
   const value = useMemo<PageCommentsContextValue>(
     () => ({
       enabled,
@@ -187,10 +219,14 @@ export function PageCommentsProvider({
       closePanel,
       togglePanel,
       openThreadId,
-      openThread,
+      openThreadInSidebar,
+      popover,
+      openThreadPopover,
+      closePopover,
       newAnchor,
       startNewThread,
       cancelNewThread,
+      activeAnchor,
       createThread,
       addComment,
       resolveThread,
@@ -208,10 +244,14 @@ export function PageCommentsProvider({
       closePanel,
       togglePanel,
       openThreadId,
-      openThread,
+      openThreadInSidebar,
+      popover,
+      openThreadPopover,
+      closePopover,
       newAnchor,
       startNewThread,
       cancelNewThread,
+      activeAnchor,
       createThread,
       addComment,
       resolveThread,

@@ -115,7 +115,7 @@ export function PageRenderer({
 
   const trpcUtils = trpc.useUtils()
   const pageEditor = usePageEditor()
-  const { anchors, canComment, startNewThread, openThread } = usePageCommentsContext()
+  const { anchors, canComment, startNewThread, openThreadPopover } = usePageCommentsContext()
   const pagesQuery = trpc.page.listByWorkspace.useQuery({ workspaceId })
   const editorRef = useRef<Editor | null>(null)
   const [outlineMode] = useOutlineMode(page.id)
@@ -471,7 +471,7 @@ export function PageRenderer({
           canComment={canComment}
           plantumlRenderAuth={renderAuth}
           onCreateComment={startNewThread}
-          onOpenThread={openThread}
+          onOpenThread={openThreadPopover}
           loadingFallback={<EditorContentSkeleton />}
         />
         {reminderUI.open && (

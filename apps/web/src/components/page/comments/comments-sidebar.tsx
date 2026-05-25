@@ -4,7 +4,6 @@ import { useEffect, useRef, useState } from 'react'
 
 import { Box, Button, CloseIcon, IconButton, Stack, Typography } from '@repo/ui/components'
 
-import { CommentComposer } from './comment-composer'
 import { usePageCommentsContext } from './comments-context'
 import { ThreadCard } from './thread-card'
 
@@ -14,11 +13,8 @@ export function CommentsSidebar() {
     panelOpen,
     closePanel,
     threads,
-    newAnchor,
     openThreadId,
     canDeleteComments,
-    createThread,
-    cancelNewThread,
     addComment,
     resolveThread,
     reopenThread,
@@ -80,20 +76,6 @@ export function CommentsSidebar() {
         </Button>
       </Stack>
 
-      {newAnchor ? (
-        <Box sx={{ mb: 1.5, p: 1, border: 1, borderColor: 'primary.main', borderRadius: 1 }}>
-          <Typography variant="caption" color="text.secondary" noWrap sx={{ display: 'block', mb: 0.5 }}>
-            «{newAnchor.quotedText}»
-          </Typography>
-          <CommentComposer autoFocus onSubmit={createThread} />
-          <Box sx={{ textAlign: 'right', mt: 0.5 }}>
-            <Button size="small" onClick={cancelNewThread}>
-              Отмена
-            </Button>
-          </Box>
-        </Box>
-      ) : null}
-
       <Stack spacing={1}>
         {shown.map((t) => (
           <ThreadCard
@@ -107,7 +89,7 @@ export function CommentsSidebar() {
             onDeleteComment={deleteComment}
           />
         ))}
-        {shown.length === 0 && !newAnchor && (
+        {shown.length === 0 && (
           <Typography variant="body2" color="text.secondary">
             Нет комментариев
           </Typography>

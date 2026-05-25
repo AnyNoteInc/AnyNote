@@ -41,10 +41,14 @@ function ctx(overrides: Partial<PageCommentsContextValue>): PageCommentsContextV
     closePanel: vi.fn(),
     togglePanel: vi.fn(),
     openThreadId: null,
-    openThread: vi.fn(),
+    openThreadInSidebar: vi.fn(),
+    popover: null,
+    openThreadPopover: vi.fn(),
+    closePopover: vi.fn(),
     newAnchor: null,
     startNewThread: vi.fn(),
     cancelNewThread: vi.fn(),
+    activeAnchor: null,
     createThread: vi.fn(),
     addComment: vi.fn(),
     resolveThread: vi.fn(),
@@ -78,22 +82,6 @@ describe('CommentsSidebar', () => {
 
     await actor.click(screen.getByRole('button', { name: 'Решённые' }))
     expect(screen.getByText('«Решённый фрагмент»')).toBeInTheDocument()
-  })
-
-  it('creates a thread from the new-comment composer', async () => {
-    const actor = userEvent.setup()
-    const createThread = vi.fn()
-    renderWith(
-      ctx({
-        threads: [],
-        newAnchor: { anchorStart: 'a', anchorEnd: 'b', quotedText: 'Новый' },
-        createThread,
-      }),
-    )
-
-    await actor.type(screen.getByPlaceholderText('Комментарий…'), 'Первый коммент')
-    await actor.click(screen.getByRole('button', { name: 'Отправить комментарий' }))
-    expect(createThread).toHaveBeenCalledWith({ text: 'Первый коммент', mentions: [] })
   })
 
   it('replies through the active thread card', async () => {
