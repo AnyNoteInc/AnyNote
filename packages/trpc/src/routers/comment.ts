@@ -330,10 +330,12 @@ export const commentRouter = router({
       const isAuthor =
         (!!c.author.userId && existing.authorId === c.author.userId) ||
         (!!c.author.anonId && existing.authorAnonId === c.author.anonId)
+      // Moderation (deleting someone else's comment) requires an authenticated
+      // identity: a public EDITOR link must not let an anonymous visitor delete
+      // others' comments (they can still delete their own via authorAnonId).
       const canModerate =
-        c.role === 'OWNER' ||
-        c.role === 'EDITOR' ||
-        (!!c.author.userId && c.author.userId === c.page.createdById)
+        !!c.author.userId &&
+        (c.role === 'OWNER' || c.role === 'EDITOR' || c.author.userId === c.page.createdById)
       if (!isAuthor && !canModerate) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав на удаление' })
       }

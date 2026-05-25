@@ -381,6 +381,35 @@ describe('comment edit/delete/resolve', () => {
       expect.objectContaining({ data: { resolvedAt: expect.any(Date) } }),
     )
   })
+
+  it('forbids an anonymous public-EDITOR-link visitor from deleting another user’s comment', async () => {
+    const prisma = {
+      pageShare: {
+        findUnique: vi.fn(async () => ({
+          id: 's1',
+          access: 'PUBLIC',
+          linkRole: 'EDITOR',
+          pageId: PAGE_ID,
+          page: PAGE,
+        })),
+      },
+      pageComment: {
+        findUnique: vi.fn(async () => ({
+          authorId: 'someone-else',
+          authorAnonId: 'other-anon',
+          threadId: THREAD_ID,
+          thread: { pageId: PAGE_ID },
+        })),
+      },
+    } as never
+    await expect(
+      caller(ctx(prisma, null)).deleteComment({
+        shareId: 'e'.repeat(64),
+        anonId: 'my-anon',
+        commentId: COMMENT_ID,
+      }),
+    ).rejects.toThrow(/Недостаточно прав на удаление/)
+  })
 })
 
 describe('comment access boundaries + mention validation', () => {

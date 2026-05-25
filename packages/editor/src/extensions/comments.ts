@@ -59,7 +59,7 @@ export const Comments = Extension.create<CommentsOptions, CommentsStorage>({
         },
         props: {
           // Decorations are derived from EditorState alone: anchorToRange reads
-          // the y-prosemirror binding via ySyncPluginKey.getState(state), so we
+          // the @tiptap/y-tiptap binding via ySyncPluginKey.getState(state), so we
           // never write marks into the doc (read-only commenters can render).
           decorations(state) {
             const pstate = commentsPluginKey.getState(state)
