@@ -43,7 +43,7 @@ import { useReminderSync } from './use-reminder-sync'
 import { usePageComments, type CommentTarget } from './comments/use-page-comments'
 import { useWorkspaceMentionSearch } from './comments/use-mention-search'
 import { CommentsPanel } from './comments/comments-panel'
-import { ThreadCard } from './comments/thread-popover'
+import { ThreadCard } from './comments/thread-card'
 import { CommentComposer, CommentMentionSearchProvider } from './comments/comment-composer'
 import type { UiThread } from './comments/types'
 

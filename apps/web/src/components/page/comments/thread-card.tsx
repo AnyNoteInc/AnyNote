@@ -17,6 +17,7 @@ import type { UiThread } from './types'
 
 type Props = {
   thread: UiThread
+  active?: boolean
   onReply: (c: { text: string; mentions: string[] }) => void
   onResolve: () => void
   onReopen: () => void
@@ -26,6 +27,7 @@ type Props = {
 
 export function ThreadCard({
   thread,
+  active = false,
   onReply,
   onResolve,
   onReopen,
@@ -33,7 +35,16 @@ export function ThreadCard({
   canDeleteComments = true,
 }: Props) {
   return (
-    <Paper sx={{ p: 1.5, width: 320, maxHeight: 440, overflow: 'auto' }}>
+    <Paper
+      variant="outlined"
+      data-thread-card-id={thread.id}
+      sx={{
+        p: 1.5,
+        width: '100%',
+        borderColor: active ? 'primary.main' : 'divider',
+        boxShadow: active ? 2 : 0,
+      }}
+    >
       <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
         «{thread.quotedText}»
       </Typography>

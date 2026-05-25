@@ -3,7 +3,7 @@ import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { ThreadCard } from '@/components/page/comments/thread-popover'
+import { ThreadCard } from '@/components/page/comments/thread-card'
 import type { UiThread } from '@/components/page/comments/types'
 
 const thread: UiThread = {
@@ -62,5 +62,21 @@ describe('ThreadCard', () => {
 
     expect(onDeleteComment).toHaveBeenCalledWith('comment-1')
     expect(onResolve).toHaveBeenCalledOnce()
+  })
+
+  it('marks the active card with a thread id attribute', () => {
+    render(
+      <ThreadCard
+        thread={thread}
+        active
+        canDeleteComments
+        onReply={vi.fn()}
+        onResolve={vi.fn()}
+        onReopen={vi.fn()}
+        onDeleteComment={vi.fn()}
+      />,
+    )
+
+    expect(document.querySelector('[data-thread-card-id="thread-1"]')).not.toBeNull()
   })
 })
