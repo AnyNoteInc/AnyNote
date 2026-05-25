@@ -73,7 +73,11 @@ export function CommentPopover() {
       ]}
     >
       <ClickAwayListener onClickAway={closePopover}>
-        <Paper variant="outlined" sx={{ width: 320, maxHeight: 380, overflow: 'auto', boxShadow: 4 }}>
+        <Paper
+          variant="outlined"
+          className="comment-popover"
+          sx={{ width: 320, maxHeight: 380, overflow: 'auto', boxShadow: 4 }}
+        >
           {popover.kind === 'new' && newAnchor ? (
             <Box sx={{ p: 1.5 }}>
               <Typography
