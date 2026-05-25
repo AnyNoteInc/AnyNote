@@ -71,6 +71,10 @@ export { default as DialogActions, type DialogActionsProps } from '@mui/material
 export { default as InputAdornment, type InputAdornmentProps } from '@mui/material/InputAdornment'
 export { default as InputBase, type InputBaseProps } from '@mui/material/InputBase'
 export { default as Popper, type PopperProps } from '@mui/material/Popper'
+export {
+  default as ClickAwayListener,
+  type ClickAwayListenerProps,
+} from '@mui/material/ClickAwayListener'
 export { default as Badge, type BadgeProps } from '@mui/material/Badge'
 
 export { default as CloseIcon } from '@mui/icons-material/Close'
