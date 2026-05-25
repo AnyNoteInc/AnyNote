@@ -69,6 +69,7 @@ import type { PageItem } from '@/components/workspace/types'
 
 const page: PageItem = {
   id: '33333333-3333-3333-3333-333333333333',
+  type: 'TEXT',
   title: 'Исходная страница',
   icon: '📄',
   parentId: null,

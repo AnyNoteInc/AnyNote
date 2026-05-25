@@ -3,6 +3,7 @@ import { Plugin, PluginKey } from '@tiptap/pm/state'
 import { Decoration, DecorationSet } from '@tiptap/pm/view'
 
 import { anchorToRange } from '../comment-anchor'
+import { mergeRanges, type DecoRange } from '../comment-ranges'
 import type { CommentThreadAnchor } from '../types-comments'
 
 type PluginState = { threads: CommentThreadAnchor[] }
@@ -64,18 +65,17 @@ export const Comments = Extension.create<CommentsOptions, CommentsStorage>({
           decorations(state) {
             const pstate = commentsPluginKey.getState(state)
             if (!pstate || pstate.threads.length === 0) return DecorationSet.empty
-            const decos: Decoration[] = []
+            const ranges: DecoRange[] = []
             for (const t of pstate.threads) {
               if (t.resolvedAt) continue
               const range = anchorToRange(state, t)
-              if (!range) continue
-              decos.push(
-                Decoration.inline(range.from, range.to, {
-                  class: 'comment-highlight',
-                  'data-thread-id': t.id,
-                }),
-              )
+              if (range) ranges.push(range)
             }
+            // Flatten overlapping thread ranges into one span each: translucent
+            // highlights would otherwise nest and compound into a darker patch.
+            const decos = mergeRanges(ranges).map((r) =>
+              Decoration.inline(r.from, r.to, { class: 'comment-highlight' }),
+            )
             return DecorationSet.create(state.doc, decos)
           },
           handleClick(view, pos) {

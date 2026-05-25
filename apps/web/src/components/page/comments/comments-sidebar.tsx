@@ -12,7 +12,7 @@ export function CommentsSidebar() {
   const {
     enabled,
     panelOpen,
-    setPanelOpen,
+    closePanel,
     threads,
     newAnchor,
     openThreadId,
@@ -27,16 +27,20 @@ export function CommentsSidebar() {
   const [tab, setTab] = useState<'active' | 'resolved'>('active')
   const scrollRef = useRef<HTMLDivElement>(null)
 
-  // Opening a thread (anchor click) switches to its tab and scrolls it into view.
+  // openThreadId is set by an editor anchor click. Read threads via a ref and
+  // key only on openThreadId, so later comment edits (a fresh threads array)
+  // don't re-scroll an already-open thread or fight a manual tab switch.
+  const threadsRef = useRef(threads)
+  threadsRef.current = threads
   useEffect(() => {
     if (!openThreadId) return
-    const t = threads.find((x) => x.id === openThreadId)
+    const t = threadsRef.current.find((x) => x.id === openThreadId)
     if (t) setTab(t.resolvedAt ? 'resolved' : 'active')
     const el = scrollRef.current?.querySelector(`[data-thread-card-id="${openThreadId}"]`)
     if (el && typeof (el as HTMLElement).scrollIntoView === 'function') {
       ;(el as HTMLElement).scrollIntoView({ behavior: 'smooth', block: 'nearest' })
     }
-  }, [openThreadId, threads])
+  }, [openThreadId])
 
   if (!enabled || !panelOpen) return null
 
@@ -58,7 +62,7 @@ export function CommentsSidebar() {
     >
       <Stack direction="row" alignItems="center" justifyContent="space-between" sx={{ mb: 1 }}>
         <Typography variant="subtitle2">Комментарии</Typography>
-        <IconButton size="small" onClick={() => setPanelOpen(false)} aria-label="Закрыть комментарии">
+        <IconButton size="small" onClick={closePanel} aria-label="Закрыть комментарии">
           <CloseIcon fontSize="small" />
         </IconButton>
       </Stack>

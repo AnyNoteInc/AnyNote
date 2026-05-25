@@ -1,5 +1,8 @@
+import type { PageType } from '@repo/db'
+
 export type PageItem = {
   id: string
+  type?: PageType
   title: string | null
   icon: string | null
   parentId: string | null

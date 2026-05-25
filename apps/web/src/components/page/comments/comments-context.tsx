@@ -3,14 +3,18 @@
 import { createContext, useCallback, useContext, useMemo, useRef, useState, type ReactNode } from 'react'
 
 import type { PageType } from '@repo/db'
+import type { CommentThreadAnchor } from '@repo/editor'
 
 import { CommentMentionSearchProvider } from './comment-composer'
 import { useWorkspaceMentionSearch } from './use-mention-search'
-import { usePageComments, type CommentTarget } from './use-page-comments'
+import {
+  commentTargetKey,
+  usePageComments,
+  type CommentContent,
+  type CommentTarget,
+} from './use-page-comments'
 
 import type { UiThread } from './types'
-
-export type CommentContent = { text: string; mentions: string[] }
 
 export type RawComment = {
   id: string
@@ -29,20 +33,13 @@ export type RawThread = {
   comments: RawComment[]
 }
 
-export type CommentAnchor = {
-  id: string
-  anchorStart: string
-  anchorEnd: string
-  resolvedAt: string | Date | null
-}
-
 /** Pure mapping from the tRPC thread list to the editor anchors + sidebar view + active count. */
 export function deriveCommentViews(rawThreads: RawThread[]): {
   uiThreads: UiThread[]
-  anchors: CommentAnchor[]
+  anchors: CommentThreadAnchor[]
   activeCount: number
 } {
-  const anchors: CommentAnchor[] = rawThreads.map((t) => ({
+  const anchors: CommentThreadAnchor[] = rawThreads.map((t) => ({
     id: t.id,
     anchorStart: t.anchorStart,
     anchorEnd: t.anchorEnd,
@@ -64,24 +61,25 @@ export function deriveCommentViews(rawThreads: RawThread[]): {
   return { uiThreads, anchors, activeCount }
 }
 
+export type NewThreadAnchor = { anchorStart: string; anchorEnd: string; quotedText: string }
+
 export type PageCommentsContextValue = {
   enabled: boolean
   threads: UiThread[]
-  anchors: CommentAnchor[]
+  anchors: CommentThreadAnchor[]
   activeCount: number
   canComment: boolean
   canDeleteComments: boolean
 
   panelOpen: boolean
-  setPanelOpen: (open: boolean) => void
+  closePanel: () => void
   togglePanel: () => void
 
   openThreadId: string | null
   openThread: (id: string) => void
-  clearOpenThread: () => void
 
-  newAnchor: { anchorStart: string; anchorEnd: string; quotedText: string } | null
-  startNewThread: (anchor: { anchorStart: string; anchorEnd: string; quotedText: string }) => void
+  newAnchor: NewThreadAnchor | null
+  startNewThread: (anchor: NewThreadAnchor) => void
   cancelNewThread: () => void
 
   createThread: (content: CommentContent) => void
@@ -126,11 +124,11 @@ export function PageCommentsProvider({
 
   const [panelOpen, setPanelOpen] = useState(false)
   const [openThreadId, setOpenThreadId] = useState<string | null>(null)
-  const [newAnchor, setNewAnchor] = useState<PageCommentsContextValue['newAnchor']>(null)
+  const [newAnchor, setNewAnchor] = useState<NewThreadAnchor | null>(null)
 
   // Reset transient comment UI when navigating to a different page/share target,
   // without remounting the provider (which would otherwise remount the toolbar chrome).
-  const targetKey = 'pageId' in target ? target.pageId : target.shareId
+  const targetKey = commentTargetKey(target)
   const [prevTargetKey, setPrevTargetKey] = useState(targetKey)
   if (targetKey !== prevTargetKey) {
     setPrevTargetKey(targetKey)
@@ -139,19 +137,16 @@ export function PageCommentsProvider({
     setNewAnchor(null)
   }
 
+  const closePanel = useCallback(() => setPanelOpen(false), [])
   const togglePanel = useCallback(() => setPanelOpen((v) => !v), [])
   const openThread = useCallback((id: string) => {
     setOpenThreadId(id)
     setPanelOpen(true)
   }, [])
-  const clearOpenThread = useCallback(() => setOpenThreadId(null), [])
-  const startNewThread = useCallback(
-    (anchor: NonNullable<PageCommentsContextValue['newAnchor']>) => {
-      setNewAnchor(anchor)
-      setPanelOpen(true)
-    },
-    [],
-  )
+  const startNewThread = useCallback((anchor: NewThreadAnchor) => {
+    setNewAnchor(anchor)
+    setPanelOpen(true)
+  }, [])
   const cancelNewThread = useCallback(() => setNewAnchor(null), [])
 
   const createThread = useCallback(
@@ -189,11 +184,10 @@ export function PageCommentsProvider({
       canComment,
       canDeleteComments,
       panelOpen,
-      setPanelOpen,
+      closePanel,
       togglePanel,
       openThreadId,
       openThread,
-      clearOpenThread,
       newAnchor,
       startNewThread,
       cancelNewThread,
@@ -211,10 +205,10 @@ export function PageCommentsProvider({
       canComment,
       canDeleteComments,
       panelOpen,
+      closePanel,
       togglePanel,
       openThreadId,
       openThread,
-      clearOpenThread,
       newAnchor,
       startNewThread,
       cancelNewThread,

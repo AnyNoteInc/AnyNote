@@ -8,7 +8,11 @@ import { getAnonId } from './anon-id'
 
 export type CommentTarget = { pageId: string } | { shareId: string }
 
-type CommentContent = { text: string; mentions: string[] }
+/** The discriminant identity of a comment target — its page id or share id. */
+export const commentTargetKey = (target: CommentTarget): string =>
+  'pageId' in target ? target.pageId : target.shareId
+
+export type CommentContent = { text: string; mentions: string[] }
 type CommentBaseInput = { pageId?: string; shareId?: string; anonId?: string }
 
 // Explicit return type: keeps the (huge) tRPC mutation/query types out of the

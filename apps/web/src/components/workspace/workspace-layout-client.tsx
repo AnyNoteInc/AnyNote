@@ -147,11 +147,9 @@ export function WorkspaceLayoutClient({
   const pageIdMatch = pathname.match(/\/pages\/([a-f0-9-]{36})/)
   const activePageId = pageIdMatch?.[1] ?? null
 
-  const activePageQ = trpc.page.getById.useQuery(
-    { id: activePageId ?? '' },
-    { enabled: !!activePageId },
-  )
-  const activePageType = activePageQ.data?.type
+  // Reuse the already-loaded workspace page list rather than refetching the
+  // active page (getById ships the full contentYjs blob) just to read its type.
+  const activePageType = activePageId ? pages.find((p) => p.id === activePageId)?.type : undefined
 
   const [fullWidth] = useFullWidth(activePageId ?? '')
   const [outlineMode] = useOutlineMode(activePageId ?? '')

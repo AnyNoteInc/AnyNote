@@ -63,6 +63,7 @@ export const pageRouter = router({
         orderBy: { createdAt: 'asc' },
         select: {
           id: true,
+          type: true,
           title: true,
           icon: true,
           parentId: true,
