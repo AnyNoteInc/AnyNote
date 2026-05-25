@@ -6,6 +6,9 @@ import { Box, Button, LockIcon, PublicIcon, Stack, Typography } from '@repo/ui/c
 
 import { getSession } from '@/lib/get-session'
 import { resolveShareAccess } from '@/lib/share-access'
+import { PageCommentsProvider } from '@/components/page/comments/comments-context'
+import { CommentToggleButton } from '@/components/page/comments/comment-toggle-button'
+import { CommentsSidebar } from '@/components/page/comments/comments-sidebar'
 
 import { SharePageClient } from './share-page-client'
 
@@ -64,42 +67,53 @@ export default async function SharePage({ params }: { params: Promise<{ shareId:
       }
 
   return (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', minHeight: 0 }}>
-      <Stack
-        direction="row"
-        alignItems="center"
-        spacing={1}
-        sx={{ px: 3, py: 1.5, borderBottom: 1, borderColor: 'divider' }}
-      >
-        {page.icon ? <span>{page.icon}</span> : null}
-        <Typography variant="subtitle1" sx={{ flex: 1 }} noWrap>
-          {page.title || 'Без названия'}
-        </Typography>
-        <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: 'text.secondary' }}>
-          <PublicIcon sx={{ fontSize: 18 }} />
-          <Typography variant="caption">Общий доступ</Typography>
-        </Stack>
-        {!editable && (
-          <Typography variant="caption" color="text.secondary">
-            Только просмотр
+    <PageCommentsProvider
+      target={{ shareId }}
+      pageType={page.type}
+      canComment={role !== 'READER'}
+      canDeleteComments={false}
+      workspaceId={page.workspaceId}
+    >
+      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', minHeight: 0 }}>
+        <Stack
+          direction="row"
+          alignItems="center"
+          spacing={1}
+          sx={{ px: 3, py: 1.5, borderBottom: 1, borderColor: 'divider' }}
+        >
+          {page.icon ? <span>{page.icon}</span> : null}
+          <Typography variant="subtitle1" sx={{ flex: 1 }} noWrap>
+            {page.title || 'Без названия'}
           </Typography>
-        )}
-        {!session && (
-          <Button size="small" href={`/sign-in?redirect=/s/${shareId}`}>
-            Войти
-          </Button>
-        )}
-      </Stack>
-      <Box sx={{ flex: 1, minHeight: 0 }}>
-        <SharePageClient
-          shareId={shareId}
-          page={{ id: page.id, type: page.type, contentYjs }}
-          workspaceId={page.workspaceId}
-          user={user}
-          editable={editable}
-          role={role}
-        />
+          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: 'text.secondary' }}>
+            <PublicIcon sx={{ fontSize: 18 }} />
+            <Typography variant="caption">Общий доступ</Typography>
+          </Stack>
+          {!editable && (
+            <Typography variant="caption" color="text.secondary">
+              Только просмотр
+            </Typography>
+          )}
+          <CommentToggleButton />
+          {!session && (
+            <Button size="small" href={`/sign-in?redirect=/s/${shareId}`}>
+              Войти
+            </Button>
+          )}
+        </Stack>
+        <Box sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
+          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <SharePageClient
+              shareId={shareId}
+              page={{ id: page.id, type: page.type, contentYjs }}
+              workspaceId={page.workspaceId}
+              user={user}
+              editable={editable}
+            />
+          </Box>
+          <CommentsSidebar />
+        </Box>
       </Box>
-    </Box>
+    </PageCommentsProvider>
   )
 }

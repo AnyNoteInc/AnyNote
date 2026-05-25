@@ -128,6 +128,17 @@ export function PageCommentsProvider({
   const [openThreadId, setOpenThreadId] = useState<string | null>(null)
   const [newAnchor, setNewAnchor] = useState<PageCommentsContextValue['newAnchor']>(null)
 
+  // Reset transient comment UI when navigating to a different page/share target,
+  // without remounting the provider (which would otherwise remount the toolbar chrome).
+  const targetKey = 'pageId' in target ? target.pageId : target.shareId
+  const [prevTargetKey, setPrevTargetKey] = useState(targetKey)
+  if (targetKey !== prevTargetKey) {
+    setPrevTargetKey(targetKey)
+    setPanelOpen(false)
+    setOpenThreadId(null)
+    setNewAnchor(null)
+  }
+
   const togglePanel = useCallback(() => setPanelOpen((v) => !v), [])
   const openThread = useCallback((id: string) => {
     setOpenThreadId(id)

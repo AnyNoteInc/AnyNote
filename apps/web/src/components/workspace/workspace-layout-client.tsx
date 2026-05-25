@@ -9,6 +9,8 @@ import { trpc } from '@/trpc/client'
 
 import { PageActionsToolbar } from '@/components/page/page-actions-toolbar'
 import { PageEditorProvider } from '@/components/page/editor-context'
+import { PageCommentsProvider } from '@/components/page/comments/comments-context'
+import { CommentsSidebar } from '@/components/page/comments/comments-sidebar'
 import { ChatActionsToolbar } from '@/components/workspace/chat/chat-actions-toolbar'
 import { useFullWidth } from '@/hooks/use-full-width'
 import { useOutlineMode } from '@/hooks/use-outline-mode'
@@ -34,7 +36,6 @@ type Props = {
 
 const STORAGE_KEY = 'workspace.sidebar.mode'
 const DEFAULT_MODE: SidebarMode = 'full'
-const COMMENTS_PANEL_VISIBILITY_EVENT = 'anynote:comments-panel-visibility'
 export const SIDEBAR_WIDTH = 313
 export type WorkspaceSidebarSection = 'chats' | 'pages' | 'settings'
 
@@ -61,7 +62,6 @@ export function WorkspaceLayoutClient({
   )
   const pages: PageItem[] = pagesQuery.data ?? initialPages
   const [mode, setMode] = useState<SidebarMode>(DEFAULT_MODE)
-  const [commentsPanelOpen, setCommentsPanelOpen] = useState(false)
   const pathname = usePathname()
   const lastSidebarPathnameRef = useRef(pathname)
   const [sidebarSection, setSidebarSection] = useState<WorkspaceSidebarSection>(
@@ -76,17 +76,6 @@ export function WorkspaceLayoutClient({
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, mode)
   }, [mode])
-
-  useEffect(() => {
-    const onCommentsPanelVisibility = (event: Event) => {
-      const detail = (event as CustomEvent<{ open?: boolean }>).detail
-      setCommentsPanelOpen(Boolean(detail?.open))
-    }
-    window.addEventListener(COMMENTS_PANEL_VISIBILITY_EVENT, onCommentsPanelVisibility)
-    return () => {
-      window.removeEventListener(COMMENTS_PANEL_VISIBILITY_EVENT, onCommentsPanelVisibility)
-    }
-  }, [])
 
   useEffect(() => {
     if (lastSidebarPathnameRef.current === pathname) return
@@ -158,9 +147,14 @@ export function WorkspaceLayoutClient({
   const pageIdMatch = pathname.match(/\/pages\/([a-f0-9-]{36})/)
   const activePageId = pageIdMatch?.[1] ?? null
 
+  const activePageQ = trpc.page.getById.useQuery(
+    { id: activePageId ?? '' },
+    { enabled: !!activePageId },
+  )
+  const activePageType = activePageQ.data?.type
+
   const [fullWidth] = useFullWidth(activePageId ?? '')
   const [outlineMode] = useOutlineMode(activePageId ?? '')
-  const effectiveMode: SidebarMode = commentsPanelOpen ? 'hidden' : mode
 
   // PageEditorProvider wraps BOTH the toolbar (so PageActionsMenu → PageExportDialog
   // can read the editor via usePageEditor) and the editor content (so PageRenderer
@@ -169,7 +163,7 @@ export function WorkspaceLayoutClient({
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <WorkspaceToolbar
         breadcrumbs={breadcrumbs}
-        sidebarHidden={effectiveMode === 'hidden'}
+        sidebarHidden={mode === 'hidden'}
         onOpenSidebar={() => setMode('full')}
         sidebarContent={<WorkspaceSidebar {...sidebarProps} />}
         rightSlot={
@@ -180,31 +174,42 @@ export function WorkspaceLayoutClient({
           ) : null
         }
       />
-      <Box
-        component="main"
-        sx={{ flex: 1, overflowY: 'auto', overflowX: 'hidden' }}
-        data-full-width={fullWidth ? 'true' : 'false'}
-        data-outline-mode={activePageId ? outlineMode : undefined}
-        className="page-content-scroll"
-      >
-        {children}
+      <Box sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
+        <Box
+          component="main"
+          sx={{ flex: 1, minWidth: 0, overflowY: 'auto', overflowX: 'hidden' }}
+          data-full-width={fullWidth ? 'true' : 'false'}
+          data-outline-mode={activePageId ? outlineMode : undefined}
+          className="page-content-scroll"
+        >
+          {children}
+        </Box>
+        {activePageId ? <CommentsSidebar /> : null}
       </Box>
     </Box>
   )
 
   const sidebar =
-    effectiveMode === 'full' ? (
+    mode === 'full' ? (
       <WorkspaceSidebar {...sidebarProps} onHide={() => setMode('hidden')} />
     ) : null
+
+  const pageMain = (
+    <PageCommentsProvider
+      target={{ pageId: activePageId ?? '' }}
+      pageType={activePageType}
+      canComment
+      canDeleteComments
+      workspaceId={workspace.id}
+    >
+      <PageEditorProvider>{mainContent}</PageEditorProvider>
+    </PageCommentsProvider>
+  )
 
   return (
     <SearchDialogProvider workspaceId={workspace.id}>
       <WorkspaceHotkeyMount workspaceId={workspace.id} onPages={() => setSidebarSection('pages')} />
-      <WorkspaceShell
-        mode={effectiveMode}
-        sidebar={sidebar}
-        main={activePageId ? <PageEditorProvider>{mainContent}</PageEditorProvider> : mainContent}
-      />
+      <WorkspaceShell mode={mode} sidebar={sidebar} main={activePageId ? pageMain : mainContent} />
     </SearchDialogProvider>
   )
 }

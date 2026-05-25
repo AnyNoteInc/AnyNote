@@ -13,15 +13,7 @@ import {
   type MoveBlockResult,
   type PageLookupItem,
 } from '@repo/editor'
-import {
-  Badge,
-  Box,
-  CircularProgress,
-  CommentIcon,
-  IconButton,
-  Popover,
-  Tooltip,
-} from '@repo/ui/components'
+import { Box, CircularProgress } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
 import { resolveYjsUrl, fetchYjsToken } from '@/lib/yjs-config'
@@ -40,14 +32,8 @@ import { EditorContentSkeleton } from './editor-content-skeleton'
 import { EditorOutline } from './editor-outline'
 import { ReminderPopover, type ReminderFormValue } from './reminder-popover'
 import { useReminderSync } from './use-reminder-sync'
-import { usePageComments, type CommentTarget } from './comments/use-page-comments'
 import { useWorkspaceMentionSearch } from './comments/use-mention-search'
-import { CommentsPanel } from './comments/comments-panel'
-import { ThreadCard } from './comments/thread-card'
-import { CommentComposer, CommentMentionSearchProvider } from './comments/comment-composer'
-import type { UiThread } from './comments/types'
-
-const COMMENTS_PANEL_VISIBILITY_EVENT = 'anynote:comments-panel-visibility'
+import { usePageCommentsContext } from './comments/comments-context'
 
 const AnyNoteEditor = dynamic(() => import('@repo/editor').then((m) => m.AnyNoteEditor), {
   ssr: false,
@@ -109,8 +95,7 @@ type Props = {
   user: { id: string; name: string; color: string }
   yjsToken?: () => Promise<string>
   editable?: boolean
-  commentTarget?: CommentTarget
-  canComment?: boolean
+  renderAuth?: { shareId: string }
 }
 
 export function PageRenderer({
@@ -119,8 +104,7 @@ export function PageRenderer({
   user,
   yjsToken,
   editable = true,
-  commentTarget,
-  canComment = true,
+  renderAuth,
 }: Props) {
   const router = useRouter()
   // Share routes inject a share-scoped token; in-app callers use the default.
@@ -131,6 +115,7 @@ export function PageRenderer({
 
   const trpcUtils = trpc.useUtils()
   const pageEditor = usePageEditor()
+  const { anchors, canComment, startNewThread, openThread } = usePageCommentsContext()
   const pagesQuery = trpc.page.listByWorkspace.useQuery({ workspaceId })
   const editorRef = useRef<Editor | null>(null)
   const [outlineMode] = useOutlineMode(page.id)
@@ -391,80 +376,6 @@ export function PageRenderer({
     }
   }, [movePos, moveTarget, router, workspaceId])
 
-  // ── Inline comments (TEXT pages) ──────────────────────────────────────────
-  const commentTgt = commentTarget ?? { pageId: page.id }
-  const renderAuth = 'shareId' in commentTgt ? { shareId: commentTgt.shareId } : undefined
-  const comments = usePageComments(commentTgt, { enabled: page.type === 'TEXT' })
-  const [openThreadId, setOpenThreadId] = useState<string | null>(null)
-  const [panelOpen, setPanelOpen] = useState(false)
-  const [newThread, setNewThread] = useState<{
-    anchor: { anchorStart: string; anchorEnd: string; quotedText: string }
-    top: number
-    left: number
-  } | null>(null)
-  const commentToggleRef = useRef<HTMLButtonElement>(null)
-
-  // tRPC infers a deeply-nested type for the thread list; cast to a flat local
-  // shape so the .map chains below don't blow TS's instantiation depth (TS2589).
-  type RawComment = {
-    id: string
-    authorId: string | null
-    authorName: string
-    content: unknown
-    createdAt: string | Date
-  }
-  type RawThread = {
-    id: string
-    anchorStart: string
-    anchorEnd: string
-    quotedText: string
-    resolvedAt: string | Date | null
-    comments: RawComment[]
-  }
-  const rawThreads = comments.threads as unknown as RawThread[]
-
-  const commentThreads = rawThreads.map((t) => ({
-    id: t.id,
-    anchorStart: t.anchorStart,
-    anchorEnd: t.anchorEnd,
-    resolvedAt: t.resolvedAt,
-  }))
-  const uiThreads: UiThread[] = rawThreads.map((t) => ({
-    id: t.id,
-    quotedText: t.quotedText,
-    resolvedAt: t.resolvedAt,
-    comments: t.comments.map((c) => ({
-      id: c.id,
-      authorId: c.authorId,
-      authorName: c.authorName,
-      content: (c.content ?? { text: '' }) as { text: string },
-      createdAt: c.createdAt,
-    })),
-  }))
-  const openThread = uiThreads.find((t) => t.id === openThreadId) ?? null
-  const activeCount = rawThreads.filter((t) => !t.resolvedAt).length
-  const canDeleteComments = !('shareId' in commentTgt)
-
-  useEffect(() => {
-    window.dispatchEvent(
-      new CustomEvent(COMMENTS_PANEL_VISIBILITY_EVENT, { detail: { open: panelOpen } }),
-    )
-    return () => {
-      window.dispatchEvent(
-        new CustomEvent(COMMENTS_PANEL_VISIBILITY_EVENT, { detail: { open: false } }),
-      )
-    }
-  }, [panelOpen])
-
-  const handleCreateComment = useCallback(
-    (anchor: { anchorStart: string; anchorEnd: string; quotedText: string }) => {
-      const sel = globalThis.getSelection?.()
-      const rect = sel && sel.rangeCount > 0 ? sel.getRangeAt(0).getBoundingClientRect() : null
-      setNewThread({ anchor, top: rect ? rect.bottom : 200, left: rect ? rect.left : 200 })
-    },
-    [],
-  )
-
   if (page.type === 'EXCALIDRAW') {
     return (
       <Board
@@ -538,147 +449,66 @@ export function PageRenderer({
 
   if (page.type === 'TEXT') {
     return (
-      <CommentMentionSearchProvider value={mentionSearch}>
-        <Box sx={{ display: 'flex', height: '100%', minHeight: 0 }}>
-          <Box sx={{ flex: 1, minHeight: 0, position: 'relative' }}>
-            <AnyNoteEditor
-              pageId={page.id}
-              workspaceId={workspaceId}
-              initialContentYjs={page.contentYjs}
-              yjsUrl={resolveYjsUrl()}
-              yjsToken={token}
-              editable={editable}
-              user={user}
-              uploadHandler={uploadHandler}
-              pageSearch={pageSearch}
-              mentionSearch={mentionSearch}
-              onNavigateToPage={onNavigateToPage}
-              drawioUrl={resolveDrawioUrl()}
-              onReady={handleEditorReady}
-              onRequestBlockMove={handleRequestBlockMove}
-              onReminderCreate={handleReminderCreate}
-              onReminderClick={handleReminderClick}
-              commentThreads={commentThreads}
-              canComment={canComment}
-              plantumlRenderAuth={renderAuth}
-              onCreateComment={handleCreateComment}
-              onOpenThread={setOpenThreadId}
-              loadingFallback={<EditorContentSkeleton />}
-            />
-            <Tooltip title="Комментарии">
-              <IconButton
-                ref={commentToggleRef}
-                size="small"
-                onClick={() => setPanelOpen((v) => !v)}
-                aria-label="Комментарии"
-                sx={{
-                  position: 'absolute',
-                  top: 8,
-                  right: 8,
-                  zIndex: 5,
-                  bgcolor: 'background.paper',
-                  boxShadow: 1,
-                }}
-              >
-                <Badge badgeContent={activeCount} color="primary">
-                  <CommentIcon fontSize="small" />
-                </Badge>
-              </IconButton>
-            </Tooltip>
-            {reminderUI.open && (
-              <ReminderPopover
-                open
-                anchorEl={reminderUI.anchorEl}
-                mode={reminderUI.mode}
-                initial={reminderUI.initial}
-                workspaceId={workspaceId}
-                onClose={() => setReminderUI({ open: false })}
-                onSave={saveReminder}
-                onDelete={() => deleteReminder(reminderUI.initial.id)}
+      <Box sx={{ height: '100%', minHeight: 0, position: 'relative' }}>
+        <AnyNoteEditor
+          pageId={page.id}
+          workspaceId={workspaceId}
+          initialContentYjs={page.contentYjs}
+          yjsUrl={resolveYjsUrl()}
+          yjsToken={token}
+          editable={editable}
+          user={user}
+          uploadHandler={uploadHandler}
+          pageSearch={pageSearch}
+          mentionSearch={mentionSearch}
+          onNavigateToPage={onNavigateToPage}
+          drawioUrl={resolveDrawioUrl()}
+          onReady={handleEditorReady}
+          onRequestBlockMove={handleRequestBlockMove}
+          onReminderCreate={handleReminderCreate}
+          onReminderClick={handleReminderClick}
+          commentThreads={anchors}
+          canComment={canComment}
+          plantumlRenderAuth={renderAuth}
+          onCreateComment={startNewThread}
+          onOpenThread={openThread}
+          loadingFallback={<EditorContentSkeleton />}
+        />
+        {reminderUI.open && (
+          <ReminderPopover
+            open
+            anchorEl={reminderUI.anchorEl}
+            mode={reminderUI.mode}
+            initial={reminderUI.initial}
+            workspaceId={workspaceId}
+            onClose={() => setReminderUI({ open: false })}
+            onSave={saveReminder}
+            onDelete={() => deleteReminder(reminderUI.initial.id)}
+          />
+        )}
+        <EditorOutline editor={editor} mode={outlineMode} />
+        <BlockMoveDialog
+          open={movePos != null}
+          onClose={handleCloseMove}
+          onConfirm={handleConfirmMove}
+          busy={moveBusy}
+          canConfirm={moveTarget != null && moveTarget !== PAGE_TREE_ROOT}
+          treePicker={
+            <>
+              <PageTreePicker
+                pages={pagesQuery.data ?? []}
+                excludeIds={new Set([page.id])}
+                onSelect={setMoveTarget}
+                selectedId={moveTarget}
+                showRoot={false}
               />
-            )}
-            <EditorOutline editor={editor} mode={outlineMode} />
-            <BlockMoveDialog
-              open={movePos != null}
-              onClose={handleCloseMove}
-              onConfirm={handleConfirmMove}
-              busy={moveBusy}
-              canConfirm={moveTarget != null && moveTarget !== PAGE_TREE_ROOT}
-              treePicker={
-                <>
-                  <PageTreePicker
-                    pages={pagesQuery.data ?? []}
-                    excludeIds={new Set([page.id])}
-                    onSelect={setMoveTarget}
-                    selectedId={moveTarget}
-                    showRoot={false}
-                  />
-                  {moveError ? (
-                    <Box sx={{ color: 'error.main', mt: 1, fontSize: 13, px: 1 }}>{moveError}</Box>
-                  ) : null}
-                </>
-              }
-            />
-            <Popover
-              open={newThread != null}
-              anchorReference="anchorPosition"
-              anchorPosition={newThread ? { top: newThread.top, left: newThread.left } : undefined}
-              onClose={() => setNewThread(null)}
-            >
-              <Box sx={{ p: 1.5, width: 300 }}>
-                <CommentComposer
-                  autoFocus
-                  onSubmit={(c) => {
-                    if (newThread) {
-                      comments.createThread({ ...comments.base, ...newThread.anchor, content: c })
-                      setNewThread(null)
-                    }
-                  }}
-                />
-              </Box>
-            </Popover>
-            <Popover
-              open={openThread != null}
-              anchorEl={
-                (openThreadId
-                  ? (document.querySelector(
-                      `[data-thread-id="${openThreadId}"]`,
-                    ) as HTMLElement | null)
-                  : null) ?? commentToggleRef.current
-              }
-              onClose={() => setOpenThreadId(null)}
-              anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-            >
-              {openThread ? (
-                <ThreadCard
-                  thread={openThread}
-                  onReply={(c) =>
-                    comments.addComment({ ...comments.base, threadId: openThread.id, content: c })
-                  }
-                  onResolve={() => {
-                    comments.resolveThread({ ...comments.base, threadId: openThread.id })
-                    setOpenThreadId(null)
-                  }}
-                  onReopen={() =>
-                    comments.reopenThread({ ...comments.base, threadId: openThread.id })
-                  }
-                  onDeleteComment={(commentId) =>
-                    comments.deleteComment({ ...comments.base, commentId })
-                  }
-                  canDeleteComments={canDeleteComments}
-                />
+              {moveError ? (
+                <Box sx={{ color: 'error.main', mt: 1, fontSize: 13, px: 1 }}>{moveError}</Box>
               ) : null}
-            </Popover>
-          </Box>
-          {panelOpen ? (
-            <CommentsPanel
-              threads={uiThreads}
-              onOpen={setOpenThreadId}
-              onClose={() => setPanelOpen(false)}
-            />
-          ) : null}
-        </Box>
-      </CommentMentionSearchProvider>
+            </>
+          }
+        />
+      </Box>
     )
   }
 
