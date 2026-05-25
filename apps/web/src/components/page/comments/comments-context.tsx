@@ -6,6 +6,7 @@ import type { PageType } from '@repo/db'
 import type { CommentThreadAnchor } from '@repo/editor'
 
 import { CommentMentionSearchProvider } from './comment-composer'
+import { useCommentHash } from './use-comment-hash'
 import { useWorkspaceMentionSearch } from './use-mention-search'
 import {
   commentTargetKey,
@@ -198,14 +199,23 @@ export function PageCommentsProvider({
     c.deleteComment({ ...c.base, commentId })
   }, [])
 
+  // A `#comment-<id>` URL hash force-opens the sidebar on that thread.
+  useCommentHash(openThreadInSidebar)
+
   // The active anchor drives the in-text emphasis decoration: the popover's
   // thread (or its pending new selection), else the sidebar's open thread.
-  const activeThreadId = popover?.kind === 'thread' ? popover.threadId : panelOpen ? openThreadId : null
-  const activeRaw =
-    popover?.kind === 'new' ? newAnchor : (anchors.find((a) => a.id === activeThreadId) ?? null)
-  const activeAnchor = activeRaw
-    ? { anchorStart: activeRaw.anchorStart, anchorEnd: activeRaw.anchorEnd }
-    : null
+  // Memoized so its identity is stable — otherwise the editor's
+  // setActiveCommentAnchor effect would dispatch a transaction every render.
+  const activeAnchor = useMemo<{ anchorStart: string; anchorEnd: string } | null>(() => {
+    if (popover?.kind === 'new') {
+      return newAnchor ? { anchorStart: newAnchor.anchorStart, anchorEnd: newAnchor.anchorEnd } : null
+    }
+    let id: string | null = null
+    if (popover?.kind === 'thread') id = popover.threadId
+    else if (panelOpen) id = openThreadId
+    const found = id ? anchors.find((a) => a.id === id) : undefined
+    return found ? { anchorStart: found.anchorStart, anchorEnd: found.anchorEnd } : null
+  }, [popover, panelOpen, openThreadId, newAnchor, anchors])
 
   const value = useMemo<PageCommentsContextValue>(
     () => ({

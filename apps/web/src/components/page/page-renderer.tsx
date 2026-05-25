@@ -34,6 +34,7 @@ import { ReminderPopover, type ReminderFormValue } from './reminder-popover'
 import { useReminderSync } from './use-reminder-sync'
 import { useWorkspaceMentionSearch } from './comments/use-mention-search'
 import { usePageCommentsContext } from './comments/comments-context'
+import { CommentPopover } from './comments/comment-popover'
 
 const AnyNoteEditor = dynamic(() => import('@repo/editor').then((m) => m.AnyNoteEditor), {
   ssr: false,
@@ -115,7 +116,8 @@ export function PageRenderer({
 
   const trpcUtils = trpc.useUtils()
   const pageEditor = usePageEditor()
-  const { anchors, canComment, startNewThread, openThreadPopover } = usePageCommentsContext()
+  const { anchors, canComment, startNewThread, openThreadPopover, activeAnchor } =
+    usePageCommentsContext()
   const pagesQuery = trpc.page.listByWorkspace.useQuery({ workspaceId })
   const editorRef = useRef<Editor | null>(null)
   const [outlineMode] = useOutlineMode(page.id)
@@ -472,8 +474,10 @@ export function PageRenderer({
           plantumlRenderAuth={renderAuth}
           onCreateComment={startNewThread}
           onOpenThread={openThreadPopover}
+          activeCommentAnchor={activeAnchor}
           loadingFallback={<EditorContentSkeleton />}
         />
+        <CommentPopover />
         {reminderUI.open && (
           <ReminderPopover
             open
