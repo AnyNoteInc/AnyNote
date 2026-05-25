@@ -80,6 +80,7 @@ test('a member adds an inline comment that persists', async ({ page }) => {
   const { prisma } = await import('../../packages/db/src/index')
   let thread:
     | {
+        id: string
         quotedText: string
         comments: { authorName: string; content: unknown }[]
       }
@@ -89,6 +90,7 @@ test('a member adds an inline comment that persists', async ({ page }) => {
     thread = await prisma.pageCommentThread.findFirst({
       where: { pageId },
       select: {
+        id: true,
         quotedText: true,
         comments: {
           select: { authorName: true, content: true },
@@ -104,14 +106,47 @@ test('a member adds an inline comment that persists', async ({ page }) => {
   expect(thread?.comments[0]?.authorName).toBe('Тест Тест')
   expect(thread?.comments[0]?.content).toMatchObject({ text: commentText })
 
+  const threadId = thread?.id
+  expect(threadId).toBeTruthy()
+
+  // (a) While the doc is still loaded (pre-reload), clicking the in-text highlight
+  // opens the thread as a popover and emphasizes the anchor. Verified before the
+  // reload because the Playwright env runs no yjs server, so editor content does
+  // not survive a reload (the thread itself does, via tRPC — see the sidebar below).
+  const highlight = page.locator('.anynote-editor .comment-highlight').first()
+  await expect(highlight).toBeVisible({ timeout: 15_000 })
+
+  // The selection toolbar's "Комментировать" tooltip (focus-triggered) overlaps
+  // the highlight; Escape closes it and the pointer move clears any hover one,
+  // then click the highlight to open the popover.
+  await page.mouse.move(0, 0)
+  await page.keyboard.press('Escape')
+  await highlight.click()
+  const popover = page.locator('.comment-popover')
+  await expect(popover).toBeVisible({ timeout: 10_000 })
+  await expect(popover.getByText(commentText)).toBeVisible()
+  await expect(page.locator('.anynote-editor .comment-highlight-active')).toBeVisible({ timeout: 5_000 })
+  await page.keyboard.press('Escape')
+  await expect(popover).toBeHidden()
+
   await page.reload()
   await expect(editor).toBeVisible({ timeout: 15_000 })
-  await page.getByRole('button', { name: 'Комментарии' }).click()
-  // The right sidebar opens WITHOUT hiding the left workspace sidebar.
+
+  // (b) The toolbar icon opens the full sidebar list, without hiding the left sidebar.
+  await page.getByRole('button', { name: 'Комментарии', exact: true }).click()
   await expect(page.locator('.workspace-sidebar')).toHaveCount(1)
   const commentsSidebar = page.locator('.comments-sidebar')
   await expect(commentsSidebar).toBeVisible({ timeout: 10_000 })
   await expect(commentsSidebar.getByText(`«${selectedText}»`)).toBeVisible({ timeout: 10_000 })
   await expect(commentsSidebar.getByText('Тест Тест')).toBeVisible()
   await expect(commentsSidebar.getByText(commentText)).toBeVisible()
+
+  // (c) Closing, then a #comment-<id> hash re-opens the sidebar on that thread.
+  await page.getByRole('button', { name: 'Закрыть комментарии' }).click()
+  await expect(commentsSidebar).toBeHidden()
+  await page.evaluate((id) => {
+    window.location.hash = `#comment-${id}`
+  }, threadId!)
+  await expect(commentsSidebar).toBeVisible({ timeout: 10_000 })
+  await expect(commentsSidebar.getByText(`«${selectedText}»`)).toBeVisible({ timeout: 10_000 })
 })
