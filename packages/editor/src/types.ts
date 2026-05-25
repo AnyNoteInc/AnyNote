@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
 import type { Editor } from '@tiptap/core'
+import type { PlantumlRenderAuth } from '@repo/plantuml/render-plantuml'
 
 export type UploadedFile = {
   id: string
@@ -62,6 +63,7 @@ export type AnyNoteEditorProps = {
   onCreateComment?: (anchor: { anchorStart: string; anchorEnd: string; quotedText: string }) => void
   onOpenThread?: (threadId: string) => void
   canComment?: boolean
+  plantumlRenderAuth?: PlantumlRenderAuth
 }
 
 export type { CommentThreadAnchor } from './types-comments'

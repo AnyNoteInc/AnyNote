@@ -74,7 +74,7 @@ test('a member adds an inline comment that persists', async ({ page }) => {
   await dragSelectEditorText(page, editor, selectedText)
   await page.getByRole('button', { name: 'Комментировать' }).click()
   await page.getByPlaceholder('Комментарий…').first().fill(commentText)
-  await page.getByRole('button', { name: 'Отпр.' }).first().click()
+  await page.getByRole('button', { name: 'Отправить комментарий' }).first().click()
 
   loadEnvFromRoot()
   const { prisma } = await import('../../packages/db/src/index')
@@ -107,6 +107,7 @@ test('a member adds an inline comment that persists', async ({ page }) => {
   await page.reload()
   await expect(editor).toBeVisible({ timeout: 15_000 })
   await page.getByRole('button', { name: 'Комментарии' }).click()
+  await expect(page.locator('.workspace-sidebar')).toHaveCount(0)
   await expect(page.getByText(`«${selectedText}»`)).toBeVisible({ timeout: 10_000 })
   await expect(page.getByText(`Тест Тест: ${commentText}`)).toBeVisible()
 })

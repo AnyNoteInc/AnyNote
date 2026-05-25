@@ -1,7 +1,10 @@
 import { NextResponse } from 'next/server'
 import { z } from 'zod'
 
+import { prisma } from '@repo/db'
+
 import { getSession } from '@/lib/get-session'
+import { resolveShareAccess } from '@/lib/share-access'
 import { renderPlantumlSvg } from '@/server/plantuml/render'
 import {
   PlantumlTimeoutError,
@@ -11,24 +14,35 @@ import {
 
 export const runtime = 'nodejs'
 
-const bodySchema = z.object({ source: z.string().min(1).max(20_000) })
+const bodySchema = z.object({
+  source: z.string().min(1).max(20_000),
+  shareId: z.string().min(1).optional(),
+})
 
 export async function POST(req: Request) {
-  // Auth-gate so the proxy can't be used as an open SSRF relay.
-  const session = await getSession()
-  if (!session) {
-    return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
-  }
-
-  let source: string
+  let body: z.infer<typeof bodySchema>
   try {
-    source = bodySchema.parse(await req.json()).source
+    body = bodySchema.parse(await req.json())
   } catch {
     return NextResponse.json({ ok: false, error: 'Invalid request body' }, { status: 400 })
   }
 
+  // Auth-gate so the proxy can't be used as a public PlantUML relay. A normal
+  // app view uses the session cookie; public share views prove access with the
+  // share id that already gates /s/[shareId] and share-scoped Yjs tokens.
+  const session = await getSession()
+  if (!session) {
+    if (!body.shareId) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
+    }
+    const { page, role } = await resolveShareAccess(prisma, body.shareId, null)
+    if (!page || !role) {
+      return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
+    }
+  }
+
   try {
-    const svg = await renderPlantumlSvg(source)
+    const svg = await renderPlantumlSvg(body.source)
     return NextResponse.json({ ok: true, svg }, { headers: { 'Cache-Control': 'private, no-store' } })
   } catch (err) {
     if (err instanceof PlantumlTimeoutError) {

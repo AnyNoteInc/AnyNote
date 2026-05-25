@@ -301,6 +301,7 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
         onNavigateToPage,
         drawioUrl: props.drawioUrl,
         onOpenThread: props.onOpenThread ?? (() => undefined),
+        plantumlRenderAuth: props.plantumlRenderAuth,
       }),
       onCreate: ({ editor: ed }) => {
         props.onReady?.(ed)

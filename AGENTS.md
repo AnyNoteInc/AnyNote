@@ -34,76 +34,76 @@ Copy `.env.example` to `.env` for local setup and keep secrets out of commits. U
 <claude-mem-context>
 # Memory Context
 
-# [anynote] recent context, 2026-05-24 10:47am GMT+1
+# [anynote] recent context, 2026-05-25 9:04am GMT+1
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (19,998t read) | 1,476,501t work | 99% savings
+Stats: 50 obs (20,929t read) | 1,465,381t work | 99% savings
 
-### May 23, 2026
-S714 Observer monitoring feat/mermaid branch — Task 10 LikeC4 code-block E2E fix, committing, and running final quality gates (May 23 at 5:36 AM)
-S715 Observer monitoring feat/mermaid branch — Task 10 commits complete, pnpm gates run reveals production build still broken by esbuild import chain (May 23 at 10:57 AM)
-S717 Observer monitoring feat/mermaid — web production build PASSES with esbuild/bundle-require webpack aliases; full pnpm gates re-run in progress (May 23 at 11:04 AM)
-S718 Simplify skill review of completed LikeC4 feature on feat/mermaid branch — reuse, quality, efficiency review cycle and applying the one identified fix (May 23 at 11:05 AM)
-S716 Observer monitoring feat/mermaid — production build fix: webpack alias stubs for esbuild + bundle-require in next.config.js, web build running (May 23 at 11:05 AM)
-S719 Fix LikeC4 model page crash on compile error — page should show error chip instead of crashing (May 23 at 12:30 PM)
-S720 Fix 2 UI bugs on LikeC4 page: remove view-selector combobox and fix diagram shrinking instead of filling full width — then verify with Playwright e2e tests (May 23 at 12:53 PM)
-S721 Add DrawIO integration to workspace editor: sidebar canvas submenu (Excalidraw/DrawIO choice) + DrawIO slash block with create/view/edit lifecycle (May 23 at 12:58 PM)
-3065 2:00p ✅ Remove LikeC4 and D2 from TipTap Slash Command Menu and Code Block
-3066 " 🔵 LikeC4 and D2 Slash Items and Code Block Language Locations Mapped
-3068 2:01p 🟣 TDD Red Tests Written for LikeC4/D2 Removal from Slash Menu and Code Block
-3069 " ✅ LikeC4 and D2 Removed from TipTap Slash Menu and Code Block
-3070 2:02p ✅ TDD Green: LikeC4/D2 Removal Tests Pass After Implementation
-3071 2:08p 🔵 Page Rename Dialog Architecture in AnyNote
-3072 " 🔵 EmojiIconButton Component Interface and Icon Picker Integration Pattern
-3073 2:55p ✅ New floating toolbar UI fix requests queued
-3074 8:24p 🔵 FloatingToolbar source analysis: two confirmed UI bugs
-3075 " 🔵 packages/editor vitest environment has no DOM/React test setup
-3076 " 🟣 TDD red-phase: E2E tests added for link button visibility and font select reactivity
-3077 8:25p ✅ Bubble menu test revised to use autolink for link-button visibility assertion
-3079 " 🔵 Cache loop: write_stdin to already-closed session 58031 returns stale PID 60464 error
-3078 " 🔵 Playwright test failed on startup: stale Next.js dev server on port 3000
-3080 8:26p 🔵 TDD red confirmed: both new bubble menu tests fail as expected
-3081 8:59p 🔵 Root cause of Tiptap slash command arrow-key selection bug identified
-3082 9:00p 🔵 SlashMenuPopover architecture: items are grouped into base/code/media with flat active index
-3083 " 🟣 Added Playwright regression test for slash menu keyboard navigation bug
-3084 9:01p 🔵 Playwright keyboard-navigation test failed: `.Mui-selected` class not applied on arrow-key nav
-3085 " 🔵 New Playwright test failed due to sidebar navigation state, not the slash-menu bug
-3086 9:02p ✅ Fixed `createTextPage` helper in editor-slash-media.spec.ts to navigate to Pages section first
-3087 " 🔵 `.Mui-selected` class not applied by keyboard arrow navigation in slash menu — test assertion must change
-3088 9:04p ✅ New Tiptap editor bug fixes requested: file attachment click and code block auto mode
-3089 9:19p 🔵 Code block renders with empty first and last lines
 ### May 24, 2026
-3090 6:10a 🔵 Code block structure investigated for empty-lines bug
-3091 6:11a 🔴 TDD RED: failing test written for code block blank first/last lines bug
-3092 " 🔵 Blank-lines test passed immediately without any fix — bug is CSS/visual, not DOM
-3093 6:12a 🔵 Bounding-box test confirms code block blank-lines bug: 41px top gap measured
-3094 " 🔵 CSS padding fix reduces gap from 41px to 33px but does not eliminate blank-line space
-3095 6:13a 🔵 ARIA snapshot reveals code block DOM: toolbar + pre sibling in NodeViewWrapper
-3096 6:38a ⚖️ DrawIO Integration Planned for Workspace Editor
-3097 6:39a 🔵 Anynote Monorepo Package Structure
-3098 " 🔵 PageRenderer Routing Architecture for Canvas Page Types
-3099 " 🔵 Prisma PageType Enum Does Not Include DRAWIO
-3100 " 🔵 Excalidraw Package Structure as Template for DrawIO Package
-3101 " 🔵 Workspace Sidebar Component Located for DrawIO Menu Addition
-3102 6:40a 🔵 CreatePageMenu in page-tree-section.tsx is Where DRAWIO Canvas Option Needs Adding
-3103 " 🔵 Slash Menu Architecture for Adding DrawIO Embed Block
-3104 " 🔵 Tiptap Extension Pattern for New Block Nodes (Schema + NodeView)
-3105 " 🔵 Diagram Board Package Provides Reusable Split-Pane Code+Preview Pattern
-3106 6:41a ⚖️ DrawIO Integration Planned for Workspace Editor
-3107 " 🔵 Existing Slash Menu and Sidebar Structure Confirmed
-3108 " 🔵 react-drawio DrawIoEmbed Full API Documented
-S723 User said "write" — session resumed; primary session re-confirmed spec committed and presented summary to user for approval before writing the implementation plan (May 24 at 6:47 AM)
-3109 6:50a 🔵 Spec File Naming Convention and LikeC4 Integration Pattern Confirmed
-3110 " ✅ Created feat/drawio Branch
-3111 " 🟣 DrawIO Design Spec Written to docs/superpowers/specs/
-3112 6:53a ✅ DrawIO Design Spec Committed to feat/drawio (c4925ed)
-3113 " 🔵 useDiagramYjs and FileAttachment Node Internals Confirmed for DrawIO Implementation
-S722 Add DrawIO integration to workspace editor — spec written, committed to feat/drawio, awaiting user review before writing implementation plan (May 24 at 6:53 AM)
-3114 6:59a 🔵 page-renderer.tsx and anynote-editor.tsx Full Structure Confirmed for Implementation
-3115 " 🔵 All Remaining Wiring File States Confirmed Before Plan Writing
+3118 11:01a 🔵 Database Schema Has No Sharing Models Yet
+3119 " 🔵 Share Button Target: PageActionsToolbar rightSlot in WorkspaceToolbar
+3120 " 🔵 tRPC Page Router Architecture and Auth Pattern
+3122 11:02a ⚖️ Page Sharing Feature Specification Defined
+3123 11:04a 🔵 Next.js App Router Structure Mapped for Sharing Route Implementation
+3124 11:22a 🟣 feat/page-sharing Branch Created — Implementation Starting
+3125 11:23a 🟣 Page Sharing Design Spec Written to docs/superpowers/specs/
+3126 11:26a ⚖️ User approved spec; requesting implementation plan for page sharing
+3128 " 🔵 apps/web/.env is a symlink to root .env — share token secret auto-available in E2E
+3129 " 🟣 Task 15: Playwright E2E spec for page sharing — apps/e2e/page-sharing.spec.ts
+3127 11:33a 🟣 Complete implementation plan written for page sharing feature
+3130 12:27p 🔵 Primary session resumed at 15:00 after ~3.5h pause — user issued "продолжи"
+3131 12:28p 🟣 Task 15 E2E test PASSED — page-sharing.spec.ts green on first run in 31.1s
+3133 4:00p 🟣 Task 16 COMPLETE — pnpm gates all green: 35 tasks, 230 web tests + 105 agent tests passed
+3134 " 🔵 Branch state confirmed clean — 678958f HEAD, 18 commits ahead of main, working tree clean
+3135 4:01p 🔵 Full page-sharing branch commit history and UI diff stat revealed
+3132 4:02p 🟣 Task 15 committed — git commit 678958f "test(e2e): public page sharing access flow"
+S730 Spec 2 (inline anchored comments) — full data model and auth/permissions layer designed; user asked to confirm author model and moderation rules (May 24 at 4:18 PM)
+S731 Spec 2 (inline anchored comments) — complete architecture finalized including editor integration, UI layout, realtime strategy, test plan, and 6-phase implementation roadmap; user asked to confirm or amend before spec is written (May 24 at 4:21 PM)
+S732 Spec 2 (inline anchored comments) — user confirmed full architecture ("фиксируй спеку"); primary session now writing spec document (May 24 at 4:22 PM)
+S734 Spec 2 implementation underway — feat/page-comments branch active, spec being written; full architecture confirmed by user (May 24 at 4:40 PM)
+S733 Spec 2 implementation started — feat/page-comments branch created; user confirmed full architecture ("фиксируй спеку") (May 24 at 4:43 PM)
+S735 Spec 2 (inline page comments) design phase complete — spec committed, awaiting user review before implementation planning (May 24 at 4:48 PM)
+3136 4:49p ⚖️ User approved Spec 2 and directed implementation planning
+S736 Spec 2 (inline page comments) complete and committed — user approved, proceeding to implementation planning (May 24 at 4:49 PM)
+S738 Observer session monitoring feat/page-comments — Spec 2 inline page comments, post-code-review security fix, branch finishing in progress (May 24 at 4:54 PM)
+3137 4:54p 🔵 Existing kanban comment router pattern discovered as template for page comments
+3138 " 🔵 notify.commentCreated and notify.pageMention pre-wired stubs confirmed in notifications package
+3139 " 🔵 KanbanBus and subscription pattern confirmed as direct clone source for pageCommentBus
+3140 " 🔵 drop-placement.ts Decoration.node pattern inspected as reference for comment anchor decorations
+3141 4:55p 🔵 y-prosemirror RelativePosition API confirmed available in installed package (v1.3.7)
+3142 " 🔵 Editor extension registry (extensions/index.ts) and BuildExtensionsOptions shape confirmed
+3143 5:00p 🟣 Full implementation plan written for inline page comments (15 tasks, 6 phases)
+3144 " ⚖️ Inline Page Comments Implementation Plan Accepted and Committed
+3145 " ⚖️ actorId Relaxation Must Precede Comment Router Implementation
+3200 5:44p 🟣 Task 10: @mention autocomplete added to CommentComposer
+3201 " 🟣 Task 9 fan-out test + Task 10 write committed; branch at 5a0ebde
+3202 6:05p 🔵 Branch feat/page-comments advanced to 8 commits past expected HEAD
+3203 6:06p 🔵 Full merge gate passes: 35 tasks, 235 tests, FULL TURBO cache
+3218 6:26p 🔵 Six UI/UX Issues Identified for Page-Comments Feature
+3219 " 🔵 Full Test Suite Passes on feat/page-comments HEAD (277a29b)
+### May 25, 2026
+3204 4:36a 🔵 AGENTS.md dirty file is a claude-mem context refresh (10:47am → 8:52pm)
+3205 " 🔵 Complete feat/page-comments commit range confirmed: 11 commits since ce51fba
+3206 4:37a 🔵 Full feature diff stat: 15 files, 1070 insertions, 192 deletions across Spec 2
+3207 4:39a 🟣 Task 11: comment-access.ts implements anonymous identity + public-link resolution
+3208 " 🟣 Tasks 11–13: comment router adds requireAnonymousAuthorIdentity, events.subscribe, and bus emissions
+3209 " 🟣 Tasks 12–13: share route passes role to PageRenderer; use-page-comments wires SSE subscription
+3210 " 🟣 CommentComposer final form (247 lines): Context provider, race-safe async search, full ARIA keyboard nav
+3211 " 🔴 floating-toolbar: lastCommentAnchorRef preserves anchor when Tiptap clears selection on click
+3212 " 🔴 comment-anchor.ts: switch import from y-prosemirror to @tiptap/y-tiptap
+3213 " 🟣 page-renderer wraps TEXT page in CommentMentionSearchProvider and hardens mentionSearch with try/catch
+3214 4:41a 🔵 @tiptap/extension-collaboration 3.22.3 imports ySyncPluginKey from @tiptap/y-tiptap (not y-prosemirror)
+3215 " 🟣 comment-access.test.ts extended: 4 new tests for public-link + anonymous resolution paths
+3216 " 🟣 comment-router.test.ts extended: 4 new tests for anonymous public link + realtime subscription boundaries
+3217 " 🟣 E2E test: apps/e2e/page-comments.spec.ts — full inline comment creation and persistence flow
+S737 Observer session monitoring feat/page-comments branch — Spec 2 inline page comments implementation through code review, security fix, and branch finishing (May 25 at 4:42 AM)
+S739 Observer session monitoring feat/page-comments — Spec 2 inline page comments complete, post-review security fix committed, branch finishing awaiting user direction (May 25 at 4:47 AM)
+3220 8:51a 🔵 PlantUML Render Route Requires Authentication — Root Cause of Issue #1
+3221 " 🔵 Comment UI Component Locations and Current Button Labels
+3222 8:52a 🔵 Full Source Structure Mapped for All Six Comment UI Fixes
 
-Access 1477k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 1465k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>

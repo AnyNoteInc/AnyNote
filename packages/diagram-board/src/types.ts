@@ -1,7 +1,7 @@
 import type { ComponentType } from 'react'
 import type * as Y from 'yjs'
 import type * as monaco from 'monaco-editor'
-import type { ColorMode, DiagramRenderer } from './render-types'
+import type { ColorMode, DiagramRenderAuth, DiagramRenderer } from './render-types'
 
 export type DiagramUser = {
   id: string
@@ -16,6 +16,7 @@ export type DiagramBoardProps = {
   initialContentYjs?: string | null
   user?: DiagramUser
   editable?: boolean
+  renderAuth?: DiagramRenderAuth
   className?: string
 }
 

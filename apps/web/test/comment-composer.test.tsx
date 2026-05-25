@@ -28,7 +28,7 @@ describe('CommentComposer', () => {
 
     await actor.type(screen.getByRole('textbox'), 'Hi @vic')
     await actor.click(await screen.findByText('Victor Notes'))
-    await actor.click(screen.getByRole('button', { name: 'Отпр.' }))
+    await actor.click(screen.getByRole('button', { name: 'Отправить комментарий' }))
 
     expect(onSubmit).toHaveBeenCalledWith({ text: 'Hi @Victor Notes', mentions: ['user-1'] })
   })
@@ -50,7 +50,7 @@ describe('CommentComposer', () => {
     await actor.click(await screen.findByRole('option', { name: /Victor Notes/ }))
     await actor.clear(input)
     await actor.type(input, 'Hi Victor Notes')
-    await actor.click(screen.getByRole('button', { name: 'Отпр.' }))
+    await actor.click(screen.getByRole('button', { name: 'Отправить комментарий' }))
 
     expect(onSubmit).toHaveBeenCalledWith({ text: 'Hi Victor Notes', mentions: [] })
   })
@@ -90,11 +90,11 @@ describe('CommentComposer', () => {
 
     const { rerender } = render(<CommentComposer onSubmit={onSubmit} />)
 
-    expect(screen.getByRole('button', { name: 'Отпр.' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Отправить комментарий' })).toBeDisabled()
 
     rerender(<CommentComposer onSubmit={onSubmit} pending />)
     await actor.type(screen.getByRole('textbox'), 'Already sending')
-    expect(screen.getByRole('button', { name: 'Отпр.' })).toBeDisabled()
+    expect(screen.getByRole('button', { name: 'Отправить комментарий' })).toBeDisabled()
     await actor.keyboard('{Meta>}{Enter}{/Meta}')
 
     expect(onSubmit).not.toHaveBeenCalled()

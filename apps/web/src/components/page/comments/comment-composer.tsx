@@ -2,7 +2,17 @@
 
 import { createContext, useCallback, useContext, useId, useRef, useState, type ReactNode } from 'react'
 
-import { Avatar, Box, Button, Paper, Stack, TextField, Typography } from '@repo/ui/components'
+import {
+  Avatar,
+  Box,
+  IconButton,
+  Paper,
+  SendRoundedIcon,
+  Stack,
+  TextField,
+  Tooltip,
+  Typography,
+} from '@repo/ui/components'
 
 export type CommentMentionItem = { id: string; label: string; email: string | null }
 type CommentMentionSearch = (query: string) => Promise<CommentMentionItem[]>
@@ -185,14 +195,27 @@ export function CommentComposer({ onSubmit, autoFocus, pending, mentionSearch }:
             }
           }}
         />
-        <Button
-          variant="contained"
-          size="small"
-          onClick={submit}
-          disabled={pending || !text.trim()}
-        >
-          Отпр.
-        </Button>
+        <Tooltip title="Отправить">
+          <span>
+            <IconButton
+              color="primary"
+              onClick={submit}
+              disabled={pending || !text.trim()}
+              aria-label="Отправить комментарий"
+              sx={{
+                width: 36,
+                height: 36,
+                bgcolor: text.trim() && !pending ? 'primary.main' : 'action.disabledBackground',
+                color: text.trim() && !pending ? 'primary.contrastText' : 'action.disabled',
+                '&:hover': {
+                  bgcolor: text.trim() && !pending ? 'primary.dark' : 'action.disabledBackground',
+                },
+              }}
+            >
+              <SendRoundedIcon fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
       </Stack>
       {hasMentionResults && (
         <Paper

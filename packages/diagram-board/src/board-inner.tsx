@@ -17,6 +17,7 @@ export function DiagramBoardInner({
   initialContentYjs,
   user,
   editable = true,
+  renderAuth,
   className,
 }: DiagramBoardProps & { config: DiagramConfig }) {
   const theme = useTheme()
@@ -95,7 +96,13 @@ export function DiagramBoardInner({
     previewNode = <Preview ytext={resources.ytext} mode={mode} idPrefix={config.idPrefix} />
   } else if (config.render) {
     previewNode = (
-      <DiagramPreview ytext={resources.ytext} mode={mode} render={config.render} idPrefix={config.idPrefix} />
+      <DiagramPreview
+        ytext={resources.ytext}
+        mode={mode}
+        render={config.render}
+        idPrefix={config.idPrefix}
+        renderAuth={renderAuth}
+      />
     )
   }
 

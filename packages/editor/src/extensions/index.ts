@@ -16,6 +16,7 @@ import type { SuggestionOptions } from '@tiptap/suggestion'
 import type { HocuspocusProvider } from '@hocuspocus/provider'
 import { common, createLowlight } from 'lowlight'
 import type * as Y from 'yjs'
+import type { PlantumlRenderAuth } from '@repo/plantuml/render-plantuml'
 
 import { BlockBackground } from './block-background'
 import { BlockIndexAttributes } from './block-index-attributes'
@@ -60,6 +61,7 @@ export type BuildExtensionsOptions = {
   onNavigateToPage: (pageId: string) => void
   drawioUrl: string
   onOpenThread: (threadId: string) => void
+  plantumlRenderAuth?: PlantumlRenderAuth
 }
 
 export const buildExtensions = (opts: BuildExtensionsOptions) => [
@@ -104,7 +106,7 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   TableRow,
   TableHeader,
   TableCell,
-  CodeBlock.configure({ lowlight }),
+  CodeBlock.configure({ lowlight, plantumlRenderAuth: opts.plantumlRenderAuth }),
   Callout,
   HiddenText,
   FileAttachment,

@@ -5,12 +5,12 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy'
 import { Box, IconButton, MenuItem, Select, ToggleButton, ToggleButtonGroup, Tooltip } from '@mui/material'
 import type { SelectChangeEvent } from '@mui/material'
 import { useTheme } from '@mui/material/styles'
-import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight'
+import CodeBlockLowlight, { type CodeBlockLowlightOptions } from '@tiptap/extension-code-block-lowlight'
 import { NodeViewContent, NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
 import { useCallback, useEffect, useState } from 'react'
 import { renderMermaid, type RenderResult } from '@repo/mermaid/render-mermaid'
-import { renderPlantuml } from '@repo/plantuml/render-plantuml'
+import { renderPlantuml, type PlantumlRenderAuth } from '@repo/plantuml/render-plantuml'
 
 type CodeLanguage = { value: string; label: string }
 
@@ -89,7 +89,15 @@ function LanguageSelect({ value, onChange }: { value: string; onChange: (next: s
   )
 }
 
-function CodeBlockView({ node, updateAttributes }: NodeViewProps) {
+type CodeBlockOptions = CodeBlockLowlightOptions & {
+  plantumlRenderAuth?: PlantumlRenderAuth
+}
+
+function CodeBlockView({
+  node,
+  updateAttributes,
+  extension,
+}: NodeViewProps & { extension: { options: CodeBlockOptions } }) {
   const isMermaid = node.attrs.language === 'mermaid'
   const isPlantuml = node.attrs.language === 'plantuml'
   const isDiagram = isMermaid || isPlantuml
@@ -110,7 +118,8 @@ function CodeBlockView({ node, updateAttributes }: NodeViewProps) {
     // mermaid's "element already exists" error across repeated renders.
     const render = isPlantuml ? renderPlantuml : renderMermaid
     const renderId = `cb-diagram-${Math.random().toString(36).slice(2)}`
-    void render(renderId, source, mode).then((result: RenderResult) => {
+    const renderAuth = isPlantuml ? extension.options.plantumlRenderAuth : undefined
+    void render(renderId, source, mode, renderAuth).then((result: RenderResult) => {
       if (cancelled) return
       if (result.ok) {
         setSvg(result.svg)
@@ -122,7 +131,7 @@ function CodeBlockView({ node, updateAttributes }: NodeViewProps) {
     return () => {
       cancelled = true
     }
-  }, [showPreview, isPlantuml, source, mode])
+  }, [showPreview, isPlantuml, source, mode, extension.options.plantumlRenderAuth])
 
   return (
     <NodeViewWrapper className="anynote-code-block" data-language={node.attrs.language ?? undefined}>
@@ -200,7 +209,21 @@ function CodeBlockView({ node, updateAttributes }: NodeViewProps) {
  * preview toggle through the render proxy. With language 'Авто' (null), lowlight
  * auto-detects via highlightAuto over `common`.
  */
-export const CodeBlock = CodeBlockLowlight.extend({
+export const CodeBlock = CodeBlockLowlight.extend<CodeBlockOptions>({
+  addOptions() {
+    return {
+      ...this.parent?.(),
+      lowlight: {},
+      languageClassPrefix: 'language-',
+      exitOnTripleEnter: true,
+      exitOnArrowDown: true,
+      defaultLanguage: null,
+      enableTabIndentation: false,
+      tabSize: 4,
+      HTMLAttributes: {},
+      plantumlRenderAuth: undefined,
+    }
+  },
   addNodeView() {
     return ReactNodeViewRenderer(CodeBlockView)
   },

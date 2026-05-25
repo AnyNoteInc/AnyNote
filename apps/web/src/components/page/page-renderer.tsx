@@ -47,6 +47,8 @@ import { ThreadCard } from './comments/thread-popover'
 import { CommentComposer, CommentMentionSearchProvider } from './comments/comment-composer'
 import type { UiThread } from './comments/types'
 
+const COMMENTS_PANEL_VISIBILITY_EVENT = 'anynote:comments-panel-visibility'
+
 const AnyNoteEditor = dynamic(() => import('@repo/editor').then((m) => m.AnyNoteEditor), {
   ssr: false,
   loading: () => <EditorContentSkeleton />,
@@ -413,6 +415,7 @@ export function PageRenderer({
 
   // ── Inline comments (TEXT pages) ──────────────────────────────────────────
   const commentTgt = commentTarget ?? { pageId: page.id }
+  const renderAuth = 'shareId' in commentTgt ? { shareId: commentTgt.shareId } : undefined
   const comments = usePageComments(commentTgt, { enabled: page.type === 'TEXT' })
   const [openThreadId, setOpenThreadId] = useState<string | null>(null)
   const [panelOpen, setPanelOpen] = useState(false)
@@ -462,6 +465,18 @@ export function PageRenderer({
   }))
   const openThread = uiThreads.find((t) => t.id === openThreadId) ?? null
   const activeCount = rawThreads.filter((t) => !t.resolvedAt).length
+  const canDeleteComments = !('shareId' in commentTgt)
+
+  useEffect(() => {
+    window.dispatchEvent(
+      new CustomEvent(COMMENTS_PANEL_VISIBILITY_EVENT, { detail: { open: panelOpen } }),
+    )
+    return () => {
+      window.dispatchEvent(
+        new CustomEvent(COMMENTS_PANEL_VISIBILITY_EVENT, { detail: { open: false } }),
+      )
+    }
+  }, [panelOpen])
 
   const handleCreateComment = useCallback(
     (anchor: { anchorStart: string; anchorEnd: string; quotedText: string }) => {
@@ -509,6 +524,7 @@ export function PageRenderer({
         yjsUrl={resolveYjsUrl()}
         yjsToken={token}
         user={user}
+        renderAuth={renderAuth}
       />
     )
   }
@@ -566,6 +582,7 @@ export function PageRenderer({
               onReminderClick={handleReminderClick}
               commentThreads={commentThreads}
               canComment={canComment}
+              plantumlRenderAuth={renderAuth}
               onCreateComment={handleCreateComment}
               onOpenThread={setOpenThreadId}
               loadingFallback={<EditorContentSkeleton />}
@@ -670,6 +687,7 @@ export function PageRenderer({
                   onDeleteComment={(commentId) =>
                     comments.deleteComment({ ...comments.base, commentId })
                   }
+                  canDeleteComments={canDeleteComments}
                 />
               ) : null}
             </Popover>

@@ -34,6 +34,7 @@ type Props = {
 
 const STORAGE_KEY = 'workspace.sidebar.mode'
 const DEFAULT_MODE: SidebarMode = 'full'
+const COMMENTS_PANEL_VISIBILITY_EVENT = 'anynote:comments-panel-visibility'
 export const SIDEBAR_WIDTH = 313
 export type WorkspaceSidebarSection = 'chats' | 'pages' | 'settings'
 
@@ -60,6 +61,7 @@ export function WorkspaceLayoutClient({
   )
   const pages: PageItem[] = pagesQuery.data ?? initialPages
   const [mode, setMode] = useState<SidebarMode>(DEFAULT_MODE)
+  const [commentsPanelOpen, setCommentsPanelOpen] = useState(false)
   const pathname = usePathname()
   const lastSidebarPathnameRef = useRef(pathname)
   const [sidebarSection, setSidebarSection] = useState<WorkspaceSidebarSection>(
@@ -74,6 +76,17 @@ export function WorkspaceLayoutClient({
   useEffect(() => {
     window.localStorage.setItem(STORAGE_KEY, mode)
   }, [mode])
+
+  useEffect(() => {
+    const onCommentsPanelVisibility = (event: Event) => {
+      const detail = (event as CustomEvent<{ open?: boolean }>).detail
+      setCommentsPanelOpen(Boolean(detail?.open))
+    }
+    window.addEventListener(COMMENTS_PANEL_VISIBILITY_EVENT, onCommentsPanelVisibility)
+    return () => {
+      window.removeEventListener(COMMENTS_PANEL_VISIBILITY_EVENT, onCommentsPanelVisibility)
+    }
+  }, [])
 
   useEffect(() => {
     if (lastSidebarPathnameRef.current === pathname) return
@@ -147,6 +160,7 @@ export function WorkspaceLayoutClient({
 
   const [fullWidth] = useFullWidth(activePageId ?? '')
   const [outlineMode] = useOutlineMode(activePageId ?? '')
+  const effectiveMode: SidebarMode = commentsPanelOpen ? 'hidden' : mode
 
   // PageEditorProvider wraps BOTH the toolbar (so PageActionsMenu → PageExportDialog
   // can read the editor via usePageEditor) and the editor content (so PageRenderer
@@ -155,7 +169,7 @@ export function WorkspaceLayoutClient({
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
       <WorkspaceToolbar
         breadcrumbs={breadcrumbs}
-        sidebarHidden={mode === 'hidden'}
+        sidebarHidden={effectiveMode === 'hidden'}
         onOpenSidebar={() => setMode('full')}
         sidebarContent={<WorkspaceSidebar {...sidebarProps} />}
         rightSlot={
@@ -179,13 +193,15 @@ export function WorkspaceLayoutClient({
   )
 
   const sidebar =
-    mode === 'full' ? <WorkspaceSidebar {...sidebarProps} onHide={() => setMode('hidden')} /> : null
+    effectiveMode === 'full' ? (
+      <WorkspaceSidebar {...sidebarProps} onHide={() => setMode('hidden')} />
+    ) : null
 
   return (
     <SearchDialogProvider workspaceId={workspace.id}>
       <WorkspaceHotkeyMount workspaceId={workspace.id} onPages={() => setSidebarSection('pages')} />
       <WorkspaceShell
-        mode={mode}
+        mode={effectiveMode}
         sidebar={sidebar}
         main={activePageId ? <PageEditorProvider>{mainContent}</PageEditorProvider> : mainContent}
       />

@@ -114,7 +114,19 @@ export async function signUpAndAuthAs(page: Page, args: SignUpAndAuthArgs): Prom
   // is deterministic (we don't depend on whether better-auth auto-signed-in).
   await page.context().clearCookies()
   await page.goto('/sign-in')
-  await page.getByRole('textbox', { name: 'Email' }).fill(email)
+  const emailInput = page.getByRole('textbox', { name: 'Email' })
+  const alreadyAuthenticated = page.getByRole('heading', {
+    name: 'Создайте рабочее пространство',
+  })
+  const target = await Promise.race([
+    emailInput.waitFor({ state: 'visible', timeout: 10_000 }).then(() => 'sign-in' as const),
+    alreadyAuthenticated
+      .waitFor({ state: 'visible', timeout: 10_000 })
+      .then(() => 'authenticated' as const),
+  ])
+  if (target === 'authenticated') return
+
+  await emailInput.fill(email)
   await page.getByRole('textbox', { name: /^пароль$/i }).fill(password)
   await page.getByRole('button', { name: /^войти$/i }).click()
   await page.waitForURL(/\/(app|workspaces)/, { timeout: 30_000 })

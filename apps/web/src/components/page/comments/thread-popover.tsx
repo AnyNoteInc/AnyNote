@@ -1,6 +1,16 @@
 'use client'
 
-import { Box, Button, Paper, Stack, Typography } from '@repo/ui/components'
+import {
+  Box,
+  Button,
+  CheckRoundedIcon,
+  CloseIcon,
+  IconButton,
+  Paper,
+  Stack,
+  Tooltip,
+  Typography,
+} from '@repo/ui/components'
 
 import { CommentComposer } from './comment-composer'
 import type { UiThread } from './types'
@@ -11,9 +21,17 @@ type Props = {
   onResolve: () => void
   onReopen: () => void
   onDeleteComment: (commentId: string) => void
+  canDeleteComments?: boolean
 }
 
-export function ThreadCard({ thread, onReply, onResolve, onReopen, onDeleteComment }: Props) {
+export function ThreadCard({
+  thread,
+  onReply,
+  onResolve,
+  onReopen,
+  onDeleteComment,
+  canDeleteComments = true,
+}: Props) {
   return (
     <Paper sx={{ p: 1.5, width: 320, maxHeight: 440, overflow: 'auto' }}>
       <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
@@ -24,15 +42,19 @@ export function ThreadCard({ thread, onReply, onResolve, onReopen, onDeleteComme
           <Box key={c.id}>
             <Stack direction="row" justifyContent="space-between" alignItems="center">
               <Typography variant="subtitle2">{c.authorName}</Typography>
-              <Button
-                size="small"
-                color="error"
-                onClick={() => onDeleteComment(c.id)}
-                sx={{ minWidth: 0, px: 0.5 }}
-                aria-label="Удалить комментарий"
-              >
-                ×
-              </Button>
+              {canDeleteComments ? (
+                <Tooltip title="Удалить комментарий">
+                  <IconButton
+                    size="small"
+                    color="error"
+                    onClick={() => onDeleteComment(c.id)}
+                    aria-label="Удалить комментарий"
+                    sx={{ width: 32, height: 32, flexShrink: 0 }}
+                  >
+                    <CloseIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              ) : null}
             </Stack>
             <Typography variant="body2" sx={{ whiteSpace: 'pre-wrap' }}>
               {c.content.text}
@@ -50,6 +72,7 @@ export function ThreadCard({ thread, onReply, onResolve, onReopen, onDeleteComme
           </Button>
         ) : (
           <Button size="small" onClick={onResolve}>
+            <CheckRoundedIcon sx={{ mr: 0.5, fontSize: 18, color: 'success.main' }} />
             Решить
           </Button>
         )}

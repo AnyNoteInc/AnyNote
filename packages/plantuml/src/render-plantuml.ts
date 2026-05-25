@@ -1,4 +1,6 @@
-import type { ColorMode, RenderResult } from '@repo/diagram-board/render-types'
+import type { ColorMode, DiagramRenderAuth, RenderResult } from '@repo/diagram-board/render-types'
+
+export type PlantumlRenderAuth = DiagramRenderAuth
 
 /**
  * Render PlantUML source to SVG by POSTing to the same-origin proxy route
@@ -6,14 +8,19 @@ import type { ColorMode, RenderResult } from '@repo/diagram-board/render-types'
  * `id`/`mode` satisfy the DiagramRenderer contract but are unused — the server
  * renders the source as-is. Empty source short-circuits with no request.
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
-export async function renderPlantuml(_id: string, source: string, _mode: ColorMode): Promise<RenderResult> {
+export async function renderPlantuml(
+  _id: string,
+  source: string,
+  _mode: ColorMode,
+  auth?: DiagramRenderAuth,
+): Promise<RenderResult> {
   if (!source.trim()) return { ok: true, svg: '' }
   try {
     const res = await fetch('/api/plantuml/render', {
       method: 'POST',
+      credentials: 'include',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ source }),
+      body: JSON.stringify({ source, ...(auth?.shareId ? { shareId: auth.shareId } : {}) }),
     })
     return (await res.json()) as RenderResult
   } catch (err) {

@@ -4,8 +4,13 @@ export type ColorMode = PaletteMode
 
 export type RenderResult = { ok: true; svg: string } | { ok: false; error: string }
 
+export type DiagramRenderAuth = {
+  shareId?: string
+}
+
 export type DiagramRenderer = (
   id: string,
   source: string,
   mode: ColorMode,
+  auth?: DiagramRenderAuth,
 ) => Promise<RenderResult>

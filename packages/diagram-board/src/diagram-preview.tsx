@@ -12,16 +12,17 @@ import { TransformWrapper, TransformComponent, type ReactZoomPanPinchRef } from 
 import type * as Y from 'yjs'
 
 import { downloadFilename, svgStringToDataUrl, svgToPngBlob, triggerDownload } from './export'
-import type { ColorMode, DiagramRenderer } from './render-types'
+import type { ColorMode, DiagramRenderAuth, DiagramRenderer } from './render-types'
 
 type Props = {
   ytext: Y.Text
   mode: ColorMode
   render: DiagramRenderer
   idPrefix: string
+  renderAuth?: DiagramRenderAuth
 }
 
-export function DiagramPreview({ ytext, mode, render, idPrefix }: Props) {
+export function DiagramPreview({ ytext, mode, render, idPrefix, renderAuth }: Props) {
   const containerRef = useRef<HTMLDivElement>(null)
   const zoomRef = useRef<ReactZoomPanPinchRef>(null)
   const [error, setError] = useState<string | null>(null)
@@ -35,7 +36,7 @@ export function DiagramPreview({ ytext, mode, render, idPrefix }: Props) {
       lastSource.current = source
       const gen = ++genRef.current
       const id = `${idPrefix}-svg-${Math.random().toString(36).slice(2)}`
-      const result = await render(id, source, mode)
+      const result = await render(id, source, mode, renderAuth)
       if (genRef.current !== gen) return // superseded by a newer render
       if (result.ok) {
         setError(null)
@@ -45,7 +46,7 @@ export function DiagramPreview({ ytext, mode, render, idPrefix }: Props) {
         setError(result.error)
       }
     },
-    [mode, render, idPrefix],
+    [mode, render, idPrefix, renderAuth],
   )
 
   useEffect(() => {
