@@ -79,4 +79,39 @@ describe('ThreadCard', () => {
 
     expect(document.querySelector('[data-thread-card-id="thread-1"]')).not.toBeNull()
   })
+
+  it('reopens a resolved thread from the corner icon', async () => {
+    const actor = userEvent.setup()
+    const onReopen = vi.fn()
+
+    render(
+      <ThreadCard
+        thread={{ ...thread, resolvedAt: new Date('2026-05-25T10:00:00Z') }}
+        canDeleteComments
+        onReply={vi.fn()}
+        onResolve={vi.fn()}
+        onReopen={onReopen}
+        onDeleteComment={vi.fn()}
+      />,
+    )
+
+    await actor.click(screen.getByRole('button', { name: 'Открыть заново' }))
+    expect(onReopen).toHaveBeenCalledOnce()
+  })
+
+  it('shows the resolve affordance as an icon, with no visible text label', () => {
+    render(
+      <ThreadCard
+        thread={thread}
+        canDeleteComments
+        onReply={vi.fn()}
+        onResolve={vi.fn()}
+        onReopen={vi.fn()}
+        onDeleteComment={vi.fn()}
+      />,
+    )
+
+    // Resolve is now the top-right ✓ icon (accessible name only) — no bottom text button.
+    expect(screen.queryByText('Решить')).toBeNull()
+  })
 })

@@ -2,7 +2,6 @@
 
 import {
   Box,
-  Button,
   CheckRoundedIcon,
   CloseIcon,
   IconButton,
@@ -45,9 +44,30 @@ export function ThreadCard({
         boxShadow: active ? 2 : 0,
       }}
     >
-      <Typography variant="caption" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-        «{thread.quotedText}»
-      </Typography>
+      <Stack direction="row" alignItems="flex-start" justifyContent="space-between" spacing={1}>
+        <Typography
+          variant="caption"
+          color="text.secondary"
+          sx={{ fontStyle: 'italic', flex: 1, minWidth: 0 }}
+        >
+          «{thread.quotedText}»
+        </Typography>
+        <Tooltip title={thread.resolvedAt ? 'Открыть заново' : 'Решить'}>
+          <IconButton
+            size="small"
+            onClick={thread.resolvedAt ? onReopen : onResolve}
+            aria-label={thread.resolvedAt ? 'Открыть заново' : 'Решить'}
+            sx={{
+              width: 28,
+              height: 28,
+              flexShrink: 0,
+              color: thread.resolvedAt ? 'success.main' : 'text.secondary',
+            }}
+          >
+            <CheckRoundedIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      </Stack>
       <Stack spacing={1} sx={{ mt: 1 }}>
         {thread.comments.map((c) => (
           <Box key={c.id}>
@@ -75,18 +95,6 @@ export function ThreadCard({
       </Stack>
       <Box sx={{ mt: 1 }}>
         <CommentComposer onSubmit={onReply} />
-      </Box>
-      <Box sx={{ mt: 1, textAlign: 'right' }}>
-        {thread.resolvedAt ? (
-          <Button size="small" onClick={onReopen}>
-            Открыть заново
-          </Button>
-        ) : (
-          <Button size="small" onClick={onResolve}>
-            <CheckRoundedIcon sx={{ mr: 0.5, fontSize: 18, color: 'success.main' }} />
-            Решить
-          </Button>
-        )}
       </Box>
     </Paper>
   )
