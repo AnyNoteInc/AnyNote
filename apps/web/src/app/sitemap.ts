@@ -6,7 +6,7 @@ import { siteConfig } from '@/lib/seo/site-config'
 // Bump when public pages change meaningfully so crawlers come back. Static
 // dates (not new Date()) keep sitemap.xml stable across requests — crawlers
 // otherwise see every page claiming it just changed.
-const STATIC_PAGES_LAST_MODIFIED = new Date('2026-05-14')
+const STATIC_PAGES_LAST_MODIFIED = new Date('2026-05-26')
 
 export default function sitemap(): MetadataRoute.Sitemap {
   const base = siteConfig.url
@@ -23,6 +23,12 @@ export default function sitemap(): MetadataRoute.Sitemap {
       lastModified: STATIC_PAGES_LAST_MODIFIED,
       changeFrequency: 'monthly',
       priority: 0.9,
+    },
+    {
+      url: `${base}/changelog`,
+      lastModified: STATIC_PAGES_LAST_MODIFIED,
+      changeFrequency: 'weekly',
+      priority: 0.7,
     },
     {
       url: `${base}/terms`,
