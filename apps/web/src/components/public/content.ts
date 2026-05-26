@@ -4,6 +4,7 @@ export const publicFooterSections = [
     links: [
       { label: 'Возможности', href: '/#features' },
       { label: 'Тарифы', href: '/pricing' },
+      { label: 'Обновления', href: '/changelog' },
     ],
   },
   {
@@ -18,7 +19,10 @@ export const publicFooterSections = [
   },
 ] as const
 
-export const publicNavItems = [{ label: 'Цены', href: '/pricing' }] as const
+export const publicNavItems = [
+  { label: 'Цены', href: '/pricing' },
+  { label: 'Обновления', href: '/changelog' },
+] as const
 
 export const pricingCards = [
   {
