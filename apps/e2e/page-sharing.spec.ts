@@ -64,5 +64,15 @@ test('owner shares a TEXT page publicly; an anonymous visitor opens it read-only
   await expect(anonPage.getByText('Общий доступ')).toBeVisible({ timeout: 20_000 })
   await expect(anonPage.getByText('Только просмотр')).toBeVisible()
 
+  await anonPage.getByRole('button', { name: 'Комментарии', exact: true }).click()
+  const commentsSidebar = anonPage.locator('.comments-sidebar')
+  await expect(commentsSidebar).toBeVisible({ timeout: 10_000 })
+
+  const sidebarBox = await commentsSidebar.boundingBox()
+  const contentBox = await anonPage.locator('.share-page-content').boundingBox()
+  expect(sidebarBox).not.toBeNull()
+  expect(contentBox).not.toBeNull()
+  expect(sidebarBox!.y).toBeLessThan(contentBox!.y)
+
   await anon.close()
 })

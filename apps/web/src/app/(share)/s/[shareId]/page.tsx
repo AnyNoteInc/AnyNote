@@ -74,35 +74,35 @@ export default async function SharePage({ params }: { params: Promise<{ shareId:
       canDeleteComments={false}
       workspaceId={page.workspaceId}
     >
-      <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh', minHeight: 0 }}>
-        <Stack
-          direction="row"
-          alignItems="center"
-          spacing={1}
-          sx={{ px: 3, py: 1.5, borderBottom: 1, borderColor: 'divider' }}
-        >
-          {page.icon ? <span>{page.icon}</span> : null}
-          <Typography variant="subtitle1" sx={{ flex: 1 }} noWrap>
-            {page.title || 'Без названия'}
-          </Typography>
-          <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: 'text.secondary' }}>
-            <PublicIcon sx={{ fontSize: 18 }} />
-            <Typography variant="caption">Общий доступ</Typography>
-          </Stack>
-          {!editable && (
-            <Typography variant="caption" color="text.secondary">
-              Только просмотр
+      <Box sx={{ display: 'flex', height: '100vh', minHeight: 0 }}>
+        <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+          <Stack
+            direction="row"
+            alignItems="center"
+            spacing={1}
+            sx={{ px: 3, py: 1.5, borderBottom: 1, borderColor: 'divider' }}
+          >
+            {page.icon ? <span>{page.icon}</span> : null}
+            <Typography variant="subtitle1" sx={{ flex: 1 }} noWrap>
+              {page.title || 'Без названия'}
             </Typography>
-          )}
-          <CommentToggleButton />
-          {!session && (
-            <Button size="small" href={`/sign-in?redirect=/s/${shareId}`}>
-              Войти
-            </Button>
-          )}
-        </Stack>
-        <Box sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
-          <Box sx={{ flex: 1, minWidth: 0 }}>
+            <Stack direction="row" spacing={0.5} alignItems="center" sx={{ color: 'text.secondary' }}>
+              <PublicIcon sx={{ fontSize: 18 }} />
+              <Typography variant="caption">Общий доступ</Typography>
+            </Stack>
+            {!editable && (
+              <Typography variant="caption" color="text.secondary">
+                Только просмотр
+              </Typography>
+            )}
+            <CommentToggleButton />
+            {!session && (
+              <Button size="small" href={`/sign-in?redirect=/s/${shareId}`}>
+                Войти
+              </Button>
+            )}
+          </Stack>
+          <Box className="share-page-content" sx={{ flex: 1, minHeight: 0, minWidth: 0 }}>
             <SharePageClient
               shareId={shareId}
               page={{ id: page.id, type: page.type, contentYjs }}
@@ -111,8 +111,8 @@ export default async function SharePage({ params }: { params: Promise<{ shareId:
               editable={editable}
             />
           </Box>
-          <CommentsSidebar />
         </Box>
+        <CommentsSidebar />
       </Box>
     </PageCommentsProvider>
   )
