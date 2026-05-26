@@ -55,11 +55,14 @@ describe('page.addFavorite — appends at tail', () => {
   it('sets position = 0 when user has no existing favorites', async () => {
     accessMocks.assertPageAccess.mockResolvedValue({ id: PAGE_A, workspaceId: WS_ID, createdById: USER_ID })
     const upsert = vi.fn(async () => ({}))
+    const txFavorite = {
+      aggregate: vi.fn(async () => ({ _max: { position: null } })),
+      upsert,
+    }
     const prisma = {
-      favoritePage: {
-        aggregate: vi.fn(async () => ({ _max: { position: null } })),
-        upsert,
-      },
+      $transaction: vi.fn(async (fn: (tx: unknown) => unknown) =>
+        fn({ favoritePage: txFavorite }),
+      ),
     }
 
     await caller(ctx(prisma)).addFavorite({ pageId: PAGE_A })
@@ -72,11 +75,14 @@ describe('page.addFavorite — appends at tail', () => {
   it('sets position = max + 1 when favorites already exist', async () => {
     accessMocks.assertPageAccess.mockResolvedValue({ id: PAGE_A, workspaceId: WS_ID, createdById: USER_ID })
     const upsert = vi.fn(async () => ({}))
+    const txFavorite = {
+      aggregate: vi.fn(async () => ({ _max: { position: 4 } })),
+      upsert,
+    }
     const prisma = {
-      favoritePage: {
-        aggregate: vi.fn(async () => ({ _max: { position: 4 } })),
-        upsert,
-      },
+      $transaction: vi.fn(async (fn: (tx: unknown) => unknown) =>
+        fn({ favoritePage: txFavorite }),
+      ),
     }
 
     await caller(ctx(prisma)).addFavorite({ pageId: PAGE_A })

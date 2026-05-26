@@ -92,21 +92,24 @@ describe('soft-downgrade router guards', () => {
   })
 
   it('checks writable workspace before favorite writes by page id', async () => {
+    const txFavorite = {
+      aggregate: vi.fn(async () => ({ _max: { position: null } })),
+      upsert: vi.fn(async () => ({ userId: USER_ID, pageId: PAGE_ID })),
+    }
     const prisma = {
       page: {
         findFirst: vi.fn(async () => ({ id: PAGE_ID, workspaceId: WORKSPACE_ID })),
       },
-      favoritePage: {
-        aggregate: vi.fn(async () => ({ _max: { position: null } })),
-        upsert: vi.fn(async () => ({ userId: USER_ID, pageId: PAGE_ID })),
-      },
+      $transaction: vi.fn(async (callback: (client: { favoritePage: typeof txFavorite }) => unknown) =>
+        callback({ favoritePage: txFavorite }),
+      ),
     } as unknown as PrismaClient
 
     const caller = createCallerFactory(pageRouter)(baseContext(prisma))
     await caller.addFavorite({ pageId: PAGE_ID })
 
     expect(planMocks.requireWritableWorkspace).toHaveBeenCalledWith(WORKSPACE_ID)
-    expect(prisma.favoritePage.upsert).toHaveBeenCalled()
+    expect(txFavorite.upsert).toHaveBeenCalled()
   })
 
   it('checks writable workspace before workspace.rename writes', async () => {

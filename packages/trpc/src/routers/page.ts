@@ -643,16 +643,18 @@ export const pageRouter = router({
       const page = await assertPageAccess(ctx, input.pageId)
       await requireWritableWorkspace(page.workspaceId)
 
-      const maxResult = await ctx.prisma.favoritePage.aggregate({
-        where: { userId: ctx.user.id },
-        _max: { position: true },
-      })
-      const nextPosition = (maxResult._max.position ?? -1) + 1
+      return ctx.prisma.$transaction(async (tx) => {
+        const maxResult = await tx.favoritePage.aggregate({
+          where: { userId: ctx.user.id },
+          _max: { position: true },
+        })
+        const nextPosition = (maxResult._max.position ?? -1) + 1
 
-      return ctx.prisma.favoritePage.upsert({
-        where: { userId_pageId: { userId: ctx.user.id, pageId: input.pageId } },
-        create: { userId: ctx.user.id, pageId: input.pageId, position: nextPosition },
-        update: {},
+        return tx.favoritePage.upsert({
+          where: { userId_pageId: { userId: ctx.user.id, pageId: input.pageId } },
+          create: { userId: ctx.user.id, pageId: input.pageId, position: nextPosition },
+          update: {},
+        })
       })
     }),
 
