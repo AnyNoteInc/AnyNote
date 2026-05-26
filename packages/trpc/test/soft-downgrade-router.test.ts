@@ -56,9 +56,11 @@ describe('soft-downgrade router guards', () => {
   it('checks writable workspace before page.create writes', async () => {
     const tx = {
       page: {
-        create: vi.fn(async () => ({ id: PAGE_ID })),
-        findFirst: vi.fn(async () => null),
+        create: vi.fn(async () => ({ id: PAGE_ID, workspaceId: WORKSPACE_ID, parentId: null, type: 'TEXT' })),
+        findMany: vi.fn(async () => []), // no siblings — tail insert, no update needed
+        update: vi.fn(async () => ({})),
       },
+      outboxEvent: { create: vi.fn(async () => ({})) },
     }
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => ({ role: 'OWNER' })) },

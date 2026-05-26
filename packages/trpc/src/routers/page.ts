@@ -115,21 +115,28 @@ export const pageRouter = router({
           },
         })
 
-        // Insert at start of linked list: find current first sibling and point it to newPage
-        const existingFirst = await tx.page.findFirst({
+        // Insert at tail of linked list: find the sibling whose id is not
+        // referenced as prevPageId by any other sibling (= the last one).
+        const siblings = await tx.page.findMany({
           where: {
             workspaceId: input.workspaceId,
             parentId: input.parentId,
-            prevPageId: null,
             id: { not: newPage.id },
             deletedAt: null,
           },
+          select: { id: true, prevPageId: true },
         })
-        if (existingFirst) {
-          await tx.page.update({
-            where: { id: existingFirst.id },
-            data: { prevPageId: newPage.id },
-          })
+        if (siblings.length > 0) {
+          const prevPageIds = new Set(
+            siblings.map((s) => s.prevPageId).filter((id): id is string => id !== null),
+          )
+          const tail = siblings.find((s) => !prevPageIds.has(s.id))
+          if (tail) {
+            await tx.page.update({
+              where: { id: newPage.id },
+              data: { prevPageId: tail.id },
+            })
+          }
         }
 
         await enqueueOutboxEvent(tx, {
