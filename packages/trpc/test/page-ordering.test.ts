@@ -32,6 +32,7 @@ const WS_ID = '11111111-1111-1111-1111-111111111111'
 const USER_ID = '22222222-2222-2222-2222-222222222222'
 const PAGE_A = '33333333-3333-3333-3333-333333333333'
 const PAGE_B = '44444444-4444-4444-4444-444444444444'
+const PAGE_C = '55555555-5555-5555-5555-555555555555'
 const PAGE_NEW = '66666666-6666-6666-6666-666666666666'
 
 function ctx(prisma: unknown) {
@@ -172,5 +173,150 @@ describe('page.create — tail insert', () => {
         data: { prevPageId: PAGE_B },
       }),
     )
+  })
+})
+
+// ── Tests: page.reorder ──────────────────────────────────────────────────────
+
+describe('page.reorder', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('reorders siblings: detaches from old position and inserts at new', async () => {
+    // List: A → B → C. Move B to after C (newPrevPageId = PAGE_C).
+    const txPage = {
+      findFirst: vi.fn()
+        .mockResolvedValueOnce({ id: PAGE_C, prevPageId: PAGE_B }) // nextSibling of B = C
+        .mockResolvedValueOnce(null), // no page after PAGE_C in new position
+      update: vi.fn(async () => ({})),
+    }
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn(async () => ({ role: 'MEMBER' })) },
+      workspace: { findUnique: vi.fn(async () => ({ plan: { features: [] } })) },
+      page: {
+        findFirst: vi.fn(async () => ({
+          id: PAGE_B, workspaceId: WS_ID, parentId: null, prevPageId: PAGE_A, deletedAt: null,
+        })),
+        findMany: vi.fn(async () => []),
+      },
+      $transaction: vi.fn(async (fn: (tx: unknown) => unknown) =>
+        fn({ page: txPage, outboxEvent: { create: vi.fn(async () => ({})) } }),
+      ),
+    }
+
+    await caller(ctx(prisma)).reorder({
+      pageId: PAGE_B,
+      newParentId: null,
+      newPrevPageId: PAGE_C,
+    })
+
+    // Step 1: detach — C's prevPageId should be set to B's old prevPageId (PAGE_A)
+    expect(txPage.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: PAGE_C },
+        data: { prevPageId: PAGE_A },
+      }),
+    )
+    // Step 3: update moved page — B gets prevPageId = PAGE_C
+    expect(txPage.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: PAGE_B },
+        data: expect.objectContaining({ prevPageId: PAGE_C }),
+      }),
+    )
+  })
+
+  it('changes parent when newParentId differs', async () => {
+    const PARENT_ID = '77777777-7777-7777-7777-777777777777'
+    const txPage = {
+      findFirst: vi.fn().mockResolvedValue(null),
+      update: vi.fn(async () => ({})),
+    }
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn(async () => ({ role: 'MEMBER' })) },
+      workspace: { findUnique: vi.fn(async () => ({ plan: { features: [] } })) },
+      page: {
+        findFirst: vi.fn(async () => ({
+          id: PAGE_B, workspaceId: WS_ID, parentId: null, prevPageId: null, deletedAt: null,
+        })),
+        findMany: vi.fn(async () => []),
+      },
+      $transaction: vi.fn(async (fn: (tx: unknown) => unknown) =>
+        fn({ page: txPage, outboxEvent: { create: vi.fn(async () => ({})) } }),
+      ),
+    }
+
+    await caller(ctx(prisma)).reorder({
+      pageId: PAGE_B,
+      newParentId: PARENT_ID,
+      newPrevPageId: null,
+    })
+
+    expect(txPage.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: PAGE_B },
+        data: expect.objectContaining({ parentId: PARENT_ID }),
+      }),
+    )
+  })
+
+  it('rejects non-member', async () => {
+    accessMocks.assertWorkspaceMember.mockRejectedValueOnce(
+      new Error('Нет доступа к рабочему пространству'),
+    )
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn(async () => null) },
+      workspace: { findUnique: vi.fn(async () => ({ plan: { features: [] } })) },
+      page: {
+        findFirst: vi.fn(async () => ({
+          id: PAGE_B, workspaceId: WS_ID, parentId: null, prevPageId: null, deletedAt: null,
+        })),
+        findMany: vi.fn(async () => []),
+      },
+    }
+
+    await expect(
+      caller(ctx(prisma)).reorder({ pageId: PAGE_B, newParentId: null, newPrevPageId: null }),
+    ).rejects.toThrow()
+  })
+
+  it('rejects cycle: moving page into its own descendant', async () => {
+    const CHILD_ID = '88888888-8888-8888-8888-888888888888'
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn(async () => ({ role: 'MEMBER' })) },
+      workspace: { findUnique: vi.fn(async () => ({ plan: { features: [] } })) },
+      page: {
+        findFirst: vi.fn(async () => ({
+          id: PAGE_B, workspaceId: WS_ID, parentId: null, prevPageId: null, deletedAt: null,
+        })),
+        findMany: vi.fn(async () => [{ id: CHILD_ID }]),
+      },
+    }
+
+    await expect(
+      caller(ctx(prisma)).reorder({ pageId: PAGE_B, newParentId: CHILD_ID, newPrevPageId: null }),
+    ).rejects.toThrow(/потомка/)
+  })
+
+  it('is a no-op when position unchanged', async () => {
+    const txFn = vi.fn()
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn(async () => ({ role: 'MEMBER' })) },
+      workspace: { findUnique: vi.fn(async () => ({ plan: { features: [] } })) },
+      page: {
+        findFirst: vi.fn(async () => ({
+          id: PAGE_B, workspaceId: WS_ID, parentId: null, prevPageId: PAGE_A, deletedAt: null,
+        })),
+        findMany: vi.fn(async () => []),
+      },
+      $transaction: txFn,
+    }
+
+    await caller(ctx(prisma)).reorder({
+      pageId: PAGE_B,
+      newParentId: null,
+      newPrevPageId: PAGE_A,
+    })
+
+    expect(txFn).not.toHaveBeenCalled()
   })
 })

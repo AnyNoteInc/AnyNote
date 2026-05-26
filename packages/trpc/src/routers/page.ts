@@ -637,6 +637,100 @@ export const pageRouter = router({
       })
     }),
 
+  reorder: protectedProcedure
+    .input(
+      z.object({
+        pageId: z.string().uuid(),
+        newParentId: z.string().uuid().nullable(),
+        newPrevPageId: z.string().uuid().nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (input.newPrevPageId === input.pageId) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Страница не может ссылаться на себя' })
+      }
+
+      const page = await ctx.prisma.page.findFirst({
+        where: { id: input.pageId, deletedAt: null },
+      })
+      if (!page) throw new TRPCError({ code: 'NOT_FOUND', message: 'Страница не найдена' })
+
+      await assertWorkspaceMember(ctx, page.workspaceId)
+      await requireWritableWorkspace(page.workspaceId)
+
+      if (page.parentId === input.newParentId && page.prevPageId === input.newPrevPageId) {
+        return { id: input.pageId }
+      }
+
+      // Cycle check: newParentId must not be a descendant of pageId
+      if (input.newParentId !== null) {
+        let queue = [input.pageId]
+        while (queue.length > 0) {
+          const children = await ctx.prisma.page.findMany({
+            where: { parentId: { in: queue }, deletedAt: null },
+            select: { id: true },
+          })
+          const childIds = children.map((c) => c.id)
+          if (childIds.includes(input.newParentId)) {
+            throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: 'Нельзя вложить страницу в собственного потомка',
+            })
+          }
+          queue = childIds
+        }
+      }
+
+      return ctx.prisma.$transaction(async (tx) => {
+        // Step 1: Detach — fix next sibling's back-pointer
+        const nextSibling = await tx.page.findFirst({
+          where: { prevPageId: input.pageId, deletedAt: null },
+        })
+        if (nextSibling) {
+          await tx.page.update({
+            where: { id: nextSibling.id },
+            data: { prevPageId: page.prevPageId },
+          })
+        }
+
+        // Step 2: Plug the gap at insert point
+        const pageAtInsertPoint = await tx.page.findFirst({
+          where: {
+            prevPageId: input.newPrevPageId,
+            workspaceId: page.workspaceId,
+            parentId: input.newParentId,
+            deletedAt: null,
+            id: { not: input.pageId },
+          },
+        })
+        if (pageAtInsertPoint) {
+          await tx.page.update({
+            where: { id: pageAtInsertPoint.id },
+            data: { prevPageId: input.pageId },
+          })
+        }
+
+        // Step 3: Update the moved page
+        await tx.page.update({
+          where: { id: input.pageId },
+          data: {
+            parentId: input.newParentId,
+            prevPageId: input.newPrevPageId,
+            updatedById: ctx.user.id,
+          },
+        })
+
+        await enqueueOutboxEvent(tx, {
+          eventType: 'page.upserted',
+          aggregateType: 'page',
+          aggregateId: input.pageId,
+          workspaceId: page.workspaceId,
+        })
+
+        return { id: input.pageId }
+      })
+    }),
+
   addFavorite: protectedProcedure
     .input(z.object({ pageId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
