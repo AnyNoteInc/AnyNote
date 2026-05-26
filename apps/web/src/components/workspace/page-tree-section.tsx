@@ -2,13 +2,28 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState, type MouseEvent } from 'react'
+import { useCallback, useMemo, useState, type MouseEvent } from 'react'
+import {
+  DndContext,
+  DragOverlay,
+  PointerSensor,
+  closestCenter,
+  useSensor,
+  useSensors,
+  type DragEndEvent,
+  type DragStartEvent,
+  type DragOverEvent,
+} from '@dnd-kit/core'
+import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import {
   AccountTreeIcon,
+  AddIcon,
   Box,
   BrushIcon,
   ChevronRightIcon,
   DescriptionIcon,
+  DragIndicatorIcon,
   IconButton,
   ListItemIcon,
   ListItemText,
@@ -17,14 +32,13 @@ import {
   MoreHorizIcon,
   SchemaIcon,
   Typography,
-  AddIcon,
   ViewKanbanIcon,
 } from '@repo/ui/components'
 import type { PageType } from '@repo/db'
 import { trpc } from '@/trpc/client'
 import { PageContextMenu } from './page-context-menu'
 import { MovePageDialog } from './move-page-dialog'
-import { type PageItem, orderSiblings } from './types'
+import { type FlatPageItem, type PageItem, flattenTree } from './types'
 
 type CreatablePageType = Extract<
   PageType,
@@ -192,18 +206,39 @@ function CreatePageMenu({
   )
 }
 
-function PageTreeItem({
-  page,
-  pages,
+function DropLine({ depth }: { depth: number }) {
+  return (
+    <Box
+      sx={{
+        position: 'absolute',
+        left: 4 + depth * 24,
+        right: 4,
+        height: 2,
+        borderRadius: 1,
+        bgcolor: 'primary.main',
+        pointerEvents: 'none',
+        zIndex: 10,
+      }}
+    />
+  )
+}
+
+function SortablePageRow({
+  item,
   workspaceId,
+  pages,
   favoritePageIds,
-  depth,
+  showDropBefore,
+  showDropAfter,
+  onToggleCollapse,
 }: {
-  page: PageItem
-  pages: PageItem[]
+  item: FlatPageItem
   workspaceId: string
+  pages: PageItem[]
   favoritePageIds: Set<string>
-  depth: number
+  showDropBefore: boolean
+  showDropAfter: boolean
+  onToggleCollapse: (id: string) => void
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -212,9 +247,9 @@ function PageTreeItem({
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
   const [createAnchor, setCreateAnchor] = useState<HTMLElement | null>(null)
   const [moveOpen, setMoveOpen] = useState(false)
-  const [expanded, setExpanded] = useState(true)
 
-  const isActive = pathname === `/workspaces/${workspaceId}/pages/${page.id}`
+  const isCurrentPage = pathname === `/workspaces/${workspaceId}/pages/${item.id}`
+  const hasChildren = pages.some((p) => p.parentId === item.id)
 
   const createPage = trpc.page.create.useMutation({
     onSuccess: async (data) => {
@@ -223,54 +258,90 @@ function PageTreeItem({
     },
   })
 
-  const children = orderSiblings(pages.filter((p) => p.parentId === page.id))
+  const {
+    attributes,
+    listeners,
+    setNodeRef,
+    setActivatorNodeRef,
+    transform,
+    transition,
+    isDragging,
+  } = useSortable({ id: item.id })
+
+  const style = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    position: 'relative' as const,
+  }
 
   return (
-    <>
+    <Box ref={setNodeRef} style={style} data-page-row={item.id}>
+      {showDropBefore && <DropLine depth={item.depth} />}
       <Box
         sx={{
           display: 'flex',
           alignItems: 'center',
           pr: 0.5,
-          pl: 0.5 + depth * 1.5,
+          pl: 0.5 + item.depth * 1.5,
           borderRadius: 0.75,
-          bgcolor: isActive ? 'action.selected' : 'transparent',
-          '&:hover': { bgcolor: isActive ? 'action.selected' : 'action.hover' },
+          bgcolor: isCurrentPage ? 'action.selected' : 'transparent',
+          '&:hover': { bgcolor: isCurrentPage ? 'action.selected' : 'action.hover' },
           '&:hover .page-actions': { visibility: 'visible' },
+          '&:hover .drag-handle': { visibility: 'visible' },
         }}
       >
-        {children.length > 0 ? (
-          <IconButton size="small" onClick={() => setExpanded((v) => !v)} sx={{ p: 0, mr: 0.25 }}>
+        <Box
+          ref={setActivatorNodeRef}
+          className="drag-handle"
+          {...attributes}
+          {...listeners}
+          data-drag-handle={item.id}
+          sx={{
+            visibility: 'hidden',
+            cursor: 'grab',
+            display: 'flex',
+            alignItems: 'center',
+            color: 'text.disabled',
+            mr: 0.25,
+            flexShrink: 0,
+            '&:active': { cursor: 'grabbing' },
+          }}
+        >
+          <DragIndicatorIcon sx={{ fontSize: 14 }} />
+        </Box>
+
+        {hasChildren ? (
+          <IconButton size="small" onClick={() => onToggleCollapse(item.id)} sx={{ p: 0, mr: 0.25 }}>
             <ChevronRightIcon
               sx={{
                 fontSize: 16,
-                transform: expanded ? 'rotate(90deg)' : 'none',
+                transform: item.collapsed ? 'none' : 'rotate(90deg)',
                 transition: 'transform 0.15s',
               }}
             />
           </IconButton>
         ) : null}
+
         <Link
-          href={`/workspaces/${workspaceId}/pages/${page.id}`}
+          href={`/workspaces/${workspaceId}/pages/${item.id}`}
           onClick={(e) => e.stopPropagation()}
           style={{ textDecoration: 'none', flex: 1, minWidth: 0, display: 'flex', gap: 4 }}
         >
-          {page.icon ? (
+          {item.icon ? (
             <Typography variant="body2" component="span" sx={{ flexShrink: 0, lineHeight: '28px' }}>
-              {page.icon}
+              {item.icon}
             </Typography>
           ) : null}
           <Typography
             variant="body2"
             noWrap
-            sx={{
-              py: 0.5,
-              color: isActive ? 'text.primary' : 'text.secondary',
-            }}
+            sx={{ py: 0.5, color: isCurrentPage ? 'text.primary' : 'text.secondary' }}
           >
-            {page.title ?? 'Новая страница'}
+            {item.title ?? 'Новая страница'}
           </Typography>
         </Link>
+
         <Box
           className="page-actions"
           sx={{
@@ -301,61 +372,51 @@ function PageTreeItem({
           </IconButton>
         </Box>
       </Box>
-
-      {expanded &&
-        children.map((child) => (
-          <PageTreeItem
-            key={child.id}
-            page={child}
-            pages={pages}
-            workspaceId={workspaceId}
-            favoritePageIds={favoritePageIds}
-            depth={depth + 1}
-          />
-        ))}
+      {showDropAfter && <DropLine depth={item.depth} />}
 
       <CreatePageMenu
         anchorEl={createAnchor}
         onClose={() => setCreateAnchor(null)}
-        onCreate={(type) =>
-          createPage.mutate({
-            workspaceId,
-            parentId: page.id,
-            type,
-          })
-        }
+        onCreate={(type) => createPage.mutate({ workspaceId, parentId: item.id, type })}
       />
-
       <PageContextMenu
         anchorEl={menuAnchor}
         onClose={() => setMenuAnchor(null)}
-        page={page}
+        page={item}
         workspaceId={workspaceId}
-        isFavorite={favoritePageIds.has(page.id)}
+        isFavorite={favoritePageIds.has(item.id)}
         onOpenMoveDialog={() => {
           setMenuAnchor(null)
           setMoveOpen(true)
         }}
       />
-
       <MovePageDialog
         open={moveOpen}
         onClose={() => setMoveOpen(false)}
-        page={page}
+        page={item}
         pages={pages}
         workspaceId={workspaceId}
       />
-    </>
+    </Box>
   )
 }
 
 export function PageTreeSection({ workspaceId, pages: initialPages, favoritePageIds }: Props) {
   const [createAnchor, setCreateAnchor] = useState<HTMLElement | null>(null)
+  const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set())
+  const [activeId, setActiveId] = useState<string | null>(null)
+  const [overId, setOverId] = useState<string | null>(null)
   const router = useRouter()
   const utils = trpc.useUtils()
 
   const pagesQuery = trpc.page.listByWorkspace.useQuery({ workspaceId })
   const pages = pagesQuery.data ?? initialPages
+
+  const reorder = trpc.page.reorder.useMutation({
+    onError: () => {
+      utils.page.listByWorkspace.invalidate({ workspaceId })
+    },
+  })
 
   const createPage = trpc.page.create.useMutation({
     onSuccess: async (data) => {
@@ -364,7 +425,78 @@ export function PageTreeSection({ workspaceId, pages: initialPages, favoritePage
     },
   })
 
-  const rootPages = orderSiblings(pages.filter((p) => p.parentId === null))
+  const flatItems = useMemo(
+    () => flattenTree(pages, null, 0, collapsedIds),
+    [pages, collapsedIds],
+  )
+
+  const toggleCollapse = useCallback((id: string) => {
+    setCollapsedIds((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }, [])
+
+  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
+
+  function onDragStart({ active }: DragStartEvent) {
+    setActiveId(active.id as string)
+  }
+
+  function onDragOver({ over }: DragOverEvent) {
+    setOverId((over?.id as string | undefined) ?? null)
+  }
+
+  function onDragEnd({ active, over }: DragEndEvent) {
+    setActiveId(null)
+    setOverId(null)
+
+    if (!over || active.id === over.id) return
+
+    const activeIdx = flatItems.findIndex((i) => i.id === active.id)
+    const overIdx = flatItems.findIndex((i) => i.id === over.id)
+    if (activeIdx === -1 || overIdx === -1) return
+
+    const overItem = flatItems[overIdx]
+    const draggedActiveId = active.id as string
+    const draggedPage = pages.find((p) => p.id === draggedActiveId)
+    if (!draggedPage || !overItem) return
+
+    // Dropping before overItem if dragging upward (activeIdx > overIdx), else after
+    const droppingBefore = activeIdx > overIdx
+    const newParentId = overItem.parentId
+    const newPrevPageId = droppingBefore ? overItem.prevPageId : overItem.id
+
+    if (draggedPage.parentId === newParentId && draggedPage.prevPageId === newPrevPageId) return
+
+    utils.page.listByWorkspace.setData({ workspaceId }, (old) => {
+      if (!old) return old
+      const currentNextSiblingId = old.find((p) => p.prevPageId === draggedActiveId)?.id
+      const pageAtInsertPointId = old.find(
+        (p) =>
+          p.prevPageId === newPrevPageId &&
+          p.parentId === newParentId &&
+          p.id !== draggedActiveId,
+      )?.id
+      return old.map((p) => {
+        if (p.id === draggedActiveId)
+          return { ...p, parentId: newParentId, prevPageId: newPrevPageId }
+        if (currentNextSiblingId && p.id === currentNextSiblingId)
+          return { ...p, prevPageId: draggedPage.prevPageId }
+        if (pageAtInsertPointId && p.id === pageAtInsertPointId)
+          return { ...p, prevPageId: draggedActiveId }
+        return p
+      })
+    })
+
+    reorder.mutate({ pageId: draggedActiveId, newParentId, newPrevPageId })
+  }
+
+  const activeItem = activeId ? (flatItems.find((i) => i.id === activeId) ?? null) : null
+  const activeIdx = activeId ? flatItems.findIndex((i) => i.id === activeId) : -1
+  const overIdx = overId ? flatItems.findIndex((i) => i.id === overId) : -1
 
   return (
     <Box sx={{ flex: 1, minHeight: 0, display: 'flex', flexDirection: 'column', gap: 1 }}>
@@ -390,27 +522,55 @@ export function PageTreeSection({ workspaceId, pages: initialPages, favoritePage
         <CreatePageMenu
           anchorEl={createAnchor}
           onClose={() => setCreateAnchor(null)}
-          onCreate={(type) =>
-            createPage.mutate({
-              workspaceId,
-              parentId: null,
-              type,
-            })
-          }
+          onCreate={(type) => createPage.mutate({ workspaceId, parentId: null, type })}
         />
       </Box>
 
       <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-        {rootPages.map((page) => (
-          <PageTreeItem
-            key={page.id}
-            page={page}
-            pages={pages}
-            workspaceId={workspaceId}
-            favoritePageIds={favoritePageIds}
-            depth={0}
-          />
-        ))}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={onDragStart}
+          onDragOver={onDragOver}
+          onDragEnd={onDragEnd}
+        >
+          <SortableContext
+            items={flatItems.map((i) => i.id)}
+            strategy={verticalListSortingStrategy}
+          >
+            {flatItems.map((item, idx) => (
+              <SortablePageRow
+                key={item.id}
+                item={item}
+                workspaceId={workspaceId}
+                pages={pages}
+                favoritePageIds={favoritePageIds}
+                showDropBefore={activeId !== null && overIdx === idx && activeIdx > idx}
+                showDropAfter={activeId !== null && overIdx === idx && activeIdx < idx}
+                onToggleCollapse={toggleCollapse}
+              />
+            ))}
+          </SortableContext>
+          <DragOverlay>
+            {activeItem ? (
+              <Box
+                sx={{
+                  pl: 0.5 + activeItem.depth * 1.5,
+                  py: 0.5,
+                  borderRadius: 0.75,
+                  bgcolor: 'background.paper',
+                  boxShadow: 3,
+                  opacity: 0.9,
+                }}
+              >
+                <Typography variant="body2" noWrap sx={{ color: 'text.secondary' }}>
+                  {activeItem.icon ? `${activeItem.icon} ` : ''}
+                  {activeItem.title ?? 'Новая страница'}
+                </Typography>
+              </Box>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
       </Box>
     </Box>
   )
