@@ -320,3 +320,54 @@ describe('page.reorder', () => {
     expect(txFn).not.toHaveBeenCalled()
   })
 })
+
+// ── Tests: page.reorderFavorites ─────────────────────────────────────────────
+
+describe('page.reorderFavorites', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('updates position = index for each id in orderedIds', async () => {
+    const updateMany = vi.fn(async () => ({}))
+    const prisma = {
+      favoritePage: { updateMany },
+      $transaction: vi.fn(async (fns: unknown[]) =>
+        Promise.all(fns as Array<Promise<unknown>>),
+      ),
+    }
+
+    await caller(ctx(prisma)).reorderFavorites({
+      workspaceId: WS_ID,
+      orderedIds: [PAGE_C, PAGE_A, PAGE_B],
+    })
+
+    expect(updateMany).toHaveBeenCalledTimes(3)
+    expect(updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ pageId: PAGE_C, userId: USER_ID }),
+        data: { position: 0 },
+      }),
+    )
+    expect(updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ pageId: PAGE_A, userId: USER_ID }),
+        data: { position: 1 },
+      }),
+    )
+    expect(updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ pageId: PAGE_B, userId: USER_ID }),
+        data: { position: 2 },
+      }),
+    )
+  })
+
+  it('rejects non-member', async () => {
+    accessMocks.assertWorkspaceMember.mockRejectedValueOnce(
+      new Error('Not a workspace member'),
+    )
+    const prisma = { favoritePage: { updateMany: vi.fn() } }
+    await expect(
+      caller(ctx(prisma)).reorderFavorites({ workspaceId: WS_ID, orderedIds: [PAGE_A] }),
+    ).rejects.toThrow()
+  })
+})

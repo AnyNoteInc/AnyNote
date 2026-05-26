@@ -763,6 +763,32 @@ export const pageRouter = router({
       return { pageId: input.pageId }
     }),
 
+  reorderFavorites: protectedProcedure
+    .input(
+      z.object({
+        workspaceId: z.string().uuid(),
+        orderedIds: z.array(z.string().uuid()),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertWorkspaceMember(ctx, input.workspaceId)
+
+      await ctx.prisma.$transaction(
+        input.orderedIds.map((pageId, index) =>
+          ctx.prisma.favoritePage.updateMany({
+            where: {
+              userId: ctx.user.id,
+              pageId,
+              page: { workspaceId: input.workspaceId },
+            },
+            data: { position: index },
+          }),
+        ),
+      )
+
+      return { ok: true }
+    }),
+
   listFavorites: protectedProcedure
     .input(z.object({ workspaceId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
