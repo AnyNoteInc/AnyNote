@@ -79,6 +79,7 @@ export { default as Badge, type BadgeProps } from '@mui/material/Badge'
 
 export { default as CloseIcon } from '@mui/icons-material/Close'
 export { default as CheckRoundedIcon } from '@mui/icons-material/CheckRounded'
+export { default as RedoIcon } from '@mui/icons-material/Redo'
 export { default as SendRoundedIcon } from '@mui/icons-material/SendRounded'
 export { default as SearchIcon } from '@mui/icons-material/Search'
 export { default as HistoryIcon } from '@mui/icons-material/History'

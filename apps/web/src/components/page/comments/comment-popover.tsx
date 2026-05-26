@@ -96,8 +96,14 @@ export function CommentPopover() {
               active
               canDeleteComments={canDeleteComments}
               onReply={(c) => addComment(thread.id, c)}
-              onResolve={() => resolveThread(thread.id)}
-              onReopen={() => reopenThread(thread.id)}
+              onResolve={() => {
+                resolveThread(thread.id)
+                closePopover()
+              }}
+              onReopen={() => {
+                reopenThread(thread.id)
+                closePopover()
+              }}
               onDeleteComment={deleteComment}
             />
           ) : null}

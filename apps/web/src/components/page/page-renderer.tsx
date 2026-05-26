@@ -35,6 +35,7 @@ import { useReminderSync } from './use-reminder-sync'
 import { useWorkspaceMentionSearch } from './comments/use-mention-search'
 import { usePageCommentsContext } from './comments/comments-context'
 import { CommentPopover } from './comments/comment-popover'
+import { COMMENTS_SIDEBAR_WIDTH } from './comments/comments-sidebar'
 
 const AnyNoteEditor = dynamic(() => import('@repo/editor').then((m) => m.AnyNoteEditor), {
   ssr: false,
@@ -116,7 +117,7 @@ export function PageRenderer({
 
   const trpcUtils = trpc.useUtils()
   const pageEditor = usePageEditor()
-  const { anchors, canComment, startNewThread, openThreadPopover, activeAnchor } =
+  const { anchors, canComment, startNewThread, openThreadPopover, activeAnchor, panelOpen } =
     usePageCommentsContext()
   const pagesQuery = trpc.page.listByWorkspace.useQuery({ workspaceId })
   const editorRef = useRef<Editor | null>(null)
@@ -490,7 +491,11 @@ export function PageRenderer({
             onDelete={() => deleteReminder(reminderUI.initial.id)}
           />
         )}
-        <EditorOutline editor={editor} mode={outlineMode} />
+        <EditorOutline
+          editor={editor}
+          mode={outlineMode}
+          rightOffset={panelOpen ? COMMENTS_SIDEBAR_WIDTH : 0}
+        />
         <BlockMoveDialog
           open={movePos != null}
           onClose={handleCloseMove}

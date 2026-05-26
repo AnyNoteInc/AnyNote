@@ -158,32 +158,34 @@ export function WorkspaceLayoutClient({
   // can read the editor via usePageEditor) and the editor content (so PageRenderer
   // can register the editor via setEditor).
   const mainContent = (
-    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100vh' }}>
-      <WorkspaceToolbar
-        breadcrumbs={breadcrumbs}
-        sidebarHidden={mode === 'hidden'}
-        onOpenSidebar={() => setMode('full')}
-        sidebarContent={<WorkspaceSidebar {...sidebarProps} />}
-        rightSlot={
-          activeChatId ? (
-            <ChatActionsToolbar chatId={activeChatId} workspaceId={workspace.id} />
-          ) : activePageId ? (
-            <PageActionsToolbar pageId={activePageId} workspaceId={workspace.id} />
-          ) : null
-        }
-      />
-      <Box sx={{ flex: 1, minHeight: 0, display: 'flex' }}>
+    <Box sx={{ display: 'flex', height: '100vh' }}>
+      {/* Toolbar + content live in a column; the comments sidebar is a sibling
+          full-height column on the right (starts at the top, beside the toolbar). */}
+      <Box sx={{ flex: 1, minWidth: 0, minHeight: 0, display: 'flex', flexDirection: 'column' }}>
+        <WorkspaceToolbar
+          breadcrumbs={breadcrumbs}
+          sidebarHidden={mode === 'hidden'}
+          onOpenSidebar={() => setMode('full')}
+          sidebarContent={<WorkspaceSidebar {...sidebarProps} />}
+          rightSlot={
+            activeChatId ? (
+              <ChatActionsToolbar chatId={activeChatId} workspaceId={workspace.id} />
+            ) : activePageId ? (
+              <PageActionsToolbar pageId={activePageId} workspaceId={workspace.id} />
+            ) : null
+          }
+        />
         <Box
           component="main"
-          sx={{ flex: 1, minWidth: 0, overflowY: 'auto', overflowX: 'hidden' }}
+          sx={{ flex: 1, minHeight: 0, minWidth: 0, overflowY: 'auto', overflowX: 'hidden' }}
           data-full-width={fullWidth ? 'true' : 'false'}
           data-outline-mode={activePageId ? outlineMode : undefined}
           className="page-content-scroll"
         >
           {children}
         </Box>
-        {activePageId ? <CommentsSidebar /> : null}
       </Box>
+      {activePageId ? <CommentsSidebar /> : null}
     </Box>
   )
 

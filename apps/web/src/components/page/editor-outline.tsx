@@ -68,9 +68,12 @@ function getScrollContainer(editor: Editor): HTMLElement | null {
 type Props = {
   editor: Editor | null
   mode: OutlineMode
+  // Extra px to shift the outline left from the right edge (e.g. when the
+  // comments sidebar is open, so the fixed outline clears the panel).
+  rightOffset?: number
 }
 
-export function EditorOutline({ editor, mode }: Props) {
+export function EditorOutline({ editor, mode, rightOffset = 0 }: Props) {
   const [headings, setHeadings] = useState<Heading[]>([])
   const [activeIndex, setActiveIndex] = useState(0)
   const scrollContainerRef = useRef<HTMLElement | null>(null)
@@ -197,7 +200,8 @@ export function EditorOutline({ editor, mode }: Props) {
         sx={{
           position: 'fixed',
           top: 80,
-          right: 16,
+          right: 16 + rightOffset,
+          transition: 'right 0.15s ease',
           zIndex: 5,
           display: { xs: 'none', md: 'flex' },
           flexDirection: 'column',
@@ -289,7 +293,8 @@ export function EditorOutline({ editor, mode }: Props) {
       sx={{
         position: 'fixed',
         top: 80,
-        right: 24,
+        right: 24 + rightOffset,
+        transition: 'right 0.15s ease',
         width: 248,
         maxHeight: 'calc(100vh - 96px)',
         overflowY: 'auto',

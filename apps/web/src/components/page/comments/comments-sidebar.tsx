@@ -7,6 +7,8 @@ import { Box, Button, CloseIcon, IconButton, Stack, Typography } from '@repo/ui/
 import { usePageCommentsContext } from './comments-context'
 import { ThreadCard } from './thread-card'
 
+export const COMMENTS_SIDEBAR_WIDTH = 320
+
 export function CommentsSidebar() {
   const {
     enabled,
@@ -47,8 +49,11 @@ export function CommentsSidebar() {
       ref={scrollRef}
       className="comments-sidebar"
       sx={{
-        width: 320,
+        width: COMMENTS_SIDEBAR_WIDTH,
         flexShrink: 0,
+        position: 'relative',
+        zIndex: 10,
+        bgcolor: 'background.default',
         borderLeft: 1,
         borderColor: 'divider',
         height: '100%',

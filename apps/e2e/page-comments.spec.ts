@@ -109,6 +109,13 @@ test('a member adds an inline comment that persists', async ({ page }) => {
   const threadId = thread?.id
   expect(threadId).toBeTruthy()
 
+  await page.evaluate((id) => {
+    window.localStorage.setItem(`anynote.page-outline-mode.${id}`, 'full')
+    window.dispatchEvent(
+      new CustomEvent('anynote:outline-mode-change', { detail: { pageId: id, value: 'full' } }),
+    )
+  }, pageId!)
+
   // (a) While the doc is still loaded (pre-reload), clicking the in-text highlight
   // opens the thread as a popover and emphasizes the anchor. Verified before the
   // reload because the Playwright env runs no yjs server, so editor content does
@@ -126,8 +133,10 @@ test('a member adds an inline comment that persists', async ({ page }) => {
   await expect(popover).toBeVisible({ timeout: 10_000 })
   await expect(popover.getByText(commentText)).toBeVisible()
   await expect(page.locator('.anynote-editor .comment-highlight-active')).toBeVisible({ timeout: 5_000 })
-  await page.keyboard.press('Escape')
-  await expect(popover).toBeHidden()
+
+  // (fix #2) Resolving from the popover closes it.
+  await popover.getByRole('button', { name: 'Решить' }).click()
+  await expect(popover).toBeHidden({ timeout: 5_000 })
 
   await page.reload()
   await expect(editor).toBeVisible({ timeout: 15_000 })
@@ -137,6 +146,18 @@ test('a member adds an inline comment that persists', async ({ page }) => {
   await expect(page.locator('.workspace-sidebar')).toHaveCount(1)
   const commentsSidebar = page.locator('.comments-sidebar')
   await expect(commentsSidebar).toBeVisible({ timeout: 10_000 })
+  await expect(page.getByRole('navigation', { name: 'Содержание страницы' })).toBeVisible()
+
+  // (fix #1) The comments sidebar is a full-height column: its top sits higher
+  // than the content area, which starts below the toolbar.
+  const sidebarBox = await commentsSidebar.boundingBox()
+  const contentBox = await page.locator('.page-content-scroll').boundingBox()
+  expect(sidebarBox).not.toBeNull()
+  expect(contentBox).not.toBeNull()
+  expect(sidebarBox!.y).toBeLessThan(contentBox!.y)
+
+  // The thread was resolved from the popover (fix #2), so it now lives under "Решённые".
+  await commentsSidebar.getByRole('button', { name: 'Решённые' }).click()
   await expect(commentsSidebar.getByText(`«${selectedText}»`)).toBeVisible({ timeout: 10_000 })
   await expect(commentsSidebar.getByText('Тест Тест')).toBeVisible()
   await expect(commentsSidebar.getByText(commentText)).toBeVisible()
@@ -148,5 +169,16 @@ test('a member adds an inline comment that persists', async ({ page }) => {
     window.location.hash = `#comment-${id}`
   }, threadId!)
   await expect(commentsSidebar).toBeVisible({ timeout: 10_000 })
+  const stackOrder = await page.evaluate(() => {
+    const sidebar = document.querySelector('.comments-sidebar')
+    const outline = document.querySelector('nav[aria-label="Содержание страницы"]')
+    if (!(sidebar instanceof HTMLElement) || !(outline instanceof HTMLElement)) return null
+    return {
+      sidebarZ: window.getComputedStyle(sidebar).zIndex,
+      outlineZ: window.getComputedStyle(outline).zIndex,
+    }
+  })
+  expect(stackOrder).not.toBeNull()
+  expect(Number(stackOrder!.sidebarZ)).toBeGreaterThan(Number(stackOrder!.outlineZ))
   await expect(commentsSidebar.getByText(`«${selectedText}»`)).toBeVisible({ timeout: 10_000 })
 })

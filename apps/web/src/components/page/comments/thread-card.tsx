@@ -6,6 +6,7 @@ import {
   CloseIcon,
   IconButton,
   Paper,
+  RedoIcon,
   Stack,
   Tooltip,
   Typography,
@@ -61,10 +62,10 @@ export function ThreadCard({
               width: 28,
               height: 28,
               flexShrink: 0,
-              color: thread.resolvedAt ? 'success.main' : 'text.secondary',
+              color: 'text.secondary',
             }}
           >
-            <CheckRoundedIcon fontSize="small" />
+            {thread.resolvedAt ? <RedoIcon fontSize="small" /> : <CheckRoundedIcon fontSize="small" />}
           </IconButton>
         </Tooltip>
       </Stack>
