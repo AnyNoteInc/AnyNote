@@ -1,10 +1,10 @@
+import Changelog from '@docs/changelog.md'
+
 import { PublicPageShell } from '@/components/public/public-page-shell'
 import { buildMetadata } from '@/lib/seo/build-metadata'
 import { JsonLd } from '@/lib/seo/json-ld'
 import { breadcrumbsSchema } from '@/lib/seo/schemas/breadcrumbs'
 import { siteConfig } from '@/lib/seo/site-config'
-
-import { ChangelogContent } from './changelog-content'
 
 export const metadata = buildMetadata({
   title: 'История изменений',
@@ -27,7 +27,7 @@ export default function ChangelogPage() {
         title="История изменений"
         description="Коротко о том, что менялось в продукте: новые возможности и заметные улучшения, свежее — сверху."
       >
-        <ChangelogContent />
+        <Changelog />
       </PublicPageShell>
     </>
   )
