@@ -47,6 +47,66 @@ function ctx(prisma: unknown) {
 
 const caller = createCallerFactory(pageRouter)
 
+// ── Tests: addFavorite position ──────────────────────────────────────────────
+
+describe('page.addFavorite — appends at tail', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('sets position = 0 when user has no existing favorites', async () => {
+    accessMocks.assertPageAccess.mockResolvedValue({ id: PAGE_A, workspaceId: WS_ID, createdById: USER_ID })
+    const upsert = vi.fn(async () => ({}))
+    const prisma = {
+      favoritePage: {
+        aggregate: vi.fn(async () => ({ _max: { position: null } })),
+        upsert,
+      },
+    }
+
+    await caller(ctx(prisma)).addFavorite({ pageId: PAGE_A })
+
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ create: expect.objectContaining({ position: 0 }) }),
+    )
+  })
+
+  it('sets position = max + 1 when favorites already exist', async () => {
+    accessMocks.assertPageAccess.mockResolvedValue({ id: PAGE_A, workspaceId: WS_ID, createdById: USER_ID })
+    const upsert = vi.fn(async () => ({}))
+    const prisma = {
+      favoritePage: {
+        aggregate: vi.fn(async () => ({ _max: { position: 4 } })),
+        upsert,
+      },
+    }
+
+    await caller(ctx(prisma)).addFavorite({ pageId: PAGE_A })
+
+    expect(upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ create: expect.objectContaining({ position: 5 }) }),
+    )
+  })
+})
+
+// ── Tests: listFavorites order ───────────────────────────────────────────────
+
+describe('page.listFavorites — ordered by position ASC', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('passes orderBy position asc to prisma', async () => {
+    const findMany = vi.fn(async () => [])
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn(async () => ({ role: 'MEMBER' })) },
+      favoritePage: { findMany },
+    }
+
+    await caller(ctx(prisma)).listFavorites({ workspaceId: WS_ID })
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({ orderBy: { position: 'asc' } }),
+    )
+  })
+})
+
 describe('page.create — tail insert', () => {
   beforeEach(() => vi.clearAllMocks())
 

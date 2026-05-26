@@ -97,6 +97,7 @@ describe('soft-downgrade router guards', () => {
         findFirst: vi.fn(async () => ({ id: PAGE_ID, workspaceId: WORKSPACE_ID })),
       },
       favoritePage: {
+        aggregate: vi.fn(async () => ({ _max: { position: null } })),
         upsert: vi.fn(async () => ({ userId: USER_ID, pageId: PAGE_ID })),
       },
     } as unknown as PrismaClient

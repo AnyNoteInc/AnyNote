@@ -642,9 +642,16 @@ export const pageRouter = router({
     .mutation(async ({ ctx, input }) => {
       const page = await assertPageAccess(ctx, input.pageId)
       await requireWritableWorkspace(page.workspaceId)
+
+      const maxResult = await ctx.prisma.favoritePage.aggregate({
+        where: { userId: ctx.user.id },
+        _max: { position: true },
+      })
+      const nextPosition = (maxResult._max.position ?? -1) + 1
+
       return ctx.prisma.favoritePage.upsert({
         where: { userId_pageId: { userId: ctx.user.id, pageId: input.pageId } },
-        create: { userId: ctx.user.id, pageId: input.pageId },
+        create: { userId: ctx.user.id, pageId: input.pageId, position: nextPosition },
         update: {},
       })
     }),
@@ -682,7 +689,7 @@ export const pageRouter = router({
             },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { position: 'asc' },
       })
       return favorites.map((f) => f.page)
     }),
