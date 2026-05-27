@@ -16,6 +16,7 @@ export function WorkspaceSettingsNav({ workspaceId }: Props) {
     { label: 'Участники', slug: 'members', show: true },
     { label: 'AI агент', slug: 'ai', show: true },
     { label: 'Файлы', slug: 'files', show: true },
+    { label: 'Использование', slug: 'usage', show: true },
     { label: 'Опасная зона', slug: 'danger', show: true },
   ].filter((item) => item.show)
 
