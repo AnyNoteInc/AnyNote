@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
+import { FileStatus } from '@repo/db'
 import type { PrismaClient } from '@repo/db'
 import { notify } from '@repo/notifications'
 
@@ -8,6 +9,7 @@ import {
   getActivePlanForUser,
   getPlanDisplayName,
   requireWritableWorkspace,
+  resolveActivePlanOrPersonal,
   syncWorkspaceLimits,
 } from '../helpers/plan'
 import { seedStartPage } from '../helpers/seed-start-page'
@@ -137,6 +139,52 @@ export const workspaceRouter = router({
         },
         orderBy: { createdAt: 'asc' },
       })
+    }),
+
+  getUsage: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertRole(ctx, input.workspaceId, [
+        'OWNER',
+        'ADMIN',
+        'EDITOR',
+        'COMMENTER',
+        'VIEWER',
+        'GUEST',
+      ])
+      const [limits, memberCount, agg, workspace] = await Promise.all([
+        ctx.prisma.workspaceLimit.findUnique({ where: { workspaceId: input.workspaceId } }),
+        ctx.prisma.workspaceMember.count({ where: { workspaceId: input.workspaceId } }),
+        ctx.prisma.file.aggregate({
+          where: { workspaceId: input.workspaceId, status: FileStatus.ACTIVE },
+          _sum: { fileSize: true },
+        }),
+        ctx.prisma.workspace.findUniqueOrThrow({
+          where: { id: input.workspaceId },
+          select: { createdById: true },
+        }),
+      ])
+      if (!limits) {
+        throw new TRPCError({
+          code: 'INTERNAL_SERVER_ERROR',
+          message: 'WORKSPACE_LIMIT_MISSING',
+        })
+      }
+      const ownerPlan = workspace.createdById
+        ? await resolveActivePlanOrPersonal(ctx.prisma, workspace.createdById)
+        : await ctx.prisma.plan.findUniqueOrThrow({ where: { slug: 'personal' } })
+      return {
+        limits: {
+          maxMembers: limits.maxMembers,
+          maxFileBytes: limits.maxFileBytes.toString(),
+          sourcePlanSlug: limits.sourcePlanSlug,
+        },
+        usage: {
+          memberCount,
+          fileBytesUsed: (agg._sum.fileSize ?? 0n).toString(),
+        },
+        ownerPlanSlug: ownerPlan.slug,
+      }
     }),
 
   getMyRole: protectedProcedure
