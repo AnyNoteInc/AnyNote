@@ -13,7 +13,7 @@
  *     'openai' provider or models are absent from the dev DB the test is
  *     skipped with a descriptive message instead of failing hard.
  *   - The engines indexer trigger endpoint is at
- *     http://localhost:8082/api/indexer/test/index-now (not 3001 as in the plan;
+ *     http://localhost:8082/internal/indexer/test/index-now (not 3001 as in the plan;
  *     ENGINES_PORT defaults to 8082 per .env.example).
  *   - Citation DOM assertion: falls back to checking DB-level AgentActionLog
  *     if the chat page doesn't surface <a> citation links (deviation possible
@@ -205,7 +205,7 @@ test.describe('agent — Q&A with citations', () => {
     //    The engine must be running separately (pnpm --filter engines dev).
     // -----------------------------------------------------------------------
     const indexRes = await page.request.post(
-      `${enginesUrl()}/api/indexer/test/index-now`,
+      `${enginesUrl()}/internal/indexer/test/index-now`,
       { data: { workspaceId: workspace.id } },
     )
     // If engines isn't running we still proceed — the agent will just not find

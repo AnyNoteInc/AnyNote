@@ -125,19 +125,19 @@ export async function POST(request: NextRequest): Promise<Response> {
   const ts = Math.floor(Date.now() / 1000)
   const enginesMcpHeaders = buildEnginesMcpHeaders({
     userId: session.user.id,
-    workspaceId: chat.workspaceId,
     ts,
   })
 
   const enginesMcpServer = {
     name: 'anynote',
     description: 'AnyNote workspace tools',
-    url: process.env.ENGINES_MCP_URL ?? 'http://localhost:8082/api/mcp',
+    url: process.env.ENGINES_MCP_URL ?? 'http://localhost:8082/mcp',
     transport: 'HTTP_JSONRPC' as const,
     headers: enginesMcpHeaders,
     tools: [],
     retries: 3,
     verify: false,
+    workspaceId: chat.workspaceId,
   }
 
   const decryptedHeadersMap = decryptMcpHeadersMap(mcpServerRows)

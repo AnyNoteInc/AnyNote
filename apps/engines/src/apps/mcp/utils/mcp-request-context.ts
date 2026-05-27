@@ -1,26 +1,13 @@
-import { UnauthorizedException } from '@nestjs/common'
-import { z } from 'zod'
+import type { AuthedRequest } from '../../api/auth/auth-context.js'
 
-const McpRequestContextSchema = z.object({
-  userId: z.string().uuid(),
-  workspaceId: z.string().uuid(),
-})
+export type { Context } from '@rekog/mcp-nest'
 
 type HeaderValue = string | string[] | undefined
 type HeaderMap = Record<string, HeaderValue>
 
-export type McpRequestContext = z.infer<typeof McpRequestContextSchema>
-
-export type McpRequestWithContext = {
+export type McpRequestWithContext = AuthedRequest & {
   headers: HeaderMap
   body?: unknown
-  mcpContext?: McpRequestContext
-}
-
-function getHeader(headers: HeaderMap, name: string): string | undefined {
-  const value = headers[name] ?? headers[name.toLowerCase()]
-  if (Array.isArray(value)) return value[0]
-  return value
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -29,44 +16,9 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 
 export function normalizeMcpRequestBody(body: unknown): void {
   if (!isRecord(body) || body.method !== 'tools/call') return
-
   const params = body.params
   if (!isRecord(params)) return
-
   if (params.arguments === undefined && params.args !== undefined) {
     params.arguments = params.args
   }
-}
-
-export function readMcpRequestContext(headers: HeaderMap): McpRequestContext {
-  const userId = getHeader(headers, 'x-agents-user') ?? getHeader(headers, 'x-user-id')
-  if (!userId)
-    throw new UnauthorizedException('Unauthorized: missing X-Agents-User / X-User-Id header')
-
-  const workspaceId =
-    getHeader(headers, 'x-agents-workspace') ?? getHeader(headers, 'x-workspace-id')
-  if (!workspaceId) {
-    throw new UnauthorizedException(
-      'Unauthorized: missing X-Agents-Workspace / X-Workspace-Id header',
-    )
-  }
-
-  const parsed = McpRequestContextSchema.safeParse({ userId, workspaceId })
-  if (!parsed.success) {
-    const issue = parsed.error.issues[0]
-    const headerName = issue?.path[0] === 'workspaceId' ? 'x-Workspace-Id' : 'X-User-Id'
-    throw new UnauthorizedException(`Unauthorized: invalid ${headerName} header`)
-  }
-
-  return parsed.data
-}
-
-export function getMcpRequestContext(req?: McpRequestWithContext): McpRequestContext {
-  if (!req) throw new UnauthorizedException('Unauthorized: MCP request context is unavailable')
-
-  if (!req.mcpContext) {
-    req.mcpContext = readMcpRequestContext(req.headers)
-  }
-
-  return req.mcpContext
 }

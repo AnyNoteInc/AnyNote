@@ -1,57 +1,63 @@
-import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+import { describe, it, expect, beforeEach, jest } from '@jest/globals'
+import { ForbiddenException, UnauthorizedException } from '@nestjs/common'
 
-import { Test } from '@nestjs/testing'
+import type { PrismaClient } from '@repo/db'
 
-import type { AgentsSearchClient } from '../services/agents-search.client.js'
-import type { McpRequestWithContext } from '../utils/mcp-request-context.js'
-import { AGENTS_SEARCH_CLIENT, SearchTools } from './search.tools.js'
+import type { AuthedRequest } from '../../api/auth/auth-context.js'
+import type { AgentsSearchClient, AgentsSearchHit } from '../services/agents-search.client.js'
+import { SearchTools } from './search.tools.js'
 
 describe('SearchTools.searchPages', () => {
-  const workspaceId = 'w1'
-
-  const fakeHit = {
-    pageId: 'p1',
-    workspaceId,
-    blockNumber: 3,
-    title: 'X',
-    content: 'snippet',
+  const workspaceMemberFindUniqueMock = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+  const prisma = {
+    workspaceMember: { findUnique: workspaceMemberFindUniqueMock },
+  } as unknown as PrismaClient
+  const searchRagMock = jest.fn<
+    (args: { workspaceId: string; query: string; k: number }) => Promise<AgentsSearchHit[]>
+  >()
+  const client: AgentsSearchClient = {
+    searchRag: searchRagMock,
   }
+  let tools: SearchTools
 
-  let fakeAgents: jest.Mocked<AgentsSearchClient>
-  let tool: SearchTools
-  let req: McpRequestWithContext
-
-  beforeEach(async () => {
-    fakeAgents = {
-      searchRag: jest.fn<AgentsSearchClient['searchRag']>().mockResolvedValue([fakeHit]),
-    }
-
-    const moduleRef = await Test.createTestingModule({
-      providers: [
-        SearchTools,
-        { provide: AGENTS_SEARCH_CLIENT, useValue: fakeAgents },
-      ],
-    }).compile()
-
-    tool = moduleRef.get(SearchTools)
-
-    req = {
-      headers: {},
-      mcpContext: { userId: 'u1', workspaceId },
-    } as McpRequestWithContext
+  beforeEach(() => {
+    jest.clearAllMocks()
+    tools = new SearchTools(client, prisma)
   })
 
-  it('returns trimmed RAG hits with workspaceId and blockNumber', async () => {
-    const result = await tool.searchPages({ query: 'q', k: 5 }, {} as never, req)
+  it('searches when the caller is a workspace member', async () => {
+    workspaceMemberFindUniqueMock.mockResolvedValue({ workspaceId: 'w1' })
+    searchRagMock.mockResolvedValue([
+      { pageId: 'p', workspaceId: 'w1', blockNumber: 0, title: 't', content: 'c' },
+    ])
+
+    const req: AuthedRequest = { headers: {}, auth: { userId: 'u1', source: 'api-key' } }
+    const result = await tools.searchPages(
+      { workspaceId: 'w1', query: 'q', k: 5 },
+      {} as never,
+      req,
+    )
 
     expect(result.results).toHaveLength(1)
-    const hit = result.results[0]!
-    expect(hit.pageId).toBe('p1')
-    expect(hit.blockNumber).toBe(3)
-    expect(fakeAgents.searchRag).toHaveBeenCalledWith({
-      workspaceId,
+    expect(searchRagMock).toHaveBeenCalledWith({
+      workspaceId: 'w1',
       query: 'q',
       k: 5,
     })
+  })
+
+  it('rejects non-member with ForbiddenException', async () => {
+    workspaceMemberFindUniqueMock.mockResolvedValue(null)
+    const req: AuthedRequest = { headers: {}, auth: { userId: 'u1', source: 'api-key' } }
+    await expect(
+      tools.searchPages({ workspaceId: 'w1', query: 'q', k: 5 }, {} as never, req),
+    ).rejects.toBeInstanceOf(ForbiddenException)
+  })
+
+  it('throws Unauthorized when req.auth is missing', async () => {
+    const req: AuthedRequest = { headers: {} }
+    await expect(
+      tools.searchPages({ workspaceId: 'w1', query: 'q', k: 5 }, {} as never, req),
+    ).rejects.toBeInstanceOf(UnauthorizedException)
   })
 })

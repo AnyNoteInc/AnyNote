@@ -6,6 +6,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common'
 
+import type { AuthedRequest } from '../apps/api/auth/auth-context.js'
+
 // Skew window must comfortably exceed the time a user takes to read and click
 // a destructive-action confirmation card in the chat UI — the agent re-uses
 // the timestamp signed by the original /agent/run request on every MCP call
@@ -28,16 +30,13 @@ function pick(value: string | string[] | undefined): string | undefined {
 @Injectable()
 export class AgentsInternalAuthGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
-    const req = context.switchToHttp().getRequest<{
-      headers: Record<string, string | string[] | undefined>
-    }>()
+    const req = context.switchToHttp().getRequest<AuthedRequest>()
     const headers = req.headers
     const auth = pick(headers['authorization'])
     const userId = pick(headers['x-agents-user'])
-    const workspaceId = pick(headers['x-agents-workspace'])
     const tsRaw = pick(headers['x-agents-timestamp'])
 
-    if (!auth?.startsWith('Bearer ') || !userId || !workspaceId || !tsRaw) {
+    if (!auth?.startsWith('Bearer ') || !userId || !tsRaw) {
       throw new UnauthorizedException('missing agents internal auth headers')
     }
 
@@ -53,13 +52,14 @@ export class AgentsInternalAuthGuard implements CanActivate {
 
     const expected = crypto
       .createHmac('sha256', Buffer.from(secret, 'base64'))
-      .update(`${userId}:${workspaceId}:${ts}`)
+      .update(`${userId}:${ts}`)
       .digest('base64')
 
     if (!safeEqualB64(expected, auth.slice('Bearer '.length))) {
       throw new UnauthorizedException('invalid HMAC')
     }
 
+    req.auth = { userId, source: 'internal' }
     return true
   }
 }

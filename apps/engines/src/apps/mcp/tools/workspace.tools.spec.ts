@@ -1,14 +1,14 @@
 import { beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals'
+import { ForbiddenException } from '@nestjs/common'
 import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
 
 import type { PrismaClient } from '@repo/db'
 
+import type { AuthedRequest } from '../../api/auth/auth-context.js'
 import { FileNotFoundError, PageNotFoundError } from '../errors/mcp.errors.js'
-import type { WorkspaceMemberGuard } from '../guards/workspace-member.guard.js'
 import type { PageWriter } from '../services/page-writer.service.js'
 import type { StatsService } from '../services/stats.service.js'
-import type { McpRequestWithContext } from '../utils/mcp-request-context.js'
 import { WorkspaceTools } from './workspace.tools.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -19,61 +19,65 @@ describe('WorkspaceTools', () => {
   const parentId = '33333333-3333-4333-8333-333333333333'
   const fileId = '44444444-4444-4444-8444-444444444444'
 
+  const workspaceMemberFindUniqueMock = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+  const fileFindManyMock = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+  const fileFindUniqueMock = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+  const pageFindManyMock = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+  const pageFindUniqueMock = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+  const pageFileCreateMock = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+  const writerCreatePageMock = jest.fn<(...args: unknown[]) => Promise<string>>()
+  const getWorkspaceStatsMock = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+
   const mockPrisma = {
     file: {
-      findMany: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
-      findUnique: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      findMany: fileFindManyMock,
+      findUnique: fileFindUniqueMock,
     },
     page: {
-      findMany: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
-      findUnique: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      findMany: pageFindManyMock,
+      findUnique: pageFindUniqueMock,
     },
     pageFile: {
-      create: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      create: pageFileCreateMock,
+    },
+    workspaceMember: {
+      findUnique: workspaceMemberFindUniqueMock,
     },
   } as unknown as PrismaClient
-  const mockGuard = {
-    assert: jest.fn<(...args: unknown[]) => Promise<void>>(),
-  } as unknown as WorkspaceMemberGuard
-  const mockWriter = {
-    createPage: jest.fn<(...args: unknown[]) => Promise<string>>(),
-  } as unknown as PageWriter
-  const mockStats = {
-    getWorkspaceStats: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
-  } as unknown as StatsService
+  const mockWriter = { createPage: writerCreatePageMock } as unknown as PageWriter
+  const mockStats = { getWorkspaceStats: getWorkspaceStatsMock } as unknown as StatsService
 
-  const req = {
-    headers: {},
-    mcpContext: { userId, workspaceId },
-  } as McpRequestWithContext
+  const req: AuthedRequest = { headers: {}, auth: { userId, source: 'api-key' } }
 
   let tools: WorkspaceTools
 
   beforeEach(() => {
-    ;(mockPrisma.file.findMany as jest.Mock).mockReset()
-    ;(mockPrisma.file.findUnique as jest.Mock).mockReset()
-    ;(mockPrisma.page.findMany as jest.Mock).mockReset()
-    ;(mockPrisma.page.findUnique as jest.Mock).mockReset()
-    ;(mockPrisma.pageFile.create as jest.Mock).mockReset()
-    ;(mockGuard.assert as jest.Mock).mockReset().mockImplementation(async () => {})
-    ;(mockWriter.createPage as jest.Mock).mockReset()
-    ;(mockStats.getWorkspaceStats as jest.Mock).mockReset()
-    tools = new WorkspaceTools(mockPrisma, mockGuard, mockWriter, mockStats)
+    jest.clearAllMocks()
+    workspaceMemberFindUniqueMock.mockResolvedValue({ workspaceId: 'w' })
+    tools = new WorkspaceTools(mockPrisma, mockWriter, mockStats)
   })
 
   it('getWorkspaceStats delegates to stats service', async () => {
-    ;(mockStats.getWorkspaceStats as jest.Mock).mockResolvedValue({ totalPages: 7 } as never)
+    getWorkspaceStatsMock.mockResolvedValue({ totalPages: 7 })
 
-    const result = await tools.getWorkspaceStats({}, {} as never, req)
+    const result = await tools.getWorkspaceStats({ workspaceId }, {} as never, req)
 
     expect(result).toEqual({ totalPages: 7 })
-    expect(mockGuard.assert).toHaveBeenCalledWith(workspaceId, userId)
+    expect(mockPrisma.workspaceMember.findUnique).toHaveBeenCalled()
     expect(mockStats.getWorkspaceStats).toHaveBeenCalledWith(workspaceId)
+  })
+
+  it('getWorkspaceStats throws ForbiddenException for non-member', async () => {
+    workspaceMemberFindUniqueMock.mockResolvedValue(null)
+
+    await expect(
+      tools.getWorkspaceStats({ workspaceId }, {} as never, req),
+    ).rejects.toBeInstanceOf(ForbiddenException)
   })
 
   it('listWorkspaceFiles maps file records to response payload', async () => {
     const createdAt = new Date('2026-01-01T10:00:00.000Z')
-    ;(mockPrisma.file.findMany as jest.Mock).mockResolvedValue([
+    fileFindManyMock.mockResolvedValue([
       {
         id: fileId,
         name: 'notes.txt',
@@ -81,9 +85,13 @@ describe('WorkspaceTools', () => {
         fileSize: BigInt(12),
         createdAt,
       },
-    ] as never)
+    ])
 
-    const result = await tools.listWorkspaceFiles({ limit: 10, offset: 5 }, {} as never, req)
+    const result = await tools.listWorkspaceFiles(
+      { workspaceId, limit: 10, offset: 5 },
+      {} as never,
+      req,
+    )
 
     expect(result).toEqual({
       files: [
@@ -106,16 +114,16 @@ describe('WorkspaceTools', () => {
   })
 
   it('listSkills queries only skill pages', async () => {
-    ;(mockPrisma.page.findMany as jest.Mock).mockResolvedValue([
+    pageFindManyMock.mockResolvedValue([
       {
         id: 'skill-1',
         title: 'Skill',
         icon: 'bolt',
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
       },
-    ] as never)
+    ])
 
-    const result = await tools.listSkills({ limit: 20 }, {} as never, req)
+    const result = await tools.listSkills({ workspaceId, limit: 20 }, {} as never, req)
 
     expect(result).toEqual({
       pages: [
@@ -136,16 +144,16 @@ describe('WorkspaceTools', () => {
   })
 
   it('listAgents queries only agent pages', async () => {
-    ;(mockPrisma.page.findMany as jest.Mock).mockResolvedValue([
+    pageFindManyMock.mockResolvedValue([
       {
         id: 'agent-1',
         title: 'Agent',
         icon: null,
         createdAt: new Date('2026-01-02T00:00:00.000Z'),
       },
-    ] as never)
+    ])
 
-    const result = await tools.listAgents({ limit: 15 }, {} as never, req)
+    const result = await tools.listAgents({ workspaceId, limit: 15 }, {} as never, req)
 
     expect(result).toEqual({
       pages: [
@@ -166,22 +174,21 @@ describe('WorkspaceTools', () => {
   })
 
   it('createPageFromFile creates page and attaches file', async () => {
-    ;(mockPrisma.file.findUnique as jest.Mock).mockResolvedValue({
+    fileFindUniqueMock.mockResolvedValue({
       id: fileId,
       workspaceId,
       name: 'source.md',
-    } as never)
-    ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({
+    })
+    pageFindUniqueMock.mockResolvedValue({
       workspaceId,
       deletedAt: null,
-    } as never)
-    ;(mockWriter.createPage as jest.Mock).mockResolvedValue(
-      '55555555-5555-4555-8555-555555555555' as never,
-    )
-    ;(mockPrisma.pageFile.create as jest.Mock).mockResolvedValue({} as never)
+    })
+    writerCreatePageMock.mockResolvedValue('55555555-5555-4555-8555-555555555555')
+    pageFileCreateMock.mockResolvedValue({})
 
     const result = await tools.createPageFromFile(
       {
+        workspaceId,
         parentId,
         fileId,
         title: 'Derived page',
@@ -191,7 +198,7 @@ describe('WorkspaceTools', () => {
     )
 
     expect(result).toEqual({ pageId: '55555555-5555-4555-8555-555555555555' })
-    expect(mockGuard.assert).toHaveBeenCalledWith(workspaceId, userId)
+    expect(mockPrisma.workspaceMember.findUnique).toHaveBeenCalled()
     expect(mockWriter.createPage).toHaveBeenCalledWith({
       userId,
       workspaceId,
@@ -205,17 +212,15 @@ describe('WorkspaceTools', () => {
   })
 
   it('createPageFromFile uses source file name as default title', async () => {
-    ;(mockPrisma.file.findUnique as jest.Mock).mockResolvedValue({
+    fileFindUniqueMock.mockResolvedValue({
       id: fileId,
       workspaceId,
       name: 'fallback-title.md',
-    } as never)
-    ;(mockWriter.createPage as jest.Mock).mockResolvedValue(
-      '55555555-5555-4555-8555-555555555555' as never,
-    )
-    ;(mockPrisma.pageFile.create as jest.Mock).mockResolvedValue({} as never)
+    })
+    writerCreatePageMock.mockResolvedValue('55555555-5555-4555-8555-555555555555')
+    pageFileCreateMock.mockResolvedValue({})
 
-    await tools.createPageFromFile({ parentId: undefined, fileId }, {} as never, req)
+    await tools.createPageFromFile({ workspaceId, parentId: undefined, fileId }, {} as never, req)
 
     expect(mockWriter.createPage).toHaveBeenCalledWith({
       userId,
@@ -227,26 +232,26 @@ describe('WorkspaceTools', () => {
   })
 
   it('createPageFromFile throws when source file is missing', async () => {
-    ;(mockPrisma.file.findUnique as jest.Mock).mockResolvedValue(null as never)
+    fileFindUniqueMock.mockResolvedValue(null)
 
     await expect(
-      tools.createPageFromFile({ parentId: undefined, fileId }, {} as never, req),
+      tools.createPageFromFile({ workspaceId, parentId: undefined, fileId }, {} as never, req),
     ).rejects.toBeInstanceOf(FileNotFoundError)
   })
 
   it('createPageFromFile throws when parent page is invalid', async () => {
-    ;(mockPrisma.file.findUnique as jest.Mock).mockResolvedValue({
+    fileFindUniqueMock.mockResolvedValue({
       id: fileId,
       workspaceId,
       name: 'source.md',
-    } as never)
-    ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({
+    })
+    pageFindUniqueMock.mockResolvedValue({
       workspaceId: 'other-workspace',
       deletedAt: null,
-    } as never)
+    })
 
     await expect(
-      tools.createPageFromFile({ parentId, fileId }, {} as never, req),
+      tools.createPageFromFile({ workspaceId, parentId, fileId }, {} as never, req),
     ).rejects.toBeInstanceOf(PageNotFoundError)
   })
 
@@ -260,31 +265,32 @@ describe('WorkspaceTools', () => {
     beforeAll(async () => {
       const fs = await import('node:fs/promises')
       const path = await import('node:path')
-      source = await fs.readFile(
-        path.join(__dirname, 'workspace.tools.ts'),
-        'utf8',
-      )
+      source = await fs.readFile(path.join(__dirname, 'workspace.tools.ts'), 'utf8')
     })
 
     it('getWorkspaceStats description mentions "сколько страниц" or "статистик"', () => {
-      const match = /name: 'getWorkspaceStats'[\s\S]*?description:\s*([\s\S]*?),\s*parameters:/.exec(source)
+      const match =
+        /name: 'getWorkspaceStats'[\s\S]*?description:\s*([\s\S]*?),\s*parameters:/.exec(source)
       expect(match).not.toBeNull()
       const desc = match![1]!
       expect(desc).toMatch(/сколько страниц|статистик/i)
     })
 
     it('listWorkspaceFiles description mentions "файл" or "вложен"', () => {
-      const match = /name: 'listWorkspaceFiles'[\s\S]*?description:\s*([\s\S]*?),\s*parameters:/.exec(source)
+      const match =
+        /name: 'listWorkspaceFiles'[\s\S]*?description:\s*([\s\S]*?),\s*parameters:/.exec(source)
       expect(match![1]).toMatch(/файл|вложен/i)
     })
 
     it('listSkills description mentions "навык" or "skill"', () => {
-      const match = /name: 'listSkills'[\s\S]*?description:\s*([\s\S]*?),\s*parameters:/.exec(source)
+      const match =
+        /name: 'listSkills'[\s\S]*?description:\s*([\s\S]*?),\s*parameters:/.exec(source)
       expect(match![1]).toMatch(/навык|skill/i)
     })
 
     it('listAgents description mentions "агент" or "agent"', () => {
-      const match = /name: 'listAgents'[\s\S]*?description:\s*([\s\S]*?),\s*parameters:/.exec(source)
+      const match =
+        /name: 'listAgents'[\s\S]*?description:\s*([\s\S]*?),\s*parameters:/.exec(source)
       expect(match![1]).toMatch(/агент|agent/i)
     })
   })

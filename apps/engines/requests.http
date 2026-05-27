@@ -1,5 +1,5 @@
 ###
-POST http://localhost:8090/api/mcp
+POST http://localhost:8090/mcp
 Content-Type: application/json
 Accept: application/json, text/event-stream
 X-User-Id: 019da937-08fb-74c9-bccf-d0d161ac8d85
@@ -14,7 +14,7 @@ x-Workspace-Id: 21ab1e33-ac0d-4f03-8f63-8f3f830b0cc1
 
 
 ###
-POST http://localhost:8090/api/mcp
+POST http://localhost:8090/mcp
 Content-Type: application/json
 Accept: application/json, text/event-stream
 X-User-Id: 019da937-08fb-74c9-bccf-d0d161ac8d85

@@ -14,6 +14,7 @@ import {
   SettingsIcon,
   Stack,
   Typography,
+  VpnKeyIcon,
 } from '@repo/ui/components'
 
 const items: Array<{ href: string; label: string; icon: ReactNode }> = [
@@ -26,6 +27,7 @@ const items: Array<{ href: string; label: string; icon: ReactNode }> = [
     label: 'Интеграции',
     icon: <LeakAddIcon fontSize="small" />,
   },
+  { href: '/settings/api', label: 'API-ключи', icon: <VpnKeyIcon fontSize="small" /> },
 ]
 
 export function SettingsNav() {

@@ -35,6 +35,7 @@ export type McpServerEntry = {
   tools: string[]
   retries: number
   verify: boolean
+  workspaceId?: string
 }
 
 export type AgentRunPayload = {

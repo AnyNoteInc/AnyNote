@@ -1,17 +1,18 @@
-import { Inject, Injectable } from '@nestjs/common'
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common'
 import type { Context } from '@rekog/mcp-nest'
 import { Tool } from '@rekog/mcp-nest'
 import type { PrismaClient } from '@repo/db'
 import { z } from 'zod'
 
 import { PRISMA } from '../../../infra/db/db.providers.js'
+import { assertMember } from '../../api/auth/membership.js'
+import type { AuthContext, AuthedRequest } from '../../api/auth/auth-context.js'
 import { PageNotFoundError } from '../errors/mcp.errors.js'
-import { WorkspaceMemberGuard } from '../guards/workspace-member.guard.js'
 import { FileUploader } from '../services/file-uploader.service.js'
 import { mcpUuid } from '../utils/mcp-input.js'
-import { getMcpRequestContext, type McpRequestWithContext } from '../utils/mcp-request-context.js'
 
 const UploadInline = z.object({
+  workspaceId: z.string().uuid(),
   pageId: mcpUuid(),
   fileName: z.string().min(1).max(512),
   mimeType: z.string().min(1).max(128),
@@ -19,15 +20,29 @@ const UploadInline = z.object({
 })
 
 const Attach = z.object({
+  workspaceId: z.string().uuid(),
   pageId: mcpUuid(),
   fileId: mcpUuid(),
 })
+
+const ListPageFilesInput = z.object({
+  workspaceId: z.string().uuid(),
+  pageId: mcpUuid(),
+})
+
+type UploadInlineArgs = z.infer<typeof UploadInline>
+type AttachArgs = z.infer<typeof Attach>
+type ListPageFilesArgs = z.infer<typeof ListPageFilesInput>
+
+function requireAuth(req: AuthedRequest | undefined): AuthContext {
+  if (!req?.auth) throw new UnauthorizedException('Unauthenticated MCP request')
+  return req.auth
+}
 
 @Injectable()
 export class PageFileTools {
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
-    private readonly guard: WorkspaceMemberGuard,
     private readonly uploader: FileUploader,
   ) {}
 
@@ -36,17 +51,16 @@ export class PageFileTools {
     description: 'Upload a small file (<=1MB) to a page inline via base64',
     parameters: UploadInline,
   })
-  async uploadFileToPage(
-    args: z.infer<typeof UploadInline>,
-    _context: Context,
-    req: McpRequestWithContext,
-  ) {
-    const requestContext = getMcpRequestContext(req)
-    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
+  uploadFileToPage(args: UploadInlineArgs, _context: Context, req: AuthedRequest) {
+    return this.doUploadFileToPage(requireAuth(req), args)
+  }
+
+  async doUploadFileToPage(auth: AuthContext, args: UploadInlineArgs) {
+    await assertMember(this.prisma, auth.userId, args.workspaceId)
     const buffer = Buffer.from(args.contentBase64, 'base64')
     const fileId = await this.uploader.uploadInline({
-      userId: requestContext.userId,
-      workspaceId: requestContext.workspaceId,
+      userId: auth.userId,
+      workspaceId: args.workspaceId,
       pageId: args.pageId,
       fileName: args.fileName,
       mimeType: args.mimeType,
@@ -61,17 +75,16 @@ export class PageFileTools {
     description: 'Upload a small image (<=1MB) to a page inline via base64',
     parameters: UploadInline,
   })
-  async uploadImageToPage(
-    args: z.infer<typeof UploadInline>,
-    _context: Context,
-    req: McpRequestWithContext,
-  ) {
-    const requestContext = getMcpRequestContext(req)
-    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
+  uploadImageToPage(args: UploadInlineArgs, _context: Context, req: AuthedRequest) {
+    return this.doUploadImageToPage(requireAuth(req), args)
+  }
+
+  async doUploadImageToPage(auth: AuthContext, args: UploadInlineArgs) {
+    await assertMember(this.prisma, auth.userId, args.workspaceId)
     const buffer = Buffer.from(args.contentBase64, 'base64')
     const fileId = await this.uploader.uploadInline({
-      userId: requestContext.userId,
-      workspaceId: requestContext.workspaceId,
+      userId: auth.userId,
+      workspaceId: args.workspaceId,
       pageId: args.pageId,
       fileName: args.fileName,
       mimeType: args.mimeType,
@@ -86,17 +99,17 @@ export class PageFileTools {
     description: 'Attach an existing workspace file to a page by id',
     parameters: Attach,
   })
-  async attachFileToPage(
-    args: z.infer<typeof Attach>,
-    _context: Context,
-    req: McpRequestWithContext,
-  ) {
-    const requestContext = getMcpRequestContext(req)
-    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
+  attachFileToPage(args: AttachArgs, _context: Context, req: AuthedRequest) {
+    return this.doAttachFileToPage(requireAuth(req), args)
+  }
+
+  async doAttachFileToPage(auth: AuthContext, args: AttachArgs) {
+    await assertMember(this.prisma, auth.userId, args.workspaceId)
     await this.uploader.attach({
-      ...args,
-      userId: requestContext.userId,
-      workspaceId: requestContext.workspaceId,
+      pageId: args.pageId,
+      fileId: args.fileId,
+      userId: auth.userId,
+      workspaceId: args.workspaceId,
       imageOnly: false,
     })
     return { ok: true as const }
@@ -107,17 +120,17 @@ export class PageFileTools {
     description: 'Attach an existing workspace image to a page by id',
     parameters: Attach,
   })
-  async attachImageToPage(
-    args: z.infer<typeof Attach>,
-    _context: Context,
-    req: McpRequestWithContext,
-  ) {
-    const requestContext = getMcpRequestContext(req)
-    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
+  attachImageToPage(args: AttachArgs, _context: Context, req: AuthedRequest) {
+    return this.doAttachImageToPage(requireAuth(req), args)
+  }
+
+  async doAttachImageToPage(auth: AuthContext, args: AttachArgs) {
+    await assertMember(this.prisma, auth.userId, args.workspaceId)
     await this.uploader.attach({
-      ...args,
-      userId: requestContext.userId,
-      workspaceId: requestContext.workspaceId,
+      pageId: args.pageId,
+      fileId: args.fileId,
+      userId: auth.userId,
+      workspaceId: args.workspaceId,
       imageOnly: true,
     })
     return { ok: true as const }
@@ -126,26 +139,31 @@ export class PageFileTools {
   @Tool({
     name: 'listPageFiles',
     description: 'List files attached to a page',
-    parameters: z.object({ pageId: mcpUuid() }),
+    parameters: ListPageFilesInput,
   })
-  async listPageFiles(args: { pageId: string }, _context: Context, req: McpRequestWithContext) {
-    const requestContext = getMcpRequestContext(req)
-    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
-    const page = await this.prisma.page.findUnique({
-      where: { id: args.pageId },
-      select: { workspaceId: true },
-    })
-    if (!page || page.workspaceId !== requestContext.workspaceId) {
+  listPageFiles(args: ListPageFilesArgs, _context: Context, req: AuthedRequest) {
+    return this.doListPageFiles(requireAuth(req), args)
+  }
+
+  async doListPageFiles(auth: AuthContext, args: ListPageFilesArgs) {
+    const [, page, files] = await Promise.all([
+      assertMember(this.prisma, auth.userId, args.workspaceId),
+      this.prisma.page.findUnique({
+        where: { id: args.pageId },
+        select: { workspaceId: true },
+      }),
+      this.prisma.pageFile.findMany({
+        where: { pageId: args.pageId },
+        select: {
+          file: {
+            select: { id: true, name: true, mimeType: true, fileSize: true, createdAt: true },
+          },
+        },
+      }),
+    ])
+    if (page?.workspaceId !== args.workspaceId) {
       throw new PageNotFoundError(args.pageId)
     }
-    const files = await this.prisma.pageFile.findMany({
-      where: { pageId: args.pageId },
-      select: {
-        file: {
-          select: { id: true, name: true, mimeType: true, fileSize: true, createdAt: true },
-        },
-      },
-    })
     return {
       files: files.map((f) => ({
         id: f.file.id,

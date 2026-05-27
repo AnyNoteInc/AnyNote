@@ -67,6 +67,19 @@ def _resolve_json_type(raw_type: Any) -> tuple[Any, bool]:
     return Any, False
 
 
+_AUTO_INJECTED = 'workspaceId'
+
+
+def _strip_auto_fields(schema: dict[str, Any]) -> dict[str, Any]:
+    """Remove auto-injected fields (workspaceId) from LLM-visible tool schemas."""
+    if not isinstance(schema, dict):
+        return schema
+    props = dict(schema.get('properties') or {})
+    required = [r for r in (schema.get('required') or []) if r != _AUTO_INJECTED]
+    props.pop(_AUTO_INJECTED, None)
+    return {**schema, 'properties': props, 'required': required}
+
+
 def _arg_model(name: str, schema: dict[str, Any]) -> type[BaseModel]:
     props = (schema or {}).get('properties') or {}
     required = set((schema or {}).get('required') or [])
@@ -117,9 +130,10 @@ class McpClient:
         ]
 
     async def _http_call_tool(self, server: McpServerSchema, name: str, args: dict[str, Any]) -> str:
+        merged = self._inject_workspace(server, args)
         result = await self._post(server, {
             'jsonrpc': '2.0', 'id': 2, 'method': 'tools/call',
-            'params': {'name': name, 'arguments': args},
+            'params': {'name': name, 'arguments': merged},
         })
         if isinstance(result, dict) and 'content' in result:
             chunks = result.get('content') or []
@@ -130,6 +144,13 @@ class McpClient:
             )
             return text or json.dumps(result, ensure_ascii=False)
         return json.dumps(result, ensure_ascii=False)
+
+    @staticmethod
+    def _inject_workspace(server: McpServerSchema, args: dict[str, Any]) -> dict[str, Any]:
+        ws = getattr(server, 'workspace_id', None)
+        if ws and _AUTO_INJECTED not in args:
+            return {**args, _AUTO_INJECTED: ws}
+        return dict(args)
 
     async def _post(self, server: McpServerSchema, payload: dict[str, Any]) -> Any:
         async with httpx.AsyncClient(
@@ -162,8 +183,9 @@ class McpClient:
             return self._filter(server, tools)
 
     async def _sse_call_tool(self, server: McpServerSchema, name: str, args: dict[str, Any]) -> str:
+        merged = self._inject_workspace(server, args)
         async with _open_sse_session(server.url, server.headers) as session:
-            result = await session.call_tool(name, args)
+            result = await session.call_tool(name, merged)
             chunks = getattr(result, 'content', None) or []
             text = '\n'.join(
                 getattr(c, 'text', '') for c in chunks if getattr(c, 'type', None) == 'text'
@@ -200,7 +222,7 @@ class McpClient:
             server = server_by_name[server_name]
             for desc in tools:
                 namespaced = f'{server_name}__{desc.name}'
-                args_model = _arg_model(namespaced, desc.input_schema)
+                args_model = _arg_model(namespaced, _strip_auto_fields(desc.input_schema))
 
                 async def call(_server: McpServerSchema = server, _name: str = desc.name, **kwargs: Any) -> str:
                     return await self.call_tool(_server, _name, kwargs)

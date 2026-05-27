@@ -164,6 +164,7 @@ export { default as LooksTwoIcon } from '@mui/icons-material/LooksTwo'
 export { default as Looks3Icon } from '@mui/icons-material/Looks3'
 export { default as InsertDriveFileIcon } from '@mui/icons-material/InsertDriveFile'
 export { default as DragIndicatorIcon } from '@mui/icons-material/DragIndicator'
+export { default as VpnKeyIcon } from '@mui/icons-material/VpnKey'
 export { default as ListItemIcon, type ListItemIconProps } from '@mui/material/ListItemIcon'
 export { default as ListItemText, type ListItemTextProps } from '@mui/material/ListItemText'
 
@@ -194,3 +195,8 @@ export { default as RadioGroup, type RadioGroupProps } from '@mui/material/Radio
 export { DateTimePicker, type DateTimePickerProps } from '@mui/x-date-pickers/DateTimePicker'
 
 export * from './chat'
+
+export { default as Accordion } from '@mui/material/Accordion'
+export { default as AccordionDetails } from '@mui/material/AccordionDetails'
+export { default as AccordionSummary } from '@mui/material/AccordionSummary'
+export { default as ExpandMoreIcon } from '@mui/icons-material/ExpandMore'

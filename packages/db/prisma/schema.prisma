@@ -56,6 +56,7 @@ model User {
   mcpServersCreated          WorkspaceMcpServer[]     @relation("WorkspaceMcpServerCreatedBy")
   agentMemories              WorkspaceAgentMemory[]   @relation("WorkspaceAgentMemoryUser")
   agentActionLogs            AgentActionLog[]         @relation("AgentActionLogUser")
+  apiKeys                    ApiKey[]
 
   @@map("users")
 }
@@ -97,6 +98,26 @@ model Session {
 
   @@index([userId])
   @@map("sessions")
+}
+
+model ApiKey {
+  id          String    @id @default(uuid(7)) @db.Uuid()
+  userId      String    @map("user_id") @db.Uuid()
+
+  name        String    @db.VarChar(100)
+  keyHash     String    @unique @map("key_hash") @db.VarChar(64)
+  keyPrefix   String    @map("key_prefix") @db.VarChar(8)
+  keyLastFour String    @map("key_last_four") @db.VarChar(4)
+
+  expiresAt   DateTime? @map("expires_at") @db.Timestamptz(6)
+  lastUsedAt  DateTime? @map("last_used_at") @db.Timestamptz(6)
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz(6)
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt(sort: Desc)])
+  @@map("api_keys")
 }
 
 model Verification {
