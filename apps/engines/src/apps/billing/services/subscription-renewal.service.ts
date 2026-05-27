@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { prisma } from '@repo/db'
+import { syncWorkspaceLimits } from '@repo/trpc/helpers/plan'
 import type { Payment } from '@repo/yookassa'
 import { randomUUID } from 'node:crypto'
 
@@ -29,15 +30,25 @@ export class SubscriptionRenewalService {
 
   async expireCanceled(): Promise<void> {
     const now = new Date()
-
-    await prisma.subscription.updateMany({
+    const affected = await prisma.subscription.findMany({
       where: {
         status: 'ACTIVE',
         cancelAtPeriodEnd: true,
         currentPeriodEnd: { not: null, lte: now },
       },
+      select: { id: true, userId: true },
+    })
+    if (affected.length === 0) return
+
+    await prisma.subscription.updateMany({
+      where: { id: { in: affected.map((s) => s.id) } },
       data: { status: 'EXPIRED', expiredAt: now },
     })
+
+    const uniqueUserIds = Array.from(new Set(affected.map((s) => s.userId)))
+    for (const userId of uniqueUserIds) {
+      await syncWorkspaceLimits(prisma, userId)
+    }
   }
 
   async renewActive(): Promise<void> {

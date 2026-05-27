@@ -28,6 +28,7 @@
     "@repo/mail": "workspace:*",
     "@repo/notifications": "workspace:*",
     "@repo/storage": "workspace:*",
+    "@repo/trpc": "workspace:*",
     "@repo/yookassa": "workspace:*",
     "@tiptap/starter-kit": "^3.22.3",
     "cron": "^3.2.0",

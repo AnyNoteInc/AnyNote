@@ -1,6 +1,6 @@
 import { TRPCError } from '@trpc/server'
 import { prisma } from '@repo/db'
-import type { AiModel, AiProvider, Plan, PrismaClient } from '@repo/db'
+import type { AiModel, AiProvider, Plan, Prisma, PrismaClient } from '@repo/db'
 
 export async function getActivePlanForUser(prismaClient: PrismaClient, userId: string) {
   const subscription = await prismaClient.subscription.findFirst({
@@ -132,5 +132,44 @@ export async function requireWritableWorkspace(workspaceId: string): Promise<voi
   })
   if (olderCount >= features.maxWorkspaces) {
     throw new TRPCError({ code: 'FORBIDDEN', message: 'WORKSPACE_OVER_PLAN_LIMIT' })
+  }
+}
+
+type TxClient = PrismaClient | Prisma.TransactionClient
+
+export async function resolveActivePlanOrPersonal(tx: TxClient, userId: string): Promise<Plan> {
+  const sub = await tx.subscription.findFirst({
+    where: { userId, status: { in: ['TRIAL', 'ACTIVE', 'PAST_DUE'] } },
+    include: { plan: true },
+    orderBy: { createdAt: 'desc' },
+  })
+  return sub?.plan ?? (await tx.plan.findUniqueOrThrow({ where: { slug: 'personal' } }))
+}
+
+export async function syncWorkspaceLimits(tx: TxClient, userId: string): Promise<void> {
+  const plan = await resolveActivePlanOrPersonal(tx, userId)
+  const workspaces = await tx.workspace.findMany({
+    where: { createdById: userId },
+    select: { id: true },
+  })
+  if (workspaces.length === 0) return
+  const now = new Date()
+  for (const w of workspaces) {
+    await tx.workspaceLimit.upsert({
+      where: { workspaceId: w.id },
+      create: {
+        workspaceId: w.id,
+        maxMembers: plan.maxMembersPerWorkspace,
+        maxFileBytes: plan.maxFileBytes,
+        sourcePlanSlug: plan.slug,
+        syncedAt: now,
+      },
+      update: {
+        maxMembers: plan.maxMembersPerWorkspace,
+        maxFileBytes: plan.maxFileBytes,
+        sourcePlanSlug: plan.slug,
+        syncedAt: now,
+      },
+    })
   }
 }

@@ -303,6 +303,7 @@ model Workspace {
   mcpServers            WorkspaceMcpServer[]
   agentMemories         WorkspaceAgentMemory[]
   agentActionLogs       AgentActionLog[]
+  limits                WorkspaceLimit?
 
   @@index([createdById])
   @@map("workspaces")
@@ -640,6 +641,7 @@ model Plan {
 
   maxWorkspaces          Int? @map("max_workspaces")
   maxMembersPerWorkspace Int  @default(1) @map("max_members_per_workspace")
+  maxFileBytes           BigInt  @default(0) @map("max_file_bytes")
 
   chatsEnabled           Boolean @default(false) @map("chats_enabled")
   pageIndexingEnabled    Boolean @default(false) @map("page_indexing_enabled")
@@ -1284,4 +1286,18 @@ model AgentActionLog {
   @@index([workspaceId, createdAt])
   @@index([chatId, createdAt])
   @@map("agent_action_logs")
+}
+
+model WorkspaceLimit {
+  workspaceId    String   @id @map("workspace_id") @db.Uuid
+  maxMembers     Int      @map("max_members")
+  maxFileBytes   BigInt   @map("max_file_bytes")
+  sourcePlanSlug String?  @map("source_plan_slug") @db.VarChar(50)
+  syncedAt       DateTime @map("synced_at") @db.Timestamptz(6)
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("workspace_limits")
 }

@@ -6,7 +6,6 @@ import {
   Alert,
   Button,
   MenuItem,
-  Paper,
   Select,
   Stack,
   Table,
@@ -19,6 +18,8 @@ import {
 } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
+
+import { SettingsCard } from './settings-card'
 
 type Props = {
   workspaceId: string
@@ -42,18 +43,19 @@ export function WorkspaceMembersSection({ workspaceId, locked, currentUserId }: 
   })
 
   return (
-    <Paper variant="outlined" sx={{ p: 3 }}>
-      <Stack spacing={2}>
-        <Typography variant="h6">Участники</Typography>
-        {locked ? (
-          <Alert severity="info">
-            Приглашения доступны на платных тарифах. <a href="/settings/billing">Апгрейд</a>
-          </Alert>
-        ) : null}
-        {invite.error ? <Alert severity="error">{invite.error.message}</Alert> : null}
-        {remove.error ? <Alert severity="error">{remove.error.message}</Alert> : null}
+    <SettingsCard
+      title="Участники"
+      description="Приглашайте людей и управляйте их ролями в этом пространстве."
+    >
+      {locked ? (
+        <Alert severity="info">
+          Приглашения доступны на платных тарифах. <a href="/settings/billing">Апгрейд</a>
+        </Alert>
+      ) : null}
+      {invite.error ? <Alert severity="error">{invite.error.message}</Alert> : null}
+      {remove.error ? <Alert severity="error">{remove.error.message}</Alert> : null}
 
-        <Stack direction="row" spacing={1} alignItems="flex-start">
+      <Stack direction="row" spacing={1} alignItems="flex-start">
           <TextField
             label="Email"
             value={email}
@@ -117,7 +119,6 @@ export function WorkspaceMembersSection({ workspaceId, locked, currentUserId }: 
             ))}
           </TableBody>
         </Table>
-      </Stack>
-    </Paper>
+    </SettingsCard>
   )
 }

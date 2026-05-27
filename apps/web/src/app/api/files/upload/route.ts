@@ -64,6 +64,26 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: validationError.message }, { status: validationError.status })
   }
 
+  if (kind === 'attachment') {
+    const [usage, limits] = await Promise.all([
+      prisma.file.aggregate({
+        where: { workspaceId: workspaceIdParam!, status: FileStatus.ACTIVE },
+        _sum: { fileSize: true },
+      }),
+      prisma.workspaceLimit.findUnique({ where: { workspaceId: workspaceIdParam! } }),
+    ])
+    if (!limits) {
+      return Response.json({ error: 'WORKSPACE_LIMIT_MISSING' }, { status: 500 })
+    }
+    const used = usage._sum.fileSize ?? 0n
+    if (used + BigInt(bytes.length) > limits.maxFileBytes) {
+      return Response.json(
+        { error: 'WORKSPACE_STORAGE_LIMIT', maxBytes: limits.maxFileBytes.toString() },
+        { status: 413 },
+      )
+    }
+  }
+
   const hash = createHash('sha256').update(bytes).digest('hex')
   const ext = extractExt(file.name)
   const s3Key = computeS3Key(hash, ext)
