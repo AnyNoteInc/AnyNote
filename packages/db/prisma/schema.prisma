@@ -116,8 +116,7 @@ model ApiKey {
 
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
-  @@index([userId])
-  @@index([keyHash])
+  @@index([userId, createdAt(sort: Desc)])
   @@map("api_keys")
 }
 
