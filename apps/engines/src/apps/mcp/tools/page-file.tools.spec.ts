@@ -1,11 +1,10 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+import { ForbiddenException } from '@nestjs/common'
 
 import type { PrismaClient } from '@repo/db'
 
 import { PageNotFoundError } from '../errors/mcp.errors.js'
-import type { WorkspaceMemberGuard } from '../guards/workspace-member.guard.js'
 import type { FileUploader } from '../services/file-uploader.service.js'
-import type { McpRequestWithContext } from '../utils/mcp-request-context.js'
 import { PageFileTools } from './page-file.tools.js'
 
 describe('PageFileTools', () => {
@@ -20,29 +19,25 @@ describe('PageFileTools', () => {
     pageFile: {
       findMany: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     },
+    workspaceMember: {
+      findUnique: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+    },
   } as unknown as PrismaClient
-  const mockGuard = {
-    assert: jest.fn<(...args: unknown[]) => Promise<void>>(),
-  } as unknown as WorkspaceMemberGuard
   const mockUploader = {
     uploadInline: jest.fn<(...args: unknown[]) => Promise<string>>(),
     attach: jest.fn<(...args: unknown[]) => Promise<void>>(),
   } as unknown as FileUploader
 
-  const req = {
-    headers: {},
-    mcpContext: { userId, workspaceId },
-  } as McpRequestWithContext
+  const req: any = { auth: { userId, source: 'api-key' } }
 
   let tools: PageFileTools
 
   beforeEach(() => {
-    ;(mockPrisma.page.findUnique as jest.Mock).mockReset()
-    ;(mockPrisma.pageFile.findMany as jest.Mock).mockReset()
-    ;(mockGuard.assert as jest.Mock).mockReset().mockImplementation(async () => {})
+    jest.clearAllMocks()
+    ;(mockPrisma as any).workspaceMember.findUnique.mockResolvedValue({ workspaceId })
     ;(mockUploader.uploadInline as jest.Mock).mockReset()
     ;(mockUploader.attach as jest.Mock).mockReset()
-    tools = new PageFileTools(mockPrisma, mockGuard, mockUploader)
+    tools = new PageFileTools(mockPrisma, mockUploader)
   })
 
   it('uploadFileToPage returns fileId and passes imageOnly=false', async () => {
@@ -52,6 +47,7 @@ describe('PageFileTools', () => {
 
     const result = await tools.uploadFileToPage(
       {
+        workspaceId,
         pageId,
         fileName: 'notes.txt',
         mimeType: 'text/plain',
@@ -62,7 +58,7 @@ describe('PageFileTools', () => {
     )
 
     expect(result).toEqual({ fileId: '44444444-4444-4444-8444-444444444444' })
-    expect(mockGuard.assert).toHaveBeenCalledWith(workspaceId, userId)
+    expect(mockPrisma.workspaceMember.findUnique).toHaveBeenCalled()
     expect(mockUploader.uploadInline).toHaveBeenCalledWith({
       userId,
       workspaceId,
@@ -74,6 +70,25 @@ describe('PageFileTools', () => {
     })
   })
 
+  it('uploadFileToPage throws ForbiddenException when caller is not a workspace member', async () => {
+    ;(mockPrisma as any).workspaceMember.findUnique.mockResolvedValue(null)
+    const nonMemberReq: any = { auth: { userId: 'u1', source: 'api-key' } }
+
+    await expect(
+      tools.uploadFileToPage(
+        {
+          workspaceId,
+          pageId,
+          fileName: 'notes.txt',
+          mimeType: 'text/plain',
+          contentBase64: Buffer.from('hello').toString('base64'),
+        },
+        {} as never,
+        nonMemberReq,
+      ),
+    ).rejects.toBeInstanceOf(ForbiddenException)
+  })
+
   it('uploadImageToPage returns fileId and passes imageOnly=true', async () => {
     ;(mockUploader.uploadInline as jest.Mock).mockResolvedValue(
       '55555555-5555-4555-8555-555555555555' as never,
@@ -81,6 +96,7 @@ describe('PageFileTools', () => {
 
     const result = await tools.uploadImageToPage(
       {
+        workspaceId,
         pageId,
         fileName: 'diagram.png',
         mimeType: 'image/png',
@@ -91,7 +107,7 @@ describe('PageFileTools', () => {
     )
 
     expect(result).toEqual({ fileId: '55555555-5555-4555-8555-555555555555' })
-    expect(mockGuard.assert).toHaveBeenCalledWith(workspaceId, userId)
+    expect(mockPrisma.workspaceMember.findUnique).toHaveBeenCalled()
     expect(mockUploader.uploadInline).toHaveBeenCalledWith({
       userId,
       workspaceId,
@@ -108,6 +124,7 @@ describe('PageFileTools', () => {
 
     const result = await tools.attachFileToPage(
       {
+        workspaceId,
         pageId,
         fileId: '44444444-4444-4444-8444-444444444444',
       },
@@ -116,7 +133,7 @@ describe('PageFileTools', () => {
     )
 
     expect(result).toEqual({ ok: true })
-    expect(mockGuard.assert).toHaveBeenCalledWith(workspaceId, userId)
+    expect(mockPrisma.workspaceMember.findUnique).toHaveBeenCalled()
     expect(mockUploader.attach).toHaveBeenCalledWith({
       userId,
       workspaceId,
@@ -131,6 +148,7 @@ describe('PageFileTools', () => {
 
     const result = await tools.attachImageToPage(
       {
+        workspaceId,
         pageId,
         fileId: '55555555-5555-4555-8555-555555555555',
       },
@@ -139,7 +157,7 @@ describe('PageFileTools', () => {
     )
 
     expect(result).toEqual({ ok: true })
-    expect(mockGuard.assert).toHaveBeenCalledWith(workspaceId, userId)
+    expect(mockPrisma.workspaceMember.findUnique).toHaveBeenCalled()
     expect(mockUploader.attach).toHaveBeenCalledWith({
       userId,
       workspaceId,
@@ -164,7 +182,7 @@ describe('PageFileTools', () => {
       },
     ] as never)
 
-    const result = await tools.listPageFiles({ pageId }, {} as never, req)
+    const result = await tools.listPageFiles({ workspaceId, pageId }, {} as never, req)
 
     expect(result).toEqual({
       files: [
@@ -177,6 +195,7 @@ describe('PageFileTools', () => {
         },
       ],
     })
+    expect(mockPrisma.workspaceMember.findUnique).toHaveBeenCalled()
     expect(mockPrisma.page.findUnique).toHaveBeenCalledWith({
       where: { id: pageId },
       select: { workspaceId: true },
@@ -194,8 +213,8 @@ describe('PageFileTools', () => {
   it('listPageFiles throws when page is missing', async () => {
     ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue(null as never)
 
-    await expect(tools.listPageFiles({ pageId }, {} as never, req)).rejects.toBeInstanceOf(
-      PageNotFoundError,
-    )
+    await expect(
+      tools.listPageFiles({ workspaceId, pageId }, {} as never, req),
+    ).rejects.toBeInstanceOf(PageNotFoundError)
   })
 })
