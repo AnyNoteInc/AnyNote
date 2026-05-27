@@ -1,37 +1,53 @@
-import { Inject, Injectable } from '@nestjs/common'
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common'
 import type { Context } from '@rekog/mcp-nest'
 import { Tool } from '@rekog/mcp-nest'
 import type { PrismaClient } from '@repo/db'
 import { z } from 'zod'
 
 import { PRISMA } from '../../../infra/db/db.providers.js'
+import { assertMember } from '../../api/auth/membership.js'
+import type { AuthContext, AuthedRequest } from '../../api/auth/auth-context.js'
 import { FileNotFoundError, PageNotFoundError } from '../errors/mcp.errors.js'
-import { WorkspaceMemberGuard } from '../guards/workspace-member.guard.js'
 import { PageWriter } from '../services/page-writer.service.js'
 import { StatsService } from '../services/stats.service.js'
 import { mcpInput, mcpNullableUuidOptional, mcpUuid } from '../utils/mcp-input.js'
-import { getMcpRequestContext, type McpRequestWithContext } from '../utils/mcp-request-context.js'
+
+const GetWorkspaceStatsInput = z.object({
+  workspaceId: z.string().uuid(),
+})
 
 const PaginationInput = z.object({
+  workspaceId: z.string().uuid(),
   limit: mcpInput(z.number().int().positive().max(200).default(50)),
   offset: mcpInput(z.number().int().nonnegative().default(0)),
 })
 
 const LimitInput = z.object({
+  workspaceId: z.string().uuid(),
   limit: mcpInput(z.number().int().positive().max(200).default(50)),
 })
 
 const CreatePageFromFileInput = z.object({
+  workspaceId: z.string().uuid(),
   parentId: mcpNullableUuidOptional(),
   fileId: mcpUuid(),
   title: z.string().min(1).max(255).optional(),
 })
 
+type GetWorkspaceStatsArgs = z.infer<typeof GetWorkspaceStatsInput>
+type PaginationArgs = z.infer<typeof PaginationInput>
+type LimitArgs = z.infer<typeof LimitInput>
+type CreatePageFromFileArgs = z.infer<typeof CreatePageFromFileInput>
+
+function requireAuth(req: AuthedRequest | undefined): AuthContext {
+  if (!req?.auth) throw new UnauthorizedException('Unauthenticated MCP request')
+  return req.auth
+}
+
 @Injectable()
 export class WorkspaceTools {
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
-    private readonly guard: WorkspaceMemberGuard,
     private readonly writer: PageWriter,
     private readonly stats: StatsService,
   ) {}
@@ -43,17 +59,16 @@ export class WorkspaceTools {
       'по типам (TEXT/KANBAN/EXCALIDRAW), общее число страниц и список ' +
       'участников. Вызывай когда пользователь спрашивает "сколько страниц", ' +
       '"сколько заметок", "кто в команде", "статистика воркспейса" или ' +
-      'просит общий обзор. Без параметров.',
-    parameters: z.object({}),
+      'просит общий обзор. Параметр: workspaceId (uuid, обязательный).',
+    parameters: GetWorkspaceStatsInput,
   })
-  async getWorkspaceStats(
-    _args: Record<string, never>,
-    _context: Context,
-    req: McpRequestWithContext,
-  ) {
-    const requestContext = getMcpRequestContext(req)
-    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
-    return this.stats.getWorkspaceStats(requestContext.workspaceId)
+  getWorkspaceStats(args: GetWorkspaceStatsArgs, _context: Context, req: AuthedRequest) {
+    return this.doGetWorkspaceStats(requireAuth(req), args)
+  }
+
+  async doGetWorkspaceStats(auth: AuthContext, args: GetWorkspaceStatsArgs) {
+    await assertMember(this.prisma, auth.userId, args.workspaceId)
+    return this.stats.getWorkspaceStats(args.workspaceId)
   }
 
   @Tool({
@@ -65,15 +80,14 @@ export class WorkspaceTools {
       'воркспейса. Поддерживает limit (1-100) и offset.',
     parameters: PaginationInput,
   })
-  async listWorkspaceFiles(
-    args: z.infer<typeof PaginationInput>,
-    _context: Context,
-    req: McpRequestWithContext,
-  ) {
-    const requestContext = getMcpRequestContext(req)
-    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
+  listWorkspaceFiles(args: PaginationArgs, _context: Context, req: AuthedRequest) {
+    return this.doListWorkspaceFiles(requireAuth(req), args)
+  }
+
+  async doListWorkspaceFiles(auth: AuthContext, args: PaginationArgs) {
+    await assertMember(this.prisma, auth.userId, args.workspaceId)
     const files = await this.prisma.file.findMany({
-      where: { workspaceId: requestContext.workspaceId, status: 'ACTIVE' },
+      where: { workspaceId: args.workspaceId, status: 'ACTIVE' },
       orderBy: { createdAt: 'desc' },
       take: args.limit,
       skip: args.offset,
@@ -96,17 +110,16 @@ export class WorkspaceTools {
       'Возвращает страницы-навыки (ownership=SKILL) рабочего пространства. ' +
       'Вызывай когда пользователь спрашивает про доступные навыки, скиллы, ' +
       'промпт-страницы или просит показать "что умеет агент в этом ' +
-      'воркспейсе". Параметр limit (1-100).',
+      'воркспейсе". Параметры: workspaceId (uuid, обязательный), limit (1-100).',
     parameters: LimitInput,
   })
-  async listSkills(
-    args: z.infer<typeof LimitInput>,
-    _context: Context,
-    req: McpRequestWithContext,
-  ) {
-    const requestContext = getMcpRequestContext(req)
-    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
-    return this.listOwnershipPages(requestContext.workspaceId, 'SKILL', args.limit)
+  listSkills(args: LimitArgs, _context: Context, req: AuthedRequest) {
+    return this.doListSkills(requireAuth(req), args)
+  }
+
+  async doListSkills(auth: AuthContext, args: LimitArgs) {
+    await assertMember(this.prisma, auth.userId, args.workspaceId)
+    return this.listOwnershipPages(args.workspaceId, 'SKILL', args.limit)
   }
 
   @Tool({
@@ -114,18 +127,17 @@ export class WorkspaceTools {
     description:
       'Возвращает страницы-агенты (ownership=AGENT) рабочего пространства. ' +
       'Вызывай когда пользователь спрашивает про доступных агентов, ' +
-      'персонажей, ассистентов или просит "список агентов". Параметр ' +
-      'limit (1-100).',
+      'персонажей, ассистентов или просит "список агентов". Параметры: ' +
+      'workspaceId (uuid, обязательный), limit (1-100).',
     parameters: LimitInput,
   })
-  async listAgents(
-    args: z.infer<typeof LimitInput>,
-    _context: Context,
-    req: McpRequestWithContext,
-  ) {
-    const requestContext = getMcpRequestContext(req)
-    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
-    return this.listOwnershipPages(requestContext.workspaceId, 'AGENT', args.limit)
+  listAgents(args: LimitArgs, _context: Context, req: AuthedRequest) {
+    return this.doListAgents(requireAuth(req), args)
+  }
+
+  async doListAgents(auth: AuthContext, args: LimitArgs) {
+    await assertMember(this.prisma, auth.userId, args.workspaceId)
+    return this.listOwnershipPages(args.workspaceId, 'AGENT', args.limit)
   }
 
   @Tool({
@@ -133,18 +145,17 @@ export class WorkspaceTools {
     description: 'Create a page and attach an existing workspace file to it',
     parameters: CreatePageFromFileInput,
   })
-  async createPageFromFile(
-    args: z.infer<typeof CreatePageFromFileInput>,
-    _context: Context,
-    req: McpRequestWithContext,
-  ) {
-    const requestContext = getMcpRequestContext(req)
-    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
+  createPageFromFile(args: CreatePageFromFileArgs, _context: Context, req: AuthedRequest) {
+    return this.doCreatePageFromFile(requireAuth(req), args)
+  }
+
+  async doCreatePageFromFile(auth: AuthContext, args: CreatePageFromFileArgs) {
+    await assertMember(this.prisma, auth.userId, args.workspaceId)
     const file = await this.prisma.file.findUnique({
       where: { id: args.fileId },
       select: { id: true, workspaceId: true, name: true },
     })
-    if (!file || file.workspaceId !== requestContext.workspaceId) {
+    if (file?.workspaceId !== args.workspaceId) {
       throw new FileNotFoundError(args.fileId)
     }
     if (args.parentId) {
@@ -152,14 +163,14 @@ export class WorkspaceTools {
         where: { id: args.parentId },
         select: { workspaceId: true, deletedAt: true },
       })
-      if (!parent || parent.workspaceId !== requestContext.workspaceId || parent.deletedAt) {
+      if (parent?.workspaceId !== args.workspaceId || parent?.deletedAt) {
         throw new PageNotFoundError(args.parentId)
       }
     }
     const title = args.title ?? file.name
     const pageId = await this.writer.createPage({
-      userId: requestContext.userId,
-      workspaceId: requestContext.workspaceId,
+      userId: auth.userId,
+      workspaceId: args.workspaceId,
       parentId: args.parentId,
       title,
       ownership: 'TEXT',

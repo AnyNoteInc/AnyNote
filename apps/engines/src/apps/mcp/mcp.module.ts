@@ -5,7 +5,6 @@ import { storage } from '@repo/storage'
 
 import { AgentsInternalAuthGuard } from '../../auth/agents-internal-auth.guard.js'
 import { McpExceptionFilter } from './errors/mcp-exception.filter.js'
-import { WorkspaceMemberGuard } from './guards/workspace-member.guard.js'
 import { McpTokenGuard } from './guards/mcp-token.guard.js'
 import { createAgentsSearchClient } from './services/agents-search.client.js'
 import { FileUploader, STORAGE } from './services/file-uploader.service.js'
@@ -29,7 +28,6 @@ import { WorkspaceTools } from './tools/workspace.tools.js'
   providers: [
     AgentsInternalAuthGuard,
     McpTokenGuard,
-    WorkspaceMemberGuard,
     MarkdownParser,
     MarkdownRenderer,
     PageWriter,

@@ -1,14 +1,13 @@
 import { beforeAll, beforeEach, describe, expect, it, jest } from '@jest/globals'
+import { ForbiddenException } from '@nestjs/common'
 import { fileURLToPath } from 'node:url'
 import { dirname } from 'node:path'
 
 import type { PrismaClient } from '@repo/db'
 
 import { FileNotFoundError, PageNotFoundError } from '../errors/mcp.errors.js'
-import type { WorkspaceMemberGuard } from '../guards/workspace-member.guard.js'
 import type { PageWriter } from '../services/page-writer.service.js'
 import type { StatsService } from '../services/stats.service.js'
-import type { McpRequestWithContext } from '../utils/mcp-request-context.js'
 import { WorkspaceTools } from './workspace.tools.js'
 
 const __dirname = dirname(fileURLToPath(import.meta.url))
@@ -31,10 +30,10 @@ describe('WorkspaceTools', () => {
     pageFile: {
       create: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     },
+    workspaceMember: {
+      findUnique: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+    },
   } as unknown as PrismaClient
-  const mockGuard = {
-    assert: jest.fn<(...args: unknown[]) => Promise<void>>(),
-  } as unknown as WorkspaceMemberGuard
   const mockWriter = {
     createPage: jest.fn<(...args: unknown[]) => Promise<string>>(),
   } as unknown as PageWriter
@@ -42,33 +41,32 @@ describe('WorkspaceTools', () => {
     getWorkspaceStats: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
   } as unknown as StatsService
 
-  const req = {
-    headers: {},
-    mcpContext: { userId, workspaceId },
-  } as McpRequestWithContext
+  const req: any = { auth: { userId, source: 'api-key' } }
 
   let tools: WorkspaceTools
 
   beforeEach(() => {
-    ;(mockPrisma.file.findMany as jest.Mock).mockReset()
-    ;(mockPrisma.file.findUnique as jest.Mock).mockReset()
-    ;(mockPrisma.page.findMany as jest.Mock).mockReset()
-    ;(mockPrisma.page.findUnique as jest.Mock).mockReset()
-    ;(mockPrisma.pageFile.create as jest.Mock).mockReset()
-    ;(mockGuard.assert as jest.Mock).mockReset().mockImplementation(async () => {})
-    ;(mockWriter.createPage as jest.Mock).mockReset()
-    ;(mockStats.getWorkspaceStats as jest.Mock).mockReset()
-    tools = new WorkspaceTools(mockPrisma, mockGuard, mockWriter, mockStats)
+    jest.clearAllMocks()
+    ;(mockPrisma as any).workspaceMember.findUnique.mockResolvedValue({ workspaceId: 'w' })
+    tools = new WorkspaceTools(mockPrisma, mockWriter, mockStats)
   })
 
   it('getWorkspaceStats delegates to stats service', async () => {
     ;(mockStats.getWorkspaceStats as jest.Mock).mockResolvedValue({ totalPages: 7 } as never)
 
-    const result = await tools.getWorkspaceStats({}, {} as never, req)
+    const result = await tools.getWorkspaceStats({ workspaceId }, {} as never, req)
 
     expect(result).toEqual({ totalPages: 7 })
-    expect(mockGuard.assert).toHaveBeenCalledWith(workspaceId, userId)
+    expect(mockPrisma.workspaceMember.findUnique).toHaveBeenCalled()
     expect(mockStats.getWorkspaceStats).toHaveBeenCalledWith(workspaceId)
+  })
+
+  it('getWorkspaceStats throws ForbiddenException for non-member', async () => {
+    ;(mockPrisma as any).workspaceMember.findUnique.mockResolvedValue(null)
+
+    await expect(
+      tools.getWorkspaceStats({ workspaceId }, {} as never, req),
+    ).rejects.toBeInstanceOf(ForbiddenException)
   })
 
   it('listWorkspaceFiles maps file records to response payload', async () => {
@@ -83,7 +81,11 @@ describe('WorkspaceTools', () => {
       },
     ] as never)
 
-    const result = await tools.listWorkspaceFiles({ limit: 10, offset: 5 }, {} as never, req)
+    const result = await tools.listWorkspaceFiles(
+      { workspaceId, limit: 10, offset: 5 },
+      {} as never,
+      req,
+    )
 
     expect(result).toEqual({
       files: [
@@ -115,7 +117,7 @@ describe('WorkspaceTools', () => {
       },
     ] as never)
 
-    const result = await tools.listSkills({ limit: 20 }, {} as never, req)
+    const result = await tools.listSkills({ workspaceId, limit: 20 }, {} as never, req)
 
     expect(result).toEqual({
       pages: [
@@ -145,7 +147,7 @@ describe('WorkspaceTools', () => {
       },
     ] as never)
 
-    const result = await tools.listAgents({ limit: 15 }, {} as never, req)
+    const result = await tools.listAgents({ workspaceId, limit: 15 }, {} as never, req)
 
     expect(result).toEqual({
       pages: [
@@ -182,6 +184,7 @@ describe('WorkspaceTools', () => {
 
     const result = await tools.createPageFromFile(
       {
+        workspaceId,
         parentId,
         fileId,
         title: 'Derived page',
@@ -191,7 +194,7 @@ describe('WorkspaceTools', () => {
     )
 
     expect(result).toEqual({ pageId: '55555555-5555-4555-8555-555555555555' })
-    expect(mockGuard.assert).toHaveBeenCalledWith(workspaceId, userId)
+    expect(mockPrisma.workspaceMember.findUnique).toHaveBeenCalled()
     expect(mockWriter.createPage).toHaveBeenCalledWith({
       userId,
       workspaceId,
@@ -215,7 +218,7 @@ describe('WorkspaceTools', () => {
     )
     ;(mockPrisma.pageFile.create as jest.Mock).mockResolvedValue({} as never)
 
-    await tools.createPageFromFile({ parentId: undefined, fileId }, {} as never, req)
+    await tools.createPageFromFile({ workspaceId, parentId: undefined, fileId }, {} as never, req)
 
     expect(mockWriter.createPage).toHaveBeenCalledWith({
       userId,
@@ -230,7 +233,7 @@ describe('WorkspaceTools', () => {
     ;(mockPrisma.file.findUnique as jest.Mock).mockResolvedValue(null as never)
 
     await expect(
-      tools.createPageFromFile({ parentId: undefined, fileId }, {} as never, req),
+      tools.createPageFromFile({ workspaceId, parentId: undefined, fileId }, {} as never, req),
     ).rejects.toBeInstanceOf(FileNotFoundError)
   })
 
@@ -246,7 +249,7 @@ describe('WorkspaceTools', () => {
     } as never)
 
     await expect(
-      tools.createPageFromFile({ parentId, fileId }, {} as never, req),
+      tools.createPageFromFile({ workspaceId, parentId, fileId }, {} as never, req),
     ).rejects.toBeInstanceOf(PageNotFoundError)
   })
 
@@ -260,31 +263,32 @@ describe('WorkspaceTools', () => {
     beforeAll(async () => {
       const fs = await import('node:fs/promises')
       const path = await import('node:path')
-      source = await fs.readFile(
-        path.join(__dirname, 'workspace.tools.ts'),
-        'utf8',
-      )
+      source = await fs.readFile(path.join(__dirname, 'workspace.tools.ts'), 'utf8')
     })
 
     it('getWorkspaceStats description mentions "сколько страниц" or "статистик"', () => {
-      const match = /name: 'getWorkspaceStats'[\s\S]*?description:\s*([\s\S]*?),\s*parameters:/.exec(source)
+      const match =
+        /name: 'getWorkspaceStats'[\s\S]*?description:\s*([\s\S]*?),\s*parameters:/.exec(source)
       expect(match).not.toBeNull()
       const desc = match![1]!
       expect(desc).toMatch(/сколько страниц|статистик/i)
     })
 
     it('listWorkspaceFiles description mentions "файл" or "вложен"', () => {
-      const match = /name: 'listWorkspaceFiles'[\s\S]*?description:\s*([\s\S]*?),\s*parameters:/.exec(source)
+      const match =
+        /name: 'listWorkspaceFiles'[\s\S]*?description:\s*([\s\S]*?),\s*parameters:/.exec(source)
       expect(match![1]).toMatch(/файл|вложен/i)
     })
 
     it('listSkills description mentions "навык" or "skill"', () => {
-      const match = /name: 'listSkills'[\s\S]*?description:\s*([\s\S]*?),\s*parameters:/.exec(source)
+      const match =
+        /name: 'listSkills'[\s\S]*?description:\s*([\s\S]*?),\s*parameters:/.exec(source)
       expect(match![1]).toMatch(/навык|skill/i)
     })
 
     it('listAgents description mentions "агент" or "agent"', () => {
-      const match = /name: 'listAgents'[\s\S]*?description:\s*([\s\S]*?),\s*parameters:/.exec(source)
+      const match =
+        /name: 'listAgents'[\s\S]*?description:\s*([\s\S]*?),\s*parameters:/.exec(source)
       expect(match![1]).toMatch(/агент|agent/i)
     })
   })
