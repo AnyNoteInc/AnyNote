@@ -46,6 +46,8 @@ class ConversationMessageSchema(RequestResponseSchema):
 
 
 class McpServerSchema(RequestResponseSchema):
+    model_config = ConfigDict(populate_by_name=True)
+
     name: str
     description: str = ''
     url: str
@@ -54,6 +56,7 @@ class McpServerSchema(RequestResponseSchema):
     headers: dict[str, str] = Field(default_factory=dict)
     retries: int = 3
     verify: bool = True
+    workspace_id: str | None = None
 
 
 class RagDocumentSchema(RequestResponseSchema):

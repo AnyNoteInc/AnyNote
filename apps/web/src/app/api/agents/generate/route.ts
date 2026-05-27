@@ -125,7 +125,6 @@ export async function POST(request: NextRequest): Promise<Response> {
   const ts = Math.floor(Date.now() / 1000)
   const enginesMcpHeaders = buildEnginesMcpHeaders({
     userId: session.user.id,
-    workspaceId: chat.workspaceId,
     ts,
   })
 
@@ -138,6 +137,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     tools: [],
     retries: 3,
     verify: false,
+    workspaceId: chat.workspaceId,
   }
 
   const decryptedHeadersMap = decryptMcpHeadersMap(mcpServerRows)

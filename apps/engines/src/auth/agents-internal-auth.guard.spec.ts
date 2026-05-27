@@ -13,10 +13,10 @@ function makeCtx(headers: Record<string, string>): ExecutionContext {
   } as unknown as ExecutionContext
 }
 
-function sign(secret: string, userId: string, workspaceId: string, ts: number) {
+function sign(secret: string, userId: string, ts: number) {
   return crypto
     .createHmac('sha256', Buffer.from(secret, 'base64'))
-    .update(`${userId}:${workspaceId}:${ts}`)
+    .update(`${userId}:${ts}`)
     .digest('base64')
 }
 
@@ -35,9 +35,8 @@ describe('AgentsInternalAuthGuard', () => {
     const guard = moduleRef.get(AgentsInternalAuthGuard)
     const request: Record<string, unknown> = {
       headers: {
-        authorization: `Bearer ${sign(SECRET, 'u', 'w', ts)}`,
+        authorization: `Bearer ${sign(SECRET, 'u', ts)}`,
         'x-agents-user': 'u',
-        'x-agents-workspace': 'w',
         'x-agents-timestamp': String(ts),
       },
     }
@@ -55,9 +54,8 @@ describe('AgentsInternalAuthGuard', () => {
     }).compile()
     const guard = moduleRef.get(AgentsInternalAuthGuard)
     const ctx = makeCtx({
-      authorization: `Bearer ${sign(SECRET, 'u', 'w', ts)}`,
+      authorization: `Bearer ${sign(SECRET, 'u', ts)}`,
       'x-agents-user': 'u',
-      'x-agents-workspace': 'w',
       'x-agents-timestamp': String(ts),
     })
     expect(() => guard.canActivate(ctx)).toThrow(/timestamp/i)
@@ -72,7 +70,6 @@ describe('AgentsInternalAuthGuard', () => {
     const ctx = makeCtx({
       authorization: 'Bearer dGFtcGVyZWQ=',
       'x-agents-user': 'u',
-      'x-agents-workspace': 'w',
       'x-agents-timestamp': String(ts),
     })
     expect(() => guard.canActivate(ctx)).toThrow()
