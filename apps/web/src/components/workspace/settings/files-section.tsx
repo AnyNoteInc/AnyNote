@@ -7,7 +7,6 @@ import {
   Box,
   Button,
   InputAdornment,
-  Paper,
   SearchIcon,
   Stack,
   Table,
@@ -25,6 +24,7 @@ import { trpc } from '@/trpc/client'
 import { FilesDeleteDialog } from './files-delete-dialog'
 import { FilesFilters } from './files-filters'
 import { FilesTableRow, type RowFile } from './files-table-row'
+import { SettingsCard } from './settings-card'
 
 type Props = {
   workspaceId: string
@@ -138,16 +138,11 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
   }, [listQuery.isLoading, items, filtersActive, currentUserId])
 
   return (
-    <Paper variant="outlined" sx={{ p: 3 }}>
-      <Stack spacing={2}>
-        <Box>
-          <Typography variant="h6">Файлы</Typography>
-          <Typography variant="body2" color="text.secondary">
-            Все файлы, загруженные в этом workspace.
-          </Typography>
-        </Box>
-
-        {listQuery.error ? <Alert severity="error">{listQuery.error.message}</Alert> : null}
+    <SettingsCard
+      title="Файлы"
+      description="Все файлы, загруженные в этом workspace."
+    >
+      {listQuery.error ? <Alert severity="error">{listQuery.error.message}</Alert> : null}
 
         <TextField
           size="small"
@@ -200,7 +195,6 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
           }
           labelRowsPerPage="На странице"
         />
-      </Stack>
 
       <FilesDeleteDialog
         open={deleteTarget !== null}
@@ -208,6 +202,6 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
         onClose={() => setDeleteTarget(null)}
         onDeleted={handleDeleted}
       />
-    </Paper>
+    </SettingsCard>
   )
 }

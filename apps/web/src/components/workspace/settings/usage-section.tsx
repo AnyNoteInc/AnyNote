@@ -1,8 +1,10 @@
 'use client'
 
-import { Alert, Button, LinearProgress, Paper, Stack, Typography } from '@repo/ui/components'
+import { Alert, Button, LinearProgress, Stack, Typography } from '@repo/ui/components'
 
 import { formatBytes } from '@/lib/format-bytes'
+
+import { SettingsCard } from './settings-card'
 
 type Props = {
   limits: {
@@ -38,11 +40,10 @@ export function UsageSection({ limits, usage, ownerPlanSlug }: Props) {
   const overBytes = usedBytes >= maxBytes
   const showOverLimit = overMembers || overBytes
   const canUpgrade = ownerPlanSlug !== 'max'
+  const invitesWord = remainingMembers === 1 ? 'приглашение' : 'приглашений'
 
   return (
-    <Stack spacing={2.5}>
-      <Typography variant="h6">Использование</Typography>
-
+    <Stack spacing={3}>
       {showOverLimit ? (
         <Alert
           severity="error"
@@ -63,55 +64,49 @@ export function UsageSection({ limits, usage, ownerPlanSlug }: Props) {
         </Alert>
       ) : null}
 
-      <Paper variant="outlined" sx={{ p: 3 }}>
-        <Stack spacing={1.5}>
-          <Stack direction="row" justifyContent="space-between" alignItems="baseline">
-            <Typography variant="subtitle1" fontWeight={600}>
-              Участники
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {usage.memberCount} из {limits.maxMembers}
-            </Typography>
-          </Stack>
-          <LinearProgress
-            variant="determinate"
-            value={memberPercent}
-            color={progressColor(memberPercent)}
-            sx={{ height: 8, borderRadius: 4 }}
-          />
-          <Typography variant="caption" color="text.secondary">
-            {overMembers
-              ? 'Лимит исчерпан. Новые приглашения заблокированы.'
-              : `Доступно ещё ${remainingMembers} ${
-                  remainingMembers === 1 ? 'приглашение' : 'приглашений'
-                }.`}
+      <SettingsCard
+        title="Участники"
+        description="Сколько участников в этом пространстве."
+      >
+        <Stack direction="row" justifyContent="space-between" alignItems="baseline">
+          <Typography variant="body2" color="text.secondary">
+            {usage.memberCount} из {limits.maxMembers}
           </Typography>
         </Stack>
-      </Paper>
+        <LinearProgress
+          variant="determinate"
+          value={memberPercent}
+          color={progressColor(memberPercent)}
+          sx={{ height: 8, borderRadius: 4 }}
+        />
+        <Typography variant="caption" color="text.secondary">
+          {overMembers
+            ? 'Лимит исчерпан. Новые приглашения заблокированы.'
+            : `Доступно ещё ${remainingMembers} ${invitesWord}.`}
+        </Typography>
+      </SettingsCard>
 
-      <Paper variant="outlined" sx={{ p: 3 }}>
-        <Stack spacing={1.5}>
-          <Stack direction="row" justifyContent="space-between" alignItems="baseline">
-            <Typography variant="subtitle1" fontWeight={600}>
-              Хранилище файлов
-            </Typography>
-            <Typography variant="body2" color="text.secondary">
-              {formatBytes(usedBytes)} из {formatBytes(maxBytes)}
-            </Typography>
-          </Stack>
-          <LinearProgress
-            variant="determinate"
-            value={bytesPercent}
-            color={progressColor(bytesPercent)}
-            sx={{ height: 8, borderRadius: 4 }}
-          />
-          <Typography variant="caption" color="text.secondary">
-            {overBytes
-              ? 'Лимит хранилища исчерпан. Новые загрузки заблокированы.'
-              : `Использовано ${bytesPercent.toFixed(0)}% доступного объёма.`}
+      <SettingsCard
+        title="Хранилище файлов"
+        description="Объём активных файлов в этом пространстве."
+      >
+        <Stack direction="row" justifyContent="space-between" alignItems="baseline">
+          <Typography variant="body2" color="text.secondary">
+            {formatBytes(usedBytes)} из {formatBytes(maxBytes)}
           </Typography>
         </Stack>
-      </Paper>
+        <LinearProgress
+          variant="determinate"
+          value={bytesPercent}
+          color={progressColor(bytesPercent)}
+          sx={{ height: 8, borderRadius: 4 }}
+        />
+        <Typography variant="caption" color="text.secondary">
+          {overBytes
+            ? 'Лимит хранилища исчерпан. Новые загрузки заблокированы.'
+            : `Использовано ${bytesPercent.toFixed(0)}% доступного объёма.`}
+        </Typography>
+      </SettingsCard>
     </Stack>
   )
 }
