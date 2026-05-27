@@ -132,7 +132,7 @@ export async function POST(request: NextRequest): Promise<Response> {
   const enginesMcpServer = {
     name: 'anynote',
     description: 'AnyNote workspace tools',
-    url: process.env.ENGINES_MCP_URL ?? 'http://localhost:8082/api/mcp',
+    url: process.env.ENGINES_MCP_URL ?? 'http://localhost:8082/mcp',
     transport: 'HTTP_JSONRPC' as const,
     headers: enginesMcpHeaders,
     tools: [],

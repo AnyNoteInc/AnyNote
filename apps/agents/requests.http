@@ -22,7 +22,7 @@ x-workspace-id: 123e4567-e89b-12d3-a456-426614174001
   "mcp": {
     "servers": [{
       "name": "AnyNote MCP Server",
-      "url": "http://localhost:8090/api/mcp",
+      "url": "http://localhost:8090/mcp",
       "headers": {
         "Content-Type": "application/json",
         "Accept": "application/json, text/event-stream",

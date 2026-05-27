@@ -62,7 +62,7 @@ describe('MCP e2e', () => {
 
   async function callTool(name: string, args: Record<string, unknown>, currentUserId = userId) {
     return http
-      .post('/api/mcp')
+      .post('/mcp')
       .send({
         jsonrpc: '2.0',
         method: 'tools/call',
@@ -83,7 +83,7 @@ describe('MCP e2e', () => {
 
   it('rejects missing identity headers with 401', async () => {
     const res = await http
-      .post('/api/mcp')
+      .post('/mcp')
       .send({ jsonrpc: '2.0', method: 'tools/list', id: 1 })
       .set('Content-Type', 'application/json')
       .set('Accept', 'application/json, text/event-stream')
@@ -92,7 +92,7 @@ describe('MCP e2e', () => {
 
   it('lists tools with valid workspace headers and hides header-derived context fields', async () => {
     const res = await http
-      .post('/api/mcp')
+      .post('/mcp')
       .send({ jsonrpc: '2.0', method: 'tools/list', id: 1 })
       .set('Content-Type', 'application/json')
       .set('Accept', 'application/json, text/event-stream')
@@ -133,7 +133,7 @@ describe('MCP e2e', () => {
     })
 
     const res = await http
-      .post('/api/mcp')
+      .post('/mcp')
       .send({
         jsonrpc: '2.0',
         method: 'tools/call',
@@ -171,7 +171,7 @@ describe('MCP e2e', () => {
     })
 
     const res = await http
-      .post('/api/mcp')
+      .post('/mcp')
       .send({
         jsonrpc: '2.0',
         method: 'tools/call',
@@ -609,7 +609,7 @@ describe('MCP e2e', () => {
     })
     try {
       const res = await http
-        .post('/api/mcp')
+        .post('/mcp')
         .send({
           jsonrpc: '2.0',
           method: 'tools/call',
