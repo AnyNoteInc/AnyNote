@@ -1,6 +1,8 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
-import { ExecutionContext } from '@nestjs/common'
+import { type CanActivate, ExecutionContext } from '@nestjs/common'
 
+import type { ApiKeyGuard } from './api-key.guard.js'
+import type { AgentsInternalAuthGuard } from '../../../auth/agents-internal-auth.guard.js'
 import { McpAuthGuard } from './mcp-auth.guard.js'
 
 function makeCtx(authorization?: string) {
@@ -10,13 +12,17 @@ function makeCtx(authorization?: string) {
 }
 
 describe('McpAuthGuard', () => {
-  const apiKeyGuard = { canActivate: jest.fn<(c: ExecutionContext) => Promise<boolean>>() }
-  const internalGuard = { canActivate: jest.fn<(c: ExecutionContext) => Promise<boolean>>() }
+  const apiKeyGuard = {
+    canActivate: jest.fn<(c: ExecutionContext) => Promise<boolean>>(),
+  } as unknown as ApiKeyGuard & CanActivate
+  const internalGuard = {
+    canActivate: jest.fn<(c: ExecutionContext) => Promise<boolean>>(),
+  } as unknown as AgentsInternalAuthGuard & CanActivate
   let guard: McpAuthGuard
 
   beforeEach(() => {
     jest.clearAllMocks()
-    guard = new McpAuthGuard(apiKeyGuard as any, internalGuard as any)
+    guard = new McpAuthGuard(apiKeyGuard, internalGuard)
   })
 
   it('delegates to ApiKeyGuard when authorization is Bearer ank_', async () => {

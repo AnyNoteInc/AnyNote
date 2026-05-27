@@ -45,7 +45,7 @@ describe('apiKey router', () => {
       }
       const prismaMock = {
         apiKey: {
-          create: vi.fn().mockImplementation(({ data, select: _select }) => {
+          create: vi.fn().mockImplementation(({ data }) => {
             capturedData = data
             return Promise.resolve(createdRow)
           }),

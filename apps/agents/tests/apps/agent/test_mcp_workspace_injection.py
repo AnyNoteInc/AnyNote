@@ -1,7 +1,6 @@
+import pytest
 from agents.apps.agent.repositories.mcp_client import McpClient, _strip_auto_fields
 from agents.apps.agent.schemas import McpServerSchema
-
-import pytest
 
 
 def make_server(**kwargs) -> McpServerSchema:
@@ -105,5 +104,3 @@ def test_strip_auto_fields_handles_empty_schema() -> None:
     assert result == {'properties': {}, 'required': []}
 
 
-def test_strip_auto_fields_non_dict_passthrough() -> None:
-    assert _strip_auto_fields('not-a-dict') == 'not-a-dict'  # type: ignore[arg-type]

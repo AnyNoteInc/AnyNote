@@ -5,6 +5,7 @@ import { dirname } from 'node:path'
 
 import type { PrismaClient } from '@repo/db'
 
+import type { AuthedRequest } from '../../api/auth/auth-context.js'
 import { FileNotFoundError, PageNotFoundError } from '../errors/mcp.errors.js'
 import type { PageWriter } from '../services/page-writer.service.js'
 import type { StatsService } from '../services/stats.service.js'
@@ -18,6 +19,7 @@ describe('WorkspaceTools', () => {
   const parentId = '33333333-3333-4333-8333-333333333333'
   const fileId = '44444444-4444-4444-8444-444444444444'
 
+  const workspaceMemberFindUniqueMock = jest.fn<(...args: unknown[]) => Promise<unknown>>()
   const mockPrisma = {
     file: {
       findMany: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
@@ -31,7 +33,7 @@ describe('WorkspaceTools', () => {
       create: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     },
     workspaceMember: {
-      findUnique: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      findUnique: workspaceMemberFindUniqueMock,
     },
   } as unknown as PrismaClient
   const mockWriter = {
@@ -41,18 +43,18 @@ describe('WorkspaceTools', () => {
     getWorkspaceStats: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
   } as unknown as StatsService
 
-  const req: any = { auth: { userId, source: 'api-key' } }
+  const req: AuthedRequest = { headers: {}, auth: { userId, source: 'api-key' } }
 
   let tools: WorkspaceTools
 
   beforeEach(() => {
     jest.clearAllMocks()
-    ;(mockPrisma as any).workspaceMember.findUnique.mockResolvedValue({ workspaceId: 'w' })
+    workspaceMemberFindUniqueMock.mockResolvedValue({ workspaceId: 'w' })
     tools = new WorkspaceTools(mockPrisma, mockWriter, mockStats)
   })
 
   it('getWorkspaceStats delegates to stats service', async () => {
-    ;(mockStats.getWorkspaceStats as jest.Mock).mockResolvedValue({ totalPages: 7 } as never)
+    ;(mockStats.getWorkspaceStats as jest.Mock).mockResolvedValue({ totalPages: 7 })
 
     const result = await tools.getWorkspaceStats({ workspaceId }, {} as never, req)
 
@@ -62,7 +64,7 @@ describe('WorkspaceTools', () => {
   })
 
   it('getWorkspaceStats throws ForbiddenException for non-member', async () => {
-    ;(mockPrisma as any).workspaceMember.findUnique.mockResolvedValue(null)
+    workspaceMemberFindUniqueMock.mockResolvedValue(null)
 
     await expect(
       tools.getWorkspaceStats({ workspaceId }, {} as never, req),
@@ -79,7 +81,7 @@ describe('WorkspaceTools', () => {
         fileSize: BigInt(12),
         createdAt,
       },
-    ] as never)
+    ])
 
     const result = await tools.listWorkspaceFiles(
       { workspaceId, limit: 10, offset: 5 },
@@ -115,7 +117,7 @@ describe('WorkspaceTools', () => {
         icon: 'bolt',
         createdAt: new Date('2026-01-01T00:00:00.000Z'),
       },
-    ] as never)
+    ])
 
     const result = await tools.listSkills({ workspaceId, limit: 20 }, {} as never, req)
 
@@ -145,7 +147,7 @@ describe('WorkspaceTools', () => {
         icon: null,
         createdAt: new Date('2026-01-02T00:00:00.000Z'),
       },
-    ] as never)
+    ])
 
     const result = await tools.listAgents({ workspaceId, limit: 15 }, {} as never, req)
 
@@ -172,15 +174,15 @@ describe('WorkspaceTools', () => {
       id: fileId,
       workspaceId,
       name: 'source.md',
-    } as never)
+    })
     ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({
       workspaceId,
       deletedAt: null,
-    } as never)
+    })
     ;(mockWriter.createPage as jest.Mock).mockResolvedValue(
-      '55555555-5555-4555-8555-555555555555' as never,
+      '55555555-5555-4555-8555-555555555555',
     )
-    ;(mockPrisma.pageFile.create as jest.Mock).mockResolvedValue({} as never)
+    ;(mockPrisma.pageFile.create as jest.Mock).mockResolvedValue({})
 
     const result = await tools.createPageFromFile(
       {
@@ -212,11 +214,11 @@ describe('WorkspaceTools', () => {
       id: fileId,
       workspaceId,
       name: 'fallback-title.md',
-    } as never)
+    })
     ;(mockWriter.createPage as jest.Mock).mockResolvedValue(
-      '55555555-5555-4555-8555-555555555555' as never,
+      '55555555-5555-4555-8555-555555555555',
     )
-    ;(mockPrisma.pageFile.create as jest.Mock).mockResolvedValue({} as never)
+    ;(mockPrisma.pageFile.create as jest.Mock).mockResolvedValue({})
 
     await tools.createPageFromFile({ workspaceId, parentId: undefined, fileId }, {} as never, req)
 
@@ -230,7 +232,7 @@ describe('WorkspaceTools', () => {
   })
 
   it('createPageFromFile throws when source file is missing', async () => {
-    ;(mockPrisma.file.findUnique as jest.Mock).mockResolvedValue(null as never)
+    ;(mockPrisma.file.findUnique as jest.Mock).mockResolvedValue(null)
 
     await expect(
       tools.createPageFromFile({ workspaceId, parentId: undefined, fileId }, {} as never, req),
@@ -242,11 +244,11 @@ describe('WorkspaceTools', () => {
       id: fileId,
       workspaceId,
       name: 'source.md',
-    } as never)
+    })
     ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({
       workspaceId: 'other-workspace',
       deletedAt: null,
-    } as never)
+    })
 
     await expect(
       tools.createPageFromFile({ workspaceId, parentId, fileId }, {} as never, req),

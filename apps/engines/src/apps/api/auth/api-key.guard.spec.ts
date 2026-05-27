@@ -6,8 +6,10 @@ import type { PrismaClient } from '@repo/db'
 
 import { ApiKeyGuard } from './api-key.guard.js'
 
-function makeCtx(authorization?: string) {
-  const req: any = { headers: { authorization } }
+type FakeRequest = { headers: { authorization?: string }; auth?: unknown }
+
+function makeCtx(authorization?: string): [ExecutionContext, FakeRequest] {
+  const req: FakeRequest = { headers: { authorization } }
   return [{ switchToHttp: () => ({ getRequest: () => req }) } as unknown as ExecutionContext, req]
 }
 
@@ -16,10 +18,12 @@ function hashOf(token: string): string {
 }
 
 describe('ApiKeyGuard', () => {
+  const findUniqueMock = jest.fn<(...args: unknown[]) => Promise<unknown>>()
+  const updateMock = jest.fn<(...args: unknown[]) => Promise<unknown>>().mockResolvedValue({})
   const prisma = {
     apiKey: {
-      findUnique: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
-      update: jest.fn<(...args: unknown[]) => Promise<unknown>>().mockResolvedValue({}),
+      findUnique: findUniqueMock,
+      update: updateMock,
     },
   } as unknown as PrismaClient
   let guard: ApiKeyGuard
@@ -40,13 +44,13 @@ describe('ApiKeyGuard', () => {
   })
 
   it('throws Unauthorized when token format is right but key not found', async () => {
-    ;(prisma as any).apiKey.findUnique.mockResolvedValue(null)
+    findUniqueMock.mockResolvedValue(null)
     const [ctx] = makeCtx('Bearer ank_abcdefghijklmnopqrstuvwx')
     await expect(guard.canActivate(ctx)).rejects.toBeInstanceOf(UnauthorizedException)
   })
 
   it('throws Unauthorized when key is revoked', async () => {
-    ;(prisma as any).apiKey.findUnique.mockResolvedValue({
+    findUniqueMock.mockResolvedValue({
       id: 'k1', userId: 'u1', revokedAt: new Date(), expiresAt: null, lastUsedAt: null,
     })
     const [ctx] = makeCtx('Bearer ank_abcdefghijklmnopqrstuvwx')
@@ -54,7 +58,7 @@ describe('ApiKeyGuard', () => {
   })
 
   it('throws Unauthorized when key is expired', async () => {
-    ;(prisma as any).apiKey.findUnique.mockResolvedValue({
+    findUniqueMock.mockResolvedValue({
       id: 'k1', userId: 'u1', revokedAt: null,
       expiresAt: new Date(Date.now() - 1000), lastUsedAt: null,
     })
@@ -64,26 +68,26 @@ describe('ApiKeyGuard', () => {
 
   it('attaches auth context and returns true for a valid key', async () => {
     const token = 'ank_abcdefghijklmnopqrstuvwx'
-    ;(prisma as any).apiKey.findUnique.mockResolvedValue({
+    findUniqueMock.mockResolvedValue({
       id: 'k1', userId: 'u1', revokedAt: null,
       expiresAt: new Date(Date.now() + 86_400_000), lastUsedAt: null,
     })
     const [ctx, req] = makeCtx(`Bearer ${token}`)
     await expect(guard.canActivate(ctx)).resolves.toBe(true)
     expect(req.auth).toEqual({ userId: 'u1', apiKeyId: 'k1', source: 'api-key' })
-    expect((prisma as any).apiKey.findUnique).toHaveBeenCalledWith({
+    expect(findUniqueMock).toHaveBeenCalledWith({
       where: { keyHash: hashOf(token) },
     })
   })
 
   it('throttles lastUsedAt update to once per 60s', async () => {
     const recent = new Date(Date.now() - 30_000)
-    ;(prisma as any).apiKey.findUnique.mockResolvedValue({
+    findUniqueMock.mockResolvedValue({
       id: 'k1', userId: 'u1', revokedAt: null, expiresAt: null, lastUsedAt: recent,
     })
     const [ctx] = makeCtx('Bearer ank_abcdefghijklmnopqrstuvwx')
     await guard.canActivate(ctx)
     await new Promise((r) => setImmediate(r))
-    expect((prisma as any).apiKey.update).not.toHaveBeenCalled()
+    expect(updateMock).not.toHaveBeenCalled()
   })
 })

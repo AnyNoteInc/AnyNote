@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger'
-import { IsString, IsUUID, Length, MaxLength } from 'class-validator'
+import { IsString, IsUUID, Length } from 'class-validator'
 
 // UploadInline: workspaceId, pageId, fileName (1-512), mimeType (1-128), contentBase64 (min 1)
 export class UploadFileToPageDto {

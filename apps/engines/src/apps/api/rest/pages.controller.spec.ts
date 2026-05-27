@@ -1,18 +1,22 @@
 import { describe, expect, it, jest } from '@jest/globals'
 
+import type { PageTools } from '../../mcp/tools/page.tools.js'
+import type { AuthedRequest } from '../auth/auth-context.js'
+import type { CreatePageDto } from '../dto/pages.dto.js'
 import { PagesController } from './pages.controller.js'
 
 describe('PagesController', () => {
   it('delegates create to PageTools.doCreatePage with req.auth and body', async () => {
-    const pageTools = { doCreatePage: jest.fn<() => Promise<{ id: string }>>().mockResolvedValue({ id: 'p1' }) } as any
+    const doCreatePageMock = jest.fn<() => Promise<{ id: string }>>().mockResolvedValue({ id: 'p1' })
+    const pageTools = { doCreatePage: doCreatePageMock } as unknown as PageTools
     const c = new PagesController(pageTools)
 
-    const result = await c.create({ workspaceId: 'w1', title: 't' } as any, {
-      auth: { userId: 'u1', source: 'api-key' },
-    } as any)
+    const body = { workspaceId: 'w1', title: 't' } as unknown as CreatePageDto
+    const req = { auth: { userId: 'u1', source: 'api-key' as const } } as AuthedRequest
+    const result = await c.create(body, req)
 
     expect(result).toEqual({ id: 'p1' })
-    expect(pageTools.doCreatePage).toHaveBeenCalledWith(
+    expect(doCreatePageMock).toHaveBeenCalledWith(
       { userId: 'u1', source: 'api-key' },
       { workspaceId: 'w1', title: 't' },
     )

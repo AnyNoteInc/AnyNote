@@ -3,6 +3,7 @@ import { ForbiddenException } from '@nestjs/common'
 
 import type { PrismaClient } from '@repo/db'
 
+import type { AuthedRequest } from '../../api/auth/auth-context.js'
 import type { MarkdownParser } from '../services/markdown-parser.service.js'
 import type { MarkdownRenderer } from '../services/markdown-renderer.service.js'
 import type { PageWriter } from '../services/page-writer.service.js'
@@ -13,11 +14,11 @@ import { WorkspaceTools } from './workspace.tools.js'
 describe('Tools access control', () => {
   const mockPrisma = {
     workspaceMember: {
-      findUnique: jest.fn<(...a: unknown[]) => Promise<unknown>>().mockResolvedValue(null as never),
+      findUnique: jest.fn<(...a: unknown[]) => Promise<unknown>>().mockResolvedValue(null),
     },
   } as unknown as PrismaClient
 
-  const nonMemberReq: any = { auth: { userId: 'u1', source: 'api-key' } }
+  const nonMemberReq: AuthedRequest = { headers: {}, auth: { userId: 'u1', source: 'api-key' } }
 
   it('PageTools.createPage denies non-member', async () => {
     const tools = new PageTools(

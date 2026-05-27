@@ -3,15 +3,20 @@ import { ForbiddenException, UnauthorizedException } from '@nestjs/common'
 
 import type { PrismaClient } from '@repo/db'
 
-import type { AgentsSearchClient } from '../services/agents-search.client.js'
+import type { AuthedRequest } from '../../api/auth/auth-context.js'
+import type { AgentsSearchClient, AgentsSearchHit } from '../services/agents-search.client.js'
 import { SearchTools } from './search.tools.js'
 
 describe('SearchTools.searchPages', () => {
+  const workspaceMemberFindUniqueMock = jest.fn<(...args: unknown[]) => Promise<unknown>>()
   const prisma = {
-    workspaceMember: { findUnique: jest.fn<(...args: unknown[]) => Promise<unknown>>() },
+    workspaceMember: { findUnique: workspaceMemberFindUniqueMock },
   } as unknown as PrismaClient
+  const searchRagMock = jest.fn<
+    (args: { workspaceId: string; query: string; k: number }) => Promise<AgentsSearchHit[]>
+  >()
   const client: AgentsSearchClient = {
-    searchRag: jest.fn<(...args: unknown[]) => Promise<unknown>>() as AgentsSearchClient['searchRag'],
+    searchRag: searchRagMock,
   }
   let tools: SearchTools
 
@@ -21,20 +26,20 @@ describe('SearchTools.searchPages', () => {
   })
 
   it('searches when the caller is a workspace member', async () => {
-    ;(prisma as any).workspaceMember.findUnique.mockResolvedValue({ workspaceId: 'w1' })
-    ;(client as any).searchRag.mockResolvedValue([
+    workspaceMemberFindUniqueMock.mockResolvedValue({ workspaceId: 'w1' })
+    searchRagMock.mockResolvedValue([
       { pageId: 'p', blockNumber: 0, title: 't', content: 'c' },
     ])
 
-    const req: any = { auth: { userId: 'u1', source: 'api-key' } }
+    const req: AuthedRequest = { headers: {}, auth: { userId: 'u1', source: 'api-key' } }
     const result = await tools.searchPages(
       { workspaceId: 'w1', query: 'q', k: 5 },
-      {} as any,
+      {} as never,
       req,
     )
 
     expect(result.results).toHaveLength(1)
-    expect((client as any).searchRag).toHaveBeenCalledWith({
+    expect(searchRagMock).toHaveBeenCalledWith({
       workspaceId: 'w1',
       query: 'q',
       k: 5,
@@ -42,17 +47,17 @@ describe('SearchTools.searchPages', () => {
   })
 
   it('rejects non-member with ForbiddenException', async () => {
-    ;(prisma as any).workspaceMember.findUnique.mockResolvedValue(null)
-    const req: any = { auth: { userId: 'u1', source: 'api-key' } }
+    workspaceMemberFindUniqueMock.mockResolvedValue(null)
+    const req: AuthedRequest = { headers: {}, auth: { userId: 'u1', source: 'api-key' } }
     await expect(
-      tools.searchPages({ workspaceId: 'w1', query: 'q', k: 5 }, {} as any, req),
+      tools.searchPages({ workspaceId: 'w1', query: 'q', k: 5 }, {} as never, req),
     ).rejects.toBeInstanceOf(ForbiddenException)
   })
 
   it('throws Unauthorized when req.auth is missing', async () => {
-    const req: any = { headers: {} }
+    const req: AuthedRequest = { headers: {} }
     await expect(
-      tools.searchPages({ workspaceId: 'w1', query: 'q' } as any, {} as any, req),
+      tools.searchPages({ workspaceId: 'w1', query: 'q', k: 5 }, {} as never, req),
     ).rejects.toBeInstanceOf(UnauthorizedException)
   })
 })

@@ -3,6 +3,7 @@ import { ForbiddenException } from '@nestjs/common'
 
 import type { PrismaClient } from '@repo/db'
 
+import type { AuthedRequest } from '../../api/auth/auth-context.js'
 import { PageNotFoundError } from '../errors/mcp.errors.js'
 import type { FileUploader } from '../services/file-uploader.service.js'
 import { PageFileTools } from './page-file.tools.js'
@@ -12,6 +13,7 @@ describe('PageFileTools', () => {
   const workspaceId = '22222222-2222-4222-8222-222222222222'
   const pageId = '33333333-3333-4333-8333-333333333333'
 
+  const workspaceMemberFindUniqueMock = jest.fn<(...args: unknown[]) => Promise<unknown>>()
   const mockPrisma = {
     page: {
       findUnique: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
@@ -20,7 +22,7 @@ describe('PageFileTools', () => {
       findMany: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     },
     workspaceMember: {
-      findUnique: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      findUnique: workspaceMemberFindUniqueMock,
     },
   } as unknown as PrismaClient
   const mockUploader = {
@@ -28,13 +30,13 @@ describe('PageFileTools', () => {
     attach: jest.fn<(...args: unknown[]) => Promise<void>>(),
   } as unknown as FileUploader
 
-  const req: any = { auth: { userId, source: 'api-key' } }
+  const req: AuthedRequest = { headers: {}, auth: { userId, source: 'api-key' } }
 
   let tools: PageFileTools
 
   beforeEach(() => {
     jest.clearAllMocks()
-    ;(mockPrisma as any).workspaceMember.findUnique.mockResolvedValue({ workspaceId })
+    workspaceMemberFindUniqueMock.mockResolvedValue({ workspaceId })
     ;(mockUploader.uploadInline as jest.Mock).mockReset()
     ;(mockUploader.attach as jest.Mock).mockReset()
     tools = new PageFileTools(mockPrisma, mockUploader)
@@ -71,8 +73,8 @@ describe('PageFileTools', () => {
   })
 
   it('uploadFileToPage throws ForbiddenException when caller is not a workspace member', async () => {
-    ;(mockPrisma as any).workspaceMember.findUnique.mockResolvedValue(null)
-    const nonMemberReq: any = { auth: { userId: 'u1', source: 'api-key' } }
+    workspaceMemberFindUniqueMock.mockResolvedValue(null)
+    const nonMemberReq: AuthedRequest = { headers: {}, auth: { userId: 'u1', source: 'api-key' } }
 
     await expect(
       tools.uploadFileToPage(

@@ -71,7 +71,7 @@ def _strip_auto_fields(schema: dict[str, Any]) -> dict[str, Any]:
     """Remove auto-injected fields (e.g. workspace_id) from LLM-visible tool schemas."""
     if not isinstance(schema, dict):
         return schema
-    props = dict((schema.get('properties') or {}))
+    props = dict(schema.get('properties') or {})
     required = [r for r in (schema.get('required') or []) if r != 'workspace_id']
     props.pop('workspace_id', None)
     return {**schema, 'properties': props, 'required': required}

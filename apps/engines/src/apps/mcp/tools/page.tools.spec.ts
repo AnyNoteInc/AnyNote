@@ -4,6 +4,7 @@ import type { Context } from '@rekog/mcp-nest'
 
 import type { PrismaClient } from '@repo/db'
 
+import type { AuthedRequest } from '../../api/auth/auth-context.js'
 import { PageNotFoundError } from '../errors/mcp.errors.js'
 import type { MarkdownParser } from '../services/markdown-parser.service.js'
 import type { MarkdownRenderer } from '../services/markdown-renderer.service.js'
@@ -16,12 +17,13 @@ describe('PageTools', () => {
   const workspaceId = '22222222-2222-4222-8222-222222222222'
   const pageId = '33333333-3333-4333-8333-333333333333'
 
+  const workspaceMemberFindUniqueMock = jest.fn<(...args: unknown[]) => Promise<unknown>>()
   const prisma = {
     page: {
       findUnique: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     },
     workspaceMember: {
-      findUnique: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      findUnique: workspaceMemberFindUniqueMock,
     },
   } as unknown as PrismaClient
   const mockWriter = {
@@ -39,13 +41,13 @@ describe('PageTools', () => {
     getPageStats: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
   } as unknown as StatsService
 
-  const req: any = { auth: { userId, source: 'api-key' } }
+  const req: AuthedRequest = { headers: {}, auth: { userId, source: 'api-key' } }
 
   let tools: PageTools
 
   beforeEach(() => {
     jest.clearAllMocks()
-    ;(prisma as any).workspaceMember.findUnique.mockResolvedValue({ workspaceId })
+    workspaceMemberFindUniqueMock.mockResolvedValue({ workspaceId })
     tools = new PageTools(prisma, mockWriter, mockRenderer, mockParser, mockStats)
   })
 
@@ -129,10 +131,10 @@ describe('PageTools', () => {
   })
 
   it('rejects when caller is not a workspace member', async () => {
-    ;(prisma as any).workspaceMember.findUnique.mockResolvedValue(null)
-    const nonMemberReq: any = { auth: { userId: 'u1', source: 'api-key' } }
+    workspaceMemberFindUniqueMock.mockResolvedValue(null)
+    const nonMemberReq: AuthedRequest = { headers: {}, auth: { userId: 'u1', source: 'api-key' } }
     await expect(
-      tools.createPage({ workspaceId: 'w1', title: 'x' } as any, {} as any, nonMemberReq),
+      tools.createPage({ workspaceId: 'w1', title: 'x', ownership: 'TEXT' }, {} as never, nonMemberReq),
     ).rejects.toBeInstanceOf(ForbiddenException)
   })
 
