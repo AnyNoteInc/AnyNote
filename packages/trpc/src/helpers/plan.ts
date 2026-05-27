@@ -139,7 +139,7 @@ type TxClient = PrismaClient | Prisma.TransactionClient
 
 export async function resolveActivePlanOrPersonal(tx: TxClient, userId: string): Promise<Plan> {
   const sub = await tx.subscription.findFirst({
-    where: { userId, status: 'ACTIVE' },
+    where: { userId, status: { in: ['TRIAL', 'ACTIVE', 'PAST_DUE'] } },
     include: { plan: true },
     orderBy: { createdAt: 'desc' },
   })
@@ -154,24 +154,22 @@ export async function syncWorkspaceLimits(tx: TxClient, userId: string): Promise
   })
   if (workspaces.length === 0) return
   const now = new Date()
-  await Promise.all(
-    workspaces.map((w) =>
-      tx.workspaceLimit.upsert({
-        where: { workspaceId: w.id },
-        create: {
-          workspaceId: w.id,
-          maxMembers: plan.maxMembersPerWorkspace,
-          maxFileBytes: plan.maxFileBytes,
-          sourcePlanSlug: plan.slug,
-          syncedAt: now,
-        },
-        update: {
-          maxMembers: plan.maxMembersPerWorkspace,
-          maxFileBytes: plan.maxFileBytes,
-          sourcePlanSlug: plan.slug,
-          syncedAt: now,
-        },
-      }),
-    ),
-  )
+  for (const w of workspaces) {
+    await tx.workspaceLimit.upsert({
+      where: { workspaceId: w.id },
+      create: {
+        workspaceId: w.id,
+        maxMembers: plan.maxMembersPerWorkspace,
+        maxFileBytes: plan.maxFileBytes,
+        sourcePlanSlug: plan.slug,
+        syncedAt: now,
+      },
+      update: {
+        maxMembers: plan.maxMembersPerWorkspace,
+        maxFileBytes: plan.maxFileBytes,
+        sourcePlanSlug: plan.slug,
+        syncedAt: now,
+      },
+    })
+  }
 }

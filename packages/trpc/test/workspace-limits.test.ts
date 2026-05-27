@@ -6,6 +6,9 @@ import { syncWorkspaceLimits, resolveActivePlanOrPersonal } from '../src/helpers
 const EMAIL_SUFFIX = '+wslimits-test@anynote.dev'
 
 async function cleanFixtures() {
+  await prisma.workspaceLimit.deleteMany({
+    where: { workspace: { createdBy: { email: { contains: EMAIL_SUFFIX } } } },
+  })
   await prisma.subscription.deleteMany({
     where: { user: { email: { contains: EMAIL_SUFFIX } } },
   })
@@ -123,5 +126,25 @@ describe('syncWorkspaceLimits', () => {
     })
     expect(second.maxMembers).toBe(first.maxMembers)
     expect(second.maxFileBytes).toBe(first.maxFileBytes)
+  })
+
+  it('works inside a $transaction', async () => {
+    const owner = await makeOwner('g')
+    const ws1 = await makeWorkspace(owner.id, 'WS1')
+    const ws2 = await makeWorkspace(owner.id, 'WS2')
+    const pro = await prisma.plan.findUniqueOrThrow({ where: { slug: 'pro' } })
+    await prisma.subscription.create({
+      data: { userId: owner.id, planId: pro.id, status: 'ACTIVE' },
+    })
+    await prisma.$transaction(async (tx) => {
+      await syncWorkspaceLimits(tx, owner.id)
+    })
+    const rows = await prisma.workspaceLimit.findMany({
+      where: { workspaceId: { in: [ws1.id, ws2.id] } },
+    })
+    expect(rows).toHaveLength(2)
+    for (const r of rows) {
+      expect(r.sourcePlanSlug).toBe('pro')
+    }
   })
 })
