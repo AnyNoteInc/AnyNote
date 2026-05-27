@@ -36,7 +36,13 @@ SELECT
   NOW(),
   NOW()
 FROM workspaces w
-LEFT JOIN subscriptions s ON s.user_id = w.created_by_id AND s.status = 'ACTIVE'
+LEFT JOIN LATERAL (
+  SELECT plan_id
+  FROM subscriptions
+  WHERE user_id = w.created_by_id AND status = 'ACTIVE'
+  ORDER BY current_period_end DESC NULLS LAST, created_at DESC
+  LIMIT 1
+) s ON TRUE
 LEFT JOIN plans p ON p.id = s.plan_id
 CROSS JOIN (SELECT max_members_per_workspace, max_file_bytes, slug FROM plans WHERE slug = 'personal') fallback
 ON CONFLICT (workspace_id) DO NOTHING;
