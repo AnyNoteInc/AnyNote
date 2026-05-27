@@ -16,6 +16,7 @@ import { PageFileTools } from './tools/page-file.tools.js'
 import { PageTools } from './tools/page.tools.js'
 import { AGENTS_SEARCH_CLIENT, SearchTools } from './tools/search.tools.js'
 import { WorkspaceTools } from './tools/workspace.tools.js'
+import { WorkspacesTools } from './tools/workspaces.tools.js'
 
 @Module({
   imports: [
@@ -37,6 +38,7 @@ import { WorkspaceTools } from './tools/workspace.tools.js'
     PageFileTools,
     WorkspaceTools,
     SearchTools,
+    WorkspacesTools,
     { provide: STORAGE, useValue: storage },
     { provide: APP_FILTER, useClass: McpExceptionFilter },
     {
