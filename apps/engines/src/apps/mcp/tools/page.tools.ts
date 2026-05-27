@@ -1,20 +1,21 @@
-import { Inject, Injectable } from '@nestjs/common'
+import { Inject, Injectable, UnauthorizedException } from '@nestjs/common'
 import type { Context } from '@rekog/mcp-nest'
 import { Tool } from '@rekog/mcp-nest'
 import type { PrismaClient } from '@repo/db'
 import { z } from 'zod'
 
 import { PRISMA } from '../../../infra/db/db.providers.js'
+import { assertMember } from '../../api/auth/membership.js'
+import type { AuthContext, AuthedRequest } from '../../api/auth/auth-context.js'
 import { PageNotFoundError } from '../errors/mcp.errors.js'
-import { WorkspaceMemberGuard } from '../guards/workspace-member.guard.js'
 import { MarkdownParser } from '../services/markdown-parser.service.js'
 import { MarkdownRenderer } from '../services/markdown-renderer.service.js'
 import { PageWriter } from '../services/page-writer.service.js'
 import { StatsService } from '../services/stats.service.js'
 import { mcpInput, mcpNullableUuidOptional, mcpUuid } from '../utils/mcp-input.js'
-import { getMcpRequestContext, type McpRequestWithContext } from '../utils/mcp-request-context.js'
 
 export const CreatePageInput = z.object({
+  workspaceId: z.string().uuid(),
   parentId: mcpNullableUuidOptional(),
   title: z.string().min(1).max(255),
   ownership: mcpInput(z.enum(['TEXT', 'SKILL', 'AGENT']).default('TEXT')),
@@ -22,6 +23,7 @@ export const CreatePageInput = z.object({
 })
 
 const UpdatePageInput = z.object({
+  workspaceId: z.string().uuid(),
   pageId: mcpUuid(),
   title: mcpInput(z.string().max(255).optional()),
   icon: z.string().nullable().optional(),
@@ -29,18 +31,31 @@ const UpdatePageInput = z.object({
 })
 
 const MovePageInput = z.object({
+  workspaceId: z.string().uuid(),
   pageId: mcpUuid(),
   newParentId: mcpNullableUuidOptional(),
   prevPageId: mcpNullableUuidOptional(),
 })
 
-const PageIdInput = z.object({ pageId: mcpUuid() })
+const PageIdInput = z.object({
+  workspaceId: z.string().uuid(),
+  pageId: mcpUuid(),
+})
+
+type CreatePageArgs = z.infer<typeof CreatePageInput>
+type UpdatePageArgs = z.infer<typeof UpdatePageInput>
+type MovePageArgs = z.infer<typeof MovePageInput>
+type PageIdArgs = z.infer<typeof PageIdInput>
+
+function requireAuth(req: AuthedRequest | undefined): AuthContext {
+  if (!req?.auth) throw new UnauthorizedException('Unauthenticated MCP request')
+  return req.auth
+}
 
 @Injectable()
 export class PageTools {
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
-    private readonly guard: WorkspaceMemberGuard,
     private readonly writer: PageWriter,
     private readonly renderer: MarkdownRenderer,
     private readonly parser: MarkdownParser,
@@ -68,7 +83,7 @@ export class PageTools {
       'параметры `title` и `markdown` вместе — не делай ' +
       'двух вызовов сначала с title, потом с markdown. ' +
       'Требует подтверждения пользователя через UI confirmation. ' +
-      'Параметры: title (string, обязательный), ownership ' +
+      'Параметры: workspaceId (uuid, обязательный), title (string, обязательный), ownership ' +
       '(TEXT|SKILL|AGENT, по умолчанию TEXT — обычная заметка; ' +
       'SKILL — навык агента; AGENT — описание агента), parentId (uuid, ' +
       'опционально — id родительской страницы; по умолчанию страница ' +
@@ -76,17 +91,16 @@ export class PageTools {
       'опционально — содержимое страницы в Markdown).',
     parameters: CreatePageInput,
   })
-  async createPage(
-    args: z.infer<typeof CreatePageInput>,
-    _context: Context,
-    req: McpRequestWithContext,
-  ) {
-    const requestContext = getMcpRequestContext(req)
-    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
+  createPage(args: CreatePageArgs, _context: Context, req: AuthedRequest) {
+    return this.doCreatePage(requireAuth(req), args)
+  }
+
+  async doCreatePage(auth: AuthContext, args: CreatePageArgs) {
+    await assertMember(this.prisma, auth.userId, args.workspaceId)
     const content = args.markdown ? this.parser.parse(args.markdown) : undefined
     const pageId = await this.writer.createPage({
-      userId: requestContext.userId,
-      workspaceId: requestContext.workspaceId,
+      userId: auth.userId,
+      workspaceId: args.workspaceId,
       parentId: args.parentId,
       title: args.title,
       ownership: args.ownership,
@@ -94,7 +108,7 @@ export class PageTools {
     })
     return {
       pageId,
-      url: `/workspaces/${requestContext.workspaceId}/pages/${pageId}`,
+      url: `/workspaces/${args.workspaceId}/pages/${pageId}`,
     }
   }
 
@@ -108,17 +122,19 @@ export class PageTools {
       'содержимое вслепую.',
     parameters: UpdatePageInput,
   })
-  async updatePage(
-    args: z.infer<typeof UpdatePageInput>,
-    _context: Context,
-    req: McpRequestWithContext,
-  ) {
-    const requestContext = getMcpRequestContext(req)
-    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
+  updatePage(args: UpdatePageArgs, _context: Context, req: AuthedRequest) {
+    return this.doUpdatePage(requireAuth(req), args)
+  }
+
+  async doUpdatePage(auth: AuthContext, args: UpdatePageArgs) {
+    await assertMember(this.prisma, auth.userId, args.workspaceId)
     await this.writer.updatePage({
-      ...args,
-      userId: requestContext.userId,
-      workspaceId: requestContext.workspaceId,
+      pageId: args.pageId,
+      title: args.title,
+      icon: args.icon,
+      content: args.content,
+      userId: auth.userId,
+      workspaceId: args.workspaceId,
     })
     return { ok: true as const }
   }
@@ -131,17 +147,18 @@ export class PageTools {
       '"переставь", "сделай дочерней для". Требует подтверждения.',
     parameters: MovePageInput,
   })
-  async movePage(
-    args: z.infer<typeof MovePageInput>,
-    _context: Context,
-    req: McpRequestWithContext,
-  ) {
-    const requestContext = getMcpRequestContext(req)
-    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
+  movePage(args: MovePageArgs, _context: Context, req: AuthedRequest) {
+    return this.doMovePage(requireAuth(req), args)
+  }
+
+  async doMovePage(auth: AuthContext, args: MovePageArgs) {
+    await assertMember(this.prisma, auth.userId, args.workspaceId)
     await this.writer.movePage({
-      ...args,
-      userId: requestContext.userId,
-      workspaceId: requestContext.workspaceId,
+      pageId: args.pageId,
+      newParentId: args.newParentId,
+      prevPageId: args.prevPageId,
+      userId: auth.userId,
+      workspaceId: args.workspaceId,
     })
     return { ok: true as const }
   }
@@ -154,18 +171,17 @@ export class PageTools {
       'поиска фактов или перед updatePage. Не модифицирует данные.',
     parameters: PageIdInput,
   })
-  async getPageMarkdown(
-    args: z.infer<typeof PageIdInput>,
-    _context: Context,
-    req: McpRequestWithContext,
-  ) {
-    const requestContext = getMcpRequestContext(req)
-    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
+  getPageMarkdown(args: PageIdArgs, _context: Context, req: AuthedRequest) {
+    return this.doGetPageMarkdown(requireAuth(req), args)
+  }
+
+  async doGetPageMarkdown(auth: AuthContext, args: PageIdArgs) {
+    await assertMember(this.prisma, auth.userId, args.workspaceId)
     const page = await this.prisma.page.findUnique({
       where: { id: args.pageId },
       select: { workspaceId: true, content: true },
     })
-    if (!page || page.workspaceId !== requestContext.workspaceId) {
+    if (page?.workspaceId !== args.workspaceId) {
       throw new PageNotFoundError(args.pageId)
     }
     return { markdown: this.renderer.render(page.content as never) }
@@ -179,13 +195,12 @@ export class PageTools {
       'создал страницу", "когда сделали заметку", "какой тип у страницы X".',
     parameters: PageIdInput,
   })
-  async getPageStats(
-    args: z.infer<typeof PageIdInput>,
-    _context: Context,
-    req: McpRequestWithContext,
-  ) {
-    const requestContext = getMcpRequestContext(req)
-    await this.guard.assert(requestContext.workspaceId, requestContext.userId)
-    return this.stats.getPageStats(args.pageId, requestContext.workspaceId)
+  getPageStats(args: PageIdArgs, _context: Context, req: AuthedRequest) {
+    return this.doGetPageStats(requireAuth(req), args)
+  }
+
+  async doGetPageStats(auth: AuthContext, args: PageIdArgs) {
+    await assertMember(this.prisma, auth.userId, args.workspaceId)
+    return this.stats.getPageStats(args.pageId, args.workspaceId)
   }
 }

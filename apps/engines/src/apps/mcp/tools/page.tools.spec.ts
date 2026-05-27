@@ -1,15 +1,14 @@
 import { beforeEach, describe, expect, it, jest } from '@jest/globals'
+import { ForbiddenException } from '@nestjs/common'
 import type { Context } from '@rekog/mcp-nest'
 
 import type { PrismaClient } from '@repo/db'
 
 import { PageNotFoundError } from '../errors/mcp.errors.js'
-import type { WorkspaceMemberGuard } from '../guards/workspace-member.guard.js'
 import type { MarkdownParser } from '../services/markdown-parser.service.js'
 import type { MarkdownRenderer } from '../services/markdown-renderer.service.js'
 import type { PageWriter } from '../services/page-writer.service.js'
 import type { StatsService } from '../services/stats.service.js'
-import type { McpRequestWithContext } from '../utils/mcp-request-context.js'
 import { CreatePageInput, PageTools } from './page.tools.js'
 
 describe('PageTools', () => {
@@ -17,14 +16,14 @@ describe('PageTools', () => {
   const workspaceId = '22222222-2222-4222-8222-222222222222'
   const pageId = '33333333-3333-4333-8333-333333333333'
 
-  const mockPrisma = {
+  const prisma = {
     page: {
       findUnique: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     },
+    workspaceMember: {
+      findUnique: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+    },
   } as unknown as PrismaClient
-  const mockGuard = {
-    assert: jest.fn<(...args: unknown[]) => Promise<void>>(),
-  } as unknown as WorkspaceMemberGuard
   const mockWriter = {
     createPage: jest.fn<(...args: unknown[]) => Promise<string>>(),
     updatePage: jest.fn<(...args: unknown[]) => Promise<void>>(),
@@ -40,23 +39,14 @@ describe('PageTools', () => {
     getPageStats: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
   } as unknown as StatsService
 
-  const req = {
-    headers: {},
-    mcpContext: { userId, workspaceId },
-  } as McpRequestWithContext
+  const req: any = { auth: { userId, source: 'api-key' } }
 
   let tools: PageTools
 
   beforeEach(() => {
-    ;(mockPrisma.page.findUnique as jest.Mock).mockReset()
-    ;(mockGuard.assert as jest.Mock).mockReset().mockImplementation(async () => {})
-    ;(mockWriter.createPage as jest.Mock).mockReset()
-    ;(mockWriter.updatePage as jest.Mock).mockReset()
-    ;(mockWriter.movePage as jest.Mock).mockReset()
-    ;(mockRenderer.render as jest.Mock).mockReset()
-    ;(mockParser.parse as jest.Mock).mockReset()
-    ;(mockStats.getPageStats as jest.Mock).mockReset()
-    tools = new PageTools(mockPrisma, mockGuard, mockWriter, mockRenderer, mockParser, mockStats)
+    jest.clearAllMocks()
+    ;(prisma as any).workspaceMember.findUnique.mockResolvedValue({ workspaceId })
+    tools = new PageTools(prisma, mockWriter, mockRenderer, mockParser, mockStats)
   })
 
   it('createPage returns pageId and forwards args to writer', async () => {
@@ -66,6 +56,7 @@ describe('PageTools', () => {
 
     const result = await tools.createPage(
       {
+        workspaceId,
         parentId: null,
         title: 'New page',
         ownership: 'AGENT',
@@ -78,7 +69,7 @@ describe('PageTools', () => {
       pageId: '44444444-4444-4444-8444-444444444444',
       url: `/workspaces/${workspaceId}/pages/44444444-4444-4444-8444-444444444444`,
     })
-    expect(mockGuard.assert).toHaveBeenCalledWith(workspaceId, userId)
+    expect(prisma.workspaceMember.findUnique).toHaveBeenCalled()
     expect(mockWriter.createPage).toHaveBeenCalledWith({
       userId,
       workspaceId,
@@ -95,7 +86,7 @@ describe('PageTools', () => {
     )
 
     const result = await tools.createPage(
-      { title: 'No body', ownership: 'TEXT' },
+      { workspaceId, title: 'No body', ownership: 'TEXT' },
       {} as Context,
       req,
     )
@@ -119,7 +110,11 @@ describe('PageTools', () => {
       '44444444-4444-4444-8444-444444444444' as never,
     )
 
-    await tools.createPage({ title: 'Eggs', markdown, ownership: 'TEXT' }, {} as Context, req)
+    await tools.createPage(
+      { workspaceId, title: 'Eggs', markdown, ownership: 'TEXT' },
+      {} as Context,
+      req,
+    )
 
     expect(mockParser.parse).toHaveBeenCalledWith(markdown)
     expect(mockWriter.createPage).toHaveBeenCalledWith(
@@ -129,8 +124,16 @@ describe('PageTools', () => {
 
   it('CreatePageInput schema rejects markdown longer than 50 000 chars', () => {
     const tooLong = 'x'.repeat(50_001)
-    const result = CreatePageInput.safeParse({ title: 'Too big', markdown: tooLong })
+    const result = CreatePageInput.safeParse({ workspaceId, title: 'Too big', markdown: tooLong })
     expect(result.success).toBe(false)
+  })
+
+  it('rejects when caller is not a workspace member', async () => {
+    ;(prisma as any).workspaceMember.findUnique.mockResolvedValue(null)
+    const nonMemberReq: any = { auth: { userId: 'u1', source: 'api-key' } }
+    await expect(
+      tools.createPage({ workspaceId: 'w1', title: 'x' } as any, {} as any, nonMemberReq),
+    ).rejects.toBeInstanceOf(ForbiddenException)
   })
 
   it('updatePage returns ok and forwards workspace context', async () => {
@@ -138,6 +141,7 @@ describe('PageTools', () => {
 
     const result = await tools.updatePage(
       {
+        workspaceId,
         pageId,
         title: 'Updated title',
         icon: 'sparkles',
@@ -148,7 +152,7 @@ describe('PageTools', () => {
     )
 
     expect(result).toEqual({ ok: true })
-    expect(mockGuard.assert).toHaveBeenCalledWith(workspaceId, userId)
+    expect(prisma.workspaceMember.findUnique).toHaveBeenCalled()
     expect(mockWriter.updatePage).toHaveBeenCalledWith({
       pageId,
       title: 'Updated title',
@@ -164,6 +168,7 @@ describe('PageTools', () => {
 
     const result = await tools.movePage(
       {
+        workspaceId,
         pageId,
         newParentId: '55555555-5555-4555-8555-555555555555',
         prevPageId: '66666666-6666-4666-8666-666666666666',
@@ -173,7 +178,7 @@ describe('PageTools', () => {
     )
 
     expect(result).toEqual({ ok: true })
-    expect(mockGuard.assert).toHaveBeenCalledWith(workspaceId, userId)
+    expect(prisma.workspaceMember.findUnique).toHaveBeenCalled()
     expect(mockWriter.movePage).toHaveBeenCalledWith({
       pageId,
       newParentId: '55555555-5555-4555-8555-555555555555',
@@ -184,17 +189,17 @@ describe('PageTools', () => {
   })
 
   it('getPageMarkdown renders content for page in workspace', async () => {
-    ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({
+    ;(prisma.page.findUnique as jest.Mock).mockResolvedValue({
       workspaceId,
       content: { type: 'doc', content: [] },
     } as never)
     ;(mockRenderer.render as jest.Mock).mockReturnValue('Rendered markdown')
 
-    const result = await tools.getPageMarkdown({ pageId }, {} as never, req)
+    const result = await tools.getPageMarkdown({ workspaceId, pageId }, {} as never, req)
 
     expect(result).toEqual({ markdown: 'Rendered markdown' })
-    expect(mockGuard.assert).toHaveBeenCalledWith(workspaceId, userId)
-    expect(mockPrisma.page.findUnique).toHaveBeenCalledWith({
+    expect(prisma.workspaceMember.findUnique).toHaveBeenCalled()
+    expect(prisma.page.findUnique).toHaveBeenCalledWith({
       where: { id: pageId },
       select: { workspaceId: true, content: true },
     })
@@ -202,11 +207,11 @@ describe('PageTools', () => {
   })
 
   it('getPageMarkdown throws when page is missing', async () => {
-    ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue(null as never)
+    ;(prisma.page.findUnique as jest.Mock).mockResolvedValue(null as never)
 
-    await expect(tools.getPageMarkdown({ pageId }, {} as never, req)).rejects.toBeInstanceOf(
-      PageNotFoundError,
-    )
+    await expect(
+      tools.getPageMarkdown({ workspaceId, pageId }, {} as never, req),
+    ).rejects.toBeInstanceOf(PageNotFoundError)
   })
 
   it('getPageStats delegates to stats service', async () => {
@@ -215,10 +220,10 @@ describe('PageTools', () => {
       ownership: 'TEXT',
     } as never)
 
-    const result = await tools.getPageStats({ pageId }, {} as never, req)
+    const result = await tools.getPageStats({ workspaceId, pageId }, {} as never, req)
 
     expect(result).toEqual({ type: 'TEXT', ownership: 'TEXT' })
-    expect(mockGuard.assert).toHaveBeenCalledWith(workspaceId, userId)
+    expect(prisma.workspaceMember.findUnique).toHaveBeenCalled()
     expect(mockStats.getPageStats).toHaveBeenCalledWith(pageId, workspaceId)
   })
 })

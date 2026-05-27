@@ -1,4 +1,5 @@
 import { jest, describe, it, expect } from '@jest/globals'
+import { ForbiddenException } from '@nestjs/common'
 
 import type { PrismaClient } from '@repo/db'
 
@@ -24,18 +25,17 @@ describe('Tools access control', () => {
   } as McpRequestWithContext
 
   it('PageTools.createPage denies non-member', async () => {
-    const guard = new WorkspaceMemberGuard(mockPrisma)
     const tools = new PageTools(
       mockPrisma,
-      guard,
       {} as PageWriter,
       {} as MarkdownRenderer,
       {} as MarkdownParser,
       {} as StatsService,
     )
+    const authedReq: any = { auth: { userId: 'u1', source: 'api-key' } }
     await expect(
-      tools.createPage({ title: 'x', ownership: 'TEXT' }, {} as never, req),
-    ).rejects.toBeInstanceOf(WorkspaceAccessDeniedError)
+      tools.createPage({ workspaceId: 'w1', title: 'x', ownership: 'TEXT' }, {} as never, authedReq),
+    ).rejects.toBeInstanceOf(ForbiddenException)
   })
 
   it('WorkspaceTools.getWorkspaceStats denies non-member', async () => {
