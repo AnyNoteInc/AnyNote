@@ -308,4 +308,46 @@ describe('inviteMember enforces member limit', () => {
       caller.inviteMember({ workspaceId: ws.id, email: extra.email, role: 'EDITOR' }),
     ).rejects.toThrow(/Достигнут лимит участников/)
   })
+
+  it('allows role update for existing member even when memberCount equals maxMembers', async () => {
+    const owner = await makeOwner('m')
+    const pro = await prisma.plan.findUniqueOrThrow({ where: { slug: 'pro' } })
+    await prisma.subscription.create({
+      data: { userId: owner.id, planId: pro.id, status: 'ACTIVE' },
+    })
+    const caller = createCallerFactory(workspaceRouter)({
+      prisma,
+      user: { id: owner.id, email: owner.email },
+      headers: new Headers(),
+      resHeaders: new Headers(),
+      yookassa: {} as never,
+      returnUrlBase: 'http://localhost:3000',
+    })
+    const ws = await caller.create({ name: 'WS' }) // OWNER counts as 1
+    // Fill up to maxMembers (5)
+    const editorEmails: string[] = []
+    for (let i = 0; i < 4; i++) {
+      const email = `mem${i}${EMAIL_SUFFIX}`
+      editorEmails.push(email)
+      const u = await prisma.user.create({
+        data: {
+          email,
+          emailVerified: true,
+          name: `M${i}`,
+          firstName: `M${i}`,
+          lastName: 'T',
+        },
+      })
+      await prisma.workspaceMember.create({
+        data: { workspaceId: ws.id, userId: u.id, role: 'EDITOR' },
+      })
+    }
+    // Re-invite the first existing member with a NEW role — should succeed (role upsert)
+    const updated = await caller.inviteMember({
+      workspaceId: ws.id,
+      email: editorEmails[0]!,
+      role: 'ADMIN',
+    })
+    expect(updated.role).toBe('ADMIN')
+  })
 })

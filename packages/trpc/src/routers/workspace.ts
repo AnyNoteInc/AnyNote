@@ -161,17 +161,6 @@ export const workspaceRouter = router({
       await requireWritableWorkspace(input.workspaceId)
       await assertPaidPlan(ctx)
 
-      const [memberCount, limits] = await Promise.all([
-        ctx.prisma.workspaceMember.count({ where: { workspaceId: input.workspaceId } }),
-        ctx.prisma.workspaceLimit.findUnique({ where: { workspaceId: input.workspaceId } }),
-      ])
-      if (limits && memberCount >= limits.maxMembers) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: `Достигнут лимит участников (${limits.maxMembers}). Повысьте тариф или удалите участников.`,
-        })
-      }
-
       const user = await ctx.prisma.user.findUnique({ where: { email: input.email } })
       if (!user) {
         throw new TRPCError({
@@ -179,6 +168,22 @@ export const workspaceRouter = router({
           message:
             'Пользователь с таким email не зарегистрирован. Приглашения по ссылке будут позже.',
         })
+      }
+
+      const existingMember = await ctx.prisma.workspaceMember.findUnique({
+        where: { workspaceId_userId: { workspaceId: input.workspaceId, userId: user.id } },
+      })
+      if (!existingMember) {
+        const [memberCount, limits] = await Promise.all([
+          ctx.prisma.workspaceMember.count({ where: { workspaceId: input.workspaceId } }),
+          ctx.prisma.workspaceLimit.findUnique({ where: { workspaceId: input.workspaceId } }),
+        ])
+        if (limits && memberCount >= limits.maxMembers) {
+          throw new TRPCError({
+            code: 'FORBIDDEN',
+            message: `Достигнут лимит участников (${limits.maxMembers}). Повысьте тариф или удалите участников.`,
+          })
+        }
       }
 
       const workspace = await ctx.prisma.workspace.findUniqueOrThrow({
