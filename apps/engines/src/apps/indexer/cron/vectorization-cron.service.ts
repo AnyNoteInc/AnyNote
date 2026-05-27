@@ -50,7 +50,7 @@ export class VectorizationCronService implements OnModuleInit {
 
   /**
    * Test-only: synchronously drain all PENDING outbox events for a single
-   * workspace. Used by the PLAYWRIGHT-gated POST /indexer/test/index-now
+   * workspace. Used by the PLAYWRIGHT-gated POST /internal/indexer/test/index-now
    * endpoint to trigger indexing without waiting for the cron tick.
    */
   async drainOutboxForWorkspace(workspaceId: string): Promise<void> {

@@ -9,7 +9,7 @@ import { PlaywrightGuard } from './playwright.guard.js'
  * PlaywrightGuard and are dead in any environment where PLAYWRIGHT !== 'true'.
  */
 @ApiTags('indexer')
-@Controller('indexer')
+@Controller('internal/indexer')
 export class IndexerController {
   constructor(private readonly cronService: VectorizationCronService) {}
 
