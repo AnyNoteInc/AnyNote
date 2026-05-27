@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
 import {
   Alert,
@@ -26,13 +26,24 @@ type Props = {
 
 export function ApiKeyRevealDialog({ created, onClose }: Props) {
   const [copied, setCopied] = useState(false)
+  const [copyError, setCopyError] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!copied) return
+    const t = setTimeout(() => setCopied(false), 1500)
+    return () => clearTimeout(t)
+  }, [copied])
 
   if (!created) return null
 
   const copy = async () => {
-    await navigator.clipboard.writeText(created.fullKey)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 1500)
+    try {
+      await navigator.clipboard.writeText(created.fullKey)
+      setCopied(true)
+      setCopyError(null)
+    } catch {
+      setCopyError('Не удалось скопировать — выделите ключ и скопируйте вручную.')
+    }
   }
 
   return (
@@ -43,6 +54,7 @@ export function ApiKeyRevealDialog({ created, onClose }: Props) {
           <Alert severity="warning">
             Скопируйте ключ сейчас — он больше не появится. Если потеряете, создайте новый.
           </Alert>
+          {copyError && <Alert severity="error">{copyError}</Alert>}
           <Box
             sx={{
               display: 'flex',
@@ -58,7 +70,7 @@ export function ApiKeyRevealDialog({ created, onClose }: Props) {
           >
             <Typography
               data-testid="api-key-reveal-fullkey"
-              sx={{ fontFamily: 'monospace', flex: 1, wordBreak: 'break-all' }}
+              sx={{ fontFamily: 'monospace', flex: 1, wordBreak: 'break-all', userSelect: 'all' }}
             >
               {created.fullKey}
             </Typography>

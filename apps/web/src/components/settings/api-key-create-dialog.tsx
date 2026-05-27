@@ -17,18 +17,11 @@ import {
   TextField,
 } from '@repo/ui/components'
 
-import { trpc } from '@/trpc/client'
+import { trpc, type RouterOutputs } from '@/trpc/client'
 
 export type Ttl = '7d' | '30d' | '90d' | '1y' | 'never'
 
-export type CreatedKey = {
-  id: string
-  name: string
-  fullKey: string
-  keyPrefix: string
-  keyLastFour: string
-  expiresAt: Date | string | null
-}
+export type CreatedKey = RouterOutputs['apiKey']['create']
 
 type Props = {
   open: boolean
@@ -42,7 +35,7 @@ export function ApiKeyCreateDialog({ open, onClose, onCreated }: Props) {
 
   const create = trpc.apiKey.create.useMutation({
     onSuccess: (data) => {
-      onCreated(data as CreatedKey)
+      onCreated(data)
       setName('')
       setTtl('30d')
     },

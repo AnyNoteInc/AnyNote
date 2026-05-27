@@ -1,13 +1,17 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useState } from 'react'
 
 import {
+  Accordion,
+  AccordionDetails,
+  AccordionSummary,
   AddIcon,
   Box,
   Button,
   CircularProgress,
   DeleteIcon,
+  ExpandMoreIcon,
   IconButton,
   Paper,
   Stack,
@@ -46,17 +50,31 @@ function formatExpires(d: string | null): string {
   return formatDate(d)
 }
 
+const apiBase = process.env.NEXT_PUBLIC_API_BASE_URL ?? 'https://api.anynote.ru'
+const configSnippet = `{
+  "mcpServers": {
+    "anynote": {
+      "url": "${apiBase}/mcp",
+      "headers": {
+        "Authorization": "Bearer ank_<ваш ключ>"
+      }
+    }
+  }
+}`
+
 export function ApiKeysSection({ initialKeys }: Props) {
   const utils = trpc.useUtils()
   const list = trpc.apiKey.list.useQuery(undefined, { initialData: initialKeys })
+  const [revokingId, setRevokingId] = useState<string | null>(null)
   const revoke = trpc.apiKey.revoke.useMutation({
     onSuccess: () => utils.apiKey.list.invalidate(),
+    onSettled: () => setRevokingId(null),
   })
 
   const [createOpen, setCreateOpen] = useState(false)
   const [revealKey, setRevealKey] = useState<CreatedKey | null>(null)
 
-  const rows = useMemo(() => list.data ?? [], [list.data])
+  const rows = list.data ?? []
 
   return (
     <Paper variant="outlined" sx={{ p: 3 }}>
@@ -106,14 +124,15 @@ export function ApiKeysSection({ initialKeys }: Props) {
                       size="small"
                       aria-label="Отозвать"
                       data-testid={`api-key-revoke-${row.id}`}
-                      disabled={revoke.isPending}
+                      disabled={revokingId !== null}
                       onClick={() => {
                         if (globalThis.confirm(`Отозвать ключ «${row.name}»?`)) {
+                          setRevokingId(row.id)
                           revoke.mutate({ id: row.id })
                         }
                       }}
                     >
-                      {revoke.isPending && revoke.variables?.id === row.id ? (
+                      {revokingId === row.id ? (
                         <CircularProgress size={16} />
                       ) : (
                         <DeleteIcon fontSize="small" />
@@ -125,6 +144,38 @@ export function ApiKeysSection({ initialKeys }: Props) {
             </TableBody>
           </Table>
         )}
+
+        <Accordion variant="outlined" disableGutters sx={{ '&:before': { display: 'none' } }}>
+          <AccordionSummary expandIcon={<ExpandMoreIcon />}>
+            <Typography variant="subtitle2">Как подключить Claude Desktop / Cursor</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Stack spacing={1}>
+              <Typography variant="body2" color="text.secondary">
+                {'Добавьте секцию '}
+                <code>mcpServers</code>
+                {' в '}
+                <code>claude_desktop_config.json</code>
+                {' (или эквивалент для другого клиента):'}
+              </Typography>
+              <Box
+                component="pre"
+                sx={{
+                  m: 0,
+                  p: 2,
+                  fontFamily: 'monospace',
+                  fontSize: 12,
+                  backgroundColor: 'action.hover',
+                  borderRadius: 1,
+                  overflowX: 'auto',
+                  whiteSpace: 'pre',
+                }}
+              >
+                {configSnippet}
+              </Box>
+            </Stack>
+          </AccordionDetails>
+        </Accordion>
       </Stack>
 
       <ApiKeyCreateDialog

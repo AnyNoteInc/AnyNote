@@ -195,3 +195,8 @@ export { default as RadioGroup, type RadioGroupProps } from '@mui/material/Radio
 export { DateTimePicker, type DateTimePickerProps } from '@mui/x-date-pickers/DateTimePicker'
 
 export * from './chat'
+
+export { default as Accordion } from '@mui/material/Accordion'
+export { default as AccordionDetails } from '@mui/material/AccordionDetails'
+export { default as AccordionSummary } from '@mui/material/AccordionSummary'
+export { default as ExpandMoreIcon } from '@mui/icons-material/ExpandMore'
