@@ -85,20 +85,16 @@ async function dragRowAbove(
   targetId: string,
   targetRowAttr: 'data-page-row' | 'data-fav-row',
 ) {
+  // After the drag-handle removal the row itself is the activator
+  // (data-drag-handle is mirrored on the row container alongside data-page-row /
+  // data-fav-row). Drive the drag from the row's own bounding box.
   const sourceRow = page.locator(`[${targetRowAttr}="${sourceId}"]`)
-  // The same pageId may appear in both the favorites list and the page tree
-  // (each renders its own drag handle), so the bare [data-drag-handle=...]
-  // selector can match two nodes. Scope the handle and target lookups to the
-  // section we're dragging within.
-  const handle = sourceRow.locator(`[data-drag-handle="${sourceId}"]`)
   const target = page.locator(`[${targetRowAttr}="${targetId}"]`)
 
-  // The handle is hidden until the row is hovered — hover the row first so
-  // the activator becomes visible and hittable.
   await sourceRow.scrollIntoViewIfNeeded()
   await sourceRow.hover()
 
-  const handleBox = await handle.boundingBox()
+  const handleBox = await sourceRow.boundingBox()
   const targetBox = await target.boundingBox()
   if (!handleBox || !targetBox) throw new Error('dragRowAbove: failed to get bounding boxes')
 

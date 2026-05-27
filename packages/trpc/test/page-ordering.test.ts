@@ -209,6 +209,15 @@ describe('page.reorder', () => {
       newPrevPageId: PAGE_C,
     })
 
+    // Step 0: lift — B's prevPageId is cleared to null before step 1 so the
+    // next sibling can adopt B's old prevPageId without tripping the
+    // prev_page_id UNIQUE constraint (regression guard).
+    expect(txPage.update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: PAGE_B },
+        data: { prevPageId: null },
+      }),
+    )
     // Step 1: detach — C's prevPageId should be set to B's old prevPageId (PAGE_A)
     expect(txPage.update).toHaveBeenCalledWith(
       expect.objectContaining({

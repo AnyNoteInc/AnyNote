@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useCallback, useMemo, useState, type MouseEvent } from 'react'
+import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react'
 import {
   DndContext,
   DragOverlay,
@@ -11,8 +11,8 @@ import {
   useSensor,
   useSensors,
   type DragEndEvent,
-  type DragStartEvent,
   type DragOverEvent,
+  type DragStartEvent,
 } from '@dnd-kit/core'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -23,7 +23,6 @@ import {
   BrushIcon,
   ChevronRightIcon,
   DescriptionIcon,
-  DragIndicatorIcon,
   IconButton,
   ListItemIcon,
   ListItemText,
@@ -223,15 +222,7 @@ function DropLine({ depth }: { depth: number }) {
   )
 }
 
-function SortablePageRow({
-  item,
-  workspaceId,
-  pages,
-  favoritePageIds,
-  showDropBefore,
-  showDropAfter,
-  onToggleCollapse,
-}: {
+type RowVisualProps = {
   item: FlatPageItem
   workspaceId: string
   pages: PageItem[]
@@ -239,6 +230,23 @@ function SortablePageRow({
   showDropBefore: boolean
   showDropAfter: boolean
   onToggleCollapse: (id: string) => void
+}
+
+function PageRowVisual({
+  item,
+  workspaceId,
+  pages,
+  favoritePageIds,
+  showDropBefore,
+  showDropAfter,
+  onToggleCollapse,
+  setNodeRef,
+  style,
+  dragListeners,
+}: RowVisualProps & {
+  setNodeRef?: (el: HTMLElement | null) => void
+  style?: React.CSSProperties
+  dragListeners?: Record<string, unknown>
 }) {
   const pathname = usePathname()
   const router = useRouter()
@@ -258,25 +266,15 @@ function SortablePageRow({
     },
   })
 
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    setActivatorNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: item.id })
-
-  const style = {
-    transform: CSS.Transform.toString(transform),
-    transition,
-    opacity: isDragging ? 0.4 : 1,
-    position: 'relative' as const,
-  }
-
   return (
-    <Box ref={setNodeRef} style={style} data-page-row={item.id}>
+    <Box
+      ref={setNodeRef}
+      style={style}
+      data-page-row={item.id}
+      data-drag-handle={item.id}
+      {...(dragListeners ?? {})}
+      sx={{ position: 'relative' }}
+    >
       {showDropBefore && <DropLine depth={item.depth} />}
       <Box
         sx={{
@@ -285,34 +283,23 @@ function SortablePageRow({
           pr: 0.5,
           pl: 0.5 + item.depth * 1.5,
           borderRadius: 0.75,
+          cursor: 'grab',
           bgcolor: isCurrentPage ? 'action.selected' : 'transparent',
           '&:hover': { bgcolor: isCurrentPage ? 'action.selected' : 'action.hover' },
           '&:hover .page-actions': { visibility: 'visible' },
-          '&:hover .drag-handle': { visibility: 'visible' },
+          '&:active': { cursor: 'grabbing' },
         }}
       >
-        <Box
-          ref={setActivatorNodeRef}
-          className="drag-handle"
-          {...attributes}
-          {...listeners}
-          data-drag-handle={item.id}
-          sx={{
-            visibility: 'hidden',
-            cursor: 'grab',
-            display: 'flex',
-            alignItems: 'center',
-            color: 'text.disabled',
-            mr: 0.25,
-            flexShrink: 0,
-            '&:active': { cursor: 'grabbing' },
-          }}
-        >
-          <DragIndicatorIcon sx={{ fontSize: 14 }} />
-        </Box>
-
         {hasChildren ? (
-          <IconButton size="small" onClick={() => onToggleCollapse(item.id)} sx={{ p: 0, mr: 0.25 }}>
+          <IconButton
+            size="small"
+            onClick={(e) => {
+              e.stopPropagation()
+              onToggleCollapse(item.id)
+            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            sx={{ p: 0, mr: 0.25 }}
+          >
             <ChevronRightIcon
               sx={{
                 fontSize: 16,
@@ -356,6 +343,7 @@ function SortablePageRow({
               e.stopPropagation()
               setCreateAnchor(e.currentTarget)
             }}
+            onPointerDown={(e) => e.stopPropagation()}
             sx={{ p: 0.25 }}
           >
             <AddIcon sx={{ fontSize: 16 }} />
@@ -366,6 +354,7 @@ function SortablePageRow({
               e.stopPropagation()
               setMenuAnchor(e.currentTarget as HTMLElement)
             }}
+            onPointerDown={(e) => e.stopPropagation()}
             sx={{ p: 0.25 }}
           >
             <MoreHorizIcon sx={{ fontSize: 16 }} />
@@ -401,20 +390,45 @@ function SortablePageRow({
   )
 }
 
+function SortablePageRow(props: RowVisualProps) {
+  const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: props.item.id,
+  })
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+    position: 'relative',
+  }
+  return (
+    <PageRowVisual
+      {...props}
+      setNodeRef={setNodeRef}
+      style={style}
+      dragListeners={listeners as unknown as Record<string, unknown>}
+    />
+  )
+}
+
 export function PageTreeSection({ workspaceId, pages: initialPages, favoritePageIds }: Props) {
   const [createAnchor, setCreateAnchor] = useState<HTMLElement | null>(null)
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set())
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
+  const [mounted, setMounted] = useState(false)
   const router = useRouter()
   const utils = trpc.useUtils()
 
-  const pagesQuery = trpc.page.listByWorkspace.useQuery({ workspaceId })
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const pagesQuery = trpc.page.listByWorkspace.useQuery({ workspaceId }, { enabled: mounted })
   const pages = pagesQuery.data ?? initialPages
 
   const reorder = trpc.page.reorder.useMutation({
     onError: () => {
-      utils.page.listByWorkspace.invalidate({ workspaceId })
+      void utils.page.listByWorkspace.invalidate({ workspaceId })
     },
   })
 
@@ -464,7 +478,6 @@ export function PageTreeSection({ workspaceId, pages: initialPages, favoritePage
     const draggedPage = pages.find((p) => p.id === draggedActiveId)
     if (!draggedPage || !overItem) return
 
-    // Dropping before overItem if dragging upward (activeIdx > overIdx), else after
     const droppingBefore = activeIdx > overIdx
     const newParentId = overItem.parentId
     const newPrevPageId = droppingBefore ? overItem.prevPageId : overItem.id
@@ -527,50 +540,65 @@ export function PageTreeSection({ workspaceId, pages: initialPages, favoritePage
       </Box>
 
       <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={onDragStart}
-          onDragOver={onDragOver}
-          onDragEnd={onDragEnd}
-        >
-          <SortableContext
-            items={flatItems.map((i) => i.id)}
-            strategy={verticalListSortingStrategy}
+        {mounted ? (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={onDragStart}
+            onDragOver={onDragOver}
+            onDragEnd={onDragEnd}
           >
-            {flatItems.map((item, idx) => (
-              <SortablePageRow
-                key={item.id}
-                item={item}
-                workspaceId={workspaceId}
-                pages={pages}
-                favoritePageIds={favoritePageIds}
-                showDropBefore={activeId !== null && overIdx === idx && activeIdx > idx}
-                showDropAfter={activeId !== null && overIdx === idx && activeIdx < idx}
-                onToggleCollapse={toggleCollapse}
-              />
-            ))}
-          </SortableContext>
-          <DragOverlay>
-            {activeItem ? (
-              <Box
-                sx={{
-                  pl: 0.5 + activeItem.depth * 1.5,
-                  py: 0.5,
-                  borderRadius: 0.75,
-                  bgcolor: 'background.paper',
-                  boxShadow: 3,
-                  opacity: 0.9,
-                }}
-              >
-                <Typography variant="body2" noWrap sx={{ color: 'text.secondary' }}>
-                  {activeItem.icon ? `${activeItem.icon} ` : ''}
-                  {activeItem.title ?? 'Новая страница'}
-                </Typography>
-              </Box>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+            <SortableContext
+              items={flatItems.map((i) => i.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              {flatItems.map((item, idx) => (
+                <SortablePageRow
+                  key={item.id}
+                  item={item}
+                  workspaceId={workspaceId}
+                  pages={pages}
+                  favoritePageIds={favoritePageIds}
+                  showDropBefore={activeId !== null && overIdx === idx && activeIdx > idx}
+                  showDropAfter={activeId !== null && overIdx === idx && activeIdx < idx}
+                  onToggleCollapse={toggleCollapse}
+                />
+              ))}
+            </SortableContext>
+            <DragOverlay>
+              {activeItem ? (
+                <Box
+                  sx={{
+                    pl: 0.5 + activeItem.depth * 1.5,
+                    py: 0.5,
+                    borderRadius: 0.75,
+                    bgcolor: 'background.paper',
+                    boxShadow: 3,
+                    opacity: 0.9,
+                  }}
+                >
+                  <Typography variant="body2" noWrap sx={{ color: 'text.secondary' }}>
+                    {activeItem.icon ? `${activeItem.icon} ` : ''}
+                    {activeItem.title ?? 'Новая страница'}
+                  </Typography>
+                </Box>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        ) : (
+          flatItems.map((item) => (
+            <PageRowVisual
+              key={item.id}
+              item={item}
+              workspaceId={workspaceId}
+              pages={pages}
+              favoritePageIds={favoritePageIds}
+              showDropBefore={false}
+              showDropAfter={false}
+              onToggleCollapse={toggleCollapse}
+            />
+          ))
+        )}
       </Box>
     </Box>
   )

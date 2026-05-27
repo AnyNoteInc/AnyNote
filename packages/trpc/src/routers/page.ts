@@ -682,6 +682,16 @@ export const pageRouter = router({
       }
 
       return ctx.prisma.$transaction(async (tx) => {
+        // Step 0: Lift the moved page out so its prev_page_id doesn't clash
+        // with the next sibling adopting the same value in step 1
+        // (prev_page_id is UNIQUE — two rows can't hold the same value).
+        if (page.prevPageId !== null) {
+          await tx.page.update({
+            where: { id: input.pageId },
+            data: { prevPageId: null },
+          })
+        }
+
         // Step 1: Detach — fix next sibling's back-pointer
         const nextSibling = await tx.page.findFirst({
           where: { prevPageId: input.pageId, deletedAt: null },
@@ -710,7 +720,7 @@ export const pageRouter = router({
           })
         }
 
-        // Step 3: Update the moved page
+        // Step 3: Update the moved page to its final position
         await tx.page.update({
           where: { id: input.pageId },
           data: {

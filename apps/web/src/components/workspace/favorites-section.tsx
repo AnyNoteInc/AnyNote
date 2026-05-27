@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type MouseEvent } from 'react'
+import { useEffect, useState, type MouseEvent } from 'react'
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 import {
@@ -18,7 +18,6 @@ import {
   ArrowDropDownIcon,
   ArrowDropUpIcon,
   Box,
-  DragIndicatorIcon,
   IconButton,
   MoreHorizIcon,
   Stack,
@@ -36,7 +35,6 @@ type Props = {
   favoritePageIds: Set<string>
 }
 
-/** Recursively collect all descendants of a page */
 function getAllDescendants(pageId: string, allPages: PageItem[]): PageItem[] {
   const result: PageItem[] = []
   const directChildren = allPages.filter((p) => p.parentId === pageId)
@@ -47,37 +45,33 @@ function getAllDescendants(pageId: string, allPages: PageItem[]): PageItem[] {
   return result
 }
 
-function SortableFavItem({
-  page,
-  workspaceId,
-  onOpenMenu,
-}: {
+type FavRowProps = {
   page: PageItem
   workspaceId: string
   onOpenMenu: (event: MouseEvent<HTMLElement>, page: PageItem) => void
-}) {
+  setNodeRef?: (el: HTMLElement | null) => void
+  style?: React.CSSProperties
+  dragListeners?: Record<string, unknown>
+}
+
+function FavRowVisual({
+  page,
+  workspaceId,
+  onOpenMenu,
+  setNodeRef,
+  style,
+  dragListeners,
+}: FavRowProps) {
   const pathname = usePathname()
   const isActive = pathname === `/workspaces/${workspaceId}/pages/${page.id}`
-
-  const {
-    attributes,
-    listeners,
-    setNodeRef,
-    setActivatorNodeRef,
-    transform,
-    transition,
-    isDragging,
-  } = useSortable({ id: page.id })
 
   return (
     <Box
       ref={setNodeRef}
       data-fav-row={page.id}
-      style={{
-        transform: CSS.Transform.toString(transform),
-        transition,
-        opacity: isDragging ? 0.4 : 1,
-      }}
+      data-drag-handle={page.id}
+      style={style}
+      {...(dragListeners ?? {})}
       sx={{
         display: 'flex',
         alignItems: 'center',
@@ -85,35 +79,17 @@ function SortableFavItem({
         pl: 1,
         borderRadius: 0.75,
         color: 'text.secondary',
+        cursor: 'grab',
         bgcolor: isActive ? 'action.selected' : 'transparent',
         '&:hover': { bgcolor: isActive ? 'action.selected' : 'action.hover' },
         '&:hover .fav-more': { visibility: 'visible' },
-        '&:hover .fav-handle': { visibility: 'visible' },
+        '&:active': { cursor: 'grabbing' },
         fontSize: 13,
       }}
     >
-      <Box
-        ref={setActivatorNodeRef}
-        className="fav-handle"
-        {...attributes}
-        {...listeners}
-        data-drag-handle={page.id}
-        sx={{
-          visibility: 'hidden',
-          cursor: 'grab',
-          display: 'flex',
-          alignItems: 'center',
-          color: 'text.disabled',
-          mr: 0.25,
-          flexShrink: 0,
-          '&:active': { cursor: 'grabbing' },
-        }}
-      >
-        <DragIndicatorIcon sx={{ fontSize: 14 }} />
-      </Box>
-
       <Link
         href={`/workspaces/${workspaceId}/pages/${page.id}`}
+        onClick={(e) => e.stopPropagation()}
         style={{
           textDecoration: 'none',
           color: 'inherit',
@@ -143,7 +119,11 @@ function SortableFavItem({
       <IconButton
         size="small"
         className="fav-more"
-        onClick={(e) => onOpenMenu(e, page)}
+        onClick={(e) => {
+          e.stopPropagation()
+          onOpenMenu(e, page)
+        }}
+        onPointerDown={(e) => e.stopPropagation()}
         sx={{ visibility: 'hidden', flexShrink: 0, p: 0.25 }}
       >
         <MoreHorizIcon sx={{ fontSize: 16 }} />
@@ -152,15 +132,39 @@ function SortableFavItem({
   )
 }
 
+function SortableFavItem(props: FavRowProps) {
+  const { listeners, setNodeRef, transform, transition, isDragging } = useSortable({
+    id: props.page.id,
+  })
+  const style: React.CSSProperties = {
+    transform: CSS.Transform.toString(transform),
+    transition,
+    opacity: isDragging ? 0.4 : 1,
+  }
+  return (
+    <FavRowVisual
+      {...props}
+      setNodeRef={setNodeRef}
+      style={style}
+      dragListeners={listeners as unknown as Record<string, unknown>}
+    />
+  )
+}
+
 export function FavoritesSection({ workspaceId, allPages: initialPages, favoritePageIds }: Props) {
   const [open, setOpen] = useState(true)
+  const [mounted, setMounted] = useState(false)
   const [activeId, setActiveId] = useState<string | null>(null)
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
   const [menuPage, setMenuPage] = useState<PageItem | null>(null)
   const [movePage, setMovePage] = useState<PageItem | null>(null)
 
-  const favorites = trpc.page.listFavorites.useQuery({ workspaceId })
-  const pagesQuery = trpc.page.listByWorkspace.useQuery({ workspaceId })
+  useEffect(() => {
+    setMounted(true)
+  }, [])
+
+  const favorites = trpc.page.listFavorites.useQuery({ workspaceId }, { enabled: mounted })
+  const pagesQuery = trpc.page.listByWorkspace.useQuery({ workspaceId }, { enabled: mounted })
   const utils = trpc.useUtils()
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }))
 
@@ -203,6 +207,20 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
     setMenuPage(page)
   }
 
+  function resolvePage(fav: { id: string; title: string | null; icon: string | null }): PageItem {
+    return (
+      allPages.find((p) => p.id === fav.id) ?? {
+        id: fav.id,
+        title: fav.title,
+        icon: fav.icon,
+        parentId: null,
+        prevPageId: null,
+        createdById: null,
+        createdAt: '',
+      }
+    )
+  }
+
   return (
     <Box>
       <Box
@@ -233,66 +251,88 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
       </Box>
 
       {open ? (
-        <DndContext
-          sensors={sensors}
-          collisionDetection={closestCenter}
-          onDragStart={({ active }) => setActiveId(active.id as string)}
-          onDragEnd={onDragEnd}
-        >
-          <SortableContext
-            items={favPages.map((p) => p.id)}
-            strategy={verticalListSortingStrategy}
+        mounted ? (
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={({ active }) => setActiveId(active.id as string)}
+            onDragEnd={onDragEnd}
           >
-            <Stack spacing={0.25} sx={{ maxHeight: 200, overflow: 'auto' }}>
-              {favPages.map((fav) => {
-                const page = allPages.find((p) => p.id === fav.id) ?? {
-                  ...fav,
-                  prevPageId: null,
-                  createdById: null,
-                  createdAt: new Date(),
-                }
-                const descendants = getAllDescendants(fav.id, allPages)
-                return (
-                  <Box key={fav.id}>
-                    <SortableFavItem
-                      page={page}
-                      workspaceId={workspaceId}
-                      onOpenMenu={handleOpenMenu}
-                    />
-                    {descendants.map((child) => (
-                      <Box key={child.id} sx={{ pl: 2 }}>
-                        <SortableFavItem
-                          page={child}
-                          workspaceId={workspaceId}
-                          onOpenMenu={handleOpenMenu}
-                        />
-                      </Box>
-                    ))}
-                  </Box>
-                )
-              })}
-            </Stack>
-          </SortableContext>
-          <DragOverlay>
-            {activeItem ? (
-              <Box
-                sx={{
-                  px: 1,
-                  py: 0.5,
-                  borderRadius: 0.75,
-                  bgcolor: 'background.paper',
-                  boxShadow: 3,
-                  opacity: 0.9,
-                  fontSize: 13,
-                  color: 'text.secondary',
-                }}
-              >
-                {activeItem.icon ? `${activeItem.icon} ` : ''}
-                {activeItem.title ?? 'Новая страница'}
-              </Box>
-            ) : null}
-          </DragOverlay>
-        </DndContext>
+            <SortableContext
+              items={favPages.map((p) => p.id)}
+              strategy={verticalListSortingStrategy}
+            >
+              <Stack spacing={0.25} sx={{ maxHeight: 200, overflow: 'auto' }}>
+                {favPages.map((fav) => {
+                  const page = resolvePage(fav)
+                  const descendants = getAllDescendants(fav.id, allPages)
+                  return (
+                    <Box key={fav.id}>
+                      <SortableFavItem
+                        page={page}
+                        workspaceId={workspaceId}
+                        onOpenMenu={handleOpenMenu}
+                      />
+                      {descendants.map((child) => (
+                        <Box key={child.id} sx={{ pl: 2 }}>
+                          <FavRowVisual
+                            page={child}
+                            workspaceId={workspaceId}
+                            onOpenMenu={handleOpenMenu}
+                          />
+                        </Box>
+                      ))}
+                    </Box>
+                  )
+                })}
+              </Stack>
+            </SortableContext>
+            <DragOverlay>
+              {activeItem ? (
+                <Box
+                  sx={{
+                    px: 1,
+                    py: 0.5,
+                    borderRadius: 0.75,
+                    bgcolor: 'background.paper',
+                    boxShadow: 3,
+                    opacity: 0.9,
+                    fontSize: 13,
+                    color: 'text.secondary',
+                  }}
+                >
+                  {activeItem.icon ? `${activeItem.icon} ` : ''}
+                  {activeItem.title ?? 'Новая страница'}
+                </Box>
+              ) : null}
+            </DragOverlay>
+          </DndContext>
+        ) : (
+          <Stack spacing={0.25} sx={{ maxHeight: 200, overflow: 'auto' }}>
+            {favPages.map((fav) => {
+              const page = resolvePage(fav)
+              const descendants = getAllDescendants(fav.id, allPages)
+              return (
+                <Box key={fav.id}>
+                  <FavRowVisual
+                    page={page}
+                    workspaceId={workspaceId}
+                    onOpenMenu={handleOpenMenu}
+                  />
+                  {descendants.map((child) => (
+                    <Box key={child.id} sx={{ pl: 2 }}>
+                      <FavRowVisual
+                        page={child}
+                        workspaceId={workspaceId}
+                        onOpenMenu={handleOpenMenu}
+                      />
+                    </Box>
+                  ))}
+                </Box>
+              )
+            })}
+          </Stack>
+        )
       ) : null}
 
       {menuPage ? (
