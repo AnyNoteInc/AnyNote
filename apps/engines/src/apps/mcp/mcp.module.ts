@@ -3,8 +3,6 @@ import { APP_FILTER } from '@nestjs/core'
 import { McpModule as McpNestModule } from '@rekog/mcp-nest'
 import { storage } from '@repo/storage'
 
-import { AgentsInternalAuthGuard } from '../../auth/agents-internal-auth.guard.js'
-import { ApiKeyGuard } from '../api/auth/api-key.guard.js'
 import { McpAuthGuard } from '../api/auth/mcp-auth.guard.js'
 import { McpExceptionFilter } from './errors/mcp-exception.filter.js'
 import { createAgentsSearchClient } from './services/agents-search.client.js'
@@ -28,9 +26,6 @@ import { WorkspacesTools } from './tools/workspaces.tools.js'
     }),
   ],
   providers: [
-    AgentsInternalAuthGuard,
-    ApiKeyGuard,
-    McpAuthGuard,
     MarkdownParser,
     MarkdownRenderer,
     PageWriter,
