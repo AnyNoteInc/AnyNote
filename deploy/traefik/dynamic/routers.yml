@@ -57,6 +57,20 @@ http:
         - ratelimit@file
         - headers@file
 
+    # Public anynote API (REST + MCP)
+    api:
+      rule: "Host(`api.anynote.ru`)"
+      entryPoints:
+        - websecure
+      tls:
+        certResolver: le
+      service: engines
+      middlewares:
+        - ratelimit@file
+        - inflight@file
+        - headers@file
+        - compress@file
+
   services:
     web:
       loadBalancer:
@@ -70,3 +84,7 @@ http:
       loadBalancer:
         servers:
           - url: "http://portainer:9000"
+    engines:
+      loadBalancer:
+        servers:
+          - url: "http://engines:8082"
