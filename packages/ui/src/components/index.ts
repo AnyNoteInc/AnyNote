@@ -164,6 +164,7 @@ export { default as LooksTwoIcon } from '@mui/icons-material/LooksTwo'
 export { default as Looks3Icon } from '@mui/icons-material/Looks3'
 export { default as InsertDriveFileIcon } from '@mui/icons-material/InsertDriveFile'
 export { default as DragIndicatorIcon } from '@mui/icons-material/DragIndicator'
+export { default as VpnKeyIcon } from '@mui/icons-material/VpnKey'
 export { default as ListItemIcon, type ListItemIconProps } from '@mui/material/ListItemIcon'
 export { default as ListItemText, type ListItemTextProps } from '@mui/material/ListItemText'
 
