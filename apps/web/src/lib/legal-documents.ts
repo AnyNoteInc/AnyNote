@@ -74,7 +74,7 @@ export const legalDocuments: readonly LegalDocument[] = [
     href: '/terms/public-offer',
     consentType: ConsentDocumentType.PUBLIC_OFFER,
     required: true,
-    version: '2026-05-04',
+    version: '2026-05-27',
   },
   {
     slug: 'information',
