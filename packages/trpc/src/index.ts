@@ -16,6 +16,7 @@ import { kanbanRouter } from './routers/kanban'
 import { commentRouter } from './routers/comment'
 import { mcpServerRouter } from './routers/mcp-server'
 import { agentMemoryRouter } from './routers/agent-memory'
+import { apiKeyRouter } from './routers/api-key'
 
 export { createContext, createServerContext } from './trpc'
 export type { Context } from './trpc'
@@ -48,6 +49,7 @@ export const appRouter = router({
   comment: commentRouter,
   mcpServer: mcpServerRouter,
   agentMemory: agentMemoryRouter,
+  apiKey: apiKeyRouter,
 })
 
 export const createCaller = createCallerFactory(appRouter)
