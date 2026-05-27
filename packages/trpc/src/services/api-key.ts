@@ -12,10 +12,10 @@ function toBase62(bytes: Buffer, length: number): string {
   let out = ''
   const base = BigInt(ALPHABET.length)
   while (n > 0n) {
-    out = ALPHABET[Number(n % base)] + out
+    out = ALPHABET[Number(n % base)]! + out
     n /= base
   }
-  if (out.length < length) out = ALPHABET[0].repeat(length - out.length) + out
+  if (out.length < length) out = ALPHABET[0]!.repeat(length - out.length) + out
   return out.slice(-length)
 }
 
@@ -25,6 +25,9 @@ export function generateApiKey(): {
   lastFour: string
   hash: string
 } {
+  // 18 bytes (144 bits) → 24 base62 chars (~143 bits). Slicing the high digit
+  // loses ~1 bit and slightly biases the leading character; 2^143 keyspace is
+  // still vastly more than required given SHA-256 lookup.
   const body = toBase62(randomBytes(18), 24)
   const fullKey = `ank_${body}`
   return {
