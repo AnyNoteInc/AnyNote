@@ -27,19 +27,25 @@ describe('AgentsInternalAuthGuard', () => {
     process.env.AGENTS_TO_ENGINES_SECRET = SECRET
   })
 
-  it('accepts a valid HMAC within the timestamp window', async () => {
+  it('accepts a valid HMAC within the timestamp window and sets req.auth', async () => {
     const ts = Math.floor(Date.now() / 1000)
     const moduleRef = await Test.createTestingModule({
       providers: [AgentsInternalAuthGuard],
     }).compile()
     const guard = moduleRef.get(AgentsInternalAuthGuard)
-    const ctx = makeCtx({
-      authorization: `Bearer ${sign(SECRET, 'u', 'w', ts)}`,
-      'x-agents-user': 'u',
-      'x-agents-workspace': 'w',
-      'x-agents-timestamp': String(ts),
-    })
+    const request: Record<string, unknown> = {
+      headers: {
+        authorization: `Bearer ${sign(SECRET, 'u', 'w', ts)}`,
+        'x-agents-user': 'u',
+        'x-agents-workspace': 'w',
+        'x-agents-timestamp': String(ts),
+      },
+    }
+    const ctx = {
+      switchToHttp: () => ({ getRequest: () => request }),
+    } as unknown as ExecutionContext
     expect(guard.canActivate(ctx)).toBe(true)
+    expect(request.auth).toEqual({ userId: 'u', source: 'internal' })
   })
 
   it('rejects an expired timestamp', async () => {

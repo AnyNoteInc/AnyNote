@@ -6,6 +6,8 @@ import {
   UnauthorizedException,
 } from '@nestjs/common'
 
+import type { AuthedRequest } from '../apps/api/auth/auth-context.js'
+
 // Skew window must comfortably exceed the time a user takes to read and click
 // a destructive-action confirmation card in the chat UI — the agent re-uses
 // the timestamp signed by the original /agent/run request on every MCP call
@@ -28,9 +30,7 @@ function pick(value: string | string[] | undefined): string | undefined {
 @Injectable()
 export class AgentsInternalAuthGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
-    const req = context.switchToHttp().getRequest<{
-      headers: Record<string, string | string[] | undefined>
-    }>()
+    const req = context.switchToHttp().getRequest<AuthedRequest>()
     const headers = req.headers
     const auth = pick(headers['authorization'])
     const userId = pick(headers['x-agents-user'])
@@ -60,6 +60,7 @@ export class AgentsInternalAuthGuard implements CanActivate {
       throw new UnauthorizedException('invalid HMAC')
     }
 
+    req.auth = { userId, source: 'internal' }
     return true
   }
 }

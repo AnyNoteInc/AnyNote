@@ -4,8 +4,9 @@ import { McpModule as McpNestModule } from '@rekog/mcp-nest'
 import { storage } from '@repo/storage'
 
 import { AgentsInternalAuthGuard } from '../../auth/agents-internal-auth.guard.js'
+import { ApiKeyGuard } from '../api/auth/api-key.guard.js'
+import { McpAuthGuard } from '../api/auth/mcp-auth.guard.js'
 import { McpExceptionFilter } from './errors/mcp-exception.filter.js'
-import { McpTokenGuard } from './guards/mcp-token.guard.js'
 import { createAgentsSearchClient } from './services/agents-search.client.js'
 import { FileUploader, STORAGE } from './services/file-uploader.service.js'
 import { MarkdownParser } from './services/markdown-parser.service.js'
@@ -23,12 +24,13 @@ import { WorkspacesTools } from './tools/workspaces.tools.js'
     McpNestModule.forRoot({
       name: 'anynote-engines',
       version: '0.1.0',
-      guards: [AgentsInternalAuthGuard, McpTokenGuard],
+      guards: [McpAuthGuard],
     }),
   ],
   providers: [
     AgentsInternalAuthGuard,
-    McpTokenGuard,
+    ApiKeyGuard,
+    McpAuthGuard,
     MarkdownParser,
     MarkdownRenderer,
     PageWriter,
