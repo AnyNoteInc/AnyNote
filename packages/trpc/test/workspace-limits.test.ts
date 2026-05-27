@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach } from 'vitest'
 import { prisma } from '@repo/db'
+import type { Payment, Refund } from '@repo/yookassa'
 
 import { syncWorkspaceLimits, resolveActivePlanOrPersonal } from '../src/helpers/plan'
 import { workspaceRouter } from '../src/routers/workspace'
@@ -217,7 +218,7 @@ describe('billing transitions sync limits', () => {
     }
     await handlePaymentSucceeded(
       { yookassa: fakeYookassa, prisma },
-      { id: order.yookassaPaymentId!, status: 'succeeded' } as never,
+      { id: order.yookassaPaymentId!, status: 'succeeded' } as Payment,
     )
 
     const limit = await prisma.workspaceLimit.findUniqueOrThrow({
@@ -250,8 +251,8 @@ describe('billing transitions sync limits', () => {
       },
     })
     await handleRefundSucceeded(
-      { yookassa: { getPayment: async () => ({}) as never }, prisma },
-      { id: `refund-${owner.id}`, payment_id: order.yookassaPaymentId!, status: 'succeeded' } as never,
+      { yookassa: { getPayment: async () => ({}) as Payment }, prisma },
+      { id: `refund-${owner.id}`, payment_id: order.yookassaPaymentId!, status: 'succeeded' } as Refund,
     )
     const limit = await prisma.workspaceLimit.findUniqueOrThrow({
       where: { workspaceId: ws.id },
