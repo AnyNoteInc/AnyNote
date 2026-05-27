@@ -48,5 +48,6 @@ import { WorkspacesTools } from './tools/workspaces.tools.js'
       useFactory: () => createAgentsSearchClient(process.env.AGENTS_URL ?? 'http://localhost:8080'),
     },
   ],
+  exports: [PageTools, PageFileTools, WorkspaceTools, SearchTools, WorkspacesTools],
 })
 export class McpModule {}
