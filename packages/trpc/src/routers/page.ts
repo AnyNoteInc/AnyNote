@@ -115,21 +115,28 @@ export const pageRouter = router({
           },
         })
 
-        // Insert at start of linked list: find current first sibling and point it to newPage
-        const existingFirst = await tx.page.findFirst({
+        // Insert at tail of linked list: find the sibling whose id is not
+        // referenced as prevPageId by any other sibling (= the last one).
+        const siblings = await tx.page.findMany({
           where: {
             workspaceId: input.workspaceId,
             parentId: input.parentId,
-            prevPageId: null,
             id: { not: newPage.id },
             deletedAt: null,
           },
+          select: { id: true, prevPageId: true },
         })
-        if (existingFirst) {
-          await tx.page.update({
-            where: { id: existingFirst.id },
-            data: { prevPageId: newPage.id },
-          })
+        if (siblings.length > 0) {
+          const prevPageIds = new Set(
+            siblings.map((s) => s.prevPageId).filter((id): id is string => id !== null),
+          )
+          const tail = siblings.find((s) => !prevPageIds.has(s.id))
+          if (tail) {
+            await tx.page.update({
+              where: { id: newPage.id },
+              data: { prevPageId: tail.id },
+            })
+          }
         }
 
         await enqueueOutboxEvent(tx, {
@@ -630,15 +637,128 @@ export const pageRouter = router({
       })
     }),
 
+  reorder: protectedProcedure
+    .input(
+      z.object({
+        pageId: z.string().uuid(),
+        newParentId: z.string().uuid().nullable(),
+        newPrevPageId: z.string().uuid().nullable(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      if (input.newPrevPageId === input.pageId) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Страница не может ссылаться на себя' })
+      }
+
+      const page = await ctx.prisma.page.findFirst({
+        where: { id: input.pageId, deletedAt: null },
+      })
+      if (!page) throw new TRPCError({ code: 'NOT_FOUND', message: 'Страница не найдена' })
+
+      await assertWorkspaceMember(ctx, page.workspaceId)
+      await requireWritableWorkspace(page.workspaceId)
+
+      if (page.parentId === input.newParentId && page.prevPageId === input.newPrevPageId) {
+        return { id: input.pageId }
+      }
+
+      // Cycle check: newParentId must not be a descendant of pageId
+      if (input.newParentId !== null) {
+        let queue = [input.pageId]
+        while (queue.length > 0) {
+          const children = await ctx.prisma.page.findMany({
+            where: { parentId: { in: queue }, deletedAt: null },
+            select: { id: true },
+          })
+          const childIds = children.map((c) => c.id)
+          if (childIds.includes(input.newParentId)) {
+            throw new TRPCError({
+              code: 'BAD_REQUEST',
+              message: 'Нельзя вложить страницу в собственного потомка',
+            })
+          }
+          queue = childIds
+        }
+      }
+
+      return ctx.prisma.$transaction(async (tx) => {
+        // Step 0: Lift the moved page out so its prev_page_id doesn't clash
+        // with the next sibling adopting the same value in step 1
+        // (prev_page_id is UNIQUE — two rows can't hold the same value).
+        if (page.prevPageId !== null) {
+          await tx.page.update({
+            where: { id: input.pageId },
+            data: { prevPageId: null },
+          })
+        }
+
+        // Step 1: Detach — fix next sibling's back-pointer
+        const nextSibling = await tx.page.findFirst({
+          where: { prevPageId: input.pageId, deletedAt: null },
+        })
+        if (nextSibling) {
+          await tx.page.update({
+            where: { id: nextSibling.id },
+            data: { prevPageId: page.prevPageId },
+          })
+        }
+
+        // Step 2: Plug the gap at insert point
+        const pageAtInsertPoint = await tx.page.findFirst({
+          where: {
+            prevPageId: input.newPrevPageId,
+            workspaceId: page.workspaceId,
+            parentId: input.newParentId,
+            deletedAt: null,
+            id: { not: input.pageId },
+          },
+        })
+        if (pageAtInsertPoint) {
+          await tx.page.update({
+            where: { id: pageAtInsertPoint.id },
+            data: { prevPageId: input.pageId },
+          })
+        }
+
+        // Step 3: Update the moved page to its final position
+        await tx.page.update({
+          where: { id: input.pageId },
+          data: {
+            parentId: input.newParentId,
+            prevPageId: input.newPrevPageId,
+            updatedById: ctx.user.id,
+          },
+        })
+
+        await enqueueOutboxEvent(tx, {
+          eventType: 'page.upserted',
+          aggregateType: 'page',
+          aggregateId: input.pageId,
+          workspaceId: page.workspaceId,
+        })
+
+        return { id: input.pageId }
+      })
+    }),
+
   addFavorite: protectedProcedure
     .input(z.object({ pageId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const page = await assertPageAccess(ctx, input.pageId)
       await requireWritableWorkspace(page.workspaceId)
-      return ctx.prisma.favoritePage.upsert({
-        where: { userId_pageId: { userId: ctx.user.id, pageId: input.pageId } },
-        create: { userId: ctx.user.id, pageId: input.pageId },
-        update: {},
+
+      return ctx.prisma.$transaction(async (tx) => {
+        const maxResult = await tx.favoritePage.aggregate({
+          where: { userId: ctx.user.id },
+          _max: { position: true },
+        })
+        const nextPosition = (maxResult._max.position ?? -1) + 1
+
+        return tx.favoritePage.upsert({
+          where: { userId_pageId: { userId: ctx.user.id, pageId: input.pageId } },
+          create: { userId: ctx.user.id, pageId: input.pageId, position: nextPosition },
+          update: {},
+        })
       })
     }),
 
@@ -651,6 +771,32 @@ export const pageRouter = router({
         where: { userId: ctx.user.id, pageId: input.pageId },
       })
       return { pageId: input.pageId }
+    }),
+
+  reorderFavorites: protectedProcedure
+    .input(
+      z.object({
+        workspaceId: z.string().uuid(),
+        orderedIds: z.array(z.string().uuid()),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertWorkspaceMember(ctx, input.workspaceId)
+
+      await ctx.prisma.$transaction(
+        input.orderedIds.map((pageId, index) =>
+          ctx.prisma.favoritePage.updateMany({
+            where: {
+              userId: ctx.user.id,
+              pageId,
+              page: { workspaceId: input.workspaceId },
+            },
+            data: { position: index },
+          }),
+        ),
+      )
+
+      return { ok: true }
     }),
 
   listFavorites: protectedProcedure
@@ -675,7 +821,7 @@ export const pageRouter = router({
             },
           },
         },
-        orderBy: { createdAt: 'desc' },
+        orderBy: { position: 'asc' },
       })
       return favorites.map((f) => f.page)
     }),

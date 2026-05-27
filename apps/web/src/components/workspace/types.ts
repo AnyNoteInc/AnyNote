@@ -33,3 +33,26 @@ export function firstPageInTreeOrder(pages: PageItem[]): PageItem | undefined {
   const firstRootPage = orderSiblings(pages.filter((p) => p.parentId === null))[0]
   return firstRootPage ?? orderSiblings(pages)[0]
 }
+
+export type FlatPageItem = PageItem & {
+  depth: number
+  collapsed: boolean
+}
+
+export function flattenTree(
+  pages: PageItem[],
+  parentId: string | null = null,
+  depth = 0,
+  collapsedIds: Set<string> = new Set(),
+): FlatPageItem[] {
+  const siblings = orderSiblings(pages.filter((p) => p.parentId === parentId))
+  const result: FlatPageItem[] = []
+  for (const page of siblings) {
+    const collapsed = collapsedIds.has(page.id)
+    result.push({ ...page, depth, collapsed })
+    if (!collapsed) {
+      result.push(...flattenTree(pages, page.id, depth + 1, collapsedIds))
+    }
+  }
+  return result
+}
