@@ -13,7 +13,7 @@ import { PRISMA } from '../../../infra/db/db.providers.js'
 
 import type { AuthedRequest } from './auth-context.js'
 
-const TOKEN_PREFIX = 'ank_'
+export const API_KEY_TOKEN_PREFIX = 'ank_'
 const TOUCH_THROTTLE_MS = 60_000
 
 @Injectable()
@@ -27,7 +27,7 @@ export class ApiKeyGuard implements CanActivate {
     if (!auth || !auth.startsWith('Bearer ')) return false
 
     const token = auth.slice(7)
-    if (!token.startsWith(TOKEN_PREFIX)) return false
+    if (!token.startsWith(API_KEY_TOKEN_PREFIX)) return false
 
     const hash = createHash('sha256').update(token).digest('hex')
     const key = await this.prisma.apiKey.findUnique({ where: { keyHash: hash } })

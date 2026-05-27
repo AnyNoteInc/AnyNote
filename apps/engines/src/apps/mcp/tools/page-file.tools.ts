@@ -146,22 +146,24 @@ export class PageFileTools {
   }
 
   async doListPageFiles(auth: AuthContext, args: ListPageFilesArgs) {
-    await assertMember(this.prisma, auth.userId, args.workspaceId)
-    const page = await this.prisma.page.findUnique({
-      where: { id: args.pageId },
-      select: { workspaceId: true },
-    })
+    const [, page, files] = await Promise.all([
+      assertMember(this.prisma, auth.userId, args.workspaceId),
+      this.prisma.page.findUnique({
+        where: { id: args.pageId },
+        select: { workspaceId: true },
+      }),
+      this.prisma.pageFile.findMany({
+        where: { pageId: args.pageId },
+        select: {
+          file: {
+            select: { id: true, name: true, mimeType: true, fileSize: true, createdAt: true },
+          },
+        },
+      }),
+    ])
     if (page?.workspaceId !== args.workspaceId) {
       throw new PageNotFoundError(args.pageId)
     }
-    const files = await this.prisma.pageFile.findMany({
-      where: { pageId: args.pageId },
-      select: {
-        file: {
-          select: { id: true, name: true, mimeType: true, fileSize: true, createdAt: true },
-        },
-      },
-    })
     return {
       files: files.map((f) => ({
         id: f.file.id,

@@ -1,8 +1,6 @@
 import { ApiProperty } from '@nestjs/swagger'
 import { IsIn, IsOptional, IsString, IsUUID, Length, MaxLength } from 'class-validator'
 
-// CreatePage: workspaceId, parentId (nullable uuid optional), title (1-255),
-// ownership (TEXT|SKILL|AGENT default TEXT), markdown (max 50000 optional)
 export class CreatePageDto {
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
@@ -30,7 +28,6 @@ export class CreatePageDto {
   markdown?: string
 }
 
-// UpdatePage: workspaceId, pageId, title? (max 255), icon? (string nullable), content? (unknown)
 export class UpdatePageDto {
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
@@ -56,7 +53,6 @@ export class UpdatePageDto {
   content?: unknown
 }
 
-// MovePage: workspaceId, pageId, newParentId? (nullable uuid), prevPageId? (nullable uuid)
 export class MovePageDto {
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
@@ -77,8 +73,7 @@ export class MovePageDto {
   prevPageId?: string | null
 }
 
-// GetPageMarkdown (PageIdInput): workspaceId, pageId
-export class GetPageMarkdownDto {
+export class PageIdDto {
   @ApiProperty({ format: 'uuid' })
   @IsUUID()
   workspaceId!: string
@@ -88,13 +83,6 @@ export class GetPageMarkdownDto {
   pageId!: string
 }
 
-// GetPageStats (PageIdInput): workspaceId, pageId
-export class GetPageStatsDto {
-  @ApiProperty({ format: 'uuid' })
-  @IsUUID()
-  workspaceId!: string
+export class GetPageMarkdownDto extends PageIdDto {}
 
-  @ApiProperty({ format: 'uuid' })
-  @IsUUID()
-  pageId!: string
-}
+export class GetPageStatsDto extends PageIdDto {}

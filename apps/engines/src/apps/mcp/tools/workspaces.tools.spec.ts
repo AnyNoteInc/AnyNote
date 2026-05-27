@@ -36,6 +36,7 @@ describe('WorkspacesTools.listWorkspaces', () => {
       where: { userId: 'u1' },
       select: { role: true, workspace: { select: { id: true, name: true, slug: true } } },
       orderBy: { workspace: { name: 'asc' } },
+      take: 200,
     })
   })
 

@@ -33,13 +33,13 @@ async def test_call_tool_injects_workspace_id(monkeypatch) -> None:
 
     assert captured['payload']['params']['arguments'] == {
         'query': 'q',
-        'workspace_id': 'w1',
+        'workspaceId': 'w1',
     }
 
 
 @pytest.mark.asyncio
 async def test_call_tool_does_not_overwrite_existing_workspace_id(monkeypatch) -> None:
-    """If workspace_id is already in args (shouldn't happen, but be safe), don't overwrite."""
+    """If workspaceId is already in args (shouldn't happen, but be safe), don't overwrite."""
     captured: dict = {}
 
     async def fake_post(self, server, payload):
@@ -50,9 +50,9 @@ async def test_call_tool_does_not_overwrite_existing_workspace_id(monkeypatch) -
 
     server = make_server(workspace_id='w1')
     client = McpClient()
-    await client.call_tool(server, 'search_pages', {'query': 'q', 'workspace_id': 'already-set'})
+    await client.call_tool(server, 'search_pages', {'query': 'q', 'workspaceId': 'already-set'})
 
-    assert captured['payload']['params']['arguments']['workspace_id'] == 'already-set'
+    assert captured['payload']['params']['arguments']['workspaceId'] == 'already-set'
 
 
 @pytest.mark.asyncio
@@ -70,21 +70,21 @@ async def test_call_tool_no_injection_when_workspace_id_absent(monkeypatch) -> N
     client = McpClient()
     await client.call_tool(server, 'echo', {'x': 1})
 
-    assert 'workspace_id' not in captured['payload']['params']['arguments']
+    assert 'workspaceId' not in captured['payload']['params']['arguments']
 
 
 def test_strip_auto_fields_removes_workspace_id() -> None:
     schema = {
         'type': 'object',
         'properties': {
-            'workspace_id': {'type': 'string'},
+            'workspaceId': {'type': 'string'},
             'query': {'type': 'string'},
         },
-        'required': ['workspace_id', 'query'],
+        'required': ['workspaceId', 'query'],
     }
     result = _strip_auto_fields(schema)
-    assert 'workspace_id' not in result['properties']
-    assert 'workspace_id' not in result['required']
+    assert 'workspaceId' not in result['properties']
+    assert 'workspaceId' not in result['required']
     assert result['required'] == ['query']
     assert 'query' in result['properties']
 
@@ -102,5 +102,3 @@ def test_strip_auto_fields_handles_missing_workspace_id() -> None:
 def test_strip_auto_fields_handles_empty_schema() -> None:
     result = _strip_auto_fields({})
     assert result == {'properties': {}, 'required': []}
-
-

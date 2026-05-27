@@ -41,6 +41,7 @@ export class WorkspacesTools {
       where: { userId: auth.userId },
       select: { role: true, workspace: { select: { id: true, name: true, slug: true } } },
       orderBy: { workspace: { name: 'asc' } },
+      take: 200,
     })
     return {
       workspaces: rows.map((r) => ({

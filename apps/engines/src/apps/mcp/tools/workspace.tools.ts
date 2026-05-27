@@ -150,22 +150,24 @@ export class WorkspaceTools {
   }
 
   async doCreatePageFromFile(auth: AuthContext, args: CreatePageFromFileArgs) {
-    await assertMember(this.prisma, auth.userId, args.workspaceId)
-    const file = await this.prisma.file.findUnique({
-      where: { id: args.fileId },
-      select: { id: true, workspaceId: true, name: true },
-    })
+    const [, file, parent] = await Promise.all([
+      assertMember(this.prisma, auth.userId, args.workspaceId),
+      this.prisma.file.findUnique({
+        where: { id: args.fileId },
+        select: { id: true, workspaceId: true, name: true },
+      }),
+      args.parentId
+        ? this.prisma.page.findUnique({
+            where: { id: args.parentId },
+            select: { workspaceId: true, deletedAt: true },
+          })
+        : Promise.resolve(null),
+    ])
     if (file?.workspaceId !== args.workspaceId) {
       throw new FileNotFoundError(args.fileId)
     }
-    if (args.parentId) {
-      const parent = await this.prisma.page.findUnique({
-        where: { id: args.parentId },
-        select: { workspaceId: true, deletedAt: true },
-      })
-      if (parent?.workspaceId !== args.workspaceId || parent?.deletedAt) {
-        throw new PageNotFoundError(args.parentId)
-      }
+    if (args.parentId && (parent?.workspaceId !== args.workspaceId || parent?.deletedAt)) {
+      throw new PageNotFoundError(args.parentId)
     }
     const title = args.title ?? file.name
     const pageId = await this.writer.createPage({

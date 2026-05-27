@@ -176,11 +176,13 @@ export class PageTools {
   }
 
   async doGetPageMarkdown(auth: AuthContext, args: PageIdArgs) {
-    await assertMember(this.prisma, auth.userId, args.workspaceId)
-    const page = await this.prisma.page.findUnique({
-      where: { id: args.pageId },
-      select: { workspaceId: true, content: true },
-    })
+    const [, page] = await Promise.all([
+      assertMember(this.prisma, auth.userId, args.workspaceId),
+      this.prisma.page.findUnique({
+        where: { id: args.pageId },
+        select: { workspaceId: true, content: true },
+      }),
+    ])
     if (page?.workspaceId !== args.workspaceId) {
       throw new PageNotFoundError(args.pageId)
     }
@@ -200,7 +202,10 @@ export class PageTools {
   }
 
   async doGetPageStats(auth: AuthContext, args: PageIdArgs) {
-    await assertMember(this.prisma, auth.userId, args.workspaceId)
-    return this.stats.getPageStats(args.pageId, args.workspaceId)
+    const [, stats] = await Promise.all([
+      assertMember(this.prisma, auth.userId, args.workspaceId),
+      this.stats.getPageStats(args.pageId, args.workspaceId),
+    ])
+    return stats
   }
 }
