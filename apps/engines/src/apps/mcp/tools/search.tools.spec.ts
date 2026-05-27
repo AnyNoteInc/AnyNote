@@ -28,7 +28,7 @@ describe('SearchTools.searchPages', () => {
   it('searches when the caller is a workspace member', async () => {
     workspaceMemberFindUniqueMock.mockResolvedValue({ workspaceId: 'w1' })
     searchRagMock.mockResolvedValue([
-      { pageId: 'p', blockNumber: 0, title: 't', content: 'c' },
+      { pageId: 'p', workspaceId: 'w1', blockNumber: 0, title: 't', content: 'c' },
     ])
 
     const req: AuthedRequest = { headers: {}, auth: { userId: 'u1', source: 'api-key' } }
