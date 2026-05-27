@@ -261,3 +261,51 @@ describe('billing transitions sync limits', () => {
     expect(limit.maxFileBytes).toBe(524_288_000n)
   })
 })
+
+describe('inviteMember enforces member limit', () => {
+  beforeEach(cleanFixtures)
+
+  it('rejects invite when memberCount >= maxMembers', async () => {
+    const owner = await makeOwner('k')
+    const pro = await prisma.plan.findUniqueOrThrow({ where: { slug: 'pro' } })
+    await prisma.subscription.create({
+      data: { userId: owner.id, planId: pro.id, status: 'ACTIVE' },
+    })
+    const caller = createCallerFactory(workspaceRouter)({
+      prisma,
+      user: { id: owner.id, email: owner.email },
+      headers: new Headers(),
+      resHeaders: new Headers(),
+      yookassa: {} as never,
+      returnUrlBase: 'http://localhost:3000',
+    })
+    const ws = await caller.create({ name: 'WS' }) // OWNER counts as 1
+    // Fill up to maxMembers (5) — add 4 more
+    for (let i = 0; i < 4; i++) {
+      const u = await prisma.user.create({
+        data: {
+          email: `inv${i}${EMAIL_SUFFIX}`,
+          emailVerified: true,
+          name: `Inv${i}`,
+          firstName: `Inv${i}`,
+          lastName: 'T',
+        },
+      })
+      await prisma.workspaceMember.create({
+        data: { workspaceId: ws.id, userId: u.id, role: 'EDITOR' },
+      })
+    }
+    const extra = await prisma.user.create({
+      data: {
+        email: `extra${EMAIL_SUFFIX}`,
+        emailVerified: true,
+        name: 'Extra',
+        firstName: 'Extra',
+        lastName: 'T',
+      },
+    })
+    await expect(
+      caller.inviteMember({ workspaceId: ws.id, email: extra.email, role: 'EDITOR' }),
+    ).rejects.toThrow(/Достигнут лимит участников/)
+  })
+})
