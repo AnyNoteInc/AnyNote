@@ -2,6 +2,8 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { prisma } from '@repo/db'
 
 import { syncWorkspaceLimits, resolveActivePlanOrPersonal } from '../src/helpers/plan'
+import { workspaceRouter } from '../src/routers/workspace'
+import { createCallerFactory } from '../src/trpc'
 
 const EMAIL_SUFFIX = '+wslimits-test@anynote.dev'
 
@@ -146,5 +148,31 @@ describe('syncWorkspaceLimits', () => {
     for (const r of rows) {
       expect(r.sourcePlanSlug).toBe('pro')
     }
+  })
+})
+
+describe('workspace.create wires limits', () => {
+  beforeEach(cleanFixtures)
+
+  it('creates a WorkspaceLimit row from the owner plan', async () => {
+    const owner = await makeOwner('h')
+    const personal = await prisma.plan.findUniqueOrThrow({ where: { slug: 'personal' } })
+    await prisma.subscription.create({
+      data: { userId: owner.id, planId: personal.id, status: 'ACTIVE' },
+    })
+    const caller = createCallerFactory(workspaceRouter)({
+      prisma,
+      user: { id: owner.id, email: owner.email },
+      headers: new Headers(),
+      resHeaders: new Headers(),
+      yookassa: {} as never,
+      returnUrlBase: 'http://localhost:3000',
+    })
+    const ws = await caller.create({ name: 'TestWS' })
+    const limit = await prisma.workspaceLimit.findUniqueOrThrow({
+      where: { workspaceId: ws.id },
+    })
+    expect(limit.sourcePlanSlug).toBe('personal')
+    expect(limit.maxMembers).toBe(1)
   })
 })

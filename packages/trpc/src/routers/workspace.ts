@@ -4,7 +4,12 @@ import type { PrismaClient } from '@repo/db'
 import { notify } from '@repo/notifications'
 
 import { router, protectedProcedure } from '../trpc'
-import { getActivePlanForUser, getPlanDisplayName, requireWritableWorkspace } from '../helpers/plan'
+import {
+  getActivePlanForUser,
+  getPlanDisplayName,
+  requireWritableWorkspace,
+  syncWorkspaceLimits,
+} from '../helpers/plan'
 import { seedStartPage } from '../helpers/seed-start-page'
 
 async function assertPaidPlan(ctx: { prisma: PrismaClient; user: { id: string } }) {
@@ -66,6 +71,7 @@ export const workspaceRouter = router({
           update: { defaultWorkspaceId: workspace.id },
         })
         const { pageId } = await seedStartPage(tx, workspace.id, ctx.user.id)
+        await syncWorkspaceLimits(tx, ctx.user.id)
         return { ...workspace, startPageId: pageId }
       })
     }),
