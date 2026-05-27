@@ -1,6 +1,8 @@
 import type { PrismaClient } from '@repo/db'
 import type { Payment, Refund } from '@repo/yookassa'
 
+import { syncWorkspaceLimits } from '../helpers/plan'
+
 type BillingYookassa = {
   getPayment(paymentId: string): Promise<Payment>
 }
@@ -64,6 +66,7 @@ export async function handlePaymentSucceeded(ctx: Ctx, eventPayment: Payment): P
         savedPaymentMethod: verified.payment_method?.saved ?? false,
       },
     })
+    await syncWorkspaceLimits(tx, order.userId)
   })
 }
 
@@ -93,6 +96,7 @@ export async function handleRefundSucceeded(ctx: Ctx, refund: Refund): Promise<v
         where: { id: order.subscriptionId },
         data: { status: 'EXPIRED', expiredAt: new Date(), currentPeriodEnd: new Date() },
       })
+      await syncWorkspaceLimits(tx, order.userId)
     }
   })
 }

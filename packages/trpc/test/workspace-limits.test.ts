@@ -3,11 +3,15 @@ import { prisma } from '@repo/db'
 
 import { syncWorkspaceLimits, resolveActivePlanOrPersonal } from '../src/helpers/plan'
 import { workspaceRouter } from '../src/routers/workspace'
+import { handlePaymentSucceeded, handleRefundSucceeded } from '../src/services/billing'
 import { createCallerFactory } from '../src/trpc'
 
 const EMAIL_SUFFIX = '+wslimits-test@anynote.dev'
 
 async function cleanFixtures() {
+  await prisma.order.deleteMany({
+    where: { user: { email: { contains: EMAIL_SUFFIX } } },
+  })
   await prisma.workspaceLimit.deleteMany({
     where: { workspace: { createdBy: { email: { contains: EMAIL_SUFFIX } } } },
   })
@@ -174,5 +178,85 @@ describe('workspace.create wires limits', () => {
     })
     expect(limit.sourcePlanSlug).toBe('personal')
     expect(limit.maxMembers).toBe(1)
+  })
+})
+
+describe('billing transitions sync limits', () => {
+  beforeEach(cleanFixtures)
+
+  async function setupPendingOrder(ownerId: string, planSlug: 'pro' | 'max') {
+    const plan = await prisma.plan.findUniqueOrThrow({ where: { slug: planSlug } })
+    const order = await prisma.order.create({
+      data: {
+        userId: ownerId,
+        planId: plan.id,
+        billingPeriod: 'MONTHLY',
+        amountKopecks: plan.priceMonthlyKopecks,
+        currency: 'RUB',
+        status: 'PENDING',
+        isInitial: true,
+        yookassaIdempotencyKey: `idem-${ownerId}-${Date.now()}`,
+        yookassaPaymentId: `pay-${ownerId}-${Date.now()}`,
+      },
+    })
+    return { order, plan }
+  }
+
+  it('handlePaymentSucceeded upgrades limits on owned workspaces', async () => {
+    const owner = await makeOwner('i')
+    const ws = await makeWorkspace(owner.id)
+    await syncWorkspaceLimits(prisma, owner.id) // start at personal
+
+    const { order } = await setupPendingOrder(owner.id, 'max')
+    const fakeYookassa = {
+      getPayment: async () => ({
+        id: order.yookassaPaymentId!,
+        status: 'succeeded' as const,
+        payment_method: undefined,
+      }),
+    }
+    await handlePaymentSucceeded(
+      { yookassa: fakeYookassa, prisma },
+      { id: order.yookassaPaymentId!, status: 'succeeded' } as never,
+    )
+
+    const limit = await prisma.workspaceLimit.findUniqueOrThrow({
+      where: { workspaceId: ws.id },
+    })
+    expect(limit.sourcePlanSlug).toBe('max')
+    expect(limit.maxFileBytes).toBe(21_474_836_480n)
+  })
+
+  it('handleRefundSucceeded downgrades limits to personal', async () => {
+    const owner = await makeOwner('j')
+    const ws = await makeWorkspace(owner.id)
+    const max = await prisma.plan.findUniqueOrThrow({ where: { slug: 'max' } })
+    const sub = await prisma.subscription.create({
+      data: { userId: owner.id, planId: max.id, status: 'ACTIVE' },
+    })
+    await syncWorkspaceLimits(prisma, owner.id) // start at max
+
+    const order = await prisma.order.create({
+      data: {
+        userId: owner.id,
+        planId: max.id,
+        subscriptionId: sub.id,
+        billingPeriod: 'MONTHLY',
+        amountKopecks: max.priceMonthlyKopecks,
+        currency: 'RUB',
+        status: 'PAID',
+        yookassaIdempotencyKey: `idem-r-${owner.id}-${Date.now()}`,
+        yookassaPaymentId: `pay-r-${owner.id}-${Date.now()}`,
+      },
+    })
+    await handleRefundSucceeded(
+      { yookassa: { getPayment: async () => ({}) as never }, prisma },
+      { id: `refund-${owner.id}`, payment_id: order.yookassaPaymentId!, status: 'succeeded' } as never,
+    )
+    const limit = await prisma.workspaceLimit.findUniqueOrThrow({
+      where: { workspaceId: ws.id },
+    })
+    expect(limit.sourcePlanSlug).toBe('personal')
+    expect(limit.maxFileBytes).toBe(524_288_000n)
   })
 })
