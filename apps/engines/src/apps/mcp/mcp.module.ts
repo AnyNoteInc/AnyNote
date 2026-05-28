@@ -6,7 +6,9 @@ import { storage } from '@repo/storage'
 import { McpAuthGuard } from '../api/auth/mcp-auth.guard.js'
 import { McpExceptionFilter } from './errors/mcp-exception.filter.js'
 import { createAgentsSearchClient } from './services/agents-search.client.js'
+import { EmbeddingConfigService } from './services/embedding-config.service.js'
 import { FileUploader, STORAGE } from './services/file-uploader.service.js'
+import { PageFtsService } from './services/page-fts.service.js'
 import { MarkdownParser } from './services/markdown-parser.service.js'
 import { MarkdownRenderer } from './services/markdown-renderer.service.js'
 import { PageWriter } from './services/page-writer.service.js'
@@ -31,6 +33,8 @@ import { WorkspacesTools } from './tools/workspaces.tools.js'
     PageWriter,
     FileUploader,
     StatsService,
+    PageFtsService,
+    EmbeddingConfigService,
     PageTools,
     PageFileTools,
     WorkspaceTools,
