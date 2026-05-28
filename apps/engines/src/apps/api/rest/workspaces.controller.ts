@@ -17,6 +17,6 @@ export class WorkspacesController {
   @ApiOperation({ summary: 'List workspaces the caller is a member of' })
   @ApiOkResponse({ type: ListWorkspacesResultDto })
   list(@Req() req: AuthedRequest) {
-    return this.tool.doListWorkspaces(req.auth!)
+    return this.tool.doListWorkspaces(req.auth!, {})
   }
 }

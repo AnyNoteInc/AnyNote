@@ -4,6 +4,7 @@ from collections.abc import Callable
 from dataclasses import dataclass
 
 SCOPE_PAGES_READ = 'pages:read'
+SCOPE_WORKSPACES_READ = 'workspaces:read'
 SCOPE_PAGES_WRITE = 'pages:write'
 SCOPE_FILES_READ = 'files:read'
 SCOPE_FILES_WRITE = 'files:write'
@@ -59,6 +60,8 @@ def _preview_default(args: dict[str, object]) -> dict[str, object]:
 
 
 DEFAULT_ENGINES_TOOLS: dict[str, ToolMeta] = {
+    'list_workspaces': ToolMeta('list_workspaces', SCOPE_WORKSPACES_READ, False,
+                                 _summary_generic('list_workspaces'), _preview_default),
     'getWorkspaceStats': ToolMeta('getWorkspaceStats', SCOPE_PAGES_READ, False,
                                    _summary_generic('getWorkspaceStats'), _preview_default),
     'getPageMarkdown':   ToolMeta('getPageMarkdown', SCOPE_PAGES_READ, False,
