@@ -41,7 +41,6 @@ export function WorkspaceMcpSection({
   const create = trpc.mcpServer.create.useMutation({
     onSuccess: () => {
       invalidate()
-      setOpen(false)
     },
   })
 
@@ -156,11 +155,26 @@ export function WorkspaceMcpSection({
         </Typography>
       ) : null}
 
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="sm">
+      <Dialog
+        open={open}
+        onClose={() => {
+          create.reset()
+          setOpen(false)
+        }}
+        fullWidth
+        maxWidth="sm"
+      >
         <DialogTitle>Добавить MCP сервер</DialogTitle>
         <DialogContent>
           <Stack spacing={2} sx={{ pt: 1 }}>
             {create.error ? <Alert severity="error">{create.error.message}</Alert> : null}
+            {create.isSuccess ? (
+              <Alert severity="success">
+                {create.data?.tools?.length
+                  ? `Сервер добавлен. Доступные инструменты: ${create.data.tools.join(', ')}`
+                  : 'Сервер добавлен. Инструменты не обнаружены.'}
+              </Alert>
+            ) : null}
             <TextField
               label="Имя"
               value={form.name}
@@ -192,15 +206,29 @@ export function WorkspaceMcpSection({
           </Stack>
         </DialogContent>
         <DialogActions>
-          <Button onClick={() => setOpen(false)}>Отмена</Button>
-          <Button
-            variant="contained"
-            onClick={submit}
-            loading={create.isPending}
-            disabled={!form.name.trim() || !form.url.trim()}
-          >
-            {create.isPending ? 'Проверка соединения…' : 'Сохранить'}
-          </Button>
+          {create.isSuccess ? (
+            <Button
+              variant="contained"
+              onClick={() => {
+                create.reset()
+                setOpen(false)
+              }}
+            >
+              Закрыть
+            </Button>
+          ) : (
+            <>
+              <Button onClick={() => setOpen(false)}>Отмена</Button>
+              <Button
+                variant="contained"
+                onClick={submit}
+                loading={create.isPending}
+                disabled={!form.name.trim() || !form.url.trim()}
+              >
+                {create.isPending ? 'Проверка соединения…' : 'Сохранить'}
+              </Button>
+            </>
+          )}
         </DialogActions>
       </Dialog>
     </SettingsCard>

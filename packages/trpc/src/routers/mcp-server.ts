@@ -78,12 +78,10 @@ export const mcpServerRouter = router({
       if (!features.customMcpEnabled) {
         throw new TRPCError({ code: 'FORBIDDEN', message: 'CUSTOM_MCP_NOT_IN_PLAN' })
       }
-      const ping = await validateMcp({
-        url: input.url,
-        transport: input.transport,
-        headers: input.headers,
-        verify: input.verifyTls,
-      })
+      const ping = await validateMcp(
+        { url: input.url, transport: input.transport, headers: input.headers, verify: input.verifyTls },
+        { userId: ctx.user.id, workspaceId: input.workspaceId },
+      )
       if (!ping.ok) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: `Не удалось подключиться к MCP: ${ping.error}` })
       }
@@ -101,7 +99,7 @@ export const mcpServerRouter = router({
           createdById: ctx.user.id,
         },
       })
-      return stripHeaders(row)
+      return { ...stripHeaders(row), tools: ping.tools }
     }),
 
   update: protectedProcedure
@@ -118,12 +116,15 @@ export const mcpServerRouter = router({
         input.headers !== undefined ||
         input.verifyTls !== undefined
       ) {
-        const ping = await validateMcp({
-          url: input.url ?? existing.url,
-          transport: (input.transport ?? existing.transport) as 'HTTP_JSONRPC' | 'SSE',
-          headers: input.headers ?? decryptMcpHeaders(existing.headers),
-          verify: input.verifyTls ?? existing.verifyTls,
-        })
+        const ping = await validateMcp(
+          {
+            url: input.url ?? existing.url,
+            transport: (input.transport ?? existing.transport) as 'HTTP_JSONRPC' | 'SSE',
+            headers: input.headers ?? decryptMcpHeaders(existing.headers),
+            verify: input.verifyTls ?? existing.verifyTls,
+          },
+          { userId: ctx.user.id, workspaceId: input.workspaceId },
+        )
         if (!ping.ok) {
           throw new TRPCError({ code: 'BAD_REQUEST', message: `Не удалось подключиться к MCP: ${ping.error}` })
         }

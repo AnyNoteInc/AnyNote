@@ -91,16 +91,17 @@ export async function signAgentsJwt(args: {
   role: AgentsRole
 }): Promise<string> {
   const scopes = scopesForRole(args.role)
+  const now = Math.floor(Date.now() / 1000)
   return new SignJWT({
     wsid: args.workspaceId,
     cid: args.chatId,
     scopes,
   })
     .setProtectedHeader({ alg: 'HS256' })
-    .setIssuedAt()
+    .setIssuedAt(now)
     .setSubject(args.userId)
     .setAudience(audience())
-    .setExpirationTime(`${TTL_SECONDS}s`)
+    .setExpirationTime(now + TTL_SECONDS)
     .sign(getSecret())
 }
 
