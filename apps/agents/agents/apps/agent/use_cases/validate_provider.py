@@ -26,7 +26,7 @@ class ValidateLlmUseCase:
             async with asyncio.timeout(_LLM_TIMEOUT):
                 await llm.ainvoke('ping')
             return LlmValidationResponse(ok=True)
-        except Exception as exc:  # noqa: BLE001 - surface provider error to the user
+        except Exception as exc:  # surface provider error to the user
             return LlmValidationResponse(ok=False, error=(str(exc) or f'timed out after {_LLM_TIMEOUT:.0f}s')[:500])
 
 
@@ -40,5 +40,5 @@ class ValidateMcpUseCase:
             async with asyncio.timeout(_MCP_TIMEOUT):
                 tools = await self.mcp_client.list_tools(server)
             return McpValidationResponse(ok=True, tools=[t.name for t in tools])
-        except Exception as exc:  # noqa: BLE001
+        except Exception as exc:  # surface provider error to the user
             return McpValidationResponse(ok=False, error=(str(exc) or f'timed out after {_MCP_TIMEOUT:.0f}s')[:500])

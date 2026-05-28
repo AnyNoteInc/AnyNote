@@ -7,7 +7,12 @@ from qdrant_client import AsyncQdrantClient
 
 from .repositories import EmbeddingFactoryRepository, VectorStoreRepository
 from .services import ChunkerService, LanguageDetectorService, NormalizerService
-from .use_cases import DeletePageVectorsUseCase, DeleteWorkspaceVectorsUseCase, ValidateEmbeddingUseCase, VectorizePageUseCase
+from .use_cases import (
+    DeletePageVectorsUseCase,
+    DeleteWorkspaceVectorsUseCase,
+    ValidateEmbeddingUseCase,
+    VectorizePageUseCase,
+)
 
 
 class ProcessingProvider(Provider):

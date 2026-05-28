@@ -59,6 +59,7 @@ class EmbeddingFactoryRepository:
                     api_key=SecretStr(config.connection.api_key),
                     folder_id=config.connection.folder_id,
                     model_name=config.model_slug,
+                    grpc_metadata=[],  # overwritten by @pre_init validate_environment
                 )
 
             case _:
