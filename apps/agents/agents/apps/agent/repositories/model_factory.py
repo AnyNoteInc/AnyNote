@@ -40,6 +40,8 @@ class ModelFactoryRepository:
                 )
 
             case ModelProviderEnum.GIGACHAT:
+                if config.connection.client_id is None or config.connection.client_secret is None:
+                    raise InvalidPayloadError('GigaChat provider requires client_id and client_secret')
                 credentials = b64encode(
                     f'{config.connection.client_id}:{config.connection.client_secret}'.encode()
                 ).decode()

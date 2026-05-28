@@ -116,11 +116,28 @@ export const mcpServerRouter = router({
         input.headers !== undefined ||
         input.verifyTls !== undefined
       ) {
+        const features = await getWorkspaceFeatures(input.workspaceId)
+        if (!features.customMcpEnabled) {
+          throw new TRPCError({ code: 'FORBIDDEN', message: 'CUSTOM_MCP_NOT_IN_PLAN' })
+        }
+        let headers: Record<string, string>
+        if (input.headers !== undefined) {
+          headers = input.headers
+        } else {
+          try {
+            headers = decryptMcpHeaders(existing.headers)
+          } catch {
+            throw new TRPCError({
+              code: 'PRECONDITION_FAILED',
+              message: 'Заголовки MCP-сервера повреждены или изменён ключ шифрования',
+            })
+          }
+        }
         const ping = await validateMcp(
           {
             url: input.url ?? existing.url,
-            transport: (input.transport ?? existing.transport) as 'HTTP_JSONRPC' | 'SSE',
-            headers: input.headers ?? decryptMcpHeaders(existing.headers),
+            transport: input.transport ?? existing.transport,
+            headers,
             verify: input.verifyTls ?? existing.verifyTls,
           },
           { userId: ctx.user.id, workspaceId: input.workspaceId },

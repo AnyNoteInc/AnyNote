@@ -96,6 +96,9 @@ async function pingModel(args: {
       args.auth,
     )
     if (!res.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: `Не удалось подключиться: ${res.error}` })
+    if (res.vectorSize == null || res.vectorSize < 1) {
+      throw new TRPCError({ code: 'BAD_REQUEST', message: 'Провайдер вернул некорректную размерность вектора' })
+    }
     return res.vectorSize
   }
   const res = await validateLlm({ provider, name: args.modelSlug, connection: args.connection }, args.auth)

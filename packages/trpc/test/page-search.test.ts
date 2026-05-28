@@ -11,6 +11,9 @@ import {
   searchPg,
   searchQdrant,
 } from '../src/services/page-search'
+import { encryptSecret } from '@repo/auth'
+
+process.env.SECRETS_ENCRYPTION_KEY ||= Buffer.alloc(32, 7).toString('base64')
 
 const WS = '11111111-1111-1111-1111-111111111111'
 const PG_ROW = (
@@ -196,7 +199,12 @@ describe('searchQdrant', () => {
     embeddingsModel: {
       slug: 'nomic-embed-text',
       vectorSize: 768,
-      provider: { slug: 'ollama', connection: { baseUrl: 'http://localhost:11434' } },
+      provider: {
+        kind: 'OLLAMA',
+        workspaceId: null,
+        connection: { baseUrl: 'http://localhost:11434' },
+        connectionEnc: null,
+      },
     },
   }
 
@@ -258,5 +266,36 @@ describe('searchQdrant', () => {
       blockNumber: 3,
       excerpt: 'snippet text',
     })
+  })
+
+  it('sends provider.kind and decrypted connectionEnc for a custom (workspace-scoped) provider', async () => {
+    const aliveId = '33333333-3333-3333-3333-333333333333'
+    const customAi = {
+      embeddingsModel: {
+        slug: 'text-embedding-3-small',
+        vectorSize: 1536,
+        provider: {
+          kind: 'OPENAI',
+          workspaceId: WS,
+          connection: {},
+          connectionEnc: encryptSecret(JSON.stringify({ apiKey: 'sk-custom' })),
+        },
+      },
+    }
+    const prisma = prismaWithAi({ aiSettings: customAi, pages: [{ id: aliveId, icon: null }] })
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({ results: [{ pageId: aliveId, title: 'X', blockNumber: 0, content: 'c' }] }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await searchQdrant(prisma, WS, 'matchword')
+
+    const body = JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string)
+    expect(body.embedding.provider).toBe('openai')
+    expect(body.embedding.connection).toEqual({ apiKey: 'sk-custom' })
   })
 })

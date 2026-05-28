@@ -1,4 +1,5 @@
-import { PageType, parseAiProviderConnection, type Prisma, type PrismaClient } from '@repo/db'
+import { PageType, type Prisma, type PrismaClient } from '@repo/db'
+import { decryptSecret, type EncryptedPayload } from '@repo/auth'
 
 import { getWorkspaceFeatures } from '../helpers/plan'
 
@@ -118,7 +119,7 @@ type WorkspaceAiSettingsRow = {
   embeddingsModel: {
     slug: string
     vectorSize: number | null
-    provider: { slug: string; connection: unknown }
+    provider: { kind: string; workspaceId: string | null; connection: unknown; connectionEnc: unknown }
   } | null
 } | null
 
@@ -126,7 +127,27 @@ type EmbeddingPayload = {
   provider: string
   modelSlug: string
   vectorSize: number
-  connection: ReturnType<typeof parseAiProviderConnection>
+  connection: Record<string, string>
+}
+
+// Shared providers (workspaceId null) keep plaintext `connection`; workspace-scoped
+// custom providers store creds encrypted in `connectionEnc`. Mirrors the agent-run
+// payload path so RAG search works for custom providers too.
+function resolveProviderConnection(provider: {
+  workspaceId: string | null
+  connection: unknown
+  connectionEnc: unknown
+}): Record<string, string> {
+  const raw =
+    provider.workspaceId && provider.connectionEnc
+      ? (JSON.parse(decryptSecret(provider.connectionEnc as EncryptedPayload)) as unknown)
+      : provider.connection
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
+  const out: Record<string, string> = {}
+  for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {
+    if (typeof v === 'string') out[k] = v
+  }
+  return out
 }
 
 function buildEmbedding(ai: WorkspaceAiSettingsRow): EmbeddingPayload | null {
@@ -135,10 +156,10 @@ function buildEmbedding(ai: WorkspaceAiSettingsRow): EmbeddingPayload | null {
   const { slug, vectorSize, provider } = ai.embeddingsModel
   try {
     return {
-      provider: provider.slug,
+      provider: provider.kind.toLowerCase(),
       modelSlug: slug,
       vectorSize,
-      connection: parseAiProviderConnection(provider.slug, provider.connection),
+      connection: resolveProviderConnection(provider),
     }
   } catch {
     return null

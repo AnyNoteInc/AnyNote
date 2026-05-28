@@ -12,6 +12,11 @@ def _config(provider: ModelProviderEnum, connection: dict[str, object] | None = 
     return ModelConfigSchema(**{'provider': provider, 'name': 'm', 'connection': connection or {}})
 
 
+def test_make_gigachat_requires_credentials() -> None:
+    with pytest.raises(InvalidPayloadError, match='GigaChat'):
+        ModelFactoryRepository.make(_config(ModelProviderEnum.GIGACHAT, {'clientId': 'cid'}))
+
+
 def test_make_anthropic_requires_api_key() -> None:
     with pytest.raises(InvalidPayloadError, match='Anthropic'):
         ModelFactoryRepository.make(_config(ModelProviderEnum.ANTHROPIC))

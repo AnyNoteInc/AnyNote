@@ -23,3 +23,14 @@ async def test_validate_embedding_failure_is_caught() -> None:
     res = await uc(EmbeddingValidationRequest(provider='ollama', modelSlug='x', connection={}))
     assert res.ok is False
     assert 'no server' in (res.error or '')
+
+
+async def test_validate_embedding_rejects_empty_vector() -> None:
+    factory = MagicMock(spec=EmbeddingFactoryRepository)
+    emb = MagicMock()
+    emb.aembed_query = AsyncMock(return_value=[])
+    factory.make.return_value = emb
+    uc = ValidateEmbeddingUseCase(embedding_factory=factory)
+    res = await uc(EmbeddingValidationRequest(provider='ollama', modelSlug='m', connection={'baseUrl': 'http://o:1'}))
+    assert res.ok is False
+    assert 'empty' in (res.error or '')
