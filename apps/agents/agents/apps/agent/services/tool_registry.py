@@ -11,6 +11,8 @@ SCOPE_FILES_WRITE = 'files:write'
 SCOPE_SEARCH_QUERY = 'search:query'
 SCOPE_MEMORY_READ = 'memory:read'
 SCOPE_MEMORY_WRITE = 'memory:write'
+SCOPE_REMINDERS_READ = 'reminders:read'
+SCOPE_REMINDERS_WRITE = 'reminders:write'
 
 
 @dataclass(frozen=True)
@@ -98,6 +100,16 @@ DEFAULT_ENGINES_TOOLS: dict[str, ToolMeta] = {
                                    _summary_attach_file, _preview_default),
     'attachImageToPage': ToolMeta('attachImageToPage', SCOPE_FILES_WRITE, True,
                                    _summary_attach_file, _preview_default),
+    'createReminder':   ToolMeta('createReminder', SCOPE_REMINDERS_WRITE, True,
+                                  lambda a: f'Создать напоминание на странице {a.get("pageId")}', _preview_default),
+    'listReminders':    ToolMeta('listReminders', SCOPE_REMINDERS_READ, False,
+                                  _summary_generic('listReminders'), _preview_default),
+    'moveReminder':     ToolMeta('moveReminder', SCOPE_REMINDERS_WRITE, True,
+                                  lambda a: f'Перенести напоминание {a.get("reminderId")}', _preview_default),
+    'deleteReminder':   ToolMeta('deleteReminder', SCOPE_REMINDERS_WRITE, True,
+                                  lambda a: 'Удалить напоминания', _preview_default),
+    'completeReminder': ToolMeta('completeReminder', SCOPE_REMINDERS_WRITE, False,
+                                  _summary_generic('completeReminder'), _preview_default),
     # agents-internal tools
     'save_memory': ToolMeta('save_memory', SCOPE_MEMORY_WRITE, False,
                              _summary_generic('save_memory'), _preview_default),

@@ -16,6 +16,8 @@ import { StatsService } from './services/stats.service.js'
 import { PageFileTools } from './tools/page-file.tools.js'
 import { PageTools } from './tools/page.tools.js'
 import { AGENTS_SEARCH_CLIENT, SearchTools } from './tools/search.tools.js'
+import { ReminderService } from './services/reminder.service.js'
+import { ReminderTools } from './tools/reminder.tools.js'
 import { WorkspaceTools } from './tools/workspace.tools.js'
 import { WorkspacesTools } from './tools/workspaces.tools.js'
 
@@ -40,6 +42,8 @@ import { WorkspacesTools } from './tools/workspaces.tools.js'
     WorkspaceTools,
     SearchTools,
     WorkspacesTools,
+    ReminderService,
+    ReminderTools,
     { provide: STORAGE, useValue: storage },
     { provide: APP_FILTER, useClass: McpExceptionFilter },
     {
@@ -47,6 +51,6 @@ import { WorkspacesTools } from './tools/workspaces.tools.js'
       useFactory: () => createAgentsSearchClient(process.env.AGENTS_URL ?? 'http://localhost:8080'),
     },
   ],
-  exports: [PageTools, PageFileTools, WorkspaceTools, SearchTools, WorkspacesTools],
+  exports: [PageTools, PageFileTools, WorkspaceTools, SearchTools, WorkspacesTools, ReminderTools],
 })
 export class McpModule {}
