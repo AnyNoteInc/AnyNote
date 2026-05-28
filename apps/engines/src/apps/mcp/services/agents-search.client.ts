@@ -1,13 +1,5 @@
-/**
- * Thin HTTP wrapper around apps/agents POST /v1/search.
- *
- * NOTE: the agents search endpoint requires an `embedding` provider config
- * (provider, model_slug, vector_size, connection) that is workspace-specific.
- * Until workspace AI settings are threaded through the MCP request context this
- * client cannot forward them — the caller must supply them via `embeddingConfig`
- * or the endpoint must be extended to read them from workspace settings.
- * TODO: wire embeddingConfig from workspace AI settings (WorkspaceAiSettings).
- */
+/** Thin HTTP wrapper around apps/agents POST /v1/search. */
+import type { EmbeddingPayload } from './embedding-config.service.js'
 
 export interface AgentsSearchHit {
   pageId: string
@@ -18,19 +10,31 @@ export interface AgentsSearchHit {
 }
 
 export interface AgentsSearchClient {
-  searchRag(args: { workspaceId: string; query: string; k: number }): Promise<AgentsSearchHit[]>
+  searchRag(args: {
+    workspaceId: string
+    query: string
+    k: number
+    embedding: EmbeddingPayload
+    scoreThreshold?: number
+  }): Promise<AgentsSearchHit[]>
 }
 
 export function createAgentsSearchClient(baseUrl: string): AgentsSearchClient {
   return {
-    async searchRag({ workspaceId, query, k }) {
+    async searchRag({ workspaceId, query, k, embedding, scoreThreshold }) {
       const ctl = new AbortController()
       const timer = setTimeout(() => ctl.abort(), 30_000)
       try {
         const res = await fetch(`${baseUrl}/v1/search`, {
           method: 'POST',
           headers: { 'content-type': 'application/json' },
-          body: JSON.stringify({ workspace_id: workspaceId, query, limit: k }),
+          body: JSON.stringify({
+            workspaceId,
+            query,
+            limit: k,
+            embedding,
+            scoreThreshold: scoreThreshold ?? 0.7,
+          }),
           signal: ctl.signal,
         })
         if (!res.ok) {
