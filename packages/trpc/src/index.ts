@@ -17,6 +17,7 @@ import { commentRouter } from './routers/comment'
 import { mcpServerRouter } from './routers/mcp-server'
 import { agentMemoryRouter } from './routers/agent-memory'
 import { apiKeyRouter } from './routers/api-key'
+import { aiProviderRouter } from './routers/ai-provider'
 
 export { createContext, createServerContext } from './trpc'
 export type { Context } from './trpc'
@@ -50,6 +51,7 @@ export const appRouter = router({
   mcpServer: mcpServerRouter,
   agentMemory: agentMemoryRouter,
   apiKey: apiKeyRouter,
+  aiProvider: aiProviderRouter,
 })
 
 export const createCaller = createCallerFactory(appRouter)
