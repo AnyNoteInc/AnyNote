@@ -1,6 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger'
 
-// No input DTO — listWorkspaces takes no arguments
+// No input DTO — the REST listWorkspaces endpoint takes no arguments
+// (isCurrent is therefore always false over REST; it is set for MCP callers
+// where the active workspaceId is injected).
 
 export class WorkspaceSummaryDto {
   @ApiProperty({ format: 'uuid' })
@@ -14,6 +16,12 @@ export class WorkspaceSummaryDto {
 
   @ApiProperty()
   role!: string
+
+  @ApiProperty()
+  isCurrent!: boolean
+
+  @ApiProperty()
+  isDefault!: boolean
 }
 
 export class ListWorkspacesResultDto {
