@@ -653,6 +653,8 @@ model WorkspaceAiSettings {
   systemPrompt             String?  @map("system_prompt") @db.Text
   temperature              Float    @default(0.2)
   topP                     Float    @default(0.5) @map("top_p")
+  chatModelConnection      Json?    @map("chat_model_connection")
+  embeddingModelConnection Json?    @map("embedding_model_connection")
   agentSystemPrompt        String?  @map("agent_system_prompt") @db.Text
   allowDestructive         Boolean  @default(false) @map("allow_destructive")
   createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)

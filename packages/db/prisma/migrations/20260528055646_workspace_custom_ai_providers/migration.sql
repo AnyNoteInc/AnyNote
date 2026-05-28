@@ -18,15 +18,13 @@ ALTER TABLE "ai_providers" ADD COLUMN     "connection_enc" JSONB,
 ADD COLUMN     "created_by_id" UUID,
 ADD COLUMN     "kind" "AiProviderKind",
 ADD COLUMN     "workspace_id" UUID;
+-- Safety: backfills only if existing slugs map exactly (uppercased) to AiProviderKind members.
+-- Expected rows at migration time: gigachat, ollama, openai. A non-mapping slug would fail this cast.
 UPDATE "ai_providers" SET "kind" = UPPER("slug")::"AiProviderKind";
 ALTER TABLE "ai_providers" ALTER COLUMN "kind" SET NOT NULL;
 
 -- AlterTable
 ALTER TABLE "plans" ADD COLUMN     "custom_ai_providers_enabled" BOOLEAN NOT NULL DEFAULT false;
-
--- AlterTable
-ALTER TABLE "workspace_ai_settings" DROP COLUMN "chat_model_connection",
-DROP COLUMN "embedding_model_connection";
 
 -- CreateIndex
 CREATE INDEX "ai_providers_workspace_id_idx" ON "ai_providers"("workspace_id");
