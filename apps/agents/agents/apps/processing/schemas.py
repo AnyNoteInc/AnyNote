@@ -29,6 +29,7 @@ class ModelConnectionSchema(RequestResponseSchema):
     client_id: str | None = None
     client_secret: str | None = None
     scope: str | None = None
+    folder_id: str | None = None
 
 
 class EmbeddingProviderConfigSchema(RequestResponseSchema):
