@@ -140,6 +140,7 @@ export function WorkspaceMcpSection({
         <Button
           variant="outlined"
           onClick={() => {
+            create.reset()
             setForm({ name: '', url: '', transport: 'HTTP_JSONRPC', headersJson: '{}' })
             setOpen(true)
           }}

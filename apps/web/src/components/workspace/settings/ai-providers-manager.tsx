@@ -144,6 +144,7 @@ export function AiProvidersManager({ workspaceId }: { workspaceId: string }) {
       <Button
         variant="outlined"
         onClick={() => {
+          create.reset()
           reset()
           setOpen(true)
         }}
