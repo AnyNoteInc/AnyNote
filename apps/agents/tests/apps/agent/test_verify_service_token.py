@@ -38,3 +38,15 @@ def test_rejects_bad_signature() -> None:
     with pytest.raises(HTTPException) as ei:
         verify_agents_service_token('Bearer not.a.jwt')
     assert ei.value.status_code == 401
+
+
+def test_rejects_wrong_audience() -> None:
+    with pytest.raises(HTTPException) as ei:
+        verify_agents_service_token(f'Bearer {_make_token(aud="not-agents")}')
+    assert ei.value.status_code == 401
+
+
+def test_rejects_expired_token() -> None:
+    with pytest.raises(HTTPException) as ei:
+        verify_agents_service_token(f'Bearer {_make_token(exp=int(time.time()) - 10)}')
+    assert ei.value.status_code == 401
