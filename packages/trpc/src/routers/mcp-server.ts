@@ -108,13 +108,16 @@ export const mcpServerRouter = router({
     .input(updateInput)
     .mutation(async ({ ctx, input }) => {
       await assertRole(ctx, input.workspaceId, OWNERS)
+      const existing = await ctx.prisma.workspaceMcpServer.findFirst({
+        where: { id: input.id, workspaceId: input.workspaceId },
+      })
+      if (!existing) throw new TRPCError({ code: 'NOT_FOUND' })
       if (
         input.url !== undefined ||
         input.transport !== undefined ||
         input.headers !== undefined ||
         input.verifyTls !== undefined
       ) {
-        const existing = await ctx.prisma.workspaceMcpServer.findUniqueOrThrow({ where: { id: input.id } })
         const ping = await validateMcp({
           url: input.url ?? existing.url,
           transport: (input.transport ?? existing.transport) as 'HTTP_JSONRPC' | 'SSE',
@@ -147,6 +150,10 @@ export const mcpServerRouter = router({
     .input(z.object({ id: z.string().uuid(), workspaceId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       await assertRole(ctx, input.workspaceId, OWNERS)
+      const existing = await ctx.prisma.workspaceMcpServer.findFirst({
+        where: { id: input.id, workspaceId: input.workspaceId },
+      })
+      if (!existing) throw new TRPCError({ code: 'NOT_FOUND' })
       await ctx.prisma.workspaceMcpServer.delete({ where: { id: input.id } })
       return { ok: true as const }
     }),

@@ -28,4 +28,8 @@ describe('aiSettings.update owner gate', () => {
   it('forbids a non-owner member', async () => {
     await expect(caller(ctx('EDITOR')).update({ workspaceId: WS, systemPrompt: 'x' })).rejects.toThrow(/прав/)
   })
+
+  it('forbids a non-member', async () => {
+    await expect(caller(ctx(null)).update({ workspaceId: WS, systemPrompt: 'x' })).rejects.toThrow(/прав/)
+  })
 })

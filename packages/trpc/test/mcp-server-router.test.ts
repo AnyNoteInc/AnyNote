@@ -190,3 +190,97 @@ describe('mcpServer.list', () => {
     expect((rows[0] as { headers?: unknown } | undefined)?.headers).toBeUndefined()
   })
 })
+
+const SERVER_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+
+function existingServer(overrides: Record<string, unknown> = {}) {
+  return {
+    id: SERVER_ID,
+    workspaceId: WORKSPACE_ID,
+    name: 'MyServer',
+    description: null,
+    url: 'https://mcp.example.com',
+    transport: 'HTTP_JSONRPC',
+    headers: { ciphertext: 'x', iv: 'y', tag: 'z' },
+    toolsAllowlist: [],
+    enabled: true,
+    verifyTls: true,
+    createdAt: new Date(),
+    updatedAt: new Date(),
+    createdById: USER_ID,
+    ...overrides,
+  }
+}
+
+describe('mcpServer.update', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    validateMcpMock.mockResolvedValue({ ok: true, tools: [], error: null })
+    getWorkspaceFeaturesMock.mockResolvedValue({ customMcpEnabled: true })
+  })
+
+  it('updates name only (skips re-ping) and returns row without headers', async () => {
+    const updatedRow = existingServer({ name: 'Renamed' })
+    const prismaMock = {
+      workspaceMember: { findUnique: vi.fn().mockResolvedValue(ownerMember()) },
+      workspaceMcpServer: {
+        findFirst: vi.fn().mockResolvedValue(existingServer()),
+        update: vi.fn().mockResolvedValue(updatedRow),
+      },
+    } as unknown as PrismaClient
+
+    const caller = createCallerFactory(mcpServerRouter)(baseContext(prismaMock))
+    const result = await caller.update({ id: SERVER_ID, workspaceId: WORKSPACE_ID, name: 'Renamed' })
+    expect(result.name).toBe('Renamed')
+    expect((result as { headers?: unknown }).headers).toBeUndefined()
+    expect(validateMcpMock).not.toHaveBeenCalled()
+  })
+
+  it('rejects NOT_FOUND when the server is not in the workspace', async () => {
+    const prismaMock = {
+      workspaceMember: { findUnique: vi.fn().mockResolvedValue(ownerMember()) },
+      workspaceMcpServer: {
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
+    } as unknown as PrismaClient
+
+    const caller = createCallerFactory(mcpServerRouter)(baseContext(prismaMock))
+    await expect(
+      caller.update({ id: SERVER_ID, workspaceId: WORKSPACE_ID, name: 'x' }),
+    ).rejects.toThrow(/NOT_FOUND/)
+  })
+})
+
+describe('mcpServer.delete', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('deletes the server and returns ok', async () => {
+    const prismaMock = {
+      workspaceMember: { findUnique: vi.fn().mockResolvedValue(ownerMember()) },
+      workspaceMcpServer: {
+        findFirst: vi.fn().mockResolvedValue(existingServer()),
+        delete: vi.fn().mockResolvedValue(existingServer()),
+      },
+    } as unknown as PrismaClient
+
+    const caller = createCallerFactory(mcpServerRouter)(baseContext(prismaMock))
+    const result = await caller.delete({ id: SERVER_ID, workspaceId: WORKSPACE_ID })
+    expect(result.ok).toBe(true)
+  })
+
+  it('rejects NOT_FOUND when the server is not in the workspace', async () => {
+    const prismaMock = {
+      workspaceMember: { findUnique: vi.fn().mockResolvedValue(ownerMember()) },
+      workspaceMcpServer: {
+        findFirst: vi.fn().mockResolvedValue(null),
+      },
+    } as unknown as PrismaClient
+
+    const caller = createCallerFactory(mcpServerRouter)(baseContext(prismaMock))
+    await expect(
+      caller.delete({ id: SERVER_ID, workspaceId: WORKSPACE_ID }),
+    ).rejects.toThrow(/NOT_FOUND/)
+  })
+})
