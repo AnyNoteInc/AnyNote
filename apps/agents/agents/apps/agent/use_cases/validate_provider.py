@@ -27,7 +27,7 @@ class ValidateLlmUseCase:
                 await llm.ainvoke('ping')
             return LlmValidationResponse(ok=True)
         except Exception as exc:  # noqa: BLE001 - surface provider error to the user
-            return LlmValidationResponse(ok=False, error=str(exc)[:500])
+            return LlmValidationResponse(ok=False, error=(str(exc) or f'timed out after {_LLM_TIMEOUT:.0f}s')[:500])
 
 
 @dataclass
@@ -36,8 +36,9 @@ class ValidateMcpUseCase:
 
     async def __call__(self, server: McpServerSchema) -> McpValidationResponse:
         try:
+            # outer timeout is the effective deadline; McpClient's own timeout/retries are capped by it
             async with asyncio.timeout(_MCP_TIMEOUT):
                 tools = await self.mcp_client.list_tools(server)
             return McpValidationResponse(ok=True, tools=[t.name for t in tools])
         except Exception as exc:  # noqa: BLE001
-            return McpValidationResponse(ok=False, error=str(exc)[:500])
+            return McpValidationResponse(ok=False, error=(str(exc) or f'timed out after {_MCP_TIMEOUT:.0f}s')[:500])

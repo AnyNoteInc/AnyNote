@@ -30,4 +30,4 @@ class ValidateEmbeddingUseCase:
                 vector = await embedder.aembed_query('ping')
             return EmbeddingValidationResponse(ok=True, vector_size=len(vector))
         except Exception as exc:  # noqa: BLE001
-            return EmbeddingValidationResponse(ok=False, error=str(exc)[:500])
+            return EmbeddingValidationResponse(ok=False, error=(str(exc) or f'timed out after {_EMB_TIMEOUT:.0f}s')[:500])

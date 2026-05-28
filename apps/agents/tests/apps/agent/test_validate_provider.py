@@ -33,3 +33,12 @@ async def test_validate_mcp_returns_tool_names() -> None:
     res = await uc(McpServerSchema(name='probe', url='http://x/mcp'))
     assert res.ok is True
     assert res.tools == ['search']
+
+
+async def test_validate_mcp_failure_is_caught() -> None:
+    client = MagicMock()
+    client.list_tools = AsyncMock(side_effect=RuntimeError('unreachable'))
+    uc = ValidateMcpUseCase(mcp_client=client)
+    res = await uc(McpServerSchema(name='probe', url='http://x/mcp'))
+    assert res.ok is False
+    assert 'unreachable' in (res.error or '')
