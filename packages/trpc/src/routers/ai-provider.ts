@@ -7,7 +7,7 @@ import { decryptSecret, encryptSecret, type EncryptedPayload } from '@repo/auth'
 
 import { router, protectedProcedure } from '../trpc'
 import { getWorkspaceFeatures } from '../helpers/plan'
-import { validateEmbedding, validateLlm, type ProviderConnectionInput } from '../helpers/agents-validate'
+import { validateEmbedding, validateLlm, type AgentsServiceAuth, type ProviderConnectionInput } from '../helpers/agents-validate'
 
 const kindSchema = z.enum(['OLLAMA', 'OPENAI', 'GIGACHAT', 'YANDEXGPT', 'ANTHROPIC', 'DEEPSEEK'])
 
@@ -87,14 +87,18 @@ async function pingModel(args: {
   modelSlug: string
   supportsEmbeddings: boolean
   connection: ProviderConnectionInput
+  auth: AgentsServiceAuth
 }): Promise<number | null> {
   const provider = args.kind.toLowerCase()
   if (args.supportsEmbeddings) {
-    const res = await validateEmbedding({ provider, modelSlug: args.modelSlug, connection: args.connection })
+    const res = await validateEmbedding(
+      { provider, modelSlug: args.modelSlug, connection: args.connection },
+      args.auth,
+    )
     if (!res.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: `Не удалось подключиться: ${res.error}` })
     return res.vectorSize
   }
-  const res = await validateLlm({ provider, name: args.modelSlug, connection: args.connection })
+  const res = await validateLlm({ provider, name: args.modelSlug, connection: args.connection }, args.auth)
   if (!res.ok) throw new TRPCError({ code: 'BAD_REQUEST', message: `Не удалось подключиться: ${res.error}` })
   return null
 }
@@ -131,6 +135,7 @@ export const aiProviderRouter = router({
         modelSlug: input.model.slug,
         supportsEmbeddings: input.model.supportsEmbeddings,
         connection,
+        auth: { userId: ctx.user.id, workspaceId: input.workspaceId },
       })
       const encrypted = encryptSecret(JSON.stringify(connection))
       const provider = await ctx.prisma.aiProvider.create({
@@ -173,6 +178,7 @@ export const aiProviderRouter = router({
         modelSlug: input.model.slug,
         supportsEmbeddings: input.model.supportsEmbeddings,
         connection,
+        auth: { userId: ctx.user.id, workspaceId: input.workspaceId },
       })
       return ctx.prisma.aiModel.create({
         data: {

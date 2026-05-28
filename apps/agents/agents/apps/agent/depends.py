@@ -81,6 +81,25 @@ def verify_agents_jwt(
         ) from exc
 
 
+def verify_agents_service_token(
+    authorization: Annotated[str, Header()],
+) -> None:
+    """FastAPI dependency for internal service calls (provider/MCP validation): verifies signature+audience only (no cid/scopes)."""
+    scheme, _, token = authorization.partition(' ')
+    if scheme.lower() != 'bearer' or not token:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail='missing bearer token',
+        )
+    try:
+        _decode(token)
+    except JwtVerificationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail=str(exc),
+        ) from exc
+
+
 # Test seam — bypasses Header dependency for direct test calls.
 def verify_agents_jwt_for_test(token: str) -> AgentContext:
     return claims_to_context(_decode(token))
