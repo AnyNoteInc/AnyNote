@@ -56,7 +56,7 @@ describe('aiProvider.create', () => {
     const create = vi.fn()
     const prisma = {
       workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) },
-      $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn({ aiProvider: { create } })),
+      aiProvider: { create },
     }
     await expect(caller(ctx(prisma)).create(input)).rejects.toThrow(/bad key/)
     expect(create).not.toHaveBeenCalled()
@@ -69,7 +69,7 @@ describe('aiProvider.create', () => {
     })
     const prisma = {
       workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) },
-      $transaction: vi.fn(async (fn: (tx: unknown) => unknown) => fn({ aiProvider: { create } })),
+      aiProvider: { create },
     }
     const out = await caller(ctx(prisma)).create(input)
     expect((out as { id: string }).id).toBe('p1')
@@ -87,5 +87,47 @@ describe('aiProvider.create', () => {
     planMocks.getWorkspaceFeatures.mockResolvedValue({ customAiProvidersEnabled: false })
     const prisma = { workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) } }
     await expect(caller(ctx(prisma)).create(input)).rejects.toThrow()
+  })
+})
+
+describe('aiProvider.addModel', () => {
+  it('throws a clean error when stored creds cannot be decrypted', async () => {
+    const PROVIDER_ID = '00000000-0000-0000-0000-000000000002'
+    const create = vi.fn()
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) },
+      aiProvider: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: PROVIDER_ID, kind: 'OPENAI', workspaceId: WS,
+          connectionEnc: { iv: 'bad', ciphertext: 'bad', tag: 'bad' },
+        }),
+      },
+      aiModel: { create },
+    }
+    await expect(
+      caller(ctx(prisma)).addModel({
+        workspaceId: WS,
+        providerId: PROVIDER_ID,
+        model: { slug: 'gpt-4o', displayName: 'X', contextTokens: 1000, supportsEmbeddings: false },
+      }),
+    ).rejects.toThrow(/повреждены|ключ/)
+    expect(create).not.toHaveBeenCalled()
+  })
+})
+
+describe('aiProvider.list', () => {
+  it('strips connection and connectionEnc from results', async () => {
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) },
+      aiProvider: {
+        findMany: vi.fn().mockResolvedValue([
+          { id: 'p1', kind: 'OPENAI', name: 'X', slug: 's', workspaceId: WS, connection: { apiKey: 'leak' }, connectionEnc: { iv: 'x' }, models: [] },
+        ]),
+      },
+    }
+    const out = await caller(ctx(prisma)).list({ workspaceId: WS })
+    expect(JSON.stringify(out)).not.toContain('leak')
+    expect((out[0] as Record<string, unknown>).connection).toBeUndefined()
+    expect((out[0] as Record<string, unknown>).connectionEnc).toBeUndefined()
   })
 })

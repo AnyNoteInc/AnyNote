@@ -54,7 +54,14 @@ function stripCreds<T extends Record<string, unknown>>(row: T): Omit<T, 'connect
 
 function decryptConnection(connectionEnc: unknown): ProviderConnectionInput {
   if (!connectionEnc) return {}
-  return JSON.parse(decryptSecret(connectionEnc as EncryptedPayload)) as ProviderConnectionInput
+  try {
+    return JSON.parse(decryptSecret(connectionEnc as EncryptedPayload)) as ProviderConnectionInput
+  } catch {
+    throw new TRPCError({
+      code: 'PRECONDITION_FAILED',
+      message: 'Учётные данные провайдера повреждены или изменён ключ шифрования',
+    })
+  }
 }
 
 function normalizeConnection(
@@ -126,30 +133,28 @@ export const aiProviderRouter = router({
         connection,
       })
       const encrypted = encryptSecret(JSON.stringify(connection))
-      const provider = await ctx.prisma.$transaction(async (tx) =>
-        tx.aiProvider.create({
-          data: {
-            workspaceId: input.workspaceId,
-            kind: input.kind,
-            slug: randomUUID(),
-            name: input.name,
-            connection: {},
-            connectionEnc: encrypted as unknown as object,
-            createdById: ctx.user.id,
-            models: {
-              create: {
-                slug: input.model.slug,
-                displayName: input.model.displayName,
-                contextTokens: input.model.contextTokens,
-                supportsVision: input.model.supportsVision,
-                supportsEmbeddings: input.model.supportsEmbeddings,
-                vectorSize,
-              },
+      const provider = await ctx.prisma.aiProvider.create({
+        data: {
+          workspaceId: input.workspaceId,
+          kind: input.kind,
+          slug: randomUUID(),
+          name: input.name,
+          connection: {},
+          connectionEnc: encrypted as unknown as object,
+          createdById: ctx.user.id,
+          models: {
+            create: {
+              slug: input.model.slug,
+              displayName: input.model.displayName,
+              contextTokens: input.model.contextTokens,
+              supportsVision: input.model.supportsVision,
+              supportsEmbeddings: input.model.supportsEmbeddings,
+              vectorSize,
             },
           },
-          include: { models: true },
-        }),
-      )
+        },
+        include: { models: true },
+      })
       return stripCreds(provider)
     }),
 
