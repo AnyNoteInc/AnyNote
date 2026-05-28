@@ -17,11 +17,34 @@ export const AiProviderConnectionSchema = z.discriminatedUnion('provider', [
     clientSecret: z.string().min(1),
     scope: z.string().optional(),
   }),
+  z.object({
+    provider: z.literal('anthropic'),
+    apiKey: z.string().min(1),
+    baseUrl: z.string().url().optional(),
+  }),
+  z.object({
+    provider: z.literal('deepseek'),
+    apiKey: z.string().min(1),
+    baseUrl: z.string().url().optional(),
+  }),
+  z.object({
+    provider: z.literal('yandexgpt'),
+    apiKey: z.string().min(1),
+    folderId: z.string().min(1),
+    baseUrl: z.string().url().optional(),
+  }),
 ])
 
 export type AiProviderConnection = z.infer<typeof AiProviderConnectionSchema>
 
-const KNOWN_PROVIDERS = ['ollama', 'openai', 'gigachat'] as const
+const KNOWN_PROVIDERS = [
+  'ollama',
+  'openai',
+  'gigachat',
+  'anthropic',
+  'deepseek',
+  'yandexgpt',
+] as const
 
 export function parseAiProviderConnection(
   providerSlug: string,
