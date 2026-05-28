@@ -13,6 +13,8 @@ SCOPE_MEMORY_READ = 'memory:read'
 SCOPE_MEMORY_WRITE = 'memory:write'
 SCOPE_REMINDERS_READ = 'reminders:read'
 SCOPE_REMINDERS_WRITE = 'reminders:write'
+SCOPE_NOTIFICATIONS_READ = 'notifications:read'
+SCOPE_NOTIFICATIONS_WRITE = 'notifications:write'
 
 
 @dataclass(frozen=True)
@@ -110,6 +112,10 @@ DEFAULT_ENGINES_TOOLS: dict[str, ToolMeta] = {
                                   lambda a: 'Удалить напоминания', _preview_default),
     'completeReminder': ToolMeta('completeReminder', SCOPE_REMINDERS_WRITE, False,
                                   _summary_generic('completeReminder'), _preview_default),
+    'listNotifications':     ToolMeta('listNotifications', SCOPE_NOTIFICATIONS_READ, False,
+                                       _summary_generic('listNotifications'), _preview_default),
+    'markNotificationsRead': ToolMeta('markNotificationsRead', SCOPE_NOTIFICATIONS_WRITE, False,
+                                       _summary_generic('markNotificationsRead'), _preview_default),
     # agents-internal tools
     'save_memory': ToolMeta('save_memory', SCOPE_MEMORY_WRITE, False,
                              _summary_generic('save_memory'), _preview_default),
