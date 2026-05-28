@@ -20,6 +20,7 @@ import {
 } from '@repo/ui/components'
 import { trpc } from '@/trpc/client'
 
+import { AiProvidersManager } from './ai-providers-manager'
 import { SettingsCard } from './settings-card'
 
 type InitialModel = { id: string; displayName: string; provider: { name: string; slug: string } }
@@ -35,9 +36,17 @@ type Props = {
   workspaceId: string
   initialModels?: InitialModel[]
   initialEmbeddingModels?: InitialEmbeddingModel[]
+  isOwner?: boolean
+  customProvidersEnabled?: boolean
 }
 
-export function WorkspaceAiSection({ workspaceId, initialModels, initialEmbeddingModels }: Props) {
+export function WorkspaceAiSection({
+  workspaceId,
+  initialModels,
+  initialEmbeddingModels,
+  isOwner = false,
+  customProvidersEnabled = false,
+}: Props) {
   const utils = trpc.useUtils()
   const settingsQuery = trpc.aiSettings.get.useQuery({ workspaceId })
   const modelsQuery = trpc.aiSettings.listAvailableModels.useQuery(
@@ -218,6 +227,10 @@ export function WorkspaceAiSection({ workspaceId, initialModels, initialEmbeddin
           </FormHelperText>
         </FormControl>
       </SettingsCard>
+
+      {isOwner && customProvidersEnabled ? (
+        <AiProvidersManager workspaceId={workspaceId} />
+      ) : null}
 
       <Stack direction="row">
         <Button variant="contained" onClick={onSave} loading={update.isPending} disabled={disabled}>

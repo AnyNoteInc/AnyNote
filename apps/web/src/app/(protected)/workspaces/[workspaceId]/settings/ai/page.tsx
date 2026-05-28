@@ -11,18 +11,21 @@ export default async function WorkspaceSettingsAiPage({ params }: Props) {
   const features = await getWorkspaceFeatures(workspaceId)
   if (!features.aiSettingsEnabled) notFound()
   const trpc = await getServerTRPC()
-  const workspace = await trpc.workspace.getById({ id: workspaceId })
-  if (!workspace) notFound()
-  const [models, embeddingModels] = await Promise.all([
+  const [workspace, myRole, models, embeddingModels] = await Promise.all([
+    trpc.workspace.getById({ id: workspaceId }),
+    trpc.workspace.getMyRole({ workspaceId }),
     getAvailableAiModels(workspaceId),
     getAvailableEmbeddingModels(workspaceId),
   ])
+  if (!workspace) notFound()
 
   return (
     <WorkspaceAiSection
       workspaceId={workspaceId}
       initialModels={models}
       initialEmbeddingModels={embeddingModels}
+      isOwner={myRole === 'OWNER'}
+      customProvidersEnabled={features.customAiProvidersEnabled}
     />
   )
 }
