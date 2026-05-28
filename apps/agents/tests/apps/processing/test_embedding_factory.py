@@ -105,3 +105,19 @@ def test_make_unknown_provider_raises() -> None:
                 connection=ModelConnectionSchema(),
             )
         )
+
+
+def test_make_yandexgpt_requires_api_key_and_folder() -> None:
+    factory = EmbeddingFactoryRepository()
+    with pytest.raises(InvalidPayloadError, match='YandexGPT'):
+        factory.make(_config(ModelProviderEnum.YANDEXGPT, {'apiKey': 'k'}))
+
+
+def test_make_yandexgpt_passes_credentials() -> None:
+    factory = EmbeddingFactoryRepository()
+    with patch('agents.apps.processing.repositories.embedding_factory.YandexGPTEmbeddings') as mock_emb:
+        mock_emb.return_value = MagicMock()
+        factory.make(_config(ModelProviderEnum.YANDEXGPT, {'apiKey': 'k', 'folderId': 'b1g'}))
+        kwargs = mock_emb.call_args.kwargs
+        assert kwargs['folder_id'] == 'b1g'
+        assert kwargs['model_name'] == 'm'
