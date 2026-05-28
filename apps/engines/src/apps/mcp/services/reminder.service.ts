@@ -106,12 +106,12 @@ export class ReminderService {
   }
 
   async deleteReminder(input: DeleteReminderInput): Promise<{ count: number }> {
+    const ids = [...(input.reminderId ? [input.reminderId] : []), ...(input.reminderIds ?? [])]
     const result = await this.prisma.reminder.updateMany({
       where: {
         createdById: input.userId,
         deletedAt: null,
-        ...(input.reminderId ? { id: input.reminderId } : {}),
-        ...(input.reminderIds ? { id: { in: input.reminderIds } } : {}),
+        ...(ids.length ? { id: { in: ids } } : {}),
         ...(input.pageId ? { pageId: input.pageId } : {}),
       },
       data: { deletedAt: new Date() },

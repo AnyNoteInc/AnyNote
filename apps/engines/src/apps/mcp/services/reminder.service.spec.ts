@@ -8,6 +8,7 @@ describe('ReminderService', () => {
   const pageFindUnique = jest.fn<(...a: unknown[]) => Promise<unknown>>()
   const reminderCreate = jest.fn<(...a: unknown[]) => Promise<unknown>>()
   const reminderFindUnique = jest.fn<(...a: unknown[]) => Promise<unknown>>()
+  const reminderFindMany = jest.fn<(...a: unknown[]) => Promise<unknown>>()
   const reminderUpdate = jest.fn<(...a: unknown[]) => Promise<unknown>>()
   const reminderUpdateMany = jest.fn<(...a: unknown[]) => Promise<unknown>>()
   const prisma = {
@@ -15,6 +16,7 @@ describe('ReminderService', () => {
     reminder: {
       create: reminderCreate,
       findUnique: reminderFindUnique,
+      findMany: reminderFindMany,
       update: reminderUpdate,
       updateMany: reminderUpdateMany,
     },
@@ -75,5 +77,31 @@ describe('ReminderService', () => {
       where: { createdById: 'u1', deletedAt: null },
       data: { deletedAt: expect.any(Date) },
     })
+  })
+
+  it('listReminders filters to my pending reminders and maps them', async () => {
+    reminderFindMany.mockResolvedValue([
+      { id: 'r1', label: 'Ship', dueAt: new Date('2026-06-01T10:00:00Z'), doneAt: null, page: { id: 'p1', title: 'P' }, workspace: { id: 'w1', name: 'W' } },
+    ])
+    const out = await svc.listReminders({ userId: 'u1', workspaceId: 'w1' })
+    expect(out).toEqual([
+      { id: 'r1', label: 'Ship', dueAt: new Date('2026-06-01T10:00:00Z'), done: false, page: { id: 'p1', title: 'P' }, workspace: { id: 'w1', name: 'W' } },
+    ])
+    const arg = reminderFindMany.mock.calls[0]![0] as { where: Record<string, unknown> }
+    expect(arg.where).toMatchObject({ deletedAt: null, doneAt: null, workspaceId: 'w1' })
+  })
+
+  it('completeReminder marks done, or throws when nothing matched', async () => {
+    reminderUpdateMany.mockResolvedValueOnce({ count: 1 })
+    await expect(svc.completeReminder({ userId: 'u1', reminderId: 'r1' })).resolves.toEqual({ id: 'r1' })
+    reminderUpdateMany.mockResolvedValueOnce({ count: 0 })
+    await expect(svc.completeReminder({ userId: 'u1', reminderId: 'r1' })).rejects.toBeInstanceOf(ReminderNotFoundError)
+  })
+
+  it('deleteReminder merges reminderId and reminderIds into a single id filter', async () => {
+    reminderUpdateMany.mockResolvedValue({ count: 2 })
+    await svc.deleteReminder({ userId: 'u1', reminderId: 'r1', reminderIds: ['r2'] })
+    const arg = reminderUpdateMany.mock.calls[0]![0] as { where: { id?: { in: string[] } } }
+    expect(arg.where.id).toEqual({ in: ['r1', 'r2'] })
   })
 })

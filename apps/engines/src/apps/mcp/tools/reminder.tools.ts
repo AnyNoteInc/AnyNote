@@ -73,7 +73,7 @@ export class ReminderTools {
       'Создаёт напоминание на странице с датой/временем срабатывания (dueAt, ISO 8601). ' +
       'Используй для протокола встречи: на каждое поручение со сроком ставь напоминание. ' +
       'Требует подтверждения. Параметры: workspaceId, pageId, dueAt, label (опц.), ' +
-      'audience (ME|WORKSPACE|LIST, def ME), offsets (опц., секунды до dueAt).',
+      'audience (ME|WORKSPACE|LIST, def ME), offsets (опц., заблаговременные оповещения до dueAt).',
     parameters: CreateReminderInput,
   })
   createReminder(args: CreateReminderArgs, _context: Context, req: AuthedRequest) {
