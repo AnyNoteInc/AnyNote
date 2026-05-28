@@ -15,6 +15,8 @@ SCOPE_REMINDERS_READ = 'reminders:read'
 SCOPE_REMINDERS_WRITE = 'reminders:write'
 SCOPE_NOTIFICATIONS_READ = 'notifications:read'
 SCOPE_NOTIFICATIONS_WRITE = 'notifications:write'
+SCOPE_FAVORITES_READ = 'favorites:read'
+SCOPE_FAVORITES_WRITE = 'favorites:write'
 
 
 @dataclass(frozen=True)
@@ -116,6 +118,12 @@ DEFAULT_ENGINES_TOOLS: dict[str, ToolMeta] = {
                                        _summary_generic('listNotifications'), _preview_default),
     'markNotificationsRead': ToolMeta('markNotificationsRead', SCOPE_NOTIFICATIONS_WRITE, False,
                                        _summary_generic('markNotificationsRead'), _preview_default),
+    'listFavorites':  ToolMeta('listFavorites', SCOPE_FAVORITES_READ, False,
+                                _summary_generic('listFavorites'), _preview_default),
+    'addFavorite':    ToolMeta('addFavorite', SCOPE_FAVORITES_WRITE, False,
+                                _summary_generic('addFavorite'), _preview_default),
+    'removeFavorite': ToolMeta('removeFavorite', SCOPE_FAVORITES_WRITE, False,
+                                _summary_generic('removeFavorite'), _preview_default),
     # agents-internal tools
     'save_memory': ToolMeta('save_memory', SCOPE_MEMORY_WRITE, False,
                              _summary_generic('save_memory'), _preview_default),

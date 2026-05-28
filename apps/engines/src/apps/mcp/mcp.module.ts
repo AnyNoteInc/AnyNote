@@ -20,6 +20,8 @@ import { ReminderService } from './services/reminder.service.js'
 import { ReminderTools } from './tools/reminder.tools.js'
 import { NotificationService } from './services/notification.service.js'
 import { NotificationTools } from './tools/notification.tools.js'
+import { FavoriteService } from './services/favorite.service.js'
+import { FavoriteTools } from './tools/favorite.tools.js'
 import { WorkspaceTools } from './tools/workspace.tools.js'
 import { WorkspacesTools } from './tools/workspaces.tools.js'
 
@@ -48,6 +50,8 @@ import { WorkspacesTools } from './tools/workspaces.tools.js'
     ReminderTools,
     NotificationService,
     NotificationTools,
+    FavoriteService,
+    FavoriteTools,
     { provide: STORAGE, useValue: storage },
     { provide: APP_FILTER, useClass: McpExceptionFilter },
     {
@@ -55,6 +59,6 @@ import { WorkspacesTools } from './tools/workspaces.tools.js'
       useFactory: () => createAgentsSearchClient(process.env.AGENTS_URL ?? 'http://localhost:8080'),
     },
   ],
-  exports: [PageTools, PageFileTools, WorkspaceTools, SearchTools, WorkspacesTools, ReminderTools, NotificationTools],
+  exports: [PageTools, PageFileTools, WorkspaceTools, SearchTools, WorkspacesTools, ReminderTools, NotificationTools, FavoriteTools],
 })
 export class McpModule {}
