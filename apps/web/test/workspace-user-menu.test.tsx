@@ -62,6 +62,7 @@ const features = {
   membersSettingsEnabled: false,
   aiSettingsEnabled: false,
   customMcpEnabled: false,
+  customAiProvidersEnabled: false,
   prioritySupport: false,
   developerSpaceEnabled: false,
 } as const
