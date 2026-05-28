@@ -57,6 +57,7 @@ model User {
   agentMemories              WorkspaceAgentMemory[]   @relation("WorkspaceAgentMemoryUser")
   agentActionLogs            AgentActionLog[]         @relation("AgentActionLogUser")
   apiKeys                    ApiKey[]
+  aiProvidersCreated         AiProvider[]             @relation("AiProviderCreatedBy")
 
   @@map("users")
 }
@@ -285,6 +286,15 @@ enum McpTransport {
   SSE
 }
 
+enum AiProviderKind {
+  OLLAMA
+  OPENAI
+  GIGACHAT
+  YANDEXGPT
+  ANTHROPIC
+  DEEPSEEK
+}
+
 enum AgentMemoryScope {
   WORKSPACE
   USER
@@ -325,6 +335,7 @@ model Workspace {
   agentMemories         WorkspaceAgentMemory[]
   agentActionLogs       AgentActionLog[]
   limits                WorkspaceLimit?
+  aiProviders           AiProvider[]           @relation("WorkspaceAiProviders")
 
   @@index([createdById])
   @@map("workspaces")
@@ -593,15 +604,23 @@ model Integration {
 }
 
 model AiProvider {
-  id         String    @id @default(uuid(7)) @db.Uuid
-  slug       String    @unique @db.VarChar(50)
-  name       String    @db.VarChar(100)
-  connection Json      @default("{}") @map("connection")
-  isActive   Boolean   @default(true) @map("is_active")
-  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt  DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
-  models     AiModel[]
+  id            String         @id @default(uuid(7)) @db.Uuid
+  kind          AiProviderKind
+  slug          String         @db.VarChar(50)
+  name          String         @db.VarChar(100)
+  connection    Json           @default("{}") @map("connection")
+  connectionEnc Json?          @map("connection_enc")
+  workspaceId   String?        @map("workspace_id") @db.Uuid
+  createdById   String?        @map("created_by_id") @db.Uuid
+  isActive      Boolean        @default(true) @map("is_active")
+  createdAt     DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+  models        AiModel[]
+  workspace     Workspace?     @relation("WorkspaceAiProviders", fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy     User?          @relation("AiProviderCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
 
+  @@unique([workspaceId, slug])
+  @@index([workspaceId])
   @@map("ai_providers")
 }
 
@@ -634,8 +653,6 @@ model WorkspaceAiSettings {
   systemPrompt             String?  @map("system_prompt") @db.Text
   temperature              Float    @default(0.2)
   topP                     Float    @default(0.5) @map("top_p")
-  chatModelConnection      Json?    @map("chat_model_connection")
-  embeddingModelConnection Json?    @map("embedding_model_connection")
   agentSystemPrompt        String?  @map("agent_system_prompt") @db.Text
   allowDestructive         Boolean  @default(false) @map("allow_destructive")
   createdAt                DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
@@ -669,6 +686,7 @@ model Plan {
   membersSettingsEnabled Boolean @default(false) @map("members_settings_enabled")
   aiSettingsEnabled      Boolean @default(false) @map("ai_settings_enabled")
   customMcpEnabled       Boolean @default(false) @map("custom_mcp_enabled")
+  customAiProvidersEnabled Boolean @default(false) @map("custom_ai_providers_enabled")
   prioritySupport        Boolean @default(false) @map("priority_support")
   developerSpaceEnabled  Boolean @default(false) @map("developer_space_enabled")
 
