@@ -99,7 +99,7 @@ export const mcpServerRouter = router({
           createdById: ctx.user.id,
         },
       })
-      return stripHeaders(row)
+      return { ...stripHeaders(row), tools: ping.tools }
     }),
 
   update: protectedProcedure

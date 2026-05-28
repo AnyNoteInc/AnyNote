@@ -56,6 +56,7 @@ describe('mcpServer.create', () => {
   })
 
   it('encrypts headers at rest and returns a row without them', async () => {
+    validateMcpMock.mockResolvedValue({ ok: true, tools: ['search'], error: null })
     let storedHeadersJson: string | null = null
     const prismaMock = {
       workspaceMember: { findUnique: vi.fn().mockResolvedValue(ownerMember()) },
@@ -93,6 +94,7 @@ describe('mcpServer.create', () => {
     expect(result.name).toBe('Notion')
     expect((result as { headers?: unknown }).headers).toBeUndefined()
     expect(storedHeadersJson).not.toContain('secret-token')
+    expect(result.tools).toEqual(['search'])
   })
 
   it('rejects non-owner', async () => {
