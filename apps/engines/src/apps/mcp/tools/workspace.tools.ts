@@ -181,6 +181,40 @@ export class WorkspaceTools {
     return { pageId }
   }
 
+  @Tool({
+    name: 'listWorkspaceMembers',
+    description:
+      'Список участников рабочего пространства: userId, имя, фамилия, email, роль. ' +
+      'Используй чтобы сопоставить имя человека с пользователем (например для ' +
+      'назначения ответственного из протокола встречи) или показать команду. ' +
+      'Параметр: workspaceId (uuid).',
+    parameters: GetWorkspaceStatsInput,
+  })
+  listWorkspaceMembers(args: GetWorkspaceStatsArgs, _context: Context, req: AuthedRequest) {
+    return this.doListWorkspaceMembers(requireAuth(req), args)
+  }
+
+  async doListWorkspaceMembers(auth: AuthContext, args: GetWorkspaceStatsArgs) {
+    await assertMember(this.prisma, auth.userId, args.workspaceId)
+    const rows = await this.prisma.workspaceMember.findMany({
+      where: { workspaceId: args.workspaceId },
+      select: {
+        role: true,
+        user: { select: { id: true, firstName: true, lastName: true, email: true } },
+      },
+      orderBy: { createdAt: 'asc' },
+    })
+    return {
+      members: rows.map((m) => ({
+        userId: m.user.id,
+        firstName: m.user.firstName,
+        lastName: m.user.lastName,
+        email: m.user.email,
+        role: m.role,
+      })),
+    }
+  }
+
   private async listOwnershipPages(
     workspaceId: string,
     ownership: 'SKILL' | 'AGENT',
