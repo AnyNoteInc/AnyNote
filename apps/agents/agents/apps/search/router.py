@@ -23,6 +23,7 @@ async def search_pages(
         workspace_id=payload.workspace_id,
         query=payload.query,
         k=payload.limit,
+        score_threshold=payload.score_threshold,
     )
     return SearchResponseSchema(
         results=[

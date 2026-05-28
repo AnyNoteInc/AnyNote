@@ -85,6 +85,7 @@ class VectorStoreRepository:
         workspace_id: str,
         query: str,
         k: int = 5,
+        score_threshold: float | None = None,
     ) -> list[Document]:
         """Embed `query`, run a workspace-filtered vector search, return Documents.
 
@@ -100,6 +101,7 @@ class VectorStoreRepository:
             collection_name=collection_name,
             query=vector,
             limit=k,
+            score_threshold=score_threshold,
             query_filter=Filter(must=[FieldCondition(key='workspaceId', match=MatchValue(value=workspace_id))]),
             with_payload=True,
             with_vectors=False,

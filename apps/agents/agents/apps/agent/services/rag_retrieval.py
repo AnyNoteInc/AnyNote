@@ -23,6 +23,7 @@ class RagRetrievalService:
         workspace_id: UUID,
         query: str,
         k: int = 5,
+        score_threshold: float | None = 0.7,
     ) -> list[RagDocumentSchema]:
         embedder = self.embedding_factory_repository.make(embedding)
         collection = collection_name_for(embedding.provider, embedding.model_slug)
@@ -32,6 +33,7 @@ class RagRetrievalService:
             workspace_id=str(workspace_id),
             query=query,
             k=k * 3,
+            score_threshold=score_threshold,
         )
         return self._dedupe(docs, k)
 

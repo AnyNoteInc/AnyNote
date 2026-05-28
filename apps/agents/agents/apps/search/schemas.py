@@ -18,6 +18,7 @@ class SearchRequestSchema(RequestResponseSchema):
     query: Annotated[str, Field(min_length=1, max_length=500)]
     limit: Annotated[int, Field(default=10, ge=1, le=50)]
     embedding: EmbeddingProviderConfigSchema
+    score_threshold: Annotated[float, Field(default=0.7, ge=0.0, le=1.0)]
 
 
 class SearchResultSchema(RequestResponseSchema):
