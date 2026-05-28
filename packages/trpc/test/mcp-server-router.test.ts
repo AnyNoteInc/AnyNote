@@ -1,6 +1,11 @@
 import { beforeAll, beforeEach, describe, expect, it, vi } from 'vitest'
 import crypto from 'node:crypto'
 
+const { validateMcpMock, getWorkspaceFeaturesMock } = vi.hoisted(() => ({
+  validateMcpMock: vi.fn(),
+  getWorkspaceFeaturesMock: vi.fn(),
+}))
+
 vi.mock('@repo/auth', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@repo/auth')>()
   return {
@@ -13,6 +18,9 @@ vi.mock('@repo/db', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@repo/db')>()
   return { ...actual, prisma: {} }
 })
+
+vi.mock('../src/helpers/agents-validate', () => ({ validateMcp: validateMcpMock }))
+vi.mock('../src/helpers/plan', () => ({ getWorkspaceFeatures: getWorkspaceFeaturesMock }))
 
 import type { PrismaClient } from '@repo/db'
 import { mcpServerRouter } from '../src/routers/mcp-server'
@@ -43,6 +51,8 @@ function ownerMember() {
 describe('mcpServer.create', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    validateMcpMock.mockResolvedValue({ ok: true, tools: [], error: null })
+    getWorkspaceFeaturesMock.mockResolvedValue({ customMcpEnabled: true })
   })
 
   it('encrypts headers at rest and returns a row without them', async () => {
@@ -104,11 +114,53 @@ describe('mcpServer.create', () => {
       }),
     ).rejects.toThrow(/Недостаточно прав|FORBIDDEN/i)
   })
+
+  it('blocks create when the MCP ping fails', async () => {
+    validateMcpMock.mockResolvedValue({ ok: false, tools: [], error: 'unreachable' })
+    const createSpy = vi.fn()
+    const prismaMock = {
+      workspaceMember: { findUnique: vi.fn().mockResolvedValue(ownerMember()) },
+      workspaceMcpServer: { create: createSpy },
+    } as unknown as PrismaClient
+
+    const caller = createCallerFactory(mcpServerRouter)(baseContext(prismaMock))
+    await expect(
+      caller.create({
+        workspaceId: WORKSPACE_ID,
+        name: 'Notion',
+        url: 'https://mcp.notion.com',
+        transport: 'HTTP_JSONRPC',
+        headers: {},
+      }),
+    ).rejects.toThrow(/unreachable/)
+    expect(createSpy).not.toHaveBeenCalled()
+  })
+
+  it('blocks create when customMcpEnabled is false', async () => {
+    getWorkspaceFeaturesMock.mockResolvedValue({ customMcpEnabled: false })
+    const prismaMock = {
+      workspaceMember: { findUnique: vi.fn().mockResolvedValue(ownerMember()) },
+      workspaceMcpServer: { create: vi.fn() },
+    } as unknown as PrismaClient
+
+    const caller = createCallerFactory(mcpServerRouter)(baseContext(prismaMock))
+    await expect(
+      caller.create({
+        workspaceId: WORKSPACE_ID,
+        name: 'Notion',
+        url: 'https://mcp.notion.com',
+        transport: 'HTTP_JSONRPC',
+        headers: {},
+      }),
+    ).rejects.toThrow(/CUSTOM_MCP_NOT_IN_PLAN|FORBIDDEN/i)
+  })
 })
 
 describe('mcpServer.list', () => {
   beforeEach(() => {
     vi.clearAllMocks()
+    validateMcpMock.mockResolvedValue({ ok: true, tools: [], error: null })
+    getWorkspaceFeaturesMock.mockResolvedValue({ customMcpEnabled: true })
   })
 
   it('returns rows without headers', async () => {
