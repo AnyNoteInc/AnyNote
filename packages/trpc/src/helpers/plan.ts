@@ -71,6 +71,8 @@ export async function getAvailableAiModels(
       isActive: true,
       supportsEmbeddings: false,
       OR: [{ minPlanSlug: null }, { minPlanSlug: { in: allowedSlugs } }],
+      // shared providers (workspaceId null) + this workspace's own custom ones;
+      // the customAiProvidersEnabled plan flag is enforced at creation in the aiProvider router
       provider: { isActive: true, OR: [{ workspaceId: null }, { workspaceId }] },
     },
     include: { provider: true },
@@ -93,6 +95,8 @@ export async function getAvailableEmbeddingModels(
       supportsEmbeddings: true,
       vectorSize: { not: null },
       OR: [{ minPlanSlug: null }, { minPlanSlug: { in: allowedSlugs } }],
+      // shared providers (workspaceId null) + this workspace's own custom ones;
+      // the customAiProvidersEnabled plan flag is enforced at creation in the aiProvider router
       provider: { isActive: true, OR: [{ workspaceId: null }, { workspaceId }] },
     },
     include: { provider: true },

@@ -8,26 +8,22 @@ function agentsBaseUrl(): string {
   return process.env.AGENTS_SERVICE_URL ?? 'http://localhost:8080'
 }
 
-async function postValidate<T extends { ok: boolean }>(
+async function postValidate<T extends { ok: boolean; error: string | null }>(
   path: string,
   body: unknown,
   onUnreachable: T,
 ): Promise<T> {
-  const ctl = new AbortController()
-  const timeout = setTimeout(() => ctl.abort(), 15_000)
   try {
     const res = await fetch(`${agentsBaseUrl()}${path}`, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
       body: JSON.stringify(body),
-      signal: ctl.signal,
+      signal: AbortSignal.timeout(15_000),
     })
-    if (!res.ok) return onUnreachable
+    if (!res.ok) return { ...onUnreachable, error: `Validation service error (HTTP ${res.status})` }
     return (await res.json()) as T
   } catch {
     return onUnreachable
-  } finally {
-    clearTimeout(timeout)
   }
 }
 
@@ -62,6 +58,7 @@ export function validateMcp(input: {
 }): Promise<McpValidationResult> {
   return postValidate<McpValidationResult>(
     '/validation/mcp',
+    // name is required by McpServerSchema but ignored by the validation use-case
     { name: 'probe', ...input, tools: [] },
     { ok: false, tools: [], error: 'Validation service unavailable' },
   )

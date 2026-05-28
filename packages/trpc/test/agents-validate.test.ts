@@ -40,4 +40,11 @@ describe('agents-validate', () => {
     expect(res.ok).toBe(false)
     expect(res.error).toMatch(/validation service/i)
   })
+
+  it('treats a network error as a failed validation', async () => {
+    vi.spyOn(globalThis, 'fetch').mockRejectedValue(new TypeError('network error'))
+    const res = await validateLlm({ provider: 'openai', name: 'gpt', connection: { apiKey: 'k' } })
+    expect(res.ok).toBe(false)
+    expect(res.error).toMatch(/validation service/i)
+  })
 })
