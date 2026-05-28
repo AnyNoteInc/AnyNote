@@ -5,10 +5,16 @@ export function resolveProviderConnection(provider: {
   connection: unknown
   connectionEnc: unknown
 }): Record<string, string> {
-  const raw =
-    provider.workspaceId && provider.connectionEnc
-      ? (JSON.parse(decryptSecret(provider.connectionEnc as EncryptedPayload)) as unknown)
-      : provider.connection
+  let raw: unknown
+  if (provider.workspaceId && provider.connectionEnc) {
+    try {
+      raw = JSON.parse(decryptSecret(provider.connectionEnc as EncryptedPayload))
+    } catch (e) {
+      throw new Error('Failed to decrypt provider credentials', { cause: e })
+    }
+  } else {
+    raw = provider.connection
+  }
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
   const out: Record<string, string> = {}
   for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {

@@ -21,4 +21,10 @@ describe('resolveProviderConnection', () => {
     const c = resolveProviderConnection({ workspaceId: null, connection: { baseUrl: 'u', n: 5 }, connectionEnc: null })
     expect(c).toEqual({ baseUrl: 'u' })
   })
+
+  it('throws a contextful error on a corrupt connectionEnc', () => {
+    expect(() =>
+      resolveProviderConnection({ workspaceId: 'ws', connection: {}, connectionEnc: { iv: 'bad', ciphertext: 'bad', tag: 'bad' } }),
+    ).toThrow(/decrypt provider/i)
+  })
 })

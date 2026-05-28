@@ -159,6 +159,10 @@ export async function POST(request: NextRequest): Promise<Response> {
     scope: m.scope.toLowerCase() as 'workspace' | 'user',
   }))
 
+  // The agents service matches providers by ModelProviderEnum value (a Python StrEnum
+  // with auto(), so lowercased member names). AiProviderKind uses the same names, so
+  // kind.toLowerCase() is the wire value. Keep the two enums in sync
+  // (apps/agents/agents/apps/agent/enums_shared.py).
   const settingsSnapshot = {
     defaultModel: {
       slug: settings.defaultModel.slug,
