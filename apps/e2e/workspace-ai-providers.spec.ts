@@ -4,16 +4,14 @@
  * Coverage:
  *  1. Free/personal-plan owner → /settings/ai returns 404 (plan gate).
  *  2. Max-plan owner → "Свои провайдеры" card is visible on the AI settings page.
- *  3. Max-plan owner → submitting the "Добавить провайдера" dialog with a valid
- *     form shows an error and does NOT persist a row, because under Playwright the
- *     agents service is NOT running — the server-side ping always fails with
- *     "Validation service unavailable", and aiProvider.create throws BAD_REQUEST.
+ *  3. Max-plan owner → submitting the "Добавить провайдера" dialog with apiKey=FAIL
+ *     shows an error and does NOT persist a row (sentinel forces mock to return ok:false).
+ *  4. Max-plan owner → submitting with a normal API key succeeds: the dialog closes,
+ *     the new provider appears in the "Свои провайдеры" list, and one DB row is written.
  *
- * NOT covered (agents service constraint):
- *  - Successful provider creation (ping succeeds) is not testable under Playwright
- *    because the Next.js web server calls AGENTS_SERVICE_URL server-side; there is
- *    no way to intercept that with page.route(). Only the blocked-on-failed-ping
- *    path is deterministically exercisable.
+ * The mock agents validation server (apps/e2e/mocks/agents-validation-server.mjs)
+ * runs on port 8091 and is wired via AGENTS_SERVICE_URL in playwright.config.ts.
+ * It returns { ok:true } by default and { ok:false } when apiKey === 'FAIL'.
  */
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -132,15 +130,14 @@ test('owner on max plan: custom provider block-on-failed-ping', async ({ page })
   await expect(dialog).toBeVisible()
 
   await dialog.getByLabel('Название').fill('My OpenAI')
-  await dialog.getByLabel('API ключ *').fill('sk-test-key')
+  // Use the FAIL sentinel: the mock agents server returns { ok:false } when apiKey === 'FAIL'.
+  await dialog.getByLabel('API ключ *').fill('FAIL')
   await dialog.getByLabel('Идентификатор модели (slug)').fill('gpt-4o')
 
   await dialog.getByRole('button', { name: 'Сохранить' }).click()
 
-  // The server-side ping calls agents /validation/llm, which is down under
-  // Playwright, so the helper returns { ok: false, error: 'Validation service
-  // unavailable' } and aiProvider.create throws BAD_REQUEST with the message
-  // "Не удалось подключиться: Validation service unavailable".
+  // The mock returns { ok: false, error: 'mock: forced failure' } for the FAIL sentinel,
+  // so aiProvider.create throws BAD_REQUEST with "Не удалось подключиться: mock: forced failure".
   await expect(dialog.getByRole('alert')).toBeVisible({ timeout: 15_000 })
   await expect(dialog.getByRole('alert')).toContainText(/Не удалось подключиться|Validation service/i)
 
@@ -148,4 +145,48 @@ test('owner on max plan: custom provider block-on-failed-ping', async ({ page })
   await expect(dialog).toBeVisible()
   const providerCount = await prisma.aiProvider.count({ where: { workspaceId } })
   expect(providerCount).toBe(0)
+})
+
+// ---------------------------------------------------------------------------
+// Test 4: happy path — provider creation succeeds, row persisted, list updates
+// ---------------------------------------------------------------------------
+test('owner on max plan: adding a custom provider succeeds and the model appears', async ({ page }) => {
+  const { userId, workspaceId } = await signUpAndCreateWorkspace(page, 'happy')
+  await upgradeOwnerToMax(userId)
+
+  await page.goto(`/workspaces/${workspaceId}/settings/ai`)
+  await expect(page.getByText('Свои провайдеры')).toBeVisible({ timeout: 15_000 })
+
+  await page.getByRole('button', { name: 'Добавить провайдера' }).click()
+
+  const dialog = page.getByRole('dialog')
+  await expect(dialog).toBeVisible()
+
+  await dialog.getByLabel('Название').fill('My OpenAI')
+  await dialog.getByLabel('API ключ *').fill('sk-good')
+  await dialog.getByLabel('Идентификатор модели (slug)').fill('gpt-4o')
+  await dialog.getByLabel('Отображаемое имя').fill('My GPT-4o')
+
+  await dialog.getByRole('button', { name: 'Сохранить' }).click()
+
+  // On success the dialog closes and the live aiProvider.list query (invalidated
+  // by onSuccess) re-fetches — the new provider row appears in "Свои провайдеры".
+  await expect(dialog).not.toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('My OpenAI')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText(/My GPT-4o/)).toBeVisible()
+
+  // Confirm the DB row was actually written.
+  const count = await prisma.aiProvider.count({ where: { workspaceId } })
+  expect(count).toBe(1)
+
+  // Secondary assertion: after reload the model appears in the default-model selector.
+  // initialModels is populated server-side at page load, so the newly-added model
+  // only shows up after a full reload.
+  // Note: MUI Select opens a listbox — we click the Select then look for the option.
+  // If this proves flaky in CI, the manager-list + DB-count assertions above already
+  // fully prove the happy path and this block can be removed.
+  await page.reload()
+  await expect(page.getByText('Свои провайдеры')).toBeVisible({ timeout: 15_000 })
+  await page.getByLabel('Модель по умолчанию').click()
+  await expect(page.getByRole('option', { name: /My GPT-4o/ })).toBeVisible({ timeout: 10_000 })
 })
