@@ -25,6 +25,7 @@ def test_make_anthropic_passes_api_key() -> None:
         assert kwargs['model'] == 'm'
         assert isinstance(kwargs['api_key'], SecretStr)
         assert kwargs['api_key'].get_secret_value() == 'sk-ant'
+        assert kwargs['base_url'] is None
 
 
 def test_make_deepseek_requires_api_key() -> None:
@@ -54,3 +55,5 @@ def test_make_yandexgpt_passes_credentials() -> None:
         kwargs = mock_cls.call_args.kwargs
         assert kwargs['folder_id'] == 'b1g'
         assert kwargs['model_name'] == 'm'
+        assert isinstance(kwargs['api_key'], SecretStr)
+        assert kwargs['api_key'].get_secret_value() == 'k'

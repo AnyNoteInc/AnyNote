@@ -51,6 +51,7 @@ class ModelFactoryRepository:
                     verify_ssl_certs=False,
                     streaming=True,
                 )
+
             case ModelProviderEnum.ANTHROPIC:
                 if config.connection.api_key is None:
                     raise InvalidPayloadError('Anthropic provider requires an api_key in the connection config')

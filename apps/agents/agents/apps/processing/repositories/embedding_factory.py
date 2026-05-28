@@ -52,6 +52,9 @@ class EmbeddingFactoryRepository:
             case ModelProviderEnum.YANDEXGPT:
                 if config.connection.api_key is None or config.connection.folder_id is None:
                     raise InvalidPayloadError('YandexGPT provider requires api_key and folder_id')
+                # model_name sets the query embedding model; doc_model_name keeps its
+                # default ("text-search-doc"), which is Yandex's matched query/doc pair
+                # for the standard search embeddings. Don't force them equal.
                 return YandexGPTEmbeddings(
                     api_key=SecretStr(config.connection.api_key),
                     folder_id=config.connection.folder_id,

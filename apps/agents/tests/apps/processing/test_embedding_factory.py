@@ -121,3 +121,5 @@ def test_make_yandexgpt_passes_credentials() -> None:
         kwargs = mock_emb.call_args.kwargs
         assert kwargs['folder_id'] == 'b1g'
         assert kwargs['model_name'] == 'm'
+        assert isinstance(kwargs['api_key'], SecretStr)
+        assert kwargs['api_key'].get_secret_value() == 'k'
