@@ -26,6 +26,7 @@ export type PlanFeatures = {
   membersSettingsEnabled: boolean
   aiSettingsEnabled: boolean
   customMcpEnabled: boolean
+  customAiProvidersEnabled: boolean
   prioritySupport: boolean
   developerSpaceEnabled: boolean
 }
@@ -50,6 +51,7 @@ function planToFeatures(plan: Plan): PlanFeatures {
     membersSettingsEnabled: plan.membersSettingsEnabled,
     aiSettingsEnabled: plan.aiSettingsEnabled,
     customMcpEnabled: plan.customMcpEnabled,
+    customAiProvidersEnabled: plan.customAiProvidersEnabled,
     prioritySupport: plan.prioritySupport,
     developerSpaceEnabled: plan.developerSpaceEnabled,
   }
@@ -69,6 +71,7 @@ export async function getAvailableAiModels(
       isActive: true,
       supportsEmbeddings: false,
       OR: [{ minPlanSlug: null }, { minPlanSlug: { in: allowedSlugs } }],
+      provider: { isActive: true, OR: [{ workspaceId: null }, { workspaceId }] },
     },
     include: { provider: true },
     orderBy: { displayName: 'asc' },
@@ -90,6 +93,7 @@ export async function getAvailableEmbeddingModels(
       supportsEmbeddings: true,
       vectorSize: { not: null },
       OR: [{ minPlanSlug: null }, { minPlanSlug: { in: allowedSlugs } }],
+      provider: { isActive: true, OR: [{ workspaceId: null }, { workspaceId }] },
     },
     include: { provider: true },
     orderBy: { displayName: 'asc' },
