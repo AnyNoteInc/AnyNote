@@ -4,6 +4,8 @@ import type { PrismaClient } from '@repo/db'
 import { encryptSecret, decryptSecret, type EncryptedPayload } from '@repo/auth'
 
 import { router, protectedProcedure } from '../trpc'
+import { getWorkspaceFeatures } from '../helpers/plan'
+import { validateMcp } from '../helpers/agents-validate'
 
 const transportSchema = z.enum(['HTTP_JSONRPC', 'SSE'])
 
@@ -72,6 +74,19 @@ export const mcpServerRouter = router({
     .input(createInput)
     .mutation(async ({ ctx, input }) => {
       await assertRole(ctx, input.workspaceId, OWNERS)
+      const features = await getWorkspaceFeatures(input.workspaceId)
+      if (!features.customMcpEnabled) {
+        throw new TRPCError({ code: 'FORBIDDEN', message: 'CUSTOM_MCP_NOT_IN_PLAN' })
+      }
+      const ping = await validateMcp({
+        url: input.url,
+        transport: input.transport,
+        headers: input.headers,
+        verify: input.verifyTls,
+      })
+      if (!ping.ok) {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: `Не удалось подключиться к MCP: ${ping.error}` })
+      }
       const encrypted = encryptSecret(JSON.stringify(input.headers))
       const row = await ctx.prisma.workspaceMcpServer.create({
         data: {
@@ -93,6 +108,26 @@ export const mcpServerRouter = router({
     .input(updateInput)
     .mutation(async ({ ctx, input }) => {
       await assertRole(ctx, input.workspaceId, OWNERS)
+      const existing = await ctx.prisma.workspaceMcpServer.findFirst({
+        where: { id: input.id, workspaceId: input.workspaceId },
+      })
+      if (!existing) throw new TRPCError({ code: 'NOT_FOUND' })
+      if (
+        input.url !== undefined ||
+        input.transport !== undefined ||
+        input.headers !== undefined ||
+        input.verifyTls !== undefined
+      ) {
+        const ping = await validateMcp({
+          url: input.url ?? existing.url,
+          transport: (input.transport ?? existing.transport) as 'HTTP_JSONRPC' | 'SSE',
+          headers: input.headers ?? decryptMcpHeaders(existing.headers),
+          verify: input.verifyTls ?? existing.verifyTls,
+        })
+        if (!ping.ok) {
+          throw new TRPCError({ code: 'BAD_REQUEST', message: `Не удалось подключиться к MCP: ${ping.error}` })
+        }
+      }
       const data: Record<string, unknown> = {}
       if (input.name !== undefined) data.name = input.name
       if (input.description !== undefined) data.description = input.description
@@ -115,6 +150,10 @@ export const mcpServerRouter = router({
     .input(z.object({ id: z.string().uuid(), workspaceId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       await assertRole(ctx, input.workspaceId, OWNERS)
+      const existing = await ctx.prisma.workspaceMcpServer.findFirst({
+        where: { id: input.id, workspaceId: input.workspaceId },
+      })
+      if (!existing) throw new TRPCError({ code: 'NOT_FOUND' })
       await ctx.prisma.workspaceMcpServer.delete({ where: { id: input.id } })
       return { ok: true as const }
     }),

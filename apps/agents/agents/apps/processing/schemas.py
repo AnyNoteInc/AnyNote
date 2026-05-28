@@ -29,6 +29,7 @@ class ModelConnectionSchema(RequestResponseSchema):
     client_id: str | None = None
     client_secret: str | None = None
     scope: str | None = None
+    folder_id: str | None = None
 
 
 class EmbeddingProviderConfigSchema(RequestResponseSchema):
@@ -95,3 +96,19 @@ class PageWipeResponseSchema(RequestResponseSchema):
 
 
 ContentBlockSchema = BlockContentSchema
+
+
+class EmbeddingValidationRequest(RequestResponseSchema):
+    model_config = ConfigDict(populate_by_name=True)
+
+    provider: ModelProviderEnum
+    model_slug: str = Field(alias='modelSlug', min_length=1)
+    connection: ModelConnectionSchema
+
+
+class EmbeddingValidationResponse(RequestResponseSchema):
+    model_config = ConfigDict(populate_by_name=True)
+
+    ok: bool
+    vector_size: int | None = Field(default=None, alias='vectorSize')
+    error: str | None = None

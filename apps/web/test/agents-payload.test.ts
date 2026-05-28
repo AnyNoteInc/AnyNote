@@ -9,7 +9,7 @@ const BASE_SETTINGS = {
   defaultModel: {
     slug: 'GigaChat-2-Pro',
     provider: {
-      slug: 'gigachat',
+      kind: 'gigachat',
       connection: {
         clientId: 'cid',
         clientSecret: 'csecret',
@@ -72,7 +72,7 @@ describe('buildAgentRunPayload', () => {
         embeddingsModel: {
           slug: 'nomic-embed-text',
           vectorSize: 768,
-          provider: { slug: 'ollama', connection: { baseUrl: 'http://localhost:11434' } },
+          provider: { kind: 'ollama', connection: { baseUrl: 'http://localhost:11434' } },
         },
       },
       mcpServers: [],

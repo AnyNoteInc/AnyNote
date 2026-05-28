@@ -18,6 +18,7 @@ from agents.apps.agent.services.checkpoint_serde import build_checkpoint_serde
 from agents.apps.agent.services.rag_retrieval import RagRetrievalService
 from agents.apps.agent.use_cases.resume_agent import ResumeAgentUseCase
 from agents.apps.agent.use_cases.run_agent import RunAgentUseCase
+from agents.apps.agent.use_cases.validate_provider import ValidateLlmUseCase, ValidateMcpUseCase
 from agents.settings import SettingsSchema
 
 from .errors import JwtVerificationError
@@ -111,6 +112,8 @@ class AgentProvider(Provider):
 
     model_factory_repository = provide(ModelFactoryRepository, scope=Scope.APP)
     rag_retrieval_service = provide(RagRetrievalService)
+    validate_llm_use_case = provide(ValidateLlmUseCase)
+    validate_mcp_use_case = provide(ValidateMcpUseCase)
 
     @provide(scope=Scope.APP)
     async def checkpointer(self, settings_repo: SettingsRepositoryProtocol) -> AsyncIterator[AsyncPostgresSaver]:

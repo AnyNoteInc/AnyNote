@@ -43,6 +43,22 @@ async function assertWorkspaceMember(
   return member
 }
 
+async function assertWorkspaceOwner(
+  ctx: {
+    prisma: Prisma.TransactionClient | typeof import('@repo/db').prisma
+    user: { id: string }
+  },
+  workspaceId: string,
+) {
+  const member = await ctx.prisma.workspaceMember.findUnique({
+    where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
+  })
+  if (!member || member.role !== 'OWNER') {
+    throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
+  }
+  return member
+}
+
 export interface AiSettingsResult {
   workspaceId: string
   defaultModelId: string | null
@@ -196,7 +212,7 @@ export const aiSettingsRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }): Promise<AiSettingsResult> => {
-      await assertWorkspaceMember(ctx, input.workspaceId)
+      await assertWorkspaceOwner(ctx, input.workspaceId)
       await requireWritableWorkspace(input.workspaceId)
       if (input.defaultModelId) {
         const availableModels = await getAvailableAiModels(input.workspaceId)

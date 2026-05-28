@@ -15,6 +15,7 @@ import {
 } from '@/lib/chat/agent-sse-bridge'
 import type { StartChatGenerationBody } from '@/lib/chat/types'
 import { getSession } from '@/lib/get-session'
+import { resolveProviderConnection } from '@/lib/chat/provider-connection'
 
 export const runtime = 'nodejs'
 
@@ -158,12 +159,16 @@ export async function POST(request: NextRequest): Promise<Response> {
     scope: m.scope.toLowerCase() as 'workspace' | 'user',
   }))
 
+  // The agents service matches providers by ModelProviderEnum value (a Python StrEnum
+  // with auto(), so lowercased member names). AiProviderKind uses the same names, so
+  // kind.toLowerCase() is the wire value. Keep the two enums in sync
+  // (apps/agents/agents/apps/agent/enums_shared.py).
   const settingsSnapshot = {
     defaultModel: {
       slug: settings.defaultModel.slug,
       provider: {
-        slug: settings.defaultModel.provider.slug,
-        connection: settings.defaultModel.provider.connection,
+        kind: settings.defaultModel.provider.kind.toLowerCase(),
+        connection: resolveProviderConnection(settings.defaultModel.provider),
       },
     },
     embeddingsModel:
@@ -172,8 +177,8 @@ export async function POST(request: NextRequest): Promise<Response> {
             slug: settings.embeddingsModel.slug,
             vectorSize: settings.embeddingsModel.vectorSize,
             provider: {
-              slug: settings.embeddingsModel.provider.slug,
-              connection: settings.embeddingsModel.provider.connection,
+              kind: settings.embeddingsModel.provider.kind.toLowerCase(),
+              connection: resolveProviderConnection(settings.embeddingsModel.provider),
             },
           }
         : null,

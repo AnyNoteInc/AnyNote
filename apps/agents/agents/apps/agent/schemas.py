@@ -59,6 +59,17 @@ class McpServerSchema(RequestResponseSchema):
     workspace_id: str | None = None
 
 
+class LlmValidationResponse(RequestResponseSchema):
+    ok: bool
+    error: str | None = None
+
+
+class McpValidationResponse(RequestResponseSchema):
+    ok: bool
+    tools: list[str] = Field(default_factory=list)
+    error: str | None = None
+
+
 class RagDocumentSchema(RequestResponseSchema):
     model_config = ConfigDict(populate_by_name=True)
 

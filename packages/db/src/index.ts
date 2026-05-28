@@ -95,7 +95,13 @@ export type {
   TaskActivity,
   TaskAttachment,
 } from '@prisma/client'
-export { OutboxEventStatus, KanbanColumnKind, SprintStatus, TaskActivityType } from '@prisma/client'
+export {
+  OutboxEventStatus,
+  KanbanColumnKind,
+  SprintStatus,
+  TaskActivityType,
+  AiProviderKind,
+} from '@prisma/client'
 
 export type OutboxAggregateType = 'page' | 'file'
 

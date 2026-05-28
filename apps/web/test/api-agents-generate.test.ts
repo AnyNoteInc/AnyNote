@@ -87,7 +87,7 @@ describe('POST /api/agents/generate', () => {
       temperature: 0.5,
       topP: 0.9,
       systemPrompt: 'sys',
-      defaultModel: { slug: 'GigaChat-2-Pro', provider: { slug: 'gigachat', connection: {} } },
+      defaultModel: { slug: 'GigaChat-2-Pro', provider: { slug: 'gigachat', kind: 'GIGACHAT', connection: {} } },
       embeddingsModel: null,
     })
     mocks.prisma.workspaceMcpServer.findMany.mockResolvedValue([])
@@ -165,7 +165,7 @@ describe('POST /api/agents/generate', () => {
     mocks.prisma.workspaceMember.findUnique.mockResolvedValue({ role: 'EDITOR' })
     mocks.prisma.workspaceAiSettings.findUnique.mockResolvedValue({
       temperature: null, topP: null, systemPrompt: null,
-      defaultModel: { slug: 'gpt-4o-mini', provider: { slug: 'openai', connection: { apiKey: 'sk-test' } } },
+      defaultModel: { slug: 'gpt-4o-mini', provider: { slug: 'openai', kind: 'OPENAI', connection: { apiKey: 'sk-test' } } },
       embeddingsModel: null,
     })
     mocks.prisma.workspaceMcpServer.findMany.mockResolvedValue([])
@@ -226,7 +226,7 @@ describe('POST /api/agents/generate', () => {
     mocks.prisma.workspaceMember.findUnique.mockResolvedValue({ role: 'VIEWER' })
     mocks.prisma.workspaceAiSettings.findUnique.mockResolvedValue({
       temperature: null, topP: null, systemPrompt: null,
-      defaultModel: { slug: 'gpt-4o-mini', provider: { slug: 'openai', connection: {} } },
+      defaultModel: { slug: 'gpt-4o-mini', provider: { slug: 'openai', kind: 'OPENAI', connection: {} } },
       embeddingsModel: null,
     })
     mocks.prisma.workspaceMcpServer.findMany.mockResolvedValue([])

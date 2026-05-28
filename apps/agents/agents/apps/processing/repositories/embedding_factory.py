@@ -1,6 +1,7 @@
 from base64 import b64encode
 from dataclasses import dataclass
 
+from langchain_community.embeddings import YandexGPTEmbeddings
 from langchain_core.embeddings import Embeddings
 from langchain_gigachat.embeddings import GigaChatEmbeddings
 from langchain_ollama import OllamaEmbeddings
@@ -48,5 +49,18 @@ class EmbeddingFactoryRepository:
                     model=config.model_slug,
                     verify_ssl_certs=False,
                 )
+            case ModelProviderEnum.YANDEXGPT:
+                if config.connection.api_key is None or config.connection.folder_id is None:
+                    raise InvalidPayloadError('YandexGPT provider requires api_key and folder_id')
+                # model_name sets the query embedding model; doc_model_name keeps its
+                # default ("text-search-doc"), which is Yandex's matched query/doc pair
+                # for the standard search embeddings. Don't force them equal.
+                return YandexGPTEmbeddings(
+                    api_key=SecretStr(config.connection.api_key),
+                    folder_id=config.connection.folder_id,
+                    model_name=config.model_slug,
+                    grpc_metadata=[],  # overwritten by @pre_init validate_environment
+                )
+
             case _:
                 raise InvalidPayloadError(f'Unknown embedding provider: {provider!r}')

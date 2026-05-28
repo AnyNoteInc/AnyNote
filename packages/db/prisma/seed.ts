@@ -1,5 +1,5 @@
 import { config } from 'dotenv'
-import { PrismaClient, Prisma } from '@prisma/client'
+import { PrismaClient, Prisma, AiProviderKind } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 
 config({ path: '../../.env' })
@@ -72,6 +72,7 @@ const plans = [
     membersSettingsEnabled: false,
     aiSettingsEnabled: false,
     customMcpEnabled: false,
+    customAiProvidersEnabled: false,
     prioritySupport: false,
     developerSpaceEnabled: false,
     features: [
@@ -99,6 +100,7 @@ const plans = [
     membersSettingsEnabled: true,
     aiSettingsEnabled: true,
     customMcpEnabled: false,
+    customAiProvidersEnabled: false,
     prioritySupport: false,
     developerSpaceEnabled: false,
     features: [
@@ -127,6 +129,7 @@ const plans = [
     membersSettingsEnabled: true,
     aiSettingsEnabled: true,
     customMcpEnabled: true,
+    customAiProvidersEnabled: true,
     prioritySupport: true,
     developerSpaceEnabled: true,
     features: [
@@ -170,6 +173,7 @@ async function main() {
     {
       slug: 'gigachat',
       name: 'GigaChat',
+      kind: AiProviderKind.GIGACHAT,
       connection: {
         clientId: '019da3de-19e1-7f92-a0e1-5b90595c8e6c',
         clientSecret: 'e0762394-8b7c-48d4-84ea-dd3e4e57420b',
@@ -179,6 +183,7 @@ async function main() {
     {
       slug: 'ollama',
       name: 'Ollama',
+      kind: AiProviderKind.OLLAMA,
       connection: {
         baseUrl: 'http://localhost:11434',
       } satisfies Prisma.InputJsonValue,
@@ -186,28 +191,40 @@ async function main() {
     {
       slug: 'openai',
       name: 'OpenAI',
+      kind: AiProviderKind.OPENAI,
       connection: {
         apiKey: process.env.OPENAI_API_KEY ?? '',
       } satisfies Prisma.InputJsonValue,
     },
-  ] as const
+  ]
 
-  const providerRows = await Promise.all(
-    aiProviders.map((p) => {
-      const hasOpenAiApiKey = p.slug === 'openai' && p.connection.apiKey !== ''
-      const shouldUpdateConnection = p.slug !== 'openai' || hasOpenAiApiKey
+  async function upsertGlobalProvider(p: {
+    slug: string
+    name: string
+    kind: AiProviderKind
+    connection: Prisma.InputJsonValue
+  }) {
+    const hasOpenAiApiKey = p.slug === 'openai' && (p.connection as { apiKey?: string }).apiKey !== ''
+    const shouldUpdateConnection = p.slug !== 'openai' || hasOpenAiApiKey
 
-      return prisma.aiProvider.upsert({
-        where: { slug: p.slug },
-        update: {
+    const existing = await prisma.aiProvider.findFirst({ where: { slug: p.slug, workspaceId: null } })
+    if (existing) {
+      return prisma.aiProvider.update({
+        where: { id: existing.id },
+        data: {
           name: p.name,
+          kind: p.kind,
           ...(shouldUpdateConnection ? { connection: p.connection } : {}),
           isActive: true,
         },
-        create: { ...p, isActive: true },
       })
-    }),
-  )
+    }
+    return prisma.aiProvider.create({
+      data: { slug: p.slug, name: p.name, kind: p.kind, connection: p.connection, workspaceId: null, isActive: true },
+    })
+  }
+
+  const providerRows = await Promise.all(aiProviders.map((p) => upsertGlobalProvider(p)))
 
   const providerBySlug = new Map(providerRows.map((r) => [r.slug, r]))
 

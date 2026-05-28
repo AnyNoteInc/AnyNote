@@ -1,6 +1,8 @@
 from base64 import b64encode
 from dataclasses import dataclass
 
+from langchain_anthropic import ChatAnthropic
+from langchain_community.chat_models import ChatYandexGPT
 from langchain_core.language_models import BaseChatModel
 from langchain_gigachat.chat_models import GigaChat
 from langchain_ollama import ChatOllama
@@ -49,5 +51,36 @@ class ModelFactoryRepository:
                     verify_ssl_certs=False,
                     streaming=True,
                 )
+
+            case ModelProviderEnum.ANTHROPIC:
+                if config.connection.api_key is None:
+                    raise InvalidPayloadError('Anthropic provider requires an api_key in the connection config')
+                return ChatAnthropic(
+                    model=config.name,
+                    api_key=SecretStr(config.connection.api_key),
+                    base_url=config.connection.base_url,
+                    temperature=temperature,
+                )
+
+            case ModelProviderEnum.DEEPSEEK:
+                if config.connection.api_key is None:
+                    raise InvalidPayloadError('DeepSeek provider requires an api_key in the connection config')
+                return ChatOpenAI(
+                    model=config.name,
+                    api_key=SecretStr(config.connection.api_key),
+                    base_url=config.connection.base_url or 'https://api.deepseek.com',
+                    temperature=temperature,
+                )
+
+            case ModelProviderEnum.YANDEXGPT:
+                if config.connection.api_key is None or config.connection.folder_id is None:
+                    raise InvalidPayloadError('YandexGPT provider requires api_key and folder_id')
+                return ChatYandexGPT(
+                    api_key=SecretStr(config.connection.api_key),
+                    folder_id=config.connection.folder_id,
+                    model_name=config.name,
+                    temperature=temperature,
+                )
+
             case _:
                 raise InvalidPayloadError(f'Unknown provider: {provider!r}')

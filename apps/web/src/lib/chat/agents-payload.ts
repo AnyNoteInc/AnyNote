@@ -1,23 +1,15 @@
-import { parseAiProviderConnection } from '@repo/db'
-
 export type WorkspaceSettingsSnapshot = {
   temperature: number | null
   topP: number | null
   systemPrompt: string | null
   defaultModel: {
     slug: string
-    provider: {
-      slug: string
-      connection: unknown
-    }
+    provider: { kind: string; connection: Record<string, string> }
   }
   embeddingsModel: {
     slug: string
     vectorSize: number
-    provider: {
-      slug: string
-      connection: unknown
-    }
+    provider: { kind: string; connection: Record<string, string> }
   } | null
 }
 
@@ -84,15 +76,10 @@ export function buildAgentRunPayload(args: {
 }): AgentRunPayload {
   const embeddingConfig = args.settings.embeddingsModel
     ? {
-        provider: args.settings.embeddingsModel.provider.slug,
+        provider: args.settings.embeddingsModel.provider.kind,
         modelSlug: args.settings.embeddingsModel.slug,
         vectorSize: args.settings.embeddingsModel.vectorSize,
-        connection: normalizeConnection(
-          parseAiProviderConnection(
-            args.settings.embeddingsModel.provider.slug,
-            args.settings.embeddingsModel.provider.connection,
-          ),
-        ),
+        connection: normalizeConnection(args.settings.embeddingsModel.provider.connection),
       }
     : null
 
@@ -101,7 +88,7 @@ export function buildAgentRunPayload(args: {
     user_message: args.userMessage,
     chat_history: args.chatHistory,
     model: {
-      provider: args.settings.defaultModel.provider.slug,
+      provider: args.settings.defaultModel.provider.kind,
       name: args.settings.defaultModel.slug,
       connection: normalizeConnection(args.settings.defaultModel.provider.connection),
       settings: {
