@@ -47,3 +47,15 @@ export class UnsupportedMimeTypeError extends HttpException {
     )
   }
 }
+
+export class ReminderNotFoundError extends HttpException {
+  constructor(reminderId: string) {
+    super(
+      {
+        code: 'REMINDER_NOT_FOUND',
+        message: `REMINDER_NOT_FOUND: reminder ${reminderId} not found or not owned by caller`,
+      },
+      404,
+    )
+  }
+}
