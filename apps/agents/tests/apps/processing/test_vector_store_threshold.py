@@ -24,8 +24,8 @@ async def test_similarity_search_forwards_score_threshold() -> None:
         score_threshold=0.7,
     )
 
-    _, kwargs = client.query_points.call_args
-    assert kwargs['score_threshold'] == 0.7
+    call = client.query_points.call_args
+    assert call.kwargs['score_threshold'] == 0.7
 
 
 @pytest.mark.asyncio
@@ -41,5 +41,5 @@ async def test_similarity_search_threshold_defaults_to_none() -> None:
         collection_name='c', embeddings=embeddings, workspace_id='w', query='q', k=1,
     )
 
-    _, kwargs = client.query_points.call_args
-    assert kwargs['score_threshold'] is None
+    call = client.query_points.call_args
+    assert call.kwargs['score_threshold'] is None

@@ -91,6 +91,9 @@ class VectorStoreRepository:
 
         Bypasses langchain-qdrant's QdrantVectorStore (which requires sync QdrantClient)
         by calling AsyncQdrantClient.query_points directly.
+
+        ``score_threshold=None`` disables similarity filtering; a float value applies a
+        Qdrant minimum-similarity cutoff and drops results below it.
         """
         if not query.strip():
             return []

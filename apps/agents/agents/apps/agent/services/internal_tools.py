@@ -130,6 +130,7 @@ def make_search_pages_tool(*, workspace_id: str, embedding: Any, rag_service: An
             workspace_id=workspace_id,
             query=args.query,
             k=args.k,
+            score_threshold=0.7,  # explicit RAG cutoff, parity with /v1/search default
         )
         if not docs:
             return 'No results.'
