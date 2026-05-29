@@ -79,7 +79,7 @@ agent (apps/agents, LangGraph)            external MCP client
 3. Auth: `requireAuth(req)` → `{ userId }`, then `await assertMember(prisma, userId, workspaceId)` ([apps/engines/src/apps/api/auth/membership.ts](apps/engines/src/apps/api/auth/membership.ts)) for any workspace-scoped tool. Per-user tools (favorites, notifications) authorize on `userId` and verify page/workspace membership when a `pageId`/`workspaceId` is involved.
 4. `workspaceId` is a tool parameter; `apps/agents` auto-injects it from `server.workspace_id` and strips it from the LLM-visible schema. Tools that operate on "the current workspace" therefore just declare `workspaceId`.
 5. Register the class in [apps/engines/src/apps/mcp/mcp.module.ts](apps/engines/src/apps/mcp/mcp.module.ts) `providers` **and** `exports`.
-6. Add tool metadata to `DEFAULT_ENGINES_TOOLS` in [apps/agents/agents/apps/agent/services/tool_registry.py](apps/agents/agents/apps/agent/services/tool_registry.py): a `scope` and `requires_confirmation`. New scopes: `reminders:read|write`, `notifications:read|write`, `favorites:read|write`, `workspaces:read`, `members:read`. (`pages:read|write` reused.)
+6. Add tool metadata to `DEFAULT_ENGINES_TOOLS` in [apps/agents/agents/apps/agent/services/tool_registry.py](apps/agents/agents/apps/agent/services/tool_registry.py): a `scope` and `requires_confirmation`. New scopes: `reminders:read|write`, `notifications:read|write`, `favorites:read|write`, `workspaces:read` (member listing reuses `workspaces:read`). (`pages:read|write`, `search:query`, `files:read|write` reused.) **Every scope referenced here must also be granted in [apps/web/src/lib/agents-token.ts](apps/web/src/lib/agents-token.ts) (`scopesForRole`)** — otherwise the agents `tool_runner` hard-denies the tool for every role. A vitest drift-guard in `apps/web/test/agents-token.test.ts` cross-checks this.
 7. Errors use the existing `errors/mcp.errors.ts` classes + global filter so the agent receives a clean, actionable message.
 
 ### Confirmation policy (`requires_confirmation`)
@@ -96,8 +96,8 @@ Legend: **C?** = requires confirmation. `ws` = `workspaceId` (auto-injected). Re
 | Tool | Params | Behavior | Scope | C? |
 |---|---|---|---|---|
 | `list_workspaces` *(extend)* | `ws?` (injected) | Existing tool. Add `isCurrent` (== injected `ws`) and `isDefault` (== `UserPreference.defaultWorkspaceId`) to each row. Covers "какие у меня пространства / в каких я состою / где я сейчас". | workspaces:read | — |
-| `getWorkspaceStats` *(exists)* | `ws` | Already returns page counts by type + member count. Extend with `reminders` (open count) and `favorites` count. Covers "статистика по пространству X". | workspaces:read | — |
-| `listWorkspaceMembers` *(new)* | `ws` | Mirror [workspace.listMembers](packages/trpc/src/routers/workspace.ts) but gate with `assertMember` (any member may read the roster, for owner/assignee resolution). Returns `{ userId, firstName, lastName, email, role }[]`. Lets the agent resolve "{Имя человека}" → userId for UC2 owners. | members:read | — |
+| `getWorkspaceStats` *(exists)* | `ws` | Already returns page counts by type + member count — covers "статистика по пространству X". (The planned `reminders`/`favorites` count extension was **deferred** to avoid churn in `StatsService`; those totals are available via `listReminders`/`listFavorites`.) | workspaces:read | — |
+| `listWorkspaceMembers` *(new)* | `ws` | Mirror [workspace.listMembers](packages/trpc/src/routers/workspace.ts) but gate with `assertMember` (any member may read the roster, for owner/assignee resolution). Returns `{ userId, firstName, lastName, email, role }[]`. Lets the agent resolve "{Имя человека}" → userId for UC2 owners. | workspaces:read | — |
 
 ### B. Page navigation & editing (parity gaps, UC1/UC4)
 
@@ -183,7 +183,7 @@ const contentYjs = new Uint8Array(Y.encodeStateAsUpdate(ydoc))
 // create Page { type, title, parentId, contentYjs, content?, ownership: TEXT, createdById }
 ```
 
-(Pattern verified in [apps/e2e/plantuml-page.spec.ts](apps/e2e/plantuml-page.spec.ts).) Also enqueue the outbox/indexing event the same way `createPage` does, so the diagram source is searchable. `content` (JSON snapshot) follows the per-type convention in [apps/yjs/src/persistence.ts](apps/yjs/src/persistence.ts) (MERMAID snapshots; PLANTUML/LIKEC4 contentYjs-only).
+(Pattern verified in [apps/e2e/plantuml-page.spec.ts](apps/e2e/plantuml-page.spec.ts).) Also enqueue the outbox/indexing event the same way `createPage` does. **Searchability caveat:** diagram pages are findable by **title only** — the FTS `search_vector` indexes title+`content`, but `createDiagramPage` writes only `contentYjs` (no `content` JSON), and the RAG indexer skips non-TEXT pages ([vectorization-cron.service.ts](apps/engines/src/apps/indexer/cron/vectorization-cron.service.ts) `page.type !== 'TEXT'`). This is a pre-existing platform limitation identical to UI-created diagram pages, not specific to MCP.
 
 **Validation (`diagram-validator.service.ts`), "where cheap":**
 
