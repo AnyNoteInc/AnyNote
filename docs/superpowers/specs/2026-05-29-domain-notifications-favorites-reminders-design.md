@@ -1,6 +1,6 @@
 # `@repo/domain` SP2 — Notifications + Favorites + Reminders — Design
 
-**Status:** Draft, awaiting user review
+**Status:** Implemented (branch `feat/domain-notif-fav-reminders`)
 **Date:** 2026-05-29
 **Scope:** Migrate the write business-logic for **Notifications**, **Favorites**, and **Reminders** into `@repo/domain`, and refactor **both** consumers — `@repo/trpc` procedures and the `apps/engines` MCP services — to call it. This collapses the duplicated/divergent implementations these three domains accumulated (each currently has a tRPC version *and* a separate engines direct-Prisma version) into one source of truth, and fixes the gaps that divergence created. This is **sub-project 2** of the `@repo/domain` initiative (see `[[domain-package-initiative]]`); **Pages/Search** is the remaining, larger cycle (SP3) and is explicitly out of scope here.
 
