@@ -2,6 +2,7 @@ import { BadRequestException, Inject, Injectable } from '@nestjs/common'
 import { TiptapTransformer } from '@hocuspocus/transformer'
 import type { PrismaClient } from '@repo/db'
 import { Prisma } from '@repo/db'
+import * as domain from '@repo/domain'
 import StarterKit from '@tiptap/starter-kit'
 import * as Y from 'yjs'
 
@@ -47,34 +48,21 @@ export class PageWriter {
   constructor(@Inject(PRISMA) private readonly prisma: PrismaClient) {}
 
   async createPage(input: CreatePageInput): Promise<string> {
-    return this.prisma.$transaction(async (tx) => {
-      await this.ensureParent(tx, input.parentId, input.workspaceId)
-      const contentYjs = input.content === undefined ? undefined : buildContentYjs(input.content)
-      const page = await tx.page.create({
-        data: {
-          workspaceId: input.workspaceId,
-          parentId: input.parentId ?? null,
-          title: input.title,
-          ownership: input.ownership ?? 'TEXT',
-          type: 'TEXT',
-          content: input.content === undefined ? undefined : (input.content as never),
-          contentYjs,
-          createdById: input.userId,
-          updatedById: input.userId,
-        },
-        select: { id: true },
-      })
-      await tx.outboxEvent.create({
-        data: {
-          eventType: 'page.upserted',
-          aggregateType: 'page',
-          aggregateId: page.id,
-          workspaceId: input.workspaceId,
-          payload: {},
-        },
-      })
-      return page.id
+    // Delegate to @repo/domain so engines-created pages land in the linked list
+    // (positioning gap-fix) and share the outbox path. The domain builds neither the
+    // contentYjs bytes nor the Tiptap snapshot, so we still construct contentYjs here
+    // (the editor loads from contentYjs) and pass both content + contentYjs through.
+    const contentYjs = input.content === undefined ? undefined : buildContentYjs(input.content)
+    const result = await domain.createPage(this.prisma, input.userId, {
+      workspaceId: input.workspaceId,
+      parentId: input.parentId ?? null,
+      title: input.title,
+      type: 'TEXT',
+      ownership: input.ownership ?? 'TEXT',
+      content: input.content === undefined ? undefined : (input.content as Prisma.InputJsonValue),
+      contentYjs,
     })
+    return result.id
   }
 
   async updatePage(input: UpdatePageInput): Promise<void> {
@@ -108,82 +96,29 @@ export class PageWriter {
   }
 
   async movePage(input: MovePageInput): Promise<void> {
-    await this.prisma.$transaction(async (tx) => {
-      // 1. Find the page being moved; validate workspace ownership.
-      const page = await tx.page.findUnique({
-        where: { id: input.pageId },
-        select: { id: true, workspaceId: true, prevPageId: true },
+    // Preserve the engines cross-workspace guard + parent validation, then delegate to
+    // domain.reorderPage (which matches this op's prevPageId semantics — closer to tRPC
+    // reorder than move) so the agent gets BFS cycle-detection (the gap-fix).
+    const page = await this.prisma.page.findUnique({
+      where: { id: input.pageId },
+      select: { id: true, workspaceId: true },
+    })
+    if (page?.workspaceId !== input.workspaceId) {
+      throw new PageNotFoundError(input.pageId)
+    }
+    if (input.newParentId) {
+      const parent = await this.prisma.page.findUnique({
+        where: { id: input.newParentId },
+        select: { workspaceId: true, deletedAt: true },
       })
-      if (page?.workspaceId !== input.workspaceId) {
-        throw new PageNotFoundError(input.pageId)
+      if (!parent || parent.workspaceId !== input.workspaceId || parent.deletedAt) {
+        throw new PageNotFoundError(input.newParentId)
       }
-
-      // Validate new parent (cross-workspace / soft-deleted check).
-      await this.ensureParent(tx, input.newParentId, input.workspaceId)
-
-      // 2. Collapse the old position: find the page currently pointing at the
-      //    moved page as predecessor and relink it to moved page's previous
-      //    predecessor. Detach first to avoid P2002 on the @unique prevPageId.
-      const oldSuccessor = await tx.page.findFirst({
-        where: { prevPageId: input.pageId },
-        select: { id: true },
-      })
-      if (oldSuccessor) {
-        await tx.page.update({
-          where: { id: oldSuccessor.id },
-          data: { prevPageId: null },
-        })
-      }
-
-      // 3. Make room at the new position: the current successor of the new
-      //    predecessor must be relinked to the moved page.
-      let newSuccessor: { id: string } | null = null
-      if (input.prevPageId) {
-        newSuccessor = await tx.page.findFirst({
-          where: { prevPageId: input.prevPageId, id: { not: input.pageId } },
-          select: { id: true },
-        })
-        if (newSuccessor) {
-          await tx.page.update({
-            where: { id: newSuccessor.id },
-            data: { prevPageId: null },
-          })
-        }
-      }
-
-      // 4. Update the moved page with its new parent + predecessor.
-      await tx.page.update({
-        where: { id: input.pageId },
-        data: {
-          parentId: input.newParentId ?? null,
-          prevPageId: input.prevPageId ?? null,
-          updatedById: input.userId,
-        },
-      })
-
-      // 5. Finish relinking now that the moved page is out of the way.
-      if (oldSuccessor) {
-        await tx.page.update({
-          where: { id: oldSuccessor.id },
-          data: { prevPageId: page.prevPageId ?? null },
-        })
-      }
-      if (newSuccessor) {
-        await tx.page.update({
-          where: { id: newSuccessor.id },
-          data: { prevPageId: input.pageId },
-        })
-      }
-
-      await tx.outboxEvent.create({
-        data: {
-          eventType: 'page.upserted',
-          aggregateType: 'page',
-          aggregateId: input.pageId,
-          workspaceId: input.workspaceId,
-          payload: {},
-        },
-      })
+    }
+    await domain.reorderPage(this.prisma, input.userId, {
+      pageId: input.pageId,
+      newParentId: input.newParentId ?? null,
+      newPrevPageId: input.prevPageId ?? null,
     })
   }
 

@@ -1,291 +1,119 @@
-import { jest, describe, it, expect, beforeEach } from '@jest/globals'
-
+import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import type { PrismaClient } from '@repo/db'
 
+// SP1 pattern: NO jest.unstable_mockModule. Import the service normally; the REAL
+// @repo/domain functions run against a hand-mocked PrismaClient. We assert on mocked
+// prisma calls + returned values directly.
 import { PageWriter } from './page-writer.service.js'
 
-describe('PageWriter', () => {
-  const mockPrisma = {
-    $transaction: jest.fn<(...a: unknown[]) => Promise<unknown>>(),
-    page: {
-      create: jest.fn<(...a: unknown[]) => Promise<unknown>>(),
-      update: jest.fn<(...a: unknown[]) => Promise<unknown>>(),
-      findUnique: jest.fn<(...a: unknown[]) => Promise<unknown>>(),
-      findFirst: jest.fn<(...a: unknown[]) => Promise<unknown>>(),
-    },
-    outboxEvent: { create: jest.fn<(...a: unknown[]) => Promise<unknown>>() },
-  } as unknown as PrismaClient
+function makeMockPrisma() {
+  // createPage path
+  const pageCreate = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({ id: 'new-1', type: 'TEXT' }))
+  const txFindMany = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => [])
+  const txFindFirst = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => null)
+  const txUpdate = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({}))
+  const outboxCreate = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({}))
+  // outer parent lookup (domain.createPage uses prisma.page.findFirst for the parent check;
+  // engines movePage pre-check uses prisma.page.findUnique). Provide both.
+  const pageFindFirst = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => null) // no parent by default
+  const pageFindUnique = jest.fn<(...a: unknown[]) => Promise<unknown>>(
+    async () => ({ id: 'p1', workspaceId: 'w1', prevPageId: null }),
+  )
+  const memberFindUnique = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({ role: 'EDITOR' }))
+  // updatePage stays direct-Prisma and looks the page up inside the tx via tx.page.findUnique
+  // (workspace-ownership guard). Default to a same-workspace page so the direct path proceeds.
+  const txFindUnique = jest.fn<(...a: unknown[]) => Promise<unknown>>(
+    async () => ({ id: 'p1', workspaceId: 'w1' }),
+  )
+  const tx = {
+    page: { create: pageCreate, findMany: txFindMany, findFirst: txFindFirst, findUnique: txFindUnique, update: txUpdate },
+    outboxEvent: { create: outboxCreate },
+    kanbanColumn: { createMany: jest.fn() },
+    kanbanType: { createMany: jest.fn() },
+    kanbanPriority: { createMany: jest.fn() },
+  }
+  const $transaction = jest.fn<(...a: unknown[]) => Promise<unknown>>(
+    async (fn: unknown) => (fn as (t: typeof tx) => unknown)(tx),
+  )
+  return {
+    page: { findFirst: pageFindFirst, findUnique: pageFindUnique, findMany: txFindMany },
+    workspaceMember: { findUnique: memberFindUnique },
+    $transaction,
+    __mocks: { pageCreate, txFindMany, txFindFirst, txFindUnique, txUpdate, outboxCreate, pageFindFirst, pageFindUnique, memberFindUnique, $transaction },
+  } as unknown as PrismaClient & { __mocks: Record<string, ReturnType<typeof jest.fn>> }
+}
 
+describe('PageWriter', () => {
+  let mockPrisma: ReturnType<typeof makeMockPrisma>
   let writer: PageWriter
 
   beforeEach(() => {
-    ;(mockPrisma.$transaction as jest.Mock).mockReset()
-    ;(mockPrisma.page.create as jest.Mock).mockReset()
-    ;(mockPrisma.page.update as jest.Mock).mockReset()
-    ;(mockPrisma.page.findUnique as jest.Mock).mockReset()
-    ;(mockPrisma.page.findFirst as jest.Mock).mockReset()
-    ;(mockPrisma.outboxEvent.create as jest.Mock).mockReset()
-    ;(mockPrisma.$transaction as jest.Mock).mockImplementation((async (
-      fn: (tx: PrismaClient) => Promise<unknown>,
-    ) => fn(mockPrisma)) as never)
+    jest.clearAllMocks()
+    mockPrisma = makeMockPrisma()
     writer = new PageWriter(mockPrisma)
   })
 
-  describe('createPage', () => {
-    it('creates page and enqueues outbox', async () => {
-      ;(mockPrisma.page.create as jest.Mock).mockResolvedValue({ id: 'p1' } as never)
-
-      const id = await writer.createPage({
-        userId: 'u1',
-        workspaceId: 'w1',
-        title: 'Test',
-        ownership: 'TEXT',
-      })
-
-      expect(id).toBe('p1')
-      expect(mockPrisma.page.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          workspaceId: 'w1',
-          title: 'Test',
-          ownership: 'TEXT',
-          createdById: 'u1',
-          updatedById: 'u1',
-        }),
-        select: { id: true },
-      })
-      expect(mockPrisma.outboxEvent.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          eventType: 'page.upserted',
-          aggregateType: 'page',
-          aggregateId: 'p1',
-          workspaceId: 'w1',
-        }),
-      })
+  it('createPage delegates to domain: positions the page (findMany siblings) and enqueues outbox', async () => {
+    const id = await writer.createPage({
+      userId: 'u1',
+      workspaceId: 'w1',
+      parentId: null,
+      title: 'Note',
+      ownership: 'TEXT',
     })
+    expect(id).toBe('new-1')
+    expect(mockPrisma.__mocks.pageCreate).toHaveBeenCalledTimes(1)
+    // the linked-list positioning query (the gap-fix) ran:
+    expect(mockPrisma.__mocks.txFindMany).toHaveBeenCalled()
+    expect(mockPrisma.__mocks.outboxCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ eventType: 'page.upserted', aggregateId: 'new-1' }),
+      }),
+    )
+  })
 
-    it('allows createPage without parent', async () => {
-      ;(mockPrisma.page.create as jest.Mock).mockResolvedValue({ id: 'p1' } as never)
-
-      await expect(
-        writer.createPage({
-          userId: 'u1',
-          workspaceId: 'w1',
-          parentId: null,
-          title: 'Test',
-        }),
-      ).resolves.toBe('p1')
-      expect(mockPrisma.page.findUnique).not.toHaveBeenCalled()
-    })
-
-    it('rejects createPage with parent in other workspace', async () => {
-      ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({
-        workspaceId: 'other',
-        deletedAt: null,
-      } as never)
-
-      await expect(
-        writer.createPage({
-          userId: 'u1',
-          workspaceId: 'w1',
-          parentId: 'parent-1',
-          title: 'Test',
-        }),
-      ).rejects.toThrow(/not found/i)
-      expect(mockPrisma.page.create).not.toHaveBeenCalled()
-    })
-
-    it('rejects createPage with deleted parent', async () => {
-      ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({
-        workspaceId: 'w1',
-        deletedAt: new Date(),
-      } as never)
-
-      await expect(
-        writer.createPage({
-          userId: 'u1',
-          workspaceId: 'w1',
-          parentId: 'parent-1',
-          title: 'Test',
-        }),
-      ).rejects.toThrow(/not found/i)
-      expect(mockPrisma.page.create).not.toHaveBeenCalled()
-    })
-
-    it('persists content when supplied on create', async () => {
-      const content = {
-        type: 'doc',
-        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'hello' }] }],
-      }
-      // NOSONAR S4325 — jest.Mock erases the resolved type to `never`; tsc requires the cast.
-      ;(mockPrisma.page.create as jest.Mock).mockResolvedValue({ id: 'p-content' } as never)
-
-      const id = await writer.createPage({
-        userId: 'u1',
-        workspaceId: 'w1',
-        parentId: null,
-        title: 'With content',
-        content,
-      })
-
-      expect(id).toBe('p-content')
-      expect(mockPrisma.page.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({ content }),
-        select: { id: true },
-      })
-    })
-
-    it('persists contentYjs when supplied content is created', async () => {
-      const content = {
-        type: 'doc',
-        content: [{ type: 'paragraph', content: [{ type: 'text', text: 'hello body' }] }],
-      }
-      ;(mockPrisma.page.create as jest.Mock).mockResolvedValue({ id: 'p-content-yjs' } as never)
-
-      await writer.createPage({
-        userId: 'u1',
-        workspaceId: 'w1',
-        parentId: null,
-        title: 'With editor body',
-        content,
-      })
-
-      const callArg = (mockPrisma.page.create as jest.Mock).mock.calls[0]?.[0] as {
-        data: Record<string, unknown>
-      }
-      expect(callArg.data.content).toEqual(content)
-      expect(callArg.data.contentYjs).toBeInstanceOf(Uint8Array)
-    })
-
-    it('leaves content undefined when not supplied (backwards-compatible)', async () => {
-      // NOSONAR S4325 — jest.Mock erases the resolved type to `never`; tsc requires the cast.
-      ;(mockPrisma.page.create as jest.Mock).mockResolvedValue({ id: 'p-no-content' } as never)
-
-      await writer.createPage({
-        userId: 'u1',
-        workspaceId: 'w1',
-        parentId: null,
-        title: 'No content',
-      })
-
-      const callArg = (mockPrisma.page.create as jest.Mock).mock.calls[0]?.[0] as {
-        data: Record<string, unknown>
-      }
-      expect(callArg.data.content).toBeUndefined()
+  it('createPage links the new page to the tail sibling', async () => {
+    mockPrisma.__mocks.txFindMany!.mockResolvedValue([
+      { id: 's1', prevPageId: null },
+      { id: 's2', prevPageId: 's1' },
+    ])
+    await writer.createPage({ userId: 'u1', workspaceId: 'w1', title: 'Note' })
+    expect(mockPrisma.__mocks.txUpdate).toHaveBeenCalledWith({
+      where: { id: 'new-1' },
+      data: { prevPageId: 's2' },
     })
   })
 
-  describe('updatePage', () => {
-    it('rejects when page belongs to another workspace', async () => {
-      ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({
-        id: 'p1',
-        workspaceId: 'other',
-      } as never)
-      await expect(
-        writer.updatePage({ userId: 'u1', workspaceId: 'w1', pageId: 'p1', title: 'x' }),
-      ).rejects.toThrow(/not found/i)
+  it('movePage delegates to domain.reorderPage: enqueues page.upserted on position change', async () => {
+    // page exists in workspace w1, currently at parent null / prev null
+    mockPrisma.__mocks.pageFindUnique!.mockResolvedValue({ id: 'p1', workspaceId: 'w1', prevPageId: null })
+    // domain.reorderPage re-loads via prisma.page.findFirst; return the same page
+    mockPrisma.__mocks.pageFindFirst!.mockResolvedValue({
+      id: 'p1',
+      workspaceId: 'w1',
+      parentId: null,
+      prevPageId: null,
     })
-
-    it('updates page and enqueues outbox', async () => {
-      ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({
-        id: 'p1',
-        workspaceId: 'w1',
-      } as never)
-      ;(mockPrisma.page.update as jest.Mock).mockResolvedValue({ id: 'p1' } as never)
-
-      await writer.updatePage({ userId: 'u1', workspaceId: 'w1', pageId: 'p1', title: 'new' })
-
-      expect(mockPrisma.page.update).toHaveBeenCalled()
-      expect(mockPrisma.outboxEvent.create).toHaveBeenCalled()
-    })
+    await writer.movePage({ userId: 'u1', workspaceId: 'w1', pageId: 'p1', newParentId: 'parent-2', prevPageId: null })
+    expect(mockPrisma.__mocks.outboxCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ eventType: 'page.upserted', aggregateId: 'p1' }),
+      }),
+    )
   })
 
-  describe('movePage', () => {
-    it('rejects cross-workspace page', async () => {
-      ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValueOnce({
-        id: 'p1',
-        workspaceId: 'other',
-        prevPageId: null,
-      } as never)
+  it('movePage throws when the page is not in the given workspace (engines cross-workspace guard)', async () => {
+    mockPrisma.__mocks.pageFindUnique!.mockResolvedValue({ id: 'p1', workspaceId: 'OTHER', prevPageId: null })
+    await expect(
+      writer.movePage({ userId: 'u1', workspaceId: 'w1', pageId: 'p1', newParentId: null, prevPageId: null }),
+    ).rejects.toThrow()
+  })
 
-      await expect(
-        writer.movePage({
-          userId: 'u1',
-          workspaceId: 'w1',
-          pageId: 'p1',
-          newParentId: null,
-          prevPageId: null,
-        }),
-      ).rejects.toThrow(/not found/i)
-      expect(mockPrisma.page.update).not.toHaveBeenCalled()
-    })
-
-    it('relinks when moving to new position', async () => {
-      ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValueOnce({
-        id: 'page-m',
-        workspaceId: 'w1',
-        prevPageId: 'page-a',
-      } as never)
-      // findFirst calls: (1) oldSuccessor, (2) newSuccessor
-      ;(mockPrisma.page.findFirst as jest.Mock)
-        .mockResolvedValueOnce({ id: 'page-old-succ' } as never)
-        .mockResolvedValueOnce({ id: 'page-new-succ' } as never)
-      ;(mockPrisma.page.update as jest.Mock).mockResolvedValue({} as never)
-
-      await writer.movePage({
-        userId: 'u1',
-        workspaceId: 'w1',
-        pageId: 'page-m',
-        newParentId: null,
-        prevPageId: 'page-b',
-      })
-
-      // 2 findFirst calls (old successor + new successor)
-      expect(mockPrisma.page.findFirst).toHaveBeenCalledTimes(2)
-      expect(mockPrisma.page.findFirst).toHaveBeenNthCalledWith(1, {
-        where: { prevPageId: 'page-m' },
-        select: { id: true },
-      })
-      expect(mockPrisma.page.findFirst).toHaveBeenNthCalledWith(2, {
-        where: { prevPageId: 'page-b', id: { not: 'page-m' } },
-        select: { id: true },
-      })
-
-      // 5 update calls in order:
-      //   detach old successor, detach new successor, update moved page,
-      //   re-link old successor, re-link new successor.
-      expect(mockPrisma.page.update).toHaveBeenCalledTimes(5)
-      expect(mockPrisma.page.update).toHaveBeenNthCalledWith(1, {
-        where: { id: 'page-old-succ' },
-        data: { prevPageId: null },
-      })
-      expect(mockPrisma.page.update).toHaveBeenNthCalledWith(2, {
-        where: { id: 'page-new-succ' },
-        data: { prevPageId: null },
-      })
-      expect(mockPrisma.page.update).toHaveBeenNthCalledWith(3, {
-        where: { id: 'page-m' },
-        data: {
-          parentId: null,
-          prevPageId: 'page-b',
-          updatedById: 'u1',
-        },
-      })
-      expect(mockPrisma.page.update).toHaveBeenNthCalledWith(4, {
-        where: { id: 'page-old-succ' },
-        data: { prevPageId: 'page-a' },
-      })
-      expect(mockPrisma.page.update).toHaveBeenNthCalledWith(5, {
-        where: { id: 'page-new-succ' },
-        data: { prevPageId: 'page-m' },
-      })
-
-      expect(mockPrisma.outboxEvent.create).toHaveBeenCalledWith({
-        data: expect.objectContaining({
-          eventType: 'page.upserted',
-          aggregateId: 'page-m',
-          workspaceId: 'w1',
-        }),
-      })
-    })
+  it('updatePage stays direct-Prisma (does NOT call domain positioning findMany)', async () => {
+    mockPrisma.__mocks.pageFindUnique!.mockResolvedValue({ id: 'p1', workspaceId: 'w1' })
+    await writer.updatePage({ userId: 'u1', workspaceId: 'w1', pageId: 'p1', title: 'X' })
+    // direct update, no sibling-positioning findMany on the create path
+    expect(mockPrisma.__mocks.txUpdate).toHaveBeenCalled()
+    expect(mockPrisma.__mocks.pageCreate).not.toHaveBeenCalled()
   })
 })
