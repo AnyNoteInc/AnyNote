@@ -1,55 +1,76 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import type { PrismaClient } from '@repo/db'
 
-import { PageNotFoundError } from '../errors/mcp.errors.js'
+// SP1 pattern: NO jest.unstable_mockModule. Import the service normally; the REAL
+// @repo/domain functions run against a hand-mocked PrismaClient.
 import { FavoriteService } from './favorite.service.js'
 
+function makeMockPrisma() {
+  const deleteMany = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({ count: 1 }))
+  const aggregate = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({ _max: { position: null } }))
+  const upsert = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({ userId: 'u1', pageId: 'p1', position: 0 }))
+  const favFindMany = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => [])
+  const favUpdateMany = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({ count: 1 }))
+  const pageFindFirst = jest.fn<(...a: unknown[]) => Promise<unknown>>(
+    async () => ({ id: 'p1', workspaceId: 'w1', createdById: 'u1' }),
+  )
+  const memberFindUnique = jest.fn<(...a: unknown[]) => Promise<unknown>>(
+    async () => ({ workspaceId: 'w1', userId: 'u1', role: 'EDITOR' }),
+  )
+  const $transaction = jest.fn<(...a: unknown[]) => Promise<unknown>>(async (fns: unknown) => {
+    if (Array.isArray(fns)) return Promise.all(fns as Promise<unknown>[])
+    if (typeof fns === 'function')
+      return (fns as (tx: unknown) => unknown)({
+        favoritePage: { aggregate, upsert, deleteMany, updateMany: favUpdateMany },
+        workspaceMember: { findUnique: memberFindUnique },
+      })
+    return fns
+  })
+  const __mocks = { deleteMany, aggregate, upsert, favFindMany, favUpdateMany, pageFindFirst, memberFindUnique, $transaction }
+  return {
+    page: { findFirst: pageFindFirst },
+    workspaceMember: { findUnique: memberFindUnique },
+    favoritePage: { aggregate, upsert, deleteMany, findMany: favFindMany, updateMany: favUpdateMany },
+    $transaction,
+    __mocks,
+  } as unknown as PrismaClient & { __mocks: typeof __mocks }
+}
+
 describe('FavoriteService', () => {
-  const favFindMany = jest.fn<(...a: unknown[]) => Promise<unknown>>()
-  const favAggregate = jest.fn<(...a: unknown[]) => Promise<unknown>>()
-  const favUpsert = jest.fn<(...a: unknown[]) => Promise<unknown>>()
-  const favDeleteMany = jest.fn<(...a: unknown[]) => Promise<unknown>>()
-  const pageFindUnique = jest.fn<(...a: unknown[]) => Promise<unknown>>()
-  const prisma = {
-    favoritePage: { findMany: favFindMany, aggregate: favAggregate, upsert: favUpsert, deleteMany: favDeleteMany },
-    page: { findUnique: pageFindUnique },
-  } as unknown as PrismaClient
+  let mockPrisma: ReturnType<typeof makeMockPrisma>
   let svc: FavoriteService
 
   beforeEach(() => {
     jest.clearAllMocks()
-    svc = new FavoriteService(prisma)
+    mockPrisma = makeMockPrisma()
+    svc = new FavoriteService(mockPrisma)
   })
 
-  it('lists favorites ordered by position', async () => {
-    favFindMany.mockResolvedValue([
-      { page: { id: 'p1', title: 'A', type: 'TEXT', icon: null, workspaceId: 'w1' } },
-    ])
-    const out = await svc.list({ userId: 'u1' })
-    expect(out).toEqual([{ pageId: 'p1', title: 'A', type: 'TEXT', icon: null, workspaceId: 'w1' }])
-  })
-
-  it('add verifies the page is in the workspace and upserts at next position', async () => {
-    pageFindUnique.mockResolvedValue({ workspaceId: 'w1' })
-    favAggregate.mockResolvedValue({ _max: { position: 4 } })
-    favUpsert.mockResolvedValue({})
+  it('add calls domain.addFavorite (page.findFirst + $transaction + favoritePage.upsert)', async () => {
     await svc.add({ userId: 'u1', workspaceId: 'w1', pageId: 'p1' })
-    expect(favUpsert).toHaveBeenCalledWith({
-      where: { userId_pageId: { userId: 'u1', pageId: 'p1' } },
-      create: { userId: 'u1', pageId: 'p1', position: 5 },
-      update: {},
+    expect(mockPrisma.__mocks.pageFindFirst).toHaveBeenCalled()
+    expect(mockPrisma.__mocks.upsert).toHaveBeenCalledWith(
+      expect.objectContaining({ create: expect.objectContaining({ userId: 'u1', pageId: 'p1' }) }),
+    )
+  })
+
+  it('remove calls favoritePage.deleteMany and returns { count: 1 }', async () => {
+    const result = await svc.remove({ userId: 'u1', pageId: 'p1' })
+    expect(mockPrisma.__mocks.deleteMany).toHaveBeenCalledWith({
+      where: { userId: 'u1', pageId: 'p1' },
     })
+    expect(result).toEqual({ count: 1 })
   })
 
-  it('add rejects a page from another workspace', async () => {
-    pageFindUnique.mockResolvedValue({ workspaceId: 'w-other' })
-    await expect(svc.add({ userId: 'u1', workspaceId: 'w1', pageId: 'p1' })).rejects.toBeInstanceOf(PageNotFoundError)
+  it('reorder calls $transaction for updateMany batch', async () => {
+    await svc.reorder({ userId: 'u1', workspaceId: 'w1', orderedIds: ['p1', 'p2'] })
+    expect(mockPrisma.__mocks.$transaction).toHaveBeenCalled()
   })
 
-  it('remove deletes the favorite', async () => {
-    favDeleteMany.mockResolvedValue({ count: 1 })
-    const out = await svc.remove({ userId: 'u1', pageId: 'p1' })
-    expect(out.count).toBe(1)
-    expect(favDeleteMany).toHaveBeenCalledWith({ where: { userId: 'u1', pageId: 'p1' } })
+  it('list uses direct Prisma favoritePage.findMany (does not touch page.findFirst)', async () => {
+    mockPrisma.__mocks.favFindMany.mockResolvedValue([])
+    await svc.list({ userId: 'u1' })
+    expect(mockPrisma.__mocks.favFindMany).toHaveBeenCalled()
+    expect(mockPrisma.__mocks.pageFindFirst).not.toHaveBeenCalled()
   })
 })

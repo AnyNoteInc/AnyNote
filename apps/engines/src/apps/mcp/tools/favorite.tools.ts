@@ -20,10 +20,15 @@ const AddFavoriteInput = z.object({
 const RemoveFavoriteInput = z.object({
   pageId: mcpUuid(),
 })
+const ReorderFavoritesInput = z.object({
+  workspaceId: z.string().uuid(),
+  orderedIds: z.array(z.string().uuid()).min(1).max(200),
+})
 
 type ListFavoritesArgs = z.infer<typeof ListFavoritesInput>
 type AddFavoriteArgs = z.infer<typeof AddFavoriteInput>
 type RemoveFavoriteArgs = z.infer<typeof RemoveFavoriteInput>
+type ReorderFavoritesArgs = z.infer<typeof ReorderFavoritesInput>
 
 function requireAuth(req: AuthedRequest | undefined): AuthContext {
   if (!req?.auth) throw new UnauthorizedException('Unauthenticated MCP request')
@@ -73,5 +78,23 @@ export class FavoriteTools {
   async removeFavorite(args: RemoveFavoriteArgs, _context: Context, req: AuthedRequest) {
     const auth = requireAuth(req)
     return this.favorites.remove({ userId: auth.userId, pageId: args.pageId })
+  }
+
+  @Tool({
+    name: 'reorderFavorites',
+    description:
+      'Переупорядочивает избранные страницы пользователя в воркспейсе. ' +
+      'orderedIds — полный список pageId в желаемом порядке (0-based position). ' +
+      'Требует подтверждения. Параметры: workspaceId, orderedIds[].',
+    parameters: ReorderFavoritesInput,
+  })
+  async reorderFavorites(args: ReorderFavoritesArgs, _context: Context, req: AuthedRequest) {
+    const auth = requireAuth(req)
+    await assertMember(this.prisma, auth.userId, args.workspaceId)
+    return this.favorites.reorder({
+      userId: auth.userId,
+      workspaceId: args.workspaceId,
+      orderedIds: args.orderedIds,
+    })
   }
 }
