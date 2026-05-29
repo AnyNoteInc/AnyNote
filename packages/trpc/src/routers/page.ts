@@ -77,164 +77,34 @@ export const pageRouter = router({
     }),
 
   create: protectedProcedure
-    .input(
-      z.object({
-        workspaceId: z.string().uuid(),
-        parentId: z.string().uuid().nullable(),
-        title: z.string().optional(),
-        icon: z.string().optional(),
-        type: z.nativeEnum(PageType).optional(),
-      }),
-    )
+    .input(domain.createPageInput)
     .mutation(async ({ ctx, input }): Promise<{ id: string }> => {
       await assertWorkspaceMember(ctx, input.workspaceId)
       await requireWritableWorkspace(input.workspaceId)
-
-      // If parent is a page, verify it exists and belongs to same workspace
-      if (input.parentId) {
-        const parentPage = await ctx.prisma.page.findFirst({
-          where: { id: input.parentId, workspaceId: input.workspaceId, deletedAt: null },
-        })
-        if (!parentPage) {
-          throw new TRPCError({
-            code: 'NOT_FOUND',
-            message: 'Родительская страница не найдена',
-          })
-        }
-      }
-
-      return ctx.prisma.$transaction(async (tx) => {
-        const newPage = await tx.page.create({
-          data: {
-            workspaceId: input.workspaceId,
-            parentId: input.parentId,
-            title: input.title ?? null,
-            icon: input.icon ?? null,
-            type: input.type ?? PageType.TEXT,
-            prevPageId: null,
-            createdById: ctx.user.id,
-            updatedById: ctx.user.id,
-          },
-        })
-
-        // Insert at tail of linked list: find the sibling whose id is not
-        // referenced as prevPageId by any other sibling (= the last one).
-        const siblings = await tx.page.findMany({
-          where: {
-            workspaceId: input.workspaceId,
-            parentId: input.parentId,
-            id: { not: newPage.id },
-            deletedAt: null,
-          },
-          select: { id: true, prevPageId: true },
-        })
-        if (siblings.length > 0) {
-          const prevPageIds = new Set(
-            siblings.map((s) => s.prevPageId).filter((id): id is string => id !== null),
-          )
-          const tail = siblings.find((s) => !prevPageIds.has(s.id))
-          if (tail) {
-            await tx.page.update({
-              where: { id: newPage.id },
-              data: { prevPageId: tail.id },
-            })
-          }
-        }
-
-        await enqueueOutboxEvent(tx, {
-          eventType: 'page.upserted',
-          aggregateType: 'page',
-          aggregateId: newPage.id,
-          workspaceId: input.workspaceId,
-        })
-
-        if (newPage.type === PageType.KANBAN) {
-          await seedKanbanDefaults(tx, newPage.id)
-        }
-
-        return { id: newPage.id }
-      })
+      return mapDomain(() => domain.createPage(ctx.prisma, ctx.user.id, input))
     }),
 
   rename: protectedProcedure
-    .input(
-      z.object({
-        id: z.string().uuid(),
-        workspaceId: z.string().uuid(),
-        title: z.string(),
-        icon: z.string().nullable().optional(),
-      }),
-    )
+    .input(domain.renamePageInput)
     .mutation(
       async ({
         ctx,
         input,
       }): Promise<{ id: string; title: string | null; icon: string | null; updatedAt: Date }> => {
-        await assertPageOwnership(ctx, input.id)
         await requireWritableWorkspace(input.workspaceId)
-        const data: {
-          title: string
-          icon?: string | null
-          updatedById: string
-        } = { title: input.title, updatedById: ctx.user.id }
-        if (input.icon !== undefined) data.icon = input.icon
-        return ctx.prisma.$transaction(async (tx) => {
-          const updated = await tx.page.update({
-            where: { id: input.id },
-            data,
-            select: { id: true, title: true, icon: true, updatedAt: true },
-          })
-          await enqueueOutboxEvent(tx, {
-            eventType: 'page.upserted',
-            aggregateType: 'page',
-            aggregateId: updated.id,
-            workspaceId: input.workspaceId,
-          })
-          return updated
-        })
+        return mapDomain(() => domain.renamePage(ctx.prisma, ctx.user.id, input))
       },
     ),
 
   update: protectedProcedure
-    .input(
-      z.object({
-        id: z.string().uuid(),
-        workspaceId: z.string().uuid(),
-        title: z.string().optional(),
-        icon: z.string().nullable().optional(),
-        type: z.nativeEnum(PageType).optional(),
-      }),
-    )
+    .input(domain.updatePageInput)
     .mutation(
       async ({
         ctx,
         input,
       }): Promise<{ id: string; title: string | null; icon: string | null; updatedAt: Date }> => {
-        await assertPageOwnership(ctx, input.id)
         await requireWritableWorkspace(input.workspaceId)
-        const data: {
-          title?: string
-          icon?: string | null
-          type?: PageType
-          updatedById: string
-        } = { updatedById: ctx.user.id }
-        if (input.title !== undefined) data.title = input.title
-        if (input.icon !== undefined) data.icon = input.icon
-        if (input.type !== undefined) data.type = input.type
-        return ctx.prisma.$transaction(async (tx) => {
-          const updated = await tx.page.update({
-            where: { id: input.id },
-            data,
-            select: { id: true, title: true, icon: true, updatedAt: true },
-          })
-          await enqueueOutboxEvent(tx, {
-            eventType: 'page.upserted',
-            aggregateType: 'page',
-            aggregateId: updated.id,
-            workspaceId: input.workspaceId,
-          })
-          return updated
-        })
+        return mapDomain(() => domain.updatePage(ctx.prisma, ctx.user.id, input))
       },
     ),
 
@@ -585,58 +455,11 @@ export const pageRouter = router({
     }),
 
   duplicate: protectedProcedure
-    .input(z.object({ pageId: z.string().uuid() }))
+    .input(domain.duplicatePageInput)
     .mutation(async ({ ctx, input }): Promise<{ id: string }> => {
       const page = await assertPageAccess(ctx, input.pageId)
       await requireWritableWorkspace(page.workspaceId)
-
-      return ctx.prisma.$transaction(async (tx) => {
-        // 1. Detach old next sibling first (prevPageId is unique)
-        const oldNext = await tx.page.findFirst({
-          where: { prevPageId: page.id, deletedAt: null },
-        })
-        if (oldNext) {
-          await tx.page.update({
-            where: { id: oldNext.id },
-            data: { prevPageId: null },
-          })
-        }
-
-        // 2. Create copy with same parent, inserted after original. Copy both
-        // the JSON snapshot AND the authoritative contentYjs bytes — the editor
-        // loads from contentYjs, so without it the duplicate renders empty.
-        const copy = await tx.page.create({
-          data: {
-            workspaceId: page.workspaceId,
-            parentId: page.parentId,
-            type: page.type,
-            title: `${page.title ?? ''} (копия)`.trim(),
-            icon: page.icon,
-            content: page.content ?? undefined,
-            contentYjs: page.contentYjs ?? undefined,
-            prevPageId: page.id,
-            createdById: ctx.user.id,
-            updatedById: ctx.user.id,
-          },
-        })
-
-        // 3. Reattach old next sibling to point to copy
-        if (oldNext) {
-          await tx.page.update({
-            where: { id: oldNext.id },
-            data: { prevPageId: copy.id },
-          })
-        }
-
-        await enqueueOutboxEvent(tx, {
-          eventType: 'page.upserted',
-          aggregateType: 'page',
-          aggregateId: copy.id,
-          workspaceId: page.workspaceId,
-        })
-
-        return { id: copy.id }
-      })
+      return mapDomain(() => domain.duplicatePage(ctx.prisma, ctx.user.id, input))
     }),
 
   reorder: protectedProcedure
