@@ -61,6 +61,7 @@ describe('page.addFavorite — appends at tail', () => {
       upsert,
     }
     const prisma = {
+      page: { findFirst: vi.fn(async () => ({ id: PAGE_A, workspaceId: WS_ID })) },
       $transaction: vi.fn(async (fn: (tx: unknown) => unknown) =>
         fn({ favoritePage: txFavorite }),
       ),
@@ -81,6 +82,7 @@ describe('page.addFavorite — appends at tail', () => {
       upsert,
     }
     const prisma = {
+      page: { findFirst: vi.fn(async () => ({ id: PAGE_A, workspaceId: WS_ID })) },
       $transaction: vi.fn(async (fn: (tx: unknown) => unknown) =>
         fn({ favoritePage: txFavorite }),
       ),
@@ -338,6 +340,7 @@ describe('page.reorderFavorites', () => {
   it('updates position = index for each id in orderedIds', async () => {
     const updateMany = vi.fn(async () => ({}))
     const prisma = {
+      workspaceMember: { findUnique: vi.fn(async () => ({ workspaceId: WS_ID, userId: USER_ID, role: 'MEMBER' })) },
       favoritePage: { updateMany },
       $transaction: vi.fn(async (fns: unknown[]) =>
         Promise.all(fns as Array<Promise<unknown>>),

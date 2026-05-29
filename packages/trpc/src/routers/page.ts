@@ -9,6 +9,8 @@ import {
   assertPageAccess,
   assertPageOwnership,
 } from '../helpers/page-access'
+import * as domain from '@repo/domain'
+import { mapDomain } from '../helpers/map-domain'
 import { seedKanbanDefaults } from './kanban/helpers'
 import { pageShareRouter } from './page-share'
 
@@ -742,61 +744,31 @@ export const pageRouter = router({
     }),
 
   addFavorite: protectedProcedure
-    .input(z.object({ pageId: z.string().uuid() }))
+    .input(domain.addFavoriteInput)
     .mutation(async ({ ctx, input }) => {
       const page = await assertPageAccess(ctx, input.pageId)
       await requireWritableWorkspace(page.workspaceId)
-
-      return ctx.prisma.$transaction(async (tx) => {
-        const maxResult = await tx.favoritePage.aggregate({
-          where: { userId: ctx.user.id },
-          _max: { position: true },
-        })
-        const nextPosition = (maxResult._max.position ?? -1) + 1
-
-        return tx.favoritePage.upsert({
-          where: { userId_pageId: { userId: ctx.user.id, pageId: input.pageId } },
-          create: { userId: ctx.user.id, pageId: input.pageId, position: nextPosition },
-          update: {},
-        })
-      })
+      return mapDomain(() => domain.addFavorite(ctx.prisma, ctx.user.id, input))
     }),
 
   removeFavorite: protectedProcedure
-    .input(z.object({ pageId: z.string().uuid() }))
+    .input(domain.removeFavoriteInput)
     .mutation(async ({ ctx, input }) => {
       const page = await assertPageAccess(ctx, input.pageId)
       await requireWritableWorkspace(page.workspaceId)
-      await ctx.prisma.favoritePage.deleteMany({
-        where: { userId: ctx.user.id, pageId: input.pageId },
+      // domain.removeFavorite returns { count } — tRPC callers expect { pageId },
+      // so we delegate and then return the pageId ourselves.
+      return mapDomain(async () => {
+        await domain.removeFavorite(ctx.prisma, ctx.user.id, input)
+        return { pageId: input.pageId }
       })
-      return { pageId: input.pageId }
     }),
 
   reorderFavorites: protectedProcedure
-    .input(
-      z.object({
-        workspaceId: z.string().uuid(),
-        orderedIds: z.array(z.string().uuid()),
-      }),
-    )
+    .input(domain.reorderFavoritesInput)
     .mutation(async ({ ctx, input }) => {
       await assertWorkspaceMember(ctx, input.workspaceId)
-
-      await ctx.prisma.$transaction(
-        input.orderedIds.map((pageId, index) =>
-          ctx.prisma.favoritePage.updateMany({
-            where: {
-              userId: ctx.user.id,
-              pageId,
-              page: { workspaceId: input.workspaceId },
-            },
-            data: { position: index },
-          }),
-        ),
-      )
-
-      return { ok: true }
+      return mapDomain(() => domain.reorderFavorites(ctx.prisma, ctx.user.id, input))
     }),
 
   listFavorites: protectedProcedure
