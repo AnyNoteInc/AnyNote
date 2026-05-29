@@ -3,6 +3,8 @@ import { z } from 'zod'
 
 import { NotificationCategory, NotificationChannel } from '@repo/db'
 import { EVENT_CATALOG } from '@repo/notifications'
+import * as domain from '@repo/domain'
+import { mapDomain } from '../helpers/map-domain'
 
 import { router, protectedProcedure } from '../trpc'
 
@@ -51,28 +53,17 @@ export const notificationRouter = router({
   }),
 
   markRead: protectedProcedure
-    .input(z.object({ ids: z.array(z.string().uuid()).min(1).max(50) }))
+    .input(domain.markReadInput)
     .mutation(async ({ ctx, input }) => {
-      const result = await ctx.prisma.notificationInApp.updateMany({
-        where: { userId: ctx.user.id, id: { in: input.ids }, readAt: null },
-        data: { readAt: new Date() },
-      })
-      return { updated: result.count }
+      return mapDomain(() => domain.markRead(ctx.prisma, ctx.user.id, input))
     }),
 
   markAllRead: protectedProcedure.mutation(async ({ ctx }) => {
-    const result = await ctx.prisma.notificationInApp.updateMany({
-      where: { userId: ctx.user.id, readAt: null },
-      data: { readAt: new Date() },
-    })
-    return { updated: result.count }
+    return mapDomain(() => domain.markAllRead(ctx.prisma, ctx.user.id))
   }),
 
   deleteAll: protectedProcedure.mutation(async ({ ctx }) => {
-    const result = await ctx.prisma.notificationInApp.deleteMany({
-      where: { userId: ctx.user.id },
-    })
-    return { deleted: result.count }
+    return mapDomain(() => domain.deleteAll(ctx.prisma, ctx.user.id))
   }),
 
   getPreferences: protectedProcedure.query(async ({ ctx }) => {
