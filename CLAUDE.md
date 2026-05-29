@@ -69,6 +69,7 @@ Apps:
 Packages (selected):
 
 - `packages/db` — Prisma 7 client + schema + migrations + seed. Singleton `prisma` using `PrismaPg` adapter.
+- `packages/domain` — framework-agnostic business logic: the single home for write operations, consumed by **both** `@repo/trpc` and `apps/engines`. NodeNext-clean like `@repo/db` (deps limited to `@repo/db` + `zod`, explicit `.ts` import extensions) so the NodeNext engines build can type-check it. Functions are `fn(prisma, actorUserId, input)` and throw `DomainError { code, httpStatus, message }`, which callers map (tRPC → `TRPCError` via `mapDomain`, engines → `HttpException` via `mapDomainError`) and pair with their own event emission (the domain emits nothing). Currently holds the Kanban writes; other domains migrate in later cycles.
 - `packages/auth` — better-auth config (`auth`, `Session`, `getUserFromRequest`).
 - `packages/trpc` — tRPC v11 router. Exports `appRouter` **and** `createCaller` for RSC.
 - `packages/ui` — MUI v6 design system with subpath exports.
