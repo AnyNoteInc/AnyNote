@@ -1161,6 +1161,9 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../db
+      '@repo/domain':
+        specifier: workspace:*
+        version: link:../domain
       '@repo/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config

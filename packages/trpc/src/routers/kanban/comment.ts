@@ -1,10 +1,11 @@
-import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
+import { z } from 'zod'
+import * as domain from '@repo/domain'
 
 import { router, protectedProcedure } from '../../trpc'
 import { assertPageAccess } from '../../helpers/page-access'
-import { recordActivity } from './helpers'
 import { kanbanBus } from '../../realtime/kanban-bus'
+import { mapDomain } from '../../helpers/map-domain'
 
 const ContentSchema = z.unknown()
 
@@ -30,45 +31,10 @@ export const commentRouter = router({
     }),
 
   create: protectedProcedure
-    .input(
-      z.object({
-        pageId: z.string().uuid(),
-        taskId: z.string().uuid(),
-        content: ContentSchema,
-      }),
-    )
+    .input(domain.createTaskCommentInput)
     .mutation(async ({ ctx, input }) => {
-      await assertPageAccess(ctx, input.pageId)
-      const task = await ctx.prisma.task.findUniqueOrThrow({
-        where: { id: input.taskId },
-        select: { pageId: true },
-      })
-      if (task.pageId !== input.pageId) {
-        throw new TRPCError({ code: 'NOT_FOUND', message: 'Задача не найдена' })
-      }
-
-      const comment = await ctx.prisma.$transaction(async (tx) => {
-        const created = await tx.taskComment.create({
-          data: {
-            taskId: input.taskId,
-            authorId: ctx.user.id,
-            content: input.content as never,
-          },
-        })
-        await recordActivity(tx, {
-          taskId: input.taskId,
-          actorId: ctx.user.id,
-          type: 'COMMENTED',
-          payload: { commentId: created.id },
-        })
-        return created
-      })
-
-      kanbanBus.emit(input.pageId, {
-        kind: 'comment.upserted',
-        taskId: input.taskId,
-        commentId: comment.id,
-      })
+      const comment = await mapDomain(() => domain.createTaskComment(ctx.prisma, ctx.user.id, input))
+      kanbanBus.emit(input.pageId, { kind: 'comment.upserted', taskId: input.taskId, commentId: comment.id })
       return comment
     }),
 
