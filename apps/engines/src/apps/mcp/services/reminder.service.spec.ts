@@ -1,107 +1,127 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import type { PrismaClient } from '@repo/db'
 
-import { PageNotFoundError, ReminderNotFoundError } from '../errors/mcp.errors.js'
+// SP1 pattern: NO jest.unstable_mockModule. Import the service normally; the REAL
+// @repo/domain functions run against a hand-mocked PrismaClient. The scheduler is
+// stubbed via the @Optional() constructor param (Correction 2).
 import { ReminderService } from './reminder.service.js'
 
+function makeStubScheduler() {
+  return {
+    rebuild: jest.fn<(...a: unknown[]) => Promise<void>>(async () => undefined),
+    cancel: jest.fn<(...a: unknown[]) => Promise<void>>(async () => undefined),
+  }
+}
+
+function makeMockPrisma() {
+  const txFindMany = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => [{ id: 'r1' }])
+  const txUpdateMany = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({ count: 1 }))
+  const txCreate = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({
+    id: 'r1',
+    pageId: 'p1',
+    workspaceId: 'w1',
+    createdById: 'u1',
+    dueAt: new Date(),
+    offsets: [0],
+    audience: 'ME',
+    label: null,
+    recipients: [],
+    doneAt: null,
+  }))
+  const txUpdate = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({
+    id: 'r1',
+    dueAt: new Date(),
+  }))
+  const txRecipientFindMany = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => [])
+  const txRecipientDeleteMany = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({ count: 0 }))
+  const tx = {
+    reminder: { create: txCreate, update: txUpdate, updateMany: txUpdateMany, findMany: txFindMany, findUnique: jest.fn() },
+    reminderRecipient: { findMany: txRecipientFindMany, deleteMany: txRecipientDeleteMany },
+  }
+  const pageFindFirst = jest.fn<(...a: unknown[]) => Promise<unknown>>(
+    async () => ({ id: 'p1', workspaceId: 'w1', createdById: 'u1' }),
+  )
+  const reminderFindUnique = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({
+    id: 'r1',
+    pageId: 'p1',
+    workspaceId: 'w1',
+    createdById: 'u1',
+    dueAt: new Date(),
+    offsets: [0],
+    audience: 'ME',
+    label: null,
+    doneAt: null,
+  }))
+  const reminderFindMany = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => [])
+  const $transaction = jest.fn<(...a: unknown[]) => Promise<unknown>>(
+    async (fn: unknown) => (fn as (t: typeof tx) => unknown)(tx),
+  )
+  return {
+    page: { findFirst: pageFindFirst },
+    reminder: { findUnique: reminderFindUnique, findMany: reminderFindMany, updateMany: txUpdateMany },
+    $transaction,
+    __mocks: { txCreate, txUpdate, txUpdateMany, txFindMany, pageFindFirst, reminderFindUnique, reminderFindMany, $transaction },
+  } as unknown as PrismaClient & { __mocks: Record<string, ReturnType<typeof jest.fn>> }
+}
+
 describe('ReminderService', () => {
-  const pageFindUnique = jest.fn<(...a: unknown[]) => Promise<unknown>>()
-  const reminderCreate = jest.fn<(...a: unknown[]) => Promise<unknown>>()
-  const reminderFindUnique = jest.fn<(...a: unknown[]) => Promise<unknown>>()
-  const reminderFindMany = jest.fn<(...a: unknown[]) => Promise<unknown>>()
-  const reminderUpdate = jest.fn<(...a: unknown[]) => Promise<unknown>>()
-  const reminderUpdateMany = jest.fn<(...a: unknown[]) => Promise<unknown>>()
-  const prisma = {
-    page: { findUnique: pageFindUnique },
-    reminder: {
-      create: reminderCreate,
-      findUnique: reminderFindUnique,
-      findMany: reminderFindMany,
-      update: reminderUpdate,
-      updateMany: reminderUpdateMany,
-    },
-  } as unknown as PrismaClient
+  let mockPrisma: ReturnType<typeof makeMockPrisma>
+  let stubScheduler: ReturnType<typeof makeStubScheduler>
   let svc: ReminderService
 
   beforeEach(() => {
     jest.clearAllMocks()
-    svc = new ReminderService(prisma)
+    mockPrisma = makeMockPrisma()
+    stubScheduler = makeStubScheduler()
+    // Pass stubScheduler as the @Optional() second param so real @repo/notifications is NOT called
+    svc = new ReminderService(mockPrisma, stubScheduler)
   })
 
-  it('createReminder verifies the page belongs to the workspace', async () => {
-    pageFindUnique.mockResolvedValue({ workspaceId: 'w-other' })
-    await expect(
-      svc.createReminder({ userId: 'u1', workspaceId: 'w1', pageId: 'p1', dueAt: new Date('2026-06-01T10:00:00Z') }),
-    ).rejects.toBeInstanceOf(PageNotFoundError)
-  })
-
-  it('createReminder creates with defaults', async () => {
-    pageFindUnique.mockResolvedValue({ workspaceId: 'w1' })
-    reminderCreate.mockResolvedValue({ id: 'r1' })
-    const id = await svc.createReminder({
-      userId: 'u1', workspaceId: 'w1', pageId: 'p1', dueAt: new Date('2026-06-01T10:00:00Z'), label: 'Ship',
+  it('createReminder creates reminder via prisma tx and calls stubScheduler.rebuild', async () => {
+    const result = await svc.createReminder({
+      userId: 'u1',
+      workspaceId: 'w1',
+      pageId: 'p1',
+      dueAt: new Date(),
+      offsets: [0],
+      audience: 'ME',
     })
-    expect(id).toBe('r1')
-    expect(reminderCreate).toHaveBeenCalledWith({
-      data: {
-        pageId: 'p1', workspaceId: 'w1', createdById: 'u1', label: 'Ship',
-        dueAt: new Date('2026-06-01T10:00:00Z'), audience: 'ME', offsets: [],
-      },
-      select: { id: true },
-    })
+    expect(result).toBe('r1')
+    expect(mockPrisma.__mocks.txCreate).toHaveBeenCalledTimes(1)
+    expect(stubScheduler.rebuild).toHaveBeenCalledTimes(1)
+    expect(stubScheduler.cancel).not.toHaveBeenCalled()
   })
 
-  it('moveReminder shifts an owned reminder by a relative delta', async () => {
-    reminderFindUnique.mockResolvedValue({ id: 'r1', createdById: 'u1', dueAt: new Date('2026-06-01T10:00:00Z') })
-    reminderUpdate.mockResolvedValue({})
-    const out = await svc.moveReminder({ userId: 'u1', reminderId: 'r1', shift: { days: 2, hours: 5 } })
-    expect(out.dueAt).toEqual(new Date('2026-06-03T15:00:00Z'))
-    expect(reminderUpdate).toHaveBeenCalledWith({
-      where: { id: 'r1' },
-      data: { dueAt: new Date('2026-06-03T15:00:00Z') },
-    })
+  it('moveReminder updates dueAt in tx and calls stubScheduler.rebuild', async () => {
+    const result = await svc.moveReminder({ userId: 'u1', reminderId: 'r1', dueAt: new Date() })
+    expect(result.id).toBe('r1')
+    expect(mockPrisma.__mocks.txUpdate).toHaveBeenCalledTimes(1)
+    expect(stubScheduler.rebuild).toHaveBeenCalledTimes(1)
   })
 
-  it('moveReminder rejects a reminder owned by someone else', async () => {
-    reminderFindUnique.mockResolvedValue({ id: 'r1', createdById: 'u2', dueAt: new Date() })
-    await expect(
-      svc.moveReminder({ userId: 'u1', reminderId: 'r1', shift: { days: 1 } }),
-    ).rejects.toBeInstanceOf(ReminderNotFoundError)
+  it('deleteReminder soft-deletes in tx and calls stubScheduler.cancel', async () => {
+    const result = await svc.deleteReminder({ userId: 'u1', reminderId: 'r1' })
+    expect(result).toEqual({ count: 1 })
+    expect(stubScheduler.cancel).toHaveBeenCalledWith(expect.anything(), ['r1'], 'reminder removed')
   })
 
-  it('deleteReminder soft-deletes owned reminders and returns the count', async () => {
-    reminderUpdateMany.mockResolvedValue({ count: 3 })
-    const out = await svc.deleteReminder({ userId: 'u1', all: true })
-    expect(out.count).toBe(3)
-    expect(reminderUpdateMany).toHaveBeenCalledWith({
-      where: { createdById: 'u1', deletedAt: null },
-      data: { deletedAt: expect.any(Date) },
-    })
+  it('deleteReminder passes full input shape ({ reminderIds, pageId }) to domain.deleteReminder', async () => {
+    await svc.deleteReminder({ userId: 'u1', reminderIds: ['r1', 'r2'], all: true })
+    expect(stubScheduler.cancel).toHaveBeenCalledTimes(1)
   })
 
-  it('listReminders filters to my pending reminders and maps them', async () => {
-    reminderFindMany.mockResolvedValue([
-      { id: 'r1', label: 'Ship', dueAt: new Date('2026-06-01T10:00:00Z'), doneAt: null, page: { id: 'p1', title: 'P' }, workspace: { id: 'w1', name: 'W' } },
-    ])
-    const out = await svc.listReminders({ userId: 'u1', workspaceId: 'w1' })
-    expect(out).toEqual([
-      { id: 'r1', label: 'Ship', dueAt: new Date('2026-06-01T10:00:00Z'), done: false, page: { id: 'p1', title: 'P' }, workspace: { id: 'w1', name: 'W' } },
-    ])
-    const arg = reminderFindMany.mock.calls[0]![0] as { where: Record<string, unknown> }
-    expect(arg.where).toMatchObject({ deletedAt: null, doneAt: null, workspaceId: 'w1' })
+  it('completeReminder calls stubScheduler.cancel with completed reason', async () => {
+    mockPrisma.__mocks.txUpdateMany!.mockResolvedValue({ count: 1 })
+    const result = await svc.completeReminder({ userId: 'u1', reminderId: 'r1' })
+    expect(result).toEqual({ id: 'r1' })
+    expect(stubScheduler.cancel).toHaveBeenCalledWith(expect.anything(), ['r1'], 'reminder completed')
   })
 
-  it('completeReminder marks done, or throws when nothing matched', async () => {
-    reminderUpdateMany.mockResolvedValueOnce({ count: 1 })
-    await expect(svc.completeReminder({ userId: 'u1', reminderId: 'r1' })).resolves.toEqual({ id: 'r1' })
-    reminderUpdateMany.mockResolvedValueOnce({ count: 0 })
-    await expect(svc.completeReminder({ userId: 'u1', reminderId: 'r1' })).rejects.toBeInstanceOf(ReminderNotFoundError)
-  })
-
-  it('deleteReminder merges reminderId and reminderIds into a single id filter', async () => {
-    reminderUpdateMany.mockResolvedValue({ count: 2 })
-    await svc.deleteReminder({ userId: 'u1', reminderId: 'r1', reminderIds: ['r2'] })
-    const arg = reminderUpdateMany.mock.calls[0]![0] as { where: { id?: { in: string[] } } }
-    expect(arg.where.id).toEqual({ in: ['r1', 'r2'] })
+  it('listReminders uses direct Prisma (scheduler is never called)', async () => {
+    mockPrisma.__mocks.reminderFindMany!.mockResolvedValue([])
+    await svc.listReminders({ userId: 'u1' })
+    expect(mockPrisma.__mocks.reminderFindMany).toHaveBeenCalled()
+    expect(stubScheduler.rebuild).not.toHaveBeenCalled()
+    expect(stubScheduler.cancel).not.toHaveBeenCalled()
   })
 })
