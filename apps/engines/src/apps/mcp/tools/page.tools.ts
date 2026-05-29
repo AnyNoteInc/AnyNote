@@ -230,6 +230,32 @@ export class PageTools {
   }
 
   @Tool({
+    name: 'archivePage',
+    description:
+      'Архивирует страницу (убирает из дерева и поиска). Требует подтверждения. Параметры: workspaceId, pageId.',
+    parameters: PageIdInput,
+  })
+  archivePage(args: PageIdArgs, _context: Context, req: AuthedRequest) {
+    return this.doSetArchived(requireAuth(req), args, true)
+  }
+
+  @Tool({
+    name: 'restorePage',
+    description:
+      'Восстанавливает архивированную страницу. Требует подтверждения. Параметры: workspaceId, pageId.',
+    parameters: PageIdInput,
+  })
+  restorePage(args: PageIdArgs, _context: Context, req: AuthedRequest) {
+    return this.doSetArchived(requireAuth(req), args, false)
+  }
+
+  async doSetArchived(auth: AuthContext, args: PageIdArgs, archived: boolean) {
+    await assertMember(this.prisma, auth.userId, args.workspaceId)
+    await this.writer.setArchived({ userId: auth.userId, workspaceId: args.workspaceId, pageId: args.pageId, archived })
+    return { ok: true as const }
+  }
+
+  @Tool({
     name: 'appendToPage',
     description:
       'Дописывает Markdown в КОНЕЦ существующей TEXT-страницы (не перезаписывает). ' +

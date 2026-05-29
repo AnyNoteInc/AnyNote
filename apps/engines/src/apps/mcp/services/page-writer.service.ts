@@ -83,7 +83,7 @@ export class PageWriter {
         where: { id: input.pageId },
         select: { id: true, workspaceId: true },
       })
-      if (!page || page.workspaceId !== input.workspaceId) {
+      if (page?.workspaceId !== input.workspaceId) {
         throw new PageNotFoundError(input.pageId)
       }
       await tx.page.update({
@@ -114,7 +114,7 @@ export class PageWriter {
         where: { id: input.pageId },
         select: { id: true, workspaceId: true, prevPageId: true },
       })
-      if (!page || page.workspaceId !== input.workspaceId) {
+      if (page?.workspaceId !== input.workspaceId) {
         throw new PageNotFoundError(input.pageId)
       }
 
@@ -204,6 +204,34 @@ export class PageWriter {
       await tx.page.update({
         where: { id: input.pageId },
         data: { content: merged as never, contentYjs: buildContentYjs(merged), updatedById: input.userId },
+      })
+      await tx.outboxEvent.create({
+        data: {
+          eventType: 'page.upserted',
+          aggregateType: 'page',
+          aggregateId: input.pageId,
+          workspaceId: input.workspaceId,
+          payload: {},
+        },
+      })
+    })
+  }
+
+  async setArchived(input: {
+    userId: string
+    workspaceId: string
+    pageId: string
+    archived: boolean
+  }): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const page = await tx.page.findUnique({
+        where: { id: input.pageId },
+        select: { id: true, workspaceId: true },
+      })
+      if (page?.workspaceId !== input.workspaceId) throw new PageNotFoundError(input.pageId)
+      await tx.page.update({
+        where: { id: input.pageId },
+        data: { archived: input.archived, updatedById: input.userId },
       })
       await tx.outboxEvent.create({
         data: {
