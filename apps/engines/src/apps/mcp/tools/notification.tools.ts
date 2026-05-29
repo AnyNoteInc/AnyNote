@@ -15,6 +15,7 @@ const MarkReadInput = z.object({
   all: mcpInput(z.boolean().optional()),
   ids: mcpInput(z.array(z.string().uuid()).optional()),
 })
+const MarkAllReadInput = z.object({})
 
 type ListNotificationsArgs = z.infer<typeof ListNotificationsInput>
 type MarkReadArgs = z.infer<typeof MarkReadInput>
@@ -59,5 +60,18 @@ export class NotificationTools {
       throw new BadRequestException('Provide all:true or a non-empty ids array')
     }
     return this.notifications.markRead({ userId: auth.userId, all: args.all, ids: args.ids })
+  }
+
+  @Tool({
+    name: 'markAllNotificationsRead',
+    description:
+      'Помечает все уведомления пользователя прочитанными одним вызовом. ' +
+      'Используй когда агент хочет «отметить все как прочитанные» без перечисления ids. ' +
+      'Требует подтверждения. Параметры: нет.',
+    parameters: MarkAllReadInput,
+  })
+  async markAllNotificationsRead(_args: Record<string, never>, _context: Context, req: AuthedRequest) {
+    const auth = requireAuth(req)
+    return this.notifications.markRead({ userId: auth.userId, all: true })
   }
 }

@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common'
 import type { PrismaClient } from '@repo/db'
+import * as domain from '@repo/domain'
 
 import { PRISMA } from '../../../infra/db/db.providers.js'
 
@@ -33,14 +34,11 @@ export class NotificationService {
   }
 
   async markRead(input: MarkReadInput): Promise<{ count: number }> {
-    const result = await this.prisma.notificationInApp.updateMany({
-      where: {
-        userId: input.userId,
-        readAt: null,
-        ...(input.all ? {} : { id: { in: input.ids ?? [] } }),
-      },
-      data: { readAt: new Date() },
-    })
-    return { count: result.count }
+    if (input.all) {
+      const result = await domain.markAllRead(this.prisma, input.userId)
+      return { count: result.updated }
+    }
+    const result = await domain.markRead(this.prisma, input.userId, { ids: input.ids ?? [] })
+    return { count: result.updated }
   }
 }

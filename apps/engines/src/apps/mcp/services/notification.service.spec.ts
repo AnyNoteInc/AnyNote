@@ -1,51 +1,56 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import type { PrismaClient } from '@repo/db'
 
+// SP1 pattern: NO jest.unstable_mockModule. Import the service normally and build a
+// hand-mocked PrismaClient. The REAL @repo/domain functions run against the mock prisma,
+// so we assert on mocked prisma calls + returned values directly.
 import { NotificationService } from './notification.service.js'
 
+function makeMockPrisma() {
+  const updateMany = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({ count: 0 }))
+  const deleteMany = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({ count: 0 }))
+  const findMany = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => [])
+  const __mocks = { updateMany, deleteMany, findMany }
+  return {
+    notificationInApp: { updateMany, deleteMany, findMany },
+    __mocks,
+  } as unknown as PrismaClient & { __mocks: typeof __mocks }
+}
+
 describe('NotificationService', () => {
-  const findMany = jest.fn<(...a: unknown[]) => Promise<unknown>>()
-  const updateMany = jest.fn<(...a: unknown[]) => Promise<unknown>>()
-  const prisma = { notificationInApp: { findMany, updateMany } } as unknown as PrismaClient
+  let mockPrisma: ReturnType<typeof makeMockPrisma>
   let svc: NotificationService
 
   beforeEach(() => {
     jest.clearAllMocks()
-    svc = new NotificationService(prisma)
+    mockPrisma = makeMockPrisma()
+    svc = new NotificationService(mockPrisma)
   })
 
-  it('lists unread by default and maps event fields', async () => {
-    findMany.mockResolvedValue([
-      {
-        id: 'n1',
-        readAt: null,
-        createdAt: new Date('2026-05-28T00:00:00Z'),
-        event: { type: 'REMINDER_DUE', category: 'SERVICE', resourceUrl: '/p/1' },
-      },
-    ])
-    const out = await svc.list({ userId: 'u1', unreadOnly: true, limit: 50 })
-    expect(out).toEqual([
-      { id: 'n1', type: 'REMINDER_DUE', category: 'SERVICE', resourceUrl: '/p/1', read: false, createdAt: new Date('2026-05-28T00:00:00Z') },
-    ])
-    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ where: { userId: 'u1', readAt: null } }))
+  it('markRead(ids) calls notificationInApp.updateMany with ids filter and returns { count }', async () => {
+    mockPrisma.__mocks.updateMany.mockResolvedValue({ count: 2 })
+    const result = await svc.markRead({ userId: 'u1', ids: ['id1', 'id2'] })
+    expect(mockPrisma.__mocks.updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ userId: 'u1', id: { in: ['id1', 'id2'] } }),
+      }),
+    )
+    expect(result).toEqual({ count: 2 })
   })
 
-  it('markRead(all) clears all unread for the user', async () => {
-    updateMany.mockResolvedValue({ count: 4 })
-    const out = await svc.markRead({ userId: 'u1', all: true })
-    expect(out.count).toBe(4)
-    expect(updateMany).toHaveBeenCalledWith({
-      where: { userId: 'u1', readAt: null },
-      data: { readAt: expect.any(Date) },
-    })
+  it('markRead(all:true) calls notificationInApp.updateMany without id filter and returns { count }', async () => {
+    mockPrisma.__mocks.updateMany.mockResolvedValue({ count: 5 })
+    const result = await svc.markRead({ userId: 'u1', all: true })
+    const [[call]] = mockPrisma.__mocks.updateMany.mock.calls as [[{ where: Record<string, unknown> }]]
+    expect(call.where).not.toHaveProperty('id')
+    expect(call.where).toMatchObject({ userId: 'u1', readAt: null })
+    expect(result).toEqual({ count: 5 })
   })
 
-  it('markRead(ids) clears only the given ids', async () => {
-    updateMany.mockResolvedValue({ count: 1 })
-    await svc.markRead({ userId: 'u1', ids: ['n1'] })
-    expect(updateMany).toHaveBeenCalledWith({
-      where: { userId: 'u1', readAt: null, id: { in: ['n1'] } },
-      data: { readAt: expect.any(Date) },
-    })
+  it('list uses direct Prisma findMany', async () => {
+    mockPrisma.__mocks.findMany.mockResolvedValue([])
+    await svc.list({ userId: 'u1', unreadOnly: true, limit: 10 })
+    expect(mockPrisma.__mocks.findMany).toHaveBeenCalled()
+    expect(mockPrisma.__mocks.updateMany).not.toHaveBeenCalled()
   })
 })

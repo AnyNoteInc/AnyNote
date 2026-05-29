@@ -128,6 +128,8 @@ DEFAULT_ENGINES_TOOLS: dict[str, ToolMeta] = {
                                        _summary_generic('listNotifications'), _preview_default),
     'markNotificationsRead': ToolMeta('markNotificationsRead', SCOPE_NOTIFICATIONS_WRITE, False,
                                        _summary_generic('markNotificationsRead'), _preview_default),
+    'markAllNotificationsRead': ToolMeta('markAllNotificationsRead', SCOPE_NOTIFICATIONS_WRITE, True,
+                                          lambda a: 'Отметить все уведомления прочитанными', _preview_default),
     'listFavorites':  ToolMeta('listFavorites', SCOPE_FAVORITES_READ, False,
                                 _summary_generic('listFavorites'), _preview_default),
     'addFavorite':    ToolMeta('addFavorite', SCOPE_FAVORITES_WRITE, False,
