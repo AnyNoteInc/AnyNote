@@ -1,6 +1,6 @@
 # `@repo/domain` Foundation + Kanban (SP1) — Design
 
-**Status:** Draft, awaiting user review
+**Status:** Implemented (branch `feat/domain-foundation-kanban`)
 **Date:** 2026-05-29
 **Scope:** Create a new NodeNext-clean `@repo/domain` package as the single home for framework-agnostic business logic, migrate the **Kanban** write operations into it, refactor the tRPC kanban procedures to consume it, and build the **Kanban MCP tools** in `apps/engines` on top of it (covering request item 8 + UC3). This is **sub-project 1** of a broader `@repo/domain` initiative; other domains migrate in later cycles.
 

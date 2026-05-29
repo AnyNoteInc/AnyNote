@@ -12,6 +12,7 @@ const REQUIRED_READ = [
   'notifications:read',
   'favorites:read',
   'reminders:read',
+  'kanban:read',
 ] as const
 const REQUIRED_WRITE = [
   'pages:write',
@@ -19,6 +20,7 @@ const REQUIRED_WRITE = [
   'reminders:write',
   'notifications:write',
   'favorites:write',
+  'kanban:write',
 ] as const
 
 describe('scopesForRole grants every scope the MCP tool registry requires', () => {
