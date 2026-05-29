@@ -2,7 +2,6 @@ from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
 import pytest
-
 from agents.apps.processing.repositories.vector_store_repository import VectorStoreRepository
 
 
