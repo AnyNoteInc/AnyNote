@@ -80,12 +80,31 @@ def _strip_auto_fields(schema: dict[str, Any]) -> dict[str, Any]:
     return {**schema, 'properties': props, 'required': required}
 
 
+def _resolve_field_type(pspec: dict[str, Any]) -> tuple[Any, bool]:
+    """Resolve a property spec to a Python type, preserving array item types.
+
+    An array must carry its item type (``list[str]``, ``list[int]``, …) so the
+    pydantic ``args_schema`` regenerates ``items: {type: ...}`` when bound to the
+    LLM. A bare ``list`` serializes to ``items: {}`` (no type), which GigaChat
+    rejects with HTTP 422 'Type properties.X.items.type is wrong'.
+    """
+    raw_type = pspec.get('type') if isinstance(pspec, dict) else None
+    is_array = raw_type == 'array' or (isinstance(raw_type, list) and 'array' in raw_type)
+    if is_array:
+        allow_null = isinstance(raw_type, list) and 'null' in raw_type
+        items = pspec.get('items') if isinstance(pspec, dict) else None
+        item_type = items.get('type') if isinstance(items, dict) else None
+        item_py, _ = _resolve_json_type(item_type)
+        return (list[item_py] if item_py is not Any else list), allow_null
+    return _resolve_json_type(raw_type)
+
+
 def _arg_model(name: str, schema: dict[str, Any]) -> type[BaseModel]:
     props = (schema or {}).get('properties') or {}
     required = set((schema or {}).get('required') or [])
     fields: dict[str, Any] = {}
     for pname, pspec in props.items():
-        ptype, allow_null = _resolve_json_type(pspec.get('type'))
+        ptype, allow_null = _resolve_field_type(pspec)
         desc = pspec.get('description')
         if allow_null and ptype is not Any:
             ptype = ptype | None

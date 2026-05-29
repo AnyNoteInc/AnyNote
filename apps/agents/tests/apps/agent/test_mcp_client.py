@@ -138,3 +138,38 @@ async def test_build_langchain_tools_namespaces_by_server() -> None:
     discovered = await client.discover_all([server])
     tools = client.build_langchain_tools(discovered, [server])
     assert [t.name for t in tools] == ['Notion__echo']
+
+
+def test_array_params_preserve_item_type_for_llm_schema() -> None:
+    """Array tool params must keep `items.type` through the pydantic round-trip.
+
+    GigaChat rejects a function whose array `items` has no `type`
+    (HTTP 422 'Type properties.X.items.type is wrong'). A bare `list`
+    field serializes to `items: {}`, dropping the type. Regression guard
+    for the createTask.assignees / createReminder.offsets 422.
+    """
+    client = McpClient()
+    desc = McpToolDescriptor(
+        name='createReminder',
+        description='r',
+        input_schema={
+            'type': 'object',
+            'properties': {
+                'offsets': {'type': 'array', 'items': {'type': 'integer'}},
+                'tags': {'type': 'array', 'items': {'type': 'string', 'minLength': 1}},
+            },
+            'required': [],
+        },
+    )
+    server = make_server('https://mcp.test/', name='anynote')
+    tools = client.build_langchain_tools({'anynote': [desc]}, [server])
+    schema = tools[0].args_schema.model_json_schema()
+
+    def array_items(field: str) -> dict:
+        spec = schema['properties'][field]
+        if 'anyOf' in spec:  # optional fields become anyOf[array, null]
+            spec = next(b for b in spec['anyOf'] if b.get('type') == 'array')
+        return spec.get('items') or {}
+
+    assert array_items('offsets').get('type') == 'integer'
+    assert array_items('tags').get('type') == 'string'
