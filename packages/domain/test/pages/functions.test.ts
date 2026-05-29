@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import type { PrismaClient } from '@repo/db'
 
 import { DomainError } from '../../src/errors.ts'
-import { createPage, renamePage, updatePage } from '../../src/pages/functions.ts'
+import { createPage, renamePage, updatePage, duplicatePage } from '../../src/pages/functions.ts'
 
 type TxMocks = {
   pageCreate: ReturnType<typeof vi.fn>
@@ -180,5 +180,91 @@ describe('domain renamePage / updatePage', () => {
     expect(call.data).toMatchObject({ type: 'KANBAN', updatedById: 'u1' })
     expect(call.data).not.toHaveProperty('title')
     expect(prisma.__mocks.outboxCreate).toHaveBeenCalledOnce()
+  })
+})
+
+function makeDuplicatePrisma(original: Record<string, unknown>) {
+  const copyCreate = vi.fn(async () => ({ id: 'copy-1' }))
+  const pageUpdate = vi.fn(async () => ({}))
+  const outboxCreate = vi.fn(async () => ({}))
+  const txFindFirst = vi.fn(async () => null) // old next sibling lookup (none by default)
+  // outer page.findFirst is assertPageAccess
+  const accessFindFirst = vi.fn(async () => original)
+  const tx = {
+    page: { findFirst: txFindFirst, create: copyCreate, update: pageUpdate },
+    outboxEvent: { create: outboxCreate },
+  }
+  const $transaction = vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx))
+  return {
+    page: { findFirst: accessFindFirst },
+    $transaction,
+    __mocks: { copyCreate, pageUpdate, outboxCreate, txFindFirst, accessFindFirst, $transaction },
+  } as unknown as PrismaClient & {
+    __mocks: {
+      copyCreate: ReturnType<typeof vi.fn>
+      pageUpdate: ReturnType<typeof vi.fn>
+      outboxCreate: ReturnType<typeof vi.fn>
+      txFindFirst: ReturnType<typeof vi.fn>
+      accessFindFirst: ReturnType<typeof vi.fn>
+      $transaction: ReturnType<typeof vi.fn>
+    }
+  }
+}
+
+describe('domain duplicatePage', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  const original = {
+    id: 'p1',
+    workspaceId: 'w1',
+    parentId: null,
+    type: 'TEXT',
+    title: 'Doc',
+    icon: null,
+    content: { type: 'doc' },
+    contentYjs: new Uint8Array([1, 2, 3]),
+    createdById: 'u1',
+  }
+
+  it('creates a copy after the original with "(копия)" suffix and copied content', async () => {
+    const prisma = makeDuplicatePrisma(original)
+    const result = await duplicatePage(prisma, 'u1', { pageId: 'p1' })
+    expect(result).toEqual({ id: 'copy-1' })
+    const call = prisma.__mocks.copyCreate.mock.calls[0]?.[0] as { data: Record<string, unknown> }
+    expect(call.data).toMatchObject({
+      workspaceId: 'w1',
+      parentId: null,
+      type: 'TEXT',
+      title: 'Doc (копия)',
+      prevPageId: 'p1',
+      createdById: 'u1',
+      updatedById: 'u1',
+    })
+    expect(prisma.__mocks.outboxCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ eventType: 'page.upserted', aggregateId: 'copy-1' }),
+      }),
+    )
+  })
+
+  it('relinks the old next sibling to point at the copy', async () => {
+    const prisma = makeDuplicatePrisma(original)
+    prisma.__mocks.txFindFirst.mockResolvedValue({ id: 'next-1' })
+    await duplicatePage(prisma, 'u1', { pageId: 'p1' })
+    // detach old next to null, then reattach to copy
+    expect(prisma.__mocks.pageUpdate).toHaveBeenCalledWith({
+      where: { id: 'next-1' },
+      data: { prevPageId: null },
+    })
+    expect(prisma.__mocks.pageUpdate).toHaveBeenCalledWith({
+      where: { id: 'next-1' },
+      data: { prevPageId: 'copy-1' },
+    })
+  })
+
+  it('throws NOT_FOUND when the source page is inaccessible', async () => {
+    const prisma = makeDuplicatePrisma(original)
+    prisma.__mocks.accessFindFirst.mockResolvedValue(null)
+    await expect(duplicatePage(prisma, 'u1', { pageId: 'p1' })).rejects.toBeInstanceOf(DomainError)
   })
 })

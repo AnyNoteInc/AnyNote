@@ -2,9 +2,14 @@ import { PageType, enqueueOutboxEvent } from '@repo/db'
 import type { Prisma, PrismaClient } from '@repo/db'
 
 import { notFound } from '../errors.ts'
-import { assertPageOwnership } from '../kanban/access.ts'
+import { assertPageAccess, assertPageOwnership } from '../kanban/access.ts'
 import { seedKanbanDefaults } from '../kanban/seed.ts'
-import type { CreatePageInput, RenamePageInput, UpdatePageInput } from './schemas.ts'
+import type {
+  CreatePageInput,
+  DuplicatePageInput,
+  RenamePageInput,
+  UpdatePageInput,
+} from './schemas.ts'
 
 /**
  * Engines passes ownership/content/contentYjs; tRPC passes only the schema subset.
@@ -142,5 +147,61 @@ export async function updatePage(
       workspaceId: input.workspaceId,
     })
     return updated
+  })
+}
+
+export async function duplicatePage(
+  prisma: PrismaClient,
+  actorUserId: string,
+  input: DuplicatePageInput,
+): Promise<{ id: string }> {
+  const page = await assertPageAccess(prisma, actorUserId, input.pageId)
+
+  return prisma.$transaction(async (tx) => {
+    // 1. Detach old next sibling first (prevPageId is unique)
+    const oldNext = await tx.page.findFirst({
+      where: { prevPageId: page.id, deletedAt: null },
+    })
+    if (oldNext) {
+      await tx.page.update({
+        where: { id: oldNext.id },
+        data: { prevPageId: null },
+      })
+    }
+
+    // 2. Create copy with same parent, inserted after original. Copy both
+    // the JSON snapshot AND the authoritative contentYjs bytes — the editor
+    // loads from contentYjs, so without it the duplicate renders empty.
+    const copy = await tx.page.create({
+      data: {
+        workspaceId: page.workspaceId,
+        parentId: page.parentId,
+        type: page.type,
+        title: `${page.title ?? ''} (копия)`.trim(),
+        icon: page.icon,
+        content: page.content ?? undefined,
+        contentYjs: page.contentYjs ?? undefined,
+        prevPageId: page.id,
+        createdById: actorUserId,
+        updatedById: actorUserId,
+      },
+    })
+
+    // 3. Reattach old next sibling to point to copy
+    if (oldNext) {
+      await tx.page.update({
+        where: { id: oldNext.id },
+        data: { prevPageId: copy.id },
+      })
+    }
+
+    await enqueueOutboxEvent(tx, {
+      eventType: 'page.upserted',
+      aggregateType: 'page',
+      aggregateId: copy.id,
+      workspaceId: page.workspaceId,
+    })
+
+    return { id: copy.id }
   })
 }
