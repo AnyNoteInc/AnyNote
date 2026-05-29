@@ -27,7 +27,7 @@ import {
   TextField,
   Typography,
 } from '@repo/ui/components'
-import { KANBAN_LABEL_COLORS } from '@repo/ui/lib/kanban-colors'
+import { KANBAN_LABEL_COLORS } from '@repo/domain'
 import { AnyNotePlainEditor, type JSONContent } from '@repo/editor'
 
 import { trpc } from '@/trpc/client'

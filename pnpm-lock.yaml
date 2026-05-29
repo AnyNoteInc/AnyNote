@@ -1161,9 +1161,6 @@ importers:
       '@repo/notifications':
         specifier: workspace:*
         version: link:../notifications
-      '@repo/ui':
-        specifier: workspace:*
-        version: link:../ui
       '@repo/yookassa':
         specifier: workspace:*
         version: link:../yookassa

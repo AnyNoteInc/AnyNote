@@ -1,4 +1,5 @@
 export * from './access.ts'
+export * from './colors.ts'
 export * from './comments.ts'
 export * from './helpers.ts'
 export * from './schemas.ts'

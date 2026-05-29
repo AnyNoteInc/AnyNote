@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
-import { KANBAN_LABEL_COLOR_HEXES } from '@repo/ui/lib/kanban-colors'
+import { KANBAN_LABEL_COLOR_HEXES } from '@repo/domain'
 
 import { router, protectedProcedure } from '../../trpc'
 import { assertPageOwnership } from '../../helpers/page-access'

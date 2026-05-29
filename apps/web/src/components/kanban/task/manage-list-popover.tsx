@@ -14,7 +14,7 @@ import {
   Typography,
 } from '@repo/ui/components'
 
-import { KANBAN_LABEL_COLORS } from '@repo/ui/lib/kanban-colors'
+import { KANBAN_LABEL_COLORS } from '@repo/domain'
 
 export interface ManageListItem {
   readonly id: string

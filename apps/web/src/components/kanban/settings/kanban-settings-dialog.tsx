@@ -17,7 +17,7 @@ import {
 
 import { trpc } from '@/trpc/client'
 
-import { KANBAN_LABEL_COLORS } from '@repo/ui/lib/kanban-colors'
+import { KANBAN_LABEL_COLORS } from '@repo/domain'
 
 import { SortableList, type SortableItem } from './sortable-list'
 import type { BoardData } from '../types'
