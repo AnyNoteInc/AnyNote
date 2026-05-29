@@ -14,10 +14,10 @@
   },
   "dependencies": {
     "@repo/db": "workspace:*",
-    "@repo/typescript-config": "workspace:*",
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@repo/typescript-config": "workspace:*",
     "@types/node": "^22.19.1",
     "typescript": "^5.9.2",
     "vitest": "^3.2.4"

@@ -27,7 +27,6 @@
     "@repo/excalidraw": "workspace:*",
     "@repo/genogram": "workspace:*",
     "@repo/likec4": "workspace:*",
-    "@repo/mail": "workspace:*",
     "@repo/mermaid": "workspace:*",
     "@repo/notifications": "workspace:*",
     "@repo/plantuml": "workspace:*",

@@ -22,11 +22,11 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.670.0",
-    "@aws-sdk/lib-storage": "^3.670.0",
-    "@repo/eslint-config": "workspace:*",
-    "@repo/typescript-config": "workspace:*"
+    "@aws-sdk/lib-storage": "^3.670.0"
   },
   "devDependencies": {
+    "@repo/eslint-config": "workspace:*",
+    "@repo/typescript-config": "workspace:*",
     "@types/node": "^22.19.1",
     "eslint": "^9.39.1",
     "typescript": "^5.9.2"

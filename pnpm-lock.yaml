@@ -73,9 +73,6 @@ importers:
       '@repo/domain':
         specifier: workspace:*
         version: link:../../packages/domain
-      '@repo/mail':
-        specifier: workspace:*
-        version: link:../../packages/mail
       '@repo/notifications':
         specifier: workspace:*
         version: link:../../packages/notifications
@@ -227,9 +224,6 @@ importers:
       '@repo/likec4':
         specifier: workspace:*
         version: link:../../packages/likec4
-      '@repo/mail':
-        specifier: workspace:*
-        version: link:../../packages/mail
       '@repo/mermaid':
         specifier: workspace:*
         version: link:../../packages/mermaid
@@ -445,9 +439,6 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../db
-      '@repo/mail':
-        specifier: workspace:*
-        version: link:../mail
       '@repo/notifications':
         specifier: workspace:*
         version: link:../notifications
@@ -482,9 +473,6 @@ importers:
       '@prisma/client':
         specifier: ^7.0.0
         version: 7.7.0(prisma@7.7.0(@types/react-dom@19.2.2(@types/react@19.2.2))(@types/react@19.2.2)(react-dom@19.2.5(react@19.2.5))(react@19.2.5)(typescript@5.9.2))(typescript@5.9.2)
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../typescript-config
       dotenv:
         specifier: ^17.2.3
         version: 17.4.1
@@ -492,6 +480,9 @@ importers:
         specifier: ^3.25.76
         version: 3.25.76
     devDependencies:
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
       '@types/node':
         specifier: ^22.19.1
         version: 22.19.17
@@ -568,13 +559,13 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../db
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../typescript-config
       zod:
         specifier: ^3.25.76
         version: 3.25.76
     devDependencies:
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
       '@types/node':
         specifier: ^22.19.1
         version: 22.19.17
@@ -991,9 +982,6 @@ importers:
 
   packages/mail:
     dependencies:
-      '@repo/db':
-        specifier: workspace:*
-        version: link:../db
       sendsay-api:
         specifier: ^2.4.0
         version: 2.4.0
@@ -1136,13 +1124,13 @@ importers:
       '@aws-sdk/lib-storage':
         specifier: ^3.670.0
         version: 3.1030.0(@aws-sdk/client-s3@3.1030.0)
+    devDependencies:
       '@repo/eslint-config':
         specifier: workspace:*
         version: link:../eslint-config
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
-    devDependencies:
       '@types/node':
         specifier: ^22.19.1
         version: 22.19.17
@@ -1167,15 +1155,9 @@ importers:
       '@repo/domain':
         specifier: workspace:*
         version: link:../domain
-      '@repo/eslint-config':
-        specifier: workspace:*
-        version: link:../eslint-config
       '@repo/notifications':
         specifier: workspace:*
         version: link:../notifications
-      '@repo/typescript-config':
-        specifier: workspace:*
-        version: link:../typescript-config
       '@repo/ui':
         specifier: workspace:*
         version: link:../ui
@@ -1225,6 +1207,12 @@ importers:
         specifier: ^3.25.76
         version: 3.25.76
     devDependencies:
+      '@repo/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
       '@types/node':
         specifier: ^22.19.1
         version: 22.19.17
@@ -1326,11 +1314,10 @@ importers:
         version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.17)(happy-dom@20.9.0)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.32.0)(sass@1.51.0)(terser@5.46.1)(tsx@4.21.0)(yaml@1.10.3)
 
   packages/yookassa:
-    dependencies:
+    devDependencies:
       '@repo/typescript-config':
         specifier: workspace:*
         version: link:../typescript-config
-    devDependencies:
       '@types/node':
         specifier: ^22.19.1
         version: 22.19.17
