@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import type { PrismaClient } from '@repo/db'
 
 import { DomainError } from '../../src/errors.ts'
-import { createPage, renamePage, updatePage, duplicatePage, movePage } from '../../src/pages/functions.ts'
+import { createPage, renamePage, updatePage, duplicatePage, movePage, reorderPage } from '../../src/pages/functions.ts'
 
 type TxMocks = {
   pageCreate: ReturnType<typeof vi.fn>
@@ -373,6 +373,104 @@ describe('domain movePage', () => {
     prisma.__mocks.memberFindUnique.mockResolvedValue({ role: 'EDITOR' })
     await expect(
       movePage(prisma, 'u1', { pageId: 'p1', newParentId: null }),
+    ).rejects.toBeInstanceOf(DomainError)
+  })
+})
+
+function makeReorderPrisma(page: Record<string, unknown> | null) {
+  const pageFindFirst = vi.fn(async () => page) // both the load AND the cycle BFS findMany sibling
+  const pageFindMany = vi.fn(async () => [] as { id: string }[])
+  const txFindFirst = vi.fn(async () => null)
+  const txFindMany = vi.fn(async () => [] as { id: string }[])
+  const pageUpdate = vi.fn(async () => ({}))
+  const outboxCreate = vi.fn(async () => ({}))
+  const memberFindUnique = vi.fn(async () => ({ role: 'EDITOR' as const }))
+  const tx = {
+    page: { findFirst: txFindFirst, findMany: txFindMany, update: pageUpdate },
+    outboxEvent: { create: outboxCreate },
+  }
+  const $transaction = vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx))
+  return {
+    page: { findFirst: pageFindFirst, findMany: pageFindMany },
+    workspaceMember: { findUnique: memberFindUnique },
+    $transaction,
+    __mocks: { pageFindFirst, pageFindMany, txFindFirst, txFindMany, pageUpdate, outboxCreate, memberFindUnique, $transaction },
+  } as unknown as PrismaClient & {
+    __mocks: {
+      pageFindFirst: ReturnType<typeof vi.fn>
+      pageFindMany: ReturnType<typeof vi.fn>
+      txFindFirst: ReturnType<typeof vi.fn>
+      txFindMany: ReturnType<typeof vi.fn>
+      pageUpdate: ReturnType<typeof vi.fn>
+      outboxCreate: ReturnType<typeof vi.fn>
+      memberFindUnique: ReturnType<typeof vi.fn>
+      $transaction: ReturnType<typeof vi.fn>
+    }
+  }
+}
+
+describe('domain reorderPage', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  const page = { id: 'p1', workspaceId: 'w1', parentId: null, prevPageId: null }
+
+  it('throws BAD_REQUEST when newPrevPageId === pageId (self-reference)', async () => {
+    const prisma = makeReorderPrisma(page)
+    await expect(
+      reorderPage(prisma, 'u1', { pageId: 'p1', newParentId: null, newPrevPageId: 'p1' }),
+    ).rejects.toBeInstanceOf(DomainError)
+  })
+
+  it('throws NOT_FOUND when the page does not exist', async () => {
+    const prisma = makeReorderPrisma(null)
+    await expect(
+      reorderPage(prisma, 'u1', { pageId: 'p1', newParentId: null, newPrevPageId: null }),
+    ).rejects.toBeInstanceOf(DomainError)
+  })
+
+  it('short-circuits (no transaction) when parent + prev are unchanged', async () => {
+    const prisma = makeReorderPrisma(page)
+    const result = await reorderPage(prisma, 'u1', {
+      pageId: 'p1',
+      newParentId: null,
+      newPrevPageId: null,
+    })
+    expect(result).toEqual({ id: 'p1' })
+    expect(prisma.__mocks.$transaction).not.toHaveBeenCalled()
+  })
+
+  it('throws BAD_REQUEST when newParentId is a descendant (BFS finds it)', async () => {
+    const prisma = makeReorderPrisma(page)
+    // first BFS layer: children of p1 include 'desc-1'
+    prisma.__mocks.pageFindMany.mockResolvedValueOnce([{ id: 'desc-1' }])
+    await expect(
+      reorderPage(prisma, 'u1', { pageId: 'p1', newParentId: 'desc-1', newPrevPageId: null }),
+    ).rejects.toBeInstanceOf(DomainError)
+  })
+
+  it('performs the 3-step relink and enqueues page.upserted when position changes', async () => {
+    const prisma = makeReorderPrisma(page)
+    const result = await reorderPage(prisma, 'u1', {
+      pageId: 'p1',
+      newParentId: 'parent-2',
+      newPrevPageId: null,
+    })
+    expect(result).toEqual({ id: 'p1' })
+    expect(prisma.__mocks.pageUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'p1' },
+        data: expect.objectContaining({ parentId: 'parent-2', prevPageId: null, updatedById: 'u1' }),
+      }),
+    )
+    expect(prisma.__mocks.outboxCreate).toHaveBeenCalledOnce()
+  })
+
+  it('throws FORBIDDEN when actor is not a workspace member', async () => {
+    const prisma = makeReorderPrisma(page)
+    prisma.__mocks.pageFindFirst.mockResolvedValue(page) // page exists
+    prisma.__mocks.memberFindUnique.mockResolvedValue(null) // not a member
+    await expect(
+      reorderPage(prisma, 'u1', { pageId: 'p1', newParentId: 'parent-2', newPrevPageId: null }),
     ).rejects.toBeInstanceOf(DomainError)
   })
 })

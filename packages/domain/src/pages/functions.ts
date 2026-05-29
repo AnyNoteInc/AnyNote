@@ -1,15 +1,19 @@
 import { PageType, enqueueOutboxEvent } from '@repo/db'
 import type { Prisma, PrismaClient } from '@repo/db'
 
-import { notFound } from '../errors.ts'
+import { badRequest, forbidden, notFound } from '../errors.ts'
 import { assertPageAccess, assertPageOwnership } from '../kanban/access.ts'
 import { seedKanbanDefaults } from '../kanban/seed.ts'
-import { assertNotMovingIntoOwnDescendant } from './ordering.ts'
+import {
+  assertNotMovingIntoOwnDescendant,
+  assertNotReorderingIntoOwnDescendant,
+} from './ordering.ts'
 import type {
   CreatePageInput,
   DuplicatePageInput,
   MovePageInput,
   RenamePageInput,
+  ReorderPageInput,
   UpdatePageInput,
 } from './schemas.ts'
 
@@ -275,5 +279,91 @@ export async function movePage(
     })
 
     return { id: page.id }
+  })
+}
+
+export async function reorderPage(
+  prisma: PrismaClient,
+  actorUserId: string,
+  input: ReorderPageInput,
+): Promise<{ id: string }> {
+  if (input.newPrevPageId === input.pageId) {
+    throw badRequest('Страница не может ссылаться на себя')
+  }
+
+  const page = await prisma.page.findFirst({
+    where: { id: input.pageId, deletedAt: null },
+  })
+  if (!page) throw notFound('Страница не найдена')
+
+  const member = await prisma.workspaceMember.findUnique({
+    where: { workspaceId_userId: { workspaceId: page.workspaceId, userId: actorUserId } },
+  })
+  if (!member) throw forbidden('Вы не являетесь участником воркспейса')
+
+  if (page.parentId === input.newParentId && page.prevPageId === input.newPrevPageId) {
+    return { id: input.pageId }
+  }
+
+  // Cycle check: newParentId must not be a descendant of pageId
+  await assertNotReorderingIntoOwnDescendant(prisma, input.pageId, input.newParentId)
+
+  return prisma.$transaction(async (tx) => {
+    // Step 0: Lift the moved page out so its prev_page_id doesn't clash
+    // with the next sibling adopting the same value in step 1
+    // (prev_page_id is UNIQUE — two rows can't hold the same value).
+    if (page.prevPageId !== null) {
+      await tx.page.update({
+        where: { id: input.pageId },
+        data: { prevPageId: null },
+      })
+    }
+
+    // Step 1: Detach — fix next sibling's back-pointer
+    const nextSibling = await tx.page.findFirst({
+      where: { prevPageId: input.pageId, deletedAt: null },
+    })
+    if (nextSibling) {
+      await tx.page.update({
+        where: { id: nextSibling.id },
+        data: { prevPageId: page.prevPageId },
+      })
+    }
+
+    // Step 2: Plug the gap at insert point
+    const pageAtInsertPoint = await tx.page.findFirst({
+      where: {
+        prevPageId: input.newPrevPageId,
+        workspaceId: page.workspaceId,
+        parentId: input.newParentId,
+        deletedAt: null,
+        id: { not: input.pageId },
+      },
+    })
+    if (pageAtInsertPoint) {
+      await tx.page.update({
+        where: { id: pageAtInsertPoint.id },
+        data: { prevPageId: input.pageId },
+      })
+    }
+
+    // Step 3: Update the moved page to its final position
+    await tx.page.update({
+      where: { id: input.pageId },
+      data: {
+        parentId: input.newParentId,
+        prevPageId: input.newPrevPageId,
+        updatedById: actorUserId,
+      },
+    })
+
+    await enqueueOutboxEvent(tx, {
+      eventType: 'page.upserted',
+      aggregateType: 'page',
+      aggregateId: input.pageId,
+      workspaceId: page.workspaceId,
+    })
+
+    return { id: input.pageId }
   })
 }
