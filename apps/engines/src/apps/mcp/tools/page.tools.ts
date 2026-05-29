@@ -42,10 +42,23 @@ const PageIdInput = z.object({
   pageId: mcpUuid(),
 })
 
+const ListPagesInput = z.object({
+  workspaceId: z.string().uuid(),
+  parentId: mcpNullableUuidOptional(),
+  type: mcpInput(
+    z
+      .enum(['TEXT', 'EXCALIDRAW', 'GENOGRAM', 'MERMAID', 'PLANTUML', 'LIKEC4', 'DRAWIO', 'DATABASE', 'KANBAN', 'FORM'])
+      .optional(),
+  ),
+  query: mcpInput(z.string().max(200).optional()),
+  limit: mcpInput(z.number().int().positive().max(500).default(200)),
+})
+
 type CreatePageArgs = z.infer<typeof CreatePageInput>
 type UpdatePageArgs = z.infer<typeof UpdatePageInput>
 type MovePageArgs = z.infer<typeof MovePageInput>
 type PageIdArgs = z.infer<typeof PageIdInput>
+type ListPagesArgs = z.infer<typeof ListPagesInput>
 
 function requireAuth(req: AuthedRequest | undefined): AuthContext {
   if (!req?.auth) throw new UnauthorizedException('Unauthenticated MCP request')
@@ -207,5 +220,37 @@ export class PageTools {
       this.stats.getPageStats(args.pageId, args.workspaceId),
     ])
     return stats
+  }
+
+  @Tool({
+    name: 'listPages',
+    description:
+      'Список страниц рабочего пространства (дерево). Используй чтобы осмотреть ' +
+      'структуру и предложить родителя для новой страницы, или найти страницу по ' +
+      'части названия. parentId: null — только корневые, uuid — дети узла, опустить — все. ' +
+      'Возвращает id, title, type, icon, parentId. Параметры: workspaceId, parentId?, ' +
+      'type?, query?, limit (def 200).',
+    parameters: ListPagesInput,
+  })
+  listPages(args: ListPagesArgs, _context: Context, req: AuthedRequest) {
+    return this.doListPages(requireAuth(req), args)
+  }
+
+  async doListPages(auth: AuthContext, args: ListPagesArgs) {
+    await assertMember(this.prisma, auth.userId, args.workspaceId)
+    const pages = await this.prisma.page.findMany({
+      where: {
+        workspaceId: args.workspaceId,
+        archived: false,
+        deletedAt: null,
+        ...(args.parentId === undefined ? {} : { parentId: args.parentId }),
+        ...(args.type ? { type: args.type } : {}),
+        ...(args.query ? { title: { contains: args.query, mode: 'insensitive' } } : {}),
+      },
+      select: { id: true, title: true, type: true, icon: true, parentId: true },
+      orderBy: { createdAt: 'asc' },
+      take: args.limit,
+    })
+    return { pages }
   }
 }

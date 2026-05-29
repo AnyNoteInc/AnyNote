@@ -88,6 +88,8 @@ DEFAULT_ENGINES_TOOLS: dict[str, ToolMeta] = {
                                    _summary_generic('search_pages'), _preview_default),
     'searchPagesByTitle': ToolMeta('searchPagesByTitle', SCOPE_PAGES_READ, False,
                                     _summary_generic('searchPagesByTitle'), _preview_default),
+    'listPages':         ToolMeta('listPages', SCOPE_PAGES_READ, False,
+                                  _summary_generic('listPages'), _preview_default),
     'createPage':        ToolMeta('createPage', SCOPE_PAGES_WRITE, True,
                                    _summary_create_page, _preview_default),
     'updatePage':        ToolMeta('updatePage', SCOPE_PAGES_WRITE, True,

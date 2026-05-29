@@ -1,0 +1,45 @@
+import { describe, it, expect, beforeEach, jest } from '@jest/globals'
+import { ForbiddenException } from '@nestjs/common'
+import type { PrismaClient } from '@repo/db'
+
+import type { AuthedRequest } from '../../api/auth/auth-context.js'
+import type { MarkdownParser } from '../services/markdown-parser.service.js'
+import type { MarkdownRenderer } from '../services/markdown-renderer.service.js'
+import type { PageWriter } from '../services/page-writer.service.js'
+import type { StatsService } from '../services/stats.service.js'
+import { PageTools } from './page.tools.js'
+
+describe('PageTools.listPages', () => {
+  const memberFindUnique = jest.fn<(...a: unknown[]) => Promise<unknown>>()
+  const pageFindMany = jest.fn<(...a: unknown[]) => Promise<unknown>>()
+  const prisma = {
+    workspaceMember: { findUnique: memberFindUnique },
+    page: { findMany: pageFindMany },
+  } as unknown as PrismaClient
+  const req = { headers: {}, auth: { userId: 'u1', source: 'api-key' as const } } as AuthedRequest
+  let tools: PageTools
+
+  beforeEach(() => {
+    jest.clearAllMocks()
+    memberFindUnique.mockResolvedValue({ workspaceId: 'w1' })
+    tools = new PageTools(prisma, {} as PageWriter, {} as MarkdownRenderer, {} as MarkdownParser, {} as StatsService)
+  })
+
+  it('returns pages filtered to roots when parentId is null', async () => {
+    pageFindMany.mockResolvedValue([{ id: 'p1', title: 'Root', type: 'TEXT', icon: null, parentId: null }])
+    const out = await tools.listPages({ workspaceId: 'w1', parentId: null, limit: 200 }, {} as never, req)
+    expect(out.pages).toEqual([{ id: 'p1', title: 'Root', type: 'TEXT', icon: null, parentId: null }])
+    expect(pageFindMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { workspaceId: 'w1', archived: false, deletedAt: null, parentId: null },
+      }),
+    )
+  })
+
+  it('rejects a non-member', async () => {
+    memberFindUnique.mockResolvedValue(null)
+    await expect(
+      tools.listPages({ workspaceId: 'w1', limit: 200 }, {} as never, req),
+    ).rejects.toBeInstanceOf(ForbiddenException)
+  })
+})
