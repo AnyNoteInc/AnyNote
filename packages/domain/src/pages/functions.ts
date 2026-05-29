@@ -11,6 +11,8 @@ import {
 import type {
   CreatePageInput,
   DuplicatePageInput,
+  EmptyTrashInput,
+  HardDeletePageInput,
   MovePageInput,
   RenamePageInput,
   ReorderPageInput,
@@ -518,5 +520,77 @@ export async function restorePage(
     })
 
     return { id: page.id }
+  })
+}
+
+export async function hardDeletePage(
+  prisma: PrismaClient,
+  actorUserId: string,
+  input: HardDeletePageInput,
+): Promise<{ id: string }> {
+  await assertPageOwnership(prisma, actorUserId, input.id)
+
+  return prisma.$transaction(async (tx) => {
+    const page = await tx.page.findFirst({
+      where: { id: input.id, workspaceId: input.workspaceId },
+    })
+    if (!page) {
+      throw notFound('Страница не найдена')
+    }
+
+    // Remove from linked list if still linked
+    const nextSibling = await tx.page.findFirst({
+      where: { prevPageId: page.id },
+    })
+    if (nextSibling) {
+      await tx.page.update({
+        where: { id: nextSibling.id },
+        data: { prevPageId: page.prevPageId },
+      })
+    }
+
+    // Delete the page (cascade handles related rows)
+    await tx.page.delete({ where: { id: page.id } })
+
+    await enqueueOutboxEvent(tx, {
+      eventType: 'page.deleted',
+      aggregateType: 'page',
+      aggregateId: page.id,
+      workspaceId: input.workspaceId,
+    })
+
+    return { id: page.id }
+  })
+}
+
+export async function emptyTrash(
+  prisma: PrismaClient,
+  actorUserId: string,
+  input: EmptyTrashInput,
+): Promise<{ count: number }> {
+  const member = await prisma.workspaceMember.findUnique({
+    where: { workspaceId_userId: { workspaceId: input.workspaceId, userId: actorUserId } },
+  })
+  if (!member) throw forbidden('Вы не являетесь участником воркспейса')
+  if (member.role !== 'OWNER') {
+    throw forbidden('Только владелец может очистить корзину')
+  }
+  return prisma.$transaction(async (tx) => {
+    const trashed = await tx.page.findMany({
+      where: { workspaceId: input.workspaceId, deletedAt: { not: null } },
+      select: { id: true },
+    })
+    const deleted = await tx.page.deleteMany({
+      where: { workspaceId: input.workspaceId, deletedAt: { not: null } },
+    })
+    for (const { id } of trashed) {
+      await enqueueOutboxEvent(tx, {
+        eventType: 'page.deleted',
+        aggregateType: 'page',
+        aggregateId: id,
+        workspaceId: input.workspaceId,
+      })
+    }
+    return { count: deleted.count }
   })
 }

@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import type { PrismaClient } from '@repo/db'
 
 import { DomainError } from '../../src/errors.ts'
-import { createPage, renamePage, updatePage, duplicatePage, movePage, reorderPage, softDeletePage, restorePage } from '../../src/pages/functions.ts'
+import { createPage, renamePage, updatePage, duplicatePage, movePage, reorderPage, softDeletePage, restorePage, hardDeletePage, emptyTrash } from '../../src/pages/functions.ts'
 
 type TxMocks = {
   pageCreate: ReturnType<typeof vi.fn>
@@ -633,5 +633,109 @@ describe('domain restorePage', () => {
         data: expect.objectContaining({ deletedAt: null, parentId: null }),
       }),
     )
+  })
+})
+
+function makeHardDeletePrisma(txPage: Record<string, unknown> | null = { id: 'p1', workspaceId: 'w1', prevPageId: null }) {
+  const ownershipFindFirst = vi.fn(async () => ({ id: 'p1', workspaceId: 'w1', createdById: 'u1' }))
+  const memberFindUnique = vi.fn(async () => ({ role: 'OWNER' as const }))
+  const txFindFirst = vi.fn(async () => txPage)
+  const txUpdate = vi.fn(async () => ({}))
+  const txDelete = vi.fn(async () => ({}))
+  const outboxCreate = vi.fn(async () => ({}))
+  const tx = {
+    page: { findFirst: txFindFirst, update: txUpdate, delete: txDelete },
+    outboxEvent: { create: outboxCreate },
+  }
+  const $transaction = vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx))
+  return {
+    page: { findFirst: ownershipFindFirst },
+    workspaceMember: { findUnique: memberFindUnique },
+    $transaction,
+    __mocks: { ownershipFindFirst, memberFindUnique, txFindFirst, txUpdate, txDelete, outboxCreate, $transaction },
+  } as unknown as PrismaClient & {
+    __mocks: {
+      ownershipFindFirst: ReturnType<typeof vi.fn>
+      memberFindUnique: ReturnType<typeof vi.fn>
+      txFindFirst: ReturnType<typeof vi.fn>
+      txUpdate: ReturnType<typeof vi.fn>
+      txDelete: ReturnType<typeof vi.fn>
+      outboxCreate: ReturnType<typeof vi.fn>
+      $transaction: ReturnType<typeof vi.fn>
+    }
+  }
+}
+
+describe('domain hardDeletePage', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('deletes the page and enqueues page.deleted', async () => {
+    const prisma = makeHardDeletePrisma()
+    const result = await hardDeletePage(prisma, 'u1', { id: 'p1', workspaceId: 'w1' })
+    expect(result).toEqual({ id: 'p1' })
+    expect(prisma.__mocks.txDelete).toHaveBeenCalledWith({ where: { id: 'p1' } })
+    expect(prisma.__mocks.outboxCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ eventType: 'page.deleted', aggregateId: 'p1' }),
+      }),
+    )
+  })
+
+  it('throws NOT_FOUND when the page does not exist in the workspace', async () => {
+    const prisma = makeHardDeletePrisma(null)
+    await expect(
+      hardDeletePage(prisma, 'u1', { id: 'p1', workspaceId: 'w1' }),
+    ).rejects.toBeInstanceOf(DomainError)
+  })
+})
+
+function makeEmptyTrashPrisma(role: string = 'OWNER') {
+  const memberFindUnique = vi.fn(async () => ({ role }))
+  const txFindMany = vi.fn(async () => [{ id: 't1' }, { id: 't2' }])
+  const txDeleteMany = vi.fn(async () => ({ count: 2 }))
+  const outboxCreate = vi.fn(async () => ({}))
+  const tx = {
+    page: { findMany: txFindMany, deleteMany: txDeleteMany },
+    outboxEvent: { create: outboxCreate },
+  }
+  const $transaction = vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx))
+  return {
+    workspaceMember: { findUnique: memberFindUnique },
+    $transaction,
+    __mocks: { memberFindUnique, txFindMany, txDeleteMany, outboxCreate, $transaction },
+  } as unknown as PrismaClient & {
+    __mocks: {
+      memberFindUnique: ReturnType<typeof vi.fn>
+      txFindMany: ReturnType<typeof vi.fn>
+      txDeleteMany: ReturnType<typeof vi.fn>
+      outboxCreate: ReturnType<typeof vi.fn>
+      $transaction: ReturnType<typeof vi.fn>
+    }
+  }
+}
+
+describe('domain emptyTrash', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('hard-deletes trashed pages and enqueues page.deleted per page', async () => {
+    const prisma = makeEmptyTrashPrisma('OWNER')
+    const result = await emptyTrash(prisma, 'u1', { workspaceId: 'w1' })
+    expect(result).toEqual({ count: 2 })
+    expect(prisma.__mocks.txDeleteMany).toHaveBeenCalledWith({
+      where: { workspaceId: 'w1', deletedAt: { not: null } },
+    })
+    expect(prisma.__mocks.outboxCreate).toHaveBeenCalledTimes(2)
+  })
+
+  it('throws FORBIDDEN when the actor is not the OWNER', async () => {
+    const prisma = makeEmptyTrashPrisma('ADMIN')
+    await expect(emptyTrash(prisma, 'u1', { workspaceId: 'w1' })).rejects.toBeInstanceOf(DomainError)
+    expect(prisma.__mocks.txDeleteMany).not.toHaveBeenCalled()
+  })
+
+  it('throws FORBIDDEN when the actor is not a member', async () => {
+    const prisma = makeEmptyTrashPrisma('OWNER')
+    prisma.__mocks.memberFindUnique.mockResolvedValue(null)
+    await expect(emptyTrash(prisma, 'u1', { workspaceId: 'w1' })).rejects.toBeInstanceOf(DomainError)
   })
 })
