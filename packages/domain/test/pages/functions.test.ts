@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import type { PrismaClient } from '@repo/db'
 
 import { DomainError } from '../../src/errors.ts'
-import { createPage, renamePage, updatePage, duplicatePage } from '../../src/pages/functions.ts'
+import { createPage, renamePage, updatePage, duplicatePage, movePage } from '../../src/pages/functions.ts'
 
 type TxMocks = {
   pageCreate: ReturnType<typeof vi.fn>
@@ -266,5 +266,113 @@ describe('domain duplicatePage', () => {
     const prisma = makeDuplicatePrisma(original)
     prisma.__mocks.accessFindFirst.mockResolvedValue(null)
     await expect(duplicatePage(prisma, 'u1', { pageId: 'p1' })).rejects.toBeInstanceOf(DomainError)
+  })
+})
+
+function makeMovePrisma(page: Record<string, unknown>) {
+  const accessFindFirst = vi.fn(async () => page)
+  const memberFindUnique = vi.fn(async () => ({ role: 'OWNER' as const }))
+  // tx.page.findFirst is used for: next sibling, ancestor walk, existingFirst
+  const txFindFirst = vi.fn(async () => null)
+  const pageUpdate = vi.fn(async () => ({}))
+  const outboxCreate = vi.fn(async () => ({}))
+  const tx = {
+    page: { findFirst: txFindFirst, update: pageUpdate },
+    outboxEvent: { create: outboxCreate },
+  }
+  const $transaction = vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx))
+  return {
+    page: { findFirst: accessFindFirst },
+    workspaceMember: { findUnique: memberFindUnique },
+    $transaction,
+    __mocks: { accessFindFirst, memberFindUnique, txFindFirst, pageUpdate, outboxCreate, $transaction },
+  } as unknown as PrismaClient & {
+    __mocks: {
+      accessFindFirst: ReturnType<typeof vi.fn>
+      memberFindUnique: ReturnType<typeof vi.fn>
+      txFindFirst: ReturnType<typeof vi.fn>
+      pageUpdate: ReturnType<typeof vi.fn>
+      outboxCreate: ReturnType<typeof vi.fn>
+      $transaction: ReturnType<typeof vi.fn>
+    }
+  }
+}
+
+describe('domain movePage', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  const page = { id: 'p1', workspaceId: 'w1', parentId: null, prevPageId: null, createdById: 'u1' }
+
+  it('moves to a new parent and enqueues page.upserted', async () => {
+    const prisma = makeMovePrisma(page)
+    const result = await movePage(prisma, 'u1', { pageId: 'p1', newParentId: 'parent-2' })
+    expect(result).toEqual({ id: 'p1' })
+    expect(prisma.__mocks.pageUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'p1' },
+        data: expect.objectContaining({ parentId: 'parent-2', prevPageId: null, updatedById: 'u1' }),
+      }),
+    )
+    expect(prisma.__mocks.outboxCreate).toHaveBeenCalledOnce()
+  })
+
+  it('repoints old next sibling to old prev on detach (exact pointer update)', async () => {
+    const prisma = makeMovePrisma({ ...page, prevPageId: 'prev-0' })
+    // old next sibling exists → should be repointed to page.prevPageId ('prev-0')
+    prisma.__mocks.txFindFirst.mockImplementationOnce(async () => ({ id: 'next-1' })) // next sibling lookup
+    // ancestor walk returns null (no cycle)
+    prisma.__mocks.txFindFirst.mockImplementation(async () => null)
+    await movePage(prisma, 'u1', { pageId: 'p1', newParentId: 'parent-2' })
+    // detach: set next-sibling.prevPageId = null first
+    expect(prisma.__mocks.pageUpdate).toHaveBeenCalledWith({
+      where: { id: 'next-1' },
+      data: { prevPageId: null },
+    })
+    // reattach: set next-sibling.prevPageId = old page.prevPageId ('prev-0')
+    expect(prisma.__mocks.pageUpdate).toHaveBeenCalledWith({
+      where: { id: 'next-1' },
+      data: { prevPageId: 'prev-0' },
+    })
+  })
+
+  it('throws BAD_REQUEST when moving into own descendant (ancestor walk hits pageId)', async () => {
+    const prisma = makeMovePrisma(page)
+    // ancestor walk: newParentId 'child-of-p1' → its parent is 'p1' → cycle
+    prisma.__mocks.txFindFirst.mockImplementation(async (arg: { where?: { id?: string } }) => {
+      if (arg?.where?.id === 'child-of-p1') return { parentId: 'p1' }
+      return null
+    })
+    await expect(
+      movePage(prisma, 'u1', { pageId: 'p1', newParentId: 'child-of-p1' }),
+    ).rejects.toBeInstanceOf(DomainError)
+    // tree-integrity: the cycle check throws before any pointer/outbox write
+    expect(prisma.__mocks.pageUpdate).not.toHaveBeenCalled()
+    expect(prisma.__mocks.outboxCreate).not.toHaveBeenCalled()
+  })
+
+  it('pushes the new parent existing head behind the moved page', async () => {
+    const prisma = makeMovePrisma(page)
+    // next-sibling + ancestor-walk lookups → null; existingFirst (head of new parent) → head-1
+    prisma.__mocks.txFindFirst.mockImplementation(
+      async (arg: { where?: { parentId?: string; prevPageId?: string | null } }) => {
+        if (arg?.where?.parentId === 'parent-2' && arg?.where?.prevPageId === null) {
+          return { id: 'head-1' }
+        }
+        return null
+      },
+    )
+    await movePage(prisma, 'u1', { pageId: 'p1', newParentId: 'parent-2' })
+    expect(prisma.__mocks.pageUpdate).toHaveBeenCalledWith({
+      where: { id: 'head-1' },
+      data: { prevPageId: 'p1' },
+    })
+  })
+
+  it('throws FORBIDDEN when actor lacks ownership', async () => {
+    const prisma = makeMovePrisma({ ...page, createdById: 'other' })
+    prisma.__mocks.memberFindUnique.mockResolvedValue({ role: 'EDITOR' })
+    await expect(
+      movePage(prisma, 'u1', { pageId: 'p1', newParentId: null }),
+    ).rejects.toBeInstanceOf(DomainError)
   })
 })

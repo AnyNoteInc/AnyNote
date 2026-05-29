@@ -4,9 +4,11 @@ import type { Prisma, PrismaClient } from '@repo/db'
 import { notFound } from '../errors.ts'
 import { assertPageAccess, assertPageOwnership } from '../kanban/access.ts'
 import { seedKanbanDefaults } from '../kanban/seed.ts'
+import { assertNotMovingIntoOwnDescendant } from './ordering.ts'
 import type {
   CreatePageInput,
   DuplicatePageInput,
+  MovePageInput,
   RenamePageInput,
   UpdatePageInput,
 } from './schemas.ts'
@@ -203,5 +205,75 @@ export async function duplicatePage(
     })
 
     return { id: copy.id }
+  })
+}
+
+export async function movePage(
+  prisma: PrismaClient,
+  actorUserId: string,
+  input: MovePageInput,
+): Promise<{ id: string }> {
+  const page = await assertPageAccess(prisma, actorUserId, input.pageId)
+  // Ownership: must be creator or workspace OWNER.
+  await assertPageOwnership(prisma, actorUserId, input.pageId)
+
+  return prisma.$transaction(async (tx) => {
+    // 1. Remove from old linked-list (detach first to avoid unique constraint)
+    const nextSibling = await tx.page.findFirst({
+      where: { prevPageId: page.id, deletedAt: null },
+    })
+    if (nextSibling) {
+      await tx.page.update({
+        where: { id: nextSibling.id },
+        data: { prevPageId: null },
+      })
+    }
+
+    // 2. Prevent moving into own descendant
+    await assertNotMovingIntoOwnDescendant(tx, input.pageId, input.newParentId)
+
+    // 3. Set new parentId
+    await tx.page.update({
+      where: { id: page.id },
+      data: {
+        parentId: input.newParentId,
+        prevPageId: null,
+        updatedById: actorUserId,
+      },
+    })
+
+    // Reattach next sibling to previous in old list
+    if (nextSibling) {
+      await tx.page.update({
+        where: { id: nextSibling.id },
+        data: { prevPageId: page.prevPageId },
+      })
+    }
+
+    // 4. Insert at head of new parent's linked-list
+    const existingFirst = await tx.page.findFirst({
+      where: {
+        workspaceId: page.workspaceId,
+        parentId: input.newParentId,
+        prevPageId: null,
+        id: { not: page.id },
+        deletedAt: null,
+      },
+    })
+    if (existingFirst) {
+      await tx.page.update({
+        where: { id: existingFirst.id },
+        data: { prevPageId: page.id },
+      })
+    }
+
+    await enqueueOutboxEvent(tx, {
+      eventType: 'page.upserted',
+      aggregateType: 'page',
+      aggregateId: page.id,
+      workspaceId: page.workspaceId,
+    })
+
+    return { id: page.id }
   })
 }
