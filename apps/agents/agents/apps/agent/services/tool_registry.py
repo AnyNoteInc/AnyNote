@@ -96,6 +96,8 @@ DEFAULT_ENGINES_TOOLS: dict[str, ToolMeta] = {
                                    _summary_update_page, _preview_default),
     'movePage':          ToolMeta('movePage', SCOPE_PAGES_WRITE, True,
                                    _summary_move_page, _preview_default),
+    'appendToPage':      ToolMeta('appendToPage', SCOPE_PAGES_WRITE, True,
+                                   lambda a: f'Дописать в страницу {a.get("pageId")}', _preview_default),
     'createPageFromFile': ToolMeta('createPageFromFile', SCOPE_PAGES_WRITE, True,
                                     _summary_create_page_from_file, _preview_default),
     'uploadFileToPage':  ToolMeta('uploadFileToPage', SCOPE_FILES_WRITE, True,

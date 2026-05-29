@@ -1,4 +1,4 @@
-import { Inject, Injectable } from '@nestjs/common'
+import { BadRequestException, Inject, Injectable } from '@nestjs/common'
 import { TiptapTransformer } from '@hocuspocus/transformer'
 import type { PrismaClient } from '@repo/db'
 import { Prisma } from '@repo/db'
@@ -32,6 +32,14 @@ export type MovePageInput = {
   pageId: string
   newParentId?: string | null
   prevPageId?: string | null
+}
+
+type TiptapDoc = { type: 'doc'; content?: unknown[] }
+export type AppendContentInput = {
+  userId: string
+  workspaceId: string
+  pageId: string
+  appended: unknown
 }
 
 @Injectable()
@@ -167,6 +175,36 @@ export class PageWriter {
         })
       }
 
+      await tx.outboxEvent.create({
+        data: {
+          eventType: 'page.upserted',
+          aggregateType: 'page',
+          aggregateId: input.pageId,
+          workspaceId: input.workspaceId,
+          payload: {},
+        },
+      })
+    })
+  }
+
+  async appendContent(input: AppendContentInput): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const page = await tx.page.findUnique({
+        where: { id: input.pageId },
+        select: { id: true, workspaceId: true, type: true, content: true },
+      })
+      if (page?.workspaceId !== input.workspaceId) throw new PageNotFoundError(input.pageId)
+      if (page.type !== 'TEXT') throw new BadRequestException('appendToPage supports only TEXT pages')
+      const current = (page.content as TiptapDoc | null) ?? { type: 'doc', content: [] }
+      const appendedDoc = input.appended as TiptapDoc
+      const merged: TiptapDoc = {
+        type: 'doc',
+        content: [...(current.content ?? []), ...(appendedDoc.content ?? [])],
+      }
+      await tx.page.update({
+        where: { id: input.pageId },
+        data: { content: merged as never, contentYjs: buildContentYjs(merged), updatedById: input.userId },
+      })
       await tx.outboxEvent.create({
         data: {
           eventType: 'page.upserted',

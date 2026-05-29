@@ -54,11 +54,18 @@ const ListPagesInput = z.object({
   limit: mcpInput(z.number().int().positive().max(500).default(200)),
 })
 
+const AppendToPageInput = z.object({
+  workspaceId: z.string().uuid(),
+  pageId: mcpUuid(),
+  markdown: z.string().min(1).max(50_000),
+})
+
 type CreatePageArgs = z.infer<typeof CreatePageInput>
 type UpdatePageArgs = z.infer<typeof UpdatePageInput>
 type MovePageArgs = z.infer<typeof MovePageInput>
 type PageIdArgs = z.infer<typeof PageIdInput>
 type ListPagesArgs = z.infer<typeof ListPagesInput>
+type AppendToPageArgs = z.infer<typeof AppendToPageInput>
 
 function requireAuth(req: AuthedRequest | undefined): AuthContext {
   if (!req?.auth) throw new UnauthorizedException('Unauthenticated MCP request')
@@ -220,6 +227,30 @@ export class PageTools {
       this.stats.getPageStats(args.pageId, args.workspaceId),
     ])
     return stats
+  }
+
+  @Tool({
+    name: 'appendToPage',
+    description:
+      'Дописывает Markdown в КОНЕЦ существующей TEXT-страницы (не перезаписывает). ' +
+      'Используй для мелких правок/дополнений ("добавь раздел", "допиши итоги"). ' +
+      'Требует подтверждения. Параметры: workspaceId, pageId, markdown (1-50000).',
+    parameters: AppendToPageInput,
+  })
+  appendToPage(args: AppendToPageArgs, _context: Context, req: AuthedRequest) {
+    return this.doAppendToPage(requireAuth(req), args)
+  }
+
+  async doAppendToPage(auth: AuthContext, args: AppendToPageArgs) {
+    await assertMember(this.prisma, auth.userId, args.workspaceId)
+    const appended = this.parser.parse(args.markdown)
+    await this.writer.appendContent({
+      userId: auth.userId,
+      workspaceId: args.workspaceId,
+      pageId: args.pageId,
+      appended,
+    })
+    return { ok: true as const }
   }
 
   @Tool({
