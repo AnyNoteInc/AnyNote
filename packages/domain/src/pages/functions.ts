@@ -14,6 +14,8 @@ import type {
   MovePageInput,
   RenamePageInput,
   ReorderPageInput,
+  RestorePageInput,
+  SoftDeletePageInput,
   UpdatePageInput,
 } from './schemas.ts'
 
@@ -365,5 +367,156 @@ export async function reorderPage(
     })
 
     return { id: input.pageId }
+  })
+}
+
+export async function softDeletePage(
+  prisma: PrismaClient,
+  actorUserId: string,
+  input: SoftDeletePageInput,
+): Promise<{ id: string }> {
+  const page = await assertPageOwnership(prisma, actorUserId, input.id)
+  const now = new Date()
+
+  return prisma.$transaction(async (tx) => {
+    // Remove page from linked list (detach first to avoid unique constraint)
+    const nextSibling = await tx.page.findFirst({
+      where: { prevPageId: page.id, deletedAt: null },
+    })
+    if (nextSibling) {
+      await tx.page.update({
+        where: { id: nextSibling.id },
+        data: { prevPageId: null },
+      })
+    }
+
+    // Soft-delete this page
+    await tx.page.update({
+      where: { id: page.id },
+      data: { deletedAt: now, prevPageId: null, updatedById: actorUserId },
+    })
+
+    // Reattach next sibling to previous
+    if (nextSibling) {
+      await tx.page.update({
+        where: { id: nextSibling.id },
+        data: { prevPageId: page.prevPageId },
+      })
+    }
+
+    // Soft-delete all descendants recursively
+    // Use a loop to walk the tree breadth-first
+    let parentIds: string[] = [page.id]
+    while (parentIds.length > 0) {
+      const children = await tx.page.findMany({
+        where: {
+          parentId: { in: parentIds },
+          deletedAt: null,
+        },
+        select: { id: true },
+      })
+      if (children.length === 0) break
+      const childIds = children.map((c) => c.id)
+      await tx.page.updateMany({
+        where: { id: { in: childIds } },
+        data: { deletedAt: now, updatedById: actorUserId },
+      })
+      parentIds = childIds
+    }
+
+    await enqueueOutboxEvent(tx, {
+      eventType: 'page.deleted',
+      aggregateType: 'page',
+      aggregateId: page.id,
+      workspaceId: input.workspaceId,
+    })
+
+    return { id: page.id }
+  })
+}
+
+export async function restorePage(
+  prisma: PrismaClient,
+  actorUserId: string,
+  input: RestorePageInput,
+): Promise<{ id: string }> {
+  await assertPageOwnership(prisma, actorUserId, input.id)
+
+  return prisma.$transaction(async (tx) => {
+    const page = await tx.page.findFirst({
+      where: { id: input.id, workspaceId: input.workspaceId },
+    })
+    if (!page || !page.deletedAt) {
+      throw notFound('Страница не найдена в корзине')
+    }
+
+    // Determine restore location: if parent is deleted, move to workspace root
+    let restoreParentId = page.parentId
+
+    if (page.parentId) {
+      const parentPage = await tx.page.findFirst({
+        where: { id: page.parentId, deletedAt: null },
+      })
+      if (!parentPage) {
+        // Parent is still deleted — move to workspace root
+        restoreParentId = null
+      }
+    }
+
+    // Restore the page
+    await tx.page.update({
+      where: { id: page.id },
+      data: {
+        deletedAt: null,
+        parentId: restoreParentId,
+        prevPageId: null,
+        updatedById: actorUserId,
+      },
+    })
+
+    // Insert at start of linked list
+    const existingFirst = await tx.page.findFirst({
+      where: {
+        workspaceId: input.workspaceId,
+        parentId: restoreParentId,
+        prevPageId: null,
+        id: { not: page.id },
+        deletedAt: null,
+      },
+    })
+    if (existingFirst) {
+      await tx.page.update({
+        where: { id: existingFirst.id },
+        data: { prevPageId: page.id },
+      })
+    }
+
+    // Restore all descendants recursively
+    let parentIds: string[] = [page.id]
+    while (parentIds.length > 0) {
+      const children = await tx.page.findMany({
+        where: {
+          parentId: { in: parentIds },
+          deletedAt: { not: null },
+        },
+        select: { id: true },
+      })
+      if (children.length === 0) break
+      const childIds = children.map((c) => c.id)
+      await tx.page.updateMany({
+        where: { id: { in: childIds } },
+        data: { deletedAt: null, updatedById: actorUserId },
+      })
+      parentIds = childIds
+    }
+
+    await enqueueOutboxEvent(tx, {
+      eventType: 'page.upserted',
+      aggregateType: 'page',
+      aggregateId: page.id,
+      workspaceId: input.workspaceId,
+    })
+
+    return { id: page.id }
   })
 }

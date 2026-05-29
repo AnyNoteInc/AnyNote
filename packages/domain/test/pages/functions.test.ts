@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import type { PrismaClient } from '@repo/db'
 
 import { DomainError } from '../../src/errors.ts'
-import { createPage, renamePage, updatePage, duplicatePage, movePage, reorderPage } from '../../src/pages/functions.ts'
+import { createPage, renamePage, updatePage, duplicatePage, movePage, reorderPage, softDeletePage, restorePage } from '../../src/pages/functions.ts'
 
 type TxMocks = {
   pageCreate: ReturnType<typeof vi.fn>
@@ -472,5 +472,166 @@ describe('domain reorderPage', () => {
     await expect(
       reorderPage(prisma, 'u1', { pageId: 'p1', newParentId: 'parent-2', newPrevPageId: null }),
     ).rejects.toBeInstanceOf(DomainError)
+  })
+})
+
+function makeTrashPrisma(opts: {
+  ownershipPage?: Record<string, unknown> | null
+  txPage?: Record<string, unknown> | null
+  parentPage?: Record<string, unknown> | null
+} = {}) {
+  const ownershipFindFirst = vi.fn(async () =>
+    opts.ownershipPage === undefined
+      ? { id: 'p1', workspaceId: 'w1', parentId: null, prevPageId: null, deletedAt: null, createdById: 'u1' }
+      : opts.ownershipPage,
+  )
+  const memberFindUnique = vi.fn(async () => ({ role: 'OWNER' as const }))
+  // tx.page.findFirst: nextSibling / the restore re-find / parent check / existingFirst
+  const txFindFirst = vi.fn(async () => null)
+  const txFindMany = vi.fn(async () => [] as { id: string }[]) // descendant BFS: empty
+  const txUpdate = vi.fn(async () => ({}))
+  const txUpdateMany = vi.fn(async () => ({ count: 0 }))
+  const outboxCreate = vi.fn(async () => ({}))
+  const tx = {
+    page: { findFirst: txFindFirst, update: txUpdate, updateMany: txUpdateMany, findMany: txFindMany },
+    outboxEvent: { create: outboxCreate },
+  }
+  const $transaction = vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx))
+  return {
+    page: { findFirst: ownershipFindFirst },
+    workspaceMember: { findUnique: memberFindUnique },
+    $transaction,
+    __mocks: { ownershipFindFirst, memberFindUnique, txFindFirst, txFindMany, txUpdate, txUpdateMany, outboxCreate, $transaction },
+  } as unknown as PrismaClient & {
+    __mocks: {
+      ownershipFindFirst: ReturnType<typeof vi.fn>
+      memberFindUnique: ReturnType<typeof vi.fn>
+      txFindFirst: ReturnType<typeof vi.fn>
+      txFindMany: ReturnType<typeof vi.fn>
+      txUpdate: ReturnType<typeof vi.fn>
+      txUpdateMany: ReturnType<typeof vi.fn>
+      outboxCreate: ReturnType<typeof vi.fn>
+      $transaction: ReturnType<typeof vi.fn>
+    }
+  }
+}
+
+describe('domain softDeletePage', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('soft-deletes the page (sets deletedAt) and enqueues page.deleted', async () => {
+    const prisma = makeTrashPrisma()
+    const result = await softDeletePage(prisma, 'u1', { id: 'p1', workspaceId: 'w1' })
+    expect(result).toEqual({ id: 'p1' })
+    expect(prisma.__mocks.txUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'p1' },
+        data: expect.objectContaining({ prevPageId: null, updatedById: 'u1' }),
+      }),
+    )
+    expect(prisma.__mocks.outboxCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ eventType: 'page.deleted', aggregateId: 'p1' }),
+      }),
+    )
+  })
+
+  it('recursively soft-deletes descendants via BFS across MULTIPLE levels', async () => {
+    const prisma = makeTrashPrisma()
+    prisma.__mocks.txFindMany
+      .mockResolvedValueOnce([{ id: 'c1' }, { id: 'c2' }]) // layer 1: direct children
+      .mockResolvedValueOnce([{ id: 'gc1' }]) // layer 2: grandchild — proves the queue advances
+      .mockResolvedValueOnce([]) // layer 3 empty → stop
+    await softDeletePage(prisma, 'u1', { id: 'p1', workspaceId: 'w1' })
+    expect(prisma.__mocks.txUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ['c1', 'c2'] } } }),
+    )
+    // deep recursion: the grandchild layer is also soft-deleted (parentIds = childIds advanced)
+    expect(prisma.__mocks.txUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: ['gc1'] } } }),
+    )
+    expect(prisma.__mocks.txUpdateMany).toHaveBeenCalledTimes(2)
+  })
+
+  it('throws FORBIDDEN when actor lacks ownership', async () => {
+    const prisma = makeTrashPrisma({
+      ownershipPage: { id: 'p1', workspaceId: 'w1', parentId: null, prevPageId: null, createdById: 'other' },
+    })
+    prisma.__mocks.memberFindUnique.mockResolvedValue({ role: 'EDITOR' })
+    await expect(
+      softDeletePage(prisma, 'u1', { id: 'p1', workspaceId: 'w1' }),
+    ).rejects.toBeInstanceOf(DomainError)
+  })
+})
+
+describe('domain restorePage', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('throws NOT_FOUND when the page is not in trash (deletedAt null)', async () => {
+    const prisma = makeTrashPrisma()
+    // tx re-find returns a non-deleted page → NOT_FOUND
+    prisma.__mocks.txFindFirst.mockResolvedValueOnce({ id: 'p1', workspaceId: 'w1', parentId: null, deletedAt: null })
+    await expect(
+      restorePage(prisma, 'u1', { id: 'p1', workspaceId: 'w1' }),
+    ).rejects.toBeInstanceOf(DomainError)
+  })
+
+  it('restores a trashed page and enqueues page.upserted', async () => {
+    const prisma = makeTrashPrisma()
+    // tx re-find returns a deleted page (in trash)
+    prisma.__mocks.txFindFirst.mockResolvedValueOnce({
+      id: 'p1',
+      workspaceId: 'w1',
+      parentId: null,
+      deletedAt: new Date(),
+    })
+    const result = await restorePage(prisma, 'u1', { id: 'p1', workspaceId: 'w1' })
+    expect(result).toEqual({ id: 'p1' })
+    expect(prisma.__mocks.txUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'p1' },
+        data: expect.objectContaining({ deletedAt: null, prevPageId: null, updatedById: 'u1' }),
+      }),
+    )
+    expect(prisma.__mocks.outboxCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ eventType: 'page.upserted', aggregateId: 'p1' }),
+      }),
+    )
+  })
+
+  it('restores deleted descendants via BFS (inverted filter clears deletedAt)', async () => {
+    const prisma = makeTrashPrisma()
+    prisma.__mocks.txFindFirst.mockResolvedValueOnce({
+      id: 'p1',
+      workspaceId: 'w1',
+      parentId: null,
+      deletedAt: new Date(),
+    }) // re-find: page is in trash
+    prisma.__mocks.txFindMany
+      .mockResolvedValueOnce([{ id: 'dc1' }]) // layer 1: a deleted child
+      .mockResolvedValueOnce([]) // stop
+    await restorePage(prisma, 'u1', { id: 'p1', workspaceId: 'w1' })
+    // the cascade clears deletedAt on descendants (the delete↔restore filter inversion)
+    expect(prisma.__mocks.txUpdateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: { in: ['dc1'] } },
+        data: expect.objectContaining({ deletedAt: null }),
+      }),
+    )
+  })
+
+  it('moves the restored page to root when its parent is still deleted', async () => {
+    const prisma = makeTrashPrisma()
+    prisma.__mocks.txFindFirst
+      .mockResolvedValueOnce({ id: 'p1', workspaceId: 'w1', parentId: 'par1', deletedAt: new Date() }) // re-find
+      .mockResolvedValueOnce(null) // parent-check: par1 still deleted → fall back to root
+    await restorePage(prisma, 'u1', { id: 'p1', workspaceId: 'w1' })
+    expect(prisma.__mocks.txUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'p1' },
+        data: expect.objectContaining({ deletedAt: null, parentId: null }),
+      }),
+    )
   })
 })
