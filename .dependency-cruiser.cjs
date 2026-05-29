@@ -12,6 +12,15 @@ module.exports = {
       to: { circular: true },
     },
     {
+      name: 'no-unresolvable-repo-import',
+      comment:
+        'A @repo/* import depcruise cannot resolve is otherwise dropped silently, blinding the ' +
+        'tier rules below. Surface it. (check-types co-guards: an unresolved import is also TS2307.)',
+      severity: 'error',
+      from: { path: '^(packages|apps)/' },
+      to: { couldNotResolve: true, path: '^@repo/' },
+    },
+    {
       name: 'adapters-are-pure',
       comment: 'Tier 1 (db/mail/storage/yookassa) import no other @repo package (db ok).',
       severity: 'error',
@@ -22,15 +31,30 @@ module.exports = {
       },
     },
     {
-      name: 'infra-only-adapters',
-      comment: 'Tier 2 (notifications/auth) import only adapters + infra.',
+      name: 'infra-auth-tier',
+      comment:
+        'Tier 2 top (auth) imports only adapters + lower infra (notifications). Not the reverse.',
       severity: 'error',
-      from: { path: '^packages/(notifications|auth)/src' },
+      from: { path: '^packages/auth/src' },
       to: {
         path: '^packages/',
         pathNot: [
           '^packages/(db|mail|storage|yookassa)/',
-          '^packages/(notifications|auth)/',
+          '^packages/(auth|notifications)/',
+          '^packages/(eslint-config|typescript-config)/',
+        ],
+      },
+    },
+    {
+      name: 'infra-notifications-tier',
+      comment: 'Tier 2 mid (notifications) imports only adapters — never upward to auth.',
+      severity: 'error',
+      from: { path: '^packages/notifications/src' },
+      to: {
+        path: '^packages/',
+        pathNot: [
+          '^packages/(db|mail|storage|yookassa)/',
+          '^packages/notifications/',
           '^packages/(eslint-config|typescript-config)/',
         ],
       },
