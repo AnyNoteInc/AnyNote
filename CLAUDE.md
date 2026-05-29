@@ -58,6 +58,14 @@ docker compose up -d
 
 Turborepo + pnpm workspaces. Filters: `apps/*`, `packages/*`.
 
+The package dependency graph is layered and **enforced** by `pnpm check-architecture`
+(dependency-cruiser, part of `pnpm gates`). See [`docs/architecture.md`](docs/architecture.md)
+for the tier table and `docs/superpowers/specs/2026-05-29-architecture-layering-design.md`
+for the rationale. In short: presentation → domain/UI → infra services → pure adapters,
+downward only; UI feature packages depend only on the UI foundation (`@repo/ui`,
+`@repo/diagram-board`); a **client** component must deep-import pure domain leaves
+(e.g. `@repo/domain/kanban/colors.ts`), never the `@repo/domain` root barrel.
+
 Apps:
 
 - `apps/web` — Next.js 16 App Router, React 19, Turbopack, MUI v6. Only user-facing app.

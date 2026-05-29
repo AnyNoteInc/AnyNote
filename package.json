@@ -8,7 +8,8 @@
     "format": "prettier --write \"**/*.{ts,tsx,md}\"",
     "check-types": "turbo run check-types",
     "test": "turbo run test",
-    "gates": "pnpm check-types && pnpm lint && pnpm build && pnpm test",
+    "check-architecture": "depcruise packages apps/engines apps/yjs --config .dependency-cruiser.cjs",
+    "gates": "pnpm check-types && pnpm lint && pnpm check-architecture && pnpm build && pnpm test",
     "prepare": "husky"
   },
   "devDependencies": {
@@ -17,6 +18,7 @@
     "@repo/typescript-config": "workspace:*",
     "@semantic-release/changelog": "^6",
     "@semantic-release/git": "^10",
+    "dependency-cruiser": "^17.4.2",
     "husky": "^9.1.7",
     "prettier": "^3.7.4",
     "semantic-release": "^24",
