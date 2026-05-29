@@ -19,6 +19,7 @@ const nextConfig = {
   transpilePackages: [
     '@repo/ui',
     '@repo/trpc',
+    '@repo/domain',
     '@repo/auth',
     '@repo/db',
     '@repo/notifications',
