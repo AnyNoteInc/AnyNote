@@ -59,3 +59,12 @@ export class ReminderNotFoundError extends HttpException {
     )
   }
 }
+
+export class DiagramValidationError extends HttpException {
+  constructor(kind: string, messages: string[]) {
+    super(
+      { code: 'DIAGRAM_VALIDATION_FAILED', message: `DIAGRAM_VALIDATION_FAILED (${kind}): ${messages.join('; ')}`, errors: messages },
+      422,
+    )
+  }
+}
