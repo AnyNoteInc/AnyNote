@@ -2,7 +2,8 @@ import { z } from 'zod'
 import type { NextRequest } from 'next/server'
 import { prisma } from '@repo/db'
 import { storage } from '@repo/storage'
-import { assertWorkspaceMembership, isDomainError } from '@repo/domain'
+import { assertWorkspaceMembership } from '@repo/domain/workspace/access.ts'
+import { isDomainError } from '@repo/domain/errors.ts'
 
 import { getSession } from '@/lib/get-session'
 import {
