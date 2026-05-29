@@ -1,6 +1,6 @@
 # `@repo/domain` SP3 — Pages write logic — Design
 
-**Status:** Draft, awaiting user review
+**Status:** Implemented (branch `feat/domain-pages`)
 **Date:** 2026-05-29
 **Scope:** Migrate the **Pages** write business-logic (the 10 mutating tRPC `page` procedures) into `@repo/domain` (a new `pages/` module), and refactor **both** consumers — the `@repo/trpc` `page` router and the `apps/engines` page-writer service — to call it. This is **sub-project 3** of the `@repo/domain` initiative (see `[[domain-package-initiative]]`), executed as a **single cycle** covering all of Pages. **Search is out of scope** (read-dominant: RAG lives in `apps/agents`/Python; the tRPC `search` router is queries + trivial user-preference history writes — no page write-logic to migrate). Favorites already moved out of `page.ts` in SP2.
 
