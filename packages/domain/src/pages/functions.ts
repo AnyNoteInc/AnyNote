@@ -2,8 +2,9 @@ import { PageType, enqueueOutboxEvent } from '@repo/db'
 import type { Prisma, PrismaClient } from '@repo/db'
 
 import { notFound } from '../errors.ts'
+import { assertPageOwnership } from '../kanban/access.ts'
 import { seedKanbanDefaults } from '../kanban/seed.ts'
-import type { CreatePageInput } from './schemas.ts'
+import type { CreatePageInput, RenamePageInput, UpdatePageInput } from './schemas.ts'
 
 /**
  * Engines passes ownership/content/contentYjs; tRPC passes only the schema subset.
@@ -83,5 +84,63 @@ export async function createPage(
     }
 
     return { id: newPage.id }
+  })
+}
+
+export async function renamePage(
+  prisma: PrismaClient,
+  actorUserId: string,
+  input: RenamePageInput,
+): Promise<{ id: string; title: string | null; icon: string | null; updatedAt: Date }> {
+  await assertPageOwnership(prisma, actorUserId, input.id)
+  const data: { title: string; icon?: string | null; updatedById: string } = {
+    title: input.title,
+    updatedById: actorUserId,
+  }
+  if (input.icon !== undefined) data.icon = input.icon
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.page.update({
+      where: { id: input.id },
+      data,
+      select: { id: true, title: true, icon: true, updatedAt: true },
+    })
+    await enqueueOutboxEvent(tx, {
+      eventType: 'page.upserted',
+      aggregateType: 'page',
+      aggregateId: updated.id,
+      workspaceId: input.workspaceId,
+    })
+    return updated
+  })
+}
+
+export async function updatePage(
+  prisma: PrismaClient,
+  actorUserId: string,
+  input: UpdatePageInput,
+): Promise<{ id: string; title: string | null; icon: string | null; updatedAt: Date }> {
+  await assertPageOwnership(prisma, actorUserId, input.id)
+  const data: {
+    title?: string
+    icon?: string | null
+    type?: PageType
+    updatedById: string
+  } = { updatedById: actorUserId }
+  if (input.title !== undefined) data.title = input.title
+  if (input.icon !== undefined) data.icon = input.icon
+  if (input.type !== undefined) data.type = input.type
+  return prisma.$transaction(async (tx) => {
+    const updated = await tx.page.update({
+      where: { id: input.id },
+      data,
+      select: { id: true, title: true, icon: true, updatedAt: true },
+    })
+    await enqueueOutboxEvent(tx, {
+      eventType: 'page.upserted',
+      aggregateType: 'page',
+      aggregateId: updated.id,
+      workspaceId: input.workspaceId,
+    })
+    return updated
   })
 }

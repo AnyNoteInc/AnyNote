@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest'
 import type { PrismaClient } from '@repo/db'
 
 import { DomainError } from '../../src/errors.ts'
-import { createPage } from '../../src/pages/functions.ts'
+import { createPage, renamePage, updatePage } from '../../src/pages/functions.ts'
 
 type TxMocks = {
   pageCreate: ReturnType<typeof vi.fn>
@@ -114,5 +114,71 @@ describe('domain createPage', () => {
       createPage(prisma, 'u1', { workspaceId: 'w1', parentId: 'missing', title: 'T' }),
     ).rejects.toBeInstanceOf(DomainError)
     expect(prisma.__mocks.pageCreate).not.toHaveBeenCalled()
+  })
+})
+
+function makeRenamePrisma(page: unknown = { id: 'p1', workspaceId: 'w1', createdById: 'u1' }) {
+  const pageUpdate = vi.fn(async () => ({ id: 'p1', title: 'New', icon: null, updatedAt: new Date() }))
+  const outboxCreate = vi.fn(async () => ({}))
+  const pageFindFirst = vi.fn(async () => page)
+  const memberFindUnique = vi.fn(async () => ({ role: 'OWNER' as const }))
+  const tx = { page: { update: pageUpdate }, outboxEvent: { create: outboxCreate } }
+  const $transaction = vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx))
+  return {
+    page: { findFirst: pageFindFirst },
+    workspaceMember: { findUnique: memberFindUnique },
+    $transaction,
+    __mocks: { pageUpdate, outboxCreate, pageFindFirst, memberFindUnique, $transaction },
+  } as unknown as PrismaClient & {
+    __mocks: {
+      pageUpdate: ReturnType<typeof vi.fn>
+      outboxCreate: ReturnType<typeof vi.fn>
+      pageFindFirst: ReturnType<typeof vi.fn>
+      memberFindUnique: ReturnType<typeof vi.fn>
+      $transaction: ReturnType<typeof vi.fn>
+    }
+  }
+}
+
+describe('domain renamePage / updatePage', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('renamePage updates title + updatedById and enqueues page.upserted', async () => {
+    const prisma = makeRenamePrisma()
+    const result = await renamePage(prisma, 'u1', { id: 'p1', workspaceId: 'w1', title: 'New' })
+    expect(result).toEqual(expect.objectContaining({ id: 'p1' }))
+    const [, args] = prisma.__mocks.pageUpdate.mock.calls[0] ?? []
+    void args
+    expect(prisma.__mocks.pageUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'p1' },
+        data: expect.objectContaining({ title: 'New', updatedById: 'u1' }),
+      }),
+    )
+    expect(prisma.__mocks.outboxCreate).toHaveBeenCalledOnce()
+  })
+
+  it('renamePage sets icon only when provided', async () => {
+    const prisma = makeRenamePrisma()
+    await renamePage(prisma, 'u1', { id: 'p1', workspaceId: 'w1', title: 'New', icon: null })
+    const call = prisma.__mocks.pageUpdate.mock.calls[0]?.[0] as { data: Record<string, unknown> }
+    expect(call.data).toHaveProperty('icon', null)
+  })
+
+  it('renamePage throws FORBIDDEN when actor is neither creator nor OWNER', async () => {
+    const prisma = makeRenamePrisma({ id: 'p1', workspaceId: 'w1', createdById: 'someone-else' })
+    prisma.__mocks.memberFindUnique.mockResolvedValue({ role: 'EDITOR' })
+    await expect(
+      renamePage(prisma, 'u1', { id: 'p1', workspaceId: 'w1', title: 'New' }),
+    ).rejects.toBeInstanceOf(DomainError)
+  })
+
+  it('updatePage sets title/icon/type only when provided', async () => {
+    const prisma = makeRenamePrisma()
+    await updatePage(prisma, 'u1', { id: 'p1', workspaceId: 'w1', type: 'KANBAN' })
+    const call = prisma.__mocks.pageUpdate.mock.calls[0]?.[0] as { data: Record<string, unknown> }
+    expect(call.data).toMatchObject({ type: 'KANBAN', updatedById: 'u1' })
+    expect(call.data).not.toHaveProperty('title')
+    expect(prisma.__mocks.outboxCreate).toHaveBeenCalledOnce()
   })
 })
