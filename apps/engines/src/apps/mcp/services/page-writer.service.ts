@@ -245,6 +245,60 @@ export class PageWriter {
     })
   }
 
+  async createDiagramPage(input: {
+    userId: string
+    workspaceId: string
+    parentId?: string | null
+    title: string
+    kind: DiagramPageKind
+    source: string
+  }): Promise<string> {
+    return this.prisma.$transaction(async (tx) => {
+      await this.ensureParent(tx, input.parentId, input.workspaceId)
+      const page = await tx.page.create({
+        data: {
+          workspaceId: input.workspaceId,
+          parentId: input.parentId ?? null,
+          title: input.title,
+          ownership: 'TEXT',
+          type: input.kind,
+          contentYjs: buildDiagramContentYjs(input.source, DIAGRAM_DOC_NAME[input.kind]),
+          createdById: input.userId,
+          updatedById: input.userId,
+        },
+        select: { id: true },
+      })
+      await tx.outboxEvent.create({
+        data: { eventType: 'page.upserted', aggregateType: 'page', aggregateId: page.id, workspaceId: input.workspaceId, payload: {} },
+      })
+      return page.id
+    })
+  }
+
+  async updateDiagramSource(input: {
+    userId: string
+    workspaceId: string
+    pageId: string
+    source: string
+  }): Promise<void> {
+    await this.prisma.$transaction(async (tx) => {
+      const page = await tx.page.findUnique({
+        where: { id: input.pageId },
+        select: { id: true, workspaceId: true, type: true },
+      })
+      if (page?.workspaceId !== input.workspaceId) throw new PageNotFoundError(input.pageId)
+      const docName = DIAGRAM_DOC_NAME[page.type as DiagramPageKind]
+      if (!docName) throw new BadRequestException('Page is not a diagram page')
+      await tx.page.update({
+        where: { id: input.pageId },
+        data: { contentYjs: buildDiagramContentYjs(input.source, docName), updatedById: input.userId },
+      })
+      await tx.outboxEvent.create({
+        data: { eventType: 'page.upserted', aggregateType: 'page', aggregateId: input.pageId, workspaceId: input.workspaceId, payload: {} },
+      })
+    })
+  }
+
   private async ensureParent(
     tx: Prisma.TransactionClient,
     parentId: string | null | undefined,
@@ -267,4 +321,16 @@ function buildContentYjs(content: unknown): Uint8Array<ArrayBuffer> {
   const contentYjs = new Uint8Array(new ArrayBuffer(src.byteLength))
   contentYjs.set(src)
   return contentYjs
+}
+
+const DIAGRAM_DOC_NAME = { MERMAID: 'mermaid', PLANTUML: 'plantuml', LIKEC4: 'likec4' } as const
+export type DiagramPageKind = keyof typeof DIAGRAM_DOC_NAME
+
+function buildDiagramContentYjs(source: string, docName: string): Uint8Array<ArrayBuffer> {
+  const ydoc = new Y.Doc()
+  ydoc.getText(docName).insert(0, source)
+  const src = Y.encodeStateAsUpdate(ydoc)
+  const out = new Uint8Array(new ArrayBuffer(src.byteLength))
+  out.set(src)
+  return out
 }
