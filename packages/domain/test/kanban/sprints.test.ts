@@ -25,6 +25,7 @@ describe('domain kanban sprints', () => {
   it('createSprint creates a PLANNED sprint (owner-gated)', async () => {
     const out = await createSprint(ownerPrisma(), 'u1', { pageId: 'b1', name: 'Sprint 1' })
     expect(out.id).toBe('s1')
+    expect(out.status).toBe('PLANNED')
   })
 
   it('activateSprint demotes others then promotes target', async () => {
