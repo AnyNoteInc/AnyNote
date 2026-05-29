@@ -3,7 +3,7 @@
 import type { ReactNode } from 'react'
 import { AppBar, Toolbar } from '@repo/ui/components'
 import { Box, Button, Container, Stack, Typography } from '@repo/ui/components'
-import { ChangeColorTheme } from '@repo/ui/widgets'
+import { ChangeColorTheme } from '../common/change-color-theme'
 
 export type LandingToolBoxProps = {
   control: ReactNode
