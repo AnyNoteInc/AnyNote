@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { prisma } from '@repo/db'
-import { syncWorkspaceLimits } from '@repo/trpc/helpers/plan'
+import { syncWorkspaceLimits } from '@repo/domain'
 import type { Payment } from '@repo/yookassa'
 import { randomUUID } from 'node:crypto'
 
