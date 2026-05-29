@@ -1,17 +1,14 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
-import { PageType, enqueueOutboxEvent } from '@repo/db'
 
 import { router, protectedProcedure } from '../trpc'
 import { requireWritableWorkspace } from '../helpers/plan'
 import {
   assertWorkspaceMember,
   assertPageAccess,
-  assertPageOwnership,
 } from '../helpers/page-access'
 import * as domain from '@repo/domain'
 import { mapDomain } from '../helpers/map-domain'
-import { seedKanbanDefaults } from './kanban/helpers'
 import { pageShareRouter } from './page-share'
 
 // ── Router ───────────────────────────────────────────────────────────────────
@@ -109,206 +106,24 @@ export const pageRouter = router({
     ),
 
   softDelete: protectedProcedure
-    .input(
-      z.object({
-        id: z.string().uuid(),
-        workspaceId: z.string().uuid(),
-      }),
-    )
+    .input(domain.softDeletePageInput)
     .mutation(async ({ ctx, input }) => {
-      const page = await assertPageOwnership(ctx, input.id)
       await requireWritableWorkspace(input.workspaceId)
-      const now = new Date()
-
-      return ctx.prisma.$transaction(async (tx) => {
-        // Remove page from linked list (detach first to avoid unique constraint)
-        const nextSibling = await tx.page.findFirst({
-          where: { prevPageId: page.id, deletedAt: null },
-        })
-        if (nextSibling) {
-          await tx.page.update({
-            where: { id: nextSibling.id },
-            data: { prevPageId: null },
-          })
-        }
-
-        // Soft-delete this page
-        await tx.page.update({
-          where: { id: page.id },
-          data: { deletedAt: now, prevPageId: null, updatedById: ctx.user.id },
-        })
-
-        // Reattach next sibling to previous
-        if (nextSibling) {
-          await tx.page.update({
-            where: { id: nextSibling.id },
-            data: { prevPageId: page.prevPageId },
-          })
-        }
-
-        // Soft-delete all descendants recursively
-        // Use a loop to walk the tree breadth-first
-        let parentIds: string[] = [page.id]
-        while (parentIds.length > 0) {
-          const children = await tx.page.findMany({
-            where: {
-              parentId: { in: parentIds },
-              deletedAt: null,
-            },
-            select: { id: true },
-          })
-          if (children.length === 0) break
-          const childIds = children.map((c) => c.id)
-          await tx.page.updateMany({
-            where: { id: { in: childIds } },
-            data: { deletedAt: now, updatedById: ctx.user.id },
-          })
-          parentIds = childIds
-        }
-
-        await enqueueOutboxEvent(tx, {
-          eventType: 'page.deleted',
-          aggregateType: 'page',
-          aggregateId: page.id,
-          workspaceId: input.workspaceId,
-        })
-
-        return { id: page.id }
-      })
+      return mapDomain(() => domain.softDeletePage(ctx.prisma, ctx.user.id, input))
     }),
 
   restore: protectedProcedure
-    .input(
-      z.object({
-        id: z.string().uuid(),
-        workspaceId: z.string().uuid(),
-      }),
-    )
+    .input(domain.restorePageInput)
     .mutation(async ({ ctx, input }) => {
-      await assertPageOwnership(ctx, input.id)
       await requireWritableWorkspace(input.workspaceId)
-
-      return ctx.prisma.$transaction(async (tx) => {
-        const page = await tx.page.findFirst({
-          where: { id: input.id, workspaceId: input.workspaceId },
-        })
-        if (!page || !page.deletedAt) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Страница не найдена в корзине' })
-        }
-
-        // Determine restore location: if parent is deleted, move to workspace root
-        let restoreParentId = page.parentId
-
-        if (page.parentId) {
-          const parentPage = await tx.page.findFirst({
-            where: { id: page.parentId, deletedAt: null },
-          })
-          if (!parentPage) {
-            // Parent is still deleted — move to workspace root
-            restoreParentId = null
-          }
-        }
-
-        // Restore the page
-        await tx.page.update({
-          where: { id: page.id },
-          data: {
-            deletedAt: null,
-            parentId: restoreParentId,
-            prevPageId: null,
-            updatedById: ctx.user.id,
-          },
-        })
-
-        // Insert at start of linked list
-        const existingFirst = await tx.page.findFirst({
-          where: {
-            workspaceId: input.workspaceId,
-            parentId: restoreParentId,
-            prevPageId: null,
-            id: { not: page.id },
-            deletedAt: null,
-          },
-        })
-        if (existingFirst) {
-          await tx.page.update({
-            where: { id: existingFirst.id },
-            data: { prevPageId: page.id },
-          })
-        }
-
-        // Restore all descendants recursively
-        let parentIds: string[] = [page.id]
-        while (parentIds.length > 0) {
-          const children = await tx.page.findMany({
-            where: {
-              parentId: { in: parentIds },
-              deletedAt: { not: null },
-            },
-            select: { id: true },
-          })
-          if (children.length === 0) break
-          const childIds = children.map((c) => c.id)
-          await tx.page.updateMany({
-            where: { id: { in: childIds } },
-            data: { deletedAt: null, updatedById: ctx.user.id },
-          })
-          parentIds = childIds
-        }
-
-        await enqueueOutboxEvent(tx, {
-          eventType: 'page.upserted',
-          aggregateType: 'page',
-          aggregateId: page.id,
-          workspaceId: input.workspaceId,
-        })
-
-        return { id: page.id }
-      })
+      return mapDomain(() => domain.restorePage(ctx.prisma, ctx.user.id, input))
     }),
 
   hardDelete: protectedProcedure
-    .input(
-      z.object({
-        id: z.string().uuid(),
-        workspaceId: z.string().uuid(),
-      }),
-    )
+    .input(domain.hardDeletePageInput)
     .mutation(async ({ ctx, input }) => {
-      await assertPageOwnership(ctx, input.id)
       await requireWritableWorkspace(input.workspaceId)
-
-      return ctx.prisma.$transaction(async (tx) => {
-        const page = await tx.page.findFirst({
-          where: { id: input.id, workspaceId: input.workspaceId },
-        })
-        if (!page) {
-          throw new TRPCError({ code: 'NOT_FOUND', message: 'Страница не найдена' })
-        }
-
-        // Remove from linked list if still linked
-        const nextSibling = await tx.page.findFirst({
-          where: { prevPageId: page.id },
-        })
-        if (nextSibling) {
-          await tx.page.update({
-            where: { id: nextSibling.id },
-            data: { prevPageId: page.prevPageId },
-          })
-        }
-
-        // Delete the page (cascade handles related rows)
-        await tx.page.delete({ where: { id: page.id } })
-
-        await enqueueOutboxEvent(tx, {
-          eventType: 'page.deleted',
-          aggregateType: 'page',
-          aggregateId: page.id,
-          workspaceId: input.workspaceId,
-        })
-
-        return { id: page.id }
-      })
+      return mapDomain(() => domain.hardDeletePage(ctx.prisma, ctx.user.id, input))
     }),
 
   listTrashed: protectedProcedure
@@ -334,124 +149,18 @@ export const pageRouter = router({
     }),
 
   emptyTrash: protectedProcedure
-    .input(z.object({ workspaceId: z.string().uuid() }))
+    .input(domain.emptyTrashInput)
     .mutation(async ({ ctx, input }) => {
-      const member = await assertWorkspaceMember(ctx, input.workspaceId)
       await requireWritableWorkspace(input.workspaceId)
-      if (member.role !== 'OWNER') {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'Только владелец может очистить корзину',
-        })
-      }
-      return ctx.prisma.$transaction(async (tx) => {
-        const trashed = await tx.page.findMany({
-          where: { workspaceId: input.workspaceId, deletedAt: { not: null } },
-          select: { id: true },
-        })
-        const deleted = await tx.page.deleteMany({
-          where: { workspaceId: input.workspaceId, deletedAt: { not: null } },
-        })
-        for (const { id } of trashed) {
-          await enqueueOutboxEvent(tx, {
-            eventType: 'page.deleted',
-            aggregateType: 'page',
-            aggregateId: id,
-            workspaceId: input.workspaceId,
-          })
-        }
-        return { count: deleted.count }
-      })
+      return mapDomain(() => domain.emptyTrash(ctx.prisma, ctx.user.id, input))
     }),
 
   move: protectedProcedure
-    .input(
-      z.object({
-        pageId: z.string().uuid(),
-        newParentId: z.string().uuid().nullable(),
-      }),
-    )
+    .input(domain.movePageInput)
     .mutation(async ({ ctx, input }) => {
       const page = await assertPageAccess(ctx, input.pageId)
-
-      // Check ownership: must be creator or workspace OWNER
-      await assertPageOwnership(ctx, input.pageId)
       await requireWritableWorkspace(page.workspaceId)
-
-      return ctx.prisma.$transaction(async (tx) => {
-        // 1. Remove from old linked-list (detach first to avoid unique constraint)
-        const nextSibling = await tx.page.findFirst({
-          where: { prevPageId: page.id, deletedAt: null },
-        })
-        if (nextSibling) {
-          await tx.page.update({
-            where: { id: nextSibling.id },
-            data: { prevPageId: null },
-          })
-        }
-
-        // 2. Prevent moving into own descendant
-        if (input.newParentId) {
-          let currentId: string | null = input.newParentId
-          while (currentId) {
-            if (currentId === input.pageId) {
-              throw new TRPCError({
-                code: 'BAD_REQUEST',
-                message: 'Невозможно переместить страницу в собственного потомка',
-              })
-            }
-            const ancestor: { parentId: string | null } | null = await tx.page.findFirst({
-              where: { id: currentId, deletedAt: null },
-              select: { parentId: true },
-            })
-            currentId = ancestor?.parentId ?? null
-          }
-        }
-
-        // 3. Set new parentId
-        await tx.page.update({
-          where: { id: page.id },
-          data: {
-            parentId: input.newParentId,
-            prevPageId: null,
-            updatedById: ctx.user.id,
-          },
-        })
-
-        // Reattach next sibling to previous in old list
-        if (nextSibling) {
-          await tx.page.update({
-            where: { id: nextSibling.id },
-            data: { prevPageId: page.prevPageId },
-          })
-        }
-
-        // 4. Insert at head of new parent's linked-list
-        const existingFirst = await tx.page.findFirst({
-          where: {
-            workspaceId: page.workspaceId,
-            parentId: input.newParentId,
-            prevPageId: null,
-            id: { not: page.id },
-            deletedAt: null,
-          },
-        })
-        if (existingFirst) {
-          await tx.page.update({
-            where: { id: existingFirst.id },
-            data: { prevPageId: page.id },
-          })
-        }
-
-        await enqueueOutboxEvent(tx, {
-          eventType: 'page.upserted',
-          aggregateType: 'page',
-          aggregateId: page.id,
-          workspaceId: page.workspaceId,
-        })
-
-        return { id: page.id }
-      })
+      return mapDomain(() => domain.movePage(ctx.prisma, ctx.user.id, input))
     }),
 
   duplicate: protectedProcedure
@@ -463,107 +172,14 @@ export const pageRouter = router({
     }),
 
   reorder: protectedProcedure
-    .input(
-      z.object({
-        pageId: z.string().uuid(),
-        newParentId: z.string().uuid().nullable(),
-        newPrevPageId: z.string().uuid().nullable(),
-      }),
-    )
+    .input(domain.reorderPageInput)
     .mutation(async ({ ctx, input }) => {
-      if (input.newPrevPageId === input.pageId) {
-        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Страница не может ссылаться на себя' })
-      }
-
       const page = await ctx.prisma.page.findFirst({
         where: { id: input.pageId, deletedAt: null },
+        select: { workspaceId: true },
       })
-      if (!page) throw new TRPCError({ code: 'NOT_FOUND', message: 'Страница не найдена' })
-
-      await assertWorkspaceMember(ctx, page.workspaceId)
-      await requireWritableWorkspace(page.workspaceId)
-
-      if (page.parentId === input.newParentId && page.prevPageId === input.newPrevPageId) {
-        return { id: input.pageId }
-      }
-
-      // Cycle check: newParentId must not be a descendant of pageId
-      if (input.newParentId !== null) {
-        let queue = [input.pageId]
-        while (queue.length > 0) {
-          const children = await ctx.prisma.page.findMany({
-            where: { parentId: { in: queue }, deletedAt: null },
-            select: { id: true },
-          })
-          const childIds = children.map((c) => c.id)
-          if (childIds.includes(input.newParentId)) {
-            throw new TRPCError({
-              code: 'BAD_REQUEST',
-              message: 'Нельзя вложить страницу в собственного потомка',
-            })
-          }
-          queue = childIds
-        }
-      }
-
-      return ctx.prisma.$transaction(async (tx) => {
-        // Step 0: Lift the moved page out so its prev_page_id doesn't clash
-        // with the next sibling adopting the same value in step 1
-        // (prev_page_id is UNIQUE — two rows can't hold the same value).
-        if (page.prevPageId !== null) {
-          await tx.page.update({
-            where: { id: input.pageId },
-            data: { prevPageId: null },
-          })
-        }
-
-        // Step 1: Detach — fix next sibling's back-pointer
-        const nextSibling = await tx.page.findFirst({
-          where: { prevPageId: input.pageId, deletedAt: null },
-        })
-        if (nextSibling) {
-          await tx.page.update({
-            where: { id: nextSibling.id },
-            data: { prevPageId: page.prevPageId },
-          })
-        }
-
-        // Step 2: Plug the gap at insert point
-        const pageAtInsertPoint = await tx.page.findFirst({
-          where: {
-            prevPageId: input.newPrevPageId,
-            workspaceId: page.workspaceId,
-            parentId: input.newParentId,
-            deletedAt: null,
-            id: { not: input.pageId },
-          },
-        })
-        if (pageAtInsertPoint) {
-          await tx.page.update({
-            where: { id: pageAtInsertPoint.id },
-            data: { prevPageId: input.pageId },
-          })
-        }
-
-        // Step 3: Update the moved page to its final position
-        await tx.page.update({
-          where: { id: input.pageId },
-          data: {
-            parentId: input.newParentId,
-            prevPageId: input.newPrevPageId,
-            updatedById: ctx.user.id,
-          },
-        })
-
-        await enqueueOutboxEvent(tx, {
-          eventType: 'page.upserted',
-          aggregateType: 'page',
-          aggregateId: input.pageId,
-          workspaceId: page.workspaceId,
-        })
-
-        return { id: input.pageId }
-      })
+      if (page) await requireWritableWorkspace(page.workspaceId)
+      return mapDomain(() => domain.reorderPage(ctx.prisma, ctx.user.id, input))
     }),
 
   addFavorite: protectedProcedure

@@ -271,9 +271,8 @@ describe('page.reorder', () => {
   })
 
   it('rejects non-member', async () => {
-    accessMocks.assertWorkspaceMember.mockRejectedValueOnce(
-      new Error('Нет доступа к рабочему пространству'),
-    )
+    // domain.reorderPage checks workspaceMember.findUnique directly; the tRPC
+    // wrapper no longer calls assertWorkspaceMember for reorder.
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => null) },
       workspace: { findUnique: vi.fn(async () => ({ plan: { features: [] } })) },
