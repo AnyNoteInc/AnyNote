@@ -19,9 +19,13 @@ export type AgentsScope =
   | 'files:write'
   | 'kanban:read'
   | 'kanban:write'
+  | 'workspaces:read'
   | 'reminders:read'
   | 'reminders:write'
   | 'notifications:read'
+  | 'notifications:write'
+  | 'favorites:read'
+  | 'favorites:write'
   | 'memory:read'
   | 'memory:write'
   | 'search:query'
@@ -32,8 +36,10 @@ const READ_SCOPES: AgentsScope[] = [
   'pages:read',
   'files:read',
   'kanban:read',
+  'workspaces:read',
   'reminders:read',
   'notifications:read',
+  'favorites:read',
   'memory:read',
   'search:query',
 ]
@@ -43,6 +49,8 @@ const WRITE_SCOPES: AgentsScope[] = [
   'files:write',
   'kanban:write',
   'reminders:write',
+  'notifications:write',
+  'favorites:write',
   'memory:write',
 ]
 
