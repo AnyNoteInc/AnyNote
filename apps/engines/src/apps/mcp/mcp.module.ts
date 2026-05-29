@@ -26,6 +26,10 @@ import { WorkspaceTools } from './tools/workspace.tools.js'
 import { WorkspacesTools } from './tools/workspaces.tools.js'
 import { DiagramValidatorService } from './services/diagram-validator.service.js'
 import { DiagramTools } from './tools/diagram.tools.js'
+import { KanbanGateway } from './services/kanban-gateway.service.js'
+import { KanbanReadService } from './services/kanban-read.service.js'
+import { KanbanWriteService } from './services/kanban-write.service.js'
+import { KanbanTools } from './tools/kanban.tools.js'
 
 @Module({
   imports: [
@@ -56,6 +60,10 @@ import { DiagramTools } from './tools/diagram.tools.js'
     FavoriteTools,
     DiagramValidatorService,
     DiagramTools,
+    KanbanGateway,
+    KanbanReadService,
+    KanbanWriteService,
+    KanbanTools,
     { provide: STORAGE, useValue: storage },
     { provide: APP_FILTER, useClass: McpExceptionFilter },
     {
@@ -63,6 +71,6 @@ import { DiagramTools } from './tools/diagram.tools.js'
       useFactory: () => createAgentsSearchClient(process.env.AGENTS_URL ?? 'http://localhost:8080'),
     },
   ],
-  exports: [PageTools, PageFileTools, WorkspaceTools, SearchTools, WorkspacesTools, ReminderTools, NotificationTools, FavoriteTools, DiagramTools],
+  exports: [PageTools, PageFileTools, WorkspaceTools, SearchTools, WorkspacesTools, ReminderTools, NotificationTools, FavoriteTools, DiagramTools, KanbanTools],
 })
 export class McpModule {}

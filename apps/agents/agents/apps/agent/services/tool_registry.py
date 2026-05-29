@@ -17,6 +17,8 @@ SCOPE_NOTIFICATIONS_READ = 'notifications:read'
 SCOPE_NOTIFICATIONS_WRITE = 'notifications:write'
 SCOPE_FAVORITES_READ = 'favorites:read'
 SCOPE_FAVORITES_WRITE = 'favorites:write'
+SCOPE_KANBAN_READ = 'kanban:read'
+SCOPE_KANBAN_WRITE = 'kanban:write'
 
 
 @dataclass(frozen=True)
@@ -136,6 +138,43 @@ DEFAULT_ENGINES_TOOLS: dict[str, ToolMeta] = {
                                     lambda a: f'Создать {a.get("kind")}-диаграмму «{_truncate(a.get("title"))}»', _preview_default),
     'updateDiagramSource': ToolMeta('updateDiagramSource', SCOPE_PAGES_WRITE, True,
                                      lambda a: f'Обновить диаграмму {a.get("pageId")}', _preview_default),
+    # kanban tools
+    'listKanbanBoards': ToolMeta('listKanbanBoards', SCOPE_KANBAN_READ, False,
+                                  _summary_generic('listKanbanBoards'), _preview_default),
+    'listSprints':      ToolMeta('listSprints', SCOPE_KANBAN_READ, False,
+                                  _summary_generic('listSprints'), _preview_default),
+    'getActiveSprint':  ToolMeta('getActiveSprint', SCOPE_KANBAN_READ, False,
+                                  _summary_generic('getActiveSprint'), _preview_default),
+    'listTasks':        ToolMeta('listTasks', SCOPE_KANBAN_READ, False,
+                                  _summary_generic('listTasks'), _preview_default),
+    'getTask':          ToolMeta('getTask', SCOPE_KANBAN_READ, False,
+                                  _summary_generic('getTask'), _preview_default),
+    'createTask':       ToolMeta('createTask', SCOPE_KANBAN_WRITE, True,
+                                  lambda a: f'Создать задачу «{_truncate(a.get("title"))}»', _preview_default),
+    'moveTaskToStatus': ToolMeta('moveTaskToStatus', SCOPE_KANBAN_WRITE, True,
+                                  lambda a: f'Переместить задачу {a.get("taskId")} в статус', _preview_default),
+    'assignTask':       ToolMeta('assignTask', SCOPE_KANBAN_WRITE, True,
+                                  lambda a: f'Назначить исполнителя задачи {a.get("taskId")}', _preview_default),
+    'unassignTask':     ToolMeta('unassignTask', SCOPE_KANBAN_WRITE, True,
+                                  lambda a: f'Снять исполнителя задачи {a.get("taskId")}', _preview_default),
+    'setTaskDates':     ToolMeta('setTaskDates', SCOPE_KANBAN_WRITE, True,
+                                  lambda a: f'Установить даты задачи {a.get("taskId")}', _preview_default),
+    'setTaskSprint':    ToolMeta('setTaskSprint', SCOPE_KANBAN_WRITE, True,
+                                  lambda a: f'Установить спринт задачи {a.get("taskId")}', _preview_default),
+    'setTaskPriority':  ToolMeta('setTaskPriority', SCOPE_KANBAN_WRITE, True,
+                                  lambda a: f'Установить приоритет задачи {a.get("taskId")}', _preview_default),
+    'setTaskType':      ToolMeta('setTaskType', SCOPE_KANBAN_WRITE, True,
+                                  lambda a: f'Установить тип задачи {a.get("taskId")}', _preview_default),
+    'cancelTask':       ToolMeta('cancelTask', SCOPE_KANBAN_WRITE, True,
+                                  lambda a: f'Отменить задачу {a.get("taskId")}', _preview_default),
+    'addTaskComment':   ToolMeta('addTaskComment', SCOPE_KANBAN_WRITE, True,
+                                  lambda a: f'Добавить комментарий к задаче {a.get("taskId")}', _preview_default),
+    'createSprint':     ToolMeta('createSprint', SCOPE_KANBAN_WRITE, True,
+                                  lambda a: f'Создать спринт «{_truncate(a.get("name"))}»', _preview_default),
+    'startSprint':      ToolMeta('startSprint', SCOPE_KANBAN_WRITE, True,
+                                  lambda a: f'Запустить спринт {a.get("sprintId")}', _preview_default),
+    'closeSprint':      ToolMeta('closeSprint', SCOPE_KANBAN_WRITE, True,
+                                  lambda a: f'Завершить спринт {a.get("sprintId")}', _preview_default),
     # agents-internal tools
     'save_memory': ToolMeta('save_memory', SCOPE_MEMORY_WRITE, False,
                              _summary_generic('save_memory'), _preview_default),
