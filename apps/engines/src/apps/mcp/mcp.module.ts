@@ -24,6 +24,8 @@ import { FavoriteService } from './services/favorite.service.js'
 import { FavoriteTools } from './tools/favorite.tools.js'
 import { WorkspaceTools } from './tools/workspace.tools.js'
 import { WorkspacesTools } from './tools/workspaces.tools.js'
+import { DiagramValidatorService } from './services/diagram-validator.service.js'
+import { DiagramTools } from './tools/diagram.tools.js'
 
 @Module({
   imports: [
@@ -52,6 +54,8 @@ import { WorkspacesTools } from './tools/workspaces.tools.js'
     NotificationTools,
     FavoriteService,
     FavoriteTools,
+    DiagramValidatorService,
+    DiagramTools,
     { provide: STORAGE, useValue: storage },
     { provide: APP_FILTER, useClass: McpExceptionFilter },
     {
@@ -59,6 +63,6 @@ import { WorkspacesTools } from './tools/workspaces.tools.js'
       useFactory: () => createAgentsSearchClient(process.env.AGENTS_URL ?? 'http://localhost:8080'),
     },
   ],
-  exports: [PageTools, PageFileTools, WorkspaceTools, SearchTools, WorkspacesTools, ReminderTools, NotificationTools, FavoriteTools],
+  exports: [PageTools, PageFileTools, WorkspaceTools, SearchTools, WorkspacesTools, ReminderTools, NotificationTools, FavoriteTools, DiagramTools],
 })
 export class McpModule {}

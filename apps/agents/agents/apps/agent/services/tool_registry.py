@@ -132,6 +132,10 @@ DEFAULT_ENGINES_TOOLS: dict[str, ToolMeta] = {
                                 _summary_generic('addFavorite'), _preview_default),
     'removeFavorite': ToolMeta('removeFavorite', SCOPE_FAVORITES_WRITE, False,
                                 _summary_generic('removeFavorite'), _preview_default),
+    'createDiagramPage':  ToolMeta('createDiagramPage', SCOPE_PAGES_WRITE, True,
+                                    lambda a: f'Создать {a.get("kind")}-диаграмму «{_truncate(a.get("title"))}»', _preview_default),
+    'updateDiagramSource': ToolMeta('updateDiagramSource', SCOPE_PAGES_WRITE, True,
+                                     lambda a: f'Обновить диаграмму {a.get("pageId")}', _preview_default),
     # agents-internal tools
     'save_memory': ToolMeta('save_memory', SCOPE_MEMORY_WRITE, False,
                              _summary_generic('save_memory'), _preview_default),
