@@ -1,18 +1,13 @@
 import type { PrismaClient } from '@repo/db'
-import { TRPCError } from '@trpc/server'
+import { assertWorkspaceMembership as assertWorkspaceMembershipDomain } from '@repo/domain'
+import { mapDomain } from './map-domain'
 
-export async function assertWorkspaceMembership(
+export function assertWorkspaceMembership(
   prisma: PrismaClient,
   userId: string,
   workspaceId: string,
 ) {
-  const member = await prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId } },
-  })
-  if (!member) {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Вы не являетесь участником воркспейса' })
-  }
-  return member
+  return mapDomain(() => assertWorkspaceMembershipDomain(prisma, userId, workspaceId))
 }
 
 export async function assertWorkspaceMember(

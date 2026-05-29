@@ -1,10 +1,8 @@
 import { z } from 'zod'
 import type { NextRequest } from 'next/server'
-import { TRPCError } from '@trpc/server'
-
 import { prisma } from '@repo/db'
 import { storage } from '@repo/storage'
-import { assertWorkspaceMembership } from '@repo/trpc/helpers/workspace'
+import { assertWorkspaceMembership, isDomainError } from '@repo/domain'
 
 import { getSession } from '@/lib/get-session'
 import {
@@ -48,7 +46,7 @@ export async function GET(
   try {
     await assertWorkspaceMembership(prisma, session.user.id, workspaceId)
   } catch (e) {
-    if (e instanceof TRPCError && e.code === 'FORBIDDEN') return FORBIDDEN
+    if (isDomainError(e) && e.httpStatus === 403) return FORBIDDEN
     throw e
   }
 
