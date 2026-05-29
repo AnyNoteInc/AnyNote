@@ -1,6 +1,6 @@
 # MCP Tooling Expansion — Design
 
-**Status:** Draft, awaiting user review
+**Status:** Implemented
 **Date:** 2026-05-28
 **Scope:** Extend the `apps/engines` MCP server (`@rekog/mcp-nest`) with ~20 new tools over **existing** Prisma models — workspaces, page navigation, search, reminders, notifications, favorites, diagram pages — plus fix the broken `search_pages` tool and raise the RAG similarity threshold to `0.7`. Kanban task-management tooling and a page-tag system are **deferred to their own specs**.
 
