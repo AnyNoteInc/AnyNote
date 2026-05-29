@@ -43,14 +43,16 @@ Coupling: Favorites + Reminders reference Pages (read-only); Reminders → Notif
 
 ### `domain/notifications` (mechanical — pure SP1 pattern)
 
-Port the six `notification.ts` mutations verbatim into domain functions (`markRead`, `markAllRead`, `deleteAll`, `setPreference`, `registerPushSubscription`, `revokePushSubscription`). All are user-scoped (operate on the actor's own rows). `setPreference` keeps its read of `userConsent` for the marketing-category guard. Pure `db` + `zod`; no ports.
+Migrate the three **dependency-free, dedup-worthy** mutations into `domain/notifications`: `markRead` (the only one duplicated across tRPC + engines), `markAllRead`, and `deleteAll`. All are user-scoped (operate on the actor's own `notificationInApp` rows). Pure `db` + `zod`; no ports.
 
-- **tRPC**: the six procedures become thin wrappers — `.input(domain.<schema>)` → `mapDomain(() => domain.<fn>(ctx.prisma, ctx.user.id, input))`.
-- **engines**: `notification.service.markRead` delegates to `domain.markRead`. **Gap-fix:** add a `markAllRead` MCP tool delegating to `domain.markAllRead` (agent-useful). Push-subscription management stays out of MCP (not agent-relevant); it lives in the domain for tRPC only.
+**Deliberately NOT migrated (stay in tRPC):** `setPreference` and `registerPushSubscription` / `revokePushSubscription`. Rationale (discovered during planning): they are **tRPC-only — not duplicated** in engines, so migrating them yields no single-source-of-truth payoff (YAGNI); and `setPreference` validates against `EVENT_CATALOG`, which lives in `@repo/notifications` (Bundler). Importing it into `@repo/domain` would break the package's `db`+`zod`-only purity — the exact thing that makes it engines-consumable. They remain in `notification.ts` unchanged.
+
+- **tRPC**: `markRead` / `markAllRead` / `deleteAll` become thin wrappers — `mapDomain(() => domain.<fn>(ctx.prisma, ctx.user.id, input))`. The other three procedures are untouched.
+- **engines**: `notification.service.markRead` delegates to `domain.markRead` (ids path) / `domain.markAllRead` (all path). **Gap-fix:** add a `markAllRead` MCP tool (agent-useful: "mark all my notifications read"), reusing the existing `notifications:write` scope.
 
 ### `domain/favorites` (mechanical — pure SP1 pattern)
 
-Extract `addFavorite` / `removeFavorite` / `reorderFavorites` out of `page.ts` into `domain/favorites` (user+page-scoped: the page must exist in a workspace the actor belongs to; position management preserved verbatim). Pure `db` + `zod`; no ports.
+Extract `addFavorite` / `removeFavorite` / `reorderFavorites` out of `page.ts` into `domain/favorites` (user+page-scoped: the page must exist in a workspace the actor belongs to). Pure `db` + `zod`; no ports. **Reconciliation (discovered during planning):** tRPC seeds the first favorite at position `(_max ?? -1) + 1 = 0` while engines used `(_max ?? 0) + 1 = 1` — a latent off-by-one. The domain adopts the **tRPC 0-based** rule (consistent with `reorderFavorites`, which assigns positions by 0-based index). The tRPC `requireWritableWorkspace` gate stays in the tRPC wrapper (engines stays membership-only, as today) — only the position/upsert core is shared.
 
 - **tRPC**: the three favorite procedures in `page.ts` become wrappers (they stay physically in `page.ts`; only their bodies delegate).
 - **engines**: `favorite.service.add`/`remove` delegate to domain. **Gap-fix:** add the missing `reorderFavorites` MCP tool delegating to `domain.reorderFavorites`.
