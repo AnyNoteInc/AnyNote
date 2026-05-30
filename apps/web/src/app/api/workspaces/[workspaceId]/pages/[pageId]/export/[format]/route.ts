@@ -2,7 +2,7 @@ import { z } from 'zod'
 import type { NextRequest } from 'next/server'
 import { prisma } from '@repo/db'
 import { storage } from '@repo/storage'
-import { assertWorkspaceMembership } from '@repo/domain/workspace/access.ts'
+import { domain } from '@/lib/domain'
 import { isDomainError } from '@repo/domain/errors.ts'
 
 import { getSession } from '@/lib/get-session'
@@ -45,7 +45,7 @@ export async function GET(
   }
 
   try {
-    await assertWorkspaceMembership(prisma, session.user.id, workspaceId)
+    await domain.workspace.assertMembership(session.user.id, workspaceId)
   } catch (e) {
     if (isDomainError(e) && e.httpStatus === 403) return FORBIDDEN
     throw e
