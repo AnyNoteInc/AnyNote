@@ -146,7 +146,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     name: s.name,
     description: s.description ?? '',
     url: s.url,
-    transport: s.transport as 'HTTP_JSONRPC' | 'SSE',
+    transport: s.transport,
     headers: decryptedHeadersMap[s.id] ?? {},
     tools: s.toolsAllowlist,
     retries: 3,

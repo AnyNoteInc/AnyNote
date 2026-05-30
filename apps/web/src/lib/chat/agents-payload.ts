@@ -1,3 +1,5 @@
+import type { McpTransport } from '@repo/trpc/helpers/mcp-transports'
+
 export type WorkspaceSettingsSnapshot = {
   temperature: number | null
   topP: number | null
@@ -22,7 +24,7 @@ export type McpServerEntry = {
   name: string
   description: string
   url: string
-  transport: 'HTTP_JSONRPC' | 'SSE'
+  transport: McpTransport
   headers: Record<string, string>
   tools: string[]
   retries: number

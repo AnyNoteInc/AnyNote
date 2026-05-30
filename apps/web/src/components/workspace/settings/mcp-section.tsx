@@ -20,6 +20,12 @@ import {
   Typography,
 } from '@repo/ui/components'
 
+import {
+  MCP_TRANSPORTS,
+  MCP_TRANSPORT_LABELS,
+  type McpTransport,
+} from '@repo/trpc/helpers/mcp-transports'
+
 import { trpc } from '@/trpc/client'
 
 import { SettingsCard } from './settings-card'
@@ -48,7 +54,7 @@ export function WorkspaceMcpSection({
   const [form, setForm] = useState({
     name: '',
     url: '',
-    transport: 'HTTP_JSONRPC' as 'HTTP_JSONRPC' | 'SSE' | 'STREAMABLE_HTTP',
+    transport: 'HTTP_JSONRPC' as McpTransport,
     headersJson: '{}',
   })
 
@@ -192,13 +198,15 @@ export function WorkspaceMcpSection({
               onChange={(e) =>
                 setForm((f) => ({
                   ...f,
-                  transport: e.target.value as 'HTTP_JSONRPC' | 'SSE' | 'STREAMABLE_HTTP',
+                  transport: e.target.value as McpTransport,
                 }))
               }
             >
-              <MenuItem value="HTTP_JSONRPC">HTTP JSON-RPC</MenuItem>
-              <MenuItem value="SSE">SSE</MenuItem>
-              <MenuItem value="STREAMABLE_HTTP">Streamable HTTP</MenuItem>
+              {MCP_TRANSPORTS.map((t) => (
+                <MenuItem key={t} value={t}>
+                  {MCP_TRANSPORT_LABELS[t]}
+                </MenuItem>
+              ))}
             </TextField>
             <TextField
               label="Headers (JSON)"

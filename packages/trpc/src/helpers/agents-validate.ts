@@ -1,4 +1,5 @@
 import { signAgentsServiceToken, type AgentsServiceAuth } from './agents-token'
+import type { McpTransport } from './mcp-transports'
 
 export type { AgentsServiceAuth }
 export type ProviderConnectionInput = Record<string, string>
@@ -56,7 +57,7 @@ export function validateEmbedding(
 export function validateMcp(
   input: {
     url: string
-    transport: 'HTTP_JSONRPC' | 'SSE' | 'STREAMABLE_HTTP'
+    transport: McpTransport
     headers: ProviderConnectionInput
     verify: boolean
   },

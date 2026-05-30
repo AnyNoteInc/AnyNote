@@ -6,8 +6,9 @@ import { encryptSecret, decryptSecret, type EncryptedPayload } from '@repo/auth'
 import { router, protectedProcedure } from '../trpc'
 import { getWorkspaceFeatures } from '../helpers/plan'
 import { validateMcp } from '../helpers/agents-validate'
+import { MCP_TRANSPORTS } from '../helpers/mcp-transports'
 
-const transportSchema = z.enum(['HTTP_JSONRPC', 'SSE', 'STREAMABLE_HTTP'])
+const transportSchema = z.enum(MCP_TRANSPORTS)
 
 const createInput = z.object({
   workspaceId: z.string().uuid(),
