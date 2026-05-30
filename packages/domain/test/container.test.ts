@@ -8,6 +8,15 @@ function makePrisma() {
     workspaceMember: {
       findUnique: vi.fn(async () => ({ workspaceId: 'w1', userId: 'u1', role: 'MEMBER' })),
     },
+    page: {
+      findFirst: vi.fn(async () => null),
+    },
+    favoritePage: {
+      aggregate: vi.fn(async () => ({ _max: { position: null } })),
+      upsert: vi.fn(async () => ({ userId: 'u1', pageId: 'p1', position: 0 })),
+      deleteMany: vi.fn(async () => ({ count: 0 })),
+      updateMany: vi.fn(async () => ({ count: 0 })),
+    },
   } as unknown as PrismaClient
 }
 
@@ -25,5 +34,13 @@ describe('createDomain', () => {
       userId: 'u1',
       role: 'MEMBER',
     })
+  })
+
+  it('resolves the favorites service from the container', () => {
+    const domain = createDomain({ prisma: makePrisma() })
+    expect(domain.favorites).toBeDefined()
+    expect(typeof domain.favorites.add).toBe('function')
+    expect(typeof domain.favorites.remove).toBe('function')
+    expect(typeof domain.favorites.reorder).toBe('function')
   })
 })
