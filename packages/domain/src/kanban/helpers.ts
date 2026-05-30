@@ -1,3 +1,5 @@
+import type { Prisma, TaskActivityType } from '@repo/db'
+
 export const POSITION_GAP = 1024
 const PRECISION_FLOOR = Number.EPSILON * 1024
 
@@ -18,4 +20,13 @@ export function endPosition(items: { position: number }[]): number {
     if (max === null || item.position > max) max = item.position
   }
   return max === null ? 0 : max + POSITION_GAP
+}
+
+export async function recordActivity(
+  client: Prisma.TransactionClient,
+  input: { taskId: string; actorId: string; type: TaskActivityType; payload?: Prisma.InputJsonValue },
+): Promise<void> {
+  await client.taskActivity.create({
+    data: { taskId: input.taskId, actorId: input.actorId, type: input.type, payload: input.payload ?? undefined },
+  })
 }

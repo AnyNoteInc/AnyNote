@@ -1,6 +1,7 @@
 import type { Prisma, TaskActivityType } from '@repo/db'
 
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
+import { recordActivity as recordActivityFn } from '../helpers.ts'
 
 // ── Internal I/O types ────────────────────────────────────────────────────────
 
@@ -40,14 +41,7 @@ export class KanbanRepository {
     type: TaskActivityType
     payload?: Prisma.InputJsonValue
   }): Promise<void> {
-    await this.uow.client().taskActivity.create({
-      data: {
-        taskId: input.taskId,
-        actorId: input.actorId,
-        type: input.type,
-        payload: input.payload ?? undefined,
-      },
-    })
+    await recordActivityFn(this.uow.client() as Prisma.TransactionClient, input)
   }
 
   // ── Task queries ────────────────────────────────────────────────────────────

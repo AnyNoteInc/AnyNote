@@ -1,5 +1,6 @@
 export * from './colors.ts'
 export * from './helpers.ts'
+export * from './seed.ts'
 export * from './dto/kanban.dto.ts'
 export * from './services/kanban.service.ts'
 export * from './kanban.tokens.ts'
