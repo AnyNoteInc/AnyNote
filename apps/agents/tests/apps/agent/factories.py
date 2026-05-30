@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from uuid import uuid4
 
-from agents.apps.agent.enums_shared import ModelProviderEnum
+from agents.apps.agent.enums import ModelProviderEnum
 from agents.apps.agent.schemas import AgentContext, AgentState, ModelConnectionSchema, ModelSettingsSchema
 
 

@@ -1,4 +1,4 @@
-from enum import StrEnum
+from enum import StrEnum, auto
 
 
 class PlanStepStatus(StrEnum):
@@ -23,3 +23,17 @@ class RoutingKind(StrEnum):
 class AgentMemoryScope(StrEnum):
     WORKSPACE = 'workspace'
     USER = 'user'
+
+
+class ModelProviderEnum(StrEnum):
+    OLLAMA = auto()
+    OPENAI = auto()
+    GIGACHAT = auto()
+    YANDEXGPT = auto()
+    ANTHROPIC = auto()
+    DEEPSEEK = auto()
+
+
+class RoleEnum(StrEnum):
+    USER = auto()
+    ASSISTANT = auto()

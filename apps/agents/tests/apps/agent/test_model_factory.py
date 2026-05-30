@@ -1,8 +1,8 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from agents.apps.agent.enums_shared import ModelProviderEnum
-from agents.apps.agent.errors_shared import InvalidPayloadError
+from agents.apps.agent.enums import ModelProviderEnum
+from agents.apps.agent.errors import InvalidPayloadError
 from agents.apps.agent.repositories.model_factory import ModelFactoryRepository
 from agents.apps.agent.schemas import ModelConfigSchema
 from pydantic import SecretStr

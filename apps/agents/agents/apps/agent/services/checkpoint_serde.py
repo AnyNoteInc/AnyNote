@@ -21,8 +21,8 @@ _ALLOWED_MSGPACK_MODULES: tuple[tuple[str, str], ...] = (
     ('agents.apps.agent.enums', 'CriticVerdict'),
     ('agents.apps.agent.enums', 'PlanStepStatus'),
     ('agents.apps.agent.enums', 'RoutingKind'),
-    ('agents.apps.agent.enums_shared', 'ModelProviderEnum'),
-    ('agents.apps.agent.enums_shared', 'RoleEnum'),
+    ('agents.apps.agent.enums', 'ModelProviderEnum'),
+    ('agents.apps.agent.enums', 'RoleEnum'),
     ('agents.apps.processing.schemas', 'EmbeddingProviderConfigSchema'),
     ('agents.apps.processing.schemas', 'ModelConnectionSchema'),
 )

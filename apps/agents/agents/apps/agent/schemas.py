@@ -10,10 +10,11 @@ from pydantic import BaseModel, ConfigDict, Field
 from agents.apps.agent.enums import (
     AgentMemoryScope,
     CriticVerdict,
+    ModelProviderEnum,
     PlanStepStatus,
+    RoleEnum,
     RoutingKind,
 )
-from agents.apps.agent.enums_shared import ModelProviderEnum, RoleEnum
 from agents.apps.processing.schemas import (
     EmbeddingProviderConfigSchema,
 )

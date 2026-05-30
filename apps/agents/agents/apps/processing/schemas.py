@@ -3,7 +3,7 @@ from typing import Annotated, Literal
 from fast_clean.schemas.request_response import RequestResponseSchema
 from pydantic import AliasChoices, ConfigDict, Field
 
-from agents.apps.agent.enums_shared import ModelProviderEnum
+from agents.apps.agent.enums import ModelProviderEnum
 
 
 class BlockContentSchema(RequestResponseSchema):

@@ -9,8 +9,8 @@ from langchain_ollama import ChatOllama
 from langchain_openai import ChatOpenAI
 from pydantic import SecretStr
 
-from agents.apps.agent.enums_shared import ModelProviderEnum
-from agents.apps.agent.errors_shared import InvalidPayloadError
+from agents.apps.agent.enums import ModelProviderEnum
+from agents.apps.agent.errors import InvalidPayloadError
 from agents.apps.agent.schemas import ModelConfigSchema
 
 
