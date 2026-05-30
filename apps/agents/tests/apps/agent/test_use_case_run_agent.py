@@ -5,6 +5,7 @@ from unittest.mock import AsyncMock, MagicMock
 
 import pytest
 from agents.apps.agent.schemas import AgentRunRequestSchema, ServerEventSchema
+from agents.apps.agent.services.graph_streaming import GraphStreamingService
 from agents.apps.agent.use_cases.run_agent import RunAgentUseCase
 from langchain_core.messages import AIMessage
 from langgraph.checkpoint.memory import MemorySaver
@@ -52,6 +53,7 @@ async def test_run_agent_streams_router_decision_first() -> None:
             render_critic=lambda **kw: 'critic-prompt',
         ),
         checkpointer=MemorySaver(),
+        streaming_service=GraphStreamingService(),
     )
 
     context = make_context()

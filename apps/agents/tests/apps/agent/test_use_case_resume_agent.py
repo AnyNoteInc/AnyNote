@@ -4,6 +4,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
 from agents.apps.agent.schemas import AgentResumeRequestSchema
+from agents.apps.agent.services.graph_streaming import GraphStreamingService
 from agents.apps.agent.use_cases.resume_agent import ResumeAgentUseCase
 
 from tests.apps.agent.factories import make_context
@@ -41,6 +42,7 @@ def _build_use_case():
         action_log_repo=MagicMock(),
         renderer=MagicMock(),
         checkpointer=MagicMock(),
+        streaming_service=GraphStreamingService(),
     )
 
 

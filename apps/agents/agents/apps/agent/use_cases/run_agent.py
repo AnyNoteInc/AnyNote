@@ -16,13 +16,13 @@ from agents.apps.agent.schemas import (
     ServerEventSchema,
 )
 from agents.apps.agent.services.graph import build_agent_graph
+from agents.apps.agent.services.graph_streaming import GraphStreamingService
 from agents.apps.agent.services.history_compactor import trim_chat_history
 from agents.apps.agent.services.internal_tools import (
     make_save_memory_tool,
     make_search_pages_tool,
 )
 from agents.apps.agent.services.tool_registry import build_registry_for_servers
-from agents.apps.agent.use_cases._streaming import stream_graph
 
 log = logging.getLogger(__name__)
 
@@ -36,6 +36,7 @@ class RunAgentUseCase:
     action_log_repo: Any
     renderer: Any
     checkpointer: Any
+    streaming_service: GraphStreamingService
 
     async def __call__(
         self,
@@ -119,7 +120,7 @@ class RunAgentUseCase:
         })
 
         try:
-            async for event in stream_graph(graph, initial, config, initial):
+            async for event in self.streaming_service.stream(graph, initial, config, initial):
                 yield event
         except Exception as exc:
             log.exception('agent run failed')

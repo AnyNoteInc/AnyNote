@@ -8,6 +8,7 @@ from agents.apps.agent.repositories import ActionLogRepository, AgentJinjaRender
 from agents.apps.agent.repositories.mcp_client import McpClient
 from agents.apps.agent.repositories.model_factory import ModelFactoryRepository
 from agents.apps.agent.services.checkpoint_serde import build_checkpoint_serde
+from agents.apps.agent.services.graph_streaming import GraphStreamingService
 from agents.apps.agent.services.jwt_verifier import JwtVerifierService
 from agents.apps.agent.services.rag_retrieval import RagRetrievalService
 from agents.apps.agent.use_cases.resume_agent import ResumeAgentUseCase
@@ -48,6 +49,7 @@ class AgentProvider(Provider):
 
     model_factory_repository = provide(ModelFactoryRepository, scope=Scope.APP)
     rag_retrieval_service = provide(RagRetrievalService)
+    graph_streaming_service = provide(GraphStreamingService, scope=Scope.APP)
     validate_llm_use_case = provide(ValidateLlmUseCase)
     validate_mcp_use_case = provide(ValidateMcpUseCase)
 
@@ -73,6 +75,7 @@ class AgentProvider(Provider):
         model_factory: ModelFactoryRepository,
         checkpointer: AsyncPostgresSaver,
         rag_service: RagRetrievalService,
+        streaming_service: GraphStreamingService,
     ) -> RunAgentUseCase:
         return RunAgentUseCase(
             llm_factory=model_factory.make,
@@ -82,6 +85,7 @@ class AgentProvider(Provider):
             action_log_repo=action_log_repo,
             renderer=renderer,
             checkpointer=checkpointer,
+            streaming_service=streaming_service,
         )
 
     @provide
@@ -94,6 +98,7 @@ class AgentProvider(Provider):
         model_factory: ModelFactoryRepository,
         checkpointer: AsyncPostgresSaver,
         rag_service: RagRetrievalService,
+        streaming_service: GraphStreamingService,
     ) -> ResumeAgentUseCase:
         return ResumeAgentUseCase(
             llm_factory=model_factory.make,
@@ -103,6 +108,7 @@ class AgentProvider(Provider):
             action_log_repo=action_log_repo,
             renderer=renderer,
             checkpointer=checkpointer,
+            streaming_service=streaming_service,
         )
 
 

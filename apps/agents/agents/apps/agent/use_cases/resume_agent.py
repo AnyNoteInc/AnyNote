@@ -19,12 +19,12 @@ from agents.apps.agent.schemas import (
     ServerEventSchema,
 )
 from agents.apps.agent.services.graph import build_agent_graph
+from agents.apps.agent.services.graph_streaming import GraphStreamingService
 from agents.apps.agent.services.internal_tools import (
     make_save_memory_tool,
     make_search_pages_tool,
 )
 from agents.apps.agent.services.tool_registry import build_registry_for_servers
-from agents.apps.agent.use_cases._streaming import stream_graph
 
 log = logging.getLogger(__name__)
 
@@ -46,6 +46,7 @@ class ResumeAgentUseCase:
     action_log_repo: Any
     renderer: Any
     checkpointer: Any
+    streaming_service: GraphStreamingService
 
     async def __call__(
         self,
@@ -132,7 +133,7 @@ class ResumeAgentUseCase:
         )
 
         try:
-            async for event in stream_graph(
+            async for event in self.streaming_service.stream(
                 graph,
                 Command(resume={'action': request.action}),
                 config,
