@@ -24,6 +24,7 @@ function makeMockDomain() {
   const __mocks = { add, remove, reorder }
   return {
     favorites: { add, remove, reorder },
+    pages: {} as Domain['pages'],
     __mocks,
   } as unknown as Domain & { __mocks: typeof __mocks }
 }

@@ -23,6 +23,7 @@ function makeFakeDomain(): Domain {
     notifications: {} as never,
     workspace: {} as never,
     kanban: {} as Domain['kanban'],
+    pages: {} as Domain['pages'],
   }
 }
 

@@ -147,6 +147,7 @@ describe('KanbanWriteService', () => {
         activateSprint: jest.fn(async () => ({ ok: true as const })),
         completeSprint: jest.fn(async () => ({ ok: true as const })),
       },
+      pages: {} as Domain['pages'],
     } as unknown as Domain
 
     svc = new KanbanWriteService(gw, parser, domain)

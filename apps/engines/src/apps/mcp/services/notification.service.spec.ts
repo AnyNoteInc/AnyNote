@@ -21,6 +21,7 @@ function makeMockDomain() {
   )
   return {
     notifications: { markRead, markAllRead },
+    pages: {} as import('@repo/domain').Domain['pages'],
     __mocks: { markRead, markAllRead },
   }
 }
