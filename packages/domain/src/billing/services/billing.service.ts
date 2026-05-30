@@ -9,7 +9,10 @@ type ActiveSubscriptionRow = NonNullable<
 >
 
 export class BillingService {
-  constructor(private readonly repo: BillingRepository) {}
+  private readonly repo: BillingRepository
+  constructor(repo: BillingRepository) {
+    this.repo = repo
+  }
 
   async getActivePlan(
     userId: string,

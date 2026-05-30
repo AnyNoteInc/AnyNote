@@ -7,8 +7,9 @@ import type { Domain } from '@repo/domain'
 // Here we assert that PageWriter delegates correctly to domain.pages.create/reorder
 // and that direct-Prisma methods (updatePage) continue to use this.prisma.
 import { PageWriter } from './page-writer.service.js'
+import { makeFakeDomain } from './__testutils__/fake-domain.js'
 
-function makeFakeDomain(): Domain & {
+function makePageWriterDomain(): Domain & {
   __mocks: { pagesCreate: ReturnType<typeof jest.fn>; pagesReorder: ReturnType<typeof jest.fn> }
 } {
   const pagesCreate = jest.fn<(...a: unknown[]) => Promise<{ id: string }>>(
@@ -17,16 +18,12 @@ function makeFakeDomain(): Domain & {
   const pagesReorder = jest.fn<(...a: unknown[]) => Promise<{ id: string }>>(
     async () => ({ id: 'p1' }),
   )
-  return {
-    pages: { create: pagesCreate, reorder: pagesReorder } as unknown as Domain['pages'],
-    favorites: {} as Domain['favorites'],
-    notifications: {} as Domain['notifications'],
-    reminders: {} as Domain['reminders'],
-    workspace: {} as Domain['workspace'],
-    kanban: {} as Domain['kanban'],
-    billing: {} as Domain['billing'],
-    __mocks: { pagesCreate, pagesReorder },
-  }
+  return Object.assign(
+    makeFakeDomain({
+      pages: { create: pagesCreate, reorder: pagesReorder } as unknown as Domain['pages'],
+    }),
+    { __mocks: { pagesCreate, pagesReorder } },
+  )
 }
 
 function makeMockPrisma() {
@@ -53,13 +50,13 @@ function makeMockPrisma() {
 }
 
 describe('PageWriter', () => {
-  let fakeDomain: ReturnType<typeof makeFakeDomain>
+  let fakeDomain: ReturnType<typeof makePageWriterDomain>
   let mockPrisma: ReturnType<typeof makeMockPrisma>
   let writer: PageWriter
 
   beforeEach(() => {
     jest.clearAllMocks()
-    fakeDomain = makeFakeDomain()
+    fakeDomain = makePageWriterDomain()
     mockPrisma = makeMockPrisma()
     writer = new PageWriter(mockPrisma, fakeDomain)
   })

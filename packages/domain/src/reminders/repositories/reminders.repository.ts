@@ -3,12 +3,11 @@ import type { ReminderAudience } from '@repo/db'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 import type { ReminderForRebuildDto } from '../dto/reminders.dto.ts'
 
-function shiftMs(shift: { days?: number; hours?: number; minutes?: number }): number {
-  return (shift.days ?? 0) * 86_400_000 + (shift.hours ?? 0) * 3_600_000 + (shift.minutes ?? 0) * 60_000
-}
-
 export class ReminderRepository {
-  constructor(private readonly uow: UnitOfWork) {}
+  private readonly uow: UnitOfWork
+  constructor(uow: UnitOfWork) {
+    this.uow = uow
+  }
 
   async findAccessiblePage(
     userId: string,
@@ -57,13 +56,6 @@ export class ReminderRepository {
       label: string | null
       doneAt: Date | null
     } | null>
-  }
-
-  computeNewDueAt(
-    existingDueAt: Date,
-    input: { dueAt?: Date; shift?: { days?: number; hours?: number; minutes?: number } },
-  ): Date {
-    return input.dueAt ?? new Date(existingDueAt.getTime() + shiftMs(input.shift ?? {}))
   }
 
   async createReminder(

@@ -1,6 +1,7 @@
 import type { Plan } from '@repo/db'
 
 import type { Db } from '../shared/unit-of-work.ts'
+import { activeSubscriptionWithPlanArgs } from './active-subscription.ts'
 
 /**
  * Standalone tx-carve-out functions. These operate directly on a raw Prisma client / tx handle
@@ -9,11 +10,7 @@ import type { Db } from '../shared/unit-of-work.ts'
  */
 
 export async function resolveActivePlanOrPersonal(tx: Db, userId: string): Promise<Plan> {
-  const sub = await tx.subscription.findFirst({
-    where: { userId, status: { in: ['TRIAL', 'ACTIVE', 'PAST_DUE'] } },
-    include: { plan: true },
-    orderBy: { createdAt: 'desc' },
-  })
+  const sub = await tx.subscription.findFirst(activeSubscriptionWithPlanArgs(userId))
   return sub?.plan ?? (await tx.plan.findUniqueOrThrow({ where: { slug: 'personal' } }))
 }
 

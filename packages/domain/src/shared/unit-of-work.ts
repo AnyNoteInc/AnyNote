@@ -14,8 +14,11 @@ export interface UnitOfWork {
 
 export class PrismaUnitOfWork implements UnitOfWork {
   private readonly als = new AsyncLocalStorage<Prisma.TransactionClient>()
+  private readonly prisma: PrismaClient
 
-  constructor(private readonly prisma: PrismaClient) {}
+  constructor(prisma: PrismaClient) {
+    this.prisma = prisma
+  }
 
   client(): Db {
     return this.als.getStore() ?? this.prisma

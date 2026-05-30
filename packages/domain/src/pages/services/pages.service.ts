@@ -21,11 +21,14 @@ import type {
 import type { PageRepository } from '../repositories/pages.repository.ts'
 
 export class PageService {
-  constructor(
-    private readonly repo: PageRepository,
-    private readonly uow: UnitOfWork,
-    private readonly kanban: KanbanService,
-  ) {}
+  private readonly repo: PageRepository
+  private readonly uow: UnitOfWork
+  private readonly kanban: KanbanService
+  constructor(repo: PageRepository, uow: UnitOfWork, kanban: KanbanService) {
+    this.repo = repo
+    this.uow = uow
+    this.kanban = kanban
+  }
 
   // ── Access helpers ────────────────────────────────────────────────────────────
 
@@ -118,8 +121,8 @@ export class PageService {
       return { id: input.pageId }
     }
 
-    // Cycle check: newParentId must not be a descendant of pageId
-    await this.repo.assertNotReorderingIntoOwnDescendantPreTx(input.pageId, input.newParentId)
+    // Cycle check (before opening the tx): newParentId must not be a descendant of pageId
+    await this.repo.assertNotReorderingIntoOwnDescendant(input.pageId, input.newParentId)
 
     return this.uow.transaction(() => this.repo.reorderPageTx(actorUserId, pageRow, input))
   }

@@ -29,10 +29,12 @@ function toIso(d: Date | null | undefined): string | null {
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class KanbanService {
-  constructor(
-    private readonly repo: KanbanRepository,
-    private readonly uow: UnitOfWork,
-  ) {}
+  private readonly repo: KanbanRepository
+  private readonly uow: UnitOfWork
+  constructor(repo: KanbanRepository, uow: UnitOfWork) {
+    this.repo = repo
+    this.uow = uow
+  }
 
   // ── Access helpers ──────────────────────────────────────────────────────────
 

@@ -1,6 +1,7 @@
 import type { AiModel, AiProvider, Plan } from '@repo/db'
 
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
+import { activeSubscriptionWithPlanArgs } from '../active-subscription.ts'
 import type { PlanFeatures } from '../dto/billing.dto.ts'
 import { getPlanDisplayName } from '../dto/billing.dto.ts'
 
@@ -24,14 +25,13 @@ function planToFeatures(plan: Plan): PlanFeatures {
 }
 
 export class BillingRepository {
-  constructor(private readonly uow: UnitOfWork) {}
+  private readonly uow: UnitOfWork
+  constructor(uow: UnitOfWork) {
+    this.uow = uow
+  }
 
   async findActiveSubscriptionWithPlan(userId: string) {
-    return this.uow.client().subscription.findFirst({
-      where: { userId, status: { in: ['TRIAL', 'ACTIVE', 'PAST_DUE'] } },
-      include: { plan: true },
-      orderBy: { createdAt: 'desc' },
-    })
+    return this.uow.client().subscription.findFirst(activeSubscriptionWithPlanArgs(userId))
   }
 
   async getWorkspaceFeatures(workspaceId: string): Promise<PlanFeatures> {

@@ -3,7 +3,10 @@ import type { WorkspaceRepository } from '../repositories/workspace.repository.t
 import type { WorkspaceMembershipDto } from '../dto/workspace.dto.ts'
 
 export class WorkspaceService {
-  constructor(private readonly repo: WorkspaceRepository) {}
+  private readonly repo: WorkspaceRepository
+  constructor(repo: WorkspaceRepository) {
+    this.repo = repo
+  }
 
   async assertMembership(
     actorUserId: string,

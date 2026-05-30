@@ -2,9 +2,9 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { isDomainError } from '../../../src/shared/errors.ts'
 import type { UnitOfWork } from '../../../src/shared/unit-of-work.ts'
-import type { DeliveryScheduler } from '../../../src/reminders/reminders.ports.ts'
 import type { ReminderRepository } from '../../../src/reminders/repositories/reminders.repository.ts'
 import { ReminderService } from '../../../src/reminders/services/reminders.service.ts'
+import { makeScheduler } from '../../helpers.ts'
 
 // A minimal fake UoW: transaction() calls fn() immediately, client() returns a sentinel
 const MOCK_CLIENT = Symbol('mock-tx-client')
@@ -14,13 +14,6 @@ function makeUow(): UnitOfWork {
     client: () => MOCK_CLIENT as never,
     transaction: async (fn) => fn(),
   }
-}
-
-function makeScheduler(): DeliveryScheduler & {
-  rebuild: ReturnType<typeof vi.fn>
-  cancel: ReturnType<typeof vi.fn>
-} {
-  return { rebuild: vi.fn(async () => undefined), cancel: vi.fn(async () => undefined) }
 }
 
 const basePage = { id: 'p1', workspaceId: 'w1' }
@@ -43,7 +36,6 @@ function makeRepo(
   return {
     findAccessiblePage: vi.fn(async () => basePage),
     findReminderForMove: vi.fn(async () => baseReminder),
-    computeNewDueAt: vi.fn((existing: Date, input: { dueAt?: Date }) => input.dueAt ?? existing),
     createReminder: vi.fn(async () => ({
       id: 'r1',
       pageId: 'p1',
@@ -112,9 +104,7 @@ describe('ReminderService.create', () => {
 describe('ReminderService.move', () => {
   it('returns { id, dueAt } and calls scheduler.rebuild', async () => {
     const newDue = new Date('2026-02-01T00:00:00Z')
-    const repo = makeRepo({
-      computeNewDueAt: vi.fn(() => newDue),
-    })
+    const repo = makeRepo()
     const sched = makeScheduler()
     const svc = new ReminderService(repo, makeUow(), sched)
 
@@ -124,6 +114,28 @@ describe('ReminderService.move', () => {
     expect(repo.updateReminderDueAt).toHaveBeenCalledWith('r1', newDue)
     expect(sched.rebuild).toHaveBeenCalledOnce()
     expect(sched.cancel).not.toHaveBeenCalled()
+  })
+
+  it('shifts the existing dueAt by days/hours/minutes when no explicit dueAt', async () => {
+    // baseReminder.dueAt is 2026-01-01T10:00:00Z
+    const cases: { shift: { days?: number; hours?: number; minutes?: number }; deltaMs: number }[] = [
+      { shift: { days: 1 }, deltaMs: 86_400_000 },
+      { shift: { hours: 2 }, deltaMs: 2 * 3_600_000 },
+      { shift: { minutes: 30 }, deltaMs: 30 * 60_000 },
+    ]
+    for (const { shift, deltaMs } of cases) {
+      const repo = makeRepo()
+      const svc = new ReminderService(repo, makeUow(), makeScheduler())
+      const result = await svc.move('u1', { reminderId: 'r1', shift })
+      expect(result.dueAt.getTime()).toBe(baseReminder.dueAt.getTime() + deltaMs)
+    }
+  })
+
+  it('keeps the existing dueAt when neither dueAt nor shift is provided', async () => {
+    const repo = makeRepo()
+    const svc = new ReminderService(repo, makeUow(), makeScheduler())
+    const result = await svc.move('u1', { reminderId: 'r1' })
+    expect(result.dueAt.getTime()).toBe(baseReminder.dueAt.getTime())
   })
 
   it('throws NOT_FOUND when reminder does not exist', async () => {

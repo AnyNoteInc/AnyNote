@@ -21,7 +21,10 @@ import type {
 } from '../dto/pages.dto.ts'
 
 export class PageRepository {
-  constructor(private readonly uow: UnitOfWork) {}
+  private readonly uow: UnitOfWork
+  constructor(uow: UnitOfWork) {
+    this.uow = uow
+  }
 
   // ── Access queries ────────────────────────────────────────────────────────────
 
@@ -131,8 +134,9 @@ export class PageRepository {
   /**
    * `reorder` cycle-detection: BFS down the descendant tree of `pageId`.
    * If `newParentId` appears anywhere below `pageId`, reject the reorder.
+   * Pure read over `uow.client()` — the service runs it before opening the tx.
    */
-  private async assertNotReorderingIntoOwnDescendant(
+  async assertNotReorderingIntoOwnDescendant(
     pageId: string,
     newParentId: string | null,
   ): Promise<void> {
@@ -650,12 +654,4 @@ export class PageRepository {
     })
   }
 
-  // ── Pre-tx cycle check for reorder (runs on base client, before tx) ─────────
-
-  async assertNotReorderingIntoOwnDescendantPreTx(
-    pageId: string,
-    newParentId: string | null,
-  ): Promise<void> {
-    return this.assertNotReorderingIntoOwnDescendant(pageId, newParentId)
-  }
 }

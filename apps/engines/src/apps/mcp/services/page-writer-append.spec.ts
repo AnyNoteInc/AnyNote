@@ -1,13 +1,13 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import type { PrismaClient } from '@repo/db'
-import type { Domain } from '@repo/domain'
 
 import { PageNotFoundError } from '../errors/mcp.errors.js'
 import { PageWriter } from './page-writer.service.js'
+import { makeFakeDomain } from './__testutils__/fake-domain.js'
 
 // These tests cover direct-Prisma methods (appendContent). Domain is not called;
 // pass a minimal stub to satisfy the constructor signature.
-const fakeDomain = { pages: {} } as unknown as Domain
+const fakeDomain = makeFakeDomain()
 
 function makePrisma(page: unknown) {
   const update = jest.fn<(...a: unknown[]) => Promise<unknown>>().mockResolvedValue({})

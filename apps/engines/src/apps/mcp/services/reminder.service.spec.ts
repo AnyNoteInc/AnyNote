@@ -5,9 +5,10 @@ import type { Domain } from '@repo/domain'
 // The domain singleton now owns prisma + scheduler internally.
 // ReminderService delegates to domain.reminders.*; listReminders uses this.prisma directly.
 import { ReminderService } from './reminder.service.js'
+import { makeFakeDomain } from './__testutils__/fake-domain.js'
 
-function makeFakeDomain(): Domain {
-  return {
+function makeReminderDomain(): Domain {
+  return makeFakeDomain({
     reminders: {
       create: jest.fn<(...a: unknown[]) => Promise<{ reminderId: string }>>(
         async () => ({ reminderId: 'r1' }),
@@ -19,13 +20,7 @@ function makeFakeDomain(): Domain {
       complete: jest.fn<(...a: unknown[]) => Promise<{ id: string }>>(async () => ({ id: 'r1' })),
       sync: jest.fn<(...a: unknown[]) => Promise<{ ok: true }>>(async () => ({ ok: true })),
     } as unknown as Domain['reminders'],
-    favorites: {} as never,
-    notifications: {} as never,
-    workspace: {} as never,
-    kanban: {} as Domain['kanban'],
-    pages: {} as Domain['pages'],
-    billing: {} as Domain['billing'],
-  }
+  })
 }
 
 function makeMockPrisma() {
@@ -45,7 +40,7 @@ describe('ReminderService', () => {
 
   beforeEach(() => {
     jest.clearAllMocks()
-    domain = makeFakeDomain()
+    domain = makeReminderDomain()
     mockPrisma = makeMockPrisma()
     svc = new ReminderService(mockPrisma as unknown as PrismaClient, domain)
   })

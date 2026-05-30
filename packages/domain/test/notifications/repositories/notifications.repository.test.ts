@@ -1,16 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 
-import type { UnitOfWork } from '../../../src/shared/unit-of-work.ts'
 import { NotificationRepository } from '../../../src/notifications/repositories/notifications.repository.ts'
-
-function makeUow(delegates: Record<string, Record<string, ReturnType<typeof vi.fn>>>) {
-  const client = delegates as never
-  const uow: UnitOfWork = {
-    client: () => client,
-    transaction: async (fn) => fn(),
-  }
-  return uow
-}
+import { makeDelegateUow as makeUow } from '../../helpers.ts'
 
 describe('NotificationRepository.markRead', () => {
   it('calls updateMany with ids filter and readAt, returns { updated }', async () => {

@@ -2,7 +2,10 @@ import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 import type { WorkspaceMembershipDto } from '../dto/workspace.dto.ts'
 
 export class WorkspaceRepository {
-  constructor(private readonly uow: UnitOfWork) {}
+  private readonly uow: UnitOfWork
+  constructor(uow: UnitOfWork) {
+    this.uow = uow
+  }
 
   async findMembership(
     userId: string,

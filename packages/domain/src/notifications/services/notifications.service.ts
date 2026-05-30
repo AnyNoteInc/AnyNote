@@ -3,7 +3,10 @@ import type { DeleteResultDto, MarkReadInput, MarkReadResultDto } from '../dto/n
 import type { NotificationRepository } from '../repositories/notifications.repository.ts'
 
 export class NotificationService {
-  constructor(private readonly repo: NotificationRepository) {}
+  private readonly repo: NotificationRepository
+  constructor(repo: NotificationRepository) {
+    this.repo = repo
+  }
 
   async markRead(actorUserId: string, input: MarkReadInput): Promise<MarkReadResultDto> {
     if (input.ids.length === 0) throw badRequest('ids must not be empty')

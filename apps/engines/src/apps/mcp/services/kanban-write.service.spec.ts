@@ -5,6 +5,7 @@ import type { Domain } from '@repo/domain'
 import type { MarkdownParser } from './markdown-parser.service.js'
 import type { KanbanGateway } from './kanban-gateway.service.js'
 import { KanbanWriteService } from './kanban-write.service.js'
+import { makeFakeDomain } from './__testutils__/fake-domain.js'
 
 // The domain singleton is injected; tests assert that KanbanWriteService delegates
 // correctly by spying on domain.kanban.* methods.  Real prisma ops happen inside the
@@ -117,7 +118,7 @@ describe('KanbanWriteService', () => {
       taskActivity: { create: AnyFn }
       taskAssignee: { createMany: AnyFn }
     }
-    const domain = {
+    const domain = makeFakeDomain({
       kanban: {
         createTask: jest.fn(async (_uid: string, input: Record<string, unknown>) => {
           const task = await p.task.create({ data: { ...input, createdById: _uid } })
@@ -146,9 +147,8 @@ describe('KanbanWriteService', () => {
         }),
         activateSprint: jest.fn(async () => ({ ok: true as const })),
         completeSprint: jest.fn(async () => ({ ok: true as const })),
-      },
-      pages: {} as Domain['pages'],
-    } as unknown as Domain
+      } as unknown as Domain['kanban'],
+    })
 
     svc = new KanbanWriteService(gw, parser, domain)
   })

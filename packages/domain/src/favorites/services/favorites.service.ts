@@ -5,11 +5,14 @@ import type { AddFavoriteInput, FavoritePageDto, RemoveFavoriteInput, ReorderFav
 import type { FavoriteRepository } from '../repositories/favorites.repository.ts'
 
 export class FavoriteService {
-  constructor(
-    private readonly repo: FavoriteRepository,
-    private readonly uow: UnitOfWork,
-    private readonly workspace: WorkspaceService,
-  ) {}
+  private readonly repo: FavoriteRepository
+  private readonly uow: UnitOfWork
+  private readonly workspace: WorkspaceService
+  constructor(repo: FavoriteRepository, uow: UnitOfWork, workspace: WorkspaceService) {
+    this.repo = repo
+    this.uow = uow
+    this.workspace = workspace
+  }
 
   async add(actorUserId: string, input: AddFavoriteInput): Promise<FavoritePageDto> {
     const page = await this.repo.findAccessiblePage(actorUserId, input.pageId)

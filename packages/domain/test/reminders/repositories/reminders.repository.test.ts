@@ -1,16 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 
-import type { UnitOfWork } from '../../../src/shared/unit-of-work.ts'
 import { ReminderRepository } from '../../../src/reminders/repositories/reminders.repository.ts'
-
-function makeUow(delegates: Record<string, Record<string, ReturnType<typeof vi.fn>>>) {
-  const client = delegates as never
-  const uow: UnitOfWork = {
-    client: () => client,
-    transaction: async (fn) => fn(),
-  }
-  return uow
-}
+import { makeDelegateUow as makeUow } from '../../helpers.ts'
 
 const baseReminder = {
   id: 'r1',
@@ -57,40 +48,6 @@ describe('ReminderRepository.findReminderForMove', () => {
     const findUnique = vi.fn(async () => null)
     const repo = new ReminderRepository(makeUow({ reminder: { findUnique } }))
     expect(await repo.findReminderForMove('no-id')).toBeNull()
-  })
-})
-
-describe('ReminderRepository.computeNewDueAt', () => {
-  const existing = new Date('2026-01-01T12:00:00Z')
-
-  it('returns input.dueAt when provided', () => {
-    const explicit = new Date('2026-02-01T00:00:00Z')
-    const repo = new ReminderRepository(makeUow({ reminder: {} }))
-    expect(repo.computeNewDueAt(existing, { dueAt: explicit })).toBe(explicit)
-  })
-
-  it('shifts by days when shift provided', () => {
-    const repo = new ReminderRepository(makeUow({ reminder: {} }))
-    const result = repo.computeNewDueAt(existing, { shift: { days: 1 } })
-    expect(result.getTime()).toBe(existing.getTime() + 86_400_000)
-  })
-
-  it('shifts by hours', () => {
-    const repo = new ReminderRepository(makeUow({ reminder: {} }))
-    const result = repo.computeNewDueAt(existing, { shift: { hours: 2 } })
-    expect(result.getTime()).toBe(existing.getTime() + 2 * 3_600_000)
-  })
-
-  it('shifts by minutes', () => {
-    const repo = new ReminderRepository(makeUow({ reminder: {} }))
-    const result = repo.computeNewDueAt(existing, { shift: { minutes: 30 } })
-    expect(result.getTime()).toBe(existing.getTime() + 30 * 60_000)
-  })
-
-  it('returns existing dueAt when no shift or dueAt', () => {
-    const repo = new ReminderRepository(makeUow({ reminder: {} }))
-    const result = repo.computeNewDueAt(existing, {})
-    expect(result.getTime()).toBe(existing.getTime())
   })
 })
 

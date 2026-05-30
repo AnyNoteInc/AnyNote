@@ -12,7 +12,10 @@ export interface AccessiblePage {
 }
 
 export class KanbanRepository {
-  constructor(private readonly uow: UnitOfWork) {}
+  private readonly uow: UnitOfWork
+  constructor(uow: UnitOfWork) {
+    this.uow = uow
+  }
 
   // ── Access queries ──────────────────────────────────────────────────────────
 

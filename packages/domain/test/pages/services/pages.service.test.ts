@@ -41,7 +41,7 @@ function makeRepo(
     restorePageTx: vi.fn(async () => ({ id: 'p1' })),
     hardDeletePageTx: vi.fn(async () => ({ id: 'p1' })),
     emptyTrashTx: vi.fn(async () => ({ count: 3 })),
-    assertNotReorderingIntoOwnDescendantPreTx: vi.fn(async () => undefined),
+    assertNotReorderingIntoOwnDescendant: vi.fn(async () => undefined),
     ...overrides,
   } as unknown as PageRepository
 }
@@ -222,19 +222,19 @@ describe('PageService.reorder', () => {
     expect(txn).not.toHaveBeenCalled()
   })
 
-  it('calls assertNotReorderingIntoOwnDescendantPreTx then reorderPageTx', async () => {
+  it('calls assertNotReorderingIntoOwnDescendant then reorderPageTx', async () => {
     const repo = makeRepo({
       findActivePageById: vi.fn(async () => ({ ...basePageRow, parentId: 'old-par', prevPageId: null })),
     })
     const svc = new PageService(repo, makeUow(), makeKanban())
     await svc.reorder('u1', { pageId: 'p1', newParentId: 'new-par', newPrevPageId: null })
-    expect(repo.assertNotReorderingIntoOwnDescendantPreTx).toHaveBeenCalledWith('p1', 'new-par')
+    expect(repo.assertNotReorderingIntoOwnDescendant).toHaveBeenCalledWith('p1', 'new-par')
     expect(repo.reorderPageTx).toHaveBeenCalledOnce()
   })
 
   it('propagates BAD_REQUEST from cycle check', async () => {
     const repo = makeRepo({
-      assertNotReorderingIntoOwnDescendantPreTx: vi.fn(async () => {
+      assertNotReorderingIntoOwnDescendant: vi.fn(async () => {
         throw Object.assign(new Error('Нельзя вложить страницу в собственного потомка'), {
           code: 'BAD_REQUEST',
           httpStatus: 400,

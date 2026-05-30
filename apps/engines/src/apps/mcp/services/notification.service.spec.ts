@@ -1,7 +1,10 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import type { PrismaClient } from '@repo/db'
 
+import type { Domain } from '@repo/domain'
+
 import { NotificationService } from './notification.service.js'
+import { makeFakeDomain } from './__testutils__/fake-domain.js'
 
 function makeMockPrisma() {
   const findMany = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => [])
@@ -19,11 +22,12 @@ function makeMockDomain() {
   const markAllRead = jest.fn<(...a: unknown[]) => Promise<{ updated: number }>>(
     async () => ({ updated: 0 }),
   )
-  return {
-    notifications: { markRead, markAllRead },
-    pages: {} as import('@repo/domain').Domain['pages'],
-    __mocks: { markRead, markAllRead },
-  }
+  return Object.assign(
+    makeFakeDomain({
+      notifications: { markRead, markAllRead } as unknown as Domain['notifications'],
+    }),
+    { __mocks: { markRead, markAllRead } },
+  )
 }
 
 describe('NotificationService', () => {

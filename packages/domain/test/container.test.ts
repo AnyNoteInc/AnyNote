@@ -2,11 +2,7 @@ import { describe, it, expect, vi } from 'vitest'
 import type { PrismaClient } from '@repo/db'
 
 import { createDomain } from '../src/container.ts'
-import type { DeliveryScheduler } from '../src/reminders/reminders.ports.ts'
-
-function makeScheduler(): DeliveryScheduler {
-  return { rebuild: vi.fn(async () => undefined), cancel: vi.fn(async () => undefined) }
-}
+import { makeScheduler } from './helpers.ts'
 
 function makePrisma() {
   return {

@@ -11,12 +11,26 @@ import type {
 import type { DeliveryScheduler } from '../reminders.ports.ts'
 import type { ReminderRepository } from '../repositories/reminders.repository.ts'
 
+function shiftMs(shift: { days?: number; hours?: number; minutes?: number }): number {
+  return (shift.days ?? 0) * 86_400_000 + (shift.hours ?? 0) * 3_600_000 + (shift.minutes ?? 0) * 60_000
+}
+
+function computeNewDueAt(
+  existingDueAt: Date,
+  input: { dueAt?: Date; shift?: { days?: number; hours?: number; minutes?: number } },
+): Date {
+  return input.dueAt ?? new Date(existingDueAt.getTime() + shiftMs(input.shift ?? {}))
+}
+
 export class ReminderService {
-  constructor(
-    private readonly repo: ReminderRepository,
-    private readonly uow: UnitOfWork,
-    private readonly scheduler: DeliveryScheduler,
-  ) {}
+  private readonly repo: ReminderRepository
+  private readonly uow: UnitOfWork
+  private readonly scheduler: DeliveryScheduler
+  constructor(repo: ReminderRepository, uow: UnitOfWork, scheduler: DeliveryScheduler) {
+    this.repo = repo
+    this.uow = uow
+    this.scheduler = scheduler
+  }
 
   async create(actorUserId: string, input: CreateReminderInput): Promise<{ reminderId: string }> {
     // Pre-transaction: assert page access
@@ -43,7 +57,7 @@ export class ReminderService {
     const existing = await this.repo.findReminderForMove(input.reminderId)
     if (!existing || existing.createdById !== actorUserId) throw notFound('Напоминание не найдено')
 
-    const newDueAt = this.repo.computeNewDueAt(existing.dueAt, input)
+    const newDueAt = computeNewDueAt(existing.dueAt, input)
 
     return this.uow.transaction(async () => {
       await this.repo.updateReminderDueAt(input.reminderId, newDueAt)

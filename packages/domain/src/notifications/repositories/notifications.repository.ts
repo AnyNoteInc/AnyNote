@@ -2,7 +2,10 @@ import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 import type { DeleteResultDto, MarkReadResultDto } from '../dto/notifications.dto.ts'
 
 export class NotificationRepository {
-  constructor(private readonly uow: UnitOfWork) {}
+  private readonly uow: UnitOfWork
+  constructor(uow: UnitOfWork) {
+    this.uow = uow
+  }
 
   async markRead(userId: string, ids: string[]): Promise<MarkReadResultDto> {
     const result = await this.uow.client().notificationInApp.updateMany({

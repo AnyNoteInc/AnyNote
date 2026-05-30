@@ -1,16 +1,7 @@
 import { describe, it, expect, vi } from 'vitest'
 
-import type { UnitOfWork } from '../../../src/shared/unit-of-work.ts'
 import { FavoriteRepository } from '../../../src/favorites/repositories/favorites.repository.ts'
-
-function makeUow(delegates: Record<string, Record<string, ReturnType<typeof vi.fn>>>) {
-  const client = delegates as never
-  const uow: UnitOfWork = {
-    client: () => client,
-    transaction: async (fn) => fn(),
-  }
-  return uow
-}
+import { makeDelegateUow as makeUow } from '../../helpers.ts'
 
 describe('FavoriteRepository.findAccessiblePage', () => {
   it('maps the row to { id, workspaceId }', async () => {

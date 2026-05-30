@@ -2,7 +2,10 @@ import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 import type { FavoritePageDto } from '../dto/favorites.dto.ts'
 
 export class FavoriteRepository {
-  constructor(private readonly uow: UnitOfWork) {}
+  private readonly uow: UnitOfWork
+  constructor(uow: UnitOfWork) {
+    this.uow = uow
+  }
 
   async findAccessiblePage(
     userId: string,
@@ -46,11 +49,15 @@ export class FavoriteRepository {
     workspaceId: string,
     orderedIds: string[],
   ): Promise<void> {
-    for (const [index, pageId] of orderedIds.entries()) {
-      await this.uow.client().favoritePage.updateMany({
-        where: { userId, pageId, page: { workspaceId } },
-        data: { position: index },
-      })
-    }
+    // Position updates are row-independent; run them concurrently inside the
+    // active tx rather than awaiting each in sequence.
+    await Promise.all(
+      orderedIds.map((pageId, index) =>
+        this.uow.client().favoritePage.updateMany({
+          where: { userId, pageId, page: { workspaceId } },
+          data: { position: index },
+        }),
+      ),
+    )
   }
 }

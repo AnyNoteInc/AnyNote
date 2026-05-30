@@ -3,6 +3,7 @@ import type { PrismaClient } from '@repo/db'
 import type { Domain } from '@repo/domain'
 
 import { FavoriteService } from './favorite.service.js'
+import { makeFakeDomain } from './__testutils__/fake-domain.js'
 
 // PRISMA mock is still needed only for the list() method (direct Prisma read).
 function makeMockPrisma() {
@@ -22,11 +23,10 @@ function makeMockDomain() {
   const remove = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({ count: 1 }))
   const reorder = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({ ok: true }))
   const __mocks = { add, remove, reorder }
-  return {
-    favorites: { add, remove, reorder },
-    pages: {} as Domain['pages'],
-    __mocks,
-  } as unknown as Domain & { __mocks: typeof __mocks }
+  return Object.assign(
+    makeFakeDomain({ favorites: { add, remove, reorder } as unknown as Domain['favorites'] }),
+    { __mocks },
+  )
 }
 
 describe('FavoriteService', () => {

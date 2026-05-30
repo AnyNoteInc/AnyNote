@@ -1,19 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
-import type { UnitOfWork } from '../../../src/shared/unit-of-work.ts'
 import { DomainError } from '../../../src/shared/errors.ts'
 import { PageRepository } from '../../../src/pages/repositories/pages.repository.ts'
-
-// ── UoW factory ───────────────────────────────────────────────────────────────
-
-function makeUow(delegates: Record<string, Record<string, ReturnType<typeof vi.fn>>>) {
-  const client = delegates as never
-  const uow: UnitOfWork = {
-    client: () => client,
-    transaction: async (fn) => fn(),
-  }
-  return uow
-}
+import { makeDelegateUow as makeUow } from '../../helpers.ts'
 
 // ── findAccessiblePage ────────────────────────────────────────────────────────
 
