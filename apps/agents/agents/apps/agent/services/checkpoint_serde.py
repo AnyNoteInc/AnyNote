@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from langgraph.checkpoint.serde.jsonplus import JsonPlusSerializer
 
 # (module, qualname) pairs for every custom type that can appear inside an

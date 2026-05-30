@@ -1,7 +1,5 @@
 """Processing module error taxonomy."""
 
-from __future__ import annotations
-
 from fast_clean.exceptions import BusinessLogicException
 
 

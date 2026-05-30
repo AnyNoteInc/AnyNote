@@ -1,7 +1,5 @@
 """Provider/MCP validation routes — JWT-protected (internal service token)."""
 
-from __future__ import annotations
-
 from dishka.integrations.fastapi import FromDishka, inject
 from fastapi import APIRouter, Depends
 

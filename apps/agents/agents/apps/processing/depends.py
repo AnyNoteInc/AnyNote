@@ -1,7 +1,5 @@
 """Dishka providers for the processing (vectorization) application."""
 
-from __future__ import annotations
-
 from dishka import Provider, Scope, provide
 from qdrant_client import AsyncQdrantClient
 

@@ -1,7 +1,5 @@
 """Shared providers used by multiple apps (processing, chat)."""
 
-from __future__ import annotations
-
 from collections.abc import AsyncIterator
 
 from dishka import Provider, Scope, provide

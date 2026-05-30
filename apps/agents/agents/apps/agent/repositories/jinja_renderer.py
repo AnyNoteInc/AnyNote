@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 from os.path import join
 from typing import Any
 

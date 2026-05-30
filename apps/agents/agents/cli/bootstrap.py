@@ -1,7 +1,5 @@
 """CLI composition for the agents service."""
 
-from __future__ import annotations
-
 import typer
 
 
