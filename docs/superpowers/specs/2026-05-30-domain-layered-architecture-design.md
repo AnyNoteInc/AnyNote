@@ -120,7 +120,7 @@ different toolchains**: `tsc` NodeNext (engines type-checks domain source), **SW
 
 Therefore we do **not** use `@injectable()`/`@inject()` decorators. Domain classes are
 **plain TypeScript classes** with ordinary constructors. All wiring is explicit, in
-each module's `*.module.ts`, using inversify 7's `toDynamicValue` / `toResolvedValue`
+each module's `*.module.ts`, using inversify 8's `toDynamicValue` / `toResolvedValue`
 + `toConstantValue`. Benefits:
 - Zero decorator/metadata configuration in **any** toolchain — the package compiles
   identically everywhere.
@@ -130,7 +130,7 @@ each module's `*.module.ts`, using inversify 7's `toDynamicValue` / `toResolvedV
 
 Trade-off: wiring is written by hand instead of derived from decorators. This is
 *more* explicit, which suits the "no future surprises" goal. (Verify during
-implementation whether inversify 7 needs a one-time `reflect-metadata` import at the
+implementation whether inversify 8 needs a one-time `reflect-metadata` import at the
 composition root for the non-decorator path; if so, import it once inside
 `container.ts`, never in business code.)
 
@@ -314,7 +314,7 @@ export const remindersModule = new ContainerModule((bind) => {
 })
 ```
 
-> Implementation note: inversify 7 offers two decorator-free binding forms —
+> Implementation note: inversify 8 offers two decorator-free binding forms —
 > `toDynamicValue((ctx) => new X(ctx.get(T)))` (resolution-context form, shown above)
 > and `toResolvedValue((dep) => new X(dep), [T])` (deps resolved and passed as args).
 > Both keep `container.get` **synchronous** when the factory and all dependencies are
@@ -541,7 +541,7 @@ These rules make R4 and R5 regression-proof rather than convention-only.
 
 ## 16. Open items to confirm during implementation
 
-- Exact inversify 7 binding form (`toDynamicValue` vs `toResolvedValue`) and whether any
+- Exact inversify 8 binding form (`toDynamicValue` vs `toResolvedValue`) and whether any
   `reflect-metadata` import is needed for decorator-free use.
 - Whether `inversify` resolves cleanly under `moduleResolution: NodeNext` in the engines
   type-check (it ships proper `exports`; confirm).
