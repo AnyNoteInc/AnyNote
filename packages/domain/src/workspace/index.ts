@@ -1,1 +1,5 @@
 export * from './access.ts'
+export * from './dto/workspace.dto.ts'
+export * from './services/workspace.service.ts'
+export * from './workspace.tokens.ts'
+export * from './workspace.module.ts'
