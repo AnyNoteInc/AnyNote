@@ -28,6 +28,7 @@ function makeRepo(
 ): PageRepository {
   return {
     findAccessiblePage: vi.fn(async () => basePageRow),
+    findActivePageById: vi.fn(async () => basePageRow),
     findMembership: vi.fn(async () => ({ role: 'OWNER' as const })),
     findParentPage: vi.fn(async () => ({ id: 'par1' })),
     createPageTx: vi.fn(async () => ({ id: 'new-1' })),
@@ -194,17 +195,16 @@ describe('PageService.reorder', () => {
   })
 
   it('throws NOT_FOUND when page does not exist', async () => {
-    const repo = makeRepo()
-    const svc = new PageService(repo, makeUow(null), makeKanban())
+    const repo = makeRepo({ findActivePageById: vi.fn(async () => null) })
+    const svc = new PageService(repo, makeUow(), makeKanban())
     await expect(
       svc.reorder('u1', { pageId: 'p1', newParentId: 'par2', newPrevPageId: null }),
     ).rejects.toBeInstanceOf(DomainError)
   })
 
   it('throws FORBIDDEN when actor is not a workspace member', async () => {
-    const rawPage = { ...basePageRow, workspaceId: 'w1', parentId: null, prevPageId: null }
     const repo = makeRepo({ findMembership: vi.fn(async () => null) })
-    const svc = new PageService(repo, makeUow(rawPage), makeKanban())
+    const svc = new PageService(repo, makeUow(), makeKanban())
     await expect(
       svc.reorder('u1', { pageId: 'p1', newParentId: 'par2', newPrevPageId: null }),
     ).rejects.toBeInstanceOf(DomainError)
@@ -212,10 +212,10 @@ describe('PageService.reorder', () => {
   })
 
   it('short-circuits when parent + prev are unchanged (no tx)', async () => {
-    const rawPage = { ...basePageRow, workspaceId: 'w1', parentId: null, prevPageId: null }
+    // basePageRow has parentId=null, prevPageId=null — matching the input below.
     const repo = makeRepo()
     const txn = vi.fn(async (fn: () => Promise<unknown>) => fn())
-    const uow: UnitOfWork = { client: () => ({ page: { findFirst: vi.fn(async () => rawPage) } }) as never, transaction: txn }
+    const uow: UnitOfWork = { client: () => ({}) as never, transaction: txn }
     const svc = new PageService(repo, uow, makeKanban())
     const result = await svc.reorder('u1', { pageId: 'p1', newParentId: null, newPrevPageId: null })
     expect(result).toEqual({ id: 'p1' })
@@ -223,16 +223,16 @@ describe('PageService.reorder', () => {
   })
 
   it('calls assertNotReorderingIntoOwnDescendantPreTx then reorderPageTx', async () => {
-    const rawPage = { ...basePageRow, workspaceId: 'w1', parentId: 'old-par', prevPageId: null }
-    const repo = makeRepo()
-    const svc = new PageService(repo, makeUow(rawPage), makeKanban())
+    const repo = makeRepo({
+      findActivePageById: vi.fn(async () => ({ ...basePageRow, parentId: 'old-par', prevPageId: null })),
+    })
+    const svc = new PageService(repo, makeUow(), makeKanban())
     await svc.reorder('u1', { pageId: 'p1', newParentId: 'new-par', newPrevPageId: null })
     expect(repo.assertNotReorderingIntoOwnDescendantPreTx).toHaveBeenCalledWith('p1', 'new-par')
     expect(repo.reorderPageTx).toHaveBeenCalledOnce()
   })
 
   it('propagates BAD_REQUEST from cycle check', async () => {
-    const rawPage = { ...basePageRow, workspaceId: 'w1', parentId: null, prevPageId: null }
     const repo = makeRepo({
       assertNotReorderingIntoOwnDescendantPreTx: vi.fn(async () => {
         throw Object.assign(new Error('Нельзя вложить страницу в собственного потомка'), {
@@ -242,7 +242,7 @@ describe('PageService.reorder', () => {
         })
       }),
     })
-    const svc = new PageService(repo, makeUow(rawPage), makeKanban())
+    const svc = new PageService(repo, makeUow(), makeKanban())
     await expect(
       svc.reorder('u1', { pageId: 'p1', newParentId: 'desc-1', newPrevPageId: null }),
     ).rejects.toMatchObject({ httpStatus: 400 })

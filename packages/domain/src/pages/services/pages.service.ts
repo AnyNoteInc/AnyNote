@@ -106,38 +106,20 @@ export class PageService {
       throw badRequest('Страница не может ссылаться на себя')
     }
 
-    // reorderPage's original uses prisma.page.findFirst by id only (not workspace-filtered).
-    // The UoW client() outside a transaction == base PrismaClient, preserving the original.
-    const rawPage = await this.uow.client().page.findFirst({
-      where: { id: input.pageId, deletedAt: null },
-    })
-    if (!rawPage) throw notFound('Страница не найдена')
+    // reorderPage's original looks up by id only (not workspace-filtered).
+    const pageRow = await this.repo.findActivePageById(input.pageId)
+    if (!pageRow) throw notFound('Страница не найдена')
 
-    const member = await this.repo.findMembership(actorUserId, rawPage.workspaceId)
+    const member = await this.repo.findMembership(actorUserId, pageRow.workspaceId)
     if (!member) throw forbidden('Вы не являетесь участником воркспейса')
 
     // Short-circuit: no-op when position is unchanged
-    if (rawPage.parentId === input.newParentId && rawPage.prevPageId === input.newPrevPageId) {
+    if (pageRow.parentId === input.newParentId && pageRow.prevPageId === input.newPrevPageId) {
       return { id: input.pageId }
     }
 
     // Cycle check: newParentId must not be a descendant of pageId
     await this.repo.assertNotReorderingIntoOwnDescendantPreTx(input.pageId, input.newParentId)
-
-    // Map raw page to PageRowDto for the repo method
-    const pageRow: PageRowDto = {
-      id: rawPage.id,
-      workspaceId: rawPage.workspaceId,
-      createdById: rawPage.createdById,
-      parentId: rawPage.parentId,
-      prevPageId: rawPage.prevPageId,
-      title: rawPage.title,
-      icon: rawPage.icon,
-      type: rawPage.type,
-      content: rawPage.content,
-      contentYjs: rawPage.contentYjs,
-      deletedAt: rawPage.deletedAt,
-    }
 
     return this.uow.transaction(() => this.repo.reorderPageTx(actorUserId, pageRow, input))
   }

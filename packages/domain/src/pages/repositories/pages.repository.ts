@@ -58,6 +58,40 @@ export class PageRepository {
     }
   }
 
+  // Lookup by id only (not workspace-filtered) — matches reorderPage's original semantics.
+  async findActivePageById(pageId: string): Promise<PageRowDto | null> {
+    const row = await this.uow.client().page.findFirst({
+      where: { id: pageId, deletedAt: null },
+      select: {
+        id: true,
+        workspaceId: true,
+        createdById: true,
+        parentId: true,
+        prevPageId: true,
+        title: true,
+        icon: true,
+        type: true,
+        content: true,
+        contentYjs: true,
+        deletedAt: true,
+      },
+    })
+    if (!row) return null
+    return {
+      id: row.id,
+      workspaceId: row.workspaceId,
+      createdById: row.createdById,
+      parentId: row.parentId,
+      prevPageId: row.prevPageId,
+      title: row.title,
+      icon: row.icon,
+      type: row.type,
+      content: row.content,
+      contentYjs: row.contentYjs,
+      deletedAt: row.deletedAt,
+    }
+  }
+
   async findMembership(
     userId: string,
     workspaceId: string,
