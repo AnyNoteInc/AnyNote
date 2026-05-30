@@ -1,4 +1,12 @@
+/**
+ * Compat shim — pages/functions.ts still imports seedKanbanDefaults with the
+ * old (tx: Prisma.TransactionClient, pageId) signature. The layered module
+ * exposes this as KanbanService.seedDefaults(pageId) via uow.client(), but
+ * pages is migrated in a later cycle and must compile against this file.
+ */
 import type { Prisma } from '@repo/db'
+
+type TxClient = Prisma.TransactionClient
 
 const DEFAULT_PRIORITY_COLORS = {
   low: '#6B7280',
@@ -6,8 +14,6 @@ const DEFAULT_PRIORITY_COLORS = {
   high: '#F97316',
   critical: '#EF4444',
 } as const
-
-type TxClient = Prisma.TransactionClient
 
 export async function seedKanbanDefaults(tx: TxClient, pageId: string): Promise<void> {
   await tx.kanbanColumn.createMany({

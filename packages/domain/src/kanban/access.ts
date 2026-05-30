@@ -1,6 +1,12 @@
+/**
+ * Compat shim — pages/functions.ts still imports assertPageAccess/assertPageOwnership
+ * with the old (prisma, userId, pageId) → page signature. The layered module
+ * handles access internally via KanbanService, but pages is migrated in a later
+ * cycle and must continue to compile against this file in the meantime.
+ */
 import type { PrismaClient } from '@repo/db'
 
-import { forbidden, notFound } from '../errors.ts'
+import { forbidden, notFound } from '../shared/errors.ts'
 
 export async function assertPageAccess(prisma: PrismaClient, userId: string, pageId: string) {
   const page = await prisma.page.findFirst({
