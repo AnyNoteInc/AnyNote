@@ -2,11 +2,12 @@ import { BadRequestException, Inject, Injectable } from '@nestjs/common'
 import { TiptapTransformer } from '@hocuspocus/transformer'
 import type { PrismaClient } from '@repo/db'
 import { Prisma } from '@repo/db'
-import * as domain from '@repo/domain'
+import type { Domain } from '@repo/domain'
 import StarterKit from '@tiptap/starter-kit'
 import * as Y from 'yjs'
 
 import { PRISMA } from '../../../infra/db/db.providers.js'
+import { DOMAIN } from '../../../infra/domain/domain.providers.js'
 import { PageNotFoundError } from '../errors/mcp.errors.js'
 
 export type CreatePageInput = {
@@ -45,7 +46,10 @@ export type AppendContentInput = {
 
 @Injectable()
 export class PageWriter {
-  constructor(@Inject(PRISMA) private readonly prisma: PrismaClient) {}
+  constructor(
+    @Inject(PRISMA) private readonly prisma: PrismaClient,
+    @Inject(DOMAIN) private readonly domain: Domain,
+  ) {}
 
   async createPage(input: CreatePageInput): Promise<string> {
     // Delegate to @repo/domain so engines-created pages land in the linked list
@@ -53,7 +57,7 @@ export class PageWriter {
     // contentYjs bytes nor the Tiptap snapshot, so we still construct contentYjs here
     // (the editor loads from contentYjs) and pass both content + contentYjs through.
     const contentYjs = input.content === undefined ? undefined : buildContentYjs(input.content)
-    const result = await domain.createPage(this.prisma, input.userId, {
+    const result = await this.domain.pages.create(input.userId, {
       workspaceId: input.workspaceId,
       parentId: input.parentId ?? null,
       title: input.title,
@@ -115,7 +119,7 @@ export class PageWriter {
         throw new PageNotFoundError(input.newParentId)
       }
     }
-    await domain.reorderPage(this.prisma, input.userId, {
+    await this.domain.pages.reorder(input.userId, {
       pageId: input.pageId,
       newParentId: input.newParentId ?? null,
       newPrevPageId: input.prevPageId ?? null,

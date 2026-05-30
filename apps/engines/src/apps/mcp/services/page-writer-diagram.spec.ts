@@ -1,8 +1,13 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import type { PrismaClient } from '@repo/db'
+import type { Domain } from '@repo/domain'
 import * as Y from 'yjs'
 
 import { PageWriter } from './page-writer.service.js'
+
+// These tests cover direct-Prisma methods (createDiagramPage). Domain is not called;
+// pass a minimal stub to satisfy the constructor signature.
+const fakeDomain = { pages: {} } as unknown as Domain
 
 describe('PageWriter.createDiagramPage', () => {
   beforeEach(() => {
@@ -16,7 +21,7 @@ describe('PageWriter.createDiagramPage', () => {
     const tx = { page: { create, findUnique }, outboxEvent: { create: outbox } }
     const prisma = { $transaction: (fn: (t: typeof tx) => unknown) => fn(tx) } as unknown as PrismaClient
 
-    const id = await new PageWriter(prisma).createDiagramPage({
+    const id = await new PageWriter(prisma, fakeDomain).createDiagramPage({
       userId: 'u1', workspaceId: 'w1', title: 'D', kind: 'MERMAID', source: 'graph TD; A-->B',
     })
 

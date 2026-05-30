@@ -1,8 +1,13 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import type { PrismaClient } from '@repo/db'
+import type { Domain } from '@repo/domain'
 
 import { PageNotFoundError } from '../errors/mcp.errors.js'
 import { PageWriter } from './page-writer.service.js'
+
+// These tests cover direct-Prisma methods (appendContent). Domain is not called;
+// pass a minimal stub to satisfy the constructor signature.
+const fakeDomain = { pages: {} } as unknown as Domain
 
 function makePrisma(page: unknown) {
   const update = jest.fn<(...a: unknown[]) => Promise<unknown>>().mockResolvedValue({})
@@ -22,7 +27,7 @@ describe('PageWriter.appendContent', () => {
     const current = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'first' }] }] }
     const appended = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'second' }] }] }
     const { prisma, update } = makePrisma({ id: 'p1', workspaceId: 'w1', type: 'TEXT', content: current })
-    const writer = new PageWriter(prisma)
+    const writer = new PageWriter(prisma, fakeDomain)
 
     await writer.appendContent({ userId: 'u1', workspaceId: 'w1', pageId: 'p1', appended })
 
@@ -32,7 +37,7 @@ describe('PageWriter.appendContent', () => {
 
   it('throws PageNotFoundError for a page in another workspace', async () => {
     const { prisma } = makePrisma({ id: 'p1', workspaceId: 'w-other', type: 'TEXT', content: null })
-    const writer = new PageWriter(prisma)
+    const writer = new PageWriter(prisma, fakeDomain)
     await expect(
       writer.appendContent({ userId: 'u1', workspaceId: 'w1', pageId: 'p1', appended: { type: 'doc', content: [] } }),
     ).rejects.toBeInstanceOf(PageNotFoundError)
