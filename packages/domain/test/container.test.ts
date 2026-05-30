@@ -17,6 +17,10 @@ function makePrisma() {
       deleteMany: vi.fn(async () => ({ count: 0 })),
       updateMany: vi.fn(async () => ({ count: 0 })),
     },
+    notificationInApp: {
+      updateMany: vi.fn(async () => ({ count: 0 })),
+      deleteMany: vi.fn(async () => ({ count: 0 })),
+    },
   } as unknown as PrismaClient
 }
 
@@ -42,5 +46,13 @@ describe('createDomain', () => {
     expect(typeof domain.favorites.add).toBe('function')
     expect(typeof domain.favorites.remove).toBe('function')
     expect(typeof domain.favorites.reorder).toBe('function')
+  })
+
+  it('resolves the notifications service from the container', () => {
+    const domain = createDomain({ prisma: makePrisma() })
+    expect(domain.notifications).toBeDefined()
+    expect(typeof domain.notifications.markRead).toBe('function')
+    expect(typeof domain.notifications.markAllRead).toBe('function')
+    expect(typeof domain.notifications.deleteAll).toBe('function')
   })
 })

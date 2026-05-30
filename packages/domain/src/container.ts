@@ -11,6 +11,9 @@ import type { WorkspaceService } from './workspace/services/workspace.service.ts
 import { FAVORITES } from './favorites/favorites.tokens.ts'
 import { favoritesModule } from './favorites/favorites.module.ts'
 import type { FavoriteService } from './favorites/services/favorites.service.ts'
+import { NOTIFICATIONS } from './notifications/notifications.tokens.ts'
+import { notificationsModule } from './notifications/notifications.module.ts'
+import type { NotificationService } from './notifications/services/notifications.service.ts'
 
 export interface DomainDeps {
   prisma: PrismaClient
@@ -19,6 +22,7 @@ export interface DomainDeps {
 export interface Domain {
   workspace: WorkspaceService
   favorites: FavoriteService
+  notifications: NotificationService
 }
 
 export function createDomainContainer(deps: DomainDeps): Container {
@@ -28,7 +32,7 @@ export function createDomainContainer(deps: DomainDeps): Container {
     (prisma) => new PrismaUnitOfWork(prisma as PrismaClient),
     [SHARED.Prisma],
   )
-  c.load(workspaceModule, favoritesModule)
+  c.load(workspaceModule, favoritesModule, notificationsModule)
   return c
 }
 
@@ -37,5 +41,6 @@ export function createDomain(deps: DomainDeps): Domain {
   return {
     workspace: c.get<WorkspaceService>(WORKSPACE.Service),
     favorites: c.get<FavoriteService>(FAVORITES.Service),
+    notifications: c.get<NotificationService>(NOTIFICATIONS.Service),
   }
 }
