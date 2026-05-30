@@ -1,15 +1,19 @@
 import { Inject, Injectable } from '@nestjs/common'
 import type { PrismaClient } from '@repo/db'
-import * as domain from '@repo/domain'
+import type { Domain } from '@repo/domain'
 
 import { PRISMA } from '../../../infra/db/db.providers.js'
+import { DOMAIN } from '../../../infra/domain/domain.providers.js'
 
 export type ListNotificationsInput = { userId: string; unreadOnly: boolean; limit: number }
 export type MarkReadInput = { userId: string; all?: boolean; ids?: string[] }
 
 @Injectable()
 export class NotificationService {
-  constructor(@Inject(PRISMA) private readonly prisma: PrismaClient) {}
+  constructor(
+    @Inject(PRISMA) private readonly prisma: PrismaClient,
+    @Inject(DOMAIN) private readonly domain: Domain,
+  ) {}
 
   async list(input: ListNotificationsInput) {
     const rows = await this.prisma.notificationInApp.findMany({
@@ -35,10 +39,10 @@ export class NotificationService {
 
   async markRead(input: MarkReadInput): Promise<{ count: number }> {
     if (input.all) {
-      const result = await domain.markAllRead(this.prisma, input.userId)
+      const result = await this.domain.notifications.markAllRead(input.userId)
       return { count: result.updated }
     }
-    const result = await domain.markRead(this.prisma, input.userId, { ids: input.ids ?? [] })
+    const result = await this.domain.notifications.markRead(input.userId, { ids: input.ids ?? [] })
     return { count: result.updated }
   }
 }
