@@ -1,6 +1,7 @@
-import { Injectable } from '@nestjs/common'
-import * as domain from '@repo/domain'
+import { Injectable, Inject } from '@nestjs/common'
+import type { Domain } from '@repo/domain'
 
+import { DOMAIN } from '../../../infra/domain/domain.providers.js'
 import { KanbanGateway } from './kanban-gateway.service.js'
 import { MarkdownParser } from './markdown-parser.service.js'
 
@@ -11,11 +12,8 @@ export class KanbanWriteService {
   constructor(
     private readonly gateway: KanbanGateway,
     private readonly parser: MarkdownParser,
+    @Inject(DOMAIN) private readonly domain: Domain,
   ) {}
-
-  private get prisma() {
-    return this.gateway.db
-  }
 
   async createTask(
     userId: string,
@@ -38,7 +36,7 @@ export class KanbanWriteService {
       ? ((await this.gateway.resolveSprintTarget(board, a.sprint)) ?? undefined)
       : undefined
     const task = await this.gateway.run(() =>
-      domain.createTask(this.prisma, userId, {
+      this.domain.kanban.createTask(userId, {
         pageId: board,
         title: a.title,
         columnId,
@@ -50,12 +48,12 @@ export class KanbanWriteService {
     if (a.assignees?.length) {
       const userIds = [...new Set(a.assignees.map((x) => this.gateway.resolveAssignee(userId, x)))]
       await this.gateway.run(() =>
-        domain.setTaskAssignees(this.prisma, userId, { pageId: board, id: task.id, userIds }),
+        this.domain.kanban.setTaskAssignees(userId, { pageId: board, id: task.id, userIds }),
       )
     }
     if (a.dueDate) {
       await this.gateway.run(() =>
-        domain.updateTask(this.prisma, userId, { pageId: board, id: task.id, dueDate: a.dueDate }),
+        this.domain.kanban.updateTask(userId, { pageId: board, id: task.id, dueDate: a.dueDate }),
       )
     }
     return { taskId: task.id }
@@ -65,7 +63,7 @@ export class KanbanWriteService {
     const board = await this.gateway.resolveBoardPageId(userId, ws, a.boardPageId)
     const targetColumnId = await this.gateway.resolveColumnByStatus(board, a.status)
     await this.gateway.run(() =>
-      domain.moveTask(this.prisma, userId, {
+      this.domain.kanban.moveTask(userId, {
         pageId: board,
         id: a.taskId,
         targetColumnId,
@@ -81,7 +79,7 @@ export class KanbanWriteService {
     const target = this.gateway.resolveAssignee(userId, a.user)
     const userIds = [...new Set([...(await this.gateway.currentAssigneeIds(a.taskId)), target])]
     await this.gateway.run(() =>
-      domain.setTaskAssignees(this.prisma, userId, { pageId: board, id: a.taskId, userIds }),
+      this.domain.kanban.setTaskAssignees(userId, { pageId: board, id: a.taskId, userIds }),
     )
     return { ok: true as const }
   }
@@ -91,7 +89,7 @@ export class KanbanWriteService {
     const target = this.gateway.resolveAssignee(userId, a.user)
     const userIds = (await this.gateway.currentAssigneeIds(a.taskId)).filter((id) => id !== target)
     await this.gateway.run(() =>
-      domain.setTaskAssignees(this.prisma, userId, { pageId: board, id: a.taskId, userIds }),
+      this.domain.kanban.setTaskAssignees(userId, { pageId: board, id: a.taskId, userIds }),
     )
     return { ok: true as const }
   }
@@ -103,7 +101,7 @@ export class KanbanWriteService {
   ) {
     const board = await this.gateway.resolveBoardPageId(userId, ws, a.boardPageId)
     await this.gateway.run(() =>
-      domain.updateTask(this.prisma, userId, {
+      this.domain.kanban.updateTask(userId, {
         pageId: board,
         id: a.taskId,
         startDate: a.startDate,
@@ -117,7 +115,7 @@ export class KanbanWriteService {
     const board = await this.gateway.resolveBoardPageId(userId, ws, a.boardPageId)
     const sprintId = await this.gateway.resolveSprintTarget(board, a.target)
     await this.gateway.run(() =>
-      domain.updateTask(this.prisma, userId, { pageId: board, id: a.taskId, sprintId }),
+      this.domain.kanban.updateTask(userId, { pageId: board, id: a.taskId, sprintId }),
     )
     return { ok: true as const }
   }
@@ -126,7 +124,7 @@ export class KanbanWriteService {
     const board = await this.gateway.resolveBoardPageId(userId, ws, a.boardPageId)
     const priorityId = await this.gateway.resolvePriorityByName(board, a.value)
     await this.gateway.run(() =>
-      domain.updateTask(this.prisma, userId, { pageId: board, id: a.taskId, priorityId }),
+      this.domain.kanban.updateTask(userId, { pageId: board, id: a.taskId, priorityId }),
     )
     return { ok: true as const }
   }
@@ -135,7 +133,7 @@ export class KanbanWriteService {
     const board = await this.gateway.resolveBoardPageId(userId, ws, a.boardPageId)
     const typeId = await this.gateway.resolveTypeByName(board, a.value)
     await this.gateway.run(() =>
-      domain.updateTask(this.prisma, userId, { pageId: board, id: a.taskId, typeId }),
+      this.domain.kanban.updateTask(userId, { pageId: board, id: a.taskId, typeId }),
     )
     return { ok: true as const }
   }
@@ -145,7 +143,7 @@ export class KanbanWriteService {
     const cancelColumnId = await this.gateway.findCancelColumn(board)
     if (cancelColumnId) {
       await this.gateway.run(() =>
-        domain.moveTask(this.prisma, userId, {
+        this.domain.kanban.moveTask(userId, {
           pageId: board,
           id: a.taskId,
           targetColumnId: cancelColumnId,
@@ -156,7 +154,7 @@ export class KanbanWriteService {
       return { ok: true as const, via: 'column' as const }
     }
     await this.gateway.run(() =>
-      domain.archiveTask(this.prisma, userId, { pageId: board, id: a.taskId }),
+      this.domain.kanban.archiveTask(userId, { pageId: board, id: a.taskId }),
     )
     return { ok: true as const, via: 'archive' as const }
   }
@@ -165,7 +163,7 @@ export class KanbanWriteService {
     const board = await this.gateway.resolveBoardPageId(userId, ws, a.boardPageId)
     const content = this.parser.parse(a.markdown)
     const comment = await this.gateway.run(() =>
-      domain.createTaskComment(this.prisma, userId, { pageId: board, taskId: a.taskId, content }),
+      this.domain.kanban.createTaskComment(userId, { pageId: board, taskId: a.taskId, content }),
     )
     return { commentId: comment.id }
   }
@@ -177,7 +175,7 @@ export class KanbanWriteService {
   ) {
     const board = await this.gateway.resolveBoardPageId(userId, ws, a.boardPageId)
     const sprint = await this.gateway.run(() =>
-      domain.createSprint(this.prisma, userId, {
+      this.domain.kanban.createSprint(userId, {
         pageId: board,
         name: a.name,
         description: a.description,
@@ -191,7 +189,7 @@ export class KanbanWriteService {
   async startSprint(userId: string, ws: string, a: Board & { sprintId: string }) {
     const board = await this.gateway.resolveBoardPageId(userId, ws, a.boardPageId)
     await this.gateway.run(() =>
-      domain.activateSprint(this.prisma, userId, { pageId: board, id: a.sprintId }),
+      this.domain.kanban.activateSprint(userId, { pageId: board, id: a.sprintId }),
     )
     return { ok: true as const }
   }
@@ -203,7 +201,7 @@ export class KanbanWriteService {
         ? await this.gateway.resolveSprintTarget(board, a.moveUndoneTo)
         : null
     await this.gateway.run(() =>
-      domain.completeSprint(this.prisma, userId, { pageId: board, id: a.sprintId, moveUndoneTo }),
+      this.domain.kanban.completeSprint(userId, { pageId: board, id: a.sprintId, moveUndoneTo }),
     )
     return { ok: true as const }
   }

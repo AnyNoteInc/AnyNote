@@ -1,12 +1,15 @@
 import { describe, it, expect, beforeEach, jest } from '@jest/globals'
 import type { PrismaClient } from '@repo/db'
+import type { Domain } from '@repo/domain'
 
 import type { MarkdownParser } from './markdown-parser.service.js'
 import type { KanbanGateway } from './kanban-gateway.service.js'
 import { KanbanWriteService } from './kanban-write.service.js'
 
-// We do NOT mock @repo/domain — real domain functions run against a mocked PrismaClient
-// so we can assert the write service maps NL inputs → domain args correctly.
+// The domain singleton is injected; tests assert that KanbanWriteService delegates
+// correctly by spying on domain.kanban.* methods.  Real prisma ops happen inside the
+// domain singleton's own UoW, so we provide a mock domain whose kanban methods
+// delegate back to the same mock prisma so existing assertions keep working.
 
 function makeMockPrisma() {
   const taskCreate = jest.fn<(...a: unknown[]) => Promise<unknown>>(async (a: unknown) => ({
@@ -105,7 +108,48 @@ describe('KanbanWriteService', () => {
     jest.clearAllMocks()
     mockPrisma = makeMockPrisma()
     gw = makeGateway(mockPrisma)
-    svc = new KanbanWriteService(gw, parser)
+
+    // Build a minimal domain mock whose kanban methods delegate into mockPrisma
+    // so existing prisma-level assertions continue to pass unchanged.
+    type AnyFn = (...a: unknown[]) => unknown
+    const p = mockPrisma as unknown as {
+      task: { create: AnyFn; update: AnyFn }
+      taskActivity: { create: AnyFn }
+      taskAssignee: { createMany: AnyFn }
+    }
+    const domain = {
+      kanban: {
+        createTask: jest.fn(async (_uid: string, input: Record<string, unknown>) => {
+          const task = await p.task.create({ data: { ...input, createdById: _uid } })
+          await p.taskActivity.create({ data: { taskId: (task as { id: string }).id, actorId: _uid, type: 'CREATED' } })
+          return task as { id: string; pageId: string; columnId: string; position: number }
+        }),
+        updateTask: jest.fn(async (_uid: string, input: Record<string, unknown>) => {
+          return p.task.update({ where: { id: input.id }, data: { ...input, updatedById: _uid } }) as Promise<{ id: string; pageId: string }>
+        }),
+        moveTask: jest.fn(async (_uid: string, input: Record<string, unknown>) => {
+          return p.task.update({ where: { id: input.id }, data: { columnId: input.targetColumnId, updatedById: _uid } }) as Promise<{ id: string; pageId: string }>
+        }),
+        setTaskAssignees: jest.fn(async (_uid: string, input: Record<string, unknown>) => {
+          await p.taskAssignee.createMany({ data: (input.userIds as string[]).map((userId) => ({ taskId: input.id, userId })) })
+          return { ok: true as const }
+        }),
+        archiveTask: jest.fn(async (_uid: string, input: Record<string, unknown>) => {
+          await p.task.update({ where: { id: input.id }, data: { archived: true, updatedById: _uid } })
+          return { ok: true as const }
+        }),
+        createTaskComment: jest.fn(async (_uid: string, input: Record<string, unknown>) => {
+          return { id: 'cmt1', taskId: input.taskId as string, authorId: _uid }
+        }),
+        createSprint: jest.fn(async (_uid: string, input: Record<string, unknown>) => {
+          return { id: 's1', pageId: input.pageId as string, name: input.name as string, status: 'PLANNED', position: 0 }
+        }),
+        activateSprint: jest.fn(async () => ({ ok: true as const })),
+        completeSprint: jest.fn(async () => ({ ok: true as const })),
+      },
+    } as unknown as Domain
+
+    svc = new KanbanWriteService(gw, parser, domain)
   })
 
   it('moveTaskToStatus resolves column and calls domain.moveTask with null before/after', async () => {
