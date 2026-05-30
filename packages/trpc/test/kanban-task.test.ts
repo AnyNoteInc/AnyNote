@@ -6,6 +6,16 @@ vi.mock('@repo/db', async (importOriginal) => {
   return { ...actual, prisma: {} }
 })
 
+const kanbanMocks = vi.hoisted(() => ({
+  createTask: vi.fn(async () => ({ id: 'task-1', pageId: 'p', columnId: 'c', position: 0 })),
+  updateTask: vi.fn(async () => ({ id: 'task-1', pageId: 'p' })),
+  moveTask: vi.fn(async () => ({ id: 'task-1', pageId: 'p' })),
+  setTaskAssignees: vi.fn(async () => ({ ok: true as const })),
+  archiveTask: vi.fn(async () => ({ ok: true as const })),
+}))
+
+vi.mock('../src/domain', () => ({ domain: { kanban: kanbanMocks } }))
+
 import type { PrismaClient } from '@repo/db'
 
 import { taskRouter } from '../src/routers/kanban/task'
@@ -35,211 +45,43 @@ function ctx(prisma: PrismaClient) {
 const pageRow = { id: PAGE_ID, workspaceId: WORKSPACE_ID, createdById: USER_ID }
 
 describe('kanban.task.create', () => {
-  it('picks first column by position when columnId is omitted; writes CREATED activity', async () => {
-    const taskCreate = vi.fn().mockResolvedValue({ id: 'task-1', title: 'New task' })
-    const activityCreate = vi.fn().mockResolvedValue({})
-    const txClient = {
-      task: { create: taskCreate, findMany: vi.fn().mockResolvedValue([]) },
-      taskActivity: { create: activityCreate },
-    }
-    const prisma = {
-      page: { findFirst: vi.fn().mockResolvedValue(pageRow) },
-      kanbanColumn: {
-        findFirst: vi
-          .fn()
-          .mockResolvedValue({ id: '00000000-0000-0000-0000-0000000000c0', pageId: PAGE_ID, position: 1024 }),
-      },
-      kanbanType: {
-        findFirst: vi.fn().mockResolvedValue({ id: '00000000-0000-0000-0000-0000000000d0', position: 1024 }),
-      },
-      kanbanPriority: {
-        findFirst: vi.fn().mockResolvedValue({ id: '00000000-0000-0000-0000-0000000000e0', position: 1024 }),
-      },
-      task: { findMany: vi.fn().mockResolvedValue([]) },
-      $transaction: vi
-        .fn()
-        .mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(txClient)),
-    } as unknown as PrismaClient
-
+  it('delegates to domainSvc.kanban.createTask and returns the task', async () => {
+    kanbanMocks.createTask.mockResolvedValueOnce({ id: 'task-1', pageId: PAGE_ID, columnId: 'c1', position: 0 })
+    const prisma = {} as unknown as PrismaClient
     const caller = createCallerFactory(taskRouter)(ctx(prisma))
     const result = await caller.create({ pageId: PAGE_ID, title: 'New task' })
 
-    expect(taskCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          pageId: PAGE_ID,
-          columnId: '00000000-0000-0000-0000-0000000000c0',
-          typeId: '00000000-0000-0000-0000-0000000000d0',
-          priorityId: '00000000-0000-0000-0000-0000000000e0',
-          title: 'New task',
-          createdById: USER_ID,
-        }),
-      }),
-    )
-    expect(activityCreate).toHaveBeenCalledWith({
-      data: { taskId: 'task-1', actorId: USER_ID, type: 'CREATED', payload: undefined },
-    })
+    expect(kanbanMocks.createTask).toHaveBeenCalledWith(USER_ID, expect.objectContaining({ pageId: PAGE_ID, title: 'New task' }))
     expect(result.id).toBe('task-1')
   })
 
-  it('creates directly in a sprint when sprintId is provided', async () => {
-    const taskCreate = vi.fn().mockResolvedValue({ id: 'task-1', title: 'Sprint task' })
-    const activityCreate = vi.fn().mockResolvedValue({})
-    const txClient = {
-      task: { create: taskCreate, findMany: vi.fn().mockResolvedValue([]) },
-      taskActivity: { create: activityCreate },
-    }
+  it('delegates with sprintId when provided', async () => {
     const sprintId = '00000000-0000-0000-0000-0000000000f0'
-    const prisma = {
-      page: { findFirst: vi.fn().mockResolvedValue(pageRow) },
-      kanbanColumn: {
-        findFirst: vi
-          .fn()
-          .mockResolvedValue({ id: '00000000-0000-0000-0000-0000000000c0', pageId: PAGE_ID, position: 1024 }),
-      },
-      kanbanType: {
-        findFirst: vi.fn().mockResolvedValue({ id: '00000000-0000-0000-0000-0000000000d0', position: 1024 }),
-      },
-      kanbanPriority: {
-        findFirst: vi.fn().mockResolvedValue({ id: '00000000-0000-0000-0000-0000000000e0', position: 1024 }),
-      },
-      sprint: { findFirst: vi.fn().mockResolvedValue({ id: sprintId, pageId: PAGE_ID }) },
-      task: {
-        findMany: vi
-          .fn()
-          .mockResolvedValueOnce([])
-          .mockResolvedValueOnce([{ sprintPosition: 2048 }]),
-      },
-      $transaction: vi
-        .fn()
-        .mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(txClient)),
-    } as unknown as PrismaClient
-
+    kanbanMocks.createTask.mockResolvedValueOnce({ id: 'task-2', pageId: PAGE_ID, columnId: 'c1', position: 0 })
+    const prisma = {} as unknown as PrismaClient
     const caller = createCallerFactory(taskRouter)(ctx(prisma))
     await caller.create({ pageId: PAGE_ID, title: 'Sprint task', sprintId })
 
-    expect(taskCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          sprintId,
-          sprintPosition: 3072,
-        }),
-      }),
-    )
-  })
-
-  it('throws BAD_REQUEST when board has no columns', async () => {
-    const prisma = {
-      page: { findFirst: vi.fn().mockResolvedValue(pageRow) },
-      kanbanColumn: { findFirst: vi.fn().mockResolvedValue(null) },
-    } as unknown as PrismaClient
-
-    const caller = createCallerFactory(taskRouter)(ctx(prisma))
-    await expect(caller.create({ pageId: PAGE_ID, title: 'x' })).rejects.toThrow(/колонок/i)
+    expect(kanbanMocks.createTask).toHaveBeenCalledWith(USER_ID, expect.objectContaining({ sprintId }))
   })
 })
 
 describe('kanban.task.update', () => {
-  it('writes RENAMED activity when title changes', async () => {
-    const taskUpdate = vi.fn().mockResolvedValue({ id: '00000000-0000-0000-0000-0000000000a1', title: 'New' })
-    const activityCreate = vi.fn().mockResolvedValue({})
-    const txClient = { task: { update: taskUpdate }, taskActivity: { create: activityCreate } }
-    const prisma = {
-      page: { findFirst: vi.fn().mockResolvedValue(pageRow) },
-      task: {
-        findUniqueOrThrow: vi.fn().mockResolvedValue({
-          id: '00000000-0000-0000-0000-0000000000a1',
-          pageId: PAGE_ID,
-          title: 'Old',
-          dueDate: null,
-          startDate: null,
-          typeId: null,
-          priorityId: null,
-          sprintId: null,
-          parentId: null,
-        }),
-      },
-      $transaction: vi
-        .fn()
-        .mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(txClient)),
-    } as unknown as PrismaClient
-
+  it('delegates to domainSvc.kanban.updateTask', async () => {
+    kanbanMocks.updateTask.mockResolvedValueOnce({ id: '00000000-0000-0000-0000-0000000000a1', pageId: PAGE_ID })
+    const prisma = {} as unknown as PrismaClient
     const caller = createCallerFactory(taskRouter)(ctx(prisma))
-    await caller.update({ pageId: PAGE_ID, id: '00000000-0000-0000-0000-0000000000a1', title: 'New' })
+    const result = await caller.update({ pageId: PAGE_ID, id: '00000000-0000-0000-0000-0000000000a1', title: 'New' })
 
-    expect(activityCreate).toHaveBeenCalledWith({
-      data: { taskId: '00000000-0000-0000-0000-0000000000a1', actorId: USER_ID, type: 'RENAMED', payload: undefined },
-    })
-  })
-
-  it('writes DUE_DATE_CHANGED activity with from/to payload', async () => {
-    const activityCreate = vi.fn().mockResolvedValue({})
-    const txClient = {
-      task: { update: vi.fn().mockResolvedValue({ id: '00000000-0000-0000-0000-0000000000a1' }) },
-      taskActivity: { create: activityCreate },
-    }
-    const prisma = {
-      page: { findFirst: vi.fn().mockResolvedValue(pageRow) },
-      task: {
-        findUniqueOrThrow: vi.fn().mockResolvedValue({
-          id: '00000000-0000-0000-0000-0000000000a1',
-          pageId: PAGE_ID,
-          title: 'X',
-          dueDate: new Date('2026-05-15'),
-          startDate: null,
-          typeId: null,
-          priorityId: null,
-          sprintId: null,
-          parentId: null,
-        }),
-      },
-      $transaction: vi
-        .fn()
-        .mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(txClient)),
-    } as unknown as PrismaClient
-
-    const newDue = new Date('2026-05-20')
-    const caller = createCallerFactory(taskRouter)(ctx(prisma))
-    await caller.update({ pageId: PAGE_ID, id: '00000000-0000-0000-0000-0000000000a1', dueDate: newDue })
-
-    expect(activityCreate).toHaveBeenCalledWith({
-      data: {
-        taskId: '00000000-0000-0000-0000-0000000000a1',
-        actorId: USER_ID,
-        type: 'DUE_DATE_CHANGED',
-        payload: { from: '2026-05-15T00:00:00.000Z', to: '2026-05-20T00:00:00.000Z' },
-      },
-    })
+    expect(kanbanMocks.updateTask).toHaveBeenCalledWith(USER_ID, expect.objectContaining({ id: '00000000-0000-0000-0000-0000000000a1', title: 'New' }))
+    expect(result.id).toBe('00000000-0000-0000-0000-0000000000a1')
   })
 })
 
 describe('kanban.task.move', () => {
-  it('updates columnId + position, writes MOVED, adds STATUS_CHANGED when kind differs', async () => {
-    const taskUpdate = vi.fn().mockResolvedValue({ id: '00000000-0000-0000-0000-0000000000a1' })
-    const activityCreate = vi.fn().mockResolvedValue({})
-    const txClient = { task: { update: taskUpdate }, taskActivity: { create: activityCreate } }
-
-    const prisma = {
-      page: { findFirst: vi.fn().mockResolvedValue(pageRow) },
-      task: {
-        findUniqueOrThrow: vi.fn().mockResolvedValue({
-          id: '00000000-0000-0000-0000-0000000000a1',
-          pageId: PAGE_ID,
-          columnId: '00000000-0000-0000-0000-0000000000c1',
-        }),
-        findMany: vi.fn().mockResolvedValue([{ id: '00000000-0000-0000-0000-0000000000a2', position: 1024 }]),
-      },
-      kanbanColumn: {
-        findMany: vi.fn().mockResolvedValue([
-          { id: '00000000-0000-0000-0000-0000000000c1', title: 'Todo', kind: 'ACTIVE' },
-          { id: '00000000-0000-0000-0000-0000000000c2', title: 'Done', kind: 'DONE' },
-        ]),
-      },
-      $transaction: vi
-        .fn()
-        .mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(txClient)),
-    } as unknown as PrismaClient
-
+  it('delegates to domainSvc.kanban.moveTask', async () => {
+    kanbanMocks.moveTask.mockResolvedValueOnce({ id: '00000000-0000-0000-0000-0000000000a1', pageId: PAGE_ID })
+    const prisma = {} as unknown as PrismaClient
     const caller = createCallerFactory(taskRouter)(ctx(prisma))
     await caller.move({
       pageId: PAGE_ID,
@@ -249,93 +91,41 @@ describe('kanban.task.move', () => {
       afterId: null,
     })
 
-    expect(taskUpdate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: '00000000-0000-0000-0000-0000000000a1' },
-        data: expect.objectContaining({ columnId: '00000000-0000-0000-0000-0000000000c2' }),
-      }),
-    )
-    const activityCalls = activityCreate.mock.calls.map((c) => c[0].data.type)
-    expect(activityCalls).toContain('MOVED')
-    expect(activityCalls).toContain('STATUS_CHANGED')
-  })
-
-  it('does NOT add STATUS_CHANGED when source and target have same kind', async () => {
-    const activityCreate = vi.fn().mockResolvedValue({})
-    const txClient = {
-      task: { update: vi.fn().mockResolvedValue({ id: '00000000-0000-0000-0000-0000000000a1' }) },
-      taskActivity: { create: activityCreate },
-    }
-    const prisma = {
-      page: { findFirst: vi.fn().mockResolvedValue(pageRow) },
-      task: {
-        findUniqueOrThrow: vi.fn().mockResolvedValue({
-          id: '00000000-0000-0000-0000-0000000000a1',
-          pageId: PAGE_ID,
-          columnId: '00000000-0000-0000-0000-0000000000ca',
-        }),
-        findMany: vi.fn().mockResolvedValue([]),
-      },
-      kanbanColumn: {
-        findMany: vi.fn().mockResolvedValue([
-          { id: '00000000-0000-0000-0000-0000000000ca', title: 'A', kind: 'ACTIVE' },
-          { id: '00000000-0000-0000-0000-0000000000cb', title: 'B', kind: 'ACTIVE' },
-        ]),
-      },
-      $transaction: vi
-        .fn()
-        .mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(txClient)),
-    } as unknown as PrismaClient
-
-    const caller = createCallerFactory(taskRouter)(ctx(prisma))
-    await caller.move({
-      pageId: PAGE_ID,
+    expect(kanbanMocks.moveTask).toHaveBeenCalledWith(USER_ID, expect.objectContaining({
       id: '00000000-0000-0000-0000-0000000000a1',
-      targetColumnId: '00000000-0000-0000-0000-0000000000cb',
-      beforeId: null,
-      afterId: null,
-    })
-
-    const types = activityCreate.mock.calls.map((c) => c[0].data.type)
-    expect(types).toContain('MOVED')
-    expect(types).not.toContain('STATUS_CHANGED')
+      targetColumnId: '00000000-0000-0000-0000-0000000000c2',
+    }))
   })
 })
 
 describe('kanban.task.setAssignees', () => {
-  it('diffs against current: writes UNASSIGNED for removed, ASSIGNED for added', async () => {
-    const createMany = vi.fn().mockResolvedValue({ count: 1 })
-    const deleteMany = vi.fn().mockResolvedValue({ count: 1 })
-    const activityCreateMany = vi.fn().mockResolvedValue({ count: 2 })
-    const txClient = {
-      taskAssignee: { createMany, deleteMany },
-      taskActivity: { createMany: activityCreateMany },
-    }
-    const prisma = {
-      page: { findFirst: vi.fn().mockResolvedValue(pageRow) },
-      task: {
-        findUniqueOrThrow: vi.fn().mockResolvedValue({
-          id: '00000000-0000-0000-0000-0000000000a1',
-          pageId: PAGE_ID,
-          assignees: [{ userId: '00000000-0000-0000-0000-0000000000b1' }],
-        }),
-      },
-      $transaction: vi
-        .fn()
-        .mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(txClient)),
-    } as unknown as PrismaClient
-
+  it('delegates to domainSvc.kanban.setTaskAssignees', async () => {
+    kanbanMocks.setTaskAssignees.mockResolvedValueOnce({ ok: true as const })
+    const prisma = {} as unknown as PrismaClient
     const caller = createCallerFactory(taskRouter)(ctx(prisma))
-    await caller.setAssignees({ pageId: PAGE_ID, id: '00000000-0000-0000-0000-0000000000a1', userIds: ['00000000-0000-0000-0000-0000000000b2'] })
+    const result = await caller.setAssignees({
+      pageId: PAGE_ID,
+      id: '00000000-0000-0000-0000-0000000000a1',
+      userIds: ['00000000-0000-0000-0000-0000000000b2'],
+    })
 
-    expect(deleteMany).toHaveBeenCalledWith({
-      where: { taskId: '00000000-0000-0000-0000-0000000000a1', userId: { in: ['00000000-0000-0000-0000-0000000000b1'] } },
-    })
-    expect(createMany).toHaveBeenCalledWith({
-      data: [{ taskId: '00000000-0000-0000-0000-0000000000a1', userId: '00000000-0000-0000-0000-0000000000b2' }],
-    })
-    const types = activityCreateMany.mock.calls[0][0].data.map((d: { type: string }) => d.type)
-    expect(types).toEqual(expect.arrayContaining(['UNASSIGNED', 'ASSIGNED']))
+    expect(kanbanMocks.setTaskAssignees).toHaveBeenCalledWith(USER_ID, expect.objectContaining({
+      id: '00000000-0000-0000-0000-0000000000a1',
+      userIds: ['00000000-0000-0000-0000-0000000000b2'],
+    }))
+    expect(result.ok).toBe(true)
+  })
+})
+
+describe('kanban.task.archive', () => {
+  it('delegates to domainSvc.kanban.archiveTask', async () => {
+    kanbanMocks.archiveTask.mockResolvedValueOnce({ ok: true as const })
+    const prisma = {} as unknown as PrismaClient
+    const caller = createCallerFactory(taskRouter)(ctx(prisma))
+    const result = await caller.archive({ pageId: PAGE_ID, id: '00000000-0000-0000-0000-0000000000a1' })
+
+    expect(kanbanMocks.archiveTask).toHaveBeenCalledWith(USER_ID, expect.objectContaining({ id: '00000000-0000-0000-0000-0000000000a1' }))
+    expect(result.ok).toBe(true)
   })
 })
 
@@ -402,5 +192,39 @@ describe('kanban.task.softDelete', () => {
 
     const caller = createCallerFactory(taskRouter)(ctx(prisma))
     await expect(caller.softDelete({ pageId: PAGE_ID, id: '00000000-0000-0000-0000-0000000000a1' })).rejects.toThrow(/прав/i)
+  })
+})
+
+describe('kanban.task.unarchive', () => {
+  it('sets archived=false and writes UNARCHIVED activity directly via prisma', async () => {
+    const taskUpdate = vi.fn().mockResolvedValue({ id: '00000000-0000-0000-0000-0000000000a1' })
+    const activityCreate = vi.fn().mockResolvedValue({})
+    const txClient = {
+      task: { update: taskUpdate },
+      taskActivity: { create: activityCreate },
+    }
+    const prisma = {
+      page: { findFirst: vi.fn().mockResolvedValue(pageRow) },
+      task: {
+        findUniqueOrThrow: vi.fn().mockResolvedValue({ pageId: PAGE_ID }),
+      },
+      $transaction: vi
+        .fn()
+        .mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(txClient)),
+    } as unknown as PrismaClient
+
+    const caller = createCallerFactory(taskRouter)(ctx(prisma))
+    const result = await caller.unarchive({ pageId: PAGE_ID, id: '00000000-0000-0000-0000-0000000000a1' })
+
+    expect(taskUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: '00000000-0000-0000-0000-0000000000a1' },
+        data: expect.objectContaining({ archived: false }),
+      }),
+    )
+    expect(activityCreate).toHaveBeenCalledWith({
+      data: { taskId: '00000000-0000-0000-0000-0000000000a1', actorId: USER_ID, type: 'UNARCHIVED', payload: undefined },
+    })
+    expect(result.ok).toBe(true)
   })
 })

@@ -6,6 +6,12 @@ vi.mock('@repo/db', async (importOriginal) => {
   return { ...actual, prisma: {} }
 })
 
+const kanbanMocks = vi.hoisted(() => ({
+  createTaskComment: vi.fn(async () => ({ id: '00000000-0000-0000-0000-0000000000f1', taskId: 'tid', authorId: 'uid' })),
+}))
+
+vi.mock('../src/domain', () => ({ domain: { kanban: kanbanMocks } }))
+
 import type { PrismaClient } from '@repo/db'
 
 import { commentRouter } from '../src/routers/kanban/comment'
@@ -38,41 +44,22 @@ function ctx(prisma: PrismaClient, userId = USER_ID) {
 const pageRow = { id: PAGE_ID, workspaceId: WORKSPACE_ID, createdById: USER_ID }
 
 describe('kanban.comment.create', () => {
-  it('inserts comment and writes COMMENTED activity', async () => {
-    const commentCreate = vi.fn().mockResolvedValue({ id: COMMENT_ID })
-    const activityCreate = vi.fn().mockResolvedValue({})
-    const txClient = {
-      taskComment: { create: commentCreate },
-      taskActivity: { create: activityCreate },
-    }
-    const prisma = {
-      page: { findFirst: vi.fn().mockResolvedValue(pageRow) },
-      task: {
-        findUniqueOrThrow: vi.fn().mockResolvedValue({ pageId: PAGE_ID }),
-      },
-      $transaction: vi
-        .fn()
-        .mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(txClient)),
-    } as unknown as PrismaClient
-
+  it('delegates to domainSvc.kanban.createTaskComment and returns the comment', async () => {
+    kanbanMocks.createTaskComment.mockResolvedValueOnce({ id: COMMENT_ID, taskId: TASK_ID, authorId: USER_ID })
+    const prisma = {} as unknown as PrismaClient
     const caller = createCallerFactory(commentRouter)(ctx(prisma))
-    await caller.create({ pageId: PAGE_ID, taskId: TASK_ID, content: { text: 'hi' } })
+    const result = await caller.create({ pageId: PAGE_ID, taskId: TASK_ID, content: { text: 'hi' } })
 
-    expect(commentCreate).toHaveBeenCalledWith({
-      data: { taskId: TASK_ID, authorId: USER_ID, content: { text: 'hi' } },
-    })
-    expect(activityCreate).toHaveBeenCalledWith({
-      data: {
-        taskId: TASK_ID,
-        actorId: USER_ID,
-        type: 'COMMENTED',
-        payload: { commentId: COMMENT_ID },
-      },
-    })
+    expect(kanbanMocks.createTaskComment).toHaveBeenCalledWith(USER_ID, expect.objectContaining({
+      pageId: PAGE_ID,
+      taskId: TASK_ID,
+      content: { text: 'hi' },
+    }))
+    expect(result.id).toBe(COMMENT_ID)
   })
 })
 
-describe('kanban.comment.delete', () => {
+describe('kanban.comment.delete (direct prisma op — unchanged)', () => {
   it('forbids deletion by non-author non-OWNER', async () => {
     const prisma = {
       page: { findFirst: vi.fn().mockResolvedValue(pageRow) },

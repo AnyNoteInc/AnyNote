@@ -7,12 +7,13 @@ import { assertPageOwnership } from '../../helpers/page-access'
 import { dateInput, positionBetween } from './helpers'
 import { kanbanBus } from '../../realtime/kanban-bus'
 import { mapDomain } from '../../helpers/map-domain'
+import { domain as domainSvc } from '../../domain'
 
 export const sprintRouter = router({
   create: protectedProcedure
     .input(domain.createSprintInput)
     .mutation(async ({ ctx, input }) => {
-      const sprint = await mapDomain(() => domain.createSprint(ctx.prisma, ctx.user.id, input))
+      const sprint = await mapDomain(() => domainSvc.kanban.createSprint(ctx.user.id, input))
       kanbanBus.emit(input.pageId, { kind: 'sprint.upserted', sprintId: sprint.id })
       return sprint
     }),
@@ -46,7 +47,7 @@ export const sprintRouter = router({
   activate: protectedProcedure
     .input(domain.sprintIdInput)
     .mutation(async ({ ctx, input }) => {
-      const res = await mapDomain(() => domain.activateSprint(ctx.prisma, ctx.user.id, input))
+      const res = await mapDomain(() => domainSvc.kanban.activateSprint(ctx.user.id, input))
       kanbanBus.emit(input.pageId, { kind: 'sprint.upserted', sprintId: input.id })
       return res
     }),
@@ -54,7 +55,7 @@ export const sprintRouter = router({
   complete: protectedProcedure
     .input(domain.completeSprintInput)
     .mutation(async ({ ctx, input }) => {
-      const res = await mapDomain(() => domain.completeSprint(ctx.prisma, ctx.user.id, input))
+      const res = await mapDomain(() => domainSvc.kanban.completeSprint(ctx.user.id, input))
       kanbanBus.emit(input.pageId, { kind: 'sprint.upserted', sprintId: input.id })
       if (input.moveUndoneTo) kanbanBus.emit(input.pageId, { kind: 'sprint.upserted', sprintId: input.moveUndoneTo })
       return res

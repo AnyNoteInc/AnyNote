@@ -7,12 +7,13 @@ import { assertPageAccess } from '../../helpers/page-access'
 import { recordActivity } from './helpers'
 import { kanbanBus } from '../../realtime/kanban-bus'
 import { mapDomain } from '../../helpers/map-domain'
+import { domain as domainSvc } from '../../domain'
 
 export const taskRouter = router({
   create: protectedProcedure
     .input(domain.createTaskInput)
     .mutation(async ({ ctx, input }) => {
-      const task = await mapDomain(() => domain.createTask(ctx.prisma, ctx.user.id, input))
+      const task = await mapDomain(() => domainSvc.kanban.createTask(ctx.user.id, input))
       kanbanBus.emit(input.pageId, { kind: 'task.created', taskId: task.id })
       return task
     }),
@@ -20,7 +21,7 @@ export const taskRouter = router({
   update: protectedProcedure
     .input(domain.updateTaskInput)
     .mutation(async ({ ctx, input }) => {
-      const task = await mapDomain(() => domain.updateTask(ctx.prisma, ctx.user.id, input))
+      const task = await mapDomain(() => domainSvc.kanban.updateTask(ctx.user.id, input))
       kanbanBus.emit(input.pageId, { kind: 'task.updated', taskId: task.id })
       return task
     }),
@@ -28,7 +29,7 @@ export const taskRouter = router({
   move: protectedProcedure
     .input(domain.moveTaskInput)
     .mutation(async ({ ctx, input }) => {
-      const task = await mapDomain(() => domain.moveTask(ctx.prisma, ctx.user.id, input))
+      const task = await mapDomain(() => domainSvc.kanban.moveTask(ctx.user.id, input))
       kanbanBus.emit(input.pageId, { kind: 'task.moved', taskId: task.id })
       return task
     }),
@@ -36,7 +37,7 @@ export const taskRouter = router({
   setAssignees: protectedProcedure
     .input(domain.setTaskAssigneesInput)
     .mutation(async ({ ctx, input }) => {
-      const res = await mapDomain(() => domain.setTaskAssignees(ctx.prisma, ctx.user.id, input))
+      const res = await mapDomain(() => domainSvc.kanban.setTaskAssignees(ctx.user.id, input))
       kanbanBus.emit(input.pageId, { kind: 'task.updated', taskId: input.id })
       return res
     }),
@@ -133,7 +134,7 @@ export const taskRouter = router({
   archive: protectedProcedure
     .input(domain.taskIdInput)
     .mutation(async ({ ctx, input }) => {
-      const res = await mapDomain(() => domain.archiveTask(ctx.prisma, ctx.user.id, input))
+      const res = await mapDomain(() => domainSvc.kanban.archiveTask(ctx.user.id, input))
       kanbanBus.emit(input.pageId, { kind: 'task.updated', taskId: input.id })
       return res
     }),

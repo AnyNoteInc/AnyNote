@@ -6,6 +6,7 @@ import { router, protectedProcedure } from '../../trpc'
 import { assertPageAccess } from '../../helpers/page-access'
 import { kanbanBus } from '../../realtime/kanban-bus'
 import { mapDomain } from '../../helpers/map-domain'
+import { domain as domainSvc } from '../../domain'
 
 const ContentSchema = z.unknown()
 
@@ -33,7 +34,7 @@ export const commentRouter = router({
   create: protectedProcedure
     .input(domain.createTaskCommentInput)
     .mutation(async ({ ctx, input }) => {
-      const comment = await mapDomain(() => domain.createTaskComment(ctx.prisma, ctx.user.id, input))
+      const comment = await mapDomain(() => domainSvc.kanban.createTaskComment(ctx.user.id, input))
       kanbanBus.emit(input.pageId, { kind: 'comment.upserted', taskId: input.taskId, commentId: comment.id })
       return comment
     }),
