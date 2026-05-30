@@ -2,6 +2,7 @@ import { AsyncLocalStorage } from 'node:async_hooks'
 
 import type { Prisma, PrismaClient } from '@repo/db'
 
+/** The active client: a tx handle inside transaction(), or the base PrismaClient outside. */
 export type Db = PrismaClient | Prisma.TransactionClient
 
 export interface UnitOfWork {

@@ -6,7 +6,7 @@ import { PrismaUnitOfWork } from '../../src/shared/unit-of-work.ts'
 function makePrisma() {
   const tx = { __isTx: true } as unknown as Prisma.TransactionClient
   const client = {
-    $transaction: vi.fn(async (fn: (t: Prisma.TransactionClient) => unknown) => fn(tx)),
+    $transaction: vi.fn(async (fn: (t: Prisma.TransactionClient) => Promise<unknown>) => fn(tx)),
   }
   return { tx, prisma: client as unknown as PrismaClient }
 }
@@ -39,5 +39,17 @@ describe('PrismaUnitOfWork', () => {
       })
     })
     expect((prisma.$transaction as ReturnType<typeof vi.fn>)).toHaveBeenCalledOnce()
+  })
+
+  it('clears the store and rejects when fn() throws', async () => {
+    const { prisma } = makePrisma()
+    const uow = new PrismaUnitOfWork(prisma)
+    await expect(
+      uow.transaction(async () => {
+        throw new Error('boom')
+      }),
+    ).rejects.toThrow('boom')
+    // the active tx must not leak: client() falls back to the base prisma afterwards
+    expect(uow.client()).toBe(prisma)
   })
 })
