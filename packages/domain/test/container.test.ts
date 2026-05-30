@@ -101,4 +101,13 @@ describe('createDomain', () => {
     expect(typeof domain.pages.hardDelete).toBe('function')
     expect(typeof domain.pages.emptyTrash).toBe('function')
   })
+
+  it('resolves the billing service from the container', () => {
+    const domain = createDomain({ prisma: makePrisma(), scheduler: makeScheduler() })
+    expect(domain.billing).toBeDefined()
+    expect(typeof domain.billing.getActivePlan).toBe('function')
+    expect(typeof domain.billing.getWorkspaceFeatures).toBe('function')
+    expect(typeof domain.billing.getAvailableAiModels).toBe('function')
+    expect(typeof domain.billing.requireWritableWorkspace).toBe('function')
+  })
 })

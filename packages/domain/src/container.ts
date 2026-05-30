@@ -24,6 +24,9 @@ import type { KanbanService } from './kanban/services/kanban.service.ts'
 import { PAGES } from './pages/pages.tokens.ts'
 import { pagesModule } from './pages/pages.module.ts'
 import type { PageService } from './pages/services/pages.service.ts'
+import { BILLING } from './billing/billing.tokens.ts'
+import { billingModule } from './billing/billing.module.ts'
+import type { BillingService } from './billing/services/billing.service.ts'
 
 export interface DomainDeps {
   prisma: PrismaClient
@@ -37,6 +40,7 @@ export interface Domain {
   reminders: ReminderService
   kanban: KanbanService
   pages: PageService
+  billing: BillingService
 }
 
 export function createDomainContainer(deps: DomainDeps): Container {
@@ -47,7 +51,7 @@ export function createDomainContainer(deps: DomainDeps): Container {
     [SHARED.Prisma],
   )
   c.bind(REMINDERS.Scheduler).toConstantValue(deps.scheduler)
-  c.load(workspaceModule, favoritesModule, notificationsModule, remindersModule, kanbanModule, pagesModule)
+  c.load(workspaceModule, favoritesModule, notificationsModule, remindersModule, kanbanModule, pagesModule, billingModule)
   return c
 }
 
@@ -60,5 +64,6 @@ export function createDomain(deps: DomainDeps): Domain {
     reminders: c.get<ReminderService>(REMINDERS.Service),
     kanban: c.get<KanbanService>(KANBAN.Service),
     pages: c.get<PageService>(PAGES.Service),
+    billing: c.get<BillingService>(BILLING.Service),
   }
 }
