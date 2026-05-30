@@ -79,7 +79,7 @@ export const pageRouter = router({
     .mutation(async ({ ctx, input }): Promise<{ id: string }> => {
       await assertWorkspaceMember(ctx, input.workspaceId)
       await requireWritableWorkspace(input.workspaceId)
-      return mapDomain(() => domain.createPage(ctx.prisma, ctx.user.id, input))
+      return mapDomain(() => domainSvc.pages.create(ctx.user.id, input))
     }),
 
   rename: protectedProcedure
@@ -90,7 +90,7 @@ export const pageRouter = router({
         input,
       }): Promise<{ id: string; title: string | null; icon: string | null; updatedAt: Date }> => {
         await requireWritableWorkspace(input.workspaceId)
-        return mapDomain(() => domain.renamePage(ctx.prisma, ctx.user.id, input))
+        return mapDomain(() => domainSvc.pages.rename(ctx.user.id, input))
       },
     ),
 
@@ -102,7 +102,7 @@ export const pageRouter = router({
         input,
       }): Promise<{ id: string; title: string | null; icon: string | null; updatedAt: Date }> => {
         await requireWritableWorkspace(input.workspaceId)
-        return mapDomain(() => domain.updatePage(ctx.prisma, ctx.user.id, input))
+        return mapDomain(() => domainSvc.pages.update(ctx.user.id, input))
       },
     ),
 
@@ -110,21 +110,21 @@ export const pageRouter = router({
     .input(domain.softDeletePageInput)
     .mutation(async ({ ctx, input }) => {
       await requireWritableWorkspace(input.workspaceId)
-      return mapDomain(() => domain.softDeletePage(ctx.prisma, ctx.user.id, input))
+      return mapDomain(() => domainSvc.pages.softDelete(ctx.user.id, input))
     }),
 
   restore: protectedProcedure
     .input(domain.restorePageInput)
     .mutation(async ({ ctx, input }) => {
       await requireWritableWorkspace(input.workspaceId)
-      return mapDomain(() => domain.restorePage(ctx.prisma, ctx.user.id, input))
+      return mapDomain(() => domainSvc.pages.restore(ctx.user.id, input))
     }),
 
   hardDelete: protectedProcedure
     .input(domain.hardDeletePageInput)
     .mutation(async ({ ctx, input }) => {
       await requireWritableWorkspace(input.workspaceId)
-      return mapDomain(() => domain.hardDeletePage(ctx.prisma, ctx.user.id, input))
+      return mapDomain(() => domainSvc.pages.hardDelete(ctx.user.id, input))
     }),
 
   listTrashed: protectedProcedure
@@ -153,7 +153,7 @@ export const pageRouter = router({
     .input(domain.emptyTrashInput)
     .mutation(async ({ ctx, input }) => {
       await requireWritableWorkspace(input.workspaceId)
-      return mapDomain(() => domain.emptyTrash(ctx.prisma, ctx.user.id, input))
+      return mapDomain(() => domainSvc.pages.emptyTrash(ctx.user.id, input))
     }),
 
   move: protectedProcedure
@@ -161,7 +161,7 @@ export const pageRouter = router({
     .mutation(async ({ ctx, input }) => {
       const page = await assertPageAccess(ctx, input.pageId)
       await requireWritableWorkspace(page.workspaceId)
-      return mapDomain(() => domain.movePage(ctx.prisma, ctx.user.id, input))
+      return mapDomain(() => domainSvc.pages.move(ctx.user.id, input))
     }),
 
   duplicate: protectedProcedure
@@ -169,7 +169,7 @@ export const pageRouter = router({
     .mutation(async ({ ctx, input }): Promise<{ id: string }> => {
       const page = await assertPageAccess(ctx, input.pageId)
       await requireWritableWorkspace(page.workspaceId)
-      return mapDomain(() => domain.duplicatePage(ctx.prisma, ctx.user.id, input))
+      return mapDomain(() => domainSvc.pages.duplicate(ctx.user.id, input))
     }),
 
   reorder: protectedProcedure
@@ -180,7 +180,7 @@ export const pageRouter = router({
         select: { workspaceId: true },
       })
       if (page) await requireWritableWorkspace(page.workspaceId)
-      return mapDomain(() => domain.reorderPage(ctx.prisma, ctx.user.id, input))
+      return mapDomain(() => domainSvc.pages.reorder(ctx.user.id, input))
     }),
 
   addFavorite: protectedProcedure

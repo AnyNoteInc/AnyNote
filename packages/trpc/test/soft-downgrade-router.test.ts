@@ -10,6 +10,20 @@ const favoritesMock = vi.hoisted(() => ({
   add: vi.fn(async () => ({ userId: '', pageId: '', position: 0 })),
 }))
 
+// Page writes delegate to the domain.pages facade.
+const pagesMock = vi.hoisted(() => ({
+  create: vi.fn(async () => ({ id: '33333333-3333-3333-3333-333333333333' })),
+  rename: vi.fn(async () => ({ id: '', title: null, icon: null, updatedAt: new Date() })),
+  update: vi.fn(async () => ({ id: '', title: null, icon: null, updatedAt: new Date() })),
+  softDelete: vi.fn(async () => ({ id: '' })),
+  restore: vi.fn(async () => ({ id: '' })),
+  hardDelete: vi.fn(async () => ({ id: '' })),
+  emptyTrash: vi.fn(async () => ({ count: 0 })),
+  move: vi.fn(async () => ({ id: '' })),
+  duplicate: vi.fn(async () => ({ id: '' })),
+  reorder: vi.fn(async () => ({ id: '' })),
+}))
+
 vi.mock('@repo/auth', () => ({
   getUserFromRequest: vi.fn(),
 }))
@@ -30,7 +44,10 @@ vi.mock('../src/helpers/plan', () => ({
   getAvailableAiModels: vi.fn(async () => []),
 }))
 vi.mock('../src/domain', () => ({
-  domain: { favorites: { add: favoritesMock.add } },
+  domain: {
+    favorites: { add: favoritesMock.add },
+    pages: pagesMock,
+  },
 }))
 
 import type { PrismaClient } from '@repo/db'
@@ -62,33 +79,25 @@ describe('soft-downgrade router guards', () => {
   })
 
   it('checks writable workspace before page.create writes', async () => {
-    const tx = {
-      page: {
-        create: vi.fn(async () => ({ id: PAGE_ID, workspaceId: WORKSPACE_ID, parentId: null, type: 'TEXT' })),
-        findMany: vi.fn(async () => []), // no siblings — tail insert, no update needed
-        update: vi.fn(async () => ({})),
-      },
-      outboxEvent: { create: vi.fn(async () => ({})) },
-    }
+    // assertWorkspaceMember is mocked; prisma needs workspaceMember for it (mock handles it)
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => ({ role: 'OWNER' })) },
-      page: { findFirst: vi.fn() },
-      $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
     } as unknown as PrismaClient
 
     const caller = createCallerFactory(pageRouter)(baseContext(prisma))
     await caller.create({ workspaceId: WORKSPACE_ID, parentId: null, type: PageType.TEXT })
 
     expect(planMocks.requireWritableWorkspace).toHaveBeenCalledWith(WORKSPACE_ID)
-    expect(tx.page.create).toHaveBeenCalled()
+    expect(pagesMock.create).toHaveBeenCalledWith(
+      USER_ID,
+      expect.objectContaining({ workspaceId: WORKSPACE_ID }),
+    )
   })
 
   it('stops page.create before writes when workspace is over plan limit', async () => {
     planMocks.requireWritableWorkspace.mockRejectedValueOnce(new Error('WORKSPACE_OVER_PLAN_LIMIT'))
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => ({ role: 'OWNER' })) },
-      page: { findFirst: vi.fn() },
-      $transaction: vi.fn(),
     } as unknown as PrismaClient
 
     const caller = createCallerFactory(pageRouter)(baseContext(prisma))
@@ -96,7 +105,7 @@ describe('soft-downgrade router guards', () => {
       caller.create({ workspaceId: WORKSPACE_ID, parentId: null, type: PageType.TEXT }),
     ).rejects.toThrow(/WORKSPACE_OVER_PLAN_LIMIT/)
 
-    expect(prisma.$transaction).not.toHaveBeenCalled()
+    expect(pagesMock.create).not.toHaveBeenCalled()
   })
 
   it('checks writable workspace before favorite writes by page id', async () => {
@@ -127,34 +136,21 @@ describe('soft-downgrade router guards', () => {
   })
 
   it('saves the selected icon when renaming a page', async () => {
-    const tx = {
-      page: {
-        update: vi.fn(async () => ({
-          id: PAGE_ID,
-          title: 'Renamed',
-          icon: '🚀',
-          updatedAt: new Date('2026-05-23T00:00:00Z'),
-        })),
-      },
-    }
-    const prisma = {
-      page: {
-        findFirst: vi.fn(async () => ({
-          id: PAGE_ID,
-          workspaceId: WORKSPACE_ID,
-          createdById: USER_ID,
-        })),
-      },
-      $transaction: vi.fn(async (callback: (client: typeof tx) => unknown) => callback(tx)),
-    } as unknown as PrismaClient
+    pagesMock.rename.mockResolvedValueOnce({
+      id: PAGE_ID,
+      title: 'Renamed',
+      icon: '🚀',
+      updatedAt: new Date('2026-05-23T00:00:00Z'),
+    })
+    const prisma = {} as unknown as PrismaClient
 
     const caller = createCallerFactory(pageRouter)(baseContext(prisma))
     await caller.rename({ id: PAGE_ID, workspaceId: WORKSPACE_ID, title: 'Renamed', icon: '🚀' })
 
-    expect(tx.page.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({ title: 'Renamed', icon: '🚀', updatedById: USER_ID }),
-      }),
+    expect(planMocks.requireWritableWorkspace).toHaveBeenCalledWith(WORKSPACE_ID)
+    expect(pagesMock.rename).toHaveBeenCalledWith(
+      USER_ID,
+      expect.objectContaining({ id: PAGE_ID, title: 'Renamed', icon: '🚀' }),
     )
   })
 

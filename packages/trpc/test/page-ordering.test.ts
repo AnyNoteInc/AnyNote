@@ -17,6 +17,21 @@ const favoritesMock = vi.hoisted(() => ({
   reorder: vi.fn(async () => ({ ok: true as const })),
 }))
 
+// Page writes delegate to the domain.pages facade; internal linked-list logic is
+// covered by @repo/domain pages tests. Here we assert delegation and guard calls only.
+const pagesMock = vi.hoisted(() => ({
+  create: vi.fn(async () => ({ id: '66666666-6666-6666-6666-666666666666' })),
+  rename: vi.fn(async () => ({ id: '', title: null, icon: null, updatedAt: new Date() })),
+  update: vi.fn(async () => ({ id: '', title: null, icon: null, updatedAt: new Date() })),
+  softDelete: vi.fn(async () => ({ id: '' })),
+  restore: vi.fn(async () => ({ id: '' })),
+  hardDelete: vi.fn(async () => ({ id: '' })),
+  emptyTrash: vi.fn(async () => ({ count: 0 })),
+  move: vi.fn(async () => ({ id: '' })),
+  duplicate: vi.fn(async () => ({ id: '' })),
+  reorder: vi.fn(async () => ({ id: '' })),
+}))
+
 vi.mock('@repo/auth', () => ({ getUserFromRequest: vi.fn() }))
 vi.mock('@repo/db', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@repo/db')>()
@@ -31,7 +46,10 @@ vi.mock('../src/helpers/page-access', () => ({
   assertPageOwnership: accessMocks.assertPageOwnership,
 }))
 vi.mock('../src/domain', () => ({
-  domain: { favorites: { add: favoritesMock.add, reorder: favoritesMock.reorder } },
+  domain: {
+    favorites: { add: favoritesMock.add, reorder: favoritesMock.reorder },
+    pages: pagesMock,
+  },
 }))
 
 import type { PrismaClient } from '@repo/db'
@@ -94,64 +112,23 @@ describe('page.listFavorites — ordered by position ASC', () => {
   })
 })
 
-describe('page.create — tail insert', () => {
+describe('page.create — delegation', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('sets prevPageId = null when no siblings exist (first page)', async () => {
-    const txPage = {
-      create: vi.fn(async () => ({ id: PAGE_NEW, workspaceId: WS_ID, parentId: null, type: 'TEXT' })),
-      findMany: vi.fn(async () => []), // no siblings
-      update: vi.fn(async () => ({})),
-    }
-    const prisma = {
-      $transaction: vi.fn(async (fn: (tx: unknown) => unknown) =>
-        fn({
-          page: txPage,
-          outboxEvent: { create: vi.fn(async () => ({})) },
-          kanbanColumn: { createMany: vi.fn(async () => ({})) },
-        }),
-      ),
-    }
+  it('checks workspace membership + writable, then delegates to domain.pages.create', async () => {
+    // assertWorkspaceMember is a mock; prisma only needs workspaceMember for it
+    const prisma = {}
 
     await caller(ctx(prisma)).create({ workspaceId: WS_ID, parentId: null })
 
-    // Created with prevPageId: null (no siblings)
-    expect(txPage.create).toHaveBeenCalledWith(
-      expect.objectContaining({ data: expect.objectContaining({ prevPageId: null }) }),
+    expect(accessMocks.assertWorkspaceMember).toHaveBeenCalledWith(
+      expect.objectContaining({ user: expect.objectContaining({ id: USER_ID }) }),
+      WS_ID,
     )
-    // update should not be called when there are no siblings
-    expect(txPage.update).not.toHaveBeenCalled()
-  })
-
-  it('sets new page prevPageId = tail sibling id when siblings exist', async () => {
-    // Siblings: A (prevPageId=null) → B (prevPageId=A) — tail is B (not referenced as prevPageId by anyone)
-    const siblings = [
-      { id: PAGE_A, prevPageId: null },
-      { id: PAGE_B, prevPageId: PAGE_A },
-    ]
-    const txPage = {
-      create: vi.fn(async () => ({ id: PAGE_NEW, workspaceId: WS_ID, parentId: null, type: 'TEXT' })),
-      findMany: vi.fn(async () => siblings),
-      update: vi.fn(async () => ({})),
-    }
-    const prisma = {
-      $transaction: vi.fn(async (fn: (tx: unknown) => unknown) =>
-        fn({
-          page: txPage,
-          outboxEvent: { create: vi.fn(async () => ({})) },
-          kanbanColumn: { createMany: vi.fn(async () => ({})) },
-        }),
-      ),
-    }
-
-    await caller(ctx(prisma)).create({ workspaceId: WS_ID, parentId: null })
-
-    // new page should get prevPageId = PAGE_B (the tail — not referenced as prevPageId by siblings)
-    expect(txPage.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: PAGE_NEW },
-        data: { prevPageId: PAGE_B },
-      }),
+    expect(planMocks.requireWritableWorkspace).toHaveBeenCalledWith(WS_ID)
+    expect(pagesMock.create).toHaveBeenCalledWith(
+      USER_ID,
+      expect.objectContaining({ workspaceId: WS_ID, parentId: null }),
     )
   })
 })
@@ -161,26 +138,11 @@ describe('page.create — tail insert', () => {
 describe('page.reorder', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('reorders siblings: detaches from old position and inserts at new', async () => {
-    // List: A → B → C. Move B to after C (newPrevPageId = PAGE_C).
-    const txPage = {
-      findFirst: vi.fn()
-        .mockResolvedValueOnce({ id: PAGE_C, prevPageId: PAGE_B }) // nextSibling of B = C
-        .mockResolvedValueOnce(null), // no page after PAGE_C in new position
-      update: vi.fn(async () => ({})),
-    }
+  it('looks up the page workspaceId, calls requireWritableWorkspace, then delegates to domain.pages.reorder', async () => {
     const prisma = {
-      workspaceMember: { findUnique: vi.fn(async () => ({ role: 'MEMBER' })) },
-      workspace: { findUnique: vi.fn(async () => ({ plan: { features: [] } })) },
       page: {
-        findFirst: vi.fn(async () => ({
-          id: PAGE_B, workspaceId: WS_ID, parentId: null, prevPageId: PAGE_A, deletedAt: null,
-        })),
-        findMany: vi.fn(async () => []),
+        findFirst: vi.fn(async () => ({ workspaceId: WS_ID, deletedAt: null })),
       },
-      $transaction: vi.fn(async (fn: (tx: unknown) => unknown) =>
-        fn({ page: txPage, outboxEvent: { create: vi.fn(async () => ({})) } }),
-      ),
     }
 
     await caller(ctx(prisma)).reorder({
@@ -189,123 +151,30 @@ describe('page.reorder', () => {
       newPrevPageId: PAGE_C,
     })
 
-    // Step 0: lift — B's prevPageId is cleared to null before step 1 so the
-    // next sibling can adopt B's old prevPageId without tripping the
-    // prev_page_id UNIQUE constraint (regression guard).
-    expect(txPage.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: PAGE_B },
-        data: { prevPageId: null },
-      }),
-    )
-    // Step 1: detach — C's prevPageId should be set to B's old prevPageId (PAGE_A)
-    expect(txPage.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: PAGE_C },
-        data: { prevPageId: PAGE_A },
-      }),
-    )
-    // Step 3: update moved page — B gets prevPageId = PAGE_C
-    expect(txPage.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: PAGE_B },
-        data: expect.objectContaining({ prevPageId: PAGE_C }),
-      }),
+    expect(planMocks.requireWritableWorkspace).toHaveBeenCalledWith(WS_ID)
+    expect(pagesMock.reorder).toHaveBeenCalledWith(
+      USER_ID,
+      { pageId: PAGE_B, newParentId: null, newPrevPageId: PAGE_C },
     )
   })
 
-  it('changes parent when newParentId differs', async () => {
-    const PARENT_ID = '77777777-7777-7777-7777-777777777777'
-    const txPage = {
-      findFirst: vi.fn().mockResolvedValue(null),
-      update: vi.fn(async () => ({})),
-    }
+  it('skips requireWritableWorkspace when the page is not found', async () => {
+    // tRPC reorder: if page lookup returns null, requireWritableWorkspace is skipped
     const prisma = {
-      workspaceMember: { findUnique: vi.fn(async () => ({ role: 'MEMBER' })) },
-      workspace: { findUnique: vi.fn(async () => ({ plan: { features: [] } })) },
-      page: {
-        findFirst: vi.fn(async () => ({
-          id: PAGE_B, workspaceId: WS_ID, parentId: null, prevPageId: null, deletedAt: null,
-        })),
-        findMany: vi.fn(async () => []),
-      },
-      $transaction: vi.fn(async (fn: (tx: unknown) => unknown) =>
-        fn({ page: txPage, outboxEvent: { create: vi.fn(async () => ({})) } }),
-      ),
-    }
-
-    await caller(ctx(prisma)).reorder({
-      pageId: PAGE_B,
-      newParentId: PARENT_ID,
-      newPrevPageId: null,
-    })
-
-    expect(txPage.update).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: { id: PAGE_B },
-        data: expect.objectContaining({ parentId: PARENT_ID }),
-      }),
-    )
-  })
-
-  it('rejects non-member', async () => {
-    // domain.reorderPage checks workspaceMember.findUnique directly; the tRPC
-    // wrapper no longer calls assertWorkspaceMember for reorder.
-    const prisma = {
-      workspaceMember: { findUnique: vi.fn(async () => null) },
-      workspace: { findUnique: vi.fn(async () => ({ plan: { features: [] } })) },
-      page: {
-        findFirst: vi.fn(async () => ({
-          id: PAGE_B, workspaceId: WS_ID, parentId: null, prevPageId: null, deletedAt: null,
-        })),
-        findMany: vi.fn(async () => []),
-      },
-    }
-
-    await expect(
-      caller(ctx(prisma)).reorder({ pageId: PAGE_B, newParentId: null, newPrevPageId: null }),
-    ).rejects.toThrow()
-  })
-
-  it('rejects cycle: moving page into its own descendant', async () => {
-    const CHILD_ID = '88888888-8888-8888-8888-888888888888'
-    const prisma = {
-      workspaceMember: { findUnique: vi.fn(async () => ({ role: 'MEMBER' })) },
-      workspace: { findUnique: vi.fn(async () => ({ plan: { features: [] } })) },
-      page: {
-        findFirst: vi.fn(async () => ({
-          id: PAGE_B, workspaceId: WS_ID, parentId: null, prevPageId: null, deletedAt: null,
-        })),
-        findMany: vi.fn(async () => [{ id: CHILD_ID }]),
-      },
-    }
-
-    await expect(
-      caller(ctx(prisma)).reorder({ pageId: PAGE_B, newParentId: CHILD_ID, newPrevPageId: null }),
-    ).rejects.toThrow(/потомка/)
-  })
-
-  it('is a no-op when position unchanged', async () => {
-    const txFn = vi.fn()
-    const prisma = {
-      workspaceMember: { findUnique: vi.fn(async () => ({ role: 'MEMBER' })) },
-      workspace: { findUnique: vi.fn(async () => ({ plan: { features: [] } })) },
-      page: {
-        findFirst: vi.fn(async () => ({
-          id: PAGE_B, workspaceId: WS_ID, parentId: null, prevPageId: PAGE_A, deletedAt: null,
-        })),
-        findMany: vi.fn(async () => []),
-      },
-      $transaction: txFn,
+      page: { findFirst: vi.fn(async () => null) },
     }
 
     await caller(ctx(prisma)).reorder({
       pageId: PAGE_B,
       newParentId: null,
-      newPrevPageId: PAGE_A,
+      newPrevPageId: null,
     })
 
-    expect(txFn).not.toHaveBeenCalled()
+    expect(planMocks.requireWritableWorkspace).not.toHaveBeenCalled()
+    expect(pagesMock.reorder).toHaveBeenCalledWith(
+      USER_ID,
+      { pageId: PAGE_B, newParentId: null, newPrevPageId: null },
+    )
   })
 })
 
