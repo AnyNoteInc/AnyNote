@@ -1,14 +1,12 @@
-from __future__ import annotations
-
 import asyncio
 from dataclasses import dataclass
 
 from agents.apps.agent.repositories.mcp_client import McpClient
 from agents.apps.agent.repositories.model_factory import ModelFactoryRepository
 from agents.apps.agent.schemas import (
-    LlmValidationResponse,
+    LlmValidationResponseSchema,
     McpServerSchema,
-    McpValidationResponse,
+    McpValidationResponseSchema,
     ModelConfigSchema,
 )
 
@@ -20,25 +18,25 @@ _MCP_TIMEOUT = 8.0
 class ValidateLlmUseCase:
     model_factory: ModelFactoryRepository
 
-    async def __call__(self, config: ModelConfigSchema) -> LlmValidationResponse:
+    async def __call__(self, config: ModelConfigSchema) -> LlmValidationResponseSchema:
         try:
             llm = self.model_factory.make(config)
             async with asyncio.timeout(_LLM_TIMEOUT):
                 await llm.ainvoke('ping')
-            return LlmValidationResponse(ok=True)
+            return LlmValidationResponseSchema(ok=True)
         except Exception as exc:  # surface provider error to the user
-            return LlmValidationResponse(ok=False, error=(str(exc) or f'timed out after {_LLM_TIMEOUT:.0f}s')[:500])
+            return LlmValidationResponseSchema(ok=False, error=(str(exc) or f'timed out after {_LLM_TIMEOUT:.0f}s')[:500])
 
 
 @dataclass
 class ValidateMcpUseCase:
     mcp_client: McpClient
 
-    async def __call__(self, server: McpServerSchema) -> McpValidationResponse:
+    async def __call__(self, server: McpServerSchema) -> McpValidationResponseSchema:
         try:
             # outer timeout is the effective deadline; McpClient's own timeout/retries are capped by it
             async with asyncio.timeout(_MCP_TIMEOUT):
                 tools = await self.mcp_client.list_tools(server)
-            return McpValidationResponse(ok=True, tools=[t.name for t in tools])
+            return McpValidationResponseSchema(ok=True, tools=[t.name for t in tools])
         except Exception as exc:  # surface provider error to the user
-            return McpValidationResponse(ok=False, error=(str(exc) or f'timed out after {_MCP_TIMEOUT:.0f}s')[:500])
+            return McpValidationResponseSchema(ok=False, error=(str(exc) or f'timed out after {_MCP_TIMEOUT:.0f}s')[:500])

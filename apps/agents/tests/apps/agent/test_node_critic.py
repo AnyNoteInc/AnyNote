@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from agents.apps.agent.enums import CriticVerdict, PlanStepStatus
-from agents.apps.agent.schemas import PlanStep
+from agents.apps.agent.schemas import PlanStepSchema
 from agents.apps.agent.services.nodes.critic import critic_node
 from langchain_core.messages import AIMessage, ToolMessage
 
@@ -65,7 +65,7 @@ async def test_critic_approves_successful_create_page_even_when_llm_requests_rev
     state = state.model_copy(update={
         'draft_answer': 'Чтобы просмотреть ее, просто перейдите по данной ссылке',
         'revision_count': 2,
-        'plan': [PlanStep(id='1', title='Create the page', status=PlanStepStatus.DONE)],
+        'plan': [PlanStepSchema(id='1', title='Create the page', status=PlanStepStatus.DONE)],
         'messages': [
             AIMessage(
                 content='',

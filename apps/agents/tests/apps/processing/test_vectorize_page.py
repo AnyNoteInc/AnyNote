@@ -3,7 +3,7 @@ from unittest.mock import AsyncMock, MagicMock
 from uuid import UUID
 
 import pytest
-from agents.apps.agent.enums_shared import ModelProviderEnum
+from agents.apps.agent.enums import ModelProviderEnum
 from agents.apps.processing.schemas import (
     ContentBlockSchema,
     EmbeddingProviderConfigSchema,

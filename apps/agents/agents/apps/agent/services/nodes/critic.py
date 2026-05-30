@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import json
 import logging
 import re
@@ -10,7 +8,7 @@ from langchain_core.messages import AIMessage, SystemMessage, ToolMessage
 
 from agents.apps.agent.enums import CriticVerdict, PlanStepStatus
 from agents.apps.agent.repositories import AgentJinjaRenderer
-from agents.apps.agent.schemas import AgentState, PlanStep
+from agents.apps.agent.schemas import AgentState, PlanStepSchema
 
 log = logging.getLogger(__name__)
 
@@ -96,13 +94,13 @@ def _revise_update(
     return update
 
 
-def _normalise_plan(revised_plan: Sequence[object]) -> list[PlanStep]:
+def _normalise_plan(revised_plan: Sequence[object]) -> list[PlanStepSchema]:
     """The critic LLM sometimes returns ``revised_plan`` as a list of plain
-    strings (titles) instead of ``{id, title}`` dicts. Coerce to PlanStep."""
-    normalised: list[PlanStep] = []
+    strings (titles) instead of ``{id, title}`` dicts. Coerce to PlanStepSchema."""
+    normalised: list[PlanStepSchema] = []
     for idx, entry in enumerate(revised_plan, start=1):
         step_id, step_title = _coerce_plan_entry(entry, idx)
-        normalised.append(PlanStep(id=step_id, title=step_title, status=PlanStepStatus.PENDING))
+        normalised.append(PlanStepSchema(id=step_id, title=step_title, status=PlanStepStatus.PENDING))
     return normalised
 
 

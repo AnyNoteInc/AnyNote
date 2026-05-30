@@ -1,7 +1,5 @@
 """Integration test: confirmation interrupt pause + resume across requests."""
 
-from __future__ import annotations
-
 import functools
 import json
 from unittest.mock import AsyncMock, MagicMock

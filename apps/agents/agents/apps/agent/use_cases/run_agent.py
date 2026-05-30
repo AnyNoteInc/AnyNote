@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import functools
 import logging
 from collections.abc import AsyncIterator, Callable
@@ -8,16 +6,21 @@ from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 
-from agents.apps.agent.events import ServerEvent
-from agents.apps.agent.schemas import AgentContext, AgentRunRequest, AgentState, MemoryWrite
+from agents.apps.agent.schemas import (
+    AgentContext,
+    AgentRunRequestSchema,
+    AgentState,
+    MemoryWriteSchema,
+    ServerEventSchema,
+)
 from agents.apps.agent.services.graph import build_agent_graph
+from agents.apps.agent.services.graph_streaming import GraphStreamingService
 from agents.apps.agent.services.history_compactor import trim_chat_history
 from agents.apps.agent.services.internal_tools import (
     make_save_memory_tool,
     make_search_pages_tool,
 )
 from agents.apps.agent.services.tool_registry import build_registry_for_servers
-from agents.apps.agent.use_cases._streaming import stream_graph
 
 log = logging.getLogger(__name__)
 
@@ -31,14 +34,15 @@ class RunAgentUseCase:
     action_log_repo: Any
     renderer: Any
     checkpointer: Any
+    streaming_service: GraphStreamingService
 
     async def __call__(
         self,
         *,
-        request: AgentRunRequest,
+        request: AgentRunRequestSchema,
         context: AgentContext,
         jwt: str,
-    ) -> AsyncIterator[ServerEvent]:
+    ) -> AsyncIterator[ServerEventSchema]:
         from agents.apps.agent.services.nodes.critic import critic_node
         from agents.apps.agent.services.nodes.executor import executor_node
         from agents.apps.agent.services.nodes.memory_writer import memory_writer_node
@@ -62,7 +66,7 @@ class RunAgentUseCase:
         # way as MCP tools. recall_memory not wired here in v1 — relevant facts
         # are already loaded by web into request.long_term_memories and
         # surfaced to the planner via the prompt.
-        pending_memory_writes: list[MemoryWrite] = []
+        pending_memory_writes: list[MemoryWriteSchema] = []
         tools = [
             *tools,
             make_save_memory_tool(
@@ -114,11 +118,11 @@ class RunAgentUseCase:
         })
 
         try:
-            async for event in stream_graph(graph, initial, config, initial):
+            async for event in self.streaming_service.stream(graph, initial, config, initial):
                 yield event
         except Exception as exc:
             log.exception('agent run failed')
-            yield ServerEvent.error('INTERNAL_ERROR', str(exc), recoverable=False)
+            yield ServerEventSchema.error('INTERNAL_ERROR', str(exc), recoverable=False)
             return
 
-        yield ServerEvent.done()
+        yield ServerEventSchema.done()

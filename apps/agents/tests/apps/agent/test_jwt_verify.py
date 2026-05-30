@@ -6,8 +6,8 @@ from uuid import uuid4
 
 import jwt
 import pytest
-from agents.apps.agent.depends import verify_agents_jwt_for_test
 from agents.apps.agent.errors import JwtVerificationError
+from agents.apps.agent.services.jwt_verifier import JwtVerifierService
 
 
 @pytest.fixture(autouse=True)
@@ -15,6 +15,10 @@ def setup_env(monkeypatch):
     raw_key = secrets.token_bytes(32)
     monkeypatch.setenv('AGENTS_JWT_SECRET', base64.b64encode(raw_key).decode())
     monkeypatch.setenv('BETTER_AUTH_JWT_AGENTS_AUDIENCE', 'agents')
+
+
+def _verifier(*, secret_b64: str | None = None, audience: str = 'agents') -> JwtVerifierService:
+    return JwtVerifierService(secret_b64=secret_b64 or os.environ['AGENTS_JWT_SECRET'], audience=audience)
 
 
 def sign(claims: dict, *, aud: str = 'agents', ttl: int = 300, secret_b64: str | None = None) -> str:
@@ -37,7 +41,7 @@ def test_accepts_valid_token() -> None:
         'cid': chat_id,
         'scopes': ['pages:read'],
     })
-    ctx = verify_agents_jwt_for_test(token)
+    ctx = _verifier().verify_chat(token)
     assert str(ctx.user_id) == user_id
     assert str(ctx.workspace_id) == ws_id
     assert str(ctx.chat_id) == chat_id
@@ -50,7 +54,7 @@ def test_rejects_expired() -> None:
         ttl=-100,
     )
     with pytest.raises(JwtVerificationError):
-        verify_agents_jwt_for_test(token)
+        _verifier().verify_chat(token)
 
 
 def test_rejects_wrong_audience() -> None:
@@ -59,4 +63,4 @@ def test_rejects_wrong_audience() -> None:
         aud='wrong',
     )
     with pytest.raises(JwtVerificationError):
-        verify_agents_jwt_for_test(token)
+        _verifier().verify_chat(token)

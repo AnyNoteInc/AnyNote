@@ -1,7 +1,5 @@
 """Integration test: full graph run end-to-end through Postgres checkpointer."""
 
-from __future__ import annotations
-
 import functools
 import json
 from unittest.mock import AsyncMock, MagicMock

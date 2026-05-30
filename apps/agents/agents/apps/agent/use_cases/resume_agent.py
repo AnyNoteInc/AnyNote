@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import functools
 import logging
 from collections.abc import AsyncIterator, Callable
@@ -9,22 +7,22 @@ from typing import Any
 from langchain_core.runnables import RunnableConfig
 from langgraph.types import Command
 
-from agents.apps.agent.events import ServerEvent
 from agents.apps.agent.schemas import (
     AgentContext,
-    AgentResumeRequest,
+    AgentResumeRequestSchema,
     AgentState,
     McpServerSchema,
-    MemoryWrite,
+    MemoryWriteSchema,
     ModelConfigSchema,
+    ServerEventSchema,
 )
 from agents.apps.agent.services.graph import build_agent_graph
+from agents.apps.agent.services.graph_streaming import GraphStreamingService
 from agents.apps.agent.services.internal_tools import (
     make_save_memory_tool,
     make_search_pages_tool,
 )
 from agents.apps.agent.services.tool_registry import build_registry_for_servers
-from agents.apps.agent.use_cases._streaming import stream_graph
 
 log = logging.getLogger(__name__)
 
@@ -46,14 +44,15 @@ class ResumeAgentUseCase:
     action_log_repo: Any
     renderer: Any
     checkpointer: Any
+    streaming_service: GraphStreamingService
 
     async def __call__(
         self,
         *,
-        request: AgentResumeRequest,
+        request: AgentResumeRequestSchema,
         context: AgentContext,
         jwt: str,
-    ) -> AsyncIterator[ServerEvent]:
+    ) -> AsyncIterator[ServerEventSchema]:
         from agents.apps.agent.services.nodes.critic import critic_node
         from agents.apps.agent.services.nodes.executor import executor_node
         from agents.apps.agent.services.nodes.memory_writer import memory_writer_node
@@ -71,7 +70,7 @@ class ResumeAgentUseCase:
             getattr(i, 'value', None) and i.value.get('confirmation_id') == request.confirmation_id
             for i in interrupts
         ):
-            yield ServerEvent.error(
+            yield ServerEventSchema.error(
                 'CONFIRMATION_MISMATCH',
                 'No matching pending confirmation',
                 recoverable=False,
@@ -93,7 +92,7 @@ class ResumeAgentUseCase:
             discovered={k: [t.name for t in v] for k, v in discovered.items()},
         )
 
-        pending_memory_writes: list[MemoryWrite] = list(state.pending_memory_writes)
+        pending_memory_writes: list[MemoryWriteSchema] = list(state.pending_memory_writes)
         tools = [
             *tools,
             make_save_memory_tool(
@@ -132,7 +131,7 @@ class ResumeAgentUseCase:
         )
 
         try:
-            async for event in stream_graph(
+            async for event in self.streaming_service.stream(
                 graph,
                 Command(resume={'action': request.action}),
                 config,
@@ -141,7 +140,7 @@ class ResumeAgentUseCase:
                 yield event
         except Exception as exc:
             log.exception('agent resume failed')
-            yield ServerEvent.error('INTERNAL_ERROR', str(exc), recoverable=False)
+            yield ServerEventSchema.error('INTERNAL_ERROR', str(exc), recoverable=False)
             return
 
-        yield ServerEvent.done()
+        yield ServerEventSchema.done()

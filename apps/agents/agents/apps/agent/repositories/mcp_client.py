@@ -1,5 +1,3 @@
-from __future__ import annotations
-
 import asyncio
 import json
 import logging
@@ -95,7 +93,9 @@ def _resolve_field_type(pspec: dict[str, Any]) -> tuple[Any, bool]:
         items = pspec.get('items') if isinstance(pspec, dict) else None
         item_type = items.get('type') if isinstance(items, dict) else None
         item_py, _ = _resolve_json_type(item_type)
-        return (list[item_py] if item_py is not Any else list), allow_null
+        # item_py is a runtime type built from the JSON schema; mypy can't treat a
+        # local variable as a type parameter, but the construction is intentional.
+        return (list[item_py] if item_py is not Any else list), allow_null  # type: ignore[valid-type]
     return _resolve_json_type(raw_type)
 
 

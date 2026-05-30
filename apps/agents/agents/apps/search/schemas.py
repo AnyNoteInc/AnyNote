@@ -1,7 +1,5 @@
 """Schemas for the page-search HTTP API."""
 
-from __future__ import annotations
-
 from typing import Annotated
 from uuid import UUID
 

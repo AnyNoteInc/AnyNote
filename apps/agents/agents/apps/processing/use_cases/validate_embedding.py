@@ -1,13 +1,11 @@
-from __future__ import annotations
-
 import asyncio
 from dataclasses import dataclass
 
 from ..repositories import EmbeddingFactoryRepository
 from ..schemas import (
     EmbeddingProviderConfigSchema,
-    EmbeddingValidationRequest,
-    EmbeddingValidationResponse,
+    EmbeddingValidationRequestSchema,
+    EmbeddingValidationResponseSchema,
 )
 
 _EMB_TIMEOUT = 10.0
@@ -17,7 +15,7 @@ _EMB_TIMEOUT = 10.0
 class ValidateEmbeddingUseCase:
     embedding_factory: EmbeddingFactoryRepository
 
-    async def __call__(self, req: EmbeddingValidationRequest) -> EmbeddingValidationResponse:
+    async def __call__(self, req: EmbeddingValidationRequestSchema) -> EmbeddingValidationResponseSchema:
         try:
             config = EmbeddingProviderConfigSchema(
                 provider=req.provider,
@@ -29,7 +27,7 @@ class ValidateEmbeddingUseCase:
             async with asyncio.timeout(_EMB_TIMEOUT):
                 vector = await embedder.aembed_query('ping')
             if not vector:
-                return EmbeddingValidationResponse(ok=False, error='provider returned an empty embedding')
-            return EmbeddingValidationResponse(ok=True, vector_size=len(vector))
+                return EmbeddingValidationResponseSchema(ok=False, error='provider returned an empty embedding')
+            return EmbeddingValidationResponseSchema(ok=True, vector_size=len(vector))
         except Exception as exc:  # surface provider error to the user
-            return EmbeddingValidationResponse(ok=False, error=(str(exc) or f'timed out after {_EMB_TIMEOUT:.0f}s')[:500])
+            return EmbeddingValidationResponseSchema(ok=False, error=(str(exc) or f'timed out after {_EMB_TIMEOUT:.0f}s')[:500])

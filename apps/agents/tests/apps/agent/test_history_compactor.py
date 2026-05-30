@@ -1,4 +1,4 @@
-from agents.apps.agent.enums_shared import RoleEnum
+from agents.apps.agent.enums import RoleEnum
 from agents.apps.agent.schemas import ConversationMessageSchema
 from agents.apps.agent.services.history_compactor import trim_chat_history
 
