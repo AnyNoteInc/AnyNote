@@ -4,7 +4,10 @@ import type { WorkspaceMembershipDto } from '../dto/workspace.dto.ts'
 export class WorkspaceRepository {
   constructor(private readonly uow: UnitOfWork) {}
 
-  async findMembership(userId: string, workspaceId: string): Promise<WorkspaceMembershipDto | null> {
+  async findMembership(
+    userId: string,
+    workspaceId: string,
+  ): Promise<WorkspaceMembershipDto | null> {
     const row = await this.uow.client().workspaceMember.findUnique({
       where: { workspaceId_userId: { workspaceId, userId } },
     })

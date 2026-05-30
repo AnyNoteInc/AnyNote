@@ -21,8 +21,6 @@ describe('WorkspaceService.assertMembership', () => {
       httpStatus: 403,
       message: 'Вы не являетесь участником воркспейса',
     })
-    await svc.assertMembership('u1', 'w1').catch((e) => {
-      expect(isDomainError(e)).toBe(true)
-    })
+    await expect(svc.assertMembership('u1', 'w1')).rejects.toSatisfy(isDomainError)
   })
 })
