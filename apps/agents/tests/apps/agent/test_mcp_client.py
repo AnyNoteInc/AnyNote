@@ -8,6 +8,16 @@ from agents.apps.agent.schemas import McpServerSchema
 from httpx import Response
 
 
+class _Chunk:
+    def __init__(self, type_: str, text: str) -> None:
+        self.type = type_
+        self.text = text
+
+
+def _text_chunk(text: str) -> _Chunk:
+    return _Chunk('text', text)
+
+
 def make_server(url: str, name: str = 'srv', transport: str = 'HTTP_JSONRPC',
                 allowlist: list[str] | None = None) -> McpServerSchema:
     return McpServerSchema(
@@ -96,6 +106,51 @@ async def test_sse_list_tools_delegates_to_mcp_sdk(monkeypatch) -> None:
     server = make_server('https://mcp.test/sse', transport='SSE')
     tools = await client.list_tools(server)
     assert tools and tools[0].name == 'echo'
+
+
+@pytest.mark.asyncio
+async def test_streamable_http_list_tools_delegates_to_mcp_sdk(monkeypatch) -> None:
+    # Streamable HTTP (Context7) routes through _open_streamable_session, the
+    # streamablehttp_client wrapper, NOT the stateless JSON-RPC POST path.
+    fake_tool = AsyncMock()
+    fake_tool.name = 'resolve-library-id'
+    fake_tool.description = 'd'
+    fake_tool.inputSchema = {}
+
+    fake_session = AsyncMock()
+    fake_session.list_tools = AsyncMock(return_value=AsyncMock(tools=[fake_tool]))
+
+    @asynccontextmanager
+    async def fake_session_factory(*args, **kwargs):
+        yield fake_session
+
+    from agents.apps.agent.repositories import mcp_client as mc
+    monkeypatch.setattr(mc, '_open_streamable_session', fake_session_factory)
+
+    client = McpClient()
+    server = make_server('https://mcp.context7.com/mcp', transport='STREAMABLE_HTTP')
+    tools = await client.list_tools(server)
+    assert tools and tools[0].name == 'resolve-library-id'
+
+
+@pytest.mark.asyncio
+async def test_streamable_http_call_tool_delegates_to_mcp_sdk(monkeypatch) -> None:
+    fake_session = AsyncMock()
+    fake_session.call_tool = AsyncMock(
+        return_value=AsyncMock(content=[_text_chunk('docs body')])
+    )
+
+    @asynccontextmanager
+    async def fake_session_factory(*args, **kwargs):
+        yield fake_session
+
+    from agents.apps.agent.repositories import mcp_client as mc
+    monkeypatch.setattr(mc, '_open_streamable_session', fake_session_factory)
+
+    client = McpClient()
+    server = make_server('https://mcp.context7.com/mcp', transport='STREAMABLE_HTTP')
+    result = await client.call_tool(server, 'get-library-docs', {'context7CompatibleLibraryID': '/vercel/next.js'})
+    assert result == 'docs body'
 
 
 @pytest.mark.asyncio

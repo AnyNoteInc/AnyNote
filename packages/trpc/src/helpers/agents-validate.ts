@@ -54,7 +54,12 @@ export function validateEmbedding(
 }
 
 export function validateMcp(
-  input: { url: string; transport: 'HTTP_JSONRPC' | 'SSE'; headers: ProviderConnectionInput; verify: boolean },
+  input: {
+    url: string
+    transport: 'HTTP_JSONRPC' | 'SSE' | 'STREAMABLE_HTTP'
+    headers: ProviderConnectionInput
+    verify: boolean
+  },
   auth: AgentsServiceAuth,
 ): Promise<McpValidationResult> {
   return postValidate<McpValidationResult>(

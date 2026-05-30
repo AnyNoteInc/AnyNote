@@ -7,7 +7,7 @@ import { router, protectedProcedure } from '../trpc'
 import { getWorkspaceFeatures } from '../helpers/plan'
 import { validateMcp } from '../helpers/agents-validate'
 
-const transportSchema = z.enum(['HTTP_JSONRPC', 'SSE'])
+const transportSchema = z.enum(['HTTP_JSONRPC', 'SSE', 'STREAMABLE_HTTP'])
 
 const createInput = z.object({
   workspaceId: z.string().uuid(),

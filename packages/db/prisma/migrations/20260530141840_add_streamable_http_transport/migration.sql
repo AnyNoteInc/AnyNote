@@ -1,0 +1,2 @@
+-- AlterEnum
+ALTER TYPE "McpTransport" ADD VALUE 'STREAMABLE_HTTP';

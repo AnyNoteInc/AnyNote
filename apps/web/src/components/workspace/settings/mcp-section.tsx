@@ -48,7 +48,7 @@ export function WorkspaceMcpSection({
   const [form, setForm] = useState({
     name: '',
     url: '',
-    transport: 'HTTP_JSONRPC' as 'HTTP_JSONRPC' | 'SSE',
+    transport: 'HTTP_JSONRPC' as 'HTTP_JSONRPC' | 'SSE' | 'STREAMABLE_HTTP',
     headersJson: '{}',
   })
 
@@ -190,11 +190,15 @@ export function WorkspaceMcpSection({
               select
               value={form.transport}
               onChange={(e) =>
-                setForm((f) => ({ ...f, transport: e.target.value as 'HTTP_JSONRPC' | 'SSE' }))
+                setForm((f) => ({
+                  ...f,
+                  transport: e.target.value as 'HTTP_JSONRPC' | 'SSE' | 'STREAMABLE_HTTP',
+                }))
               }
             >
               <MenuItem value="HTTP_JSONRPC">HTTP JSON-RPC</MenuItem>
               <MenuItem value="SSE">SSE</MenuItem>
+              <MenuItem value="STREAMABLE_HTTP">Streamable HTTP</MenuItem>
             </TextField>
             <TextField
               label="Headers (JSON)"

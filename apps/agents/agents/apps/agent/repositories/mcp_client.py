@@ -1,8 +1,8 @@
 import asyncio
 import json
 import logging
-from collections.abc import AsyncIterator
-from contextlib import asynccontextmanager
+from collections.abc import AsyncIterator, Callable
+from contextlib import AbstractAsyncContextManager, asynccontextmanager
 from dataclasses import dataclass
 from typing import Any
 
@@ -13,6 +13,10 @@ from pydantic import BaseModel, Field, create_model
 from agents.apps.agent.schemas import McpServerSchema
 
 log = logging.getLogger(__name__)
+
+# A callable that opens an MCP SDK client session as an async context manager.
+# Both _open_sse_session and _open_streamable_session match this shape.
+SessionOpener = Callable[[str, dict[str, str]], AbstractAsyncContextManager[Any]]
 
 
 @dataclass(frozen=True)
@@ -29,6 +33,24 @@ async def _open_sse_session(url: str, headers: dict[str, str]) -> AsyncIterator[
     from mcp import ClientSession
     from mcp.client.sse import sse_client
     async with sse_client(url, headers=headers) as (read, write):
+        async with ClientSession(read, write) as session:
+            await session.initialize()
+            yield session
+
+
+@asynccontextmanager
+async def _open_streamable_session(url: str, headers: dict[str, str]) -> AsyncIterator[Any]:
+    """Open a stateful Streamable-HTTP MCP session (initialize → session-id → SSE frames).
+
+    Used by servers like Context7 that reject the stateless JSON-RPC POST path
+    (HTTP 400 'No valid session ID') and the classic SSE GET (HTTP 405). The SDK
+    client handles the handshake and forwards ``headers`` (e.g. Authorization)
+    on the initialize call. Its stream tuple carries a third get-session-id
+    callback we don't need.
+    """
+    from mcp import ClientSession
+    from mcp.client.streamable_http import streamablehttp_client
+    async with streamablehttp_client(url, headers=headers) as (read, write, _get_session_id):
         async with ClientSession(read, write) as session:
             await session.initialize()
             yield session
@@ -123,13 +145,15 @@ class McpClient:
     timeout_seconds: float = 30.0
 
     async def list_tools(self, server: McpServerSchema) -> list[McpToolDescriptor]:
-        if _transport(server) == 'SSE':
-            return await self._sse_list_tools(server)
+        opener = _session_opener(server)
+        if opener is not None:
+            return await self._session_list_tools(server, opener)
         return self._filter(server, await self._http_list_tools(server))
 
     async def call_tool(self, server: McpServerSchema, name: str, args: dict[str, Any]) -> str:
-        if _transport(server) == 'SSE':
-            return await self._sse_call_tool(server, name, args)
+        opener = _session_opener(server)
+        if opener is not None:
+            return await self._session_call_tool(server, name, args, opener)
         return await self._http_call_tool(server, name, args)
 
     # ── HTTP JSON-RPC ──────────────────────────────────────────────────────────
@@ -186,10 +210,12 @@ class McpClient:
                 raise RuntimeError(f'MCP {server.name} error: {body["error"]}')
             return body.get('result') if isinstance(body, dict) else body
 
-    # ── SSE ────────────────────────────────────────────────────────────────────
+    # ── Session transports (SSE, Streamable HTTP) ──────────────────────────────
 
-    async def _sse_list_tools(self, server: McpServerSchema) -> list[McpToolDescriptor]:
-        async with _open_sse_session(server.url, server.headers) as session:
+    async def _session_list_tools(
+        self, server: McpServerSchema, opener: SessionOpener,
+    ) -> list[McpToolDescriptor]:
+        async with opener(server.url, server.headers) as session:
             listed = await session.list_tools()
             tools = [
                 McpToolDescriptor(
@@ -201,9 +227,11 @@ class McpClient:
             ]
             return self._filter(server, tools)
 
-    async def _sse_call_tool(self, server: McpServerSchema, name: str, args: dict[str, Any]) -> str:
+    async def _session_call_tool(
+        self, server: McpServerSchema, name: str, args: dict[str, Any], opener: SessionOpener,
+    ) -> str:
         merged = self._inject_workspace(server, args)
-        async with _open_sse_session(server.url, server.headers) as session:
+        async with opener(server.url, server.headers) as session:
             result = await session.call_tool(name, merged)
             chunks = getattr(result, 'content', None) or []
             text = '\n'.join(
@@ -266,3 +294,18 @@ class McpClient:
 
 def _transport(server: McpServerSchema) -> str:
     return getattr(server, 'transport', None) or 'HTTP_JSONRPC'
+
+
+def _session_opener(server: McpServerSchema) -> SessionOpener | None:
+    """Return the MCP-SDK session opener for session transports, else None.
+
+    None means the stateless JSON-RPC POST path. Resolves the module-level
+    opener at call time so tests can monkeypatch ``_open_sse_session`` /
+    ``_open_streamable_session``.
+    """
+    transport = _transport(server)
+    if transport == 'SSE':
+        return _open_sse_session
+    if transport == 'STREAMABLE_HTTP':
+        return _open_streamable_session
+    return None
