@@ -12,9 +12,16 @@ const mocks = vi.hoisted(() => ({
   htmlToPdf: vi.fn(),
 }))
 
-vi.mock('@repo/db', () => ({
-  prisma: mocks.prisma,
-}))
+// The export route imports @/lib/domain (the createDomain singleton), which is
+// `import 'server-only'`. Stub it so vitest can load the module (same as other web tests).
+vi.mock('server-only', () => ({}))
+
+// Spread the real @repo/db (PageType, enqueueOutboxEvent, … are value-imported by the
+// domain modules that @/lib/domain's createDomain loads) and override only prisma.
+vi.mock('@repo/db', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@repo/db')>()
+  return { ...actual, prisma: mocks.prisma }
+})
 
 vi.mock('@repo/storage', () => ({
   storage: mocks.storage,
