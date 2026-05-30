@@ -1,4 +1,6 @@
-import { getPlanDisplayName as domainGetPlanDisplayName } from '@repo/domain'
+// Deep-import the client-safe dto leaf (NOT the @repo/domain root barrel, which is
+// server-only — it pulls inversify/reflect-metadata). This file runs in client bundles.
+import { getPlanDisplayName as domainGetPlanDisplayName } from '@repo/domain/billing/dto/billing.dto.ts'
 
 /**
  * Web-layer wrapper around the domain helper.
