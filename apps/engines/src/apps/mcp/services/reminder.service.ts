@@ -1,10 +1,9 @@
-import { Inject, Injectable, Optional } from '@nestjs/common'
+import { Inject, Injectable } from '@nestjs/common'
 import type { PrismaClient } from '@repo/db'
-import * as domain from '@repo/domain'
-import type { DeliveryScheduler } from '@repo/domain'
-import { rebuildDeliveries, cancelPendingDeliveries } from '@repo/notifications'
+import type { Domain } from '@repo/domain'
 
 import { PRISMA } from '../../../infra/db/db.providers.js'
+import { DOMAIN } from '../../../infra/domain/domain.providers.js'
 
 export type CreateReminderInput = {
   userId: string
@@ -35,38 +34,21 @@ export type DeleteReminderInput = {
   pageId?: string
 }
 
-const realScheduler: DeliveryScheduler = {
-  rebuild: rebuildDeliveries,
-  cancel: cancelPendingDeliveries,
-}
-
 @Injectable()
 export class ReminderService {
-  private readonly scheduler: DeliveryScheduler
-
   constructor(
     @Inject(PRISMA) private readonly prisma: PrismaClient,
-    // @Optional() so Nest resolves undefined in production → falls back to realScheduler.
-    // Unit tests pass a stub scheduler as the second constructor arg (no DI change needed).
-    // mcp.module.ts is UNCHANGED: @Optional() makes the unregistered param resolve to undefined → real.
-    @Optional() scheduler?: DeliveryScheduler,
-  ) {
-    this.scheduler = scheduler ?? realScheduler
-  }
+    @Inject(DOMAIN) private readonly domain: Domain,
+  ) {}
 
   async createReminder(input: CreateReminderInput): Promise<string> {
-    const result = await domain.createReminder(
-      this.prisma,
-      input.userId,
-      {
-        pageId: input.pageId,
-        dueAt: input.dueAt,
-        offsets: input.offsets ?? [],
-        audience: input.audience ?? 'ME',
-        label: input.label ?? null,
-      },
-      this.scheduler,
-    )
+    const result = await this.domain.reminders.create(input.userId, {
+      pageId: input.pageId,
+      dueAt: input.dueAt,
+      offsets: input.offsets ?? [],
+      audience: input.audience ?? 'ME',
+      label: input.label ?? null,
+    })
     return result.reminderId
   }
 
@@ -101,36 +83,23 @@ export class ReminderService {
   }
 
   async moveReminder(input: MoveReminderInput): Promise<{ id: string; dueAt: Date }> {
-    return domain.moveReminder(
-      this.prisma,
-      input.userId,
-      { reminderId: input.reminderId, dueAt: input.dueAt, shift: input.shift },
-      this.scheduler,
-    )
+    return this.domain.reminders.move(input.userId, {
+      reminderId: input.reminderId,
+      dueAt: input.dueAt,
+      shift: input.shift,
+    })
   }
 
   async deleteReminder(input: DeleteReminderInput): Promise<{ count: number }> {
-    // Delegates the full { reminderId, reminderIds, all, pageId } shape to domain.deleteReminder
-    // which replicates the original engines where-clause and cancels matched deliveries atomically.
-    return domain.deleteReminder(
-      this.prisma,
-      input.userId,
-      {
-        reminderId: input.reminderId,
-        reminderIds: input.reminderIds,
-        all: input.all,
-        pageId: input.pageId,
-      },
-      this.scheduler,
-    )
+    return this.domain.reminders.remove(input.userId, {
+      reminderId: input.reminderId,
+      reminderIds: input.reminderIds,
+      all: input.all,
+      pageId: input.pageId,
+    })
   }
 
   async completeReminder(input: { userId: string; reminderId: string }): Promise<{ id: string }> {
-    return domain.completeReminder(
-      this.prisma,
-      input.userId,
-      { reminderId: input.reminderId },
-      this.scheduler,
-    )
+    return this.domain.reminders.complete(input.userId, { reminderId: input.reminderId })
   }
 }
