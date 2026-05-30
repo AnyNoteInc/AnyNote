@@ -6,6 +6,15 @@ vi.mock('@repo/db', async (importOriginal) => {
   return { ...actual, prisma: {} }
 })
 
+const notifMocks = vi.hoisted(() => ({
+  markRead: vi.fn(async () => ({ updated: 1 })),
+  markAllRead: vi.fn(async () => ({ updated: 2 })),
+  deleteAll: vi.fn(async () => ({ deleted: 3 })),
+}))
+vi.mock('../src/domain', () => ({
+  domain: { notifications: { markRead: notifMocks.markRead, markAllRead: notifMocks.markAllRead, deleteAll: notifMocks.deleteAll } },
+}))
+
 import type { PrismaClient } from '@repo/db'
 
 import { notificationRouter } from '../src/routers/notification'
@@ -103,41 +112,39 @@ describe('notification.unreadCount', () => {
 })
 
 describe('notification.markRead', () => {
-  it('updates only own rows', async () => {
-    const updateMany = vi.fn().mockResolvedValue({ count: 2 })
-    const prisma = { notificationInApp: { updateMany } } as unknown as PrismaClient
+  it('delegates to domain.notifications.markRead and returns updated count', async () => {
+    notifMocks.markRead.mockResolvedValue({ updated: 2 })
+    const prisma = {} as unknown as PrismaClient
     const caller = createCallerFactory(notificationRouter)(ctx(prisma))
     const result = await caller.markRead({
       ids: ['00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002'],
     })
     expect(result.updated).toBe(2)
-    const arg = updateMany.mock.calls[0][0]
-    expect(arg.where.userId).toBe('u1')
-    expect(arg.where.id.in).toHaveLength(2)
-    expect(arg.where.readAt).toBeNull()
+    expect(notifMocks.markRead).toHaveBeenCalledWith('u1', {
+      ids: ['00000000-0000-0000-0000-000000000001', '00000000-0000-0000-0000-000000000002'],
+    })
   })
 })
 
 describe('notification.markAllRead', () => {
-  it('updates only own unread rows', async () => {
-    const updateMany = vi.fn().mockResolvedValue({ count: 5 })
-    const prisma = { notificationInApp: { updateMany } } as unknown as PrismaClient
+  it('delegates to domain.notifications.markAllRead and returns updated count', async () => {
+    notifMocks.markAllRead.mockResolvedValue({ updated: 5 })
+    const prisma = {} as unknown as PrismaClient
     const caller = createCallerFactory(notificationRouter)(ctx(prisma))
     const result = await caller.markAllRead()
     expect(result.updated).toBe(5)
-    const arg = updateMany.mock.calls[0][0]
-    expect(arg.where).toEqual({ userId: 'u1', readAt: null })
+    expect(notifMocks.markAllRead).toHaveBeenCalledWith('u1')
   })
 })
 
 describe('notification.deleteAll', () => {
-  it('deletes only the calling user rows', async () => {
-    const deleteMany = vi.fn().mockResolvedValue({ count: 4 })
-    const prisma = { notificationInApp: { deleteMany } } as unknown as PrismaClient
+  it('delegates to domain.notifications.deleteAll and returns deleted count', async () => {
+    notifMocks.deleteAll.mockResolvedValue({ deleted: 4 })
+    const prisma = {} as unknown as PrismaClient
     const caller = createCallerFactory(notificationRouter)(ctx(prisma))
     const result = await caller.deleteAll()
     expect(result.deleted).toBe(4)
-    expect(deleteMany).toHaveBeenCalledWith({ where: { userId: 'u1' } })
+    expect(notifMocks.deleteAll).toHaveBeenCalledWith('u1')
   })
 })
 

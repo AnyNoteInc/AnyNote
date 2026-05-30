@@ -5,6 +5,7 @@ import { NotificationCategory, NotificationChannel } from '@repo/db'
 import { EVENT_CATALOG } from '@repo/notifications'
 import * as domain from '@repo/domain'
 import { mapDomain } from '../helpers/map-domain'
+import { domain as domainSvc } from '../domain'
 
 import { router, protectedProcedure } from '../trpc'
 
@@ -55,15 +56,15 @@ export const notificationRouter = router({
   markRead: protectedProcedure
     .input(domain.markReadInput)
     .mutation(async ({ ctx, input }) => {
-      return mapDomain(() => domain.markRead(ctx.prisma, ctx.user.id, input))
+      return mapDomain(() => domainSvc.notifications.markRead(ctx.user.id, input))
     }),
 
   markAllRead: protectedProcedure.mutation(async ({ ctx }) => {
-    return mapDomain(() => domain.markAllRead(ctx.prisma, ctx.user.id))
+    return mapDomain(() => domainSvc.notifications.markAllRead(ctx.user.id))
   }),
 
   deleteAll: protectedProcedure.mutation(async ({ ctx }) => {
-    return mapDomain(() => domain.deleteAll(ctx.prisma, ctx.user.id))
+    return mapDomain(() => domainSvc.notifications.deleteAll(ctx.user.id))
   }),
 
   getPreferences: protectedProcedure.query(async ({ ctx }) => {
