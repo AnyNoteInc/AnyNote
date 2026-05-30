@@ -4,8 +4,7 @@ import json
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-from agents.apps.agent.events import ServerEvent
-from agents.apps.agent.schemas import AgentRunRequest
+from agents.apps.agent.schemas import AgentRunRequestSchema, ServerEventSchema
 from agents.apps.agent.use_cases.run_agent import RunAgentUseCase
 from langchain_core.messages import AIMessage
 from langgraph.checkpoint.memory import MemorySaver
@@ -56,7 +55,7 @@ async def test_run_agent_streams_router_decision_first() -> None:
     )
 
     context = make_context()
-    request = AgentRunRequest.model_validate({
+    request = AgentRunRequestSchema.model_validate({
         'chat_id': str(context.chat_id),
         'user_message': 'hi',
         'chat_history': [],
@@ -64,7 +63,7 @@ async def test_run_agent_streams_router_decision_first() -> None:
                   'connection': {'api_key': 'sk'}, 'settings': {}},
     })
 
-    events: list[ServerEvent] = []
+    events: list[ServerEventSchema] = []
     async for ev in use_case(request=request, context=context, jwt='jwt'):
         events.append(ev)
 

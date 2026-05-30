@@ -3,7 +3,7 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from agents.apps.agent.schemas import AgentResumeRequest
+from agents.apps.agent.schemas import AgentResumeRequestSchema
 from agents.apps.agent.use_cases.resume_agent import ResumeAgentUseCase
 
 from tests.apps.agent.factories import make_context
@@ -66,7 +66,7 @@ async def test_resume_runs_graph_when_confirmation_matches() -> None:
 
     use_case = _build_use_case()
 
-    request = AgentResumeRequest(
+    request = AgentResumeRequestSchema(
         chat_id=context.chat_id,
         confirmation_id=confirmation_id,
         action='allow',
@@ -92,7 +92,7 @@ async def test_resume_emits_error_on_confirmation_mismatch() -> None:
     fake_graph.aget_state = AsyncMock(return_value=fake_snap)
 
     use_case = _build_use_case()
-    request = AgentResumeRequest(
+    request = AgentResumeRequestSchema(
         chat_id=context.chat_id,
         confirmation_id='nonexistent',
         action='allow',

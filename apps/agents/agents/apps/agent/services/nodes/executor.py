@@ -11,7 +11,7 @@ from langchain_core.tools import StructuredTool
 
 from agents.apps.agent.enums import PlanStepStatus
 from agents.apps.agent.repositories import AgentJinjaRenderer
-from agents.apps.agent.schemas import AgentState, PlanStep
+from agents.apps.agent.schemas import AgentState, PlanStepSchema
 
 log = logging.getLogger(__name__)
 _PAGE_URL_RE = re.compile(
@@ -117,7 +117,7 @@ def _serialize_call(call: Any) -> dict[str, Any]:
     }
 
 
-def _current_step(state: AgentState) -> PlanStep | None:
+def _current_step(state: AgentState) -> PlanStepSchema | None:
     if state.current_step_id is None:
         return None
     for s in state.plan:
@@ -126,7 +126,7 @@ def _current_step(state: AgentState) -> PlanStep | None:
     return None
 
 
-def _mark_running(plan: list[PlanStep], step_id: str) -> list[PlanStep]:
+def _mark_running(plan: list[PlanStepSchema], step_id: str) -> list[PlanStepSchema]:
     return [
         s.model_copy(update={'status': PlanStepStatus.RUNNING})
         if s.id == step_id and s.status != PlanStepStatus.DONE
@@ -135,7 +135,7 @@ def _mark_running(plan: list[PlanStep], step_id: str) -> list[PlanStep]:
     ]
 
 
-def _mark_done(plan: list[PlanStep], step_id: str, *, summary: str) -> list[PlanStep]:
+def _mark_done(plan: list[PlanStepSchema], step_id: str, *, summary: str) -> list[PlanStepSchema]:
     return [
         s.model_copy(update={'status': PlanStepStatus.DONE, 'result_summary': summary})
         if s.id == step_id
@@ -144,7 +144,7 @@ def _mark_done(plan: list[PlanStep], step_id: str, *, summary: str) -> list[Plan
     ]
 
 
-def _next_pending(plan: list[PlanStep]) -> str | None:
+def _next_pending(plan: list[PlanStepSchema]) -> str | None:
     for s in plan:
         if s.status == PlanStepStatus.PENDING:
             return s.id

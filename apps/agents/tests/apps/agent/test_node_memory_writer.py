@@ -2,7 +2,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from agents.apps.agent.enums import AgentMemoryScope, CriticVerdict
-from agents.apps.agent.schemas import MemoryWrite
+from agents.apps.agent.schemas import MemoryWriteSchema
 from agents.apps.agent.services.nodes.memory_writer import memory_writer_node
 
 from tests.apps.agent.factories import make_state
@@ -15,7 +15,7 @@ async def test_memory_writer_persists_pending_writes_on_approve() -> None:
     state = state.model_copy(update={
         'critic_verdict': CriticVerdict.APPROVE,
         'pending_memory_writes': [
-            MemoryWrite(scope=AgentMemoryScope.WORKSPACE, key='k', content='c'),
+            MemoryWriteSchema(scope=AgentMemoryScope.WORKSPACE, key='k', content='c'),
         ],
     })
     out = await memory_writer_node(state, memory_client=fake_client, jwt='jwt')
@@ -30,7 +30,7 @@ async def test_memory_writer_skips_on_reject() -> None:
     state = state.model_copy(update={
         'critic_verdict': CriticVerdict.REJECT,
         'pending_memory_writes': [
-            MemoryWrite(scope=AgentMemoryScope.USER, key='k', content='c'),
+            MemoryWriteSchema(scope=AgentMemoryScope.USER, key='k', content='c'),
         ],
     })
     out = await memory_writer_node(state, memory_client=fake_client, jwt='jwt')

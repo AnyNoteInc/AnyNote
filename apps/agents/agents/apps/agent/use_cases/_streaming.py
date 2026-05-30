@@ -12,8 +12,7 @@ from typing import Any
 
 from langchain_core.runnables import RunnableConfig
 
-from agents.apps.agent.events import ServerEvent
-from agents.apps.agent.schemas import AgentState
+from agents.apps.agent.schemas import AgentState, ServerEventSchema
 
 
 async def stream_graph(
@@ -21,7 +20,7 @@ async def stream_graph(
     input: Any,
     config: RunnableConfig,
     initial_state: AgentState,
-) -> AsyncIterator[ServerEvent]:
+) -> AsyncIterator[ServerEventSchema]:
     """Stream ServerEvents from a compiled LangGraph graph.
 
     Handles both initial runs (input=AgentState) and resume runs
@@ -58,7 +57,7 @@ async def stream_graph(
 def _process_values_chunk(
     data: Any,
     last_plan_states: dict[str, str],
-) -> tuple[list[ServerEvent], dict[str, str]]:
+) -> tuple[list[ServerEventSchema], dict[str, str]]:
     try:
         state = AgentState.model_validate(data)
     except Exception:
@@ -92,12 +91,12 @@ async def _process_updates_chunk(
             yield ev
 
 
-def _interrupt_events(interrupts: Any) -> list[ServerEvent]:
-    out: list[ServerEvent] = []
+def _interrupt_events(interrupts: Any) -> list[ServerEventSchema]:
+    out: list[ServerEventSchema] = []
     for itr in interrupts:
         payload = getattr(itr, 'value', None) or {}
         if isinstance(payload, dict) and 'confirmation_id' in payload:
-            out.append(ServerEvent.confirmation_required(
+            out.append(ServerEventSchema.confirmation_required(
                 confirmation_id=str(payload['confirmation_id']),
                 tool=str(payload.get('tool', '')),
                 summary=str(payload.get('summary', '')),
@@ -106,33 +105,33 @@ def _interrupt_events(interrupts: Any) -> list[ServerEvent]:
     return out
 
 
-async def _yield_final_events(graph: Any, config: RunnableConfig) -> AsyncIterator[ServerEvent]:
+async def _yield_final_events(graph: Any, config: RunnableConfig) -> AsyncIterator[ServerEventSchema]:
     final_snap = await graph.aget_state(config)
     if not final_snap:
         return
     final = AgentState.model_validate(final_snap.values)
     if final.final_answer:
-        yield ServerEvent.token(final.final_answer)
+        yield ServerEventSchema.token(final.final_answer)
     for c in final.citations:
-        yield ServerEvent.citation(
+        yield ServerEventSchema.citation(
             page_id=c.page_id, workspace_id=c.workspace_id,
             block_number=c.block_number, title=c.title, quote=c.quote,
         )
 
 
-def _diff_plan_events(state: AgentState, last_states: dict[str, str]) -> list[ServerEvent]:
+def _diff_plan_events(state: AgentState, last_states: dict[str, str]) -> list[ServerEventSchema]:
     """Return plan_step events for steps that are new OR whose status changed
     since the last snapshot. The web translator upserts blocks by id, so
     re-emitting an existing step with a new status flips the UI block from
     Pending → Running → Done.
     """
-    out: list[ServerEvent] = []
+    out: list[ServerEventSchema] = []
     for idx, s in enumerate(state.plan):
         prev_status = last_states.get(s.id)
         if prev_status == s.status.value:
             continue
         out.append(
-            ServerEvent.plan_step(id=s.id, title=s.title, position=idx, status=s.status.value),
+            ServerEventSchema.plan_step(id=s.id, title=s.title, position=idx, status=s.status.value),
         )
     return out
 
@@ -141,17 +140,17 @@ async def _node_events(
     node_name: str,
     partial_data: dict[str, Any],
     initial_state: AgentState,
-) -> AsyncIterator[ServerEvent]:
+) -> AsyncIterator[ServerEventSchema]:
     """Yield per-node update events from updates-mode stream chunks."""
     merged = {**initial_state.model_dump(by_alias=True), **partial_data}
     state = AgentState.model_validate(merged)
     if node_name == 'router':
-        yield ServerEvent.router_decision(
+        yield ServerEventSchema.router_decision(
             kind=state.routing_kind.value,
             reason=state.last_critic_feedback or '',
         )
     if node_name == 'critic' and state.critic_verdict:
-        yield ServerEvent.critic_verdict(
+        yield ServerEventSchema.critic_verdict(
             verdict=state.critic_verdict.value,
             feedback=state.critic_feedback or '',
             revision_count=state.revision_count,

@@ -8,7 +8,7 @@ from langchain_core.messages import SystemMessage
 
 from agents.apps.agent.enums import PlanStepStatus
 from agents.apps.agent.repositories import AgentJinjaRenderer
-from agents.apps.agent.schemas import AgentState, PlanStep
+from agents.apps.agent.schemas import AgentState, PlanStepSchema
 
 log = logging.getLogger(__name__)
 
@@ -38,12 +38,12 @@ async def planner_node(
     })
 
 
-def _parse(text: str, *, fallback_title: str) -> list[PlanStep]:
+def _parse(text: str, *, fallback_title: str) -> list[PlanStepSchema]:
     try:
         data = json.loads(text)
         items = data.get('plan') or []
         return [
-            PlanStep(id=str(item['id']), title=str(item['title']),
+            PlanStepSchema(id=str(item['id']), title=str(item['title']),
                      status=PlanStepStatus.PENDING)
             for item in items if 'id' in item and 'title' in item
         ] or _fallback(fallback_title)
@@ -52,8 +52,8 @@ def _parse(text: str, *, fallback_title: str) -> list[PlanStep]:
         return _fallback(fallback_title)
 
 
-def _fallback(title: str) -> list[PlanStep]:
-    return [PlanStep(id='1', title=title, status=PlanStepStatus.PENDING)]
+def _fallback(title: str) -> list[PlanStepSchema]:
+    return [PlanStepSchema(id='1', title=title, status=PlanStepStatus.PENDING)]
 
 
 def _renderer() -> AgentJinjaRenderer:

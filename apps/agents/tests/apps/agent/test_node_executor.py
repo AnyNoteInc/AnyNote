@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock
 
 import pytest
 from agents.apps.agent.enums import PlanStepStatus
-from agents.apps.agent.schemas import PlanStep
+from agents.apps.agent.schemas import PlanStepSchema
 from agents.apps.agent.services.nodes.executor import executor_node
 from langchain_core.messages import AIMessage, ToolMessage
 
@@ -21,7 +21,7 @@ def _fake_llm(response: AIMessage) -> AsyncMock:
 @pytest.mark.asyncio
 async def test_executor_marks_step_done_on_plain_text_response() -> None:
     state = make_state(user_message='Q')
-    state.plan = [PlanStep(id='1', title='step', status=PlanStepStatus.RUNNING)]
+    state.plan = [PlanStepSchema(id='1', title='step', status=PlanStepStatus.RUNNING)]
     state.current_step_id = '1'
 
     out = await executor_node(state, llm=_fake_llm(AIMessage(content='готово')), tools=[])
@@ -35,8 +35,8 @@ async def test_executor_marks_step_done_on_plain_text_response() -> None:
 async def test_executor_advances_to_next_step() -> None:
     state = make_state()
     state.plan = [
-        PlanStep(id='1', title='a', status=PlanStepStatus.RUNNING),
-        PlanStep(id='2', title='b', status=PlanStepStatus.PENDING),
+        PlanStepSchema(id='1', title='a', status=PlanStepStatus.RUNNING),
+        PlanStepSchema(id='2', title='b', status=PlanStepStatus.PENDING),
     ]
     state.current_step_id = '1'
 
@@ -57,7 +57,7 @@ async def test_executor_saves_pending_tool_calls_when_ai_requests_tools() -> Non
     )
 
     state = make_state()
-    state.plan = [PlanStep(id='1', title='step', status=PlanStepStatus.RUNNING)]
+    state.plan = [PlanStepSchema(id='1', title='step', status=PlanStepStatus.RUNNING)]
     state.current_step_id = '1'
 
     out = await executor_node(state, llm=_fake_llm(ai), tools=[])
@@ -75,7 +75,7 @@ async def test_executor_saves_pending_tool_calls_when_ai_requests_tools() -> Non
 @pytest.mark.asyncio
 async def test_executor_returns_empty_pending_when_no_tool_calls() -> None:
     state = make_state()
-    state.plan = [PlanStep(id='1', title='step', status=PlanStepStatus.RUNNING)]
+    state.plan = [PlanStepSchema(id='1', title='step', status=PlanStepStatus.RUNNING)]
     state.current_step_id = '1'
 
     out = await executor_node(state, llm=_fake_llm(AIMessage(content='done')), tools=[])
@@ -86,7 +86,7 @@ async def test_executor_returns_empty_pending_when_no_tool_calls() -> None:
 async def test_executor_finishes_successful_create_page_without_extra_llm_call() -> None:
     url = '/workspaces/28531e45-1bf1-4640-90f2-12b9bd17f5f3/pages/96409533-ddbc-422e-941d-2c4d2abf3098'
     state = make_state(user_message='создай страницу о бане')
-    state.plan = [PlanStep(id='1', title='Create page', status=PlanStepStatus.RUNNING)]
+    state.plan = [PlanStepSchema(id='1', title='Create page', status=PlanStepStatus.RUNNING)]
     state.current_step_id = '1'
     state.messages = [
         AIMessage(

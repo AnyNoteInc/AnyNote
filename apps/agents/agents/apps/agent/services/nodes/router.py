@@ -9,7 +9,7 @@ from langchain_core.messages import SystemMessage
 
 from agents.apps.agent.enums import PlanStepStatus, RoutingKind
 from agents.apps.agent.repositories import AgentJinjaRenderer
-from agents.apps.agent.schemas import AgentState, PlanStep
+from agents.apps.agent.schemas import AgentState, PlanStepSchema
 
 log = logging.getLogger(__name__)
 
@@ -28,7 +28,7 @@ async def route_node(
     kind, reason = _parse(str(msg.content))
     update: dict[str, object] = {'routing_kind': kind, 'last_critic_feedback': reason}
     if kind == RoutingKind.TRIVIAL:
-        update['plan'] = [PlanStep(id=str(uuid4()), title=state.user_message,
+        update['plan'] = [PlanStepSchema(id=str(uuid4()), title=state.user_message,
                                     status=PlanStepStatus.PENDING)]
     return state.model_copy(update=update)
 

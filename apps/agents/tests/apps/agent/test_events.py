@@ -1,8 +1,8 @@
-from agents.apps.agent.events import ServerEvent
+from agents.apps.agent.schemas import ServerEventSchema
 
 
 def test_token_event_serializes() -> None:
-    e = ServerEvent.token('hello')
+    e = ServerEventSchema.token('hello')
     payload = e.model_dump(mode='json')
     assert payload['type'] == 'token'
     assert payload['text'] == 'hello'
@@ -10,7 +10,7 @@ def test_token_event_serializes() -> None:
 
 
 def test_confirmation_required_round_trips() -> None:
-    e = ServerEvent.confirmation_required(
+    e = ServerEventSchema.confirmation_required(
         confirmation_id='cid-1',
         tool='anynote__createPage',
         summary='Создать страницу X',
@@ -22,18 +22,18 @@ def test_confirmation_required_round_trips() -> None:
 
 
 def test_plan_step_with_status() -> None:
-    e = ServerEvent.plan_step(id='1', title='Найти страницы', position=0, status='pending')
+    e = ServerEventSchema.plan_step(id='1', title='Найти страницы', position=0, status='pending')
     payload = e.model_dump(mode='json')
     assert payload['status'] == 'pending'
     assert payload['position'] == 0
 
 
 def test_done_terminator() -> None:
-    e = ServerEvent.done()
+    e = ServerEventSchema.done()
     assert e.model_dump(mode='json')['type'] == 'done'
 
 
 def test_error_with_recoverable_flag() -> None:
-    e = ServerEvent.error('PROVIDER_ERROR', 'OpenAI down', recoverable=True)
+    e = ServerEventSchema.error('PROVIDER_ERROR', 'OpenAI down', recoverable=True)
     payload = e.model_dump(mode='json')
     assert payload['recoverable'] is True

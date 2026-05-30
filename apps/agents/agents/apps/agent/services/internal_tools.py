@@ -7,7 +7,7 @@ from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
 from agents.apps.agent.enums import AgentMemoryScope
-from agents.apps.agent.schemas import AgentState, MemoryWrite
+from agents.apps.agent.schemas import AgentState, MemoryWriteSchema
 
 # ── save_memory ──────────────────────────────────────────────────────────────
 
@@ -26,7 +26,7 @@ class _SaveMemoryArgs(BaseModel):
 
 
 def make_save_memory_tool(
-    pending: list[MemoryWrite],
+    pending: list[MemoryWriteSchema],
     *,
     memory_client: Any | None = None,
     jwt: str | None = None,
@@ -44,7 +44,7 @@ def make_save_memory_tool(
     async def call(**kwargs: Any) -> str:
         args = _SaveMemoryArgs(**kwargs)
         scope = AgentMemoryScope(args.scope)
-        pending.append(MemoryWrite(scope=scope, key=args.key, content=args.content))
+        pending.append(MemoryWriteSchema(scope=scope, key=args.key, content=args.content))
         if memory_client and jwt and workspace_id and user_id:
             try:
                 await memory_client.write_batch(

@@ -98,7 +98,7 @@ class PageWipeResponseSchema(RequestResponseSchema):
 ContentBlockSchema = BlockContentSchema
 
 
-class EmbeddingValidationRequest(RequestResponseSchema):
+class EmbeddingValidationRequestSchema(RequestResponseSchema):
     model_config = ConfigDict(populate_by_name=True)
 
     provider: ModelProviderEnum
@@ -106,7 +106,7 @@ class EmbeddingValidationRequest(RequestResponseSchema):
     connection: ModelConnectionSchema
 
 
-class EmbeddingValidationResponse(RequestResponseSchema):
+class EmbeddingValidationResponseSchema(RequestResponseSchema):
     model_config = ConfigDict(populate_by_name=True)
 
     ok: bool
