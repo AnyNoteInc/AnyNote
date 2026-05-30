@@ -10,6 +10,13 @@ const accessMocks = vi.hoisted(() => ({
   assertPageOwnership: vi.fn(async () => undefined),
 }))
 
+// Favorite writes now delegate to the @repo/domain createDomain singleton (../src/domain).
+// Positioning/reorder logic is unit-tested in @repo/domain; here we assert the wiring.
+const favoritesMock = vi.hoisted(() => ({
+  add: vi.fn(async () => ({ userId: '', pageId: '', position: 0 })),
+  reorder: vi.fn(async () => ({ ok: true as const })),
+}))
+
 vi.mock('@repo/auth', () => ({ getUserFromRequest: vi.fn() }))
 vi.mock('@repo/db', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@repo/db')>()
@@ -22,6 +29,9 @@ vi.mock('../src/helpers/page-access', () => ({
   assertWorkspaceMember: accessMocks.assertWorkspaceMember,
   assertPageAccess: accessMocks.assertPageAccess,
   assertPageOwnership: accessMocks.assertPageOwnership,
+}))
+vi.mock('../src/domain', () => ({
+  domain: { favorites: { add: favoritesMock.add, reorder: favoritesMock.reorder } },
 }))
 
 import type { PrismaClient } from '@repo/db'
@@ -50,49 +60,17 @@ const caller = createCallerFactory(pageRouter)
 
 // ── Tests: addFavorite position ──────────────────────────────────────────────
 
-describe('page.addFavorite — appends at tail', () => {
+describe('page.addFavorite', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('sets position = 0 when user has no existing favorites', async () => {
+  it('checks writable workspace, then delegates to domain.favorites.add', async () => {
     accessMocks.assertPageAccess.mockResolvedValue({ id: PAGE_A, workspaceId: WS_ID, createdById: USER_ID })
-    const upsert = vi.fn(async () => ({}))
-    const txFavorite = {
-      aggregate: vi.fn(async () => ({ _max: { position: null } })),
-      upsert,
-    }
-    const prisma = {
-      page: { findFirst: vi.fn(async () => ({ id: PAGE_A, workspaceId: WS_ID })) },
-      $transaction: vi.fn(async (fn: (tx: unknown) => unknown) =>
-        fn({ favoritePage: txFavorite }),
-      ),
-    }
+    const prisma = { page: { findFirst: vi.fn(async () => ({ id: PAGE_A, workspaceId: WS_ID })) } }
 
     await caller(ctx(prisma)).addFavorite({ pageId: PAGE_A })
 
-    expect(upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ create: expect.objectContaining({ position: 0 }) }),
-    )
-  })
-
-  it('sets position = max + 1 when favorites already exist', async () => {
-    accessMocks.assertPageAccess.mockResolvedValue({ id: PAGE_A, workspaceId: WS_ID, createdById: USER_ID })
-    const upsert = vi.fn(async () => ({}))
-    const txFavorite = {
-      aggregate: vi.fn(async () => ({ _max: { position: 4 } })),
-      upsert,
-    }
-    const prisma = {
-      page: { findFirst: vi.fn(async () => ({ id: PAGE_A, workspaceId: WS_ID })) },
-      $transaction: vi.fn(async (fn: (tx: unknown) => unknown) =>
-        fn({ favoritePage: txFavorite }),
-      ),
-    }
-
-    await caller(ctx(prisma)).addFavorite({ pageId: PAGE_A })
-
-    expect(upsert).toHaveBeenCalledWith(
-      expect.objectContaining({ create: expect.objectContaining({ position: 5 }) }),
-    )
+    expect(planMocks.requireWritableWorkspace).toHaveBeenCalledWith(WS_ID)
+    expect(favoritesMock.add).toHaveBeenCalledWith(USER_ID, { pageId: PAGE_A })
   })
 })
 
@@ -336,40 +314,15 @@ describe('page.reorder', () => {
 describe('page.reorderFavorites', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('updates position = index for each id in orderedIds', async () => {
-    const updateMany = vi.fn(async () => ({}))
-    const prisma = {
-      workspaceMember: { findUnique: vi.fn(async () => ({ workspaceId: WS_ID, userId: USER_ID, role: 'MEMBER' })) },
-      favoritePage: { updateMany },
-      $transaction: vi.fn(async (fns: unknown[]) =>
-        Promise.all(fns as Array<Promise<unknown>>),
-      ),
-    }
+  it('asserts workspace membership, then delegates to domain.favorites.reorder', async () => {
+    const orderedIds = [PAGE_C, PAGE_A, PAGE_B]
+    await caller(ctx({})).reorderFavorites({ workspaceId: WS_ID, orderedIds })
 
-    await caller(ctx(prisma)).reorderFavorites({
-      workspaceId: WS_ID,
-      orderedIds: [PAGE_C, PAGE_A, PAGE_B],
-    })
-
-    expect(updateMany).toHaveBeenCalledTimes(3)
-    expect(updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ pageId: PAGE_C, userId: USER_ID }),
-        data: { position: 0 },
-      }),
+    expect(accessMocks.assertWorkspaceMember).toHaveBeenCalledWith(
+      expect.objectContaining({ user: expect.objectContaining({ id: USER_ID }) }),
+      WS_ID,
     )
-    expect(updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ pageId: PAGE_A, userId: USER_ID }),
-        data: { position: 1 },
-      }),
-    )
-    expect(updateMany).toHaveBeenCalledWith(
-      expect.objectContaining({
-        where: expect.objectContaining({ pageId: PAGE_B, userId: USER_ID }),
-        data: { position: 2 },
-      }),
-    )
+    expect(favoritesMock.reorder).toHaveBeenCalledWith(USER_ID, { workspaceId: WS_ID, orderedIds })
   })
 
   it('rejects non-member', async () => {

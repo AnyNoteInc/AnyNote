@@ -9,6 +9,7 @@ import {
 } from '../helpers/page-access'
 import * as domain from '@repo/domain'
 import { mapDomain } from '../helpers/map-domain'
+import { domain as domainSvc } from '../domain'
 import { pageShareRouter } from './page-share'
 
 // ── Router ───────────────────────────────────────────────────────────────────
@@ -187,7 +188,7 @@ export const pageRouter = router({
     .mutation(async ({ ctx, input }) => {
       const page = await assertPageAccess(ctx, input.pageId)
       await requireWritableWorkspace(page.workspaceId)
-      return mapDomain(() => domain.addFavorite(ctx.prisma, ctx.user.id, input))
+      return mapDomain(() => domainSvc.favorites.add(ctx.user.id, input))
     }),
 
   removeFavorite: protectedProcedure
@@ -195,10 +196,10 @@ export const pageRouter = router({
     .mutation(async ({ ctx, input }) => {
       const page = await assertPageAccess(ctx, input.pageId)
       await requireWritableWorkspace(page.workspaceId)
-      // domain.removeFavorite returns { count } — tRPC callers expect { pageId },
+      // domain.favorites.remove returns { count } — tRPC callers expect { pageId },
       // so we delegate and then return the pageId ourselves.
       return mapDomain(async () => {
-        await domain.removeFavorite(ctx.prisma, ctx.user.id, input)
+        await domainSvc.favorites.remove(ctx.user.id, input)
         return { pageId: input.pageId }
       })
     }),
@@ -207,7 +208,7 @@ export const pageRouter = router({
     .input(domain.reorderFavoritesInput)
     .mutation(async ({ ctx, input }) => {
       await assertWorkspaceMember(ctx, input.workspaceId)
-      return mapDomain(() => domain.reorderFavorites(ctx.prisma, ctx.user.id, input))
+      return mapDomain(() => domainSvc.favorites.reorder(ctx.user.id, input))
     }),
 
   listFavorites: protectedProcedure

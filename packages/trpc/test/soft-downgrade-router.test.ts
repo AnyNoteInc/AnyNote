@@ -5,6 +5,11 @@ const planMocks = vi.hoisted(() => ({
   getActivePlanForUser: vi.fn(),
 }))
 
+// Favorite writes delegate to the @repo/domain createDomain singleton (../src/domain).
+const favoritesMock = vi.hoisted(() => ({
+  add: vi.fn(async () => ({ userId: '', pageId: '', position: 0 })),
+}))
+
 vi.mock('@repo/auth', () => ({
   getUserFromRequest: vi.fn(),
 }))
@@ -23,6 +28,9 @@ vi.mock('../src/helpers/plan', () => ({
   getActivePlanForUser: planMocks.getActivePlanForUser,
   getWorkspaceFeatures: vi.fn(),
   getAvailableAiModels: vi.fn(async () => []),
+}))
+vi.mock('../src/domain', () => ({
+  domain: { favorites: { add: favoritesMock.add } },
 }))
 
 import type { PrismaClient } from '@repo/db'
@@ -92,24 +100,17 @@ describe('soft-downgrade router guards', () => {
   })
 
   it('checks writable workspace before favorite writes by page id', async () => {
-    const txFavorite = {
-      aggregate: vi.fn(async () => ({ _max: { position: null } })),
-      upsert: vi.fn(async () => ({ userId: USER_ID, pageId: PAGE_ID })),
-    }
     const prisma = {
       page: {
         findFirst: vi.fn(async () => ({ id: PAGE_ID, workspaceId: WORKSPACE_ID })),
       },
-      $transaction: vi.fn(async (callback: (client: { favoritePage: typeof txFavorite }) => unknown) =>
-        callback({ favoritePage: txFavorite }),
-      ),
     } as unknown as PrismaClient
 
     const caller = createCallerFactory(pageRouter)(baseContext(prisma))
     await caller.addFavorite({ pageId: PAGE_ID })
 
     expect(planMocks.requireWritableWorkspace).toHaveBeenCalledWith(WORKSPACE_ID)
-    expect(txFavorite.upsert).toHaveBeenCalled()
+    expect(favoritesMock.add).toHaveBeenCalledWith(USER_ID, { pageId: PAGE_ID })
   })
 
   it('checks writable workspace before workspace.rename writes', async () => {
