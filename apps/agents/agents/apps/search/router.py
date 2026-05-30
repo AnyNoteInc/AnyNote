@@ -10,7 +10,7 @@ from .schemas import SearchRequestSchema, SearchResponseSchema, SearchResultSche
 router = APIRouter(prefix='/v1/search', tags=['Search'])
 
 
-@router.post('', response_model=SearchResponseSchema)
+@router.post('')
 @inject
 async def search_pages(
     payload: SearchRequestSchema,

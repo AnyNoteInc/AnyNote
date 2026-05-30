@@ -17,7 +17,7 @@ from agents.apps.processing.use_cases.validate_embedding import ValidateEmbeddin
 router = APIRouter(prefix='/validation', tags=['Validation'])
 
 
-@router.post('/llm', response_model=LlmValidationResponseSchema, dependencies=[Depends(verify_agents_service_token)])
+@router.post('/llm', dependencies=[Depends(verify_agents_service_token)])
 @inject
 async def validate_llm(
     payload: ModelConfigSchema,
@@ -26,9 +26,7 @@ async def validate_llm(
     return await use_case(payload)
 
 
-@router.post(
-    '/embedding', response_model=EmbeddingValidationResponseSchema, dependencies=[Depends(verify_agents_service_token)]
-)
+@router.post('/embedding', dependencies=[Depends(verify_agents_service_token)])
 @inject
 async def validate_embedding(
     payload: EmbeddingValidationRequestSchema,
@@ -37,7 +35,7 @@ async def validate_embedding(
     return await use_case(payload)
 
 
-@router.post('/mcp', response_model=McpValidationResponseSchema, dependencies=[Depends(verify_agents_service_token)])
+@router.post('/mcp', dependencies=[Depends(verify_agents_service_token)])
 @inject
 async def validate_mcp(
     payload: McpServerSchema,

@@ -14,7 +14,7 @@ from .use_cases import DeletePageVectorsUseCase, DeleteWorkspaceVectorsUseCase, 
 router = APIRouter(prefix='/vectorization', tags=['Vectorization'])
 
 
-@router.post('', response_model=VectorizationResponseSchema)
+@router.post('')
 @inject
 async def vectorize(
     payload: VectorizationRequestSchema,
@@ -23,7 +23,7 @@ async def vectorize(
     return await use_case(payload)
 
 
-@router.delete('/pages/{page_id}', response_model=PageWipeResponseSchema)
+@router.delete('/pages/{page_id}')
 @inject
 async def delete_page_vectors(
     page_id: str,
@@ -32,7 +32,7 @@ async def delete_page_vectors(
     return await use_case(page_id)
 
 
-@router.delete('/workspaces/{workspace_id}', response_model=WorkspaceWipeResponseSchema)
+@router.delete('/workspaces/{workspace_id}')
 @inject
 async def delete_workspace_vectors(
     workspace_id: str,
