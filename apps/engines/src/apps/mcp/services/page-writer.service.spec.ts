@@ -24,6 +24,7 @@ function makeFakeDomain(): Domain & {
     reminders: {} as Domain['reminders'],
     workspace: {} as Domain['workspace'],
     kanban: {} as Domain['kanban'],
+    billing: {} as Domain['billing'],
     __mocks: { pagesCreate, pagesReorder },
   }
 }

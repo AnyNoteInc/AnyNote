@@ -24,6 +24,7 @@ function makeFakeDomain(): Domain {
     workspace: {} as never,
     kanban: {} as Domain['kanban'],
     pages: {} as Domain['pages'],
+    billing: {} as Domain['billing'],
   }
 }
 
