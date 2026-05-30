@@ -1,8 +1,9 @@
 import { Inject, Injectable } from '@nestjs/common'
 import type { PrismaClient } from '@repo/db'
-import * as domain from '@repo/domain'
+import type { Domain } from '@repo/domain'
 
 import { PRISMA } from '../../../infra/db/db.providers.js'
+import { DOMAIN } from '../../../infra/domain/domain.providers.js'
 
 export type ListFavoritesInput = { userId: string; workspaceId?: string }
 export type AddFavoriteInput = { userId: string; workspaceId: string; pageId: string }
@@ -11,7 +12,10 @@ export type ReorderFavoritesInput = { userId: string; workspaceId: string; order
 
 @Injectable()
 export class FavoriteService {
-  constructor(@Inject(PRISMA) private readonly prisma: PrismaClient) {}
+  constructor(
+    @Inject(PRISMA) private readonly prisma: PrismaClient,
+    @Inject(DOMAIN) private readonly domain: Domain,
+  ) {}
 
   async list(input: ListFavoritesInput) {
     const rows = await this.prisma.favoritePage.findMany({
@@ -33,18 +37,18 @@ export class FavoriteService {
   }
 
   async add(input: AddFavoriteInput): Promise<{ ok: true }> {
-    await domain.addFavorite(this.prisma, input.userId, { pageId: input.pageId })
+    await this.domain.favorites.add(input.userId, { pageId: input.pageId })
     return { ok: true }
   }
 
   async remove(input: RemoveFavoriteInput): Promise<{ count: number }> {
-    // domain.removeFavorite returns { count } (no assertPageAccess). Engines MCP
+    // domain.favorites.remove returns { count } (no assertPageAccess). Engines MCP
     // callers get the deleteMany count; the tRPC wrapper maps this to { pageId } itself.
-    return domain.removeFavorite(this.prisma, input.userId, { pageId: input.pageId })
+    return this.domain.favorites.remove(input.userId, { pageId: input.pageId })
   }
 
   async reorder(input: ReorderFavoritesInput): Promise<{ ok: true }> {
-    return domain.reorderFavorites(this.prisma, input.userId, {
+    return this.domain.favorites.reorder(input.userId, {
       workspaceId: input.workspaceId,
       orderedIds: input.orderedIds,
     })

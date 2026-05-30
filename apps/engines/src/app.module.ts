@@ -11,12 +11,14 @@ import { NotifierModule } from './apps/notifier/notifier.module.js'
 import { AuthModule } from './auth/auth.module.js'
 import { HealthModule } from './health/health.module.js'
 import { DbModule } from './infra/db/db.module.js'
+import { DomainModule } from './infra/domain/domain.module.js'
 
 @Module({
   imports: [
     ConfigModule.forRoot({ isGlobal: true }),
     ScheduleModule.forRoot(),
     DbModule,
+    DomainModule,
     AuthModule,
     BillingModule,
     CleanupModule,
