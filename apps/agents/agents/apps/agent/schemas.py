@@ -50,7 +50,7 @@ class McpServerSchema(RequestResponseSchema):
     name: str
     description: str = ''
     url: str
-    transport: Literal['HTTP_JSONRPC', 'SSE'] = 'HTTP_JSONRPC'
+    transport: Literal['HTTP_JSONRPC', 'SSE', 'STREAMABLE_HTTP'] = 'HTTP_JSONRPC'
     tools: list[str] = Field(default_factory=list)
     headers: dict[str, str] = Field(default_factory=dict)
     retries: int = 3

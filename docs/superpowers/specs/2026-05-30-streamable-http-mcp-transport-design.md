@@ -18,7 +18,7 @@ That feature supports exactly two MCP transports:
 - `SSE` — the classic HTTP+SSE transport, opened with an HTTP `GET`.
 
 We want to add **Context7** (`https://mcp.context7.com/mcp`), which provides up-to-date library
-documentation as MCP tools (`resolve-library-id`, `get-library-docs`). Context7 speaks the **modern
+documentation as MCP tools (`resolve-library-id`, `query-docs`). Context7 speaks the **modern
 Streamable HTTP** transport, which neither existing transport can talk to.
 
 ### Evidence (live probes, 2026-05-30)
@@ -30,6 +30,13 @@ Streamable HTTP** transport, which neither existing transport can talk to.
 | `POST initialize` with `Accept: application/json, text/event-stream` + `Authorization: Bearer …` | `200`, `Content-Type: text/event-stream`, response header `mcp-session-id: <uuid>`, SSE body with `serverInfo {name: "Context7", version: "2.3.0"}` and `capabilities.tools` | Streamable HTTP handshake works; server is stateful and SSE-frames responses. |
 
 Conclusion: Context7 cannot be added with the current transports. We must add a third transport.
+
+**Hosted toolset (verified via the implemented client, 2026-05-30).** The hosted endpoint
+`https://mcp.context7.com/mcp` exposes exactly two tools — `resolve-library-id` and `query-docs`
+(NOT the older `get-library-docs` name some clients ship). `resolve-library-id` requires both
+`query` and `libraryName`; `query-docs` requires `libraryId` and `query`. Gate 2 (below) drove the
+real server through the new `STREAMABLE_HTTP` client and got 2176 chars of genuine Next.js App Router
+routing docs back, confirming the transport end-to-end without any LLM.
 
 ## Approach
 
@@ -124,9 +131,9 @@ via Prisma — the same "set up DB state the UI assumes" pattern the helper alre
 1. **Connection gate (no LLM key needed).** Drive the UI: Settings → MCP → Добавить сервер →
    name `context7`, URL `https://mcp.context7.com/mcp`, transport **Streamable HTTP**, headers
    `{"Authorization":"Bearer ctx7sk-…"}` → Save. Pass = the success alert lists discovered tools
-   (`resolve-library-id`, `get-library-docs`). Exercises transport + validation end-to-end.
+   (`resolve-library-id`, `query-docs`). Exercises transport + validation end-to-end.
 2. **Direct tool-call gate (no LLM key needed).** Invoke the agents `tools/call` path for
-   `get-library-docs` against a Next.js library id and assert real documentation text returns. Proves the
+   `query-docs` against a Next.js library id and assert real documentation text returns. Proves the
    *call* path independent of any LLM.
 3. **LLM chat gate (requires a working LLM key — provided by the user).** With a real LLM configured in
    Settings → AI, open a chat and ask *"Найди актуальную документацию по роутингу в Next.js"*. Assert via
