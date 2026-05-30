@@ -74,6 +74,48 @@ module.exports = {
       },
     },
     {
+      name: 'domain-dto-no-upward',
+      comment: 'Domain DTO layer imports nothing from repositories/services (data has no internal deps).',
+      severity: 'error',
+      from: { path: '^packages/domain/src/[^/]+/dto/' },
+      to: { path: '^packages/domain/src/[^/]+/(repositories|services)/' },
+    },
+    {
+      name: 'domain-dto-no-inversify',
+      comment: 'Domain DTO leaves stay client-safe — never import inversify.',
+      severity: 'error',
+      from: { path: '^packages/domain/src/[^/]+/dto/' },
+      to: { path: '^inversify($|/)' },
+    },
+    {
+      name: 'domain-repo-no-services',
+      comment: 'Domain repositories never import services (no upward edge).',
+      severity: 'error',
+      from: { path: '^packages/domain/src/[^/]+/repositories/' },
+      to: { path: '^packages/domain/src/[^/]+/services/' },
+    },
+    {
+      name: 'domain-services-no-db-value',
+      comment: 'Domain services never import @repo/db as a value (type-only ok) — I/O lives in repositories.',
+      severity: 'error',
+      from: { path: '^packages/domain/src/[^/]+/services/' },
+      to: { path: '^packages/db/', dependencyTypesNot: ['type-only'] },
+    },
+    {
+      name: 'domain-module-isolation',
+      comment: 'A domain module reaches another module only via its index.ts barrel or shared/, not deep internals.',
+      severity: 'error',
+      from: { path: '^packages/domain/src/([^/]+)/(dto|repositories|services)/' },
+      to: {
+        path: '^packages/domain/src/([^/]+)/',
+        pathNot: [
+          '^packages/domain/src/$1/',
+          '^packages/domain/src/shared/',
+          '^packages/domain/src/[^/]+/index\\.ts$',
+        ],
+      },
+    },
+    {
       name: 'ui-foundation-pure',
       comment: 'ui & diagram-board import no other @repo package.',
       severity: 'error',
