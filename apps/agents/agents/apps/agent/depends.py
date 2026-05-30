@@ -1,112 +1,19 @@
-from __future__ import annotations
-
-import base64
-import os
 from collections.abc import AsyncIterator
-from typing import Annotated
 
-import jwt
 from dishka import Provider, Scope, provide
 from fast_clean.repositories import SettingsRepositoryProtocol
-from fastapi import Header, HTTPException, status
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 
 from agents.apps.agent.repositories import ActionLogRepository, AgentJinjaRenderer, MemoryWriterClient
 from agents.apps.agent.repositories.mcp_client import McpClient
 from agents.apps.agent.repositories.model_factory import ModelFactoryRepository
 from agents.apps.agent.services.checkpoint_serde import build_checkpoint_serde
+from agents.apps.agent.services.jwt_verifier import JwtVerifierService
 from agents.apps.agent.services.rag_retrieval import RagRetrievalService
 from agents.apps.agent.use_cases.resume_agent import ResumeAgentUseCase
 from agents.apps.agent.use_cases.run_agent import RunAgentUseCase
 from agents.apps.agent.use_cases.validate_provider import ValidateLlmUseCase, ValidateMcpUseCase
 from agents.settings import SettingsSchema
-
-from .errors import JwtVerificationError
-from .schemas import AgentContext
-
-
-def _audience() -> str:
-    return os.environ.get('BETTER_AUTH_JWT_AGENTS_AUDIENCE', 'agents')
-
-
-def _secret() -> bytes:
-    raw = os.environ.get('AGENTS_JWT_SECRET')
-    if not raw:
-        raise JwtVerificationError('AGENTS_JWT_SECRET is not set')
-    key = base64.b64decode(raw)
-    if len(key) != 32:
-        raise JwtVerificationError('AGENTS_JWT_SECRET must decode to 32 bytes')
-    return key
-
-
-def _decode(token: str) -> dict[str, object]:
-    try:
-        return jwt.decode(
-            token,
-            _secret(),
-            algorithms=['HS256'],
-            audience=_audience(),
-        )
-    except jwt.PyJWTError as exc:
-        raise JwtVerificationError(str(exc)) from exc
-
-
-def claims_to_context(claims: dict[str, object]) -> AgentContext:
-    raw_scopes = claims.get('scopes', [])
-    scopes: frozenset[str] = frozenset(s for s in (raw_scopes if isinstance(raw_scopes, list) else []) if isinstance(s, str))
-    return AgentContext(
-        user_id=claims['sub'],
-        workspace_id=claims['wsid'],
-        chat_id=claims['cid'],
-        scopes=scopes,
-    )
-
-
-def verify_agents_jwt(
-    authorization: Annotated[str, Header()],
-) -> AgentContext:
-    """FastAPI dependency: verifies the agents JWT and returns the context."""
-    scheme, _, token = authorization.partition(' ')
-    if scheme.lower() != 'bearer' or not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail='missing bearer token',
-        )
-    try:
-        return claims_to_context(_decode(token))
-    except JwtVerificationError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(exc),
-        ) from exc
-
-
-def verify_agents_service_token(
-    authorization: Annotated[str, Header()],
-) -> None:
-    """FastAPI dependency for internal service calls (provider/MCP validation): verifies signature+audience only (no cid/scopes)."""
-    scheme, _, token = authorization.partition(' ')
-    if scheme.lower() != 'bearer' or not token:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail='missing bearer token',
-        )
-    try:
-        _decode(token)
-    except JwtVerificationError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(exc),
-        ) from exc
-
-
-# Test seam — bypasses Header dependency for direct test calls.
-def verify_agents_jwt_for_test(token: str) -> AgentContext:
-    return claims_to_context(_decode(token))
-
-
-def _web_url() -> str:
-    return os.environ.get('WEB_BASE_URL', 'http://localhost:3000')
 
 
 class AgentProvider(Provider):
@@ -118,12 +25,22 @@ class AgentProvider(Provider):
         return AgentJinjaRenderer(settings)
 
     @provide(scope=Scope.APP)
-    def action_log_repo(self) -> ActionLogRepository:
-        return ActionLogRepository(web_base_url=_web_url())
+    async def jwt_verifier(self, settings_repo: SettingsRepositoryProtocol) -> JwtVerifierService:
+        settings = await settings_repo.get(SettingsSchema)
+        return JwtVerifierService(
+            secret_b64=settings.agents_jwt_secret,
+            audience=settings.better_auth_jwt_agents_audience,
+        )
 
     @provide(scope=Scope.APP)
-    def memory_writer_client(self) -> MemoryWriterClient:
-        return MemoryWriterClient(web_base_url=_web_url())
+    async def action_log_repo(self, settings_repo: SettingsRepositoryProtocol) -> ActionLogRepository:
+        settings = await settings_repo.get(SettingsSchema)
+        return ActionLogRepository(web_base_url=settings.web_base_url)
+
+    @provide(scope=Scope.APP)
+    async def memory_writer_client(self, settings_repo: SettingsRepositoryProtocol) -> MemoryWriterClient:
+        settings = await settings_repo.get(SettingsSchema)
+        return MemoryWriterClient(web_base_url=settings.web_base_url)
 
     @provide(scope=Scope.APP)
     def mcp_client(self) -> McpClient:

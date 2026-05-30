@@ -7,9 +7,10 @@ from dishka.integrations.fastapi import FromDishka, inject
 from fastapi import APIRouter, Depends, Header, HTTPException, status
 from sse_starlette.sse import EventSourceResponse
 
-from .depends import verify_agents_jwt
+from .guards import verify_agents_jwt
 from .schemas import AgentContext, AgentResumeRequestSchema, AgentRunRequestSchema, ServerEventSchema
 from .use_cases import ResumeAgentUseCase, RunAgentUseCase
+from .utils import extract_bearer_token
 
 router = APIRouter(prefix='/agent', tags=['Agent'])
 
@@ -31,7 +32,7 @@ async def run(
 ) -> EventSourceResponse:
     if str(context.chat_id) != str(payload.chat_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='chat mismatch')
-    jwt_token = authorization.split(' ', 1)[1]
+    jwt_token = extract_bearer_token(authorization) or ''
     return EventSourceResponse(
         _serialize(use_case(request=payload, context=context, jwt=jwt_token)),
         ping=15,
@@ -48,7 +49,7 @@ async def resume(
 ) -> EventSourceResponse:
     if str(context.chat_id) != str(payload.chat_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail='chat mismatch')
-    jwt_token = authorization.split(' ', 1)[1]
+    jwt_token = extract_bearer_token(authorization) or ''
     return EventSourceResponse(
         _serialize(use_case(request=payload, context=context, jwt=jwt_token)),
         ping=15,

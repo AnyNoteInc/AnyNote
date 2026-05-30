@@ -5,7 +5,7 @@ from __future__ import annotations
 from dishka.integrations.fastapi import FromDishka, inject
 from fastapi import APIRouter, Depends
 
-from agents.apps.agent.depends import verify_agents_service_token
+from agents.apps.agent.guards import verify_agents_service_token
 from agents.apps.agent.schemas import (
     LlmValidationResponseSchema,
     McpServerSchema,

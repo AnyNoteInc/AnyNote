@@ -4,11 +4,21 @@ import time
 
 import jwt
 import pytest
-from agents.apps.agent.depends import verify_agents_service_token
+from agents.apps.agent.errors import JwtVerificationError
+from agents.apps.agent.guards import verify_agents_service_token
+from agents.apps.agent.services.jwt_verifier import JwtVerifierService
+from agents.apps.agent.utils import extract_bearer_token
 from fastapi import HTTPException
 
 # Ensure AGENTS_JWT_SECRET is available even if .env wasn't loaded
 os.environ.setdefault('AGENTS_JWT_SECRET', base64.b64encode(b'0' * 32).decode())
+
+
+def _verifier() -> JwtVerifierService:
+    return JwtVerifierService(
+        secret_b64=os.environ['AGENTS_JWT_SECRET'],
+        audience=os.environ.get('BETTER_AUTH_JWT_AGENTS_AUDIENCE', 'agents'),
+    )
 
 
 def _make_token(**overrides) -> str:
@@ -23,30 +33,62 @@ def _make_token(**overrides) -> str:
     return jwt.encode(claims, secret, algorithm='HS256')
 
 
-def test_accepts_valid_service_token() -> None:
-    # Should not raise; return value is None (-> None annotated)
-    verify_agents_service_token(f'Bearer {_make_token()}')
+class _FakeContainer:
+    def __init__(self, verifier: JwtVerifierService) -> None:
+        self._verifier = verifier
+
+    async def get(self, dependency_type):
+        return self._verifier
 
 
-def test_rejects_missing_token() -> None:
+class _FakeRequest:
+    def __init__(self, verifier: JwtVerifierService) -> None:
+        self.state = type('S', (), {'dishka_container': _FakeContainer(verifier)})()
+
+
+# --- service: verification matrix ---
+
+def test_service_accepts_valid_token() -> None:
+    _verifier().verify_service(_make_token())  # no raise
+
+
+def test_service_rejects_bad_signature() -> None:
+    with pytest.raises(JwtVerificationError):
+        _verifier().verify_service('not.a.jwt')
+
+
+def test_service_rejects_wrong_audience() -> None:
+    with pytest.raises(JwtVerificationError):
+        _verifier().verify_service(_make_token(aud='not-agents'))
+
+
+def test_service_rejects_expired_token() -> None:
+    with pytest.raises(JwtVerificationError):
+        _verifier().verify_service(_make_token(exp=int(time.time()) - 10))
+
+
+# --- util: bearer parsing ---
+
+def test_extract_bearer_token() -> None:
+    assert extract_bearer_token(f'Bearer {_make_token()}') is not None
+    assert extract_bearer_token('') is None
+    assert extract_bearer_token('Basic abc') is None
+
+
+# --- guard: HTTP 401 contract preserved ---
+
+async def test_guard_rejects_missing_token() -> None:
     with pytest.raises(HTTPException) as ei:
-        verify_agents_service_token('')
+        await verify_agents_service_token('', _FakeRequest(_verifier()))
     assert ei.value.status_code == 401
 
 
-def test_rejects_bad_signature() -> None:
+async def test_guard_rejects_bad_token() -> None:
     with pytest.raises(HTTPException) as ei:
-        verify_agents_service_token('Bearer not.a.jwt')
+        await verify_agents_service_token('Bearer not.a.jwt', _FakeRequest(_verifier()))
     assert ei.value.status_code == 401
 
 
-def test_rejects_wrong_audience() -> None:
-    with pytest.raises(HTTPException) as ei:
-        verify_agents_service_token(f'Bearer {_make_token(aud="not-agents")}')
-    assert ei.value.status_code == 401
-
-
-def test_rejects_expired_token() -> None:
-    with pytest.raises(HTTPException) as ei:
-        verify_agents_service_token(f'Bearer {_make_token(exp=int(time.time()) - 10)}')
-    assert ei.value.status_code == 401
+async def test_guard_accepts_valid_token() -> None:
+    # valid token → no HTTPException raised (guard returns None)
+    await verify_agents_service_token(f'Bearer {_make_token()}', _FakeRequest(_verifier()))
