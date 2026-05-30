@@ -1,4 +1,2 @@
-from .resume_agent import ResumeAgentUseCase
-from .run_agent import RunAgentUseCase
-
-__all__ = ['ResumeAgentUseCase', 'RunAgentUseCase']
+from .resume_agent import ResumeAgentUseCase as ResumeAgentUseCase
+from .run_agent import RunAgentUseCase as RunAgentUseCase
