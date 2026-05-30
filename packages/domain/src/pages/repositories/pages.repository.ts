@@ -1,53 +1,130 @@
 import { PageType, enqueueOutboxEvent } from '@repo/db'
-import type { Prisma, PrismaClient } from '@repo/db'
+import type { Prisma } from '@repo/db'
 
-import { badRequest, forbidden, notFound } from '../errors.ts'
-import { assertPageAccess, assertPageOwnership } from '../kanban/access.ts'
-import { seedKanbanDefaults } from '../kanban/seed.ts'
-import {
-  assertNotMovingIntoOwnDescendant,
-  assertNotReorderingIntoOwnDescendant,
-} from './ordering.ts'
+import { badRequest, notFound } from '../../shared/errors.ts'
+import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 import type {
+  CountResultDto,
+  CreatePageExtra,
   CreatePageInput,
-  DuplicatePageInput,
+  CreateResultDto,
   EmptyTrashInput,
   HardDeletePageInput,
   MovePageInput,
+  PageRowDto,
   RenamePageInput,
+  RenameResultDto,
   ReorderPageInput,
   RestorePageInput,
   SoftDeletePageInput,
   UpdatePageInput,
-} from './schemas.ts'
+} from '../dto/pages.dto.ts'
 
-/**
- * Engines passes ownership/content/contentYjs; tRPC passes only the schema subset.
- * createPage accepts the superset so both consumers share one positioning + outbox path.
- */
-export type CreatePageExtra = {
-  ownership?: 'TEXT' | 'SKILL' | 'AGENT'
-  content?: Prisma.InputJsonValue
-  contentYjs?: Uint8Array<ArrayBuffer>
-}
+export class PageRepository {
+  constructor(private readonly uow: UnitOfWork) {}
 
-export async function createPage(
-  prisma: PrismaClient,
-  actorUserId: string,
-  input: CreatePageInput & CreatePageExtra,
-): Promise<{ id: string }> {
-  // If parent is a page, verify it exists and belongs to the same workspace.
-  if (input.parentId) {
-    const parentPage = await prisma.page.findFirst({
-      where: { id: input.parentId, workspaceId: input.workspaceId, deletedAt: null },
+  // ── Access queries ────────────────────────────────────────────────────────────
+
+  async findAccessiblePage(userId: string, pageId: string): Promise<PageRowDto | null> {
+    const row = await this.uow.client().page.findFirst({
+      where: { id: pageId, workspace: { members: { some: { userId } } } },
+      select: {
+        id: true,
+        workspaceId: true,
+        createdById: true,
+        parentId: true,
+        prevPageId: true,
+        title: true,
+        icon: true,
+        type: true,
+        content: true,
+        contentYjs: true,
+        deletedAt: true,
+      },
     })
-    if (!parentPage) {
-      throw notFound('Родительская страница не найдена')
+    if (!row) return null
+    return {
+      id: row.id,
+      workspaceId: row.workspaceId,
+      createdById: row.createdById,
+      parentId: row.parentId,
+      prevPageId: row.prevPageId,
+      title: row.title,
+      icon: row.icon,
+      type: row.type,
+      content: row.content,
+      contentYjs: row.contentYjs,
+      deletedAt: row.deletedAt,
     }
   }
 
-  return prisma.$transaction(async (tx) => {
-    const newPage = await tx.page.create({
+  async findMembership(
+    userId: string,
+    workspaceId: string,
+  ): Promise<{ role: string } | null> {
+    return this.uow.client().workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      select: { role: true },
+    })
+  }
+
+  // ── Cycle-detection helpers (private; moved wholesale from ordering.ts) ───────
+
+  /**
+   * `move` cycle-detection: walk up from `newParentId` through `parentId` links.
+   * If we reach `pageId`, the move would nest a page inside its own descendant.
+   */
+  private async assertNotMovingIntoOwnDescendant(
+    pageId: string,
+    newParentId: string | null,
+  ): Promise<void> {
+    if (!newParentId) return
+    let currentId: string | null = newParentId
+    while (currentId) {
+      if (currentId === pageId) {
+        throw badRequest('Невозможно переместить страницу в собственного потомка')
+      }
+      const ancestor: { parentId: string | null } | null = await this.uow
+        .client()
+        .page.findFirst({
+          where: { id: currentId, deletedAt: null },
+          select: { parentId: true },
+        })
+      currentId = ancestor?.parentId ?? null
+    }
+  }
+
+  /**
+   * `reorder` cycle-detection: BFS down the descendant tree of `pageId`.
+   * If `newParentId` appears anywhere below `pageId`, reject the reorder.
+   */
+  private async assertNotReorderingIntoOwnDescendant(
+    pageId: string,
+    newParentId: string | null,
+  ): Promise<void> {
+    if (newParentId === null) return
+    let queue = [pageId]
+    while (queue.length > 0) {
+      const children = await this.uow.client().page.findMany({
+        where: { parentId: { in: queue }, deletedAt: null },
+        select: { id: true },
+      })
+      const childIds = children.map((c) => c.id)
+      if (childIds.includes(newParentId)) {
+        throw badRequest('Нельзя вложить страницу в собственного потомка')
+      }
+      queue = childIds
+    }
+  }
+
+  // ── Coarse operation methods (each = original tx body, tx → uow.client()) ────
+
+  async createPageTx(
+    actorUserId: string,
+    input: CreatePageInput & CreatePageExtra,
+    onKanban: (pageId: string) => Promise<void>,
+  ): Promise<CreateResultDto> {
+    const newPage = await this.uow.client().page.create({
       data: {
         workspaceId: input.workspaceId,
         parentId: input.parentId,
@@ -65,7 +142,7 @@ export async function createPage(
 
     // Insert at tail of linked list: find the sibling whose id is not
     // referenced as prevPageId by any other sibling (= the last one).
-    const siblings = await tx.page.findMany({
+    const siblings = await this.uow.client().page.findMany({
       where: {
         workspaceId: input.workspaceId,
         parentId: input.parentId,
@@ -80,14 +157,14 @@ export async function createPage(
       )
       const tail = siblings.find((s) => !prevPageIds.has(s.id))
       if (tail) {
-        await tx.page.update({
+        await this.uow.client().page.update({
           where: { id: newPage.id },
           data: { prevPageId: tail.id },
         })
       }
     }
 
-    await enqueueOutboxEvent(tx, {
+    await enqueueOutboxEvent(this.uow.client() as Prisma.TransactionClient, {
       eventType: 'page.upserted',
       aggregateType: 'page',
       aggregateId: newPage.id,
@@ -95,85 +172,72 @@ export async function createPage(
     })
 
     if (newPage.type === PageType.KANBAN) {
-      await seedKanbanDefaults(tx, newPage.id)
+      await onKanban(newPage.id)
     }
 
     return { id: newPage.id }
-  })
-}
-
-export async function renamePage(
-  prisma: PrismaClient,
-  actorUserId: string,
-  input: RenamePageInput,
-): Promise<{ id: string; title: string | null; icon: string | null; updatedAt: Date }> {
-  await assertPageOwnership(prisma, actorUserId, input.id)
-  const data: { title: string; icon?: string | null; updatedById: string } = {
-    title: input.title,
-    updatedById: actorUserId,
   }
-  if (input.icon !== undefined) data.icon = input.icon
-  return prisma.$transaction(async (tx) => {
-    const updated = await tx.page.update({
+
+  async renamePageTx(
+    actorUserId: string,
+    input: RenamePageInput,
+  ): Promise<RenameResultDto> {
+    const data: { title: string; icon?: string | null; updatedById: string } = {
+      title: input.title,
+      updatedById: actorUserId,
+    }
+    if (input.icon !== undefined) data.icon = input.icon
+    const updated = await this.uow.client().page.update({
       where: { id: input.id },
       data,
       select: { id: true, title: true, icon: true, updatedAt: true },
     })
-    await enqueueOutboxEvent(tx, {
+    await enqueueOutboxEvent(this.uow.client() as Prisma.TransactionClient, {
       eventType: 'page.upserted',
       aggregateType: 'page',
       aggregateId: updated.id,
       workspaceId: input.workspaceId,
     })
     return updated
-  })
-}
+  }
 
-export async function updatePage(
-  prisma: PrismaClient,
-  actorUserId: string,
-  input: UpdatePageInput,
-): Promise<{ id: string; title: string | null; icon: string | null; updatedAt: Date }> {
-  await assertPageOwnership(prisma, actorUserId, input.id)
-  const data: {
-    title?: string
-    icon?: string | null
-    type?: PageType
-    updatedById: string
-  } = { updatedById: actorUserId }
-  if (input.title !== undefined) data.title = input.title
-  if (input.icon !== undefined) data.icon = input.icon
-  if (input.type !== undefined) data.type = input.type
-  return prisma.$transaction(async (tx) => {
-    const updated = await tx.page.update({
+  async updatePageTx(
+    actorUserId: string,
+    input: UpdatePageInput,
+  ): Promise<RenameResultDto> {
+    const data: {
+      title?: string
+      icon?: string | null
+      type?: PageType
+      updatedById: string
+    } = { updatedById: actorUserId }
+    if (input.title !== undefined) data.title = input.title
+    if (input.icon !== undefined) data.icon = input.icon
+    if (input.type !== undefined) data.type = input.type
+    const updated = await this.uow.client().page.update({
       where: { id: input.id },
       data,
       select: { id: true, title: true, icon: true, updatedAt: true },
     })
-    await enqueueOutboxEvent(tx, {
+    await enqueueOutboxEvent(this.uow.client() as Prisma.TransactionClient, {
       eventType: 'page.upserted',
       aggregateType: 'page',
       aggregateId: updated.id,
       workspaceId: input.workspaceId,
     })
     return updated
-  })
-}
+  }
 
-export async function duplicatePage(
-  prisma: PrismaClient,
-  actorUserId: string,
-  input: DuplicatePageInput,
-): Promise<{ id: string }> {
-  const page = await assertPageAccess(prisma, actorUserId, input.pageId)
-
-  return prisma.$transaction(async (tx) => {
+  async duplicatePageTx(
+    actorUserId: string,
+    page: PageRowDto,
+  ): Promise<CreateResultDto> {
     // 1. Detach old next sibling first (prevPageId is unique)
-    const oldNext = await tx.page.findFirst({
+    const oldNext = await this.uow.client().page.findFirst({
       where: { prevPageId: page.id, deletedAt: null },
     })
     if (oldNext) {
-      await tx.page.update({
+      await this.uow.client().page.update({
         where: { id: oldNext.id },
         data: { prevPageId: null },
       })
@@ -182,7 +246,7 @@ export async function duplicatePage(
     // 2. Create copy with same parent, inserted after original. Copy both
     // the JSON snapshot AND the authoritative contentYjs bytes — the editor
     // loads from contentYjs, so without it the duplicate renders empty.
-    const copy = await tx.page.create({
+    const copy = await this.uow.client().page.create({
       data: {
         workspaceId: page.workspaceId,
         parentId: page.parentId,
@@ -199,13 +263,13 @@ export async function duplicatePage(
 
     // 3. Reattach old next sibling to point to copy
     if (oldNext) {
-      await tx.page.update({
+      await this.uow.client().page.update({
         where: { id: oldNext.id },
         data: { prevPageId: copy.id },
       })
     }
 
-    await enqueueOutboxEvent(tx, {
+    await enqueueOutboxEvent(this.uow.client() as Prisma.TransactionClient, {
       eventType: 'page.upserted',
       aggregateType: 'page',
       aggregateId: copy.id,
@@ -213,35 +277,29 @@ export async function duplicatePage(
     })
 
     return { id: copy.id }
-  })
-}
+  }
 
-export async function movePage(
-  prisma: PrismaClient,
-  actorUserId: string,
-  input: MovePageInput,
-): Promise<{ id: string }> {
-  const page = await assertPageAccess(prisma, actorUserId, input.pageId)
-  // Ownership: must be creator or workspace OWNER.
-  await assertPageOwnership(prisma, actorUserId, input.pageId)
-
-  return prisma.$transaction(async (tx) => {
+  async movePageTx(
+    actorUserId: string,
+    page: PageRowDto,
+    input: MovePageInput,
+  ): Promise<CreateResultDto> {
     // 1. Remove from old linked-list (detach first to avoid unique constraint)
-    const nextSibling = await tx.page.findFirst({
+    const nextSibling = await this.uow.client().page.findFirst({
       where: { prevPageId: page.id, deletedAt: null },
     })
     if (nextSibling) {
-      await tx.page.update({
+      await this.uow.client().page.update({
         where: { id: nextSibling.id },
         data: { prevPageId: null },
       })
     }
 
     // 2. Prevent moving into own descendant
-    await assertNotMovingIntoOwnDescendant(tx, input.pageId, input.newParentId)
+    await this.assertNotMovingIntoOwnDescendant(input.pageId, input.newParentId)
 
     // 3. Set new parentId
-    await tx.page.update({
+    await this.uow.client().page.update({
       where: { id: page.id },
       data: {
         parentId: input.newParentId,
@@ -252,14 +310,14 @@ export async function movePage(
 
     // Reattach next sibling to previous in old list
     if (nextSibling) {
-      await tx.page.update({
+      await this.uow.client().page.update({
         where: { id: nextSibling.id },
         data: { prevPageId: page.prevPageId },
       })
     }
 
     // 4. Insert at head of new parent's linked-list
-    const existingFirst = await tx.page.findFirst({
+    const existingFirst = await this.uow.client().page.findFirst({
       where: {
         workspaceId: page.workspaceId,
         parentId: input.newParentId,
@@ -269,13 +327,13 @@ export async function movePage(
       },
     })
     if (existingFirst) {
-      await tx.page.update({
+      await this.uow.client().page.update({
         where: { id: existingFirst.id },
         data: { prevPageId: page.id },
       })
     }
 
-    await enqueueOutboxEvent(tx, {
+    await enqueueOutboxEvent(this.uow.client() as Prisma.TransactionClient, {
       eventType: 'page.upserted',
       aggregateType: 'page',
       aggregateId: page.id,
@@ -283,59 +341,36 @@ export async function movePage(
     })
 
     return { id: page.id }
-  })
-}
-
-export async function reorderPage(
-  prisma: PrismaClient,
-  actorUserId: string,
-  input: ReorderPageInput,
-): Promise<{ id: string }> {
-  if (input.newPrevPageId === input.pageId) {
-    throw badRequest('Страница не может ссылаться на себя')
   }
 
-  const page = await prisma.page.findFirst({
-    where: { id: input.pageId, deletedAt: null },
-  })
-  if (!page) throw notFound('Страница не найдена')
-
-  const member = await prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId: page.workspaceId, userId: actorUserId } },
-  })
-  if (!member) throw forbidden('Вы не являетесь участником воркспейса')
-
-  if (page.parentId === input.newParentId && page.prevPageId === input.newPrevPageId) {
-    return { id: input.pageId }
-  }
-
-  // Cycle check: newParentId must not be a descendant of pageId
-  await assertNotReorderingIntoOwnDescendant(prisma, input.pageId, input.newParentId)
-
-  return prisma.$transaction(async (tx) => {
+  async reorderPageTx(
+    actorUserId: string,
+    page: PageRowDto,
+    input: ReorderPageInput,
+  ): Promise<CreateResultDto> {
     // Step 0: Lift the moved page out so its prev_page_id doesn't clash
     // with the next sibling adopting the same value in step 1
     // (prev_page_id is UNIQUE — two rows can't hold the same value).
     if (page.prevPageId !== null) {
-      await tx.page.update({
+      await this.uow.client().page.update({
         where: { id: input.pageId },
         data: { prevPageId: null },
       })
     }
 
     // Step 1: Detach — fix next sibling's back-pointer
-    const nextSibling = await tx.page.findFirst({
+    const nextSibling = await this.uow.client().page.findFirst({
       where: { prevPageId: input.pageId, deletedAt: null },
     })
     if (nextSibling) {
-      await tx.page.update({
+      await this.uow.client().page.update({
         where: { id: nextSibling.id },
         data: { prevPageId: page.prevPageId },
       })
     }
 
     // Step 2: Plug the gap at insert point
-    const pageAtInsertPoint = await tx.page.findFirst({
+    const pageAtInsertPoint = await this.uow.client().page.findFirst({
       where: {
         prevPageId: input.newPrevPageId,
         workspaceId: page.workspaceId,
@@ -345,14 +380,14 @@ export async function reorderPage(
       },
     })
     if (pageAtInsertPoint) {
-      await tx.page.update({
+      await this.uow.client().page.update({
         where: { id: pageAtInsertPoint.id },
         data: { prevPageId: input.pageId },
       })
     }
 
     // Step 3: Update the moved page to its final position
-    await tx.page.update({
+    await this.uow.client().page.update({
       where: { id: input.pageId },
       data: {
         parentId: input.newParentId,
@@ -361,7 +396,7 @@ export async function reorderPage(
       },
     })
 
-    await enqueueOutboxEvent(tx, {
+    await enqueueOutboxEvent(this.uow.client() as Prisma.TransactionClient, {
       eventType: 'page.upserted',
       aggregateType: 'page',
       aggregateId: input.pageId,
@@ -369,38 +404,35 @@ export async function reorderPage(
     })
 
     return { id: input.pageId }
-  })
-}
+  }
 
-export async function softDeletePage(
-  prisma: PrismaClient,
-  actorUserId: string,
-  input: SoftDeletePageInput,
-): Promise<{ id: string }> {
-  const page = await assertPageOwnership(prisma, actorUserId, input.id)
-  const now = new Date()
+  async softDeletePageTx(
+    actorUserId: string,
+    page: PageRowDto,
+    input: SoftDeletePageInput,
+  ): Promise<CreateResultDto> {
+    const now = new Date()
 
-  return prisma.$transaction(async (tx) => {
     // Remove page from linked list (detach first to avoid unique constraint)
-    const nextSibling = await tx.page.findFirst({
+    const nextSibling = await this.uow.client().page.findFirst({
       where: { prevPageId: page.id, deletedAt: null },
     })
     if (nextSibling) {
-      await tx.page.update({
+      await this.uow.client().page.update({
         where: { id: nextSibling.id },
         data: { prevPageId: null },
       })
     }
 
     // Soft-delete this page
-    await tx.page.update({
+    await this.uow.client().page.update({
       where: { id: page.id },
       data: { deletedAt: now, prevPageId: null, updatedById: actorUserId },
     })
 
     // Reattach next sibling to previous
     if (nextSibling) {
-      await tx.page.update({
+      await this.uow.client().page.update({
         where: { id: nextSibling.id },
         data: { prevPageId: page.prevPageId },
       })
@@ -410,7 +442,7 @@ export async function softDeletePage(
     // Use a loop to walk the tree breadth-first
     let parentIds: string[] = [page.id]
     while (parentIds.length > 0) {
-      const children = await tx.page.findMany({
+      const children = await this.uow.client().page.findMany({
         where: {
           parentId: { in: parentIds },
           deletedAt: null,
@@ -419,14 +451,14 @@ export async function softDeletePage(
       })
       if (children.length === 0) break
       const childIds = children.map((c) => c.id)
-      await tx.page.updateMany({
+      await this.uow.client().page.updateMany({
         where: { id: { in: childIds } },
         data: { deletedAt: now, updatedById: actorUserId },
       })
       parentIds = childIds
     }
 
-    await enqueueOutboxEvent(tx, {
+    await enqueueOutboxEvent(this.uow.client() as Prisma.TransactionClient, {
       eventType: 'page.deleted',
       aggregateType: 'page',
       aggregateId: page.id,
@@ -434,18 +466,14 @@ export async function softDeletePage(
     })
 
     return { id: page.id }
-  })
-}
+  }
 
-export async function restorePage(
-  prisma: PrismaClient,
-  actorUserId: string,
-  input: RestorePageInput,
-): Promise<{ id: string }> {
-  await assertPageOwnership(prisma, actorUserId, input.id)
-
-  return prisma.$transaction(async (tx) => {
-    const page = await tx.page.findFirst({
+  async restorePageTx(
+    actorUserId: string,
+    input: RestorePageInput,
+  ): Promise<CreateResultDto> {
+    // Interleaved check: must be inside the tx (woven into the I/O sequence)
+    const page = await this.uow.client().page.findFirst({
       where: { id: input.id, workspaceId: input.workspaceId },
     })
     if (!page || !page.deletedAt) {
@@ -456,7 +484,7 @@ export async function restorePage(
     let restoreParentId = page.parentId
 
     if (page.parentId) {
-      const parentPage = await tx.page.findFirst({
+      const parentPage = await this.uow.client().page.findFirst({
         where: { id: page.parentId, deletedAt: null },
       })
       if (!parentPage) {
@@ -466,7 +494,7 @@ export async function restorePage(
     }
 
     // Restore the page
-    await tx.page.update({
+    await this.uow.client().page.update({
       where: { id: page.id },
       data: {
         deletedAt: null,
@@ -477,7 +505,7 @@ export async function restorePage(
     })
 
     // Insert at start of linked list
-    const existingFirst = await tx.page.findFirst({
+    const existingFirst = await this.uow.client().page.findFirst({
       where: {
         workspaceId: input.workspaceId,
         parentId: restoreParentId,
@@ -487,7 +515,7 @@ export async function restorePage(
       },
     })
     if (existingFirst) {
-      await tx.page.update({
+      await this.uow.client().page.update({
         where: { id: existingFirst.id },
         data: { prevPageId: page.id },
       })
@@ -496,7 +524,7 @@ export async function restorePage(
     // Restore all descendants recursively
     let parentIds: string[] = [page.id]
     while (parentIds.length > 0) {
-      const children = await tx.page.findMany({
+      const children = await this.uow.client().page.findMany({
         where: {
           parentId: { in: parentIds },
           deletedAt: { not: null },
@@ -505,14 +533,14 @@ export async function restorePage(
       })
       if (children.length === 0) break
       const childIds = children.map((c) => c.id)
-      await tx.page.updateMany({
+      await this.uow.client().page.updateMany({
         where: { id: { in: childIds } },
         data: { deletedAt: null, updatedById: actorUserId },
       })
       parentIds = childIds
     }
 
-    await enqueueOutboxEvent(tx, {
+    await enqueueOutboxEvent(this.uow.client() as Prisma.TransactionClient, {
       eventType: 'page.upserted',
       aggregateType: 'page',
       aggregateId: page.id,
@@ -520,18 +548,13 @@ export async function restorePage(
     })
 
     return { id: page.id }
-  })
-}
+  }
 
-export async function hardDeletePage(
-  prisma: PrismaClient,
-  actorUserId: string,
-  input: HardDeletePageInput,
-): Promise<{ id: string }> {
-  await assertPageOwnership(prisma, actorUserId, input.id)
-
-  return prisma.$transaction(async (tx) => {
-    const page = await tx.page.findFirst({
+  async hardDeletePageTx(
+    input: HardDeletePageInput,
+  ): Promise<CreateResultDto> {
+    // Interleaved check: must be inside the tx (woven into the I/O sequence)
+    const page = await this.uow.client().page.findFirst({
       where: { id: input.id, workspaceId: input.workspaceId },
     })
     if (!page) {
@@ -539,20 +562,20 @@ export async function hardDeletePage(
     }
 
     // Remove from linked list if still linked
-    const nextSibling = await tx.page.findFirst({
+    const nextSibling = await this.uow.client().page.findFirst({
       where: { prevPageId: page.id },
     })
     if (nextSibling) {
-      await tx.page.update({
+      await this.uow.client().page.update({
         where: { id: nextSibling.id },
         data: { prevPageId: page.prevPageId },
       })
     }
 
     // Delete the page (cascade handles related rows)
-    await tx.page.delete({ where: { id: page.id } })
+    await this.uow.client().page.delete({ where: { id: page.id } })
 
-    await enqueueOutboxEvent(tx, {
+    await enqueueOutboxEvent(this.uow.client() as Prisma.TransactionClient, {
       eventType: 'page.deleted',
       aggregateType: 'page',
       aggregateId: page.id,
@@ -560,31 +583,18 @@ export async function hardDeletePage(
     })
 
     return { id: page.id }
-  })
-}
-
-export async function emptyTrash(
-  prisma: PrismaClient,
-  actorUserId: string,
-  input: EmptyTrashInput,
-): Promise<{ count: number }> {
-  const member = await prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId: input.workspaceId, userId: actorUserId } },
-  })
-  if (!member) throw forbidden('Вы не являетесь участником воркспейса')
-  if (member.role !== 'OWNER') {
-    throw forbidden('Только владелец может очистить корзину')
   }
-  return prisma.$transaction(async (tx) => {
-    const trashed = await tx.page.findMany({
+
+  async emptyTrashTx(input: EmptyTrashInput): Promise<CountResultDto> {
+    const trashed = await this.uow.client().page.findMany({
       where: { workspaceId: input.workspaceId, deletedAt: { not: null } },
       select: { id: true },
     })
-    const deleted = await tx.page.deleteMany({
+    const deleted = await this.uow.client().page.deleteMany({
       where: { workspaceId: input.workspaceId, deletedAt: { not: null } },
     })
     for (const { id } of trashed) {
-      await enqueueOutboxEvent(tx, {
+      await enqueueOutboxEvent(this.uow.client() as Prisma.TransactionClient, {
         eventType: 'page.deleted',
         aggregateType: 'page',
         aggregateId: id,
@@ -592,5 +602,26 @@ export async function emptyTrash(
       })
     }
     return { count: deleted.count }
-  })
+  }
+
+  // ── Pre-tx check: parent exists (used by service before opening tx) ─────────
+
+  async findParentPage(
+    parentId: string,
+    workspaceId: string,
+  ): Promise<{ id: string } | null> {
+    return this.uow.client().page.findFirst({
+      where: { id: parentId, workspaceId, deletedAt: null },
+      select: { id: true },
+    })
+  }
+
+  // ── Pre-tx cycle check for reorder (runs on base client, before tx) ─────────
+
+  async assertNotReorderingIntoOwnDescendantPreTx(
+    pageId: string,
+    newParentId: string | null,
+  ): Promise<void> {
+    return this.assertNotReorderingIntoOwnDescendant(pageId, newParentId)
+  }
 }
