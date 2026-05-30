@@ -1,18 +1,14 @@
 import type { PrismaClient } from '@repo/db'
-import { assertWorkspaceMembership as assertWorkspaceMembershipDomain } from '@repo/domain'
+import { domain } from '../domain'
 import { mapDomain } from './map-domain'
 
-export function assertWorkspaceMembership(
-  prisma: PrismaClient,
-  userId: string,
-  workspaceId: string,
-) {
-  return mapDomain(() => assertWorkspaceMembershipDomain(prisma, userId, workspaceId))
+export function assertWorkspaceMembership(userId: string, workspaceId: string) {
+  return mapDomain(() => domain.workspace.assertMembership(userId, workspaceId))
 }
 
 export async function assertWorkspaceMember(
   ctx: { prisma: PrismaClient; user: { id: string } },
   workspaceId: string,
 ) {
-  return assertWorkspaceMembership(ctx.prisma, ctx.user.id, workspaceId)
+  return assertWorkspaceMembership(ctx.user.id, workspaceId)
 }

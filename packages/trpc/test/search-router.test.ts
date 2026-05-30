@@ -1,5 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+const workspaceMocks = vi.hoisted(() => ({
+  assertWorkspaceMember: vi.fn(async () => ({ role: 'MEMBER' })),
+}))
+
+vi.mock('../src/helpers/workspace', () => workspaceMocks)
+
 vi.mock('@repo/db', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@repo/db')>()
   return { ...actual, prisma: {} }
@@ -33,10 +39,7 @@ function ctx(prisma: PrismaClient) {
 }
 
 function memberPrisma(extras: Partial<Record<string, unknown>> = {}): PrismaClient {
-  return {
-    workspaceMember: { findUnique: vi.fn(async () => ({ role: 'MEMBER' })) },
-    ...extras,
-  } as unknown as PrismaClient
+  return { ...extras } as unknown as PrismaClient
 }
 
 describe('search.search', () => {
@@ -78,10 +81,10 @@ describe('search.search', () => {
   })
 
   it('rejects non-members', async () => {
-    const prisma = {
-      workspaceMember: { findUnique: vi.fn(async () => null) },
-    } as unknown as PrismaClient
-    const caller = createCallerFactory(searchRouter)(ctx(prisma))
+    workspaceMocks.assertWorkspaceMember.mockRejectedValueOnce(
+      new Error('Вы не являетесь участником воркспейса'),
+    )
+    const caller = createCallerFactory(searchRouter)(ctx(memberPrisma()))
     await expect(caller.search({ workspaceId: WS, query: 'query' })).rejects.toThrow(/участник/)
   })
 
