@@ -14,15 +14,21 @@ import type { FavoriteService } from './favorites/services/favorites.service.ts'
 import { NOTIFICATIONS } from './notifications/notifications.tokens.ts'
 import { notificationsModule } from './notifications/notifications.module.ts'
 import type { NotificationService } from './notifications/services/notifications.service.ts'
+import type { DeliveryScheduler } from './reminders/reminders.ports.ts'
+import { REMINDERS } from './reminders/reminders.tokens.ts'
+import { remindersModule } from './reminders/reminders.module.ts'
+import type { ReminderService } from './reminders/services/reminders.service.ts'
 
 export interface DomainDeps {
   prisma: PrismaClient
+  scheduler: DeliveryScheduler
 }
 
 export interface Domain {
   workspace: WorkspaceService
   favorites: FavoriteService
   notifications: NotificationService
+  reminders: ReminderService
 }
 
 export function createDomainContainer(deps: DomainDeps): Container {
@@ -32,7 +38,8 @@ export function createDomainContainer(deps: DomainDeps): Container {
     (prisma) => new PrismaUnitOfWork(prisma as PrismaClient),
     [SHARED.Prisma],
   )
-  c.load(workspaceModule, favoritesModule, notificationsModule)
+  c.bind(REMINDERS.Scheduler).toConstantValue(deps.scheduler)
+  c.load(workspaceModule, favoritesModule, notificationsModule, remindersModule)
   return c
 }
 
@@ -42,5 +49,6 @@ export function createDomain(deps: DomainDeps): Domain {
     workspace: c.get<WorkspaceService>(WORKSPACE.Service),
     favorites: c.get<FavoriteService>(FAVORITES.Service),
     notifications: c.get<NotificationService>(NOTIFICATIONS.Service),
+    reminders: c.get<ReminderService>(REMINDERS.Service),
   }
 }

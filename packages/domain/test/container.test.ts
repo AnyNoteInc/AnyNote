@@ -2,6 +2,11 @@ import { describe, it, expect, vi } from 'vitest'
 import type { PrismaClient } from '@repo/db'
 
 import { createDomain } from '../src/container.ts'
+import type { DeliveryScheduler } from '../src/reminders/reminders.ports.ts'
+
+function makeScheduler(): DeliveryScheduler {
+  return { rebuild: vi.fn(async () => undefined), cancel: vi.fn(async () => undefined) }
+}
 
 function makePrisma() {
   return {
@@ -26,13 +31,13 @@ function makePrisma() {
 
 describe('createDomain', () => {
   it('resolves the workspace service from the container', () => {
-    const domain = createDomain({ prisma: makePrisma() })
+    const domain = createDomain({ prisma: makePrisma(), scheduler: makeScheduler() })
     expect(domain.workspace).toBeDefined()
     expect(typeof domain.workspace.assertMembership).toBe('function')
   })
 
   it('the resolved service performs a real membership check end-to-end', async () => {
-    const domain = createDomain({ prisma: makePrisma() })
+    const domain = createDomain({ prisma: makePrisma(), scheduler: makeScheduler() })
     await expect(domain.workspace.assertMembership('u1', 'w1')).resolves.toEqual({
       workspaceId: 'w1',
       userId: 'u1',
@@ -41,7 +46,7 @@ describe('createDomain', () => {
   })
 
   it('resolves the favorites service from the container', () => {
-    const domain = createDomain({ prisma: makePrisma() })
+    const domain = createDomain({ prisma: makePrisma(), scheduler: makeScheduler() })
     expect(domain.favorites).toBeDefined()
     expect(typeof domain.favorites.add).toBe('function')
     expect(typeof domain.favorites.remove).toBe('function')
@@ -49,10 +54,20 @@ describe('createDomain', () => {
   })
 
   it('resolves the notifications service from the container', () => {
-    const domain = createDomain({ prisma: makePrisma() })
+    const domain = createDomain({ prisma: makePrisma(), scheduler: makeScheduler() })
     expect(domain.notifications).toBeDefined()
     expect(typeof domain.notifications.markRead).toBe('function')
     expect(typeof domain.notifications.markAllRead).toBe('function')
     expect(typeof domain.notifications.deleteAll).toBe('function')
+  })
+
+  it('resolves the reminders service from the container', () => {
+    const domain = createDomain({ prisma: makePrisma(), scheduler: makeScheduler() })
+    expect(domain.reminders).toBeDefined()
+    expect(typeof domain.reminders.create).toBe('function')
+    expect(typeof domain.reminders.move).toBe('function')
+    expect(typeof domain.reminders.remove).toBe('function')
+    expect(typeof domain.reminders.complete).toBe('function')
+    expect(typeof domain.reminders.sync).toBe('function')
   })
 })
