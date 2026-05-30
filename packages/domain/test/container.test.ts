@@ -29,6 +29,7 @@ function makePrisma() {
   } as unknown as PrismaClient
 }
 
+
 describe('createDomain', () => {
   it('resolves the workspace service from the container', () => {
     const domain = createDomain({ prisma: makePrisma(), scheduler: makeScheduler() })
@@ -84,5 +85,20 @@ describe('createDomain', () => {
     expect(typeof domain.kanban.completeSprint).toBe('function')
     expect(typeof domain.kanban.createTaskComment).toBe('function')
     expect(typeof domain.kanban.seedDefaults).toBe('function')
+  })
+
+  it('resolves the pages service from the container', () => {
+    const domain = createDomain({ prisma: makePrisma(), scheduler: makeScheduler() })
+    expect(domain.pages).toBeDefined()
+    expect(typeof domain.pages.create).toBe('function')
+    expect(typeof domain.pages.rename).toBe('function')
+    expect(typeof domain.pages.update).toBe('function')
+    expect(typeof domain.pages.duplicate).toBe('function')
+    expect(typeof domain.pages.move).toBe('function')
+    expect(typeof domain.pages.reorder).toBe('function')
+    expect(typeof domain.pages.softDelete).toBe('function')
+    expect(typeof domain.pages.restore).toBe('function')
+    expect(typeof domain.pages.hardDelete).toBe('function')
+    expect(typeof domain.pages.emptyTrash).toBe('function')
   })
 })
