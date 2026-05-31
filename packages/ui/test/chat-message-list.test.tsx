@@ -5,6 +5,19 @@ import { CHAT_EMPTY_PHRASES } from '../src/components/chat/chat-empty-state'
 import { ChatMessageList } from '../src/components/chat/chat-message-list'
 
 describe('ChatMessageList', () => {
+  it('renders the message area with a transparent background (inherits the page canvas)', () => {
+    render(
+      <ChatMessageList
+        messages={[
+          { id: 'm1', parts: [{ type: 'text', text: 'Привет' }], role: 'assistant' },
+        ]}
+      />,
+    )
+    const list = screen.getByTestId('chat-message-list')
+    // jsdom normalises the `transparent` keyword to rgba(0, 0, 0, 0)
+    expect(getComputedStyle(list).backgroundColor).toBe('rgba(0, 0, 0, 0)')
+  })
+
   it('renders assistant content without a fallback Assistant label', () => {
     render(
       <ChatMessageList

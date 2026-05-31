@@ -163,6 +163,9 @@ export function ChatMessageList({
           )
         }}
         sx={{
+          // @mui/x-chat paints its root with palette.background.default (cream);
+          // the chat output area should inherit the white page canvas instead.
+          backgroundColor: 'transparent',
           flex: usesPageScroll ? 'none' : 1,
           minHeight: usesPageScroll ? 'auto' : 0,
           overflow: 'visible',
