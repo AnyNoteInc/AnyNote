@@ -215,4 +215,19 @@ describe('ChatComposer', () => {
     expect(sendButton.querySelector('[data-testid="ArrowUpwardIcon"]')).toBeTruthy()
     expect(sendButton.querySelector('[data-testid="SendRoundedIcon"]')).toBeNull()
   })
+
+  it('vertically centres the compact composer row', () => {
+    const { container } = render(
+      <ChatComposer
+        value=""
+        attachments={[]}
+        onValueChange={() => {}}
+        onAttachmentsChange={() => {}}
+        onSend={vi.fn()}
+      />,
+    )
+    const form = container.querySelector('.MuiChatComposer-variantCompact') as HTMLElement
+    expect(form).toBeTruthy()
+    expect(getComputedStyle(form).alignItems).toBe('center')
+  })
 })

@@ -189,7 +189,11 @@ function ChatComposerInner({
   const showChipsRow = showThinkingChip || composer.attachments.length > 0
 
   return (
-    <MuiChatComposer disabled={disabled} variant="compact">
+    <MuiChatComposer
+      disabled={disabled}
+      variant="compact"
+      sx={{ '&.MuiChatComposer-variantCompact': { alignItems: 'center' } }}
+    >
       {showChipsRow ? (
         <Stack direction="row" flexBasis="100%" flexWrap="wrap" gap={1}>
           {showThinkingChip ? (
