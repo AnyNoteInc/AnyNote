@@ -64,8 +64,9 @@ function getStatusLabel(message: ChatThreadMessage) {
 
 export function ChatMessageList({
   messages,
-  emptyTitle,
-  emptyDescription,
+  // emptyTitle / emptyDescription stay on the props type (still passed by
+  // ChatThread) but the empty state now shows a random greeting, so the list
+  // no longer threads fixed copy through to it.
   showEmptyState = true,
   scrollMode = 'internal',
   renderLink,
@@ -89,11 +90,7 @@ export function ChatMessageList({
         data-scroll-mode={scrollMode}
         data-testid="chat-message-list"
         items={providerMessages.map((message) => message.id)}
-        overlay={
-          showEmptyState && messages.length === 0 ? (
-            <ChatEmptyState description={emptyDescription} title={emptyTitle} />
-          ) : null
-        }
+        overlay={showEmptyState && messages.length === 0 ? <ChatEmptyState /> : null}
         renderItem={({ id, index }) => {
           const message = messages[index]
 

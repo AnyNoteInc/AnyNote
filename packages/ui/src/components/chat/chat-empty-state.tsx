@@ -1,44 +1,38 @@
 'use client'
 
-import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline'
-import Box from '@mui/material/Box'
 import Typography from '@mui/material/Typography'
+import { useEffect, useState } from 'react'
 
-type ChatEmptyStateProps = {
-  title?: string
-  description?: string
+export const CHAT_EMPTY_PHRASES = [
+  'Над чем ты работаешь?',
+  'Что у тебя сегодня на уме?',
+  'С чего начнём?',
+  'Готов, когда ты готов',
+] as const
+
+function pickPhrase(): string {
+  const index = Math.floor(Math.random() * CHAT_EMPTY_PHRASES.length)
+  // index is always in-bounds; the fallback only satisfies noUncheckedIndexedAccess.
+  return CHAT_EMPTY_PHRASES[index] ?? CHAT_EMPTY_PHRASES[0]
 }
 
-export function ChatEmptyState({
-  title = 'Сообщений пока нет',
-  description = 'Отправьте первое сообщение, чтобы начать диалог.',
-}: ChatEmptyStateProps) {
+export function ChatEmptyState() {
+  // SSR-safe random: render empty on first paint, choose on mount (matches
+  // ChatLoadingPhrases). Avoids a server/client text hydration mismatch.
+  const [phrase, setPhrase] = useState<string>('')
+  useEffect(() => {
+    setPhrase(pickPhrase())
+  }, [])
+
   return (
-    <Box
-      alignItems="center"
-      display="flex"
-      flexDirection="column"
-      gap={1.5}
-      justifyContent="center"
-      px={3}
-      py={6}
-      textAlign="center"
+    <Typography
+      align="center"
+      component="h2"
+      suppressHydrationWarning
+      sx={{ fontWeight: 400, px: 3 }}
+      variant="h5"
     >
-      <Box
-        alignItems="center"
-        borderRadius="50%"
-        display="flex"
-        height={56}
-        justifyContent="center"
-        sx={{ bgcolor: 'action.hover', color: 'text.secondary' }}
-        width={56}
-      >
-        <ChatBubbleOutlineIcon />
-      </Box>
-      <Typography variant="h6">{title}</Typography>
-      <Typography color="text.secondary" maxWidth={420} variant="body2">
-        {description}
-      </Typography>
-    </Box>
+      {phrase}
+    </Typography>
   )
 }
