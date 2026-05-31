@@ -146,7 +146,7 @@ export function createPendingMessagePair(args: {
   userMessageId: string
   text: string
   attachments: DraftAttachmentSummary[]
-}): ChatThreadMessage[] {
+}): [user: ChatThreadMessage, assistant: ChatThreadMessage] {
   const now = new Date().toISOString()
 
   return [
@@ -188,6 +188,56 @@ export function appendPendingMessagePair(
   })
 
   return [...withoutDuplicates, ...createPendingMessagePair(args)]
+}
+
+/**
+ * Reconciles an optimistically-inserted user/assistant pair with the real ids
+ * delivered by `message.created`. The optimistic messages were inserted with
+ * temporary ids the instant the user hit send; this swaps those temp ids for
+ * the server ids in place so streaming deltas/status/done (which key off the
+ * real assistant id) continue to target the same message objects — and so we
+ * never duplicate the pair. Messages are matched by their temp ids; any that
+ * are missing (e.g. the optimistic user message was already replaced) are left
+ * untouched.
+ */
+export function reconcileOptimisticIds(
+  messages: ChatThreadMessage[],
+  args: {
+    optimisticUserId: string
+    optimisticAssistantId: string
+    userMessageId: string
+    assistantMessageId: string
+  },
+): ChatThreadMessage[] {
+  return messages.map((message) => {
+    if (message.id === args.optimisticUserId) {
+      return { ...message, id: args.userMessageId }
+    }
+    if (message.id === args.optimisticAssistantId) {
+      return { ...message, id: args.assistantMessageId }
+    }
+    return message
+  })
+}
+
+/**
+ * Marks a single message as errored, surfacing `errorMessage` as a generated
+ * error tool-part (the same shape `updateAssistantStatus` produces for a
+ * terminal ERROR). Used to fail the optimistic assistant placeholder when the
+ * request never produced a stream, so we don't leave a dangling streaming
+ * bubble. No-op when the message id is not present.
+ */
+export function markAssistantErrored(
+  messages: ChatThreadMessage[],
+  assistantMessageId: string,
+  errorMessage: string,
+): ChatThreadMessage[] {
+  return updateAssistantStatus({
+    messages,
+    assistantMessageId,
+    status: 'ERROR',
+    errorMessage,
+  })
 }
 
 export function appendAssistantText(
