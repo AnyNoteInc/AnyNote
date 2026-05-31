@@ -204,7 +204,7 @@ class AgentState(BaseModel):
 
 EventType = Literal[
     'router_decision', 'plan_step', 'step_started', 'step_completed',
-    'token', 'tool_status', 'confirmation_required',
+    'token', 'thinking', 'tool_status', 'confirmation_required',
     'memory_write_proposed', 'critic_verdict', 'citation',
     'usage', 'done', 'error',
 ]
@@ -250,6 +250,10 @@ class ServerEventSchema(BaseModel):
     @classmethod
     def token(cls, text: str, step_id: str | None = None) -> Self:
         return cls(type='token', text=text, step_id=step_id)
+
+    @classmethod
+    def thinking(cls, text: str, step_id: str | None = None) -> Self:
+        return cls(type='thinking', text=text, step_id=step_id)
 
     @classmethod
     def router_decision(cls, kind: Literal['trivial', 'complex'], reason: str) -> Self:
