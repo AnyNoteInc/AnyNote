@@ -145,4 +145,21 @@ describe('ChatMessageContent', () => {
     expect(link.textContent).toBe('здесь')
     expect(screen.queryByText(href)).toBeNull()
   })
+
+  it('renders a user message without the timeline rail', () => {
+    const { container } = render(
+      <ChatMessageContent variant="user" parts={[{ type: 'text', text: 'Привет' }]} />,
+    )
+    expect(screen.getByText('Привет')).toBeTruthy()
+    // No MUI Timeline scaffolding for user messages.
+    expect(container.querySelector('.MuiTimeline-root')).toBeNull()
+    expect(container.querySelector('.MuiTimelineDot-root')).toBeNull()
+  })
+
+  it('still renders the assistant timeline by default', () => {
+    const { container } = render(
+      <ChatMessageContent parts={[{ type: 'text', text: 'Ответ' }]} />,
+    )
+    expect(container.querySelector('.MuiTimeline-root')).toBeTruthy()
+  })
 })

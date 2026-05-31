@@ -146,6 +146,7 @@ export function ChatMessageList({
                       onConfirm={onConfirm}
                       parts={message.parts}
                       renderLink={renderLink}
+                      variant={isUser ? 'user' : 'assistant'}
                     />
                   </Box>
                 )}
