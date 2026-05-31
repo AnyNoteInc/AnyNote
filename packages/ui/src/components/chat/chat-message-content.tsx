@@ -6,6 +6,7 @@ import ReactMarkdown from 'react-markdown'
 
 import { ChatFileChip } from './chat-file-chip'
 import { ChatServiceBlock } from './chat-service-block'
+import { ChatThinkingBlock } from './chat-thinking-block'
 import type { ChatConfirmHandler, ChatMessagePart } from './chat-types'
 
 export type ChatRenderLink = (href: string, children: ReactNode) => ReactNode
@@ -18,14 +19,16 @@ type ChatMessageContentProps = Readonly<{
 
 function getPartOrder(part: ChatMessagePart) {
   switch (part.type) {
-    case 'text':
+    case 'thinking':
       return 0
-    case 'tool':
+    case 'text':
       return 1
-    case 'attacment':
+    case 'tool':
       return 2
-    default:
+    case 'attacment':
       return 3
+    default:
+      return 4
   }
 }
 
@@ -49,6 +52,10 @@ export function ChatMessageContent({ parts, renderLink, onConfirm }: ChatMessage
   return (
     <Box display="flex" flexDirection="column" gap={1.25}>
       {sortedParts.map((part, index) => {
+        if (part.type === 'thinking') {
+          return <ChatThinkingBlock key={`${part.type}-${index}`} text={part.text} />
+        }
+
         if (part.type === 'text') {
           return (
             <Box

@@ -57,6 +57,23 @@ describe('ChatMessageContent', () => {
     )
   })
 
+  it('renders a thinking part via ChatThinkingBlock before the text', () => {
+    const { container } = render(
+      <ChatMessageContent
+        parts={[
+          { type: 'text', text: 'Финальный ответ' },
+          { type: 'thinking', text: 'Сначала я подумал об этом' },
+        ]}
+      />,
+    )
+
+    expect(screen.getByText('Размышления')).toBeTruthy()
+    expect(screen.getByText('Сначала я подумал об этом')).toBeTruthy()
+    expect(container.textContent?.indexOf('Размышления')).toBeLessThan(
+      container.textContent?.indexOf('Финальный ответ') ?? Number.POSITIVE_INFINITY,
+    )
+  })
+
   it('renders default <a> when renderLink is not provided', () => {
     const { container } = render(
       <ChatMessageContent parts={[{ type: 'text', text: '[link](/foo)' }]} />,

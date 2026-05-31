@@ -1,9 +1,7 @@
 'use client'
 
 import { ChatMessage, ChatMessageList as MuiChatMessageList } from '@mui/x-chat'
-import Avatar from '@mui/material/Avatar'
 import Box from '@mui/material/Box'
-import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import { ChatProvider } from '@mui/x-chat-headless'
 import { useMemo } from 'react'
@@ -47,10 +45,6 @@ function formatTimestamp(value: ChatThreadMessage['createdAt']) {
   return `${hours}:${minutes}`
 }
 
-function getAuthorLabel(message: ChatThreadMessage) {
-  return message.authorName?.trim() || null
-}
-
 function getStatusLabel(message: ChatThreadMessage) {
   if (!message.status) {
     return null
@@ -66,15 +60,6 @@ function getStatusLabel(message: ChatThreadMessage) {
     default:
       return message.status[0]?.toUpperCase() + message.status.slice(1)
   }
-}
-
-function getInitials(label: string) {
-  return label
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((token) => token[0]?.toUpperCase())
-    .join('')
 }
 
 export function ChatMessageList({
@@ -123,63 +108,59 @@ export function ChatMessageList({
             message.parts.length === 0
           const timestamp = formatTimestamp(message.createdAt)
           const status = getStatusLabel(message)
-          const label = getAuthorLabel(message)
-          const showAvatar = !isUser && Boolean(message.avatarUrl || label)
 
           return (
             <ChatMessage key={message.id} messageId={message.id}>
-              <Stack
-                alignItems={isUser ? 'flex-end' : 'flex-start'}
-                direction="row"
-                justifyContent={isUser ? 'flex-end' : 'flex-start'}
-                spacing={1.5}
-                width="100%"
+              <Box
+                sx={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  ml: isUser ? 'auto' : 0,
+                  maxWidth: isUser ? { xs: '100%', sm: '88%' } : '100%',
+                  width: isUser ? 'fit-content' : '100%',
+                }}
               >
-                {showAvatar ? (
-                  <Avatar alt={label ?? ''} src={message.avatarUrl} sx={{ width: 32, height: 32 }}>
-                    {label ? getInitials(label) : null}
-                  </Avatar>
+                {isEmptyStreamingAssistant ? null : (
+                  <Box
+                    suppressHydrationWarning
+                    sx={{
+                      color: 'text.primary',
+                      ...(isUser
+                        ? {
+                            bgcolor: 'action.hover',
+                            border: 1,
+                            borderColor: 'divider',
+                            borderRadius: 3,
+                            px: 2,
+                            py: 1.25,
+                          }
+                        : null),
+                      '& .MuiChatMessage-bubble': {
+                        backgroundColor: 'transparent',
+                        borderRadius: 0,
+                        padding: 0,
+                      },
+                    }}
+                  >
+                    <ChatMessageContent
+                      onConfirm={onConfirm}
+                      parts={message.parts}
+                      renderLink={renderLink}
+                    />
+                  </Box>
+                )}
+                {timestamp || status || isEmptyStreamingAssistant ? (
+                  <Typography
+                    color="text.secondary"
+                    mt={0.75}
+                    sx={{ alignSelf: isUser ? 'flex-end' : 'flex-start' }}
+                    variant="caption"
+                  >
+                    {timestamp ? `${timestamp} • ` : null}
+                    {isEmptyStreamingAssistant ? <ChatLoadingPhrases /> : status}
+                  </Typography>
                 ) : null}
-                <Box maxWidth={{ xs: '100%', sm: '85%', md: '76%' }}>
-                  {label ? (
-                    <Typography color="text.secondary" gutterBottom variant="caption">
-                      {label}
-                    </Typography>
-                  ) : null}
-                  {isEmptyStreamingAssistant ? null : (
-                    <Box
-                      suppressHydrationWarning
-                      sx={{
-                        bgcolor: isUser ? 'primary.main' : 'background.paper',
-                        border: 1,
-                        borderColor: isUser ? 'primary.main' : 'divider',
-                        borderRadius: 3,
-                        boxShadow: 1,
-                        color: isUser ? 'primary.contrastText' : 'text.primary',
-                        px: 1.5,
-                        py: 1.25,
-                        '& .MuiChatMessage-bubble': {
-                          backgroundColor: 'transparent',
-                          borderRadius: 0,
-                          padding: 0,
-                        },
-                      }}
-                    >
-                      <ChatMessageContent
-                        onConfirm={onConfirm}
-                        parts={message.parts}
-                        renderLink={renderLink}
-                      />
-                    </Box>
-                  )}
-                  {timestamp || status || isEmptyStreamingAssistant ? (
-                    <Typography color="text.secondary" mt={0.75} variant="caption">
-                      {timestamp ? `${timestamp} • ` : null}
-                      {isEmptyStreamingAssistant ? <ChatLoadingPhrases /> : status}
-                    </Typography>
-                  ) : null}
-                </Box>
-              </Stack>
+              </Box>
             </ChatMessage>
           )
         }}
