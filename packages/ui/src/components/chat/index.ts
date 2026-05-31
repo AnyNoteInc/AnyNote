@@ -1,4 +1,5 @@
 export * from './chat-composer'
+export * from './chat-confirm-inline'
 export * from './chat-empty-state'
 export * from './chat-file-chip'
 export * from './chat-loading-phrases'

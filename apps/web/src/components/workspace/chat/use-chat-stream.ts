@@ -5,7 +5,7 @@ import { useEffect, useEffectEvent, useRef, useState, startTransition } from 're
 import type { ChatThreadMessage } from '@repo/ui/components'
 
 import { decodeWebSseEvents } from '@/lib/chat/sse'
-import type { ConfirmationRequiredEvent, PlanStepEvent, WebChatSseEvent } from '@/lib/chat/types'
+import type { WebChatSseEvent } from '@/lib/chat/types'
 
 import {
   appendAssistantText,
@@ -29,8 +29,6 @@ type UseChatStreamArgs = {
   ensureChat?: () => Promise<string | null>
   initialMessages: ServerChatMessage[]
   onSettled?: () => void | Promise<void>
-  onPlanStep?: (event: PlanStepEvent) => void
-  onConfirmationRequired?: (event: ConfirmationRequiredEvent) => void
 }
 
 type StartSendArgs = PendingSend
@@ -44,8 +42,6 @@ export function useChatStream({
   ensureChat,
   initialMessages,
   onSettled,
-  onPlanStep,
-  onConfirmationRequired,
 }: UseChatStreamArgs) {
   const [error, setError] = useState<string | null>(null)
   const [isStreaming, setIsStreaming] = useState(false)
@@ -135,15 +131,11 @@ export function useChatStream({
         return
       }
 
-      case 'plan_step': {
-        onPlanStep?.(event)
+      // plan_step and confirmation_required events are no longer surfaced via
+      // callbacks: confirmations now render inline through message.service tool
+      // blocks (see ChatConfirmInline), and the plan panel was removed.
+      default:
         return
-      }
-
-      case 'confirmation_required': {
-        onConfirmationRequired?.(event)
-        return
-      }
     }
   })
 
