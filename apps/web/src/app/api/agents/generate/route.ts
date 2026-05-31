@@ -1,4 +1,5 @@
 import { FileStatus, prisma } from '@repo/db'
+import { storage } from '@repo/storage'
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { signAgentsJwt, type AgentsRole } from '@/lib/agents-token'
@@ -6,6 +7,7 @@ import { activeStreamRegistry } from '@/lib/chat/active-stream-registry'
 import { buildAgentRunPayload } from '@/lib/chat/agents-payload'
 import { buildEnginesMcpHeaders } from '@/lib/chat/engines-mcp-headers'
 import { buildChatHistoryMessages } from '@/lib/chat/chat-history'
+import { resolveAttachmentContents } from '@/lib/chat/file-content'
 import { decryptMcpHeadersMap } from '@/lib/decrypt-workspace-secrets'
 import {
   createAttacmentPart,
@@ -36,7 +38,14 @@ function parseBody(raw: unknown): StartChatGenerationBody {
   return { chatId: body.chatId, text: body.text.trim(), fileIds }
 }
 
-type ValidChatFile = { id: string; name: string; mimeType: string; fileSize: bigint }
+type ValidChatFile = {
+  id: string
+  name: string
+  ext: string
+  mimeType: string
+  fileSize: bigint
+  path: string
+}
 
 export async function POST(request: NextRequest): Promise<Response> {
   const session = await getSession()
@@ -71,7 +80,14 @@ export async function POST(request: NextRequest): Promise<Response> {
               userId: session.user.id,
               workspaceId: chat.workspaceId,
             },
-            select: { id: true, name: true, mimeType: true, fileSize: true },
+            select: {
+              id: true,
+              name: true,
+              ext: true,
+              mimeType: true,
+              fileSize: true,
+              path: true,
+            },
           })
         : (Promise.resolve([]) as Promise<ValidChatFile[]>),
       prisma.workspaceAiSettings.findUnique({
@@ -193,6 +209,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     return f ? [f] : []
   })
 
+  const resolvedAttachments = await resolveAttachmentContents(storage, orderedFiles)
+
   const { assistantMessage, userMessage } = await prisma.$transaction(async (tx) => {
     const userMessage = await tx.chatMessage.create({
       data: {
@@ -227,6 +245,9 @@ export async function POST(request: NextRequest): Promise<Response> {
     settings: settingsSnapshot,
     mcpServers: [enginesMcpServer, ...userMcpServers],
     longTermMemories,
+    attachments: resolvedAttachments,
+    // TODO(thinking): replaced in Task 7.8 with merged per-chat flag
+    reasoning: { enabled: false, effort: 'medium' },
   })
 
   const entry = activeStreamRegistry.create({
