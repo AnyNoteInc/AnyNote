@@ -6,6 +6,7 @@ SCOPE_WORKSPACES_READ = 'workspaces:read'
 SCOPE_PAGES_WRITE = 'pages:write'
 SCOPE_FILES_READ = 'files:read'
 SCOPE_FILES_WRITE = 'files:write'
+SCOPE_FILES_DELETE = 'files:delete'
 SCOPE_SEARCH_QUERY = 'search:query'
 SCOPE_MEMORY_READ = 'memory:read'
 SCOPE_MEMORY_WRITE = 'memory:write'
@@ -57,6 +58,10 @@ def _summary_create_page_from_file(args: dict[str, object]) -> str:
     return f'Создать страницу из файла {args.get("fileId")}'
 
 
+def _summary_delete_file(args: dict[str, object]) -> str:
+    return f'Безвозвратно удалить файл {args.get("fileId")}'
+
+
 def _summary_generic(name: str) -> Callable[[dict[str, object]], str]:
     return lambda args: f'Вызвать {name}({", ".join(args.keys())})'
 
@@ -84,6 +89,16 @@ DEFAULT_ENGINES_TOOLS: dict[str, ToolMeta] = {
                                     _summary_generic('listWorkspaceFiles'), _preview_default),
     'listPageFiles':     ToolMeta('listPageFiles', SCOPE_FILES_READ, False,
                                    _summary_generic('listPageFiles'), _preview_default),
+    'list_files':        ToolMeta('list_files', SCOPE_FILES_READ, False,
+                                   _summary_generic('list_files'), _preview_default),
+    'search_files':      ToolMeta('search_files', SCOPE_FILES_READ, False,
+                                   _summary_generic('search_files'), _preview_default),
+    'get_file_download_link': ToolMeta('get_file_download_link', SCOPE_FILES_READ, False,
+                                        _summary_generic('get_file_download_link'), _preview_default),
+    'get_file_content':  ToolMeta('get_file_content', SCOPE_FILES_READ, False,
+                                   _summary_generic('get_file_content'), _preview_default),
+    'delete_file':       ToolMeta('delete_file', SCOPE_FILES_DELETE, True,
+                                   _summary_delete_file, _preview_default),
     'search_pages':      ToolMeta('search_pages', SCOPE_SEARCH_QUERY, False,
                                    _summary_generic('search_pages'), _preview_default),
     'searchPagesByTitle': ToolMeta('searchPagesByTitle', SCOPE_PAGES_READ, False,
