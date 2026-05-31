@@ -79,28 +79,27 @@ describe('ChatThread', () => {
     expect(scrollTo).toHaveBeenLastCalledWith({ behavior: 'smooth', top: 1280 })
   })
 
-  it('fills the available height in page scroll mode so the composer stays at the bottom', () => {
+  it('fills the available height in page scroll mode', () => {
     render(
       <ChatThread
         composerAttachments={[]}
         composerValue=""
-        messages={[]}
+        messages={[{ id: 'm1', role: 'assistant', parts: [{ type: 'text', text: 'hi' }] }]}
         onComposerAttachmentsChange={() => {}}
         onComposerValueChange={() => {}}
         onSend={() => {}}
         scrollContainerSelector=".page-content-scroll"
-        scrollKey="chat-empty"
+        scrollKey="chat-1"
       />,
     )
 
     const thread = screen.getByTestId('chat-thread')
     const styles = getComputedStyle(thread)
-
     expect(styles.flexGrow).toBe('1')
     expect(styles.minHeight).toBe('0')
   })
 
-  it('renders the empty hint next to the composer instead of the top message area', () => {
+  it('centres the composer and shows a greeting when there are no messages', () => {
     render(
       <ChatThread
         composerAttachments={[]}
@@ -113,9 +112,25 @@ describe('ChatThread', () => {
         scrollKey="chat-empty"
       />,
     )
+    expect(screen.getByTestId('chat-empty-greeting')).toBeTruthy()
+    expect(screen.getByTestId('chat-composer-shell').getAttribute('data-sticky')).toBe('false')
+    expect(screen.getByText(/AnyNote это ИИ/)).toBeTruthy()
+  })
 
-    const composerShell = screen.getByTestId('chat-composer-shell')
-
-    expect(composerShell.textContent).toContain('Отправьте первое сообщение, чтобы начать диалог.')
+  it('drops the centred greeting once a message exists', () => {
+    render(
+      <ChatThread
+        composerAttachments={[]}
+        composerValue=""
+        messages={[{ id: 'm1', role: 'assistant', parts: [{ type: 'text', text: 'hi' }] }]}
+        onComposerAttachmentsChange={() => {}}
+        onComposerValueChange={() => {}}
+        onSend={() => {}}
+        scrollContainerSelector=".page-content-scroll"
+        scrollKey="chat-1"
+      />,
+    )
+    expect(screen.queryByTestId('chat-empty-greeting')).toBeNull()
+    expect(screen.getByTestId('chat-composer-shell').getAttribute('data-sticky')).toBe('true')
   })
 })
