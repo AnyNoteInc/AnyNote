@@ -37,7 +37,13 @@ export function isInlineTextType(ext: string): boolean {
 function truncateUtf8(text: string, maxBytes: number): string {
   const buf = Buffer.from(text, 'utf8')
   if (buf.length <= maxBytes) return text
-  return buf.subarray(0, maxBytes).toString('utf8')
+  // Back off to a UTF-8 character boundary so we never split a multibyte
+  // sequence (which would emit U+FFFD and could overshoot maxBytes).
+  let end = maxBytes
+  // UTF-8 continuation bytes match 0b10xxxxxx; step back over them and the
+  // lead byte of the partial character at the boundary.
+  while (end > 0 && ((buf[end] ?? 0) & 0xc0) === 0x80) end--
+  return buf.subarray(0, end).toString('utf8')
 }
 
 export async function extractTextFromFile(

@@ -19,10 +19,18 @@ describe('extractTextFromFile', () => {
     const out = await extractTextFromFile(buf, 'text/markdown', 'md', MAX_INLINE_FILE_BYTES)
     expect(out).toBe('# Hello\nworld')
   })
-  it('truncates to maxBytes', async () => {
+  it('truncates to maxBytes (ascii) by bytes', async () => {
     const buf = Buffer.from('a'.repeat(1000), 'utf8')
     const out = await extractTextFromFile(buf, 'text/plain', 'txt', 100)
-    expect(out.length).toBeLessThanOrEqual(100)
+    expect(Buffer.byteLength(out, 'utf8')).toBeLessThanOrEqual(100)
+  })
+  it('truncates multibyte content on a char boundary without U+FFFD', async () => {
+    // 'é' is 2 bytes in UTF-8; 50 of them = 100 bytes. Cap at 5 bytes → 2 full 'é' (4 bytes).
+    const buf = Buffer.from('é'.repeat(50), 'utf8')
+    const out = await extractTextFromFile(buf, 'text/plain', 'txt', 5)
+    expect(Buffer.byteLength(out, 'utf8')).toBeLessThanOrEqual(5)
+    expect(out).not.toContain('�')
+    expect(out).toBe('éé')
   })
   it('throws for unsupported binary', async () => {
     const buf = Buffer.from([0x00, 0x01, 0x02])
