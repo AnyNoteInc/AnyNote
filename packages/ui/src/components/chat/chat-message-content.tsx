@@ -38,6 +38,13 @@ function dotColorForPart(part: ChatMessagePart): TimelineDotColor {
   return part.type === 'tool' ? toolDotColor(part.state) : 'grey'
 }
 
+// Tool dots are filled so their state colour (grey/primary/error/warning) reads
+// at a glance — that colour IS the tool-state signal. Text/thinking dots stay
+// outlined-grey so they sit quietly on the timeline rail without competing.
+function dotVariantForPart(part: ChatMessagePart): 'filled' | 'outlined' {
+  return part.type === 'tool' ? 'filled' : 'outlined'
+}
+
 export function ChatMessageContent({ parts, renderLink, onConfirm }: ChatMessageContentProps) {
   const markdownComponents = renderLink
     ? {
@@ -59,7 +66,7 @@ export function ChatMessageContent({ parts, renderLink, onConfirm }: ChatMessage
         return (
           <TimelineItem key={part.type === 'tool' ? part.id : `${part.type}-${index}`}>
             <TimelineSeparator>
-              <TimelineDot color={dotColorForPart(part)} variant="outlined" />
+              <TimelineDot color={dotColorForPart(part)} variant={dotVariantForPart(part)} />
               {isLast ? null : <TimelineConnector />}
             </TimelineSeparator>
             <TimelineContent sx={{ pb: 1.25, pt: 0 }}>
