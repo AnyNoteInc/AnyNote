@@ -36,7 +36,7 @@ async def test_run_agent_streams_router_decision_first() -> None:
     fake_llm.ainvoke = fake_ainvoke
 
     use_case = RunAgentUseCase(
-        llm_factory=lambda model: fake_llm,
+        llm_factory=lambda model, reasoning=None: fake_llm,
         mcp_client=AsyncMock(
             discover_all=AsyncMock(return_value={}),
             build_langchain_tools=lambda d, s: [],

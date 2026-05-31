@@ -39,6 +39,13 @@ class ModelConfigSchema(RequestResponseSchema):
     settings: ModelSettingsSchema = Field(default_factory=ModelSettingsSchema)
 
 
+class ReasoningConfigSchema(RequestResponseSchema):
+    model_config = ConfigDict(populate_by_name=True)
+
+    enabled: bool = False
+    effort: Literal['low', 'medium', 'high'] = 'medium'
+
+
 class ConversationMessageSchema(RequestResponseSchema):
     role: RoleEnum
     content: str
@@ -147,6 +154,7 @@ class AgentRunRequestSchema(BaseModel):
     long_term_memories: Annotated[list[MemoryItemSchema], Field(default_factory=list)]
     allow_destructive: bool = False
     attachments: Annotated[list[AttachmentSchema], Field(default_factory=list)]
+    reasoning: ReasoningConfigSchema = Field(default_factory=ReasoningConfigSchema)
 
     model_config = ConfigDict(populate_by_name=True)
 
