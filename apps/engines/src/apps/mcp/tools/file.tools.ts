@@ -8,9 +8,14 @@ import { z } from 'zod'
 import { PRISMA } from '../../../infra/db/db.providers.js'
 import { assertMember } from '../../api/auth/membership.js'
 import type { AuthContext, AuthedRequest } from '../../api/auth/auth-context.js'
-import { FileNotFoundError } from '../errors/mcp.errors.js'
+import { FileNotFoundError, FileTooLargeError } from '../errors/mcp.errors.js'
 import { STORAGE } from '../services/file-uploader.service.js'
 import { mcpInput, mcpUuid } from '../utils/mcp-input.js'
+
+// Hard ceiling on bytes we will pull from storage into memory for text extraction.
+// Generous vs MAX_INLINE_FILE_BYTES (256KB) so real PDFs/DOCX still extract, but
+// bounded so an agent can't make us buffer a multi-hundred-MB object.
+const MAX_READABLE_FILE_BYTES = 20 * 1024 * 1024 // 20 MB
 
 const ListFilesInput = z.object({
   workspaceId: z.string().uuid(),
@@ -149,9 +154,9 @@ export class FileTools {
   @Tool({
     name: 'get_file_download_link',
     description:
-      'Возвращает ссылку для скачивания файла рабочего пространства и ' +
-      'увеличивает счётчик загрузок. Вызывай когда пользователь просит ' +
-      '"дай ссылку на файл", "скачать документ", "ссылку для загрузки". ' +
+      'Возвращает ссылку для скачивания файла рабочего пространства. ' +
+      'Вызывай когда пользователь просит "дай ссылку на файл", ' +
+      '"скачать документ", "ссылку для загрузки". ' +
       'Параметры: workspaceId (uuid), fileId (uuid).',
     parameters: FileIdInput,
   })
@@ -166,10 +171,9 @@ export class FileTools {
       select: { id: true },
     })
     if (!file) throw new FileNotFoundError(args.fileId)
-    await this.prisma.file.update({
-      where: { id: file.id },
-      data: { downloadCount: { increment: 1 } },
-    })
+    // Do NOT increment downloadCount here: GET /api/files/[id] already increments
+    // on every actual download. Counting on link generation would double-count and
+    // also count links that are never followed.
     return { url: `/api/files/${file.id}` }
   }
 
@@ -191,9 +195,15 @@ export class FileTools {
     await assertMember(this.prisma, auth.userId, args.workspaceId)
     const file = await this.prisma.file.findFirst({
       where: { id: args.fileId, workspaceId: args.workspaceId, status: 'ACTIVE' },
-      select: { id: true, mimeType: true, ext: true, path: true },
+      select: { id: true, mimeType: true, ext: true, path: true, fileSize: true },
     })
     if (!file) throw new FileNotFoundError(args.fileId)
+    // Bound the read BEFORE touching storage: the workspace quota is per-workspace
+    // (up to 20GB), not a per-file cap, so refuse pathological files instead of
+    // buffering the whole object into the engines process for extraction.
+    if (file.fileSize > BigInt(MAX_READABLE_FILE_BYTES)) {
+      throw new FileTooLargeError(Number(file.fileSize), MAX_READABLE_FILE_BYTES)
+    }
     const bytes = await streamToBuffer(await this.storage.get(file.path))
     const content = await extractTextFromFile(bytes, file.mimeType, file.ext, args.maxBytes)
     return { content }
@@ -222,6 +232,9 @@ export class FileTools {
       select: { id: true, path: true },
     })
     if (!file) throw new FileNotFoundError(args.fileId)
+    // Delete the S3 object before the DB row: an orphaned object is recoverable
+    // garbage, whereas a row pointing at a missing object 404s every future read.
+    // PageFile/TaskAttachment rows cascade-delete with the File (schema onDelete: Cascade).
     await this.storage.delete(file.path)
     await this.prisma.file.delete({ where: { id: file.id } })
     return { deleted: true as const, fileId: file.id }

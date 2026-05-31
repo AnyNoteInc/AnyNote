@@ -7,7 +7,7 @@ import type { PrismaClient } from '@repo/db'
 import { MAX_INLINE_FILE_BYTES, type StorageClient } from '@repo/storage'
 
 import type { AuthedRequest } from '../../api/auth/auth-context.js'
-import { FileNotFoundError } from '../errors/mcp.errors.js'
+import { FileNotFoundError, FileTooLargeError } from '../errors/mcp.errors.js'
 import { FileTools } from './file.tools.js'
 
 describe('FileTools', () => {
@@ -114,7 +114,7 @@ describe('FileTools', () => {
     })
   })
 
-  it('get_file_download_link increments downloadCount and returns url', async () => {
+  it('get_file_download_link returns url without incrementing downloadCount', async () => {
     fileFindFirstMock.mockResolvedValue({ id: fileId })
 
     const res = await tools.getFileDownloadLink({ workspaceId, fileId }, {} as never, req)
@@ -124,10 +124,9 @@ describe('FileTools', () => {
       where: { id: fileId, workspaceId, status: 'ACTIVE' },
       select: { id: true },
     })
-    expect(mockPrisma.file.update).toHaveBeenCalledWith({
-      where: { id: fileId },
-      data: { downloadCount: { increment: 1 } },
-    })
+    // GET /api/files/[id] already increments on real downloads; counting here
+    // would double-count and count links that are never followed.
+    expect(mockPrisma.file.update).not.toHaveBeenCalled()
   })
 
   it('get_file_download_link throws when file missing', async () => {
@@ -144,6 +143,7 @@ describe('FileTools', () => {
       mimeType: 'text/markdown',
       ext: 'md',
       path: 'k1',
+      fileSize: 5n,
     })
 
     const res = await tools.getFileContent(
@@ -156,8 +156,27 @@ describe('FileTools', () => {
     expect(storageGetMock).toHaveBeenCalledWith('k1')
     expect(mockPrisma.file.findFirst).toHaveBeenCalledWith({
       where: { id: fileId, workspaceId, status: 'ACTIVE' },
-      select: { id: true, mimeType: true, ext: true, path: true },
+      select: { id: true, mimeType: true, ext: true, path: true, fileSize: true },
     })
+  })
+
+  it('get_file_content rejects an oversized file before reading storage', async () => {
+    fileFindFirstMock.mockResolvedValue({
+      id: fileId,
+      mimeType: 'text/markdown',
+      ext: 'md',
+      path: 'k1',
+      fileSize: BigInt(50 * 1024 * 1024),
+    })
+
+    await expect(
+      tools.getFileContent(
+        { workspaceId, fileId, maxBytes: MAX_INLINE_FILE_BYTES },
+        {} as never,
+        req,
+      ),
+    ).rejects.toBeInstanceOf(FileTooLargeError)
+    expect(storageGetMock).not.toHaveBeenCalled()
   })
 
   it('get_file_content throws when file missing', async () => {
