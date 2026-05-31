@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 
+import { CHAT_EMPTY_PHRASES } from '../src/components/chat/chat-empty-state'
 import { ChatMessageList } from '../src/components/chat/chat-message-list'
 
 describe('ChatMessageList', () => {
@@ -64,11 +65,11 @@ describe('ChatMessageList', () => {
     expect(screen.getByText('08:05 • Отправлено')).toBeTruthy()
   })
 
-  it('renders the empty state in Russian', () => {
+  it('renders one of the empty-state greeting phrases', async () => {
     render(<ChatMessageList messages={[]} />)
 
-    expect(screen.getByText('Сообщений пока нет')).toBeTruthy()
-    expect(screen.getByText('Отправьте первое сообщение, чтобы начать диалог.')).toBeTruthy()
+    const heading = await screen.findByRole('heading')
+    expect(CHAT_EMPTY_PHRASES).toContain(heading.textContent)
   })
 
   it('injects a css rule that strips the inner assistant bubble background', () => {

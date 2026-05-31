@@ -25,6 +25,7 @@ type ChatMessageContentProps = Readonly<{
   parts: ChatMessagePart[]
   renderLink?: ChatRenderLink
   onConfirm?: ChatConfirmHandler
+  variant?: 'assistant' | 'user'
 }>
 
 function linkifyWorkspacePageReferences(text: string): string {
@@ -45,13 +46,69 @@ function dotVariantForPart(part: ChatMessagePart): 'filled' | 'outlined' {
   return part.type === 'tool' ? 'filled' : 'outlined'
 }
 
-export function ChatMessageContent({ parts, renderLink, onConfirm }: ChatMessageContentProps) {
+export function ChatMessageContent({
+  parts,
+  renderLink,
+  onConfirm,
+  variant = 'assistant',
+}: ChatMessageContentProps) {
   const markdownComponents = renderLink
     ? {
         a: ({ href, children }: { href?: string; children?: ReactNode }) =>
           href ? <>{renderLink(href, children)}</> : <>{children}</>,
       }
     : undefined
+
+  const renderPartBody = (part: ChatMessagePart): ReactNode => {
+    if (part.type === 'thinking') return <ChatThinkingBlock text={part.text} />
+    if (part.type === 'text') {
+      return (
+        <Box
+          sx={{
+            '& code': { bgcolor: 'action.hover', borderRadius: 1, px: 0.5, py: 0.125 },
+            '& ol, & ul': { m: 0, pl: 3 },
+            '& p': { m: 0 },
+            '& p + p': { mt: 1 },
+            '& pre': {
+              bgcolor: 'grey.100',
+              borderRadius: 2,
+              m: 0,
+              overflowX: 'auto',
+              p: 1,
+            },
+            '& strong': { fontWeight: 600 },
+            overflowWrap: 'anywhere',
+          }}
+        >
+          <ReactMarkdown components={markdownComponents}>
+            {linkifyWorkspacePageReferences(part.text)}
+          </ReactMarkdown>
+        </Box>
+      )
+    }
+    if (part.type === 'attacment') {
+      return (
+        <ChatFileChip href={part.downloadUrl} name={part.name} secondaryLabel={part.fileSize} />
+      )
+    }
+    if (part.type === 'tool') {
+      return <ChatServiceBlock onConfirm={onConfirm} part={part} />
+    }
+    return null
+  }
+
+  const keyFor = (part: ChatMessagePart, index: number) =>
+    part.type === 'tool' ? part.id : `${part.type}-${index}`
+
+  if (variant === 'user') {
+    return (
+      <Box>
+        {parts.map((part, index) => (
+          <Box key={keyFor(part, index)}>{renderPartBody(part)}</Box>
+        ))}
+      </Box>
+    )
+  }
 
   return (
     <Timeline
@@ -64,47 +121,12 @@ export function ChatMessageContent({ parts, renderLink, onConfirm }: ChatMessage
       {parts.map((part, index) => {
         const isLast = index === parts.length - 1
         return (
-          <TimelineItem key={part.type === 'tool' ? part.id : `${part.type}-${index}`}>
+          <TimelineItem key={keyFor(part, index)}>
             <TimelineSeparator>
               <TimelineDot color={dotColorForPart(part)} variant={dotVariantForPart(part)} />
               {isLast ? null : <TimelineConnector />}
             </TimelineSeparator>
-            <TimelineContent sx={{ pb: 1.25, pt: 0 }}>
-              {part.type === 'thinking' ? <ChatThinkingBlock text={part.text} /> : null}
-              {part.type === 'text' ? (
-                <Box
-                  sx={{
-                    '& code': { bgcolor: 'action.hover', borderRadius: 1, px: 0.5, py: 0.125 },
-                    '& ol, & ul': { m: 0, pl: 3 },
-                    '& p': { m: 0 },
-                    '& p + p': { mt: 1 },
-                    '& pre': {
-                      bgcolor: 'grey.100',
-                      borderRadius: 2,
-                      m: 0,
-                      overflowX: 'auto',
-                      p: 1,
-                    },
-                    '& strong': { fontWeight: 600 },
-                    overflowWrap: 'anywhere',
-                  }}
-                >
-                  <ReactMarkdown components={markdownComponents}>
-                    {linkifyWorkspacePageReferences(part.text)}
-                  </ReactMarkdown>
-                </Box>
-              ) : null}
-              {part.type === 'attacment' ? (
-                <ChatFileChip
-                  href={part.downloadUrl}
-                  name={part.name}
-                  secondaryLabel={part.fileSize}
-                />
-              ) : null}
-              {part.type === 'tool' ? (
-                <ChatServiceBlock onConfirm={onConfirm} part={part} />
-              ) : null}
-            </TimelineContent>
+            <TimelineContent sx={{ pb: 0.5, pt: 0 }}>{renderPartBody(part)}</TimelineContent>
           </TimelineItem>
         )
       })}

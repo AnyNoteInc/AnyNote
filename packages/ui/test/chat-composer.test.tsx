@@ -83,7 +83,9 @@ describe('ChatComposer', () => {
         onValueChange={() => {}}
         onAttachmentsChange={() => {}}
         onSend={vi.fn()}
-        recentFiles={[{ id: 'file-1', name: 'brief.pdf', fileSize: '12', mimeType: 'application/pdf' }]}
+        recentFiles={[
+          { id: 'file-1', name: 'brief.pdf', fileSize: '12', mimeType: 'application/pdf' },
+        ]}
         onAttachRecent={onAttachRecent}
       />,
     )
@@ -199,5 +201,155 @@ describe('ChatComposer', () => {
 
     await user.click(within(chip).getByTestId('CancelIcon'))
     expect(onClearThinking).toHaveBeenCalledTimes(1)
+  })
+
+  it('renders the Thinking switch and the Усилия dots stepper in the slash menu', async () => {
+    render(
+      <ChatComposer
+        value="/"
+        attachments={[]}
+        onValueChange={() => {}}
+        onAttachmentsChange={() => {}}
+        onSend={vi.fn()}
+        reasoningSupported
+        thinking={{ effort: 'MEDIUM' }}
+        onSelectThinking={vi.fn()}
+        onClearThinking={vi.fn()}
+      />,
+    )
+    expect(await screen.findByTestId('chat-slash-thinking-toggle')).toBeTruthy()
+    expect(document.querySelector('.MuiMobileStepper-dots')).toBeTruthy()
+    expect(screen.getByText(/Усилия/)).toBeTruthy()
+  })
+
+  it('turns thinking OFF when the switch is toggled while active', async () => {
+    const user = userEvent.setup()
+    const onClearThinking = vi.fn()
+    render(
+      <ChatComposer
+        value="/"
+        attachments={[]}
+        onValueChange={() => {}}
+        onAttachmentsChange={() => {}}
+        onSend={vi.fn()}
+        reasoningSupported
+        thinking={{ effort: 'MEDIUM' }}
+        onSelectThinking={vi.fn()}
+        onClearThinking={onClearThinking}
+      />,
+    )
+    const toggle = await screen.findByTestId('chat-slash-thinking-toggle')
+    await user.click(toggle)
+    expect(onClearThinking).toHaveBeenCalledTimes(1)
+  })
+
+  it('turns thinking ON with MEDIUM when the switch is toggled while inactive', async () => {
+    const user = userEvent.setup()
+    const onSelectThinking = vi.fn()
+    render(
+      <ChatComposer
+        value="/"
+        attachments={[]}
+        onValueChange={() => {}}
+        onAttachmentsChange={() => {}}
+        onSend={vi.fn()}
+        reasoningSupported
+        onSelectThinking={onSelectThinking}
+        onClearThinking={vi.fn()}
+      />,
+    )
+    const toggle = await screen.findByTestId('chat-slash-thinking-toggle')
+    await user.click(toggle)
+    expect(onSelectThinking).toHaveBeenCalledWith('MEDIUM')
+  })
+
+  it('selects an effort level by clicking its dot', async () => {
+    const user = userEvent.setup()
+    const onSelectThinking = vi.fn()
+    render(
+      <ChatComposer
+        value="/"
+        attachments={[]}
+        onValueChange={() => {}}
+        onAttachmentsChange={() => {}}
+        onSend={vi.fn()}
+        reasoningSupported
+        thinking={{ effort: 'MEDIUM' }}
+        onSelectThinking={onSelectThinking}
+        onClearThinking={vi.fn()}
+      />,
+    )
+    const high = await screen.findByTestId('chat-slash-thinking-high')
+    await user.click(high)
+    expect(onSelectThinking).toHaveBeenCalledWith('HIGH')
+  })
+
+  it('marks the active effort dot with aria-pressed', async () => {
+    render(
+      <ChatComposer
+        value="/"
+        attachments={[]}
+        onValueChange={() => {}}
+        onAttachmentsChange={() => {}}
+        onSend={vi.fn()}
+        reasoningSupported
+        thinking={{ effort: 'MEDIUM' }}
+        onSelectThinking={vi.fn()}
+        onClearThinking={vi.fn()}
+      />,
+    )
+    const medium = await screen.findByTestId('chat-slash-thinking-medium')
+    const high = await screen.findByTestId('chat-slash-thinking-high')
+    expect(medium.getAttribute('aria-pressed')).toBe('true')
+    expect(high.getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('gives the Thinking switch an accessible name', async () => {
+    render(
+      <ChatComposer
+        value="/"
+        attachments={[]}
+        onValueChange={() => {}}
+        onAttachmentsChange={() => {}}
+        onSend={vi.fn()}
+        reasoningSupported
+        thinking={{ effort: 'MEDIUM' }}
+        onSelectThinking={vi.fn()}
+        onClearThinking={vi.fn()}
+      />,
+    )
+    // the switch input is reachable by its accessible name now (MUI's Switch input
+    // carries role="switch", so it is exposed as a switch rather than a checkbox)
+    expect(screen.getByRole('switch', { name: /thinking/i })).toBeTruthy()
+  })
+
+  it('renders the send button with the ArrowUpward icon', () => {
+    render(
+      <ChatComposer
+        value=""
+        attachments={[]}
+        onValueChange={() => {}}
+        onAttachmentsChange={() => {}}
+        onSend={vi.fn()}
+      />,
+    )
+    const sendButton = screen.getByRole('button', { name: /send/i })
+    expect(sendButton.querySelector('[data-testid="ArrowUpwardIcon"]')).toBeTruthy()
+    expect(sendButton.querySelector('[data-testid="SendRoundedIcon"]')).toBeNull()
+  })
+
+  it('vertically centres the compact composer row', () => {
+    const { container } = render(
+      <ChatComposer
+        value=""
+        attachments={[]}
+        onValueChange={() => {}}
+        onAttachmentsChange={() => {}}
+        onSend={vi.fn()}
+      />,
+    )
+    const form = container.querySelector('.MuiChatComposer-variantCompact') as HTMLElement
+    expect(form).toBeTruthy()
+    expect(getComputedStyle(form).alignItems).toBe('center')
   })
 })

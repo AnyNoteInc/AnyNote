@@ -155,4 +155,16 @@ test('assistant timeline renders interleaved parts in order with state-coloured 
   // tool → filledError. (Text/thinking dots are outlinedGrey and excluded.)
   await expect(page.locator('.MuiTimelineDot-filledPrimary')).toHaveCount(1)
   await expect(page.locator('.MuiTimelineDot-filledError')).toHaveCount(1)
+
+  // (4) The USER message renders WITHOUT a timeline rail (variant="user"): its
+  // bubble holds the text but no MUI timeline dot. The assistant message above
+  // still has dots (asserted in (3)), so we scope the "no dot" check to the user
+  // bubble by walking from its text up to its enclosing chat-message container.
+  const userText = page.getByText('Найди страницы про roadmap и сделай сводку')
+  await expect(userText).toBeVisible()
+  const userHasDot = await userText.evaluate((el) => {
+    const bubble = el.closest('[class*="MuiChatMessage"]') ?? el.parentElement
+    return Boolean(bubble?.querySelector('.MuiTimelineDot-root'))
+  })
+  expect(userHasDot).toBe(false)
 })

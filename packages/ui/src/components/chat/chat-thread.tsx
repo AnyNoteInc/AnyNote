@@ -2,10 +2,12 @@
 
 import KeyboardArrowDownRoundedIcon from '@mui/icons-material/KeyboardArrowDownRounded'
 import Box from '@mui/material/Box'
+import Collapse from '@mui/material/Collapse'
 import Fab from '@mui/material/Fab'
 import Fade from '@mui/material/Fade'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
+import useMediaQuery from '@mui/material/useMediaQuery'
 import { alpha } from '@mui/material/styles'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
@@ -17,7 +19,12 @@ import {
 import { ChatEmptyState } from './chat-empty-state'
 import { ChatMessageList } from './chat-message-list'
 import type { ChatRenderLink } from './chat-message-content'
-import type { ChatComposerAttachment, ChatConfirmHandler, ChatSendPayload, ChatThreadMessage } from './chat-types'
+import type {
+  ChatComposerAttachment,
+  ChatConfirmHandler,
+  ChatSendPayload,
+  ChatThreadMessage,
+} from './chat-types'
 
 const BOTTOM_THRESHOLD_PX = 120
 
@@ -88,6 +95,8 @@ export function ChatThread({
   const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null)
   const [showScrollDown, setShowScrollDown] = useState(false)
   const usesPageScroll = Boolean(scrollContainerSelector)
+  const isEmpty = messages.length === 0
+  const prefersReducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)')
 
   useLayoutEffect(() => {
     if (!scrollContainerSelector) {
@@ -145,6 +154,34 @@ export function ChatThread({
     scrollToBottom(scrollElement, 'smooth')
   }
 
+  const disclaimer = (
+    <Typography
+      color="text.secondary"
+      component="p"
+      sx={{ fontSize: 11, mt: 0.75, textAlign: 'center' }}
+    >
+      AnyNote это ИИ и может ошибаться. Проверяйте ответ дважды
+    </Typography>
+  )
+
+  const composer = (
+    <ChatComposer
+      attachments={composerAttachments}
+      disabled={disabled}
+      onAttachRecent={onComposerAttachRecent}
+      onAttachmentsChange={onComposerAttachmentsChange}
+      onClearThinking={onComposerClearThinking}
+      onSelectThinking={onComposerSelectThinking}
+      onSend={onSend}
+      onValueChange={onComposerValueChange}
+      placeholder={composerPlaceholder}
+      reasoningSupported={composerReasoningSupported}
+      recentFiles={composerRecentFiles}
+      thinking={composerThinking}
+      value={composerValue}
+    />
+  )
+
   return (
     <Stack
       data-testid="chat-thread"
@@ -154,27 +191,38 @@ export function ChatThread({
       spacing={0}
       sx={{ position: 'relative' }}
     >
-      <ChatMessageList
-        emptyDescription={emptyDescription}
-        emptyTitle={emptyTitle}
-        messages={messages}
-        onConfirm={onConfirm}
-        renderLink={renderLink}
-        showEmptyState={false}
-        scrollMode={usesPageScroll ? 'page' : 'internal'}
-      />
+      {isEmpty ? null : (
+        <ChatMessageList
+          emptyDescription={emptyDescription}
+          emptyTitle={emptyTitle}
+          messages={messages}
+          onConfirm={onConfirm}
+          renderLink={renderLink}
+          showEmptyState={false}
+          scrollMode={usesPageScroll ? 'page' : 'internal'}
+        />
+      )}
       <Box
-        data-sticky={usesPageScroll ? 'true' : 'false'}
+        data-sticky={!isEmpty && usesPageScroll ? 'true' : 'false'}
         data-testid="chat-composer-shell"
         sx={(theme) => ({
           bottom: 0,
+          display: 'flex',
+          flexDirection: 'column',
+          flexGrow: isEmpty ? 1 : 0,
           mt: 'auto',
+          ...(isEmpty ? { justifyContent: 'center', mt: 0 } : null),
           pb: { xs: 1.5, sm: 2 },
-          position: usesPageScroll ? 'sticky' : 'static',
+          position: !isEmpty && usesPageScroll ? 'sticky' : 'static',
           pt: 2,
           px: 2,
+          transition: prefersReducedMotion
+            ? 'none'
+            : theme.transitions.create(['flex-grow'], {
+                duration: theme.transitions.duration.standard,
+              }),
           zIndex: theme.zIndex.appBar - 1,
-          ...(usesPageScroll
+          ...(!isEmpty && usesPageScroll
             ? {
                 background: `linear-gradient(180deg, ${alpha(
                   theme.palette.background.default,
@@ -186,49 +234,26 @@ export function ChatThread({
             : null),
         })}
       >
-        {messages.length === 0 ? (
-          <ChatEmptyState description={emptyDescription} title={emptyTitle} />
-        ) : null}
-        {usesPageScroll ? (
+        <Collapse in={isEmpty} unmountOnExit>
+          <Box data-testid="chat-empty-greeting" sx={{ mb: 2 }}>
+            <ChatEmptyState />
+          </Box>
+        </Collapse>
+        {!isEmpty && usesPageScroll ? (
           <Fade in={showScrollDown} unmountOnExit>
             <Fab
               aria-label="Прокрутить вниз"
               color="primary"
               onClick={handleScrollDown}
               size="small"
-              sx={{
-                left: '50%',
-                position: 'absolute',
-                top: -18,
-                transform: 'translateX(-50%)',
-              }}
+              sx={{ left: '50%', position: 'absolute', top: -18, transform: 'translateX(-50%)' }}
             >
               <KeyboardArrowDownRoundedIcon />
             </Fab>
           </Fade>
         ) : null}
-        <ChatComposer
-          attachments={composerAttachments}
-          disabled={disabled}
-          onAttachRecent={onComposerAttachRecent}
-          onAttachmentsChange={onComposerAttachmentsChange}
-          onClearThinking={onComposerClearThinking}
-          onSelectThinking={onComposerSelectThinking}
-          onSend={onSend}
-          onValueChange={onComposerValueChange}
-          placeholder={composerPlaceholder}
-          reasoningSupported={composerReasoningSupported}
-          recentFiles={composerRecentFiles}
-          thinking={composerThinking}
-          value={composerValue}
-        />
-        <Typography
-          color="text.secondary"
-          component="p"
-          sx={{ fontSize: 11, mt: 0.75, textAlign: 'center' }}
-        >
-          AnyNote это ИИ и может ошибаться. Проверяйте ответ дважды
-        </Typography>
+        {composer}
+        {disclaimer}
       </Box>
     </Stack>
   )

@@ -1,9 +1,11 @@
 'use client'
 
 import AddIcon from '@mui/icons-material/Add'
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
 import AttachFileRoundedIcon from '@mui/icons-material/AttachFileRounded'
 import PsychologyRoundedIcon from '@mui/icons-material/PsychologyRounded'
-import SendRoundedIcon from '@mui/icons-material/SendRounded'
+import Box from '@mui/material/Box'
+import ButtonBase from '@mui/material/ButtonBase'
 import Chip from '@mui/material/Chip'
 import IconButton from '@mui/material/IconButton'
 import ListItemIcon from '@mui/material/ListItemIcon'
@@ -11,7 +13,9 @@ import ListItemText from '@mui/material/ListItemText'
 import ListSubheader from '@mui/material/ListSubheader'
 import Menu from '@mui/material/Menu'
 import MenuItem from '@mui/material/MenuItem'
+import MobileStepper from '@mui/material/MobileStepper'
 import Stack from '@mui/material/Stack'
+import Switch from '@mui/material/Switch'
 import {
   ChatComposer as MuiChatComposer,
   ChatComposerSendButton,
@@ -55,17 +59,13 @@ type ChatComposerProps = Readonly<{
   onClearThinking?: () => void
 }>
 
-const THINKING_EFFORTS: ReadonlyArray<{ effort: ChatComposerThinkingEffort; label: string }> = [
-  { effort: 'LOW', label: 'Низкое' },
-  { effort: 'MEDIUM', label: 'Среднее' },
-  { effort: 'HIGH', label: 'Высокое' },
-]
-
 const THINKING_EFFORT_LABEL: Record<ChatComposerThinkingEffort, string> = {
   LOW: 'Низкое',
   MEDIUM: 'Среднее',
   HIGH: 'Высокое',
 }
+
+const THINKING_EFFORT_ORDER: ReadonlyArray<ChatComposerThinkingEffort> = ['LOW', 'MEDIUM', 'HIGH']
 
 /**
  * Mirror of `parseSlashCommand` (apps/web/.../slash-commands.ts, the canonical,
@@ -189,7 +189,11 @@ function ChatComposerInner({
   const showChipsRow = showThinkingChip || composer.attachments.length > 0
 
   return (
-    <MuiChatComposer disabled={disabled} variant="compact">
+    <MuiChatComposer
+      disabled={disabled}
+      variant="compact"
+      sx={{ '&.MuiChatComposer-variantCompact': { alignItems: 'center' } }}
+    >
       {showChipsRow ? (
         <Stack direction="row" flexBasis="100%" flexWrap="wrap" gap={1}>
           {showThinkingChip ? (
@@ -291,35 +295,92 @@ function ChatComposerInner({
         <ListSubheader disableSticky>Команды</ListSubheader>
         {reasoningSupported ? (
           [
-            <ListSubheader disableSticky key="thinking-head" sx={{ lineHeight: '32px' }}>
+            <Stack
+              alignItems="center"
+              direction="row"
+              justifyContent="space-between"
+              key="thinking-row"
+              sx={{ px: 2, py: 0.5 }}
+            >
               <Stack alignItems="center" direction="row" spacing={1}>
                 <PsychologyRoundedIcon fontSize="small" />
-                <span>Thinking</span>
+                <Box component="span" sx={{ fontWeight: 600 }}>
+                  Thinking
+                </Box>
               </Stack>
-            </ListSubheader>,
-            ...THINKING_EFFORTS.map(({ effort, label }) => (
-              <MenuItem
-                data-testid={`chat-slash-thinking-${effort.toLowerCase()}`}
-                key={effort}
-                onClick={() => handleSelectThinking(effort)}
-                sx={{ pl: 4 }}
-              >
-                <ListItemText primary={label} />
-              </MenuItem>
-            )),
+              <Switch
+                checked={thinking != null}
+                edge="end"
+                onChange={() => {
+                  // `checked` is controlled by `thinking`, so the DOM input's value is
+                  // forced back on re-render; toggle relative to the source of truth
+                  // (the `thinking` prop) rather than the event's transient checkbox state.
+                  if (thinking == null) {
+                    onSelectThinking?.('MEDIUM')
+                  } else {
+                    onClearThinking?.()
+                  }
+                }}
+                size="small"
+                slotProps={{
+                  input: {
+                    'aria-label': 'Thinking',
+                    'data-testid': 'chat-slash-thinking-toggle',
+                  } as Record<string, unknown>,
+                }}
+              />
+            </Stack>,
+            <Stack
+              alignItems="center"
+              direction="row"
+              justifyContent="space-between"
+              key="effort-row"
+              sx={{
+                opacity: thinking != null ? 1 : 0.4,
+                px: 2,
+                py: 0.5,
+              }}
+            >
+              <Box component="span" sx={{ fontWeight: 600 }}>
+                Усилия{' '}
+                <Box component="span" sx={{ color: 'text.secondary', fontWeight: 400 }}>
+                  ({THINKING_EFFORT_LABEL[thinking?.effort ?? 'MEDIUM'].toLowerCase()})
+                </Box>
+              </Box>
+              <Box sx={{ position: 'relative' }}>
+                <MobileStepper
+                  activeStep={THINKING_EFFORT_ORDER.indexOf(thinking?.effort ?? 'MEDIUM')}
+                  backButton={<span />}
+                  nextButton={<span />}
+                  position="static"
+                  steps={THINKING_EFFORT_ORDER.length}
+                  sx={{ background: 'transparent', p: 0, '& .MuiMobileStepper-dots': { gap: 0.5 } }}
+                  variant="dots"
+                />
+                <Stack direction="row" spacing={0.5} sx={{ inset: 0, position: 'absolute' }}>
+                  {THINKING_EFFORT_ORDER.map((effort) => (
+                    <ButtonBase
+                      aria-label={THINKING_EFFORT_LABEL[effort]}
+                      aria-pressed={thinking?.effort === effort}
+                      data-testid={`chat-slash-thinking-${effort.toLowerCase()}`}
+                      key={effort}
+                      onClick={() => handleSelectThinking(effort)}
+                      sx={{ borderRadius: '50%', flex: 1 }}
+                    />
+                  ))}
+                </Stack>
+              </Box>
+            </Stack>,
           ]
         ) : (
           <MenuItem disabled data-testid="chat-slash-thinking-disabled">
-            <ListItemText
-              primary="Thinking"
-              secondary="Недоступно для текущей модели"
-            />
+            <ListItemText primary="Thinking" secondary="Недоступно для текущей модели" />
           </MenuItem>
         )}
       </Menu>
 
       <ChatComposerSendButton aria-label="Send" disabled={disabled || !hasText}>
-        <SendRoundedIcon />
+        <ArrowUpwardIcon />
       </ChatComposerSendButton>
     </MuiChatComposer>
   )

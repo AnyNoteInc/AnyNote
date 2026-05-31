@@ -177,7 +177,14 @@ export function WorkspaceLayoutClient({
         />
         <Box
           component="main"
-          sx={{ flex: 1, minHeight: 0, minWidth: 0, overflowY: 'auto', overflowX: 'hidden' }}
+          sx={{
+            bgcolor: 'background.paper',
+            flex: 1,
+            minHeight: 0,
+            minWidth: 0,
+            overflowX: 'hidden',
+            overflowY: 'auto',
+          }}
           data-full-width={fullWidth ? 'true' : 'false'}
           data-outline-mode={activePageId ? outlineMode : undefined}
           className="page-content-scroll"

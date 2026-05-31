@@ -46,7 +46,7 @@
 
 The current component always wraps parts in `<Timeline>`. We add a `variant` prop: `'assistant'` (default) keeps the timeline; `'user'` renders the part bodies plainly. Both paths share one `renderPartBody(part)` helper so the four `part.type` branches never drift.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `packages/ui/test/chat-message-content.test.tsx` (inside the existing `describe('ChatMessageContent', …)` block, after the last `it`):
 
@@ -69,12 +69,12 @@ Add to `packages/ui/test/chat-message-content.test.tsx` (inside the existing `de
   })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter @repo/ui exec vitest run test/chat-message-content.test.tsx -t "without the timeline rail"`
 Expected: FAIL — `variant` is not a prop yet, so the `.MuiTimeline-root` is still present (the `toBeNull()` assertion fails).
 
-- [ ] **Step 3: Add the `variant` prop and extract `renderPartBody`**
+- [x] **Step 3: Add the `variant` prop and extract `renderPartBody`**
 
 In `packages/ui/src/components/chat/chat-message-content.tsx`, replace the `ChatMessageContentProps` type and the whole `ChatMessageContent` function body with the version below. Keep the existing imports, `linkifyWorkspacePageReferences`, `dotColorForPart`, `dotVariantForPart`, and `TimelineDotColor` exactly as they are.
 
@@ -175,12 +175,12 @@ export function ChatMessageContent({
 }
 ```
 
-- [ ] **Step 4: Run the test file to verify it passes**
+- [x] **Step 4: Run the test file to verify it passes**
 
 Run: `pnpm --filter @repo/ui exec vitest run test/chat-message-content.test.tsx`
 Expected: PASS — all existing tests (timeline order, thinking, links) plus the two new ones.
 
-- [ ] **Step 5: Pass `variant` from the message list**
+- [x] **Step 5: Pass `variant` from the message list**
 
 In `packages/ui/src/components/chat/chat-message-list.tsx`, the `renderItem` callback already computes `const isUser = message.role === 'user'` (line ~104) and renders `<ChatMessageContent onConfirm={…} parts={…} renderLink={…} />` (lines ~145-149). Add the `variant` prop:
 
@@ -193,12 +193,12 @@ In `packages/ui/src/components/chat/chat-message-list.tsx`, the `renderItem` cal
                     />
 ```
 
-- [ ] **Step 6: Run the message-list tests**
+- [x] **Step 6: Run the message-list tests**
 
 Run: `pnpm --filter @repo/ui exec vitest run test/chat-message-list.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add packages/ui/src/components/chat/chat-message-content.tsx \
@@ -217,7 +217,7 @@ git commit -m "feat(chat): drop the timeline rail from user messages"
 
 The inter-part gap is `TimelineContent`'s `pb: 1.25` (10px). Reduce to `pb: 0.5` (4px).
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `packages/ui/test/chat-message-content.test.tsx` inside `describe('ChatMessageContent', …)`:
 
@@ -238,12 +238,12 @@ Add to `packages/ui/test/chat-message-content.test.tsx` inside `describe('ChatMe
   })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter @repo/ui exec vitest run test/chat-message-content.test.tsx -t "compact bottom padding"`
 Expected: FAIL — current `pb: 1.25` renders `padding-bottom: 10px`, not `4px`.
 
-- [ ] **Step 3: Reduce the padding**
+- [x] **Step 3: Reduce the padding**
 
 In `chat-message-content.tsx`, change the assistant `TimelineContent`:
 
@@ -251,12 +251,12 @@ In `chat-message-content.tsx`, change the assistant `TimelineContent`:
             <TimelineContent sx={{ pb: 0.5, pt: 0 }}>{renderPartBody(part, index)}</TimelineContent>
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm --filter @repo/ui exec vitest run test/chat-message-content.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/ui/src/components/chat/chat-message-content.tsx \
@@ -274,7 +274,7 @@ git commit -m "feat(chat): tighten spacing between timeline parts"
 
 (Done before the bigger slash-menu change so the composer diff stays readable.)
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `packages/ui/test/chat-composer.test.tsx` inside `describe('ChatComposer', …)`:
 
@@ -295,12 +295,12 @@ Add to `packages/ui/test/chat-composer.test.tsx` inside `describe('ChatComposer'
   })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter @repo/ui exec vitest run test/chat-composer.test.tsx -t "ArrowUpward icon"`
 Expected: FAIL — the button still contains `SendRoundedIcon`.
 
-- [ ] **Step 3: Swap the icon**
+- [x] **Step 3: Swap the icon**
 
 In `chat-composer.tsx`, line 6, replace the import:
 
@@ -318,12 +318,12 @@ Then in the send button (lines ~321-323):
       </ChatComposerSendButton>
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm --filter @repo/ui exec vitest run test/chat-composer.test.tsx`
 Expected: PASS (all existing composer tests + the new one).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/ui/src/components/chat/chat-composer.tsx \
@@ -341,7 +341,7 @@ git commit -m "feat(chat): use ArrowUpward for the send button icon"
 
 `@mui/x-chat`'s compact composer root sets `align-items: flex-end`, so the round buttons hug the bottom. Override to `center` via `sx` scoped to the compact class.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `packages/ui/test/chat-composer.test.tsx`:
 
@@ -362,12 +362,12 @@ Add to `packages/ui/test/chat-composer.test.tsx`:
   })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter @repo/ui exec vitest run test/chat-composer.test.tsx -t "centres the compact composer row"`
 Expected: FAIL — `align-items` resolves to `flex-end` (from the package's styled root).
 
-- [ ] **Step 3: Add the `sx` override**
+- [x] **Step 3: Add the `sx` override**
 
 In `chat-composer.tsx`, the composer opens with `<MuiChatComposer disabled={disabled} variant="compact">` (line ~192). Add an `sx`:
 
@@ -379,12 +379,12 @@ In `chat-composer.tsx`, the composer opens with `<MuiChatComposer disabled={disa
     >
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm --filter @repo/ui exec vitest run test/chat-composer.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/ui/src/components/chat/chat-composer.tsx \
@@ -408,7 +408,7 @@ The `reasoningSupported === false` branch keeps the single disabled row (`data-t
 
 > **Test-contract preservation:** the existing tests select `chat-slash-thinking-high` (click → `onSelectThinking('HIGH')`) and `chat-slash-thinking-disabled` (`aria-disabled="true"`). The new dot hit-targets keep those test-ids and behaviour. The pre-existing test "shows the Thinking slash command … reasoning is supported" stays valid because clicking the HIGH dot still calls `onSelectThinking('HIGH')` and then clears the slash. **However**, that test renders with `value="/think"` and **no `thinking` prop** (switch starts off) — the effort row must still be present in the DOM (dimmed) and its hit-targets must still fire `onSelectThinking` so a user can switch reasoning on by directly picking a level. Implement the dot click to call `onSelectThinking(level)` regardless of current switch state (picking a level implies turning thinking on).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Add to `packages/ui/test/chat-composer.test.tsx`:
 
@@ -499,12 +499,12 @@ Add to `packages/ui/test/chat-composer.test.tsx`:
 
 The existing test "shows the Thinking slash command when the input starts with '/' and reasoning is supported" stays — it now exercises the dot hit-target (`chat-slash-thinking-high`).
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm --filter @repo/ui exec vitest run test/chat-composer.test.tsx -t "switch"`
 Expected: FAIL — `chat-slash-thinking-toggle` / `.MuiMobileStepper-dots` don't exist yet.
 
-- [ ] **Step 3: Add imports**
+- [x] **Step 3: Add imports**
 
 In `chat-composer.tsx`, add to the import block (keep direct-import style):
 
@@ -517,7 +517,7 @@ import Box from '@mui/material/Box'
 
 (If `Box` is already imported, skip that line.)
 
-- [ ] **Step 4: Add an ordered-effort constant and helpers**
+- [x] **Step 4: Add an ordered-effort constant and helpers**
 
 Below the existing `THINKING_EFFORT_LABEL` map (line ~68), add:
 
@@ -525,7 +525,7 @@ Below the existing `THINKING_EFFORT_LABEL` map (line ~68), add:
 const THINKING_EFFORT_ORDER: ReadonlyArray<ChatComposerThinkingEffort> = ['LOW', 'MEDIUM', 'HIGH']
 ```
 
-- [ ] **Step 5: Replace the slash `Menu` reasoning body**
+- [x] **Step 5: Replace the slash `Menu` reasoning body**
 
 In `ChatComposerInner`, replace the entire slash `<Menu>…</Menu>` block (the one anchored to `textAreaWrapRef`, lines ~280-319) with the version below. The `Menu` wrapper, its props, the `Команды` `ListSubheader`, and the `reasoningSupported === false` disabled branch are preserved; only the enabled reasoning section changes.
 
@@ -627,12 +627,12 @@ In `ChatComposerInner`, replace the entire slash `<Menu>…</Menu>` block (the o
 
 Note: `handleSelectThinking` (already defined at line ~180) calls `onSelectThinking?.(effort)` then `composer.setValue('')` — clicking a dot both selects the level and closes the menu, matching the prior behaviour. The `THINKING_EFFORTS` array (line ~58) is now unused; delete it to satisfy lint (`THINKING_EFFORT_LABEL` and `THINKING_EFFORT_ORDER` remain).
 
-- [ ] **Step 6: Run the composer tests**
+- [x] **Step 6: Run the composer tests**
 
 Run: `pnpm --filter @repo/ui exec vitest run test/chat-composer.test.tsx`
 Expected: PASS — the four new tests, the updated existing slash test, and every other composer test.
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add packages/ui/src/components/chat/chat-composer.tsx \
@@ -650,7 +650,7 @@ git commit -m "feat(chat): slash Thinking as a switch + no-arrow dots effort ste
 
 Drop the `ChatBubbleOutlineIcon` + circle. Show one of four phrases as a large heading, chosen once on mount (SSR-safe via the loading-phrases pattern: empty first paint, set in `useEffect`, `suppressHydrationWarning`).
 
-- [ ] **Step 1: Write the failing test (new file)**
+- [x] **Step 1: Write the failing test (new file)**
 
 Create `packages/ui/test/chat-empty-state.test.tsx`:
 
@@ -686,12 +686,12 @@ describe('ChatEmptyState', () => {
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter @repo/ui exec vitest run test/chat-empty-state.test.tsx`
 Expected: FAIL — `CHAT_EMPTY_PHRASES` is not exported; the component still renders the icon + fixed title.
 
-- [ ] **Step 3: Rewrite the component**
+- [x] **Step 3: Rewrite the component**
 
 Replace the entire contents of `packages/ui/src/components/chat/chat-empty-state.tsx` with:
 
@@ -737,7 +737,7 @@ export function ChatEmptyState() {
 
 Note: the `title`/`description` props are removed. Task 7 updates the only call sites (`chat-thread.tsx`); `chat-message-list.tsx` also renders `<ChatEmptyState>` in its `overlay` (line ~94) but only when `showEmptyState` is true, and `ChatThread` passes `showEmptyState={false}` — so that overlay path is dormant. Update both call sites to drop the now-removed props in Step 4.
 
-- [ ] **Step 4: Drop the removed props at the message-list call site**
+- [x] **Step 4: Drop the removed props at the message-list call site**
 
 `<ChatEmptyState>` no longer accepts `title`/`description`. In `packages/ui/src/components/chat/chat-message-list.tsx` (~line 94), change the overlay to render it with no props:
 
@@ -749,12 +749,12 @@ Note: the `title`/`description` props are removed. Task 7 updates the only call 
 
 Leave the `emptyTitle` / `emptyDescription` fields on `ChatMessageListProps` as-is — they're optional, the web layer still passes them harmlessly, and removing them from the prop chain is out of scope for this polish. Do **not** touch `chat-thread.tsx` here; its empty-state render is replaced wholesale in Task 7.
 
-- [ ] **Step 5: Run the tests**
+- [x] **Step 5: Run the tests**
 
 Run: `pnpm --filter @repo/ui exec vitest run test/chat-empty-state.test.tsx test/chat-message-list.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add packages/ui/src/components/chat/chat-empty-state.tsx \
@@ -775,7 +775,7 @@ When `messages.length === 0`: render a centred column `[greeting] [composer] [di
 
 > **Two existing tests change.** `chat-thread.test.tsx` currently asserts (a) the empty hint text "Отправьте первое сообщение…" lives inside `chat-composer-shell` and (b) in empty mode `data-sticky` is still `true`. Under the new design the empty state shows a greeting (one of four phrases, no fixed hint) and the composer is **not** sticky when empty. Update those tests as below.
 
-- [ ] **Step 1: Update the two existing tests + add new ones**
+- [x] **Step 1: Update the two existing tests + add new ones**
 
 In `packages/ui/test/chat-thread.test.tsx`:
 
@@ -850,12 +850,12 @@ The other two existing tests (page-scroll/sticky with a seeded message; `fills t
   })
 ```
 
-- [ ] **Step 2: Run tests to verify they fail**
+- [x] **Step 2: Run tests to verify they fail**
 
 Run: `pnpm --filter @repo/ui exec vitest run test/chat-thread.test.tsx`
 Expected: FAIL — `chat-empty-greeting` test-id doesn't exist; `data-sticky` is `true` in empty mode.
 
-- [ ] **Step 3: Rewrite the `ChatThread` return to branch on empty**
+- [x] **Step 3: Rewrite the `ChatThread` return to branch on empty**
 
 In `packages/ui/src/components/chat/chat-thread.tsx`:
 
@@ -991,17 +991,17 @@ import useMediaQuery from '@mui/material/useMediaQuery'
 
 This keeps the composer in a single DOM position across both modes (so the browser can tween it), centres the shell when empty (`flex: 1; justify-content: center`), and collapses the greeting away on first message.
 
-- [ ] **Step 4: Run the thread tests**
+- [x] **Step 4: Run the thread tests**
 
 Run: `pnpm --filter @repo/ui exec vitest run test/chat-thread.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 5: Run the whole chat suite to catch regressions**
+- [x] **Step 5: Run the whole chat suite to catch regressions**
 
 Run: `pnpm --filter @repo/ui exec vitest run test/chat-thread.test.tsx test/chat-message-list.test.tsx test/chat-empty-state.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add packages/ui/src/components/chat/chat-thread.tsx \
@@ -1019,7 +1019,7 @@ git commit -m "feat(chat): centre composer when empty, slide it down on first me
 
 The panel stretches to the full assistant column. Add `maxWidth` so it sizes to content; keep it left-aligned.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `packages/ui/test/chat-confirm-inline.test.tsx` inside `describe('ChatConfirmInline', …)`:
 
@@ -1031,12 +1031,12 @@ Add to `packages/ui/test/chat-confirm-inline.test.tsx` inside `describe('ChatCon
   })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter @repo/ui exec vitest run test/chat-confirm-inline.test.tsx -t "caps the panel width"`
 Expected: FAIL — no `max-width` set (`getComputedStyle` returns `none` / empty).
 
-- [ ] **Step 3: Add `maxWidth` to the outer Box**
+- [x] **Step 3: Add `maxWidth` to the outer Box**
 
 In `chat-confirm-inline.tsx`, the outer `Box` `sx` (lines ~24-31) — add `maxWidth: 440`:
 
@@ -1052,12 +1052,12 @@ In `chat-confirm-inline.tsx`, the outer `Box` `sx` (lines ~24-31) — add `maxWi
       }}
 ```
 
-- [ ] **Step 4: Run test to verify it passes**
+- [x] **Step 4: Run test to verify it passes**
 
 Run: `pnpm --filter @repo/ui exec vitest run test/chat-confirm-inline.test.tsx`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/ui/src/components/chat/chat-confirm-inline.tsx \
@@ -1076,7 +1076,7 @@ The `<Box component="main" className="page-content-scroll">` inherits the cream 
 
 There is no web unit test for this layout box; verify by reading the rendered route (the gate is `pnpm dev` + curl, per CLAUDE.md's RSC note). The change is a single style prop.
 
-- [ ] **Step 1: Add the background to the main box**
+- [x] **Step 1: Add the background to the main box**
 
 In `apps/web/src/components/workspace/workspace-layout-client.tsx`, the `<Box component="main" …>` (lines ~178-184) currently has:
 
@@ -1097,17 +1097,17 @@ Change to:
           }}
 ```
 
-- [ ] **Step 2: Type-check the web app**
+- [x] **Step 2: Type-check the web app**
 
 Run: `pnpm --filter web check-types`
 Expected: PASS (no type errors). If it reports a stale `.next/types` error for an unrelated deleted route, `rm -rf apps/web/.next/types` and re-run (per CLAUDE.md).
 
-- [ ] **Step 3: Manually verify the route renders white**
+- [x] **Step 3: Manually verify the route renders white**
 
 Run (background): `pnpm --filter web dev` (needs `docker compose up -d` first).
 Then load a workspace chat route in the browser and confirm the main content area is white in light mode. Stop the dev server when done.
 
-- [ ] **Step 4: Commit**
+- [x] **Step 4: Commit**
 
 ```bash
 git add apps/web/src/components/workspace/workspace-layout-client.tsx
@@ -1123,7 +1123,7 @@ git commit -m "feat(workspace): white (paper) canvas on all workspace pages"
 
 The spec already seeds a chat with a USER message ("Найди страницы про roadmap…") and an ASSISTANT message with interleaved parts, then asserts the assistant timeline. Add one assertion that the **user** message renders **without** a timeline dot, proving item 1 end-to-end while confirming the assistant timeline still works.
 
-- [ ] **Step 1: Add the user-message assertion**
+- [x] **Step 1: Add the user-message assertion**
 
 In `apps/e2e/chat-timeline.spec.ts`, at the end of the existing `test('assistant timeline renders interleaved parts …')` (after the `filledError` assertion, line ~157), add:
 
@@ -1140,13 +1140,13 @@ In `apps/e2e/chat-timeline.spec.ts`, at the end of the existing `test('assistant
   expect(userHasDot).toBe(false)
 ```
 
-- [ ] **Step 2: Run the spec (warm the dev server first)**
+- [x] **Step 2: Run the spec (warm the dev server first)**
 
 Run: `docker compose up -d` then
 `pnpm exec playwright test apps/e2e/chat-timeline.spec.ts --retries=1`
 Expected: PASS. (The chats route compiles slowly on a cold dev server; `--retries=1` warms the shared server on attempt 1 — dev-only, per the project's cold-compile note. The spec's own timeouts are already generous.)
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add apps/e2e/chat-timeline.spec.ts
@@ -1157,17 +1157,17 @@ git commit -m "test(e2e): assert user messages render without a timeline rail"
 
 ## Task 11: Full gates + visual sweep
 
-- [ ] **Step 1: Run the full `@repo/ui` suite**
+- [x] **Step 1: Run the full `@repo/ui` suite**
 
 Run: `pnpm --filter @repo/ui test`
 Expected: PASS (all chat tests + the rest of the package).
 
-- [ ] **Step 2: Type-check + lint the touched packages**
+- [x] **Step 2: Type-check + lint the touched packages**
 
 Run: `pnpm --filter @repo/ui exec tsc --noEmit && pnpm --filter @repo/ui lint && pnpm --filter web check-types`
 Expected: PASS, zero warnings (`--max-warnings 0` is the repo lint policy).
 
-- [ ] **Step 3: Manual visual confirmation against the real app**
+- [x] **Step 3: Manual visual confirmation against the real app**
 
 With `pnpm dev` (and `docker compose up -d`) running, open a workspace chat and confirm each item against the agreed mockups:
 1. user messages have no dot/rail;
@@ -1180,7 +1180,7 @@ With `pnpm dev` (and `docker compose up -d`) running, open a workspace chat and 
 8. the main content area is white;
 9. a tool-confirmation panel is capped in width, not edge-to-edge.
 
-- [ ] **Step 4: Final commit (if any formatting drift)**
+- [x] **Step 4: Final commit (if any formatting drift)**
 
 ```bash
 pnpm format
