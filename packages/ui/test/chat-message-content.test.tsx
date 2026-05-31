@@ -163,7 +163,7 @@ describe('ChatMessageContent', () => {
     expect(container.querySelector('.MuiTimeline-root')).toBeTruthy()
   })
 
-  it('drops the default 70px TimelineItem floor so dots sit close together', () => {
+  it('tightens the TimelineItem floor to a small gap (below the 70px default)', () => {
     const { container } = render(
       <ChatMessageContent
         parts={[
@@ -174,8 +174,8 @@ describe('ChatMessageContent', () => {
     )
     const item = container.querySelector('.MuiTimelineItem-root') as HTMLElement
     expect(item).toBeTruthy()
-    // default is 70px; we override to auto so the rail tightens to content
-    expect(getComputedStyle(item).minHeight).toBe('auto')
+    // default is 70px; we override to 32px — a small, even dot-to-dot gap
+    expect(getComputedStyle(item).minHeight).toBe('32px')
   })
 
   it('uses compact bottom padding on assistant timeline content', () => {

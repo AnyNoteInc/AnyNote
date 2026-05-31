@@ -192,7 +192,14 @@ function ChatComposerInner({
     <MuiChatComposer
       disabled={disabled}
       variant="compact"
-      sx={{ '&.MuiChatComposer-variantCompact': { alignItems: 'center' } }}
+      sx={{
+        // Transparent fill so the input blends with the white page canvas; the
+        // border + radius stay so it's still a defined, focusable box.
+        '&.MuiChatComposer-variantCompact': {
+          alignItems: 'center',
+          backgroundColor: 'transparent',
+        },
+      }}
     >
       {showChipsRow ? (
         <Stack direction="row" flexBasis="100%" flexWrap="wrap" gap={1}>
@@ -289,10 +296,18 @@ function ChatComposerInner({
         id={slashMenuId}
         onClose={() => composer.setValue('')}
         open={slashOpen && thinkingMatchesQuery}
-        slotProps={{ paper: { 'data-testid': 'chat-slash-menu' } as Record<string, unknown> }}
+        slotProps={{
+          paper: {
+            'data-testid': 'chat-slash-menu',
+            // Wider menu with smaller text than the default menu density.
+            sx: { fontSize: '0.8125rem', minWidth: 320 },
+          } as Record<string, unknown>,
+        }}
         transformOrigin={{ vertical: 'bottom', horizontal: 'left' }}
       >
-        <ListSubheader disableSticky>Команды</ListSubheader>
+        <ListSubheader disableSticky sx={{ fontSize: '0.75rem' }}>
+          Команды
+        </ListSubheader>
         {reasoningSupported ? (
           [
             <Stack
@@ -374,7 +389,14 @@ function ChatComposerInner({
           ]
         ) : (
           <MenuItem disabled data-testid="chat-slash-thinking-disabled">
-            <ListItemText primary="Thinking" secondary="Недоступно для текущей модели" />
+            <ListItemText
+              primary="Thinking"
+              secondary="Недоступно для текущей модели"
+              slotProps={{
+                primary: { sx: { fontSize: '0.8125rem' } },
+                secondary: { sx: { fontSize: '0.75rem' } },
+              }}
+            />
           </MenuItem>
         )}
       </Menu>

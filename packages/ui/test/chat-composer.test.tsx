@@ -352,4 +352,20 @@ describe('ChatComposer', () => {
     expect(form).toBeTruthy()
     expect(getComputedStyle(form).alignItems).toBe('center')
   })
+
+  it('renders the input area with a transparent background', () => {
+    const { container } = render(
+      <ChatComposer
+        value=""
+        attachments={[]}
+        onValueChange={() => {}}
+        onAttachmentsChange={() => {}}
+        onSend={vi.fn()}
+      />,
+    )
+    const form = container.querySelector('.MuiChatComposer-variantCompact') as HTMLElement
+    expect(form).toBeTruthy()
+    // jsdom normalises the `transparent` keyword to rgba(0, 0, 0, 0)
+    expect(getComputedStyle(form).backgroundColor).toBe('rgba(0, 0, 0, 0)')
+  })
 })

@@ -121,7 +121,7 @@ export function ChatMessageContent({
       {parts.map((part, index) => {
         const isLast = index === parts.length - 1
         return (
-          <TimelineItem key={keyFor(part, index)} sx={{ minHeight: 'auto' }}>
+          <TimelineItem key={keyFor(part, index)} sx={{ minHeight: 32 }}>
             <TimelineSeparator>
               <TimelineDot color={dotColorForPart(part)} variant={dotVariantForPart(part)} />
               {isLast ? null : <TimelineConnector />}
