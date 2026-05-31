@@ -105,7 +105,21 @@ async def executor_node(
         'current_step_id': next_id,
         'pending_tool_calls': [],
         'draft_answer': final_text,
+        'draft_reasoning': extract_reasoning_text(ai),
     })
+
+
+def extract_reasoning_text(message: object) -> str:
+    """Concatenate reasoning content blocks from an LLM message, if any."""
+    blocks = getattr(message, 'content_blocks', None)
+    if not blocks:
+        return ''
+    parts = [
+        str(b.get('reasoning') or '')
+        for b in blocks
+        if isinstance(b, dict) and b.get('type') == 'reasoning'
+    ]
+    return '\n'.join(p for p in parts if p)
 
 
 def _serialize_call(call: Any) -> dict[str, Any]:

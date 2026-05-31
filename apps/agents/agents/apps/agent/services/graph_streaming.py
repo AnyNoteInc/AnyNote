@@ -106,6 +106,8 @@ class GraphStreamingService:
         if not final_snap:
             return
         final = AgentState.model_validate(final_snap.values)
+        if final.final_reasoning:
+            yield ServerEventSchema.thinking(text=final.final_reasoning)
         if final.final_answer:
             yield ServerEventSchema.token(final.final_answer)
         for c in final.citations:

@@ -190,11 +190,13 @@ class AgentState(BaseModel):
     last_critic_feedback: str | None = None
     revision_count: int = 0
     draft_answer: str = ''
+    draft_reasoning: str = ''
     pending_memory_writes: list[MemoryWriteSchema] = []
     pending_confirmations: dict[str, PendingConfirmationSchema] = {}
 
     # output
     final_answer: str = ''
+    final_reasoning: str = ''
     critic_verdict: CriticVerdict | None = None
     critic_feedback: str | None = None
     citations: list[CitationSchema] = []
