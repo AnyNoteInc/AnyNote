@@ -60,4 +60,10 @@ describe('ChatConfirmInline', () => {
     expect(screen.queryByText(/"title": "Smoke"/)).toBeNull()
     expect(screen.getByText('Создать страницу «Smoke»')).toBeTruthy()
   })
+
+  it('caps the panel width so it does not stretch the full column', () => {
+    renderInline()
+    const panel = screen.getByTestId('chat-confirm-inline')
+    expect(getComputedStyle(panel).maxWidth).toBe('440px')
+  })
 })
