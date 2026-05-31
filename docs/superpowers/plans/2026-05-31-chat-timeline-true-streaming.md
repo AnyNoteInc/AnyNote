@@ -1587,7 +1587,21 @@ Expected: PASS (`check-types` + `lint` + `build` + `test` across all workspaces)
 
 ### Task 7.2: Observation-gated decision — flat tools vs nested under plan steps
 
-- [ ] **Step 2: Observe one real run and decide**
+> **DECISION (2026-05-31): keep both flat.** Resolved from the graph topology
+> (`agents/apps/agent/services/graph.py`) rather than a live run, because a live
+> chat needs per-workspace LLM credentials that aren't available in this
+> environment. The graph routes non-trivial queries `router → planner → executor
+> ⇄ tool_runner`: `planner` builds a multi-step `state.plan` (emitted as coarse
+> `plan-${id}` `plan_step` blocks) and `executor`/`tool_runner` make the concrete
+> tool calls (emitted as fine `tool_status` blocks keyed by the raw call id). The
+> two are **complementary**, not duplicates — a plan step ("Search for X") is a
+> different granularity than the `search_workspace_pages(...)` call that fulfils
+> it — and they never collide because the id prefixes are distinct (`plan-*` vs
+> the tool call id). Per the spec's own guidance ("If they read as complementary
+> … keep both flat"), no UI change was made. Revisit if a live run shows them
+> reading as noise.
+
+- [x] **Step 2: Observe one real run and decide** — decided from topology (see note above); no code change.
 
 Start the stack and run one real chat that triggers tooling:
 
