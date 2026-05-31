@@ -18,11 +18,11 @@ type ChatServiceBlockProps = Readonly<{
 }>
 
 const TICK_COLOR: Record<ChatToolPart['state'], string> = {
-  done: 'success.main',
+  done: 'grey.600',
   error: 'error.main',
-  pending: 'warning.main',
-  required: 'warning.main',
-  running: 'warning.main',
+  pending: 'grey.500',
+  required: 'grey.500',
+  running: 'grey.500',
 }
 
 function getStateLabel(state: ChatToolPart['state']) {
@@ -117,7 +117,6 @@ export function ChatServiceBlock({ part, onConfirm, onAllowAll }: ChatServiceBlo
           sx={{
             flex: 1,
             fontSize: 13.5,
-            fontWeight: 600,
             minWidth: 0,
             whiteSpace: 'pre-wrap',
             wordBreak: 'break-word',

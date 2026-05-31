@@ -5,6 +5,7 @@ import Box from '@mui/material/Box'
 import Fab from '@mui/material/Fab'
 import Fade from '@mui/material/Fade'
 import Stack from '@mui/material/Stack'
+import Typography from '@mui/material/Typography'
 import { alpha } from '@mui/material/styles'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
@@ -221,6 +222,13 @@ export function ChatThread({
           thinking={composerThinking}
           value={composerValue}
         />
+        <Typography
+          color="text.secondary"
+          component="p"
+          sx={{ fontSize: 11, mt: 0.75, textAlign: 'center' }}
+        >
+          AnyNote это ИИ и может ошибаться. Проверяйте ответ дважды
+        </Typography>
       </Box>
     </Stack>
   )
