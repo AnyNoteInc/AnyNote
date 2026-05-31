@@ -47,15 +47,15 @@ class GraphStreamingService:
                     yield ev
                 continue
             if mode == 'custom':
-                ev = self._process_custom_chunk(data)
-                if ev is not None:
-                    yield ev
+                custom_ev = self._process_custom_chunk(data)
+                if custom_ev is not None:
+                    yield custom_ev
                 continue
             if mode == 'messages':
-                ev = self._process_messages_chunk(data)
-                if ev is not None:
+                message_ev = self._process_messages_chunk(data)
+                if message_ev is not None:
                     streamed_any_token = True
-                    yield ev
+                    yield message_ev
                 continue
             done = False
             async for ev in self._process_updates_chunk(data, initial_state):

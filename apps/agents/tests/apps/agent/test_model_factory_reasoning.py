@@ -9,7 +9,7 @@ from agents.apps.agent.schemas import (
 
 def cfg(provider: str, name: str) -> ModelConfigSchema:
     return ModelConfigSchema(
-        provider=provider,  # type: ignore[arg-type]
+        provider=provider,
         name=name,
         connection=ModelConnectionSchema(api_key='x'),
         settings=ModelSettingsSchema(),

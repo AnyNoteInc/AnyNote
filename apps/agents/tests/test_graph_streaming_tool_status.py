@@ -1,20 +1,21 @@
-import pytest
+from typing import Any
 
+import pytest
+from agents.apps.agent.schemas import AgentState
+from agents.apps.agent.services.graph_streaming import GraphStreamingService
+from agents.apps.agent.services.nodes.tool_runner import tool_runner_node
+from langchain_core.runnables import RunnableConfig
 from langchain_core.tools import StructuredTool
 from langgraph.checkpoint.memory import MemorySaver
 from langgraph.config import get_stream_writer
 from langgraph.graph import START, StateGraph
 
-from agents.apps.agent.schemas import AgentState
-from agents.apps.agent.services.graph_streaming import GraphStreamingService
-from agents.apps.agent.services.nodes.tool_runner import tool_runner_node
-
 from tests.apps.agent.factories import make_state
 
 
 @pytest.mark.asyncio
-async def test_tool_status_custom_events_are_translated_in_order():
-    def node(state: AgentState):
+async def test_tool_status_custom_events_are_translated_in_order() -> None:
+    def node(state: AgentState) -> dict[str, Any]:
         writer = get_stream_writer()
         writer({'kind': 'tool_status', 'id': 't1', 'tool': 'search', 'state': 'running', 'title': 'search'})
         writer({'kind': 'tool_status', 'id': 't1', 'tool': 'search', 'state': 'done', 'title': 'search', 'detail': 'ok'})
@@ -26,7 +27,7 @@ async def test_tool_status_custom_events_are_translated_in_order():
     compiled = g.compile(checkpointer=MemorySaver())
 
     initial = make_state(user_message='hi')
-    config = {'configurable': {'thread_id': 't'}}
+    config: RunnableConfig = {'configurable': {'thread_id': 't'}}
 
     events = [
         ev async for ev in GraphStreamingService().stream(compiled, initial, config, initial)
@@ -37,13 +38,13 @@ async def test_tool_status_custom_events_are_translated_in_order():
 
 
 @pytest.mark.asyncio
-async def test_tool_runner_emits_running_then_done():
+async def test_tool_runner_emits_running_then_done() -> None:
     async def _echo(value: str) -> str:
         return f'echoed:{value}'
 
     tool = StructuredTool.from_function(coroutine=_echo, name='echo', description='echo')
 
-    async def runner(state: AgentState):
+    async def runner(state: AgentState) -> AgentState:
         return await tool_runner_node(state, tools=[tool], tool_registry={})
 
     g = StateGraph(AgentState)
@@ -55,7 +56,7 @@ async def test_tool_runner_emits_running_then_done():
         user_message='hi',
         pending_tool_calls=[{'name': 'echo', 'args': {'value': 'x'}, 'id': 'call-1'}],
     )
-    config = {'configurable': {'thread_id': 't2'}}
+    config: RunnableConfig = {'configurable': {'thread_id': 't2'}}
 
     events = [e async for e in GraphStreamingService().stream(compiled, initial, config, initial)]
     tool_events = [(e.id, e.state) for e in events if e.type == 'tool_status']
@@ -65,13 +66,13 @@ async def test_tool_runner_emits_running_then_done():
 
 
 @pytest.mark.asyncio
-async def test_tool_runner_emits_error_for_camelcase_tool_failure():
+async def test_tool_runner_emits_error_for_camelcase_tool_failure() -> None:
     async def _boom(value: str) -> str:
         raise RuntimeError('kaboom')
 
     tool = StructuredTool.from_function(coroutine=_boom, name='createPage', description='x')
 
-    async def runner(state: AgentState):
+    async def runner(state: AgentState) -> AgentState:
         return await tool_runner_node(state, tools=[tool], tool_registry={})
 
     g = StateGraph(AgentState)
@@ -83,7 +84,7 @@ async def test_tool_runner_emits_error_for_camelcase_tool_failure():
         user_message='hi',
         pending_tool_calls=[{'name': 'createPage', 'args': {'value': 'x'}, 'id': 'cp1'}],
     )
-    config = {'configurable': {'thread_id': 'err1'}}
+    config: RunnableConfig = {'configurable': {'thread_id': 'err1'}}
 
     events = [e async for e in GraphStreamingService().stream(compiled, initial, config, initial)]
     tool_events = {(e.id, e.state) for e in events if e.type == 'tool_status'}
@@ -92,8 +93,8 @@ async def test_tool_runner_emits_error_for_camelcase_tool_failure():
 
 
 @pytest.mark.asyncio
-async def test_tool_runner_emits_error_for_unregistered_tool():
-    async def runner(state: AgentState):
+async def test_tool_runner_emits_error_for_unregistered_tool() -> None:
+    async def runner(state: AgentState) -> AgentState:
         return await tool_runner_node(state, tools=[], tool_registry={})
 
     g = StateGraph(AgentState)
@@ -105,7 +106,7 @@ async def test_tool_runner_emits_error_for_unregistered_tool():
         user_message='hi',
         pending_tool_calls=[{'name': 'ghostTool', 'args': {}, 'id': 'g1'}],
     )
-    config = {'configurable': {'thread_id': 'unreg1'}}
+    config: RunnableConfig = {'configurable': {'thread_id': 'unreg1'}}
 
     events = [e async for e in GraphStreamingService().stream(compiled, initial, config, initial)]
     tool_events = {(e.id, e.state) for e in events if e.type == 'tool_status'}
