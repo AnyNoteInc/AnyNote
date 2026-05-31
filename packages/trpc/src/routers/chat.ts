@@ -43,6 +43,7 @@ type ChatToolPartState = 'pending' | 'running' | 'done' | 'error' | 'required'
 
 type ChatMessagePartDto =
   | { type: 'text'; text: string }
+  | { type: 'thinking'; text: string }
   | {
       type: 'tool'
       id: string
@@ -93,6 +94,14 @@ function normalizeToolState(value: unknown): ChatToolPartState | null {
     : null
 }
 
+function normalizeTextLikePart(
+  type: 'text' | 'thinking',
+  part: Record<string, unknown>,
+): ChatMessagePartDto[] {
+  const text = requiredString(part.text)
+  return text ? [{ type, text }] : []
+}
+
 function normalizeMessageParts(parts: unknown): ChatMessagePartDto[] {
   if (!Array.isArray(parts)) {
     return []
@@ -103,9 +112,8 @@ function normalizeMessageParts(parts: unknown): ChatMessagePartDto[] {
       return []
     }
 
-    if (part.type === 'text') {
-      const text = requiredString(part.text)
-      return text ? [{ type: 'text' as const, text }] : []
+    if (part.type === 'text' || part.type === 'thinking') {
+      return normalizeTextLikePart(part.type, part)
     }
 
     if (part.type === 'tool') {

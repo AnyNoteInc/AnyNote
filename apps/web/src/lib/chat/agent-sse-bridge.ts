@@ -2,7 +2,7 @@ import { prisma } from '@repo/db'
 
 import { activeStreamRegistry } from './active-stream-registry'
 import { decodeSseEvents, encodeSseEvent } from './sse'
-import type { ServiceBlock } from './types'
+import type { ServiceBlock, WebChatSseEvent } from './types'
 
 // ---------------------------------------------------------------------------
 // Part builders
@@ -12,6 +12,10 @@ type ValidChatFile = { id: string; name: string; mimeType: string; fileSize: big
 
 export function createTextPart(text: string) {
   return { type: 'text' as const, text }
+}
+
+export function createThinkingPart(text: string) {
+  return { type: 'thinking' as const, text }
 }
 
 export function createAttacmentPart(file: ValidChatFile) {
@@ -30,6 +34,7 @@ export function createToolPart(block: ServiceBlock) {
 
 export function createAssistantParts(entry: ReturnType<typeof activeStreamRegistry.create>) {
   return [
+    ...(entry.thinking.length > 0 ? [createThinkingPart(entry.thinking)] : []),
     ...(entry.content.length > 0 ? [createTextPart(entry.content)] : []),
     ...entry.blocks.map(createToolPart),
   ]
@@ -114,6 +119,7 @@ export function createEntryResponse(args: {
 // Shape of events emitted by /agent/run and /agent/resume
 type AgentRunSseEvent =
   | { type: 'token'; text: string }
+  | { type: 'thinking'; text: string }
   | { type: 'tool_status'; id: string; tool: string; state: 'running' | 'done' | 'error'; title: string; detail?: string }
   | { type: 'plan_step'; id: string; title: string; position: number; status: 'pending' | 'running' | 'done' | 'failed' | 'skipped' }
   | { type: 'step_started'; step_id: string }
@@ -141,6 +147,23 @@ function upsertServiceBlock(blocks: ServiceBlock[], block: ServiceBlock): Servic
   return next
 }
 
+/**
+ * Pure translator for the upstream agent events that map 1:1 to a browser
+ * `WebChatSseEvent`. Currently only `thinking` → `message.thinking`; all other
+ * upstream events are stateful (they mutate the registry entry — text/blocks/
+ * status) and are handled imperatively in {@link handleAgentEvent}, so they
+ * translate to no standalone browser event here and return `[]`.
+ */
+export function translateAgentEvent(
+  event: AgentRunSseEvent,
+  assistantMessageId: string,
+): WebChatSseEvent[] {
+  if (event.type === 'thinking') {
+    return [{ type: 'message.thinking', assistantMessageId, text: event.text }]
+  }
+  return []
+}
+
 type EntryHandle = ReturnType<typeof activeStreamRegistry.create>
 type PersistHandle = ReturnType<typeof createDebouncedPersist>
 
@@ -152,6 +175,10 @@ function handleAgentEvent(
   switch (event.type) {
     case 'token':
       entry.publishDelta(event.text)
+      flush.schedule()
+      return false
+    case 'thinking':
+      entry.publishThinking(event.text)
       flush.schedule()
       return false
     case 'tool_status':

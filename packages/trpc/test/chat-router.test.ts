@@ -126,6 +126,81 @@ describe('chatRouter', () => {
     ])
   })
 
+  it('preserves a thinking part and keeps it before the text part', async () => {
+    const createdAt = new Date('2026-05-31T10:00:00.000Z')
+    const updatedAt = new Date('2026-05-31T10:05:00.000Z')
+    const chat = {
+      id: '11111111-1111-1111-1111-111111111111',
+      title: 'Новый чат',
+      workspaceId: '22222222-2222-2222-2222-222222222222',
+    }
+
+    const prisma = {
+      chat: {
+        findFirst: vi.fn(async () => chat),
+      },
+      chatMessage: {
+        findMany: vi.fn(async () => [
+          {
+            id: '66666666-6666-6666-6666-666666666666',
+            role: 'ASSISTANT',
+            status: 'DONE',
+            errorMessage: null,
+            createdAt,
+            updatedAt,
+            parts: [
+              { type: 'thinking', text: 'Размышляю над ответом' },
+              { type: 'text', text: 'Готовый ответ' },
+            ],
+          },
+        ]),
+      },
+    } as unknown as PrismaClient
+
+    const caller = createCaller(createContext(prisma))
+    const result = await caller.getChat({ chatId: chat.id })
+
+    expect(result.messages[0]?.parts).toEqual([
+      { type: 'thinking', text: 'Размышляю над ответом' },
+      { type: 'text', text: 'Готовый ответ' },
+    ])
+  })
+
+  it('drops a thinking part that has no text', async () => {
+    const chat = {
+      id: '11111111-1111-1111-1111-111111111111',
+      title: 'Новый чат',
+      workspaceId: '22222222-2222-2222-2222-222222222222',
+    }
+
+    const prisma = {
+      chat: {
+        findFirst: vi.fn(async () => chat),
+      },
+      chatMessage: {
+        findMany: vi.fn(async () => [
+          {
+            id: '77777777-7777-7777-7777-777777777777',
+            role: 'ASSISTANT',
+            status: 'DONE',
+            errorMessage: null,
+            createdAt: new Date('2026-05-31T10:00:00.000Z'),
+            updatedAt: new Date('2026-05-31T10:00:00.000Z'),
+            parts: [
+              { type: 'thinking', text: '' },
+              { type: 'text', text: 'Ответ' },
+            ],
+          },
+        ]),
+      },
+    } as unknown as PrismaClient
+
+    const caller = createCaller(createContext(prisma))
+    const result = await caller.getChat({ chatId: chat.id })
+
+    expect(result.messages[0]?.parts).toEqual([{ type: 'text', text: 'Ответ' }])
+  })
+
   it('does not expose the legacy sendMessage mutation anymore', () => {
     const caller = createCaller(
       createContext({

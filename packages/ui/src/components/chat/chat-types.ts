@@ -30,7 +30,9 @@ export type ChatToolPart = {
   result?: string
 }
 
-export type ChatMessagePart = ChatTextPart | ChatAttacmentPart | ChatToolPart
+export type ChatThinkingPart = { type: 'thinking'; text: string }
+
+export type ChatMessagePart = ChatTextPart | ChatAttacmentPart | ChatToolPart | ChatThinkingPart
 
 export type ChatThreadMessage = {
   id: string
