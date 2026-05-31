@@ -194,6 +194,16 @@ describe('FileTools', () => {
     expect(mockPrisma.file.delete).not.toHaveBeenCalled()
   })
 
+  it('delete_file denies a non-member before any destructive action (even with confirm)', async () => {
+    workspaceMemberFindUniqueMock.mockResolvedValue(null)
+
+    await expect(
+      tools.deleteFile({ workspaceId, fileId, confirm: true }, {} as never, req),
+    ).rejects.toBeInstanceOf(ForbiddenException)
+    expect(storageDeleteMock).not.toHaveBeenCalled()
+    expect(mockPrisma.file.delete).not.toHaveBeenCalled()
+  })
+
   it('delete_file throws when file missing', async () => {
     fileFindFirstMock.mockResolvedValue(null)
 

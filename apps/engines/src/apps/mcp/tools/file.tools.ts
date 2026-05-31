@@ -213,10 +213,10 @@ export class FileTools {
   }
 
   async doDeleteFile(auth: AuthContext, args: DeleteFileArgs) {
+    await assertMember(this.prisma, auth.userId, args.workspaceId)
     if (!args.confirm) {
       throw new BadRequestException('delete_file requires confirm=true')
     }
-    await assertMember(this.prisma, auth.userId, args.workspaceId)
     const file = await this.prisma.file.findFirst({
       where: { id: args.fileId, workspaceId: args.workspaceId },
       select: { id: true, path: true },
