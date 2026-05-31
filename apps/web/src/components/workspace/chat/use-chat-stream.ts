@@ -9,6 +9,7 @@ import type { WebChatSseEvent } from '@/lib/chat/types'
 
 import {
   appendAssistantText,
+  appendAssistantThinking,
   appendPendingMessagePair,
   createServerMessagesSyncKey,
   findAssistantMessageIdByBlockId,
@@ -141,6 +142,14 @@ export function useChatStream({
       case 'message.delta': {
         activeAssistantMessageIdRef.current = event.assistantMessageId
         setMessages((current) => appendAssistantText(current, event.assistantMessageId, event.text))
+        return
+      }
+
+      case 'message.thinking': {
+        activeAssistantMessageIdRef.current = event.assistantMessageId
+        setMessages((current) =>
+          appendAssistantThinking(current, event.assistantMessageId, event.text),
+        )
         return
       }
 
