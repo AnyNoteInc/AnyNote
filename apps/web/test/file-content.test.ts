@@ -1,10 +1,8 @@
 import { describe, expect, it, vi } from 'vitest'
 import { Readable } from 'node:stream'
 
-// file-content.ts imports `server-only`, which throws when imported outside an
-// RSC bundle (e.g. vitest's node env). Neutralise it for the unit test.
-vi.mock('server-only', () => ({}))
-
+// `server-only` is aliased to an empty stub for Vitest in apps/web/vitest.config.ts,
+// so file-content.ts can be imported here without a per-file mock.
 import { resolveAttachmentContents, MAX_TOTAL_INLINE_BYTES } from '../src/lib/chat/file-content'
 
 function fakeStorage(payloads: Record<string, Buffer>) {
