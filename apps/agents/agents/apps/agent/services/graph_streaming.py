@@ -36,12 +36,22 @@ class GraphStreamingService:
         # re-emit plan_step events when status changes (PENDING -> RUNNING -> DONE).
         last_plan_states: dict[str, str] = {}
 
-        async for chunk in graph.astream(input, config, stream_mode=['values', 'updates']):
+        async for chunk in graph.astream(
+            input, config, stream_mode=['values', 'updates', 'messages', 'custom'],
+        ):
             mode, data = chunk
             if mode == 'values':
                 events, last_plan_states = self._process_values_chunk(data, last_plan_states)
                 for ev in events:
                     yield ev
+                continue
+            if mode == 'custom':
+                ev = self._process_custom_chunk(data)
+                if ev is not None:
+                    yield ev
+                continue
+            if mode == 'messages':
+                # token streaming added in Phase 2; ignore here
                 continue
             done = False
             async for ev in self._process_updates_chunk(data, initial_state):
@@ -68,6 +78,17 @@ class GraphStreamingService:
             return [], last_plan_states
         events = self._diff_plan_events(state, last_plan_states)
         return events, {s.id: s.status.value for s in state.plan}
+
+    def _process_custom_chunk(self, data: Any) -> ServerEventSchema | None:
+        if not isinstance(data, dict) or data.get('kind') != 'tool_status':
+            return None
+        return ServerEventSchema.tool_status(
+            id=str(data['id']),
+            tool=str(data.get('tool', '')),
+            state=data['state'],
+            title=str(data.get('title', '')),
+            detail=data.get('detail'),
+        )
 
     async def _process_updates_chunk(
         self,

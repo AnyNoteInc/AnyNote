@@ -7,6 +7,7 @@ from uuid import uuid4
 
 from langchain_core.messages import AIMessage, ToolMessage
 from langchain_core.tools import StructuredTool
+from langgraph.config import get_stream_writer
 from langgraph.types import interrupt
 
 from agents.apps.agent.schemas import AgentState
@@ -64,6 +65,31 @@ def _prior_tool_result(
     return None
 
 
+def _short(text: str, limit: int = 500) -> str:
+    return text if len(text) <= limit else text[:limit] + '…'
+
+
+def _emit_tool_status(call_id: str, name: str, state: str, *, detail: str | None = None) -> None:
+    """Best-effort custom event so the web layer can render real tool lifecycle.
+
+    Wrapped in try/except: get_stream_writer() is only bound when the graph is
+    consumed with stream_mode including 'custom'; unit tests that call the node
+    directly (no stream) must not crash.
+    """
+    try:
+        writer = get_stream_writer()
+    except RuntimeError:
+        return
+    writer({
+        'kind': 'tool_status',
+        'id': call_id,
+        'tool': name,
+        'state': state,
+        'title': name,
+        'detail': detail,
+    })
+
+
 async def tool_runner_node(
     state: AgentState,
     *,
@@ -86,15 +112,31 @@ async def tool_runner_node(
     for call in state.pending_tool_calls:
         tool_calls_made += 1
         call = _enrich_call_from_chat_history(call, state)
-        prior = _prior_tool_result(str(call['name']), call.get('args') or {}, state.messages)
+        call_id = str(call['id'])
+        name = str(call['name'])
+        _emit_tool_status(call_id, name, 'running')
+        prior = _prior_tool_result(name, call.get('args') or {}, state.messages)
         if prior is not None:
             log.info(
                 'tool_runner: deduping duplicate %s call; reusing prior result',
                 call['name'],
             )
-            new_tool_messages.append(ToolMessage(content=prior, tool_call_id=str(call['id'])))
+            new_tool_messages.append(ToolMessage(content=prior, tool_call_id=call_id))
+            _emit_tool_status(call_id, name, 'done', detail=_short(prior))
             continue
-        new_tool_messages.append(await _run_tool(call, tools, tool_registry, state))
+        msg = await _run_tool(call, tools, tool_registry, state)
+        new_tool_messages.append(msg)
+        is_error = isinstance(msg.content, str) and msg.content.lower().startswith(
+            (
+                f"tool '{name.lower()}' error",
+                f"tool '{name.lower()}' not registered",
+                'permission denied',
+                'user denied',
+            )
+        )
+        _emit_tool_status(
+            call_id, name, 'error' if is_error else 'done', detail=_short(str(msg.content)),
+        )
 
     return state.model_copy(update={
         'messages': [*state.messages, *new_tool_messages],
