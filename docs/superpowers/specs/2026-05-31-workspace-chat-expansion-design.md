@@ -517,6 +517,15 @@ Each phase is TDD (RED→GREEN→refactor) and must pass `pnpm gates` before the
 - Additional slash commands beyond `Thinking`.
 - Streaming reasoning summarization UI beyond the collapsible block.
 
+## Known limitations (post-implementation)
+
+- **Reasoning trace not preserved across a confirmation interrupt+resume.** When a thinking-enabled
+  chat hits a destructive-tool confirmation, the agent's resume path (`resume_agent.py`) rebuilds the
+  LLM without the reasoning knob (it is not persisted on `AgentState`). After the user approves, the run
+  continues and the final answer still streams — only the reasoning trace for post-resume LLM turns is
+  absent. Graceful degradation, not a correctness defect. A future change can persist `reasoning` into
+  `AgentState` and pass it in the resume factory call for full-run parity.
+
 ## Risks
 
 - **Global theme reskin** touches every screen — biggest regression surface. Mitigated by a dedicated
