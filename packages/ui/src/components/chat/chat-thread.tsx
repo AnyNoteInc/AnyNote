@@ -224,6 +224,10 @@ export function ChatThread({
                 duration: theme.transitions.duration.standard,
               }),
           zIndex: theme.zIndex.appBar - 1,
+          // Opaque backing while sticky so messages scroll behind the composer
+          // instead of bleeding through it. Empty mode has nothing scrolling
+          // under it, so it stays transparent.
+          ...(!isEmpty && usesPageScroll ? { backgroundColor: 'background.paper' } : null),
         })}
       >
         <Collapse in={isEmpty} unmountOnExit>

@@ -99,6 +99,42 @@ describe('ChatThread', () => {
     expect(styles.minHeight).toBe('0')
   })
 
+  it('gives the sticky composer shell an opaque background so messages do not bleed through', () => {
+    render(
+      <ChatThread
+        composerAttachments={[]}
+        composerValue=""
+        messages={[{ id: 'm1', role: 'assistant', parts: [{ type: 'text', text: 'hi' }] }]}
+        onComposerAttachmentsChange={() => {}}
+        onComposerValueChange={() => {}}
+        onSend={() => {}}
+        scrollContainerSelector=".page-content-scroll"
+        scrollKey="chat-1"
+      />,
+    )
+    const shell = screen.getByTestId('chat-composer-shell')
+    // populated + page-scroll → opaque, not transparent
+    expect(getComputedStyle(shell).backgroundColor).not.toBe('rgba(0, 0, 0, 0)')
+    expect(getComputedStyle(shell).backgroundColor).not.toBe('transparent')
+  })
+
+  it('keeps the empty-state composer shell transparent (nothing scrolls under it)', () => {
+    render(
+      <ChatThread
+        composerAttachments={[]}
+        composerValue=""
+        messages={[]}
+        onComposerAttachmentsChange={() => {}}
+        onComposerValueChange={() => {}}
+        onSend={() => {}}
+        scrollContainerSelector=".page-content-scroll"
+        scrollKey="chat-empty"
+      />,
+    )
+    const shell = screen.getByTestId('chat-composer-shell')
+    expect(getComputedStyle(shell).backgroundColor).toBe('rgba(0, 0, 0, 0)')
+  })
+
   it('centres the composer and shows a greeting when there are no messages', () => {
     render(
       <ChatThread
