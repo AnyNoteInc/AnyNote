@@ -31,7 +31,8 @@ async def test_final_events_emit_thinking_before_token() -> None:
     })
     graph = _graph_with_final_state(state)
 
-    events = [ev async for ev in GraphStreamingService()._yield_final_events(graph, {})]
+    # streamed_any_token=False → fallback path, final_answer is emitted as token
+    events = [ev async for ev in GraphStreamingService()._yield_final_events(graph, {}, False)]  # noqa: S3862
 
     types = [e.type for e in events]
     assert types[:2] == ['thinking', 'token']
@@ -45,7 +46,8 @@ async def test_final_events_skip_thinking_when_no_reasoning() -> None:
     state = state.model_copy(update={'final_reasoning': '', 'final_answer': 'the answer'})
     graph = _graph_with_final_state(state)
 
-    events = [ev async for ev in GraphStreamingService()._yield_final_events(graph, {})]
+    # streamed_any_token=False → fallback path, final_answer is emitted as token
+    events = [ev async for ev in GraphStreamingService()._yield_final_events(graph, {}, False)]  # noqa: S3862
 
     types = [e.type for e in events]
     assert 'thinking' not in types

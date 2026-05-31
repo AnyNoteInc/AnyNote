@@ -35,6 +35,7 @@ class GraphStreamingService:
         # Track each plan step we've emitted by (id -> last status) so we can
         # re-emit plan_step events when status changes (PENDING -> RUNNING -> DONE).
         last_plan_states: dict[str, str] = {}
+        streamed_any_token = False
 
         async for chunk in graph.astream(
             input, config, stream_mode=['values', 'updates', 'messages', 'custom'],
@@ -51,7 +52,10 @@ class GraphStreamingService:
                     yield ev
                 continue
             if mode == 'messages':
-                # token streaming added in Phase 2; ignore here
+                ev = self._process_messages_chunk(data)
+                if ev is not None:
+                    streamed_any_token = True
+                    yield ev
                 continue
             done = False
             async for ev in self._process_updates_chunk(data, initial_state):
@@ -62,7 +66,7 @@ class GraphStreamingService:
             if done:
                 return
 
-        async for ev in self._yield_final_events(graph, config):
+        async for ev in self._yield_final_events(graph, config, streamed_any_token):
             yield ev
 
     def _process_values_chunk(
@@ -122,14 +126,37 @@ class GraphStreamingService:
                 ))
         return out
 
-    async def _yield_final_events(self, graph: Any, config: RunnableConfig) -> AsyncIterator[ServerEventSchema]:
+    def _process_messages_chunk(self, data: Any) -> ServerEventSchema | None:
+        """Translate an executor-node LLM token chunk into a token event.
+
+        astream(stream_mode='messages') yields (message_chunk, metadata). The
+        same llm is reused by every node, so we filter by langgraph_node to keep
+        only the user-facing answer tokens (executor). Empty-content chunks
+        (tool-call deltas, role headers) are skipped.
+        """
+        if not isinstance(data, tuple) or len(data) != 2:
+            return None
+        msg, metadata = data
+        if not isinstance(metadata, dict) or metadata.get('langgraph_node') != 'executor':
+            return None
+        text = getattr(msg, 'content', None)
+        if not isinstance(text, str) or not text:
+            return None
+        return ServerEventSchema.token(text)
+
+    async def _yield_final_events(
+        self, graph: Any, config: RunnableConfig, streamed_any_token: bool,
+    ) -> AsyncIterator[ServerEventSchema]:
         final_snap = await graph.aget_state(config)
         if not final_snap:
             return
         final = AgentState.model_validate(final_snap.values)
         if final.final_reasoning:
             yield ServerEventSchema.thinking(text=final.final_reasoning)
-        if final.final_answer:
+        if final.final_answer and not streamed_any_token:
+            # Provider did not stream tokens — emit the whole answer once so the
+            # client still receives text. When tokens streamed, this is skipped
+            # to avoid duplicating the answer.
             yield ServerEventSchema.token(final.final_answer)
         for c in final.citations:
             yield ServerEventSchema.citation(
