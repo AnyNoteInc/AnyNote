@@ -66,4 +66,16 @@ describe('resolveAttachmentContents', () => {
     expect(includedBytes).toBeLessThanOrEqual(MAX_TOTAL_INLINE_BYTES)
     expect(out.some((r) => !r.included)).toBe(true)
   })
+
+  it('degrades to a fixed reason when reading throws (no message leak)', async () => {
+    const storage = {
+      get: vi.fn(async () => {
+        throw new Error('SECRET s3 key /buckets/abc/leak.md not found')
+      }),
+    } as unknown as import('@repo/storage').StorageClient
+    const res = (await resolveAttachmentContents(storage, [baseFile]))[0]!
+    expect(res.included).toBe(false)
+    expect(res.reason).toBe('extraction failed')
+    expect(res.reason).not.toContain('SECRET')
+  })
 })

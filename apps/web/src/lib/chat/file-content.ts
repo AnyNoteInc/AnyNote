@@ -90,11 +90,8 @@ export async function resolveAttachmentContents(
       usedBytes += textBytes
       out.push({ ...base, included: true, content: text })
     } catch (err) {
-      out.push({
-        ...base,
-        included: false,
-        reason: err instanceof Error ? err.message : 'extraction failed',
-      })
+      console.error(`[chat] failed to read attachment ${file.id} (${file.name})`, err)
+      out.push({ ...base, included: false, reason: 'extraction failed' })
     }
   }
 
