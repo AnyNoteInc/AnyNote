@@ -78,21 +78,31 @@ export function WorkspaceChatClient({
   const persistedThinkingEffort = (query.data?.chat.thinkingEffort ?? null) as ThinkingEffort | null
   useEffect(() => {
     if (persistedUseThinking === null) return
-    setThinking(
-      persistedUseThinking ? { effort: persistedThinkingEffort ?? 'MEDIUM' } : null,
-    )
+    setThinking(persistedUseThinking ? { effort: persistedThinkingEffort ?? 'MEDIUM' } : null)
   }, [activeChatId, persistedUseThinking, persistedThinkingEffort])
 
-  const ensureChat = useEffectEvent(async () => {
-    if (activeChatId) return activeChatId
+  // When the chat doesn't exist yet, settings let us create the row already
+  // carrying its thinking config so the getChat hydration never observes a
+  // transient `useThinking:false` that would clobber a fresh local selection
+  // (see handleSelectThinking). Ignored when a chat already exists.
+  const ensureChat = useEffectEvent(
+    async (settings?: { useThinking?: boolean; thinkingEffort?: ThinkingEffort }) => {
+      if (activeChatId) return activeChatId
 
-    const created = await createChat.mutateAsync({ workspaceId })
-    const href = buildChatHref(workspaceId, created.id)
-    setActiveChatId(created.id)
-    window.history.replaceState(null, '', href)
-    await utils.chat.listChats.invalidate({ workspaceId })
-    return created.id
-  })
+      const created = await createChat.mutateAsync({
+        workspaceId,
+        ...(settings?.useThinking !== undefined ? { useThinking: settings.useThinking } : {}),
+        ...(settings?.thinkingEffort !== undefined
+          ? { thinkingEffort: settings.thinkingEffort }
+          : {}),
+      })
+      const href = buildChatHref(workspaceId, created.id)
+      setActiveChatId(created.id)
+      window.history.replaceState(null, '', href)
+      await utils.chat.listChats.invalidate({ workspaceId })
+      return created.id
+    },
+  )
 
   const handleStreamSettled = useEffectEvent(async () => {
     await Promise.all([
@@ -199,8 +209,15 @@ export function WorkspaceChatClient({
 
   const handleSelectThinking = useEffectEvent(async (effort: ThinkingEffort) => {
     setThinking({ effort })
-    const targetChatId = await ensureChat()
-    if (!targetChatId) return
+
+    // New chat: create the row already carrying the thinking config so the
+    // getChat hydration reads `useThinking:true` and never resets the chip we
+    // just set locally. Existing chat: ensureChat returns its id unchanged, so
+    // persist the change through updateChatSettings instead.
+    const existingChatId = activeChatId
+    const targetChatId = await ensureChat({ useThinking: true, thinkingEffort: effort })
+    if (!targetChatId || existingChatId === null) return
+
     await updateChatSettings.mutateAsync({
       chatId: targetChatId,
       useThinking: true,
