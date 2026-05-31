@@ -80,7 +80,13 @@ export const aiSettingsRouter = router({
           models: Array<
             Pick<
               AiModel,
-              'id' | 'slug' | 'displayName' | 'contextTokens' | 'supportsVision' | 'minPlanSlug'
+              | 'id'
+              | 'slug'
+              | 'displayName'
+              | 'contextTokens'
+              | 'supportsVision'
+              | 'supportsReasoning'
+              | 'minPlanSlug'
             >
           >
         }
@@ -94,7 +100,13 @@ export const aiSettingsRouter = router({
           models: Array<
             Pick<
               AiModel,
-              'id' | 'slug' | 'displayName' | 'contextTokens' | 'supportsVision' | 'minPlanSlug'
+              | 'id'
+              | 'slug'
+              | 'displayName'
+              | 'contextTokens'
+              | 'supportsVision'
+              | 'supportsReasoning'
+              | 'minPlanSlug'
             >
           >
         }
@@ -122,6 +134,7 @@ export const aiSettingsRouter = router({
           displayName: model.displayName,
           contextTokens: model.contextTokens,
           supportsVision: model.supportsVision,
+          supportsReasoning: model.supportsReasoning,
           minPlanSlug: model.minPlanSlug,
         })
         byProvider.set(provider.id, provider)
