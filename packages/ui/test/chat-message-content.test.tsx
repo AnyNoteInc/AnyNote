@@ -162,4 +162,19 @@ describe('ChatMessageContent', () => {
     )
     expect(container.querySelector('.MuiTimeline-root')).toBeTruthy()
   })
+
+  it('uses compact bottom padding on assistant timeline content', () => {
+    const { container } = render(
+      <ChatMessageContent
+        parts={[
+          { type: 'text', text: 'one' },
+          { type: 'text', text: 'two' },
+        ]}
+      />,
+    )
+    const content = container.querySelector('.MuiTimelineContent-root') as HTMLElement
+    expect(content).toBeTruthy()
+    // pb: 0.5 => theme spacing(0.5) => 4px
+    expect(getComputedStyle(content).paddingBottom).toBe('4px')
+  })
 })

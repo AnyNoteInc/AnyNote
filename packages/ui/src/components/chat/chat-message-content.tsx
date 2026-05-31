@@ -126,7 +126,7 @@ export function ChatMessageContent({
               <TimelineDot color={dotColorForPart(part)} variant={dotVariantForPart(part)} />
               {isLast ? null : <TimelineConnector />}
             </TimelineSeparator>
-            <TimelineContent sx={{ pb: 1.25, pt: 0 }}>{renderPartBody(part)}</TimelineContent>
+            <TimelineContent sx={{ pb: 0.5, pt: 0 }}>{renderPartBody(part)}</TimelineContent>
           </TimelineItem>
         )
       })}
