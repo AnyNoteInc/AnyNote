@@ -26,6 +26,12 @@ export function ChatConfirmInline(props: ChatConfirmInlineProps) {
         border: 1,
         borderColor: 'warning.light',
         borderRadius: 2.5,
+        // Fill the chat content viewport but never exceed it: minWidth:0 lets the
+        // box shrink inside its flex parent so a wide argsPreview scrolls inside
+        // the <pre> instead of pushing the panel past the message column.
+        boxSizing: 'border-box',
+        maxWidth: '100%',
+        minWidth: 0,
         my: 1,
         p: 1.75,
         width: '100%',
@@ -45,6 +51,7 @@ export function ChatConfirmInline(props: ChatConfirmInlineProps) {
             borderRadius: 1.5,
             fontSize: 12.5,
             m: 0,
+            maxWidth: '100%',
             mb: 1.25,
             overflow: 'auto',
             p: 1,

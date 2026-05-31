@@ -114,6 +114,10 @@ export function ChatMessageList({
                   flexDirection: 'column',
                   ml: isUser ? 'auto' : 0,
                   maxWidth: isUser ? { xs: '100%', sm: '88%' } : '100%',
+                  // allow the column to shrink so wide assistant content (e.g. the
+                  // confirmation's JSON preview) scrolls inside rather than
+                  // stretching the message past the chat viewport
+                  minWidth: 0,
                   width: isUser ? 'fit-content' : '100%',
                 }}
               >
@@ -122,6 +126,7 @@ export function ChatMessageList({
                     suppressHydrationWarning
                     sx={{
                       color: 'text.primary',
+                      minWidth: 0,
                       ...(isUser
                         ? {
                             bgcolor: 'action.hover',

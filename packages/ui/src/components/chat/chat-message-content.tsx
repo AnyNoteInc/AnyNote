@@ -121,12 +121,17 @@ export function ChatMessageContent({
       {parts.map((part, index) => {
         const isLast = index === parts.length - 1
         return (
-          <TimelineItem key={keyFor(part, index)} sx={{ minHeight: 32 }}>
+          <TimelineItem key={keyFor(part, index)} sx={{ minHeight: 32, minWidth: 0 }}>
             <TimelineSeparator>
               <TimelineDot color={dotColorForPart(part)} variant={dotVariantForPart(part)} />
               {isLast ? null : <TimelineConnector />}
             </TimelineSeparator>
-            <TimelineContent sx={{ pb: 0.5, pt: 0 }}>{renderPartBody(part)}</TimelineContent>
+            {/* minWidth:0 + overflow lets a wide child (e.g. the confirmation's
+                JSON <pre>) scroll inside its box instead of stretching the rail
+                past the chat content width. */}
+            <TimelineContent sx={{ minWidth: 0, overflow: 'hidden', pb: 0.5, pt: 0 }}>
+              {renderPartBody(part)}
+            </TimelineContent>
           </TimelineItem>
         )
       })}
