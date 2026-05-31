@@ -16,24 +16,24 @@ model User {
   emailVerified Boolean @default(false) @map("email_verified")
   image         String? @db.VarChar(1024)
 
-  tz                   String            @default("UTC") @db.VarChar(50)
-  createdAt            DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt            DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
-  accounts             Account[]
-  sessions             Session[]
-  createdWorkspaces    Workspace[]       @relation("WorkspaceCreatedBy")
-  workspaceMemberships WorkspaceMember[]
-  createdPages         Page[]            @relation("PageCreatedBy")
-  updatedPages         Page[]            @relation("PageUpdatedBy")
-  pageSharesCreated    PageShare[]       @relation("PageShareCreatedBy")
-  pageShareGrants      PageShareUser[]   @relation("PageShareGrant")
-  pageCommentThreadsAuthored PageCommentThread[] @relation("PageCommentThreadAuthor")
-  pageCommentsAuthored       PageComment[]       @relation("PageCommentAuthor")
-  preferences          UserPreference?
-  userIntegrations     Integration[]     @relation("UserIntegrations")
-  subscriptions        Subscription[]
-  orders               Order[]
-  chats                Chat[]            @relation("ChatCreator")
+  tz                         String                   @default("UTC") @db.VarChar(50)
+  createdAt                  DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  accounts                   Account[]
+  sessions                   Session[]
+  createdWorkspaces          Workspace[]              @relation("WorkspaceCreatedBy")
+  workspaceMemberships       WorkspaceMember[]
+  createdPages               Page[]                   @relation("PageCreatedBy")
+  updatedPages               Page[]                   @relation("PageUpdatedBy")
+  pageSharesCreated          PageShare[]              @relation("PageShareCreatedBy")
+  pageShareGrants            PageShareUser[]          @relation("PageShareGrant")
+  pageCommentThreadsAuthored PageCommentThread[]      @relation("PageCommentThreadAuthor")
+  pageCommentsAuthored       PageComment[]            @relation("PageCommentAuthor")
+  preferences                UserPreference?
+  userIntegrations           Integration[]            @relation("UserIntegrations")
+  subscriptions              Subscription[]
+  orders                     Order[]
+  chats                      Chat[]                   @relation("ChatCreator")
   favoritePages              FavoritePage[]
   favoriteChats              FavoriteChat[]
   files                      File[]
@@ -102,20 +102,20 @@ model Session {
 }
 
 model ApiKey {
-  id          String    @id @default(uuid(7)) @db.Uuid()
-  userId      String    @map("user_id") @db.Uuid()
+  id     String @id @default(uuid(7)) @db.Uuid()
+  userId String @map("user_id") @db.Uuid()
 
-  name        String    @db.VarChar(100)
-  keyHash     String    @unique @map("key_hash") @db.VarChar(64)
-  keyPrefix   String    @map("key_prefix") @db.VarChar(8)
-  keyLastFour String    @map("key_last_four") @db.VarChar(4)
+  name        String @db.VarChar(100)
+  keyHash     String @unique @map("key_hash") @db.VarChar(64)
+  keyPrefix   String @map("key_prefix") @db.VarChar(8)
+  keyLastFour String @map("key_last_four") @db.VarChar(4)
 
-  expiresAt   DateTime? @map("expires_at") @db.Timestamptz(6)
-  lastUsedAt  DateTime? @map("last_used_at") @db.Timestamptz(6)
-  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  revokedAt   DateTime? @map("revoked_at") @db.Timestamptz(6)
+  expiresAt  DateTime? @map("expires_at") @db.Timestamptz(6)
+  lastUsedAt DateTime? @map("last_used_at") @db.Timestamptz(6)
+  createdAt  DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  revokedAt  DateTime? @map("revoked_at") @db.Timestamptz(6)
 
-  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt(sort: Desc)])
   @@map("api_keys")
@@ -296,6 +296,12 @@ enum AiProviderKind {
   DEEPSEEK
 }
 
+enum ThinkingEffort {
+  LOW
+  MEDIUM
+  HIGH
+}
+
 enum AgentMemoryScope {
   WORKSPACE
   USER
@@ -321,16 +327,16 @@ model Workspace {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  createdBy             User?                @relation("WorkspaceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy             User?                  @relation("WorkspaceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   members               WorkspaceMember[]
   pages                 Page[]
-  workspaceIntegrations Integration[]        @relation("WorkspaceIntegrations")
-  defaultForUsers       UserPreference[]     @relation("DefaultWorkspace")
+  workspaceIntegrations Integration[]          @relation("WorkspaceIntegrations")
+  defaultForUsers       UserPreference[]       @relation("DefaultWorkspace")
   chats                 Chat[]
   files                 File[]
   aiSettings            WorkspaceAiSettings?
   searchHistory         SearchHistory[]
-  notificationEvents    NotificationEvent[]  @relation("WorkspaceNotifications")
+  notificationEvents    NotificationEvent[]    @relation("WorkspaceNotifications")
   reminders             Reminder[]
   mcpServers            WorkspaceMcpServer[]
   agentMemories         WorkspaceAgentMemory[]
@@ -378,13 +384,13 @@ model Page {
   createdAt    DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  workspace     Workspace       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdBy     User?           @relation("PageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy     User?           @relation("PageUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-  prevPage      Page?           @relation("PageOrder", fields: [prevPageId], references: [id], onDelete: SetNull)
-  nextPage      Page?           @relation("PageOrder")
-  children      Page[]          @relation("PageTree")
-  parent        Page?           @relation("PageTree", fields: [parentId], references: [id], onDelete: SetNull)
+  workspace        Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy        User?               @relation("PageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy        User?               @relation("PageUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  prevPage         Page?               @relation("PageOrder", fields: [prevPageId], references: [id], onDelete: SetNull)
+  nextPage         Page?               @relation("PageOrder")
+  children         Page[]              @relation("PageTree")
+  parent           Page?               @relation("PageTree", fields: [parentId], references: [id], onDelete: SetNull)
   share            PageShare?
   commentThreads   PageCommentThread[]
   favorites        FavoritePage[]
@@ -477,22 +483,29 @@ model PageComment {
 }
 
 model Chat {
-  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  workspaceId String   @map("workspace_id") @db.Uuid
-  createdById String   @map("created_by_id") @db.Uuid
-  title       String   @default("Новый чат")
-  parentId    String?  @map("parent_id") @db.Uuid
-  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id             String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId    String         @map("workspace_id") @db.Uuid
+  createdById    String         @map("created_by_id") @db.Uuid
+  title          String         @default("Новый чат")
+  parentId       String?        @map("parent_id") @db.Uuid
+  aiModelId      String?        @map("ai_model_id") @db.Uuid
+  useThinking    Boolean        @default(false) @map("use_thinking")
+  thinkingEffort ThinkingEffort @default(MEDIUM) @map("thinking_effort")
+  temperature    Float?         @map("temperature")
+  topP           Float?         @map("top_p")
+  createdAt      DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  workspace Workspace     @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdBy User          @relation("ChatCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy User           @relation("ChatCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  aiModel   AiModel?       @relation("ChatAiModel", fields: [aiModelId], references: [id], onDelete: SetNull)
   messages  ChatMessage[]
-  parent    Chat?         @relation("ChatTree", fields: [parentId], references: [id], onDelete: Cascade)
-  children  Chat[]        @relation("ChatTree")
+  parent    Chat?          @relation("ChatTree", fields: [parentId], references: [id], onDelete: Cascade)
+  children  Chat[]         @relation("ChatTree")
   favorites FavoriteChat[]
 
   @@index([workspaceId, updatedAt(sort: Desc)])
+  @@index([aiModelId])
   @@map("chats")
 }
 
@@ -633,6 +646,7 @@ model AiModel {
   contextTokens               Int                   @map("context_tokens")
   supportsVision              Boolean               @default(false) @map("supports_vision")
   supportsEmbeddings          Boolean               @default(false) @map("supports_embeddings")
+  supportsReasoning           Boolean               @default(false) @map("supports_reasoning")
   vectorSize                  Int?                  @map("vector_size")
   minPlanSlug                 String?               @map("min_plan_slug")
   isActive                    Boolean               @default(true) @map("is_active")
@@ -640,6 +654,7 @@ model AiModel {
   createdAt                   DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt                   DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
   provider                    AiProvider            @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  chats                       Chat[]                @relation("ChatAiModel")
   workspaceSettings           WorkspaceAiSettings[] @relation("WorkspaceAiSettings_default")
   workspaceEmbeddingsSettings WorkspaceAiSettings[] @relation("WorkspaceAiSettings_embeddings")
 
@@ -680,18 +695,18 @@ model Plan {
   priceYearlyKopecks  Int    @default(0) @map("price_yearly_kopecks")
   currency            String @default("RUB") @db.VarChar(3)
 
-  maxWorkspaces          Int? @map("max_workspaces")
-  maxMembersPerWorkspace Int  @default(1) @map("max_members_per_workspace")
-  maxFileBytes           BigInt  @default(0) @map("max_file_bytes")
+  maxWorkspaces          Int?   @map("max_workspaces")
+  maxMembersPerWorkspace Int    @default(1) @map("max_members_per_workspace")
+  maxFileBytes           BigInt @default(0) @map("max_file_bytes")
 
-  chatsEnabled           Boolean @default(false) @map("chats_enabled")
-  pageIndexingEnabled    Boolean @default(false) @map("page_indexing_enabled")
-  membersSettingsEnabled Boolean @default(false) @map("members_settings_enabled")
-  aiSettingsEnabled      Boolean @default(false) @map("ai_settings_enabled")
-  customMcpEnabled       Boolean @default(false) @map("custom_mcp_enabled")
+  chatsEnabled             Boolean @default(false) @map("chats_enabled")
+  pageIndexingEnabled      Boolean @default(false) @map("page_indexing_enabled")
+  membersSettingsEnabled   Boolean @default(false) @map("members_settings_enabled")
+  aiSettingsEnabled        Boolean @default(false) @map("ai_settings_enabled")
+  customMcpEnabled         Boolean @default(false) @map("custom_mcp_enabled")
   customAiProvidersEnabled Boolean @default(false) @map("custom_ai_providers_enabled")
-  prioritySupport        Boolean @default(false) @map("priority_support")
-  developerSpaceEnabled  Boolean @default(false) @map("developer_space_enabled")
+  prioritySupport          Boolean @default(false) @map("priority_support")
+  developerSpaceEnabled    Boolean @default(false) @map("developer_space_enabled")
 
   features  Json    @default("[]")
   isActive  Boolean @default(true) @map("is_active")
@@ -819,8 +834,8 @@ model File {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace Workspace?       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   pages     PageFile[]
   tasks     TaskAttachment[]
 
@@ -978,9 +993,9 @@ model NotificationDelivery {
   lastError            String?             @map("last_error") @db.Text
   createdAt            DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
 
-  event              NotificationEvent  @relation(fields: [eventId], references: [id], onDelete: Cascade)
-  user               User               @relation("NotificationDeliveryOwner", fields: [userId], references: [id], onDelete: Cascade)
-  targetSubscription PushSubscription?  @relation(fields: [targetSubscriptionId], references: [id], onDelete: SetNull)
+  event              NotificationEvent @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  user               User              @relation("NotificationDeliveryOwner", fields: [userId], references: [id], onDelete: Cascade)
+  targetSubscription PushSubscription? @relation(fields: [targetSubscriptionId], references: [id], onDelete: SetNull)
 
   @@index([status, nextAttemptAt])
   @@index([eventId])
@@ -988,12 +1003,12 @@ model NotificationDelivery {
 }
 
 model NotificationPreference {
-  id        String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  userId    String                @map("user_id") @db.Uuid
+  id        String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String               @map("user_id") @db.Uuid
   category  NotificationCategory
   channel   NotificationChannel
-  enabled   Boolean               @default(true)
-  updatedAt DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+  enabled   Boolean              @default(true)
+  updatedAt DateTime             @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   user User @relation("NotificationPreferenceOwner", fields: [userId], references: [id], onDelete: Cascade)
 
@@ -1170,15 +1185,15 @@ model Task {
   createdAt      DateTime  @default(now()) @map("created_at")
   updatedAt      DateTime  @updatedAt @map("updated_at")
 
-  page     Page            @relation(fields: [pageId], references: [id], onDelete: Cascade)
-  column   KanbanColumn    @relation(fields: [columnId], references: [id], onDelete: Restrict)
-  type     KanbanType?     @relation(fields: [typeId], references: [id], onDelete: SetNull)
-  priority KanbanPriority? @relation(fields: [priorityId], references: [id], onDelete: SetNull)
-  sprint   Sprint?         @relation(fields: [sprintId], references: [id], onDelete: SetNull)
-  parent   Task?           @relation("TaskHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
-  children Task[]          @relation("TaskHierarchy")
-  createdBy User           @relation("TaskCreator", fields: [createdById], references: [id])
-  updatedBy User?          @relation("TaskUpdater", fields: [updatedById], references: [id])
+  page      Page            @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  column    KanbanColumn    @relation(fields: [columnId], references: [id], onDelete: Restrict)
+  type      KanbanType?     @relation(fields: [typeId], references: [id], onDelete: SetNull)
+  priority  KanbanPriority? @relation(fields: [priorityId], references: [id], onDelete: SetNull)
+  sprint    Sprint?         @relation(fields: [sprintId], references: [id], onDelete: SetNull)
+  parent    Task?           @relation("TaskHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children  Task[]          @relation("TaskHierarchy")
+  createdBy User            @relation("TaskCreator", fields: [createdById], references: [id])
+  updatedBy User?           @relation("TaskUpdater", fields: [updatedById], references: [id])
 
   assignees   TaskAssignee[]
   labels      KanbanLabelOnTask[]
@@ -1339,7 +1354,7 @@ model WorkspaceLimit {
   createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  workspace      Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@map("workspace_limits")
 }
