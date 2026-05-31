@@ -103,6 +103,38 @@ export const fileRouter = router({
       }
     }),
 
+  listRecent: protectedProcedure
+    .input(
+      z.object({
+        workspaceId: uuid,
+        limit: z.number().int().min(1).max(20).default(5),
+      }),
+    )
+    .query(async ({ ctx, input }) => {
+      const member = await ctx.prisma.workspaceMember.findUnique({
+        where: {
+          workspaceId_userId: {
+            workspaceId: input.workspaceId,
+            userId: ctx.user.id,
+          },
+        },
+      })
+      if (!member) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Not a member of this workspace',
+        })
+      }
+
+      const rows = await ctx.prisma.file.findMany({
+        where: { workspaceId: input.workspaceId, status: FileStatus.ACTIVE },
+        orderBy: { createdAt: 'desc' },
+        take: input.limit,
+        select: { id: true, name: true, mimeType: true, fileSize: true, createdAt: true },
+      })
+      return rows.map((r) => ({ ...r, fileSize: r.fileSize.toString() }))
+    }),
+
   workspaceUploaders: protectedProcedure
     .input(z.object({ workspaceId: uuid }))
     .query(async ({ ctx, input }) => {
