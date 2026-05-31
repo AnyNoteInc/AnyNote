@@ -29,7 +29,7 @@
     "@hocuspocus/provider": "^3.4.4",
     "@monaco-editor/react": "^4.7.0",
     "@mui/icons-material": "^7.3.10",
-    "@mui/material": "^7.3.10",
+    "@mui/material": "^7.3.11",
     "monaco-editor": "^0.52.2",
     "react": "^19.2.0",
     "react-zoom-pan-pinch": "^3.7.0",

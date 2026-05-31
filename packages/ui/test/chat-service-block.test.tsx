@@ -2,7 +2,7 @@ import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
 
-import { ChatServiceBlock } from '../src/components/chat/chat-service-block'
+import { ChatServiceBlock, toolDotColor } from '../src/components/chat/chat-service-block'
 import type { ChatToolPart } from '../src/components/chat/chat-types'
 
 function part(overrides: Partial<ChatToolPart> = {}): ChatToolPart {
@@ -32,6 +32,16 @@ function confirmationPart(): ChatToolPart {
   }
 }
 
+describe('toolDotColor', () => {
+  it('maps tool state to timeline dot colour', () => {
+    expect(toolDotColor('running')).toBe('grey')
+    expect(toolDotColor('pending')).toBe('grey')
+    expect(toolDotColor('done')).toBe('primary')
+    expect(toolDotColor('error')).toBe('error')
+    expect(toolDotColor('required')).toBe('warning')
+  })
+})
+
 describe('ChatServiceBlock — quiet tool step', () => {
   it('does not apply MUI noWrap modifier on the title', () => {
     render(<ChatServiceBlock part={part()} />)
@@ -47,15 +57,14 @@ describe('ChatServiceBlock — quiet tool step', () => {
     expect(computed.wordBreak).toBe('break-word')
   })
 
-  it('renders the tool name and state label in the meta column', () => {
+  it('renders the tool name without a textual state label', () => {
     render(
       <ChatServiceBlock
         part={part({ state: 'done', detail: JSON.stringify({ tool: 'search_workspace_pages' }) })}
       />,
     )
-    const row = screen.getByTestId('chat-service-block-summary')
-    expect(row.textContent).toContain('search_workspace_pages')
-    expect(row.textContent).toContain('Done')
+    expect(screen.getByText('search_workspace_pages')).toBeInTheDocument()
+    expect(screen.queryByText('Done')).not.toBeInTheDocument()
   })
 
   it('does not render as a MUI Alert', () => {

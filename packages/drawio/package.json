@@ -22,7 +22,7 @@
   },
   "dependencies": {
     "@hocuspocus/provider": "^3.4.4",
-    "@mui/material": "^7.3.10",
+    "@mui/material": "^7.3.11",
     "react": "^19.2.0",
     "react-drawio": "^1.0.7",
     "yjs": "^13.6.30"

@@ -27,7 +27,7 @@
   },
   "dependencies": {
     "@repo/diagram-board": "workspace:*",
-    "@mui/material": "^7.3.10",
+    "@mui/material": "^7.3.11",
     "likec4": "1.57.0",
     "@likec4/diagram": "1.57.0",
     "@likec4/language-services": "1.57.0",

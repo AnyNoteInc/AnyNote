@@ -17,15 +17,19 @@ type ChatServiceBlockProps = Readonly<{
   onAllowAll?: (tool: string) => void
 }>
 
-function getStateLabel(state: ChatToolPart['state']) {
-  const stateMaps: Record<ChatToolPart['state'], string> = {
-    done: 'Done',
-    error: 'Error',
-    pending: 'Pending',
-    required: 'Action required',
-    running: 'Running',
+export function toolDotColor(
+  state: ChatToolPart['state'],
+): 'grey' | 'primary' | 'error' | 'warning' {
+  switch (state) {
+    case 'done':
+      return 'primary'
+    case 'error':
+      return 'error'
+    case 'required':
+      return 'warning'
+    default:
+      return 'grey'
   }
-  return stateMaps[state] || 'Pending'
 }
 
 type ParsedDetail = {
@@ -103,8 +107,7 @@ export function ChatServiceBlock({ part, onConfirm, onAllowAll }: ChatServiceBlo
           component="span"
           sx={{ flexShrink: 0, fontSize: 12.5 }}
         >
-          {detail.tool ? `${detail.tool} • ` : ''}
-          {getStateLabel(part.state)}
+          {detail.tool ?? ''}
         </Typography>
         {hasDetails ? (
           <ExpandMoreRoundedIcon

@@ -22,7 +22,7 @@
   "dependencies": {
     "@excalidraw/excalidraw": "^0.18.0",
     "@hocuspocus/provider": "^3.4.4",
-    "@mui/material": "^7.3.10",
+    "@mui/material": "^7.3.11",
     "@timephy/y-excalidraw": "^2.0.15",
     "react": "^19.2.0",
     "yjs": "^13.6.30"

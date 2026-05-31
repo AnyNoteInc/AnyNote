@@ -30,6 +30,19 @@ export { default as Step, type StepProps } from '@mui/material/Step'
 export { default as StepLabel, type StepLabelProps } from '@mui/material/StepLabel'
 export { default as StepContent, type StepContentProps } from '@mui/material/StepContent'
 
+export { default as Timeline, type TimelineProps } from '@mui/lab/Timeline'
+export { default as TimelineItem, type TimelineItemProps } from '@mui/lab/TimelineItem'
+export {
+  default as TimelineSeparator,
+  type TimelineSeparatorProps,
+} from '@mui/lab/TimelineSeparator'
+export {
+  default as TimelineConnector,
+  type TimelineConnectorProps,
+} from '@mui/lab/TimelineConnector'
+export { default as TimelineContent, type TimelineContentProps } from '@mui/lab/TimelineContent'
+export { default as TimelineDot, type TimelineDotProps } from '@mui/lab/TimelineDot'
+
 export { default as Switch, type SwitchProps } from '@mui/material/Switch'
 export { default as Checkbox, type CheckboxProps } from '@mui/material/Checkbox'
 export {

@@ -3,21 +3,32 @@ import userEvent from '@testing-library/user-event'
 import { describe, expect, it } from 'vitest'
 
 import { ChatMessageContent } from '../src/components/chat/chat-message-content'
+import type { ChatMessagePart } from '../src/components/chat/chat-types'
+
+describe('ChatMessageContent timeline order', () => {
+  it('renders parts in array order (no type grouping)', () => {
+    const parts: ChatMessagePart[] = [
+      { type: 'tool', id: 't1', kind: 'tool', state: 'done', title: 'search' },
+      { type: 'text', text: 'answer after tool' },
+    ]
+    render(<ChatMessageContent parts={parts} />)
+    // Under the OLD type-sort, text (order 1) would render before tool (order 2),
+    // i.e. "answer after tool" would come FIRST. Assert the tool comes first.
+    const toolTitle = screen.getByText('search')
+    const answer = screen.getByText('answer after tool')
+    expect(
+      toolTitle.compareDocumentPosition(answer) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy()
+  })
+})
 
 describe('ChatMessageContent', () => {
-  it('renders text before tool and attacment parts', async () => {
+  it('renders text, tool and attacment parts in array order', async () => {
     const user = userEvent.setup()
     const { container } = render(
       <ChatMessageContent
         parts={[
-          {
-            type: 'attacment',
-            fileId: 'f1',
-            name: 'brief.pdf',
-            mimeType: 'application/pdf',
-            fileSize: '12 KB',
-            downloadUrl: '/api/files/f1',
-          },
+          { type: 'text', text: '# Heading\n\nHello **there**' },
           {
             type: 'tool',
             id: 'tool-1',
@@ -27,7 +38,14 @@ describe('ChatMessageContent', () => {
             detail: '2 документа',
             result: 'Найдена страница «Roadmap»',
           },
-          { type: 'text', text: '# Heading\n\nHello **there**' },
+          {
+            type: 'attacment',
+            fileId: 'f1',
+            name: 'brief.pdf',
+            mimeType: 'application/pdf',
+            fileSize: '12 KB',
+            downloadUrl: '/api/files/f1',
+          },
         ]}
       />,
     )
@@ -41,7 +59,8 @@ describe('ChatMessageContent', () => {
     expect(text).toBeTruthy()
     expect(tool).toBeTruthy()
     expect(toolSummary.textContent).toContain('Поиск по базе')
-    expect(toolSummary.textContent).toContain('Done')
+    // state is conveyed by the timeline dot colour now — no textual state label
+    expect(toolSummary.textContent).not.toContain('Done')
     // result is hidden until the quiet row is expanded (no modal dialog)
     expect(screen.queryByText('Найдена страница «Roadmap»')).toBeNull()
     await user.click(toolSummary)
@@ -57,12 +76,12 @@ describe('ChatMessageContent', () => {
     )
   })
 
-  it('renders a thinking part via ChatThinkingBlock before the text', () => {
+  it('renders a thinking part via ChatThinkingBlock in array order before the text', () => {
     const { container } = render(
       <ChatMessageContent
         parts={[
-          { type: 'text', text: 'Финальный ответ' },
           { type: 'thinking', text: 'Сначала я подумал об этом' },
+          { type: 'text', text: 'Финальный ответ' },
         ]}
       />,
     )
@@ -103,7 +122,8 @@ describe('ChatMessageContent', () => {
   })
 
   it('converts workspace page URL after "здесь" into a markdown link', () => {
-    const href = '/workspaces/28531e45-1bf1-4640-90f2-12b9bd17f5f3/pages/96409533-ddbc-422e-941d-2c4d2abf3098'
+    const href =
+      '/workspaces/28531e45-1bf1-4640-90f2-12b9bd17f5f3/pages/96409533-ddbc-422e-941d-2c4d2abf3098'
     render(
       <ChatMessageContent
         parts={[

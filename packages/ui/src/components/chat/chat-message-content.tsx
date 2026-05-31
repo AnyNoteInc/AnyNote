@@ -1,36 +1,31 @@
 'use client'
 
+/* eslint-disable react/prop-types -- plugin can't unwrap the Readonly<> props generic */
+
 import Box from '@mui/material/Box'
+import Timeline from '@mui/lab/Timeline'
+import TimelineConnector from '@mui/lab/TimelineConnector'
+import TimelineContent from '@mui/lab/TimelineContent'
+import TimelineDot from '@mui/lab/TimelineDot'
+import TimelineItem, { timelineItemClasses } from '@mui/lab/TimelineItem'
+import TimelineSeparator from '@mui/lab/TimelineSeparator'
 import type { ReactNode } from 'react'
 import ReactMarkdown from 'react-markdown'
 
 import { ChatFileChip } from './chat-file-chip'
-import { ChatServiceBlock } from './chat-service-block'
+import { ChatServiceBlock, toolDotColor } from './chat-service-block'
 import { ChatThinkingBlock } from './chat-thinking-block'
 import type { ChatConfirmHandler, ChatMessagePart } from './chat-types'
 
 export type ChatRenderLink = (href: string, children: ReactNode) => ReactNode
+
+type TimelineDotColor = 'grey' | 'primary' | 'error' | 'warning'
 
 type ChatMessageContentProps = Readonly<{
   parts: ChatMessagePart[]
   renderLink?: ChatRenderLink
   onConfirm?: ChatConfirmHandler
 }>
-
-function getPartOrder(part: ChatMessagePart) {
-  switch (part.type) {
-    case 'thinking':
-      return 0
-    case 'text':
-      return 1
-    case 'tool':
-      return 2
-    case 'attacment':
-      return 3
-    default:
-      return 4
-  }
-}
 
 function linkifyWorkspacePageReferences(text: string): string {
   return text.replace(
@@ -39,9 +34,11 @@ function linkifyWorkspacePageReferences(text: string): string {
   )
 }
 
-// eslint-disable-next-line react/prop-types -- plugin can't unwrap Readonly<> generic
+function dotColorForPart(part: ChatMessagePart): TimelineDotColor {
+  return part.type === 'tool' ? toolDotColor(part.state) : 'grey'
+}
+
 export function ChatMessageContent({ parts, renderLink, onConfirm }: ChatMessageContentProps) {
-  const sortedParts = [...parts].sort((left, right) => getPartOrder(left) - getPartOrder(right))
   const markdownComponents = renderLink
     ? {
         a: ({ href, children }: { href?: string; children?: ReactNode }) =>
@@ -50,70 +47,60 @@ export function ChatMessageContent({ parts, renderLink, onConfirm }: ChatMessage
     : undefined
 
   return (
-    <Box display="flex" flexDirection="column" gap={1.25}>
-      {sortedParts.map((part, index) => {
-        if (part.type === 'thinking') {
-          return <ChatThinkingBlock key={`${part.type}-${index}`} text={part.text} />
-        }
-
-        if (part.type === 'text') {
-          return (
-            <Box
-              key={`${part.type}-${index}`}
-              sx={{
-                '& code': {
-                  bgcolor: 'action.hover',
-                  borderRadius: 1,
-                  px: 0.5,
-                  py: 0.125,
-                },
-                '& ol, & ul': {
-                  m: 0,
-                  pl: 3,
-                },
-                '& p': {
-                  m: 0,
-                },
-                '& p + p': {
-                  mt: 1,
-                },
-                '& pre': {
-                  bgcolor: 'grey.100',
-                  borderRadius: 2,
-                  m: 0,
-                  overflowX: 'auto',
-                  p: 1,
-                },
-                '& strong': {
-                  fontWeight: 600,
-                },
-                overflowWrap: 'anywhere',
-              }}
-            >
-              <ReactMarkdown components={markdownComponents}>
-                {linkifyWorkspacePageReferences(part.text)}
-              </ReactMarkdown>
-            </Box>
-          )
-        }
-
-        if (part.type === 'attacment') {
-          return (
-            <ChatFileChip
-              key={part.fileId}
-              href={part.downloadUrl}
-              name={part.name}
-              secondaryLabel={part.fileSize}
-            />
-          )
-        }
-
-        if (part.type === 'tool') {
-          return <ChatServiceBlock key={part.id} onConfirm={onConfirm} part={part} />
-        }
-
-        return null
+    <Timeline
+      sx={{
+        m: 0,
+        p: 0,
+        [`& .${timelineItemClasses.root}:before`]: { flex: 0, p: 0 },
+      }}
+    >
+      {parts.map((part, index) => {
+        const isLast = index === parts.length - 1
+        return (
+          <TimelineItem key={part.type === 'tool' ? part.id : `${part.type}-${index}`}>
+            <TimelineSeparator>
+              <TimelineDot color={dotColorForPart(part)} variant="outlined" />
+              {isLast ? null : <TimelineConnector />}
+            </TimelineSeparator>
+            <TimelineContent sx={{ pb: 1.25, pt: 0 }}>
+              {part.type === 'thinking' ? <ChatThinkingBlock text={part.text} /> : null}
+              {part.type === 'text' ? (
+                <Box
+                  sx={{
+                    '& code': { bgcolor: 'action.hover', borderRadius: 1, px: 0.5, py: 0.125 },
+                    '& ol, & ul': { m: 0, pl: 3 },
+                    '& p': { m: 0 },
+                    '& p + p': { mt: 1 },
+                    '& pre': {
+                      bgcolor: 'grey.100',
+                      borderRadius: 2,
+                      m: 0,
+                      overflowX: 'auto',
+                      p: 1,
+                    },
+                    '& strong': { fontWeight: 600 },
+                    overflowWrap: 'anywhere',
+                  }}
+                >
+                  <ReactMarkdown components={markdownComponents}>
+                    {linkifyWorkspacePageReferences(part.text)}
+                  </ReactMarkdown>
+                </Box>
+              ) : null}
+              {part.type === 'attacment' ? (
+                <ChatFileChip
+                  href={part.downloadUrl}
+                  name={part.name}
+                  secondaryLabel={part.fileSize}
+                />
+              ) : null}
+              {part.type === 'tool' ? (
+                <ChatServiceBlock onConfirm={onConfirm} part={part} />
+              ) : null}
+            </TimelineContent>
+          </TimelineItem>
+        )
       })}
-    </Box>
+    </Timeline>
   )
 }
