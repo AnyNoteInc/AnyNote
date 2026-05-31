@@ -8,7 +8,7 @@ import { decodeWebSseEvents } from '@/lib/chat/sse'
 import type { WebChatSseEvent } from '@/lib/chat/types'
 
 import {
-  appendAssistantText,
+  appendAssistantTextDelta,
   appendAssistantThinking,
   appendPendingMessagePair,
   createServerMessagesSyncKey,
@@ -16,6 +16,7 @@ import {
   mapServerMessagesToThreadMessages,
   markAssistantErrored,
   reconcileOptimisticIds,
+  replaceAssistantSegments,
   updateAssistantStatus,
   type DraftAttachmentSummary,
   type ServerChatMessage,
@@ -140,7 +141,22 @@ export function useChatStream({
 
       case 'message.delta': {
         activeAssistantMessageIdRef.current = event.assistantMessageId
-        setMessages((current) => appendAssistantText(current, event.assistantMessageId, event.text))
+        setMessages((current) =>
+          appendAssistantTextDelta(
+            current,
+            event.assistantMessageId,
+            event.segmentIndex,
+            event.text,
+          ),
+        )
+        return
+      }
+
+      case 'message.segments': {
+        activeAssistantMessageIdRef.current = event.assistantMessageId
+        setMessages((current) =>
+          replaceAssistantSegments(current, event.assistantMessageId, event.segments),
+        )
         return
       }
 

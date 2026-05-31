@@ -3,8 +3,10 @@ import { describe, expect, it } from 'vitest'
 import type { ChatThreadMessage } from '@repo/ui/components'
 
 import {
+  appendAssistantTextDelta,
   appendAssistantThinking,
   mapServerMessageToThreadMessage,
+  replaceAssistantSegments,
   type ServerChatMessage,
 } from '../src/components/workspace/chat/chat-message-mappers'
 
@@ -48,6 +50,21 @@ describe('thinking part mapping', () => {
     )
 
     expect(msg.parts.map((part) => part.type)).toEqual(['thinking', 'text'])
+  })
+})
+
+describe('segment order is preserved (no type grouping)', () => {
+  it('keeps an interleaved text/tool/text message in array order', () => {
+    const msg = mapServerMessageToThreadMessage(
+      makeServerMessage({
+        parts: [
+          { type: 'text', text: 'first' },
+          { type: 'tool', id: 't1', kind: 'tool', state: 'done', title: 'search' },
+          { type: 'text', text: 'second' },
+        ],
+      }),
+    )
+    expect(msg.parts.map((p) => p.type)).toEqual(['text', 'tool', 'text'])
   })
 })
 
@@ -100,5 +117,45 @@ describe('appendAssistantThinking', () => {
 
     const out = appendAssistantThinking(msgs, 'a1', 'reasoning')
     expect(out).toBe(msgs)
+  })
+})
+
+describe('appendAssistantTextDelta', () => {
+  it('appends into the text segment at the given index, creating it if absent', () => {
+    const msgs = [makeThreadMessage({ parts: [] })]
+    const afterFirst = appendAssistantTextDelta(msgs, 'a1', 0, 'Hello ')
+    const afterSecond = appendAssistantTextDelta(afterFirst, 'a1', 0, 'world')
+    expect(afterSecond[0]?.parts).toEqual([{ type: 'text', text: 'Hello world' }])
+  })
+
+  it('targets a later segment index without touching earlier ones', () => {
+    const msgs = [
+      makeThreadMessage({
+        parts: [
+          { type: 'text', text: 'intro' },
+          { type: 'tool', id: 't1', kind: 'tool', state: 'done', title: 'x' },
+        ],
+      }),
+    ]
+    const next = appendAssistantTextDelta(msgs, 'a1', 2, 'after tool')
+    expect(next[0]?.parts).toEqual([
+      { type: 'text', text: 'intro' },
+      { type: 'tool', id: 't1', kind: 'tool', state: 'done', title: 'x' },
+      { type: 'text', text: 'after tool' },
+    ])
+  })
+})
+
+describe('replaceAssistantSegments', () => {
+  it('replaces parts wholesale from a snapshot', () => {
+    const msgs = [makeThreadMessage({ parts: [{ type: 'text', text: 'stale' }] })]
+    const next = replaceAssistantSegments(msgs, 'a1', [
+      { type: 'text', text: 'fresh' },
+      { type: 'tool', id: 't1', kind: 'tool', state: 'running', title: 'x' },
+    ])
+    expect(next[0]?.parts).toEqual([
+      { type: 'text', text: 'fresh' },
+      { type: 'tool', id: 't1', kind: 'tool', state: 'running', title: 'x' },
+    ])
   })
 })

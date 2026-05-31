@@ -85,30 +85,11 @@ function createErrorStatusPart(messageId: string, errorMessage: string): ChatToo
   }
 }
 
-function stripToolParts(parts: ChatMessagePart[]) {
-  return parts.filter((part) => part.type !== 'tool')
-}
-
-function toToolParts(blocks: Array<Omit<ChatToolPart, 'type'>>): ChatToolPart[] {
-  return blocks.map((block) => ({
-    ...block,
-    type: 'tool',
-  }))
-}
-
-function withToolParts(
-  persistedParts: ChatMessagePart[],
-  toolParts: ChatToolPart[],
-): ChatMessagePart[] {
-  return [...persistedParts, ...toolParts]
-}
-
 export function mapServerMessageToThreadMessage(message: ServerChatMessage): ChatThreadMessage {
-  const persistedParts = [...message.parts]
-  const errorParts =
-    message.status === 'ERROR' && message.errorMessage
-      ? [createErrorStatusPart(message.id, message.errorMessage)]
-      : []
+  const parts = [...message.parts]
+  if (message.status === 'ERROR' && message.errorMessage) {
+    parts.push(createErrorStatusPart(message.id, message.errorMessage))
+  }
 
   return {
     id: message.id,
@@ -116,7 +97,7 @@ export function mapServerMessageToThreadMessage(message: ServerChatMessage): Cha
     status: mapStatus(message.status),
     createdAt: message.createdAt,
     updatedAt: message.updatedAt,
-    parts: withToolParts(persistedParts, errorParts),
+    parts,
   }
 }
 
@@ -240,9 +221,20 @@ export function markAssistantErrored(
   })
 }
 
-export function appendAssistantText(
+/**
+ * Appends a streamed text delta into the assistant message's segment at
+ * `segmentIndex`, mirroring the server-side registry which addresses each
+ * `message.delta` to a specific ordered segment. When the slot already holds a
+ * `text` segment the delta is concatenated onto it; otherwise (the index points
+ * past the end, or at a non-text slot) a fresh text segment is written at that
+ * index. This keeps interleaved text↔tool ordering intact instead of merging
+ * everything into one leading text part. No-op when the message id is not
+ * present.
+ */
+export function appendAssistantTextDelta(
   messages: ChatThreadMessage[],
   assistantMessageId: string,
+  segmentIndex: number,
   text: string,
 ): ChatThreadMessage[] {
   if (!messages.some((message) => message.id === assistantMessageId)) {
@@ -254,19 +246,13 @@ export function appendAssistantText(
       return message
     }
 
-    const textIndex = message.parts.findIndex((part) => part.type === 'text')
     const nextParts = [...message.parts]
-
-    if (textIndex >= 0) {
-      const textPart = nextParts[textIndex]
-      if (textPart?.type === 'text') {
-        nextParts[textIndex] = {
-          ...textPart,
-          text: textPart.text + text,
-        }
-      }
+    const existing = nextParts[segmentIndex]
+    if (existing?.type === 'text') {
+      nextParts[segmentIndex] = { ...existing, text: existing.text + text }
     } else {
-      nextParts.unshift({ type: 'text', text })
+      // index points past the end (or at a non-text slot): append a new text segment
+      nextParts[segmentIndex] = { type: 'text', text }
     }
 
     return {
@@ -327,26 +313,28 @@ export function appendAssistantThinking(
   })
 }
 
-export function replaceAssistantToolBlocks(
+/**
+ * Replaces the assistant message's parts wholesale from a `message.segments`
+ * snapshot — the structural source of truth emitted whenever the ordered
+ * segment list changes (e.g. a tool segment is added or transitions state).
+ * The snapshot already carries every text/thinking/tool segment in arrival
+ * order, so we swap the array in rather than merging. No-op when the message id
+ * is not present.
+ */
+export function replaceAssistantSegments(
   messages: ChatThreadMessage[],
   assistantMessageId: string,
-  blocks: Array<Omit<ChatToolPart, 'type'>>,
+  segments: ChatMessagePart[],
 ): ChatThreadMessage[] {
   if (!messages.some((message) => message.id === assistantMessageId)) {
     return messages
   }
 
-  return messages.map((message) => {
-    if (message.id !== assistantMessageId) {
-      return message
-    }
-
-    return {
-      ...message,
-      parts: withToolParts(stripToolParts(message.parts), toToolParts(blocks)),
-      updatedAt: new Date().toISOString(),
-    }
-  })
+  return messages.map((message) =>
+    message.id === assistantMessageId
+      ? { ...message, parts: [...segments], updatedAt: new Date().toISOString() }
+      : message,
+  )
 }
 
 export function findAssistantMessageIdByBlockId(
@@ -383,9 +371,7 @@ export function updateAssistantStatus(args: {
     )
     const terminalParts =
       args.status === 'ERROR' && args.errorMessage
-        ? withToolParts(partsWithoutGeneratedError, [
-            createErrorStatusPart(message.id, args.errorMessage),
-          ])
+        ? [...partsWithoutGeneratedError, createErrorStatusPart(message.id, args.errorMessage)]
         : partsWithoutGeneratedError
 
     return {
