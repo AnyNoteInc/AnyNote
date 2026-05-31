@@ -8,7 +8,6 @@ import Fade from '@mui/material/Fade'
 import Stack from '@mui/material/Stack'
 import Typography from '@mui/material/Typography'
 import useMediaQuery from '@mui/material/useMediaQuery'
-import { alpha } from '@mui/material/styles'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import {
@@ -222,16 +221,6 @@ export function ChatThread({
                 duration: theme.transitions.duration.standard,
               }),
           zIndex: theme.zIndex.appBar - 1,
-          ...(!isEmpty && usesPageScroll
-            ? {
-                background: `linear-gradient(180deg, ${alpha(
-                  theme.palette.background.default,
-                  0,
-                )} 0%, ${alpha(theme.palette.background.default, 0.96)} 30%, ${
-                  theme.palette.background.default
-                } 100%)`,
-              }
-            : null),
         })}
       >
         <Collapse in={isEmpty} unmountOnExit>
