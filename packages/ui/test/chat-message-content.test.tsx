@@ -178,6 +178,21 @@ describe('ChatMessageContent', () => {
     expect(getComputedStyle(item).minHeight).toBe('32px')
   })
 
+  it('gives timeline connectors a minimum height so the lines stay visible', () => {
+    const { container } = render(
+      <ChatMessageContent
+        parts={[
+          { type: 'text', text: 'one' },
+          { type: 'text', text: 'two' },
+        ]}
+      />,
+    )
+    const connector = container.querySelector('.MuiTimelineConnector-root') as HTMLElement
+    expect(connector).toBeTruthy()
+    // content otherwise collapses the connector to 0; enforce a visible minimum
+    expect(getComputedStyle(connector).minHeight).toBe('12px')
+  })
+
   it('uses compact bottom padding on assistant timeline content', () => {
     const { container } = render(
       <ChatMessageContent

@@ -4,7 +4,7 @@
 
 import Box from '@mui/material/Box'
 import Timeline from '@mui/lab/Timeline'
-import TimelineConnector from '@mui/lab/TimelineConnector'
+import TimelineConnector, { timelineConnectorClasses } from '@mui/lab/TimelineConnector'
 import TimelineContent from '@mui/lab/TimelineContent'
 import TimelineDot from '@mui/lab/TimelineDot'
 import TimelineItem, { timelineItemClasses } from '@mui/lab/TimelineItem'
@@ -116,6 +116,9 @@ export function ChatMessageContent({
         m: 0,
         p: 0,
         [`& .${timelineItemClasses.root}:before`]: { flex: 0, p: 0 },
+        // Guarantee the connector lines a minimal visible height — content
+        // otherwise fills the item and collapses the connector to 0.
+        [`& .${timelineConnectorClasses.root}`]: { minHeight: 12 },
       }}
     >
       {parts.map((part, index) => {
