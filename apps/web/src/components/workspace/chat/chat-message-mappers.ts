@@ -247,12 +247,17 @@ export function appendAssistantTextDelta(
     }
 
     const nextParts = [...message.parts]
-    const existing = nextParts[segmentIndex]
+    // Clamp to length so we can never write past the end and leave sparse holes
+    // (which would crash the Timeline's `.map` on `undefined.type`). In practice
+    // the registry only ever emits the current open-text index (length-1 or
+    // length), so the clamp is defence-in-depth against a dropped snapshot.
+    const targetIndex = Math.min(segmentIndex, nextParts.length)
+    const existing = nextParts[targetIndex]
     if (existing?.type === 'text') {
-      nextParts[segmentIndex] = { ...existing, text: existing.text + text }
+      nextParts[targetIndex] = { ...existing, text: existing.text + text }
     } else {
-      // index points past the end (or at a non-text slot): append a new text segment
-      nextParts[segmentIndex] = { type: 'text', text }
+      // index points at the end (or at a non-text slot): write a new text segment
+      nextParts[targetIndex] = { type: 'text', text }
     }
 
     return {
@@ -267,13 +272,13 @@ export function appendAssistantTextDelta(
 /**
  * Appends streamed reasoning to the active assistant message as a single
  * `{ type: 'thinking', text }` part, accumulating across calls so N
- * `message.thinking` events concatenate into one part — mirroring the registry,
- * which appends each delta onto `entry.thinking` and persists it via
- * {@link createAssistantParts}. The thinking part is placed before any text part
- * so the live in-memory order matches the persisted order, leaving the rendered
- * "Размышления" block untouched when the post-stream getChat refetch replaces
- * the live messages with the server copy (no flicker/duplicate). No-op when the
- * message id is not present.
+ * `message.thinking` events concatenate into one part — mirroring the registry's
+ * `publishThinking`, which front-places the same thinking segment in
+ * `entry.segments` and persists it. The thinking part is placed at the FRONT
+ * (before any text/tool part) so the live in-memory order matches the persisted
+ * order, leaving the rendered "Размышления" block untouched when the post-stream
+ * getChat refetch replaces the live messages with the server copy (no
+ * flicker/reorder). No-op when the message id is not present.
  */
 export function appendAssistantThinking(
   messages: ChatThreadMessage[],

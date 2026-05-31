@@ -82,17 +82,22 @@ export function createActiveStreamRegistry() {
         })
       },
       publishThinking(text) {
-        const last = entry.segments.at(-1)
-        if (last && last.type === 'thinking') {
-          last.text += text
+        // Reasoning is emitted terminally (after the answer tokens), but it
+        // renders ABOVE the answer as the "Размышления" block, so the thinking
+        // segment lives at the FRONT of the ordered list — mirrored exactly by the
+        // client's `appendAssistantThinking` (which unshifts). Keeping both sides
+        // front-placed means the persisted segments equal the live order, so the
+        // post-stream getChat refetch doesn't reorder the bubble.
+        const first = entry.segments[0]
+        if (first && first.type === 'thinking') {
+          first.text += text
         } else {
-          entry.segments.push({ type: 'thinking', text })
+          entry.segments.unshift({ type: 'thinking', text })
         }
-        // Thinking streams like text: emit a fast-path `message.thinking` delta so
-        // the browser can append it to the trailing thinking segment (mirrored by
-        // `appendAssistantThinking`). The segment is kept in `entry.segments` for
-        // persistence; tool boundaries are what need full `message.segments`
-        // snapshots, not reasoning deltas.
+        // Emit a fast-path `message.thinking` delta (not a `message.segments`
+        // snapshot): thinking streams like text, and the client appends it to its
+        // own leading thinking segment. The segment is kept in `entry.segments`
+        // for persistence.
         publish({
           type: 'message.thinking',
           assistantMessageId: entry.assistantMessageId,
