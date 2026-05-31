@@ -284,6 +284,45 @@ describe('ChatComposer', () => {
     expect(onSelectThinking).toHaveBeenCalledWith('HIGH')
   })
 
+  it('marks the active effort dot with aria-pressed', async () => {
+    render(
+      <ChatComposer
+        value="/"
+        attachments={[]}
+        onValueChange={() => {}}
+        onAttachmentsChange={() => {}}
+        onSend={vi.fn()}
+        reasoningSupported
+        thinking={{ effort: 'MEDIUM' }}
+        onSelectThinking={vi.fn()}
+        onClearThinking={vi.fn()}
+      />,
+    )
+    const medium = await screen.findByTestId('chat-slash-thinking-medium')
+    const high = await screen.findByTestId('chat-slash-thinking-high')
+    expect(medium.getAttribute('aria-pressed')).toBe('true')
+    expect(high.getAttribute('aria-pressed')).toBe('false')
+  })
+
+  it('gives the Thinking switch an accessible name', async () => {
+    render(
+      <ChatComposer
+        value="/"
+        attachments={[]}
+        onValueChange={() => {}}
+        onAttachmentsChange={() => {}}
+        onSend={vi.fn()}
+        reasoningSupported
+        thinking={{ effort: 'MEDIUM' }}
+        onSelectThinking={vi.fn()}
+        onClearThinking={vi.fn()}
+      />,
+    )
+    // the switch input is reachable by its accessible name now (MUI's Switch input
+    // carries role="switch", so it is exposed as a switch rather than a checkbox)
+    expect(screen.getByRole('switch', { name: /thinking/i })).toBeTruthy()
+  })
+
   it('renders the send button with the ArrowUpward icon', () => {
     render(
       <ChatComposer

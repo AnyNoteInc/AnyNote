@@ -323,7 +323,10 @@ function ChatComposerInner({
                 }}
                 size="small"
                 slotProps={{
-                  input: { 'data-testid': 'chat-slash-thinking-toggle' } as Record<string, unknown>,
+                  input: {
+                    'aria-label': 'Thinking',
+                    'data-testid': 'chat-slash-thinking-toggle',
+                  } as Record<string, unknown>,
                 }}
               />
             </Stack>,
@@ -358,6 +361,7 @@ function ChatComposerInner({
                   {THINKING_EFFORT_ORDER.map((effort) => (
                     <ButtonBase
                       aria-label={THINKING_EFFORT_LABEL[effort]}
+                      aria-pressed={thinking?.effort === effort}
                       data-testid={`chat-slash-thinking-${effort.toLowerCase()}`}
                       key={effort}
                       onClick={() => handleSelectThinking(effort)}
