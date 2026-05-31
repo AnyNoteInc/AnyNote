@@ -26,9 +26,9 @@ export function ChatConfirmInline(props: ChatConfirmInlineProps) {
         border: 1,
         borderColor: 'warning.light',
         borderRadius: 2.5,
-        maxWidth: 440,
         my: 1,
         p: 1.75,
+        width: '100%',
       }}
     >
       <Typography sx={{ color: 'warning.dark', fontSize: 14, fontWeight: 600 }}>

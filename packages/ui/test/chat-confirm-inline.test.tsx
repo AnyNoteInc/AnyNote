@@ -61,9 +61,10 @@ describe('ChatConfirmInline', () => {
     expect(screen.getByText('Создать страницу «Smoke»')).toBeTruthy()
   })
 
-  it('caps the panel width so it does not stretch the full column', () => {
+  it('stretches the panel to the full chat width', () => {
     renderInline()
     const panel = screen.getByTestId('chat-confirm-inline')
-    expect(getComputedStyle(panel).maxWidth).toBe('440px')
+    expect(getComputedStyle(panel).width).toBe('100%')
+    expect(getComputedStyle(panel).maxWidth).not.toBe('440px')
   })
 })
