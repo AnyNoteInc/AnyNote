@@ -2,7 +2,7 @@
 
 **Date:** 2026-05-31
 **Route:** `/workspaces/{workspaceId}/chats/{chatId}`
-**Scope:** 8 focused visual/UX tweaks to the chat surface. No behavioural/streaming
+**Scope:** 9 focused visual/UX tweaks to the chat surface. No behavioural/streaming
 changes — purely presentation, plus one new structured slash-menu control.
 
 ## Context
@@ -35,7 +35,7 @@ imports in this folder follow the same direct-import style.
   is **white `#ffffff`**. Dark mode: canvas `#262624`, paper `#2f2f2c`. So "white
   background" = the **paper** token, applied theme-aware (not a hardcoded `#fff`).
 
-## The 8 changes
+## The 9 changes
 
 ### 1. Remove the timeline from user messages
 
@@ -235,6 +235,27 @@ matches the request ("на всех страницах"). Page renderers that se
 background continue to override locally; this only changes the default canvas behind
 them.
 
+### 9. Confirmation box width — fit the content, not the full column
+
+**File:** `packages/ui/src/components/chat/chat-confirm-inline.tsx`
+
+The inline tool-confirmation (`ChatConfirmInline`, "⚠️ Требуется подтверждение" +
+summary + optional args preview + Разрешить/Отклонить buttons) is rendered as a tool
+part inside the assistant timeline. Its outer `Box` has no width constraint, so it
+stretches to the **full width** of the assistant content column (assistant messages
+use `maxWidth: '100%'`). On a wide window the warning panel runs edge-to-edge and
+reads as oversized for the little text it holds.
+
+**Design:** cap the panel width so it sizes to its content rather than the full
+column. Set a `maxWidth` on the outer `Box` (~`440px`, tunable; expressed via the
+theme spacing/`maxWidth` token) and keep it left-aligned (no `mx: auto`). The panel
+still grows down to the container width on narrow/mobile screens — the cap only bites
+when there's room to spare — so the existing `flexWrap` button row still wraps
+gracefully. The `argsPreview` `<pre>` keeps `overflow: auto`, so long JSON scrolls
+inside the capped width instead of forcing the panel wider.
+
+No change to the confirm/deny wiring or the `data-testid="chat-confirm-inline"` hook.
+
 ## Out of scope / non-goals
 
 - No changes to streaming, SSE, persistence, tool execution, or confirmation flow.
@@ -273,5 +294,6 @@ them.
 | `packages/ui/src/components/chat/chat-empty-state.tsx` | 6, 7 (greeting) |
 | `packages/ui/src/components/chat/chat-thread.tsx` | 7 (centred layout + slide-down) |
 | `apps/web/.../workspace/workspace-layout-client.tsx` | 8 |
+| `packages/ui/src/components/chat/chat-confirm-inline.tsx` | 9 |
 | `packages/ui/src/components/index.ts` | add `MobileStepper` re-export iff needed by tests |
 | chat unit tests + chat E2E spec | all |
