@@ -124,3 +124,43 @@ describe('buildAgentRunPayload', () => {
     ])
   })
 })
+
+describe('buildAgentRunPayload attachments + reasoning', () => {
+  it('includes attachments and reasoning fields', () => {
+    const payload = buildAgentRunPayload({
+      chatId: '11111111-1111-1111-1111-111111111111',
+      userMessage: 'hi',
+      chatHistory: [],
+      settings: BASE_SETTINGS,
+      mcpServers: [],
+      longTermMemories: [],
+      attachments: [
+        {
+          id: 'f1',
+          name: 'a.md',
+          mime: 'text/markdown',
+          sizeBytes: 4,
+          included: true,
+          content: '# Hi',
+        },
+      ],
+      reasoning: { enabled: true, effort: 'high' },
+    })
+    expect(payload.attachments?.[0]?.id).toBe('f1')
+    expect(payload.attachments?.[0]?.included).toBe(true)
+    expect(payload.reasoning).toEqual({ enabled: true, effort: 'high' })
+  })
+
+  it('defaults reasoning to disabled and attachments to empty', () => {
+    const payload = buildAgentRunPayload({
+      chatId: '11111111-1111-1111-1111-111111111111',
+      userMessage: 'hi',
+      chatHistory: [],
+      settings: BASE_SETTINGS,
+      mcpServers: [],
+      longTermMemories: [],
+    })
+    expect(payload.reasoning).toEqual({ enabled: false, effort: 'medium' })
+    expect(payload.attachments).toEqual([])
+  })
+})
