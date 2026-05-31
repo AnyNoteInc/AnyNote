@@ -17,14 +17,6 @@ type ChatServiceBlockProps = Readonly<{
   onAllowAll?: (tool: string) => void
 }>
 
-const TICK_COLOR: Record<ChatToolPart['state'], string> = {
-  done: 'grey.600',
-  error: 'error.main',
-  pending: 'grey.500',
-  required: 'grey.500',
-  running: 'grey.500',
-}
-
 function getStateLabel(state: ChatToolPart['state']) {
   const stateMaps: Record<ChatToolPart['state'], string> = {
     done: 'Done',
@@ -95,24 +87,6 @@ export function ChatServiceBlock({ part, onConfirm, onAllowAll }: ChatServiceBlo
           ...(hasDetails ? { '&:hover': { bgcolor: 'action.hover' } } : {}),
         }}
       >
-        <Box
-          aria-hidden
-          sx={{
-            alignItems: 'center',
-            bgcolor: TICK_COLOR[part.state],
-            borderRadius: 0.75,
-            color: 'common.white',
-            display: 'flex',
-            flexShrink: 0,
-            fontSize: 11,
-            height: 16,
-            justifyContent: 'center',
-            lineHeight: 1,
-            width: 16,
-          }}
-        >
-          {part.state === 'error' ? '!' : '✓'}
-        </Box>
         <Typography
           sx={{
             flex: 1,
