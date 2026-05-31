@@ -368,4 +368,31 @@ describe('ChatComposer', () => {
     // jsdom normalises the `transparent` keyword to rgba(0, 0, 0, 0)
     expect(getComputedStyle(form).backgroundColor).toBe('rgba(0, 0, 0, 0)')
   })
+
+  it('focuses the input on mount when autoFocus is set', () => {
+    render(
+      <ChatComposer
+        value=""
+        attachments={[]}
+        autoFocus
+        onValueChange={() => {}}
+        onAttachmentsChange={() => {}}
+        onSend={vi.fn()}
+      />,
+    )
+    expect(document.activeElement).toBe(screen.getByTestId('chat-composer-textarea'))
+  })
+
+  it('does not focus the input when autoFocus is not set', () => {
+    render(
+      <ChatComposer
+        value=""
+        attachments={[]}
+        onValueChange={() => {}}
+        onAttachmentsChange={() => {}}
+        onSend={vi.fn()}
+      />,
+    )
+    expect(document.activeElement).not.toBe(screen.getByTestId('chat-composer-textarea'))
+  })
 })

@@ -257,6 +257,7 @@ export function WorkspaceChatClient({
         {combinedError ? <Alert severity="error">{combinedError}</Alert> : null}
         <ChatThread
           composerAttachments={draftAttachments.attachments}
+          composerAutoFocus={activeChatId === null}
           composerPlaceholder="Спросите что-нибудь..."
           composerReasoningSupported={reasoningSupported}
           composerRecentFiles={recentFiles}

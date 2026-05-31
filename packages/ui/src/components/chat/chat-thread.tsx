@@ -48,6 +48,7 @@ type ChatThreadProps = Readonly<{
   onComposerSelectThinking?: (effort: ChatComposerThinkingEffort) => void
   composerThinking?: { effort: ChatComposerThinkingEffort } | null
   onComposerClearThinking?: () => void
+  composerAutoFocus?: boolean
 }>
 
 function isNearBottom(element: HTMLElement) {
@@ -89,6 +90,7 @@ export function ChatThread({
   onComposerSelectThinking,
   composerThinking,
   onComposerClearThinking,
+  composerAutoFocus,
 }: ChatThreadProps) {
   const pinnedToBottomRef = useRef(true)
   const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null)
@@ -166,6 +168,7 @@ export function ChatThread({
   const composer = (
     <ChatComposer
       attachments={composerAttachments}
+      autoFocus={composerAutoFocus}
       disabled={disabled}
       onAttachRecent={onComposerAttachRecent}
       onAttachmentsChange={onComposerAttachmentsChange}

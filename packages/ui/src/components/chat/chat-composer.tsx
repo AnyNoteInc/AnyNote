@@ -57,6 +57,7 @@ type ChatComposerProps = Readonly<{
   onSelectThinking?: (effort: ChatComposerThinkingEffort) => void
   thinking?: { effort: ChatComposerThinkingEffort } | null
   onClearThinking?: () => void
+  autoFocus?: boolean
 }>
 
 const THINKING_EFFORT_LABEL: Record<ChatComposerThinkingEffort, string> = {
@@ -101,6 +102,7 @@ type ChatComposerInnerProps = Readonly<{
   onSelectThinking?: (effort: ChatComposerThinkingEffort) => void
   thinking?: { effort: ChatComposerThinkingEffort } | null
   onClearThinking?: () => void
+  autoFocus?: boolean
 }>
 
 function ChatComposerInner({
@@ -114,6 +116,7 @@ function ChatComposerInner({
   onSelectThinking,
   thinking,
   onClearThinking,
+  autoFocus,
 }: ChatComposerInnerProps) {
   const composer = useChatComposer()
   const store = useChatStore()
@@ -133,6 +136,15 @@ function ChatComposerInner({
   const slashOpen = isSlashMenuOpen(composer.value)
   const query = slashQuery(composer.value).toLowerCase()
   const thinkingMatchesQuery = 'thinking'.includes(query)
+
+  // Focus the input whenever the composer is asked to auto-focus (e.g. landing
+  // on a new chat). Keyed on `autoFocus` so navigating from an existing chat to
+  // a fresh one re-focuses even though this component instance persists.
+  useEffect(() => {
+    if (!autoFocus || disabled) return
+    const textarea = textAreaWrapRef.current?.querySelector('textarea')
+    textarea?.focus()
+  }, [autoFocus, disabled])
 
   useEffect(() => {
     const propChanged = previousPropSignatureRef.current !== propSignature
@@ -422,6 +434,7 @@ export function ChatComposer({
   onSelectThinking,
   thinking,
   onClearThinking,
+  autoFocus,
 }: ChatComposerProps) {
   const adapter = useMemo(() => {
     return createComposerAdapter({
@@ -441,6 +454,7 @@ export function ChatComposer({
     >
       <ChatComposerInner
         attachments={attachments}
+        autoFocus={autoFocus}
         disabled={disabled}
         onAttachRecent={onAttachRecent}
         onAttachmentsChange={onAttachmentsChange}
