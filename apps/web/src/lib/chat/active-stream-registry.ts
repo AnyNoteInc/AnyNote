@@ -7,6 +7,7 @@ export type ActiveStreamEntry = {
   chatId: string
   userMessageId: string
   content: string
+  thinking: string
   blocks: ServiceBlock[]
   status: StreamStatus
   errorMessage?: string
@@ -15,6 +16,7 @@ export type ActiveStreamEntry = {
   subscribe: (subscriber: Subscriber) => () => void
   publishCreated: () => void
   publishDelta: (text: string) => void
+  publishThinking: (text: string) => void
   publishBlocks: (blocks: ServiceBlock[]) => void
   publishStatus: (status: StreamStatus, errorMessage?: string) => void
   publishDone: () => void
@@ -45,6 +47,7 @@ export function createActiveStreamRegistry() {
       chatId: args.chatId,
       userMessageId: args.userMessageId,
       content: '',
+      thinking: '',
       blocks: [],
       status: 'STREAMING',
       errorMessage: undefined,
@@ -69,6 +72,14 @@ export function createActiveStreamRegistry() {
         entry.content += text
         publish({
           type: 'message.delta',
+          assistantMessageId: entry.assistantMessageId,
+          text,
+        })
+      },
+      publishThinking(text) {
+        entry.thinking += text
+        publish({
+          type: 'message.thinking',
           assistantMessageId: entry.assistantMessageId,
           text,
         })

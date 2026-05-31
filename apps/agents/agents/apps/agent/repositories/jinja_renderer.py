@@ -32,6 +32,7 @@ class AgentJinjaRenderer:
         mcp_servers: list[Any],
         agent_system_prompt: str | None,
         last_critic_feedback: str | None,
+        attachments: list[Any] | None = None,
     ) -> str:
         return self.env.get_template('planner.j2').render(
             user_message=user_message,
@@ -41,6 +42,7 @@ class AgentJinjaRenderer:
             mcp_servers=mcp_servers,
             agent_system_prompt=agent_system_prompt,
             last_critic_feedback=last_critic_feedback,
+            attachments=attachments or [],
         )
 
     def render_executor(
@@ -50,12 +52,14 @@ class AgentJinjaRenderer:
         plan: list[dict[str, Any]],
         long_term_memories: list[Any],
         chat_history: list[Any] | None = None,
+        attachments: list[Any] | None = None,
     ) -> str:
         return self.env.get_template('executor.j2').render(
             current_step=current_step,
             plan=plan,
             long_term_memories=long_term_memories,
             chat_history=chat_history or [],
+            attachments=attachments or [],
         )
 
     def render_critic(

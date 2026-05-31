@@ -4,6 +4,7 @@ import { TRPCError } from '@trpc/server'
 import type { PrismaClient } from '@repo/db'
 
 import { router, protectedProcedure } from '../trpc'
+import { getAvailableAiModels } from '../helpers/plan'
 
 async function assertWorkspaceMember(
   ctx: { prisma: PrismaClient; user: { id: string } },
@@ -29,6 +30,18 @@ async function assertChatAccess(
   return chat
 }
 
+/**
+ * Ensure the AI model is available for the workspace's plan (and not deprecated),
+ * mirroring the guard the AI-settings router applies to its default model.
+ */
+async function assertModelAvailable(workspaceId: string, modelId: string) {
+  const availableModels = await getAvailableAiModels(workspaceId)
+  const model = availableModels.find((m) => m.id === modelId)
+  if (!model || model.deprecatedAt !== null) {
+    throw new TRPCError({ code: 'BAD_REQUEST', message: 'Недоступная модель' })
+  }
+}
+
 type ChatMessageWithParts = {
   id: string
   role: 'USER' | 'ASSISTANT'
@@ -43,6 +56,7 @@ type ChatToolPartState = 'pending' | 'running' | 'done' | 'error' | 'required'
 
 type ChatMessagePartDto =
   | { type: 'text'; text: string }
+  | { type: 'thinking'; text: string }
   | {
       type: 'tool'
       id: string
@@ -93,6 +107,14 @@ function normalizeToolState(value: unknown): ChatToolPartState | null {
     : null
 }
 
+function normalizeTextLikePart(
+  type: 'text' | 'thinking',
+  part: Record<string, unknown>,
+): ChatMessagePartDto[] {
+  const text = requiredString(part.text)
+  return text ? [{ type, text }] : []
+}
+
 function normalizeMessageParts(parts: unknown): ChatMessagePartDto[] {
   if (!Array.isArray(parts)) {
     return []
@@ -103,9 +125,8 @@ function normalizeMessageParts(parts: unknown): ChatMessagePartDto[] {
       return []
     }
 
-    if (part.type === 'text') {
-      const text = requiredString(part.text)
-      return text ? [{ type: 'text' as const, text }] : []
+    if (part.type === 'text' || part.type === 'thinking') {
+      return normalizeTextLikePart(part.type, part)
     }
 
     if (part.type === 'tool') {
@@ -208,17 +229,62 @@ export const chatRouter = router({
     }),
 
   createChat: protectedProcedure
-    .input(z.object({ workspaceId: z.string().uuid(), parentId: z.string().uuid().optional() }))
+    .input(
+      z.object({
+        workspaceId: z.string().uuid(),
+        parentId: z.string().uuid().optional(),
+        aiModelId: z.string().uuid().optional(),
+        useThinking: z.boolean().optional(),
+        thinkingEffort: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
+      }),
+    )
     .mutation(async ({ ctx, input }) => {
       await assertWorkspaceMember(ctx, input.workspaceId)
       if (input.parentId) {
         await assertChatAccess(ctx, input.parentId)
+      }
+      if (input.aiModelId) {
+        await assertModelAvailable(input.workspaceId, input.aiModelId)
       }
       return ctx.prisma.chat.create({
         data: {
           workspaceId: input.workspaceId,
           createdById: ctx.user.id,
           parentId: input.parentId ?? null,
+          ...(input.aiModelId !== undefined ? { aiModelId: input.aiModelId } : {}),
+          ...(input.useThinking !== undefined ? { useThinking: input.useThinking } : {}),
+          ...(input.thinkingEffort !== undefined ? { thinkingEffort: input.thinkingEffort } : {}),
+        },
+      })
+    }),
+
+  updateChatSettings: protectedProcedure
+    .input(
+      z.object({
+        chatId: z.string().uuid(),
+        aiModelId: z.string().uuid().nullable().optional(),
+        useThinking: z.boolean().optional(),
+        thinkingEffort: z.enum(['LOW', 'MEDIUM', 'HIGH']).optional(),
+        temperature: z.number().min(0).max(2).nullable().optional(),
+        topP: z.number().min(0).max(1).nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const chat = await assertChatAccess(ctx, input.chatId)
+      if (input.aiModelId) {
+        await assertModelAvailable(chat.workspaceId, input.aiModelId)
+      }
+      const { chatId, ...data } = input
+      return ctx.prisma.chat.update({
+        where: { id: chatId },
+        data,
+        select: {
+          id: true,
+          aiModelId: true,
+          useThinking: true,
+          thinkingEffort: true,
+          temperature: true,
+          topP: true,
         },
       })
     }),

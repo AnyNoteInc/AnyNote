@@ -35,17 +35,17 @@ describe('ChatMessageContent', () => {
     const text = screen.getByRole('heading', { name: 'Heading' })
     const tool = screen.getByText(/Поиск по базе/)
     const toolSummary = screen.getByTestId('chat-service-block-summary')
-    const toolResultButton = screen.getByRole('button', { name: /результат/i })
     const file = screen.getByRole('link', { name: /brief\.pdf/i })
     const strong = container.querySelector('strong')
 
     expect(text).toBeTruthy()
     expect(tool).toBeTruthy()
-    expect(toolSummary.textContent).toBe('Поиск по базе • Done • Результат')
-    expect(screen.queryByText('Tool • Done')).toBeNull()
+    expect(toolSummary.textContent).toContain('Поиск по базе')
+    expect(toolSummary.textContent).toContain('Done')
+    // result is hidden until the quiet row is expanded (no modal dialog)
     expect(screen.queryByText('Найдена страница «Roadmap»')).toBeNull()
-    await user.click(toolResultButton)
-    expect(screen.getByRole('dialog', { name: /результат/i })).toBeTruthy()
+    await user.click(toolSummary)
+    expect(screen.queryByRole('dialog')).toBeNull()
     expect(screen.getByText('Найдена страница «Roadmap»')).toBeTruthy()
     expect(file).toBeTruthy()
     expect(strong?.textContent).toBe('there')
@@ -54,6 +54,23 @@ describe('ChatMessageContent', () => {
     )
     expect(container.textContent?.indexOf('Поиск по базе')).toBeLessThan(
       container.textContent?.indexOf('brief.pdf') ?? Number.POSITIVE_INFINITY,
+    )
+  })
+
+  it('renders a thinking part via ChatThinkingBlock before the text', () => {
+    const { container } = render(
+      <ChatMessageContent
+        parts={[
+          { type: 'text', text: 'Финальный ответ' },
+          { type: 'thinking', text: 'Сначала я подумал об этом' },
+        ]}
+      />,
+    )
+
+    expect(screen.getByText('Размышления')).toBeTruthy()
+    expect(screen.getByText('Сначала я подумал об этом')).toBeTruthy()
+    expect(container.textContent?.indexOf('Размышления')).toBeLessThan(
+      container.textContent?.indexOf('Финальный ответ') ?? Number.POSITIVE_INFINITY,
     )
   })
 

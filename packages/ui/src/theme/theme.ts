@@ -2,12 +2,15 @@ import { createTheme } from '@mui/material/styles'
 import type { PaletteMode } from '@mui/material'
 
 // Claude brand palette
-const paper = '#fffdf7'
-const paperDeep = '#f0eee6'
-const ink = '#1d1d1b'
-const inkSoft = '#2a2a27'
-const orange = '#c96442'
-const orangeWarm = '#d97757'
+const cream = '#faf9f5' // light app canvas
+const paperLight = '#ffffff' // light elevated surfaces
+const darkCanvas = '#262624' // dark app canvas
+const darkPaper = '#2f2f2c' // dark elevated surfaces
+const inkWarm = '#3d3d3a' // warm near-black for light text / dark secondary surface
+const creamSoft = '#e8e4da' // warm off-white for dark text
+const coral = '#bd5d3a' // coral/rust accent
+const coralDark = '#9c4a2d'
+const coralLight = '#d97757'
 
 export function createAppTheme(mode: PaletteMode = 'light') {
   const isDark = mode === 'dark'
@@ -15,21 +18,23 @@ export function createAppTheme(mode: PaletteMode = 'light') {
     cssVariables: true,
     palette: {
       mode,
-      primary: { main: orange, dark: '#a04a2d', light: orangeWarm, contrastText: paper },
-      secondary: { main: ink, contrastText: paper },
-      background: isDark ? { default: ink, paper: inkSoft } : { default: paper, paper: '#ffffff' },
+      primary: { main: coral, dark: coralDark, light: coralLight, contrastText: '#ffffff' },
+      secondary: { main: isDark ? creamSoft : inkWarm, contrastText: isDark ? inkWarm : cream },
+      background: isDark
+        ? { default: darkCanvas, paper: darkPaper }
+        : { default: cream, paper: paperLight },
       text: isDark
         ? {
-            primary: paperDeep,
-            secondary: 'rgba(240,238,230,0.65)',
-            disabled: 'rgba(240,238,230,0.4)',
+            primary: creamSoft,
+            secondary: 'rgba(232,228,218,0.66)',
+            disabled: 'rgba(232,228,218,0.4)',
           }
         : {
-            primary: ink,
-            secondary: 'rgba(29,29,27,0.65)',
-            disabled: 'rgba(29,29,27,0.42)',
+            primary: inkWarm,
+            secondary: '#6b675e',
+            disabled: 'rgba(61,61,58,0.42)',
           },
-      divider: isDark ? 'rgba(240,238,230,0.12)' : 'rgba(0,0,0,0.08)',
+      divider: isDark ? 'rgba(232,228,218,0.12)' : 'rgba(60,50,30,0.10)',
     },
     shape: { borderRadius: 4 },
     typography: {

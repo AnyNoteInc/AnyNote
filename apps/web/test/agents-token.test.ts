@@ -40,3 +40,12 @@ describe('scopesForRole grants every scope the MCP tool registry requires', () =
     for (const s of REQUIRED_WRITE) expect(viewer).not.toContain(s)
   })
 })
+
+describe('files:delete scope', () => {
+  it('is granted to OWNER only', () => {
+    expect(scopesForRole('OWNER')).toContain('files:delete')
+    for (const role of ['ADMIN', 'EDITOR', 'COMMENTER', 'VIEWER', 'GUEST'] as const) {
+      expect(scopesForRole(role)).not.toContain('files:delete')
+    }
+  })
+})

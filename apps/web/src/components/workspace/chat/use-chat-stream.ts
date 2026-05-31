@@ -5,23 +5,34 @@ import { useEffect, useEffectEvent, useRef, useState, startTransition } from 're
 import type { ChatThreadMessage } from '@repo/ui/components'
 
 import { decodeWebSseEvents } from '@/lib/chat/sse'
-import type { ConfirmationRequiredEvent, PlanStepEvent, WebChatSseEvent } from '@/lib/chat/types'
+import type { WebChatSseEvent } from '@/lib/chat/types'
 
 import {
   appendAssistantText,
+  appendAssistantThinking,
   appendPendingMessagePair,
   createServerMessagesSyncKey,
   findAssistantMessageIdByBlockId,
   mapServerMessagesToThreadMessages,
+  markAssistantErrored,
+  reconcileOptimisticIds,
   replaceAssistantToolBlocks,
   updateAssistantStatus,
   type DraftAttachmentSummary,
   type ServerChatMessage,
 } from './chat-message-mappers'
+import { buildOptimisticPair } from './optimistic'
+
+type ThinkingEffort = 'LOW' | 'MEDIUM' | 'HIGH'
 
 type PendingSend = {
   attachments: DraftAttachmentSummary[]
   text: string
+}
+
+type SendOptions = {
+  useThinking?: boolean
+  thinkingEffort?: ThinkingEffort
 }
 
 type UseChatStreamArgs = {
@@ -29,11 +40,9 @@ type UseChatStreamArgs = {
   ensureChat?: () => Promise<string | null>
   initialMessages: ServerChatMessage[]
   onSettled?: () => void | Promise<void>
-  onPlanStep?: (event: PlanStepEvent) => void
-  onConfirmationRequired?: (event: ConfirmationRequiredEvent) => void
 }
 
-type StartSendArgs = PendingSend
+type StartSendArgs = PendingSend & SendOptions
 
 function getErrorMessage(value: unknown, fallback: string) {
   return value instanceof Error ? value.message : fallback
@@ -44,8 +53,6 @@ export function useChatStream({
   ensureChat,
   initialMessages,
   onSettled,
-  onPlanStep,
-  onConfirmationRequired,
 }: UseChatStreamArgs) {
   const [error, setError] = useState<string | null>(null)
   const [isStreaming, setIsStreaming] = useState(false)
@@ -56,6 +63,7 @@ export function useChatStream({
   const lastServerSyncKeyRef = useRef(createServerMessagesSyncKey(initialMessages))
   const messagesRef = useRef(messages)
   const pendingSendRef = useRef<PendingSend | null>(null)
+  const optimisticPairRef = useRef<{ userId: string; assistantId: string } | null>(null)
   const streamControllerRef = useRef<AbortController | null>(null)
 
   useEffect(() => {
@@ -65,8 +73,25 @@ export function useChatStream({
   const resetStream = useEffectEvent(() => {
     activeAssistantMessageIdRef.current = null
     pendingSendRef.current = null
+    optimisticPairRef.current = null
     streamControllerRef.current = null
     setIsStreaming(false)
+  })
+
+  // When a send fails before any stream is produced (non-ok response, empty
+  // body, or the fetch itself rejecting), the optimistic assistant placeholder
+  // is still on screen showing the streaming spinner. Flip it to an error
+  // bubble so we never leave a dangling streaming placeholder. No-op once
+  // message.created has reconciled the ids (the optimistic ref is cleared).
+  const failOptimisticAssistant = useEffectEvent((errorMessage: string) => {
+    const optimisticPair = optimisticPairRef.current
+    if (!optimisticPair) {
+      return
+    }
+
+    setMessages((current) =>
+      markAssistantErrored(current, optimisticPair.assistantId, errorMessage),
+    )
   })
 
   const finishStream = useEffectEvent(async () => {
@@ -83,6 +108,26 @@ export function useChatStream({
         }
 
         activeAssistantMessageIdRef.current = event.assistantMessageId
+
+        const optimisticPair = optimisticPairRef.current
+        if (optimisticPair) {
+          // The pair is already on screen (inserted optimistically the instant
+          // the user hit send). Reconcile the temp ids to the real server ids
+          // in place — appending a fresh pair here would duplicate it.
+          optimisticPairRef.current = null
+          setMessages((current) =>
+            reconcileOptimisticIds(current, {
+              optimisticUserId: optimisticPair.userId,
+              optimisticAssistantId: optimisticPair.assistantId,
+              userMessageId: event.userMessageId,
+              assistantMessageId: event.assistantMessageId,
+            }),
+          )
+          return
+        }
+
+        // Fallback (e.g. resume paths that did not insert optimistically):
+        // build the pair from the real ids.
         setMessages((current) =>
           appendPendingMessagePair(current, {
             assistantMessageId: event.assistantMessageId,
@@ -97,6 +142,14 @@ export function useChatStream({
       case 'message.delta': {
         activeAssistantMessageIdRef.current = event.assistantMessageId
         setMessages((current) => appendAssistantText(current, event.assistantMessageId, event.text))
+        return
+      }
+
+      case 'message.thinking': {
+        activeAssistantMessageIdRef.current = event.assistantMessageId
+        setMessages((current) =>
+          appendAssistantThinking(current, event.assistantMessageId, event.text),
+        )
         return
       }
 
@@ -135,15 +188,11 @@ export function useChatStream({
         return
       }
 
-      case 'plan_step': {
-        onPlanStep?.(event)
+      // plan_step and confirmation_required events are no longer surfaced via
+      // callbacks: confirmations now render inline through message.service tool
+      // blocks (see ChatConfirmInline), and the plan panel was removed.
+      default:
         return
-      }
-
-      case 'confirmation_required': {
-        onConfirmationRequired?.(event)
-        return
-      }
     }
   })
 
@@ -151,13 +200,17 @@ export function useChatStream({
     async (response: Response, controller: AbortController) => {
       if (!response.ok) {
         const payload = (await response.json().catch(() => null)) as { error?: string } | null
-        setError(payload?.error ?? `Запрос завершился с ошибкой ${response.status}.`)
+        const message = payload?.error ?? `Запрос завершился с ошибкой ${response.status}.`
+        setError(message)
+        failOptimisticAssistant(message)
         resetStream()
         return false
       }
 
       if (!response.body) {
-        setError('Пустой поток ответа.')
+        const message = 'Пустой поток ответа.'
+        setError(message)
+        failOptimisticAssistant(message)
         resetStream()
         return false
       }
@@ -215,7 +268,9 @@ export function useChatStream({
         return false
       }
 
-      setError(getErrorMessage(requestError, 'Не удалось открыть поток ответа.'))
+      const message = getErrorMessage(requestError, 'Не удалось открыть поток ответа.')
+      setError(message)
+      failOptimisticAssistant(message)
       resetStream()
       return false
     }
@@ -238,38 +293,56 @@ export function useChatStream({
     })
   })
 
-  const send = useEffectEvent(async ({ attachments, text }: StartSendArgs) => {
-    const trimmedText = text.trim()
-    if (!trimmedText) {
-      return false
-    }
+  const send = useEffectEvent(
+    async ({ attachments, text, useThinking, thinkingEffort }: StartSendArgs) => {
+      const trimmedText = text.trim()
+      if (!trimmedText || isStreaming) {
+        return false
+      }
 
-    const targetChatId = chatId ?? (await ensureChat?.())
-    if (!targetChatId) {
-      setError('Не удалось создать чат.')
-      return false
-    }
+      const targetChatId = chatId ?? (await ensureChat?.())
+      if (!targetChatId) {
+        setError('Не удалось создать чат.')
+        return false
+      }
 
-    pendingSendRef.current = {
-      attachments,
-      text: trimmedText,
-    }
+      pendingSendRef.current = {
+        attachments,
+        text: trimmedText,
+      }
 
-    return await openStream((signal) =>
-      fetch('/api/agents/generate', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          chatId: targetChatId,
-          text: trimmedText,
-          fileIds: attachments.map((attachment) => attachment.fileId),
+      // Optimistic insert: show the user's message and an empty streaming
+      // assistant placeholder immediately, before the /api/agents/generate SSE
+      // round-trip. message.created later reconciles these temp ids to the real
+      // server ids (see applyEvent). Point activeAssistantMessageIdRef at the
+      // temp assistant so any delta arriving ahead of message.created targets
+      // the placeholder.
+      const { userMessage, assistantMessage } = buildOptimisticPair({
+        attachments,
+        text: trimmedText,
+      })
+      optimisticPairRef.current = { userId: userMessage.id, assistantId: assistantMessage.id }
+      activeAssistantMessageIdRef.current = assistantMessage.id
+      setMessages((current) => [...current, userMessage, assistantMessage])
+
+      return await openStream((signal) =>
+        fetch('/api/agents/generate', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            chatId: targetChatId,
+            text: trimmedText,
+            fileIds: attachments.map((attachment) => attachment.fileId),
+            ...(useThinking !== undefined ? { useThinking } : {}),
+            ...(thinkingEffort !== undefined ? { thinkingEffort } : {}),
+          }),
+          signal,
         }),
-        signal,
-      }),
-    )
-  })
+      )
+    },
+  )
 
   const confirmResume = useEffectEvent(
     async (confirmationId: string, action: 'allow' | 'deny') => {

@@ -32,28 +32,70 @@ function confirmationPart(): ChatToolPart {
   }
 }
 
-describe('ChatServiceBlock — wrapping', () => {
+describe('ChatServiceBlock — quiet tool step', () => {
   it('does not apply MUI noWrap modifier on the title', () => {
     render(<ChatServiceBlock part={part()} />)
     const title = screen.getByText(/Очень длинный заголовок/)
     expect(title.className).not.toMatch(/noWrap/i)
   })
 
-  it('does not set flex-wrap to nowrap on the summary row', () => {
+  it('lets the long title wrap instead of truncating', () => {
     render(<ChatServiceBlock part={part()} />)
+    const title = screen.getByText(/Очень длинный заголовок/)
+    const computed = globalThis.getComputedStyle(title)
+    expect(computed.whiteSpace).not.toBe('nowrap')
+    expect(computed.wordBreak).toBe('break-word')
+  })
+
+  it('renders the tool name and state label in the meta column', () => {
+    render(
+      <ChatServiceBlock
+        part={part({ state: 'done', detail: JSON.stringify({ tool: 'search_workspace_pages' }) })}
+      />,
+    )
     const row = screen.getByTestId('chat-service-block-summary')
-    // Before the fix flexWrap="nowrap" was passed as an MUI Box prop. After the fix,
-    // the prop is "wrap". We check the computed style since MUI v6 uses hashed classes.
-    const computed = globalThis.getComputedStyle(row)
-    expect(computed.flexWrap).not.toBe('nowrap')
+    expect(row.textContent).toContain('search_workspace_pages')
+    expect(row.textContent).toContain('Done')
+  })
+
+  it('does not render as a MUI Alert', () => {
+    const { container } = render(<ChatServiceBlock part={part({ state: 'done' })} />)
+    expect(container.querySelector('[role="alert"]')).toBeNull()
+  })
+
+  it('expands args and result inline when the row is clicked', async () => {
+    const user = userEvent.setup()
+    render(
+      <ChatServiceBlock
+        part={part({
+          state: 'done',
+          detail: JSON.stringify({ tool: 'search', args_preview: { query: 'roadmap' } }),
+          result: 'Найдена страница «Roadmap»',
+        })}
+      />,
+    )
+    // collapsed by default
+    expect(screen.queryByText(/"query": "roadmap"/)).toBeNull()
+    expect(screen.queryByText('Найдена страница «Roadmap»')).toBeNull()
+    await user.click(screen.getByTestId('chat-service-block-summary'))
+    expect(screen.getByText(/"query": "roadmap"/)).toBeTruthy()
+    expect(screen.getByText('Найдена страница «Roadmap»')).toBeTruthy()
+    // no result Dialog anymore — everything is inline
+    expect(screen.queryByRole('dialog')).toBeNull()
   })
 })
 
 describe('ChatServiceBlock — confirmation', () => {
-  it('renders Разрешить and Отклонить buttons when state is required', () => {
+  it('renders the inline confirmation with Разрешить and Отклонить when state is required', () => {
     render(<ChatServiceBlock part={confirmationPart()} onConfirm={() => {}} />)
+    expect(screen.getByTestId('chat-confirm-inline')).toBeTruthy()
     expect(screen.getByRole('button', { name: /разрешить/i })).toBeTruthy()
     expect(screen.getByRole('button', { name: /отклонить/i })).toBeTruthy()
+  })
+
+  it('shows the args preview inline in the confirmation', () => {
+    render(<ChatServiceBlock part={confirmationPart()} onConfirm={() => {}} />)
+    expect(screen.getByText(/"title": "Smoke"/)).toBeTruthy()
   })
 
   it('calls onConfirm with action="allow" when Разрешить is clicked', async () => {
@@ -73,18 +115,22 @@ describe('ChatServiceBlock — confirmation', () => {
     expect(onConfirm).toHaveBeenCalledWith('c1', 'deny')
   })
 
-  it('toggles args preview when Подробнее is clicked', async () => {
+  it('renders Разрешать в этом чате only when onAllowAll is provided', async () => {
     const user = userEvent.setup()
-    render(<ChatServiceBlock part={confirmationPart()} onConfirm={() => {}} />)
-    // collapsed by default
-    expect(screen.queryByText(/"title": "Smoke"/)).toBeNull()
-    await user.click(screen.getByRole('button', { name: /подробнее/i }))
-    expect(screen.getByText(/"title": "Smoke"/)).toBeTruthy()
+    const onAllowAll = vi.fn()
+    const { rerender } = render(<ChatServiceBlock part={confirmationPart()} onConfirm={() => {}} />)
+    expect(screen.queryByRole('button', { name: /разрешать в этом чате/i })).toBeNull()
+    rerender(
+      <ChatServiceBlock part={confirmationPart()} onConfirm={() => {}} onAllowAll={onAllowAll} />,
+    )
+    await user.click(screen.getByRole('button', { name: /разрешать в этом чате/i }))
+    expect(onAllowAll).toHaveBeenCalledWith('anynote__createPage')
   })
 
-  it('hides the buttons after the parent flips state to running', () => {
-    const part: ChatToolPart = { ...confirmationPart(), state: 'running' }
-    render(<ChatServiceBlock part={part} onConfirm={() => {}} />)
+  it('falls back to the quiet row (no confirm buttons) after the parent flips state to running', () => {
+    const runningPart: ChatToolPart = { ...confirmationPart(), state: 'running' }
+    render(<ChatServiceBlock part={runningPart} onConfirm={() => {}} />)
+    expect(screen.queryByTestId('chat-confirm-inline')).toBeNull()
     expect(screen.queryByRole('button', { name: /разрешить/i })).toBeNull()
   })
 })

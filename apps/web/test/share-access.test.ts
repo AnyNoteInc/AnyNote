@@ -1,9 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 
-// share-access.ts imports `server-only`, which throws when imported outside an
-// RSC bundle (e.g. vitest's node env). Neutralise it for the unit test.
-vi.mock('server-only', () => ({}))
-
+// `server-only` is aliased to an empty stub for Vitest in apps/web/vitest.config.ts,
+// so share-access.ts can be imported here without a per-file mock.
 import { resolveShareAccess, mapMemberRole } from '@/lib/share-access'
 
 const PAGE = {

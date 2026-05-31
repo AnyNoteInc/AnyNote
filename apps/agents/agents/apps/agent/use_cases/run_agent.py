@@ -27,7 +27,7 @@ log = logging.getLogger(__name__)
 
 @dataclass
 class RunAgentUseCase:
-    llm_factory: Callable[[Any], Any]
+    llm_factory: Callable[..., Any]
     mcp_client: Any
     rag_service: Any
     memory_writer_client: Any
@@ -87,7 +87,7 @@ class RunAgentUseCase:
             )
         log.info('Total tools count=%d (incl. internal)', len(tools))
 
-        llm = self.llm_factory(request.model_config_)
+        llm = self.llm_factory(request.model_config_, reasoning=request.reasoning)
 
         graph = build_agent_graph(
             checkpointer=self.checkpointer,
@@ -115,6 +115,7 @@ class RunAgentUseCase:
             'mcp_servers': [s.model_dump() for s in request.mcp_servers],
             'agent_system_prompt': request.agent_system_prompt,
             'long_term_memories': [m.model_dump() for m in request.long_term_memories],
+            'attachments': [a.model_dump() for a in request.attachments],
         })
 
         try:

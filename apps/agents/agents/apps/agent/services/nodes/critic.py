@@ -69,6 +69,7 @@ def _build_verdict_update(
     }
     if verdict == CriticVerdict.APPROVE:
         update['final_answer'] = state.draft_answer
+        update['final_reasoning'] = state.draft_reasoning
     elif verdict == CriticVerdict.REVISE:
         update.update(_revise_update(feedback, revised_plan, state.revision_count))
     else:  # REJECT
@@ -90,6 +91,7 @@ def _revise_update(
         update['plan'] = normalised
         update['current_step_id'] = normalised[0].id if normalised else None
         update['draft_answer'] = ''
+        update['draft_reasoning'] = ''
         update['messages'] = []
     return update
 

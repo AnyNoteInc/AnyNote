@@ -73,6 +73,33 @@ function embeddingModel(
   }
 }
 
+function chatModel(
+  id: string,
+  overrides: {
+    deprecatedAt?: Date | null
+    minPlanSlug?: string | null
+    supportsVision?: boolean
+    supportsReasoning?: boolean
+    provider?: { id: string; slug: string; name: string }
+  } = {},
+) {
+  return {
+    id,
+    slug: `chat-${id.slice(0, 4)}`,
+    displayName: `Chat ${id.slice(0, 4)}`,
+    contextTokens: 128000,
+    deprecatedAt: overrides.deprecatedAt ?? null,
+    supportsVision: overrides.supportsVision ?? false,
+    supportsReasoning: overrides.supportsReasoning ?? false,
+    minPlanSlug: overrides.minPlanSlug ?? null,
+    provider: overrides.provider ?? {
+      id: '44444444-4444-4444-4444-444444444444',
+      slug: 'openai',
+      name: 'OpenAI',
+    },
+  }
+}
+
 function createPrismaMock(existingEmbeddingsModelId: string | null) {
   const upsertResult = {
     workspaceId: WORKSPACE_ID,
@@ -182,6 +209,30 @@ describe('aiSettings embedding model queries', () => {
     await expect(caller.get({ workspaceId: WORKSPACE_ID })).resolves.toMatchObject({
       embeddingsModelId: MODEL_A_ID,
     })
+  })
+})
+
+describe('aiSettings.listAvailableModels supportsReasoning exposure', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it('includes supportsReasoning on returned chat models', async () => {
+    planMocks.getAvailableAiModels.mockResolvedValue([
+      chatModel(MODEL_A_ID, { supportsReasoning: true }),
+      chatModel(MODEL_B_ID, { supportsReasoning: false }),
+    ])
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn(async () => ({ role: 'OWNER' })) },
+    } as unknown as PrismaClient
+    const caller = createCallerFactory(aiSettingsRouter)(baseContext(prisma))
+
+    const providers = await caller.listAvailableModels({ workspaceId: WORKSPACE_ID })
+    const all = providers.flatMap((p) => p.models)
+
+    expect(all.some((m) => m.supportsReasoning === true)).toBe(true)
+    expect(all.find((m) => m.id === MODEL_A_ID)?.supportsReasoning).toBe(true)
+    expect(all.find((m) => m.id === MODEL_B_ID)?.supportsReasoning).toBe(false)
   })
 })
 

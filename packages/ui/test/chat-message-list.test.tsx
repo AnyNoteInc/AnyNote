@@ -12,6 +12,8 @@ describe('ChatMessageList', () => {
             id: 'assistant-message',
             parts: [{ type: 'text', text: 'Ответ ассистента' }],
             role: 'assistant',
+            authorName: 'Ассистент',
+            avatarUrl: 'https://example.com/a.png',
           },
         ]}
       />,
@@ -19,6 +21,29 @@ describe('ChatMessageList', () => {
 
     expect(screen.getByText('Ответ ассистента')).toBeTruthy()
     expect(screen.queryByText('Assistant')).toBeNull()
+    expect(screen.queryByText('Ассистент')).toBeNull()
+    expect(document.querySelector('.MuiAvatar-root')).toBeNull()
+    expect(document.querySelector('img')).toBeNull()
+  })
+
+  it('renders a thinking part inside an assistant turn', () => {
+    render(
+      <ChatMessageList
+        messages={[
+          {
+            id: 'assistant-thinking',
+            parts: [
+              { type: 'thinking', text: 'Ход рассуждений' },
+              { type: 'text', text: 'Итоговый ответ' },
+            ],
+            role: 'assistant',
+          },
+        ]}
+      />,
+    )
+
+    expect(screen.getByText('Размышления')).toBeTruthy()
+    expect(screen.getByText('Итоговый ответ')).toBeTruthy()
   })
 
   it('renders timestamps with a deterministic HH:MM format', () => {

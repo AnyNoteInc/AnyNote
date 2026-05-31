@@ -146,7 +146,7 @@ export function createPendingMessagePair(args: {
   userMessageId: string
   text: string
   attachments: DraftAttachmentSummary[]
-}): ChatThreadMessage[] {
+}): [user: ChatThreadMessage, assistant: ChatThreadMessage] {
   const now = new Date().toISOString()
 
   return [
@@ -190,6 +190,56 @@ export function appendPendingMessagePair(
   return [...withoutDuplicates, ...createPendingMessagePair(args)]
 }
 
+/**
+ * Reconciles an optimistically-inserted user/assistant pair with the real ids
+ * delivered by `message.created`. The optimistic messages were inserted with
+ * temporary ids the instant the user hit send; this swaps those temp ids for
+ * the server ids in place so streaming deltas/status/done (which key off the
+ * real assistant id) continue to target the same message objects — and so we
+ * never duplicate the pair. Messages are matched by their temp ids; any that
+ * are missing (e.g. the optimistic user message was already replaced) are left
+ * untouched.
+ */
+export function reconcileOptimisticIds(
+  messages: ChatThreadMessage[],
+  args: {
+    optimisticUserId: string
+    optimisticAssistantId: string
+    userMessageId: string
+    assistantMessageId: string
+  },
+): ChatThreadMessage[] {
+  return messages.map((message) => {
+    if (message.id === args.optimisticUserId) {
+      return { ...message, id: args.userMessageId }
+    }
+    if (message.id === args.optimisticAssistantId) {
+      return { ...message, id: args.assistantMessageId }
+    }
+    return message
+  })
+}
+
+/**
+ * Marks a single message as errored, surfacing `errorMessage` as a generated
+ * error tool-part (the same shape `updateAssistantStatus` produces for a
+ * terminal ERROR). Used to fail the optimistic assistant placeholder when the
+ * request never produced a stream, so we don't leave a dangling streaming
+ * bubble. No-op when the message id is not present.
+ */
+export function markAssistantErrored(
+  messages: ChatThreadMessage[],
+  assistantMessageId: string,
+  errorMessage: string,
+): ChatThreadMessage[] {
+  return updateAssistantStatus({
+    messages,
+    assistantMessageId,
+    status: 'ERROR',
+    errorMessage,
+  })
+}
+
 export function appendAssistantText(
   messages: ChatThreadMessage[],
   assistantMessageId: string,
@@ -217,6 +267,55 @@ export function appendAssistantText(
       }
     } else {
       nextParts.unshift({ type: 'text', text })
+    }
+
+    return {
+      ...message,
+      parts: nextParts,
+      status: 'streaming',
+      updatedAt: new Date().toISOString(),
+    }
+  })
+}
+
+/**
+ * Appends streamed reasoning to the active assistant message as a single
+ * `{ type: 'thinking', text }` part, accumulating across calls so N
+ * `message.thinking` events concatenate into one part — mirroring the registry,
+ * which appends each delta onto `entry.thinking` and persists it via
+ * {@link createAssistantParts}. The thinking part is placed before any text part
+ * so the live in-memory order matches the persisted order, leaving the rendered
+ * "Размышления" block untouched when the post-stream getChat refetch replaces
+ * the live messages with the server copy (no flicker/duplicate). No-op when the
+ * message id is not present.
+ */
+export function appendAssistantThinking(
+  messages: ChatThreadMessage[],
+  assistantMessageId: string,
+  text: string,
+): ChatThreadMessage[] {
+  if (!messages.some((message) => message.id === assistantMessageId)) {
+    return messages
+  }
+
+  return messages.map((message) => {
+    if (message.id !== assistantMessageId) {
+      return message
+    }
+
+    const thinkingIndex = message.parts.findIndex((part) => part.type === 'thinking')
+    const nextParts = [...message.parts]
+
+    if (thinkingIndex >= 0) {
+      const thinkingPart = nextParts[thinkingIndex]
+      if (thinkingPart?.type === 'thinking') {
+        nextParts[thinkingIndex] = {
+          ...thinkingPart,
+          text: thinkingPart.text + text,
+        }
+      }
+    } else {
+      nextParts.unshift({ type: 'thinking', text })
     }
 
     return {

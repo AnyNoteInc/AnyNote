@@ -27,6 +27,7 @@ const modelInput = z.object({
   contextTokens: z.number().int().positive(),
   supportsVision: z.boolean().default(false),
   supportsEmbeddings: z.boolean().default(false),
+  supportsReasoning: z.boolean().default(false),
 })
 
 async function assertOwner(ctx: { prisma: PrismaClient; user: { id: string } }, workspaceId: string) {
@@ -157,6 +158,7 @@ export const aiProviderRouter = router({
               contextTokens: input.model.contextTokens,
               supportsVision: input.model.supportsVision,
               supportsEmbeddings: input.model.supportsEmbeddings,
+              supportsReasoning: input.model.supportsReasoning,
               vectorSize,
             },
           },
@@ -191,6 +193,7 @@ export const aiProviderRouter = router({
           contextTokens: input.model.contextTokens,
           supportsVision: input.model.supportsVision,
           supportsEmbeddings: input.model.supportsEmbeddings,
+          supportsReasoning: input.model.supportsReasoning,
           vectorSize,
         },
       })

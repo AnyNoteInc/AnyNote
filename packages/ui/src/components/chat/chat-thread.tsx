@@ -8,7 +8,11 @@ import Stack from '@mui/material/Stack'
 import { alpha } from '@mui/material/styles'
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
-import { ChatComposer } from './chat-composer'
+import {
+  ChatComposer,
+  type ChatComposerRecentFile,
+  type ChatComposerThinkingEffort,
+} from './chat-composer'
 import { ChatEmptyState } from './chat-empty-state'
 import { ChatMessageList } from './chat-message-list'
 import type { ChatRenderLink } from './chat-message-content'
@@ -31,6 +35,12 @@ type ChatThreadProps = Readonly<{
   scrollKey?: string
   renderLink?: ChatRenderLink
   onConfirm?: ChatConfirmHandler
+  composerRecentFiles?: ReadonlyArray<ChatComposerRecentFile>
+  onComposerAttachRecent?: (file: ChatComposerRecentFile) => void
+  composerReasoningSupported?: boolean
+  onComposerSelectThinking?: (effort: ChatComposerThinkingEffort) => void
+  composerThinking?: { effort: ChatComposerThinkingEffort } | null
+  onComposerClearThinking?: () => void
 }>
 
 function isNearBottom(element: HTMLElement) {
@@ -66,6 +76,12 @@ export function ChatThread({
   scrollKey,
   renderLink,
   onConfirm,
+  composerRecentFiles,
+  onComposerAttachRecent,
+  composerReasoningSupported,
+  onComposerSelectThinking,
+  composerThinking,
+  onComposerClearThinking,
 }: ChatThreadProps) {
   const pinnedToBottomRef = useRef(true)
   const [scrollElement, setScrollElement] = useState<HTMLElement | null>(null)
@@ -193,10 +209,16 @@ export function ChatThread({
         <ChatComposer
           attachments={composerAttachments}
           disabled={disabled}
+          onAttachRecent={onComposerAttachRecent}
           onAttachmentsChange={onComposerAttachmentsChange}
+          onClearThinking={onComposerClearThinking}
+          onSelectThinking={onComposerSelectThinking}
           onSend={onSend}
           onValueChange={onComposerValueChange}
           placeholder={composerPlaceholder}
+          reasoningSupported={composerReasoningSupported}
+          recentFiles={composerRecentFiles}
+          thinking={composerThinking}
           value={composerValue}
         />
       </Box>

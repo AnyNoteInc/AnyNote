@@ -4,13 +4,10 @@ import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } fro
 
 import { Alert, Box, ChatThread, Stack, type ChatSendPayload } from '@repo/ui/components'
 
+type ThinkingEffort = 'LOW' | 'MEDIUM' | 'HIGH'
+
 import { trpc } from '@/trpc/client'
 
-import {
-  ConfirmationDialog,
-  type PendingConfirmation,
-} from '@/components/chat/ConfirmationDialog'
-import { PlanPanel, type PlanStepView } from '@/components/chat/PlanPanel'
 import { renderChatLink } from '@/components/chat/chat-link-renderer'
 import { findResumableAssistantMessageId, type ServerChatMessage } from './chat-message-mappers'
 import { useChatStream } from './use-chat-stream'
@@ -31,31 +28,81 @@ export function WorkspaceChatClient({
   const [activeChatId, setActiveChatId] = useState<string | null>(chatId)
   const [draft, setDraft] = useState('')
   const [actionError, setActionError] = useState<string | null>(null)
-  const [planSteps, setPlanSteps] = useState<PlanStepView[]>([])
-  const [pendingConfirmation, setPendingConfirmation] = useState<PendingConfirmation | null>(null)
   const utils = trpc.useUtils()
   const query = trpc.chat.getChat.useQuery(
     { chatId: activeChatId ?? '00000000-0000-0000-0000-000000000000' },
     { enabled: activeChatId !== null },
   )
   const createChat = trpc.chat.createChat.useMutation()
+  const updateChatSettings = trpc.chat.updateChatSettings.useMutation()
   const draftAttachments = useDraftAttachments(workspaceId)
   const resumeAttemptRef = useRef<string | null>(null)
+
+  const [thinking, setThinking] = useState<{ effort: ThinkingEffort } | null>(null)
+
+  const recentFilesQuery = trpc.file.listRecent.useQuery(
+    { workspaceId, limit: 5 },
+    { enabled: Boolean(workspaceId) },
+  )
+  const recentFiles = useMemo(
+    () =>
+      (recentFilesQuery.data ?? []).map((file) => ({
+        id: file.id,
+        name: file.name,
+        fileSize: file.fileSize,
+        mimeType: file.mimeType,
+      })),
+    [recentFilesQuery.data],
+  )
+
+  const availableModelsQuery = trpc.aiSettings.listAvailableModels.useQuery({ workspaceId })
+  const chatAiModelId = query.data?.chat.aiModelId ?? null
+  // Best-effort reasoning gate: when the chat pins an explicit model we look up
+  // its supportsReasoning flag; otherwise (workspace default model) we can't
+  // resolve it from listAvailableModels alone, so we keep the slash command
+  // enabled and let the generate route apply the real per-chat reasoning flag.
+  const reasoningSupported = useMemo(() => {
+    if (!chatAiModelId) return true
+    const models = (availableModelsQuery.data ?? []).flatMap((provider) => provider.models)
+    const model = models.find((m) => m.id === chatAiModelId)
+    return model ? model.supportsReasoning : true
+  }, [availableModelsQuery.data, chatAiModelId])
 
   useEffect(() => {
     setActiveChatId(chatId)
   }, [chatId])
 
-  const ensureChat = useEffectEvent(async () => {
-    if (activeChatId) return activeChatId
+  // Hydrate the local thinking chip from the persisted chat settings whenever a
+  // chat loads or changes (server is the source of truth on first paint).
+  const persistedUseThinking = query.data?.chat.useThinking ?? null
+  const persistedThinkingEffort = (query.data?.chat.thinkingEffort ?? null) as ThinkingEffort | null
+  useEffect(() => {
+    if (persistedUseThinking === null) return
+    setThinking(persistedUseThinking ? { effort: persistedThinkingEffort ?? 'MEDIUM' } : null)
+  }, [activeChatId, persistedUseThinking, persistedThinkingEffort])
 
-    const created = await createChat.mutateAsync({ workspaceId })
-    const href = buildChatHref(workspaceId, created.id)
-    setActiveChatId(created.id)
-    window.history.replaceState(null, '', href)
-    await utils.chat.listChats.invalidate({ workspaceId })
-    return created.id
-  })
+  // When the chat doesn't exist yet, settings let us create the row already
+  // carrying its thinking config so the getChat hydration never observes a
+  // transient `useThinking:false` that would clobber a fresh local selection
+  // (see handleSelectThinking). Ignored when a chat already exists.
+  const ensureChat = useEffectEvent(
+    async (settings?: { useThinking?: boolean; thinkingEffort?: ThinkingEffort }) => {
+      if (activeChatId) return activeChatId
+
+      const created = await createChat.mutateAsync({
+        workspaceId,
+        ...(settings?.useThinking !== undefined ? { useThinking: settings.useThinking } : {}),
+        ...(settings?.thinkingEffort !== undefined
+          ? { thinkingEffort: settings.thinkingEffort }
+          : {}),
+      })
+      const href = buildChatHref(workspaceId, created.id)
+      setActiveChatId(created.id)
+      window.history.replaceState(null, '', href)
+      await utils.chat.listChats.invalidate({ workspaceId })
+      return created.id
+    },
+  )
 
   const handleStreamSettled = useEffectEvent(async () => {
     await Promise.all([
@@ -77,31 +124,6 @@ export function WorkspaceChatClient({
     ensureChat,
     initialMessages,
     onSettled: handleStreamSettled,
-    onPlanStep: (event) => {
-      const view: PlanStepView = {
-        id: event.id,
-        title: event.title,
-        position: event.position,
-        status: event.status,
-      }
-      setPlanSteps((prev) => {
-        const idx = prev.findIndex((s) => s.id === view.id)
-        if (idx >= 0) {
-          const next = [...prev]
-          next[idx] = view
-          return next
-        }
-        return [...prev, view]
-      })
-    },
-    onConfirmationRequired: (event) => {
-      setPendingConfirmation({
-        confirmationId: event.confirmation_id,
-        tool: event.tool,
-        summary: event.summary,
-        argsPreview: event.args_preview,
-      })
-    },
   })
 
   const serverMessages = useMemo(
@@ -147,6 +169,8 @@ export function WorkspaceChatClient({
     const started = await send({
       attachments: draftAttachments.uploadedAttachments,
       text,
+      useThinking: thinking !== null,
+      ...(thinking ? { thinkingEffort: thinking.effort } : {}),
     })
 
     if (started) {
@@ -169,6 +193,42 @@ export function WorkspaceChatClient({
   const handleComposerValueChange = useEffectEvent((value: string) => {
     setActionError(null)
     setDraft(value)
+  })
+
+  const handleAttachRecent = useEffectEvent(
+    (file: { id: string; name: string; fileSize: string; mimeType?: string }) => {
+      setActionError(null)
+      draftAttachments.addUploaded({
+        fileId: file.id,
+        name: file.name,
+        fileSize: file.fileSize,
+        mimeType: file.mimeType,
+      })
+    },
+  )
+
+  const handleSelectThinking = useEffectEvent(async (effort: ThinkingEffort) => {
+    setThinking({ effort })
+
+    // New chat: create the row already carrying the thinking config so the
+    // getChat hydration reads `useThinking:true` and never resets the chip we
+    // just set locally. Existing chat: ensureChat returns its id unchanged, so
+    // persist the change through updateChatSettings instead.
+    const existingChatId = activeChatId
+    const targetChatId = await ensureChat({ useThinking: true, thinkingEffort: effort })
+    if (!targetChatId || existingChatId === null) return
+
+    await updateChatSettings.mutateAsync({
+      chatId: targetChatId,
+      useThinking: true,
+      thinkingEffort: effort,
+    })
+  })
+
+  const handleClearThinking = useEffectEvent(async () => {
+    setThinking(null)
+    if (!activeChatId) return
+    await updateChatSettings.mutateAsync({ chatId: activeChatId, useThinking: false })
   })
 
   const handleConfirm = useCallback(
@@ -195,14 +255,19 @@ export function WorkspaceChatClient({
     >
       <Stack flex={1} minHeight={0} spacing={2}>
         {combinedError ? <Alert severity="error">{combinedError}</Alert> : null}
-        <PlanPanel steps={planSteps} />
         <ChatThread
           composerAttachments={draftAttachments.attachments}
           composerPlaceholder="Спросите что-нибудь..."
+          composerReasoningSupported={reasoningSupported}
+          composerRecentFiles={recentFiles}
+          composerThinking={thinking}
           composerValue={draft}
           disabled={isStreaming || createChat.isPending}
           messages={messages}
+          onComposerAttachRecent={handleAttachRecent}
           onComposerAttachmentsChange={handleComposerAttachmentsChange}
+          onComposerClearThinking={handleClearThinking}
+          onComposerSelectThinking={handleSelectThinking}
           onComposerValueChange={handleComposerValueChange}
           onConfirm={handleConfirm}
           onSend={handleComposerSend}
@@ -211,10 +276,6 @@ export function WorkspaceChatClient({
           scrollKey={activeChatId ?? 'new-chat'}
         />
       </Stack>
-      <ConfirmationDialog
-        pending={pendingConfirmation}
-        onResolve={() => setPendingConfirmation(null)}
-      />
     </Box>
   )
 }

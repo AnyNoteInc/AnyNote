@@ -52,6 +52,15 @@ export type AgentRunPayload = {
   agent_system_prompt: string | null
   long_term_memories: Array<{ key: string; content: string; scope: 'workspace' | 'user' }>
   allow_destructive: boolean
+  attachments?: Array<{
+    id: string
+    name: string
+    mime: string
+    size_bytes: number
+    included: boolean
+    content?: string
+  }>
+  reasoning: { enabled: boolean; effort: 'low' | 'medium' | 'high' }
 }
 
 function normalizeConnection(value: unknown): Record<string, string> {
@@ -75,6 +84,8 @@ export function buildAgentRunPayload(args: {
   mcpServers: McpServerEntry[]
   longTermMemories: AgentRunPayload['long_term_memories']
   allowDestructive?: boolean
+  attachments?: import('./file-content').ResolvedAttachment[]
+  reasoning?: { enabled: boolean; effort: 'low' | 'medium' | 'high' }
 }): AgentRunPayload {
   const embeddingConfig = args.settings.embeddingsModel
     ? {
@@ -84,6 +95,16 @@ export function buildAgentRunPayload(args: {
         connection: normalizeConnection(args.settings.embeddingsModel.provider.connection),
       }
     : null
+
+  const attachments = (args.attachments ?? []).map((a) => ({
+    id: a.id,
+    name: a.name,
+    mime: a.mime,
+    size_bytes: a.sizeBytes,
+    included: a.included,
+    content: a.included ? a.content : undefined,
+  }))
+  const reasoning = args.reasoning ?? { enabled: false, effort: 'medium' as const }
 
   return {
     chat_id: args.chatId,
@@ -103,5 +124,7 @@ export function buildAgentRunPayload(args: {
     agent_system_prompt: args.settings.systemPrompt ?? null,
     long_term_memories: args.longTermMemories,
     allow_destructive: args.allowDestructive ?? false,
+    attachments,
+    reasoning,
   }
 }

@@ -29,3 +29,15 @@ def test_summarize_render_includes_tool_arg_preview() -> None:
     meta = DEFAULT_ENGINES_TOOLS['createPage']
     summary = meta.summarize({'title': 'План проекта', 'parentId': 'p1'})
     assert 'План проекта' in summary
+
+
+def test_file_tools_registered_with_scopes_and_confirmation() -> None:
+    assert DEFAULT_ENGINES_TOOLS['list_files'].required_scope == 'files:read'
+    assert DEFAULT_ENGINES_TOOLS['search_files'].required_scope == 'files:read'
+    assert DEFAULT_ENGINES_TOOLS['get_file_download_link'].required_scope == 'files:read'
+    assert DEFAULT_ENGINES_TOOLS['get_file_content'].required_scope == 'files:read'
+    for read_tool in ('list_files', 'search_files', 'get_file_download_link', 'get_file_content'):
+        assert DEFAULT_ENGINES_TOOLS[read_tool].requires_confirmation is False
+    delete = DEFAULT_ENGINES_TOOLS['delete_file']
+    assert delete.required_scope == 'files:delete'
+    assert delete.requires_confirmation is True

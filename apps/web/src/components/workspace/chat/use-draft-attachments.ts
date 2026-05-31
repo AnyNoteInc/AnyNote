@@ -126,6 +126,35 @@ export function useDraftAttachments(workspaceId: string) {
     setError(null)
   })
 
+  // Attach an already-uploaded file (e.g. a "recent file" picked from the
+  // composer + menu) by its id, without re-uploading. We synthesize an empty
+  // File only to satisfy the ChatDraftAttachment shape; the chip label and the
+  // outgoing send payload both read the uploaded* fields, not file contents.
+  const addUploaded = useEffectEvent(
+    (uploaded: { fileId: string; name: string; mimeType?: string; fileSize: string }) => {
+      setError(null)
+      setAttachments((current) => {
+        if (current.some((attachment) => attachment.fileId === uploaded.fileId)) {
+          return current
+        }
+        const mimeType = uploaded.mimeType || 'application/octet-stream'
+        const localId = `recent-${uploaded.fileId}`
+        return [
+          ...current,
+          {
+            localId,
+            file: new File([], uploaded.name, { type: mimeType }),
+            status: 'uploaded',
+            fileId: uploaded.fileId,
+            uploadedName: uploaded.name,
+            uploadedMimeType: mimeType,
+            uploadedFileSize: uploaded.fileSize,
+          },
+        ]
+      })
+    },
+  )
+
   const clear = useEffectEvent(() => {
     setAttachments([])
     setError(null)
@@ -144,6 +173,7 @@ export function useDraftAttachments(workspaceId: string) {
   }, [attachments])
 
   return {
+    addUploaded,
     attachments,
     clear,
     error,

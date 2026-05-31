@@ -11,18 +11,41 @@ from pydantic import SecretStr
 
 from agents.apps.agent.enums import ModelProviderEnum
 from agents.apps.agent.errors import InvalidPayloadError
-from agents.apps.agent.schemas import ModelConfigSchema
+from agents.apps.agent.schemas import ModelConfigSchema, ReasoningConfigSchema
+
+_ANTHROPIC_BUDGET = {'low': 1024, 'medium': 2000, 'high': 8000}
+
+
+def build_reasoning_kwargs(config: ModelConfigSchema, reasoning: ReasoningConfigSchema) -> dict[str, object]:
+    """Map the unified reasoning flag to the provider-specific constructor knob.
+
+    OpenAI gets `reasoning={...}`, Anthropic gets `thinking={...}` (adaptive for
+    Opus 4.6+ slugs, otherwise an explicit token budget). Providers that reason
+    inherently (DeepSeek R1) or don't support a knob (GigaChat/Ollama/YandexGPT)
+    return an empty mapping so the constructor call is unchanged.
+    """
+    if not reasoning.enabled:
+        return {}
+    provider = str(config.provider)
+    if provider == ModelProviderEnum.OPENAI:
+        return {'reasoning': {'effort': reasoning.effort, 'summary': 'auto'}}
+    if provider == ModelProviderEnum.ANTHROPIC:
+        if 'opus-4-6' in config.name or 'opus-4.6' in config.name:
+            return {'thinking': {'type': 'adaptive'}}
+        return {'thinking': {'type': 'enabled', 'budget_tokens': _ANTHROPIC_BUDGET[reasoning.effort]}}
+    return {}
 
 
 @dataclass
 class ModelFactoryRepository:
 
     @staticmethod
-    def make(config: ModelConfigSchema) -> BaseChatModel:
+    def make(config: ModelConfigSchema, reasoning: ReasoningConfigSchema | None = None) -> BaseChatModel:
         """Return a configured LangChain chat model for the requested provider."""
         settings = config.settings
         temperature = settings.temperature if settings.temperature is not None else 0.2
         provider = str(config.provider)
+        extra = build_reasoning_kwargs(config, reasoning) if reasoning else {}
 
         match provider:
             case ModelProviderEnum.OLLAMA:
@@ -37,6 +60,7 @@ class ModelFactoryRepository:
                     api_key=SecretStr(config.connection.api_key),
                     organization=config.connection.organization,
                     temperature=temperature,
+                    **extra,
                 )
 
             case ModelProviderEnum.GIGACHAT:
@@ -62,6 +86,7 @@ class ModelFactoryRepository:
                     api_key=SecretStr(config.connection.api_key),
                     base_url=config.connection.base_url,
                     temperature=temperature,
+                    **extra,
                 )
 
             case ModelProviderEnum.DEEPSEEK:

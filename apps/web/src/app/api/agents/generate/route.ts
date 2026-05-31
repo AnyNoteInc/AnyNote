@@ -1,4 +1,5 @@
 import { FileStatus, prisma } from '@repo/db'
+import { storage } from '@repo/storage'
 import { NextResponse, type NextRequest } from 'next/server'
 
 import { signAgentsJwt, type AgentsRole } from '@/lib/agents-token'
@@ -6,6 +7,7 @@ import { activeStreamRegistry } from '@/lib/chat/active-stream-registry'
 import { buildAgentRunPayload } from '@/lib/chat/agents-payload'
 import { buildEnginesMcpHeaders } from '@/lib/chat/engines-mcp-headers'
 import { buildChatHistoryMessages } from '@/lib/chat/chat-history'
+import { resolveAttachmentContents } from '@/lib/chat/file-content'
 import { decryptMcpHeadersMap } from '@/lib/decrypt-workspace-secrets'
 import {
   createAttacmentPart,
@@ -21,6 +23,19 @@ export const runtime = 'nodejs'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+const THINKING_EFFORTS = ['LOW', 'MEDIUM', 'HIGH'] as const
+type ThinkingEffort = (typeof THINKING_EFFORTS)[number]
+
+const REASONING_EFFORT_BY_THINKING: Record<ThinkingEffort, 'low' | 'medium' | 'high'> = {
+  LOW: 'low',
+  MEDIUM: 'medium',
+  HIGH: 'high',
+}
+
+function isThinkingEffort(value: unknown): value is ThinkingEffort {
+  return typeof value === 'string' && (THINKING_EFFORTS as readonly string[]).includes(value)
+}
+
 function parseBody(raw: unknown): StartChatGenerationBody {
   if (!raw || typeof raw !== 'object') throw new Error('Invalid body')
   const body = raw as Record<string, unknown>
@@ -33,10 +48,23 @@ function parseBody(raw: unknown): StartChatGenerationBody {
         (id): id is string => typeof id === 'string' && UUID_RE.test(id),
       )
     : []
-  return { chatId: body.chatId, text: body.text.trim(), fileIds }
+  return {
+    chatId: body.chatId,
+    text: body.text.trim(),
+    fileIds,
+    ...(typeof body.useThinking === 'boolean' ? { useThinking: body.useThinking } : {}),
+    ...(isThinkingEffort(body.thinkingEffort) ? { thinkingEffort: body.thinkingEffort } : {}),
+  }
 }
 
-type ValidChatFile = { id: string; name: string; mimeType: string; fileSize: bigint }
+type ValidChatFile = {
+  id: string
+  name: string
+  ext: string
+  mimeType: string
+  fileSize: bigint
+  path: string
+}
 
 export async function POST(request: NextRequest): Promise<Response> {
   const session = await getSession()
@@ -57,7 +85,14 @@ export async function POST(request: NextRequest): Promise<Response> {
       id: body.chatId,
       workspace: { members: { some: { userId: session.user.id } } },
     },
-    select: { id: true, title: true, workspaceId: true, parentId: true },
+    select: {
+      id: true,
+      title: true,
+      workspaceId: true,
+      parentId: true,
+      useThinking: true,
+      thinkingEffort: true,
+    },
   })
   if (!chat) return NextResponse.json({ error: 'Chat not found' }, { status: 404 })
 
@@ -71,7 +106,14 @@ export async function POST(request: NextRequest): Promise<Response> {
               userId: session.user.id,
               workspaceId: chat.workspaceId,
             },
-            select: { id: true, name: true, mimeType: true, fileSize: true },
+            select: {
+              id: true,
+              name: true,
+              ext: true,
+              mimeType: true,
+              fileSize: true,
+              path: true,
+            },
           })
         : (Promise.resolve([]) as Promise<ValidChatFile[]>),
       prisma.workspaceAiSettings.findUnique({
@@ -193,6 +235,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     return f ? [f] : []
   })
 
+  const resolvedAttachments = await resolveAttachmentContents(storage, orderedFiles)
+
   const { assistantMessage, userMessage } = await prisma.$transaction(async (tx) => {
     const userMessage = await tx.chatMessage.create({
       data: {
@@ -220,6 +264,12 @@ export async function POST(request: NextRequest): Promise<Response> {
     role: membership.role as AgentsRole,
   })
 
+  // Per-request thinking flags (from the composer) take precedence over the
+  // chat row's persisted settings; the row is the fallback when the body omits
+  // them. effort is wired regardless of enabled so the model gets a budget hint.
+  const reasoningEnabled = body.useThinking ?? chat.useThinking
+  const reasoningEffort = REASONING_EFFORT_BY_THINKING[body.thinkingEffort ?? chat.thinkingEffort]
+
   const payload = buildAgentRunPayload({
     chatId: chat.id,
     userMessage: body.text,
@@ -227,6 +277,8 @@ export async function POST(request: NextRequest): Promise<Response> {
     settings: settingsSnapshot,
     mcpServers: [enginesMcpServer, ...userMcpServers],
     longTermMemories,
+    attachments: resolvedAttachments,
+    reasoning: { enabled: reasoningEnabled, effort: reasoningEffort },
   })
 
   const entry = activeStreamRegistry.create({

@@ -17,6 +17,7 @@ export type AgentsScope =
   | 'pages:delete'
   | 'files:read'
   | 'files:write'
+  | 'files:delete'
   | 'kanban:read'
   | 'kanban:write'
   | 'workspaces:read'
@@ -57,7 +58,7 @@ const WRITE_SCOPES: AgentsScope[] = [
 export function scopesForRole(role: AgentsRole): AgentsScope[] {
   switch (role) {
     case 'OWNER':
-      return [...READ_SCOPES, ...WRITE_SCOPES, 'pages:delete']
+      return [...READ_SCOPES, ...WRITE_SCOPES, 'pages:delete', 'files:delete']
     case 'ADMIN':
     case 'EDITOR':
       return [...READ_SCOPES, ...WRITE_SCOPES]

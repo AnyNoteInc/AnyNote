@@ -10,6 +10,9 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': fileURLToPath(new URL('./src', import.meta.url)),
+      // `server-only` is a Next.js build-time marker with no runtime; under
+      // Vitest (node env) it isn't installed, so resolve it to an empty stub.
+      'server-only': fileURLToPath(new URL('./test/stubs/server-only.ts', import.meta.url)),
     },
   },
   test: {

@@ -1,11 +1,19 @@
 import { describe, expect, it, vi } from 'vitest'
 
+const planMocks = vi.hoisted(() => ({
+  getAvailableAiModels: vi.fn(async () => [] as Array<{ id: string; deprecatedAt: Date | null }>),
+}))
+
 vi.mock('@repo/auth', () => ({
   getUserFromRequest: vi.fn(),
 }))
 
 vi.mock('@repo/db', () => ({
   prisma: {},
+}))
+
+vi.mock('../src/helpers/plan', () => ({
+  getAvailableAiModels: planMocks.getAvailableAiModels,
 }))
 
 import type { PrismaClient } from '@repo/db'
@@ -15,10 +23,10 @@ import { createCallerFactory } from '../src/trpc'
 
 const createCaller = createCallerFactory(chatRouter)
 
-function createContext(prisma: PrismaClient) {
+function createContext(prisma: PrismaClient, userId = 'user-1') {
   return {
     prisma,
-    user: { id: 'user-1' },
+    user: { id: userId },
     headers: new Headers(),
     resHeaders: new Headers(),
   }
@@ -126,6 +134,81 @@ describe('chatRouter', () => {
     ])
   })
 
+  it('preserves a thinking part and keeps it before the text part', async () => {
+    const createdAt = new Date('2026-05-31T10:00:00.000Z')
+    const updatedAt = new Date('2026-05-31T10:05:00.000Z')
+    const chat = {
+      id: '11111111-1111-1111-1111-111111111111',
+      title: 'Новый чат',
+      workspaceId: '22222222-2222-2222-2222-222222222222',
+    }
+
+    const prisma = {
+      chat: {
+        findFirst: vi.fn(async () => chat),
+      },
+      chatMessage: {
+        findMany: vi.fn(async () => [
+          {
+            id: '66666666-6666-6666-6666-666666666666',
+            role: 'ASSISTANT',
+            status: 'DONE',
+            errorMessage: null,
+            createdAt,
+            updatedAt,
+            parts: [
+              { type: 'thinking', text: 'Размышляю над ответом' },
+              { type: 'text', text: 'Готовый ответ' },
+            ],
+          },
+        ]),
+      },
+    } as unknown as PrismaClient
+
+    const caller = createCaller(createContext(prisma))
+    const result = await caller.getChat({ chatId: chat.id })
+
+    expect(result.messages[0]?.parts).toEqual([
+      { type: 'thinking', text: 'Размышляю над ответом' },
+      { type: 'text', text: 'Готовый ответ' },
+    ])
+  })
+
+  it('drops a thinking part that has no text', async () => {
+    const chat = {
+      id: '11111111-1111-1111-1111-111111111111',
+      title: 'Новый чат',
+      workspaceId: '22222222-2222-2222-2222-222222222222',
+    }
+
+    const prisma = {
+      chat: {
+        findFirst: vi.fn(async () => chat),
+      },
+      chatMessage: {
+        findMany: vi.fn(async () => [
+          {
+            id: '77777777-7777-7777-7777-777777777777',
+            role: 'ASSISTANT',
+            status: 'DONE',
+            errorMessage: null,
+            createdAt: new Date('2026-05-31T10:00:00.000Z'),
+            updatedAt: new Date('2026-05-31T10:00:00.000Z'),
+            parts: [
+              { type: 'thinking', text: '' },
+              { type: 'text', text: 'Ответ' },
+            ],
+          },
+        ]),
+      },
+    } as unknown as PrismaClient
+
+    const caller = createCaller(createContext(prisma))
+    const result = await caller.getChat({ chatId: chat.id })
+
+    expect(result.messages[0]?.parts).toEqual([{ type: 'text', text: 'Ответ' }])
+  })
+
   it('does not expose the legacy sendMessage mutation anymore', () => {
     const caller = createCaller(
       createContext({
@@ -199,5 +282,100 @@ describe('chatRouter', () => {
       orderBy: { createdAt: 'desc' },
     })
     expect(favorites).toEqual([favorite.chat])
+  })
+})
+
+describe('chat.updateChatSettings', () => {
+  const chatId = '11111111-1111-1111-1111-111111111111'
+  const workspaceId = '22222222-2222-2222-2222-222222222222'
+  const modelId = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+
+  it('persists useThinking + effort + model + temperature/topP', async () => {
+    planMocks.getAvailableAiModels.mockResolvedValueOnce([{ id: modelId, deprecatedAt: null }])
+
+    const updatedChat = {
+      id: chatId,
+      title: 'Новый чат',
+      workspaceId,
+      parentId: null,
+      createdById: 'user-1',
+      createdAt: new Date('2026-05-31T10:00:00.000Z'),
+      updatedAt: new Date('2026-05-31T10:00:00.000Z'),
+      aiModelId: modelId,
+      useThinking: true,
+      thinkingEffort: 'HIGH' as const,
+      temperature: 0.7,
+      topP: 0.9,
+    }
+
+    const prisma = {
+      chat: {
+        findFirst: vi.fn(async () => ({ id: chatId, workspaceId })),
+        update: vi.fn(async () => updatedChat),
+      },
+    } as unknown as PrismaClient
+
+    const caller = createCaller(createContext(prisma))
+    const res = await caller.updateChatSettings({
+      chatId,
+      aiModelId: modelId,
+      useThinking: true,
+      thinkingEffort: 'HIGH',
+      temperature: 0.7,
+      topP: 0.9,
+    })
+
+    expect(res.useThinking).toBe(true)
+    expect(res.thinkingEffort).toBe('HIGH')
+    expect(res.aiModelId).toBe(modelId)
+    expect(prisma.chat.update).toHaveBeenCalledWith({
+      where: { id: chatId },
+      data: {
+        aiModelId: modelId,
+        useThinking: true,
+        thinkingEffort: 'HIGH',
+        temperature: 0.7,
+        topP: 0.9,
+      },
+      select: {
+        id: true,
+        aiModelId: true,
+        useThinking: true,
+        thinkingEffort: true,
+        temperature: true,
+        topP: true,
+      },
+    })
+
+    // round-trip through getChat returns the new settings
+    const getChatPrisma = {
+      chat: {
+        findFirst: vi.fn(async () => updatedChat),
+      },
+      chatMessage: {
+        findMany: vi.fn(async () => []),
+      },
+    } as unknown as PrismaClient
+
+    const getChatCaller = createCaller(createContext(getChatPrisma))
+    const got = await getChatCaller.getChat({ chatId })
+    expect(got.chat.useThinking).toBe(true)
+    expect(got.chat.aiModelId).toBe(modelId)
+    expect(got.chat.thinkingEffort).toBe('HIGH')
+  })
+
+  it('rejects a non-member', async () => {
+    const prisma = {
+      chat: {
+        // assertChatAccess filters by membership; a non-member sees no chat
+        findFirst: vi.fn(async () => null),
+        update: vi.fn(),
+      },
+    } as unknown as PrismaClient
+
+    const otherCaller = createCaller(createContext(prisma, 'user-2'))
+
+    await expect(otherCaller.updateChatSettings({ chatId, useThinking: true })).rejects.toThrow()
+    expect(prisma.chat.update).not.toHaveBeenCalled()
   })
 })

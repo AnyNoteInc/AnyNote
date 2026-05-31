@@ -39,6 +39,13 @@ class ModelConfigSchema(RequestResponseSchema):
     settings: ModelSettingsSchema = Field(default_factory=ModelSettingsSchema)
 
 
+class ReasoningConfigSchema(RequestResponseSchema):
+    model_config = ConfigDict(populate_by_name=True)
+
+    enabled: bool = False
+    effort: Literal['low', 'medium', 'high'] = 'medium'
+
+
 class ConversationMessageSchema(RequestResponseSchema):
     role: RoleEnum
     content: str
@@ -56,6 +63,17 @@ class McpServerSchema(RequestResponseSchema):
     retries: int = 3
     verify: bool = True
     workspace_id: str | None = None
+
+
+class AttachmentSchema(RequestResponseSchema):
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: str
+    name: str
+    mime: str
+    size_bytes: int
+    included: bool
+    content: str | None = None
 
 
 class LlmValidationResponseSchema(RequestResponseSchema):
@@ -135,6 +153,8 @@ class AgentRunRequestSchema(BaseModel):
     agent_system_prompt: str | None = None
     long_term_memories: Annotated[list[MemoryItemSchema], Field(default_factory=list)]
     allow_destructive: bool = False
+    attachments: Annotated[list[AttachmentSchema], Field(default_factory=list)]
+    reasoning: ReasoningConfigSchema = Field(default_factory=ReasoningConfigSchema)
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -155,6 +175,7 @@ class AgentState(BaseModel):
     mcp_servers: list[McpServerSchema]
     agent_system_prompt: str | None = None
     long_term_memories: list[MemoryItemSchema] = []
+    attachments: list[AttachmentSchema] = []
     rag_documents: list[object] = []  # filled by planner
 
     # planning
@@ -169,11 +190,13 @@ class AgentState(BaseModel):
     last_critic_feedback: str | None = None
     revision_count: int = 0
     draft_answer: str = ''
+    draft_reasoning: str = ''
     pending_memory_writes: list[MemoryWriteSchema] = []
     pending_confirmations: dict[str, PendingConfirmationSchema] = {}
 
     # output
     final_answer: str = ''
+    final_reasoning: str = ''
     critic_verdict: CriticVerdict | None = None
     critic_feedback: str | None = None
     citations: list[CitationSchema] = []
@@ -183,7 +206,7 @@ class AgentState(BaseModel):
 
 EventType = Literal[
     'router_decision', 'plan_step', 'step_started', 'step_completed',
-    'token', 'tool_status', 'confirmation_required',
+    'token', 'thinking', 'tool_status', 'confirmation_required',
     'memory_write_proposed', 'critic_verdict', 'citation',
     'usage', 'done', 'error',
 ]
@@ -229,6 +252,10 @@ class ServerEventSchema(BaseModel):
     @classmethod
     def token(cls, text: str, step_id: str | None = None) -> Self:
         return cls(type='token', text=text, step_id=step_id)
+
+    @classmethod
+    def thinking(cls, text: str, step_id: str | None = None) -> Self:
+        return cls(type='thinking', text=text, step_id=step_id)
 
     @classmethod
     def router_decision(cls, kind: Literal['trivial', 'complex'], reason: str) -> Self:

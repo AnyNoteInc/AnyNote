@@ -17,6 +17,7 @@ vi.mock('../src/helpers/agents-validate', () => validateMocks)
 vi.mock('../src/helpers/plan', () => planMocks)
 
 import type { PrismaClient } from '@repo/db'
+import { encryptSecret } from '@repo/auth'
 import { aiProviderRouter } from '../src/routers/ai-provider'
 import { createCallerFactory } from '../src/trpc'
 
@@ -83,6 +84,37 @@ describe('aiProvider.create', () => {
     await expect(caller(ctx(prisma)).create(input)).rejects.toThrow(/прав/)
   })
 
+  it('passes supportsReasoning through to the created model', async () => {
+    const create = vi.fn().mockResolvedValue({
+      id: 'p1', kind: 'OPENAI', name: 'My OpenAI', slug: 'p1', workspaceId: WS,
+      connection: {}, connectionEnc: { iv: 'a', ciphertext: 'b', tag: 'c' }, models: [],
+    })
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) },
+      aiProvider: { create },
+    }
+    await caller(ctx(prisma)).create({
+      ...input,
+      model: { ...input.model, supportsReasoning: true },
+    })
+    const arg = create.mock.calls[0][0]
+    expect(arg.data.models.create.supportsReasoning).toBe(true)
+  })
+
+  it('defaults supportsReasoning to false when omitted', async () => {
+    const create = vi.fn().mockResolvedValue({
+      id: 'p1', kind: 'OPENAI', name: 'My OpenAI', slug: 'p1', workspaceId: WS,
+      connection: {}, connectionEnc: { iv: 'a', ciphertext: 'b', tag: 'c' }, models: [],
+    })
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) },
+      aiProvider: { create },
+    }
+    await caller(ctx(prisma)).create(input)
+    const arg = create.mock.calls[0][0]
+    expect(arg.data.models.create.supportsReasoning).toBe(false)
+  })
+
   it('gates behind the plan flag', async () => {
     planMocks.getWorkspaceFeatures.mockResolvedValue({ customAiProvidersEnabled: false })
     const prisma = { workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) } }
@@ -112,6 +144,37 @@ describe('aiProvider.addModel', () => {
       }),
     ).rejects.toThrow(/повреждены|ключ/)
     expect(create).not.toHaveBeenCalled()
+  })
+
+  it('passes supportsReasoning through to the created model', async () => {
+    const PROVIDER_ID = '00000000-0000-0000-0000-000000000002'
+    const encrypted = encryptSecret(JSON.stringify({ apiKey: 'sk-good' }))
+    const create = vi.fn().mockResolvedValue({ id: 'm1', supportsReasoning: true })
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) },
+      aiProvider: {
+        findFirst: vi.fn().mockResolvedValue({
+          id: PROVIDER_ID,
+          kind: 'OPENAI',
+          workspaceId: WS,
+          connectionEnc: encrypted,
+        }),
+      },
+      aiModel: { create },
+    }
+    await caller(ctx(prisma)).addModel({
+      workspaceId: WS,
+      providerId: PROVIDER_ID,
+      model: {
+        slug: 'gpt-4o',
+        displayName: 'X',
+        contextTokens: 1000,
+        supportsEmbeddings: false,
+        supportsReasoning: true,
+      },
+    })
+    const arg = create.mock.calls[0][0]
+    expect(arg.data.supportsReasoning).toBe(true)
   })
 })
 

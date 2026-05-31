@@ -171,6 +171,75 @@ describe('fileRouter.listWorkspace', () => {
   })
 })
 
+describe('fileRouter.listRecent', () => {
+  function recentFile(id: string, createdAt: Date) {
+    return {
+      id,
+      name: `file-${id.slice(0, 4)}`,
+      mimeType: 'application/pdf',
+      fileSize: BigInt(2048),
+      createdAt,
+    }
+  }
+
+  it('returns the latest N active files newest-first', async () => {
+    const rows = [
+      recentFile('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa1', new Date('2026-04-25T10:05:00.000Z')),
+      recentFile('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa2', new Date('2026-04-25T10:04:00.000Z')),
+      recentFile('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa3', new Date('2026-04-25T10:03:00.000Z')),
+      recentFile('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa4', new Date('2026-04-25T10:02:00.000Z')),
+      recentFile('aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaa5', new Date('2026-04-25T10:01:00.000Z')),
+    ]
+    const findMany = vi.fn(async () => rows)
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn(async () => memberOk()) },
+      file: { findMany },
+    } as unknown as PrismaClient
+
+    const caller = createCaller(baseContext(prisma))
+    const result = await caller.listRecent({ workspaceId: WORKSPACE_ID, limit: 5 })
+
+    expect(result).toHaveLength(5)
+    expect(result[0].fileSize).toBe('2048')
+    expect(new Date(result[0].createdAt).getTime()).toBeGreaterThanOrEqual(
+      new Date(result[1].createdAt).getTime(),
+    )
+    expect(findMany).toHaveBeenCalledWith({
+      where: { workspaceId: WORKSPACE_ID, status: 'ACTIVE' },
+      orderBy: { createdAt: 'desc' },
+      take: 5,
+      select: { id: true, name: true, mimeType: true, fileSize: true, createdAt: true },
+    })
+  })
+
+  it('defaults the limit to 5', async () => {
+    const findMany = vi.fn(async () => [])
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn(async () => memberOk()) },
+      file: { findMany },
+    } as unknown as PrismaClient
+
+    const caller = createCaller(baseContext(prisma))
+    await caller.listRecent({ workspaceId: WORKSPACE_ID })
+
+    expect(findMany).toHaveBeenCalledWith(expect.objectContaining({ take: 5 }))
+  })
+
+  it('forbids non-members', async () => {
+    const findMany = vi.fn()
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn(async () => null) },
+      file: { findMany },
+    } as unknown as PrismaClient
+
+    const caller = createCaller(baseContext(prisma))
+    await expect(caller.listRecent({ workspaceId: WORKSPACE_ID, limit: 5 })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+    })
+    expect(findMany).not.toHaveBeenCalled()
+  })
+})
+
 describe('fileRouter.workspaceUploaders', () => {
   it('lists unique uploaders for a workspace', async () => {
     const findMany = vi.fn(async () => [

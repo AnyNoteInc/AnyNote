@@ -28,6 +28,7 @@ export type ConfirmationRequiredEvent = {
 export type WebChatSseEvent =
   | { type: 'message.created'; assistantMessageId: string; userMessageId: string }
   | { type: 'message.delta'; assistantMessageId: string; text: string }
+  | { type: 'message.thinking'; assistantMessageId: string; text: string }
   | { type: 'message.service'; assistantMessageId: string; blocks: ServiceBlock[] }
   | {
       type: 'message.status'
@@ -43,4 +44,6 @@ export type StartChatGenerationBody = {
   chatId: string
   text: string
   fileIds: string[]
+  useThinking?: boolean
+  thinkingEffort?: 'LOW' | 'MEDIUM' | 'HIGH'
 }
