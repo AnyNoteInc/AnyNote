@@ -88,12 +88,12 @@ export async function GET(
           }),
         )
 
-        if (entry.blocks.length > 0) {
+        if (entry.segments.length > 0) {
           controller.enqueue(
             encodeSseEvent({
-              type: 'message.service',
+              type: 'message.segments',
               assistantMessageId,
-              blocks: entry.blocks,
+              segments: entry.segments,
             }),
           )
         }

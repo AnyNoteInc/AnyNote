@@ -2,7 +2,7 @@ import { prisma } from '@repo/db'
 
 import { activeStreamRegistry } from './active-stream-registry'
 import { decodeSseEvents, encodeSseEvent } from './sse'
-import type { ServiceBlock, WebChatSseEvent } from './types'
+import type { OrderedSegment, ServiceBlock, WebChatSseEvent } from './types'
 
 // ---------------------------------------------------------------------------
 // Part builders
@@ -12,10 +12,6 @@ type ValidChatFile = { id: string; name: string; mimeType: string; fileSize: big
 
 export function createTextPart(text: string) {
   return { type: 'text' as const, text }
-}
-
-export function createThinkingPart(text: string) {
-  return { type: 'thinking' as const, text }
 }
 
 export function createAttacmentPart(file: ValidChatFile) {
@@ -28,16 +24,8 @@ export function createAttacmentPart(file: ValidChatFile) {
   }
 }
 
-export function createToolPart(block: ServiceBlock) {
-  return { type: 'tool' as const, ...block }
-}
-
 export function createAssistantParts(entry: ReturnType<typeof activeStreamRegistry.create>) {
-  return [
-    ...(entry.thinking.length > 0 ? [createThinkingPart(entry.thinking)] : []),
-    ...(entry.content.length > 0 ? [createTextPart(entry.content)] : []),
-    ...entry.blocks.map(createToolPart),
-  ]
+  return entry.segments
 }
 
 // ---------------------------------------------------------------------------
@@ -117,7 +105,7 @@ export function createEntryResponse(args: {
 // ---------------------------------------------------------------------------
 
 // Shape of events emitted by /agent/run and /agent/resume
-type AgentRunSseEvent =
+export type AgentRunSseEvent =
   | { type: 'token'; text: string }
   | { type: 'thinking'; text: string }
   | { type: 'tool_status'; id: string; tool: string; state: 'running' | 'done' | 'error'; title: string; detail?: string }
@@ -134,17 +122,6 @@ function mapPlanStepStatus(s: string): ServiceBlock['state'] {
   if (s === 'done') return 'done'
   if (s === 'failed') return 'error'
   return 'pending'
-}
-
-function upsertServiceBlock(blocks: ServiceBlock[], block: ServiceBlock): ServiceBlock[] {
-  const next = [...blocks]
-  const idx = next.findIndex((b) => b.id === block.id)
-  if (idx >= 0) {
-    next[idx] = block
-    return next
-  }
-  next.push(block)
-  return next
 }
 
 /**
@@ -167,7 +144,7 @@ export function translateAgentEvent(
 type EntryHandle = ReturnType<typeof activeStreamRegistry.create>
 type PersistHandle = ReturnType<typeof createDebouncedPersist>
 
-function handleAgentEvent(
+export function handleAgentEvent(
   event: AgentRunSseEvent,
   entry: EntryHandle,
   flush: PersistHandle,
@@ -182,26 +159,22 @@ function handleAgentEvent(
       flush.schedule()
       return false
     case 'tool_status':
-      entry.publishBlocks(
-        upsertServiceBlock(entry.blocks, {
-          id: event.id,
-          kind: 'tool',
-          state: event.state,
-          title: event.title,
-          detail: event.detail,
-        }),
-      )
+      entry.publishToolStatus({
+        id: event.id,
+        kind: 'tool',
+        state: event.state,
+        title: event.title,
+        detail: event.detail,
+      })
       flush.schedule()
       return false
     case 'plan_step':
-      entry.publishBlocks(
-        upsertServiceBlock(entry.blocks, {
-          id: `plan-${event.id}`,
-          kind: 'tool',
-          state: mapPlanStepStatus(event.status),
-          title: event.title,
-        }),
-      )
+      entry.publishToolStatus({
+        id: `plan-${event.id}`,
+        kind: 'tool',
+        state: mapPlanStepStatus(event.status),
+        title: event.title,
+      })
       return false
     case 'step_started':
       updateExistingPlanBlock(entry, event.step_id, { state: 'running' })
@@ -213,20 +186,18 @@ function handleAgentEvent(
       })
       return false
     case 'confirmation_required':
-      entry.publishBlocks(
-        upsertServiceBlock(entry.blocks, {
-          id: event.confirmation_id,
-          kind: 'confirmation',
-          state: 'required',
-          title: event.summary,
-          detail: JSON.stringify({
-            confirmation_id: event.confirmation_id,
-            tool: event.tool,
-            summary: event.summary,
-            args_preview: event.args_preview,
-          }),
+      entry.publishToolStatus({
+        id: event.confirmation_id,
+        kind: 'confirmation',
+        state: 'required',
+        title: event.summary,
+        detail: JSON.stringify({
+          confirmation_id: event.confirmation_id,
+          tool: event.tool,
+          summary: event.summary,
+          args_preview: event.args_preview,
         }),
-      )
+      })
       return false
     case 'error':
       entry.publishStatus('ERROR', event.message)
@@ -246,11 +217,19 @@ function updateExistingPlanBlock(
   patch: Partial<ServiceBlock>,
 ): void {
   const planBlockId = `plan-${stepId}`
-  const existing = entry.blocks.find((b) => b.id === planBlockId)
-  if (!existing) return
-  entry.publishBlocks(
-    upsertServiceBlock(entry.blocks, { ...existing, ...patch } as ServiceBlock),
+  const existing = entry.segments.find(
+    (s): s is Extract<OrderedSegment, { type: 'tool' }> =>
+      s.type === 'tool' && s.id === planBlockId,
   )
+  if (!existing) return
+  entry.publishToolStatus({
+    id: existing.id,
+    kind: existing.kind,
+    state: patch.state ?? existing.state,
+    title: existing.title,
+    detail: patch.detail ?? existing.detail,
+    result: patch.result ?? existing.result,
+  })
 }
 
 export async function streamAgentSseToRegistry(args: {

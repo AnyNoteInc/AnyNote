@@ -16,7 +16,6 @@ import {
   mapServerMessagesToThreadMessages,
   markAssistantErrored,
   reconcileOptimisticIds,
-  replaceAssistantToolBlocks,
   updateAssistantStatus,
   type DraftAttachmentSummary,
   type ServerChatMessage,
@@ -153,24 +152,6 @@ export function useChatStream({
         return
       }
 
-      case 'message.service': {
-        setMessages((current) =>
-          replaceAssistantToolBlocks(
-            current,
-            event.assistantMessageId,
-            event.blocks.map((block) => ({
-              id: block.id,
-              kind: block.kind,
-              state: block.state,
-              title: block.title,
-              detail: block.detail,
-              result: block.result,
-            })),
-          ),
-        )
-        return
-      }
-
       case 'message.status': {
         setMessages((current) =>
           updateAssistantStatus({
@@ -189,8 +170,8 @@ export function useChatStream({
       }
 
       // plan_step and confirmation_required events are no longer surfaced via
-      // callbacks: confirmations now render inline through message.service tool
-      // blocks (see ChatConfirmInline), and the plan panel was removed.
+      // callbacks: confirmations now render inline through message.segments tool
+      // segments (see ChatConfirmInline), and the plan panel was removed.
       default:
         return
     }

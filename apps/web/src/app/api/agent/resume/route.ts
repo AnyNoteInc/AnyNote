@@ -114,15 +114,15 @@ export async function POST(req: NextRequest) {
     userMessageId: '',
   })
 
-  // Pre-seed entry with existing content and blocks from the persisted parts
-  // so the translator's upserts merge into the existing bubble rather than starting fresh.
+  // Pre-seed the entry's ordered segments from the persisted parts so the
+  // translator's upserts merge into the existing bubble rather than starting fresh.
   // While doing so, flip the confirmation block we just acted on: allow → running
   // (agent is now running the tool), deny → done. This removes the inline buttons
   // immediately and survives a page refresh because the debounced persist writes
-  // the updated blocks back to the chat message row.
+  // the updated segments back to the chat message row.
   for (const part of persistedParts) {
     if (isTextPart(part)) {
-      entry.content = part.text
+      entry.segments.push({ type: 'text', text: part.text })
       continue
     }
     if (!isToolPart(part)) continue
@@ -130,7 +130,7 @@ export async function POST(req: NextRequest) {
     const block = isResolved
       ? resolveConfirmationBlock(part, action)
       : { id: part.id, kind: part.kind, state: part.state, title: part.title, detail: part.detail, result: part.result }
-    entry.blocks = [...entry.blocks, block]
+    entry.publishToolStatus(block)
   }
 
   const agentsUrl = process.env.AGENTS_URL ?? 'http://localhost:8080'
@@ -148,12 +148,10 @@ export async function POST(req: NextRequest) {
   })
   entry.setUpstreamTask(upstreamTask)
 
-  // Push the resolved-confirmation blocks immediately so the UI buttons
+  // Push the resolved-confirmation segments immediately so the UI buttons
   // disappear before the agent even starts streaming events back.
   return createEntryResponse({
     entry,
-    initialEvents: [
-      { type: 'message.service', assistantMessageId, blocks: entry.blocks },
-    ],
+    initialEvents: [{ type: 'message.segments', assistantMessageId, segments: entry.segments }],
   })
 }

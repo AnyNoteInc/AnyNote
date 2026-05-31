@@ -41,25 +41,36 @@ const assistantMessageId = '55555555-5555-5555-5555-555555555555'
 function makeEntry(assistantMsgId: string) {
   const entry = {
     assistantMessageId: assistantMsgId,
-    blocks: [] as unknown[],
+    segments: [] as Array<{ type: string; [key: string]: unknown }>,
     chatId,
-    content: '',
-    thinking: '',
     errorMessage: undefined as string | undefined,
     lastTouchedAt: Date.now(),
     status: 'STREAMING' as string,
     upstreamTask: null as Promise<void> | null,
     userMessageId,
-    publishBlocks: vi.fn((b: unknown[]) => { entry.blocks = b }),
+    publishToolStatus: vi.fn((block: { id: string; [key: string]: unknown }) => {
+      const idx = entry.segments.findIndex((s) => s.type === 'tool' && s.id === block.id)
+      const seg = { type: 'tool', ...block }
+      if (idx >= 0) entry.segments[idx] = seg
+      else entry.segments.push(seg)
+    }),
     publishCreated: vi.fn(),
-    publishDelta: vi.fn((t: string) => { entry.content += t }),
-    publishThinking: vi.fn((t: string) => { entry.thinking += t }),
+    publishDelta: vi.fn((t: string) => {
+      const last = entry.segments.at(-1)
+      if (last && last.type === 'text') last.text = `${last.text as string}${t}`
+      else entry.segments.push({ type: 'text', text: t })
+    }),
+    publishThinking: vi.fn((t: string) => {
+      const last = entry.segments.at(-1)
+      if (last && last.type === 'thinking') last.text = `${last.text as string}${t}`
+      else entry.segments.push({ type: 'thinking', text: t })
+    }),
     publishDone: vi.fn(),
     publishStatus: vi.fn((s: string, e?: string) => { entry.status = s; entry.errorMessage = e }),
     scheduleCleanup: vi.fn(),
     setUpstreamTask: vi.fn((t: Promise<void>) => { entry.upstreamTask = t }),
     subscribe: vi.fn((cb: (e: unknown) => void) => {
-      cb({ type: 'message.delta', assistantMessageId: assistantMsgId, text: 'Hello' })
+      cb({ type: 'message.delta', assistantMessageId: assistantMsgId, segmentIndex: 0, text: 'Hello' })
       cb({ type: 'message.status', assistantMessageId: assistantMsgId, status: 'DONE' })
       cb({ type: 'message.done', assistantMessageId: assistantMsgId })
       return () => {}
@@ -157,7 +168,7 @@ describe('POST /api/agents/generate', () => {
     expect(entry.publishStatus).toHaveBeenCalledWith('DONE')
   })
 
-  it('translates tool_status running/done into publishBlocks', async () => {
+  it('translates tool_status running/done into publishToolStatus', async () => {
     let upstreamTask: Promise<void> | null = null
     const entry = makeEntry(assistantMessageId)
     entry.setUpstreamTask = vi.fn((t) => { upstreamTask = t })
@@ -210,12 +221,12 @@ describe('POST /api/agents/generate', () => {
     )
     await upstreamTask
 
-    expect(entry.publishBlocks).toHaveBeenCalledTimes(2)
-    const publishBlocksMock = vi.mocked(entry.publishBlocks)
-    const firstCall = publishBlocksMock.mock.calls[0]![0]
-    expect(firstCall[0]).toMatchObject({ id: 't1', kind: 'tool', state: 'running', title: 'Searching' })
-    const secondCall = publishBlocksMock.mock.calls[1]![0]
-    expect(secondCall[0]).toMatchObject({ id: 't1', kind: 'tool', state: 'done', detail: '3 results' })
+    expect(entry.publishToolStatus).toHaveBeenCalledTimes(2)
+    const publishToolStatusMock = vi.mocked(entry.publishToolStatus)
+    const firstCall = publishToolStatusMock.mock.calls[0]![0]
+    expect(firstCall).toMatchObject({ id: 't1', kind: 'tool', state: 'running', title: 'Searching' })
+    const secondCall = publishToolStatusMock.mock.calls[1]![0]
+    expect(secondCall).toMatchObject({ id: 't1', kind: 'tool', state: 'done', detail: '3 results' })
   })
 
   it('publishes ERROR status when upstream returns non-200', async () => {

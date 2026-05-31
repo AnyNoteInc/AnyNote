@@ -9,6 +9,19 @@ export type ServiceBlock = {
   result?: string
 }
 
+export type OrderedSegment =
+  | { type: 'text'; text: string }
+  | { type: 'thinking'; text: string }
+  | {
+      type: 'tool'
+      id: string
+      kind: 'tool' | 'confirmation'
+      state: ServiceBlock['state']
+      title: string
+      detail?: string
+      result?: string
+    }
+
 export type PlanStepEvent = {
   type: 'plan_step'
   id: string
@@ -27,9 +40,9 @@ export type ConfirmationRequiredEvent = {
 
 export type WebChatSseEvent =
   | { type: 'message.created'; assistantMessageId: string; userMessageId: string }
-  | { type: 'message.delta'; assistantMessageId: string; text: string }
+  | { type: 'message.delta'; assistantMessageId: string; segmentIndex: number; text: string }
+  | { type: 'message.segments'; assistantMessageId: string; segments: OrderedSegment[] }
   | { type: 'message.thinking'; assistantMessageId: string; text: string }
-  | { type: 'message.service'; assistantMessageId: string; blocks: ServiceBlock[] }
   | {
       type: 'message.status'
       assistantMessageId: string

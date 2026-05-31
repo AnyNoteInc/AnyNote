@@ -9,9 +9,24 @@ vi.mock('@repo/db', () => ({
 import { createActiveStreamRegistry } from '../src/lib/chat/active-stream-registry'
 import {
   createAssistantParts,
+  createDebouncedPersist,
+  handleAgentEvent,
   streamAgentSseToRegistry,
   translateAgentEvent,
 } from '../src/lib/chat/agent-sse-bridge'
+
+// createDebouncedPersist touches prisma; stub schedule/flush to no-ops for unit scope.
+function fakePersist() {
+  return { schedule() {}, async flush() {} }
+}
+
+function makeEntry() {
+  return createActiveStreamRegistry().create({
+    assistantMessageId: 'a1',
+    chatId: 'c1',
+    userMessageId: 'u1',
+  })
+}
 
 function sseResponse(lines: string[]) {
   return new Response(lines.join('\n'), {
@@ -19,6 +34,31 @@ function sseResponse(lines: string[]) {
     status: 200,
   })
 }
+
+describe('agent-sse-bridge translates upstream events to ordered segments', () => {
+  it('interleaves token → tool → token', () => {
+    const entry = makeEntry()
+    const flush = fakePersist() as ReturnType<typeof createDebouncedPersist>
+
+    handleAgentEvent({ type: 'token', text: 'Looking… ' }, entry, flush)
+    handleAgentEvent(
+      { type: 'tool_status', id: 't1', tool: 'search', state: 'running', title: 'search' },
+      entry,
+      flush,
+    )
+    handleAgentEvent(
+      { type: 'tool_status', id: 't1', tool: 'search', state: 'done', title: 'search', detail: 'ok' },
+      entry,
+      flush,
+    )
+    handleAgentEvent({ type: 'token', text: 'Found.' }, entry, flush)
+
+    expect(entry.segments.map((s) => s.type)).toEqual(['text', 'tool', 'text'])
+    expect(entry.segments[0]).toMatchObject({ type: 'text', text: 'Looking… ' })
+    expect(entry.segments[1]).toMatchObject({ type: 'tool', id: 't1', state: 'done' })
+    expect(entry.segments[2]).toMatchObject({ type: 'text', text: 'Found.' })
+  })
+})
 
 describe('thinking bridge', () => {
   it('maps upstream thinking to message.thinking', () => {
@@ -31,13 +71,8 @@ describe('thinking bridge', () => {
     expect(translateAgentEvent({ type: 'done' } as never, 'asst-1')).toEqual([])
   })
 
-  it('accumulates thinking deltas on the registry entry and publishes message.thinking', () => {
-    const registry = createActiveStreamRegistry()
-    const entry = registry.create({
-      assistantMessageId: 'asst-1',
-      chatId: 'chat-1',
-      userMessageId: 'user-1',
-    })
+  it('accumulates thinking deltas into one thinking segment and publishes message.thinking', () => {
+    const entry = makeEntry()
 
     const seen: Array<{ type: string; text?: string }> = []
     entry.subscribe((event) => {
@@ -51,16 +86,11 @@ describe('thinking bridge', () => {
       { type: 'message.thinking', text: 'Раз' },
       { type: 'message.thinking', text: 'мышляю' },
     ])
-    expect(entry.thinking).toBe('Размышляю')
+    expect(entry.segments).toEqual([{ type: 'thinking', text: 'Размышляю' }])
   })
 
-  it('persists the accumulated thinking as a part placed before text parts', () => {
-    const registry = createActiveStreamRegistry()
-    const entry = registry.create({
-      assistantMessageId: 'asst-1',
-      chatId: 'chat-1',
-      userMessageId: 'user-1',
-    })
+  it('persists the accumulated thinking as a segment placed before text segments', () => {
+    const entry = makeEntry()
 
     entry.publishThinking('reasoning')
     entry.publishDelta('answer')
@@ -71,13 +101,8 @@ describe('thinking bridge', () => {
     expect(parts[1]).toEqual({ type: 'text', text: 'answer' })
   })
 
-  it('omits the thinking part when no thinking was streamed', () => {
-    const registry = createActiveStreamRegistry()
-    const entry = registry.create({
-      assistantMessageId: 'asst-1',
-      chatId: 'chat-1',
-      userMessageId: 'user-1',
-    })
+  it('omits the thinking segment when no thinking was streamed', () => {
+    const entry = makeEntry()
 
     entry.publishDelta('answer')
 
@@ -93,13 +118,8 @@ describe('streamAgentSseToRegistry — thinking end-to-end', () => {
     updateMock.mockReset()
   })
 
-  it('consumes an upstream thinking event and persists it before the text part', async () => {
-    const registry = createActiveStreamRegistry()
-    const entry = registry.create({
-      assistantMessageId: 'asst-1',
-      chatId: 'chat-1',
-      userMessageId: 'user-1',
-    })
+  it('consumes an upstream thinking event and persists it before the text segment', async () => {
+    const entry = makeEntry()
 
     const thinkingEvents: string[] = []
     entry.subscribe((event) => {
@@ -121,8 +141,8 @@ describe('streamAgentSseToRegistry — thinking end-to-end', () => {
     )
 
     await streamAgentSseToRegistry({
-      assistantMessageId: 'asst-1',
-      chatId: 'chat-1',
+      assistantMessageId: 'a1',
+      chatId: 'c1',
       entry,
       jwt: 'jwt',
       upstreamUrl: 'http://agents/agent/run',
@@ -132,7 +152,7 @@ describe('streamAgentSseToRegistry — thinking end-to-end', () => {
     // upstream thinking forwarded to the browser as message.thinking
     expect(thinkingEvents).toEqual(['let me think'])
 
-    // persisted parts lead with the thinking part, then the streamed text
+    // persisted segments lead with the thinking segment, then the streamed text
     const lastUpdate = updateMock.mock.calls.at(-1)?.[0] as {
       data: { parts: Array<{ type: string; text?: string }> }
     }
