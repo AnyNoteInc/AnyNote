@@ -1,9 +1,9 @@
 'use client'
 
 import AddIcon from '@mui/icons-material/Add'
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
 import AttachFileRoundedIcon from '@mui/icons-material/AttachFileRounded'
 import PsychologyRoundedIcon from '@mui/icons-material/PsychologyRounded'
-import SendRoundedIcon from '@mui/icons-material/SendRounded'
 import Chip from '@mui/material/Chip'
 import IconButton from '@mui/material/IconButton'
 import ListItemIcon from '@mui/material/ListItemIcon'
@@ -319,7 +319,7 @@ function ChatComposerInner({
       </Menu>
 
       <ChatComposerSendButton aria-label="Send" disabled={disabled || !hasText}>
-        <SendRoundedIcon />
+        <ArrowUpwardIcon />
       </ChatComposerSendButton>
     </MuiChatComposer>
   )

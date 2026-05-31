@@ -200,4 +200,19 @@ describe('ChatComposer', () => {
     await user.click(within(chip).getByTestId('CancelIcon'))
     expect(onClearThinking).toHaveBeenCalledTimes(1)
   })
+
+  it('renders the send button with the ArrowUpward icon', () => {
+    render(
+      <ChatComposer
+        value=""
+        attachments={[]}
+        onValueChange={() => {}}
+        onAttachmentsChange={() => {}}
+        onSend={vi.fn()}
+      />,
+    )
+    const sendButton = screen.getByRole('button', { name: /send/i })
+    expect(sendButton.querySelector('[data-testid="ArrowUpwardIcon"]')).toBeTruthy()
+    expect(sendButton.querySelector('[data-testid="SendRoundedIcon"]')).toBeNull()
+  })
 })
