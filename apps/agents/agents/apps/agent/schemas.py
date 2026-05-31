@@ -58,6 +58,17 @@ class McpServerSchema(RequestResponseSchema):
     workspace_id: str | None = None
 
 
+class AttachmentSchema(RequestResponseSchema):
+    model_config = ConfigDict(populate_by_name=True)
+
+    id: str
+    name: str
+    mime: str
+    size_bytes: int
+    included: bool
+    content: str | None = None
+
+
 class LlmValidationResponseSchema(RequestResponseSchema):
     ok: bool
     error: str | None = None
@@ -135,6 +146,7 @@ class AgentRunRequestSchema(BaseModel):
     agent_system_prompt: str | None = None
     long_term_memories: Annotated[list[MemoryItemSchema], Field(default_factory=list)]
     allow_destructive: bool = False
+    attachments: Annotated[list[AttachmentSchema], Field(default_factory=list)]
 
     model_config = ConfigDict(populate_by_name=True)
 
@@ -155,6 +167,7 @@ class AgentState(BaseModel):
     mcp_servers: list[McpServerSchema]
     agent_system_prompt: str | None = None
     long_term_memories: list[MemoryItemSchema] = []
+    attachments: list[AttachmentSchema] = []
     rag_documents: list[object] = []  # filled by planner
 
     # planning

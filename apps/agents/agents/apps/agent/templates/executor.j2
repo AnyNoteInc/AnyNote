@@ -40,6 +40,7 @@ Long-term memory facts that may help:
 - [{{ m.key }}] {{ m.content }}
 {% endfor %}
 
+{% include "_attachments.j2" %}
 The previous turns of this chat are seeded as message history right after
 this system prompt. Treat the latest assistant message there as the source
 of truth when the user refers to text "выше" / "above" / "из разговора" —

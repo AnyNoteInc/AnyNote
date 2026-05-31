@@ -26,6 +26,7 @@ async def planner_node(
         mcp_servers=[s.model_dump() for s in state.mcp_servers],
         agent_system_prompt=state.agent_system_prompt,
         last_critic_feedback=state.last_critic_feedback,
+        attachments=[a.model_dump() for a in state.attachments],
     )
     msg = await llm.ainvoke([SystemMessage(content=prompt)])
     plan = _parse(str(msg.content), fallback_title=state.user_message)

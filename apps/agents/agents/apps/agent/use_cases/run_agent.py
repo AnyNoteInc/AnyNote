@@ -115,6 +115,7 @@ class RunAgentUseCase:
             'mcp_servers': [s.model_dump() for s in request.mcp_servers],
             'agent_system_prompt': request.agent_system_prompt,
             'long_term_memories': [m.model_dump() for m in request.long_term_memories],
+            'attachments': [a.model_dump() for a in request.attachments],
         })
 
         try:

@@ -57,6 +57,7 @@ async def executor_node(
         plan=[s.model_dump() for s in state.plan],
         long_term_memories=[m.model_dump() for m in state.long_term_memories],
         chat_history=[m.model_dump() for m in state.chat_history],
+        attachments=[a.model_dump() for a in state.attachments],
     )
 
     # GigaChat requires system at position 0 and at least one user/assistant
