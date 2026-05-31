@@ -3,6 +3,12 @@ import { S3StorageClient } from './s3-client.ts'
 
 export type { PutOptions, StorageClient } from './contract.ts'
 
+export {
+  extractTextFromFile,
+  isInlineTextType,
+  MAX_INLINE_FILE_BYTES,
+} from './file-text.ts'
+
 type GlobalStorage = typeof globalThis & {
   __storage?: S3StorageClient
 }
