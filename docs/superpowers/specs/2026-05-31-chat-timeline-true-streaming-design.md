@@ -63,9 +63,11 @@ stream".**
 ### Library capability (Context7-verified, LangGraph ≥ 1.1.8, Python 3.13)
 
 - **Token streaming:** `graph.astream(..., stream_mode="messages")` yields `(message_chunk, metadata)`.
-  Tokens can be filtered to a specific LLM call by **tag**: build the model with
-  `init_chat_model(..., tags=[...])` (or attach tags to the model) and keep only chunks whose
-  `metadata["tags"]` contains the answer tag. This excludes router/planner/critic LLM tokens.
+  Tokens are filtered to the answer-producing call by **node**: `metadata["langgraph_node"]`. The same
+  `llm` instance is shared by router/planner/executor/critic (see `run_agent.py` — every node gets
+  `llm=llm`), so a model-level tag would leak router/planner tokens; filtering on
+  `langgraph_node == "executor"` is the correct discriminator. (`metadata` also carries
+  `langgraph_step`.)
 - **Custom events from inside a node:** `from langgraph.config import get_stream_writer`;
   `writer({...})` inside `tool_runner_node`, consumed via `stream_mode="custom"`. Python 3.13 means
   context-vars propagate without threading `config` through.
@@ -107,9 +109,11 @@ Per-layer mapping:
 
 ## Layer 1 — `apps/agents` (Python): real token + tool_status streaming
 
-**1a. Tag the answer model.** In `agents/apps/agent/repositories/model_factory.py`, tag the model used
-for the user-facing answer with an `answer` tag so its tokens are distinguishable in
-`stream_mode="messages"`. Router/planner/critic models stay untagged (their tokens are dropped).
+**1a. Filter answer tokens by node.** The `llm` is shared across all nodes (`run_agent.py`), so token
+filtering keys on `metadata["langgraph_node"] == "executor"` in `graph_streaming.py` — no model-factory
+change needed. (GigaChat already sets `streaming=True`; OpenAI/Anthropic stream by default. Confirm each
+provider actually yields token chunks under `stream_mode="messages"`; providers that don't stream simply
+deliver their answer as one chunk, which still flows through the same path.)
 
 **1b. Emit `tool_status` from `tool_runner_node`.** In
 `agents/apps/agent/services/nodes/tool_runner.py`, around each `_run_tool`:
