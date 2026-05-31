@@ -44,4 +44,6 @@ export type StartChatGenerationBody = {
   chatId: string
   text: string
   fileIds: string[]
+  useThinking?: boolean
+  thinkingEffort?: 'LOW' | 'MEDIUM' | 'HIGH'
 }

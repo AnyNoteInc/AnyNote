@@ -23,6 +23,19 @@ export const runtime = 'nodejs'
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+const THINKING_EFFORTS = ['LOW', 'MEDIUM', 'HIGH'] as const
+type ThinkingEffort = (typeof THINKING_EFFORTS)[number]
+
+const REASONING_EFFORT_BY_THINKING: Record<ThinkingEffort, 'low' | 'medium' | 'high'> = {
+  LOW: 'low',
+  MEDIUM: 'medium',
+  HIGH: 'high',
+}
+
+function isThinkingEffort(value: unknown): value is ThinkingEffort {
+  return typeof value === 'string' && (THINKING_EFFORTS as readonly string[]).includes(value)
+}
+
 function parseBody(raw: unknown): StartChatGenerationBody {
   if (!raw || typeof raw !== 'object') throw new Error('Invalid body')
   const body = raw as Record<string, unknown>
@@ -35,7 +48,13 @@ function parseBody(raw: unknown): StartChatGenerationBody {
         (id): id is string => typeof id === 'string' && UUID_RE.test(id),
       )
     : []
-  return { chatId: body.chatId, text: body.text.trim(), fileIds }
+  return {
+    chatId: body.chatId,
+    text: body.text.trim(),
+    fileIds,
+    ...(typeof body.useThinking === 'boolean' ? { useThinking: body.useThinking } : {}),
+    ...(isThinkingEffort(body.thinkingEffort) ? { thinkingEffort: body.thinkingEffort } : {}),
+  }
 }
 
 type ValidChatFile = {
@@ -66,7 +85,14 @@ export async function POST(request: NextRequest): Promise<Response> {
       id: body.chatId,
       workspace: { members: { some: { userId: session.user.id } } },
     },
-    select: { id: true, title: true, workspaceId: true, parentId: true },
+    select: {
+      id: true,
+      title: true,
+      workspaceId: true,
+      parentId: true,
+      useThinking: true,
+      thinkingEffort: true,
+    },
   })
   if (!chat) return NextResponse.json({ error: 'Chat not found' }, { status: 404 })
 
@@ -238,6 +264,12 @@ export async function POST(request: NextRequest): Promise<Response> {
     role: membership.role as AgentsRole,
   })
 
+  // Per-request thinking flags (from the composer) take precedence over the
+  // chat row's persisted settings; the row is the fallback when the body omits
+  // them. effort is wired regardless of enabled so the model gets a budget hint.
+  const reasoningEnabled = body.useThinking ?? chat.useThinking
+  const reasoningEffort = REASONING_EFFORT_BY_THINKING[body.thinkingEffort ?? chat.thinkingEffort]
+
   const payload = buildAgentRunPayload({
     chatId: chat.id,
     userMessage: body.text,
@@ -246,8 +278,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     mcpServers: [enginesMcpServer, ...userMcpServers],
     longTermMemories,
     attachments: resolvedAttachments,
-    // TODO(thinking): replaced in Task 7.8 with merged per-chat flag
-    reasoning: { enabled: false, effort: 'medium' },
+    reasoning: { enabled: reasoningEnabled, effort: reasoningEffort },
   })
 
   const entry = activeStreamRegistry.create({

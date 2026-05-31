@@ -4,6 +4,8 @@ import { useCallback, useEffect, useEffectEvent, useMemo, useRef, useState } fro
 
 import { Alert, Box, ChatThread, Stack, type ChatSendPayload } from '@repo/ui/components'
 
+type ThinkingEffort = 'LOW' | 'MEDIUM' | 'HIGH'
+
 import { trpc } from '@/trpc/client'
 
 import { renderChatLink } from '@/components/chat/chat-link-renderer'
@@ -32,12 +34,54 @@ export function WorkspaceChatClient({
     { enabled: activeChatId !== null },
   )
   const createChat = trpc.chat.createChat.useMutation()
+  const updateChatSettings = trpc.chat.updateChatSettings.useMutation()
   const draftAttachments = useDraftAttachments(workspaceId)
   const resumeAttemptRef = useRef<string | null>(null)
+
+  const [thinking, setThinking] = useState<{ effort: ThinkingEffort } | null>(null)
+
+  const recentFilesQuery = trpc.file.listRecent.useQuery(
+    { workspaceId, limit: 5 },
+    { enabled: Boolean(workspaceId) },
+  )
+  const recentFiles = useMemo(
+    () =>
+      (recentFilesQuery.data ?? []).map((file) => ({
+        id: file.id,
+        name: file.name,
+        fileSize: file.fileSize,
+        mimeType: file.mimeType,
+      })),
+    [recentFilesQuery.data],
+  )
+
+  const availableModelsQuery = trpc.aiSettings.listAvailableModels.useQuery({ workspaceId })
+  const chatAiModelId = query.data?.chat.aiModelId ?? null
+  // Best-effort reasoning gate: when the chat pins an explicit model we look up
+  // its supportsReasoning flag; otherwise (workspace default model) we can't
+  // resolve it from listAvailableModels alone, so we keep the slash command
+  // enabled and let the generate route apply the real per-chat reasoning flag.
+  const reasoningSupported = useMemo(() => {
+    if (!chatAiModelId) return true
+    const models = (availableModelsQuery.data ?? []).flatMap((provider) => provider.models)
+    const model = models.find((m) => m.id === chatAiModelId)
+    return model ? model.supportsReasoning : true
+  }, [availableModelsQuery.data, chatAiModelId])
 
   useEffect(() => {
     setActiveChatId(chatId)
   }, [chatId])
+
+  // Hydrate the local thinking chip from the persisted chat settings whenever a
+  // chat loads or changes (server is the source of truth on first paint).
+  const persistedUseThinking = query.data?.chat.useThinking ?? null
+  const persistedThinkingEffort = (query.data?.chat.thinkingEffort ?? null) as ThinkingEffort | null
+  useEffect(() => {
+    if (persistedUseThinking === null) return
+    setThinking(
+      persistedUseThinking ? { effort: persistedThinkingEffort ?? 'MEDIUM' } : null,
+    )
+  }, [activeChatId, persistedUseThinking, persistedThinkingEffort])
 
   const ensureChat = useEffectEvent(async () => {
     if (activeChatId) return activeChatId
@@ -115,6 +159,8 @@ export function WorkspaceChatClient({
     const started = await send({
       attachments: draftAttachments.uploadedAttachments,
       text,
+      useThinking: thinking !== null,
+      ...(thinking ? { thinkingEffort: thinking.effort } : {}),
     })
 
     if (started) {
@@ -137,6 +183,35 @@ export function WorkspaceChatClient({
   const handleComposerValueChange = useEffectEvent((value: string) => {
     setActionError(null)
     setDraft(value)
+  })
+
+  const handleAttachRecent = useEffectEvent(
+    (file: { id: string; name: string; fileSize: string; mimeType?: string }) => {
+      setActionError(null)
+      draftAttachments.addUploaded({
+        fileId: file.id,
+        name: file.name,
+        fileSize: file.fileSize,
+        mimeType: file.mimeType,
+      })
+    },
+  )
+
+  const handleSelectThinking = useEffectEvent(async (effort: ThinkingEffort) => {
+    setThinking({ effort })
+    const targetChatId = await ensureChat()
+    if (!targetChatId) return
+    await updateChatSettings.mutateAsync({
+      chatId: targetChatId,
+      useThinking: true,
+      thinkingEffort: effort,
+    })
+  })
+
+  const handleClearThinking = useEffectEvent(async () => {
+    setThinking(null)
+    if (!activeChatId) return
+    await updateChatSettings.mutateAsync({ chatId: activeChatId, useThinking: false })
   })
 
   const handleConfirm = useCallback(
@@ -166,10 +241,16 @@ export function WorkspaceChatClient({
         <ChatThread
           composerAttachments={draftAttachments.attachments}
           composerPlaceholder="Спросите что-нибудь..."
+          composerReasoningSupported={reasoningSupported}
+          composerRecentFiles={recentFiles}
+          composerThinking={thinking}
           composerValue={draft}
           disabled={isStreaming || createChat.isPending}
           messages={messages}
+          onComposerAttachRecent={handleAttachRecent}
           onComposerAttachmentsChange={handleComposerAttachmentsChange}
+          onComposerClearThinking={handleClearThinking}
+          onComposerSelectThinking={handleSelectThinking}
           onComposerValueChange={handleComposerValueChange}
           onConfirm={handleConfirm}
           onSend={handleComposerSend}

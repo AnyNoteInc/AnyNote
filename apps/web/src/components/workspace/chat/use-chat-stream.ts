@@ -19,9 +19,16 @@ import {
   type ServerChatMessage,
 } from './chat-message-mappers'
 
+type ThinkingEffort = 'LOW' | 'MEDIUM' | 'HIGH'
+
 type PendingSend = {
   attachments: DraftAttachmentSummary[]
   text: string
+}
+
+type SendOptions = {
+  useThinking?: boolean
+  thinkingEffort?: ThinkingEffort
 }
 
 type UseChatStreamArgs = {
@@ -31,7 +38,7 @@ type UseChatStreamArgs = {
   onSettled?: () => void | Promise<void>
 }
 
-type StartSendArgs = PendingSend
+type StartSendArgs = PendingSend & SendOptions
 
 function getErrorMessage(value: unknown, fallback: string) {
   return value instanceof Error ? value.message : fallback
@@ -230,38 +237,42 @@ export function useChatStream({
     })
   })
 
-  const send = useEffectEvent(async ({ attachments, text }: StartSendArgs) => {
-    const trimmedText = text.trim()
-    if (!trimmedText) {
-      return false
-    }
+  const send = useEffectEvent(
+    async ({ attachments, text, useThinking, thinkingEffort }: StartSendArgs) => {
+      const trimmedText = text.trim()
+      if (!trimmedText) {
+        return false
+      }
 
-    const targetChatId = chatId ?? (await ensureChat?.())
-    if (!targetChatId) {
-      setError('Не удалось создать чат.')
-      return false
-    }
+      const targetChatId = chatId ?? (await ensureChat?.())
+      if (!targetChatId) {
+        setError('Не удалось создать чат.')
+        return false
+      }
 
-    pendingSendRef.current = {
-      attachments,
-      text: trimmedText,
-    }
+      pendingSendRef.current = {
+        attachments,
+        text: trimmedText,
+      }
 
-    return await openStream((signal) =>
-      fetch('/api/agents/generate', {
-        method: 'POST',
-        headers: {
-          'content-type': 'application/json',
-        },
-        body: JSON.stringify({
-          chatId: targetChatId,
-          text: trimmedText,
-          fileIds: attachments.map((attachment) => attachment.fileId),
+      return await openStream((signal) =>
+        fetch('/api/agents/generate', {
+          method: 'POST',
+          headers: {
+            'content-type': 'application/json',
+          },
+          body: JSON.stringify({
+            chatId: targetChatId,
+            text: trimmedText,
+            fileIds: attachments.map((attachment) => attachment.fileId),
+            ...(useThinking !== undefined ? { useThinking } : {}),
+            ...(thinkingEffort !== undefined ? { thinkingEffort } : {}),
+          }),
+          signal,
         }),
-        signal,
-      }),
-    )
-  })
+      )
+    },
+  )
 
   const confirmResume = useEffectEvent(
     async (confirmationId: string, action: 'allow' | 'deny') => {
