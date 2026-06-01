@@ -27,6 +27,7 @@ const UpdatePageInput = z.object({
   pageId: mcpUuid(),
   title: mcpInput(z.string().max(255).optional()),
   icon: z.string().nullable().optional(),
+  markdown: mcpInput(z.string().max(50_000).optional()),
   content: mcpInput(z.unknown().optional()),
 })
 
@@ -135,11 +136,16 @@ export class PageTools {
   @Tool({
     name: 'updatePage',
     description:
-      'Меняет существующую страницу: title, icon, content. Вызывай когда ' +
+      'Меняет существующую страницу: title, icon, содержимое. Вызывай когда ' +
       'пользователь просит "переименуй страницу", "обнови заголовок", ' +
-      '"измени содержимое страницы X". Требует подтверждения. Сначала ' +
-      'прочитай страницу через getPageMarkdown — никогда не пиши ' +
-      'содержимое вслепую.',
+      '"измени/перезапиши содержимое страницы X", "запиши этот текст на ' +
+      'страницу". Требует подтверждения. Сначала прочитай страницу через ' +
+      'getPageMarkdown — никогда не пиши содержимое вслепую. ' +
+      'ВАЖНО: чтобы записать текст/содержимое, ПЕРЕДАВАЙ его в параметре ' +
+      '`markdown` (обычная строка Markdown до 50 000 символов) — он ' +
+      'разбирается в формат страницы. Не передавай сырой текст в `content`. ' +
+      'Параметры: workspaceId, pageId, title?, icon?, markdown? (Markdown-' +
+      'строка нового содержимого).',
     parameters: UpdatePageInput,
   })
   updatePage(args: UpdatePageArgs, _context: Context, req: AuthedRequest) {
@@ -148,11 +154,16 @@ export class PageTools {
 
   async doUpdatePage(auth: AuthContext, args: UpdatePageArgs) {
     await assertMember(this.prisma, auth.userId, args.workspaceId)
+    // Prefer markdown: the agent passes a Markdown string, which we parse into a
+    // Tiptap doc so PageWriter can rebuild contentYjs and the editor renders it
+    // (a raw string/markdown left in `content` shows as an empty page). Fall back
+    // to a pre-built `content` doc when no markdown is supplied.
+    const content = typeof args.markdown === 'string' ? this.parser.parse(args.markdown) : args.content
     await this.writer.updatePage({
       pageId: args.pageId,
       title: args.title,
       icon: args.icon,
-      content: args.content,
+      content,
       userId: auth.userId,
       workspaceId: args.workspaceId,
     })

@@ -107,4 +107,35 @@ describe('PageWriter', () => {
     // domain.pages.create must NOT be called
     expect(fakeDomain.__mocks.pagesCreate).not.toHaveBeenCalled()
   })
+
+  it('updatePage rebuilds contentYjs when content changes (editor loads from contentYjs)', async () => {
+    const content = { type: 'doc', content: [{ type: 'paragraph', content: [{ type: 'text', text: 'баня' }] }] }
+    await writer.updatePage({ userId: 'u1', workspaceId: 'w1', pageId: 'p1', content })
+    const [args] = mockPrisma.__mocks.txUpdate!.mock.calls[0] as [{ data: Record<string, unknown> }]
+    expect(args.data['content']).toBe(content)
+    // Without contentYjs the Tiptap editor renders an empty page even though the
+    // JSON content is persisted — updatePage must keep contentYjs in sync like
+    // createPage/appendToPage do.
+    expect(args.data['contentYjs']).toBeInstanceOf(Uint8Array)
+  })
+
+  it('updatePage leaves contentYjs untouched when only title changes (no content provided)', async () => {
+    await writer.updatePage({ userId: 'u1', workspaceId: 'w1', pageId: 'p1', title: 'Renamed' })
+    const [args] = mockPrisma.__mocks.txUpdate!.mock.calls[0] as [{ data: Record<string, unknown> }]
+    expect(args.data['contentYjs']).toBeUndefined()
+  })
+
+  it('updatePage tolerates non-Tiptap content: stores it without throwing and skips contentYjs', async () => {
+    // The agent sometimes passes a malformed shape (e.g. { markdown: '...' }) that
+    // the Tiptap transformer cannot convert. updatePage must persist the content
+    // as-is (preserving pre-existing lenient behaviour) instead of throwing and
+    // rolling back the whole write.
+    const malformed = { markdown: '# Русская баня\n\nтекст' }
+    await expect(
+      writer.updatePage({ userId: 'u1', workspaceId: 'w1', pageId: 'p1', content: malformed }),
+    ).resolves.toBeUndefined()
+    const [args] = mockPrisma.__mocks.txUpdate!.mock.calls[0] as [{ data: Record<string, unknown> }]
+    expect(args.data['content']).toBe(malformed)
+    expect(args.data['contentYjs']).toBeUndefined()
+  })
 })

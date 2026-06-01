@@ -165,6 +165,29 @@ describe('PageTools', () => {
     })
   })
 
+  it('updatePage parses markdown into a Tiptap doc via MarkdownParser', async () => {
+    const markdown = '# Русская баня\n\nВлажная парная с веником.'
+    const parsedContent = {
+      type: 'doc',
+      content: [
+        { type: 'heading', attrs: { level: 1 }, content: [{ type: 'text', text: 'Русская баня' }] },
+        { type: 'paragraph', content: [{ type: 'text', text: 'Влажная парная с веником.' }] },
+      ],
+    }
+    ;(mockParser.parse as jest.Mock).mockReturnValue(parsedContent as never)
+    ;(mockWriter.updatePage as jest.Mock).mockResolvedValue(undefined as never)
+
+    const result = await tools.updatePage({ workspaceId, pageId, markdown }, {} as never, req)
+
+    expect(result).toEqual({ ok: true })
+    expect(mockParser.parse).toHaveBeenCalledWith(markdown)
+    // The parsed Tiptap doc must reach the writer as `content` so contentYjs can
+    // be rebuilt and the editor renders the text (raw markdown/strings cannot).
+    expect(mockWriter.updatePage).toHaveBeenCalledWith(
+      expect.objectContaining({ pageId, workspaceId, userId, content: parsedContent }),
+    )
+  })
+
   it('movePage returns ok and forwards workspace context', async () => {
     ;(mockWriter.movePage as jest.Mock).mockResolvedValue(undefined as never)
 

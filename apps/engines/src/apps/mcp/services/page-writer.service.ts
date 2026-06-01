@@ -78,12 +78,19 @@ export class PageWriter {
       if (page?.workspaceId !== input.workspaceId) {
         throw new PageNotFoundError(input.pageId)
       }
+      // The Tiptap editor loads from contentYjs, so rebuild it whenever content
+      // changes — otherwise the JSON content is persisted but the editor renders
+      // an empty page (createPage/appendToPage already keep these in sync).
+      // tryBuildContentYjs returns undefined for non-Tiptap shapes so a malformed
+      // payload still persists the raw content instead of failing the whole write.
+      const contentYjs = input.content === undefined ? undefined : tryBuildContentYjs(input.content)
       await tx.page.update({
         where: { id: input.pageId },
         data: {
           title: input.title,
           icon: input.icon,
           content: input.content as never,
+          ...(contentYjs === undefined ? {} : { contentYjs }),
           updatedById: input.userId,
         },
       })
@@ -260,6 +267,23 @@ function buildContentYjs(content: unknown): Uint8Array<ArrayBuffer> {
   const contentYjs = new Uint8Array(new ArrayBuffer(src.byteLength))
   contentYjs.set(src)
   return contentYjs
+}
+
+/**
+ * Like {@link buildContentYjs} but returns undefined instead of throwing when
+ * `content` is not a Tiptap ProseMirror document (`{ type: 'doc', ... }`). The
+ * agent occasionally passes a different shape (e.g. `{ markdown: '...' }`); we
+ * must still persist the raw JSON content rather than fail the whole update.
+ */
+function tryBuildContentYjs(content: unknown): Uint8Array<ArrayBuffer> | undefined {
+  if (!content || typeof content !== 'object' || (content as { type?: unknown }).type !== 'doc') {
+    return undefined
+  }
+  try {
+    return buildContentYjs(content)
+  } catch {
+    return undefined
+  }
 }
 
 const DIAGRAM_DOC_NAME = { MERMAID: 'mermaid', PLANTUML: 'plantuml', LIKEC4: 'likec4' } as const
