@@ -1,3 +1,10 @@
+## [1.22.3](https://github.com/AnyNoteInc/AnyNote/compare/v1.22.2...v1.22.3) (2026-06-01)
+
+
+### Bug Fixes
+
+* **deploy:** wire YJS_SHARE_TOKEN_SECRET into the production env pipeline ([0803620](https://github.com/AnyNoteInc/AnyNote/commit/08036208b5271e8d58e921c224b5cad79471a75f))
+
 ## [1.22.2](https://github.com/AnyNoteInc/AnyNote/compare/v1.22.1...v1.22.2) (2026-06-01)
 
 
