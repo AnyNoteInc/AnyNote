@@ -1,3 +1,10 @@
+## [1.22.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.22.0...v1.22.1) (2026-06-01)
+
+
+### Bug Fixes
+
+* **deploy:** pnpm 11 global-bin PATH + ship docs/changelog.md to web image ([5b9c449](https://github.com/AnyNoteInc/AnyNote/commit/5b9c449144b3ec172a607fa338b3a27336129236))
+
 # [1.22.0](https://github.com/AnyNoteInc/AnyNote/compare/v1.21.0...v1.22.0) (2026-06-01)
 
 
