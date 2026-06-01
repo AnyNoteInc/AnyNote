@@ -1,3 +1,10 @@
+## [1.22.2](https://github.com/AnyNoteInc/AnyNote/compare/v1.22.1...v1.22.2) (2026-06-01)
+
+
+### Bug Fixes
+
+* **deploy:** raise Node heap for the web Docker build to avoid OOM ([95234e3](https://github.com/AnyNoteInc/AnyNote/commit/95234e36405485e262cff2c92193797e400495bf))
+
 ## [1.22.1](https://github.com/AnyNoteInc/AnyNote/compare/v1.22.0...v1.22.1) (2026-06-01)
 
 
