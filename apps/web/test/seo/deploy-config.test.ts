@@ -50,7 +50,7 @@ describe('deploy .env template substitution', () => {
     // Collect every ${VAR} referenced on the right-hand side of an assignment.
     const referenced = new Set<string>()
     for (const match of template.matchAll(/\$\{([A-Z0-9_]+)\}/g)) {
-      referenced.add(match[1])
+      if (match[1]) referenced.add(match[1])
     }
 
     const missing = [...referenced]
