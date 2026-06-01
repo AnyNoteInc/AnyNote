@@ -90,6 +90,7 @@ jobs:
           BETTER_AUTH_SECRET: ${{ secrets.BETTER_AUTH_SECRET }}
           BETTER_AUTH_JWT_AUDIENCE: ${{ secrets.BETTER_AUTH_JWT_AUDIENCE }}
           NEXT_PUBLIC_YJS_URL: ${{ secrets.NEXT_PUBLIC_YJS_URL }}
+          YJS_SHARE_TOKEN_SECRET: ${{ secrets.YJS_SHARE_TOKEN_SECRET }}
           POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
           DB__PASSWORD: ${{ secrets.DB__PASSWORD }}
