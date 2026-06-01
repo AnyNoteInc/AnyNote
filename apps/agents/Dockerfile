@@ -4,7 +4,10 @@
 FROM node:24-alpine AS prepare
 
 ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
+# Include $PNPM_HOME/bin, not just $PNPM_HOME: pnpm installs global binaries
+# (e.g. turbo) into /pnpm/bin. pnpm 11 hard-errors ("global bin directory not
+# in PATH") on `pnpm add --global` when it's missing; pnpm 10 only warned.
+ENV PATH="$PNPM_HOME:$PNPM_HOME/bin:$PATH"
 
 RUN apk add --no-cache libc6-compat
 RUN corepack enable pnpm

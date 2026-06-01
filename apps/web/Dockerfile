@@ -1,7 +1,10 @@
 FROM node:24-alpine AS base
 
 ENV PNPM_HOME="/pnpm"
-ENV PATH="$PNPM_HOME:$PATH"
+# Include $PNPM_HOME/bin, not just $PNPM_HOME: pnpm installs global binaries
+# (e.g. turbo) into /pnpm/bin. pnpm 11 hard-errors ("global bin directory not
+# in PATH") on `pnpm add --global` when it's missing; pnpm 10 only warned.
+ENV PATH="$PNPM_HOME:$PNPM_HOME/bin:$PATH"
 
 # Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
 RUN apk add --no-cache libc6-compat
@@ -26,9 +29,11 @@ COPY --from=prepare /app/out/full/ .
 
 # `turbo prune` only copies workspace packages, so the root-level docs/
 # directory (referenced via the @docs alias in next.config.js) is missing
-# from out/full. Pull it in separately so `next build` can resolve
-# @docs/terms/*.md imports in apps/web.
+# from out/full. Pull in the bits the build imports so `next build` can
+# resolve them: @docs/terms/*.md (legal pages) and @docs/changelog.md
+# (the public /changelog page).
 COPY --from=prepare /app/docs/terms ./docs/terms
+COPY --from=prepare /app/docs/changelog.md ./docs/changelog.md
 
 # Build-time values consumed by Next.js route metadata and static page collection.
 # Public SEO values are supplied as build args in production; defaults keep local
