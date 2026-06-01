@@ -124,6 +124,7 @@ jobs:
           YOOKASSA_SAVE_PAYMENT_METHOD: ${{ vars.YOOKASSA_SAVE_PAYMENT_METHOD }}
           GOTENBERG_URL: ${{ secrets.GOTENBERG_URL }}
           GOTENBERG_TIMEOUT_MS: ${{ secrets.GOTENBERG_TIMEOUT_MS }}
+          PLANTUML_URL: ${{ secrets.PLANTUML_URL }}
           ACME_EMAIL: ${{ secrets.ACME_EMAIL }}
           TRAEFIK_DASHBOARD_USERS_LINE: ${{ secrets.TRAEFIK_DASHBOARD_USERS_LINE }}
           VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
