@@ -83,7 +83,7 @@ export class PageWriter {
       // an empty page (createPage/appendToPage already keep these in sync).
       // tryBuildContentYjs returns undefined for non-Tiptap shapes so a malformed
       // payload still persists the raw content instead of failing the whole write.
-      const contentYjs = input.content === undefined ? undefined : tryBuildContentYjs(input.content)
+      const contentYjs = tryBuildContentYjs(input.content)
       await tx.page.update({
         where: { id: input.pageId },
         data: {

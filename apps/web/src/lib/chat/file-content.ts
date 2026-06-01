@@ -73,6 +73,14 @@ export async function resolveAttachmentContents(
       out.push({ ...base, included: false, reason: 'total inline budget exceeded' })
       continue
     }
+    // For plain-text files the extracted text never exceeds the raw bytes, so an
+    // over-cap fileSize already guarantees exclusion — skip the storage download
+    // and decode entirely. (PDF/DOCX extract far less text than their byte size,
+    // so they must still be read before we can judge the inlined length.)
+    if (isInlineTextType(file.ext) && Number(file.fileSize) > MAX_INLINE_FILE_BYTES) {
+      out.push({ ...base, included: false, reason: 'too large to inline — use get_file_content' })
+      continue
+    }
 
     try {
       const bytes = await readAll(await storage.get(file.path))
