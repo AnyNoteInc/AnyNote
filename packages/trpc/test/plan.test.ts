@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterAll } from 'vitest'
 import { prisma } from '@repo/db'
 import {
   getWorkspaceFeatures,
@@ -6,6 +6,59 @@ import {
   getAvailableEmbeddingModels,
   requireWritableWorkspace,
 } from '../src/helpers/plan'
+
+// The seed no longer creates global AI providers/models (they are managed in
+// production, not re-created by `prisma db seed`). So the model-availability
+// tests below seed their OWN fixtures instead of assuming seed data exists —
+// otherwise they pass only against a stale local DB and fail on a fresh CI DB.
+const TEST_PROVIDER_SLUG = 'plan-test-provider'
+
+type ModelFixture = {
+  slug: string
+  displayName: string
+  supportsEmbeddings: boolean
+  vectorSize: number | null
+  minPlanSlug: string | null
+}
+
+// Filtering is driven by supportsEmbeddings/vectorSize/minPlanSlug (see
+// billing.repository.ts findAvailableAiModels/findAvailableEmbeddingModels).
+const MODEL_FIXTURES: ModelFixture[] = [
+  // chat models
+  { slug: 'gigachat-2', displayName: 'GigaChat 2', supportsEmbeddings: false, vectorSize: null, minPlanSlug: null },
+  { slug: 'gigachat-2-pro', displayName: 'GigaChat 2 Pro', supportsEmbeddings: false, vectorSize: null, minPlanSlug: 'pro' },
+  { slug: 'gigachat-2-max', displayName: 'GigaChat 2 Max', supportsEmbeddings: false, vectorSize: null, minPlanSlug: 'max' },
+  // embedding models
+  { slug: 'nomic-embed-text', displayName: 'Nomic Embed Text', supportsEmbeddings: true, vectorSize: 768, minPlanSlug: null },
+  { slug: 'bge-m3', displayName: 'BGE-M3', supportsEmbeddings: true, vectorSize: 1024, minPlanSlug: null },
+  { slug: 'text-embedding-3-small', displayName: 'Text Embedding 3 Small', supportsEmbeddings: true, vectorSize: 1536, minPlanSlug: null },
+  { slug: 'embeddings', displayName: 'Embeddings', supportsEmbeddings: true, vectorSize: 512, minPlanSlug: null },
+  { slug: 'text-embedding-3-large', displayName: 'Text Embedding 3 Large', supportsEmbeddings: true, vectorSize: 3072, minPlanSlug: 'max' },
+]
+
+async function cleanupTestModels(): Promise<void> {
+  // Deleting the provider cascades to its models (onDelete: Cascade).
+  await prisma.aiProvider.deleteMany({ where: { slug: TEST_PROVIDER_SLUG, workspaceId: null } })
+}
+
+async function seedTestModels(): Promise<void> {
+  await cleanupTestModels()
+  const provider = await prisma.aiProvider.create({
+    data: { slug: TEST_PROVIDER_SLUG, name: 'Plan Test Provider', kind: 'GIGACHAT', workspaceId: null },
+    select: { id: true },
+  })
+  await prisma.aiModel.createMany({
+    data: MODEL_FIXTURES.map((m) => ({
+      providerId: provider.id,
+      slug: m.slug,
+      displayName: m.displayName,
+      contextTokens: 8192,
+      supportsEmbeddings: m.supportsEmbeddings,
+      vectorSize: m.vectorSize,
+      minPlanSlug: m.minPlanSlug,
+    })),
+  })
+}
 
 describe('getWorkspaceFeatures', () => {
   let workspaceId: string
@@ -82,6 +135,7 @@ describe('getAvailableAiModels', () => {
     await prisma.user.deleteMany({
       where: { email: { contains: '+plan-test@anynote.dev' } },
     })
+    await seedTestModels()
 
     const owner = await prisma.user.create({
       data: {
@@ -99,6 +153,8 @@ describe('getAvailableAiModels', () => {
     })
     workspaceId = ws.id
   })
+
+  afterAll(cleanupTestModels)
 
   it('returns models with minPlanSlug=null and Pro-eligible models for Pro workspace', async () => {
     const pro = await prisma.plan.findUniqueOrThrow({ where: { slug: 'pro' } })
@@ -148,6 +204,7 @@ describe('getAvailableEmbeddingModels', () => {
     await prisma.user.deleteMany({
       where: { email: { contains: '+plan-test@anynote.dev' } },
     })
+    await seedTestModels()
 
     const owner = await prisma.user.create({
       data: {
@@ -165,6 +222,8 @@ describe('getAvailableEmbeddingModels', () => {
     })
     workspaceId = ws.id
   })
+
+  afterAll(cleanupTestModels)
 
   it('returns only Pro-eligible embedding models for Pro workspace', async () => {
     const pro = await prisma.plan.findUniqueOrThrow({ where: { slug: 'pro' } })
