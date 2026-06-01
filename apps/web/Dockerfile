@@ -65,6 +65,11 @@ ARG NEXT_PUBLIC_VAPID_PUBLIC_KEY=""
 ENV NEXT_PUBLIC_VAPID_PUBLIC_KEY=$NEXT_PUBLIC_VAPID_PUBLIC_KEY
 
 RUN pnpm --filter @repo/db prisma:generate
+# The Next.js 16 production build of apps/web exceeds Node's default heap on
+# memory-constrained CI runners (GitHub ubuntu-latest is ~7 GB) and gets
+# OOM-killed (exit 137). Raise the old-space limit for the build step. Scoped
+# to the builder stage so it doesn't affect the runtime image.
+ENV NODE_OPTIONS=--max-old-space-size=4096
 RUN pnpm turbo build
 
 # ---
