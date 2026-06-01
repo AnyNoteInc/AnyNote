@@ -1,3 +1,11 @@
+## [1.22.4](https://github.com/AnyNoteInc/AnyNote/compare/v1.22.3...v1.22.4) (2026-06-01)
+
+
+### Bug Fixes
+
+* **deploy:** wire PLANTUML_URL into the production env pipeline ([627c1bf](https://github.com/AnyNoteInc/AnyNote/commit/627c1bf8cc0b2a4e56ebe388b58a13270dd70274))
+* **ui:** render GFM tables in LLM chat responses ([2ac6d4b](https://github.com/AnyNoteInc/AnyNote/commit/2ac6d4bf461beb3abebd7f9d9837b3c245e8859f))
+
 ## [1.22.3](https://github.com/AnyNoteInc/AnyNote/compare/v1.22.2...v1.22.3) (2026-06-01)
 
 
