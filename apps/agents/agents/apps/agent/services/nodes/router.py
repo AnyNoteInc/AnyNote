@@ -26,8 +26,14 @@ async def route_node(
     kind, reason = _parse(str(msg.content))
     update: dict[str, object] = {'routing_kind': kind, 'last_critic_feedback': reason}
     if kind == RoutingKind.TRIVIAL:
-        update['plan'] = [PlanStepSchema(id=str(uuid4()), title=state.user_message,
-                                    status=PlanStepStatus.PENDING)]
+        step = PlanStepSchema(id=str(uuid4()), title=state.user_message,
+                              status=PlanStepStatus.PENDING)
+        # Trivial routing skips the planner, so point current_step_id at the
+        # seeded step here — otherwise the executor sees current_step_id=None,
+        # returns early without an LLM call, and the turn yields an empty plan
+        # stub with no answer (breaks every follow-up turn).
+        update['plan'] = [step]
+        update['current_step_id'] = step.id
     return state.model_copy(update=update)
 
 

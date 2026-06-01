@@ -34,9 +34,9 @@ def _fake_llm(outputs: list[str]):
 async def test_full_run_router_planner_executor_critic_memory(pg_saver) -> None:
     """End-to-end through real Postgres checkpointer.
 
-    Uses COMPLEX routing so the planner runs and sets current_step_id; trivial
-    routing skips the planner and leaves current_step_id=None which causes the
-    executor to return early without calling the LLM.
+    Uses COMPLEX routing: router → planner (sets current_step_id) → executor →
+    critic → memory_writer. The TRIVIAL path is covered separately by
+    test_full_run_trivial_route_produces_answer.
     """
     outputs = [
         json.dumps({'kind': 'complex', 'reason': 'lookup'}),  # router → complex
@@ -77,5 +77,51 @@ async def test_full_run_router_planner_executor_critic_memory(pg_saver) -> None:
     out = await graph.ainvoke(state, cfg)
     final = AgentState.model_validate(out)
     assert final.final_answer == 'найдено: 42'
+    assert final.critic_verdict is not None
+    assert final.critic_verdict.value == 'approve'
+
+
+@pytest.mark.integration
+@pytest.mark.asyncio
+async def test_full_run_trivial_route_produces_answer(pg_saver) -> None:
+    """TRIVIAL routing (router → executor → critic → memory_writer) must yield a
+    real answer. Regression guard: the router used to seed a plan step without
+    pointing current_step_id at it, so the executor returned early and the turn
+    produced an empty plan stub with no answer on every follow-up turn.
+    """
+    outputs = [
+        json.dumps({'kind': 'trivial', 'reason': 'pure lookup'}),  # router → trivial
+        'Краткое резюме: русская баня — влажная парная с веником.',  # executor answer
+        json.dumps({'verdict': 'approve', 'feedback': 'ok'}),  # critic
+    ]
+    llm = _fake_llm(outputs)
+
+    renderer = MagicMock()
+    renderer.render_router = lambda **kw: 'router-prompt'
+    renderer.render_executor = lambda **kw: 'executor-prompt'
+    renderer.render_critic = lambda **kw: 'critic-prompt'
+
+    memory_client = AsyncMock()
+    memory_client.write_batch = AsyncMock(return_value=None)
+
+    graph = build_agent_graph(
+        checkpointer=pg_saver,
+        router_node=functools.partial(route_node, llm=llm, renderer=renderer),
+        planner_node=functools.partial(planner_node, llm=llm, renderer=renderer),
+        executor_node=functools.partial(
+            executor_node, llm=llm, tools=[], renderer=renderer,
+        ),
+        critic_node=functools.partial(critic_node, llm=llm, renderer=renderer),
+        memory_writer_node=functools.partial(
+            memory_writer_node, memory_client=memory_client, jwt='test-jwt',
+        ),
+    )
+
+    state = make_state(user_message='Суммаризируй это в 3 предложениях')
+    cfg = {'configurable': {'thread_id': str(state.context.chat_id)}}
+
+    out = await graph.ainvoke(state, cfg)
+    final = AgentState.model_validate(out)
+    assert final.final_answer == 'Краткое резюме: русская баня — влажная парная с веником.'
     assert final.critic_verdict is not None
     assert final.critic_verdict.value == 'approve'
