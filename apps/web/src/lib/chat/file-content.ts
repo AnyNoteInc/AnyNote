@@ -76,15 +76,30 @@ export async function resolveAttachmentContents(
 
     try {
       const bytes = await readAll(await storage.get(file.path))
-      // Truncate at the per-file limit (a single large file is summarised to its
-      // first MAX_INLINE_FILE_BYTES and still inlined). The total budget is a
-      // separate, harder gate: if the per-file-capped text would not fit in the
-      // remaining budget, exclude the whole file rather than slice it to a
-      // misleading sliver of "complete" content.
-      const text = await extractTextFromFile(bytes, file.mimeType, file.ext, MAX_INLINE_FILE_BYTES)
+      // Extract one byte past the per-file cap so we can tell a file that fits
+      // exactly from one that is larger. We never inline a *truncated* file:
+      // silently feeding the model the first MAX_INLINE_FILE_BYTES (with no
+      // truncation marker) makes it summarise an incomplete document and never
+      // reach for get_file_content. If the text exceeds the per-file cap, or
+      // would not fit in the remaining total budget, exclude it and let the
+      // agent read the whole file via the get_file_content tool.
+      const text = await extractTextFromFile(
+        bytes,
+        file.mimeType,
+        file.ext,
+        MAX_INLINE_FILE_BYTES + 1,
+      )
       const textBytes = Buffer.from(text, 'utf8').length
+      if (textBytes > MAX_INLINE_FILE_BYTES) {
+        out.push({ ...base, included: false, reason: 'too large to inline — use get_file_content' })
+        continue
+      }
       if (textBytes > MAX_TOTAL_INLINE_BYTES - usedBytes) {
-        out.push({ ...base, included: false, reason: 'total inline budget exceeded' })
+        out.push({
+          ...base,
+          included: false,
+          reason: 'total inline budget exceeded — use get_file_content',
+        })
         continue
       }
       usedBytes += textBytes

@@ -28,13 +28,29 @@ describe('resolveAttachmentContents', () => {
     expect(res.content).toBe('hello')
   })
 
-  it('caps a file over the per-file limit', async () => {
+  it('excludes a text file too large to inline fully so the agent fetches it via tooling', async () => {
+    // A 300KB text file exceeds the 256KB per-file inline cap. Inlining only its
+    // first 256KB would silently feed the model a partial file (no truncation
+    // marker), so it would summarise an incomplete document and never reach for
+    // get_file_content. Exclude it instead and let the agent read the whole file.
     const big = Buffer.alloc(300 * 1024, 0x61)
     const storage = fakeStorage({ k1: big })
     const res = (
       await resolveAttachmentContents(storage, [{ ...baseFile, fileSize: BigInt(big.length) }])
     )[0]!
-    expect(Buffer.from(res.content ?? '', 'utf8').length).toBeLessThanOrEqual(256 * 1024)
+    expect(res.included).toBe(false)
+    expect(res.content).toBeUndefined()
+    expect(res.reason).toMatch(/get_file_content/)
+  })
+
+  it('inlines a text file exactly at the per-file limit', async () => {
+    const atLimit = Buffer.alloc(256 * 1024, 0x61)
+    const storage = fakeStorage({ k1: atLimit })
+    const res = (
+      await resolveAttachmentContents(storage, [{ ...baseFile, fileSize: BigInt(atLimit.length) }])
+    )[0]!
+    expect(res.included).toBe(true)
+    expect(Buffer.from(res.content ?? '', 'utf8').length).toBe(256 * 1024)
   })
 
   it('excludes non-whitelist binary as metadata-only', async () => {
