@@ -11,6 +11,7 @@ import TimelineItem, { timelineItemClasses } from '@mui/lab/TimelineItem'
 import TimelineSeparator from '@mui/lab/TimelineSeparator'
 import type { ReactNode } from 'react'
 import ReactMarkdown from 'react-markdown'
+import remarkGfm from 'remark-gfm'
 
 import { ChatFileChip } from './chat-file-chip'
 import { ChatServiceBlock, toolDotColor } from './chat-service-block'
@@ -77,10 +78,28 @@ export function ChatMessageContent({
               p: 1,
             },
             '& strong': { fontWeight: 600 },
+            // GFM tables: a wide table scrolls inside its own box (display:block +
+            // overflow) instead of stretching the timeline rail past the chat width.
+            '& table': {
+              borderCollapse: 'collapse',
+              display: 'block',
+              my: 1,
+              overflowX: 'auto',
+              width: 'max-content',
+              maxWidth: '100%',
+            },
+            '& th, & td': {
+              border: '1px solid',
+              borderColor: 'divider',
+              px: 1,
+              py: 0.5,
+              textAlign: 'left',
+            },
+            '& th': { bgcolor: 'action.hover', fontWeight: 600 },
             overflowWrap: 'anywhere',
           }}
         >
-          <ReactMarkdown components={markdownComponents}>
+          <ReactMarkdown components={markdownComponents} remarkPlugins={[remarkGfm]}>
             {linkifyWorkspacePageReferences(part.text)}
           </ReactMarkdown>
         </Box>

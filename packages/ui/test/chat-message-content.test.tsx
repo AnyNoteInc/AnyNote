@@ -93,6 +93,20 @@ describe('ChatMessageContent', () => {
     )
   })
 
+  it('renders a GFM markdown table as a real <table> with its cells', () => {
+    const table = ['| Name | Role |', '| --- | --- |', '| Alice | Admin |'].join('\n')
+    const { container } = render(<ChatMessageContent parts={[{ type: 'text', text: table }]} />)
+
+    const tableEl = container.querySelector('table')
+    expect(tableEl).toBeTruthy()
+    expect(container.querySelectorAll('th')).toHaveLength(2)
+    expect(container.querySelectorAll('td')).toHaveLength(2)
+    expect(screen.getByRole('columnheader', { name: 'Name' })).toBeTruthy()
+    expect(screen.getByRole('cell', { name: 'Alice' })).toBeTruthy()
+    // The raw pipe syntax must not leak through as plain text.
+    expect(container.textContent).not.toContain('| --- |')
+  })
+
   it('renders default <a> when renderLink is not provided', () => {
     const { container } = render(
       <ChatMessageContent parts={[{ type: 'text', text: '[link](/foo)' }]} />,
