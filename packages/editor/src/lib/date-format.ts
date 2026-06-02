@@ -24,3 +24,11 @@ export const formatDateTimeText = (date: Date) =>
     hour: '2-digit',
     minute: '2-digit',
   }).format(date)
+
+// Render a stored ISO value as ru-RU display text for a date node. Falls back
+// to the raw value if it isn't a parseable date so export never emits "Invalid".
+export const formatIsoForDisplay = (iso: string, kind: 'date' | 'datetime'): string => {
+  const d = new Date(iso)
+  if (Number.isNaN(d.getTime())) return iso
+  return kind === 'datetime' ? formatDateTimeText(d) : formatDateText(d)
+}
