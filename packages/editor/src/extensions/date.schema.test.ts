@@ -11,7 +11,8 @@ import { DateSchema } from './date.schema'
 // the COMPILED spec's toDOM/parseDOM — i.e. the actual production code path,
 // not a hand-written duplicate.
 const schema = getSchema([StarterKit, DateSchema])
-const dateType = schema.nodes.date
+// Non-null: DateSchema registers the `date` node, so it is always in the schema.
+const dateType = schema.nodes.date!
 
 type DomOutputArray = [string, Record<string, string>, string]
 
