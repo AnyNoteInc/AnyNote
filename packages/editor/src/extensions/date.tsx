@@ -49,7 +49,13 @@ function DateView({ node, updateAttributes, editor }: NodeViewProps) {
   const label = attrs.value ? formatIsoForDisplay(attrs.value, kind) : 'Выбрать дату'
 
   return (
-    <NodeViewWrapper as="span" className="anynote-date-wrapper" contentEditable={false}>
+    <NodeViewWrapper
+      as="span"
+      className="anynote-date-wrapper"
+      contentEditable={false}
+      data-type="date"
+      data-kind={kind}
+    >
       <Box
         component="span"
         onClick={open}
@@ -90,8 +96,8 @@ function DateView({ node, updateAttributes, editor }: NodeViewProps) {
           {kind === 'datetime' ? (
             <StaticDateTimePicker
               value={draft}
-              onChange={(v: Date | null) => setDraft(v)}
-              onAccept={(v: Date | null) => accept(v)}
+              onChange={(v) => setDraft(v)}
+              onAccept={(v) => accept(v)}
               onClose={close}
               displayStaticWrapperAs="desktop"
               slotProps={{ actionBar: { actions: [] } }}
@@ -99,8 +105,8 @@ function DateView({ node, updateAttributes, editor }: NodeViewProps) {
           ) : (
             <StaticDatePicker
               value={draft}
-              onChange={(v: Date | null) => setDraft(v)}
-              onAccept={(v: Date | null) => accept(v)}
+              onChange={(v) => setDraft(v)}
+              onAccept={(v) => accept(v)}
               onClose={close}
               displayStaticWrapperAs="desktop"
               slotProps={{ actionBar: { actions: [] } }}
