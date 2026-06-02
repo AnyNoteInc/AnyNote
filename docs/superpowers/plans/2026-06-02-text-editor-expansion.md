@@ -50,7 +50,7 @@ This lands first because Feature 4 (date nodes) and Feature 7 (markdown rename) 
 - Modify: `packages/editor/src/slash-items.ts`
 - Test: `packages/editor/src/slash-items.test.ts`
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Add to `packages/editor/src/slash-items.test.ts` inside the `describe('createSlashItems')` block:
 
@@ -66,12 +66,12 @@ it('groups date, datetime, pageLink and reminder under the inline group', () => 
 })
 ```
 
-- [ ] **Step 2: Run test to verify it fails**
+- [x] **Step 2: Run test to verify it fails**
 
 Run: `pnpm --filter @repo/editor test -- slash-items`
 Expected: FAIL — `groupOf('date')` is `'base'`, not `'inline'`.
 
-- [ ] **Step 3: Extend the group type**
+- [x] **Step 3: Extend the group type**
 
 In `packages/editor/src/types.ts`, line 30, change:
 
@@ -79,7 +79,7 @@ In `packages/editor/src/types.ts`, line 30, change:
 export type SlashCommandGroup = 'base' | 'inline' | 'code' | 'media' | 'embedding'
 ```
 
-- [ ] **Step 4: Update the popover group order and titles**
+- [x] **Step 4: Update the popover group order and titles**
 
 In `packages/editor/src/components/slash-menu-popover.tsx`:
 
@@ -95,16 +95,16 @@ const GROUP_TITLES: Record<SlashCommandGroup, string> = {
 }
 ```
 
-- [ ] **Step 5: Move the four items to the inline group**
+- [x] **Step 5: Move the four items to the inline group**
 
 In `packages/editor/src/slash-items.ts`, change `group: 'base'` to `group: 'inline'` on the `date` (line 43), `datetime` (line 244), `reminder` (line 258), and `pageLink` (line 289) items. Leave `callout`, `details`, `hidden`, etc. in `base`.
 
-- [ ] **Step 6: Run test to verify it passes**
+- [x] **Step 6: Run test to verify it passes**
 
 Run: `pnpm --filter @repo/editor test -- slash-items`
 Expected: PASS (all tests in file).
 
-- [ ] **Step 7: Commit**
+- [x] **Step 7: Commit**
 
 ```bash
 git add packages/editor/src/types.ts packages/editor/src/components/slash-menu-popover.tsx packages/editor/src/slash-items.ts packages/editor/src/slash-items.test.ts
@@ -122,7 +122,7 @@ git commit -m "feat(editor): add Встроенные slash group for inline ite
 No unit test (CSS + extension config, verified manually). The existing
 `styles/content.test.ts` asserts CSS invariants — check it still passes.
 
-- [ ] **Step 1: Configure the empty-node class**
+- [x] **Step 1: Configure the empty-node class**
 
 Replace the body of `packages/editor/src/extensions/placeholder.ts`:
 
@@ -140,7 +140,7 @@ export const buildPlaceholder = (text: string) =>
   })
 ```
 
-- [ ] **Step 2: Add the CSS rule for empty paragraphs**
+- [x] **Step 2: Add the CSS rule for empty paragraphs**
 
 In `packages/editor/src/styles/content.css`, immediately after the existing
 `p.is-editor-empty:first-child::before` rule (ends at line 38), add:
@@ -155,12 +155,12 @@ In `packages/editor/src/styles/content.css`, immediately after the existing
 }
 ```
 
-- [ ] **Step 3: Run the CSS invariant test**
+- [x] **Step 3: Run the CSS invariant test**
 
 Run: `pnpm --filter @repo/editor test -- content`
 Expected: PASS (no regressions).
 
-- [ ] **Step 4: Manually verify**
+- [x] **Step 4: Manually verify**
 
 Run: `pnpm dev`, open a TEXT page. Confirm: (a) empty doc shows the placeholder
 on the first line; (b) pressing Enter to a new empty line shows the placeholder
@@ -169,7 +169,7 @@ empty table cells / nested empty paragraphs and that looks noisy, scope the
 selector to direct children of `.ProseMirror`:
 `.anynote-editor > .ProseMirror > p.is-empty::before`. Otherwise leave as-is.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/editor/src/extensions/placeholder.ts packages/editor/src/styles/content.css
@@ -187,7 +187,7 @@ No unit test (the drag handle is integration-tested manually; the rule is a pure
 scoring function but the library wiring is hard to unit test without a live
 editor). Verify manually.
 
-- [ ] **Step 1: Add the rule**
+- [x] **Step 1: Add the rule**
 
 In `packages/editor/src/components/drag-handle.tsx`, after the
 `excludeColumnNodes` rule definition (ends line 23), add:
@@ -211,7 +211,7 @@ const excludeFirstContainerChild: DragHandleRule = {
 }
 ```
 
-- [ ] **Step 2: Register the rule**
+- [x] **Step 2: Register the rule**
 
 In the same file, add it to `nestedOptions.rules` (line 31):
 
@@ -222,12 +222,12 @@ const nestedOptions = {
 }
 ```
 
-- [ ] **Step 3: Type-check**
+- [x] **Step 3: Type-check**
 
 Run: `pnpm check-types` (from root).
 Expected: PASS. `RuleContext.evaluate` receives `{ node, pos, depth, parent, index, isFirst, isLast, $pos, view }` — `parent` and `isFirst` are used here.
 
-- [ ] **Step 4: Manually verify**
+- [x] **Step 4: Manually verify**
 
 Run: `pnpm dev`. Insert a Выноска (callout), Переключатель (details), Скрытый
 текст (hidden), and a Цитата (blockquote). Hover the FIRST line inside each:
@@ -235,7 +235,7 @@ the `+`/`⋮⋮` handle must NOT appear. Hover a SECOND line inside the same
 container: the handle MUST appear. Hover normal top-level paragraphs: handle
 appears as before.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/editor/src/components/drag-handle.tsx
@@ -249,7 +249,7 @@ git commit -m "feat(editor): hide drag handle on first child of container blocks
 **Files:**
 - Modify: `packages/ui/src/components/index.ts`
 
-- [ ] **Step 1: Add the export**
+- [x] **Step 1: Add the export**
 
 In `packages/ui/src/components/index.ts`, near the existing `StaticDatePicker`
 export (line 194), add:
@@ -261,12 +261,12 @@ export {
 } from '@mui/x-date-pickers/StaticDateTimePicker'
 ```
 
-- [ ] **Step 2: Type-check the ui package**
+- [x] **Step 2: Type-check the ui package**
 
 Run: `pnpm --filter @repo/ui check-types` (or `pnpm check-types` from root).
 Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add packages/ui/src/components/index.ts
@@ -282,7 +282,7 @@ git commit -m "feat(ui): export StaticDateTimePicker"
 - Create: `packages/editor/src/extensions/date.schema.test.ts`
 - Modify: `packages/editor/src/lib/date-format.ts` (add ISO-aware formatter helper)
 
-- [ ] **Step 1: Add an ISO-aware display formatter**
+- [x] **Step 1: Add an ISO-aware display formatter**
 
 In `packages/editor/src/lib/date-format.ts`, append:
 
@@ -296,7 +296,7 @@ export const formatIsoForDisplay = (iso: string, kind: 'date' | 'datetime'): str
 }
 ```
 
-- [ ] **Step 2: Write the failing schema round-trip test**
+- [x] **Step 2: Write the failing schema round-trip test**
 
 Create `packages/editor/src/extensions/date.schema.test.ts`:
 
@@ -329,12 +329,12 @@ describe('DateSchema', () => {
 })
 ```
 
-- [ ] **Step 3: Run test to verify it fails**
+- [x] **Step 3: Run test to verify it fails**
 
 Run: `pnpm --filter @repo/editor test -- date.schema`
 Expected: FAIL — `./date.schema` module not found.
 
-- [ ] **Step 4: Implement the schema**
+- [x] **Step 4: Implement the schema**
 
 Create `packages/editor/src/extensions/date.schema.ts`:
 
@@ -396,12 +396,12 @@ export const DateSchema = Node.create({
 })
 ```
 
-- [ ] **Step 5: Run test to verify it passes**
+- [x] **Step 5: Run test to verify it passes**
 
 Run: `pnpm --filter @repo/editor test -- date.schema`
 Expected: PASS.
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add packages/editor/src/extensions/date.schema.ts packages/editor/src/extensions/date.schema.test.ts packages/editor/src/lib/date-format.ts
@@ -418,7 +418,7 @@ git commit -m "feat(editor): add date/datetime inline node schema"
 No unit test (React node view with a date picker; verified manually). Mirrors
 `page-link.tsx` + `date-insert-popover.tsx`.
 
-- [ ] **Step 1: Implement the node view**
+- [x] **Step 1: Implement the node view**
 
 Create `packages/editor/src/extensions/date.tsx`:
 
@@ -552,11 +552,11 @@ export const DateNode = DateSchema.extend({
 })
 ```
 
-- [ ] **Step 2: Type-check**
+- [x] **Step 2: Type-check**
 
 Run: `pnpm check-types` (from root) — or build the editor package. Expected: PASS.
 
-- [ ] **Step 3: Commit**
+- [x] **Step 3: Commit**
 
 ```bash
 git add packages/editor/src/extensions/date.tsx
@@ -576,7 +576,7 @@ git commit -m "feat(editor): add date/datetime node view with picker"
 - Modify: `packages/editor/src/anynote-editor.tsx`
 - Modify: `packages/editor/src/slash-items.test.ts`
 
-- [ ] **Step 1: Register the client extension**
+- [x] **Step 1: Register the client extension**
 
 In `packages/editor/src/extensions/index.ts`, add the import after the `Reminder`
 import (line 34):
@@ -592,7 +592,7 @@ Add `DateNode` to the returned extensions array (after `Reminder,` on line 115):
   DateNode,
 ```
 
-- [ ] **Step 2: Re-export the schema from server.ts**
+- [x] **Step 2: Re-export the schema from server.ts**
 
 In `packages/editor/src/extensions/server.ts`, after the `ReminderSchema`
 export (line 12):
@@ -601,7 +601,7 @@ export (line 12):
 export { DateSchema as DateNode } from './date.schema'
 ```
 
-- [ ] **Step 3: Register in server export extensions**
+- [x] **Step 3: Register in server export extensions**
 
 In `apps/web/src/server/page-export/server-extensions.ts`, add `DateNode` to the
 import list (line 14-29):
@@ -633,7 +633,7 @@ Add `DateNode` to the returned array (after `PageLink,` on line 84):
     DateNode,
 ```
 
-- [ ] **Step 4: Update slash-items to insert nodes + add datetime handler**
+- [x] **Step 4: Update slash-items to insert nodes + add datetime handler**
 
 In `packages/editor/src/slash-items.ts`:
 
@@ -664,7 +664,7 @@ popover instead of inserting text:
 The `formatDateTimeText` import (line 28) is no longer used by slash-items after
 this — remove it from the import to satisfy lint (`--max-warnings 0`).
 
-- [ ] **Step 5: Make DateInsertPopover insert a node, with a mode**
+- [x] **Step 5: Make DateInsertPopover insert a node, with a mode**
 
 Replace `packages/editor/src/components/date-insert-popover.tsx` body so it takes
 a `mode` and inserts a `date` node:
@@ -773,7 +773,7 @@ export function DateInsertPopover({ open, mode, anchorEl, range, editor, onClose
 }
 ```
 
-- [ ] **Step 6: Wire the datetime PopoverKind in anynote-editor**
+- [x] **Step 6: Wire the datetime PopoverKind in anynote-editor**
 
 In `packages/editor/src/anynote-editor.tsx`:
 
@@ -819,7 +819,7 @@ render it with the right `mode`:
           />
 ```
 
-- [ ] **Step 7: Update the slash-items test fixture**
+- [x] **Step 7: Update the slash-items test fixture**
 
 In `packages/editor/src/slash-items.test.ts`, add the new handler to the
 `handlers` fixture (lines 5-10):
@@ -834,14 +834,14 @@ const handlers: SlashMediaHandlers = {
 }
 ```
 
-- [ ] **Step 8: Run editor tests + type-check**
+- [x] **Step 8: Run editor tests + type-check**
 
 Run: `pnpm --filter @repo/editor test`
 Expected: PASS (slash-items + date.schema).
 Run: `pnpm check-types`
 Expected: PASS.
 
-- [ ] **Step 9: Manually verify**
+- [x] **Step 9: Manually verify**
 
 Run: `pnpm dev`. On a TEXT page: `/` → Встроенные → Дата → pick a date →
 a calendar-icon chip appears with the formatted date. Click the chip → picker
@@ -849,7 +849,7 @@ reopens → change date → chip updates. Repeat for Дата и время (clo
 time). Export the page to Markdown (⋯ → Экспортировать → Markdown) and confirm
 the date appears as readable text in the .md.
 
-- [ ] **Step 10: Commit**
+- [x] **Step 10: Commit**
 
 ```bash
 git add packages/editor/src/extensions/index.ts packages/editor/src/extensions/server.ts apps/web/src/server/page-export/server-extensions.ts packages/editor/src/slash-items.ts packages/editor/src/components/date-insert-popover.tsx packages/editor/src/anynote-editor.tsx packages/editor/src/slash-items.test.ts
@@ -867,7 +867,7 @@ git commit -m "feat(editor): wire date/datetime nodes into slash menu and export
 No unit test (clipboard/ProseMirror paste handler; verified manually — the JSDOM
 test env does not model `ClipboardEvent.clipboardData.files` reliably).
 
-- [ ] **Step 1: Implement the paste extension**
+- [x] **Step 1: Implement the paste extension**
 
 Create `packages/editor/src/extensions/image-paste.ts`:
 
@@ -962,7 +962,7 @@ export const buildImagePaste = (uploadHandler: UploadHandler) =>
   })
 ```
 
-- [ ] **Step 2: Register it before FileUpload**
+- [x] **Step 2: Register it before FileUpload**
 
 In `packages/editor/src/extensions/index.ts`, add the import (after
 `buildFileUpload` import, line 31):
@@ -979,12 +979,12 @@ Add it to the extensions array **before** `buildFileUpload(opts.uploadHandler)`
   buildFileUpload(opts.uploadHandler),
 ```
 
-- [ ] **Step 3: Type-check**
+- [x] **Step 3: Type-check**
 
 Run: `pnpm check-types`
 Expected: PASS.
 
-- [ ] **Step 4: Manually verify**
+- [x] **Step 4: Manually verify**
 
 Run: `pnpm dev`. Copy an image to the OS clipboard (e.g. screenshot). On a TEXT
 page, paste (Cmd/Ctrl+V): the ResizableImage placeholder should appear briefly,
@@ -993,7 +993,7 @@ a non-image file still behave as before (text inserts; files go through
 FileUpload). Confirm the image is the ResizableImage node (it has the
 align/caption/replace toolbar when selected), not the FileUpload node.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/editor/src/extensions/image-paste.ts packages/editor/src/extensions/index.ts
@@ -1008,7 +1008,7 @@ git commit -m "feat(editor): paste images through the resizable image node"
 - Modify: `apps/web/src/hooks/use-page-actions.tsx`
 - Modify: `apps/web/src/components/page/page-actions-menu.tsx`
 
-- [ ] **Step 1: Add copyText to the hook**
+- [x] **Step 1: Add copyText to the hook**
 
 In `apps/web/src/hooks/use-page-actions.tsx`:
 
@@ -1053,7 +1053,7 @@ export type UsePageActionsResult = {
   }
 ```
 
-- [ ] **Step 2: Add the menu item**
+- [x] **Step 2: Add the menu item**
 
 In `apps/web/src/components/page/page-actions-menu.tsx`:
 
@@ -1089,7 +1089,7 @@ gated to TEXT pages:
         ) : null}
 ```
 
-- [ ] **Step 3: Verify ArticleIcon export**
+- [x] **Step 3: Verify ArticleIcon export**
 
 Run: `grep -n "ArticleIcon" packages/ui/src/components/index.ts`
 If absent, add to `packages/ui/src/components/index.ts`:
@@ -1098,20 +1098,20 @@ If absent, add to `packages/ui/src/components/index.ts`:
 export { default as ArticleIcon } from '@mui/icons-material/Article'
 ```
 
-- [ ] **Step 4: Type-check**
+- [x] **Step 4: Type-check**
 
 Run: `pnpm --filter web check-types`
 Expected: PASS. (If stale `.next/types` errors about deleted routes appear, run
 `rm -rf apps/web/.next/types` and retry — known artifact.)
 
-- [ ] **Step 5: Manually verify**
+- [x] **Step 5: Manually verify**
 
 Run: `pnpm dev`. On a TEXT page, ⋯ menu → «Копировать текст» appears right after
 «Копировать ссылку». Click it, then paste into a text editor — the page content
 should appear as Markdown (starting with `# <title>`). Confirm the item is hidden
 on non-TEXT pages (e.g. a Kanban/Excalidraw page).
 
-- [ ] **Step 6: Commit**
+- [x] **Step 6: Commit**
 
 ```bash
 git add apps/web/src/hooks/use-page-actions.tsx apps/web/src/components/page/page-actions-menu.tsx packages/ui/src/components/index.ts
@@ -1131,7 +1131,7 @@ The component keeps its filename/export (`MarkdownUploadPopover`) and props so
 centered `Dialog` with tabs; the `anchorEl` prop stays in the signature (unused
 for a centered dialog) to avoid churn at the call site.
 
-- [ ] **Step 1: Convert the popover to a tabbed dialog**
+- [x] **Step 1: Convert the popover to a tabbed dialog**
 
 Replace `packages/editor/src/components/markdown-upload-popover.tsx`:
 
@@ -1330,7 +1330,7 @@ export function MarkdownUploadPopover({ open, range, editor, onClose }: Props) {
 }
 ```
 
-- [ ] **Step 2: Rename the slash item label/description**
+- [x] **Step 2: Rename the slash item label/description**
 
 In `packages/editor/src/slash-items.ts`, update the `markdown` item (lines 320-328):
 
@@ -1346,14 +1346,14 @@ In `packages/editor/src/slash-items.ts`, update the `markdown` item (lines 320-3
   },
 ```
 
-- [ ] **Step 3: Type-check + lint**
+- [x] **Step 3: Type-check + lint**
 
 Run: `pnpm check-types`
 Expected: PASS.
 Run: `pnpm --filter web lint` (lints the editor package via the web build graph) or `pnpm lint`.
 Expected: PASS (no unused imports — confirm `Typography`, `Box` are used; they are).
 
-- [ ] **Step 4: Manually verify**
+- [x] **Step 4: Manually verify**
 
 Run: `pnpm dev`. On a TEXT page: `/` → Медиа → «Вставить содержимое». A dialog
 with three tabs opens. (a) Из файла: choose a `.md` file → content inserts. (b)
@@ -1361,7 +1361,7 @@ Markdown: type `# Hi\n\n- a\n- b`, click «Вставить» → renders as hea
 (c) Из буфера: copy markdown to clipboard, click the button → it inserts. Confirm
 «Отмена» closes without inserting.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add packages/editor/src/components/markdown-upload-popover.tsx packages/editor/src/slash-items.ts
@@ -1374,18 +1374,18 @@ git commit -m "feat(editor): tabbed Вставить содержимое dialog
 
 **Files:** none (verification only).
 
-- [ ] **Step 1: Run the editor test suite**
+- [x] **Step 1: Run the editor test suite**
 
 Run: `pnpm --filter @repo/editor test`
 Expected: PASS.
 
-- [ ] **Step 2: Run the merge gate**
+- [x] **Step 2: Run the merge gate**
 
 Run: `pnpm gates`
 Expected: PASS (check-types + lint + build + test). If `apps/web` build fails on
 stale `.next/types`, `rm -rf apps/web/.next/types` and retry.
 
-- [ ] **Step 3: Final manual smoke on a TEXT page**
+- [x] **Step 3: Final manual smoke on a TEXT page**
 
 Run: `pnpm dev`. Quickly re-confirm all seven features in one session:
 1. Paste an image → renders via ResizableImage.
@@ -1396,7 +1396,7 @@ Run: `pnpm dev`. Quickly re-confirm all seven features in one session:
 6. ⋯ → «Копировать текст» copies Markdown.
 7. «Вставить содержимое» dialog with three tabs works.
 
-- [ ] **Step 4: Commit any gate fixups** (only if gates required changes)
+- [x] **Step 4: Commit any gate fixups** (only if gates required changes)
 
 ```bash
 git add -A
