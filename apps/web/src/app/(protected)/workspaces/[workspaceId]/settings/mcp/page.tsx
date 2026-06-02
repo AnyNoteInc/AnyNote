@@ -9,7 +9,7 @@ type Props = { params: Promise<{ workspaceId: string }> }
 export default async function WorkspaceSettingsMcpPage({ params }: Props) {
   const { workspaceId } = await params
   const features = await getWorkspaceFeatures(workspaceId)
-  if (!features.aiSettingsEnabled) notFound()
+  if (!features.customMcpEnabled) notFound()
   const trpc = await getServerTRPC()
   const [workspace, myRole] = await Promise.all([
     trpc.workspace.getById({ id: workspaceId }),

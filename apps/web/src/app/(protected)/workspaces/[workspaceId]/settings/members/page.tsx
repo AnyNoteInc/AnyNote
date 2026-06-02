@@ -20,7 +20,7 @@ export default async function WorkspaceSettingsMembersPage({ params }: Props) {
   return (
     <WorkspaceMembersSection
       workspaceId={workspace.id}
-      locked={plan.slug === 'free'}
+      locked={plan.slug === 'personal'}
       currentUserId={session.user.id}
     />
   )
