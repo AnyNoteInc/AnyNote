@@ -10,6 +10,7 @@ export { HiddenTextSchema as HiddenText } from './hidden-text.schema'
 export { PageLinkSchema as PageLink } from './page-link.schema'
 
 export { ReminderSchema as Reminder } from './reminder.schema'
+export { DateSchema as DateNode } from './date.schema'
 
 export { ColumnLayoutSchema as ColumnLayout, ColumnSchema as Column } from './column-layout.schema'
 

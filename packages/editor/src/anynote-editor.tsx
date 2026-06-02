@@ -36,7 +36,7 @@ type MentionSuggestionProps = SuggestionProps<MentionLookupItem, MentionLookupIt
 
 type YjsResources = { ydoc: Y.Doc; provider: HocuspocusProvider }
 
-type PopoverKind = 'date' | 'file' | 'markdown' | 'pageLink'
+type PopoverKind = 'date' | 'datetime' | 'file' | 'markdown' | 'pageLink'
 
 type OpenPopover = {
   kind: PopoverKind
@@ -153,6 +153,7 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
     () =>
       createSlashItems({
         openDatePopover: (range) => openKind('date', range),
+        openDatetimePopover: (range) => openKind('datetime', range),
         openFilePopover: (range) => openKind('file', range),
         openMarkdownPopover: (range) => openKind('markdown', range),
         openPageLinkPopover: (range) => openKind('pageLink', range),
@@ -350,6 +351,15 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
         <>
           <DateInsertPopover
             open={popover?.kind === 'date'}
+            mode="date"
+            anchorEl={anchorEl}
+            range={range}
+            editor={editor}
+            onClose={closePopover}
+          />
+          <DateInsertPopover
+            open={popover?.kind === 'datetime'}
+            mode="datetime"
             anchorEl={anchorEl}
             range={range}
             editor={editor}

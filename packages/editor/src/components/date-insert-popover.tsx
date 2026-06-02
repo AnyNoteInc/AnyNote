@@ -8,43 +8,48 @@ import {
   Popover,
   Stack,
   StaticDatePicker,
+  StaticDateTimePicker,
   dateFnsRu,
   datePickerRuRU,
 } from '@repo/ui/components'
 import type { Editor } from '@tiptap/core'
 import { useCallback, useEffect, useState } from 'react'
 
-import { formatDateText } from '../lib/date-format'
 import type { SlashRange, VirtualAnchor } from '../types'
 
 type Props = {
   open: boolean
+  mode: 'date' | 'datetime'
   anchorEl: VirtualAnchor | null
   range: SlashRange | null
   editor: Editor
   onClose: () => void
 }
 
-export function DateInsertPopover({ open, anchorEl, range, editor, onClose }: Props) {
+export function DateInsertPopover({ open, mode, anchorEl, range, editor, onClose }: Props) {
   const [value, setValue] = useState<Date | null>(() => new Date())
 
   useEffect(() => {
     if (open) setValue(new Date())
   }, [open])
 
-  const insertDate = useCallback(
+  const insert = useCallback(
     (date: Date | null) => {
       if (!range) return
-      const selectedDate = date ?? new Date()
+      const selected = date ?? new Date()
       editor
         .chain()
         .focus()
         .deleteRange(range)
-        .insertContent(`${formatDateText(selectedDate)} `)
+        .insertContent({
+          type: 'date',
+          attrs: { value: selected.toISOString(), kind: mode },
+        })
+        .insertContent(' ')
         .run()
       onClose()
     },
-    [editor, onClose, range],
+    [editor, mode, onClose, range],
   )
 
   return (
@@ -62,21 +67,32 @@ export function DateInsertPopover({ open, anchorEl, range, editor, onClose }: Pr
           adapterLocale={dateFnsRu}
           localeText={datePickerRuRU.components.MuiLocalizationProvider.defaultProps.localeText}
         >
-          <StaticDatePicker
-            value={value}
-            onChange={(nextValue) => setValue(nextValue)}
-            onAccept={(acceptedValue) => insertDate(acceptedValue)}
-            onClose={onClose}
-            displayStaticWrapperAs="desktop"
-            slotProps={{ actionBar: { actions: [] } }}
-          />
+          {mode === 'datetime' ? (
+            <StaticDateTimePicker
+              value={value}
+              onChange={(next) => setValue(next)}
+              onAccept={(accepted) => insert(accepted)}
+              onClose={onClose}
+              displayStaticWrapperAs="desktop"
+              slotProps={{ actionBar: { actions: [] } }}
+            />
+          ) : (
+            <StaticDatePicker
+              value={value}
+              onChange={(next) => setValue(next)}
+              onAccept={(accepted) => insert(accepted)}
+              onClose={onClose}
+              displayStaticWrapperAs="desktop"
+              slotProps={{ actionBar: { actions: [] } }}
+            />
+          )}
         </LocalizationProvider>
         <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ px: 2, pb: 2 }}>
           <Button size="small" onClick={onClose}>
             Отмена
           </Button>
-          <Button size="small" variant="contained" onClick={() => insertDate(value)}>
-            Вставить дату
+          <Button size="small" variant="contained" onClick={() => insert(value)}>
+            Вставить
           </Button>
         </Stack>
       </Box>

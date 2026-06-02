@@ -32,6 +32,7 @@ import { buildFileUpload } from './file-upload'
 import { HiddenText } from './hidden-text'
 import { PageLink } from './page-link'
 import { Reminder } from './reminder'
+import { DateNode } from './date'
 import { buildPlaceholder } from './placeholder'
 import { ResizableImage } from './resizable-image'
 import { SlashMenu, type SlashMenuRender } from './slash-menu'
@@ -113,6 +114,7 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   Drawio.configure({ drawioUrl: opts.drawioUrl }),
   PageLink.configure({ onNavigate: opts.onNavigateToPage }),
   Reminder,
+  DateNode,
   ...buildCollaboration({ ydoc: opts.ydoc, provider: opts.provider, user: opts.user }),
   buildFileUpload(opts.uploadHandler),
   SlashMenu.configure({

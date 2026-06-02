@@ -4,6 +4,7 @@ import { createSlashItems, type SlashMediaHandlers } from './slash-items'
 
 const handlers: SlashMediaHandlers = {
   openDatePopover: vi.fn(),
+  openDatetimePopover: vi.fn(),
   openFilePopover: vi.fn(),
   openMarkdownPopover: vi.fn(),
   openPageLinkPopover: vi.fn(),

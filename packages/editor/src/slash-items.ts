@@ -25,11 +25,11 @@ import {
   TextIcon,
   ToggleIcon,
 } from './assets/index'
-import { formatDateTimeText } from './lib/date-format'
 import type { SlashCommandItem, SlashRange } from './types'
 
 export type SlashMediaHandlers = {
   openDatePopover: (range: SlashRange) => void
+  openDatetimePopover: (range: SlashRange) => void
   openFilePopover: (range: SlashRange) => void
   openMarkdownPopover: (range: SlashRange) => void
   openPageLinkPopover: (range: SlashRange) => void
@@ -245,13 +245,7 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
     description: 'Вставить дату и время',
     keywords: ['datetime', 'time', 'now', 'дата', 'время', 'сейчас'],
     icon: createElement(AccessTimeIcon, { fontSize: 'small' }),
-    run: ({ editor, range }) =>
-      editor
-        .chain()
-        .focus()
-        .deleteRange(range)
-        .insertContent(`${formatDateTimeText(new Date())} `)
-        .run(),
+    run: ({ range }) => handlers.openDatetimePopover(range),
   },
   {
     id: 'reminder',

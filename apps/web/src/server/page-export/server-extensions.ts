@@ -16,6 +16,7 @@ import {
   BlockBackground,
   Callout,
   Code,
+  DateNode,
   Details,
   DetailsContent,
   DetailsSummary,
@@ -82,5 +83,6 @@ export function buildServerExtensions() {
     HiddenText,
     FileAttachment,
     PageLink,
+    DateNode,
   ]
 }
