@@ -1,6 +1,20 @@
 'use client'
 
-import { Alert, Box, Button, CircularProgress, Popover, Stack, Typography } from '@mui/material'
+import {
+  Alert,
+  Box,
+  Button,
+  CircularProgress,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Stack,
+  Tab,
+  Tabs,
+  TextField,
+  Typography,
+} from '@mui/material'
 import type { Editor } from '@tiptap/core'
 import { marked } from 'marked'
 import { useCallback, useId, useRef, useState } from 'react'
@@ -15,15 +29,17 @@ type Props = {
   onClose: () => void
 }
 
-// Keep markdown parsing predictable and synchronous — server-side async
-// features (highlight.js, etc.) aren't needed here, and async output would
-// force us to thread promises through the insert flow.
+// Keep markdown parsing predictable and synchronous.
 const parseMarkdown = (source: string): string => {
   const out = marked.parse(source, { async: false, gfm: true })
   return typeof out === 'string' ? out : ''
 }
 
-export function MarkdownUploadPopover({ open, anchorEl, range, editor, onClose }: Props) {
+type TabKey = 'file' | 'raw' | 'clipboard'
+
+export function MarkdownUploadPopover({ open, range, editor, onClose }: Props) {
+  const [tab, setTab] = useState<TabKey>('file')
+  const [raw, setRaw] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const fileInputRef = useRef<HTMLInputElement | null>(null)
@@ -32,6 +48,8 @@ export function MarkdownUploadPopover({ open, anchorEl, range, editor, onClose }
   const reset = useCallback(() => {
     setBusy(false)
     setError(null)
+    setRaw('')
+    setTab('file')
     if (fileInputRef.current) fileInputRef.current.value = ''
   }, [])
 
@@ -41,67 +59,134 @@ export function MarkdownUploadPopover({ open, anchorEl, range, editor, onClose }
     onClose()
   }, [busy, onClose, reset])
 
+  const insert = useCallback(
+    (text: string) => {
+      if (!range) return false
+      if (!text.trim()) {
+        setError('Пусто')
+        return false
+      }
+      editor.chain().focus().deleteRange(range).insertContent(parseMarkdown(text)).run()
+      reset()
+      onClose()
+      return true
+    },
+    [editor, onClose, range, reset],
+  )
+
   const handleFileSelected = useCallback(
     async (event: React.ChangeEvent<HTMLInputElement>) => {
       const file = event.target.files?.[0]
       if (fileInputRef.current) fileInputRef.current.value = ''
-      if (!file || !range) return
+      if (!file) return
       setBusy(true)
       setError(null)
       try {
         const text = await file.text()
-        if (!text.trim()) {
-          setError('Файл пуст')
-          setBusy(false)
-          return
-        }
-        const html = parseMarkdown(text)
-        editor.chain().focus().deleteRange(range).insertContent(html).run()
-        reset()
-        onClose()
+        if (!insert(text)) setBusy(false)
       } catch (err) {
         setError(err instanceof Error ? err.message : 'Не удалось разобрать Markdown')
         setBusy(false)
       }
     },
-    [editor, onClose, range, reset],
+    [insert],
   )
 
+  const handlePasteFromClipboard = useCallback(async () => {
+    setBusy(true)
+    setError(null)
+    try {
+      const text = await navigator.clipboard.readText()
+      if (!insert(text)) setBusy(false)
+    } catch {
+      setError('Не удалось прочитать буфер обмена')
+      setBusy(false)
+    }
+  }, [insert])
+
   return (
-    <Popover
-      open={open}
-      anchorEl={anchorEl as Element | null}
-      onClose={handleClose}
-      anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-      transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-      slotProps={{ paper: { sx: { width: 360 } } }}
-    >
-      <Box sx={{ p: 2 }}>
-        <Stack spacing={1.5}>
-          <Button
-            variant="contained"
-            component="label"
-            htmlFor={fileInputId}
-            disabled={busy}
-            fullWidth
-            startIcon={busy ? <CircularProgress size={16} color="inherit" /> : null}
-          >
-            {busy ? 'Разбор...' : 'Выбрать .md файл'}
-            <input
-              id={fileInputId}
-              ref={fileInputRef}
-              type="file"
-              hidden
-              accept=".md,.markdown,text/markdown"
-              onChange={handleFileSelected}
+    <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
+      <DialogTitle>Вставить содержимое</DialogTitle>
+      <DialogContent>
+        <Tabs value={tab} onChange={(_, v) => setTab(v as TabKey)} sx={{ mb: 2 }}>
+          <Tab value="file" label="Из файла" />
+          <Tab value="raw" label="Markdown" />
+          <Tab value="clipboard" label="Из буфера" />
+        </Tabs>
+
+        {error ? (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            {error}
+          </Alert>
+        ) : null}
+
+        {tab === 'file' ? (
+          <Stack spacing={1.5}>
+            <Button
+              variant="contained"
+              component="label"
+              htmlFor={fileInputId}
+              disabled={busy}
+              fullWidth
+              startIcon={busy ? <CircularProgress size={16} color="inherit" /> : null}
+            >
+              {busy ? 'Разбор...' : 'Выбрать .md файл'}
+              <input
+                id={fileInputId}
+                ref={fileInputRef}
+                type="file"
+                hidden
+                accept=".md,.markdown,text/markdown"
+                onChange={handleFileSelected}
+              />
+            </Button>
+            <Typography variant="caption" color="text.secondary">
+              Файл разбирается на клиенте и вставляется как текст.
+            </Typography>
+          </Stack>
+        ) : null}
+
+        {tab === 'raw' ? (
+          <Box>
+            <TextField
+              value={raw}
+              onChange={(e) => setRaw(e.target.value)}
+              placeholder="# Заголовок&#10;&#10;Текст в формате Markdown..."
+              multiline
+              minRows={6}
+              maxRows={16}
+              fullWidth
             />
+          </Box>
+        ) : null}
+
+        {tab === 'clipboard' ? (
+          <Stack spacing={1.5}>
+            <Button
+              variant="contained"
+              onClick={handlePasteFromClipboard}
+              disabled={busy}
+              fullWidth
+              startIcon={busy ? <CircularProgress size={16} color="inherit" /> : null}
+            >
+              {busy ? 'Вставка...' : 'Вставить из буфера обмена'}
+            </Button>
+            <Typography variant="caption" color="text.secondary">
+              Содержимое буфера разбирается как Markdown.
+            </Typography>
+          </Stack>
+        ) : null}
+      </DialogContent>
+      <DialogActions>
+        <Button onClick={handleClose} disabled={busy}>
+          Отмена
+        </Button>
+        {tab === 'raw' ? (
+          <Button variant="contained" onClick={() => insert(raw)} disabled={busy}>
+            Вставить
           </Button>
-          <Typography variant="caption" color="text.secondary">
-            Файл разбирается на клиенте и вставляется как текст. На сервер ничего не отправляется.
-          </Typography>
-          {error ? <Alert severity="error">{error}</Alert> : null}
-        </Stack>
-      </Box>
-    </Popover>
+        ) : null}
+      </DialogActions>
+    </Dialog>
   )
 }

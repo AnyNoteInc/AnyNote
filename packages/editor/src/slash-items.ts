@@ -314,9 +314,9 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
   {
     id: 'markdown',
     group: 'media',
-    label: 'Markdown',
-    description: 'Вставить содержимое .md файла',
-    keywords: ['markdown', 'md', 'импорт'],
+    label: 'Вставить содержимое',
+    description: 'Вставить содержимое',
+    keywords: ['markdown', 'md', 'импорт', 'вставить', 'содержимое'],
     icon: createElement(MarkdownIcon),
     run: ({ range }) => handlers.openMarkdownPopover(range),
   },
