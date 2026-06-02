@@ -160,3 +160,31 @@ describe('streamAgentSseToRegistry — thinking end-to-end', () => {
     expect(lastUpdate.data.parts[1]).toEqual({ type: 'text', text: 'Hello' })
   })
 })
+
+describe('plan_step bridge — trivial routing suppression', () => {
+  it('plan_step event creates a tool segment with the given title', () => {
+    const entry = makeEntry()
+    const flush = fakePersist() as ReturnType<typeof createDebouncedPersist>
+
+    handleAgentEvent(
+      { type: 'plan_step', id: 'ps1', title: 'Найти документы', position: 0, status: 'pending' },
+      entry,
+      flush,
+    )
+
+    expect(entry.segments).toHaveLength(1)
+    expect(entry.segments[0]).toMatchObject({ type: 'tool', id: 'plan-ps1', title: 'Найти документы' })
+  })
+
+  it('when no plan_step events arrive (trivial routing suppressed at Python layer) the first segment is a text token', () => {
+    const entry = makeEntry()
+    const flush = fakePersist() as ReturnType<typeof createDebouncedPersist>
+
+    // trivial routing: Python emits zero plan_step events; first event is a token
+    handleAgentEvent({ type: 'token', text: 'Hello!' }, entry, flush)
+
+    expect(entry.segments).toHaveLength(1)
+    expect(entry.segments[0]).toMatchObject({ type: 'text', text: 'Hello!' })
+  })
+})
+

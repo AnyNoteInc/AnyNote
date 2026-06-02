@@ -114,6 +114,7 @@ ignore = ["E501"]
 "tests/apps/agent/test_node_executor.py" = ["RUF001"]
 "tests/apps/agent/test_node_tool_runner.py" = ["RUF001"]
 "tests/integration/test_graph_full_run.py" = ["RUF001"]
+"tests/test_graph_streaming_plan_steps.py" = ["RUF001"]
 # Domain errors don't follow Exception/Error suffix — they carry `code` instead.
 "agents/apps/agent/errors.py" = ["N818"]
 # FastAPI Depends in default arg is the canonical pattern.

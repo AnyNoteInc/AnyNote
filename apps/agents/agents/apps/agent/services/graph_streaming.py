@@ -169,7 +169,19 @@ class GraphStreamingService:
         since the last snapshot. The web translator upserts blocks by id, so
         re-emitting an existing step with a new status flips the UI block from
         Pending -> Running -> Done.
+
+        A single-step plan whose only title is the raw user_message is suppressed
+        entirely (no plan_step events). Two code paths produce it: trivial routing
+        (route_node seeds it just to give the executor a current_step_id, planner
+        bypassed) and the planner fallback on unparseable LLM output (_fallback
+        titles the lone step with user_message). Either way the step carries no
+        user-facing planning value — surfacing it makes the chat render the user's
+        own question back as the first assistant service block. The internal plan
+        stays intact; we just don't surface this content-free echo. Genuine
+        multi-step plans are unaffected.
         """
+        if self._is_question_echo_plan(state):
+            return []
         out: list[ServerEventSchema] = []
         for idx, s in enumerate(state.plan):
             prev_status = last_states.get(s.id)
@@ -179,6 +191,14 @@ class GraphStreamingService:
                 ServerEventSchema.plan_step(id=s.id, title=s.title, position=idx, status=s.status.value),
             )
         return out
+
+    @staticmethod
+    def _is_question_echo_plan(state: AgentState) -> bool:
+        """True when the plan is a single step that merely echoes the question."""
+        return (
+            len(state.plan) == 1
+            and state.plan[0].title.strip() == state.user_message.strip()
+        )
 
     async def _node_events(
         self,
