@@ -1,24 +1,70 @@
 'use client'
 
+import type { ReactNode } from 'react'
+
 import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
-import { Box, Stack } from '@repo/ui/components'
+import {
+  Box,
+  GroupIcon,
+  HubIcon,
+  InsertDriveFileIcon,
+  SettingsIcon,
+  SmartToyIcon,
+  Stack,
+  StorageIcon,
+  Typography,
+  WarningAmberIcon,
+} from '@repo/ui/components'
+
+import { usePlanFeatures } from '@/components/workspace/plan-features-context'
 
 type Props = { workspaceId: string }
 
 export function WorkspaceSettingsNav({ workspaceId }: Props) {
   const pathname = usePathname()
+  const features = usePlanFeatures()
   const base = `/workspaces/${workspaceId}/settings`
 
-  const items = [
-    { label: 'Общее', slug: 'general', show: true },
-    { label: 'Участники', slug: 'members', show: true },
-    { label: 'AI агент', slug: 'ai', show: true },
-    { label: 'MCP серверы', slug: 'mcp', show: true },
-    { label: 'Файлы', slug: 'files', show: true },
-    { label: 'Использование', slug: 'usage', show: true },
-    { label: 'Опасная зона', slug: 'danger', show: true },
+  const items: Array<{ label: string; slug: string; icon: ReactNode; show: boolean }> = [
+    { label: 'Общее', slug: 'general', icon: <SettingsIcon fontSize="small" />, show: true },
+    {
+      label: 'Участники',
+      slug: 'members',
+      icon: <GroupIcon fontSize="small" />,
+      show: features.membersSettingsEnabled,
+    },
+    {
+      label: 'AI агент',
+      slug: 'ai',
+      icon: <SmartToyIcon fontSize="small" />,
+      show: features.aiSettingsEnabled,
+    },
+    {
+      label: 'MCP серверы',
+      slug: 'mcp',
+      icon: <HubIcon fontSize="small" />,
+      show: features.customMcpEnabled,
+    },
+    {
+      label: 'Библиотека',
+      slug: 'files',
+      icon: <StorageIcon fontSize="small" />,
+      show: true,
+    },
+    {
+      label: 'Использование',
+      slug: 'usage',
+      icon: <InsertDriveFileIcon fontSize="small" />,
+      show: true,
+    },
+    {
+      label: 'Опасная зона',
+      slug: 'danger',
+      icon: <WarningAmberIcon fontSize="small" />,
+      show: true,
+    },
   ].filter((item) => item.show)
 
   return (
@@ -33,7 +79,9 @@ export function WorkspaceSettingsNav({ workspaceId }: Props) {
             href={href}
             aria-current={active ? 'page' : undefined}
             sx={{
-              display: 'block',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 1.25,
               padding: '6px 10px',
               borderRadius: 0.75,
               textDecoration: 'none',
@@ -43,7 +91,8 @@ export function WorkspaceSettingsNav({ workspaceId }: Props) {
               '&:hover': { bgcolor: active ? 'action.selected' : 'action.hover' },
             }}
           >
-            {item.label}
+            {item.icon}
+            <Typography variant="body2">{item.label}</Typography>
           </Box>
         )
       })}
