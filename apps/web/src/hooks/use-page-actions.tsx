@@ -19,6 +19,7 @@ type PageLike = { id: string; title: string | null }
 export type UsePageActionsResult = {
   toggleFavorite: () => void
   copyLink: () => Promise<void>
+  copyText: () => Promise<void>
   duplicate: () => void
   openDeleteConfirm: () => void
   dialogs: ReactNode
@@ -64,6 +65,16 @@ export function usePageActions(
     await navigator.clipboard.writeText(url)
   }
 
+  // Copy the page rendered as Markdown (same output as the .md export route).
+  const copyText = async () => {
+    const res = await fetch(`/api/workspaces/${workspaceId}/pages/${page.id}/export/md`, {
+      credentials: 'same-origin',
+    })
+    if (!res.ok) throw new Error(`HTTP ${res.status}`)
+    const md = await res.text()
+    await navigator.clipboard.writeText(md)
+  }
+
   const duplicate = () => duplicateMutation.mutate({ pageId: page.id })
 
   const openDeleteConfirm = () => setDeleteOpen(true)
@@ -95,6 +106,7 @@ export function usePageActions(
   return {
     toggleFavorite,
     copyLink,
+    copyText,
     duplicate,
     openDeleteConfirm,
     dialogs,

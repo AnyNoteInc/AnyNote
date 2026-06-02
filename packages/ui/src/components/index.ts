@@ -120,6 +120,7 @@ export { default as KeyboardDoubleArrowLeftIcon } from '@mui/icons-material/Keyb
 export { default as MenuIcon } from '@mui/icons-material/Menu'
 export { default as StarIcon } from '@mui/icons-material/Star'
 export { default as StarBorderIcon } from '@mui/icons-material/StarBorder'
+export { default as ArticleIcon } from '@mui/icons-material/Article'
 export { default as LinkIcon } from '@mui/icons-material/Link'
 export { default as ContentCopyIcon } from '@mui/icons-material/ContentCopy'
 export { default as MovingIcon } from '@mui/icons-material/Moving'

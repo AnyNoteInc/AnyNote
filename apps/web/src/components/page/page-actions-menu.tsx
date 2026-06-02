@@ -3,6 +3,7 @@
 import { useState, type MouseEvent } from 'react'
 
 import {
+  ArticleIcon,
   Box,
   Button,
   ButtonGroup,
@@ -81,6 +82,11 @@ export function PageActionsMenu({
     closeMenu()
   }
 
+  const handleCopyText = () => {
+    void actions.copyText()
+    closeMenu()
+  }
+
   const handleDuplicate = () => {
     actions.duplicate()
     closeMenu()
@@ -118,6 +124,15 @@ export function PageActionsMenu({
           </ListItemIcon>
           <ListItemText>Копировать ссылку</ListItemText>
         </MenuItem>
+
+        {pageType === 'TEXT' ? (
+          <MenuItem onClick={handleCopyText} sx={menuItemSx}>
+            <ListItemIcon>
+              <ArticleIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>Копировать текст</ListItemText>
+          </MenuItem>
+        ) : null}
 
         <MenuItem onClick={handleDuplicate} sx={menuItemSx}>
           <ListItemIcon>
