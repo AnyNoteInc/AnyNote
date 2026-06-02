@@ -29,6 +29,7 @@ import { DropPlacement } from './drop-placement'
 import { Drawio } from './drawio'
 import { FileAttachment } from './file-attachment'
 import { buildFileUpload } from './file-upload'
+import { buildImagePaste } from './image-paste'
 import { HiddenText } from './hidden-text'
 import { PageLink } from './page-link'
 import { Reminder } from './reminder'
@@ -116,6 +117,7 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   Reminder,
   DateNode,
   ...buildCollaboration({ ydoc: opts.ydoc, provider: opts.provider, user: opts.user }),
+  buildImagePaste(opts.uploadHandler),
   buildFileUpload(opts.uploadHandler),
   SlashMenu.configure({
     items: opts.slashItems,
