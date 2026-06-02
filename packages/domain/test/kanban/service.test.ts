@@ -431,6 +431,77 @@ describe('KanbanService.createTaskComment', () => {
   })
 })
 
+describe('kanban role enforcement', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('createTask is FORBIDDEN for a COMMENTER member who is not the creator', async () => {
+    const repo = makeRepo({
+      findAccessiblePage: vi.fn(async () => ({ id: 'b1', workspaceId: 'w1', createdById: 'someone-else' })),
+      findMembershipRole: vi.fn(async () => 'COMMENTER'),
+    })
+    await expect(
+      makeService(repo).createTask('u1', { pageId: 'b1', columnId: 'c1', title: 'X' } as never),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+  })
+
+  it('createTask is FORBIDDEN for a VIEWER member', async () => {
+    const repo = makeRepo({
+      findAccessiblePage: vi.fn(async () => ({ id: 'b1', workspaceId: 'w1', createdById: 'someone-else' })),
+      findMembershipRole: vi.fn(async () => 'VIEWER'),
+    })
+    await expect(
+      makeService(repo).createTask('u1', { pageId: 'b1', columnId: 'c1', title: 'X' } as never),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+  })
+
+  it('createTask succeeds for an EDITOR member', async () => {
+    const repo = makeRepo({
+      findAccessiblePage: vi.fn(async () => ({ id: 'b1', workspaceId: 'w1', createdById: 'someone-else' })),
+      findMembershipRole: vi.fn(async () => 'EDITOR'),
+    })
+    const result = await makeService(repo).createTask('u1', {
+      pageId: 'b1', columnId: 'c1', title: 'X',
+    } as never)
+    expect(result.id).toBe('t1')
+  })
+
+  it('createTaskComment succeeds for a COMMENTER member', async () => {
+    const repo = makeRepo({
+      findAccessiblePage: vi.fn(async () => ({ id: 'b1', workspaceId: 'w1', createdById: 'someone-else' })),
+      findMembershipRole: vi.fn(async () => 'COMMENTER'),
+      findTaskPageId: vi.fn(async () => ({ pageId: 'b1' })),
+    })
+    const result = await makeService(repo).createTaskComment('u1', {
+      pageId: 'b1', taskId: 't1', content: { text: 'hi' },
+    } as never)
+    expect(result.id).toBe('cm1')
+  })
+
+  it('createTaskComment is FORBIDDEN for a VIEWER member', async () => {
+    const repo = makeRepo({
+      findAccessiblePage: vi.fn(async () => ({ id: 'b1', workspaceId: 'w1', createdById: 'someone-else' })),
+      findMembershipRole: vi.fn(async () => 'VIEWER'),
+      findTaskPageId: vi.fn(async () => ({ pageId: 'b1' })),
+    })
+    await expect(
+      makeService(repo).createTaskComment('u1', {
+        pageId: 'b1', taskId: 't1', content: { text: 'hi' },
+      } as never),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+  })
+
+  it('createTask succeeds for the board creator regardless of role', async () => {
+    const repo = makeRepo({
+      findAccessiblePage: vi.fn(async () => ({ id: 'b1', workspaceId: 'w1', createdById: 'u1' })),
+      findMembershipRole: vi.fn(async () => 'VIEWER'),
+    })
+    const result = await makeService(repo).createTask('u1', {
+      pageId: 'b1', columnId: 'c1', title: 'X',
+    } as never)
+    expect(result.id).toBe('t1')
+  })
+})
+
 describe('KanbanService.seedDefaults', () => {
   it('delegates to repo.seedKanbanDefaults', async () => {
     const repo = makeRepo()

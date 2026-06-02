@@ -38,12 +38,6 @@ export class KanbanService {
 
   // ── Access helpers ──────────────────────────────────────────────────────────
 
-  private async assertAccess(userId: string, pageId: string): Promise<AccessiblePage> {
-    const page = await this.repo.findAccessiblePage(userId, pageId)
-    if (!page) throw notFound('Страница не найдена')
-    return page
-  }
-
   private async assertOwnership(userId: string, pageId: string): Promise<AccessiblePage> {
     const page = await this.repo.findAccessiblePage(userId, pageId)
     if (!page) throw notFound('Страница не найдена')
@@ -53,10 +47,32 @@ export class KanbanService {
     return page
   }
 
+  private async assertCanEdit(userId: string, pageId: string): Promise<AccessiblePage> {
+    const page = await this.repo.findAccessiblePage(userId, pageId)
+    if (!page) throw notFound('Страница не найдена')
+    if (page.createdById === userId) return page
+    const role = await this.repo.findMembershipRole(userId, page.workspaceId)
+    if (role !== 'OWNER' && role !== 'ADMIN' && role !== 'EDITOR') {
+      throw forbidden('Недостаточно прав на редактирование')
+    }
+    return page
+  }
+
+  private async assertCanComment(userId: string, pageId: string): Promise<AccessiblePage> {
+    const page = await this.repo.findAccessiblePage(userId, pageId)
+    if (!page) throw notFound('Страница не найдена')
+    if (page.createdById === userId) return page
+    const role = await this.repo.findMembershipRole(userId, page.workspaceId)
+    if (role !== 'OWNER' && role !== 'ADMIN' && role !== 'EDITOR' && role !== 'COMMENTER') {
+      throw forbidden('Недостаточно прав на комментирование')
+    }
+    return page
+  }
+
   // ── Task operations ─────────────────────────────────────────────────────────
 
   async createTask(actorUserId: string, input: CreateTaskInput) {
-    const page = await this.assertAccess(actorUserId, input.pageId)
+    const page = await this.assertCanEdit(actorUserId, input.pageId)
 
     const column = await this.repo.findColumn(page.id, input.columnId)
     if (!column) throw badRequest('У доски нет колонок — создайте хотя бы одну')
@@ -98,7 +114,7 @@ export class KanbanService {
   }
 
   async updateTask(actorUserId: string, input: UpdateTaskInput) {
-    const page = await this.assertAccess(actorUserId, input.pageId)
+    const page = await this.assertCanEdit(actorUserId, input.pageId)
     const current = await this.repo.findTaskForUpdate(input.id)
     if (current.pageId !== page.id) throw notFound('Задача не найдена')
 
@@ -136,7 +152,7 @@ export class KanbanService {
   }
 
   async moveTask(actorUserId: string, input: MoveTaskInput) {
-    const page = await this.assertAccess(actorUserId, input.pageId)
+    const page = await this.assertCanEdit(actorUserId, input.pageId)
     const current = await this.repo.findTaskForMove(input.id)
     if (current.pageId !== page.id) throw notFound('Задача не найдена')
 
@@ -179,7 +195,7 @@ export class KanbanService {
   }
 
   async setTaskAssignees(actorUserId: string, input: SetTaskAssigneesInput) {
-    const page = await this.assertAccess(actorUserId, input.pageId)
+    const page = await this.assertCanEdit(actorUserId, input.pageId)
     const current = await this.repo.findTaskForAssignees(input.id)
     if (current.pageId !== page.id) throw notFound('Задача не найдена')
 
@@ -201,7 +217,7 @@ export class KanbanService {
   }
 
   async archiveTask(actorUserId: string, input: TaskIdInput) {
-    const page = await this.assertAccess(actorUserId, input.pageId)
+    const page = await this.assertCanEdit(actorUserId, input.pageId)
     const task = await this.repo.findTaskPageId(input.id)
     if (task.pageId !== page.id) throw notFound('Задача не найдена')
     await this.uow.transaction(async () => {
@@ -265,7 +281,7 @@ export class KanbanService {
   // ── Comment operations ──────────────────────────────────────────────────────
 
   async createTaskComment(actorUserId: string, input: CreateTaskCommentInput) {
-    await this.assertAccess(actorUserId, input.pageId)
+    await this.assertCanComment(actorUserId, input.pageId)
     const task = await this.repo.findTaskPageId(input.taskId)
     if (task.pageId !== input.pageId) throw notFound('Задача не найдена')
     return this.uow.transaction(async () => {
