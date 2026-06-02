@@ -23,6 +23,7 @@ interface TaskSidePanelProps {
   readonly taskId: string
   readonly currentUserId: string
   readonly board: BoardData
+  readonly canComment?: boolean
 }
 
 interface CommentRow {
@@ -134,7 +135,13 @@ function formatDate(date: Date) {
   return `${datePart} в ${time}`
 }
 
-export function TaskSidePanel({ pageId, taskId, currentUserId, board }: TaskSidePanelProps) {
+export function TaskSidePanel({
+  pageId,
+  taskId,
+  currentUserId,
+  board,
+  canComment = true,
+}: TaskSidePanelProps) {
   const utils = trpc.useUtils()
   const { data: commentsData } = trpc.kanban.comment.list.useQuery({ pageId, taskId })
   const { data: activityData } = trpc.kanban.board.getActivity.useQuery({ pageId, taskId })
@@ -199,38 +206,40 @@ export function TaskSidePanel({ pageId, taskId, currentUserId, board }: TaskSide
         </Button>
       </Stack>
 
-      <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
-        <Stack direction="row" spacing={1.5} alignItems="flex-start">
-          <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 12 }}>
-            {me ? initials(me.user) : '?'}
-          </Avatar>
-          <TextField
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => {
-              if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
-                e.preventDefault()
-                submit()
-              }
-            }}
-            placeholder="Напишите комментарий..."
-            multiline
-            minRows={2}
-            fullWidth
-            size="small"
-          />
-        </Stack>
-        <Stack direction="row" justifyContent="flex-end" sx={{ mt: 1 }}>
-          <Button
-            variant="contained"
-            size="small"
-            onClick={submit}
-            disabled={!draft.trim() || create.isPending}
-          >
-            Отправить (Ctrl+Enter)
-          </Button>
-        </Stack>
-      </Box>
+      {canComment ? (
+        <Box sx={{ p: 2, borderBottom: 1, borderColor: 'divider' }}>
+          <Stack direction="row" spacing={1.5} alignItems="flex-start">
+            <Avatar sx={{ width: 32, height: 32, bgcolor: 'primary.main', fontSize: 12 }}>
+              {me ? initials(me.user) : '?'}
+            </Avatar>
+            <TextField
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onKeyDown={(e: KeyboardEvent<HTMLDivElement>) => {
+                if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                  e.preventDefault()
+                  submit()
+                }
+              }}
+              placeholder="Напишите комментарий..."
+              multiline
+              minRows={2}
+              fullWidth
+              size="small"
+            />
+          </Stack>
+          <Stack direction="row" justifyContent="flex-end" sx={{ mt: 1 }}>
+            <Button
+              variant="contained"
+              size="small"
+              onClick={submit}
+              disabled={!draft.trim() || create.isPending}
+            >
+              Отправить (Ctrl+Enter)
+            </Button>
+          </Stack>
+        </Box>
+      ) : null}
 
       <Box sx={{ flex: 1, minHeight: 0, overflowY: 'auto', p: 2 }}>
         <Stack spacing={2}>

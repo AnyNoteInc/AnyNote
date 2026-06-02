@@ -460,7 +460,7 @@ export function PageRenderer({
   }
 
   if (page.type === 'KANBAN') {
-    return <KanbanBoardPage pageId={page.id} editable={editable} />
+    return <KanbanBoardPage pageId={page.id} editable={editable} canComment={canComment} />
   }
 
   if (page.type === 'TEXT') {

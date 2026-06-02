@@ -19,9 +19,14 @@ import type { BoardData } from './types'
 interface KanbanBoardPageProps {
   readonly pageId: string
   readonly editable?: boolean
+  readonly canComment?: boolean
 }
 
-export function KanbanBoardPage({ pageId, editable = true }: KanbanBoardPageProps) {
+export function KanbanBoardPage({
+  pageId,
+  editable = true,
+  canComment = true,
+}: KanbanBoardPageProps) {
   const searchParams = useSearchParams()
   const { data, isLoading, error } = trpc.kanban.board.getBoard.useQuery({ pageId })
 
@@ -105,7 +110,12 @@ export function KanbanBoardPage({ pageId, editable = true }: KanbanBoardPageProp
           </>
         )}
       </Box>
-      <TaskDetailContainer pageId={pageId} board={board} editable={editable} />
+      <TaskDetailContainer
+        pageId={pageId}
+        board={board}
+        editable={editable}
+        canComment={canComment}
+      />
     </Stack>
   )
 }
