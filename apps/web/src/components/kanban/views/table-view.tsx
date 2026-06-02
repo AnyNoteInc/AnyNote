@@ -36,6 +36,7 @@ interface TableViewProps {
   readonly pageId: string
   readonly board: BoardData
   readonly visibleTasks: BoardTaskData[]
+  readonly editable?: boolean
 }
 
 function sectionKey(droppableId: string): string | null {
@@ -46,7 +47,7 @@ function tasksSortKey(t: BoardTaskData): number {
   return t.sprintPosition ?? t.position
 }
 
-export function TableView({ pageId, board, visibleTasks }: TableViewProps) {
+export function TableView({ pageId, board, visibleTasks, editable = true }: TableViewProps) {
   const utils = trpc.useUtils()
   const updateTask = trpc.kanban.task.update.useMutation({
     onError: () => utils.kanban.board.getBoard.invalidate({ pageId }),
@@ -263,9 +264,11 @@ export function TableView({ pageId, board, visibleTasks }: TableViewProps) {
             ))}
           </Menu>
         </Box>
-        <Button startIcon={<AddIcon />} size="small" onClick={() => setCreateOpen(true)}>
-          Новый спринт
-        </Button>
+        {editable ? (
+          <Button startIcon={<AddIcon />} size="small" onClick={() => setCreateOpen(true)}>
+            Новый спринт
+          </Button>
+        ) : null}
       </Stack>
 
       <DragDropContext onDragEnd={handleDragEnd}>
@@ -282,9 +285,10 @@ export function TableView({ pageId, board, visibleTasks }: TableViewProps) {
             members={board.members}
             currentUserId={board.currentUserId}
             droppableId={`${SPRINT_PREFIX}${sprint.id}`}
-            onStartCreateTask={() => startTaskDraft(sprint.id)}
+            editable={editable}
+            onStartCreateTask={editable ? () => startTaskDraft(sprint.id) : undefined}
             createTaskDraft={
-              taskDraftSprintId === sprint.id
+              editable && taskDraftSprintId === sprint.id
                 ? {
                     title: taskDraftTitle,
                     disabled: createTask.isPending,
@@ -294,9 +298,9 @@ export function TableView({ pageId, board, visibleTasks }: TableViewProps) {
                   }
                 : undefined
             }
-            onAssignTaskToMe={assignTaskToMe}
-            onRemoveTaskFromSprint={removeFromSprint}
-            onDeleteTask={deleteTask}
+            onAssignTaskToMe={editable ? assignTaskToMe : undefined}
+            onRemoveTaskFromSprint={editable ? removeFromSprint : undefined}
+            onDeleteTask={editable ? deleteTask : undefined}
           />
         ))}
         <SprintSection
@@ -305,9 +309,10 @@ export function TableView({ pageId, board, visibleTasks }: TableViewProps) {
           tasks={grouped.get(null) ?? []}
           members={board.members}
           currentUserId={board.currentUserId}
-          onStartCreateTask={() => startTaskDraft(null)}
+          editable={editable}
+          onStartCreateTask={editable ? () => startTaskDraft(null) : undefined}
           createTaskDraft={
-            taskDraftSprintId === null
+            editable && taskDraftSprintId === null
               ? {
                   title: taskDraftTitle,
                   disabled: createTask.isPending,
@@ -317,8 +322,8 @@ export function TableView({ pageId, board, visibleTasks }: TableViewProps) {
                 }
               : undefined
           }
-          onAssignTaskToMe={assignTaskToMe}
-          onDeleteTask={deleteTask}
+          onAssignTaskToMe={editable ? assignTaskToMe : undefined}
+          onDeleteTask={editable ? deleteTask : undefined}
         />
       </DragDropContext>
 

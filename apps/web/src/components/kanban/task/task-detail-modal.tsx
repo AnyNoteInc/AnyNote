@@ -18,9 +18,10 @@ interface TaskDetailModalProps {
   readonly pageId: string
   readonly task: BoardTaskData
   readonly board: BoardData
+  readonly editable?: boolean
 }
 
-export function TaskDetailModal({ pageId, task, board }: TaskDetailModalProps) {
+export function TaskDetailModal({ pageId, task, board, editable = true }: TaskDetailModalProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const column = board.columns.find((c) => c.id === task.columnId)
@@ -87,6 +88,7 @@ export function TaskDetailModal({ pageId, task, board }: TaskDetailModalProps) {
             task={task}
             board={board}
             currentUserId={board.currentUserId}
+            editable={editable}
           />
         </Box>
         <Box

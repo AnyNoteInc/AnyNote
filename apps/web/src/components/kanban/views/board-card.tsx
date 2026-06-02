@@ -28,6 +28,7 @@ interface BoardCardProps {
   readonly task: BoardTaskData
   readonly index: number
   readonly board: BoardData
+  readonly editable?: boolean
 }
 
 const DATE_BADGE_STYLES: Record<
@@ -39,7 +40,7 @@ const DATE_BADGE_STYLES: Record<
   overdue: { color: '#B91C1C', borderColor: '#FCA5A5', backgroundColor: '#FEE2E2' },
 }
 
-export function BoardCard({ pageId, task, index, board }: BoardCardProps) {
+export function BoardCard({ pageId, task, index, board, editable = true }: BoardCardProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const utils = trpc.useUtils()
@@ -72,7 +73,7 @@ export function BoardCard({ pageId, task, index, board }: BoardCardProps) {
   const dateBadge = DATE_BADGE_STYLES[model.dateTone]
 
   return (
-    <Draggable draggableId={task.id} index={index}>
+    <Draggable draggableId={task.id} index={index} isDragDisabled={!editable}>
       {(provided, snapshot) => (
         <Card
           ref={provided.innerRef}
@@ -230,43 +231,47 @@ export function BoardCard({ pageId, task, index, board }: BoardCardProps) {
                 </Stack>
               ) : null}
             </Box>
-            <IconButton
-              size="small"
-              aria-label="Меню задачи"
-              onClick={openMenu}
-              sx={{ mt: 0.5, mr: 0.5 }}
-            >
-              <MoreVertIcon fontSize="small" />
-            </IconButton>
+            {editable ? (
+              <IconButton
+                size="small"
+                aria-label="Меню задачи"
+                onClick={openMenu}
+                sx={{ mt: 0.5, mr: 0.5 }}
+              >
+                <MoreVertIcon fontSize="small" />
+              </IconButton>
+            ) : null}
           </Stack>
-          <Menu
-            anchorEl={menuAnchor}
-            open={Boolean(menuAnchor)}
-            onClose={closeMenu}
-            onClick={(e) => e.stopPropagation()}
-          >
-            {isAssignedToMe ? null : (
+          {editable ? (
+            <Menu
+              anchorEl={menuAnchor}
+              open={Boolean(menuAnchor)}
+              onClose={closeMenu}
+              onClick={(e) => e.stopPropagation()}
+            >
+              {isAssignedToMe ? null : (
+                <MenuItem
+                  onClick={() => {
+                    closeMenu()
+                    const next = Array.from(
+                      new Set([...task.assignees.map((a) => a.userId), board.currentUserId]),
+                    )
+                    setAssignees.mutate({ pageId, id: task.id, userIds: next })
+                  }}
+                >
+                  <ListItemText primary="Назначить на меня" />
+                </MenuItem>
+              )}
               <MenuItem
                 onClick={() => {
                   closeMenu()
-                  const next = Array.from(
-                    new Set([...task.assignees.map((a) => a.userId), board.currentUserId]),
-                  )
-                  setAssignees.mutate({ pageId, id: task.id, userIds: next })
+                  softDelete.mutate({ pageId, id: task.id })
                 }}
               >
-                <ListItemText primary="Назначить на меня" />
+                <ListItemText primary="Удалить" />
               </MenuItem>
-            )}
-            <MenuItem
-              onClick={() => {
-                closeMenu()
-                softDelete.mutate({ pageId, id: task.id })
-              }}
-            >
-              <ListItemText primary="Удалить" />
-            </MenuItem>
-          </Menu>
+            </Menu>
+          ) : null}
         </Card>
       )}
     </Draggable>

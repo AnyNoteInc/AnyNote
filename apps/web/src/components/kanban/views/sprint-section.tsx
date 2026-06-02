@@ -72,6 +72,7 @@ type SprintSectionProps =
       readonly members: BoardData['members']
       readonly currentUserId: string
       readonly droppableId: string
+      readonly editable?: boolean
       readonly onStartCreateTask?: () => void
       readonly createTaskDraft?: CreateTaskDraftProps
       readonly onAssignTaskToMe?: (taskId: string) => void
@@ -84,6 +85,7 @@ type SprintSectionProps =
       readonly members: BoardData['members']
       readonly currentUserId: string
       readonly droppableId: string
+      readonly editable?: boolean
       readonly onStartCreateTask?: () => void
       readonly createTaskDraft?: CreateTaskDraftProps
       readonly onAssignTaskToMe?: (taskId: string) => void
@@ -369,6 +371,7 @@ export function SprintSection(props: SprintSectionProps) {
     [props.members],
   )
 
+  const canEdit = props.editable ?? true
   const onRemoveTaskFromSprint = props.kind === 'sprint' ? props.onRemoveTaskFromSprint : undefined
   const onAssignTaskToMe = props.onAssignTaskToMe
   const onDeleteTask = props.onDeleteTask
@@ -379,7 +382,12 @@ export function SprintSection(props: SprintSectionProps) {
     <Box ref={provided.innerRef} {...provided.droppableProps} sx={{ minHeight: 32 }}>
       {createTaskDraft ? <CreateTaskDraftRow {...createTaskDraft} /> : null}
       {props.tasks.map((task, index) => (
-        <Draggable key={task.id} draggableId={task.id} index={index}>
+        <Draggable
+          key={task.id}
+          draggableId={task.id}
+          index={index}
+          isDragDisabled={!canEdit}
+        >
           {(p) => (
             <TaskRow
               task={task}
@@ -442,14 +450,16 @@ export function SprintSection(props: SprintSectionProps) {
             <Typography variant="caption" color="text.secondary">
               {props.tasks.length}
             </Typography>
-            <SprintMenu
-              pageId={props.pageId}
-              sprint={props.sprint}
-              allSprints={props.allSprints}
-              columns={props.columns}
-              tasks={props.allTasks}
-              onCreateTask={props.onStartCreateTask}
-            />
+            {canEdit ? (
+              <SprintMenu
+                pageId={props.pageId}
+                sprint={props.sprint}
+                allSprints={props.allSprints}
+                columns={props.columns}
+                tasks={props.allTasks}
+                onCreateTask={props.onStartCreateTask}
+              />
+            ) : null}
           </>
         ) : (
           <>

@@ -31,9 +31,10 @@ interface BoardColumnProps {
   readonly pageId: string
   readonly column: BoardColumnWithTasks
   readonly board: BoardData
+  readonly editable?: boolean
 }
 
-export function BoardColumn({ pageId, column, board }: BoardColumnProps) {
+export function BoardColumn({ pageId, column, board, editable = true }: BoardColumnProps) {
   return (
     <Paper
       variant="outlined"
@@ -54,7 +55,9 @@ export function BoardColumn({ pageId, column, board }: BoardColumnProps) {
         <Typography variant="caption" color="text.secondary">
           {column.tasks.length}
         </Typography>
-        <ColumnMenu pageId={pageId} columnId={column.id} canDelete={board.columns.length > 1} />
+        {editable ? (
+          <ColumnMenu pageId={pageId} columnId={column.id} canDelete={board.columns.length > 1} />
+        ) : null}
       </Stack>
       <Droppable droppableId={column.id}>
         {(provided) => (
@@ -70,13 +73,14 @@ export function BoardColumn({ pageId, column, board }: BoardColumnProps) {
                 task={task}
                 index={index}
                 board={board}
+                editable={editable}
               />
             ))}
             {provided.placeholder}
           </Box>
         )}
       </Droppable>
-      <AddCardForm pageId={pageId} columnId={column.id} />
+      {editable ? <AddCardForm pageId={pageId} columnId={column.id} /> : null}
     </Paper>
   )
 }

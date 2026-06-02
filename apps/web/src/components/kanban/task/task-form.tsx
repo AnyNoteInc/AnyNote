@@ -40,6 +40,7 @@ interface TaskFormProps {
   readonly task: BoardTaskData
   readonly board: BoardData
   readonly currentUserId: string
+  readonly editable?: boolean
 }
 
 function memberLabel(m: BoardData['members'][number]) {
@@ -75,7 +76,7 @@ type PopoverKey =
   | 'parent'
   | null
 
-export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) {
+export function TaskForm({ pageId, task, board, currentUserId, editable = true }: TaskFormProps) {
   const utils = trpc.useUtils()
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -216,12 +217,14 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
         <InlineEditableTitle
           value={task.title}
           autoFocus={isNew}
+          editable={editable}
           onSave={(next) => {
             if (next === task.title) return
             updateTask.mutate({ pageId, id: task.id, title: next })
           }}
         />
 
+        {editable ? (
         <Stack
           direction="row"
           spacing={1}
@@ -306,17 +309,24 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
             onClick={openPopover('parent')}
           />
         </Stack>
+        ) : null}
 
         <Section heading="Описание">
-          <DescriptionEditor value={description} onBlurSave={onDescriptionSave} />
+          <DescriptionEditor
+            value={description}
+            editable={editable}
+            onBlurSave={onDescriptionSave}
+          />
         </Section>
 
-        <TaskAttachments
-          pageId={pageId}
-          workspaceId={board.workspaceId}
-          taskId={task.id}
-          currentUserId={currentUserId}
-        />
+        {editable ? (
+          <TaskAttachments
+            pageId={pageId}
+            workspaceId={board.workspaceId}
+            taskId={task.id}
+            currentUserId={currentUserId}
+          />
+        ) : null}
 
         <ManageListPopover
           open={popover === 'type'}
@@ -560,11 +570,17 @@ export function TaskForm({ pageId, task, board, currentUserId }: TaskFormProps) 
 interface InlineEditableTitleProps {
   readonly value: string
   readonly autoFocus?: boolean
+  readonly editable?: boolean
   readonly onSave: (next: string) => void
 }
 
-function InlineEditableTitle({ value, autoFocus, onSave }: InlineEditableTitleProps) {
-  const [editing, setEditing] = useState(autoFocus ?? false)
+function InlineEditableTitle({
+  value,
+  autoFocus,
+  editable = true,
+  onSave,
+}: InlineEditableTitleProps) {
+  const [editing, setEditing] = useState(editable ? (autoFocus ?? false) : false)
   const [draft, setDraft] = useState(value)
   const inputRef = useRef<HTMLInputElement | null>(null)
 
@@ -624,6 +640,17 @@ function InlineEditableTitle({ value, autoFocus, onSave }: InlineEditableTitlePr
           },
         }}
       />
+    )
+  }
+
+  if (!editable) {
+    return (
+      <Typography
+        variant="body1"
+        sx={{ fontWeight: 700, wordBreak: 'break-word', px: 1, py: 0.5, ml: -1 }}
+      >
+        {value || 'Название карточки'}
+      </Typography>
     )
   }
 
@@ -699,11 +726,13 @@ function formatDateRange(start: Date | null, due: Date | null): string {
 
 interface DescriptionEditorProps {
   readonly value: JSONContent | null
+  readonly editable?: boolean
   readonly onBlurSave: (value: JSONContent | null) => void
 }
 
 const DescriptionEditor = memo(function DescriptionEditor({
   value,
+  editable = true,
   onBlurSave,
 }: DescriptionEditorProps) {
   return (
@@ -720,6 +749,7 @@ const DescriptionEditor = memo(function DescriptionEditor({
     >
       <AnyNotePlainEditor
         value={value}
+        editable={editable}
         placeholder="Добавить более подробное описание..."
         onBlurSave={onBlurSave}
       />

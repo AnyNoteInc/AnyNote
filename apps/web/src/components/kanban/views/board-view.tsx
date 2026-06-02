@@ -21,9 +21,10 @@ interface BoardViewProps {
   readonly pageId: string
   readonly board: BoardData
   readonly visibleTasks: BoardData['tasks']
+  readonly editable?: boolean
 }
 
-export function BoardView({ pageId, board, visibleTasks }: BoardViewProps) {
+export function BoardView({ pageId, board, visibleTasks, editable = true }: BoardViewProps) {
   const utils = trpc.useUtils()
   const moveTask = trpc.kanban.task.move.useMutation({
     onError: () => utils.kanban.board.getBoard.invalidate({ pageId }),
@@ -79,9 +80,15 @@ export function BoardView({ pageId, board, visibleTasks }: BoardViewProps) {
     <DragDropContext onDragEnd={handleDragEnd}>
       <Stack direction="row" spacing={2} sx={{ height: '100%', overflowX: 'auto', pb: 2 }}>
         {columnsWithTasks.map((column) => (
-          <BoardColumn key={column.id} pageId={pageId} column={column} board={board} />
+          <BoardColumn
+            key={column.id}
+            pageId={pageId}
+            column={column}
+            board={board}
+            editable={editable}
+          />
         ))}
-        <AddColumnForm pageId={pageId} />
+        {editable ? <AddColumnForm pageId={pageId} /> : null}
       </Stack>
     </DragDropContext>
   )

@@ -18,9 +18,10 @@ import type { BoardData } from './types'
 
 interface KanbanBoardPageProps {
   readonly pageId: string
+  readonly editable?: boolean
 }
 
-export function KanbanBoardPage({ pageId }: KanbanBoardPageProps) {
+export function KanbanBoardPage({ pageId, editable = true }: KanbanBoardPageProps) {
   const searchParams = useSearchParams()
   const { data, isLoading, error } = trpc.kanban.board.getBoard.useQuery({ pageId })
 
@@ -73,23 +74,38 @@ export function KanbanBoardPage({ pageId }: KanbanBoardPageProps) {
 
   return (
     <Stack sx={{ height: '100%', minHeight: 0, overflow: 'hidden', bgcolor: 'background.paper' }}>
-      <KanbanToolbar pageId={pageId} filtersBag={filtersBag} board={board} />
+      <KanbanToolbar pageId={pageId} filtersBag={filtersBag} board={board} editable={editable} />
       <Box sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: 'background.paper' }}>
         {!isTaskDetailOpen && (
           <>
             {filtersBag.view === 'board' && (
-              <BoardView pageId={pageId} board={board} visibleTasks={visibleTasks} />
+              <BoardView
+                pageId={pageId}
+                board={board}
+                visibleTasks={visibleTasks}
+                editable={editable}
+              />
             )}
             {filtersBag.view === 'table' && (
-              <TableView pageId={pageId} board={board} visibleTasks={tableViewTasks} />
+              <TableView
+                pageId={pageId}
+                board={board}
+                visibleTasks={tableViewTasks}
+                editable={editable}
+              />
             )}
             {filtersBag.view === 'gantt' && (
-              <GanttView pageId={pageId} board={board} visibleTasks={visibleTasks} />
+              <GanttView
+                pageId={pageId}
+                board={board}
+                visibleTasks={visibleTasks}
+                editable={editable}
+              />
             )}
           </>
         )}
       </Box>
-      <TaskDetailContainer pageId={pageId} board={board} />
+      <TaskDetailContainer pageId={pageId} board={board} editable={editable} />
     </Stack>
   )
 }

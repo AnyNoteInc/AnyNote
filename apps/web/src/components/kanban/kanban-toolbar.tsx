@@ -24,6 +24,7 @@ interface KanbanToolbarProps {
   readonly pageId: string
   readonly filtersBag: FiltersBag
   readonly board: BoardData
+  readonly editable?: boolean
 }
 
 const VIEWS: ReadonlyArray<{ value: KanbanView; tooltip: string; Icon: typeof ViewKanbanIcon }> = [
@@ -32,7 +33,7 @@ const VIEWS: ReadonlyArray<{ value: KanbanView; tooltip: string; Icon: typeof Vi
   { value: 'gantt', tooltip: 'Гант', Icon: AccountTreeIcon },
 ]
 
-export function KanbanToolbar({ pageId, filtersBag, board }: KanbanToolbarProps) {
+export function KanbanToolbar({ pageId, filtersBag, board, editable = true }: KanbanToolbarProps) {
   const [settingsOpen, setSettingsOpen] = useState(false)
 
   return (
@@ -64,22 +65,26 @@ export function KanbanToolbar({ pageId, filtersBag, board }: KanbanToolbarProps)
             )
           })}
         </ButtonGroup>
-        <Tooltip title="Настройки канбана" arrow>
-          <IconButton
-            onClick={() => setSettingsOpen(true)}
-            size="small"
-            aria-label="Настройки канбана"
-          >
-            <SettingsIcon />
-          </IconButton>
-        </Tooltip>
+        {editable ? (
+          <Tooltip title="Настройки канбана" arrow>
+            <IconButton
+              onClick={() => setSettingsOpen(true)}
+              size="small"
+              aria-label="Настройки канбана"
+            >
+              <SettingsIcon />
+            </IconButton>
+          </Tooltip>
+        ) : null}
       </Stack>
-      <KanbanSettingsDialog
-        pageId={pageId}
-        board={board}
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-      />
+      {editable ? (
+        <KanbanSettingsDialog
+          pageId={pageId}
+          board={board}
+          open={settingsOpen}
+          onClose={() => setSettingsOpen(false)}
+        />
+      ) : null}
     </Stack>
   )
 }

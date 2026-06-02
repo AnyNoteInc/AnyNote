@@ -14,6 +14,7 @@ interface GanttViewProps {
   readonly pageId: string
   readonly board: BoardData
   readonly visibleTasks: BoardTaskData[]
+  readonly editable?: boolean
 }
 
 const COLUMN_COLORS: Record<BoardData['columns'][number]['kind'], { bg: string; selected: string }> = {
@@ -28,7 +29,7 @@ function toDate(value: Date | string | null | undefined, fallback: Date): Date {
   return new Date(value)
 }
 
-export function GanttView({ pageId, board, visibleTasks }: GanttViewProps) {
+export function GanttView({ pageId, board, visibleTasks, editable = true }: GanttViewProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const utils = trpc.useUtils()
@@ -89,15 +90,19 @@ export function GanttView({ pageId, board, visibleTasks }: GanttViewProps) {
         listCellWidth=""
         columnWidth={56}
         locale="ru"
-        onDateChange={(task) => {
-          justDraggedRef.current = true
-          updateTask.mutate({
-            pageId,
-            id: task.id,
-            startDate: task.start,
-            dueDate: task.end,
-          })
-        }}
+        onDateChange={
+          editable
+            ? (task) => {
+                justDraggedRef.current = true
+                updateTask.mutate({
+                  pageId,
+                  id: task.id,
+                  startDate: task.start,
+                  dueDate: task.end,
+                })
+              }
+            : undefined
+        }
         onClick={(task) => {
           if (justDraggedRef.current) {
             justDraggedRef.current = false
