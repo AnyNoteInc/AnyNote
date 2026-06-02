@@ -388,12 +388,21 @@ export function PageRenderer({
         yjsToken={token}
         uploadHandler={uploadHandler}
         user={user}
+        editable={editable}
       />
     )
   }
 
   if (page.type === 'GENOGRAM') {
-    return <Genogram pageId={page.id} yjsUrl={resolveYjsUrl()} yjsToken={token} user={user} />
+    return (
+      <Genogram
+        pageId={page.id}
+        yjsUrl={resolveYjsUrl()}
+        yjsToken={token}
+        user={user}
+        mode={editable ? 'editor' : 'readonly'}
+      />
+    )
   }
 
   if (page.type === 'MERMAID') {
@@ -404,6 +413,7 @@ export function PageRenderer({
         yjsUrl={resolveYjsUrl()}
         yjsToken={token}
         user={user}
+        editable={editable}
       />
     )
   }
@@ -416,6 +426,7 @@ export function PageRenderer({
         yjsUrl={resolveYjsUrl()}
         yjsToken={token}
         user={user}
+        editable={editable}
         renderAuth={renderAuth}
       />
     )
@@ -429,6 +440,7 @@ export function PageRenderer({
         yjsUrl={resolveYjsUrl()}
         yjsToken={token}
         user={user}
+        editable={editable}
       />
     )
   }
@@ -441,6 +453,7 @@ export function PageRenderer({
         yjsUrl={resolveYjsUrl()}
         yjsToken={token}
         user={user}
+        editable={editable}
         drawioUrl={resolveDrawioUrl()}
       />
     )
