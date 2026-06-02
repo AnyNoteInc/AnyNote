@@ -2,6 +2,18 @@
 import { cleanup, render, screen } from '@testing-library/react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
+vi.mock('next/navigation', () => ({
+  usePathname: () => '/workspaces/w1/pages',
+  useRouter: () => ({ push: vi.fn() }),
+}))
+
+vi.mock('@/trpc/client', () => ({
+  trpc: {
+    page: { listFavorites: { useQuery: () => ({ data: [] }) } },
+    workspace: { listMine: { useQuery: () => ({ data: [] }) } },
+  },
+}))
+
 import { WorkspaceSectionSwitcher } from '@/components/workspace/workspace-sidebar'
 
 const noop = vi.fn()
