@@ -130,18 +130,19 @@ type EmbeddingPayload = {
   connection: Record<string, string>
 }
 
-// Shared providers (workspaceId null) keep plaintext `connection`; workspace-scoped
-// custom providers store creds encrypted in `connectionEnc`. Mirrors the agent-run
-// payload path so RAG search works for custom providers too.
+// Prefer encrypted credentials when present, falling back to the plaintext
+// `connection` only when `connectionEnc` is absent. Both shared (workspaceId
+// null) and workspace-scoped custom providers may store creds in
+// `connectionEnc`, so the two fields must not be mutually exclusive. Mirrors the
+// agent-run payload path so RAG search works for every provider.
 function resolveProviderConnection(provider: {
   workspaceId: string | null
   connection: unknown
   connectionEnc: unknown
 }): Record<string, string> {
-  const raw =
-    provider.workspaceId && provider.connectionEnc
-      ? (JSON.parse(decryptSecret(provider.connectionEnc as EncryptedPayload)) as unknown)
-      : provider.connection
+  const raw = provider.connectionEnc
+    ? (JSON.parse(decryptSecret(provider.connectionEnc as EncryptedPayload)) as unknown)
+    : provider.connection
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
   const out: Record<string, string> = {}
   for (const [k, v] of Object.entries(raw as Record<string, unknown>)) {

@@ -298,4 +298,34 @@ describe('searchQdrant', () => {
     expect(body.embedding.provider).toBe('openai')
     expect(body.embedding.connection).toEqual({ apiKey: 'sk-custom' })
   })
+
+  it('decrypts connectionEnc for a shared (global) provider with workspaceId null', async () => {
+    const aliveId = '33333333-3333-3333-3333-333333333333'
+    const globalAi = {
+      embeddingsModel: {
+        slug: 'text-embedding-3-small',
+        vectorSize: 1536,
+        provider: {
+          kind: 'OPENAI',
+          workspaceId: null,
+          connection: {},
+          connectionEnc: encryptSecret(JSON.stringify({ apiKey: 'sk-global' })),
+        },
+      },
+    }
+    const prisma = prismaWithAi({ aiSettings: globalAi, pages: [{ id: aliveId, icon: null }] })
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(
+          JSON.stringify({ results: [{ pageId: aliveId, title: 'X', blockNumber: 0, content: 'c' }] }),
+          { status: 200, headers: { 'content-type': 'application/json' } },
+        ),
+    )
+    vi.stubGlobal('fetch', fetchMock)
+
+    await searchQdrant(prisma, WS, 'matchword')
+
+    const body = JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string)
+    expect(body.embedding.connection).toEqual({ apiKey: 'sk-global' })
+  })
 })
