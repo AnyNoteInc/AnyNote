@@ -83,7 +83,10 @@ export function PageActionsMenu({
   }
 
   const handleCopyText = () => {
-    void actions.copyText()
+    // The Markdown export fetch can fail (network / permissions); there is no
+    // toast surface in this menu, so swallow the rejection to avoid an unhandled
+    // promise error rather than leaving it dangling.
+    void actions.copyText().catch(() => {})
     closeMenu()
   }
 
