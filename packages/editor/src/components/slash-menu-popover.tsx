@@ -21,10 +21,11 @@ type Props = {
   command: (item: SlashCommandItem) => void
 }
 
-const GROUP_ORDER: SlashCommandGroup[] = ['base', 'code', 'media', 'embedding']
+const GROUP_ORDER: SlashCommandGroup[] = ['base', 'inline', 'code', 'media', 'embedding']
 
 const GROUP_TITLES: Record<SlashCommandGroup, string> = {
   base: 'Базовые блоки',
+  inline: 'Встроенные',
   code: 'Код',
   media: 'Медиа',
   embedding: 'Встраиваемые',

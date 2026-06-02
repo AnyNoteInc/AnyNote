@@ -27,4 +27,14 @@ describe('createSlashItems', () => {
     expect(slashItems('likec4')).toEqual([])
     expect(slashItems('d2')).toEqual([])
   })
+
+  it('groups date, datetime, pageLink and reminder under the inline group', () => {
+    const slashItems = createSlashItems(handlers)
+    const items = slashItems('')
+    const groupOf = (id: string) => items.find((it) => it.id === id)?.group
+    expect(groupOf('date')).toBe('inline')
+    expect(groupOf('datetime')).toBe('inline')
+    expect(groupOf('pageLink')).toBe('inline')
+    expect(groupOf('reminder')).toBe('inline')
+  })
 })

@@ -231,7 +231,7 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
   },
   {
     id: 'date',
-    group: 'base',
+    group: 'inline',
     label: 'Дата',
     description: 'Вставить дату',
     keywords: ['date', 'today', 'дата', 'сегодня'],
@@ -240,7 +240,7 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
   },
   {
     id: 'datetime',
-    group: 'base',
+    group: 'inline',
     label: 'Дата и время',
     description: 'Вставить дату и время',
     keywords: ['datetime', 'time', 'now', 'дата', 'время', 'сейчас'],
@@ -255,7 +255,7 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
   },
   {
     id: 'reminder',
-    group: 'base',
+    group: 'inline',
     label: 'Напоминание',
     keywords: ['reminder', 'напоминание', 'дедлайн', 'deadline', 'todo'],
     icon: createElement(NotificationsIcon, { fontSize: 'small' }),
@@ -286,7 +286,7 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
   },
   {
     id: 'pageLink',
-    group: 'base',
+    group: 'inline',
     label: 'Ссылка на страницу',
     description: 'Вставить ссылку на другую страницу',
     keywords: ['link', 'page', 'ссылка', 'страница'],
