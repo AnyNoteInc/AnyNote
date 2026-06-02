@@ -6,10 +6,10 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 import {
+  BarChartIcon,
   Box,
   GroupIcon,
   HubIcon,
-  InsertDriveFileIcon,
   SettingsIcon,
   SmartToyIcon,
   Stack,
@@ -56,7 +56,7 @@ export function WorkspaceSettingsNav({ workspaceId }: Props) {
     {
       label: 'Использование',
       slug: 'usage',
-      icon: <InsertDriveFileIcon fontSize="small" />,
+      icon: <BarChartIcon fontSize="small" />,
       show: true,
     },
     {
@@ -68,7 +68,7 @@ export function WorkspaceSettingsNav({ workspaceId }: Props) {
   ].filter((item) => item.show)
 
   return (
-    <Stack spacing={0.5} component="nav">
+    <Stack spacing={0.5} component="nav" aria-label="Настройки воркспейса">
       {items.map((item) => {
         const href = `${base}/${item.slug}`
         const active = pathname === href
@@ -87,8 +87,9 @@ export function WorkspaceSettingsNav({ workspaceId }: Props) {
               textDecoration: 'none',
               fontSize: 14,
               color: active ? 'text.primary' : 'text.secondary',
+              fontWeight: active ? 600 : 400,
               bgcolor: active ? 'action.selected' : 'transparent',
-              '&:hover': { bgcolor: active ? 'action.selected' : 'action.hover' },
+              '&:hover': { bgcolor: 'action.hover' },
             }}
           >
             {item.icon}

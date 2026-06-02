@@ -183,6 +183,7 @@ export { default as SmartToyIcon } from '@mui/icons-material/SmartToy'
 export { default as HubIcon } from '@mui/icons-material/Hub'
 export { default as StorageIcon } from '@mui/icons-material/Storage'
 export { default as WarningAmberIcon } from '@mui/icons-material/WarningAmber'
+export { default as BarChartIcon } from '@mui/icons-material/BarChart'
 export { default as ListItemIcon, type ListItemIconProps } from '@mui/material/ListItemIcon'
 export { default as ListItemText, type ListItemTextProps } from '@mui/material/ListItemText'
 
