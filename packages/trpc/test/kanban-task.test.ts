@@ -195,7 +195,41 @@ describe('kanban.task.softDelete', () => {
   })
 })
 
+describe('kanban.task.setLabels', () => {
+  it('forbids a non-creator VIEWER member (FORBIDDEN)', async () => {
+    const prisma = {
+      page: {
+        findFirst: vi.fn().mockResolvedValue({ ...pageRow, createdById: 'someone-else' }),
+      },
+      workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'VIEWER' }) },
+    } as unknown as PrismaClient
+
+    const caller = createCallerFactory(taskRouter)(ctx(prisma))
+    await expect(
+      caller.setLabels({
+        pageId: PAGE_ID,
+        id: '00000000-0000-0000-0000-0000000000a1',
+        labelIds: ['00000000-0000-0000-0000-0000000000d1'],
+      }),
+    ).rejects.toThrow(/прав/i)
+  })
+})
+
 describe('kanban.task.unarchive', () => {
+  it('forbids a non-creator VIEWER member (FORBIDDEN)', async () => {
+    const prisma = {
+      page: {
+        findFirst: vi.fn().mockResolvedValue({ ...pageRow, createdById: 'someone-else' }),
+      },
+      workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'VIEWER' }) },
+    } as unknown as PrismaClient
+
+    const caller = createCallerFactory(taskRouter)(ctx(prisma))
+    await expect(
+      caller.unarchive({ pageId: PAGE_ID, id: '00000000-0000-0000-0000-0000000000a1' }),
+    ).rejects.toThrow(/прав/i)
+  })
+
   it('sets archived=false and writes UNARCHIVED activity directly via prisma', async () => {
     const taskUpdate = vi.fn().mockResolvedValue({ id: '00000000-0000-0000-0000-0000000000a1' })
     const activityCreate = vi.fn().mockResolvedValue({})

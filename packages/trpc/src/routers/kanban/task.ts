@@ -3,7 +3,7 @@ import { z } from 'zod'
 import * as domain from '@repo/domain'
 
 import { router, protectedProcedure } from '../../trpc'
-import { assertPageAccess } from '../../helpers/page-access'
+import { assertPageAccess, assertPageEditAccess } from '../../helpers/page-access'
 import { recordActivity } from './helpers'
 import { kanbanBus } from '../../realtime/kanban-bus'
 import { mapDomain } from '../../helpers/map-domain'
@@ -51,7 +51,7 @@ export const taskRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const page = await assertPageAccess(ctx, input.pageId)
+      const page = await assertPageEditAccess(ctx, input.pageId)
       const current = await ctx.prisma.task.findUniqueOrThrow({
         where: { id: input.id },
         select: { id: true, pageId: true, labels: { select: { labelId: true } } },
@@ -142,7 +142,7 @@ export const taskRouter = router({
   unarchive: protectedProcedure
     .input(z.object({ pageId: z.string().uuid(), id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const page = await assertPageAccess(ctx, input.pageId)
+      const page = await assertPageEditAccess(ctx, input.pageId)
       const task = await ctx.prisma.task.findUniqueOrThrow({
         where: { id: input.id },
         select: { pageId: true },

@@ -42,9 +42,7 @@ describe('kanban.column.create', () => {
     const prisma = {
       page: {
         findFirst: vi.fn().mockResolvedValue(pageRow),
-        findUniqueOrThrow: vi.fn().mockResolvedValue({ workspaceId: WORKSPACE_ID }),
       },
-      workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) },
       kanbanColumn: {
         findMany: vi.fn().mockResolvedValue([{ position: 1024 }, { position: 2048 }]),
         create,
@@ -71,9 +69,7 @@ describe('kanban.column.delete', () => {
     const prisma = {
       page: {
         findFirst: vi.fn().mockResolvedValue(pageRow),
-        findUniqueOrThrow: vi.fn().mockResolvedValue({ workspaceId: WORKSPACE_ID }),
       },
-      workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) },
       kanbanColumn: {
         findMany: vi.fn().mockResolvedValue([
           { id: COL_A, position: 1024 },
@@ -99,9 +95,7 @@ describe('kanban.column.delete', () => {
     const prisma = {
       page: {
         findFirst: vi.fn().mockResolvedValue(pageRow),
-        findUniqueOrThrow: vi.fn().mockResolvedValue({ workspaceId: WORKSPACE_ID }),
       },
-      workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) },
       kanbanColumn: {
         findMany: vi.fn().mockResolvedValue([{ id: COL_A, position: 1024 }]),
       },
@@ -111,16 +105,44 @@ describe('kanban.column.delete', () => {
     await expect(caller.delete({ pageId: PAGE_ID, id: COL_A })).rejects.toThrow(/последнюю/i)
   })
 
-  it('requires ownership (FORBIDDEN for non-owner non-creator)', async () => {
+  it('requires edit-level access (FORBIDDEN for below-editor non-creator)', async () => {
     const prisma = {
       page: {
         findFirst: vi.fn().mockResolvedValue({ ...pageRow, createdById: 'someone-else' }),
-        findUniqueOrThrow: vi.fn().mockResolvedValue({ workspaceId: WORKSPACE_ID }),
       },
-      workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'EDITOR' }) },
+      workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'VIEWER' }) },
     } as unknown as PrismaClient
 
     const caller = createCallerFactory(columnRouter)(ctx(prisma))
     await expect(caller.delete({ pageId: PAGE_ID, id: COL_A })).rejects.toThrow(/прав/i)
+  })
+
+  it('allows an EDITOR member (non-creator) to delete a column', async () => {
+    const updateMany = vi.fn().mockResolvedValue({ count: 0 })
+    const deleteCol = vi.fn().mockResolvedValue({})
+    const txClient = {
+      task: { updateMany },
+      kanbanColumn: { delete: deleteCol },
+    }
+    const prisma = {
+      page: {
+        findFirst: vi.fn().mockResolvedValue({ ...pageRow, createdById: 'someone-else' }),
+      },
+      workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'EDITOR' }) },
+      kanbanColumn: {
+        findMany: vi.fn().mockResolvedValue([
+          { id: COL_A, position: 1024 },
+          { id: COL_B, position: 2048 },
+        ]),
+      },
+      $transaction: vi
+        .fn()
+        .mockImplementation((fn: (tx: unknown) => Promise<unknown>) => fn(txClient)),
+    } as unknown as PrismaClient
+
+    const caller = createCallerFactory(columnRouter)(ctx(prisma))
+    await caller.delete({ pageId: PAGE_ID, id: COL_B })
+
+    expect(deleteCol).toHaveBeenCalledWith({ where: { id: COL_B } })
   })
 })
