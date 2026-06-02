@@ -139,7 +139,7 @@ export function WorkspaceFilesSection({ workspaceId, currentUserId }: Props) {
 
   return (
     <SettingsCard
-      title="Файлы"
+      title="Библиотека"
       description="Все файлы, загруженные в этом workspace."
     >
       {listQuery.error ? <Alert severity="error">{listQuery.error.message}</Alert> : null}
