@@ -37,6 +37,18 @@
   pointer-events: none;
 }
 
+/* Direct children only: show the placeholder on empty top-level lines, but
+   not inside empty table cells / list items / container bodies, which would
+   be noisy. The cursor-following behavior comes from Placeholder's default
+   showOnlyCurrent (only the node holding the cursor gets .is-empty). */
+.anynote-editor .ProseMirror > p.is-empty::before {
+  color: var(--editor-text-muted, rgba(0, 0, 0, 0.4));
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
 .anynote-editor h1 {
   font-size: 1.875rem;
   font-weight: 700;
