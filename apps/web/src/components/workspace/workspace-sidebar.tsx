@@ -34,11 +34,13 @@ import type { PageItem } from './types'
 import { SearchSidebarSection } from './search-sidebar-section'
 import { SIDEBAR_WIDTH } from './workspace-layout-client'
 import type { WorkspaceSidebarSection } from './workspace-layout-client'
+import type { PlanFeatures } from '@repo/trpc'
 import { useSearchDialog } from '../search/search-dialog-provider'
 import { WorkspaceSettingsNav } from './workspace-settings-nav'
 
 type Props = Readonly<{
   workspace: { id: string; name: string; icon: string | null }
+  features: PlanFeatures
   pages: PageItem[]
   onHide?: () => void
   userMenu: ReactNode
@@ -48,6 +50,7 @@ type Props = Readonly<{
 
 export function WorkspaceSidebar({
   workspace,
+  features,
   pages,
   onHide,
   userMenu,
@@ -172,6 +175,7 @@ export function WorkspaceSidebar({
 
       <WorkspaceSectionSwitcher
         activeSection={activeSection}
+        chatsEnabled={features.chatsEnabled}
         onChats={() => {
           onSectionChange('chats')
         }}
@@ -193,7 +197,7 @@ export function WorkspaceSidebar({
           py: 0.75,
         }}
       >
-        {activeSection === 'chats' ? (
+        {activeSection === 'chats' && features.chatsEnabled ? (
           <SearchSidebarSection workspaceId={workspace.id} />
         ) : null}
 
@@ -221,9 +225,7 @@ export function WorkspaceSidebar({
           </>
         ) : null}
 
-        {activeSection === 'settings' ? (
-          <WorkspaceSettingsNav workspaceId={workspace.id} />
-        ) : null}
+        {activeSection === 'settings' ? <WorkspaceSettingsNav workspaceId={workspace.id} /> : null}
       </Box>
 
       <Box
@@ -243,14 +245,16 @@ export function WorkspaceSidebar({
   )
 }
 
-function WorkspaceSectionSwitcher({
+export function WorkspaceSectionSwitcher({
   activeSection,
+  chatsEnabled,
   onChats,
   onPages,
   onSearch,
   onSettings,
 }: {
   activeSection: WorkspaceSidebarSection
+  chatsEnabled: boolean
   onChats: () => void
   onPages: () => void
   onSearch: () => void
@@ -264,27 +268,24 @@ function WorkspaceSectionSwitcher({
   }
 
   return (
-    <ButtonGroup
-      aria-label="Разделы рабочего пространства"
-      fullWidth
-      size="medium"
-      variant="text"
-    >
+    <ButtonGroup aria-label="Разделы рабочего пространства" fullWidth size="medium" variant="text">
       <Tooltip title={`Поиск (${shortcut('⌘K', 'Alt+K')})`}>
         <Button aria-label="Поиск" onClick={onSearch}>
           <SearchIcon fontSize="small" />
         </Button>
       </Tooltip>
-      <Tooltip title={`Чаты (${shortcut('⌘P', 'Alt+P')})`}>
-        <Button
-          aria-label="Чаты"
-          aria-pressed={activeSection === 'chats'}
-          onClick={onChats}
-          style={activeSection === 'chats' ? activeButtonStyle : undefined}
-        >
-          <ChatBubbleOutlineIcon fontSize="small" />
-        </Button>
-      </Tooltip>
+      {chatsEnabled ? (
+        <Tooltip title={`Чаты (${shortcut('⌘P', 'Alt+P')})`}>
+          <Button
+            aria-label="Чаты"
+            aria-pressed={activeSection === 'chats'}
+            onClick={onChats}
+            style={activeSection === 'chats' ? activeButtonStyle : undefined}
+          >
+            <ChatBubbleOutlineIcon fontSize="small" />
+          </Button>
+        </Tooltip>
+      ) : null}
       <Tooltip title={`Страницы (${shortcut('⌘D', 'Alt+D')})`}>
         <Button
           aria-label="Страницы"

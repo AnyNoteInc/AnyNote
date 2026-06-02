@@ -64,9 +64,11 @@ export function WorkspaceLayoutClient({
   const [mode, setMode] = useState<SidebarMode>(DEFAULT_MODE)
   const pathname = usePathname()
   const lastSidebarPathnameRef = useRef(pathname)
-  const [sidebarSection, setSidebarSection] = useState<WorkspaceSidebarSection>(
-    () => sidebarSectionFromPathname(pathname) ?? 'chats',
-  )
+  const [sidebarSection, setSidebarSection] = useState<WorkspaceSidebarSection>(() => {
+    const fromPath = sidebarSectionFromPathname(pathname)
+    if (fromPath) return fromPath
+    return features.chatsEnabled ? 'chats' : 'pages'
+  })
 
   useEffect(() => {
     const stored = window.localStorage.getItem(STORAGE_KEY)
@@ -83,6 +85,12 @@ export function WorkspaceLayoutClient({
     const nextSection = sidebarSectionFromPathname(pathname)
     if (nextSection) setSidebarSection(nextSection)
   }, [pathname])
+
+  useEffect(() => {
+    if (!features.chatsEnabled && sidebarSection === 'chats') {
+      setSidebarSection('pages')
+    }
+  }, [features.chatsEnabled, sidebarSection])
 
   const chatIdMatch = pathname.match(/\/chats\/([a-f0-9-]{36})$/)
   const activeChatId = chatIdMatch?.[1] ?? null
@@ -138,6 +146,7 @@ export function WorkspaceLayoutClient({
 
   const sidebarProps = {
     workspace,
+    features,
     pages,
     userMenu,
     activeSection: sidebarSection,
@@ -197,9 +206,7 @@ export function WorkspaceLayoutClient({
   )
 
   const sidebar =
-    mode === 'full' ? (
-      <WorkspaceSidebar {...sidebarProps} onHide={() => setMode('hidden')} />
-    ) : null
+    mode === 'full' ? <WorkspaceSidebar {...sidebarProps} onHide={() => setMode('hidden')} /> : null
 
   const pageMain = (
     <PageCommentsProvider
