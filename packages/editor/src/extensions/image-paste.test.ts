@@ -146,10 +146,13 @@ describe('buildImagePaste', () => {
     ctx.upload.calls[1]!.resolve('https://cdn/b.png')
     ctx.upload.calls[0]!.resolve('https://cdn/a.png')
     await flush()
-    const srcs = images(ctx.view)
-      .map((i) => String(i.src))
-      .sort((a, b) => a.localeCompare(b))
-    expect(srcs).toEqual(['https://cdn/a.png', 'https://cdn/b.png'])
+    // Pin src-to-position (document order): the first image keeps a.png and the
+    // second b.png, proving each upload mapped to its own node — not just that
+    // both nodes got filled.
+    const placed = images(ctx.view)
+    expect(placed).toHaveLength(2)
+    expect(placed[0]!.src).toBe('https://cdn/a.png')
+    expect(placed[1]!.src).toBe('https://cdn/b.png')
   })
 
   it('removes the placeholder when the upload fails', async () => {
