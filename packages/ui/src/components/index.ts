@@ -192,6 +192,10 @@ export { RichTreeView } from '@mui/x-tree-view/RichTreeView'
 export { TreeItem } from '@mui/x-tree-view/TreeItem'
 
 export { StaticDatePicker, type StaticDatePickerProps } from '@mui/x-date-pickers/StaticDatePicker'
+export {
+  StaticDateTimePicker,
+  type StaticDateTimePickerProps,
+} from '@mui/x-date-pickers/StaticDateTimePicker'
 export { DatePicker, type DatePickerProps } from '@mui/x-date-pickers/DatePicker'
 export {
   LocalizationProvider,
