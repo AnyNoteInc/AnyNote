@@ -22,13 +22,26 @@ const excludeColumnNodes: DragHandleRule = {
   },
 }
 
+// Container nodes own children; their FIRST child block should not show the
+// + / drag controls (they belong to the container, not a standalone block).
+// detailsContent is the wrapper around the toggle body; blockquote is "цитата".
+const CONTAINER_PARENTS = new Set(['callout', 'detailsContent', 'hiddenText', 'blockquote'])
+
+const excludeFirstContainerChild: DragHandleRule = {
+  id: 'excludeFirstContainerChild',
+  evaluate: ({ parent, isFirst }) => {
+    if (isFirst && parent && CONTAINER_PARENTS.has(parent.type.name)) return 10000
+    return 0
+  },
+}
+
 // `edgeDetection: 'none'` disables the 12px band where deeper nodes lose score
 // near their left edge. With it on, mousing from an inner block toward the
 // handle (which sits in the gutter) would flip the target to the parent mid-
 // motion, so the handle would jump to the outer container before the cursor
 // even reached it.
 const nestedOptions = {
-  rules: [excludeColumnNodes],
+  rules: [excludeColumnNodes, excludeFirstContainerChild],
   edgeDetection: 'none' as const,
 }
 
