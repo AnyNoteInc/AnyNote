@@ -1,52 +1,56 @@
 'use client'
 
-import { Box, Stack } from '@repo/ui/components'
+import { Avatar, Stack, Tooltip } from '@repo/ui/components'
 
-interface AssigneeLike {
-  userId: string
-  user?: { firstName: string | null; email: string }
-}
+import type { BoardAssignee } from '../types'
+import { participantImage, participantInitials, participantName } from './participant-display'
 
 interface AssigneeAvatarsProps {
-  readonly assignees: AssigneeLike[]
-  readonly memberLookup?: (userId: string) => { firstName: string | null; email: string } | undefined
+  readonly assignees: BoardAssignee[]
   readonly size?: number
   readonly max?: number
 }
 
-export function AssigneeAvatars({
-  assignees,
-  memberLookup,
-  size = 24,
-  max = 3,
-}: AssigneeAvatarsProps) {
+export function AssigneeAvatars({ assignees, size = 24, max = 3 }: AssigneeAvatarsProps) {
   if (assignees.length === 0) return null
   return (
     <Stack direction="row" spacing={-0.5}>
       {assignees.slice(0, max).map((a) => {
-        const user = a.user ?? memberLookup?.(a.userId)
-        const initial = (user?.firstName?.[0] ?? user?.email[0] ?? '?').toUpperCase()
+        const p = a.participant
         return (
-          <Box
-            key={a.userId}
-            sx={{
-              width: size,
-              height: size,
-              bgcolor: 'primary.main',
-              color: 'primary.contrastText',
-              borderRadius: '50%',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 11,
-              border: 2,
-              borderColor: 'background.paper',
-            }}
-          >
-            {initial}
-          </Box>
+          <Tooltip key={a.participantId} title={participantName(p)}>
+            <Avatar
+              src={participantImage(p) ?? undefined}
+              sx={{
+                width: size,
+                height: size,
+                fontSize: 11,
+                border: 2,
+                borderColor: 'background.paper',
+                bgcolor: 'primary.main',
+                color: 'primary.contrastText',
+              }}
+            >
+              {participantInitials(p)}
+            </Avatar>
+          </Tooltip>
         )
       })}
+      {assignees.length > max ? (
+        <Avatar
+          sx={{
+            width: size,
+            height: size,
+            fontSize: 11,
+            border: 2,
+            borderColor: 'background.paper',
+            bgcolor: 'action.disabledBackground',
+            color: 'text.secondary',
+          }}
+        >
+          +{assignees.length - max}
+        </Avatar>
+      ) : null}
     </Stack>
   )
 }
