@@ -145,7 +145,7 @@ INSERT INTO "workspace_participants" ("workspace_id", "user_id", "full_name", "u
 SELECT DISTINCT
     p."workspace_id",
     ta."user_id",
-    COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u."first_name", u."last_name")), ''), u."email"),
+    COALESCE(NULLIF(TRIM(CONCAT_WS(' ', u."firstName", u."lastName")), ''), u."email"),
     CURRENT_TIMESTAMP
 FROM "task_assignees" ta
 JOIN "tasks" t ON t."id" = ta."task_id"
@@ -176,7 +176,7 @@ CREATE INDEX "task_assignees_participant_id_idx" ON "task_assignees"("participan
 ALTER TABLE "task_assignees" ADD CONSTRAINT "task_assignees_participant_id_fkey" FOREIGN KEY ("participant_id") REFERENCES "workspace_participants"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 ```
 
-> Note: column names in raw SQL use the `@map`-ed snake_case names (`first_name`, `last_name`, `email`, `page_id`, `workspace_id`). If the auto-generated SQL named the old FK constraint differently than `task_assignees_user_id_fkey`, use `DROP CONSTRAINT IF EXISTS` (already used above) — the `IF EXISTS` makes it safe.
+> Note: raw SQL must use each column's PHYSICAL name. `page_id`/`workspace_id`/`user_id` are `@map`-ed to snake_case, BUT `User.firstName`/`User.lastName`/`User.email` have NO `@map` — their physical columns are the quoted camelCase identifiers `"firstName"`/`"lastName"`/`"email"` (verify against `packages/db/prisma/schema.prisma` User model lines ~13-15). If the auto-generated SQL named the old FK constraint differently than `task_assignees_user_id_fkey`, use `DROP CONSTRAINT IF EXISTS` (already used above) — the `IF EXISTS` makes it safe.
 
 - [ ] **Step 6: Apply the migration and regenerate the client**
 
