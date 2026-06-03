@@ -49,7 +49,7 @@ model User {
   reminderRecipients         ReminderRecipient[]      @relation("ReminderRecipient")
   tasksCreated               Task[]                   @relation("TaskCreator")
   tasksUpdated               Task[]                   @relation("TaskUpdater")
-  taskAssignments            TaskAssignee[]
+  workspaceParticipants WorkspaceParticipant[]
   taskComments               TaskComment[]
   taskActivity               TaskActivity[]
   taskAttachments            TaskAttachment[]
@@ -329,6 +329,7 @@ model Workspace {
 
   createdBy             User?                  @relation("WorkspaceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   members               WorkspaceMember[]
+  participants          WorkspaceParticipant[]
   pages                 Page[]
   workspaceIntegrations Integration[]          @relation("WorkspaceIntegrations")
   defaultForUsers       UserPreference[]       @relation("DefaultWorkspace")
@@ -1207,16 +1208,34 @@ model Task {
   @@map("tasks")
 }
 
+model WorkspaceParticipant {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  userId      String?  @map("user_id") @db.Uuid
+  fullName    String   @map("full_name") @db.VarChar(64)
+  company     String?  @db.VarChar(64)
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace      @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User?          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tasks     TaskAssignee[]
+
+  @@unique([workspaceId, userId])
+  @@index([workspaceId])
+  @@map("workspace_participants")
+}
+
 model TaskAssignee {
-  taskId    String   @map("task_id") @db.Uuid
-  userId    String   @map("user_id") @db.Uuid
-  createdAt DateTime @default(now()) @map("created_at")
+  taskId        String   @map("task_id") @db.Uuid
+  participantId String   @map("participant_id") @db.Uuid
+  createdAt     DateTime @default(now()) @map("created_at")
 
-  task Task @relation(fields: [taskId], references: [id], onDelete: Cascade)
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  task        Task                 @relation(fields: [taskId], references: [id], onDelete: Cascade)
+  participant WorkspaceParticipant @relation(fields: [participantId], references: [id], onDelete: Cascade)
 
-  @@id([taskId, userId])
-  @@index([userId])
+  @@id([taskId, participantId])
+  @@index([participantId])
   @@map("task_assignees")
 }
 
