@@ -390,9 +390,7 @@ export function SprintSection(props: SprintSectionProps) {
               }
               onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
               strikeTitle={
-                shouldStrikeTerminalTasks && props.kind === 'sprint'
-                  ? isTerminalTask(task, props.columns)
-                  : false
+                shouldStrikeTerminalTasks ? isTerminalTask(task, props.columns) : false
               }
             />
           )}

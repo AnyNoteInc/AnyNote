@@ -53,6 +53,7 @@ export function TableView({ pageId, board, visibleTasks, editable = true }: Tabl
     onError: () => utils.kanban.board.getBoard.invalidate({ pageId }),
   })
   const setAssignees = trpc.kanban.task.setAssignees.useMutation({
+    onSuccess: () => utils.kanban.board.getBoard.invalidate({ pageId }),
     onError: () => utils.kanban.board.getBoard.invalidate({ pageId }),
   })
   const softDeleteTask = trpc.kanban.task.softDelete.useMutation({

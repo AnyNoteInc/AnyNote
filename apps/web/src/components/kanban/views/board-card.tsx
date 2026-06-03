@@ -31,6 +31,18 @@ interface BoardCardProps {
   readonly editable?: boolean
 }
 
+function readableTextColor(hex: string): string {
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(hex)
+  if (!m) return '#fff'
+  const int = parseInt(m[1]!, 16)
+  const r = (int >> 16) & 0xff
+  const g = (int >> 8) & 0xff
+  const b = int & 0xff
+  // Perceived luminance (sRGB) — dark text on light backgrounds.
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return luminance > 0.6 ? 'rgba(0, 0, 0, 0.87)' : '#fff'
+}
+
 const DATE_BADGE_STYLES: Record<
   CardDateTone,
   { color: string; borderColor: string; backgroundColor: string }
@@ -197,7 +209,7 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
                           label={item.label.name}
                           sx={{
                             height: 20, maxWidth: 96, borderRadius: 1,
-                            bgcolor: item.label.color, color: '#fff',
+                            bgcolor: item.label.color, color: readableTextColor(item.label.color),
                             '& .MuiChip-label': { px: 0.75, overflow: 'hidden', textOverflow: 'ellipsis' },
                           }}
                         />
