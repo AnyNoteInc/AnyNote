@@ -131,6 +131,33 @@ export const taskRouter = router({
       return { ok: true as const }
     }),
 
+  bulkSoftDelete: protectedProcedure
+    .input(z.object({ pageId: z.string().uuid(), ids: z.array(z.string().uuid()).min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      const page = await assertPageAccess(ctx, input.pageId)
+      const member = await ctx.prisma.workspaceMember.findUnique({
+        where: { workspaceId_userId: { workspaceId: page.workspaceId, userId: ctx.user.id } },
+      })
+      const isOwner = member?.role === 'OWNER'
+      const tasks = await ctx.prisma.task.findMany({
+        where: { id: { in: input.ids }, pageId: page.id, deletedAt: null },
+        select: { id: true, createdById: true },
+      })
+      const deletable = tasks
+        .filter((t) => isOwner || t.createdById === ctx.user.id)
+        .map((t) => t.id)
+      if (deletable.length > 0) {
+        await ctx.prisma.task.updateMany({
+          where: { id: { in: deletable } },
+          data: { deletedAt: new Date(), updatedById: ctx.user.id },
+        })
+        for (const id of deletable) {
+          kanbanBus.emit(page.id, { kind: 'task.deleted', taskId: id })
+        }
+      }
+      return { deletedIds: deletable }
+    }),
+
   archive: protectedProcedure
     .input(domain.taskIdInput)
     .mutation(async ({ ctx, input }) => {

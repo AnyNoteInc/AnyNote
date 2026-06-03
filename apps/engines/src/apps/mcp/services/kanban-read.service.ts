@@ -16,7 +16,7 @@ const TASK_SELECT = {
   sprint: { select: { id: true, name: true } },
   type: { select: { title: true } },
   priority: { select: { title: true } },
-  assignees: { select: { user: { select: { id: true, firstName: true, lastName: true } } } },
+  assignees: { select: { participant: { select: { user: { select: { id: true, firstName: true, lastName: true } } } } } },
 } as const
 
 type TaskRow = {
@@ -29,7 +29,7 @@ type TaskRow = {
   sprint: { id: string; name: string } | null
   type: { title: string } | null
   priority: { title: string } | null
-  assignees: { user: { id: string; firstName: string | null; lastName: string | null } }[]
+  assignees: { participant: { user: { id: string; firstName: string | null; lastName: string | null } | null } }[]
 }
 
 function mapTask(t: TaskRow) {
@@ -44,10 +44,13 @@ function mapTask(t: TaskRow) {
     dueDate: t.dueDate,
     startDate: t.startDate,
     archived: t.archived,
-    assignees: t.assignees.map((a) => ({
-      userId: a.user.id,
-      name: [a.user.firstName, a.user.lastName].filter(Boolean).join(' '),
-    })),
+    assignees: t.assignees
+      .map((a) => a.participant.user)
+      .filter((u): u is NonNullable<typeof u> => u !== null)
+      .map((u) => ({
+        userId: u.id,
+        name: [u.firstName, u.lastName].filter(Boolean).join(' '),
+      })),
   }
 }
 
@@ -122,7 +125,7 @@ export class KanbanReadService {
         : {}
     const assigneeFilter =
       filters.assignee !== undefined
-        ? { assignees: { some: { userId: this.gateway.resolveAssignee(userId, filters.assignee) } } }
+        ? { assignees: { some: { participant: { userId: this.gateway.resolveAssignee(userId, filters.assignee) } } } }
         : {}
     const tasks = (await this.prisma.task.findMany({
       where: {

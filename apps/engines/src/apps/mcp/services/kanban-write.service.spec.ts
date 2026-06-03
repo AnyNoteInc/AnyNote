@@ -37,7 +37,7 @@ function makeMockPrisma() {
   const taskAssigneeDeleteMany = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({ count: 0 }))
   const taskAssigneeCreateMany = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => ({ count: 0 }))
   const taskAssigneeFindMany = jest.fn<(...a: unknown[]) => Promise<unknown>>(async () => [
-    { userId: 'u2' },
+    { participant: { userId: 'u2' } },
   ])
 
   const tx = {
@@ -132,7 +132,9 @@ describe('KanbanWriteService', () => {
           return p.task.update({ where: { id: input.id }, data: { columnId: input.targetColumnId, updatedById: _uid } }) as Promise<{ id: string; pageId: string }>
         }),
         setTaskAssignees: jest.fn(async (_uid: string, input: Record<string, unknown>) => {
-          await p.taskAssignee.createMany({ data: (input.userIds as string[]).map((userId) => ({ taskId: input.id, userId })) })
+          // The domain lazily mirrors each desired user id into a participant row; the
+          // MCP write service passes the full desired user set via userIdsToMirror.
+          await p.taskAssignee.createMany({ data: (input.userIdsToMirror as string[]).map((userId) => ({ taskId: input.id, userId })) })
           return { ok: true as const }
         }),
         archiveTask: jest.fn(async (_uid: string, input: Record<string, unknown>) => {

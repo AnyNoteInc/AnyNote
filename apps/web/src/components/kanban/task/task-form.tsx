@@ -14,7 +14,6 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import {
   AdapterDateFns,
   Box,
-  Checkbox,
   Chip,
   DatePicker,
   dateFnsRu,
@@ -34,6 +33,7 @@ import { trpc } from '@/trpc/client'
 import type { BoardData, BoardTaskData } from '../types'
 import { TaskAttachments } from './task-attachments'
 import { ManageListPopover } from './manage-list-popover'
+import { ParticipantPicker } from './participant-picker'
 
 interface TaskFormProps {
   readonly pageId: string
@@ -41,10 +41,6 @@ interface TaskFormProps {
   readonly board: BoardData
   readonly currentUserId: string
   readonly editable?: boolean
-}
-
-function memberLabel(m: BoardData['members'][number]) {
-  return `${m.user.firstName ?? ''} ${m.user.lastName ?? ''}`.trim() || m.user.email
 }
 
 function readDescriptionJson(value: unknown): JSONContent | null {
@@ -99,11 +95,14 @@ export function TaskForm({ pageId, task, board, currentUserId, editable = true }
   const priorityCreate = trpc.kanban.priority.create.useMutation({ onSuccess: invalidateBoard })
   const labelCreate = trpc.kanban.label.create.useMutation({ onSuccess: invalidateBoard })
   const labelDelete = trpc.kanban.label.delete.useMutation({ onSuccess: invalidateBoard })
+  const participantCreate = trpc.kanban.participant.create.useMutation({ onSuccess: invalidateBoard })
 
   const [description, setDescription] = useState<JSONContent | null>(
     readDescriptionJson(task.description),
   )
-  const [assigneeIds, setAssigneeIds] = useState<string[]>(task.assignees.map((a) => a.user.id))
+  const [assigneeParticipantIds, setAssigneeParticipantIds] = useState<string[]>(
+    task.assignees.map((a) => a.participantId),
+  )
   const [labelIds, setLabelIds] = useState<string[]>(task.labels.map((l) => l.labelId))
   const [typeId, setTypeId] = useState<string>(task.typeId ?? '')
   const [priorityId, setPriorityId] = useState<string>(task.priorityId ?? '')
@@ -113,7 +112,10 @@ export function TaskForm({ pageId, task, board, currentUserId, editable = true }
   const [dueDate, setDueDate] = useState<Date | null>(toDate(task.dueDate))
   const [startDate, setStartDate] = useState<Date | null>(toDate(task.startDate))
 
-  useEffect(() => setAssigneeIds(task.assignees.map((a) => a.user.id)), [task.assignees])
+  useEffect(
+    () => setAssigneeParticipantIds(task.assignees.map((a) => a.participantId)),
+    [task.assignees],
+  )
   useEffect(() => setLabelIds(task.labels.map((l) => l.labelId)), [task.labels])
   useEffect(() => setTypeId(task.typeId ?? ''), [task.typeId])
   useEffect(() => setPriorityId(task.priorityId ?? ''), [task.priorityId])
@@ -198,12 +200,26 @@ export function TaskForm({ pageId, task, board, currentUserId, editable = true }
     setLabelIds(next)
     setLabels.mutate({ pageId, id: task.id, labelIds: next })
   }
-  function toggleAssignee(userId: string) {
-    const next = assigneeIds.includes(userId)
-      ? assigneeIds.filter((x) => x !== userId)
-      : [...assigneeIds, userId]
-    setAssigneeIds(next)
-    setAssignees.mutate({ pageId, id: task.id, userIds: next })
+  function applyAssignees(participantIds: string[], userIdsToMirror: string[]) {
+    setAssigneeParticipantIds(participantIds)
+    setAssignees.mutate({ pageId, id: task.id, participantIds, userIdsToMirror })
+  }
+  function assignExistingParticipant(participantId: string) {
+    applyAssignees([...assigneeParticipantIds, participantId], [])
+  }
+  function unassignParticipant(participantId: string) {
+    applyAssignees(assigneeParticipantIds.filter((x) => x !== participantId), [])
+  }
+  function mirrorMember(userId: string) {
+    applyAssignees(assigneeParticipantIds, [userId])
+  }
+  async function createGuestAndAssign(input: { fullName: string; company: string | null }) {
+    const created = await participantCreate.mutateAsync({
+      workspaceId: board.workspaceId,
+      fullName: input.fullName,
+      company: input.company ?? undefined,
+    })
+    applyAssignees([...assigneeParticipantIds, created.id], [])
   }
   function selectParent(value: string) {
     setParentId(value)
@@ -269,8 +285,12 @@ export function TaskForm({ pageId, task, board, currentUserId, editable = true }
             onClick={openPopover('dates')}
           />
           <ActionChip
-            label={assigneeIds.length > 0 ? `Участники (${assigneeIds.length})` : 'Участники'}
-            highlighted={assigneeIds.length > 0}
+            label={
+              assigneeParticipantIds.length > 0
+                ? `Участники (${assigneeParticipantIds.length})`
+                : 'Участники'
+            }
+            highlighted={assigneeParticipantIds.length > 0}
             onClick={openPopover('assignees')}
           />
           <ActionChip
@@ -424,57 +444,15 @@ export function TaskForm({ pageId, task, board, currentUserId, editable = true }
           transitionDuration={0}
         >
           {popover === 'assignees' ? (
-            <Box sx={{ p: 1.5, minWidth: 280, maxWidth: 320 }}>
-              <Typography
-                variant="caption"
-                color="text.secondary"
-                sx={{ display: 'block', mb: 1, fontWeight: 600 }}
-              >
-                Исполнители
-              </Typography>
-              {board.members.length === 0 ? (
-                <Typography variant="body2" color="text.secondary">
-                  В рабочей области нет участников
-                </Typography>
-              ) : (
-                <Stack spacing={0.25} sx={{ maxHeight: 320, overflowY: 'auto' }}>
-                  {board.members.map((m) => {
-                    const checked = assigneeIds.includes(m.user.id)
-                    return (
-                      <Stack
-                        key={m.user.id}
-                        direction="row"
-                        alignItems="center"
-                        spacing={1}
-                        onClick={() => toggleAssignee(m.user.id)}
-                        sx={{
-                          px: 0.5,
-                          py: 0.25,
-                          borderRadius: 1,
-                          cursor: 'pointer',
-                          bgcolor: checked ? 'action.selected' : 'transparent',
-                          '&:hover': { bgcolor: 'action.hover' },
-                        }}
-                      >
-                        <Checkbox checked={checked} size="small" sx={{ p: 0.5 }} />
-                        <Box
-                          sx={{
-                            flex: 1,
-                            minWidth: 0,
-                            fontSize: 14,
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            whiteSpace: 'nowrap',
-                          }}
-                        >
-                          {memberLabel(m)}
-                        </Box>
-                      </Stack>
-                    )
-                  })}
-                </Stack>
-              )}
-            </Box>
+            <ParticipantPicker
+              members={board.members}
+              participants={board.participants}
+              selectedParticipantIds={assigneeParticipantIds}
+              onAssignParticipant={assignExistingParticipant}
+              onMirrorMember={mirrorMember}
+              onUnassign={unassignParticipant}
+              onCreateGuest={createGuestAndAssign}
+            />
           ) : null}
         </Popover>
 

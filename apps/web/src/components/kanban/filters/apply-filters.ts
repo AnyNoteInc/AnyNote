@@ -66,7 +66,9 @@ export function applyFilters(
     }
 
     if (filters.userIds.length > 0) {
-      const assigneeIds = task.assignees.map((a) => a.userId)
+      const assigneeIds = task.assignees
+        .map((a) => a.participant.userId)
+        .filter((id): id is string => Boolean(id))
       if (!intersects(filters.userIds, assigneeIds)) return false
     }
 

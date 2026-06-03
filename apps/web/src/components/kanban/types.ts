@@ -8,6 +8,38 @@ export interface BoardMember {
     firstName: string | null
     lastName: string | null
     email: string
+    image: string | null
+  }
+}
+
+export interface BoardParticipant {
+  id: string
+  userId: string | null
+  fullName: string
+  company: string | null
+  user: {
+    id: string
+    firstName: string | null
+    lastName: string | null
+    email: string
+    image: string | null
+  } | null
+}
+
+export interface BoardAssignee {
+  participantId: string
+  participant: {
+    id: string
+    userId: string | null
+    fullName: string
+    company: string | null
+    user: {
+      id: string
+      firstName: string | null
+      lastName: string | null
+      email: string
+      image: string | null
+    } | null
   }
 }
 
@@ -44,10 +76,7 @@ export interface BoardTaskData {
   archived: boolean
   deletedAt: DateInput
   createdById: string
-  assignees: Array<{
-    userId: string
-    user: { id: string; firstName: string | null; lastName: string | null; email: string }
-  }>
+  assignees: BoardAssignee[]
   labels: Array<{ labelId: string; label: BoardLabelRow }>
 }
 
@@ -67,6 +96,7 @@ export interface BoardData {
   }>
   tasks: BoardTaskData[]
   members: BoardMember[]
+  participants: BoardParticipant[]
   currentUserId: string
   workspaceId: string
 }

@@ -14,6 +14,9 @@ import { TaskDetailContainer } from './task/task-detail-container'
 import { useKanbanEvents } from './realtime/use-kanban-events'
 import { useKanbanFilters } from './use-kanban-filters'
 import { applyFilters } from './filters/apply-filters'
+import { resolveAddSprintId } from './lib/resolve-add-sprint'
+import { SelectionProvider } from './selection/selection-context'
+import { BulkActionBar } from './selection/bulk-action-bar'
 import type { BoardData } from './types'
 
 interface KanbanBoardPageProps {
@@ -77,45 +80,51 @@ export function KanbanBoardPage({
     )
   }
 
+  const addSprintId = resolveAddSprintId(filtersBag.filters.sprint, board.sprints)
+
   return (
-    <Stack sx={{ height: '100%', minHeight: 0, overflow: 'hidden', bgcolor: 'background.paper' }}>
-      <KanbanToolbar pageId={pageId} filtersBag={filtersBag} board={board} editable={editable} />
-      <Box sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: 'background.paper' }}>
-        {!isTaskDetailOpen && (
-          <>
-            {filtersBag.view === 'board' && (
-              <BoardView
-                pageId={pageId}
-                board={board}
-                visibleTasks={visibleTasks}
-                editable={editable}
-              />
-            )}
-            {filtersBag.view === 'table' && (
-              <TableView
-                pageId={pageId}
-                board={board}
-                visibleTasks={tableViewTasks}
-                editable={editable}
-              />
-            )}
-            {filtersBag.view === 'gantt' && (
-              <GanttView
-                pageId={pageId}
-                board={board}
-                visibleTasks={visibleTasks}
-                editable={editable}
-              />
-            )}
-          </>
-        )}
-      </Box>
-      <TaskDetailContainer
-        pageId={pageId}
-        board={board}
-        editable={editable}
-        canComment={canComment}
-      />
-    </Stack>
+    <SelectionProvider>
+      <Stack sx={{ height: '100%', minHeight: 0, overflow: 'hidden', bgcolor: 'background.paper' }}>
+        <KanbanToolbar pageId={pageId} filtersBag={filtersBag} board={board} editable={editable} />
+        <Box sx={{ flex: 1, overflow: 'auto', p: 2, bgcolor: 'background.paper' }}>
+          {!isTaskDetailOpen && (
+            <>
+              {filtersBag.view === 'board' && (
+                <BoardView
+                  pageId={pageId}
+                  board={board}
+                  visibleTasks={visibleTasks}
+                  editable={editable}
+                  addSprintId={addSprintId}
+                />
+              )}
+              {filtersBag.view === 'table' && (
+                <TableView
+                  pageId={pageId}
+                  board={board}
+                  visibleTasks={tableViewTasks}
+                  editable={editable}
+                />
+              )}
+              {filtersBag.view === 'gantt' && (
+                <GanttView
+                  pageId={pageId}
+                  board={board}
+                  visibleTasks={visibleTasks}
+                  editable={editable}
+                />
+              )}
+            </>
+          )}
+          {editable ? <BulkActionBar pageId={pageId} board={board} /> : null}
+        </Box>
+        <TaskDetailContainer
+          pageId={pageId}
+          board={board}
+          editable={editable}
+          canComment={canComment}
+        />
+      </Stack>
+    </SelectionProvider>
   )
 }

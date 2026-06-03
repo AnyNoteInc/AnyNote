@@ -20,6 +20,7 @@ import { SprintCreateDialog } from '../sprint/sprint-create-dialog'
 import { sprintStatusLabel } from '../sprint/sprint-status-label'
 import { SprintSection } from './sprint-section'
 import { positionBetween } from '../lib/positions'
+import { useSelection } from '../selection/selection-context'
 import type { BoardData, BoardTaskData } from '../types'
 import {
   DEFAULT_VISIBLE_SPRINT_STATUSES,
@@ -49,10 +50,12 @@ function tasksSortKey(t: BoardTaskData): number {
 
 export function TableView({ pageId, board, visibleTasks, editable = true }: TableViewProps) {
   const utils = trpc.useUtils()
+  const { selected, clear } = useSelection()
   const updateTask = trpc.kanban.task.update.useMutation({
     onError: () => utils.kanban.board.getBoard.invalidate({ pageId }),
   })
   const setAssignees = trpc.kanban.task.setAssignees.useMutation({
+    onSuccess: () => utils.kanban.board.getBoard.invalidate({ pageId }),
     onError: () => utils.kanban.board.getBoard.invalidate({ pageId }),
   })
   const softDeleteTask = trpc.kanban.task.softDelete.useMutation({
@@ -132,29 +135,51 @@ export function TableView({ pageId, board, visibleTasks, editable = true }: Tabl
     if (!result.destination) return
     const sourceId = result.source.droppableId
     const destId = result.destination.droppableId
+    const draggedId = result.draggableId
     if (sourceId === destId && result.source.index === result.destination.index) return
 
     const targetSprintId = sectionKey(destId)
     const destList = grouped.get(targetSprintId) ?? []
-    const filtered = destList.filter((t) => t.id !== result.draggableId)
+
+    const isMulti = selected.has(draggedId) && selected.size > 1
+    const movingIds = isMulti
+      ? [...board.tasks]
+          .filter((t) => selected.has(t.id))
+          .sort((a, b) => tasksSortKey(a) - tasksSortKey(b))
+          .map((t) => t.id)
+      : [draggedId]
+
+    const filtered = destList.filter((t) => !movingIds.includes(t.id))
     const before = filtered[result.destination.index - 1] ?? null
     const after = filtered[result.destination.index] ?? null
-    const newSprintPosition = positionBetween(
-      before ? tasksSortKey(before) : null,
-      after ? tasksSortKey(after) : null,
+
+    let prevPos = before ? tasksSortKey(before) : null
+    const nextPos = after ? tasksSortKey(after) : null
+    const placements = movingIds.map((id) => {
+      const pos = positionBetween(prevPos, nextPos)
+      prevPos = pos
+      return { id, pos }
+    })
+
+    for (const placement of placements) {
+      patchTaskOptimistic(placement.id, {
+        sprintId: targetSprintId,
+        sprintPosition: placement.pos,
+      })
+    }
+
+    await Promise.all(
+      placements.map((placement) =>
+        updateTask.mutateAsync({
+          pageId,
+          id: placement.id,
+          sprintId: targetSprintId,
+          sprintPosition: placement.pos,
+        }),
+      ),
     )
 
-    patchTaskOptimistic(result.draggableId, {
-      sprintId: targetSprintId,
-      sprintPosition: newSprintPosition,
-    })
-
-    await updateTask.mutateAsync({
-      pageId,
-      id: result.draggableId,
-      sprintId: targetSprintId,
-      sprintPosition: newSprintPosition,
-    })
+    if (isMulti) clear()
   }
 
   function removeFromSprint(taskId: string) {
@@ -164,23 +189,18 @@ export function TableView({ pageId, board, visibleTasks, editable = true }: Tabl
 
   function assignTaskToMe(taskId: string) {
     const task = board.tasks.find((candidate) => candidate.id === taskId)
-    if (!task || task.assignees.some((assignee) => assignee.userId === board.currentUserId)) {
+    if (
+      !task ||
+      task.assignees.some((assignee) => assignee.participant.userId === board.currentUserId)
+    ) {
       return
     }
-
-    const currentMember = board.members.find((member) => member.user.id === board.currentUserId)
-    const nextUserIds = [...task.assignees.map((assignee) => assignee.userId), board.currentUserId]
-
-    if (currentMember) {
-      patchTaskOptimistic(taskId, {
-        assignees: [
-          ...task.assignees,
-          { userId: board.currentUserId, user: currentMember.user },
-        ],
-      })
-    }
-
-    setAssignees.mutate({ pageId, id: taskId, userIds: nextUserIds })
+    setAssignees.mutate({
+      pageId,
+      id: taskId,
+      participantIds: task.assignees.map((a) => a.participantId),
+      userIdsToMirror: [board.currentUserId],
+    })
   }
 
   function deleteTask(taskId: string) {

@@ -49,6 +49,7 @@ describe('kanban.board.getBoard', () => {
       workspaceMember: {
         findMany: vi.fn().mockResolvedValue([{ userId: USER_ID, role: 'OWNER' }]),
       },
+      workspaceParticipant: { findMany: vi.fn().mockResolvedValue([]) },
     } as unknown as PrismaClient
 
     const caller = createCallerFactory(boardRouter)(ctx(prisma))
@@ -57,6 +58,7 @@ describe('kanban.board.getBoard', () => {
     expect(result.columns).toHaveLength(1)
     expect(result.tasks).toHaveLength(1)
     expect(result.members).toHaveLength(1)
+    expect(result.participants).toHaveLength(0)
     expect(prisma.task.findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: { pageId: PAGE_ID, deletedAt: null, archived: false },

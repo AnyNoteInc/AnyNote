@@ -2,13 +2,16 @@ import { badRequest, conflict, forbidden, notFound } from '../../shared/errors.t
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 import type {
   CompleteSprintInput,
+  CreateParticipantInput,
   CreateSprintInput,
   CreateTaskCommentInput,
   CreateTaskInput,
   MoveTaskInput,
+  ParticipantIdInput,
   SetTaskAssigneesInput,
   SprintIdInput,
   TaskIdInput,
+  UpdateParticipantInput,
   UpdateTaskInput,
 } from '../dto/kanban.dto.ts'
 import { endPosition, positionBetween } from '../helpers.ts'
@@ -199,20 +202,85 @@ export class KanbanService {
     const current = await this.repo.findTaskForAssignees(input.id)
     if (current.pageId !== page.id) throw notFound('Задача не найдена')
 
-    const currentIds = new Set(current.assignees.map((a) => a.userId))
-    const targetIds = new Set(input.userIds)
-    const toRemove = [...currentIds].filter((id) => !targetIds.has(id))
-    const toAdd = [...targetIds].filter((id) => !currentIds.has(id))
+    return this.uow.transaction(async () => {
+      // Mirror any raw user ids into participant rows for this workspace.
+      const mirroredIds: string[] = []
+      for (const userId of input.userIdsToMirror) {
+        const p = await this.repo.findOrCreateUserParticipant(page.workspaceId, userId)
+        mirroredIds.push(p.id)
+      }
+      const targetIds = new Set([...input.participantIds, ...mirroredIds])
 
-    await this.uow.transaction(async () => {
+      // Validate every target participant belongs to this workspace.
+      if (targetIds.size > 0) {
+        const rows = await this.repo.findParticipantWorkspaceIds([...targetIds])
+        for (const id of targetIds) {
+          const row = rows.find((r) => r.id === id)
+          if (!row || row.workspaceId !== page.workspaceId)
+            throw badRequest('Участник не принадлежит рабочей области')
+        }
+      }
+
+      const currentIds = new Set(current.assignees.map((a) => a.participantId))
+      const toRemove = [...currentIds].filter((id) => !targetIds.has(id))
+      const toAdd = [...targetIds].filter((id) => !currentIds.has(id))
+
       if (toRemove.length > 0) await this.repo.deleteAssignees(input.id, toRemove)
       if (toAdd.length > 0) await this.repo.createAssignees(input.id, toAdd)
       const activityRows = [
-        ...toRemove.map((userId) => ({ taskId: input.id, actorId: actorUserId, type: 'UNASSIGNED' as const, payload: { userId } })),
-        ...toAdd.map((userId) => ({ taskId: input.id, actorId: actorUserId, type: 'ASSIGNED' as const, payload: { userId } })),
+        ...toRemove.map((participantId) => ({ taskId: input.id, actorId: actorUserId, type: 'UNASSIGNED' as const, payload: { participantId } })),
+        ...toAdd.map((participantId) => ({ taskId: input.id, actorId: actorUserId, type: 'ASSIGNED' as const, payload: { participantId } })),
       ]
       if (activityRows.length > 0) await this.repo.createActivityMany(activityRows)
+      return { ok: true as const }
     })
+  }
+
+  // ── Participant operations ────────────────────────────────────────────────
+
+  private async assertWorkspaceMember(userId: string, workspaceId: string): Promise<void> {
+    const role = await this.repo.findMembershipRole(userId, workspaceId)
+    if (!role) throw forbidden('Недостаточно прав')
+  }
+
+  private async assertCanManageParticipants(userId: string, workspaceId: string): Promise<void> {
+    const role = await this.repo.findMembershipRole(userId, workspaceId)
+    if (role !== 'OWNER' && role !== 'ADMIN' && role !== 'EDITOR') {
+      throw forbidden('Недостаточно прав на управление участниками')
+    }
+  }
+
+  async listParticipants(actorUserId: string, workspaceId: string) {
+    await this.assertWorkspaceMember(actorUserId, workspaceId)
+    return this.repo.listParticipants(workspaceId)
+  }
+
+  async createParticipant(actorUserId: string, input: CreateParticipantInput) {
+    await this.assertCanManageParticipants(actorUserId, input.workspaceId)
+    return this.repo.createGuestParticipant({
+      workspaceId: input.workspaceId,
+      fullName: input.fullName,
+      company: input.company ?? null,
+    })
+  }
+
+  async updateParticipant(actorUserId: string, input: UpdateParticipantInput) {
+    await this.assertCanManageParticipants(actorUserId, input.workspaceId)
+    const existing = await this.repo.findParticipantById(input.id)
+    if (!existing || existing.workspaceId !== input.workspaceId) throw notFound('Участник не найден')
+    if (existing.userId) throw conflict('Этот участник связан с пользователем и не редактируется')
+    return this.repo.updateGuestParticipant(input.id, {
+      fullName: input.fullName,
+      company: input.company ?? null,
+    })
+  }
+
+  async deleteParticipant(actorUserId: string, input: ParticipantIdInput) {
+    await this.assertCanManageParticipants(actorUserId, input.workspaceId)
+    const existing = await this.repo.findParticipantById(input.id)
+    if (!existing || existing.workspaceId !== input.workspaceId) throw notFound('Участник не найден')
+    if (existing.userId) throw conflict('Этот участник связан с пользователем и не удаляется')
+    await this.repo.deleteParticipant(input.id)
     return { ok: true as const }
   }
 

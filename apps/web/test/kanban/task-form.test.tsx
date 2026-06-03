@@ -52,6 +52,9 @@ vi.mock('@/trpc/client', () => ({
         create: { useMutation: mutation },
         delete: { useMutation: mutation },
       },
+      participant: {
+        create: { useMutation: mutation },
+      },
     },
   },
 }))
@@ -95,6 +98,7 @@ function board(tasks: BoardTaskData[], overrides: Partial<BoardData> = {}): Boar
     sprints: [],
     tasks,
     members: [],
+    participants: [],
     currentUserId: CURRENT_USER_ID,
     workspaceId: 'workspace-1',
     ...overrides,

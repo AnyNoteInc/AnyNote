@@ -43,7 +43,7 @@ describe('KanbanReadService', () => {
         sprint: { id: 's1', name: 'S1' },
         type: { title: 'Задача' },
         priority: { title: 'High' },
-        assignees: [{ user: { id: 'u2', firstName: 'Ann', lastName: 'Lee' } }],
+        assignees: [{ participant: { user: { id: 'u2', firstName: 'Ann', lastName: 'Lee' } } }],
       },
     ])
     const out = await svc.listTasks('u1', 'w1', undefined, { assignee: 'me' })
@@ -53,7 +53,7 @@ describe('KanbanReadService', () => {
       sprint: 'S1',
       assignees: [{ userId: 'u2', name: 'Ann Lee' }],
     })
-    const where = (taskFindMany.mock.calls[0]![0] as { where: { assignees?: { some: { userId: string } } } }).where
-    expect(where.assignees?.some.userId).toBe('u1')
+    const where = (taskFindMany.mock.calls[0]![0] as { where: { assignees?: { some: { participant: { userId: string } } } } }).where
+    expect(where.assignees?.some.participant.userId).toBe('u1')
   })
 })

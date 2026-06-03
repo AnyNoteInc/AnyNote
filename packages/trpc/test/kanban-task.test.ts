@@ -19,11 +19,15 @@ vi.mock('../src/domain', () => ({ domain: { kanban: kanbanMocks } }))
 import type { PrismaClient } from '@repo/db'
 
 import { taskRouter } from '../src/routers/kanban/task'
+import { kanbanBus } from '../src/realtime/kanban-bus'
 import { createCallerFactory } from '../src/trpc'
 
 const USER_ID = '00000000-0000-0000-0000-000000000001'
+const OTHER_USER = '00000000-0000-0000-0000-0000000000be'
 const WORKSPACE_ID = '00000000-0000-0000-0000-000000000002'
 const PAGE_ID = '00000000-0000-0000-0000-000000000003'
+const TASK_MINE = '00000000-0000-0000-0000-0000000000a1'
+const TASK_OTHER = '00000000-0000-0000-0000-0000000000a2'
 
 function ctx(prisma: PrismaClient) {
   return {
@@ -106,12 +110,14 @@ describe('kanban.task.setAssignees', () => {
     const result = await caller.setAssignees({
       pageId: PAGE_ID,
       id: '00000000-0000-0000-0000-0000000000a1',
-      userIds: ['00000000-0000-0000-0000-0000000000b2'],
+      participantIds: ['00000000-0000-0000-0000-0000000000b2'],
+      userIdsToMirror: [],
     })
 
     expect(kanbanMocks.setTaskAssignees).toHaveBeenCalledWith(USER_ID, expect.objectContaining({
       id: '00000000-0000-0000-0000-0000000000a1',
-      userIds: ['00000000-0000-0000-0000-0000000000b2'],
+      participantIds: ['00000000-0000-0000-0000-0000000000b2'],
+      userIdsToMirror: [],
     }))
     expect(result.ok).toBe(true)
   })
@@ -192,6 +198,87 @@ describe('kanban.task.softDelete', () => {
 
     const caller = createCallerFactory(taskRouter)(ctx(prisma))
     await expect(caller.softDelete({ pageId: PAGE_ID, id: '00000000-0000-0000-0000-0000000000a1' })).rejects.toThrow(/прав/i)
+  })
+})
+
+describe('kanban.task.bulkSoftDelete', () => {
+  it('a non-owner non-creator only deletes their own tasks', async () => {
+    const updateMany = vi.fn().mockResolvedValue({ count: 1 })
+    const prisma = {
+      page: { findFirst: vi.fn().mockResolvedValue(pageRow) },
+      workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'EDITOR' }) },
+      task: {
+        findMany: vi.fn().mockResolvedValue([
+          { id: TASK_MINE, createdById: USER_ID },
+          { id: TASK_OTHER, createdById: OTHER_USER },
+        ]),
+        updateMany,
+      },
+    } as unknown as PrismaClient
+
+    const emitSpy = vi.spyOn(kanbanBus, 'emit')
+    const caller = createCallerFactory(taskRouter)(ctx(prisma))
+    const result = await caller.bulkSoftDelete({ pageId: PAGE_ID, ids: [TASK_MINE, TASK_OTHER] })
+
+    expect(result).toEqual({ deletedIds: [TASK_MINE] })
+    expect(updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: { in: [TASK_MINE] } },
+        data: expect.objectContaining({ deletedAt: expect.any(Date), updatedById: USER_ID }),
+      }),
+    )
+    expect(emitSpy).toHaveBeenCalledTimes(1)
+    expect(emitSpy).toHaveBeenCalledWith(PAGE_ID, { kind: 'task.deleted', taskId: TASK_MINE })
+    emitSpy.mockRestore()
+  })
+
+  it('an OWNER deletes every requested task regardless of creator', async () => {
+    const updateMany = vi.fn().mockResolvedValue({ count: 2 })
+    const prisma = {
+      page: { findFirst: vi.fn().mockResolvedValue(pageRow) },
+      workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) },
+      task: {
+        findMany: vi.fn().mockResolvedValue([
+          { id: TASK_MINE, createdById: OTHER_USER },
+          { id: TASK_OTHER, createdById: USER_ID },
+        ]),
+        updateMany,
+      },
+    } as unknown as PrismaClient
+
+    const emitSpy = vi.spyOn(kanbanBus, 'emit')
+    const caller = createCallerFactory(taskRouter)(ctx(prisma))
+    const result = await caller.bulkSoftDelete({ pageId: PAGE_ID, ids: [TASK_MINE, TASK_OTHER] })
+
+    expect(result).toEqual({ deletedIds: [TASK_MINE, TASK_OTHER] })
+    expect(updateMany).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { id: { in: [TASK_MINE, TASK_OTHER] } } }),
+    )
+    expect(emitSpy).toHaveBeenCalledTimes(2)
+    expect(emitSpy).toHaveBeenCalledWith(PAGE_ID, { kind: 'task.deleted', taskId: TASK_MINE })
+    expect(emitSpy).toHaveBeenCalledWith(PAGE_ID, { kind: 'task.deleted', taskId: TASK_OTHER })
+    emitSpy.mockRestore()
+  })
+
+  it('deletes nothing and skips updateMany when no task is deletable', async () => {
+    const updateMany = vi.fn().mockResolvedValue({ count: 0 })
+    const prisma = {
+      page: { findFirst: vi.fn().mockResolvedValue(pageRow) },
+      workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'EDITOR' }) },
+      task: {
+        findMany: vi.fn().mockResolvedValue([{ id: TASK_OTHER, createdById: OTHER_USER }]),
+        updateMany,
+      },
+    } as unknown as PrismaClient
+
+    const emitSpy = vi.spyOn(kanbanBus, 'emit')
+    const caller = createCallerFactory(taskRouter)(ctx(prisma))
+    const result = await caller.bulkSoftDelete({ pageId: PAGE_ID, ids: [TASK_OTHER] })
+
+    expect(result).toEqual({ deletedIds: [] })
+    expect(updateMany).not.toHaveBeenCalled()
+    expect(emitSpy).not.toHaveBeenCalled()
+    emitSpy.mockRestore()
   })
 })
 

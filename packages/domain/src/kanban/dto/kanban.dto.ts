@@ -53,9 +53,36 @@ export type MoveTaskInput = z.infer<typeof moveTaskInput>
 export const setTaskAssigneesInput = z.object({
   pageId: z.string().uuid(),
   id: z.string().uuid(),
-  userIds: z.array(z.string().uuid()),
+  participantIds: z.array(z.string().uuid()),
+  userIdsToMirror: z.array(z.string().uuid()),
 })
 export type SetTaskAssigneesInput = z.infer<typeof setTaskAssigneesInput>
+
+export const createParticipantInput = z.object({
+  workspaceId: z.string().uuid(),
+  fullName: z.string().min(1).max(64),
+  company: z.string().max(64).optional(),
+})
+export type CreateParticipantInput = z.infer<typeof createParticipantInput>
+
+export const updateParticipantInput = z.object({
+  workspaceId: z.string().uuid(),
+  id: z.string().uuid(),
+  fullName: z.string().min(1).max(64),
+  company: z.string().max(64).nullable().optional(),
+})
+export type UpdateParticipantInput = z.infer<typeof updateParticipantInput>
+
+export const participantIdInput = z.object({
+  workspaceId: z.string().uuid(),
+  id: z.string().uuid(),
+})
+export type ParticipantIdInput = z.infer<typeof participantIdInput>
+
+export const listParticipantsInput = z.object({
+  workspaceId: z.string().uuid(),
+})
+export type ListParticipantsInput = z.infer<typeof listParticipantsInput>
 
 export const taskIdInput = z.object({ pageId: z.string().uuid(), id: z.string().uuid() })
 export type TaskIdInput = z.infer<typeof taskIdInput>

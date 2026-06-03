@@ -21,6 +21,7 @@ const board: BoardData = {
   sprints: [],
   tasks: [],
   members: [],
+  participants: [],
   currentUserId: 'u1',
   workspaceId: 'w1',
 }

@@ -20,6 +20,7 @@ import { ru as dateFnsRuLocale } from 'date-fns/locale'
 import {
   AddIcon,
   Box,
+  Checkbox,
   Chip,
   DeleteIcon,
   Divider,
@@ -38,6 +39,7 @@ import {
 
 import type { BoardColumnRow, BoardData, BoardTaskData } from '../types'
 import { AssigneeAvatars } from '../components/assignee-avatars'
+import { useSelection } from '../selection/selection-context'
 import { toDate } from '../lib/dates'
 import { SprintMenu } from '../sprint/sprint-menu'
 import { sprintStatusColor, sprintStatusLabel } from '../sprint/sprint-status-label'
@@ -95,8 +97,8 @@ type SprintSectionProps =
 interface TaskRowProps {
   readonly task: BoardTaskData
   readonly provided: DraggableProvided
-  readonly memberLookup: (userId: string) => { firstName: string | null; email: string } | undefined
   readonly currentUserId: string
+  readonly editable?: boolean
   readonly onOpen: (taskId: string) => void
   readonly onAssignToMe?: () => void
   readonly onRemoveFromSprint?: () => void
@@ -107,16 +109,17 @@ interface TaskRowProps {
 function TaskRow({
   task,
   provided,
-  memberLookup,
   currentUserId,
+  editable = true,
   onOpen,
   onAssignToMe,
   onRemoveFromSprint,
   onDeleteTask,
   strikeTitle = false,
 }: TaskRowProps) {
+  const { selected, toggle } = useSelection()
   const canAssignToMe = Boolean(
-    onAssignToMe && !task.assignees.some((assignee) => assignee.userId === currentUserId),
+    onAssignToMe && !task.assignees.some((assignee) => assignee.participant.userId === currentUserId),
   )
   const hasActions = canAssignToMe || Boolean(onRemoveFromSprint || onDeleteTask)
 
@@ -137,6 +140,16 @@ function TaskRow({
         '&:hover': { bgcolor: 'action.hover' },
       }}
     >
+      {editable ? (
+        <Checkbox
+          size="small"
+          checked={selected.has(task.id)}
+          onClick={(e) => e.stopPropagation()}
+          onChange={() => toggle(task.id)}
+          inputProps={{ 'aria-label': `Выбрать задачу: ${task.title}` }}
+          sx={{ p: 0.5 }}
+        />
+      ) : null}
       <Typography
         variant="body2"
         sx={{
@@ -147,7 +160,7 @@ function TaskRow({
       >
         {task.title}
       </Typography>
-      <AssigneeAvatars assignees={task.assignees} memberLookup={memberLookup} size={22} />
+      <AssigneeAvatars assignees={task.assignees} size={22} />
       {task.dueDate ? (
         <Typography variant="caption" color="text.secondary">
           {new Date(task.dueDate).toLocaleDateString('ru-RU')}
@@ -363,14 +376,6 @@ export function SprintSection(props: SprintSectionProps) {
     },
     [router, searchParams],
   )
-  const memberLookup = useCallback(
-    (userId: string) => {
-      const m = props.members.find((x) => x.user.id === userId)
-      return m ? { firstName: m.user.firstName, email: m.user.email } : undefined
-    },
-    [props.members],
-  )
-
   const canEdit = props.editable ?? true
   const onRemoveTaskFromSprint = props.kind === 'sprint' ? props.onRemoveTaskFromSprint : undefined
   const onAssignTaskToMe = props.onAssignTaskToMe
@@ -392,8 +397,8 @@ export function SprintSection(props: SprintSectionProps) {
             <TaskRow
               task={task}
               provided={p}
-              memberLookup={memberLookup}
               currentUserId={props.currentUserId}
+              editable={canEdit}
               onOpen={open}
               onAssignToMe={onAssignTaskToMe ? () => onAssignTaskToMe(task.id) : undefined}
               onRemoveFromSprint={
@@ -401,9 +406,7 @@ export function SprintSection(props: SprintSectionProps) {
               }
               onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
               strikeTitle={
-                shouldStrikeTerminalTasks && props.kind === 'sprint'
-                  ? isTerminalTask(task, props.columns)
-                  : false
+                shouldStrikeTerminalTasks ? isTerminalTask(task, props.columns) : false
               }
             />
           )}

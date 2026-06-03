@@ -90,8 +90,34 @@ describe('applyFilters', () => {
     const u1 = '11111111-1111-1111-1111-111111111111'
     const u2 = '22222222-2222-2222-2222-222222222222'
     const tasks = [
-      task('a', { assignees: [{ userId: u1, user: { id: u1, firstName: null, lastName: null, email: '' } }] }),
-      task('b', { assignees: [{ userId: u2, user: { id: u2, firstName: null, lastName: null, email: '' } }] }),
+      task('a', {
+        assignees: [
+          {
+            participantId: 'pa1',
+            participant: {
+              id: 'pa1',
+              userId: u1,
+              fullName: 'U1',
+              company: null,
+              user: { id: u1, firstName: null, lastName: null, email: '', image: null },
+            },
+          },
+        ],
+      }),
+      task('b', {
+        assignees: [
+          {
+            participantId: 'pb1',
+            participant: {
+              id: 'pb1',
+              userId: u2,
+              fullName: 'U2',
+              company: null,
+              user: { id: u2, firstName: null, lastName: null, email: '', image: null },
+            },
+          },
+        ],
+      }),
       task('c'),
     ]
     const filters: KanbanFilters = { ...EMPTY_FILTERS, userIds: [u1] }

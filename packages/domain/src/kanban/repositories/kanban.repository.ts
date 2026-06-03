@@ -36,6 +36,92 @@ export class KanbanRepository {
     return member?.role ?? null
   }
 
+  // ── Participant queries ───────────────────────────────────────────────────
+
+  async listParticipants(
+    workspaceId: string,
+  ): Promise<{ id: string; userId: string | null; fullName: string; company: string | null }[]> {
+    return this.uow.client().workspaceParticipant.findMany({
+      where: { workspaceId },
+      select: { id: true, userId: true, fullName: true, company: true },
+      orderBy: { fullName: 'asc' },
+    })
+  }
+
+  async findParticipantById(
+    id: string,
+  ): Promise<{ id: string; workspaceId: string; userId: string | null } | null> {
+    return this.uow.client().workspaceParticipant.findUnique({
+      where: { id },
+      select: { id: true, workspaceId: true, userId: true },
+    })
+  }
+
+  async createGuestParticipant(data: {
+    workspaceId: string
+    fullName: string
+    company: string | null
+  }): Promise<{
+    id: string
+    workspaceId: string
+    userId: string | null
+    fullName: string
+    company: string | null
+  }> {
+    return this.uow.client().workspaceParticipant.create({
+      data: {
+        workspaceId: data.workspaceId,
+        userId: null,
+        fullName: data.fullName,
+        company: data.company,
+      },
+      select: { id: true, workspaceId: true, userId: true, fullName: true, company: true },
+    })
+  }
+
+  async updateGuestParticipant(
+    id: string,
+    data: { fullName: string; company: string | null },
+  ): Promise<{ id: string; fullName: string; company: string | null }> {
+    return this.uow.client().workspaceParticipant.update({
+      where: { id },
+      data,
+      select: { id: true, fullName: true, company: true },
+    })
+  }
+
+  async deleteParticipant(id: string): Promise<void> {
+    await this.uow.client().workspaceParticipant.delete({ where: { id } })
+  }
+
+  async findOrCreateUserParticipant(workspaceId: string, userId: string): Promise<{ id: string }> {
+    const existing = await this.uow.client().workspaceParticipant.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      select: { id: true },
+    })
+    if (existing) return existing
+    const user = await this.uow.client().user.findUniqueOrThrow({
+      where: { id: userId },
+      select: { firstName: true, lastName: true, email: true },
+    })
+    const fullName = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email
+    try {
+      return await this.uow.client().workspaceParticipant.create({
+        data: { workspaceId, userId, fullName: fullName.slice(0, 64), company: null },
+        select: { id: true },
+      })
+    } catch (e: unknown) {
+      if ((e as { code?: string })?.code === 'P2002') {
+        const retry = await this.uow.client().workspaceParticipant.findUnique({
+          where: { workspaceId_userId: { workspaceId, userId } },
+          select: { id: true },
+        })
+        if (retry) return retry
+      }
+      throw e
+    }
+  }
+
   // ── Activity recording ──────────────────────────────────────────────────────
 
   async recordActivity(input: {
@@ -219,23 +305,32 @@ export class KanbanRepository {
   async findTaskForAssignees(taskId: string): Promise<{
     id: string
     pageId: string
-    assignees: { userId: string }[]
+    assignees: { participantId: string }[]
   }> {
     return this.uow.client().task.findUniqueOrThrow({
       where: { id: taskId },
-      select: { id: true, pageId: true, assignees: { select: { userId: true } } },
-    }) as Promise<{ id: string; pageId: string; assignees: { userId: string }[] }>
+      select: { id: true, pageId: true, assignees: { select: { participantId: true } } },
+    }) as Promise<{ id: string; pageId: string; assignees: { participantId: string }[] }>
   }
 
-  async deleteAssignees(taskId: string, userIds: string[]): Promise<void> {
+  async deleteAssignees(taskId: string, participantIds: string[]): Promise<void> {
     await this.uow.client().taskAssignee.deleteMany({
-      where: { taskId, userId: { in: userIds } },
+      where: { taskId, participantId: { in: participantIds } },
     })
   }
 
-  async createAssignees(taskId: string, userIds: string[]): Promise<void> {
+  async createAssignees(taskId: string, participantIds: string[]): Promise<void> {
     await this.uow.client().taskAssignee.createMany({
-      data: userIds.map((userId) => ({ taskId, userId })),
+      data: participantIds.map((participantId) => ({ taskId, participantId })),
+    })
+  }
+
+  async findParticipantWorkspaceIds(
+    participantIds: string[],
+  ): Promise<{ id: string; workspaceId: string }[]> {
+    return this.uow.client().workspaceParticipant.findMany({
+      where: { id: { in: participantIds } },
+      select: { id: true, workspaceId: true },
     })
   }
 

@@ -6,6 +6,7 @@ import { Draggable } from '@hello-pangea/dnd'
 import {
   Box,
   Card,
+  Checkbox,
   Chip,
   FlagIcon,
   IconButton,
@@ -21,6 +22,7 @@ import { trpc } from '@/trpc/client'
 
 import type { BoardData, BoardTaskData } from '../types'
 import { AssigneeAvatars } from '../components/assignee-avatars'
+import { useSelection } from '../selection/selection-context'
 import { getBoardCardModel, type CardDateTone } from './board-card-model'
 
 interface BoardCardProps {
@@ -29,6 +31,18 @@ interface BoardCardProps {
   readonly index: number
   readonly board: BoardData
   readonly editable?: boolean
+}
+
+function readableTextColor(hex: string): string {
+  const m = /^#?([0-9a-fA-F]{6})$/.exec(hex)
+  if (!m) return '#fff'
+  const int = parseInt(m[1]!, 16)
+  const r = (int >> 16) & 0xff
+  const g = (int >> 8) & 0xff
+  const b = int & 0xff
+  // Perceived luminance (sRGB) — dark text on light backgrounds.
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return luminance > 0.6 ? 'rgba(0, 0, 0, 0.87)' : '#fff'
 }
 
 const DATE_BADGE_STYLES: Record<
@@ -51,6 +65,9 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
     onSuccess: () => utils.kanban.board.getBoard.invalidate({ pageId }),
   })
 
+  const { selected, toggle } = useSelection()
+  const isSelected = selected.has(task.id)
+
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
 
   function openDetail() {
@@ -67,7 +84,7 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
     setMenuAnchor(null)
   }
 
-  const isAssignedToMe = task.assignees.some((a) => a.userId === board.currentUserId)
+  const isAssignedToMe = task.assignees.some((a) => a.participant.userId === board.currentUserId)
   const model = getBoardCardModel(task, board)
   const accentColor = model.priorityColor ?? 'transparent'
   const dateBadge = DATE_BADGE_STYLES[model.dateTone]
@@ -85,6 +102,8 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
             boxShadow: snapshot.isDragging ? 4 : 0,
             position: 'relative',
             overflow: 'hidden',
+            outline: isSelected ? '2px solid' : 'none',
+            outlineColor: 'primary.main',
             transition: 'border-color 120ms ease, box-shadow 120ms ease',
             '&:hover': {
               borderColor: 'text.disabled',
@@ -97,6 +116,16 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
             sx={{ position: 'absolute', inset: '0 auto 0 0', width: 3, bgcolor: accentColor }}
           />
           <Stack direction="row" alignItems="flex-start">
+            {editable ? (
+              <Checkbox
+                size="small"
+                checked={isSelected}
+                onClick={(e) => e.stopPropagation()}
+                onChange={() => toggle(task.id)}
+                inputProps={{ 'aria-label': `Выбрать задачу: ${task.title}` }}
+                sx={{ mt: 0.5, ml: 0.5, p: 0.5, opacity: isSelected ? 1 : 0.5, '&:hover': { opacity: 1 } }}
+              />
+            ) : null}
             <Box
               {...provided.dragHandleProps}
               onClick={openDetail}
@@ -172,62 +201,44 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
                 {task.title}
               </Typography>
 
-              {model.visibleLabels.length > 0 ? (
-                <Stack direction="row" alignItems="center" spacing={0.5} sx={{ mb: 0.75, minWidth: 0 }}>
-                  {model.visibleLabels.map((item) => (
-                    <Chip
-                      key={item.labelId}
-                      size="small"
-                      label={item.label.name}
-                      sx={{
-                        height: 20,
-                        maxWidth: 96,
-                        borderRadius: 1,
-                        border: 1,
-                        borderColor: item.label.color,
-                        bgcolor: `${item.label.color}1A`,
-                        color: item.label.color,
-                        '& .MuiChip-label': {
-                          px: 0.75,
-                          overflow: 'hidden',
-                          textOverflow: 'ellipsis',
-                        },
-                      }}
-                    />
-                  ))}
-                  {model.hiddenLabelCount > 0 ? (
-                    <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
-                      +{model.hiddenLabelCount}
-                    </Typography>
-                  ) : null}
-                </Stack>
-              ) : null}
-
-              {task.assignees.length > 0 || model.dateLabel ? (
-                <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 0.25 }}>
-                  {task.assignees.length > 0 ? (
-                    <AssigneeAvatars assignees={task.assignees} />
-                  ) : null}
+              {task.assignees.length > 0 || model.dateLabel || model.visibleLabels.length > 0 ? (
+                <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 0.25, minWidth: 0 }}>
                   {model.dateLabel ? (
                     <Box
                       component="span"
                       sx={{
-                        ml: 'auto',
-                        px: 0.75,
-                        py: 0.125,
-                        border: 1,
-                        borderRadius: 1,
-                        color: dateBadge.color,
-                        borderColor: dateBadge.borderColor,
-                        bgcolor: dateBadge.backgroundColor,
-                        fontSize: 12,
-                        lineHeight: '18px',
+                        px: 0.75, py: 0.125, border: 1, borderRadius: 1,
+                        color: dateBadge.color, borderColor: dateBadge.borderColor,
+                        bgcolor: dateBadge.backgroundColor, fontSize: 12, lineHeight: '18px',
                         whiteSpace: 'nowrap',
                       }}
                     >
                       {model.dateLabel}
                     </Box>
                   ) : null}
+                  <Box sx={{ flex: 1 }} />
+                  {model.visibleLabels.length > 0 ? (
+                    <Stack direction="row" alignItems="center" spacing={0.5} sx={{ minWidth: 0 }}>
+                      {model.visibleLabels.map((item) => (
+                        <Chip
+                          key={item.labelId}
+                          size="small"
+                          label={item.label.name}
+                          sx={{
+                            height: 20, maxWidth: 96, borderRadius: 1,
+                            bgcolor: item.label.color, color: readableTextColor(item.label.color),
+                            '& .MuiChip-label': { px: 0.75, overflow: 'hidden', textOverflow: 'ellipsis' },
+                          }}
+                        />
+                      ))}
+                      {model.hiddenLabelCount > 0 ? (
+                        <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1 }}>
+                          +{model.hiddenLabelCount}
+                        </Typography>
+                      ) : null}
+                    </Stack>
+                  ) : null}
+                  {task.assignees.length > 0 ? <AssigneeAvatars assignees={task.assignees} /> : null}
                 </Stack>
               ) : null}
             </Box>
@@ -242,6 +253,28 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
               </IconButton>
             ) : null}
           </Stack>
+          {snapshot.isDragging && isSelected && selected.size > 1 ? (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: -8,
+                right: -8,
+                minWidth: 22,
+                height: 22,
+                px: 0.75,
+                borderRadius: 11,
+                bgcolor: 'primary.main',
+                color: 'primary.contrastText',
+                fontSize: 12,
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              ×{selected.size}
+            </Box>
+          ) : null}
           {editable ? (
             <Menu
               anchorEl={menuAnchor}
@@ -253,10 +286,12 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
                 <MenuItem
                   onClick={() => {
                     closeMenu()
-                    const next = Array.from(
-                      new Set([...task.assignees.map((a) => a.userId), board.currentUserId]),
-                    )
-                    setAssignees.mutate({ pageId, id: task.id, userIds: next })
+                    setAssignees.mutate({
+                      pageId,
+                      id: task.id,
+                      participantIds: task.assignees.map((a) => a.participantId),
+                      userIdsToMirror: [board.currentUserId],
+                    })
                   }}
                 >
                   <ListItemText primary="Назначить на меня" />
