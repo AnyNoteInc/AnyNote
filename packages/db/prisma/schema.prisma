@@ -1223,6 +1223,7 @@ model WorkspaceParticipant {
 
   @@unique([workspaceId, userId])
   @@index([workspaceId])
+  @@index([userId])
   @@map("workspace_participants")
 }
 
