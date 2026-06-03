@@ -60,7 +60,14 @@ export function BoardView({
 
     const isMulti = selected.has(taskId) && selected.size > 1
     const movingIds = isMulti
-      ? board.tasks.filter((t) => selected.has(t.id)).map((t) => t.id)
+      ? [...board.tasks]
+          .filter((t) => selected.has(t.id))
+          .sort((a, b) => {
+            const ca = columnsWithTasks.findIndex((c) => c.id === a.columnId)
+            const cb = columnsWithTasks.findIndex((c) => c.id === b.columnId)
+            return ca - cb || a.position - b.position
+          })
+          .map((t) => t.id)
       : [taskId]
 
     const destTasksWithoutMoved = destCol.tasks.filter((t) => !movingIds.includes(t.id))

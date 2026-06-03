@@ -122,6 +122,7 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
                 checked={isSelected}
                 onClick={(e) => e.stopPropagation()}
                 onChange={() => toggle(task.id)}
+                inputProps={{ 'aria-label': `Выбрать задачу: ${task.title}` }}
                 sx={{ mt: 0.5, ml: 0.5, p: 0.5, opacity: isSelected ? 1 : 0.5, '&:hover': { opacity: 1 } }}
               />
             ) : null}

@@ -98,6 +98,7 @@ interface TaskRowProps {
   readonly task: BoardTaskData
   readonly provided: DraggableProvided
   readonly currentUserId: string
+  readonly editable?: boolean
   readonly onOpen: (taskId: string) => void
   readonly onAssignToMe?: () => void
   readonly onRemoveFromSprint?: () => void
@@ -109,6 +110,7 @@ function TaskRow({
   task,
   provided,
   currentUserId,
+  editable = true,
   onOpen,
   onAssignToMe,
   onRemoveFromSprint,
@@ -138,13 +140,16 @@ function TaskRow({
         '&:hover': { bgcolor: 'action.hover' },
       }}
     >
-      <Checkbox
-        size="small"
-        checked={selected.has(task.id)}
-        onClick={(e) => e.stopPropagation()}
-        onChange={() => toggle(task.id)}
-        sx={{ p: 0.5 }}
-      />
+      {editable ? (
+        <Checkbox
+          size="small"
+          checked={selected.has(task.id)}
+          onClick={(e) => e.stopPropagation()}
+          onChange={() => toggle(task.id)}
+          inputProps={{ 'aria-label': `Выбрать задачу: ${task.title}` }}
+          sx={{ p: 0.5 }}
+        />
+      ) : null}
       <Typography
         variant="body2"
         sx={{
@@ -393,6 +398,7 @@ export function SprintSection(props: SprintSectionProps) {
               task={task}
               provided={p}
               currentUserId={props.currentUserId}
+              editable={canEdit}
               onOpen={open}
               onAssignToMe={onAssignTaskToMe ? () => onAssignTaskToMe(task.id) : undefined}
               onRemoveFromSprint={

@@ -143,7 +143,10 @@ export function TableView({ pageId, board, visibleTasks, editable = true }: Tabl
 
     const isMulti = selected.has(draggedId) && selected.size > 1
     const movingIds = isMulti
-      ? board.tasks.filter((t) => selected.has(t.id)).map((t) => t.id)
+      ? [...board.tasks]
+          .filter((t) => selected.has(t.id))
+          .sort((a, b) => tasksSortKey(a) - tasksSortKey(b))
+          .map((t) => t.id)
       : [draggedId]
 
     const filtered = destList.filter((t) => !movingIds.includes(t.id))
@@ -165,14 +168,16 @@ export function TableView({ pageId, board, visibleTasks, editable = true }: Tabl
       })
     }
 
-    for (const placement of placements) {
-      await updateTask.mutateAsync({
-        pageId,
-        id: placement.id,
-        sprintId: targetSprintId,
-        sprintPosition: placement.pos,
-      })
-    }
+    await Promise.all(
+      placements.map((placement) =>
+        updateTask.mutateAsync({
+          pageId,
+          id: placement.id,
+          sprintId: targetSprintId,
+          sprintPosition: placement.pos,
+        }),
+      ),
+    )
 
     if (isMulti) clear()
   }
