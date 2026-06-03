@@ -239,17 +239,24 @@ export class KanbanService {
   // ── Participant operations ────────────────────────────────────────────────
 
   private async assertWorkspaceMember(userId: string, workspaceId: string): Promise<void> {
-    const role = await this.repo.findWorkspaceMembershipRole(userId, workspaceId)
+    const role = await this.repo.findMembershipRole(userId, workspaceId)
     if (!role) throw forbidden('Недостаточно прав')
+  }
+
+  private async assertCanManageParticipants(userId: string, workspaceId: string): Promise<void> {
+    const role = await this.repo.findMembershipRole(userId, workspaceId)
+    if (role !== 'OWNER' && role !== 'ADMIN' && role !== 'EDITOR') {
+      throw forbidden('Недостаточно прав на управление участниками')
+    }
   }
 
   async listParticipants(actorUserId: string, workspaceId: string) {
     await this.assertWorkspaceMember(actorUserId, workspaceId)
-    return this.repo.listGuestParticipants(workspaceId)
+    return this.repo.listParticipants(workspaceId)
   }
 
   async createParticipant(actorUserId: string, input: CreateParticipantInput) {
-    await this.assertWorkspaceMember(actorUserId, input.workspaceId)
+    await this.assertCanManageParticipants(actorUserId, input.workspaceId)
     return this.repo.createGuestParticipant({
       workspaceId: input.workspaceId,
       fullName: input.fullName,
@@ -258,7 +265,7 @@ export class KanbanService {
   }
 
   async updateParticipant(actorUserId: string, input: UpdateParticipantInput) {
-    await this.assertWorkspaceMember(actorUserId, input.workspaceId)
+    await this.assertCanManageParticipants(actorUserId, input.workspaceId)
     const existing = await this.repo.findParticipantById(input.id)
     if (!existing || existing.workspaceId !== input.workspaceId) throw notFound('Участник не найден')
     if (existing.userId) throw conflict('Этот участник связан с пользователем и не редактируется')
@@ -269,7 +276,7 @@ export class KanbanService {
   }
 
   async deleteParticipant(actorUserId: string, input: ParticipantIdInput) {
-    await this.assertWorkspaceMember(actorUserId, input.workspaceId)
+    await this.assertCanManageParticipants(actorUserId, input.workspaceId)
     const existing = await this.repo.findParticipantById(input.id)
     if (!existing || existing.workspaceId !== input.workspaceId) throw notFound('Участник не найден')
     if (existing.userId) throw conflict('Этот участник связан с пользователем и не удаляется')

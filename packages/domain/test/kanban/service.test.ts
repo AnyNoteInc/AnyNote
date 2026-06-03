@@ -45,8 +45,7 @@ function makeRepo(overrides: Partial<KanbanRepository> = {}): KanbanRepository {
     findTasksInTargetColumn: vi.fn(async () => []),
     moveTask: vi.fn(async () => ({ id: 't1', pageId: 'b1' })),
     findTaskForAssignees: vi.fn(async () => ({ id: 't1', pageId: 'b1', assignees: [] as { participantId: string }[] })),
-    findWorkspaceMembershipRole: vi.fn(async () => 'OWNER'),
-    listGuestParticipants: vi.fn(async () => []),
+    listParticipants: vi.fn(async () => []),
     findParticipantById: vi.fn(async () => ({ id: 'p1', workspaceId: 'w1', userId: null })),
     createGuestParticipant: vi.fn(async (d) => ({ id: 'p-new', workspaceId: d.workspaceId, userId: null, fullName: d.fullName, company: d.company })),
     updateGuestParticipant: vi.fn(async (id, d) => ({ id, fullName: d.fullName, company: d.company })),
@@ -284,6 +283,17 @@ describe('KanbanService.setTaskAssignees', () => {
     })
     expect(result).toEqual({ ok: true })
   })
+
+  it('throws BAD_REQUEST when a participantId belongs to a different workspace', async () => {
+    const repo = makeRepo({
+      findParticipantWorkspaceIds: vi.fn(async () => [{ id: 'p-foreign', workspaceId: 'w-other' }]),
+    })
+    await expect(
+      makeService(repo).setTaskAssignees('u1', {
+        pageId: 'b1', id: 't1', participantIds: ['p-foreign'], userIdsToMirror: [],
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+  })
 })
 
 describe('KanbanService.createParticipant', () => {
@@ -301,7 +311,7 @@ describe('KanbanService.createParticipant', () => {
   })
 
   it('throws FORBIDDEN for a non-member', async () => {
-    const repo = makeRepo({ findWorkspaceMembershipRole: vi.fn(async () => null) })
+    const repo = makeRepo({ findMembershipRole: vi.fn(async () => 'VIEWER') })
     await expect(
       makeService(repo).createParticipant('u1', { workspaceId: 'w1', fullName: 'X' }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' })

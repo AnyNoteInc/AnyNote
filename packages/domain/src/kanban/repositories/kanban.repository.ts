@@ -36,19 +36,9 @@ export class KanbanRepository {
     return member?.role ?? null
   }
 
-  // ── Workspace access ──────────────────────────────────────────────────────
-
-  async findWorkspaceMembershipRole(userId: string, workspaceId: string): Promise<string | null> {
-    const member = await this.uow.client().workspaceMember.findUnique({
-      where: { workspaceId_userId: { workspaceId, userId } },
-      select: { role: true },
-    })
-    return member?.role ?? null
-  }
-
   // ── Participant queries ───────────────────────────────────────────────────
 
-  async listGuestParticipants(
+  async listParticipants(
     workspaceId: string,
   ): Promise<{ id: string; userId: string | null; fullName: string; company: string | null }[]> {
     return this.uow.client().workspaceParticipant.findMany({
@@ -115,10 +105,21 @@ export class KanbanRepository {
       select: { firstName: true, lastName: true, email: true },
     })
     const fullName = `${user.firstName ?? ''} ${user.lastName ?? ''}`.trim() || user.email
-    return this.uow.client().workspaceParticipant.create({
-      data: { workspaceId, userId, fullName: fullName.slice(0, 64), company: null },
-      select: { id: true },
-    })
+    try {
+      return await this.uow.client().workspaceParticipant.create({
+        data: { workspaceId, userId, fullName: fullName.slice(0, 64), company: null },
+        select: { id: true },
+      })
+    } catch (e: unknown) {
+      if ((e as { code?: string })?.code === 'P2002') {
+        const retry = await this.uow.client().workspaceParticipant.findUnique({
+          where: { workspaceId_userId: { workspaceId, userId } },
+          select: { id: true },
+        })
+        if (retry) return retry
+      }
+      throw e
+    }
   }
 
   // ── Activity recording ──────────────────────────────────────────────────────
