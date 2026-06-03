@@ -1,23 +1,13 @@
 'use client'
 
-import {
-  AdapterDateFns,
-  Box,
-  Button,
-  LocalizationProvider,
-  Popover,
-  Stack,
-  StaticDatePicker,
-  StaticDateTimePicker,
-  dateFnsRu,
-  datePickerRuRU,
-} from '@repo/ui/components'
+import { Box, Popover } from '@repo/ui/components'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
 import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
 import { useState } from 'react'
 
+import { DatePickerBody } from '../components/date-picker-body'
 import { formatIsoForDisplay } from '../lib/date-format'
 import { DateSchema, type DateKind, type DateNodeAttrs } from './date.schema'
 
@@ -88,39 +78,14 @@ function DateView({ node, updateAttributes, editor }: NodeViewProps) {
         transformOrigin={{ vertical: 'top', horizontal: 'left' }}
         slotProps={{ paper: { sx: { width: 332, maxWidth: 'calc(100vw - 32px)' } } }}
       >
-        <LocalizationProvider
-          dateAdapter={AdapterDateFns}
-          adapterLocale={dateFnsRu}
-          localeText={datePickerRuRU.components.MuiLocalizationProvider.defaultProps.localeText}
-        >
-          {kind === 'datetime' ? (
-            <StaticDateTimePicker
-              value={draft}
-              onChange={(v) => setDraft(v)}
-              onAccept={(v) => accept(v)}
-              onClose={close}
-              displayStaticWrapperAs="desktop"
-              slotProps={{ actionBar: { actions: [] } }}
-            />
-          ) : (
-            <StaticDatePicker
-              value={draft}
-              onChange={(v) => setDraft(v)}
-              onAccept={(v) => accept(v)}
-              onClose={close}
-              displayStaticWrapperAs="desktop"
-              slotProps={{ actionBar: { actions: [] } }}
-            />
-          )}
-        </LocalizationProvider>
-        <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ px: 2, pb: 2 }}>
-          <Button size="small" onClick={close}>
-            Отмена
-          </Button>
-          <Button size="small" variant="contained" onClick={() => accept(draft)}>
-            Сохранить
-          </Button>
-        </Stack>
+        <DatePickerBody
+          mode={kind}
+          value={draft}
+          onChange={setDraft}
+          onAccept={accept}
+          onCancel={close}
+          confirmLabel="Сохранить"
+        />
       </Popover>
     </NodeViewWrapper>
   )

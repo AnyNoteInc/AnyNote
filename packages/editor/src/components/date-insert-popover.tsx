@@ -1,21 +1,11 @@
 'use client'
 
-import {
-  AdapterDateFns,
-  Box,
-  Button,
-  LocalizationProvider,
-  Popover,
-  Stack,
-  StaticDatePicker,
-  StaticDateTimePicker,
-  dateFnsRu,
-  datePickerRuRU,
-} from '@repo/ui/components'
+import { Box, Popover } from '@repo/ui/components'
 import type { Editor } from '@tiptap/core'
 import { useCallback, useEffect, useState } from 'react'
 
 import type { SlashRange, VirtualAnchor } from '../types'
+import { DatePickerBody } from './date-picker-body'
 
 type Props = {
   open: boolean
@@ -62,39 +52,14 @@ export function DateInsertPopover({ open, mode, anchorEl, range, editor, onClose
       slotProps={{ paper: { sx: { width: 332, maxWidth: 'calc(100vw - 32px)' } } }}
     >
       <Box>
-        <LocalizationProvider
-          dateAdapter={AdapterDateFns}
-          adapterLocale={dateFnsRu}
-          localeText={datePickerRuRU.components.MuiLocalizationProvider.defaultProps.localeText}
-        >
-          {mode === 'datetime' ? (
-            <StaticDateTimePicker
-              value={value}
-              onChange={(next) => setValue(next)}
-              onAccept={(accepted) => insert(accepted)}
-              onClose={onClose}
-              displayStaticWrapperAs="desktop"
-              slotProps={{ actionBar: { actions: [] } }}
-            />
-          ) : (
-            <StaticDatePicker
-              value={value}
-              onChange={(next) => setValue(next)}
-              onAccept={(accepted) => insert(accepted)}
-              onClose={onClose}
-              displayStaticWrapperAs="desktop"
-              slotProps={{ actionBar: { actions: [] } }}
-            />
-          )}
-        </LocalizationProvider>
-        <Stack direction="row" spacing={1} justifyContent="flex-end" sx={{ px: 2, pb: 2 }}>
-          <Button size="small" onClick={onClose}>
-            Отмена
-          </Button>
-          <Button size="small" variant="contained" onClick={() => insert(value)}>
-            Вставить
-          </Button>
-        </Stack>
+        <DatePickerBody
+          mode={mode}
+          value={value}
+          onChange={setValue}
+          onAccept={insert}
+          onCancel={onClose}
+          confirmLabel="Вставить"
+        />
       </Box>
     </Popover>
   )

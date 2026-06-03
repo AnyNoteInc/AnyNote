@@ -350,16 +350,8 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
       {editor ? (
         <>
           <DateInsertPopover
-            open={popover?.kind === 'date'}
-            mode="date"
-            anchorEl={anchorEl}
-            range={range}
-            editor={editor}
-            onClose={closePopover}
-          />
-          <DateInsertPopover
-            open={popover?.kind === 'datetime'}
-            mode="datetime"
+            open={popover?.kind === 'date' || popover?.kind === 'datetime'}
+            mode={popover?.kind === 'datetime' ? 'datetime' : 'date'}
             anchorEl={anchorEl}
             range={range}
             editor={editor}
@@ -375,7 +367,6 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
           />
           <MarkdownUploadPopover
             open={popover?.kind === 'markdown'}
-            anchorEl={anchorEl}
             range={range}
             editor={editor}
             onClose={closePopover}

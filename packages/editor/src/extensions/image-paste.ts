@@ -76,11 +76,13 @@ export const buildImagePaste = (uploadHandler: UploadHandler) =>
               const sel = view.state.selection
               if (!sel.empty) tr.delete(sel.from, sel.to)
               const insertBase = tr.mapping.map(sel.from)
-              const nodeSize = imageType.create({ src: null }).nodeSize
+              // ProseMirror nodes are immutable, so one frozen placeholder can be
+              // reused for every insert in this transaction.
+              const placeholder = imageType.create({ src: null })
               let at = insertBase
               for (let i = 0; i < images.length; i += 1) {
-                tr.insert(at, imageType.create({ src: null }))
-                at += nodeSize
+                tr.insert(at, placeholder)
+                at += placeholder.nodeSize
               }
 
               // Read back each placeholder's true position from the built doc

@@ -2,7 +2,6 @@
 
 import {
   Alert,
-  Box,
   Button,
   CircularProgress,
   Dialog,
@@ -19,11 +18,10 @@ import type { Editor } from '@tiptap/core'
 import { marked } from 'marked'
 import { useCallback, useId, useRef, useState } from 'react'
 
-import type { SlashRange, VirtualAnchor } from '../types'
+import type { SlashRange } from '../types'
 
 type Props = {
   open: boolean
-  anchorEl: VirtualAnchor | null
   range: SlashRange | null
   editor: Editor
   onClose: () => void
@@ -147,17 +145,15 @@ export function MarkdownUploadPopover({ open, range, editor, onClose }: Props) {
         ) : null}
 
         {tab === 'raw' ? (
-          <Box>
-            <TextField
-              value={raw}
-              onChange={(e) => setRaw(e.target.value)}
-              placeholder="# Заголовок&#10;&#10;Текст в формате Markdown..."
-              multiline
-              minRows={6}
-              maxRows={16}
-              fullWidth
-            />
-          </Box>
+          <TextField
+            value={raw}
+            onChange={(e) => setRaw(e.target.value)}
+            placeholder="# Заголовок&#10;&#10;Текст в формате Markdown..."
+            multiline
+            minRows={6}
+            maxRows={16}
+            fullWidth
+          />
         ) : null}
 
         {tab === 'clipboard' ? (
