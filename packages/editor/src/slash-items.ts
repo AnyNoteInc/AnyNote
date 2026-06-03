@@ -314,7 +314,7 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
   {
     id: 'markdown',
     group: 'media',
-    label: 'Вставить содержимое',
+    label: 'Markdown',
     description: 'Вставить содержимое',
     keywords: ['markdown', 'md', 'импорт', 'вставить', 'содержимое'],
     icon: createElement(MarkdownIcon),

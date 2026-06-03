@@ -361,6 +361,10 @@ export const ResizableImage = Image.extend<ResizableImageOptions>({
     const parent = this.parent?.() ?? {}
     return {
       ...parent,
+      // Transient marker used by the imagePaste plugin to re-find a freshly
+      // pasted placeholder after its async upload resolves. Deliberately not
+      // rendered to / parsed from the DOM so it never persists in saved content.
+      uploadId: { default: null, rendered: false },
       width: {
         default: null,
         parseHTML: (element) => {

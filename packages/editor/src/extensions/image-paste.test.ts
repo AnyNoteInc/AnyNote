@@ -137,6 +137,37 @@ describe('buildImagePaste', () => {
     expect(after[0]!.src).toBe('https://cdn/mid.png')
   })
 
+  it('fills the right node by uploadId after the doc shifts under it', async () => {
+    // The upload callback re-finds its placeholder by the `uploadId` node
+    // attribute (a content-addressed scan), not by a stored numeric offset. This
+    // covers the lookup surviving an intervening edit that moves the placeholder.
+    //
+    // NOTE: this synthetic case can't fully reproduce the production failure —
+    // there the placeholder drifted because the *Yjs* collab binding rewrites
+    // positions through its own mapping (a node truly at pos 4 was remapped to
+    // 204), which standard `tr.mapping.map` does NOT mimic. The authoritative
+    // proof of the fix is the real-app browser check; this guards the by-id
+    // lookup logic.
+    const ctx = mount([schema.node('paragraph')], 1)
+    paste(ctx, [imageFile()])
+    expect(images(ctx.view)).toHaveLength(1)
+    expect(images(ctx.view)[0]!.src).toBeNull()
+
+    // Shift everything right by inserting a fresh paragraph at pos 0.
+    ctx.view.dispatch(ctx.view.state.tr.insert(0, schema.node('paragraph', null, [schema.text('x')])))
+    const shiftedPos = images(ctx.view)[0]!.pos
+
+    ctx.upload.calls[0]!.resolve('https://cdn/after-shift.png')
+    await flush()
+    const after = images(ctx.view)
+    expect(after).toHaveLength(1)
+    expect(after[0]!.pos).toBe(shiftedPos)
+    expect(after[0]!.src).toBe('https://cdn/after-shift.png')
+    // The transient marker is cleared once the real src is in place.
+    const node = ctx.view.state.doc.nodeAt(shiftedPos)
+    expect(node?.attrs.uploadId).toBeNull()
+  })
+
   it('gives each image its own src when two are pasted at once', async () => {
     const ctx = mount([schema.node('paragraph')], 1)
     paste(ctx, [imageFile('a.png'), imageFile('b.png')])

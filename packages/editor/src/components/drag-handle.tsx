@@ -5,35 +5,11 @@ import AddIcon from '@mui/icons-material/Add'
 import DragIndicatorIcon from '@mui/icons-material/DragIndicator'
 import { Box, IconButton } from '@mui/material'
 import type { Editor } from '@tiptap/core'
-import type { DragHandleRule } from '@tiptap/extension-drag-handle'
 import DragHandle from '@tiptap/extension-drag-handle-react'
 import type { Node as PMNode } from '@tiptap/pm/model'
 
 import { DragHandleMenu } from './drag-handle-menu'
-
-// columnLayout / column are structural — the user never drags the row or the
-// cell itself; only blocks of content inside cells get a handle. Deduct enough
-// to push the score < 0, which the library treats as "not a candidate".
-const excludeColumnNodes: DragHandleRule = {
-  id: 'excludeColumnNodes',
-  evaluate: ({ node }) => {
-    if (node.type.name === 'columnLayout' || node.type.name === 'column') return 10000
-    return 0
-  },
-}
-
-// Container nodes own children; their FIRST child block should not show the
-// + / drag controls (they belong to the container, not a standalone block).
-// detailsContent is the wrapper around the toggle body; blockquote is "цитата".
-const CONTAINER_PARENTS = new Set(['callout', 'detailsContent', 'hiddenText', 'blockquote'])
-
-const excludeFirstContainerChild: DragHandleRule = {
-  id: 'excludeFirstContainerChild',
-  evaluate: ({ parent, isFirst }) => {
-    if (isFirst && parent && CONTAINER_PARENTS.has(parent.type.name)) return 10000
-    return 0
-  },
-}
+import { excludeColumnNodes, excludeFirstContainerChild } from './drag-handle-rules'
 
 // `edgeDetection: 'none'` disables the 12px band where deeper nodes lose score
 // near their left edge. With it on, mousing from an inner block toward the

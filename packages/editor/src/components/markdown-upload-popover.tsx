@@ -8,9 +8,8 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  Divider,
   Stack,
-  Tab,
-  Tabs,
   TextField,
   Typography,
 } from '@mui/material'
@@ -33,10 +32,7 @@ const parseMarkdown = (source: string): string => {
   return typeof out === 'string' ? out : ''
 }
 
-type TabKey = 'file' | 'raw' | 'clipboard'
-
 export function MarkdownUploadPopover({ open, range, editor, onClose }: Props) {
-  const [tab, setTab] = useState<TabKey>('file')
   const [raw, setRaw] = useState('')
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -47,7 +43,6 @@ export function MarkdownUploadPopover({ open, range, editor, onClose }: Props) {
     setBusy(false)
     setError(null)
     setRaw('')
-    setTab('file')
     if (fileInputRef.current) fileInputRef.current.value = ''
   }, [])
 
@@ -90,45 +85,27 @@ export function MarkdownUploadPopover({ open, range, editor, onClose }: Props) {
     [insert],
   )
 
-  const handlePasteFromClipboard = useCallback(async () => {
-    setBusy(true)
-    setError(null)
-    try {
-      const text = await navigator.clipboard.readText()
-      if (!insert(text)) setBusy(false)
-    } catch {
-      setError('Не удалось прочитать буфер обмена')
-      setBusy(false)
-    }
-  }, [insert])
-
   return (
     <Dialog open={open} onClose={handleClose} fullWidth maxWidth="sm">
       <DialogTitle>Вставить содержимое</DialogTitle>
       <DialogContent>
-        <Tabs value={tab} onChange={(_, v) => setTab(v as TabKey)} sx={{ mb: 2 }}>
-          <Tab value="file" label="Из файла" />
-          <Tab value="raw" label="Markdown" />
-          <Tab value="clipboard" label="Из буфера" />
-        </Tabs>
-
         {error ? (
           <Alert severity="error" sx={{ mb: 2 }}>
             {error}
           </Alert>
         ) : null}
 
-        {tab === 'file' ? (
+        <Stack spacing={2}>
           <Stack spacing={1.5}>
             <Button
-              variant="contained"
+              variant="outlined"
               component="label"
               htmlFor={fileInputId}
               disabled={busy}
               fullWidth
               startIcon={busy ? <CircularProgress size={16} color="inherit" /> : null}
             >
-              {busy ? 'Разбор...' : 'Выбрать .md файл'}
+              {busy ? 'Разбор...' : 'Выбрать файл'}
               <input
                 id={fileInputId}
                 ref={fileInputRef}
@@ -142,9 +119,9 @@ export function MarkdownUploadPopover({ open, range, editor, onClose }: Props) {
               Файл разбирается на клиенте и вставляется как текст.
             </Typography>
           </Stack>
-        ) : null}
 
-        {tab === 'raw' ? (
+          <Divider flexItem />
+
           <TextField
             value={raw}
             onChange={(e) => setRaw(e.target.value)}
@@ -153,35 +130,17 @@ export function MarkdownUploadPopover({ open, range, editor, onClose }: Props) {
             minRows={6}
             maxRows={16}
             fullWidth
+            disabled={busy}
           />
-        ) : null}
-
-        {tab === 'clipboard' ? (
-          <Stack spacing={1.5}>
-            <Button
-              variant="contained"
-              onClick={handlePasteFromClipboard}
-              disabled={busy}
-              fullWidth
-              startIcon={busy ? <CircularProgress size={16} color="inherit" /> : null}
-            >
-              {busy ? 'Вставка...' : 'Вставить из буфера обмена'}
-            </Button>
-            <Typography variant="caption" color="text.secondary">
-              Содержимое буфера разбирается как Markdown.
-            </Typography>
-          </Stack>
-        ) : null}
+        </Stack>
       </DialogContent>
       <DialogActions>
         <Button onClick={handleClose} disabled={busy}>
           Отмена
         </Button>
-        {tab === 'raw' ? (
-          <Button variant="contained" onClick={() => insert(raw)} disabled={busy}>
-            Вставить
-          </Button>
-        ) : null}
+        <Button variant="contained" onClick={() => insert(raw)} disabled={busy}>
+          Вставить
+        </Button>
       </DialogActions>
     </Dialog>
   )
