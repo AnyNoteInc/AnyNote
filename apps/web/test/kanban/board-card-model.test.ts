@@ -47,6 +47,7 @@ const board: BoardData = {
   sprints: [],
   tasks: [],
   members: [],
+  participants: [],
   currentUserId: 'user-1',
   workspaceId: 'workspace-1',
 }

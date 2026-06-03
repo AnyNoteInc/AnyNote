@@ -53,12 +53,24 @@ const members: BoardData['members'] = [
   {
     userId: CURRENT_USER_ID,
     role: 'OWNER',
-    user: { id: CURRENT_USER_ID, firstName: 'Ivan', lastName: null, email: 'ivan@example.com' },
+    user: {
+      id: CURRENT_USER_ID,
+      firstName: 'Ivan',
+      lastName: null,
+      email: 'ivan@example.com',
+      image: null,
+    },
   },
   {
     userId: OTHER_USER_ID,
     role: 'EDITOR',
-    user: { id: OTHER_USER_ID, firstName: 'Oleg', lastName: null, email: 'oleg@example.com' },
+    user: {
+      id: OTHER_USER_ID,
+      firstName: 'Oleg',
+      lastName: null,
+      email: 'oleg@example.com',
+      image: null,
+    },
   },
 ]
 
@@ -170,7 +182,18 @@ describe('SprintSection', () => {
   it('does not show assign to me when the current user is already assigned', async () => {
     const actor = userEvent.setup()
     const rowTask = task('Assigned Task', {
-      assignees: [{ userId: CURRENT_USER_ID, user: members[0]!.user }],
+      assignees: [
+        {
+          participantId: 'pme',
+          participant: {
+            id: 'pme',
+            userId: CURRENT_USER_ID,
+            fullName: 'Me',
+            company: null,
+            user: members[0]!.user,
+          },
+        },
+      ],
     })
 
     renderSprintSection(

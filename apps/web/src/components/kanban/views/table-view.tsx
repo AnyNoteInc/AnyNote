@@ -164,23 +164,18 @@ export function TableView({ pageId, board, visibleTasks, editable = true }: Tabl
 
   function assignTaskToMe(taskId: string) {
     const task = board.tasks.find((candidate) => candidate.id === taskId)
-    if (!task || task.assignees.some((assignee) => assignee.userId === board.currentUserId)) {
+    if (
+      !task ||
+      task.assignees.some((assignee) => assignee.participant.userId === board.currentUserId)
+    ) {
       return
     }
-
-    const currentMember = board.members.find((member) => member.user.id === board.currentUserId)
-    const nextUserIds = [...task.assignees.map((assignee) => assignee.userId), board.currentUserId]
-
-    if (currentMember) {
-      patchTaskOptimistic(taskId, {
-        assignees: [
-          ...task.assignees,
-          { userId: board.currentUserId, user: currentMember.user },
-        ],
-      })
-    }
-
-    setAssignees.mutate({ pageId, id: taskId, userIds: nextUserIds })
+    setAssignees.mutate({
+      pageId,
+      id: taskId,
+      participantIds: task.assignees.map((a) => a.participantId),
+      userIdsToMirror: [board.currentUserId],
+    })
   }
 
   function deleteTask(taskId: string) {

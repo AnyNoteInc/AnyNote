@@ -37,6 +37,7 @@ const board: BoardData = {
   ],
   tasks: [],
   members: [],
+  participants: [],
   currentUserId: '00000000-0000-0000-0000-0000000000u1',
   workspaceId: '00000000-0000-0000-0000-0000000000w1',
 }

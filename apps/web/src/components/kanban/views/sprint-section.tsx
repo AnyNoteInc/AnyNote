@@ -95,7 +95,6 @@ type SprintSectionProps =
 interface TaskRowProps {
   readonly task: BoardTaskData
   readonly provided: DraggableProvided
-  readonly memberLookup: (userId: string) => { firstName: string | null; email: string } | undefined
   readonly currentUserId: string
   readonly onOpen: (taskId: string) => void
   readonly onAssignToMe?: () => void
@@ -107,7 +106,6 @@ interface TaskRowProps {
 function TaskRow({
   task,
   provided,
-  memberLookup,
   currentUserId,
   onOpen,
   onAssignToMe,
@@ -116,7 +114,7 @@ function TaskRow({
   strikeTitle = false,
 }: TaskRowProps) {
   const canAssignToMe = Boolean(
-    onAssignToMe && !task.assignees.some((assignee) => assignee.userId === currentUserId),
+    onAssignToMe && !task.assignees.some((assignee) => assignee.participant.userId === currentUserId),
   )
   const hasActions = canAssignToMe || Boolean(onRemoveFromSprint || onDeleteTask)
 
@@ -147,7 +145,7 @@ function TaskRow({
       >
         {task.title}
       </Typography>
-      <AssigneeAvatars assignees={task.assignees} memberLookup={memberLookup} size={22} />
+      <AssigneeAvatars assignees={task.assignees} size={22} />
       {task.dueDate ? (
         <Typography variant="caption" color="text.secondary">
           {new Date(task.dueDate).toLocaleDateString('ru-RU')}
@@ -363,14 +361,6 @@ export function SprintSection(props: SprintSectionProps) {
     },
     [router, searchParams],
   )
-  const memberLookup = useCallback(
-    (userId: string) => {
-      const m = props.members.find((x) => x.user.id === userId)
-      return m ? { firstName: m.user.firstName, email: m.user.email } : undefined
-    },
-    [props.members],
-  )
-
   const canEdit = props.editable ?? true
   const onRemoveTaskFromSprint = props.kind === 'sprint' ? props.onRemoveTaskFromSprint : undefined
   const onAssignTaskToMe = props.onAssignTaskToMe
@@ -392,7 +382,6 @@ export function SprintSection(props: SprintSectionProps) {
             <TaskRow
               task={task}
               provided={p}
-              memberLookup={memberLookup}
               currentUserId={props.currentUserId}
               onOpen={open}
               onAssignToMe={onAssignTaskToMe ? () => onAssignTaskToMe(task.id) : undefined}
