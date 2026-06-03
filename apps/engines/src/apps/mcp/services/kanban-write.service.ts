@@ -48,7 +48,7 @@ export class KanbanWriteService {
     if (a.assignees?.length) {
       const userIds = [...new Set(a.assignees.map((x) => this.gateway.resolveAssignee(userId, x)))]
       await this.gateway.run(() =>
-        this.domain.kanban.setTaskAssignees(userId, { pageId: board, id: task.id, userIds }),
+        this.domain.kanban.setTaskAssignees(userId, { pageId: board, id: task.id, participantIds: [], userIdsToMirror: userIds }),
       )
     }
     if (a.dueDate) {
@@ -79,7 +79,7 @@ export class KanbanWriteService {
     const target = this.gateway.resolveAssignee(userId, a.user)
     const userIds = [...new Set([...(await this.gateway.currentAssigneeIds(a.taskId)), target])]
     await this.gateway.run(() =>
-      this.domain.kanban.setTaskAssignees(userId, { pageId: board, id: a.taskId, userIds }),
+      this.domain.kanban.setTaskAssignees(userId, { pageId: board, id: a.taskId, participantIds: [], userIdsToMirror: userIds }),
     )
     return { ok: true as const }
   }
@@ -89,7 +89,7 @@ export class KanbanWriteService {
     const target = this.gateway.resolveAssignee(userId, a.user)
     const userIds = (await this.gateway.currentAssigneeIds(a.taskId)).filter((id) => id !== target)
     await this.gateway.run(() =>
-      this.domain.kanban.setTaskAssignees(userId, { pageId: board, id: a.taskId, userIds }),
+      this.domain.kanban.setTaskAssignees(userId, { pageId: board, id: a.taskId, participantIds: [], userIdsToMirror: userIds }),
     )
     return { ok: true as const }
   }

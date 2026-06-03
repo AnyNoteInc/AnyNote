@@ -146,7 +146,10 @@ export class KanbanGateway {
   }
 
   async currentAssigneeIds(taskId: string): Promise<string[]> {
-    const rows = await this.prisma.taskAssignee.findMany({ where: { taskId }, select: { userId: true } })
-    return rows.map((r) => r.userId)
+    const rows = await this.prisma.taskAssignee.findMany({
+      where: { taskId },
+      select: { participant: { select: { userId: true } } },
+    })
+    return rows.map((r) => r.participant.userId).filter((id): id is string => id !== null)
   }
 }
