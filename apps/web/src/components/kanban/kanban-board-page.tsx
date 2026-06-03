@@ -16,7 +16,6 @@ import { useKanbanFilters } from './use-kanban-filters'
 import { applyFilters } from './filters/apply-filters'
 import { resolveAddSprintId } from './lib/resolve-add-sprint'
 import { SelectionProvider } from './selection/selection-context'
-import { BulkActionBar } from './selection/bulk-action-bar'
 import type { BoardData } from './types'
 
 interface KanbanBoardPageProps {
@@ -116,7 +115,6 @@ export function KanbanBoardPage({
               )}
             </>
           )}
-          {editable ? <BulkActionBar pageId={pageId} board={board} /> : null}
         </Box>
         <TaskDetailContainer
           pageId={pageId}

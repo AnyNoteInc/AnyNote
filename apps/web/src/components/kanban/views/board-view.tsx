@@ -16,7 +16,6 @@ import { trpc } from '@/trpc/client'
 import { BoardColumn } from './board-column'
 import type { BoardData, BoardColumnWithTasks } from '../types'
 import { positionBetween } from '../lib/positions'
-import { useSelection } from '../selection/selection-context'
 
 interface BoardViewProps {
   readonly pageId: string
@@ -34,7 +33,6 @@ export function BoardView({
   addSprintId,
 }: BoardViewProps) {
   const utils = trpc.useUtils()
-  const { selected, clear } = useSelection()
   const moveTask = trpc.kanban.task.move.useMutation({
     onError: () => utils.kanban.board.getBoard.invalidate({ pageId }),
   })
@@ -57,60 +55,32 @@ export function BoardView({
 
     const destCol = columnsWithTasks.find((c) => c.id === destColId)
     if (!destCol) return
-
-    const isMulti = selected.has(taskId) && selected.size > 1
-    const movingIds = isMulti
-      ? [...board.tasks]
-          .filter((t) => selected.has(t.id))
-          .sort((a, b) => {
-            const ca = columnsWithTasks.findIndex((c) => c.id === a.columnId)
-            const cb = columnsWithTasks.findIndex((c) => c.id === b.columnId)
-            return ca - cb || a.position - b.position
-          })
-          .map((t) => t.id)
-      : [taskId]
-
-    const destTasksWithoutMoved = destCol.tasks.filter((t) => !movingIds.includes(t.id))
+    const destTasksWithoutMoved = destCol.tasks.filter((t) => t.id !== taskId)
     const before = destTasksWithoutMoved[result.destination.index - 1] ?? null
     const after = destTasksWithoutMoved[result.destination.index] ?? null
+    const newPosition = positionBetween(before?.position ?? null, after?.position ?? null)
 
     const setData = utils.kanban.board.getBoard.setData as (
       input: { pageId: string },
       updater: (prev: BoardData | undefined) => BoardData | undefined,
     ) => void
-
-    let prevPos = before?.position ?? null
-    const nextPos = after?.position ?? null
-    const placements = movingIds.map((id) => {
-      const pos = positionBetween(prevPos, nextPos)
-      prevPos = pos
-      return { id, pos }
-    })
-
     setData({ pageId }, (prev) => {
       if (!prev) return prev
-      const byId = new Map(placements.map((p) => [p.id, p.pos]))
       return {
         ...prev,
         tasks: prev.tasks.map((t) =>
-          byId.has(t.id) ? { ...t, columnId: destColId, position: byId.get(t.id)! } : t,
+          t.id === taskId ? { ...t, columnId: destColId, position: newPosition } : t,
         ),
       }
     })
 
-    let anchorBeforeId = before?.id ?? null
-    for (const placement of placements) {
-      await moveTask.mutateAsync({
-        pageId,
-        id: placement.id,
-        targetColumnId: destColId,
-        beforeId: anchorBeforeId,
-        afterId: after?.id ?? null,
-      })
-      anchorBeforeId = placement.id
-    }
-
-    if (isMulti) clear()
+    await moveTask.mutateAsync({
+      pageId,
+      id: taskId,
+      targetColumnId: destColId,
+      beforeId: before?.id ?? null,
+      afterId: after?.id ?? null,
+    })
   }
 
   return (
