@@ -20,6 +20,7 @@ import { ru as dateFnsRuLocale } from 'date-fns/locale'
 import {
   AddIcon,
   Box,
+  Checkbox,
   Chip,
   DeleteIcon,
   Divider,
@@ -38,6 +39,7 @@ import {
 
 import type { BoardColumnRow, BoardData, BoardTaskData } from '../types'
 import { AssigneeAvatars } from '../components/assignee-avatars'
+import { useSelection } from '../selection/selection-context'
 import { toDate } from '../lib/dates'
 import { SprintMenu } from '../sprint/sprint-menu'
 import { sprintStatusColor, sprintStatusLabel } from '../sprint/sprint-status-label'
@@ -113,6 +115,7 @@ function TaskRow({
   onDeleteTask,
   strikeTitle = false,
 }: TaskRowProps) {
+  const { selected, toggle } = useSelection()
   const canAssignToMe = Boolean(
     onAssignToMe && !task.assignees.some((assignee) => assignee.participant.userId === currentUserId),
   )
@@ -135,6 +138,13 @@ function TaskRow({
         '&:hover': { bgcolor: 'action.hover' },
       }}
     >
+      <Checkbox
+        size="small"
+        checked={selected.has(task.id)}
+        onClick={(e) => e.stopPropagation()}
+        onChange={() => toggle(task.id)}
+        sx={{ p: 0.5 }}
+      />
       <Typography
         variant="body2"
         sx={{

@@ -6,6 +6,7 @@ import { Draggable } from '@hello-pangea/dnd'
 import {
   Box,
   Card,
+  Checkbox,
   Chip,
   FlagIcon,
   IconButton,
@@ -21,6 +22,7 @@ import { trpc } from '@/trpc/client'
 
 import type { BoardData, BoardTaskData } from '../types'
 import { AssigneeAvatars } from '../components/assignee-avatars'
+import { useSelection } from '../selection/selection-context'
 import { getBoardCardModel, type CardDateTone } from './board-card-model'
 
 interface BoardCardProps {
@@ -63,6 +65,9 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
     onSuccess: () => utils.kanban.board.getBoard.invalidate({ pageId }),
   })
 
+  const { selected, toggle } = useSelection()
+  const isSelected = selected.has(task.id)
+
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
 
   function openDetail() {
@@ -97,6 +102,8 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
             boxShadow: snapshot.isDragging ? 4 : 0,
             position: 'relative',
             overflow: 'hidden',
+            outline: isSelected ? '2px solid' : 'none',
+            outlineColor: 'primary.main',
             transition: 'border-color 120ms ease, box-shadow 120ms ease',
             '&:hover': {
               borderColor: 'text.disabled',
@@ -109,6 +116,15 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
             sx={{ position: 'absolute', inset: '0 auto 0 0', width: 3, bgcolor: accentColor }}
           />
           <Stack direction="row" alignItems="flex-start">
+            {editable ? (
+              <Checkbox
+                size="small"
+                checked={isSelected}
+                onClick={(e) => e.stopPropagation()}
+                onChange={() => toggle(task.id)}
+                sx={{ mt: 0.5, ml: 0.5, p: 0.5, opacity: isSelected ? 1 : 0.5, '&:hover': { opacity: 1 } }}
+              />
+            ) : null}
             <Box
               {...provided.dragHandleProps}
               onClick={openDetail}
@@ -236,6 +252,28 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
               </IconButton>
             ) : null}
           </Stack>
+          {snapshot.isDragging && isSelected && selected.size > 1 ? (
+            <Box
+              sx={{
+                position: 'absolute',
+                top: -8,
+                right: -8,
+                minWidth: 22,
+                height: 22,
+                px: 0.75,
+                borderRadius: 11,
+                bgcolor: 'primary.main',
+                color: 'primary.contrastText',
+                fontSize: 12,
+                fontWeight: 700,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+              }}
+            >
+              ×{selected.size}
+            </Box>
+          ) : null}
           {editable ? (
             <Menu
               anchorEl={menuAnchor}

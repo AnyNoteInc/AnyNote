@@ -6,6 +6,7 @@ import { useState, type ComponentProps, type ReactElement } from 'react'
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { SprintSection } from '@/components/kanban/views/sprint-section'
+import { SelectionProvider } from '@/components/kanban/selection/selection-context'
 import type { BoardData, BoardTaskData } from '@/components/kanban/types'
 
 vi.mock('next/navigation', () => ({
@@ -102,7 +103,11 @@ function renderSprintSection(
   element: ReactElement,
   onDragEnd: ComponentProps<typeof DragDropContext>['onDragEnd'] = vi.fn(),
 ) {
-  return render(<DragDropContext onDragEnd={onDragEnd}>{element}</DragDropContext>)
+  return render(
+    <SelectionProvider>
+      <DragDropContext onDragEnd={onDragEnd}>{element}</DragDropContext>
+    </SelectionProvider>,
+  )
 }
 
 describe('SprintSection', () => {
