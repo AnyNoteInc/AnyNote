@@ -20,6 +20,7 @@ import { trpc } from '@/trpc/client'
 import { KANBAN_LABEL_COLORS } from '@repo/domain/kanban/colors.ts'
 
 import { SortableList, type SortableItem } from './sortable-list'
+import { ParticipantsTab } from './participants-tab'
 import type { BoardData } from '../types'
 
 interface KanbanSettingsDialogProps {
@@ -29,13 +30,14 @@ interface KanbanSettingsDialogProps {
   readonly onClose: () => void
 }
 
-type TabKey = 'types' | 'priorities' | 'labels' | 'statuses'
+type TabKey = 'types' | 'priorities' | 'labels' | 'statuses' | 'participants'
 
 const TABS: Array<{ key: TabKey; label: string }> = [
   { key: 'types', label: 'Типы' },
   { key: 'priorities', label: 'Приоритеты' },
   { key: 'labels', label: 'Метки' },
   { key: 'statuses', label: 'Статусы' },
+  { key: 'participants', label: 'Участники' },
 ]
 
 export function KanbanSettingsDialog({
@@ -222,6 +224,8 @@ export function KanbanSettingsDialog({
             }}
           />
         ) : null}
+
+        {tab === 'participants' ? <ParticipantsTab pageId={pageId} board={board} /> : null}
       </DialogContent>
     </Dialog>
   )
