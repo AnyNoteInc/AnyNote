@@ -106,12 +106,14 @@ describe('kanban.task.setAssignees', () => {
     const result = await caller.setAssignees({
       pageId: PAGE_ID,
       id: '00000000-0000-0000-0000-0000000000a1',
-      userIds: ['00000000-0000-0000-0000-0000000000b2'],
+      participantIds: ['00000000-0000-0000-0000-0000000000b2'],
+      userIdsToMirror: [],
     })
 
     expect(kanbanMocks.setTaskAssignees).toHaveBeenCalledWith(USER_ID, expect.objectContaining({
       id: '00000000-0000-0000-0000-0000000000a1',
-      userIds: ['00000000-0000-0000-0000-0000000000b2'],
+      participantIds: ['00000000-0000-0000-0000-0000000000b2'],
+      userIdsToMirror: [],
     }))
     expect(result.ok).toBe(true)
   })
