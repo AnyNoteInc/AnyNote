@@ -9,46 +9,74 @@ export const boardRouter = router({
     .query(async ({ ctx, input }) => {
       const page = await assertPageAccess(ctx, input.pageId)
 
-      const [columns, types, priorities, labels, sprints, tasks, members] = await Promise.all([
-        ctx.prisma.kanbanColumn.findMany({
-          where: { pageId: page.id },
-          orderBy: { position: 'asc' },
-        }),
-        ctx.prisma.kanbanType.findMany({
-          where: { pageId: page.id },
-          orderBy: { position: 'asc' },
-        }),
-        ctx.prisma.kanbanPriority.findMany({
-          where: { pageId: page.id },
-          orderBy: { position: 'asc' },
-        }),
-        ctx.prisma.kanbanLabel.findMany({
-          where: { pageId: page.id },
-          orderBy: { position: 'asc' },
-        }),
-        ctx.prisma.sprint.findMany({
-          where: { pageId: page.id },
-          orderBy: [{ startDate: 'desc' }, { createdAt: 'desc' }],
-        }),
-        ctx.prisma.task.findMany({
-          where: { pageId: page.id, deletedAt: null, archived: false },
-          include: {
-            assignees: {
-              include: {
-                user: { select: { id: true, firstName: true, lastName: true, email: true } },
+      const [columns, types, priorities, labels, sprints, tasks, members, participants] =
+        await Promise.all([
+          ctx.prisma.kanbanColumn.findMany({
+            where: { pageId: page.id },
+            orderBy: { position: 'asc' },
+          }),
+          ctx.prisma.kanbanType.findMany({
+            where: { pageId: page.id },
+            orderBy: { position: 'asc' },
+          }),
+          ctx.prisma.kanbanPriority.findMany({
+            where: { pageId: page.id },
+            orderBy: { position: 'asc' },
+          }),
+          ctx.prisma.kanbanLabel.findMany({
+            where: { pageId: page.id },
+            orderBy: { position: 'asc' },
+          }),
+          ctx.prisma.sprint.findMany({
+            where: { pageId: page.id },
+            orderBy: [{ startDate: 'desc' }, { createdAt: 'desc' }],
+          }),
+          ctx.prisma.task.findMany({
+            where: { pageId: page.id, deletedAt: null, archived: false },
+            include: {
+              assignees: {
+                include: {
+                  participant: {
+                    include: {
+                      user: {
+                        select: {
+                          id: true,
+                          firstName: true,
+                          lastName: true,
+                          email: true,
+                          image: true,
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+              labels: { include: { label: true } },
+            },
+            orderBy: [{ columnId: 'asc' }, { position: 'asc' }],
+          }),
+          ctx.prisma.workspaceMember.findMany({
+            where: { workspaceId: page.workspaceId },
+            include: {
+              user: {
+                select: { id: true, firstName: true, lastName: true, email: true, image: true },
               },
             },
-            labels: { include: { label: true } },
-          },
-          orderBy: [{ columnId: 'asc' }, { position: 'asc' }],
-        }),
-        ctx.prisma.workspaceMember.findMany({
-          where: { workspaceId: page.workspaceId },
-          include: {
-            user: { select: { id: true, firstName: true, lastName: true, email: true } },
-          },
-        }),
-      ])
+          }),
+          ctx.prisma.workspaceParticipant.findMany({
+            where: { workspaceId: page.workspaceId },
+            select: {
+              id: true,
+              userId: true,
+              fullName: true,
+              company: true,
+              user: {
+                select: { id: true, firstName: true, lastName: true, email: true, image: true },
+              },
+            },
+            orderBy: { fullName: 'asc' },
+          }),
+        ])
 
       return {
         columns,
@@ -58,6 +86,7 @@ export const boardRouter = router({
         sprints,
         tasks,
         members,
+        participants,
         currentUserId: ctx.user.id,
         workspaceId: page.workspaceId,
       }
