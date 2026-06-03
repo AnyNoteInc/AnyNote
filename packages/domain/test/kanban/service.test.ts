@@ -44,7 +44,15 @@ function makeRepo(overrides: Partial<KanbanRepository> = {}): KanbanRepository {
     ]),
     findTasksInTargetColumn: vi.fn(async () => []),
     moveTask: vi.fn(async () => ({ id: 't1', pageId: 'b1' })),
-    findTaskForAssignees: vi.fn(async () => ({ id: 't1', pageId: 'b1', assignees: [] })),
+    findTaskForAssignees: vi.fn(async () => ({ id: 't1', pageId: 'b1', assignees: [] as { participantId: string }[] })),
+    findWorkspaceMembershipRole: vi.fn(async () => 'OWNER'),
+    listGuestParticipants: vi.fn(async () => []),
+    findParticipantById: vi.fn(async () => ({ id: 'p1', workspaceId: 'w1', userId: null })),
+    createGuestParticipant: vi.fn(async (d) => ({ id: 'p-new', workspaceId: d.workspaceId, userId: null, fullName: d.fullName, company: d.company })),
+    updateGuestParticipant: vi.fn(async (id, d) => ({ id, fullName: d.fullName, company: d.company })),
+    deleteParticipant: vi.fn(async () => undefined),
+    findOrCreateUserParticipant: vi.fn(async () => ({ id: 'p-user' })),
+    findParticipantWorkspaceIds: vi.fn(async (ids: string[]) => ids.map((id) => ({ id, workspaceId: 'w1' }))),
     deleteAssignees: vi.fn(async () => undefined),
     createAssignees: vi.fn(async () => undefined),
     createActivityMany: vi.fn(async () => undefined),
@@ -238,33 +246,93 @@ describe('KanbanService.moveTask', () => {
 describe('KanbanService.setTaskAssignees', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('adds new assignee and records ASSIGNED', async () => {
-    const repo = makeRepo({
-      findTaskForAssignees: vi.fn(async () => ({
-        id: 't1', pageId: 'b1', assignees: [{ userId: 'u2' }],
-      })),
+  it('mirrors a user id into a participant then assigns it', async () => {
+    const repo = makeRepo()
+    await makeService(repo).setTaskAssignees('u1', {
+      pageId: 'b1', id: 't1', participantIds: [], userIdsToMirror: ['u9'],
     })
-    await makeService(repo).setTaskAssignees('u1', { pageId: 'b1', id: 't1', userIds: ['u2', 'u3'] })
-    expect(repo.createAssignees).toHaveBeenCalledWith('t1', ['u3'])
+    expect(repo.findOrCreateUserParticipant).toHaveBeenCalledWith('w1', 'u9')
+    expect(repo.createAssignees).toHaveBeenCalledWith('t1', ['p-user'])
+  })
+
+  it('adds a participant and records ASSIGNED', async () => {
+    const repo = makeRepo({
+      findTaskForAssignees: vi.fn(async () => ({ id: 't1', pageId: 'b1', assignees: [{ participantId: 'p2' }] })),
+    })
+    await makeService(repo).setTaskAssignees('u1', {
+      pageId: 'b1', id: 't1', participantIds: ['p2', 'p3'], userIdsToMirror: [],
+    })
+    expect(repo.createAssignees).toHaveBeenCalledWith('t1', ['p3'])
     const rows = (repo.createActivityMany as ReturnType<typeof vi.fn>).mock.calls[0]![0] as { type: string }[]
     expect(rows.some((r) => r.type === 'ASSIGNED')).toBe(true)
   })
 
-  it('removes old assignee and records UNASSIGNED', async () => {
+  it('removes a participant and records UNASSIGNED', async () => {
     const repo = makeRepo({
-      findTaskForAssignees: vi.fn(async () => ({
-        id: 't1', pageId: 'b1', assignees: [{ userId: 'u2' }, { userId: 'u3' }],
-      })),
+      findTaskForAssignees: vi.fn(async () => ({ id: 't1', pageId: 'b1', assignees: [{ participantId: 'p2' }, { participantId: 'p3' }] })),
     })
-    await makeService(repo).setTaskAssignees('u1', { pageId: 'b1', id: 't1', userIds: ['u2'] })
-    expect(repo.deleteAssignees).toHaveBeenCalledWith('t1', ['u3'])
-    const rows = (repo.createActivityMany as ReturnType<typeof vi.fn>).mock.calls[0]![0] as { type: string }[]
-    expect(rows.some((r) => r.type === 'UNASSIGNED')).toBe(true)
+    await makeService(repo).setTaskAssignees('u1', {
+      pageId: 'b1', id: 't1', participantIds: ['p2'], userIdsToMirror: [],
+    })
+    expect(repo.deleteAssignees).toHaveBeenCalledWith('t1', ['p3'])
   })
 
   it('returns { ok: true }', async () => {
     const repo = makeRepo()
-    const result = await makeService(repo).setTaskAssignees('u1', { pageId: 'b1', id: 't1', userIds: [] })
+    const result = await makeService(repo).setTaskAssignees('u1', {
+      pageId: 'b1', id: 't1', participantIds: [], userIdsToMirror: [],
+    })
+    expect(result).toEqual({ ok: true })
+  })
+})
+
+describe('KanbanService.createParticipant', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('creates a guest participant for a workspace member', async () => {
+    const repo = makeRepo()
+    const result = await makeService(repo).createParticipant('u1', {
+      workspaceId: 'w1', fullName: 'Иван Гость', company: 'ООО Ромашка',
+    })
+    expect(result.id).toBe('p-new')
+    expect(repo.createGuestParticipant).toHaveBeenCalledWith({
+      workspaceId: 'w1', fullName: 'Иван Гость', company: 'ООО Ромашка',
+    })
+  })
+
+  it('throws FORBIDDEN for a non-member', async () => {
+    const repo = makeRepo({ findWorkspaceMembershipRole: vi.fn(async () => null) })
+    await expect(
+      makeService(repo).createParticipant('u1', { workspaceId: 'w1', fullName: 'X' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+  })
+})
+
+describe('KanbanService.updateParticipant / deleteParticipant', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('rejects updating a user-linked participant', async () => {
+    const repo = makeRepo({
+      findParticipantById: vi.fn(async () => ({ id: 'p1', workspaceId: 'w1', userId: 'u5' })),
+    })
+    await expect(
+      makeService(repo).updateParticipant('u1', { workspaceId: 'w1', id: 'p1', fullName: 'X' }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' })
+  })
+
+  it('rejects deleting a user-linked participant', async () => {
+    const repo = makeRepo({
+      findParticipantById: vi.fn(async () => ({ id: 'p1', workspaceId: 'w1', userId: 'u5' })),
+    })
+    await expect(
+      makeService(repo).deleteParticipant('u1', { workspaceId: 'w1', id: 'p1' }),
+    ).rejects.toMatchObject({ code: 'CONFLICT' })
+  })
+
+  it('deletes a guest participant', async () => {
+    const repo = makeRepo()
+    const result = await makeService(repo).deleteParticipant('u1', { workspaceId: 'w1', id: 'p1' })
+    expect(repo.deleteParticipant).toHaveBeenCalledWith('p1')
     expect(result).toEqual({ ok: true })
   })
 })
