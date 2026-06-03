@@ -6,9 +6,12 @@ import {
   CloseIcon,
   Dialog,
   IconButton,
+  MenuItem,
+  Select,
   Stack,
-  Typography,
 } from '@repo/ui/components'
+
+import { trpc } from '@/trpc/client'
 
 import type { BoardData, BoardTaskData } from '../types'
 import { TaskForm } from './task-form'
@@ -31,7 +34,16 @@ export function TaskDetailModal({
 }: TaskDetailModalProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const column = board.columns.find((c) => c.id === task.columnId)
+  const utils = trpc.useUtils()
+  const moveTask = trpc.kanban.task.move.useMutation({
+    onSuccess: () => utils.kanban.board.getBoard.invalidate({ pageId }),
+  })
+  const orderedColumns = [...board.columns].sort((a, b) => a.position - b.position)
+
+  function changeStatus(targetColumnId: string) {
+    if (targetColumnId === task.columnId) return
+    moveTask.mutate({ pageId, id: task.id, targetColumnId, beforeId: null, afterId: null })
+  }
 
   function close() {
     const params = new URLSearchParams(searchParams?.toString() ?? '')
@@ -69,9 +81,23 @@ export function TaskDetailModal({
           minHeight: 48,
         }}
       >
-        <Typography variant="body2" color="text.secondary" sx={{ flex: 1, minWidth: 0 }}>
-          {column?.title ?? ''}
-        </Typography>
+        <Select
+          size="small"
+          value={task.columnId}
+          onChange={(e) => changeStatus(e.target.value)}
+          disabled={!editable}
+          sx={{ flex: '0 0 auto', minWidth: 180 }}
+        >
+          {orderedColumns.map((c) => (
+            <MenuItem key={c.id} value={c.id}>
+              <Stack direction="row" alignItems="center" spacing={1}>
+                <Box sx={{ width: 8, height: 8, borderRadius: '50%', bgcolor: c.color ?? 'text.disabled' }} />
+                <span>{c.title}</span>
+              </Stack>
+            </MenuItem>
+          ))}
+        </Select>
+        <Box sx={{ flex: 1 }} />
         <IconButton onClick={close} aria-label="Закрыть" size="small">
           <CloseIcon fontSize="small" />
         </IconButton>
