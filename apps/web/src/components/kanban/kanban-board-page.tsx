@@ -14,6 +14,7 @@ import { TaskDetailContainer } from './task/task-detail-container'
 import { useKanbanEvents } from './realtime/use-kanban-events'
 import { useKanbanFilters } from './use-kanban-filters'
 import { applyFilters } from './filters/apply-filters'
+import { resolveAddSprintId } from './lib/resolve-add-sprint'
 import type { BoardData } from './types'
 
 interface KanbanBoardPageProps {
@@ -77,6 +78,8 @@ export function KanbanBoardPage({
     )
   }
 
+  const addSprintId = resolveAddSprintId(filtersBag.filters.sprint, board.sprints)
+
   return (
     <Stack sx={{ height: '100%', minHeight: 0, overflow: 'hidden', bgcolor: 'background.paper' }}>
       <KanbanToolbar pageId={pageId} filtersBag={filtersBag} board={board} editable={editable} />
@@ -89,6 +92,7 @@ export function KanbanBoardPage({
                 board={board}
                 visibleTasks={visibleTasks}
                 editable={editable}
+                addSprintId={addSprintId}
               />
             )}
             {filtersBag.view === 'table' && (

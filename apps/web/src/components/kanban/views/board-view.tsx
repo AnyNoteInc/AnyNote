@@ -22,9 +22,16 @@ interface BoardViewProps {
   readonly board: BoardData
   readonly visibleTasks: BoardData['tasks']
   readonly editable?: boolean
+  readonly addSprintId?: string
 }
 
-export function BoardView({ pageId, board, visibleTasks, editable = true }: BoardViewProps) {
+export function BoardView({
+  pageId,
+  board,
+  visibleTasks,
+  editable = true,
+  addSprintId,
+}: BoardViewProps) {
   const utils = trpc.useUtils()
   const moveTask = trpc.kanban.task.move.useMutation({
     onError: () => utils.kanban.board.getBoard.invalidate({ pageId }),
@@ -86,6 +93,7 @@ export function BoardView({ pageId, board, visibleTasks, editable = true }: Boar
             column={column}
             board={board}
             editable={editable}
+            addSprintId={addSprintId}
           />
         ))}
         {editable ? <AddColumnForm pageId={pageId} /> : null}

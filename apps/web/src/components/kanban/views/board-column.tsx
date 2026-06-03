@@ -32,9 +32,16 @@ interface BoardColumnProps {
   readonly column: BoardColumnWithTasks
   readonly board: BoardData
   readonly editable?: boolean
+  readonly addSprintId?: string
 }
 
-export function BoardColumn({ pageId, column, board, editable = true }: BoardColumnProps) {
+export function BoardColumn({
+  pageId,
+  column,
+  board,
+  editable = true,
+  addSprintId,
+}: BoardColumnProps) {
   return (
     <Paper
       variant="outlined"
@@ -80,7 +87,9 @@ export function BoardColumn({ pageId, column, board, editable = true }: BoardCol
           </Box>
         )}
       </Droppable>
-      {editable ? <AddCardForm pageId={pageId} columnId={column.id} /> : null}
+      {editable ? (
+        <AddCardForm pageId={pageId} columnId={column.id} addSprintId={addSprintId} />
+      ) : null}
     </Paper>
   )
 }
@@ -146,9 +155,10 @@ function ColumnMenu({ pageId, columnId, canDelete }: ColumnMenuProps) {
 interface AddCardFormProps {
   readonly pageId: string
   readonly columnId: string
+  readonly addSprintId?: string
 }
 
-function AddCardForm({ pageId, columnId }: AddCardFormProps) {
+function AddCardForm({ pageId, columnId, addSprintId }: AddCardFormProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const utils = trpc.useUtils()
@@ -181,7 +191,12 @@ function AddCardForm({ pageId, columnId }: AddCardFormProps) {
       return
     }
     setTitle('')
-    const created = await createTask.mutateAsync({ pageId, columnId, title: trimmed })
+    const created = await createTask.mutateAsync({
+      pageId,
+      columnId,
+      title: trimmed,
+      ...(addSprintId ? { sprintId: addSprintId } : {}),
+    })
     if (openDetail) {
       const params = new URLSearchParams(searchParams?.toString() ?? '')
       params.set('taskId', created.id)
