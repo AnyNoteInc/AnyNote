@@ -2,12 +2,10 @@
 
 import { useState } from 'react'
 import {
-  Box,
   Button,
   CloseIcon,
   DeleteIcon,
   IconButton,
-  Paper,
   Stack,
   Typography,
 } from '@repo/ui/components'
@@ -22,6 +20,8 @@ interface BulkActionBarProps {
   readonly board: BoardData
 }
 
+// Inline bulk-action controls shown in the table-view header (left of "Новый
+// спринт") whenever one or more tasks are selected.
 export function BulkActionBar({ pageId, board }: BulkActionBarProps) {
   const { selected, clear } = useSelection()
   const utils = trpc.useUtils()
@@ -36,9 +36,10 @@ export function BulkActionBar({ pageId, board }: BulkActionBarProps) {
   async function removeFromSprint() {
     setBusy(true)
     try {
+      const sprintByTaskId = new Map(board.tasks.map((t) => [t.id, t.sprintId]))
       await Promise.all(
         ids
-          .filter((id) => board.tasks.find((t) => t.id === id)?.sprintId)
+          .filter((id) => sprintByTaskId.get(id))
           .map((id) => updateTask.mutateAsync({ pageId, id, sprintId: null, sprintPosition: null })),
       )
       clear()
@@ -60,41 +61,25 @@ export function BulkActionBar({ pageId, board }: BulkActionBarProps) {
   }
 
   return (
-    <Paper
-      elevation={6}
-      sx={{
-        position: 'sticky',
-        bottom: 0,
-        zIndex: 5,
-        mt: 1,
-        py: 1,
-        px: 2,
-        borderRadius: 2,
-        display: 'flex',
-        alignItems: 'center',
-      }}
-    >
-      <Stack direction="row" alignItems="center" spacing={2} sx={{ width: '100%' }}>
-        <Typography variant="body2" fontWeight={600}>
-          {ids.length} выбрано
-        </Typography>
-        <Box sx={{ flex: 1 }} />
-        <Button size="small" onClick={removeFromSprint} disabled={busy}>
-          Удалить из спринта
-        </Button>
-        <Button
-          size="small"
-          color="error"
-          startIcon={<DeleteIcon />}
-          onClick={deleteSelected}
-          disabled={busy}
-        >
-          Удалить
-        </Button>
-        <IconButton size="small" onClick={clear} aria-label="Снять выделение">
-          <CloseIcon fontSize="small" />
-        </IconButton>
-      </Stack>
-    </Paper>
+    <Stack direction="row" alignItems="center" spacing={1}>
+      <Typography variant="body2" color="text.secondary" fontWeight={600}>
+        {ids.length} выбрано
+      </Typography>
+      <Button size="small" onClick={removeFromSprint} disabled={busy}>
+        Удалить из спринта
+      </Button>
+      <Button
+        size="small"
+        color="error"
+        startIcon={<DeleteIcon />}
+        onClick={deleteSelected}
+        disabled={busy}
+      >
+        Удалить
+      </Button>
+      <IconButton size="small" onClick={clear} aria-label="Снять выделение">
+        <CloseIcon fontSize="small" />
+      </IconButton>
+    </Stack>
   )
 }

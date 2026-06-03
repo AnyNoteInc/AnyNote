@@ -1,3 +1,4 @@
+import { assigneeFilterIds } from '../lib/assignees'
 import type { BoardData, BoardTaskData } from '../types'
 
 export interface KanbanFilters {
@@ -66,10 +67,7 @@ export function applyFilters(
     }
 
     if (filters.userIds.length > 0) {
-      const assigneeIds = task.assignees
-        .map((a) => a.participant.userId)
-        .filter((id): id is string => Boolean(id))
-      if (!intersects(filters.userIds, assigneeIds)) return false
+      if (!intersects(filters.userIds, assigneeFilterIds(task.assignees))) return false
     }
 
     if (filters.labelIds.length > 0) {

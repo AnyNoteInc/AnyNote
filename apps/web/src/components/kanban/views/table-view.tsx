@@ -19,7 +19,9 @@ import { trpc } from '@/trpc/client'
 import { SprintCreateDialog } from '../sprint/sprint-create-dialog'
 import { sprintStatusLabel } from '../sprint/sprint-status-label'
 import { SprintSection } from './sprint-section'
+import { isAssignedTo } from '../lib/assignees'
 import { positionBetween } from '../lib/positions'
+import { BulkActionBar } from '../selection/bulk-action-bar'
 import { useSelection } from '../selection/selection-context'
 import type { BoardData, BoardTaskData } from '../types'
 import {
@@ -189,10 +191,7 @@ export function TableView({ pageId, board, visibleTasks, editable = true }: Tabl
 
   function assignTaskToMe(taskId: string) {
     const task = board.tasks.find((candidate) => candidate.id === taskId)
-    if (
-      !task ||
-      task.assignees.some((assignee) => assignee.participant.userId === board.currentUserId)
-    ) {
+    if (!task || isAssignedTo(task.assignees, board.currentUserId)) {
       return
     }
     setAssignees.mutate({
@@ -284,11 +283,14 @@ export function TableView({ pageId, board, visibleTasks, editable = true }: Tabl
             ))}
           </Menu>
         </Box>
-        {editable ? (
-          <Button startIcon={<AddIcon />} size="small" onClick={() => setCreateOpen(true)}>
-            Новый спринт
-          </Button>
-        ) : null}
+        <Stack direction="row" alignItems="center" spacing={1}>
+          {editable ? <BulkActionBar pageId={pageId} board={board} /> : null}
+          {editable ? (
+            <Button startIcon={<AddIcon />} size="small" onClick={() => setCreateOpen(true)}>
+              Новый спринт
+            </Button>
+          ) : null}
+        </Stack>
       </Stack>
 
       <DragDropContext onDragEnd={handleDragEnd}>

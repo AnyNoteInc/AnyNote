@@ -214,9 +214,9 @@ export class KanbanService {
       // Validate every target participant belongs to this workspace.
       if (targetIds.size > 0) {
         const rows = await this.repo.findParticipantWorkspaceIds([...targetIds])
+        const workspaceById = new Map(rows.map((r) => [r.id, r.workspaceId]))
         for (const id of targetIds) {
-          const row = rows.find((r) => r.id === id)
-          if (!row || row.workspaceId !== page.workspaceId)
+          if (workspaceById.get(id) !== page.workspaceId)
             throw badRequest('Участник не принадлежит рабочей области')
         }
       }

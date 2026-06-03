@@ -39,13 +39,12 @@ export function ParticipantPicker({
   const [guestCompany, setGuestCompany] = useState('')
   const [creating, setCreating] = useState(false)
 
-  const selected = useMemo(
-    () =>
-      selectedParticipantIds
-        .map((id) => participants.find((p) => p.id === id))
-        .filter((p): p is BoardParticipant => Boolean(p)),
-    [selectedParticipantIds, participants],
-  )
+  const selected = useMemo(() => {
+    const byId = new Map(participants.map((p) => [p.id, p]))
+    return selectedParticipantIds
+      .map((id) => byId.get(id))
+      .filter((p): p is BoardParticipant => Boolean(p))
+  }, [selectedParticipantIds, participants])
 
   const candidates = useMemo(
     () => buildCandidates(members, participants, query),

@@ -39,6 +39,7 @@ import {
 
 import type { BoardColumnRow, BoardData, BoardTaskData } from '../types'
 import { AssigneeAvatars } from '../components/assignee-avatars'
+import { isAssignedTo } from '../lib/assignees'
 import { useSelection } from '../selection/selection-context'
 import { toDate } from '../lib/dates'
 import { SprintMenu } from '../sprint/sprint-menu'
@@ -119,7 +120,7 @@ function TaskRow({
 }: TaskRowProps) {
   const { selected, toggle } = useSelection()
   const canAssignToMe = Boolean(
-    onAssignToMe && !task.assignees.some((assignee) => assignee.participant.userId === currentUserId),
+    onAssignToMe && !isAssignedTo(task.assignees, currentUserId),
   )
   const hasActions = canAssignToMe || Boolean(onRemoveFromSprint || onDeleteTask)
 

@@ -15,8 +15,14 @@ import {
 
 import { trpc } from '@/trpc/client'
 
-import type { BoardData } from '../types'
-import { participantInitials } from '../components/participant-display'
+import type { BoardData, BoardMember } from '../types'
+import { participantInitials, participantName } from '../components/participant-display'
+
+// A workspace member viewed as a participant-like value, so the shared
+// name/initials helpers (which prefer the linked user) render it consistently.
+function memberAsParticipant(m: BoardMember) {
+  return { fullName: '', company: null, user: m.user }
+}
 
 interface ParticipantsTabProps {
   readonly pageId: string
@@ -72,16 +78,11 @@ export function ParticipantsTab({ pageId, board }: ParticipantsTabProps) {
                 src={m.user.image ?? undefined}
                 sx={{ width: 28, height: 28, fontSize: 12 }}
               >
-                {participantInitials({
-                  fullName:
-                    `${m.user.firstName ?? ''} ${m.user.lastName ?? ''}`.trim() || m.user.email,
-                  company: null,
-                  user: m.user,
-                })}
+                {participantInitials(memberAsParticipant(m))}
               </Avatar>
               <Box sx={{ flex: 1, minWidth: 0 }}>
                 <Typography variant="body2" noWrap>
-                  {`${m.user.firstName ?? ''} ${m.user.lastName ?? ''}`.trim() || m.user.email}
+                  {participantName(memberAsParticipant(m))}
                 </Typography>
               </Box>
               <Box

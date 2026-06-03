@@ -18,8 +18,11 @@ export function buildCandidates(
   participants: BoardParticipant[],
   query: string,
 ): PickerCandidate[] {
+  const mirrorByUserId = new Map(
+    participants.filter((p) => p.userId).map((p) => [p.userId, p]),
+  )
   const memberCandidates: PickerCandidate[] = members.map((m) => {
-    const existing = participants.find((p) => p.userId === m.user.id)
+    const existing = mirrorByUserId.get(m.user.id)
     const name = `${m.user.firstName ?? ''} ${m.user.lastName ?? ''}`.trim() || m.user.email
     return {
       key: existing ? existing.id : `member:${m.user.id}`,
