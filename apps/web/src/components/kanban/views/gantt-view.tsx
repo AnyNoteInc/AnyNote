@@ -8,7 +8,9 @@ import { Box, Typography } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
 
-import type { BoardData, BoardTaskData } from '../types'
+import type { BoardData, BoardColumnRow, BoardTaskData } from '../types'
+import { buildChildrenMap } from '../lib/hierarchy'
+import { KIND_COLORS } from '../lib/column-colors'
 
 interface GanttViewProps {
   readonly pageId: string
@@ -17,10 +19,27 @@ interface GanttViewProps {
   readonly editable?: boolean
 }
 
-const COLUMN_COLORS: Record<BoardData['columns'][number]['kind'], { bg: string; selected: string }> = {
-  ACTIVE: { bg: '#3b82f6', selected: '#2563eb' },
-  DONE: { bg: '#22c55e', selected: '#16a34a' },
-  CANCELLED: { bg: '#9ca3af', selected: '#6b7280' },
+type BarPalette = { bg: string; selected: string }
+
+// Bar fill per column kind. `normal.bg` reuses the shared KIND_COLORS status hue;
+// `parent` is a saturated variant so parent bars stand out from their children.
+// Adding a new kind forces filling both variants here in one place.
+const KIND_BAR_PALETTES: Record<
+  BoardColumnRow['kind'],
+  { normal: BarPalette; parent: BarPalette }
+> = {
+  ACTIVE: {
+    normal: { bg: KIND_COLORS.ACTIVE, selected: '#2563eb' },
+    parent: { bg: '#1d4ed8', selected: '#1e40af' },
+  },
+  DONE: {
+    normal: { bg: KIND_COLORS.DONE, selected: '#16a34a' },
+    parent: { bg: '#15803d', selected: '#166534' },
+  },
+  CANCELLED: {
+    normal: { bg: KIND_COLORS.CANCELLED, selected: '#6b7280' },
+    parent: { bg: '#4b5563', selected: '#374151' },
+  },
 }
 
 function toDate(value: Date | string | null | undefined, fallback: Date): Date {
@@ -38,6 +57,12 @@ export function GanttView({ pageId, board, visibleTasks, editable = true }: Gant
   })
   const justDraggedRef = useRef(false)
 
+  // Parent-ness is derived from the full task list (not visibleTasks) so a task
+  // counts as a parent even when its children are filtered out of the timeline —
+  // matching the board/table/detail definition of "has at least one child".
+  const childrenMap = useMemo(() => buildChildrenMap(board.tasks), [board.tasks])
+  const columnById = useMemo(() => new Map(board.columns.map((c) => [c.id, c])), [board.columns])
+
   const ganttTasks = useMemo<GanttTask[]>(() => {
     const today = new Date()
     return visibleTasks
@@ -45,8 +70,9 @@ export function GanttView({ pageId, board, visibleTasks, editable = true }: Gant
       .map((t) => {
         const start = toDate(t.startDate, toDate(t.dueDate, today))
         const end = toDate(t.dueDate, toDate(t.startDate, today))
-        const col = board.columns.find((c) => c.id === t.columnId)
-        const palette = COLUMN_COLORS[col?.kind ?? 'ACTIVE']
+        const kind = columnById.get(t.columnId)?.kind ?? 'ACTIVE'
+        const isParent = (childrenMap.get(t.id)?.length ?? 0) > 0
+        const palette = KIND_BAR_PALETTES[kind][isParent ? 'parent' : 'normal']
         return {
           id: t.id,
           name: t.title,
@@ -64,14 +90,12 @@ export function GanttView({ pageId, board, visibleTasks, editable = true }: Gant
           },
         }
       })
-  }, [visibleTasks, board.columns])
+  }, [visibleTasks, childrenMap, columnById])
 
   if (ganttTasks.length === 0) {
     return (
       <Box sx={{ p: 4, color: 'text.secondary' }}>
-        <Typography>
-          Задайте даты у задач (начало или срок) — они появятся в Ганте.
-        </Typography>
+        <Typography>Задайте даты у задач (начало или срок) — они появятся в Ганте.</Typography>
       </Box>
     )
   }

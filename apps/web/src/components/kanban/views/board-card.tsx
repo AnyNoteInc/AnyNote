@@ -25,12 +25,15 @@ import type { BoardData, BoardTaskData } from '../types'
 import { AssigneeAvatars } from '../components/assignee-avatars'
 import { isAssignedTo } from '../lib/assignees'
 import { getBoardCardModel, type CardDateTone } from './board-card-model'
+import { ParentBadge } from '../components/parent-badge'
+import { parentTitleFontWeight } from '../lib/parent-style'
 
 interface BoardCardProps {
   readonly pageId: string
   readonly task: BoardTaskData
   readonly index: number
   readonly board: BoardData
+  readonly childCount: number
   readonly editable?: boolean
 }
 
@@ -43,7 +46,14 @@ const DATE_BADGE_STYLES: Record<
   overdue: { color: '#B91C1C', borderColor: '#FCA5A5', backgroundColor: '#FEE2E2' },
 }
 
-export function BoardCard({ pageId, task, index, board, editable = true }: BoardCardProps) {
+export function BoardCard({
+  pageId,
+  task,
+  index,
+  board,
+  childCount,
+  editable = true,
+}: BoardCardProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const utils = trpc.useUtils()
@@ -71,7 +81,7 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
   }
 
   const isAssignedToMe = isAssignedTo(task.assignees, board.currentUserId)
-  const model = getBoardCardModel(task, board)
+  const model = getBoardCardModel(task, board, childCount)
   const accentColor = model.priorityColor ?? 'transparent'
   const dateBadge = DATE_BADGE_STYLES[model.dateTone]
 
@@ -112,13 +122,14 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
                 minWidth: 0,
               }}
             >
-              {model.type || model.priority ? (
+              {model.type || model.priority || model.childCount > 0 ? (
                 <Stack
                   direction="row"
                   alignItems="center"
                   spacing={0.5}
                   sx={{ mb: 0.75, minWidth: 0, pr: 0.5 }}
                 >
+                  {model.childCount > 0 ? <ParentBadge count={model.childCount} /> : null}
                   {model.type ? (
                     <Chip
                       size="small"
@@ -162,7 +173,7 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
 
               <Typography
                 variant="body2"
-                fontWeight={600}
+                fontWeight={parentTitleFontWeight(model.childCount > 0, 600)}
                 sx={{
                   mb: 0.75,
                   display: '-webkit-box',
@@ -190,9 +201,15 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
                     <Box
                       component="span"
                       sx={{
-                        px: 0.75, py: 0.125, border: 1, borderRadius: 1,
-                        color: dateBadge.color, borderColor: dateBadge.borderColor,
-                        bgcolor: dateBadge.backgroundColor, fontSize: 12, lineHeight: '18px',
+                        px: 0.75,
+                        py: 0.125,
+                        border: 1,
+                        borderRadius: 1,
+                        color: dateBadge.color,
+                        borderColor: dateBadge.borderColor,
+                        bgcolor: dateBadge.backgroundColor,
+                        fontSize: 12,
+                        lineHeight: '18px',
                         whiteSpace: 'nowrap',
                       }}
                     >
@@ -200,7 +217,9 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
                     </Box>
                   ) : null}
                   <Box sx={{ flex: 1 }} />
-                  {task.assignees.length > 0 ? <AssigneeAvatars assignees={task.assignees} /> : null}
+                  {task.assignees.length > 0 ? (
+                    <AssigneeAvatars assignees={task.assignees} />
+                  ) : null}
                 </Stack>
               ) : null}
 
@@ -219,9 +238,16 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
                       size="small"
                       label={item.label.name}
                       sx={{
-                        height: 20, maxWidth: 96, borderRadius: 1,
-                        bgcolor: item.label.color, color: readableTextColor(item.label.color),
-                        '& .MuiChip-label': { px: 0.75, overflow: 'hidden', textOverflow: 'ellipsis' },
+                        height: 20,
+                        maxWidth: 96,
+                        borderRadius: 1,
+                        bgcolor: item.label.color,
+                        color: readableTextColor(item.label.color),
+                        '& .MuiChip-label': {
+                          px: 0.75,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        },
                       }}
                     />
                   ))}

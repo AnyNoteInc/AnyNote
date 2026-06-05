@@ -31,6 +31,7 @@ import {
   getTableSprintStatusOptions,
   visibleSprints,
 } from './table-view-model'
+import { buildChildrenMap } from '../lib/hierarchy'
 
 const BACKLOG_DROPPABLE = 'backlog'
 const SPRINT_PREFIX = 'sprint:'
@@ -67,9 +68,7 @@ export function TableView({ pageId, board, visibleTasks, editable = true }: Tabl
     onSuccess: () => utils.kanban.board.getBoard.invalidate({ pageId }),
   })
   const [createOpen, setCreateOpen] = useState(false)
-  const [taskDraftSprintId, setTaskDraftSprintId] = useState<string | null | undefined>(
-    undefined,
-  )
+  const [taskDraftSprintId, setTaskDraftSprintId] = useState<string | null | undefined>(undefined)
   const [taskDraftTitle, setTaskDraftTitle] = useState('')
   const openTaskDraftTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
   const [statusAnchorEl, setStatusAnchorEl] = useState<HTMLElement | null>(null)
@@ -107,6 +106,8 @@ export function TableView({ pageId, board, visibleTasks, editable = true }: Tabl
     }
     return bySprint
   }, [visibleTasks, board.columns, board.sprints])
+
+  const childrenMap = useMemo(() => buildChildrenMap(board.tasks), [board.tasks])
 
   const setData = utils.kanban.board.getBoard.setData as (
     input: { pageId: string },
@@ -323,6 +324,7 @@ export function TableView({ pageId, board, visibleTasks, editable = true }: Tabl
             onAssignTaskToMe={editable ? assignTaskToMe : undefined}
             onRemoveTaskFromSprint={editable ? removeFromSprint : undefined}
             onDeleteTask={editable ? deleteTask : undefined}
+            childrenMap={childrenMap}
           />
         ))}
         <SprintSection
@@ -346,6 +348,7 @@ export function TableView({ pageId, board, visibleTasks, editable = true }: Tabl
           }
           onAssignTaskToMe={editable ? assignTaskToMe : undefined}
           onDeleteTask={editable ? deleteTask : undefined}
+          childrenMap={childrenMap}
         />
       </DragDropContext>
 

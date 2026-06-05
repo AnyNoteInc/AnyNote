@@ -2,20 +2,14 @@
 
 import { useEffect, useMemo, useRef, useState, type KeyboardEvent } from 'react'
 import { DragDropContext, type DropResult } from '@hello-pangea/dnd'
-import {
-  AddIcon,
-  Box,
-  Button,
-  Paper,
-  Stack,
-  TextField,
-} from '@repo/ui/components'
+import { AddIcon, Box, Button, Paper, Stack, TextField } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
 
 import { BoardColumn } from './board-column'
 import type { BoardData, BoardColumnWithTasks } from '../types'
 import { positionBetween } from '../lib/positions'
+import { buildChildCountMap } from '../lib/hierarchy'
 
 interface BoardViewProps {
   readonly pageId: string
@@ -45,6 +39,11 @@ export function BoardView({
         .sort((a, b) => a.position - b.position),
     }))
   }, [board.columns, visibleTasks])
+
+  // Child counts are derived from the full task list (not visibleTasks) so a parent
+  // stays badged even when a child is filtered out, and built once per render rather
+  // than re-scanned per card.
+  const childCountByParent = useMemo(() => buildChildCountMap(board.tasks), [board.tasks])
 
   async function handleDragEnd(result: DropResult) {
     if (!result.destination) return
@@ -92,6 +91,7 @@ export function BoardView({
             pageId={pageId}
             column={column}
             board={board}
+            childCountByParent={childCountByParent}
             editable={editable}
             addSprintId={addSprintId}
           />
@@ -180,7 +180,13 @@ function AddColumnForm({ pageId }: AddColumnFormProps) {
   return (
     <Paper
       variant="outlined"
-      sx={{ width: 320, flexShrink: 0, p: 1.5, bgcolor: 'background.default', alignSelf: 'flex-start' }}
+      sx={{
+        width: 320,
+        flexShrink: 0,
+        p: 1.5,
+        bgcolor: 'background.default',
+        alignSelf: 'flex-start',
+      }}
     >
       <Stack spacing={1}>
         <TextField

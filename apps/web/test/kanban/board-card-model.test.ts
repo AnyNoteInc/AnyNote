@@ -57,6 +57,7 @@ describe('board-card model', () => {
     const model = getBoardCardModel(
       task({ typeId: 'type-bug', priorityId: 'priority-high' }),
       board,
+      0,
       new Date('2026-05-16T12:00:00'),
     )
 
@@ -76,6 +77,7 @@ describe('board-card model', () => {
         ],
       }),
       board,
+      0,
       new Date('2026-05-16T12:00:00'),
     )
 
@@ -87,6 +89,7 @@ describe('board-card model', () => {
     const model = getBoardCardModel(
       task({ startDate: '2026-05-10T00:00:00', dueDate: '2026-05-16T00:00:00' }),
       board,
+      0,
       new Date('2026-05-16T12:00:00'),
     )
 
@@ -107,5 +110,12 @@ describe('board-card model', () => {
     expect(getPriorityTone(board.priorities[1]!, board.priorities)).toBe('medium')
     expect(getPriorityTone(board.priorities[2]!, board.priorities)).toBe('high')
     expect(getPriorityTone(board.priorities[3]!, board.priorities)).toBe('critical')
+  })
+})
+
+describe('board-card model — childCount', () => {
+  it('passes the supplied child count through to the model', () => {
+    expect(getBoardCardModel(task({ id: 'parent-1' }), board, 2).childCount).toBe(2)
+    expect(getBoardCardModel(task({ id: 'leaf-1' }), board, 0).childCount).toBe(0)
   })
 })

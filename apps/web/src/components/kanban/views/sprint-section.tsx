@@ -39,6 +39,8 @@ import {
 
 import type { BoardColumnRow, BoardData, BoardTaskData } from '../types'
 import { AssigneeAvatars } from '../components/assignee-avatars'
+import { ParentBadge } from '../components/parent-badge'
+import { parentTitleFontWeight } from '../lib/parent-style'
 import { isAssignedTo } from '../lib/assignees'
 import { useSelection } from '../selection/selection-context'
 import { toDate } from '../lib/dates'
@@ -81,6 +83,7 @@ type SprintSectionProps =
       readonly onAssignTaskToMe?: (taskId: string) => void
       readonly onRemoveTaskFromSprint?: (taskId: string) => void
       readonly onDeleteTask?: (taskId: string) => void
+      readonly childrenMap: Map<string, BoardTaskData[]>
     }
   | {
       readonly kind: 'backlog'
@@ -93,6 +96,7 @@ type SprintSectionProps =
       readonly createTaskDraft?: CreateTaskDraftProps
       readonly onAssignTaskToMe?: (taskId: string) => void
       readonly onDeleteTask?: (taskId: string) => void
+      readonly childrenMap: Map<string, BoardTaskData[]>
     }
 
 interface TaskRowProps {
@@ -105,10 +109,12 @@ interface TaskRowProps {
   readonly onRemoveFromSprint?: () => void
   readonly onDeleteTask?: () => void
   readonly strikeTitle?: boolean
+  readonly childCount: number
 }
 
 function TaskRow({
   task,
+  childCount,
   provided,
   currentUserId,
   editable = true,
@@ -119,9 +125,7 @@ function TaskRow({
   strikeTitle = false,
 }: TaskRowProps) {
   const { selected, toggle } = useSelection()
-  const canAssignToMe = Boolean(
-    onAssignToMe && !isAssignedTo(task.assignees, currentUserId),
-  )
+  const canAssignToMe = Boolean(onAssignToMe && !isAssignedTo(task.assignees, currentUserId))
   const hasActions = canAssignToMe || Boolean(onRemoveFromSprint || onDeleteTask)
 
   return (
@@ -151,10 +155,12 @@ function TaskRow({
           sx={{ p: 0.5 }}
         />
       ) : null}
+      {childCount > 0 ? <ParentBadge count={childCount} /> : null}
       <Typography
         variant="body2"
         sx={{
           flex: 1,
+          fontWeight: parentTitleFontWeight(childCount > 0, undefined),
           textDecoration: strikeTitle ? 'line-through' : undefined,
           color: strikeTitle ? 'text.secondary' : undefined,
         }}
@@ -240,10 +246,7 @@ function TaskRowMenu({ onAssignToMe, onRemoveFromSprint, onDeleteTask }: TaskRow
         ) : null}
         {onRemoveFromSprint && onDeleteTask ? <Divider /> : null}
         {onDeleteTask ? (
-          <MenuItem
-            onClick={(e) => selectAction(e, onDeleteTask)}
-            sx={{ color: 'error.main' }}
-          >
+          <MenuItem onClick={(e) => selectAction(e, onDeleteTask)} sx={{ color: 'error.main' }}>
             <ListItemIcon sx={{ color: 'error.main' }}>
               <DeleteIcon fontSize="small" />
             </ListItemIcon>
@@ -388,15 +391,11 @@ export function SprintSection(props: SprintSectionProps) {
     <Box ref={provided.innerRef} {...provided.droppableProps} sx={{ minHeight: 32 }}>
       {createTaskDraft ? <CreateTaskDraftRow {...createTaskDraft} /> : null}
       {props.tasks.map((task, index) => (
-        <Draggable
-          key={task.id}
-          draggableId={task.id}
-          index={index}
-          isDragDisabled={!canEdit}
-        >
+        <Draggable key={task.id} draggableId={task.id} index={index} isDragDisabled={!canEdit}>
           {(p) => (
             <TaskRow
               task={task}
+              childCount={props.childrenMap.get(task.id)?.length ?? 0}
               provided={p}
               currentUserId={props.currentUserId}
               editable={canEdit}
@@ -406,9 +405,7 @@ export function SprintSection(props: SprintSectionProps) {
                 onRemoveTaskFromSprint ? () => onRemoveTaskFromSprint(task.id) : undefined
               }
               onDeleteTask={onDeleteTask ? () => onDeleteTask(task.id) : undefined}
-              strikeTitle={
-                shouldStrikeTerminalTasks ? isTerminalTask(task, props.columns) : false
-              }
+              strikeTitle={shouldStrikeTerminalTasks ? isTerminalTask(task, props.columns) : false}
             />
           )}
         </Draggable>
