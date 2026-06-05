@@ -9,6 +9,7 @@ import { Box, Typography } from '@repo/ui/components'
 import { trpc } from '@/trpc/client'
 
 import type { BoardData, BoardTaskData } from '../types'
+import { buildChildrenMap } from '../lib/hierarchy'
 
 interface GanttViewProps {
   readonly pageId: string
@@ -17,10 +18,22 @@ interface GanttViewProps {
   readonly editable?: boolean
 }
 
-const COLUMN_COLORS: Record<BoardData['columns'][number]['kind'], { bg: string; selected: string }> = {
+const COLUMN_COLORS: Record<
+  BoardData['columns'][number]['kind'],
+  { bg: string; selected: string }
+> = {
   ACTIVE: { bg: '#3b82f6', selected: '#2563eb' },
   DONE: { bg: '#22c55e', selected: '#16a34a' },
   CANCELLED: { bg: '#9ca3af', selected: '#6b7280' },
+}
+
+const PARENT_COLUMN_COLORS: Record<
+  BoardData['columns'][number]['kind'],
+  { bg: string; selected: string }
+> = {
+  ACTIVE: { bg: '#1d4ed8', selected: '#1e40af' },
+  DONE: { bg: '#15803d', selected: '#166534' },
+  CANCELLED: { bg: '#4b5563', selected: '#374151' },
 }
 
 function toDate(value: Date | string | null | undefined, fallback: Date): Date {
@@ -40,13 +53,18 @@ export function GanttView({ pageId, board, visibleTasks, editable = true }: Gant
 
   const ganttTasks = useMemo<GanttTask[]>(() => {
     const today = new Date()
+    // Parent-ness is derived from the full task list (not visibleTasks) so a task
+    // counts as a parent even when its children are filtered out of the timeline —
+    // matching the board/table/detail definition of "has at least one child".
+    const childrenMap = buildChildrenMap(board.tasks)
     return visibleTasks
       .filter((t) => t.startDate || t.dueDate)
       .map((t) => {
         const start = toDate(t.startDate, toDate(t.dueDate, today))
         const end = toDate(t.dueDate, toDate(t.startDate, today))
         const col = board.columns.find((c) => c.id === t.columnId)
-        const palette = COLUMN_COLORS[col?.kind ?? 'ACTIVE']
+        const isParent = (childrenMap.get(t.id)?.length ?? 0) > 0
+        const palette = (isParent ? PARENT_COLUMN_COLORS : COLUMN_COLORS)[col?.kind ?? 'ACTIVE']
         return {
           id: t.id,
           name: t.title,
@@ -64,14 +82,12 @@ export function GanttView({ pageId, board, visibleTasks, editable = true }: Gant
           },
         }
       })
-  }, [visibleTasks, board.columns])
+  }, [visibleTasks, board.columns, board.tasks])
 
   if (ganttTasks.length === 0) {
     return (
       <Box sx={{ p: 4, color: 'text.secondary' }}>
-        <Typography>
-          Задайте даты у задач (начало или срок) — они появятся в Ганте.
-        </Typography>
+        <Typography>Задайте даты у задач (начало или срок) — они появятся в Ганте.</Typography>
       </Box>
     )
   }
