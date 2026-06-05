@@ -34,6 +34,7 @@ import type { BoardData, BoardTaskData } from '../types'
 import { TaskAttachments } from './task-attachments'
 import { ManageListPopover } from './manage-list-popover'
 import { ParticipantPicker } from './participant-picker'
+import { SubtasksSection } from './subtasks-section'
 
 interface TaskFormProps {
   readonly pageId: string
@@ -126,6 +127,10 @@ export function TaskForm({ pageId, task, board, currentUserId, editable = true }
 
   const parentCandidates = useMemo(
     () => board.tasks.filter((t) => t.id !== task.id),
+    [board.tasks, task.id],
+  )
+  const subtasks = useMemo(
+    () => board.tasks.filter((t) => t.parentId === task.id),
     [board.tasks, task.id],
   )
   const filteredParentCandidates = useMemo(() => {
@@ -338,6 +343,8 @@ export function TaskForm({ pageId, task, board, currentUserId, editable = true }
             onBlurSave={onDescriptionSave}
           />
         </Section>
+
+        <SubtasksSection subtasks={subtasks} board={board} />
 
         {editable ? (
           <TaskAttachments
