@@ -23,6 +23,7 @@ export interface BoardCardModel {
 export function getBoardCardModel(
   task: BoardTaskData,
   board: BoardData,
+  childCount: number,
   now = new Date(),
 ): BoardCardModel {
   const type = task.typeId ? (board.types.find((item) => item.id === task.typeId) ?? null) : null
@@ -43,7 +44,7 @@ export function getBoardCardModel(
     hiddenLabelCount: Math.max(task.labels.length - visibleLabels.length, 0),
     dateLabel: getDateLabel(task.startDate, task.dueDate, now),
     dateTone: getDateTone(dueDate, now),
-    childCount: board.tasks.filter((t) => t.parentId === task.id).length,
+    childCount,
   }
 }
 

@@ -26,12 +26,14 @@ import { AssigneeAvatars } from '../components/assignee-avatars'
 import { isAssignedTo } from '../lib/assignees'
 import { getBoardCardModel, type CardDateTone } from './board-card-model'
 import { ParentBadge } from '../components/parent-badge'
+import { parentTitleFontWeight } from '../lib/parent-style'
 
 interface BoardCardProps {
   readonly pageId: string
   readonly task: BoardTaskData
   readonly index: number
   readonly board: BoardData
+  readonly childCount: number
   readonly editable?: boolean
 }
 
@@ -44,7 +46,14 @@ const DATE_BADGE_STYLES: Record<
   overdue: { color: '#B91C1C', borderColor: '#FCA5A5', backgroundColor: '#FEE2E2' },
 }
 
-export function BoardCard({ pageId, task, index, board, editable = true }: BoardCardProps) {
+export function BoardCard({
+  pageId,
+  task,
+  index,
+  board,
+  childCount,
+  editable = true,
+}: BoardCardProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const utils = trpc.useUtils()
@@ -72,7 +81,7 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
   }
 
   const isAssignedToMe = isAssignedTo(task.assignees, board.currentUserId)
-  const model = getBoardCardModel(task, board)
+  const model = getBoardCardModel(task, board, childCount)
   const accentColor = model.priorityColor ?? 'transparent'
   const dateBadge = DATE_BADGE_STYLES[model.dateTone]
 
@@ -164,7 +173,7 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
 
               <Typography
                 variant="body2"
-                fontWeight={model.childCount > 0 ? 700 : 600}
+                fontWeight={parentTitleFontWeight(model.childCount > 0, 600)}
                 sx={{
                   mb: 0.75,
                   display: '-webkit-box',

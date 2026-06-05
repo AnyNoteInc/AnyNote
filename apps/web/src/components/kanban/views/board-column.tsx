@@ -31,6 +31,7 @@ interface BoardColumnProps {
   readonly pageId: string
   readonly column: BoardColumnWithTasks
   readonly board: BoardData
+  readonly childCountByParent: Map<string, number>
   readonly editable?: boolean
   readonly addSprintId?: string
 }
@@ -39,6 +40,7 @@ export function BoardColumn({
   pageId,
   column,
   board,
+  childCountByParent,
   editable = true,
   addSprintId,
 }: BoardColumnProps) {
@@ -80,6 +82,7 @@ export function BoardColumn({
                 task={task}
                 index={index}
                 board={board}
+                childCount={childCountByParent.get(task.id) ?? 0}
                 editable={editable}
               />
             ))}

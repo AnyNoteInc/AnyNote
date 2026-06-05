@@ -15,9 +15,14 @@ export function buildChildrenMap(tasks: BoardTaskData[]): Map<string, BoardTaskD
   return map
 }
 
-/** Children of a given task, or an empty array when it has none. */
-export function getChildren(map: Map<string, BoardTaskData[]>, taskId: string): BoardTaskData[] {
-  return map.get(taskId) ?? []
+/** Count of direct children per task id (parent id → child count). Built in one pass. */
+export function buildChildCountMap(tasks: BoardTaskData[]): Map<string, number> {
+  const counts = new Map<string, number>()
+  for (const task of tasks) {
+    if (task.parentId === null) continue
+    counts.set(task.parentId, (counts.get(task.parentId) ?? 0) + 1)
+  }
+  return counts
 }
 
 export interface SubtaskProgress {
@@ -26,13 +31,16 @@ export interface SubtaskProgress {
   readonly ratio: number
 }
 
-/** Progress over a task's children: done = child column kind is DONE. */
+/**
+ * Progress over a task's children: done = child column kind is DONE.
+ * Takes a prebuilt columnId→column map so callers that already have one
+ * (e.g. the detail view) don't pay for a second pass over the columns.
+ */
 export function subtaskProgress(
   children: BoardTaskData[],
-  columns: BoardColumnRow[],
+  columnById: Map<string, BoardColumnRow>,
 ): SubtaskProgress {
-  const kindByColumn = new Map(columns.map((c) => [c.id, c.kind]))
   const total = children.length
-  const done = children.filter((c) => kindByColumn.get(c.columnId) === 'DONE').length
+  const done = children.filter((c) => columnById.get(c.columnId)?.kind === 'DONE').length
   return { total, done, ratio: total === 0 ? 0 : done / total }
 }

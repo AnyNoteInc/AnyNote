@@ -40,6 +40,7 @@ import {
 import type { BoardColumnRow, BoardData, BoardTaskData } from '../types'
 import { AssigneeAvatars } from '../components/assignee-avatars'
 import { ParentBadge } from '../components/parent-badge'
+import { parentTitleFontWeight } from '../lib/parent-style'
 import { isAssignedTo } from '../lib/assignees'
 import { useSelection } from '../selection/selection-context'
 import { toDate } from '../lib/dates'
@@ -159,7 +160,7 @@ function TaskRow({
         variant="body2"
         sx={{
           flex: 1,
-          fontWeight: childCount > 0 ? 600 : undefined,
+          fontWeight: parentTitleFontWeight(childCount > 0, undefined),
           textDecoration: strikeTitle ? 'line-through' : undefined,
           color: strikeTitle ? 'text.secondary' : undefined,
         }}
