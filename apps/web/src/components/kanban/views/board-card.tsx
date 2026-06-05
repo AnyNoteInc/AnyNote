@@ -25,6 +25,7 @@ import type { BoardData, BoardTaskData } from '../types'
 import { AssigneeAvatars } from '../components/assignee-avatars'
 import { isAssignedTo } from '../lib/assignees'
 import { getBoardCardModel, type CardDateTone } from './board-card-model'
+import { ParentBadge } from '../components/parent-badge'
 
 interface BoardCardProps {
   readonly pageId: string
@@ -112,13 +113,14 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
                 minWidth: 0,
               }}
             >
-              {model.type || model.priority ? (
+              {model.type || model.priority || model.childCount > 0 ? (
                 <Stack
                   direction="row"
                   alignItems="center"
                   spacing={0.5}
                   sx={{ mb: 0.75, minWidth: 0, pr: 0.5 }}
                 >
+                  {model.childCount > 0 ? <ParentBadge count={model.childCount} /> : null}
                   {model.type ? (
                     <Chip
                       size="small"
@@ -162,7 +164,7 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
 
               <Typography
                 variant="body2"
-                fontWeight={600}
+                fontWeight={model.childCount > 0 ? 700 : 600}
                 sx={{
                   mb: 0.75,
                   display: '-webkit-box',
@@ -190,9 +192,15 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
                     <Box
                       component="span"
                       sx={{
-                        px: 0.75, py: 0.125, border: 1, borderRadius: 1,
-                        color: dateBadge.color, borderColor: dateBadge.borderColor,
-                        bgcolor: dateBadge.backgroundColor, fontSize: 12, lineHeight: '18px',
+                        px: 0.75,
+                        py: 0.125,
+                        border: 1,
+                        borderRadius: 1,
+                        color: dateBadge.color,
+                        borderColor: dateBadge.borderColor,
+                        bgcolor: dateBadge.backgroundColor,
+                        fontSize: 12,
+                        lineHeight: '18px',
                         whiteSpace: 'nowrap',
                       }}
                     >
@@ -200,7 +208,9 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
                     </Box>
                   ) : null}
                   <Box sx={{ flex: 1 }} />
-                  {task.assignees.length > 0 ? <AssigneeAvatars assignees={task.assignees} /> : null}
+                  {task.assignees.length > 0 ? (
+                    <AssigneeAvatars assignees={task.assignees} />
+                  ) : null}
                 </Stack>
               ) : null}
 
@@ -219,9 +229,16 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
                       size="small"
                       label={item.label.name}
                       sx={{
-                        height: 20, maxWidth: 96, borderRadius: 1,
-                        bgcolor: item.label.color, color: readableTextColor(item.label.color),
-                        '& .MuiChip-label': { px: 0.75, overflow: 'hidden', textOverflow: 'ellipsis' },
+                        height: 20,
+                        maxWidth: 96,
+                        borderRadius: 1,
+                        bgcolor: item.label.color,
+                        color: readableTextColor(item.label.color),
+                        '& .MuiChip-label': {
+                          px: 0.75,
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                        },
                       }}
                     />
                   ))}

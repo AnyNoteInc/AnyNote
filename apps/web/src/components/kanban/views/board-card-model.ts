@@ -17,6 +17,7 @@ export interface BoardCardModel {
   readonly hiddenLabelCount: number
   readonly dateLabel: string | null
   readonly dateTone: CardDateTone
+  readonly childCount: number
 }
 
 export function getBoardCardModel(
@@ -42,6 +43,7 @@ export function getBoardCardModel(
     hiddenLabelCount: Math.max(task.labels.length - visibleLabels.length, 0),
     dateLabel: getDateLabel(task.startDate, task.dueDate, now),
     dateTone: getDateTone(dueDate, now),
+    childCount: board.tasks.filter((t) => t.parentId === task.id).length,
   }
 }
 
@@ -63,7 +65,10 @@ export function getPriorityTone(
   priorities: readonly BoardMetaItem[],
 ): CardPriorityTone {
   const ordered = [...priorities].sort((a, b) => a.position - b.position)
-  const index = Math.max(ordered.findIndex((item) => item.id === priority.id), 0)
+  const index = Math.max(
+    ordered.findIndex((item) => item.id === priority.id),
+    0,
+  )
   const ratio = ordered.length <= 1 ? 1 : index / (ordered.length - 1)
 
   if (ratio >= 0.85) return 'critical'
@@ -92,7 +97,8 @@ function getDateLabel(
   const startDate = toValidDate(startValue)
   const dueDate = toValidDate(dueValue)
 
-  if (startDate && dueDate) return `${formatCardDate(startDate, now)} - ${formatCardDate(dueDate, now)}`
+  if (startDate && dueDate)
+    return `${formatCardDate(startDate, now)} - ${formatCardDate(dueDate, now)}`
   if (dueDate) return formatCardDate(dueDate, now)
   if (startDate) return `старт ${formatCardDate(startDate, now)}`
   return null

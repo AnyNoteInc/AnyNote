@@ -109,3 +109,29 @@ describe('board-card model', () => {
     expect(getPriorityTone(board.priorities[3]!, board.priorities)).toBe('critical')
   })
 })
+
+describe('board-card model — childCount', () => {
+  it('counts tasks whose parentId equals this task id', () => {
+    const parentTask = task({ id: 'parent-1' })
+    const child1 = task({ id: 'child-1', parentId: 'parent-1' })
+    const child2 = task({ id: 'child-2', parentId: 'parent-1' })
+    const unrelated = task({ id: 'other-1', parentId: null })
+
+    const boardWithChildren: BoardData = {
+      ...board,
+      tasks: [parentTask, child1, child2, unrelated],
+    }
+
+    expect(getBoardCardModel(parentTask, boardWithChildren).childCount).toBe(2)
+  })
+
+  it('returns 0 for a task referenced by no other task parentId', () => {
+    const leaf = task({ id: 'leaf-1' })
+    const boardWithLeaf: BoardData = {
+      ...board,
+      tasks: [leaf, task({ id: 'other-2', parentId: null })],
+    }
+
+    expect(getBoardCardModel(leaf, boardWithLeaf).childCount).toBe(0)
+  })
+})
