@@ -148,6 +148,7 @@ export function WorkspaceLayoutClient({
     features,
     pages,
     userMenu,
+    currentUserId: user.id,
     activeSection: sidebarSection,
     onSectionChange: setSidebarSection,
   }

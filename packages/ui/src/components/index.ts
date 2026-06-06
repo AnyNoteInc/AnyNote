@@ -145,6 +145,7 @@ export { default as ArrowRightOutlinedIcon } from '@mui/icons-material/ArrowRigh
 export { default as EmailIcon } from '@mui/icons-material/Email'
 export { default as NotificationsIcon } from '@mui/icons-material/Notifications'
 export { default as PersonAddIcon } from '@mui/icons-material/PersonAdd'
+export { default as GroupAddIcon } from '@mui/icons-material/GroupAdd'
 export { default as ScreenShareIcon } from '@mui/icons-material/ScreenShare'
 export { default as LockIcon } from '@mui/icons-material/Lock'
 export { default as PublicIcon } from '@mui/icons-material/Public'

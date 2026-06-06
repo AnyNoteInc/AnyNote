@@ -6,18 +6,22 @@ import Link from 'next/link'
 import { usePathname } from 'next/navigation'
 
 import {
+  AddIcon,
   ArrowDropDownIcon,
   Box,
   Button,
   ChatBubbleOutlineIcon,
   DashboardCustomizeIcon,
   DeleteIcon,
+  Divider,
+  GroupAddIcon,
   HomeIcon,
   IconButton,
   KeyboardDoubleArrowLeftIcon,
   Menu,
   MenuItem,
   SearchIcon,
+  SettingsIcon,
   Stack,
   Tooltip,
   Typography,
@@ -36,6 +40,7 @@ import type { WorkspaceSidebarSection } from './workspace-layout-client'
 import type { PlanFeatures } from '@repo/trpc'
 import { useSearchDialog } from '../search/search-dialog-provider'
 import { WorkspaceSettingsNav } from './workspace-settings-nav'
+import { WorkspaceSettingsDialog } from './settings/workspace-settings-dialog'
 
 type Props = Readonly<{
   workspace: { id: string; name: string; icon: string | null }
@@ -43,6 +48,7 @@ type Props = Readonly<{
   pages: PageItem[]
   onHide?: () => void
   userMenu: ReactNode
+  currentUserId: string
   activeSection: WorkspaceSidebarSection
   onSectionChange: (section: WorkspaceSidebarSection) => void
 }>
@@ -53,6 +59,7 @@ export function WorkspaceSidebar({
   pages,
   onHide,
   userMenu,
+  currentUserId,
   activeSection,
   onSectionChange,
 }: Props) {
@@ -65,10 +72,20 @@ export function WorkspaceSidebar({
   )
 
   const allWorkspaces = trpc.workspace.listMine.useQuery()
-  const hasMultiple = (allWorkspaces.data?.length ?? 0) > 1
 
   const [switcherAnchor, setSwitcherAnchor] = useState<HTMLElement | null>(null)
   const closeSwitcher = () => setSwitcherAnchor(null)
+
+  const myRole = trpc.workspace.getMyRole.useQuery({ workspaceId: workspace.id })
+  const isOwner = myRole.data === 'OWNER'
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settingsInitial, setSettingsInitial] = useState<'general' | 'members'>('general')
+
+  const openSettings = (initial: 'general' | 'members') => {
+    setSettingsInitial(initial)
+    setSettingsOpen(true)
+    closeSwitcher()
+  }
 
   return (
     <Box
@@ -87,7 +104,7 @@ export function WorkspaceSidebar({
     >
       <Stack direction="row" alignItems="center" spacing={0.5} sx={{ px: 1, pb: 1.75 }}>
         <Box
-          onClick={hasMultiple ? (event) => setSwitcherAnchor(event.currentTarget) : undefined}
+          onClick={(event) => setSwitcherAnchor(event.currentTarget)}
           sx={{
             display: 'flex',
             alignItems: 'center',
@@ -97,8 +114,8 @@ export function WorkspaceSidebar({
             borderRadius: 0.75,
             p: 0.5,
             mx: -0.5,
-            cursor: hasMultiple ? 'pointer' : 'default',
-            '&:hover': hasMultiple ? { bgcolor: 'action.hover' } : undefined,
+            cursor: 'pointer',
+            '&:hover': { bgcolor: 'action.hover' },
           }}
         >
           <Box
@@ -119,9 +136,7 @@ export function WorkspaceSidebar({
           <Typography variant="body2" noWrap sx={{ flex: 1, minWidth: 0 }}>
             {workspace.name}
           </Typography>
-          {hasMultiple && (
-            <ArrowDropDownIcon sx={{ fontSize: 18, color: 'text.secondary', flexShrink: 0 }} />
-          )}
+          <ArrowDropDownIcon sx={{ fontSize: 18, color: 'text.secondary', flexShrink: 0 }} />
         </Box>
         {onHide ? (
           <Tooltip title="Скрыть" placement="right">
@@ -132,44 +147,95 @@ export function WorkspaceSidebar({
         ) : null}
       </Stack>
 
-      {hasMultiple && (
-        <Menu
-          anchorEl={switcherAnchor}
-          open={!!switcherAnchor}
-          onClose={closeSwitcher}
-          slotProps={{ paper: { sx: { minWidth: 240 } } }}
-        >
-          {(allWorkspaces.data ?? []).map((w) => (
-            <MenuItem
-              key={w.id}
-              component={Link}
-              href={`/workspaces/${w.id}`}
-              onClick={closeSwitcher}
-              selected={w.id === workspace.id}
-              sx={{ gap: 1 }}
+      <Menu
+        anchorEl={switcherAnchor}
+        open={!!switcherAnchor}
+        onClose={closeSwitcher}
+        slotProps={{ paper: { sx: { minWidth: 260 } } }}
+      >
+        <Box sx={{ px: 1.5, py: 1 }}>
+          <Stack direction="row" alignItems="center" spacing={1}>
+            <Box
+              sx={{
+                width: 24,
+                height: 24,
+                borderRadius: 0.75,
+                background: 'linear-gradient(135deg,#0f766e,#155e75)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 14,
+                flexShrink: 0,
+              }}
             >
-              <Box
-                sx={{
-                  width: 22,
-                  height: 22,
-                  borderRadius: 0.5,
-                  background: 'linear-gradient(135deg,#0f766e,#155e75)',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  fontSize: 13,
-                  flexShrink: 0,
-                }}
+              {workspace.icon ?? '📒'}
+            </Box>
+            <Typography variant="body2" noWrap sx={{ flex: 1, minWidth: 0 }}>
+              {workspace.name}
+            </Typography>
+          </Stack>
+          {isOwner ? (
+            <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<SettingsIcon fontSize="small" />}
+                onClick={() => openSettings('general')}
+                sx={{ textTransform: 'none', flex: 1 }}
               >
-                {w.icon ?? '📒'}
-              </Box>
-              <Typography variant="body2" noWrap>
-                {w.name}
-              </Typography>
-            </MenuItem>
-          ))}
-        </Menu>
-      )}
+                Настройки
+              </Button>
+              <Button
+                size="small"
+                variant="outlined"
+                startIcon={<GroupAddIcon fontSize="small" />}
+                onClick={() => openSettings('members')}
+                sx={{ textTransform: 'none', flex: 1 }}
+              >
+                Пригласить
+              </Button>
+            </Stack>
+          ) : null}
+        </Box>
+
+        <Divider />
+
+        {(allWorkspaces.data ?? []).map((w) => (
+          <MenuItem
+            key={w.id}
+            component={Link}
+            href={`/workspaces/${w.id}`}
+            onClick={closeSwitcher}
+            selected={w.id === workspace.id}
+            sx={{ gap: 1 }}
+          >
+            <Box
+              sx={{
+                width: 22,
+                height: 22,
+                borderRadius: 0.5,
+                background: 'linear-gradient(135deg,#0f766e,#155e75)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 13,
+                flexShrink: 0,
+              }}
+            >
+              {w.icon ?? '📒'}
+            </Box>
+            <Typography variant="body2" noWrap>
+              {w.name}
+            </Typography>
+          </MenuItem>
+        ))}
+
+        <Divider />
+        <MenuItem component={Link} href="/workspaces/new" onClick={closeSwitcher} sx={{ gap: 1 }}>
+          <AddIcon fontSize="small" />
+          <Typography variant="body2">Создать пространство</Typography>
+        </MenuItem>
+      </Menu>
 
       <WorkspaceSectionSwitcher
         activeSection={activeSection}
@@ -242,6 +308,14 @@ export function WorkspaceSidebar({
         <Box sx={{ flex: 1, minWidth: 0 }}>{userMenu}</Box>
         <NotificationsBell tooltipPlacement="top" />
       </Box>
+
+      <WorkspaceSettingsDialog
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+        workspaceId={workspace.id}
+        currentUserId={currentUserId}
+        initialSection={settingsInitial}
+      />
     </Box>
   )
 }
