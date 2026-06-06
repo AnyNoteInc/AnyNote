@@ -43,6 +43,10 @@ vi.mock('@/hooks/use-page-actions', () => ({
   }),
 }))
 
+vi.mock('@/components/templates', () => ({
+  SaveAsTemplateDialog: () => null,
+}))
+
 vi.mock('@/trpc/client', () => ({
   trpc: {
     useUtils: () => ({

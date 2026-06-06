@@ -19,10 +19,12 @@ import {
   ContentCopyIcon,
   DriveFileRenameOutlineIcon,
   MovingIcon,
+  BookmarkAddIcon,
   DeleteIcon,
 } from '@repo/ui/components'
 import { trpc } from '@/trpc/client'
 import { usePageActions } from '@/hooks/use-page-actions'
+import { SaveAsTemplateDialog } from '@/components/templates'
 import type { PageItem } from './types'
 
 type Props = {
@@ -50,6 +52,7 @@ export function PageContextMenu({
   const [renameOpen, setRenameOpen] = useState(false)
   const [renameValue, setRenameValue] = useState('')
   const [renameIcon, setRenameIcon] = useState<string | null>(null)
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false)
 
   const rename = trpc.page.rename.useMutation({
     onSuccess: () => {
@@ -90,6 +93,11 @@ export function PageContextMenu({
     onClose()
   }
 
+  const handleOpenSaveTemplate = () => {
+    setSaveTemplateOpen(true)
+    onClose()
+  }
+
   const handleOpenDelete = () => {
     actions.openDeleteConfirm()
     onClose()
@@ -123,6 +131,11 @@ export function PageContextMenu({
         <MenuItem onClick={handleOpenMove} sx={menuItemSx}>
           <MovingIcon fontSize="small" />
           Переместить
+        </MenuItem>
+
+        <MenuItem onClick={handleOpenSaveTemplate} sx={menuItemSx}>
+          <BookmarkAddIcon fontSize="small" />
+          Сохранить как шаблон
         </MenuItem>
 
         <MenuItem onClick={handleOpenDelete} sx={{ ...menuItemSx, color: 'error.main' }}>
@@ -167,6 +180,15 @@ export function PageContextMenu({
           </Button>
         </DialogActions>
       </Dialog>
+
+      <SaveAsTemplateDialog
+        open={saveTemplateOpen}
+        onClose={() => setSaveTemplateOpen(false)}
+        workspaceId={workspaceId}
+        pageId={page.id}
+        defaultTitle={page.title ?? ''}
+        defaultIcon={page.icon}
+      />
 
       {actions.dialogs}
     </>

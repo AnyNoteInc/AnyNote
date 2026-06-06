@@ -281,6 +281,11 @@ enum PageOwnership {
   AGENT
 }
 
+enum PageTemplateScope {
+  GLOBAL
+  WORKSPACE
+}
+
 enum McpTransport {
   HTTP_JSONRPC
   SSE
@@ -344,6 +349,7 @@ model Workspace {
   agentActionLogs       AgentActionLog[]
   limits                WorkspaceLimit?
   aiProviders           AiProvider[]           @relation("WorkspaceAiProviders")
+  pageTemplates         PageTemplate[]
 
   @@index([createdById])
   @@map("workspaces")
@@ -411,6 +417,36 @@ model Page {
   @@index([workspaceId, ownership])
   @@index([searchVector], type: Gin, name: "Page_searchVector_idx")
   @@map("pages")
+}
+
+model PageTemplate {
+  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String?           @map("workspace_id") @db.Uuid
+  scope       PageTemplateScope
+  // Stable identity for seeded GLOBAL templates so re-seeding upserts by key
+  // (survives title renames). NULL for user-created WORKSPACE templates.
+  key         String?           @unique @db.Text
+  title       String            @db.Text
+  description String?           @db.Text
+  icon        String?           @db.Text
+  category    String?           @db.Text
+  type        PageType          @default(TEXT)
+  content     Json?
+  contentYjs  Bytes?            @map("content_yjs")
+  usageCount  Int               @default(0) @map("usage_count")
+  createdById String?           @map("created_by_id") @db.Uuid
+  updatedById String?           @map("updated_by_id") @db.Uuid
+  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt   DateTime?         @map("deleted_at") @db.Timestamptz(6)
+
+  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId])
+  @@index([scope])
+  @@index([createdAt])
+  @@index([usageCount])
+  @@map("page_templates")
 }
 
 model PageShare {

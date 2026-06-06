@@ -5,6 +5,7 @@ import { workspaceRouter } from './routers/workspace'
 import { subscriptionRouter } from './routers/subscription'
 import { integrationRouter } from './routers/integration'
 import { pageRouter } from './routers/page'
+import { templateRouter } from './routers/template'
 import { chatRouter } from './routers/chat'
 import { consentRouter } from './routers/consent'
 import { fileRouter } from './routers/file'
@@ -39,6 +40,7 @@ export const appRouter = router({
   subscription: subscriptionRouter,
   integration: integrationRouter,
   page: pageRouter,
+  template: templateRouter,
   search: searchRouter,
   chat: chatRouter,
   consent: consentRouter,

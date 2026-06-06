@@ -2,6 +2,8 @@ import { config } from 'dotenv'
 import { PrismaClient, Prisma } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 
+import { GLOBAL_TEMPLATES, buildTemplateContentYjs } from './global-templates.ts'
+
 config({ path: '../../.env' })
 
 const databaseUrl = process.env.DATABASE_URL
@@ -124,7 +126,35 @@ async function main() {
     data: { isActive: false },
   })
 
-  console.info('Seed complete: 3 active plans')
+  await seedGlobalTemplates()
+
+  console.info(`Seed complete: 3 active plans, ${GLOBAL_TEMPLATES.length} global templates`)
+}
+
+/**
+ * Upsert the built-in GLOBAL templates, keyed by the stable `key` slug so a
+ * later title rename updates the existing row instead of orphaning it. Existing
+ * rows keep their id and usageCount; missing ones are created.
+ */
+async function seedGlobalTemplates() {
+  for (const t of GLOBAL_TEMPLATES) {
+    const contentYjs = Buffer.from(buildTemplateContentYjs(t.doc))
+    const data = {
+      title: t.title,
+      description: t.description,
+      icon: t.icon,
+      category: t.category,
+      type: 'TEXT' as const,
+      content: t.doc as unknown as Prisma.InputJsonValue,
+      contentYjs,
+      deletedAt: null,
+    }
+    await prisma.pageTemplate.upsert({
+      where: { key: t.key },
+      create: { key: t.key, scope: 'GLOBAL', workspaceId: null, ...data },
+      update: data,
+    })
+  }
 }
 
 main()

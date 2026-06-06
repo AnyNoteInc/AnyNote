@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react'
 import {
   DndContext,
@@ -17,192 +17,23 @@ import {
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import {
-  AccountTreeIcon,
   AddIcon,
   Box,
-  BrushIcon,
   ChevronRightIcon,
-  DescriptionIcon,
   IconButton,
-  ListItemIcon,
-  ListItemText,
-  Menu,
-  MenuItem,
   MoreHorizIcon,
-  SchemaIcon,
   Typography,
-  ViewKanbanIcon,
 } from '@repo/ui/components'
-import type { PageType } from '@repo/db'
 import { trpc } from '@/trpc/client'
+import { CreatePageDialog, useCreatePageFlow } from '@/components/templates'
 import { PageContextMenu } from './page-context-menu'
 import { MovePageDialog } from './move-page-dialog'
 import { type FlatPageItem, type PageItem, flattenTree } from './types'
-
-type CreatablePageType = Extract<
-  PageType,
-  'TEXT' | 'EXCALIDRAW' | 'GENOGRAM' | 'MERMAID' | 'PLANTUML' | 'LIKEC4' | 'DRAWIO' | 'KANBAN'
->
 
 type Props = {
   workspaceId: string
   pages: PageItem[]
   favoritePageIds: Set<string>
-}
-
-function DiagramSubmenu({
-  onCreate,
-  onClose,
-}: {
-  onCreate: (type: CreatablePageType) => void
-  onClose: () => void
-}) {
-  const [anchor, setAnchor] = useState<HTMLElement | null>(null)
-  const choose = (type: CreatablePageType) => {
-    onCreate(type)
-    setAnchor(null)
-    onClose()
-  }
-  return (
-    <>
-      <MenuItem onClick={(e) => setAnchor(e.currentTarget)}>
-        <ListItemIcon>
-          <SchemaIcon fontSize="small" />
-        </ListItemIcon>
-        <ListItemText primary="Диаграмма" />
-        <ChevronRightIcon fontSize="small" sx={{ ml: 'auto', color: 'text.secondary' }} />
-      </MenuItem>
-      <Menu
-        anchorEl={anchor}
-        open={Boolean(anchor)}
-        onClose={() => setAnchor(null)}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <MenuItem onClick={() => choose('MERMAID')}>
-          <ListItemIcon>
-            <SchemaIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="MermaidJS" />
-        </MenuItem>
-        <MenuItem onClick={() => choose('PLANTUML')}>
-          <ListItemIcon>
-            <SchemaIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="PlantUML" />
-        </MenuItem>
-        <MenuItem onClick={() => choose('LIKEC4')}>
-          <ListItemIcon>
-            <SchemaIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="LikeC4" />
-        </MenuItem>
-      </Menu>
-    </>
-  )
-}
-
-function HolstSubmenu({
-  onCreate,
-  onClose,
-}: {
-  onCreate: (type: CreatablePageType) => void
-  onClose: () => void
-}) {
-  const [anchor, setAnchor] = useState<HTMLElement | null>(null)
-  const choose = (type: CreatablePageType) => {
-    onCreate(type)
-    setAnchor(null)
-    onClose()
-  }
-  return (
-    <>
-      <MenuItem onClick={(e) => setAnchor(e.currentTarget)}>
-        <ListItemIcon>
-          <BrushIcon fontSize="small" />
-        </ListItemIcon>
-        <ListItemText primary="Холст" />
-        <ChevronRightIcon fontSize="small" sx={{ ml: 'auto', color: 'text.secondary' }} />
-      </MenuItem>
-      <Menu
-        anchorEl={anchor}
-        open={Boolean(anchor)}
-        onClose={() => setAnchor(null)}
-        anchorOrigin={{ vertical: 'top', horizontal: 'right' }}
-        transformOrigin={{ vertical: 'top', horizontal: 'left' }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <MenuItem onClick={() => choose('EXCALIDRAW')}>
-          <ListItemIcon>
-            <BrushIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="Excalidraw" />
-        </MenuItem>
-        <MenuItem onClick={() => choose('DRAWIO')}>
-          <ListItemIcon>
-            <SchemaIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="Draw.io" />
-        </MenuItem>
-      </Menu>
-    </>
-  )
-}
-
-function CreatePageMenu({
-  anchorEl,
-  onClose,
-  onCreate,
-}: {
-  anchorEl: HTMLElement | null
-  onClose: () => void
-  onCreate: (type: CreatablePageType) => void
-}) {
-  return (
-    <Menu
-      anchorEl={anchorEl}
-      open={Boolean(anchorEl)}
-      onClose={onClose}
-      onClick={(e) => e.stopPropagation()}
-    >
-      <MenuItem
-        onClick={() => {
-          onCreate('TEXT')
-          onClose()
-        }}
-      >
-        <ListItemIcon>
-          <DescriptionIcon fontSize="small" />
-        </ListItemIcon>
-        <ListItemText primary="Текст" />
-      </MenuItem>
-      <HolstSubmenu onCreate={onCreate} onClose={onClose} />
-      <MenuItem
-        onClick={() => {
-          onCreate('GENOGRAM')
-          onClose()
-        }}
-      >
-        <ListItemIcon>
-          <AccountTreeIcon fontSize="small" />
-        </ListItemIcon>
-        <ListItemText primary="Генограмма" />
-      </MenuItem>
-      <MenuItem
-        onClick={() => {
-          onCreate('KANBAN')
-          onClose()
-        }}
-      >
-        <ListItemIcon>
-          <ViewKanbanIcon fontSize="small" />
-        </ListItemIcon>
-        <ListItemText primary="Канбан" />
-      </MenuItem>
-      <DiagramSubmenu onCreate={onCreate} onClose={onClose} />
-    </Menu>
-  )
 }
 
 function DropLine({ depth }: { depth: number }) {
@@ -249,22 +80,13 @@ function PageRowVisual({
   dragListeners?: Record<string, unknown>
 }) {
   const pathname = usePathname()
-  const router = useRouter()
-  const utils = trpc.useUtils()
 
   const [menuAnchor, setMenuAnchor] = useState<HTMLElement | null>(null)
-  const [createAnchor, setCreateAnchor] = useState<HTMLElement | null>(null)
   const [moveOpen, setMoveOpen] = useState(false)
+  const createFlow = useCreatePageFlow(workspaceId)
 
   const isCurrentPage = pathname === `/workspaces/${workspaceId}/pages/${item.id}`
   const hasChildren = pages.some((p) => p.parentId === item.id)
-
-  const createPage = trpc.page.create.useMutation({
-    onSuccess: async (data) => {
-      await utils.page.listByWorkspace.invalidate({ workspaceId })
-      router.push(`/workspaces/${workspaceId}/pages/${data.id}`)
-    },
-  })
 
   return (
     <Box
@@ -333,15 +155,16 @@ function PageRowVisual({
           className="page-actions"
           sx={{
             display: 'flex',
-            visibility: menuAnchor || createAnchor ? 'visible' : 'hidden',
+            visibility: menuAnchor || createFlow.open ? 'visible' : 'hidden',
             flexShrink: 0,
           }}
         >
           <IconButton
             size="small"
+            aria-label="Создать вложенную страницу"
             onClick={(e: MouseEvent<HTMLElement>) => {
               e.stopPropagation()
-              setCreateAnchor(e.currentTarget)
+              createFlow.openFor(item.id)
             }}
             onPointerDown={(e) => e.stopPropagation()}
             sx={{ p: 0.25 }}
@@ -363,10 +186,13 @@ function PageRowVisual({
       </Box>
       {showDropAfter && <DropLine depth={item.depth} />}
 
-      <CreatePageMenu
-        anchorEl={createAnchor}
-        onClose={() => setCreateAnchor(null)}
-        onCreate={(type) => createPage.mutate({ workspaceId, parentId: item.id, type })}
+      <CreatePageDialog
+        open={createFlow.open}
+        onClose={createFlow.close}
+        workspaceId={workspaceId}
+        onCreatePage={createFlow.handleCreatePage}
+        onCreateFromTemplate={createFlow.handleCreateFromTemplate}
+        isCreating={createFlow.isCreating}
       />
       <PageContextMenu
         anchorEl={menuAnchor}
@@ -411,13 +237,12 @@ function SortablePageRow(props: RowVisualProps) {
 }
 
 export function PageTreeSection({ workspaceId, pages: initialPages, favoritePageIds }: Props) {
-  const [createAnchor, setCreateAnchor] = useState<HTMLElement | null>(null)
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set())
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
-  const router = useRouter()
   const utils = trpc.useUtils()
+  const createFlow = useCreatePageFlow(workspaceId)
 
   useEffect(() => {
     setMounted(true)
@@ -429,13 +254,6 @@ export function PageTreeSection({ workspaceId, pages: initialPages, favoritePage
   const reorder = trpc.page.reorder.useMutation({
     onError: () => {
       void utils.page.listByWorkspace.invalidate({ workspaceId })
-    },
-  })
-
-  const createPage = trpc.page.create.useMutation({
-    onSuccess: async (data) => {
-      await utils.page.listByWorkspace.invalidate({ workspaceId })
-      router.push(`/workspaces/${workspaceId}/pages/${data.id}`)
     },
   })
 
@@ -528,14 +346,17 @@ export function PageTreeSection({ workspaceId, pages: initialPages, favoritePage
         <IconButton
           aria-label="Новая страница"
           size="small"
-          onClick={(e: MouseEvent<HTMLElement>) => setCreateAnchor(e.currentTarget)}
+          onClick={() => createFlow.openFor(null)}
         >
           <AddIcon sx={{ fontSize: 16 }} />
         </IconButton>
-        <CreatePageMenu
-          anchorEl={createAnchor}
-          onClose={() => setCreateAnchor(null)}
-          onCreate={(type) => createPage.mutate({ workspaceId, parentId: null, type })}
+        <CreatePageDialog
+          open={createFlow.open}
+          onClose={createFlow.close}
+          workspaceId={workspaceId}
+          onCreatePage={createFlow.handleCreatePage}
+          onCreateFromTemplate={createFlow.handleCreateFromTemplate}
+          isCreating={createFlow.isCreating}
         />
       </Box>
 
