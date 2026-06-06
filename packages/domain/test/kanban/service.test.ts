@@ -150,7 +150,7 @@ describe('KanbanService.updateTask', () => {
     const repo = makeRepo({
       findTaskForUpdate: vi.fn(async () => ({
         id: 't1', pageId: 'b1', title: 'x', dueDate: new Date('2025-01-01'),
-        startDate: null, typeId: null, priorityId: null, sprintId: null, parentId: null,
+        startDate: null, actualDate: null, typeId: null, priorityId: null, sprintId: null, parentId: null,
       })),
     })
     const newDate = new Date('2025-06-01')
@@ -168,7 +168,7 @@ describe('KanbanService.updateTask', () => {
     const repo = makeRepo({
       findTaskForUpdate: vi.fn(async () => ({
         id: 't1', pageId: 'b1', title: 'x', dueDate: d,
-        startDate: null, typeId: null, priorityId: null, sprintId: null, parentId: null,
+        startDate: null, actualDate: null, typeId: null, priorityId: null, sprintId: null, parentId: null,
       })),
     })
     await makeService(repo).updateTask('u1', { pageId: 'b1', id: 't1', dueDate: new Date(d.getTime()) })
@@ -190,7 +190,7 @@ describe('KanbanService.updateTask', () => {
     const repo = makeRepo({
       findTaskForUpdate: vi.fn(async () => ({
         id: 't1', pageId: 'other', title: 'x',
-        dueDate: null, startDate: null, typeId: null, priorityId: null, sprintId: null, parentId: null,
+        dueDate: null, startDate: null, actualDate: null, typeId: null, priorityId: null, sprintId: null, parentId: null,
       })),
     })
     await expect(
