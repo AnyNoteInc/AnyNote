@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { findClickedLink, shouldOpenLink } from './link-click-handler'
+import { attachLinkClickHandler, findClickedLink, shouldOpenLink } from './link-click-handler'
 
 function mouseEvent(props: Partial<MouseEvent>): MouseEvent {
   return { button: 0, metaKey: false, ctrlKey: false, altKey: false, ...props } as MouseEvent
@@ -25,6 +25,11 @@ describe('shouldOpenLink', () => {
     expect(shouldOpenLink(mouseEvent({ metaKey: true }), true)).toBe(true)
     expect(shouldOpenLink(mouseEvent({ ctrlKey: true }), true)).toBe(true)
     expect(shouldOpenLink(mouseEvent({ altKey: true }), true)).toBe(true)
+  })
+
+  it('does not open on a modified non-left click in edit mode', () => {
+    expect(shouldOpenLink(mouseEvent({ button: 2, metaKey: true }), true)).toBe(false)
+    expect(shouldOpenLink(mouseEvent({ button: 1, ctrlKey: true }), true)).toBe(false)
   })
 })
 
@@ -56,5 +61,62 @@ describe('findClickedLink', () => {
     const plain = document.createElement('span')
     root.appendChild(plain)
     expect(findClickedLink(plain, root)).toBeNull()
+  })
+
+  it('returns null when the target is null', () => {
+    const root = document.createElement('div')
+    expect(findClickedLink(null, root)).toBeNull()
+  })
+})
+
+function makeEditor(dom: HTMLElement, isEditable: boolean) {
+  return { view: { dom }, isEditable } as unknown as Parameters<typeof attachLinkClickHandler>[0]
+}
+
+describe('attachLinkClickHandler', () => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let openSpy: ReturnType<typeof vi.spyOn<any, any>>
+
+  beforeEach(() => {
+    openSpy = vi.spyOn(globalThis, 'open').mockImplementation(() => null)
+  })
+
+  afterEach(() => {
+    openSpy.mockRestore()
+  })
+
+  it('opens a clicked link in view mode and stops after cleanup', () => {
+    const dom = document.createElement('div')
+    const anchor = document.createElement('a')
+    anchor.href = 'https://example.com/'
+    dom.appendChild(anchor)
+    document.body.appendChild(dom)
+
+    const cleanup = attachLinkClickHandler(makeEditor(dom, false))
+
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }))
+    expect(openSpy).toHaveBeenCalledTimes(1)
+    expect(openSpy).toHaveBeenCalledWith('https://example.com/', '_blank', 'noopener,noreferrer')
+
+    cleanup()
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }))
+    expect(openSpy).toHaveBeenCalledTimes(1) // still 1 — listener detached
+
+    dom.remove()
+  })
+
+  it('does not open a plain left click in edit mode', () => {
+    const dom = document.createElement('div')
+    const anchor = document.createElement('a')
+    anchor.href = 'https://example.com/'
+    dom.appendChild(anchor)
+    document.body.appendChild(dom)
+
+    const cleanup = attachLinkClickHandler(makeEditor(dom, true))
+    anchor.dispatchEvent(new MouseEvent('click', { bubbles: true, button: 0 }))
+    expect(openSpy).not.toHaveBeenCalled()
+
+    cleanup()
+    dom.remove()
   })
 })

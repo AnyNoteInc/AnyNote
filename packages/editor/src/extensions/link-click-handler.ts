@@ -20,7 +20,7 @@ export function findClickedLink(target: EventTarget | null, root: HTMLElement) {
  */
 export function shouldOpenLink(event: MouseEvent, editable: boolean) {
   if (!editable) return event.button === 0
-  return event.metaKey || event.ctrlKey || event.altKey
+  return event.button === 0 && (event.metaKey || event.ctrlKey || event.altKey)
 }
 
 export function openLinkInNewWindow(link: HTMLAnchorElement) {
@@ -35,11 +35,10 @@ export function openLinkInNewWindow(link: HTMLAnchorElement) {
 export function attachLinkClickHandler(editor: Editor) {
   const dom = editor.view.dom
 
-  const handleClick = (event: Event) => {
-    const mouse = event as MouseEvent
-    const link = findClickedLink(mouse.target, dom as HTMLElement)
+  const handleClick = (event: MouseEvent) => {
+    const link = findClickedLink(event.target, dom as HTMLElement)
     if (!link) return
-    if (!shouldOpenLink(mouse, editor.isEditable)) return
+    if (!shouldOpenLink(event, editor.isEditable)) return
 
     event.preventDefault()
     event.stopPropagation()
