@@ -36,6 +36,10 @@ vi.mock('@/components/page/page-export-dialog', () => ({
   PageExportDialog: () => null,
 }))
 
+vi.mock('@/components/templates', () => ({
+  SaveAsTemplateDialog: () => null,
+}))
+
 import { PageActionsMenu } from '@/components/page/page-actions-menu'
 
 describe('PageActionsMenu', () => {
@@ -51,6 +55,7 @@ describe('PageActionsMenu', () => {
       <PageActionsMenu
         pageId="33333333-3333-3333-3333-333333333333"
         pageTitle="Исходная страница"
+        pageIcon={null}
         workspaceId="11111111-1111-1111-1111-111111111111"
         pageType="TEXT"
         isFavorite={false}

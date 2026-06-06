@@ -60,6 +60,7 @@ export function PageActionsToolbar({ pageId, workspaceId }: Props) {
       <PageActionsMenu
         pageId={pageId}
         pageTitle={title}
+        pageIcon={pageQ.data?.icon ?? null}
         workspaceId={workspaceId}
         pageType={pageType}
         isFavorite={isFavorite}

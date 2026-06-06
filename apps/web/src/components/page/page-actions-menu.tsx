@@ -5,6 +5,7 @@ import { useState, type MouseEvent } from 'react'
 import {
   ArticleIcon,
   Box,
+  BookmarkAddIcon,
   Button,
   ButtonGroup,
   ContentCopyIcon,
@@ -32,6 +33,7 @@ import { useFullWidth } from '@/hooks/use-full-width'
 import { useOutlineMode } from '@/hooks/use-outline-mode'
 
 import { MovePageDialog } from '@/components/workspace/move-page-dialog'
+import { SaveAsTemplateDialog } from '@/components/templates'
 import type { PageItem } from '@/components/workspace/types'
 
 import { PageExportDialog } from './page-export-dialog'
@@ -39,6 +41,7 @@ import { PageExportDialog } from './page-export-dialog'
 type Props = {
   pageId: string
   pageTitle: string | null
+  pageIcon: string | null
   workspaceId: string
   pageType:
     | 'TEXT'
@@ -60,6 +63,7 @@ const menuItemSx = { gap: 1, fontSize: 13 } as const
 export function PageActionsMenu({
   pageId,
   pageTitle,
+  pageIcon,
   workspaceId,
   pageType,
   isFavorite,
@@ -69,6 +73,7 @@ export function PageActionsMenu({
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const [exportOpen, setExportOpen] = useState(false)
   const [moveOpen, setMoveOpen] = useState(false)
+  const [saveTemplateOpen, setSaveTemplateOpen] = useState(false)
 
   const actions = usePageActions({ id: pageId, title: pageTitle }, workspaceId, isFavorite)
   const [fullWidth, setFullWidth] = useFullWidth(pageId)
@@ -97,6 +102,11 @@ export function PageActionsMenu({
 
   const handleOpenMove = () => {
     setMoveOpen(true)
+    closeMenu()
+  }
+
+  const handleOpenSaveTemplate = () => {
+    setSaveTemplateOpen(true)
     closeMenu()
   }
 
@@ -149,6 +159,13 @@ export function PageActionsMenu({
             <MovingIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText>Переместить</ListItemText>
+        </MenuItem>
+
+        <MenuItem onClick={handleOpenSaveTemplate} sx={menuItemSx}>
+          <ListItemIcon>
+            <BookmarkAddIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Сохранить как шаблон</ListItemText>
         </MenuItem>
 
         <MenuItem onClick={handleOpenDelete} sx={{ ...menuItemSx, color: 'error.main' }}>
@@ -254,6 +271,15 @@ export function PageActionsMenu({
         onClose={() => setExportOpen(false)}
         pageId={pageId}
         workspaceId={workspaceId}
+      />
+
+      <SaveAsTemplateDialog
+        open={saveTemplateOpen}
+        onClose={() => setSaveTemplateOpen(false)}
+        workspaceId={workspaceId}
+        pageId={pageId}
+        defaultTitle={pageTitle ?? ''}
+        defaultIcon={pageIcon}
       />
     </>
   )
