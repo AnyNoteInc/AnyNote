@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 
 import {
   BarChartIcon,
@@ -58,6 +58,9 @@ export function WorkspaceSettingsDialog({
 }: Props) {
   const features = usePlanFeatures()
   const [section, setSection] = useState<SettingsSectionSlug>(initialSection)
+  useEffect(() => {
+    if (open) setSection(initialSection)
+  }, [open, initialSection])
   const titleId = 'workspace-settings-dialog-title'
 
   const workspaceQ = trpc.workspace.getById.useQuery({ id: workspaceId }, { enabled: open })
