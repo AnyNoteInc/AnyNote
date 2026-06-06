@@ -34,6 +34,7 @@ function task(id: string, overrides: Partial<BoardTaskData> = {}): BoardTaskData
     description: null,
     startDate: null,
     dueDate: null,
+    actualDate: null,
     position: 1,
     sprintPosition: null,
     archived: false,
@@ -149,5 +150,51 @@ describe('applyFilters', () => {
       { columns, sprints },
     )
     expect(result.map((t) => t.id)).toEqual(['b'])
+  })
+})
+
+describe('actual-date filter', () => {
+  it('keeps only tasks whose actualDate is within [actualFrom, actualTo]', () => {
+    const tasks = [
+      task('a', { actualDate: new Date('2025-06-05') }),
+      task('b', { actualDate: new Date('2025-06-20') }),
+      task('c', { actualDate: null }),
+    ]
+    const result = applyFilters(
+      tasks,
+      { ...EMPTY_FILTERS, actualFrom: '2025-06-01', actualTo: '2025-06-10' },
+      { columns, sprints },
+    )
+    expect(result.map((t) => t.id)).toEqual(['a'])
+  })
+})
+
+describe('sort', () => {
+  it('sorts by deviation descending (most late first), empty deviations last', () => {
+    const tasks = [
+      task('ontime', { dueDate: new Date('2025-06-01'), actualDate: new Date('2025-06-01') }),
+      task('late', { dueDate: new Date('2025-06-01'), actualDate: new Date('2025-06-05') }),
+      task('none'),
+    ]
+    const result = applyFilters(
+      tasks,
+      { ...EMPTY_FILTERS, sortBy: 'deviation', sortDir: 'desc' },
+      { columns, sprints },
+    )
+    expect(result.map((t) => t.id)).toEqual(['late', 'ontime', 'none'])
+  })
+
+  it('sorts by planned date ascending, empty dates last', () => {
+    const tasks = [
+      task('b', { dueDate: new Date('2025-06-10') }),
+      task('a', { dueDate: new Date('2025-06-01') }),
+      task('z'),
+    ]
+    const result = applyFilters(
+      tasks,
+      { ...EMPTY_FILTERS, sortBy: 'planned', sortDir: 'asc' },
+      { columns, sprints },
+    )
+    expect(result.map((t) => t.id)).toEqual(['a', 'b', 'z'])
   })
 })

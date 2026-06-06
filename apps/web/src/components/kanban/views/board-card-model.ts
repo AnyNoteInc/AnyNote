@@ -1,4 +1,5 @@
 import type { BoardData, BoardTaskData } from '../types'
+import { computeDeviation, formatDeviation, type Deviation } from './deviation'
 
 const VISIBLE_LABEL_LIMIT = 2
 const SOON_WINDOW_DAYS = 7
@@ -18,6 +19,9 @@ export interface BoardCardModel {
   readonly dateLabel: string | null
   readonly dateTone: CardDateTone
   readonly childCount: number
+  readonly actualLabel: string | null
+  readonly deviationLabel: string | null
+  readonly deviationTone: Deviation['tone'] | null
 }
 
 export function getBoardCardModel(
@@ -31,6 +35,8 @@ export function getBoardCardModel(
     ? (board.priorities.find((item) => item.id === task.priorityId) ?? null)
     : null
   const dueDate = toValidDate(task.dueDate)
+  const actualDate = toValidDate(task.actualDate)
+  const deviation = computeDeviation(dueDate, actualDate)
   const visibleLabels = task.labels.slice(0, VISIBLE_LABEL_LIMIT)
 
   return {
@@ -43,8 +49,11 @@ export function getBoardCardModel(
     visibleLabels,
     hiddenLabelCount: Math.max(task.labels.length - visibleLabels.length, 0),
     dateLabel: getDateLabel(task.startDate, task.dueDate, now),
-    dateTone: getDateTone(dueDate, now),
+    dateTone: actualDate ? 'default' : getDateTone(dueDate, now),
     childCount,
+    actualLabel: actualDate ? formatCardDate(actualDate, now) : null,
+    deviationLabel: deviation ? formatDeviation(deviation) : null,
+    deviationTone: deviation ? deviation.tone : null,
   }
 }
 

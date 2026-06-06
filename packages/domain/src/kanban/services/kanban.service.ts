@@ -29,6 +29,10 @@ function toIso(d: Date | null | undefined): string | null {
   return d ? d.toISOString() : null
 }
 
+function startOfUtcDay(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class KanbanService {
@@ -127,6 +131,7 @@ export class KanbanService {
         description: input.description,
         startDate: input.startDate,
         dueDate: input.dueDate,
+        actualDate: input.actualDate,
         typeId: input.typeId,
         priorityId: input.priorityId,
         sprintId: input.sprintId,
@@ -142,6 +147,8 @@ export class KanbanService {
         await this.repo.recordActivity({ taskId: current.id, actorId: actorUserId, type: 'DUE_DATE_CHANGED', payload: { from: toIso(current.dueDate), to: toIso(input.dueDate) } })
       if (input.startDate !== undefined && !sameDate(current.startDate, input.startDate))
         await this.repo.recordActivity({ taskId: current.id, actorId: actorUserId, type: 'START_DATE_CHANGED', payload: { from: toIso(current.startDate), to: toIso(input.startDate) } })
+      if (input.actualDate !== undefined && !sameDate(current.actualDate, input.actualDate))
+        await this.repo.recordActivity({ taskId: current.id, actorId: actorUserId, type: 'ACTUAL_DATE_CHANGED', payload: { from: toIso(current.actualDate), to: toIso(input.actualDate) } })
       if (input.typeId !== undefined && input.typeId !== current.typeId)
         await this.repo.recordActivity({ taskId: current.id, actorId: actorUserId, type: 'TYPE_CHANGED', payload: { fromId: current.typeId, toId: input.typeId } })
       if (input.priorityId !== undefined && input.priorityId !== current.priorityId)
@@ -193,6 +200,16 @@ export class KanbanService {
           type: 'STATUS_CHANGED',
           payload: { fromKind: fromColumn.kind, toKind: toColumn.kind },
         })
+      if (toColumn.kind === 'DONE' && !current.actualDate) {
+        const today = startOfUtcDay(new Date())
+        await this.repo.updateTask(current.id, { actualDate: today, updatedById: actorUserId })
+        await this.repo.recordActivity({
+          taskId: current.id,
+          actorId: actorUserId,
+          type: 'ACTUAL_DATE_CHANGED',
+          payload: { from: null, to: today.toISOString(), auto: true },
+        })
+      }
       return updated
     })
   }

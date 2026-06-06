@@ -255,6 +255,7 @@ enum TaskActivityType {
   DESCRIPTION_CHANGED
   DUE_DATE_CHANGED
   START_DATE_CHANGED
+  ACTUAL_DATE_CHANGED
   SPRINT_CHANGED
   PARENT_CHANGED
   ARCHIVED
@@ -1213,6 +1214,7 @@ model Task {
   description    Json?
   startDate      DateTime? @map("start_date")
   dueDate        DateTime? @map("due_date")
+  actualDate     DateTime? @map("actual_date")
   position       Float
   sprintPosition Float?    @map("sprint_position")
   archived       Boolean   @default(false)

@@ -31,13 +31,14 @@ function makeRepo(overrides: Partial<KanbanRepository> = {}): KanbanRepository {
       title: 'Old',
       dueDate: null,
       startDate: null,
+      actualDate: null,
       typeId: null,
       priorityId: null,
       sprintId: null,
       parentId: null,
     })),
     updateTask: vi.fn(async () => ({ id: 't1', pageId: 'b1' })),
-    findTaskForMove: vi.fn(async () => ({ id: 't1', pageId: 'b1', columnId: 'c1' })),
+    findTaskForMove: vi.fn(async () => ({ id: 't1', pageId: 'b1', columnId: 'c1', actualDate: null })),
     findColumnsForPage: vi.fn(async () => [
       { id: 'c1', title: 'Todo', kind: 'ACTIVE' },
       { id: 'c2', title: 'Done', kind: 'DONE' },
@@ -149,7 +150,7 @@ describe('KanbanService.updateTask', () => {
     const repo = makeRepo({
       findTaskForUpdate: vi.fn(async () => ({
         id: 't1', pageId: 'b1', title: 'x', dueDate: new Date('2025-01-01'),
-        startDate: null, typeId: null, priorityId: null, sprintId: null, parentId: null,
+        startDate: null, actualDate: null, typeId: null, priorityId: null, sprintId: null, parentId: null,
       })),
     })
     const newDate = new Date('2025-06-01')
@@ -167,7 +168,7 @@ describe('KanbanService.updateTask', () => {
     const repo = makeRepo({
       findTaskForUpdate: vi.fn(async () => ({
         id: 't1', pageId: 'b1', title: 'x', dueDate: d,
-        startDate: null, typeId: null, priorityId: null, sprintId: null, parentId: null,
+        startDate: null, actualDate: null, typeId: null, priorityId: null, sprintId: null, parentId: null,
       })),
     })
     await makeService(repo).updateTask('u1', { pageId: 'b1', id: 't1', dueDate: new Date(d.getTime()) })
@@ -189,12 +190,52 @@ describe('KanbanService.updateTask', () => {
     const repo = makeRepo({
       findTaskForUpdate: vi.fn(async () => ({
         id: 't1', pageId: 'other', title: 'x',
-        dueDate: null, startDate: null, typeId: null, priorityId: null, sprintId: null, parentId: null,
+        dueDate: null, startDate: null, actualDate: null, typeId: null, priorityId: null, sprintId: null, parentId: null,
       })),
     })
     await expect(
       makeService(repo).updateTask('u1', { pageId: 'b1', id: 't1' }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+  })
+
+  it('records ACTUAL_DATE_CHANGED (manual) when actualDate is set', async () => {
+    const repo = makeRepo({
+      findTaskForUpdate: vi.fn(async () => ({
+        id: 't1', pageId: 'b1', title: 'x', dueDate: null,
+        startDate: null, actualDate: null,
+        typeId: null, priorityId: null, sprintId: null, parentId: null,
+      })),
+    })
+    const actual = new Date('2025-06-01T00:00:00.000Z')
+    await makeService(repo).updateTask('u1', { pageId: 'b1', id: 't1', actualDate: actual })
+    expect(repo.updateTask).toHaveBeenCalledWith(
+      't1',
+      expect.objectContaining({ actualDate: actual }),
+    )
+    expect(repo.recordActivity).toHaveBeenCalledWith(
+      expect.objectContaining({
+        type: 'ACTUAL_DATE_CHANGED',
+        payload: { from: null, to: '2025-06-01T00:00:00.000Z' },
+      }),
+    )
+  })
+
+  it('does not record ACTUAL_DATE_CHANGED when actualDate is unchanged', async () => {
+    const same = new Date('2025-06-01T00:00:00.000Z')
+    const repo = makeRepo({
+      findTaskForUpdate: vi.fn(async () => ({
+        id: 't1', pageId: 'b1', title: 'x', dueDate: null,
+        startDate: null, actualDate: same,
+        typeId: null, priorityId: null, sprintId: null, parentId: null,
+      })),
+    })
+    await makeService(repo).updateTask('u1', {
+      pageId: 'b1', id: 't1', actualDate: new Date('2025-06-01T00:00:00.000Z'),
+    })
+    const types = (repo.recordActivity as ReturnType<typeof vi.fn>).mock.calls.map(
+      (c) => (c[0] as { type: string }).type,
+    )
+    expect(types).not.toContain('ACTUAL_DATE_CHANGED')
   })
 })
 
@@ -202,7 +243,11 @@ describe('KanbanService.moveTask', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('records MOVED and STATUS_CHANGED when column kind differs (ACTIVE→DONE)', async () => {
-    const repo = makeRepo()
+    const repo = makeRepo({
+      findTaskForMove: vi.fn(async () => ({
+        id: 't1', pageId: 'b1', columnId: 'c1', actualDate: new Date('2025-01-01T00:00:00.000Z'),
+      })),
+    })
     await makeService(repo).moveTask('u1', {
       pageId: 'b1', id: 't1', targetColumnId: 'c2', beforeId: null, afterId: null,
     })
@@ -239,6 +284,80 @@ describe('KanbanService.moveTask', () => {
         pageId: 'b1', id: 't1', targetColumnId: 'nonexistent', beforeId: null, afterId: null,
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+  })
+
+  it('auto-sets actualDate to UTC midnight when moving into a DONE column with empty actualDate', async () => {
+    const repo = makeRepo({
+      findTaskForMove: vi.fn(async () => ({ id: 't1', pageId: 'b1', columnId: 'c1', actualDate: null })),
+    })
+    await makeService(repo).moveTask('u1', {
+      pageId: 'b1', id: 't1', targetColumnId: 'c2', beforeId: null, afterId: null,
+    })
+    const setCall = (repo.updateTask as ReturnType<typeof vi.fn>).mock.calls.find(
+      (c) => (c[1] as { actualDate?: Date }).actualDate instanceof Date,
+    )
+    expect(setCall).toBeDefined()
+    const set = (setCall![1] as { actualDate: Date }).actualDate
+    expect(set.getUTCHours()).toBe(0)
+    expect(set.getUTCMinutes()).toBe(0)
+    expect(set.getUTCSeconds()).toBe(0)
+    expect(set.getUTCMilliseconds()).toBe(0)
+    const types = (repo.recordActivity as ReturnType<typeof vi.fn>).mock.calls.map(
+      (c) => (c[0] as { type: string }).type,
+    )
+    expect(types).toContain('ACTUAL_DATE_CHANGED')
+  })
+
+  it('does NOT overwrite an existing actualDate when moving into a DONE column', async () => {
+    const existing = new Date('2025-01-01T00:00:00.000Z')
+    const repo = makeRepo({
+      findTaskForMove: vi.fn(async () => ({ id: 't1', pageId: 'b1', columnId: 'c1', actualDate: existing })),
+    })
+    await makeService(repo).moveTask('u1', {
+      pageId: 'b1', id: 't1', targetColumnId: 'c2', beforeId: null, afterId: null,
+    })
+    const setCall = (repo.updateTask as ReturnType<typeof vi.fn>).mock.calls.find(
+      (c) => 'actualDate' in (c[1] as object),
+    )
+    expect(setCall).toBeUndefined()
+    const types = (repo.recordActivity as ReturnType<typeof vi.fn>).mock.calls.map(
+      (c) => (c[0] as { type: string }).type,
+    )
+    expect(types).not.toContain('ACTUAL_DATE_CHANGED')
+  })
+
+  it('sets actualDate when moving between two DONE columns if it was empty', async () => {
+    const repo = makeRepo({
+      findColumnsForPage: vi.fn(async () => [
+        { id: 'c2', title: 'Done', kind: 'DONE' },
+        { id: 'c4', title: 'Done 2', kind: 'DONE' },
+      ]),
+      findTaskForMove: vi.fn(async () => ({ id: 't1', pageId: 'b1', columnId: 'c2', actualDate: null })),
+    })
+    await makeService(repo).moveTask('u1', {
+      pageId: 'b1', id: 't1', targetColumnId: 'c4', beforeId: null, afterId: null,
+    })
+    const types = (repo.recordActivity as ReturnType<typeof vi.fn>).mock.calls.map(
+      (c) => (c[0] as { type: string }).type,
+    )
+    expect(types).toContain('ACTUAL_DATE_CHANGED')
+  })
+
+  it('does NOT set actualDate when moving from a DONE column back to an ACTIVE column', async () => {
+    const repo = makeRepo({
+      findColumnsForPage: vi.fn(async () => [
+        { id: 'c1', title: 'Todo', kind: 'ACTIVE' },
+        { id: 'c2', title: 'Done', kind: 'DONE' },
+      ]),
+      findTaskForMove: vi.fn(async () => ({ id: 't1', pageId: 'b1', columnId: 'c2', actualDate: null })),
+    })
+    await makeService(repo).moveTask('u1', {
+      pageId: 'b1', id: 't1', targetColumnId: 'c1', beforeId: null, afterId: null,
+    })
+    const setCall = (repo.updateTask as ReturnType<typeof vi.fn>).mock.calls.find(
+      (c) => 'actualDate' in (c[1] as object),
+    )
+    expect(setCall).toBeUndefined()
   })
 })
 

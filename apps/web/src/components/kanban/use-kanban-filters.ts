@@ -36,6 +36,13 @@ export function useKanbanFilters(options: UseKanbanFiltersOptions = {}) {
     else if (sprintParam === 'all') sprint = 'all'
     else if (sprintParam) sprint = parseCsv(sprintParam)
 
+    const sortParam = searchParams?.get('sort') ?? null
+    const sortBy: KanbanFilters['sortBy'] =
+      sortParam === 'planned' || sortParam === 'actual' || sortParam === 'deviation'
+        ? sortParam
+        : 'manual'
+    const sortDir: KanbanFilters['sortDir'] = searchParams?.get('dir') === 'desc' ? 'desc' : 'asc'
+
     return {
       ...EMPTY_FILTERS,
       sprint,
@@ -43,8 +50,12 @@ export function useKanbanFilters(options: UseKanbanFiltersOptions = {}) {
       labelIds: parseCsv(searchParams?.get('labels') ?? null),
       dateFrom: searchParams?.get('from') ?? null,
       dateTo: searchParams?.get('to') ?? null,
+      actualFrom: searchParams?.get('afrom') ?? null,
+      actualTo: searchParams?.get('ato') ?? null,
       overdueOnly: searchParams?.get('overdue') === '1',
       hideTerminalColumns: view === 'table',
+      sortBy,
+      sortDir,
     }
   }, [searchParams, view, defaultSprint])
 
@@ -97,6 +108,21 @@ export function useKanbanFilters(options: UseKanbanFiltersOptions = {}) {
     [updateParams],
   )
 
+  const setActualDateFilter = useCallback(
+    (next: { from: string | null; to: string | null }) =>
+      updateParams({ afrom: next.from, ato: next.to }),
+    [updateParams],
+  )
+
+  const setSort = useCallback(
+    (next: { sortBy: KanbanFilters['sortBy']; sortDir: KanbanFilters['sortDir'] }) =>
+      updateParams({
+        sort: next.sortBy === 'manual' ? null : next.sortBy,
+        dir: next.sortDir === 'asc' ? null : next.sortDir,
+      }),
+    [updateParams],
+  )
+
   return {
     view,
     setView,
@@ -105,5 +131,7 @@ export function useKanbanFilters(options: UseKanbanFiltersOptions = {}) {
     setUserFilter,
     setLabelFilter,
     setDateFilter,
+    setActualDateFilter,
+    setSort,
   }
 }

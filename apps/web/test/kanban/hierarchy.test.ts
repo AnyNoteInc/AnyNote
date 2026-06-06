@@ -20,6 +20,7 @@ function task(id: string, parentId: string | null, columnId: string): BoardTaskD
     description: null,
     startDate: null,
     dueDate: null,
+    actualDate: null,
     position: 0,
     sprintPosition: null,
     archived: false,

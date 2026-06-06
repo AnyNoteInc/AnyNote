@@ -47,6 +47,7 @@ import { toDate } from '../lib/dates'
 import { SprintMenu } from '../sprint/sprint-menu'
 import { sprintStatusColor, sprintStatusLabel } from '../sprint/sprint-status-label'
 import { isTerminalTask } from './table-view-model'
+import { computeDeviation, formatDeviation } from './deviation'
 
 type SprintHeaderProps = {
   readonly id: string
@@ -127,6 +128,7 @@ function TaskRow({
   const { selected, toggle } = useSelection()
   const canAssignToMe = Boolean(onAssignToMe && !isAssignedTo(task.assignees, currentUserId))
   const hasActions = canAssignToMe || Boolean(onRemoveFromSprint || onDeleteTask)
+  const deviation = computeDeviation(toDate(task.dueDate), toDate(task.actualDate))
 
   return (
     <Stack
@@ -169,8 +171,21 @@ function TaskRow({
       </Typography>
       <AssigneeAvatars assignees={task.assignees} size={22} />
       {task.dueDate ? (
-        <Typography variant="caption" color="text.secondary">
-          {new Date(task.dueDate).toLocaleDateString('ru-RU')}
+        <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
+          План: {toDate(task.dueDate)?.toLocaleDateString('ru-RU')}
+        </Typography>
+      ) : null}
+      {task.actualDate ? (
+        <Typography variant="caption" sx={{ color: '#15803D', whiteSpace: 'nowrap' }}>
+          Факт: {toDate(task.actualDate)?.toLocaleDateString('ru-RU')}
+        </Typography>
+      ) : null}
+      {deviation ? (
+        <Typography
+          variant="caption"
+          sx={{ whiteSpace: 'nowrap', color: deviation.tone === 'late' ? '#B91C1C' : '#15803D' }}
+        >
+          {formatDeviation(deviation)}
         </Typography>
       ) : null}
       {hasActions ? (

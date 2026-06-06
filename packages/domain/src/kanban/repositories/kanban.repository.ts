@@ -209,6 +209,7 @@ export class KanbanRepository {
     title: string
     dueDate: Date | null
     startDate: Date | null
+    actualDate: Date | null
     typeId: string | null
     priorityId: string | null
     sprintId: string | null
@@ -222,6 +223,7 @@ export class KanbanRepository {
         title: true,
         dueDate: true,
         startDate: true,
+        actualDate: true,
         typeId: true,
         priorityId: true,
         sprintId: true,
@@ -233,6 +235,7 @@ export class KanbanRepository {
       title: string
       dueDate: Date | null
       startDate: Date | null
+      actualDate: Date | null
       typeId: string | null
       priorityId: string | null
       sprintId: string | null
@@ -247,6 +250,7 @@ export class KanbanRepository {
       description?: unknown
       startDate?: Date | null
       dueDate?: Date | null
+      actualDate?: Date | null
       typeId?: string | null
       priorityId?: string | null
       sprintId?: string | null
@@ -265,11 +269,12 @@ export class KanbanRepository {
     id: string
     pageId: string
     columnId: string
+    actualDate: Date | null
   }> {
     return this.uow.client().task.findUniqueOrThrow({
       where: { id: taskId },
-      select: { id: true, pageId: true, columnId: true },
-    }) as Promise<{ id: string; pageId: string; columnId: string }>
+      select: { id: true, pageId: true, columnId: true, actualDate: true },
+    }) as Promise<{ id: string; pageId: string; columnId: string; actualDate: Date | null }>
   }
 
   async findColumnsForPage(pageId: string): Promise<{ id: string; title: string; kind: string }[]> {
