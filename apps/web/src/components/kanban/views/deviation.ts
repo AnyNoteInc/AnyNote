@@ -24,3 +24,17 @@ export function formatDeviation(d: Deviation): string {
   const word = pluralizeRu(n, ['день', 'дня', 'дней'])
   return d.days > 0 ? `+${n} ${word}` : `−${n} ${word}`
 }
+
+export interface DeviationColors {
+  readonly color: string
+  readonly borderColor: string
+  readonly bgcolor: string
+}
+
+// Red for a late deviation, green for early/on-time. Also used for the green
+// "Факт" badge via deviationColors('early').
+export function deviationColors(tone: Deviation['tone']): DeviationColors {
+  return tone === 'late'
+    ? { color: '#B91C1C', borderColor: '#FCA5A5', bgcolor: '#FEE2E2' }
+    : { color: '#15803D', borderColor: '#86EFAC', bgcolor: '#DCFCE7' }
+}

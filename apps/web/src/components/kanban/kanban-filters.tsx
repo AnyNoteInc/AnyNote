@@ -38,6 +38,34 @@ const DENSE_MENU_SLOT_PROPS = { list: { dense: true } } as const
 const TOGGLE_SX = { py: 0.25, pr: 1, pl: 0.5 } as const
 const MENU_ITEM_SX = { minHeight: 32 } as const
 
+const SORT_LABELS: Record<Filters['sortBy'], string> = {
+  manual: 'Сортировка',
+  planned: 'Сортировка: план',
+  actual: 'Сортировка: факт',
+  deviation: 'Сортировка: отклонение',
+}
+
+function DateField({
+  label,
+  value,
+  onChange,
+}: {
+  readonly label: string
+  readonly value: string | null
+  readonly onChange: (value: string | null) => void
+}) {
+  return (
+    <TextField
+      type="date"
+      size="small"
+      label={label}
+      slotProps={{ inputLabel: { shrink: true } }}
+      value={value ?? ''}
+      onChange={(e) => onChange(e.target.value || null)}
+    />
+  )
+}
+
 export function KanbanFiltersUI({ board, bag }: KanbanFiltersProps) {
   const [anchors, setAnchors] = useState<Record<string, HTMLElement | null>>({})
   const [showCompletedSprints, setShowCompletedSprints] = useState(false)
@@ -72,16 +100,7 @@ export function KanbanFiltersUI({ board, bag }: KanbanFiltersProps) {
   const hasDateFilter = Boolean(
     bag.filters.dateFrom || bag.filters.dateTo || bag.filters.actualFrom || bag.filters.actualTo,
   )
-  const sortLabelText =
-    bag.filters.sortBy === 'manual'
-      ? 'Сортировка'
-      : `Сортировка: ${
-          bag.filters.sortBy === 'planned'
-            ? 'план'
-            : bag.filters.sortBy === 'actual'
-              ? 'факт'
-              : 'отклонение'
-        }`
+  const sortLabelText = SORT_LABELS[bag.filters.sortBy]
 
   return (
     <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
@@ -250,56 +269,32 @@ export function KanbanFiltersUI({ board, bag }: KanbanFiltersProps) {
           <Typography variant="caption" color="text.secondary">
             Плановая дата
           </Typography>
-          <TextField
-            type="date"
-            size="small"
+          <DateField
             label="с"
-            slotProps={{ inputLabel: { shrink: true } }}
-            value={bag.filters.dateFrom ?? ''}
-            onChange={(e) =>
-              bag.setDateFilter({
-                from: e.target.value || null,
-                to: bag.filters.dateTo,
-                overdue: bag.filters.overdueOnly,
-              })
+            value={bag.filters.dateFrom}
+            onChange={(from) =>
+              bag.setDateFilter({ from, to: bag.filters.dateTo, overdue: bag.filters.overdueOnly })
             }
           />
-          <TextField
-            type="date"
-            size="small"
+          <DateField
             label="по"
-            slotProps={{ inputLabel: { shrink: true } }}
-            value={bag.filters.dateTo ?? ''}
-            onChange={(e) =>
-              bag.setDateFilter({
-                from: bag.filters.dateFrom,
-                to: e.target.value || null,
-                overdue: bag.filters.overdueOnly,
-              })
+            value={bag.filters.dateTo}
+            onChange={(to) =>
+              bag.setDateFilter({ from: bag.filters.dateFrom, to, overdue: bag.filters.overdueOnly })
             }
           />
           <Typography variant="caption" color="text.secondary">
             Фактическая дата
           </Typography>
-          <TextField
-            type="date"
-            size="small"
+          <DateField
             label="с"
-            slotProps={{ inputLabel: { shrink: true } }}
-            value={bag.filters.actualFrom ?? ''}
-            onChange={(e) =>
-              bag.setActualDateFilter({ from: e.target.value || null, to: bag.filters.actualTo })
-            }
+            value={bag.filters.actualFrom}
+            onChange={(from) => bag.setActualDateFilter({ from, to: bag.filters.actualTo })}
           />
-          <TextField
-            type="date"
-            size="small"
+          <DateField
             label="по"
-            slotProps={{ inputLabel: { shrink: true } }}
-            value={bag.filters.actualTo ?? ''}
-            onChange={(e) =>
-              bag.setActualDateFilter({ from: bag.filters.actualFrom, to: e.target.value || null })
-            }
+            value={bag.filters.actualTo}
+            onChange={(to) => bag.setActualDateFilter({ from: bag.filters.actualFrom, to })}
           />
         </Box>
       </Menu>

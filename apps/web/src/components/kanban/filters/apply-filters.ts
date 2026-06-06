@@ -1,4 +1,5 @@
 import { assigneeFilterIds } from '../lib/assignees'
+import { toDate } from '../lib/dates'
 import type { BoardData, BoardTaskData } from '../types'
 import { computeDeviation } from '../views/deviation'
 
@@ -43,10 +44,10 @@ function intersects<T>(a: T[], b: T[]): boolean {
   return false
 }
 
-function dateOf(value: Date | string | null | undefined): Date | null {
-  if (!value) return null
-  if (value instanceof Date) return value
-  return new Date(value)
+function inDateRange(d: Date | null, from: Date | null, to: Date | null): boolean {
+  if (from && (!d || d < from)) return false
+  if (to && (!d || d > to)) return false
+  return true
 }
 
 export function applyFilters(
@@ -59,10 +60,10 @@ export function applyFilters(
     ctx.columns.filter((c) => c.kind === 'DONE' || c.kind === 'CANCELLED').map((c) => c.id),
   )
   const now = ctx.now ?? new Date()
-  const from = filters.dateFrom ? new Date(filters.dateFrom) : null
-  const to = filters.dateTo ? new Date(filters.dateTo) : null
-  const afrom = filters.actualFrom ? new Date(filters.actualFrom) : null
-  const ato = filters.actualTo ? new Date(filters.actualTo) : null
+  const from = toDate(filters.dateFrom)
+  const to = toDate(filters.dateTo)
+  const afrom = toDate(filters.actualFrom)
+  const ato = toDate(filters.actualTo)
 
   const filtered = tasks.filter((task) => {
     if (filters.hideTerminalColumns && terminalColumnIds.has(task.columnId)) return false
@@ -86,16 +87,12 @@ export function applyFilters(
       if (!intersects(filters.labelIds, labelIds)) return false
     }
 
-    const due = dateOf(task.dueDate)
+    const due = toDate(task.dueDate)
     if (filters.overdueOnly) {
       if (!due || due >= now || terminalColumnIds.has(task.columnId)) return false
     }
-    if (from && (!due || due < from)) return false
-    if (to && (!due || due > to)) return false
-
-    const actual = dateOf(task.actualDate)
-    if (afrom && (!actual || actual < afrom)) return false
-    if (ato && (!actual || actual > ato)) return false
+    if (!inDateRange(due, from, to)) return false
+    if (!inDateRange(toDate(task.actualDate), afrom, ato)) return false
 
     return true
   })
@@ -104,25 +101,19 @@ export function applyFilters(
 
   const dir = filters.sortDir === 'desc' ? -1 : 1
   const keyOf = (t: BoardTaskData): number | null => {
-    if (filters.sortBy === 'planned') {
-      const d = dateOf(t.dueDate)
-      return d ? d.getTime() : null
-    }
-    if (filters.sortBy === 'actual') {
-      const d = dateOf(t.actualDate)
-      return d ? d.getTime() : null
-    }
-    // deviation
-    const dev = computeDeviation(dateOf(t.dueDate), dateOf(t.actualDate))
-    return dev ? dev.days : null
+    if (filters.sortBy === 'planned') return toDate(t.dueDate)?.getTime() ?? null
+    if (filters.sortBy === 'actual') return toDate(t.actualDate)?.getTime() ?? null
+    return computeDeviation(toDate(t.dueDate), toDate(t.actualDate))?.days ?? null
   }
 
-  return [...filtered].sort((a, b) => {
-    const ka = keyOf(a)
-    const kb = keyOf(b)
-    if (ka === null && kb === null) return 0
-    if (ka === null) return 1 // empties always last
-    if (kb === null) return -1
-    return (ka - kb) * dir
-  })
+  // Decorate-sort-undecorate: compute each key once instead of per comparison.
+  return filtered
+    .map((task) => ({ task, key: keyOf(task) }))
+    .sort((a, b) => {
+      if (a.key === null && b.key === null) return 0
+      if (a.key === null) return 1 // empties always last
+      if (b.key === null) return -1
+      return (a.key - b.key) * dir
+    })
+    .map((entry) => entry.task)
 }

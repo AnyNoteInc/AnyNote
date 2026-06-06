@@ -47,7 +47,7 @@ import { toDate } from '../lib/dates'
 import { SprintMenu } from '../sprint/sprint-menu'
 import { sprintStatusColor, sprintStatusLabel } from '../sprint/sprint-status-label'
 import { isTerminalTask } from './table-view-model'
-import { computeDeviation, formatDeviation } from './deviation'
+import { computeDeviation, deviationColors, formatDeviation } from './deviation'
 
 type SprintHeaderProps = {
   readonly id: string
@@ -128,7 +128,9 @@ function TaskRow({
   const { selected, toggle } = useSelection()
   const canAssignToMe = Boolean(onAssignToMe && !isAssignedTo(task.assignees, currentUserId))
   const hasActions = canAssignToMe || Boolean(onRemoveFromSprint || onDeleteTask)
-  const deviation = computeDeviation(toDate(task.dueDate), toDate(task.actualDate))
+  const dueDate = toDate(task.dueDate)
+  const actualDate = toDate(task.actualDate)
+  const deviation = computeDeviation(dueDate, actualDate)
 
   return (
     <Stack
@@ -170,20 +172,23 @@ function TaskRow({
         {task.title}
       </Typography>
       <AssigneeAvatars assignees={task.assignees} size={22} />
-      {task.dueDate ? (
+      {dueDate ? (
         <Typography variant="caption" color="text.secondary" sx={{ whiteSpace: 'nowrap' }}>
-          План: {toDate(task.dueDate)?.toLocaleDateString('ru-RU')}
+          План: {dueDate.toLocaleDateString('ru-RU')}
         </Typography>
       ) : null}
-      {task.actualDate ? (
-        <Typography variant="caption" sx={{ color: '#15803D', whiteSpace: 'nowrap' }}>
-          Факт: {toDate(task.actualDate)?.toLocaleDateString('ru-RU')}
+      {actualDate ? (
+        <Typography
+          variant="caption"
+          sx={{ color: deviationColors('early').color, whiteSpace: 'nowrap' }}
+        >
+          Факт: {actualDate.toLocaleDateString('ru-RU')}
         </Typography>
       ) : null}
       {deviation ? (
         <Typography
           variant="caption"
-          sx={{ whiteSpace: 'nowrap', color: deviation.tone === 'late' ? '#B91C1C' : '#15803D' }}
+          sx={{ whiteSpace: 'nowrap', color: deviationColors(deviation.tone).color }}
         >
           {formatDeviation(deviation)}
         </Typography>

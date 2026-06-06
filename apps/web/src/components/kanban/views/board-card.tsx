@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, type MouseEvent } from 'react'
+import { useState, type MouseEvent, type ReactNode } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { Draggable } from '@hello-pangea/dnd'
 import {
@@ -25,6 +25,7 @@ import type { BoardData, BoardTaskData } from '../types'
 import { AssigneeAvatars } from '../components/assignee-avatars'
 import { isAssignedTo } from '../lib/assignees'
 import { getBoardCardModel, type CardDateTone } from './board-card-model'
+import { deviationColors } from './deviation'
 import { ParentBadge } from '../components/parent-badge'
 import { parentTitleFontWeight } from '../lib/parent-style'
 
@@ -44,6 +45,38 @@ const DATE_BADGE_STYLES: Record<
   default: { color: '#64748B', borderColor: '#CBD5E1', backgroundColor: 'transparent' },
   soon: { color: '#B45309', borderColor: '#F59E0B', backgroundColor: '#FEF3C7' },
   overdue: { color: '#B91C1C', borderColor: '#FCA5A5', backgroundColor: '#FEE2E2' },
+}
+
+function DateBadge({
+  color,
+  borderColor,
+  bgcolor,
+  children,
+}: {
+  readonly color: string
+  readonly borderColor: string
+  readonly bgcolor: string
+  readonly children: ReactNode
+}) {
+  return (
+    <Box
+      component="span"
+      sx={{
+        px: 0.75,
+        py: 0.125,
+        border: 1,
+        borderRadius: 1,
+        color,
+        borderColor,
+        bgcolor,
+        fontSize: 12,
+        lineHeight: '18px',
+        whiteSpace: 'nowrap',
+      }}
+    >
+      {children}
+    </Box>
+  )
 }
 
 export function BoardCard({
@@ -198,49 +231,21 @@ export function BoardCard({
                   sx={{ mt: 0.25, minWidth: 0, mr: editable ? -3.5 : 0 }}
                 >
                   {model.dateLabel ? (
-                    <Box
-                      component="span"
-                      sx={{
-                        px: 0.75,
-                        py: 0.125,
-                        border: 1,
-                        borderRadius: 1,
-                        color: dateBadge.color,
-                        borderColor: dateBadge.borderColor,
-                        bgcolor: dateBadge.backgroundColor,
-                        fontSize: 12,
-                        lineHeight: '18px',
-                        whiteSpace: 'nowrap',
-                      }}
+                    <DateBadge
+                      color={dateBadge.color}
+                      borderColor={dateBadge.borderColor}
+                      bgcolor={dateBadge.backgroundColor}
                     >
                       {model.dateLabel}
-                    </Box>
+                    </DateBadge>
                   ) : null}
                   {model.actualLabel ? (
-                    <Box
-                      component="span"
-                      sx={{
-                        px: 0.75, py: 0.125, border: 1, borderRadius: 1,
-                        color: '#15803D', borderColor: '#86EFAC', bgcolor: '#DCFCE7',
-                        fontSize: 12, lineHeight: '18px', whiteSpace: 'nowrap',
-                      }}
-                    >
-                      Факт: {model.actualLabel}
-                    </Box>
+                    <DateBadge {...deviationColors('early')}>Факт: {model.actualLabel}</DateBadge>
                   ) : null}
-                  {model.deviationLabel ? (
-                    <Box
-                      component="span"
-                      sx={{
-                        px: 0.75, py: 0.125, border: 1, borderRadius: 1,
-                        color: model.deviationTone === 'late' ? '#B91C1C' : '#15803D',
-                        borderColor: model.deviationTone === 'late' ? '#FCA5A5' : '#86EFAC',
-                        bgcolor: model.deviationTone === 'late' ? '#FEE2E2' : '#DCFCE7',
-                        fontSize: 12, lineHeight: '18px', whiteSpace: 'nowrap',
-                      }}
-                    >
+                  {model.deviationLabel && model.deviationTone ? (
+                    <DateBadge {...deviationColors(model.deviationTone)}>
                       {model.deviationLabel}
-                    </Box>
+                    </DateBadge>
                   ) : null}
                   <Box sx={{ flex: 1 }} />
                   {task.assignees.length > 0 ? (

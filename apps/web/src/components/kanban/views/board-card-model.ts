@@ -53,7 +53,7 @@ export function getBoardCardModel(
     childCount,
     actualLabel: actualDate ? formatCardDate(actualDate, now) : null,
     deviationLabel: deviation ? formatDeviation(deviation) : null,
-    deviationTone: deviation ? deviation.tone : null,
+    deviationTone: deviation?.tone ?? null,
   }
 }
 

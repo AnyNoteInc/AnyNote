@@ -31,7 +31,7 @@ import {
 import { KANBAN_LABEL_COLORS } from '@repo/domain/kanban/colors.ts'
 import { AnyNotePlainEditor, type JSONContent } from '@repo/editor'
 
-import { computeDeviation, formatDeviation } from '../views/deviation'
+import { computeDeviation, deviationColors, formatDeviation } from '../views/deviation'
 import { trpc } from '@/trpc/client'
 import type { BoardData, BoardTaskData } from '../types'
 import { TaskAttachments } from './task-attachments'
@@ -477,10 +477,7 @@ export function TaskForm({ pageId, task, board, currentUserId, editable = true }
                 ) : null}
               </Stack>
               {deviation ? (
-                <Typography
-                  variant="caption"
-                  sx={{ color: deviation.tone === 'late' ? '#B91C1C' : '#15803D' }}
-                >
+                <Typography variant="caption" sx={{ color: deviationColors(deviation.tone).color }}>
                   Отклонение: {formatDeviation(deviation)}
                 </Typography>
               ) : null}
