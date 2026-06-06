@@ -18,6 +18,7 @@ import type { PlanFeatures } from '@repo/trpc'
 
 import { SearchDialogProvider } from '../search/search-dialog-provider'
 import { useSearchHotkey } from '../search/use-search-hotkey'
+import { SettingsDialogProvider } from './settings/settings-dialog-provider'
 import { WorkspaceShell } from './workspace-shell'
 import type { SidebarMode } from './workspace-shell'
 import { WorkspaceSidebar } from './workspace-sidebar'
@@ -105,9 +106,6 @@ export function WorkspaceLayoutClient({
       if (activeChat) return [base, { label: activeChat.title ?? 'Без названия' }]
       return [base]
     }
-    if (pathname.includes('/settings')) {
-      return [{ label: 'Настройки' }]
-    }
     if (pathname.includes('/trash')) {
       return [{ label: 'Корзина' }]
     }
@@ -147,7 +145,6 @@ export function WorkspaceLayoutClient({
     features,
     pages,
     userMenu,
-    currentUserId: user.id,
     activeSection: sidebarSection,
     onSectionChange: setSidebarSection,
   }
@@ -219,8 +216,17 @@ export function WorkspaceLayoutClient({
 
   return (
     <SearchDialogProvider workspaceId={workspace.id}>
-      <WorkspaceHotkeyMount workspaceId={workspace.id} onPages={() => setSidebarSection('pages')} />
-      <WorkspaceShell mode={mode} sidebar={sidebar} main={activePageId ? pageMain : mainContent} />
+      <SettingsDialogProvider workspaceId={workspace.id} currentUserId={user.id}>
+        <WorkspaceHotkeyMount
+          workspaceId={workspace.id}
+          onPages={() => setSidebarSection('pages')}
+        />
+        <WorkspaceShell
+          mode={mode}
+          sidebar={sidebar}
+          main={activePageId ? pageMain : mainContent}
+        />
+      </SettingsDialogProvider>
     </SearchDialogProvider>
   )
 }

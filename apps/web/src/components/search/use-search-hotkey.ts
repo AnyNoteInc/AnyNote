@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation'
 
 import { isMac } from '@/lib/platform'
 
+import { useSettingsDialog } from '@/components/workspace/settings/settings-dialog-provider'
+
 import { useSearchDialog } from './search-dialog-provider'
 
 type WorkspaceHotkeyHandlers = {
@@ -13,6 +15,7 @@ type WorkspaceHotkeyHandlers = {
 
 export function useSearchHotkey(workspaceId: string, handlers: WorkspaceHotkeyHandlers = {}) {
   const { open } = useSearchDialog()
+  const settings = useSettingsDialog()
   const router = useRouter()
 
   useEffect(() => {
@@ -43,11 +46,11 @@ export function useSearchHotkey(workspaceId: string, handlers: WorkspaceHotkeyHa
       }
       if (event.key === ',') {
         event.preventDefault()
-        router.push(`/workspaces/${workspaceId}/settings/general`)
+        settings.open('general')
       }
     }
 
     globalThis.addEventListener('keydown', handler, { capture: true })
     return () => globalThis.removeEventListener('keydown', handler, { capture: true })
-  }, [handlers, open, router, workspaceId])
+  }, [handlers, open, router, settings, workspaceId])
 }

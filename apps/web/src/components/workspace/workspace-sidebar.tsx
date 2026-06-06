@@ -39,7 +39,7 @@ import { SIDEBAR_WIDTH } from './workspace-layout-client'
 import type { WorkspaceSidebarSection } from './workspace-layout-client'
 import type { PlanFeatures } from '@repo/trpc'
 import { useSearchDialog } from '../search/search-dialog-provider'
-import { WorkspaceSettingsDialog } from './settings/workspace-settings-dialog'
+import { useSettingsDialog } from './settings/settings-dialog-provider'
 
 type Props = Readonly<{
   workspace: { id: string; name: string; icon: string | null }
@@ -47,7 +47,6 @@ type Props = Readonly<{
   pages: PageItem[]
   onHide?: () => void
   userMenu: ReactNode
-  currentUserId: string
   activeSection: WorkspaceSidebarSection
   onSectionChange: (section: WorkspaceSidebarSection) => void
 }>
@@ -58,12 +57,12 @@ export function WorkspaceSidebar({
   pages,
   onHide,
   userMenu,
-  currentUserId,
   activeSection,
   onSectionChange,
 }: Props) {
   const pathname = usePathname()
   const searchDialog = useSearchDialog()
+  const settings = useSettingsDialog()
   const favorites = trpc.page.listFavorites.useQuery({ workspaceId: workspace.id })
   const favoritePageIds = useMemo(
     () => new Set((favorites.data ?? []).map((f) => f.id)),
@@ -77,14 +76,6 @@ export function WorkspaceSidebar({
 
   const myRole = trpc.workspace.getMyRole.useQuery({ workspaceId: workspace.id })
   const isOwner = myRole.data === 'OWNER'
-  const [settingsOpen, setSettingsOpen] = useState(false)
-  const [settingsInitial, setSettingsInitial] = useState<'general' | 'members'>('general')
-
-  const openSettings = (initial: 'general' | 'members') => {
-    setSettingsInitial(initial)
-    setSettingsOpen(true)
-    closeSwitcher()
-  }
 
   return (
     <Box
@@ -179,7 +170,10 @@ export function WorkspaceSidebar({
                 size="small"
                 variant="outlined"
                 startIcon={<SettingsIcon fontSize="small" />}
-                onClick={() => openSettings('general')}
+                onClick={() => {
+                  settings.open('general')
+                  closeSwitcher()
+                }}
                 sx={{ textTransform: 'none', flex: 1 }}
               >
                 Настройки
@@ -188,7 +182,10 @@ export function WorkspaceSidebar({
                 size="small"
                 variant="outlined"
                 startIcon={<GroupAddIcon fontSize="small" />}
-                onClick={() => openSettings('members')}
+                onClick={() => {
+                  settings.open('members')
+                  closeSwitcher()
+                }}
                 sx={{ textTransform: 'none', flex: 1 }}
               >
                 Пригласить
@@ -305,14 +302,6 @@ export function WorkspaceSidebar({
         <Box sx={{ flex: 1, minWidth: 0 }}>{userMenu}</Box>
         <NotificationsBell tooltipPlacement="top" />
       </Box>
-
-      <WorkspaceSettingsDialog
-        open={settingsOpen}
-        onClose={() => setSettingsOpen(false)}
-        workspaceId={workspace.id}
-        currentUserId={currentUserId}
-        initialSection={settingsInitial}
-      />
     </Box>
   )
 }
