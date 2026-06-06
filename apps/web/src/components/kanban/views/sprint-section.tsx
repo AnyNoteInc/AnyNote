@@ -124,6 +124,7 @@ function TaskRow({
     onAssignToMe && !isAssignedTo(task.assignees, currentUserId),
   )
   const hasActions = canAssignToMe || Boolean(onRemoveFromSprint || onDeleteTask)
+  const deviation = computeDeviation(toDate(task.dueDate), toDate(task.actualDate))
 
   return (
     <Stack
@@ -173,18 +174,14 @@ function TaskRow({
           Факт: {toDate(task.actualDate)?.toLocaleDateString('ru-RU')}
         </Typography>
       ) : null}
-      {(() => {
-        const dev = computeDeviation(toDate(task.dueDate), toDate(task.actualDate))
-        if (!dev) return null
-        return (
-          <Typography
-            variant="caption"
-            sx={{ whiteSpace: 'nowrap', color: dev.tone === 'late' ? '#B91C1C' : '#15803D' }}
-          >
-            {formatDeviation(dev)}
-          </Typography>
-        )
-      })()}
+      {deviation ? (
+        <Typography
+          variant="caption"
+          sx={{ whiteSpace: 'nowrap', color: deviation.tone === 'late' ? '#B91C1C' : '#15803D' }}
+        >
+          {formatDeviation(deviation)}
+        </Typography>
+      ) : null}
       {hasActions ? (
         <TaskRowMenu
           onAssignToMe={canAssignToMe ? onAssignToMe : undefined}
