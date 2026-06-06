@@ -147,6 +147,13 @@
   white-space: nowrap;
 }
 
+/* Links: clickable in view mode (handled in JS); give them visible affordances. */
+.anynote-editor a {
+  color: var(--editor-link, #2563eb);
+  text-decoration: underline;
+  cursor: pointer;
+}
+
 /* Code block: custom node view (copy button) + highlight.js syntax colors.
    lowlight emits .hljs-* spans as ProseMirror decorations; without the color
    rules below the tokens render but stay uncolored. */
