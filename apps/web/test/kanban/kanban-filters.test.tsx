@@ -51,6 +51,8 @@ function createBag(overrides: Partial<FiltersBag['filters']> = {}): FiltersBag {
     setUserFilter: vi.fn(),
     setLabelFilter: vi.fn(),
     setDateFilter: vi.fn(),
+    setActualDateFilter: vi.fn(),
+    setSort: vi.fn(),
   }
 }
 
