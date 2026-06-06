@@ -1,5 +1,6 @@
 export { CreatePageDialog } from './create-page-dialog'
 export { SaveAsTemplateDialog } from './save-as-template-dialog'
+export { TemplateDeleteDialog } from './template-delete-dialog'
 export { TemplateMetadataDialog } from './template-metadata-dialog'
 export { useCreatePageFlow } from './use-create-page-flow'
 export {

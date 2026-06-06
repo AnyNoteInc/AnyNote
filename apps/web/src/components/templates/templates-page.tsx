@@ -18,12 +18,12 @@ import {
 
 import { trpc } from '@/trpc/client'
 
+import { TemplateDeleteDialog } from './template-delete-dialog'
 import { TemplateMetadataDialog } from './template-metadata-dialog'
 
 type Props = { workspaceId: string }
 
 export function TemplatesPage({ workspaceId }: Props) {
-  const utils = trpc.useUtils()
   const list = trpc.template.listByWorkspace.useQuery({ workspaceId })
   const [createOpen, setCreateOpen] = useState(false)
   const [editTarget, setEditTarget] = useState<{
@@ -33,13 +33,7 @@ export function TemplatesPage({ workspaceId }: Props) {
     initialIcon: string | null
     initialCategory: string | null
   } | null>(null)
-
-  const deleteMut = trpc.template.delete.useMutation({
-    onSuccess: () => {
-      utils.template.listByWorkspace.invalidate({ workspaceId }).catch(() => undefined)
-      utils.template.search.invalidate().catch(() => undefined)
-    },
-  })
+  const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
 
   const templates = list.data ?? []
 
@@ -118,11 +112,7 @@ export function TemplatesPage({ workspaceId }: Props) {
               <Tooltip title="Удалить">
                 <IconButton
                   size="small"
-                  onClick={() => {
-                    if (window.confirm(`Удалить шаблон «${t.title}»?`)) {
-                      deleteMut.mutate({ templateId: t.id, workspaceId })
-                    }
-                  }}
+                  onClick={() => setDeleteTarget({ id: t.id, title: t.title })}
                   aria-label={`Удалить шаблон ${t.title}`}
                   sx={{ color: 'error.main' }}
                 >
@@ -146,6 +136,14 @@ export function TemplatesPage({ workspaceId }: Props) {
           onClose={() => setEditTarget(null)}
           workspaceId={workspaceId}
           mode={{ kind: 'edit', ...editTarget }}
+        />
+      ) : null}
+      {deleteTarget ? (
+        <TemplateDeleteDialog
+          open
+          onClose={() => setDeleteTarget(null)}
+          workspaceId={workspaceId}
+          template={deleteTarget}
         />
       ) : null}
     </Box>

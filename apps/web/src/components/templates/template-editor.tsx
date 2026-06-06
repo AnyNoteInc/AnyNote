@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation'
 
 import type { JSONContent } from '@repo/editor'
 import {
+  Alert,
   ArrowBackIcon,
   Box,
   Button,
@@ -17,10 +18,9 @@ import {
 
 import { trpc } from '@/trpc/client'
 
-const AnyNotePlainEditor = dynamic(
-  () => import('@repo/editor').then((m) => m.AnyNotePlainEditor),
-  { ssr: false },
-)
+const AnyNotePlainEditor = dynamic(() => import('@repo/editor').then((m) => m.AnyNotePlainEditor), {
+  ssr: false,
+})
 
 type Props = { workspaceId: string; templateId: string }
 
@@ -45,13 +45,22 @@ function readTemplateContent(value: unknown): JSONContent | null {
 
 export function TemplateEditor({ workspaceId, templateId }: Props) {
   const router = useRouter()
+  const utils = trpc.useUtils()
   const detail = trpc.template.getById.useQuery({ templateId, workspaceId })
   const [draft, setDraft] = useState<JSONContent | null>(null)
   const [savedAt, setSavedAt] = useState<number | null>(null)
 
   const updateMut = trpc.template.updateContent.useMutation({
-    onSuccess: () => setSavedAt(Date.now()),
+    onSuccess: () => {
+      utils.template.getById.invalidate({ templateId, workspaceId }).catch(() => undefined)
+      setSavedAt(Date.now())
+    },
   })
+
+  const handleEditorChange = (value: JSONContent) => {
+    setDraft(value)
+    setSavedAt(null)
+  }
 
   const data = detail.data as TemplateDetailView | undefined
   const initialContent = readTemplateContent(data?.content)
@@ -104,9 +113,16 @@ export function TemplateEditor({ workspaceId, templateId }: Props) {
         <AnyNotePlainEditor
           value={initialContent}
           editable
-          onBlurSave={(value) => setDraft(value)}
+          onChange={handleEditorChange}
+          onBlurSave={handleEditorChange}
         />
       </Box>
+
+      {updateMut.isError ? (
+        <Alert severity="error" sx={{ mt: 2 }}>
+          Не удалось сохранить шаблон. Попробуйте ещё раз.
+        </Alert>
+      ) : null}
     </Box>
   )
 }
