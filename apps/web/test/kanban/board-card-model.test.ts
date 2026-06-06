@@ -109,4 +109,39 @@ describe('board-card model', () => {
     expect(getPriorityTone(board.priorities[2]!, board.priorities)).toBe('high')
     expect(getPriorityTone(board.priorities[3]!, board.priorities)).toBe('critical')
   })
+
+  it('exposes actual date label and deviation when both planned and actual are set', () => {
+    const model = getBoardCardModel(
+      task({
+        dueDate: '2026-05-10T00:00:00',
+        actualDate: '2026-05-13T00:00:00',
+      }),
+      board,
+      new Date('2026-05-16T12:00:00'),
+    )
+    expect(model.actualLabel).toBe('13 мая')
+    expect(model.deviationLabel).toBe('+3 дня')
+    expect(model.deviationTone).toBe('late')
+  })
+
+  it('has no deviation when actual date is missing', () => {
+    const model = getBoardCardModel(
+      task({ dueDate: '2026-05-10T00:00:00' }),
+      board,
+      new Date('2026-05-16T12:00:00'),
+    )
+    expect(model.actualLabel).toBeNull()
+    expect(model.deviationLabel).toBeNull()
+    expect(model.deviationTone).toBeNull()
+  })
+
+  it('drops overdue tone on the planned badge once the task is actually done', () => {
+    const model = getBoardCardModel(
+      task({ dueDate: '2026-05-10T00:00:00', actualDate: '2026-05-13T00:00:00' }),
+      board,
+      new Date('2026-05-16T12:00:00'),
+    )
+    // planned date is in the past, but since it's actually done, tone is neutral
+    expect(model.dateTone).toBe('default')
+  })
 })

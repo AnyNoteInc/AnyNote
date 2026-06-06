@@ -179,7 +179,7 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
                   margin pulls right-aligned content back over the menu-button
                   column so it sits as close to the card edge as the date is on
                   the left. */}
-              {task.assignees.length > 0 || model.dateLabel ? (
+              {task.assignees.length > 0 || model.dateLabel || model.actualLabel ? (
                 <Stack
                   direction="row"
                   alignItems="center"
@@ -197,6 +197,32 @@ export function BoardCard({ pageId, task, index, board, editable = true }: Board
                       }}
                     >
                       {model.dateLabel}
+                    </Box>
+                  ) : null}
+                  {model.actualLabel ? (
+                    <Box
+                      component="span"
+                      sx={{
+                        px: 0.75, py: 0.125, border: 1, borderRadius: 1,
+                        color: '#15803D', borderColor: '#86EFAC', bgcolor: '#DCFCE7',
+                        fontSize: 12, lineHeight: '18px', whiteSpace: 'nowrap',
+                      }}
+                    >
+                      Факт: {model.actualLabel}
+                    </Box>
+                  ) : null}
+                  {model.deviationLabel ? (
+                    <Box
+                      component="span"
+                      sx={{
+                        px: 0.75, py: 0.125, border: 1, borderRadius: 1,
+                        color: model.deviationTone === 'late' ? '#B91C1C' : '#15803D',
+                        borderColor: model.deviationTone === 'late' ? '#FCA5A5' : '#86EFAC',
+                        bgcolor: model.deviationTone === 'late' ? '#FEE2E2' : '#DCFCE7',
+                        fontSize: 12, lineHeight: '18px', whiteSpace: 'nowrap',
+                      }}
+                    >
+                      {model.deviationLabel}
                     </Box>
                   ) : null}
                   <Box sx={{ flex: 1 }} />
