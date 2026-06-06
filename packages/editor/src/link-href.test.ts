@@ -36,3 +36,19 @@ describe('normalizeLinkHref', () => {
     expect(normalizeLinkHref('   ')).toBe('')
   })
 })
+
+describe('normalizeLinkHref — unsafe schemes', () => {
+  it('strips dangerous schemes to empty string', () => {
+    expect(normalizeLinkHref('javascript:alert(1)')).toBe('')
+    expect(normalizeLinkHref('JavaScript:alert(1)')).toBe('')
+    expect(normalizeLinkHref('  javascript:alert(1)  ')).toBe('')
+    expect(normalizeLinkHref('data:text/html,<script>x</script>')).toBe('')
+    expect(normalizeLinkHref('vbscript:msgbox(1)')).toBe('')
+  })
+
+  it('treats localhost:port as having a scheme (known, documented behavior)', () => {
+    // SCHEME_RE matches "localhost:" as a valid scheme per RFC 3986.
+    // Callers that need http:// on localhost must type it explicitly.
+    expect(normalizeLinkHref('localhost:3000')).toBe('localhost:3000')
+  })
+})
