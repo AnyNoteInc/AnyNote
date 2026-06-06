@@ -10,7 +10,10 @@ import {
   Menu,
   MenuItem,
   Radio,
+  Select,
   Stack,
+  TextField,
+  Typography,
 } from '@repo/ui/components'
 
 import type { BoardData } from './types'
@@ -66,6 +69,19 @@ export function KanbanFiltersUI({ board, bag }: KanbanFiltersProps) {
       : `Пользователи (${bag.filters.userIds.length})`
   const labelLabelText =
     bag.filters.labelIds.length === 0 ? 'Метки' : `Метки (${bag.filters.labelIds.length})`
+  const hasDateFilter = Boolean(
+    bag.filters.dateFrom || bag.filters.dateTo || bag.filters.actualFrom || bag.filters.actualTo,
+  )
+  const sortLabelText =
+    bag.filters.sortBy === 'manual'
+      ? 'Сортировка'
+      : `Сортировка: ${
+          bag.filters.sortBy === 'planned'
+            ? 'план'
+            : bag.filters.sortBy === 'actual'
+              ? 'факт'
+              : 'отклонение'
+        }`
 
   return (
     <Stack direction="row" spacing={1} sx={{ flexWrap: 'wrap' }}>
@@ -210,6 +226,128 @@ export function KanbanFiltersUI({ board, bag }: KanbanFiltersProps) {
           </Menu>
         </>
       ) : null}
+
+      <Chip
+        label="Даты"
+        variant={hasDateFilter ? 'filled' : 'outlined'}
+        color={hasDateFilter ? 'primary' : 'default'}
+        onClick={open('dates')}
+        onDelete={
+          hasDateFilter
+            ? () => {
+                bag.setDateFilter({ from: null, to: null, overdue: bag.filters.overdueOnly })
+                bag.setActualDateFilter({ from: null, to: null })
+              }
+            : undefined
+        }
+      />
+      <Menu
+        anchorEl={anchors.dates}
+        open={Boolean(anchors.dates)}
+        onClose={close('dates')}
+      >
+        <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1, minWidth: 220 }}>
+          <Typography variant="caption" color="text.secondary">
+            Плановая дата
+          </Typography>
+          <TextField
+            type="date"
+            size="small"
+            label="с"
+            slotProps={{ inputLabel: { shrink: true } }}
+            value={bag.filters.dateFrom ?? ''}
+            onChange={(e) =>
+              bag.setDateFilter({
+                from: e.target.value || null,
+                to: bag.filters.dateTo,
+                overdue: bag.filters.overdueOnly,
+              })
+            }
+          />
+          <TextField
+            type="date"
+            size="small"
+            label="по"
+            slotProps={{ inputLabel: { shrink: true } }}
+            value={bag.filters.dateTo ?? ''}
+            onChange={(e) =>
+              bag.setDateFilter({
+                from: bag.filters.dateFrom,
+                to: e.target.value || null,
+                overdue: bag.filters.overdueOnly,
+              })
+            }
+          />
+          <Typography variant="caption" color="text.secondary">
+            Фактическая дата
+          </Typography>
+          <TextField
+            type="date"
+            size="small"
+            label="с"
+            slotProps={{ inputLabel: { shrink: true } }}
+            value={bag.filters.actualFrom ?? ''}
+            onChange={(e) =>
+              bag.setActualDateFilter({ from: e.target.value || null, to: bag.filters.actualTo })
+            }
+          />
+          <TextField
+            type="date"
+            size="small"
+            label="по"
+            slotProps={{ inputLabel: { shrink: true } }}
+            value={bag.filters.actualTo ?? ''}
+            onChange={(e) =>
+              bag.setActualDateFilter({ from: bag.filters.actualFrom, to: e.target.value || null })
+            }
+          />
+        </Box>
+      </Menu>
+
+      <Chip
+        label={sortLabelText}
+        variant={bag.filters.sortBy === 'manual' ? 'outlined' : 'filled'}
+        color={bag.filters.sortBy === 'manual' ? 'default' : 'primary'}
+        onClick={open('sort')}
+        onDelete={
+          bag.filters.sortBy === 'manual'
+            ? undefined
+            : () => bag.setSort({ sortBy: 'manual', sortDir: 'asc' })
+        }
+      />
+      <Menu anchorEl={anchors.sort} open={Boolean(anchors.sort)} onClose={close('sort')}>
+        <Box sx={{ p: 1.5, display: 'flex', flexDirection: 'column', gap: 1, minWidth: 200 }}>
+          <Select
+            size="small"
+            value={bag.filters.sortBy}
+            onChange={(e) =>
+              bag.setSort({
+                sortBy: e.target.value as Filters['sortBy'],
+                sortDir: bag.filters.sortDir,
+              })
+            }
+          >
+            <MenuItem value="manual">Вручную</MenuItem>
+            <MenuItem value="planned">Плановая дата</MenuItem>
+            <MenuItem value="actual">Фактическая дата</MenuItem>
+            <MenuItem value="deviation">Отклонение</MenuItem>
+          </Select>
+          <Select
+            size="small"
+            value={bag.filters.sortDir}
+            disabled={bag.filters.sortBy === 'manual'}
+            onChange={(e) =>
+              bag.setSort({
+                sortBy: bag.filters.sortBy,
+                sortDir: e.target.value as Filters['sortDir'],
+              })
+            }
+          >
+            <MenuItem value="asc">По возрастанию</MenuItem>
+            <MenuItem value="desc">По убыванию</MenuItem>
+          </Select>
+        </Box>
+      </Menu>
     </Stack>
   )
 }
