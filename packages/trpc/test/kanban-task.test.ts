@@ -80,6 +80,18 @@ describe('kanban.task.update', () => {
     expect(kanbanMocks.updateTask).toHaveBeenCalledWith(USER_ID, expect.objectContaining({ id: '00000000-0000-0000-0000-0000000000a1', title: 'New' }))
     expect(result.id).toBe('00000000-0000-0000-0000-0000000000a1')
   })
+
+  it('forwards actualDate to domainSvc.kanban.updateTask', async () => {
+    kanbanMocks.updateTask.mockResolvedValueOnce({ id: '00000000-0000-0000-0000-0000000000a1', pageId: PAGE_ID })
+    const prisma = {} as unknown as PrismaClient
+    const caller = createCallerFactory(taskRouter)(ctx(prisma))
+    const actual = new Date('2025-06-01T00:00:00.000Z')
+    await caller.update({ pageId: PAGE_ID, id: '00000000-0000-0000-0000-0000000000a1', actualDate: actual })
+    expect(kanbanMocks.updateTask).toHaveBeenCalledWith(
+      USER_ID,
+      expect.objectContaining({ id: '00000000-0000-0000-0000-0000000000a1', actualDate: actual }),
+    )
+  })
 })
 
 describe('kanban.task.move', () => {
