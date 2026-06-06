@@ -69,10 +69,10 @@ export type GetTemplateInput = z.infer<typeof getTemplateInput>
 export const updateTemplateContentInput = z.object({
   templateId: z.string().uuid(),
   workspaceId: z.string().uuid(),
-  // ProseMirror/Tiptap JSON document snapshot. contentYjs is derived from this
-  // in the tRPC layer (keeping @repo/domain dependency-light), so the client
-  // only sends JSON.
-  content: z.any(),
+  // ProseMirror/Tiptap JSON document snapshot (always an object, e.g.
+  // { type: 'doc', content: [...] }). contentYjs is derived from this in the
+  // tRPC layer, keeping @repo/domain dependency-light.
+  content: z.record(z.string(), z.unknown()),
 })
 export type UpdateTemplateContentInput = z.infer<typeof updateTemplateContentInput>
 

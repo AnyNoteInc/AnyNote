@@ -4,6 +4,7 @@ import type { Prisma } from '@repo/db'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 import type {
   CreateTemplateFromPageInput,
+  CreateTemplateInput,
   TemplateContentDto,
   TemplateDetailDto,
   TemplateSummaryDto,
@@ -214,10 +215,7 @@ export class TemplateRepository {
     })
   }
 
-  async create(
-    actorUserId: string,
-    input: { workspaceId: string; title: string; description?: string | null; icon?: string | null; category?: string | null },
-  ): Promise<{ id: string }> {
+  async create(actorUserId: string, input: CreateTemplateInput): Promise<{ id: string }> {
     return this.uow.client().pageTemplate.create({
       data: {
         scope: PageTemplateScope.WORKSPACE,

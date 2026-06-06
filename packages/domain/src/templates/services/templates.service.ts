@@ -1,4 +1,4 @@
-import type { PageTemplateScope } from '@repo/db'
+import type { PageTemplateScope, Prisma } from '@repo/db'
 
 import { badRequest, forbidden, notFound } from '../../shared/errors.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
@@ -185,7 +185,12 @@ export class TemplateService {
     if (!template) throw notFound('Шаблон не найден')
     await this.assertWriteAccess(actorUserId, template, input.workspaceId)
     return this.uow.transaction(() =>
-      this.repo.updateContent(actorUserId, input.templateId, input.content, contentYjs),
+      this.repo.updateContent(
+        actorUserId,
+        input.templateId,
+        input.content as Prisma.InputJsonValue,
+        contentYjs,
+      ),
     )
   }
 

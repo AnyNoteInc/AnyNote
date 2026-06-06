@@ -374,6 +374,27 @@ describe('TemplateService.getById', () => {
       svc.getById('u1', { templateId: 't1', workspaceId: 'w1' }),
     ).rejects.toMatchObject({ httpStatus: 404 })
   })
+
+  it('404s for a WORKSPACE template belonging to another workspace', async () => {
+    const repo = makeRepo({
+      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
+      findDetail: vi.fn(async () => ({
+        id: 't1',
+        workspaceId: 'other-ws',
+        scope: PageTemplateScope.WORKSPACE,
+        title: 'T',
+        description: null,
+        icon: null,
+        category: null,
+        type: PageType.TEXT,
+        content: null,
+      })),
+    })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    await expect(
+      svc.getById('u1', { templateId: 't1', workspaceId: 'w1' }),
+    ).rejects.toMatchObject({ httpStatus: 404 })
+  })
 })
 
 describe('TemplateService.updateContent', () => {
