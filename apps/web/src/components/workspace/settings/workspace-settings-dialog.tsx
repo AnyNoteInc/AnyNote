@@ -58,6 +58,7 @@ export function WorkspaceSettingsDialog({
 }: Props) {
   const features = usePlanFeatures()
   const [section, setSection] = useState<SettingsSectionSlug>(initialSection)
+  const titleId = 'workspace-settings-dialog-title'
 
   const workspaceQ = trpc.workspace.getById.useQuery({ id: workspaceId }, { enabled: open })
   const roleQ = trpc.workspace.getMyRole.useQuery({ workspaceId }, { enabled: open })
@@ -104,9 +105,11 @@ export function WorkspaceSettingsDialog({
   const isOwner = roleQ.data === 'OWNER'
   const planSlug = planQ.data?.plan.slug ?? null
   const ready = workspace && roleQ.isSuccess && planQ.isSuccess
+  const failed =
+    workspaceQ.isError || roleQ.isError || planQ.isError || (workspaceQ.isSuccess && !workspace)
 
   return (
-    <Dialog open={open} onClose={onClose} fullScreen>
+    <Dialog open={open} onClose={onClose} fullScreen aria-labelledby={titleId}>
       <Stack direction="row" sx={{ height: '100%', minHeight: 0 }}>
         <Box
           sx={{
@@ -164,14 +167,20 @@ export function WorkspaceSettingsDialog({
             justifyContent="space-between"
             sx={{ p: 2, borderBottom: '1px solid', borderColor: 'divider' }}
           >
-            <Typography variant="h6">{workspace?.name ?? 'Настройки'}</Typography>
+            <Typography variant="h6" id={titleId}>
+              {workspace?.name ?? 'Настройки'}
+            </Typography>
             <IconButton onClick={onClose} aria-label="Закрыть">
               <CloseIcon />
             </IconButton>
           </Stack>
 
           <Box sx={{ flex: 1, minWidth: 0, overflowY: 'auto', p: { xs: 2, md: 4 } }}>
-            {!ready ? (
+            {failed ? (
+              <Box sx={{ p: 4 }}>
+                <Typography color="error">Не удалось загрузить настройки.</Typography>
+              </Box>
+            ) : !ready ? (
               <Box sx={{ display: 'flex', justifyContent: 'center', p: 6 }}>
                 <CircularProgress />
               </Box>
