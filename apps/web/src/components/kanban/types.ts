@@ -71,6 +71,7 @@ export interface BoardTaskData {
   description: unknown
   startDate: DateInput
   dueDate: DateInput
+  actualDate: DateInput
   position: number
   sprintPosition: number | null
   archived: boolean

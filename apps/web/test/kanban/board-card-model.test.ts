@@ -20,6 +20,7 @@ function task(overrides: Partial<BoardTaskData> = {}): BoardTaskData {
     description: null,
     startDate: null,
     dueDate: null,
+    actualDate: null,
     position: 1,
     sprintPosition: null,
     archived: false,

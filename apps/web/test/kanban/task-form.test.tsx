@@ -76,6 +76,7 @@ function task(id: string, title: string, overrides: Partial<BoardTaskData> = {})
     description: null,
     startDate: null,
     dueDate: null,
+    actualDate: null,
     position: 1,
     sprintPosition: null,
     archived: false,
