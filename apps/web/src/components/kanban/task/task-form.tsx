@@ -14,6 +14,7 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import {
   AdapterDateFns,
   Box,
+  Button,
   Chip,
   DatePicker,
   dateFnsRu,
@@ -24,11 +25,13 @@ import {
   Select,
   Stack,
   TextField,
+  TodayIcon,
   Typography,
 } from '@repo/ui/components'
 import { KANBAN_LABEL_COLORS } from '@repo/domain/kanban/colors.ts'
 import { AnyNotePlainEditor, type JSONContent } from '@repo/editor'
 
+import { computeDeviation, formatDeviation } from '../views/deviation'
 import { trpc } from '@/trpc/client'
 import type { BoardData, BoardTaskData } from '../types'
 import { TaskAttachments } from './task-attachments'
@@ -111,6 +114,7 @@ export function TaskForm({ pageId, task, board, currentUserId, editable = true }
   const [parentSearch, setParentSearch] = useState('')
   const [dueDate, setDueDate] = useState<Date | null>(toDate(task.dueDate))
   const [startDate, setStartDate] = useState<Date | null>(toDate(task.startDate))
+  const [actualDate, setActualDate] = useState<Date | null>(toDate(task.actualDate))
 
   useEffect(
     () => setAssigneeParticipantIds(task.assignees.map((a) => a.participantId)),
@@ -123,6 +127,7 @@ export function TaskForm({ pageId, task, board, currentUserId, editable = true }
   useEffect(() => setParentId(task.parentId ?? ''), [task.parentId])
   useEffect(() => setDueDate(toDate(task.dueDate)), [task.dueDate])
   useEffect(() => setStartDate(toDate(task.startDate)), [task.startDate])
+  useEffect(() => setActualDate(toDate(task.actualDate)), [task.actualDate])
 
   const parentCandidates = useMemo(
     () => board.tasks.filter((t) => t.id !== task.id),
@@ -424,7 +429,7 @@ export function TaskForm({ pageId, task, board, currentUserId, editable = true }
                 slotProps={{ textField: { size: 'small', fullWidth: true } }}
               />
               <DatePicker
-                label="Срок"
+                label="Плановая дата"
                 value={dueDate}
                 onChange={(value) => {
                   setDueDate(value)
@@ -432,6 +437,45 @@ export function TaskForm({ pageId, task, board, currentUserId, editable = true }
                 }}
                 slotProps={{ textField: { size: 'small', fullWidth: true } }}
               />
+              <Stack spacing={0.5}>
+                <DatePicker
+                  label="Фактическая дата"
+                  value={actualDate}
+                  onChange={(value) => {
+                    setActualDate(value)
+                    updateTask.mutate({ pageId, id: task.id, actualDate: value })
+                  }}
+                  slotProps={{
+                    textField: { size: 'small', fullWidth: true },
+                    field: { clearable: true },
+                  }}
+                />
+                {actualDate === null ? (
+                  <Button
+                    size="small"
+                    variant="text"
+                    startIcon={<TodayIcon fontSize="small" />}
+                    onClick={() => {
+                      const today = new Date()
+                      setActualDate(today)
+                      updateTask.mutate({ pageId, id: task.id, actualDate: today })
+                    }}
+                    sx={{ alignSelf: 'flex-start' }}
+                  >
+                    Указать сегодня
+                  </Button>
+                ) : null}
+              </Stack>
+              {(() => {
+                const dev = computeDeviation(dueDate, actualDate)
+                if (!dev) return null
+                const color = dev.tone === 'late' ? '#B91C1C' : '#15803D'
+                return (
+                  <Typography variant="caption" sx={{ color }}>
+                    Отклонение: {formatDeviation(dev)}
+                  </Typography>
+                )
+              })()}
             </Stack>
           ) : null}
         </Popover>
