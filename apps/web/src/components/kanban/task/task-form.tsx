@@ -129,6 +129,8 @@ export function TaskForm({ pageId, task, board, currentUserId, editable = true }
   useEffect(() => setStartDate(toDate(task.startDate)), [task.startDate])
   useEffect(() => setActualDate(toDate(task.actualDate)), [task.actualDate])
 
+  const deviation = computeDeviation(dueDate, actualDate)
+
   const parentCandidates = useMemo(
     () => board.tasks.filter((t) => t.id !== task.id),
     [board.tasks, task.id],
@@ -466,16 +468,14 @@ export function TaskForm({ pageId, task, board, currentUserId, editable = true }
                   </Button>
                 ) : null}
               </Stack>
-              {(() => {
-                const dev = computeDeviation(dueDate, actualDate)
-                if (!dev) return null
-                const color = dev.tone === 'late' ? '#B91C1C' : '#15803D'
-                return (
-                  <Typography variant="caption" sx={{ color }}>
-                    Отклонение: {formatDeviation(dev)}
-                  </Typography>
-                )
-              })()}
+              {deviation ? (
+                <Typography
+                  variant="caption"
+                  sx={{ color: deviation.tone === 'late' ? '#B91C1C' : '#15803D' }}
+                >
+                  Отклонение: {formatDeviation(deviation)}
+                </Typography>
+              ) : null}
             </Stack>
           ) : null}
         </Popover>
