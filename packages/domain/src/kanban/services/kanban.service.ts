@@ -29,6 +29,10 @@ function toIso(d: Date | null | undefined): string | null {
   return d ? d.toISOString() : null
 }
 
+function startOfUtcDay(d: Date): Date {
+  return new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate()))
+}
+
 // ─────────────────────────────────────────────────────────────────────────────
 
 export class KanbanService {
@@ -196,6 +200,16 @@ export class KanbanService {
           type: 'STATUS_CHANGED',
           payload: { fromKind: fromColumn.kind, toKind: toColumn.kind },
         })
+      if (toColumn.kind === 'DONE' && !current.actualDate) {
+        const today = startOfUtcDay(new Date())
+        await this.repo.updateTask(current.id, { actualDate: today, updatedById: actorUserId })
+        await this.repo.recordActivity({
+          taskId: current.id,
+          actorId: actorUserId,
+          type: 'ACTUAL_DATE_CHANGED',
+          payload: { from: null, to: today.toISOString(), auto: true },
+        })
+      }
       return updated
     })
   }
