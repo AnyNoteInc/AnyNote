@@ -33,6 +33,7 @@ export const updateTaskInput = z.object({
   description: z.unknown().optional(),
   startDate: dateInput,
   dueDate: dateInput,
+  actualDate: dateInput,
   typeId: z.string().uuid().nullable().optional(),
   priorityId: z.string().uuid().nullable().optional(),
   sprintId: z.string().uuid().nullable().optional(),
