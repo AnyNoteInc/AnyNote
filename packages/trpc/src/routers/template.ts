@@ -1,3 +1,4 @@
+import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../trpc'
 import { requireWritableWorkspace } from '../helpers/plan'
 import { assertWorkspaceMember, assertPageAccess } from '../helpers/page-access'
@@ -87,6 +88,12 @@ export const templateRouter = router({
       await assertWorkspaceMember(ctx, input.workspaceId)
       await requireWritableWorkspace(input.workspaceId)
       const contentYjs = deriveTemplateContentYjs(input.content)
+      if (contentYjs === null) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Содержимое шаблона должно быть документом ProseMirror',
+        })
+      }
       return mapDomain(() => domainSvc.templates.updateContent(ctx.user.id, input, contentYjs))
     }),
 })

@@ -275,6 +275,17 @@ describe('template router (integration)', () => {
     expect(row.contentYjs).not.toBeNull()
   })
 
+  it('updateContent rejects non-document content', async () => {
+    const owner = await makeUser('c4')
+    const ws = await makeWorkspaceWithOwner(owner.id)
+    const caller = makeCaller(owner.id)
+    const { id } = await caller.create({ workspaceId: ws.id, title: 'Guarded' })
+
+    await expect(
+      caller.updateContent({ templateId: id, workspaceId: ws.id, content: { notADoc: true } }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+  })
+
   it('search excludes soft-deleted templates', async () => {
     const owner = await makeUser('g')
     const ws = await makeWorkspaceWithOwner(owner.id)
