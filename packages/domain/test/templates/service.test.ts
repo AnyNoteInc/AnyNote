@@ -60,6 +60,19 @@ function makeRepo(
     })),
     update: vi.fn(async () => ({ id: 't1' })),
     softDelete: vi.fn(async () => ({ id: 't1' })),
+    create: vi.fn(async () => ({ id: 't-new' })),
+    findDetail: vi.fn(async () => ({
+      id: 't1',
+      workspaceId: 'w1',
+      scope: PageTemplateScope.WORKSPACE,
+      title: 'Tmpl',
+      description: null,
+      icon: '📋',
+      category: null,
+      type: PageType.TEXT,
+      content: { type: 'doc', content: [] },
+    })),
+    updateContent: vi.fn(async () => ({ id: 't1' })),
     ...overrides,
   } as unknown as TemplateRepository
 }
@@ -305,5 +318,89 @@ describe('TemplateService.delete / update', () => {
     const res = await svc.delete('u1', { templateId: 't1', workspaceId: 'w1' })
     expect(res).toEqual({ count: 1 })
     expect(repo.softDelete).toHaveBeenCalledWith('u1', 't1')
+  })
+})
+
+describe('TemplateService.create', () => {
+  it('creates an empty workspace template for a writable member', async () => {
+    const repo = makeRepo({
+      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
+      create: vi.fn(async () => ({ id: 't-new' })),
+    })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    const res = await svc.create('u1', { workspaceId: 'w1', title: 'Blank' })
+    expect(res).toEqual({ id: 't-new' })
+    expect(repo.create).toHaveBeenCalledOnce()
+  })
+
+  it('rejects a non-member', async () => {
+    const repo = makeRepo({ findMembership: vi.fn(async () => null) })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    await expect(svc.create('u1', { workspaceId: 'w1', title: 'Blank' })).rejects.toMatchObject({
+      name: 'DomainError',
+      httpStatus: 403,
+    })
+  })
+})
+
+describe('TemplateService.getById', () => {
+  it('returns a workspace template detail for a member', async () => {
+    const detail = {
+      id: 't1',
+      workspaceId: 'w1',
+      scope: PageTemplateScope.WORKSPACE,
+      title: 'T',
+      description: null,
+      icon: null,
+      category: null,
+      type: PageType.TEXT,
+      content: { type: 'doc', content: [] },
+    }
+    const repo = makeRepo({
+      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
+      findDetail: vi.fn(async () => detail),
+    })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    await expect(svc.getById('u1', { templateId: 't1', workspaceId: 'w1' })).resolves.toEqual(detail)
+  })
+
+  it('404s when the template is missing', async () => {
+    const repo = makeRepo({
+      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
+      findDetail: vi.fn(async () => null),
+    })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    await expect(
+      svc.getById('u1', { templateId: 't1', workspaceId: 'w1' }),
+    ).rejects.toMatchObject({ httpStatus: 404 })
+  })
+})
+
+describe('TemplateService.updateContent', () => {
+  it('updates content for a writable member, forwarding derived bytes', async () => {
+    const repo = makeRepo({
+      findForWrite: vi.fn(async () => ({ id: 't1', scope: PageTemplateScope.WORKSPACE, workspaceId: 'w1' })),
+      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
+      updateContent: vi.fn(async () => ({ id: 't1' })),
+    })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    const bytes = new Uint8Array(new ArrayBuffer(4))
+    const res = await svc.updateContent(
+      'u1',
+      { templateId: 't1', workspaceId: 'w1', content: { type: 'doc', content: [] } },
+      bytes,
+    )
+    expect(res).toEqual({ id: 't1' })
+    expect(repo.updateContent).toHaveBeenCalledWith('u1', 't1', { type: 'doc', content: [] }, bytes)
+  })
+
+  it('forbids editing a GLOBAL template', async () => {
+    const repo = makeRepo({
+      findForWrite: vi.fn(async () => ({ id: 't1', scope: PageTemplateScope.GLOBAL, workspaceId: null })),
+    })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    await expect(
+      svc.updateContent('u1', { templateId: 't1', workspaceId: 'w1', content: {} }, null),
+    ).rejects.toMatchObject({ httpStatus: 403 })
   })
 })
