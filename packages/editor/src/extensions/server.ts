@@ -14,6 +14,9 @@ export { DateSchema as DateNode } from './date.schema'
 
 export { ColumnLayoutSchema as ColumnLayout, ColumnSchema as Column } from './column-layout.schema'
 
+// Pure string/config helpers (no React) shared with the client editors.
+export { LINK_HTML_ATTRIBUTES, normalizeLinkHref } from '../link-href'
+
 // These two have no React imports — re-export as-is.
 export { AnynoteTextColor } from './text-color'
 export { BlockBackground, BACKGROUND_SUPPORTED_TYPES } from './block-background'

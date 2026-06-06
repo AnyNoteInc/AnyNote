@@ -39,6 +39,7 @@ import { ResizableImage } from './resizable-image'
 import { SlashMenu, type SlashMenuRender } from './slash-menu'
 import { TaskItemWithCheckbox } from './task-item-view'
 import { AnynoteTextColor } from './text-color'
+import { LINK_HTML_ATTRIBUTES } from '../link-href'
 import type {
   AnyNoteEditorUser,
   MentionLookupItem,
@@ -76,12 +77,10 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
     underline: false,
   }),
   buildPlaceholder(opts.placeholder),
-  // Pin the extension's current target/rel defaults so a future Tiptap
-  // change can't silently drop rel (reverse-tabnabbing protection).
   Link.configure({
     openOnClick: false,
     enableClickSelection: true,
-    HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer nofollow' },
+    HTMLAttributes: LINK_HTML_ATTRIBUTES,
   }),
   Code,
   Highlight.configure({ multicolor: true }),

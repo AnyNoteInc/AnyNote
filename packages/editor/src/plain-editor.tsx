@@ -22,7 +22,7 @@ import { useEffect } from 'react'
 
 import { buildPlaceholder } from './extensions/placeholder'
 import { attachLinkClickHandler } from './extensions/link-click-handler'
-import { normalizeLinkHref } from './link-href'
+import { LINK_HTML_ATTRIBUTES, normalizeLinkHref } from './link-href'
 
 export interface AnyNotePlainEditorProps {
   readonly value: JSONContent | null
@@ -182,11 +182,9 @@ export function AnyNotePlainEditor({
     content: value ?? undefined,
     extensions: [
       StarterKit.configure({ dropcursor: false, link: false }),
-      // Pin the extension's current target/rel defaults so a future Tiptap
-      // change can't silently drop rel (reverse-tabnabbing protection).
       Link.configure({
         openOnClick: false,
-        HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer nofollow' },
+        HTMLAttributes: LINK_HTML_ATTRIBUTES,
       }),
       Typography,
       buildPlaceholder(placeholder),

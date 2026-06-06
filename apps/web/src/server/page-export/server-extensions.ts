@@ -23,6 +23,7 @@ import {
   FileAttachment,
   Highlight,
   HiddenText,
+  LINK_HTML_ATTRIBUTES,
   Mention,
   PageLink,
   TextStyleKit,
@@ -40,11 +41,9 @@ export function buildServerExtensions() {
       link: false,
       underline: false,
     }),
-    // Pin the extension's current target/rel defaults so a future Tiptap
-    // change can't silently drop rel (reverse-tabnabbing protection).
     Link.configure({
       openOnClick: false,
-      HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer nofollow' },
+      HTMLAttributes: LINK_HTML_ATTRIBUTES,
     }),
     Code,
     Highlight.configure({ multicolor: true }),

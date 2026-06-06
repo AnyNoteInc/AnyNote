@@ -24,3 +24,12 @@ export function normalizeLinkHref(raw: string): string {
   }
   return `https://${trimmed}`
 }
+
+// Pin the Link extension's current target/rel defaults so a future Tiptap
+// change can't silently drop rel (reverse-tabnabbing protection). Shared by
+// every `Link.configure` site (both editors + the server HTML export) so the
+// rendered anchor attributes can't drift between them.
+export const LINK_HTML_ATTRIBUTES = {
+  target: '_blank',
+  rel: 'noopener noreferrer nofollow',
+} as const
