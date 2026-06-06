@@ -11,6 +11,7 @@ import {
   Button,
   ButtonGroup,
   ChatBubbleOutlineIcon,
+  DashboardCustomizeIcon,
   DeleteIcon,
   DescriptionIcon,
   IconButton,
@@ -214,6 +215,13 @@ export function WorkspaceSidebar({
               favoritePageIds={favoritePageIds}
             />
             <Stack spacing={0.25} sx={{ pb: 1 }}>
+              <NavItem
+                icon={<DashboardCustomizeIcon sx={{ fontSize: 16 }} />}
+                label="Шаблоны"
+                href={`/workspaces/${workspace.id}/templates`}
+                matchPrefix={`/workspaces/${workspace.id}/templates`}
+                pathname={pathname}
+              />
               <NavItem
                 icon={<DeleteIcon sx={{ fontSize: 16 }} />}
                 label="Корзина"
