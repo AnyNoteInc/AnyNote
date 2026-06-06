@@ -36,11 +36,10 @@ type Props = {
 const STORAGE_KEY = 'workspace.sidebar.mode'
 const DEFAULT_MODE: SidebarMode = 'full'
 export const SIDEBAR_WIDTH = 313
-export type WorkspaceSidebarSection = 'chats' | 'pages' | 'settings'
+export type WorkspaceSidebarSection = 'chats' | 'pages'
 
 function sidebarSectionFromPathname(pathname: string): WorkspaceSidebarSection | null {
   if (pathname.includes('/chats')) return 'chats'
-  if (pathname.includes('/settings')) return 'settings'
   if (pathname.includes('/pages') || pathname.includes('/trash')) return 'pages'
   return null
 }

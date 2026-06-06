@@ -39,7 +39,6 @@ import { SIDEBAR_WIDTH } from './workspace-layout-client'
 import type { WorkspaceSidebarSection } from './workspace-layout-client'
 import type { PlanFeatures } from '@repo/trpc'
 import { useSearchDialog } from '../search/search-dialog-provider'
-import { WorkspaceSettingsNav } from './workspace-settings-nav'
 import { WorkspaceSettingsDialog } from './settings/workspace-settings-dialog'
 
 type Props = Readonly<{
@@ -291,8 +290,6 @@ export function WorkspaceSidebar({
             </Stack>
           </>
         ) : null}
-
-        {activeSection === 'settings' ? <WorkspaceSettingsNav workspaceId={workspace.id} /> : null}
       </Box>
 
       <Box
