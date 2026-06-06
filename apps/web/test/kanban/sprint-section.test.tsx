@@ -142,7 +142,7 @@ describe('SprintSection', () => {
         onAssignTaskToMe={onAssignTaskToMe}
         onRemoveTaskFromSprint={onRemoveTaskFromSprint}
         onDeleteTask={onDeleteTask}
-        childrenMap={new Map()}
+        childCountByParent={new Map()}
       />,
     )
 
@@ -179,7 +179,7 @@ describe('SprintSection', () => {
         members={members}
         currentUserId={CURRENT_USER_ID}
         droppableId={`sprint:${SPRINT_ID}`}
-        childrenMap={new Map()}
+        childCountByParent={new Map()}
       />,
     )
 
@@ -225,7 +225,7 @@ describe('SprintSection', () => {
         onAssignTaskToMe={vi.fn()}
         onRemoveTaskFromSprint={vi.fn()}
         onDeleteTask={vi.fn()}
-        childrenMap={new Map()}
+        childCountByParent={new Map()}
       />,
     )
 
@@ -247,7 +247,7 @@ describe('SprintSection', () => {
         members={members}
         currentUserId={CURRENT_USER_ID}
         onDeleteTask={onDeleteTask}
-        childrenMap={new Map()}
+        childCountByParent={new Map()}
       />,
     )
 
@@ -286,7 +286,7 @@ describe('SprintSection', () => {
                 }
               : undefined
           }
-          childrenMap={new Map()}
+          childCountByParent={new Map()}
         />
       )
     }
@@ -325,7 +325,7 @@ describe('SprintSection', () => {
         currentUserId={CURRENT_USER_ID}
         droppableId={`sprint:${SPRINT_ID}`}
         onStartCreateTask={onStartCreateTask}
-        childrenMap={new Map()}
+        childCountByParent={new Map()}
       />,
     )
 

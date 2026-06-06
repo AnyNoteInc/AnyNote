@@ -31,7 +31,7 @@ import {
   getTableSprintStatusOptions,
   visibleSprints,
 } from './table-view-model'
-import { buildChildrenMap } from '../lib/hierarchy'
+import { buildChildCountMap } from '../lib/hierarchy'
 
 const BACKLOG_DROPPABLE = 'backlog'
 const SPRINT_PREFIX = 'sprint:'
@@ -107,7 +107,7 @@ export function TableView({ pageId, board, visibleTasks, editable = true }: Tabl
     return bySprint
   }, [visibleTasks, board.columns, board.sprints])
 
-  const childrenMap = useMemo(() => buildChildrenMap(board.tasks), [board.tasks])
+  const childCountByParent = useMemo(() => buildChildCountMap(board.tasks), [board.tasks])
 
   const setData = utils.kanban.board.getBoard.setData as (
     input: { pageId: string },
@@ -324,7 +324,7 @@ export function TableView({ pageId, board, visibleTasks, editable = true }: Tabl
             onAssignTaskToMe={editable ? assignTaskToMe : undefined}
             onRemoveTaskFromSprint={editable ? removeFromSprint : undefined}
             onDeleteTask={editable ? deleteTask : undefined}
-            childrenMap={childrenMap}
+            childCountByParent={childCountByParent}
           />
         ))}
         <SprintSection
@@ -348,7 +348,7 @@ export function TableView({ pageId, board, visibleTasks, editable = true }: Tabl
           }
           onAssignTaskToMe={editable ? assignTaskToMe : undefined}
           onDeleteTask={editable ? deleteTask : undefined}
-          childrenMap={childrenMap}
+          childCountByParent={childCountByParent}
         />
       </DragDropContext>
 

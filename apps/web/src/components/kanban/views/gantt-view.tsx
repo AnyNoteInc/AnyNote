@@ -9,7 +9,7 @@ import { Box, Typography } from '@repo/ui/components'
 import { trpc } from '@/trpc/client'
 
 import type { BoardData, BoardColumnRow, BoardTaskData } from '../types'
-import { buildChildrenMap } from '../lib/hierarchy'
+import { buildChildCountMap } from '../lib/hierarchy'
 import { KIND_COLORS } from '../lib/column-colors'
 
 interface GanttViewProps {
@@ -60,7 +60,7 @@ export function GanttView({ pageId, board, visibleTasks, editable = true }: Gant
   // Parent-ness is derived from the full task list (not visibleTasks) so a task
   // counts as a parent even when its children are filtered out of the timeline —
   // matching the board/table/detail definition of "has at least one child".
-  const childrenMap = useMemo(() => buildChildrenMap(board.tasks), [board.tasks])
+  const childCountByParent = useMemo(() => buildChildCountMap(board.tasks), [board.tasks])
   const columnById = useMemo(() => new Map(board.columns.map((c) => [c.id, c])), [board.columns])
 
   const ganttTasks = useMemo<GanttTask[]>(() => {
@@ -71,7 +71,7 @@ export function GanttView({ pageId, board, visibleTasks, editable = true }: Gant
         const start = toDate(t.startDate, toDate(t.dueDate, today))
         const end = toDate(t.dueDate, toDate(t.startDate, today))
         const kind = columnById.get(t.columnId)?.kind ?? 'ACTIVE'
-        const isParent = (childrenMap.get(t.id)?.length ?? 0) > 0
+        const isParent = (childCountByParent.get(t.id) ?? 0) > 0
         const palette = KIND_BAR_PALETTES[kind][isParent ? 'parent' : 'normal']
         return {
           id: t.id,
@@ -90,7 +90,7 @@ export function GanttView({ pageId, board, visibleTasks, editable = true }: Gant
           },
         }
       })
-  }, [visibleTasks, childrenMap, columnById])
+  }, [visibleTasks, childCountByParent, columnById])
 
   if (ganttTasks.length === 0) {
     return (

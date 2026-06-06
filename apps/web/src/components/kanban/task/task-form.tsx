@@ -35,6 +35,7 @@ import { TaskAttachments } from './task-attachments'
 import { ManageListPopover } from './manage-list-popover'
 import { ParticipantPicker } from './participant-picker'
 import { SubtasksSection } from './subtasks-section'
+import { buildChildrenMap } from '../lib/hierarchy'
 
 interface TaskFormProps {
   readonly pageId: string
@@ -130,7 +131,7 @@ export function TaskForm({ pageId, task, board, currentUserId, editable = true }
     [board.tasks, task.id],
   )
   const subtasks = useMemo(
-    () => board.tasks.filter((t) => t.parentId === task.id),
+    () => buildChildrenMap(board.tasks).get(task.id) ?? [],
     [board.tasks, task.id],
   )
   const filteredParentCandidates = useMemo(() => {

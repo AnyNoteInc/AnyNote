@@ -83,7 +83,7 @@ type SprintSectionProps =
       readonly onAssignTaskToMe?: (taskId: string) => void
       readonly onRemoveTaskFromSprint?: (taskId: string) => void
       readonly onDeleteTask?: (taskId: string) => void
-      readonly childrenMap: Map<string, BoardTaskData[]>
+      readonly childCountByParent: Map<string, number>
     }
   | {
       readonly kind: 'backlog'
@@ -96,7 +96,7 @@ type SprintSectionProps =
       readonly createTaskDraft?: CreateTaskDraftProps
       readonly onAssignTaskToMe?: (taskId: string) => void
       readonly onDeleteTask?: (taskId: string) => void
-      readonly childrenMap: Map<string, BoardTaskData[]>
+      readonly childCountByParent: Map<string, number>
     }
 
 interface TaskRowProps {
@@ -395,7 +395,7 @@ export function SprintSection(props: SprintSectionProps) {
           {(p) => (
             <TaskRow
               task={task}
-              childCount={props.childrenMap.get(task.id)?.length ?? 0}
+              childCount={props.childCountByParent.get(task.id) ?? 0}
               provided={p}
               currentUserId={props.currentUserId}
               editable={canEdit}
