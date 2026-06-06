@@ -3,23 +3,21 @@
 import { type ReactNode, useMemo, useState } from 'react'
 
 import Link from 'next/link'
-import { usePathname, useRouter } from 'next/navigation'
+import { usePathname } from 'next/navigation'
 
 import {
   ArrowDropDownIcon,
   Box,
   Button,
-  ButtonGroup,
   ChatBubbleOutlineIcon,
   DashboardCustomizeIcon,
   DeleteIcon,
-  DescriptionIcon,
+  HomeIcon,
   IconButton,
   KeyboardDoubleArrowLeftIcon,
   Menu,
   MenuItem,
   SearchIcon,
-  SettingsIcon,
   Stack,
   Tooltip,
   Typography,
@@ -59,7 +57,6 @@ export function WorkspaceSidebar({
   onSectionChange,
 }: Props) {
   const pathname = usePathname()
-  const router = useRouter()
   const searchDialog = useSearchDialog()
   const favorites = trpc.page.listFavorites.useQuery({ workspaceId: workspace.id })
   const favoritePageIds = useMemo(
@@ -182,10 +179,6 @@ export function WorkspaceSidebar({
         }}
         onPages={() => onSectionChange('pages')}
         onSearch={searchDialog.open}
-        onSettings={() => {
-          onSectionChange('settings')
-          router.push(`/workspaces/${workspace.id}/settings/general`)
-        }}
       />
 
       <Box
@@ -259,62 +252,95 @@ export function WorkspaceSectionSwitcher({
   onChats,
   onPages,
   onSearch,
-  onSettings,
 }: {
   activeSection: WorkspaceSidebarSection
   chatsEnabled: boolean
   onChats: () => void
   onPages: () => void
   onSearch: () => void
-  onSettings: () => void
 }) {
   const mac = isMac()
   const shortcut = (macLabel: string, otherLabel: string) => (mac ? macLabel : otherLabel)
-  const activeButtonStyle = {
-    backgroundColor: 'rgba(201, 100, 66, 0.14)',
-    color: '#c96442',
-  }
 
   return (
-    <ButtonGroup aria-label="Разделы рабочего пространства" fullWidth size="medium" variant="text">
-      <Tooltip title={`Поиск (${shortcut('⌘K', 'Alt+K')})`}>
-        <Button aria-label="Поиск" onClick={onSearch}>
-          <SearchIcon fontSize="small" />
-        </Button>
-      </Tooltip>
+    <Stack direction="row" spacing={0.5} sx={{ alignItems: 'center' }}>
+      <SectionButton
+        active={activeSection === 'pages'}
+        icon={<HomeIcon fontSize="small" />}
+        label="Домашняя"
+        ariaLabel="Домашняя"
+        tooltip={`Домашняя (${shortcut('⌘D', 'Alt+D')})`}
+        onClick={onPages}
+      />
       {chatsEnabled ? (
-        <Tooltip title={`Чаты (${shortcut('⌘P', 'Alt+P')})`}>
-          <Button
-            aria-label="Чаты"
-            aria-pressed={activeSection === 'chats'}
-            onClick={onChats}
-            style={activeSection === 'chats' ? activeButtonStyle : undefined}
-          >
-            <ChatBubbleOutlineIcon fontSize="small" />
-          </Button>
-        </Tooltip>
+        <SectionButton
+          active={activeSection === 'chats'}
+          icon={<ChatBubbleOutlineIcon fontSize="small" />}
+          label="Чаты"
+          ariaLabel="Чаты"
+          tooltip={`Чаты (${shortcut('⌘P', 'Alt+P')})`}
+          onClick={onChats}
+        />
       ) : null}
-      <Tooltip title={`Страницы (${shortcut('⌘D', 'Alt+D')})`}>
-        <Button
-          aria-label="Страницы"
-          aria-pressed={activeSection === 'pages'}
-          onClick={onPages}
-          style={activeSection === 'pages' ? activeButtonStyle : undefined}
-        >
-          <DescriptionIcon fontSize="small" />
-        </Button>
-      </Tooltip>
-      <Tooltip title={`Настройки (${shortcut('⌘,', 'Alt+,')})`}>
-        <Button
-          aria-label="Настройки"
-          aria-pressed={activeSection === 'settings'}
-          onClick={onSettings}
-          style={activeSection === 'settings' ? activeButtonStyle : undefined}
-        >
-          <SettingsIcon fontSize="small" />
-        </Button>
-      </Tooltip>
-    </ButtonGroup>
+      <SectionButton
+        active={false}
+        icon={<SearchIcon fontSize="small" />}
+        label="Поиск"
+        ariaLabel="Поиск"
+        tooltip={`Поиск (${shortcut('⌘K', 'Alt+K')})`}
+        onClick={onSearch}
+      />
+    </Stack>
+  )
+}
+
+const SECTION_ACTIVE_SX = {
+  backgroundColor: 'rgba(201, 100, 66, 0.14)',
+  color: '#c96442',
+} as const
+
+function SectionButton({
+  active,
+  icon,
+  label,
+  ariaLabel,
+  tooltip,
+  onClick,
+}: {
+  active: boolean
+  icon: ReactNode
+  label: string
+  ariaLabel: string
+  tooltip: string
+  onClick: () => void
+}) {
+  if (active) {
+    return (
+      <Button
+        onClick={onClick}
+        aria-label={ariaLabel}
+        aria-pressed
+        startIcon={icon}
+        size="medium"
+        sx={{
+          flex: 1,
+          minWidth: 0,
+          justifyContent: 'flex-start',
+          textTransform: 'none',
+          ...SECTION_ACTIVE_SX,
+          '&:hover': SECTION_ACTIVE_SX,
+        }}
+      >
+        {label}
+      </Button>
+    )
+  }
+  return (
+    <Tooltip title={tooltip}>
+      <IconButton onClick={onClick} aria-label={ariaLabel} size="medium" sx={{ flexShrink: 0 }}>
+        {icon}
+      </IconButton>
+    </Tooltip>
   )
 }
 
