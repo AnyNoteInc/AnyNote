@@ -76,7 +76,11 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
     underline: false,
   }),
   buildPlaceholder(opts.placeholder),
-  Link.configure({ openOnClick: false, enableClickSelection: true }),
+  Link.configure({
+    openOnClick: false,
+    enableClickSelection: true,
+    HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer nofollow' },
+  }),
   Code,
   Highlight.configure({ multicolor: true }),
   Underline,

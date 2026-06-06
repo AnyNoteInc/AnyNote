@@ -40,7 +40,10 @@ export function buildServerExtensions() {
       link: false,
       underline: false,
     }),
-    Link.configure({ openOnClick: false }),
+    Link.configure({
+      openOnClick: false,
+      HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer nofollow' },
+    }),
     Code,
     Highlight.configure({ multicolor: true }),
     Underline,
