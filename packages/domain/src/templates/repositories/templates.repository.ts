@@ -1,10 +1,11 @@
-import { PageTemplateScope } from '@repo/db'
+import { PageTemplateScope, PageType } from '@repo/db'
 import type { Prisma } from '@repo/db'
 
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 import type {
   CreateTemplateFromPageInput,
   TemplateContentDto,
+  TemplateDetailDto,
   TemplateSummaryDto,
   UpdateTemplateInput,
 } from '../dto/templates.dto.ts'
@@ -209,6 +210,61 @@ export class TemplateRepository {
     return this.uow.client().pageTemplate.update({
       where: { id: templateId },
       data: { deletedAt: new Date(), updatedById: actorUserId },
+      select: { id: true },
+    })
+  }
+
+  async create(
+    actorUserId: string,
+    input: { workspaceId: string; title: string; description?: string | null; icon?: string | null; category?: string | null },
+  ): Promise<{ id: string }> {
+    return this.uow.client().pageTemplate.create({
+      data: {
+        scope: PageTemplateScope.WORKSPACE,
+        workspaceId: input.workspaceId,
+        title: input.title,
+        description: input.description ?? null,
+        icon: input.icon ?? null,
+        category: input.category ?? null,
+        type: PageType.TEXT,
+        createdById: actorUserId,
+        updatedById: actorUserId,
+      },
+      select: { id: true },
+    })
+  }
+
+  async findDetail(templateId: string): Promise<TemplateDetailDto | null> {
+    const row = await this.uow.client().pageTemplate.findFirst({
+      where: { id: templateId, deletedAt: null },
+      select: {
+        id: true,
+        workspaceId: true,
+        scope: true,
+        title: true,
+        description: true,
+        icon: true,
+        category: true,
+        type: true,
+        content: true,
+      },
+    })
+    return row as TemplateDetailDto | null
+  }
+
+  async updateContent(
+    actorUserId: string,
+    templateId: string,
+    content: Prisma.InputJsonValue,
+    contentYjs: Uint8Array<ArrayBuffer> | null,
+  ): Promise<{ id: string }> {
+    return this.uow.client().pageTemplate.update({
+      where: { id: templateId },
+      data: {
+        content,
+        contentYjs: contentYjs ?? undefined,
+        updatedById: actorUserId,
+      },
       select: { id: true },
     })
   }
