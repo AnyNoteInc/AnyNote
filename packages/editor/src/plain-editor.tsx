@@ -18,8 +18,11 @@ import type { Editor, JSONContent } from '@tiptap/core'
 import Link from '@tiptap/extension-link'
 import Typography from '@tiptap/extension-typography'
 import StarterKit from '@tiptap/starter-kit'
+import { useEffect } from 'react'
 
 import { buildPlaceholder } from './extensions/placeholder'
+import { attachLinkClickHandler } from './extensions/link-click-handler'
+import { normalizeLinkHref } from './link-href'
 
 export interface AnyNotePlainEditorProps {
   readonly value: JSONContent | null
@@ -106,9 +109,10 @@ const TOOLBAR: ReadonlyArray<ToolbarButtonConfig | 'divider'> = [
     isActive: (ed) => ed.isActive('link'),
     run: (ed) => {
       const prev = ed.getAttributes('link').href as string | undefined
-      const next =
-        globalThis.window === undefined ? null : globalThis.window.prompt('URL', prev ?? 'https://')
-      if (next === null) return
+      const raw =
+        globalThis.window === undefined ? null : globalThis.window.prompt('URL', prev ?? '')
+      if (raw === null) return
+      const next = normalizeLinkHref(raw)
       if (next === '') {
         ed.chain().focus().extendMarkRange('link').unsetLink().run()
         return
@@ -178,7 +182,12 @@ export function AnyNotePlainEditor({
     content: value ?? undefined,
     extensions: [
       StarterKit.configure({ dropcursor: false, link: false }),
-      Link.configure({ openOnClick: false }),
+      // Pin the extension's current target/rel defaults so a future Tiptap
+      // change can't silently drop rel (reverse-tabnabbing protection).
+      Link.configure({
+        openOnClick: false,
+        HTMLAttributes: { target: '_blank', rel: 'noopener noreferrer nofollow' },
+      }),
       Typography,
       buildPlaceholder(placeholder),
     ],
@@ -186,6 +195,11 @@ export function AnyNotePlainEditor({
       onBlurSave(ed.getJSON())
     },
   })
+
+  useEffect(() => {
+    if (!editor) return
+    return attachLinkClickHandler(editor)
+  }, [editor])
 
   return (
     <Box className={`anynote-editor ${className ?? ''}`}>

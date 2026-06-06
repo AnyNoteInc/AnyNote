@@ -62,3 +62,13 @@ describe('editor inline formatting styles', () => {
     expect(css).toMatch(/\.anynote-editor code:not\(\[class\]\)/)
   })
 })
+
+describe('editor link styles', () => {
+  it('styles anchors with a link color, underline, and pointer cursor', () => {
+    const css = readFileSync(contentCssPath, 'utf8')
+
+    expect(css).toMatch(/\.anynote-editor a\s*{[\s\S]*cursor:\s*pointer/)
+    expect(css).toMatch(/\.anynote-editor a\s*{[\s\S]*text-decoration:\s*underline/)
+    expect(css).toMatch(/\.anynote-editor a\s*{[\s\S]*color:\s*var\(--editor-link/)
+  })
+})

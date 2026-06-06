@@ -29,9 +29,10 @@ import type { Editor } from '@tiptap/core'
 import { NodeSelection } from '@tiptap/pm/state'
 import { BubbleMenu } from '@tiptap/react/menus'
 import { useEffect, useRef, useState } from 'react'
-import { findClickedLink, openLinkInNewWindow, shouldOpenLink } from '../extensions/link-click-handler'
+import { attachLinkClickHandler } from '../extensions/link-click-handler'
 import { selectionToAnchor } from '../comment-anchor'
 import type { CommentsStorage } from '../extensions/comments'
+import { normalizeLinkHref } from '../link-href'
 
 type Props = { editor: Editor }
 
@@ -153,29 +154,10 @@ export function FloatingToolbar({ editor }: Props) {
   useEffect(() => {
     if (!linkDialogOpen) return
     const current = editor.getAttributes('link').href as string | undefined
-    setLinkValue(current ?? 'https://')
+    setLinkValue(current ?? '')
   }, [editor, linkDialogOpen])
 
-  useEffect(() => {
-    const handleEditorClick = (event: MouseEvent) => {
-      if (event.button !== 0 || !editor.isEditable) return
-
-      const link = findClickedLink(event.target, editor.view.dom)
-      if (!link) return
-
-      if (shouldOpenLink(event)) {
-        event.preventDefault()
-        event.stopPropagation()
-        openLinkInNewWindow(link)
-      }
-    }
-
-    editor.view.dom.addEventListener('click', handleEditorClick, { capture: true })
-
-    return () => {
-      editor.view.dom.removeEventListener('click', handleEditorClick, { capture: true })
-    }
-  }, [editor])
+  useEffect(() => attachLinkClickHandler(editor), [editor])
 
   const setFontFamily = (event: SelectChangeEvent) => {
     const value = event.target.value
@@ -190,7 +172,7 @@ export function FloatingToolbar({ editor }: Props) {
   }
 
   const saveLink = () => {
-    const next = linkValue.trim()
+    const next = normalizeLinkHref(linkValue)
     const chain = editor.chain().focus()
     if (!next) {
       if (toolbarState.isLink) chain.extendMarkRange('link')
