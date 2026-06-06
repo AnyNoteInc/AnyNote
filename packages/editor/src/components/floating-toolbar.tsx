@@ -32,6 +32,7 @@ import { useEffect, useRef, useState } from 'react'
 import { findClickedLink, openLinkInNewWindow, shouldOpenLink } from '../extensions/link-click-handler'
 import { selectionToAnchor } from '../comment-anchor'
 import type { CommentsStorage } from '../extensions/comments'
+import { normalizeLinkHref } from '../link-href'
 
 type Props = { editor: Editor }
 
@@ -153,17 +154,15 @@ export function FloatingToolbar({ editor }: Props) {
   useEffect(() => {
     if (!linkDialogOpen) return
     const current = editor.getAttributes('link').href as string | undefined
-    setLinkValue(current ?? 'https://')
+    setLinkValue(current ?? '')
   }, [editor, linkDialogOpen])
 
   useEffect(() => {
     const handleEditorClick = (event: MouseEvent) => {
-      if (event.button !== 0 || !editor.isEditable) return
-
       const link = findClickedLink(event.target, editor.view.dom)
       if (!link) return
 
-      if (shouldOpenLink(event)) {
+      if (shouldOpenLink(event, editor.isEditable)) {
         event.preventDefault()
         event.stopPropagation()
         openLinkInNewWindow(link)
@@ -190,7 +189,7 @@ export function FloatingToolbar({ editor }: Props) {
   }
 
   const saveLink = () => {
-    const next = linkValue.trim()
+    const next = normalizeLinkHref(linkValue)
     const chain = editor.chain().focus()
     if (!next) {
       if (toolbarState.isLink) chain.extendMarkRange('link')
