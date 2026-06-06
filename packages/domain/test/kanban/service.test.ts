@@ -243,7 +243,11 @@ describe('KanbanService.moveTask', () => {
   beforeEach(() => vi.clearAllMocks())
 
   it('records MOVED and STATUS_CHANGED when column kind differs (ACTIVE→DONE)', async () => {
-    const repo = makeRepo()
+    const repo = makeRepo({
+      findTaskForMove: vi.fn(async () => ({
+        id: 't1', pageId: 'b1', columnId: 'c1', actualDate: new Date('2025-01-01T00:00:00.000Z'),
+      })),
+    })
     await makeService(repo).moveTask('u1', {
       pageId: 'b1', id: 't1', targetColumnId: 'c2', beforeId: null, afterId: null,
     })
