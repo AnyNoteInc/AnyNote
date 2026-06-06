@@ -76,6 +76,8 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
     underline: false,
   }),
   buildPlaceholder(opts.placeholder),
+  // Pin the extension's current target/rel defaults so a future Tiptap
+  // change can't silently drop rel (reverse-tabnabbing protection).
   Link.configure({
     openOnClick: false,
     enableClickSelection: true,
