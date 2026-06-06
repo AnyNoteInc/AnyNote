@@ -25,8 +25,6 @@ import {
   type PageTreeSelection,
 } from '@/components/workspace/page-tree-picker'
 
-import { useOutlineMode } from '@/hooks/use-outline-mode'
-
 import { usePageEditor } from './editor-context'
 import { EditorContentSkeleton } from './editor-content-skeleton'
 import { EditorOutline } from './editor-outline'
@@ -121,7 +119,6 @@ export function PageRenderer({
     usePageCommentsContext()
   const pagesQuery = trpc.page.listByWorkspace.useQuery({ workspaceId })
   const editorRef = useRef<Editor | null>(null)
-  const [outlineMode] = useOutlineMode(page.id)
 
   const [editor, setEditor] = useState<Editor | null>(null)
   const [movePos, setMovePos] = useState<number | null>(null)
@@ -506,7 +503,6 @@ export function PageRenderer({
         )}
         <EditorOutline
           editor={editor}
-          mode={outlineMode}
           rightOffset={panelOpen ? COMMENTS_SIDEBAR_WIDTH : 0}
         />
         <BlockMoveDialog

@@ -13,7 +13,6 @@ import { PageCommentsProvider } from '@/components/page/comments/comments-contex
 import { CommentsSidebar } from '@/components/page/comments/comments-sidebar'
 import { ChatActionsToolbar } from '@/components/workspace/chat/chat-actions-toolbar'
 import { useFullWidth } from '@/hooks/use-full-width'
-import { useOutlineMode } from '@/hooks/use-outline-mode'
 
 import type { PlanFeatures } from '@repo/trpc'
 
@@ -161,7 +160,6 @@ export function WorkspaceLayoutClient({
   const activePageType = activePageId ? pages.find((p) => p.id === activePageId)?.type : undefined
 
   const [fullWidth] = useFullWidth(activePageId ?? '')
-  const [outlineMode] = useOutlineMode(activePageId ?? '')
 
   // PageEditorProvider wraps BOTH the toolbar (so PageActionsMenu → PageExportDialog
   // can read the editor via usePageEditor) and the editor content (so PageRenderer
@@ -195,7 +193,6 @@ export function WorkspaceLayoutClient({
             overflowY: 'auto',
           }}
           data-full-width={fullWidth ? 'true' : 'false'}
-          data-outline-mode={activePageId ? outlineMode : undefined}
           className="page-content-scroll"
         >
           {children}
