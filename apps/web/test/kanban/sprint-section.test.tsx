@@ -297,6 +297,38 @@ describe('SprintSection', () => {
     )
   })
 
+  it('renders planned, actual date and deviation in the row when both dates are set', () => {
+    const rowTask = task('Both Dates', {
+      dueDate: new Date('2026-05-10T00:00:00'),
+      actualDate: new Date('2026-05-13T00:00:00'),
+    })
+
+    renderSprintSection(
+      <SprintSection
+        kind="sprint"
+        pageId={PAGE_ID}
+        sprint={{
+          id: SPRINT_ID,
+          name: 'Sprint',
+          status: 'ACTIVE',
+          description: null,
+          startDate: null,
+          endDate: null,
+        }}
+        allSprints={[]}
+        columns={columns}
+        allTasks={[rowTask]}
+        tasks={[rowTask]}
+        members={members}
+        currentUserId={CURRENT_USER_ID}
+        droppableId={`sprint:${SPRINT_ID}`}
+      />,
+    )
+
+    expect(screen.getByText(/Факт:/)).toBeInTheDocument()
+    expect(screen.getByText('+3 дня')).toBeInTheDocument()
+  })
+
   it('starts backlog task creation from the sprint menu first action', async () => {
     const actor = userEvent.setup()
     const onStartCreateTask = vi.fn()
