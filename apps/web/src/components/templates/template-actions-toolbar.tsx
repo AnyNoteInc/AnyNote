@@ -33,9 +33,18 @@ export function TemplateActionsToolbar({
   description,
 }: Readonly<Props>) {
   const router = useRouter()
+  const utils = trpc.useUtils()
 
   const createPage = trpc.template.createPageFromTemplate.useMutation({
-    onSuccess: (res) => router.push(`/pages/${res.id}`),
+    onSuccess: async (res) => {
+      // Refresh the sidebar page tree (and favorites) so the new page shows up
+      // immediately, then navigate to it.
+      await Promise.all([
+        utils.page.listByWorkspace.invalidate({ workspaceId }),
+        utils.page.listFavorites.invalidate({ workspaceId }),
+      ])
+      router.push(`/pages/${res.id}`)
+    },
   })
 
   return (
