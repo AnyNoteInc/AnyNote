@@ -57,7 +57,10 @@ describe('WorkspaceSectionSwitcher', () => {
       />,
     )
     expect(screen.getByRole('button', { name: 'Чаты', pressed: true })).toBeInTheDocument()
-    // Домашняя is inactive (icon-only) → not pressed
-    expect(screen.getByRole('button', { name: 'Домашняя' })).not.toHaveAttribute('aria-pressed')
+    // Домашняя is inactive (icon-only) → aria-pressed="false" (always rendered on the pill)
+    expect(screen.getByRole('button', { name: 'Домашняя' })).toHaveAttribute(
+      'aria-pressed',
+      'false',
+    )
   })
 })
