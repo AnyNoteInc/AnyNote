@@ -49,7 +49,7 @@ model User {
   reminderRecipients         ReminderRecipient[]      @relation("ReminderRecipient")
   tasksCreated               Task[]                   @relation("TaskCreator")
   tasksUpdated               Task[]                   @relation("TaskUpdater")
-  workspaceParticipants WorkspaceParticipant[]
+  workspaceParticipants      WorkspaceParticipant[]
   taskComments               TaskComment[]
   taskActivity               TaskActivity[]
   taskAttachments            TaskAttachment[]
@@ -59,6 +59,8 @@ model User {
   apiKeys                    ApiKey[]
   aiProvidersCreated         AiProvider[]             @relation("AiProviderCreatedBy")
   createdPageTemplates       PageTemplate[]           @relation("PageTemplateCreatedBy")
+  collectionsOwned           Collection[]             @relation("CollectionOwner")
+  pagesArchived              Page[]                   @relation("PageArchivedBy")
 
   @@map("users")
 }
@@ -288,6 +290,12 @@ enum PageTemplateScope {
   WORKSPACE
 }
 
+enum CollectionKind {
+  TEAM
+  PERSONAL
+  SITE
+}
+
 enum McpTransport {
   HTTP_JSONRPC
   SSE
@@ -353,6 +361,7 @@ model Workspace {
   limits                WorkspaceLimit?
   aiProviders           AiProvider[]           @relation("WorkspaceAiProviders")
   pageTemplates         PageTemplate[]
+  collections           Collection[]
 
   @@index([createdById])
   @@map("workspaces")
@@ -376,49 +385,55 @@ model WorkspaceMember {
 }
 
 model Page {
-  id           String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  workspaceId  String                   @map("workspace_id") @db.Uuid
-  parentId     String?                  @map("parent_id") @db.Uuid
-  type         PageType                 @default(TEXT)
-  ownership    PageOwnership            @default(TEXT)
-  title        String?                  @db.Text
-  icon         String?                  @db.Text
-  content      Json?
-  contentYjs   Bytes?                   @map("content_yjs")
-  searchVector Unsupported("tsvector")? @default(dbgenerated()) @map("search_vector")
-  archived            Boolean                  @default(false)
-  isTemplateBacking   Boolean                  @default(false) @map("is_template_backing")
-  prevPageId          String?                  @unique @map("prev_page_id") @db.Uuid
-  deletedAt    DateTime?                @map("deleted_at") @db.Timestamptz(6)
-  createdById  String?                  @map("created_by_id") @db.Uuid
-  updatedById  String?                  @map("updated_by_id") @db.Uuid
-  createdAt    DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id                String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId       String                   @map("workspace_id") @db.Uuid
+  parentId          String?                  @map("parent_id") @db.Uuid
+  collectionId      String?                  @map("collection_id") @db.Uuid
+  type              PageType                 @default(TEXT)
+  ownership         PageOwnership            @default(TEXT)
+  title             String?                  @db.Text
+  icon              String?                  @db.Text
+  content           Json?
+  contentYjs        Bytes?                   @map("content_yjs")
+  searchVector      Unsupported("tsvector")? @default(dbgenerated()) @map("search_vector")
+  isTemplateBacking Boolean                  @default(false) @map("is_template_backing")
+  prevPageId        String?                  @unique @map("prev_page_id") @db.Uuid
+  archivedAt        DateTime?                @map("archived_at") @db.Timestamptz(6)
+  archivedById      String?                  @map("archived_by_id") @db.Uuid
+  deletedAt         DateTime?                @map("deleted_at") @db.Timestamptz(6)
+  createdById       String?                  @map("created_by_id") @db.Uuid
+  updatedById       String?                  @map("updated_by_id") @db.Uuid
+  createdAt         DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  workspace        Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdBy        User?               @relation("PageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy        User?               @relation("PageUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-  prevPage         Page?               @relation("PageOrder", fields: [prevPageId], references: [id], onDelete: SetNull)
-  nextPage         Page?               @relation("PageOrder")
-  children         Page[]              @relation("PageTree")
-  parent           Page?               @relation("PageTree", fields: [parentId], references: [id], onDelete: SetNull)
-  share            PageShare?
-  commentThreads   PageCommentThread[]
-  favorites        FavoritePage[]
-  files            PageFile[]
-  searchHistory    SearchHistory[]
-  reminders        Reminder[]
-  kanbanColumns    KanbanColumn[]
-  kanbanTypes      KanbanType[]
-  kanbanPriorities KanbanPriority[]
-  kanbanLabels     KanbanLabel[]
-  sprints          Sprint[]
-  tasks              Task[]
-  backingForTemplate PageTemplate? @relation("TemplateBackingPage")
+  workspace            Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy            User?               @relation("PageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy            User?               @relation("PageUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  prevPage             Page?               @relation("PageOrder", fields: [prevPageId], references: [id], onDelete: SetNull)
+  nextPage             Page?               @relation("PageOrder")
+  children             Page[]              @relation("PageTree")
+  parent               Page?               @relation("PageTree", fields: [parentId], references: [id], onDelete: SetNull)
+  collection           Collection?         @relation("CollectionPages", fields: [collectionId], references: [id], onDelete: SetNull)
+  homePageOfCollection Collection?         @relation("CollectionHome")
+  archivedBy           User?               @relation("PageArchivedBy", fields: [archivedById], references: [id], onDelete: SetNull)
+  share                PageShare?
+  commentThreads       PageCommentThread[]
+  favorites            FavoritePage[]
+  files                PageFile[]
+  searchHistory        SearchHistory[]
+  reminders            Reminder[]
+  kanbanColumns        KanbanColumn[]
+  kanbanTypes          KanbanType[]
+  kanbanPriorities     KanbanPriority[]
+  kanbanLabels         KanbanLabel[]
+  sprints              Sprint[]
+  tasks                Task[]
+  backingForTemplate   PageTemplate?       @relation("TemplateBackingPage")
 
   @@index([workspaceId])
   @@index([parentId])
-  @@index([archived])
+  @@index([collectionId])
+  @@index([archivedAt])
   @@index([isTemplateBacking])
   @@index([workspaceId, ownership])
   @@index([searchVector], type: Gin, name: "Page_searchVector_idx")
@@ -426,14 +441,14 @@ model Page {
 }
 
 model PageTemplate {
-  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  workspaceId String?           @map("workspace_id") @db.Uuid
-  scope       PageTemplateScope
+  id            String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId   String?           @map("workspace_id") @db.Uuid
+  scope         PageTemplateScope
   // Stable identity for seeded GLOBAL templates so re-seeding upserts by key
   // (survives title renames). NULL for user-created WORKSPACE templates.
-  key         String?           @unique @db.Text
-  title       String            @db.Text
-  description String?           @db.Text
+  key           String?           @unique @db.Text
+  title         String            @db.Text
+  description   String?           @db.Text
   icon          String?           @db.Text
   type          PageType          @default(TEXT)
   content       Json?
@@ -449,9 +464,9 @@ model PageTemplate {
   updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
   deletedAt     DateTime?         @map("deleted_at") @db.Timestamptz(6)
 
-  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  backingPage Page?      @relation("TemplateBackingPage", fields: [backingPageId], references: [id], onDelete: SetNull)
-  createdBy   User?      @relation("PageTemplateCreatedBy", fields: [createdById], references: [id])
+  workspace   Workspace?        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  backingPage Page?             @relation("TemplateBackingPage", fields: [backingPageId], references: [id], onDelete: SetNull)
+  createdBy   User?             @relation("PageTemplateCreatedBy", fields: [createdById], references: [id])
   tags        PageTemplateTag[]
 
   @@index([workspaceId])
@@ -481,6 +496,31 @@ model PageTemplateTag {
   @@id([templateId, tagId])
   @@index([tagId])
   @@map("page_template_tags")
+}
+
+model Collection {
+  id          String         @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String         @map("workspace_id") @db.Uuid
+  kind        CollectionKind
+  title       String?        @db.Text
+  description String?        @db.Text
+  icon        String?        @db.Text
+  color       String?        @db.Text
+  ownerId     String?        @map("owner_id") @db.Uuid
+  homePageId  String?        @unique @map("home_page_id") @db.Uuid
+  position    Int            @default(0)
+  archivedAt  DateTime?      @map("archived_at") @db.Timestamptz(6)
+  createdAt   DateTime       @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime       @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  owner     User?     @relation("CollectionOwner", fields: [ownerId], references: [id], onDelete: Cascade)
+  homePage  Page?     @relation("CollectionHome", fields: [homePageId], references: [id], onDelete: SetNull)
+  pages     Page[]    @relation("CollectionPages")
+
+  @@index([workspaceId, kind])
+  @@index([ownerId])
+  @@map("collections")
 }
 
 model PageShare {
@@ -634,6 +674,7 @@ model UserPreference {
   locale             String?  @db.VarChar(16)
   defaultWorkspaceId String?  @map("default_workspace_id") @db.Uuid
   activeWorkspaceId  String?  @map("active_workspace_id") @db.Uuid
+  collectionOrder    Json?    @map("collection_order")
   createdAt          DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt          DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
