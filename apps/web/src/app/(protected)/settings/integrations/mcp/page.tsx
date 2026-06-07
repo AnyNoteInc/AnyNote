@@ -5,5 +5,5 @@ import { getServerTRPC } from '@/trpc/server'
 export default async function LegacyMcpRedirect() {
   const trpc = await getServerTRPC()
   const workspace = await trpc.workspace.getDefault()
-  redirect(workspace ? `/workspaces/${workspace.id}` : '/workspaces')
+  redirect(workspace ? '/app' : '/workspaces/new')
 }

@@ -68,7 +68,7 @@ function ChatTreeItem({
   const [deleteOpen, setDeleteOpen] = useState(false)
   const [expanded, setExpanded] = useState(true)
 
-  const isActive = pathname === `/workspaces/${workspaceId}/chats/${chat.id}`
+  const isActive = pathname === `/chats/${chat.id}`
   const isFavorite = favoriteChatIds.has(chat.id)
 
   const children = useMemo(
@@ -93,14 +93,14 @@ function ChatTreeItem({
         utils.chat.listFavorites.invalidate({ workspaceId }),
       ])
       setDeleteOpen(false)
-      if (isActive) router.push(`/workspaces/${workspaceId}/chats`)
+      if (isActive) router.push('/chats/new')
     },
   })
 
   const createChild = trpc.chat.createChat.useMutation({
     onSuccess: async (data) => {
       await utils.chat.listChats.invalidate({ workspaceId })
-      navigateToChat(router, workspaceId, data.id)
+      navigateToChat(router, data.id)
     },
   })
 
@@ -155,7 +155,7 @@ function ChatTreeItem({
           </IconButton>
         ) : null}
         <Link
-          href={buildChatHref(workspaceId, chat.id)}
+          href={buildChatHref(chat.id)}
           scroll={false}
           style={{ textDecoration: 'none', flex: 1, minWidth: 0 }}
         >
@@ -404,7 +404,7 @@ export function SearchSidebarSection({ workspaceId }: Props) {
           <IconButton
             aria-label="Новый чат"
             size="small"
-            onClick={() => router.push(`/workspaces/${workspaceId}/chats/new`)}
+            onClick={() => router.push('/chats/new')}
           >
             <AddIcon sx={{ fontSize: 16 }} />
           </IconButton>

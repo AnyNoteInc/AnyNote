@@ -131,7 +131,7 @@ export default async function ProfilePage() {
                       {workspace.name}
                     </Typography>
                   </Stack>
-                  <Link href={`/workspaces/${workspace.id}`} style={{ textDecoration: 'none' }}>
+                  <Link href="/app" style={{ textDecoration: 'none' }}>
                     <Button size="small" variant="outlined">
                       Перейти
                     </Button>

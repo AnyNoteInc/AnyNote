@@ -47,7 +47,6 @@ function getAllDescendants(pageId: string, allPages: PageItem[]): PageItem[] {
 
 type FavRowProps = {
   page: PageItem
-  workspaceId: string
   onOpenMenu: (event: MouseEvent<HTMLElement>, page: PageItem) => void
   setNodeRef?: (el: HTMLElement | null) => void
   style?: React.CSSProperties
@@ -56,14 +55,13 @@ type FavRowProps = {
 
 function FavRowVisual({
   page,
-  workspaceId,
   onOpenMenu,
   setNodeRef,
   style,
   dragListeners,
 }: FavRowProps) {
   const pathname = usePathname()
-  const isActive = pathname === `/workspaces/${workspaceId}/pages/${page.id}`
+  const isActive = pathname === `/pages/${page.id}`
 
   return (
     <Box
@@ -88,7 +86,7 @@ function FavRowVisual({
       }}
     >
       <Link
-        href={`/workspaces/${workspaceId}/pages/${page.id}`}
+        href={`/pages/${page.id}`}
         onClick={(e) => e.stopPropagation()}
         style={{
           textDecoration: 'none',
@@ -268,18 +266,10 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
                   const descendants = getAllDescendants(fav.id, allPages)
                   return (
                     <Box key={fav.id}>
-                      <SortableFavItem
-                        page={page}
-                        workspaceId={workspaceId}
-                        onOpenMenu={handleOpenMenu}
-                      />
+                      <SortableFavItem page={page} onOpenMenu={handleOpenMenu} />
                       {descendants.map((child) => (
                         <Box key={child.id} sx={{ pl: 2 }}>
-                          <FavRowVisual
-                            page={child}
-                            workspaceId={workspaceId}
-                            onOpenMenu={handleOpenMenu}
-                          />
+                          <FavRowVisual page={child} onOpenMenu={handleOpenMenu} />
                         </Box>
                       ))}
                     </Box>
@@ -314,18 +304,10 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
               const descendants = getAllDescendants(fav.id, allPages)
               return (
                 <Box key={fav.id}>
-                  <FavRowVisual
-                    page={page}
-                    workspaceId={workspaceId}
-                    onOpenMenu={handleOpenMenu}
-                  />
+                  <FavRowVisual page={page} onOpenMenu={handleOpenMenu} />
                   {descendants.map((child) => (
                     <Box key={child.id} sx={{ pl: 2 }}>
-                      <FavRowVisual
-                        page={child}
-                        workspaceId={workspaceId}
-                        onOpenMenu={handleOpenMenu}
-                      />
+                      <FavRowVisual page={child} onOpenMenu={handleOpenMenu} />
                     </Box>
                   ))}
                 </Box>

@@ -85,7 +85,7 @@ function PageRowVisual({
   const [moveOpen, setMoveOpen] = useState(false)
   const createFlow = useCreatePageFlow(workspaceId)
 
-  const isCurrentPage = pathname === `/workspaces/${workspaceId}/pages/${item.id}`
+  const isCurrentPage = pathname === `/pages/${item.id}`
   const hasChildren = pages.some((p) => p.parentId === item.id)
 
   return (
@@ -133,7 +133,7 @@ function PageRowVisual({
         ) : null}
 
         <Link
-          href={`/workspaces/${workspaceId}/pages/${item.id}`}
+          href={`/pages/${item.id}`}
           onClick={(e) => e.stopPropagation()}
           style={{ textDecoration: 'none', flex: 1, minWidth: 0, display: 'flex', gap: 4 }}
         >

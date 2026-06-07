@@ -22,7 +22,7 @@ export function useCreatePageFlow(workspaceId: string) {
     async (data: { id: string }) => {
       await utils.page.listByWorkspace.invalidate({ workspaceId })
       setOpen(false)
-      router.push(`/workspaces/${workspaceId}/pages/${data.id}`)
+      router.push(`/pages/${data.id}`)
     },
     [router, utils, workspaceId],
   )

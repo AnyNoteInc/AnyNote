@@ -51,7 +51,7 @@ export function usePageActions(
   const duplicateMutation = trpc.page.duplicate.useMutation({
     onSuccess: (data) => {
       invalidate()
-      router.push(`/workspaces/${workspaceId}/pages/${data.id}`)
+      router.push(`/pages/${data.id}`)
     },
   })
 
@@ -61,13 +61,13 @@ export function usePageActions(
   }
 
   const copyLink = async () => {
-    const url = `${window.location.origin}/workspaces/${workspaceId}/pages/${page.id}`
+    const url = `${window.location.origin}/pages/${page.id}`
     await navigator.clipboard.writeText(url)
   }
 
   // Copy the page rendered as Markdown (same output as the .md export route).
   const copyText = async () => {
-    const res = await fetch(`/api/workspaces/${workspaceId}/pages/${page.id}/export/md`, {
+    const res = await fetch(`/api/pages/${page.id}/export/md`, {
       credentials: 'same-origin',
     })
     if (!res.ok) throw new Error(`HTTP ${res.status}`)

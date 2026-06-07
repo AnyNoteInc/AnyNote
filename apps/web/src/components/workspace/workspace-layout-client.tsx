@@ -102,7 +102,7 @@ export function WorkspaceLayoutClient({
 
   const breadcrumbs = useMemo(() => {
     if (pathname.includes('/chats')) {
-      const base = { label: 'Чаты', href: `/workspaces/${workspace.id}/chats` }
+      const base = { label: 'Чаты', href: '/chats/new' }
       if (activeChat) return [base, { label: activeChat.title ?? 'Без названия' }]
       return [base]
     }
@@ -126,12 +126,12 @@ export function WorkspaceLayoutClient({
           label: p.title ?? 'Новая страница',
           // Link ancestors back to themselves; the current page (last crumb)
           // stays plain text so users don't click a no-op link.
-          href: idx === chain.length - 1 ? undefined : `/workspaces/${workspace.id}/pages/${p.id}`,
+          href: idx === chain.length - 1 ? undefined : `/pages/${p.id}`,
         })),
       ]
     }
     return [{ label: workspace.name }]
-  }, [pathname, activeChat, pages, workspace.id, workspace.name])
+  }, [pathname, activeChat, pages, workspace.name])
 
   useEffect(() => {
     const title = breadcrumbs.map((b) => b.label).join(' / ')

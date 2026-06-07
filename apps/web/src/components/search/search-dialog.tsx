@@ -93,7 +93,7 @@ export function SearchDialog({
     addToHistory.mutateAsync({ workspaceId, pageId }).catch(() => undefined)
     onClose()
     const hash = blockNumber === null ? '' : `#${blockNumber}`
-    globalThis.setTimeout(() => router.push(`/workspaces/${workspaceId}/pages/${pageId}${hash}`), 0)
+    globalThis.setTimeout(() => router.push(`/pages/${pageId}${hash}`), 0)
     if (hash) {
       for (const delay of [250, 750, 1500, 2500]) {
         globalThis.setTimeout(

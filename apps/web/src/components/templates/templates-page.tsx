@@ -69,7 +69,7 @@ export function TemplatesPage({ workspaceId }: Props) {
               </Box>
               <Box
                 component={Link}
-                href={`/workspaces/${workspaceId}/templates/${t.id}`}
+                href={`/templates/${t.id}`}
                 sx={{ flex: 1, minWidth: 0, textDecoration: 'none', color: 'inherit' }}
               >
                 <Typography variant="body1" noWrap>

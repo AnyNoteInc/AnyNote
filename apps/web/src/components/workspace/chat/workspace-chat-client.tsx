@@ -96,7 +96,7 @@ export function WorkspaceChatClient({
           ? { thinkingEffort: settings.thinkingEffort }
           : {}),
       })
-      const href = buildChatHref(workspaceId, created.id)
+      const href = buildChatHref(created.id)
       setActiveChatId(created.id)
       window.history.replaceState(null, '', href)
       await utils.chat.listChats.invalidate({ workspaceId })

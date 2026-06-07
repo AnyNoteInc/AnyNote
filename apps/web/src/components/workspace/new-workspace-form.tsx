@@ -21,8 +21,8 @@ export function NewWorkspaceForm() {
   const [error, setError] = useState<string | null>(null)
   const router = useRouter()
   const create = trpc.workspace.create.useMutation({
-    onSuccess: (workspace) => {
-      router.push(`/workspaces/${workspace.id}`)
+    onSuccess: () => {
+      router.push('/app')
     },
     onError: (err) => {
       setError(err.message)

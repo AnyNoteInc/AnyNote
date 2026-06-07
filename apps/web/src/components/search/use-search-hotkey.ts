@@ -43,7 +43,7 @@ export function useSearchHotkey(workspaceId: string, handlers: WorkspaceHotkeyHa
       }
       if (key === 'p') {
         event.preventDefault()
-        current.router.push(`/workspaces/${current.workspaceId}/chats/new`)
+        current.router.push('/chats/new')
         return
       }
       if (key === 'd') {

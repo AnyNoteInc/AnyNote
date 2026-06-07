@@ -266,9 +266,9 @@ export function PageRenderer({
 
   const onNavigateToPage = useCallback(
     (pageId: string) => {
-      router.push(`/workspaces/${workspaceId}/pages/${pageId}`)
+      router.push(`/pages/${pageId}`)
     },
-    [router, workspaceId],
+    [router],
   )
 
   const handleEditorReady = useCallback(
@@ -365,7 +365,7 @@ export function PageRenderer({
       if (result.ok) {
         setMovePos(null)
         setMoveTarget(null)
-        router.push(`/workspaces/${workspaceId}/pages/${moveTarget}`)
+        router.push(`/pages/${moveTarget}`)
       } else {
         setMoveError(result.error)
       }
@@ -374,7 +374,7 @@ export function PageRenderer({
     } finally {
       setMoveBusy(false)
     }
-  }, [movePos, moveTarget, router, workspaceId])
+  }, [movePos, moveTarget, router])
 
   if (page.type === 'EXCALIDRAW') {
     return (

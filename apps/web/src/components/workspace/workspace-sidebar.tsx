@@ -3,7 +3,7 @@
 import { type ReactNode, useMemo, useState } from 'react'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 
 import {
   AddIcon,
@@ -61,8 +61,10 @@ export function WorkspaceSidebar({
   onSectionChange,
 }: Props) {
   const pathname = usePathname()
+  const router = useRouter()
   const searchDialog = useSearchDialog()
   const settings = useSettingsDialog()
+  const utils = trpc.useUtils()
   const favorites = trpc.page.listFavorites.useQuery({ workspaceId: workspace.id })
   const favoritePageIds = useMemo(
     () => new Set((favorites.data ?? []).map((f) => f.id)),
@@ -70,6 +72,19 @@ export function WorkspaceSidebar({
   )
 
   const allWorkspaces = trpc.workspace.listMine.useQuery()
+
+  const setActive = trpc.workspace.setActive.useMutation({
+    onSuccess: async () => {
+      await Promise.all([
+        utils.page.listByWorkspace.invalidate(),
+        utils.page.listFavorites.invalidate(),
+        utils.chat.listChats.invalidate(),
+        utils.workspace.getActive.invalidate(),
+      ])
+      router.push('/app')
+      router.refresh()
+    },
+  })
 
   const [switcherAnchor, setSwitcherAnchor] = useState<HTMLElement | null>(null)
   const closeSwitcher = () => setSwitcherAnchor(null)
@@ -171,9 +186,10 @@ export function WorkspaceSidebar({
         {(allWorkspaces.data ?? []).map((w) => (
           <MenuItem
             key={w.id}
-            component={Link}
-            href={`/workspaces/${w.id}`}
-            onClick={closeSwitcher}
+            onClick={() => {
+              closeSwitcher()
+              if (w.id !== workspace.id) setActive.mutate({ workspaceId: w.id })
+            }}
             selected={w.id === workspace.id}
             sx={{ gap: 1 }}
           >
@@ -231,15 +247,15 @@ export function WorkspaceSidebar({
               <NavItem
                 icon={<DashboardCustomizeIcon sx={{ fontSize: 16 }} />}
                 label="Маркетплейс"
-                href={`/workspaces/${workspace.id}/marketplace`}
-                matchPrefix={`/workspaces/${workspace.id}/marketplace`}
+                href="/marketplace"
+                matchPrefix="/marketplace"
                 pathname={pathname}
               />
               <NavItem
                 icon={<DeleteIcon sx={{ fontSize: 16 }} />}
                 label="Корзина"
-                href={`/workspaces/${workspace.id}/trash`}
-                matchPrefix={`/workspaces/${workspace.id}/trash`}
+                href="/trash"
+                matchPrefix="/trash"
                 pathname={pathname}
               />
             </Stack>

@@ -29,7 +29,7 @@ export function TemplateEditor({ workspaceId, template, backingPage, user, edita
         <Button
           size="small"
           startIcon={<ArrowBackIcon />}
-          onClick={() => router.push(`/workspaces/${workspaceId}/marketplace`)}
+          onClick={() => router.push('/marketplace')}
         >
           К маркетплейсу
         </Button>

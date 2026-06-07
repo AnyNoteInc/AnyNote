@@ -69,7 +69,7 @@ export function MarketplacePage({ workspaceId }: { workspaceId: string }) {
     sectionLimit,
   })
   const useTemplate = trpc.template.createPageFromTemplate.useMutation({
-    onSuccess: (res) => router.push(`/workspaces/${workspaceId}/pages/${res.id}`),
+    onSuccess: (res) => router.push(`/pages/${res.id}`),
   })
 
   const onUse = (templateId: string) =>
