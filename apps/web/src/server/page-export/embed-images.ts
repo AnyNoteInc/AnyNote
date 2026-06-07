@@ -5,6 +5,7 @@ import type { StorageClient } from '@repo/storage'
 
 const FILE_PATH_PREFIX = '/api/files/'
 const PAGE_PATH_PREFIX = '/workspaces/'
+const NEUTRAL_PAGE_PATH_PREFIX = '/pages/'
 const CONCURRENCY = 8
 
 type Ctx = {
@@ -86,7 +87,7 @@ export async function embedImagesAndRewriteLinks(html: string, ctx: Ctx): Promis
   // 2. Rewrite internal page links to absolute URLs.
   for (const a of Array.from(document.querySelectorAll('a[href]'))) {
     const href = a.getAttribute('href') ?? ''
-    if (href.startsWith(PAGE_PATH_PREFIX)) {
+    if (href.startsWith(PAGE_PATH_PREFIX) || href.startsWith(NEUTRAL_PAGE_PATH_PREFIX)) {
       a.setAttribute('href', `${ctx.baseUrl}${href}`)
     } else if (href.startsWith(FILE_PATH_PREFIX)) {
       a.setAttribute('href', `${ctx.baseUrl}${href}`)
