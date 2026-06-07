@@ -7,12 +7,12 @@ export interface TemplateTagSeed {
 }
 
 export const TEMPLATE_TAGS: TemplateTagSeed[] = [
-  { slug: 'job-search', name: 'Job Search', icon: 'WorkOutlineIcon', position: 0 },
-  { slug: 'website-building', name: 'Website Building', icon: 'LaptopIcon', position: 1 },
-  { slug: 'freelance', name: 'Freelance', icon: 'DashboardIcon', position: 2 },
-  { slug: 'student-planner', name: 'Student Planner', icon: 'MenuBookIcon', position: 3 },
-  { slug: 'marketing', name: 'Marketing', icon: 'CampaignIcon', position: 4 },
-  { slug: 'career-building', name: 'Career Building', icon: 'WorkOutlineIcon', position: 5 },
-  { slug: 'personal-website', name: 'Personal Website', icon: 'LaptopIcon', position: 6 },
-  { slug: 'study-planner', name: 'Study Planner', icon: 'BookmarkIcon', position: 7 },
+  { slug: 'job-search', name: 'Поиск работы', icon: 'WorkOutlineIcon', position: 0 },
+  { slug: 'website-building', name: 'Создание сайта', icon: 'LaptopIcon', position: 1 },
+  { slug: 'freelance', name: 'Фриланс', icon: 'DashboardIcon', position: 2 },
+  { slug: 'student-planner', name: 'Студенческий планер', icon: 'MenuBookIcon', position: 3 },
+  { slug: 'marketing', name: 'Маркетинг', icon: 'CampaignIcon', position: 4 },
+  { slug: 'career-building', name: 'Карьера', icon: 'WorkOutlineIcon', position: 5 },
+  { slug: 'personal-website', name: 'Личный сайт', icon: 'LaptopIcon', position: 6 },
+  { slug: 'study-planner', name: 'План обучения', icon: 'BookmarkIcon', position: 7 },
 ]
