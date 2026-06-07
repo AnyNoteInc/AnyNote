@@ -4,17 +4,21 @@ import { useEffect, useState } from 'react'
 
 import {
   Alert,
+  Box,
   Button,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
   DialogTitle,
   EmojiIconButton,
+  FormLabel,
   Stack,
   TextField,
 } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
+import { TagIcon } from '@/components/marketplace/tag-icon'
 
 import { invalidateTemplates } from './invalidate-templates'
 
@@ -23,7 +27,7 @@ export type EditableTemplate = {
   title: string
   description: string | null
   icon: string | null
-  category: string | null
+  tags: { id: string }[]
 }
 
 type Mode = { kind: 'create' } | { kind: 'edit'; template: EditableTemplate }
@@ -42,7 +46,14 @@ export function TemplateMetadataDialog({ open, onClose, workspaceId, mode, onSav
   const [title, setTitle] = useState('')
   const [description, setDescription] = useState('')
   const [icon, setIcon] = useState<string | null>(null)
-  const [category, setCategory] = useState('')
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
+
+  const tagsQuery = trpc.template.listTags.useQuery()
+
+  const toggleTag = (id: string) =>
+    setSelectedTagIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    )
 
   useEffect(() => {
     if (!open) return
@@ -50,12 +61,12 @@ export function TemplateMetadataDialog({ open, onClose, workspaceId, mode, onSav
       setTitle(mode.template.title)
       setDescription(mode.template.description ?? '')
       setIcon(mode.template.icon)
-      setCategory(mode.template.category ?? '')
+      setSelectedTagIds(mode.template.tags.map((tg) => tg.id))
     } else {
       setTitle('')
       setDescription('')
       setIcon(null)
-      setCategory('')
+      setSelectedTagIds([])
     }
   }, [open, mode])
 
@@ -89,7 +100,7 @@ export function TemplateMetadataDialog({ open, onClose, workspaceId, mode, onSav
         title: trimmedTitle,
         description: description.trim() || null,
         icon,
-        category: category.trim() || null,
+        tagIds: selectedTagIds,
       })
     } else {
       updateMut.mutate({
@@ -98,7 +109,7 @@ export function TemplateMetadataDialog({ open, onClose, workspaceId, mode, onSav
         title: trimmedTitle,
         description: description.trim() || null,
         icon,
-        category: category.trim() || null,
+        tagIds: selectedTagIds,
       })
     }
   }
@@ -143,13 +154,23 @@ export function TemplateMetadataDialog({ open, onClose, workspaceId, mode, onSav
             multiline
             minRows={2}
           />
-          <TextField
-            fullWidth
-            size="small"
-            label="Категория"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-          />
+          <Box>
+            <FormLabel sx={{ fontSize: 13 }}>Теги</FormLabel>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+              {(tagsQuery.data ?? []).map((t) => (
+                <Chip
+                  key={t.id}
+                  icon={<TagIcon name={t.icon} fontSize="small" />}
+                  label={t.name}
+                  size="small"
+                  clickable
+                  color={selectedTagIds.includes(t.id) ? 'primary' : 'default'}
+                  variant={selectedTagIds.includes(t.id) ? 'filled' : 'outlined'}
+                  onClick={() => toggleTag(t.id)}
+                />
+              ))}
+            </Stack>
+          </Box>
           {isError ? (
             <Alert severity="error">Не удалось сохранить шаблон. Попробуйте ещё раз.</Alert>
           ) : null}
