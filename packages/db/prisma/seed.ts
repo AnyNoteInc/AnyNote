@@ -149,23 +149,40 @@ async function seedTemplateTags() {
  * rows keep their id and usageCount; missing ones are created.
  */
 async function seedGlobalTemplates() {
+  // Map tag slug → id once (tags are already seeded).
+  const tags = await prisma.templateTag.findMany({ select: { id: true, slug: true } })
+  const tagIdBySlug = new Map(tags.map((t) => [t.slug, t.id]))
+
   for (const t of GLOBAL_TEMPLATES) {
     const contentYjs = Buffer.from(buildTemplateContentYjs(t.doc))
     const data = {
       title: t.title,
       description: t.description,
       icon: t.icon,
-      category: t.category,
       type: 'TEXT' as const,
       content: t.doc as unknown as Prisma.InputJsonValue,
       contentYjs,
+      averageRating: t.averageRating,
+      ratingCount: t.ratingCount,
       deletedAt: null,
     }
-    await prisma.pageTemplate.upsert({
+    const tpl = await prisma.pageTemplate.upsert({
       where: { key: t.key },
       create: { key: t.key, scope: 'GLOBAL', workspaceId: null, ...data },
       update: data,
+      select: { id: true },
     })
+    // Re-sync tag links idempotently: delete existing, recreate from seed.
+    await prisma.pageTemplateTag.deleteMany({ where: { templateId: tpl.id } })
+    const tagIds = t.tagSlugs
+      .map((slug) => tagIdBySlug.get(slug))
+      .filter((id): id is string => Boolean(id))
+    if (tagIds.length > 0) {
+      await prisma.pageTemplateTag.createMany({
+        data: tagIds.map((tagId) => ({ templateId: tpl.id, tagId })),
+        skipDuplicates: true,
+      })
+    }
   }
 }
 
