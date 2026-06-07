@@ -71,7 +71,8 @@ export function WorkspaceToolbar({
       className="workspace-toolbar"
       sx={{
         px: 2,
-        py: 1.25,
+        py: 0.5,
+        minHeight: 44,
         borderBottom: '1px solid',
         borderColor: 'divider',
       }}

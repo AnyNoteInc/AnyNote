@@ -15,7 +15,14 @@ export function MarketplaceToolbarSearch() {
     router.replace(next, { scroll: false })
   }
   return (
-    <Box sx={{ width: { xs: 160, sm: 280 } }}>
+    <Box
+      sx={{
+        width: { xs: 160, sm: 280 },
+        // Compact height to keep the top toolbar row slim.
+        '& .MuiInputBase-root': { height: 32 },
+        '& .MuiInputBase-input': { py: 0 },
+      }}
+    >
       <TemplateSearchInput value={q} onChange={onChange} />
     </Box>
   )
