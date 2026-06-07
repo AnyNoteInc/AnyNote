@@ -11,6 +11,7 @@ import type {
   EmptyTrashInput,
   HardDeletePageInput,
   MovePageInput,
+  MoveToCollectionInput,
   PageRowDto,
   RenamePageInput,
   RenameResultDto,
@@ -63,8 +64,52 @@ export class PageService {
       }
     }
 
+    const resolvedCollectionId = await this.resolveCollectionId(actorUserId, input)
+
     return this.uow.transaction(() =>
-      this.repo.createPageTx(actorUserId, input, (pageId) => this.kanban.seedDefaults(pageId)),
+      this.repo.createPageTx(actorUserId, { ...input, resolvedCollectionId }, (pageId) =>
+        this.kanban.seedDefaults(pageId),
+      ),
+    )
+  }
+
+  /**
+   * Resolve which collection a new page belongs to:
+   * 1. an explicit collectionId always wins;
+   * 2. otherwise inherit the parent page's collection;
+   * 3. otherwise honour an explicit location ('team');
+   * 4. default (and location 'private'): the actor's personal collection,
+   *    falling back to the workspace team collection.
+   */
+  private async resolveCollectionId(
+    actorUserId: string,
+    input: CreatePageInput & CreatePageExtra,
+  ): Promise<string | null> {
+    if (input.collectionId !== undefined && input.collectionId !== null) return input.collectionId
+    if (input.parentId) {
+      const parentCol = await this.repo.getPageCollectionId(input.parentId)
+      if (parentCol) return parentCol
+    }
+    if (input.location === 'team') {
+      return this.repo.findTeamCollectionId(input.workspaceId)
+    }
+    // default + location 'private': actor's personal collection, fall back to team
+    const personal = await this.repo.findPersonalCollectionId(input.workspaceId, actorUserId)
+    if (personal) return personal
+    return this.repo.findTeamCollectionId(input.workspaceId)
+  }
+
+  async moveToCollection(
+    actorUserId: string,
+    input: MoveToCollectionInput,
+  ): Promise<CreateResultDto> {
+    await this.assertOwnership(actorUserId, input.pageId)
+    const target =
+      input.target === 'team'
+        ? await this.repo.findTeamCollectionId(input.workspaceId)
+        : await this.repo.findPersonalCollectionId(input.workspaceId, actorUserId)
+    return this.uow.transaction(() =>
+      this.repo.moveToCollectionTx(actorUserId, input.pageId, target, input.workspaceId),
     )
   }
 

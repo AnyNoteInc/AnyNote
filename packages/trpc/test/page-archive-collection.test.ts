@@ -152,3 +152,57 @@ describe('page archive / unarchive + listArchived (integration)', () => {
     expect(list.map((p) => p.id)).toContain(ctx.teamPageId)
   })
 })
+
+describe('collection-aware create + moveToCollection (integration)', () => {
+  beforeEach(cleanFixtures)
+  afterAll(cleanFixtures)
+
+  it('create with location:private lands the page in the actor PERSONAL collection (hidden from other members)', async () => {
+    const ctx = await seed()
+    const ownerCaller = makeCaller(ctx.ownerId)
+
+    const { id } = await ownerCaller.create({
+      workspaceId: ctx.wsId,
+      parentId: null,
+      location: 'private',
+    })
+
+    const created = await prisma.page.findUnique({
+      where: { id },
+      select: { collectionId: true },
+    })
+    expect(created?.collectionId).toBe(ctx.personalCollectionId)
+
+    // A second member must NOT see the owner's private page.
+    const memberCaller = makeCaller(ctx.memberId)
+    const memberList = await memberCaller.listByWorkspace({ workspaceId: ctx.wsId })
+    expect(memberList.map((p) => p.id)).not.toContain(id)
+  })
+
+  it('moveToCollection target:team moves the page into the TEAM collection (now visible to other members)', async () => {
+    const ctx = await seed()
+    const ownerCaller = makeCaller(ctx.ownerId)
+
+    const { id } = await ownerCaller.create({
+      workspaceId: ctx.wsId,
+      parentId: null,
+      location: 'private',
+    })
+
+    await ownerCaller.moveToCollection({
+      pageId: id,
+      workspaceId: ctx.wsId,
+      target: 'team',
+    })
+
+    const moved = await prisma.page.findUnique({
+      where: { id },
+      select: { collectionId: true },
+    })
+    expect(moved?.collectionId).toBe(ctx.teamCollectionId)
+
+    const memberCaller = makeCaller(ctx.memberId)
+    const memberList = await memberCaller.listByWorkspace({ workspaceId: ctx.wsId })
+    expect(memberList.map((p) => p.id)).toContain(id)
+  })
+})

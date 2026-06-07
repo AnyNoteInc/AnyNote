@@ -10,6 +10,8 @@ export const createPageInput = z.object({
   title: z.string().optional(),
   icon: z.string().optional(),
   type: z.nativeEnum(PageType).optional(),
+  collectionId: z.string().uuid().nullable().optional(),
+  location: z.enum(['team', 'private']).optional(),
 })
 export type CreatePageInput = z.infer<typeof createPageInput>
 
@@ -57,6 +59,13 @@ export type ArchivePageInput = z.infer<typeof archivePageInput>
 export const unarchivePageInput = archivePageInput
 export type UnarchivePageInput = z.infer<typeof unarchivePageInput>
 
+export const moveToCollectionInput = z.object({
+  pageId: z.string().uuid(),
+  workspaceId: z.string().uuid(),
+  target: z.enum(['team', 'private']),
+})
+export type MoveToCollectionInput = z.infer<typeof moveToCollectionInput>
+
 export const softDeletePageInput = z.object({
   id: z.string().uuid(),
   workspaceId: z.string().uuid(),
@@ -91,6 +100,7 @@ export type CreatePageExtra = {
   content?: Prisma.InputJsonValue
   contentYjs?: Uint8Array<ArrayBuffer>
   isTemplateBacking?: boolean
+  resolvedCollectionId?: string | null
 }
 
 // ── Internal row DTO (returned from access queries) ───────────────────────────

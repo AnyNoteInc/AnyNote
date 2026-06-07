@@ -182,6 +182,7 @@ export class PageRepository {
         title: input.title ?? null,
         icon: input.icon ?? null,
         type: input.type ?? PageType.TEXT,
+        collectionId: input.resolvedCollectionId ?? null,
         isTemplateBacking: input.isTemplateBacking ?? false,
         ...(input.ownership ? { ownership: input.ownership } : {}),
         ...(input.content === undefined ? {} : { content: input.content }),
@@ -258,6 +259,52 @@ export class PageRepository {
     await this.uow.client().page.update({
       where: { id: pageId },
       data: { archivedAt: null, archivedById: null, updatedById: actorUserId },
+    })
+    await enqueueOutboxEvent(this.uow.client() as Prisma.TransactionClient, {
+      eventType: 'page.upserted',
+      aggregateType: 'page',
+      aggregateId: pageId,
+      workspaceId,
+    })
+    return { id: pageId }
+  }
+
+  async findTeamCollectionId(workspaceId: string): Promise<string | null> {
+    const c = await this.uow.client().collection.findFirst({
+      where: { workspaceId, kind: 'TEAM', ownerId: null },
+      select: { id: true },
+    })
+    return c?.id ?? null
+  }
+
+  async findPersonalCollectionId(
+    workspaceId: string,
+    userId: string,
+  ): Promise<string | null> {
+    const c = await this.uow.client().collection.findFirst({
+      where: { workspaceId, kind: 'PERSONAL', ownerId: userId },
+      select: { id: true },
+    })
+    return c?.id ?? null
+  }
+
+  async getPageCollectionId(pageId: string): Promise<string | null> {
+    const p = await this.uow.client().page.findUnique({
+      where: { id: pageId },
+      select: { collectionId: true },
+    })
+    return p?.collectionId ?? null
+  }
+
+  async moveToCollectionTx(
+    actorUserId: string,
+    pageId: string,
+    collectionId: string | null,
+    workspaceId: string,
+  ): Promise<CreateResultDto> {
+    await this.uow.client().page.update({
+      where: { id: pageId },
+      data: { collectionId, updatedById: actorUserId },
     })
     await enqueueOutboxEvent(this.uow.client() as Prisma.TransactionClient, {
       eventType: 'page.upserted',

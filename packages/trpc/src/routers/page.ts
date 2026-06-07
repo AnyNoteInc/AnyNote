@@ -207,6 +207,13 @@ export const pageRouter = router({
       return mapDomain(() => domainSvc.pages.move(ctx.user.id, input))
     }),
 
+  moveToCollection: protectedProcedure
+    .input(domain.moveToCollectionInput)
+    .mutation(async ({ ctx, input }) => {
+      await requireWritableWorkspace(input.workspaceId)
+      return mapDomain(() => domainSvc.pages.moveToCollection(ctx.user.id, input))
+    }),
+
   duplicate: protectedProcedure
     .input(domain.duplicatePageInput)
     .mutation(async ({ ctx, input }): Promise<{ id: string }> => {
