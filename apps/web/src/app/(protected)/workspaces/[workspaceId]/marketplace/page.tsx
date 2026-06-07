@@ -1,6 +1,16 @@
-import { MarketplacePage } from '@/components/marketplace/marketplace-page'
+import { notFound, redirect } from 'next/navigation'
 
-export default async function Page({ params }: { params: Promise<{ workspaceId: string }> }) {
+import { getServerTRPC } from '@/trpc/server'
+
+export default async function LegacyMarketplace({
+  params,
+}: {
+  params: Promise<{ workspaceId: string }>
+}) {
   const { workspaceId } = await params
-  return <MarketplacePage workspaceId={workspaceId} />
+  const trpc = await getServerTRPC()
+  const ws = await trpc.workspace.getById({ id: workspaceId })
+  if (!ws) notFound()
+  await trpc.workspace.setActive({ workspaceId })
+  redirect('/marketplace')
 }
