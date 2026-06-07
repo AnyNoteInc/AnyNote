@@ -4,60 +4,60 @@ const mocks = vi.hoisted(() => ({
   redirect: vi.fn((href: string) => {
     throw new Error(`NEXT_REDIRECT:${href}`)
   }),
-  listByWorkspace: vi.fn(),
+  notFound: vi.fn(() => {
+    throw new Error('NEXT_NOT_FOUND')
+  }),
+  getById: vi.fn(),
+  setActive: vi.fn(),
 }))
 
 vi.mock('next/navigation', () => ({
   redirect: mocks.redirect,
+  notFound: mocks.notFound,
 }))
 
 // getServerTRPC builds a request-scoped tRPC context (headers/session), which
-// is unavailable under Vitest's node env. Mock it so the page can resolve its
-// page list without touching `headers()`.
+// is unavailable under Vitest's node env. Mock it so the legacy redirect can
+// resolve the workspace without touching `headers()`.
 vi.mock('@/trpc/server', () => ({
   getServerTRPC: vi.fn(async () => ({
-    page: { listByWorkspace: mocks.listByWorkspace },
+    workspace: { getById: mocks.getById, setActive: mocks.setActive },
   })),
 }))
 
-import WorkspaceRootPage from '../src/app/(protected)/workspaces/[workspaceId]/page'
+import LegacyWorkspaceRoot from '../src/app/(protected)/workspaces/[workspaceId]/page'
 
-describe('workspace root page', () => {
+describe('legacy workspace root redirect', () => {
   beforeEach(() => {
     vi.clearAllMocks()
   })
 
-  it('redirects to the new-chat entry point when the workspace has no pages', async () => {
-    mocks.listByWorkspace.mockResolvedValue([])
+  it('sets the workspace active and redirects to /app when the workspace exists', async () => {
+    mocks.getById.mockResolvedValue({ id: 'workspace-1' })
 
     await expect(
-      WorkspaceRootPage({
+      LegacyWorkspaceRoot({
         params: Promise.resolve({ workspaceId: 'workspace-1' }),
       }),
-    ).rejects.toThrow('NEXT_REDIRECT:/workspaces/workspace-1/chats/new')
+    ).rejects.toThrow('NEXT_REDIRECT:/app')
 
-    expect(mocks.redirect).toHaveBeenCalledWith('/workspaces/workspace-1/chats/new')
+    expect(mocks.getById).toHaveBeenCalledWith({ id: 'workspace-1' })
+    expect(mocks.setActive).toHaveBeenCalledWith({ workspaceId: 'workspace-1' })
+    expect(mocks.redirect).toHaveBeenCalledWith('/app')
+    expect(mocks.notFound).not.toHaveBeenCalled()
   })
 
-  it('redirects to the first page in tree order when the workspace has pages', async () => {
-    mocks.listByWorkspace.mockResolvedValue([
-      {
-        id: 'page-a',
-        title: 'A',
-        icon: null,
-        parentId: null,
-        prevPageId: null,
-        createdById: null,
-        createdAt: new Date(0),
-      },
-    ])
+  it('calls notFound when the workspace does not exist', async () => {
+    mocks.getById.mockResolvedValue(null)
 
     await expect(
-      WorkspaceRootPage({
-        params: Promise.resolve({ workspaceId: 'workspace-1' }),
+      LegacyWorkspaceRoot({
+        params: Promise.resolve({ workspaceId: 'missing' }),
       }),
-    ).rejects.toThrow('NEXT_REDIRECT:/workspaces/workspace-1/pages/page-a')
+    ).rejects.toThrow('NEXT_NOT_FOUND')
 
-    expect(mocks.redirect).toHaveBeenCalledWith('/workspaces/workspace-1/pages/page-a')
+    expect(mocks.notFound).toHaveBeenCalledTimes(1)
+    expect(mocks.setActive).not.toHaveBeenCalled()
+    expect(mocks.redirect).not.toHaveBeenCalled()
   })
 })
