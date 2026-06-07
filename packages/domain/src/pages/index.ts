@@ -1,4 +1,5 @@
 export * from './dto/pages.dto.ts'
+export * from './page-visibility.ts'
 export * from './services/pages.service.ts'
 export * from './pages.tokens.ts'
 export * from './pages.module.ts'
