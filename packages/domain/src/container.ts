@@ -30,6 +30,9 @@ import type { TemplateService } from './templates/services/templates.service.ts'
 import { BILLING } from './billing/billing.tokens.ts'
 import { billingModule } from './billing/billing.module.ts'
 import type { BillingService } from './billing/services/billing.service.ts'
+import { COLLECTIONS } from './collections/collections.tokens.ts'
+import { collectionsModule } from './collections/collections.module.ts'
+import type { CollectionService } from './collections/services/collections.service.ts'
 
 export interface DomainDeps {
   prisma: PrismaClient
@@ -45,6 +48,7 @@ export interface Domain {
   pages: PageService
   templates: TemplateService
   billing: BillingService
+  collections: CollectionService
 }
 
 export function createDomainContainer(deps: DomainDeps): Container {
@@ -55,7 +59,17 @@ export function createDomainContainer(deps: DomainDeps): Container {
     [SHARED.Prisma],
   )
   c.bind(REMINDERS.Scheduler).toConstantValue(deps.scheduler)
-  c.load(workspaceModule, favoritesModule, notificationsModule, remindersModule, kanbanModule, pagesModule, templatesModule, billingModule)
+  c.load(
+    workspaceModule,
+    favoritesModule,
+    notificationsModule,
+    remindersModule,
+    kanbanModule,
+    pagesModule,
+    templatesModule,
+    billingModule,
+    collectionsModule,
+  )
   return c
 }
 
@@ -70,5 +84,6 @@ export function createDomain(deps: DomainDeps): Domain {
     pages: c.get<PageService>(PAGES.Service),
     templates: c.get<TemplateService>(TEMPLATES.Service),
     billing: c.get<BillingService>(BILLING.Service),
+    collections: c.get<CollectionService>(COLLECTIONS.Service),
   }
 }

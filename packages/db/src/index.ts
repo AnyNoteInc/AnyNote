@@ -50,6 +50,7 @@ export {
   NotificationEventType,
   DeliveryStatus,
   ReminderAudience,
+  CollectionKind,
 } from '@prisma/client'
 export type { ChatMessageStatus } from '@prisma/client'
 export type {
