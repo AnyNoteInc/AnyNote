@@ -58,6 +58,7 @@ model User {
   agentActionLogs            AgentActionLog[]         @relation("AgentActionLogUser")
   apiKeys                    ApiKey[]
   aiProvidersCreated         AiProvider[]             @relation("AiProviderCreatedBy")
+  createdPageTemplates       PageTemplate[]           @relation("PageTemplateCreatedBy")
 
   @@map("users")
 }
@@ -384,8 +385,9 @@ model Page {
   content      Json?
   contentYjs   Bytes?                   @map("content_yjs")
   searchVector Unsupported("tsvector")? @default(dbgenerated()) @map("search_vector")
-  archived     Boolean                  @default(false)
-  prevPageId   String?                  @unique @map("prev_page_id") @db.Uuid
+  archived            Boolean                  @default(false)
+  isTemplateBacking   Boolean                  @default(false) @map("is_template_backing")
+  prevPageId          String?                  @unique @map("prev_page_id") @db.Uuid
   deletedAt    DateTime?                @map("deleted_at") @db.Timestamptz(6)
   createdById  String?                  @map("created_by_id") @db.Uuid
   updatedById  String?                  @map("updated_by_id") @db.Uuid
@@ -410,11 +412,13 @@ model Page {
   kanbanPriorities KanbanPriority[]
   kanbanLabels     KanbanLabel[]
   sprints          Sprint[]
-  tasks            Task[]
+  tasks              Task[]
+  backingForTemplate PageTemplate? @relation("TemplateBackingPage")
 
   @@index([workspaceId])
   @@index([parentId])
   @@index([archived])
+  @@index([isTemplateBacking])
   @@index([workspaceId, ownership])
   @@index([searchVector], type: Gin, name: "Page_searchVector_idx")
   @@map("pages")
@@ -429,25 +433,53 @@ model PageTemplate {
   key         String?           @unique @db.Text
   title       String            @db.Text
   description String?           @db.Text
-  icon        String?           @db.Text
-  category    String?           @db.Text
-  type        PageType          @default(TEXT)
-  content     Json?
-  contentYjs  Bytes?            @map("content_yjs")
-  usageCount  Int               @default(0) @map("usage_count")
-  createdById String?           @map("created_by_id") @db.Uuid
-  updatedById String?           @map("updated_by_id") @db.Uuid
-  createdAt   DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt   DateTime?         @map("deleted_at") @db.Timestamptz(6)
+  icon          String?           @db.Text
+  type          PageType          @default(TEXT)
+  content       Json?
+  contentYjs    Bytes?            @map("content_yjs")
+  usageCount    Int               @default(0) @map("usage_count")
+  backingPageId String?           @unique @map("backing_page_id") @db.Uuid
+  averageRating Float             @default(0) @map("average_rating")
+  ratingCount   Int               @default(0) @map("rating_count")
+  previewColor  String?           @map("preview_color") @db.Text
+  createdById   String?           @map("created_by_id") @db.Uuid
+  updatedById   String?           @map("updated_by_id") @db.Uuid
+  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
+  deletedAt     DateTime?         @map("deleted_at") @db.Timestamptz(6)
 
-  workspace Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  backingPage Page?      @relation("TemplateBackingPage", fields: [backingPageId], references: [id], onDelete: SetNull)
+  createdBy   User?      @relation("PageTemplateCreatedBy", fields: [createdById], references: [id])
+  tags        PageTemplateTag[]
 
   @@index([workspaceId])
   @@index([scope])
   @@index([createdAt])
   @@index([usageCount])
   @@map("page_templates")
+}
+
+model TemplateTag {
+  id        String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  slug      String            @unique @db.Text
+  name      String            @db.Text
+  icon      String            @db.Text
+  position  Int               @default(0)
+  templates PageTemplateTag[]
+
+  @@map("template_tags")
+}
+
+model PageTemplateTag {
+  templateId String       @map("template_id") @db.Uuid
+  tagId      String       @map("tag_id") @db.Uuid
+  template   PageTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  tag        TemplateTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([templateId, tagId])
+  @@index([tagId])
+  @@map("page_template_tags")
 }
 
 model PageShare {
