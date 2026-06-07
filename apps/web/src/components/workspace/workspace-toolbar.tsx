@@ -7,7 +7,7 @@ import { Box, IconButton, MenuIcon, Paper, Popper, Stack, Typography } from '@re
 
 import { SIDEBAR_WIDTH } from './workspace-layout-client'
 
-type Breadcrumb = { label: string; href?: string }
+type Breadcrumb = { label: string; href?: string; icon?: ReactNode }
 
 type Props = {
   readonly breadcrumbs: Breadcrumb[]
@@ -124,23 +124,34 @@ export function WorkspaceToolbar({
               </Typography>
             )}
             {crumb.href && !isLast ? (
-              <Typography
+              <Stack
                 component={Link}
                 href={crumb.href}
-                variant="body2"
-                noWrap
+                direction="row"
+                alignItems="center"
+                spacing={0.5}
                 sx={{
                   color: 'text.secondary',
                   textDecoration: 'none',
                   '&:hover': { color: 'text.primary', textDecoration: 'underline' },
                 }}
               >
-                {crumb.label}
-              </Typography>
+                {crumb.icon}
+                <Typography variant="body2" noWrap color="inherit">
+                  {crumb.label}
+                </Typography>
+              </Stack>
             ) : (
-              <Typography variant="body2" noWrap color={isLast ? 'text.primary' : 'text.secondary'}>
-                {crumb.label}
-              </Typography>
+              <Stack direction="row" alignItems="center" spacing={0.5}>
+                {crumb.icon}
+                <Typography
+                  variant="body2"
+                  noWrap
+                  color={isLast ? 'text.primary' : 'text.secondary'}
+                >
+                  {crumb.label}
+                </Typography>
+              </Stack>
             )}
           </Stack>
         )

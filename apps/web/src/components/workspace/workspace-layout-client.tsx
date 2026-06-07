@@ -3,10 +3,11 @@
 import { usePathname } from 'next/navigation'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 
-import { Box } from '@repo/ui/components'
+import { Box, StorefrontIcon } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
 
+import { MarketplaceToolbarSearch } from '@/components/marketplace/marketplace-toolbar-search'
 import { PageActionsToolbar } from '@/components/page/page-actions-toolbar'
 import { PageEditorProvider } from '@/components/page/editor-context'
 import { PageCommentsProvider } from '@/components/page/comments/comments-context'
@@ -130,6 +131,17 @@ export function WorkspaceLayoutClient({
         })),
       ]
     }
+    if (pathname.startsWith('/marketplace')) {
+      const base = {
+        label: 'Маркетплейс',
+        href: '/marketplace',
+        icon: <StorefrontIcon sx={{ fontSize: 18 }} />,
+      }
+      if (pathname.startsWith('/marketplace/templates/')) {
+        return [base, { label: 'Шаблон' }]
+      }
+      return [base]
+    }
     return [{ label: workspace.name }]
   }, [pathname, activeChat, pages, workspace.name])
 
@@ -176,6 +188,9 @@ export function WorkspaceLayoutClient({
               <ChatActionsToolbar chatId={activeChatId} workspaceId={workspace.id} />
             ) : activePageId ? (
               <PageActionsToolbar pageId={activePageId} workspaceId={workspace.id} />
+            ) : pathname.startsWith('/marketplace') &&
+              !pathname.startsWith('/marketplace/templates/') ? (
+              <MarketplaceToolbarSearch />
             ) : null
           }
         />

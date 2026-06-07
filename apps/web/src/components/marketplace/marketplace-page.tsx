@@ -2,13 +2,12 @@
 
 import { useState } from 'react'
 
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 
 import { Box, Button, Stack, Typography } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
 
-import { MarketplaceHeader } from './marketplace-header'
 import { TagRow } from './tag-row'
 import { TemplateCard } from './template-card'
 
@@ -56,7 +55,7 @@ function Section({
 
 export function MarketplacePage({ workspaceId }: { workspaceId: string }) {
   const router = useRouter()
-  const [query, setQuery] = useState('')
+  const query = useSearchParams().get('q') ?? ''
   const [tagId, setTagId] = useState<string | null>(null)
   const [expandedSection, setExpandedSection] = useState<SectionKey | null>(null)
 
@@ -86,7 +85,6 @@ export function MarketplacePage({ workspaceId }: { workspaceId: string }) {
 
   return (
     <Box sx={{ maxWidth: 1100, mx: 'auto', p: { xs: 2, md: 4 } }}>
-      <MarketplaceHeader query={query} onQuery={setQuery} />
       <TagRow tags={data?.tags ?? []} activeTagId={tagId} onSelect={setTagId} />
       {market.isLoading ? (
         <Typography color="text.secondary">Загрузка…</Typography>

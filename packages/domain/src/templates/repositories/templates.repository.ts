@@ -25,6 +25,7 @@ const SUMMARY_SELECT = {
   averageRating: true,
   ratingCount: true,
   previewColor: true,
+  content: true,
   createdById: true,
   createdAt: true,
   updatedAt: true,
@@ -46,6 +47,7 @@ function toSummary(row: {
   averageRating: number
   ratingCount: number
   previewColor: string | null
+  content: Prisma.JsonValue | null
   createdById: string | null
   createdAt: Date
   updatedAt: Date
@@ -68,6 +70,7 @@ function toSummary(row: {
     averageRating: row.averageRating,
     ratingCount: row.ratingCount,
     previewColor: row.previewColor,
+    previewContent: row.content,
     createdById: row.createdById,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,

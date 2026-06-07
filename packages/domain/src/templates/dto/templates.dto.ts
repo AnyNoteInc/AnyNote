@@ -116,6 +116,7 @@ export interface TemplateSummaryDto {
   averageRating: number
   ratingCount: number
   previewColor: string | null
+  previewContent: Prisma.JsonValue | null
   tags: TemplateTagDto[]
   author: TemplateAuthorDto
   createdById: string | null

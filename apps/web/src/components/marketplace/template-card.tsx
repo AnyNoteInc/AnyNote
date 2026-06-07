@@ -2,42 +2,30 @@
 
 import { Box, Card, CardActionArea, Stack, StarIcon, Typography } from '@repo/ui/components'
 
+import { TemplatePreview } from './template-preview'
+
 type CardTemplate = {
   id: string
   title: string
   description: string | null
   icon: string | null
   previewColor: string | null
+  previewContent: unknown
   averageRating: number
   usageCount: number
   author: { name: string }
 }
 
-/** Deterministic gradient from the template id (used when previewColor is null). */
-function gradientFor(id: string): string {
-  let hash = 0
-  for (let i = 0; i < id.length; i++) hash = (hash * 31 + id.charCodeAt(i)) % 360
-  const h2 = (hash + 40) % 360
-  return `linear-gradient(135deg, hsl(${hash} 70% 92%), hsl(${h2} 70% 85%))`
-}
-
 export function TemplateCard({ template, onOpen }: { template: CardTemplate; onOpen: () => void }) {
-  const bg = template.previewColor ?? gradientFor(template.id)
   return (
     <Card variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
       <CardActionArea onClick={onOpen}>
-        <Box
-          sx={{
-            height: 104,
-            background: bg,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            fontSize: 30,
-          }}
-        >
-          {template.icon ?? '📄'}
-        </Box>
+        <TemplatePreview
+          id={template.id}
+          content={template.previewContent}
+          icon={template.icon}
+          previewColor={template.previewColor}
+        />
         <Box sx={{ p: 1.5 }}>
           <Typography variant="subtitle2" noWrap>
             {template.title}
