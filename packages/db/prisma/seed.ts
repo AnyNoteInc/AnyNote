@@ -3,6 +3,7 @@ import { PrismaClient, Prisma } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 
 import { GLOBAL_TEMPLATES, buildTemplateContentYjs } from './global-templates.ts'
+import { TEMPLATE_TAGS } from './template-tags.ts'
 
 config({ path: '../../.env' })
 
@@ -126,9 +127,20 @@ async function main() {
     data: { isActive: false },
   })
 
+  await seedTemplateTags()
   await seedGlobalTemplates()
 
   console.info(`Seed complete: 3 active plans, ${GLOBAL_TEMPLATES.length} global templates`)
+}
+
+async function seedTemplateTags() {
+  for (const t of TEMPLATE_TAGS) {
+    await prisma.templateTag.upsert({
+      where: { slug: t.slug },
+      create: { slug: t.slug, name: t.name, icon: t.icon, position: t.position },
+      update: { name: t.name, icon: t.icon, position: t.position },
+    })
+  }
 }
 
 /**
