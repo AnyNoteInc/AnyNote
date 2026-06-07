@@ -12,5 +12,5 @@ export default async function LegacyTemplateEditor({
   const ws = await trpc.workspace.getById({ id: workspaceId })
   if (!ws) notFound()
   await trpc.workspace.setActive({ workspaceId })
-  redirect(`/templates/${templateId}`)
+  redirect(`/marketplace/templates/${templateId}`)
 }

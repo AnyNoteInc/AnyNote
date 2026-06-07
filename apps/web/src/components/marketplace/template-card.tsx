@@ -21,11 +21,11 @@ function gradientFor(id: string): string {
   return `linear-gradient(135deg, hsl(${hash} 70% 92%), hsl(${h2} 70% 85%))`
 }
 
-export function TemplateCard({ template, onUse }: { template: CardTemplate; onUse: () => void }) {
+export function TemplateCard({ template, onOpen }: { template: CardTemplate; onOpen: () => void }) {
   const bg = template.previewColor ?? gradientFor(template.id)
   return (
     <Card variant="outlined" sx={{ borderRadius: 2, overflow: 'hidden' }}>
-      <CardActionArea onClick={onUse}>
+      <CardActionArea onClick={onOpen}>
         <Box
           sx={{
             height: 104,

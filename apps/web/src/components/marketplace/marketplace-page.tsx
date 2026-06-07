@@ -20,12 +20,12 @@ const SECTION_EXPANDED_LIMIT = 50
 function Section({
   title,
   templates,
-  onUse,
+  onOpen,
   onSeeAll,
 }: {
   title: string
   templates: Parameters<typeof TemplateCard>[0]['template'][]
-  onUse: (id: string) => void
+  onOpen: (id: string) => void
   onSeeAll?: () => void
 }) {
   if (templates.length === 0) return null
@@ -47,7 +47,7 @@ function Section({
         }}
       >
         {templates.map((t) => (
-          <TemplateCard key={t.id} template={t} onUse={() => onUse(t.id)} />
+          <TemplateCard key={t.id} template={t} onOpen={() => onOpen(t.id)} />
         ))}
       </Box>
     </Box>
@@ -68,12 +68,8 @@ export function MarketplacePage({ workspaceId }: { workspaceId: string }) {
     query: query.trim() || undefined,
     sectionLimit,
   })
-  const useTemplate = trpc.template.createPageFromTemplate.useMutation({
-    onSuccess: (res) => router.push(`/pages/${res.id}`),
-  })
 
-  const onUse = (templateId: string) =>
-    useTemplate.mutate({ templateId, workspaceId, parentId: null })
+  const onOpen = (templateId: string) => router.push(`/marketplace/templates/${templateId}`)
 
   const handleSeeAll = (section: SectionKey) => () => {
     setExpandedSection((prev) => (prev === section ? null : section))
@@ -100,7 +96,7 @@ export function MarketplacePage({ workspaceId }: { workspaceId: string }) {
             <Section
               title="Шаблоны пространства"
               templates={workspaceTemplates}
-              onUse={onUse}
+              onOpen={onOpen}
               onSeeAll={handleSeeAll('workspace')}
             />
           )}
@@ -108,7 +104,7 @@ export function MarketplacePage({ workspaceId }: { workspaceId: string }) {
             <Section
               title="Популярные шаблоны"
               templates={popularTemplates}
-              onUse={onUse}
+              onOpen={onOpen}
               onSeeAll={handleSeeAll('popular')}
             />
           )}
@@ -116,7 +112,7 @@ export function MarketplacePage({ workspaceId }: { workspaceId: string }) {
             <Section
               title="Все шаблоны"
               templates={allTemplates}
-              onUse={onUse}
+              onOpen={onOpen}
               onSeeAll={handleSeeAll('all')}
             />
           )}
@@ -126,19 +122,19 @@ export function MarketplacePage({ workspaceId }: { workspaceId: string }) {
           <Section
             title="Шаблоны пространства"
             templates={workspaceTemplates}
-            onUse={onUse}
+            onOpen={onOpen}
             onSeeAll={handleSeeAll('workspace')}
           />
           <Section
             title="Популярные шаблоны"
             templates={popularTemplates}
-            onUse={onUse}
+            onOpen={onOpen}
             onSeeAll={handleSeeAll('popular')}
           />
           <Section
             title="Все шаблоны"
             templates={allTemplates}
-            onUse={onUse}
+            onOpen={onOpen}
             onSeeAll={handleSeeAll('all')}
           />
         </>
