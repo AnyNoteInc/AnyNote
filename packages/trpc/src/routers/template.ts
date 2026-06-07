@@ -32,6 +32,19 @@ export const templateRouter = router({
     return mapDomain(() => domainSvc.templates.listGlobal())
   }),
 
+  // Marketplace listing: workspace section + popular + all, filtered by tag/query.
+  listMarketplace: protectedProcedure
+    .input(domain.listMarketplaceInput)
+    .query(async ({ ctx, input }) => {
+      await assertWorkspaceMember(ctx, input.workspaceId)
+      return mapDomain(() => domainSvc.templates.listMarketplace(ctx.user.id, input))
+    }),
+
+  // All curated tags — visible to any authenticated user (no workspace scope).
+  listTags: protectedProcedure.query(async () => {
+    return mapDomain(() => domainSvc.templates.listTags())
+  }),
+
   createFromPage: protectedProcedure
     .input(domain.createTemplateFromPageInput)
     .mutation(async ({ ctx, input }): Promise<{ id: string }> => {
@@ -80,6 +93,20 @@ export const templateRouter = router({
     .query(async ({ ctx, input }) => {
       await assertWorkspaceMember(ctx, input.workspaceId)
       return mapDomain(() => domainSvc.templates.getById(ctx.user.id, input))
+    }),
+
+  /**
+   * Fetch the backing page for a template that the actor can access.
+   * Unlike `trpc.page.getById`, this bypasses the workspace-membership filter
+   * on the page — required for GLOBAL templates whose backing page lives in a
+   * different workspace than the URL workspace. Access is still gated by
+   * `getById` (workspace membership for the URL workspace + scope check).
+   */
+  getBackingPage: protectedProcedure
+    .input(domain.getTemplateInput)
+    .query(async ({ ctx, input }) => {
+      await assertWorkspaceMember(ctx, input.workspaceId)
+      return mapDomain(() => domainSvc.templates.getBackingPage(ctx.user.id, input))
     }),
 
   updateContent: protectedProcedure

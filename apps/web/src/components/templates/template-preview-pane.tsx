@@ -53,11 +53,6 @@ export function TemplatePreviewPane({ template, isCreating, onUse }: Props) {
 
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
         <TemplateScopeBadge scope={template.scope} />
-        {template.category ? (
-          <Typography variant="caption" color="text.secondary">
-            {template.category}
-          </Typography>
-        ) : null}
       </Box>
 
       {template.description ? (

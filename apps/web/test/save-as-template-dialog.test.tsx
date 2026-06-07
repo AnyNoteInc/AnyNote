@@ -40,6 +40,9 @@ vi.mock('@/trpc/client', () => ({
           isError: false,
         }),
       },
+      listTags: {
+        useQuery: () => ({ data: [] }),
+      },
     },
   },
 }))
@@ -75,13 +78,13 @@ describe('SaveAsTemplateDialog', () => {
     expect(screen.getByLabelText('Название шаблона')).toHaveValue('Моя страница')
   })
 
-  it('disables the GLOBAL scope option for normal users', () => {
+  it('offers both scope options enabled (anyone can create a global template)', () => {
     renderDialog()
     const radios = screen.getAllByRole('radio') as HTMLInputElement[]
     const workspaceRadio = radios.find((r) => r.value === 'WORKSPACE')
     const globalRadio = radios.find((r) => r.value === 'GLOBAL')
     expect(workspaceRadio).toBeEnabled()
-    expect(globalRadio).toBeDisabled()
+    expect(globalRadio).toBeEnabled()
   })
 
   it('submits a WORKSPACE template with the entered fields', async () => {
@@ -93,7 +96,6 @@ describe('SaveAsTemplateDialog', () => {
     await actor.clear(title)
     await actor.type(title, 'Шаблон встречи')
     await actor.type(screen.getByLabelText('Описание'), 'Повестка')
-    await actor.type(screen.getByLabelText('Категория'), 'Работа')
 
     await actor.click(screen.getByRole('button', { name: 'Создать шаблон' }))
 
@@ -103,8 +105,8 @@ describe('SaveAsTemplateDialog', () => {
       title: 'Шаблон встречи',
       description: 'Повестка',
       icon: '📄',
-      category: 'Работа',
       scope: 'WORKSPACE',
+      tagIds: [],
     })
     // onSuccess closes the dialog and invalidates the template caches.
     expect(mocks.invalidateSearch).toHaveBeenCalled()

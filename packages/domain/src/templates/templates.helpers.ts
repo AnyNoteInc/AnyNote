@@ -24,13 +24,33 @@ export function canCreateWorkspaceTemplate(args: {
 }
 
 /**
- * AnyNote has no global-admin concept (roles are per-workspace only), so normal
- * users can never create GLOBAL templates. Global templates are seeded. This
- * helper centralises that decision so it can be relaxed later (e.g. an env
- * allowlist) in exactly one place.
+ * Global-template creation is open to any authenticated user (product decision:
+ * no role gate). Membership is still enforced upstream — `createFromPage` only
+ * reaches here after `findAccessiblePage` confirms the actor can see the source
+ * page, which requires workspace membership. This helper is the single place to
+ * tighten the policy later (e.g. an allowlist).
  */
 export function canCreateGlobalTemplate(_args: { role?: string | null }): boolean {
-  return false
+  return true
+}
+
+/** GLOBAL template edit/delete is restricted to its creator. */
+export function canEditGlobalTemplate(args: {
+  actorUserId: string
+  createdById: string | null
+}): boolean {
+  return args.createdById != null && args.createdById === args.actorUserId
+}
+
+/** WORKSPACE template edit/delete: workspace owner, admin, or the creator. */
+const MANAGER_ROLES = new Set(['OWNER', 'ADMIN'])
+export function canEditWorkspaceTemplate(args: {
+  actorUserId: string
+  createdById: string | null
+  role: string | null | undefined
+}): boolean {
+  if (args.createdById != null && args.createdById === args.actorUserId) return true
+  return args.role != null && MANAGER_ROLES.has(args.role)
 }
 
 /** Case-insensitive substring/prefix matching against title and description. */

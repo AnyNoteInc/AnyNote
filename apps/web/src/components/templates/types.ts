@@ -12,7 +12,7 @@ export interface TemplateSummary {
   title: string
   description: string | null
   icon: string | null
-  category: string | null
+  tags: { id: string; slug: string; name: string; icon: string; position: number }[]
   type: PageType
   usageCount: number
   createdAt: string | Date

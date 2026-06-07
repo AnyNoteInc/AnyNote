@@ -81,6 +81,7 @@ export type CreatePageExtra = {
   ownership?: 'TEXT' | 'SKILL' | 'AGENT'
   content?: Prisma.InputJsonValue
   contentYjs?: Uint8Array<ArrayBuffer>
+  isTemplateBacking?: boolean
 }
 
 // ── Internal row DTO (returned from access queries) ───────────────────────────

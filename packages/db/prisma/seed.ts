@@ -3,6 +3,7 @@ import { PrismaClient, Prisma } from '@prisma/client'
 import { PrismaPg } from '@prisma/adapter-pg'
 
 import { GLOBAL_TEMPLATES, buildTemplateContentYjs } from './global-templates.ts'
+import { TEMPLATE_TAGS } from './template-tags.ts'
 
 config({ path: '../../.env' })
 
@@ -126,9 +127,20 @@ async function main() {
     data: { isActive: false },
   })
 
+  await seedTemplateTags()
   await seedGlobalTemplates()
 
   console.info(`Seed complete: 3 active plans, ${GLOBAL_TEMPLATES.length} global templates`)
+}
+
+async function seedTemplateTags() {
+  for (const t of TEMPLATE_TAGS) {
+    await prisma.templateTag.upsert({
+      where: { slug: t.slug },
+      create: { slug: t.slug, name: t.name, icon: t.icon, position: t.position },
+      update: { name: t.name, icon: t.icon, position: t.position },
+    })
+  }
 }
 
 /**
@@ -137,23 +149,40 @@ async function main() {
  * rows keep their id and usageCount; missing ones are created.
  */
 async function seedGlobalTemplates() {
+  // Map tag slug → id once (tags are already seeded).
+  const tags = await prisma.templateTag.findMany({ select: { id: true, slug: true } })
+  const tagIdBySlug = new Map(tags.map((t) => [t.slug, t.id]))
+
   for (const t of GLOBAL_TEMPLATES) {
     const contentYjs = Buffer.from(buildTemplateContentYjs(t.doc))
     const data = {
       title: t.title,
       description: t.description,
       icon: t.icon,
-      category: t.category,
       type: 'TEXT' as const,
       content: t.doc as unknown as Prisma.InputJsonValue,
       contentYjs,
+      averageRating: t.averageRating,
+      ratingCount: t.ratingCount,
       deletedAt: null,
     }
-    await prisma.pageTemplate.upsert({
+    const tpl = await prisma.pageTemplate.upsert({
       where: { key: t.key },
       create: { key: t.key, scope: 'GLOBAL', workspaceId: null, ...data },
       update: data,
+      select: { id: true },
     })
+    // Re-sync tag links idempotently: delete existing, recreate from seed.
+    await prisma.pageTemplateTag.deleteMany({ where: { templateId: tpl.id } })
+    const tagIds = t.tagSlugs
+      .map((slug) => tagIdBySlug.get(slug))
+      .filter((id): id is string => Boolean(id))
+    if (tagIds.length > 0) {
+      await prisma.pageTemplateTag.createMany({
+        data: tagIds.map((tagId) => ({ templateId: tpl.id, tagId })),
+        skipDuplicates: true,
+      })
+    }
   }
 }
 

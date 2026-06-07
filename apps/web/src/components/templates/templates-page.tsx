@@ -81,11 +81,6 @@ export function TemplatesPage({ workspaceId }: Props) {
                   </Typography>
                 ) : null}
               </Box>
-              {t.category ? (
-                <Typography variant="caption" color="text.secondary" sx={{ flexShrink: 0 }}>
-                  {t.category}
-                </Typography>
-              ) : null}
               <Tooltip title="Изменить">
                 <IconButton
                   size="small"
@@ -95,7 +90,7 @@ export function TemplatesPage({ workspaceId }: Props) {
                       title: t.title,
                       description: t.description,
                       icon: t.icon,
-                      category: t.category,
+                      tags: t.tags.map((tg) => ({ id: tg.id })),
                     })
                   }
                   aria-label={`Изменить шаблон ${t.title}`}

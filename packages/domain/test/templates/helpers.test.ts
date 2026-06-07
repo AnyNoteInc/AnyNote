@@ -6,6 +6,8 @@ import {
   buildCreatePageFromTemplatePayload,
   canCreateGlobalTemplate,
   canCreateWorkspaceTemplate,
+  canEditGlobalTemplate,
+  canEditWorkspaceTemplate,
   filterTemplatesByQuery,
   groupTemplatesByScope,
   sortTemplatesByRelevance,
@@ -23,9 +25,14 @@ function summary(over: Partial<TemplateSummaryDto>): TemplateSummaryDto {
     title: 'Title',
     description: null,
     icon: null,
-    category: null,
     type: PageType.TEXT,
     usageCount: 0,
+    averageRating: 0,
+    ratingCount: 0,
+    previewColor: null,
+    tags: [],
+    author: { name: 'AnyNote' },
+    createdById: null,
     createdAt: new Date('2026-01-01T00:00:00Z'),
     updatedAt: new Date('2026-01-01T00:00:00Z'),
     ...over,
@@ -54,10 +61,34 @@ describe('canCreateWorkspaceTemplate', () => {
 })
 
 describe('canCreateGlobalTemplate', () => {
-  it('always returns false — no global-admin concept exists', () => {
-    expect(canCreateGlobalTemplate({ role: 'OWNER' })).toBe(false)
-    expect(canCreateGlobalTemplate({ role: 'ADMIN' })).toBe(false)
-    expect(canCreateGlobalTemplate({})).toBe(false)
+  it('always returns true — any authenticated member may publish a global template', () => {
+    expect(canCreateGlobalTemplate({ role: 'OWNER' })).toBe(true)
+    expect(canCreateGlobalTemplate({ role: 'ADMIN' })).toBe(true)
+    expect(canCreateGlobalTemplate({})).toBe(true)
+  })
+})
+
+describe('template permissions', () => {
+  it('lets any authenticated member create global templates', () => {
+    expect(canCreateGlobalTemplate({ role: 'VIEWER' })).toBe(true)
+    expect(canCreateGlobalTemplate({ role: null })).toBe(true)
+  })
+
+  it('global edit: creator only', () => {
+    expect(canEditGlobalTemplate({ actorUserId: 'u1', createdById: 'u1' })).toBe(true)
+    expect(canEditGlobalTemplate({ actorUserId: 'u2', createdById: 'u1' })).toBe(false)
+    expect(canEditGlobalTemplate({ actorUserId: 'u1', createdById: null })).toBe(false)
+  })
+
+  it('workspace edit: owner, admin, or creator', () => {
+    const base = { actorUserId: 'u2', createdById: 'u1' }
+    expect(canEditWorkspaceTemplate({ ...base, role: 'OWNER' })).toBe(true)
+    expect(canEditWorkspaceTemplate({ ...base, role: 'ADMIN' })).toBe(true)
+    expect(canEditWorkspaceTemplate({ ...base, role: 'EDITOR' })).toBe(false)
+    expect(canEditWorkspaceTemplate({ actorUserId: 'u1', createdById: 'u1', role: 'EDITOR' })).toBe(
+      true,
+    )
+    expect(canEditWorkspaceTemplate({ ...base, role: null })).toBe(false)
   })
 })
 

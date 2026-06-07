@@ -5,6 +5,7 @@ import {
   Alert,
   Box,
   Button,
+  Chip,
   Dialog,
   DialogActions,
   DialogContent,
@@ -16,11 +17,10 @@ import {
   RadioGroup,
   Stack,
   TextField,
-  Tooltip,
-  Typography,
 } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
+import { TagIcon } from '@/components/marketplace/tag-icon'
 
 const TITLE_ID = 'save-as-template-dialog-title'
 
@@ -38,8 +38,6 @@ interface Props {
 
 /**
  * "Сохранить как шаблон" form, opened from a page's context/actions menu.
- * Global scope is intentionally disabled: AnyNote has no global-admin role, so
- * global templates are seeded, not user-created.
  */
 export function SaveAsTemplateDialog({
   open,
@@ -53,7 +51,15 @@ export function SaveAsTemplateDialog({
   const [title, setTitle] = useState(defaultTitle)
   const [description, setDescription] = useState('')
   const [icon, setIcon] = useState<string | null>(defaultIcon)
-  const [category, setCategory] = useState('')
+  const [scope, setScope] = useState<'WORKSPACE' | 'GLOBAL'>('WORKSPACE')
+  const [selectedTagIds, setSelectedTagIds] = useState<string[]>([])
+
+  const tagsQuery = trpc.template.listTags.useQuery()
+
+  const toggleTag = (id: string) =>
+    setSelectedTagIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id],
+    )
 
   // Re-seed the form each time the dialog opens for a (possibly different) page.
   useEffect(() => {
@@ -61,7 +67,8 @@ export function SaveAsTemplateDialog({
       setTitle(defaultTitle)
       setDescription('')
       setIcon(defaultIcon)
-      setCategory('')
+      setScope('WORKSPACE')
+      setSelectedTagIds([])
     }
   }, [open, defaultTitle, defaultIcon])
 
@@ -86,8 +93,8 @@ export function SaveAsTemplateDialog({
       title: trimmedTitle,
       description: description.trim() || undefined,
       icon,
-      category: category.trim() || undefined,
-      scope: 'WORKSPACE',
+      scope,
+      tagIds: selectedTagIds,
     })
   }
 
@@ -137,34 +144,37 @@ export function SaveAsTemplateDialog({
             minRows={2}
           />
 
-          <TextField
-            fullWidth
-            size="small"
-            label="Категория"
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-          />
+          <Box>
+            <FormLabel sx={{ fontSize: 13 }}>Теги</FormLabel>
+            <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mt: 1 }}>
+              {(tagsQuery.data ?? []).map((t) => (
+                <Chip
+                  key={t.id}
+                  icon={<TagIcon name={t.icon} fontSize="small" />}
+                  label={t.name}
+                  size="small"
+                  clickable
+                  color={selectedTagIds.includes(t.id) ? 'primary' : 'default'}
+                  variant={selectedTagIds.includes(t.id) ? 'filled' : 'outlined'}
+                  onClick={() => toggleTag(t.id)}
+                />
+              ))}
+            </Stack>
+          </Box>
 
           <Box>
             <FormLabel sx={{ fontSize: 13 }}>Область видимости</FormLabel>
-            <RadioGroup value="WORKSPACE">
+            <RadioGroup value={scope} onChange={(e) => setScope(e.target.value as 'WORKSPACE' | 'GLOBAL')}>
               <FormControlLabel
                 value="WORKSPACE"
                 control={<Radio size="small" />}
                 label="Только это пространство"
               />
-              <Tooltip title="Глобальные шаблоны добавляются администратором">
-                <FormControlLabel
-                  value="GLOBAL"
-                  disabled
-                  control={<Radio size="small" />}
-                  label={
-                    <Typography variant="body2" color="text.disabled">
-                      Глобальный
-                    </Typography>
-                  }
-                />
-              </Tooltip>
+              <FormControlLabel
+                value="GLOBAL"
+                control={<Radio size="small" />}
+                label="Глобальный (виден всем)"
+              />
             </RadioGroup>
           </Box>
 
