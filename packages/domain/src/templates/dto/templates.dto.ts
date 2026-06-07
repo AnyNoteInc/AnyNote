@@ -180,14 +180,18 @@ export interface TemplateDetailDto {
 }
 
 /**
- * Minimal backing-page projection returned by `getBackingPage`.
+ * Minimal content-source projection returned by `getBackingPage`.
  * `contentYjs` is a base64 string so the client `atob`s it identically
  * to the shape returned by `trpc.page.getById`.
+ * `editable` is true when the source is a live backing page (collaborative);
+ * false when it's the template's own read-only content snapshot (no backing
+ * page exists, e.g. seeded GLOBAL templates).
  */
 export interface TemplateBackingPageDto {
   id: string
   type: PageType
   contentYjs: string | null
+  editable: boolean
 }
 
 export interface MarketplaceResultDto {

@@ -31,7 +31,6 @@ export default async function TemplateEditorRoute({
     if (isNotFoundTrpcError(error)) notFound()
     throw error
   }
-  if (!template.backingPageId) notFound()
 
   const displayName =
     [session.user.firstName, session.user.lastName].filter(Boolean).join(' ').trim() ||
@@ -51,7 +50,7 @@ export default async function TemplateEditorRoute({
         contentYjs: backingPage.contentYjs,
       }}
       user={{ id: session.user.id, name: displayName, color: colorFor(session.user.id) }}
-      editable={template.canEdit}
+      editable={backingPage.editable && template.canEdit}
     />
   )
 }

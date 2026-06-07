@@ -162,10 +162,17 @@ export class TemplateService {
   }
 
   /**
-   * Return the backing page for a template the actor is authorised to access.
-   * Bypasses the normal page-workspace membership filter so GLOBAL templates
-   * whose backing page lives in a different workspace are still reachable.
+   * Return the content source for a template the actor is authorised to access.
    * Access is granted iff `getById` would succeed (same checks).
+   *
+   * Two cases:
+   *  - The template has a backing page → return it (live, collaborative,
+   *    `editable: true`). Bypasses the normal page-workspace membership filter
+   *    so GLOBAL templates whose backing page lives in another workspace stay
+   *    reachable.
+   *  - No backing page (e.g. seeded GLOBAL/WORKSPACE templates) → fall back to
+   *    the template's own content snapshot, served read-only (`editable: false`)
+   *    since no live collaboration doc exists.
    */
   async getBackingPage(
     actorUserId: string,
@@ -174,10 +181,21 @@ export class TemplateService {
     // Re-use getById for the access check — it throws if the actor can't see
     // the template, and gives us backingPageId for free.
     const template = await this.getById(actorUserId, input)
-    if (!template.backingPageId) throw notFound('Шаблон не имеет страницы-основы')
-    const page = await this.repo.findBackingPageForTemplate(input.templateId)
-    if (!page) throw notFound('Страница-основа шаблона не найдена')
-    return page
+    if (template.backingPageId) {
+      const page = await this.repo.findBackingPageForTemplate(input.templateId)
+      if (page) return page
+    }
+    // Fallback: render the template's own content snapshot, read-only.
+    const content = await this.repo.findContent(input.templateId)
+    if (!content) throw notFound('Содержимое шаблона не найдено')
+    return {
+      id: input.templateId,
+      type: content.type,
+      contentYjs: content.contentYjs
+        ? Buffer.from(content.contentYjs).toString('base64')
+        : null,
+      editable: false,
+    }
   }
 
   // ── Writes ──────────────────────────────────────────────────────────────────

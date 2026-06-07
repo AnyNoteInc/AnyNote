@@ -694,6 +694,7 @@ describe('TemplateService.getBackingPage', () => {
         id: 'bp1',
         type: PageType.TEXT,
         contentYjs: 'base64encodeddata==',
+        editable: true,
       })),
     })
     const svc = new TemplateService(repo, makeUow(), makePages())
@@ -701,9 +702,22 @@ describe('TemplateService.getBackingPage', () => {
     expect(result.id).toBe('bp1')
     expect(result.type).toBe(PageType.TEXT)
     expect(result.contentYjs).toBe('base64encodeddata==')
+    expect(result.editable).toBe(true)
   })
 
-  it('throws NOT_FOUND when the template has no backingPageId', async () => {
+  it('falls back to the template content snapshot (read-only) when there is no backing page', async () => {
+    const findContent = vi.fn(async () => ({
+      id: 't1',
+      workspaceId: 'w1',
+      scope: PageTemplateScope.WORKSPACE,
+      title: 'Tmpl',
+      icon: '📋',
+      type: PageType.TEXT,
+      content: { type: 'doc', content: [] },
+      contentYjs: new Uint8Array([1, 2, 3]),
+      backingPageId: null,
+    }))
+    const findBackingPageForTemplate = vi.fn()
     const repo = makeRepo({
       findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
       findDetail: vi.fn(async () => ({
@@ -718,6 +732,35 @@ describe('TemplateService.getBackingPage', () => {
         backingPageId: null,
         createdById: 'u1',
       })),
+      findContent,
+      findBackingPageForTemplate,
+    })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    const result = await svc.getBackingPage('u1', { templateId: 't1', workspaceId: 'w1' })
+    // No backing page → must not query it; serve the template's own content.
+    expect(findBackingPageForTemplate).not.toHaveBeenCalled()
+    expect(result.id).toBe('t1')
+    expect(result.type).toBe(PageType.TEXT)
+    expect(result.contentYjs).toBe(Buffer.from(new Uint8Array([1, 2, 3])).toString('base64'))
+    expect(result.editable).toBe(false)
+  })
+
+  it('throws NOT_FOUND when the template has no backing page and no content', async () => {
+    const repo = makeRepo({
+      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
+      findDetail: vi.fn(async () => ({
+        id: 't1',
+        workspaceId: 'w1',
+        scope: PageTemplateScope.WORKSPACE,
+        title: 'T',
+        description: null,
+        icon: null,
+        type: PageType.TEXT,
+        content: null,
+        backingPageId: null,
+        createdById: 'u1',
+      })),
+      findContent: vi.fn(async () => null),
     })
     const svc = new TemplateService(repo, makeUow(), makePages())
     await expect(

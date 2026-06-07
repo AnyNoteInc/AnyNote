@@ -430,6 +430,7 @@ export class TemplateRepository {
       id: page.id,
       type: page.type,
       contentYjs: page.contentYjs ? Buffer.from(page.contentYjs).toString('base64') : null,
+      editable: true,
     }
   }
 
