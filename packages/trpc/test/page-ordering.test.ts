@@ -177,6 +177,105 @@ describe('page.reorder', () => {
   })
 })
 
+// ── Tests: backing-page visibility ───────────────────────────────────────────
+
+describe('page.listByWorkspace — excludes backing pages', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('passes isTemplateBacking: false to prisma', async () => {
+    const findMany = vi.fn(async () => [])
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn(async () => ({ role: 'MEMBER' })) },
+      page: { findMany },
+    }
+
+    await caller(ctx(prisma)).listByWorkspace({ workspaceId: WS_ID })
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ isTemplateBacking: false }),
+      }),
+    )
+  })
+})
+
+describe('page.listTrashed — excludes backing pages', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('passes isTemplateBacking: false to prisma', async () => {
+    const findMany = vi.fn(async () => [])
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn(async () => ({ role: 'MEMBER' })) },
+      page: { findMany },
+    }
+
+    await caller(ctx(prisma)).listTrashed({ workspaceId: WS_ID })
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ isTemplateBacking: false }),
+      }),
+    )
+  })
+})
+
+describe('page.listFavorites — excludes backing pages', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('filters nested page with isTemplateBacking: false', async () => {
+    const findMany = vi.fn(async () => [])
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn(async () => ({ role: 'MEMBER' })) },
+      favoritePage: { findMany },
+    }
+
+    await caller(ctx(prisma)).listFavorites({ workspaceId: WS_ID })
+
+    expect(findMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          page: expect.objectContaining({ isTemplateBacking: false }),
+        }),
+      }),
+    )
+  })
+})
+
+describe('page.getById — still returns backing pages by id', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('does NOT filter isTemplateBacking in the where clause', async () => {
+    const backingPage = {
+      id: PAGE_A,
+      workspaceId: WS_ID,
+      parentId: null,
+      type: 'TEXT',
+      ownership: null,
+      title: 'Backing',
+      icon: null,
+      content: null,
+      contentYjs: null,
+      archived: false,
+      prevPageId: null,
+      deletedAt: null,
+      createdById: USER_ID,
+      updatedById: USER_ID,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    }
+    const findFirst = vi.fn(async () => backingPage)
+    const prisma = { page: { findFirst } }
+
+    const result = await caller(ctx(prisma)).getById({ id: PAGE_A })
+
+    expect(result.id).toBe(PAGE_A)
+    // The where clause must NOT include isTemplateBacking — backing pages are
+    // openable by id even though they are hidden from lists.
+    const [callArg] = findFirst.mock.calls[0] as [{ where: Record<string, unknown> }]
+    expect(callArg.where).not.toHaveProperty('isTemplateBacking')
+  })
+})
+
 // ── Tests: page.reorderFavorites ─────────────────────────────────────────────
 
 describe('page.reorderFavorites', () => {
