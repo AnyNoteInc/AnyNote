@@ -230,9 +230,9 @@ export function WorkspaceSidebar({
             <Stack spacing={0.25} sx={{ pb: 1 }}>
               <NavItem
                 icon={<DashboardCustomizeIcon sx={{ fontSize: 16 }} />}
-                label="Шаблоны"
-                href={`/workspaces/${workspace.id}/templates`}
-                matchPrefix={`/workspaces/${workspace.id}/templates`}
+                label="Маркетплейс"
+                href={`/workspaces/${workspace.id}/marketplace`}
+                matchPrefix={`/workspaces/${workspace.id}/marketplace`}
                 pathname={pathname}
               />
               <NavItem
