@@ -1,8 +1,19 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 
-import { Button, Dialog, DialogActions, DialogContent, DialogTitle } from '@repo/ui/components'
+import {
+  Alert,
+  Button,
+  ButtonGroup,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  GroupIcon,
+  LockIcon,
+  Stack,
+} from '@repo/ui/components'
 import { trpc } from '@/trpc/client'
 
 import {
@@ -21,45 +32,97 @@ type Props = {
   workspaceId: string
 }
 
+type Destination = 'team' | 'private'
+
 export function MovePageDialog({ open, onClose, page, pages, workspaceId }: Props) {
   const utils = trpc.useUtils()
   const [selectedId, setSelectedId] = useState<PageTreeSelection | null>(null)
+  const [destination, setDestination] = useState<Destination>('team')
 
-  const move = trpc.page.move.useMutation({
-    onSuccess: async () => {
-      await utils.page.listByWorkspace.invalidate({ workspaceId })
-      await utils.page.listFavorites.invalidate({ workspaceId })
-      onClose()
-    },
-  })
+  // Resolve the page's current collection kind so we can pre-select the matching
+  // destination and detect a private → team visibility change.
+  const { data: collections } = trpc.collection.list.useQuery(
+    { workspaceId },
+    { enabled: open },
+  )
+  const currentKind = collections?.find((c) => c.id === page.collectionId)?.kind ?? null
+  const currentDestination: Destination | null =
+    currentKind === 'TEAM' ? 'team' : currentKind === 'PERSONAL' ? 'private' : null
+
+  // Pre-select the page's current collection each time the dialog opens (default
+  // to Команда when the kind is unknown).
+  useEffect(() => {
+    if (open) setDestination(currentDestination ?? 'team')
+  }, [open, currentDestination])
+
+  const move = trpc.page.move.useMutation()
+  const moveToCollection = trpc.page.moveToCollection.useMutation()
 
   const excludeIds = new Set([page.id, ...getDescendantIds(page.id, pages)])
 
-  const handleConfirm = () => {
+  const collectionChanged = currentDestination !== null && destination !== currentDestination
+  const showVisibilityWarning = currentDestination === 'private' && destination === 'team'
+
+  const handleConfirm = async () => {
     if (selectedId === null) return
     const newParentId = selectedId === PAGE_TREE_ROOT ? null : selectedId
-    move.mutate({ pageId: page.id, newParentId })
+
+    if (collectionChanged) {
+      await moveToCollection.mutateAsync({ pageId: page.id, workspaceId, target: destination })
+    }
+    if (newParentId !== page.parentId) {
+      await move.mutateAsync({ pageId: page.id, newParentId })
+    }
+
+    await utils.page.listByWorkspace.invalidate({ workspaceId })
+    await utils.collection.list.invalidate({ workspaceId })
+    onClose()
   }
+
+  const isPending = move.isPending || moveToCollection.isPending
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="xs" fullWidth>
-      <DialogTitle>{`Переместить \u00AB${page.title ?? 'Новая страница'}\u00BB`}</DialogTitle>
+      <DialogTitle>{`Переместить «${page.title ?? 'Новая страница'}»`}</DialogTitle>
       <DialogContent sx={{ p: 1 }}>
-        <PageTreePicker
-          pages={pages}
-          excludeIds={excludeIds}
-          onSelect={setSelectedId}
-          selectedId={selectedId}
-        />
+        <Stack spacing={1.5}>
+          <ButtonGroup fullWidth size="small">
+            <Button
+              startIcon={<GroupIcon fontSize="small" />}
+              variant={destination === 'team' ? 'contained' : 'outlined'}
+              onClick={() => setDestination('team')}
+            >
+              Команда
+            </Button>
+            <Button
+              startIcon={<LockIcon fontSize="small" />}
+              variant={destination === 'private' ? 'contained' : 'outlined'}
+              onClick={() => setDestination('private')}
+            >
+              Личное
+            </Button>
+          </ButtonGroup>
+
+          {showVisibilityWarning ? (
+            <Alert severity="warning">Страница станет видна всей команде</Alert>
+          ) : null}
+
+          <PageTreePicker
+            pages={pages}
+            excludeIds={excludeIds}
+            onSelect={setSelectedId}
+            selectedId={selectedId}
+          />
+        </Stack>
       </DialogContent>
       <DialogActions>
         <Button variant="text" onClick={onClose}>
           Отмена
         </Button>
         <Button
-          onClick={handleConfirm}
+          onClick={() => void handleConfirm()}
           variant="contained"
-          disabled={selectedId === null || move.isPending}
+          disabled={selectedId === null || isPending}
         >
           Переместить
         </Button>
