@@ -31,7 +31,14 @@ describe('PageTools.listPages', () => {
     expect(out.pages).toEqual([{ id: 'p1', title: 'Root', type: 'TEXT', icon: null, parentId: null }])
     expect(pageFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { workspaceId: 'w1', archivedAt: null, deletedAt: null, parentId: null },
+        // AND carries the page-visibility predicate (collection/share scoping for the caller).
+        where: {
+          workspaceId: 'w1',
+          archivedAt: null,
+          deletedAt: null,
+          AND: [expect.objectContaining({ OR: expect.any(Array) })],
+          parentId: null,
+        },
       }),
     )
   })

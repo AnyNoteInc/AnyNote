@@ -20,7 +20,7 @@ describe('PageTools', () => {
   const workspaceMemberFindUniqueMock = jest.fn<(...args: unknown[]) => Promise<unknown>>()
   const prisma = {
     page: {
-      findUnique: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
+      findFirst: jest.fn<(...args: unknown[]) => Promise<unknown>>(),
     },
     workspaceMember: {
       findUnique: workspaceMemberFindUniqueMock,
@@ -213,9 +213,8 @@ describe('PageTools', () => {
     })
   })
 
-  it('getPageMarkdown renders content for page in workspace', async () => {
-    ;(prisma.page.findUnique as jest.Mock).mockResolvedValue({
-      workspaceId,
+  it('getPageMarkdown renders content for a page the user can see', async () => {
+    ;(prisma.page.findFirst as jest.Mock).mockResolvedValue({
       content: { type: 'doc', content: [] },
     } as never)
     ;(mockRenderer.render as jest.Mock).mockReturnValue('Rendered markdown')
@@ -224,15 +223,19 @@ describe('PageTools', () => {
 
     expect(result).toEqual({ markdown: 'Rendered markdown' })
     expect(prisma.workspaceMember.findUnique).toHaveBeenCalled()
-    expect(prisma.page.findUnique).toHaveBeenCalledWith({
-      where: { id: pageId },
-      select: { workspaceId: true, content: true },
-    })
+    // findFirst (not findUnique) so the relational visibility predicate applies; the
+    // query is scoped to the page id, its workspace, and the visibility AND-fragment.
+    expect(prisma.page.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: pageId, workspaceId, AND: expect.any(Array) }),
+        select: { content: true },
+      }),
+    )
     expect(mockRenderer.render).toHaveBeenCalledWith({ type: 'doc', content: [] })
   })
 
-  it('getPageMarkdown throws when page is missing', async () => {
-    ;(prisma.page.findUnique as jest.Mock).mockResolvedValue(null as never)
+  it('getPageMarkdown throws when the page is missing or not visible to the user', async () => {
+    ;(prisma.page.findFirst as jest.Mock).mockResolvedValue(null as never)
 
     await expect(
       tools.getPageMarkdown({ workspaceId, pageId }, {} as never, req),
@@ -249,6 +252,6 @@ describe('PageTools', () => {
 
     expect(result).toEqual({ type: 'TEXT', ownership: 'TEXT' })
     expect(prisma.workspaceMember.findUnique).toHaveBeenCalled()
-    expect(mockStats.getPageStats).toHaveBeenCalledWith(pageId, workspaceId)
+    expect(mockStats.getPageStats).toHaveBeenCalledWith(pageId, workspaceId, userId)
   })
 })

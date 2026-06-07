@@ -2,6 +2,7 @@ import { Inject, Injectable } from '@nestjs/common'
 import type { PrismaClient } from '@repo/db'
 
 import { PRISMA } from '../../../infra/db/db.providers.js'
+import { pageVisibilityWhere } from '../page-visibility.js'
 import { PageNotFoundError } from '../errors/mcp.errors.js'
 
 @Injectable()
@@ -44,19 +45,23 @@ export class StatsService {
     }
   }
 
-  async getPageStats(pageId: string, workspaceId: string) {
-    const page = await this.prisma.page.findUnique({
-      where: { id: pageId },
+  async getPageStats(pageId: string, workspaceId: string, userId: string) {
+    // findFirst (not findUnique) so the relational visibility predicate can be applied;
+    // a private page owned by another user must read as not-found for the requesting user.
+    const page = await this.prisma.page.findFirst({
+      where: {
+        id: pageId,
+        workspaceId,
+        AND: [pageVisibilityWhere(userId)],
+      },
       select: {
-        id: true,
-        workspaceId: true,
         type: true,
         ownership: true,
         createdAt: true,
         createdBy: { select: { id: true, firstName: true, lastName: true, email: true } },
       },
     })
-    if (!page || page.workspaceId !== workspaceId) throw new PageNotFoundError(pageId)
+    if (!page) throw new PageNotFoundError(pageId)
     return {
       type: page.type,
       ownership: page.ownership,

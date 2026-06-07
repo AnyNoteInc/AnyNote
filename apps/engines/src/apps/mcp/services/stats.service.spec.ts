@@ -10,7 +10,7 @@ describe('StatsService', () => {
     page: {
       groupBy: jest.fn<(...a: unknown[]) => Promise<unknown>>(),
       count: jest.fn<(...a: unknown[]) => Promise<number>>(),
-      findUnique: jest.fn<(...a: unknown[]) => Promise<unknown>>(),
+      findFirst: jest.fn<(...a: unknown[]) => Promise<unknown>>(),
     },
   } as unknown as PrismaClient
 
@@ -20,7 +20,7 @@ describe('StatsService', () => {
     ;(mockPrisma.workspaceMember.findMany as jest.Mock).mockReset()
     ;(mockPrisma.page.groupBy as jest.Mock).mockReset()
     ;(mockPrisma.page.count as jest.Mock).mockReset()
-    ;(mockPrisma.page.findUnique as jest.Mock).mockReset()
+    ;(mockPrisma.page.findFirst as jest.Mock).mockReset()
     svc = new StatsService(mockPrisma)
   })
 
@@ -52,28 +52,40 @@ describe('StatsService', () => {
   describe('getPageStats', () => {
     it('returns page metadata', async () => {
       const created = new Date('2026-01-01')
-      ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({
-        id: 'p1',
-        workspaceId: 'w1',
+      ;(mockPrisma.page.findFirst as jest.Mock).mockResolvedValue({
         type: 'TEXT',
         ownership: 'TEXT',
         createdAt: created,
         createdBy: { id: 'u1', firstName: 'Ann', lastName: 'A', email: 'a@a' },
       } as never)
 
-      const stats = await svc.getPageStats('p1', 'w1')
+      const stats = await svc.getPageStats('p1', 'w1', 'u1')
 
       expect(stats.type).toBe('TEXT')
       expect(stats.createdAt).toEqual(created)
       expect(stats.createdBy?.id).toBe('u1')
     })
 
-    it('throws when page in other workspace', async () => {
-      ;(mockPrisma.page.findUnique as jest.Mock).mockResolvedValue({
-        id: 'p1',
-        workspaceId: 'other',
+    it('scopes the query to the page, workspace, and visibility predicate', async () => {
+      ;(mockPrisma.page.findFirst as jest.Mock).mockResolvedValue({
+        type: 'TEXT',
+        ownership: 'TEXT',
+        createdAt: new Date(),
+        createdBy: null,
       } as never)
-      await expect(svc.getPageStats('p1', 'w1')).rejects.toThrow(/not found/i)
+
+      await svc.getPageStats('p1', 'w1', 'u1')
+
+      expect(mockPrisma.page.findFirst).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: expect.objectContaining({ id: 'p1', workspaceId: 'w1', AND: expect.any(Array) }),
+        }),
+      )
+    })
+
+    it('throws when the page is not visible to the user (other workspace or private)', async () => {
+      ;(mockPrisma.page.findFirst as jest.Mock).mockResolvedValue(null as never)
+      await expect(svc.getPageStats('p1', 'w1', 'u1')).rejects.toThrow(/not found/i)
     })
   })
 })

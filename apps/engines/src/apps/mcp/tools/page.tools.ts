@@ -7,6 +7,7 @@ import { z } from 'zod'
 import { PRISMA } from '../../../infra/db/db.providers.js'
 import { assertMember } from '../../api/auth/membership.js'
 import type { AuthContext, AuthedRequest } from '../../api/auth/auth-context.js'
+import { pageVisibilityWhere } from '../page-visibility.js'
 import { PageNotFoundError } from '../errors/mcp.errors.js'
 import { MarkdownParser } from '../services/markdown-parser.service.js'
 import { MarkdownRenderer } from '../services/markdown-renderer.service.js'
@@ -207,14 +208,21 @@ export class PageTools {
   }
 
   async doGetPageMarkdown(auth: AuthContext, args: PageIdArgs) {
+    // findFirst (not findUnique) so the visibility predicate — a relational OR over
+    // collection/share — can be applied; a private page owned by another user must
+    // read as not-found for the requesting user.
     const [, page] = await Promise.all([
       assertMember(this.prisma, auth.userId, args.workspaceId),
-      this.prisma.page.findUnique({
-        where: { id: args.pageId },
-        select: { workspaceId: true, content: true },
+      this.prisma.page.findFirst({
+        where: {
+          id: args.pageId,
+          workspaceId: args.workspaceId,
+          AND: [pageVisibilityWhere(auth.userId)],
+        },
+        select: { content: true },
       }),
     ])
-    if (page?.workspaceId !== args.workspaceId) {
+    if (!page) {
       throw new PageNotFoundError(args.pageId)
     }
     return { markdown: this.renderer.render(page.content as never) }
@@ -235,7 +243,7 @@ export class PageTools {
   async doGetPageStats(auth: AuthContext, args: PageIdArgs) {
     const [, stats] = await Promise.all([
       assertMember(this.prisma, auth.userId, args.workspaceId),
-      this.stats.getPageStats(args.pageId, args.workspaceId),
+      this.stats.getPageStats(args.pageId, args.workspaceId, auth.userId),
     ])
     return stats
   }
@@ -311,6 +319,7 @@ export class PageTools {
         workspaceId: args.workspaceId,
         archivedAt: null,
         deletedAt: null,
+        AND: [pageVisibilityWhere(auth.userId)],
         ...(args.parentId === undefined ? {} : { parentId: args.parentId }),
         ...(args.type ? { type: args.type } : {}),
         ...(args.query ? { title: { contains: args.query, mode: 'insensitive' } } : {}),
