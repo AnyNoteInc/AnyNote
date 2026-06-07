@@ -23,6 +23,7 @@ export const pageRouter = router({
         where: {
           id: input.id,
           workspace: { members: { some: { userId: ctx.user.id } } },
+          AND: [domain.buildPageVisibilityWhere(ctx.user.id)],
         },
         select: {
           id: true,

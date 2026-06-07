@@ -2,6 +2,7 @@ import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
 
 import { FileStatus, Prisma, type File } from '@repo/db'
+import * as domain from '@repo/domain'
 
 import { protectedProcedure, router } from '../trpc'
 
@@ -236,6 +237,7 @@ export const fileRouter = router({
           id: input.pageId,
           deletedAt: null,
           workspace: { members: { some: { userId: ctx.user.id } } },
+          AND: [domain.buildPageVisibilityWhere(ctx.user.id)],
         },
         select: { id: true, workspaceId: true },
       })
@@ -270,6 +272,7 @@ export const fileRouter = router({
         where: {
           id: input.pageId,
           workspace: { members: { some: { userId: ctx.user.id } } },
+          AND: [domain.buildPageVisibilityWhere(ctx.user.id)],
         },
         select: { id: true },
       })

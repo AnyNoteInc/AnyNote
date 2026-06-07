@@ -4,19 +4,13 @@ vi.mock('@repo/auth', () => ({
   getUserFromRequest: vi.fn(),
 }))
 
-vi.mock('@repo/db', () => ({
-  FileStatus: { ACTIVE: 'ACTIVE', PENDING: 'PENDING', DELETED: 'DELETED', ARCHIVED: 'ARCHIVED' },
-  Prisma: {
-    PrismaClientKnownRequestError: class PrismaClientKnownRequestError extends Error {
-      code: string
-      constructor(message: string, opts: { code: string }) {
-        super(message)
-        this.code = opts.code
-      }
-    },
-  },
-  prisma: {},
-}))
+// file.ts now imports @repo/domain (buildPageVisibilityWhere), which transitively
+// pulls in real @repo/db enums (PageType, CollectionKind, PageTemplateScope, …).
+// Use importOriginal so all real exports stay available; only `prisma` is stubbed.
+vi.mock('@repo/db', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@repo/db')>()
+  return { ...actual, prisma: {} }
+})
 
 import type { PrismaClient } from '@repo/db'
 
