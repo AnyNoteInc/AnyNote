@@ -91,12 +91,14 @@ export interface PageRowDto {
   workspaceId: string
   createdById: string | null
   parentId: string | null
+  collectionId: string | null
   prevPageId: string | null
   title: string | null
   icon: string | null
   type: PageType
   content: Prisma.JsonValue | null
   contentYjs: Uint8Array<ArrayBuffer> | null
+  archivedAt: Date | null
   deletedAt: Date | null
 }
 

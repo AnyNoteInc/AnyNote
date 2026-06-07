@@ -3,6 +3,7 @@ import type { Prisma } from '@repo/db'
 
 import { badRequest, notFound } from '../../shared/errors.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
+import { buildPageVisibilityWhere } from '../page-visibility.ts'
 import type {
   CountResultDto,
   CreatePageExtra,
@@ -30,18 +31,24 @@ export class PageRepository {
 
   async findAccessiblePage(userId: string, pageId: string): Promise<PageRowDto | null> {
     const row = await this.uow.client().page.findFirst({
-      where: { id: pageId, workspace: { members: { some: { userId } } } },
+      where: {
+        id: pageId,
+        workspace: { members: { some: { userId } } },
+        AND: [buildPageVisibilityWhere(userId)],
+      },
       select: {
         id: true,
         workspaceId: true,
         createdById: true,
         parentId: true,
+        collectionId: true,
         prevPageId: true,
         title: true,
         icon: true,
         type: true,
         content: true,
         contentYjs: true,
+        archivedAt: true,
         deletedAt: true,
       },
     })
@@ -51,12 +58,14 @@ export class PageRepository {
       workspaceId: row.workspaceId,
       createdById: row.createdById,
       parentId: row.parentId,
+      collectionId: row.collectionId,
       prevPageId: row.prevPageId,
       title: row.title,
       icon: row.icon,
       type: row.type,
       content: row.content,
       contentYjs: row.contentYjs,
+      archivedAt: row.archivedAt,
       deletedAt: row.deletedAt,
     }
   }
@@ -70,12 +79,14 @@ export class PageRepository {
         workspaceId: true,
         createdById: true,
         parentId: true,
+        collectionId: true,
         prevPageId: true,
         title: true,
         icon: true,
         type: true,
         content: true,
         contentYjs: true,
+        archivedAt: true,
         deletedAt: true,
       },
     })
@@ -85,12 +96,14 @@ export class PageRepository {
       workspaceId: row.workspaceId,
       createdById: row.createdById,
       parentId: row.parentId,
+      collectionId: row.collectionId,
       prevPageId: row.prevPageId,
       title: row.title,
       icon: row.icon,
       type: row.type,
       content: row.content,
       contentYjs: row.contentYjs,
+      archivedAt: row.archivedAt,
       deletedAt: row.deletedAt,
     }
   }
