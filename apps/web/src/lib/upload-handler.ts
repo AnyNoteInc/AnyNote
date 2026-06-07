@@ -4,14 +4,11 @@ import type { UploadHandler } from '@repo/editor'
 
 export type AttachFn = (fileId: string) => Promise<void>
 
-export function createUploadHandler(args: {
-  workspaceId: string
-  attachToPage: AttachFn
-}): UploadHandler {
+export function createUploadHandler(args: { attachToPage: AttachFn }): UploadHandler {
   return async ({ blob, filename }) => {
     const fd = new FormData()
     fd.append('file', blob, filename)
-    const res = await fetch(`/api/files/upload?kind=attachment&workspaceId=${args.workspaceId}`, {
+    const res = await fetch(`/api/files/upload?kind=attachment`, {
       method: 'POST',
       body: fd,
       credentials: 'include',

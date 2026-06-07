@@ -355,12 +355,7 @@ export function TaskForm({ pageId, task, board, currentUserId, editable = true }
         <SubtasksSection subtasks={subtasks} board={board} />
 
         {editable ? (
-          <TaskAttachments
-            pageId={pageId}
-            workspaceId={board.workspaceId}
-            taskId={task.id}
-            currentUserId={currentUserId}
-          />
+          <TaskAttachments pageId={pageId} taskId={task.id} currentUserId={currentUserId} />
         ) : null}
 
         <ManageListPopover

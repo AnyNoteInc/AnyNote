@@ -245,10 +245,7 @@ export function PageRenderer({
     [page.id],
   )
 
-  const uploadHandler = useMemo(
-    () => createUploadHandler({ workspaceId, attachToPage }),
-    [workspaceId, attachToPage],
-  )
+  const uploadHandler = useMemo(() => createUploadHandler({ attachToPage }), [attachToPage])
 
   const pageSearch = useCallback(
     async (query: string): Promise<PageLookupItem[]> => {

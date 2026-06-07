@@ -4,6 +4,7 @@ import { FileStatus, Prisma, prisma } from '@repo/db'
 import { storage } from '@repo/storage'
 import type { NextRequest } from 'next/server'
 
+import { getActiveWorkspaceForUser } from '@/lib/active-workspace'
 import { getSession } from '@/lib/get-session'
 import { computeS3Key, extractExt, validateUpload, type UploadKind } from '@/lib/file-validation'
 
@@ -22,32 +23,19 @@ export async function POST(request: NextRequest) {
   }
 
   const kindParam = request.nextUrl.searchParams.get('kind')
-  const workspaceIdParam = request.nextUrl.searchParams.get('workspaceId')
 
   if (kindParam !== 'avatar' && kindParam !== 'attachment') {
     return Response.json({ error: 'Invalid kind' }, { status: 400 })
   }
   const kind: UploadKind = kindParam
 
-  if (kind === 'avatar' && workspaceIdParam) {
-    return Response.json({ error: 'workspaceId not allowed for avatar' }, { status: 400 })
-  }
-  if (kind === 'attachment' && !workspaceIdParam) {
-    return Response.json({ error: 'workspaceId is required for attachment' }, { status: 400 })
-  }
-
+  let attachmentWorkspaceId: string | null = null
   if (kind === 'attachment') {
-    const member = await prisma.workspaceMember.findUnique({
-      where: {
-        workspaceId_userId: {
-          workspaceId: workspaceIdParam!,
-          userId: session.user.id,
-        },
-      },
-    })
-    if (!member) {
-      return Response.json({ error: 'Forbidden' }, { status: 403 })
+    const ws = await getActiveWorkspaceForUser(session.user.id)
+    if (!ws) {
+      return Response.json({ error: 'No active workspace' }, { status: 400 })
     }
+    attachmentWorkspaceId = ws.id
   }
 
   const formData = await request.formData()
@@ -67,10 +55,10 @@ export async function POST(request: NextRequest) {
   if (kind === 'attachment') {
     const [usage, limits] = await Promise.all([
       prisma.file.aggregate({
-        where: { workspaceId: workspaceIdParam!, status: FileStatus.ACTIVE },
+        where: { workspaceId: attachmentWorkspaceId!, status: FileStatus.ACTIVE },
         _sum: { fileSize: true },
       }),
-      prisma.workspaceLimit.findUnique({ where: { workspaceId: workspaceIdParam! } }),
+      prisma.workspaceLimit.findUnique({ where: { workspaceId: attachmentWorkspaceId! } }),
     ])
     if (!limits) {
       return Response.json({ error: 'WORKSPACE_LIMIT_MISSING' }, { status: 500 })
@@ -88,7 +76,7 @@ export async function POST(request: NextRequest) {
   const ext = extractExt(file.name)
   const s3Key = computeS3Key(hash, ext)
 
-  const workspaceId = kind === 'attachment' ? workspaceIdParam : null
+  const workspaceId = kind === 'attachment' ? attachmentWorkspaceId : null
 
   const existing = await prisma.file.findFirst({
     where: {

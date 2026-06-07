@@ -35,7 +35,7 @@ export function WorkspaceChatClient({
   )
   const createChat = trpc.chat.createChat.useMutation()
   const updateChatSettings = trpc.chat.updateChatSettings.useMutation()
-  const draftAttachments = useDraftAttachments(workspaceId)
+  const draftAttachments = useDraftAttachments()
   const resumeAttemptRef = useRef<string | null>(null)
 
   const [thinking, setThinking] = useState<{ effort: ThinkingEffort } | null>(null)

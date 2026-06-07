@@ -7,7 +7,6 @@ import { trpc } from '@/trpc/client'
 
 interface TaskAttachmentsProps {
   readonly pageId: string
-  readonly workspaceId: string
   readonly taskId: string
   readonly currentUserId: string
 }
@@ -34,12 +33,7 @@ function formatBytes(input: string | number): string {
   return `${(size / (1024 * 1024)).toFixed(1)} MB`
 }
 
-export function TaskAttachments({
-  pageId,
-  workspaceId,
-  taskId,
-  currentUserId,
-}: TaskAttachmentsProps) {
+export function TaskAttachments({ pageId, taskId, currentUserId }: TaskAttachmentsProps) {
   const utils = trpc.useUtils()
   const inputRef = useRef<HTMLInputElement | null>(null)
   const [busy, setBusy] = useState(false)
@@ -58,10 +52,11 @@ export function TaskAttachments({
     try {
       const fd = new FormData()
       fd.append('file', file)
-      const res = await fetch(
-        `/api/files/upload?kind=attachment&workspaceId=${workspaceId}`,
-        { method: 'POST', body: fd, credentials: 'include' },
-      )
+      const res = await fetch(`/api/files/upload?kind=attachment`, {
+        method: 'POST',
+        body: fd,
+        credentials: 'include',
+      })
       if (!res.ok) {
         setError(`Не удалось загрузить «${file.name}» (${res.status})`)
         return

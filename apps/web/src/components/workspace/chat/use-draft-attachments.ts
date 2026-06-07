@@ -23,7 +23,7 @@ export type DraftAttachment = ChatComposerAttachment & {
   uploadedFileSize?: string
 }
 
-export function useDraftAttachments(workspaceId: string) {
+export function useDraftAttachments() {
   const [attachments, setAttachments] = useState<DraftAttachment[]>([])
   const [error, setError] = useState<string | null>(null)
 
@@ -32,7 +32,7 @@ export function useDraftAttachments(workspaceId: string) {
     formData.append('file', file)
 
     try {
-      const response = await fetch(`/api/files/upload?kind=attachment&workspaceId=${workspaceId}`, {
+      const response = await fetch(`/api/files/upload?kind=attachment`, {
         method: 'POST',
         body: formData,
       })
