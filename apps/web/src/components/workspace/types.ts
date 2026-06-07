@@ -7,6 +7,7 @@ export type PageItem = {
   icon: string | null
   parentId: string | null
   prevPageId: string | null
+  collectionId?: string | null
   createdById: string | null
   createdAt: string | Date
 }

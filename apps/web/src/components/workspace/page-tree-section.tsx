@@ -34,6 +34,8 @@ type Props = {
   workspaceId: string
   pages: PageItem[]
   favoritePageIds: Set<string>
+  collectionId?: string | null
+  title?: string
 }
 
 function DropLine({ depth }: { depth: number }) {
@@ -236,7 +238,13 @@ function SortablePageRow(props: RowVisualProps) {
   )
 }
 
-export function PageTreeSection({ workspaceId, pages: initialPages, favoritePageIds }: Props) {
+export function PageTreeSection({
+  workspaceId,
+  pages: initialPages,
+  favoritePageIds,
+  collectionId,
+  title,
+}: Props) {
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set())
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
@@ -249,7 +257,14 @@ export function PageTreeSection({ workspaceId, pages: initialPages, favoritePage
   }, [])
 
   const pagesQuery = trpc.page.listByWorkspace.useQuery({ workspaceId }, { enabled: mounted })
-  const pages = pagesQuery.data ?? initialPages
+  const allPages = pagesQuery.data ?? initialPages
+  const pages = useMemo(
+    () =>
+      collectionId === undefined
+        ? allPages
+        : allPages.filter((p) => p.collectionId === collectionId),
+    [allPages, collectionId],
+  )
 
   const reorder = trpc.page.reorder.useMutation({
     onError: () => {
@@ -341,7 +356,7 @@ export function PageTreeSection({ workspaceId, pages: initialPages, favoritePage
         }}
       >
         <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: '0.06em' }}>
-          Страницы
+          {title ?? 'Страницы'}
         </Typography>
         <IconButton
           aria-label="Новая страница"
