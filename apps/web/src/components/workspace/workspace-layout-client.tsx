@@ -8,6 +8,7 @@ import { Box, StorefrontIcon } from '@repo/ui/components'
 import { trpc } from '@/trpc/client'
 
 import { MarketplaceToolbarSearch } from '@/components/marketplace/marketplace-toolbar-search'
+import { TemplateActionsToolbar } from '@/components/templates/template-actions-toolbar'
 import { PageActionsToolbar } from '@/components/page/page-actions-toolbar'
 import { PageEditorProvider } from '@/components/page/editor-context'
 import { PageCommentsProvider } from '@/components/page/comments/comments-context'
@@ -101,6 +102,16 @@ export function WorkspaceLayoutClient({
   )
   const activeChat = activeChatId ? (chats.data?.find((c) => c.id === activeChatId) ?? null) : null
 
+  // Template view (/marketplace/templates/{id}): the toolbar shows the template
+  // title in the breadcrumb and the "Использовать" + actions menu in the right
+  // slot, so the template view itself needs no second header row.
+  const templateIdMatch = pathname.match(/\/marketplace\/templates\/([a-f0-9-]{36})/)
+  const activeTemplateId = templateIdMatch?.[1] ?? null
+  const activeTemplate = trpc.template.getById.useQuery(
+    { templateId: activeTemplateId ?? '', workspaceId: workspace.id },
+    { enabled: activeTemplateId !== null },
+  )
+
   const breadcrumbs = useMemo(() => {
     if (pathname.includes('/chats')) {
       const base = { label: 'Чаты', href: '/chats/new' }
@@ -138,12 +149,16 @@ export function WorkspaceLayoutClient({
         icon: <StorefrontIcon sx={{ fontSize: 18 }} />,
       }
       if (pathname.startsWith('/marketplace/templates/')) {
-        return [base, { label: 'Шаблон' }]
+        return [
+          base,
+          { label: 'Шаблоны', href: '/marketplace' },
+          { label: activeTemplate.data?.title ?? 'Шаблон' },
+        ]
       }
       return [base]
     }
     return [{ label: workspace.name }]
-  }, [pathname, activeChat, pages, workspace.name])
+  }, [pathname, activeChat, pages, workspace.name, activeTemplate.data?.title])
 
   useEffect(() => {
     const title = breadcrumbs.map((b) => b.label).join(' / ')
@@ -188,6 +203,16 @@ export function WorkspaceLayoutClient({
               <ChatActionsToolbar chatId={activeChatId} workspaceId={workspace.id} />
             ) : activePageId ? (
               <PageActionsToolbar pageId={activePageId} workspaceId={workspace.id} />
+            ) : activeTemplateId && activeTemplate.data ? (
+              <TemplateActionsToolbar
+                templateId={activeTemplateId}
+                workspaceId={workspace.id}
+                canEdit={activeTemplate.data.canEdit}
+                backingPageId={activeTemplate.data.backingPageId}
+                title={activeTemplate.data.title}
+                icon={activeTemplate.data.icon}
+                description={activeTemplate.data.description}
+              />
             ) : pathname.startsWith('/marketplace') &&
               !pathname.startsWith('/marketplace/templates/') ? (
               <MarketplaceToolbarSearch />

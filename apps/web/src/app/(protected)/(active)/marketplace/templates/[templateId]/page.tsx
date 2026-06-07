@@ -39,11 +39,6 @@ export default async function TemplateEditorRoute({
   return (
     <TemplateEditor
       workspaceId={workspaceId}
-      templateId={templateId}
-      template={{ title: template.title, icon: template.icon ?? null }}
-      description={template.description}
-      canEdit={template.canEdit}
-      backingPageId={template.backingPageId}
       backingPage={{
         id: backingPage.id,
         type: backingPage.type,
