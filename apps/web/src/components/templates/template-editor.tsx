@@ -29,9 +29,9 @@ export function TemplateEditor({ workspaceId, template, backingPage, user, edita
         <Button
           size="small"
           startIcon={<ArrowBackIcon />}
-          onClick={() => router.push(`/workspaces/${workspaceId}/templates`)}
+          onClick={() => router.push(`/workspaces/${workspaceId}/marketplace`)}
         >
-          К шаблонам
+          К маркетплейсу
         </Button>
         <Box sx={{ fontSize: 20 }}>{template.icon ?? '📄'}</Box>
         <Typography variant="subtitle1" noWrap sx={{ flex: 1, minWidth: 0 }}>

@@ -244,9 +244,25 @@ export class TemplateRepository {
         type: true,
         content: true,
         contentYjs: true,
+        backingPageId: true,
       },
     })
     return row as TemplateContentDto | null
+  }
+
+  /**
+   * Read the live content from a backing page by its id.
+   * No membership filter — access is authorised upstream (the template that
+   * references this backing page was already checked).
+   */
+  async findBackingPageContent(
+    pageId: string,
+  ): Promise<{ content: Prisma.JsonValue | null; contentYjs: Uint8Array<ArrayBuffer> | null } | null> {
+    const row = await this.uow.client().page.findFirst({
+      where: { id: pageId, isTemplateBacking: true, deletedAt: null },
+      select: { content: true, contentYjs: true },
+    })
+    return row as { content: Prisma.JsonValue | null; contentYjs: Uint8Array<ArrayBuffer> | null } | null
   }
 
   // ── Writes ──────────────────────────────────────────────────────────────────
@@ -324,10 +340,17 @@ export class TemplateRepository {
 
   async findForWrite(
     templateId: string,
-  ): Promise<{ id: string; scope: PageTemplateScope; workspaceId: string | null; createdById: string | null } | null> {
+  ): Promise<{ id: string; scope: PageTemplateScope; workspaceId: string | null; createdById: string | null; backingPageId: string | null } | null> {
     return this.uow.client().pageTemplate.findFirst({
       where: { id: templateId, deletedAt: null },
-      select: { id: true, scope: true, workspaceId: true, createdById: true },
+      select: { id: true, scope: true, workspaceId: true, createdById: true, backingPageId: true },
+    })
+  }
+
+  async softDeleteBackingPage(pageId: string): Promise<void> {
+    await this.uow.client().page.update({
+      where: { id: pageId },
+      data: { deletedAt: new Date() },
     })
   }
 

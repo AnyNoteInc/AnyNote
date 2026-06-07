@@ -125,7 +125,6 @@ describe('template router (integration)', () => {
       workspaceId: ws.id,
       title: 'Reusable doc',
       description: 'A handy starting point',
-      category: 'Docs',
       scope: PageTemplateScope.WORKSPACE,
     })
 

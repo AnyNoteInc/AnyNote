@@ -53,7 +53,10 @@ function makeRepo(
       type: PageType.TEXT,
       content: { type: 'doc', content: [] },
       contentYjs: new Uint8Array(new ArrayBuffer(4)),
+      backingPageId: null,
     })),
+    findBackingPageContent: vi.fn(async () => null),
+    softDeleteBackingPage: vi.fn(async () => undefined),
     createFromPage: vi.fn(async () => ({ id: 't-new' })),
     incrementUsage: vi.fn(async () => undefined),
     // Default: actor 'u1' is the creator of template 't1'
@@ -62,6 +65,7 @@ function makeRepo(
       scope: PageTemplateScope.WORKSPACE,
       workspaceId: 'w1',
       createdById: 'u1',
+      backingPageId: null,
     })),
     update: vi.fn(async () => ({ id: 't1' })),
     softDelete: vi.fn(async () => ({ id: 't1' })),
@@ -244,6 +248,7 @@ describe('TemplateService.createPageFromTemplate', () => {
         type: PageType.TEXT,
         content: null,
         contentYjs: null,
+        backingPageId: null,
       })),
     })
     const svc = new TemplateService(repo, makeUow(), makePages())
@@ -263,6 +268,7 @@ describe('TemplateService.createPageFromTemplate', () => {
         type: PageType.TEXT,
         content: null,
         contentYjs: null,
+        backingPageId: null,
       })),
     })
     const pages = makePages()
@@ -277,6 +283,67 @@ describe('TemplateService.createPageFromTemplate', () => {
     await expect(
       svc.createPageFromTemplate('u1', { templateId: 't1', workspaceId: 'w1', parentId: null }),
     ).rejects.toSatisfy(isDomainError)
+  })
+
+  it('uses backing page live content (FRESH) when backingPageId is set', async () => {
+    const STALE = new Uint8Array([1, 2, 3, 4])
+    const FRESH = new Uint8Array([9, 8, 7, 6])
+    const repo = makeRepo({
+      findContent: vi.fn(async () => ({
+        id: 't1',
+        workspaceId: 'w1',
+        scope: PageTemplateScope.WORKSPACE,
+        title: 'Tmpl',
+        icon: null,
+        type: PageType.TEXT,
+        content: { type: 'doc', content: [] },
+        contentYjs: STALE,
+        backingPageId: 'bp1',
+      })),
+      findBackingPageContent: vi.fn(async () => ({
+        content: { type: 'doc', content: [{ type: 'paragraph' }] },
+        contentYjs: FRESH,
+      })),
+    })
+    const pages = makePages()
+    const svc = new TemplateService(repo, makeUow(), pages)
+    await svc.createPageFromTemplate('u1', { templateId: 't1', workspaceId: 'w1', parentId: null })
+    expect(repo.findBackingPageContent).toHaveBeenCalledWith('bp1')
+    // The page must be created with FRESH contentYjs, not STALE
+    expect(pages.create).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({ contentYjs: FRESH }),
+    )
+    const call = (pages.create as ReturnType<typeof vi.fn>).mock.calls[0][1]
+    expect(call.contentYjs).toBe(FRESH)
+    expect(call.contentYjs).not.toBe(STALE)
+  })
+
+  it('falls back to template contentYjs when backingPageId is null (e.g. seeded GLOBAL)', async () => {
+    const TEMPLATE_BYTES = new Uint8Array([5, 5, 5, 5])
+    const repo = makeRepo({
+      findContent: vi.fn(async () => ({
+        id: 'g1',
+        workspaceId: null,
+        scope: PageTemplateScope.GLOBAL,
+        title: 'Global',
+        icon: null,
+        type: PageType.TEXT,
+        content: null,
+        contentYjs: TEMPLATE_BYTES,
+        backingPageId: null,
+      })),
+      findBackingPageContent: vi.fn(async () => null),
+    })
+    const pages = makePages()
+    const svc = new TemplateService(repo, makeUow(), pages)
+    await svc.createPageFromTemplate('u1', { templateId: 'g1', workspaceId: 'w1', parentId: null })
+    // Must NOT call findBackingPageContent when backingPageId is null
+    expect(repo.findBackingPageContent).not.toHaveBeenCalled()
+    expect(pages.create).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({ contentYjs: TEMPLATE_BYTES }),
+    )
   })
 })
 
@@ -389,6 +456,40 @@ describe('TemplateService.delete / update', () => {
     const svc = new TemplateService(repo, makeUow(), makePages())
     const res = await svc.delete('u1', { templateId: 't1', workspaceId: 'w1' })
     expect(res).toEqual({ count: 1 })
+  })
+
+  it('soft-deletes the backing page when the template has one', async () => {
+    const repo = makeRepo({
+      findForWrite: vi.fn(async () => ({
+        id: 't1',
+        scope: PageTemplateScope.WORKSPACE,
+        workspaceId: 'w1',
+        createdById: 'u1',
+        backingPageId: 'bp1',
+      })),
+      softDeleteBackingPage: vi.fn(async () => undefined),
+    })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    const res = await svc.delete('u1', { templateId: 't1', workspaceId: 'w1' })
+    expect(res).toEqual({ count: 1 })
+    expect(repo.softDelete).toHaveBeenCalledWith('u1', 't1')
+    expect(repo.softDeleteBackingPage).toHaveBeenCalledWith('bp1')
+  })
+
+  it('does not call softDeleteBackingPage when template has no backing page', async () => {
+    const repo = makeRepo({
+      findForWrite: vi.fn(async () => ({
+        id: 't1',
+        scope: PageTemplateScope.WORKSPACE,
+        workspaceId: 'w1',
+        createdById: 'u1',
+        backingPageId: null,
+      })),
+      softDeleteBackingPage: vi.fn(async () => undefined),
+    })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    await svc.delete('u1', { templateId: 't1', workspaceId: 'w1' })
+    expect(repo.softDeleteBackingPage).not.toHaveBeenCalled()
   })
 
   it('update rejects unknown tag id', async () => {

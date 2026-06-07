@@ -30,8 +30,8 @@ export function PageView({ workspaceId, page, user, editable = true }: Props) {
     <PageCommentsProvider
       target={{ pageId: page.id }}
       pageType={page.type}
-      canComment
-      canDeleteComments
+      canComment={editable}
+      canDeleteComments={editable}
       workspaceId={workspaceId}
     >
       <PageEditorProvider>

@@ -62,7 +62,6 @@ export interface GlobalTemplateSeed {
   title: string
   description: string
   icon: string
-  category: string
   tagSlugs: string[]
   averageRating: number
   ratingCount: number
@@ -75,7 +74,6 @@ export const GLOBAL_TEMPLATES: GlobalTemplateSeed[] = [
     title: 'Заметки встречи',
     description: 'Повестка, участники, решения и задачи по итогам встречи.',
     icon: '📝',
-    category: 'Работа',
     tagSlugs: ['career-building'],
     averageRating: 4.7,
     ratingCount: 185,
@@ -101,7 +99,6 @@ export const GLOBAL_TEMPLATES: GlobalTemplateSeed[] = [
     title: 'План проекта',
     description: 'Цели, этапы, сроки и риски проекта на одной странице.',
     icon: '📊',
-    category: 'Проекты',
     tagSlugs: ['career-building', 'freelance'],
     averageRating: 4.8,
     ratingCount: 242,
@@ -125,7 +122,6 @@ export const GLOBAL_TEMPLATES: GlobalTemplateSeed[] = [
     title: 'Список задач',
     description: 'Простой чек-лист задач с приоритетами.',
     icon: '✅',
-    category: 'Личное',
     tagSlugs: ['student-planner'],
     averageRating: 4.5,
     ratingCount: 298,
@@ -145,7 +141,6 @@ export const GLOBAL_TEMPLATES: GlobalTemplateSeed[] = [
     title: 'Еженедельный обзор',
     description: 'Итоги недели: достижения, проблемы и планы.',
     icon: '🗓️',
-    category: 'Личное',
     tagSlugs: ['study-planner', 'career-building'],
     averageRating: 4.6,
     ratingCount: 134,
@@ -168,7 +163,6 @@ export const GLOBAL_TEMPLATES: GlobalTemplateSeed[] = [
     title: 'Карточка клиента / CRM',
     description: 'Контакты, история взаимодействия и следующие шаги по клиенту.',
     icon: '🧑‍💼',
-    category: 'Продажи',
     tagSlugs: ['freelance', 'marketing'],
     averageRating: 4.9,
     ratingCount: 87,
@@ -192,7 +186,6 @@ export const GLOBAL_TEMPLATES: GlobalTemplateSeed[] = [
     title: 'Статья базы знаний',
     description: 'Структурированная статья: проблема, решение, примеры.',
     icon: '📚',
-    category: 'База знаний',
     tagSlugs: ['career-building'],
     averageRating: 4.4,
     ratingCount: 56,
@@ -216,7 +209,6 @@ export const GLOBAL_TEMPLATES: GlobalTemplateSeed[] = [
     title: 'Ретроспектива',
     description: 'Что прошло хорошо, что улучшить и какие действия предпринять.',
     icon: '🔁',
-    category: 'Команда',
     tagSlugs: ['career-building'],
     averageRating: 4.6,
     ratingCount: 112,
@@ -239,7 +231,6 @@ export const GLOBAL_TEMPLATES: GlobalTemplateSeed[] = [
     title: 'Roadmap',
     description: 'Дорожная карта продукта по кварталам.',
     icon: '🛣️',
-    category: 'Продукт',
     tagSlugs: ['marketing', 'career-building'],
     averageRating: 4.7,
     ratingCount: 163,
@@ -261,7 +252,6 @@ export const GLOBAL_TEMPLATES: GlobalTemplateSeed[] = [
     title: 'Бриф проекта',
     description: 'Контекст, задачи, целевая аудитория и критерии успеха.',
     icon: '📋',
-    category: 'Проекты',
     tagSlugs: ['marketing', 'freelance'],
     averageRating: 4.5,
     ratingCount: 78,
@@ -285,7 +275,6 @@ export const GLOBAL_TEMPLATES: GlobalTemplateSeed[] = [
     title: 'Исследование / Research Notes',
     description: 'Вопросы, источники, находки и выводы исследования.',
     icon: '🔬',
-    category: 'Исследования',
     tagSlugs: ['study-planner'],
     averageRating: 4.3,
     ratingCount: 41,

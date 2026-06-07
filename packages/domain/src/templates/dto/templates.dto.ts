@@ -143,6 +143,8 @@ export interface DeleteTemplateResultDto {
 /**
  * Full template row including content payload — read internally when copying a
  * template into a new page. `content`/`contentYjs` mirror the Page columns.
+ * `backingPageId` is included so the service can prefer the backing page's
+ * live content over the (potentially stale) snapshot stored on the template row.
  */
 export interface TemplateContentDto {
   id: string
@@ -153,6 +155,7 @@ export interface TemplateContentDto {
   type: PageType
   content: Prisma.JsonValue | null
   contentYjs: Uint8Array<ArrayBuffer> | null
+  backingPageId: string | null
 }
 
 /**

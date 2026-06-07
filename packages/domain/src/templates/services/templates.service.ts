@@ -248,11 +248,27 @@ export class TemplateService {
       throw forbidden('Недостаточно прав для создания страницы')
     }
 
-    const payload = buildCreatePageFromTemplatePayload(template, {
-      workspaceId: input.workspaceId,
-      parentId: input.parentId,
-      title: input.title,
-    })
+    // Prefer the backing page's live content (collaborative edits land there,
+    // not on the PageTemplate snapshot). Seeded GLOBAL templates have no
+    // backing page and fall back to the template's own contentYjs.
+    let sourceContent: Prisma.JsonValue | null = template.content
+    let sourceContentYjs = template.contentYjs
+    if (template.backingPageId) {
+      const backing = await this.repo.findBackingPageContent(template.backingPageId)
+      if (backing) {
+        sourceContent = backing.content
+        sourceContentYjs = backing.contentYjs
+      }
+    }
+
+    const payload = buildCreatePageFromTemplatePayload(
+      { ...template, content: sourceContent, contentYjs: sourceContentYjs },
+      {
+        workspaceId: input.workspaceId,
+        parentId: input.parentId,
+        title: input.title,
+      },
+    )
 
     // Reuse the page service so positioning (linked list), the outbox event,
     // and kanban seeding all run through the one established path. Increment
@@ -300,13 +316,18 @@ export class TemplateService {
     const template = await this.repo.findForWrite(input.templateId)
     if (!template) throw notFound('Шаблон не найден')
     await this.assertTemplateWriteAccess(actorUserId, template, input.workspaceId)
-    await this.uow.transaction(() => this.repo.softDelete(actorUserId, input.templateId))
+    await this.uow.transaction(async () => {
+      await this.repo.softDelete(actorUserId, input.templateId)
+      if (template.backingPageId) {
+        await this.repo.softDeleteBackingPage(template.backingPageId)
+      }
+    })
     return { count: 1 }
   }
 
   private async assertTemplateWriteAccess(
     actorUserId: string,
-    template: { scope: PageTemplateScope; workspaceId: string | null; createdById: string | null },
+    template: { scope: PageTemplateScope; workspaceId: string | null; createdById: string | null; backingPageId?: string | null },
     workspaceId: string,
   ): Promise<void> {
     if (template.scope === 'GLOBAL') {
