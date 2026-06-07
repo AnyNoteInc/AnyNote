@@ -14,6 +14,7 @@ import {
 } from '../helpers/plan'
 import { seedStartPage } from '../helpers/seed-start-page'
 import { resolveActiveWorkspace } from '../helpers/active-workspace'
+import { domain as domainSvc } from '../domain'
 
 async function assertPaidPlan(ctx: { prisma: PrismaClient; user: { id: string } }) {
   const { plan } = await getActivePlanForUser(ctx.prisma, ctx.user.id)
@@ -61,7 +62,7 @@ export const workspaceRouter = router({
         }
       }
 
-      return ctx.prisma.$transaction(async (tx) => {
+      const result = await ctx.prisma.$transaction(async (tx) => {
         const workspace = await tx.workspace.create({
           data: { name: input.name, icon: input.icon, createdById: ctx.user.id },
         })
@@ -81,6 +82,23 @@ export const workspaceRouter = router({
         await syncWorkspaceLimits(tx, ctx.user.id)
         return { ...workspace, startPageId: pageId }
       })
+
+      // Collections run their own (idempotent) transactions — keep them outside the create tx.
+      await domainSvc.collections.ensureWorkspaceCollections(result.id)
+      const teamCollection = await ctx.prisma.collection.findFirstOrThrow({
+        where: { workspaceId: result.id, kind: 'TEAM', ownerId: null },
+        select: { id: true },
+      })
+      await ctx.prisma.page.updateMany({
+        where: {
+          workspaceId: result.id,
+          collectionId: null,
+          isTemplateBacking: false,
+          deletedAt: null,
+        },
+        data: { collectionId: teamCollection.id },
+      })
+      return result
     }),
 
   getById: protectedProcedure
@@ -273,6 +291,9 @@ export const workspaceRouter = router({
         create: { workspaceId: input.workspaceId, userId: user.id, role: input.role },
         update: { role: input.role },
       })
+
+      // Idempotent: ensure the (newly) added member has a PERSONAL collection here.
+      await domainSvc.collections.ensurePersonalCollection(input.workspaceId, member.userId)
 
       const inviterFirst = (ctx.user as { firstName?: string }).firstName ?? ''
       const inviterLast = (ctx.user as { lastName?: string }).lastName ?? ''
