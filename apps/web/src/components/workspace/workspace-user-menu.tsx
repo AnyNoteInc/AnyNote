@@ -34,6 +34,7 @@ import { trpc } from '@/trpc/client'
 type Props = Readonly<{
   user: { firstName: string; lastName: string; email: string; image: string | null }
   features: PlanFeatures
+  workspace: { name: string; icon: string | null }
 }>
 
 type Theme = 'light' | 'dark' | 'system'
@@ -48,7 +49,7 @@ const themeOptions: Array<{
   { value: 'dark', label: 'Тёмная тема', icon: <DarkModeRoundedIcon fontSize="small" /> },
 ]
 
-export function WorkspaceUserMenu({ user, features }: Props) {
+export function WorkspaceUserMenu({ user, features, workspace }: Props) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const { preference, setPreference } = useThemeMode()
   const setTheme = trpc.user.setTheme.useMutation()
@@ -101,6 +102,32 @@ export function WorkspaceUserMenu({ user, features }: Props) {
         </Stack>
       </Box>
       <Menu anchorEl={anchor} open={!!anchor} onClose={close}>
+        <Box sx={{ px: 2, pt: 1, pb: 1, minWidth: 220 }}>
+          <Typography variant="caption" color="text.secondary" display="block">
+            Активное пространство
+          </Typography>
+          <Stack direction="row" alignItems="center" spacing={1} sx={{ mt: 0.5 }}>
+            <Box
+              sx={{
+                width: 22,
+                height: 22,
+                borderRadius: 0.75,
+                background: 'linear-gradient(135deg,#0f766e,#155e75)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontSize: 13,
+                flexShrink: 0,
+              }}
+            >
+              {workspace.icon ?? '📒'}
+            </Box>
+            <Typography variant="body2" noWrap sx={{ minWidth: 0 }}>
+              {workspace.name}
+            </Typography>
+          </Stack>
+        </Box>
+        <Divider />
         <Box sx={{ px: 2, py: 1, minWidth: 220 }}>
           <Typography variant="caption" color="text.secondary" noWrap>
             {user.email}

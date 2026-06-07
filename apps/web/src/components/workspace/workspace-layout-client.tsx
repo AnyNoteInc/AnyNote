@@ -165,7 +165,13 @@ export function WorkspaceLayoutClient({
     document.title = title ? `${title} — AnyNote` : 'AnyNote'
   }, [breadcrumbs])
 
-  const userMenu = <WorkspaceUserMenu user={user} features={features} />
+  const userMenu = (
+    <WorkspaceUserMenu
+      user={user}
+      features={features}
+      workspace={{ name: workspace.name, icon: workspace.icon }}
+    />
+  )
 
   const sidebarProps = {
     workspace,
