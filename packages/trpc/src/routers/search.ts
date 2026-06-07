@@ -40,7 +40,7 @@ export const searchRouter = router({
           where: {
             userId: ctx.user.id,
             workspaceId: input.workspaceId,
-            page: { deletedAt: null, archived: false, isTemplateBacking: false },
+            page: { deletedAt: null, archivedAt: null, isTemplateBacking: false },
           },
           orderBy: { lastVisitedAt: 'desc' },
           take: HISTORY_LIMIT_DISPLAYED,

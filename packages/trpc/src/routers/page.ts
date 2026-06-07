@@ -34,7 +34,7 @@ export const pageRouter = router({
           icon: true,
           content: true,
           contentYjs: true,
-          archived: true,
+          archivedAt: true,
           prevPageId: true,
           deletedAt: true,
           createdById: true,
@@ -57,7 +57,7 @@ export const pageRouter = router({
       return ctx.prisma.page.findMany({
         where: {
           workspaceId: input.workspaceId,
-          archived: false,
+          archivedAt: null,
           deletedAt: null,
           isTemplateBacking: false,
         },
