@@ -1,9 +1,14 @@
 import { notFound, redirect } from 'next/navigation'
+import { TRPCError } from '@trpc/server'
 
 import { requireSession } from '@/lib/get-session'
 import { getServerTRPC } from '@/trpc/server'
 import { TemplateEditor } from '@/components/templates/template-editor'
 import { colorFor } from '@/lib/user-color'
+
+function isNotFoundTrpcError(error: unknown): boolean {
+  return error instanceof TRPCError && error.code === 'NOT_FOUND'
+}
 
 export default async function TemplateEditorRoute({
   params,
@@ -17,11 +22,16 @@ export default async function TemplateEditorRoute({
   if (!workspace) redirect('/workspaces/new')
   const workspaceId = workspace.id
 
-  const template = await trpc.template.getById({ templateId, workspaceId })
-  if (!template || !template.backingPageId) notFound()
-
-  const backingPage = await trpc.template.getBackingPage({ templateId, workspaceId })
-  if (!backingPage) notFound()
+  let template
+  let backingPage
+  try {
+    template = await trpc.template.getById({ templateId, workspaceId })
+    backingPage = await trpc.template.getBackingPage({ templateId, workspaceId })
+  } catch (error) {
+    if (isNotFoundTrpcError(error)) notFound()
+    throw error
+  }
+  if (!template.backingPageId) notFound()
 
   const displayName =
     [session.user.firstName, session.user.lastName].filter(Boolean).join(' ').trim() ||

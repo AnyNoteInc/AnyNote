@@ -1,4 +1,5 @@
 import { notFound, redirect } from 'next/navigation'
+import { TRPCError } from '@trpc/server'
 
 import { Box } from '@repo/ui/components'
 
@@ -20,8 +21,14 @@ export default async function PageRoute({ params }: { params: Promise<{ pageId: 
   const { pageId } = await params
   const session = await requireSession()
   const trpc = await getServerTRPC()
-  const page = await trpc.page.getById({ id: pageId })
-  if (!page) notFound()
+
+  let page
+  try {
+    page = await trpc.page.getById({ id: pageId })
+  } catch (error) {
+    if (error instanceof TRPCError && error.code === 'NOT_FOUND') notFound()
+    throw error
+  }
 
   const active = await trpc.workspace.getActive()
   if (!active || active.id !== page.workspaceId) {
