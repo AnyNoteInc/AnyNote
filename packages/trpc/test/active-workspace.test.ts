@@ -2,11 +2,16 @@ import { describe, it, expect, beforeEach } from 'vitest'
 import { prisma } from '@repo/db'
 
 import { resolveActiveWorkspace } from '../src/helpers/active-workspace'
+import { workspaceRouter } from '../src/routers/workspace'
+import { createCallerFactory } from '../src/trpc'
 
 const EMAIL_SUFFIX = '+activews-test@anynote.dev'
 
 async function cleanFixtures() {
   await prisma.userPreference.deleteMany({
+    where: { user: { email: { contains: EMAIL_SUFFIX } } },
+  })
+  await prisma.subscription.deleteMany({
     where: { user: { email: { contains: EMAIL_SUFFIX } } },
   })
   await prisma.workspace.deleteMany({
@@ -84,5 +89,54 @@ describe('resolveActiveWorkspace', () => {
     expect(result?.id).toBe(ws1.id) // createdAt asc -> first created
     const pref = await prisma.userPreference.findUnique({ where: { userId: user.id } })
     expect(pref?.activeWorkspaceId).toBe(ws1.id)
+  })
+})
+
+function makeCaller(userId: string, email: string) {
+  return createCallerFactory(workspaceRouter)({
+    prisma,
+    user: { id: userId, email },
+    headers: new Headers(),
+    resHeaders: new Headers(),
+    yookassa: {} as never,
+    returnUrlBase: 'http://localhost:3000',
+  })
+}
+
+describe('workspace.getActive / setActive', () => {
+  beforeEach(cleanFixtures)
+
+  it('setActive writes the pref for a member and getActive returns it', async () => {
+    const user = await makeUser('setget')
+    const ws = await makeWorkspace(user.id, 'WS')
+    const caller = makeCaller(user.id, user.email)
+
+    const set = await caller.setActive({ workspaceId: ws.id })
+    expect(set.id).toBe(ws.id)
+
+    const active = await caller.getActive()
+    expect(active?.id).toBe(ws.id)
+  })
+
+  it('setActive rejects a non-member', async () => {
+    const owner = await makeUser('owner')
+    const ws = await makeWorkspace(owner.id, 'WS')
+    const stranger = await makeUser('stranger')
+    const caller = makeCaller(stranger.id, stranger.email)
+
+    await expect(caller.setActive({ workspaceId: ws.id })).rejects.toThrow()
+  })
+
+  it('create sets the new workspace as active', async () => {
+    const user = await makeUser('creator')
+    const plan = await prisma.plan.findUniqueOrThrow({ where: { slug: 'personal' } })
+    await prisma.subscription.create({
+      data: { userId: user.id, planId: plan.id, status: 'ACTIVE' },
+    })
+    const caller = makeCaller(user.id, user.email)
+    const ws = await caller.create({ name: 'New' })
+
+    const pref = await prisma.userPreference.findUnique({ where: { userId: user.id } })
+    expect(pref?.activeWorkspaceId).toBe(ws.id)
   })
 })

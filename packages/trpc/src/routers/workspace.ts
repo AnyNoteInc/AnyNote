@@ -13,6 +13,7 @@ import {
   syncWorkspaceLimits,
 } from '../helpers/plan'
 import { seedStartPage } from '../helpers/seed-start-page'
+import { resolveActiveWorkspace } from '../helpers/active-workspace'
 
 async function assertPaidPlan(ctx: { prisma: PrismaClient; user: { id: string } }) {
   const { plan } = await getActivePlanForUser(ctx.prisma, ctx.user.id)
@@ -69,8 +70,12 @@ export const workspaceRouter = router({
         })
         await tx.userPreference.upsert({
           where: { userId: ctx.user.id },
-          create: { userId: ctx.user.id, defaultWorkspaceId: workspace.id },
-          update: { defaultWorkspaceId: workspace.id },
+          create: {
+            userId: ctx.user.id,
+            defaultWorkspaceId: workspace.id,
+            activeWorkspaceId: workspace.id,
+          },
+          update: { defaultWorkspaceId: workspace.id, activeWorkspaceId: workspace.id },
         })
         const { pageId } = await seedStartPage(tx, workspace.id, ctx.user.id)
         await syncWorkspaceLimits(tx, ctx.user.id)
@@ -103,6 +108,30 @@ export const workspaceRouter = router({
     })
     return pref?.defaultWorkspace ?? null
   }),
+
+  getActive: protectedProcedure.query(async ({ ctx }) => {
+    return resolveActiveWorkspace(ctx.prisma, ctx.user.id)
+  }),
+
+  setActive: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const member = await ctx.prisma.workspaceMember.findUnique({
+        where: { workspaceId_userId: { workspaceId: input.workspaceId, userId: ctx.user.id } },
+      })
+      if (!member) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Вы не являетесь участником пространства',
+        })
+      }
+      await ctx.prisma.userPreference.upsert({
+        where: { userId: ctx.user.id },
+        create: { userId: ctx.user.id, activeWorkspaceId: input.workspaceId },
+        update: { activeWorkspaceId: input.workspaceId },
+      })
+      return ctx.prisma.workspace.findUniqueOrThrow({ where: { id: input.workspaceId } })
+    }),
 
   rename: protectedProcedure
     .input(

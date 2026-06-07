@@ -31,6 +31,7 @@ export {
   requireWritableWorkspace,
   getActivePlanForUser,
 } from './helpers/plan'
+export { resolveActiveWorkspace } from './helpers/active-workspace'
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ ok: true })),
