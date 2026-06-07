@@ -84,8 +84,6 @@ export const listMarketplaceInput = z.object({
 })
 export type ListMarketplaceInput = z.infer<typeof listMarketplaceInput>
 
-export const listTagsInput = z.object({}).optional()
-
 // ── Tag / Author DTOs ─────────────────────────────────────────────────────────
 
 export interface TemplateTagDto {

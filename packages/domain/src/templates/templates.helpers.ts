@@ -24,8 +24,11 @@ export function canCreateWorkspaceTemplate(args: {
 }
 
 /**
- * Any authenticated workspace member may publish a GLOBAL template. (AnyNote has
- * no global-admin role; visibility is the only privilege a global confers.)
+ * Global-template creation is open to any authenticated user (product decision:
+ * no role gate). Membership is still enforced upstream — `createFromPage` only
+ * reaches here after `findAccessiblePage` confirms the actor can see the source
+ * page, which requires workspace membership. This helper is the single place to
+ * tighten the policy later (e.g. an allowlist).
  */
 export function canCreateGlobalTemplate(_args: { role?: string | null }): boolean {
   return true

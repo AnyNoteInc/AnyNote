@@ -61,6 +61,10 @@ export class TemplateService {
     workspaceId: string,
     source?: { content?: unknown; contentYjs?: Uint8Array<ArrayBuffer> | null; icon?: string | null },
   ): Promise<string> {
+    // parentId MUST stay null: PageService.create runs its parent-existence
+    // check BEFORE opening its own transaction. We call this from inside the
+    // template transaction, so a non-null parentId would run that check on the
+    // active tx and dissolve the fence. Backing pages are always top-level.
     const created = await this.pages.create(actorUserId, {
       workspaceId,
       parentId: null,
@@ -236,6 +240,7 @@ export class TemplateService {
     const template = await this.repo.findForWrite(input.templateId)
     if (!template) throw notFound('Шаблон не найден')
     await this.assertTemplateWriteAccess(actorUserId, template, input.workspaceId)
+    await this.assertTagsExist(input.tagIds ?? [])
     return this.uow.transaction(() => this.repo.update(actorUserId, input))
   }
 

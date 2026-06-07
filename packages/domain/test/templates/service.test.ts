@@ -384,6 +384,22 @@ describe('TemplateService.delete / update', () => {
     const res = await svc.delete('u1', { templateId: 't1', workspaceId: 'w1' })
     expect(res).toEqual({ count: 1 })
   })
+
+  it('update rejects unknown tag id', async () => {
+    const repo = makeRepo({
+      // countExistingTags returns 0 but 1 tagId was supplied → should throw BAD_REQUEST
+      countExistingTags: vi.fn(async () => 0),
+    })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    await expect(
+      svc.update('u1', {
+        templateId: 't1',
+        workspaceId: 'w1',
+        tagIds: ['00000000-0000-0000-0000-000000000099'],
+      }),
+    ).rejects.toMatchObject({ httpStatus: 400 })
+    expect(repo.update).not.toHaveBeenCalled()
+  })
 })
 
 describe('TemplateService.create', () => {
