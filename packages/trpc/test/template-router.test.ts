@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterAll } from 'vitest'
+import { describe, it, expect, beforeAll, beforeEach, afterAll } from 'vitest'
 import { prisma, PageTemplateScope, PageType } from '@repo/db'
 
 import { templateRouter } from '../src/routers/template'
@@ -8,6 +8,19 @@ import { createCallerFactory } from '../src/trpc'
 // Prisma). Uses an email-suffix fixture namespace so it self-cleans and never
 // touches real data. Requires `docker compose up -d` (postgres) and a seeded
 // `personal` plan, like the other integration tests in this folder.
+
+// Inlined from packages/db/prisma/template-tags.ts so this test is
+// self-contained (fresh CI DBs are migrated but NOT seeded with tags).
+const TEMPLATE_TAGS = [
+  { slug: 'job-search', name: 'Job Search', icon: 'WorkOutlineIcon', position: 0 },
+  { slug: 'website-building', name: 'Website Building', icon: 'LaptopIcon', position: 1 },
+  { slug: 'freelance', name: 'Freelance', icon: 'DashboardIcon', position: 2 },
+  { slug: 'student-planner', name: 'Student Planner', icon: 'MenuBookIcon', position: 3 },
+  { slug: 'marketing', name: 'Marketing', icon: 'CampaignIcon', position: 4 },
+  { slug: 'career-building', name: 'Career Building', icon: 'WorkOutlineIcon', position: 5 },
+  { slug: 'personal-website', name: 'Personal Website', icon: 'LaptopIcon', position: 6 },
+  { slug: 'study-planner', name: 'Study Planner', icon: 'BookmarkIcon', position: 7 },
+]
 
 const EMAIL_SUFFIX = '+template-router-test@anynote.dev'
 
@@ -87,6 +100,17 @@ function makeCaller(userId: string) {
 }
 
 describe('template router (integration)', () => {
+  // Ensure the 8 marketplace tags exist — CI DBs are migrated but not seeded.
+  beforeAll(async () => {
+    for (const tag of TEMPLATE_TAGS) {
+      await prisma.templateTag.upsert({
+        where: { slug: tag.slug },
+        update: { name: tag.name, icon: tag.icon, position: tag.position },
+        create: tag,
+      })
+    }
+  })
+
   beforeEach(cleanFixtures)
   afterAll(cleanFixtures)
 
@@ -302,5 +326,40 @@ describe('template router (integration)', () => {
 
     const res = await caller.search({ workspaceId: ws.id, query: 'Deletable' })
     expect(res.workspaceTemplates).toHaveLength(0)
+  })
+
+  it('listMarketplace returns sections and seeded tags', async () => {
+    const owner = await makeUser('m1')
+    const ws = await makeWorkspaceWithOwner(owner.id)
+    const caller = makeCaller(owner.id)
+
+    const res = await caller.listMarketplace({ workspaceId: ws.id })
+    expect(res.tags.length).toBe(8)
+    expect(Array.isArray(res.workspaceTemplates)).toBe(true)
+    expect(Array.isArray(res.popularTemplates)).toBe(true)
+    expect(Array.isArray(res.allTemplates)).toBe(true)
+  })
+
+  it('createFromPage with a tag attaches it and shows in marketplace', async () => {
+    const owner = await makeUser('m2')
+    const ws = await makeWorkspaceWithOwner(owner.id)
+    const page = await makePage(ws.id, owner.id, 'Doc')
+    const caller = makeCaller(owner.id)
+
+    const tags = await caller.listTags()
+    const tagId = tags[0].id
+
+    await caller.createFromPage({
+      pageId: page.id,
+      workspaceId: ws.id,
+      title: 'Шаблон из теста',
+      scope: PageTemplateScope.WORKSPACE,
+      tagIds: [tagId],
+    })
+
+    const res = await caller.listMarketplace({ workspaceId: ws.id, tagId })
+    const found = res.allTemplates.find((t) => t.title === 'Шаблон из теста')
+    expect(found).toBeDefined()
+    expect(found!.tags.some((tg) => tg.id === tagId)).toBe(true)
   })
 })

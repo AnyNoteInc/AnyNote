@@ -32,6 +32,19 @@ export const templateRouter = router({
     return mapDomain(() => domainSvc.templates.listGlobal())
   }),
 
+  // Marketplace listing: workspace section + popular + all, filtered by tag/query.
+  listMarketplace: protectedProcedure
+    .input(domain.listMarketplaceInput)
+    .query(async ({ ctx, input }) => {
+      await assertWorkspaceMember(ctx, input.workspaceId)
+      return mapDomain(() => domainSvc.templates.listMarketplace(ctx.user.id, input))
+    }),
+
+  // All curated tags — visible to any authenticated user (no workspace scope).
+  listTags: protectedProcedure.query(async () => {
+    return mapDomain(() => domainSvc.templates.listTags())
+  }),
+
   createFromPage: protectedProcedure
     .input(domain.createTemplateFromPageInput)
     .mutation(async ({ ctx, input }): Promise<{ id: string }> => {
