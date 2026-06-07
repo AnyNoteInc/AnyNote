@@ -1,4 +1,5 @@
 import { Prisma } from '@repo/db'
+import * as domain from '@repo/domain'
 import { z } from 'zod'
 
 import { assertWorkspaceMember } from '../helpers/workspace'
@@ -21,10 +22,10 @@ export const searchRouter = router({
     .query(async ({ input, ctx }): Promise<SearchResultItem[]> => {
       await assertWorkspaceMember(ctx, input.workspaceId)
 
-      const pg = await searchPg(ctx.prisma, input.workspaceId, input.query)
+      const pg = await searchPg(ctx.prisma, input.workspaceId, ctx.user.id, input.query)
       if (pg.length > 0) return pg
       try {
-        return await searchQdrant(ctx.prisma, input.workspaceId, input.query)
+        return await searchQdrant(ctx.prisma, input.workspaceId, ctx.user.id, input.query)
       } catch {
         return []
       }
@@ -40,7 +41,12 @@ export const searchRouter = router({
           where: {
             userId: ctx.user.id,
             workspaceId: input.workspaceId,
-            page: { deletedAt: null, archivedAt: null, isTemplateBacking: false },
+            page: {
+              deletedAt: null,
+              archivedAt: null,
+              isTemplateBacking: false,
+              AND: [domain.buildPageVisibilityWhere(ctx.user.id)],
+            },
           },
           orderBy: { lastVisitedAt: 'desc' },
           take: HISTORY_LIMIT_DISPLAYED,

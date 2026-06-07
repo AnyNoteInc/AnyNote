@@ -1,5 +1,6 @@
 import { PageType, type Prisma, type PrismaClient } from '@repo/db'
 import { decryptSecret, type EncryptedPayload } from '@repo/auth'
+import { buildPageVisibilityWhere } from '@repo/domain'
 
 import { getWorkspaceFeatures } from '../helpers/plan'
 
@@ -81,12 +82,13 @@ type PgRow = {
 export async function searchPg(
   prisma: PrismaClient,
   workspaceId: string,
+  userId: string,
   rawQuery: string,
 ): Promise<SearchResultItem[]> {
   const query = normalizeQuery(rawQuery)
   if (!query) return []
 
-  const rows = await prisma.$queryRaw<PgRow[]>`
+  const rawRows = await prisma.$queryRaw<PgRow[]>`
     SELECT id, title, icon, content, type::text AS type
     FROM "pages"
     WHERE "workspace_id" = ${workspaceId}::uuid
@@ -97,6 +99,17 @@ export async function searchPg(
     ORDER BY ts_rank("search_vector", websearch_to_tsquery(${PG_DICT}, ${query})) DESC
     LIMIT ${RESULT_LIMIT}
   `
+  if (rawRows.length === 0) return []
+
+  // The FTS raw SQL can't express the relational visibility predicate, so
+  // post-filter the matched ids down to pages the user is allowed to see
+  // (TEAM / null collection / own PERSONAL / explicit share).
+  const visible = await prisma.page.findMany({
+    where: { id: { in: rawRows.map((row) => row.id) }, AND: [buildPageVisibilityWhere(userId)] },
+    select: { id: true },
+  })
+  const visibleIds = new Set(visible.map((page) => page.id))
+  const rows = rawRows.filter((row) => visibleIds.has(row.id))
 
   return rows.map((row) => {
     const base = {
@@ -120,7 +133,12 @@ type WorkspaceAiSettingsRow = {
   embeddingsModel: {
     slug: string
     vectorSize: number | null
-    provider: { kind: string; workspaceId: string | null; connection: unknown; connectionEnc: unknown }
+    provider: {
+      kind: string
+      workspaceId: string | null
+      connection: unknown
+      connectionEnc: unknown
+    }
   } | null
 } | null
 
@@ -178,6 +196,7 @@ type AgentsSearchResult = {
 export async function searchQdrant(
   prisma: PrismaClient,
   workspaceId: string,
+  userId: string,
   rawQuery: string,
 ): Promise<SearchResultItem[]> {
   const query = normalizeQuery(rawQuery)
@@ -213,7 +232,14 @@ export async function searchQdrant(
     if (ids.length === 0) return []
 
     const pages = await prisma.page.findMany({
-      where: { id: { in: ids }, workspaceId, deletedAt: null, archivedAt: null, isTemplateBacking: false },
+      where: {
+        id: { in: ids },
+        workspaceId,
+        deletedAt: null,
+        archivedAt: null,
+        isTemplateBacking: false,
+        AND: [buildPageVisibilityWhere(userId)],
+      },
       select: { id: true, icon: true },
     })
     const iconMap = new Map(pages.map((page) => [page.id, page.icon]))

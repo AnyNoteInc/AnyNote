@@ -16,6 +16,7 @@ import { encryptSecret } from '@repo/auth'
 process.env.SECRETS_ENCRYPTION_KEY ||= Buffer.alloc(32, 7).toString('base64')
 
 const WS = '11111111-1111-1111-1111-111111111111'
+const USER = '99999999-9999-9999-9999-999999999999'
 const PG_ROW = (
   overrides: Partial<{
     id: string
@@ -39,8 +40,14 @@ const PG_ROW = (
   ...overrides,
 })
 
-function mockPrisma(rows: unknown[]) {
-  return { $queryRaw: vi.fn(async () => rows) } as unknown as import('@repo/db').PrismaClient
+function mockPrisma(rows: Array<{ id: string }>, visibleIds?: string[]) {
+  // By default every FTS-matched row is visible; pass `visibleIds` to simulate
+  // the visibility predicate filtering some hits out.
+  const visible = (visibleIds ?? rows.map((row) => row.id)).map((id) => ({ id }))
+  return {
+    $queryRaw: vi.fn(async () => rows),
+    page: { findMany: vi.fn(async () => visible) },
+  } as unknown as import('@repo/db').PrismaClient
 }
 
 describe('findFirstMatchingBlock', () => {
@@ -127,27 +134,39 @@ describe('extractExcerpt', () => {
 describe('searchPg', () => {
   it('returns empty when query shorter than 2 chars', async () => {
     const prisma = mockPrisma([])
-    expect(await searchPg(prisma, WS, 'a')).toEqual([])
+    expect(await searchPg(prisma, WS, USER, 'a')).toEqual([])
     expect(prisma.$queryRaw).not.toHaveBeenCalled()
   })
 
   it('returns empty when prisma yields no rows', async () => {
     const prisma = mockPrisma([])
-    expect(await searchPg(prisma, WS, 'matchword')).toEqual([])
+    expect(await searchPg(prisma, WS, USER, 'matchword')).toEqual([])
   })
 
   it('maps rows and locates matching block for TEXT pages', async () => {
     const prisma = mockPrisma([PG_ROW()])
-    const out = await searchPg(prisma, WS, 'matchword')
+    const out = await searchPg(prisma, WS, USER, 'matchword')
     expect(out).toHaveLength(1)
     expect(out[0].pageId).toBe('22222222-2222-2222-2222-222222222222')
     expect(out[0].blockNumber).toBe(1)
     expect(out[0].excerpt).toContain('matchword')
   })
 
+  it('filters out FTS hits the user is not allowed to see', async () => {
+    const visibleId = '22222222-2222-2222-2222-222222222222'
+    const hiddenId = '55555555-5555-5555-5555-555555555555'
+    const prisma = mockPrisma(
+      [PG_ROW({ id: visibleId }), PG_ROW({ id: hiddenId, title: 'Private doc' })],
+      [visibleId],
+    )
+    const out = await searchPg(prisma, WS, USER, 'matchword')
+    expect(out).toHaveLength(1)
+    expect(out[0].pageId).toBe(visibleId)
+  })
+
   it('returns null block and excerpt for non-TEXT pages', async () => {
     const prisma = mockPrisma([PG_ROW({ type: 'EXCALIDRAW', content: null })])
-    const out = await searchPg(prisma, WS, 'matchword')
+    const out = await searchPg(prisma, WS, USER, 'matchword')
     expect(out).toHaveLength(1)
     expect(out[0].blockNumber).toBeNull()
     expect(out[0].excerpt).toBeNull()
@@ -163,7 +182,7 @@ describe('searchPg', () => {
         },
       }),
     ])
-    const out = await searchPg(prisma, WS, 'matchword')
+    const out = await searchPg(prisma, WS, USER, 'matchword')
     expect(out[0].blockNumber).toBeNull()
     expect(out[0].excerpt).toBeNull()
   })
@@ -210,18 +229,18 @@ describe('searchQdrant', () => {
 
   it('returns [] when query shorter than 2 chars', async () => {
     const prisma = prismaWithAi({ aiSettings: validAi })
-    expect(await searchQdrant(prisma, WS, 'a')).toEqual([])
+    expect(await searchQdrant(prisma, WS, USER, 'a')).toEqual([])
   })
 
   it('returns [] when no embedding model configured', async () => {
     const prisma = prismaWithAi({ aiSettings: { embeddingsModel: null } })
-    expect(await searchQdrant(prisma, WS, 'matchword')).toEqual([])
+    expect(await searchQdrant(prisma, WS, USER, 'matchword')).toEqual([])
   })
 
   it('returns [] when plan does not have indexing', async () => {
     vi.mocked(getWorkspaceFeatures).mockResolvedValueOnce({ pageIndexingEnabled: false } as never)
     const prisma = prismaWithAi({ aiSettings: validAi })
-    expect(await searchQdrant(prisma, WS, 'matchword')).toEqual([])
+    expect(await searchQdrant(prisma, WS, USER, 'matchword')).toEqual([])
   })
 
   it('returns [] on agents 5xx', async () => {
@@ -230,7 +249,7 @@ describe('searchQdrant', () => {
       'fetch',
       vi.fn(async () => new Response('boom', { status: 500 })),
     )
-    expect(await searchQdrant(prisma, WS, 'matchword')).toEqual([])
+    expect(await searchQdrant(prisma, WS, USER, 'matchword')).toEqual([])
   })
 
   it('maps results and filters out deleted or archived pages', async () => {
@@ -254,7 +273,7 @@ describe('searchQdrant', () => {
     )
     vi.stubGlobal('fetch', fetchMock)
 
-    const out = await searchQdrant(prisma, WS, 'matchword')
+    const out = await searchQdrant(prisma, WS, USER, 'matchword')
 
     expect(fetchMock).toHaveBeenCalledOnce()
     expect(fetchMock.mock.calls[0]?.[0]).toBe('http://agents.local/v1/search')
@@ -286,13 +305,15 @@ describe('searchQdrant', () => {
     const fetchMock = vi.fn(
       async () =>
         new Response(
-          JSON.stringify({ results: [{ pageId: aliveId, title: 'X', blockNumber: 0, content: 'c' }] }),
+          JSON.stringify({
+            results: [{ pageId: aliveId, title: 'X', blockNumber: 0, content: 'c' }],
+          }),
           { status: 200, headers: { 'content-type': 'application/json' } },
         ),
     )
     vi.stubGlobal('fetch', fetchMock)
 
-    await searchQdrant(prisma, WS, 'matchword')
+    await searchQdrant(prisma, WS, USER, 'matchword')
 
     const body = JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string)
     expect(body.embedding.provider).toBe('openai')
@@ -317,13 +338,15 @@ describe('searchQdrant', () => {
     const fetchMock = vi.fn(
       async () =>
         new Response(
-          JSON.stringify({ results: [{ pageId: aliveId, title: 'X', blockNumber: 0, content: 'c' }] }),
+          JSON.stringify({
+            results: [{ pageId: aliveId, title: 'X', blockNumber: 0, content: 'c' }],
+          }),
           { status: 200, headers: { 'content-type': 'application/json' } },
         ),
     )
     vi.stubGlobal('fetch', fetchMock)
 
-    await searchQdrant(prisma, WS, 'matchword')
+    await searchQdrant(prisma, WS, USER, 'matchword')
 
     const body = JSON.parse((fetchMock.mock.calls[0]?.[1] as RequestInit).body as string)
     expect(body.embedding.connection).toEqual({ apiKey: 'sk-global' })
