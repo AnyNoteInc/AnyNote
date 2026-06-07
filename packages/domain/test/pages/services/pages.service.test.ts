@@ -42,6 +42,9 @@ function makeRepo(
     hardDeletePageTx: vi.fn(async () => ({ id: 'p1' })),
     emptyTrashTx: vi.fn(async () => ({ count: 3 })),
     assertNotReorderingIntoOwnDescendant: vi.fn(async () => undefined),
+    findTeamCollectionId: vi.fn(async () => 'team-col-1'),
+    findPersonalCollectionId: vi.fn(async () => 'personal-col-1'),
+    getPageCollectionId: vi.fn(async () => null),
     ...overrides,
   } as unknown as PageRepository
 }

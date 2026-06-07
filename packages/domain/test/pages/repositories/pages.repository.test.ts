@@ -13,12 +13,14 @@ describe('PageRepository.findAccessiblePage', () => {
       workspaceId: 'w1',
       createdById: 'u1',
       parentId: null,
+      collectionId: null,
       prevPageId: null,
       title: 'Hello',
       icon: null,
       type: 'TEXT',
       content: null,
       contentYjs: null,
+      archivedAt: null,
       deletedAt: null,
     }
     const findFirst = vi.fn(async () => row)
@@ -28,7 +30,10 @@ describe('PageRepository.findAccessiblePage', () => {
     expect(result).toEqual(row)
     expect(findFirst).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { id: 'p1', workspace: { members: { some: { userId: 'u1' } } } },
+        where: expect.objectContaining({
+          id: 'p1',
+          workspace: { members: { some: { userId: 'u1' } } },
+        }),
       }),
     )
   })
