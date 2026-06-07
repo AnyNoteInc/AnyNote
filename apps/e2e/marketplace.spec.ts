@@ -7,20 +7,20 @@ const password = 'SuperSecure123!'
 /**
  * Ensure the 8 curated marketplace tags exist in the DB so the TagRow renders.
  * The seed upserts them, but in case tests run on a partially-seeded DB we
- * make this spec self-contained.
+ * make this spec self-contained. Names are Russian (the marketplace UI is RU).
  */
 test.beforeAll(async () => {
   loadEnvFromRoot()
   const { prisma } = await import('../../packages/db/src/index')
   const tags = [
-    { slug: 'job-search', name: 'Job Search', icon: 'WorkOutlineIcon', position: 0 },
-    { slug: 'website-building', name: 'Website Building', icon: 'LaptopIcon', position: 1 },
-    { slug: 'freelance', name: 'Freelance', icon: 'DashboardIcon', position: 2 },
-    { slug: 'student-planner', name: 'Student Planner', icon: 'MenuBookIcon', position: 3 },
-    { slug: 'marketing', name: 'Marketing', icon: 'CampaignIcon', position: 4 },
-    { slug: 'career-building', name: 'Career Building', icon: 'WorkOutlineIcon', position: 5 },
-    { slug: 'personal-website', name: 'Personal Website', icon: 'LaptopIcon', position: 6 },
-    { slug: 'study-planner', name: 'Study Planner', icon: 'BookmarkIcon', position: 7 },
+    { slug: 'job-search', name: 'Поиск работы', icon: 'WorkOutlineIcon', position: 0 },
+    { slug: 'website-building', name: 'Создание сайта', icon: 'LaptopIcon', position: 1 },
+    { slug: 'freelance', name: 'Фриланс', icon: 'DashboardIcon', position: 2 },
+    { slug: 'student-planner', name: 'Студенческий планер', icon: 'MenuBookIcon', position: 3 },
+    { slug: 'marketing', name: 'Маркетинг', icon: 'CampaignIcon', position: 4 },
+    { slug: 'career-building', name: 'Карьера', icon: 'WorkOutlineIcon', position: 5 },
+    { slug: 'personal-website', name: 'Личный сайт', icon: 'LaptopIcon', position: 6 },
+    { slug: 'study-planner', name: 'План обучения', icon: 'BookmarkIcon', position: 7 },
   ]
   for (const t of tags) {
     await prisma.templateTag.upsert({
@@ -39,35 +39,35 @@ test('marketplace: sidebar nav, tag filter, sections render', async ({ page }) =
   await page.getByRole('textbox', { name: 'Название' }).fill('Пространство')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
 
-  // Creation redirects to the workspace root (may land on /pages/{id} welcome page,
-  // /chats/new, or /workspaces/{id} — the exact suffix depends on plan/features).
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+/)
+  // Creation sets the new workspace active and redirects through /app to a
+  // neutral URL (first page or /chats/new). URLs no longer contain /workspaces/{id}.
+  await page.waitForURL(/\/(pages|chats)\//)
 
   // "Маркетплейс" is in the "pages" sidebar section. On a personal plan without
   // chats, "Домашняя" (pages section) is active by default, so the link is already
   // visible. Clicking "Домашняя" is a safe no-op if already active.
   await page.getByRole('button', { name: 'Домашняя' }).click()
 
-  // The NavItem renders as a Box component={Link} which becomes an <a> in the DOM.
+  // The NavItem renders as a Box component={Link} → an <a> linking to /marketplace.
   await page.getByRole('link', { name: 'Маркетплейс' }).click()
 
-  // Assert URL matches the marketplace route.
-  await expect(page).toHaveURL(/\/workspaces\/[a-f0-9-]+\/marketplace/)
+  // Neutral marketplace route (no /workspaces/{id} prefix).
+  await expect(page).toHaveURL(/\/marketplace$/)
 
   // The "Все" chip is always rendered (TagRow always includes it).
   await expect(page.getByText('Все', { exact: true })).toBeVisible()
 
-  // At least one seeded tag should be visible (Marketing is at position 4).
-  await expect(page.getByText('Marketing', { exact: true })).toBeVisible()
+  // At least one seeded tag should be visible (Маркетинг is at position 4).
+  await expect(page.getByText('Маркетинг', { exact: true })).toBeVisible()
 
   // "Все шаблоны" section heading — rendered only when allTemplates is non-empty
   // (requires global templates seeded via `prisma db seed`).
   await expect(page.getByText('Все шаблоны', { exact: true })).toBeVisible()
 
-  // Click the "Marketing" tag chip and assert the page doesn't crash.
-  await page.getByText('Marketing', { exact: true }).click()
+  // Click the "Маркетинг" tag chip and assert the page doesn't crash.
+  await page.getByText('Маркетинг', { exact: true }).click()
 
-  // After filtering, the page should still show a section heading or the tag list.
+  // After filtering, the page should still show the tag list.
   // Use the "Все" chip as a stable no-crash indicator (always present in TagRow).
   await expect(page.getByText('Все', { exact: true })).toBeVisible()
 })
