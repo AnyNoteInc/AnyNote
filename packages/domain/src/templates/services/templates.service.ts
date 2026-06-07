@@ -12,9 +12,12 @@ import type {
   DeleteTemplateInput,
   DeleteTemplateResultDto,
   GetTemplateInput,
+  ListMarketplaceInput,
+  MarketplaceResultDto,
   SearchTemplatesResult,
   TemplateDetailDto,
   TemplateSummaryDto,
+  TemplateTagDto,
   UpdateTemplateContentInput,
   UpdateTemplateInput,
 } from '../dto/templates.dto.ts'
@@ -23,6 +26,8 @@ import {
   buildCreatePageFromTemplatePayload,
   canCreateGlobalTemplate,
   canCreateWorkspaceTemplate,
+  canEditGlobalTemplate,
+  canEditWorkspaceTemplate,
   groupTemplatesByScope,
   sortTemplatesByRelevance,
 } from '../templates.helpers.ts'
@@ -43,6 +48,29 @@ export class TemplateService {
     const member = await this.repo.findMembership(userId, workspaceId)
     if (!member) throw forbidden('Вы не являетесь участником воркспейса')
     return member
+  }
+
+  private async assertTagsExist(tagIds: string[]): Promise<void> {
+    if (tagIds.length === 0) return
+    const found = await this.repo.countExistingTags(tagIds)
+    if (found !== tagIds.length) throw badRequest('Указан несуществующий тег')
+  }
+
+  private async createBackingPage(
+    actorUserId: string,
+    workspaceId: string,
+    source?: { content?: unknown; contentYjs?: Uint8Array<ArrayBuffer> | null; icon?: string | null },
+  ): Promise<string> {
+    const created = await this.pages.create(actorUserId, {
+      workspaceId,
+      parentId: null,
+      title: 'Шаблон',
+      type: 'TEXT',
+      isTemplateBacking: true,
+      content: (source?.content as never) ?? undefined,
+      contentYjs: source?.contentYjs ?? undefined,
+    })
+    return created.id
   }
 
   // ── Reads ─────────────────────────────────────────────────────────────────────
@@ -76,6 +104,34 @@ export class TemplateService {
     return this.repo.listGlobal()
   }
 
+  async listTags(): Promise<TemplateTagDto[]> {
+    return this.repo.listTags()
+  }
+
+  async listMarketplace(
+    actorUserId: string,
+    input: ListMarketplaceInput,
+  ): Promise<MarketplaceResultDto> {
+    await this.assertMembership(actorUserId, input.workspaceId)
+    const limit = input.sectionLimit ?? 8
+    const [tags, candidates] = await Promise.all([
+      this.repo.listTags(),
+      this.repo.marketplaceCandidates({
+        workspaceId: input.workspaceId,
+        tagId: input.tagId,
+        query: input.query,
+      }),
+    ])
+    const workspaceTemplates = candidates
+      .filter((t) => t.scope === 'WORKSPACE')
+      .slice(0, limit)
+    const popularTemplates = [...candidates]
+      .sort((a, b) => b.usageCount - a.usageCount)
+      .slice(0, limit)
+    const allTemplates = candidates.slice(0, limit)
+    return { tags, workspaceTemplates, popularTemplates, allTemplates }
+  }
+
   async getById(
     actorUserId: string,
     input: GetTemplateInput,
@@ -95,11 +151,12 @@ export class TemplateService {
     actorUserId: string,
     input: CreateTemplateInput,
   ): Promise<CreateTemplateResultDto> {
-    const member = await this.assertMembership(actorUserId, input.workspaceId)
-    if (!canCreateWorkspaceTemplate({ isPageCreator: false, role: member.role })) {
-      throw forbidden('Недостаточно прав для создания шаблона')
-    }
-    return this.uow.transaction(() => this.repo.create(actorUserId, input))
+    await this.assertMembership(actorUserId, input.workspaceId)
+    await this.assertTagsExist(input.tagIds ?? [])
+    return this.uow.transaction(async () => {
+      const backingPageId = await this.createBackingPage(actorUserId, input.workspaceId)
+      return this.repo.create(actorUserId, input, backingPageId)
+    })
   }
 
   async createFromPage(
@@ -111,21 +168,27 @@ export class TemplateService {
     if (page.workspaceId !== input.workspaceId) {
       throw badRequest('Страница не принадлежит этому воркспейсу')
     }
+    await this.assertTagsExist(input.tagIds ?? [])
 
     const member = await this.repo.findMembership(actorUserId, input.workspaceId)
     const isPageCreator = page.createdById === actorUserId
 
     if (input.scope === 'GLOBAL') {
       if (!canCreateGlobalTemplate({ role: member?.role })) {
-        throw forbidden(
-          'Создание глобальных шаблонов недоступно. Глобальные шаблоны добавляются администратором.',
-        )
+        throw forbidden('Недостаточно прав для создания шаблона')
       }
     } else if (!canCreateWorkspaceTemplate({ isPageCreator, role: member?.role })) {
       throw forbidden('Недостаточно прав для создания шаблона')
     }
 
-    return this.uow.transaction(() => this.repo.createFromPage(actorUserId, input, page))
+    return this.uow.transaction(async () => {
+      const backingPageId = await this.createBackingPage(actorUserId, input.workspaceId, {
+        content: page.content,
+        contentYjs: page.contentYjs,
+        icon: page.icon,
+      })
+      return this.repo.createFromPage(actorUserId, input, page, backingPageId)
+    })
   }
 
   async createPageFromTemplate(
@@ -172,7 +235,7 @@ export class TemplateService {
   ): Promise<CreateTemplateResultDto> {
     const template = await this.repo.findForWrite(input.templateId)
     if (!template) throw notFound('Шаблон не найден')
-    await this.assertWriteAccess(actorUserId, template, input.workspaceId)
+    await this.assertTemplateWriteAccess(actorUserId, template, input.workspaceId)
     return this.uow.transaction(() => this.repo.update(actorUserId, input))
   }
 
@@ -183,7 +246,7 @@ export class TemplateService {
   ): Promise<CreateTemplateResultDto> {
     const template = await this.repo.findForWrite(input.templateId)
     if (!template) throw notFound('Шаблон не найден')
-    await this.assertWriteAccess(actorUserId, template, input.workspaceId)
+    await this.assertTemplateWriteAccess(actorUserId, template, input.workspaceId)
     return this.uow.transaction(() =>
       this.repo.updateContent(
         actorUserId,
@@ -200,29 +263,31 @@ export class TemplateService {
   ): Promise<DeleteTemplateResultDto> {
     const template = await this.repo.findForWrite(input.templateId)
     if (!template) throw notFound('Шаблон не найден')
-    await this.assertWriteAccess(actorUserId, template, input.workspaceId)
+    await this.assertTemplateWriteAccess(actorUserId, template, input.workspaceId)
     await this.uow.transaction(() => this.repo.softDelete(actorUserId, input.templateId))
     return { count: 1 }
   }
 
-  /**
-   * Mutating a GLOBAL template is never allowed for normal users (no global
-   * admin). A WORKSPACE template may be managed by a writable member of its
-   * owning workspace.
-   */
-  private async assertWriteAccess(
+  private async assertTemplateWriteAccess(
     actorUserId: string,
-    template: { scope: PageTemplateScope; workspaceId: string | null },
+    template: { scope: PageTemplateScope; workspaceId: string | null; createdById: string | null },
     workspaceId: string,
   ): Promise<void> {
     if (template.scope === 'GLOBAL') {
-      throw forbidden('Глобальные шаблоны нельзя изменять')
+      if (!canEditGlobalTemplate({ actorUserId, createdById: template.createdById })) {
+        throw forbidden('Изменять глобальный шаблон может только его создатель')
+      }
+      return
     }
-    if (template.workspaceId !== workspaceId) {
-      throw notFound('Шаблон не найден')
-    }
+    if (template.workspaceId !== workspaceId) throw notFound('Шаблон не найден')
     const member = await this.repo.findMembership(actorUserId, workspaceId)
-    if (!canCreateWorkspaceTemplate({ isPageCreator: false, role: member?.role })) {
+    if (
+      !canEditWorkspaceTemplate({
+        actorUserId,
+        createdById: template.createdById,
+        role: member?.role,
+      })
+    ) {
       throw forbidden('Недостаточно прав для управления шаблоном')
     }
   }

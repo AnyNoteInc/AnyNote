@@ -19,7 +19,7 @@ function makeUow(): UnitOfWork {
 
 function makePages(): PageService {
   return {
-    create: vi.fn(async () => ({ id: 'new-page' })),
+    create: vi.fn(async () => ({ id: 'backing-1' })),
   } as unknown as PageService
 }
 
@@ -41,6 +41,9 @@ function makeRepo(
     searchCandidates: vi.fn(async () => []),
     listByWorkspace: vi.fn(async () => []),
     listGlobal: vi.fn(async () => []),
+    listTags: vi.fn(async () => []),
+    marketplaceCandidates: vi.fn(async () => []),
+    countExistingTags: vi.fn(async () => 0),
     findContent: vi.fn(async () => ({
       id: 't1',
       workspaceId: 'w1',
@@ -53,10 +56,12 @@ function makeRepo(
     })),
     createFromPage: vi.fn(async () => ({ id: 't-new' })),
     incrementUsage: vi.fn(async () => undefined),
+    // Default: actor 'u1' is the creator of template 't1'
     findForWrite: vi.fn(async () => ({
       id: 't1',
       scope: PageTemplateScope.WORKSPACE,
       workspaceId: 'w1',
+      createdById: 'u1',
     })),
     update: vi.fn(async () => ({ id: 't1' })),
     softDelete: vi.fn(async () => ({ id: 't1' })),
@@ -68,11 +73,12 @@ function makeRepo(
       title: 'Tmpl',
       description: null,
       icon: '📋',
-      category: null,
       type: PageType.TEXT,
       content: { type: 'doc', content: [] },
+      backingPageId: 'bp1',
     })),
     updateContent: vi.fn(async () => ({ id: 't1' })),
+    linkTags: vi.fn(async () => undefined),
     ...overrides,
   } as unknown as TemplateRepository
 }
@@ -110,18 +116,29 @@ describe('TemplateService.createFromPage', () => {
     ).rejects.toMatchObject({ httpStatus: 404 })
   })
 
-  it('forbids GLOBAL templates for normal users', async () => {
-    repo = makeRepo({ findMembership: vi.fn(async () => ({ role: 'OWNER' })) })
+  it('allows any workspace member to create a GLOBAL template', async () => {
+    repo = makeRepo({ findMembership: vi.fn(async () => ({ role: 'EDITOR' })) })
     svc = new TemplateService(repo, makeUow(), makePages())
-    await expect(
-      svc.createFromPage('u1', {
-        pageId: 'p1',
-        workspaceId: 'w1',
-        title: 'X',
-        scope: PageTemplateScope.GLOBAL,
-      }),
-    ).rejects.toMatchObject({ httpStatus: 403 })
-    expect(repo.createFromPage).not.toHaveBeenCalled()
+    const res = await svc.createFromPage('u1', {
+      pageId: 'p1',
+      workspaceId: 'w1',
+      title: 'X',
+      scope: PageTemplateScope.GLOBAL,
+    })
+    expect(res).toEqual({ id: 't-new' })
+    expect(repo.createFromPage).toHaveBeenCalledOnce()
+  })
+
+  it('allows any accessible-page owner to create a GLOBAL template (no role required)', async () => {
+    repo = makeRepo({ findMembership: vi.fn(async () => null) })
+    svc = new TemplateService(repo, makeUow(), makePages())
+    const res = await svc.createFromPage('u1', {
+      pageId: 'p1',
+      workspaceId: 'w1',
+      title: 'X',
+      scope: PageTemplateScope.GLOBAL,
+    })
+    expect(res).toEqual({ id: 't-new' })
   })
 
   it('forbids a non-creator read-only member from creating a workspace template', async () => {
@@ -184,7 +201,7 @@ describe('TemplateService.createPageFromTemplate', () => {
       workspaceId: 'w1',
       parentId: null,
     })
-    expect(res).toEqual({ id: 'new-page' })
+    expect(res).toEqual({ id: 'backing-1' })
     expect(pages.create).toHaveBeenCalledOnce()
     expect(repo.incrementUsage).toHaveBeenCalledWith('t1')
   })
@@ -260,33 +277,35 @@ describe('TemplateService.createPageFromTemplate', () => {
 describe('TemplateService.search', () => {
   it('groups and ranks candidates by relevance', async () => {
     const now = new Date('2026-01-01')
+    const baseSummary = {
+      description: null,
+      icon: null,
+      type: PageType.TEXT,
+      usageCount: 0,
+      averageRating: 0,
+      ratingCount: 0,
+      previewColor: null,
+      tags: [],
+      author: { name: 'AnyNote' },
+      createdById: null,
+      createdAt: now,
+      updatedAt: now,
+    }
     const repo = makeRepo({
       searchCandidates: vi.fn(async () => [
         {
+          ...baseSummary,
           id: 'g',
           workspaceId: null,
           scope: PageTemplateScope.GLOBAL,
           title: 'Plan template',
-          description: null,
-          icon: null,
-          category: null,
-          type: PageType.TEXT,
-          usageCount: 0,
-          createdAt: now,
-          updatedAt: now,
         },
         {
+          ...baseSummary,
           id: 'w',
           workspaceId: 'w1',
           scope: PageTemplateScope.WORKSPACE,
           title: 'My plan',
-          description: null,
-          icon: null,
-          category: null,
-          type: PageType.TEXT,
-          usageCount: 0,
-          createdAt: now,
-          updatedAt: now,
         },
       ]),
     })
@@ -298,12 +317,13 @@ describe('TemplateService.search', () => {
 })
 
 describe('TemplateService.delete / update', () => {
-  it('refuses to mutate a GLOBAL template', async () => {
+  it('refuses to mutate a GLOBAL template when actor is not its creator', async () => {
     const repo = makeRepo({
       findForWrite: vi.fn(async () => ({
         id: 'g1',
         scope: PageTemplateScope.GLOBAL,
         workspaceId: null,
+        createdById: 'other-user',
       })),
     })
     const svc = new TemplateService(repo, makeUow(), makePages())
@@ -312,12 +332,57 @@ describe('TemplateService.delete / update', () => {
     })
   })
 
-  it('soft-deletes a workspace template for a writable member', async () => {
+  it('allows the creator of a GLOBAL template to delete it', async () => {
+    const repo = makeRepo({
+      findForWrite: vi.fn(async () => ({
+        id: 'g1',
+        scope: PageTemplateScope.GLOBAL,
+        workspaceId: null,
+        createdById: 'u1',
+      })),
+    })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    const res = await svc.delete('u1', { templateId: 'g1', workspaceId: 'w1' })
+    expect(res).toEqual({ count: 1 })
+  })
+
+  it('soft-deletes a workspace template for the creator', async () => {
     const repo = makeRepo()
     const svc = new TemplateService(repo, makeUow(), makePages())
     const res = await svc.delete('u1', { templateId: 't1', workspaceId: 'w1' })
     expect(res).toEqual({ count: 1 })
     expect(repo.softDelete).toHaveBeenCalledWith('u1', 't1')
+  })
+
+  it('forbids editing a workspace template by non-creator non-admin EDITOR', async () => {
+    const repo = makeRepo({
+      findForWrite: vi.fn(async () => ({
+        id: 't1',
+        scope: PageTemplateScope.WORKSPACE,
+        workspaceId: 'w1',
+        createdById: 'other-user',
+      })),
+      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
+    })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    await expect(svc.delete('u1', { templateId: 't1', workspaceId: 'w1' })).rejects.toMatchObject({
+      httpStatus: 403,
+    })
+  })
+
+  it('allows OWNER to edit a workspace template they did not create', async () => {
+    const repo = makeRepo({
+      findForWrite: vi.fn(async () => ({
+        id: 't1',
+        scope: PageTemplateScope.WORKSPACE,
+        workspaceId: 'w1',
+        createdById: 'other-user',
+      })),
+      findMembership: vi.fn(async () => ({ role: 'OWNER' })),
+    })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    const res = await svc.delete('u1', { templateId: 't1', workspaceId: 'w1' })
+    expect(res).toEqual({ count: 1 })
   })
 })
 
@@ -352,9 +417,9 @@ describe('TemplateService.getById', () => {
       title: 'T',
       description: null,
       icon: null,
-      category: null,
       type: PageType.TEXT,
       content: { type: 'doc', content: [] },
+      backingPageId: 'bp1',
     }
     const repo = makeRepo({
       findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
@@ -385,9 +450,9 @@ describe('TemplateService.getById', () => {
         title: 'T',
         description: null,
         icon: null,
-        category: null,
         type: PageType.TEXT,
         content: null,
+        backingPageId: null,
       })),
     })
     const svc = new TemplateService(repo, makeUow(), makePages())
@@ -398,9 +463,15 @@ describe('TemplateService.getById', () => {
 })
 
 describe('TemplateService.updateContent', () => {
-  it('updates content for a writable member, forwarding derived bytes', async () => {
+  it('updates content for the creator of a workspace template, forwarding derived bytes', async () => {
     const repo = makeRepo({
-      findForWrite: vi.fn(async () => ({ id: 't1', scope: PageTemplateScope.WORKSPACE, workspaceId: 'w1' })),
+      // actor 'u1' is the creator
+      findForWrite: vi.fn(async () => ({
+        id: 't1',
+        scope: PageTemplateScope.WORKSPACE,
+        workspaceId: 'w1',
+        createdById: 'u1',
+      })),
       findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
       updateContent: vi.fn(async () => ({ id: 't1' })),
     })
@@ -415,13 +486,112 @@ describe('TemplateService.updateContent', () => {
     expect(repo.updateContent).toHaveBeenCalledWith('u1', 't1', { type: 'doc', content: [] }, bytes)
   })
 
-  it('forbids editing a GLOBAL template', async () => {
+  it('forbids editing a GLOBAL template when actor is not the creator', async () => {
     const repo = makeRepo({
-      findForWrite: vi.fn(async () => ({ id: 't1', scope: PageTemplateScope.GLOBAL, workspaceId: null })),
+      findForWrite: vi.fn(async () => ({
+        id: 't1',
+        scope: PageTemplateScope.GLOBAL,
+        workspaceId: null,
+        createdById: 'other-user',
+      })),
     })
     const svc = new TemplateService(repo, makeUow(), makePages())
     await expect(
       svc.updateContent('u1', { templateId: 't1', workspaceId: 'w1', content: {} }, null),
     ).rejects.toMatchObject({ httpStatus: 403 })
+  })
+
+  it('allows the creator of a GLOBAL template to update its content', async () => {
+    const repo = makeRepo({
+      findForWrite: vi.fn(async () => ({
+        id: 't1',
+        scope: PageTemplateScope.GLOBAL,
+        workspaceId: null,
+        createdById: 'u1',
+      })),
+      updateContent: vi.fn(async () => ({ id: 't1' })),
+    })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    const res = await svc.updateContent(
+      'u1',
+      { templateId: 't1', workspaceId: 'w1', content: { type: 'doc', content: [] } },
+      null,
+    )
+    expect(res).toEqual({ id: 't1' })
+  })
+})
+
+describe('TemplateService.listTags', () => {
+  it('delegates to repo.listTags', async () => {
+    const tags = [{ id: 'tag-1', slug: 'work', name: 'Work', icon: 'WorkOutlineIcon', position: 1 }]
+    const repo = makeRepo({ listTags: vi.fn(async () => tags) })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    const res = await svc.listTags()
+    expect(res).toEqual(tags)
+    expect(repo.listTags).toHaveBeenCalledOnce()
+  })
+})
+
+describe('TemplateService.listMarketplace', () => {
+  const now = new Date('2026-01-01')
+  const baseSummary = {
+    description: null,
+    icon: null,
+    type: PageType.TEXT,
+    averageRating: 0,
+    ratingCount: 0,
+    previewColor: null,
+    tags: [],
+    author: { name: 'AnyNote' },
+    createdById: null,
+    createdAt: now,
+    updatedAt: now,
+  }
+
+  it('requires workspace membership', async () => {
+    const repo = makeRepo({ findMembership: vi.fn(async () => null) })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    await expect(
+      svc.listMarketplace('u1', { workspaceId: 'w1' }),
+    ).rejects.toMatchObject({ httpStatus: 403 })
+  })
+
+  it('returns sectioned marketplace results with tags', async () => {
+    const tags = [{ id: 'tag-1', slug: 'work', name: 'Work', icon: 'WorkOutlineIcon', position: 1 }]
+    const candidates = [
+      { ...baseSummary, id: 'ws-1', workspaceId: 'w1', scope: PageTemplateScope.WORKSPACE, title: 'WS Template', usageCount: 10 },
+      { ...baseSummary, id: 'g-1', workspaceId: null, scope: PageTemplateScope.GLOBAL, title: 'Global Template', usageCount: 100 },
+    ]
+    const repo = makeRepo({
+      listTags: vi.fn(async () => tags),
+      marketplaceCandidates: vi.fn(async () => candidates),
+    })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    const res = await svc.listMarketplace('u1', { workspaceId: 'w1' })
+
+    expect(res.tags).toEqual(tags)
+    // workspaceTemplates filters to WORKSPACE scope
+    expect(res.workspaceTemplates.map((t) => t.id)).toEqual(['ws-1'])
+    // popularTemplates sorted by usageCount desc
+    expect(res.popularTemplates.map((t) => t.id)).toEqual(['g-1', 'ws-1'])
+    // allTemplates first limit items of candidates (usageCount desc from repo)
+    expect(res.allTemplates.map((t) => t.id)).toEqual(['ws-1', 'g-1'])
+  })
+
+  it('respects sectionLimit', async () => {
+    const candidates = Array.from({ length: 20 }, (_, i) => ({
+      ...baseSummary,
+      id: `t-${i}`,
+      workspaceId: 'w1',
+      scope: PageTemplateScope.WORKSPACE,
+      title: `Template ${i}`,
+      usageCount: i,
+    }))
+    const repo = makeRepo({ marketplaceCandidates: vi.fn(async () => candidates) })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    const res = await svc.listMarketplace('u1', { workspaceId: 'w1', sectionLimit: 3 })
+    expect(res.workspaceTemplates).toHaveLength(3)
+    expect(res.popularTemplates).toHaveLength(3)
+    expect(res.allTemplates).toHaveLength(3)
   })
 })

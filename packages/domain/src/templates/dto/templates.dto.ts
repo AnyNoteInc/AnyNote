@@ -22,8 +22,8 @@ export const createTemplateFromPageInput = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(2000).optional(),
   icon: z.string().nullable().optional(),
-  category: z.string().max(100).nullable().optional(),
   scope: z.nativeEnum(PageTemplateScope),
+  tagIds: z.array(z.string().uuid()).max(10).optional(),
 })
 export type CreateTemplateFromPageInput = z.infer<typeof createTemplateFromPageInput>
 
@@ -41,7 +41,7 @@ export const updateTemplateInput = z.object({
   title: z.string().min(1).max(200).optional(),
   description: z.string().max(2000).nullable().optional(),
   icon: z.string().nullable().optional(),
-  category: z.string().max(100).nullable().optional(),
+  tagIds: z.array(z.string().uuid()).max(10).optional(),
 })
 export type UpdateTemplateInput = z.infer<typeof updateTemplateInput>
 
@@ -56,7 +56,7 @@ export const createTemplateInput = z.object({
   title: z.string().min(1).max(200),
   description: z.string().max(2000).nullable().optional(),
   icon: z.string().nullable().optional(),
-  category: z.string().max(100).nullable().optional(),
+  tagIds: z.array(z.string().uuid()).max(10).optional(),
 })
 export type CreateTemplateInput = z.infer<typeof createTemplateInput>
 
@@ -76,6 +76,30 @@ export const updateTemplateContentInput = z.object({
 })
 export type UpdateTemplateContentInput = z.infer<typeof updateTemplateContentInput>
 
+export const listMarketplaceInput = z.object({
+  workspaceId: z.string().uuid(),
+  tagId: z.string().uuid().nullable().optional(),
+  query: z.string().max(200).optional(),
+  sectionLimit: z.number().int().min(1).max(50).optional(),
+})
+export type ListMarketplaceInput = z.infer<typeof listMarketplaceInput>
+
+export const listTagsInput = z.object({}).optional()
+
+// ── Tag / Author DTOs ─────────────────────────────────────────────────────────
+
+export interface TemplateTagDto {
+  id: string
+  slug: string
+  name: string
+  icon: string
+  position: number
+}
+
+export interface TemplateAuthorDto {
+  name: string // display name; "AnyNote" for seeded globals (createdById null)
+}
+
 // ── Row / output DTOs ─────────────────────────────────────────────────────────
 
 /**
@@ -89,9 +113,14 @@ export interface TemplateSummaryDto {
   title: string
   description: string | null
   icon: string | null
-  category: string | null
   type: PageType
   usageCount: number
+  averageRating: number
+  ratingCount: number
+  previewColor: string | null
+  tags: TemplateTagDto[]
+  author: TemplateAuthorDto
+  createdById: string | null
   createdAt: Date
   updatedAt: Date
 }
@@ -139,7 +168,14 @@ export interface TemplateDetailDto {
   title: string
   description: string | null
   icon: string | null
-  category: string | null
   type: PageType
   content: Prisma.JsonValue | null
+  backingPageId: string | null
+}
+
+export interface MarketplaceResultDto {
+  tags: TemplateTagDto[]
+  workspaceTemplates: TemplateSummaryDto[]
+  popularTemplates: TemplateSummaryDto[]
+  allTemplates: TemplateSummaryDto[]
 }
