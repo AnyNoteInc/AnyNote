@@ -122,8 +122,8 @@ test('full sidebar collapses to hidden, burger in toolbar reopens it', async ({ 
 test('trash shortcut in pages header navigates to trash', async ({ page }) => {
   await signInToWorkspace(page, 'trash-shortcut')
 
-  await page.getByRole('button', { name: 'Страницы' }).click()
-  await expect(page.getByRole('button', { name: 'Страницы' })).toHaveAttribute(
+  await page.getByRole('button', { name: 'Домашняя' }).click()
+  await expect(page.getByRole('button', { name: 'Домашняя' })).toHaveAttribute(
     'aria-pressed',
     'true',
   )
@@ -173,8 +173,7 @@ test('workspace sidebar switches between agent-oriented sections', async ({ page
   await expect(page).toHaveURL(new RegExp(`/workspaces/${workspaceId}/chats/new$`))
   await expect(page.getByRole('button', { name: 'Чаты' })).toHaveAttribute('aria-pressed', 'true')
   await expectSidebarButtonHighlighted(page, 'Чаты')
-  await expect(page.getByRole('button', { name: 'Страницы' })).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Настройки' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Домашняя' })).toBeVisible()
 
   await page.getByRole('button', { name: 'Поиск' }).hover()
   await expect(page.getByRole('tooltip', { name: /Поиск/ })).toBeVisible()
@@ -182,33 +181,40 @@ test('workspace sidebar switches between agent-oriented sections', async ({ page
   await expect(page.getByRole('dialog')).toBeVisible()
   await page.keyboard.press('Escape')
 
-  await page.getByRole('button', { name: 'Страницы' }).click()
-  await expectSidebarButtonHighlighted(page, 'Страницы')
+  await page.getByRole('button', { name: 'Домашняя' }).click()
+  await expectSidebarButtonHighlighted(page, 'Домашняя')
   await expect(page.getByRole('button', { name: 'Новая страница' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Корзина' })).toBeVisible()
   await page.getByRole('button', { name: 'Новая страница' }).click()
   await page.getByRole('menuitem', { name: 'Текст' }).click()
   await page.waitForURL(new RegExp(`/workspaces/${workspaceId}/pages/[a-f0-9-]{36}$`))
 
+  // Settings moved into a full-screen dialog opened from the space menu (owner-only).
+  // signInToWorkspace makes the signing-in user the OWNER of "Пространство".
+  await page.locator('aside').getByText('Пространство', { exact: true }).click()
   await page.getByRole('button', { name: 'Настройки' }).click()
-  await page.waitForURL(new RegExp(`/workspaces/${workspaceId}/settings/general$`))
-  await expectSidebarButtonHighlighted(page, 'Настройки')
-  await expect(page.getByRole('link', { name: 'Общее' })).toHaveAttribute('aria-current', 'page')
-  await expect(page.getByRole('link', { name: 'Участники' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'AI агент' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Файлы' })).toBeVisible()
-  await expect(page.getByRole('link', { name: 'Опасная зона' })).toBeVisible()
-  await expect(page.locator('main').getByRole('link', { name: 'Общее' })).toHaveCount(0)
+  const settingsDialog = page.getByRole('dialog')
+  await expect(settingsDialog).toBeVisible()
+  await expect(settingsDialog.getByRole('button', { name: 'Общее' })).toHaveAttribute(
+    'aria-current',
+    'page',
+  )
+  // Personal plan: Участники/AI агент/MCP серверы are hidden; the always-on nav
+  // buttons (Использование, Опасная зона) still render.
+  await expect(settingsDialog.getByRole('button', { name: 'Использование' })).toBeVisible()
+  await expect(settingsDialog.getByRole('button', { name: 'Опасная зона' })).toBeVisible()
+  await settingsDialog.getByRole('button', { name: 'Закрыть' }).click()
+  await expect(settingsDialog).toHaveCount(0)
 
+  // ⌘D / Alt+D switches the sidebar back to the Домашняя section.
   await page.keyboard.press(process.platform === 'darwin' ? 'Meta+D' : 'Alt+D')
-  await expect(page.getByRole('button', { name: 'Страницы' })).toHaveAttribute(
+  await expect(page.getByRole('button', { name: 'Домашняя' })).toHaveAttribute(
     'aria-pressed',
     'true',
   )
-  await expectSidebarButtonHighlighted(page, 'Страницы')
+  await expectSidebarButtonHighlighted(page, 'Домашняя')
 
   await page.getByRole('button', { name: 'Чаты' }).click()
-  await expect(page).toHaveURL(new RegExp(`/workspaces/${workspaceId}/settings/general$`))
   await expect(page.getByRole('button', { name: 'Чаты' })).toHaveAttribute('aria-pressed', 'true')
   await expectSidebarButtonHighlighted(page, 'Чаты')
   await expect(page.getByRole('button', { name: 'Новый чат' })).toBeVisible()
@@ -282,7 +288,7 @@ test('root page and chat rows do not render extra leading spacer', async ({ page
   await page.goto(`/workspaces/${workspaceId}/chats/new`)
   await expectSidebarLinkAlignedWithSection(page, 'Чат без отступа', 'Чаты')
 
-  await page.getByRole('button', { name: 'Страницы' }).click()
+  await page.getByRole('button', { name: 'Домашняя' }).click()
   await expectSidebarLinkAlignedWithSection(page, 'Страница без отступа', 'Страницы')
 })
 
