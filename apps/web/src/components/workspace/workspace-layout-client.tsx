@@ -13,12 +13,12 @@ import { PageCommentsProvider } from '@/components/page/comments/comments-contex
 import { CommentsSidebar } from '@/components/page/comments/comments-sidebar'
 import { ChatActionsToolbar } from '@/components/workspace/chat/chat-actions-toolbar'
 import { useFullWidth } from '@/hooks/use-full-width'
-import { useOutlineMode } from '@/hooks/use-outline-mode'
 
 import type { PlanFeatures } from '@repo/trpc'
 
 import { SearchDialogProvider } from '../search/search-dialog-provider'
 import { useSearchHotkey } from '../search/use-search-hotkey'
+import { SettingsDialogProvider } from './settings/settings-dialog-provider'
 import { WorkspaceShell } from './workspace-shell'
 import type { SidebarMode } from './workspace-shell'
 import { WorkspaceSidebar } from './workspace-sidebar'
@@ -37,11 +37,10 @@ type Props = {
 const STORAGE_KEY = 'workspace.sidebar.mode'
 const DEFAULT_MODE: SidebarMode = 'full'
 export const SIDEBAR_WIDTH = 313
-export type WorkspaceSidebarSection = 'chats' | 'pages' | 'settings'
+export type WorkspaceSidebarSection = 'chats' | 'pages'
 
 function sidebarSectionFromPathname(pathname: string): WorkspaceSidebarSection | null {
   if (pathname.includes('/chats')) return 'chats'
-  if (pathname.includes('/settings')) return 'settings'
   if (pathname.includes('/pages') || pathname.includes('/trash')) return 'pages'
   return null
 }
@@ -107,9 +106,6 @@ export function WorkspaceLayoutClient({
       if (activeChat) return [base, { label: activeChat.title ?? 'Без названия' }]
       return [base]
     }
-    if (pathname.includes('/settings')) {
-      return [{ label: 'Настройки' }]
-    }
     if (pathname.includes('/trash')) {
       return [{ label: 'Корзина' }]
     }
@@ -161,7 +157,6 @@ export function WorkspaceLayoutClient({
   const activePageType = activePageId ? pages.find((p) => p.id === activePageId)?.type : undefined
 
   const [fullWidth] = useFullWidth(activePageId ?? '')
-  const [outlineMode] = useOutlineMode(activePageId ?? '')
 
   // PageEditorProvider wraps BOTH the toolbar (so PageActionsMenu → PageExportDialog
   // can read the editor via usePageEditor) and the editor content (so PageRenderer
@@ -195,7 +190,6 @@ export function WorkspaceLayoutClient({
             overflowY: 'auto',
           }}
           data-full-width={fullWidth ? 'true' : 'false'}
-          data-outline-mode={activePageId ? outlineMode : undefined}
           className="page-content-scroll"
         >
           {children}
@@ -222,8 +216,17 @@ export function WorkspaceLayoutClient({
 
   return (
     <SearchDialogProvider workspaceId={workspace.id}>
-      <WorkspaceHotkeyMount workspaceId={workspace.id} onPages={() => setSidebarSection('pages')} />
-      <WorkspaceShell mode={mode} sidebar={sidebar} main={activePageId ? pageMain : mainContent} />
+      <SettingsDialogProvider workspaceId={workspace.id} currentUserId={user.id}>
+        <WorkspaceHotkeyMount
+          workspaceId={workspace.id}
+          onPages={() => setSidebarSection('pages')}
+        />
+        <WorkspaceShell
+          mode={mode}
+          sidebar={sidebar}
+          main={activePageId ? pageMain : mainContent}
+        />
+      </SettingsDialogProvider>
     </SearchDialogProvider>
   )
 }

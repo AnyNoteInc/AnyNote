@@ -37,6 +37,7 @@ export function DatePickerBody({ mode, value, onChange, onAccept, onCancel, conf
       >
         {mode === 'datetime' ? (
           <StaticDateTimePicker
+            key="datetime"
             value={value}
             onChange={onChange}
             onAccept={onAccept}
@@ -46,6 +47,7 @@ export function DatePickerBody({ mode, value, onChange, onAccept, onCancel, conf
           />
         ) : (
           <StaticDatePicker
+            key="date"
             value={value}
             onChange={onChange}
             onAccept={onAccept}

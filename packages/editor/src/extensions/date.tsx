@@ -71,7 +71,7 @@ function DateView({ node, updateAttributes, editor }: NodeViewProps) {
         <span>{label}</span>
       </Box>
       <Popover
-        open={Boolean(anchor)}
+        open={Boolean(anchor) && draft !== null}
         anchorEl={anchor}
         onClose={close}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}

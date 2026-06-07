@@ -3,9 +3,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 
 import type { Editor } from '@repo/editor'
-import { Box, Tooltip, Typography } from '@repo/ui/components'
-
-import type { OutlineMode } from '@/hooks/use-outline-mode'
+import { Box, Popover, Tooltip, Typography } from '@repo/ui/components'
 
 const SCROLL_CONTAINER_CLASS = 'page-content-scroll'
 const ACTIVE_OFFSET_PX = 96
@@ -14,6 +12,9 @@ const ACTIVE_OFFSET_PX = 96
 // "scroll into view on focus" which interrupts the smooth animation and
 // leaves the page parked at the wrong position.
 const FOCUS_DEFER_MS = 450
+// Grace period before the hover popover closes, so the pointer can travel
+// from the mini bars to the panel without it vanishing (a hover bridge).
+const HOVER_CLOSE_MS = 150
 
 const LEVEL_INDENT_PX: Record<1 | 2 | 3, number> = {
   1: 0,
@@ -67,23 +68,24 @@ function getScrollContainer(editor: Editor): HTMLElement | null {
 
 type Props = {
   editor: Editor | null
-  mode: OutlineMode
   // Extra px to shift the outline left from the right edge (e.g. when the
   // comments sidebar is open, so the fixed outline clears the panel).
   rightOffset?: number
 }
 
-export function EditorOutline({ editor, mode, rightOffset = 0 }: Props) {
+export function EditorOutline({ editor, rightOffset = 0 }: Props) {
   const [headings, setHeadings] = useState<Heading[]>([])
   const [activeIndex, setActiveIndex] = useState(0)
-  const scrollContainerRef = useRef<HTMLElement | null>(null)
+  const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
+  const panelScrollRef = useRef<HTMLElement | null>(null)
+  const closeTimerRef = useRef<number | null>(null)
   // Cached query of the editor's heading DOM nodes. Refreshed only when the
   // outline structure actually changes; the scroll handler reads it on every
   // frame and shouldn't pay for a fresh querySelectorAll each time.
   const domHeadingsRef = useRef<HTMLElement[]>([])
 
   useEffect(() => {
-    if (!editor || mode === 'off') {
+    if (!editor) {
       setHeadings([])
       domHeadingsRef.current = []
       return
@@ -100,10 +102,10 @@ export function EditorOutline({ editor, mode, rightOffset = 0 }: Props) {
     return () => {
       editor.off('update', sync)
     }
-  }, [editor, mode])
+  }, [editor])
 
   useEffect(() => {
-    if (!editor || mode === 'off') {
+    if (!editor) {
       setActiveIndex(0)
       return
     }
@@ -143,14 +145,11 @@ export function EditorOutline({ editor, mode, rightOffset = 0 }: Props) {
       window.removeEventListener('resize', onScroll)
       if (raf !== null) window.cancelAnimationFrame(raf)
     }
-  }, [editor, mode])
+  }, [editor])
 
-  // Keep the active item visible inside the outline's own scroll viewport.
-  // We adjust scrollTop manually instead of `scrollIntoView` so the page's
-  // outer scroll container (page-content-scroll) is never affected.
+  // Keep the active item visible inside the popover's own scroll viewport.
   useLayoutEffect(() => {
-    if (mode === 'off') return
-    const container = scrollContainerRef.current
+    const container = panelScrollRef.current
     if (!container) return
     const target = container.querySelector<HTMLElement>(`[data-outline-index="${activeIndex}"]`)
     if (!target) return
@@ -162,15 +161,39 @@ export function EditorOutline({ editor, mode, rightOffset = 0 }: Props) {
     } else if (targetRect.bottom > containerRect.bottom - padding) {
       container.scrollTop += targetRect.bottom - containerRect.bottom + padding
     }
-  }, [activeIndex, mode, headings.length])
+  }, [activeIndex, anchorEl, headings.length])
 
-  if (!editor || mode === 'off') return null
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current !== null) window.clearTimeout(closeTimerRef.current)
+    }
+  }, [])
+
+  if (!editor) return null
+
+  const cancelClose = () => {
+    if (closeTimerRef.current !== null) {
+      window.clearTimeout(closeTimerRef.current)
+      closeTimerRef.current = null
+    }
+  }
+
+  const openPanel = (event: React.MouseEvent<HTMLElement>) => {
+    cancelClose()
+    setAnchorEl(event.currentTarget)
+  }
+
+  const scheduleClose = () => {
+    cancelClose()
+    closeTimerRef.current = window.setTimeout(() => {
+      setAnchorEl(null)
+      closeTimerRef.current = null
+    }, HOVER_CLOSE_MS)
+  }
 
   // Drives the scroll explicitly on `.page-content-scroll` so we never rely on
-  // the browser walking up to find the right scrolling ancestor — earlier we
-  // saw the wrong container scroll on some pages. Calling `editor.commands.focus`
-  // mid-animation also fights the smooth scroll, so we defer it past the
-  // animation budget.
+  // the browser walking up to find the right scrolling ancestor. Focusing mid-
+  // animation fights the smooth scroll, so defer it past the animation budget.
   const handleClick = (index: number, heading: Heading) => {
     const target = domHeadingsRef.current[index]
     if (!target) return
@@ -189,14 +212,17 @@ export function EditorOutline({ editor, mode, rightOffset = 0 }: Props) {
     }, FOCUS_DEFER_MS)
   }
 
-  const isEmpty = headings.length === 0
+  if (headings.length === 0) return null
 
-  if (mode === 'mini') {
-    return (
+  const open = Boolean(anchorEl)
+
+  return (
+    <>
       <Box
         component="nav"
-        ref={scrollContainerRef}
         aria-label="Содержание страницы"
+        onMouseEnter={openPanel}
+        onMouseLeave={scheduleClose}
         sx={{
           position: 'fixed',
           top: 80,
@@ -213,186 +239,164 @@ export function EditorOutline({ editor, mode, rightOffset = 0 }: Props) {
           pointerEvents: 'auto',
         }}
       >
-        {isEmpty ? (
-          <Tooltip title="Добавьте заголовки, чтобы увидеть навигацию" placement="left">
-            <Box
-              aria-hidden
-              sx={{
-                width: 18,
-                height: 3,
-                borderRadius: 1.5,
-                bgcolor: 'action.disabledBackground',
-              }}
-            />
-          </Tooltip>
-        ) : (
-          headings.map((heading, index) => {
-            const isActive = index === activeIndex
-            const label = heading.text || 'Без названия'
-            return (
-              <Tooltip
-                key={`${heading.pos}-${index}`}
-                title={label}
-                placement="left"
-                enterDelay={120}
+        {headings.map((heading, index) => {
+          const isActive = index === activeIndex
+          const label = heading.text || 'Без названия'
+          return (
+            <Tooltip
+              key={`${heading.pos}-${index}`}
+              title={label}
+              placement="left"
+              enterDelay={120}
+            >
+              <Box
+                component="button"
+                type="button"
+                data-outline-index={index}
+                onClick={() => handleClick(index, heading)}
+                aria-current={isActive ? 'true' : undefined}
+                aria-label={label}
+                sx={{
+                  border: 'none',
+                  outline: 'none',
+                  background: 'transparent',
+                  cursor: 'pointer',
+                  p: 0.5,
+                  display: 'flex',
+                  justifyContent: 'flex-end',
+                  alignItems: 'center',
+                  minWidth: 32,
+                  transition: 'opacity 120ms ease',
+                  '&:hover .anynote-outline-bar': {
+                    bgcolor: 'text.primary',
+                    opacity: 1,
+                  },
+                  '&:focus-visible .anynote-outline-bar': {
+                    bgcolor: 'primary.main',
+                    opacity: 1,
+                  },
+                }}
               >
                 <Box
-                  component="button"
-                  type="button"
-                  data-outline-index={index}
-                  onClick={() => handleClick(index, heading)}
-                  aria-current={isActive ? 'true' : undefined}
-                  aria-label={label}
+                  className="anynote-outline-bar"
                   sx={{
-                    border: 'none',
-                    outline: 'none',
-                    background: 'transparent',
-                    cursor: 'pointer',
-                    p: 0.5,
-                    display: 'flex',
-                    justifyContent: 'flex-end',
-                    alignItems: 'center',
-                    minWidth: 32,
-                    transition: 'opacity 120ms ease',
-                    '&:hover .anynote-outline-bar': {
-                      bgcolor: 'text.primary',
-                      opacity: 1,
-                    },
-                    '&:focus-visible .anynote-outline-bar': {
-                      bgcolor: 'primary.main',
-                      opacity: 1,
-                    },
+                    width: MINI_BAR_WIDTH_PX[heading.level],
+                    height: 3,
+                    borderRadius: 1.5,
+                    bgcolor: isActive ? 'primary.main' : 'text.secondary',
+                    opacity: isActive ? 1 : 0.45,
+                    transition: 'background-color 120ms ease, opacity 120ms ease, width 120ms ease',
                   }}
-                >
-                  <Box
-                    className="anynote-outline-bar"
-                    sx={{
-                      width: MINI_BAR_WIDTH_PX[heading.level],
-                      height: 3,
-                      borderRadius: 1.5,
-                      bgcolor: isActive ? 'primary.main' : 'text.secondary',
-                      opacity: isActive ? 1 : 0.45,
-                      transition:
-                        'background-color 120ms ease, opacity 120ms ease, width 120ms ease',
-                    }}
-                  />
-                </Box>
-              </Tooltip>
-            )
-          })
-        )}
+                />
+              </Box>
+            </Tooltip>
+          )
+        })}
       </Box>
-    )
-  }
 
-  return (
-    <Box
-      component="nav"
-      ref={scrollContainerRef}
-      aria-label="Содержание страницы"
-      sx={{
-        position: 'fixed',
-        top: 80,
-        right: 24 + rightOffset,
-        transition: 'right 0.15s ease',
-        width: 248,
-        maxHeight: 'calc(100vh - 96px)',
-        overflowY: 'auto',
-        zIndex: 5,
-        display: { xs: 'none', lg: 'block' },
-        pointerEvents: 'auto',
-      }}
-    >
-      <Typography
-        component="h2"
-        sx={{
-          color: 'text.secondary',
-          fontSize: 11,
-          fontWeight: 600,
-          letterSpacing: '0.06em',
-          textTransform: 'uppercase',
-          px: 1,
-          mb: 0.75,
+      <Popover
+        open={open}
+        anchorEl={anchorEl}
+        onClose={() => setAnchorEl(null)}
+        anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
+        transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        disableRestoreFocus
+        disableAutoFocus
+        disableEnforceFocus
+        disableScrollLock
+        sx={{ pointerEvents: 'none' }}
+        slotProps={{
+          paper: {
+            onMouseEnter: cancelClose,
+            onMouseLeave: scheduleClose,
+            sx: {
+              pointerEvents: 'auto',
+              width: 264,
+              maxHeight: 'calc(100vh - 120px)',
+              overflowY: 'auto',
+              p: 1,
+              mr: 1,
+            },
+          },
         }}
       >
-        Содержание
-      </Typography>
-      {isEmpty ? (
-        <Typography
-          variant="caption"
-          sx={{
-            color: 'text.disabled',
-            display: 'block',
-            px: 1,
-            py: 0.75,
-            fontSize: 12,
-            lineHeight: 1.5,
-          }}
-        >
-          Добавьте заголовки, чтобы увидеть навигацию
-        </Typography>
-      ) : (
-        <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0 }}>
-          {headings.map((heading, index) => {
-            const isActive = index === activeIndex
-            const text = heading.text
-            const label = text || 'Без названия'
-            return (
-              <Box component="li" key={`${heading.pos}-${index}`} sx={{ m: 0 }}>
-                <Box
-                  component="button"
-                  type="button"
-                  data-outline-index={index}
-                  onClick={() => handleClick(index, heading)}
-                  aria-current={isActive ? 'true' : undefined}
-                  aria-label={label}
-                  sx={{
-                    width: '100%',
-                    textAlign: 'left',
-                    border: 'none',
-                    background: 'transparent',
-                    cursor: 'pointer',
-                    font: 'inherit',
-                    color: isActive ? 'text.primary' : 'text.secondary',
-                    fontSize: 13,
-                    lineHeight: 1.4,
-                    py: 0.625,
-                    pr: 1,
-                    pl: `${10 + LEVEL_INDENT_PX[heading.level]}px`,
-                    borderLeft: '2px solid',
-                    borderLeftColor: isActive ? 'primary.main' : 'transparent',
-                    borderTopRightRadius: 6,
-                    borderBottomRightRadius: 6,
-                    fontWeight: isActive ? 600 : 400,
-                    display: 'block',
-                    whiteSpace: 'nowrap',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    transition:
-                      'background-color 120ms ease, color 120ms ease, border-color 120ms ease',
-                    '&:hover': {
-                      bgcolor: 'action.hover',
-                      color: 'text.primary',
-                    },
-                    '&:focus-visible': {
-                      outline: 'none',
-                      bgcolor: 'action.hover',
-                      color: 'text.primary',
-                      boxShadow: (theme) => `inset 0 0 0 2px ${theme.palette.primary.main}`,
-                    },
-                  }}
-                >
-                  {text || (
-                    <Box component="span" sx={{ fontStyle: 'italic', opacity: 0.7 }}>
-                      Без названия
-                    </Box>
-                  )}
+        <Box ref={panelScrollRef}>
+          <Typography
+            component="h2"
+            sx={{
+              color: 'text.secondary',
+              fontSize: 11,
+              fontWeight: 600,
+              letterSpacing: '0.06em',
+              textTransform: 'uppercase',
+              px: 1,
+              mb: 0.75,
+            }}
+          >
+            Содержание
+          </Typography>
+          <Box component="ul" sx={{ listStyle: 'none', m: 0, p: 0 }}>
+            {headings.map((heading, index) => {
+              const isActive = index === activeIndex
+              const text = heading.text
+              const label = text || 'Без названия'
+              return (
+                <Box component="li" key={`${heading.pos}-${index}`} sx={{ m: 0 }}>
+                  <Box
+                    component="button"
+                    type="button"
+                    data-outline-index={index}
+                    onClick={() => handleClick(index, heading)}
+                    aria-current={isActive ? 'true' : undefined}
+                    aria-label={label}
+                    sx={{
+                      width: '100%',
+                      textAlign: 'left',
+                      border: 'none',
+                      background: 'transparent',
+                      cursor: 'pointer',
+                      font: 'inherit',
+                      color: isActive ? 'text.primary' : 'text.secondary',
+                      fontSize: 13,
+                      lineHeight: 1.4,
+                      py: 0.625,
+                      pr: 1,
+                      pl: `${10 + LEVEL_INDENT_PX[heading.level]}px`,
+                      borderLeft: '2px solid',
+                      borderLeftColor: isActive ? 'primary.main' : 'transparent',
+                      borderTopRightRadius: 6,
+                      borderBottomRightRadius: 6,
+                      fontWeight: isActive ? 600 : 400,
+                      display: 'block',
+                      whiteSpace: 'nowrap',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      transition:
+                        'background-color 120ms ease, color 120ms ease, border-color 120ms ease',
+                      '&:hover': {
+                        bgcolor: 'action.hover',
+                        color: 'text.primary',
+                      },
+                      '&:focus-visible': {
+                        outline: 'none',
+                        bgcolor: 'action.hover',
+                        color: 'text.primary',
+                        boxShadow: (theme) => `inset 0 0 0 2px ${theme.palette.primary.main}`,
+                      },
+                    }}
+                  >
+                    {text || (
+                      <Box component="span" sx={{ fontStyle: 'italic', opacity: 0.7 }}>
+                        Без названия
+                      </Box>
+                    )}
+                  </Box>
                 </Box>
-              </Box>
-            )
-          })}
+              )
+            })}
+          </Box>
         </Box>
-      )}
-    </Box>
+      </Popover>
+    </>
   )
 }

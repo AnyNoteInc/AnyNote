@@ -1,9 +1,11 @@
+import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../trpc'
 import { requireWritableWorkspace } from '../helpers/plan'
 import { assertWorkspaceMember, assertPageAccess } from '../helpers/page-access'
 import * as domain from '@repo/domain'
 import { mapDomain } from '../helpers/map-domain'
 import { domain as domainSvc } from '../domain'
+import { deriveTemplateContentYjs } from '../helpers/template-content'
 
 // ── Router ───────────────────────────────────────────────────────────────────
 
@@ -63,5 +65,35 @@ export const templateRouter = router({
       await assertWorkspaceMember(ctx, input.workspaceId)
       await requireWritableWorkspace(input.workspaceId)
       return mapDomain(() => domainSvc.templates.delete(ctx.user.id, input))
+    }),
+
+  create: protectedProcedure
+    .input(domain.createTemplateInput)
+    .mutation(async ({ ctx, input }): Promise<{ id: string }> => {
+      await assertWorkspaceMember(ctx, input.workspaceId)
+      await requireWritableWorkspace(input.workspaceId)
+      return mapDomain(() => domainSvc.templates.create(ctx.user.id, input))
+    }),
+
+  getById: protectedProcedure
+    .input(domain.getTemplateInput)
+    .query(async ({ ctx, input }) => {
+      await assertWorkspaceMember(ctx, input.workspaceId)
+      return mapDomain(() => domainSvc.templates.getById(ctx.user.id, input))
+    }),
+
+  updateContent: protectedProcedure
+    .input(domain.updateTemplateContentInput)
+    .mutation(async ({ ctx, input }): Promise<{ id: string }> => {
+      await assertWorkspaceMember(ctx, input.workspaceId)
+      await requireWritableWorkspace(input.workspaceId)
+      const contentYjs = deriveTemplateContentYjs(input.content)
+      if (contentYjs === null) {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'Содержимое шаблона должно быть документом ProseMirror',
+        })
+      }
+      return mapDomain(() => domainSvc.templates.updateContent(ctx.user.id, input, contentYjs))
     }),
 })

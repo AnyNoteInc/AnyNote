@@ -26,7 +26,6 @@ function renderSwitcher(chatsEnabled: boolean) {
       onChats={noop}
       onPages={noop}
       onSearch={noop}
-      onSettings={noop}
     />,
   )
 }
@@ -43,7 +42,22 @@ describe('WorkspaceSectionSwitcher', () => {
     renderSwitcher(false)
     expect(screen.queryByRole('button', { name: 'Чаты' })).not.toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Поиск' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Страницы' })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: 'Настройки' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Домашняя' })).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Настройки' })).not.toBeInTheDocument()
+  })
+
+  it('renders the active section as a pressed pill', () => {
+    render(
+      <WorkspaceSectionSwitcher
+        activeSection="chats"
+        chatsEnabled={true}
+        onChats={noop}
+        onPages={noop}
+        onSearch={noop}
+      />,
+    )
+    expect(screen.getByRole('button', { name: 'Чаты', pressed: true })).toBeInTheDocument()
+    // Домашняя is inactive (icon-only) → not pressed
+    expect(screen.getByRole('button', { name: 'Домашняя' })).not.toHaveAttribute('aria-pressed')
   })
 })

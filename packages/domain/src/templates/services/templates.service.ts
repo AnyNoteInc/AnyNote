@@ -1,4 +1,4 @@
-import type { PageTemplateScope } from '@repo/db'
+import type { PageTemplateScope, Prisma } from '@repo/db'
 
 import { badRequest, forbidden, notFound } from '../../shared/errors.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
@@ -7,11 +7,15 @@ import type {
   CreatePageFromTemplateInput,
   CreatePageFromTemplateResultDto,
   CreateTemplateFromPageInput,
+  CreateTemplateInput,
   CreateTemplateResultDto,
   DeleteTemplateInput,
   DeleteTemplateResultDto,
+  GetTemplateInput,
   SearchTemplatesResult,
+  TemplateDetailDto,
   TemplateSummaryDto,
+  UpdateTemplateContentInput,
   UpdateTemplateInput,
 } from '../dto/templates.dto.ts'
 import type { TemplateRepository } from '../repositories/templates.repository.ts'
@@ -72,7 +76,31 @@ export class TemplateService {
     return this.repo.listGlobal()
   }
 
+  async getById(
+    actorUserId: string,
+    input: GetTemplateInput,
+  ): Promise<TemplateDetailDto> {
+    await this.assertMembership(actorUserId, input.workspaceId)
+    const template = await this.repo.findDetail(input.templateId)
+    if (!template) throw notFound('Шаблон не найден')
+    if (template.scope === 'WORKSPACE' && template.workspaceId !== input.workspaceId) {
+      throw notFound('Шаблон не найден')
+    }
+    return template
+  }
+
   // ── Writes ──────────────────────────────────────────────────────────────────
+
+  async create(
+    actorUserId: string,
+    input: CreateTemplateInput,
+  ): Promise<CreateTemplateResultDto> {
+    const member = await this.assertMembership(actorUserId, input.workspaceId)
+    if (!canCreateWorkspaceTemplate({ isPageCreator: false, role: member.role })) {
+      throw forbidden('Недостаточно прав для создания шаблона')
+    }
+    return this.uow.transaction(() => this.repo.create(actorUserId, input))
+  }
 
   async createFromPage(
     actorUserId: string,
@@ -146,6 +174,24 @@ export class TemplateService {
     if (!template) throw notFound('Шаблон не найден')
     await this.assertWriteAccess(actorUserId, template, input.workspaceId)
     return this.uow.transaction(() => this.repo.update(actorUserId, input))
+  }
+
+  async updateContent(
+    actorUserId: string,
+    input: UpdateTemplateContentInput,
+    contentYjs: Uint8Array<ArrayBuffer> | null,
+  ): Promise<CreateTemplateResultDto> {
+    const template = await this.repo.findForWrite(input.templateId)
+    if (!template) throw notFound('Шаблон не найден')
+    await this.assertWriteAccess(actorUserId, template, input.workspaceId)
+    return this.uow.transaction(() =>
+      this.repo.updateContent(
+        actorUserId,
+        input.templateId,
+        input.content as Prisma.InputJsonValue,
+        contentYjs,
+      ),
+    )
   }
 
   async delete(

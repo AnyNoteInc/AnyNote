@@ -1,15 +1,14 @@
 import { notFound } from 'next/navigation'
 
 import { getServerTRPC } from '@/trpc/server'
-import { UsageSection } from '@/components/workspace/settings/usage-section'
+import { TemplatesPage } from '@/components/templates/templates-page'
 
 type Props = { params: Promise<{ workspaceId: string }> }
 
-export default async function WorkspaceUsagePage({ params }: Props) {
+export default async function WorkspaceTemplatesPage({ params }: Props) {
   const { workspaceId } = await params
   const trpc = await getServerTRPC()
   const workspace = await trpc.workspace.getById({ id: workspaceId })
   if (!workspace) notFound()
-  const usage = await trpc.workspace.getUsage({ workspaceId })
-  return <UsageSection {...usage} />
+  return <TemplatesPage workspaceId={workspaceId} />
 }

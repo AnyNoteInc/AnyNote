@@ -7,11 +7,16 @@ import { useSearchHotkey } from '@/components/search/use-search-hotkey'
 
 const mocks = vi.hoisted(() => ({
   openSearch: vi.fn(),
+  openSettings: vi.fn(),
   push: vi.fn(),
 }))
 
 vi.mock('@/components/search/search-dialog-provider', () => ({
   useSearchDialog: () => ({ open: mocks.openSearch, close: vi.fn(), isOpen: false }),
+}))
+
+vi.mock('@/components/workspace/settings/settings-dialog-provider', () => ({
+  useSettingsDialog: () => ({ open: mocks.openSettings, close: vi.fn(), isOpen: false }),
 }))
 
 vi.mock('next/navigation', () => ({
@@ -62,7 +67,8 @@ describe('useSearchHotkey', () => {
 
     const event = dispatchShortcut({ key: ',', metaKey: true })
 
-    expect(mocks.push).toHaveBeenCalledWith('/workspaces/workspace-1/settings/general')
+    expect(mocks.openSettings).toHaveBeenCalledWith('general')
+    expect(mocks.push).not.toHaveBeenCalled()
     expect(event.defaultPrevented).toBe(true)
   })
 
@@ -72,7 +78,8 @@ describe('useSearchHotkey', () => {
 
     const event = dispatchShortcut({ key: ',', altKey: true })
 
-    expect(mocks.push).toHaveBeenCalledWith('/workspaces/workspace-1/settings/general')
+    expect(mocks.openSettings).toHaveBeenCalledWith('general')
+    expect(mocks.push).not.toHaveBeenCalled()
     expect(event.defaultPrevented).toBe(true)
   })
 })

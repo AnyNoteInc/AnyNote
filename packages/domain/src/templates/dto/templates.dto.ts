@@ -51,6 +51,31 @@ export const deleteTemplateInput = z.object({
 })
 export type DeleteTemplateInput = z.infer<typeof deleteTemplateInput>
 
+export const createTemplateInput = z.object({
+  workspaceId: z.string().uuid(),
+  title: z.string().min(1).max(200),
+  description: z.string().max(2000).nullable().optional(),
+  icon: z.string().nullable().optional(),
+  category: z.string().max(100).nullable().optional(),
+})
+export type CreateTemplateInput = z.infer<typeof createTemplateInput>
+
+export const getTemplateInput = z.object({
+  templateId: z.string().uuid(),
+  workspaceId: z.string().uuid(),
+})
+export type GetTemplateInput = z.infer<typeof getTemplateInput>
+
+export const updateTemplateContentInput = z.object({
+  templateId: z.string().uuid(),
+  workspaceId: z.string().uuid(),
+  // ProseMirror/Tiptap JSON document snapshot (always an object, e.g.
+  // { type: 'doc', content: [...] }). contentYjs is derived from this in the
+  // tRPC layer, keeping @repo/domain dependency-light.
+  content: z.record(z.string(), z.unknown()),
+})
+export type UpdateTemplateContentInput = z.infer<typeof updateTemplateContentInput>
+
 // ── Row / output DTOs ─────────────────────────────────────────────────────────
 
 /**
@@ -101,4 +126,20 @@ export interface TemplateContentDto {
   type: PageType
   content: Prisma.JsonValue | null
   contentYjs: Uint8Array<ArrayBuffer> | null
+}
+
+/**
+ * Template detail used by the management editor: metadata plus the JSON
+ * content snapshot (never the Yjs bytes, which the client doesn't read).
+ */
+export interface TemplateDetailDto {
+  id: string
+  workspaceId: string | null
+  scope: PageTemplateScope
+  title: string
+  description: string | null
+  icon: string | null
+  category: string | null
+  type: PageType
+  content: Prisma.JsonValue | null
 }

@@ -8,7 +8,6 @@ const mocks = vi.hoisted(() => ({
   duplicate: vi.fn(),
   openDeleteConfirm: vi.fn(),
   setFullWidth: vi.fn(),
-  setOutlineMode: vi.fn(),
 }))
 
 vi.mock('@/hooks/use-page-actions', () => ({
@@ -22,10 +21,6 @@ vi.mock('@/hooks/use-page-actions', () => ({
 
 vi.mock('@/hooks/use-full-width', () => ({
   useFullWidth: () => [false, mocks.setFullWidth],
-}))
-
-vi.mock('@/hooks/use-outline-mode', () => ({
-  useOutlineMode: () => ['full', mocks.setOutlineMode],
 }))
 
 vi.mock('@/components/workspace/move-page-dialog', () => ({

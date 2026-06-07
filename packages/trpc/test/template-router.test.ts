@@ -234,6 +234,58 @@ describe('template router (integration)', () => {
     ).rejects.toThrow(/Шаблон не найден/i)
   })
 
+  it('create makes an empty WORKSPACE template', async () => {
+    const owner = await makeUser('c1')
+    const ws = await makeWorkspaceWithOwner(owner.id)
+    const caller = makeCaller(owner.id)
+
+    const { id } = await caller.create({ workspaceId: ws.id, title: 'Blank doc' })
+    const row = await prisma.pageTemplate.findUniqueOrThrow({ where: { id } })
+    expect(row.scope).toBe(PageTemplateScope.WORKSPACE)
+    expect(row.workspaceId).toBe(ws.id)
+    expect(row.title).toBe('Blank doc')
+    expect(row.type).toBe(PageType.TEXT)
+  })
+
+  it('getById returns the template detail with content', async () => {
+    const owner = await makeUser('c2')
+    const ws = await makeWorkspaceWithOwner(owner.id)
+    const caller = makeCaller(owner.id)
+    const { id } = await caller.create({ workspaceId: ws.id, title: 'Read me' })
+
+    const detail = await caller.getById({ templateId: id, workspaceId: ws.id })
+    expect(detail.id).toBe(id)
+    expect(detail.title).toBe('Read me')
+  })
+
+  it('updateContent persists JSON and derives contentYjs', async () => {
+    const owner = await makeUser('c3')
+    const ws = await makeWorkspaceWithOwner(owner.id)
+    const caller = makeCaller(owner.id)
+    const { id } = await caller.create({ workspaceId: ws.id, title: 'Editable' })
+
+    const content = {
+      type: 'doc',
+      content: [{ type: 'paragraph', content: [{ type: 'text', text: 'hi' }] }],
+    }
+    await caller.updateContent({ templateId: id, workspaceId: ws.id, content })
+
+    const row = await prisma.pageTemplate.findUniqueOrThrow({ where: { id } })
+    expect(row.content).toEqual(content)
+    expect(row.contentYjs).not.toBeNull()
+  })
+
+  it('updateContent rejects non-document content', async () => {
+    const owner = await makeUser('c4')
+    const ws = await makeWorkspaceWithOwner(owner.id)
+    const caller = makeCaller(owner.id)
+    const { id } = await caller.create({ workspaceId: ws.id, title: 'Guarded' })
+
+    await expect(
+      caller.updateContent({ templateId: id, workspaceId: ws.id, content: { notADoc: true } }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+  })
+
   it('search excludes soft-deleted templates', async () => {
     const owner = await makeUser('g')
     const ws = await makeWorkspaceWithOwner(owner.id)

@@ -29,6 +29,7 @@ export interface AnyNotePlainEditorProps {
   readonly placeholder?: string
   readonly className?: string
   readonly editable?: boolean
+  readonly onChange?: (value: JSONContent) => void
   readonly onBlurSave: (value: JSONContent) => void
 }
 
@@ -174,6 +175,7 @@ export function AnyNotePlainEditor({
   placeholder = "Введите '/' для команд",
   className,
   editable = true,
+  onChange,
   onBlurSave,
 }: AnyNotePlainEditorProps) {
   const editor = useEditor({
@@ -189,6 +191,9 @@ export function AnyNotePlainEditor({
       Typography,
       buildPlaceholder(placeholder),
     ],
+    onUpdate: ({ editor: ed }) => {
+      onChange?.(ed.getJSON())
+    },
     onBlur: ({ editor: ed }) => {
       onBlurSave(ed.getJSON())
     },
