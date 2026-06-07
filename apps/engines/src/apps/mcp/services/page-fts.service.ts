@@ -67,7 +67,7 @@ export class PageFtsService {
       FROM "pages"
       WHERE "workspace_id" = ${workspaceId}::uuid
         AND "deleted_at" IS NULL
-        AND "archived" = false
+        AND "archived_at" IS NULL
         AND "search_vector" @@ websearch_to_tsquery(${PG_DICT}, ${query})
       ORDER BY ts_rank("search_vector", websearch_to_tsquery(${PG_DICT}, ${query})) DESC
       LIMIT ${RESULT_LIMIT}

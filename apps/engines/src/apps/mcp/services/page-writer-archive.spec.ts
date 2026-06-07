@@ -28,7 +28,7 @@ describe('PageWriter.setArchived', () => {
     await new PageWriter(prisma, fakeDomain).setArchived({ userId: 'u1', workspaceId: 'w1', pageId: 'p1', archived: true })
     expect(update).toHaveBeenCalledWith({
       where: { id: 'p1' },
-      data: { archived: true, updatedById: 'u1' },
+      data: { archivedAt: expect.any(Date), archivedById: 'u1', updatedById: 'u1' },
     })
   })
 

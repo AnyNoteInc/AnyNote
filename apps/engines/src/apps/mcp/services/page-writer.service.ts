@@ -177,7 +177,9 @@ export class PageWriter {
       if (page?.workspaceId !== input.workspaceId) throw new PageNotFoundError(input.pageId)
       await tx.page.update({
         where: { id: input.pageId },
-        data: { archived: input.archived, updatedById: input.userId },
+        data: input.archived
+          ? { archivedAt: new Date(), archivedById: input.userId, updatedById: input.userId }
+          : { archivedAt: null, archivedById: null, updatedById: input.userId },
       })
       await tx.outboxEvent.create({
         data: {

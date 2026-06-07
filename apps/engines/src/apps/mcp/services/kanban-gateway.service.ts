@@ -47,7 +47,7 @@ export class KanbanGateway {
         workspaceId,
         type: 'KANBAN',
         deletedAt: null,
-        archived: false,
+        archivedAt: null,
         workspace: { members: { some: { userId } } },
       },
       select: { id: true, title: true },

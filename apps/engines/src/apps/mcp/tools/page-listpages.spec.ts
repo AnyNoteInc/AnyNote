@@ -31,7 +31,7 @@ describe('PageTools.listPages', () => {
     expect(out.pages).toEqual([{ id: 'p1', title: 'Root', type: 'TEXT', icon: null, parentId: null }])
     expect(pageFindMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: { workspaceId: 'w1', archived: false, deletedAt: null, parentId: null },
+        where: { workspaceId: 'w1', archivedAt: null, deletedAt: null, parentId: null },
       }),
     )
   })

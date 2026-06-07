@@ -309,7 +309,7 @@ export class PageTools {
     const pages = await this.prisma.page.findMany({
       where: {
         workspaceId: args.workspaceId,
-        archived: false,
+        archivedAt: null,
         deletedAt: null,
         ...(args.parentId === undefined ? {} : { parentId: args.parentId }),
         ...(args.type ? { type: args.type } : {}),
