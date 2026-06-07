@@ -92,7 +92,7 @@ export async function searchPg(
     WHERE "workspace_id" = ${workspaceId}::uuid
       AND "deleted_at" IS NULL
       AND "archived" = false
-      AND "is_template_backing" = false
+      AND "is_template" IS NULL
       AND "search_vector" @@ websearch_to_tsquery(${PG_DICT}, ${query})
     ORDER BY ts_rank("search_vector", websearch_to_tsquery(${PG_DICT}, ${query})) DESC
     LIMIT ${RESULT_LIMIT}
@@ -213,7 +213,7 @@ export async function searchQdrant(
     if (ids.length === 0) return []
 
     const pages = await prisma.page.findMany({
-      where: { id: { in: ids }, workspaceId, deletedAt: null, archived: false, isTemplateBacking: false },
+      where: { id: { in: ids }, workspaceId, deletedAt: null, archived: false, isTemplate: null },
       select: { id: true, icon: true },
     })
     const iconMap = new Map(pages.map((page) => [page.id, page.icon]))

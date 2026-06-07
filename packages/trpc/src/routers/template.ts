@@ -1,37 +1,13 @@
-import { TRPCError } from '@trpc/server'
 import { router, protectedProcedure } from '../trpc'
 import { requireWritableWorkspace } from '../helpers/plan'
 import { assertWorkspaceMember, assertPageAccess } from '../helpers/page-access'
 import * as domain from '@repo/domain'
 import { mapDomain } from '../helpers/map-domain'
 import { domain as domainSvc } from '../domain'
-import { deriveTemplateContentYjs } from '../helpers/template-content'
 
 // ── Router ───────────────────────────────────────────────────────────────────
 
 export const templateRouter = router({
-  // Search workspace + global templates by query. Page-type fallback (empty
-  // query → show creatable types) lives in the UI; this only returns templates.
-  search: protectedProcedure
-    .input(domain.searchTemplatesInput)
-    .query(async ({ ctx, input }) => {
-      await assertWorkspaceMember(ctx, input.workspaceId)
-      return mapDomain(() => domainSvc.templates.search(ctx.user.id, input))
-    }),
-
-  // For a future workspace-template management page.
-  listByWorkspace: protectedProcedure
-    .input(domain.listWorkspaceTemplatesInput)
-    .query(async ({ ctx, input }) => {
-      await assertWorkspaceMember(ctx, input.workspaceId)
-      return mapDomain(() => domainSvc.templates.listByWorkspace(ctx.user.id, input))
-    }),
-
-  // For a future global template gallery. Visible to any authenticated user.
-  listGlobal: protectedProcedure.query(async () => {
-    return mapDomain(() => domainSvc.templates.listGlobal())
-  }),
-
   // Marketplace listing: workspace section + popular + all, filtered by tag/query.
   listMarketplace: protectedProcedure
     .input(domain.listMarketplaceInput)
@@ -44,6 +20,14 @@ export const templateRouter = router({
   listTags: protectedProcedure.query(async () => {
     return mapDomain(() => domainSvc.templates.listTags())
   }),
+
+  // Procedure name kept as `getById` so the web client keeps working; it
+  // delegates to the service's `getTemplate`.
+  getById: protectedProcedure
+    .input(domain.getTemplateInput)
+    .query(async ({ ctx, input }) => {
+      return mapDomain(() => domainSvc.templates.getTemplate(ctx.user.id, input))
+    }),
 
   createFromPage: protectedProcedure
     .input(domain.createTemplateFromPageInput)
@@ -67,6 +51,9 @@ export const templateRouter = router({
   update: protectedProcedure
     .input(domain.updateTemplateInput)
     .mutation(async ({ ctx, input }): Promise<{ id: string }> => {
+      // The caller must be a member of *their own* workspace (input.workspaceId);
+      // the domain's `update` does the real authz (creator-only canEdit) and, for
+      // GLOBAL templates, re-checks against the system workspace it actually lives in.
       await assertWorkspaceMember(ctx, input.workspaceId)
       await requireWritableWorkspace(input.workspaceId)
       return mapDomain(() => domainSvc.templates.update(ctx.user.id, input))
@@ -78,49 +65,5 @@ export const templateRouter = router({
       await assertWorkspaceMember(ctx, input.workspaceId)
       await requireWritableWorkspace(input.workspaceId)
       return mapDomain(() => domainSvc.templates.delete(ctx.user.id, input))
-    }),
-
-  create: protectedProcedure
-    .input(domain.createTemplateInput)
-    .mutation(async ({ ctx, input }): Promise<{ id: string }> => {
-      await assertWorkspaceMember(ctx, input.workspaceId)
-      await requireWritableWorkspace(input.workspaceId)
-      return mapDomain(() => domainSvc.templates.create(ctx.user.id, input))
-    }),
-
-  getById: protectedProcedure
-    .input(domain.getTemplateInput)
-    .query(async ({ ctx, input }) => {
-      await assertWorkspaceMember(ctx, input.workspaceId)
-      return mapDomain(() => domainSvc.templates.getById(ctx.user.id, input))
-    }),
-
-  /**
-   * Fetch the backing page for a template that the actor can access.
-   * Unlike `trpc.page.getById`, this bypasses the workspace-membership filter
-   * on the page — required for GLOBAL templates whose backing page lives in a
-   * different workspace than the URL workspace. Access is still gated by
-   * `getById` (workspace membership for the URL workspace + scope check).
-   */
-  getBackingPage: protectedProcedure
-    .input(domain.getTemplateInput)
-    .query(async ({ ctx, input }) => {
-      await assertWorkspaceMember(ctx, input.workspaceId)
-      return mapDomain(() => domainSvc.templates.getBackingPage(ctx.user.id, input))
-    }),
-
-  updateContent: protectedProcedure
-    .input(domain.updateTemplateContentInput)
-    .mutation(async ({ ctx, input }): Promise<{ id: string }> => {
-      await assertWorkspaceMember(ctx, input.workspaceId)
-      await requireWritableWorkspace(input.workspaceId)
-      const contentYjs = deriveTemplateContentYjs(input.content)
-      if (contentYjs === null) {
-        throw new TRPCError({
-          code: 'BAD_REQUEST',
-          message: 'Содержимое шаблона должно быть документом ProseMirror',
-        })
-      }
-      return mapDomain(() => domainSvc.templates.updateContent(ctx.user.id, input, contentYjs))
     }),
 })

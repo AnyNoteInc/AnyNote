@@ -59,7 +59,7 @@ export const pageRouter = router({
           workspaceId: input.workspaceId,
           archived: false,
           deletedAt: null,
-          isTemplateBacking: false,
+          isTemplate: null,
         },
         orderBy: { createdAt: 'asc' },
         select: {
@@ -136,7 +136,7 @@ export const pageRouter = router({
         where: {
           workspaceId: input.workspaceId,
           deletedAt: { not: null },
-          isTemplateBacking: false,
+          isTemplate: null,
         },
         orderBy: { deletedAt: 'desc' },
         select: {
@@ -223,7 +223,7 @@ export const pageRouter = router({
           page: {
             workspaceId: input.workspaceId,
             deletedAt: null,
-            isTemplateBacking: false,
+            isTemplate: null,
           },
         },
         include: {
