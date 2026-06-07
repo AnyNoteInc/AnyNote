@@ -141,17 +141,35 @@ The 8 seeded tags (slug → name → icon, in display order):
 - **Author** = existing `createdById` relation. Seeded globals show a system
   author label **"AnyNote"** (createdById null → label fallback).
 
-### Decision 4 — Anyone can publish a global template; authors own theirs
+### Decision 4 — Anyone can create; edit/delete is tiered by scope
 
-- `canCreateGlobalTemplate` allows **any authenticated workspace member**
-  (no role gate). The "Save as template" dialog gains a scope toggle
-  (Пространство / Глобальный) for everyone.
+**Create (open to all):**
+
+- Any authenticated workspace member can create a WORKSPACE **or** GLOBAL
+  template. `canCreateGlobalTemplate` flips from `() => false` to allow any
+  member (satisfies requirement #3). The "Save as template" dialog gains a scope
+  toggle (Пространство / Глобальный) for everyone.
 - Source-page read still requires membership of the page's workspace. Global
-  templates store `workspaceId = null`, `createdById = author`, and a
-  backing page in the author's workspace.
-- **Authors may edit and delete (soft-delete) their own global templates.**
-  Non-authors cannot edit or delete a global template they did not create.
-  Seeded globals (createdById null) remain immutable to normal users.
+  templates store `workspaceId = null`, `createdById = author`, and a backing
+  page in the author's workspace.
+
+**Edit / delete (tiered by scope):**
+
+- **GLOBAL template** — only its **creator** (`createdById`) may edit or
+  soft-delete it. Everyone else may view and use it only. Seeded globals have
+  `createdById = null`, so no normal user can edit them (immutable by
+  construction).
+- **WORKSPACE template** — only the workspace **OWNER**, an **ADMIN**, or the
+  template's **creator** may edit or soft-delete it. A plain EDITOR/COMMENTER/
+  VIEWER who did not create it cannot (stricter than today's
+  `canCreateWorkspaceTemplate`-based check).
+
+These rules are enforced in the domain layer via a new `assertTemplateWriteAccess`
+helper (replacing the current `assertWriteAccess`): it loads the template's
+`scope`, `workspaceId`, `createdById`, and — for WORKSPACE scope — the actor's
+membership role, then applies the matrix above. Pure decision logic
+(`canEditGlobalTemplate`, `canEditWorkspaceTemplate`) lives in
+`templates.helpers.ts` for unit testing.
 
 ## Data model changes
 
@@ -202,8 +220,9 @@ popularTemplates, allTemplates }` in one call. Each template summary is
   `usageCount`, and `preview` (color + icon). Accepts optional `tagId` filter
   and `query` search. "Популярные" orders by `usageCount`.
 - **`listTags`** (new): seeded tags for the tag row and the picker.
-- **`update`**: edit a WORKSPACE template's tags; edit/delete own GLOBAL
-  template (author check).
+- **`update` / `delete`**: gated by `assertTemplateWriteAccess` (Decision 4) —
+  GLOBAL: creator only; WORKSPACE: owner/admin/creator. `update` can change a
+  WORKSPACE template's tags.
 - **`getById`**: drives the editor via `backingPageId`.
 
 All domain methods keep the `fn(prisma, actorUserId, input)` + `DomainError`
@@ -248,9 +267,15 @@ increments stay inside the existing transactions.
 
 - Update the 3 existing template tests for new signatures (`tagIds`, scope,
   backing page).
-- Add domain tests: global-create allowed for any member; author edit/delete
-  of own global; tag validation rejects unknown tag ids; backing-page created
-  on template create; "from page" copies `contentYjs` (text not lost).
+- Add domain tests for the Decision 4 permission matrix:
+  - create: any member may create WORKSPACE and GLOBAL templates.
+  - GLOBAL edit/delete: allowed for creator, denied for any non-creator
+    (including owner/admin of any workspace); seeded globals (createdById null)
+    deny everyone.
+  - WORKSPACE edit/delete: allowed for owner, admin, and creator; denied for a
+    plain EDITOR who is not the creator.
+  - tag validation rejects unknown tag ids; backing-page created on template
+    create; "from page" copies `contentYjs` (text not lost).
 - Add a tRPC test for `listMarketplace` (sections, tag filter, search,
   enrichment).
 - Add one Playwright spec: sidebar → Маркетплейс → tag filter → use a template
