@@ -205,7 +205,6 @@ export function PageActionsMenu({
         open={exportOpen}
         onClose={() => setExportOpen(false)}
         pageId={pageId}
-        workspaceId={workspaceId}
       />
 
       <SaveAsTemplateDialog

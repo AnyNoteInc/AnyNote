@@ -18,7 +18,6 @@ type Props = {
   open: boolean
   onClose: () => void
   pageId: string
-  workspaceId: string
 }
 
 type Format = 'pdf' | 'html' | 'md'
@@ -29,8 +28,8 @@ const FORMAT_LABEL: Record<Format, string> = {
   md: 'Markdown',
 }
 
-function buildExportUrl(workspaceId: string, pageId: string, format: Format) {
-  return `/api/workspaces/${workspaceId}/pages/${pageId}/export/${format}`
+function buildExportUrl(pageId: string, format: Format) {
+  return `/api/pages/${pageId}/export/${format}`
 }
 
 function parseFilenameFromContentDisposition(header: string | null): string | null {
@@ -58,7 +57,7 @@ function triggerBlobDownload(blob: Blob, filename: string) {
   URL.revokeObjectURL(url)
 }
 
-export function PageExportDialog({ open, onClose, pageId, workspaceId }: Props) {
+export function PageExportDialog({ open, onClose, pageId }: Props) {
   const [pending, setPending] = useState<Format | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -66,7 +65,7 @@ export function PageExportDialog({ open, onClose, pageId, workspaceId }: Props) 
     setPending(format)
     setError(null)
     try {
-      const res = await fetch(buildExportUrl(workspaceId, pageId, format), {
+      const res = await fetch(buildExportUrl(pageId, format), {
         credentials: 'same-origin',
       })
       if (!res.ok) {
