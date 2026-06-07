@@ -31,7 +31,6 @@ import { TemplateMetaDialog } from './template-meta-dialog'
 type Props = {
   templateId: string
   workspaceId: string
-  backingPageId: string | null
   canEdit: boolean
   title: string
   icon: string | null
@@ -41,7 +40,6 @@ type Props = {
 export function TemplateActionsMenu({
   templateId,
   workspaceId,
-  backingPageId,
   canEdit,
   title,
   icon,
@@ -66,7 +64,8 @@ export function TemplateActionsMenu({
   }
 
   const handleExport = () => {
-    if (backingPageId) window.open(`/api/pages/${backingPageId}/export/md`, '_blank')
+    // A template IS a page, so its own id exports.
+    window.open(`/api/pages/${templateId}/export/md`, '_blank')
     closeMenu()
   }
 
@@ -114,14 +113,12 @@ export function TemplateActionsMenu({
           </ListItemIcon>
           <ListItemText>Копировать ссылку</ListItemText>
         </MenuItem>
-        {backingPageId && (
-          <MenuItem onClick={handleExport}>
-            <ListItemIcon>
-              <FileDownloadIcon fontSize="small" />
-            </ListItemIcon>
-            <ListItemText>Экспорт (Markdown)</ListItemText>
-          </MenuItem>
-        )}
+        <MenuItem onClick={handleExport}>
+          <ListItemIcon>
+            <FileDownloadIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Экспорт (Markdown)</ListItemText>
+        </MenuItem>
       </Menu>
 
       <TemplateMetaDialog

@@ -5,8 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   createFromPage: vi.fn(),
-  invalidateSearch: vi.fn(() => Promise.resolve()),
-  invalidateList: vi.fn(() => Promise.resolve()),
+  invalidateMarketplace: vi.fn(() => Promise.resolve()),
 }))
 
 vi.mock('@repo/ui/components', async (importOriginal) => {
@@ -25,8 +24,7 @@ vi.mock('@/trpc/client', () => ({
   trpc: {
     useUtils: () => ({
       template: {
-        search: { invalidate: mocks.invalidateSearch },
-        listByWorkspace: { invalidate: mocks.invalidateList },
+        listMarketplace: { invalidate: mocks.invalidateMarketplace },
       },
     }),
     template: {
@@ -108,8 +106,8 @@ describe('SaveAsTemplateDialog', () => {
       scope: 'WORKSPACE',
       tagIds: [],
     })
-    // onSuccess closes the dialog and invalidates the template caches.
-    expect(mocks.invalidateSearch).toHaveBeenCalled()
+    // onSuccess closes the dialog and invalidates the marketplace template list.
+    expect(mocks.invalidateMarketplace).toHaveBeenCalled()
     expect(onClose).toHaveBeenCalled()
   })
 

@@ -1,11 +1,7 @@
 import { redirect } from 'next/navigation'
 
-import { getServerTRPC } from '@/trpc/server'
-import { TemplatesPage } from '@/components/templates/templates-page'
-
-export default async function TemplatesRoute() {
-  const trpc = await getServerTRPC()
-  const workspace = await trpc.workspace.getActive()
-  if (!workspace) redirect('/workspaces/new')
-  return <TemplatesPage workspaceId={workspace.id} />
+// Templates are now Page rows surfaced through the marketplace; the standalone
+// "Шаблоны" management page (with its "create empty template" flow) is gone.
+export default function TemplatesRoute() {
+  redirect('/marketplace')
 }

@@ -12,7 +12,6 @@ type Props = {
   templateId: string
   workspaceId: string
   canEdit: boolean
-  backingPageId: string | null
   title: string
   icon: string | null
   description: string | null
@@ -27,7 +26,6 @@ export function TemplateActionsToolbar({
   templateId,
   workspaceId,
   canEdit,
-  backingPageId,
   title,
   icon,
   description,
@@ -60,7 +58,6 @@ export function TemplateActionsToolbar({
       <TemplateActionsMenu
         templateId={templateId}
         workspaceId={workspaceId}
-        backingPageId={backingPageId}
         canEdit={canEdit}
         title={title}
         icon={icon}

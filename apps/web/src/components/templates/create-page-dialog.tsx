@@ -77,13 +77,17 @@ export function CreatePageDialog({
     return undefined
   }, [open])
 
-  const searchQuery = trpc.template.search.useQuery(
+  const searchQuery = trpc.template.listMarketplace.useQuery(
     { workspaceId, query: debounced },
     { enabled: open && debounced.length > 0, staleTime: 0 },
   )
 
   const workspaceTemplates = (searchQuery.data?.workspaceTemplates ?? []) as TemplateSummary[]
-  const globalTemplates = (searchQuery.data?.globalTemplates ?? []) as TemplateSummary[]
+  // The marketplace returns a flat `allTemplates`; split out the GLOBAL ones for
+  // the dialog's "Глобальные шаблоны" section (workspace ones are already above).
+  const globalTemplates = ((searchQuery.data?.allTemplates ?? []) as TemplateSummary[]).filter(
+    (t) => t.scope === 'GLOBAL',
+  )
 
   const handleActivateTemplate = (t: TemplateSummary) => {
     if (isCreating) return

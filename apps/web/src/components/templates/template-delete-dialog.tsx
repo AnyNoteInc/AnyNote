@@ -24,7 +24,7 @@ export function TemplateDeleteDialog({ open, onClose, workspaceId, template }: P
   const utils = trpc.useUtils()
   const remove = trpc.template.delete.useMutation({
     onSuccess: () => {
-      invalidateTemplates(utils, workspaceId)
+      invalidateTemplates(utils)
       onClose()
     },
   })

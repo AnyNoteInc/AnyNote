@@ -208,7 +208,6 @@ export function WorkspaceLayoutClient({
                 templateId={activeTemplateId}
                 workspaceId={workspace.id}
                 canEdit={activeTemplate.data.canEdit}
-                backingPageId={activeTemplate.data.backingPageId}
                 title={activeTemplate.data.title}
                 icon={activeTemplate.data.icon}
                 description={activeTemplate.data.description}
