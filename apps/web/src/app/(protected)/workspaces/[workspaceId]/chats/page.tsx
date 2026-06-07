@@ -1,8 +1,16 @@
-import { redirect } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 
-type Props = { params: Promise<{ workspaceId: string }> }
+import { getServerTRPC } from '@/trpc/server'
 
-export default async function ChatsIndexPage({ params }: Props) {
+export default async function LegacyChatsIndex({
+  params,
+}: {
+  params: Promise<{ workspaceId: string }>
+}) {
   const { workspaceId } = await params
-  redirect(`/workspaces/${workspaceId}/chats/new`)
+  const trpc = await getServerTRPC()
+  const ws = await trpc.workspace.getById({ id: workspaceId })
+  if (!ws) notFound()
+  await trpc.workspace.setActive({ workspaceId })
+  redirect('/chats/new')
 }

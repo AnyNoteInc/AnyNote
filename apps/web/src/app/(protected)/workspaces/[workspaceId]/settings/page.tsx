@@ -1,8 +1,16 @@
-import { redirect } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 
-type Props = { params: Promise<{ workspaceId: string }> }
+import { getServerTRPC } from '@/trpc/server'
 
-export default async function WorkspaceSettingsIndex({ params }: Props) {
+export default async function LegacyWorkspaceSettings({
+  params,
+}: {
+  params: Promise<{ workspaceId: string }>
+}) {
   const { workspaceId } = await params
-  redirect(`/workspaces/${workspaceId}`)
+  const trpc = await getServerTRPC()
+  const ws = await trpc.workspace.getById({ id: workspaceId })
+  if (!ws) notFound()
+  await trpc.workspace.setActive({ workspaceId })
+  redirect('/app')
 }

@@ -1,8 +1,16 @@
-import { WorkspaceChatClient } from '@/components/workspace/chat/workspace-chat-client'
+import { notFound, redirect } from 'next/navigation'
 
-type Props = { params: Promise<{ workspaceId: string }> }
+import { getServerTRPC } from '@/trpc/server'
 
-export default async function NewChatPage({ params }: Props) {
+export default async function LegacyNewChat({
+  params,
+}: {
+  params: Promise<{ workspaceId: string }>
+}) {
   const { workspaceId } = await params
-  return <WorkspaceChatClient chatId={null} initialMessages={[]} workspaceId={workspaceId} />
+  const trpc = await getServerTRPC()
+  const ws = await trpc.workspace.getById({ id: workspaceId })
+  if (!ws) notFound()
+  await trpc.workspace.setActive({ workspaceId })
+  redirect('/chats/new')
 }

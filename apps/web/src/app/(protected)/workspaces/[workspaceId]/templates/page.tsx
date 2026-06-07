@@ -1,14 +1,16 @@
-import { notFound } from 'next/navigation'
+import { notFound, redirect } from 'next/navigation'
 
 import { getServerTRPC } from '@/trpc/server'
-import { TemplatesPage } from '@/components/templates/templates-page'
 
-type Props = { params: Promise<{ workspaceId: string }> }
-
-export default async function WorkspaceTemplatesPage({ params }: Props) {
+export default async function LegacyTemplates({
+  params,
+}: {
+  params: Promise<{ workspaceId: string }>
+}) {
   const { workspaceId } = await params
   const trpc = await getServerTRPC()
-  const workspace = await trpc.workspace.getById({ id: workspaceId })
-  if (!workspace) notFound()
-  return <TemplatesPage workspaceId={workspaceId} />
+  const ws = await trpc.workspace.getById({ id: workspaceId })
+  if (!ws) notFound()
+  await trpc.workspace.setActive({ workspaceId })
+  redirect('/templates')
 }
