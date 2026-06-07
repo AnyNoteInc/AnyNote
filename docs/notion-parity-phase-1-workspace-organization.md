@@ -107,3 +107,15 @@ not-yet-backfilled page stays accessible.
   not persisted view configs.
 - **No enterprise admin override.** Admins cannot inspect or audit private or archived content
   of other users. Deferred to an enterprise phase.
+
+## Follow-ups (minor, non-blocking)
+
+- **Comment realtime subscribe.** `comment.events.subscribe` (and the `comment-access` helper)
+  gate on workspace membership + PageShare, but do not yet apply `buildPageVisibilityWhere`.
+  A workspace member who knows a private page's id could subscribe to its comment-event stream
+  (no page content is exposed, only comment events). Add the visibility predicate to the comment
+  access path in a follow-up.
+- **Explicit `collectionId` on create is not workspace-validated.** `page.create` accepts an
+  explicit `collectionId`; the domain trusts it. This cannot reduce a page's visibility below the
+  caller's rights (worst case is making the page more visible, e.g. assigning to TEAM), but a
+  hardening pass should validate that the supplied collection belongs to the page's workspace.
