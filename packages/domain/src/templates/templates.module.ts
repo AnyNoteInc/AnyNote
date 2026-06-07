@@ -10,12 +10,11 @@ import { TEMPLATES } from './templates.tokens.ts'
 
 export const templatesModule = new ContainerModule(({ bind }) => {
   bind(TEMPLATES.Repository).toResolvedValue(
-    (uow) => new TemplateRepository(uow as UnitOfWork),
-    [SHARED.UnitOfWork],
+    (uow, pages) => new TemplateRepository(uow as UnitOfWork, pages as PageService),
+    [SHARED.UnitOfWork, PAGES.Service],
   )
   bind(TEMPLATES.Service).toResolvedValue(
-    (repo, uow, pages) =>
-      new TemplateService(repo as TemplateRepository, uow as UnitOfWork, pages as PageService),
-    [TEMPLATES.Repository, SHARED.UnitOfWork, PAGES.Service],
+    (repo, uow) => new TemplateService(repo as TemplateRepository, uow as UnitOfWork),
+    [TEMPLATES.Repository, SHARED.UnitOfWork],
   )
 })

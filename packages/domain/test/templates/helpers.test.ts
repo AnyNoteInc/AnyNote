@@ -3,7 +3,6 @@ import { describe, it, expect } from 'vitest'
 import { PageType, PageTemplateScope } from '@repo/db'
 
 import {
-  buildCreatePageFromTemplatePayload,
   canCreateGlobalTemplate,
   canCreateWorkspaceTemplate,
   canEditGlobalTemplate,
@@ -12,10 +11,7 @@ import {
   groupTemplatesByScope,
   sortTemplatesByRelevance,
 } from '../../src/templates/templates.helpers.ts'
-import type {
-  TemplateContentDto,
-  TemplateSummaryDto,
-} from '../../src/templates/dto/templates.dto.ts'
+import type { TemplateSummaryDto } from '../../src/templates/dto/templates.dto.ts'
 
 function summary(over: Partial<TemplateSummaryDto>): TemplateSummaryDto {
   return {
@@ -30,6 +26,7 @@ function summary(over: Partial<TemplateSummaryDto>): TemplateSummaryDto {
     averageRating: 0,
     ratingCount: 0,
     previewColor: null,
+    previewContent: null,
     tags: [],
     author: { name: 'AnyNote' },
     createdById: null,
@@ -171,59 +168,3 @@ describe('groupTemplatesByScope', () => {
   })
 })
 
-describe('buildCreatePageFromTemplatePayload', () => {
-  const template: TemplateContentDto = {
-    id: 't1',
-    workspaceId: null,
-    scope: PageTemplateScope.GLOBAL,
-    title: 'Weekly Review',
-    icon: '📋',
-    type: PageType.TEXT,
-    content: { type: 'doc', content: [] },
-    contentYjs: new Uint8Array(new ArrayBuffer(4)),
-  }
-
-  it('falls back to the template title when none is provided', () => {
-    const payload = buildCreatePageFromTemplatePayload(template, {
-      workspaceId: 'w1',
-      parentId: null,
-      title: undefined,
-    })
-    expect(payload.title).toBe('Weekly Review')
-    expect(payload.type).toBe(PageType.TEXT)
-    expect(payload.icon).toBe('📋')
-    expect(payload.content).toEqual({ type: 'doc', content: [] })
-    expect(payload.contentYjs).toBe(template.contentYjs)
-    expect(payload.workspaceId).toBe('w1')
-    expect(payload.parentId).toBeNull()
-  })
-
-  it('uses the provided title when non-empty', () => {
-    const payload = buildCreatePageFromTemplatePayload(template, {
-      workspaceId: 'w1',
-      parentId: 'p1',
-      title: '  My page  ',
-    })
-    expect(payload.title).toBe('My page')
-    expect(payload.parentId).toBe('p1')
-  })
-
-  it('falls back to template title when provided title is blank', () => {
-    const payload = buildCreatePageFromTemplatePayload(template, {
-      workspaceId: 'w1',
-      parentId: null,
-      title: '   ',
-    })
-    expect(payload.title).toBe('Weekly Review')
-  })
-
-  it('maps null content/icon to undefined for create input', () => {
-    const payload = buildCreatePageFromTemplatePayload(
-      { ...template, content: null, contentYjs: null, icon: null },
-      { workspaceId: 'w1', parentId: null, title: undefined },
-    )
-    expect(payload.content).toBeUndefined()
-    expect(payload.contentYjs).toBeUndefined()
-    expect(payload.icon).toBeUndefined()
-  })
-})
