@@ -312,10 +312,11 @@ export function WorkspaceSectionSwitcher({
   )
 }
 
-const SECTION_ACTIVE_SX = {
-  backgroundColor: 'rgba(201, 100, 66, 0.14)',
-  color: '#c96442',
-} as const
+const SECTION_ACTIVE_COLOR = '#c96442'
+const SECTION_ACTIVE_BG = 'rgba(201, 100, 66, 0.14)'
+const SECTION_ACTIVE_BG_HOVER = 'rgba(201, 100, 66, 0.2)'
+const SECTION_TRANSITION =
+  'flex-grow 0.28s cubic-bezier(0.2, 0, 0, 1), background-color 0.2s ease, color 0.2s ease'
 
 function SectionButton({
   active,
@@ -332,34 +333,48 @@ function SectionButton({
   tooltip: string
   onClick: () => void
 }) {
-  if (active) {
-    return (
-      <Button
-        onClick={onClick}
-        aria-label={ariaLabel}
-        aria-pressed
-        startIcon={icon}
-        size="medium"
-        sx={{
-          flex: 1,
-          minWidth: 0,
-          justifyContent: 'flex-start',
-          textTransform: 'none',
-          ...SECTION_ACTIVE_SX,
-          '&:hover': SECTION_ACTIVE_SX,
-        }}
-      >
+  const button = (
+    <Button
+      onClick={onClick}
+      aria-label={ariaLabel}
+      aria-pressed={active}
+      startIcon={icon}
+      size="medium"
+      disableElevation
+      sx={{
+        flexGrow: active ? 1 : 0,
+        flexShrink: 0,
+        minWidth: 0,
+        justifyContent: 'flex-start',
+        textTransform: 'none',
+        borderRadius: 999,
+        boxShadow: 'none',
+        overflow: 'hidden',
+        whiteSpace: 'nowrap',
+        transition: SECTION_TRANSITION,
+        color: active ? SECTION_ACTIVE_COLOR : 'text.secondary',
+        backgroundColor: active ? SECTION_ACTIVE_BG : 'transparent',
+        '& .MuiButton-startIcon': { mr: active ? 1 : 0, transition: 'margin 0.28s ease' },
+        '&:hover': {
+          boxShadow: 'none',
+          backgroundColor: active ? SECTION_ACTIVE_BG_HOVER : 'action.hover',
+          color: active ? SECTION_ACTIVE_COLOR : 'text.primary',
+        },
+        // Collapse the label to zero width when inactive so it animates open/closed.
+        '& .section-button-label': {
+          maxWidth: active ? 160 : 0,
+          opacity: active ? 1 : 0,
+          transition: 'max-width 0.28s cubic-bezier(0.2, 0, 0, 1), opacity 0.2s ease',
+        },
+      }}
+    >
+      <Box component="span" className="section-button-label" sx={{ overflow: 'hidden' }}>
         {label}
-      </Button>
-    )
-  }
-  return (
-    <Tooltip title={tooltip}>
-      <IconButton onClick={onClick} aria-label={ariaLabel} size="medium" sx={{ flexShrink: 0 }}>
-        {icon}
-      </IconButton>
-    </Tooltip>
+      </Box>
+    </Button>
   )
+  if (active) return button
+  return <Tooltip title={tooltip}>{button}</Tooltip>
 }
 
 function WorkspaceAvatar({ icon, size = 24 }: { icon: string | null; size?: number }) {

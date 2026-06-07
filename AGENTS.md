@@ -34,75 +34,75 @@ Copy `.env.example` to `.env` for local setup and keep secrets out of commits. U
 <claude-mem-context>
 # Memory Context
 
-# [anynote] recent context, 2026-05-25 9:56pm GMT+1
+# [anynote] recent context, 2026-06-07 1:27pm GMT+3
 
 Legend: 🎯session 🔴bugfix 🟣feature 🔄refactor ✅change 🔵discovery ⚖️decision 🚨security_alert 🔐security_note
 Format: ID TIME TYPE TITLE
 Fetch details: get_observations([IDs]) | Search: mem-search skill
 
-Stats: 50 obs (15,090t read) | 506,328t work | 97% savings
+Stats: 50 obs (20,405t read) | 671,937t work | 97% savings
 
-### May 25, 2026
-S754 Fix overlapping comment highlights on text pages — user confirmed issue is option 1: stacked amber highlight spans in editor text (May 25 at 4:04 PM)
-S755 Fix overlapping comment highlights on text pages — diagnosis complete, awaiting user confirmation before implementing fix (May 25 at 4:13 PM)
-S756 Fix overlapping comment highlights on text pages — COMPLETED: stacked amber decoration spans fixed via range-merging utility (May 25 at 4:16 PM)
-S758 4-task comment UX redesign — full architecture design proposed, awaiting user approval before implementation (May 25 at 4:48 PM)
-S757 4-task comment UX expansion: (1) Playwright visual check, (2) resolve button as icon, (3) #comment URL deep-link, (4) inline thread popover — starting new session after overlap fix (May 25 at 4:51 PM)
-S759 User approved comment UX redesign — implementation starting with resolve icon → #comment hash → inline popover (May 25 at 5:06 PM)
-S761 User committed prior changes and instructed to create branch feat/comments-popover and continue implementation there (May 25 at 5:09 PM)
-S762 feat/comments-popover — implement inline comment UX (popover, active highlight, #comment deep-link, resolve/reopen) with full TDD gate pass and E2E verification, then merge to main (May 25 at 5:28 PM)
-S760 Comment UX redesign — full spec written and finalized at docs/superpowers/specs/, awaiting user review before implementation plan (May 25 at 5:28 PM)
-3331 5:44p 🟣 Task 1 Committed: feat(comments): resolve/reopen as a top-right corner icon
-3332 " 🟣 Task 2 RED: comment-hash.test.ts Created with 3 Failing Tests
-3333 5:45p 🟣 Task 2 RED Confirmed: comment-hash module not found, 0 tests collected
-3334 " 🟣 comment-hash.ts Created: parseCommentHash Pure Utility Function
-3335 " 🟣 use-comment-hash.ts Created: hashchange Listener Hook for #comment Deep-Links
-3336 " 🟣 Task 2 GREEN: comment-hash Tests Pass, Lint Clean
-3337 " 🟣 Task 2 Committed: feat(comments): parse #comment-&lt;id&gt; deep-link hash
-3338 5:46p 🟣 Task 3 RED Start: comment-ranges.test.ts Import Updated for commentDecorationSpecs
-3339 " 🟣 Task 3: commentDecorationSpecs Implemented in comment-ranges.ts (GREEN Phase)
-3340 " 🟣 Task 3 comment-ranges GREEN: 12/12 Tests Pass; comments.ts Structure Confirmed
-3341 " 🟣 comments.ts Fully Refactored: Active Anchor State + commentDecorationSpecs + setActiveCommentAnchor
-3342 5:49p 🟣 Task 4: CommentPopover union type and context split — openThread replaced by openThreadPopover + openThreadInSidebar
-3343 7:31p 🟣 CommentPopover gets stable CSS class for E2E targeting
-3344 " 🟣 E2E spec extended with popover, highlight, and hash-navigation assertions
-3345 " 🔵 E2E test environment has no Yjs server — comment-highlight spans absent after reload
-3346 " 🔴 Strict-mode violation: `getByRole('button', { name: 'Комментарии' })` matched two elements
-3347 7:45p 🔵 E2E spec confirmed at 143 lines with canonical (a)/(b)/(c) structure — `.comment-highlight` still checked after reload
-3348 7:47p 🟣 E2E spec extended to verify inline comment popover, active highlight, and hash deep-link
-3349 " 🔴 MUI Tooltip popper intercepts highlight click — fixed with Escape + mouse.move
-3350 " 🟣 CommentPopover Paper tagged with className="comment-popover" for stable E2E targeting
-3351 " 🔵 Playwright env has no Yjs/Hocuspocus server — editor content lost on reload
-3352 " 🟣 feat/comments-popover branch complete — 9 commits, all gates green
-3353 9:05p 🟣 feat/comments-popover fast-forward merged to main and branch deleted
-3354 " ✅ Persistent memory note written: E2E no-yjs-persistence pattern and tooltip intercept gotcha
-3355 " ✅ MEMORY.md index updated with E2E no-yjs-server entry
-3356 9:12p 🔵 CommentsSidebar is sibling to main content box, inside the flex row below the toolbar
-3357 " 🔵 CommentPopover onResolve does not close the popover after resolving a thread
-3358 9:14p 🔴 CommentsSidebar now spans full viewport height alongside toolbar
-3359 " 🔴 CommentPopover closes on resolve and reopen actions
-3360 9:15p 🟣 E2E spec extended to verify popover closes on resolve
-3361 9:17p 🔴 CommentsSidebar Layout Fix — Full-Height Sidebar
-3362 " 🔴 Resolve/Reopen Thread Now Closes Comment Popover
-3363 " 🟣 E2E Spec Extended to Verify Both Comment Bug Fixes
-3364 " 🔵 Next.js 15 Single-Instance Lock Blocks Playwright WebServer Startup
-3365 9:28p 🔵 PID 69867 Respawns After kill — Managed by Parent Process 69838
-3366 " 🔵 E2E Test Ran But Failed — .comment-popover Not Found on Re-open Click
-3367 " 🔴 E2E Spec Fix — Resolve Popover Test No Longer Re-opens Highlight
-3368 9:29p 🔴 page-comments E2E Suite Passes — Both Fixes Verified
-3369 9:30p ✅ Full CI Gate Passes After Comment Panel Bug Fixes
-S763 Fix two comment panel bugs: (1) sidebar should span full viewport height beside toolbar, not below it; (2) clicking "Решить" should close the thread popover (May 25 at 9:30 PM)
-3370 9:34p 🔵 Comments Panel Z-Index / Stacking Issue Identified
-3371 " 🔵 Comments Feature Implementation Status on feat/comments-popover Branch
-3372 " 🔴 Comments Sidebar Vertical Positioning Fixed via Layout Restructure
-3373 " 🔴 Comment Popover Now Closes on Resolve/Reopen
-3374 " 🔵 Comments Feature on main Branch — Recent Commit History
-3375 " 🔴 Share Page Layout Also Fixed for Comments Sidebar Vertical Positioning
-3376 9:35p ✅ All Four Fixes Pass TypeScript and ESLint Gates
-3377 " 🔴 E2E Test Passes — All Comments Fixes Verified in Full Playwright Run
-3378 9:36p ✅ share-page-content Class Added to Share Page Content Box
-3379 " ✅ Share Page Sidebar Positioning Covered by E2E Test in page-sharing.spec.ts
-3380 9:37p 🔴 Share Page Sidebar Positioning Verified via E2E Test for Anonymous Visitors
+### Jun 7, 2026
+S1187 Anynote sidebar UI: pill-shaped buttons with animation + CommentIcon swap from ChatBubbleOutline to Comment — both changes implemented and verified (Jun 7 at 10:46 AM)
+S1186 Anynote sidebar button UI polish: rounder pill shape, no shadows, animated switching + CommentIcon swap from ChatBubbleOutline to Comment on all pages (Jun 7 at 10:49 AM)
+S1188 AnyNote Marketplace Expansion — deep investigation complete, data model design presented for approval (Jun 7 at 10:50 AM)
+S1189 AnyNote Marketplace Expansion — permissions + tRPC/domain layer design presented for Section 3 approval (Jun 7 at 10:54 AM)
+S1190 AnyNote Marketplace Expansion — full design across 5 sections complete, spec doc being written before implementation (Jun 7 at 10:55 AM)
+S1192 AnyNote Marketplace Expansion — design spec committed (second commit attempt, duplicate), implementation plan phase starting (Jun 7 at 10:56 AM)
+S1191 AnyNote Marketplace Expansion — design spec committed, awaiting final review before implementation plan (Jun 7 at 10:58 AM)
+S1193 AnyNote Marketplace Expansion — design spec minor title edit, still awaiting user spec review before implementation plan (Jun 7 at 10:59 AM)
+S1194 AnyNote Marketplace Expansion — design spec finalized with permission matrix, awaiting user approval before implementation plan (Jun 7 at 11:01 AM)
+S1195 Write implementation plan for AnyNote Marketplace/Templates 6-part expansion (Jun 7 at 11:09 AM)
+5395 11:09a ✅ Marketplace Worktree Initialized with Env Symlink and Dependencies
+5396 " ✅ Marketplace Worktree Bootstrap Complete: Prisma Client Generated, ESLint Config Built
+5397 " 🔵 Docker Compose Container Name Conflict in Worktree
+5398 11:10a 🔵 Domain Test Baseline: 225 Tests Pass in Worktree
+5399 " 🔵 tRPC Template Router Test Baseline: 11 Tests Pass
+5400 " 🔵 Subagent-Driven Development Skill: Three-Phase Review Per Task
+5401 " 🔵 @repo/ui Already Exports Card, CardActionArea, Chip, StarIcon — Task 1 Scope Narrower Than Expected
+5402 " 🔵 AnyNote Phase 1 Feature Plan: Collections, Personal Space, Drafts, Archive
+5407 " ⚖️ AnyNote Notion-Parity Review: Parallel Agent Per Phase File (cl1–cl9)
+5403 11:11a 🟣 Task 1 Complete: 5 Marketplace Tag Icons Added to @repo/ui
+5404 " 🟣 Task 1 Complete: @repo/ui Type-Check Passes with New Icons
+5405 " 🟣 Task 1 Shipped: Marketplace Tag Icons Committed to feat/marketplace-templates
+5406 " 🟣 Task 1 Spec-Compliance Review: DONE — Subagent Confirmed No Regressions
+5429 11:12a ✅ Task 9: listMarketplace and listTags procedures added to tRPC router
+5430 " 🔴 Pre-existing test "forbids a normal user from creating GLOBAL template" is failing — contradicts product decision
+5408 11:15a 🔵 AnyNote Full 9-Phase Roadmap Structure Confirmed
+5409 11:16a ⚖️ Agent "Planck" Dispatched to Rewrite cl1.md Against Notion's Actual Model
+5411 " 🔵 All cl{1..9}.md Files Are Untracked in Git; Pre-Edit Content Audit Completed
+5412 " 🔵 All 6 Active Agents Timed Out After 60s; cl7/cl8/cl9 Still Unspawned; No Files Modified Yet
+5413 " ✅ cl6.md Updated: Imports/Exports Aligned to Notion Model; Yandex Wiki Labeled as AnyNote Extension
+5410 11:17a 🔵 Parallel Agent Dispatch: 6 of 9 Spawned Successfully, cl7/cl8/cl9 Failed on Thread Limit
+5414 11:19a 🔵 Agent Euler Closed After Completion to Free Thread Slot for cl7/cl8/cl9
+5415 11:20a ✅ cl1.md Rewritten: Fake DRAFT→TEAM_PUBLISHED Lifecycle Replaced with Notion Location/Access Model
+5416 " ✅ cl2.md Rewritten: Share vs Publish Split; Password/Scheduled Publish Marked as AnyNote Extensions
+5417 " ✅ cl3.md Rewritten: Database Rows Now Backed by Real Page Records; Inline Views as Linked Views
+5418 " ✅ cl5.md Rewritten: Subscriptions Replaced with Notion "Notify Me" Preferences; History Aligned to Notion Version Model
+5419 " 🟣 Agents Hubble and Bohr Spawned for cl7 and cl8 After Thread Slots Freed
+5420 11:21a ✅ cl4.md Rewritten: Property-Level ACL Replaced with Notion Page-Level Access and Structure Lock
+5421 " 🟣 Agent Maxwell Spawned for cl9 (Editor/AI/PWA/Meetings/Dashboards)
+5422 " ✅ cl7.md Updated: Telegram Marked AnyNote-Specific; Webhooks Reframed as Developer Platform Integration
+5423 11:22a ✅ cl8.md Updated: Guest Model, Domain Verification, SAML/SCIM, and Per-Seat Billing Aligned to Notion
+5424 11:23a ✅ cl9.md Updated: PWA Labeled AnyNote-Specific; AI/Meetings/Dashboards Aligned to Notion AI and Charts Model
+5425 " ✅ All 9 AnyNote Phase Specs (cl1–cl9) Notion-Aligned via Parallel Agent Review
+5426 11:24a ✅ All 9 Phase Specs Prettier-Formatted and Verified Clean; DRAFT/PropertyACL/Yonote Patterns Fully Eliminated
+5427 " ✅ Manual Polish Applied to cl3/cl4/cl9 After Agent Work: Property-Level ACL Clarification and Formatting Fixes
+5428 " ✅ Second Polish Pass: "Property Permissions" Language Replaced with "Property Visibility" in cl5/cl6/cl9
+5436 11:25a 🔵 Archive as First-Class Page State in AnyNote/Notion Model
+5431 11:59a 🟣 Task 10: isTemplateBacking=false filter added to all page list endpoints
+5432 " 🟣 Task 10: 4 new unit test suites verify backing-page visibility rules in page-ordering.test.ts
+5433 12:12p 🟣 Task 10 committed: backing-page filter at commit 8e92f701
+5434 " 🟣 Playwright e2e test for marketplace feature added
+5435 1:17p 🔵 Playwright marketplace test blocked by port 3100 conflict
+5437 1:20p 🔵 marketplace.spec.ts fails with 60s timeout on workspace creation redirect
+5438 " 🔵 Workspace creation redirects to pages (not /chats/new) without subscription upgrade
+5439 " 🔴 marketplace.spec.ts: broadened waitForURL to fix workspace-creation redirect mismatch
+5440 1:21p 🟣 marketplace.spec.ts passing and committed at 1aabad37
+5441 " 🔵 Task 15 spec compliance review: PASSED with one minor note
+5442 " 🔵 pnpm check-types: agents package has 4 pre-existing mypy errors unrelated to marketplace feature
+5443 1:22p 🔵 pnpm lint: all 36 tasks pass clean on feat/marketplace-templates
+5444 " 🔵 pnpm test: SaveAsTemplateDialog unit tests fail due to missing listTags tRPC mock
 
-Access 506k tokens of past work via get_observations([IDs]) or mem-search skill.
+Access 672k tokens of past work via get_observations([IDs]) or mem-search skill.
 </claude-mem-context>
