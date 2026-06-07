@@ -35,6 +35,12 @@ export function PageView({ workspaceId, page, user, editable = true }: Props) {
       workspaceId={workspaceId}
     >
       <PageEditorProvider>
+        {/*
+         * editable={false} makes the client read-only; the yjs server (apps/yjs)
+         * still grants write to any origin-workspace member at the protocol level —
+         * full server-side template-edit enforcement on the realtime layer is out of
+         * scope for this pass (the spec kept the yjs auth model unchanged).
+         */}
         <PageRenderer
           page={page}
           workspaceId={workspaceId}

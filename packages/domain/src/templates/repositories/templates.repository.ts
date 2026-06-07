@@ -5,6 +5,7 @@ import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 import type {
   CreateTemplateFromPageInput,
   CreateTemplateInput,
+  TemplateBackingPageDto,
   TemplateContentDto,
   TemplateDetailDto,
   TemplateSummaryDto,
@@ -357,7 +358,9 @@ export class TemplateRepository {
     })
   }
 
-  async findDetail(templateId: string): Promise<TemplateDetailDto | null> {
+  async findDetail(
+    templateId: string,
+  ): Promise<Omit<TemplateDetailDto, 'canEdit'> | null> {
     const row = await this.uow.client().pageTemplate.findFirst({
       where: { id: templateId, deletedAt: null },
       select: {
@@ -370,9 +373,38 @@ export class TemplateRepository {
         type: true,
         content: true,
         backingPageId: true,
+        createdById: true,
       },
     })
-    return row as TemplateDetailDto | null
+    return row as Omit<TemplateDetailDto, 'canEdit'> | null
+  }
+
+  /**
+   * Fetch the backing page for a template by id, bypassing the normal
+   * workspace-membership filter. Only pages with `isTemplateBacking: true`
+   * are returned — callers MUST have already authorised template access.
+   */
+  async findBackingPageForTemplate(
+    templateId: string,
+  ): Promise<TemplateBackingPageDto | null> {
+    // First look up the backingPageId on the template itself.
+    const tmpl = await this.uow.client().pageTemplate.findFirst({
+      where: { id: templateId, deletedAt: null },
+      select: { backingPageId: true },
+    })
+    if (!tmpl?.backingPageId) return null
+
+    const page = await this.uow.client().page.findFirst({
+      where: { id: tmpl.backingPageId, isTemplateBacking: true, deletedAt: null },
+      select: { id: true, type: true, contentYjs: true },
+    })
+    if (!page) return null
+
+    return {
+      id: page.id,
+      type: page.type,
+      contentYjs: page.contentYjs ? Buffer.from(page.contentYjs).toString('base64') : null,
+    }
   }
 
   async updateContent(

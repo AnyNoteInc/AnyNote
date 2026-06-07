@@ -76,6 +76,12 @@ function makeRepo(
       type: PageType.TEXT,
       content: { type: 'doc', content: [] },
       backingPageId: 'bp1',
+      createdById: 'u1',
+    })),
+    findBackingPageForTemplate: vi.fn(async () => ({
+      id: 'bp1',
+      type: PageType.TEXT,
+      contentYjs: null,
     })),
     updateContent: vi.fn(async () => ({ id: 't1' })),
     linkTags: vi.fn(async () => undefined),
@@ -425,7 +431,7 @@ describe('TemplateService.create', () => {
 })
 
 describe('TemplateService.getById', () => {
-  it('returns a workspace template detail for a member', async () => {
+  it('returns a workspace template detail for a member including canEdit', async () => {
     const detail = {
       id: 't1',
       workspaceId: 'w1',
@@ -436,13 +442,101 @@ describe('TemplateService.getById', () => {
       type: PageType.TEXT,
       content: { type: 'doc', content: [] },
       backingPageId: 'bp1',
+      createdById: 'u1',
     }
     const repo = makeRepo({
       findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
       findDetail: vi.fn(async () => detail),
     })
     const svc = new TemplateService(repo, makeUow(), makePages())
-    await expect(svc.getById('u1', { templateId: 't1', workspaceId: 'w1' })).resolves.toEqual(detail)
+    const result = await svc.getById('u1', { templateId: 't1', workspaceId: 'w1' })
+    // canEdit is computed by the service; all repo fields must be forwarded
+    expect(result).toMatchObject(detail)
+    expect(typeof result.canEdit).toBe('boolean')
+  })
+
+  it('returns canEdit: true for a GLOBAL template when actor === createdById', async () => {
+    const repo = makeRepo({
+      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
+      findDetail: vi.fn(async () => ({
+        id: 'g1',
+        workspaceId: null,
+        scope: PageTemplateScope.GLOBAL,
+        title: 'G',
+        description: null,
+        icon: null,
+        type: PageType.TEXT,
+        content: null,
+        backingPageId: null,
+        createdById: 'u1',
+      })),
+    })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    const result = await svc.getById('u1', { templateId: 'g1', workspaceId: 'w1' })
+    expect(result.canEdit).toBe(true)
+  })
+
+  it('returns canEdit: false for a GLOBAL template when actor !== createdById', async () => {
+    const repo = makeRepo({
+      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
+      findDetail: vi.fn(async () => ({
+        id: 'g1',
+        workspaceId: null,
+        scope: PageTemplateScope.GLOBAL,
+        title: 'G',
+        description: null,
+        icon: null,
+        type: PageType.TEXT,
+        content: null,
+        backingPageId: null,
+        createdById: 'other-user',
+      })),
+    })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    const result = await svc.getById('u1', { templateId: 'g1', workspaceId: 'w1' })
+    expect(result.canEdit).toBe(false)
+  })
+
+  it('returns canEdit: true for a WORKSPACE template when member role is OWNER (not creator)', async () => {
+    const repo = makeRepo({
+      findMembership: vi.fn(async () => ({ role: 'OWNER' })),
+      findDetail: vi.fn(async () => ({
+        id: 't1',
+        workspaceId: 'w1',
+        scope: PageTemplateScope.WORKSPACE,
+        title: 'T',
+        description: null,
+        icon: null,
+        type: PageType.TEXT,
+        content: null,
+        backingPageId: 'bp1',
+        createdById: 'other-user',
+      })),
+    })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    const result = await svc.getById('u1', { templateId: 't1', workspaceId: 'w1' })
+    expect(result.canEdit).toBe(true)
+  })
+
+  it('returns canEdit: false for a WORKSPACE template when actor is EDITOR and not creator', async () => {
+    const repo = makeRepo({
+      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
+      findDetail: vi.fn(async () => ({
+        id: 't1',
+        workspaceId: 'w1',
+        scope: PageTemplateScope.WORKSPACE,
+        title: 'T',
+        description: null,
+        icon: null,
+        type: PageType.TEXT,
+        content: null,
+        backingPageId: 'bp1',
+        createdById: 'other-user',
+      })),
+    })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    const result = await svc.getById('u1', { templateId: 't1', workspaceId: 'w1' })
+    expect(result.canEdit).toBe(false)
   })
 
   it('404s when the template is missing', async () => {
@@ -469,12 +563,75 @@ describe('TemplateService.getById', () => {
         type: PageType.TEXT,
         content: null,
         backingPageId: null,
+        createdById: 'u1',
       })),
     })
     const svc = new TemplateService(repo, makeUow(), makePages())
     await expect(
       svc.getById('u1', { templateId: 't1', workspaceId: 'w1' }),
     ).rejects.toMatchObject({ httpStatus: 404 })
+  })
+})
+
+describe('TemplateService.getBackingPage', () => {
+  it('returns the backing page for an accessible template', async () => {
+    const repo = makeRepo({
+      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
+      findDetail: vi.fn(async () => ({
+        id: 't1',
+        workspaceId: 'w1',
+        scope: PageTemplateScope.WORKSPACE,
+        title: 'T',
+        description: null,
+        icon: null,
+        type: PageType.TEXT,
+        content: null,
+        backingPageId: 'bp1',
+        createdById: 'u1',
+      })),
+      findBackingPageForTemplate: vi.fn(async () => ({
+        id: 'bp1',
+        type: PageType.TEXT,
+        contentYjs: 'base64encodeddata==',
+      })),
+    })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    const result = await svc.getBackingPage('u1', { templateId: 't1', workspaceId: 'w1' })
+    expect(result.id).toBe('bp1')
+    expect(result.type).toBe(PageType.TEXT)
+    expect(result.contentYjs).toBe('base64encodeddata==')
+  })
+
+  it('throws NOT_FOUND when the template has no backingPageId', async () => {
+    const repo = makeRepo({
+      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
+      findDetail: vi.fn(async () => ({
+        id: 't1',
+        workspaceId: 'w1',
+        scope: PageTemplateScope.WORKSPACE,
+        title: 'T',
+        description: null,
+        icon: null,
+        type: PageType.TEXT,
+        content: null,
+        backingPageId: null,
+        createdById: 'u1',
+      })),
+    })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    await expect(
+      svc.getBackingPage('u1', { templateId: 't1', workspaceId: 'w1' }),
+    ).rejects.toMatchObject({ httpStatus: 404 })
+  })
+
+  it('throws NOT_FOUND when the actor is not a workspace member', async () => {
+    const repo = makeRepo({
+      findMembership: vi.fn(async () => null),
+    })
+    const svc = new TemplateService(repo, makeUow(), makePages())
+    await expect(
+      svc.getBackingPage('u1', { templateId: 't1', workspaceId: 'w1' }),
+    ).rejects.toMatchObject({ httpStatus: 403 })
   })
 })
 

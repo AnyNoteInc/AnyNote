@@ -95,6 +95,20 @@ export const templateRouter = router({
       return mapDomain(() => domainSvc.templates.getById(ctx.user.id, input))
     }),
 
+  /**
+   * Fetch the backing page for a template that the actor can access.
+   * Unlike `trpc.page.getById`, this bypasses the workspace-membership filter
+   * on the page — required for GLOBAL templates whose backing page lives in a
+   * different workspace than the URL workspace. Access is still gated by
+   * `getById` (workspace membership for the URL workspace + scope check).
+   */
+  getBackingPage: protectedProcedure
+    .input(domain.getTemplateInput)
+    .query(async ({ ctx, input }) => {
+      await assertWorkspaceMember(ctx, input.workspaceId)
+      return mapDomain(() => domainSvc.templates.getBackingPage(ctx.user.id, input))
+    }),
+
   updateContent: protectedProcedure
     .input(domain.updateTemplateContentInput)
     .mutation(async ({ ctx, input }): Promise<{ id: string }> => {

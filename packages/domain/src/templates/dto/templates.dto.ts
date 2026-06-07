@@ -158,6 +158,8 @@ export interface TemplateContentDto {
 /**
  * Template detail used by the management editor: metadata plus the JSON
  * content snapshot (never the Yjs bytes, which the client doesn't read).
+ * `canEdit` is computed by the service from the actor's role / createdById.
+ * `createdById` is included so the route can forward it to the helpers.
  */
 export interface TemplateDetailDto {
   id: string
@@ -169,6 +171,19 @@ export interface TemplateDetailDto {
   type: PageType
   content: Prisma.JsonValue | null
   backingPageId: string | null
+  createdById: string | null
+  canEdit: boolean
+}
+
+/**
+ * Minimal backing-page projection returned by `getBackingPage`.
+ * `contentYjs` is a base64 string so the client `atob`s it identically
+ * to the shape returned by `trpc.page.getById`.
+ */
+export interface TemplateBackingPageDto {
+  id: string
+  type: PageType
+  contentYjs: string | null
 }
 
 export interface MarketplaceResultDto {

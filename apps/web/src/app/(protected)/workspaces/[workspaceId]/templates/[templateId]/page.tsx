@@ -3,14 +3,7 @@ import { notFound } from 'next/navigation'
 import { requireSession } from '@/lib/get-session'
 import { getServerTRPC } from '@/trpc/server'
 import { TemplateEditor } from '@/components/templates/template-editor'
-
-const COLORS = ['#1976d2', '#9c27b0', '#2e7d32', '#ed6c02', '#0288d1', '#d32f2f']
-
-function colorFor(userId: string): string {
-  let hash = 0
-  for (const ch of userId) hash = (hash * 31 + ch.charCodeAt(0)) | 0
-  return COLORS[Math.abs(hash) % COLORS.length]!
-}
+import { colorFor } from '@/lib/user-color'
 
 type Props = { params: Promise<{ workspaceId: string; templateId: string }> }
 
@@ -24,7 +17,7 @@ export default async function WorkspaceTemplateEditorPage({ params }: Props) {
   const template = await trpc.template.getById({ templateId, workspaceId })
   if (!template || !template.backingPageId) notFound()
 
-  const backingPage = await trpc.page.getById({ id: template.backingPageId })
+  const backingPage = await trpc.template.getBackingPage({ templateId, workspaceId })
   if (!backingPage) notFound()
 
   const displayName =
@@ -34,10 +27,10 @@ export default async function WorkspaceTemplateEditorPage({ params }: Props) {
   return (
     <TemplateEditor
       workspaceId={workspaceId}
-      templateId={templateId}
       template={{ title: template.title, icon: template.icon ?? null }}
       backingPage={{ id: backingPage.id, type: backingPage.type, contentYjs: backingPage.contentYjs }}
       user={{ id: session.user.id, name: displayName, color: colorFor(session.user.id) }}
+      editable={template.canEdit}
     />
   )
 }

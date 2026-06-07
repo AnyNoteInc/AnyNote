@@ -9,13 +9,13 @@ import { PageView } from '@/components/page/page-view'
 
 type Props = {
   workspaceId: string
-  templateId: string
   template: { title: string; icon: string | null }
   backingPage: { id: string; type: PageType; contentYjs: string | null }
   user: { id: string; name: string; color: string }
+  editable: boolean
 }
 
-export function TemplateEditor({ workspaceId, template, backingPage, user }: Props) {
+export function TemplateEditor({ workspaceId, template, backingPage, user, editable }: Props) {
   const router = useRouter()
 
   return (
@@ -39,7 +39,7 @@ export function TemplateEditor({ workspaceId, template, backingPage, user }: Pro
         </Typography>
       </Stack>
       <Box sx={{ flex: 1, minHeight: 0 }}>
-        <PageView workspaceId={workspaceId} page={backingPage} user={user} />
+        <PageView workspaceId={workspaceId} page={backingPage} user={user} editable={editable} />
       </Box>
     </Box>
   )

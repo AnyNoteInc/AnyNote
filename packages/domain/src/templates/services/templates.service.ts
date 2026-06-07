@@ -15,6 +15,7 @@ import type {
   ListMarketplaceInput,
   MarketplaceResultDto,
   SearchTemplatesResult,
+  TemplateBackingPageDto,
   TemplateDetailDto,
   TemplateSummaryDto,
   TemplateTagDto,
@@ -146,7 +147,37 @@ export class TemplateService {
     if (template.scope === 'WORKSPACE' && template.workspaceId !== input.workspaceId) {
       throw notFound('Шаблон не найден')
     }
-    return template
+    let canEdit: boolean
+    if (template.scope === 'GLOBAL') {
+      canEdit = canEditGlobalTemplate({ actorUserId, createdById: template.createdById })
+    } else {
+      const member = await this.repo.findMembership(actorUserId, input.workspaceId)
+      canEdit = canEditWorkspaceTemplate({
+        actorUserId,
+        createdById: template.createdById,
+        role: member?.role,
+      })
+    }
+    return { ...template, canEdit }
+  }
+
+  /**
+   * Return the backing page for a template the actor is authorised to access.
+   * Bypasses the normal page-workspace membership filter so GLOBAL templates
+   * whose backing page lives in a different workspace are still reachable.
+   * Access is granted iff `getById` would succeed (same checks).
+   */
+  async getBackingPage(
+    actorUserId: string,
+    input: GetTemplateInput,
+  ): Promise<TemplateBackingPageDto> {
+    // Re-use getById for the access check — it throws if the actor can't see
+    // the template, and gives us backingPageId for free.
+    const template = await this.getById(actorUserId, input)
+    if (!template.backingPageId) throw notFound('Шаблон не имеет страницы-основы')
+    const page = await this.repo.findBackingPageForTemplate(input.templateId)
+    if (!page) throw notFound('Страница-основа шаблона не найдена')
+    return page
   }
 
   // ── Writes ──────────────────────────────────────────────────────────────────
