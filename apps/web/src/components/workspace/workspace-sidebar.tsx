@@ -251,6 +251,7 @@ export function WorkspaceSidebar({
                 favoritePageIds={favoritePageIds}
                 collectionId={teamCollectionId}
                 title="Команда"
+                location="team"
               />
             ) : null}
             {personalCollectionId ? (
@@ -260,6 +261,7 @@ export function WorkspaceSidebar({
                 favoritePageIds={favoritePageIds}
                 collectionId={personalCollectionId}
                 title="Личное"
+                location="private"
               />
             ) : null}
             <SharedPagesSection workspaceId={workspace.id} />

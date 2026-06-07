@@ -12,11 +12,14 @@ import type { CreatablePageType } from './page-type-registry'
  * page row's `+`). Owns the dialog open state, both create mutations, tree
  * invalidation, and navigation, so call sites only pass the target parentId.
  */
+type CreateLocation = 'team' | 'private'
+
 export function useCreatePageFlow(workspaceId: string) {
   const router = useRouter()
   const utils = trpc.useUtils()
   const [open, setOpen] = useState(false)
   const [parentId, setParentId] = useState<string | null>(null)
+  const [location, setLocation] = useState<CreateLocation | undefined>(undefined)
 
   const onCreated = useCallback(
     async (data: { id: string }) => {
@@ -32,18 +35,30 @@ export function useCreatePageFlow(workspaceId: string) {
     onSuccess: onCreated,
   })
 
-  const openFor = useCallback((nextParentId: string | null) => {
-    setParentId(nextParentId)
-    setOpen(true)
-  }, [])
+  const openFor = useCallback(
+    (nextParentId: string | null, opts?: { location?: CreateLocation }) => {
+      setParentId(nextParentId)
+      // Nested pages inherit their parent's collection (the domain infers from
+      // parentId when location is absent), so only apply a location at the root.
+      // A root-level quick-create with no explicit location defaults to Private,
+      // matching Notion's behavior.
+      if (nextParentId !== null) {
+        setLocation(undefined)
+      } else {
+        setLocation(opts?.location ?? 'private')
+      }
+      setOpen(true)
+    },
+    [],
+  )
 
   const close = useCallback(() => setOpen(false), [])
 
   const handleCreatePage = useCallback(
     (type: CreatablePageType) => {
-      createPage.mutate({ workspaceId, parentId, type })
+      createPage.mutate({ workspaceId, parentId, type, location })
     },
-    [createPage, workspaceId, parentId],
+    [createPage, workspaceId, parentId, location],
   )
 
   const handleCreateFromTemplate = useCallback(

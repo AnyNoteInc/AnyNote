@@ -36,6 +36,8 @@ type Props = {
   favoritePageIds: Set<string>
   collectionId?: string | null
   title?: string
+  /** Collection kind this section represents, so the root "+" creates in the right place. */
+  location?: 'team' | 'private'
 }
 
 function DropLine({ depth }: { depth: number }) {
@@ -244,6 +246,7 @@ export function PageTreeSection({
   favoritePageIds,
   collectionId,
   title,
+  location,
 }: Props) {
   const [collapsedIds, setCollapsedIds] = useState<Set<string>>(new Set())
   const [activeId, setActiveId] = useState<string | null>(null)
@@ -361,7 +364,7 @@ export function PageTreeSection({
         <IconButton
           aria-label="Новая страница"
           size="small"
-          onClick={() => createFlow.openFor(null)}
+          onClick={() => createFlow.openFor(null, location ? { location } : undefined)}
         >
           <AddIcon sx={{ fontSize: 16 }} />
         </IconButton>
