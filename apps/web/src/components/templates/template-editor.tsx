@@ -110,6 +110,7 @@ export function TemplateEditor({ workspaceId, templateId }: Props) {
       </Stack>
 
       <Box sx={{ border: '1px solid', borderColor: 'divider', borderRadius: 1, p: 2 }}>
+        {/* Both callbacks stage the draft; the explicit Сохранить button persists it. */}
         <AnyNotePlainEditor
           value={initialContent}
           editable

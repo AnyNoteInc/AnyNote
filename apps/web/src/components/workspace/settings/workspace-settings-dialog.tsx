@@ -39,7 +39,13 @@ export type SettingsSectionSlug =
   | 'usage'
   | 'danger'
 
-type SettingsItem = { slug: SettingsSectionSlug; label: string; icon: ReactNode; show: boolean }
+type SettingsItem = {
+  slug: SettingsSectionSlug
+  label: string
+  icon: ReactNode
+  show: boolean
+  render: () => ReactNode
+}
 
 type Props = {
   open: boolean
@@ -67,49 +73,97 @@ export function WorkspaceSettingsDialog({
   const roleQ = trpc.workspace.getMyRole.useQuery({ workspaceId }, { enabled: open })
   const planQ = trpc.subscription.getCurrent.useQuery(undefined, { enabled: open })
 
-  const items: SettingsItem[] = (
-    [
-      { slug: 'general', label: 'Общее', icon: <SettingsIcon fontSize="small" />, show: true },
-      {
-        slug: 'members',
-        label: 'Участники',
-        icon: <GroupIcon fontSize="small" />,
-        show: features.membersSettingsEnabled,
-      },
-      {
-        slug: 'ai',
-        label: 'AI агент',
-        icon: <SmartToyIcon fontSize="small" />,
-        show: features.aiSettingsEnabled,
-      },
-      {
-        slug: 'mcp',
-        label: 'MCP серверы',
-        icon: <HubIcon fontSize="small" />,
-        show: features.customMcpEnabled,
-      },
-      { slug: 'files', label: 'Библиотека', icon: <StorageIcon fontSize="small" />, show: true },
-      {
-        slug: 'usage',
-        label: 'Использование',
-        icon: <BarChartIcon fontSize="small" />,
-        show: true,
-      },
-      {
-        slug: 'danger',
-        label: 'Опасная зона',
-        icon: <WarningAmberIcon fontSize="small" />,
-        show: true,
-      },
-    ] satisfies SettingsItem[]
-  ).filter((i) => i.show)
-
   const workspace = workspaceQ.data
   const isOwner = roleQ.data === 'OWNER'
   const planSlug = planQ.data?.plan.slug ?? null
   const ready = workspace && roleQ.isSuccess && planQ.isSuccess
   const failed =
     workspaceQ.isError || roleQ.isError || planQ.isError || (workspaceQ.isSuccess && !workspace)
+
+  const items: SettingsItem[] = [
+    {
+      slug: 'general',
+      label: 'Общее',
+      icon: <SettingsIcon fontSize="small" />,
+      show: true,
+      render: () =>
+        workspace ? (
+          <WorkspaceGeneralSection
+            workspace={{ id: workspace.id, name: workspace.name, icon: workspace.icon }}
+            isOwner={isOwner}
+          />
+        ) : null,
+    },
+    {
+      slug: 'members',
+      label: 'Участники',
+      icon: <GroupIcon fontSize="small" />,
+      show: features.membersSettingsEnabled,
+      render: () => (
+        <WorkspaceMembersSection
+          workspaceId={workspaceId}
+          locked={planSlug === 'personal'}
+          currentUserId={currentUserId}
+        />
+      ),
+    },
+    {
+      slug: 'ai',
+      label: 'AI агент',
+      icon: <SmartToyIcon fontSize="small" />,
+      show: features.aiSettingsEnabled,
+      render: () => (
+        <WorkspaceAiSection
+          workspaceId={workspaceId}
+          isOwner={isOwner}
+          customProvidersEnabled={features.customAiProvidersEnabled}
+        />
+      ),
+    },
+    {
+      slug: 'mcp',
+      label: 'MCP серверы',
+      icon: <HubIcon fontSize="small" />,
+      show: features.customMcpEnabled,
+      render: () => (
+        <WorkspaceMcpSection
+          workspaceId={workspaceId}
+          isOwner={isOwner}
+          customMcpEnabled={features.customMcpEnabled}
+        />
+      ),
+    },
+    {
+      slug: 'files',
+      label: 'Библиотека',
+      icon: <StorageIcon fontSize="small" />,
+      show: true,
+      render: () => (
+        <WorkspaceFilesSection workspaceId={workspaceId} currentUserId={currentUserId} />
+      ),
+    },
+    {
+      slug: 'usage',
+      label: 'Использование',
+      icon: <BarChartIcon fontSize="small" />,
+      show: true,
+      render: () => <UsageDialogSection workspaceId={workspaceId} />,
+    },
+    {
+      slug: 'danger',
+      label: 'Опасная зона',
+      icon: <WarningAmberIcon fontSize="small" />,
+      show: true,
+      render: () =>
+        workspace ? (
+          <WorkspaceDangerSection
+            workspace={{ id: workspace.id, name: workspace.name }}
+            isOwner={isOwner}
+          />
+        ) : null,
+    },
+  ] satisfies SettingsItem[]
+  const navItems = items.filter((i) => i.show)
 
   return (
     <Dialog open={open} onClose={onClose} fullScreen aria-labelledby={titleId}>
@@ -128,7 +182,7 @@ export function WorkspaceSettingsDialog({
             Настройки
           </Typography>
           <Stack spacing={0.5} component="nav">
-            {items.map((item) => {
+            {navItems.map((item) => {
               const active = item.slug === section
               return (
                 <Box
@@ -189,43 +243,7 @@ export function WorkspaceSettingsDialog({
               </Box>
             ) : (
               <Box sx={{ maxWidth: 880, mx: 'auto' }}>
-                {section === 'general' && workspace ? (
-                  <WorkspaceGeneralSection
-                    workspace={{ id: workspace.id, name: workspace.name, icon: workspace.icon }}
-                    isOwner={isOwner}
-                  />
-                ) : null}
-                {section === 'members' ? (
-                  <WorkspaceMembersSection
-                    workspaceId={workspaceId}
-                    locked={planSlug === 'personal'}
-                    currentUserId={currentUserId}
-                  />
-                ) : null}
-                {section === 'ai' ? (
-                  <WorkspaceAiSection
-                    workspaceId={workspaceId}
-                    isOwner={isOwner}
-                    customProvidersEnabled={features.customAiProvidersEnabled}
-                  />
-                ) : null}
-                {section === 'mcp' ? (
-                  <WorkspaceMcpSection
-                    workspaceId={workspaceId}
-                    isOwner={isOwner}
-                    customMcpEnabled={features.customMcpEnabled}
-                  />
-                ) : null}
-                {section === 'files' ? (
-                  <WorkspaceFilesSection workspaceId={workspaceId} currentUserId={currentUserId} />
-                ) : null}
-                {section === 'usage' ? <UsageDialogSection workspaceId={workspaceId} /> : null}
-                {section === 'danger' && workspace ? (
-                  <WorkspaceDangerSection
-                    workspace={{ id: workspace.id, name: workspace.name }}
-                    isOwner={isOwner}
-                  />
-                ) : null}
+                {items.find((i) => i.slug === section)?.render() ?? null}
               </Box>
             )}
           </Box>

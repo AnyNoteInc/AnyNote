@@ -16,16 +16,17 @@ import {
 
 import { trpc } from '@/trpc/client'
 
-type Mode =
-  | { kind: 'create' }
-  | {
-      kind: 'edit'
-      templateId: string
-      initialTitle: string
-      initialDescription: string | null
-      initialIcon: string | null
-      initialCategory: string | null
-    }
+import { invalidateTemplates } from './invalidate-templates'
+
+export type EditableTemplate = {
+  id: string
+  title: string
+  description: string | null
+  icon: string | null
+  category: string | null
+}
+
+type Mode = { kind: 'create' } | { kind: 'edit'; template: EditableTemplate }
 
 type Props = {
   open: boolean
@@ -46,10 +47,10 @@ export function TemplateMetadataDialog({ open, onClose, workspaceId, mode, onSav
   useEffect(() => {
     if (!open) return
     if (mode.kind === 'edit') {
-      setTitle(mode.initialTitle)
-      setDescription(mode.initialDescription ?? '')
-      setIcon(mode.initialIcon)
-      setCategory(mode.initialCategory ?? '')
+      setTitle(mode.template.title)
+      setDescription(mode.template.description ?? '')
+      setIcon(mode.template.icon)
+      setCategory(mode.template.category ?? '')
     } else {
       setTitle('')
       setDescription('')
@@ -59,21 +60,17 @@ export function TemplateMetadataDialog({ open, onClose, workspaceId, mode, onSav
   }, [open, mode])
 
   const utils = trpc.useUtils()
-  const invalidate = () => {
-    utils.template.listByWorkspace.invalidate({ workspaceId }).catch(() => undefined)
-    utils.template.search.invalidate().catch(() => undefined)
-  }
 
   const createMut = trpc.template.create.useMutation({
     onSuccess: ({ id }) => {
-      invalidate()
+      invalidateTemplates(utils, workspaceId)
       onSaved?.(id)
       onClose()
     },
   })
   const updateMut = trpc.template.update.useMutation({
     onSuccess: ({ id }) => {
-      invalidate()
+      invalidateTemplates(utils, workspaceId)
       onSaved?.(id)
       onClose()
     },
@@ -96,7 +93,7 @@ export function TemplateMetadataDialog({ open, onClose, workspaceId, mode, onSav
       })
     } else {
       updateMut.mutate({
-        templateId: mode.templateId,
+        templateId: mode.template.id,
         workspaceId,
         title: trimmedTitle,
         description: description.trim() || null,

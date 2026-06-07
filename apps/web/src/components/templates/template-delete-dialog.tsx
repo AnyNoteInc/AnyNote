@@ -11,6 +11,8 @@ import {
 
 import { trpc } from '@/trpc/client'
 
+import { invalidateTemplates } from './invalidate-templates'
+
 type Props = {
   open: boolean
   onClose: () => void
@@ -22,8 +24,7 @@ export function TemplateDeleteDialog({ open, onClose, workspaceId, template }: P
   const utils = trpc.useUtils()
   const remove = trpc.template.delete.useMutation({
     onSuccess: () => {
-      utils.template.listByWorkspace.invalidate({ workspaceId }).catch(() => undefined)
-      utils.template.search.invalidate().catch(() => undefined)
+      invalidateTemplates(utils, workspaceId)
       onClose()
     },
   })

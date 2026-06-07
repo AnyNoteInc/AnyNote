@@ -19,20 +19,14 @@ import {
 import { trpc } from '@/trpc/client'
 
 import { TemplateDeleteDialog } from './template-delete-dialog'
-import { TemplateMetadataDialog } from './template-metadata-dialog'
+import { type EditableTemplate, TemplateMetadataDialog } from './template-metadata-dialog'
 
 type Props = { workspaceId: string }
 
 export function TemplatesPage({ workspaceId }: Props) {
   const list = trpc.template.listByWorkspace.useQuery({ workspaceId })
   const [createOpen, setCreateOpen] = useState(false)
-  const [editTarget, setEditTarget] = useState<{
-    templateId: string
-    initialTitle: string
-    initialDescription: string | null
-    initialIcon: string | null
-    initialCategory: string | null
-  } | null>(null)
+  const [editTarget, setEditTarget] = useState<EditableTemplate | null>(null)
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
 
   const templates = list.data ?? []
@@ -97,11 +91,11 @@ export function TemplatesPage({ workspaceId }: Props) {
                   size="small"
                   onClick={() =>
                     setEditTarget({
-                      templateId: t.id,
-                      initialTitle: t.title,
-                      initialDescription: t.description,
-                      initialIcon: t.icon,
-                      initialCategory: t.category,
+                      id: t.id,
+                      title: t.title,
+                      description: t.description,
+                      icon: t.icon,
+                      category: t.category,
                     })
                   }
                   aria-label={`Изменить шаблон ${t.title}`}
@@ -135,7 +129,7 @@ export function TemplatesPage({ workspaceId }: Props) {
           open
           onClose={() => setEditTarget(null)}
           workspaceId={workspaceId}
-          mode={{ kind: 'edit', ...editTarget }}
+          mode={{ kind: 'edit', template: editTarget }}
         />
       ) : null}
       {deleteTarget ? (

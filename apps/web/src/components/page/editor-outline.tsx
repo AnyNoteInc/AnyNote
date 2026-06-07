@@ -212,8 +212,7 @@ export function EditorOutline({ editor, rightOffset = 0 }: Props) {
     }, FOCUS_DEFER_MS)
   }
 
-  const isEmpty = headings.length === 0
-  if (isEmpty) return null
+  if (headings.length === 0) return null
 
   const open = Boolean(anchorEl)
 
@@ -286,8 +285,7 @@ export function EditorOutline({ editor, rightOffset = 0 }: Props) {
                     borderRadius: 1.5,
                     bgcolor: isActive ? 'primary.main' : 'text.secondary',
                     opacity: isActive ? 1 : 0.45,
-                    transition:
-                      'background-color 120ms ease, opacity 120ms ease, width 120ms ease',
+                    transition: 'background-color 120ms ease, opacity 120ms ease, width 120ms ease',
                   }}
                 />
               </Box>

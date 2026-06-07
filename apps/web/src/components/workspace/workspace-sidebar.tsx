@@ -108,21 +108,7 @@ export function WorkspaceSidebar({
             '&:hover': { bgcolor: 'action.hover' },
           }}
         >
-          <Box
-            sx={{
-              width: 24,
-              height: 24,
-              borderRadius: 0.75,
-              background: 'linear-gradient(135deg,#0f766e,#155e75)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              fontSize: 14,
-              flexShrink: 0,
-            }}
-          >
-            {workspace.icon ?? '📒'}
-          </Box>
+          <WorkspaceAvatar icon={workspace.icon} />
           <Typography variant="body2" noWrap sx={{ flex: 1, minWidth: 0 }}>
             {workspace.name}
           </Typography>
@@ -145,21 +131,7 @@ export function WorkspaceSidebar({
       >
         <Box sx={{ px: 1.5, py: 1 }}>
           <Stack direction="row" alignItems="center" spacing={1}>
-            <Box
-              sx={{
-                width: 24,
-                height: 24,
-                borderRadius: 0.75,
-                background: 'linear-gradient(135deg,#0f766e,#155e75)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 14,
-                flexShrink: 0,
-              }}
-            >
-              {workspace.icon ?? '📒'}
-            </Box>
+            <WorkspaceAvatar icon={workspace.icon} />
             <Typography variant="body2" noWrap sx={{ flex: 1, minWidth: 0 }}>
               {workspace.name}
             </Typography>
@@ -205,21 +177,7 @@ export function WorkspaceSidebar({
             selected={w.id === workspace.id}
             sx={{ gap: 1 }}
           >
-            <Box
-              sx={{
-                width: 22,
-                height: 22,
-                borderRadius: 0.5,
-                background: 'linear-gradient(135deg,#0f766e,#155e75)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontSize: 13,
-                flexShrink: 0,
-              }}
-            >
-              {w.icon ?? '📒'}
-            </Box>
+            <WorkspaceAvatar icon={w.icon} size={22} />
             <Typography variant="body2" noWrap>
               {w.name}
             </Typography>
@@ -401,6 +359,26 @@ function SectionButton({
         {icon}
       </IconButton>
     </Tooltip>
+  )
+}
+
+function WorkspaceAvatar({ icon, size = 24 }: { icon: string | null; size?: number }) {
+  return (
+    <Box
+      sx={{
+        width: size,
+        height: size,
+        borderRadius: 0.75,
+        background: 'linear-gradient(135deg,#0f766e,#155e75)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        fontSize: Math.round(size * 0.58),
+        flexShrink: 0,
+      }}
+    >
+      {icon ?? '📒'}
+    </Box>
   )
 }
 
