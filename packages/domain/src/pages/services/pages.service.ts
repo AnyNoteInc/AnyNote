@@ -2,6 +2,7 @@ import { badRequest, forbidden, notFound } from '../../shared/errors.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 import type { KanbanService } from '../../kanban/index.ts'
 import type {
+  ArchivePageInput,
   CountResultDto,
   CreatePageExtra,
   CreatePageInput,
@@ -16,6 +17,7 @@ import type {
   ReorderPageInput,
   RestorePageInput,
   SoftDeletePageInput,
+  UnarchivePageInput,
   UpdatePageInput,
 } from '../dto/pages.dto.ts'
 import type { PageRepository } from '../repositories/pages.repository.ts'
@@ -63,6 +65,26 @@ export class PageService {
 
     return this.uow.transaction(() =>
       this.repo.createPageTx(actorUserId, input, (pageId) => this.kanban.seedDefaults(pageId)),
+    )
+  }
+
+  async archive(
+    actorUserId: string,
+    input: ArchivePageInput,
+  ): Promise<CreateResultDto> {
+    await this.assertOwnership(actorUserId, input.id)
+    return this.uow.transaction(() =>
+      this.repo.archivePageTx(actorUserId, input.id, input.workspaceId),
+    )
+  }
+
+  async unarchive(
+    actorUserId: string,
+    input: UnarchivePageInput,
+  ): Promise<CreateResultDto> {
+    await this.assertOwnership(actorUserId, input.id)
+    return this.uow.transaction(() =>
+      this.repo.unarchivePageTx(actorUserId, input.id, input.workspaceId),
     )
   }
 

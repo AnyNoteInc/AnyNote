@@ -48,6 +48,15 @@ export const reorderPageInput = z.object({
 })
 export type ReorderPageInput = z.infer<typeof reorderPageInput>
 
+export const archivePageInput = z.object({
+  id: z.string().uuid(),
+  workspaceId: z.string().uuid(),
+})
+export type ArchivePageInput = z.infer<typeof archivePageInput>
+
+export const unarchivePageInput = archivePageInput
+export type UnarchivePageInput = z.infer<typeof unarchivePageInput>
+
 export const softDeletePageInput = z.object({
   id: z.string().uuid(),
   workspaceId: z.string().uuid(),

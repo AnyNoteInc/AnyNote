@@ -34,6 +34,7 @@ export const pageRouter = router({
           icon: true,
           content: true,
           contentYjs: true,
+          collectionId: true,
           archivedAt: true,
           prevPageId: true,
           deletedAt: true,
@@ -60,6 +61,7 @@ export const pageRouter = router({
           archivedAt: null,
           deletedAt: null,
           isTemplateBacking: false,
+          AND: [domain.buildPageVisibilityWhere(ctx.user.id)],
         },
         orderBy: { createdAt: 'asc' },
         select: {
@@ -69,6 +71,7 @@ export const pageRouter = router({
           icon: true,
           parentId: true,
           prevPageId: true,
+          collectionId: true,
           createdById: true,
           createdAt: true,
         },
@@ -106,6 +109,44 @@ export const pageRouter = router({
         return mapDomain(() => domainSvc.pages.update(ctx.user.id, input))
       },
     ),
+
+  archive: protectedProcedure
+    .input(domain.archivePageInput)
+    .mutation(async ({ ctx, input }) => {
+      await requireWritableWorkspace(input.workspaceId)
+      return mapDomain(() => domainSvc.pages.archive(ctx.user.id, input))
+    }),
+
+  unarchive: protectedProcedure
+    .input(domain.unarchivePageInput)
+    .mutation(async ({ ctx, input }) => {
+      await requireWritableWorkspace(input.workspaceId)
+      return mapDomain(() => domainSvc.pages.unarchive(ctx.user.id, input))
+    }),
+
+  listArchived: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertWorkspaceMember(ctx, input.workspaceId)
+      return ctx.prisma.page.findMany({
+        where: {
+          workspaceId: input.workspaceId,
+          deletedAt: null,
+          archivedAt: { not: null },
+          AND: [domain.buildPageVisibilityWhere(ctx.user.id)],
+        },
+        orderBy: { archivedAt: 'desc' },
+        select: {
+          id: true,
+          title: true,
+          icon: true,
+          parentId: true,
+          archivedAt: true,
+          createdById: true,
+          createdAt: true,
+        },
+      })
+    }),
 
   softDelete: protectedProcedure
     .input(domain.softDeletePageInput)
