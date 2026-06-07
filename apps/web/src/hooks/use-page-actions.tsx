@@ -22,6 +22,9 @@ export type UsePageActionsResult = {
   copyText: () => Promise<void>
   duplicate: () => void
   openDeleteConfirm: () => void
+  handleArchive: () => void
+  handleMakePrivate: () => void
+  handleMoveToTeam: () => void
   dialogs: ReactNode
 }
 
@@ -45,9 +48,23 @@ export function usePageActions(
     void utils.page.getById.invalidate({ id: page.id })
   }
 
+  // Archiving and collection moves change which lists a page appears in, so they
+  // refresh the archive + shared lists and the collection list on top of the
+  // workspace tree.
+  const invalidateCollections = () => {
+    void utils.page.listByWorkspace.invalidate({ workspaceId })
+    void utils.page.listArchived.invalidate({ workspaceId })
+    void utils.page.listShared.invalidate({ workspaceId })
+    void utils.collection.list.invalidate({ workspaceId })
+  }
+
   const addFavorite = trpc.page.addFavorite.useMutation({ onSuccess: invalidate })
   const removeFavorite = trpc.page.removeFavorite.useMutation({ onSuccess: invalidate })
   const softDelete = trpc.page.softDelete.useMutation({ onSuccess: invalidate })
+  const archive = trpc.page.archive.useMutation({ onSuccess: invalidateCollections })
+  const moveToCollection = trpc.page.moveToCollection.useMutation({
+    onSuccess: invalidateCollections,
+  })
   const duplicateMutation = trpc.page.duplicate.useMutation({
     onSuccess: (data) => {
       invalidate()
@@ -76,6 +93,14 @@ export function usePageActions(
   }
 
   const duplicate = () => duplicateMutation.mutate({ pageId: page.id })
+
+  const handleArchive = () => archive.mutate({ id: page.id, workspaceId })
+
+  const handleMakePrivate = () =>
+    moveToCollection.mutate({ pageId: page.id, workspaceId, target: 'private' })
+
+  const handleMoveToTeam = () =>
+    moveToCollection.mutate({ pageId: page.id, workspaceId, target: 'team' })
 
   const openDeleteConfirm = () => setDeleteOpen(true)
 
@@ -109,6 +134,9 @@ export function usePageActions(
     copyText,
     duplicate,
     openDeleteConfirm,
+    handleArchive,
+    handleMakePrivate,
+    handleMoveToTeam,
     dialogs,
   }
 }

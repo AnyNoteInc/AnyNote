@@ -39,6 +39,9 @@ vi.mock('@/hooks/use-page-actions', () => ({
     copyLink: mocks.copyLink,
     duplicate: mocks.duplicate,
     openDeleteConfirm: mocks.openDeleteConfirm,
+    handleArchive: vi.fn(),
+    handleMakePrivate: vi.fn(),
+    handleMoveToTeam: vi.fn(),
     dialogs: null,
   }),
 }))
@@ -63,6 +66,11 @@ vi.mock('@/trpc/client', () => ({
             options?.onSuccess?.()
           },
         }),
+      },
+    },
+    collection: {
+      list: {
+        useQuery: () => ({ data: [] }),
       },
     },
   },

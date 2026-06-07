@@ -20,6 +20,9 @@ import {
   DriveFileRenameOutlineIcon,
   MovingIcon,
   BookmarkAddIcon,
+  Inventory2Icon,
+  LockIcon,
+  GroupIcon,
   DeleteIcon,
 } from '@repo/ui/components'
 import { trpc } from '@/trpc/client'
@@ -61,6 +64,16 @@ export function PageContextMenu({
     },
   })
 
+  // Map the page's collection to its kind so we only offer the relevant move
+  // target. Falls back to showing both items when the kind can't be resolved.
+  const { data: collections } = trpc.collection.list.useQuery(
+    { workspaceId },
+    { enabled: Boolean(anchorEl) },
+  )
+  const currentKind = collections?.find((c) => c.id === page.collectionId)?.kind ?? null
+  const showMakePrivate = currentKind !== 'PERSONAL'
+  const showMoveToTeam = currentKind !== 'TEAM'
+
   const handleToggleFavorite = () => {
     actions.toggleFavorite()
     onClose()
@@ -95,6 +108,21 @@ export function PageContextMenu({
 
   const handleOpenSaveTemplate = () => {
     setSaveTemplateOpen(true)
+    onClose()
+  }
+
+  const handleArchive = () => {
+    actions.handleArchive()
+    onClose()
+  }
+
+  const handleMakePrivate = () => {
+    actions.handleMakePrivate()
+    onClose()
+  }
+
+  const handleMoveToTeam = () => {
+    actions.handleMoveToTeam()
     onClose()
   }
 
@@ -137,6 +165,25 @@ export function PageContextMenu({
           <BookmarkAddIcon fontSize="small" />
           Сохранить как шаблон
         </MenuItem>
+
+        <Divider />
+
+        <MenuItem onClick={handleArchive} sx={menuItemSx}>
+          <Inventory2Icon fontSize="small" />В архив
+        </MenuItem>
+
+        {showMakePrivate ? (
+          <MenuItem onClick={handleMakePrivate} sx={menuItemSx}>
+            <LockIcon fontSize="small" />
+            Сделать личной
+          </MenuItem>
+        ) : null}
+
+        {showMoveToTeam ? (
+          <MenuItem onClick={handleMoveToTeam} sx={menuItemSx}>
+            <GroupIcon fontSize="small" />В команду
+          </MenuItem>
+        ) : null}
 
         <MenuItem onClick={handleOpenDelete} sx={{ ...menuItemSx, color: 'error.main' }}>
           <DeleteIcon fontSize="small" />В корзину
