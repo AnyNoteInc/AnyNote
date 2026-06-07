@@ -61,7 +61,6 @@ export type {
   Workspace,
   WorkspaceMember,
   Page,
-  PageTemplate,
   UserPreference,
   IntegrationProvider,
   Integration,

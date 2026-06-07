@@ -49,7 +49,7 @@ model User {
   reminderRecipients         ReminderRecipient[]      @relation("ReminderRecipient")
   tasksCreated               Task[]                   @relation("TaskCreator")
   tasksUpdated               Task[]                   @relation("TaskUpdater")
-  workspaceParticipants WorkspaceParticipant[]
+  workspaceParticipants      WorkspaceParticipant[]
   taskComments               TaskComment[]
   taskActivity               TaskActivity[]
   taskAttachments            TaskAttachment[]
@@ -58,7 +58,6 @@ model User {
   agentActionLogs            AgentActionLog[]         @relation("AgentActionLogUser")
   apiKeys                    ApiKey[]
   aiProvidersCreated         AiProvider[]             @relation("AiProviderCreatedBy")
-  createdPageTemplates       PageTemplate[]           @relation("PageTemplateCreatedBy")
 
   @@map("users")
 }
@@ -352,7 +351,6 @@ model Workspace {
   agentActionLogs       AgentActionLog[]
   limits                WorkspaceLimit?
   aiProviders           AiProvider[]           @relation("WorkspaceAiProviders")
-  pageTemplates         PageTemplate[]
 
   @@index([createdById])
   @@map("workspaces")
@@ -376,24 +374,29 @@ model WorkspaceMember {
 }
 
 model Page {
-  id           String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  workspaceId  String                   @map("workspace_id") @db.Uuid
-  parentId     String?                  @map("parent_id") @db.Uuid
-  type         PageType                 @default(TEXT)
-  ownership    PageOwnership            @default(TEXT)
-  title        String?                  @db.Text
-  icon         String?                  @db.Text
-  content      Json?
-  contentYjs   Bytes?                   @map("content_yjs")
-  searchVector Unsupported("tsvector")? @default(dbgenerated()) @map("search_vector")
-  archived            Boolean                  @default(false)
-  isTemplateBacking   Boolean                  @default(false) @map("is_template_backing")
-  prevPageId          String?                  @unique @map("prev_page_id") @db.Uuid
-  deletedAt    DateTime?                @map("deleted_at") @db.Timestamptz(6)
-  createdById  String?                  @map("created_by_id") @db.Uuid
-  updatedById  String?                  @map("updated_by_id") @db.Uuid
-  createdAt    DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  id            String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId   String                   @map("workspace_id") @db.Uuid
+  parentId      String?                  @map("parent_id") @db.Uuid
+  type          PageType                 @default(TEXT)
+  ownership     PageOwnership            @default(TEXT)
+  title         String?                  @db.Text
+  icon          String?                  @db.Text
+  content       Json?
+  contentYjs    Bytes?                   @map("content_yjs")
+  searchVector  Unsupported("tsvector")? @default(dbgenerated()) @map("search_vector")
+  archived      Boolean                  @default(false)
+  isTemplate    PageTemplateScope?       @map("is_template")
+  templateKey   String?                  @unique @map("template_key") @db.Text
+  templateMeta  Json?                    @map("template_meta")
+  usageCount    Int                      @default(0) @map("usage_count")
+  averageRating Float                    @default(0) @map("average_rating")
+  ratingCount   Int                      @default(0) @map("rating_count")
+  prevPageId    String?                  @unique @map("prev_page_id") @db.Uuid
+  deletedAt     DateTime?                @map("deleted_at") @db.Timestamptz(6)
+  createdById   String?                  @map("created_by_id") @db.Uuid
+  updatedById   String?                  @map("updated_by_id") @db.Uuid
+  createdAt     DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   workspace        Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   createdBy        User?               @relation("PageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -413,52 +416,17 @@ model Page {
   kanbanPriorities KanbanPriority[]
   kanbanLabels     KanbanLabel[]
   sprints          Sprint[]
-  tasks              Task[]
-  backingForTemplate PageTemplate? @relation("TemplateBackingPage")
+  tasks            Task[]
+  templateTags     PageTemplateTag[]
 
   @@index([workspaceId])
   @@index([parentId])
   @@index([archived])
-  @@index([isTemplateBacking])
+  @@index([isTemplate])
+  @@index([workspaceId, isTemplate])
   @@index([workspaceId, ownership])
   @@index([searchVector], type: Gin, name: "Page_searchVector_idx")
   @@map("pages")
-}
-
-model PageTemplate {
-  id          String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  workspaceId String?           @map("workspace_id") @db.Uuid
-  scope       PageTemplateScope
-  // Stable identity for seeded GLOBAL templates so re-seeding upserts by key
-  // (survives title renames). NULL for user-created WORKSPACE templates.
-  key         String?           @unique @db.Text
-  title       String            @db.Text
-  description String?           @db.Text
-  icon          String?           @db.Text
-  type          PageType          @default(TEXT)
-  content       Json?
-  contentYjs    Bytes?            @map("content_yjs")
-  usageCount    Int               @default(0) @map("usage_count")
-  backingPageId String?           @unique @map("backing_page_id") @db.Uuid
-  averageRating Float             @default(0) @map("average_rating")
-  ratingCount   Int               @default(0) @map("rating_count")
-  previewColor  String?           @map("preview_color") @db.Text
-  createdById   String?           @map("created_by_id") @db.Uuid
-  updatedById   String?           @map("updated_by_id") @db.Uuid
-  createdAt     DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime          @updatedAt @map("updated_at") @db.Timestamptz(6)
-  deletedAt     DateTime?         @map("deleted_at") @db.Timestamptz(6)
-
-  workspace   Workspace? @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  backingPage Page?      @relation("TemplateBackingPage", fields: [backingPageId], references: [id], onDelete: SetNull)
-  createdBy   User?      @relation("PageTemplateCreatedBy", fields: [createdById], references: [id])
-  tags        PageTemplateTag[]
-
-  @@index([workspaceId])
-  @@index([scope])
-  @@index([createdAt])
-  @@index([usageCount])
-  @@map("page_templates")
 }
 
 model TemplateTag {
@@ -473,12 +441,13 @@ model TemplateTag {
 }
 
 model PageTemplateTag {
-  templateId String       @map("template_id") @db.Uuid
-  tagId      String       @map("tag_id") @db.Uuid
-  template   PageTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
-  tag        TemplateTag  @relation(fields: [tagId], references: [id], onDelete: Cascade)
+  pageId String @map("page_id") @db.Uuid
+  tagId  String @map("tag_id") @db.Uuid
 
-  @@id([templateId, tagId])
+  page Page        @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  tag  TemplateTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([pageId, tagId])
   @@index([tagId])
   @@map("page_template_tags")
 }
