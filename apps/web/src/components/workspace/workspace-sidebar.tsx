@@ -17,6 +17,7 @@ import {
   GroupAddIcon,
   HomeIcon,
   IconButton,
+  Inventory2Icon,
   KeyboardDoubleArrowLeftIcon,
   Menu,
   MenuItem,
@@ -33,6 +34,7 @@ import { trpc } from '@/trpc/client'
 import { NotificationsBell } from '../notifications/notifications-bell'
 import { FavoritesSection } from './favorites-section'
 import { PageTreeSection } from './page-tree-section'
+import { SharedPagesSection } from './shared-pages-section'
 import type { PageItem } from './types'
 import { SearchSidebarSection } from './search-sidebar-section'
 import { SIDEBAR_WIDTH } from './workspace-layout-client'
@@ -70,6 +72,10 @@ export function WorkspaceSidebar({
     () => new Set((favorites.data ?? []).map((f) => f.id)),
     [favorites.data],
   )
+
+  const collections = trpc.collection.list.useQuery({ workspaceId: workspace.id })
+  const teamCollectionId = collections.data?.find((c) => c.kind === 'TEAM')?.id ?? null
+  const personalCollectionId = collections.data?.find((c) => c.kind === 'PERSONAL')?.id ?? null
 
   const allWorkspaces = trpc.workspace.listMine.useQuery()
 
@@ -238,17 +244,38 @@ export function WorkspaceSidebar({
               allPages={pages}
               favoritePageIds={favoritePageIds}
             />
-            <PageTreeSection
-              workspaceId={workspace.id}
-              pages={pages}
-              favoritePageIds={favoritePageIds}
-            />
+            {teamCollectionId ? (
+              <PageTreeSection
+                workspaceId={workspace.id}
+                pages={pages}
+                favoritePageIds={favoritePageIds}
+                collectionId={teamCollectionId}
+                title="Команда"
+              />
+            ) : null}
+            {personalCollectionId ? (
+              <PageTreeSection
+                workspaceId={workspace.id}
+                pages={pages}
+                favoritePageIds={favoritePageIds}
+                collectionId={personalCollectionId}
+                title="Личное"
+              />
+            ) : null}
+            <SharedPagesSection workspaceId={workspace.id} />
             <Stack spacing={0.25} sx={{ pb: 1 }}>
               <NavItem
                 icon={<DashboardCustomizeIcon sx={{ fontSize: 16 }} />}
                 label="Маркетплейс"
                 href="/marketplace"
                 matchPrefix="/marketplace"
+                pathname={pathname}
+              />
+              <NavItem
+                icon={<Inventory2Icon sx={{ fontSize: 16 }} />}
+                label="Архив"
+                href="/archive"
+                matchPrefix="/archive"
                 pathname={pathname}
               />
               <NavItem

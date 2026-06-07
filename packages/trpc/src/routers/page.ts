@@ -78,6 +78,22 @@ export const pageRouter = router({
       })
     }),
 
+  listShared: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertWorkspaceMember(ctx, input.workspaceId)
+      return ctx.prisma.page.findMany({
+        where: {
+          workspaceId: input.workspaceId,
+          deletedAt: null,
+          archivedAt: null,
+          share: { users: { some: { userId: ctx.user.id } } },
+        },
+        orderBy: { updatedAt: 'desc' },
+        select: { id: true, title: true, icon: true },
+      })
+    }),
+
   create: protectedProcedure
     .input(domain.createPageInput)
     .mutation(async ({ ctx, input }): Promise<{ id: string }> => {
