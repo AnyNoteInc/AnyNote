@@ -16,6 +16,8 @@ import {
   BlockBackground,
   Callout,
   Code,
+  Column,
+  ColumnLayout,
   DateNode,
   Details,
   DetailsContent,
@@ -88,5 +90,7 @@ export function buildServerExtensions() {
     FileAttachment,
     PageLink,
     DateNode,
+    ColumnLayout,
+    Column,
   ]
 }

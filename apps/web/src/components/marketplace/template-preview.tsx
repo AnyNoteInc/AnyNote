@@ -12,6 +12,20 @@ function gradientFor(id: string): string {
   return `linear-gradient(135deg, hsl(${hash} 70% 92%), hsl(${h2} 70% 85%))`
 }
 
+/**
+ * Convert template content to a preview HTML snippet, swallowing any conversion
+ * error (e.g. a node type the export extensions don't know yet) so a single
+ * unusual template can never crash the whole marketplace grid — it just falls
+ * back to the icon preview.
+ */
+function safePreviewHtml(content: unknown): string {
+  try {
+    return tiptapJsonToHtml(content)
+  } catch {
+    return ''
+  }
+}
+
 export function TemplatePreview({
   id,
   content,
@@ -23,7 +37,7 @@ export function TemplatePreview({
   icon: string | null
   previewColor: string | null
 }) {
-  const html = tiptapJsonToHtml(content)
+  const html = safePreviewHtml(content)
   if (!html) {
     // Fallback: icon on a colored box (previous behavior)
     return (
