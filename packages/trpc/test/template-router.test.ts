@@ -139,20 +139,25 @@ describe('template router (integration)', () => {
     expect(row.usageCount).toBe(0)
   })
 
-  it('forbids a normal user from creating a GLOBAL template', async () => {
+  it('lets a workspace member create a GLOBAL template', async () => {
     const owner = await makeUser('b')
     const ws = await makeWorkspaceWithOwner(owner.id)
     const page = await makePage(ws.id, owner.id, 'Doc')
     const caller = makeCaller(owner.id)
 
-    await expect(
-      caller.createFromPage({
-        pageId: page.id,
-        workspaceId: ws.id,
-        title: 'Global tmpl',
-        scope: PageTemplateScope.GLOBAL,
-      }),
-    ).rejects.toThrow(/глобальных шаблонов/i)
+    const created = await caller.createFromPage({
+      pageId: page.id,
+      workspaceId: ws.id,
+      title: 'Global tmpl',
+      scope: PageTemplateScope.GLOBAL,
+    })
+
+    const row = await prisma.pageTemplate.findUnique({
+      where: { id: created.id },
+      select: { scope: true, workspaceId: true },
+    })
+    expect(row?.scope).toBe(PageTemplateScope.GLOBAL)
+    expect(row?.workspaceId).toBeNull()
   })
 
   it('search returns workspace and global templates, grouped', async () => {
@@ -167,7 +172,7 @@ describe('template router (integration)', () => {
       title: 'Project plan',
       scope: PageTemplateScope.WORKSPACE,
     })
-    // Seed a GLOBAL template directly (normal users can't create these).
+    // Seed a GLOBAL template directly for the grouping assertion.
     await prisma.pageTemplate.create({
       data: {
         scope: PageTemplateScope.GLOBAL,
