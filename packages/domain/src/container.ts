@@ -33,6 +33,9 @@ import type { BillingService } from './billing/services/billing.service.ts'
 import { COLLECTIONS } from './collections/collections.tokens.ts'
 import { collectionsModule } from './collections/collections.module.ts'
 import type { CollectionService } from './collections/services/collections.service.ts'
+import { SHARE_ACCESS } from './share-access/share-access.tokens.ts'
+import { shareAccessModule } from './share-access/share-access.module.ts'
+import type { ShareAccessService } from './share-access/services/share-access.service.ts'
 
 export interface DomainDeps {
   prisma: PrismaClient
@@ -49,6 +52,7 @@ export interface Domain {
   templates: TemplateService
   billing: BillingService
   collections: CollectionService
+  shareAccess: ShareAccessService
 }
 
 export function createDomainContainer(deps: DomainDeps): Container {
@@ -69,6 +73,7 @@ export function createDomainContainer(deps: DomainDeps): Container {
     templatesModule,
     billingModule,
     collectionsModule,
+    shareAccessModule,
   )
   return c
 }
@@ -85,5 +90,6 @@ export function createDomain(deps: DomainDeps): Domain {
     templates: c.get<TemplateService>(TEMPLATES.Service),
     billing: c.get<BillingService>(BILLING.Service),
     collections: c.get<CollectionService>(COLLECTIONS.Service),
+    shareAccess: c.get<ShareAccessService>(SHARE_ACCESS.Service),
   }
 }
