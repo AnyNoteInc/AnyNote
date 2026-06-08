@@ -1,5 +1,8 @@
 import { describe, it, expect } from 'vitest'
-import { ShareAccessService } from '../../../src/share-access/services/share-access.service.ts'
+import {
+  ShareAccessService,
+  hashSharePassword,
+} from '../../../src/share-access/services/share-access.service.ts'
 import type { ShareRow } from '../../../src/share-access/repositories/share-access.repository.ts'
 
 const NOW = new Date('2026-06-08T12:00:00Z')
@@ -98,6 +101,180 @@ describe('ShareAccessService (LINK mode)', () => {
       requestedPageId: 'p2',
       now: NOW,
     })
+    expect(r).toEqual({ status: 'unavailable', reason: 'restricted_child' })
+  })
+})
+
+describe('ShareAccessService (SITE mode)', () => {
+  const siteBase = () => makeShare({ mode: 'SITE', publishedAt: new Date('2026-06-01T00:00:00Z') })
+
+  it('ok when published', async () => {
+    const r = await makeService(siteBase()).resolve({ shareId: 's1', now: NOW })
+    expect(r).toMatchObject({ status: 'ok', role: 'READER' })
+  })
+
+  it('denies unpublished when no publishedAt', async () => {
+    const r = await makeService(makeShare({ mode: 'SITE' })).resolve({ shareId: 's1', now: NOW })
+    expect(r).toEqual({ status: 'unavailable', reason: 'unpublished' })
+  })
+
+  it('denies unpublished when unpublishedAt is after publishedAt', async () => {
+    const s = siteBase()
+    s.unpublishedAt = new Date('2026-06-05T00:00:00Z')
+    const r = await makeService(s).resolve({ shareId: 's1', now: NOW })
+    expect(r).toEqual({ status: 'unavailable', reason: 'unpublished' })
+  })
+
+  it('denies not_yet_exposed when exposesAt is in the future', async () => {
+    const s = siteBase()
+    s.exposesAt = new Date('2026-06-20T00:00:00Z')
+    const r = await makeService(s).resolve({ shareId: 's1', now: NOW })
+    expect(r).toEqual({ status: 'unavailable', reason: 'not_yet_exposed' })
+  })
+
+  it('denies password_required when password missing', async () => {
+    const s = siteBase()
+    s.passwordHash = await hashSharePassword('secret')
+    const r = await makeService(s).resolve({ shareId: 's1', now: NOW })
+    expect(r).toEqual({ status: 'unavailable', reason: 'password_required' })
+  })
+
+  it('ok when correct password supplied', async () => {
+    const s = siteBase()
+    s.passwordHash = await hashSharePassword('secret')
+    const r = await makeService(s).resolve({ shareId: 's1', password: 'secret', now: NOW })
+    expect(r).toMatchObject({ status: 'ok' })
+  })
+
+  it('denies child not descended from root', async () => {
+    const repo = { findShareByShareId: async () => siteBase(), findPathToRoot: async () => null }
+    const svc = new ShareAccessService(repo as never)
+    const r = await svc.resolve({ shareId: 's1', requestedPageId: 'pX', now: NOW })
+    expect(r).toEqual({ status: 'unavailable', reason: 'restricted_child' })
+  })
+
+  it('ok for a child in the published subtree', async () => {
+    const repo = {
+      findShareByShareId: async () => siteBase(),
+      findPathToRoot: async () => [
+        {
+          id: 'p2',
+          parentId: 'p1',
+          collectionId: 'c1',
+          archivedAt: null,
+          deletedAt: null,
+          collectionKind: 'TEAM',
+          collectionOwnerId: null,
+        },
+        {
+          id: 'p1',
+          parentId: null,
+          collectionId: 'c1',
+          archivedAt: null,
+          deletedAt: null,
+          collectionKind: 'TEAM',
+          collectionOwnerId: null,
+        },
+      ],
+      findPublicPageById: async () => ({
+        id: 'p2',
+        type: 'TEXT',
+        title: 'C',
+        icon: null,
+        workspaceId: 'w1',
+      }),
+    }
+    const svc = new ShareAccessService(repo as never)
+    const r = await svc.resolve({ shareId: 's1', requestedPageId: 'p2', now: NOW })
+    expect(r).toMatchObject({ status: 'ok', page: { id: 'p2', title: 'C' } })
+  })
+
+  it('denies child when an ancestor is archived', async () => {
+    const repo = {
+      findShareByShareId: async () => siteBase(),
+      findPathToRoot: async () => [
+        {
+          id: 'p2',
+          parentId: 'p1',
+          collectionId: 'c1',
+          archivedAt: NOW,
+          deletedAt: null,
+          collectionKind: 'TEAM',
+          collectionOwnerId: null,
+        },
+        {
+          id: 'p1',
+          parentId: null,
+          collectionId: 'c1',
+          archivedAt: null,
+          deletedAt: null,
+          collectionKind: 'TEAM',
+          collectionOwnerId: null,
+        },
+      ],
+    }
+    const svc = new ShareAccessService(repo as never)
+    const r = await svc.resolve({ shareId: 's1', requestedPageId: 'p2', now: NOW })
+    expect(r).toEqual({ status: 'unavailable', reason: 'restricted_child' })
+  })
+
+  it('denies child in another user PERSONAL collection', async () => {
+    const repo = {
+      findShareByShareId: async () => siteBase(),
+      findPathToRoot: async () => [
+        {
+          id: 'p2',
+          parentId: 'p1',
+          collectionId: 'cP',
+          archivedAt: null,
+          deletedAt: null,
+          collectionKind: 'PERSONAL',
+          collectionOwnerId: 'someoneElse',
+        },
+        {
+          id: 'p1',
+          parentId: null,
+          collectionId: 'c1',
+          archivedAt: null,
+          deletedAt: null,
+          collectionKind: 'TEAM',
+          collectionOwnerId: null,
+        },
+      ],
+    }
+    const svc = new ShareAccessService(repo as never)
+    const r = await svc.resolve({ shareId: 's1', requestedPageId: 'p2', now: NOW })
+    expect(r).toEqual({ status: 'unavailable', reason: 'restricted_child' })
+  })
+
+  it('denies child when publishSubpages is false', async () => {
+    const s = siteBase()
+    s.publishSubpages = false
+    const repo = {
+      findShareByShareId: async () => s,
+      findPathToRoot: async () => [
+        {
+          id: 'p2',
+          parentId: 'p1',
+          collectionId: 'c1',
+          archivedAt: null,
+          deletedAt: null,
+          collectionKind: 'TEAM',
+          collectionOwnerId: null,
+        },
+        {
+          id: 'p1',
+          parentId: null,
+          collectionId: 'c1',
+          archivedAt: null,
+          deletedAt: null,
+          collectionKind: 'TEAM',
+          collectionOwnerId: null,
+        },
+      ],
+    }
+    const svc = new ShareAccessService(repo as never)
+    const r = await svc.resolve({ shareId: 's1', requestedPageId: 'p2', now: NOW })
     expect(r).toEqual({ status: 'unavailable', reason: 'restricted_child' })
   })
 })

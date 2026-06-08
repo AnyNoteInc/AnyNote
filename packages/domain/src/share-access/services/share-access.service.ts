@@ -1,9 +1,27 @@
+import { scryptSync, randomBytes, timingSafeEqual } from 'node:crypto'
+
 import type { ShareAccessRepository, ShareRow } from '../repositories/share-access.repository.ts'
 import type {
   PublicShareResult,
   ResolvePublicShareInput,
   PublicAccessRole,
 } from '../dto/share-access.dto.ts'
+
+const SCRYPT_KEYLEN = 64
+
+export async function hashSharePassword(password: string): Promise<string> {
+  const salt = randomBytes(16).toString('hex')
+  const derived = scryptSync(password, salt, SCRYPT_KEYLEN).toString('hex')
+  return `${salt}:${derived}`
+}
+
+export function verifySharePassword(password: string, stored: string): boolean {
+  const [salt, hash] = stored.split(':')
+  if (!salt || !hash) return false
+  const derived = scryptSync(password, salt, SCRYPT_KEYLEN)
+  const expected = Buffer.from(hash, 'hex')
+  return derived.length === expected.length && timingSafeEqual(derived, expected)
+}
 
 export class ShareAccessService {
   private readonly repo: ShareAccessRepository
@@ -26,10 +44,14 @@ export class ShareAccessService {
     if (denial) return denial
 
     // Child access only valid in SITE mode (checked in checkChild below).
+    let resolvedPage = share.page
     if (input.requestedPageId && input.requestedPageId !== share.page.id) {
       if (share.mode !== 'SITE') return { status: 'unavailable', reason: 'restricted_child' }
       const child = await this.checkChild(share, input.requestedPageId)
       if (child) return child
+      const childPage = await this.repo.findPublicPageById(input.requestedPageId)
+      if (!childPage) return { status: 'unavailable', reason: 'restricted_child' }
+      resolvedPage = { ...share.page, ...childPage }
     }
 
     const role = (share.mode === 'SITE' ? 'READER' : share.linkRole) as PublicAccessRole
@@ -37,11 +59,11 @@ export class ShareAccessService {
       status: 'ok',
       role,
       page: {
-        id: share.page.id,
-        type: share.page.type,
-        title: share.page.title,
-        icon: share.page.icon,
-        workspaceId: share.page.workspaceId,
+        id: resolvedPage.id,
+        type: resolvedPage.type,
+        title: resolvedPage.title,
+        icon: resolvedPage.icon,
+        workspaceId: resolvedPage.workspaceId,
       },
       share: {
         shareId: share.shareId,
@@ -60,14 +82,32 @@ export class ShareAccessService {
     return null
   }
 
-  // checkSite + checkChild implemented in Task A4 (return null for now).
-  protected checkSite(_share: ShareRow, _input: ResolvePublicShareInput): PublicShareResult | null {
-    return { status: 'unavailable', reason: 'unpublished' }
+  protected checkSite(share: ShareRow, input: ResolvePublicShareInput): PublicShareResult | null {
+    const published =
+      share.publishedAt &&
+      (!share.unpublishedAt || share.unpublishedAt.getTime() < share.publishedAt.getTime())
+    if (!published) return { status: 'unavailable', reason: 'unpublished' }
+
+    if (share.exposesAt && share.exposesAt.getTime() > input.now.getTime())
+      return { status: 'unavailable', reason: 'not_yet_exposed' }
+
+    if (share.passwordHash) {
+      if (!input.password || !verifySharePassword(input.password, share.passwordHash))
+        return { status: 'unavailable', reason: 'password_required' }
+    }
+    return null
   }
-  protected async checkChild(
-    _share: ShareRow,
-    _childId: string,
-  ): Promise<PublicShareResult | null> {
-    return { status: 'unavailable', reason: 'restricted_child' }
+
+  protected async checkChild(share: ShareRow, childId: string): Promise<PublicShareResult | null> {
+    if (!share.publishSubpages) return { status: 'unavailable', reason: 'restricted_child' }
+    const path = await this.repo.findPathToRoot(childId, share.page.id)
+    if (!path) return { status: 'unavailable', reason: 'restricted_child' }
+    for (const node of path) {
+      if (node.archivedAt || node.deletedAt)
+        return { status: 'unavailable', reason: 'restricted_child' }
+      if (node.collectionKind === 'PERSONAL')
+        return { status: 'unavailable', reason: 'restricted_child' }
+    }
+    return null
   }
 }
