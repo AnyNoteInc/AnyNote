@@ -99,10 +99,12 @@ describe('CreatePageDialog', () => {
     expect(screen.getByRole('button', { name: 'Создать страницу: Канбан' })).toBeInTheDocument()
   })
 
-  it('does not offer DATABASE or FORM page types', () => {
+  it('offers the DATABASE page type but not FORM', () => {
     mocks.useQuery.mockReturnValue(idle())
     renderDialog()
-    expect(screen.queryByText(/database/i)).not.toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Создать страницу: База данных' }),
+    ).toBeInTheDocument()
     expect(screen.queryByText(/^form$/i)).not.toBeInTheDocument()
   })
 
