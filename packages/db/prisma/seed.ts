@@ -128,9 +128,11 @@ async function main() {
   })
 
   await seedTemplateTags()
-  await seedGlobalTemplates()
+  const systemWorkspaceId = await seedSystemWorkspace()
+  await seedGlobalTemplates(systemWorkspaceId)
 
-  console.info(`Seed complete: 3 active plans, ${GLOBAL_TEMPLATES.length} global templates`)
+  const templatePageCount = await prisma.page.count({ where: { isTemplate: 'GLOBAL' } })
+  console.info(`Seed complete: 3 active plans, ${templatePageCount} global template pages`)
 }
 
 async function seedTemplateTags() {
@@ -144,11 +146,28 @@ async function seedTemplateTags() {
 }
 
 /**
- * Upsert the built-in GLOBAL templates, keyed by the stable `key` slug so a
- * later title rename updates the existing row instead of orphaning it. Existing
- * rows keep their id and usageCount; missing ones are created.
+ * Upsert the hidden system workspace that owns the built-in GLOBAL template
+ * pages. It is keyed by the stable slug `system-templates` (looked up by the
+ * domain's `findSystemWorkspaceId()`) and has NO members, so it never surfaces
+ * to real users. `createdById` is omitted (admin-managed, nullable).
  */
-async function seedGlobalTemplates() {
+async function seedSystemWorkspace(): Promise<string> {
+  const ws = await prisma.workspace.upsert({
+    where: { slug: 'system-templates' },
+    create: { slug: 'system-templates', name: 'Шаблоны AnyNote', icon: '📐' },
+    update: { name: 'Шаблоны AnyNote' },
+    select: { id: true },
+  })
+  return ws.id
+}
+
+/**
+ * Upsert the built-in GLOBAL templates as TEMPLATE PAGES in the system
+ * workspace, keyed by the stable `templateKey` so a later title rename updates
+ * the existing row instead of orphaning it. Existing rows keep their id and
+ * usageCount; missing ones are created. `createdById` stays null (admin-managed).
+ */
+async function seedGlobalTemplates(systemWorkspaceId: string) {
   // Map tag slug → id once (tags are already seeded).
   const tags = await prisma.templateTag.findMany({ select: { id: true, slug: true } })
   const tagIdBySlug = new Map(tags.map((t) => [t.slug, t.id]))
@@ -156,30 +175,35 @@ async function seedGlobalTemplates() {
   for (const t of GLOBAL_TEMPLATES) {
     const contentYjs = Buffer.from(buildTemplateContentYjs(t.doc))
     const data = {
+      workspaceId: systemWorkspaceId,
+      isTemplate: 'GLOBAL' as const,
       title: t.title,
-      description: t.description,
       icon: t.icon,
       type: 'TEXT' as const,
       content: t.doc as unknown as Prisma.InputJsonValue,
       contentYjs,
+      templateMeta: {
+        description: t.description,
+        previewColor: null,
+      } as Prisma.InputJsonValue,
       averageRating: t.averageRating,
       ratingCount: t.ratingCount,
       deletedAt: null,
     }
-    const tpl = await prisma.pageTemplate.upsert({
-      where: { key: t.key },
-      create: { key: t.key, scope: 'GLOBAL', workspaceId: null, ...data },
+    const page = await prisma.page.upsert({
+      where: { templateKey: t.key },
+      create: { templateKey: t.key, ...data },
       update: data,
       select: { id: true },
     })
     // Re-sync tag links idempotently: delete existing, recreate from seed.
-    await prisma.pageTemplateTag.deleteMany({ where: { templateId: tpl.id } })
+    await prisma.pageTemplateTag.deleteMany({ where: { pageId: page.id } })
     const tagIds = t.tagSlugs
       .map((slug) => tagIdBySlug.get(slug))
       .filter((id): id is string => Boolean(id))
     if (tagIds.length > 0) {
       await prisma.pageTemplateTag.createMany({
-        data: tagIds.map((tagId) => ({ templateId: tpl.id, tagId })),
+        data: tagIds.map((tagId) => ({ pageId: page.id, tagId })),
         skipDuplicates: true,
       })
     }

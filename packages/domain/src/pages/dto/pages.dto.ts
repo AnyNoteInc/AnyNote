@@ -1,5 +1,5 @@
 import { PageType } from '@repo/db'
-import type { Prisma } from '@repo/db'
+import type { PageTemplateScope, Prisma } from '@repo/db'
 import { z } from 'zod'
 
 // ── Input schemas ─────────────────────────────────────────────────────────────
@@ -99,8 +99,14 @@ export type CreatePageExtra = {
   ownership?: 'TEXT' | 'SKILL' | 'AGENT'
   content?: Prisma.InputJsonValue
   contentYjs?: Uint8Array<ArrayBuffer>
-  isTemplateBacking?: boolean
   resolvedCollectionId?: string | null
+  // Template marker + metadata. A page with `isTemplate` set IS the template;
+  // there is no separate PageTemplate table. The templates domain passes these
+  // through so template pages flow through the one page-create path (linked-list
+  // ordering, outbox). `templateMeta` holds `{ description?, previewColor? }`.
+  isTemplate?: PageTemplateScope
+  templateKey?: string
+  templateMeta?: Prisma.InputJsonValue
 }
 
 // ── Internal row DTO (returned from access queries) ───────────────────────────

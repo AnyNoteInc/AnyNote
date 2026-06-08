@@ -78,7 +78,13 @@ describe('WorkspaceUserMenu', () => {
   it('shows theme controls after settings and stacks upgrade above logout', async () => {
     const actor = userEvent.setup()
 
-    render(<WorkspaceUserMenu user={user} features={features} />)
+    render(
+      <WorkspaceUserMenu
+        user={user}
+        features={features}
+        workspace={{ name: 'Моё пространство', icon: null }}
+      />,
+    )
 
     await actor.click(screen.getByText('Ivan Petrov'))
 

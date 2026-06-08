@@ -1,11 +1,6 @@
 import { PageTemplateScope } from '@repo/db'
-import type { Prisma } from '@repo/db'
 
-import type {
-  CreatePageFromTemplateInput,
-  TemplateContentDto,
-  TemplateSummaryDto,
-} from './dto/templates.dto.ts'
+import type { TemplateSummaryDto } from './dto/templates.dto.ts'
 
 /** Roles that may create a workspace-scoped template (mirrors page edit access). */
 const WRITABLE_ROLES = new Set(['OWNER', 'ADMIN', 'EDITOR'])
@@ -114,37 +109,4 @@ export function groupTemplatesByScope<T extends Pick<TemplateSummaryDto, 'scope'
     else globalTemplates.push(t)
   }
   return { workspaceTemplates, globalTemplates }
-}
-
-/**
- * Build the page-create payload from a template: title falls back to the
- * template's title when the caller didn't override it; type/icon/content are
- * copied verbatim. The editor reads from contentYjs, so the bytes are passed
- * through unchanged (the same copy strategy as page duplication).
- */
-export function buildCreatePageFromTemplatePayload(
-  template: TemplateContentDto,
-  input: Pick<CreatePageFromTemplateInput, 'workspaceId' | 'parentId' | 'title'>,
-): {
-  workspaceId: string
-  parentId: string | null
-  title: string
-  icon: string | undefined
-  type: TemplateContentDto['type']
-  content: Prisma.InputJsonValue | undefined
-  contentYjs: Uint8Array<ArrayBuffer> | undefined
-} {
-  const title = input.title?.trim() ? input.title.trim() : template.title
-  return {
-    workspaceId: input.workspaceId,
-    parentId: input.parentId,
-    title,
-    icon: template.icon ?? undefined,
-    type: template.type,
-    // template.content is Prisma.JsonValue (may be null); a stored template
-    // never holds the JSON literal `null`, so coalescing to undefined yields a
-    // valid InputJsonValue for the page-create path.
-    content: template.content ?? undefined,
-    contentYjs: template.contentYjs ?? undefined,
-  }
 }

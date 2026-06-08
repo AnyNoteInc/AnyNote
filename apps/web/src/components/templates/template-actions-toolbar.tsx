@@ -12,7 +12,6 @@ type Props = {
   templateId: string
   workspaceId: string
   canEdit: boolean
-  backingPageId: string | null
   title: string
   icon: string | null
   description: string | null
@@ -27,15 +26,23 @@ export function TemplateActionsToolbar({
   templateId,
   workspaceId,
   canEdit,
-  backingPageId,
   title,
   icon,
   description,
 }: Readonly<Props>) {
   const router = useRouter()
+  const utils = trpc.useUtils()
 
   const createPage = trpc.template.createPageFromTemplate.useMutation({
-    onSuccess: (res) => router.push(`/pages/${res.id}`),
+    onSuccess: async (res) => {
+      // Refresh the sidebar page tree (and favorites) so the new page shows up
+      // immediately, then navigate to it.
+      await Promise.all([
+        utils.page.listByWorkspace.invalidate({ workspaceId }),
+        utils.page.listFavorites.invalidate({ workspaceId }),
+      ])
+      router.push(`/pages/${res.id}`)
+    },
   })
 
   return (
@@ -51,7 +58,6 @@ export function TemplateActionsToolbar({
       <TemplateActionsMenu
         templateId={templateId}
         workspaceId={workspaceId}
-        backingPageId={backingPageId}
         canEdit={canEdit}
         title={title}
         icon={icon}

@@ -93,7 +93,7 @@ export const workspaceRouter = router({
         where: {
           workspaceId: result.id,
           collectionId: null,
-          isTemplateBacking: false,
+          isTemplate: null,
           deletedAt: null,
         },
         data: { collectionId: teamCollection.id },

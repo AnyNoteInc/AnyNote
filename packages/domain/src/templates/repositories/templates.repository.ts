@@ -1,36 +1,45 @@
-import { PageTemplateScope, PageType } from '@repo/db'
-import type { Prisma } from '@repo/db'
+import { PageTemplateScope } from '@repo/db'
+import type { PageType, Prisma } from '@repo/db'
 
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
-import type {
-  CreateTemplateFromPageInput,
-  CreateTemplateInput,
-  TemplateBackingPageDto,
-  TemplateContentDto,
-  TemplateDetailDto,
-  TemplateSummaryDto,
-  TemplateTagDto,
-  UpdateTemplateInput,
-} from '../dto/templates.dto.ts'
+import type { PageService } from '../../pages/index.ts'
+import type { TemplateSummaryDto, TemplateTagDto } from '../dto/templates.dto.ts'
+
+// ── templateMeta JSON shape ─────────────────────────────────────────────────────
+
+interface TemplateMeta {
+  description?: string | null
+  previewColor?: string | null
+}
+
+function readMeta(meta: Prisma.JsonValue | null): TemplateMeta {
+  if (!meta || typeof meta !== 'object' || Array.isArray(meta)) return {}
+  const m = meta as Record<string, unknown>
+  return {
+    description: typeof m.description === 'string' ? m.description : null,
+    previewColor: typeof m.previewColor === 'string' ? m.previewColor : null,
+  }
+}
+
+// ── Summary projection (marketplace cards) ──────────────────────────────────────
 
 const SUMMARY_SELECT = {
   id: true,
   workspaceId: true,
-  scope: true,
+  isTemplate: true,
   title: true,
-  description: true,
   icon: true,
   type: true,
   usageCount: true,
   averageRating: true,
   ratingCount: true,
-  previewColor: true,
+  templateMeta: true,
   content: true,
   createdById: true,
   createdAt: true,
   updatedAt: true,
-  createdBy: { select: { firstName: true, lastName: true } },
-  tags: {
+  createdBy: { select: { firstName: true, lastName: true, email: true } },
+  templateTags: {
     select: { tag: { select: { id: true, slug: true, name: true, icon: true, position: true } } },
   },
 } as const
@@ -38,22 +47,22 @@ const SUMMARY_SELECT = {
 function toSummary(row: {
   id: string
   workspaceId: string | null
-  scope: PageTemplateScope
-  title: string
-  description: string | null
+  isTemplate: PageTemplateScope | null
+  title: string | null
   icon: string | null
   type: PageType
   usageCount: number
   averageRating: number
   ratingCount: number
-  previewColor: string | null
+  templateMeta: Prisma.JsonValue | null
   content: Prisma.JsonValue | null
   createdById: string | null
   createdAt: Date
   updatedAt: Date
-  createdBy: { firstName: string | null; lastName: string | null } | null
-  tags: { tag: { id: string; slug: string; name: string; icon: string; position: number } }[]
+  createdBy: { firstName: string | null; lastName: string | null; email: string | null } | null
+  templateTags: { tag: { id: string; slug: string; name: string; icon: string; position: number } }[]
 }): TemplateSummaryDto {
+  const meta = readMeta(row.templateMeta)
   const fullName = [row.createdBy?.firstName, row.createdBy?.lastName]
     .filter(Boolean)
     .join(' ')
@@ -61,22 +70,46 @@ function toSummary(row: {
   return {
     id: row.id,
     workspaceId: row.workspaceId,
-    scope: row.scope,
-    title: row.title,
-    description: row.description,
+    // A summary row is only ever fetched with `isTemplate != null`; coalesce to
+    // satisfy the non-null DTO field.
+    scope: row.isTemplate ?? PageTemplateScope.WORKSPACE,
+    title: row.title ?? '',
+    description: meta.description ?? null,
     icon: row.icon,
     type: row.type,
     usageCount: row.usageCount,
     averageRating: row.averageRating,
     ratingCount: row.ratingCount,
-    previewColor: row.previewColor,
+    previewColor: meta.previewColor ?? null,
     previewContent: row.content,
     createdById: row.createdById,
     createdAt: row.createdAt,
     updatedAt: row.updatedAt,
-    tags: row.tags.map((t) => t.tag).sort((a, b) => a.position - b.position),
-    author: { name: fullName || 'AnyNote' },
+    tags: row.templateTags.map((t) => t.tag).sort((a, b) => a.position - b.position),
+    author: { name: fullName || row.createdBy?.email || 'AnyNote' },
   }
+}
+
+// ── Detail row (management editor) ──────────────────────────────────────────────
+
+export interface TemplateDetailRow {
+  id: string
+  workspaceId: string
+  scope: PageTemplateScope
+  title: string | null
+  icon: string | null
+  type: PageType
+  contentYjs: Uint8Array<ArrayBuffer> | null
+  description: string | null
+  createdById: string | null
+}
+
+/** Content needed to deep-copy a template page into a new page. */
+export interface TemplateContentRow {
+  content: Prisma.JsonValue | null
+  contentYjs: Uint8Array<ArrayBuffer> | null
+  icon: string | null
+  type: PageType
 }
 
 /** Source page row needed to clone content into a template. */
@@ -86,15 +119,17 @@ export interface SourcePageDto {
   createdById: string | null
   title: string | null
   icon: string | null
-  type: TemplateContentDto['type']
+  type: PageType
   content: Prisma.JsonValue | null
   contentYjs: Uint8Array<ArrayBuffer> | null
 }
 
 export class TemplateRepository {
   private readonly uow: UnitOfWork
-  constructor(uow: UnitOfWork) {
+  private readonly pages: PageService
+  constructor(uow: UnitOfWork, pages: PageService) {
     this.uow = uow
+    this.pages = pages
   }
 
   // ── Membership ──────────────────────────────────────────────────────────────
@@ -107,6 +142,15 @@ export class TemplateRepository {
       where: { workspaceId_userId: { workspaceId, userId } },
       select: { role: true },
     })
+  }
+
+  /** Resolve the seeded system workspace that hosts GLOBAL templates. */
+  async findSystemWorkspaceId(): Promise<string | null> {
+    const ws = await this.uow.client().workspace.findFirst({
+      where: { slug: 'system-templates' },
+      select: { id: true },
+    })
+    return ws?.id ?? null
   }
 
   // ── Source page (for createFromPage) ────────────────────────────────────────
@@ -128,58 +172,35 @@ export class TemplateRepository {
     return row as SourcePageDto | null
   }
 
-  // ── Search / list (summary projection) ──────────────────────────────────────
+  // ── Marketplace candidates (summary projection) ─────────────────────────────
 
-  /**
-   * Fetch candidate templates for a workspace: its own WORKSPACE templates plus
-   * all GLOBAL templates. Ranking/filtering by query is done in the service via
-   * pure helpers so it stays unit-testable; the DB-side `contains` filter (when
-   * a query is present) just narrows the candidate set.
-   */
-  async searchCandidates(
-    workspaceId: string,
-    query: string,
-  ): Promise<TemplateSummaryDto[]> {
-    const trimmed = query.trim()
-    const textFilter: Prisma.PageTemplateWhereInput =
-      trimmed === ''
-        ? {}
-        : {
-            OR: [
-              { title: { contains: trimmed, mode: 'insensitive' } },
-              { description: { contains: trimmed, mode: 'insensitive' } },
-            ],
-          }
-    const rows = await this.uow.client().pageTemplate.findMany({
-      where: {
-        deletedAt: null,
-        AND: [
-          textFilter,
-          {
-            OR: [
-              { scope: PageTemplateScope.WORKSPACE, workspaceId },
-              { scope: PageTemplateScope.GLOBAL },
-            ],
-          },
-        ],
-      },
-      select: SUMMARY_SELECT,
-    })
-    return rows.map(toSummary)
-  }
-
-  async listByWorkspace(workspaceId: string): Promise<TemplateSummaryDto[]> {
-    const rows = await this.uow.client().pageTemplate.findMany({
-      where: { scope: PageTemplateScope.WORKSPACE, workspaceId, deletedAt: null },
-      orderBy: [{ usageCount: 'desc' }, { createdAt: 'desc' }],
-      select: SUMMARY_SELECT,
-    })
-    return rows.map(toSummary)
-  }
-
-  async listGlobal(): Promise<TemplateSummaryDto[]> {
-    const rows = await this.uow.client().pageTemplate.findMany({
-      where: { scope: PageTemplateScope.GLOBAL, deletedAt: null },
+  /** Candidate template pages for the marketplace: this workspace's WORKSPACE
+   *  templates + all GLOBAL templates, optionally filtered by tag and/or text.
+   *  Sectioning is done in the service. */
+  async marketplaceCandidates(args: {
+    workspaceId: string
+    tagId?: string | null
+    query?: string
+  }): Promise<TemplateSummaryDto[]> {
+    const trimmed = (args.query ?? '').trim()
+    const where: Prisma.PageWhereInput = {
+      isTemplate: { not: null },
+      deletedAt: null,
+      AND: [
+        {
+          OR: [
+            { isTemplate: PageTemplateScope.WORKSPACE, workspaceId: args.workspaceId },
+            { isTemplate: PageTemplateScope.GLOBAL },
+          ],
+        },
+        ...(args.tagId ? [{ templateTags: { some: { tagId: args.tagId } } }] : []),
+        ...(trimmed
+          ? [{ title: { contains: trimmed, mode: 'insensitive' as const } }]
+          : []),
+      ],
+    }
+    const rows = await this.uow.client().page.findMany({
+      where,
       orderBy: [{ usageCount: 'desc' }, { createdAt: 'desc' }],
       select: SUMMARY_SELECT,
     })
@@ -195,259 +216,193 @@ export class TemplateRepository {
     })
   }
 
-  /** Candidate rows for the marketplace: this workspace's templates + all globals,
-   *  optionally filtered by tag and/or text. Sectioning is done in the service. */
-  async marketplaceCandidates(args: {
-    workspaceId: string
-    tagId?: string | null
-    query?: string
-  }): Promise<TemplateSummaryDto[]> {
-    const trimmed = (args.query ?? '').trim()
-    const where: Prisma.PageTemplateWhereInput = {
-      deletedAt: null,
-      AND: [
-        {
-          OR: [
-            { scope: PageTemplateScope.WORKSPACE, workspaceId: args.workspaceId },
-            { scope: PageTemplateScope.GLOBAL },
-          ],
-        },
-        ...(args.tagId ? [{ tags: { some: { tagId: args.tagId } } }] : []),
-        ...(trimmed
-          ? [
-              {
-                OR: [
-                  { title: { contains: trimmed, mode: 'insensitive' as const } },
-                  { description: { contains: trimmed, mode: 'insensitive' as const } },
-                ],
-              },
-            ]
-          : []),
-      ],
-    }
-    const rows = await this.uow.client().pageTemplate.findMany({
-      where,
-      orderBy: [{ usageCount: 'desc' }, { createdAt: 'desc' }],
-      select: SUMMARY_SELECT,
-    })
-    return rows.map(toSummary)
-  }
-
-  // ── Read full content (for createPageFromTemplate) ──────────────────────────
-
-  async findContent(templateId: string): Promise<TemplateContentDto | null> {
-    const row = await this.uow.client().pageTemplate.findFirst({
-      where: { id: templateId, deletedAt: null },
-      select: {
-        id: true,
-        workspaceId: true,
-        scope: true,
-        title: true,
-        icon: true,
-        type: true,
-        content: true,
-        contentYjs: true,
-        backingPageId: true,
-      },
-    })
-    return row as TemplateContentDto | null
-  }
-
-  /**
-   * Read the live content from a backing page by its id.
-   * No membership filter — access is authorised upstream (the template that
-   * references this backing page was already checked).
-   */
-  async findBackingPageContent(
-    pageId: string,
-  ): Promise<{ content: Prisma.JsonValue | null; contentYjs: Uint8Array<ArrayBuffer> | null } | null> {
-    const row = await this.uow.client().page.findFirst({
-      where: { id: pageId, isTemplateBacking: true, deletedAt: null },
-      select: { content: true, contentYjs: true },
-    })
-    return row as { content: Prisma.JsonValue | null; contentYjs: Uint8Array<ArrayBuffer> | null } | null
-  }
-
-  // ── Writes ──────────────────────────────────────────────────────────────────
-
-  async createFromPage(
-    actorUserId: string,
-    input: CreateTemplateFromPageInput,
-    source: SourcePageDto,
-    backingPageId: string,
-  ): Promise<{ id: string }> {
-    const created = await this.uow.client().pageTemplate.create({
-      data: {
-        scope: input.scope,
-        workspaceId: input.scope === PageTemplateScope.WORKSPACE ? input.workspaceId : null,
-        title: input.title,
-        description: input.description ?? null,
-        icon: input.icon !== undefined ? input.icon : source.icon,
-        type: source.type,
-        content: source.content ?? undefined,
-        contentYjs: source.contentYjs ?? undefined,
-        backingPageId,
-        createdById: actorUserId,
-        updatedById: actorUserId,
-      },
-      select: { id: true },
-    })
-    await this.linkTags(created.id, input.tagIds ?? [])
-    return created
-  }
-
-  async create(
-    actorUserId: string,
-    input: CreateTemplateInput,
-    backingPageId: string,
-  ): Promise<{ id: string }> {
-    const created = await this.uow.client().pageTemplate.create({
-      data: {
-        scope: PageTemplateScope.WORKSPACE,
-        workspaceId: input.workspaceId,
-        title: input.title,
-        description: input.description ?? null,
-        icon: input.icon ?? null,
-        type: PageType.TEXT,
-        backingPageId,
-        createdById: actorUserId,
-        updatedById: actorUserId,
-      },
-      select: { id: true },
-    })
-    await this.linkTags(created.id, input.tagIds ?? [])
-    return created
-  }
-
-  private async linkTags(templateId: string, tagIds: string[]): Promise<void> {
-    await this.uow.client().pageTemplateTag.deleteMany({ where: { templateId } })
-    if (tagIds.length === 0) return
-    await this.uow.client().pageTemplateTag.createMany({
-      data: tagIds.map((tagId) => ({ templateId, tagId })),
-      skipDuplicates: true,
-    })
-  }
-
   /** Validate that every id refers to a seeded tag; returns the valid subset count. */
   async countExistingTags(tagIds: string[]): Promise<number> {
     if (tagIds.length === 0) return 0
     return this.uow.client().templateTag.count({ where: { id: { in: tagIds } } })
   }
 
-  async incrementUsage(templateId: string): Promise<void> {
-    await this.uow.client().pageTemplate.update({
-      where: { id: templateId },
+  // ── Detail / content reads ──────────────────────────────────────────────────
+
+  /** Fetch a template page's metadata + Yjs doc for the management editor.
+   *  Returns null if not found or not a template. */
+  async findTemplateDetail(templateId: string): Promise<TemplateDetailRow | null> {
+    const row = await this.uow.client().page.findFirst({
+      where: { id: templateId, isTemplate: { not: null }, deletedAt: null },
+      select: {
+        id: true,
+        workspaceId: true,
+        isTemplate: true,
+        title: true,
+        icon: true,
+        type: true,
+        contentYjs: true,
+        templateMeta: true,
+        createdById: true,
+      },
+    })
+    if (!row || row.isTemplate === null) return null
+    return {
+      id: row.id,
+      workspaceId: row.workspaceId,
+      scope: row.isTemplate,
+      title: row.title,
+      icon: row.icon,
+      type: row.type,
+      contentYjs: row.contentYjs as Uint8Array<ArrayBuffer> | null,
+      description: readMeta(row.templateMeta).description ?? null,
+      createdById: row.createdById,
+    }
+  }
+
+  /** Content needed to deep-copy a template page into a new page.
+   *  Returns null if not found or not a template. */
+  async findTemplateContentForCopy(templateId: string): Promise<TemplateContentRow | null> {
+    const row = await this.uow.client().page.findFirst({
+      where: { id: templateId, isTemplate: { not: null }, deletedAt: null },
+      select: { content: true, contentYjs: true, icon: true, type: true },
+    })
+    if (!row) return null
+    return {
+      content: row.content,
+      contentYjs: row.contentYjs as Uint8Array<ArrayBuffer> | null,
+      icon: row.icon,
+      type: row.type,
+    }
+  }
+
+  /** Read a template page's content snapshot (for re-publishing files public). */
+  async findTemplateContent(templateId: string): Promise<Prisma.JsonValue | null> {
+    const row = await this.uow.client().page.findFirst({
+      where: { id: templateId, isTemplate: { not: null }, deletedAt: null },
+      select: { content: true },
+    })
+    return row?.content ?? null
+  }
+
+  // ── Writes ──────────────────────────────────────────────────────────────────
+
+  /** Create a template PAGE (the template IS a page). Routed through the page
+   *  service so linked-list ordering + outbox are handled the same as any page. */
+  async createTemplatePage(
+    actorUserId: string,
+    input: {
+      workspaceId: string
+      scope: PageTemplateScope
+      title: string
+      icon: string | null
+      description: string | null
+      previewColor: string | null
+      content: Prisma.JsonValue | null
+      contentYjs: Uint8Array<ArrayBuffer> | null
+      type: PageType
+    },
+  ): Promise<{ id: string }> {
+    return this.pages.create(actorUserId, {
+      workspaceId: input.workspaceId,
+      parentId: null,
+      title: input.title,
+      icon: input.icon ?? undefined,
+      type: input.type,
+      isTemplate: input.scope,
+      templateMeta: {
+        description: input.description,
+        previewColor: input.previewColor,
+      },
+      content: input.content ?? undefined,
+      contentYjs: input.contentYjs ?? undefined,
+    })
+  }
+
+  /** Deep-copy a template page into a NEW, independent normal page. */
+  async createPageFromTemplatePage(
+    actorUserId: string,
+    input: {
+      templatePageId: string
+      workspaceId: string
+      parentId: string | null
+      title: string
+      content: Prisma.JsonValue | null
+      contentYjs: Uint8Array<ArrayBuffer> | null
+      icon: string | null
+      type: PageType
+    },
+  ): Promise<{ id: string }> {
+    return this.pages.create(actorUserId, {
+      workspaceId: input.workspaceId,
+      parentId: input.parentId,
+      title: input.title,
+      icon: input.icon ?? undefined,
+      type: input.type,
+      content: input.content ?? undefined,
+      contentYjs: input.contentYjs ?? undefined,
+    })
+  }
+
+  async incrementUsage(pageId: string): Promise<void> {
+    await this.uow.client().page.update({
+      where: { id: pageId },
       data: { usageCount: { increment: 1 } },
     })
   }
 
-  async findForWrite(
-    templateId: string,
-  ): Promise<{ id: string; scope: PageTemplateScope; workspaceId: string | null; createdById: string | null; backingPageId: string | null } | null> {
-    return this.uow.client().pageTemplate.findFirst({
-      where: { id: templateId, deletedAt: null },
-      select: { id: true, scope: true, workspaceId: true, createdById: true, backingPageId: true },
+  async linkTags(pageId: string, tagIds: string[]): Promise<void> {
+    await this.uow.client().pageTemplateTag.deleteMany({ where: { pageId } })
+    if (tagIds.length === 0) return
+    await this.uow.client().pageTemplateTag.createMany({
+      data: tagIds.map((tagId) => ({ pageId, tagId })),
+      skipDuplicates: true,
     })
   }
 
-  async softDeleteBackingPage(pageId: string): Promise<void> {
-    await this.uow.client().page.update({
-      where: { id: pageId },
-      data: { deletedAt: new Date() },
-    })
-  }
-
-  async update(
+  /** Update a template page's title/icon + merge description into templateMeta. */
+  async updateTemplatePage(
     actorUserId: string,
-    input: UpdateTemplateInput,
+    input: {
+      pageId: string
+      title?: string
+      icon?: string | null
+      description?: string | null
+    },
   ): Promise<{ id: string }> {
-    const data: Prisma.PageTemplateUpdateInput = { updatedById: actorUserId }
+    const data: {
+      updatedById: string
+      title?: string
+      icon?: string | null
+      templateMeta?: Prisma.InputJsonValue
+    } = { updatedById: actorUserId }
     if (input.title !== undefined) data.title = input.title
-    if (input.description !== undefined) data.description = input.description
     if (input.icon !== undefined) data.icon = input.icon
-    const updated = await this.uow.client().pageTemplate.update({
-      where: { id: input.templateId },
+    if (input.description !== undefined) {
+      const current = await this.uow.client().page.findUnique({
+        where: { id: input.pageId },
+        select: { templateMeta: true },
+      })
+      const meta = readMeta(current?.templateMeta ?? null)
+      data.templateMeta = { description: input.description, previewColor: meta.previewColor ?? null }
+    }
+    return this.uow.client().page.update({
+      where: { id: input.pageId },
       data,
       select: { id: true },
     })
-    if (input.tagIds !== undefined) {
-      await this.linkTags(input.templateId, input.tagIds)
-    }
-    return updated
   }
 
-  async softDelete(actorUserId: string, templateId: string): Promise<{ id: string }> {
-    return this.uow.client().pageTemplate.update({
-      where: { id: templateId },
-      data: { deletedAt: new Date(), updatedById: actorUserId },
+  async softDeleteTemplatePage(pageId: string): Promise<{ id: string }> {
+    return this.uow.client().page.update({
+      where: { id: pageId },
+      data: { deletedAt: new Date() },
       select: { id: true },
     })
   }
 
-  async findDetail(
-    templateId: string,
-  ): Promise<Omit<TemplateDetailDto, 'canEdit'> | null> {
-    const row = await this.uow.client().pageTemplate.findFirst({
-      where: { id: templateId, deletedAt: null },
-      select: {
-        id: true,
-        workspaceId: true,
-        scope: true,
-        title: true,
-        description: true,
-        icon: true,
-        type: true,
-        content: true,
-        backingPageId: true,
-        createdById: true,
-      },
-    })
-    return row as Omit<TemplateDetailDto, 'canEdit'> | null
-  }
-
-  /**
-   * Fetch the backing page for a template by id, bypassing the normal
-   * workspace-membership filter. Only pages with `isTemplateBacking: true`
-   * are returned — callers MUST have already authorised template access.
-   */
-  async findBackingPageForTemplate(
-    templateId: string,
-  ): Promise<TemplateBackingPageDto | null> {
-    // First look up the backingPageId on the template itself.
-    const tmpl = await this.uow.client().pageTemplate.findFirst({
-      where: { id: templateId, deletedAt: null },
-      select: { backingPageId: true },
-    })
-    if (!tmpl?.backingPageId) return null
-
-    const page = await this.uow.client().page.findFirst({
-      where: { id: tmpl.backingPageId, isTemplateBacking: true, deletedAt: null },
-      select: { id: true, type: true, contentYjs: true },
-    })
-    if (!page) return null
-
-    return {
-      id: page.id,
-      type: page.type,
-      contentYjs: page.contentYjs ? Buffer.from(page.contentYjs).toString('base64') : null,
-      editable: true,
-    }
-  }
-
-  async updateContent(
-    actorUserId: string,
-    templateId: string,
-    content: Prisma.InputJsonValue,
-    contentYjs: Uint8Array<ArrayBuffer> | null,
-  ): Promise<{ id: string }> {
-    return this.uow.client().pageTemplate.update({
-      where: { id: templateId },
-      data: {
-        content,
-        contentYjs: contentYjs ?? undefined,
-        updatedById: actorUserId,
-      },
-      select: { id: true },
+  /** Mark the given files public so a published GLOBAL template renders for
+   *  users outside the authoring workspace. No-op when empty. */
+  async setFilesPublic(fileIds: string[]): Promise<void> {
+    if (fileIds.length === 0) return
+    await this.uow.client().file.updateMany({
+      where: { id: { in: fileIds } },
+      data: { isPublic: true },
     })
   }
 }

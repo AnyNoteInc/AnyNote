@@ -75,8 +75,7 @@ export function SaveAsTemplateDialog({
   const utils = trpc.useUtils()
   const createTemplate = trpc.template.createFromPage.useMutation({
     onSuccess: () => {
-      utils.template.search.invalidate().catch(() => undefined)
-      utils.template.listByWorkspace.invalidate({ workspaceId }).catch(() => undefined)
+      utils.template.listMarketplace.invalidate().catch(() => undefined)
       onSaved?.()
       onClose()
     },

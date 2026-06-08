@@ -183,10 +183,12 @@ export class PageRepository {
         icon: input.icon ?? null,
         type: input.type ?? PageType.TEXT,
         collectionId: input.resolvedCollectionId ?? null,
-        isTemplateBacking: input.isTemplateBacking ?? false,
         ...(input.ownership ? { ownership: input.ownership } : {}),
         ...(input.content === undefined ? {} : { content: input.content }),
         ...(input.contentYjs === undefined ? {} : { contentYjs: input.contentYjs }),
+        ...(input.isTemplate === undefined ? {} : { isTemplate: input.isTemplate }),
+        ...(input.templateKey === undefined ? {} : { templateKey: input.templateKey }),
+        ...(input.templateMeta === undefined ? {} : { templateMeta: input.templateMeta }),
         prevPageId: null,
         createdById: actorUserId,
         updatedById: actorUserId,
@@ -217,14 +219,12 @@ export class PageRepository {
       }
     }
 
-    if (!input.isTemplateBacking) {
-      await enqueueOutboxEvent(this.uow.client() as Prisma.TransactionClient, {
-        eventType: 'page.upserted',
-        aggregateType: 'page',
-        aggregateId: newPage.id,
-        workspaceId: input.workspaceId,
-      })
-    }
+    await enqueueOutboxEvent(this.uow.client() as Prisma.TransactionClient, {
+      eventType: 'page.upserted',
+      aggregateType: 'page',
+      aggregateId: newPage.id,
+      workspaceId: input.workspaceId,
+    })
 
     if (newPage.type === PageType.KANBAN) {
       await onKanban(newPage.id)

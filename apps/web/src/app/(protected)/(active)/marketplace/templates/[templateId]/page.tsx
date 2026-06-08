@@ -22,11 +22,11 @@ export default async function TemplateEditorRoute({
   if (!workspace) redirect('/workspaces/new')
   const workspaceId = workspace.id
 
-  let template
-  let backingPage
+  // The template IS a page now, so getById returns its own content directly —
+  // there is no separate backing page to fetch.
+  let detail
   try {
-    template = await trpc.template.getById({ templateId, workspaceId })
-    backingPage = await trpc.template.getBackingPage({ templateId, workspaceId })
+    detail = await trpc.template.getById({ templateId, workspaceId })
   } catch (error) {
     if (isNotFoundTrpcError(error)) notFound()
     throw error
@@ -39,13 +39,13 @@ export default async function TemplateEditorRoute({
   return (
     <TemplateEditor
       workspaceId={workspaceId}
-      backingPage={{
-        id: backingPage.id,
-        type: backingPage.type,
-        contentYjs: backingPage.contentYjs,
+      page={{
+        id: detail.id,
+        type: detail.type,
+        contentYjs: detail.contentYjs,
       }}
       user={{ id: session.user.id, name: displayName, color: colorFor(session.user.id) }}
-      editable={backingPage.editable && template.canEdit}
+      editable={detail.canEdit}
     />
   )
 }

@@ -10,7 +10,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/trpc/client', () => ({
   trpc: {
     template: {
-      search: {
+      listMarketplace: {
         useQuery: (input: { query: string }, opts: { enabled: boolean }) =>
           mocks.useQuery(input, opts),
       },
@@ -28,14 +28,16 @@ function idle() {
 
 function withResults(over: {
   workspaceTemplates?: unknown[]
-  globalTemplates?: unknown[]
+  allTemplates?: unknown[]
   isFetching?: boolean
   isError?: boolean
 }) {
+  // Mirrors the real `listMarketplace` shape; the dialog derives the global
+  // section by filtering `allTemplates` for scope === 'GLOBAL'.
   return {
     data: {
       workspaceTemplates: over.workspaceTemplates ?? [],
-      globalTemplates: over.globalTemplates ?? [],
+      allTemplates: over.allTemplates ?? [],
     },
     isFetching: over.isFetching ?? false,
     isError: over.isError ?? false,

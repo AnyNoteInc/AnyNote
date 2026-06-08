@@ -165,7 +165,13 @@ export function WorkspaceLayoutClient({
     document.title = title ? `${title} — AnyNote` : 'AnyNote'
   }, [breadcrumbs])
 
-  const userMenu = <WorkspaceUserMenu user={user} features={features} />
+  const userMenu = (
+    <WorkspaceUserMenu
+      user={user}
+      features={features}
+      workspace={{ name: workspace.name, icon: workspace.icon }}
+    />
+  )
 
   const sidebarProps = {
     workspace,
@@ -208,7 +214,6 @@ export function WorkspaceLayoutClient({
                 templateId={activeTemplateId}
                 workspaceId={workspace.id}
                 canEdit={activeTemplate.data.canEdit}
-                backingPageId={activeTemplate.data.backingPageId}
                 title={activeTemplate.data.title}
                 icon={activeTemplate.data.icon}
                 description={activeTemplate.data.description}

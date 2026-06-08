@@ -61,7 +61,7 @@ export const pageRouter = router({
           workspaceId: input.workspaceId,
           archivedAt: null,
           deletedAt: null,
-          isTemplateBacking: false,
+          isTemplate: null,
           AND: [domain.buildPageVisibilityWhere(ctx.user.id)],
         },
         orderBy: { createdAt: 'asc' },
@@ -194,7 +194,7 @@ export const pageRouter = router({
         where: {
           workspaceId: input.workspaceId,
           deletedAt: { not: null },
-          isTemplateBacking: false,
+          isTemplate: null,
         },
         orderBy: { deletedAt: 'desc' },
         select: {
@@ -288,7 +288,7 @@ export const pageRouter = router({
           page: {
             workspaceId: input.workspaceId,
             deletedAt: null,
-            isTemplateBacking: false,
+            isTemplate: null,
           },
         },
         include: {

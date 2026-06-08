@@ -54,7 +54,7 @@ export function TemplateMetaDialog({
   const utils = trpc.useUtils()
   const updateMut = trpc.template.update.useMutation({
     onSuccess: () => {
-      invalidateTemplates(utils, workspaceId)
+      invalidateTemplates(utils)
       utils.template.getById.invalidate({ templateId, workspaceId }).catch(() => undefined)
       router.refresh()
       onClose()

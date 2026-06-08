@@ -179,10 +179,10 @@ describe('page.reorder', () => {
 
 // ── Tests: backing-page visibility ───────────────────────────────────────────
 
-describe('page.listByWorkspace — excludes backing pages', () => {
+describe('page.listByWorkspace — excludes template pages', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('passes isTemplateBacking: false to prisma', async () => {
+  it('passes isTemplate: null to prisma', async () => {
     const findMany = vi.fn(async () => [])
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => ({ role: 'MEMBER' })) },
@@ -193,16 +193,16 @@ describe('page.listByWorkspace — excludes backing pages', () => {
 
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ isTemplateBacking: false }),
+        where: expect.objectContaining({ isTemplate: null }),
       }),
     )
   })
 })
 
-describe('page.listTrashed — excludes backing pages', () => {
+describe('page.listTrashed — excludes template pages', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('passes isTemplateBacking: false to prisma', async () => {
+  it('passes isTemplate: null to prisma', async () => {
     const findMany = vi.fn(async () => [])
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => ({ role: 'MEMBER' })) },
@@ -213,16 +213,16 @@ describe('page.listTrashed — excludes backing pages', () => {
 
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        where: expect.objectContaining({ isTemplateBacking: false }),
+        where: expect.objectContaining({ isTemplate: null }),
       }),
     )
   })
 })
 
-describe('page.listFavorites — excludes backing pages', () => {
+describe('page.listFavorites — excludes template pages', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('filters nested page with isTemplateBacking: false', async () => {
+  it('filters nested page with isTemplate: null', async () => {
     const findMany = vi.fn(async () => [])
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => ({ role: 'MEMBER' })) },
@@ -234,17 +234,17 @@ describe('page.listFavorites — excludes backing pages', () => {
     expect(findMany).toHaveBeenCalledWith(
       expect.objectContaining({
         where: expect.objectContaining({
-          page: expect.objectContaining({ isTemplateBacking: false }),
+          page: expect.objectContaining({ isTemplate: null }),
         }),
       }),
     )
   })
 })
 
-describe('page.getById — still returns backing pages by id', () => {
+describe('page.getById — still returns template pages by id', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('does NOT filter isTemplateBacking in the where clause', async () => {
+  it('does NOT filter isTemplate in the where clause', async () => {
     const backingPage = {
       id: PAGE_A,
       workspaceId: WS_ID,
@@ -269,10 +269,10 @@ describe('page.getById — still returns backing pages by id', () => {
     const result = await caller(ctx(prisma)).getById({ id: PAGE_A })
 
     expect(result.id).toBe(PAGE_A)
-    // The where clause must NOT include isTemplateBacking — backing pages are
+    // The where clause must NOT include isTemplate — template pages are
     // openable by id even though they are hidden from lists.
     const [callArg] = findFirst.mock.calls[0] as [{ where: Record<string, unknown> }]
-    expect(callArg.where).not.toHaveProperty('isTemplateBacking')
+    expect(callArg.where).not.toHaveProperty('isTemplate')
   })
 })
 

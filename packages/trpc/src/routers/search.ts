@@ -44,7 +44,7 @@ export const searchRouter = router({
             page: {
               deletedAt: null,
               archivedAt: null,
-              isTemplateBacking: false,
+              isTemplate: null,
               AND: [domain.buildPageVisibilityWhere(ctx.user.id)],
             },
           },

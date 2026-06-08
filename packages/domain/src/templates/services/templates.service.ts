@@ -1,48 +1,37 @@
-import type { PageTemplateScope, Prisma } from '@repo/db'
-
-import { badRequest, forbidden, notFound } from '../../shared/errors.ts'
+import { forbidden, notFound, badRequest } from '../../shared/errors.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
-import type { PageService } from '../../pages/index.ts'
 import type {
   CreatePageFromTemplateInput,
   CreatePageFromTemplateResultDto,
   CreateTemplateFromPageInput,
-  CreateTemplateInput,
   CreateTemplateResultDto,
   DeleteTemplateInput,
   DeleteTemplateResultDto,
   GetTemplateInput,
   ListMarketplaceInput,
   MarketplaceResultDto,
-  SearchTemplatesResult,
-  TemplateBackingPageDto,
   TemplateDetailDto,
-  TemplateSummaryDto,
   TemplateTagDto,
-  UpdateTemplateContentInput,
   UpdateTemplateInput,
 } from '../dto/templates.dto.ts'
-import type { TemplateRepository } from '../repositories/templates.repository.ts'
+import type {
+  TemplateDetailRow,
+  TemplateRepository,
+} from '../repositories/templates.repository.ts'
 import {
-  buildCreatePageFromTemplatePayload,
   canCreateGlobalTemplate,
   canCreateWorkspaceTemplate,
   canEditGlobalTemplate,
   canEditWorkspaceTemplate,
-  groupTemplatesByScope,
-  sortTemplatesByRelevance,
 } from '../templates.helpers.ts'
-
-const DEFAULT_SEARCH_LIMIT = 20
+import { extractFileIdsFromContent } from '../templates.files.ts'
 
 export class TemplateService {
   private readonly repo: TemplateRepository
   private readonly uow: UnitOfWork
-  private readonly pages: PageService
-  constructor(repo: TemplateRepository, uow: UnitOfWork, pages: PageService) {
+  constructor(repo: TemplateRepository, uow: UnitOfWork) {
     this.repo = repo
     this.uow = uow
-    this.pages = pages
   }
 
   private async assertMembership(userId: string, workspaceId: string): Promise<{ role: string }> {
@@ -57,57 +46,28 @@ export class TemplateService {
     if (found !== tagIds.length) throw badRequest('Указан несуществующий тег')
   }
 
-  private async createBackingPage(
+  /**
+   * Authorise read access to a template + compute `canEdit`.
+   * - WORKSPACE: requires membership of its workspace; canEdit by creator/role.
+   * - GLOBAL: viewable by any authenticated user (no membership of the system
+   *   workspace required); canEdit only by its creator.
+   */
+  private async authorizeTemplate(
     actorUserId: string,
-    workspaceId: string,
-    source?: { content?: unknown; contentYjs?: Uint8Array<ArrayBuffer> | null; icon?: string | null },
-  ): Promise<string> {
-    // parentId MUST stay null: PageService.create runs its parent-existence
-    // check BEFORE opening its own transaction. We call this from inside the
-    // template transaction, so a non-null parentId would run that check on the
-    // active tx and dissolve the fence. Backing pages are always top-level.
-    const created = await this.pages.create(actorUserId, {
-      workspaceId,
-      parentId: null,
-      title: 'Шаблон',
-      type: 'TEXT',
-      isTemplateBacking: true,
-      content: (source?.content as never) ?? undefined,
-      contentYjs: source?.contentYjs ?? undefined,
+    detail: TemplateDetailRow,
+  ): Promise<boolean> {
+    if (detail.scope === 'GLOBAL') {
+      return canEditGlobalTemplate({ actorUserId, createdById: detail.createdById })
+    }
+    const member = await this.assertMembership(actorUserId, detail.workspaceId)
+    return canEditWorkspaceTemplate({
+      actorUserId,
+      createdById: detail.createdById,
+      role: member.role,
     })
-    return created.id
   }
 
   // ── Reads ─────────────────────────────────────────────────────────────────────
-
-  async search(
-    actorUserId: string,
-    input: { workspaceId: string; query: string; limit?: number },
-  ): Promise<SearchTemplatesResult> {
-    await this.assertMembership(actorUserId, input.workspaceId)
-    const limit = input.limit ?? DEFAULT_SEARCH_LIMIT
-
-    const candidates = await this.repo.searchCandidates(input.workspaceId, input.query)
-    const ranked = sortTemplatesByRelevance(candidates, input.query)
-    const { workspaceTemplates, globalTemplates } = groupTemplatesByScope(ranked)
-    return {
-      workspaceTemplates: workspaceTemplates.slice(0, limit),
-      globalTemplates: globalTemplates.slice(0, limit),
-    }
-  }
-
-  async listByWorkspace(
-    actorUserId: string,
-    input: { workspaceId: string },
-  ): Promise<TemplateSummaryDto[]> {
-    await this.assertMembership(actorUserId, input.workspaceId)
-    return this.repo.listByWorkspace(input.workspaceId)
-  }
-
-  /** Global templates are visible to any authenticated user. */
-  async listGlobal(): Promise<TemplateSummaryDto[]> {
-    return this.repo.listGlobal()
-  }
 
   async listTags(): Promise<TemplateTagDto[]> {
     return this.repo.listTags()
@@ -127,9 +87,7 @@ export class TemplateService {
         query: input.query,
       }),
     ])
-    const workspaceTemplates = candidates
-      .filter((t) => t.scope === 'WORKSPACE')
-      .slice(0, limit)
+    const workspaceTemplates = candidates.filter((t) => t.scope === 'WORKSPACE').slice(0, limit)
     const popularTemplates = [...candidates]
       .sort((a, b) => b.usageCount - a.usageCount)
       .slice(0, limit)
@@ -137,81 +95,30 @@ export class TemplateService {
     return { tags, workspaceTemplates, popularTemplates, allTemplates }
   }
 
-  async getById(
-    actorUserId: string,
-    input: GetTemplateInput,
-  ): Promise<TemplateDetailDto> {
-    await this.assertMembership(actorUserId, input.workspaceId)
-    const template = await this.repo.findDetail(input.templateId)
-    if (!template) throw notFound('Шаблон не найден')
-    if (template.scope === 'WORKSPACE' && template.workspaceId !== input.workspaceId) {
-      throw notFound('Шаблон не найден')
-    }
-    let canEdit: boolean
-    if (template.scope === 'GLOBAL') {
-      canEdit = canEditGlobalTemplate({ actorUserId, createdById: template.createdById })
-    } else {
-      const member = await this.repo.findMembership(actorUserId, input.workspaceId)
-      canEdit = canEditWorkspaceTemplate({
-        actorUserId,
-        createdById: template.createdById,
-        role: member?.role,
-      })
-    }
-    return { ...template, canEdit }
-  }
-
-  /**
-   * Return the content source for a template the actor is authorised to access.
-   * Access is granted iff `getById` would succeed (same checks).
-   *
-   * Two cases:
-   *  - The template has a backing page → return it (live, collaborative,
-   *    `editable: true`). Bypasses the normal page-workspace membership filter
-   *    so GLOBAL templates whose backing page lives in another workspace stay
-   *    reachable.
-   *  - No backing page (e.g. seeded GLOBAL/WORKSPACE templates) → fall back to
-   *    the template's own content snapshot, served read-only (`editable: false`)
-   *    since no live collaboration doc exists.
-   */
-  async getBackingPage(
-    actorUserId: string,
-    input: GetTemplateInput,
-  ): Promise<TemplateBackingPageDto> {
-    // Re-use getById for the access check — it throws if the actor can't see
-    // the template, and gives us backingPageId for free.
-    const template = await this.getById(actorUserId, input)
-    if (template.backingPageId) {
-      const page = await this.repo.findBackingPageForTemplate(input.templateId)
-      if (page) return page
-    }
-    // Fallback: render the template's own content snapshot, read-only.
-    const content = await this.repo.findContent(input.templateId)
-    if (!content) throw notFound('Содержимое шаблона не найдено')
+  async getTemplate(actorUserId: string, input: GetTemplateInput): Promise<TemplateDetailDto> {
+    const detail = await this.repo.findTemplateDetail(input.templateId)
+    if (!detail) throw notFound('Шаблон не найден')
+    const canEdit = await this.authorizeTemplate(actorUserId, detail)
     return {
-      id: input.templateId,
-      type: content.type,
-      contentYjs: content.contentYjs
-        ? Buffer.from(content.contentYjs).toString('base64')
+      id: detail.id,
+      workspaceId: detail.workspaceId,
+      scope: detail.scope,
+      title: detail.title ?? '',
+      description: detail.description,
+      icon: detail.icon,
+      type: detail.type,
+      contentYjs: detail.contentYjs
+        ? Buffer.from(detail.contentYjs).toString('base64')
         : null,
-      editable: false,
+      createdById: detail.createdById,
+      canEdit,
     }
   }
 
   // ── Writes ──────────────────────────────────────────────────────────────────
 
-  async create(
-    actorUserId: string,
-    input: CreateTemplateInput,
-  ): Promise<CreateTemplateResultDto> {
-    await this.assertMembership(actorUserId, input.workspaceId)
-    await this.assertTagsExist(input.tagIds ?? [])
-    return this.uow.transaction(async () => {
-      const backingPageId = await this.createBackingPage(actorUserId, input.workspaceId)
-      return this.repo.create(actorUserId, input, backingPageId)
-    })
-  }
-
+  /** Publish an existing page AS a template: deep-copy its content into a new
+   *  template page (WORKSPACE: same workspace; GLOBAL: the system workspace). */
   async createFromPage(
     actorUserId: string,
     input: CreateTemplateFromPageInput,
@@ -235,64 +142,66 @@ export class TemplateService {
     }
 
     return this.uow.transaction(async () => {
-      const backingPageId = await this.createBackingPage(actorUserId, input.workspaceId, {
+      let hostWorkspaceId = input.workspaceId
+      if (input.scope === 'GLOBAL') {
+        const systemId = await this.repo.findSystemWorkspaceId()
+        if (!systemId) {
+          throw badRequest(
+            'Системный воркспейс для глобальных шаблонов не найден (slug: system-templates)',
+          )
+        }
+        hostWorkspaceId = systemId
+      }
+
+      const created = await this.repo.createTemplatePage(actorUserId, {
+        workspaceId: hostWorkspaceId,
+        scope: input.scope,
+        title: input.title,
+        icon: input.icon !== undefined ? input.icon : page.icon,
+        description: input.description ?? null,
+        previewColor: null,
         content: page.content,
         contentYjs: page.contentYjs,
-        icon: page.icon,
+        type: page.type,
       })
-      return this.repo.createFromPage(actorUserId, input, page, backingPageId)
+      await this.repo.linkTags(created.id, input.tagIds ?? [])
+
+      if (input.scope === 'GLOBAL') {
+        await this.repo.setFilesPublic(extractFileIdsFromContent(page.content))
+      }
+
+      return created
     })
   }
 
+  /** "Use template": deep-copy a template page into a NEW independent page. */
   async createPageFromTemplate(
     actorUserId: string,
     input: CreatePageFromTemplateInput,
   ): Promise<CreatePageFromTemplateResultDto> {
-    const member = await this.assertMembership(actorUserId, input.workspaceId)
+    const detail = await this.repo.findTemplateDetail(input.templateId)
+    if (!detail) throw notFound('Шаблон не найден')
+    // Same access rule as getTemplate: WORKSPACE needs membership; GLOBAL is open.
+    await this.authorizeTemplate(actorUserId, detail)
 
-    const template = await this.repo.findContent(input.templateId)
-    if (!template) throw notFound('Шаблон не найден')
+    const source = await this.repo.findTemplateContentForCopy(input.templateId)
+    if (!source) throw notFound('Содержимое шаблона не найдено')
 
-    // WORKSPACE templates are only usable inside their own workspace; GLOBAL
-    // templates are usable by any workspace member.
-    if (
-      template.scope === 'WORKSPACE' &&
-      template.workspaceId !== input.workspaceId
-    ) {
-      throw notFound('Шаблон не найден')
-    }
+    await this.assertMembership(actorUserId, input.workspaceId)
 
-    if (!canCreateWorkspaceTemplate({ isPageCreator: false, role: member.role })) {
-      throw forbidden('Недостаточно прав для создания страницы')
-    }
+    const title = input.title?.trim() ? input.title.trim() : (detail.title ?? 'Без названия')
 
-    // Prefer the backing page's live content (collaborative edits land there,
-    // not on the PageTemplate snapshot). Seeded GLOBAL templates have no
-    // backing page and fall back to the template's own contentYjs.
-    let sourceContent: Prisma.JsonValue | null = template.content
-    let sourceContentYjs = template.contentYjs
-    if (template.backingPageId) {
-      const backing = await this.repo.findBackingPageContent(template.backingPageId)
-      if (backing) {
-        sourceContent = backing.content
-        sourceContentYjs = backing.contentYjs
-      }
-    }
-
-    const payload = buildCreatePageFromTemplatePayload(
-      { ...template, content: sourceContent, contentYjs: sourceContentYjs },
-      {
+    return this.uow.transaction(async () => {
+      const created = await this.repo.createPageFromTemplatePage(actorUserId, {
+        templatePageId: input.templateId,
         workspaceId: input.workspaceId,
         parentId: input.parentId,
-        title: input.title,
-      },
-    )
-
-    // Reuse the page service so positioning (linked list), the outbox event,
-    // and kanban seeding all run through the one established path. Increment
-    // usageCount in the same transaction so usage tracking can't drift.
-    return this.uow.transaction(async () => {
-      const created = await this.pages.create(actorUserId, payload)
+        title,
+        content: source.content,
+        contentYjs: source.contentYjs,
+        icon: source.icon,
+        type: source.type,
+      })
       await this.repo.incrementUsage(input.templateId)
       return created
     })
@@ -302,68 +211,39 @@ export class TemplateService {
     actorUserId: string,
     input: UpdateTemplateInput,
   ): Promise<CreateTemplateResultDto> {
-    const template = await this.repo.findForWrite(input.templateId)
-    if (!template) throw notFound('Шаблон не найден')
-    await this.assertTemplateWriteAccess(actorUserId, template, input.workspaceId)
+    const detail = await this.repo.findTemplateDetail(input.templateId)
+    if (!detail) throw notFound('Шаблон не найден')
+    const canEdit = await this.authorizeTemplate(actorUserId, detail)
+    if (!canEdit) throw forbidden('Недостаточно прав для управления шаблоном')
     await this.assertTagsExist(input.tagIds ?? [])
-    return this.uow.transaction(() => this.repo.update(actorUserId, input))
-  }
 
-  async updateContent(
-    actorUserId: string,
-    input: UpdateTemplateContentInput,
-    contentYjs: Uint8Array<ArrayBuffer> | null,
-  ): Promise<CreateTemplateResultDto> {
-    const template = await this.repo.findForWrite(input.templateId)
-    if (!template) throw notFound('Шаблон не найден')
-    await this.assertTemplateWriteAccess(actorUserId, template, input.workspaceId)
-    return this.uow.transaction(() =>
-      this.repo.updateContent(
-        actorUserId,
-        input.templateId,
-        input.content as Prisma.InputJsonValue,
-        contentYjs,
-      ),
-    )
+    return this.uow.transaction(async () => {
+      const updated = await this.repo.updateTemplatePage(actorUserId, {
+        pageId: input.templateId,
+        title: input.title,
+        icon: input.icon,
+        description: input.description,
+      })
+      if (input.tagIds !== undefined) {
+        await this.repo.linkTags(input.templateId, input.tagIds)
+      }
+      if (detail.scope === 'GLOBAL') {
+        const content = await this.repo.findTemplateContent(input.templateId)
+        await this.repo.setFilesPublic(extractFileIdsFromContent(content))
+      }
+      return updated
+    })
   }
 
   async delete(
     actorUserId: string,
     input: DeleteTemplateInput,
   ): Promise<DeleteTemplateResultDto> {
-    const template = await this.repo.findForWrite(input.templateId)
-    if (!template) throw notFound('Шаблон не найден')
-    await this.assertTemplateWriteAccess(actorUserId, template, input.workspaceId)
-    await this.uow.transaction(async () => {
-      await this.repo.softDelete(actorUserId, input.templateId)
-      if (template.backingPageId) {
-        await this.repo.softDeleteBackingPage(template.backingPageId)
-      }
-    })
+    const detail = await this.repo.findTemplateDetail(input.templateId)
+    if (!detail) throw notFound('Шаблон не найден')
+    const canEdit = await this.authorizeTemplate(actorUserId, detail)
+    if (!canEdit) throw forbidden('Недостаточно прав для управления шаблоном')
+    await this.uow.transaction(() => this.repo.softDeleteTemplatePage(input.templateId))
     return { count: 1 }
-  }
-
-  private async assertTemplateWriteAccess(
-    actorUserId: string,
-    template: { scope: PageTemplateScope; workspaceId: string | null; createdById: string | null; backingPageId?: string | null },
-    workspaceId: string,
-  ): Promise<void> {
-    if (template.scope === 'GLOBAL') {
-      if (!canEditGlobalTemplate({ actorUserId, createdById: template.createdById })) {
-        throw forbidden('Изменять глобальный шаблон может только его создатель')
-      }
-      return
-    }
-    if (template.workspaceId !== workspaceId) throw notFound('Шаблон не найден')
-    const member = await this.repo.findMembership(actorUserId, workspaceId)
-    if (
-      !canEditWorkspaceTemplate({
-        actorUserId,
-        createdById: template.createdById,
-        role: member?.role,
-      })
-    ) {
-      throw forbidden('Недостаточно прав для управления шаблоном')
-    }
   }
 }

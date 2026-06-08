@@ -4,7 +4,6 @@ import { PageTemplateScope, PageType } from '@repo/db'
 
 import { isDomainError } from '../../src/shared/errors.ts'
 import type { UnitOfWork } from '../../src/shared/unit-of-work.ts'
-import type { PageService } from '../../src/pages/services/pages.service.ts'
 import type { TemplateRepository } from '../../src/templates/repositories/templates.repository.ts'
 import { TemplateService } from '../../src/templates/services/templates.service.ts'
 
@@ -17,10 +16,34 @@ function makeUow(): UnitOfWork {
   }
 }
 
-function makePages(): PageService {
-  return {
-    create: vi.fn(async () => ({ id: 'backing-1' })),
-  } as unknown as PageService
+const SOURCE_PAGE = {
+  id: 'p1',
+  workspaceId: 'w1',
+  createdById: 'u1',
+  title: 'Source',
+  icon: '📄',
+  type: PageType.TEXT,
+  content: { type: 'doc', content: [] },
+  contentYjs: new Uint8Array(new ArrayBuffer(4)),
+}
+
+const WS_DETAIL = {
+  id: 't1',
+  workspaceId: 'w1',
+  scope: PageTemplateScope.WORKSPACE,
+  title: 'Tmpl',
+  icon: '📋',
+  type: PageType.TEXT,
+  contentYjs: new Uint8Array(new ArrayBuffer(4)),
+  description: null,
+  createdById: 'u1',
+}
+
+const COPY_CONTENT = {
+  content: { type: 'doc', content: [] },
+  contentYjs: new Uint8Array(new ArrayBuffer(4)),
+  icon: '📋',
+  type: PageType.TEXT,
 }
 
 function makeRepo(
@@ -28,70 +51,30 @@ function makeRepo(
 ): TemplateRepository {
   return {
     findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
-    findAccessiblePage: vi.fn(async () => ({
-      id: 'p1',
-      workspaceId: 'w1',
-      createdById: 'u1',
-      title: 'Source',
-      icon: '📄',
-      type: PageType.TEXT,
-      content: { type: 'doc', content: [] },
-      contentYjs: new Uint8Array(new ArrayBuffer(4)),
-    })),
-    searchCandidates: vi.fn(async () => []),
-    listByWorkspace: vi.fn(async () => []),
-    listGlobal: vi.fn(async () => []),
-    listTags: vi.fn(async () => []),
+    findSystemWorkspaceId: vi.fn(async () => 'sys-ws'),
+    findAccessiblePage: vi.fn(async () => ({ ...SOURCE_PAGE })),
     marketplaceCandidates: vi.fn(async () => []),
+    listTags: vi.fn(async () => []),
     countExistingTags: vi.fn(async () => 0),
-    findContent: vi.fn(async () => ({
-      id: 't1',
-      workspaceId: 'w1',
-      scope: PageTemplateScope.WORKSPACE,
-      title: 'Tmpl',
-      icon: '📋',
-      type: PageType.TEXT,
-      content: { type: 'doc', content: [] },
-      contentYjs: new Uint8Array(new ArrayBuffer(4)),
-      backingPageId: null,
-    })),
-    findBackingPageContent: vi.fn(async () => null),
-    softDeleteBackingPage: vi.fn(async () => undefined),
-    createFromPage: vi.fn(async () => ({ id: 't-new' })),
+    findTemplateDetail: vi.fn(async () => ({ ...WS_DETAIL })),
+    findTemplateContentForCopy: vi.fn(async () => ({ ...COPY_CONTENT })),
+    findTemplateContent: vi.fn(async () => ({ type: 'doc', content: [] })),
+    createTemplatePage: vi.fn(async () => ({ id: 't-new' })),
+    createPageFromTemplatePage: vi.fn(async () => ({ id: 'page-new' })),
     incrementUsage: vi.fn(async () => undefined),
-    // Default: actor 'u1' is the creator of template 't1'
-    findForWrite: vi.fn(async () => ({
-      id: 't1',
-      scope: PageTemplateScope.WORKSPACE,
-      workspaceId: 'w1',
-      createdById: 'u1',
-      backingPageId: null,
-    })),
-    update: vi.fn(async () => ({ id: 't1' })),
-    softDelete: vi.fn(async () => ({ id: 't1' })),
-    create: vi.fn(async () => ({ id: 't-new' })),
-    findDetail: vi.fn(async () => ({
-      id: 't1',
-      workspaceId: 'w1',
-      scope: PageTemplateScope.WORKSPACE,
-      title: 'Tmpl',
-      description: null,
-      icon: '📋',
-      type: PageType.TEXT,
-      content: { type: 'doc', content: [] },
-      backingPageId: 'bp1',
-      createdById: 'u1',
-    })),
-    findBackingPageForTemplate: vi.fn(async () => ({
-      id: 'bp1',
-      type: PageType.TEXT,
-      contentYjs: null,
-    })),
-    updateContent: vi.fn(async () => ({ id: 't1' })),
     linkTags: vi.fn(async () => undefined),
+    updateTemplatePage: vi.fn(async () => ({ id: 't1' })),
+    softDeleteTemplatePage: vi.fn(async () => ({ id: 't1' })),
+    setFilesPublic: vi.fn(async () => undefined),
     ...overrides,
   } as unknown as TemplateRepository
 }
+
+function makeSvc(repo: TemplateRepository): TemplateService {
+  return new TemplateService(repo, makeUow())
+}
+
+// ── createFromPage ───────────────────────────────────────────────────────────
 
 describe('TemplateService.createFromPage', () => {
   let repo: TemplateRepository
@@ -99,10 +82,10 @@ describe('TemplateService.createFromPage', () => {
 
   beforeEach(() => {
     repo = makeRepo()
-    svc = new TemplateService(repo, makeUow(), makePages())
+    svc = makeSvc(repo)
   })
 
-  it('creates a workspace template for a writable member', async () => {
+  it('copies the source page into a WORKSPACE template page in the same workspace', async () => {
     const res = await svc.createFromPage('u1', {
       pageId: 'p1',
       workspaceId: 'w1',
@@ -110,12 +93,73 @@ describe('TemplateService.createFromPage', () => {
       scope: PageTemplateScope.WORKSPACE,
     })
     expect(res).toEqual({ id: 't-new' })
-    expect(repo.createFromPage).toHaveBeenCalledOnce()
+    expect(repo.createTemplatePage).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({
+        workspaceId: 'w1',
+        scope: PageTemplateScope.WORKSPACE,
+        title: 'My template',
+        content: SOURCE_PAGE.content,
+        contentYjs: SOURCE_PAGE.contentYjs,
+        type: PageType.TEXT,
+      }),
+    )
+    expect(repo.linkTags).toHaveBeenCalledWith('t-new', [])
+    // WORKSPACE → no system workspace lookup, no file publishing
+    expect(repo.findSystemWorkspaceId).not.toHaveBeenCalled()
+    expect(repo.setFilesPublic).not.toHaveBeenCalled()
   })
 
-  it('throws NOT_FOUND when the page is inaccessible', async () => {
+  it('creates a GLOBAL template in the system workspace and publishes its files', async () => {
+    repo = makeRepo({
+      findAccessiblePage: vi.fn(async () => ({
+        ...SOURCE_PAGE,
+        content: {
+          type: 'doc',
+          content: [
+            {
+              type: 'image',
+              attrs: { src: '/api/files/11111111-1111-1111-1111-111111111111' },
+            },
+          ],
+        },
+      })),
+    })
+    svc = makeSvc(repo)
+    const res = await svc.createFromPage('u1', {
+      pageId: 'p1',
+      workspaceId: 'w1',
+      title: 'Global',
+      scope: PageTemplateScope.GLOBAL,
+    })
+    expect(res).toEqual({ id: 't-new' })
+    expect(repo.findSystemWorkspaceId).toHaveBeenCalledOnce()
+    expect(repo.createTemplatePage).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({ workspaceId: 'sys-ws', scope: PageTemplateScope.GLOBAL }),
+    )
+    expect(repo.setFilesPublic).toHaveBeenCalledWith([
+      '11111111-1111-1111-1111-111111111111',
+    ])
+  })
+
+  it('throws when the system workspace is missing for a GLOBAL template', async () => {
+    repo = makeRepo({ findSystemWorkspaceId: vi.fn(async () => null) })
+    svc = makeSvc(repo)
+    await expect(
+      svc.createFromPage('u1', {
+        pageId: 'p1',
+        workspaceId: 'w1',
+        title: 'Global',
+        scope: PageTemplateScope.GLOBAL,
+      }),
+    ).rejects.toMatchObject({ httpStatus: 400 })
+    expect(repo.createTemplatePage).not.toHaveBeenCalled()
+  })
+
+  it('throws NOT_FOUND when the source page is inaccessible', async () => {
     repo = makeRepo({ findAccessiblePage: vi.fn(async () => null) })
-    svc = new TemplateService(repo, makeUow(), makePages())
+    svc = makeSvc(repo)
     await expect(
       svc.createFromPage('u1', {
         pageId: 'p1',
@@ -126,46 +170,27 @@ describe('TemplateService.createFromPage', () => {
     ).rejects.toMatchObject({ httpStatus: 404 })
   })
 
-  it('allows any workspace member to create a GLOBAL template', async () => {
-    repo = makeRepo({ findMembership: vi.fn(async () => ({ role: 'EDITOR' })) })
-    svc = new TemplateService(repo, makeUow(), makePages())
-    const res = await svc.createFromPage('u1', {
-      pageId: 'p1',
-      workspaceId: 'w1',
-      title: 'X',
-      scope: PageTemplateScope.GLOBAL,
-    })
-    expect(res).toEqual({ id: 't-new' })
-    expect(repo.createFromPage).toHaveBeenCalledOnce()
-  })
-
-  it('allows any accessible-page owner to create a GLOBAL template (no role required)', async () => {
-    repo = makeRepo({ findMembership: vi.fn(async () => null) })
-    svc = new TemplateService(repo, makeUow(), makePages())
-    const res = await svc.createFromPage('u1', {
-      pageId: 'p1',
-      workspaceId: 'w1',
-      title: 'X',
-      scope: PageTemplateScope.GLOBAL,
-    })
-    expect(res).toEqual({ id: 't-new' })
-  })
-
-  it('forbids a non-creator read-only member from creating a workspace template', async () => {
+  it('rejects when the page belongs to a different workspace', async () => {
     repo = makeRepo({
-      findAccessiblePage: vi.fn(async () => ({
-        id: 'p1',
+      findAccessiblePage: vi.fn(async () => ({ ...SOURCE_PAGE, workspaceId: 'other-ws' })),
+    })
+    svc = makeSvc(repo)
+    await expect(
+      svc.createFromPage('u1', {
+        pageId: 'p1',
         workspaceId: 'w1',
-        createdById: 'someone-else',
-        title: 'Source',
-        icon: null,
-        type: PageType.TEXT,
-        content: null,
-        contentYjs: null,
-      })),
+        title: 'X',
+        scope: PageTemplateScope.WORKSPACE,
+      }),
+    ).rejects.toMatchObject({ httpStatus: 400 })
+  })
+
+  it('forbids a non-creator read-only member from creating a WORKSPACE template', async () => {
+    repo = makeRepo({
+      findAccessiblePage: vi.fn(async () => ({ ...SOURCE_PAGE, createdById: 'someone-else' })),
       findMembership: vi.fn(async () => ({ role: 'VIEWER' })),
     })
-    svc = new TemplateService(repo, makeUow(), makePages())
+    svc = makeSvc(repo)
     await expect(
       svc.createFromPage('u1', {
         pageId: 'p1',
@@ -176,328 +201,293 @@ describe('TemplateService.createFromPage', () => {
     ).rejects.toMatchObject({ httpStatus: 403 })
   })
 
-  it('rejects when the page belongs to a different workspace', async () => {
-    repo = makeRepo({
-      findAccessiblePage: vi.fn(async () => ({
-        id: 'p1',
-        workspaceId: 'other-ws',
-        createdById: 'u1',
-        title: 'Source',
-        icon: null,
-        type: PageType.TEXT,
-        content: null,
-        contentYjs: null,
-      })),
+  it('allows any accessible-page member to create a GLOBAL template (no role gate)', async () => {
+    repo = makeRepo({ findMembership: vi.fn(async () => null) })
+    svc = makeSvc(repo)
+    const res = await svc.createFromPage('u1', {
+      pageId: 'p1',
+      workspaceId: 'w1',
+      title: 'X',
+      scope: PageTemplateScope.GLOBAL,
     })
-    svc = new TemplateService(repo, makeUow(), makePages())
+    expect(res).toEqual({ id: 't-new' })
+  })
+
+  it('rejects an unknown tag id', async () => {
+    repo = makeRepo({ countExistingTags: vi.fn(async () => 0) })
+    svc = makeSvc(repo)
     await expect(
       svc.createFromPage('u1', {
         pageId: 'p1',
         workspaceId: 'w1',
         title: 'X',
         scope: PageTemplateScope.WORKSPACE,
+        tagIds: ['00000000-0000-0000-0000-000000000099'],
       }),
     ).rejects.toMatchObject({ httpStatus: 400 })
+    expect(repo.createTemplatePage).not.toHaveBeenCalled()
   })
 })
 
-describe('TemplateService.createPageFromTemplate', () => {
-  it('creates a page and increments usage', async () => {
-    const repo = makeRepo()
-    const pages = makePages()
-    const svc = new TemplateService(repo, makeUow(), pages)
-    const res = await svc.createPageFromTemplate('u1', {
-      templateId: 't1',
-      workspaceId: 'w1',
-      parentId: null,
-    })
-    expect(res).toEqual({ id: 'backing-1' })
-    expect(pages.create).toHaveBeenCalledOnce()
-    expect(repo.incrementUsage).toHaveBeenCalledWith('t1')
-  })
+// ── createPageFromTemplate ───────────────────────────────────────────────────
 
-  it('passes through the template content/title to the page create payload', async () => {
+describe('TemplateService.createPageFromTemplate', () => {
+  it('deep-copies the template into a new page and increments usage', async () => {
     const repo = makeRepo()
-    const pages = makePages()
-    const svc = new TemplateService(repo, makeUow(), pages)
-    await svc.createPageFromTemplate('u1', {
+    const svc = makeSvc(repo)
+    const res = await svc.createPageFromTemplate('u1', {
       templateId: 't1',
       workspaceId: 'w1',
       parentId: 'parent-1',
     })
-    expect(pages.create).toHaveBeenCalledWith(
+    expect(res).toEqual({ id: 'page-new' })
+    expect(repo.createPageFromTemplatePage).toHaveBeenCalledWith(
       'u1',
       expect.objectContaining({
+        templatePageId: 't1',
         workspaceId: 'w1',
         parentId: 'parent-1',
         title: 'Tmpl',
-        type: PageType.TEXT,
+        content: COPY_CONTENT.content,
+        contentYjs: COPY_CONTENT.contentYjs,
         icon: '📋',
+        type: PageType.TEXT,
       }),
+    )
+    expect(repo.incrementUsage).toHaveBeenCalledWith('t1')
+  })
+
+  it('uses the provided title when non-empty', async () => {
+    const repo = makeRepo()
+    const svc = makeSvc(repo)
+    await svc.createPageFromTemplate('u1', {
+      templateId: 't1',
+      workspaceId: 'w1',
+      parentId: null,
+      title: '  Custom  ',
+    })
+    expect(repo.createPageFromTemplatePage).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({ title: 'Custom' }),
     )
   })
 
-  it('rejects a workspace template from a different workspace', async () => {
+  it('rejects a WORKSPACE template from a different workspace (membership check)', async () => {
     const repo = makeRepo({
-      findContent: vi.fn(async () => ({
-        id: 't1',
-        workspaceId: 'other-ws',
-        scope: PageTemplateScope.WORKSPACE,
-        title: 'Tmpl',
-        icon: null,
-        type: PageType.TEXT,
-        content: null,
-        contentYjs: null,
-        backingPageId: null,
-      })),
+      findTemplateDetail: vi.fn(async () => ({ ...WS_DETAIL, workspaceId: 'other-ws' })),
+      // actor is not a member of other-ws
+      findMembership: vi.fn(async () => null),
     })
-    const svc = new TemplateService(repo, makeUow(), makePages())
+    const svc = makeSvc(repo)
     await expect(
       svc.createPageFromTemplate('u1', { templateId: 't1', workspaceId: 'w1', parentId: null }),
-    ).rejects.toMatchObject({ httpStatus: 404 })
+    ).rejects.toMatchObject({ httpStatus: 403 })
   })
 
   it('allows a GLOBAL template for any workspace member', async () => {
     const repo = makeRepo({
-      findContent: vi.fn(async () => ({
+      findTemplateDetail: vi.fn(async () => ({
+        ...WS_DETAIL,
         id: 'g1',
-        workspaceId: null,
         scope: PageTemplateScope.GLOBAL,
-        title: 'Global',
-        icon: null,
-        type: PageType.TEXT,
-        content: null,
-        contentYjs: null,
-        backingPageId: null,
+        createdById: 'other-user',
       })),
     })
-    const pages = makePages()
-    const svc = new TemplateService(repo, makeUow(), pages)
+    const svc = makeSvc(repo)
     await svc.createPageFromTemplate('u1', { templateId: 'g1', workspaceId: 'w1', parentId: null })
-    expect(pages.create).toHaveBeenCalledOnce()
+    expect(repo.createPageFromTemplatePage).toHaveBeenCalledOnce()
+    expect(repo.incrementUsage).toHaveBeenCalledWith('g1')
   })
 
-  it('throws FORBIDDEN when the user is not a workspace member', async () => {
+  it('throws when the target workspace membership is missing', async () => {
     const repo = makeRepo({ findMembership: vi.fn(async () => null) })
-    const svc = new TemplateService(repo, makeUow(), makePages())
+    const svc = makeSvc(repo)
     await expect(
       svc.createPageFromTemplate('u1', { templateId: 't1', workspaceId: 'w1', parentId: null }),
     ).rejects.toSatisfy(isDomainError)
   })
 
-  it('uses backing page live content (FRESH) when backingPageId is set', async () => {
-    const STALE = new Uint8Array([1, 2, 3, 4])
-    const FRESH = new Uint8Array([9, 8, 7, 6])
-    const repo = makeRepo({
-      findContent: vi.fn(async () => ({
-        id: 't1',
-        workspaceId: 'w1',
-        scope: PageTemplateScope.WORKSPACE,
-        title: 'Tmpl',
-        icon: null,
-        type: PageType.TEXT,
-        content: { type: 'doc', content: [] },
-        contentYjs: STALE,
-        backingPageId: 'bp1',
-      })),
-      findBackingPageContent: vi.fn(async () => ({
-        content: { type: 'doc', content: [{ type: 'paragraph' }] },
-        contentYjs: FRESH,
-      })),
-    })
-    const pages = makePages()
-    const svc = new TemplateService(repo, makeUow(), pages)
-    await svc.createPageFromTemplate('u1', { templateId: 't1', workspaceId: 'w1', parentId: null })
-    expect(repo.findBackingPageContent).toHaveBeenCalledWith('bp1')
-    // The page must be created with FRESH contentYjs, not STALE
-    expect(pages.create).toHaveBeenCalledWith(
-      'u1',
-      expect.objectContaining({ contentYjs: FRESH }),
-    )
-    const call = (pages.create as ReturnType<typeof vi.fn>).mock.calls[0][1]
-    expect(call.contentYjs).toBe(FRESH)
-    expect(call.contentYjs).not.toBe(STALE)
-  })
-
-  it('falls back to template contentYjs when backingPageId is null (e.g. seeded GLOBAL)', async () => {
-    const TEMPLATE_BYTES = new Uint8Array([5, 5, 5, 5])
-    const repo = makeRepo({
-      findContent: vi.fn(async () => ({
-        id: 'g1',
-        workspaceId: null,
-        scope: PageTemplateScope.GLOBAL,
-        title: 'Global',
-        icon: null,
-        type: PageType.TEXT,
-        content: null,
-        contentYjs: TEMPLATE_BYTES,
-        backingPageId: null,
-      })),
-      findBackingPageContent: vi.fn(async () => null),
-    })
-    const pages = makePages()
-    const svc = new TemplateService(repo, makeUow(), pages)
-    await svc.createPageFromTemplate('u1', { templateId: 'g1', workspaceId: 'w1', parentId: null })
-    // Must NOT call findBackingPageContent when backingPageId is null
-    expect(repo.findBackingPageContent).not.toHaveBeenCalled()
-    expect(pages.create).toHaveBeenCalledWith(
-      'u1',
-      expect.objectContaining({ contentYjs: TEMPLATE_BYTES }),
-    )
+  it('404s when the template is missing', async () => {
+    const repo = makeRepo({ findTemplateDetail: vi.fn(async () => null) })
+    const svc = makeSvc(repo)
+    await expect(
+      svc.createPageFromTemplate('u1', { templateId: 't1', workspaceId: 'w1', parentId: null }),
+    ).rejects.toMatchObject({ httpStatus: 404 })
   })
 })
 
-describe('TemplateService.search', () => {
-  it('groups and ranks candidates by relevance', async () => {
-    const now = new Date('2026-01-01')
-    const baseSummary = {
-      description: null,
-      icon: null,
-      type: PageType.TEXT,
-      usageCount: 0,
-      averageRating: 0,
-      ratingCount: 0,
-      previewColor: null,
-      tags: [],
-      author: { name: 'AnyNote' },
-      createdById: null,
-      createdAt: now,
-      updatedAt: now,
-    }
-    const repo = makeRepo({
-      searchCandidates: vi.fn(async () => [
-        {
-          ...baseSummary,
-          id: 'g',
-          workspaceId: null,
-          scope: PageTemplateScope.GLOBAL,
-          title: 'Plan template',
-        },
-        {
-          ...baseSummary,
-          id: 'w',
-          workspaceId: 'w1',
-          scope: PageTemplateScope.WORKSPACE,
-          title: 'My plan',
-        },
-      ]),
-    })
-    const svc = new TemplateService(repo, makeUow(), makePages())
-    const res = await svc.search('u1', { workspaceId: 'w1', query: 'plan' })
-    expect(res.workspaceTemplates.map((t) => t.id)).toEqual(['w'])
-    expect(res.globalTemplates.map((t) => t.id)).toEqual(['g'])
-  })
-})
+// ── getTemplate ──────────────────────────────────────────────────────────────
 
-describe('TemplateService.delete / update', () => {
-  it('refuses to mutate a GLOBAL template when actor is not its creator', async () => {
+describe('TemplateService.getTemplate', () => {
+  it('returns a WORKSPACE template detail (canEdit true for creator)', async () => {
     const repo = makeRepo({
-      findForWrite: vi.fn(async () => ({
-        id: 'g1',
-        scope: PageTemplateScope.GLOBAL,
-        workspaceId: null,
-        createdById: 'other-user',
-      })),
-    })
-    const svc = new TemplateService(repo, makeUow(), makePages())
-    await expect(svc.delete('u1', { templateId: 'g1', workspaceId: 'w1' })).rejects.toMatchObject({
-      httpStatus: 403,
-    })
-  })
-
-  it('allows the creator of a GLOBAL template to delete it', async () => {
-    const repo = makeRepo({
-      findForWrite: vi.fn(async () => ({
-        id: 'g1',
-        scope: PageTemplateScope.GLOBAL,
-        workspaceId: null,
-        createdById: 'u1',
-      })),
-    })
-    const svc = new TemplateService(repo, makeUow(), makePages())
-    const res = await svc.delete('u1', { templateId: 'g1', workspaceId: 'w1' })
-    expect(res).toEqual({ count: 1 })
-  })
-
-  it('soft-deletes a workspace template for the creator', async () => {
-    const repo = makeRepo()
-    const svc = new TemplateService(repo, makeUow(), makePages())
-    const res = await svc.delete('u1', { templateId: 't1', workspaceId: 'w1' })
-    expect(res).toEqual({ count: 1 })
-    expect(repo.softDelete).toHaveBeenCalledWith('u1', 't1')
-  })
-
-  it('forbids editing a workspace template by non-creator non-admin EDITOR', async () => {
-    const repo = makeRepo({
-      findForWrite: vi.fn(async () => ({
-        id: 't1',
-        scope: PageTemplateScope.WORKSPACE,
-        workspaceId: 'w1',
-        createdById: 'other-user',
-      })),
       findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
+      findTemplateDetail: vi.fn(async () => ({ ...WS_DETAIL, createdById: 'u1' })),
     })
-    const svc = new TemplateService(repo, makeUow(), makePages())
-    await expect(svc.delete('u1', { templateId: 't1', workspaceId: 'w1' })).rejects.toMatchObject({
-      httpStatus: 403,
-    })
+    const svc = makeSvc(repo)
+    const result = await svc.getTemplate('u1', { templateId: 't1', workspaceId: 'w1' })
+    expect(result.id).toBe('t1')
+    expect(result.canEdit).toBe(true)
+    // contentYjs is base64-encoded
+    expect(result.contentYjs).toBe(Buffer.from(WS_DETAIL.contentYjs).toString('base64'))
   })
 
-  it('allows OWNER to edit a workspace template they did not create', async () => {
+  it('GLOBAL non-creator: viewable but canEdit false (no membership required)', async () => {
+    const findMembership = vi.fn(async () => null)
     const repo = makeRepo({
-      findForWrite: vi.fn(async () => ({
-        id: 't1',
-        scope: PageTemplateScope.WORKSPACE,
-        workspaceId: 'w1',
+      findMembership,
+      findTemplateDetail: vi.fn(async () => ({
+        ...WS_DETAIL,
+        id: 'g1',
+        scope: PageTemplateScope.GLOBAL,
         createdById: 'other-user',
       })),
+    })
+    const svc = makeSvc(repo)
+    const result = await svc.getTemplate('u1', { templateId: 'g1', workspaceId: 'w1' })
+    expect(result.canEdit).toBe(false)
+    // GLOBAL access must NOT require membership
+    expect(findMembership).not.toHaveBeenCalled()
+  })
+
+  it('GLOBAL creator: canEdit true', async () => {
+    const repo = makeRepo({
+      findTemplateDetail: vi.fn(async () => ({
+        ...WS_DETAIL,
+        id: 'g1',
+        scope: PageTemplateScope.GLOBAL,
+        createdById: 'u1',
+      })),
+    })
+    const svc = makeSvc(repo)
+    const result = await svc.getTemplate('u1', { templateId: 'g1', workspaceId: 'w1' })
+    expect(result.canEdit).toBe(true)
+  })
+
+  it('WORKSPACE template: throws FORBIDDEN for a non-member', async () => {
+    const repo = makeRepo({ findMembership: vi.fn(async () => null) })
+    const svc = makeSvc(repo)
+    await expect(
+      svc.getTemplate('u1', { templateId: 't1', workspaceId: 'w1' }),
+    ).rejects.toMatchObject({ httpStatus: 403 })
+  })
+
+  it('WORKSPACE OWNER (not creator): canEdit true', async () => {
+    const repo = makeRepo({
       findMembership: vi.fn(async () => ({ role: 'OWNER' })),
+      findTemplateDetail: vi.fn(async () => ({ ...WS_DETAIL, createdById: 'other-user' })),
     })
-    const svc = new TemplateService(repo, makeUow(), makePages())
-    const res = await svc.delete('u1', { templateId: 't1', workspaceId: 'w1' })
-    expect(res).toEqual({ count: 1 })
+    const svc = makeSvc(repo)
+    const result = await svc.getTemplate('u1', { templateId: 't1', workspaceId: 'w1' })
+    expect(result.canEdit).toBe(true)
   })
 
-  it('soft-deletes the backing page when the template has one', async () => {
+  it('WORKSPACE EDITOR (not creator): canEdit false', async () => {
     const repo = makeRepo({
-      findForWrite: vi.fn(async () => ({
-        id: 't1',
-        scope: PageTemplateScope.WORKSPACE,
-        workspaceId: 'w1',
+      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
+      findTemplateDetail: vi.fn(async () => ({ ...WS_DETAIL, createdById: 'other-user' })),
+    })
+    const svc = makeSvc(repo)
+    const result = await svc.getTemplate('u1', { templateId: 't1', workspaceId: 'w1' })
+    expect(result.canEdit).toBe(false)
+  })
+
+  it('404s when the template is missing', async () => {
+    const repo = makeRepo({ findTemplateDetail: vi.fn(async () => null) })
+    const svc = makeSvc(repo)
+    await expect(
+      svc.getTemplate('u1', { templateId: 't1', workspaceId: 'w1' }),
+    ).rejects.toMatchObject({ httpStatus: 404 })
+  })
+})
+
+// ── update ───────────────────────────────────────────────────────────────────
+
+describe('TemplateService.update', () => {
+  it('updates a WORKSPACE template for the creator and relinks tags', async () => {
+    const repo = makeRepo({
+      findTemplateDetail: vi.fn(async () => ({ ...WS_DETAIL, createdById: 'u1' })),
+      countExistingTags: vi.fn(async () => 1),
+    })
+    const svc = makeSvc(repo)
+    const res = await svc.update('u1', {
+      templateId: 't1',
+      workspaceId: 'w1',
+      title: 'Renamed',
+      tagIds: ['00000000-0000-0000-0000-000000000001'],
+    })
+    expect(res).toEqual({ id: 't1' })
+    expect(repo.updateTemplatePage).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({ pageId: 't1', title: 'Renamed' }),
+    )
+    expect(repo.linkTags).toHaveBeenCalledWith('t1', [
+      '00000000-0000-0000-0000-000000000001',
+    ])
+  })
+
+  it('does not relink tags when tagIds is omitted', async () => {
+    const repo = makeRepo({
+      findTemplateDetail: vi.fn(async () => ({ ...WS_DETAIL, createdById: 'u1' })),
+    })
+    const svc = makeSvc(repo)
+    await svc.update('u1', { templateId: 't1', workspaceId: 'w1', title: 'Renamed' })
+    expect(repo.linkTags).not.toHaveBeenCalled()
+  })
+
+  it('re-publishes files public for a GLOBAL template on update', async () => {
+    const repo = makeRepo({
+      findTemplateDetail: vi.fn(async () => ({
+        ...WS_DETAIL,
+        scope: PageTemplateScope.GLOBAL,
         createdById: 'u1',
-        backingPageId: 'bp1',
       })),
-      softDeleteBackingPage: vi.fn(async () => undefined),
+      findTemplateContent: vi.fn(async () => ({
+        type: 'doc',
+        content: [
+          { type: 'image', attrs: { src: '/api/files/22222222-2222-2222-2222-222222222222' } },
+        ],
+      })),
     })
-    const svc = new TemplateService(repo, makeUow(), makePages())
-    const res = await svc.delete('u1', { templateId: 't1', workspaceId: 'w1' })
-    expect(res).toEqual({ count: 1 })
-    expect(repo.softDelete).toHaveBeenCalledWith('u1', 't1')
-    expect(repo.softDeleteBackingPage).toHaveBeenCalledWith('bp1')
+    const svc = makeSvc(repo)
+    await svc.update('u1', { templateId: 't1', workspaceId: 'w1', title: 'Renamed' })
+    expect(repo.setFilesPublic).toHaveBeenCalledWith([
+      '22222222-2222-2222-2222-222222222222',
+    ])
   })
 
-  it('does not call softDeleteBackingPage when template has no backing page', async () => {
+  it('forbids a GLOBAL template update by a non-creator', async () => {
     const repo = makeRepo({
-      findForWrite: vi.fn(async () => ({
-        id: 't1',
-        scope: PageTemplateScope.WORKSPACE,
-        workspaceId: 'w1',
-        createdById: 'u1',
-        backingPageId: null,
+      findTemplateDetail: vi.fn(async () => ({
+        ...WS_DETAIL,
+        scope: PageTemplateScope.GLOBAL,
+        createdById: 'other-user',
       })),
-      softDeleteBackingPage: vi.fn(async () => undefined),
     })
-    const svc = new TemplateService(repo, makeUow(), makePages())
-    await svc.delete('u1', { templateId: 't1', workspaceId: 'w1' })
-    expect(repo.softDeleteBackingPage).not.toHaveBeenCalled()
+    const svc = makeSvc(repo)
+    await expect(
+      svc.update('u1', { templateId: 't1', workspaceId: 'w1', title: 'X' }),
+    ).rejects.toMatchObject({ httpStatus: 403 })
+    expect(repo.updateTemplatePage).not.toHaveBeenCalled()
   })
 
-  it('update rejects unknown tag id', async () => {
+  it('forbids a WORKSPACE template update by a non-creator EDITOR', async () => {
     const repo = makeRepo({
-      // countExistingTags returns 0 but 1 tagId was supplied → should throw BAD_REQUEST
+      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
+      findTemplateDetail: vi.fn(async () => ({ ...WS_DETAIL, createdById: 'other-user' })),
+    })
+    const svc = makeSvc(repo)
+    await expect(
+      svc.update('u1', { templateId: 't1', workspaceId: 'w1', title: 'X' }),
+    ).rejects.toMatchObject({ httpStatus: 403 })
+  })
+
+  it('rejects an unknown tag id', async () => {
+    const repo = makeRepo({
+      findTemplateDetail: vi.fn(async () => ({ ...WS_DETAIL, createdById: 'u1' })),
       countExistingTags: vi.fn(async () => 0),
     })
-    const svc = new TemplateService(repo, makeUow(), makePages())
+    const svc = makeSvc(repo)
     await expect(
       svc.update('u1', {
         templateId: 't1',
@@ -505,347 +495,98 @@ describe('TemplateService.delete / update', () => {
         tagIds: ['00000000-0000-0000-0000-000000000099'],
       }),
     ).rejects.toMatchObject({ httpStatus: 400 })
-    expect(repo.update).not.toHaveBeenCalled()
-  })
-})
-
-describe('TemplateService.create', () => {
-  it('creates an empty workspace template for a writable member', async () => {
-    const repo = makeRepo({
-      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
-      create: vi.fn(async () => ({ id: 't-new' })),
-    })
-    const svc = new TemplateService(repo, makeUow(), makePages())
-    const res = await svc.create('u1', { workspaceId: 'w1', title: 'Blank' })
-    expect(res).toEqual({ id: 't-new' })
-    expect(repo.create).toHaveBeenCalledOnce()
-  })
-
-  it('rejects a non-member', async () => {
-    const repo = makeRepo({ findMembership: vi.fn(async () => null) })
-    const svc = new TemplateService(repo, makeUow(), makePages())
-    await expect(svc.create('u1', { workspaceId: 'w1', title: 'Blank' })).rejects.toMatchObject({
-      name: 'DomainError',
-      httpStatus: 403,
-    })
-  })
-})
-
-describe('TemplateService.getById', () => {
-  it('returns a workspace template detail for a member including canEdit', async () => {
-    const detail = {
-      id: 't1',
-      workspaceId: 'w1',
-      scope: PageTemplateScope.WORKSPACE,
-      title: 'T',
-      description: null,
-      icon: null,
-      type: PageType.TEXT,
-      content: { type: 'doc', content: [] },
-      backingPageId: 'bp1',
-      createdById: 'u1',
-    }
-    const repo = makeRepo({
-      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
-      findDetail: vi.fn(async () => detail),
-    })
-    const svc = new TemplateService(repo, makeUow(), makePages())
-    const result = await svc.getById('u1', { templateId: 't1', workspaceId: 'w1' })
-    // canEdit is computed by the service; all repo fields must be forwarded
-    expect(result).toMatchObject(detail)
-    expect(typeof result.canEdit).toBe('boolean')
-  })
-
-  it('returns canEdit: true for a GLOBAL template when actor === createdById', async () => {
-    const repo = makeRepo({
-      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
-      findDetail: vi.fn(async () => ({
-        id: 'g1',
-        workspaceId: null,
-        scope: PageTemplateScope.GLOBAL,
-        title: 'G',
-        description: null,
-        icon: null,
-        type: PageType.TEXT,
-        content: null,
-        backingPageId: null,
-        createdById: 'u1',
-      })),
-    })
-    const svc = new TemplateService(repo, makeUow(), makePages())
-    const result = await svc.getById('u1', { templateId: 'g1', workspaceId: 'w1' })
-    expect(result.canEdit).toBe(true)
-  })
-
-  it('returns canEdit: false for a GLOBAL template when actor !== createdById', async () => {
-    const repo = makeRepo({
-      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
-      findDetail: vi.fn(async () => ({
-        id: 'g1',
-        workspaceId: null,
-        scope: PageTemplateScope.GLOBAL,
-        title: 'G',
-        description: null,
-        icon: null,
-        type: PageType.TEXT,
-        content: null,
-        backingPageId: null,
-        createdById: 'other-user',
-      })),
-    })
-    const svc = new TemplateService(repo, makeUow(), makePages())
-    const result = await svc.getById('u1', { templateId: 'g1', workspaceId: 'w1' })
-    expect(result.canEdit).toBe(false)
-  })
-
-  it('returns canEdit: true for a WORKSPACE template when member role is OWNER (not creator)', async () => {
-    const repo = makeRepo({
-      findMembership: vi.fn(async () => ({ role: 'OWNER' })),
-      findDetail: vi.fn(async () => ({
-        id: 't1',
-        workspaceId: 'w1',
-        scope: PageTemplateScope.WORKSPACE,
-        title: 'T',
-        description: null,
-        icon: null,
-        type: PageType.TEXT,
-        content: null,
-        backingPageId: 'bp1',
-        createdById: 'other-user',
-      })),
-    })
-    const svc = new TemplateService(repo, makeUow(), makePages())
-    const result = await svc.getById('u1', { templateId: 't1', workspaceId: 'w1' })
-    expect(result.canEdit).toBe(true)
-  })
-
-  it('returns canEdit: false for a WORKSPACE template when actor is EDITOR and not creator', async () => {
-    const repo = makeRepo({
-      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
-      findDetail: vi.fn(async () => ({
-        id: 't1',
-        workspaceId: 'w1',
-        scope: PageTemplateScope.WORKSPACE,
-        title: 'T',
-        description: null,
-        icon: null,
-        type: PageType.TEXT,
-        content: null,
-        backingPageId: 'bp1',
-        createdById: 'other-user',
-      })),
-    })
-    const svc = new TemplateService(repo, makeUow(), makePages())
-    const result = await svc.getById('u1', { templateId: 't1', workspaceId: 'w1' })
-    expect(result.canEdit).toBe(false)
+    expect(repo.updateTemplatePage).not.toHaveBeenCalled()
   })
 
   it('404s when the template is missing', async () => {
-    const repo = makeRepo({
-      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
-      findDetail: vi.fn(async () => null),
-    })
-    const svc = new TemplateService(repo, makeUow(), makePages())
+    const repo = makeRepo({ findTemplateDetail: vi.fn(async () => null) })
+    const svc = makeSvc(repo)
     await expect(
-      svc.getById('u1', { templateId: 't1', workspaceId: 'w1' }),
-    ).rejects.toMatchObject({ httpStatus: 404 })
-  })
-
-  it('404s for a WORKSPACE template belonging to another workspace', async () => {
-    const repo = makeRepo({
-      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
-      findDetail: vi.fn(async () => ({
-        id: 't1',
-        workspaceId: 'other-ws',
-        scope: PageTemplateScope.WORKSPACE,
-        title: 'T',
-        description: null,
-        icon: null,
-        type: PageType.TEXT,
-        content: null,
-        backingPageId: null,
-        createdById: 'u1',
-      })),
-    })
-    const svc = new TemplateService(repo, makeUow(), makePages())
-    await expect(
-      svc.getById('u1', { templateId: 't1', workspaceId: 'w1' }),
+      svc.update('u1', { templateId: 't1', workspaceId: 'w1', title: 'X' }),
     ).rejects.toMatchObject({ httpStatus: 404 })
   })
 })
 
-describe('TemplateService.getBackingPage', () => {
-  it('returns the backing page for an accessible template', async () => {
+// ── delete ───────────────────────────────────────────────────────────────────
+
+describe('TemplateService.delete', () => {
+  it('soft-deletes a WORKSPACE template for the creator', async () => {
     const repo = makeRepo({
-      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
-      findDetail: vi.fn(async () => ({
-        id: 't1',
-        workspaceId: 'w1',
-        scope: PageTemplateScope.WORKSPACE,
-        title: 'T',
-        description: null,
-        icon: null,
-        type: PageType.TEXT,
-        content: null,
-        backingPageId: 'bp1',
-        createdById: 'u1',
-      })),
-      findBackingPageForTemplate: vi.fn(async () => ({
-        id: 'bp1',
-        type: PageType.TEXT,
-        contentYjs: 'base64encodeddata==',
-        editable: true,
-      })),
+      findTemplateDetail: vi.fn(async () => ({ ...WS_DETAIL, createdById: 'u1' })),
     })
-    const svc = new TemplateService(repo, makeUow(), makePages())
-    const result = await svc.getBackingPage('u1', { templateId: 't1', workspaceId: 'w1' })
-    expect(result.id).toBe('bp1')
-    expect(result.type).toBe(PageType.TEXT)
-    expect(result.contentYjs).toBe('base64encodeddata==')
-    expect(result.editable).toBe(true)
+    const svc = makeSvc(repo)
+    const res = await svc.delete('u1', { templateId: 't1', workspaceId: 'w1' })
+    expect(res).toEqual({ count: 1 })
+    expect(repo.softDeleteTemplatePage).toHaveBeenCalledWith('t1')
   })
 
-  it('falls back to the template content snapshot (read-only) when there is no backing page', async () => {
-    const findContent = vi.fn(async () => ({
-      id: 't1',
-      workspaceId: 'w1',
-      scope: PageTemplateScope.WORKSPACE,
-      title: 'Tmpl',
-      icon: '📋',
-      type: PageType.TEXT,
-      content: { type: 'doc', content: [] },
-      contentYjs: new Uint8Array([1, 2, 3]),
-      backingPageId: null,
-    }))
-    const findBackingPageForTemplate = vi.fn()
+  it('allows OWNER to delete a WORKSPACE template they did not create', async () => {
     const repo = makeRepo({
-      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
-      findDetail: vi.fn(async () => ({
-        id: 't1',
-        workspaceId: 'w1',
-        scope: PageTemplateScope.WORKSPACE,
-        title: 'T',
-        description: null,
-        icon: null,
-        type: PageType.TEXT,
-        content: null,
-        backingPageId: null,
-        createdById: 'u1',
-      })),
-      findContent,
-      findBackingPageForTemplate,
+      findMembership: vi.fn(async () => ({ role: 'OWNER' })),
+      findTemplateDetail: vi.fn(async () => ({ ...WS_DETAIL, createdById: 'other-user' })),
     })
-    const svc = new TemplateService(repo, makeUow(), makePages())
-    const result = await svc.getBackingPage('u1', { templateId: 't1', workspaceId: 'w1' })
-    // No backing page → must not query it; serve the template's own content.
-    expect(findBackingPageForTemplate).not.toHaveBeenCalled()
-    expect(result.id).toBe('t1')
-    expect(result.type).toBe(PageType.TEXT)
-    expect(result.contentYjs).toBe(Buffer.from(new Uint8Array([1, 2, 3])).toString('base64'))
-    expect(result.editable).toBe(false)
+    const svc = makeSvc(repo)
+    const res = await svc.delete('u1', { templateId: 't1', workspaceId: 'w1' })
+    expect(res).toEqual({ count: 1 })
   })
 
-  it('throws NOT_FOUND when the template has no backing page and no content', async () => {
+  it('refuses to delete a GLOBAL template when actor is not its creator', async () => {
     const repo = makeRepo({
-      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
-      findDetail: vi.fn(async () => ({
-        id: 't1',
-        workspaceId: 'w1',
-        scope: PageTemplateScope.WORKSPACE,
-        title: 'T',
-        description: null,
-        icon: null,
-        type: PageType.TEXT,
-        content: null,
-        backingPageId: null,
-        createdById: 'u1',
-      })),
-      findContent: vi.fn(async () => null),
-    })
-    const svc = new TemplateService(repo, makeUow(), makePages())
-    await expect(
-      svc.getBackingPage('u1', { templateId: 't1', workspaceId: 'w1' }),
-    ).rejects.toMatchObject({ httpStatus: 404 })
-  })
-
-  it('throws NOT_FOUND when the actor is not a workspace member', async () => {
-    const repo = makeRepo({
-      findMembership: vi.fn(async () => null),
-    })
-    const svc = new TemplateService(repo, makeUow(), makePages())
-    await expect(
-      svc.getBackingPage('u1', { templateId: 't1', workspaceId: 'w1' }),
-    ).rejects.toMatchObject({ httpStatus: 403 })
-  })
-})
-
-describe('TemplateService.updateContent', () => {
-  it('updates content for the creator of a workspace template, forwarding derived bytes', async () => {
-    const repo = makeRepo({
-      // actor 'u1' is the creator
-      findForWrite: vi.fn(async () => ({
-        id: 't1',
-        scope: PageTemplateScope.WORKSPACE,
-        workspaceId: 'w1',
-        createdById: 'u1',
-      })),
-      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
-      updateContent: vi.fn(async () => ({ id: 't1' })),
-    })
-    const svc = new TemplateService(repo, makeUow(), makePages())
-    const bytes = new Uint8Array(new ArrayBuffer(4))
-    const res = await svc.updateContent(
-      'u1',
-      { templateId: 't1', workspaceId: 'w1', content: { type: 'doc', content: [] } },
-      bytes,
-    )
-    expect(res).toEqual({ id: 't1' })
-    expect(repo.updateContent).toHaveBeenCalledWith('u1', 't1', { type: 'doc', content: [] }, bytes)
-  })
-
-  it('forbids editing a GLOBAL template when actor is not the creator', async () => {
-    const repo = makeRepo({
-      findForWrite: vi.fn(async () => ({
-        id: 't1',
+      findTemplateDetail: vi.fn(async () => ({
+        ...WS_DETAIL,
         scope: PageTemplateScope.GLOBAL,
-        workspaceId: null,
         createdById: 'other-user',
       })),
     })
-    const svc = new TemplateService(repo, makeUow(), makePages())
+    const svc = makeSvc(repo)
     await expect(
-      svc.updateContent('u1', { templateId: 't1', workspaceId: 'w1', content: {} }, null),
+      svc.delete('u1', { templateId: 't1', workspaceId: 'w1' }),
+    ).rejects.toMatchObject({ httpStatus: 403 })
+    expect(repo.softDeleteTemplatePage).not.toHaveBeenCalled()
+  })
+
+  it('allows the creator of a GLOBAL template to delete it', async () => {
+    const repo = makeRepo({
+      findTemplateDetail: vi.fn(async () => ({
+        ...WS_DETAIL,
+        scope: PageTemplateScope.GLOBAL,
+        createdById: 'u1',
+      })),
+    })
+    const svc = makeSvc(repo)
+    const res = await svc.delete('u1', { templateId: 't1', workspaceId: 'w1' })
+    expect(res).toEqual({ count: 1 })
+  })
+
+  it('forbids deleting a WORKSPACE template by a non-creator EDITOR', async () => {
+    const repo = makeRepo({
+      findMembership: vi.fn(async () => ({ role: 'EDITOR' })),
+      findTemplateDetail: vi.fn(async () => ({ ...WS_DETAIL, createdById: 'other-user' })),
+    })
+    const svc = makeSvc(repo)
+    await expect(
+      svc.delete('u1', { templateId: 't1', workspaceId: 'w1' }),
     ).rejects.toMatchObject({ httpStatus: 403 })
   })
 
-  it('allows the creator of a GLOBAL template to update its content', async () => {
-    const repo = makeRepo({
-      findForWrite: vi.fn(async () => ({
-        id: 't1',
-        scope: PageTemplateScope.GLOBAL,
-        workspaceId: null,
-        createdById: 'u1',
-      })),
-      updateContent: vi.fn(async () => ({ id: 't1' })),
-    })
-    const svc = new TemplateService(repo, makeUow(), makePages())
-    const res = await svc.updateContent(
-      'u1',
-      { templateId: 't1', workspaceId: 'w1', content: { type: 'doc', content: [] } },
-      null,
-    )
-    expect(res).toEqual({ id: 't1' })
+  it('404s when the template is missing', async () => {
+    const repo = makeRepo({ findTemplateDetail: vi.fn(async () => null) })
+    const svc = makeSvc(repo)
+    await expect(
+      svc.delete('u1', { templateId: 't1', workspaceId: 'w1' }),
+    ).rejects.toMatchObject({ httpStatus: 404 })
   })
 })
+
+// ── listTags / listMarketplace ───────────────────────────────────────────────
 
 describe('TemplateService.listTags', () => {
   it('delegates to repo.listTags', async () => {
     const tags = [{ id: 'tag-1', slug: 'work', name: 'Work', icon: 'WorkOutlineIcon', position: 1 }]
     const repo = makeRepo({ listTags: vi.fn(async () => tags) })
-    const svc = new TemplateService(repo, makeUow(), makePages())
+    const svc = makeSvc(repo)
     const res = await svc.listTags()
     expect(res).toEqual(tags)
-    expect(repo.listTags).toHaveBeenCalledOnce()
   })
 })
 
@@ -858,6 +599,7 @@ describe('TemplateService.listMarketplace', () => {
     averageRating: 0,
     ratingCount: 0,
     previewColor: null,
+    previewContent: null,
     tags: [],
     author: { name: 'AnyNote' },
     createdById: null,
@@ -867,31 +609,27 @@ describe('TemplateService.listMarketplace', () => {
 
   it('requires workspace membership', async () => {
     const repo = makeRepo({ findMembership: vi.fn(async () => null) })
-    const svc = new TemplateService(repo, makeUow(), makePages())
-    await expect(
-      svc.listMarketplace('u1', { workspaceId: 'w1' }),
-    ).rejects.toMatchObject({ httpStatus: 403 })
+    const svc = makeSvc(repo)
+    await expect(svc.listMarketplace('u1', { workspaceId: 'w1' })).rejects.toMatchObject({
+      httpStatus: 403,
+    })
   })
 
   it('returns sectioned marketplace results with tags', async () => {
     const tags = [{ id: 'tag-1', slug: 'work', name: 'Work', icon: 'WorkOutlineIcon', position: 1 }]
     const candidates = [
-      { ...baseSummary, id: 'ws-1', workspaceId: 'w1', scope: PageTemplateScope.WORKSPACE, title: 'WS Template', usageCount: 10 },
-      { ...baseSummary, id: 'g-1', workspaceId: null, scope: PageTemplateScope.GLOBAL, title: 'Global Template', usageCount: 100 },
+      { ...baseSummary, id: 'ws-1', workspaceId: 'w1', scope: PageTemplateScope.WORKSPACE, title: 'WS', usageCount: 10 },
+      { ...baseSummary, id: 'g-1', workspaceId: 'sys', scope: PageTemplateScope.GLOBAL, title: 'Global', usageCount: 100 },
     ]
     const repo = makeRepo({
       listTags: vi.fn(async () => tags),
       marketplaceCandidates: vi.fn(async () => candidates),
     })
-    const svc = new TemplateService(repo, makeUow(), makePages())
+    const svc = makeSvc(repo)
     const res = await svc.listMarketplace('u1', { workspaceId: 'w1' })
-
     expect(res.tags).toEqual(tags)
-    // workspaceTemplates filters to WORKSPACE scope
     expect(res.workspaceTemplates.map((t) => t.id)).toEqual(['ws-1'])
-    // popularTemplates sorted by usageCount desc
     expect(res.popularTemplates.map((t) => t.id)).toEqual(['g-1', 'ws-1'])
-    // allTemplates first limit items of candidates (usageCount desc from repo)
     expect(res.allTemplates.map((t) => t.id)).toEqual(['ws-1', 'g-1'])
   })
 
@@ -905,7 +643,7 @@ describe('TemplateService.listMarketplace', () => {
       usageCount: i,
     }))
     const repo = makeRepo({ marketplaceCandidates: vi.fn(async () => candidates) })
-    const svc = new TemplateService(repo, makeUow(), makePages())
+    const svc = makeSvc(repo)
     const res = await svc.listMarketplace('u1', { workspaceId: 'w1', sectionLimit: 3 })
     expect(res.workspaceTemplates).toHaveLength(3)
     expect(res.popularTemplates).toHaveLength(3)
