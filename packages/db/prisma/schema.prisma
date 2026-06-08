@@ -231,6 +231,11 @@ enum PageShareRole {
   EDITOR
 }
 
+enum PageShareMode {
+  LINK
+  SITE
+}
+
 enum KanbanColumnKind {
   ACTIVE
   DONE
@@ -403,6 +408,11 @@ model Page {
   prevPageId    String?                  @unique @map("prev_page_id") @db.Uuid
   archivedAt    DateTime?                @map("archived_at") @db.Timestamptz(6)
   archivedById  String?                  @map("archived_by_id") @db.Uuid
+  // Copy-to-workspace provenance (Phase 2 public sharing). Informational ids only,
+  // no FK — the source may be cross-workspace or deleted.
+  copiedFromShareId String?              @map("copied_from_share_id") @db.Text
+  copiedFromPageId  String?              @map("copied_from_page_id") @db.Uuid
+  copiedAt          DateTime?            @map("copied_at") @db.Timestamptz(6)
   deletedAt     DateTime?                @map("deleted_at") @db.Timestamptz(6)
   createdById   String?                  @map("created_by_id") @db.Uuid
   updatedById   String?                  @map("updated_by_id") @db.Uuid
@@ -498,9 +508,22 @@ model PageShare {
   shareId     String          @unique @map("share_id") @db.VarChar(64)
   access      PageShareAccess @default(RESTRICTED)
   linkRole    PageShareRole   @default(READER) @map("link_role")
-  createdById String?         @map("created_by_id") @db.Uuid
-  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt   DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
+  mode        PageShareMode   @default(LINK)
+  expiresAt   DateTime?       @map("expires_at") @db.Timestamptz(6)
+  // Public-site (Publish tab) fields — meaningful when mode = SITE.
+  publishedAt              DateTime? @map("published_at") @db.Timestamptz(6)
+  unpublishedAt            DateTime? @map("unpublished_at") @db.Timestamptz(6)
+  allowIndexing            Boolean   @default(false) @map("allow_indexing")
+  allowCopy                Boolean   @default(false) @map("allow_copy")
+  publishSubpages          Boolean   @default(true) @map("publish_subpages")
+  analyticsGoogleId        String?   @map("analytics_google_id") @db.Text
+  analyticsYandexMetricaId String?   @map("analytics_yandex_metrica_id") @db.Text
+  // AnyNote extensions (NOT Notion parity): password gate + scheduled publish.
+  passwordHash String?   @map("password_hash") @db.Text
+  exposesAt    DateTime? @map("exposes_at") @db.Timestamptz(6)
+  createdById  String?   @map("created_by_id") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   page      Page            @relation(fields: [pageId], references: [id], onDelete: Cascade)
   createdBy User?           @relation("PageShareCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
