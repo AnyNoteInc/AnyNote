@@ -51,6 +51,8 @@ export {
   DeliveryStatus,
   ReminderAudience,
   CollectionKind,
+  DatabaseViewType,
+  DatabasePropertyType,
 } from '@prisma/client'
 export type { ChatMessageStatus } from '@prisma/client'
 export type {
@@ -96,6 +98,11 @@ export type {
   TaskComment,
   TaskActivity,
   TaskAttachment,
+  DatabaseSource,
+  DatabaseView,
+  DatabaseProperty,
+  DatabaseRow,
+  DatabaseCellValue,
 } from '@prisma/client'
 export {
   OutboxEventStatus,
