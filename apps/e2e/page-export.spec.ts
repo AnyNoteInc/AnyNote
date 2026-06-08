@@ -116,7 +116,7 @@ test('downloads PDF, HTML, and Markdown for a TEXT page', async ({ page }) => {
     // owns auth and content; the dialog is just a thin fetch wrapper that
     // doesn't add coverage we don't already have via api/export-route.test.ts.
     for (const fmt of ['pdf', 'html', 'md'] as const) {
-      const url = `/api/workspaces/${workspace.id}/pages/${pageRow.id}/export/${fmt}`
+      const url = `/api/pages/${pageRow.id}/export/${fmt}`
       const res = await page.request.get(url)
       expect(res.status()).toBe(200)
       expect(res.headers()['content-disposition']).toContain("filename*=UTF-8''")

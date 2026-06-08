@@ -176,7 +176,7 @@ test('assistant cites page with block-anchor link', async ({ page: browser }) =>
     select: { id: true },
   })
 
-  await browser.goto(`/workspaces/${workspace.id}/chats/${chat.id}`)
+  await browser.goto(`/chats/${chat.id}`)
   const composer = browser.getByTestId('chat-composer-textarea')
   await expect(composer).toBeVisible()
   await composer.fill(QUERY)
@@ -195,7 +195,7 @@ test('assistant cites page with block-anchor link', async ({ page: browser }) =>
     .toContain(MARKER)
 
   // --- Assert the block-anchor link exists in the DOM ---
-  const anchor = browser.locator(`a[href="/workspaces/${workspace.id}/pages/${pageRow.id}#2"]`)
+  const anchor = browser.locator(`a[href="/pages/${pageRow.id}#2"]`)
   await expect(anchor).toBeVisible({ timeout: 10_000 })
 
   // --- Cleanup ---

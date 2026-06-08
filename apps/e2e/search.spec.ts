@@ -117,7 +117,9 @@ test('Cmd/Alt+K search opens result, anchors block, and records history', async 
   })
 
   try {
-    await page.goto(`/workspaces/${workspace.id}`)
+    // Single workspace → resolveActiveWorkspace falls back to it server-side, so a
+    // neutral landing route works. /chats/new carries the ⌘K search affordance.
+    await page.goto('/chats/new')
 
     const hotkey = browserName === 'webkit' || process.platform === 'darwin' ? 'Meta+K' : 'Alt+K'
     await page.keyboard.press(hotkey)
@@ -128,7 +130,7 @@ test('Cmd/Alt+K search opens result, anchors block, and records history', async 
     await expect(result).toBeVisible({ timeout: 10_000 })
     await result.click()
 
-    await page.waitForURL(new RegExp(`/workspaces/${workspace.id}/pages/${pageRow.id}#1$`))
+    await page.waitForURL(new RegExp(`/pages/${pageRow.id}#1$`))
     const target = page.locator('[data-block-index="1"]')
     await expect(target).toBeVisible({ timeout: 15_000 })
     await expect(target).toHaveClass(/block-flash/, { timeout: 2_000 })
@@ -138,7 +140,7 @@ test('Cmd/Alt+K search opens result, anchors block, and records history', async 
     await expect(page.getByText('Ранее искали')).toBeVisible()
     await page.getByRole('button', { name: /Workspace Search Alpha/ }).click()
 
-    await page.waitForURL(new RegExp(`/workspaces/${workspace.id}/pages/${pageRow.id}#1$`))
+    await page.waitForURL(new RegExp(`/pages/${pageRow.id}#1$`))
     await expect(target).toHaveClass(/block-flash/, { timeout: 2_000 })
   } finally {
     await prisma.searchHistory

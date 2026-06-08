@@ -128,7 +128,7 @@ test.describe('agent repro — two-turn page creation from dialog', () => {
       select: { id: true },
     })
 
-    await page.goto(`/workspaces/${workspace.id}/chats/${chat.id}`)
+    await page.goto(`/chats/${chat.id}`)
     const composer = page.getByTestId('chat-composer-textarea')
     await expect(composer).toBeVisible({ timeout: 30_000 })
     const sendBtn = page.getByRole('button', { name: 'Send' })
@@ -205,9 +205,9 @@ test.describe('agent repro — two-turn page creation from dialog', () => {
     const chatLink = page.getByTestId('chat-message-list').getByRole('link', { name: 'здесь' }).last()
     await expect(chatLink).toHaveAttribute(
       'href',
-      `/workspaces/${workspace.id}/pages/${createdPage!.id}`,
+      `/pages/${createdPage!.id}`,
     )
-    await page.goto(`/workspaces/${workspace.id}/pages/${createdPage!.id}`)
+    await page.goto(`/pages/${createdPage!.id}`)
     const editor = page.locator('.anynote-editor .ProseMirror').first()
     await expect(editor).toBeVisible({ timeout: 30_000 })
     await expect(editor).toContainText(/бан|пар|веник/i, { timeout: 30_000 })

@@ -111,7 +111,7 @@ test('block-anchor URL scrolls to and highlights the indexed block', async ({ pa
 
   try {
     // Navigate directly with the hash in the URL
-    await browser.goto(`/workspaces/${workspace.id}/pages/${pageRow.id}#2`)
+    await browser.goto(`/pages/${pageRow.id}#2`)
 
     const target = browser.locator('[data-block-index="2"]')
 

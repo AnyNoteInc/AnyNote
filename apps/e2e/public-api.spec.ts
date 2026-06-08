@@ -9,7 +9,7 @@ const enginesUrl = process.env.ENGINES_URL ?? `http://localhost:${process.env.EN
 async function createDefaultWorkspace(page: Parameters<typeof signUpAndAuthAs>[0]): Promise<void> {
   await page.getByRole('textbox', { name: 'Название' }).fill('API Test WS')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/chats\/new$/, { timeout: 30_000 })
+  await page.waitForURL(/\/chats\/new$/, { timeout: 30_000 })
 }
 
 test('mint key in UI, call /v1/workspaces with Bearer, list current user workspaces', async ({

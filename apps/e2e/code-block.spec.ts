@@ -10,14 +10,14 @@ async function setupTextPage(page: Page) {
   await page.getByRole('button', { name: 'Создать пространство' }).click()
   // Wait for the /chats redirect to settle before switching sections (the
   // pathname→section sync would otherwise revert the section mid-click).
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/chats/, { timeout: 30_000 })
+  await page.waitForURL(/\/chats/, { timeout: 30_000 })
 
   await page.getByRole('button', { name: 'Страницы' }).click()
   const createBtn = page.getByRole('button', { name: 'Новая страница' })
   await expect(createBtn).toBeVisible()
   await createBtn.click()
-  await page.getByRole('menuitem', { name: 'Текст' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
+  await page.getByRole('button', { name: 'Создать страницу: Текст' }).click()
+  await page.waitForURL(/\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
 
   const editor = page.locator('.anynote-editor .ProseMirror')
   await expect(editor).toBeVisible({ timeout: 15_000 })

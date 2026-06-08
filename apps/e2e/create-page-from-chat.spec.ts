@@ -156,8 +156,8 @@ test.describe('agent — create page from chat (gigachat-2-pro)', () => {
       select: { id: true },
     })
 
-    await page.goto(`/workspaces/${workspace.id}/chats/${chat.id}`)
-    await expect(page).toHaveURL(new RegExp(`/workspaces/${workspace.id}/chats/${chat.id}$`))
+    await page.goto(`/chats/${chat.id}`)
+    await expect(page).toHaveURL(new RegExp(`/chats/${chat.id}$`))
 
     const composer = page.getByTestId('chat-composer-textarea')
     await expect(composer).toBeVisible({ timeout: 30_000 })
@@ -197,7 +197,7 @@ test.describe('agent — create page from chat (gigachat-2-pro)', () => {
     await allowBtn.click()
 
     const pageHrefPattern = new RegExp(
-      `/workspaces/${workspace.id}/pages/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`,
+      `/pages/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$`,
     )
 
     await expect
@@ -219,7 +219,7 @@ test.describe('agent — create page from chat (gigachat-2-pro)', () => {
 
     const chatLink = page
       .getByTestId('chat-message-list')
-      .locator(`a[href*="/workspaces/${workspace.id}/pages/${createdPageId}"]`)
+      .locator(`a[href*="/pages/${createdPageId}"]`)
       .last()
 
     if (await chatLink.count()) {
@@ -228,7 +228,7 @@ test.describe('agent — create page from chat (gigachat-2-pro)', () => {
     } else {
       // GigaChat sometimes omits the link from the assistant reply — navigate
       // directly to the newly-created page to assert end-to-end behaviour.
-      await page.goto(`/workspaces/${workspace.id}/pages/${createdPageId}`)
+      await page.goto(`/pages/${createdPageId}`)
     }
     await expect(page).toHaveURL(pageHrefPattern, { timeout: 30_000 })
 

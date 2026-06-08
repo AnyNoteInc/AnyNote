@@ -12,18 +12,14 @@ test('text page mounts the AnyNoteEditor', async ({ page }) => {
   // First-workspace create
   await page.getByRole('textbox', { name: 'Название' }).fill('Editor Smoke')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+/)
+  await page.waitForURL(/\/(pages|chats)\//)
 
-  // Open the "+" menu on the "Страницы" header and pick "Текстовая страница".
-  // The "+" button is a sibling of the "Страницы" overline inside the section header row.
-  const pagesHeaderRow = page
-    .getByText('Страницы', { exact: true })
-    .locator('xpath=ancestor::*[.//button][1]')
-  await pagesHeaderRow.getByRole('button').click()
-  await page.getByRole('menuitem', { name: 'Текст' }).click()
+  // Open the "Создание страницы" dialog from the sidebar and pick "Текст".
+  await page.getByRole('button', { name: 'Новая страница' }).click()
+  await page.getByRole('button', { name: 'Создать страницу: Текст' }).click()
 
   // Page route should navigate, and the editor DOM should appear.
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
+  await page.waitForURL(/\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
 
   const editor = page.locator('.anynote-editor .ProseMirror')
   await expect(editor).toBeVisible({ timeout: 15_000 })

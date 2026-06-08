@@ -148,7 +148,7 @@ async function createSeededPage(page: Page, tag: string, content: TiptapContent)
     select: { id: true },
   })
 
-  await page.goto(`/workspaces/${workspace.id}/pages/${pageRow.id}`)
+  await page.goto(`/pages/${pageRow.id}`)
   const editor = page.locator('.anynote-editor .ProseMirror').first()
   await expect(editor).toBeVisible({ timeout: 15_000 })
   return editor
@@ -171,19 +171,16 @@ async function signUp(page: Page, tag: string) {
   await signUpAndAuthAs(page, { email, password, firstName: 'Кол', lastName: 'Тестов' })
   await page.getByRole('textbox', { name: 'Название' }).fill('Cols Test')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+/)
+  await page.waitForURL(/\/(pages|chats)\//)
 }
 
 async function createTextPage(page: Page) {
   const previousUrl = page.url()
-  const pagesSection = page
-    .getByText('Страницы', { exact: true })
-    .locator('xpath=ancestor::*[.//*[@data-testid="AddIcon"]][1]')
-  await pagesSection.locator('button:has([data-testid="AddIcon"])').first().click()
-  await page.getByRole('menuitem', { name: 'Текст' }).click()
+  await page.getByRole('button', { name: 'Новая страница' }).click()
+  await page.getByRole('button', { name: 'Создать страницу: Текст' }).click()
   await page.waitForURL(
     (url) =>
-      /\/workspaces\/[a-f0-9-]+\/pages\/[a-f0-9-]+/.test(url.toString()) &&
+      /\/pages\/[a-f0-9-]+/.test(url.toString()) &&
       url.toString() !== previousUrl,
     { timeout: 15_000 },
   )

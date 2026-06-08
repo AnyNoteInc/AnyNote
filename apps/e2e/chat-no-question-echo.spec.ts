@@ -102,9 +102,9 @@ async function seedChat(
 test('REPRO: a leading plan tool segment echoes the question as a service block', async ({
   page,
 }) => {
-  const { workspaceId, chatId } = await seedChat(page, 'chat-echo-repro', BUGGY_PARTS)
+  const { chatId } = await seedChat(page, 'chat-echo-repro', BUGGY_PARTS)
 
-  await page.goto(`/workspaces/${workspaceId}/chats/${chatId}`)
+  await page.goto(`/chats/${chatId}`)
 
   const list = page.getByTestId('chat-message-list')
   await expect(list).toBeVisible({ timeout: 60_000 })
@@ -118,9 +118,9 @@ test('REPRO: a leading plan tool segment echoes the question as a service block'
 })
 
 test('FIXED: the trivial answer renders first with no question echo', async ({ page }) => {
-  const { workspaceId, chatId } = await seedChat(page, 'chat-echo-fixed', FIXED_PARTS)
+  const { chatId } = await seedChat(page, 'chat-echo-fixed', FIXED_PARTS)
 
-  await page.goto(`/workspaces/${workspaceId}/chats/${chatId}`)
+  await page.goto(`/chats/${chatId}`)
 
   const list = page.getByTestId('chat-message-list')
   await expect(list).toBeVisible({ timeout: 60_000 })

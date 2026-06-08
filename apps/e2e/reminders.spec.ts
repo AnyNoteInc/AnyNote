@@ -8,19 +8,16 @@ async function signUpAndCreateWorkspace(page: import('@playwright/test').Page, t
   await signUpAndAuthAs(page, { email, password, firstName: 'Ремайндер', lastName: 'Тестов' })
   await page.getByRole('textbox', { name: 'Название' }).fill('Reminder Spec WS')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+/)
+  await page.waitForURL(/\/(pages|chats)\//)
 }
 
 async function createTextPage(page: import('@playwright/test').Page) {
   const previousUrl = page.url()
-  const pagesSection = page
-    .getByText('Страницы', { exact: true })
-    .locator('xpath=ancestor::*[.//*[@data-testid="AddIcon"]][1]')
-  await pagesSection.locator('button:has([data-testid="AddIcon"])').first().click()
-  await page.getByRole('menuitem', { name: 'Текст' }).click()
+  await page.getByRole('button', { name: 'Новая страница' }).click()
+  await page.getByRole('button', { name: 'Создать страницу: Текст' }).click()
   await page.waitForURL(
     (url) =>
-      /\/workspaces\/[a-f0-9-]+\/pages\/[a-f0-9-]+/.test(url.toString()) &&
+      /\/pages\/[a-f0-9-]+/.test(url.toString()) &&
       url.toString() !== previousUrl,
     { timeout: 15_000 },
   )

@@ -9,15 +9,14 @@ async function createDrawioPage(page: Page) {
   await signUpAndAuthAs(page, { email, password, firstName: 'Тест', lastName: 'Тест' })
   await page.getByRole('textbox', { name: 'Название' }).fill('Drawio WS')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/chats/, { timeout: 15_000 })
+  await page.waitForURL(/\/chats/, { timeout: 15_000 })
 
   await page.getByRole('button', { name: 'Страницы' }).click()
   const createPageButton = page.getByRole('button', { name: 'Новая страница' })
   await expect(createPageButton).toBeVisible()
   await createPageButton.click()
-  await page.getByRole('menuitem', { name: 'Холст' }).click()
-  await page.getByRole('menuitem', { name: 'Draw.io' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
+  await page.getByRole('button', { name: 'Создать страницу: Draw.io' }).click()
+  await page.waitForURL(/\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
 }
 
 test('creates a DRAWIO page that mounts the draw.io embed iframe', async ({ page }) => {

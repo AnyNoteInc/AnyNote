@@ -11,7 +11,7 @@ async function setupMermaidPage(page: Page) {
   // The new workspace redirects to its /chats route; wait for that redirect to
   // settle BEFORE switching sections, otherwise the pathname-driven section sync
   // reverts our switch to Pages back to Chats mid-click.
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/chats/, { timeout: 30_000 })
+  await page.waitForURL(/\/chats/, { timeout: 30_000 })
 
   // The redesigned sidebar opens on the Chats section; switch to the Pages
   // section, then open the root create-page menu and pick the Mermaid type.
@@ -20,8 +20,8 @@ async function setupMermaidPage(page: Page) {
   await expect(createPageButton).toBeVisible()
   await createPageButton.click()
   await page.getByRole('menuitem', { name: 'Диаграмма' }).click()
-  await page.getByRole('menuitem', { name: 'MermaidJS' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
+  await page.getByRole('button', { name: 'Создать страницу: MermaidJS' }).click()
+  await page.waitForURL(/\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
 }
 
 async function typeIntoMonaco(page: Page, text: string) {

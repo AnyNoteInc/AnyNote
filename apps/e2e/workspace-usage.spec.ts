@@ -11,7 +11,7 @@ async function signUpAndCreateWorkspace(page: Page, slug: string): Promise<strin
   await signUpAndAuthAs(page, { email, password, firstName: 'Тест', lastName: 'Юзер' })
   await page.getByRole('textbox', { name: 'Название' }).fill(WORKSPACE_NAME)
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/chats\/new$/, { timeout: 30_000 })
+  await page.waitForURL(/\/chats\/new$/, { timeout: 30_000 })
   const workspaceId = /\/workspaces\/([a-f0-9-]+)\//.exec(page.url())?.[1]
   if (!workspaceId) throw new Error('Failed to extract workspaceId from URL')
   return workspaceId

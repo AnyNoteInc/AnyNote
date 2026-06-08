@@ -39,14 +39,11 @@ async function setupKanbanPage(page: Page) {
 
   await page.getByRole('textbox', { name: 'Название' }).fill('Sprint WS')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+/)
+  await page.waitForURL(/\/(pages|chats)\//)
 
-  const pagesHeaderRow = page
-    .getByText('Страницы', { exact: true })
-    .locator('xpath=ancestor::*[.//button][1]')
-  await pagesHeaderRow.getByRole('button').click()
-  await page.getByRole('menuitem', { name: 'Канбан' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
+  await page.getByRole('button', { name: 'Новая страница' }).click()
+  await page.getByRole('button', { name: 'Создать страницу: Канбан' }).click()
+  await page.waitForURL(/\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
 
   // Switch to table view where sprints live
   await expect(page.getByRole('button', { name: 'Таблица' })).toBeVisible()

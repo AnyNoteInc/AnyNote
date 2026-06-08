@@ -7,7 +7,7 @@ const password = 'SuperSecure123!'
 async function createWorkspace(page: Page) {
   await page.getByRole('textbox', { name: 'Название' }).fill('Ordering WS')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/chats/, { timeout: 30_000 })
+  await page.waitForURL(/\/chats/, { timeout: 30_000 })
 }
 
 async function openPagesSection(page: Page) {
@@ -29,10 +29,10 @@ async function openPagesSection(page: Page) {
 async function createRootTextPage(page: Page): Promise<string> {
   const previousUrl = page.url()
   await page.getByRole('button', { name: 'Новая страница' }).click()
-  await page.getByRole('menuitem', { name: 'Текст' }).click()
+  await page.getByRole('button', { name: 'Создать страницу: Текст' }).click()
   await page.waitForURL(
     (url) =>
-      /\/workspaces\/[a-f0-9-]+\/pages\/[a-f0-9-]+/.test(url.toString()) &&
+      /\/pages\/[a-f0-9-]+/.test(url.toString()) &&
       url.toString() !== previousUrl,
     { timeout: 20_000 },
   )

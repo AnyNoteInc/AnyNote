@@ -52,21 +52,28 @@ async function signUpAndCreateWorkspace(page: Page, tag: string) {
   const email = `ai-providers-${tag}+${Date.now()}@example.com`
   const workspaceName = `AI Providers ${tag}`
   await signUpAndAuthAs(page, { email, password, firstName: 'Тест', lastName: 'Провайдер' })
-  // After signUpAndAuthAs, user is redirected to /app → /workspaces/new.
-  // Wait for the workspace-creation URL before interacting with its form.
+  // After signUpAndAuthAs, the user is redirected to /app → /workspaces/new
+  // (the creation route still exists). Wait for it before filling the form.
   await page.waitForURL(/\/workspaces\/new$/, { timeout: 20_000 })
   await page.getByRole('textbox', { name: 'Название' }).fill(workspaceName)
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+/, { timeout: 30_000 })
-  const workspaceId = page.url().match(/\/workspaces\/([a-f0-9-]+)/)?.[1]
-  if (!workspaceId) throw new Error(`Could not parse workspaceId from ${page.url()}`)
+  // Creation sets the new workspace active and redirects through /app to a
+  // neutral URL (first page or /chats/new). URLs no longer contain /workspaces/{id}.
+  await page.waitForURL(/\/(pages|chats)\//, { timeout: 30_000 })
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { email },
     select: { id: true },
   })
 
-  return { email, userId: user.id, workspaceId, workspaceName }
+  // The workspace id is no longer in the URL; resolve it from the DB.
+  const workspace = await prisma.workspace.findFirstOrThrow({
+    where: { members: { some: { userId: user.id, role: 'OWNER' } } },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true },
+  })
+
+  return { email, userId: user.id, workspaceId: workspace.id, workspaceName }
 }
 
 // Settings moved from /settings/* routes into a full-screen dialog opened from
@@ -142,7 +149,7 @@ test('max-plan owner sees the Свои провайдеры card', async ({ page
 
   // Reload so the server-rendered plan features pick up the upgrade (the
   // settings nav is feature-gated and computed in the workspace layout).
-  await page.goto(`/workspaces/${workspaceId}`)
+  await page.goto('/chats/new')
   const dialog = await openAiSettings(page, workspaceName)
   await expect(dialog.getByText('Свои провайдеры')).toBeVisible({ timeout: 15_000 })
   await expect(dialog.getByRole('button', { name: 'Добавить провайдера' })).toBeVisible()
@@ -155,7 +162,7 @@ test('owner on max plan: custom provider block-on-failed-ping', async ({ page })
   const { userId, workspaceId, workspaceName } = await signUpAndCreateWorkspace(page, 'ping')
   await upgradeOwnerToMax(userId)
 
-  await page.goto(`/workspaces/${workspaceId}`)
+  await page.goto('/chats/new')
   const settingsDialog = await openAiSettings(page, workspaceName)
   await expect(settingsDialog.getByText('Свои провайдеры')).toBeVisible({ timeout: 15_000 })
 
@@ -193,7 +200,7 @@ test('owner on max plan: adding a custom provider succeeds and the model appears
   const { userId, workspaceId, workspaceName } = await signUpAndCreateWorkspace(page, 'happy')
   await upgradeOwnerToMax(userId)
 
-  await page.goto(`/workspaces/${workspaceId}`)
+  await page.goto('/chats/new')
   const settingsDialog = await openAiSettings(page, workspaceName)
   await expect(settingsDialog.getByText('Свои провайдеры')).toBeVisible({ timeout: 15_000 })
 

@@ -15,11 +15,10 @@ test('each shareable page type renders via a public share link', async ({ page, 
 
   await page.getByRole('textbox', { name: 'Название' }).fill('Types WS')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  // A new workspace seeds a welcome start page, so the redirect lands on
-  // /workspaces/{id}/pages/{startPageId} (or /chats/new if there were none).
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/(pages|chats)\//, { timeout: 30_000 })
-  const workspaceId = /\/workspaces\/([a-f0-9-]+)\//.exec(page.url())?.[1]
-  expect(workspaceId).toBeTruthy()
+  // A new workspace seeds a welcome start page, so the redirect lands on a
+  // neutral /pages/{startPageId} (or /chats/new if there were none). URLs no
+  // longer carry a /workspaces/{id} prefix.
+  await page.waitForURL(/\/(pages|chats)\//, { timeout: 30_000 })
 
   loadEnvFromRoot()
   const { prisma } = await import('../../packages/db/src/index')
@@ -27,10 +26,18 @@ test('each shareable page type renders via a public share link', async ({ page, 
 
   const me = await prisma.user.findUniqueOrThrow({ where: { email }, select: { id: true } })
 
+  // The workspace id is no longer in the URL; resolve it from the DB.
+  const workspace = await prisma.workspace.findFirstOrThrow({
+    where: { members: { some: { userId: me.id, role: 'OWNER' } } },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true },
+  })
+  const workspaceId = workspace.id
+
   for (const type of TYPES) {
     const created = await prisma.page.create({
       data: {
-        workspaceId: workspaceId!,
+        workspaceId,
         type,
         title: `${type} page`,
         createdById: me.id,

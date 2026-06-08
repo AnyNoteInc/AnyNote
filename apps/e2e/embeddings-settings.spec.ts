@@ -34,14 +34,22 @@ async function setupProWorkspace(page: Page, tag: string): Promise<{ workspaceId
   await signUpAndAuthAs(page, { email, password, firstName: 'Тест', lastName: 'Векторы' })
   await page.getByRole('textbox', { name: 'Название' }).fill(`Embeddings ${tag}`)
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+$/)
-  const workspaceId = page.url().match(/\/workspaces\/([a-f0-9-]+)$/)?.[1]
-  if (!workspaceId) throw new Error(`Could not parse workspace id from ${page.url()}`)
+  // Creation sets the new workspace active and redirects through /app to a
+  // neutral URL (first page or /chats/new). URLs no longer contain /workspaces/{id}.
+  await page.waitForURL(/\/(pages|chats)\//)
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { email },
     select: { id: true },
   })
+
+  // The workspace id is no longer in the URL; resolve it from the DB.
+  const workspace = await prisma.workspace.findFirstOrThrow({
+    where: { members: { some: { userId: user.id, role: 'OWNER' } } },
+    orderBy: { createdAt: 'asc' },
+    select: { id: true },
+  })
+  const workspaceId = workspace.id
 
   const pro = await prisma.plan.findUniqueOrThrow({ where: { slug: 'pro' } })
   const now = new Date()
@@ -84,7 +92,7 @@ async function getEmbeddingModelIdBySlug(slug: string): Promise<string> {
 test('Векторизация section is rendered for Pro workspace and starts unset', async ({ page }) => {
   const { workspaceId } = await setupProWorkspace(page, 'render')
 
-  await page.goto(`/workspaces/${workspaceId}/settings/ai`)
+  await page.goto('/settings/ai')
   await expect(page.getByRole('heading', { name: 'Векторизация' })).toBeVisible()
   await expect(
     page.getByText(
@@ -111,7 +119,7 @@ test('selecting an embeddings model opens confirmation and persists on confirm',
   const { workspaceId } = await setupProWorkspace(page, 'select')
   const targetModelId = await getEmbeddingModelIdBySlug('nomic-embed-text')
 
-  await page.goto(`/workspaces/${workspaceId}/settings/ai`)
+  await page.goto('/settings/ai')
   await expect(page.getByRole('heading', { name: 'Векторизация' })).toBeVisible()
 
   await page.getByRole('combobox', { name: 'Модель векторизации' }).click()
@@ -162,7 +170,7 @@ test('switching to a different embeddings model re-enqueues pages and updates DB
     select: { id: true },
   })
 
-  await page.goto(`/workspaces/${workspaceId}/settings/ai`)
+  await page.goto('/settings/ai')
   await expect(page.getByRole('combobox', { name: 'Модель векторизации' })).toHaveText(
     /Nomic Embed Text/,
   )
@@ -209,7 +217,7 @@ test('resetting embeddings model to "Не выбрано" clears the FK', async 
     update: { embeddingsModelId: initialModelId },
   })
 
-  await page.goto(`/workspaces/${workspaceId}/settings/ai`)
+  await page.goto('/settings/ai')
   await expect(page.getByRole('combobox', { name: 'Модель векторизации' })).toHaveText(
     /Nomic Embed Text/,
   )
@@ -240,10 +248,9 @@ test('Personal plan user gets 404 on /settings/ai (Векторизация not 
   await signUpAndAuthAs(page, { email, password, firstName: 'Тест', lastName: 'Бесплатный' })
   await page.getByRole('textbox', { name: 'Название' }).fill('Embeddings Personal')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+$/)
-  const workspaceId = page.url().match(/\/workspaces\/([a-f0-9-]+)$/)?.[1]
-  if (!workspaceId) throw new Error('no workspace id parsed')
+  // Neutral landing after creation (no /workspaces/{id} prefix).
+  await page.waitForURL(/\/(pages|chats)\//)
 
-  const response = await page.goto(`/workspaces/${workspaceId}/settings/ai`)
+  const response = await page.goto('/settings/ai')
   expect(response?.status()).toBe(404)
 })
