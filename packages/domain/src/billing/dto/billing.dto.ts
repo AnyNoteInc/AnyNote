@@ -15,6 +15,7 @@ export type PlanFeatures = {
   customAiProvidersEnabled: boolean
   prioritySupport: boolean
   developerSpaceEnabled: boolean
+  publicSitesEnabled: boolean
 }
 
 export function getPlanDisplayName(plan: Pick<Plan, 'slug' | 'name'>): string {

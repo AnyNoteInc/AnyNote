@@ -21,6 +21,7 @@ function planToFeatures(plan: Plan): PlanFeatures {
     customAiProvidersEnabled: plan.customAiProvidersEnabled,
     prioritySupport: plan.prioritySupport,
     developerSpaceEnabled: plan.developerSpaceEnabled,
+    publicSitesEnabled: Array.isArray(plan.features) && (plan.features as string[]).includes('publicSites'),
   }
 }
 

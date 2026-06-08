@@ -21,6 +21,7 @@ function features(overrides: Partial<PlanFeatures> = {}): PlanFeatures {
     customAiProvidersEnabled: true,
     prioritySupport: true,
     developerSpaceEnabled: true,
+    publicSitesEnabled: false,
     ...overrides,
   }
 }
