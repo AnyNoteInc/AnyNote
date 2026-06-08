@@ -39,7 +39,13 @@ export function GroupByPicker({ pageId, view, properties }: GroupByPickerProps) 
   )
 
   const updateView = trpc.database.updateView.useMutation({
-    onSuccess: () => utils.database.getByPage.invalidate({ pageId }),
+    onSuccess: async () => {
+      // Changing the group-by property re-buckets the board (listGroupedRows).
+      await Promise.all([
+        utils.database.getByPage.invalidate({ pageId }),
+        utils.database.listGroupedRows.invalidate(),
+      ])
+    },
   })
 
   const selectedId = settings.groupBy?.propertyId ?? NONE

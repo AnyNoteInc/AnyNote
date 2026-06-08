@@ -121,6 +121,21 @@ function buildCondition(
     }
   }
 
+  // ── SELECT / STATUS is_any_of / is_none_of ──────────────────────────────────
+  // A single-select cell stores ONE option id, so membership is expressible
+  // directly in Prisma as an OR of equals (no post-filter needed).
+  if (operator === 'is_any_of' || operator === 'is_none_of') {
+    const optionIds = Array.isArray(value) ? (value as string[]) : []
+    // Empty selection: is_any_of matches nothing, is_none_of matches everything.
+    if (optionIds.length === 0) {
+      return operator === 'is_any_of' ? { id: { in: [] } } : {}
+    }
+    const anyOf: Prisma.DatabaseRowWhereInput = {
+      OR: optionIds.map((id) => cellSome(propertyId, { equals: id })),
+    }
+    return operator === 'is_none_of' ? { NOT: anyOf } : anyOf
+  }
+
   // ── Empty / not-empty (shared across cell types) ────────────────────────────
   if (operator === 'is_empty') {
     return {

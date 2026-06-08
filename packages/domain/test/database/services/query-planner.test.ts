@@ -241,6 +241,42 @@ describe('buildRowQuery — SELECT / STATUS equality', () => {
       AND: [{ cells: { some: { propertyId: 'p-select', value: { equals: 'opt-1' } } } }],
     })
   })
+
+  it('SELECT is_any_of → OR of equals (in Prisma where, not a post-filter)', () => {
+    const settings: ViewSettings = {
+      filters: {
+        conjunction: 'and',
+        conditions: [{ propertyId: 'p-select', operator: 'is_any_of', value: ['opt-1', 'opt-2'] }],
+      },
+    }
+    const plan = buildRowQuery(settings, props)
+    expect(plan.multiSelectPostFilters).toEqual([])
+    expect(plan.where).toEqual({
+      AND: [
+        {
+          OR: [
+            { cells: { some: { propertyId: 'p-select', value: { equals: 'opt-1' } } } },
+            { cells: { some: { propertyId: 'p-select', value: { equals: 'opt-2' } } } },
+          ],
+        },
+      ],
+    })
+  })
+
+  it('SELECT is_none_of → NOT(OR of equals)', () => {
+    const settings: ViewSettings = {
+      filters: {
+        conjunction: 'and',
+        conditions: [{ propertyId: 'p-select', operator: 'is_none_of', value: ['opt-1'] }],
+      },
+    }
+    const plan = buildRowQuery(settings, props)
+    expect(plan.where).toEqual({
+      AND: [
+        { NOT: { OR: [{ cells: { some: { propertyId: 'p-select', value: { equals: 'opt-1' } } } }] } },
+      ],
+    })
+  })
 })
 
 describe('buildRowQuery — nested AND/OR groups', () => {

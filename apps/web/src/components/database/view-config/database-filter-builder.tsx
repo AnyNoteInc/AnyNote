@@ -129,7 +129,15 @@ export function DatabaseFilterBuilder({
   const root: FilterGroup = settings.filters ?? { conjunction: 'and', conditions: [] }
 
   const updateView = trpc.database.updateView.useMutation({
-    onSuccess: () => utils.database.getByPage.invalidate({ pageId }),
+    onSuccess: async () => {
+      // Schema (getByPage) AND the row-bearing queries must refetch — a filter
+      // change re-resolves which rows listRows/listGroupedRows return.
+      await Promise.all([
+        utils.database.getByPage.invalidate({ pageId }),
+        utils.database.listRows.invalidate(),
+        utils.database.listGroupedRows.invalidate(),
+      ])
+    },
   })
 
   function persist(next: FilterGroup) {

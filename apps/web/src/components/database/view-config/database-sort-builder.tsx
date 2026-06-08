@@ -62,7 +62,13 @@ export function DatabaseSortBuilder({
   }
 
   const updateView = trpc.database.updateView.useMutation({
-    onSuccess: () => utils.database.getByPage.invalidate({ pageId }),
+    onSuccess: async () => {
+      await Promise.all([
+        utils.database.getByPage.invalidate({ pageId }),
+        utils.database.listRows.invalidate(),
+        utils.database.listGroupedRows.invalidate(),
+      ])
+    },
   })
 
   function persist(next: Sort[]) {
