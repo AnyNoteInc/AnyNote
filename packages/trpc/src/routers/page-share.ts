@@ -137,6 +137,62 @@ export const pageShareRouter = router({
       })
     }),
 
+  // Workspace-scoped list of the public links/sites the caller can manage —
+  // backs the "Manage public pages" settings section. A caller manages a share
+  // when they created the page OR are an OWNER/ADMIN of the workspace; a plain
+  // member only sees shares on pages they created. Never returns the password
+  // hash (raw PageShare columns are mapped to a flat view-model here).
+  listManagedPublicPages: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const member = await assertWorkspaceMember(ctx, input.workspaceId)
+      const canManageAll = member.role === 'OWNER' || member.role === 'ADMIN'
+
+      const shares = await ctx.prisma.pageShare.findMany({
+        where: {
+          page: {
+            workspaceId: input.workspaceId,
+            deletedAt: null,
+            ...(canManageAll ? {} : { createdById: ctx.user.id }),
+          },
+        },
+        select: {
+          shareId: true,
+          access: true,
+          linkRole: true,
+          mode: true,
+          expiresAt: true,
+          publishedAt: true,
+          unpublishedAt: true,
+          allowIndexing: true,
+          allowCopy: true,
+          createdAt: true,
+          page: { select: { id: true, title: true, icon: true } },
+        },
+        orderBy: { createdAt: 'desc' },
+      })
+
+      return shares.map((s) => {
+        const published =
+          s.publishedAt != null &&
+          (s.unpublishedAt == null || s.unpublishedAt.getTime() < s.publishedAt.getTime())
+        return {
+          shareId: s.shareId,
+          pageId: s.page.id,
+          title: s.page.title,
+          icon: s.page.icon,
+          access: s.access,
+          linkRole: s.linkRole,
+          mode: s.mode,
+          published,
+          publishedAt: s.publishedAt,
+          expiresAt: s.expiresAt,
+          allowIndexing: s.allowIndexing,
+          allowCopy: s.allowCopy,
+        }
+      })
+    }),
+
   // --- Public link / site settings (Notion-parity "Anyone with the link" +
   // Publish tab). All require manage rights; each lazily ensures the row. ---
 
