@@ -1,8 +1,9 @@
-import { DatabasePropertyType, DatabaseViewType } from '@repo/db'
-
 import { badRequest, forbidden, notFound } from '../../shared/errors.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
-import type { PageRepository } from '../../pages/repositories/pages.repository.ts'
+import type { ItemPageCreator } from '../../shared/item-page-creator.ts'
+// Enum values are re-exported through the dto barrel so the service never
+// imports `@repo/db` as a value (domain-services-no-db-value rule).
+import { DatabasePropertyType, DatabaseViewType } from '../dto/database.dto.ts'
 import type {
   CreatePropertyInput,
   CreateRowInput,
@@ -43,9 +44,9 @@ function asSettings(raw: unknown): PropertySettings | null {
 
 export class DatabaseService {
   private readonly repo: DatabaseRepository
-  private readonly pageRepo: PageRepository
+  private readonly pageRepo: ItemPageCreator
   private readonly uow: UnitOfWork
-  constructor(repo: DatabaseRepository, pageRepo: PageRepository, uow: UnitOfWork) {
+  constructor(repo: DatabaseRepository, pageRepo: ItemPageCreator, uow: UnitOfWork) {
     this.repo = repo
     this.pageRepo = pageRepo
     this.uow = uow

@@ -1,7 +1,7 @@
 import { badRequest, forbidden, notFound } from '../../shared/errors.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 import type { KanbanService } from '../../kanban/index.ts'
-import type { DatabaseService } from '../../database/services/database.service.ts'
+import type { DatabaseService } from '../../database/index.ts'
 import type {
   ArchivePageInput,
   CountResultDto,
