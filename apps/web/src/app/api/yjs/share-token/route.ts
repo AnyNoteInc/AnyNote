@@ -12,12 +12,18 @@ export const runtime = 'nodejs'
 const ANIMALS = ['Лис', 'Кот', 'Барс', 'Сокол', 'Ёж', 'Бобр', 'Тур', 'Краб']
 
 export async function POST(req: NextRequest): Promise<NextResponse> {
-  const body = (await req.json().catch(() => null)) as { shareId?: string } | null
+  const body = (await req.json().catch(() => null)) as
+    | { shareId?: string; pageId?: string }
+    | null
   const shareId = body?.shareId
   if (!shareId) return NextResponse.json({ error: 'shareId required' }, { status: 400 })
 
   const session = await getSession()
-  const resolved = await resolveShareAccess(prisma, shareId, session)
+  // Thread the page being viewed (root or a published subpage) so the minted
+  // token's pageId matches the Yjs documentName the client connects to. Without
+  // this, child-page connections fail the apps/yjs `share.pageId === documentName`
+  // check and never load.
+  const resolved = await resolveShareAccess(prisma, shareId, session, { pageId: body?.pageId })
   if (resolved.kind === 'not_found' || resolved.kind === 'unavailable') {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }

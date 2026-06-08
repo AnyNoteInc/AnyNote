@@ -17,7 +17,7 @@ export function SharePageClient({ shareId, page, workspaceId, user, editable }: 
     const res = await fetch('/api/yjs/share-token', {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ shareId }),
+      body: JSON.stringify({ shareId, pageId: page.id }),
     })
     if (!res.ok) throw new Error(`share token failed: ${res.status}`)
     const data = (await res.json()) as { token: string }

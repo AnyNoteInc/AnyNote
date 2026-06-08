@@ -418,6 +418,10 @@ export const pageShareRouter = router({
         targetWorkspaceId: z.string().uuid(),
         targetCollectionId: z.string().uuid().optional(),
         includeSubtree: z.boolean().default(true),
+        // Threaded from the public route's password gate (?pw=) so a visitor who
+        // already unlocked a password-protected site can copy it. Without it the
+        // resolver returns password_required and the copy is always denied.
+        password: z.string().optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -427,7 +431,7 @@ export const pageShareRouter = router({
       const resolved = await resolver.resolve({
         shareId: input.shareId,
         requestedPageId: input.rootPageId,
-        password: undefined,
+        password: input.password,
         now: new Date(),
       })
       if (resolved.status !== 'ok' || !resolved.share.allowCopy) {

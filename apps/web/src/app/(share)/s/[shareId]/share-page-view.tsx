@@ -36,11 +36,15 @@ export function SharePageView({
   resolved,
   session,
   tree,
+  password,
 }: {
   shareId: string
   resolved: Extract<ShareAccessResult, { kind: 'member' | 'grant' | 'public' }>
   session: SessionLike
   tree: { rootId: string | null; rootTitle: string | null; rootIcon: string | null; nodes: ShareTreeNode[] }
+  // Password the visitor used to unlock a protected site (from ?pw=), forwarded
+  // to the copy button so "Сохранить себе" works on password-protected sites.
+  password?: string
 }) {
   const { page, role, share } = resolved
   const editable = role === 'EDITOR' || role === 'OWNER'
@@ -110,6 +114,7 @@ export function SharePageView({
                 pageId={page.id}
                 isAuthed={Boolean(session?.user)}
                 returnUrl={returnUrl}
+                password={password}
               />
             ) : null}
             <CommentToggleButton />

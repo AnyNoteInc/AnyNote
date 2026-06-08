@@ -12,22 +12,23 @@ import { ShareUnavailable, SharePasswordGate } from '@/components/share/share-un
 import { SharePageView } from '../share-page-view'
 
 // Robots for a deep-linked subpage follow the parent SITE's publish/indexing
-// policy (a subpage is never more indexable than its site); title is the
-// child's own. The raw publish columns are read directly so robots do not
-// depend on a privileged member's bypass.
+// policy (a subpage is never more indexable than its site). The raw publish
+// columns are read directly so robots do not depend on a privileged member's
+// bypass. The child title is taken ONLY from the access-resolved page — never
+// from an unguarded lookup — so a valid shareId + an arbitrary page UUID cannot
+// be used as a title-leak oracle for a page outside the published subtree.
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ shareId: string; childPageId: string }>
+  searchParams: Promise<{ pw?: string }>
 }): Promise<Metadata> {
   const { shareId, childPageId } = await params
+  const { pw } = await searchParams
   const share = await prisma.pageShare.findUnique({
     where: { shareId },
     select: { mode: true, publishedAt: true, unpublishedAt: true, allowIndexing: true },
-  })
-  const child = await prisma.page.findUnique({
-    where: { id: childPageId },
-    select: { title: true },
   })
 
   const published =
@@ -39,8 +40,21 @@ export async function generateMetadata({
     allowIndexing: share?.allowIndexing ?? false,
   })
 
+  // Only surface the child title when the resolver actually grants access to it
+  // (public visitor, named grant, or workspace member). An unavailable/not_found
+  // result falls back to a generic title, so this route is never a title-leak
+  // oracle for pages outside the published subtree.
+  const session = await getSession()
+  const resolved = await resolveShareAccess(prisma, shareId, session, {
+    pageId: childPageId,
+    password: pw,
+  })
+  const hasAccess =
+    resolved.kind === 'public' || resolved.kind === 'member' || resolved.kind === 'grant'
+  const title = hasAccess ? resolved.page.title || 'Общий доступ' : 'Общий доступ'
+
   return {
-    title: child?.title || 'Общий доступ',
+    title,
     robots: { index, follow: index },
   }
 }
@@ -88,6 +102,7 @@ export default async function ShareChildPage({
         rootIcon: result.rootIcon,
         nodes: result.nodes,
       }}
+      password={pw}
     />
   )
 }

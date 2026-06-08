@@ -34,6 +34,9 @@ type Props = {
   isAuthed: boolean
   // The path to return to after sign-in (root or nested share URL).
   returnUrl: string
+  // Password from the public route's gate (?pw=), threaded so copying a
+  // password-protected site works after the visitor has unlocked it.
+  password?: string
 }
 
 /**
@@ -42,7 +45,7 @@ type Props = {
  * the destination workspace + collection, then `copyToWorkspace`, then navigate
  * to the new page.
  */
-export function CopyToWorkspaceButton({ shareId, pageId, isAuthed, returnUrl }: Props) {
+export function CopyToWorkspaceButton({ shareId, pageId, isAuthed, returnUrl, password }: Props) {
   const [open, setOpen] = useState(false)
 
   if (!isAuthed) {
@@ -67,7 +70,12 @@ export function CopyToWorkspaceButton({ shareId, pageId, isAuthed, returnUrl }: 
         Сохранить себе
       </Button>
       {open ? (
-        <CopyDialog shareId={shareId} pageId={pageId} onClose={() => setOpen(false)} />
+        <CopyDialog
+          shareId={shareId}
+          pageId={pageId}
+          password={password}
+          onClose={() => setOpen(false)}
+        />
       ) : null}
     </>
   )
@@ -76,10 +84,12 @@ export function CopyToWorkspaceButton({ shareId, pageId, isAuthed, returnUrl }: 
 function CopyDialog({
   shareId,
   pageId,
+  password,
   onClose,
 }: {
   shareId: string
   pageId: string
+  password?: string
   onClose: () => void
 }) {
   const router = useRouter()
@@ -124,6 +134,7 @@ function CopyDialog({
       targetWorkspaceId: workspaceId,
       targetCollectionId: collectionId || undefined,
       includeSubtree,
+      password,
     })
   }
 

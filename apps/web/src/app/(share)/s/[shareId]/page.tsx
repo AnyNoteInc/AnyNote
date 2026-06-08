@@ -91,5 +91,13 @@ export default async function SharePage({
     }
   }
 
-  return <SharePageView shareId={shareId} resolved={resolved} session={session} tree={tree} />
+  return (
+    <SharePageView
+      shareId={shareId}
+      resolved={resolved}
+      session={session}
+      tree={tree}
+      password={pw}
+    />
+  )
 }

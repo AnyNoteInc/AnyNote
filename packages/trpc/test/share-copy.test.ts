@@ -1,5 +1,6 @@
 import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { prisma, CollectionKind } from '@repo/db'
+import { hashSharePassword } from '@repo/domain'
 
 import { pageShareRouter } from '../src/routers/page-share'
 import { createCallerFactory } from '../src/trpc'
@@ -76,6 +77,7 @@ async function createShare(
     publishedAt?: Date | null
     unpublishedAt?: Date | null
     expiresAt?: Date | null
+    passwordHash?: string | null
   } = {},
 ) {
   const shareId = newShareId()
@@ -90,6 +92,7 @@ async function createShare(
       publishedAt: over.publishedAt === undefined ? new Date() : over.publishedAt,
       unpublishedAt: over.unpublishedAt ?? null,
       expiresAt: over.expiresAt ?? null,
+      passwordHash: over.passwordHash ?? null,
     },
   })
   return shareId
@@ -270,6 +273,41 @@ describe('share.copyToWorkspace (integration)', () => {
     await expect(
       caller.copyToWorkspace({ shareId, targetWorkspaceId: fx.dstWsId }),
     ).rejects.toThrow(/участником/)
+  })
+
+  // Regression: a password-protected SITE must still be copyable once the
+  // visitor supplies the password (previously copyToWorkspace always passed
+  // password: undefined, so password-protected sites could never be copied).
+  it('FORBIDDEN when a password-protected site is copied without the password', async () => {
+    const fx = await seed()
+    const shareId = await createShare(fx.rootId, fx.ownerId, {
+      allowCopy: true,
+      passwordHash: await hashSharePassword('s3cret'),
+    })
+    const caller = makeCaller(fx.copierId)
+
+    await expect(
+      caller.copyToWorkspace({ shareId, targetWorkspaceId: fx.dstWsId }),
+    ).rejects.toThrow(/Копирование/)
+  })
+
+  it('copies a password-protected site when the correct password is supplied', async () => {
+    const fx = await seed()
+    const shareId = await createShare(fx.rootId, fx.ownerId, {
+      allowCopy: true,
+      passwordHash: await hashSharePassword('s3cret'),
+    })
+    const caller = makeCaller(fx.copierId)
+
+    const res = await caller.copyToWorkspace({
+      shareId,
+      targetWorkspaceId: fx.dstWsId,
+      password: 's3cret',
+    })
+    expect(res.pageId).toBeTruthy()
+    const copied = await prisma.page.findUnique({ where: { id: res.pageId } })
+    expect(copied?.workspaceId).toBe(fx.dstWsId)
+    expect(copied?.copiedFromShareId).toBe(shareId)
   })
 
   it('copies the root into the target workspace + default PERSONAL collection with provenance, excluding subtree', async () => {
