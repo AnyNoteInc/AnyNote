@@ -21,6 +21,9 @@ import type { ReminderService } from './reminders/services/reminders.service.ts'
 import { KANBAN } from './kanban/kanban.tokens.ts'
 import { kanbanModule } from './kanban/kanban.module.ts'
 import type { KanbanService } from './kanban/services/kanban.service.ts'
+import { DATABASE } from './database/database.tokens.ts'
+import { databaseModule } from './database/database.module.ts'
+import type { DatabaseService } from './database/services/database.service.ts'
 import { PAGES } from './pages/pages.tokens.ts'
 import { pagesModule } from './pages/pages.module.ts'
 import type { PageService } from './pages/services/pages.service.ts'
@@ -51,6 +54,7 @@ export interface Domain {
   notifications: NotificationService
   reminders: ReminderService
   kanban: KanbanService
+  database: DatabaseService
   pages: PageService
   templates: TemplateService
   billing: BillingService
@@ -73,6 +77,7 @@ export function createDomainContainer(deps: DomainDeps): Container {
     notificationsModule,
     remindersModule,
     kanbanModule,
+    databaseModule,
     pagesModule,
     templatesModule,
     billingModule,
@@ -91,6 +96,7 @@ export function createDomain(deps: DomainDeps): Domain {
     notifications: c.get<NotificationService>(NOTIFICATIONS.Service),
     reminders: c.get<ReminderService>(REMINDERS.Service),
     kanban: c.get<KanbanService>(KANBAN.Service),
+    database: c.get<DatabaseService>(DATABASE.Service),
     pages: c.get<PageService>(PAGES.Service),
     templates: c.get<TemplateService>(TEMPLATES.Service),
     billing: c.get<BillingService>(BILLING.Service),

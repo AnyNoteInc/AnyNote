@@ -83,6 +83,16 @@ describe('createDomain', () => {
     expect(typeof domain.kanban.seedDefaults).toBe('function')
   })
 
+  it('resolves the database service from the container', () => {
+    const domain = createDomain({ prisma: makePrisma(), scheduler: makeScheduler() })
+    expect(domain.database).toBeDefined()
+    expect(typeof domain.database.seedDefaults).toBe('function')
+    expect(typeof domain.database.getByPage).toBe('function')
+    expect(typeof domain.database.createProperty).toBe('function')
+    expect(typeof domain.database.updateCellValue).toBe('function')
+    expect(typeof domain.database.createRow).toBe('function')
+  })
+
   it('resolves the pages service from the container', () => {
     const domain = createDomain({ prisma: makePrisma(), scheduler: makeScheduler() })
     expect(domain.pages).toBeDefined()

@@ -4,6 +4,8 @@ import { SHARED } from '../shared/tokens.ts'
 import type { UnitOfWork } from '../shared/unit-of-work.ts'
 import { KANBAN } from '../kanban/kanban.tokens.ts'
 import type { KanbanService } from '../kanban/services/kanban.service.ts'
+import { DATABASE } from '../database/database.tokens.ts'
+import type { DatabaseService } from '../database/services/database.service.ts'
 import { PageRepository } from './repositories/pages.repository.ts'
 import { PageService } from './services/pages.service.ts'
 import { PAGES } from './pages.tokens.ts'
@@ -14,8 +16,13 @@ export const pagesModule = new ContainerModule(({ bind }) => {
     [SHARED.UnitOfWork],
   )
   bind(PAGES.Service).toResolvedValue(
-    (repo, uow, kanban) =>
-      new PageService(repo as PageRepository, uow as UnitOfWork, kanban as KanbanService),
-    [PAGES.Repository, SHARED.UnitOfWork, KANBAN.Service],
+    (repo, uow, kanban, database) =>
+      new PageService(
+        repo as PageRepository,
+        uow as UnitOfWork,
+        kanban as KanbanService,
+        database as DatabaseService,
+      ),
+    [PAGES.Repository, SHARED.UnitOfWork, KANBAN.Service, DATABASE.Service],
   )
 })

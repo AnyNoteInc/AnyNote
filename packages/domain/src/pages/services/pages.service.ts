@@ -1,6 +1,7 @@
 import { badRequest, forbidden, notFound } from '../../shared/errors.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 import type { KanbanService } from '../../kanban/index.ts'
+import type { DatabaseService } from '../../database/services/database.service.ts'
 import type {
   ArchivePageInput,
   CountResultDto,
@@ -27,10 +28,17 @@ export class PageService {
   private readonly repo: PageRepository
   private readonly uow: UnitOfWork
   private readonly kanban: KanbanService
-  constructor(repo: PageRepository, uow: UnitOfWork, kanban: KanbanService) {
+  private readonly database: DatabaseService
+  constructor(
+    repo: PageRepository,
+    uow: UnitOfWork,
+    kanban: KanbanService,
+    database: DatabaseService,
+  ) {
     this.repo = repo
     this.uow = uow
     this.kanban = kanban
+    this.database = database
   }
 
   // ── Access helpers ────────────────────────────────────────────────────────────
@@ -67,8 +75,13 @@ export class PageService {
     const resolvedCollectionId = await this.resolveCollectionId(actorUserId, input)
 
     return this.uow.transaction(() =>
-      this.repo.createPageTx(actorUserId, { ...input, resolvedCollectionId }, (pageId) =>
-        this.kanban.seedDefaults(pageId),
+      this.repo.createPageTx(
+        actorUserId,
+        { ...input, resolvedCollectionId },
+        {
+          onKanban: (pageId) => this.kanban.seedDefaults(pageId),
+          onDatabase: (pageId, wsId) => this.database.seedDefaults(pageId, wsId),
+        },
       ),
     )
   }

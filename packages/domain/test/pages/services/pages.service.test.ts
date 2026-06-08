@@ -5,6 +5,7 @@ import type { UnitOfWork } from '../../../src/shared/unit-of-work.ts'
 import type { PageRepository } from '../../../src/pages/repositories/pages.repository.ts'
 import { PageService } from '../../../src/pages/services/pages.service.ts'
 import type { KanbanService } from '../../../src/kanban/index.ts'
+import type { DatabaseService } from '../../../src/database/services/database.service.ts'
 import type { PageRowDto } from '../../../src/pages/dto/pages.dto.ts'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
@@ -63,6 +64,19 @@ function makeKanban(): KanbanService {
   return { seedDefaults: vi.fn(async () => undefined) } as unknown as KanbanService
 }
 
+function makeDatabase(): DatabaseService {
+  return { seedDefaults: vi.fn(async () => undefined) } as unknown as DatabaseService
+}
+
+function makePageService(
+  repo: PageRepository,
+  uow: UnitOfWork = makeUow(),
+  kanban: KanbanService = makeKanban(),
+  database: DatabaseService = makeDatabase(),
+): PageService {
+  return new PageService(repo, uow, kanban, database)
+}
+
 // ── create ────────────────────────────────────────────────────────────────────
 
 describe('PageService.create', () => {
@@ -70,7 +84,7 @@ describe('PageService.create', () => {
 
   it('calls createPageTx and returns { id }', async () => {
     const repo = makeRepo()
-    const svc = new PageService(repo, makeUow(), makeKanban())
+    const svc = makePageService(repo)
     const result = await svc.create('u1', { workspaceId: 'w1', parentId: null })
     expect(result).toEqual({ id: 'new-1' })
     expect(repo.createPageTx).toHaveBeenCalledOnce()
@@ -78,24 +92,37 @@ describe('PageService.create', () => {
 
   it('throws NOT_FOUND when parentId given but parent not found', async () => {
     const repo = makeRepo({ findParentPage: vi.fn(async () => null) })
-    const svc = new PageService(repo, makeUow(), makeKanban())
+    const svc = makePageService(repo)
     await expect(
       svc.create('u1', { workspaceId: 'w1', parentId: 'missing' }),
     ).rejects.toBeInstanceOf(DomainError)
     expect(repo.createPageTx).not.toHaveBeenCalled()
   })
 
-  it('passes seedDefaults callback for KANBAN type (triggers onKanban)', async () => {
+  it('passes a provisioning dispatcher that seeds KANBAN defaults (onKanban)', async () => {
     const kanban = makeKanban()
     const repo = makeRepo({
-      createPageTx: vi.fn(async (_actorId, _input, onKanban) => {
-        await onKanban('kb-1')
+      createPageTx: vi.fn(async (_actorId, _input, provision) => {
+        await provision.onKanban('kb-1')
         return { id: 'kb-1' }
       }),
     })
-    const svc = new PageService(repo, makeUow(), kanban)
+    const svc = makePageService(repo, makeUow(), kanban)
     await svc.create('u1', { workspaceId: 'w1', parentId: null, type: 'KANBAN' })
     expect(kanban.seedDefaults).toHaveBeenCalledWith('kb-1')
+  })
+
+  it('passes a provisioning dispatcher that seeds DATABASE defaults (onDatabase)', async () => {
+    const database = makeDatabase()
+    const repo = makeRepo({
+      createPageTx: vi.fn(async (_actorId, _input, provision) => {
+        await provision.onDatabase('db-1', 'w1')
+        return { id: 'db-1' }
+      }),
+    })
+    const svc = makePageService(repo, makeUow(), makeKanban(), database)
+    await svc.create('u1', { workspaceId: 'w1', parentId: null, type: 'DATABASE' })
+    expect(database.seedDefaults).toHaveBeenCalledWith('db-1', 'w1')
   })
 })
 
@@ -106,7 +133,7 @@ describe('PageService.rename', () => {
 
   it('calls renamePageTx after assertOwnership and returns result', async () => {
     const repo = makeRepo()
-    const svc = new PageService(repo, makeUow(), makeKanban())
+    const svc = makePageService(repo)
     const result = await svc.rename('u1', { id: 'p1', workspaceId: 'w1', title: 'New' })
     expect(result).toMatchObject({ id: 'p1' })
     expect(repo.renamePageTx).toHaveBeenCalledOnce()
@@ -117,7 +144,7 @@ describe('PageService.rename', () => {
       findAccessiblePage: vi.fn(async () => ({ ...basePageRow, createdById: 'other' })),
       findMembership: vi.fn(async () => ({ role: 'EDITOR' as const })),
     })
-    const svc = new PageService(repo, makeUow(), makeKanban())
+    const svc = makePageService(repo)
     await expect(
       svc.rename('u1', { id: 'p1', workspaceId: 'w1', title: 'New' }),
     ).rejects.toBeInstanceOf(DomainError)
@@ -126,7 +153,7 @@ describe('PageService.rename', () => {
 
   it('throws NOT_FOUND when page is inaccessible', async () => {
     const repo = makeRepo({ findAccessiblePage: vi.fn(async () => null) })
-    const svc = new PageService(repo, makeUow(), makeKanban())
+    const svc = makePageService(repo)
     await expect(
       svc.rename('u1', { id: 'p1', workspaceId: 'w1', title: 'New' }),
     ).rejects.toBeInstanceOf(DomainError)
@@ -138,7 +165,7 @@ describe('PageService.rename', () => {
 describe('PageService.update', () => {
   it('calls updatePageTx after ownership check', async () => {
     const repo = makeRepo()
-    const svc = new PageService(repo, makeUow(), makeKanban())
+    const svc = makePageService(repo)
     await svc.update('u1', { id: 'p1', workspaceId: 'w1', type: 'KANBAN' })
     expect(repo.updatePageTx).toHaveBeenCalledOnce()
   })
@@ -149,7 +176,7 @@ describe('PageService.update', () => {
 describe('PageService.duplicate', () => {
   it('calls duplicatePageTx with the fetched page', async () => {
     const repo = makeRepo()
-    const svc = new PageService(repo, makeUow(), makeKanban())
+    const svc = makePageService(repo)
     const result = await svc.duplicate('u1', { pageId: 'p1' })
     expect(result).toEqual({ id: 'copy-1' })
     expect(repo.duplicatePageTx).toHaveBeenCalledWith('u1', basePageRow)
@@ -157,7 +184,7 @@ describe('PageService.duplicate', () => {
 
   it('throws NOT_FOUND when source page is inaccessible', async () => {
     const repo = makeRepo({ findAccessiblePage: vi.fn(async () => null) })
-    const svc = new PageService(repo, makeUow(), makeKanban())
+    const svc = makePageService(repo)
     await expect(svc.duplicate('u1', { pageId: 'p1' })).rejects.toBeInstanceOf(DomainError)
   })
 })
@@ -167,7 +194,7 @@ describe('PageService.duplicate', () => {
 describe('PageService.move', () => {
   it('calls movePageTx after access + ownership check', async () => {
     const repo = makeRepo()
-    const svc = new PageService(repo, makeUow(), makeKanban())
+    const svc = makePageService(repo)
     const result = await svc.move('u1', { pageId: 'p1', newParentId: 'par2' })
     expect(result).toEqual({ id: 'p1' })
     expect(repo.movePageTx).toHaveBeenCalledOnce()
@@ -178,7 +205,7 @@ describe('PageService.move', () => {
       findAccessiblePage: vi.fn(async () => ({ ...basePageRow, createdById: 'other' })),
       findMembership: vi.fn(async () => ({ role: 'EDITOR' as const })),
     })
-    const svc = new PageService(repo, makeUow(), makeKanban())
+    const svc = makePageService(repo)
     await expect(svc.move('u1', { pageId: 'p1', newParentId: null })).rejects.toBeInstanceOf(DomainError)
   })
 })
@@ -190,7 +217,7 @@ describe('PageService.reorder', () => {
 
   it('throws BAD_REQUEST for self-reference (newPrevPageId === pageId)', async () => {
     const repo = makeRepo()
-    const svc = new PageService(repo, makeUow(), makeKanban())
+    const svc = makePageService(repo)
     await expect(
       svc.reorder('u1', { pageId: 'p1', newParentId: null, newPrevPageId: 'p1' }),
     ).rejects.toBeInstanceOf(DomainError)
@@ -199,7 +226,7 @@ describe('PageService.reorder', () => {
 
   it('throws NOT_FOUND when page does not exist', async () => {
     const repo = makeRepo({ findActivePageById: vi.fn(async () => null) })
-    const svc = new PageService(repo, makeUow(), makeKanban())
+    const svc = makePageService(repo)
     await expect(
       svc.reorder('u1', { pageId: 'p1', newParentId: 'par2', newPrevPageId: null }),
     ).rejects.toBeInstanceOf(DomainError)
@@ -207,7 +234,7 @@ describe('PageService.reorder', () => {
 
   it('throws FORBIDDEN when actor is not a workspace member', async () => {
     const repo = makeRepo({ findMembership: vi.fn(async () => null) })
-    const svc = new PageService(repo, makeUow(), makeKanban())
+    const svc = makePageService(repo)
     await expect(
       svc.reorder('u1', { pageId: 'p1', newParentId: 'par2', newPrevPageId: null }),
     ).rejects.toBeInstanceOf(DomainError)
@@ -219,7 +246,7 @@ describe('PageService.reorder', () => {
     const repo = makeRepo()
     const txn = vi.fn(async (fn: () => Promise<unknown>) => fn())
     const uow: UnitOfWork = { client: () => ({}) as never, transaction: txn }
-    const svc = new PageService(repo, uow, makeKanban())
+    const svc = makePageService(repo, uow)
     const result = await svc.reorder('u1', { pageId: 'p1', newParentId: null, newPrevPageId: null })
     expect(result).toEqual({ id: 'p1' })
     expect(txn).not.toHaveBeenCalled()
@@ -229,7 +256,7 @@ describe('PageService.reorder', () => {
     const repo = makeRepo({
       findActivePageById: vi.fn(async () => ({ ...basePageRow, parentId: 'old-par', prevPageId: null })),
     })
-    const svc = new PageService(repo, makeUow(), makeKanban())
+    const svc = makePageService(repo)
     await svc.reorder('u1', { pageId: 'p1', newParentId: 'new-par', newPrevPageId: null })
     expect(repo.assertNotReorderingIntoOwnDescendant).toHaveBeenCalledWith('p1', 'new-par')
     expect(repo.reorderPageTx).toHaveBeenCalledOnce()
@@ -245,7 +272,7 @@ describe('PageService.reorder', () => {
         })
       }),
     })
-    const svc = new PageService(repo, makeUow(), makeKanban())
+    const svc = makePageService(repo)
     await expect(
       svc.reorder('u1', { pageId: 'p1', newParentId: 'desc-1', newPrevPageId: null }),
     ).rejects.toMatchObject({ httpStatus: 400 })
@@ -257,7 +284,7 @@ describe('PageService.reorder', () => {
 describe('PageService.softDelete', () => {
   it('calls softDeletePageTx after ownership check', async () => {
     const repo = makeRepo()
-    const svc = new PageService(repo, makeUow(), makeKanban())
+    const svc = makePageService(repo)
     const result = await svc.softDelete('u1', { id: 'p1', workspaceId: 'w1' })
     expect(result).toEqual({ id: 'p1' })
     expect(repo.softDeletePageTx).toHaveBeenCalledOnce()
@@ -268,7 +295,7 @@ describe('PageService.softDelete', () => {
       findAccessiblePage: vi.fn(async () => ({ ...basePageRow, createdById: 'other' })),
       findMembership: vi.fn(async () => ({ role: 'EDITOR' as const })),
     })
-    const svc = new PageService(repo, makeUow(), makeKanban())
+    const svc = makePageService(repo)
     await expect(svc.softDelete('u1', { id: 'p1', workspaceId: 'w1' })).rejects.toBeInstanceOf(DomainError)
   })
 })
@@ -278,7 +305,7 @@ describe('PageService.softDelete', () => {
 describe('PageService.restore', () => {
   it('calls restorePageTx after ownership check', async () => {
     const repo = makeRepo()
-    const svc = new PageService(repo, makeUow(), makeKanban())
+    const svc = makePageService(repo)
     const result = await svc.restore('u1', { id: 'p1', workspaceId: 'w1' })
     expect(result).toEqual({ id: 'p1' })
     expect(repo.restorePageTx).toHaveBeenCalledOnce()
@@ -290,7 +317,7 @@ describe('PageService.restore', () => {
 describe('PageService.hardDelete', () => {
   it('calls hardDeletePageTx after ownership check', async () => {
     const repo = makeRepo()
-    const svc = new PageService(repo, makeUow(), makeKanban())
+    const svc = makePageService(repo)
     const result = await svc.hardDelete('u1', { id: 'p1', workspaceId: 'w1' })
     expect(result).toEqual({ id: 'p1' })
     expect(repo.hardDeletePageTx).toHaveBeenCalledOnce()
@@ -298,7 +325,7 @@ describe('PageService.hardDelete', () => {
 
   it('throws NOT_FOUND when page is inaccessible', async () => {
     const repo = makeRepo({ findAccessiblePage: vi.fn(async () => null) })
-    const svc = new PageService(repo, makeUow(), makeKanban())
+    const svc = makePageService(repo)
     await expect(svc.hardDelete('u1', { id: 'p1', workspaceId: 'w1' })).rejects.toBeInstanceOf(DomainError)
   })
 })
@@ -310,7 +337,7 @@ describe('PageService.emptyTrash', () => {
 
   it('calls emptyTrashTx and returns count', async () => {
     const repo = makeRepo()
-    const svc = new PageService(repo, makeUow(), makeKanban())
+    const svc = makePageService(repo)
     const result = await svc.emptyTrash('u1', { workspaceId: 'w1' })
     expect(result).toEqual({ count: 3 })
     expect(repo.emptyTrashTx).toHaveBeenCalledOnce()
@@ -318,20 +345,20 @@ describe('PageService.emptyTrash', () => {
 
   it('throws FORBIDDEN when actor is not OWNER', async () => {
     const repo = makeRepo({ findMembership: vi.fn(async () => ({ role: 'EDITOR' as const })) })
-    const svc = new PageService(repo, makeUow(), makeKanban())
+    const svc = makePageService(repo)
     await expect(svc.emptyTrash('u1', { workspaceId: 'w1' })).rejects.toBeInstanceOf(DomainError)
     expect(repo.emptyTrashTx).not.toHaveBeenCalled()
   })
 
   it('throws FORBIDDEN when actor is not a member', async () => {
     const repo = makeRepo({ findMembership: vi.fn(async () => null) })
-    const svc = new PageService(repo, makeUow(), makeKanban())
+    const svc = makePageService(repo)
     await expect(svc.emptyTrash('u1', { workspaceId: 'w1' })).rejects.toBeInstanceOf(DomainError)
   })
 
   it('throws FORBIDDEN with correct message for non-OWNER members', async () => {
     const repo = makeRepo({ findMembership: vi.fn(async () => ({ role: 'ADMIN' as const })) })
-    const svc = new PageService(repo, makeUow(), makeKanban())
+    const svc = makePageService(repo)
     await expect(svc.emptyTrash('u1', { workspaceId: 'w1' })).rejects.toMatchObject({
       message: 'Только владелец может очистить корзину',
       httpStatus: 403,

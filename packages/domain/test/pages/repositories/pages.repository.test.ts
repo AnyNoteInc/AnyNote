@@ -63,10 +63,20 @@ describe('PageRepository.createPageTx — tail-insert + outbox', () => {
 
   beforeEach(() => vi.clearAllMocks())
 
+  function makeProvision() {
+    return {
+      onKanban: vi.fn(async () => undefined),
+      onDatabase: vi.fn(async () => undefined),
+    }
+  }
+
   it('creates the page and enqueues page.upserted', async () => {
     const repo = makeRepo()
-    const onKanban = vi.fn(async () => undefined)
-    const result = await repo.createPageTx('u1', { workspaceId: 'w1', parentId: null }, onKanban)
+    const result = await repo.createPageTx(
+      'u1',
+      { workspaceId: 'w1', parentId: null },
+      makeProvision(),
+    )
     expect(result).toEqual({ id: 'new-1' })
     expect(baseCreate).toHaveBeenCalledOnce()
     expect(outboxCreate).toHaveBeenCalledWith(
@@ -87,31 +97,42 @@ describe('PageRepository.createPageTx — tail-insert + outbox', () => {
       { id: 's2', prevPageId: 's1' },
     ])
     const repo = makeRepo()
-    await repo.createPageTx('u1', { workspaceId: 'w1', parentId: null }, vi.fn())
+    await repo.createPageTx('u1', { workspaceId: 'w1', parentId: null }, makeProvision())
     expect(baseUpdate).toHaveBeenCalledWith({ where: { id: 'new-1' }, data: { prevPageId: 's2' } })
   })
 
   it('does not link when there are no siblings', async () => {
     baseFindMany.mockResolvedValue([])
     const repo = makeRepo()
-    await repo.createPageTx('u1', { workspaceId: 'w1', parentId: null }, vi.fn())
+    await repo.createPageTx('u1', { workspaceId: 'w1', parentId: null }, makeProvision())
     expect(baseUpdate).not.toHaveBeenCalled()
   })
 
-  it('calls onKanban when type is KANBAN', async () => {
+  it('calls provision.onKanban when type is KANBAN', async () => {
     baseCreate.mockResolvedValue({ id: 'kb-1', type: 'KANBAN' })
     const repo = makeRepo()
-    const onKanban = vi.fn(async () => undefined)
-    await repo.createPageTx('u1', { workspaceId: 'w1', parentId: null, type: 'KANBAN' }, onKanban)
-    expect(onKanban).toHaveBeenCalledWith('kb-1')
+    const provision = makeProvision()
+    await repo.createPageTx('u1', { workspaceId: 'w1', parentId: null, type: 'KANBAN' }, provision)
+    expect(provision.onKanban).toHaveBeenCalledWith('kb-1')
+    expect(provision.onDatabase).not.toHaveBeenCalled()
   })
 
-  it('does NOT call onKanban for TEXT pages', async () => {
+  it('calls provision.onDatabase with the workspaceId when type is DATABASE', async () => {
+    baseCreate.mockResolvedValue({ id: 'db-1', type: 'DATABASE', workspaceId: 'w1' })
+    const repo = makeRepo()
+    const provision = makeProvision()
+    await repo.createPageTx('u1', { workspaceId: 'w1', parentId: null, type: 'DATABASE' }, provision)
+    expect(provision.onDatabase).toHaveBeenCalledWith('db-1', 'w1')
+    expect(provision.onKanban).not.toHaveBeenCalled()
+  })
+
+  it('does NOT call any provisioning for TEXT pages', async () => {
     baseCreate.mockResolvedValue({ id: 'tx-1', type: 'TEXT' })
     const repo = makeRepo()
-    const onKanban = vi.fn(async () => undefined)
-    await repo.createPageTx('u1', { workspaceId: 'w1', parentId: null, type: 'TEXT' }, onKanban)
-    expect(onKanban).not.toHaveBeenCalled()
+    const provision = makeProvision()
+    await repo.createPageTx('u1', { workspaceId: 'w1', parentId: null, type: 'TEXT' }, provision)
+    expect(provision.onKanban).not.toHaveBeenCalled()
+    expect(provision.onDatabase).not.toHaveBeenCalled()
   })
 })
 

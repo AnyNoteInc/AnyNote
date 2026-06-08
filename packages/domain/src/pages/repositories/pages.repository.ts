@@ -21,6 +21,15 @@ import type {
   UpdatePageInput,
 } from '../dto/pages.dto.ts'
 
+/**
+ * Per-type provisioning hooks dispatched after a page is created (inside the same
+ * transaction). Each runs only for its matching `Page.type`.
+ */
+export interface PageProvisioning {
+  onKanban: (pageId: string) => Promise<void>
+  onDatabase: (pageId: string, workspaceId: string) => Promise<void>
+}
+
 export class PageRepository {
   private readonly uow: UnitOfWork
   constructor(uow: UnitOfWork) {
@@ -173,7 +182,7 @@ export class PageRepository {
   async createPageTx(
     actorUserId: string,
     input: CreatePageInput & CreatePageExtra,
-    onKanban: (pageId: string) => Promise<void>,
+    provision: PageProvisioning,
   ): Promise<CreateResultDto> {
     const newPage = await this.uow.client().page.create({
       data: {
@@ -227,7 +236,9 @@ export class PageRepository {
     })
 
     if (newPage.type === PageType.KANBAN) {
-      await onKanban(newPage.id)
+      await provision.onKanban(newPage.id)
+    } else if (newPage.type === PageType.DATABASE) {
+      await provision.onDatabase(newPage.id, newPage.workspaceId)
     }
 
     return { id: newPage.id }

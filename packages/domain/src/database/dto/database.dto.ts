@@ -6,8 +6,10 @@ import { DatabasePropertyType, DatabaseViewType } from '@repo/db'
 export { DatabasePropertyType, DatabaseViewType }
 
 // ── dateInput (matches kanban's z.preprocess coercion) ───────────────────────
+// Not exported from the package barrel to avoid colliding with kanban's
+// `dateInput`; the canonical re-exportable one lives in the kanban dto.
 
-export const dateInput = z
+const dateInput = z
   .preprocess((v) => {
     if (v === null || v === undefined) return v
     if (v instanceof Date) return v
