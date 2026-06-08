@@ -1,6 +1,6 @@
 import { PageType, type Prisma, type PrismaClient } from '@repo/db'
 import { decryptSecret, type EncryptedPayload } from '@repo/auth'
-import { buildPageVisibilityWhere } from '@repo/domain'
+import { buildPageVisibilityWhere, excludeDatabaseRowPages } from '@repo/domain'
 
 import { getWorkspaceFeatures } from '../helpers/plan'
 
@@ -95,6 +95,10 @@ export async function searchPg(
       AND "deleted_at" IS NULL
       AND "archived_at" IS NULL
       AND "is_template" IS NULL
+      AND NOT EXISTS (
+        SELECT 1 FROM "pages" p2
+        WHERE p2.id = "pages".parent_id AND p2.type = 'DATABASE'
+      )
       AND "search_vector" @@ websearch_to_tsquery(${PG_DICT}, ${query})
     ORDER BY ts_rank("search_vector", websearch_to_tsquery(${PG_DICT}, ${query})) DESC
     LIMIT ${RESULT_LIMIT}
@@ -238,7 +242,7 @@ export async function searchQdrant(
         deletedAt: null,
         archivedAt: null,
         isTemplate: null,
-        AND: [buildPageVisibilityWhere(userId)],
+        AND: [buildPageVisibilityWhere(userId), excludeDatabaseRowPages()],
       },
       select: { id: true, icon: true },
     })

@@ -22,3 +22,22 @@ export function buildPageVisibilityWhere(userId: string): Prisma.PageWhereInput 
     ],
   }
 }
+
+/**
+ * Hide "database item" pages from the normal page tree / search / MCP listings.
+ *
+ * Database rows are real Pages parented to a DATABASE page; they should appear
+ * inside the database table view, never in the generic page tree. This predicate
+ * excludes any page whose parent is a DATABASE page.
+ *
+ * CRITICAL (root-page bug): pages with NO parent (parentId null) must NOT be
+ * excluded — `{ parent: { is: { type: { not: 'DATABASE' } } } }` alone would drop
+ * every root page (the relation filter is false when there is no parent). The
+ * explicit `OR` with `parentId: null` keeps roots (and DATABASE pages themselves,
+ * which are root-level) visible.
+ */
+export function excludeDatabaseRowPages(): Prisma.PageWhereInput {
+  return {
+    OR: [{ parentId: null }, { parent: { is: { type: { not: 'DATABASE' } } } }],
+  }
+}

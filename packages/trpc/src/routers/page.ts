@@ -62,7 +62,7 @@ export const pageRouter = router({
           archivedAt: null,
           deletedAt: null,
           isTemplate: null,
-          AND: [domain.buildPageVisibilityWhere(ctx.user.id)],
+          AND: [domain.buildPageVisibilityWhere(ctx.user.id), domain.excludeDatabaseRowPages()],
         },
         orderBy: { createdAt: 'asc' },
         select: {

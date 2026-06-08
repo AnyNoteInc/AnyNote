@@ -36,7 +36,12 @@ describe('PageTools.listPages', () => {
           workspaceId: 'w1',
           archivedAt: null,
           deletedAt: null,
-          AND: [expect.objectContaining({ OR: expect.any(Array) })],
+          // AND carries: [0] page-visibility predicate (collection/share scoping),
+          // [1] excludeDatabaseRowPages (hide pages parented to a DATABASE page).
+          AND: [
+            expect.objectContaining({ OR: expect.any(Array) }),
+            expect.objectContaining({ OR: expect.any(Array) }),
+          ],
           parentId: null,
         },
       }),

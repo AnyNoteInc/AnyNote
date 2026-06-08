@@ -21,3 +21,19 @@ export function pageVisibilityWhere(userId: string): Prisma.PageWhereInput {
     ],
   }
 }
+
+/**
+ * Mirror of @repo/domain `excludeDatabaseRowPages`. Hide "database item" pages
+ * (real Pages parented to a DATABASE page) from MCP page listings — they belong
+ * inside the database table view, not the generic page tree.
+ *
+ * Replicated inline (rather than imported) because engines must not depend on the
+ * web tRPC/domain layer. Pages with NO parent (parentId null) must NOT be
+ * excluded — the explicit `OR` with `parentId: null` keeps root pages (and the
+ * DATABASE pages themselves) visible.
+ */
+export function excludeDatabaseRowPages(): Prisma.PageWhereInput {
+  return {
+    OR: [{ parentId: null }, { parent: { is: { type: { not: 'DATABASE' } } } }],
+  }
+}

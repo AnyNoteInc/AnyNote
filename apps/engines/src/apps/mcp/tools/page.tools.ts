@@ -7,7 +7,7 @@ import { z } from 'zod'
 import { PRISMA } from '../../../infra/db/db.providers.js'
 import { assertMember } from '../../api/auth/membership.js'
 import type { AuthContext, AuthedRequest } from '../../api/auth/auth-context.js'
-import { pageVisibilityWhere } from '../page-visibility.js'
+import { excludeDatabaseRowPages, pageVisibilityWhere } from '../page-visibility.js'
 import { PageNotFoundError } from '../errors/mcp.errors.js'
 import { MarkdownParser } from '../services/markdown-parser.service.js'
 import { MarkdownRenderer } from '../services/markdown-renderer.service.js'
@@ -319,7 +319,7 @@ export class PageTools {
         workspaceId: args.workspaceId,
         archivedAt: null,
         deletedAt: null,
-        AND: [pageVisibilityWhere(auth.userId)],
+        AND: [pageVisibilityWhere(auth.userId), excludeDatabaseRowPages()],
         ...(args.parentId === undefined ? {} : { parentId: args.parentId }),
         ...(args.type ? { type: args.type } : {}),
         ...(args.query ? { title: { contains: args.query, mode: 'insensitive' } } : {}),
