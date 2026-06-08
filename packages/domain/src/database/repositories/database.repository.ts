@@ -41,6 +41,41 @@ export interface RowWithPage {
   cells: { propertyId: string; value: unknown }[]
 }
 
+/**
+ * The pure query-planner emits `{ value: { equals: null } }` as an intermediate
+ * JSON-null sentinel (it cannot import Prisma's `DbNull` runtime value under the
+ * domain-services-no-db-value rule). At execution time we swap that literal
+ * `null` for `Prisma.DbNull` so Postgres compares against SQL NULL. Recursively
+ * rewrites the where tree; safe to call on any planner output.
+ */
+function translateNullSentinels(
+  node: Prisma.DatabaseRowWhereInput,
+): Prisma.DatabaseRowWhereInput {
+  return deepTranslate(node) as Prisma.DatabaseRowWhereInput
+}
+
+function deepTranslate(node: unknown): unknown {
+  if (Array.isArray(node)) return node.map(deepTranslate)
+  if (node && typeof node === 'object') {
+    const out: Record<string, unknown> = {}
+    for (const [key, val] of Object.entries(node as Record<string, unknown>)) {
+      if (
+        key === 'value' &&
+        val &&
+        typeof val === 'object' &&
+        'equals' in (val as Record<string, unknown>) &&
+        (val as Record<string, unknown>).equals === null
+      ) {
+        out[key] = { ...(val as Record<string, unknown>), equals: Prisma.DbNull }
+      } else {
+        out[key] = deepTranslate(val)
+      }
+    }
+    return out
+  }
+  return node
+}
+
 export class DatabaseRepository {
   private readonly uow: UnitOfWork
   constructor(uow: UnitOfWork) {
@@ -120,6 +155,38 @@ export class DatabaseRepository {
       views: row.views as ViewRow[],
       properties: row.properties as PropertyRow[],
       rows: row.rows as RowWithPage[],
+    }
+  }
+
+  /** Schema-only source load (source + views + properties, NO rows) — the
+   *  Phase-4A fetch split; rows come from `findRowsPaged`/`findRowsForGrouping`. */
+  async findSourceSchemaByPageId(pageId: string): Promise<{
+    source: SourceRow
+    views: ViewRow[]
+    properties: PropertyRow[]
+  } | null> {
+    const row = await this.uow.client().databaseSource.findUnique({
+      where: { pageId },
+      select: {
+        id: true,
+        workspaceId: true,
+        pageId: true,
+        title: true,
+        views: {
+          select: { id: true, type: true, title: true, position: true, settings: true },
+          orderBy: { position: 'asc' },
+        },
+        properties: {
+          select: { id: true, type: true, name: true, position: true, settings: true },
+          orderBy: { position: 'asc' },
+        },
+      },
+    })
+    if (!row) return null
+    return {
+      source: { id: row.id, workspaceId: row.workspaceId, pageId: row.pageId, title: row.title },
+      views: row.views as ViewRow[],
+      properties: row.properties as PropertyRow[],
     }
   }
 
@@ -248,9 +315,11 @@ export class DatabaseRepository {
   }
 
   async reorderProperties(ordered: { id: string; position: number }[]): Promise<void> {
-    for (const { id, position } of ordered) {
-      await this.uow.client().databaseProperty.update({ where: { id }, data: { position } })
-    }
+    await this.uow.transaction(async () => {
+      for (const { id, position } of ordered) {
+        await this.uow.client().databaseProperty.update({ where: { id }, data: { position } })
+      }
+    })
   }
 
   async maxPropertyPosition(sourceId: string): Promise<number> {
@@ -310,6 +379,75 @@ export class DatabaseRepository {
     }) as Promise<RowWithPage[]>
   }
 
+  /**
+   * Paginated, view-aware row fetch. Merges the planner's `where` (which may
+   * carry `{ equals: null }` JSON-null sentinels) with the source/soft-delete
+   * base where, applies the planner `orderBy` (a total order is guaranteed by an
+   * appended `id` tiebreak), and fetches `take + 1` rows so the service can
+   * detect a next page. `cursor` is the last returned row id (keyset via Prisma
+   * `cursor` + `skip: 1`).
+   */
+  async findRowsPaged(args: {
+    sourceId: string
+    where: Prisma.DatabaseRowWhereInput
+    orderBy: Prisma.DatabaseRowOrderByWithRelationInput[]
+    take: number
+    cursor?: string
+  }): Promise<RowWithPage[]> {
+    const where: Prisma.DatabaseRowWhereInput = {
+      AND: [
+        { sourceId: args.sourceId, deletedAt: null },
+        translateNullSentinels(args.where),
+      ],
+    }
+    // Guarantee a total order for stable keyset pagination.
+    const orderBy: Prisma.DatabaseRowOrderByWithRelationInput[] = [
+      ...args.orderBy,
+      { id: 'asc' },
+    ]
+    return this.uow.client().databaseRow.findMany({
+      where,
+      orderBy,
+      take: args.take,
+      ...(args.cursor ? { cursor: { id: args.cursor }, skip: 1 } : {}),
+      select: {
+        id: true,
+        pageId: true,
+        position: true,
+        page: { select: { title: true, icon: true } },
+        cells: { select: { propertyId: true, value: true } },
+      },
+    }) as Promise<RowWithPage[]>
+  }
+
+  /**
+   * Fetch ALL matching rows + cells for grouping (BOARD). No pagination — a
+   * focused board view is bounded in practice (documented MVP limit). Merges the
+   * planner `where` (filters only; grouping/sorting handled in the service).
+   */
+  async findRowsForGrouping(args: {
+    sourceId: string
+    where: Prisma.DatabaseRowWhereInput
+  }): Promise<RowWithPage[]> {
+    const where: Prisma.DatabaseRowWhereInput = {
+      AND: [
+        { sourceId: args.sourceId, deletedAt: null },
+        translateNullSentinels(args.where),
+      ],
+    }
+    return this.uow.client().databaseRow.findMany({
+      where,
+      orderBy: { position: 'asc' },
+      select: {
+        id: true,
+        pageId: true,
+        position: true,
+        page: { select: { title: true, icon: true } },
+        cells: { select: { propertyId: true, value: true } },
+      },
+    }) as Promise<RowWithPage[]>
+  }
+
   async findRowById(rowId: string): Promise<{
     id: string
     sourceId: string
@@ -337,9 +475,11 @@ export class DatabaseRepository {
   }
 
   async reorderRows(ordered: { id: string; position: number }[]): Promise<void> {
-    for (const { id, position } of ordered) {
-      await this.uow.client().databaseRow.update({ where: { id }, data: { position } })
-    }
+    await this.uow.transaction(async () => {
+      for (const { id, position } of ordered) {
+        await this.uow.client().databaseRow.update({ where: { id }, data: { position } })
+      }
+    })
   }
 
   async maxRowPosition(sourceId: string): Promise<number> {
