@@ -2,11 +2,18 @@ import { randomBytes } from 'node:crypto'
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 
-import { hashSharePassword, verifySharePassword } from '@repo/domain'
+import {
+  hashSharePassword,
+  verifySharePassword,
+  ShareAccessService,
+  ShareAccessRepository,
+} from '@repo/domain'
 
 import { router, protectedProcedure, publicProcedure } from '../trpc'
-import { assertCanManageShare } from '../helpers/page-access'
+import { assertCanManageShare, assertWorkspaceMember } from '../helpers/page-access'
 import { getWorkspaceFeatures } from '../helpers/plan'
+import { mapDomain } from '../helpers/map-domain'
+import { domain as domainSvc } from '../domain'
 
 const RoleSchema = z.enum(['READER', 'COMMENTER', 'EDITOR'])
 const AccessSchema = z.enum(['RESTRICTED', 'PUBLIC'])
@@ -35,7 +42,10 @@ const shareSelect = {
   analyticsYandexMetricaId: true,
   exposesAt: true,
   passwordHash: true,
-  users: { select: { role: true, user: { select: userSelect } }, orderBy: { createdAt: 'asc' as const } },
+  users: {
+    select: { role: true, user: { select: userSelect } },
+    orderBy: { createdAt: 'asc' as const },
+  },
 } as const
 
 type ShareRow = {
@@ -128,7 +138,11 @@ export const pageShareRouter = router({
     .mutation(async ({ ctx, input }) => {
       await assertCanManageShare(ctx, input.pageId)
       await ensureShare(ctx, input.pageId)
-      const data: { access: typeof input.access; linkRole: typeof input.linkRole; expiresAt?: Date | null } = {
+      const data: {
+        access: typeof input.access
+        linkRole: typeof input.linkRole
+        expiresAt?: Date | null
+      } = {
         access: input.access,
         linkRole: input.linkRole,
       }
@@ -263,6 +277,68 @@ export const pageShareRouter = router({
       })
       if (!share?.passwordHash) return { valid: false }
       return { valid: verifySharePassword(input.password, share.passwordHash) }
+    }),
+
+  // Duplicate-as-template: deep-copy a public page (and its visible subtree)
+  // into a workspace the caller belongs to. Re-validates the share through the
+  // single resolver authority and refuses unless the share permits copying.
+  copyToWorkspace: protectedProcedure
+    .input(
+      z.object({
+        shareId: z.string(),
+        rootPageId: z.string().uuid().optional(),
+        targetWorkspaceId: z.string().uuid(),
+        targetCollectionId: z.string().uuid().optional(),
+        includeSubtree: z.boolean().default(true),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      // 1. Re-validate the share via the resolver (publish/expiry/password/etc.)
+      //    AND honour allowCopy — both must pass before any data is copied.
+      const resolver = new ShareAccessService(new ShareAccessRepository(ctx.prisma))
+      const resolved = await resolver.resolve({
+        shareId: input.shareId,
+        requestedPageId: input.rootPageId,
+        password: undefined,
+        now: new Date(),
+      })
+      if (resolved.status !== 'ok' || !resolved.share.allowCopy) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Копирование этой страницы недоступно',
+        })
+      }
+
+      // 2. The caller must belong to the destination workspace.
+      await assertWorkspaceMember(ctx, input.targetWorkspaceId)
+
+      // 3. Default the destination to the caller's PERSONAL collection.
+      let targetCollectionId = input.targetCollectionId ?? null
+      if (!targetCollectionId) {
+        const personal = await ctx.prisma.collection.findFirst({
+          where: {
+            workspaceId: input.targetWorkspaceId,
+            kind: 'PERSONAL',
+            ownerId: ctx.user.id,
+          },
+          select: { id: true },
+        })
+        targetCollectionId = personal?.id ?? null
+      }
+
+      // 4. Copy via the domain authority — `resolved.page.id` is the validated
+      //    page (root or a published subpage), never the raw client input.
+      const result = await mapDomain(() =>
+        domainSvc.shareCopy.copyTree({
+          rootPageId: resolved.page.id,
+          targetWorkspaceId: input.targetWorkspaceId,
+          targetCollectionId,
+          actorUserId: ctx.user.id,
+          includeSubtree: input.includeSubtree,
+          fromShareId: input.shareId,
+        }),
+      )
+      return { pageId: result.rootPageId }
     }),
 
   addUser: protectedProcedure
