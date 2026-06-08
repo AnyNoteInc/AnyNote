@@ -13,7 +13,7 @@ async function signUpAndCreateWorkspace(page: import('@playwright/test').Page, t
 
 async function createTextPage(page: import('@playwright/test').Page) {
   const previousUrl = page.url()
-  await page.getByRole('button', { name: 'Новая страница' }).click()
+  await page.getByRole('button', { name: 'Новая страница' }).first().click()
   await page.getByRole('button', { name: 'Создать страницу: Текст' }).click()
   await page.waitForURL(
     (url) =>

@@ -191,7 +191,7 @@ test('workspace sidebar switches between agent-oriented sections', async ({ page
   await expectSidebarButtonHighlighted(page, 'Домашняя')
   await expect(page.getByRole('button', { name: 'Новая страница' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Корзина' })).toBeVisible()
-  await page.getByRole('button', { name: 'Новая страница' }).click()
+  await page.getByRole('button', { name: 'Новая страница' }).first().click()
   await page.getByRole('button', { name: 'Создать страницу: Текст' }).click()
   await page.waitForURL(/\/pages\/[a-f0-9-]{36}$/)
 

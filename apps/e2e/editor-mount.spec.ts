@@ -15,7 +15,7 @@ test('text page mounts the AnyNoteEditor', async ({ page }) => {
   await page.waitForURL(/\/(pages|chats)\//)
 
   // Open the "Создание страницы" dialog from the sidebar and pick "Текст".
-  await page.getByRole('button', { name: 'Новая страница' }).click()
+  await page.getByRole('button', { name: 'Новая страница' }).first().click()
   await page.getByRole('button', { name: 'Создать страницу: Текст' }).click()
 
   // Page route should navigate, and the editor DOM should appear.

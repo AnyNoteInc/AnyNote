@@ -16,7 +16,7 @@ async function setupGenogramPage(page: Page) {
   await page.waitForURL(/\/(pages|chats)\//)
 
   // Click the "Новая страница" button and pick "Генограмма"
-  await page.getByRole('button', { name: 'Новая страница' }).click()
+  await page.getByRole('button', { name: 'Новая страница' }).first().click()
   await page.getByRole('button', { name: 'Создать страницу: Генограмма' }).click()
 
   await page.waitForURL(/\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
@@ -36,8 +36,10 @@ async function setupGenogramWithOwner(page: Page) {
   // Sex defaults to male — no toggle needed
   await page.getByRole('button', { name: 'Создать генограмму' }).click()
 
-  // Wait for nodes: 3 persons + union + childrenHub + creationDate = 6
-  await expect(page.locator('.react-flow__node')).toHaveCount(6, { timeout: 10_000 })
+  // Wait for nodes: 3 persons (owner + father + mother) + union + childrenHub = 5.
+  // The creation date is no longer a react-flow node — it moved to a bottom-left
+  // Panel overlay (data-testid="genogram-creation-date").
+  await expect(page.locator('.react-flow__node')).toHaveCount(5, { timeout: 10_000 })
 }
 
 // ---------------------------------------------------------------------------
@@ -99,8 +101,9 @@ test('Create genogram from empty state', async ({ page }) => {
   await page.getByRole('button', { name: 'Создать генограмму' }).click()
 
   // 3 person nodes (owner + father + mother) + union node + children-hub node
-  // + creation-date label node = 6 total react-flow nodes
-  await expect(page.locator('.react-flow__node')).toHaveCount(6, { timeout: 10_000 })
+  // = 5 total react-flow nodes. The creation date moved out of the flow into a
+  // bottom-left Panel overlay, so it is asserted separately below.
+  await expect(page.locator('.react-flow__node')).toHaveCount(5, { timeout: 10_000 })
   await expect(page.getByText(/Дата создания:/)).toBeVisible()
 })
 
@@ -257,13 +260,14 @@ test('Multi-partner ordinals appear and can be reordered', async ({ page }) => {
     await page.locator('.react-flow__node').filter({ hasText: 'Иванов' }).first().click()
     await page.getByRole('menuitem', { name: 'Добавить партнёра' }).click()
 
-    // Wait for the drawer title to appear — confirms the form is mounted
-    const drawerTitle = page.getByText('Добавление партнёра', { exact: true })
+    // Wait for the drawer title to appear — confirms the form is mounted.
+    // The add-partner drawer title is "Данные партнёра" (titleAddPartner).
+    const drawerTitle = page.getByText('Данные партнёра', { exact: true })
     await expect(drawerTitle).toBeVisible({ timeout: 5_000 })
 
     // Fill the Имя field within the visible drawer context.
-    // Scope to the drawer Paper that contains the "Добавление партнёра" title.
-    const drawer = page.locator('.MuiDrawer-paper').filter({ hasText: 'Добавление партнёра' })
+    // Scope to the drawer Paper that contains the "Данные партнёра" title.
+    const drawer = page.locator('.MuiDrawer-paper').filter({ hasText: 'Данные партнёра' })
 
     // Find the firstName input: it's labeled "Имя" and is the 2nd input in the form
     // (after "Фамилия"). Use nth to disambiguate if getByLabel has issues.
@@ -297,8 +301,10 @@ test('Multi-partner ordinals appear and can be reordered', async ({ page }) => {
     page.locator('.react-flow__node').filter({ hasText: 'Мария' }).getByText('2'),
   ).toBeVisible({ timeout: 10_000 })
 
-  // Edit Анна's data: change partner order to 2
-  await page.locator('.react-flow__node').filter({ hasText: 'Анна' }).click()
+  // Edit Анна's data: change partner order to 2. force:true — the union node /
+  // marriage edge overlap the partner node in the auto-layout and intercept
+  // pointer events; the node itself is visible and stable.
+  await page.locator('.react-flow__node').filter({ hasText: 'Анна' }).click({ force: true })
   await page.getByRole('menuitem', { name: 'Редактировать данные' }).click()
   await page.getByLabel('Порядковый номер партнёра').fill('2')
   await page.getByRole('button', { name: 'Сохранить' }).click()

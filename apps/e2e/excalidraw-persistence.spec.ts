@@ -12,7 +12,7 @@ async function setupExcalidrawPage(page: Page) {
   await page.getByRole('button', { name: 'Создать пространство' }).click()
   await page.waitForURL(/\/(pages|chats)\//)
 
-  await page.getByRole('button', { name: 'Новая страница' }).click()
+  await page.getByRole('button', { name: 'Новая страница' }).first().click()
   await page.getByRole('button', { name: 'Создать страницу: Холст' }).click()
 
   await page.waitForURL(/\/pages\/[a-f0-9-]+/, { timeout: 15_000 })

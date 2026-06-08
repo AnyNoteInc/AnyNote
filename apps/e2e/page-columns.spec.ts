@@ -176,7 +176,7 @@ async function signUp(page: Page, tag: string) {
 
 async function createTextPage(page: Page) {
   const previousUrl = page.url()
-  await page.getByRole('button', { name: 'Новая страница' }).click()
+  await page.getByRole('button', { name: 'Новая страница' }).first().click()
   await page.getByRole('button', { name: 'Создать страницу: Текст' }).click()
   await page.waitForURL(
     (url) =>

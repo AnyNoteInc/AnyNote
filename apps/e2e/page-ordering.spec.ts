@@ -28,7 +28,7 @@ async function openPagesSection(page: Page) {
  */
 async function createRootTextPage(page: Page): Promise<string> {
   const previousUrl = page.url()
-  await page.getByRole('button', { name: 'Новая страница' }).click()
+  await page.getByRole('button', { name: 'Новая страница' }).first().click()
   await page.getByRole('button', { name: 'Создать страницу: Текст' }).click()
   await page.waitForURL(
     (url) =>
