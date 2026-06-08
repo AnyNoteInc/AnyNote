@@ -52,17 +52,15 @@ test('KANBAN page renders default columns and supports task creation + DnD persi
   await expect(page.getByText('In Progress', { exact: true })).toBeVisible()
   await expect(page.getByText('Done', { exact: true })).toBeVisible()
 
-  await page.getByRole('button', { name: 'Создать задачу' }).click()
-  await expect(page.getByRole('dialog')).toBeVisible()
-
-  const todoColumn = page.locator('[data-rfd-droppable-id]').first()
-  await expect(todoColumn.getByText('Новая задача')).toBeVisible({ timeout: 10_000 })
-
-  // Close the modal — pick the IconButton inside the dialog title
-  await page.getByRole('dialog').locator('header, .MuiDialogTitle-root').getByRole('button').click()
+  // Task creation is per-column inline: the first "Добавить карточку" (Todo
+  // column) reveals a title field; "Добавить" commits the card into that column.
+  await page.getByRole('button', { name: 'Добавить карточку' }).first().click()
+  await page.getByPlaceholder('Введите название карточки…').fill('Новая задача')
+  await page.getByRole('button', { name: 'Добавить', exact: true }).click()
+  await expect(page.getByText('Новая задача', { exact: true })).toBeVisible({ timeout: 10_000 })
 
   await page.reload()
-  await expect(todoColumn.getByText('Новая задача')).toBeVisible({ timeout: 15_000 })
+  await expect(page.getByText('Новая задача', { exact: true })).toBeVisible({ timeout: 15_000 })
 })
 
 test('KANBAN toolbar exposes board/table/gantt view switcher as ButtonGroup', async ({ page }) => {
@@ -88,8 +86,8 @@ test('KANBAN settings dialog has 4 tabs with default Russian priorities', async 
 
   await expect(page.getByText('Todo', { exact: true })).toBeVisible({ timeout: 15_000 })
 
+  // The settings IconButton opens the dialog directly (no intermediate menu).
   await page.getByRole('button', { name: 'Настройки канбана' }).click()
-  await page.getByRole('menuitem', { name: 'Настройки канбана' }).click()
 
   const dialog = page.getByRole('dialog')
   await expect(dialog).toBeVisible()
@@ -103,7 +101,7 @@ test('KANBAN settings dialog has 4 tabs with default Russian priorities', async 
 
   await dialog.getByRole('tab', { name: 'Приоритеты' }).click()
   await expect(dialog.getByText('Критичный', { exact: true })).toBeVisible()
-  await expect(dialog.getByText('Минимальный', { exact: true })).toBeVisible()
+  await expect(dialog.getByText('Низкий', { exact: true })).toBeVisible()
 })
 
 test('Task title edits save and persist across reload', async ({ page }) => {
@@ -111,17 +109,13 @@ test('Task title edits save and persist across reload', async ({ page }) => {
 
   await expect(page.getByText('Todo', { exact: true })).toBeVisible({ timeout: 15_000 })
 
-  await page.getByRole('button', { name: 'Создать задачу' }).click()
-  const dialog = page.getByRole('dialog')
-  await expect(dialog).toBeVisible()
-
-  const titleField = dialog.getByLabel('Название')
-  await titleField.fill('Renamed by e2e')
-  await titleField.blur()
-  await page.waitForTimeout(500)
+  // Create a card inline with the title under test; the inline field IS the title.
+  await page.getByRole('button', { name: 'Добавить карточку' }).first().click()
+  await page.getByPlaceholder('Введите название карточки…').fill('Renamed by e2e')
+  await page.getByRole('button', { name: 'Добавить', exact: true }).click()
+  await expect(page.getByText('Renamed by e2e').first()).toBeVisible({ timeout: 10_000 })
 
   await page.reload()
-  // Either the card or the auto-reopened modal shows the new title — both prove it persisted.
   await expect(page.getByText('Renamed by e2e').first()).toBeVisible({ timeout: 15_000 })
 })
 
@@ -152,28 +146,27 @@ test('Gantt: empty state when no dated tasks; renders chart when a task has date
   await page.getByRole('button', { name: 'Гант' }).click()
   await expect(page.getByText(/задайте даты/i)).toBeVisible()
 
-  // Create task and set dueDate via direct tRPC call (DatePicker UI fill is brittle)
+  // Create a task inline, then set its dueDate via Prisma (DatePicker UI fill is brittle).
   await page.getByRole('button', { name: 'Доска' }).click()
-  await page.getByRole('button', { name: 'Создать задачу' }).click()
-  const dialog = page.getByRole('dialog')
-  await expect(dialog).toBeVisible()
+  await page.getByRole('button', { name: 'Добавить карточку' }).first().click()
+  await page.getByPlaceholder('Введите название карточки…').fill('Dated task')
+  await page.getByRole('button', { name: 'Добавить', exact: true }).click()
+  await expect(page.getByText('Dated task', { exact: true })).toBeVisible({ timeout: 10_000 })
 
-  const { pageIdRaw, taskIdRaw } = await page.evaluate(() => {
-    const url = new URL(globalThis.location.href)
-    const taskMatch = url.searchParams.get('taskId')
-    const pageMatch = /pages\/([0-9a-f-]+)/.exec(url.pathname)
-    return { pageIdRaw: pageMatch?.[1] ?? null, taskIdRaw: taskMatch ?? null }
-  })
-  if (!pageIdRaw || !taskIdRaw) throw new Error('Could not resolve pageId/taskId from URL')
+  // The inline create flow does not open the task detail, so resolve the taskId
+  // from the DB (by title) rather than from the URL.
+  const pageIdRaw = /pages\/([0-9a-f-]+)/.exec(new URL(page.url()).pathname)?.[1] ?? null
+  if (!pageIdRaw) throw new Error('Could not resolve pageId from URL')
 
   const dueDate = new Date()
   dueDate.setDate(dueDate.getDate() + 7)
 
-  // Set dueDate directly via Prisma so we don't fight the masked DatePicker input
   const { prisma } = await import('../../packages/db/src/index')
-  await prisma.task.update({ where: { id: taskIdRaw }, data: { dueDate } })
-
-  await dialog.locator('.MuiDialogTitle-root').getByRole('button').click()
+  const task = await prisma.task.findFirstOrThrow({
+    where: { pageId: pageIdRaw, title: 'Dated task' },
+    select: { id: true },
+  })
+  await prisma.task.update({ where: { id: task.id }, data: { dueDate } })
 
   await page.getByRole('button', { name: 'Гант' }).click()
   await expect(page.getByText(/задайте даты/i)).not.toBeVisible({ timeout: 10_000 })
@@ -186,11 +179,9 @@ test('Card 3-dots menu deletes the task', async ({ page }) => {
 
   await expect(page.getByText('Todo', { exact: true })).toBeVisible({ timeout: 15_000 })
 
-  await page.getByRole('button', { name: 'Создать задачу' }).click()
-  const dialog = page.getByRole('dialog')
-  await expect(dialog).toBeVisible()
-  await dialog.locator('.MuiDialogTitle-root').getByRole('button').click()
-  await expect(dialog).not.toBeVisible()
+  await page.getByRole('button', { name: 'Добавить карточку' }).first().click()
+  await page.getByPlaceholder('Введите название карточки…').fill('Новая задача')
+  await page.getByRole('button', { name: 'Добавить', exact: true }).click()
 
   await expect(page.getByText('Новая задача').first()).toBeVisible()
 
