@@ -2,6 +2,7 @@ import { notFound } from '../../shared/errors.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 import type { CopyTreeInput, CopyTreeResult } from '../dto/share-copy.dto.ts'
 import type { ShareCopyRepository, SourcePageRow } from '../repositories/share-copy.repository.ts'
+import { sanitizeCopiedContent } from './sanitize-copied-content.ts'
 
 /**
  * Deep-copies a public page (and, optionally, its visible subtree) into a
@@ -73,7 +74,10 @@ export class PublicShareCopyService {
       title: source.title,
       icon: source.icon,
       type: source.type,
-      content: source.content,
+      // Embedded-database nodes reference a source that isn't copied, so we
+      // replace them with an unsupported placeholder in the copied snapshot
+      // rather than carry a broken live embed.
+      content: sanitizeCopiedContent(source.content),
       contentYjs: source.contentYjs,
       copiedFromShareId: input.fromShareId,
       copiedFromPageId: source.id,
