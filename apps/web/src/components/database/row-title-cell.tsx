@@ -5,7 +5,10 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Box, IconButton, InputBase, OpenInFullIcon } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
-import type { DatabaseViewModel } from './types'
+import type { RouterOutputs } from '@/trpc/client'
+import { defaultRowsInput } from './types'
+
+type ListRowsResult = RouterOutputs['database']['listRows']
 
 interface RowTitleCellProps {
   readonly pageId: string
@@ -16,7 +19,7 @@ interface RowTitleCellProps {
 
 /**
  * The system Title column. Edits write `Page.title` via `database.updateRow`
- * (optimistic on the getByPage cache). An open affordance sets `?rowId=` in the
+ * (optimistic on the listRows cache). An open affordance sets `?rowId=` in the
  * URL; the item-page modal (Phase D) reads that param. The Title column is never
  * deletable/renamable — it is the page title, not a DatabaseProperty.
  */
@@ -30,19 +33,19 @@ export function RowTitleCell({ pageId, rowId, title, editable = true }: RowTitle
     setDraft(title ?? '')
   }, [title])
 
-  const setData = utils.database.getByPage.setData as (
-    input: { pageId: string },
-    updater: (prev: DatabaseViewModel | undefined) => DatabaseViewModel | undefined,
+  const setData = utils.database.listRows.setData as (
+    input: ReturnType<typeof defaultRowsInput>,
+    updater: (prev: ListRowsResult | undefined) => ListRowsResult | undefined,
   ) => void
 
   const updateRow = trpc.database.updateRow.useMutation({
-    onError: () => utils.database.getByPage.invalidate({ pageId }),
+    onError: () => utils.database.listRows.invalidate({ pageId }),
   })
 
   function persist() {
     const next = draft.trim()
     if (next === (title ?? '')) return
-    setData({ pageId }, (current) => {
+    setData(defaultRowsInput(pageId), (current) => {
       if (!current) return current
       return {
         ...current,

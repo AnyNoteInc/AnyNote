@@ -15,11 +15,15 @@ import {
 } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
+import type { RouterOutputs } from '@/trpc/client'
 import { useSession } from '@/lib/auth-client'
 import { PageView } from '@/components/page/page-view'
 
 import { CellEditor } from './cell-editors/cell-dispatch'
+import { defaultRowsInput } from './types'
 import type { DatabaseRowView, DatabaseViewModel } from './types'
+
+type ListRowsResult = RouterOutputs['database']['listRows']
 
 /*
  * MVP — item "peek" modal.
@@ -214,7 +218,7 @@ function ItemModalContent({
                   </Typography>
                   <Box sx={{ flex: 1, minWidth: 0 }}>
                     {/* Same cell editors as the table — keyed on the database pageId so
-                        edits patch the shared `getByPage` cache (table + modal stay in sync). */}
+                        edits patch the shared `listRows` cache (table + modal stay in sync). */}
                     <CellEditor pageId={pageId} row={row} property={property} editable={editable} />
                   </Box>
                 </Stack>
@@ -244,19 +248,19 @@ function ItemTitle({
     setDraft(row.title ?? '')
   }, [row.title])
 
-  const setData = utils.database.getByPage.setData as (
-    input: { pageId: string },
-    updater: (prev: DatabaseViewModel | undefined) => DatabaseViewModel | undefined,
+  const setData = utils.database.listRows.setData as (
+    input: ReturnType<typeof defaultRowsInput>,
+    updater: (prev: ListRowsResult | undefined) => ListRowsResult | undefined,
   ) => void
 
   const updateRow = trpc.database.updateRow.useMutation({
-    onError: () => utils.database.getByPage.invalidate({ pageId }),
+    onError: () => utils.database.listRows.invalidate({ pageId }),
   })
 
   function persist() {
     const next = draft.trim()
     if (next === (row.title ?? '')) return
-    setData({ pageId }, (current) => {
+    setData(defaultRowsInput(pageId), (current) => {
       if (!current) return current
       return {
         ...current,

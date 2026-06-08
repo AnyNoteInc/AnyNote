@@ -7,9 +7,11 @@ import { assertPageAccess, assertPageEditAccess } from '../../helpers/page-acces
 import { mapDomain } from '../../helpers/map-domain'
 import { domain as domainSvc } from '../../domain'
 
-// Source-level reads. The view-model shape returned by `getByPage`
-// (source + views + properties + rows + systemTitleProperty) is the single shape
-// consumed by the renderer, table view, item modal, and embedded database node.
+// Source-level reads. `getByPage` returns the database SCHEMA only
+// (source + views + properties + systemTitleProperty) — rows are fetched
+// separately and view-aware via `listRows` / `listGroupedRows`. The schema is
+// the single shape consumed by the renderer, table view, item modal, and
+// embedded database node to drive view tabs and column layout.
 export const sourceRouter = router({
   getByPage: protectedProcedure
     .input(z.object({ pageId: z.string().uuid() }))

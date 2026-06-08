@@ -55,7 +55,14 @@ export function DatabaseToolbar({
   const utils = trpc.useUtils()
   const [propAnchorEl, setPropAnchorEl] = useState<HTMLElement | null>(null)
 
-  const invalidate = () => utils.database.getByPage.invalidate({ pageId })
+  // createRow touches the rows (listRows); createProperty touches the schema
+  // (getByPage). Invalidate both so the merged view-model refetches either way.
+  const invalidate = async () => {
+    await Promise.all([
+      utils.database.getByPage.invalidate({ pageId }),
+      utils.database.listRows.invalidate({ pageId }),
+    ])
+  }
   const createRow = trpc.database.createRow.useMutation({ onSuccess: invalidate })
   const createProperty = trpc.database.createProperty.useMutation({ onSuccess: invalidate })
 

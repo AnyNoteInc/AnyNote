@@ -42,7 +42,7 @@ export function DatabaseTableView({ pageId, data, editable = true }: DatabaseTab
 
   // Database-local search: client-side filter over the already-loaded rows by
   // item title + stringified cell values (never global workspace search). Server
-  // `listRows({ query })` is also available for larger sets; MVP filters in-memory.
+  // view filters supersede this for larger sets (Phase E); MVP filters in-memory.
   const rows = useMemo(() => {
     const sorted = [...data.rows].sort((a, b) => a.position - b.position)
     const q = search.trim().toLowerCase()
@@ -55,7 +55,9 @@ export function DatabaseTableView({ pageId, data, editable = true }: DatabaseTab
     })
   }, [data.rows, search])
 
-  const invalidate = () => utils.database.getByPage.invalidate({ pageId })
+  // Rows live in the listRows cache (Phase-4A fetch split); invalidate it so the
+  // merged view-model in the renderer refetches.
+  const invalidate = () => utils.database.listRows.invalidate({ pageId })
   const createRow = trpc.database.createRow.useMutation({ onSuccess: invalidate })
   const deleteRow = trpc.database.deleteRow.useMutation({ onSuccess: invalidate })
 

@@ -5,6 +5,7 @@ import { Box, CircularProgress, Typography } from '@repo/ui/components'
 import { trpc } from '@/trpc/client'
 
 import { DatabaseTableView } from './database-table-view'
+import { defaultRowsInput } from './types'
 
 interface EmbeddedDatabaseEmbedProps {
   /** The DatabaseSource id stored on the editor node. */
@@ -29,6 +30,13 @@ export function EmbeddedDatabaseEmbed({ sourceId, readonly }: EmbeddedDatabaseEm
   const query = trpc.database.getBySourceId.useQuery(
     { sourceId: sourceId ?? '' },
     { enabled: Boolean(sourceId), retry: false },
+  )
+  // Rows moved out of getBySourceId (Phase-4A fetch split) — fetch them separately
+  // for the resolved DATABASE page and merge into the table's view-model.
+  const resolvedPageId = query.data?.pageId
+  const rowsQuery = trpc.database.listRows.useQuery(
+    defaultRowsInput(resolvedPageId ?? ''),
+    { enabled: Boolean(resolvedPageId), retry: false },
   )
 
   if (!sourceId) {
@@ -59,13 +67,11 @@ export function EmbeddedDatabaseEmbed({ sourceId, readonly }: EmbeddedDatabaseEm
     )
   }
 
+  const data = { ...query.data.view, rows: rowsQuery.data?.rows ?? [] }
+
   return (
     <Box sx={{ maxHeight: 480, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <DatabaseTableView
-        pageId={query.data.pageId}
-        data={query.data.view}
-        editable={!readonly}
-      />
+      <DatabaseTableView pageId={query.data.pageId} data={data} editable={!readonly} />
     </Box>
   )
 }

@@ -127,7 +127,7 @@ describe('database router (integration)', () => {
   beforeEach(cleanFixtures)
   afterAll(cleanFixtures)
 
-  it('getByPage returns source + views + properties + rows + systemTitleProperty', async () => {
+  it('getByPage returns schema only (source + views + properties + systemTitleProperty, no rows)', async () => {
     const fx = await seed()
     const vm = await caller(fx.ownerId).getByPage({ pageId: fx.pageId })
 
@@ -140,7 +140,8 @@ describe('database router (integration)', () => {
     expect(vm.properties[0]?.type).toBe('STATUS')
     expect(vm.properties[0]?.name).toBe('Статус')
     expect(vm.properties[0]?.settings?.options).toHaveLength(3)
-    expect(vm.rows).toEqual([])
+    // Rows moved out of getByPage; the schema-only result has no `rows` key.
+    expect('rows' in vm).toBe(false)
     expect(vm.systemTitleProperty).toEqual({ key: 'title', name: 'Название' })
   })
 

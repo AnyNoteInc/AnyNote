@@ -3,23 +3,26 @@
 import { trpc } from '@/trpc/client'
 import type { RouterOutputs } from '@/trpc/client'
 
-export type DatabaseViewModel = RouterOutputs['database']['getByPage']
+import { defaultRowsInput } from '../types'
+
+export type ListRowsResult = RouterOutputs['database']['listRows']
 
 /**
  * Shared optimistic-update helper for cell editors. Mirrors the kanban
- * table-view pattern: patch the `database.getByPage` query cache in place, then
- * invalidate on error so a failed write rolls back to server truth.
+ * table-view pattern: patch the `database.listRows` query cache in place (rows
+ * moved out of `getByPage` in the Phase-4A fetch split), then invalidate on error
+ * so a failed write rolls back to server truth.
  */
 export function useCellUpdate(pageId: string) {
   const utils = trpc.useUtils()
 
-  const setData = utils.database.getByPage.setData as (
-    input: { pageId: string },
-    updater: (prev: DatabaseViewModel | undefined) => DatabaseViewModel | undefined,
+  const setData = utils.database.listRows.setData as (
+    input: ReturnType<typeof defaultRowsInput>,
+    updater: (prev: ListRowsResult | undefined) => ListRowsResult | undefined,
   ) => void
 
   function patchCellOptimistic(rowId: string, propertyId: string, value: unknown) {
-    setData({ pageId }, (current) => {
+    setData(defaultRowsInput(pageId), (current) => {
       if (!current) return current
       return {
         ...current,
@@ -33,7 +36,7 @@ export function useCellUpdate(pageId: string) {
   }
 
   const mutation = trpc.database.updateCellValue.useMutation({
-    onError: () => utils.database.getByPage.invalidate({ pageId }),
+    onError: () => utils.database.listRows.invalidate({ pageId }),
   })
 
   /**

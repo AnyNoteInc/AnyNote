@@ -496,7 +496,10 @@ export class DatabaseService {
     const filtered = this.applyMultiSelectPostFilters(fetched, plan.multiSelectPostFilters)
     const hasMore = filtered.length > limit
     const pageRows = hasMore ? filtered.slice(0, limit) : filtered
-    const nextCursor = hasMore ? (filtered[limit]?.id ?? null) : null
+    // Keyset cursor = the LAST row of THIS page (`findRowsPaged` re-anchors with
+    // `cursor: { id } , skip: 1`, so the next page starts at the row after it).
+    // Using `filtered[limit]` (the over-fetched probe row) would skip that row.
+    const nextCursor = hasMore ? (pageRows.at(-1)?.id ?? null) : null
 
     return { rows: pageRows.map((r) => this.mapRow(r)), nextCursor }
   }

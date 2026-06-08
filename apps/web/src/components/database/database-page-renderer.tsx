@@ -6,6 +6,7 @@ import { trpc } from '@/trpc/client'
 
 import { DatabaseTableView } from './database-table-view'
 import { DatabaseItemModal } from './database-item-modal'
+import { defaultRowsInput } from './types'
 
 interface DatabasePageRendererProps {
   readonly pageId: string
@@ -21,22 +22,33 @@ function CenteredSpinner() {
 }
 
 /**
- * Full-page renderer for a DATABASE page. Loads the source view-model via
- * `database.getByPage`; if the page has no source yet (a legacy DATABASE page
- * created before provisioning, or one whose dispatch was skipped) the query
+ * Full-page renderer for a DATABASE page. Loads the database SCHEMA via
+ * `database.getByPage` and the active view's rows via `database.listRows`
+ * (Phase-4A fetch split), then merges them into the `{ ...schema, rows }` shape
+ * the table/modal consume. If the page has no source yet (a legacy DATABASE page
+ * created before provisioning, or one whose dispatch was skipped) `getByPage`
  * throws NOT_FOUND and we surface a "Создать базу" action that calls
  * `database.repairSource` (idempotent `seedDefaults`).
  */
 export function DatabasePageRenderer({ pageId, editable = true }: DatabasePageRendererProps) {
   const utils = trpc.useUtils()
-  const { data, isLoading, error, refetch } = trpc.database.getByPage.useQuery(
+  const { data: schema, isLoading, error, refetch } = trpc.database.getByPage.useQuery(
     { pageId },
     { retry: false },
+  )
+  // Default-view rows (no `viewId` → default TABLE settings). MVP fetches a single
+  // bounded page; per-view selection + pagination arrive with `useViewRows` (Phase E).
+  const { data: rowsResult } = trpc.database.listRows.useQuery(
+    defaultRowsInput(pageId),
+    { retry: false, enabled: !!schema },
   )
 
   const repairSource = trpc.database.repairSource.useMutation({
     onSuccess: async () => {
-      await utils.database.getByPage.invalidate({ pageId })
+      await Promise.all([
+        utils.database.getByPage.invalidate({ pageId }),
+        utils.database.listRows.invalidate({ pageId }),
+      ])
       await refetch()
     },
   })
@@ -66,7 +78,7 @@ export function DatabasePageRenderer({ pageId, editable = true }: DatabasePageRe
     )
   }
 
-  if (error || !data) {
+  if (error || !schema) {
     return (
       <Box sx={{ p: 4 }}>
         <Typography color="error">
@@ -75,6 +87,10 @@ export function DatabasePageRenderer({ pageId, editable = true }: DatabasePageRe
       </Box>
     )
   }
+
+  // Merge schema + rows into the single shape the table/modal read. Rows stream in
+  // after the schema (separate query), so default to [] until they arrive.
+  const data = { ...schema, rows: rowsResult?.rows ?? [] }
 
   return (
     <>

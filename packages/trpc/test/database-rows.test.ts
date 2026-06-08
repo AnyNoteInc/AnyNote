@@ -7,8 +7,10 @@ import { createCallerFactory } from '../src/trpc'
 
 // Real-DB integration test for the database router rows + cells flow. Asserts that
 // createRow materializes a real item Page (child of the DATABASE page), updateRow
-// writes Page.title, updateCellValue round-trips + validates, listRows filters by
-// query, and reorderRows reorders. Self-cleaning via an email-suffix namespace.
+// writes Page.title, updateCellValue round-trips + validates, and reorderRows
+// reorders. Rows are read via the paginated, view-aware `listRows` (returns
+// `{ rows, nextCursor }`) — `getByPage` is schema-only. Self-cleaning via an
+// email-suffix namespace.
 
 const EMAIL_SUFFIX = '+database-rows-test@anynote.dev'
 
@@ -125,9 +127,9 @@ describe('database router rows + cells (integration)', () => {
     expect(itemPage?.workspaceId).toBe(fx.wsId)
     expect(itemPage?.deletedAt).toBeNull()
 
-    // And it shows up in the database view-model rows.
-    const vm = await c.getByPage({ pageId: fx.pageId })
-    expect(vm.rows.map((r) => r.rowId)).toContain(rowId)
+    // And it shows up in the view-aware row list.
+    const { rows } = await c.listRows({ pageId: fx.pageId })
+    expect(rows.map((r) => r.rowId)).toContain(rowId)
   })
 
   it('createRow with title + updateRow write Page.title', async () => {
@@ -150,14 +152,14 @@ describe('database router rows + cells (integration)', () => {
     await c.deleteRow({ pageId: fx.pageId, rowId })
     let page = await prisma.page.findUnique({ where: { id: pageId }, select: { deletedAt: true } })
     expect(page?.deletedAt).not.toBeNull()
-    let vm = await c.getByPage({ pageId: fx.pageId })
-    expect(vm.rows.map((r) => r.rowId)).not.toContain(rowId)
+    let listed = await c.listRows({ pageId: fx.pageId })
+    expect(listed.rows.map((r) => r.rowId)).not.toContain(rowId)
 
     await c.restoreRow({ pageId: fx.pageId, rowId })
     page = await prisma.page.findUnique({ where: { id: pageId }, select: { deletedAt: true } })
     expect(page?.deletedAt).toBeNull()
-    vm = await c.getByPage({ pageId: fx.pageId })
-    expect(vm.rows.map((r) => r.rowId)).toContain(rowId)
+    listed = await c.listRows({ pageId: fx.pageId })
+    expect(listed.rows.map((r) => r.rowId)).toContain(rowId)
   })
 
   it('updateCellValue round-trips a valid STATUS option and rejects an unknown one', async () => {
@@ -168,8 +170,8 @@ describe('database router rows + cells (integration)', () => {
     const optionId = status.settings!.options![0]!.id
 
     await c.updateCellValue({ pageId: fx.pageId, rowId, propertyId: status.id, value: optionId })
-    const vm = await c.getByPage({ pageId: fx.pageId })
-    const row = vm.rows.find((r) => r.rowId === rowId)!
+    const { rows } = await c.listRows({ pageId: fx.pageId })
+    const row = rows.find((r) => r.rowId === rowId)!
     expect(row.cells[status.id]).toBe(optionId)
 
     await expect(
@@ -184,28 +186,28 @@ describe('database router rows + cells (integration)', () => {
     const num = await c.createProperty({ pageId: fx.pageId, type: 'NUMBER', name: 'Count' })
 
     await c.updateCellValue({ pageId: fx.pageId, rowId, propertyId: num.id, value: 42 })
-    let vm = await c.getByPage({ pageId: fx.pageId })
-    expect(vm.rows.find((r) => r.rowId === rowId)?.cells[num.id]).toBe(42)
+    let listed = await c.listRows({ pageId: fx.pageId })
+    expect(listed.rows.find((r) => r.rowId === rowId)?.cells[num.id]).toBe(42)
 
     await expect(
       c.updateCellValue({ pageId: fx.pageId, rowId, propertyId: num.id, value: 'not-a-number' }),
     ).rejects.toThrow(/число/i)
     // The valid value is unchanged after the rejected write.
-    vm = await c.getByPage({ pageId: fx.pageId })
-    expect(vm.rows.find((r) => r.rowId === rowId)?.cells[num.id]).toBe(42)
+    listed = await c.listRows({ pageId: fx.pageId })
+    expect(listed.rows.find((r) => r.rowId === rowId)?.cells[num.id]).toBe(42)
   })
 
-  it('listRows with a query filters by title', async () => {
+  // Row search by `query` was superseded by view filters (see database-views.test.ts).
+  // listRows now returns every row of the default view as `{ rows, nextCursor }`.
+  it('listRows returns all rows of the default view', async () => {
     const fx = await seed()
     const c = caller(fx.ownerId)
     await c.createRow({ pageId: fx.pageId, title: 'Apple' })
     await c.createRow({ pageId: fx.pageId, title: 'Banana' })
 
-    const all = await c.listRows({ pageId: fx.pageId })
-    expect(all).toHaveLength(2)
-
-    const filtered = await c.listRows({ pageId: fx.pageId, query: 'Ban' })
-    expect(filtered.map((r) => r.title)).toEqual(['Banana'])
+    const { rows, nextCursor } = await c.listRows({ pageId: fx.pageId })
+    expect(rows.map((r) => r.title).sort()).toEqual(['Apple', 'Banana'])
+    expect(nextCursor).toBeNull()
   })
 
   it('reorderRows reorders by position', async () => {
@@ -215,7 +217,7 @@ describe('database router rows + cells (integration)', () => {
     const r2 = await c.createRow({ pageId: fx.pageId, title: 'Two' })
 
     await c.reorderRows({ pageId: fx.pageId, orderedIds: [r2.rowId, r1.rowId] })
-    const rows = await c.listRows({ pageId: fx.pageId })
+    const { rows } = await c.listRows({ pageId: fx.pageId })
     expect(rows.map((r) => r.rowId)).toEqual([r2.rowId, r1.rowId])
   })
 

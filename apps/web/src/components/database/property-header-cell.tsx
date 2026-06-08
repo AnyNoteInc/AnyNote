@@ -42,7 +42,14 @@ export function PropertyHeaderCell({ pageId, property, editable = true }: Proper
   const [confirmOpen, setConfirmOpen] = useState(false)
   const [draftName, setDraftName] = useState(property.name)
 
-  const invalidate = () => utils.database.getByPage.invalidate({ pageId })
+  // A property change touches the schema AND the rows (deleting a property drops
+  // its cells; an options/type change re-renders cells), so invalidate both.
+  const invalidate = async () => {
+    await Promise.all([
+      utils.database.getByPage.invalidate({ pageId }),
+      utils.database.listRows.invalidate({ pageId }),
+    ])
+  }
   const updateProperty = trpc.database.updateProperty.useMutation({ onSuccess: invalidate })
   const deleteProperty = trpc.database.deleteProperty.useMutation({ onSuccess: invalidate })
 

@@ -488,14 +488,18 @@ describe('DatabaseService.listRows', () => {
     expect(arg.take).toBe(101) // limit + 1
   })
 
-  it('computes nextCursor from the (limit+1)th row and slices to the limit', async () => {
-    // limit 2 → repo returns 3 rows (take=3); service slices to 2, cursor = 3rd row id
+  it('computes nextCursor from the last returned row and slices to the limit', async () => {
+    // limit 2 → repo returns 3 rows (take=3, the 3rd is the has-more probe);
+    // service slices to 2 and sets the keyset cursor to the LAST returned row
+    // ('b'). findRowsPaged re-anchors with `cursor: { id } , skip: 1`, so the next
+    // page resumes at the row after 'b' (the probe row 'c') — using 'c' here would
+    // skip it.
     const repo = makeRepo({
       findRowsPaged: vi.fn(async () => [makeRow('a'), makeRow('b'), makeRow('c')]),
     })
     const result = await makeService(repo).listRows('u1', { pageId: 'db-page', limit: 2 })
     expect(result.rows.map((r) => r.rowId)).toEqual(['a', 'b'])
-    expect(result.nextCursor).toBe('c')
+    expect(result.nextCursor).toBe('b')
   })
 
   it('forwards the cursor to the repository', async () => {

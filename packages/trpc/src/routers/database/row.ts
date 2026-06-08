@@ -6,12 +6,25 @@ import { mapDomain } from '../../helpers/map-domain'
 import { domain as domainSvc } from '../../domain'
 
 export const rowRouter = router({
-  // Optional `query` filters rows by title / cell content (handled in the domain repo).
+  // View-aware, paginated row fetch. The optional `viewId` selects the view whose
+  // settings (filters/sorts/visibility) drive the server-side query; omitting it
+  // falls back to default TABLE settings. Returns `{ rows, nextCursor }`; pass
+  // `cursor` (the previous page's `nextCursor`) to page forward.
   list: protectedProcedure
     .input(domain.listRowsInput)
     .query(async ({ ctx, input }) => {
       await assertPageAccess(ctx, input.pageId)
       return mapDomain(() => domainSvc.database.listRows(ctx.user.id, input))
+    }),
+
+  // Grouped rows for the BOARD layout: one bucket per the view's groupBy option
+  // (plus a trailing null/empty bucket). No pagination — a focused board view is
+  // bounded in practice.
+  listGrouped: protectedProcedure
+    .input(domain.listGroupedRowsInput)
+    .query(async ({ ctx, input }) => {
+      await assertPageAccess(ctx, input.pageId)
+      return mapDomain(() => domainSvc.database.listGroupedRows(ctx.user.id, input))
     }),
 
   // Creates a real item Page (child TEXT page of the DATABASE page) + a row bridge.

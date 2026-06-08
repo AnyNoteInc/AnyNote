@@ -19,6 +19,7 @@ export const databaseRouter = router({
   listViews: viewRouter.list,
   createView: viewRouter.create,
   updateView: viewRouter.update,
+  duplicateView: viewRouter.duplicate,
   deleteView: viewRouter.delete,
 
   // Properties
@@ -30,6 +31,7 @@ export const databaseRouter = router({
 
   // Rows
   listRows: rowRouter.list,
+  listGroupedRows: rowRouter.listGrouped,
   createRow: rowRouter.create,
   updateRow: rowRouter.update,
   deleteRow: rowRouter.delete,
