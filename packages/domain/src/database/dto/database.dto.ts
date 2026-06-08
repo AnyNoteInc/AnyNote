@@ -218,6 +218,16 @@ export const reorderRowsInput = z.object({
 })
 export type ReorderRowsInput = z.infer<typeof reorderRowsInput>
 
+// Set a SINGLE row's fractional position (board drag computes the position with
+// positionBetween). Avoids reorderRows' whole-column position reassignment that
+// would otherwise contaminate the shared position space across board columns.
+export const setRowPositionInput = z.object({
+  pageId: z.string().uuid(),
+  rowId: z.string().uuid(),
+  position: z.number(),
+})
+export type SetRowPositionInput = z.infer<typeof setRowPositionInput>
+
 // ── Cell inputs ──────────────────────────────────────────────────────────────
 
 export const updateCellValueInput = z.object({

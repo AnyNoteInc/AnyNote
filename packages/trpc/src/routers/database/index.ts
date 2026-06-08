@@ -37,6 +37,7 @@ export const databaseRouter = router({
   deleteRow: rowRouter.delete,
   restoreRow: rowRouter.restore,
   reorderRows: rowRouter.reorder,
+  setRowPosition: rowRouter.setPosition,
 
   // Cells
   updateCellValue: cellRouter.updateValue,

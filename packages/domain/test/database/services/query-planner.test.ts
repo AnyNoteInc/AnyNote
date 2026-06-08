@@ -94,6 +94,26 @@ describe('buildRowQuery — __title__ filters', () => {
       AND: [{ page: { is: { title: { equals: 'Exact' } } } }],
     })
   })
+
+  it('is_not_empty → excludes BOTH null and the empty string (complement of is_empty)', () => {
+    const settings: ViewSettings = {
+      filters: {
+        conjunction: 'and',
+        conditions: [{ propertyId: '__title__', operator: 'is_not_empty' }],
+      },
+    }
+    const plan = buildRowQuery(settings, props)
+    expect(plan.where).toEqual({
+      AND: [
+        {
+          AND: [
+            { page: { is: { title: { not: null } } } },
+            { NOT: { page: { is: { title: { equals: '' } } } } },
+          ],
+        },
+      ],
+    })
+  })
 })
 
 describe('buildRowQuery — NUMBER filters', () => {

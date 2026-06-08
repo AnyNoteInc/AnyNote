@@ -175,6 +175,39 @@ describe('database views router (integration)', () => {
     expect(r2.rows.map((r) => r.title)).toEqual(['Banana'])
   })
 
+  // Empirical guard against the Prisma JSON-number-as-text footgun (issue #8224):
+  // a NUMBER `gt: 10` filter must compare numerically (20, 100 > 10) NOT
+  // lexically (where "9" > "10" as text). If Prisma cast the JSON to text this
+  // would wrongly include 9 and exclude 100 — this test would fail.
+  it('NUMBER gt filter compares numerically, not as text', async () => {
+    const fx = await seed()
+    const c = caller(fx.ownerId)
+    const num = await c.createProperty({ pageId: fx.pageId, type: 'NUMBER', name: 'Сумма' })
+    const r9 = await c.createRow({ pageId: fx.pageId, title: 'nine' })
+    const r20 = await c.createRow({ pageId: fx.pageId, title: 'twenty' })
+    const r100 = await c.createRow({ pageId: fx.pageId, title: 'hundred' })
+    await c.updateCellValue({ pageId: fx.pageId, rowId: r9.rowId, propertyId: num.id, value: 9 })
+    await c.updateCellValue({ pageId: fx.pageId, rowId: r20.rowId, propertyId: num.id, value: 20 })
+    await c.updateCellValue({ pageId: fx.pageId, rowId: r100.rowId, propertyId: num.id, value: 100 })
+
+    const view = (await c.listViews({ pageId: fx.pageId }))[0]!
+    await c.updateView({
+      pageId: fx.pageId,
+      id: view.id,
+      settings: {
+        filters: {
+          conjunction: 'and',
+          conditions: [{ propertyId: num.id, operator: 'gt', value: 10 }],
+        },
+      },
+    })
+
+    const result = await c.listRows({ pageId: fx.pageId, viewId: view.id })
+    const titles = result.rows.map((r) => r.title).sort()
+    // Numerically correct: 20 and 100 are > 10; 9 is not.
+    expect(titles).toEqual(['hundred', 'twenty'])
+  })
+
   it('listRows paginates via nextCursor', async () => {
     const fx = await seed()
     const c = caller(fx.ownerId)

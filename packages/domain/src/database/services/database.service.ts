@@ -19,6 +19,7 @@ import type {
   PropertySettings,
   ReorderPropertiesInput,
   ReorderRowsInput,
+  SetRowPositionInput,
   RowIdInput,
   SelectOption,
   UpdateCellValueInput,
@@ -481,24 +482,38 @@ export class DatabaseService {
     const plan = buildRowQuery(settings, properties)
 
     const limit = input.limit
-    // Over-fetch by 1 to detect a next page, plus headroom for JS post-filters:
-    // when MULTI_SELECT post-filters are active we can't know the DB count ahead,
-    // so without them take limit+1; with them, fetch limit+1 too and rely on
-    // the cursor advancing (documented MVP: post-filtered pages may be short).
-    const fetched = await this.repo.findRowsPaged({
-      sourceId: source.id,
-      where: plan.where,
-      orderBy: plan.orderBy,
-      take: limit + 1,
-      cursor: input.cursor,
-    })
+    const hasPostFilters = plan.multiSelectPostFilters.length > 0
 
-    const filtered = this.applyMultiSelectPostFilters(fetched, plan.multiSelectPostFilters)
-    const hasMore = filtered.length > limit
-    const pageRows = hasMore ? filtered.slice(0, limit) : filtered
+    // Without MULTI_SELECT post-filters: a single over-fetch of limit+1 detects
+    // the next page exactly. With post-filters (applied in JS after fetch): a
+    // whole DB batch can be eliminated, so we must keep fetching deeper batches
+    // until we have limit+1 surviving rows or the DB is exhausted — otherwise
+    // pagination would terminate early and silently drop matching rows.
+    const collected: Awaited<ReturnType<DatabaseRepository['findRowsPaged']>> = []
+    let cursor = input.cursor
+    // Batch size: limit+1 normally; larger headroom when post-filtering so we
+    // don't loop too many times on sparse matches.
+    const batchTake = hasPostFilters ? Math.min(limit * 5 + 1, 1000) : limit + 1
+    // Bound the loop so a pathological filter can't fetch the whole table.
+    const MAX_BATCHES = hasPostFilters ? 50 : 1
+    for (let i = 0; i < MAX_BATCHES; i += 1) {
+      const fetched = await this.repo.findRowsPaged({
+        sourceId: source.id,
+        where: plan.where,
+        orderBy: plan.orderBy,
+        take: batchTake,
+        cursor,
+      })
+      collected.push(...this.applyMultiSelectPostFilters(fetched, plan.multiSelectPostFilters))
+      if (fetched.length < batchTake) break // DB exhausted
+      if (collected.length > limit) break // enough survivors for this page + probe
+      cursor = fetched.at(-1)?.id // advance to the next DB batch
+    }
+
+    const hasMore = collected.length > limit
+    const pageRows = hasMore ? collected.slice(0, limit) : collected
     // Keyset cursor = the LAST row of THIS page (`findRowsPaged` re-anchors with
-    // `cursor: { id } , skip: 1`, so the next page starts at the row after it).
-    // Using `filtered[limit]` (the over-fetched probe row) would skip that row.
+    // `cursor: { id }, skip: 1`, so the next page starts at the row after it).
     const nextCursor = hasMore ? (pageRows.at(-1)?.id ?? null) : null
 
     return { rows: pageRows.map((r) => this.mapRow(r)), nextCursor }
@@ -638,6 +653,21 @@ export class DatabaseService {
     }
     const ordered = input.orderedIds.map((id, idx) => ({ id, position: (idx + 1) * POSITION_GAP }))
     await this.repo.reorderRows(ordered)
+    return { ok: true as const }
+  }
+
+  /**
+   * Set a single row's fractional position (board drag). Unlike reorderRows this
+   * touches only the dragged row, so positions in other board columns are left
+   * intact (no shared-position-space contamination).
+   */
+  async setRowPosition(actorUserId: string, input: SetRowPositionInput) {
+    await this.assertCanEdit(actorUserId, input.pageId)
+    const source = await this.requireSource(input.pageId)
+    const row = await this.repo.findRowById(input.rowId)
+    if (!row || row.sourceId !== source.id) throw notFound('Строка не найдена')
+    if (row.deletedAt) throw notFound('Строка удалена')
+    await this.repo.reorderRows([{ id: input.rowId, position: input.position }])
     return { ok: true as const }
   }
 

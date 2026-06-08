@@ -101,7 +101,11 @@ function buildCondition(
       case 'is_empty':
         return { OR: [{ page: { is: { title: null } } }, titleFilter({ equals: '' })] }
       case 'is_not_empty':
-        return { page: { is: { title: { not: null } } } }
+        // Must exclude both NULL and the empty string so it is the exact
+        // complement of is_empty (a title='' row is empty, not non-empty).
+        return {
+          AND: [{ page: { is: { title: { not: null } } } }, { NOT: titleFilter({ equals: '' }) }],
+        }
       default:
         return titleFilter({ contains: String(value ?? ''), mode: 'insensitive' })
     }

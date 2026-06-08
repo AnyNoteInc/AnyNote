@@ -112,7 +112,7 @@ export function DatabaseBoardView({
   }, [groupByProperty, data?.groups])
 
   const updateCellValue = trpc.database.updateCellValue.useMutation()
-  const reorderRows = trpc.database.reorderRows.useMutation()
+  const setRowPosition = trpc.database.setRowPosition.useMutation()
 
   function invalidate() {
     utils.database.listGroupedRows.invalidate({ pageId, viewId })
@@ -179,16 +179,11 @@ export function DatabaseBoardView({
           value: toKey,
         })
       }
-      // Persist the absolute ordering of the destination column (the only column
-      // whose positions changed). reorderRows takes the full ordered id list.
-      const orderedIds = [
-        ...destWithoutMoved.slice(0, result.destination.index).map((r) => r.rowId),
-        rowId,
-        ...destWithoutMoved.slice(result.destination.index).map((r) => r.rowId),
-      ]
-      if (orderedIds.length > 1) {
-        await reorderRows.mutateAsync({ pageId, orderedIds })
-      }
+      // Persist ONLY the dragged row's fractional position (computed above via
+      // positionBetween). This keeps each board column's positions isolated —
+      // reorderRows would reassign the whole column to N*1024 and contaminate the
+      // shared position space used by the table/list views.
+      await setRowPosition.mutateAsync({ pageId, rowId, position: newPosition })
       invalidate()
     } catch {
       invalidate()

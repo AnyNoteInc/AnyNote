@@ -63,4 +63,11 @@ export const rowRouter = router({
       await assertPageEditAccess(ctx, input.pageId)
       return mapDomain(() => domainSvc.database.reorderRows(ctx.user.id, input))
     }),
+
+  setPosition: protectedProcedure
+    .input(domain.setRowPositionInput)
+    .mutation(async ({ ctx, input }) => {
+      await assertPageEditAccess(ctx, input.pageId)
+      return mapDomain(() => domainSvc.database.setRowPosition(ctx.user.id, input))
+    }),
 })
