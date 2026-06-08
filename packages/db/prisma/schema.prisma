@@ -248,9 +248,13 @@ enum SprintStatus {
   COMPLETED
 }
 
-// Generic databases (Phase 3). BOARD|CALENDAR|LIST are reserved for Phase 4.
+// Generic databases. TABLE (Phase 3); BOARD/CALENDAR/LIST (Phase 4A).
+// TIMELINE/GALLERY/CHART/FEED/MAP/FORM remain roadmap-only (not added until built).
 enum DatabaseViewType {
   TABLE
+  BOARD
+  CALENDAR
+  LIST
 }
 
 enum DatabasePropertyType {
