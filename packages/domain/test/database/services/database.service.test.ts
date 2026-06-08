@@ -272,30 +272,22 @@ describe('DatabaseService.updateCellValue type validation', () => {
 describe('DatabaseService.getByPage', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('returns the view-model with source, views, properties, rows, and systemTitleProperty', async () => {
+  it('returns the schema view-model (source, views, properties, systemTitleProperty) with NO rows', async () => {
     const repo = makeRepo({
       findSourceByPageId: vi.fn(async () => ({
         source: { id: 'src1', workspaceId: 'w1', pageId: 'db-page', title: 'My DB' },
         views: [{ id: 'view1', type: 'TABLE', title: 'Таблица', position: 0, settings: null }],
         properties: [{ id: 'prop1', type: 'STATUS', name: 'Статус', position: 0, settings: { options: STATUS_OPTIONS } }],
-        rows: [
-          {
-            id: 'row1',
-            pageId: 'item-page',
-            position: 0,
-            page: { title: 'Строка 1', icon: '📄' },
-            cells: [{ propertyId: 'prop1', value: 'opt-doing' }],
-          },
-        ],
+        rows: [],
       })),
     })
     const vm = await makeService(repo).getByPage('u1', 'db-page')
     expect(vm.source.id).toBe('src1')
     expect(vm.views).toHaveLength(1)
     expect(vm.properties).toHaveLength(1)
-    expect(vm.rows[0]!.title).toBe('Строка 1')
-    expect(vm.rows[0]!.cells).toEqual({ prop1: 'opt-doing' })
     expect(vm.systemTitleProperty.key).toBe('title')
+    // Rows moved to listRows (Phase 4A fetch split) — getByPage is schema-only.
+    expect('rows' in vm).toBe(false)
   })
 
   it('throws NOT_FOUND when the page has no source', async () => {
@@ -437,8 +429,8 @@ describe('DatabaseService.listRows', () => {
         },
       ]),
     })
-    const rows = await makeService(repo).listRows('u1', { pageId: 'db-page' })
-    expect(rows[0]).toEqual({
+    const result = await makeService(repo).listRows('u1', { pageId: 'db-page', limit: 100 })
+    expect(result.rows[0]).toEqual({
       rowId: 'row1',
       pageId: 'item-page',
       title: 'Строка',
@@ -446,11 +438,5 @@ describe('DatabaseService.listRows', () => {
       position: 0,
       cells: { prop1: 'opt-doing' },
     })
-  })
-
-  it('passes the query through to the repository', async () => {
-    const repo = makeRepo()
-    await makeService(repo).listRows('u1', { pageId: 'db-page', query: 'apple' })
-    expect(repo.findRowsBySource).toHaveBeenCalledWith('src1', 'apple')
   })
 })

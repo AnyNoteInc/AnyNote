@@ -36,6 +36,76 @@ export const propertySettingsSchema = z.object({
 })
 export type PropertySettings = z.infer<typeof propertySettingsSchema>
 
+// ── View settings (filters / sorts / groupBy / visibility / layout) ──────────
+// Validated blob persisted in DatabaseView.settings. Consumed by the pure
+// query-planner (filters/sorts → Prisma where/orderBy). `'__title__'` is the
+// sentinel propertyId for the implicit system Page.title column.
+
+export const TITLE_SENTINEL = '__title__' as const
+
+export const filterOperatorSchema = z.enum([
+  'equals',
+  'not_equals',
+  'contains',
+  'not_contains',
+  'is_empty',
+  'is_not_empty',
+  'gt',
+  'gte',
+  'lt',
+  'lte',
+  'before',
+  'after',
+  'on',
+  'is_checked',
+  'is_not_checked',
+  'is_any_of',
+  'is_none_of',
+])
+export type FilterOperator = z.infer<typeof filterOperatorSchema>
+
+export const filterConditionSchema = z.object({
+  propertyId: z.string(),
+  operator: filterOperatorSchema,
+  // Shape depends on the operator/property type; validated structurally only.
+  value: z.unknown().optional(),
+})
+export type FilterCondition = z.infer<typeof filterConditionSchema>
+
+// Recursive group: conditions may themselves be nested groups.
+export interface FilterGroup {
+  conjunction: 'and' | 'or'
+  conditions: Array<FilterCondition | FilterGroup>
+}
+
+export const filterGroupSchema: z.ZodType<FilterGroup> = z.lazy(() =>
+  z.object({
+    conjunction: z.enum(['and', 'or']),
+    conditions: z.array(z.union([filterConditionSchema, filterGroupSchema])),
+  }),
+)
+
+export const sortSchema = z.object({
+  propertyId: z.string(),
+  direction: z.enum(['asc', 'desc']),
+})
+export type Sort = z.infer<typeof sortSchema>
+
+export const viewSettingsSchema = z.object({
+  filters: filterGroupSchema.optional(),
+  sorts: z.array(sortSchema).optional(),
+  groupBy: z.object({ propertyId: z.string() }).nullable().optional(),
+  // Display-only column visibility; null/absent = all properties visible.
+  visibleProperties: z.array(z.string()).optional(),
+  layout: z
+    .object({
+      datePropertyId: z.string().optional(),
+      cardProperties: z.array(z.string()).optional(),
+    })
+    .optional(),
+})
+export type ViewSettings = z.infer<typeof viewSettingsSchema>
+
 const propertyTypeEnum = z.nativeEnum(DatabasePropertyType)
 const viewTypeEnum = z.nativeEnum(DatabaseViewType)
 
@@ -59,9 +129,15 @@ export const updateViewInput = z.object({
   pageId: z.string().uuid(),
   id: z.string().uuid(),
   title: z.string().min(1).max(200).optional(),
-  settings: z.unknown().optional(),
+  settings: viewSettingsSchema.optional(),
 })
 export type UpdateViewInput = z.infer<typeof updateViewInput>
+
+export const duplicateViewInput = z.object({
+  pageId: z.string().uuid(),
+  viewId: z.string().uuid(),
+})
+export type DuplicateViewInput = z.infer<typeof duplicateViewInput>
 
 export const viewIdInput = z.object({
   pageId: z.string().uuid(),
@@ -124,9 +200,17 @@ export type RowIdInput = z.infer<typeof rowIdInput>
 
 export const listRowsInput = z.object({
   pageId: z.string().uuid(),
-  query: z.string().optional(),
+  viewId: z.string().uuid().optional(),
+  cursor: z.string().optional(),
+  limit: z.number().int().min(1).max(200).default(100),
 })
 export type ListRowsInput = z.infer<typeof listRowsInput>
+
+export const listGroupedRowsInput = z.object({
+  pageId: z.string().uuid(),
+  viewId: z.string().uuid(),
+})
+export type ListGroupedRowsInput = z.infer<typeof listGroupedRowsInput>
 
 export const reorderRowsInput = z.object({
   pageId: z.string().uuid(),
@@ -191,6 +275,21 @@ export interface DatabaseGetByPageResult {
   source: DatabaseSourceView
   views: DatabaseViewModel[]
   properties: DatabasePropertyView[]
-  rows: DatabaseRowView[]
   systemTitleProperty: SystemTitleProperty
+}
+
+/** Paginated row page returned by `listRows`. `nextCursor` is null on the last page. */
+export interface ListRowsResult {
+  rows: DatabaseRowView[]
+  nextCursor: string | null
+}
+
+/** Grouped rows for the BOARD layout: one bucket per groupBy option + a null group. */
+export interface GroupedRowsResult {
+  groups: Array<{
+    key: string | null
+    label: string
+    color: string | null
+    rows: DatabaseRowView[]
+  }>
 }

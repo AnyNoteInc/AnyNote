@@ -10,6 +10,7 @@ import type {
   CreateViewInput,
   DatabaseGetByPageResult,
   ListRowsInput,
+  ListRowsResult,
   PropertyIdInput,
   PropertySettings,
   ReorderPropertiesInput,
@@ -163,14 +164,6 @@ export class DatabaseService {
         name: p.name,
         position: p.position,
         settings: asSettings(p.settings),
-      })),
-      rows: loaded.rows.map((r) => ({
-        rowId: r.id,
-        pageId: r.pageId,
-        title: r.page.title,
-        icon: r.page.icon,
-        position: r.position,
-        cells: Object.fromEntries(r.cells.map((c) => [c.propertyId, c.value])),
       })),
       systemTitleProperty: { key: 'title', name: 'Название' },
     }
@@ -372,18 +365,22 @@ export class DatabaseService {
 
   // ── Rows (create/title/delete bridge implemented in A4) ──────────────────────
 
-  async listRows(actorUserId: string, input: ListRowsInput) {
+  async listRows(actorUserId: string, input: ListRowsInput): Promise<ListRowsResult> {
+    // NOTE: A2 placeholder — the view-aware paginated implementation lands in C2.
     await this.assertCanRead(actorUserId, input.pageId)
     const source = await this.requireSource(input.pageId)
-    const rows = await this.repo.findRowsBySource(source.id, input.query)
-    return rows.map((r) => ({
-      rowId: r.id,
-      pageId: r.pageId,
-      title: r.page.title,
-      icon: r.page.icon,
-      position: r.position,
-      cells: Object.fromEntries(r.cells.map((c) => [c.propertyId, c.value])),
-    }))
+    const rows = await this.repo.findRowsBySource(source.id)
+    return {
+      rows: rows.map((r) => ({
+        rowId: r.id,
+        pageId: r.pageId,
+        title: r.page.title,
+        icon: r.page.icon,
+        position: r.position,
+        cells: Object.fromEntries(r.cells.map((c) => [c.propertyId, c.value])),
+      })),
+      nextCursor: null,
+    }
   }
 
   async createRow(actorUserId: string, input: CreateRowInput): Promise<{ rowId: string; pageId: string }> {
