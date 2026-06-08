@@ -253,6 +253,20 @@ describe('DatabaseService.updateCellValue type validation', () => {
       }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
   })
+
+  it('throws NOT_FOUND when the row is soft-deleted', async () => {
+    const repo = makeRepo({
+      findRowById: vi.fn(async () => ({
+        id: 'row1', sourceId: 'src1', pageId: 'item-page', deletedAt: new Date('2026-06-08T00:00:00Z'),
+      })),
+    })
+    await expect(
+      makeService(repo).updateCellValue('u1', {
+        pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'x',
+      }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    expect(repo.upsertCellValue).not.toHaveBeenCalled()
+  })
 })
 
 describe('DatabaseService.getByPage', () => {

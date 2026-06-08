@@ -302,6 +302,7 @@ export class DatabaseService {
     ])
     if (!prop || prop.sourceId !== source.id) throw notFound('Свойство не найдено')
     if (!row || row.sourceId !== source.id) throw notFound('Строка не найдена')
+    if (row.deletedAt) throw notFound('Строка удалена')
 
     // DATE cells may arrive via the coerced dateValue field.
     const rawValue =
@@ -415,6 +416,7 @@ export class DatabaseService {
     const source = await this.requireSource(input.pageId)
     const row = await this.repo.findRowById(input.rowId)
     if (!row || row.sourceId !== source.id) throw notFound('Строка не найдена')
+    if (row.deletedAt) throw notFound('Строка удалена')
     await this.uow.transaction(async () => {
       if (input.title !== undefined) {
         await this.repo.updatePageTitle(row.pageId, input.title, actorUserId)
@@ -431,6 +433,7 @@ export class DatabaseService {
     const source = await this.requireSource(input.pageId)
     const row = await this.repo.findRowById(input.rowId)
     if (!row || row.sourceId !== source.id) throw notFound('Строка не найдена')
+    if (row.deletedAt) throw notFound('Строка удалена')
     await this.uow.transaction(async () => {
       await this.repo.softDeleteRow(input.rowId, actorUserId)
       await this.repo.softDeleteItemPage(row.pageId, actorUserId, page.workspaceId)
