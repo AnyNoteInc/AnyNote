@@ -87,14 +87,14 @@ INSERT INTO "collections" ("id", "workspace_id", "kind", "title", "owner_id", "p
 SELECT gen_random_uuid(), m."workspace_id", 'PERSONAL', 'Личное', m."user_id", 0, now(), now()
 FROM "workspace_members" m;
 
--- Backfill: legacy pages (no collection, not template-backing) -> their workspace TEAM collection
+-- Backfill: legacy pages (no collection, not a template page) -> their workspace TEAM collection
 UPDATE "pages" p
 SET "collection_id" = c."id"
 FROM "collections" c
 WHERE c."workspace_id" = p."workspace_id"
   AND c."kind" = 'TEAM' AND c."owner_id" IS NULL
   AND p."collection_id" IS NULL
-  AND p."is_template_backing" = false;
+  AND p."is_template" IS NULL;
 
 -- Preserve existing page-level archive state before dropping the boolean column
 UPDATE "pages" SET "archived_at" = now() WHERE "archived" = true;
