@@ -1,3 +1,4 @@
+import type { Metadata } from 'next'
 import { notFound } from 'next/navigation'
 import { randomUUID } from 'node:crypto'
 
@@ -6,12 +7,50 @@ import { Box, Button, PublicIcon, Stack, Typography } from '@repo/ui/components'
 
 import { getSession } from '@/lib/get-session'
 import { resolveShareAccess } from '@/lib/share-access'
+import { shareRobots } from '@/lib/share-metadata'
 import { PageCommentsProvider } from '@/components/page/comments/comments-context'
 import { CommentToggleButton } from '@/components/page/comments/comment-toggle-button'
 import { CommentsSidebar } from '@/components/page/comments/comments-sidebar'
 import { ShareUnavailable, SharePasswordGate } from '@/components/share/share-unavailable'
 
 import { SharePageClient } from './share-page-client'
+
+// Per-page robots policy (replaces the old blanket layout-level noindex). A
+// share is indexable only when it is a published SITE with `allowIndexing` on —
+// derived from the public publish state, independent of who is viewing. Robots
+// must NOT depend on a privileged member's bypass, so we read the raw publish
+// columns here rather than the access-resolved view.
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ shareId: string }>
+}): Promise<Metadata> {
+  const { shareId } = await params
+  const share = await prisma.pageShare.findUnique({
+    where: { shareId },
+    select: {
+      mode: true,
+      publishedAt: true,
+      unpublishedAt: true,
+      allowIndexing: true,
+      page: { select: { title: true } },
+    },
+  })
+
+  const published =
+    share?.publishedAt != null &&
+    (share.unpublishedAt == null || share.unpublishedAt.getTime() < share.publishedAt.getTime())
+  const { index } = shareRobots({
+    mode: (share?.mode as 'LINK' | 'SITE') ?? 'LINK',
+    published,
+    allowIndexing: share?.allowIndexing ?? false,
+  })
+
+  return {
+    title: share?.page.title || 'Общий доступ',
+    robots: { index, follow: index },
+  }
+}
 
 const COLORS = ['#1976d2', '#9c27b0', '#2e7d32', '#ed6c02', '#0288d1', '#d32f2f']
 const ANIMALS = ['Лис', 'Кот', 'Барс', 'Сокол', 'Ёж', 'Бобр', 'Тур', 'Краб']
