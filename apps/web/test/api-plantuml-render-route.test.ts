@@ -22,9 +22,9 @@ describe('POST /api/plantuml/render', () => {
   it('allows an anonymous public share viewer to render PlantUML', async () => {
     mocks.getSession.mockResolvedValue(null)
     mocks.resolveShareAccess.mockResolvedValue({
-      share: { id: 'share-row' },
-      page: { id: 'page-1' },
+      kind: 'public',
       role: 'READER',
+      page: { id: 'page-1' },
     })
 
     const response = await POST(
@@ -41,7 +41,7 @@ describe('POST /api/plantuml/render', () => {
 
   it('still rejects anonymous renders without a valid share', async () => {
     mocks.getSession.mockResolvedValue(null)
-    mocks.resolveShareAccess.mockResolvedValue({ share: null, page: null, role: null })
+    mocks.resolveShareAccess.mockResolvedValue({ kind: 'not_found' })
 
     const response = await POST(
       new Request('http://localhost/api/plantuml/render', {

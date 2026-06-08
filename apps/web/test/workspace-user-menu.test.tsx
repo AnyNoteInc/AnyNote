@@ -65,6 +65,7 @@ const features = {
   customAiProvidersEnabled: false,
   prioritySupport: false,
   developerSpaceEnabled: false,
+  publicSitesEnabled: false,
 } as const
 
 describe('WorkspaceUserMenu', () => {

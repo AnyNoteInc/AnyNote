@@ -24,11 +24,13 @@ function hash(s: string): number {
 export default async function SharePage({ params }: { params: Promise<{ shareId: string }> }) {
   const { shareId } = await params
   const session = await getSession()
-  const { share, page, role } = await resolveShareAccess(prisma, shareId, session)
+  const resolved = await resolveShareAccess(prisma, shareId, session)
 
-  if (!share || !page) notFound()
+  if (resolved.kind === 'not_found') notFound()
 
-  if (!role) {
+  // TODO(D1): replace this single "Нет доступа" screen with per-reason screens
+  // (disabled / unpublished / expired / not-yet-exposed / password gate).
+  if (resolved.kind === 'unavailable') {
     return (
       <Box
         sx={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', p: 3 }}
@@ -49,6 +51,7 @@ export default async function SharePage({ params }: { params: Promise<{ shareId:
     )
   }
 
+  const { page, role } = resolved
   const editable = role === 'EDITOR' || role === 'OWNER'
   const contentYjs = page.contentYjs ? Buffer.from(page.contentYjs).toString('base64') : null
 

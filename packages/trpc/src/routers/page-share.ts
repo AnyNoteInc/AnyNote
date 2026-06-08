@@ -2,9 +2,9 @@ import { randomBytes } from 'node:crypto'
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 
-import { hashSharePassword } from '@repo/domain'
+import { hashSharePassword, verifySharePassword } from '@repo/domain'
 
-import { router, protectedProcedure } from '../trpc'
+import { router, protectedProcedure, publicProcedure } from '../trpc'
 import { assertCanManageShare } from '../helpers/page-access'
 import { getWorkspaceFeatures } from '../helpers/plan'
 
@@ -249,6 +249,20 @@ export const pageShareRouter = router({
         select: { id: true },
       })
       return { ok: true, hasPassword: false }
+    }),
+
+  // Public (unauthenticated): a visitor on the password gate submits a candidate
+  // password for a shareId. Returns only a boolean — never the hash, never the
+  // page. `{ valid: false }` when the share is missing or has no password set.
+  validateSharePassword: publicProcedure
+    .input(z.object({ shareId: z.string(), password: z.string() }))
+    .mutation(async ({ ctx, input }) => {
+      const share = await ctx.prisma.pageShare.findUnique({
+        where: { shareId: input.shareId },
+        select: { passwordHash: true },
+      })
+      if (!share?.passwordHash) return { valid: false }
+      return { valid: verifySharePassword(input.password, share.passwordHash) }
     }),
 
   addUser: protectedProcedure

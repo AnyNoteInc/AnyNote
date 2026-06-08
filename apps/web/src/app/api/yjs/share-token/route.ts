@@ -17,8 +17,11 @@ export async function POST(req: NextRequest): Promise<NextResponse> {
   if (!shareId) return NextResponse.json({ error: 'shareId required' }, { status: 400 })
 
   const session = await getSession()
-  const { page, role } = await resolveShareAccess(prisma, shareId, session)
-  if (!page || !role) return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  const resolved = await resolveShareAccess(prisma, shareId, session)
+  if (resolved.kind === 'not_found' || resolved.kind === 'unavailable') {
+    return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
+  }
+  const { page, role } = resolved
 
   const sub = session?.user?.id ?? `anon:${randomUUID()}`
   const name = session?.user

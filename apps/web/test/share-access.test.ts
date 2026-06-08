@@ -4,6 +4,9 @@ import { describe, expect, it, vi } from 'vitest'
 // so share-access.ts can be imported here without a per-file mock.
 import { resolveShareAccess, mapMemberRole } from '@/lib/share-access'
 
+// Full page row used both by the web resolver's own fast-path query and by the
+// domain ShareAccessRepository (a superset that satisfies both `select`s — the
+// mock ignores the select and returns the whole object).
 const PAGE = {
   id: 'p1',
   type: 'TEXT',
@@ -12,22 +15,56 @@ const PAGE = {
   contentYjs: null,
   workspaceId: 'w1',
   createdById: 'owner',
+  parentId: null,
+  collectionId: null,
+  archivedAt: null,
+  deletedAt: null,
+}
+
+// A share row carrying every field the domain repository selects, plus the
+// `id` + `page` the web resolver reads. `mode: 'LINK'` so public availability
+// is governed purely by `access`.
+function shareRow(overrides: Record<string, unknown> = {}) {
+  return {
+    id: 's-id',
+    shareId: 's',
+    access: 'RESTRICTED',
+    linkRole: 'READER',
+    mode: 'LINK',
+    expiresAt: null,
+    publishedAt: null,
+    unpublishedAt: null,
+    allowIndexing: false,
+    allowCopy: false,
+    publishSubpages: true,
+    analyticsGoogleId: null,
+    analyticsYandexMetricaId: null,
+    passwordHash: null,
+    exposesAt: null,
+    page: PAGE,
+    ...overrides,
+  }
 }
 
 function prismaWith(opts: {
   share: unknown
   member?: { role: string } | null
   grant?: { role: string } | null
+  page?: unknown
 }) {
   return {
     pageShare: { findUnique: vi.fn(async () => opts.share) },
     workspaceMember: { findUnique: vi.fn(async () => opts.member ?? null) },
     pageShareUser: { findFirst: vi.fn(async () => opts.grant ?? null) },
+    page: {
+      findUnique: vi.fn(async () => opts.page ?? PAGE),
+      findFirst: vi.fn(async () => opts.page ?? PAGE),
+    },
   } as never
 }
 
-const shareRestricted = { id: 's-id', shareId: 's', access: 'RESTRICTED', linkRole: 'READER', page: PAGE }
-const sharePublicEditor = { id: 's-id', shareId: 's', access: 'PUBLIC', linkRole: 'EDITOR', page: PAGE }
+const shareRestricted = shareRow()
+const sharePublicEditor = shareRow({ access: 'PUBLIC', linkRole: 'EDITOR' })
 
 describe('mapMemberRole', () => {
   it('maps workspace roles to effective roles', () => {
@@ -43,19 +80,22 @@ describe('mapMemberRole', () => {
 describe('resolveShareAccess', () => {
   it('returns not_found when no share exists', async () => {
     const res = await resolveShareAccess(prismaWith({ share: null }), 's', null)
-    expect(res.share).toBeNull()
-    expect(res.role).toBeNull()
+    expect(res.kind).toBe('not_found')
   })
 
-  it('denies anonymous on a restricted page', async () => {
+  it('denies anonymous on a restricted page (unavailable/disabled)', async () => {
     const res = await resolveShareAccess(prismaWith({ share: shareRestricted }), 's', null)
-    expect(res.role).toBeNull()
-    expect(res.page).not.toBeNull()
+    expect(res.kind).toBe('unavailable')
+    if (res.kind === 'unavailable') expect(res.reason).toBe('disabled')
   })
 
-  it('gives anonymous the link role on a public page', async () => {
+  it('gives anonymous the public role on a public link page', async () => {
     const res = await resolveShareAccess(prismaWith({ share: sharePublicEditor }), 's', null)
-    expect(res.role).toBe('EDITOR')
+    expect(res.kind).toBe('public')
+    if (res.kind === 'public') {
+      expect(res.role).toBe('EDITOR')
+      expect(res.page.id).toBe('p1')
+    }
   })
 
   it('prefers workspace membership over link role', async () => {
@@ -65,7 +105,8 @@ describe('resolveShareAccess', () => {
       's',
       session,
     )
-    expect(res.role).toBe('READER') // VIEWER beats public EDITOR link
+    expect(res.kind).toBe('member')
+    if (res.kind === 'member') expect(res.role).toBe('READER') // VIEWER beats public EDITOR link
   })
 
   it('uses a named grant when not a member, scoped to this share + user', async () => {
@@ -75,9 +116,11 @@ describe('resolveShareAccess', () => {
       pageShare: { findUnique: vi.fn(async () => shareRestricted) },
       workspaceMember: { findUnique: vi.fn(async () => null) },
       pageShareUser,
+      page: { findUnique: vi.fn(async () => PAGE), findFirst: vi.fn(async () => PAGE) },
     } as never
     const res = await resolveShareAccess(prisma, 's', session)
-    expect(res.role).toBe('COMMENTER')
+    expect(res.kind).toBe('grant')
+    if (res.kind === 'grant') expect(res.role).toBe('COMMENTER')
     // Grant lookup must be scoped to this share + this user (no cross-page leak).
     expect(pageShareUser.findFirst).toHaveBeenCalledWith({
       where: { pageShareId: 's-id', userId: 'u1' },
@@ -92,21 +135,40 @@ describe('resolveShareAccess', () => {
       pageShare: { findUnique: vi.fn(async () => shareRestricted) },
       workspaceMember: { findUnique: vi.fn(async () => ({ role: 'VIEWER' })) },
       pageShareUser,
+      page: { findUnique: vi.fn(async () => PAGE), findFirst: vi.fn(async () => PAGE) },
     } as never
     const res = await resolveShareAccess(prisma, 's', session)
-    expect(res.role).toBe('READER') // VIEWER membership wins over the EDITOR grant
+    expect(res.kind).toBe('member')
+    if (res.kind === 'member') expect(res.role).toBe('READER') // VIEWER membership wins over the EDITOR grant
     expect(pageShareUser.findFirst).not.toHaveBeenCalled()
   })
 
   it('gives anonymous COMMENTER on a public commenter link', async () => {
-    const sharePublicCommenter = {
-      id: 's-id',
-      shareId: 's',
-      access: 'PUBLIC',
-      linkRole: 'COMMENTER',
-      page: PAGE,
-    }
+    const sharePublicCommenter = shareRow({ access: 'PUBLIC', linkRole: 'COMMENTER' })
     const res = await resolveShareAccess(prismaWith({ share: sharePublicCommenter }), 's', null)
-    expect(res.role).toBe('COMMENTER')
+    expect(res.kind).toBe('public')
+    if (res.kind === 'public') expect(res.role).toBe('COMMENTER')
+  })
+
+  it('reports unavailable/expired for an expired public link', async () => {
+    const expired = shareRow({
+      access: 'PUBLIC',
+      linkRole: 'READER',
+      expiresAt: new Date(Date.now() - 1000),
+    })
+    const res = await resolveShareAccess(prismaWith({ share: expired }), 's', null)
+    expect(res.kind).toBe('unavailable')
+    if (res.kind === 'unavailable') expect(res.reason).toBe('expired')
+  })
+
+  it('reports unavailable/password_required for a SITE with a password', async () => {
+    const sited = shareRow({
+      mode: 'SITE',
+      publishedAt: new Date(Date.now() - 1000),
+      passwordHash: 'salt:deadbeef',
+    })
+    const res = await resolveShareAccess(prismaWith({ share: sited }), 's', null)
+    expect(res.kind).toBe('unavailable')
+    if (res.kind === 'unavailable') expect(res.reason).toBe('password_required')
   })
 })

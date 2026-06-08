@@ -35,8 +35,8 @@ export async function POST(req: Request) {
     if (!body.shareId) {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
     }
-    const { page, role } = await resolveShareAccess(prisma, body.shareId, null)
-    if (!page || !role) {
+    const resolved = await resolveShareAccess(prisma, body.shareId, null)
+    if (resolved.kind === 'not_found' || resolved.kind === 'unavailable') {
       return NextResponse.json({ ok: false, error: 'Unauthorized' }, { status: 401 })
     }
   }
