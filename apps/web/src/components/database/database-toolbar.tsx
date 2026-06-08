@@ -1,21 +1,29 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import {
   AddIcon,
   Box,
   Button,
+  FilterListIcon,
   InputBase,
   Menu,
   MenuItem,
+  Popover,
   SearchIcon,
   Stack,
+  SwapVertIcon,
+  TuneIcon,
 } from '@repo/ui/components'
 import type { DatabasePropertyType } from '@repo/db'
 
 import { trpc } from '@/trpc/client'
 
+import { parseViewSettings } from './types'
 import type { DatabaseSchema, DatabaseViewEntry } from './types'
+import { DatabaseFilterBuilder } from './view-config/database-filter-builder'
+import { DatabaseSortBuilder } from './view-config/database-sort-builder'
+import { PropertyVisibilityPanel } from './view-config/property-visibility-panel'
 
 interface DatabaseToolbarProps {
   readonly pageId: string
@@ -47,14 +55,25 @@ const PROPERTY_TYPE_DEFAULT_NAME: Partial<Record<DatabasePropertyType, string>> 
   DATE: 'Дата',
 }
 
+type ConfigPanel = 'filter' | 'sort' | 'visibility'
+
 export function DatabaseToolbar({
   pageId,
+  view,
+  properties,
+  systemTitleProperty,
   search,
   onSearchChange,
   editable = true,
 }: DatabaseToolbarProps) {
   const utils = trpc.useUtils()
   const [propAnchorEl, setPropAnchorEl] = useState<HTMLElement | null>(null)
+  const [configAnchorEl, setConfigAnchorEl] = useState<HTMLElement | null>(null)
+  const [configPanel, setConfigPanel] = useState<ConfigPanel | null>(null)
+
+  const settings = useMemo(() => parseViewSettings(view.settings), [view.settings])
+  const activeFilterCount = settings.filters?.conditions.length ?? 0
+  const activeSortCount = settings.sorts?.length ?? 0
 
   // createRow touches the rows (listRows); createProperty touches the schema
   // (getByPage). Invalidate both so either surface refreshes.
@@ -81,6 +100,15 @@ export function DatabaseToolbar({
           }
         : undefined
     createProperty.mutate({ pageId, type, name, ...(optionSettings ? { settings: optionSettings } : {}) })
+  }
+
+  function openConfig(panel: ConfigPanel, anchor: HTMLElement) {
+    setConfigPanel(panel)
+    setConfigAnchorEl(anchor)
+  }
+
+  function closeConfig() {
+    setConfigAnchorEl(null)
   }
 
   return (
@@ -110,6 +138,35 @@ export function DatabaseToolbar({
           sx={{ fontSize: 14, flex: 1 }}
         />
       </Box>
+
+      {editable ? (
+        <>
+          <Button
+            size="small"
+            color={activeFilterCount > 0 ? 'primary' : 'inherit'}
+            startIcon={<FilterListIcon />}
+            onClick={(e) => openConfig('filter', e.currentTarget)}
+          >
+            Фильтр{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+          </Button>
+          <Button
+            size="small"
+            color={activeSortCount > 0 ? 'primary' : 'inherit'}
+            startIcon={<SwapVertIcon />}
+            onClick={(e) => openConfig('sort', e.currentTarget)}
+          >
+            Сортировка{activeSortCount > 0 ? ` (${activeSortCount})` : ''}
+          </Button>
+          <Button
+            size="small"
+            color="inherit"
+            startIcon={<TuneIcon />}
+            onClick={(e) => openConfig('visibility', e.currentTarget)}
+          >
+            Свойства
+          </Button>
+        </>
+      ) : null}
 
       <Box sx={{ flex: 1 }} />
 
@@ -141,6 +198,38 @@ export function DatabaseToolbar({
               </MenuItem>
             ))}
           </Menu>
+
+          <Popover
+            open={Boolean(configAnchorEl)}
+            anchorEl={configAnchorEl}
+            onClose={closeConfig}
+            anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
+          >
+            {configPanel === 'filter' ? (
+              <DatabaseFilterBuilder
+                pageId={pageId}
+                view={view}
+                properties={properties}
+                systemTitleProperty={systemTitleProperty}
+              />
+            ) : null}
+            {configPanel === 'sort' ? (
+              <DatabaseSortBuilder
+                pageId={pageId}
+                view={view}
+                properties={properties}
+                systemTitleProperty={systemTitleProperty}
+              />
+            ) : null}
+            {configPanel === 'visibility' ? (
+              <PropertyVisibilityPanel
+                pageId={pageId}
+                view={view}
+                properties={properties}
+                systemTitleProperty={systemTitleProperty}
+              />
+            ) : null}
+          </Popover>
         </>
       ) : null}
     </Stack>
