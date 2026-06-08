@@ -248,6 +248,23 @@ enum SprintStatus {
   COMPLETED
 }
 
+// Generic databases (Phase 3). BOARD|CALENDAR|LIST are reserved for Phase 4.
+enum DatabaseViewType {
+  TABLE
+}
+
+enum DatabasePropertyType {
+  TEXT
+  NUMBER
+  STATUS
+  SELECT
+  MULTI_SELECT
+  CHECKBOX
+  DATE
+  PERSON
+  FILE
+}
+
 enum TaskActivityType {
   CREATED
   MOVED
@@ -365,6 +382,7 @@ model Workspace {
   limits                WorkspaceLimit?
   aiProviders           AiProvider[]           @relation("WorkspaceAiProviders")
   collections           Collection[]
+  databaseSources       DatabaseSource[]
 
   @@index([createdById])
   @@map("workspaces")
@@ -442,6 +460,8 @@ model Page {
   sprints              Sprint[]
   tasks                Task[]
   templateTags         PageTemplateTag[]
+  databaseSource       DatabaseSource?     @relation("DatabaseSourcePage")
+  databaseRow          DatabaseRow?        @relation("DatabaseRowPage")
 
   @@index([workspaceId])
   @@index([parentId])
@@ -1405,6 +1425,95 @@ model TaskAttachment {
   @@index([fileId])
   @@index([taskId, createdAt])
   @@map("task_attachments")
+}
+
+// ---------------------------------------------------------------------------
+// Generic databases (Phase 3). A DATABASE page owns one DatabaseSource; the
+// source is a collection of item Pages bridged by DatabaseRow. The Title/Name
+// column is the item Page.title (a system property, NOT a DatabaseProperty).
+// Kanban (Task) models are intentionally NOT reused here.
+// ---------------------------------------------------------------------------
+
+model DatabaseSource {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  pageId      String   @unique @map("page_id") @db.Uuid
+  title       String?  @db.Text
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace  Workspace          @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  page       Page               @relation("DatabaseSourcePage", fields: [pageId], references: [id], onDelete: Cascade)
+  views      DatabaseView[]
+  properties DatabaseProperty[]
+  rows       DatabaseRow[]
+
+  @@index([workspaceId])
+  @@map("database_sources")
+}
+
+model DatabaseView {
+  id       String           @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sourceId String           @map("source_id") @db.Uuid
+  type     DatabaseViewType @default(TABLE)
+  title    String           @db.Text
+  position Int              @default(0)
+  settings Json?
+
+  source DatabaseSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+
+  @@index([sourceId])
+  @@map("database_views")
+}
+
+model DatabaseProperty {
+  id       String               @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sourceId String               @map("source_id") @db.Uuid
+  type     DatabasePropertyType
+  name     String               @db.Text
+  position Int                  @default(0)
+  settings Json?
+
+  source DatabaseSource      @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  cells  DatabaseCellValue[]
+
+  @@index([sourceId])
+  @@map("database_properties")
+}
+
+model DatabaseRow {
+  id          String    @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  sourceId    String    @map("source_id") @db.Uuid
+  pageId      String    @unique @map("page_id") @db.Uuid
+  position    Int       @default(0)
+  deletedAt   DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdById String?   @map("created_by_id") @db.Uuid
+  updatedById String?   @map("updated_by_id") @db.Uuid
+  createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  source DatabaseSource      @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  page   Page                @relation("DatabaseRowPage", fields: [pageId], references: [id], onDelete: Cascade)
+  cells  DatabaseCellValue[]
+
+  @@index([sourceId, position])
+  @@index([pageId])
+  @@map("database_rows")
+}
+
+model DatabaseCellValue {
+  id         String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  rowId      String   @map("row_id") @db.Uuid
+  propertyId String   @map("property_id") @db.Uuid
+  value      Json?
+  updatedAt  DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  row      DatabaseRow      @relation(fields: [rowId], references: [id], onDelete: Cascade)
+  property DatabaseProperty @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+
+  @@unique([rowId, propertyId])
+  @@index([rowId])
+  @@map("database_cell_values")
 }
 
 model WorkspaceMcpServer {
