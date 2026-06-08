@@ -9,7 +9,8 @@ test('workspace + settings happy path', async ({ page }) => {
   await page.getByRole('textbox', { name: 'Название' }).fill('Рабочее пространство')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
 
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+$/)
+  // Creation redirects through /app to a neutral URL (first page or /chats/new).
+  await page.waitForURL(/\/(pages|chats)\//)
   await expect(page.getByRole('heading', { name: 'Добро пожаловать в AnyNote' })).toBeVisible()
 
   await page.getByText('Тест Ревьюер', { exact: true }).click()
@@ -32,7 +33,9 @@ test('workspace + settings happy path', async ({ page }) => {
   await page.keyboard.press('Escape')
 
   await page.getByRole('link', { name: 'Настройки' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/settings\/general$/)
+  // Settings live at a neutral route now (no /workspaces/{id} prefix);
+  // /settings redirects to /settings/general.
+  await page.waitForURL(/\/settings\/general$/)
   await expect(page.getByRole('heading', { name: 'Общее' })).toBeVisible()
 })
 
@@ -41,8 +44,10 @@ test('free plan blocks second workspace create', async ({ page }) => {
   await signUpAndAuthAs(page, { email, password, firstName: 'Тест', lastName: 'Ревьюер' })
   await page.getByRole('textbox', { name: 'Название' }).fill('Первое')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+$/)
+  // Creation redirects through /app to a neutral URL (first page or /chats/new).
+  await page.waitForURL(/\/(pages|chats)\//)
 
+  // The workspace-creation route still exists at /workspaces/new.
   await page.goto('/workspaces/new')
   await page.getByRole('textbox', { name: 'Название' }).fill('Второе')
   await page.getByRole('button', { name: 'Создать пространство' }).click()

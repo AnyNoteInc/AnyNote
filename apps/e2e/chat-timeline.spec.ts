@@ -10,7 +10,7 @@
  * asserts the optimistic insert). Instead we seed a persisted assistant ChatMessage
  * whose `parts` are an interleaved [text, tool(done), text, tool(error)] ordered
  * segment list — exactly the shape the new streaming pipeline persists — then open
- * the existing chat (`/workspaces/{id}/chats/{chatId}`) and assert the renderer:
+ * the existing chat (`/chats/{chatId}`) and assert the renderer:
  *   1. draws the parts inside a single MUI Timeline, in array order (the first tool
  *      appears BEFORE the second text — not hoisted/grouped to the end), and
  *   2. colours the timeline dot by tool state (done → primary, error → error).
@@ -122,9 +122,9 @@ async function seedChatWithTimeline(
 test('assistant timeline renders interleaved parts in order with state-coloured dots', async ({
   page,
 }) => {
-  const { workspaceId, chatId } = await seedChatWithTimeline(page, 'chat-timeline')
+  const { chatId } = await seedChatWithTimeline(page, 'chat-timeline')
 
-  await page.goto(`/workspaces/${workspaceId}/chats/${chatId}`)
+  await page.goto(`/chats/${chatId}`)
 
   const list = page.getByTestId('chat-message-list')
   // The chats route compiles slowly on a cold dev server; give it a generous window.

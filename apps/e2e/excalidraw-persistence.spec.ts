@@ -10,16 +10,12 @@ async function setupExcalidrawPage(page: Page) {
   await signUpAndAuthAs(page, { email, password, firstName: 'Тест', lastName: 'Тест' })
   await page.getByRole('textbox', { name: 'Название' }).fill('Excal WS')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+/)
+  await page.waitForURL(/\/(pages|chats)\//)
 
-  const pagesHeaderRow = page
-    .getByText('Страницы', { exact: true })
-    .locator('xpath=ancestor::*[.//button][1]')
-  await pagesHeaderRow.getByRole('button').click()
-  await page.getByRole('menuitem', { name: 'Холст' }).click()
-  await page.getByRole('menuitem', { name: 'Excalidraw' }).click()
+  await page.getByRole('button', { name: 'Новая страница' }).click()
+  await page.getByRole('button', { name: 'Создать страницу: Холст' }).click()
 
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
+  await page.waitForURL(/\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
   await page.getByTitle(/Rectangle — R or/).waitFor({ state: 'visible', timeout: 15_000 })
 }
 

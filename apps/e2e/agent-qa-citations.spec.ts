@@ -222,7 +222,7 @@ test.describe('agent — Q&A with citations', () => {
     // -----------------------------------------------------------------------
     // 8. Open a new chat and send the question
     // -----------------------------------------------------------------------
-    await page.goto(`/workspaces/${workspace.id}/chats/new`)
+    await page.goto(`/chats/new`)
 
     // Find the message input — try placeholder first, fall back to role=textbox
     const input =
@@ -260,7 +260,7 @@ test.describe('agent — Q&A with citations', () => {
     // -----------------------------------------------------------------------
     // 10. Citation assertion — DOM first, DB fallback
     //
-    // The plan expects <a href="/workspaces/.../pages/...#N"> links rendered
+    // The plan expects <a href="/pages/...#N"> links rendered
     // by the chat UI. If the chat page wiring (Task 43) doesn't surface these
     // in the DOM yet, we fall back to asserting that at least one AgentActionLog
     // row exists for the chat (proving the agent ran MCP tool calls).
@@ -271,13 +271,13 @@ test.describe('agent — Q&A with citations', () => {
     })
 
     // Check for DOM citation links.
-    const links = page.locator('a[href*="/workspaces/"][href*="/pages/"]')
+    const links = page.locator('a[href*="/pages/"]')
     const linkCount = await links.count()
 
     if (linkCount > 0) {
       // Full DOM assertion path.
       const href = await links.first().getAttribute('href')
-      expect(href).toMatch(/\/workspaces\/[0-9a-f-]+\/pages\/[0-9a-f-]+/)
+      expect(href).toMatch(/\/pages\/[0-9a-f-]+/)
 
       const pageIdMatch = href!.match(/\/pages\/([0-9a-f-]+)/)
       if (pageIdMatch) {

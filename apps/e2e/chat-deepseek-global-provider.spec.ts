@@ -97,7 +97,7 @@ test.describe('chat — global DeepSeek provider resolves connectionEnc', () => 
       select: { id: true },
     })
 
-    await page.goto(`/workspaces/${workspace.id}/chats/${chat.id}`)
+    await page.goto(`/chats/${chat.id}`)
     const composer = page.getByTestId('chat-composer-textarea')
     await expect(composer).toBeVisible({ timeout: 30_000 })
 

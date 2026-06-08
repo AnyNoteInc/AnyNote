@@ -6,7 +6,7 @@
  *     talks to the same Postgres the rest of the suite uses.
  *
  * Covers three behaviours of the new composer, all exercised on a *fresh* chat
- * (the `/workspaces/{id}/chats/new` route, chatId=null) so the lazy
+ * (the `/chats/new` route, chatId=null) so the lazy
  * createChat-on-first-interaction path is hit:
  *   1. Optimistic send — the user's message renders the instant they press
  *      Enter, before any /api/agents/generate SSE resolves (the agents service
@@ -62,7 +62,7 @@ async function openNewChat(page: Page, slug: string): Promise<string> {
     data: { workspaceId: workspace.id, userId: user.id, role: RoleType.OWNER },
   })
 
-  await page.goto(`/workspaces/${workspace.id}/chats/new`)
+  await page.goto(`/chats/new`)
   // The chats route compiles slowly on a cold dev server; give the composer a
   // generous window to mount.
   await expect(page.getByTestId('chat-composer-textarea')).toBeVisible({ timeout: 60_000 })

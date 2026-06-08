@@ -15,25 +15,19 @@ async function signUpAndCreateWorkspace(page: import('@playwright/test').Page, t
   await signUpAndAuthAs(page, { email, password, firstName: 'Слэш', lastName: 'Тестов' })
   await page.getByRole('textbox', { name: 'Название' }).fill('Slash Media Test')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+/)
+  await page.waitForURL(/\/(pages|chats)\//)
 }
 
 async function createTextPage(page: import('@playwright/test').Page) {
-  // The "Страницы" header row has an AddIcon IconButton right after the label.
-  // Target it precisely via the MUI icon testid so we don't collide with other
-  // sidebar buttons that appear once pages exist.
   const previousUrl = page.url()
-  const pagesSection = page
-    .getByText('Страницы', { exact: true })
-    .locator('xpath=ancestor::*[.//*[@data-testid="AddIcon"]][1]')
-  await pagesSection.locator('button:has([data-testid="AddIcon"])').first().click()
-  await page.getByRole('menuitem', { name: 'Текст' }).click()
+  await page.getByRole('button', { name: 'Новая страница' }).click()
+  await page.getByRole('button', { name: 'Создать страницу: Текст' }).click()
   // Wait for navigation to a DIFFERENT page URL — waitForURL matches instantly
   // when the current URL already fits the pattern, so we compare against the
   // previous URL explicitly.
   await page.waitForURL(
     (url) =>
-      /\/workspaces\/[a-f0-9-]+\/pages\/[a-f0-9-]+/.test(url.toString()) &&
+      /\/pages\/[a-f0-9-]+/.test(url.toString()) &&
       url.toString() !== previousUrl,
     { timeout: 15_000 },
   )
@@ -71,7 +65,7 @@ async function createSeededTextPage(page: Page, tag: string) {
     select: { id: true },
   })
 
-  await page.goto(`/workspaces/${workspace.id}/pages/${pageRow.id}`)
+  await page.goto(`/pages/${pageRow.id}`)
   const editor = page.locator('.anynote-editor .ProseMirror')
   await expect(editor).toBeVisible({ timeout: 15_000 })
   return editor
@@ -315,7 +309,7 @@ test('slash page link: picks a page and navigates inside the app', async ({ page
   // Clicking the link should navigate to the target page via Next.js router.
   await link.click()
   await expect(page).not.toHaveURL(sourceUrl, { timeout: 5_000 })
-  await expect(page).toHaveURL(/\/workspaces\/[a-f0-9-]+\/pages\/[a-f0-9-]+/)
+  await expect(page).toHaveURL(/\/pages\/[a-f0-9-]+/)
 })
 
 test('slash markdown: parses .md file on the client and inserts content', async ({ page }) => {

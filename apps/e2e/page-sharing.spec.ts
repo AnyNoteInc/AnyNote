@@ -15,13 +15,13 @@ test('owner shares a TEXT page publicly; an anonymous visitor opens it read-only
   // First run: create a workspace.
   await page.getByRole('textbox', { name: 'Название' }).fill('Share WS')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/chats/, { timeout: 30_000 })
+  await page.waitForURL(/\/chats/, { timeout: 30_000 })
 
   // Create a TEXT page.
   await page.getByRole('button', { name: 'Страницы' }).click()
   await page.getByRole('button', { name: 'Новая страница' }).click()
-  await page.getByRole('menuitem', { name: 'Текст' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
+  await page.getByRole('button', { name: 'Создать страницу: Текст' }).click()
+  await page.waitForURL(/\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
   await expect(page.locator('.anynote-editor .ProseMirror')).toBeVisible({ timeout: 15_000 })
 
   const pageId = /\/pages\/([a-f0-9-]+)/.exec(page.url())?.[1]

@@ -132,9 +132,9 @@ test('chat page opens for an existing workspace chat', async ({ page }) => {
     select: { id: true },
   })
 
-  await page.goto(`/workspaces/${workspace.id}/chats/${chat.id}`)
+  await page.goto(`/chats/${chat.id}`)
 
-  await expect(page).toHaveURL(new RegExp(`/workspaces/${workspace.id}/chats/${chat.id}$`))
+  await expect(page).toHaveURL(new RegExp(`/chats/${chat.id}$`))
   const composer = page.getByTestId('chat-composer-textarea')
   await expect(composer).toBeVisible()
   await expect(page.getByText('Привет из seed-сообщения')).toBeVisible()

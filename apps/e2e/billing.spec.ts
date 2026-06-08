@@ -40,29 +40,29 @@ async function signUpAndCreateWorkspace(page: import('@playwright/test').Page, t
   await signUpAndAuthAs(page, { email, password, firstName: 'Тест', lastName: 'Биллинг' })
   await page.getByRole('textbox', { name: 'Название' }).fill(`Billing ${tag}`)
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+$/)
 
-  const workspaceId = page.url().match(/\/workspaces\/([a-f0-9-]+)$/)?.[1]
-  if (!workspaceId) throw new Error(`Could not parse workspace id from ${page.url()}`)
+  // Creation sets the new workspace active and redirects through /app to a
+  // neutral URL (first page or /chats/new). URLs no longer contain /workspaces/{id}.
+  await page.waitForURL(/\/(pages|chats)\//)
 
   const user = await prisma.user.findUniqueOrThrow({
     where: { email },
     select: { id: true },
   })
 
-  return { email, userId: user.id, workspaceId }
+  return { email, userId: user.id }
 }
 
 test('new user starts on Personal and chats are gated', async ({ page }) => {
-  const { workspaceId } = await signUpAndCreateWorkspace(page, 'personal')
+  await signUpAndCreateWorkspace(page, 'personal')
 
   await expect(page.getByText('Personal', { exact: true })).toBeVisible()
-  await page.goto(`/workspaces/${workspaceId}/chats`)
+  await page.goto('/chats')
   await expect(page.getByText('404')).toBeVisible()
 })
 
 test('mocked Pro purchase unlocks chats', async ({ page }) => {
-  const { workspaceId } = await signUpAndCreateWorkspace(page, 'purchase')
+  await signUpAndCreateWorkspace(page, 'purchase')
 
   await page.goto('/pricing')
   await page.getByRole('button', { name: 'Купить' }).first().click()
@@ -72,10 +72,12 @@ test('mocked Pro purchase unlocks chats', async ({ page }) => {
   await page.waitForURL(/\/billing\/return/)
   await expect(page.getByText('Оплата прошла успешно')).toBeVisible({ timeout: 10_000 })
 
-  await page.goto(`/workspaces/${workspaceId}`)
+  // Active workspace resolves server-side; land on a neutral route and confirm
+  // the plan badge now reads "Pro".
+  await page.goto('/chats/new')
   await expect(page.getByText('Pro')).toBeVisible()
 
-  await page.goto(`/workspaces/${workspaceId}/chats`)
+  await page.goto('/chats')
   await expect(page.getByText('Создайте первый чат')).toBeVisible()
 })
 

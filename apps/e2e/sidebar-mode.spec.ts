@@ -10,7 +10,7 @@ async function signInToWorkspace(page: import('@playwright/test').Page, slug: st
   await ensureActiveSubscription(email)
   await page.getByRole('textbox', { name: 'Название' }).fill('Пространство')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/chats\/new$/)
+  await page.waitForURL(/\/chats\/new$/)
   return email
 }
 
@@ -42,10 +42,17 @@ async function ensureActiveSubscription(email: string) {
   })
 }
 
-function workspaceIdFromUrl(page: import('@playwright/test').Page) {
-  const match = page.url().match(/\/workspaces\/([a-f0-9-]{36})/)
-  if (!match) throw new Error(`workspace id not found in url: ${page.url()}`)
-  return match[1]!
+async function activeWorkspaceId(email: string): Promise<string> {
+  loadEnvFromRoot()
+  const { prisma } = await import('../../packages/db/src/index')
+  const user = await prisma.user.findUniqueOrThrow({ where: { email }, select: { id: true } })
+  const pref = await prisma.userPreference.findUnique({ where: { userId: user.id } })
+  if (pref?.activeWorkspaceId) return pref.activeWorkspaceId
+  const ws = await prisma.workspace.findFirstOrThrow({
+    where: { members: { some: { userId: user.id } } },
+    orderBy: { createdAt: 'asc' },
+  })
+  return ws.id
 }
 
 async function expectSidebarButtonHighlighted(page: import('@playwright/test').Page, name: string) {
@@ -128,7 +135,7 @@ test('trash shortcut in pages header navigates to trash', async ({ page }) => {
     'true',
   )
   await page.getByRole('link', { name: 'Корзина' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/trash$/)
+  await page.waitForURL(/\/trash$/)
 })
 
 test('notifications bell opens popover from full sidebar', async ({ page }) => {
@@ -168,9 +175,8 @@ test('user menu no longer contains a notifications item', async ({ page }) => {
 
 test('workspace sidebar switches between agent-oriented sections', async ({ page }) => {
   await signInToWorkspace(page, 'agent-sections')
-  const workspaceId = workspaceIdFromUrl(page)
 
-  await expect(page).toHaveURL(new RegExp(`/workspaces/${workspaceId}/chats/new$`))
+  await expect(page).toHaveURL(/\/chats\/new$/)
   await expect(page.getByRole('button', { name: 'Чаты' })).toHaveAttribute('aria-pressed', 'true')
   await expectSidebarButtonHighlighted(page, 'Чаты')
   await expect(page.getByRole('button', { name: 'Домашняя' })).toBeVisible()
@@ -186,8 +192,8 @@ test('workspace sidebar switches between agent-oriented sections', async ({ page
   await expect(page.getByRole('button', { name: 'Новая страница' })).toBeVisible()
   await expect(page.getByRole('link', { name: 'Корзина' })).toBeVisible()
   await page.getByRole('button', { name: 'Новая страница' }).click()
-  await page.getByRole('menuitem', { name: 'Текст' }).click()
-  await page.waitForURL(new RegExp(`/workspaces/${workspaceId}/pages/[a-f0-9-]{36}$`))
+  await page.getByRole('button', { name: 'Создать страницу: Текст' }).click()
+  await page.waitForURL(/\/pages\/[a-f0-9-]{36}$/)
 
   // Settings moved into a full-screen dialog opened from the space menu (owner-only).
   // signInToWorkspace makes the signing-in user the OWNER of "Пространство".
@@ -224,7 +230,7 @@ test('chat sidebar mirrors pages with header create action and favorite chats', 
   page,
 }) => {
   const email = await signInToWorkspace(page, 'favorite-chat-sidebar')
-  const workspaceId = workspaceIdFromUrl(page)
+  const workspaceId = await activeWorkspaceId(email)
 
   loadEnvFromRoot()
   const { prisma } = await import('../../packages/db/src/index')
@@ -237,7 +243,7 @@ test('chat sidebar mirrors pages with header create action and favorite chats', 
     },
   })
 
-  await page.goto(`/workspaces/${workspaceId}/chats/${chat.id}`)
+  await page.goto(`/chats/${chat.id}`)
 
   const sidebar = page.locator('aside')
   await expect(sidebar.getByText('Чаты', { exact: true })).toBeVisible()
@@ -263,7 +269,7 @@ test('chat sidebar mirrors pages with header create action and favorite chats', 
 
 test('root page and chat rows do not render extra leading spacer', async ({ page }) => {
   const email = await signInToWorkspace(page, 'sidebar-leading-spacer')
-  const workspaceId = workspaceIdFromUrl(page)
+  const workspaceId = await activeWorkspaceId(email)
 
   loadEnvFromRoot()
   const { prisma } = await import('../../packages/db/src/index')
@@ -285,7 +291,7 @@ test('root page and chat rows do not render extra leading spacer', async ({ page
     },
   })
 
-  await page.goto(`/workspaces/${workspaceId}/chats/new`)
+  await page.goto(`/chats/new`)
   await expectSidebarLinkAlignedWithSection(page, 'Чат без отступа', 'Чаты')
 
   await page.getByRole('button', { name: 'Домашняя' }).click()
@@ -293,18 +299,18 @@ test('root page and chat rows do not render extra leading spacer', async ({ page
 })
 
 test('new chat draft is created only after the first message', async ({ page }) => {
-  await signInToWorkspace(page, 'lazy-chat')
-  const workspaceId = workspaceIdFromUrl(page)
+  const email = await signInToWorkspace(page, 'lazy-chat')
+  const workspaceId = await activeWorkspaceId(email)
 
   loadEnvFromRoot()
   const { prisma } = await import('../../packages/db/src/index')
 
-  await expect(page).toHaveURL(new RegExp(`/workspaces/${workspaceId}/chats/new$`))
+  await expect(page).toHaveURL(/\/chats\/new$/)
   await expect.poll(() => prisma.chat.count({ where: { workspaceId } })).toBe(0)
 
   await page.getByTestId('chat-composer-textarea').fill('Привет, агент')
   await page.getByRole('button', { name: 'Send' }).click()
 
-  await page.waitForURL(new RegExp(`/workspaces/${workspaceId}/chats/[a-f0-9-]{36}$`))
+  await page.waitForURL(/\/chats\/[a-f0-9-]{36}$/)
   await expect.poll(() => prisma.chat.count({ where: { workspaceId } })).toBe(1)
 })

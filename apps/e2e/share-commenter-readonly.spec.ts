@@ -11,7 +11,7 @@ test('a COMMENTER public link renders a non-text board read-only', async ({ page
 
   await page.getByRole('textbox', { name: 'Название' }).fill('Comm WS')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/(pages|chats)\//, { timeout: 30_000 })
+  await page.waitForURL(/\/(pages|chats)\//, { timeout: 30_000 })
   const workspaceId = /\/workspaces\/([a-f0-9-]+)\//.exec(page.url())?.[1]
   expect(workspaceId).toBeTruthy()
 

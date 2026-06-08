@@ -10,17 +10,17 @@ async function signUp(page: import('@playwright/test').Page, tag: string) {
   await signUpAndAuthAs(page, { email, password, firstName: 'Экст', lastName: 'Тестов' })
   await page.getByRole('textbox', { name: 'Название' }).fill('Ext Test')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/chats/, { timeout: 30_000 })
+  await page.waitForURL(/\/chats/, { timeout: 30_000 })
 }
 
 async function createTextPage(page: import('@playwright/test').Page) {
   const previousUrl = page.url()
   await page.getByRole('button', { name: 'Страницы' }).click()
   await page.getByRole('button', { name: 'Новая страница' }).click()
-  await page.getByRole('menuitem', { name: 'Текст' }).click()
+  await page.getByRole('button', { name: 'Создать страницу: Текст' }).click()
   await page.waitForURL(
     (url) =>
-      /\/workspaces\/[a-f0-9-]+\/pages\/[a-f0-9-]+/.test(url.toString()) &&
+      /\/pages\/[a-f0-9-]+/.test(url.toString()) &&
       url.toString() !== previousUrl,
     { timeout: 15_000 },
   )

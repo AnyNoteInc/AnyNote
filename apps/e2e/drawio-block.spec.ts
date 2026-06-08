@@ -11,15 +11,15 @@ async function createTextPage(page: Page, tag: string) {
   await signUpAndAuthAs(page, { email, password, firstName: 'Драв', lastName: 'Тестов' })
   await page.getByRole('textbox', { name: 'Название' }).fill('Drawio Block Test')
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+/)
+  await page.waitForURL(/\/(pages|chats)\//)
 
   const previousUrl = page.url()
   await page.getByRole('button', { name: 'Страницы' }).click()
   await page.getByRole('button', { name: 'Новая страница' }).click()
-  await page.getByRole('menuitem', { name: 'Текст' }).click()
+  await page.getByRole('button', { name: 'Создать страницу: Текст' }).click()
   await page.waitForURL(
     (url) =>
-      /\/workspaces\/[a-f0-9-]+\/pages\/[a-f0-9-]+/.test(url.toString()) &&
+      /\/pages\/[a-f0-9-]+/.test(url.toString()) &&
       url.toString() !== previousUrl,
     { timeout: 15_000 },
   )

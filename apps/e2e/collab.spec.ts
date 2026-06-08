@@ -8,16 +8,13 @@ async function signUpAndCreateWorkspace(page: import('@playwright/test').Page, l
   await signUpAndAuthAs(page, { email, password, firstName: label, lastName: label })
   await page.getByRole('textbox', { name: 'Название' }).fill(`${label}-ws`)
   await page.getByRole('button', { name: 'Создать пространство' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+/)
+  await page.waitForURL(/\/(pages|chats)\//)
 }
 
 async function createTextPage(page: import('@playwright/test').Page): Promise<string> {
-  const pagesHeaderRow = page
-    .getByText('Страницы', { exact: true })
-    .locator('xpath=ancestor::*[.//button][1]')
-  await pagesHeaderRow.getByRole('button').click()
-  await page.getByRole('menuitem', { name: 'Текст' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
+  await page.getByRole('button', { name: 'Новая страница' }).click()
+  await page.getByRole('button', { name: 'Создать страницу: Текст' }).click()
+  await page.waitForURL(/\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
   return page.url()
 }
 
@@ -58,13 +55,9 @@ test("two clients see each other's TEXT edits in real time", async ({ browser })
 test('EXCALIDRAW page persists a drawn shape after reload', async ({ page }) => {
   await signUpAndCreateWorkspace(page, 'Canvas')
 
-  const pagesHeaderRow = page
-    .getByText('Страницы', { exact: true })
-    .locator('xpath=ancestor::*[.//button][1]')
-  await pagesHeaderRow.getByRole('button').click()
-  await page.getByRole('menuitem', { name: 'Холст' }).click()
-  await page.getByRole('menuitem', { name: 'Excalidraw' }).click()
-  await page.waitForURL(/\/workspaces\/[a-f0-9-]+\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
+  await page.getByRole('button', { name: 'Новая страница' }).click()
+  await page.getByRole('button', { name: 'Создать страницу: Холст' }).click()
+  await page.waitForURL(/\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
 
   const canvas = page.locator('.excalidraw canvas').first()
   await expect(canvas).toBeVisible({ timeout: 15_000 })
