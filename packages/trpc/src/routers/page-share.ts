@@ -18,6 +18,20 @@ import { domain as domainSvc } from '../domain'
 const RoleSchema = z.enum(['READER', 'COMMENTER', 'EDITOR'])
 const AccessSchema = z.enum(['RESTRICTED', 'PUBLIC'])
 
+// The browser tRPC client has no superjson transformer, so a Date argument
+// arrives as an ISO string over HTTP. Coerce it back to a Date (Dates from the
+// server-side createCaller path pass through unchanged) so the date-picker UI
+// can send `expiresAt`/`exposesAt` directly.
+const nullableDateInput = z.preprocess((v) => {
+  if (v === null || v === undefined) return v
+  if (v instanceof Date) return v
+  if (typeof v === 'string') {
+    const parsed = new Date(v)
+    return Number.isNaN(parsed.getTime()) ? v : parsed
+  }
+  return v
+}, z.date().nullable())
+
 function newShareId(): string {
   return randomBytes(32).toString('hex') // 64 hex chars, 256-bit entropy
 }
@@ -132,7 +146,7 @@ export const pageShareRouter = router({
         pageId: z.string().uuid(),
         access: AccessSchema,
         linkRole: RoleSchema,
-        expiresAt: z.date().nullable().optional(),
+        expiresAt: nullableDateInput.optional(),
       }),
     )
     .mutation(async ({ ctx, input }) => {
@@ -228,7 +242,7 @@ export const pageShareRouter = router({
     }),
 
   setExposesAt: protectedProcedure
-    .input(z.object({ pageId: z.string().uuid(), exposesAt: z.date().nullable() }))
+    .input(z.object({ pageId: z.string().uuid(), exposesAt: nullableDateInput }))
     .mutation(async ({ ctx, input }) => {
       await assertCanManageShare(ctx, input.pageId)
       await ensureShare(ctx, input.pageId)
