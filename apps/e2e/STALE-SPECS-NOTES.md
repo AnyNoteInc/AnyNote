@@ -30,6 +30,19 @@ New-page UX changed from a dropdown menu to a "Создание страницы
 - the old Холст→Excalidraw and Холст→Draw.io SUBMENUS collapsed to single buttons
   (`Создать страницу: Холст` = EXCALIDRAW, `Создать страницу: Draw.io` = DRAWIO).
 
+## 4. kanban-board UI drift (DONE — all 7 tests green)
+Uncovered while validating the URL pass:
+- Task creation moved from a "Создать задачу" modal to a per-column inline
+  flow: `getByRole('button', { name: 'Добавить карточку' }).first()` →
+  `getByPlaceholder('Введите название карточки…')` → `getByRole('button',
+  { name: 'Добавить', exact: true })`. No dialog, no auto-named "Новая задача".
+  The Gantt test resolves taskId from the DB by title (inline create no longer
+  puts `?taskId=` in the URL).
+- Settings: the kanban gear IconButton opens the dialog DIRECTLY — removed the
+  stale intermediate `menuitem 'Настройки канбана'` click.
+- Default priorities are Низкий/Средний/Высокий/Критичный (no "Минимальный").
+- Board DnD uses @hello-pangea/dnd → `data-rbd-droppable-id` (NOT `data-rfd-`).
+
 ## OUT OF SCOPE — genuine behavior changes, NOT URL staleness (TODO, needs product decision)
 These specs reach real assertions (preamble fixes work) but fail on app behavior
 that evolved since they were written. They need a domain owner to decide
