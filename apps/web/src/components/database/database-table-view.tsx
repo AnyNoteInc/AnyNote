@@ -22,59 +22,13 @@ import { trpc } from '@/trpc/client'
 import { DatabaseToolbar } from './database-toolbar'
 import { PropertyHeaderCell } from './property-header-cell'
 import { RowTitleCell } from './row-title-cell'
-import { TextCell } from './cell-editors/text-cell'
-import { NumberCell } from './cell-editors/number-cell'
-import { CheckboxCell } from './cell-editors/checkbox-cell'
-import { DateCell } from './cell-editors/date-cell'
-import { SelectCell } from './cell-editors/select-cell'
-import type { DatabasePropertyView, DatabaseRowView, DatabaseViewModel } from './types'
+import { CellEditor } from './cell-editors/cell-dispatch'
+import type { DatabaseViewModel } from './types'
 
 interface DatabaseTableViewProps {
   readonly pageId: string
   readonly data: DatabaseViewModel
   readonly editable?: boolean
-}
-
-/** Dispatch a cell to the editor for its property type. */
-function CellEditor({
-  pageId,
-  row,
-  property,
-  editable,
-}: {
-  pageId: string
-  row: DatabaseRowView
-  property: DatabasePropertyView
-  editable: boolean
-}) {
-  const value = row.cells[property.id]
-  switch (property.type) {
-    case 'NUMBER':
-      return (
-        <NumberCell pageId={pageId} rowId={row.rowId} propertyId={property.id} value={value} editable={editable} />
-      )
-    case 'CHECKBOX':
-      return (
-        <CheckboxCell pageId={pageId} rowId={row.rowId} propertyId={property.id} value={value} editable={editable} />
-      )
-    case 'DATE':
-      return (
-        <DateCell pageId={pageId} rowId={row.rowId} propertyId={property.id} value={value} editable={editable} />
-      )
-    case 'SELECT':
-    case 'STATUS':
-      return (
-        <SelectCell pageId={pageId} rowId={row.rowId} property={property} value={value} editable={editable} />
-      )
-    case 'TEXT':
-    case 'MULTI_SELECT':
-    case 'PERSON':
-    case 'FILE':
-    default:
-      return (
-        <TextCell pageId={pageId} rowId={row.rowId} propertyId={property.id} value={value} editable={editable} />
-      )
-  }
 }
 
 export function DatabaseTableView({ pageId, data, editable = true }: DatabaseTableViewProps) {

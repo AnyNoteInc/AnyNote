@@ -5,6 +5,7 @@ import { Box, Button, CircularProgress, Stack, Typography } from '@repo/ui/compo
 import { trpc } from '@/trpc/client'
 
 import { DatabaseTableView } from './database-table-view'
+import { DatabaseItemModal } from './database-item-modal'
 
 interface DatabasePageRendererProps {
   readonly pageId: string
@@ -75,5 +76,11 @@ export function DatabasePageRenderer({ pageId, editable = true }: DatabasePageRe
     )
   }
 
-  return <DatabaseTableView pageId={pageId} data={data} editable={editable} />
+  return (
+    <>
+      <DatabaseTableView pageId={pageId} data={data} editable={editable} />
+      {/* Item "peek" modal — opens when `?rowId=` matches a row (set by the title cell). */}
+      <DatabaseItemModal pageId={pageId} data={data} editable={editable} />
+    </>
+  )
 }
