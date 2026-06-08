@@ -9,6 +9,10 @@ import type {
   CreateRowInput,
   CreateViewInput,
   DatabaseGetByPageResult,
+  DatabaseRowView,
+  DuplicateViewInput,
+  GroupedRowsResult,
+  ListGroupedRowsInput,
   ListRowsInput,
   ListRowsResult,
   PropertyIdInput,
@@ -22,11 +26,15 @@ import type {
   UpdateRowInput,
   UpdateViewInput,
   ViewIdInput,
+  ViewSettings,
 } from '../dto/database.dto.ts'
 import type {
   AccessiblePage,
   DatabaseRepository,
+  RowWithPage,
 } from '../repositories/database.repository.ts'
+import { buildRowQuery } from './query-planner.ts'
+import type { MultiSelectPostFilter, PropertyMeta } from './query-planner.ts'
 
 // Position gap used for end-insertion / reorder spacing (matches kanban's 1024).
 const POSITION_GAP = 1024
@@ -142,7 +150,7 @@ export class DatabaseService {
 
   async getByPage(actorUserId: string, pageId: string): Promise<DatabaseGetByPageResult> {
     await this.assertCanRead(actorUserId, pageId)
-    const loaded = await this.repo.findSourceByPageId(pageId)
+    const loaded = await this.repo.findSourceSchemaByPageId(pageId)
     if (!loaded) throw notFound('База данных не найдена для этой страницы')
     return {
       source: {
@@ -193,14 +201,43 @@ export class DatabaseService {
   async createView(actorUserId: string, input: CreateViewInput) {
     await this.assertCanEdit(actorUserId, input.pageId)
     const source = await this.requireSource(input.pageId)
-    const existing = await this.repo.listViews(source.id)
+    const type = input.type ?? DatabaseViewType.TABLE
+    const [existing, properties] = await Promise.all([
+      this.repo.listViews(source.id),
+      this.repo.listProperties(source.id),
+    ])
     const position = (existing.at(-1)?.position ?? 0) + POSITION_GAP
+    const settings = this.defaultViewSettings(type, properties)
     return this.repo.createView({
       sourceId: source.id,
-      type: input.type ?? DatabaseViewType.TABLE,
+      type,
       title: input.title,
       position,
+      settings: settings as Parameters<DatabaseRepository['createView']>[0]['settings'],
     })
+  }
+
+  /**
+   * Seed sensible default settings for a new view: BOARD groups by the first
+   * STATUS/SELECT property; CALENDAR places rows on the first DATE property;
+   * other types get empty settings. Returns `{}` when no suitable property
+   * exists (the UI prompts the user to pick one).
+   */
+  private defaultViewSettings(
+    type: DatabaseViewType,
+    properties: Array<{ id: string; type: DatabasePropertyType }>,
+  ): ViewSettings {
+    if (type === DatabaseViewType.BOARD) {
+      const groupProp = properties.find(
+        (p) => p.type === DatabasePropertyType.STATUS || p.type === DatabasePropertyType.SELECT,
+      )
+      return groupProp ? { groupBy: { propertyId: groupProp.id } } : {}
+    }
+    if (type === DatabaseViewType.CALENDAR) {
+      const dateProp = properties.find((p) => p.type === DatabasePropertyType.DATE)
+      return dateProp ? { layout: { datePropertyId: dateProp.id } } : {}
+    }
+    return {}
   }
 
   async updateView(actorUserId: string, input: UpdateViewInput) {
@@ -225,6 +262,25 @@ export class DatabaseService {
     if (all.length <= 1) throw badRequest('Нельзя удалить единственное представление')
     await this.repo.deleteView(input.id)
     return { ok: true as const }
+  }
+
+  /** Copy a view (title + " (копия)", type, settings) at the next position. */
+  async duplicateView(actorUserId: string, input: DuplicateViewInput) {
+    await this.assertCanEdit(actorUserId, input.pageId)
+    const source = await this.requireSource(input.pageId)
+    const views = await this.repo.listViews(source.id)
+    const view = views.find((v) => v.id === input.viewId)
+    if (!view) throw notFound('Представление не найдено')
+    const position = (views.at(-1)?.position ?? 0) + POSITION_GAP
+    return this.repo.createView({
+      sourceId: source.id,
+      type: view.type,
+      title: `${view.title} (копия)`,
+      position,
+      ...(view.settings == null
+        ? {}
+        : { settings: view.settings as Parameters<DatabaseRepository['createView']>[0]['settings'] }),
+    })
   }
 
   // ── Properties ───────────────────────────────────────────────────────────────
@@ -363,24 +419,143 @@ export class DatabaseService {
     }
   }
 
-  // ── Rows (create/title/delete bridge implemented in A4) ──────────────────────
+  // ── Rows (view-aware, paginated) ─────────────────────────────────────────────
+
+  /** Coerce a persisted view settings blob (unknown JSON) into ViewSettings. */
+  private asViewSettings(raw: unknown): ViewSettings {
+    if (raw && typeof raw === 'object') return raw as ViewSettings
+    return {}
+  }
+
+  /** Map a repo RowWithPage to the DatabaseRowView the renderer consumes. */
+  private mapRow(r: RowWithPage): DatabaseRowView {
+    return {
+      rowId: r.id,
+      pageId: r.pageId,
+      title: r.page.title,
+      icon: r.page.icon,
+      position: r.position,
+      cells: Object.fromEntries(r.cells.map((c) => [c.propertyId, c.value])),
+    }
+  }
+
+  /**
+   * Apply MULTI_SELECT post-filters in JS (Prisma can't express JSON-array
+   * containment portably — the planner returns these instead of a where clause).
+   * `is_any_of` keeps rows whose array intersects the option set; `is_none_of`
+   * keeps rows whose array is disjoint from it.
+   */
+  private applyMultiSelectPostFilters(
+    rows: RowWithPage[],
+    postFilters: MultiSelectPostFilter[],
+  ): RowWithPage[] {
+    if (postFilters.length === 0) return rows
+    return rows.filter((row) =>
+      postFilters.every((pf) => {
+        const cell = row.cells.find((c) => c.propertyId === pf.propertyId)
+        const values = Array.isArray(cell?.value) ? (cell.value as string[]) : []
+        const intersects = pf.optionIds.some((id) => values.includes(id))
+        return pf.op === 'is_any_of' ? intersects : !intersects
+      }),
+    )
+  }
+
+  /** Resolve a view's settings + the source's property metas for the planner. */
+  private async resolveViewContext(
+    sourceId: string,
+    viewId: string | undefined,
+  ): Promise<{ settings: ViewSettings; properties: PropertyMeta[] }> {
+    const properties = await this.repo.listProperties(sourceId)
+    const metas: PropertyMeta[] = properties.map((p) => ({ id: p.id, type: p.type }))
+    if (!viewId) return { settings: {}, properties: metas }
+    const views = await this.repo.listViews(sourceId)
+    const view = views.find((v) => v.id === viewId)
+    if (!view) throw notFound('Представление не найдено')
+    return { settings: this.asViewSettings(view.settings), properties: metas }
+  }
 
   async listRows(actorUserId: string, input: ListRowsInput): Promise<ListRowsResult> {
-    // NOTE: A2 placeholder — the view-aware paginated implementation lands in C2.
     await this.assertCanRead(actorUserId, input.pageId)
     const source = await this.requireSource(input.pageId)
-    const rows = await this.repo.findRowsBySource(source.id)
-    return {
-      rows: rows.map((r) => ({
-        rowId: r.id,
-        pageId: r.pageId,
-        title: r.page.title,
-        icon: r.page.icon,
-        position: r.position,
-        cells: Object.fromEntries(r.cells.map((c) => [c.propertyId, c.value])),
-      })),
-      nextCursor: null,
+    const { settings, properties } = await this.resolveViewContext(source.id, input.viewId)
+    const plan = buildRowQuery(settings, properties)
+
+    const limit = input.limit
+    // Over-fetch by 1 to detect a next page, plus headroom for JS post-filters:
+    // when MULTI_SELECT post-filters are active we can't know the DB count ahead,
+    // so without them take limit+1; with them, fetch limit+1 too and rely on
+    // the cursor advancing (documented MVP: post-filtered pages may be short).
+    const fetched = await this.repo.findRowsPaged({
+      sourceId: source.id,
+      where: plan.where,
+      orderBy: plan.orderBy,
+      take: limit + 1,
+      cursor: input.cursor,
+    })
+
+    const filtered = this.applyMultiSelectPostFilters(fetched, plan.multiSelectPostFilters)
+    const hasMore = filtered.length > limit
+    const pageRows = hasMore ? filtered.slice(0, limit) : filtered
+    const nextCursor = hasMore ? (filtered[limit]?.id ?? null) : null
+
+    return { rows: pageRows.map((r) => this.mapRow(r)), nextCursor }
+  }
+
+  /**
+   * Group rows for the BOARD layout: one bucket per groupBy property option
+   * (preserving option order) plus a trailing null/empty bucket for rows with no
+   * (or an unknown) option value. Per-bucket rows are sorted by position. No
+   * pagination — a focused board view is bounded in practice (documented MVP).
+   */
+  async listGroupedRows(
+    actorUserId: string,
+    input: ListGroupedRowsInput,
+  ): Promise<GroupedRowsResult> {
+    await this.assertCanRead(actorUserId, input.pageId)
+    const source = await this.requireSource(input.pageId)
+    const properties = await this.repo.listProperties(source.id)
+    const views = await this.repo.listViews(source.id)
+    const view = views.find((v) => v.id === input.viewId)
+    if (!view) throw notFound('Представление не найдено')
+
+    const settings = this.asViewSettings(view.settings)
+    const groupBy = settings.groupBy?.propertyId
+    if (!groupBy) throw badRequest('Для группировки выберите свойство')
+
+    const groupProp = properties.find((p) => p.id === groupBy)
+    if (!groupProp) throw badRequest('Свойство группировки не найдено')
+
+    const metas: PropertyMeta[] = properties.map((p) => ({ id: p.id, type: p.type }))
+    const plan = buildRowQuery({ filters: settings.filters }, metas)
+    const rows = await this.repo.findRowsForGrouping({ sourceId: source.id, where: plan.where })
+
+    const options = asSettings(groupProp.settings)?.options ?? []
+    const optionIds = new Set(options.map((o) => o.id))
+
+    // Seed one bucket per option (in option order) + a trailing null bucket.
+    const buckets = new Map<string | null, DatabaseRowView[]>()
+    for (const o of options) buckets.set(o.id, [])
+    buckets.set(null, [])
+
+    for (const row of rows) {
+      const cell = row.cells.find((c) => c.propertyId === groupBy)
+      const raw = cell?.value
+      const key = typeof raw === 'string' && optionIds.has(raw) ? raw : null
+      buckets.get(key)!.push(this.mapRow(row))
     }
+
+    const groups = [...buckets.entries()].map(([key, groupRows]) => {
+      groupRows.sort((a, b) => a.position - b.position)
+      const option = key === null ? null : options.find((o) => o.id === key)
+      return {
+        key,
+        label: option?.label ?? 'Без значения',
+        color: option?.color ?? null,
+        rows: groupRows,
+      }
+    })
+
+    return { groups }
   }
 
   async createRow(actorUserId: string, input: CreateRowInput): Promise<{ rowId: string; pageId: string }> {

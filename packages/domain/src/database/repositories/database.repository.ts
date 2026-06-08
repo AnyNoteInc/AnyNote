@@ -225,9 +225,16 @@ export class DatabaseRepository {
     type: import('@repo/db').DatabaseViewType
     title: string
     position: number
+    settings?: Prisma.InputJsonValue
   }): Promise<ViewRow> {
     return this.uow.client().databaseView.create({
-      data,
+      data: {
+        sourceId: data.sourceId,
+        type: data.type,
+        title: data.title,
+        position: data.position,
+        ...(data.settings === undefined ? {} : { settings: data.settings }),
+      },
       select: { id: true, type: true, title: true, position: true, settings: true },
     }) as Promise<ViewRow>
   }

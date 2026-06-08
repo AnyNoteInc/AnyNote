@@ -27,6 +27,13 @@ function makeRepo(overrides: Partial<DatabaseRepository> = {}): DatabaseReposito
     findMembershipRole: vi.fn(async () => 'OWNER'),
     createSource: vi.fn(async (d) => ({ id: 'src1', workspaceId: d.workspaceId, pageId: d.pageId, title: d.title })),
     findSourceByPageId: vi.fn(async () => null),
+    findSourceSchemaByPageId: vi.fn(async () => ({
+      source: { id: 'src1', workspaceId: 'w1', pageId: 'db-page', title: 'My DB' },
+      views: [{ id: 'view1', type: 'TABLE', title: 'Таблица', position: 0, settings: null }],
+      properties: [],
+    })),
+    findRowsPaged: vi.fn(async () => []),
+    findRowsForGrouping: vi.fn(async () => []),
     findSourceMetaByPageId: vi.fn(async () => ({ id: 'src1', workspaceId: 'w1', pageId: 'db-page' })),
     listViews: vi.fn(async () => []),
     createView: vi.fn(async (d) => ({ id: 'view1', type: d.type, title: d.title, position: d.position, settings: null })),
@@ -274,11 +281,10 @@ describe('DatabaseService.getByPage', () => {
 
   it('returns the schema view-model (source, views, properties, systemTitleProperty) with NO rows', async () => {
     const repo = makeRepo({
-      findSourceByPageId: vi.fn(async () => ({
+      findSourceSchemaByPageId: vi.fn(async () => ({
         source: { id: 'src1', workspaceId: 'w1', pageId: 'db-page', title: 'My DB' },
         views: [{ id: 'view1', type: 'TABLE', title: 'Таблица', position: 0, settings: null }],
         properties: [{ id: 'prop1', type: 'STATUS', name: 'Статус', position: 0, settings: { options: STATUS_OPTIONS } }],
-        rows: [],
       })),
     })
     const vm = await makeService(repo).getByPage('u1', 'db-page')
@@ -286,12 +292,13 @@ describe('DatabaseService.getByPage', () => {
     expect(vm.views).toHaveLength(1)
     expect(vm.properties).toHaveLength(1)
     expect(vm.systemTitleProperty.key).toBe('title')
-    // Rows moved to listRows (Phase 4A fetch split) — getByPage is schema-only.
+    // getByPage is schema-only — rows moved to listRows (Phase 4A fetch split).
     expect('rows' in vm).toBe(false)
+    expect(repo.findRowsPaged).not.toHaveBeenCalled()
   })
 
   it('throws NOT_FOUND when the page has no source', async () => {
-    const repo = makeRepo({ findSourceByPageId: vi.fn(async () => null) })
+    const repo = makeRepo({ findSourceSchemaByPageId: vi.fn(async () => null) })
     await expect(makeService(repo).getByPage('u1', 'db-page')).rejects.toMatchObject({ code: 'NOT_FOUND' })
   })
 })
@@ -414,12 +421,22 @@ describe('DatabaseService.deleteRow / restoreRow', () => {
   })
 })
 
+function makeRow(id: string, cells: Record<string, unknown> = {}, position = 0) {
+  return {
+    id,
+    pageId: `page-${id}`,
+    position,
+    page: { title: `Строка ${id}`, icon: null },
+    cells: Object.entries(cells).map(([propertyId, value]) => ({ propertyId, value })),
+  }
+}
+
 describe('DatabaseService.listRows', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('maps rows to the view-model shape (title/icon from the page, cells as a record)', async () => {
+  it('maps rows to the view-model shape and returns nextCursor null when under the limit', async () => {
     const repo = makeRepo({
-      findRowsBySource: vi.fn(async () => [
+      findRowsPaged: vi.fn(async () => [
         {
           id: 'row1',
           pageId: 'item-page',
@@ -438,5 +455,253 @@ describe('DatabaseService.listRows', () => {
       position: 0,
       cells: { prop1: 'opt-doing' },
     })
+    expect(result.nextCursor).toBeNull()
+  })
+
+  it('resolves the named view settings and runs the planner (filters reach the repo where)', async () => {
+    const repo = makeRepo({
+      listViews: vi.fn(async () => [
+        {
+          id: 'view1',
+          type: 'TABLE',
+          title: 'V',
+          position: 0,
+          settings: {
+            filters: {
+              conjunction: 'and',
+              conditions: [{ propertyId: 'p-text', operator: 'contains', value: 'foo' }],
+            },
+          },
+        },
+      ]),
+      listProperties: vi.fn(async () => [
+        { id: 'p-text', type: 'TEXT', name: 'T', position: 0, settings: null },
+      ]),
+      findRowsPaged: vi.fn(async () => []),
+    })
+    await makeService(repo).listRows('u1', { pageId: 'db-page', viewId: 'view1', limit: 100 })
+    const arg = (repo.findRowsPaged as ReturnType<typeof vi.fn>).mock.calls[0]![0]
+    expect(arg.where).toEqual({
+      AND: [{ cells: { some: { propertyId: 'p-text', value: { string_contains: 'foo' } } } }],
+    })
+    expect(arg.sourceId).toBe('src1')
+    expect(arg.take).toBe(101) // limit + 1
+  })
+
+  it('computes nextCursor from the (limit+1)th row and slices to the limit', async () => {
+    // limit 2 → repo returns 3 rows (take=3); service slices to 2, cursor = 3rd row id
+    const repo = makeRepo({
+      findRowsPaged: vi.fn(async () => [makeRow('a'), makeRow('b'), makeRow('c')]),
+    })
+    const result = await makeService(repo).listRows('u1', { pageId: 'db-page', limit: 2 })
+    expect(result.rows.map((r) => r.rowId)).toEqual(['a', 'b'])
+    expect(result.nextCursor).toBe('c')
+  })
+
+  it('forwards the cursor to the repository', async () => {
+    const repo = makeRepo({ findRowsPaged: vi.fn(async () => []) })
+    await makeService(repo).listRows('u1', { pageId: 'db-page', cursor: 'row-9', limit: 50 })
+    const arg = (repo.findRowsPaged as ReturnType<typeof vi.fn>).mock.calls[0]![0]
+    expect(arg.cursor).toBe('row-9')
+  })
+
+  it('applies MULTI_SELECT is_any_of post-filters in JS to the fetched rows', async () => {
+    const repo = makeRepo({
+      listViews: vi.fn(async () => [
+        {
+          id: 'view1',
+          type: 'TABLE',
+          title: 'V',
+          position: 0,
+          settings: {
+            filters: {
+              conjunction: 'and',
+              conditions: [{ propertyId: 'p-multi', operator: 'is_any_of', value: ['a'] }],
+            },
+          },
+        },
+      ]),
+      listProperties: vi.fn(async () => [
+        { id: 'p-multi', type: 'MULTI_SELECT', name: 'M', position: 0, settings: null },
+      ]),
+      findRowsPaged: vi.fn(async () => [
+        makeRow('r1', { 'p-multi': ['a', 'b'] }),
+        makeRow('r2', { 'p-multi': ['c'] }),
+        makeRow('r3', {}),
+      ]),
+    })
+    const result = await makeService(repo).listRows('u1', { pageId: 'db-page', viewId: 'view1', limit: 100 })
+    expect(result.rows.map((r) => r.rowId)).toEqual(['r1'])
+  })
+
+  it('applies MULTI_SELECT is_none_of post-filters (excludes matching rows)', async () => {
+    const repo = makeRepo({
+      listViews: vi.fn(async () => [
+        {
+          id: 'view1',
+          type: 'TABLE',
+          title: 'V',
+          position: 0,
+          settings: {
+            filters: {
+              conjunction: 'and',
+              conditions: [{ propertyId: 'p-multi', operator: 'is_none_of', value: ['a'] }],
+            },
+          },
+        },
+      ]),
+      listProperties: vi.fn(async () => [
+        { id: 'p-multi', type: 'MULTI_SELECT', name: 'M', position: 0, settings: null },
+      ]),
+      findRowsPaged: vi.fn(async () => [
+        makeRow('r1', { 'p-multi': ['a'] }),
+        makeRow('r2', { 'p-multi': ['c'] }),
+      ]),
+    })
+    const result = await makeService(repo).listRows('u1', { pageId: 'db-page', viewId: 'view1', limit: 100 })
+    expect(result.rows.map((r) => r.rowId)).toEqual(['r2'])
+  })
+})
+
+describe('DatabaseService.listGroupedRows', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('buckets rows by the groupBy property options plus a null (empty) group, sorted by position', async () => {
+    const repo = makeRepo({
+      listViews: vi.fn(async () => [
+        {
+          id: 'board1',
+          type: 'BOARD',
+          title: 'Доска',
+          position: 0,
+          settings: { groupBy: { propertyId: 'p-status' } },
+        },
+      ]),
+      listProperties: vi.fn(async () => [
+        {
+          id: 'p-status',
+          type: 'STATUS',
+          name: 'Статус',
+          position: 0,
+          settings: { options: STATUS_OPTIONS },
+        },
+      ]),
+      findRowsForGrouping: vi.fn(async () => [
+        makeRow('r2', { 'p-status': 'opt-doing' }, 2048),
+        makeRow('r1', { 'p-status': 'opt-doing' }, 1024),
+        makeRow('r3', {}), // no status → empty group
+      ]),
+    })
+    const result = await makeService(repo).listGroupedRows('u1', { pageId: 'db-page', viewId: 'board1' })
+    const byKey = Object.fromEntries(result.groups.map((g) => [g.key, g]))
+    // one bucket per option + a null group
+    expect(result.groups.map((g) => g.key)).toEqual(['opt-todo', 'opt-doing', 'opt-done', null])
+    expect(byKey['opt-doing']!.rows.map((r) => r.rowId)).toEqual(['r1', 'r2']) // sorted by position
+    expect(byKey['opt-doing']!.label).toBe('В работе')
+    expect(byKey['opt-todo']!.rows).toEqual([])
+    const emptyGroup = result.groups.find((g) => g.key === null)!
+    expect(emptyGroup.rows.map((r) => r.rowId)).toEqual(['r3'])
+    expect(emptyGroup.color).toBeNull()
+  })
+
+  it('throws BAD_REQUEST when the view has no groupBy', async () => {
+    const repo = makeRepo({
+      listViews: vi.fn(async () => [
+        { id: 'board1', type: 'BOARD', title: 'Доска', position: 0, settings: {} },
+      ]),
+    })
+    await expect(
+      makeService(repo).listGroupedRows('u1', { pageId: 'db-page', viewId: 'board1' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+  })
+})
+
+describe('DatabaseService.createView default settings', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('seeds groupBy = first STATUS/SELECT property for a BOARD view', async () => {
+    const repo = makeRepo({
+      listViews: vi.fn(async () => []),
+      listProperties: vi.fn(async () => [
+        { id: 'p-text', type: 'TEXT', name: 'T', position: 0, settings: null },
+        { id: 'p-status', type: 'STATUS', name: 'S', position: 1024, settings: null },
+      ]),
+    })
+    await makeService(repo).createView('u1', { pageId: 'db-page', type: 'BOARD', title: 'Доска' })
+    const arg = (repo.createView as ReturnType<typeof vi.fn>).mock.calls[0]![0]
+    expect(arg.type).toBe('BOARD')
+    expect(arg.settings).toEqual({ groupBy: { propertyId: 'p-status' } })
+  })
+
+  it('seeds layout.datePropertyId = first DATE property for a CALENDAR view', async () => {
+    const repo = makeRepo({
+      listViews: vi.fn(async () => []),
+      listProperties: vi.fn(async () => [
+        { id: 'p-date', type: 'DATE', name: 'D', position: 0, settings: null },
+      ]),
+    })
+    await makeService(repo).createView('u1', { pageId: 'db-page', type: 'CALENDAR', title: 'Календарь' })
+    const arg = (repo.createView as ReturnType<typeof vi.fn>).mock.calls[0]![0]
+    expect(arg.settings).toEqual({ layout: { datePropertyId: 'p-date' } })
+  })
+
+  it('seeds empty settings for a TABLE view', async () => {
+    const repo = makeRepo({ listViews: vi.fn(async () => []), listProperties: vi.fn(async () => []) })
+    await makeService(repo).createView('u1', { pageId: 'db-page', type: 'TABLE', title: 'Таблица' })
+    const arg = (repo.createView as ReturnType<typeof vi.fn>).mock.calls[0]![0]
+    expect(arg.settings).toEqual({})
+  })
+
+  it('leaves BOARD groupBy unset when no STATUS/SELECT property exists', async () => {
+    const repo = makeRepo({
+      listViews: vi.fn(async () => []),
+      listProperties: vi.fn(async () => [
+        { id: 'p-text', type: 'TEXT', name: 'T', position: 0, settings: null },
+      ]),
+    })
+    await makeService(repo).createView('u1', { pageId: 'db-page', type: 'BOARD', title: 'Доска' })
+    const arg = (repo.createView as ReturnType<typeof vi.fn>).mock.calls[0]![0]
+    expect(arg.settings).toEqual({})
+  })
+})
+
+describe('DatabaseService.duplicateView', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('copies title + " (копия)", type, and settings at the next position', async () => {
+    const repo = makeRepo({
+      listViews: vi.fn(async () => [
+        {
+          id: 'view1',
+          type: 'BOARD',
+          title: 'Доска',
+          position: 1024,
+          settings: { groupBy: { propertyId: 'p-status' } },
+        },
+      ]),
+    })
+    await makeService(repo).duplicateView('u1', { pageId: 'db-page', viewId: 'view1' })
+    const arg = (repo.createView as ReturnType<typeof vi.fn>).mock.calls[0]![0]
+    expect(arg.title).toBe('Доска (копия)')
+    expect(arg.type).toBe('BOARD')
+    expect(arg.settings).toEqual({ groupBy: { propertyId: 'p-status' } })
+    expect(arg.position).toBeGreaterThan(1024)
+  })
+
+  it('throws NOT_FOUND when the view does not belong to the source', async () => {
+    const repo = makeRepo({ listViews: vi.fn(async () => []) })
+    await expect(
+      makeService(repo).duplicateView('u1', { pageId: 'db-page', viewId: 'nope' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+  })
+
+  it('is FORBIDDEN for a VIEWER who is not the creator', async () => {
+    const repo = makeRepo({
+      findAccessiblePage: vi.fn(async () => ({ id: 'db-page', workspaceId: 'w1', createdById: 'other' })),
+      findMembershipRole: vi.fn(async () => 'VIEWER'),
+    })
+    await expect(
+      makeService(repo).duplicateView('u1', { pageId: 'db-page', viewId: 'view1' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
   })
 })
