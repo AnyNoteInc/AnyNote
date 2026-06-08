@@ -10,13 +10,13 @@ echo artifact is suppressed while genuine multi-step plans stay visible.
 """
 
 from agents.apps.agent.enums import PlanStepStatus, RoutingKind
-from agents.apps.agent.schemas import PlanStepSchema
+from agents.apps.agent.schemas import AgentState, PlanStepSchema, ServerEventSchema
 from agents.apps.agent.services.graph_streaming import GraphStreamingService
 
 from tests.apps.agent.factories import make_state
 
 
-def _diff(state, last_states):
+def _diff(state: AgentState, last_states: dict[str, str]) -> list[ServerEventSchema]:
     return GraphStreamingService()._diff_plan_events(state, last_states)
 
 
