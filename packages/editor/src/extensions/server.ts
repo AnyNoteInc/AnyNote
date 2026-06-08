@@ -5,6 +5,7 @@
 
 export { CalloutSchema as Callout } from './callout.schema'
 export { DrawioSchema as Drawio } from './drawio.schema'
+export { EmbeddedDatabaseSchema as EmbeddedDatabase } from './embedded-database.schema'
 export { FileAttachmentSchema as FileAttachment } from './file-attachment.schema'
 export { HiddenTextSchema as HiddenText } from './hidden-text.schema'
 export { PageLinkSchema as PageLink } from './page-link.schema'

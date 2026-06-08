@@ -27,6 +27,7 @@ import { Comments } from './comments'
 import { Column, ColumnLayout } from './column-layout'
 import { DropPlacement } from './drop-placement'
 import { Drawio } from './drawio'
+import { EmbeddedDatabase, type EmbeddedDatabaseRenderer } from './embedded-database'
 import { FileAttachment } from './file-attachment'
 import { buildFileUpload } from './file-upload'
 import { buildImagePaste } from './image-paste'
@@ -65,6 +66,10 @@ export type BuildExtensionsOptions = {
   drawioUrl: string
   onOpenThread: (threadId: string) => void
   plantumlRenderAuth?: PlantumlRenderAuth
+  // apps/web injects the live `DatabaseTableView` renderer for the embedded
+  // database node here (it can't be imported from @repo/editor). When absent,
+  // the node renders its own placeholder card.
+  renderEmbeddedDatabase?: EmbeddedDatabaseRenderer
 }
 
 export const buildExtensions = (opts: BuildExtensionsOptions) => [
@@ -118,6 +123,7 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   HiddenText,
   FileAttachment,
   Drawio.configure({ drawioUrl: opts.drawioUrl }),
+  EmbeddedDatabase.configure({ renderEmbed: opts.renderEmbeddedDatabase ?? null }),
   PageLink.configure({ onNavigate: opts.onNavigateToPage }),
   Reminder,
   DateNode,

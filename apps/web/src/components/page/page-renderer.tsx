@@ -80,6 +80,19 @@ const DatabasePageRenderer = dynamic(
   { ssr: false, loading: () => <CenteredSpinner /> },
 )
 
+const EmbeddedDatabaseEmbed = dynamic(
+  () => import('@/components/database/embedded-database-embed').then((m) => m.EmbeddedDatabaseEmbed),
+  { ssr: false, loading: () => <CenteredSpinner /> },
+)
+
+const EmbeddedDatabasePicker = dynamic(
+  () =>
+    import('@/components/database/embedded-database-picker').then((m) => m.EmbeddedDatabasePicker),
+  { ssr: false },
+)
+
+type EmbeddedDatabasePick = { sourceId: string; viewId: string | null }
+
 function CenteredSpinner() {
   return (
     <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
@@ -126,6 +139,10 @@ export function PageRenderer({
   const editorRef = useRef<Editor | null>(null)
 
   const [editor, setEditor] = useState<Editor | null>(null)
+  // The `/база данных` slash item opens a promise-based picker dialog; we keep
+  // the in-flight resolver here so the editor can await the user's choice.
+  const [dbPickerOpen, setDbPickerOpen] = useState(false)
+  const dbPickerResolveRef = useRef<((pick: EmbeddedDatabasePick | null) => void) | null>(null)
   const [movePos, setMovePos] = useState<number | null>(null)
   const [moveTarget, setMoveTarget] = useState<PageTreeSelection | null>(null)
   const [moveBusy, setMoveBusy] = useState(false)
@@ -271,6 +288,33 @@ export function PageRenderer({
       router.push(`/pages/${pageId}`)
     },
     [router],
+  )
+
+  // Opens the database picker and resolves with the user's choice (or null on
+  // cancel); the editor inserts the `embeddedDatabase` node from the result.
+  const onPickEmbeddedDatabase = useCallback(
+    () =>
+      new Promise<EmbeddedDatabasePick | null>((resolve) => {
+        dbPickerResolveRef.current = resolve
+        setDbPickerOpen(true)
+      }),
+    [],
+  )
+
+  const resolveDbPicker = useCallback((pick: EmbeddedDatabasePick | null) => {
+    setDbPickerOpen(false)
+    dbPickerResolveRef.current?.(pick)
+    dbPickerResolveRef.current = null
+  }, [])
+
+  // Live renderer injected into the editor's embedded-database node. The node
+  // (in @repo/editor) can't import apps/web, so it calls this with the node's
+  // attrs and we mount the real DatabaseTableView.
+  const renderEmbeddedDatabase = useCallback(
+    (args: { sourceId: string | null; readonly: boolean }) => (
+      <EmbeddedDatabaseEmbed sourceId={args.sourceId} readonly={args.readonly} />
+    ),
+    [],
   )
 
   const handleEditorReady = useCallback(
@@ -493,6 +537,14 @@ export function PageRenderer({
           onOpenThread={openThreadPopover}
           activeCommentAnchor={activeAnchor}
           loadingFallback={<EditorContentSkeleton />}
+          renderEmbeddedDatabase={renderEmbeddedDatabase}
+          onPickEmbeddedDatabase={onPickEmbeddedDatabase}
+        />
+        <EmbeddedDatabasePicker
+          open={dbPickerOpen}
+          workspaceId={workspaceId}
+          onCancel={() => resolveDbPicker(null)}
+          onPick={(pick) => resolveDbPicker(pick)}
         />
         <CommentPopover />
         {reminderUI.open && (

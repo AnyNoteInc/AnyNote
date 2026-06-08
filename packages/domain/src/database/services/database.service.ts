@@ -175,6 +175,19 @@ export class DatabaseService {
     }
   }
 
+  /**
+   * Resolve a database by its SOURCE id (rather than its DATABASE page id) and
+   * return the same view-model as `getByPage`. Used by the embedded-database
+   * editor node, which references a source by id. Access is guarded against the
+   * source's owning DATABASE page (via `getByPage` → `assertCanRead`), so a user
+   * who can't read that page gets NOT_FOUND.
+   */
+  async getBySourceId(actorUserId: string, sourceId: string): Promise<DatabaseGetByPageResult> {
+    const source = await this.repo.findSourceMetaById(sourceId)
+    if (!source) throw notFound('База данных не найдена')
+    return this.getByPage(actorUserId, source.pageId)
+  }
+
   // ── Views ───────────────────────────────────────────────────────────────────
 
   async listViews(actorUserId: string, pageId: string) {

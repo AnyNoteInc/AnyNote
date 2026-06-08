@@ -12,6 +12,7 @@ import { cellRouter } from './cell'
 export const databaseRouter = router({
   // Source
   getByPage: sourceRouter.getByPage,
+  getBySourceId: sourceRouter.getBySourceId,
   repairSource: sourceRouter.repairSource,
 
   // Views

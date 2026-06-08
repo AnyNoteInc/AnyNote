@@ -3,6 +3,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
 import NotificationsIcon from '@mui/icons-material/Notifications'
 import SchemaIcon from '@mui/icons-material/Schema'
+import StorageIcon from '@mui/icons-material/Storage'
 
 import {
   BulletListIcon,
@@ -35,6 +36,10 @@ export type SlashMediaHandlers = {
   openPageLinkPopover: (range: SlashRange) => void
   openReminderCreate?: (reminderId: string) => void
   openDrawioCreate?: (range: SlashRange) => void
+  // Opens an apps/web-provided picker of the user's DATABASE sources; on pick it
+  // inserts an `embeddedDatabase` node with the chosen sourceId/viewId. Omitted
+  // when the host editor has no database picker (then the slash item is hidden).
+  openDatabasePicker?: (range: SlashRange) => void
 }
 
 const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
@@ -329,6 +334,22 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
     icon: createElement(SchemaIcon, { fontSize: 'small' }),
     run: ({ range }) => handlers.openDrawioCreate?.(range),
   },
+  // Only surfaced when the host wires `openDatabasePicker` (apps/web). Without a
+  // picker the node can't be configured, so we hide the item entirely.
+  ...(handlers.openDatabasePicker
+    ? [
+        {
+          id: 'embedded-database',
+          group: 'embedding' as const,
+          label: 'База данных',
+          description: 'Встроить существующую базу данных',
+          keywords: ['database', 'база данных', 'таблица', 'embed', 'встраивание'],
+          icon: createElement(StorageIcon, { fontSize: 'small' }),
+          run: ({ range }: { editor: import('@tiptap/core').Editor; range: SlashRange }) =>
+            handlers.openDatabasePicker?.(range),
+        },
+      ]
+    : []),
 ]
 
 export const createSlashItems = (handlers: SlashMediaHandlers) => {

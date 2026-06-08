@@ -1,6 +1,12 @@
 import type { ReactNode } from 'react'
 import type { Editor } from '@tiptap/core'
 import type { PlantumlRenderAuth } from '@repo/plantuml/render-plantuml'
+import type { EmbeddedDatabaseRenderer } from './extensions/embedded-database'
+
+export type { EmbeddedDatabaseRenderer, EmbeddedDatabaseRenderArgs } from './extensions/embedded-database'
+
+/** The source/view chosen in the apps/web database picker dialog. */
+export type EmbeddedDatabasePick = { sourceId: string; viewId: string | null }
 
 export type UploadedFile = {
   id: string
@@ -65,6 +71,13 @@ export type AnyNoteEditorProps = {
   activeCommentAnchor?: { anchorStart: string; anchorEnd: string } | null
   canComment?: boolean
   plantumlRenderAuth?: PlantumlRenderAuth
+  // Live renderer for the embedded-database node, injected by apps/web (the rich
+  // `DatabaseTableView` + tRPC query can't be imported from @repo/editor).
+  renderEmbeddedDatabase?: EmbeddedDatabaseRenderer
+  // Opens an apps/web picker of the user's DATABASE sources. Resolves to the
+  // chosen source/view, or null if the user cancels; the editor then inserts the
+  // node. When omitted, the `/база данных` slash item is hidden.
+  onPickEmbeddedDatabase?: () => Promise<EmbeddedDatabasePick | null>
 }
 
 export type { CommentThreadAnchor } from './types-comments'

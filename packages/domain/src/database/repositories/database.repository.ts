@@ -132,6 +132,17 @@ export class DatabaseRepository {
     })
   }
 
+  /** Resolve a source's owning DATABASE page (used by the embedded-database
+   *  node, which references a source by id and must resolve its pageId). */
+  async findSourceMetaById(
+    sourceId: string,
+  ): Promise<{ id: string; workspaceId: string; pageId: string } | null> {
+    return this.uow.client().databaseSource.findUnique({
+      where: { id: sourceId },
+      select: { id: true, workspaceId: true, pageId: true },
+    })
+  }
+
   // ── Views ───────────────────────────────────────────────────────────────────
 
   async listViews(sourceId: string): Promise<ViewRow[]> {

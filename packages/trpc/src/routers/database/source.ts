@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { TRPCError } from '@trpc/server'
 import * as domain from '@repo/domain'
 
 import { router, protectedProcedure } from '../../trpc'
@@ -15,6 +16,26 @@ export const sourceRouter = router({
     .query(async ({ ctx, input }) => {
       await assertPageAccess(ctx, input.pageId)
       return mapDomain(() => domainSvc.database.getByPage(ctx.user.id, input.pageId))
+    }),
+
+  // Resolve a database by its SOURCE id (the embedded-database editor node
+  // references a source, not a DATABASE page). We resolve the source's owning
+  // page first so we can guard with `assertPageAccess` (consistent NOT_FOUND
+  // for non-members) and return its `pageId` — the embed drives all mutations
+  // (createRow, updateCellValue, …) through that DATABASE page id.
+  getBySourceId: protectedProcedure
+    .input(z.object({ sourceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const source = await ctx.prisma.databaseSource.findUnique({
+        where: { id: input.sourceId },
+        select: { pageId: true },
+      })
+      if (!source) {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'База данных не найдена' })
+      }
+      await assertPageAccess(ctx, source.pageId)
+      const view = await mapDomain(() => domainSvc.database.getByPage(ctx.user.id, source.pageId))
+      return { pageId: source.pageId, view }
     }),
 
   // Idempotently provision a source for a legacy DATABASE page that has none.

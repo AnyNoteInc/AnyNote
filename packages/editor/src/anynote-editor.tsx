@@ -2,6 +2,7 @@
 
 import { Box } from '@mui/material'
 import { HocuspocusProvider } from '@hocuspocus/provider'
+import type { Editor } from '@tiptap/core'
 import { EditorContent, ReactRenderer, useEditor } from '@tiptap/react'
 import type { SuggestionKeyDownProps, SuggestionProps } from '@tiptap/suggestion'
 import tippy, { type Instance } from 'tippy.js'
@@ -149,6 +150,36 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
     setDrawioCreate({ range })
   }, [])
 
+  // Deferred ref to the live editor so the database-picker slash handler (which
+  // resolves an async dialog before inserting) can reach it without re-creating
+  // `slashItems` on every editor identity change.
+  const editorInstanceRef = useRef<Editor | null>(null)
+
+  const onPickEmbeddedDatabase = props.onPickEmbeddedDatabase
+  const openDatabasePicker = useMemo(() => {
+    if (!onPickEmbeddedDatabase) return undefined
+    return (range: SlashRange) => {
+      slashRendererRef.current.popup?.hide()
+      void onPickEmbeddedDatabase().then((pick) => {
+        const ed = editorInstanceRef.current
+        if (!ed || !pick) return
+        ed.chain()
+          .focus()
+          .deleteRange(range)
+          .insertContent({
+            type: 'embeddedDatabase',
+            attrs: {
+              sourceId: pick.sourceId,
+              viewId: pick.viewId,
+              displayMode: 'table',
+              readonly: false,
+            },
+          })
+          .run()
+      })
+    }
+  }, [onPickEmbeddedDatabase])
+
   const slashItems = useMemo(
     () =>
       createSlashItems({
@@ -159,8 +190,9 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
         openPageLinkPopover: (range) => openKind('pageLink', range),
         openReminderCreate: props.onReminderCreate,
         openDrawioCreate,
+        openDatabasePicker,
       }),
-    [openKind, props.onReminderCreate, openDrawioCreate],
+    [openKind, props.onReminderCreate, openDrawioCreate, openDatabasePicker],
   )
 
   const slashItemsRef = useRef(slashItems)
@@ -303,8 +335,10 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
         drawioUrl: props.drawioUrl,
         onOpenThread: props.onOpenThread ?? (() => undefined),
         plantumlRenderAuth: props.plantumlRenderAuth,
+        renderEmbeddedDatabase: props.renderEmbeddedDatabase,
       }),
       onCreate: ({ editor: ed }) => {
+        editorInstanceRef.current = ed
         props.onReady?.(ed)
       },
     },
