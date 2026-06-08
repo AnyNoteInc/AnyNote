@@ -6,6 +6,7 @@ import type { ShareAccessResult } from '@/lib/share-access'
 import { PageCommentsProvider } from '@/components/page/comments/comments-context'
 import { CommentToggleButton } from '@/components/page/comments/comment-toggle-button'
 import { CommentsSidebar } from '@/components/page/comments/comments-sidebar'
+import { CopyToWorkspaceButton } from '@/components/share/copy-to-workspace-dialog'
 import {
   PublicShareTreeNav,
   type ShareTreeNode,
@@ -35,18 +36,21 @@ export function SharePageView({
   resolved,
   session,
   tree,
-  copyButton,
 }: {
   shareId: string
   resolved: Extract<ShareAccessResult, { kind: 'member' | 'grant' | 'public' }>
   session: SessionLike
   tree: { rootId: string | null; rootTitle: string | null; rootIcon: string | null; nodes: ShareTreeNode[] }
-  copyButton?: React.ReactNode
 }) {
   const { page, role, share } = resolved
   const editable = role === 'EDITOR' || role === 'OWNER'
   const contentYjs = page.contentYjs ? Buffer.from(page.contentYjs).toString('base64') : null
   const isSite = share.mode === 'SITE'
+
+  // The currently-viewed page may be the share root or a published subpage; the
+  // copy button (when the share allows copying) saves THIS page/subtree.
+  const isRoot = !tree.rootId || page.id === tree.rootId
+  const returnUrl = isRoot ? `/s/${shareId}` : `/s/${shareId}/${page.id}`
 
   const user = session?.user
     ? {
@@ -100,7 +104,14 @@ export function SharePageView({
                 Только просмотр
               </Typography>
             )}
-            {copyButton}
+            {share.allowCopy ? (
+              <CopyToWorkspaceButton
+                shareId={shareId}
+                pageId={page.id}
+                isAuthed={Boolean(session?.user)}
+                returnUrl={returnUrl}
+              />
+            ) : null}
             <CommentToggleButton />
             {!session && (
               <Button size="small" href={`/sign-in?redirect=/s/${shareId}`}>
