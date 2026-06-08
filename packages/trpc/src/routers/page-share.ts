@@ -2,8 +2,11 @@ import { randomBytes } from 'node:crypto'
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 
+import { hashSharePassword } from '@repo/domain'
+
 import { router, protectedProcedure } from '../trpc'
 import { assertCanManageShare } from '../helpers/page-access'
+import { getWorkspaceFeatures } from '../helpers/plan'
 
 const RoleSchema = z.enum(['READER', 'COMMENTER', 'EDITOR'])
 const AccessSchema = z.enum(['RESTRICTED', 'PUBLIC'])
@@ -14,13 +17,57 @@ function newShareId(): string {
 
 const userSelect = { id: true, firstName: true, lastName: true, email: true, image: true } as const
 
+// Selects passwordHash so we can derive `hasPassword` — `toShareView` strips
+// the raw hash before it ever leaves the router (never exposed to the client).
 const shareSelect = {
   id: true,
   shareId: true,
   access: true,
   linkRole: true,
+  mode: true,
+  expiresAt: true,
+  publishedAt: true,
+  unpublishedAt: true,
+  allowIndexing: true,
+  allowCopy: true,
+  publishSubpages: true,
+  analyticsGoogleId: true,
+  analyticsYandexMetricaId: true,
+  exposesAt: true,
+  passwordHash: true,
   users: { select: { role: true, user: { select: userSelect } }, orderBy: { createdAt: 'asc' as const } },
 } as const
+
+type ShareRow = {
+  passwordHash: string | null
+  [key: string]: unknown
+}
+
+// Replace the raw passwordHash with a boolean so the client can render a
+// "password protected" state without ever receiving the secret.
+function toShareView<T extends ShareRow>(share: T | null) {
+  if (!share) return null
+  const { passwordHash, ...rest } = share
+  return { ...rest, hasPassword: passwordHash != null }
+}
+
+// Lazily create-or-return the share row (manage rights already asserted by the
+// caller). Used by every settings/publish/password mutation so callers can
+// configure a page before the dialog has explicitly created a row.
+async function ensureShare(
+  ctx: { prisma: import('@repo/db').PrismaClient; user: { id: string } },
+  pageId: string,
+) {
+  const existing = await ctx.prisma.pageShare.findUnique({
+    where: { pageId },
+    select: { id: true },
+  })
+  if (existing) return existing
+  return ctx.prisma.pageShare.create({
+    data: { pageId, shareId: newShareId(), createdById: ctx.user.id },
+    select: { id: true },
+  })
+}
 
 export const pageShareRouter = router({
   // Read-only: never creates a row (so the toolbar manage-probe stays side-effect-free).
@@ -35,7 +82,7 @@ export const pageShareRouter = router({
       const owner = page.createdById
         ? await ctx.prisma.user.findUnique({ where: { id: page.createdById }, select: userSelect })
         : null
-      return { share, owner, canManage: true }
+      return { share: toShareView(share), owner, canManage: true }
     }),
 
   // Lazy create-or-return; called when the dialog opens (spec: lazy on dialog open).
@@ -47,11 +94,12 @@ export const pageShareRouter = router({
         where: { pageId: input.pageId },
         select: shareSelect,
       })
-      if (existing) return existing
-      return ctx.prisma.pageShare.create({
+      if (existing) return toShareView(existing)
+      const created = await ctx.prisma.pageShare.create({
         data: { pageId: input.pageId, shareId: newShareId(), createdById: ctx.user.id },
         select: shareSelect,
       })
+      return toShareView(created)
     }),
 
   setAccess: protectedProcedure
@@ -63,6 +111,144 @@ export const pageShareRouter = router({
         data: { access: input.access, linkRole: input.linkRole },
         select: { id: true, access: true, linkRole: true },
       })
+    }),
+
+  // --- Public link / site settings (Notion-parity "Anyone with the link" +
+  // Publish tab). All require manage rights; each lazily ensures the row. ---
+
+  updatePublicLinkSettings: protectedProcedure
+    .input(
+      z.object({
+        pageId: z.string().uuid(),
+        access: AccessSchema,
+        linkRole: RoleSchema,
+        expiresAt: z.date().nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertCanManageShare(ctx, input.pageId)
+      await ensureShare(ctx, input.pageId)
+      const data: { access: typeof input.access; linkRole: typeof input.linkRole; expiresAt?: Date | null } = {
+        access: input.access,
+        linkRole: input.linkRole,
+      }
+      if (input.expiresAt !== undefined) data.expiresAt = input.expiresAt
+      return ctx.prisma.pageShare.update({
+        where: { pageId: input.pageId },
+        data,
+        select: { id: true, access: true, linkRole: true, expiresAt: true },
+      })
+    }),
+
+  updatePublicSiteSettings: protectedProcedure
+    .input(
+      z.object({
+        pageId: z.string().uuid(),
+        allowIndexing: z.boolean(),
+        allowCopy: z.boolean(),
+        publishSubpages: z.boolean(),
+        analyticsGoogleId: z.string().nullable().optional(),
+        analyticsYandexMetricaId: z.string().nullable().optional(),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertCanManageShare(ctx, input.pageId)
+      await ensureShare(ctx, input.pageId)
+      const data: {
+        allowIndexing: boolean
+        allowCopy: boolean
+        publishSubpages: boolean
+        analyticsGoogleId?: string | null
+        analyticsYandexMetricaId?: string | null
+      } = {
+        allowIndexing: input.allowIndexing,
+        allowCopy: input.allowCopy,
+        publishSubpages: input.publishSubpages,
+      }
+      if (input.analyticsGoogleId !== undefined) data.analyticsGoogleId = input.analyticsGoogleId
+      if (input.analyticsYandexMetricaId !== undefined)
+        data.analyticsYandexMetricaId = input.analyticsYandexMetricaId
+      return ctx.prisma.pageShare.update({
+        where: { pageId: input.pageId },
+        data,
+        select: {
+          id: true,
+          allowIndexing: true,
+          allowCopy: true,
+          publishSubpages: true,
+          analyticsGoogleId: true,
+          analyticsYandexMetricaId: true,
+        },
+      })
+    }),
+
+  publishSite: protectedProcedure
+    .input(z.object({ pageId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const page = await assertCanManageShare(ctx, input.pageId)
+      const features = await getWorkspaceFeatures(page.workspaceId)
+      if (!features.publicSitesEnabled) {
+        throw new TRPCError({
+          code: 'FORBIDDEN',
+          message: 'Публичные сайты доступны на тарифе Pro и выше',
+        })
+      }
+      await ensureShare(ctx, input.pageId)
+      return ctx.prisma.pageShare.update({
+        where: { pageId: input.pageId },
+        data: { mode: 'SITE', publishedAt: new Date(), unpublishedAt: null },
+        select: { id: true, mode: true, publishedAt: true, unpublishedAt: true },
+      })
+    }),
+
+  unpublishSite: protectedProcedure
+    .input(z.object({ pageId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await assertCanManageShare(ctx, input.pageId)
+      await ensureShare(ctx, input.pageId)
+      return ctx.prisma.pageShare.update({
+        where: { pageId: input.pageId },
+        data: { unpublishedAt: new Date() },
+        select: { id: true, unpublishedAt: true },
+      })
+    }),
+
+  setExposesAt: protectedProcedure
+    .input(z.object({ pageId: z.string().uuid(), exposesAt: z.date().nullable() }))
+    .mutation(async ({ ctx, input }) => {
+      await assertCanManageShare(ctx, input.pageId)
+      await ensureShare(ctx, input.pageId)
+      return ctx.prisma.pageShare.update({
+        where: { pageId: input.pageId },
+        data: { exposesAt: input.exposesAt },
+        select: { id: true, exposesAt: true },
+      })
+    }),
+
+  setSharePassword: protectedProcedure
+    .input(z.object({ pageId: z.string().uuid(), password: z.string().min(1) }))
+    .mutation(async ({ ctx, input }) => {
+      await assertCanManageShare(ctx, input.pageId)
+      await ensureShare(ctx, input.pageId)
+      await ctx.prisma.pageShare.update({
+        where: { pageId: input.pageId },
+        data: { passwordHash: await hashSharePassword(input.password) },
+        select: { id: true },
+      })
+      return { ok: true, hasPassword: true }
+    }),
+
+  clearSharePassword: protectedProcedure
+    .input(z.object({ pageId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await assertCanManageShare(ctx, input.pageId)
+      await ensureShare(ctx, input.pageId)
+      await ctx.prisma.pageShare.update({
+        where: { pageId: input.pageId },
+        data: { passwordHash: null },
+        select: { id: true },
+      })
+      return { ok: true, hasPassword: false }
     }),
 
   addUser: protectedProcedure
