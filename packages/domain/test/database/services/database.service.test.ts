@@ -310,3 +310,133 @@ describe('DatabaseService.reorderProperties', () => {
     expect(arg[0]!.position).toBeLessThan(arg[1]!.position)
   })
 })
+
+// ── A4: row create/title/delete bridge to item Pages ─────────────────────────
+
+describe('DatabaseService.createRow', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('creates an item Page (via createItemPageTx) and a DatabaseRow, returns { rowId, pageId }', async () => {
+    const repo = makeRepo({ maxRowPosition: vi.fn(async () => 1024) })
+    const pageRepo = makePageRepo({ createItemPageTx: vi.fn(async () => ({ id: 'item-page-9' })) })
+    const result = await makeService(repo, pageRepo).createRow('u1', { pageId: 'db-page' })
+
+    expect(pageRepo.createItemPageTx).toHaveBeenCalledWith('db-page', 'w1', 'u1')
+    expect(repo.createRow).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceId: 'src1', pageId: 'item-page-9', position: 2048, createdById: 'u1' }),
+    )
+    expect(result).toEqual({ rowId: 'row1', pageId: 'item-page-9' })
+  })
+
+  it('runs the page-create + row-create in a single transaction', async () => {
+    const repo = makeRepo()
+    const txn = vi.fn(async (fn: () => Promise<unknown>) => fn())
+    const uow: UnitOfWork = { client: vi.fn() as never, transaction: txn }
+    await makeService(repo, makePageRepo(), uow).createRow('u1', { pageId: 'db-page' })
+    expect(txn).toHaveBeenCalledOnce()
+  })
+
+  it('sets the item Page title when a title is provided', async () => {
+    const repo = makeRepo()
+    const pageRepo = makePageRepo({ createItemPageTx: vi.fn(async () => ({ id: 'item-page-9' })) })
+    await makeService(repo, pageRepo).createRow('u1', { pageId: 'db-page', title: 'Первая' })
+    expect(repo.updatePageTitle).toHaveBeenCalledWith('item-page-9', 'Первая', 'u1')
+  })
+
+  it('is FORBIDDEN for a VIEWER who is not the creator', async () => {
+    const repo = makeRepo({
+      findAccessiblePage: vi.fn(async () => ({ id: 'db-page', workspaceId: 'w1', createdById: 'other' })),
+      findMembershipRole: vi.fn(async () => 'VIEWER'),
+    })
+    await expect(
+      makeService(repo).createRow('u1', { pageId: 'db-page' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+  })
+})
+
+describe('DatabaseService.updateRowTitle', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('writes Page.title for the item page', async () => {
+    const repo = makeRepo()
+    await makeService(repo).updateRowTitle('u1', { pageId: 'db-page', rowId: 'row1', title: 'Новый заголовок' })
+    expect(repo.updatePageTitle).toHaveBeenCalledWith('item-page', 'Новый заголовок', 'u1')
+  })
+
+  it('writes Page.icon when provided', async () => {
+    const repo = makeRepo()
+    await makeService(repo).updateRowTitle('u1', { pageId: 'db-page', rowId: 'row1', icon: '🚀' })
+    expect(repo.updatePageIcon).toHaveBeenCalledWith('item-page', '🚀', 'u1')
+  })
+
+  it('throws NOT_FOUND when the row belongs to another source', async () => {
+    const repo = makeRepo({
+      findRowById: vi.fn(async () => ({ id: 'row1', sourceId: 'other-src', pageId: 'item-page', deletedAt: null })),
+    })
+    await expect(
+      makeService(repo).updateRowTitle('u1', { pageId: 'db-page', rowId: 'row1', title: 'X' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+  })
+})
+
+describe('DatabaseService.deleteRow / restoreRow', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('soft-deletes both the DatabaseRow and the item Page', async () => {
+    const repo = makeRepo()
+    const result = await makeService(repo).deleteRow('u1', { pageId: 'db-page', rowId: 'row1' })
+    expect(repo.softDeleteRow).toHaveBeenCalledWith('row1', 'u1')
+    expect(repo.softDeleteItemPage).toHaveBeenCalledWith('item-page', 'u1', 'w1')
+    expect(result).toEqual({ ok: true })
+  })
+
+  it('restores both the DatabaseRow and the item Page', async () => {
+    const repo = makeRepo()
+    const result = await makeService(repo).restoreRow('u1', { pageId: 'db-page', rowId: 'row1' })
+    expect(repo.restoreRow).toHaveBeenCalledWith('row1', 'u1')
+    expect(repo.restoreItemPage).toHaveBeenCalledWith('item-page', 'u1', 'w1')
+    expect(result).toEqual({ ok: true })
+  })
+
+  it('deleteRow throws NOT_FOUND when the row belongs to another source', async () => {
+    const repo = makeRepo({
+      findRowById: vi.fn(async () => ({ id: 'row1', sourceId: 'other-src', pageId: 'item-page', deletedAt: null })),
+    })
+    await expect(
+      makeService(repo).deleteRow('u1', { pageId: 'db-page', rowId: 'row1' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+  })
+})
+
+describe('DatabaseService.listRows', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('maps rows to the view-model shape (title/icon from the page, cells as a record)', async () => {
+    const repo = makeRepo({
+      findRowsBySource: vi.fn(async () => [
+        {
+          id: 'row1',
+          pageId: 'item-page',
+          position: 0,
+          page: { title: 'Строка', icon: '📄' },
+          cells: [{ propertyId: 'prop1', value: 'opt-doing' }],
+        },
+      ]),
+    })
+    const rows = await makeService(repo).listRows('u1', { pageId: 'db-page' })
+    expect(rows[0]).toEqual({
+      rowId: 'row1',
+      pageId: 'item-page',
+      title: 'Строка',
+      icon: '📄',
+      position: 0,
+      cells: { prop1: 'opt-doing' },
+    })
+  })
+
+  it('passes the query through to the repository', async () => {
+    const repo = makeRepo()
+    await makeService(repo).listRows('u1', { pageId: 'db-page', query: 'apple' })
+    expect(repo.findRowsBySource).toHaveBeenCalledWith('src1', 'apple')
+  })
+})
