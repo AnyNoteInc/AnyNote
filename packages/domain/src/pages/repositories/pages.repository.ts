@@ -233,6 +233,67 @@ export class PageRepository {
     return { id: newPage.id }
   }
 
+  /**
+   * Create a database item page: a child TEXT page of the DATABASE page. Unlike
+   * `createPageTx`, this deliberately does NOT run the kanban/database provisioning
+   * dispatch (the new page is plain TEXT, and re-dispatching DATABASE provisioning
+   * would recurse). It still enqueues the indexing outbox event and does tail
+   * linked-list insertion so item pages behave like real pages everywhere else.
+   *
+   * The item page inherits the source page's workspaceId (cross-workspace guard).
+   * Caller is responsible for opening the transaction.
+   */
+  async createItemPageTx(
+    parentPageId: string,
+    workspaceId: string,
+    actorUserId: string,
+  ): Promise<CreateResultDto> {
+    const newPage = await this.uow.client().page.create({
+      data: {
+        workspaceId,
+        parentId: parentPageId,
+        title: null,
+        type: PageType.TEXT,
+        collectionId: null,
+        prevPageId: null,
+        createdById: actorUserId,
+        updatedById: actorUserId,
+      },
+    })
+
+    // Insert at tail of the parent's linked list (same logic as createPageTx).
+    const siblings = await this.uow.client().page.findMany({
+      where: {
+        workspaceId,
+        parentId: parentPageId,
+        id: { not: newPage.id },
+        deletedAt: null,
+      },
+      select: { id: true, prevPageId: true },
+    })
+    if (siblings.length > 0) {
+      const prevPageIds = new Set(
+        siblings.map((s) => s.prevPageId).filter((id): id is string => id !== null),
+      )
+      const tail = siblings.find((s) => !prevPageIds.has(s.id))
+      if (tail) {
+        await this.uow.client().page.update({
+          where: { id: newPage.id },
+          data: { prevPageId: tail.id },
+        })
+      }
+    }
+
+    await enqueueOutboxEvent(this.uow.client() as Prisma.TransactionClient, {
+      eventType: 'page.upserted',
+      aggregateType: 'page',
+      aggregateId: newPage.id,
+      workspaceId,
+    })
+
+    return { id: newPage.id }
+  }
+
   async archivePageTx(
     actorUserId: string,
     pageId: string,

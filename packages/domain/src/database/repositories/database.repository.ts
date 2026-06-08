@@ -1,5 +1,4 @@
-import { PageType, enqueueOutboxEvent } from '@repo/db'
-import type { Prisma } from '@repo/db'
+import { PageType, Prisma, enqueueOutboxEvent } from '@repo/db'
 
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 
@@ -395,12 +394,15 @@ export class DatabaseRepository {
   async upsertCellValue(
     rowId: string,
     propertyId: string,
-    value: Prisma.InputJsonValue | typeof Prisma.JsonNull,
+    value: string | number | boolean | string[] | null,
   ): Promise<void> {
+    // `null` clears the cell → store SQL NULL via Prisma.DbNull.
+    const stored: Prisma.InputJsonValue | typeof Prisma.DbNull =
+      value === null ? Prisma.DbNull : (value as Prisma.InputJsonValue)
     await this.uow.client().databaseCellValue.upsert({
       where: { rowId_propertyId: { rowId, propertyId } },
-      create: { rowId, propertyId, value },
-      update: { value },
+      create: { rowId, propertyId, value: stored },
+      update: { value: stored },
     })
   }
 
