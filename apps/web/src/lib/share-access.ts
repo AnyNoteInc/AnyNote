@@ -2,7 +2,7 @@ import 'server-only'
 
 import type { PrismaClient, PageType } from '@repo/db'
 import { ShareAccessService, ShareAccessRepository } from '@repo/domain'
-import type { PublicUnavailableReason } from '@repo/domain'
+import type { PublicUnavailableReason, ResolvedShareMeta } from '@repo/domain'
 
 export type EffectiveRole = 'OWNER' | 'EDITOR' | 'COMMENTER' | 'READER'
 
@@ -28,7 +28,7 @@ export type SharePage = {
  *   - `not_found`: no share for this id (caller should 404).
  */
 export type ShareAccessResult =
-  | { kind: 'member' | 'grant' | 'public'; role: EffectiveRole; page: SharePage }
+  | { kind: 'member' | 'grant' | 'public'; role: EffectiveRole; page: SharePage; share: ResolvedShareMeta }
   | { kind: 'unavailable'; reason: PublicUnavailableReason }
   | { kind: 'not_found' }
 
@@ -74,11 +74,29 @@ export async function resolveShareAccess(
 ): Promise<ShareAccessResult> {
   const share = await prisma.pageShare.findUnique({
     where: { shareId },
-    select: { id: true, page: { select: sharePageSelect } },
+    select: {
+      id: true,
+      mode: true,
+      allowCopy: true,
+      allowIndexing: true,
+      publishSubpages: true,
+      analyticsGoogleId: true,
+      analyticsYandexMetricaId: true,
+      page: { select: sharePageSelect },
+    },
   })
   if (!share) return { kind: 'not_found' }
 
   const rootPage = share.page as SharePage
+  const shareMeta: ResolvedShareMeta = {
+    shareId,
+    mode: share.mode as 'LINK' | 'SITE',
+    allowCopy: share.allowCopy,
+    allowIndexing: share.allowIndexing,
+    publishSubpages: share.publishSubpages,
+    analyticsGoogleId: share.analyticsGoogleId,
+    analyticsYandexMetricaId: share.analyticsYandexMetricaId,
+  }
 
   // Member / grant fast-paths win and bypass all public gating.
   if (session?.user) {
@@ -88,7 +106,7 @@ export async function resolveShareAccess(
     })
     if (member) {
       const page = await pageForRequest(prisma, rootPage, opts?.pageId)
-      if (page) return { kind: 'member', role: mapMemberRole(member.role), page }
+      if (page) return { kind: 'member', role: mapMemberRole(member.role), page, share: shareMeta }
     }
 
     const grant = await prisma.pageShareUser.findFirst({
@@ -97,7 +115,7 @@ export async function resolveShareAccess(
     })
     if (grant) {
       const page = await pageForRequest(prisma, rootPage, opts?.pageId)
-      if (page) return { kind: 'grant', role: grant.role as EffectiveRole, page }
+      if (page) return { kind: 'grant', role: grant.role as EffectiveRole, page, share: shareMeta }
     }
   }
 
@@ -118,7 +136,12 @@ export async function resolveShareAccess(
     select: sharePageSelect,
   })
   if (!page) return { kind: 'unavailable', reason: 'restricted_child' }
-  return { kind: 'public', role: result.role as EffectiveRole, page: page as SharePage }
+  return {
+    kind: 'public',
+    role: result.role as EffectiveRole,
+    page: page as SharePage,
+    share: result.share,
+  }
 }
 
 // For members/grants honouring an optional requested child page id. Members see

@@ -2,13 +2,14 @@ import { notFound } from 'next/navigation'
 import { randomUUID } from 'node:crypto'
 
 import { prisma } from '@repo/db'
-import { Box, Button, LockIcon, PublicIcon, Stack, Typography } from '@repo/ui/components'
+import { Box, Button, PublicIcon, Stack, Typography } from '@repo/ui/components'
 
 import { getSession } from '@/lib/get-session'
 import { resolveShareAccess } from '@/lib/share-access'
 import { PageCommentsProvider } from '@/components/page/comments/comments-context'
 import { CommentToggleButton } from '@/components/page/comments/comment-toggle-button'
 import { CommentsSidebar } from '@/components/page/comments/comments-sidebar'
+import { ShareUnavailable, SharePasswordGate } from '@/components/share/share-unavailable'
 
 import { SharePageClient } from './share-page-client'
 
@@ -21,34 +22,27 @@ function hash(s: string): number {
   return h
 }
 
-export default async function SharePage({ params }: { params: Promise<{ shareId: string }> }) {
+export default async function SharePage({
+  params,
+  searchParams,
+}: {
+  params: Promise<{ shareId: string }>
+  searchParams: Promise<{ pw?: string }>
+}) {
   const { shareId } = await params
+  const { pw } = await searchParams
   const session = await getSession()
-  const resolved = await resolveShareAccess(prisma, shareId, session)
+  const resolved = await resolveShareAccess(prisma, shareId, session, { password: pw })
 
   if (resolved.kind === 'not_found') notFound()
 
-  // TODO(D1): replace this single "Нет доступа" screen with per-reason screens
-  // (disabled / unpublished / expired / not-yet-exposed / password gate).
   if (resolved.kind === 'unavailable') {
-    return (
-      <Box
-        sx={{ display: 'flex', minHeight: '100vh', alignItems: 'center', justifyContent: 'center', p: 3 }}
-      >
-        <Stack spacing={2} alignItems="center">
-          <LockIcon sx={{ fontSize: 40, color: 'text.secondary' }} />
-          <Typography variant="h6">Нет доступа</Typography>
-          <Typography color="text.secondary" textAlign="center">
-            Открывать этот контент могут только пользователи, имеющие доступ.
-          </Typography>
-          {!session && (
-            <Button variant="contained" href={`/sign-in?redirect=/s/${shareId}`}>
-              Войти
-            </Button>
-          )}
-        </Stack>
-      </Box>
-    )
+    // Password gate validates client-side then re-renders with `?pw=`; every
+    // other reason renders a flat per-reason message.
+    if (resolved.reason === 'password_required') {
+      return <SharePasswordGate shareId={shareId} />
+    }
+    return <ShareUnavailable reason={resolved.reason} />
   }
 
   const { page, role } = resolved
