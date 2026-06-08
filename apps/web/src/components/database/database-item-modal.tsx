@@ -15,15 +15,12 @@ import {
 } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
-import type { RouterOutputs } from '@/trpc/client'
 import { useSession } from '@/lib/auth-client'
 import { PageView } from '@/components/page/page-view'
 
 import { CellEditor } from './cell-editors/cell-dispatch'
-import { defaultRowsInput } from './types'
-import type { DatabaseRowView, DatabaseViewModel } from './types'
-
-type ListRowsResult = RouterOutputs['database']['listRows']
+import { useOptimisticRows, useViewRows } from './use-view-rows'
+import type { DatabaseRowView, DatabaseSchema } from './types'
 
 /*
  * MVP — item "peek" modal.
@@ -52,24 +49,29 @@ function colorFor(userId: string): string {
 interface DatabaseItemModalProps {
   /** The DATABASE page id (the source's page) — NOT the item page. */
   readonly pageId: string
-  /** The already-loaded source view-model, so we can resolve the row + properties. */
-  readonly data: DatabaseViewModel
+  /** The active view id, so we read the row from (and patch) the right rows cache. */
+  readonly viewId: string
+  /** The loaded database schema, so we can resolve the property list. */
+  readonly schema: DatabaseSchema
   readonly editable?: boolean
 }
 
 /**
  * URL-param driven (`?rowId=`). Mounted inside `DatabasePageRenderer`; renders
- * nothing until `?rowId=` matches a row in the loaded source. Closing removes the
- * `rowId` param (preserving any other params).
+ * nothing until `?rowId=` matches a row in the active view's loaded rows. Closing
+ * removes the `rowId` param (preserving any other params).
  */
-export function DatabaseItemModal({ pageId, data, editable = true }: DatabaseItemModalProps) {
+export function DatabaseItemModal({ pageId, viewId, schema, editable = true }: DatabaseItemModalProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const rowId = searchParams?.get('rowId') ?? null
 
+  // Resolve the row from the active view's listRows cache (the same paginated
+  // query the table reads), so the modal and table share one source of truth.
+  const { rows } = useViewRows(pageId, viewId)
   const row = useMemo(
-    () => (rowId ? (data.rows.find((r) => r.rowId === rowId) ?? null) : null),
-    [data.rows, rowId],
+    () => (rowId ? (rows.find((r) => r.rowId === rowId) ?? null) : null),
+    [rows, rowId],
   )
 
   function close() {
@@ -101,7 +103,8 @@ export function DatabaseItemModal({ pageId, data, editable = true }: DatabaseIte
     >
       <ItemModalContent
         pageId={pageId}
-        data={data}
+        viewId={viewId}
+        schema={schema}
         row={row}
         editable={editable}
         onClose={close}
@@ -112,20 +115,22 @@ export function DatabaseItemModal({ pageId, data, editable = true }: DatabaseIte
 
 function ItemModalContent({
   pageId,
-  data,
+  viewId,
+  schema,
   row,
   editable,
   onClose,
 }: {
   pageId: string
-  data: DatabaseViewModel
+  viewId: string
+  schema: DatabaseSchema
   row: DatabaseRowView
   editable: boolean
   onClose: () => void
 }) {
   const properties = useMemo(
-    () => [...data.properties].sort((a, b) => a.position - b.position),
-    [data.properties],
+    () => [...schema.properties].sort((a, b) => a.position - b.position),
+    [schema.properties],
   )
 
   return (
@@ -170,7 +175,7 @@ function ItemModalContent({
           }}
         >
           <Box sx={{ px: { xs: 2, md: 4 }, pt: { xs: 2, md: 3 } }}>
-            <ItemTitle pageId={pageId} row={row} editable={editable} />
+            <ItemTitle pageId={pageId} viewId={viewId} row={row} editable={editable} />
           </Box>
           <Box sx={{ flex: 1, minHeight: 0, px: { xs: 1, md: 2 }, pb: 2 }}>
             <ItemBody itemPageId={row.pageId} editable={editable} />
@@ -234,39 +239,30 @@ function ItemModalContent({
 /** Editable item title — writes `Page.title` via `database.updateRow`, optimistic. */
 function ItemTitle({
   pageId,
+  viewId,
   row,
   editable,
 }: {
   pageId: string
+  viewId: string
   row: DatabaseRowView
   editable: boolean
 }) {
-  const utils = trpc.useUtils()
+  const { patchTitle, invalidateActive } = useOptimisticRows(pageId, viewId)
   const [draft, setDraft] = useState(() => row.title ?? '')
 
   useEffect(() => {
     setDraft(row.title ?? '')
   }, [row.title])
 
-  const setData = utils.database.listRows.setData as (
-    input: ReturnType<typeof defaultRowsInput>,
-    updater: (prev: ListRowsResult | undefined) => ListRowsResult | undefined,
-  ) => void
-
   const updateRow = trpc.database.updateRow.useMutation({
-    onError: () => utils.database.listRows.invalidate({ pageId }),
+    onError: () => invalidateActive(),
   })
 
   function persist() {
     const next = draft.trim()
     if (next === (row.title ?? '')) return
-    setData(defaultRowsInput(pageId), (current) => {
-      if (!current) return current
-      return {
-        ...current,
-        rows: current.rows.map((r) => (r.rowId === row.rowId ? { ...r, title: next } : r)),
-      }
-    })
+    patchTitle(row.rowId, next)
     updateRow.mutate({ pageId, rowId: row.rowId, title: next })
   }
 

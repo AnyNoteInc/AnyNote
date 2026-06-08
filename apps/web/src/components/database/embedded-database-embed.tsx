@@ -1,11 +1,12 @@
 'use client'
 
+import { useMemo } from 'react'
 import { Box, CircularProgress, Typography } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
 
 import { DatabaseTableView } from './database-table-view'
-import { defaultRowsInput } from './types'
+import { ActiveViewIdProvider } from './cell-editors/use-optimistic-cell'
 
 interface EmbeddedDatabaseEmbedProps {
   /** The DatabaseSource id stored on the editor node. */
@@ -20,24 +21,23 @@ interface EmbeddedDatabaseEmbedProps {
  * @repo/editor calls the injected `renderEmbed`, which mounts this component.
  *
  * It resolves the source to its DATABASE page via `database.getBySourceId`
- * (returning the `pageId` the table view drives mutations through) and renders
- * the SAME `DatabaseTableView` used full-page — editing a cell here updates the
- * source, and opening a row sets `?rowId=` on the host page (the table view's
- * RowTitleCell already does this). When readonly, the table hides write
- * affordances.
+ * (returning the schema + the `pageId` mutations route through) and renders the
+ * SAME `DatabaseTableView` used full-page, anchored to the source's first view.
+ * Editing a cell here updates the source; opening a row sets `?rowId=` on the host
+ * page. When readonly, the table hides write affordances. (Per-view tabs are a
+ * full-page affordance; the embed shows the default/first view.)
  */
 export function EmbeddedDatabaseEmbed({ sourceId, readonly }: EmbeddedDatabaseEmbedProps) {
   const query = trpc.database.getBySourceId.useQuery(
     { sourceId: sourceId ?? '' },
     { enabled: Boolean(sourceId), retry: false },
   )
-  // Rows moved out of getBySourceId (Phase-4A fetch split) — fetch them separately
-  // for the resolved DATABASE page and merge into the table's view-model.
-  const resolvedPageId = query.data?.pageId
-  const rowsQuery = trpc.database.listRows.useQuery(
-    defaultRowsInput(resolvedPageId ?? ''),
-    { enabled: Boolean(resolvedPageId), retry: false },
-  )
+
+  const schema = query.data?.view
+  const firstView = useMemo(() => {
+    if (!schema) return null
+    return [...schema.views].sort((a, b) => a.position - b.position)[0] ?? null
+  }, [schema])
 
   if (!sourceId) {
     return (
@@ -57,7 +57,7 @@ export function EmbeddedDatabaseEmbed({ sourceId, readonly }: EmbeddedDatabaseEm
     )
   }
 
-  if (query.isError || !query.data) {
+  if (query.isError || !query.data || !schema || !firstView) {
     return (
       <Box sx={{ p: 2 }}>
         <Typography variant="body2" color="text.secondary">
@@ -67,11 +67,18 @@ export function EmbeddedDatabaseEmbed({ sourceId, readonly }: EmbeddedDatabaseEm
     )
   }
 
-  const data = { ...query.data.view, rows: rowsQuery.data?.rows ?? [] }
-
   return (
-    <Box sx={{ maxHeight: 480, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-      <DatabaseTableView pageId={query.data.pageId} data={data} editable={!readonly} />
-    </Box>
+    <ActiveViewIdProvider value={firstView.id}>
+      <Box sx={{ maxHeight: 480, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <DatabaseTableView
+          pageId={query.data.pageId}
+          viewId={firstView.id}
+          view={firstView}
+          properties={schema.properties}
+          systemTitleProperty={schema.systemTitleProperty}
+          editable={!readonly}
+        />
+      </Box>
+    </ActiveViewIdProvider>
   )
 }

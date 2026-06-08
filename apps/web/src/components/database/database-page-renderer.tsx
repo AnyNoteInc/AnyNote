@@ -1,12 +1,19 @@
 'use client'
 
+import { useMemo } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { Box, Button, CircularProgress, Stack, Typography } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
 
+import { DatabaseViewTabs } from './database-view-tabs'
 import { DatabaseTableView } from './database-table-view'
+import { DatabaseBoardView } from './views/database-board-view'
+import { DatabaseCalendarView } from './views/database-calendar-view'
+import { DatabaseListView } from './views/database-list-view'
 import { DatabaseItemModal } from './database-item-modal'
-import { defaultRowsInput } from './types'
+import { ActiveViewIdProvider } from './cell-editors/use-optimistic-cell'
+import type { DatabaseSchema, DatabaseViewEntry, DatabaseViewProps } from './types'
 
 interface DatabasePageRendererProps {
   readonly pageId: string
@@ -23,35 +30,37 @@ function CenteredSpinner() {
 
 /**
  * Full-page renderer for a DATABASE page. Loads the database SCHEMA via
- * `database.getByPage` and the active view's rows via `database.listRows`
- * (Phase-4A fetch split), then merges them into the `{ ...schema, rows }` shape
- * the table/modal consume. If the page has no source yet (a legacy DATABASE page
- * created before provisioning, or one whose dispatch was skipped) `getByPage`
- * throws NOT_FOUND and we surface a "Создать базу" action that calls
- * `database.repairSource` (idempotent `seedDefaults`).
+ * `database.getByPage` (source + views + properties, NO rows — rows are fetched
+ * view-aware via `listRows` inside each view component). It resolves the active
+ * view from `?viewId=` (fallback the first view), renders the view tab strip and
+ * the layout for the active view's type. If the page has no source yet (a legacy
+ * DATABASE page) `getByPage` throws NOT_FOUND and we surface a "Создать базу"
+ * action that calls `database.repairSource` (idempotent `seedDefaults`).
  */
 export function DatabasePageRenderer({ pageId, editable = true }: DatabasePageRendererProps) {
   const utils = trpc.useUtils()
+  const searchParams = useSearchParams()
+  const requestedViewId = searchParams?.get('viewId') ?? null
+
   const { data: schema, isLoading, error, refetch } = trpc.database.getByPage.useQuery(
     { pageId },
     { retry: false },
   )
-  // Default-view rows (no `viewId` → default TABLE settings). MVP fetches a single
-  // bounded page; per-view selection + pagination arrive with `useViewRows` (Phase E).
-  const { data: rowsResult } = trpc.database.listRows.useQuery(
-    defaultRowsInput(pageId),
-    { retry: false, enabled: !!schema },
-  )
 
   const repairSource = trpc.database.repairSource.useMutation({
     onSuccess: async () => {
-      await Promise.all([
-        utils.database.getByPage.invalidate({ pageId }),
-        utils.database.listRows.invalidate({ pageId }),
-      ])
+      await utils.database.getByPage.invalidate({ pageId })
       await refetch()
     },
   })
+
+  // Resolve the active view: the `?viewId=` param if it names a real view, else
+  // the first view by position. Memoised so the dispatched component is stable.
+  const activeView = useMemo<DatabaseViewEntry | null>(() => {
+    if (!schema) return null
+    const sorted = [...schema.views].sort((a, b) => a.position - b.position)
+    return sorted.find((v) => v.id === requestedViewId) ?? sorted[0] ?? null
+  }, [schema, requestedViewId])
 
   if (isLoading) return <CenteredSpinner />
 
@@ -88,15 +97,63 @@ export function DatabasePageRenderer({ pageId, editable = true }: DatabasePageRe
     )
   }
 
-  // Merge schema + rows into the single shape the table/modal read. Rows stream in
-  // after the schema (separate query), so default to [] until they arrive.
-  const data = { ...schema, rows: rowsResult?.rows ?? [] }
+  if (!activeView) {
+    return (
+      <Box sx={{ p: 4 }}>
+        <Typography color="text.secondary">У этой базы нет представлений.</Typography>
+      </Box>
+    )
+  }
 
   return (
-    <>
-      <DatabaseTableView pageId={pageId} data={data} editable={editable} />
-      {/* Item "peek" modal — opens when `?rowId=` matches a row (set by the title cell). */}
-      <DatabaseItemModal pageId={pageId} data={data} editable={editable} />
-    </>
+    // Provide the active view's id so the shared cell editors patch the right
+    // listRows cache entry (keyed by pageId+viewId) without threading viewId props
+    // through every editor.
+    <ActiveViewIdProvider value={activeView.id}>
+      <Stack sx={{ height: '100%', minHeight: 0, bgcolor: 'background.paper' }}>
+        <DatabaseViewTabs
+          pageId={pageId}
+          views={schema.views}
+          activeViewId={activeView.id}
+          editable={editable}
+        />
+        <ViewDispatch pageId={pageId} schema={schema} view={activeView} editable={editable} />
+      </Stack>
+      {/* Item "peek" modal — opens when `?rowId=` matches a row in the active view. */}
+      <DatabaseItemModal pageId={pageId} viewId={activeView.id} schema={schema} editable={editable} />
+    </ActiveViewIdProvider>
   )
+}
+
+/** Dispatch to the layout component for the active view's type. */
+function ViewDispatch({
+  pageId,
+  schema,
+  view,
+  editable,
+}: {
+  pageId: string
+  schema: DatabaseSchema
+  view: DatabaseViewEntry
+  editable: boolean
+}) {
+  const props: DatabaseViewProps = {
+    pageId,
+    viewId: view.id,
+    view,
+    properties: schema.properties,
+    systemTitleProperty: schema.systemTitleProperty,
+    editable,
+  }
+  switch (view.type) {
+    case 'BOARD':
+      return <DatabaseBoardView {...props} />
+    case 'CALENDAR':
+      return <DatabaseCalendarView {...props} />
+    case 'LIST':
+      return <DatabaseListView {...props} />
+    case 'TABLE':
+    default:
+      return <DatabaseTableView {...props} />
+  }
 }

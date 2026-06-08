@@ -1,42 +1,39 @@
 'use client'
 
+import { createContext, useContext } from 'react'
+
 import { trpc } from '@/trpc/client'
-import type { RouterOutputs } from '@/trpc/client'
 
-import { defaultRowsInput } from '../types'
-
-export type ListRowsResult = RouterOutputs['database']['listRows']
+import { useOptimisticRows } from '../use-view-rows'
 
 /**
- * Shared optimistic-update helper for cell editors. Mirrors the kanban
- * table-view pattern: patch the `database.listRows` query cache in place (rows
- * moved out of `getByPage` in the Phase-4A fetch split), then invalidate on error
- * so a failed write rolls back to server truth.
+ * The active view's id, provided by the renderer/table so the shared cell editors
+ * patch the RIGHT `listRows` cache entry (keyed by `pageId+viewId`). `undefined`
+ * means the default view (no explicit `viewId`), which the embedded-database embed
+ * uses. Cell editors read it via `useActiveViewId()` so their prop interface stays
+ * unchanged across the Phase-4A fetch split.
+ */
+const ActiveViewIdContext = createContext<string | undefined>(undefined)
+
+export const ActiveViewIdProvider = ActiveViewIdContext.Provider
+
+export function useActiveViewId(): string | undefined {
+  return useContext(ActiveViewIdContext)
+}
+
+/**
+ * Shared optimistic-update helper for cell editors. Patches the active view's
+ * `database.listRows` infinite-query cache in place (rows moved out of
+ * `getByPage` in the Phase-4A fetch split + per-view in Phase E), invalidates
+ * sibling views (a cell change can move a row across another view's filter/sort),
+ * then persists; on error it rolls the active view back to server truth.
  */
 export function useCellUpdate(pageId: string) {
-  const utils = trpc.useUtils()
-
-  const setData = utils.database.listRows.setData as (
-    input: ReturnType<typeof defaultRowsInput>,
-    updater: (prev: ListRowsResult | undefined) => ListRowsResult | undefined,
-  ) => void
-
-  function patchCellOptimistic(rowId: string, propertyId: string, value: unknown) {
-    setData(defaultRowsInput(pageId), (current) => {
-      if (!current) return current
-      return {
-        ...current,
-        rows: current.rows.map((row) =>
-          row.rowId === rowId
-            ? { ...row, cells: { ...row.cells, [propertyId]: value } }
-            : row,
-        ),
-      }
-    })
-  }
+  const viewId = useActiveViewId()
+  const { patchCell, invalidateActive } = useOptimisticRows(pageId, viewId)
 
   const mutation = trpc.database.updateCellValue.useMutation({
-    onError: () => utils.database.listRows.invalidate({ pageId }),
+    onError: () => invalidateActive(),
   })
 
   /**
@@ -47,7 +44,7 @@ export function useCellUpdate(pageId: string) {
    * holds so reads stay consistent.
    */
   function commit(rowId: string, propertyId: string, value: unknown) {
-    patchCellOptimistic(rowId, propertyId, value)
+    patchCell(rowId, propertyId, value)
     mutation.mutate({ pageId, rowId, propertyId, value })
   }
 

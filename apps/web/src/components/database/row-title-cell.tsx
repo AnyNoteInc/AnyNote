@@ -5,13 +5,12 @@ import { useRouter, useSearchParams } from 'next/navigation'
 import { Box, IconButton, InputBase, OpenInFullIcon } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
-import type { RouterOutputs } from '@/trpc/client'
-import { defaultRowsInput } from './types'
-
-type ListRowsResult = RouterOutputs['database']['listRows']
+import { useOptimisticRows } from './use-view-rows'
 
 interface RowTitleCellProps {
   readonly pageId: string
+  /** The active view whose listRows cache the optimistic title patch targets. */
+  readonly viewId: string | undefined
   readonly rowId: string
   readonly title: string | null
   readonly editable?: boolean
@@ -23,35 +22,24 @@ interface RowTitleCellProps {
  * URL; the item-page modal (Phase D) reads that param. The Title column is never
  * deletable/renamable — it is the page title, not a DatabaseProperty.
  */
-export function RowTitleCell({ pageId, rowId, title, editable = true }: RowTitleCellProps) {
+export function RowTitleCell({ pageId, viewId, rowId, title, editable = true }: RowTitleCellProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
-  const utils = trpc.useUtils()
+  const { patchTitle, invalidateActive } = useOptimisticRows(pageId, viewId)
   const [draft, setDraft] = useState(() => title ?? '')
 
   useEffect(() => {
     setDraft(title ?? '')
   }, [title])
 
-  const setData = utils.database.listRows.setData as (
-    input: ReturnType<typeof defaultRowsInput>,
-    updater: (prev: ListRowsResult | undefined) => ListRowsResult | undefined,
-  ) => void
-
   const updateRow = trpc.database.updateRow.useMutation({
-    onError: () => utils.database.listRows.invalidate({ pageId }),
+    onError: () => invalidateActive(),
   })
 
   function persist() {
     const next = draft.trim()
     if (next === (title ?? '')) return
-    setData(defaultRowsInput(pageId), (current) => {
-      if (!current) return current
-      return {
-        ...current,
-        rows: current.rows.map((r) => (r.rowId === rowId ? { ...r, title: next } : r)),
-      }
-    })
+    patchTitle(rowId, next)
     updateRow.mutate({ pageId, rowId, title: next })
   }
 

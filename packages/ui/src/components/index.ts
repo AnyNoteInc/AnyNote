@@ -25,6 +25,11 @@ export { default as IconButton, type IconButtonProps } from '@mui/material/IconB
 export { default as Button, type ButtonProps } from '@mui/material/Button'
 export { default as Drawer, type DrawerProps } from '@mui/material/Drawer'
 export { default as ButtonGroup, type ButtonGroupProps } from '@mui/material/ButtonGroup'
+export { default as ToggleButton, type ToggleButtonProps } from '@mui/material/ToggleButton'
+export {
+  default as ToggleButtonGroup,
+  type ToggleButtonGroupProps,
+} from '@mui/material/ToggleButtonGroup'
 export { default as Tooltip, type TooltipProps } from '@mui/material/Tooltip'
 export { default as Chip, type ChipProps } from '@mui/material/Chip'
 export { default as Stepper, type StepperProps } from '@mui/material/Stepper'
@@ -140,6 +145,11 @@ export { default as DeleteForeverIcon } from '@mui/icons-material/DeleteForever'
 export { default as DescriptionIcon } from '@mui/icons-material/Description'
 export { default as BrushIcon } from '@mui/icons-material/Brush'
 export { default as ViewKanbanIcon } from '@mui/icons-material/ViewKanban'
+export { default as ViewListIcon } from '@mui/icons-material/ViewList'
+export { default as CalendarMonthIcon } from '@mui/icons-material/CalendarMonth'
+export { default as FilterListIcon } from '@mui/icons-material/FilterList'
+export { default as SwapVertIcon } from '@mui/icons-material/SwapVert'
+export { default as TuneIcon } from '@mui/icons-material/Tune'
 export { default as SchemaIcon } from '@mui/icons-material/Schema'
 export { default as MoreVertIcon } from '@mui/icons-material/MoreVert'
 export { default as OpenInFullIcon } from '@mui/icons-material/OpenInFull'

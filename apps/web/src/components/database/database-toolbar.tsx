@@ -5,21 +5,23 @@ import {
   AddIcon,
   Box,
   Button,
-  Chip,
   InputBase,
   Menu,
   MenuItem,
   SearchIcon,
   Stack,
-  TableChartIcon,
 } from '@repo/ui/components'
 import type { DatabasePropertyType } from '@repo/db'
 
 import { trpc } from '@/trpc/client'
 
+import type { DatabaseSchema, DatabaseViewEntry } from './types'
+
 interface DatabaseToolbarProps {
   readonly pageId: string
-  readonly viewTitle: string
+  readonly view: DatabaseViewEntry
+  readonly properties: DatabaseSchema['properties']
+  readonly systemTitleProperty: DatabaseSchema['systemTitleProperty']
   readonly search: string
   readonly onSearchChange: (value: string) => void
   readonly editable?: boolean
@@ -47,7 +49,6 @@ const PROPERTY_TYPE_DEFAULT_NAME: Partial<Record<DatabasePropertyType, string>> 
 
 export function DatabaseToolbar({
   pageId,
-  viewTitle,
   search,
   onSearchChange,
   editable = true,
@@ -56,7 +57,7 @@ export function DatabaseToolbar({
   const [propAnchorEl, setPropAnchorEl] = useState<HTMLElement | null>(null)
 
   // createRow touches the rows (listRows); createProperty touches the schema
-  // (getByPage). Invalidate both so the merged view-model refetches either way.
+  // (getByPage). Invalidate both so either surface refreshes.
   const invalidate = async () => {
     await Promise.all([
       utils.database.getByPage.invalidate({ pageId }),
@@ -70,7 +71,7 @@ export function DatabaseToolbar({
     setPropAnchorEl(null)
     const name = PROPERTY_TYPE_DEFAULT_NAME[type] ?? 'Свойство'
     // Seed default options for choice-based types so the cell editor is usable.
-    const settings =
+    const optionSettings =
       type === 'SELECT' || type === 'STATUS'
         ? {
             options: [
@@ -79,7 +80,7 @@ export function DatabaseToolbar({
             ],
           }
         : undefined
-    createProperty.mutate({ pageId, type, name, ...(settings ? { settings } : {}) })
+    createProperty.mutate({ pageId, type, name, ...(optionSettings ? { settings: optionSettings } : {}) })
   }
 
   return (
@@ -89,9 +90,6 @@ export function DatabaseToolbar({
       spacing={1}
       sx={{ px: 2, py: 1, borderBottom: 1, borderColor: 'divider' }}
     >
-      {/* View selector placeholder — multiple views land in cl4. */}
-      <Chip icon={<TableChartIcon />} label={viewTitle} size="small" variant="outlined" />
-
       <Box
         sx={{
           display: 'flex',

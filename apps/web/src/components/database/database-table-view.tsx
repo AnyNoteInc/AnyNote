@@ -5,6 +5,7 @@ import {
   AddIcon,
   Box,
   Button,
+  CircularProgress,
   DeleteIcon,
   IconButton,
   Stack,
@@ -23,52 +24,82 @@ import { DatabaseToolbar } from './database-toolbar'
 import { PropertyHeaderCell } from './property-header-cell'
 import { RowTitleCell } from './row-title-cell'
 import { CellEditor } from './cell-editors/cell-dispatch'
-import type { DatabaseViewModel } from './types'
+import { useViewRows } from './use-view-rows'
+import { parseViewSettings } from './types'
+import type { DatabaseViewProps } from './types'
 
-interface DatabaseTableViewProps {
-  readonly pageId: string
-  readonly data: DatabaseViewModel
-  readonly editable?: boolean
+/** Lowercased, JSON-array-aware text of a cell value for the db-local search. */
+function cellSearchText(value: unknown): string {
+  if (value == null) return ''
+  if (Array.isArray(value)) return value.map((v) => String(v)).join(' ').toLowerCase()
+  if (typeof value === 'object') return JSON.stringify(value).toLowerCase()
+  return String(value).toLowerCase()
 }
 
-export function DatabaseTableView({ pageId, data, editable = true }: DatabaseTableViewProps) {
+/**
+ * TABLE layout. Fetches its own rows view-aware + paginated via `useViewRows`
+ * (server-applied filters/sorts come baked in; the table only renders). Columns
+ * respect `view.settings.visibleProperties` (null/absent = all visible). Cell and
+ * title edits patch the active view's `listRows` cache (the renderer set the
+ * active `viewId` in context). The db-local search filters only the currently
+ * loaded page of rows; server-side filters (the toolbar's Фильтр popover)
+ * supersede it for larger sets.
+ */
+export function DatabaseTableView({
+  pageId,
+  viewId,
+  view,
+  properties: allProperties,
+  systemTitleProperty,
+  editable,
+}: DatabaseViewProps) {
   const utils = trpc.useUtils()
   const [search, setSearch] = useState('')
 
-  const properties = useMemo(
-    () => [...data.properties].sort((a, b) => a.position - b.position),
-    [data.properties],
+  const settings = useMemo(() => parseViewSettings(view.settings), [view.settings])
+
+  // Column set: sorted by position, then filtered by `visibleProperties` (a view
+  // display setting; null/absent → all columns). Never an ACL — hidden columns'
+  // cells are still returned by the API.
+  const properties = useMemo(() => {
+    const sorted = [...allProperties].sort((a, b) => a.position - b.position)
+    const visible = settings.visibleProperties
+    if (!visible) return sorted
+    const allowed = new Set(visible)
+    return sorted.filter((p) => allowed.has(p.id))
+  }, [allProperties, settings.visibleProperties])
+
+  const { rows, fetchNextPage, hasNextPage, isLoading, isFetchingNextPage } = useViewRows(
+    pageId,
+    viewId,
   )
 
-  // Database-local search: client-side filter over the already-loaded rows by
-  // item title + stringified cell values (never global workspace search). Server
-  // view filters supersede this for larger sets (Phase E); MVP filters in-memory.
-  const rows = useMemo(() => {
-    const sorted = [...data.rows].sort((a, b) => a.position - b.position)
+  // Server already filtered/sorted the page; the db-local search is a light
+  // client filter over the loaded rows by title + stringified cell values.
+  const visibleRows = useMemo(() => {
     const q = search.trim().toLowerCase()
-    if (!q) return sorted
-    return sorted.filter((row) => {
+    if (!q) return rows
+    return rows.filter((row) => {
       if ((row.title ?? '').toLowerCase().includes(q)) return true
-      return Object.values(row.cells).some((value) =>
-        value != null && String(value).toLowerCase().includes(q),
-      )
+      return Object.values(row.cells).some((value) => cellSearchText(value).includes(q))
     })
-  }, [data.rows, search])
+  }, [rows, search])
 
-  // Rows live in the listRows cache (Phase-4A fetch split); invalidate it so the
-  // merged view-model in the renderer refetches.
+  // Row create/delete refetch the active view's rows (and sibling views, since a
+  // new/removed row may match other filters).
   const invalidate = () => utils.database.listRows.invalidate({ pageId })
   const createRow = trpc.database.createRow.useMutation({ onSuccess: invalidate })
   const deleteRow = trpc.database.deleteRow.useMutation({ onSuccess: invalidate })
 
-  const viewTitle = data.views[0]?.title ?? 'Таблица'
   const colCount = properties.length + 1 + (editable ? 1 : 0)
 
   return (
-    <Stack sx={{ height: '100%', minHeight: 0, bgcolor: 'background.paper' }}>
+    <Stack sx={{ flex: 1, minHeight: 0, bgcolor: 'background.paper' }}>
       <DatabaseToolbar
         pageId={pageId}
-        viewTitle={viewTitle}
+        view={view}
+        properties={allProperties}
+        systemTitleProperty={systemTitleProperty}
         search={search}
         onSearchChange={setSearch}
         editable={editable}
@@ -80,7 +111,7 @@ export function DatabaseTableView({ pageId, data, editable = true }: DatabaseTab
             <TableHead>
               <TableRow>
                 <TableCell sx={{ minWidth: 220, fontWeight: 600 }}>
-                  {data.systemTitleProperty.name}
+                  {systemTitleProperty.name}
                 </TableCell>
                 {properties.map((property) => (
                   <TableCell key={property.id} sx={{ minWidth: 160 }}>
@@ -91,11 +122,12 @@ export function DatabaseTableView({ pageId, data, editable = true }: DatabaseTab
               </TableRow>
             </TableHead>
             <TableBody>
-              {rows.map((row) => (
+              {visibleRows.map((row) => (
                 <TableRow key={row.rowId} hover>
                   <TableCell sx={{ minWidth: 220 }}>
                     <RowTitleCell
                       pageId={pageId}
+                      viewId={viewId}
                       rowId={row.rowId}
                       title={row.title}
                       editable={editable}
@@ -120,12 +152,22 @@ export function DatabaseTableView({ pageId, data, editable = true }: DatabaseTab
                 </TableRow>
               ))}
 
-              {rows.length === 0 ? (
+              {visibleRows.length === 0 && !isLoading ? (
                 <TableRow>
                   <TableCell colSpan={colCount}>
                     <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
                       {search.trim() ? 'Ничего не найдено' : 'Пока нет строк'}
                     </Typography>
+                  </TableCell>
+                </TableRow>
+              ) : null}
+
+              {isLoading ? (
+                <TableRow>
+                  <TableCell colSpan={colCount}>
+                    <Box sx={{ display: 'flex', justifyContent: 'center', py: 3 }}>
+                      <CircularProgress size={20} />
+                    </Box>
                   </TableCell>
                 </TableRow>
               ) : null}
@@ -140,6 +182,20 @@ export function DatabaseTableView({ pageId, data, editable = true }: DatabaseTab
                       onClick={() => createRow.mutate({ pageId })}
                     >
                       Новая строка
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ) : null}
+
+              {hasNextPage ? (
+                <TableRow>
+                  <TableCell colSpan={colCount} sx={{ borderBottom: 'none', textAlign: 'center' }}>
+                    <Button
+                      size="small"
+                      disabled={isFetchingNextPage}
+                      onClick={() => fetchNextPage()}
+                    >
+                      {isFetchingNextPage ? 'Загрузка…' : 'Загрузить ещё'}
                     </Button>
                   </TableCell>
                 </TableRow>
