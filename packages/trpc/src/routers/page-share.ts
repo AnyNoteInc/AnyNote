@@ -349,6 +349,64 @@ export const pageShareRouter = router({
       return { valid: verifySharePassword(input.password, share.passwordHash) }
     }),
 
+  // Public (unauthenticated): the published subtree of a SITE share, for the
+  // public navigation sidebar. Re-validates the share through the resolver
+  // authority (publish/expiry/password/archived) and walks `parentId` down from
+  // the share root, excluding archived/deleted pages and EVERY PERSONAL
+  // collection (the public viewer never owns one). Returns an EMPTY tree for
+  // LINK mode or any unavailable share — a public visitor never enumerates a
+  // private subtree.
+  publicTree: publicProcedure
+    .input(z.object({ shareId: z.string(), password: z.string().optional() }))
+    .query(async ({ ctx, input }) => {
+      const resolver = new ShareAccessService(new ShareAccessRepository(ctx.prisma))
+      const resolved = await resolver.resolve({
+        shareId: input.shareId,
+        password: input.password,
+        now: new Date(),
+      })
+      // Only published SITE shares (with subpages enabled) expose a tree. The
+      // resolver's `page` is the share ROOT (no requestedPageId was passed), so
+      // its title/icon label the nav root link.
+      if (
+        resolved.status !== 'ok' ||
+        resolved.share.mode !== 'SITE' ||
+        !resolved.share.publishSubpages
+      ) {
+        const root = resolved.status === 'ok' ? resolved.page : null
+        return {
+          rootId: root?.id ?? null,
+          rootTitle: root?.title ?? null,
+          rootIcon: root?.icon ?? null,
+          nodes: [],
+        }
+      }
+
+      const rootId = resolved.page.id
+      type TreeNode = { id: string; title: string | null; icon: string | null; parentId: string | null }
+      const nodes: TreeNode[] = []
+      let frontier = [rootId]
+      // Guard against pathological depth / cycles.
+      for (let depth = 0; depth < 64 && frontier.length > 0; depth += 1) {
+        const children = await ctx.prisma.page.findMany({
+          where: {
+            parentId: { in: frontier },
+            archivedAt: null,
+            deletedAt: null,
+            // Public traversal never enters a PERSONAL collection.
+            NOT: { collection: { kind: 'PERSONAL' } },
+          },
+          select: { id: true, title: true, icon: true, parentId: true },
+          orderBy: { createdAt: 'asc' },
+        })
+        if (children.length === 0) break
+        for (const child of children) nodes.push(child)
+        frontier = children.map((c) => c.id)
+      }
+
+      return { rootId, rootTitle: resolved.page.title, rootIcon: resolved.page.icon, nodes }
+    }),
+
   // Duplicate-as-template: deep-copy a public page (and its visible subtree)
   // into a workspace the caller belongs to. Re-validates the share through the
   // single resolver authority and refuses unless the share permits copying.
