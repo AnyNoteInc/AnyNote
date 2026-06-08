@@ -12,7 +12,7 @@ async function signUpAndCreateWorkspace(page: import('@playwright/test').Page, l
 }
 
 async function createTextPage(page: import('@playwright/test').Page): Promise<string> {
-  await page.getByRole('button', { name: 'Новая страница' }).click()
+  await page.getByRole('button', { name: 'Новая страница' }).first().click()
   await page.getByRole('button', { name: 'Создать страницу: Текст' }).click()
   await page.waitForURL(/\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
   return page.url()
@@ -55,7 +55,7 @@ test("two clients see each other's TEXT edits in real time", async ({ browser })
 test('EXCALIDRAW page persists a drawn shape after reload', async ({ page }) => {
   await signUpAndCreateWorkspace(page, 'Canvas')
 
-  await page.getByRole('button', { name: 'Новая страница' }).click()
+  await page.getByRole('button', { name: 'Новая страница' }).first().click()
   await page.getByRole('button', { name: 'Создать страницу: Холст' }).click()
   await page.waitForURL(/\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
 

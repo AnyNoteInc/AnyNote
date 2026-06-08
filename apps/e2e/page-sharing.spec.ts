@@ -19,7 +19,7 @@ test('owner shares a TEXT page publicly; an anonymous visitor opens it read-only
 
   // Create a TEXT page.
   await page.getByRole('button', { name: 'Страницы' }).click()
-  await page.getByRole('button', { name: 'Новая страница' }).click()
+  await page.getByRole('button', { name: 'Новая страница' }).first().click()
   await page.getByRole('button', { name: 'Создать страницу: Текст' }).click()
   await page.waitForURL(/\/pages\/[a-f0-9-]+/, { timeout: 15_000 })
   await expect(page.locator('.anynote-editor .ProseMirror')).toBeVisible({ timeout: 15_000 })

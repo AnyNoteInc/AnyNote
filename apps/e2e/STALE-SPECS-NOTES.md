@@ -43,18 +43,21 @@ Uncovered while validating the URL pass:
 - Default priorities are Низкий/Средний/Высокий/Критичный (no "Минимальный").
 - Board DnD uses @hello-pangea/dnd → `data-rbd-droppable-id` (NOT `data-rfd-`).
 
-## OUT OF SCOPE — genuine behavior changes, NOT URL staleness (TODO, needs product decision)
-These specs reach real assertions (preamble fixes work) but fail on app behavior
-that evolved since they were written. They need a domain owner to decide
-"intended change → update assertion" vs "regression → fix app":
+## 5. genogram.spec.ts (DONE — all 5 tests green; was stale, NOT a regression)
+Investigated and confirmed intentional UI evolution, then fixed:
+- Node count 6→5: the creation date moved OUT of the react-flow graph into a
+  bottom-left `<Panel>` overlay (`data-testid="genogram-creation-date"`, commit
+  1cb0d35d). `domainToFlow` emits no `genogramCreationDate` node. Updated the
+  count to 5 and still assert the date via the panel text.
+- `getByRole('button', { name: 'Новая страница' })` was ambiguous (two page-tree
+  sections render the "+" IconButton) → added `.first()` (applied across all 16
+  specs that click it, for determinism).
+- Add-partner drawer title "Добавление партнёра" → "Данные партнёра"
+  (RU.drawer.titleAddPartner).
+- Partner node click intercepted by the overlapping union node / marriage edge
+  in the auto-layout → `.click({ force: true })`.
 
-- **genogram.spec.ts** (all 5 tests): genogram canvas renders a different node set.
-  e.g. `Create genogram from empty state` expects 6 `.react-flow__node` (incl a
-  "creation-date label node") but the app renders 5. Also the ElementMenu /
-  partner / children / divorce-drag flows changed. Do NOT blindly change `6`→`5`;
-  confirm whether the creation-date label node was intentionally removed.
-
-## Known environment-only failures (not spec bugs)
+## OUT OF SCOPE — environment-only failures (not spec bugs, not staleness)
 - collab / excalidraw-persistence reload-persistence: no Yjs server in the
   Playwright webServer (only `next dev`). See feedback memory.
 - drawio specs: load an external diagrams.net iframe (network-dependent).
