@@ -39,6 +39,13 @@ export type PropertySettings = z.infer<typeof propertySettingsSchema>
 const propertyTypeEnum = z.nativeEnum(DatabasePropertyType)
 const viewTypeEnum = z.nativeEnum(DatabaseViewType)
 
+// ── Source inputs ─────────────────────────────────────────────────────────────
+
+export const repairSourceInput = z.object({
+  pageId: z.string().uuid(),
+})
+export type RepairSourceInput = z.infer<typeof repairSourceInput>
+
 // ── View inputs ───────────────────────────────────────────────────────────────
 
 export const createViewInput = z.object({

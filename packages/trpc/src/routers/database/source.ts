@@ -1,7 +1,8 @@
 import { z } from 'zod'
+import * as domain from '@repo/domain'
 
 import { router, protectedProcedure } from '../../trpc'
-import { assertPageAccess } from '../../helpers/page-access'
+import { assertPageAccess, assertPageEditAccess } from '../../helpers/page-access'
 import { mapDomain } from '../../helpers/map-domain'
 import { domain as domainSvc } from '../../domain'
 
@@ -14,5 +15,14 @@ export const sourceRouter = router({
     .query(async ({ ctx, input }) => {
       await assertPageAccess(ctx, input.pageId)
       return mapDomain(() => domainSvc.database.getByPage(ctx.user.id, input.pageId))
+    }),
+
+  // Idempotently provision a source for a legacy DATABASE page that has none.
+  // The renderer's "Создать базу" fallback calls this; a no-op if one exists.
+  repairSource: protectedProcedure
+    .input(domain.repairSourceInput)
+    .mutation(async ({ ctx, input }) => {
+      await assertPageEditAccess(ctx, input.pageId)
+      return mapDomain(() => domainSvc.database.repairSource(ctx.user.id, input.pageId))
     }),
 })

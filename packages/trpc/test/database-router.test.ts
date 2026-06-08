@@ -208,6 +208,44 @@ describe('database router (integration)', () => {
     expect(props.map((p) => p.id)).toEqual([b.id, a.id, status.id])
   })
 
+  it('repairSource provisions a source for a legacy DATABASE page and is idempotent', async () => {
+    const owner = await makeUser('owner')
+    const ws = await prisma.workspace.create({
+      data: { name: 'RepairWS', createdById: owner.id },
+      select: { id: true },
+    })
+    await prisma.workspaceMember.create({
+      data: { workspaceId: ws.id, userId: owner.id, role: 'OWNER' },
+    })
+    // Legacy DATABASE page with NO source (provisioning was skipped).
+    const legacy = await prisma.page.create({
+      data: { workspaceId: ws.id, type: 'DATABASE', title: 'Legacy', createdById: owner.id },
+      select: { id: true },
+    })
+    const c = caller(owner.id)
+
+    await expect(c.getByPage({ pageId: legacy.id })).rejects.toThrow(/не найдена/i)
+
+    await c.repairSource({ pageId: legacy.id })
+    const vm = await c.getByPage({ pageId: legacy.id })
+    expect(vm.source.pageId).toBe(legacy.id)
+    expect(vm.views).toHaveLength(1)
+    expect(vm.properties).toHaveLength(1)
+
+    // Idempotent: a second repair does not duplicate views/properties.
+    await c.repairSource({ pageId: legacy.id })
+    const vm2 = await c.getByPage({ pageId: legacy.id })
+    expect(vm2.views).toHaveLength(1)
+    expect(vm2.properties).toHaveLength(1)
+  })
+
+  it('repairSource is FORBIDDEN for a member without edit rights', async () => {
+    const fx = await seed()
+    await expect(
+      caller(fx.viewerId).repairSource({ pageId: fx.pageId }),
+    ).rejects.toThrow(/прав/i)
+  })
+
   it('non-member is denied (NOT_FOUND) on read and write', async () => {
     const fx = await seed()
     const c = caller(fx.outsiderId)

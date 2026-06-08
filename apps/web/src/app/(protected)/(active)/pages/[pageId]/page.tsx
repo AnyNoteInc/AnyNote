@@ -47,7 +47,8 @@ export default async function PageRoute({ params }: { params: Promise<{ pageId: 
     page.type === 'PLANTUML' ||
     page.type === 'LIKEC4' ||
     page.type === 'DRAWIO' ||
-    page.type === 'KANBAN'
+    page.type === 'KANBAN' ||
+    page.type === 'DATABASE'
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>

@@ -5,6 +5,7 @@ import {
   BrushIcon,
   DescriptionIcon,
   SchemaIcon,
+  StorageIcon,
   ViewKanbanIcon,
 } from '@repo/ui/components'
 import type { PageType } from '@repo/db'
@@ -13,13 +14,21 @@ import type { PageType } from '@repo/db'
 type IconComponent = typeof DescriptionIcon
 
 /**
- * The subset of PageType that the UI lets users create from scratch. DATABASE
- * and FORM exist in the Prisma enum but have no editor yet, so they are
- * intentionally excluded — keep this in sync with the page renderer's support.
+ * The subset of PageType that the UI lets users create from scratch. FORM exists
+ * in the Prisma enum but has no editor yet, so it is intentionally excluded —
+ * keep this in sync with the page renderer's support.
  */
 export type CreatablePageType = Extract<
   PageType,
-  'TEXT' | 'EXCALIDRAW' | 'GENOGRAM' | 'MERMAID' | 'PLANTUML' | 'LIKEC4' | 'DRAWIO' | 'KANBAN'
+  | 'TEXT'
+  | 'EXCALIDRAW'
+  | 'GENOGRAM'
+  | 'MERMAID'
+  | 'PLANTUML'
+  | 'LIKEC4'
+  | 'DRAWIO'
+  | 'KANBAN'
+  | 'DATABASE'
 >
 
 export interface PageTypeDescriptor {
@@ -41,6 +50,7 @@ export const CREATABLE_PAGE_TYPES: PageTypeDescriptor[] = [
   { type: 'DRAWIO', label: 'Draw.io', Icon: SchemaIcon, keywords: ['drawio', 'диаграмма', 'схема'] },
   { type: 'GENOGRAM', label: 'Генограмма', Icon: AccountTreeIcon, keywords: ['генограмма', 'genogram', 'семья'] },
   { type: 'KANBAN', label: 'Канбан', Icon: ViewKanbanIcon, keywords: ['канбан', 'kanban', 'доска', 'задачи'] },
+  { type: 'DATABASE', label: 'База данных', Icon: StorageIcon, keywords: ['база данных', 'database', 'таблица', 'table'] },
   { type: 'MERMAID', label: 'MermaidJS', Icon: SchemaIcon, keywords: ['mermaid', 'диаграмма', 'схема'] },
   { type: 'PLANTUML', label: 'PlantUML', Icon: SchemaIcon, keywords: ['plantuml', 'uml', 'диаграмма'] },
   { type: 'LIKEC4', label: 'LikeC4', Icon: SchemaIcon, keywords: ['likec4', 'c4', 'архитектура', 'диаграмма'] },

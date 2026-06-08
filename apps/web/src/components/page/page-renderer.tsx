@@ -75,6 +75,11 @@ const KanbanBoardPage = dynamic(
   { ssr: false, loading: () => <CenteredSpinner /> },
 )
 
+const DatabasePageRenderer = dynamic(
+  () => import('@/components/database/database-page-renderer').then((m) => m.DatabasePageRenderer),
+  { ssr: false, loading: () => <CenteredSpinner /> },
+)
+
 function CenteredSpinner() {
   return (
     <Box sx={{ display: 'flex', justifyContent: 'center', py: 6 }}>
@@ -455,6 +460,10 @@ export function PageRenderer({
 
   if (page.type === 'KANBAN') {
     return <KanbanBoardPage pageId={page.id} editable={editable} canComment={canComment} />
+  }
+
+  if (page.type === 'DATABASE') {
+    return <DatabasePageRenderer pageId={page.id} editable={editable} />
   }
 
   if (page.type === 'TEXT') {

@@ -121,6 +121,21 @@ export class DatabaseService {
     })
   }
 
+  /**
+   * Idempotently ensure a DATABASE page has a source. Legacy DATABASE pages
+   * created before provisioning existed (or via a path that skipped the
+   * type-dispatch) end up with no source; the renderer surfaces a "Создать базу"
+   * action that calls this. A no-op when the source already exists.
+   */
+  async repairSource(actorUserId: string, pageId: string): Promise<{ ok: true }> {
+    const page = await this.assertCanEdit(actorUserId, pageId)
+    const existing = await this.repo.findSourceMetaByPageId(pageId)
+    if (!existing) {
+      await this.seedDefaults(pageId, page.workspaceId)
+    }
+    return { ok: true as const }
+  }
+
   // ── View-model read ─────────────────────────────────────────────────────────
 
   async getByPage(actorUserId: string, pageId: string): Promise<DatabaseGetByPageResult> {
