@@ -6,6 +6,7 @@ import { propertyRouter } from './property'
 import { rowRouter } from './row'
 import { cellRouter } from './cell'
 import { relationRouter } from './relation'
+import { accessRouter } from './access'
 
 // Flat procedure surface (database.getByPage, database.createView, ...) built by
 // merging the per-entity sub-routers. The sub-files keep each entity's CRUD
@@ -48,4 +49,11 @@ export const databaseRouter = router({
   setRelationLinks: relationRouter.setRelationLinks,
   listLinkableRows: relationRouter.listLinkableRows,
   validateFormula: relationRouter.validateFormula,
+
+  // Page-level access rules + structure lock (Phase 4C)
+  listAccessRules: accessRouter.listRules,
+  createAccessRule: accessRouter.createRule,
+  updateAccessRule: accessRouter.updateRule,
+  deleteAccessRule: accessRouter.deleteRule,
+  setStructureLocked: accessRouter.setStructureLocked,
 })
