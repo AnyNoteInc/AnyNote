@@ -65,6 +65,7 @@ export function PageActionsToolbar({ pageId, workspaceId }: Props) {
         pageIcon={pageQ.data?.icon ?? null}
         workspaceId={workspaceId}
         pageType={pageType}
+        notifyPageType={rawType === 'DATABASE' ? 'DATABASE' : 'TEXT'}
         isFavorite={isFavorite}
         movedPage={movedPage}
         pages={pages}

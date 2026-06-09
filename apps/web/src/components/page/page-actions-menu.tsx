@@ -29,6 +29,7 @@ import { MovePageDialog } from '@/components/workspace/move-page-dialog'
 import { SaveAsTemplateDialog } from '@/components/templates'
 import type { PageItem } from '@/components/workspace/types'
 
+import { NotifyMeMenu } from './notify-me-menu'
 import { PageExportDialog } from './page-export-dialog'
 
 type Props = {
@@ -45,6 +46,9 @@ type Props = {
     | 'LIKEC4'
     | 'DRAWIO'
     | 'KANBAN'
+  // Collapsed page type for the "Уведомлять меня" submenu option set: a DATABASE
+  // page exposes update levels, everything else uses the comment levels.
+  notifyPageType?: 'TEXT' | 'DATABASE'
   isFavorite: boolean
   // Full page row needed by MovePageDialog; undefined until parent's query settles.
   movedPage: PageItem | undefined
@@ -59,6 +63,7 @@ export function PageActionsMenu({
   pageIcon,
   workspaceId,
   pageType,
+  notifyPageType = 'TEXT',
   isFavorite,
   movedPage,
   pages,
@@ -159,6 +164,12 @@ export function PageActionsMenu({
           </ListItemIcon>
           <ListItemText>Сохранить как шаблон</ListItemText>
         </MenuItem>
+
+        <Divider />
+
+        <NotifyMeMenu pageId={pageId} pageType={notifyPageType} />
+
+        <Divider />
 
         <MenuItem onClick={handleOpenDelete} sx={{ ...menuItemSx, color: 'error.main' }}>
           <ListItemIcon>

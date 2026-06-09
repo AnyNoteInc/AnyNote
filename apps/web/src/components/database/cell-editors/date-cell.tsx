@@ -1,7 +1,14 @@
 'use client'
 
-import { AdapterDateFns, DatePicker, dateFnsRu, LocalizationProvider } from '@repo/ui/components'
+import {
+  AdapterDateFns,
+  Box,
+  DatePicker,
+  dateFnsRu,
+  LocalizationProvider,
+} from '@repo/ui/components'
 
+import { DateReminderPopover } from './date-reminder-popover'
 import { useCellUpdate } from './use-optimistic-cell'
 
 interface DateCellProps {
@@ -28,23 +35,29 @@ export function DateCell({ pageId, rowId, propertyId, value, editable = true }: 
   const current = toDate(value)
 
   return (
-    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={dateFnsRu}>
-      <DatePicker
-        value={current}
-        disabled={!editable}
-        onChange={(next) => {
-          if (!next) {
-            commit(rowId, propertyId, null)
-            return
-          }
-          if (Number.isNaN(next.getTime())) return
-          commit(rowId, propertyId, next.toISOString())
-        }}
-        slotProps={{
-          textField: { size: 'small', variant: 'standard', fullWidth: true },
-          field: { clearable: true },
-        }}
-      />
-    </LocalizationProvider>
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.25, minWidth: 0 }}>
+      <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={dateFnsRu}>
+        <DatePicker
+          value={current}
+          disabled={!editable}
+          onChange={(next) => {
+            if (!next) {
+              commit(rowId, propertyId, null)
+              return
+            }
+            if (Number.isNaN(next.getTime())) return
+            commit(rowId, propertyId, next.toISOString())
+          }}
+          slotProps={{
+            textField: { size: 'small', variant: 'standard', fullWidth: true },
+            field: { clearable: true },
+          }}
+        />
+      </LocalizationProvider>
+      {/* The self-reminder bell only makes sense once the cell carries a date. */}
+      {current ? (
+        <DateReminderPopover pageId={pageId} rowId={rowId} propertyId={propertyId} />
+      ) : null}
+    </Box>
   )
 }
