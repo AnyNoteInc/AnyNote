@@ -564,6 +564,158 @@ export class DatabaseRepository {
     })
   }
 
+  // ── Relation links ─────────────────────────────────────────────────────────
+
+  /**
+   * Replace the full link set for a (propertyId, rowId) RELATION cell: delete the
+   * existing links, then insert the new target set. Runs in a transaction so a
+   * reader never sees a partially-rewritten link set. Deduplicates targetRowIds
+   * (the @@unique([propertyId, rowId, targetRowId]) constraint would otherwise
+   * reject a duplicate).
+   */
+  async replaceRelationLinks(args: {
+    propertyId: string
+    rowId: string
+    targetRowIds: string[]
+  }): Promise<void> {
+    const unique = [...new Set(args.targetRowIds)]
+    await this.uow.transaction(async () => {
+      await this.uow.client().databaseRelationLink.deleteMany({
+        where: { propertyId: args.propertyId, rowId: args.rowId },
+      })
+      if (unique.length > 0) {
+        await this.uow.client().databaseRelationLink.createMany({
+          data: unique.map((targetRowId) => ({
+            propertyId: args.propertyId,
+            rowId: args.rowId,
+            targetRowId,
+          })),
+        })
+      }
+    })
+  }
+
+  /**
+   * Resolve the linked target ids for a single RELATION property across a set of
+   * source rows → `Map<rowId, targetRowId[]>`. Rows with no links are absent from
+   * the map (callers treat a missing entry as an empty list).
+   */
+  async findRelationLinks(
+    propertyId: string,
+    rowIds: string[],
+  ): Promise<Map<string, string[]>> {
+    const out = new Map<string, string[]>()
+    if (rowIds.length === 0) return out
+    const links = await this.uow.client().databaseRelationLink.findMany({
+      where: { propertyId, rowId: { in: rowIds } },
+      select: { rowId: true, targetRowId: true },
+    })
+    for (const link of links) {
+      const list = out.get(link.rowId)
+      if (list) list.push(link.targetRowId)
+      else out.set(link.rowId, [link.targetRowId])
+    }
+    return out
+  }
+
+  /**
+   * Batch-resolve relation links for MANY properties at once (the compute-on-read
+   * path resolves every RELATION + every ROLLUP's relation property in one query).
+   * Returns a nested `Map<propertyId, Map<rowId, targetRowId[]>>`. Properties /
+   * rows with no links are simply absent (treated as empty).
+   */
+  async findRelationLinksForProperties(
+    propertyIds: string[],
+    rowIds: string[],
+  ): Promise<Map<string, Map<string, string[]>>> {
+    const out = new Map<string, Map<string, string[]>>()
+    if (propertyIds.length === 0 || rowIds.length === 0) return out
+    const links = await this.uow.client().databaseRelationLink.findMany({
+      where: { propertyId: { in: [...new Set(propertyIds)] }, rowId: { in: rowIds } },
+      select: { propertyId: true, rowId: true, targetRowId: true },
+    })
+    for (const link of links) {
+      let byRow = out.get(link.propertyId)
+      if (!byRow) {
+        byRow = new Map<string, string[]>()
+        out.set(link.propertyId, byRow)
+      }
+      const list = byRow.get(link.rowId)
+      if (list) list.push(link.targetRowId)
+      else byRow.set(link.rowId, [link.targetRowId])
+    }
+    return out
+  }
+
+  /**
+   * Fetch the chip metadata (page title/icon) for a set of rows — used to render
+   * RELATION cells as title/icon chips. Soft-deleted rows are excluded, so a
+   * dangling link (target row trashed) simply drops its chip.
+   */
+  async findRowsByIds(
+    ids: string[],
+  ): Promise<{ id: string; pageId: string; title: string | null; icon: string | null }[]> {
+    if (ids.length === 0) return []
+    const rows = await this.uow.client().databaseRow.findMany({
+      where: { id: { in: ids }, deletedAt: null },
+      select: { id: true, pageId: true, page: { select: { title: true, icon: true } } },
+    })
+    return rows.map((r) => ({
+      id: r.id,
+      pageId: r.pageId,
+      title: r.page.title,
+      icon: r.page.icon,
+    }))
+  }
+
+  /**
+   * Fetch the stored cell values for a set of (target) rows → used by rollups to
+   * read the aggregated target property. Soft-deleted rows are excluded so a
+   * rollup never counts a trashed related row.
+   */
+  async findCellsForRows(
+    rowIds: string[],
+  ): Promise<{ rowId: string; propertyId: string; value: unknown }[]> {
+    if (rowIds.length === 0) return []
+    const cells = await this.uow.client().databaseCellValue.findMany({
+      where: { rowId: { in: rowIds }, row: { deletedAt: null } },
+      select: { rowId: true, propertyId: true, value: true },
+    })
+    return cells.map((c) => ({ rowId: c.rowId, propertyId: c.propertyId, value: c.value }))
+  }
+
+  /** True when the user is a member of the workspace (PERSON cell validation). */
+  async isWorkspaceMember(userId: string, workspaceId: string): Promise<boolean> {
+    const member = await this.uow.client().workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      select: { id: true },
+    })
+    return member !== null
+  }
+
+  /**
+   * Candidate rows of a RELATION property's target source for the link picker:
+   * non-deleted rows of `targetSourceId`, optionally filtered by a case-insensitive
+   * title substring. Capped for the picker.
+   */
+  async findLinkableRows(
+    targetSourceId: string,
+    query?: string,
+  ): Promise<{ id: string; pageId: string; title: string | null }[]> {
+    const trimmed = query?.trim()
+    const where: Prisma.DatabaseRowWhereInput = { sourceId: targetSourceId, deletedAt: null }
+    if (trimmed) {
+      where.page = { is: { title: { contains: trimmed, mode: 'insensitive' } } }
+    }
+    const rows = await this.uow.client().databaseRow.findMany({
+      where,
+      orderBy: { position: 'asc' },
+      take: 50,
+      select: { id: true, pageId: true, page: { select: { title: true } } },
+    })
+    return rows.map((r) => ({ id: r.id, pageId: r.pageId, title: r.page.title }))
+  }
+
   // ── Item page creation (focused, no provisioning callback) ───────────────────
   // Delegated to PageRepository.createItemPageTx; this constant documents the type.
   static readonly ITEM_PAGE_TYPE = PageType.TEXT
