@@ -163,3 +163,66 @@ export function resolveRowAccess(
   }
   return level
 }
+
+// ── Batch + DB-level predicate ─────────────────────────────────────────────────
+
+/** Resolve a batch of rows in one pass (no N+1). Keyed by row id. */
+export function resolveRowAccessForRows(
+  ctx: RowAccessContext,
+  rules: AccessRule[],
+  rows: Array<{ id: string } & RowAccessRow>,
+): Map<string, DatabaseAccessLevel | null> {
+  const out = new Map<string, DatabaseAccessLevel | null>()
+  for (const row of rows) {
+    out.set(row.id, resolveRowAccess(ctx, rules, row))
+  }
+  return out
+}
+
+/** Does the viewer have source-wide broad access (sees every row)? */
+function hasBroadAccess(ctx: RowAccessContext): boolean {
+  return (
+    ctx.workspaceRole === 'OWNER' || ctx.workspaceRole === 'ADMIN' || ctx.isSourcePageCreator
+  )
+}
+
+/**
+ * A DB-level pre-filter pushed into the row query — an OPTIMIZATION, not the
+ * authoritative gate (the service ALSO post-filters with resolveRowAccessForRows).
+ * It may only err toward returning MORE rows for a legit viewer; it must never
+ * under-return.
+ *
+ *  - `null` = "no restriction, fetch all rows": the viewer has broad access
+ *    (OWNER/ADMIN/source-page creator) OR the source has no enabled rules.
+ *  - otherwise (restrictive, non-broad viewer): an OR of per-rule predicates —
+ *    CREATED_BY → `{ page: { is: { createdById: viewerId } } }`,
+ *    PERSON → `{ cells: { some: { propertyId, value: { equals: viewerId } } } }`.
+ *  - anonymous (viewerId null) → never-match `{ id: { in: [] } }`.
+ *  - enabled rules exist but none are CREATED_BY/PERSON-expressible →
+ *    never-match `{ id: { in: [] } }`.
+ */
+export function buildRowAccessWhere(
+  ctx: RowAccessContext,
+  rules: AccessRule[],
+): Prisma.DatabaseRowWhereInput | null {
+  if (hasBroadAccess(ctx)) return null
+
+  const enabledRules = rules.filter((r) => r.enabled)
+  if (enabledRules.length === 0) return null
+
+  const NEVER_MATCH: Prisma.DatabaseRowWhereInput = { id: { in: [] } }
+  if (ctx.viewerId === null) return NEVER_MATCH
+
+  const viewerId = ctx.viewerId
+  const or: Prisma.DatabaseRowWhereInput[] = []
+  for (const rule of enabledRules) {
+    if (rule.propertyType === 'CREATED_BY') {
+      or.push({ page: { is: { createdById: viewerId } } })
+    } else if (rule.propertyType === 'PERSON') {
+      or.push({ cells: { some: { propertyId: rule.propertyId, value: { equals: viewerId } } } })
+    }
+  }
+
+  if (or.length === 0) return NEVER_MATCH
+  return { OR: or }
+}

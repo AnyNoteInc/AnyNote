@@ -8,6 +8,8 @@ import {
   canViewRow,
   canEditRow,
   resolveRowAccess,
+  resolveRowAccessForRows,
+  buildRowAccessWhere,
 } from '../../../src/database/services/row-access-resolver.ts'
 import type {
   RowAccessContext,
@@ -226,5 +228,117 @@ describe('resolveRowAccess — restrictive mode (enabled rules present)', () => 
       pageShareLevel: null,
     }
     expect(resolveRowAccess(ctx, rules, row(null, { 'p-person': null }))).toBeNull()
+  })
+})
+
+// ── B2: batch resolution ──────────────────────────────────────────────────────
+
+describe('resolveRowAccessForRows', () => {
+  it('returns a per-row Map applying the same semantics', () => {
+    const rules = [personRule('p-person', DatabaseAccessLevel.CAN_VIEW)]
+    const rows = [
+      { id: 'r-mine', ...row(OTHER, { 'p-person': VIEWER }) },
+      { id: 'r-theirs', ...row(OTHER, { 'p-person': OTHER }) },
+    ]
+    const result = resolveRowAccessForRows(memberCtx(RoleType.VIEWER), rules, rows)
+    expect(result.get('r-mine')).toBe(DatabaseAccessLevel.CAN_VIEW)
+    expect(result.get('r-theirs')).toBeNull()
+  })
+
+  it('owner sees every row at FULL_ACCESS even with rules', () => {
+    const rules = [personRule('p-person', DatabaseAccessLevel.CAN_VIEW)]
+    const rows = [
+      { id: 'r1', ...row(OTHER, { 'p-person': OTHER }) },
+      { id: 'r2', ...row(VIEWER, { 'p-person': VIEWER }) },
+    ]
+    const result = resolveRowAccessForRows(memberCtx(RoleType.OWNER), rules, rows)
+    expect(result.get('r1')).toBe(DatabaseAccessLevel.FULL_ACCESS)
+    expect(result.get('r2')).toBe(DatabaseAccessLevel.FULL_ACCESS)
+  })
+
+  it('handles an empty rows array', () => {
+    const result = resolveRowAccessForRows(memberCtx(RoleType.VIEWER), [], [])
+    expect(result.size).toBe(0)
+  })
+})
+
+// ── B2: DB-level predicate ─────────────────────────────────────────────────────
+
+describe('buildRowAccessWhere', () => {
+  it('returns null (all rows) for broad access: OWNER', () => {
+    const rules = [personRule('p-person', DatabaseAccessLevel.CAN_VIEW)]
+    expect(buildRowAccessWhere(memberCtx(RoleType.OWNER), rules)).toBeNull()
+  })
+
+  it('returns null (all rows) for broad access: ADMIN', () => {
+    const rules = [personRule('p-person', DatabaseAccessLevel.CAN_VIEW)]
+    expect(buildRowAccessWhere(memberCtx(RoleType.ADMIN), rules)).toBeNull()
+  })
+
+  it('returns null (all rows) for the source page creator', () => {
+    const rules = [personRule('p-person', DatabaseAccessLevel.CAN_VIEW)]
+    const ctx = memberCtx(RoleType.VIEWER, { isSourcePageCreator: true })
+    expect(buildRowAccessWhere(ctx, rules)).toBeNull()
+  })
+
+  it('returns null (no restriction) when there are no enabled rules', () => {
+    expect(buildRowAccessWhere(memberCtx(RoleType.VIEWER), [])).toBeNull()
+    // a disabled-only rule set is also "no enabled rules" → no restriction
+    const disabled = [personRule('p-person', DatabaseAccessLevel.CAN_VIEW, false)]
+    expect(buildRowAccessWhere(memberCtx(RoleType.EDITOR), disabled)).toBeNull()
+  })
+
+  it('restricted viewer with a PERSON rule → cells.some predicate', () => {
+    const rules = [personRule('p-person', DatabaseAccessLevel.CAN_VIEW)]
+    const where = buildRowAccessWhere(memberCtx(RoleType.VIEWER), rules)
+    expect(where).toEqual({
+      OR: [{ cells: { some: { propertyId: 'p-person', value: { equals: VIEWER } } } }],
+    })
+  })
+
+  it('restricted viewer with a CREATED_BY rule → page.createdById predicate', () => {
+    const rules = [createdByRule('p-created', DatabaseAccessLevel.CAN_EDIT_CONTENT)]
+    const where = buildRowAccessWhere(memberCtx(RoleType.VIEWER), rules)
+    expect(where).toEqual({
+      OR: [{ page: { is: { createdById: VIEWER } } }],
+    })
+  })
+
+  it('multiple rules → an OR of all expressible predicates', () => {
+    const rules = [
+      personRule('p-person', DatabaseAccessLevel.CAN_VIEW),
+      createdByRule('p-created', DatabaseAccessLevel.CAN_EDIT),
+    ]
+    const where = buildRowAccessWhere(memberCtx(RoleType.VIEWER), rules)
+    expect(where).toEqual({
+      OR: [
+        { cells: { some: { propertyId: 'p-person', value: { equals: VIEWER } } } },
+        { page: { is: { createdById: VIEWER } } },
+      ],
+    })
+  })
+
+  it('anonymous viewer with rules → never-match predicate', () => {
+    const rules = [personRule('p-person', DatabaseAccessLevel.CAN_VIEW)]
+    const ctx: RowAccessContext = {
+      viewerId: null,
+      workspaceRole: null,
+      isSourcePageCreator: false,
+      pageShareLevel: null,
+    }
+    expect(buildRowAccessWhere(ctx, rules)).toEqual({ id: { in: [] } })
+  })
+
+  it('restricted viewer whose only rules are non-expressible → never-match predicate', () => {
+    // A defensively-shaped rule on an unsupported property type yields no OR arm.
+    const rules: AccessRule[] = [
+      {
+        propertyId: 'p-text',
+        propertyType: DatabasePropertyType.TEXT,
+        accessLevel: DatabaseAccessLevel.CAN_VIEW,
+        enabled: true,
+      },
+    ]
+    expect(buildRowAccessWhere(memberCtx(RoleType.VIEWER), rules)).toEqual({ id: { in: [] } })
   })
 })
