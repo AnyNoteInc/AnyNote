@@ -5,17 +5,22 @@ import type { ItemPageCreator } from '../../shared/item-page-creator.ts'
 // imports `@repo/db` as a value (domain-services-no-db-value rule).
 import { DatabasePropertyType, DatabaseViewType } from '../dto/database.dto.ts'
 import type {
+  AccessRuleView,
+  CreateAccessRuleInput,
   CreatePropertyInput,
   CreateRowInput,
   CreateViewInput,
   DatabaseGetByPageResult,
   DatabaseRowView,
+  DeleteAccessRuleInput,
   DuplicateViewInput,
   GroupedRowsResult,
+  ListAccessRulesInput,
   ListGroupedRowsInput,
   ListLinkableRowsInput,
   ListRowsInput,
   ListRowsResult,
+  MyDatabaseAccess,
   PropertyIdInput,
   PropertySettings,
   RelationChip,
@@ -23,8 +28,10 @@ import type {
   ReorderRowsInput,
   SetRelationLinksInput,
   SetRowPositionInput,
+  SetStructureLockedInput,
   RowIdInput,
   SelectOption,
+  UpdateAccessRuleInput,
   UpdateCellValueInput,
   UpdatePropertyInput,
   UpdateRowInput,
@@ -35,9 +42,12 @@ import type {
 import type {
   AccessiblePage,
   DatabaseRepository,
+  EnabledAccessRule,
   PropertyRow,
   RowWithPage,
+  SourceWithLock,
 } from '../repositories/database.repository.ts'
+import type { AccessRule, RowAccessContext } from './row-access-resolver.ts'
 import { tokenize, parse, FormulaSyntaxError } from '../formula/index.ts'
 import { resolveComputedCells } from './computed-cells.ts'
 import type {
@@ -136,6 +146,188 @@ export class DatabaseService {
     return source
   }
 
+  /** Resolve the source WITH its lock flag + the source page creator. */
+  private async requireSourceWithLock(pageId: string): Promise<SourceWithLock> {
+    const source = await this.repo.findSourceWithLockByPageId(pageId)
+    if (!source) throw notFound('База данных не найдена для этой страницы')
+    return source
+  }
+
+  // ── Structure permissions (Phase 4C) ─────────────────────────────────────────
+
+  /**
+   * Assert the actor may edit the database STRUCTURE (properties, views, filters,
+   * sorts, layout, relation/rollup config, access rules). Allowed when the actor
+   * is workspace OWNER/ADMIN, OR is the source page creator AND the structure is
+   * NOT locked. When `structureLocked`, ONLY OWNER/ADMIN may edit.
+   *
+   * This is SEPARATE from `assertCanEdit` (the page-level content guard): callers
+   * keep `assertCanEdit`/`assertCanRead` for the page-access layer and ADD this.
+   */
+  private async assertCanEditStructure(
+    actorUserId: string,
+    source: SourceWithLock,
+  ): Promise<void> {
+    const role = await this.repo.findWorkspaceRole(actorUserId, source.workspaceId)
+    if (role === 'OWNER' || role === 'ADMIN') return
+    if (source.structureLocked) {
+      throw forbidden('Структура заблокирована')
+    }
+    if (source.pageCreatedById === actorUserId) return
+    throw forbidden('Недостаточно прав для изменения структуры')
+  }
+
+  /** Resolve a source by page + assert the actor may edit its structure. */
+  private async requireStructureEdit(
+    actorUserId: string,
+    pageId: string,
+  ): Promise<SourceWithLock> {
+    const source = await this.requireSourceWithLock(pageId)
+    await this.assertCanEditStructure(actorUserId, source)
+    return source
+  }
+
+  // ── Access rules + structure lock + getMyAccess (Phase 4C) ───────────────────
+
+  /** Map a repo EnabledAccessRule to the resolver's AccessRule shape. */
+  private toResolverRules(rules: EnabledAccessRule[]): AccessRule[] {
+    return rules.map((r) => ({
+      propertyId: r.propertyId,
+      propertyType: r.propertyType,
+      accessLevel: r.accessLevel,
+      enabled: r.enabled,
+    }))
+  }
+
+  /**
+   * Build the viewer's RowAccessContext for a source. `pageShareLevel` is the
+   * per-ITEM-page share grant, only meaningful for a single known item page; for
+   * list reads pass `itemPageId = null` (no per-row share, broad/role + rules
+   * suffice). The resolver raises with the share level when present.
+   */
+  private async buildRowAccessContext(
+    actorUserId: string | null,
+    source: { id: string; workspaceId: string; pageId: string },
+    itemPageId: string | null,
+  ): Promise<RowAccessContext> {
+    if (actorUserId === null) {
+      return { viewerId: null, workspaceRole: null, isSourcePageCreator: false, pageShareLevel: null }
+    }
+    const [workspaceRole, isSourcePageCreator, pageShareLevel] = await Promise.all([
+      this.repo.findWorkspaceRole(actorUserId, source.workspaceId),
+      this.repo.isSourcePageCreatedBy(source.pageId, actorUserId),
+      itemPageId ? this.repo.findItemPageShareLevel(itemPageId, actorUserId) : Promise.resolve(null),
+    ])
+    return { viewerId: actorUserId, workspaceRole, isSourcePageCreator, pageShareLevel }
+  }
+
+  async listAccessRules(
+    actorUserId: string,
+    input: ListAccessRulesInput,
+  ): Promise<AccessRuleView[]> {
+    await this.assertCanRead(actorUserId, input.pageId)
+    const source = await this.requireStructureEdit(actorUserId, input.pageId)
+    const rules = await this.repo.listAccessRules(source.id)
+    return rules.map((r) => ({
+      id: r.id,
+      propertyId: r.propertyId,
+      accessLevel: r.accessLevel,
+      enabled: r.enabled,
+    }))
+  }
+
+  async createAccessRule(
+    actorUserId: string,
+    input: CreateAccessRuleInput,
+  ): Promise<AccessRuleView> {
+    await this.assertCanEdit(actorUserId, input.pageId)
+    const source = await this.requireStructureEdit(actorUserId, input.pageId)
+    const prop = await this.repo.findPropertyById(input.propertyId)
+    if (!prop || prop.sourceId !== source.id) throw notFound('Свойство не найдено')
+    // Only PERSON and CREATED_BY properties are valid rule targets (the resolver
+    // matches a viewer's userId against the cell / row creator).
+    if (
+      prop.type !== DatabasePropertyType.PERSON &&
+      prop.type !== DatabasePropertyType.CREATED_BY
+    ) {
+      throw badRequest('Правило доступа применимо только к свойству «Человек» или «Кем создано»')
+    }
+    const rule = await this.repo.createAccessRule({
+      sourceId: source.id,
+      propertyId: input.propertyId,
+      accessLevel: input.accessLevel,
+    })
+    return { id: rule.id, propertyId: rule.propertyId, accessLevel: rule.accessLevel, enabled: rule.enabled }
+  }
+
+  async updateAccessRule(
+    actorUserId: string,
+    input: UpdateAccessRuleInput,
+  ): Promise<AccessRuleView> {
+    await this.assertCanEdit(actorUserId, input.pageId)
+    const source = await this.requireStructureEdit(actorUserId, input.pageId)
+    const existing = await this.repo.findAccessRuleById(input.ruleId)
+    if (!existing || existing.sourceId !== source.id) throw notFound('Правило доступа не найдено')
+    const rule = await this.repo.updateAccessRule({
+      id: input.ruleId,
+      ...(input.accessLevel === undefined ? {} : { accessLevel: input.accessLevel }),
+      ...(input.enabled === undefined ? {} : { enabled: input.enabled }),
+    })
+    return { id: rule.id, propertyId: rule.propertyId, accessLevel: rule.accessLevel, enabled: rule.enabled }
+  }
+
+  async deleteAccessRule(
+    actorUserId: string,
+    input: DeleteAccessRuleInput,
+  ): Promise<{ ok: true }> {
+    await this.assertCanEdit(actorUserId, input.pageId)
+    const source = await this.requireStructureEdit(actorUserId, input.pageId)
+    const existing = await this.repo.findAccessRuleById(input.ruleId)
+    if (!existing || existing.sourceId !== source.id) throw notFound('Правило доступа не найдено')
+    await this.repo.deleteAccessRule(input.ruleId)
+    return { ok: true as const }
+  }
+
+  /**
+   * Lock/unlock the structure. OWNER/ADMIN only (the lock exists to constrain the
+   * creator + editors, so creator/editor self-lock would be self-defeating).
+   */
+  async setStructureLocked(
+    actorUserId: string,
+    input: SetStructureLockedInput,
+  ): Promise<{ ok: true }> {
+    await this.assertCanRead(actorUserId, input.pageId)
+    const source = await this.requireSourceWithLock(input.pageId)
+    const role = await this.repo.findWorkspaceRole(actorUserId, source.workspaceId)
+    if (role !== 'OWNER' && role !== 'ADMIN') {
+      throw forbidden('Блокировать структуру может только владелец или администратор')
+    }
+    await this.repo.setStructureLocked(source.id, input.locked)
+    return { ok: true as const }
+  }
+
+  /**
+   * The viewer's source-level capabilities, for UI affordances. The authoritative
+   * gate is always server-side; this drives disabling only.
+   *  - canEditStructure: `assertCanEditStructure` would pass.
+   *  - canEditContent: owner/admin/creator, OR (no rules → a workspace EDITOR+);
+   *    when rules exist a plain member's content rights are per-row, so the
+   *    source-level flag stays true only for broad-access viewers + EDITOR-by-role
+   *    (matched rows still gate per-row on write).
+   */
+  async getMyAccess(actorUserId: string, pageId: string): Promise<MyDatabaseAccess> {
+    const source = await this.requireSourceWithLock(pageId)
+    const role = await this.repo.findWorkspaceRole(actorUserId, source.workspaceId)
+    const isCreator = source.pageCreatedById === actorUserId
+
+    const isOwnerAdmin = role === 'OWNER' || role === 'ADMIN'
+    const canEditStructure = isOwnerAdmin || (isCreator && !source.structureLocked)
+    const canEditContent =
+      isOwnerAdmin || isCreator || role === 'EDITOR'
+
+    return { canEditContent, canEditStructure, structureLocked: source.structureLocked }
+  }
+
   // ── Seed ──────────────────────────────────────────────────────────────────────
 
   /**
@@ -188,6 +380,7 @@ export class DatabaseService {
     await this.assertCanRead(actorUserId, pageId)
     const loaded = await this.repo.findSourceSchemaByPageId(pageId)
     if (!loaded) throw notFound('База данных не найдена для этой страницы')
+    const myAccess = await this.getMyAccess(actorUserId, pageId)
     return {
       source: {
         id: loaded.source.id,
@@ -210,9 +403,7 @@ export class DatabaseService {
         settings: asSettings(p.settings),
       })),
       systemTitleProperty: { key: 'title', name: 'Название' },
-      // cl4C: real per-viewer capabilities are computed by getMyAccess in Task C2/C3;
-      // this conservative placeholder keeps the type total until that wiring lands.
-      myAccess: { canEditContent: false, canEditStructure: false, structureLocked: false },
+      myAccess,
     }
   }
 
@@ -239,7 +430,7 @@ export class DatabaseService {
 
   async createView(actorUserId: string, input: CreateViewInput) {
     await this.assertCanEdit(actorUserId, input.pageId)
-    const source = await this.requireSource(input.pageId)
+    const source = await this.requireStructureEdit(actorUserId, input.pageId)
     const type = input.type ?? DatabaseViewType.TABLE
     const [existing, properties] = await Promise.all([
       this.repo.listViews(source.id),
@@ -281,7 +472,7 @@ export class DatabaseService {
 
   async updateView(actorUserId: string, input: UpdateViewInput) {
     await this.assertCanEdit(actorUserId, input.pageId)
-    const source = await this.requireSource(input.pageId)
+    const source = await this.requireStructureEdit(actorUserId, input.pageId)
     const view = await this.repo.findViewById(input.id)
     if (!view || view.sourceId !== source.id) throw notFound('Представление не найдено')
     return this.repo.updateView(input.id, {
@@ -294,7 +485,7 @@ export class DatabaseService {
 
   async deleteView(actorUserId: string, input: ViewIdInput) {
     await this.assertCanEdit(actorUserId, input.pageId)
-    const source = await this.requireSource(input.pageId)
+    const source = await this.requireStructureEdit(actorUserId, input.pageId)
     const view = await this.repo.findViewById(input.id)
     if (!view || view.sourceId !== source.id) throw notFound('Представление не найдено')
     const all = await this.repo.listViews(source.id)
@@ -306,7 +497,7 @@ export class DatabaseService {
   /** Copy a view (title + " (копия)", type, settings) at the next position. */
   async duplicateView(actorUserId: string, input: DuplicateViewInput) {
     await this.assertCanEdit(actorUserId, input.pageId)
-    const source = await this.requireSource(input.pageId)
+    const source = await this.requireStructureEdit(actorUserId, input.pageId)
     const views = await this.repo.listViews(source.id)
     const view = views.find((v) => v.id === input.viewId)
     if (!view) throw notFound('Представление не найдено')
@@ -332,7 +523,7 @@ export class DatabaseService {
 
   async createProperty(actorUserId: string, input: CreatePropertyInput) {
     await this.assertCanEdit(actorUserId, input.pageId)
-    const source = await this.requireSource(input.pageId)
+    const source = await this.requireStructureEdit(actorUserId, input.pageId)
     if (input.settings !== undefined) {
       await this.validatePropertySettings(source.id, source.workspaceId, input.type, input.settings)
     }
@@ -348,7 +539,7 @@ export class DatabaseService {
 
   async updateProperty(actorUserId: string, input: UpdatePropertyInput) {
     await this.assertCanEdit(actorUserId, input.pageId)
-    const source = await this.requireSource(input.pageId)
+    const source = await this.requireStructureEdit(actorUserId, input.pageId)
     const prop = await this.repo.findPropertyById(input.id)
     if (!prop || prop.sourceId !== source.id) throw notFound('Свойство не найдено')
     if (input.settings !== undefined) {
@@ -441,7 +632,7 @@ export class DatabaseService {
 
   async deleteProperty(actorUserId: string, input: PropertyIdInput) {
     await this.assertCanEdit(actorUserId, input.pageId)
-    const source = await this.requireSource(input.pageId)
+    const source = await this.requireStructureEdit(actorUserId, input.pageId)
     const prop = await this.repo.findPropertyById(input.id)
     if (!prop || prop.sourceId !== source.id) throw notFound('Свойство не найдено')
     // Cells cascade via the DatabaseCellValue → DatabaseProperty FK.
@@ -451,7 +642,7 @@ export class DatabaseService {
 
   async reorderProperties(actorUserId: string, input: ReorderPropertiesInput) {
     await this.assertCanEdit(actorUserId, input.pageId)
-    const source = await this.requireSource(input.pageId)
+    const source = await this.requireStructureEdit(actorUserId, input.pageId)
     const existing = await this.repo.listProperties(source.id)
     const known = new Set(existing.map((p) => p.id))
     for (const id of input.orderedIds) {

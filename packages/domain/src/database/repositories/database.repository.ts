@@ -52,6 +52,15 @@ export interface EnabledAccessRule {
   enabled: boolean
 }
 
+/** A source row WITH its lock flag + the owning DATABASE page's creator. */
+export interface SourceWithLock {
+  id: string
+  workspaceId: string
+  pageId: string
+  structureLocked: boolean
+  pageCreatedById: string | null
+}
+
 export interface RowWithPage {
   id: string
   pageId: string
@@ -884,16 +893,17 @@ export class DatabaseRepository {
 
   // ── Phase 4C: resolver-context lookups ───────────────────────────────────────
 
-  /** The actor's workspace role, narrowed to RoleType | null (the resolver's input). */
+  /**
+   * The actor's workspace role, narrowed to RoleType | null (the resolver's input).
+   * Wraps `findMembershipRole` (which returns the looser `string | null` the
+   * page-access guards compare with string literals) with the precise enum type.
+   */
   async findWorkspaceRole(
     userId: string,
     workspaceId: string,
   ): Promise<import('@repo/db').RoleType | null> {
-    const member = await this.uow.client().workspaceMember.findUnique({
-      where: { workspaceId_userId: { workspaceId, userId } },
-      select: { role: true },
-    })
-    return member?.role ?? null
+    const role = await this.findMembershipRole(userId, workspaceId)
+    return role as import('@repo/db').RoleType | null
   }
 
   /** True when `userId` created the source's owning DATABASE page (→ full access). */

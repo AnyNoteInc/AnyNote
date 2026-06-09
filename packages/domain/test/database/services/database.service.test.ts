@@ -70,6 +70,23 @@ function makeRepo(overrides: Partial<DatabaseRepository> = {}): DatabaseReposito
     findUserNames: vi.fn(async () => new Map()),
     findRowWorkspaceIds: vi.fn(async () => new Map()),
     findSourceWorkspaceId: vi.fn(async () => 'w1'),
+    // Phase 4C: access-rule + resolver-context surface.
+    listAccessRules: vi.fn(async () => []),
+    findEnabledAccessRules: vi.fn(async () => []),
+    createAccessRule: vi.fn(async (d) => ({ id: 'rule1', propertyId: d.propertyId, accessLevel: d.accessLevel, enabled: true })),
+    updateAccessRule: vi.fn(async (d) => ({ id: d.id, propertyId: 'prop1', accessLevel: d.accessLevel ?? 'CAN_VIEW', enabled: d.enabled ?? true })),
+    deleteAccessRule: vi.fn(async () => undefined),
+    findAccessRuleById: vi.fn(async () => ({ id: 'rule1', sourceId: 'src1' })),
+    setStructureLocked: vi.fn(async () => undefined),
+    findWorkspaceRole: vi.fn(async () => 'OWNER'),
+    isSourcePageCreatedBy: vi.fn(async () => true),
+    findItemPageShareLevel: vi.fn(async () => null),
+    findSourceWithLockByPageId: vi.fn(async () => ({
+      id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false, pageCreatedById: 'u1',
+    })),
+    findRowForAccess: vi.fn(async () => ({
+      id: 'row1', sourceId: 'src1', rowCreatedById: 'u1', cellsByProperty: new Map(),
+    })),
     ...overrides,
   } as unknown as DatabaseRepository
 }
@@ -136,7 +153,12 @@ describe('DatabaseService.createProperty', () => {
   })
 
   it('throws NOT_FOUND when the page has no source', async () => {
-    const repo = makeRepo({ findSourceMetaByPageId: vi.fn(async () => null) })
+    // createProperty now resolves the source via findSourceWithLockByPageId (the
+    // structure-edit guard); a missing source there is the NOT_FOUND path.
+    const repo = makeRepo({
+      findSourceMetaByPageId: vi.fn(async () => null),
+      findSourceWithLockByPageId: vi.fn(async () => null),
+    })
     await expect(
       makeService(repo).createProperty('u1', { pageId: 'db-page', type: 'TEXT', name: 'X' }),
     ).rejects.toBeInstanceOf(DomainError)
@@ -1176,5 +1198,304 @@ describe('DatabaseService.listRows — computed cells', () => {
     expect(result.rows[0]!.cells['p-text']).toBe('x')
     expect(repo.findRelationLinksForProperties).not.toHaveBeenCalled()
     expect(repo.findUserNames).not.toHaveBeenCalled()
+  })
+})
+
+// ── C2: structure-edit guard ──────────────────────────────────────────────────
+
+describe('DatabaseService.assertCanEditStructure (via structure ops)', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  // The actor created the source page → allowed to edit structure when unlocked.
+  it('allows the source page creator when unlocked', async () => {
+    const repo = makeRepo({
+      findWorkspaceRole: vi.fn(async () => 'EDITOR'),
+      findSourceWithLockByPageId: vi.fn(async () => ({
+        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false, pageCreatedById: 'u1',
+      })),
+    })
+    await makeService(repo).createProperty('u1', { pageId: 'db-page', type: 'TEXT', name: 'X' })
+    expect(repo.createProperty).toHaveBeenCalled()
+  })
+
+  it('allows an OWNER who is not the creator', async () => {
+    const repo = makeRepo({
+      findWorkspaceRole: vi.fn(async () => 'OWNER'),
+      findSourceWithLockByPageId: vi.fn(async () => ({
+        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false, pageCreatedById: 'other',
+      })),
+      // assertCanEdit (page-layer) must still pass — OWNER passes by role.
+      findAccessiblePage: vi.fn(async () => ({ id: 'db-page', workspaceId: 'w1', createdById: 'other' })),
+      findMembershipRole: vi.fn(async () => 'OWNER'),
+    })
+    await makeService(repo).createView('u1', { pageId: 'db-page', type: 'TABLE', title: 'V' })
+    expect(repo.createView).toHaveBeenCalled()
+  })
+
+  it('blocks a plain EDITOR who is NOT the source page creator', async () => {
+    const repo = makeRepo({
+      findWorkspaceRole: vi.fn(async () => 'EDITOR'),
+      findSourceWithLockByPageId: vi.fn(async () => ({
+        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false, pageCreatedById: 'other',
+      })),
+      // page-layer assertCanEdit passes (EDITOR), so the FORBIDDEN comes from the structure guard.
+      findAccessiblePage: vi.fn(async () => ({ id: 'db-page', workspaceId: 'w1', createdById: 'other' })),
+      findMembershipRole: vi.fn(async () => 'EDITOR'),
+    })
+    await expect(
+      makeService(repo).createProperty('u1', { pageId: 'db-page', type: 'TEXT', name: 'X' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    expect(repo.createProperty).not.toHaveBeenCalled()
+  })
+
+  it('blocks the source page creator when structureLocked (only OWNER/ADMIN)', async () => {
+    const repo = makeRepo({
+      findWorkspaceRole: vi.fn(async () => 'EDITOR'),
+      findSourceWithLockByPageId: vi.fn(async () => ({
+        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: true, pageCreatedById: 'u1',
+      })),
+    })
+    await expect(
+      makeService(repo).createProperty('u1', { pageId: 'db-page', type: 'TEXT', name: 'X' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+  })
+
+  it('allows an ADMIN even when structureLocked', async () => {
+    const repo = makeRepo({
+      findWorkspaceRole: vi.fn(async () => 'ADMIN'),
+      findSourceWithLockByPageId: vi.fn(async () => ({
+        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: true, pageCreatedById: 'other',
+      })),
+      findAccessiblePage: vi.fn(async () => ({ id: 'db-page', workspaceId: 'w1', createdById: 'other' })),
+      findMembershipRole: vi.fn(async () => 'ADMIN'),
+      // 2 views so deleteView clears the "single view" guard and reaches the delete.
+      listViews: vi.fn(async () => [
+        { id: 'view1', type: 'TABLE', title: 'A', position: 0, settings: null },
+        { id: 'view2', type: 'TABLE', title: 'B', position: 1024, settings: null },
+      ]),
+      findViewById: vi.fn(async () => ({ id: 'view1', sourceId: 'src1' })),
+    })
+    await makeService(repo).deleteView('u1', { pageId: 'db-page', id: 'view1' })
+    expect(repo.deleteView).toHaveBeenCalled()
+  })
+
+  it('gates updateView / deleteProperty / reorderProperties / duplicateView for a non-creator EDITOR', async () => {
+    const base = {
+      findWorkspaceRole: vi.fn(async () => 'EDITOR'),
+      findSourceWithLockByPageId: vi.fn(async () => ({
+        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false, pageCreatedById: 'other',
+      })),
+      findAccessiblePage: vi.fn(async () => ({ id: 'db-page', workspaceId: 'w1', createdById: 'other' })),
+      findMembershipRole: vi.fn(async () => 'EDITOR'),
+    }
+    await expect(
+      makeService(makeRepo(base)).updateView('u1', { pageId: 'db-page', id: 'view1', title: 'X' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    await expect(
+      makeService(makeRepo(base)).deleteProperty('u1', { pageId: 'db-page', id: 'prop1' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    await expect(
+      makeService(makeRepo(base)).reorderProperties('u1', { pageId: 'db-page', orderedIds: [] }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    await expect(
+      makeService(makeRepo(base)).duplicateView('u1', { pageId: 'db-page', viewId: 'view1' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+  })
+})
+
+// ── C2: access-rule ops ───────────────────────────────────────────────────────
+
+describe('DatabaseService.createAccessRule', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('creates a rule for a PERSON property', async () => {
+    const repo = makeRepo({
+      findPropertyById: vi.fn(async () => ({ id: 'prop-person', sourceId: 'src1', type: 'PERSON', settings: null })),
+    })
+    const rule = await makeService(repo).createAccessRule('u1', {
+      pageId: 'db-page', propertyId: 'prop-person', accessLevel: 'CAN_VIEW',
+    })
+    expect(repo.createAccessRule).toHaveBeenCalledWith(
+      expect.objectContaining({ sourceId: 'src1', propertyId: 'prop-person', accessLevel: 'CAN_VIEW' }),
+    )
+    expect(rule).toEqual({ id: 'rule1', propertyId: 'prop-person', accessLevel: 'CAN_VIEW', enabled: true })
+  })
+
+  it('creates a rule for a CREATED_BY property', async () => {
+    const repo = makeRepo({
+      findPropertyById: vi.fn(async () => ({ id: 'prop-cb', sourceId: 'src1', type: 'CREATED_BY', settings: null })),
+    })
+    await makeService(repo).createAccessRule('u1', {
+      pageId: 'db-page', propertyId: 'prop-cb', accessLevel: 'CAN_EDIT_CONTENT',
+    })
+    expect(repo.createAccessRule).toHaveBeenCalled()
+  })
+
+  it('rejects a non-PERSON / non-CREATED_BY property (e.g. TEXT)', async () => {
+    const repo = makeRepo({
+      findPropertyById: vi.fn(async () => ({ id: 'prop-text', sourceId: 'src1', type: 'TEXT', settings: null })),
+    })
+    await expect(
+      makeService(repo).createAccessRule('u1', {
+        pageId: 'db-page', propertyId: 'prop-text', accessLevel: 'CAN_VIEW',
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+    expect(repo.createAccessRule).not.toHaveBeenCalled()
+  })
+
+  it('rejects a property that belongs to another source', async () => {
+    const repo = makeRepo({
+      findPropertyById: vi.fn(async () => ({ id: 'prop-person', sourceId: 'other-src', type: 'PERSON', settings: null })),
+    })
+    await expect(
+      makeService(repo).createAccessRule('u1', {
+        pageId: 'db-page', propertyId: 'prop-person', accessLevel: 'CAN_VIEW',
+      }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+  })
+
+  it('is FORBIDDEN for a non-creator EDITOR (managing rules is a structure op)', async () => {
+    const repo = makeRepo({
+      findPropertyById: vi.fn(async () => ({ id: 'prop-person', sourceId: 'src1', type: 'PERSON', settings: null })),
+      findWorkspaceRole: vi.fn(async () => 'EDITOR'),
+      findSourceWithLockByPageId: vi.fn(async () => ({
+        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false, pageCreatedById: 'other',
+      })),
+      findAccessiblePage: vi.fn(async () => ({ id: 'db-page', workspaceId: 'w1', createdById: 'other' })),
+      findMembershipRole: vi.fn(async () => 'EDITOR'),
+    })
+    await expect(
+      makeService(repo).createAccessRule('u1', {
+        pageId: 'db-page', propertyId: 'prop-person', accessLevel: 'CAN_VIEW',
+      }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+  })
+})
+
+describe('DatabaseService.listAccessRules / updateAccessRule / deleteAccessRule', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('lists the source rules', async () => {
+    const repo = makeRepo({
+      listAccessRules: vi.fn(async () => [
+        { id: 'r1', propertyId: 'p1', accessLevel: 'CAN_VIEW', enabled: true },
+      ]),
+    })
+    const rules = await makeService(repo).listAccessRules('u1', { pageId: 'db-page' })
+    expect(rules).toEqual([{ id: 'r1', propertyId: 'p1', accessLevel: 'CAN_VIEW', enabled: true }])
+    expect(repo.listAccessRules).toHaveBeenCalledWith('src1')
+  })
+
+  it('updates a rule scoped to the source', async () => {
+    const repo = makeRepo()
+    await makeService(repo).updateAccessRule('u1', { pageId: 'db-page', ruleId: 'rule1', enabled: false })
+    expect(repo.updateAccessRule).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'rule1', enabled: false }),
+    )
+  })
+
+  it('rejects updating a rule that belongs to another source', async () => {
+    const repo = makeRepo({
+      findAccessRuleById: vi.fn(async () => ({ id: 'rule1', sourceId: 'other-src' })),
+    })
+    await expect(
+      makeService(repo).updateAccessRule('u1', { pageId: 'db-page', ruleId: 'rule1', enabled: false }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+    expect(repo.updateAccessRule).not.toHaveBeenCalled()
+  })
+
+  it('deletes a rule scoped to the source', async () => {
+    const repo = makeRepo()
+    const result = await makeService(repo).deleteAccessRule('u1', { pageId: 'db-page', ruleId: 'rule1' })
+    expect(repo.deleteAccessRule).toHaveBeenCalledWith('rule1')
+    expect(result).toEqual({ ok: true })
+  })
+})
+
+describe('DatabaseService.setStructureLocked', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('lets an OWNER lock the structure', async () => {
+    const repo = makeRepo({
+      findWorkspaceRole: vi.fn(async () => 'OWNER'),
+      findSourceWithLockByPageId: vi.fn(async () => ({
+        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false, pageCreatedById: 'other',
+      })),
+    })
+    const result = await makeService(repo).setStructureLocked('u1', { pageId: 'db-page', locked: true })
+    expect(repo.setStructureLocked).toHaveBeenCalledWith('src1', true)
+    expect(result).toEqual({ ok: true })
+  })
+
+  it('is FORBIDDEN for the source page creator who is only an EDITOR (OWNER/ADMIN only)', async () => {
+    const repo = makeRepo({
+      findWorkspaceRole: vi.fn(async () => 'EDITOR'),
+      findSourceWithLockByPageId: vi.fn(async () => ({
+        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false, pageCreatedById: 'u1',
+      })),
+    })
+    await expect(
+      makeService(repo).setStructureLocked('u1', { pageId: 'db-page', locked: true }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    expect(repo.setStructureLocked).not.toHaveBeenCalled()
+  })
+})
+
+describe('DatabaseService.getMyAccess', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('reports full caps for an OWNER', async () => {
+    const repo = makeRepo({
+      findWorkspaceRole: vi.fn(async () => 'OWNER'),
+      findSourceWithLockByPageId: vi.fn(async () => ({
+        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false, pageCreatedById: 'other',
+      })),
+    })
+    const my = await makeService(repo).getMyAccess('u1', 'db-page')
+    expect(my).toEqual({ canEditContent: true, canEditStructure: true, structureLocked: false })
+  })
+
+  it('reports content-edit but NOT structure-edit for a non-creator EDITOR', async () => {
+    const repo = makeRepo({
+      findWorkspaceRole: vi.fn(async () => 'EDITOR'),
+      findSourceWithLockByPageId: vi.fn(async () => ({
+        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false, pageCreatedById: 'other',
+      })),
+    })
+    const my = await makeService(repo).getMyAccess('u1', 'db-page')
+    expect(my).toEqual({ canEditContent: true, canEditStructure: false, structureLocked: false })
+  })
+
+  it('reports structureLocked + no structure-edit for an EDITOR when locked', async () => {
+    const repo = makeRepo({
+      findWorkspaceRole: vi.fn(async () => 'EDITOR'),
+      findSourceWithLockByPageId: vi.fn(async () => ({
+        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: true, pageCreatedById: 'u1',
+      })),
+    })
+    const my = await makeService(repo).getMyAccess('u1', 'db-page')
+    expect(my).toEqual({ canEditContent: true, canEditStructure: false, structureLocked: true })
+  })
+
+  it('reports no content-edit for a VIEWER', async () => {
+    const repo = makeRepo({
+      findWorkspaceRole: vi.fn(async () => 'VIEWER'),
+      findSourceWithLockByPageId: vi.fn(async () => ({
+        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false, pageCreatedById: 'other',
+      })),
+    })
+    const my = await makeService(repo).getMyAccess('u1', 'db-page')
+    expect(my).toEqual({ canEditContent: false, canEditStructure: false, structureLocked: false })
+  })
+
+  it('is surfaced in getByPage.myAccess', async () => {
+    const repo = makeRepo({
+      findWorkspaceRole: vi.fn(async () => 'EDITOR'),
+      findSourceWithLockByPageId: vi.fn(async () => ({
+        id: 'src1', workspaceId: 'w1', pageId: 'db-page', structureLocked: false, pageCreatedById: 'other',
+      })),
+    })
+    const vm = await makeService(repo).getByPage('u1', 'db-page')
+    expect(vm.myAccess).toEqual({ canEditContent: true, canEditStructure: false, structureLocked: false })
   })
 })
