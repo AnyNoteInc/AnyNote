@@ -276,4 +276,36 @@ describe('database access rules + structure lock router (integration)', () => {
     const ownerView = await owner.getByPage({ pageId: fx.pageId })
     expect(ownerView.myAccess.canEditStructure).toBe(true)
   })
+
+  // ── Relation picker must not leak restricted target rows (CRITICAL leak fix) ───
+  it('listLinkableRows hides rows the viewer cannot access under the target rule', async () => {
+    const fx = await seed()
+    const owner = caller(fx.ownerId)
+    const member = caller(fx.memberId)
+    const { personId, r1, r2 } = await seedPersonRows(fx)
+
+    // A self-referencing RELATION property whose target source IS this database
+    // (so the target source carries the CAN_VIEW rule we add below).
+    const source = await owner.getByPage({ pageId: fx.pageId })
+    const relation = await owner.createProperty({ pageId: fx.pageId, type: 'RELATION', name: 'Связь' })
+    await owner.updateProperty({
+      pageId: fx.pageId,
+      id: relation.id,
+      settings: { relation: { targetSourceId: source.source.id } },
+    })
+    // Restrict the database: a row is visible only to the user in its Person cell.
+    await owner.createAccessRule({ pageId: fx.pageId, propertyId: personId, accessLevel: 'CAN_VIEW' })
+
+    // r1.Person = member, r2.Person = owner. The member may link only r1.
+    const memberLinkable = await member.listLinkableRows({ pageId: fx.pageId, propertyId: relation.id })
+    const memberIds = memberLinkable.map((row) => row.id)
+    expect(memberIds).toContain(r1)
+    expect(memberIds).not.toContain(r2) // the leak: r2's title must NOT surface
+
+    // The owner (broadest access) still sees both candidates.
+    const ownerLinkable = await owner.listLinkableRows({ pageId: fx.pageId, propertyId: relation.id })
+    const ownerIds = ownerLinkable.map((row) => row.id)
+    expect(ownerIds).toContain(r1)
+    expect(ownerIds).toContain(r2)
+  })
 })

@@ -288,8 +288,10 @@ export class DatabaseService {
     actorUserId: string,
     input: ListAccessRulesInput,
   ): Promise<AccessRuleView[]> {
+    // Listing rules is a READ (workspace membership) — not a structure edit.
+    // Mutating rules (create/update/delete) still requires structure-edit rights.
     await this.assertCanRead(actorUserId, input.pageId)
-    const source = await this.requireStructureEdit(actorUserId, input.pageId)
+    const source = await this.requireSource(input.pageId)
     const rules = await this.repo.listAccessRules(source.id)
     return rules.map((r) => ({
       id: r.id,
@@ -868,6 +870,9 @@ export class DatabaseService {
     }
     if (!row || row.sourceId !== source.id) throw notFound('Строка не найдена')
     if (row.deletedAt) throw notFound('Строка удалена')
+    // Relation links are a content edit on the SOURCE row — gate per-row like
+    // updateCellValue, so a viewer with only CAN_VIEW on this row can't mutate it.
+    await this.assertCanEditRow(actorUserId, source, input.rowId, row.pageId)
 
     const settings = asSettings(prop.settings)
     const relation = settings?.relation
@@ -950,7 +955,35 @@ export class DatabaseService {
     if (prop.type !== DatabasePropertyType.RELATION) throw badRequest('Свойство не является связью')
     const relation = asSettings(prop.settings)?.relation
     if (!relation) throw badRequest('Связь не настроена')
-    return this.repo.findLinkableRows(relation.targetSourceId, input.query)
+    const candidates = await this.repo.findLinkableRows(relation.targetSourceId, input.query)
+    return this.filterLinkableByTargetAccess(actorUserId, relation.targetSourceId, candidates)
+  }
+
+  /**
+   * The relation picker must not leak titles of rows the viewer cannot access
+   * under the TARGET source's access rules. Resolve each candidate in the target
+   * source's context and drop the ones the viewer can't view.
+   */
+  private async filterLinkableByTargetAccess(
+    actorUserId: string,
+    targetSourceId: string,
+    candidates: { id: string; pageId: string; title: string | null }[],
+  ): Promise<{ id: string; pageId: string; title: string | null }[]> {
+    if (candidates.length === 0) return candidates
+    const rules = this.toResolverRules(await this.repo.findEnabledAccessRules(targetSourceId))
+    if (rules.length === 0) return candidates // target unrestricted
+    const targetSource = await this.repo.findSourceMetaById(targetSourceId)
+    if (!targetSource) return [] // target source vanished → reveal nothing
+    const ctx = await this.buildRowAccessContext(actorUserId, targetSource, targetSource.pageId)
+    const meta = await this.repo.findRowsAccessMetaByIds(candidates.map((c) => c.id))
+    const byId = new Map(meta.map((m) => [m.id, m]))
+    return candidates.filter((c) => {
+      const m = byId.get(c.id)
+      const row: RowAccessRow = m
+        ? { rowCreatedById: m.createdById, cellsByProperty: m.cellsByProperty }
+        : { rowCreatedById: null, cellsByProperty: new Map() }
+      return canViewRow(resolveRowAccess(ctx, rules, row))
+    })
   }
 
   // ── Rows (view-aware, paginated) ─────────────────────────────────────────────
@@ -1438,6 +1471,8 @@ export class DatabaseService {
     const source = await this.requireSource(input.pageId)
     const row = await this.repo.findRowById(input.rowId)
     if (!row || row.sourceId !== source.id) throw notFound('Строка не найдена')
+    // Restore is symmetric to delete — a content edit gated per-row.
+    await this.assertCanEditRow(actorUserId, source, input.rowId, row.pageId)
     await this.uow.transaction(async () => {
       await this.repo.restoreRow(input.rowId, actorUserId)
       await this.repo.restoreItemPage(row.pageId, actorUserId, page.workspaceId)
@@ -1452,6 +1487,24 @@ export class DatabaseService {
     const known = new Set(existing.map((r) => r.id))
     for (const id of input.orderedIds) {
       if (!known.has(id)) throw badRequest('Неизвестная строка в порядке сортировки')
+    }
+    // When access rules exist, reordering is a content edit: reject the call if
+    // any listed row is one the actor can't edit (don't let a restricted viewer
+    // move — or probe the existence of — rows they can't see/edit).
+    const rules = this.toResolverRules(await this.repo.findEnabledAccessRules(source.id))
+    if (rules.length > 0) {
+      const ctx = await this.buildRowAccessContext(actorUserId, source, source.pageId)
+      const accessRows = await this.repo.findRowsAccessMetaByIds(input.orderedIds)
+      const metaById = new Map(accessRows.map((m) => [m.id, m]))
+      for (const id of input.orderedIds) {
+        const m = metaById.get(id)
+        const row: RowAccessRow = m
+          ? { rowCreatedById: m.createdById, cellsByProperty: m.cellsByProperty }
+          : { rowCreatedById: null, cellsByProperty: new Map() }
+        if (!canEditRow(resolveRowAccess(ctx, rules, row))) {
+          throw forbidden('Недостаточно прав для изменения этой строки')
+        }
+      }
     }
     const ordered = input.orderedIds.map((id, idx) => ({ id, position: (idx + 1) * POSITION_GAP }))
     await this.repo.reorderRows(ordered)
@@ -1469,6 +1522,7 @@ export class DatabaseService {
     const row = await this.repo.findRowById(input.rowId)
     if (!row || row.sourceId !== source.id) throw notFound('Строка не найдена')
     if (row.deletedAt) throw notFound('Строка удалена')
+    await this.assertCanEditRow(actorUserId, source, input.rowId, row.pageId)
     await this.repo.reorderRows([{ id: input.rowId, position: input.position }])
     return { ok: true as const }
   }
