@@ -30,9 +30,55 @@ export const selectOptionSchema = z.object({
 })
 export type SelectOption = z.infer<typeof selectOptionSchema>
 
+export const numberFormatSchema = z.enum([
+  'plain',
+  'integer',
+  'decimal',
+  'percent',
+  'currency_rub',
+])
+export type NumberFormat = z.infer<typeof numberFormatSchema>
+
+export const rollupAggregationSchema = z.enum([
+  'show_original',
+  'count_all',
+  'count_values',
+  'count_unique',
+  'count_empty',
+  'count_not_empty',
+  'sum',
+  'average',
+  'min',
+  'max',
+  'earliest',
+  'latest',
+  'range',
+])
+export type RollupAggregation = z.infer<typeof rollupAggregationSchema>
+
+export const relationSettingsSchema = z.object({
+  targetSourceId: z.string().uuid(),
+  // The mirror property on the target source (optional back-relation).
+  backRelationPropertyId: z.string().uuid().optional(),
+})
+export type RelationSettings = z.infer<typeof relationSettingsSchema>
+
+export const rollupSettingsSchema = z.object({
+  // A RELATION property on THIS source.
+  relationPropertyId: z.string().uuid(),
+  // A property on the related source (or the '__title__' sentinel) — not a uuid().
+  targetPropertyId: z.string(),
+  aggregation: rollupAggregationSchema,
+})
+export type RollupSettings = z.infer<typeof rollupSettingsSchema>
+
 export const propertySettingsSchema = z.object({
   options: z.array(selectOptionSchema).optional(),
-  numberFormat: z.string().optional(),
+  numberFormat: numberFormatSchema.optional(),
+  // FORMULA — the expression source.
+  formula: z.string().optional(),
+  relation: relationSettingsSchema.optional(),
+  rollup: rollupSettingsSchema.optional(),
 })
 export type PropertySettings = z.infer<typeof propertySettingsSchema>
 
@@ -241,6 +287,25 @@ export const updateCellValueInput = z.object({
 })
 export type UpdateCellValueInput = z.infer<typeof updateCellValueInput>
 
+// ── Relation inputs ───────────────────────────────────────────────────────────
+
+// Replace the full set of links for a (rowId, propertyId) RELATION cell.
+export const setRelationLinksInput = z.object({
+  pageId: z.string().uuid(),
+  rowId: z.string().uuid(),
+  propertyId: z.string().uuid(),
+  targetRowIds: z.array(z.string().uuid()),
+})
+export type SetRelationLinksInput = z.infer<typeof setRelationLinksInput>
+
+// Candidate rows of a RELATION property's target source, for the link picker.
+export const listLinkableRowsInput = z.object({
+  pageId: z.string().uuid(),
+  propertyId: z.string().uuid(),
+  query: z.string().optional(),
+})
+export type ListLinkableRowsInput = z.infer<typeof listLinkableRowsInput>
+
 // ── View-model types (single shape for renderer / table / modal / embed) ─────
 
 export interface DatabaseSourceView {
@@ -272,7 +337,28 @@ export interface DatabaseRowView {
   title: string | null
   icon: string | null
   position: number
+  // Per-property cell values keyed by propertyId. Stored cells hold their raw
+  // value; computed cells (FORMULA/ROLLUP/RELATION/CREATED_*/LAST_EDITED_*) are
+  // resolved on read — RELATION cells hold `RelationChip[]`, FORMULA/ROLLUP hold
+  // the computed value or a `ComputedCellError` sentinel, metadata holds the
+  // derived Page value.
   cells: Record<string, unknown>
+}
+
+/** A linked target row rendered as a chip in a RELATION cell. */
+export interface RelationChip {
+  rowId: string
+  pageId: string
+  title: string | null
+  icon: string | null
+}
+
+/**
+ * Sentinel error state for a computed cell (formula/rollup failure). The UI
+ * detects the `__error` key and renders an error chip instead of a value.
+ */
+export interface ComputedCellError {
+  __error: string
 }
 
 /** The implicit system Title/Name column (backed by Page.title, never a property row). */
