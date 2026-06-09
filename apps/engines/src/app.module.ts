@@ -5,6 +5,7 @@ import { ScheduleModule } from '@nestjs/schedule'
 import { ApiModule } from './apps/api/api.module.js'
 import { BillingModule } from './apps/billing/billing.module.js'
 import { CleanupModule } from './apps/cleanup/cleanup.module.js'
+import { HistoryModule } from './apps/history/history.module.js'
 import { IndexerModule } from './apps/indexer/indexer.module.js'
 import { McpModule } from './apps/mcp/mcp.module.js'
 import { NotifierModule } from './apps/notifier/notifier.module.js'
@@ -22,6 +23,7 @@ import { DomainModule } from './infra/domain/domain.module.js'
     AuthModule,
     BillingModule,
     CleanupModule,
+    HistoryModule,
     IndexerModule,
     NotifierModule,
     McpModule,
