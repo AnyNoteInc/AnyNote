@@ -33,6 +33,25 @@ export interface PropertyRow {
   settings: unknown
 }
 
+/** A persisted page-level access rule (as stored). */
+export interface AccessRuleRow {
+  id: string
+  propertyId: string
+  accessLevel: import('@repo/db').DatabaseAccessLevel
+  enabled: boolean
+}
+
+/**
+ * An enabled access rule WITH its target property's type joined — the shape the
+ * row-access resolver consumes (it branches on PERSON vs CREATED_BY).
+ */
+export interface EnabledAccessRule {
+  propertyId: string
+  propertyType: import('@repo/db').DatabasePropertyType
+  accessLevel: import('@repo/db').DatabaseAccessLevel
+  enabled: boolean
+}
+
 export interface RowWithPage {
   id: string
   pageId: string
@@ -774,7 +793,211 @@ export class DatabaseRepository {
     return rows.map((r) => ({ id: r.id, pageId: r.pageId, title: r.page.title }))
   }
 
+  // ── Phase 4C: page-level access rules ────────────────────────────────────────
+
+  /** All rules for a source (enabled + disabled) — drives the access panel. */
+  async listAccessRules(sourceId: string): Promise<AccessRuleRow[]> {
+    const rules = await this.uow.client().databasePageAccessRule.findMany({
+      where: { sourceId },
+      orderBy: { createdAt: 'asc' },
+      select: { id: true, propertyId: true, accessLevel: true, enabled: true },
+    })
+    return rules as AccessRuleRow[]
+  }
+
+  /**
+   * The ENABLED rules for a source, each carrying its target property's TYPE
+   * (PERSON vs CREATED_BY...) so the resolver can match rows. A disabled rule (or
+   * one whose property was deleted — the FK cascades, so this is defensive) never
+   * appears. This is the authoritative rule set the resolver consumes.
+   */
+  async findEnabledAccessRules(sourceId: string): Promise<EnabledAccessRule[]> {
+    const rules = await this.uow.client().databasePageAccessRule.findMany({
+      where: { sourceId, enabled: true },
+      select: {
+        propertyId: true,
+        accessLevel: true,
+        enabled: true,
+        property: { select: { type: true } },
+      },
+    })
+    return rules.map((r) => ({
+      propertyId: r.propertyId,
+      propertyType: r.property.type,
+      accessLevel: r.accessLevel,
+      enabled: r.enabled,
+    }))
+  }
+
+  async createAccessRule(data: {
+    sourceId: string
+    propertyId: string
+    accessLevel: import('@repo/db').DatabaseAccessLevel
+  }): Promise<AccessRuleRow> {
+    const rule = await this.uow.client().databasePageAccessRule.create({
+      data: {
+        sourceId: data.sourceId,
+        propertyId: data.propertyId,
+        accessLevel: data.accessLevel,
+      },
+      select: { id: true, propertyId: true, accessLevel: true, enabled: true },
+    })
+    return rule as AccessRuleRow
+  }
+
+  async updateAccessRule(data: {
+    id: string
+    accessLevel?: import('@repo/db').DatabaseAccessLevel
+    enabled?: boolean
+  }): Promise<AccessRuleRow> {
+    const rule = await this.uow.client().databasePageAccessRule.update({
+      where: { id: data.id },
+      data: {
+        ...(data.accessLevel === undefined ? {} : { accessLevel: data.accessLevel }),
+        ...(data.enabled === undefined ? {} : { enabled: data.enabled }),
+      },
+      select: { id: true, propertyId: true, accessLevel: true, enabled: true },
+    })
+    return rule as AccessRuleRow
+  }
+
+  async deleteAccessRule(id: string): Promise<void> {
+    await this.uow.client().databasePageAccessRule.delete({ where: { id } })
+  }
+
+  /** Find a rule by id, scoped to a source (ownership check before update/delete). */
+  async findAccessRuleById(
+    id: string,
+  ): Promise<{ id: string; sourceId: string } | null> {
+    return this.uow.client().databasePageAccessRule.findUnique({
+      where: { id },
+      select: { id: true, sourceId: true },
+    })
+  }
+
+  async setStructureLocked(sourceId: string, locked: boolean): Promise<void> {
+    await this.uow.client().databaseSource.update({
+      where: { id: sourceId },
+      data: { structureLocked: locked },
+    })
+  }
+
+  // ── Phase 4C: resolver-context lookups ───────────────────────────────────────
+
+  /** The actor's workspace role, narrowed to RoleType | null (the resolver's input). */
+  async findWorkspaceRole(
+    userId: string,
+    workspaceId: string,
+  ): Promise<import('@repo/db').RoleType | null> {
+    const member = await this.uow.client().workspaceMember.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      select: { role: true },
+    })
+    return member?.role ?? null
+  }
+
+  /** True when `userId` created the source's owning DATABASE page (→ full access). */
+  async isSourcePageCreatedBy(sourcePageId: string, userId: string): Promise<boolean> {
+    const page = await this.uow.client().page.findUnique({
+      where: { id: sourcePageId },
+      select: { createdById: true },
+    })
+    return page?.createdById === userId
+  }
+
+  /**
+   * The viewer's explicit PageShare grant on a single ITEM page, mapped to a
+   * DatabaseAccessLevel: READER→CAN_VIEW, COMMENTER→CAN_COMMENT,
+   * EDITOR→CAN_EDIT_CONTENT. Null when there is no per-user grant on that page.
+   */
+  async findItemPageShareLevel(
+    itemPageId: string,
+    userId: string,
+  ): Promise<import('@repo/db').DatabaseAccessLevel | null> {
+    const grant = await this.uow.client().pageShareUser.findFirst({
+      where: { userId, pageShare: { pageId: itemPageId } },
+      select: { role: true },
+    })
+    if (!grant) return null
+    return PAGE_SHARE_ROLE_TO_LEVEL[grant.role] ?? null
+  }
+  // (PAGE_SHARE_ROLE_TO_LEVEL defined below the class.)
+
+  /**
+   * The source row WITH its lock flag (and the owning DATABASE page's creator),
+   * for `assertCanEditStructure` / `getMyAccess`. Null when the page has no source.
+   */
+  async findSourceWithLockByPageId(pageId: string): Promise<{
+    id: string
+    workspaceId: string
+    pageId: string
+    structureLocked: boolean
+    pageCreatedById: string | null
+  } | null> {
+    const row = await this.uow.client().databaseSource.findUnique({
+      where: { pageId },
+      select: {
+        id: true,
+        workspaceId: true,
+        pageId: true,
+        structureLocked: true,
+        page: { select: { createdById: true } },
+      },
+    })
+    if (!row) return null
+    return {
+      id: row.id,
+      workspaceId: row.workspaceId,
+      pageId: row.pageId,
+      structureLocked: row.structureLocked,
+      pageCreatedById: row.page.createdById,
+    }
+  }
+
+  /**
+   * Fetch a row's created-by + its cells (keyed by propertyId) — the inputs the
+   * resolver needs to gate a SINGLE-row mutation (updateCellValue/updateRow/
+   * deleteRow). Null when the row is missing.
+   */
+  async findRowForAccess(rowId: string): Promise<{
+    id: string
+    sourceId: string
+    rowCreatedById: string | null
+    cellsByProperty: Map<string, unknown>
+  } | null> {
+    const row = await this.uow.client().databaseRow.findUnique({
+      where: { id: rowId },
+      select: {
+        id: true,
+        sourceId: true,
+        createdById: true,
+        cells: { select: { propertyId: true, value: true } },
+      },
+    })
+    if (!row) return null
+    const cellsByProperty = new Map<string, unknown>()
+    for (const c of row.cells) cellsByProperty.set(c.propertyId, c.value)
+    return {
+      id: row.id,
+      sourceId: row.sourceId,
+      rowCreatedById: row.createdById,
+      cellsByProperty,
+    }
+  }
+
   // ── Item page creation (focused, no provisioning callback) ───────────────────
   // Delegated to PageRepository.createItemPageTx; this constant documents the type.
   static readonly ITEM_PAGE_TYPE = PageType.TEXT
+}
+
+/**
+ * PageShareRole → DatabaseAccessLevel, mirroring the spec's mapping. Keyed by the
+ * PageShareRole string (READER/COMMENTER/EDITOR); `PageShareRole` isn't re-exported
+ * from `@repo/db`, so the map is plain-string-keyed (the values are the
+ * DatabaseAccessLevel enum, assignable as string literals).
+ */
+const PAGE_SHARE_ROLE_TO_LEVEL: Record<string, import('@repo/db').DatabaseAccessLevel> = {
+  READER: 'CAN_VIEW',
+  COMMENTER: 'CAN_COMMENT',
+  EDITOR: 'CAN_EDIT_CONTENT',
 }
