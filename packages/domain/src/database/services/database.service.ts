@@ -46,7 +46,7 @@ import type {
   RowWithCells,
 } from './computed-cells.ts'
 import { buildRowQuery } from './query-planner.ts'
-import type { MultiSelectPostFilter, PropertyMeta } from './query-planner.ts'
+import type { MultiSelectPostFilter, PropertyMeta, RelationPostFilter } from './query-planner.ts'
 
 // Position gap used for end-insertion / reorder spacing (matches kanban's 1024).
 const POSITION_GAP = 1024
@@ -728,6 +728,32 @@ export class DatabaseService {
     )
   }
 
+  /**
+   * Apply RELATION post-filters: a row passes `is_any_of` when its linked target
+   * ids (for the filtered RELATION property) intersect the wanted set, and
+   * `is_none_of` when they are disjoint. The links can't be expressed in the
+   * Prisma `where` (they live in DatabaseRelationLink), so they are resolved in
+   * one batched query per filter for the page of fetched rows (no per-row query).
+   */
+  private async applyRelationPostFilters(
+    rows: RowWithPage[],
+    postFilters: RelationPostFilter[],
+  ): Promise<RowWithPage[]> {
+    if (postFilters.length === 0 || rows.length === 0) return rows
+    const rowIds = rows.map((r) => r.id)
+    let surviving = rows
+    for (const pf of postFilters) {
+      const linksByRow = await this.repo.findRelationLinks(pf.propertyId, rowIds)
+      const wanted = new Set(pf.targetRowIds)
+      surviving = surviving.filter((row) => {
+        const links = linksByRow.get(row.id) ?? []
+        const intersects = links.some((id) => wanted.has(id))
+        return pf.op === 'is_any_of' ? intersects : !intersects
+      })
+    }
+    return surviving
+  }
+
   /** Resolve a view's settings + the source's property metas for the planner. */
   private async resolveViewContext(
     sourceId: string,
@@ -881,13 +907,15 @@ export class DatabaseService {
     const plan = buildRowQuery(settings, properties)
 
     const limit = input.limit
-    const hasPostFilters = plan.multiSelectPostFilters.length > 0
+    const hasPostFilters =
+      plan.multiSelectPostFilters.length > 0 || plan.relationPostFilters.length > 0
 
-    // Without MULTI_SELECT post-filters: a single over-fetch of limit+1 detects
-    // the next page exactly. With post-filters (applied in JS after fetch): a
-    // whole DB batch can be eliminated, so we must keep fetching deeper batches
-    // until we have limit+1 surviving rows or the DB is exhausted — otherwise
-    // pagination would terminate early and silently drop matching rows.
+    // Without post-filters: a single over-fetch of limit+1 detects the next page
+    // exactly. With post-filters (MULTI_SELECT array containment / RELATION link
+    // membership, both applied in JS after fetch): a whole DB batch can be
+    // eliminated, so we must keep fetching deeper batches until we have limit+1
+    // surviving rows or the DB is exhausted — otherwise pagination would
+    // terminate early and silently drop matching rows.
     const collected: Awaited<ReturnType<DatabaseRepository['findRowsPaged']>> = []
     let cursor = input.cursor
     // Batch size: limit+1 normally; larger headroom when post-filtering so we
@@ -903,7 +931,9 @@ export class DatabaseService {
         take: batchTake,
         cursor,
       })
-      collected.push(...this.applyMultiSelectPostFilters(fetched, plan.multiSelectPostFilters))
+      const afterMulti = this.applyMultiSelectPostFilters(fetched, plan.multiSelectPostFilters)
+      const survivors = await this.applyRelationPostFilters(afterMulti, plan.relationPostFilters)
+      collected.push(...survivors)
       if (fetched.length < batchTake) break // DB exhausted
       if (collected.length > limit) break // enough survivors for this page + probe
       cursor = fetched.at(-1)?.id // advance to the next DB batch

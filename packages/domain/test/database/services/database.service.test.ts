@@ -576,6 +576,38 @@ describe('DatabaseService.listRows', () => {
     const result = await makeService(repo).listRows('u1', { pageId: 'db-page', viewId: 'view1', limit: 100 })
     expect(result.rows.map((r) => r.rowId)).toEqual(['r2'])
   })
+
+  it('applies a RELATION is_any_of post-filter using the row link sets', async () => {
+    const repo = makeRepo({
+      listViews: vi.fn(async () => [
+        {
+          id: 'view1', type: 'TABLE', title: 'V', position: 0,
+          settings: {
+            filters: {
+              conjunction: 'and',
+              conditions: [{ propertyId: 'p-rel', operator: 'is_any_of', value: ['t1'] }],
+            },
+          },
+        },
+      ]),
+      listProperties: vi.fn(async () => [
+        { id: 'p-rel', type: 'RELATION', name: 'Связь', position: 0, settings: { relation: { targetSourceId: 'src-t' } } },
+      ]),
+      findRowsPaged: vi.fn(async () => [
+        { id: 'r1', pageId: 'p-r1', position: 0, createdAt: new Date(), createdById: 'u1', updatedAt: new Date(), updatedById: 'u1', page: { title: 'R1', icon: null }, cells: [] },
+        { id: 'r2', pageId: 'p-r2', position: 1, createdAt: new Date(), createdById: 'u1', updatedAt: new Date(), updatedById: 'u1', page: { title: 'R2', icon: null }, cells: [] },
+      ]),
+      // r1 links to t1 (matches); r2 links to t9 (excluded).
+      findRelationLinks: vi.fn(async () => new Map([['r1', ['t1']], ['r2', ['t9']]])),
+      findRelationLinksForProperties: vi.fn(async () => new Map([['p-rel', new Map([['r1', ['t1']], ['r2', ['t9']]])]])),
+      findRowsByIds: vi.fn(async () => [
+        { id: 't1', pageId: 'pt1', title: 'T1', icon: null },
+        { id: 't9', pageId: 'pt9', title: 'T9', icon: null },
+      ]),
+    })
+    const result = await makeService(repo).listRows('u1', { pageId: 'db-page', viewId: 'view1', limit: 100 })
+    expect(result.rows.map((r) => r.rowId)).toEqual(['r1'])
+  })
 })
 
 describe('DatabaseService.listGroupedRows', () => {

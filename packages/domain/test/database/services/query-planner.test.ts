@@ -14,6 +14,13 @@ const props = [
   { id: 'p-status', type: DatabasePropertyType.STATUS },
   { id: 'p-multi', type: DatabasePropertyType.MULTI_SELECT },
   { id: 'p-date', type: DatabasePropertyType.DATE },
+  { id: 'p-rel', type: DatabasePropertyType.RELATION },
+  { id: 'p-formula', type: DatabasePropertyType.FORMULA },
+  { id: 'p-rollup', type: DatabasePropertyType.ROLLUP },
+  { id: 'p-ct', type: DatabasePropertyType.CREATED_TIME },
+  { id: 'p-cb', type: DatabasePropertyType.CREATED_BY },
+  { id: 'p-lt', type: DatabasePropertyType.LAST_EDITED_TIME },
+  { id: 'p-lb', type: DatabasePropertyType.LAST_EDITED_BY },
 ]
 
 describe('buildRowQuery — empty settings', () => {
@@ -384,4 +391,66 @@ describe('buildRowQuery — sorts', () => {
     const plan = buildRowQuery({ sorts: [] }, props)
     expect(plan.orderBy).toEqual([{ position: 'asc' }])
   })
+})
+
+// ── C4: RELATION post-filter + computed columns non-filterable ───────────────
+
+describe('buildRowQuery — RELATION post-filter', () => {
+  it('is_any_of → collected into relationPostFilters, NOT in where', () => {
+    const settings: ViewSettings = {
+      filters: {
+        conjunction: 'and',
+        conditions: [{ propertyId: 'p-rel', operator: 'is_any_of', value: ['t1', 't2'] }],
+      },
+    }
+    const plan = buildRowQuery(settings, props)
+    expect(plan.where).toEqual({ AND: [] })
+    expect(plan.relationPostFilters).toEqual([
+      { propertyId: 'p-rel', op: 'is_any_of', targetRowIds: ['t1', 't2'] },
+    ])
+    // It must NOT leak into the multi-select mechanism.
+    expect(plan.multiSelectPostFilters).toEqual([])
+  })
+
+  it('is_none_of → collected with op is_none_of', () => {
+    const settings: ViewSettings = {
+      filters: {
+        conjunction: 'and',
+        conditions: [{ propertyId: 'p-rel', operator: 'is_none_of', value: ['t1'] }],
+      },
+    }
+    const plan = buildRowQuery(settings, props)
+    expect(plan.relationPostFilters).toEqual([
+      { propertyId: 'p-rel', op: 'is_none_of', targetRowIds: ['t1'] },
+    ])
+  })
+
+  it('a non-membership RELATION operator is ignored (not filterable)', () => {
+    const settings: ViewSettings = {
+      filters: {
+        conjunction: 'and',
+        conditions: [{ propertyId: 'p-rel', operator: 'contains', value: 'x' }],
+      },
+    }
+    const plan = buildRowQuery(settings, props)
+    expect(plan.where).toEqual({ AND: [] })
+    expect(plan.relationPostFilters).toEqual([])
+  })
+})
+
+describe('buildRowQuery — computed columns are not filterable', () => {
+  for (const id of ['p-formula', 'p-rollup', 'p-ct', 'p-cb', 'p-lt', 'p-lb']) {
+    it(`a condition on ${id} is dropped from where (returns null)`, () => {
+      const settings: ViewSettings = {
+        filters: {
+          conjunction: 'and',
+          conditions: [{ propertyId: id, operator: 'equals', value: 'x' }],
+        },
+      }
+      const plan = buildRowQuery(settings, props)
+      expect(plan.where).toEqual({ AND: [] })
+      expect(plan.relationPostFilters).toEqual([])
+      expect(plan.multiSelectPostFilters).toEqual([])
+    })
+  }
 })

@@ -41,10 +41,34 @@ export interface MultiSelectPostFilter {
   optionIds: string[]
 }
 
+/**
+ * RELATION membership filter, applied out-of-band by the service: it resolves the
+ * row's linked target ids (DatabaseRelationLink) and keeps/excludes rows whose
+ * link set intersects `targetRowIds`. Mirrors the MULTI_SELECT post-filter path
+ * but the membership set comes from the relation links, not a stored cell array.
+ */
+export interface RelationPostFilter {
+  propertyId: string
+  op: 'is_any_of' | 'is_none_of'
+  targetRowIds: string[]
+}
+
+// Computed-on-read property types are NOT stored and NOT filterable in 4B; a
+// condition on one of these is dropped from the plan (documented limitation).
+const NON_FILTERABLE_TYPES = new Set<DatabasePropertyType>([
+  DatabasePropertyType.FORMULA,
+  DatabasePropertyType.ROLLUP,
+  DatabasePropertyType.CREATED_TIME,
+  DatabasePropertyType.CREATED_BY,
+  DatabasePropertyType.LAST_EDITED_TIME,
+  DatabasePropertyType.LAST_EDITED_BY,
+])
+
 export interface RowQueryPlan {
   where: Prisma.DatabaseRowWhereInput
   orderBy: Prisma.DatabaseRowOrderByWithRelationInput[]
   multiSelectPostFilters: MultiSelectPostFilter[]
+  relationPostFilters: RelationPostFilter[]
 }
 
 type CellValueFilter = Prisma.DatabaseCellValueWhereInput['value']
@@ -76,13 +100,15 @@ function titleFilter(
 
 /**
  * Translate a single leaf condition into a row `where` fragment. Returns `null`
- * for conditions handled out-of-band (MULTI_SELECT → post-filters), which the
- * caller drops from the `where` while still recording the post-filter.
+ * for conditions handled out-of-band (MULTI_SELECT / RELATION → post-filters) or
+ * not filterable at all (FORMULA/ROLLUP/created-edited metadata), which the
+ * caller drops from the `where` while still recording any post-filter.
  */
 function buildCondition(
   cond: FilterCondition,
   metaById: Map<string, PropertyMeta>,
   postFilters: MultiSelectPostFilter[],
+  relationPostFilters: RelationPostFilter[],
 ): Prisma.DatabaseRowWhereInput | null {
   const { propertyId, operator } = cond
   const value = cond.value
@@ -112,6 +138,24 @@ function buildCondition(
   }
 
   const type = metaById.get(propertyId)?.type
+
+  // ── Computed-on-read columns are not filterable in 4B (documented limit) ────
+  if (type !== undefined && NON_FILTERABLE_TYPES.has(type)) {
+    return null
+  }
+
+  // ── RELATION → post-filter over the row's linked target ids ─────────────────
+  if (type === DatabasePropertyType.RELATION) {
+    if (operator === 'is_any_of' || operator === 'is_none_of') {
+      relationPostFilters.push({
+        propertyId,
+        op: operator,
+        targetRowIds: Array.isArray(value) ? (value as string[]) : [],
+      })
+    }
+    // Any other RELATION operator is not filterable; drop it.
+    return null
+  }
 
   // ── MULTI_SELECT → post-filter (Prisma can't express array containment) ─────
   if (type === DatabasePropertyType.MULTI_SELECT) {
@@ -192,13 +236,14 @@ function buildGroup(
   group: FilterGroup,
   metaById: Map<string, PropertyMeta>,
   postFilters: MultiSelectPostFilter[],
+  relationPostFilters: RelationPostFilter[],
 ): Prisma.DatabaseRowWhereInput {
   const parts: Prisma.DatabaseRowWhereInput[] = []
   for (const node of group.conditions) {
     if (isGroup(node)) {
-      parts.push(buildGroup(node, metaById, postFilters))
+      parts.push(buildGroup(node, metaById, postFilters, relationPostFilters))
     } else {
-      const fragment = buildCondition(node, metaById, postFilters)
+      const fragment = buildCondition(node, metaById, postFilters, relationPostFilters)
       if (fragment) parts.push(fragment)
     }
   }
@@ -221,8 +266,8 @@ function buildOrderBy(sorts: Sort[] | undefined): Prisma.DatabaseRowOrderByWithR
 
 /**
  * Pure: translate `ViewSettings` + the source's property set into a Prisma
- * `where`/`orderBy` plan plus the MULTI_SELECT post-filters the service applies
- * in JS. The caller merges `{ sourceId, deletedAt: null }` into `where`.
+ * `where`/`orderBy` plan plus the MULTI_SELECT + RELATION post-filters the service
+ * applies in JS. The caller merges `{ sourceId, deletedAt: null }` into `where`.
  */
 export function buildRowQuery(
   settings: ViewSettings,
@@ -230,14 +275,16 @@ export function buildRowQuery(
 ): RowQueryPlan {
   const metaById = new Map(properties.map((p) => [p.id, p]))
   const multiSelectPostFilters: MultiSelectPostFilter[] = []
+  const relationPostFilters: RelationPostFilter[] = []
 
   const where = settings.filters
-    ? buildGroup(settings.filters, metaById, multiSelectPostFilters)
+    ? buildGroup(settings.filters, metaById, multiSelectPostFilters, relationPostFilters)
     : {}
 
   return {
     where,
     orderBy: buildOrderBy(settings.sorts),
     multiSelectPostFilters,
+    relationPostFilters,
   }
 }
