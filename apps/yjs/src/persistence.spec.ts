@@ -6,15 +6,28 @@ const mockTxPageUpdate = jest.fn<(args: unknown) => Promise<unknown>>().mockReso
 const mockEnqueueOutboxEventIgnoreConflict = jest
   .fn<(...args: unknown[]) => Promise<void>>()
   .mockResolvedValue()
+const mockRevisionFindFirst = jest
+  .fn<(args: unknown) => Promise<{ createdAt: Date } | null>>()
+  .mockResolvedValue(null)
+const mockRevisionCreate = jest.fn<(args: unknown) => Promise<unknown>>().mockResolvedValue({})
 const mockTransaction = jest.fn(async (fn: (tx: unknown) => Promise<unknown>) => {
   return fn({
     page: { update: mockTxPageUpdate },
+    pageRevision: { findFirst: mockRevisionFindFirst, create: mockRevisionCreate },
   })
 })
 
 jest.unstable_mockModule('@repo/db', () => ({
   prisma: { $transaction: mockTransaction },
   PageType: { TEXT: 'TEXT', EXCALIDRAW: 'EXCALIDRAW', GENOGRAM: 'GENOGRAM', MERMAID: 'MERMAID' },
+  PageRevisionAction: {
+    EDIT: 'EDIT',
+    TITLE_CHANGE: 'TITLE_CHANGE',
+    MOVE: 'MOVE',
+    ARCHIVE: 'ARCHIVE',
+    RESTORE: 'RESTORE',
+    PUBLISH: 'PUBLISH',
+  },
   Prisma: { sql: (s: TemplateStringsArray, ...v: unknown[]) => ({ s, v }) },
   enqueueOutboxEventIgnoreConflict: mockEnqueueOutboxEventIgnoreConflict,
 }))
@@ -25,6 +38,9 @@ beforeEach(() => {
   mockTxPageUpdate.mockClear()
   mockEnqueueOutboxEventIgnoreConflict.mockClear()
   mockTransaction.mockClear()
+  mockRevisionFindFirst.mockClear()
+  mockRevisionFindFirst.mockResolvedValue(null)
+  mockRevisionCreate.mockClear()
 })
 
 describe('storePageDocument', () => {
@@ -115,5 +131,61 @@ describe('storePageDocument', () => {
     expect(call.data.content).toEqual({ source: 'graph TD; A-->B;' })
     expect(call.data.contentYjs).toBeInstanceOf(Uint8Array)
     expect(mockEnqueueOutboxEventIgnoreConflict).not.toHaveBeenCalled()
+  })
+
+  describe('page-history content capture (throttle)', () => {
+    it('captures an EDIT revision (actorId null) when there is no prior revision', async () => {
+      mockRevisionFindFirst.mockResolvedValue(null)
+      const doc = new Y.Doc()
+      doc.getXmlFragment('default').insert(0, [new Y.XmlElement('paragraph')])
+
+      await storePageDocument({
+        pageId: '00000000-0000-0000-0000-000000000001',
+        workspaceId: '00000000-0000-0000-0000-000000000002',
+        document: doc,
+        pageType: 'TEXT' as never,
+      })
+
+      expect(mockRevisionCreate).toHaveBeenCalledTimes(1)
+      const data = (mockRevisionCreate.mock.calls[0]![0] as { data: Record<string, unknown> }).data
+      expect(data.action).toBe('EDIT')
+      expect(data.actorId).toBeNull()
+      expect(data.pageId).toBe('00000000-0000-0000-0000-000000000001')
+      expect(data.contentYjs).toBeInstanceOf(Uint8Array)
+    })
+
+    it('SKIPS the revision when the latest is younger than 10 min (time-only throttle)', async () => {
+      mockRevisionFindFirst.mockResolvedValue({ createdAt: new Date(Date.now() - 60_000) })
+      const doc = new Y.Doc()
+      doc.getXmlFragment('default').insert(0, [new Y.XmlElement('paragraph')])
+
+      await storePageDocument({
+        pageId: '00000000-0000-0000-0000-000000000001',
+        workspaceId: '00000000-0000-0000-0000-000000000002',
+        document: doc,
+        pageType: 'TEXT' as never,
+      })
+
+      expect(mockRevisionCreate).not.toHaveBeenCalled()
+      // page.update + outbox still run
+      expect(mockTxPageUpdate).toHaveBeenCalledTimes(1)
+    })
+
+    it('captures the revision when the latest is older than 10 min', async () => {
+      mockRevisionFindFirst.mockResolvedValue({
+        createdAt: new Date(Date.now() - (10 * 60 * 1000 + 60_000)),
+      })
+      const doc = new Y.Doc()
+      doc.getXmlFragment('default').insert(0, [new Y.XmlElement('paragraph')])
+
+      await storePageDocument({
+        pageId: '00000000-0000-0000-0000-000000000001',
+        workspaceId: '00000000-0000-0000-0000-000000000002',
+        document: doc,
+        pageType: 'TEXT' as never,
+      })
+
+      expect(mockRevisionCreate).toHaveBeenCalledTimes(1)
+    })
   })
 })
