@@ -284,6 +284,33 @@ export class DatabaseService {
     }
   }
 
+  /**
+   * Phase 5 (notifications): can `actorUserId` VIEW the given row of the DATABASE
+   * page? Reuses the cl4C row-access resolver so a notification recipient who
+   * lost row access never receives a content-bearing database notification.
+   * Returns false (never throws) when the page/source/row is missing or the
+   * viewer has no workspace access — the caller is a side-effect fan-out.
+   */
+  async canUserViewRow(actorUserId: string, pageId: string, rowId: string): Promise<boolean> {
+    const page = await this.repo.findAccessiblePage(actorUserId, pageId)
+    if (!page) return false
+    const source = await this.repo.findSourceMetaByPageId(pageId)
+    if (!source) return false
+    const rules = this.toResolverRules(await this.repo.findEnabledAccessRules(source.id))
+    const accessRow = await this.repo.findRowForAccess(rowId)
+    if (!accessRow || accessRow.sourceId !== source.id) return false
+    // No rules + a workspace member → every row is viewable (matches the read gate).
+    if (rules.length === 0) return true
+    // itemPageId=null: no per-item share lookup (broad/role + PERSON/CREATED_BY
+    // rules govern viewability), matching the list-read access path.
+    const ctx = await this.buildRowAccessContext(actorUserId, source, null)
+    const row: RowAccessRow = {
+      rowCreatedById: accessRow.rowCreatedById,
+      cellsByProperty: accessRow.cellsByProperty,
+    }
+    return canViewRow(resolveRowAccess(ctx, rules, row))
+  }
+
   async listAccessRules(
     actorUserId: string,
     input: ListAccessRulesInput,

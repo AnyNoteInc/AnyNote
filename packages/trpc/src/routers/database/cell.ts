@@ -6,6 +6,7 @@ import { router, protectedProcedure } from '../../trpc'
 import { assertPageEditAccess } from '../../helpers/page-access'
 import { mapDomain } from '../../helpers/map-domain'
 import { domain as domainSvc } from '../../domain'
+import { notifyDatabaseCellUpdate } from '../../helpers/database-notify'
 
 export const cellRouter = router({
   // The domain validates the raw value against the property type (and option set).
@@ -23,13 +24,15 @@ export const cellRouter = router({
     .mutation(async ({ ctx, input }) => {
       const page = await assertPageEditAccess(ctx, input.pageId)
 
+      // Resolve the property once: its type drives the existence checks below
+      // AND the Phase-5 notification fan-out (important-change classification).
+      const prop = await ctx.prisma.databaseProperty.findUnique({
+        where: { id: input.propertyId },
+        select: { type: true, name: true },
+      })
+
       const value = input.value
       if (value !== null && value !== undefined && value !== '') {
-        const prop = await ctx.prisma.databaseProperty.findUnique({
-          where: { id: input.propertyId },
-          select: { type: true },
-        })
-
         if (prop?.type === DatabasePropertyType.FILE && typeof value === 'string') {
           const file = await ctx.prisma.file.findFirst({
             where: { id: value, workspaceId: page.workspaceId },
@@ -56,6 +59,29 @@ export const cellRouter = router({
         }
       }
 
-      return mapDomain(() => domainSvc.database.updateCellValue(ctx.user.id, input))
+      const result = await mapDomain(() =>
+        domainSvc.database.updateCellValue(ctx.user.id, input),
+      )
+
+      // Phase 5: notify after a successful write. PERSON → the new assignee is
+      // the string value; anything else has no assignee. Side-effect only.
+      if (prop) {
+        const assigneeId =
+          prop.type === DatabasePropertyType.PERSON && typeof value === 'string' && value !== ''
+            ? value
+            : null
+        await notifyDatabaseCellUpdate(ctx.prisma, {
+          actorId: ctx.user.id,
+          workspaceId: page.workspaceId,
+          pageId: input.pageId,
+          rowId: input.rowId,
+          propertyId: input.propertyId,
+          propertyType: prop.type,
+          propertyName: prop.name,
+          assigneeId,
+        })
+      }
+
+      return result
     }),
 })
