@@ -12,6 +12,7 @@ import { trpc } from '@/trpc/client'
 
 import { NotificationRow } from './notification-row'
 import { formatNotification } from './format-notification'
+import { groupNotifications } from './group-notifications'
 
 type EventForFormat = Pick<NotificationEvent, 'type' | 'payload' | 'resourceUrl'>
 
@@ -35,6 +36,8 @@ export function NotificationsPopoverCard({ onNavigate, onLayoutChange }: Props) 
   const items = list.data?.pages.flatMap((p) => p.items) ?? []
   const unreadIds = items.filter((i) => i.readAt === null).map((i) => i.id)
   const itemCount = items.length
+  // Collapse a burst of activity on the same page/thread under one header.
+  const groups = groupNotifications(items)
 
   useLayoutEffect(() => {
     onLayoutChange?.()
@@ -86,22 +89,38 @@ export function NotificationsPopoverCard({ onNavigate, onLayoutChange }: Props) 
             Здесь будут ваши уведомления
           </Typography>
         ) : (
-          items.map((item) => {
-            const event = item.event as unknown as EventForFormat
+          groups.map((group) => {
+            const grouped = group.pageId !== null && group.items.length > 1
             return (
-              <NotificationRow
-                key={item.id}
-                formatted={formatNotification(event)}
-                unread={item.readAt === null}
-                createdAt={new Date(item.createdAt)}
-                onClick={async () => {
-                  if (item.readAt === null) await markRead.mutateAsync({ ids: [item.id] })
-                  if (event.resourceUrl) {
-                    router.push(event.resourceUrl)
-                    onNavigate()
-                  }
-                }}
-              />
+              <Box key={group.key}>
+                {grouped ? (
+                  <Typography
+                    variant="caption"
+                    color="text.secondary"
+                    sx={{ px: 1.5, pt: 1, display: 'block', fontWeight: 600 }}
+                  >
+                    На странице · {group.items.length} уведомлений
+                  </Typography>
+                ) : null}
+                {group.items.map((item) => {
+                  const event = item.event as unknown as EventForFormat
+                  return (
+                    <NotificationRow
+                      key={item.id}
+                      formatted={formatNotification(event)}
+                      unread={item.readAt === null}
+                      createdAt={new Date(item.createdAt)}
+                      onClick={async () => {
+                        if (item.readAt === null) await markRead.mutateAsync({ ids: [item.id] })
+                        if (event.resourceUrl) {
+                          router.push(event.resourceUrl)
+                          onNavigate()
+                        }
+                      }}
+                    />
+                  )
+                })}
+              </Box>
             )
           })
         )}

@@ -74,6 +74,26 @@ export function formatNotification(
         body: p.snippet ?? '',
         icon: 'comment',
       }
+    case 'COMMENT_REPLY':
+      return {
+        title: `${p.actorName ?? 'Кто-то'} ответил в обсуждении`,
+        body: p.snippet ?? '',
+        icon: 'comment',
+      }
+    case 'DATABASE_UPDATE':
+      return {
+        title: `${p.actorName ?? 'Кто-то'} обновил базу данных`,
+        body: p.label ? `Поле: ${p.label}` : '',
+        icon: 'system',
+      }
+    case 'DATABASE_PERSON_ASSIGNED':
+      return {
+        title: `${p.actorName ?? 'Кто-то'} назначил вас`,
+        body: p.label ? `Поле: ${p.label}` : '',
+        icon: 'mention',
+      }
+    case 'DATABASE_DATE_REMINDER':
+      return formatReminderDue((event.payload ?? {}) as Record<string, unknown>)
     case 'REMINDER_DUE':
       return formatReminderDue((event.payload ?? {}) as Record<string, unknown>)
     case 'WEEKLY_DIGEST':
