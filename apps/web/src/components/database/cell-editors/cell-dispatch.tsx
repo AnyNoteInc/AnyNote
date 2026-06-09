@@ -6,6 +6,9 @@ import { NumberCell } from './number-cell'
 import { CheckboxCell } from './checkbox-cell'
 import { DateCell } from './date-cell'
 import { SelectCell } from './select-cell'
+import { MultiSelectCell } from './multi-select-cell'
+import { PersonCell } from './person-cell'
+import { FileCell } from './file-cell'
 
 interface CellEditorProps {
   /** The DATABASE page id — the key the optimistic `getByPage` cache is stored under. */
@@ -40,10 +43,19 @@ export function CellEditor({ pageId, row, property, editable }: CellEditorProps)
       return (
         <SelectCell pageId={pageId} rowId={row.rowId} property={property} value={value} editable={editable} />
       )
-    case 'TEXT':
     case 'MULTI_SELECT':
+      return (
+        <MultiSelectCell pageId={pageId} rowId={row.rowId} property={property} value={value} editable={editable} />
+      )
     case 'PERSON':
+      return (
+        <PersonCell pageId={pageId} rowId={row.rowId} propertyId={property.id} value={value} editable={editable} />
+      )
     case 'FILE':
+      return (
+        <FileCell pageId={pageId} rowId={row.rowId} propertyId={property.id} value={value} editable={editable} />
+      )
+    case 'TEXT':
     default:
       return (
         <TextCell pageId={pageId} rowId={row.rowId} propertyId={property.id} value={value} editable={editable} />

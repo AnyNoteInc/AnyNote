@@ -12,7 +12,7 @@ import { DatabaseBoardView } from './views/database-board-view'
 import { DatabaseCalendarView } from './views/database-calendar-view'
 import { DatabaseListView } from './views/database-list-view'
 import { DatabaseItemModal } from './database-item-modal'
-import { ActiveViewIdProvider } from './cell-editors/use-optimistic-cell'
+import { ActiveViewIdProvider, DatabaseWorkspaceIdProvider } from './cell-editors/use-optimistic-cell'
 import type { DatabaseSchema, DatabaseViewEntry, DatabaseViewProps } from './types'
 
 interface DatabasePageRendererProps {
@@ -109,19 +109,21 @@ export function DatabasePageRenderer({ pageId, editable = true }: DatabasePageRe
     // Provide the active view's id so the shared cell editors patch the right
     // listRows cache entry (keyed by pageId+viewId) without threading viewId props
     // through every editor.
-    <ActiveViewIdProvider value={activeView.id}>
-      <Stack sx={{ height: '100%', minHeight: 0, bgcolor: 'background.paper' }}>
-        <DatabaseViewTabs
-          pageId={pageId}
-          views={schema.views}
-          activeViewId={activeView.id}
-          editable={editable}
-        />
-        <ViewDispatch pageId={pageId} schema={schema} view={activeView} editable={editable} />
-      </Stack>
-      {/* Item "peek" modal — opens when `?rowId=` matches a row in the active view. */}
-      <DatabaseItemModal pageId={pageId} viewId={activeView.id} schema={schema} editable={editable} />
-    </ActiveViewIdProvider>
+    <DatabaseWorkspaceIdProvider value={schema.source.workspaceId}>
+      <ActiveViewIdProvider value={activeView.id}>
+        <Stack sx={{ height: '100%', minHeight: 0, bgcolor: 'background.paper' }}>
+          <DatabaseViewTabs
+            pageId={pageId}
+            views={schema.views}
+            activeViewId={activeView.id}
+            editable={editable}
+          />
+          <ViewDispatch pageId={pageId} schema={schema} view={activeView} editable={editable} />
+        </Stack>
+        {/* Item "peek" modal — opens when `?rowId=` matches a row in the active view. */}
+        <DatabaseItemModal pageId={pageId} viewId={activeView.id} schema={schema} editable={editable} />
+      </ActiveViewIdProvider>
+    </DatabaseWorkspaceIdProvider>
   )
 }
 

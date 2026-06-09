@@ -22,6 +22,22 @@ export function useActiveViewId(): string | undefined {
 }
 
 /**
+ * The database's workspace id, provided by the renderer/embed (from
+ * `schema.source.workspaceId`). The rich cell editors (PERSON/FILE/PAGE_LINK/
+ * RELATION) need it to query workspace members, linkable pages, etc. Threaded via
+ * context — like `ActiveViewIdContext` — so the shared `CellEditor` prop interface
+ * stays unchanged across every view layout and the item modal. Empty string is the
+ * "not provided" sentinel; the rich editors guard their queries with `enabled`.
+ */
+const DatabaseWorkspaceIdContext = createContext<string>('')
+
+export const DatabaseWorkspaceIdProvider = DatabaseWorkspaceIdContext.Provider
+
+export function useDatabaseWorkspaceId(): string {
+  return useContext(DatabaseWorkspaceIdContext)
+}
+
+/**
  * Shared optimistic-update helper for cell editors. Patches the active view's
  * `database.listRows` infinite-query cache in place (rows moved out of
  * `getByPage` in the Phase-4A fetch split + per-view in Phase E), invalidates

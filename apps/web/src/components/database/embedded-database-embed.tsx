@@ -6,7 +6,7 @@ import { Box, CircularProgress, Typography } from '@repo/ui/components'
 import { trpc } from '@/trpc/client'
 
 import { DatabaseTableView } from './database-table-view'
-import { ActiveViewIdProvider } from './cell-editors/use-optimistic-cell'
+import { ActiveViewIdProvider, DatabaseWorkspaceIdProvider } from './cell-editors/use-optimistic-cell'
 
 interface EmbeddedDatabaseEmbedProps {
   /** The DatabaseSource id stored on the editor node. */
@@ -68,17 +68,19 @@ export function EmbeddedDatabaseEmbed({ sourceId, readonly }: EmbeddedDatabaseEm
   }
 
   return (
-    <ActiveViewIdProvider value={firstView.id}>
-      <Box sx={{ maxHeight: 480, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
-        <DatabaseTableView
-          pageId={query.data.pageId}
-          viewId={firstView.id}
-          view={firstView}
-          properties={schema.properties}
-          systemTitleProperty={schema.systemTitleProperty}
-          editable={!readonly}
-        />
-      </Box>
-    </ActiveViewIdProvider>
+    <DatabaseWorkspaceIdProvider value={schema.source.workspaceId}>
+      <ActiveViewIdProvider value={firstView.id}>
+        <Box sx={{ maxHeight: 480, display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+          <DatabaseTableView
+            pageId={query.data.pageId}
+            viewId={firstView.id}
+            view={firstView}
+            properties={schema.properties}
+            systemTitleProperty={schema.systemTitleProperty}
+            editable={!readonly}
+          />
+        </Box>
+      </ActiveViewIdProvider>
+    </DatabaseWorkspaceIdProvider>
   )
 }
