@@ -37,6 +37,13 @@ export interface RowWithPage {
   id: string
   pageId: string
   position: number
+  // Row metadata for the readonly CREATED_*/LAST_EDITED_* property types
+  // (compute-on-read). Fetched alongside the page on the paginated/grouping
+  // queries so no extra round-trip is needed.
+  createdAt: Date
+  createdById: string | null
+  updatedAt: Date
+  updatedById: string | null
   page: { title: string | null; icon: string | null }
   cells: { propertyId: string; value: unknown }[]
 }
@@ -380,6 +387,10 @@ export class DatabaseRepository {
         id: true,
         pageId: true,
         position: true,
+        createdAt: true,
+        createdById: true,
+        updatedAt: true,
+        updatedById: true,
         page: { select: { title: true, icon: true } },
         cells: { select: { propertyId: true, value: true } },
       },
@@ -421,6 +432,10 @@ export class DatabaseRepository {
         id: true,
         pageId: true,
         position: true,
+        createdAt: true,
+        createdById: true,
+        updatedAt: true,
+        updatedById: true,
         page: { select: { title: true, icon: true } },
         cells: { select: { propertyId: true, value: true } },
       },
@@ -449,6 +464,10 @@ export class DatabaseRepository {
         id: true,
         pageId: true,
         position: true,
+        createdAt: true,
+        createdById: true,
+        updatedAt: true,
+        updatedById: true,
         page: { select: { title: true, icon: true } },
         cells: { select: { propertyId: true, value: true } },
       },
@@ -682,6 +701,45 @@ export class DatabaseRepository {
       select: { rowId: true, propertyId: true, value: true },
     })
     return cells.map((c) => ({ rowId: c.rowId, propertyId: c.propertyId, value: c.value }))
+  }
+
+  /**
+   * Resolve the owning workspace id for a set of rows (through their source).
+   * Used by `setRelationLinks` to reject cross-workspace targets. Non-existent /
+   * soft-deleted rows are simply absent from the map.
+   */
+  async findRowWorkspaceIds(rowIds: string[]): Promise<Map<string, string>> {
+    const out = new Map<string, string>()
+    const ids = [...new Set(rowIds)]
+    if (ids.length === 0) return out
+    const rows = await this.uow.client().databaseRow.findMany({
+      where: { id: { in: ids }, deletedAt: null },
+      select: { id: true, source: { select: { workspaceId: true } } },
+    })
+    for (const r of rows) out.set(r.id, r.source.workspaceId)
+    return out
+  }
+
+  /** Resolve a source's workspace id (RELATION targetSourceId validation). */
+  async findSourceWorkspaceId(sourceId: string): Promise<string | null> {
+    const src = await this.uow.client().databaseSource.findUnique({
+      where: { id: sourceId },
+      select: { workspaceId: true },
+    })
+    return src?.workspaceId ?? null
+  }
+
+  /** Resolve user display names → `Map<userId, name>` (CREATED_BY/LAST_EDITED_BY). */
+  async findUserNames(userIds: string[]): Promise<Map<string, string>> {
+    const out = new Map<string, string>()
+    const ids = [...new Set(userIds)]
+    if (ids.length === 0) return out
+    const users = await this.uow.client().user.findMany({
+      where: { id: { in: ids } },
+      select: { id: true, name: true },
+    })
+    for (const u of users) out.set(u.id, u.name)
+    return out
   }
 
   /** True when the user is a member of the workspace (PERSON cell validation). */
