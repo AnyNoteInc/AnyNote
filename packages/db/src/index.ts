@@ -54,6 +54,8 @@ export {
   DatabaseViewType,
   DatabasePropertyType,
   DatabaseAccessLevel,
+  PageRevisionAction,
+  PageNotificationLevel,
 } from '@prisma/client'
 export type { ChatMessageStatus } from '@prisma/client'
 export type {
@@ -104,6 +106,9 @@ export type {
   DatabaseProperty,
   DatabaseRow,
   DatabaseCellValue,
+  PageRevision,
+  PageNotificationPreference,
+  DatabaseDateReminder,
 } from '@prisma/client'
 export {
   OutboxEventStatus,

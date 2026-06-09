@@ -22,6 +22,7 @@ function features(overrides: Partial<PlanFeatures> = {}): PlanFeatures {
     prioritySupport: true,
     developerSpaceEnabled: true,
     publicSitesEnabled: false,
+    pageHistoryDays: null,
     ...overrides,
   }
 }

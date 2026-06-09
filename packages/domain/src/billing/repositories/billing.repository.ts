@@ -3,14 +3,15 @@ import type { AiModel, AiProvider, Plan } from '@repo/db'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 import { activeSubscriptionWithPlanArgs } from '../active-subscription.ts'
 import type { PlanFeatures } from '../dto/billing.dto.ts'
-import { getPlanDisplayName } from '../dto/billing.dto.ts'
+import { getPlanDisplayName, parsePageHistoryDays } from '../dto/billing.dto.ts'
 
 function planToFeatures(plan: Plan): PlanFeatures {
+  const isPaid = plan.slug !== 'personal'
   return {
     slug: plan.slug as PlanFeatures['slug'],
     name: getPlanDisplayName(plan),
     sortOrder: plan.sortOrder,
-    isPaid: plan.slug !== 'personal',
+    isPaid,
     maxWorkspaces: plan.maxWorkspaces,
     maxMembersPerWorkspace: plan.maxMembersPerWorkspace,
     chatsEnabled: plan.chatsEnabled,
@@ -22,6 +23,7 @@ function planToFeatures(plan: Plan): PlanFeatures {
     prioritySupport: plan.prioritySupport,
     developerSpaceEnabled: plan.developerSpaceEnabled,
     publicSitesEnabled: Array.isArray(plan.features) && (plan.features as string[]).includes('publicSites'),
+    pageHistoryDays: parsePageHistoryDays(plan.features, isPaid),
   }
 }
 
