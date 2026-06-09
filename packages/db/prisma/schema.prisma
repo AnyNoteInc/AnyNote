@@ -60,6 +60,9 @@ model User {
   aiProvidersCreated         AiProvider[]             @relation("AiProviderCreatedBy")
   collectionsOwned           Collection[]             @relation("CollectionOwner")
   pagesArchived              Page[]                   @relation("PageArchivedBy")
+  pageRevisions              PageRevision[]           @relation("PageRevisionActor")
+  pageNotificationPrefs      PageNotificationPreference[]
+  databaseDateReminders      DatabaseDateReminder[]
 
   @@map("users")
 }
@@ -478,6 +481,8 @@ model Page {
   templateTags         PageTemplateTag[]
   databaseSource       DatabaseSource?     @relation("DatabaseSourcePage")
   databaseRow          DatabaseRow?        @relation("DatabaseRowPage")
+  revisions            PageRevision[]
+  notificationPrefs    PageNotificationPreference[]
 
   @@index([workspaceId])
   @@index([parentId])
@@ -1048,6 +1053,12 @@ enum NotificationEventType {
   WEEKLY_DIGEST
   PRODUCT_UPDATE
   REMINDER_DUE
+  // Phase 5: notify-me + database notifications + page history.
+  COMMENT_REPLY
+  DATABASE_UPDATE
+  DATABASE_PERSON_ASSIGNED
+  DATABASE_DATE_REMINDER
+  PAGE_REVISION_RESTORED
 }
 
 enum NotificationChannel {
@@ -1526,6 +1537,7 @@ model DatabaseProperty {
   cells         DatabaseCellValue[]
   relationLinks DatabaseRelationLink[]
   accessRules   DatabasePageAccessRule[]
+  dateReminders DatabaseDateReminder[]
 
   @@index([sourceId])
   @@map("database_properties")
@@ -1547,6 +1559,7 @@ model DatabaseRow {
   cells           DatabaseCellValue[]
   relationLinks   DatabaseRelationLink[] @relation("RelationLinkSource")
   relationLinksTo DatabaseRelationLink[] @relation("RelationLinkTarget")
+  dateReminders   DatabaseDateReminder[]
 
   @@index([sourceId, position])
   @@index([pageId])
@@ -1568,6 +1581,79 @@ model DatabaseRelationLink {
   @@index([propertyId, rowId])
   @@index([targetRowId])
   @@map("database_relation_links")
+}
+
+// ---------------------------------------------------------------------------
+// Phase 5: page history, notify-me preferences, database date reminders.
+// ---------------------------------------------------------------------------
+
+enum PageRevisionAction {
+  EDIT
+  TITLE_CHANGE
+  MOVE
+  ARCHIVE
+  RESTORE
+  PUBLISH
+}
+
+model PageRevision {
+  id         String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pageId     String             @map("page_id") @db.Uuid
+  actorId    String?            @map("actor_id") @db.Uuid
+  action     PageRevisionAction
+  content    Json?
+  contentYjs Bytes?             @map("content_yjs")
+  metadata   Json?
+  createdAt  DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  page  Page  @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  actor User? @relation("PageRevisionActor", fields: [actorId], references: [id], onDelete: SetNull)
+
+  @@index([pageId, createdAt(sort: Desc)])
+  @@map("page_revisions")
+}
+
+enum PageNotificationLevel {
+  ALL_COMMENTS
+  REPLIES_AND_MENTIONS
+  ALL_UPDATES
+  IMPORTANT_UPDATES
+}
+
+model PageNotificationPreference {
+  id        String                @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  userId    String                @map("user_id") @db.Uuid
+  pageId    String                @map("page_id") @db.Uuid
+  level     PageNotificationLevel
+  createdAt DateTime              @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt DateTime              @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  page Page @relation(fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, pageId])
+  @@index([pageId])
+  @@map("page_notification_preferences")
+}
+
+model DatabaseDateReminder {
+  id            String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  propertyId    String   @map("property_id") @db.Uuid
+  rowId         String   @map("row_id") @db.Uuid
+  pageId        String   @map("page_id") @db.Uuid
+  userId        String   @map("user_id") @db.Uuid
+  offsetMinutes Int      @default(0) @map("offset_minutes")
+  timezone      String?
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt     DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  property DatabaseProperty @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  row      DatabaseRow      @relation(fields: [rowId], references: [id], onDelete: Cascade)
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, rowId, userId])
+  @@index([rowId])
+  @@map("database_date_reminders")
 }
 
 model DatabaseCellValue {
