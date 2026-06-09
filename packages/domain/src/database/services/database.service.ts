@@ -50,6 +50,7 @@ import type {
 import {
   buildRowAccessWhere,
   canEditRow,
+  canViewRow,
   resolveRowAccess,
   resolveRowAccessForRows,
 } from './row-access-resolver.ts'
@@ -1036,6 +1037,70 @@ export class DatabaseService {
   // ── Compute-on-read augmentation ─────────────────────────────────────────────
 
   /**
+   * Remove inaccessible TARGET rows from the relation link sets (Phase 4C). For
+   * every distinct target source, fetch its enabled rules; if a target source has
+   * rules, resolve each of its target rows through the viewer's context FOR THAT
+   * SOURCE and drop the ids the viewer can't view (`!canViewRow`) from every link
+   * list AND from `targetRowIds`. Batched: one access-meta fetch for the union of
+   * targets + one rules fetch for the distinct target sources (no N+1). A no-op
+   * when no target source has any enabled rule (the common case).
+   */
+  private async excludeInaccessibleTargets(
+    actorUserId: string,
+    relationLinksByProp: Map<string, Map<string, string[]>>,
+    targetRowIds: Set<string>,
+  ): Promise<void> {
+    if (targetRowIds.size === 0) return
+    const meta = await this.repo.findRowsAccessMetaByIds([...targetRowIds])
+    if (meta.length === 0) return
+
+    const distinctSourceIds = [...new Set(meta.map((m) => m.sourceId))]
+    const rulesBySource = await this.repo.findEnabledAccessRulesForSources(distinctSourceIds)
+    // Nothing to enforce if no target source carries a rule.
+    if (rulesBySource.size === 0) return
+
+    // Resolve each target row's access in its own source's context. Memoize the
+    // viewer context per (target source) since it only depends on the source.
+    const ctxBySource = new Map<string, RowAccessContext>()
+    const inaccessible = new Set<string>()
+    for (const m of meta) {
+      const rules = rulesBySource.get(m.sourceId)
+      if (!rules || rules.length === 0) continue // source unrestricted → keep
+      let ctx = ctxBySource.get(m.sourceId)
+      if (!ctx) {
+        ctx = await this.buildRowAccessContext(
+          actorUserId,
+          { id: m.sourceId, workspaceId: m.workspaceId, pageId: m.pageId },
+          // The target row IS an item page; its per-item share could apply, but
+          // pageId here is the target ROW's page, not the target SOURCE page. The
+          // context's isSourcePageCreator needs the target source page — which we
+          // don't carry — so pass the row's pageId for share resolution only and
+          // rely on role + rule matching (creator-of-target-source is rare for a
+          // cross-row chip and conservatively treated as non-creator here).
+          m.pageId,
+        )
+        ctxBySource.set(m.sourceId, ctx)
+      }
+      const level = resolveRowAccess(
+        ctx,
+        this.toResolverRules(rules),
+        { rowCreatedById: m.createdById, cellsByProperty: m.cellsByProperty },
+      )
+      if (!canViewRow(level)) inaccessible.add(m.id)
+    }
+
+    // A target row absent from `meta` (soft-deleted/missing) is already dropped by
+    // findRowsByIds; here we only remove the rule-excluded ones.
+    if (inaccessible.size === 0) return
+    for (const byRow of relationLinksByProp.values()) {
+      for (const [rowId, targets] of byRow) {
+        byRow.set(rowId, targets.filter((id) => !inaccessible.has(id)))
+      }
+    }
+    for (const id of inaccessible) targetRowIds.delete(id)
+  }
+
+  /**
    * Resolve the computed cells (FORMULA / ROLLUP / RELATION / CREATED_* /
    * LAST_EDITED_*) for a page of already-fetched rows, then map them to the
    * view-model. When the source has NO computed property, this is a pure map (no
@@ -1046,6 +1111,7 @@ export class DatabaseService {
    * No per-row queries (no N+1).
    */
   private async augmentRows(
+    actorUserId: string,
     fullProperties: PropertyRow[],
     rows: RowWithPage[],
   ): Promise<DatabaseRowView[]> {
@@ -1084,6 +1150,11 @@ export class DatabaseService {
         for (const t of targets) targetRowIds.add(t)
       }
     }
+
+    // Phase 4C: filter inaccessible target rows out of the link sets so neither
+    // RELATION chips nor ROLLUP aggregations leak rows the viewer can't access in
+    // the TARGET source. Mutates relationLinksByProp + targetRowIds in place.
+    await this.excludeInaccessibleTargets(actorUserId, relationLinksByProp, targetRowIds)
 
     const needsRollup = computedMetas.some((p) => p.type === DatabasePropertyType.ROLLUP)
     const needsMetadata = computedMetas.some(
@@ -1229,7 +1300,7 @@ export class DatabaseService {
     // `cursor: { id }, skip: 1`, so the next page starts at the row after it).
     const nextCursor = hasMore ? (pageRows.at(-1)?.id ?? null) : null
 
-    const rows = await this.augmentRows(fullProperties, pageRows)
+    const rows = await this.augmentRows(actorUserId, fullProperties, pageRows)
     return { rows, nextCursor }
   }
 
@@ -1270,7 +1341,7 @@ export class DatabaseService {
     const rows = this.filterViewableRows(accessCtx, rules, fetched)
 
     // Resolve computed cells for the whole board in one batched pass, then bucket.
-    const augmented = await this.augmentRows(properties, rows)
+    const augmented = await this.augmentRows(actorUserId, properties, rows)
     const viewByRowId = new Map(augmented.map((v) => [v.rowId, v]))
 
     const options = asSettings(groupProp.settings)?.options ?? []

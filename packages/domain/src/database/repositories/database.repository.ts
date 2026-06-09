@@ -965,6 +965,85 @@ export class DatabaseRepository {
   }
 
   /**
+   * Batch-fetch access inputs (sourceId, workspaceId, createdBy, cells) for a set
+   * of TARGET rows — used by relation/rollup traversal to resolve each target
+   * row's access in the target source's context (no leak via chips/rollups).
+   * Soft-deleted rows are excluded (a dangling/trashed target simply drops out).
+   */
+  async findRowsAccessMetaByIds(ids: string[]): Promise<
+    Array<{
+      id: string
+      sourceId: string
+      workspaceId: string
+      pageId: string
+      createdById: string | null
+      cellsByProperty: Map<string, unknown>
+    }>
+  > {
+    const unique = [...new Set(ids)]
+    if (unique.length === 0) return []
+    const rows = await this.uow.client().databaseRow.findMany({
+      where: { id: { in: unique }, deletedAt: null },
+      select: {
+        id: true,
+        sourceId: true,
+        pageId: true,
+        createdById: true,
+        source: { select: { workspaceId: true } },
+        cells: { select: { propertyId: true, value: true } },
+      },
+    })
+    return rows.map((r) => {
+      const cellsByProperty = new Map<string, unknown>()
+      for (const c of r.cells) cellsByProperty.set(c.propertyId, c.value)
+      return {
+        id: r.id,
+        sourceId: r.sourceId,
+        workspaceId: r.source.workspaceId,
+        pageId: r.pageId,
+        createdById: r.createdById,
+        cellsByProperty,
+      }
+    })
+  }
+
+  /**
+   * Batch-fetch the ENABLED access rules (with property type joined) for a SET of
+   * sources at once → `Map<sourceId, EnabledAccessRule[]>`. Used by relation/rollup
+   * traversal to resolve target-row access per target source without an N+1.
+   * Sources with no enabled rules are simply absent from the map.
+   */
+  async findEnabledAccessRulesForSources(
+    sourceIds: string[],
+  ): Promise<Map<string, EnabledAccessRule[]>> {
+    const out = new Map<string, EnabledAccessRule[]>()
+    const unique = [...new Set(sourceIds)]
+    if (unique.length === 0) return out
+    const rules = await this.uow.client().databasePageAccessRule.findMany({
+      where: { sourceId: { in: unique }, enabled: true },
+      select: {
+        sourceId: true,
+        propertyId: true,
+        accessLevel: true,
+        enabled: true,
+        property: { select: { type: true } },
+      },
+    })
+    for (const r of rules) {
+      const mapped: EnabledAccessRule = {
+        propertyId: r.propertyId,
+        propertyType: r.property.type,
+        accessLevel: r.accessLevel,
+        enabled: r.enabled,
+      }
+      const list = out.get(r.sourceId)
+      if (list) list.push(mapped)
+      else out.set(r.sourceId, [mapped])
+    }
+    return out
+  }
+
+  /**
    * Fetch a row's created-by + its cells (keyed by propertyId) — the inputs the
    * resolver needs to gate a SINGLE-row mutation (updateCellValue/updateRow/
    * deleteRow). Null when the row is missing.

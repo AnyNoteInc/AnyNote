@@ -87,6 +87,8 @@ function makeRepo(overrides: Partial<DatabaseRepository> = {}): DatabaseReposito
     findRowForAccess: vi.fn(async () => ({
       id: 'row1', sourceId: 'src1', rowCreatedById: 'u1', cellsByProperty: new Map(),
     })),
+    findRowsAccessMetaByIds: vi.fn(async () => []),
+    findEnabledAccessRulesForSources: vi.fn(async () => new Map()),
     ...overrides,
   } as unknown as DatabaseRepository
 }
@@ -1704,5 +1706,92 @@ describe('DatabaseService.createRow — source-level edit gate', () => {
     await expect(
       makeService(repo).createRow('viewer', { pageId: 'db-page' }),
     ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+  })
+})
+
+// ── C4: relation/rollup traversal respects target-row access ─────────────────
+
+describe('DatabaseService.listRows — relation/rollup target access', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  // A relation property whose target source ('src-t') carries a CAN_VIEW PERSON
+  // rule. The restricted viewer is assigned to t1 (visible) but not t2 (hidden) →
+  // the chip set must exclude t2 and a count rollup must count only t1.
+  function restrictedTargetRepo() {
+    return makeRepo({
+      // The viewer of THIS database is a member with no rules on the host source.
+      findWorkspaceRole: vi.fn(async () => 'EDITOR'),
+      isSourcePageCreatedBy: vi.fn(async () => false),
+      // No rules on the HOST source (so the host rows aren't filtered).
+      findEnabledAccessRules: vi.fn(async () => []),
+      listProperties: vi.fn(async () => [
+        { id: 'p-rel', type: 'RELATION', name: 'Связь', position: 0, settings: { relation: { targetSourceId: 'src-t' } } },
+        { id: 'p-roll', type: 'ROLLUP', name: 'Кол', position: 1024, settings: { rollup: { relationPropertyId: 'p-rel', targetPropertyId: '__title__', aggregation: 'count_all' } } },
+      ]),
+      findRowsPaged: vi.fn(async () => [
+        {
+          id: 'row1', pageId: 'item-page', position: 0,
+          createdAt: new Date(), createdById: 'viewer', updatedAt: new Date(), updatedById: 'viewer',
+          page: { title: 'A', icon: null }, cells: [],
+        },
+      ]),
+      findRelationLinksForProperties: vi.fn(async () => new Map([['p-rel', new Map([['row1', ['t1', 't2']]])]])),
+      findRowsByIds: vi.fn(async () => [
+        { id: 't1', pageId: 'pt1', title: 'T1', icon: null },
+        { id: 't2', pageId: 'pt2', title: 'T2', icon: null },
+      ]),
+      findCellsForRows: vi.fn(async () => []),
+      // The target rows belong to source 'src-t' in workspace 'w1'.
+      findRowsAccessMetaByIds: vi.fn(async () => [
+        { id: 't1', sourceId: 'src-t', workspaceId: 'w1', pageId: 'pt1', createdById: 'other', cellsByProperty: new Map([['tp-person', 'viewer']]) },
+        { id: 't2', sourceId: 'src-t', workspaceId: 'w1', pageId: 'pt2', createdById: 'other', cellsByProperty: new Map([['tp-person', 'someone-else']]) },
+      ]),
+      // The target source has a CAN_VIEW PERSON rule on tp-person.
+      findEnabledAccessRulesForSources: vi.fn(async () => new Map([
+        ['src-t', [{ propertyId: 'tp-person', propertyType: 'PERSON', accessLevel: 'CAN_VIEW', enabled: true }]],
+      ])),
+    })
+  }
+
+  it('excludes a relation chip the viewer cannot access in the target source', async () => {
+    const repo = restrictedTargetRepo()
+    const result = await makeService(repo).listRows('viewer', { pageId: 'db-page', limit: 100 })
+    const chips = result.rows[0]!.cells['p-rel'] as { rowId: string }[]
+    expect(chips.map((c) => c.rowId)).toEqual(['t1'])
+  })
+
+  it('counts only accessible target rows in a rollup', async () => {
+    const repo = restrictedTargetRepo()
+    const result = await makeService(repo).listRows('viewer', { pageId: 'db-page', limit: 100 })
+    // count_all over the link set, but t2 is inaccessible → 1, not 2.
+    expect(result.rows[0]!.cells['p-roll']).toBe(1)
+  })
+
+  it('keeps all target chips when the target source has no rules (unchanged)', async () => {
+    const repo = makeRepo({
+      findWorkspaceRole: vi.fn(async () => 'EDITOR'),
+      isSourcePageCreatedBy: vi.fn(async () => false),
+      findEnabledAccessRules: vi.fn(async () => []),
+      listProperties: vi.fn(async () => [
+        { id: 'p-rel', type: 'RELATION', name: 'Связь', position: 0, settings: { relation: { targetSourceId: 'src-t' } } },
+      ]),
+      findRowsPaged: vi.fn(async () => [
+        {
+          id: 'row1', pageId: 'item-page', position: 0,
+          createdAt: new Date(), createdById: 'viewer', updatedAt: new Date(), updatedById: 'viewer',
+          page: { title: 'A', icon: null }, cells: [],
+        },
+      ]),
+      findRelationLinksForProperties: vi.fn(async () => new Map([['p-rel', new Map([['row1', ['t1', 't2']]])]])),
+      findRowsByIds: vi.fn(async () => [
+        { id: 't1', pageId: 'pt1', title: 'T1', icon: null },
+        { id: 't2', pageId: 'pt2', title: 'T2', icon: null },
+      ]),
+      // No rules on the target source → no exclusion.
+      findEnabledAccessRulesForSources: vi.fn(async () => new Map()),
+    })
+    const result = await makeService(repo).listRows('viewer', { pageId: 'db-page', limit: 100 })
+    const chips = result.rows[0]!.cells['p-rel'] as { rowId: string }[]
+    expect(chips.map((c) => c.rowId)).toEqual(['t1', 't2'])
   })
 })
