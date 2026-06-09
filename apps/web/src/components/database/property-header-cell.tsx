@@ -1,5 +1,6 @@
 'use client'
 
+import type { ReactNode } from 'react'
 import { useState } from 'react'
 import {
   Box,
@@ -16,6 +17,7 @@ import {
   MoreVertIcon,
   Stack,
   TextField,
+  Tooltip,
   Typography,
   DeleteIcon,
   EditIcon,
@@ -23,21 +25,32 @@ import {
 } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
-import type { DatabasePropertyView } from './types'
+import type { DatabasePropertyView, MyDatabaseAccess } from './types'
+import { structureDisabledReason } from './types'
 import { PropertySettingsDialog } from './property-config/property-settings-dialog'
 
 interface PropertyHeaderCellProps {
   readonly pageId: string
   readonly property: DatabasePropertyView
+  /** Structure-edit rights — enables rename/configure/delete. */
   readonly editable?: boolean
+  readonly myAccess: MyDatabaseAccess
 }
 
 /**
- * Header cell for a user property. A menu offers rename (updateProperty) and
- * delete (deleteProperty, with a confirm because deleting a property cascades
- * its cells). The system Title column uses a plain label and never renders this.
+ * Header cell for a user property. A menu offers rename (updateProperty), configure
+ * (settings dialog), and delete (deleteProperty, with a confirm because deleting a
+ * property cascades its cells). These are STRUCTURE operations, so the menu items
+ * disable (with a tooltip) when the viewer lacks structure rights or the structure
+ * is locked. The button is hidden entirely for a pure viewer (no edit rights at
+ * all). The system Title column uses a plain label and never renders this.
  */
-export function PropertyHeaderCell({ pageId, property, editable = true }: PropertyHeaderCellProps) {
+export function PropertyHeaderCell({
+  pageId,
+  property,
+  editable = true,
+  myAccess,
+}: PropertyHeaderCellProps) {
   const utils = trpc.useUtils()
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
   const [renameOpen, setRenameOpen] = useState(false)
@@ -70,46 +83,52 @@ export function PropertyHeaderCell({ pageId, property, editable = true }: Proper
     setRenameOpen(false)
   }
 
+  // The menu button shows for any editor (content or structure) so the disabled
+  // reason is discoverable; a pure viewer sees no button at all. The items disable
+  // when the viewer lacks structure rights / the structure is locked.
+  const showMenuButton = editable || myAccess.canEditContent
+  const itemsDisabled = !editable
+  const disabledReason = structureDisabledReason(myAccess)
+
   return (
     <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
       <Typography component="span" sx={{ fontSize: 13, fontWeight: 600 }} noWrap>
         {property.name}
       </Typography>
-      {editable ? (
+      {showMenuButton ? (
         <IconButton size="small" onClick={(e) => setAnchorEl(e.currentTarget)} sx={{ ml: 'auto' }}>
           <MoreVertIcon fontSize="small" />
         </IconButton>
       ) : null}
 
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={() => setAnchorEl(null)}>
-        <MenuItem onClick={openRename}>
-          <ListItemIcon>
-            <EditIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="Переименовать" />
-        </MenuItem>
-        <MenuItem
+        <StructureMenuItem
+          disabled={itemsDisabled}
+          reason={disabledReason}
+          onClick={openRename}
+          icon={<EditIcon fontSize="small" />}
+          label="Переименовать"
+        />
+        <StructureMenuItem
+          disabled={itemsDisabled}
+          reason={disabledReason}
           onClick={() => {
             setSettingsOpen(true)
             setAnchorEl(null)
           }}
-        >
-          <ListItemIcon>
-            <TuneIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="Настроить свойство" />
-        </MenuItem>
-        <MenuItem
+          icon={<TuneIcon fontSize="small" />}
+          label="Настроить свойство"
+        />
+        <StructureMenuItem
+          disabled={itemsDisabled}
+          reason={disabledReason}
           onClick={() => {
             setConfirmOpen(true)
             setAnchorEl(null)
           }}
-        >
-          <ListItemIcon>
-            <DeleteIcon fontSize="small" />
-          </ListItemIcon>
-          <ListItemText primary="Удалить" />
-        </MenuItem>
+          icon={<DeleteIcon fontSize="small" />}
+          label="Удалить"
+        />
       </Menu>
 
       <Dialog open={renameOpen} onClose={() => setRenameOpen(false)}>
@@ -167,5 +186,33 @@ export function PropertyHeaderCell({ pageId, property, editable = true }: Proper
         onClose={() => setSettingsOpen(false)}
       />
     </Box>
+  )
+}
+
+interface StructureMenuItemProps {
+  readonly disabled: boolean
+  readonly reason: string
+  readonly onClick: () => void
+  readonly icon: ReactNode
+  readonly label: string
+}
+
+/**
+ * A property-menu item that disables (with a tooltip explaining why) when the
+ * viewer can't edit the structure. A disabled MenuItem swallows pointer events, so
+ * the Tooltip wraps a span around it to keep the hover target alive.
+ */
+function StructureMenuItem({ disabled, reason, onClick, icon, label }: StructureMenuItemProps) {
+  const item = (
+    <MenuItem disabled={disabled} onClick={onClick}>
+      <ListItemIcon>{icon}</ListItemIcon>
+      <ListItemText primary={label} />
+    </MenuItem>
+  )
+  if (!disabled) return item
+  return (
+    <Tooltip title={reason}>
+      <span>{item}</span>
+    </Tooltip>
   )
 }

@@ -25,6 +25,7 @@ import {
   TableChartIcon,
   Tabs,
   TextField,
+  Tooltip,
   ViewKanbanIcon,
   ViewListIcon,
 } from '@repo/ui/components'
@@ -32,13 +33,16 @@ import type { DatabaseViewType } from '@repo/db'
 
 import { trpc } from '@/trpc/client'
 
-import type { DatabaseSchema, DatabaseViewEntry } from './types'
+import { structureDisabledReason } from './types'
+import type { DatabaseSchema, DatabaseViewEntry, MyDatabaseAccess } from './types'
 
 interface DatabaseViewTabsProps {
   readonly pageId: string
   readonly views: DatabaseSchema['views']
   readonly activeViewId: string
+  /** Structure-edit rights — gates add/rename/duplicate/delete view affordances. */
   readonly editable?: boolean
+  readonly myAccess: MyDatabaseAccess
 }
 
 const VIEW_TYPE_ICON: Record<DatabaseViewType, React.ReactNode> = {
@@ -75,15 +79,15 @@ export function DatabaseViewTabs({
   views,
   activeViewId,
   editable = true,
+  myAccess,
 }: DatabaseViewTabsProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
   const utils = trpc.useUtils()
 
-  const sorted = useMemo(
-    () => [...views].sort((a, b) => a.position - b.position),
-    [views],
-  )
+  const structureReason = structureDisabledReason(myAccess)
+
+  const sorted = useMemo(() => [...views].sort((a, b) => a.position - b.position), [views])
 
   const [addAnchor, setAddAnchor] = useState<HTMLElement | null>(null)
   const [menuView, setMenuView] = useState<DatabaseViewEntry | null>(null)
@@ -149,7 +153,13 @@ export function DatabaseViewTabs({
 
   // Tabs value must always match a known tab; if `activeViewId` is stale, anchor
   // the underline on the first tab to avoid an out-of-range warning.
-  const tabsValue = sorted.some((v) => v.id === activeViewId) ? activeViewId : (sorted[0]?.id ?? false)
+  const tabsValue = sorted.some((v) => v.id === activeViewId)
+    ? activeViewId
+    : (sorted[0]?.id ?? false)
+
+  // View-management affordances show for any editor (so the disabled reason is
+  // discoverable) but only act when the viewer may edit the structure.
+  const showViewControls = editable || myAccess.canEditContent
 
   return (
     <Stack
@@ -171,13 +181,17 @@ export function DatabaseViewTabs({
             icon={VIEW_TYPE_ICON[view.type] as React.ReactElement}
             iconPosition="start"
             label={
-              <Box component="span" sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.25 }}>
+              <Box
+                component="span"
+                sx={{ display: 'inline-flex', alignItems: 'center', gap: 0.25 }}
+              >
                 {view.title}
-                {editable ? (
+                {showViewControls ? (
                   <IconButton
                     component="span"
                     size="small"
                     aria-label="Действия с представлением"
+                    disabled={!editable}
                     sx={{ ml: 0.25, p: 0.25 }}
                     onClick={(e) => {
                       e.stopPropagation()
@@ -193,15 +207,19 @@ export function DatabaseViewTabs({
         ))}
       </Tabs>
 
-      {editable ? (
-        <IconButton
-          size="small"
-          aria-label="Добавить представление"
-          onClick={(e) => setAddAnchor(e.currentTarget)}
-          sx={{ ml: 0.5 }}
-        >
-          <AddIcon fontSize="small" />
-        </IconButton>
+      {showViewControls ? (
+        <Tooltip title={editable ? '' : structureReason} disableHoverListener={editable}>
+          <Box component="span" sx={{ ml: 0.5, display: 'inline-flex' }}>
+            <IconButton
+              size="small"
+              aria-label="Добавить представление"
+              disabled={!editable}
+              onClick={(e) => setAddAnchor(e.currentTarget)}
+            >
+              <AddIcon fontSize="small" />
+            </IconButton>
+          </Box>
+        </Tooltip>
       ) : null}
 
       <Menu anchorEl={addAnchor} open={Boolean(addAnchor)} onClose={() => setAddAnchor(null)}>
