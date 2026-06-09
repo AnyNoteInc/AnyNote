@@ -5,7 +5,11 @@ vi.mock('@repo/db', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@repo/db')>()
   return { ...actual, prisma: {} }
 })
-vi.mock('@repo/notifications', () => ({ notify: { commentCreated: vi.fn(), pageMention: vi.fn() } }))
+vi.mock('@repo/notifications', () => ({
+  notify: { commentCreated: vi.fn(), pageMention: vi.fn(), commentReply: vi.fn() },
+  notifyPageActivity: vi.fn(),
+  resolvePageActivityRecipients: vi.fn(async () => []),
+}))
 
 import type { PrismaClient } from '@repo/db'
 import { notify } from '@repo/notifications'

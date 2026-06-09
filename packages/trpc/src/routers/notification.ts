@@ -1,11 +1,12 @@
 import { TRPCError } from '@trpc/server'
 import { z } from 'zod'
 
-import { NotificationCategory, NotificationChannel } from '@repo/db'
+import { NotificationCategory, NotificationChannel, PageNotificationLevel } from '@repo/db'
 import { EVENT_CATALOG } from '@repo/notifications'
 import * as domain from '@repo/domain'
 import { mapDomain } from '../helpers/map-domain'
 import { domain as domainSvc } from '../domain'
+import { assertPageAccess } from '../helpers/page-access'
 
 import { router, protectedProcedure } from '../trpc'
 
@@ -155,6 +156,48 @@ export const notificationRouter = router({
         update: { enabled: input.enabled },
       })
       return { ok: true }
+    }),
+
+  // ── "Notify me" per-page notification preferences (Phase 5) ────────────────
+  // All three require page READ access (workspace membership): a member chooses
+  // their own level on a page. The unique (userId, pageId) row is upserted.
+
+  getPageNotificationPreference: protectedProcedure
+    .input(z.object({ pageId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertPageAccess(ctx, input.pageId)
+      const row = await ctx.prisma.pageNotificationPreference.findUnique({
+        where: { userId_pageId: { userId: ctx.user.id, pageId: input.pageId } },
+        select: { level: true },
+      })
+      return { level: row?.level ?? null }
+    }),
+
+  setPageNotificationPreference: protectedProcedure
+    .input(
+      z.object({
+        pageId: z.string().uuid(),
+        level: z.nativeEnum(PageNotificationLevel),
+      }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      await assertPageAccess(ctx, input.pageId)
+      await ctx.prisma.pageNotificationPreference.upsert({
+        where: { userId_pageId: { userId: ctx.user.id, pageId: input.pageId } },
+        create: { userId: ctx.user.id, pageId: input.pageId, level: input.level },
+        update: { level: input.level },
+      })
+      return { ok: true as const, level: input.level }
+    }),
+
+  clearPageNotificationPreference: protectedProcedure
+    .input(z.object({ pageId: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      await assertPageAccess(ctx, input.pageId)
+      await ctx.prisma.pageNotificationPreference.deleteMany({
+        where: { userId: ctx.user.id, pageId: input.pageId },
+      })
+      return { ok: true as const }
     }),
 
   listPushSubscriptions: protectedProcedure.query(async ({ ctx }) => {

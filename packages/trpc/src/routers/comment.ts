@@ -1,6 +1,11 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
-import { notify } from '@repo/notifications'
+import {
+  notify,
+  notifyPageActivity,
+  resolvePageActivityRecipients,
+} from '@repo/notifications'
+import type { PrismaClient } from '@repo/db'
 
 import { router, publicProcedure } from '../trpc'
 import { resolveCommentContext, canWriteComment } from '../helpers/comment-access'
@@ -50,6 +55,9 @@ async function notifyNewComment(
     actor: { userId?: string; name: string }
     text: string
     mentions: string[]
+    // True when this comment was added to an EXISTING thread (a reply); false
+    // for the first comment that opens a new thread.
+    isReply: boolean
   },
 ): Promise<void> {
   // Notifications are a side effect: a failure here must never fail the write.
@@ -61,10 +69,13 @@ async function notifyNewComment(
         comments: { select: { authorId: true } },
       },
     })
-    const recipients = new Set<string>()
-    if (thread?.page.createdById) recipients.add(thread.page.createdById)
-    for (const c of thread?.comments ?? []) if (c.authorId) recipients.add(c.authorId)
-    if (args.actor.userId) recipients.delete(args.actor.userId)
+    // Thread participants: the page author + every prior comment author, minus
+    // the actor. On a reply these are notified directly (COMMENT_REPLY); on a
+    // first comment they get the classic COMMENT_CREATED.
+    const participants = new Set<string>()
+    if (thread?.page.createdById) participants.add(thread.page.createdById)
+    for (const c of thread?.comments ?? []) if (c.authorId) participants.add(c.authorId)
+    if (args.actor.userId) participants.delete(args.actor.userId)
 
     // Validate mentions against workspace membership: prevents notifying (and
     // leaking the snippet/link to) arbitrary users by id (spec §6).
@@ -77,18 +88,8 @@ async function notifyNewComment(
     const mentioned = new Set(validMentions.map((m) => m.userId))
     const snippet = args.text.slice(0, 140)
 
-    for (const userId of recipients) {
-      if (mentioned.has(userId)) continue // a PAGE_MENTION will cover them
-      await notify.commentCreated(prisma as never, {
-        userId,
-        workspaceId: args.workspaceId,
-        pageId: args.pageId,
-        commentId: args.commentId,
-        actorId: args.actor.userId,
-        actorName: args.actor.name,
-        snippet,
-      })
-    }
+    // Mentions are notified directly and bypass dedup; they also pre-empt every
+    // other channel for that user (a single, most-specific notification).
     for (const userId of mentioned) {
       if (userId === args.actor.userId) continue
       await notify.pageMention(prisma as never, {
@@ -100,6 +101,61 @@ async function notifyNewComment(
         snippet,
       })
     }
+
+    // Direct participant fan-out: a reply → COMMENT_REPLY (bypasses dedup); a
+    // first comment → COMMENT_CREATED. Skip anyone already covered by a mention.
+    const directParticipants = [...participants].filter((u) => !mentioned.has(u))
+    if (args.isReply) {
+      await notifyPageActivity(prisma as PrismaClient, {
+        kind: 'comment_reply',
+        recipients: directParticipants,
+        payload: {
+          workspaceId: args.workspaceId,
+          pageId: args.pageId,
+          threadId: args.threadId,
+          commentId: args.commentId,
+          actorId: args.actor.userId,
+          actorName: args.actor.name,
+          snippet,
+        },
+      })
+    } else {
+      for (const userId of directParticipants) {
+        await notify.commentCreated(prisma as never, {
+          userId,
+          workspaceId: args.workspaceId,
+          pageId: args.pageId,
+          commentId: args.commentId,
+          actorId: args.actor.userId,
+          actorName: args.actor.name,
+          snippet,
+        })
+      }
+    }
+
+    // "Notify me" pref-driven fan-out: users who opted into ALL_COMMENTS /
+    // ALL_UPDATES on this page get a COMMENT_CREATED for ANY new comment, even
+    // if they aren't thread participants. Exclude the actor, mentioned users
+    // (covered by PAGE_MENTION), and direct participants (already notified).
+    const prefRecipients = (
+      await resolvePageActivityRecipients(prisma as PrismaClient, {
+        pageId: args.pageId,
+        kind: 'comment',
+        actorId: args.actor.userId,
+      })
+    ).filter((u) => !mentioned.has(u) && !participants.has(u))
+    await notifyPageActivity(prisma as PrismaClient, {
+      kind: 'comment',
+      recipients: prefRecipients,
+      payload: {
+        workspaceId: args.workspaceId,
+        pageId: args.pageId,
+        commentId: args.commentId,
+        actorId: args.actor.userId,
+        actorName: args.actor.name,
+        snippet,
+      },
+    })
   } catch (err) {
     console.error('[comment] notification fan-out failed', err)
   }
@@ -234,6 +290,7 @@ export const commentRouter = router({
         actor: c.author,
         text: input.content.text,
         mentions: input.content.mentions,
+        isReply: false,
       })
       pageCommentBus.emit(c.pageId, { kind: 'thread.upserted', threadId: thread.id })
       return ctx.prisma.pageCommentThread.findUnique({
@@ -281,6 +338,7 @@ export const commentRouter = router({
         actor: c.author,
         text: input.content.text,
         mentions: input.content.mentions,
+        isReply: true,
       })
       pageCommentBus.emit(c.pageId, { kind: 'thread.upserted', threadId: input.threadId })
       return comment
