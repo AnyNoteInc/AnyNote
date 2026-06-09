@@ -27,6 +27,9 @@ import type { DatabaseService } from './database/services/database.service.ts'
 import { PAGES } from './pages/pages.tokens.ts'
 import { pagesModule } from './pages/pages.module.ts'
 import type { PageService } from './pages/services/pages.service.ts'
+import { PAGE_HISTORY } from './page-history/page-history.tokens.ts'
+import { pageHistoryModule } from './page-history/page-history.module.ts'
+import type { RevisionCaptureService } from './page-history/services/revision-capture.service.ts'
 import { TEMPLATES } from './templates/templates.tokens.ts'
 import { templatesModule } from './templates/templates.module.ts'
 import type { TemplateService } from './templates/services/templates.service.ts'
@@ -56,6 +59,7 @@ export interface Domain {
   kanban: KanbanService
   database: DatabaseService
   pages: PageService
+  pageHistory: RevisionCaptureService
   templates: TemplateService
   billing: BillingService
   collections: CollectionService
@@ -78,6 +82,7 @@ export function createDomainContainer(deps: DomainDeps): Container {
     remindersModule,
     kanbanModule,
     databaseModule,
+    pageHistoryModule,
     pagesModule,
     templatesModule,
     billingModule,
@@ -98,6 +103,7 @@ export function createDomain(deps: DomainDeps): Domain {
     kanban: c.get<KanbanService>(KANBAN.Service),
     database: c.get<DatabaseService>(DATABASE.Service),
     pages: c.get<PageService>(PAGES.Service),
+    pageHistory: c.get<RevisionCaptureService>(PAGE_HISTORY.Service),
     templates: c.get<TemplateService>(TEMPLATES.Service),
     billing: c.get<BillingService>(BILLING.Service),
     collections: c.get<CollectionService>(COLLECTIONS.Service),

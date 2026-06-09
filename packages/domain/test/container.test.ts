@@ -108,6 +108,16 @@ describe('createDomain', () => {
     expect(typeof domain.pages.emptyTrash).toBe('function')
   })
 
+  it('resolves the page-history service from the container', () => {
+    const domain = createDomain({ prisma: makePrisma(), scheduler: makeScheduler() })
+    expect(domain.pageHistory).toBeDefined()
+    expect(typeof domain.pageHistory.captureContentRevision).toBe('function')
+    expect(typeof domain.pageHistory.captureStructuralRevision).toBe('function')
+    expect(typeof domain.pageHistory.listRevisions).toBe('function')
+    expect(typeof domain.pageHistory.getRevisionPreview).toBe('function')
+    expect(typeof domain.pageHistory.restoreRevision).toBe('function')
+  })
+
   it('resolves the billing service from the container', () => {
     const domain = createDomain({ prisma: makePrisma(), scheduler: makeScheduler() })
     expect(domain.billing).toBeDefined()
