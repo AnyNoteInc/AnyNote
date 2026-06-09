@@ -1,9 +1,9 @@
 import { z } from 'zod'
 
-import { DatabasePropertyType, DatabaseViewType } from '@repo/db'
+import { DatabasePropertyType, DatabaseViewType, DatabaseAccessLevel } from '@repo/db'
 
 // Re-export the Prisma enums so callers depend on @repo/domain, not @repo/db.
-export { DatabasePropertyType, DatabaseViewType }
+export { DatabasePropertyType, DatabaseViewType, DatabaseAccessLevel }
 
 // ── dateInput (matches kanban's z.preprocess coercion) ───────────────────────
 // Not exported from the package barrel to avoid colliding with kanban's
@@ -307,6 +307,45 @@ export const listLinkableRowsInput = z.object({
 })
 export type ListLinkableRowsInput = z.infer<typeof listLinkableRowsInput>
 
+// ── Access-rule inputs (page-level / row-level database access) ───────────────
+// Rules target a PERSON or CREATED_BY property; the domain validates the type.
+// The resolver (services/row-access-resolver.ts) is the single authority that
+// turns these rules + the viewer context into an effective per-row access level.
+
+export const accessLevelSchema = z.nativeEnum(DatabaseAccessLevel)
+
+export const createAccessRuleInput = z.object({
+  pageId: z.string().uuid(),
+  propertyId: z.string().uuid(),
+  accessLevel: accessLevelSchema,
+})
+export type CreateAccessRuleInput = z.infer<typeof createAccessRuleInput>
+
+export const updateAccessRuleInput = z.object({
+  pageId: z.string().uuid(),
+  ruleId: z.string().uuid(),
+  accessLevel: accessLevelSchema.optional(),
+  enabled: z.boolean().optional(),
+})
+export type UpdateAccessRuleInput = z.infer<typeof updateAccessRuleInput>
+
+export const deleteAccessRuleInput = z.object({
+  pageId: z.string().uuid(),
+  ruleId: z.string().uuid(),
+})
+export type DeleteAccessRuleInput = z.infer<typeof deleteAccessRuleInput>
+
+export const listAccessRulesInput = z.object({
+  pageId: z.string().uuid(),
+})
+export type ListAccessRulesInput = z.infer<typeof listAccessRulesInput>
+
+export const setStructureLockedInput = z.object({
+  pageId: z.string().uuid(),
+  locked: z.boolean(),
+})
+export type SetStructureLockedInput = z.infer<typeof setStructureLockedInput>
+
 // ── View-model types (single shape for renderer / table / modal / embed) ─────
 
 export interface DatabaseSourceView {
@@ -368,11 +407,31 @@ export interface SystemTitleProperty {
   name: string
 }
 
+/** A persisted page-level access rule as exposed to the access panel. */
+export interface AccessRuleView {
+  id: string
+  propertyId: string
+  accessLevel: DatabaseAccessLevel
+  enabled: boolean
+}
+
+/**
+ * The viewer's own database-level capabilities, surfaced in `getByPage` so the
+ * UI can disable structure/content affordances. The authoritative gate is always
+ * server-side; this drives affordances only.
+ */
+export interface MyDatabaseAccess {
+  canEditContent: boolean
+  canEditStructure: boolean
+  structureLocked: boolean
+}
+
 export interface DatabaseGetByPageResult {
   source: DatabaseSourceView
   views: DatabaseViewModel[]
   properties: DatabasePropertyView[]
   systemTitleProperty: SystemTitleProperty
+  myAccess: MyDatabaseAccess
 }
 
 /** Paginated row page returned by `listRows`. `nextCursor` is null on the last page. */

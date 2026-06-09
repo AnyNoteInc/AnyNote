@@ -210,6 +210,9 @@ export class DatabaseService {
         settings: asSettings(p.settings),
       })),
       systemTitleProperty: { key: 'title', name: 'Название' },
+      // cl4C: real per-viewer capabilities are computed by getMyAccess in Task C2/C3;
+      // this conservative placeholder keeps the type total until that wiring lands.
+      myAccess: { canEditContent: false, canEditStructure: false, structureLocked: false },
     }
   }
 

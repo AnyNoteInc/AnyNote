@@ -53,6 +53,7 @@ export {
   CollectionKind,
   DatabaseViewType,
   DatabasePropertyType,
+  DatabaseAccessLevel,
 } from '@prisma/client'
 export type { ChatMessageStatus } from '@prisma/client'
 export type {
