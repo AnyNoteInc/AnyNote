@@ -7,6 +7,7 @@ import { rowRouter } from './row'
 import { cellRouter } from './cell'
 import { relationRouter } from './relation'
 import { accessRouter } from './access'
+import { reminderRouter } from './reminder'
 
 // Flat procedure surface (database.getByPage, database.createView, ...) built by
 // merging the per-entity sub-routers. The sub-files keep each entity's CRUD
@@ -56,4 +57,9 @@ export const databaseRouter = router({
   updateAccessRule: accessRouter.updateRule,
   deleteAccessRule: accessRouter.deleteRule,
   setStructureLocked: accessRouter.setStructureLocked,
+
+  // Self-targeted DATE-cell reminders (Phase 5, 5.4)
+  setDatabaseDateReminder: reminderRouter.setDatabaseDateReminder,
+  clearDatabaseDateReminder: reminderRouter.clearDatabaseDateReminder,
+  getDatabaseDateReminder: reminderRouter.getDatabaseDateReminder,
 })

@@ -7,6 +7,7 @@ import { assertPageEditAccess } from '../../helpers/page-access'
 import { mapDomain } from '../../helpers/map-domain'
 import { domain as domainSvc } from '../../domain'
 import { notifyDatabaseCellUpdate } from '../../helpers/database-notify'
+import { rescheduleRemindersForDateCell } from '../../helpers/database-date-reminder'
 
 export const cellRouter = router({
   // The domain validates the raw value against the property type (and option set).
@@ -80,6 +81,23 @@ export const cellRouter = router({
           propertyName: prop.name,
           assigneeId,
         })
+
+        // Phase 5 (5.4): a DATE-cell change reschedules (or cancels) the
+        // self-targeted reminders attached to it — only for owners who still
+        // have row access (no content-bearing reminder leaks after access loss).
+        if (prop.type === DatabasePropertyType.DATE) {
+          await rescheduleRemindersForDateCell(
+            ctx.prisma,
+            {
+              pageId: input.pageId,
+              propertyId: input.propertyId,
+              rowId: input.rowId,
+              workspaceId: page.workspaceId,
+              propertyName: prop.name,
+            },
+            (userId) => domainSvc.database.canUserViewRow(userId, input.pageId, input.rowId),
+          )
+        }
       }
 
       return result

@@ -5,8 +5,11 @@ export { notify } from './helpers.ts'
 export {
   rebuildDeliveries,
   cancelPendingDeliveries,
+  rebuildDatabaseDateReminderDeliveries,
+  cancelDatabaseDateReminderDeliveries,
   formatHumanOffset,
   type ReminderForRebuild,
+  type DatabaseDateReminderForRebuild,
 } from './reminders.ts'
 export {
   notifyPageActivity,
