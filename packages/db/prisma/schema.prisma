@@ -267,6 +267,18 @@ enum DatabasePropertyType {
   DATE
   PERSON
   FILE
+  // Phase 4B: rich properties.
+  URL
+  EMAIL
+  PHONE
+  FORMULA // computed on read from other cells
+  RELATION // links rows across database sources (DatabaseRelationLink)
+  ROLLUP // computed on read: aggregate over a RELATION's target rows
+  PAGE_LINK // AnyNote extension: link to an AnyNote page (not a db row)
+  CREATED_TIME // readonly, derived from the item Page.createdAt
+  CREATED_BY // readonly, derived from Page.createdById
+  LAST_EDITED_TIME // readonly, derived from Page.updatedAt
+  LAST_EDITED_BY // readonly, derived from Page.updatedById
 }
 
 enum TaskActivityType {
@@ -1478,8 +1490,9 @@ model DatabaseProperty {
   position Int                  @default(0)
   settings Json?
 
-  source DatabaseSource      @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  cells  DatabaseCellValue[]
+  source        DatabaseSource         @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  cells         DatabaseCellValue[]
+  relationLinks DatabaseRelationLink[]
 
   @@index([sourceId])
   @@map("database_properties")
@@ -1496,13 +1509,32 @@ model DatabaseRow {
   createdAt   DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  source DatabaseSource      @relation(fields: [sourceId], references: [id], onDelete: Cascade)
-  page   Page                @relation("DatabaseRowPage", fields: [pageId], references: [id], onDelete: Cascade)
-  cells  DatabaseCellValue[]
+  source          DatabaseSource         @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  page            Page                   @relation("DatabaseRowPage", fields: [pageId], references: [id], onDelete: Cascade)
+  cells           DatabaseCellValue[]
+  relationLinks   DatabaseRelationLink[] @relation("RelationLinkSource")
+  relationLinksTo DatabaseRelationLink[] @relation("RelationLinkTarget")
 
   @@index([sourceId, position])
   @@index([pageId])
   @@map("database_rows")
+}
+
+model DatabaseRelationLink {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  propertyId  String   @map("property_id") @db.Uuid
+  rowId       String   @map("row_id") @db.Uuid
+  targetRowId String   @map("target_row_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  property  DatabaseProperty @relation(fields: [propertyId], references: [id], onDelete: Cascade)
+  row       DatabaseRow      @relation("RelationLinkSource", fields: [rowId], references: [id], onDelete: Cascade)
+  targetRow DatabaseRow      @relation("RelationLinkTarget", fields: [targetRowId], references: [id], onDelete: Cascade)
+
+  @@unique([propertyId, rowId, targetRowId])
+  @@index([propertyId, rowId])
+  @@index([targetRowId])
+  @@map("database_relation_links")
 }
 
 model DatabaseCellValue {
