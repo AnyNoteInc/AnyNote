@@ -1,6 +1,10 @@
-import { PageType } from '@repo/db'
+import { PageType, PageRevisionAction } from '@repo/db'
 import type { PageTemplateScope, Prisma } from '@repo/db'
 import { z } from 'zod'
+
+// Re-export the enum value through the dto barrel so the page service never
+// imports `@repo/db` as a value (the domain-services-no-db-value rule).
+export { PageRevisionAction }
 
 // ── Input schemas ─────────────────────────────────────────────────────────────
 

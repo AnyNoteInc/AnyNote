@@ -7,6 +7,7 @@ import { PageService } from '../../../src/pages/services/pages.service.ts'
 import type { KanbanService } from '../../../src/kanban/index.ts'
 import type { DatabaseService } from '../../../src/database/services/database.service.ts'
 import type { PageRowDto } from '../../../src/pages/dto/pages.dto.ts'
+import type { RevisionRecorder } from '../../../src/shared/revision-recorder.ts'
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -36,6 +37,8 @@ function makeRepo(
     renamePageTx: vi.fn(async () => ({ id: 'p1', title: 'New', icon: null, updatedAt: new Date() })),
     updatePageTx: vi.fn(async () => ({ id: 'p1', title: null, icon: null, updatedAt: new Date() })),
     duplicatePageTx: vi.fn(async () => ({ id: 'copy-1' })),
+    archivePageTx: vi.fn(async () => ({ id: 'p1' })),
+    unarchivePageTx: vi.fn(async () => ({ id: 'p1' })),
     movePageTx: vi.fn(async () => ({ id: 'p1' })),
     reorderPageTx: vi.fn(async () => ({ id: 'p1' })),
     softDeletePageTx: vi.fn(async () => ({ id: 'p1' })),
@@ -68,13 +71,18 @@ function makeDatabase(): DatabaseService {
   return { seedDefaults: vi.fn(async () => undefined) } as unknown as DatabaseService
 }
 
+function makeRevisionRecorder(): RevisionRecorder {
+  return { captureStructuralRevision: vi.fn(async () => undefined) } as unknown as RevisionRecorder
+}
+
 function makePageService(
   repo: PageRepository,
   uow: UnitOfWork = makeUow(),
   kanban: KanbanService = makeKanban(),
   database: DatabaseService = makeDatabase(),
+  history: RevisionRecorder = makeRevisionRecorder(),
 ): PageService {
-  return new PageService(repo, uow, kanban, database)
+  return new PageService(repo, uow, kanban, database, history)
 }
 
 // ── create ────────────────────────────────────────────────────────────────────
@@ -309,6 +317,75 @@ describe('PageService.restore', () => {
     const result = await svc.restore('u1', { id: 'p1', workspaceId: 'w1' })
     expect(result).toEqual({ id: 'p1' })
     expect(repo.restorePageTx).toHaveBeenCalledOnce()
+  })
+})
+
+// ── structural revision capture ─────────────────────────────────────────────
+
+describe('PageService structural revision capture', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('rename records a TITLE_CHANGE revision after the mutation', async () => {
+    const repo = makeRepo()
+    const history = makeRevisionRecorder()
+    const svc = makePageService(repo, makeUow(), makeKanban(), makeDatabase(), history)
+    await svc.rename('u1', { id: 'p1', workspaceId: 'w1', title: 'New' })
+    expect(history.captureStructuralRevision).toHaveBeenCalledWith(
+      expect.objectContaining({ pageId: 'p1', actorId: 'u1', action: 'TITLE_CHANGE' }),
+    )
+  })
+
+  it('move records a MOVE revision', async () => {
+    const repo = makeRepo()
+    const history = makeRevisionRecorder()
+    const svc = makePageService(repo, makeUow(), makeKanban(), makeDatabase(), history)
+    await svc.move('u1', { pageId: 'p1', newParentId: 'par2' })
+    expect(history.captureStructuralRevision).toHaveBeenCalledWith(
+      expect.objectContaining({ pageId: 'p1', actorId: 'u1', action: 'MOVE' }),
+    )
+  })
+
+  it('archive records an ARCHIVE revision', async () => {
+    const repo = makeRepo()
+    const history = makeRevisionRecorder()
+    const svc = makePageService(repo, makeUow(), makeKanban(), makeDatabase(), history)
+    await svc.archive('u1', { id: 'p1', workspaceId: 'w1' })
+    expect(history.captureStructuralRevision).toHaveBeenCalledWith(
+      expect.objectContaining({ pageId: 'p1', actorId: 'u1', action: 'ARCHIVE' }),
+    )
+  })
+
+  it('unarchive records a RESTORE revision', async () => {
+    const repo = makeRepo()
+    const history = makeRevisionRecorder()
+    const svc = makePageService(repo, makeUow(), makeKanban(), makeDatabase(), history)
+    await svc.unarchive('u1', { id: 'p1', workspaceId: 'w1' })
+    expect(history.captureStructuralRevision).toHaveBeenCalledWith(
+      expect.objectContaining({ pageId: 'p1', actorId: 'u1', action: 'RESTORE' }),
+    )
+  })
+
+  it('restore (from trash) records a RESTORE revision', async () => {
+    const repo = makeRepo()
+    const history = makeRevisionRecorder()
+    const svc = makePageService(repo, makeUow(), makeKanban(), makeDatabase(), history)
+    await svc.restore('u1', { id: 'p1', workspaceId: 'w1' })
+    expect(history.captureStructuralRevision).toHaveBeenCalledWith(
+      expect.objectContaining({ pageId: 'p1', actorId: 'u1', action: 'RESTORE' }),
+    )
+  })
+
+  it('does NOT record a revision when the mutation is rejected (access check fails)', async () => {
+    const repo = makeRepo({
+      findAccessiblePage: vi.fn(async () => ({ ...basePageRow, createdById: 'other' })),
+      findMembership: vi.fn(async () => ({ role: 'EDITOR' as const })),
+    })
+    const history = makeRevisionRecorder()
+    const svc = makePageService(repo, makeUow(), makeKanban(), makeDatabase(), history)
+    await expect(
+      svc.rename('u1', { id: 'p1', workspaceId: 'w1', title: 'New' }),
+    ).rejects.toBeInstanceOf(DomainError)
+    expect(history.captureStructuralRevision).not.toHaveBeenCalled()
   })
 })
 

@@ -1,5 +1,7 @@
 import { badRequest, forbidden, notFound } from '../../shared/errors.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
+import type { RevisionRecorder } from '../../shared/revision-recorder.ts'
+import { PageRevisionAction } from '../dto/pages.dto.ts'
 import type { KanbanService } from '../../kanban/index.ts'
 import type { DatabaseService } from '../../database/index.ts'
 import type {
@@ -29,16 +31,19 @@ export class PageService {
   private readonly uow: UnitOfWork
   private readonly kanban: KanbanService
   private readonly database: DatabaseService
+  private readonly history: RevisionRecorder
   constructor(
     repo: PageRepository,
     uow: UnitOfWork,
     kanban: KanbanService,
     database: DatabaseService,
+    history: RevisionRecorder,
   ) {
     this.repo = repo
     this.uow = uow
     this.kanban = kanban
     this.database = database
+    this.history = history
   }
 
   // ── Access helpers ────────────────────────────────────────────────────────────
@@ -131,9 +136,16 @@ export class PageService {
     input: ArchivePageInput,
   ): Promise<CreateResultDto> {
     await this.assertOwnership(actorUserId, input.id)
-    return this.uow.transaction(() =>
-      this.repo.archivePageTx(actorUserId, input.id, input.workspaceId),
-    )
+    return this.uow.transaction(async () => {
+      const result = await this.repo.archivePageTx(actorUserId, input.id, input.workspaceId)
+      await this.history.captureStructuralRevision({
+        pageId: input.id,
+        actorId: actorUserId,
+        action: PageRevisionAction.ARCHIVE,
+        metadata: null,
+      })
+      return result
+    })
   }
 
   async unarchive(
@@ -141,9 +153,16 @@ export class PageService {
     input: UnarchivePageInput,
   ): Promise<CreateResultDto> {
     await this.assertOwnership(actorUserId, input.id)
-    return this.uow.transaction(() =>
-      this.repo.unarchivePageTx(actorUserId, input.id, input.workspaceId),
-    )
+    return this.uow.transaction(async () => {
+      const result = await this.repo.unarchivePageTx(actorUserId, input.id, input.workspaceId)
+      await this.history.captureStructuralRevision({
+        pageId: input.id,
+        actorId: actorUserId,
+        action: PageRevisionAction.RESTORE,
+        metadata: null,
+      })
+      return result
+    })
   }
 
   async rename(
@@ -151,7 +170,16 @@ export class PageService {
     input: RenamePageInput,
   ): Promise<RenameResultDto> {
     await this.assertOwnership(actorUserId, input.id)
-    return this.uow.transaction(() => this.repo.renamePageTx(actorUserId, input))
+    return this.uow.transaction(async () => {
+      const result = await this.repo.renamePageTx(actorUserId, input)
+      await this.history.captureStructuralRevision({
+        pageId: input.id,
+        actorId: actorUserId,
+        action: PageRevisionAction.TITLE_CHANGE,
+        metadata: { title: input.title },
+      })
+      return result
+    })
   }
 
   async update(
@@ -177,7 +205,16 @@ export class PageService {
     const page = await this.assertAccess(actorUserId, input.pageId)
     // Ownership: must be creator or workspace OWNER
     await this.assertOwnership(actorUserId, input.pageId)
-    return this.uow.transaction(() => this.repo.movePageTx(actorUserId, page, input))
+    return this.uow.transaction(async () => {
+      const result = await this.repo.movePageTx(actorUserId, page, input)
+      await this.history.captureStructuralRevision({
+        pageId: input.pageId,
+        actorId: actorUserId,
+        action: PageRevisionAction.MOVE,
+        metadata: { parentId: input.newParentId },
+      })
+      return result
+    })
   }
 
   async reorder(
@@ -220,7 +257,16 @@ export class PageService {
     input: RestorePageInput,
   ): Promise<CreateResultDto> {
     await this.assertOwnership(actorUserId, input.id)
-    return this.uow.transaction(() => this.repo.restorePageTx(actorUserId, input))
+    return this.uow.transaction(async () => {
+      const result = await this.repo.restorePageTx(actorUserId, input)
+      await this.history.captureStructuralRevision({
+        pageId: input.id,
+        actorId: actorUserId,
+        action: PageRevisionAction.RESTORE,
+        metadata: null,
+      })
+      return result
+    })
   }
 
   async hardDelete(
