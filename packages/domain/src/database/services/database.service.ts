@@ -47,7 +47,13 @@ import type {
   RowWithPage,
   SourceWithLock,
 } from '../repositories/database.repository.ts'
-import type { AccessRule, RowAccessContext } from './row-access-resolver.ts'
+import {
+  buildRowAccessWhere,
+  canEditRow,
+  resolveRowAccess,
+  resolveRowAccessForRows,
+} from './row-access-resolver.ts'
+import type { AccessRule, RowAccessContext, RowAccessRow } from './row-access-resolver.ts'
 import { tokenize, parse, FormulaSyntaxError } from '../formula/index.ts'
 import { resolveComputedCells } from './computed-cells.ts'
 import type {
@@ -219,6 +225,62 @@ export class DatabaseService {
       itemPageId ? this.repo.findItemPageShareLevel(itemPageId, actorUserId) : Promise.resolve(null),
     ])
     return { viewerId: actorUserId, workspaceRole, isSourcePageCreator, pageShareLevel }
+  }
+
+  /**
+   * Build a RowAccessRow (createdBy + the cells keyed by propertyId) from a
+   * fetched RowWithPage — the shape the resolver matches PERSON/CREATED_BY rules
+   * against.
+   */
+  private toAccessRow(row: RowWithPage): { id: string } & RowAccessRow {
+    const cellsByProperty = new Map<string, unknown>()
+    for (const c of row.cells) cellsByProperty.set(c.propertyId, c.value)
+    return { id: row.id, rowCreatedById: row.createdById, cellsByProperty }
+  }
+
+  /**
+   * The AUTHORITATIVE per-row read gate: drop every fetched row the viewer can't
+   * view (`resolveRowAccessForRows → null`). When there are no enabled rules and
+   * the viewer is a member this keeps every row. The DB `buildRowAccessWhere`
+   * predicate is only an optimization — this post-filter is the real boundary.
+   */
+  private filterViewableRows(
+    ctx: RowAccessContext,
+    rules: AccessRule[],
+    rows: RowWithPage[],
+  ): RowWithPage[] {
+    if (rules.length === 0 && ctx.viewerId !== null && ctx.workspaceRole !== null) {
+      // Fast path: no rules + a workspace member → every row is viewable.
+      return rows
+    }
+    const levels = resolveRowAccessForRows(ctx, rules, rows.map((r) => this.toAccessRow(r)))
+    return rows.filter((r) => levels.get(r.id) != null)
+  }
+
+  /**
+   * The per-row CONTENT-EDIT gate (updateCellValue/updateRow/deleteRow): fetch the
+   * specific row's access inputs, resolve the viewer's level, require
+   * ≥CAN_EDIT_CONTENT. Throws FORBIDDEN otherwise. Rows the resolver returns null
+   * for (no view) also fail here.
+   */
+  private async assertCanEditRow(
+    actorUserId: string,
+    source: { id: string; workspaceId: string; pageId: string },
+    rowId: string,
+    itemPageId: string,
+  ): Promise<void> {
+    const rules = this.toResolverRules(await this.repo.findEnabledAccessRules(source.id))
+    // Fast path: no rules → the page-level assertCanEdit already authorized.
+    if (rules.length === 0) return
+    const ctx = await this.buildRowAccessContext(actorUserId, source, itemPageId)
+    const accessRow = await this.repo.findRowForAccess(rowId)
+    const row: RowAccessRow = accessRow
+      ? { rowCreatedById: accessRow.rowCreatedById, cellsByProperty: accessRow.cellsByProperty }
+      : { rowCreatedById: null, cellsByProperty: new Map() }
+    const level = resolveRowAccess(ctx, rules, row)
+    if (!canEditRow(level)) {
+      throw forbidden('Недостаточно прав для изменения этой строки')
+    }
   }
 
   async listAccessRules(
@@ -667,6 +729,9 @@ export class DatabaseService {
     if (!row || row.sourceId !== source.id) throw notFound('Строка не найдена')
     if (row.deletedAt) throw notFound('Строка удалена')
 
+    // Phase 4C: per-row content-edit gate (≥CAN_EDIT_CONTENT on THIS row).
+    await this.assertCanEditRow(actorUserId, source, input.rowId, row.pageId)
+
     // Computed-on-read columns (formula/rollup/metadata) are never stored.
     if (READ_ONLY_TYPES.has(prop.type)) {
       throw badRequest('Свойство доступно только для чтения')
@@ -1106,16 +1171,33 @@ export class DatabaseService {
     )
     const plan = buildRowQuery(settings, properties)
 
+    // ── Row-access (Phase 4C) ────────────────────────────────────────────────
+    // Build the viewer context + enabled rules; the resolver is the authority. The
+    // DB `buildRowAccessWhere` is a pre-filter optimization, the post-filter via
+    // `filterViewableRows` is the authoritative gate. List context has no per-item
+    // page share, so pass itemPageId = null (role + creator + rules suffice).
+    const rules = this.toResolverRules(await this.repo.findEnabledAccessRules(source.id))
+    const accessCtx = await this.buildRowAccessContext(actorUserId, source, null)
+    const accessWhere = buildRowAccessWhere(accessCtx, rules)
+    // ANY enabled rule means a (non-broad) viewer's page may shrink under the
+    // authoritative post-filter — treat it like a post-filter for pagination.
+    const hasAccessFilter = rules.length > 0
+    const effectiveWhere =
+      accessWhere === null ? plan.where : { AND: [plan.where, accessWhere] }
+
     const limit = input.limit
     const hasPostFilters =
-      plan.multiSelectPostFilters.length > 0 || plan.relationPostFilters.length > 0
+      plan.multiSelectPostFilters.length > 0 ||
+      plan.relationPostFilters.length > 0 ||
+      hasAccessFilter
 
     // Without post-filters: a single over-fetch of limit+1 detects the next page
     // exactly. With post-filters (MULTI_SELECT array containment / RELATION link
-    // membership, both applied in JS after fetch): a whole DB batch can be
-    // eliminated, so we must keep fetching deeper batches until we have limit+1
-    // surviving rows or the DB is exhausted — otherwise pagination would
-    // terminate early and silently drop matching rows.
+    // membership / row-access, all applied in JS after fetch): a whole DB batch can
+    // be eliminated, so we must keep fetching deeper batches until we have limit+1
+    // surviving rows or the DB is exhausted — otherwise pagination would terminate
+    // early and silently drop matching rows. Access-filtered pages may still be
+    // short (acceptable, like MULTI_SELECT), but never drop a viewable row.
     const collected: Awaited<ReturnType<DatabaseRepository['findRowsPaged']>> = []
     let cursor = input.cursor
     // Batch size: limit+1 normally; larger headroom when post-filtering so we
@@ -1126,13 +1208,15 @@ export class DatabaseService {
     for (let i = 0; i < MAX_BATCHES; i += 1) {
       const fetched = await this.repo.findRowsPaged({
         sourceId: source.id,
-        where: plan.where,
+        where: effectiveWhere,
         orderBy: plan.orderBy,
         take: batchTake,
         cursor,
       })
       const afterMulti = this.applyMultiSelectPostFilters(fetched, plan.multiSelectPostFilters)
-      const survivors = await this.applyRelationPostFilters(afterMulti, plan.relationPostFilters)
+      const afterRelation = await this.applyRelationPostFilters(afterMulti, plan.relationPostFilters)
+      // AUTHORITATIVE row-access gate — drop rows the viewer can't view.
+      const survivors = this.filterViewableRows(accessCtx, rules, afterRelation)
       collected.push(...survivors)
       if (fetched.length < batchTake) break // DB exhausted
       if (collected.length > limit) break // enough survivors for this page + probe
@@ -1175,7 +1259,15 @@ export class DatabaseService {
 
     const metas: PropertyMeta[] = properties.map((p) => ({ id: p.id, type: p.type }))
     const plan = buildRowQuery({ filters: settings.filters }, metas)
-    const rows = await this.repo.findRowsForGrouping({ sourceId: source.id, where: plan.where })
+
+    // Row-access (Phase 4C): pre-filter in the DB + authoritatively post-filter.
+    const rules = this.toResolverRules(await this.repo.findEnabledAccessRules(source.id))
+    const accessCtx = await this.buildRowAccessContext(actorUserId, source, null)
+    const accessWhere = buildRowAccessWhere(accessCtx, rules)
+    const groupingWhere =
+      accessWhere === null ? plan.where : { AND: [plan.where, accessWhere] }
+    const fetched = await this.repo.findRowsForGrouping({ sourceId: source.id, where: groupingWhere })
+    const rows = this.filterViewableRows(accessCtx, rules, fetched)
 
     // Resolve computed cells for the whole board in one batched pass, then bucket.
     const augmented = await this.augmentRows(properties, rows)
@@ -1242,6 +1334,8 @@ export class DatabaseService {
     const row = await this.repo.findRowById(input.rowId)
     if (!row || row.sourceId !== source.id) throw notFound('Строка не найдена')
     if (row.deletedAt) throw notFound('Строка удалена')
+    // Phase 4C: per-row content-edit gate (title is content).
+    await this.assertCanEditRow(actorUserId, source, input.rowId, row.pageId)
     await this.uow.transaction(async () => {
       if (input.title !== undefined) {
         await this.repo.updatePageTitle(row.pageId, input.title, actorUserId)
@@ -1259,6 +1353,8 @@ export class DatabaseService {
     const row = await this.repo.findRowById(input.rowId)
     if (!row || row.sourceId !== source.id) throw notFound('Строка не найдена')
     if (row.deletedAt) throw notFound('Строка удалена')
+    // Phase 4C: per-row content-edit gate (deletion requires ≥CAN_EDIT_CONTENT).
+    await this.assertCanEditRow(actorUserId, source, input.rowId, row.pageId)
     await this.uow.transaction(async () => {
       await this.repo.softDeleteRow(input.rowId, actorUserId)
       await this.repo.softDeleteItemPage(row.pageId, actorUserId, page.workspaceId)

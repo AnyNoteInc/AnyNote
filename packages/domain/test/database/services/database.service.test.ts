@@ -1499,3 +1499,210 @@ describe('DatabaseService.getMyAccess', () => {
     expect(vm.myAccess).toEqual({ canEditContent: true, canEditStructure: false, structureLocked: false })
   })
 })
+
+// ── C3: row-access enforcement in reads + mutations ──────────────────────────
+
+/** A full RowWithPage including row metadata (createdById) + cells, for access tests. */
+function makeAccessRow(
+  id: string,
+  opts: { createdById?: string | null; cells?: Record<string, unknown>; position?: number } = {},
+) {
+  return {
+    id,
+    pageId: `page-${id}`,
+    position: opts.position ?? 0,
+    createdAt: new Date('2026-01-01T00:00:00Z'),
+    createdById: opts.createdById ?? null,
+    updatedAt: new Date('2026-01-02T00:00:00Z'),
+    updatedById: opts.createdById ?? null,
+    page: { title: `Строка ${id}`, icon: null },
+    cells: Object.entries(opts.cells ?? {}).map(([propertyId, value]) => ({ propertyId, value })),
+  }
+}
+
+const PERSON_PROP = { id: 'p-person', type: 'PERSON', name: 'Исполнитель', position: 0, settings: null }
+const PERSON_RULE = { propertyId: 'p-person', propertyType: 'PERSON', accessLevel: 'CAN_VIEW', enabled: true }
+
+describe('DatabaseService.listRows — row access', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('no rules → all rows returned for a plain VIEWER (behavior unchanged)', async () => {
+    const repo = makeRepo({
+      findWorkspaceRole: vi.fn(async () => 'VIEWER'),
+      isSourcePageCreatedBy: vi.fn(async () => false),
+      findEnabledAccessRules: vi.fn(async () => []),
+      listProperties: vi.fn(async () => [PERSON_PROP]),
+      findRowsPaged: vi.fn(async () => [
+        makeAccessRow('r1', { createdById: 'other', cells: { 'p-person': 'someone' } }),
+        makeAccessRow('r2', { createdById: 'other', cells: {} }),
+      ]),
+    })
+    const result = await makeService(repo).listRows('viewer', { pageId: 'db-page', limit: 100 })
+    expect(result.rows.map((r) => r.rowId)).toEqual(['r1', 'r2'])
+  })
+
+  it('CAN_VIEW PERSON rule → a restricted VIEWER sees only rows assigned to them', async () => {
+    const repo = makeRepo({
+      findWorkspaceRole: vi.fn(async () => 'VIEWER'),
+      isSourcePageCreatedBy: vi.fn(async () => false),
+      findEnabledAccessRules: vi.fn(async () => [PERSON_RULE]),
+      listProperties: vi.fn(async () => [PERSON_PROP]),
+      // The DB pre-filter would already narrow, but the mock returns both rows so
+      // we assert the AUTHORITATIVE post-filter drops the unassigned one.
+      findRowsPaged: vi.fn(async () => [
+        makeAccessRow('mine', { createdById: 'other', cells: { 'p-person': 'viewer' } }),
+        makeAccessRow('theirs', { createdById: 'other', cells: { 'p-person': 'someone-else' } }),
+      ]),
+    })
+    const result = await makeService(repo).listRows('viewer', { pageId: 'db-page', limit: 100 })
+    expect(result.rows.map((r) => r.rowId)).toEqual(['mine'])
+  })
+
+  it('CAN_VIEW PERSON rule → an OWNER still sees every row (broadest-access-wins)', async () => {
+    const repo = makeRepo({
+      findWorkspaceRole: vi.fn(async () => 'OWNER'),
+      isSourcePageCreatedBy: vi.fn(async () => false),
+      findEnabledAccessRules: vi.fn(async () => [PERSON_RULE]),
+      listProperties: vi.fn(async () => [PERSON_PROP]),
+      findRowsPaged: vi.fn(async () => [
+        makeAccessRow('a', { createdById: 'other', cells: { 'p-person': 'someone' } }),
+        makeAccessRow('b', { createdById: 'other', cells: {} }),
+      ]),
+    })
+    const result = await makeService(repo).listRows('owner', { pageId: 'db-page', limit: 100 })
+    expect(result.rows.map((r) => r.rowId)).toEqual(['a', 'b'])
+  })
+
+  it('passes a row-access where to the repo when restricted', async () => {
+    const repo = makeRepo({
+      findWorkspaceRole: vi.fn(async () => 'VIEWER'),
+      isSourcePageCreatedBy: vi.fn(async () => false),
+      findEnabledAccessRules: vi.fn(async () => [PERSON_RULE]),
+      listProperties: vi.fn(async () => [PERSON_PROP]),
+      findRowsPaged: vi.fn(async () => []),
+    })
+    await makeService(repo).listRows('viewer', { pageId: 'db-page', limit: 100 })
+    const arg = (repo.findRowsPaged as ReturnType<typeof vi.fn>).mock.calls[0]![0]
+    // The access OR predicate is merged into the where (AND with the planner where).
+    expect(JSON.stringify(arg.where)).toContain('p-person')
+  })
+})
+
+describe('DatabaseService.updateCellValue — row access', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('FORBIDDEN when the actor only has CAN_VIEW on the row (PERSON rule, not assigned)', async () => {
+    const repo = makeRepo({
+      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'TEXT', settings: null })),
+      findWorkspaceRole: vi.fn(async () => 'VIEWER'),
+      isSourcePageCreatedBy: vi.fn(async () => false),
+      findEnabledAccessRules: vi.fn(async () => [PERSON_RULE]),
+      // The row is assigned to someone else → resolver returns null (no view, no edit).
+      findRowForAccess: vi.fn(async () => ({
+        id: 'row1', sourceId: 'src1', rowCreatedById: 'other',
+        cellsByProperty: new Map([['p-person', 'someone-else']]),
+      })),
+    })
+    await expect(
+      makeService(repo).updateCellValue('viewer', {
+        pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'x',
+      }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    expect(repo.upsertCellValue).not.toHaveBeenCalled()
+  })
+
+  it('allows the assigned user to edit when the rule grants CAN_EDIT_CONTENT', async () => {
+    const repo = makeRepo({
+      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'TEXT', settings: null })),
+      findWorkspaceRole: vi.fn(async () => 'VIEWER'),
+      isSourcePageCreatedBy: vi.fn(async () => false),
+      findEnabledAccessRules: vi.fn(async () => [
+        { propertyId: 'p-person', propertyType: 'PERSON', accessLevel: 'CAN_EDIT_CONTENT', enabled: true },
+      ]),
+      findRowForAccess: vi.fn(async () => ({
+        id: 'row1', sourceId: 'src1', rowCreatedById: 'other',
+        cellsByProperty: new Map([['p-person', 'viewer']]),
+      })),
+    })
+    await makeService(repo).updateCellValue('viewer', {
+      pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'x',
+    })
+    expect(repo.upsertCellValue).toHaveBeenCalledWith('row1', 'prop1', 'x')
+  })
+
+  it('no rules → an EDITOR edits any row (unchanged)', async () => {
+    const repo = makeRepo({
+      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'TEXT', settings: null })),
+      findAccessiblePage: vi.fn(async () => ({ id: 'db-page', workspaceId: 'w1', createdById: 'other' })),
+      findMembershipRole: vi.fn(async () => 'EDITOR'),
+      findWorkspaceRole: vi.fn(async () => 'EDITOR'),
+      isSourcePageCreatedBy: vi.fn(async () => false),
+      findEnabledAccessRules: vi.fn(async () => []),
+      findRowForAccess: vi.fn(async () => ({
+        id: 'row1', sourceId: 'src1', rowCreatedById: 'other', cellsByProperty: new Map(),
+      })),
+    })
+    await makeService(repo).updateCellValue('editor', {
+      pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'x',
+    })
+    expect(repo.upsertCellValue).toHaveBeenCalledWith('row1', 'prop1', 'x')
+  })
+})
+
+describe('DatabaseService.deleteRow — row access', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('FORBIDDEN when the actor only has CAN_VIEW on the row', async () => {
+    const repo = makeRepo({
+      findWorkspaceRole: vi.fn(async () => 'VIEWER'),
+      isSourcePageCreatedBy: vi.fn(async () => false),
+      findEnabledAccessRules: vi.fn(async () => [PERSON_RULE]),
+      findAccessiblePage: vi.fn(async () => ({ id: 'db-page', workspaceId: 'w1', createdById: 'other' })),
+      findMembershipRole: vi.fn(async () => 'EDITOR'), // page-layer passes; row-layer blocks
+      findRowForAccess: vi.fn(async () => ({
+        id: 'row1', sourceId: 'src1', rowCreatedById: 'other',
+        cellsByProperty: new Map([['p-person', 'someone-else']]),
+      })),
+    })
+    await expect(
+      makeService(repo).deleteRow('viewer', { pageId: 'db-page', rowId: 'row1' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    expect(repo.softDeleteRow).not.toHaveBeenCalled()
+  })
+})
+
+describe('DatabaseService.updateRowTitle — row access', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('FORBIDDEN when the actor only has CAN_VIEW on the row', async () => {
+    const repo = makeRepo({
+      findWorkspaceRole: vi.fn(async () => 'VIEWER'),
+      isSourcePageCreatedBy: vi.fn(async () => false),
+      findEnabledAccessRules: vi.fn(async () => [PERSON_RULE]),
+      findAccessiblePage: vi.fn(async () => ({ id: 'db-page', workspaceId: 'w1', createdById: 'other' })),
+      findMembershipRole: vi.fn(async () => 'EDITOR'),
+      findRowForAccess: vi.fn(async () => ({
+        id: 'row1', sourceId: 'src1', rowCreatedById: 'other',
+        cellsByProperty: new Map([['p-person', 'someone-else']]),
+      })),
+    })
+    await expect(
+      makeService(repo).updateRowTitle('viewer', { pageId: 'db-page', rowId: 'row1', title: 'X' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+    expect(repo.updatePageTitle).not.toHaveBeenCalled()
+  })
+})
+
+describe('DatabaseService.createRow — source-level edit gate', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  it('a non-creator VIEWER cannot create a row (no source-level edit)', async () => {
+    const repo = makeRepo({
+      findAccessiblePage: vi.fn(async () => ({ id: 'db-page', workspaceId: 'w1', createdById: 'other' })),
+      findMembershipRole: vi.fn(async () => 'VIEWER'),
+    })
+    await expect(
+      makeService(repo).createRow('viewer', { pageId: 'db-page' }),
+    ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+  })
+})
