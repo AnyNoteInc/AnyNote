@@ -145,6 +145,97 @@ export const notify = {
       payload: args,
     }),
 
+  // ── Phase 5: page-activity helpers (Notify-me) ─────────────────────────────
+  // Each payload carries `pageId`/`actorId` so the dedup guard + Inbox grouping
+  // can key on them. `threadId` ties a comment reply to its thread.
+
+  commentReply: (
+    prisma: PrismaClient,
+    args: {
+      userId: string
+      workspaceId: string
+      pageId: string
+      threadId: string
+      commentId: string
+      actorId?: string
+      actorName: string
+      snippet: string
+    },
+  ) =>
+    emit(prisma, {
+      type: 'COMMENT_REPLY',
+      userId: args.userId,
+      workspaceId: args.workspaceId,
+      actorId: args.actorId,
+      resourceUrl: `/workspaces/${args.workspaceId}/pages/${args.pageId}#comment-${args.commentId}`,
+      payload: args,
+    }),
+
+  databaseUpdate: (
+    prisma: PrismaClient,
+    args: {
+      userId: string
+      workspaceId: string
+      pageId: string
+      rowId: string
+      propertyId: string
+      actorId?: string
+      actorName: string
+      label: string
+    },
+  ) =>
+    emit(prisma, {
+      type: 'DATABASE_UPDATE',
+      userId: args.userId,
+      workspaceId: args.workspaceId,
+      actorId: args.actorId,
+      resourceUrl: `/workspaces/${args.workspaceId}/pages/${args.pageId}`,
+      payload: args,
+    }),
+
+  databasePersonAssigned: (
+    prisma: PrismaClient,
+    args: {
+      userId: string
+      workspaceId: string
+      pageId: string
+      rowId: string
+      propertyId: string
+      actorId?: string
+      actorName: string
+      label: string
+    },
+  ) =>
+    emit(prisma, {
+      type: 'DATABASE_PERSON_ASSIGNED',
+      userId: args.userId,
+      workspaceId: args.workspaceId,
+      actorId: args.actorId,
+      resourceUrl: `/workspaces/${args.workspaceId}/pages/${args.pageId}`,
+      payload: args,
+    }),
+
+  databaseDateReminder: (
+    prisma: PrismaClient,
+    args: {
+      userId: string
+      workspaceId: string
+      pageId: string
+      rowId: string
+      propertyId: string
+      label: string
+      dueAt: string
+      offsetMinutes: number
+    },
+  ) =>
+    emit(prisma, {
+      type: 'DATABASE_DATE_REMINDER',
+      userId: args.userId,
+      workspaceId: args.workspaceId,
+      resourceUrl: `/workspaces/${args.workspaceId}/pages/${args.pageId}`,
+      payload: args,
+    }),
+
   weeklyDigest: (prisma: PrismaClient, args: { userId: string; period: string; summary: string }) =>
     emit(prisma, { type: 'WEEKLY_DIGEST', userId: args.userId, payload: args }),
 

@@ -8,3 +8,10 @@ export {
   formatHumanOffset,
   type ReminderForRebuild,
 } from './reminders.ts'
+export {
+  notifyPageActivity,
+  resolvePageActivityRecipients,
+  shouldDedup,
+  DEDUP_WINDOW_MS,
+  type PageActivityKind,
+} from './page-activity.ts'
