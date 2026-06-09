@@ -11,11 +11,13 @@ import * as domain from '@repo/domain'
 import { mapDomain } from '../helpers/map-domain'
 import { domain as domainSvc } from '../domain'
 import { pageShareRouter } from './page-share'
+import { pageHistoryRouter } from './page-history'
 
 // ── Router ───────────────────────────────────────────────────────────────────
 
 export const pageRouter = router({
   share: pageShareRouter,
+  history: pageHistoryRouter,
   getById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {

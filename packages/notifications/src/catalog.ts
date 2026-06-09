@@ -89,6 +89,36 @@ export const EVENT_CATALOG: Record<NotificationEventType, EventDescriptor> = {
     lockedChannels: ['IN_APP'],
     requiresConsent: null,
   },
+  COMMENT_REPLY: {
+    category: 'COLLABORATION',
+    defaultChannels: ['IN_APP', 'EMAIL'],
+    lockedChannels: ['IN_APP'],
+    requiresConsent: null,
+  },
+  DATABASE_UPDATE: {
+    category: 'COLLABORATION',
+    defaultChannels: ['IN_APP', 'EMAIL'],
+    lockedChannels: ['IN_APP'],
+    requiresConsent: null,
+  },
+  DATABASE_PERSON_ASSIGNED: {
+    category: 'COLLABORATION',
+    defaultChannels: ['IN_APP', 'EMAIL'],
+    lockedChannels: ['IN_APP'],
+    requiresConsent: null,
+  },
+  DATABASE_DATE_REMINDER: {
+    category: 'COLLABORATION',
+    defaultChannels: ['IN_APP', 'EMAIL', 'WEB_PUSH'],
+    lockedChannels: ['IN_APP'],
+    requiresConsent: null,
+  },
+  PAGE_REVISION_RESTORED: {
+    category: 'COLLABORATION',
+    defaultChannels: ['IN_APP'],
+    lockedChannels: ['IN_APP'],
+    requiresConsent: null,
+  },
   // MARKETING
   WEEKLY_DIGEST: {
     category: 'MARKETING',
