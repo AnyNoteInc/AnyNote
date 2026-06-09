@@ -5,6 +5,7 @@ import { viewRouter } from './view'
 import { propertyRouter } from './property'
 import { rowRouter } from './row'
 import { cellRouter } from './cell'
+import { relationRouter } from './relation'
 
 // Flat procedure surface (database.getByPage, database.createView, ...) built by
 // merging the per-entity sub-routers. The sub-files keep each entity's CRUD
@@ -41,4 +42,9 @@ export const databaseRouter = router({
 
   // Cells
   updateCellValue: cellRouter.updateValue,
+
+  // Relations + computed-property helpers
+  setRelationLinks: relationRouter.setRelationLinks,
+  listLinkableRows: relationRouter.listLinkableRows,
+  validateFormula: relationRouter.validateFormula,
 })

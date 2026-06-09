@@ -39,10 +39,12 @@ interface DatabaseFilterBuilderProps {
 }
 
 // Operators offered per property type, with Russian labels. The system title
-// column behaves like TEXT.
-const OPERATORS_BY_TYPE: Record<
-  DatabasePropertyType,
-  ReadonlyArray<{ op: FilterOperator; label: string }>
+// column behaves like TEXT. Computed / rich types not listed here (URL, EMAIL,
+// PHONE, FORMULA, RELATION, ROLLUP, CREATED_*/LAST_EDITED_*) are non-filterable
+// in Phase 4B — `operatorsFor` returns an empty list for them, so they offer no
+// operator (the filter UI for them is deferred to a later phase).
+const OPERATORS_BY_TYPE: Partial<
+  Record<DatabasePropertyType, ReadonlyArray<{ op: FilterOperator; label: string }>>
 > = {
   TEXT: [
     { op: 'contains', label: 'содержит' },
@@ -101,8 +103,8 @@ function isGroup(node: FilterCondition | FilterGroup): node is FilterGroup {
 }
 
 function operatorsFor(type: DatabasePropertyType | 'TITLE'): ReadonlyArray<{ op: FilterOperator; label: string }> {
-  if (type === 'TITLE') return OPERATORS_BY_TYPE.TEXT
-  return OPERATORS_BY_TYPE[type]
+  if (type === 'TITLE') return OPERATORS_BY_TYPE.TEXT ?? []
+  return OPERATORS_BY_TYPE[type] ?? []
 }
 
 /**

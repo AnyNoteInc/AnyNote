@@ -37,3 +37,25 @@ export function runFormula(
     return { __error: e instanceof Error ? e.message : 'formula error' }
   }
 }
+
+/**
+ * Parse-only validation: tokenize + parse WITHOUT evaluating. Reports only
+ * SYNTAX/parse problems (an unterminated string, unbalanced parens, a dangling
+ * operator like `1 +`, an unknown character). Runtime concerns — an unknown
+ * property name, division by zero, an unknown function — are NOT syntax errors
+ * and are reported as valid here (they are evaluated against real row values on
+ * read). This is the cleanest correct check for a "valid formula?" UI affordance.
+ */
+export function validateFormula(
+  expression: string,
+): { valid: true } | { valid: false; error: string } {
+  try {
+    parse(tokenize(expression))
+    return { valid: true }
+  } catch (e) {
+    if (e instanceof FormulaSyntaxError) {
+      return { valid: false, error: e.message }
+    }
+    return { valid: false, error: e instanceof Error ? e.message : 'formula error' }
+  }
+}
