@@ -5,6 +5,7 @@ import { Stack } from '@repo/ui/components'
 import { trpc } from '@/trpc/client'
 import type { PageItem } from '@/components/workspace/types'
 import { CommentToggleButton } from '@/components/page/comments/comment-toggle-button'
+import { HistoryToggleButton } from '@/components/page/history/history-toggle-button'
 
 import { FavoriteStar } from './favorite-star'
 import { PageActionsMenu } from './page-actions-menu'
@@ -51,6 +52,7 @@ export function PageActionsToolbar({ pageId, workspaceId }: Props) {
     <Stack direction="row" spacing={0.5} alignItems="center" className="page-actions-toolbar">
       <ShareButton pageId={pageId} />
       <CommentToggleButton />
+      <HistoryToggleButton />
       <FavoriteStar
         pageId={pageId}
         pageTitle={title}

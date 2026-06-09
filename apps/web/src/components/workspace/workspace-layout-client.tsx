@@ -13,6 +13,8 @@ import { PageActionsToolbar } from '@/components/page/page-actions-toolbar'
 import { PageEditorProvider } from '@/components/page/editor-context'
 import { PageCommentsProvider } from '@/components/page/comments/comments-context'
 import { CommentsSidebar } from '@/components/page/comments/comments-sidebar'
+import { PageHistoryProvider } from '@/components/page/history/history-context'
+import { HistorySidebar } from '@/components/page/history/history-sidebar'
 import { ChatActionsToolbar } from '@/components/workspace/chat/chat-actions-toolbar'
 import { useFullWidth } from '@/hooks/use-full-width'
 
@@ -189,6 +191,13 @@ export function WorkspaceLayoutClient({
   // active page (getById ships the full contentYjs blob) just to read its type.
   const activePageType = activePageId ? pages.find((p) => p.id === activePageId)?.type : undefined
 
+  // Document history is edit-gated server-side; surface the toggle only to
+  // workspace editors (OWNER/ADMIN/EDITOR). The history tRPC calls re-check the
+  // page-level edit access on every request, so this is purely the UI gate.
+  const myRoleQ = trpc.workspace.getMyRole.useQuery({ workspaceId: workspace.id })
+  const role = myRoleQ.data
+  const historyEnabled = role === 'OWNER' || role === 'ADMIN' || role === 'EDITOR'
+
   const [fullWidth] = useFullWidth(activePageId ?? '')
 
   // PageEditorProvider wraps BOTH the toolbar (so PageActionsMenu → PageExportDialog
@@ -241,6 +250,7 @@ export function WorkspaceLayoutClient({
         </Box>
       </Box>
       {activePageId ? <CommentsSidebar /> : null}
+      {activePageId ? <HistorySidebar /> : null}
     </Box>
   )
 
@@ -255,7 +265,13 @@ export function WorkspaceLayoutClient({
       canDeleteComments
       workspaceId={workspace.id}
     >
-      <PageEditorProvider>{mainContent}</PageEditorProvider>
+      <PageHistoryProvider
+        pageId={activePageId ?? ''}
+        workspaceId={workspace.id}
+        enabled={historyEnabled}
+      >
+        <PageEditorProvider>{mainContent}</PageEditorProvider>
+      </PageHistoryProvider>
     </PageCommentsProvider>
   )
 
