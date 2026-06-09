@@ -108,6 +108,17 @@ function operatorsFor(type: DatabasePropertyType | 'TITLE'): ReadonlyArray<{ op:
 }
 
 /**
+ * A property is filterable iff it has at least one operator. Computed/rich types
+ * (URL, EMAIL, PHONE, PAGE_LINK, FORMULA, RELATION, ROLLUP, and the CREATED/
+ * LAST_EDITED metadata) have none — the query-planner returns null for them in
+ * Phase 4B — so they are hidden from the property picker entirely (no
+ * half-working filter rows).
+ */
+function isFilterable(property: DatabasePropertyView): boolean {
+  return operatorsFor(property.type).length > 0
+}
+
+/**
  * Popover body building the nested AND/OR `FilterGroup` persisted in
  * `view.settings.filters`. The root is always a group with a conjunction toggle
  * (И/ИЛИ); each row is either a condition (property → operator → value editor) or
@@ -124,7 +135,7 @@ export function DatabaseFilterBuilder({
   const settings = useMemo(() => parseViewSettings(view.settings), [view.settings])
 
   const sortedProperties = useMemo(
-    () => [...properties].sort((a, b) => a.position - b.position),
+    () => [...properties].filter(isFilterable).sort((a, b) => a.position - b.position),
     [properties],
   )
 
