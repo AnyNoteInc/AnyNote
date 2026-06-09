@@ -91,7 +91,12 @@ describe('comment.listThreads / createThread', () => {
     }
     const prisma = {
       page: { findUnique: vi.fn(async () => PAGE) },
-      workspaceMember: { findUnique: vi.fn(async () => ({ role: 'COMMENTER' })) },
+      workspaceMember: {
+        findUnique: vi.fn(async () => ({ role: 'COMMENTER' })),
+        // The participant 'owner' must be a current workspace member to be
+        // notified (the ex-member leak guard).
+        findMany: vi.fn(async () => [{ userId: 'owner' }]),
+      },
       user: { findUnique: vi.fn(async () => ({ firstName: 'A', lastName: '', email: 'a@b.c' })) },
       $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
       pageComment: { findFirst: vi.fn(async () => ({ id: 'c1' })) },
@@ -437,7 +442,15 @@ describe('comment access boundaries + mention validation', () => {
     }
     const prisma = {
       page: { findUnique: vi.fn(async () => PAGE) },
-      workspaceMember: { findUnique: vi.fn(async () => ({ role: 'COMMENTER' })), findMany: vi.fn(async () => []) },
+      // findMany validates BOTH mentions and participants against membership: the
+      // bogus mention id is absent (→ dropped), the real participant 'owner' is a
+      // member (→ kept). Keyed on the queried ids so each call returns its members.
+      workspaceMember: {
+        findUnique: vi.fn(async () => ({ role: 'COMMENTER' })),
+        findMany: vi.fn(async ({ where }: { where: { userId: { in: string[] } } }) =>
+          where.userId.in.includes('owner') ? [{ userId: 'owner' }] : [],
+        ),
+      },
       user: { findUnique: vi.fn(async () => ({ firstName: 'A', lastName: '', email: 'a@b.c' })) },
       $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
       pageComment: { findFirst: vi.fn(async () => ({ id: 'c1' })) },

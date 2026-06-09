@@ -72,10 +72,21 @@ async function notifyNewComment(
     // Thread participants: the page author + every prior comment author, minus
     // the actor. On a reply these are notified directly (COMMENT_REPLY); on a
     // first comment they get the classic COMMENT_CREATED.
+    const candidateParticipants = new Set<string>()
+    if (thread?.page.createdById) candidateParticipants.add(thread.page.createdById)
+    for (const c of thread?.comments ?? []) if (c.authorId) candidateParticipants.add(c.authorId)
+    if (args.actor.userId) candidateParticipants.delete(args.actor.userId)
+    // Validate participants against CURRENT workspace membership before sending a
+    // snippet-bearing notification — an ex-member who once commented still has an
+    // authorId on the thread and must NOT receive the comment content (spec §6).
     const participants = new Set<string>()
-    if (thread?.page.createdById) participants.add(thread.page.createdById)
-    for (const c of thread?.comments ?? []) if (c.authorId) participants.add(c.authorId)
-    if (args.actor.userId) participants.delete(args.actor.userId)
+    if (candidateParticipants.size > 0) {
+      const members = await prisma.workspaceMember.findMany({
+        where: { workspaceId: args.workspaceId, userId: { in: [...candidateParticipants] } },
+        select: { userId: true },
+      })
+      for (const m of members) participants.add(m.userId)
+    }
 
     // Validate mentions against workspace membership: prevents notifying (and
     // leaking the snippet/link to) arbitrary users by id (spec §6).

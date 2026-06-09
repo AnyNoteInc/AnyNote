@@ -68,6 +68,18 @@ export async function assertPageEditAccess(ctx: Ctx, pageId: string) {
   return page
 }
 
+// Like assertPageEditAccess but also rejects soft-deleted (trashed) pages.
+// Used where exposing a trashed page's data would be wrong — e.g. page history
+// snapshots: a member must not be able to read revision content of a page that
+// has been moved to trash.
+export async function assertActivePageEditAccess(ctx: Ctx, pageId: string) {
+  const page = await assertPageEditAccess(ctx, pageId)
+  if (page.deletedAt) {
+    throw new TRPCError({ code: 'NOT_FOUND', message: 'Страница не найдена' })
+  }
+  return page
+}
+
 export async function assertCanManageShare(ctx: Ctx, pageId: string) {
   const page = await ctx.prisma.page.findFirst({
     where: {

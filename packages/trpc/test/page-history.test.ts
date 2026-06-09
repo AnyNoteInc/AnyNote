@@ -168,4 +168,16 @@ describe('page.history', () => {
       caller.history.getRevisionPreview({ pageId: page.id, revisionId: revision.id }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
   })
+
+  it('a trashed (soft-deleted) page → NOT_FOUND on list/preview (no snapshot leak from trash)', async () => {
+    const { owner, page, revision } = await seed()
+    await prisma.page.update({ where: { id: page.id }, data: { deletedAt: new Date() } })
+    const caller = makeCaller(owner.id)
+    await expect(caller.history.listRevisions({ pageId: page.id })).rejects.toMatchObject({
+      code: 'NOT_FOUND',
+    })
+    await expect(
+      caller.history.getRevisionPreview({ pageId: page.id, revisionId: revision.id }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+  })
 })

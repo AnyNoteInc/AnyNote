@@ -14,6 +14,7 @@
 // and emits via the matching `notify.*` helper, applying the dedup guard —
 // EXCEPT for direct mentions/replies, which must never be deduped away.
 
+import { Prisma } from '@repo/db'
 import type { PrismaClient, NotificationEventType } from '@repo/db'
 
 import { notify } from './helpers.ts'
@@ -84,9 +85,15 @@ export async function shouldDedup(
         type: opts.type,
         AND: [
           { payload: { path: ['pageId'], equals: opts.pageId } },
-          opts.actorId
-            ? { payload: { path: ['actorId'], equals: opts.actorId } }
-            : {},
+          // Key dedup on the exact actor. With no actorId we MUST NOT fall back to
+          // an empty (match-any-actor) filter — that would let a burst from actor A
+          // silently swallow a distinct event from actor B. A missing actor matches
+          // only other null-actor events (Prisma.JsonNull = the JSON null literal).
+          {
+            payload: opts.actorId
+              ? { path: ['actorId'], equals: opts.actorId }
+              : { path: ['actorId'], equals: Prisma.JsonNull },
+          },
         ],
       },
     },
