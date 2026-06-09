@@ -15,6 +15,13 @@ export type DatabaseRowView = RouterOutputs['database']['listRows']['rows'][numb
 export type DatabasePropertyView = DatabaseSchema['properties'][number]
 export type DatabaseViewEntry = DatabaseSchema['views'][number]
 export type SystemTitleProperty = DatabaseSchema['systemTitleProperty']
+/**
+ * The viewer's own database capabilities (from `database.getByPage`). Drives
+ * permission-aware affordances only — the authoritative gate is server-side.
+ * `canEditStructure` is false both for insufficient rights AND when the source's
+ * structure is locked (`structureLocked` distinguishes the two for tooltips).
+ */
+export type MyDatabaseAccess = DatabaseSchema['myAccess']
 
 /**
  * Sentinel propertyId for the implicit system Page.title column in filters/sorts.
@@ -36,7 +43,28 @@ export interface DatabaseViewProps {
   readonly view: DatabaseViewEntry
   readonly properties: DatabaseSchema['properties']
   readonly systemTitleProperty: SystemTitleProperty
+  /**
+   * Content-edit rights — true only when the viewer may edit cell content / rows
+   * (page-level write flag AND `myAccess.canEditContent`). The shared cell editors
+   * read this; a viewer without content rights gets readonly cells.
+   */
   readonly editable: boolean
+  /**
+   * Structure-edit rights — true only when the viewer may edit the schema/views
+   * (page-level write flag AND `myAccess.canEditStructure`). Drives add-property,
+   * the property/view menus, and the view-config controls. Distinct from `editable`
+   * because content and structure rights are independent.
+   */
+  readonly canEditStructure: boolean
+  readonly myAccess: MyDatabaseAccess
+}
+
+/**
+ * The tooltip copy for a disabled structure affordance: a locked structure reads
+ * differently from plain insufficient rights, per the cl4C spec.
+ */
+export function structureDisabledReason(myAccess: MyDatabaseAccess): string {
+  return myAccess.structureLocked ? 'Структура заблокирована' : 'Недостаточно прав'
 }
 
 /**

@@ -31,7 +31,11 @@ import type { DatabaseViewProps } from './types'
 /** Lowercased, JSON-array-aware text of a cell value for the db-local search. */
 function cellSearchText(value: unknown): string {
   if (value == null) return ''
-  if (Array.isArray(value)) return value.map((v) => String(v)).join(' ').toLowerCase()
+  if (Array.isArray(value))
+    return value
+      .map((v) => String(v))
+      .join(' ')
+      .toLowerCase()
   if (typeof value === 'object') return JSON.stringify(value).toLowerCase()
   return String(value).toLowerCase()
 }
@@ -52,6 +56,8 @@ export function DatabaseTableView({
   properties: allProperties,
   systemTitleProperty,
   editable,
+  canEditStructure,
+  myAccess,
 }: DatabaseViewProps) {
   const utils = trpc.useUtils()
   const [search, setSearch] = useState('')
@@ -103,6 +109,8 @@ export function DatabaseTableView({
         search={search}
         onSearchChange={setSearch}
         editable={editable}
+        canEditStructure={canEditStructure}
+        myAccess={myAccess}
       />
 
       <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
@@ -115,7 +123,12 @@ export function DatabaseTableView({
                 </TableCell>
                 {properties.map((property) => (
                   <TableCell key={property.id} sx={{ minWidth: 160 }}>
-                    <PropertyHeaderCell pageId={pageId} property={property} editable={editable} />
+                    <PropertyHeaderCell
+                      pageId={pageId}
+                      property={property}
+                      editable={canEditStructure}
+                      myAccess={myAccess}
+                    />
                   </TableCell>
                 ))}
                 {editable ? <TableCell sx={{ width: 48 }} /> : null}
@@ -135,7 +148,12 @@ export function DatabaseTableView({
                   </TableCell>
                   {properties.map((property) => (
                     <TableCell key={property.id} sx={{ minWidth: 160 }}>
-                      <CellEditor pageId={pageId} row={row} property={property} editable={editable} />
+                      <CellEditor
+                        pageId={pageId}
+                        row={row}
+                        property={property}
+                        editable={editable}
+                      />
                     </TableCell>
                   ))}
                   {editable ? (
@@ -155,7 +173,11 @@ export function DatabaseTableView({
               {visibleRows.length === 0 && !isLoading ? (
                 <TableRow>
                   <TableCell colSpan={colCount}>
-                    <Typography variant="body2" color="text.secondary" sx={{ py: 2, textAlign: 'center' }}>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ py: 2, textAlign: 'center' }}
+                    >
                       {search.trim() ? 'Ничего не найдено' : 'Пока нет строк'}
                     </Typography>
                   </TableCell>

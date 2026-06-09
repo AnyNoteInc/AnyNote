@@ -2,12 +2,7 @@
 
 import { useMemo, useState } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
-import {
-  DragDropContext,
-  Draggable,
-  Droppable,
-  type DropResult,
-} from '@hello-pangea/dnd'
+import { DragDropContext, Draggable, Droppable, type DropResult } from '@hello-pangea/dnd'
 import {
   Box,
   Button,
@@ -61,6 +56,8 @@ export function DatabaseBoardView({
   properties,
   systemTitleProperty,
   editable,
+  canEditStructure,
+  myAccess,
 }: DatabaseViewProps) {
   const utils = trpc.useUtils()
   const router = useRouter()
@@ -71,7 +68,7 @@ export function DatabaseBoardView({
   const groupByPropertyId = settings.groupBy?.propertyId ?? null
 
   const groupByProperty = useMemo(
-    () => (groupByPropertyId ? properties.find((p) => p.id === groupByPropertyId) ?? null : null),
+    () => (groupByPropertyId ? (properties.find((p) => p.id === groupByPropertyId) ?? null) : null),
     [properties, groupByPropertyId],
   )
 
@@ -121,7 +118,9 @@ export function DatabaseBoardView({
   }
 
   /** Patch the grouped-rows cache in place: move `rowId` into `destKey` at `index`. */
-  function setGroupedData(updater: (prev: GroupedRowsResult | undefined) => GroupedRowsResult | undefined) {
+  function setGroupedData(
+    updater: (prev: GroupedRowsResult | undefined) => GroupedRowsResult | undefined,
+  ) {
     const setData = utils.database.listGroupedRows.setData as (
       input: { pageId: string; viewId: string },
       next: (prev: GroupedRowsResult | undefined) => GroupedRowsResult | undefined,
@@ -132,15 +131,14 @@ export function DatabaseBoardView({
   async function handleDragEnd(result: DropResult) {
     if (!result.destination || !groupByProperty) return
     const fromKey = result.source.droppableId === EMPTY_KEY ? null : result.source.droppableId
-    const toKey = result.destination.droppableId === EMPTY_KEY ? null : result.destination.droppableId
+    const toKey =
+      result.destination.droppableId === EMPTY_KEY ? null : result.destination.droppableId
     const rowId = result.draggableId
     if (fromKey === toKey && result.source.index === result.destination.index) return
 
     const destColumn = columns.find((c) => c.key === toKey)
     if (!destColumn) return
-    const moved = columns
-      .flatMap((c) => c.rows)
-      .find((r) => r.rowId === rowId)
+    const moved = columns.flatMap((c) => c.rows).find((r) => r.rowId === rowId)
     if (!moved) return
 
     const destWithoutMoved = destColumn.rows.filter((r) => r.rowId !== rowId)
@@ -206,6 +204,8 @@ export function DatabaseBoardView({
         search=""
         onSearchChange={() => {}}
         editable={editable}
+        canEditStructure={canEditStructure}
+        myAccess={myAccess}
       />
 
       {editable ? (
@@ -235,7 +235,9 @@ export function DatabaseBoardView({
       ) : null}
 
       {!groupByProperty ? (
-        <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', p: 4 }}>
+        <Box
+          sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', p: 4 }}
+        >
           <Stack spacing={2} alignItems="center">
             <Typography color="text.secondary" textAlign="center">
               Чтобы построить доску, выберите свойство «Статус» или «Выбор» для группировки.
@@ -252,7 +254,9 @@ export function DatabaseBoardView({
           </Stack>
         </Box>
       ) : isLoading ? (
-        <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', py: 6 }}>
+        <Box
+          sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', py: 6 }}
+        >
           <CircularProgress size={24} />
         </Box>
       ) : (
@@ -317,7 +321,12 @@ function BoardColumnView({ column, cardProperties, editable, onOpenRow }: BoardC
             }}
           >
             {column.rows.map((row, index) => (
-              <Draggable key={row.rowId} draggableId={row.rowId} index={index} isDragDisabled={!editable}>
+              <Draggable
+                key={row.rowId}
+                draggableId={row.rowId}
+                index={index}
+                isDragDisabled={!editable}
+              >
                 {(dragProvided) => (
                   <Box
                     ref={dragProvided.innerRef}
@@ -397,7 +406,11 @@ function CardPropertyValue({
       <Chip
         size="small"
         label={option.label}
-        sx={option.color ? { bgcolor: option.color, color: '#fff', alignSelf: 'flex-start' } : { alignSelf: 'flex-start' }}
+        sx={
+          option.color
+            ? { bgcolor: option.color, color: '#fff', alignSelf: 'flex-start' }
+            : { alignSelf: 'flex-start' }
+        }
       />
     )
   }

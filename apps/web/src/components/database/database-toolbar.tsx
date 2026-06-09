@@ -14,6 +14,7 @@ import {
   Divider,
   EmailIcon,
   FilterListIcon,
+  IconButton,
   InputBase,
   LabelIcon,
   LinkIcon,
@@ -26,10 +27,12 @@ import {
   PersonIcon,
   Popover,
   SearchIcon,
+  SecurityIcon,
   Stack,
   SwapVertIcon,
   TextFieldsIcon,
   TocIcon,
+  Tooltip,
   TuneIcon,
   Typography,
   UpdateIcon,
@@ -38,13 +41,14 @@ import type { DatabasePropertyType } from '@repo/db'
 
 import { trpc } from '@/trpc/client'
 
-import { parseViewSettings } from './types'
-import type { DatabaseSchema, DatabaseViewEntry } from './types'
+import { parseViewSettings, structureDisabledReason } from './types'
+import type { DatabaseSchema, DatabaseViewEntry, MyDatabaseAccess } from './types'
 import { DatabaseFilterBuilder } from './view-config/database-filter-builder'
 import { DatabaseSortBuilder } from './view-config/database-sort-builder'
 import { PropertyVisibilityPanel } from './view-config/property-visibility-panel'
 import { PropertySettingsDialog } from './property-config/property-settings-dialog'
 import type { SettingsDialogProperty } from './property-config/property-settings-dialog'
+import { DatabaseAccessDialog } from './access/database-access-dialog'
 
 interface DatabaseToolbarProps {
   readonly pageId: string
@@ -53,7 +57,11 @@ interface DatabaseToolbarProps {
   readonly systemTitleProperty: DatabaseSchema['systemTitleProperty']
   readonly search: string
   readonly onSearchChange: (value: string) => void
+  /** Content rights — gates the "+ Строка" (row create) button. */
   readonly editable?: boolean
+  /** Structure rights — gates filter/sort/visibility, "+ Свойство", access panel. */
+  readonly canEditStructure?: boolean
+  readonly myAccess: MyDatabaseAccess
 }
 
 interface PropertyTypeEntry {
@@ -135,14 +143,24 @@ export function DatabaseToolbar({
   search,
   onSearchChange,
   editable = true,
+  canEditStructure = true,
+  myAccess,
 }: DatabaseToolbarProps) {
   const utils = trpc.useUtils()
   const [propAnchorEl, setPropAnchorEl] = useState<HTMLElement | null>(null)
   const [configAnchorEl, setConfigAnchorEl] = useState<HTMLElement | null>(null)
   const [configPanel, setConfigPanel] = useState<ConfigPanel | null>(null)
+  const [accessOpen, setAccessOpen] = useState(false)
   // After creating a FORMULA/RELATION/ROLLUP property we open the settings dialog
   // for the freshly created property so the user configures it immediately.
   const [settingsProperty, setSettingsProperty] = useState<SettingsDialogProperty | null>(null)
+
+  // Structure affordances disable when the viewer lacks structure rights or the
+  // source's structure is locked; the tooltip distinguishes the two. They are still
+  // RENDERED (disabled) whenever the page is editable at all, so the user sees why
+  // they can't act; a pure read-only viewer sees nothing.
+  const structureReason = structureDisabledReason(myAccess)
+  const showStructureControls = editable || canEditStructure
 
   const settings = useMemo(() => parseViewSettings(view.settings), [view.settings])
   const activeFilterCount = settings.filters?.conditions.length ?? 0
@@ -226,54 +244,84 @@ export function DatabaseToolbar({
         />
       </Box>
 
-      {editable ? (
-        <>
-          <Button
-            size="small"
-            color={activeFilterCount > 0 ? 'primary' : 'inherit'}
-            startIcon={<FilterListIcon />}
-            onClick={(e) => openConfig('filter', e.currentTarget)}
-          >
-            Фильтр{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
-          </Button>
-          <Button
-            size="small"
-            color={activeSortCount > 0 ? 'primary' : 'inherit'}
-            startIcon={<SwapVertIcon />}
-            onClick={(e) => openConfig('sort', e.currentTarget)}
-          >
-            Сортировка{activeSortCount > 0 ? ` (${activeSortCount})` : ''}
-          </Button>
-          <Button
-            size="small"
-            color="inherit"
-            startIcon={<TuneIcon />}
-            onClick={(e) => openConfig('visibility', e.currentTarget)}
-          >
-            Свойства
-          </Button>
-        </>
+      {showStructureControls ? (
+        <Tooltip
+          title={canEditStructure ? '' : structureReason}
+          disableHoverListener={canEditStructure}
+        >
+          <Box component="span" sx={{ display: 'inline-flex', gap: 0.5 }}>
+            <Button
+              size="small"
+              color={activeFilterCount > 0 ? 'primary' : 'inherit'}
+              startIcon={<FilterListIcon />}
+              disabled={!canEditStructure}
+              onClick={(e) => openConfig('filter', e.currentTarget)}
+            >
+              Фильтр{activeFilterCount > 0 ? ` (${activeFilterCount})` : ''}
+            </Button>
+            <Button
+              size="small"
+              color={activeSortCount > 0 ? 'primary' : 'inherit'}
+              startIcon={<SwapVertIcon />}
+              disabled={!canEditStructure}
+              onClick={(e) => openConfig('sort', e.currentTarget)}
+            >
+              Сортировка{activeSortCount > 0 ? ` (${activeSortCount})` : ''}
+            </Button>
+            <Button
+              size="small"
+              color="inherit"
+              startIcon={<TuneIcon />}
+              disabled={!canEditStructure}
+              onClick={(e) => openConfig('visibility', e.currentTarget)}
+            >
+              Свойства
+            </Button>
+          </Box>
+        </Tooltip>
       ) : null}
 
       <Box sx={{ flex: 1 }} />
 
       {editable ? (
+        <Button
+          size="small"
+          startIcon={<AddIcon />}
+          disabled={createRow.isPending}
+          onClick={() => createRow.mutate({ pageId })}
+        >
+          Строка
+        </Button>
+      ) : null}
+
+      {showStructureControls ? (
         <>
-          <Button
-            size="small"
-            startIcon={<AddIcon />}
-            disabled={createRow.isPending}
-            onClick={() => createRow.mutate({ pageId })}
+          <Tooltip
+            title={canEditStructure ? '' : structureReason}
+            disableHoverListener={canEditStructure}
           >
-            Строка
-          </Button>
-          <Button
-            size="small"
-            startIcon={<AddIcon />}
-            onClick={(e) => setPropAnchorEl(e.currentTarget)}
-          >
-            Свойство
-          </Button>
+            <Box component="span">
+              <Button
+                size="small"
+                startIcon={<AddIcon />}
+                disabled={!canEditStructure}
+                onClick={(e) => setPropAnchorEl(e.currentTarget)}
+              >
+                Свойство
+              </Button>
+            </Box>
+          </Tooltip>
+          {myAccess.canEditStructure ? (
+            <Tooltip title="Доступ и права">
+              <IconButton
+                size="small"
+                aria-label="Доступ и права"
+                onClick={() => setAccessOpen(true)}
+              >
+                <SecurityIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          ) : null}
           <Menu
             anchorEl={propAnchorEl}
             open={Boolean(propAnchorEl)}
@@ -340,6 +388,16 @@ export function DatabaseToolbar({
               property={settingsProperty}
               open
               onClose={() => setSettingsProperty(null)}
+            />
+          ) : null}
+
+          {myAccess.canEditStructure ? (
+            <DatabaseAccessDialog
+              pageId={pageId}
+              properties={properties}
+              myAccess={myAccess}
+              open={accessOpen}
+              onClose={() => setAccessOpen(false)}
             />
           ) : null}
         </>

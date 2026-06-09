@@ -12,7 +12,10 @@ import { DatabaseBoardView } from './views/database-board-view'
 import { DatabaseCalendarView } from './views/database-calendar-view'
 import { DatabaseListView } from './views/database-list-view'
 import { DatabaseItemModal } from './database-item-modal'
-import { ActiveViewIdProvider, DatabaseWorkspaceIdProvider } from './cell-editors/use-optimistic-cell'
+import {
+  ActiveViewIdProvider,
+  DatabaseWorkspaceIdProvider,
+} from './cell-editors/use-optimistic-cell'
 import type { DatabaseSchema, DatabaseViewEntry, DatabaseViewProps } from './types'
 
 interface DatabasePageRendererProps {
@@ -42,10 +45,12 @@ export function DatabasePageRenderer({ pageId, editable = true }: DatabasePageRe
   const searchParams = useSearchParams()
   const requestedViewId = searchParams?.get('viewId') ?? null
 
-  const { data: schema, isLoading, error, refetch } = trpc.database.getByPage.useQuery(
-    { pageId },
-    { retry: false },
-  )
+  const {
+    data: schema,
+    isLoading,
+    error,
+    refetch,
+  } = trpc.database.getByPage.useQuery({ pageId }, { retry: false })
 
   const repairSource = trpc.database.repairSource.useMutation({
     onSuccess: async () => {
@@ -72,7 +77,9 @@ export function DatabasePageRenderer({ pageId, editable = true }: DatabasePageRe
     return (
       <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '100%' }}>
         <Stack spacing={2} alignItems="center" sx={{ p: 4 }}>
-          <Typography color="text.secondary">База данных для этой страницы ещё не создана.</Typography>
+          <Typography color="text.secondary">
+            База данных для этой страницы ещё не создана.
+          </Typography>
           {editable ? (
             <Button
               variant="contained"
@@ -105,6 +112,14 @@ export function DatabasePageRenderer({ pageId, editable = true }: DatabasePageRe
     )
   }
 
+  // Permission-aware gates (server truth from `getByPage().myAccess`, combined with
+  // the page-level write flag). Content rights drive cell/row editing; structure
+  // rights drive schema/view affordances. `editable` propagated to the views means
+  // "may edit content" so the shared cell editors stay readonly for a viewer without
+  // content rights (per-row gating is a documented follow-up — see ViewDispatch).
+  const canEditContent = editable && schema.myAccess.canEditContent
+  const canEditStructure = editable && schema.myAccess.canEditStructure
+
   return (
     // Provide the active view's id so the shared cell editors patch the right
     // listRows cache entry (keyed by pageId+viewId) without threading viewId props
@@ -116,12 +131,24 @@ export function DatabasePageRenderer({ pageId, editable = true }: DatabasePageRe
             pageId={pageId}
             views={schema.views}
             activeViewId={activeView.id}
-            editable={editable}
+            editable={canEditStructure}
+            myAccess={schema.myAccess}
           />
-          <ViewDispatch pageId={pageId} schema={schema} view={activeView} editable={editable} />
+          <ViewDispatch
+            pageId={pageId}
+            schema={schema}
+            view={activeView}
+            editable={canEditContent}
+            canEditStructure={canEditStructure}
+          />
         </Stack>
         {/* Item "peek" modal — opens when `?rowId=` matches a row in the active view. */}
-        <DatabaseItemModal pageId={pageId} viewId={activeView.id} schema={schema} editable={editable} />
+        <DatabaseItemModal
+          pageId={pageId}
+          viewId={activeView.id}
+          schema={schema}
+          editable={canEditContent}
+        />
       </ActiveViewIdProvider>
     </DatabaseWorkspaceIdProvider>
   )
@@ -133,11 +160,13 @@ function ViewDispatch({
   schema,
   view,
   editable,
+  canEditStructure,
 }: {
-  pageId: string
-  schema: DatabaseSchema
-  view: DatabaseViewEntry
-  editable: boolean
+  readonly pageId: string
+  readonly schema: DatabaseSchema
+  readonly view: DatabaseViewEntry
+  readonly editable: boolean
+  readonly canEditStructure: boolean
 }) {
   const props: DatabaseViewProps = {
     pageId,
@@ -146,6 +175,8 @@ function ViewDispatch({
     properties: schema.properties,
     systemTitleProperty: schema.systemTitleProperty,
     editable,
+    canEditStructure,
+    myAccess: schema.myAccess,
   }
   switch (view.type) {
     case 'BOARD':

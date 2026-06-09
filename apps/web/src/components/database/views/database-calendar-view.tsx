@@ -66,6 +66,8 @@ export function DatabaseCalendarView({
   properties,
   systemTitleProperty,
   editable,
+  canEditStructure,
+  myAccess,
 }: DatabaseViewProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -127,6 +129,8 @@ export function DatabaseCalendarView({
         search=""
         onSearchChange={() => {}}
         editable={editable}
+        canEditStructure={canEditStructure}
+        myAccess={myAccess}
       />
 
       <Stack
@@ -135,13 +139,24 @@ export function DatabaseCalendarView({
         spacing={1}
         sx={{ px: 2, py: 0.75, borderBottom: 1, borderColor: 'divider' }}
       >
-        <IconButton size="small" aria-label="Предыдущий месяц" onClick={() => setMonth((m) => subMonths(m, 1))}>
+        <IconButton
+          size="small"
+          aria-label="Предыдущий месяц"
+          onClick={() => setMonth((m) => subMonths(m, 1))}
+        >
           <ChevronLeftIcon fontSize="small" />
         </IconButton>
-        <Typography variant="subtitle1" sx={{ minWidth: 160, textAlign: 'center', textTransform: 'capitalize' }}>
+        <Typography
+          variant="subtitle1"
+          sx={{ minWidth: 160, textAlign: 'center', textTransform: 'capitalize' }}
+        >
           {format(month, 'LLLL yyyy', { locale: dateFnsRu })}
         </Typography>
-        <IconButton size="small" aria-label="Следующий месяц" onClick={() => setMonth((m) => addMonths(m, 1))}>
+        <IconButton
+          size="small"
+          aria-label="Следующий месяц"
+          onClick={() => setMonth((m) => addMonths(m, 1))}
+        >
           <ChevronRightIcon fontSize="small" />
         </IconButton>
         <Button size="small" color="inherit" onClick={() => setMonth(startOfMonth(new Date()))}>
@@ -172,7 +187,9 @@ export function DatabaseCalendarView({
       </Stack>
 
       {!dateProperty ? (
-        <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', p: 4 }}>
+        <Box
+          sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', p: 4 }}
+        >
           <Stack spacing={2} alignItems="center">
             <Typography color="text.secondary" textAlign="center">
               Чтобы построить календарь, выберите свойство типа «Дата».
@@ -189,7 +206,9 @@ export function DatabaseCalendarView({
           </Stack>
         </Box>
       ) : isLoading ? (
-        <Box sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', py: 6 }}>
+        <Box
+          sx={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', py: 6 }}
+        >
           <CircularProgress size={24} />
         </Box>
       ) : (

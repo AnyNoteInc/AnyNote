@@ -31,6 +31,8 @@ export function DatabaseListView({
   properties,
   systemTitleProperty,
   editable,
+  canEditStructure,
+  myAccess,
 }: DatabaseViewProps) {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -67,6 +69,8 @@ export function DatabaseListView({
         search=""
         onSearchChange={() => {}}
         editable={editable}
+        canEditStructure={canEditStructure}
+        myAccess={myAccess}
       />
 
       <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
