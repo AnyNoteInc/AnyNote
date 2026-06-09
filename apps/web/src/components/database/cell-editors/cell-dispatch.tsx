@@ -9,6 +9,12 @@ import { SelectCell } from './select-cell'
 import { MultiSelectCell } from './multi-select-cell'
 import { PersonCell } from './person-cell'
 import { FileCell } from './file-cell'
+import { UrlCell } from './url-cell'
+import { EmailCell } from './email-cell'
+import { PhoneCell } from './phone-cell'
+import { PageLinkCell } from './page-link-cell'
+import { RelationCell } from './relation-cell'
+import { ComputedCell } from './computed-cell'
 
 interface CellEditorProps {
   /** The DATABASE page id — the key the optimistic `getByPage` cache is stored under. */
@@ -55,6 +61,33 @@ export function CellEditor({ pageId, row, property, editable }: CellEditorProps)
       return (
         <FileCell pageId={pageId} rowId={row.rowId} propertyId={property.id} value={value} editable={editable} />
       )
+    case 'URL':
+      return (
+        <UrlCell pageId={pageId} rowId={row.rowId} propertyId={property.id} value={value} editable={editable} />
+      )
+    case 'EMAIL':
+      return (
+        <EmailCell pageId={pageId} rowId={row.rowId} propertyId={property.id} value={value} editable={editable} />
+      )
+    case 'PHONE':
+      return (
+        <PhoneCell pageId={pageId} rowId={row.rowId} propertyId={property.id} value={value} editable={editable} />
+      )
+    case 'PAGE_LINK':
+      return (
+        <PageLinkCell pageId={pageId} rowId={row.rowId} propertyId={property.id} value={value} editable={editable} />
+      )
+    case 'RELATION':
+      return (
+        <RelationCell pageId={pageId} rowId={row.rowId} propertyId={property.id} value={value} editable={editable} />
+      )
+    case 'FORMULA':
+    case 'ROLLUP':
+    case 'CREATED_TIME':
+    case 'CREATED_BY':
+    case 'LAST_EDITED_TIME':
+    case 'LAST_EDITED_BY':
+      return <ComputedCell property={property} value={value} />
     case 'TEXT':
     default:
       return (
