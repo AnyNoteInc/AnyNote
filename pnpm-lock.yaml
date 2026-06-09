@@ -595,6 +595,9 @@ importers:
       '@repo/db':
         specifier: workspace:*
         version: link:../db
+      date-fns:
+        specifier: ^4.1.0
+        version: 4.1.0
       inversify:
         specifier: ^8.1.0
         version: 8.1.0(reflect-metadata@0.2.2)
