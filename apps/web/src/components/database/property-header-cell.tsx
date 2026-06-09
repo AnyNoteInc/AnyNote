@@ -19,10 +19,12 @@ import {
   Typography,
   DeleteIcon,
   EditIcon,
+  TuneIcon,
 } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
 import type { DatabasePropertyView } from './types'
+import { PropertySettingsDialog } from './property-config/property-settings-dialog'
 
 interface PropertyHeaderCellProps {
   readonly pageId: string
@@ -40,6 +42,7 @@ export function PropertyHeaderCell({ pageId, property, editable = true }: Proper
   const [anchorEl, setAnchorEl] = useState<HTMLElement | null>(null)
   const [renameOpen, setRenameOpen] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
+  const [settingsOpen, setSettingsOpen] = useState(false)
   const [draftName, setDraftName] = useState(property.name)
 
   // A property change touches the schema AND the rows (deleting a property drops
@@ -84,6 +87,17 @@ export function PropertyHeaderCell({ pageId, property, editable = true }: Proper
             <EditIcon fontSize="small" />
           </ListItemIcon>
           <ListItemText primary="Переименовать" />
+        </MenuItem>
+        <MenuItem
+          onClick={() => {
+            setSettingsOpen(true)
+            setAnchorEl(null)
+          }}
+        >
+          <ListItemIcon>
+            <TuneIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText primary="Настроить свойство" />
         </MenuItem>
         <MenuItem
           onClick={() => {
@@ -145,6 +159,13 @@ export function PropertyHeaderCell({ pageId, property, editable = true }: Proper
           </Button>
         </DialogActions>
       </Dialog>
+
+      <PropertySettingsDialog
+        pageId={pageId}
+        property={property}
+        open={settingsOpen}
+        onClose={() => setSettingsOpen(false)}
+      />
     </Box>
   )
 }

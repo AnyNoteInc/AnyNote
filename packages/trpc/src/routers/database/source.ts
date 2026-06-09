@@ -3,7 +3,11 @@ import { TRPCError } from '@trpc/server'
 import * as domain from '@repo/domain'
 
 import { router, protectedProcedure } from '../../trpc'
-import { assertPageAccess, assertPageEditAccess } from '../../helpers/page-access'
+import {
+  assertPageAccess,
+  assertPageEditAccess,
+  assertWorkspaceMember,
+} from '../../helpers/page-access'
 import { mapDomain } from '../../helpers/map-domain'
 import { domain as domainSvc } from '../../domain'
 
@@ -38,6 +42,30 @@ export const sourceRouter = router({
       await assertPageAccess(ctx, source.pageId)
       const view = await mapDomain(() => domainSvc.database.getByPage(ctx.user.id, source.pageId))
       return { pageId: source.pageId, view }
+    }),
+
+  // List every database SOURCE in a workspace ({ sourceId, pageId, title }) for the
+  // RELATION/ROLLUP settings pickers (a relation target is another DATABASE page's
+  // source). The property-settings dialog resolves a chosen source's schema via
+  // `getBySourceId`. Title falls back to the owning page's title so the picker is
+  // never blank. Read access is workspace membership.
+  listSources: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertWorkspaceMember(ctx, input.workspaceId)
+      const sources = await ctx.prisma.databaseSource.findMany({
+        where: {
+          workspaceId: input.workspaceId,
+          page: { archivedAt: null, deletedAt: null },
+        },
+        select: { id: true, pageId: true, title: true, page: { select: { title: true } } },
+        orderBy: { createdAt: 'asc' },
+      })
+      return sources.map((s) => ({
+        sourceId: s.id,
+        pageId: s.pageId,
+        title: s.title ?? s.page.title ?? null,
+      }))
     }),
 
   // Idempotently provision a source for a legacy DATABASE page that has none.

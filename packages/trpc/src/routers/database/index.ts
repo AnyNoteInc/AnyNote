@@ -14,6 +14,7 @@ export const databaseRouter = router({
   // Source
   getByPage: sourceRouter.getByPage,
   getBySourceId: sourceRouter.getBySourceId,
+  listSources: sourceRouter.listSources,
   repairSource: sourceRouter.repairSource,
 
   // Views
