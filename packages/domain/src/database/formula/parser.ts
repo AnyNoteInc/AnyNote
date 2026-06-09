@@ -9,8 +9,13 @@ const COMPARISON_OPS = ['==', '!=', '>=', '<=', '>', '<'] as const
 const ADDITIVE_OPS = ['+', '-'] as const
 const MULTIPLICATIVE_OPS = ['*', '/'] as const
 
+// Cap recursion depth so a crafted deeply-nested expression (e.g. thousands of
+// nested parens or unary operators) can't exhaust the call stack server-side.
+const MAX_DEPTH = 200
+
 class Parser {
   private pos = 0
+  private depth = 0
   private readonly tokens: Token[]
 
   constructor(tokens: Token[]) {
@@ -58,7 +63,17 @@ class Parser {
   }
 
   private parseOr(): AstNode {
-    return this.parseBinaryLeft(['||'], () => this.parseAnd())
+    // parseOr is the descent entry re-entered for every paren group / call arg,
+    // so guarding depth here bounds total recursion.
+    this.depth += 1
+    if (this.depth > MAX_DEPTH) {
+      throw new FormulaSyntaxError('Formula nested too deeply')
+    }
+    try {
+      return this.parseBinaryLeft(['||'], () => this.parseAnd())
+    } finally {
+      this.depth -= 1
+    }
   }
 
   private parseAnd(): AstNode {
@@ -79,8 +94,13 @@ class Parser {
 
   private parseUnary(): AstNode {
     if (this.isOperator('!', '-')) {
+      this.depth += 1
+      if (this.depth > MAX_DEPTH) {
+        throw new FormulaSyntaxError('Formula nested too deeply')
+      }
       const op = (this.next() as { type: 'operator'; value: OperatorSymbol }).value
       const arg = this.parseUnary()
+      this.depth -= 1
       return { kind: 'Unary', op: op as UnaryOp, arg }
     }
     return this.parsePrimary()

@@ -75,8 +75,9 @@ export type RollupSettings = z.infer<typeof rollupSettingsSchema>
 export const propertySettingsSchema = z.object({
   options: z.array(selectOptionSchema).optional(),
   numberFormat: numberFormatSchema.optional(),
-  // FORMULA — the expression source.
-  formula: z.string().optional(),
+  // FORMULA — the expression source. Bounded so a stored formula can't be a
+  // huge expression re-tokenized/parsed on every read for every row (DoS surface).
+  formula: z.string().max(2000).optional(),
   relation: relationSettingsSchema.optional(),
   rollup: rollupSettingsSchema.optional(),
 })

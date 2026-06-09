@@ -515,11 +515,12 @@ export class DatabaseService {
 
     switch (type) {
       case DatabasePropertyType.NUMBER: {
-        const n = typeof raw === 'number' ? raw : Number(raw)
-        if (typeof raw !== 'number' || Number.isNaN(n)) {
+        // Reject NaN AND ±Infinity — JSON.stringify(Infinity) is "null", so a
+        // non-finite value would silently round-trip to an empty cell (data loss).
+        if (typeof raw !== 'number' || !Number.isFinite(raw)) {
           throw badRequest('Ожидалось число')
         }
-        return n
+        return raw
       }
       case DatabasePropertyType.CHECKBOX:
         return Boolean(raw)
@@ -551,10 +552,15 @@ export class DatabaseService {
       case DatabasePropertyType.URL: {
         const s = typeof raw === 'string' ? raw.trim() : ''
         if (!s) return null
+        let parsed: URL
         try {
-          // Accept anything the URL constructor parses (must have a scheme).
-          new URL(s)
+          parsed = new URL(s)
         } catch {
+          throw badRequest('Некорректный URL')
+        }
+        // Only http/https — reject javascript:/data:/etc. so a stored value can
+        // never become an XSS vector wherever it is later rendered as a link.
+        if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
           throw badRequest('Некорректный URL')
         }
         return s

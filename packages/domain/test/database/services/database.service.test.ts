@@ -216,6 +216,18 @@ describe('DatabaseService.updateCellValue type validation', () => {
     expect(repo.upsertCellValue).toHaveBeenCalledWith('row1', 'prop1', 42)
   })
 
+  it('rejects a non-finite NUMBER (Infinity would JSON-stringify to null = data loss)', async () => {
+    const repo = makeRepo({
+      findPropertyById: vi.fn(async () => ({ id: 'prop1', sourceId: 'src1', type: 'NUMBER', settings: null })),
+    })
+    await expect(
+      makeService(repo).updateCellValue('u1', {
+        pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: Infinity,
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+    expect(repo.upsertCellValue).not.toHaveBeenCalled()
+  })
+
   it('rejects a SELECT option id not in settings.options', async () => {
     const repo = makeRepo({
       findPropertyById: vi.fn(async () => ({
@@ -823,6 +835,22 @@ describe('DatabaseService.updateCellValue — URL / EMAIL / PHONE', () => {
     await expect(
       makeService(repoFor('URL')).updateCellValue('u1', {
         pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'not a url',
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+  })
+
+  it('rejects a javascript: URL (XSS scheme) even though new URL() parses it', async () => {
+    await expect(
+      makeService(repoFor('URL')).updateCellValue('u1', {
+        pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'javascript:alert(1)',
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+  })
+
+  it('rejects a data: URL', async () => {
+    await expect(
+      makeService(repoFor('URL')).updateCellValue('u1', {
+        pageId: 'db-page', rowId: 'row1', propertyId: 'prop1', value: 'data:text/html,<script>1</script>',
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
   })

@@ -174,6 +174,13 @@ describe('parse — errors', () => {
   it('throws on a dangling operator', () => {
     expect(() => p('1 +')).toThrow(FormulaSyntaxError)
   })
+
+  it('rejects a deeply-nested expression instead of overflowing the stack', () => {
+    const deepParens = `${'('.repeat(500)}1${')'.repeat(500)}`
+    expect(() => p(deepParens)).toThrow(FormulaSyntaxError)
+    const deepUnary = `${'!'.repeat(500)}1`
+    expect(() => p(deepUnary)).toThrow(FormulaSyntaxError)
+  })
 })
 
 describe('astNodeSchema', () => {
