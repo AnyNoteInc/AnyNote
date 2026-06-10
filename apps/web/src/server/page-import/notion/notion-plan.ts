@@ -23,8 +23,6 @@ export type NotionDatabaseBlueprint = {
   rows: string[][]
   /** Row title → the row's source .md/.html doc (content merged into the item page). */
   rowDocs: Map<string, ImportDoc>
-  /** Row title → the row doc's notion id (registered as a row alias). */
-  rowAliasIds: Map<string, string>
 }
 
 export type NotionImportPlan = ImportPlan & {
@@ -148,7 +146,6 @@ export function buildNotionImportPlan(zipBytes: Uint8Array): NotionImportPlan {
         header: parsed[0] ?? [],
         rows: parsed.slice(1),
         rowDocs: new Map(),
-        rowAliasIds: new Map(),
       }
       databases.push(blueprint)
       blueprintByStem.set(stem, blueprint)
@@ -178,9 +175,9 @@ export function buildNotionImportPlan(zipBytes: Uint8Array): NotionImportPlan {
       if (notionId) aliases.set(notionId, cleaned)
     } else if (ASSET_EXTS.has(classifyExt)) {
       assetCount += 1
-      // Notion markdown references assets by their RAW (id-suffixed) paths, so
-      // register the same bytes under the raw path too (dedup'd by hash downstream).
-      if (f.raw !== cleaned) files.push({ path: f.raw, bytes: f.bytes })
+      // Notion markdown references assets by their RAW (id-suffixed) paths —
+      // alias raw → cleaned so references resolve without storing the bytes twice.
+      if (f.raw !== cleaned) aliases.set(f.raw, cleaned)
     }
   }
 
@@ -200,7 +197,6 @@ export function buildNotionImportPlan(zipBytes: Uint8Array): NotionImportPlan {
         format: docFormat(extOf(f.raw)),
         bytes: f.bytes,
       })
-      if (notionId) blueprint.rowAliasIds.set(title, notionId)
       // Links to row docs resolve through the row mapping keys (Task 9 records
       // onRowCreated under these sourceKeys).
       aliases.set(f.raw, sourceKey)

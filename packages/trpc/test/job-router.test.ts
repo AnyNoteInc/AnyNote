@@ -300,6 +300,59 @@ describe('job router', () => {
     expect(await prisma.file.findUnique({ where: { id: file.id } })).toBeNull()
   })
 
+  it('delete removes an import job with its REPORT file row but keeps the SOURCE file', async () => {
+    const { owner, ws } = await seed()
+    const sourceFile = await prisma.file.create({
+      data: {
+        userId: owner.id,
+        workspaceId: ws.id,
+        name: 'notion-export',
+        ext: 'zip',
+        fileSize: 1n,
+        mimeType: 'application/zip',
+        hash: 'h-del-src',
+        path: 't/del-src.zip',
+        status: 'ACTIVE',
+        isPublic: false,
+      },
+    })
+    const reportFile = await prisma.file.create({
+      data: {
+        userId: owner.id,
+        workspaceId: null,
+        name: 'import-report',
+        ext: 'txt',
+        fileSize: 1n,
+        mimeType: 'text/plain',
+        hash: 'h-del-rep',
+        path: 'imports/del-report.txt',
+        status: 'ACTIVE',
+        isPublic: false,
+      },
+    })
+    const job = await prisma.importJob.create({
+      data: {
+        workspaceId: ws.id,
+        userId: owner.id,
+        format: 'ZIP',
+        source: 'NOTION',
+        status: 'DONE',
+        artifacts: {
+          create: [
+            { fileId: sourceFile.id, kind: 'SOURCE' },
+            { fileId: reportFile.id, kind: 'REPORT' },
+          ],
+        },
+      },
+    })
+    const { caller } = makeCaller(owner.id)
+    await caller.delete({ workspaceId: ws.id, kind: 'import', jobId: job.id })
+    expect(await prisma.importJob.findUnique({ where: { id: job.id } })).toBeNull()
+    // REPORT row gone (job-private file); SOURCE row untouched (hash-shared attachment).
+    expect(await prisma.file.findUnique({ where: { id: reportFile.id } })).toBeNull()
+    expect(await prisma.file.findUnique({ where: { id: sourceFile.id } })).not.toBeNull()
+  })
+
   it('import.create rejects a non-ZIP format for a ZIP-only source (NOTION)', async () => {
     const { owner, ws } = await seed()
     const file = await prisma.file.create({

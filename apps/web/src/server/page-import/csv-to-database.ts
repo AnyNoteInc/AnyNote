@@ -97,6 +97,9 @@ export async function materializeCsvDatabase(
     })
     dbPageId = created.id
     await args.onDatabaseCreated(bp.sourceKey, dbPageId)
+    // A reclaim-race loser had its page deleted inside the callback (the winner's
+    // mapping is authoritative) — adopt the winner's id for the rest of the run.
+    dbPageId = existingMappings.get(bp.sourceKey) ?? dbPageId
   }
 
   // 2. Properties: replace the seeded default STATUS column, then create one
@@ -142,9 +145,22 @@ export async function materializeCsvDatabase(
   // 3. Rows: one item page per CSV row; cells through the domain (per-cell
   // degradation); optional row document becomes the item page content.
   let createdRows = 0
+  // Same-titled rows must not share the first row's doc-derived key (the later
+  // ones would be skipped as already-imported): only the FIRST occurrence of a
+  // title claims the rowDoc; duplicates fall back to the positional key.
+  const titlesSeen = new Set<string>()
+  const duplicatesWarned = new Set<string>()
   for (const [idx, row] of bp.rows.entries()) {
     const title = row[0]?.trim() || 'Без названия'
-    const rowDoc = bp.rowDocs?.get(title)
+    const firstOfTitle = !titlesSeen.has(title)
+    titlesSeen.add(title)
+    if (!firstOfTitle && bp.rowDocs?.has(title) && !duplicatesWarned.has(title)) {
+      duplicatesWarned.add(title)
+      journal.warn(
+        `Дубликат строки «${title}» — содержимое страницы строки взято из первого вхождения`,
+      )
+    }
+    const rowDoc = firstOfTitle ? bp.rowDocs?.get(title) : undefined
     const rowKey = rowDoc?.sourceKey ?? `${bp.sourceKey}#${idx}`
     if (existingMappings.has(rowKey)) continue
 

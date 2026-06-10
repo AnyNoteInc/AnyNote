@@ -206,6 +206,54 @@ describe('materializeCsvDatabase', () => {
     expect(rows).toHaveLength(3)
   })
 
+  it('creates a row per duplicate-titled CSV row; only the first claims the row doc', async () => {
+    const { user, ws, ctx } = await seed()
+    const journal = new ImportJournal('NOTION', 'База.csv')
+    const blueprint: CsvDatabaseBlueprint = {
+      sourceKey: 'База.csv',
+      title: 'База',
+      header: ['Name'],
+      rows: [['A'], ['A']],
+      rowDocs: new Map([
+        [
+          'A',
+          {
+            sourceKey: 'База/A.md',
+            baseName: 'A',
+            format: 'md' as const,
+            bytes: new TextEncoder().encode('# A\n\nтело A'),
+          },
+        ],
+      ]),
+    }
+    // Mirror production: onRowCreated records into existingMappings (recordMapping).
+    const mappings = new Map<string, string>()
+    const rowsCreated: Created = []
+    const args = makeArgs(user.id, ws.id, blueprint, journal, mappings, [], rowsCreated)
+    args.onRowCreated = async (key: string, pageId: string) => {
+      mappings.set(key, pageId)
+      rowsCreated.push({ key, pageId })
+    }
+
+    const result = await materializeCsvDatabase(ctx, args)
+    expect(result.createdRows).toBe(2)
+
+    const { rows } = await domain.database.listRows(user.id, {
+      pageId: result.dbPageId,
+      limit: 100,
+    })
+    expect(rows).toHaveLength(2)
+    // The duplicate falls back to the positional key (no doc-derived key reuse).
+    expect(rowsCreated.map((r) => r.key)).toEqual(['База/A.md', 'База.csv#1'])
+    expect(journal.warnings.join('\n')).toContain('Дубликат строки «A»')
+
+    // Only the FIRST occurrence received the row doc content.
+    const pages = await Promise.all(
+      rows.map((r) => prisma.page.findUniqueOrThrow({ where: { id: r.pageId } })),
+    )
+    expect(pages.filter((p) => JSON.stringify(p.content).includes('тело A'))).toHaveLength(1)
+  })
+
   it('degrades a bad cell value to a journal warning instead of failing', async () => {
     const { user, ws, ctx } = await seed()
     const journal = new ImportJournal('CSV', 'Ссылки.csv')

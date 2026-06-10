@@ -12,7 +12,7 @@ import { materializeCsvDatabase, type DatabasePort } from '@/server/page-import/
 import { parseHtmlDocument } from '@/server/page-import/html-to-tiptap'
 import { ImportJournal } from '@/server/page-import/journal'
 import { parseMarkdownDocument, type TiptapDoc } from '@/server/page-import/markdown-to-tiptap'
-import { extractNotionIdFromHref } from '@/server/page-import/notion/notion-name'
+import { cleanNotionPath, extractNotionIdFromHref } from '@/server/page-import/notion/notion-name'
 import {
   buildNotionImportPlan,
   type NotionDatabaseBlueprint,
@@ -58,6 +58,28 @@ const MIME_BY_EXT: Record<string, string> = {
   jpeg: 'image/jpeg',
   gif: 'image/gif',
   webp: 'image/webp',
+}
+
+/**
+ * Source-path lookup chain: direct → raw alias → fully-cleaned retry. The retry
+ * covers Notion's mixed paths — a RAW (id-suffixed) href resolved against the
+ * doc's CLEANED dir matches neither the cleaned mappings nor the raw aliases.
+ * Cleaning an already-clean segment is a no-op; gated on aliases so GENERIC
+ * imports (no aliases) stay byte-identical.
+ */
+function lookupSourceKey(
+  abs: string,
+  aliases: Map<string, string>,
+  lookup: (key: string) => string | undefined,
+): string | undefined {
+  const aliased = aliases.get(abs)
+  let id = lookup(abs) ?? (aliased ? lookup(aliased) : undefined)
+  if (!id && aliases.size > 0) {
+    const cleaned = cleanNotionPath(abs).cleaned
+    const cleanedAliased = aliases.get(cleaned)
+    id = lookup(cleaned) ?? (cleanedAliased ? lookup(cleanedAliased) : undefined)
+  }
+  return id
 }
 
 export async function processImportJob(ctx: ImportJobContext, jobId: string): Promise<void> {
@@ -149,7 +171,7 @@ async function run(
 
   await materializeDatabases(ctx, job, options, databases, mapped, rootPageIds, journal)
 
-  await rewriteImportedLinks(ctx, job.workspaceId, plan, mapped, aliases)
+  await rewriteImportedLinks(ctx, job.workspaceId, plan, mapped, aliases, journal)
 
   await ctx.prisma.importJob.update({
     where: { id: job.id },
@@ -192,8 +214,7 @@ async function createNode(
         }
         const abs = resolveSourcePath(docDir, decoded)
         if (!abs) return null
-        const aliased = aliases.get(abs)
-        const fileId = assetFileIds.get(abs) ?? (aliased ? assetFileIds.get(aliased) : undefined)
+        const fileId = lookupSourceKey(abs, aliases, (key) => assetFileIds.get(key))
         if (!fileId) return null
         usedFileIds.push(fileId)
         return `/api/files/${fileId}`
@@ -281,7 +302,9 @@ async function materializeDatabases(
         : (mapped.get(`${bp.parentKey}/`) ??
           mapped.get(bp.parentKey) ??
           mapped.get(`${bp.parentKey}.md`) ??
+          mapped.get(`${bp.parentKey}.markdown`) ??
           mapped.get(`${bp.parentKey}.html`) ??
+          mapped.get(`${bp.parentKey}.htm`) ??
           options.parentId)
     await materializeCsvDatabase(
       { prisma: ctx.prisma, pages: ctx.pages, database: ctx.database },
@@ -479,13 +502,20 @@ async function rewriteImportedLinks(
   plan: ImportPlan,
   mapped: Map<string, string>,
   aliases: Map<string, string>,
+  journal: ImportJournal,
 ): Promise<void> {
   const lookup = (key: string): string | undefined =>
     mapped.get(key) ?? mapped.get(`${key}/`) ?? mapped.get(`${key}.md`)
   const resolve = (abs: string): string | null => {
-    const aliased = aliases.get(abs)
-    const id = lookup(abs) ?? (aliased ? lookup(aliased) : undefined)
+    const id = lookupSourceKey(abs, aliases, lookup)
     return id ? `/pages/${id}` : null
+  }
+  // Unresolved relative links survive as-is; surface each distinct href once.
+  const warnedHrefs = new Set<string>()
+  const onUnresolved = (href: string): void => {
+    if (warnedHrefs.has(href)) return
+    warnedHrefs.add(href)
+    journal.warn(`Ссылка «${href}» не разрешена — оставлена как есть`)
   }
   // External hrefs (notion.so URLs) resolve via the bare hex id → alias → mapping.
   const resolveExternal =
@@ -517,6 +547,7 @@ async function rewriteImportedLinks(
     const { doc, changed } = rewriteRelativeLinks(page.content as unknown as TiptapDoc, {
       sourceKey: node.sourceKey,
       resolve,
+      onUnresolved,
       ...(resolveExternal ? { resolveExternal } : {}),
     })
     if (!changed) continue

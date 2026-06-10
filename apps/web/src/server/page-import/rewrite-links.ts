@@ -38,6 +38,8 @@ export function rewriteRelativeLinks(
     resolve: (absoluteSourcePath: string) => string | null
     /** Consulted for external (absolute) hrefs only — e.g. notion.so URLs. */
     resolveExternal?: (href: string) => string | null
+    /** Called with the ORIGINAL href when a relative link fails every resolution hop. */
+    onUnresolved?: (href: string) => void
   },
 ): { doc: TiptapDoc; changed: boolean } {
   const fromDir = args.sourceKey.includes('/')
@@ -67,7 +69,10 @@ export function rewriteRelativeLinks(
         }
         const abs = resolveSourcePath(fromDir, decoded)
         const target = abs ? args.resolve(abs) : null
-        if (!target) return m
+        if (!target) {
+          args.onUnresolved?.(href)
+          return m
+        }
         changed = true
         return {
           ...m,

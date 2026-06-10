@@ -39,7 +39,8 @@ describe('buildNotionImportPlan', () => {
     expect(bp.header).toEqual(['Name', 'Status', 'Count'])
     expect(bp.rows).toHaveLength(3)
     expect(bp.rowDocs.get('Задача А')).toBeDefined()
-    expect(bp.rowAliasIds.get('Задача А')).toBe(ID2)
+    // The row doc's hex id flows through plan.aliases (no separate field).
+    expect(plan.aliases.get(ID2)).toBe(bp.rowDocs.get('Задача А')!.sourceKey)
     // Row docs are NOT regular tree nodes; the db page is materialized separately.
     expect(plan.roots).toHaveLength(0)
     expect(plan.totalPages).toBe(1 + 3) // db page + 3 rows

@@ -334,9 +334,22 @@ export const jobRouter = router({
         }
         return { ok: true }
       }
-      const job = await ctx.prisma.importJob.findFirst({ where: own, select: { id: true } })
+      const job = await ctx.prisma.importJob.findFirst({
+        where: own,
+        include: { artifacts: { include: { file: true } } },
+      })
       if (!job) throw new TRPCError({ code: 'NOT_FOUND', message: 'Задание не найдено' })
+      // REPORT artifacts are job-private files (workspaceId NULL, unique
+      // imports/<jobId>-report.txt keys) — delete their rows like the export
+      // branch. SOURCE files stay: they're normal content-addressed attachments
+      // shared by hash.
+      const reports = job.artifacts.filter((a) => a.kind === 'REPORT').map((a) => a.file)
       await ctx.prisma.importJob.delete({ where: { id: job.id } })
+      for (const f of reports) {
+        await ctx.prisma.file.delete({ where: { id: f.id } }).catch((e) => {
+          console.warn('[jobs] artifact file delete failed, row orphaned', { fileId: f.id, e })
+        })
+      }
       return { ok: true }
     }),
 })

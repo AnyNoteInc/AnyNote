@@ -218,6 +218,33 @@ describe('processImportJob — source dispatch', () => {
     expect(done.status).toBe('DONE')
   })
 
+  it('resolves links and images between NESTED notion pages', async () => {
+    const IDA = 'f60718293a4b5c6d7e8f90a1b2c3d4e5'
+    const IDB = '0718293a4b5c6d7e8f90a1b2c3d4e5f6'
+    const IDC = '18293a4b5c6d7e8f90a1b2c3d4e5f607'
+    const zip = zipSync({
+      [`Раздел ${IDA}.md`]: strToU8('# Раздел\n\nИндекс.\n'),
+      [`Раздел ${IDA}/Стр ${IDB}.md`]: strToU8(
+        `# Стр\n\nСм. [друга](%D0%94%D1%80%D1%83%D0%B3%20${IDC}.md).\n\n![p](%D0%BA%D0%B0%D1%80%D1%82%D0%B8%D0%BD%D0%BA%D0%B0.png)\n`,
+      ),
+      [`Раздел ${IDA}/Друг ${IDC}.md`]: strToU8('# Друг\n\nЦель.\n'),
+      [`Раздел ${IDA}/картинка.png`]: new Uint8Array([0x89, 0x50, 0x4e, 0x47]),
+    })
+    const { ws, job, ctx } = await seed(zip, 'NOTION')
+    await processImportJob(ctx, job.id)
+    const friend = await prisma.page.findFirstOrThrow({
+      where: { workspaceId: ws.id, title: 'Друг' },
+    })
+    const page = await prisma.page.findFirstOrThrow({ where: { workspaceId: ws.id, title: 'Стр' } })
+    const content = JSON.stringify(page.content)
+    expect(content).toContain(`/pages/${friend.id}`) // nested sibling link resolved
+    expect(content).toContain('/api/files/') // nested image resolved
+    expect(content).not.toContain('.md') // no dead relative hrefs remain
+    // The asset is registered ONCE (cleaned path + raw alias), not as two
+    // same-bytes entries — exactly one File row per imported image.
+    expect(await prisma.file.count({ where: { workspaceId: ws.id, ext: 'png' } })).toBe(1)
+  })
+
   it('places a database under a merged folder node (Foo.md + Foo/)', async () => {
     const ID_A = 'd4e5f60718293a4b5c6d7e8f90a1b2c3'
     const ID_B = 'e5f60718293a4b5c6d7e8f90a1b2c3d4'
