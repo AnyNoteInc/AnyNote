@@ -1,10 +1,22 @@
-import { randomUUID } from 'node:crypto'
+import { createHash } from 'node:crypto'
 
 import { Prisma, type PrismaClient } from '@repo/db'
 
 import { buildWebhookPayload } from '../payload.ts'
 
 export type FanOutOpts = { workerId: string; batchSize: number }
+
+/**
+ * Deterministic eventId for an outbox row: sha256 of the row id, formatted as a
+ * UUID. A crash after the delivery `createMany` but before `markDone` re-claims
+ * the row and re-fans-out — a random id would mint a SECOND eventId consumers
+ * cannot dedupe. Paired with the `(subscriptionId, eventId)` unique constraint
+ * (+ `skipDuplicates`), redoing a row is fully idempotent.
+ */
+export function eventIdForOutboxRow(rowId: bigint): string {
+  const hex = createHash('sha256').update(String(rowId)).digest('hex')
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20, 32)}`
+}
 
 /** Mirrors the indexer's outbox retry policy (vectorization-cron markFailedOrRetry). */
 const OUTBOX_MAX_ATTEMPTS = 5
@@ -137,8 +149,9 @@ async function processRow(prisma: PrismaClient, row: OutboxRow): Promise<void> {
 
   const p = (row.payload ?? {}) as WebhookOutboxPayload
   // ONE event id per outbox row — it identifies the EVENT and is shared across
-  // every subscription's delivery; consumers dedupe by it.
-  const eventId = randomUUID()
+  // every subscription's delivery; consumers dedupe by it. Deterministic so a
+  // redo of the same row (crash before markDone) cannot mint a second id.
+  const eventId = eventIdForOutboxRow(row.id)
   const payload = buildWebhookPayload({
     eventId,
     event: row.event_type,
@@ -157,6 +170,9 @@ async function processRow(prisma: PrismaClient, row: OutboxRow): Promise<void> {
       eventId,
       payload: payload as Prisma.InputJsonObject,
     })),
+    // Redo self-defense: the (subscriptionId, eventId) unique constraint makes
+    // a re-fan-out of an already-delivered row a no-op instead of a duplicate.
+    skipDuplicates: true,
   })
   await markDone(prisma, row.id)
 }

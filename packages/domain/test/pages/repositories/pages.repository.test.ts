@@ -458,7 +458,7 @@ describe('PageRepository.restorePageTx — in-tx notFound + recursive restore', 
 describe('PageRepository.hardDeletePageTx — in-tx notFound + cascade', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('deletes the page and enqueues page.deleted', async () => {
+  it('deletes the page and enqueues page.deleted (indexing only, trashed-only lookup)', async () => {
     const txFindFirst = vi.fn(async () => ({ id: 'p1', workspaceId: 'w1', prevPageId: null }))
     const txUpdate = vi.fn(async () => ({}))
     const txDelete = vi.fn(async () => ({}))
@@ -471,10 +471,23 @@ describe('PageRepository.hardDeletePageTx — in-tx notFound + cascade', () => {
     )
     const result = await repo.hardDeletePageTx({ id: 'p1', workspaceId: 'w1' })
     expect(result).toEqual({ id: 'p1' })
+    // Hard-delete only operates on TRASHED pages — the lookup carries the guard.
+    expect(txFindFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: 'p1', deletedAt: { not: null } }),
+      }),
+    )
     expect(txDelete).toHaveBeenCalledWith({ where: { id: 'p1' } })
+    // Indexing row ONLY — no webhook_event row (the page is gone by fan-out
+    // time; soft-delete already emitted page.deleted).
+    expect(outboxCreate).toHaveBeenCalledTimes(1)
     expect(outboxCreate).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({ eventType: 'page.deleted', aggregateId: 'p1' }),
+        data: expect.objectContaining({
+          eventType: 'page.deleted',
+          aggregateType: 'page',
+          aggregateId: 'p1',
+        }),
       }),
     )
   })
@@ -509,17 +522,20 @@ describe('PageRepository.emptyTrashTx — per-page outbox', () => {
     expect(txDeleteMany).toHaveBeenCalledWith({
       where: { workspaceId: 'w1', deletedAt: { not: null } },
     })
-    // Two rows per page: the indexing page.deleted + the webhook_event fan-out row.
-    expect(outboxCreate).toHaveBeenCalledTimes(4)
-    expect(outboxCreate).toHaveBeenCalledWith(
-      expect.objectContaining({
-        data: expect.objectContaining({
-          eventType: 'page.deleted',
-          aggregateType: 'webhook_event',
-          aggregateId: 't1',
+    // ONE indexing row per page — no webhook_event rows (the pages are gone by
+    // fan-out time; soft-delete already emitted page.deleted).
+    expect(outboxCreate).toHaveBeenCalledTimes(2)
+    for (const id of ['t1', 't2']) {
+      expect(outboxCreate).toHaveBeenCalledWith(
+        expect.objectContaining({
+          data: expect.objectContaining({
+            eventType: 'page.deleted',
+            aggregateType: 'page',
+            aggregateId: id,
+          }),
         }),
-      }),
-    )
+      )
+    }
   })
 })
 

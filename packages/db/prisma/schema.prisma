@@ -1957,6 +1957,7 @@ model WebhookDelivery {
 
   subscription WebhookSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
+  @@unique([subscriptionId, eventId])
   @@index([status, nextAttemptAt])
   @@index([subscriptionId, createdAt])
   @@map("webhook_deliveries")

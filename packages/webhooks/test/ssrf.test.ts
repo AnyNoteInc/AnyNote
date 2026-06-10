@@ -54,6 +54,7 @@ describe('isBlockedAddress — IPv6', () => {
     ['::ffff:192.168.0.1', 'mapped private'],
     ['::ffff:169.254.169.254', 'mapped metadata'],
     ['::ffff:c0a8:1', 'mapped private (hex form)'],
+    ['fe80::1%eth0', 'link-local with zone id'],
   ])('blocks %s (%s)', (address) => {
     expect(isBlockedAddress(address, 6)).toBe(true)
   })
@@ -111,6 +112,13 @@ describe('assertSafeWebhookUrl', () => {
     await expect(assertSafeWebhookUrl('https://[::1]/x', neverLookup)).rejects.toBeInstanceOf(
       SsrfBlockedError,
     )
+  })
+
+  it('rejects zone-id IPv6 literals without a DNS lookup', async () => {
+    const neverLookup: LookupFn = () => Promise.reject(new Error('must not be called'))
+    await expect(
+      assertSafeWebhookUrl('https://[fe80::1%25eth0]/x', neverLookup),
+    ).rejects.toBeInstanceOf(SsrfBlockedError)
   })
 
   it('blocks a public-looking hostname resolving to a private IP (DNS rebinding)', async () => {

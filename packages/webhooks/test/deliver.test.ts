@@ -293,6 +293,30 @@ describe('runDeliveryTick (integration)', () => {
     expect((await getSubscription(fx.subscriptionId)).consecutiveFailures).toBe(1)
   })
 
+  it('fails terminally on the FIRST tick when the subscription secret cannot be decrypted', async () => {
+    const fx = await seed()
+    const delivery = await makeDelivery(fx)
+    // Corrupted/garbage secretEnc — decryptSecret must not crash the tick into
+    // the retry ladder; the failure is permanent until the secret is rotated.
+    await prisma.webhookSubscription.update({
+      where: { id: fx.subscriptionId },
+      data: { secretEnc: { garbage: true } as unknown as Prisma.InputJsonValue },
+    })
+    const fetchFn = vi.fn(async () => new Response('ok', { status: 200 }))
+
+    await runDeliveryTick(prisma, tickOpts(fetchFn))
+
+    expect(fetchFn).not.toHaveBeenCalled()
+    const after = await getDelivery(delivery.id)
+    expect(after.status).toBe('FAILED')
+    expect(after.lastError).toMatch(/decrypt failed/i)
+    // Terminal on the first tick — no retry scheduling ever happened.
+    expect(after.attempts).toBeLessThanOrEqual(1)
+    expect(after.lockedAt).toBeNull()
+    // Counted: a permanently broken secret must drive auto-disable like SSRF.
+    expect((await getSubscription(fx.subscriptionId)).consecutiveFailures).toBe(1)
+  })
+
   it('re-checks visibility at send time: a page moved to PERSONAL fails terminally, uncounted', async () => {
     const fx = await seed()
     const delivery = await makeDelivery(fx)

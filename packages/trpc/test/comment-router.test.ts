@@ -88,6 +88,9 @@ describe('comment.listThreads / createThread', () => {
     const tx = {
       pageCommentThread: { create: vi.fn(async () => ({ id: 't1' })) },
       pageComment: { create: vi.fn(async () => ({ id: 'c1' })) },
+      // The webhook emission must be transactional with the write — it goes
+      // through the SAME tx client, never the root prisma.
+      outboxEvent: { create: vi.fn(async () => ({})) },
     }
     const prisma = {
       page: { findUnique: vi.fn(async () => PAGE) },
@@ -99,11 +102,9 @@ describe('comment.listThreads / createThread', () => {
       },
       user: { findUnique: vi.fn(async () => ({ firstName: 'A', lastName: '', email: 'a@b.c' })) },
       $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
-      pageComment: { findFirst: vi.fn(async () => ({ id: 'c1' })) },
       pageCommentThread: {
         findUnique: vi.fn(async () => ({ createdById: null, page: { createdById: 'owner' }, comments: [] })),
       },
-      outboxEvent: { create: vi.fn(async () => ({})) },
     } as never
     // make the final findUnique (return value) resolve to the created thread
     ;(prisma as { pageCommentThread: { findUnique: ReturnType<typeof vi.fn> } }).pageCommentThread.findUnique
@@ -118,6 +119,16 @@ describe('comment.listThreads / createThread', () => {
     })
     expect(tx.pageCommentThread.create).toHaveBeenCalledOnce()
     expect(tx.pageComment.create).toHaveBeenCalledOnce()
+    // The comment.created webhook outbox row is written INSIDE the transaction.
+    expect(tx.outboxEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          eventType: 'comment.created',
+          aggregateType: 'webhook_event',
+          aggregateId: PAGE_ID,
+        }),
+      }),
+    )
     expect(res?.id).toBe('t1')
     expect(notify.commentCreated).toHaveBeenCalledWith(
       expect.anything(),
@@ -152,6 +163,7 @@ describe('comment.listThreads / createThread', () => {
     const tx = {
       pageCommentThread: { create: vi.fn(async () => ({ id: 't1' })) },
       pageComment: { create: vi.fn(async () => ({ id: 'c1' })) },
+      outboxEvent: { create: vi.fn(async () => ({})) },
     }
     const prisma = {
       pageShare: {
@@ -164,10 +176,8 @@ describe('comment.listThreads / createThread', () => {
         })),
       },
       $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
-      pageComment: { findFirst: vi.fn(async () => ({ id: 'c1' })) },
       pageCommentThread: { findUnique: vi.fn(async () => ({ id: 't1', page: { createdById: 'owner' }, comments: [] })) },
       workspaceMember: { findMany: vi.fn(async () => []) },
-      outboxEvent: { create: vi.fn(async () => ({})) },
     } as never
     await caller(ctx(prisma, null)).createThread({
       shareId: 'public-share',
@@ -186,6 +196,42 @@ describe('comment.listThreads / createThread', () => {
       }),
     )
     expect(tx.pageComment.create.mock.calls[0]?.[0].data.authorName).not.toContain('anon-123')
+  })
+
+  it('adds a reply with the write + webhook emission inside one transaction', async () => {
+    const THREAD_ID = '66666666-6666-6666-6666-666666666666'
+    const tx = {
+      pageComment: { create: vi.fn(async () => ({ id: 'c2' })) },
+      outboxEvent: { create: vi.fn(async () => ({})) },
+    }
+    const prisma = {
+      page: { findUnique: vi.fn(async () => PAGE) },
+      workspaceMember: {
+        findUnique: vi.fn(async () => ({ role: 'COMMENTER' })),
+        findMany: vi.fn(async () => []),
+      },
+      user: { findUnique: vi.fn(async () => ({ firstName: 'A', lastName: '', email: 'a@b.c' })) },
+      pageCommentThread: {
+        findUnique: vi.fn(async () => ({ pageId: PAGE_ID, page: { createdById: 'owner' }, comments: [] })),
+      },
+      $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
+    } as never
+    const res = await caller(ctx(prisma, { id: 'u1' })).addComment({
+      pageId: PAGE_ID,
+      threadId: THREAD_ID,
+      content: { text: 'reply', mentions: [] },
+    })
+    expect(res).toEqual({ id: 'c2' })
+    expect(tx.pageComment.create).toHaveBeenCalledOnce()
+    expect(tx.outboxEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          eventType: 'comment.created',
+          aggregateType: 'webhook_event',
+          aggregateId: PAGE_ID,
+        }),
+      }),
+    )
   })
 
   it('rejects anonymous addComment without anonId on a public commenter link', async () => {
@@ -316,16 +362,27 @@ describe('comment edit/delete/resolve', () => {
     )
   })
 
-  it('resolves a thread', async () => {
-    const prisma = memberPrisma('COMMENTER', {
-      pageCommentThread: {
-        findUnique: vi.fn(async () => ({ pageId: PAGE_ID })),
-        update: vi.fn(async () => ({ id: THREAD_ID, resolvedAt: new Date() })),
-      },
+  it('resolves a thread (write + webhook emission inside one transaction)', async () => {
+    const tx = {
+      pageCommentThread: { update: vi.fn(async () => ({ id: THREAD_ID, resolvedAt: new Date() })) },
       outboxEvent: { create: vi.fn(async () => ({})) },
+    }
+    const prisma = memberPrisma('COMMENTER', {
+      pageCommentThread: { findUnique: vi.fn(async () => ({ pageId: PAGE_ID })) },
+      $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
     })
     const res = await caller(ctx(prisma, { id: 'u1' })).resolveThread({ pageId: PAGE_ID, threadId: THREAD_ID })
     expect(res.resolvedAt).toBeTruthy()
+    expect(tx.pageCommentThread.update).toHaveBeenCalledOnce()
+    expect(tx.outboxEvent.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          eventType: 'comment.resolved',
+          aggregateType: 'webhook_event',
+          aggregateId: PAGE_ID,
+        }),
+      }),
+    )
   })
 
   it('rejects anonymous resolveThread without anonId on a public commenter link', async () => {
@@ -442,6 +499,7 @@ describe('comment access boundaries + mention validation', () => {
     const tx = {
       pageCommentThread: { create: vi.fn(async () => ({ id: 't1' })) },
       pageComment: { create: vi.fn(async () => ({ id: 'c1' })) },
+      outboxEvent: { create: vi.fn(async () => ({})) },
     }
     const prisma = {
       page: { findUnique: vi.fn(async () => PAGE) },
@@ -456,9 +514,7 @@ describe('comment access boundaries + mention validation', () => {
       },
       user: { findUnique: vi.fn(async () => ({ firstName: 'A', lastName: '', email: 'a@b.c' })) },
       $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
-      pageComment: { findFirst: vi.fn(async () => ({ id: 'c1' })) },
       pageCommentThread: { findUnique: vi.fn(async () => ({ page: { createdById: 'owner' }, comments: [] })) },
-      outboxEvent: { create: vi.fn(async () => ({})) },
     } as never
     await caller(ctx(prisma, { id: 'u1' })).createThread({
       pageId: PAGE_ID, anchorStart: 'x', anchorEnd: 'y', quotedText: 'q',
@@ -477,6 +533,7 @@ describe('comment access boundaries + mention validation', () => {
     const tx = {
       pageCommentThread: { create: vi.fn(async () => ({ id: 't1' })) },
       pageComment: { create: vi.fn(async () => ({ id: 'c1' })) },
+      outboxEvent: { create: vi.fn(async () => ({})) },
     }
     const prisma = {
       page: { findUnique: vi.fn(async () => PAGE) },
@@ -486,9 +543,7 @@ describe('comment access boundaries + mention validation', () => {
       },
       user: { findUnique: vi.fn(async () => ({ firstName: 'A', lastName: '', email: 'a@b.c' })) },
       $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
-      pageComment: { findFirst: vi.fn(async () => ({ id: 'c1' })) },
       pageCommentThread: { findUnique: vi.fn(async () => ({ page: { createdById: 'owner' }, comments: [] })) },
-      outboxEvent: { create: vi.fn(async () => ({})) },
     } as never
     await caller(ctx(prisma, { id: 'u1' })).createThread({
       pageId: PAGE_ID, anchorStart: 'x', anchorEnd: 'y', quotedText: 'q',

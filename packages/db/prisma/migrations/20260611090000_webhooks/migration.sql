@@ -63,3 +63,6 @@ ALTER TABLE "webhook_subscriptions" ADD CONSTRAINT "webhook_subscriptions_create
 -- AddForeignKey
 ALTER TABLE "webhook_deliveries" ADD CONSTRAINT "webhook_deliveries_subscription_id_fkey" FOREIGN KEY ("subscription_id") REFERENCES "webhook_subscriptions"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+
+-- CreateIndex
+CREATE UNIQUE INDEX "webhook_deliveries_subscription_id_event_id_key" ON "webhook_deliveries"("subscription_id", "event_id");

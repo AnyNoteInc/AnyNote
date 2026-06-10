@@ -183,7 +183,21 @@ async function attemptDelivery(
     return
   }
 
-  const secret = decryptSecret(sub.secretEnc as unknown as EncryptedPayload)
+  // A corrupted/undecryptable secret is permanent until rotated. Terminal AND
+  // counted (the SSRF pattern) — retrying cannot fix it, and it must drive the
+  // subscription toward auto-disable.
+  let secret: string
+  try {
+    secret = decryptSecret(sub.secretEnc as unknown as EncryptedPayload)
+  } catch (err) {
+    await failTerminal(prisma, delivery.id, `decrypt failed: ${errorMessage(err)}`)
+    await bumpConsecutiveFailures(
+      prisma,
+      sub.id,
+      opts.autoDisableThreshold ?? DEFAULT_AUTO_DISABLE_THRESHOLD,
+    )
+    return
+  }
   const body = JSON.stringify(delivery.payload)
   const timestampSec = Math.floor(Date.now() / 1000)
   const signature = signWebhookPayload(secret, timestampSec, body)

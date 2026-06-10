@@ -6,7 +6,7 @@ import {
   resolvePageActivityRecipients,
 } from '@repo/notifications'
 import { enqueueWebhookEvent } from '@repo/db'
-import type { Prisma, PrismaClient } from '@repo/db'
+import type { PrismaClient } from '@repo/db'
 
 import { router, publicProcedure } from '../trpc'
 import { resolveCommentContext, canWriteComment } from '../helpers/comment-access'
@@ -266,7 +266,9 @@ export const commentRouter = router({
       const c = await resolveCommentContext(ctx, input)
       if (!canWriteComment(c.role)) throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
       requireAnonymousAuthorIdentity(c)
-      const thread = await ctx.prisma.$transaction(async (tx) => {
+      // The webhook emission is transactional with the write: a failed emission
+      // rolls the comment back, and a committed comment never loses its event.
+      const { thread, commentId } = await ctx.prisma.$transaction(async (tx) => {
         const t = await tx.pageCommentThread.create({
           data: {
             pageId: c.pageId,
@@ -277,7 +279,7 @@ export const commentRouter = router({
           },
           select: { id: true },
         })
-        await tx.pageComment.create({
+        const comment = await tx.pageComment.create({
           data: {
             threadId: t.id,
             authorId: c.author.userId ?? null,
@@ -287,25 +289,21 @@ export const commentRouter = router({
           },
           select: { id: true },
         })
-        return t
+        await enqueueWebhookEvent(tx, {
+          event: 'comment.created',
+          resourceType: 'comment',
+          resourceId: c.pageId,
+          workspaceId: c.workspaceId,
+          actorId: c.author.userId ?? null,
+          hints: { threadId: t.id, commentId: comment.id },
+        })
+        return { thread: t, commentId: comment.id }
       })
-      const firstComment = await ctx.prisma.pageComment.findFirst({
-        where: { threadId: thread.id },
-        orderBy: { createdAt: 'asc' },
-        select: { id: true },
-      })
-      // TransactionClient is structurally a subset of PrismaClient — the create call works.
-      await enqueueWebhookEvent(ctx.prisma as unknown as Prisma.TransactionClient, {
-        event: 'comment.created',
-        resourceType: 'comment',
-        resourceId: c.pageId,
-        workspaceId: c.workspaceId,
-        actorId: c.author.userId ?? null,
-        hints: { threadId: thread.id, commentId: firstComment?.id ?? thread.id },
-      })
+      // Notifications/bus are post-commit side effects — they must never fail
+      // (or roll back) the committed write.
       await notifyNewComment(ctx.prisma, {
         threadId: thread.id,
-        commentId: firstComment?.id ?? thread.id,
+        commentId,
         pageId: c.pageId,
         workspaceId: c.workspaceId,
         actor: c.author,
@@ -341,24 +339,28 @@ export const commentRouter = router({
       if (!thread || thread.pageId !== c.pageId) {
         throw new TRPCError({ code: 'NOT_FOUND', message: 'Тред не найден' })
       }
-      const comment = await ctx.prisma.pageComment.create({
-        data: {
-          threadId: input.threadId,
-          authorId: c.author.userId ?? null,
-          authorName: c.author.name,
-          authorAnonId: c.author.anonId ?? null,
-          content: input.content,
-        },
-        select: { id: true },
-      })
-      // TransactionClient is structurally a subset of PrismaClient — the create call works.
-      await enqueueWebhookEvent(ctx.prisma as unknown as Prisma.TransactionClient, {
-        event: 'comment.created',
-        resourceType: 'comment',
-        resourceId: c.pageId,
-        workspaceId: c.workspaceId,
-        actorId: c.author.userId ?? null,
-        hints: { threadId: input.threadId, commentId: comment.id },
+      // Write + webhook emission commit (or roll back) together; notifications
+      // and the bus emit stay post-commit.
+      const comment = await ctx.prisma.$transaction(async (tx) => {
+        const created = await tx.pageComment.create({
+          data: {
+            threadId: input.threadId,
+            authorId: c.author.userId ?? null,
+            authorName: c.author.name,
+            authorAnonId: c.author.anonId ?? null,
+            content: input.content,
+          },
+          select: { id: true },
+        })
+        await enqueueWebhookEvent(tx, {
+          event: 'comment.created',
+          resourceType: 'comment',
+          resourceId: c.pageId,
+          workspaceId: c.workspaceId,
+          actorId: c.author.userId ?? null,
+          hints: { threadId: input.threadId, commentId: created.id },
+        })
+        return created
       })
       await notifyNewComment(ctx.prisma, {
         threadId: input.threadId,
@@ -457,19 +459,23 @@ export const commentRouter = router({
         select: { pageId: true },
       })
       if (!thread || thread.pageId !== c.pageId) throw new TRPCError({ code: 'NOT_FOUND', message: 'Тред не найден' })
-      const updated = await ctx.prisma.pageCommentThread.update({
-        where: { id: input.threadId },
-        data: { resolvedAt: new Date(), resolvedById: c.author.userId ?? null },
-        select: { id: true, resolvedAt: true },
-      })
-      // TransactionClient is structurally a subset of PrismaClient — the create call works.
-      await enqueueWebhookEvent(ctx.prisma as unknown as Prisma.TransactionClient, {
-        event: 'comment.resolved',
-        resourceType: 'comment',
-        resourceId: c.pageId,
-        workspaceId: c.workspaceId,
-        actorId: c.author.userId ?? null,
-        hints: { threadId: input.threadId, resolved: true },
+      // Write + webhook emission commit (or roll back) together; the bus emit
+      // stays post-commit.
+      const updated = await ctx.prisma.$transaction(async (tx) => {
+        const u = await tx.pageCommentThread.update({
+          where: { id: input.threadId },
+          data: { resolvedAt: new Date(), resolvedById: c.author.userId ?? null },
+          select: { id: true, resolvedAt: true },
+        })
+        await enqueueWebhookEvent(tx, {
+          event: 'comment.resolved',
+          resourceType: 'comment',
+          resourceId: c.pageId,
+          workspaceId: c.workspaceId,
+          actorId: c.author.userId ?? null,
+          hints: { threadId: input.threadId, resolved: true },
+        })
+        return u
       })
       pageCommentBus.emit(c.pageId, { kind: 'thread.upserted', threadId: input.threadId })
       return updated

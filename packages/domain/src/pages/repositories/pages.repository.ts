@@ -855,9 +855,11 @@ export class PageRepository {
   async hardDeletePageTx(
     input: HardDeletePageInput,
   ): Promise<CreateResultDto> {
-    // Interleaved check: must be inside the tx (woven into the I/O sequence)
+    // Interleaved check: must be inside the tx (woven into the I/O sequence).
+    // deletedAt guard: hard-delete is only reachable from the trash — a live
+    // page must be soft-deleted first (the UI contract).
     const page = await this.uow.client().page.findFirst({
-      where: { id: input.id, workspaceId: input.workspaceId },
+      where: { id: input.id, workspaceId: input.workspaceId, deletedAt: { not: null } },
     })
     if (!page) {
       throw notFound('Страница не найдена')
@@ -883,16 +885,7 @@ export class PageRepository {
       aggregateId: page.id,
       workspaceId: input.workspaceId,
     })
-    // actorId null: hardDeletePageTx doesn't receive the actor (only the input
-    // DTO) — the service-level ownership check already ran before the tx.
-    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
-      event: 'page.deleted',
-      resourceType: 'page',
-      resourceId: page.id,
-      workspaceId: input.workspaceId,
-      actorId: null,
-      hints: { hard: true },
-    })
+    // No webhook emission: the page row is gone by fan-out time (soft-delete already emitted page.deleted; purge is silent).
 
     return { id: page.id }
   }
@@ -912,16 +905,7 @@ export class PageRepository {
         aggregateId: id,
         workspaceId: input.workspaceId,
       })
-      // actorId null: emptyTrashTx doesn't receive the actor (only the input
-      // DTO) — the service-level OWNER check already ran before the tx.
-      await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
-        event: 'page.deleted',
-        resourceType: 'page',
-        resourceId: id,
-        workspaceId: input.workspaceId,
-        actorId: null,
-        hints: { hard: true },
-      })
+      // No webhook emission: the page row is gone by fan-out time (soft-delete already emitted page.deleted; purge is silent).
     }
     return { count: deleted.count }
   }

@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { encryptSecret } from '@repo/auth/secret-encryption.ts'
 import { prisma, CollectionKind, type Prisma } from '@repo/db'
 
-import { runFanOutTick } from '../src/worker/fan-out.ts'
+import { eventIdForOutboxRow, runFanOutTick } from '../src/worker/fan-out.ts'
 
 // Real-DB integration test for the webhook fan-out tick (outbox → deliveries).
 // Self-cleaning via an email-suffix fixture namespace, like the trpc router
@@ -286,6 +286,55 @@ describe('runFanOutTick (integration)', () => {
     for (const sub of inactive) {
       expect(deliveries.some((d) => d.subscriptionId === sub.id)).toBe(false)
     }
+  })
+
+  it('re-fanning out the same outbox row (crash before markDone) yields ONE delivery with a stable eventId', async () => {
+    const fx = await seed()
+    await enqueueWebhookOutboxRow({
+      event: 'page.created',
+      pageId: fx.teamPageId,
+      workspaceId: fx.wsId,
+      actorId: fx.ownerId,
+    })
+
+    await runFanOutUntilDrained()
+
+    const first = await prisma.webhookDelivery.findMany({
+      where: { subscriptionId: fx.subscriptionId },
+    })
+    expect(first).toHaveLength(1)
+    const firstEventId = first[0]!.eventId
+
+    // The id is DERIVED from the outbox row id — not random — so any redo
+    // recomputes the exact same value.
+    const outboxRow = await prisma.outboxEvent.findFirstOrThrow({
+      where: { workspaceId: fx.wsId, aggregateType: 'webhook_event' },
+      select: { id: true },
+    })
+    expect(firstEventId).toBe(eventIdForOutboxRow(outboxRow.id))
+
+    // Simulate a crash AFTER createMany but BEFORE markDone: the row is
+    // re-claimed on the next tick and the fan-out redoes its work.
+    await prisma.outboxEvent.updateMany({
+      where: { workspaceId: fx.wsId, aggregateType: 'webhook_event' },
+      data: {
+        status: 'PENDING',
+        lockedAt: null,
+        lockedBy: null,
+        processedAt: null,
+        nextAttemptAt: new Date(Date.now() - 60_000),
+      },
+    })
+
+    await runFanOutUntilDrained()
+
+    const second = await prisma.webhookDelivery.findMany({
+      where: { subscriptionId: fx.subscriptionId },
+    })
+    // STILL exactly one delivery — consumers must never see a duplicate they
+    // cannot dedupe by eventId.
+    expect(second).toHaveLength(1)
+    expect(second[0]!.eventId).toBe(firstEventId)
   })
 
   it('drops events for pages whose parent is a DATABASE page (item-page defense)', async () => {
