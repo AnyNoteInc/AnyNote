@@ -23,7 +23,7 @@ import { apiKeyRouter } from './routers/api-key'
 import { aiProviderRouter } from './routers/ai-provider'
 
 export { createContext, createServerContext } from './trpc'
-export type { Context } from './trpc'
+export type { Context, JobRunnerPort } from './trpc'
 
 export type { PlanFeatures } from './helpers/plan'
 export {

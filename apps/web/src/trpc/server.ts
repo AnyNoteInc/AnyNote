@@ -5,11 +5,14 @@ import { headers } from 'next/headers'
 
 import { createCaller, createServerContext } from '@repo/trpc'
 import { getYookassaClient, getReturnUrlBase } from '@/server/yookassa'
+import { kickJob } from '@/server/jobs/kick'
 import '@/lib/register-consent-versions'
 
 export const getServerTRPC = cache(async () => {
   const heads = new Headers(await headers())
   heads.set('x-trpc-source', 'rsc')
-  const ctx = await createServerContext(heads, getYookassaClient(), getReturnUrlBase())
+  const ctx = await createServerContext(heads, getYookassaClient(), getReturnUrlBase(), {
+    kick: kickJob,
+  })
   return createCaller(ctx)
 })

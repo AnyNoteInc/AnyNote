@@ -9,11 +9,17 @@ type YookassaClientLike = {
   getPayment(paymentId: string): Promise<Payment>
 }
 
+/** apps/web injects the real runner; tests/RSC default to a no-op. */
+export type JobRunnerPort = { kick(jobId: string, kind: 'import' | 'export'): void }
+
+const NOOP_JOBS: JobRunnerPort = { kick: () => {} }
+
 type CreateContextOptions = {
   req: Request
   resHeaders: Headers
   yookassa: YookassaClientLike
   returnUrlBase: string
+  jobs?: JobRunnerPort
 }
 
 export const createContext = async ({
@@ -21,6 +27,7 @@ export const createContext = async ({
   resHeaders,
   yookassa,
   returnUrlBase,
+  jobs,
 }: CreateContextOptions) => {
   const user = await getUserFromRequest(req, resHeaders)
   return {
@@ -30,6 +37,7 @@ export const createContext = async ({
     resHeaders,
     yookassa,
     returnUrlBase,
+    jobs: jobs ?? NOOP_JOBS,
   }
 }
 
@@ -37,12 +45,14 @@ export const createServerContext = async (
   headers: Headers,
   yookassa: YookassaClientLike,
   returnUrlBase: string,
+  jobs?: JobRunnerPort,
 ) => {
   return createContext({
     req: new Request('http://rsc.internal', { headers }),
     resHeaders: new Headers(),
     yookassa,
     returnUrlBase,
+    jobs,
   })
 }
 
