@@ -25,7 +25,7 @@ export function ImportLogDialog({ open, onClose, job }: Props) {
 
   return (
     <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth data-testid="import-log-dialog">
-      <DialogTitle>Журнал импорта</DialogTitle>
+      <DialogTitle>{job.kind === 'export' ? 'Журнал экспорта' : 'Журнал импорта'}</DialogTitle>
       <DialogContent>
         {warnings.length === 0 ? (
           <Typography variant="body2" color="text.secondary">

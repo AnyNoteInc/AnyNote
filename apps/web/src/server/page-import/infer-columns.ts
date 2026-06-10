@@ -89,10 +89,16 @@ function pinnedColumn(name: string, type: InferredType, values: string[]): Infer
   if (type === 'CHECKBOX') return checkboxColumn(name)
   if (type === 'DATE') return dateColumn(name)
   if (type === 'URL' || type === 'EMAIL' || type === 'PHONE') return patternColumn(name, type)
-  if (type === 'SELECT') return selectColumn(name, [...new Set(values)], false)
-  if (type === 'MULTI_SELECT') {
-    const parts = values.flatMap((v) => v.split(', ').map((p) => p.trim()))
-    return selectColumn(name, [...new Set(parts.filter((p) => p !== ''))], true)
+  if (type === 'SELECT' || type === 'MULTI_SELECT') {
+    const isMulti = type === 'MULTI_SELECT'
+    const parts = isMulti ? values.flatMap((v) => v.split(', ').map((p) => p.trim())) : values
+    const distinct = [...new Set(parts.filter((p) => p !== ''))]
+    // Same guard as auto-inference: an unbounded/oversized option set would
+    // bloat the property settings — degrade the pin to TEXT instead.
+    if (distinct.length > MAX_SELECT_OPTIONS || distinct.some((p) => p.length > MAX_OPTION_LABEL)) {
+      return textColumn(name)
+    }
+    return selectColumn(name, distinct, isMulti)
   }
   return textColumn(name)
 }

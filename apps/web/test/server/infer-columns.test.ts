@@ -77,4 +77,29 @@ describe('inferColumns overrides', () => {
     expect(cols[1]!.toValue('3')).toBe('3')
     expect(cols[2]!.skip).toBe(true)
   })
+
+  it('falls back to TEXT when a pinned SELECT exceeds the option cap', () => {
+    const rows = Array.from({ length: 30 }, (_, i) => [`значение-${i}`])
+    const cols = inferColumns(['Категория'], rows, { overrides: { 0: 'SELECT' } })
+    expect(cols[0]!.type).toBe('TEXT')
+    expect(cols[0]!.options).toBeUndefined()
+    expect(cols[0]!.toValue('значение-1')).toBe('значение-1')
+  })
+
+  it('falls back to TEXT when a pinned MULTI_SELECT label exceeds the length cap', () => {
+    const long = 'x'.repeat(61)
+    const cols = inferColumns(['Теги'], [[`a, ${long}`], ['b']], {
+      overrides: { 0: 'MULTI_SELECT' },
+    })
+    expect(cols[0]!.type).toBe('TEXT')
+    expect(cols[0]!.options).toBeUndefined()
+  })
+
+  it('keeps pinned SELECT options within the caps', () => {
+    const cols = inferColumns(['Статус'], [['Open'], ['Done'], ['Open']], {
+      overrides: { 0: 'SELECT' },
+    })
+    expect(cols[0]!.type).toBe('SELECT')
+    expect(cols[0]!.options!.map((o) => o.label).sort()).toEqual(['Done', 'Open'])
+  })
 })

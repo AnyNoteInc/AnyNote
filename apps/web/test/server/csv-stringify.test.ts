@@ -32,6 +32,25 @@ describe('csvCellValue', () => {
   })
 })
 
+describe('buildCsv formula-injection guard', () => {
+  const TEXT_PROP = { id: 't1', name: 'Поле', type: 'TEXT', settings: null }
+
+  it('prefixes =, +, @ and non-numeric minus cells with an apostrophe', () => {
+    const csv = buildCsv(
+      [TEXT_PROP],
+      [
+        { title: '=HYPERLINK("x")', cells: { t1: '+cmd' } },
+        { title: '@x', cells: { t1: '-3.5' } },
+        { title: '-cmd', cells: { t1: '-7' } },
+      ],
+    )
+    const lines = csv.slice(1).split('\r\n')
+    expect(lines[1]).toBe('"\'=HYPERLINK(""x"")",\'+cmd')
+    expect(lines[2]).toBe("'@x,-3.5")
+    expect(lines[3]).toBe("'-cmd,-7")
+  })
+})
+
 describe('buildCsv', () => {
   it('escapes per RFC-4180, prefixes BOM, and emits the title column first', () => {
     const csv = buildCsv(

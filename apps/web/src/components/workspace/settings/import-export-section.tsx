@@ -124,7 +124,7 @@ export function ImportExportSection({ workspaceId }: Props) {
                   </TableCell>
                   <TableCell align="right">
                     <Stack direction="row" spacing={0.5} justifyContent="flex-end">
-                      {j.kind === 'import' && (j.warningsCount > 0 || j.hasReport) ? (
+                      {j.warningsCount > 0 || j.hasReport ? (
                         <Button
                           size="small"
                           variant="text"

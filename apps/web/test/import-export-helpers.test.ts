@@ -40,6 +40,26 @@ describe('describeJob', () => {
     ).toBe('Экспорт: всё пространство · Markdown')
   })
 
+  it('labels PDF_ZIP exports as PDF', () => {
+    expect(
+      describeJob({
+        id: '1',
+        kind: 'export',
+        status: 'DONE',
+        scope: 'SUBTREE',
+        format: 'PDF_ZIP',
+        processed: 1,
+        total: 1,
+        error: null,
+        createdAt: new Date(),
+        hasArtifact: true,
+        sourceName: null,
+        hasReport: false,
+        warningsCount: 0,
+      }),
+    ).toBe('Экспорт: страница с подстраницами · PDF')
+  })
+
   it('prefixes non-generic import sources and keeps the generic form byte-identical', () => {
     const base: Omit<JobRow, 'sourceName' | 'source'> = {
       id: '1',
@@ -69,6 +89,10 @@ describe('SOURCE_CARDS', () => {
     expect(disabled).toEqual(['ASANA', 'MONDAY'])
     expect(SOURCE_CARDS.find((c) => c.key === 'NOTION')?.accept).toBe('.zip')
     expect(SOURCE_CARDS.find((c) => c.key === 'CONFLUENCE')?.accept).toBe('.zip')
+  })
+
+  it('accepts .csv on the GENERIC card (database import)', () => {
+    expect(SOURCE_CARDS.find((c) => c.key === 'GENERIC')?.accept).toContain('.csv')
   })
 })
 

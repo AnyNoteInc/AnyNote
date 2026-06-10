@@ -45,9 +45,11 @@ const SCOPE_LABEL: Record<string, string> = {
 const FORMAT_LABEL: Record<string, string> = {
   MARKDOWN_ZIP: 'Markdown',
   HTML_ZIP: 'HTML',
+  PDF_ZIP: 'PDF',
   MARKDOWN: 'Markdown',
   HTML: 'HTML',
   ZIP: 'ZIP',
+  CSV: 'CSV',
 }
 
 const SOURCE_LABEL: Record<string, string> = {

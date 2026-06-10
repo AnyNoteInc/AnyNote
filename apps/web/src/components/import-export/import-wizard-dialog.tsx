@@ -15,7 +15,15 @@ import {
   DialogActions,
   DialogContent,
   DialogTitle,
+  MenuItem,
+  Select,
   Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableRow,
+  TextField,
   Typography,
   UploadFileIcon,
 } from '@repo/ui/components'
@@ -25,6 +33,10 @@ import {
   PageTreePicker,
   type PageTreeSelection,
 } from '@/components/workspace/page-tree-picker'
+// Pure, dependency-light modules (RFC-4180 parser + column inference) — safe to
+// bundle client-side; the server re-parses the full file authoritatively.
+import { parseCsv } from '@/server/page-import/csv'
+import { inferColumns, type InferredType } from '@/server/page-import/infer-columns'
 import { trpc } from '@/trpc/client'
 
 import { detectImportFormat, uploadMimeFor } from './import-format'
@@ -37,6 +49,33 @@ type Props = {
 }
 
 type ImportLocation = 'team' | 'private'
+
+type ColumnPick = InferredType | 'skip'
+
+type CsvPreview = {
+  header: string[]
+  /** Up to 10 sample data rows for the preview table. */
+  rows: string[][]
+  /** Inferred default type per FULL header index (index 0 = the title column). */
+  defaults: InferredType[]
+}
+
+/** Preview parses at most header + 200 data lines (the server parses the full file). */
+const PREVIEW_LINES = 201
+const PREVIEW_SAMPLE_ROWS = 10
+
+const CSV_TYPE_OPTIONS: { value: ColumnPick; label: string }[] = [
+  { value: 'TEXT', label: 'Текст' },
+  { value: 'NUMBER', label: 'Число' },
+  { value: 'CHECKBOX', label: 'Чекбокс' },
+  { value: 'DATE', label: 'Дата' },
+  { value: 'SELECT', label: 'Выбор' },
+  { value: 'MULTI_SELECT', label: 'Мультивыбор' },
+  { value: 'URL', label: 'URL' },
+  { value: 'EMAIL', label: 'Email' },
+  { value: 'PHONE', label: 'Телефон' },
+  { value: 'skip', label: 'Пропустить' },
+]
 
 function SourceCardContent({ card }: { card: SourceCard }) {
   return (
@@ -66,6 +105,9 @@ export function ImportWizardDialog({ open, onClose, workspaceId }: Props) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [done, setDone] = useState(false)
+  const [preview, setPreview] = useState<CsvPreview | null>(null)
+  const [overrides, setOverrides] = useState<Record<number, ColumnPick>>({})
+  const [dbTitle, setDbTitle] = useState('')
 
   const pagesQ = trpc.page.listByWorkspace.useQuery({ workspaceId }, { enabled: open })
 
@@ -73,18 +115,54 @@ export function ImportWizardDialog({ open, onClose, workspaceId }: Props) {
     onSuccess: () => utils.job.list.invalidate({ workspaceId }),
   })
 
-  // CSV is detected for the upcoming database-import flow; until the wizard
-  // grows its CSV step it stays unsupported here (same UX as an unknown file).
-  const detected = file ? detectImportFormat(file.name) : null
-  const format = detected === 'CSV' ? null : detected
+  const format = file ? detectImportFormat(file.name) : null
   const requiresZip = source?.key === 'NOTION' || source?.key === 'CONFLUENCE'
   const zipMismatch = requiresZip && format !== null && format !== 'ZIP'
+
+  const resetCsvState = () => {
+    setPreview(null)
+    setOverrides({})
+    setDbTitle('')
+  }
+
+  // Client-side preview parse: only the first PREVIEW_LINES lines, sliced by
+  // newline BEFORE parsing to keep big files cheap. Preview-only — the server
+  // re-parses the full file authoritatively when the job runs.
+  const loadCsvPreview = async (f: File) => {
+    try {
+      const text = await f.text()
+      const head = text.split(/\r?\n/, PREVIEW_LINES).join('\n')
+      const rows = parseCsv(head)
+      const header = rows[0]
+      if (!header || header.length === 0) return
+      const dataRows = rows.slice(1)
+      setPreview({
+        header,
+        rows: dataRows.slice(0, PREVIEW_SAMPLE_ROWS),
+        // Per-column inference is independent, so running it on the full header
+        // (title column included) keeps indices aligned with header positions.
+        defaults: inferColumns(header, dataRows).map((c) => c.type),
+      })
+      setDbTitle(f.name.replace(/\.[^.]+$/, ''))
+    } catch {
+      // Malformed preview is non-fatal: the server-side parse reports the error.
+      resetCsvState()
+    }
+  }
+
+  const handleFilePick = (f: File | null) => {
+    setFile(f)
+    setError(null)
+    resetCsvState()
+    if (f && detectImportFormat(f.name) === 'CSV') void loadCsvPreview(f)
+  }
 
   const handleBack = () => {
     if (fileInputRef.current) fileInputRef.current.value = ''
     setFile(null)
     setError(null)
     setSource(null)
+    resetCsvState()
   }
 
   const handleClose = () => {
@@ -96,6 +174,7 @@ export function ImportWizardDialog({ open, onClose, workspaceId }: Props) {
     setBusy(false)
     setError(null)
     setDone(false)
+    resetCsvState()
     onClose()
   }
 
@@ -132,6 +211,16 @@ export function ImportWizardDialog({ open, onClose, workspaceId }: Props) {
         source: source.key === 'ASANA' || source.key === 'MONDAY' ? 'GENERIC' : source.key,
         location,
         parentId: selection === PAGE_TREE_ROOT || selection === null ? null : selection,
+        // CSV-only knobs: type pins keyed by the FULL header index (as strings)
+        // plus the database title; the processor shifts past the title column.
+        ...(format === 'CSV'
+          ? {
+              ...(Object.keys(overrides).length > 0
+                ? { columnOverrides: Object.fromEntries(Object.entries(overrides)) }
+                : {}),
+              ...(dbTitle.trim() ? { databaseTitle: dbTitle.trim() } : {}),
+            }
+          : {}),
       })
       setDone(true)
     } catch (e) {
@@ -199,10 +288,7 @@ export function ImportWizardDialog({ open, onClose, workspaceId }: Props) {
               accept={source.accept}
               data-testid="import-file-input"
               style={{ display: 'none' }}
-              onChange={(e) => {
-                setFile(e.target.files?.[0] ?? null)
-                setError(null)
-              }}
+              onChange={(e) => handleFilePick(e.target.files?.[0] ?? null)}
             />
             <Box>
               <Button
@@ -216,11 +302,13 @@ export function ImportWizardDialog({ open, onClose, workspaceId }: Props) {
                   ? file.name
                   : requiresZip
                     ? 'Выбрать файл (.zip)'
-                    : 'Выбрать файл (.md, .html, .zip)'}
+                    : source.key === 'GENERIC'
+                      ? 'Выбрать файл (.md, .html, .csv, .zip)'
+                      : 'Выбрать файл (.md, .html, .zip)'}
               </Button>
               {file && !format ? (
                 <Typography variant="caption" color="error">
-                  Поддерживаются только .md, .html и .zip
+                  Поддерживаются только .md, .html, .csv и .zip
                 </Typography>
               ) : null}
               {zipMismatch ? (
@@ -229,6 +317,91 @@ export function ImportWizardDialog({ open, onClose, workspaceId }: Props) {
                 </Typography>
               ) : null}
             </Box>
+
+            {format === 'CSV' && preview ? (
+              <Stack spacing={1}>
+                <Typography variant="subtitle2">База данных из CSV</Typography>
+                <TextField
+                  size="small"
+                  fullWidth
+                  label="Название базы"
+                  value={dbTitle}
+                  onChange={(e) => setDbTitle(e.target.value)}
+                  slotProps={{ htmlInput: { 'data-testid': 'csv-db-title', maxLength: 200 } }}
+                />
+                <Box
+                  sx={{
+                    border: '1px solid',
+                    borderColor: 'divider',
+                    borderRadius: 1,
+                    maxHeight: 240,
+                    overflow: 'auto',
+                  }}
+                >
+                  <Table size="small">
+                    <TableHead>
+                      <TableRow>
+                        {preview.header.map((name, idx) => (
+                          <TableCell key={idx} sx={{ whiteSpace: 'nowrap' }}>
+                            {name.trim() || `Колонка ${idx + 1}`}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                      <TableRow>
+                        {preview.header.map((_, idx) =>
+                          idx === 0 ? (
+                            // The first CSV column is always the row title.
+                            <TableCell key={idx}>
+                              <Chip label="Название" size="small" />
+                            </TableCell>
+                          ) : (
+                            <TableCell key={idx}>
+                              <Select
+                                size="small"
+                                value={overrides[idx] ?? preview.defaults[idx] ?? 'TEXT'}
+                                data-testid={`csv-col-type-${idx}`}
+                                onChange={(e) =>
+                                  setOverrides((prev) => ({
+                                    ...prev,
+                                    [idx]: e.target.value as ColumnPick,
+                                  }))
+                                }
+                              >
+                                {CSV_TYPE_OPTIONS.map((opt) => (
+                                  <MenuItem key={opt.value} value={opt.value}>
+                                    {opt.label}
+                                  </MenuItem>
+                                ))}
+                              </Select>
+                            </TableCell>
+                          ),
+                        )}
+                      </TableRow>
+                    </TableHead>
+                    <TableBody>
+                      {preview.rows.map((row, r) => (
+                        <TableRow key={r}>
+                          {preview.header.map((_, c) => (
+                            <TableCell key={c}>
+                              <Typography
+                                variant="caption"
+                                noWrap
+                                sx={{ display: 'block', maxWidth: 140 }}
+                              >
+                                {row[c] ?? ''}
+                              </Typography>
+                            </TableCell>
+                          ))}
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
+                </Box>
+                <Typography variant="caption" color="text.secondary">
+                  Показаны первые строки; типы колонок определены автоматически — их можно изменить.
+                </Typography>
+              </Stack>
+            ) : null}
 
             <Box>
               <Typography variant="subtitle2" sx={{ mb: 0.5 }}>

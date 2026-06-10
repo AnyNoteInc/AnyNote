@@ -13,6 +13,7 @@ import {
   MenuItem,
   Select,
   Stack,
+  Tooltip,
   Typography,
 } from '@repo/ui/components'
 
@@ -24,7 +25,7 @@ import {
 import { trpc } from '@/trpc/client'
 
 type ExportScope = 'WORKSPACE' | 'COLLECTION' | 'SUBTREE'
-type ExportFormat = 'MARKDOWN_ZIP' | 'HTML_ZIP'
+type ExportFormat = 'MARKDOWN_ZIP' | 'HTML_ZIP' | 'PDF_ZIP'
 
 type Props = {
   open: boolean
@@ -42,6 +43,7 @@ const SCOPE_OPTIONS: { value: ExportScope; label: string }[] = [
 const FORMAT_OPTIONS: { value: ExportFormat; label: string }[] = [
   { value: 'MARKDOWN_ZIP', label: 'Markdown' },
   { value: 'HTML_ZIP', label: 'HTML' },
+  { value: 'PDF_ZIP', label: 'PDF' },
 ]
 
 export function BulkExportDialog({ open, onClose, workspaceId, preset = null }: Props) {
@@ -134,7 +136,14 @@ export function BulkExportDialog({ open, onClose, workspaceId, preset = null }: 
                       key={opt.value}
                       size="small"
                       variant={scope === opt.value ? 'contained' : 'outlined'}
-                      onClick={() => setScope(opt.value)}
+                      onClick={() => {
+                        setScope(opt.value)
+                        // PDF is page-bounded — a whole workspace is not exportable
+                        // to PDF, so leaving PDF selected would dead-end the form.
+                        if (opt.value === 'WORKSPACE' && format === 'PDF_ZIP') {
+                          setFormat('MARKDOWN_ZIP')
+                        }
+                      }}
                     >
                       {opt.label}
                     </Button>
@@ -187,17 +196,38 @@ export function BulkExportDialog({ open, onClose, workspaceId, preset = null }: 
                 Формат
               </Typography>
               <Stack direction="row" spacing={1}>
-                {FORMAT_OPTIONS.map((opt) => (
-                  <Button
-                    key={opt.value}
-                    size="small"
-                    variant={format === opt.value ? 'contained' : 'outlined'}
-                    onClick={() => setFormat(opt.value)}
-                  >
-                    {opt.label}
-                  </Button>
-                ))}
+                {FORMAT_OPTIONS.map((opt) => {
+                  const pdfBlocked = opt.value === 'PDF_ZIP' && effectiveScope === 'WORKSPACE'
+                  const button = (
+                    <Button
+                      key={opt.value}
+                      size="small"
+                      variant={format === opt.value ? 'contained' : 'outlined'}
+                      disabled={pdfBlocked}
+                      onClick={() => setFormat(opt.value)}
+                    >
+                      {opt.label}
+                    </Button>
+                  )
+                  // Disabled buttons fire no events — span-wrap so the tooltip works.
+                  return pdfBlocked ? (
+                    <Tooltip key={opt.value} title="PDF недоступен для всего пространства">
+                      <span>{button}</span>
+                    </Tooltip>
+                  ) : (
+                    button
+                  )
+                })}
               </Stack>
+              {format === 'PDF_ZIP' ? (
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={{ display: 'block', mt: 0.5 }}
+                >
+                  До 50 страниц; страницы с ошибкой рендеринга будут вложены как HTML.
+                </Typography>
+              ) : null}
             </Box>
 
             {error ? <Alert severity="error">{error}</Alert> : null}

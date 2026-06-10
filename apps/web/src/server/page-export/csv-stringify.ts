@@ -51,8 +51,14 @@ export function csvCellValue(prop: CsvProperty, value: unknown): string {
   return String(value)
 }
 
+// CSV-injection guard: spreadsheets execute cells starting with =, +, @ or a
+// non-numeric '-' as formulas — neutralize with a leading apostrophe (the
+// Sheets/LibreOffice convention); legitimate negative numbers stay untouched.
+const FORMULA_LEAD_RE = /^(?:[=+@]|-(?![\d.]))/
+
 function escapeField(s: string): string {
-  return /[",\r\n]/.test(s) ? `"${s.replaceAll('"', '""')}"` : s
+  const safe = FORMULA_LEAD_RE.test(s) ? `'${s}` : s
+  return /[",\r\n]/.test(safe) ? `"${safe.replaceAll('"', '""')}"` : safe
 }
 
 /** RFC-4180 CSV with BOM (Excel) and CRLF line endings; title column first. */

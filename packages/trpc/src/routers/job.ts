@@ -118,6 +118,16 @@ function importWarnings(result: Prisma.JsonValue | null): string[] {
   return raw.filter((w): w is string => typeof w === 'string')
 }
 
+/** PDF_ZIP per-page render failures (result.pdfFailures) as journal lines. */
+function exportWarnings(result: Prisma.JsonValue | null): string[] {
+  if (!result || typeof result !== 'object' || Array.isArray(result)) return []
+  const raw = (result as Prisma.JsonObject).pdfFailures
+  if (!Array.isArray(raw)) return []
+  return raw
+    .filter((t): t is string => typeof t === 'string')
+    .map((t) => `Не удалось отрендерить PDF: «${t}» — вложен HTML`)
+}
+
 export const jobRouter = router({
   export: router({
     create: protectedProcedure.input(exportCreateInput).mutation(async ({ ctx, input }) => {
@@ -294,8 +304,9 @@ export const jobRouter = router({
         }),
       ])
       const items: JobListItem[] = [
-        ...exports.map(
-          (j): JobListItem => ({
+        ...exports.map((j): JobListItem => {
+          const warnings = exportWarnings(j.result)
+          return {
             id: j.id,
             kind: 'export',
             status: j.status,
@@ -309,11 +320,11 @@ export const jobRouter = router({
             hasArtifact: j.status === 'DONE' && j.artifacts.length > 0,
             sourceName: null,
             hasReport: false,
-            warnings: [],
-            warningsCount: 0,
+            warnings: warnings.slice(0, WARNINGS_CAP),
+            warningsCount: warnings.length,
             source: null,
-          }),
-        ),
+          }
+        }),
         ...imports.map((j): JobListItem => {
           const src = j.artifacts.find((a) => a.kind === 'SOURCE')?.file
           const warnings = importWarnings(j.result)
