@@ -82,6 +82,9 @@ importers:
       '@repo/storage':
         specifier: workspace:*
         version: link:../../packages/storage
+      '@repo/webhooks':
+        specifier: workspace:*
+        version: link:../../packages/webhooks
       '@repo/yookassa':
         specifier: workspace:*
         version: link:../../packages/yookassa

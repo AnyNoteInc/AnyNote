@@ -9,6 +9,7 @@ import { HistoryModule } from './apps/history/history.module.js'
 import { IndexerModule } from './apps/indexer/indexer.module.js'
 import { McpModule } from './apps/mcp/mcp.module.js'
 import { NotifierModule } from './apps/notifier/notifier.module.js'
+import { WebhookModule } from './apps/webhook/webhook.module.js'
 import { AuthModule } from './auth/auth.module.js'
 import { HealthModule } from './health/health.module.js'
 import { DbModule } from './infra/db/db.module.js'
@@ -26,6 +27,7 @@ import { DomainModule } from './infra/domain/domain.module.js'
     HistoryModule,
     IndexerModule,
     NotifierModule,
+    WebhookModule,
     McpModule,
     ApiModule,
     HealthModule,
