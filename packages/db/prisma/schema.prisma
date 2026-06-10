@@ -1783,6 +1783,13 @@ enum ImportJobFormat {
   ZIP
 }
 
+enum ImportSource {
+  GENERIC
+  NOTION
+  CONFLUENCE
+  YANDEX_WIKI
+}
+
 enum ImportArtifactKind {
   SOURCE
   REPORT
@@ -1822,6 +1829,7 @@ model ImportJob {
   userId      String          @map("user_id") @db.Uuid
   status      JobStatus       @default(QUEUED)
   format      ImportJobFormat
+  source      ImportSource    @default(GENERIC)
   options     Json            @default("{}")
   result      Json?
   processed   Int             @default(0)
