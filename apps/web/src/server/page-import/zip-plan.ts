@@ -79,9 +79,11 @@ export function buildImportPlan(zipBytes: Uint8Array): ImportPlan {
     if (raw.endsWith('/')) continue // directory marker entries
     const path = normalizeEntryPath(raw)
     if (path === null) continue
-    for (let d = dirNameOf(path); d !== ''; d = dirNameOf(d)) dirs.add(d)
     const ext = extOf(path)
     if (DOC_EXTS.has(ext)) {
+      // Only doc paths spawn container dirs: a folder holding nothing but
+      // assets (e.g. `img/`) must not become an empty page.
+      for (let d = dirNameOf(path); d !== ''; d = dirNameOf(d)) dirs.add(d)
       docs.set(path, {
         sourceKey: path,
         baseName: baseNameOf(path),

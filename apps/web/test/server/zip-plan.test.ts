@@ -48,6 +48,7 @@ describe('buildImportPlan', () => {
     )
     expect(plan.assets.has('img/p.png')).toBe(true)
     expect(plan.warnings.length).toBe(2) // svg + pdf skipped
+    expect(plan.totalPages).toBe(1) // asset-only `img/` does not become a page
   })
 
   it('ignores macOS junk entries', () => {
