@@ -6,9 +6,17 @@ import type { CreatePageExtra, CreatePageInput } from '@repo/domain'
 import type { StorageClient } from '@repo/storage'
 
 import { computeS3Key } from '@/lib/file-validation'
+import { buildConfluenceImportPlan } from '@/server/page-import/confluence/confluence-plan'
 import { buildImportContentYjs } from '@/server/page-import/content-yjs'
+import { materializeCsvDatabase, type DatabasePort } from '@/server/page-import/csv-to-database'
 import { parseHtmlDocument } from '@/server/page-import/html-to-tiptap'
+import { ImportJournal } from '@/server/page-import/journal'
 import { parseMarkdownDocument, type TiptapDoc } from '@/server/page-import/markdown-to-tiptap'
+import { extractNotionIdFromHref } from '@/server/page-import/notion/notion-name'
+import {
+  buildNotionImportPlan,
+  type NotionDatabaseBlueprint,
+} from '@/server/page-import/notion/notion-plan'
 import { resolveSourcePath, rewriteRelativeLinks } from '@/server/page-import/rewrite-links'
 import {
   buildImportPlan,
@@ -26,9 +34,23 @@ export type ImportJobContext = {
   prisma: PrismaClient
   storage: Pick<StorageClient, 'get' | 'put'>
   pages: PagesCreatePort
+  database: DatabasePort
 }
 
 type ImportOptions = { location: 'team' | 'private'; parentId: string | null }
+
+/** Run-scoped state threaded through the page-creation pass. */
+type ImportRunState = {
+  options: ImportOptions
+  mapped: Map<string, string>
+  assetFileIds: Map<string, string>
+  aliases: Map<string, string>
+  journal: ImportJournal
+}
+
+type LoadedImportJob = Prisma.ImportJobGetPayload<{
+  include: { artifacts: { include: { file: true } } }
+}>
 
 const MIME_BY_EXT: Record<string, string> = {
   png: 'image/png',
@@ -46,8 +68,17 @@ export async function processImportJob(ctx: ImportJobContext, jobId: string): Pr
   })
   if (claimed.count === 0) return
 
+  let journal: ImportJournal | null = null
   try {
-    await run(ctx, jobId)
+    const job = await ctx.prisma.importJob.findUniqueOrThrow({
+      where: { id: jobId },
+      include: { artifacts: { include: { file: true } } },
+    })
+    const source = job.artifacts.find((a) => a.kind === 'SOURCE')?.file
+    if (!source) throw new ImportSourceError('Файл импорта не найден')
+    journal = new ImportJournal(job.source, source.name)
+    await run(ctx, job, source, journal)
+    await writeReport(ctx, jobId, journal)
   } catch (err) {
     const message = err instanceof ImportSourceError ? err.message : 'Не удалось выполнить импорт'
     console.error('[import-job] failed', { jobId, err })
@@ -57,48 +88,71 @@ export async function processImportJob(ctx: ImportJobContext, jobId: string): Pr
         data: { status: 'FAILED', error: message, finishedAt: new Date() },
       })
       .catch(() => {})
+    if (journal) {
+      journal.warn(message)
+      await writeReport(ctx, jobId, journal)
+    }
   }
 }
 
-async function run(ctx: ImportJobContext, jobId: string): Promise<void> {
-  const job = await ctx.prisma.importJob.findUniqueOrThrow({
-    where: { id: jobId },
-    include: { artifacts: { include: { file: true } } },
-  })
-  const source = job.artifacts.find((a) => a.kind === 'SOURCE')?.file
-  if (!source) throw new ImportSourceError('Файл импорта не найден')
-
+async function run(
+  ctx: ImportJobContext,
+  job: LoadedImportJob,
+  source: { name: string; path: string },
+  journal: ImportJournal,
+): Promise<void> {
   const bytes = await streamToBuffer(await ctx.storage.get(source.path))
   const options = parseOptions(job.options)
 
-  const plan: ImportPlan =
-    job.format === 'ZIP' ? buildImportPlan(bytes) : singleFilePlan(job.format, source.name, bytes)
+  // The router enforces ZIP for source-specific imports; guard defensively anyway.
+  if ((job.source === 'NOTION' || job.source === 'CONFLUENCE') && job.format !== 'ZIP') {
+    throw new ImportSourceError('Для этого источника нужен ZIP-архив')
+  }
+  let plan: ImportPlan
+  let aliases = new Map<string, string>()
+  let databases: NotionDatabaseBlueprint[] = []
+  if (job.source === 'NOTION') {
+    const notion = buildNotionImportPlan(bytes)
+    plan = notion
+    aliases = notion.aliases
+    databases = notion.databases
+  } else if (job.source === 'CONFLUENCE') {
+    const confluence = buildConfluenceImportPlan(bytes)
+    plan = confluence
+    aliases = confluence.aliases
+  } else {
+    plan =
+      job.format === 'ZIP' ? buildImportPlan(bytes) : singleFilePlan(job.format, source.name, bytes)
+  }
 
   // Idempotent resume: already-created entries are skipped via their mapping.
   const existing = await ctx.prisma.importMapping.findMany({
-    where: { jobId },
+    where: { jobId: job.id },
     select: { sourceKey: true, pageId: true },
   })
   const mapped = new Map(existing.map((m) => [m.sourceKey, m.pageId]))
 
   await ctx.prisma.importJob.update({
-    where: { id: jobId },
+    where: { id: job.id },
     data: { total: plan.totalPages, processed: mapped.size, heartbeatAt: new Date() },
   })
 
-  const warnings = [...plan.warnings]
-  const assetFileIds = await storeAssets(ctx, job, plan, warnings)
+  for (const w of plan.warnings) journal.skip(w)
+  const assetFileIds = await storeAssets(ctx, job, plan, journal)
 
+  const state: ImportRunState = { options, mapped, assetFileIds, aliases, journal }
   const rootPageIds: string[] = []
   for (const node of plan.roots) {
-    const id = await createNode(ctx, job, options, node, options.parentId, mapped, assetFileIds)
+    const id = await createNode(ctx, job, state, node, options.parentId)
     rootPageIds.push(id)
   }
 
-  await rewriteImportedLinks(ctx, job.workspaceId, plan, mapped)
+  await materializeDatabases(ctx, job, options, databases, mapped, rootPageIds, journal)
+
+  await rewriteImportedLinks(ctx, job.workspaceId, plan, mapped, aliases)
 
   await ctx.prisma.importJob.update({
-    where: { id: jobId },
+    where: { id: job.id },
     data: {
       status: 'DONE',
       finishedAt: new Date(),
@@ -106,7 +160,7 @@ async function run(ctx: ImportJobContext, jobId: string): Promise<void> {
       result: {
         pagesCreated: mapped.size,
         rootPageIds,
-        warnings,
+        warnings: journal.warnings.slice(0, 100),
       } as Prisma.InputJsonValue,
     },
   })
@@ -115,12 +169,11 @@ async function run(ctx: ImportJobContext, jobId: string): Promise<void> {
 async function createNode(
   ctx: ImportJobContext,
   job: { id: string; userId: string; workspaceId: string },
-  options: ImportOptions,
+  state: ImportRunState,
   node: ImportNode,
   parentPageId: string | null,
-  mapped: Map<string, string>,
-  assetFileIds: Map<string, string>,
 ): Promise<string> {
+  const { options, mapped, assetFileIds, aliases, journal } = state
   let pageId = mapped.get(node.sourceKey)
   if (!pageId) {
     const usedFileIds: string[] = []
@@ -138,7 +191,9 @@ async function createNode(
           // keep raw on malformed escapes
         }
         const abs = resolveSourcePath(docDir, decoded)
-        const fileId = abs ? assetFileIds.get(abs) : undefined
+        if (!abs) return null
+        const aliased = aliases.get(abs)
+        const fileId = assetFileIds.get(abs) ?? (aliased ? assetFileIds.get(aliased) : undefined)
         if (!fileId) return null
         usedFileIds.push(fileId)
         return `/api/files/${fileId}`
@@ -193,18 +248,138 @@ async function createNode(
     }
     mapped.set(node.sourceKey, pageId)
     if (won) {
+      journal.action(`Страница «${title}»`)
       // The loser skips the increment — the winner's run already counted this node.
-      await ctx.prisma.importJob.update({
-        where: { id: job.id },
-        data: { processed: { increment: 1 }, heartbeatAt: new Date() },
-      })
+      await bumpProgress(ctx, job.id)
     }
   }
 
   for (const child of node.children) {
-    await createNode(ctx, job, options, child, pageId, mapped, assetFileIds)
+    await createNode(ctx, job, state, child, pageId)
   }
   return pageId
+}
+
+// CSV database blueprints (Notion) materialize AFTER the page pass so parent
+// dirs already have pages, and BEFORE link rewriting so row mappings resolve.
+async function materializeDatabases(
+  ctx: ImportJobContext,
+  job: { id: string; userId: string; workspaceId: string },
+  options: ImportOptions,
+  databases: NotionDatabaseBlueprint[],
+  mapped: Map<string, string>,
+  rootPageIds: string[],
+  journal: ImportJournal,
+): Promise<void> {
+  for (const bp of databases) {
+    const parentPageId =
+      bp.parentKey === ''
+        ? options.parentId
+        : (mapped.get(`${bp.parentKey}/`) ?? mapped.get(bp.parentKey) ?? options.parentId)
+    await materializeCsvDatabase(
+      { prisma: ctx.prisma, pages: ctx.pages, database: ctx.database },
+      {
+        actorUserId: job.userId,
+        workspaceId: job.workspaceId,
+        parentPageId,
+        location: options.location,
+        blueprint: bp,
+        journal,
+        existingMappings: mapped,
+        onDatabaseCreated: async (key, pageId) => {
+          journal.action(`База данных «${bp.title}»`)
+          await recordMapping(ctx, job.id, key, pageId, mapped)
+          if (bp.parentKey === '') rootPageIds.push(pageId)
+          await bumpProgress(ctx, job.id)
+        },
+        onRowCreated: async (key, pageId) => {
+          journal.action(`Строка «${key}»`)
+          await recordMapping(ctx, job.id, key, pageId, mapped)
+          await bumpProgress(ctx, job.id)
+        },
+      },
+    )
+  }
+}
+
+/** P2002-tolerant mapping insert (service-created pages): the loser adopts the winner's id. */
+async function recordMapping(
+  ctx: ImportJobContext,
+  jobId: string,
+  sourceKey: string,
+  pageId: string,
+  mapped: Map<string, string>,
+): Promise<void> {
+  try {
+    await ctx.prisma.importMapping.create({ data: { jobId, sourceKey, pageId } })
+    mapped.set(sourceKey, pageId)
+  } catch (e) {
+    if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+      const winner = await ctx.prisma.importMapping.findUniqueOrThrow({
+        where: { jobId_sourceKey: { jobId, sourceKey } },
+        select: { pageId: true },
+      })
+      mapped.set(sourceKey, winner.pageId)
+    } else {
+      throw e
+    }
+  }
+}
+
+async function bumpProgress(ctx: ImportJobContext, jobId: string): Promise<void> {
+  await ctx.prisma.importJob.update({
+    where: { id: jobId },
+    data: { processed: { increment: 1 }, heartbeatAt: new Date() },
+  })
+}
+
+// Best-effort REPORT artifact: render the journal and replace any prior report
+// (idempotent resume re-renders it). Never fails the job.
+async function writeReport(
+  ctx: ImportJobContext,
+  jobId: string,
+  journal: ImportJournal,
+): Promise<void> {
+  try {
+    const prior = await ctx.prisma.importArtifact.findMany({
+      where: { jobId, kind: 'REPORT' },
+      select: { id: true, fileId: true },
+    })
+    for (const a of prior) {
+      await ctx.prisma.importArtifact.delete({ where: { id: a.id } }).catch(() => {})
+      await ctx.prisma.file.delete({ where: { id: a.fileId } }).catch(() => {})
+    }
+    const owner = await ctx.prisma.importJob.findUniqueOrThrow({
+      where: { id: jobId },
+      select: { userId: true },
+    })
+    const buf = Buffer.from(journal.render(), 'utf-8')
+    const key = `imports/${jobId}-report.txt`
+    await ctx.storage.put(key, buf, {
+      contentType: 'text/plain; charset=utf-8',
+      size: buf.byteLength,
+    })
+    const file = await ctx.prisma.file.create({
+      data: {
+        userId: owner.userId,
+        // workspaceId NULL: owner-only, invisible to the Library and the generic
+        // member route — the journal can name skipped private items.
+        workspaceId: null,
+        name: 'import-report',
+        ext: 'txt',
+        fileSize: BigInt(buf.byteLength),
+        mimeType: 'text/plain',
+        hash: createHash('sha256').update(buf).digest('hex'),
+        path: key,
+        status: FileStatus.ACTIVE,
+        isPublic: false,
+      },
+      select: { id: true },
+    })
+    await ctx.prisma.importArtifact.create({ data: { jobId, fileId: file.id, kind: 'REPORT' } })
+  } catch (err) {
+    console.warn('[import-job] report write failed', { jobId, err })
+  }
 }
 
 // Upload referenced image assets (content-hash dedup like the upload route).
@@ -213,7 +388,7 @@ async function storeAssets(
   ctx: ImportJobContext,
   job: { userId: string; workspaceId: string },
   plan: ImportPlan,
-  warnings: string[],
+  journal: ImportJournal,
 ): Promise<Map<string, string>> {
   const out = new Map<string, string>()
   if (plan.assets.size === 0) return out
@@ -248,7 +423,7 @@ async function storeAssets(
   ])
   const used = usage._sum.fileSize ?? 0n
   if (limits && used + BigInt(newBytes) > limits.maxFileBytes) {
-    warnings.push('Картинки из архива пропущены: превышен лимит хранилища пространства')
+    journal.warn('Картинки из архива пропущены: превышен лимит хранилища пространства')
     return out
   }
 
@@ -286,11 +461,25 @@ async function rewriteImportedLinks(
   workspaceId: string,
   plan: ImportPlan,
   mapped: Map<string, string>,
+  aliases: Map<string, string>,
 ): Promise<void> {
+  const lookup = (key: string): string | undefined =>
+    mapped.get(key) ?? mapped.get(`${key}/`) ?? mapped.get(`${key}.md`)
   const resolve = (abs: string): string | null => {
-    const id = mapped.get(abs) ?? mapped.get(`${abs}/`) ?? mapped.get(`${abs}.md`)
+    const aliased = aliases.get(abs)
+    const id = lookup(abs) ?? (aliased ? lookup(aliased) : undefined)
     return id ? `/pages/${id}` : null
   }
+  // External hrefs (notion.so URLs) resolve via the bare hex id → alias → mapping.
+  const resolveExternal =
+    aliases.size > 0
+      ? (href: string): string | null => {
+          const id = extractNotionIdFromHref(href)
+          const key = id ? aliases.get(id) : null
+          const pid = key ? mapped.get(key) : null
+          return pid ? `/pages/${pid}` : null
+        }
+      : undefined
   const docNodes: ImportNode[] = []
   const collect = (nodes: ImportNode[]) => {
     for (const n of nodes) {
@@ -311,6 +500,7 @@ async function rewriteImportedLinks(
     const { doc, changed } = rewriteRelativeLinks(page.content as unknown as TiptapDoc, {
       sourceKey: node.sourceKey,
       resolve,
+      ...(resolveExternal ? { resolveExternal } : {}),
     })
     if (!changed) continue
     await ctx.prisma.page.update({

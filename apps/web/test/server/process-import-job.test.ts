@@ -103,7 +103,7 @@ async function seed(zipBytes: Uint8Array) {
     },
   })
   const storage = makeFakeStorage({ 'test/source.zip': Buffer.from(zipBytes) })
-  const ctx: ImportJobContext = { prisma, storage, pages: domain.pages }
+  const ctx: ImportJobContext = { prisma, storage, pages: domain.pages, database: domain.database }
   return { user, ws, job, storage, ctx }
 }
 

@@ -19,6 +19,9 @@ async function run(jobId: string, kind: 'import' | 'export'): Promise<void> {
     await processExportJob({ prisma, storage, database: domain.database, baseUrl }, jobId)
   } else {
     const { processImportJob } = await import('./process-import-job')
-    await processImportJob({ prisma, storage, pages: domain.pages }, jobId)
+    await processImportJob(
+      { prisma, storage, pages: domain.pages, database: domain.database },
+      jobId,
+    )
   }
 }
