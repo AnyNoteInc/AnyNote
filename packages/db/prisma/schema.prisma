@@ -1775,12 +1775,14 @@ enum ExportJobScope {
 enum ExportJobFormat {
   MARKDOWN_ZIP
   HTML_ZIP
+  PDF_ZIP
 }
 
 enum ImportJobFormat {
   MARKDOWN
   HTML
   ZIP
+  CSV
 }
 
 enum ImportSource {
@@ -1809,6 +1811,7 @@ model ExportJob {
   processed   Int             @default(0)
   total       Int             @default(0)
   error       String?         @db.Text
+  result      Json?
   heartbeatAt DateTime?       @map("heartbeat_at") @db.Timestamptz(6)
   startedAt   DateTime?       @map("started_at") @db.Timestamptz(6)
   finishedAt  DateTime?       @map("finished_at") @db.Timestamptz(6)
