@@ -136,6 +136,69 @@ test.describe('import/export center', () => {
     await expect(page.locator('aside').getByText('База', { exact: true })).toBeVisible()
   })
 
+  test('imports a csv with a type override into a typed database', async ({ page }) => {
+    await signUpAndCreateWorkspace(page, 'csv-import')
+    await openImportExportSettings(page)
+
+    await page.getByTestId('open-import').click()
+    const wizard = page.getByTestId('import-wizard')
+    await expect(wizard).toBeVisible()
+
+    await page.getByTestId('import-source-generic').click()
+    await page
+      .getByTestId('import-file-input')
+      .setInputFiles(path.join(__dirname, 'fixtures', 'import-table.csv'))
+    await expect(page.getByTestId('import-pick-file')).toContainText('import-table.csv')
+
+    // The CSV preview pre-fills the database title from the file name and infers
+    // per-column types. «Код» (full-header index 1; values 1/2/3) defaults to
+    // NUMBER — pin it to text via the per-column Select.
+    await expect(page.getByTestId('csv-db-title')).toBeVisible()
+    await expect(page.getByTestId('csv-db-title')).toHaveValue('import-table')
+    const codTypeSelect = page.getByTestId('csv-col-type-1')
+    await expect(codTypeSelect).toContainText('Число')
+    await codTypeSelect.click()
+    await page.getByRole('option', { name: 'Текст' }).click()
+    await expect(codTypeSelect).toContainText('Текст')
+
+    await page.getByTestId('import-submit').click()
+    await expect(wizard.getByText(/Импорт запущен/)).toBeVisible({ timeout: 20_000 })
+    await wizard.getByRole('button', { name: 'Закрыть' }).click()
+    await expect(wizard).not.toBeVisible()
+
+    const row = page.getByTestId('job-row').filter({ hasText: 'import-table.csv' })
+    await expect(row.getByText('Готово')).toBeVisible({ timeout: 60_000 })
+
+    // The database materializes as a sidebar page named after the file (row item
+    // pages stay hidden from the tree). Open it: the table view is tRPC-backed,
+    // so it renders all 3 rows plus the inferred SELECT option labels.
+    await page.reload()
+    await page.getByRole('button', { name: 'Домашняя', exact: true }).click()
+    await page.locator('aside').getByText('import-table', { exact: false }).first().click()
+    await page.waitForURL(/\/pages\//, { timeout: 20_000 })
+
+    // The editable table renders the system Title and the (override-forced) text
+    // «Код» column as <input> cells, so their values live in `value`, not text
+    // content — getByText('Альфа') would never match. Poll the live input values:
+    // the 3 row titles (Альфа/Бета/Гамма) AND the «Код» values kept as TEXT by the
+    // override (1/2/3, not coerced numbers) must all be present.
+    await expect
+      .poll(
+        () =>
+          page
+            .locator('input')
+            .evaluateAll((els) => els.map((e) => (e as HTMLInputElement).value)),
+        { timeout: 20_000 },
+      )
+      .toEqual(expect.arrayContaining(['Альфа', 'Бета', 'Гамма', '1', '2', '3']))
+
+    // The overridden «Код» header and the inferred SELECT option labels render as
+    // real text content.
+    await expect(page.getByText('Код')).toBeVisible()
+    await expect(page.getByText('Open').first()).toBeVisible()
+    await expect(page.getByText('Done').first()).toBeVisible()
+  })
+
   test('exports the workspace as a markdown zip with a download link', async ({ page }) => {
     await signUpAndCreateWorkspace(page, 'export-zip')
     await openImportExportSettings(page)
@@ -164,5 +227,43 @@ test.describe('import/export center', () => {
     expect(res.status()).toBe(200)
     const body = await res.body()
     expect(body.subarray(0, 2).toString()).toBe('PK')
+  })
+
+  test('exports a subtree as a pdf archive', async ({ page }) => {
+    await signUpAndCreateWorkspace(page, 'pdf-export')
+    await openImportExportSettings(page)
+
+    await page.getByTestId('open-export').click()
+    const dialog = page.getByTestId('bulk-export-dialog')
+    await expect(dialog).toBeVisible()
+
+    // PDF is disabled for the WORKSPACE scope, so switch to SUBTREE first. The
+    // PageTreePicker rows are plain boxes — pick the seeded welcome page by title.
+    await dialog.getByRole('button', { name: 'Поддерево' }).click()
+    await dialog.getByText('Добро пожаловать в AnyNote').click()
+    await dialog.getByRole('button', { name: 'PDF', exact: true }).click()
+    await page.getByTestId('export-submit').click()
+
+    await expect(dialog.getByText(/Экспорт запущен/)).toBeVisible({ timeout: 20_000 })
+    await dialog.getByRole('button', { name: 'Закрыть' }).click()
+    await expect(dialog).not.toBeVisible()
+
+    // The job renders through the REAL Gotenberg container from compose; the
+    // export row is labelled «Экспорт: страница с подстраницами · PDF».
+    const exportRow = page.getByTestId('job-row').filter({ hasText: 'PDF' })
+    await expect(exportRow.getByText('Готово')).toBeVisible({ timeout: 90_000 })
+
+    const download = page.getByTestId('job-download')
+    await expect(download).toBeVisible()
+    const href = (await download.getAttribute('href')) ?? ''
+    expect(href).toContain('/api/jobs/export/')
+
+    // The artifact is a zip whose entries are real PDFs — an .html entry here
+    // would mean every Gotenberg render silently fell back.
+    const res = await page.request.get(href)
+    expect(res.status()).toBe(200)
+    const body = await res.body()
+    expect(body.subarray(0, 2).toString()).toBe('PK')
+    expect(body.toString('latin1')).toContain('.pdf')
   })
 })
