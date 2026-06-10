@@ -13,6 +13,7 @@ import {
   CheckBoxIcon,
   Divider,
   EmailIcon,
+  FileDownloadIcon,
   FilterListIcon,
   IconButton,
   InputBase,
@@ -282,6 +283,18 @@ export function DatabaseToolbar({
       ) : null}
 
       <Box sx={{ flex: 1 }} />
+
+      {/* Read-only data portability: deliberately NOT gated by editable/canEditStructure. */}
+      <Button
+        size="small"
+        color="inherit"
+        component="a"
+        href={`/api/pages/${pageId}/export/csv?viewId=${view.id}`}
+        startIcon={<FileDownloadIcon />}
+        data-testid="export-csv"
+      >
+        Экспорт CSV
+      </Button>
 
       {editable ? (
         <Button
