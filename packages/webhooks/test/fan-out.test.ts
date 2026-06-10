@@ -124,6 +124,9 @@ async function enqueueWebhookOutboxRow(args: {
         actorId: args.actorId ?? null,
         hints: (args.hints ?? {}) as Prisma.InputJsonValue,
       },
+      // Backdated: Prisma fills @default(now()) from the NODE clock while the
+      // claim compares against the POSTGRES clock — skew would flake the claim.
+      nextAttemptAt: new Date(Date.now() - 60_000),
     },
   })
 }
