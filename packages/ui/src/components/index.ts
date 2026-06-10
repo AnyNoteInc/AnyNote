@@ -234,6 +234,8 @@ export { default as UpdateIcon } from '@mui/icons-material/Update'
 export { default as CheckCircleIcon } from '@mui/icons-material/CheckCircle'
 export { default as Collapse } from '@mui/material/Collapse'
 export { default as AttachFileIcon } from '@mui/icons-material/AttachFile'
+export { default as ImportExportIcon } from '@mui/icons-material/ImportExport'
+export { default as UploadFileIcon } from '@mui/icons-material/UploadFile'
 
 export { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView'
 export { RichTreeView } from '@mui/x-tree-view/RichTreeView'
