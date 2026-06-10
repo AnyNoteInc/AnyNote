@@ -161,7 +161,8 @@ describe('processExportJob', () => {
   })
 
   it('never bundles files from another workspace, even when referenced by content', async () => {
-    const { ws, team, user, ctx, storage } = await seed()
+    const { ws, team, user, ctx, storage, job: seedJob } = await seed()
+    await prisma.exportJob.update({ where: { id: seedJob.id }, data: { status: 'DONE' } })
     const foreignWs = await prisma.workspace.create({
       data: { name: 'ForeignWS', createdById: user.id },
     })
@@ -213,7 +214,8 @@ describe('processExportJob', () => {
   })
 
   it('renders DATABASE pages as a table via the database port', async () => {
-    const { ws, team, user, ctx } = await seed()
+    const { ws, team, user, ctx, job: seedJob } = await seed()
+    await prisma.exportJob.update({ where: { id: seedJob.id }, data: { status: 'DONE' } })
     const dbPage = await prisma.page.create({
       data: {
         workspaceId: ws.id,
@@ -246,7 +248,8 @@ describe('processExportJob', () => {
   })
 
   it('fails with a user error when the scope yields no pages', async () => {
-    const { ws, user, ctx } = await seed()
+    const { ws, user, ctx, job: seedJob } = await seed()
+    await prisma.exportJob.update({ where: { id: seedJob.id }, data: { status: 'DONE' } })
     const job = await prisma.exportJob.create({
       data: {
         workspaceId: ws.id,
