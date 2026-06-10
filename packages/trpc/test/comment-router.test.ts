@@ -103,6 +103,7 @@ describe('comment.listThreads / createThread', () => {
       pageCommentThread: {
         findUnique: vi.fn(async () => ({ createdById: null, page: { createdById: 'owner' }, comments: [] })),
       },
+      outboxEvent: { create: vi.fn(async () => ({})) },
     } as never
     // make the final findUnique (return value) resolve to the created thread
     ;(prisma as { pageCommentThread: { findUnique: ReturnType<typeof vi.fn> } }).pageCommentThread.findUnique
@@ -166,6 +167,7 @@ describe('comment.listThreads / createThread', () => {
       pageComment: { findFirst: vi.fn(async () => ({ id: 'c1' })) },
       pageCommentThread: { findUnique: vi.fn(async () => ({ id: 't1', page: { createdById: 'owner' }, comments: [] })) },
       workspaceMember: { findMany: vi.fn(async () => []) },
+      outboxEvent: { create: vi.fn(async () => ({})) },
     } as never
     await caller(ctx(prisma, null)).createThread({
       shareId: 'public-share',
@@ -320,6 +322,7 @@ describe('comment edit/delete/resolve', () => {
         findUnique: vi.fn(async () => ({ pageId: PAGE_ID })),
         update: vi.fn(async () => ({ id: THREAD_ID, resolvedAt: new Date() })),
       },
+      outboxEvent: { create: vi.fn(async () => ({})) },
     })
     const res = await caller(ctx(prisma, { id: 'u1' })).resolveThread({ pageId: PAGE_ID, threadId: THREAD_ID })
     expect(res.resolvedAt).toBeTruthy()
@@ -455,6 +458,7 @@ describe('comment access boundaries + mention validation', () => {
       $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
       pageComment: { findFirst: vi.fn(async () => ({ id: 'c1' })) },
       pageCommentThread: { findUnique: vi.fn(async () => ({ page: { createdById: 'owner' }, comments: [] })) },
+      outboxEvent: { create: vi.fn(async () => ({})) },
     } as never
     await caller(ctx(prisma, { id: 'u1' })).createThread({
       pageId: PAGE_ID, anchorStart: 'x', anchorEnd: 'y', quotedText: 'q',
@@ -484,6 +488,7 @@ describe('comment access boundaries + mention validation', () => {
       $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
       pageComment: { findFirst: vi.fn(async () => ({ id: 'c1' })) },
       pageCommentThread: { findUnique: vi.fn(async () => ({ page: { createdById: 'owner' }, comments: [] })) },
+      outboxEvent: { create: vi.fn(async () => ({})) },
     } as never
     await caller(ctx(prisma, { id: 'u1' })).createThread({
       pageId: PAGE_ID, anchorStart: 'x', anchorEnd: 'y', quotedText: 'q',

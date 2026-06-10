@@ -236,7 +236,17 @@ describe('PageRepository.movePageTx — cycle-check + head-insert', () => {
         data: expect.objectContaining({ parentId: 'par2', prevPageId: null }),
       }),
     )
-    expect(outboxCreate).toHaveBeenCalledOnce()
+    // Two outbox rows per move: the indexing event + the webhook_event fan-out row.
+    expect(outboxCreate).toHaveBeenCalledTimes(2)
+    expect(outboxCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          eventType: 'page.moved',
+          aggregateType: 'webhook_event',
+          aggregateId: 'p1',
+        }),
+      }),
+    )
   })
 
   it('throws BAD_REQUEST when moving into own descendant', async () => {
@@ -499,7 +509,17 @@ describe('PageRepository.emptyTrashTx — per-page outbox', () => {
     expect(txDeleteMany).toHaveBeenCalledWith({
       where: { workspaceId: 'w1', deletedAt: { not: null } },
     })
-    expect(outboxCreate).toHaveBeenCalledTimes(2)
+    // Two rows per page: the indexing page.deleted + the webhook_event fan-out row.
+    expect(outboxCreate).toHaveBeenCalledTimes(4)
+    expect(outboxCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          eventType: 'page.deleted',
+          aggregateType: 'webhook_event',
+          aggregateId: 't1',
+        }),
+      }),
+    )
   })
 })
 
@@ -544,6 +564,16 @@ describe('PageRepository.reorderPageTx — 3-step linked-list relink', () => {
         data: expect.objectContaining({ parentId: 'par2', prevPageId: null, updatedById: 'u1' }),
       }),
     )
-    expect(outboxCreate).toHaveBeenCalledOnce()
+    // Two outbox rows per reorder: the indexing event + the webhook_event fan-out row.
+    expect(outboxCreate).toHaveBeenCalledTimes(2)
+    expect(outboxCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({
+          eventType: 'page.moved',
+          aggregateType: 'webhook_event',
+          aggregateId: 'p1',
+        }),
+      }),
+    )
   })
 })

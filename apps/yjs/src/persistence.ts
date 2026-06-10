@@ -1,5 +1,6 @@
 import {
   enqueueOutboxEventIgnoreConflict,
+  enqueueWebhookEvent,
   PageRevisionAction,
   PageType,
   Prisma,
@@ -29,6 +30,7 @@ async function capturePageRevisionTx(
   tx: Prisma.TransactionClient,
   args: {
     pageId: string
+    workspaceId: string
     content: Prisma.InputJsonValue | undefined
     contentYjs: Uint8Array
     metadata: Prisma.InputJsonValue
@@ -51,6 +53,17 @@ async function capturePageRevisionTx(
       contentYjs: args.contentYjs as Uint8Array<ArrayBuffer>,
       metadata: args.metadata,
     },
+  })
+  // Webhook emission rides the same throttle branch: collab edits coalesce at
+  // the revision cadence (≥10 min). actorId null — the yjs server has no
+  // reliable actor identity in the collaborative save path.
+  await enqueueWebhookEvent(tx, {
+    event: 'page.content_updated',
+    resourceType: 'page',
+    resourceId: args.pageId,
+    workspaceId: args.workspaceId,
+    actorId: null,
+    hints: {},
   })
 }
 
@@ -102,6 +115,7 @@ export async function storePageDocument(args: {
     // page service captures structural revisions).
     await capturePageRevisionTx(tx, {
       pageId,
+      workspaceId,
       content: data.content as Prisma.InputJsonValue | undefined,
       contentYjs,
       metadata: { type: pageType, workspaceId } as Prisma.InputJsonValue,

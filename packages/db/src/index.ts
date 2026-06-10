@@ -118,7 +118,7 @@ export {
   AiProviderKind,
 } from '@prisma/client'
 
-export type OutboxAggregateType = 'page' | 'file'
+export type OutboxAggregateType = 'page' | 'file' | 'webhook_event'
 
 export interface EnqueueOutboxEventArgs {
   eventType: string
@@ -158,6 +158,35 @@ export async function enqueueOutboxEventIgnoreConflict(
        ${args.workspaceId ?? null}::uuid, ${JSON.stringify(args.payload ?? {})}::jsonb, 'PENDING', ${delaySql})
     ON CONFLICT DO NOTHING
   `)
+}
+
+export interface EnqueueWebhookEventArgs {
+  event: string // e.g. 'page.moved' — @repo/webhooks owns the catalog; db stays untyped
+  resourceType: 'page' | 'comment'
+  resourceId: string
+  workspaceId: string
+  actorId?: string | null
+  hints?: Prisma.InputJsonValue
+}
+
+/** Second outbox row for webhook fan-out (the indexer only reads aggregate_type='page'). */
+export async function enqueueWebhookEvent(
+  tx: Prisma.TransactionClient,
+  args: EnqueueWebhookEventArgs,
+): Promise<void> {
+  await tx.outboxEvent.create({
+    data: {
+      eventType: args.event,
+      aggregateType: 'webhook_event',
+      aggregateId: args.resourceId,
+      workspaceId: args.workspaceId,
+      payload: {
+        resourceType: args.resourceType,
+        actorId: args.actorId ?? null,
+        hints: args.hints ?? {},
+      },
+    },
+  })
 }
 
 export default prisma

@@ -5,7 +5,8 @@ import {
   notifyPageActivity,
   resolvePageActivityRecipients,
 } from '@repo/notifications'
-import type { PrismaClient } from '@repo/db'
+import { enqueueWebhookEvent } from '@repo/db'
+import type { Prisma, PrismaClient } from '@repo/db'
 
 import { router, publicProcedure } from '../trpc'
 import { resolveCommentContext, canWriteComment } from '../helpers/comment-access'
@@ -293,6 +294,15 @@ export const commentRouter = router({
         orderBy: { createdAt: 'asc' },
         select: { id: true },
       })
+      // TransactionClient is structurally a subset of PrismaClient — the create call works.
+      await enqueueWebhookEvent(ctx.prisma as unknown as Prisma.TransactionClient, {
+        event: 'comment.created',
+        resourceType: 'comment',
+        resourceId: c.pageId,
+        workspaceId: c.workspaceId,
+        actorId: c.author.userId ?? null,
+        hints: { threadId: thread.id, commentId: firstComment?.id ?? thread.id },
+      })
       await notifyNewComment(ctx.prisma, {
         threadId: thread.id,
         commentId: firstComment?.id ?? thread.id,
@@ -340,6 +350,15 @@ export const commentRouter = router({
           content: input.content,
         },
         select: { id: true },
+      })
+      // TransactionClient is structurally a subset of PrismaClient — the create call works.
+      await enqueueWebhookEvent(ctx.prisma as unknown as Prisma.TransactionClient, {
+        event: 'comment.created',
+        resourceType: 'comment',
+        resourceId: c.pageId,
+        workspaceId: c.workspaceId,
+        actorId: c.author.userId ?? null,
+        hints: { threadId: input.threadId, commentId: comment.id },
       })
       await notifyNewComment(ctx.prisma, {
         threadId: input.threadId,
@@ -442,6 +461,15 @@ export const commentRouter = router({
         where: { id: input.threadId },
         data: { resolvedAt: new Date(), resolvedById: c.author.userId ?? null },
         select: { id: true, resolvedAt: true },
+      })
+      // TransactionClient is structurally a subset of PrismaClient — the create call works.
+      await enqueueWebhookEvent(ctx.prisma as unknown as Prisma.TransactionClient, {
+        event: 'comment.resolved',
+        resourceType: 'comment',
+        resourceId: c.pageId,
+        workspaceId: c.workspaceId,
+        actorId: c.author.userId ?? null,
+        hints: { threadId: input.threadId, resolved: true },
       })
       pageCommentBus.emit(c.pageId, { kind: 'thread.upserted', threadId: input.threadId })
       return updated

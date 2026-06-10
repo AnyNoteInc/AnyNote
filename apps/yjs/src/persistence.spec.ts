@@ -6,6 +6,9 @@ const mockTxPageUpdate = jest.fn<(args: unknown) => Promise<unknown>>().mockReso
 const mockEnqueueOutboxEventIgnoreConflict = jest
   .fn<(...args: unknown[]) => Promise<void>>()
   .mockResolvedValue()
+const mockEnqueueWebhookEvent = jest
+  .fn<(...args: unknown[]) => Promise<void>>()
+  .mockResolvedValue()
 const mockRevisionFindFirst = jest
   .fn<(args: unknown) => Promise<{ createdAt: Date } | null>>()
   .mockResolvedValue(null)
@@ -30,6 +33,7 @@ jest.unstable_mockModule('@repo/db', () => ({
   },
   Prisma: { sql: (s: TemplateStringsArray, ...v: unknown[]) => ({ s, v }) },
   enqueueOutboxEventIgnoreConflict: mockEnqueueOutboxEventIgnoreConflict,
+  enqueueWebhookEvent: mockEnqueueWebhookEvent,
 }))
 
 const { storePageDocument } = await import('./persistence.js')
@@ -37,6 +41,7 @@ const { storePageDocument } = await import('./persistence.js')
 beforeEach(() => {
   mockTxPageUpdate.mockClear()
   mockEnqueueOutboxEventIgnoreConflict.mockClear()
+  mockEnqueueWebhookEvent.mockClear()
   mockTransaction.mockClear()
   mockRevisionFindFirst.mockClear()
   mockRevisionFindFirst.mockResolvedValue(null)
@@ -152,6 +157,14 @@ describe('storePageDocument', () => {
       expect(data.actorId).toBeNull()
       expect(data.pageId).toBe('00000000-0000-0000-0000-000000000001')
       expect(data.contentYjs).toBeInstanceOf(Uint8Array)
+      // The webhook page.content_updated emission rides the same throttle branch.
+      expect(mockEnqueueWebhookEvent).toHaveBeenCalledTimes(1)
+      const webhookArgs = mockEnqueueWebhookEvent.mock.calls[0]![1] as Record<string, unknown>
+      expect(webhookArgs.event).toBe('page.content_updated')
+      expect(webhookArgs.resourceType).toBe('page')
+      expect(webhookArgs.resourceId).toBe('00000000-0000-0000-0000-000000000001')
+      expect(webhookArgs.workspaceId).toBe('00000000-0000-0000-0000-000000000002')
+      expect(webhookArgs.actorId).toBeNull()
     })
 
     it('SKIPS the revision when the latest is younger than 10 min (time-only throttle)', async () => {
@@ -167,6 +180,8 @@ describe('storePageDocument', () => {
       })
 
       expect(mockRevisionCreate).not.toHaveBeenCalled()
+      // The throttled branch also suppresses the webhook content_updated emission.
+      expect(mockEnqueueWebhookEvent).not.toHaveBeenCalled()
       // page.update + outbox still run
       expect(mockTxPageUpdate).toHaveBeenCalledTimes(1)
     })

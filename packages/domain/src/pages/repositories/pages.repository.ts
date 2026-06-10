@@ -1,4 +1,4 @@
-import { PageType, enqueueOutboxEvent } from '@repo/db'
+import { PageType, enqueueOutboxEvent, enqueueWebhookEvent } from '@repo/db'
 import type { Prisma } from '@repo/db'
 
 import { badRequest, notFound } from '../../shared/errors.ts'
@@ -234,6 +234,14 @@ export class PageRepository {
       aggregateId: newPage.id,
       workspaceId: input.workspaceId,
     })
+    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+      event: 'page.created',
+      resourceType: 'page',
+      resourceId: newPage.id,
+      workspaceId: input.workspaceId,
+      actorId: actorUserId,
+      hints: {},
+    })
 
     if (newPage.type === PageType.KANBAN) {
       await provision.onKanban(newPage.id)
@@ -301,6 +309,9 @@ export class PageRepository {
       aggregateId: newPage.id,
       workspaceId,
     })
+    // Deliberately NO webhook_event here: database item pages are internal rows
+    // of a DATABASE page — the fan-out's visibility gate excludes them anyway,
+    // and emitting would only create dead outbox rows per row insert.
 
     return { id: newPage.id }
   }
@@ -320,6 +331,14 @@ export class PageRepository {
       aggregateId: pageId,
       workspaceId,
     })
+    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+      event: 'page.properties_updated',
+      resourceType: 'page',
+      resourceId: pageId,
+      workspaceId,
+      actorId: actorUserId,
+      hints: { changed: ['archivedAt'] },
+    })
     return { id: pageId }
   }
 
@@ -337,6 +356,14 @@ export class PageRepository {
       aggregateType: 'page',
       aggregateId: pageId,
       workspaceId,
+    })
+    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+      event: 'page.properties_updated',
+      resourceType: 'page',
+      resourceId: pageId,
+      workspaceId,
+      actorId: actorUserId,
+      hints: { changed: ['archivedAt'] },
     })
     return { id: pageId }
   }
@@ -384,6 +411,14 @@ export class PageRepository {
       aggregateId: pageId,
       workspaceId,
     })
+    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+      event: 'page.moved',
+      resourceType: 'page',
+      resourceId: pageId,
+      workspaceId,
+      actorId: actorUserId,
+      hints: { scope: 'collection' },
+    })
     return { id: pageId }
   }
 
@@ -406,6 +441,14 @@ export class PageRepository {
       aggregateType: 'page',
       aggregateId: updated.id,
       workspaceId: input.workspaceId,
+    })
+    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+      event: 'page.properties_updated',
+      resourceType: 'page',
+      resourceId: updated.id,
+      workspaceId: input.workspaceId,
+      actorId: actorUserId,
+      hints: { changed: input.icon !== undefined ? ['title', 'icon'] : ['title'] },
     })
     return updated
   }
@@ -433,6 +476,16 @@ export class PageRepository {
       aggregateType: 'page',
       aggregateId: updated.id,
       workspaceId: input.workspaceId,
+    })
+    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+      event: 'page.properties_updated',
+      resourceType: 'page',
+      resourceId: updated.id,
+      workspaceId: input.workspaceId,
+      actorId: actorUserId,
+      hints: {
+        changed: (['title', 'icon', 'type'] as const).filter((k) => input[k] !== undefined),
+      },
     })
     return updated
   }
@@ -483,6 +536,14 @@ export class PageRepository {
       aggregateType: 'page',
       aggregateId: copy.id,
       workspaceId: page.workspaceId,
+    })
+    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+      event: 'page.created',
+      resourceType: 'page',
+      resourceId: copy.id,
+      workspaceId: page.workspaceId,
+      actorId: actorUserId,
+      hints: { duplicatedFrom: page.id },
     })
 
     return { id: copy.id }
@@ -548,6 +609,14 @@ export class PageRepository {
       aggregateId: page.id,
       workspaceId: page.workspaceId,
     })
+    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+      event: 'page.moved',
+      resourceType: 'page',
+      resourceId: page.id,
+      workspaceId: page.workspaceId,
+      actorId: actorUserId,
+      hints: { to: input.newParentId ?? null },
+    })
 
     return { id: page.id }
   }
@@ -611,6 +680,14 @@ export class PageRepository {
       aggregateId: input.pageId,
       workspaceId: page.workspaceId,
     })
+    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+      event: 'page.moved',
+      resourceType: 'page',
+      resourceId: input.pageId,
+      workspaceId: page.workspaceId,
+      actorId: actorUserId,
+      hints: { to: input.newParentId ?? null },
+    })
 
     return { id: input.pageId }
   }
@@ -672,6 +749,14 @@ export class PageRepository {
       aggregateType: 'page',
       aggregateId: page.id,
       workspaceId: input.workspaceId,
+    })
+    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+      event: 'page.deleted',
+      resourceType: 'page',
+      resourceId: page.id,
+      workspaceId: input.workspaceId,
+      actorId: actorUserId,
+      hints: {},
     })
 
     return { id: page.id }
@@ -755,6 +840,14 @@ export class PageRepository {
       aggregateId: page.id,
       workspaceId: input.workspaceId,
     })
+    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+      event: 'page.undeleted',
+      resourceType: 'page',
+      resourceId: page.id,
+      workspaceId: input.workspaceId,
+      actorId: actorUserId,
+      hints: {},
+    })
 
     return { id: page.id }
   }
@@ -790,6 +883,16 @@ export class PageRepository {
       aggregateId: page.id,
       workspaceId: input.workspaceId,
     })
+    // actorId null: hardDeletePageTx doesn't receive the actor (only the input
+    // DTO) — the service-level ownership check already ran before the tx.
+    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+      event: 'page.deleted',
+      resourceType: 'page',
+      resourceId: page.id,
+      workspaceId: input.workspaceId,
+      actorId: null,
+      hints: { hard: true },
+    })
 
     return { id: page.id }
   }
@@ -808,6 +911,16 @@ export class PageRepository {
         aggregateType: 'page',
         aggregateId: id,
         workspaceId: input.workspaceId,
+      })
+      // actorId null: emptyTrashTx doesn't receive the actor (only the input
+      // DTO) — the service-level OWNER check already ran before the tx.
+      await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+        event: 'page.deleted',
+        resourceType: 'page',
+        resourceId: id,
+        workspaceId: input.workspaceId,
+        actorId: null,
+        hints: { hard: true },
       })
     }
     return { count: deleted.count }
