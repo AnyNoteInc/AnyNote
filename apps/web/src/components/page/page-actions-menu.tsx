@@ -9,6 +9,7 @@ import {
   ContentCopyIcon,
   DeleteIcon,
   Divider,
+  DownloadIcon,
   HeightIcon,
   IconButton,
   LinkIcon,
@@ -22,6 +23,7 @@ import {
   Switch,
 } from '@repo/ui/components'
 
+import { BulkExportDialog } from '@/components/import-export/bulk-export-dialog'
 import { usePageActions } from '@/hooks/use-page-actions'
 import { useFullWidth } from '@/hooks/use-full-width'
 
@@ -70,6 +72,7 @@ export function PageActionsMenu({
 }: Props) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const [exportOpen, setExportOpen] = useState(false)
+  const [bulkExportOpen, setBulkExportOpen] = useState(false)
   const [moveOpen, setMoveOpen] = useState(false)
   const [saveTemplateOpen, setSaveTemplateOpen] = useState(false)
 
@@ -198,6 +201,19 @@ export function PageActionsMenu({
           </ListItemIcon>
           <ListItemText>Экспортировать</ListItemText>
         </MenuItem>
+
+        <MenuItem
+          onClick={() => {
+            setBulkExportOpen(true)
+            closeMenu()
+          }}
+          sx={menuItemSx}
+        >
+          <ListItemIcon>
+            <DownloadIcon fontSize="small" />
+          </ListItemIcon>
+          <ListItemText>Экспортировать с подстраницами…</ListItemText>
+        </MenuItem>
       </Menu>
 
       {actions.dialogs}
@@ -216,6 +232,13 @@ export function PageActionsMenu({
         open={exportOpen}
         onClose={() => setExportOpen(false)}
         pageId={pageId}
+      />
+
+      <BulkExportDialog
+        open={bulkExportOpen}
+        onClose={() => setBulkExportOpen(false)}
+        workspaceId={workspaceId}
+        preset={{ pageId, pageTitle: pages.find((p) => p.id === pageId)?.title ?? '' }}
       />
 
       <SaveAsTemplateDialog

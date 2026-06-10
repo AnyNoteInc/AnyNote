@@ -31,6 +31,10 @@ vi.mock('@/components/page/page-export-dialog', () => ({
   PageExportDialog: () => null,
 }))
 
+vi.mock('@/components/import-export/bulk-export-dialog', () => ({
+  BulkExportDialog: () => null,
+}))
+
 vi.mock('@/components/templates', () => ({
   SaveAsTemplateDialog: () => null,
 }))
