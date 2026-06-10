@@ -299,4 +299,116 @@ describe('job router', () => {
     expect(await prisma.exportJob.findUnique({ where: { id: job.id } })).toBeNull()
     expect(await prisma.file.findUnique({ where: { id: file.id } })).toBeNull()
   })
+
+  it('import.create rejects a non-ZIP format for a ZIP-only source (NOTION)', async () => {
+    const { owner, ws } = await seed()
+    const file = await prisma.file.create({
+      data: {
+        userId: owner.id,
+        workspaceId: ws.id,
+        name: 'notes',
+        ext: 'md',
+        fileSize: 1n,
+        mimeType: 'text/markdown',
+        hash: 'h-md',
+        path: 't/notes.md',
+        status: 'ACTIVE',
+        isPublic: false,
+      },
+    })
+    const { caller } = makeCaller(owner.id)
+    await expect(
+      caller.import.create({
+        workspaceId: ws.id,
+        fileId: file.id,
+        format: 'MARKDOWN',
+        source: 'NOTION',
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+  })
+
+  it('import.create persists the source on the job row', async () => {
+    const { owner, ws } = await seed()
+    const file = await prisma.file.create({
+      data: {
+        userId: owner.id,
+        workspaceId: ws.id,
+        name: 'export',
+        ext: 'zip',
+        fileSize: 1n,
+        mimeType: 'application/zip',
+        hash: 'h-src',
+        path: 't/export.zip',
+        status: 'ACTIVE',
+        isPublic: false,
+      },
+    })
+    const { caller } = makeCaller(owner.id)
+    const { id } = await caller.import.create({
+      workspaceId: ws.id,
+      fileId: file.id,
+      format: 'ZIP',
+      source: 'NOTION',
+    })
+    const job = await prisma.importJob.findUniqueOrThrow({ where: { id } })
+    expect(job.source).toBe('NOTION')
+  })
+
+  it('list exposes hasReport/warnings and still names the SOURCE file', async () => {
+    const { owner, ws } = await seed()
+    const sourceFile = await prisma.file.create({
+      data: {
+        userId: owner.id,
+        workspaceId: ws.id,
+        name: 'notion-export',
+        ext: 'zip',
+        fileSize: 1n,
+        mimeType: 'application/zip',
+        hash: 'h-list-src',
+        path: 't/notion-export.zip',
+        status: 'ACTIVE',
+        isPublic: false,
+      },
+    })
+    const reportFile = await prisma.file.create({
+      data: {
+        userId: owner.id,
+        workspaceId: null,
+        name: 'import-report',
+        ext: 'txt',
+        fileSize: 1n,
+        mimeType: 'text/plain',
+        hash: 'h-list-rep',
+        path: 'imports/list-report.txt',
+        status: 'ACTIVE',
+        isPublic: false,
+      },
+    })
+    const job = await prisma.importJob.create({
+      data: {
+        workspaceId: ws.id,
+        userId: owner.id,
+        format: 'ZIP',
+        source: 'NOTION',
+        status: 'DONE',
+        result: { pagesCreated: 1, rootPageIds: [], warnings: ['w1', 'w2', 'w3'] },
+        artifacts: {
+          create: [
+            { fileId: sourceFile.id, kind: 'SOURCE' },
+            { fileId: reportFile.id, kind: 'REPORT' },
+          ],
+        },
+      },
+    })
+    const { caller } = makeCaller(owner.id)
+    const rows = await caller.list({ workspaceId: ws.id })
+    const row = rows.find((r) => r.id === job.id)
+    expect(row).toMatchObject({
+      hasReport: true,
+      warnings: ['w1', 'w2', 'w3'],
+      warningsCount: 3,
+      sourceName: 'notion-export.zip',
+      source: 'NOTION',
+    })
+  })
 })

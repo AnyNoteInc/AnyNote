@@ -25,9 +25,13 @@ const importCreateInput = z.object({
   workspaceId: z.string().uuid(),
   fileId: z.string().uuid(),
   format: z.enum(['MARKDOWN', 'HTML', 'ZIP']),
+  source: z.enum(['GENERIC', 'NOTION', 'CONFLUENCE', 'YANDEX_WIKI']).default('GENERIC'),
   location: z.enum(['team', 'private']).default('team'),
   parentId: z.string().uuid().nullish(),
 })
+
+/** Sources whose exports are only meaningful as a ZIP archive. */
+const ZIP_ONLY_SOURCES: ReadonlySet<string> = new Set(['NOTION', 'CONFLUENCE'])
 
 const ACTIVE: JobStatusValue[] = ['QUEUED', 'PROCESSING']
 
@@ -76,6 +80,22 @@ export type JobListItem = {
   finishedAt: Date | null
   hasArtifact: boolean
   sourceName: string | null
+  hasReport: boolean
+  /** Structured import warnings from the result JSON, capped at 50 for the log dialog. */
+  warnings: string[]
+  /** UNCAPPED warnings length, so the UI can say «и ещё N». */
+  warningsCount: number
+  source: string | null
+}
+
+/** Maximum warnings shipped to the client per job row (the report has the full list). */
+const WARNINGS_CAP = 50
+
+function importWarnings(result: Prisma.JsonValue | null): string[] {
+  if (!result || typeof result !== 'object' || Array.isArray(result)) return []
+  const raw = (result as Prisma.JsonObject).warnings
+  if (!Array.isArray(raw)) return []
+  return raw.filter((w): w is string => typeof w === 'string')
 }
 
 export const jobRouter = router({
@@ -138,6 +158,10 @@ export const jobRouter = router({
       await assertWorkspaceMember(ctx, input.workspaceId)
       await requireWritableWorkspace(input.workspaceId)
 
+      if (ZIP_ONLY_SOURCES.has(input.source) && input.format !== 'ZIP') {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'Для этого источника нужен ZIP-архив' })
+      }
+
       const file = await ctx.prisma.file.findFirst({
         where: { id: input.fileId, userId: ctx.user.id, status: 'ACTIVE' },
         select: { id: true, ext: true },
@@ -165,6 +189,7 @@ export const jobRouter = router({
             workspaceId: input.workspaceId,
             userId: ctx.user.id,
             format: input.format,
+            source: input.source,
             options: { location: input.location, parentId: input.parentId ?? null },
             artifacts: { create: { fileId: input.fileId, kind: 'SOURCE' } },
           },
@@ -225,7 +250,9 @@ export const jobRouter = router({
           where: own,
           orderBy: { createdAt: 'desc' },
           take: 50,
-          include: { artifacts: { include: { file: { select: { name: true, ext: true } } } } },
+          include: {
+            artifacts: { select: { kind: true, file: { select: { name: true, ext: true } } } },
+          },
         }),
       ])
       const items: JobListItem[] = [
@@ -243,10 +270,15 @@ export const jobRouter = router({
             finishedAt: j.finishedAt,
             hasArtifact: j.status === 'DONE' && j.artifacts.length > 0,
             sourceName: null,
+            hasReport: false,
+            warnings: [],
+            warningsCount: 0,
+            source: null,
           }),
         ),
         ...imports.map((j): JobListItem => {
-          const src = j.artifacts[0]?.file
+          const src = j.artifacts.find((a) => a.kind === 'SOURCE')?.file
+          const warnings = importWarnings(j.result)
           return {
             id: j.id,
             kind: 'import',
@@ -260,6 +292,10 @@ export const jobRouter = router({
             finishedAt: j.finishedAt,
             hasArtifact: false,
             sourceName: src ? `${src.name}${src.ext ? `.${src.ext}` : ''}` : null,
+            hasReport: j.artifacts.some((a) => a.kind === 'REPORT'),
+            warnings: warnings.slice(0, WARNINGS_CAP),
+            warningsCount: warnings.length,
+            source: j.source,
           }
         }),
       ]
