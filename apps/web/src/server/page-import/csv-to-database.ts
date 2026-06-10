@@ -123,8 +123,11 @@ export async function materializeCsvDatabase(
     dataHeader,
     bp.rows.map((r) => r.slice(1)),
   )
-  const cols: Array<{ propertyId: string; col: InferredColumn }> = []
-  for (const col of inferred) {
+  // `colIdx` preserves the inferred-column index (skipped columns leave holes)
+  // so cell lookups below stay aligned with the raw row values.
+  const cols: Array<{ propertyId: string; col: InferredColumn; colIdx: number }> = []
+  for (const [colIdx, col] of inferred.entries()) {
+    if (col.skip) continue
     // Resume-time reuse must match name AND type — a same-name property of a
     // different type (e.g. user-edited between runs) gets a fresh property.
     const match = reusable.find((p) => p.name === col.name && p.type === INFERRED_TO_PROP[col.type])
@@ -139,7 +142,7 @@ export async function materializeCsvDatabase(
           })
         ).id
     journal.action(`Колонка «${col.name}» → ${TYPE_LABEL[col.type]}`)
-    cols.push({ propertyId, col })
+    cols.push({ propertyId, col, colIdx })
   }
 
   // 3. Rows: one item page per CSV row; cells through the domain (per-cell
@@ -169,8 +172,8 @@ export async function materializeCsvDatabase(
       title,
     })
 
-    for (const [i, { propertyId, col }] of cols.entries()) {
-      const raw = row[i + 1] ?? ''
+    for (const { propertyId, col, colIdx } of cols) {
+      const raw = row[colIdx + 1] ?? ''
       const value = col.toValue(raw)
       if (value === null) continue
       try {

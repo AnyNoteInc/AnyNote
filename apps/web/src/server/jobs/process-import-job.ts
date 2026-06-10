@@ -143,6 +143,9 @@ async function run(
     plan = confluence
     aliases = confluence.aliases
   } else {
+    // The router does not accept CSV yet; the CSV database path lands with the
+    // import-processor change. Defensive guard keeps the dispatch exhaustive.
+    if (job.format === 'CSV') throw new ImportSourceError('Импорт CSV ещё не поддерживается')
     plan =
       job.format === 'ZIP' ? buildImportPlan(bytes) : singleFilePlan(job.format, source.name, bytes)
   }

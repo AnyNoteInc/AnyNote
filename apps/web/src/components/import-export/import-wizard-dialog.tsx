@@ -73,7 +73,10 @@ export function ImportWizardDialog({ open, onClose, workspaceId }: Props) {
     onSuccess: () => utils.job.list.invalidate({ workspaceId }),
   })
 
-  const format = file ? detectImportFormat(file.name) : null
+  // CSV is detected for the upcoming database-import flow; until the wizard
+  // grows its CSV step it stays unsupported here (same UX as an unknown file).
+  const detected = file ? detectImportFormat(file.name) : null
+  const format = detected === 'CSV' ? null : detected
   const requiresZip = source?.key === 'NOTION' || source?.key === 'CONFLUENCE'
   const zipMismatch = requiresZip && format !== null && format !== 'ZIP'
 
@@ -139,13 +142,7 @@ export function ImportWizardDialog({ open, onClose, workspaceId }: Props) {
   }
 
   return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      maxWidth="xs"
-      fullWidth
-      data-testid="import-wizard"
-    >
+    <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth data-testid="import-wizard">
       <DialogTitle>Импорт</DialogTitle>
       <DialogContent>
         {done ? (

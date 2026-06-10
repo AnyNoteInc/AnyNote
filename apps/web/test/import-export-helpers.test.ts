@@ -1,9 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import {
-  detectImportFormat,
-  uploadMimeFor,
-} from '../src/components/import-export/import-format'
+import { detectImportFormat, uploadMimeFor } from '../src/components/import-export/import-format'
 import { SOURCE_CARDS } from '../src/components/import-export/import-sources'
 import {
   describeJob,
@@ -80,8 +77,10 @@ describe('detectImportFormat / uploadMimeFor', () => {
     expect(detectImportFormat('a.zip')).toBe('ZIP')
     expect(detectImportFormat('a.md')).toBe('MARKDOWN')
     expect(detectImportFormat('a.htm')).toBe('HTML')
+    expect(detectImportFormat('a.csv')).toBe('CSV')
     expect(detectImportFormat('a.pdf')).toBeNull()
     expect(uploadMimeFor('ZIP')).toBe('application/zip')
     expect(uploadMimeFor('HTML')).toBe('text/plain')
+    expect(uploadMimeFor('CSV')).toBe('text/plain')
   })
 })

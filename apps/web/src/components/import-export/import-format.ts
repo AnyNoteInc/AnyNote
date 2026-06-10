@@ -1,10 +1,11 @@
-export type ImportFormat = 'MARKDOWN' | 'HTML' | 'ZIP'
+export type ImportFormat = 'MARKDOWN' | 'HTML' | 'ZIP' | 'CSV'
 
 export function detectImportFormat(fileName: string): ImportFormat | null {
   const ext = fileName.split('.').pop()?.toLowerCase() ?? ''
   if (ext === 'zip') return 'ZIP'
   if (ext === 'md' || ext === 'markdown') return 'MARKDOWN'
   if (ext === 'html' || ext === 'htm') return 'HTML'
+  if (ext === 'csv') return 'CSV'
   return null
 }
 

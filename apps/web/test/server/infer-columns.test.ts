@@ -62,3 +62,19 @@ describe('inferColumns', () => {
     expect(infer('X', ['1']).toValue('')).toBeNull()
   })
 })
+
+describe('inferColumns overrides', () => {
+  it('pins a column type and skips skipped columns', () => {
+    const cols = inferColumns(
+      ['Имя', 'Код', 'Мусор'],
+      [
+        ['А', '1', 'x'],
+        ['Б', '2', 'y'],
+      ],
+      { overrides: { 1: 'TEXT', 2: 'skip' } },
+    )
+    expect(cols[1]!.type).toBe('TEXT') // would infer NUMBER without the pin
+    expect(cols[1]!.toValue('3')).toBe('3')
+    expect(cols[2]!.skip).toBe(true)
+  })
+})

@@ -15,9 +15,13 @@ export type InferredColumn = {
   name: string
   type: InferredType
   options?: InferredOption[]
+  /** User chose to drop this column: create no property, import no cells. */
+  skip?: boolean
   /** Convert a raw CSV cell to the DOMAIN cell value (option ids, numbers, ISO dates…); null = empty. */
   toValue: (raw: string) => string | number | boolean | string[] | null
 }
+
+export type InferOverrides = { overrides?: Record<number, InferredType | 'skip'> }
 
 const NUM_RE = /^-?\d+(?:[.,]\d+)?$/
 const TRUE_SET = new Set(['yes', 'true', 'да', '✓', 'x', '1', 'checked'])
@@ -34,10 +38,18 @@ const OPTION_COLORS = ['#9CA3AF', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#
 const MAX_SELECT_OPTIONS = 24
 const MAX_OPTION_LABEL = 60
 
-export function inferColumns(header: string[], rows: string[][]): InferredColumn[] {
+export function inferColumns(
+  header: string[],
+  rows: string[][],
+  opts: InferOverrides = {},
+): InferredColumn[] {
   return header.map((name, idx) => {
+    const ov = opts.overrides?.[idx]
+    const cleanName = name.trim() || `Колонка ${idx + 1}`
+    if (ov === 'skip') return { ...textColumn(cleanName), skip: true }
     const values = rows.map((r) => (r[idx] ?? '').trim()).filter((v) => v !== '')
-    return buildColumn(name.trim() || `Колонка ${idx + 1}`, values)
+    if (ov) return pinnedColumn(cleanName, ov, values)
+    return buildColumn(cleanName, values)
   })
 }
 
@@ -45,40 +57,10 @@ function buildColumn(name: string, values: string[]): InferredColumn {
   if (values.length === 0) return textColumn(name)
   const lower = values.map((v) => v.toLowerCase())
 
-  if (values.every((v) => NUM_RE.test(v))) {
-    return {
-      name,
-      type: 'NUMBER',
-      toValue: (raw) => {
-        const t = raw.trim()
-        if (!t) return null
-        const n = Number.parseFloat(t.replace(',', '.'))
-        return Number.isFinite(n) ? n : null
-      },
-    }
-  }
-  if (lower.every((v) => TRUE_SET.has(v) || FALSE_SET.has(v))) {
-    return {
-      name,
-      type: 'CHECKBOX',
-      toValue: (raw) => {
-        const t = raw.trim().toLowerCase()
-        if (!t) return null
-        return TRUE_SET.has(t)
-      },
-    }
-  }
+  if (values.every((v) => NUM_RE.test(v))) return numberColumn(name)
+  if (lower.every((v) => TRUE_SET.has(v) || FALSE_SET.has(v))) return checkboxColumn(name)
   if (values.every((v) => DATEISH_RE.test(v) && !Number.isNaN(Date.parse(v)))) {
-    return {
-      name,
-      type: 'DATE',
-      toValue: (raw) => {
-        const t = raw.trim()
-        if (!t) return null
-        const d = new Date(t)
-        return Number.isNaN(d.getTime()) ? null : d.toISOString()
-      },
-    }
+    return dateColumn(name)
   }
   if (values.every((v) => URL_RE.test(v))) return patternColumn(name, 'URL')
   if (values.every((v) => EMAIL_RE.test(v))) return patternColumn(name, 'EMAIL')
@@ -96,34 +78,90 @@ function buildColumn(name: string, values: string[]): InferredColumn {
   const shortEnough = distinct.every((p) => p.length <= MAX_OPTION_LABEL)
   const hasRepeats = parts.length > distinct.length
   if (distinct.length > 0 && distinct.length <= MAX_SELECT_OPTIONS && shortEnough && hasRepeats) {
-    const options: InferredOption[] = distinct.map((label, i) => ({
-      id: `opt-${i + 1}`,
-      label,
-      color: OPTION_COLORS[i % OPTION_COLORS.length] ?? null,
-    }))
-    const idByLabel = new Map(options.map((o) => [o.label, o.id]))
-    if (isMulti) {
-      return {
-        name,
-        type: 'MULTI_SELECT',
-        options,
-        toValue: (raw) => {
-          const ids = raw
-            .split(', ')
-            .map((p) => idByLabel.get(p.trim()))
-            .filter((id): id is string => Boolean(id))
-          return ids.length > 0 ? ids : null
-        },
-      }
-    }
-    return {
-      name,
-      type: 'SELECT',
-      options,
-      toValue: (raw) => idByLabel.get(raw.trim()) ?? null,
-    }
+    return selectColumn(name, distinct, isMulti)
   }
   return textColumn(name)
+}
+
+/** Same shapes `buildColumn` produces, but with the user-pinned type FORCED. */
+function pinnedColumn(name: string, type: InferredType, values: string[]): InferredColumn {
+  if (type === 'NUMBER') return numberColumn(name)
+  if (type === 'CHECKBOX') return checkboxColumn(name)
+  if (type === 'DATE') return dateColumn(name)
+  if (type === 'URL' || type === 'EMAIL' || type === 'PHONE') return patternColumn(name, type)
+  if (type === 'SELECT') return selectColumn(name, [...new Set(values)], false)
+  if (type === 'MULTI_SELECT') {
+    const parts = values.flatMap((v) => v.split(', ').map((p) => p.trim()))
+    return selectColumn(name, [...new Set(parts.filter((p) => p !== ''))], true)
+  }
+  return textColumn(name)
+}
+
+function numberColumn(name: string): InferredColumn {
+  return {
+    name,
+    type: 'NUMBER',
+    toValue: (raw) => {
+      const t = raw.trim()
+      if (!t) return null
+      const n = Number.parseFloat(t.replace(',', '.'))
+      return Number.isFinite(n) ? n : null
+    },
+  }
+}
+
+function checkboxColumn(name: string): InferredColumn {
+  return {
+    name,
+    type: 'CHECKBOX',
+    toValue: (raw) => {
+      const t = raw.trim().toLowerCase()
+      if (!t) return null
+      return TRUE_SET.has(t)
+    },
+  }
+}
+
+function dateColumn(name: string): InferredColumn {
+  return {
+    name,
+    type: 'DATE',
+    toValue: (raw) => {
+      const t = raw.trim()
+      if (!t) return null
+      const d = new Date(t)
+      return Number.isNaN(d.getTime()) ? null : d.toISOString()
+    },
+  }
+}
+
+function selectColumn(name: string, labels: string[], isMulti: boolean): InferredColumn {
+  const options: InferredOption[] = labels.map((label, i) => ({
+    id: `opt-${i + 1}`,
+    label,
+    color: OPTION_COLORS[i % OPTION_COLORS.length] ?? null,
+  }))
+  const idByLabel = new Map(options.map((o) => [o.label, o.id]))
+  if (isMulti) {
+    return {
+      name,
+      type: 'MULTI_SELECT',
+      options,
+      toValue: (raw) => {
+        const ids = raw
+          .split(', ')
+          .map((p) => idByLabel.get(p.trim()))
+          .filter((id): id is string => Boolean(id))
+        return ids.length > 0 ? ids : null
+      },
+    }
+  }
+  return {
+    name,
+    type: 'SELECT',
+    options,
+    toValue: (raw) => idByLabel.get(raw.trim()) ?? null,
+  }
 }
 
 function textColumn(name: string): InferredColumn {
