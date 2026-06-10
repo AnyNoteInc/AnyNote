@@ -11,6 +11,7 @@ import {
   GroupIcon,
   HubIcon,
   IconButton,
+  ImportExportIcon,
   PublicIcon,
   SettingsIcon,
   SmartToyIcon,
@@ -28,6 +29,7 @@ import { WorkspaceMembersSection } from './members-section'
 import { WorkspaceAiSection } from './ai-section'
 import { WorkspaceMcpSection } from './mcp-section'
 import { WorkspaceFilesSection } from './files-section'
+import { ImportExportSection } from './import-export-section'
 import { WorkspacePublicPagesSection } from './public-pages-section'
 import { UsageSection } from './usage-section'
 import { WorkspaceDangerSection } from './danger-section'
@@ -38,6 +40,7 @@ export type SettingsSectionSlug =
   | 'ai'
   | 'mcp'
   | 'files'
+  | 'import-export'
   | 'public'
   | 'usage'
   | 'danger'
@@ -144,6 +147,13 @@ export function WorkspaceSettingsDialog({
       render: () => (
         <WorkspaceFilesSection workspaceId={workspaceId} currentUserId={currentUserId} />
       ),
+    },
+    {
+      slug: 'import-export',
+      label: 'Импорт и экспорт',
+      icon: <ImportExportIcon fontSize="small" />,
+      show: true,
+      render: () => <ImportExportSection workspaceId={workspaceId} />,
     },
     {
       slug: 'public',
