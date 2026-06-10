@@ -166,16 +166,39 @@ async function run(ctx: ExportJobContext, jobId: string): Promise<void> {
     if (isPdf) {
       // PDF uses the SINGLE-PAGE pipeline: base64-embedded images (Gotenberg has
       // no archive to resolve relative paths against) and absolute page links.
-      const body =
-        rec.type === PageType.TEXT
-          ? await renderPageBodyHtml(
-              { content: rec.content },
-              { prisma: ctx.prisma, storage: ctx.storage, baseUrl: ctx.baseUrl },
-            )
-          : rec.type === PageType.DATABASE
-            ? await renderDatabaseBodyHtml(ctx, job.userId, rec)
-            : `<p>Тип страницы «${rec.type}» не входит в экспорт этой версии.</p>`
-      const fullHtml = wrapHtmlDocument({ bodyHtml: body, title, icon: rec.icon })
+      // Body computation runs first; on failure the page degrades to a stub HTML
+      // entry (symmetric with MD/HTML) rather than failing the entire job.
+      let fullHtml: string
+      try {
+        const body =
+          rec.type === PageType.TEXT
+            ? await renderPageBodyHtml(
+                { content: rec.content },
+                { prisma: ctx.prisma, storage: ctx.storage, baseUrl: ctx.baseUrl },
+              )
+            : rec.type === PageType.DATABASE
+              ? await renderDatabaseBodyHtml(ctx, job.userId, rec)
+              : `<p>Тип страницы «${rec.type}» не входит в экспорт этой версии.</p>`
+        fullHtml = wrapHtmlDocument({ bodyHtml: body, title, icon: rec.icon })
+      } catch (bodyErr) {
+        console.warn('[export-job] pdf body render failed, falling back to html', {
+          pageId: rec.id,
+          err: bodyErr,
+        })
+        pdfFailures.push(title)
+        entries[filePath.replace(/\.pdf$/, '.html')] = strToU8(
+          wrapHtmlDocument({
+            bodyHtml: '<p>Не удалось отрендерить страницу.</p>',
+            title,
+            icon: rec.icon,
+          }),
+        )
+        await ctx.prisma.exportJob.update({
+          where: { id: jobId },
+          data: { processed: { increment: 1 }, heartbeatAt: new Date() },
+        })
+        continue
+      }
       try {
         const stream = await renderPdf(fullHtml)
         entries[filePath] = new Uint8Array(await new Response(stream).arrayBuffer())

@@ -351,6 +351,53 @@ describe('processExportJob', () => {
     expect(fallback).toContain('дочерний')
   })
 
+  it('degrades a DATABASE page to .html with «Не удалось» note when the database port throws during PDF body render', async () => {
+    const { ws, team, user, ctx, job: seedJob, storage } = await seed()
+    await prisma.exportJob.update({ where: { id: seedJob.id }, data: { status: 'DONE' } })
+    const dbPage = await prisma.page.create({
+      data: {
+        workspaceId: ws.id,
+        type: 'DATABASE',
+        title: 'БазаОшибка',
+        collectionId: team.id,
+        createdById: user.id,
+      },
+    })
+    const job = await prisma.exportJob.create({
+      data: {
+        workspaceId: ws.id,
+        userId: user.id,
+        scope: 'SUBTREE',
+        scopeId: dbPage.id,
+        format: 'PDF_ZIP',
+      },
+    })
+    // Database port whose listProperties throws to simulate a fetch error.
+    const throwingDatabase = {
+      listProperties: async () => {
+        throw new Error('db port unavailable')
+      },
+      listRows: async () => ({ rows: [], nextCursor: null }),
+    }
+    const fake = fakePdf()
+    await processExportJob({ ...ctx, database: throwingDatabase, pdf: fake.render }, job.id)
+
+    const done = await prisma.exportJob.findUniqueOrThrow({ where: { id: job.id } })
+    expect(done.status).toBe('DONE')
+    expect((done.result as { pdfFailures: string[] } | null)?.pdfFailures).toContain('БазаОшибка')
+
+    const zip = unzipSync(new Uint8Array(storage.store.get(`exports/${job.id}.zip`)!))
+    const names = Object.keys(zip)
+    // Degrades to .html, not .pdf
+    expect(names).toContain('БазаОшибка.html')
+    expect(names).not.toContain('БазаОшибка.pdf')
+    // Entry contains the «Не удалось» note
+    const fallback = strFromU8(zip['БазаОшибка.html']!)
+    expect(fallback).toContain('Не удалось отрендерить страницу.')
+    // Gotenberg was never called (body render failed before renderPdf)
+    expect(fake.calls.length).toBe(0)
+  })
+
   it('fails a pdf export when the subtree exceeds PDF_PAGE_LIMIT pages', async () => {
     const { ws, team, user, ctx, job: seedJob } = await seed()
     await prisma.exportJob.update({ where: { id: seedJob.id }, data: { status: 'DONE' } })

@@ -10,6 +10,9 @@ import { buildCsv, type CsvProperty, type CsvRow } from '@/server/page-export/cs
 
 export const runtime = 'nodejs'
 
+/** Guard against pathological large databases being fully materialised in-request. */
+const CSV_EXPORT_MAX_ROWS = 50_000
+
 const NOT_FOUND = new Response(null, { status: 404 })
 
 /**
@@ -75,6 +78,7 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ pageId: str
 
     const rows: CsvRow[] = []
     let cursor: string | undefined
+    let truncated = false
     do {
       const batch = await domain.database.listRows(session.user.id, {
         pageId,
@@ -84,18 +88,22 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ pageId: str
       })
       rows.push(...batch.rows)
       cursor = batch.nextCursor ?? undefined
+      if (rows.length >= CSV_EXPORT_MAX_ROWS) {
+        truncated = true
+        break
+      }
     } while (cursor)
 
     const csv = buildCsv(props, rows)
     const filename = `${(page.title ?? '').trim() || 'database'}.csv`
-    return new Response(csv, {
-      headers: {
-        'Content-Type': 'text/csv; charset=utf-8',
-        'Content-Disposition': contentDisposition(filename),
-        'Cache-Control': 'private, no-store',
-        'X-Content-Type-Options': 'nosniff',
-      },
-    })
+    const headers: Record<string, string> = {
+      'Content-Type': 'text/csv; charset=utf-8',
+      'Content-Disposition': contentDisposition(filename),
+      'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff',
+    }
+    if (truncated) headers['X-Export-Truncated'] = 'true'
+    return new Response(csv, { headers })
   } catch {
     return NOT_FOUND
   }
