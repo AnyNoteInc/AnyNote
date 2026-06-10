@@ -4,7 +4,12 @@ import {
   detectImportFormat,
   uploadMimeFor,
 } from '../src/components/import-export/import-format'
-import { describeJob, statusChip } from '../src/components/import-export/job-presentation'
+import { SOURCE_CARDS } from '../src/components/import-export/import-sources'
+import {
+  describeJob,
+  statusChip,
+  type JobRow,
+} from '../src/components/import-export/job-presentation'
 
 describe('statusChip', () => {
   it('maps statuses to labels and colors', () => {
@@ -32,8 +37,41 @@ describe('describeJob', () => {
         createdAt: new Date(),
         hasArtifact: true,
         sourceName: null,
+        hasReport: false,
+        warningsCount: 0,
       }),
     ).toBe('Экспорт: всё пространство · Markdown')
+  })
+
+  it('prefixes non-generic import sources and keeps the generic form byte-identical', () => {
+    const base: Omit<JobRow, 'sourceName' | 'source'> = {
+      id: '1',
+      kind: 'import',
+      status: 'DONE',
+      scope: null,
+      format: 'ZIP',
+      processed: 1,
+      total: 1,
+      error: null,
+      createdAt: new Date(),
+      hasArtifact: false,
+      hasReport: false,
+      warningsCount: 0,
+    }
+    expect(describeJob({ ...base, sourceName: 'export.zip', source: 'NOTION' })).toBe(
+      'Импорт (Notion): export.zip',
+    )
+    expect(describeJob({ ...base, sourceName: 'f.zip', source: 'GENERIC' })).toBe('Импорт: f.zip')
+    expect(describeJob({ ...base, sourceName: 'f.zip', source: null })).toBe('Импорт: f.zip')
+  })
+})
+
+describe('SOURCE_CARDS', () => {
+  it('disables exactly ASANA and MONDAY and restricts Notion/Confluence to zip', () => {
+    const disabled = SOURCE_CARDS.filter((c) => !c.enabled).map((c) => c.key)
+    expect(disabled).toEqual(['ASANA', 'MONDAY'])
+    expect(SOURCE_CARDS.find((c) => c.key === 'NOTION')?.accept).toBe('.zip')
+    expect(SOURCE_CARDS.find((c) => c.key === 'CONFLUENCE')?.accept).toBe('.zip')
   })
 })
 

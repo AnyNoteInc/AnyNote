@@ -10,6 +10,11 @@ export type JobRow = {
   createdAt: string | Date
   hasArtifact: boolean
   sourceName: string | null
+  hasReport: boolean
+  /** Uncapped warnings total (the `warnings` array itself is capped server-side). */
+  warningsCount: number
+  warnings?: string[]
+  source?: string | null
 }
 
 export function statusChip(j: Pick<JobRow, 'status' | 'processed' | 'total'>): {
@@ -45,9 +50,20 @@ const FORMAT_LABEL: Record<string, string> = {
   ZIP: 'ZIP',
 }
 
+const SOURCE_LABEL: Record<string, string> = {
+  GENERIC: 'Файлы',
+  NOTION: 'Notion',
+  CONFLUENCE: 'Confluence',
+  YANDEX_WIKI: 'Яндекс Wiki',
+}
+
 export function describeJob(j: JobRow): string {
   if (j.kind === 'export') {
     return `Экспорт: ${SCOPE_LABEL[j.scope ?? ''] ?? j.scope ?? ''} · ${FORMAT_LABEL[j.format] ?? j.format}`
   }
-  return `Импорт: ${j.sourceName ?? FORMAT_LABEL[j.format] ?? j.format}`
+  const subject = j.sourceName ?? FORMAT_LABEL[j.format] ?? j.format
+  if (j.source && j.source !== 'GENERIC') {
+    return `Импорт (${SOURCE_LABEL[j.source] ?? j.source}): ${subject}`
+  }
+  return `Импорт: ${subject}`
 }

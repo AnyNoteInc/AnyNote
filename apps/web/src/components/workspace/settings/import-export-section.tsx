@@ -21,6 +21,7 @@ import {
 } from '@repo/ui/components'
 
 import { BulkExportDialog } from '@/components/import-export/bulk-export-dialog'
+import { ImportLogDialog } from '@/components/import-export/import-log-dialog'
 import { ImportWizardDialog } from '@/components/import-export/import-wizard-dialog'
 import { describeJob, statusChip, type JobRow } from '@/components/import-export/job-presentation'
 import { trpc } from '@/trpc/client'
@@ -46,6 +47,7 @@ export function ImportExportSection({ workspaceId }: Props) {
   const utils = trpc.useUtils()
   const [importOpen, setImportOpen] = useState(false)
   const [exportOpen, setExportOpen] = useState(false)
+  const [logJob, setLogJob] = useState<JobRow | null>(null)
 
   const jobsQ = trpc.job.list.useQuery(
     { workspaceId },
@@ -122,6 +124,16 @@ export function ImportExportSection({ workspaceId }: Props) {
                   </TableCell>
                   <TableCell align="right">
                     <Stack direction="row" spacing={0.5} justifyContent="flex-end">
+                      {j.kind === 'import' && (j.warningsCount > 0 || j.hasReport) ? (
+                        <Button
+                          size="small"
+                          variant="text"
+                          data-testid="open-journal"
+                          onClick={() => setLogJob(j)}
+                        >
+                          Журнал
+                        </Button>
+                      ) : null}
                       {j.kind === 'export' && j.hasArtifact ? (
                         <IconButton
                           size="small"
@@ -160,6 +172,9 @@ export function ImportExportSection({ workspaceId }: Props) {
         onClose={() => setExportOpen(false)}
         workspaceId={workspaceId}
       />
+      {logJob !== null ? (
+        <ImportLogDialog open job={logJob} onClose={() => setLogJob(null)} />
+      ) : null}
     </SettingsCard>
   )
 }
