@@ -246,6 +246,28 @@ describe('job router', () => {
     expect(kick).not.toHaveBeenCalled()
   })
 
+  it('export artifacts do not appear in the workspace file library', async () => {
+    const { owner, ws } = await seed()
+    const artifact = await prisma.file.create({
+      data: {
+        userId: owner.id,
+        workspaceId: null,
+        name: 'anynote-export',
+        ext: 'zip',
+        fileSize: 1n,
+        mimeType: 'application/zip',
+        hash: 'h-lib',
+        path: 'exports/lib.zip',
+        status: 'ACTIVE',
+        isPublic: false,
+      },
+    })
+    // file.listWorkspace filters `workspaceId: input.workspaceId` + ACTIVE —
+    // a workspaceId-null artifact can never satisfy that predicate.
+    const rows = await prisma.file.findMany({ where: { workspaceId: ws.id, status: 'ACTIVE' } })
+    expect(rows.map((r) => r.id)).not.toContain(artifact.id)
+  })
+
   it('delete removes an export job together with its artifact file row', async () => {
     const { owner, ws } = await seed()
     const file = await prisma.file.create({

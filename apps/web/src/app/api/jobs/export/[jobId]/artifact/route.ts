@@ -48,6 +48,7 @@ export async function GET(
       'Content-Length': file.fileSize.toString(),
       'Content-Disposition': `attachment; filename*=UTF-8''${filename}`,
       'Cache-Control': 'private, no-store',
+      'X-Content-Type-Options': 'nosniff',
     },
   })
 }

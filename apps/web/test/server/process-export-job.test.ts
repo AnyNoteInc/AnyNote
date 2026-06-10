@@ -160,6 +160,17 @@ describe('processExportJob', () => {
     expect(rootMd).not.toContain(`/pages/${child.id}`)
   })
 
+  it('creates the artifact file without workspaceId so the generic files route cannot serve it to members', async () => {
+    const { job, ctx } = await seed()
+    await processExportJob(ctx, job.id)
+    const done = await prisma.exportJob.findUniqueOrThrow({
+      where: { id: job.id },
+      include: { artifacts: { include: { file: true } } },
+    })
+    expect(done.artifacts[0]!.file.workspaceId).toBeNull()
+    expect(done.artifacts[0]!.file.isPublic).toBe(false)
+  })
+
   it('never bundles files from another workspace, even when referenced by content', async () => {
     const { ws, team, user, ctx, storage, job: seedJob } = await seed()
     await prisma.exportJob.update({ where: { id: seedJob.id }, data: { status: 'DONE' } })

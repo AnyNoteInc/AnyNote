@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto'
 import type { Readable } from 'node:stream'
 
-import { FileStatus, PageType, type Prisma, type PrismaClient } from '@repo/db'
+import { FileStatus, PageType, Prisma, type PrismaClient } from '@repo/db'
 import type { CreatePageExtra, CreatePageInput } from '@repo/domain'
 import type { StorageClient } from '@repo/storage'
 
@@ -170,14 +170,35 @@ async function createNode(
         skipDuplicates: true,
       })
     }
-    await ctx.prisma.importMapping.create({
-      data: { jobId: job.id, sourceKey: node.sourceKey, pageId },
-    })
+    let won = true
+    try {
+      await ctx.prisma.importMapping.create({
+        data: { jobId: job.id, sourceKey: node.sourceKey, pageId },
+      })
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+        // A concurrent runner (stale-heartbeat reclaim race) won this node: keep
+        // its page, remove ours, and continue under the winner's id.
+        won = false
+        const winner = await ctx.prisma.importMapping.findUniqueOrThrow({
+          where: { jobId_sourceKey: { jobId: job.id, sourceKey: node.sourceKey } },
+          select: { pageId: true },
+        })
+        await ctx.prisma.pageFile.deleteMany({ where: { pageId } })
+        await ctx.prisma.page.delete({ where: { id: pageId } }).catch(() => {})
+        pageId = winner.pageId
+      } else {
+        throw e
+      }
+    }
     mapped.set(node.sourceKey, pageId)
-    await ctx.prisma.importJob.update({
-      where: { id: job.id },
-      data: { processed: { increment: 1 }, heartbeatAt: new Date() },
-    })
+    if (won) {
+      // The loser skips the increment — the winner's run already counted this node.
+      await ctx.prisma.importJob.update({
+        where: { id: job.id },
+        data: { processed: { increment: 1 }, heartbeatAt: new Date() },
+      })
+    }
   }
 
   for (const child of node.children) {

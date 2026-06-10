@@ -91,6 +91,7 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
       'Content-Length': file.fileSize.toString(),
       'Content-Disposition': disposition,
       'Cache-Control': 'private, max-age=0',
+      'X-Content-Type-Options': 'nosniff',
     },
   })
 }

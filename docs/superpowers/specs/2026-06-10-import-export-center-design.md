@@ -234,11 +234,16 @@ linked `File.expiresAt` must be in the future. Streams from `storage.get` with
    exports.
 6. **Bundle and store.** ZIP built with `fflate`, written via `storage.put`
    under `exports/<jobId>.zip`; a private `File` row
-   (`isPublic:false`, `workspaceId`, `expiresAt = now()+7d`, `mimeType
-   application/zip`) + `ExportArtifact` row. Artifacts count toward
-   `WorkspaceLimit.maxFileBytes` while they live; deleting the job frees the quota.
-   Physical S3 cleanup of expired artifacts past the route-level 404 is *not*
-   part of 6A (noted as follow-up).
+   (`isPublic:false`, **`workspaceId: null`**, `expiresAt = now()+7d`, `mimeType
+   application/zip`) + `ExportArtifact` row. The artifact File row is created
+   with `workspaceId: null` deliberately: a workspace export contains the
+   owner's personal pages, and a workspaceId-bearing File would be served to
+   *any* workspace member by the generic `/api/files/[id]` route and listed in
+   the workspace Library (`file.listWorkspace`). Owner-only access flows through
+   the `userId` short-circuit in both routes. Accepted trade-off: artifacts do
+   **not** count toward `WorkspaceLimit.maxFileBytes` — they are 7-day temporary
+   files. Physical S3 cleanup of expired artifacts past the route-level 404 is
+   *not* part of 6A (noted as follow-up).
 
 ## 6. Import pipeline (`apps/web/src/server/page-import/`)
 
@@ -307,7 +312,9 @@ linked `File.expiresAt` must be in the future. Streams from `storage.get` with
 ## 8. Limits, errors, security summary
 
 - Import size ≤ 50 MB (existing attachment cap). Export artifacts expire after
-  7 days and count toward workspace storage quota until deleted/expired.
+  7 days; they are owner-only `workspaceId: null` File rows (invisible to the
+  Library and to the generic member branch of `/api/files/[id]`) and do **not**
+  count toward workspace storage quota (7-day temporary files).
 - 1 active import + 1 active export per workspace.
 - Export page set: visibility predicate + row-access resolver everywhere; the
   creator-only artifact gate prevents cross-user artifact reads; download route

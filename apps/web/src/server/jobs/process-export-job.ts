@@ -190,7 +190,12 @@ async function run(ctx: ExportJobContext, jobId: string): Promise<void> {
     const file = await tx.file.create({
       data: {
         userId: job.userId,
-        workspaceId: job.workspaceId,
+        // workspaceId deliberately NULL: a workspace export contains the OWNER's
+        // personal pages, and the generic /api/files/[id] route + the Library
+        // listing authorize any workspace member for workspaceId-bearing files.
+        // Owner-only access flows through the userId short-circuit in both routes.
+        // Trade-off: artifacts (7-day temporary) don't count toward workspace quota.
+        workspaceId: null,
         name: 'anynote-export',
         ext: 'zip',
         fileSize: BigInt(buf.byteLength),
