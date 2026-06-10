@@ -33,7 +33,12 @@ function isExternal(href: string): boolean {
  */
 export function rewriteRelativeLinks(
   doc: TiptapDoc,
-  args: { sourceKey: string; resolve: (absoluteSourcePath: string) => string | null },
+  args: {
+    sourceKey: string
+    resolve: (absoluteSourcePath: string) => string | null
+    /** Consulted for external (absolute) hrefs only — e.g. notion.so URLs. */
+    resolveExternal?: (href: string) => string | null
+  },
 ): { doc: TiptapDoc; changed: boolean } {
   const fromDir = args.sourceKey.includes('/')
     ? args.sourceKey.slice(0, args.sourceKey.lastIndexOf('/'))
@@ -46,7 +51,13 @@ export function rewriteRelativeLinks(
       marks = marks.map((m) => {
         if (m.type !== 'link') return m
         const href = typeof m.attrs?.href === 'string' ? m.attrs.href : null
-        if (!href || isExternal(href)) return m
+        if (!href) return m
+        if (isExternal(href)) {
+          const ext = args.resolveExternal?.(href) ?? null
+          if (!ext) return m
+          changed = true
+          return { ...m, attrs: { ...m.attrs, href: ext } }
+        }
         const [path, fragment] = href.split('#', 2)
         let decoded = path ?? ''
         try {

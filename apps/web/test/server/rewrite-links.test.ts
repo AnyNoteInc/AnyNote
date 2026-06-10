@@ -37,4 +37,19 @@ describe('rewriteRelativeLinks', () => {
     const { changed } = rewriteRelativeLinks(doc, { sourceKey: 'Proj/a.md', resolve })
     expect(changed).toBe(false)
   })
+
+  it('consults resolveExternal for absolute hrefs when provided', () => {
+    const doc = markdownToTiptap(
+      '[n](https://www.notion.so/ws/Page-a1b2c3d4e5f60718293a4b5c6d7e8f90) [e](https://example.com)',
+    )
+    const { doc: out, changed } = rewriteRelativeLinks(doc, {
+      sourceKey: 'a.md',
+      resolve: () => null,
+      resolveExternal: (href) => (href.includes('notion.so') ? '/pages/p-9' : null),
+    })
+    expect(changed).toBe(true)
+    const s = JSON.stringify(out)
+    expect(s).toContain('"href":"/pages/p-9"')
+    expect(s).toContain('https://example.com')
+  })
 })
