@@ -99,6 +99,27 @@ describe('job router', () => {
     expect(job.status).toBe('QUEUED')
   })
 
+  it('export.create rejects PDF_ZIP for the whole workspace but queues it for a subtree', async () => {
+    const { owner, ws, page } = await seed()
+    const { caller, kick } = makeCaller(owner.id)
+    await expect(
+      caller.export.create({ workspaceId: ws.id, scope: 'WORKSPACE', format: 'PDF_ZIP' }),
+    ).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+      message: 'PDF недоступен для всего пространства — используйте Markdown или HTML',
+    })
+    const { id } = await caller.export.create({
+      workspaceId: ws.id,
+      scope: 'SUBTREE',
+      scopeId: page.id,
+      format: 'PDF_ZIP',
+    })
+    expect(kick).toHaveBeenCalledWith(id, 'export')
+    const job = await prisma.exportJob.findUniqueOrThrow({ where: { id } })
+    expect(job.status).toBe('QUEUED')
+    expect(job.format).toBe('PDF_ZIP')
+  })
+
   it('enforces one active export per workspace (CONFLICT)', async () => {
     const { owner, ws } = await seed()
     const { caller } = makeCaller(owner.id)

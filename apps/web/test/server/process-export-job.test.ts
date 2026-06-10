@@ -4,7 +4,11 @@ import { afterAll, beforeEach, describe, expect, it } from 'vitest'
 import { strFromU8, unzipSync } from 'fflate'
 import { prisma } from '@repo/db'
 
-import { processExportJob, type ExportJobContext } from '@/server/jobs/process-export-job'
+import {
+  PDF_PAGE_LIMIT,
+  processExportJob,
+  type ExportJobContext,
+} from '@/server/jobs/process-export-job'
 import { streamToBuffer } from '@/server/jobs/process-import-job'
 
 const EMAIL_SUFFIX = '+export-job-test@anynote.dev'
@@ -20,6 +24,19 @@ function makeFakeStorage(initial: Record<string, Buffer> = {}) {
     },
     async put(key: string, body: Readable | Buffer): Promise<void> {
       store.set(key, Buffer.isBuffer(body) ? body : await streamToBuffer(body))
+    },
+  }
+}
+
+const fakePdf = (opts: { failTitles?: string[] } = {}) => {
+  const calls: string[] = []
+  return {
+    calls,
+    render: async (html: string): Promise<ReadableStream<Uint8Array>> => {
+      calls.push(html)
+      const failed = (opts.failTitles ?? []).some((t) => html.includes(t))
+      if (failed) throw new Error('gotenberg down')
+      return new Response(Buffer.from('%PDF-fake')).body!
     },
   }
 }
@@ -274,5 +291,104 @@ describe('processExportJob', () => {
     const failed = await prisma.exportJob.findUniqueOrThrow({ where: { id: job.id } })
     expect(failed.status).toBe('FAILED')
     expect(failed.error).toBe('Нет доступных страниц для экспорта')
+  })
+
+  it('renders a clean pdf archive: per-page .pdf entries, no assets, empty pdfFailures', async () => {
+    const { ws, user, root, ctx, storage, job: seedJob } = await seed()
+    await prisma.exportJob.update({ where: { id: seedJob.id }, data: { status: 'DONE' } })
+    const fake = fakePdf()
+    const job = await prisma.exportJob.create({
+      data: {
+        workspaceId: ws.id,
+        userId: user.id,
+        scope: 'SUBTREE',
+        scopeId: root.id,
+        format: 'PDF_ZIP',
+      },
+    })
+    await processExportJob({ ...ctx, pdf: fake.render }, job.id)
+
+    const done = await prisma.exportJob.findUniqueOrThrow({ where: { id: job.id } })
+    expect(done.status).toBe('DONE')
+    expect(done.result).toEqual({ pdfFailures: [] })
+
+    const zip = unzipSync(new Uint8Array(storage.store.get(`exports/${job.id}.zip`)!))
+    const names = Object.keys(zip)
+    expect(names).toContain('Родитель.pdf')
+    expect(names).toContain('Родитель/Ребёнок.pdf')
+    expect(names.filter((n) => n.startsWith('assets/'))).toEqual([])
+    expect(strFromU8(zip['Родитель.pdf']!)).toBe('%PDF-fake')
+    expect(strFromU8(zip['Родитель/Ребёнок.pdf']!)).toBe('%PDF-fake')
+    expect(fake.calls.length).toBe(2)
+  })
+
+  it('falls back to .html for pages whose pdf render fails and records them in result.pdfFailures', async () => {
+    const { ws, user, root, ctx, storage, job: seedJob } = await seed()
+    await prisma.exportJob.update({ where: { id: seedJob.id }, data: { status: 'DONE' } })
+    const fake = fakePdf({ failTitles: ['Ребёнок'] })
+    const job = await prisma.exportJob.create({
+      data: {
+        workspaceId: ws.id,
+        userId: user.id,
+        scope: 'SUBTREE',
+        scopeId: root.id,
+        format: 'PDF_ZIP',
+      },
+    })
+    await processExportJob({ ...ctx, pdf: fake.render }, job.id)
+
+    const done = await prisma.exportJob.findUniqueOrThrow({ where: { id: job.id } })
+    expect(done.status).toBe('DONE')
+    expect(done.result).toEqual({ pdfFailures: ['Ребёнок'] })
+
+    const zip = unzipSync(new Uint8Array(storage.store.get(`exports/${job.id}.zip`)!))
+    const names = Object.keys(zip)
+    expect(names).toContain('Родитель.pdf')
+    expect(names).toContain('Родитель/Ребёнок.html')
+    expect(names).not.toContain('Родитель/Ребёнок.pdf')
+    const fallback = strFromU8(zip['Родитель/Ребёнок.html']!)
+    expect(fallback).toContain('<!doctype html>')
+    expect(fallback).toContain('дочерний')
+  })
+
+  it('fails a pdf export when the subtree exceeds PDF_PAGE_LIMIT pages', async () => {
+    const { ws, team, user, ctx, job: seedJob } = await seed()
+    await prisma.exportJob.update({ where: { id: seedJob.id }, data: { status: 'DONE' } })
+    const big = await prisma.page.create({
+      data: {
+        workspaceId: ws.id,
+        type: 'TEXT',
+        title: 'Большая',
+        collectionId: team.id,
+        createdById: user.id,
+      },
+    })
+    await prisma.page.createMany({
+      data: Array.from({ length: PDF_PAGE_LIMIT + 1 }, (_, i) => ({
+        workspaceId: ws.id,
+        type: 'TEXT' as const,
+        title: `P${i + 1}`,
+        collectionId: team.id,
+        createdById: user.id,
+        parentId: big.id,
+      })),
+    })
+    const fake = fakePdf()
+    const job = await prisma.exportJob.create({
+      data: {
+        workspaceId: ws.id,
+        userId: user.id,
+        scope: 'SUBTREE',
+        scopeId: big.id,
+        format: 'PDF_ZIP',
+      },
+    })
+    await processExportJob({ ...ctx, pdf: fake.render }, job.id)
+    const failed = await prisma.exportJob.findUniqueOrThrow({ where: { id: job.id } })
+    expect(failed.status).toBe('FAILED')
+    expect(failed.error).toBe(
+      `Слишком много страниц для PDF (${PDF_PAGE_LIMIT + 2} > ${PDF_PAGE_LIMIT}) — используйте Markdown или HTML`,
+    )
+    expect(fake.calls.length).toBe(0)
   })
 })

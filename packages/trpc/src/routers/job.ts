@@ -18,7 +18,7 @@ const exportCreateInput = z.object({
   workspaceId: z.string().uuid(),
   scope: z.enum(['WORKSPACE', 'COLLECTION', 'SUBTREE']),
   scopeId: z.string().uuid().nullish(),
-  format: z.enum(['MARKDOWN_ZIP', 'HTML_ZIP']),
+  format: z.enum(['MARKDOWN_ZIP', 'HTML_ZIP', 'PDF_ZIP']),
 })
 
 const importCreateInput = z.object({
@@ -128,6 +128,14 @@ export const jobRouter = router({
 
       if (input.scope !== 'WORKSPACE' && !input.scopeId) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Не указан объект экспорта' })
+      }
+      // PDF renders page-by-page through Gotenberg — a whole workspace is
+      // unbounded; the processor additionally caps PDF jobs at PDF_PAGE_LIMIT.
+      if (input.format === 'PDF_ZIP' && input.scope === 'WORKSPACE') {
+        throw new TRPCError({
+          code: 'BAD_REQUEST',
+          message: 'PDF недоступен для всего пространства — используйте Markdown или HTML',
+        })
       }
       if (input.scope === 'COLLECTION') {
         const col = await ctx.prisma.collection.findFirst({

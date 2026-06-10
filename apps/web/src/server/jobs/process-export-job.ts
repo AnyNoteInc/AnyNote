@@ -1,10 +1,12 @@
 import { createHash } from 'node:crypto'
 
-import { FileStatus, PageType, type PrismaClient } from '@repo/db'
+import { FileStatus, PageType, type Prisma, type PrismaClient } from '@repo/db'
 import type { StorageClient } from '@repo/storage'
 import { strToU8, zipSync } from 'fflate'
 
+import { renderPageBodyHtml } from '@/server/page-export'
 import { htmlToMarkdown } from '@/server/page-export/html-to-markdown'
+import { htmlToPdf } from '@/server/page-export/html-to-pdf'
 import { tiptapJsonToHtml } from '@/server/page-export/tiptap-to-html'
 import { wrapHtmlDocument } from '@/server/page-export/wrap-html-document'
 import {
@@ -22,6 +24,9 @@ import { streamToBuffer } from './process-import-job'
 
 export const ARTIFACT_TTL_MS = 7 * 24 * 60 * 60 * 1000
 
+/** PDF renders one Gotenberg call per page — cap the job size to keep it bounded. */
+export const PDF_PAGE_LIMIT = 50
+
 export type ExportDatabasePort = {
   listProperties(actorUserId: string, pageId: string): Promise<Array<{ id: string; name: string }>>
   listRows(
@@ -38,6 +43,8 @@ export type ExportJobContext = {
   storage: Pick<StorageClient, 'get' | 'put'>
   database: ExportDatabasePort
   baseUrl: string
+  /** Injectable PDF renderer for tests; production defaults to the real Gotenberg htmlToPdf. */
+  pdf?: (html: string) => Promise<ReadableStream<Uint8Array>>
 }
 
 class ExportSourceError extends Error {}
@@ -69,7 +76,8 @@ type Placed = { rec: ExportPageRecord; filePath: string; dir: string }
 async function run(ctx: ExportJobContext, jobId: string): Promise<void> {
   const job = await ctx.prisma.exportJob.findUniqueOrThrow({ where: { id: jobId } })
   const isMd = job.format === 'MARKDOWN_ZIP'
-  const ext = isMd ? 'md' : 'html'
+  const isPdf = job.format === 'PDF_ZIP'
+  const ext = isPdf ? 'pdf' : isMd ? 'md' : 'html'
 
   const pages = await collectExportPages(ctx.prisma, {
     userId: job.userId,
@@ -79,6 +87,11 @@ async function run(ctx: ExportJobContext, jobId: string): Promise<void> {
   })
   if (pages.length === 0) {
     throw new ExportSourceError('Нет доступных страниц для экспорта')
+  }
+  if (isPdf && pages.length > PDF_PAGE_LIMIT) {
+    throw new ExportSourceError(
+      `Слишком много страниц для PDF (${pages.length} > ${PDF_PAGE_LIMIT}) — используйте Markdown или HTML`,
+    )
   }
   await ctx.prisma.exportJob.update({
     where: { id: jobId },
@@ -114,15 +127,19 @@ async function run(ctx: ExportJobContext, jobId: string): Promise<void> {
   for (const r of roots) walk(r, '')
 
   // ── Pre-resolve bundled assets: every /api/files/<id> referenced by any page ──
+  // PDF skips this entirely: renderPageBodyHtml embeds images as base64 data
+  // URIs (so Gotenberg sees them) and no assets/ folder lands in the archive.
   const rawHtmlById = new Map<string, string>()
   const referencedIds = new Set<string>()
-  const FILE_ID_RE =
-    /\/api\/files\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi
-  for (const p of pages) {
-    if (p.type !== PageType.TEXT) continue
-    const raw = tiptapJsonToHtml(p.content)
-    rawHtmlById.set(p.id, raw)
-    for (const m of raw.matchAll(FILE_ID_RE)) referencedIds.add(m[1]!.toLowerCase())
+  if (!isPdf) {
+    const FILE_ID_RE =
+      /\/api\/files\/([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12})/gi
+    for (const p of pages) {
+      if (p.type !== PageType.TEXT) continue
+      const raw = tiptapJsonToHtml(p.content)
+      rawHtmlById.set(p.id, raw)
+      for (const m of raw.matchAll(FILE_ID_RE)) referencedIds.add(m[1]!.toLowerCase())
+    }
   }
   const assetFiles = referencedIds.size
     ? await ctx.prisma.file.findMany({
@@ -141,36 +158,72 @@ async function run(ctx: ExportJobContext, jobId: string): Promise<void> {
   )
 
   // ── Render entries ──
+  const renderPdf = ctx.pdf ?? htmlToPdf
+  const pdfFailures: string[] = []
   const entries: Record<string, Uint8Array> = {}
   for (const { rec, filePath, dir } of placed.values()) {
     const title = (rec.title ?? '').trim() || 'Без названия'
-    let content: string
-    if (rec.type === PageType.TEXT) {
-      const { html: body } = rewriteHtmlForArchive(rawHtmlById.get(rec.id) ?? '', {
-        fromDir: dir,
-        baseUrl: ctx.baseUrl,
-        assetPathFor: (id) => assetPaths.get(id.toLowerCase()) ?? null,
-        pagePathFor: (id) => placed.get(id)?.filePath ?? null,
-      })
-      content = isMd
-        ? `# ${title}\n\n${htmlToMarkdown(body)}`
-        : wrapHtmlDocument({ bodyHtml: body, title, icon: rec.icon })
-    } else if (rec.type === PageType.DATABASE) {
-      content = await renderDatabasePage(ctx, job.userId, rec, title, isMd)
+    if (isPdf) {
+      // PDF uses the SINGLE-PAGE pipeline: base64-embedded images (Gotenberg has
+      // no archive to resolve relative paths against) and absolute page links.
+      const body =
+        rec.type === PageType.TEXT
+          ? await renderPageBodyHtml(
+              { content: rec.content },
+              { prisma: ctx.prisma, storage: ctx.storage, baseUrl: ctx.baseUrl },
+            )
+          : rec.type === PageType.DATABASE
+            ? await renderDatabaseBodyHtml(ctx, job.userId, rec)
+            : `<p>Тип страницы «${rec.type}» не входит в экспорт этой версии.</p>`
+      const fullHtml = wrapHtmlDocument({ bodyHtml: body, title, icon: rec.icon })
+      try {
+        const stream = await renderPdf(fullHtml)
+        entries[filePath] = new Uint8Array(await new Response(stream).arrayBuffer())
+      } catch (err) {
+        console.warn('[export-job] pdf render failed, falling back to html', {
+          pageId: rec.id,
+          err,
+        })
+        pdfFailures.push(title)
+        entries[filePath.replace(/\.pdf$/, '.html')] = strToU8(fullHtml)
+      }
     } else {
-      const note = `Тип страницы «${rec.type}» не входит в экспорт этой версии.`
-      content = isMd
-        ? `# ${title}\n\n> ${note}\n`
-        : wrapHtmlDocument({ bodyHtml: `<p>${note}</p>`, title, icon: rec.icon })
+      let content: string
+      if (rec.type === PageType.TEXT) {
+        const { html: body } = rewriteHtmlForArchive(rawHtmlById.get(rec.id) ?? '', {
+          fromDir: dir,
+          baseUrl: ctx.baseUrl,
+          assetPathFor: (id) => assetPaths.get(id.toLowerCase()) ?? null,
+          pagePathFor: (id) => placed.get(id)?.filePath ?? null,
+        })
+        content = isMd
+          ? `# ${title}\n\n${htmlToMarkdown(body)}`
+          : wrapHtmlDocument({ bodyHtml: body, title, icon: rec.icon })
+      } else if (rec.type === PageType.DATABASE) {
+        content = await renderDatabasePage(ctx, job.userId, rec, title, isMd)
+      } else {
+        const note = `Тип страницы «${rec.type}» не входит в экспорт этой версии.`
+        content = isMd
+          ? `# ${title}\n\n> ${note}\n`
+          : wrapHtmlDocument({ bodyHtml: `<p>${note}</p>`, title, icon: rec.icon })
+      }
+      entries[filePath] = strToU8(content)
     }
-    entries[filePath] = strToU8(content)
     await ctx.prisma.exportJob.update({
       where: { id: jobId },
       data: { processed: { increment: 1 }, heartbeatAt: new Date() },
     })
   }
 
-  // ── Bundle assets ──
+  // Per-page render notes (the UI journal reads result.pdfFailures) — PDF only.
+  if (isPdf) {
+    await ctx.prisma.exportJob.update({
+      where: { id: jobId },
+      data: { result: { pdfFailures } as Prisma.InputJsonValue },
+    })
+  }
+
+  // ── Bundle assets (no-op for PDF: the pre-scan above never ran) ──
   for (const f of assetFiles) {
     try {
       const buf = await streamToBuffer(await ctx.storage.get(f.path))
@@ -218,6 +271,39 @@ async function run(ctx: ExportJobContext, jobId: string): Promise<void> {
 
 // 6A: a database page exports as a simple table of the rows VISIBLE TO THE JOB
 // OWNER (listRows applies the Phase-4C row-access resolver). Full CSV is 6C.
+async function fetchDatabaseTable(
+  ctx: ExportJobContext,
+  actorUserId: string,
+  pageId: string,
+): Promise<{
+  props: Array<{ id: string; name: string }>
+  rows: Array<{ title: string | null; cells: Record<string, unknown> }>
+}> {
+  const props = await ctx.database.listProperties(actorUserId, pageId)
+  const rows: Array<{ title: string | null; cells: Record<string, unknown> }> = []
+  let cursor: string | undefined
+  do {
+    const page = await ctx.database.listRows(actorUserId, {
+      pageId,
+      limit: 200,
+      ...(cursor ? { cursor } : {}),
+    })
+    rows.push(...page.rows)
+    cursor = page.nextCursor ?? undefined
+  } while (cursor)
+  return { props, rows }
+}
+
+/** Table BODY html (not a full document) — the PDF branch wraps + renders it itself. */
+async function renderDatabaseBodyHtml(
+  ctx: ExportJobContext,
+  actorUserId: string,
+  rec: ExportPageRecord,
+): Promise<string> {
+  const { props, rows } = await fetchDatabaseTable(ctx, actorUserId, rec.id)
+  return buildDatabaseTableHtml(props, rows)
+}
+
 async function renderDatabasePage(
   ctx: ExportJobContext,
   actorUserId: string,
@@ -226,21 +312,15 @@ async function renderDatabasePage(
   isMd: boolean,
 ): Promise<string> {
   try {
-    const props = await ctx.database.listProperties(actorUserId, rec.id)
-    const rows: Array<{ title: string | null; cells: Record<string, unknown> }> = []
-    let cursor: string | undefined
-    do {
-      const page = await ctx.database.listRows(actorUserId, {
-        pageId: rec.id,
-        limit: 200,
-        ...(cursor ? { cursor } : {}),
-      })
-      rows.push(...page.rows)
-      cursor = page.nextCursor ?? undefined
-    } while (cursor)
-    return isMd
-      ? `# ${title}\n\n${buildDatabaseTableMarkdown(props, rows)}`
-      : wrapHtmlDocument({ bodyHtml: buildDatabaseTableHtml(props, rows), title, icon: rec.icon })
+    if (isMd) {
+      const { props, rows } = await fetchDatabaseTable(ctx, actorUserId, rec.id)
+      return `# ${title}\n\n${buildDatabaseTableMarkdown(props, rows)}`
+    }
+    return wrapHtmlDocument({
+      bodyHtml: await renderDatabaseBodyHtml(ctx, actorUserId, rec),
+      title,
+      icon: rec.icon,
+    })
   } catch (err) {
     console.warn('[export-job] database render failed, emitting stub', { pageId: rec.id, err })
     const note = 'Не удалось выгрузить таблицу базы данных.'
