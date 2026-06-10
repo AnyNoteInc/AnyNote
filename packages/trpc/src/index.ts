@@ -21,6 +21,7 @@ import { mcpServerRouter } from './routers/mcp-server'
 import { agentMemoryRouter } from './routers/agent-memory'
 import { apiKeyRouter } from './routers/api-key'
 import { aiProviderRouter } from './routers/ai-provider'
+import { jobRouter } from './routers/job'
 
 export { createContext, createServerContext } from './trpc'
 export type { Context, JobRunnerPort } from './trpc'
@@ -59,6 +60,7 @@ export const appRouter = router({
   agentMemory: agentMemoryRouter,
   apiKey: apiKeyRouter,
   aiProvider: aiProviderRouter,
+  job: jobRouter,
 })
 
 export const createCaller = createCallerFactory(appRouter)
