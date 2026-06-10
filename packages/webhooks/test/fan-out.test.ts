@@ -373,6 +373,114 @@ describe('runFanOutTick (integration)', () => {
     expect((await webhookOutboxRows(fx.wsId))[0]!.status).toBe('DONE')
   })
 
+  it('redacts hints.duplicatedFrom referencing a PERSONAL-collection page (no-leak)', async () => {
+    const fx = await seed()
+    await enqueueWebhookOutboxRow({
+      event: 'page.created',
+      pageId: fx.teamPageId,
+      workspaceId: fx.wsId,
+      actorId: fx.ownerId,
+      hints: { duplicatedFrom: fx.personalPageId, scope: 'duplicate' },
+    })
+
+    await runFanOutUntilDrained()
+
+    const deliveries = await prisma.webhookDelivery.findMany({
+      where: { subscriptionId: fx.subscriptionId },
+    })
+    expect(deliveries).toHaveLength(1)
+    const payload = deliveries[0]!.payload as { hints: Record<string, unknown> }
+    // The PERSONAL page id must never reach the subscriber.
+    expect(payload.hints['duplicatedFrom']).toBeNull()
+    // Unknown hint keys pass through untouched.
+    expect(payload.hints['scope']).toBe('duplicate')
+  })
+
+  it('preserves hints.duplicatedFrom referencing a TEAM-collection page', async () => {
+    const fx = await seed()
+    const teamSource = await prisma.page.create({
+      data: {
+        workspaceId: fx.wsId,
+        collectionId: fx.teamCollectionId,
+        type: 'TEXT',
+        title: 'Team source page',
+        createdById: fx.ownerId,
+      },
+      select: { id: true },
+    })
+    await enqueueWebhookOutboxRow({
+      event: 'page.created',
+      pageId: fx.teamPageId,
+      workspaceId: fx.wsId,
+      actorId: fx.ownerId,
+      hints: { duplicatedFrom: teamSource.id },
+    })
+
+    await runFanOutUntilDrained()
+
+    const deliveries = await prisma.webhookDelivery.findMany({
+      where: { subscriptionId: fx.subscriptionId },
+    })
+    expect(deliveries).toHaveLength(1)
+    const payload = deliveries[0]!.payload as { hints: Record<string, unknown> }
+    expect(payload.hints['duplicatedFrom']).toBe(teamSource.id)
+  })
+
+  it('redacts page.moved hints.to for a PERSONAL parent but preserves a TEAM parent', async () => {
+    const fx = await seed()
+    const teamParent = await prisma.page.create({
+      data: {
+        workspaceId: fx.wsId,
+        collectionId: fx.teamCollectionId,
+        type: 'TEXT',
+        title: 'Team parent page',
+        createdById: fx.ownerId,
+      },
+      select: { id: true },
+    })
+    const secondTeamPage = await prisma.page.create({
+      data: {
+        workspaceId: fx.wsId,
+        collectionId: fx.teamCollectionId,
+        type: 'TEXT',
+        title: 'Second team page',
+        createdById: fx.ownerId,
+      },
+      select: { id: true },
+    })
+    // `to` carries a parent PAGE id at both emission sites (movePageTx /
+    // reorderPageTx); moveToCollectionTx emits no id at all (scope: 'collection').
+    await enqueueWebhookOutboxRow({
+      event: 'page.moved',
+      pageId: fx.teamPageId,
+      workspaceId: fx.wsId,
+      actorId: fx.ownerId,
+      hints: { to: fx.personalPageId },
+    })
+    await enqueueWebhookOutboxRow({
+      event: 'page.moved',
+      pageId: secondTeamPage.id,
+      workspaceId: fx.wsId,
+      actorId: fx.ownerId,
+      hints: { to: teamParent.id },
+    })
+
+    await runFanOutUntilDrained()
+
+    const deliveries = await prisma.webhookDelivery.findMany({
+      where: { subscriptionId: fx.subscriptionId },
+    })
+    expect(deliveries).toHaveLength(2)
+    const byResource = new Map(
+      deliveries.map((d) => {
+        const p = d.payload as { resource: { id: string }; hints: Record<string, unknown> }
+        return [p.resource.id, p.hints]
+      }),
+    )
+    expect(byResource.get(fx.teamPageId)!['to']).toBeNull()
+    expect(byResource.get(secondTeamPage.id)!['to']).toBe(teamParent.id)
+  })
+
   it('fans out page.deleted for a trashed TEAM page but drops other events on it', async () => {
     const fx = await seed()
     await prisma.webhookSubscription.update({

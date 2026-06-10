@@ -70,6 +70,49 @@ export async function passesVisibilityGate(
 }
 
 /**
+ * Hint keys that carry PAGE ids and could leak a non-TEAM page id to
+ * subscribers (the resource itself is gated; hints are not):
+ *  - `duplicatedFrom` — duplicatePageTx (page.created)
+ *  - `to`             — movePageTx / reorderPageTx (page.moved); always a parent
+ *                       PAGE id or null. moveToCollectionTx emits no id at all
+ *                       (`hints: { scope: 'collection' }`), so no collection-id
+ *                       branch is needed; an unknown id fails the page lookup
+ *                       below and is nulled (fail-closed).
+ */
+const PAGE_ID_HINT_KEYS = ['duplicatedFrom', 'to'] as const
+
+/**
+ * Redacts hint page-ids that do not pass the same visibility bar the gate
+ * applies to the resource: page exists, collection null-or-TEAM, not
+ * soft-deleted. Failing values become null; unknown keys pass through
+ * untouched (the forbidden-keys assertion already guards content).
+ */
+async function sanitizeHints(
+  prisma: PrismaClient,
+  hints: Record<string, unknown>,
+): Promise<Record<string, unknown>> {
+  const out = { ...hints }
+  for (const key of PAGE_ID_HINT_KEYS) {
+    const value = out[key]
+    if (typeof value !== 'string') continue // absent or already null — nothing to leak
+    const page = await prisma.page.findUnique({
+      where: { id: value },
+      select: {
+        deletedAt: true,
+        collectionId: true,
+        collection: { select: { kind: true } },
+      },
+    })
+    const visible =
+      page !== null &&
+      (page.collectionId === null || page.collection?.kind === 'TEAM') &&
+      page.deletedAt === null
+    if (!visible) out[key] = null
+  }
+  return out
+}
+
+/**
  * Claims a batch of `webhook_event` outbox rows (the vectorization-cron
  * claim pattern WITHOUT the dedup collapse — every event delivers).
  */
@@ -159,7 +202,8 @@ async function processRow(prisma: PrismaClient, row: OutboxRow): Promise<void> {
     actorId: p.actorId ?? null,
     resourceType: p.resourceType ?? 'page',
     resourceId: row.aggregate_id,
-    hints: p.hints ?? {},
+    // Hint page-ids pass the same visibility bar as the resource (no-leak).
+    hints: await sanitizeHints(prisma, p.hints ?? {}),
     occurredAt: row.created_at,
   })
 

@@ -17,6 +17,14 @@ export type DeliverOpts = {
 
 const BACKOFF_BASE_MS = 60_000
 const BACKOFF_CAP_MS = 30 * 60_000
+/**
+ * Stale-lock reclaim horizon (the import-jobs lazy-reclaim pattern): a worker
+ * that crashes between claim and outcome leaves the row PENDING with lockedAt
+ * set; after this long the lock is considered dead and the row re-claimable.
+ * Claimed rows stay PENDING by design — the WebhookDeliveryStatus PROCESSING
+ * value remains reserved and is never transitioned to.
+ */
+const STALE_LOCK_MS = 10 * 60_000
 const DEFAULT_AUTO_DISABLE_THRESHOLD = 10
 const SNIPPET_MAX_CHARS = 500
 
@@ -44,7 +52,7 @@ async function lockPendingDeliveries(
       SELECT id FROM webhook_deliveries
       WHERE status = 'PENDING'
         AND next_attempt_at <= now()
-        AND locked_at IS NULL
+        AND (locked_at IS NULL OR locked_at < now() - ${STALE_LOCK_MS} * interval '1 millisecond')
       ORDER BY next_attempt_at
       LIMIT ${args.batchSize}
       FOR UPDATE SKIP LOCKED

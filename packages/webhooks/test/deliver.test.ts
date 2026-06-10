@@ -117,7 +117,7 @@ async function seed(overrides: { consecutiveFailures?: number } = {}) {
 
 async function makeDelivery(
   fx: Awaited<ReturnType<typeof seed>>,
-  overrides: { attempts?: number; eventType?: string } = {},
+  overrides: { attempts?: number; eventType?: string; lockedAt?: Date; lockedBy?: string } = {},
 ) {
   const eventId = randomUUID()
   const eventType = overrides.eventType ?? 'page.created'
@@ -138,6 +138,8 @@ async function makeDelivery(
       eventId,
       payload: payload as Prisma.InputJsonObject,
       attempts: overrides.attempts ?? 0,
+      lockedAt: overrides.lockedAt ?? null,
+      lockedBy: overrides.lockedBy ?? null,
       // Backdated: Prisma fills @default(now()) from the NODE clock while the
       // claim compares against the POSTGRES clock — skew would flake the claim.
       nextAttemptAt: new Date(Date.now() - 60_000),
@@ -364,6 +366,42 @@ describe('runDeliveryTick (integration)', () => {
     const after = await getDelivery(delivery.id)
     expect(after.responseSnippet).toHaveLength(500)
     expect(after.responseSnippet).toBe('x'.repeat(500))
+  })
+
+  it('reclaims a PENDING delivery whose lock went stale (crashed worker) and delivers it', async () => {
+    const fx = await seed()
+    // A worker crash between lock and outcome leaves PENDING + lockedAt set.
+    // After the 10-minute reclaim horizon a new tick must pick the row up.
+    const delivery = await makeDelivery(fx, {
+      lockedAt: new Date(Date.now() - 11 * 60_000),
+      lockedBy: 'crashed-worker',
+    })
+    const fetchFn = vi.fn(async () => new Response('ok', { status: 200 }))
+
+    await runDeliveryTick(prisma, tickOpts(fetchFn))
+
+    expect(fetchFn).toHaveBeenCalledTimes(1)
+    const after = await getDelivery(delivery.id)
+    expect(after.status).toBe('DELIVERED')
+    expect(after.lockedAt).toBeNull()
+    expect(after.lockedBy).toBeNull()
+  })
+
+  it('does NOT reclaim a PENDING delivery locked recently by a live worker', async () => {
+    const fx = await seed()
+    const delivery = await makeDelivery(fx, {
+      lockedAt: new Date(Date.now() - 60_000), // 1 minute — well inside the horizon
+      lockedBy: 'live-worker',
+    })
+    const fetchFn = vi.fn(async () => new Response('ok', { status: 200 }))
+
+    await runDeliveryTick(prisma, tickOpts(fetchFn))
+
+    expect(fetchFn).not.toHaveBeenCalled()
+    const after = await getDelivery(delivery.id)
+    expect(after.status).toBe('PENDING')
+    expect(after.lockedAt).not.toBeNull()
+    expect(after.lockedBy).toBe('live-worker')
   })
 
   it('never follows redirects: a 302 is a failure with retry scheduling', async () => {
