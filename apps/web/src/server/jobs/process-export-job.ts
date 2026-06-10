@@ -100,14 +100,15 @@ async function run(ctx: ExportJobContext, jobId: string): Promise<void> {
   }
   const alloc = createNameAllocator()
   const placed = new Map<string, Placed>()
-  const walk = (rec: ExportPageRecord, dir: string) => {
+  const walk = (rec: ExportPageRecord, dir: string, depth = 0) => {
+    if (depth > 500) throw new ExportSourceError('Слишком глубокое дерево страниц')
     const base = alloc(dir, safeEntryName(rec.title))
     const filePath = dir ? `${dir}/${base}.${ext}` : `${base}.${ext}`
     placed.set(rec.id, { rec, filePath, dir })
     const kids = childrenOf.get(rec.id) ?? []
     if (kids.length > 0) {
       const childDir = dir ? `${dir}/${base}` : base
-      for (const k of kids) walk(k, childDir)
+      for (const k of kids) walk(k, childDir, depth + 1)
     }
   }
   for (const r of roots) walk(r, '')
@@ -125,12 +126,18 @@ async function run(ctx: ExportJobContext, jobId: string): Promise<void> {
   }
   const assetFiles = referencedIds.size
     ? await ctx.prisma.file.findMany({
-        where: { id: { in: [...referencedIds] }, status: FileStatus.ACTIVE },
+        where: {
+          id: { in: [...referencedIds] },
+          workspaceId: job.workspaceId,
+          status: FileStatus.ACTIVE,
+        },
         select: { id: true, path: true, ext: true },
       })
     : []
   const assetPaths = new Map(
-    assetFiles.map((f) => [f.id, `assets/${f.id}.${f.ext || 'bin'}`] as const),
+    assetFiles.map(
+      (f) => [f.id.toLowerCase(), `assets/${f.id.toLowerCase()}.${f.ext || 'bin'}`] as const,
+    ),
   )
 
   // ── Render entries ──
@@ -142,7 +149,7 @@ async function run(ctx: ExportJobContext, jobId: string): Promise<void> {
       const { html: body } = rewriteHtmlForArchive(rawHtmlById.get(rec.id) ?? '', {
         fromDir: dir,
         baseUrl: ctx.baseUrl,
-        assetPathFor: (id) => assetPaths.get(id) ?? null,
+        assetPathFor: (id) => assetPaths.get(id.toLowerCase()) ?? null,
         pagePathFor: (id) => placed.get(id)?.filePath ?? null,
       })
       content = isMd
@@ -167,7 +174,7 @@ async function run(ctx: ExportJobContext, jobId: string): Promise<void> {
   for (const f of assetFiles) {
     try {
       const buf = await streamToBuffer(await ctx.storage.get(f.path))
-      entries[assetPaths.get(f.id)!] = new Uint8Array(buf)
+      entries[assetPaths.get(f.id.toLowerCase())!] = new Uint8Array(buf)
     } catch (err) {
       console.warn('[export-job] asset fetch failed, skipping', { fileId: f.id, err })
     }
@@ -179,23 +186,25 @@ async function run(ctx: ExportJobContext, jobId: string): Promise<void> {
   const buf = Buffer.from(zipBytes)
   await ctx.storage.put(key, buf, { contentType: 'application/zip', size: buf.byteLength })
   const hash = createHash('sha256').update(buf).digest('hex')
-  const file = await ctx.prisma.file.create({
-    data: {
-      userId: job.userId,
-      workspaceId: job.workspaceId,
-      name: 'anynote-export',
-      ext: 'zip',
-      fileSize: BigInt(buf.byteLength),
-      mimeType: 'application/zip',
-      hash,
-      path: key,
-      status: FileStatus.ACTIVE,
-      isPublic: false,
-      expiresAt: new Date(Date.now() + ARTIFACT_TTL_MS),
-    },
-    select: { id: true },
+  await ctx.prisma.$transaction(async (tx) => {
+    const file = await tx.file.create({
+      data: {
+        userId: job.userId,
+        workspaceId: job.workspaceId,
+        name: 'anynote-export',
+        ext: 'zip',
+        fileSize: BigInt(buf.byteLength),
+        mimeType: 'application/zip',
+        hash,
+        path: key,
+        status: FileStatus.ACTIVE,
+        isPublic: false,
+        expiresAt: new Date(Date.now() + ARTIFACT_TTL_MS),
+      },
+      select: { id: true },
+    })
+    await tx.exportArtifact.create({ data: { jobId, fileId: file.id } })
   })
-  await ctx.prisma.exportArtifact.create({ data: { jobId, fileId: file.id } })
   await ctx.prisma.exportJob.update({
     where: { id: jobId },
     data: { status: 'DONE', finishedAt: new Date(), processed: pages.length },

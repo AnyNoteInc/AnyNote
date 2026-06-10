@@ -74,4 +74,7 @@ describe('normalizeEntryPath', () => {
     expect(() => normalizeEntryPath('../evil.md')).toThrow(ImportSourceError)
     expect(() => normalizeEntryPath('..\\evil.md')).toThrow(ImportSourceError)
   })
+  it('throws on absurdly deep paths', () => {
+    expect(() => normalizeEntryPath(`${'a/'.repeat(201)}f.md`)).toThrow(ImportSourceError)
+  })
 })

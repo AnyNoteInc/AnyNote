@@ -13,6 +13,7 @@ import { resolveSourcePath, rewriteRelativeLinks } from '@/server/page-import/re
 import {
   buildImportPlan,
   ImportSourceError,
+  type ImportAsset,
   type ImportNode,
   type ImportPlan,
 } from '@/server/page-import/zip-plan'
@@ -196,24 +197,12 @@ async function storeAssets(
   const out = new Map<string, string>()
   if (plan.assets.size === 0) return out
 
-  const totalBytes = [...plan.assets.values()].reduce((s, a) => s + a.bytes.byteLength, 0)
-  const [usage, limits] = await Promise.all([
-    ctx.prisma.file.aggregate({
-      where: { workspaceId: job.workspaceId, status: FileStatus.ACTIVE },
-      _sum: { fileSize: true },
-    }),
-    ctx.prisma.workspaceLimit.findUnique({ where: { workspaceId: job.workspaceId } }),
-  ])
-  const used = usage._sum.fileSize ?? 0n
-  if (limits && used + BigInt(totalBytes) > limits.maxFileBytes) {
-    warnings.push('Картинки из архива пропущены: превышен лимит хранилища пространства')
-    return out
-  }
-
+  // First pass: dedupe against already-stored files (incl. an idempotent
+  // resume of this very job) so only genuinely NEW bytes count against quota.
+  const toUpload: Array<{ sourceKey: string; asset: ImportAsset; hash: string; buf: Buffer }> = []
   for (const [sourceKey, asset] of plan.assets) {
     const buf = Buffer.from(asset.bytes)
     const hash = createHash('sha256').update(buf).digest('hex')
-    const s3Key = computeS3Key(hash, asset.ext)
     const existing = await ctx.prisma.file.findFirst({
       where: {
         userId: job.userId,
@@ -223,10 +212,28 @@ async function storeAssets(
       },
       select: { id: true },
     })
-    if (existing) {
-      out.set(sourceKey, existing.id)
-      continue
-    }
+    if (existing) out.set(sourceKey, existing.id)
+    else toUpload.push({ sourceKey, asset, hash, buf })
+  }
+  if (toUpload.length === 0) return out
+
+  const newBytes = toUpload.reduce((s, u) => s + u.buf.byteLength, 0)
+  const [usage, limits] = await Promise.all([
+    ctx.prisma.file.aggregate({
+      where: { workspaceId: job.workspaceId, status: FileStatus.ACTIVE },
+      _sum: { fileSize: true },
+    }),
+    ctx.prisma.workspaceLimit.findUnique({ where: { workspaceId: job.workspaceId } }),
+  ])
+  const used = usage._sum.fileSize ?? 0n
+  if (limits && used + BigInt(newBytes) > limits.maxFileBytes) {
+    warnings.push('Картинки из архива пропущены: превышен лимит хранилища пространства')
+    return out
+  }
+
+  // Second pass: upload only the new assets.
+  for (const { sourceKey, asset, hash, buf } of toUpload) {
+    const s3Key = computeS3Key(hash, asset.ext)
     await ctx.storage.put(s3Key, buf, {
       contentType: MIME_BY_EXT[asset.ext] ?? 'application/octet-stream',
       size: buf.byteLength,

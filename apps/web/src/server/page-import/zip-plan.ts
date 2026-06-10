@@ -57,6 +57,7 @@ export function normalizeEntryPath(raw: string): string | null {
   if (path.startsWith('/')) throw new ImportSourceError('Небезопасный путь в архиве')
   const segs = path.split('/')
   if (segs.some((s) => s === '..')) throw new ImportSourceError('Небезопасный путь в архиве')
+  if (segs.length > 200) throw new ImportSourceError('Слишком глубокая структура архива')
   if (segs.some((s) => s === '__MACOSX' || s === '.DS_Store' || s.startsWith('._'))) return null
   const result = segs.filter((s) => s !== '' && s !== '.').join('/')
   return result === '' ? null : result

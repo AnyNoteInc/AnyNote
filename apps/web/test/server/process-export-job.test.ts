@@ -160,6 +160,58 @@ describe('processExportJob', () => {
     expect(rootMd).not.toContain(`/pages/${child.id}`)
   })
 
+  it('never bundles files from another workspace, even when referenced by content', async () => {
+    const { ws, team, user, ctx, storage } = await seed()
+    const foreignWs = await prisma.workspace.create({
+      data: { name: 'ForeignWS', createdById: user.id },
+    })
+    const foreignFile = await prisma.file.create({
+      data: {
+        userId: user.id,
+        workspaceId: foreignWs.id,
+        name: 'secret',
+        ext: 'png',
+        fileSize: 4n,
+        mimeType: 'image/png',
+        hash: 'foreign-hash',
+        path: 'test/secret.png',
+        status: 'ACTIVE',
+        isPublic: false,
+      },
+    })
+    storage.store.set('test/secret.png', Buffer.from([9, 9, 9, 9]))
+    const page = await prisma.page.create({
+      data: {
+        workspaceId: ws.id,
+        type: 'TEXT',
+        title: 'Хитрая',
+        collectionId: team.id,
+        createdById: user.id,
+        content: {
+          type: 'doc',
+          content: [{ type: 'image', attrs: { src: `/api/files/${foreignFile.id}` } }],
+        },
+      },
+    })
+    const job = await prisma.exportJob.create({
+      data: {
+        workspaceId: ws.id,
+        userId: user.id,
+        scope: 'SUBTREE',
+        scopeId: page.id,
+        format: 'MARKDOWN_ZIP',
+      },
+    })
+    await processExportJob(ctx, job.id)
+    const done = await prisma.exportJob.findUniqueOrThrow({ where: { id: job.id } })
+    expect(done.status).toBe('DONE')
+    const zip = unzipSync(new Uint8Array(storage.store.get(`exports/${job.id}.zip`)!))
+    expect(Object.keys(zip).some((n) => n.includes(foreignFile.id))).toBe(false)
+    // The reference degrades to an absolute URL, not a bundled asset.
+    const md = strFromU8(zip['Хитрая.md']!)
+    expect(md).toContain(`https://t.test/api/files/${foreignFile.id}`)
+  })
+
   it('renders DATABASE pages as a table via the database port', async () => {
     const { ws, team, user, ctx } = await seed()
     const dbPage = await prisma.page.create({
