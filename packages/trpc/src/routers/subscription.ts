@@ -12,7 +12,12 @@ function shouldSavePaymentMethod(): boolean {
 
 export const subscriptionRouter = router({
   getCurrent: protectedProcedure.query(async ({ ctx }) => {
-    return getActivePlanForUser(ctx.prisma, ctx.user.id)
+    const { subscription, plan } = await getActivePlanForUser(ctx.prisma, ctx.user.id)
+    // Plan.maxFileBytes is a Prisma BigInt; the HTTP link has no transformer, so
+    // JSON.stringify would throw "Do not know how to serialize a BigInt" and 500
+    // the whole batch. Stringify at the boundary (same as workspace.usage).
+    const wirePlan = { ...plan, maxFileBytes: plan.maxFileBytes.toString() }
+    return { subscription: { ...subscription, plan: wirePlan }, plan: wirePlan }
   }),
 
   listHistory: protectedProcedure.query(async ({ ctx }) => {
