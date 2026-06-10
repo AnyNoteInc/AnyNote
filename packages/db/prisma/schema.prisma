@@ -1788,6 +1788,9 @@ enum ImportArtifactKind {
   REPORT
 }
 
+// NOTE: migration 20260610120000 also creates SQL-only partial unique indexes
+// (export_jobs|import_jobs)_workspace_active_unique — at most one QUEUED/PROCESSING
+// job per workspace per kind. Prisma cannot express partial indexes in the schema.
 model ExportJob {
   id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
   workspaceId String          @map("workspace_id") @db.Uuid

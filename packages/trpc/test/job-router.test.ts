@@ -108,6 +108,33 @@ describe('job router', () => {
     ).rejects.toMatchObject({ code: 'CONFLICT' })
   })
 
+  it('two concurrent creates cannot both become active (partial unique index)', async () => {
+    const { owner, ws } = await seed()
+    const { caller } = makeCaller(owner.id)
+    const results = await Promise.allSettled([
+      caller.export.create({ workspaceId: ws.id, scope: 'WORKSPACE', format: 'MARKDOWN_ZIP' }),
+      caller.export.create({ workspaceId: ws.id, scope: 'WORKSPACE', format: 'HTML_ZIP' }),
+    ])
+    const fulfilled = results.filter((r) => r.status === 'fulfilled')
+    expect(fulfilled.length).toBe(1)
+    const active = await prisma.exportJob.count({
+      where: { workspaceId: ws.id, status: { in: ['QUEUED', 'PROCESSING'] } },
+    })
+    expect(active).toBe(1)
+  })
+
+  it('the DB rejects a second active job even if the pre-flight is bypassed', async () => {
+    const { owner, ws } = await seed()
+    await prisma.exportJob.create({
+      data: { workspaceId: ws.id, userId: owner.id, scope: 'WORKSPACE', format: 'MARKDOWN_ZIP' },
+    })
+    await expect(
+      prisma.exportJob.create({
+        data: { workspaceId: ws.id, userId: owner.id, scope: 'WORKSPACE', format: 'HTML_ZIP' },
+      }),
+    ).rejects.toMatchObject({ code: 'P2002' })
+  })
+
   it('export.create SUBTREE rejects a page the caller cannot see', async () => {
     const { owner, stranger, ws, page } = await seed()
     const personal = await prisma.collection.create({
@@ -144,6 +171,29 @@ describe('job router', () => {
     const { caller } = makeCaller(owner.id)
     await expect(
       caller.import.create({ workspaceId: ws.id, fileId: file.id, format: 'ZIP' }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+  })
+
+  it('import.create rejects an archived parent page', async () => {
+    const { owner, ws, page } = await seed()
+    await prisma.page.update({ where: { id: page.id }, data: { archivedAt: new Date() } })
+    const file = await prisma.file.create({
+      data: {
+        userId: owner.id,
+        workspaceId: ws.id,
+        name: 's.zip',
+        ext: 'zip',
+        fileSize: 1n,
+        mimeType: 'application/zip',
+        hash: 'h3',
+        path: 't/s3.zip',
+        status: 'ACTIVE',
+        isPublic: false,
+      },
+    })
+    const { caller } = makeCaller(owner.id)
+    await expect(
+      caller.import.create({ workspaceId: ws.id, fileId: file.id, format: 'ZIP', parentId: page.id }),
     ).rejects.toMatchObject({ code: 'NOT_FOUND' })
   })
 

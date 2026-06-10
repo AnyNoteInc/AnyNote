@@ -1,6 +1,6 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
-import { CollectionKind, type PrismaClient } from '@repo/db'
+import { CollectionKind, Prisma, type PrismaClient } from '@repo/db'
 import { buildPageVisibilityWhere } from '@repo/domain'
 
 import { router, protectedProcedure } from '../trpc'
@@ -31,6 +31,11 @@ const importCreateInput = z.object({
 
 const ACTIVE: JobStatusValue[] = ['QUEUED', 'PROCESSING']
 
+const ACTIVE_JOB_MESSAGE = {
+  export: 'Экспорт уже выполняется — дождитесь завершения',
+  import: 'Импорт уже выполняется — дождитесь завершения',
+} as const
+
 async function assertNoActiveJob(
   prisma: PrismaClient,
   kind: 'import' | 'export',
@@ -41,14 +46,21 @@ async function assertNoActiveJob(
       ? await prisma.exportJob.count({ where: { workspaceId, status: { in: ACTIVE } } })
       : await prisma.importJob.count({ where: { workspaceId, status: { in: ACTIVE } } })
   if (count > 0) {
-    throw new TRPCError({
-      code: 'CONFLICT',
-      message:
-        kind === 'export'
-          ? 'Экспорт уже выполняется — дождитесь завершения'
-          : 'Импорт уже выполняется — дождитесь завершения',
-    })
+    throw new TRPCError({ code: 'CONFLICT', message: ACTIVE_JOB_MESSAGE[kind] })
   }
+}
+
+/**
+ * The count-based pre-flight above is racy (count-then-create TOCTOU); the real
+ * guarantee is the SQL-only partial unique indexes
+ * (export_jobs|import_jobs)_workspace_active_unique. Map their P2002 to the same
+ * friendly CONFLICT the pre-flight raises.
+ */
+function rethrowActiveJobConflict(e: unknown, kind: 'import' | 'export'): never {
+  if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+    throw new TRPCError({ code: 'CONFLICT', message: ACTIVE_JOB_MESSAGE[kind] })
+  }
+  throw e
 }
 
 export type JobListItem = {
@@ -70,6 +82,9 @@ export const jobRouter = router({
   export: router({
     create: protectedProcedure.input(exportCreateInput).mutation(async ({ ctx, input }) => {
       await assertWorkspaceMember(ctx, input.workspaceId)
+      // Deliberately NO requireWritableWorkspace here: export is data portability —
+      // users must be able to take their data out even when the workspace is over
+      // its plan limits. Import (which writes pages) IS plan-gated.
 
       if (input.scope !== 'WORKSPACE' && !input.scopeId) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Не указан объект экспорта' })
@@ -99,15 +114,20 @@ export const jobRouter = router({
       }
 
       await assertNoActiveJob(ctx.prisma, 'export', input.workspaceId)
-      const job = await ctx.prisma.exportJob.create({
-        data: {
-          workspaceId: input.workspaceId,
-          userId: ctx.user.id,
-          scope: input.scope,
-          scopeId: input.scope === 'WORKSPACE' ? null : input.scopeId,
-          format: input.format,
-        },
-      })
+      let job
+      try {
+        job = await ctx.prisma.exportJob.create({
+          data: {
+            workspaceId: input.workspaceId,
+            userId: ctx.user.id,
+            scope: input.scope,
+            scopeId: input.scope === 'WORKSPACE' ? null : input.scopeId,
+            format: input.format,
+          },
+        })
+      } catch (e) {
+        rethrowActiveJobConflict(e, 'export')
+      }
       ctx.jobs.kick(job.id, 'export')
       return { id: job.id }
     }),
@@ -132,21 +152,26 @@ export const jobRouter = router({
       }
       if (input.parentId) {
         const parent = await assertPageEditAccess(ctx, input.parentId)
-        if (parent.workspaceId !== input.workspaceId || parent.deletedAt) {
+        if (parent.workspaceId !== input.workspaceId || parent.deletedAt || parent.archivedAt) {
           throw new TRPCError({ code: 'NOT_FOUND', message: 'Родительская страница не найдена' })
         }
       }
 
       await assertNoActiveJob(ctx.prisma, 'import', input.workspaceId)
-      const job = await ctx.prisma.importJob.create({
-        data: {
-          workspaceId: input.workspaceId,
-          userId: ctx.user.id,
-          format: input.format,
-          options: { location: input.location, parentId: input.parentId ?? null },
-          artifacts: { create: { fileId: input.fileId, kind: 'SOURCE' } },
-        },
-      })
+      let job
+      try {
+        job = await ctx.prisma.importJob.create({
+          data: {
+            workspaceId: input.workspaceId,
+            userId: ctx.user.id,
+            format: input.format,
+            options: { location: input.location, parentId: input.parentId ?? null },
+            artifacts: { create: { fileId: input.fileId, kind: 'SOURCE' } },
+          },
+        })
+      } catch (e) {
+        rethrowActiveJobConflict(e, 'import')
+      }
       ctx.jobs.kick(job.id, 'import')
       return { id: job.id }
     }),
@@ -267,7 +292,9 @@ export const jobRouter = router({
         const files = job.artifacts.map((a) => a.file)
         await ctx.prisma.exportJob.delete({ where: { id: job.id } })
         for (const f of files) {
-          await ctx.prisma.file.delete({ where: { id: f.id } }).catch(() => {})
+          await ctx.prisma.file.delete({ where: { id: f.id } }).catch((e) => {
+            console.warn('[jobs] artifact file delete failed, row orphaned', { fileId: f.id, e })
+          })
         }
         return { ok: true }
       }

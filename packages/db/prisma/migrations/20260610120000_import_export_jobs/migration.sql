@@ -145,3 +145,9 @@ CREATE INDEX "import_artifacts_file_id_idx" ON "import_artifacts"("file_id");
 -- CreateIndex
 CREATE INDEX "import_mappings_page_id_idx" ON "import_mappings"("page_id");
 
+-- CreateIndex (partial unique: at most one active job per workspace per kind)
+CREATE UNIQUE INDEX "export_jobs_workspace_active_unique" ON "export_jobs"("workspace_id") WHERE "status" IN ('QUEUED', 'PROCESSING');
+
+-- CreateIndex
+CREATE UNIQUE INDEX "import_jobs_workspace_active_unique" ON "import_jobs"("workspace_id") WHERE "status" IN ('QUEUED', 'PROCESSING');
+
