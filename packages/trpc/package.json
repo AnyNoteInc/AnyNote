@@ -38,6 +38,7 @@
     "@repo/db": "workspace:*",
     "@repo/domain": "workspace:*",
     "@repo/notifications": "workspace:*",
+    "@repo/webhooks": "workspace:*",
     "@repo/yookassa": "workspace:*",
     "@tiptap/core": "^3.22.3",
     "@tiptap/extension-code": "^3.22.3",

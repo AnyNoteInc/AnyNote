@@ -6,3 +6,5 @@ export { isBlockedAddress, assertSafeWebhookUrl, SsrfBlockedError } from './ssrf
 export type { LookupFn } from './ssrf.ts'
 export { buildWebhookPayload, assertNoForbiddenKeys } from './payload.ts'
 export type { WebhookEventInput } from './payload.ts'
+export { sendVerificationChallenge } from './challenge.ts'
+export type { ChallengeResult } from './challenge.ts'

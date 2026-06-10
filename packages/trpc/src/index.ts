@@ -22,6 +22,7 @@ import { agentMemoryRouter } from './routers/agent-memory'
 import { apiKeyRouter } from './routers/api-key'
 import { aiProviderRouter } from './routers/ai-provider'
 import { jobRouter } from './routers/job'
+import { webhookRouter } from './routers/webhook'
 
 export { createContext, createServerContext } from './trpc'
 export type { Context, JobRunnerPort } from './trpc'
@@ -61,6 +62,7 @@ export const appRouter = router({
   apiKey: apiKeyRouter,
   aiProvider: aiProviderRouter,
   job: jobRouter,
+  webhook: webhookRouter,
 })
 
 export const createCaller = createCallerFactory(appRouter)

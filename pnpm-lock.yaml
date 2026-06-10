@@ -1224,6 +1224,9 @@ importers:
       '@repo/notifications':
         specifier: workspace:*
         version: link:../notifications
+      '@repo/webhooks':
+        specifier: workspace:*
+        version: link:../webhooks
       '@repo/yookassa':
         specifier: workspace:*
         version: link:../yookassa
