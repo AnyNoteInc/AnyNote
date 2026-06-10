@@ -19,6 +19,7 @@ import {
   StorageIcon,
   Typography,
   WarningAmberIcon,
+  WebhookIcon,
 } from '@repo/ui/components'
 
 import { usePlanFeatures } from '@/components/workspace/plan-features-context'
@@ -28,6 +29,7 @@ import { WorkspaceGeneralSection } from './general-section'
 import { WorkspaceMembersSection } from './members-section'
 import { WorkspaceAiSection } from './ai-section'
 import { WorkspaceMcpSection } from './mcp-section'
+import { WorkspaceWebhooksSection } from './webhooks-section'
 import { WorkspaceFilesSection } from './files-section'
 import { ImportExportSection } from './import-export-section'
 import { WorkspacePublicPagesSection } from './public-pages-section'
@@ -39,6 +41,7 @@ export type SettingsSectionSlug =
   | 'members'
   | 'ai'
   | 'mcp'
+  | 'webhooks'
   | 'files'
   | 'import-export'
   | 'public'
@@ -136,6 +139,18 @@ export function WorkspaceSettingsDialog({
           workspaceId={workspaceId}
           isOwner={isOwner}
           customMcpEnabled={features.customMcpEnabled}
+        />
+      ),
+    },
+    {
+      slug: 'webhooks',
+      label: 'Вебхуки',
+      icon: <WebhookIcon fontSize="small" />,
+      show: features.developerSpaceEnabled,
+      render: () => (
+        <WorkspaceWebhooksSection
+          workspaceId={workspaceId}
+          canManage={roleQ.data === 'OWNER' || roleQ.data === 'ADMIN'}
         />
       ),
     },
