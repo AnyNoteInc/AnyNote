@@ -61,6 +61,10 @@ test.describe('import/export center', () => {
     const wizard = page.getByTestId('import-wizard')
     await expect(wizard).toBeVisible()
 
+    // The wizard now opens on the source-picker step; the file input only
+    // renders after a source card is selected.
+    await page.getByTestId('import-source-generic').click()
+
     // setInputFiles works on the hidden <input type="file"> directly.
     await page
       .getByTestId('import-file-input')
@@ -87,6 +91,49 @@ test.describe('import/export center', () => {
     await expect(page.locator('aside').getByText('Проект', { exact: true })).toBeVisible({
       timeout: 20_000,
     })
+  })
+
+  test('imports a notion export zip with a database and a journal', async ({ page }) => {
+    await signUpAndCreateWorkspace(page, 'notion-zip')
+    await openImportExportSettings(page)
+
+    await page.getByTestId('open-import').click()
+    const wizard = page.getByTestId('import-wizard')
+    await expect(wizard).toBeVisible()
+
+    await page.getByTestId('import-source-notion').click()
+    await page
+      .getByTestId('import-file-input')
+      .setInputFiles(path.join(__dirname, 'fixtures', 'notion-sample.zip'))
+    await expect(page.getByTestId('import-pick-file')).toContainText('notion-sample.zip')
+    await page.getByTestId('import-submit').click()
+
+    await expect(wizard.getByText(/Импорт запущен/)).toBeVisible({ timeout: 20_000 })
+    await wizard.getByRole('button', { name: 'Закрыть' }).click()
+    await expect(wizard).not.toBeVisible()
+
+    // The job row for a NOTION import is labelled «Импорт (Notion): …».
+    const row = page.getByTestId('job-row').filter({ hasText: 'Notion' })
+    await expect(row).toContainText('notion-sample.zip')
+    await expect(row.getByText('Готово')).toBeVisible({ timeout: 60_000 })
+
+    // Journal opens with the limitations warning + downloadable report link.
+    await row.getByTestId('open-journal').click()
+    const journal = page.getByTestId('import-log-dialog')
+    await expect(journal).toBeVisible()
+    await expect(journal.getByText(/не переносятся/)).toBeVisible()
+    await expect(journal.getByTestId('download-report')).toBeVisible()
+    await journal.getByRole('button', { name: 'Закрыть' }).click()
+    await expect(journal).not.toBeVisible()
+
+    // Cleaned titles (id suffixes stripped) land in the tree: the root page
+    // «Проект» and the materialized database «База».
+    await page.reload()
+    await page.getByRole('button', { name: 'Домашняя', exact: true }).click()
+    await expect(page.locator('aside').getByText('Проект', { exact: true })).toBeVisible({
+      timeout: 20_000,
+    })
+    await expect(page.locator('aside').getByText('База', { exact: true })).toBeVisible()
   })
 
   test('exports the workspace as a markdown zip with a download link', async ({ page }) => {
