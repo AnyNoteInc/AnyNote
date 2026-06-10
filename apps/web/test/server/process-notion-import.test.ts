@@ -218,6 +218,27 @@ describe('processImportJob — source dispatch', () => {
     expect(done.status).toBe('DONE')
   })
 
+  it('places a database under a merged folder node (Foo.md + Foo/)', async () => {
+    const ID_A = 'd4e5f60718293a4b5c6d7e8f90a1b2c3'
+    const ID_B = 'e5f60718293a4b5c6d7e8f90a1b2c3d4'
+    const zip = zipSync({
+      [`Раздел ${ID_A}.md`]: strToU8('# Раздел\n\nИндекс.\n'),
+      [`Раздел ${ID_A}/База ${ID_B}.csv`]: strToU8('Name,Count\nА,1\nБ,2\n'),
+    })
+    const { ws, job, ctx } = await seed(zip, 'NOTION')
+    await processImportJob(ctx, job.id)
+
+    // The folder merged with its same-named doc: the section's mapping key is
+    // «Раздел.md», not «Раздел/» — the database must still nest under it.
+    const section = await prisma.page.findFirstOrThrow({
+      where: { workspaceId: ws.id, title: 'Раздел', type: 'TEXT' },
+    })
+    const db = await prisma.page.findFirstOrThrow({
+      where: { workspaceId: ws.id, title: 'База', type: 'DATABASE' },
+    })
+    expect(db.parentId).toBe(section.id)
+  })
+
   it('imports a Confluence export: stripped chrome + limitations note in the journal', async () => {
     const { ws, job, storage, ctx } = await seed(CONFLUENCE_ZIP(), 'CONFLUENCE')
     await processImportJob(ctx, job.id)

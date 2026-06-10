@@ -272,10 +272,17 @@ async function materializeDatabases(
   journal: ImportJournal,
 ): Promise<void> {
   for (const bp of databases) {
+    // A parent folder that merged with a same-named doc (the standard Notion
+    // `Раздел.md` + `Раздел/` layout) is mapped under the DOC's key, so fall
+    // back to the `.md`/`.html` variants before giving up to the import root.
     const parentPageId =
       bp.parentKey === ''
         ? options.parentId
-        : (mapped.get(`${bp.parentKey}/`) ?? mapped.get(bp.parentKey) ?? options.parentId)
+        : (mapped.get(`${bp.parentKey}/`) ??
+          mapped.get(bp.parentKey) ??
+          mapped.get(`${bp.parentKey}.md`) ??
+          mapped.get(`${bp.parentKey}.html`) ??
+          options.parentId)
     await materializeCsvDatabase(
       { prisma: ctx.prisma, pages: ctx.pages, database: ctx.database },
       {
@@ -288,13 +295,13 @@ async function materializeDatabases(
         existingMappings: mapped,
         onDatabaseCreated: async (key, pageId) => {
           journal.action(`База данных «${bp.title}»`)
-          await recordMapping(ctx, job.id, key, pageId, mapped)
+          await recordMapping(ctx, job.id, key, pageId, mapped, { cleanupOnLoss: true })
           if (bp.parentKey === '') rootPageIds.push(pageId)
           await bumpProgress(ctx, job.id)
         },
         onRowCreated: async (key, pageId) => {
           journal.action(`Строка «${key}»`)
-          await recordMapping(ctx, job.id, key, pageId, mapped)
+          await recordMapping(ctx, job.id, key, pageId, mapped, { cleanupOnLoss: true })
           await bumpProgress(ctx, job.id)
         },
       },
@@ -302,19 +309,28 @@ async function materializeDatabases(
   }
 }
 
-/** P2002-tolerant mapping insert (service-created pages): the loser adopts the winner's id. */
+/**
+ * P2002-tolerant mapping insert (service-created pages): the loser adopts the
+ * winner's id. With `cleanupOnLoss`, the loser's just-created page is deleted
+ * first so the reclaim race leaves no orphan item Page (its DatabaseRow
+ * cascades via the Page FK). `createNode` keeps its own inline loser-cleanup.
+ */
 async function recordMapping(
   ctx: ImportJobContext,
   jobId: string,
   sourceKey: string,
   pageId: string,
   mapped: Map<string, string>,
+  { cleanupOnLoss = false }: { cleanupOnLoss?: boolean } = {},
 ): Promise<void> {
   try {
     await ctx.prisma.importMapping.create({ data: { jobId, sourceKey, pageId } })
     mapped.set(sourceKey, pageId)
   } catch (e) {
     if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === 'P2002') {
+      if (cleanupOnLoss) {
+        await ctx.prisma.page.delete({ where: { id: pageId } }).catch(() => {})
+      }
       const winner = await ctx.prisma.importMapping.findUniqueOrThrow({
         where: { jobId_sourceKey: { jobId, sourceKey } },
         select: { pageId: true },
@@ -341,6 +357,7 @@ async function writeReport(
   journal: ImportJournal,
 ): Promise<void> {
   try {
+    // Best-effort replace: a concurrent resume may briefly produce a duplicate REPORT row; the route reads the first.
     const prior = await ctx.prisma.importArtifact.findMany({
       where: { jobId, kind: 'REPORT' },
       select: { id: true, fileId: true },

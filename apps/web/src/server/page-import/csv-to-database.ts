@@ -122,7 +122,9 @@ export async function materializeCsvDatabase(
   )
   const cols: Array<{ propertyId: string; col: InferredColumn }> = []
   for (const col of inferred) {
-    const match = reusable.find((p) => p.name === col.name)
+    // Resume-time reuse must match name AND type — a same-name property of a
+    // different type (e.g. user-edited between runs) gets a fresh property.
+    const match = reusable.find((p) => p.name === col.name && p.type === INFERRED_TO_PROP[col.type])
     const propertyId = match
       ? match.id
       : (
