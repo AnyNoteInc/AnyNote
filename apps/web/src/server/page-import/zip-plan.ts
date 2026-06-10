@@ -30,6 +30,7 @@ export type ImportPlan = {
   roots: ImportNode[]
   assets: Map<string, ImportAsset>
   warnings: string[]
+  /** Number of pages the import will create — one per tree node, INCLUDING doc-less folder nodes (each becomes a container page). */
   totalPages: number
 }
 
@@ -57,7 +58,8 @@ export function normalizeEntryPath(raw: string): string | null {
   const segs = path.split('/')
   if (segs.some((s) => s === '..')) throw new ImportSourceError('Небезопасный путь в архиве')
   if (segs.some((s) => s === '__MACOSX' || s === '.DS_Store' || s.startsWith('._'))) return null
-  return segs.filter((s) => s !== '' && s !== '.').join('/')
+  const result = segs.filter((s) => s !== '' && s !== '.').join('/')
+  return result === '' ? null : result
 }
 
 export function buildImportPlan(zipBytes: Uint8Array): ImportPlan {

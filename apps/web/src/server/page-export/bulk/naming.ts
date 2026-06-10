@@ -8,6 +8,7 @@ const UNSAFE = new RegExp(
 export function safeEntryName(rawTitle: string | null | undefined): string {
   const trimmed = (rawTitle ?? '').trim()
   if (!trimmed) return 'Без названия'
+  // 80 (not 100 like filename.ts): head-room for the " N" dedup suffix
   const safe = trimmed.replaceAll(UNSAFE, ' ').replaceAll(/\s+/g, ' ').trim().slice(0, 80)
   return safe || 'page'
 }

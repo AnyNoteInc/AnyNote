@@ -69,6 +69,19 @@ describe('markdownToTiptap', () => {
     expect(doc.content[1]).toMatchObject({ type: 'image', attrs: { src: 'https://x/b.png' } })
   })
 
+  it('parses GFM tables into tiptap table nodes', () => {
+    const doc = markdownToTiptap('| a | b |\n|---|---|\n| **1** | 2 |')
+    const table = doc.content[0]!
+    expect(table.type).toBe('table')
+    const rows = table.content!
+    expect(rows.length).toBe(2)
+    expect(rows[0]!.content![0]!.type).toBe('tableHeader')
+    expect(rows[1]!.content![0]!.type).toBe('tableCell')
+    const s = JSON.stringify(doc)
+    expect(s).toContain('"a"')
+    expect(s).toContain('"type":"bold"')
+  })
+
   it('returns an empty doc for blank input', () => {
     expect(markdownToTiptap('  \n ')).toEqual({ type: 'doc', content: [] })
   })

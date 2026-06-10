@@ -83,6 +83,24 @@ function parseBlock(token: Token, opts: ParseOptions): TiptapNode[] {
     }
     case 'hr':
       return [{ type: 'horizontalRule' }]
+    case 'table': {
+      const t = token as Tokens.Table
+      const headerRow: TiptapNode = {
+        type: 'tableRow',
+        content: t.header.map((cell) => ({
+          type: 'tableHeader',
+          content: [{ type: 'paragraph', content: parseInline(cell.tokens, opts) }],
+        })),
+      }
+      const bodyRows: TiptapNode[] = t.rows.map((row) => ({
+        type: 'tableRow',
+        content: row.map((cell) => ({
+          type: 'tableCell',
+          content: [{ type: 'paragraph', content: parseInline(cell.tokens, opts) }],
+        })),
+      }))
+      return [{ type: 'table', content: [headerRow, ...bodyRows] }]
+    }
     case 'space':
       return []
     default: {

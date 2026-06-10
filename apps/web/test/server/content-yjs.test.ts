@@ -24,6 +24,10 @@ const FULL_MD = [
   '---',
   '',
   '![img](https://e.com/i.png)',
+  '',
+  '| x | y |',
+  '|---|---|',
+  '| 1 | 2 |',
 ].join('\n')
 
 describe('buildImportContentYjs', () => {

@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 import { strToU8, zipSync } from 'fflate'
 
-import { buildImportPlan, ImportSourceError } from '../../src/server/page-import/zip-plan'
+import {
+  buildImportPlan,
+  ImportSourceError,
+  normalizeEntryPath,
+} from '../../src/server/page-import/zip-plan'
 
 function zip(files: Record<string, string | Uint8Array>): Uint8Array {
   const data: Record<string, Uint8Array> = {}
@@ -54,5 +58,19 @@ describe('buildImportPlan', () => {
 
   it('throws ImportSourceError on zip-slip paths', () => {
     expect(() => buildImportPlan(zip({ '../evil.md': 'x' }))).toThrow(ImportSourceError)
+  })
+})
+
+describe('normalizeEntryPath', () => {
+  it('returns null for dot-only paths', () => {
+    expect(normalizeEntryPath('.')).toBeNull()
+    expect(normalizeEntryPath('././')).toBeNull()
+  })
+  it('throws on absolute paths', () => {
+    expect(() => normalizeEntryPath('/etc/passwd')).toThrow(ImportSourceError)
+  })
+  it('throws on traversal incl. Windows separators', () => {
+    expect(() => normalizeEntryPath('../evil.md')).toThrow(ImportSourceError)
+    expect(() => normalizeEntryPath('..\\evil.md')).toThrow(ImportSourceError)
   })
 })
