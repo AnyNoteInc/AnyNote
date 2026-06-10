@@ -14,7 +14,7 @@ type Ctx = {
   baseUrl: string
 }
 
-function extractFileId(src: string): string | null {
+export function extractFileId(src: string): string | null {
   if (!src.startsWith(FILE_PATH_PREFIX)) return null
   const tail = src.slice(FILE_PATH_PREFIX.length)
   const slash = tail.indexOf('/')
