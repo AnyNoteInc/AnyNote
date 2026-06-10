@@ -24,10 +24,30 @@ const exportCreateInput = z.object({
 const importCreateInput = z.object({
   workspaceId: z.string().uuid(),
   fileId: z.string().uuid(),
-  format: z.enum(['MARKDOWN', 'HTML', 'ZIP']),
+  format: z.enum(['MARKDOWN', 'HTML', 'ZIP', 'CSV']),
   source: z.enum(['GENERIC', 'NOTION', 'CONFLUENCE', 'YANDEX_WIKI']).default('GENERIC'),
   location: z.enum(['team', 'private']).default('team'),
   parentId: z.string().uuid().nullish(),
+  // CSV-only knobs: per-column type pins (keyed by the FULL header index as a
+  // string; column 0 is the title and never overridable) + the database title.
+  columnOverrides: z
+    .record(
+      z.string(),
+      z.enum([
+        'TEXT',
+        'NUMBER',
+        'CHECKBOX',
+        'DATE',
+        'SELECT',
+        'MULTI_SELECT',
+        'URL',
+        'EMAIL',
+        'PHONE',
+        'skip',
+      ]),
+    )
+    .optional(),
+  databaseTitle: z.string().trim().min(1).max(200).optional(),
 })
 
 /** Sources whose exports are only meaningful as a ZIP archive. */
@@ -158,6 +178,10 @@ export const jobRouter = router({
       await assertWorkspaceMember(ctx, input.workspaceId)
       await requireWritableWorkspace(input.workspaceId)
 
+      // CSV is a single plain file: only the GENERIC source can carry it.
+      if (input.format === 'CSV' && input.source !== 'GENERIC') {
+        throw new TRPCError({ code: 'BAD_REQUEST', message: 'CSV импортируется только как файл' })
+      }
       if (ZIP_ONLY_SOURCES.has(input.source) && input.format !== 'ZIP') {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Для этого источника нужен ZIP-архив' })
       }
@@ -170,7 +194,8 @@ export const jobRouter = router({
       const extOk =
         (input.format === 'ZIP' && file.ext === 'zip') ||
         (input.format === 'MARKDOWN' && ['md', 'markdown'].includes(file.ext)) ||
-        (input.format === 'HTML' && ['html', 'htm'].includes(file.ext))
+        (input.format === 'HTML' && ['html', 'htm'].includes(file.ext)) ||
+        (input.format === 'CSV' && file.ext === 'csv')
       if (!extOk) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Формат файла не совпадает' })
       }
@@ -190,7 +215,12 @@ export const jobRouter = router({
             userId: ctx.user.id,
             format: input.format,
             source: input.source,
-            options: { location: input.location, parentId: input.parentId ?? null },
+            options: {
+              location: input.location,
+              parentId: input.parentId ?? null,
+              ...(input.columnOverrides ? { columnOverrides: input.columnOverrides } : {}),
+              ...(input.databaseTitle ? { databaseTitle: input.databaseTitle } : {}),
+            },
             artifacts: { create: { fileId: input.fileId, kind: 'SOURCE' } },
           },
         })

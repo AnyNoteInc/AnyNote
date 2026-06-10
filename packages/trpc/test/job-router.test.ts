@@ -407,6 +407,68 @@ describe('job router', () => {
     expect(job.source).toBe('NOTION')
   })
 
+  it('import.create accepts a CSV file and persists overrides + database title in options', async () => {
+    const { owner, ws } = await seed()
+    const file = await prisma.file.create({
+      data: {
+        userId: owner.id,
+        workspaceId: ws.id,
+        name: 'table',
+        ext: 'csv',
+        fileSize: 1n,
+        mimeType: 'text/plain',
+        hash: 'h-csv',
+        path: 't/table.csv',
+        status: 'ACTIVE',
+        isPublic: false,
+      },
+    })
+    const { caller, kick } = makeCaller(owner.id)
+    const { id } = await caller.import.create({
+      workspaceId: ws.id,
+      fileId: file.id,
+      format: 'CSV',
+      columnOverrides: { '1': 'TEXT', '3': 'skip' },
+      databaseTitle: 'Реестр',
+    })
+    expect(kick).toHaveBeenCalledWith(id, 'import')
+    const job = await prisma.importJob.findUniqueOrThrow({ where: { id } })
+    expect(job.format).toBe('CSV')
+    expect(job.options).toMatchObject({
+      location: 'team',
+      parentId: null,
+      columnOverrides: { '1': 'TEXT', '3': 'skip' },
+      databaseTitle: 'Реестр',
+    })
+  })
+
+  it('import.create rejects CSV for a non-GENERIC source (NOTION)', async () => {
+    const { owner, ws } = await seed()
+    const file = await prisma.file.create({
+      data: {
+        userId: owner.id,
+        workspaceId: ws.id,
+        name: 'table',
+        ext: 'csv',
+        fileSize: 1n,
+        mimeType: 'text/plain',
+        hash: 'h-csv-src',
+        path: 't/table-src.csv',
+        status: 'ACTIVE',
+        isPublic: false,
+      },
+    })
+    const { caller } = makeCaller(owner.id)
+    await expect(
+      caller.import.create({
+        workspaceId: ws.id,
+        fileId: file.id,
+        format: 'CSV',
+        source: 'NOTION',
+      }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST' })
+  })
+
   it('list exposes hasReport/warnings and still names the SOURCE file', async () => {
     const { owner, ws } = await seed()
     const sourceFile = await prisma.file.create({

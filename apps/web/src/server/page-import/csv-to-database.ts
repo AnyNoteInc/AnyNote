@@ -6,6 +6,7 @@ import { parseHtmlDocument } from '@/server/page-import/html-to-tiptap'
 import { parseMarkdownDocument } from '@/server/page-import/markdown-to-tiptap'
 import {
   inferColumns,
+  type InferOverrides,
   type InferredColumn,
   type InferredType,
 } from '@/server/page-import/infer-columns'
@@ -47,6 +48,12 @@ export type MaterializeArgs = {
   onRowCreated: (rowKey: string, itemPageId: string) => Promise<void>
   /** Called once when the db page is NEWLY created (record its mapping). */
   onDatabaseCreated: (sourceKey: string, dbPageId: string) => Promise<void>
+  /**
+   * User type pins/skips keyed by the FULL CSV header index (column 0 = the
+   * implicit title column, never overridable). Shifted to data-column indices
+   * before reaching `inferColumns`.
+   */
+  inferOpts?: InferOverrides
 }
 
 const INFERRED_TO_PROP: Record<InferredType, DatabasePropertyType> = {
@@ -119,9 +126,17 @@ export async function materializeCsvDatabase(
     reusable = []
   }
 
+  // Overrides arrive keyed by the FULL header index; the title column (0) is
+  // sliced off above, so shift every key by -1 for the data-column inference.
+  const dataOverrides: Record<number, InferredType | 'skip'> = {}
+  for (const [key, value] of Object.entries(args.inferOpts?.overrides ?? {})) {
+    const idx = Number(key)
+    if (Number.isInteger(idx) && idx >= 1) dataOverrides[idx - 1] = value
+  }
   const inferred = inferColumns(
     dataHeader,
     bp.rows.map((r) => r.slice(1)),
+    { overrides: dataOverrides },
   )
   // `colIdx` preserves the inferred-column index (skipped columns leave holes)
   // so cell lookups below stay aligned with the raw row values.

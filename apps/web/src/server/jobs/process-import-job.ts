@@ -8,15 +8,18 @@ import type { StorageClient } from '@repo/storage'
 import { computeS3Key } from '@/lib/file-validation'
 import { buildConfluenceImportPlan } from '@/server/page-import/confluence/confluence-plan'
 import { buildImportContentYjs } from '@/server/page-import/content-yjs'
-import { materializeCsvDatabase, type DatabasePort } from '@/server/page-import/csv-to-database'
+import { parseCsv } from '@/server/page-import/csv'
+import {
+  materializeCsvDatabase,
+  type CsvDatabaseBlueprint,
+  type DatabasePort,
+} from '@/server/page-import/csv-to-database'
 import { parseHtmlDocument } from '@/server/page-import/html-to-tiptap'
+import type { InferOverrides, InferredType } from '@/server/page-import/infer-columns'
 import { ImportJournal } from '@/server/page-import/journal'
 import { parseMarkdownDocument, type TiptapDoc } from '@/server/page-import/markdown-to-tiptap'
 import { cleanNotionPath, extractNotionIdFromHref } from '@/server/page-import/notion/notion-name'
-import {
-  buildNotionImportPlan,
-  type NotionDatabaseBlueprint,
-} from '@/server/page-import/notion/notion-plan'
+import { buildNotionImportPlan } from '@/server/page-import/notion/notion-plan'
 import { resolveSourcePath, rewriteRelativeLinks } from '@/server/page-import/rewrite-links'
 import {
   buildImportPlan,
@@ -37,7 +40,17 @@ export type ImportJobContext = {
   database: DatabasePort
 }
 
-type ImportOptions = { location: 'team' | 'private'; parentId: string | null }
+type ImportOptions = {
+  location: 'team' | 'private'
+  parentId: string | null
+  /** CSV-only: per-column type pins/skips keyed by the FULL header index. */
+  columnOverrides?: Record<number, InferredType | 'skip'>
+  /** CSV-only: user-chosen database title (defaults to the file stem). */
+  databaseTitle?: string
+}
+
+/** A CSV database blueprint + the Notion-style parent dir key ('' / absent = import root). */
+type DatabaseBlueprintEntry = CsvDatabaseBlueprint & { parentKey?: string }
 
 /** Run-scoped state threaded through the page-creation pass. */
 type ImportRunState = {
@@ -132,7 +145,7 @@ async function run(
   }
   let plan: ImportPlan
   let aliases = new Map<string, string>()
-  let databases: NotionDatabaseBlueprint[] = []
+  let databases: DatabaseBlueprintEntry[] = []
   if (job.source === 'NOTION') {
     const notion = buildNotionImportPlan(bytes)
     plan = notion
@@ -142,10 +155,27 @@ async function run(
     const confluence = buildConfluenceImportPlan(bytes)
     plan = confluence
     aliases = confluence.aliases
+  } else if (job.format === 'CSV') {
+    // GENERIC CSV: the whole file is one database blueprint — no page tree.
+    const parsed = parseCsv(new TextDecoder('utf-8').decode(bytes))
+    const header = parsed[0]
+    const dataRows = parsed.slice(1)
+    if (!header || header.every((c) => c.trim() === '') || dataRows.length === 0) {
+      throw new ImportSourceError('CSV-файл пуст')
+    }
+    databases = [
+      {
+        sourceKey: source.name,
+        title: options.databaseTitle ?? source.name.replace(/\.[^.]+$/, ''),
+        header,
+        rows: dataRows,
+      },
+    ]
+    for (const key of Object.keys(options.columnOverrides ?? {})) {
+      journal.action(`Колонка ${Number(key) + 1}: тип задан вручную`)
+    }
+    plan = { roots: [], assets: new Map(), warnings: [], totalPages: 1 + dataRows.length }
   } else {
-    // The router does not accept CSV yet; the CSV database path lands with the
-    // import-processor change. Defensive guard keeps the dispatch exhaustive.
-    if (job.format === 'CSV') throw new ImportSourceError('Импорт CSV ещё не поддерживается')
     plan =
       job.format === 'ZIP' ? buildImportPlan(bytes) : singleFilePlan(job.format, source.name, bytes)
   }
@@ -172,7 +202,13 @@ async function run(
     rootPageIds.push(id)
   }
 
-  await materializeDatabases(ctx, job, options, databases, mapped, rootPageIds, journal)
+  // Overrides only apply to the user's own CSV file — Notion blueprint columns
+  // keep pure inference (the wizard never offers overrides for archives).
+  const inferOpts: InferOverrides | undefined =
+    job.format === 'CSV' && options.columnOverrides
+      ? { overrides: options.columnOverrides }
+      : undefined
+  await materializeDatabases(ctx, job, options, databases, mapped, rootPageIds, journal, inferOpts)
 
   await rewriteImportedLinks(ctx, job.workspaceId, plan, mapped, aliases, journal)
 
@@ -284,30 +320,34 @@ async function createNode(
   return pageId
 }
 
-// CSV database blueprints (Notion) materialize AFTER the page pass so parent
-// dirs already have pages, and BEFORE link rewriting so row mappings resolve.
+// CSV database blueprints (Notion archives or a standalone GENERIC CSV file)
+// materialize AFTER the page pass so parent dirs already have pages, and
+// BEFORE link rewriting so row mappings resolve.
 async function materializeDatabases(
   ctx: ImportJobContext,
   job: { id: string; userId: string; workspaceId: string },
   options: ImportOptions,
-  databases: NotionDatabaseBlueprint[],
+  databases: DatabaseBlueprintEntry[],
   mapped: Map<string, string>,
   rootPageIds: string[],
   journal: ImportJournal,
+  inferOpts?: InferOverrides,
 ): Promise<void> {
   for (const bp of databases) {
     // A parent folder that merged with a same-named doc (the standard Notion
     // `Раздел.md` + `Раздел/` layout) is mapped under the DOC's key, so fall
     // back to the `.md`/`.html` variants before giving up to the import root.
+    // A standalone CSV has no parentKey → straight to the chosen import root.
+    const parentKey = bp.parentKey ?? ''
     const parentPageId =
-      bp.parentKey === ''
+      parentKey === ''
         ? options.parentId
-        : (mapped.get(`${bp.parentKey}/`) ??
-          mapped.get(bp.parentKey) ??
-          mapped.get(`${bp.parentKey}.md`) ??
-          mapped.get(`${bp.parentKey}.markdown`) ??
-          mapped.get(`${bp.parentKey}.html`) ??
-          mapped.get(`${bp.parentKey}.htm`) ??
+        : (mapped.get(`${parentKey}/`) ??
+          mapped.get(parentKey) ??
+          mapped.get(`${parentKey}.md`) ??
+          mapped.get(`${parentKey}.markdown`) ??
+          mapped.get(`${parentKey}.html`) ??
+          mapped.get(`${parentKey}.htm`) ??
           options.parentId)
     await materializeCsvDatabase(
       { prisma: ctx.prisma, pages: ctx.pages, database: ctx.database },
@@ -319,10 +359,11 @@ async function materializeDatabases(
         blueprint: bp,
         journal,
         existingMappings: mapped,
+        ...(inferOpts ? { inferOpts } : {}),
         onDatabaseCreated: async (key, pageId) => {
           journal.action(`База данных «${bp.title}»`)
           await recordMapping(ctx, job.id, key, pageId, mapped, { cleanupOnLoss: true })
-          if (bp.parentKey === '') rootPageIds.push(pageId)
+          if (parentKey === '') rootPageIds.push(pageId)
           await bumpProgress(ctx, job.id)
         },
         onRowCreated: async (key, pageId) => {
@@ -598,11 +639,44 @@ function singleFilePlan(
   }
 }
 
+const OVERRIDE_VALUES: ReadonlySet<string> = new Set([
+  'TEXT',
+  'NUMBER',
+  'CHECKBOX',
+  'DATE',
+  'SELECT',
+  'MULTI_SELECT',
+  'URL',
+  'EMAIL',
+  'PHONE',
+  'skip',
+])
+
+/** Defensive shape check for the persisted overrides: int-keyed record of known type names. */
+function parseColumnOverrides(raw: unknown): Record<number, InferredType | 'skip'> | undefined {
+  if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return undefined
+  const out: Record<number, InferredType | 'skip'> = {}
+  for (const [key, value] of Object.entries(raw)) {
+    const idx = Number.parseInt(key, 10)
+    if (!Number.isInteger(idx) || idx < 0 || String(idx) !== key) continue
+    if (typeof value !== 'string' || !OVERRIDE_VALUES.has(value)) continue
+    out[idx] = value as InferredType | 'skip'
+  }
+  return Object.keys(out).length > 0 ? out : undefined
+}
+
 function parseOptions(raw: unknown): ImportOptions {
   const o = (raw ?? {}) as Record<string, unknown>
+  const columnOverrides = parseColumnOverrides(o.columnOverrides)
+  const databaseTitle =
+    typeof o.databaseTitle === 'string' && o.databaseTitle.trim() !== ''
+      ? o.databaseTitle.trim()
+      : undefined
   return {
     location: o.location === 'private' ? 'private' : 'team',
     parentId: typeof o.parentId === 'string' ? o.parentId : null,
+    ...(columnOverrides ? { columnOverrides } : {}),
+    ...(databaseTitle ? { databaseTitle } : {}),
   }
 }
 
