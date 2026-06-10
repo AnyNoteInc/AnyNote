@@ -20,6 +20,12 @@ import { trpc } from '@/trpc/client'
 
 import { DELIVERY_STATUS_LABELS } from './webhook-events'
 
+const SNIPPET_MAX_CHARS = 200
+
+function truncate(text: string): string {
+  return text.length > SNIPPET_MAX_CHARS ? `${text.slice(0, SNIPPET_MAX_CHARS)}…` : text
+}
+
 function formatDate(value: string | Date): string {
   const d = value instanceof Date ? value : new Date(value)
   if (Number.isNaN(d.getTime())) return ''
@@ -84,6 +90,8 @@ export function WebhookDeliveriesTable({
                 color: 'default' as const,
               }
               const chip = <Chip size="small" label={status.label} color={status.color} />
+              // The error if any, otherwise what the endpoint actually answered.
+              const detail = d.lastError ?? (d.responseSnippet ? truncate(d.responseSnippet) : null)
               return (
                 <TableRow key={d.id}>
                   <TableCell>
@@ -92,8 +100,8 @@ export function WebhookDeliveriesTable({
                     </Typography>
                   </TableCell>
                   <TableCell>
-                    {d.lastError ? (
-                      <Tooltip title={d.lastError}>
+                    {detail ? (
+                      <Tooltip title={detail}>
                         <span>{chip}</span>
                       </Tooltip>
                     ) : (

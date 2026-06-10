@@ -256,6 +256,101 @@ describe('webhook router', () => {
     ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'Сначала подтвердите адрес' })
   })
 
+  it('verify on a FAILED subscription reactivates it on a successful challenge', async () => {
+    const { owner, ws } = await seed()
+    const caller = makeCaller(owner.id)
+    const created = await caller.create(createInput(ws.id)) // ACTIVE
+    // Simulate the dispatch worker auto-disabling after consecutive failures.
+    await prisma.webhookSubscription.update({
+      where: { id: created.id },
+      data: { status: 'FAILED', consecutiveFailures: 8 },
+    })
+    const res = await caller.verify({ id: created.id, workspaceId: ws.id })
+    expect(res.status).toBe('ACTIVE')
+    const row = await prisma.webhookSubscription.findUniqueOrThrow({ where: { id: created.id } })
+    expect(row.status).toBe('ACTIVE')
+    expect(row.consecutiveFailures).toBe(0)
+    expect(row.verificationChallenge).toBeNull()
+  })
+
+  it('update with a URL change re-runs the challenge; non-https is rejected outright', async () => {
+    const { owner, ws } = await seed()
+    const caller = makeCaller(owner.id)
+    const created = await caller.create(createInput(ws.id)) // ACTIVE
+    expect(sendVerificationChallengeMock).toHaveBeenCalledTimes(1)
+
+    // Challenge success → ACTIVE with the new url.
+    const newUrl = 'https://hooks.example.com/anynote-v2'
+    const ok = await caller.update({ id: created.id, workspaceId: ws.id, url: newUrl })
+    expect(ok).toMatchObject({ status: 'ACTIVE', url: newUrl })
+    expect(sendVerificationChallengeMock).toHaveBeenCalledTimes(2)
+    expect(sendVerificationChallengeMock.mock.calls[1]![0]).toMatchObject({ url: newUrl })
+
+    // Challenge failure → PENDING, old verification invalidated.
+    sendVerificationChallengeMock.mockResolvedValue({ ok: false, error: 'http 500' })
+    const failed = await caller.update({
+      id: created.id,
+      workspaceId: ws.id,
+      url: 'https://hooks.example.com/anynote-v3',
+    })
+    expect(failed.status).toBe('PENDING')
+    const row = await prisma.webhookSubscription.findUniqueOrThrow({ where: { id: created.id } })
+    expect(row.status).toBe('PENDING')
+    expect(row.verifiedAt).toBeNull()
+    expect(row.verificationChallenge).not.toBeNull()
+
+    // Non-https url → BAD_REQUEST, no challenge attempt.
+    expect(sendVerificationChallengeMock).toHaveBeenCalledTimes(3)
+    await expect(
+      caller.update({ id: created.id, workspaceId: ws.id, url: 'http://insecure.example.com' }),
+    ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'Только https:// адреса' })
+    expect(sendVerificationChallengeMock).toHaveBeenCalledTimes(3)
+  })
+
+  it('update without a URL change skips the challenge and never returns the secret', async () => {
+    const { owner, ws } = await seed()
+    const caller = makeCaller(owner.id)
+    const created = await caller.create(createInput(ws.id))
+    expect(sendVerificationChallengeMock).toHaveBeenCalledTimes(1)
+    const res = await caller.update({
+      id: created.id,
+      workspaceId: ws.id,
+      name: 'Renamed hook',
+      events: ['page.created', 'page.deleted'],
+    })
+    // No url change → no re-verification.
+    expect(sendVerificationChallengeMock).toHaveBeenCalledTimes(1)
+    expect(res).toMatchObject({
+      id: created.id,
+      name: 'Renamed hook',
+      events: ['page.created', 'page.deleted'],
+      status: 'ACTIVE',
+    })
+    // SAFE_SELECT shape — never the secret or the challenge.
+    expect(res).not.toHaveProperty('secretEnc')
+    expect(res).not.toHaveProperty('verificationChallenge')
+    expect(JSON.stringify(res)).not.toContain(created.secret)
+  })
+
+  it('verify on an ACTIVE subscription is idempotent and uses the stored secret', async () => {
+    const { owner, ws } = await seed()
+    const caller = makeCaller(owner.id)
+    const created = await caller.create(createInput(ws.id)) // ACTIVE
+    const res = await caller.verify({ id: created.id, workspaceId: ws.id })
+    expect(res.status).toBe('ACTIVE')
+    const row = await prisma.webhookSubscription.findUniqueOrThrow({ where: { id: created.id } })
+    expect(row.status).toBe('ACTIVE')
+    // The challenge was signed with the DECRYPTED stored secret (the one
+    // returned at create) and the configurable timeout.
+    expect(sendVerificationChallengeMock).toHaveBeenCalledTimes(2)
+    expect(sendVerificationChallengeMock.mock.calls[1]![0]).toMatchObject({
+      url: HOOK_URL,
+      secret: created.secret,
+      subscriptionId: created.id,
+      timeoutMs: 10_000,
+    })
+  })
+
   it('deliveries paginates by 30 and is scoped to the workspace', async () => {
     const { owner, ws } = await seed()
     const caller = makeCaller(owner.id)

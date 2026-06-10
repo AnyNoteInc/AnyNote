@@ -123,7 +123,15 @@ export function WorkspaceWebhooksSection({
           color: 'default' as const,
         }
         const expanded = expandedId === s.id
-        const paused = s.status === 'DISABLED'
+        const active = s.status === 'ACTIVE'
+        // Resume requires a verified address (the router rejects it otherwise) —
+        // PENDING and never-verified subscriptions can only be re-verified.
+        const resumeBlocked = !active && (s.status === 'PENDING' || !s.verifiedAt)
+        const switchLabel = resumeBlocked
+          ? 'Сначала подтвердите адрес'
+          : active
+            ? 'Приостановить'
+            : 'Возобновить'
         return (
           <Box
             key={s.id}
@@ -165,14 +173,19 @@ export function WorkspaceWebhooksSection({
                       Проверить
                     </Button>
                   ) : null}
-                  <Tooltip title={paused ? 'Возобновить' : 'Приостановить'}>
-                    <Switch
-                      size="small"
-                      checked={!paused}
-                      disabled={setEnabled.isPending}
-                      onChange={(_, v) => setEnabled.mutate({ id: s.id, workspaceId, enabled: v })}
-                      inputProps={{ 'aria-label': paused ? 'Возобновить' : 'Приостановить' }}
-                    />
+                  <Tooltip title={switchLabel}>
+                    {/* span: tooltips don't fire on disabled controls */}
+                    <span>
+                      <Switch
+                        size="small"
+                        checked={active}
+                        disabled={setEnabled.isPending || resumeBlocked}
+                        onChange={(_, v) =>
+                          setEnabled.mutate({ id: s.id, workspaceId, enabled: v })
+                        }
+                        inputProps={{ 'aria-label': switchLabel }}
+                      />
+                    </span>
                   </Tooltip>
                   <Button
                     size="small"

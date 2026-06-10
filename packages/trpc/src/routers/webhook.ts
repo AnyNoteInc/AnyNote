@@ -14,6 +14,7 @@ import { getWorkspaceFeatures } from '../helpers/plan'
 
 const MAX_SUBSCRIPTIONS_PER_WORKSPACE = 20
 const DELIVERIES_PAGE_SIZE = 30
+const CHALLENGE_TIMEOUT_MS = Number(process.env.WEBHOOK_CHALLENGE_TIMEOUT_MS ?? 10_000)
 
 const eventsSchema = z.array(z.enum(WEBHOOK_EVENT_TYPES)).min(1)
 
@@ -108,6 +109,7 @@ async function runChallenge(
     secret,
     challenge,
     subscriptionId: sub.id,
+    timeoutMs: CHALLENGE_TIMEOUT_MS,
   })
   if (!result.ok) return 'PENDING'
   await prisma.webhookSubscription.update({
@@ -146,6 +148,7 @@ export const webhookRouter = router({
     .mutation(async ({ ctx, input }) => {
       await assertWebhookAccess(ctx, input.workspaceId)
       assertHttpsUrl(input.url)
+      // Count-then-create race accepted: admin-only surface, worst case +1 over the cap.
       const count = await ctx.prisma.webhookSubscription.count({
         where: { workspaceId: input.workspaceId },
       })
@@ -328,6 +331,7 @@ export const webhookRouter = router({
           attempts: true,
           nextAttemptAt: true,
           responseStatus: true,
+          responseSnippet: true,
           latencyMs: true,
           lastError: true,
           createdAt: true,
