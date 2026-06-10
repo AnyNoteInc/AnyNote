@@ -1846,9 +1846,11 @@ model ExportArtifact {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
 
   job  ExportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  // NOTE: physical File deletion cascades here; GC routines must check artifact refs first.
   file File      @relation("ExportArtifactFile", fields: [fileId], references: [id], onDelete: Cascade)
 
   @@unique([jobId, fileId])
+  @@index([fileId])
   @@map("export_artifacts")
 }
 
@@ -1863,6 +1865,7 @@ model ImportArtifact {
   file File      @relation("ImportArtifactFile", fields: [fileId], references: [id], onDelete: Cascade)
 
   @@unique([jobId, fileId])
+  @@index([fileId])
   @@map("import_artifacts")
 }
 
@@ -1877,5 +1880,6 @@ model ImportMapping {
   page Page      @relation("ImportMappingPage", fields: [pageId], references: [id], onDelete: Cascade)
 
   @@unique([jobId, sourceKey])
+  @@index([pageId])
   @@map("import_mappings")
 }

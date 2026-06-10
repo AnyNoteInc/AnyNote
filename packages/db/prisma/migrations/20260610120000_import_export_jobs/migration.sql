@@ -136,3 +136,12 @@ ALTER TABLE "import_mappings" ADD CONSTRAINT "import_mappings_job_id_fkey" FOREI
 -- AddForeignKey
 ALTER TABLE "import_mappings" ADD CONSTRAINT "import_mappings_page_id_fkey" FOREIGN KEY ("page_id") REFERENCES "pages"("id") ON DELETE CASCADE ON UPDATE CASCADE;
 
+-- CreateIndex
+CREATE INDEX "export_artifacts_file_id_idx" ON "export_artifacts"("file_id");
+
+-- CreateIndex
+CREATE INDEX "import_artifacts_file_id_idx" ON "import_artifacts"("file_id");
+
+-- CreateIndex
+CREATE INDEX "import_mappings_page_id_idx" ON "import_mappings"("page_id");
+
