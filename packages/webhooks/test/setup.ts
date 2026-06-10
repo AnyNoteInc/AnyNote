@@ -1,3 +1,4 @@
+import { randomBytes } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
@@ -24,5 +25,10 @@ export function setup() {
     }
   } catch {
     // ignore — env may already be set
+  }
+  // The worker tests call encryptSecret/decryptSecret; guarantee a valid
+  // AES-256 key even when the root .env doesn't provide one (fresh CI DB).
+  if (!process.env.SECRETS_ENCRYPTION_KEY) {
+    process.env.SECRETS_ENCRYPTION_KEY = randomBytes(32).toString('base64')
   }
 }

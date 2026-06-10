@@ -1,2 +1,2 @@
-// Worker modules (fan-out tick, delivery tick, challenge sender) arrive in Tasks 4-5.
-export {}
+export { runFanOutTick, passesVisibilityGate } from './fan-out.ts'
+export type { FanOutOpts } from './fan-out.ts'
