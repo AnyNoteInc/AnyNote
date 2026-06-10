@@ -45,7 +45,10 @@ function precleanConfluenceHtml(
   for (const el of Array.from(document.querySelectorAll(CHROME_SELECTOR))) el.remove()
   const titleText = document.querySelector('title')?.textContent?.trim() ?? ''
   const sep = titleText.lastIndexOf(' - ')
-  const title = (sep > 0 ? titleText.slice(0, sep) : titleText).trim() || fallbackTitle
+  // '/' in a title would read as a path separator downstream (phantom folders) — swap for U+2215.
+  const title = (
+    (sep > 0 ? titleText.slice(0, sep) : titleText).trim() || fallbackTitle
+  ).replaceAll('/', '∕')
   const main = document.querySelector('#main-content')
   const html = (main ? main.innerHTML : (document.body?.innerHTML ?? source)) || ''
   return { title, html }

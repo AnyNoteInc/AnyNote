@@ -26,7 +26,8 @@ const URL_RE = /^https?:\/\/\S+$/i
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 const PHONE_RE = /^\+?[\d\s().-]{7,}$/
 // Date-ish guard so pure numbers/codes don't pass Date.parse coincidentally.
-const DATEISH_RE = /^(\d{4}-\d{2}-\d{2}|[A-Za-zА-Яа-я]{3,}\s+\d{1,2},?\s+\d{4}|\d{1,2}[./]\d{1,2}[./]\d{2,4})/
+const DATEISH_RE =
+  /^(\d{4}-\d{2}-\d{2}|[A-Za-zА-Яа-я]{3,}\s+\d{1,2},?\s+\d{4}|\d{1,2}[./]\d{1,2}[./]\d{2,4})/
 
 const OPTION_COLORS = ['#9CA3AF', '#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899']
 
@@ -84,7 +85,12 @@ function buildColumn(name: string, values: string[]): InferredColumn {
   if (values.every((v) => PHONE_RE.test(v))) return patternColumn(name, 'PHONE')
 
   // SELECT / MULTI_SELECT: bounded distinct short labels with repeats.
-  const isMulti = values.some((v) => v.includes(', '))
+  // MULTI_SELECT only when parts RECUR across DISTINCT full values — an
+  // incidental ', ' inside repeated free text must not shred the column.
+  const hasSeparator = values.some((v) => v.includes(', '))
+  const distinctFull = [...new Set(values)]
+  const partsOfDistinct = distinctFull.flatMap((v) => v.split(', ').map((p) => p.trim()))
+  const isMulti = hasSeparator && partsOfDistinct.length > new Set(partsOfDistinct).size
   const parts = isMulti ? values.flatMap((v) => v.split(', ').map((p) => p.trim())) : values
   const distinct = [...new Set(parts.filter((p) => p !== ''))]
   const shortEnough = distinct.every((p) => p.length <= MAX_OPTION_LABEL)

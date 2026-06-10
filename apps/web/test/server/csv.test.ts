@@ -26,4 +26,12 @@ describe('parseCsv', () => {
     expect(parseCsv('')).toEqual([])
     expect(parseCsv('\n')).toEqual([])
   })
+  it('throws when a row has too many columns', () => {
+    const row = Array.from({ length: 501 }, (_, i) => `c${i}`).join(',')
+    expect(() => parseCsv(row)).toThrowError('CSV содержит слишком много колонок')
+  })
+  it('throws when a field is too large', () => {
+    const field = 'a'.repeat(100_001)
+    expect(() => parseCsv(`x,${field}`)).toThrowError('Поле CSV слишком большое')
+  })
 })

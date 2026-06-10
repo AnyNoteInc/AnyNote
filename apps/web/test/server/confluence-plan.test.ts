@@ -26,4 +26,16 @@ describe('buildConfluenceImportPlan', () => {
     expect(plan.warnings.some((w) => w.includes('index.html'))).toBe(true)
     expect(plan.warnings.some((w) => w.includes('Confluence'))).toBe(true) // limitations note
   })
+  it('sanitizes "/" in derived titles so they do not become phantom folders', () => {
+    const plan = buildConfluenceImportPlan(
+      zipSync({ 'SPACE/ab.html': strToU8(PAGE('A/B', 'тело')) }),
+    )
+    expect(plan.totalPages).toBe(2) // SPACE container + ONE page, no phantom "A" folder
+    const space = plan.roots[0]!
+    expect(space.children).toHaveLength(1)
+    const page = space.children[0]!
+    expect(page.name).toBe('A∕B')
+    expect(page.children).toHaveLength(0)
+    expect(page.doc).not.toBeNull()
+  })
 })

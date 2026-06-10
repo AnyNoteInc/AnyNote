@@ -2,7 +2,11 @@ import { describe, expect, it } from 'vitest'
 
 import { inferColumns } from '../../src/server/page-import/infer-columns'
 
-const infer = (name: string, values: string[]) => inferColumns([name], values.map((v) => [v]))[0]!
+const infer = (name: string, values: string[]) =>
+  inferColumns(
+    [name],
+    values.map((v) => [v]),
+  )[0]!
 
 describe('inferColumns', () => {
   it('infers NUMBER (incl. comma decimals) with numeric toValue', () => {
@@ -39,6 +43,15 @@ describe('inferColumns', () => {
     expect(c.options!.map((o) => o.label).sort()).toEqual(['a', 'b', 'c'])
     const ids = c.toValue('a, c') as string[]
     expect(ids).toHaveLength(2)
+  })
+  it('does not shred free text with incidental comma-space into MULTI_SELECT', () => {
+    const c = infer('Заметки', ['Задача А, вариант 2', 'Задача А, вариант 2', 'Другое'])
+    // Repeating full values stay whole: SELECT options preserve the entire label.
+    expect(c.type).not.toBe('MULTI_SELECT')
+    expect(c.type).toBe('SELECT')
+    expect(c.options!.map((o) => o.label)).toContain('Задача А, вариант 2')
+    const id = c.options!.find((o) => o.label === 'Задача А, вариант 2')!.id
+    expect(c.toValue('Задача А, вариант 2')).toBe(id)
   })
   it('falls back to TEXT for free text or all-distinct values', () => {
     const c = infer('Описание', ['Первый длинный текст', 'второй', 'третий', 'четвёртый'])

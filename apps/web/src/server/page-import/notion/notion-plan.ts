@@ -153,6 +153,7 @@ export function buildNotionImportPlan(zipBytes: Uint8Array): NotionImportPlan {
       databases.push(blueprint)
       blueprintByStem.set(stem, blueprint)
       aliases.set(f.raw, sourceKey)
+      // Hand-crafted archives may reuse an id: last write wins (valid Notion exports have unique ids).
       if (notionId) aliases.set(notionId, sourceKey)
       continue
     }
@@ -173,6 +174,7 @@ export function buildNotionImportPlan(zipBytes: Uint8Array): NotionImportPlan {
     if (DOC_EXTS.has(classifyExt)) {
       docCount += 1
       aliases.set(f.raw, cleaned)
+      // Hand-crafted archives may reuse an id: last write wins (valid Notion exports have unique ids).
       if (notionId) aliases.set(notionId, cleaned)
     } else if (ASSET_EXTS.has(classifyExt)) {
       assetCount += 1
@@ -202,6 +204,7 @@ export function buildNotionImportPlan(zipBytes: Uint8Array): NotionImportPlan {
       // Links to row docs resolve through the row mapping keys (Task 9 records
       // onRowCreated under these sourceKeys).
       aliases.set(f.raw, sourceKey)
+      // Hand-crafted archives may reuse an id: last write wins (valid Notion exports have unique ids).
       if (notionId) aliases.set(notionId, sourceKey)
     }
   }
