@@ -3,10 +3,10 @@ import { unzipSync } from 'fflate'
 /** User-facing import source problems (message is shown as the job error). */
 export class ImportSourceError extends Error {}
 
-const DOC_EXTS = new Set(['md', 'markdown', 'html', 'htm'])
+export const DOC_EXTS = new Set(['md', 'markdown', 'html', 'htm'])
 // SVG deliberately excluded: /api/files/[id] serves inline with the stored MIME,
 // so importable SVG would be a same-origin XSS vector.
-const ASSET_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp'])
+export const ASSET_EXTS = new Set(['png', 'jpg', 'jpeg', 'gif', 'webp'])
 
 export type ImportDoc = {
   sourceKey: string
@@ -71,15 +71,24 @@ export function buildImportPlan(zipBytes: Uint8Array): ImportPlan {
     throw new ImportSourceError('Не удалось прочитать ZIP-архив')
   }
 
+  const files: Array<{ path: string; bytes: Uint8Array }> = []
+  for (const [raw, bytes] of Object.entries(entries)) {
+    if (raw.endsWith('/')) continue // directory marker entries
+    const path = normalizeEntryPath(raw)
+    if (path === null) continue
+    files.push({ path, bytes })
+  }
+  return buildPlanFromFiles(files)
+}
+
+/** Core classification + tree building over ALREADY-normalized paths (shared by source builders). */
+export function buildPlanFromFiles(files: Array<{ path: string; bytes: Uint8Array }>): ImportPlan {
   const docs = new Map<string, ImportDoc>()
   const assets = new Map<string, ImportAsset>()
   const warnings: string[] = []
   const dirs = new Set<string>()
 
-  for (const [raw, bytes] of Object.entries(entries)) {
-    if (raw.endsWith('/')) continue // directory marker entries
-    const path = normalizeEntryPath(raw)
-    if (path === null) continue
+  for (const { path, bytes } of files) {
     const ext = extOf(path)
     if (DOC_EXTS.has(ext)) {
       // Only doc paths spawn container dirs: a folder holding nothing but
