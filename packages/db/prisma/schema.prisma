@@ -63,6 +63,8 @@ model User {
   pageRevisions              PageRevision[]           @relation("PageRevisionActor")
   pageNotificationPrefs      PageNotificationPreference[]
   databaseDateReminders      DatabaseDateReminder[]
+  exportJobs                 ExportJob[]              @relation("ExportJobUser")
+  importJobs                 ImportJob[]              @relation("ImportJobUser")
 
   @@map("users")
 }
@@ -402,6 +404,8 @@ model Workspace {
   aiProviders           AiProvider[]           @relation("WorkspaceAiProviders")
   collections           Collection[]
   databaseSources       DatabaseSource[]
+  exportJobs            ExportJob[]
+  importJobs            ImportJob[]
 
   @@index([createdById])
   @@map("workspaces")
@@ -483,6 +487,7 @@ model Page {
   databaseRow          DatabaseRow?        @relation("DatabaseRowPage")
   revisions            PageRevision[]
   notificationPrefs    PageNotificationPreference[]
+  importMappings       ImportMapping[]     @relation("ImportMappingPage")
 
   @@index([workspaceId])
   @@index([parentId])
@@ -986,6 +991,8 @@ model File {
   workspace Workspace?       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   pages     PageFile[]
   tasks     TaskAttachment[]
+  exportArtifacts ExportArtifact[] @relation("ExportArtifactFile")
+  importArtifacts ImportArtifact[] @relation("ImportArtifactFile")
 
   @@index([userId])
   @@index([createdAt])
@@ -1748,4 +1755,127 @@ model WorkspaceLimit {
   workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
 
   @@map("workspace_limits")
+}
+
+// ── Phase 6A: import/export jobs ─────────────────────────────────────────────
+
+enum JobStatus {
+  QUEUED
+  PROCESSING
+  DONE
+  FAILED
+}
+
+enum ExportJobScope {
+  WORKSPACE
+  COLLECTION
+  SUBTREE
+}
+
+enum ExportJobFormat {
+  MARKDOWN_ZIP
+  HTML_ZIP
+}
+
+enum ImportJobFormat {
+  MARKDOWN
+  HTML
+  ZIP
+}
+
+enum ImportArtifactKind {
+  SOURCE
+  REPORT
+}
+
+model ExportJob {
+  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String          @map("workspace_id") @db.Uuid
+  userId      String          @map("user_id") @db.Uuid
+  status      JobStatus       @default(QUEUED)
+  scope       ExportJobScope
+  scopeId     String?         @map("scope_id") @db.Uuid
+  format      ExportJobFormat
+  processed   Int             @default(0)
+  total       Int             @default(0)
+  error       String?         @db.Text
+  heartbeatAt DateTime?       @map("heartbeat_at") @db.Timestamptz(6)
+  startedAt   DateTime?       @map("started_at") @db.Timestamptz(6)
+  finishedAt  DateTime?       @map("finished_at") @db.Timestamptz(6)
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User             @relation("ExportJobUser", fields: [userId], references: [id], onDelete: Cascade)
+  artifacts ExportArtifact[]
+
+  @@index([workspaceId, userId, createdAt])
+  @@index([status, heartbeatAt])
+  @@map("export_jobs")
+}
+
+model ImportJob {
+  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String          @map("workspace_id") @db.Uuid
+  userId      String          @map("user_id") @db.Uuid
+  status      JobStatus       @default(QUEUED)
+  format      ImportJobFormat
+  options     Json            @default("{}")
+  result      Json?
+  processed   Int             @default(0)
+  total       Int             @default(0)
+  error       String?         @db.Text
+  heartbeatAt DateTime?       @map("heartbeat_at") @db.Timestamptz(6)
+  startedAt   DateTime?       @map("started_at") @db.Timestamptz(6)
+  finishedAt  DateTime?       @map("finished_at") @db.Timestamptz(6)
+  createdAt   DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  workspace Workspace        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User             @relation("ImportJobUser", fields: [userId], references: [id], onDelete: Cascade)
+  artifacts ImportArtifact[]
+  mappings  ImportMapping[]
+
+  @@index([workspaceId, userId, createdAt])
+  @@index([status, heartbeatAt])
+  @@map("import_jobs")
+}
+
+model ExportArtifact {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  jobId     String   @map("job_id") @db.Uuid
+  fileId    String   @map("file_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  job  ExportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  file File      @relation("ExportArtifactFile", fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, fileId])
+  @@map("export_artifacts")
+}
+
+model ImportArtifact {
+  id        String             @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  jobId     String             @map("job_id") @db.Uuid
+  fileId    String             @map("file_id") @db.Uuid
+  kind      ImportArtifactKind @default(SOURCE)
+  createdAt DateTime           @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  job  ImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  file File      @relation("ImportArtifactFile", fields: [fileId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, fileId])
+  @@map("import_artifacts")
+}
+
+model ImportMapping {
+  id        String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  jobId     String   @map("job_id") @db.Uuid
+  sourceKey String   @map("source_key") @db.Text
+  pageId    String   @map("page_id") @db.Uuid
+  createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  job  ImportJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+  page Page      @relation("ImportMappingPage", fields: [pageId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, sourceKey])
+  @@map("import_mappings")
 }
