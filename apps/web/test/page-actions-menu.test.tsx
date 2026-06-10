@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it, vi } from 'vitest'
 
 const mocks = vi.hoisted(() => ({
   copyLink: vi.fn(),
+  copyText: vi.fn().mockResolvedValue(undefined),
   duplicate: vi.fn(),
   openDeleteConfirm: vi.fn(),
   setFullWidth: vi.fn(),
@@ -13,6 +14,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock('@/hooks/use-page-actions', () => ({
   usePageActions: () => ({
     copyLink: mocks.copyLink,
+    copyText: mocks.copyText,
     duplicate: mocks.duplicate,
     openDeleteConfirm: mocks.openDeleteConfirm,
     dialogs: null,

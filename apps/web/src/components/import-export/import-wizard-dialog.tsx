@@ -53,6 +53,7 @@ export function ImportWizardDialog({ open, onClose, workspaceId }: Props) {
   const format = file ? detectImportFormat(file.name) : null
 
   const handleClose = () => {
+    if (fileInputRef.current) fileInputRef.current.value = ''
     setFile(null)
     setLocation('team')
     setSelection(PAGE_TREE_ROOT)
@@ -70,6 +71,9 @@ export function ImportWizardDialog({ open, onClose, workspaceId }: Props) {
       // Re-wrap to force a MIME type the upload allowlist accepts: browsers
       // report '' for .md and platform-specific types for .zip, and text/html
       // is deliberately rejected by the allowlist.
+      // If job creation fails after a successful upload, the uploaded file simply
+      // remains in the workspace library («Библиотека» in settings) where the user
+      // can see and delete it; a retry reuses it via content-hash dedup. No cleanup.
       const safeFile = new File([file], file.name, { type: uploadMimeFor(format) })
       const form = new FormData()
       form.append('file', safeFile)
