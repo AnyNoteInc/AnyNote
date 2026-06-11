@@ -68,6 +68,7 @@ model User {
   webhookSubscriptions       WebhookSubscription[]    @relation("WebhookSubscriptionCreatedBy")
   telegramUserLink           TelegramUserLink?
   telegramLinkCodes          TelegramLinkCode[]
+  workspaceBlocks            WorkspaceBlockedUser[]
 
   @@map("users")
 }
@@ -411,6 +412,11 @@ model Workspace {
   importJobs            ImportJob[]
   webhookSubscriptions  WebhookSubscription[]
   telegramConnection    TelegramConnection?
+  invitations           WorkspaceInvitation[]
+  inviteLink            WorkspaceInviteLink?
+  guestInvites          PageGuestInvite[]
+  blockedUsers          WorkspaceBlockedUser[]
+  auditLogs             WorkspaceAuditLog[]
 
   @@index([createdById])
   @@map("workspaces")
@@ -493,6 +499,7 @@ model Page {
   revisions            PageRevision[]
   notificationPrefs    PageNotificationPreference[]
   importMappings       ImportMapping[]     @relation("ImportMappingPage")
+  guestInvites         PageGuestInvite[]
 
   @@index([workspaceId])
   @@index([parentId])
@@ -2115,4 +2122,106 @@ model TelegramBotCommandAudit {
 
   @@index([connectionId, createdAt(sort: Desc)])
   @@map("telegram_bot_command_audits")
+}
+
+// ── People management (Phase 8A) ─────────────────────────────────────────────
+
+model WorkspaceInvitation {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  workspaceId  String    @map("workspace_id") @db.Uuid
+  email        String    @db.VarChar(255) // stored lowercase
+  role         RoleType // router-constrained: ADMIN | EDITOR | COMMENTER | VIEWER
+  tokenHash    String    @unique @map("token_hash") @db.VarChar(64) // sha256 of a 32-char base62 token; plaintext only in the email link
+  inviterId    String    @map("inviter_id") @db.Uuid
+  expiresAt    DateTime  @map("expires_at")
+  acceptedAt   DateTime? @map("accepted_at")
+  acceptedById String?   @map("accepted_by_id") @db.Uuid
+  revokedAt    DateTime? @map("revoked_at")
+  revokedById  String?   @map("revoked_by_id") @db.Uuid
+  createdAt    DateTime  @default(now()) @map("created_at")
+  updatedAt    DateTime  @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // Partial unique (raw SQL in the migration, job-infra pattern):
+  // CREATE UNIQUE INDEX workspace_invitations_one_active ON workspace_invitations (workspace_id, email)
+  //   WHERE accepted_at IS NULL AND revoked_at IS NULL;
+  @@index([workspaceId, createdAt(sort: Desc)])
+  @@index([email])
+  @@map("workspace_invitations")
+}
+
+model WorkspaceInviteLink {
+  id          String    @id @default(uuid(7)) @db.Uuid
+  workspaceId String    @unique @map("workspace_id") @db.Uuid // one link per workspace
+  tokenHash   String    @unique @map("token_hash") @db.VarChar(64)
+  role        RoleType  @default(EDITOR) // router-constrained: EDITOR | COMMENTER | VIEWER (not ADMIN)
+  enabled     Boolean   @default(false)
+  createdById String    @map("created_by_id") @db.Uuid
+  rotatedAt   DateTime? @map("rotated_at")
+  createdAt   DateTime  @default(now()) @map("created_at")
+  updatedAt   DateTime  @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("workspace_invite_links")
+}
+
+model PageGuestInvite {
+  id           String        @id @default(uuid(7)) @db.Uuid
+  pageId       String        @map("page_id") @db.Uuid
+  workspaceId  String        @map("workspace_id") @db.Uuid // denormalized for people-settings listing
+  email        String        @db.VarChar(255) // stored lowercase
+  role         PageShareRole // READER | COMMENTER | EDITOR
+  tokenHash    String        @unique @map("token_hash") @db.VarChar(64)
+  inviterId    String        @map("inviter_id") @db.Uuid
+  expiresAt    DateTime      @map("expires_at")
+  acceptedAt   DateTime?     @map("accepted_at")
+  acceptedById String?       @map("accepted_by_id") @db.Uuid
+  revokedAt    DateTime?     @map("revoked_at")
+  revokedById  String?       @map("revoked_by_id") @db.Uuid
+  createdAt    DateTime      @default(now()) @map("created_at")
+  updatedAt    DateTime      @updatedAt @map("updated_at")
+
+  page      Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // Partial unique (raw SQL in the migration):
+  // CREATE UNIQUE INDEX page_guest_invites_one_active ON page_guest_invites (page_id, email)
+  //   WHERE accepted_at IS NULL AND revoked_at IS NULL;
+  @@index([workspaceId])
+  @@index([pageId])
+  @@map("page_guest_invites")
+}
+
+model WorkspaceBlockedUser {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  userId      String   @map("user_id") @db.Uuid
+  blockedById String   @map("blocked_by_id") @db.Uuid
+  reason      String?  @db.VarChar(255)
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, userId])
+  @@index([userId])
+  @@map("workspace_blocked_users")
+}
+
+model WorkspaceAuditLog {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  workspaceId  String   @map("workspace_id") @db.Uuid
+  actorId      String?  @map("actor_id") @db.Uuid // null = system
+  action       String   @db.VarChar(64) // catalog in @repo/domain people module
+  targetUserId String?  @map("target_user_id") @db.Uuid
+  targetEmail  String?  @map("target_email") @db.VarChar(255)
+  metadata     Json?
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt(sort: Desc)])
+  @@map("workspace_audit_logs")
 }
