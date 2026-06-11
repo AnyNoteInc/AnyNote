@@ -8,6 +8,7 @@ import {
   CHALLENGE_ECHO_SCAN_CHARS,
   COMING_EVENT_TYPES,
   DEFAULT_AUTO_DISABLE_THRESHOLD,
+  DEFAULT_MAX_ATTEMPTS,
   MAX_WEBHOOK_SUBSCRIPTIONS_PER_WORKSPACE,
   WEBHOOK_DELIVERY_HEADERS,
   WEBHOOK_EVENT_TYPES,
@@ -58,6 +59,10 @@ describe('webhooks.md — delivery contract', () => {
     expect(webhooksDoc).toContain(`${BACKOFF_BASE_MS / 1000} с`)
     expect(webhooksDoc).toContain(`${(2 * BACKOFF_BASE_MS) / 1000} с`)
     expect(webhooksDoc).toContain(`не более ${BACKOFF_CAP_MS / 60_000} мин`)
+  })
+
+  it('documents the default max delivery attempts', () => {
+    expect(webhooksDoc).toContain(`до ${DEFAULT_MAX_ATTEMPTS} попыток`)
   })
 
   it('documents the auto-disable threshold', () => {
@@ -143,7 +148,7 @@ function extractEnginesRoutes(): string[] {
     const controller = source.match(/@Controller\((?:'([^']*)')?\)/)
     if (!controller) throw new Error(`no @Controller decorator found in ${file}`)
     const base = controller[1] ?? ''
-    for (const handler of source.matchAll(/@(?:Get|Post)\((?:'([^']*)')?\)/g)) {
+    for (const handler of source.matchAll(/@(?:Get|Post|Patch|Put|Delete)\((?:'([^']*)')?\)/g)) {
       const sub = handler[1] ?? ''
       routes.push(`/${[base, sub].filter(Boolean).join('/')}`)
     }

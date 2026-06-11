@@ -12,6 +12,9 @@ export const BACKOFF_CAP_MS = 30 * 60_000
 /** Consecutive terminal failures before a subscription is auto-disabled (FAILED). */
 export const DEFAULT_AUTO_DISABLE_THRESHOLD = 10
 
+/** Default delivery attempts per event before it is marked failed (WEBHOOK_MAX_ATTEMPTS overrides). */
+export const DEFAULT_MAX_ATTEMPTS = 8
+
 /** The verification echo must appear within the first 4KB of the response body. */
 export const CHALLENGE_ECHO_SCAN_CHARS = 4096
 

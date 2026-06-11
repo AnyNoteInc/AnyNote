@@ -24,6 +24,14 @@ describe('sitemap', () => {
     expect(urls).toContain(`${siteConfig.url}/changelog`)
   })
 
+  it('includes the developer portal pages', () => {
+    const urls = entries.map((e) => e.url)
+    expect(urls).toContain(`${siteConfig.url}/developers`)
+    for (const sub of ['api', 'webhooks', 'telegram', 'changelog']) {
+      expect(urls).toContain(`${siteConfig.url}/developers/${sub}`)
+    }
+  })
+
   it('emits a sitemap entry for every legal document with lastModified parsed from version', () => {
     for (const doc of legalDocuments) {
       const entry = entries.find((e) => e.url === `${siteConfig.url}/terms/${doc.slug}`)
