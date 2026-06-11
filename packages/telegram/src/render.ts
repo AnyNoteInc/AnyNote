@@ -59,9 +59,10 @@ export function renderHelp(): string {
 
 export function renderSearchResults(items: Array<{ title: string; url: string }>): string {
   if (items.length === 0) return 'Ничего не найдено.'
-  return ['🔍 Найдено:', ...items.map((item, i) => `${i + 1}. ${anchor(item.url, item.title)}`)].join(
-    '\n',
-  )
+  return [
+    '🔍 Найдено:',
+    ...items.map((item, i) => `${i + 1}. ${anchor(item.url, item.title)}`),
+  ].join('\n')
 }
 
 /** Uniform for invalid id / non-visible / trashed — no existence oracle. */
@@ -75,4 +76,34 @@ export function renderNotLinked(): string {
 
 export function renderDenied(): string {
   return 'Доступ запрещён.'
+}
+
+/**
+ * Uniform for unknown / expired / used / already-linked-elsewhere codes —
+ * the reply never reveals WHICH check failed (the audit `detail` does).
+ */
+export function renderLinkInvalid(): string {
+  return 'Код недействителен. Получите новый код в AnyNote: Настройки → Интеграции.'
+}
+
+export function renderLinkSuccess(): string {
+  return 'Аккаунт привязан. Теперь вам доступны /search и /get в чатах вашего пространства.'
+}
+
+/** The chat has no collection subscriptions — nothing is searchable from here. */
+export function renderEmptyScope(): string {
+  return 'Этот чат не подписан ни на один раздел. Администратор пространства может добавить подписки в настройках.'
+}
+
+export function renderSearchUsage(): string {
+  return 'Укажите запрос: /search текст'
+}
+
+export function renderUnknownCommand(): string {
+  return 'Неизвестная команда. Отправьте /help, чтобы увидеть список команд.'
+}
+
+export function renderPageCard(args: { title: string; url: string; updatedAt: Date }): string {
+  const updated = `${args.updatedAt.toISOString().slice(0, 16).replace('T', ' ')} UTC`
+  return [`📄 ${anchor(args.url, args.title)}`, `Обновлена: ${updated}`].join('\n')
 }

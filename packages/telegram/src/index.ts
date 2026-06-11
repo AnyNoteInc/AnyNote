@@ -9,4 +9,17 @@ export {
   renderNotFound,
   renderNotLinked,
   renderDenied,
+  renderLinkInvalid,
+  renderLinkSuccess,
+  renderEmptyScope,
+  renderSearchUsage,
+  renderUnknownCommand,
+  renderPageCard,
 } from './render.ts'
+export { routeUpdate } from './commands.ts'
+export type {
+  TelegramUpdate,
+  TelegramCommandResultValue,
+  CommandAudit,
+  RouteUpdateResult,
+} from './commands.ts'
