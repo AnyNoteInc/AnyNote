@@ -1,6 +1,7 @@
 import { Box, Stack, Typography } from '@repo/ui/components'
 
 import { IntegrationCard } from '@/components/settings/integration-card'
+import { TelegramLinkCard } from '@/components/settings/telegram-link-card'
 import { getServerTRPC } from '@/trpc/server'
 
 export const metadata = { title: 'Интеграции · Настройки' }
@@ -34,6 +35,7 @@ export default async function IntegrationsSettingsPage() {
           gap: 2,
         }}
       >
+        <TelegramLinkCard />
         {providers.map((p) => (
           <IntegrationCard
             key={p.id}

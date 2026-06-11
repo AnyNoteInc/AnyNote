@@ -17,6 +17,7 @@ import {
   SmartToyIcon,
   Stack,
   StorageIcon,
+  TelegramIcon,
   Typography,
   WarningAmberIcon,
   WebhookIcon,
@@ -30,6 +31,7 @@ import { WorkspaceMembersSection } from './members-section'
 import { WorkspaceAiSection } from './ai-section'
 import { WorkspaceMcpSection } from './mcp-section'
 import { WorkspaceWebhooksSection } from './webhooks-section'
+import { WorkspaceTelegramSection } from './telegram-section'
 import { WorkspaceFilesSection } from './files-section'
 import { ImportExportSection } from './import-export-section'
 import { WorkspacePublicPagesSection } from './public-pages-section'
@@ -42,6 +44,7 @@ export type SettingsSectionSlug =
   | 'ai'
   | 'mcp'
   | 'webhooks'
+  | 'telegram'
   | 'files'
   | 'import-export'
   | 'public'
@@ -149,6 +152,18 @@ export function WorkspaceSettingsDialog({
       show: features.developerSpaceEnabled,
       render: () => (
         <WorkspaceWebhooksSection
+          workspaceId={workspaceId}
+          canManage={roleQ.data === 'OWNER' || roleQ.data === 'ADMIN'}
+        />
+      ),
+    },
+    {
+      slug: 'telegram',
+      label: 'Телеграм',
+      icon: <TelegramIcon fontSize="small" />,
+      show: features.developerSpaceEnabled,
+      render: () => (
+        <WorkspaceTelegramSection
           workspaceId={workspaceId}
           canManage={roleQ.data === 'OWNER' || roleQ.data === 'ADMIN'}
         />
