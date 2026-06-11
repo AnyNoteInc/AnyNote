@@ -1,3 +1,2 @@
-// Filled by Tasks 4-5 (fan-out + delivery ticks). Stubbed so the package
-// exports map (`./worker`) resolves from day one.
-export {}
+export { runTelegramFanOutTick } from './fan-out.ts'
+export type { TelegramFanOutOpts } from './fan-out.ts'
