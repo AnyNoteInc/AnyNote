@@ -33,6 +33,7 @@
     "@repo/notifications": "workspace:*",
     "@repo/plantuml": "workspace:*",
     "@repo/storage": "workspace:*",
+    "@repo/telegram": "workspace:*",
     "@repo/trpc": "workspace:*",
     "@repo/ui": "workspace:*",
     "@repo/yookassa": "workspace:*",
