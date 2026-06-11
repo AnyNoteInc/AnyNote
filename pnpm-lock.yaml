@@ -1267,6 +1267,9 @@ importers:
       '@repo/domain':
         specifier: workspace:*
         version: link:../domain
+      '@repo/mail':
+        specifier: workspace:*
+        version: link:../mail
       '@repo/notifications':
         specifier: workspace:*
         version: link:../notifications

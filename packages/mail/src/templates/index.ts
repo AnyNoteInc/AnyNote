@@ -7,6 +7,7 @@ import { renderEmailChanged } from './email-changed.ts'
 import { renderNewLogin } from './new-login.ts'
 import { renderSuspiciousActivity } from './suspicious-activity.ts'
 import { renderInvitation } from './invitation.ts'
+import { renderGuestInvitation } from './guest-invitation.ts'
 import { renderAccountDeletionRequested } from './account-deletion-requested.ts'
 import { renderAccountDeletionCompleted } from './account-deletion-completed.ts'
 import { renderReminderDue } from './reminder-due.ts'
@@ -29,6 +30,8 @@ export function renderTemplate<K extends MailKind>(kind: K, data: MailPayloads[K
       return renderSuspiciousActivity(data as MailPayloads['suspicious-activity'])
     case 'invitation':
       return renderInvitation(data as MailPayloads['invitation'])
+    case 'guest-invitation':
+      return renderGuestInvitation(data as MailPayloads['guest-invitation'])
     case 'account-deletion-requested':
       return renderAccountDeletionRequested(data as MailPayloads['account-deletion-requested'])
     case 'account-deletion-completed':

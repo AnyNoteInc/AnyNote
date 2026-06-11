@@ -37,6 +37,7 @@
     "@repo/auth": "workspace:*",
     "@repo/db": "workspace:*",
     "@repo/domain": "workspace:*",
+    "@repo/mail": "workspace:*",
     "@repo/notifications": "workspace:*",
     "@repo/telegram": "workspace:*",
     "@repo/webhooks": "workspace:*",

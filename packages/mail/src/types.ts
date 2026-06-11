@@ -7,6 +7,7 @@ export type MailKind =
   | 'new-login'
   | 'suspicious-activity'
   | 'invitation'
+  | 'guest-invitation'
   | 'account-deletion-requested'
   | 'account-deletion-completed'
   | 'reminder-due'
@@ -34,6 +35,13 @@ export type MailPayloads = {
   'suspicious-activity': { firstName: string; reason: string; lockedUntilIso?: string }
   invitation: {
     firstName?: string
+    inviterName: string
+    workspaceName: string
+    link: string
+  }
+  // Page-guest invite. Deliberately carries NO page title — metadata-only
+  // discipline: pre-acceptance mail must not leak page content (people spec §6).
+  'guest-invitation': {
     inviterName: string
     workspaceName: string
     link: string

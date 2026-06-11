@@ -8,6 +8,7 @@ import {
   ShareAccessService,
   ShareAccessRepository,
 } from '@repo/domain'
+import { sendMailNow } from '@repo/mail'
 
 import { router, protectedProcedure, publicProcedure } from '../trpc'
 import { assertCanManageShare, assertWorkspaceMember } from '../helpers/page-access'
@@ -471,6 +472,82 @@ export const pageShareRouter = router({
         }),
       )
       return { pageId: result.rootPageId }
+    }),
+
+  // --- Page-guest invites (people phase 8A): the EMAIL path for inviting
+  // someone who may not be registered yet. The existing addUser (userId-based
+  // search) stays the path for registered users. ---
+
+  inviteGuest: protectedProcedure
+    .input(
+      z.object({ pageId: z.string().uuid(), email: z.string().email().max(255), role: RoleSchema }),
+    )
+    .mutation(async ({ ctx, input }) => {
+      const page = await assertCanManageShare(ctx, input.pageId)
+      const { invite, token } = await mapDomain(() =>
+        domainSvc.people.createGuestInvite({
+          pageId: input.pageId,
+          actorId: ctx.user.id,
+          email: input.email,
+          role: input.role,
+        }),
+      )
+      const workspace = await ctx.prisma.workspace.findUniqueOrThrow({
+        where: { id: page.workspaceId },
+        select: { name: true },
+      })
+      const first = (ctx.user as { firstName?: string }).firstName ?? ''
+      const last = (ctx.user as { lastName?: string }).lastName ?? ''
+      // Metadata-only mail: inviter, workspace, link. The page TITLE is
+      // deliberately absent pre-acceptance (people spec §6).
+      await sendMailNow({
+        kind: 'guest-invitation',
+        to: invite.email,
+        data: {
+          inviterName: `${first} ${last}`.trim() || ctx.user.email,
+          workspaceName: workspace.name,
+          link: `${ctx.returnUrlBase}/guest-invite/${token}`,
+        },
+      })
+      // NEVER the token — the plaintext exists only inside the email link.
+      return invite
+    }),
+
+  listGuestInvites: protectedProcedure
+    .input(z.object({ pageId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertCanManageShare(ctx, input.pageId)
+      const now = new Date()
+      const invites = await ctx.prisma.pageGuestInvite.findMany({
+        where: { pageId: input.pageId, acceptedAt: null, revokedAt: null },
+        orderBy: { createdAt: 'desc' },
+        // Safe fields only — never tokenHash.
+        select: { id: true, email: true, role: true, expiresAt: true, createdAt: true },
+      })
+      return invites.map((invite) => ({
+        ...invite,
+        state: invite.expiresAt > now ? ('PENDING' as const) : ('EXPIRED' as const),
+      }))
+    }),
+
+  revokeGuestInvite: protectedProcedure
+    .input(z.object({ pageId: z.string().uuid(), id: z.string().uuid() }))
+    .mutation(async ({ ctx, input }) => {
+      const page = await assertCanManageShare(ctx, input.pageId)
+      // Manage rights are PAGE-scoped — pin the invite to this page before the
+      // (workspace-scoped) domain revoke.
+      const invite = await ctx.prisma.pageGuestInvite.findFirst({
+        where: { id: input.id, pageId: input.pageId },
+        select: { id: true },
+      })
+      if (!invite) throw new TRPCError({ code: 'NOT_FOUND' })
+      return mapDomain(() =>
+        domainSvc.people.revokeGuestInvite({
+          workspaceId: page.workspaceId,
+          actorId: ctx.user.id,
+          inviteId: input.id,
+        }),
+      )
     }),
 
   addUser: protectedProcedure
