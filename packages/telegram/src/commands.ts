@@ -49,6 +49,8 @@ export type CommandAudit = {
 export type RouteUpdateResult = { reply: string | null; audit: CommandAudit | null }
 
 const ARGS_SUMMARY_MAX = 200
+/** Cap on what reaches Prisma `contains` — same width as the audit summary. */
+const SEARCH_QUERY_MAX = 200
 const SEARCH_LIMIT = 5
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
@@ -211,7 +213,7 @@ async function handleSearch(ctx: CommandContext, args: string): Promise<RouteUpd
   const scope = await resolveCommandScope(ctx, 'search', argsSummary)
   if ('failure' in scope) return scope.failure
 
-  const query = args.trim()
+  const query = args.trim().slice(0, SEARCH_QUERY_MAX)
   if (query === '') {
     return {
       reply: renderSearchUsage(),

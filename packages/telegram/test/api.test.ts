@@ -134,12 +134,20 @@ describe('TelegramApi error handling', () => {
     }
   })
 
-  it('reports invalid JSON bodies without throwing or leaking the token', async () => {
+  it('returns the HTTP status for non-JSON error bodies without throwing or leaking the token', async () => {
     const fetchFn: typeof fetch = () =>
       Promise.resolve(new Response('<html>bad gateway</html>', { status: 502 }))
     const api = new TelegramApi(TOKEN, { fetchFn })
     const res = await api.getMe()
-    expect(res.ok).toBe(false)
-    if (!res.ok) expect(res.description).not.toContain(TOKEN)
+    // Status only — never the body (could be huge HTML) and never the URL.
+    expect(res).toEqual({ ok: false, description: 'HTTP 502' })
+  })
+
+  it('returns HTTP 403 for a non-JSON 403 body — the chat-gone signal the deliverer matches on', async () => {
+    const fetchFn: typeof fetch = () =>
+      Promise.resolve(new Response('<html>Forbidden</html>', { status: 403 }))
+    const api = new TelegramApi(TOKEN, { fetchFn })
+    const res = await api.sendMessage('1', 'x')
+    expect(res).toEqual({ ok: false, description: 'HTTP 403' })
   })
 })

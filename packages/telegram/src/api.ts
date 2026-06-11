@@ -30,7 +30,14 @@ export class TelegramApi {
         body: body ? JSON.stringify(body) : undefined,
         signal: AbortSignal.timeout(timeoutMs),
       })
-      const json = (await res.json()) as { ok: boolean; result?: T; description?: string }
+      let json: { ok: boolean; result?: T; description?: string }
+      try {
+        json = (await res.json()) as { ok: boolean; result?: T; description?: string }
+      } catch {
+        // Non-JSON body (proxy / HTML error page): surface the status only —
+        // never the body and never the URL (it embeds the token).
+        return { ok: false, description: `HTTP ${res.status}` }
+      }
       if (!json.ok) return { ok: false, description: json.description ?? `HTTP ${res.status}` }
       return { ok: true, result: json.result as T }
     } catch (err) {

@@ -324,6 +324,55 @@ describe('runTelegramDeliveryTick (integration)', () => {
     ).toBe('LEFT')
   })
 
+  it.each([
+    'Forbidden: bot is not a member of the supergroup chat',
+    'Forbidden: user is deactivated',
+    'Forbidden: bot was blocked by the user',
+  ])('marks the chat LEFT on the documented chat-gone error %j', async (description) => {
+    const fx = await seed()
+    const delivery = await makeDelivery(fx)
+    const fetchFn = vi.fn(async () => tgErr(description, 403))
+
+    await runTelegramDeliveryTick(prisma, tickOpts(fetchFn))
+
+    expect((await getDelivery(delivery.id)).status).toBe('SKIPPED')
+    expect(
+      (await prisma.telegramChat.findUniqueOrThrow({ where: { id: fx.chatRowId } })).status,
+    ).toBe('LEFT')
+    // A dead CHAT never bumps the connection streak.
+    expect((await getConnection(fx.connectionId)).consecutiveFailures).toBe(0)
+  })
+
+  it('treats a bare non-JSON HTTP 403 (proxy/HTML body) as chat-gone', async () => {
+    const fx = await seed()
+    const delivery = await makeDelivery(fx)
+    const fetchFn = vi.fn(async () => new Response('<html>Forbidden</html>', { status: 403 }))
+
+    await runTelegramDeliveryTick(prisma, tickOpts(fetchFn))
+
+    expect((await getDelivery(delivery.id)).status).toBe('SKIPPED')
+    expect(
+      (await prisma.telegramChat.findUniqueOrThrow({ where: { id: fx.chatRowId } })).status,
+    ).toBe('LEFT')
+    expect((await getConnection(fx.connectionId)).consecutiveFailures).toBe(0)
+  })
+
+  it('does NOT treat an unrelated error containing "4031 rows" as chat-gone — retries instead', async () => {
+    const fx = await seed()
+    const delivery = await makeDelivery(fx)
+    const fetchFn = vi.fn(async () => tgErr('Internal error: 4031 rows affected', 500))
+
+    await runTelegramDeliveryTick(prisma, tickOpts(fetchFn))
+
+    const after = await getDelivery(delivery.id)
+    expect(after.status).toBe('PENDING') // retry ladder, NOT skipped
+    expect(after.attempts).toBe(1)
+    expect(
+      (await prisma.telegramChat.findUniqueOrThrow({ where: { id: fx.chatRowId } })).status,
+    ).toBe('ACTIVE')
+    expect((await getConnection(fx.connectionId)).consecutiveFailures).toBe(1)
+  })
+
   it('fails terminally on the FIRST tick when the bot token cannot be decrypted', async () => {
     const fx = await seed()
     const delivery = await makeDelivery(fx)
@@ -384,6 +433,28 @@ describe('runTelegramDeliveryTick (integration)', () => {
     expect((await getConnection(fx.connectionId)).consecutiveFailures).toBe(0)
   })
 
+  it('page.deleted still delivers for a trashed page — the send-time gate excepts the deletion event itself', async () => {
+    const fx = await seed()
+    const delivery = await makeDelivery(fx, { eventType: 'page.deleted' })
+    // The page IS in the trash (that is what the event reports); the TEAM
+    // collection is unchanged. The notification must still go out.
+    await prisma.page.update({
+      where: { id: fx.teamPageId },
+      data: { deletedAt: new Date() },
+    })
+    const fetchFn = vi.fn(async () => tgOk({ message_id: 11 }))
+
+    await runTelegramDeliveryTick(prisma, tickOpts(fetchFn))
+
+    expect(fetchFn).toHaveBeenCalledTimes(1)
+    const body = sentBody(fetchFn)
+    expect(body.text).toContain('Страница удалена')
+    expect(body.text).toContain('Team page') // rendered with the title
+    const after = await getDelivery(delivery.id)
+    expect(after.status).toBe('SENT')
+    expect((await getConnection(fx.connectionId)).consecutiveFailures).toBe(0)
+  })
+
   it('re-checks at send time: a page moved to ANOTHER collection is SKIPPED (subscription mismatch)', async () => {
     const fx = await seed()
     const delivery = await makeDelivery(fx)
@@ -417,6 +488,28 @@ describe('runTelegramDeliveryTick (integration)', () => {
     expect(conn.lastError).toBeTruthy()
     // The bot token must never surface in error strings.
     expect(conn.lastError).not.toContain(BOT_TOKEN)
+  })
+
+  it('does not let auto-disable override a manual DISABLED set mid-flight', async () => {
+    const fx = await seed({ consecutiveFailures: 9 })
+    const delivery = await makeDelivery(fx)
+    // The admin disables the connection AFTER the tick loaded it (status was
+    // ACTIVE at claim) but BEFORE the failure is recorded — the threshold
+    // transition must not resurrect it as ERROR.
+    const fetchFn = vi.fn(async () => {
+      await prisma.telegramConnection.update({
+        where: { id: fx.connectionId },
+        data: { status: 'DISABLED' },
+      })
+      return tgErr('Internal Server Error', 500)
+    })
+
+    await runTelegramDeliveryTick(prisma, tickOpts(fetchFn))
+
+    expect((await getDelivery(delivery.id)).status).toBe('PENDING') // retry ladder unaffected
+    const conn = await getConnection(fx.connectionId)
+    expect(conn.consecutiveFailures).toBe(10) // the streak still counts
+    expect(conn.status).toBe('DISABLED') // manual disable wins over auto-ERROR
   })
 
   it('reclaims a PENDING delivery whose lock went stale (crashed worker) and sends it', async () => {

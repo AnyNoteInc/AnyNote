@@ -13,6 +13,7 @@ import {
   renderLinkSuccess,
   renderNotFound,
   renderNotLinked,
+  renderSearchResults,
 } from '../src/render.ts'
 import { generateLinkCode, hashLinkCode } from '../src/secret.ts'
 
@@ -329,6 +330,41 @@ describe('routeUpdate (integration)', () => {
     expect(expired.reply).toBe(unknown.reply)
   })
 
+  // ── 2b. /link must not steal an already-bound Telegram account ────────────
+  it('denies /link when the Telegram account is already bound to ANOTHER user — link unchanged, code unconsumed, reply identical to other denials', async () => {
+    const fx = await seed()
+    // TG_UID_MEMBER is bound to `member`; `owner` issues a perfectly VALID code.
+    const code = await makeLinkCode(fx.ownerId)
+
+    const res = await routeUpdate(
+      prisma,
+      fx.connection,
+      msg(`/link ${code}`, { from: TG_UID_MEMBER }),
+    )
+
+    // Byte-identical to the unknown/used/expired denials — no oracle over WHY.
+    expect(res.reply).toBe(renderLinkInvalid())
+    expect(res.audit).toMatchObject({
+      command: 'link',
+      result: 'DENIED',
+      detail: 'telegram-already-linked',
+      telegramUserId: String(TG_UID_MEMBER),
+      linkedUserId: fx.memberId,
+    })
+
+    // member's binding is UNCHANGED — no silent steal.
+    const memberLink = await prisma.telegramUserLink.findUniqueOrThrow({
+      where: { telegramUserId: String(TG_UID_MEMBER) },
+    })
+    expect(memberLink.userId).toBe(fx.memberId)
+    // owner gained no link, and the valid code was NOT consumed.
+    expect(await prisma.telegramUserLink.findUnique({ where: { userId: fx.ownerId } })).toBeNull()
+    const codeRow = await prisma.telegramLinkCode.findUniqueOrThrow({
+      where: { codeHash: hashLinkCode(code) },
+    })
+    expect(codeRow.usedAt).toBeNull()
+  })
+
   // ── 3. /search unlinked ───────────────────────────────────────────────────
   it('denies /search for an unlinked sender with the not-linked reply', async () => {
     const fx = await seed()
@@ -469,6 +505,42 @@ describe('routeUpdate (integration)', () => {
     const res = await routeUpdate(prisma, fx.connection, msg(`/search ${'x'.repeat(300)}`))
 
     expect(res.audit!.argsSummary).toHaveLength(200)
+  })
+
+  // ── 10b. /search query cap ────────────────────────────────────────────────
+  it('caps a 10k-char /search query to 200 chars before it reaches Prisma contains', async () => {
+    const fx = await seed()
+    const longArg = 'x'.repeat(10_000)
+    let capturedContains: string | undefined
+    // routeUpdate takes prisma as a parameter — intercept page.findMany via a
+    // wrapper instead of vi.spyOn: the shared client's delegates are
+    // proxy-synthesized, so spies cannot call through them.
+    const spyingPrisma = new Proxy(prisma, {
+      get(target, prop) {
+        const value = Reflect.get(target, prop) as unknown
+        if (prop !== 'page') return value
+        const page = value as typeof prisma.page
+        return new Proxy(page, {
+          get(pageTarget, method) {
+            if (method !== 'findMany') return Reflect.get(pageTarget, method) as unknown
+            return (args: { where?: { title?: { contains?: string } } }) => {
+              capturedContains = args.where?.title?.contains
+              return page.findMany(args as Parameters<typeof page.findMany>[0])
+            }
+          },
+        })
+      },
+    }) as typeof prisma
+
+    const res = await routeUpdate(spyingPrisma, fx.connection, msg(`/search ${longArg}`))
+
+    // No error, a well-formed reply, and the audit summary stays truncated.
+    expect(res.audit).toMatchObject({ command: 'search', result: 'OK' })
+    expect(res.audit!.argsSummary).toHaveLength(200)
+    expect(res.reply).toBe(renderSearchResults([]))
+
+    // The string that reached Prisma `contains` is the CAPPED one.
+    expect(capturedContains).toBe('x'.repeat(200))
   })
 
   // ── non-command messages produce neither reply nor audit ──────────────────

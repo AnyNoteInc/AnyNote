@@ -28,11 +28,18 @@ const DEFAULT_AUTO_DISABLE_THRESHOLD = 10
 const SNIPPET_MAX_CHARS = 500
 
 /**
- * Bot API errors that mean the CHAT is gone (kicked, blocked, deleted) rather
- * than the connection being broken: the chat is marked LEFT and the delivery
- * SKIPPED with no retry and no connection failure-streak bump.
+ * Bot API errors that mean the CHAT is gone (kicked, blocked, deleted,
+ * deactivated) rather than the connection being broken: the chat is marked
+ * LEFT and the delivery SKIPPED with no retry and no connection
+ * failure-streak bump. Telegram-documented description strings only —
+ * deliberately NOT a bare `403`, which false-positives on unrelated text
+ * (e.g. "4031 rows"). The exact `HTTP 403` form is what TelegramApi returns
+ * for a non-JSON 403 body (proxy/HTML error page).
  */
-const CHAT_GONE_RE = /403|bot was kicked|chat not found/i
+const CHAT_GONE_RE =
+  /forbidden|bot was kicked|bot is not a member|chat not found|user is deactivated/i
+const isChatGone = (description: string): boolean =>
+  CHAT_GONE_RE.test(description) || /^HTTP 403$/.test(description)
 
 type DeliveryWithRelations = Prisma.TelegramDeliveryGetPayload<{
   include: { subscription: { include: { chat: true } }; connection: true }
@@ -137,8 +144,11 @@ async function bumpConsecutiveFailures(
     select: { consecutiveFailures: true },
   })
   if (updated.consecutiveFailures >= threshold) {
-    await prisma.telegramConnection.update({
-      where: { id: connectionId },
+    // A manual DISABLED set mid-flight must never be overridden by the
+    // auto-disable transition. updateMany (not update) so the status guard
+    // can filter the row out without a P2025 throw.
+    await prisma.telegramConnection.updateMany({
+      where: { id: connectionId, status: { not: 'DISABLED' } },
       data: {
         status: 'ERROR',
         // `cause` comes from TelegramApi, which never surfaces the token.
@@ -276,7 +286,7 @@ async function attemptDelivery(
 
   // The bot was kicked / the chat is gone: dead CHAT, healthy connection.
   // Fan-out stops matching LEFT chats, so no further deliveries pile up.
-  if (CHAT_GONE_RE.test(res.description)) {
+  if (isChatGone(res.description)) {
     await prisma.telegramChat.update({
       where: { id: subscription.chatId },
       data: { status: 'LEFT' },
