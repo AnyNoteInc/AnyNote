@@ -1,0 +1,5 @@
+export * from './dto/people.dto.ts'
+export * from './invite-token.ts'
+export * from './services/people.service.ts'
+export * from './people.tokens.ts'
+export * from './people.module.ts'

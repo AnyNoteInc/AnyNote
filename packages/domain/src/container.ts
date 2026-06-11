@@ -27,6 +27,9 @@ import type { DatabaseService } from './database/services/database.service.ts'
 import { PAGES } from './pages/pages.tokens.ts'
 import { pagesModule } from './pages/pages.module.ts'
 import type { PageService } from './pages/services/pages.service.ts'
+import { PEOPLE } from './people/people.tokens.ts'
+import { peopleModule } from './people/people.module.ts'
+import type { PeopleService } from './people/services/people.service.ts'
 import { PAGE_HISTORY } from './page-history/page-history.tokens.ts'
 import { pageHistoryModule } from './page-history/page-history.module.ts'
 import type { RevisionCaptureService } from './page-history/services/revision-capture.service.ts'
@@ -59,6 +62,7 @@ export interface Domain {
   kanban: KanbanService
   database: DatabaseService
   pages: PageService
+  people: PeopleService
   pageHistory: RevisionCaptureService
   templates: TemplateService
   billing: BillingService
@@ -84,6 +88,7 @@ export function createDomainContainer(deps: DomainDeps): Container {
     databaseModule,
     pageHistoryModule,
     pagesModule,
+    peopleModule,
     templatesModule,
     billingModule,
     collectionsModule,
@@ -103,6 +108,7 @@ export function createDomain(deps: DomainDeps): Domain {
     kanban: c.get<KanbanService>(KANBAN.Service),
     database: c.get<DatabaseService>(DATABASE.Service),
     pages: c.get<PageService>(PAGES.Service),
+    people: c.get<PeopleService>(PEOPLE.Service),
     pageHistory: c.get<RevisionCaptureService>(PAGE_HISTORY.Service),
     templates: c.get<TemplateService>(TEMPLATES.Service),
     billing: c.get<BillingService>(BILLING.Service),
