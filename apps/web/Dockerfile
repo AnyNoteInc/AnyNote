@@ -30,10 +30,12 @@ COPY --from=prepare /app/out/full/ .
 # `turbo prune` only copies workspace packages, so the root-level docs/
 # directory (referenced via the @docs alias in next.config.js) is missing
 # from out/full. Pull in the bits the build imports so `next build` can
-# resolve them: @docs/terms/*.md (legal pages) and @docs/changelog.md
-# (the public /changelog page).
+# resolve them: @docs/terms/*.md (legal pages), @docs/changelog.md
+# (the public /changelog page), and @docs/developers/*.md (the /developers
+# portal pages).
 COPY --from=prepare /app/docs/terms ./docs/terms
 COPY --from=prepare /app/docs/changelog.md ./docs/changelog.md
+COPY --from=prepare /app/docs/developers ./docs/developers
 
 # Build-time values consumed by Next.js route metadata and static page collection.
 # Public SEO values are supplied as build args in production; defaults keep local
