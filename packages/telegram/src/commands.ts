@@ -156,6 +156,13 @@ function handleHelp(ctx: CommandContext): RouteUpdateResult {
   return { reply: renderHelp(), audit: buildAudit(ctx, 'help', { result: 'OK' }) }
 }
 
+/** In-tx steal-guard conflict — thrown to roll back a just-claimed link code. */
+class TelegramAlreadyLinkedError extends Error {
+  constructor() {
+    super('telegram account already linked to another user')
+  }
+}
+
 /**
  * `/link <code>`: codes are sha256-hashed at rest, single-use, TTL-bounded.
  * All denial branches share ONE reply (no oracle over code state) while the
@@ -170,6 +177,9 @@ async function handleLink(ctx: CommandContext, args: string): Promise<RouteUpdat
   const code = args.trim().toUpperCase()
   if (code === '') return denied('code-missing')
 
+  // DIAGNOSIS read only — it yields the precise audit detail (unknown vs used
+  // vs expired). The actual single-use gate is the guarded UPDATE below; this
+  // row may be stale by the time we claim.
   const row = await ctx.prisma.telegramLinkCode.findUnique({
     where: { codeHash: hashLinkCode(code) },
     select: { id: true, userId: true, expiresAt: true, usedAt: true },
@@ -180,6 +190,8 @@ async function handleLink(ctx: CommandContext, args: string): Promise<RouteUpdat
 
   // This Telegram account may already be bound to a DIFFERENT user —
   // `telegramUserId` is unique, silently stealing the binding is not allowed.
+  // (Re-checked INSIDE the transaction; this early read keeps the common
+  // denial cheap and the code unconsumed.)
   const existing = await ctx.prisma.telegramUserLink.findUnique({
     where: { telegramUserId: ctx.telegramUserId },
     select: { userId: true },
@@ -188,19 +200,49 @@ async function handleLink(ctx: CommandContext, args: string): Promise<RouteUpdat
     return denied('telegram-already-linked')
   }
 
-  await ctx.prisma.$transaction([
-    ctx.prisma.telegramLinkCode.update({
-      where: { id: row.id },
-      data: { usedAt: new Date() },
-    }),
-    // Upsert on the user — a re-link from a new Telegram account REPLACES
-    // the user's previous link (one link per user, one user per account).
-    ctx.prisma.telegramUserLink.upsert({
-      where: { userId: row.userId },
-      create: { userId: row.userId, telegramUserId: ctx.telegramUserId, username: ctx.username },
-      update: { telegramUserId: ctx.telegramUserId, username: ctx.username, linkedAt: new Date() },
-    }),
-  ])
+  try {
+    const outcome = await ctx.prisma.$transaction(async (tx) => {
+      // Atomic claim: validity lives in the UPDATE's WHERE (one guarded
+      // statement), so two concurrent /link calls can never both consume the
+      // code — the loser's update matches 0 rows once the winner commits.
+      const claimed = await tx.telegramLinkCode.updateMany({
+        where: { id: row.id, usedAt: null, expiresAt: { gt: new Date() } },
+        data: { usedAt: new Date() },
+      })
+      // Raced away (or expired at the boundary) between diagnosis and claim.
+      if (claimed.count === 0) return 'code-used' as const
+
+      // Re-run the steal guard inside the tx — a concurrent /link may have
+      // bound this Telegram account meanwhile. Throw to roll back the claim.
+      const concurrent = await tx.telegramUserLink.findUnique({
+        where: { telegramUserId: ctx.telegramUserId },
+        select: { userId: true },
+      })
+      if (concurrent !== null && concurrent.userId !== row.userId) {
+        throw new TelegramAlreadyLinkedError()
+      }
+
+      // Upsert on the user — a re-link from a new Telegram account REPLACES
+      // the user's previous link (one link per user, one user per account).
+      await tx.telegramUserLink.upsert({
+        where: { userId: row.userId },
+        create: { userId: row.userId, telegramUserId: ctx.telegramUserId, username: ctx.username },
+        update: { telegramUserId: ctx.telegramUserId, username: ctx.username, linkedAt: new Date() },
+      })
+      return 'linked' as const
+    })
+    if (outcome !== 'linked') return denied(outcome)
+  } catch (error) {
+    // P2002: a concurrent insert won the `telegram_user_id` unique race after
+    // our in-tx guard. Either way the tx — and the claim — rolled back.
+    if (
+      error instanceof TelegramAlreadyLinkedError ||
+      (error as { code?: string }).code === 'P2002'
+    ) {
+      return denied('telegram-already-linked')
+    }
+    throw error
+  }
 
   return {
     reply: renderLinkSuccess(),

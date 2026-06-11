@@ -365,6 +365,61 @@ describe('routeUpdate (integration)', () => {
     expect(codeRow.usedAt).toBeNull()
   })
 
+  // ── 2c. consumed code is never re-claimed ─────────────────────────────────
+  it('denies a code whose usedAt was set 1ms ago — detail code-used, usedAt untouched, no link created', async () => {
+    const fx = await seed()
+    const linkme = await makeUser('linkme')
+    const usedAt = new Date(Date.now() - 1)
+    const code = await makeLinkCode(linkme.id, { usedAt })
+
+    const res = await routeUpdate(prisma, fx.connection, msg(`/link ${code}`, { from: TG_UID_NEW }))
+
+    expect(res.reply).toBe(renderLinkInvalid())
+    expect(res.audit).toMatchObject({ command: 'link', result: 'DENIED', detail: 'code-used' })
+    // The claim must not re-consume (overwrite usedAt) or create a link.
+    expect(await prisma.telegramUserLink.findUnique({ where: { userId: linkme.id } })).toBeNull()
+    const codeRow = await prisma.telegramLinkCode.findUniqueOrThrow({
+      where: { codeHash: hashLinkCode(code) },
+    })
+    expect(codeRow.usedAt!.getTime()).toBe(usedAt.getTime())
+  })
+
+  // ── 2d. concurrent /link cannot double-consume one code ───────────────────
+  it('two concurrent /link calls with the same valid code → exactly one OK, one DENIED code-used, one consistent link', async () => {
+    const fx = await seed()
+    // A few repeats to shake out interleaving luck — the claim must be atomic
+    // (guarded UPDATE), not check-then-update.
+    for (let i = 0; i < 3; i++) {
+      const user = await makeUser(`race${i}`)
+      const code = await makeLinkCode(user.id)
+      const tgUid = RUN + 10 + i
+
+      const results = await Promise.all([
+        routeUpdate(prisma, fx.connection, msg(`/link ${code}`, { from: tgUid })),
+        routeUpdate(prisma, fx.connection, msg(`/link ${code}`, { from: tgUid })),
+      ])
+
+      const ok = results.filter((r) => r.audit?.result === 'OK')
+      const denied = results.filter((r) => r.audit?.result === 'DENIED')
+      expect(ok).toHaveLength(1)
+      expect(denied).toHaveLength(1)
+      expect(ok[0]!.reply).toBe(renderLinkSuccess())
+      expect(ok[0]!.audit).toMatchObject({ command: 'link', linkedUserId: user.id })
+      expect(denied[0]!.reply).toBe(renderLinkInvalid())
+      expect(denied[0]!.audit).toMatchObject({ command: 'link', detail: 'code-used' })
+
+      // Final state is consistent: ONE link row for the user, bound to the
+      // sender, and the code consumed exactly once.
+      const links = await prisma.telegramUserLink.findMany({ where: { userId: user.id } })
+      expect(links).toHaveLength(1)
+      expect(links[0]!.telegramUserId).toBe(String(tgUid))
+      const codeRow = await prisma.telegramLinkCode.findUniqueOrThrow({
+        where: { codeHash: hashLinkCode(code) },
+      })
+      expect(codeRow.usedAt).not.toBeNull()
+    }
+  })
+
   // ── 3. /search unlinked ───────────────────────────────────────────────────
   it('denies /search for an unlinked sender with the not-linked reply', async () => {
     const fx = await seed()
