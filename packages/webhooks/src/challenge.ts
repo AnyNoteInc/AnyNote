@@ -1,11 +1,11 @@
+import { WEBHOOK_DELIVERY_HEADERS } from './headers.ts'
+import { CHALLENGE_ECHO_SCAN_CHARS } from './limits.ts'
 import { signWebhookPayload } from './signature.ts'
 import { assertSafeWebhookUrl, SsrfBlockedError, type LookupFn } from './ssrf.ts'
 
 export type ChallengeResult = { ok: boolean; error?: string }
 
 const DEFAULT_TIMEOUT_MS = 10_000
-/** The echo must appear within the first 4KB of the response body (spec §6). */
-const ECHO_SCAN_CHARS = 4096
 
 /**
  * Endpoint-verification challenge: POSTs `{type:'verification', challenge,
@@ -46,11 +46,11 @@ export async function sendVerificationChallenge(args: {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-AnyNote-Signature': signature,
-        'X-AnyNote-Timestamp': String(timestampSec),
-        'X-AnyNote-Event': 'verification',
-        'X-AnyNote-Delivery': args.subscriptionId,
-        'X-AnyNote-Payload-Version': '1',
+        [WEBHOOK_DELIVERY_HEADERS.signature]: signature,
+        [WEBHOOK_DELIVERY_HEADERS.timestamp]: String(timestampSec),
+        [WEBHOOK_DELIVERY_HEADERS.event]: 'verification',
+        [WEBHOOK_DELIVERY_HEADERS.delivery]: args.subscriptionId,
+        [WEBHOOK_DELIVERY_HEADERS.payloadVersion]: '1',
       },
       body,
       // A redirect could point at a private host and evade the SSRF guard —
@@ -72,7 +72,7 @@ export async function sendVerificationChallenge(args: {
   } catch {
     return { ok: false, error: 'не удалось прочитать тело ответа' }
   }
-  if (!text.slice(0, ECHO_SCAN_CHARS).includes(args.challenge)) {
+  if (!text.slice(0, CHALLENGE_ECHO_SCAN_CHARS).includes(args.challenge)) {
     return { ok: false, error: 'ответ не содержит строку подтверждения' }
   }
   return { ok: true }

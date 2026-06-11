@@ -2,6 +2,9 @@ import { randomBytes } from 'node:crypto'
 
 const ALPHABET = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
 
+/** Prefix on every generated webhook signing secret. */
+export const WEBHOOK_SECRET_PREFIX = 'whsec_'
+
 function toBase62(bytes: Buffer, length: number): string {
   let n = 0n
   for (const b of bytes) n = (n << 8n) | BigInt(b)
@@ -21,7 +24,7 @@ function toBase62(bytes: Buffer, length: number): string {
  * this keyspace.
  */
 export function generateWebhookSecret(): string {
-  return `whsec_${toBase62(randomBytes(24), 32)}`
+  return `${WEBHOOK_SECRET_PREFIX}${toBase62(randomBytes(24), 32)}`
 }
 
 /** 32 base62 chars — the one-time endpoint-verification challenge. */

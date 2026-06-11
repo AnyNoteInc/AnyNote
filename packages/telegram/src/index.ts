@@ -1,5 +1,6 @@
 export { TelegramApi } from './api.ts'
 export type { TelegramApiResult } from './api.ts'
+export { TELEGRAM_LIMITS } from './limits.ts'
 export { generateTelegramWebhookSecret, generateLinkCode, hashLinkCode } from './secret.ts'
 export {
   escapeHtml,

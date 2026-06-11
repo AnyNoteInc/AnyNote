@@ -1,5 +1,7 @@
 import { createHash, randomBytes } from 'node:crypto'
 
+import { TELEGRAM_LIMITS } from './limits.ts'
+
 const BASE62 = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789'
 
 /** Uppercase base32 without the ambiguous 0/O/1/I — 24 letters + digits 2-9. */
@@ -33,7 +35,7 @@ export function generateTelegramWebhookSecret(): string {
  * unbiased.
  */
 export function generateLinkCode(): string {
-  const bytes = randomBytes(8)
+  const bytes = randomBytes(TELEGRAM_LIMITS.linkCodeLength)
   let out = ''
   for (const b of bytes) out += LINK_CODE_ALPHABET[b & 31]!
   return out

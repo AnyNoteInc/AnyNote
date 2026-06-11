@@ -3,6 +3,7 @@ import { TRPCError } from '@trpc/server'
 import type { Prisma, PrismaClient } from '@repo/db'
 import { encryptSecret, decryptSecret, type EncryptedPayload } from '@repo/auth'
 import {
+  MAX_WEBHOOK_SUBSCRIPTIONS_PER_WORKSPACE,
   WEBHOOK_EVENT_TYPES,
   generateWebhookSecret,
   generateChallenge,
@@ -12,7 +13,6 @@ import {
 import { router, protectedProcedure } from '../trpc'
 import { getWorkspaceFeatures } from '../helpers/plan'
 
-const MAX_SUBSCRIPTIONS_PER_WORKSPACE = 20
 const DELIVERIES_PAGE_SIZE = 30
 const CHALLENGE_TIMEOUT_MS = Number(process.env.WEBHOOK_CHALLENGE_TIMEOUT_MS ?? 10_000)
 
@@ -152,10 +152,10 @@ export const webhookRouter = router({
       const count = await ctx.prisma.webhookSubscription.count({
         where: { workspaceId: input.workspaceId },
       })
-      if (count >= MAX_SUBSCRIPTIONS_PER_WORKSPACE) {
+      if (count >= MAX_WEBHOOK_SUBSCRIPTIONS_PER_WORKSPACE) {
         throw new TRPCError({
           code: 'BAD_REQUEST',
-          message: `Достигнут лимит вебхуков (${MAX_SUBSCRIPTIONS_PER_WORKSPACE}) для пространства`,
+          message: `Достигнут лимит вебхуков (${MAX_WEBHOOK_SUBSCRIPTIONS_PER_WORKSPACE}) для пространства`,
         })
       }
       const secret = generateWebhookSecret()

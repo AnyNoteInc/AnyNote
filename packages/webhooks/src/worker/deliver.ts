@@ -1,6 +1,8 @@
 import { decryptSecret, type EncryptedPayload } from '@repo/auth/secret-encryption.ts'
 import { Prisma, type PrismaClient } from '@repo/db'
 
+import { WEBHOOK_DELIVERY_HEADERS } from '../headers.ts'
+import { BACKOFF_BASE_MS, BACKOFF_CAP_MS, DEFAULT_AUTO_DISABLE_THRESHOLD } from '../limits.ts'
 import { signWebhookPayload } from '../signature.ts'
 import { assertSafeWebhookUrl, SsrfBlockedError, type LookupFn } from '../ssrf.ts'
 import { passesVisibilityGate } from './fan-out.ts'
@@ -15,8 +17,6 @@ export type DeliverOpts = {
   autoDisableThreshold?: number // default 10
 }
 
-const BACKOFF_BASE_MS = 60_000
-const BACKOFF_CAP_MS = 30 * 60_000
 /**
  * Stale-lock reclaim horizon (the import-jobs lazy-reclaim pattern): a worker
  * that crashes between claim and outcome leaves the row PENDING with lockedAt
@@ -25,7 +25,6 @@ const BACKOFF_CAP_MS = 30 * 60_000
  * value remains reserved and is never transitioned to.
  */
 const STALE_LOCK_MS = 10 * 60_000
-const DEFAULT_AUTO_DISABLE_THRESHOLD = 10
 const SNIPPET_MAX_CHARS = 500
 
 type DeliveryWithSubscription = Prisma.WebhookDeliveryGetPayload<{
@@ -219,11 +218,11 @@ async function attemptDelivery(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'X-AnyNote-Signature': signature,
-        'X-AnyNote-Timestamp': String(timestampSec),
-        'X-AnyNote-Event': delivery.eventType,
-        'X-AnyNote-Delivery': delivery.id,
-        'X-AnyNote-Payload-Version': String(sub.payloadVersion),
+        [WEBHOOK_DELIVERY_HEADERS.signature]: signature,
+        [WEBHOOK_DELIVERY_HEADERS.timestamp]: String(timestampSec),
+        [WEBHOOK_DELIVERY_HEADERS.event]: delivery.eventType,
+        [WEBHOOK_DELIVERY_HEADERS.delivery]: delivery.id,
+        [WEBHOOK_DELIVERY_HEADERS.payloadVersion]: String(sub.payloadVersion),
       },
       body,
       // A redirect could point at a private host and evade the SSRF guard —

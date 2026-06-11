@@ -4,6 +4,7 @@ import type { Prisma, PrismaClient } from '@repo/db'
 import { encryptSecret, decryptSecret, type EncryptedPayload } from '@repo/auth'
 import { WEBHOOK_EVENT_TYPES } from '@repo/webhooks'
 import {
+  TELEGRAM_LIMITS,
   TelegramApi,
   generateTelegramWebhookSecret,
   generateLinkCode,
@@ -13,9 +14,7 @@ import {
 import { router, protectedProcedure } from '../trpc'
 import { getWorkspaceFeatures } from '../helpers/plan'
 
-const MAX_SUBSCRIPTIONS_PER_CONNECTION = 50
 const LOG_PAGE_SIZE = 30
-const LINK_CODE_TTL_MS = 15 * 60_000
 const TELEGRAM_TIMEOUT_MS = Number(process.env.TELEGRAM_TIMEOUT_MS ?? 10_000)
 
 /** BotFather token shape — rejected by zod BEFORE any encryption or network call. */
@@ -324,10 +323,10 @@ export const telegramRouter = router({
       const count = await ctx.prisma.telegramCollectionSubscription.count({
         where: { connectionId: connection.id },
       })
-      if (count >= MAX_SUBSCRIPTIONS_PER_CONNECTION) {
+      if (count >= TELEGRAM_LIMITS.maxSubscriptionsPerConnection) {
         throw new TRPCError({
           code: 'BAD_REQUEST',
-          message: `Достигнут лимит подписок (${MAX_SUBSCRIPTIONS_PER_CONNECTION}) для подключения`,
+          message: `Достигнут лимит подписок (${TELEGRAM_LIMITS.maxSubscriptionsPerConnection}) для подключения`,
         })
       }
       return ctx.prisma.telegramCollectionSubscription.create({
@@ -448,7 +447,7 @@ export const telegramRouter = router({
       data: {
         userId: ctx.user.id,
         codeHash: hashLinkCode(code),
-        expiresAt: new Date(Date.now() + LINK_CODE_TTL_MS),
+        expiresAt: new Date(Date.now() + TELEGRAM_LIMITS.linkCodeTtlMs),
       },
       select: { expiresAt: true },
     })
