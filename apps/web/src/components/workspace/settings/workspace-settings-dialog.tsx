@@ -83,14 +83,16 @@ export function WorkspaceSettingsDialog({
 
   const workspaceQ = trpc.workspace.getById.useQuery({ id: workspaceId }, { enabled: open })
   const roleQ = trpc.workspace.getMyRole.useQuery({ workspaceId }, { enabled: open })
-  const planQ = trpc.subscription.getCurrent.useQuery(undefined, { enabled: open })
 
   const workspace = workspaceQ.data
+  // The dialog is reachable by OWNER and ADMIN (sidebar gating). ADMIN gets
+  // people management plus the sections whose routers already accept ADMIN
+  // (webhooks/telegram canManage, member-gated files/import-export/public);
+  // billing/security-adjacent sections (AI providers, MCP, usage, danger
+  // zone) stay OWNER-only.
   const isOwner = roleQ.data === 'OWNER'
-  const planSlug = planQ.data?.plan.slug ?? null
-  const ready = workspace && roleQ.isSuccess && planQ.isSuccess
-  const failed =
-    workspaceQ.isError || roleQ.isError || planQ.isError || (workspaceQ.isSuccess && !workspace)
+  const ready = workspace && roleQ.isSuccess
+  const failed = workspaceQ.isError || roleQ.isError || (workspaceQ.isSuccess && !workspace)
 
   const items: SettingsItem[] = [
     {
@@ -114,8 +116,11 @@ export function WorkspaceSettingsDialog({
       render: () => (
         <WorkspaceMembersSection
           workspaceId={workspaceId}
-          locked={planSlug === 'personal'}
+          // The workspace owner's plan gates invites (assertPaidWorkspace) —
+          // not the viewer's own subscription.
+          locked={!features.isPaid}
           currentUserId={currentUserId}
+          isOwner={isOwner}
         />
       ),
     },
@@ -123,7 +128,7 @@ export function WorkspaceSettingsDialog({
       slug: 'ai',
       label: 'AI агент',
       icon: <SmartToyIcon fontSize="small" />,
-      show: features.aiSettingsEnabled,
+      show: features.aiSettingsEnabled && isOwner,
       render: () => (
         <WorkspaceAiSection
           workspaceId={workspaceId}
@@ -136,7 +141,7 @@ export function WorkspaceSettingsDialog({
       slug: 'mcp',
       label: 'MCP серверы',
       icon: <HubIcon fontSize="small" />,
-      show: features.customMcpEnabled,
+      show: features.customMcpEnabled && isOwner,
       render: () => (
         <WorkspaceMcpSection
           workspaceId={workspaceId}
@@ -196,14 +201,14 @@ export function WorkspaceSettingsDialog({
       slug: 'usage',
       label: 'Использование',
       icon: <BarChartIcon fontSize="small" />,
-      show: true,
+      show: isOwner,
       render: () => <UsageDialogSection workspaceId={workspaceId} />,
     },
     {
       slug: 'danger',
       label: 'Опасная зона',
       icon: <WarningAmberIcon fontSize="small" />,
-      show: true,
+      show: isOwner,
       render: () =>
         workspace ? (
           <WorkspaceDangerSection

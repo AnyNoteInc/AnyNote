@@ -423,6 +423,19 @@ export const peopleRouter = router({
       )
     }),
 
+  // Block state for the members table («Заблокирован» chips) — listMembers
+  // deliberately stays untouched; managers join this in on the client.
+  listBlocked: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertPeopleManager(ctx, input.workspaceId)
+      return ctx.prisma.workspaceBlockedUser.findMany({
+        where: { workspaceId: input.workspaceId },
+        select: { userId: true, reason: true, createdAt: true },
+        orderBy: { createdAt: 'desc' },
+      })
+    }),
+
   // ── managed: audit log (OWNER only) ───────────────────────────────────────
 
   auditLog: protectedProcedure
@@ -455,7 +468,9 @@ export const peopleRouter = router({
         targetUserId: r.targetUserId,
         targetName: r.targetUserId ? (nameOf.get(r.targetUserId) ?? null) : null,
         targetEmail: r.targetEmail,
-        metadata: r.metadata,
+        // Shallow type: Prisma.JsonValue is a recursive union that blows up
+        // useInfiniteQuery inference (TS2589) on the client.
+        metadata: r.metadata as Record<string, unknown> | null,
         createdAt: r.createdAt,
       }))
       return { items, nextCursor: nextCursorFor(items) }

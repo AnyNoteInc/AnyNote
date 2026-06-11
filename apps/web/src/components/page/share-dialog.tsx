@@ -4,9 +4,11 @@ import { useEffect, useMemo, useState } from 'react'
 
 import {
   AdapterDateFns,
+  Alert,
   Avatar,
   Box,
   Button,
+  Chip,
   CircularProgress,
   DateTimePicker,
   dateFnsRu,
@@ -87,6 +89,25 @@ export function ShareDialog({ open, onClose, pageId }: Props) {
   const removeUser = trpc.page.share.removeUser.useMutation({ onSuccess: invalidate })
   const setAccess = trpc.page.share.setAccess.useMutation({ onSuccess: invalidate })
   const updateLink = trpc.page.share.updatePublicLinkSettings.useMutation({ onSuccess: invalidate })
+
+  // ── guest invites (people phase 8A): the EMAIL path for unregistered people ──
+  const [guestEmail, setGuestEmail] = useState('')
+  const [guestRole, setGuestRole] = useState<ShareRole>('READER')
+  // Manage-rights gated server-side; non-managers simply see no list.
+  const guestInvitesQ = trpc.page.share.listGuestInvites.useQuery(
+    { pageId },
+    { enabled: open, retry: false },
+  )
+  const invalidateGuestInvites = () => utils.page.share.listGuestInvites.invalidate({ pageId })
+  const inviteGuest = trpc.page.share.inviteGuest.useMutation({
+    onSuccess: () => {
+      setGuestEmail('')
+      invalidateGuestInvites()
+    },
+  })
+  const revokeGuestInvite = trpc.page.share.revokeGuestInvite.useMutation({
+    onSuccess: invalidateGuestInvites,
+  })
 
   const data = shareQ.data?.share ?? null
   const owner = shareQ.data?.owner ?? null
@@ -195,6 +216,79 @@ export function ShareDialog({ open, onClose, pageId }: Props) {
                         ))}
                     </Paper>
                   )}
+                </Box>
+
+                {/* Guest invite by email — works for unregistered addresses */}
+                <Box>
+                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                    Пригласить по email
+                  </Typography>
+                  {inviteGuest.error ? (
+                    <Alert severity="error" sx={{ mb: 1 }} onClose={() => inviteGuest.reset()}>
+                      {inviteGuest.error.message}
+                    </Alert>
+                  ) : null}
+                  {inviteGuest.isSuccess ? (
+                    <Alert severity="success" sx={{ mb: 1 }} onClose={() => inviteGuest.reset()}>
+                      Приглашение отправлено.
+                    </Alert>
+                  ) : null}
+                  <Stack direction="row" spacing={1} alignItems="flex-start">
+                    <TextField
+                      size="small"
+                      fullWidth
+                      placeholder="email@example.com"
+                      value={guestEmail}
+                      onChange={(e) => setGuestEmail(e.target.value)}
+                      slotProps={{ htmlInput: { 'data-testid': 'share-guest-invite-email' } }}
+                    />
+                    <Select
+                      size="small"
+                      value={guestRole}
+                      onChange={(e) => setGuestRole(e.target.value as ShareRole)}
+                      sx={{ minWidth: 150 }}
+                    >
+                      {(['READER', 'COMMENTER', 'EDITOR'] as const).map((r) => (
+                        <MenuItem key={r} value={r}>
+                          {ROLE_LABEL[r]}
+                        </MenuItem>
+                      ))}
+                    </Select>
+                    <Button
+                      onClick={() =>
+                        inviteGuest.mutate({ pageId, email: guestEmail.trim(), role: guestRole })
+                      }
+                      loading={inviteGuest.isPending}
+                      disabled={!guestEmail.trim()}
+                    >
+                      Пригласить
+                    </Button>
+                  </Stack>
+                  {(guestInvitesQ.data ?? []).length > 0 ? (
+                    <Stack spacing={1} sx={{ mt: 1.5 }}>
+                      {(guestInvitesQ.data ?? []).map((invite) => (
+                        <Stack key={invite.id} direction="row" alignItems="center" spacing={1}>
+                          <Typography variant="body2" sx={{ flex: 1, minWidth: 0 }} noWrap>
+                            {invite.email}
+                          </Typography>
+                          <Chip size="small" variant="outlined" label={ROLE_LABEL[invite.role]} />
+                          <Chip
+                            size="small"
+                            label={invite.state === 'PENDING' ? 'Ожидает' : 'Просрочено'}
+                            color={invite.state === 'PENDING' ? 'default' : 'warning'}
+                          />
+                          <Button
+                            size="small"
+                            color="error"
+                            disabled={revokeGuestInvite.isPending}
+                            onClick={() => revokeGuestInvite.mutate({ pageId, id: invite.id })}
+                          >
+                            Отозвать
+                          </Button>
+                        </Stack>
+                      ))}
+                    </Stack>
+                  ) : null}
                 </Box>
 
                 {/* People with access */}

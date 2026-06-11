@@ -763,6 +763,16 @@ describe('people router', () => {
       await expect(people(admin).listInvitations({ workspaceId: ws.id })).resolves.toEqual([])
     })
 
+    it('listBlocked exposes block rows to managers and is denied to EDITOR', async () => {
+      const { owner, admin, editor, member, ws } = await seed()
+      await people(owner).block({ workspaceId: ws.id, userId: member.id, reason: 'spam' })
+      const rows = await people(admin).listBlocked({ workspaceId: ws.id })
+      expect(rows).toEqual([{ userId: member.id, reason: 'spam', createdAt: expect.any(Date) }])
+      await expect(people(editor).listBlocked({ workspaceId: ws.id })).rejects.toMatchObject({
+        code: 'FORBIDDEN',
+      })
+    })
+
     it('a blocked user cannot join via link', async () => {
       const { owner, ws } = await seed()
       const { token } = await people(owner).inviteLink.enable({

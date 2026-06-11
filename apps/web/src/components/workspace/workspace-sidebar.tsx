@@ -109,7 +109,9 @@ export function WorkspaceSidebar({
   const closeSwitcher = () => setSwitcherAnchor(null)
 
   const myRole = trpc.workspace.getMyRole.useQuery({ workspaceId: workspace.id })
-  const isOwner = myRole.data === 'OWNER'
+  // Settings entry: OWNER and ADMIN (people management lives there); the
+  // dialog itself hides billing/security-adjacent sections from ADMIN.
+  const canOpenSettings = myRole.data === 'OWNER' || myRole.data === 'ADMIN'
 
   return (
     <Box
@@ -170,7 +172,7 @@ export function WorkspaceSidebar({
               {workspace.name}
             </Typography>
           </Stack>
-          {isOwner ? (
+          {canOpenSettings ? (
             <Stack direction="row" spacing={1} sx={{ mt: 1 }}>
               <Button
                 size="small"
