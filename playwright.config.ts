@@ -18,6 +18,9 @@ export default defineConfig({
         PLANTUML_URL: process.env.PLANTUML_URL ?? 'http://localhost:3002',
         // Point tRPC aiProvider.create server-side pings at the mock agents server.
         AGENTS_SERVICE_URL: 'http://127.0.0.1:8091',
+        // Unroutable port: telegram connect's getMe fails instantly and
+        // deterministically — no live Bot API calls ever leave the test run.
+        TELEGRAM_API_BASE_URL: 'http://127.0.0.1:9',
         // Agent OS — pass through from the outer shell if set.
         // These are needed by the chat API route (agents proxy) and the
         // encryptFixture helper in agent-qa-citations.spec.ts.
@@ -32,7 +35,9 @@ export default defineConfig({
           ? { BETTER_AUTH_JWT_AGENTS_AUDIENCE: process.env.BETTER_AUTH_JWT_AGENTS_AUDIENCE }
           : {}),
         ...(process.env.OPENAI_API_KEY ? { OPENAI_API_KEY: process.env.OPENAI_API_KEY } : {}),
-        ...(process.env.AGENTS_JWT_SECRET ? { AGENTS_JWT_SECRET: process.env.AGENTS_JWT_SECRET } : {}),
+        ...(process.env.AGENTS_JWT_SECRET
+          ? { AGENTS_JWT_SECRET: process.env.AGENTS_JWT_SECRET }
+          : {}),
         ...(process.env.ENGINES_MCP_URL ? { ENGINES_MCP_URL: process.env.ENGINES_MCP_URL } : {}),
       },
     },
