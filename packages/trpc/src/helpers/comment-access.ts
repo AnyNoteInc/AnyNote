@@ -2,6 +2,8 @@ import { TRPCError } from '@trpc/server'
 import type { PrismaClient } from '@repo/db'
 import { createHash } from 'node:crypto'
 
+import { findGrantOnPageOrAncestors } from './page-access'
+
 export type EffectiveRole = 'OWNER' | 'EDITOR' | 'COMMENTER' | 'READER'
 export type CommentAuthor = { userId?: string; anonId?: string; name: string }
 
@@ -103,6 +105,12 @@ export async function resolveCommentContext(ctx: Ctx, input: Input): Promise<Com
         select: { role: true },
       })
       if (member) return { ...base, role: mapMemberRole(member.role), author }
+
+      // Grant arm with ancestor inheritance (people spec §3): a guest's grant
+      // on the page OR any ancestor carries its role down the subtree, in line
+      // with the page read-path (`findGrantOnPageOrAncestors`).
+      const grant = await findGrantOnPageOrAncestors(ctx.prisma, ctx.user.id, page.id)
+      if (grant) return { ...base, role: grant.role as EffectiveRole, author }
     }
 
     const pageShare =
@@ -111,15 +119,8 @@ export async function resolveCommentContext(ctx: Ctx, input: Input): Promise<Com
         where: { pageId: page.id },
         select: { id: true, access: true, linkRole: true, pageId: true },
       }))
-    if (pageShare) {
-      if (!blocked) {
-        const grant = await ctx.prisma.pageShareUser.findFirst({
-          where: { pageShareId: pageShare.id, userId: ctx.user.id },
-          select: { role: true },
-        })
-        if (grant) return { ...base, role: grant.role as EffectiveRole, author }
-      }
-      if (pageShare.access === 'PUBLIC') return { ...base, role: pageShare.linkRole as EffectiveRole, author }
+    if (pageShare?.access === 'PUBLIC') {
+      return { ...base, role: pageShare.linkRole as EffectiveRole, author }
     }
     return { ...base, role: null, author }
   }

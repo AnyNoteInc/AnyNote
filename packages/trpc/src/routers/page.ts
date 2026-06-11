@@ -6,6 +6,7 @@ import { requireWritableWorkspace } from '../helpers/plan'
 import {
   assertWorkspaceMember,
   assertPageAccess,
+  resolveMemberOrPageGrant,
 } from '../helpers/page-access'
 import * as domain from '@repo/domain'
 import { mapDomain } from '../helpers/map-domain'
@@ -21,33 +22,61 @@ export const pageRouter = router({
   getById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const page = await ctx.prisma.page.findFirst({
+      const select = {
+        id: true,
+        workspaceId: true,
+        parentId: true,
+        type: true,
+        ownership: true,
+        title: true,
+        icon: true,
+        content: true,
+        contentYjs: true,
+        collectionId: true,
+        archivedAt: true,
+        prevPageId: true,
+        deletedAt: true,
+        createdById: true,
+        updatedById: true,
+        createdAt: true,
+        updatedAt: true,
+      } as const
+      // Member arm — semantics unchanged (visibility predicate hides other
+      // members' PERSONAL pages), now block-aware (people spec §7.1).
+      const memberPage = await ctx.prisma.page.findFirst({
         where: {
           id: input.id,
-          workspace: { members: { some: { userId: ctx.user.id } } },
+          workspace: {
+            members: { some: { userId: ctx.user.id } },
+            blockedUsers: { none: { userId: ctx.user.id } },
+          },
           AND: [domain.buildPageVisibilityWhere(ctx.user.id)],
         },
-        select: {
-          id: true,
-          workspaceId: true,
-          parentId: true,
-          type: true,
-          ownership: true,
-          title: true,
-          icon: true,
-          content: true,
-          contentYjs: true,
-          collectionId: true,
-          archivedAt: true,
-          prevPageId: true,
-          deletedAt: true,
-          createdById: true,
-          updatedById: true,
-          createdAt: true,
-          updatedAt: true,
-        },
+        select,
+      })
+      if (memberPage) {
+        return {
+          ...memberPage,
+          contentYjs: memberPage.contentYjs
+            ? Buffer.from(memberPage.contentYjs).toString('base64')
+            : null,
+        }
+      }
+      // Guest arm (people spec §3): a PageShareUser grant on this page or any
+      // ancestor admits the holder read-side. Trashed pages never resolve for
+      // guests. Blocked users get FORBIDDEN from the resolve; everyone else
+      // without access keeps the object-hiding NOT_FOUND.
+      const page = await ctx.prisma.page.findFirst({
+        where: { id: input.id, deletedAt: null },
+        select,
       })
       if (!page) throw new TRPCError({ code: 'NOT_FOUND', message: 'Страница не найдена' })
+      const access = await resolveMemberOrPageGrant(ctx, page.workspaceId, page.id)
+      // kind === 'member' here means the member arm above rejected the page on
+      // visibility (someone else's PERSONAL page) — members keep NOT_FOUND.
+      if (!access || access.kind !== 'guest') {
+        throw new TRPCError({ code: 'NOT_FOUND', message: 'Страница не найдена' })
+      }
       return {
         ...page,
         contentYjs: page.contentYjs ? Buffer.from(page.contentYjs).toString('base64') : null,
@@ -105,6 +134,11 @@ export const pageRouter = router({
       return mapDomain(() => domainSvc.pages.create(ctx.user.id, input))
     }),
 
+  // Structural page writes stay MEMBER-only this phase (people spec §3): an
+  // EDITOR-grant guest edits page CONTENT through yjs collaboration, but tRPC
+  // rename/update/move/delete are member territory. The explicit member assert
+  // here turns a grant-holding guest's attempt into an honest FORBIDDEN (the
+  // domain re-checks page-level access against the PAGE's workspace anyway).
   rename: protectedProcedure
     .input(domain.renamePageInput)
     .mutation(
@@ -112,6 +146,7 @@ export const pageRouter = router({
         ctx,
         input,
       }): Promise<{ id: string; title: string | null; icon: string | null; updatedAt: Date }> => {
+        await assertWorkspaceMember(ctx, input.workspaceId)
         await requireWritableWorkspace(input.workspaceId)
         return mapDomain(() => domainSvc.pages.rename(ctx.user.id, input))
       },
@@ -124,6 +159,7 @@ export const pageRouter = router({
         ctx,
         input,
       }): Promise<{ id: string; title: string | null; icon: string | null; updatedAt: Date }> => {
+        await assertWorkspaceMember(ctx, input.workspaceId)
         await requireWritableWorkspace(input.workspaceId)
         return mapDomain(() => domainSvc.pages.update(ctx.user.id, input))
       },

@@ -15,13 +15,21 @@ export default async function ActiveWorkspaceLayout({ children }: { children: Re
   const workspace = await trpc.workspace.getActive()
   if (!workspace) redirect('/workspaces/new')
 
-  const pages = await trpc.page.listByWorkspace({ workspaceId: workspace.id })
+  // The resolver admits grant-only (guest) workspaces, so a null role here
+  // means the user is a GUEST: page-grant holder, no member row. Guests get
+  // the «Доступные мне» sidebar instead of the member tree — listByWorkspace
+  // is member-gated and must not be called for them.
+  const myRole = await trpc.workspace.getMyRole({ workspaceId: workspace.id })
+  const accessKind = myRole ? ('member' as const) : ('guest' as const)
+  const pages =
+    accessKind === 'member' ? await trpc.page.listByWorkspace({ workspaceId: workspace.id }) : []
   const features = await getWorkspaceFeatures(workspace.id)
 
   return (
     <PlanFeaturesProvider features={features}>
       <WorkspaceLayoutClient
         workspace={{ id: workspace.id, name: workspace.name, icon: workspace.icon }}
+        accessKind={accessKind}
         features={features}
         pages={pages}
         user={{

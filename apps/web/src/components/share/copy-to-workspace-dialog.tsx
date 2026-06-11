@@ -93,17 +93,23 @@ function CopyDialog({
   onClose: () => void
 }) {
   const router = useRouter()
-  const workspaces = trpc.workspace.listMine.useQuery()
+  const workspacesQuery = trpc.workspace.listMine.useQuery()
+  // Copy targets must be MEMBER workspaces — page.create is member-only, so a
+  // grant-only (guest) workspace would always fail server-side.
+  const memberWorkspaces = useMemo(
+    () => (workspacesQuery.data ?? []).filter((w) => w.accessKind === 'member'),
+    [workspacesQuery.data],
+  )
   const [workspaceId, setWorkspaceId] = useState('')
   const [collectionId, setCollectionId] = useState('')
   const [includeSubtree, setIncludeSubtree] = useState(true)
 
   // Default the workspace to the first membership once loaded.
   useEffect(() => {
-    if (!workspaceId && workspaces.data && workspaces.data.length > 0) {
-      setWorkspaceId(workspaces.data[0]!.id)
+    if (!workspaceId && memberWorkspaces.length > 0) {
+      setWorkspaceId(memberWorkspaces[0]!.id)
     }
-  }, [workspaces.data, workspaceId])
+  }, [memberWorkspaces, workspaceId])
 
   const collections = trpc.collection.list.useQuery(
     { workspaceId },
@@ -158,7 +164,7 @@ function CopyDialog({
               value={workspaceId}
               onChange={(e) => setWorkspaceId(e.target.value)}
             >
-              {(workspaces.data ?? []).map((ws) => (
+              {memberWorkspaces.map((ws) => (
                 <MenuItem key={ws.id} value={ws.id}>
                   {ws.name}
                 </MenuItem>

@@ -30,8 +30,12 @@ import { WorkspaceToolbar } from './workspace-toolbar'
 import { WorkspaceUserMenu } from './workspace-user-menu'
 import type { PageItem } from './types'
 
+export type WorkspaceAccessKind = 'member' | 'guest'
+
 type Props = {
   workspace: { id: string; name: string; icon: string | null }
+  /** 'guest' = page-grant holder without a member row (people spec §3/§5). */
+  accessKind: WorkspaceAccessKind
   features: PlanFeatures
   pages: PageItem[]
   user: { id: string; firstName: string; lastName: string; email: string; image: string | null }
@@ -51,23 +55,27 @@ function sidebarSectionFromPathname(pathname: string): WorkspaceSidebarSection |
 
 export function WorkspaceLayoutClient({
   workspace,
+  accessKind,
   features,
   pages: initialPages,
   user,
   children,
 }: Props) {
+  const isGuest = accessKind === 'guest'
   // Read pages via useQuery with RSC-provided initialData so that rename /
   // delete / move mutations can invalidate the cache and re-render the
-  // breadcrumb without a full server refresh.
+  // breadcrumb without a full server refresh. Member-gated — guests get their
+  // pages from people.myGrantedPages inside the sidebar instead.
   const pagesQuery = trpc.page.listByWorkspace.useQuery(
     { workspaceId: workspace.id },
-    { staleTime: 0 },
+    { staleTime: 0, enabled: !isGuest },
   )
   const pages: PageItem[] = pagesQuery.data ?? initialPages
   const [mode, setMode] = useState<SidebarMode>(DEFAULT_MODE)
   const pathname = usePathname()
   const lastSidebarPathnameRef = useRef(pathname)
   const [sidebarSection, setSidebarSection] = useState<WorkspaceSidebarSection>(() => {
+    if (isGuest) return 'pages'
     const fromPath = sidebarSectionFromPathname(pathname)
     if (fromPath) return fromPath
     return features.chatsEnabled ? 'chats' : 'pages'
@@ -177,6 +185,7 @@ export function WorkspaceLayoutClient({
 
   const sidebarProps = {
     workspace,
+    accessKind,
     features,
     pages,
     userMenu,
@@ -278,10 +287,13 @@ export function WorkspaceLayoutClient({
   return (
     <SearchDialogProvider workspaceId={workspace.id}>
       <SettingsDialogProvider workspaceId={workspace.id} currentUserId={user.id}>
-        <WorkspaceHotkeyMount
-          workspaceId={workspace.id}
-          onPages={() => setSidebarSection('pages')}
-        />
+        {/* Search is member-gated server-side — don't register the hotkey for guests. */}
+        {isGuest ? null : (
+          <WorkspaceHotkeyMount
+            workspaceId={workspace.id}
+            onPages={() => setSidebarSection('pages')}
+          />
+        )}
         <WorkspaceShell
           mode={mode}
           sidebar={sidebar}

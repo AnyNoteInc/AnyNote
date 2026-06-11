@@ -145,7 +145,11 @@ describe('soft-downgrade router guards', () => {
       icon: '🚀',
       updatedAt: new Date('2026-05-23T00:00:00Z'),
     })
-    const prisma = {} as unknown as PrismaClient
+    // page.rename is now explicitly member-gated (guest read-path, Task 6).
+    const prisma = {
+      workspaceMember: { findUnique: vi.fn(async () => ({ role: 'EDITOR' })) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
+    } as unknown as PrismaClient
 
     const caller = createCallerFactory(pageRouter)(baseContext(prisma))
     await caller.rename({ id: PAGE_ID, workspaceId: WORKSPACE_ID, title: 'Renamed', icon: '🚀' })

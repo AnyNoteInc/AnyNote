@@ -11,6 +11,7 @@ import {
   Box,
   Button,
   ChatBubbleOutlineIcon,
+  Chip,
   DashboardCustomizeIcon,
   DeleteIcon,
   Divider,
@@ -33,18 +34,21 @@ import { trpc } from '@/trpc/client'
 
 import { NotificationsBell } from '../notifications/notifications-bell'
 import { FavoritesSection } from './favorites-section'
+import { GuestPagesSection } from './guest-pages-section'
 import { PageTreeSection } from './page-tree-section'
 import { SharedPagesSection } from './shared-pages-section'
 import type { PageItem } from './types'
 import { SearchSidebarSection } from './search-sidebar-section'
 import { SIDEBAR_WIDTH } from './workspace-layout-client'
-import type { WorkspaceSidebarSection } from './workspace-layout-client'
+import type { WorkspaceAccessKind, WorkspaceSidebarSection } from './workspace-layout-client'
 import type { PlanFeatures } from '@repo/trpc'
 import { useSearchDialog } from '../search/search-dialog-provider'
 import { useSettingsDialog } from './settings/settings-dialog-provider'
 
 type Props = Readonly<{
   workspace: { id: string; name: string; icon: string | null }
+  /** 'guest' = grant-only access: the sidebar collapses to «Доступные мне». */
+  accessKind: WorkspaceAccessKind
   features: PlanFeatures
   pages: PageItem[]
   onHide?: () => void
@@ -55,6 +59,7 @@ type Props = Readonly<{
 
 export function WorkspaceSidebar({
   workspace,
+  accessKind,
   features,
   pages,
   onHide,
@@ -62,18 +67,26 @@ export function WorkspaceSidebar({
   activeSection,
   onSectionChange,
 }: Props) {
+  const isGuest = accessKind === 'guest'
   const pathname = usePathname()
   const router = useRouter()
   const searchDialog = useSearchDialog()
   const settings = useSettingsDialog()
   const utils = trpc.useUtils()
-  const favorites = trpc.page.listFavorites.useQuery({ workspaceId: workspace.id })
+  // Favorites/collections are member-gated server-side — never fetched for guests.
+  const favorites = trpc.page.listFavorites.useQuery(
+    { workspaceId: workspace.id },
+    { enabled: !isGuest },
+  )
   const favoritePageIds = useMemo(
     () => new Set((favorites.data ?? []).map((f) => f.id)),
     [favorites.data],
   )
 
-  const collections = trpc.collection.list.useQuery({ workspaceId: workspace.id })
+  const collections = trpc.collection.list.useQuery(
+    { workspaceId: workspace.id },
+    { enabled: !isGuest },
+  )
   const teamCollectionId = collections.data?.find((c) => c.kind === 'TEAM')?.id ?? null
   const personalCollectionId = collections.data?.find((c) => c.kind === 'PERSONAL')?.id ?? null
 
@@ -200,9 +213,12 @@ export function WorkspaceSidebar({
             sx={{ gap: 1 }}
           >
             <WorkspaceAvatar icon={w.icon} size={22} />
-            <Typography variant="body2" noWrap>
+            <Typography variant="body2" noWrap sx={{ flex: 1, minWidth: 0 }}>
               {w.name}
             </Typography>
+            {w.accessKind === 'guest' ? (
+              <Chip label="Гость" size="small" variant="outlined" data-testid="guest-chip" />
+            ) : null}
           </MenuItem>
         ))}
 
@@ -213,15 +229,18 @@ export function WorkspaceSidebar({
         </MenuItem>
       </Menu>
 
-      <WorkspaceSectionSwitcher
-        activeSection={activeSection}
-        chatsEnabled={features.chatsEnabled}
-        onChats={() => {
-          onSectionChange('chats')
-        }}
-        onPages={() => onSectionChange('pages')}
-        onSearch={searchDialog.open}
-      />
+      {/* Guests get no section switcher: chats and search are member-gated. */}
+      {isGuest ? null : (
+        <WorkspaceSectionSwitcher
+          activeSection={activeSection}
+          chatsEnabled={features.chatsEnabled}
+          onChats={() => {
+            onSectionChange('chats')
+          }}
+          onPages={() => onSectionChange('pages')}
+          onSearch={searchDialog.open}
+        />
+      )}
 
       <Box
         sx={{
@@ -233,11 +252,17 @@ export function WorkspaceSidebar({
           py: 0.75,
         }}
       >
-        {activeSection === 'chats' && features.chatsEnabled ? (
+        {isGuest ? (
+          // A guest's whole sidebar (people spec §5): the flat granted-pages
+          // list — no favorites, collections, marketplace, archive or trash.
+          <GuestPagesSection workspaceId={workspace.id} />
+        ) : null}
+
+        {!isGuest && activeSection === 'chats' && features.chatsEnabled ? (
           <SearchSidebarSection workspaceId={workspace.id} />
         ) : null}
 
-        {activeSection === 'pages' ? (
+        {!isGuest && activeSection === 'pages' ? (
           <>
             <FavoritesSection
               workspaceId={workspace.id}

@@ -5,6 +5,121 @@ import { assertNotBlocked } from './membership'
 
 type Ctx = { prisma: PrismaClient; user: { id: string } }
 
+// ── Guest read-path: member-OR-grant (people spec §3) ────────────────────────
+
+export type MemberOrGrantAccess =
+  | { kind: 'member'; role: string }
+  | { kind: 'guest'; role: string }
+
+// Walk cap — defensive only; the move/parenting code already prevents cycles.
+const MAX_PAGE_DEPTH = 100
+
+/**
+ * A `PageShareUser` grant on the page itself or on ANY ancestor admits the
+ * holder to the page (Notion semantics: sharing a page shares its subtree),
+ * mirroring how public share-token access already inherits
+ * (`ShareAccessService.checkChild`). Differences from the public walk are
+ * deliberate: explicit person-scoped grants beat collection privacy (the
+ * precedent is the grant arm of `buildPageVisibilityWhere`), and archived
+ * pages stay readable (they are readable for members too — archive is not an
+ * access boundary). A trashed node anywhere on the path breaks the chain:
+ * guests must never read trash. The NEAREST grant wins (most specific role).
+ */
+export async function findGrantOnPageOrAncestors(
+  prisma: PrismaClient,
+  userId: string,
+  pageId: string,
+): Promise<{ role: string; grantedPageId: string } | null> {
+  const path: string[] = []
+  const seen = new Set<string>()
+  let current: string | null = pageId
+  while (current && path.length < MAX_PAGE_DEPTH) {
+    if (seen.has(current)) return null
+    seen.add(current)
+    const row: { id: string; parentId: string | null; deletedAt: Date | null } | null =
+      await prisma.page.findUnique({
+        where: { id: current },
+        select: { id: true, parentId: true, deletedAt: true },
+      })
+    if (!row || row.deletedAt) return null
+    path.push(row.id)
+    current = row.parentId
+  }
+  if (path.length === 0) return null
+  const grants = await prisma.pageShareUser.findMany({
+    where: { userId, pageShare: { pageId: { in: path } } },
+    select: { role: true, pageShare: { select: { pageId: true } } },
+  })
+  if (grants.length === 0) return null
+  const byPage = new Map(grants.map((g) => [g.pageShare.pageId, g.role]))
+  for (const id of path) {
+    const role = byPage.get(id)
+    if (role) return { role, grantedPageId: id }
+  }
+  return null
+}
+
+/**
+ * Member-OR-grant resolution for page READ surfaces. Member (any role) wins
+ * with full member semantics; otherwise a grant on the page or an ancestor
+ * admits the user as a guest. Blocked users are FORBIDDEN on BOTH arms
+ * (canonical semantics: `PeopleService.isWorkspaceBlocked`). Returns null for
+ * users with no relationship at all so callers can keep their object-hiding
+ * NOT_FOUND contract.
+ */
+export async function resolveMemberOrPageGrant(
+  ctx: Ctx,
+  workspaceId: string,
+  pageId: string,
+): Promise<MemberOrGrantAccess | null> {
+  const member = await ctx.prisma.workspaceMember.findUnique({
+    where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
+    select: { role: true },
+  })
+  await assertNotBlocked(ctx, workspaceId)
+  if (member) return { kind: 'member', role: member.role }
+  const grant = await findGrantOnPageOrAncestors(ctx.prisma, ctx.user.id, pageId)
+  return grant ? { kind: 'guest', role: grant.role } : null
+}
+
+/** Like `resolveMemberOrPageGrant` but FORBIDDEN when there is no access. */
+export async function assertWorkspaceMemberOrPageGrant(
+  ctx: Ctx,
+  workspaceId: string,
+  pageId: string,
+): Promise<MemberOrGrantAccess> {
+  const access = await resolveMemberOrPageGrant(ctx, workspaceId, pageId)
+  if (!access) {
+    throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
+  }
+  return access
+}
+
+/**
+ * Workspace-level member-OR-grant: a member (block-aware) OR the holder of at
+ * least one grant on a live page of the workspace. Used where a guest selects
+ * the workspace itself (workspace.setActive) rather than a specific page.
+ */
+export async function assertWorkspaceMemberOrAnyGrant(
+  ctx: Ctx,
+  workspaceId: string,
+): Promise<{ kind: 'member' | 'guest' }> {
+  const member = await ctx.prisma.workspaceMember.findUnique({
+    where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
+    select: { id: true },
+  })
+  await assertNotBlocked(ctx, workspaceId)
+  if (member) return { kind: 'member' }
+  const grant = await ctx.prisma.pageShareUser.findFirst({
+    where: { userId: ctx.user.id, pageShare: { page: { workspaceId, deletedAt: null } } },
+    select: { id: true },
+  })
+  if (!grant) {
+    throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
+  }
+  return { kind: 'guest' }
+}
+
 // Workspace-blocked users are denied everywhere (people spec §7.1). The page
 // queries below carry the `blockedUsers: { none: … }` condition so block
 // enforcement costs no extra roundtrip; the canonical semantics live in

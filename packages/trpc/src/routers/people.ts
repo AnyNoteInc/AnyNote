@@ -6,7 +6,7 @@ import { sendMailNow } from '@repo/mail'
 import { notify } from '@repo/notifications'
 
 import { router, protectedProcedure, publicProcedure } from '../trpc'
-import { assertRole, type WorkspaceRole } from '../helpers/membership'
+import { assertNotBlocked, assertRole, type WorkspaceRole } from '../helpers/membership'
 import { getWorkspaceFeatures, requireWritableWorkspace } from '../helpers/plan'
 import { mapDomain } from '../helpers/map-domain'
 import { domain as domainSvc } from '../domain'
@@ -296,6 +296,44 @@ export const peopleRouter = router({
           userId: input.userId,
         }),
       )
+    }),
+
+  // ── guest self-service ────────────────────────────────────────────────────
+
+  // The sidebar «Доступные мне» list: the caller's DIRECT grants in the
+  // workspace (children are reachable by navigating into a granted page).
+  // Any signed-in user may ask — non-guests simply get their direct grants
+  // (members' sidebars never render the section). Blocked ⇒ FORBIDDEN: a
+  // blocked user's grants are dead (people spec §7.1).
+  myGrantedPages: protectedProcedure
+    .input(z.object({ workspaceId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      await assertNotBlocked(ctx, input.workspaceId)
+      const grants = await ctx.prisma.pageShareUser.findMany({
+        where: {
+          userId: ctx.user.id,
+          pageShare: {
+            page: {
+              workspaceId: input.workspaceId,
+              deletedAt: null,
+              archivedAt: null,
+              isTemplate: null,
+            },
+          },
+        },
+        select: {
+          role: true,
+          createdAt: true,
+          pageShare: { select: { page: { select: { id: true, title: true, icon: true } } } },
+        },
+        orderBy: { createdAt: 'asc' },
+      })
+      return grants.map((g) => ({
+        id: g.pageShare.page.id,
+        title: g.pageShare.page.title,
+        icon: g.pageShare.page.icon,
+        role: g.role,
+      }))
     }),
 
   // ── managed: roles, removal, blocking ─────────────────────────────────────

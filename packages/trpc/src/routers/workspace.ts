@@ -14,7 +14,8 @@ import {
 } from '../helpers/plan'
 import { seedStartPage } from '../helpers/seed-start-page'
 import { resolveActiveWorkspace } from '../helpers/active-workspace'
-import { assertRole, MEMBER_ROLES } from '../helpers/membership'
+import { assertRole } from '../helpers/membership'
+import { assertWorkspaceMemberOrAnyGrant } from '../helpers/page-access'
 import { domain as domainSvc } from '../domain'
 
 async function assertPaidPlan(ctx: { prisma: PrismaClient; user: { id: string } }) {
@@ -99,11 +100,28 @@ export const workspaceRouter = router({
       })
     }),
 
+  // The switcher list: member workspaces first, then workspaces where the user
+  // is a guest (≥1 PageShareUser grant on a live page, no member row). Blocked
+  // workspaces vanish from BOTH arms (people spec §7.1). `accessKind` lets the
+  // UI render the «Гость» chip and pick targets (copy/create need 'member').
   listMine: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.prisma.workspace.findMany({
-      where: { members: { some: { userId: ctx.user.id } } },
+    const userId = ctx.user.id
+    const memberWorkspaces = await ctx.prisma.workspace.findMany({
+      where: { members: { some: { userId } }, blockedUsers: { none: { userId } } },
       orderBy: { createdAt: 'asc' },
     })
+    const guestWorkspaces = await ctx.prisma.workspace.findMany({
+      where: {
+        members: { none: { userId } },
+        blockedUsers: { none: { userId } },
+        pages: { some: { deletedAt: null, share: { users: { some: { userId } } } } },
+      },
+      orderBy: { createdAt: 'asc' },
+    })
+    return [
+      ...memberWorkspaces.map((w) => ({ ...w, accessKind: 'member' as const })),
+      ...guestWorkspaces.map((w) => ({ ...w, accessKind: 'guest' as const })),
+    ]
   }),
 
   getDefault: protectedProcedure.query(async ({ ctx }) => {
@@ -121,7 +139,10 @@ export const workspaceRouter = router({
   setActive: protectedProcedure
     .input(z.object({ workspaceId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      await assertRole(ctx, input.workspaceId, MEMBER_ROLES)
+      // Guests may scope to a workspace they only hold page grants in — the
+      // active workspace is a default-scope hint, never an authorization
+      // (every procedure re-asserts). Blocked users are FORBIDDEN on both arms.
+      await assertWorkspaceMemberOrAnyGrant(ctx, input.workspaceId)
       await ctx.prisma.userPreference.upsert({
         where: { userId: ctx.user.id },
         create: { userId: ctx.user.id, activeWorkspaceId: input.workspaceId },

@@ -37,13 +37,17 @@ describe('resolveCommentContext (signed-in)', () => {
     expect(prisma.pageShareUser.findFirst).not.toHaveBeenCalled()
   })
 
-  it('falls back to a named grant when not a member', async () => {
+  it('falls back to a named grant when not a member (ancestor-walk lookup)', async () => {
     const prisma = {
+      // Serves the base fetch AND the grant walk; PAGE has no parentId so the
+      // walk terminates at the page itself.
       page: { findUnique: vi.fn(async () => PAGE) },
       workspaceMember: { findUnique: vi.fn(async () => null) },
       workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       pageShare: { findUnique: vi.fn(async () => ({ id: 's1' })) },
-      pageShareUser: { findFirst: vi.fn(async () => ({ role: 'EDITOR' })) },
+      pageShareUser: {
+        findMany: vi.fn(async () => [{ role: 'EDITOR', pageShare: { pageId: 'p1' } }]),
+      },
       user: { findUnique: vi.fn(async () => ({ firstName: 'Ann', lastName: '', email: 'a@b.c' })) },
     }
     const res = await resolveCommentContext(ctx(prisma, { id: 'u1' }), { pageId: 'p1' })
@@ -56,7 +60,7 @@ describe('resolveCommentContext (signed-in)', () => {
       workspaceMember: { findUnique: vi.fn(async () => null) },
       workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       pageShare: { findUnique: vi.fn(async () => null) },
-      pageShareUser: { findFirst: vi.fn(async () => null) },
+      pageShareUser: { findMany: vi.fn(async () => []) },
       user: { findUnique: vi.fn(async () => ({ firstName: 'X', lastName: '', email: 'x@y.z' })) },
     }
     const res = await resolveCommentContext(ctx(prisma, { id: 'u1' }), { pageId: 'p1' })
@@ -65,17 +69,18 @@ describe('resolveCommentContext (signed-in)', () => {
 
   it('falls back to a public link role for a signed-in non-member non-grant', async () => {
     const prisma = {
-      page: { findUnique: vi.fn() },
+      // The grant walk reads the page chain; null ends it grantless. The BASE
+      // page still comes from the share's embedded page (res.pageId below).
+      page: { findUnique: vi.fn(async () => null) },
       workspaceMember: { findUnique: vi.fn(async () => null) },
       workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       pageShare: { findUnique: vi.fn(async () => PUBLIC_SHARE) },
-      pageShareUser: { findFirst: vi.fn(async () => null) },
+      pageShareUser: { findMany: vi.fn(async () => []) },
       user: { findUnique: vi.fn(async () => ({ firstName: 'X', lastName: '', email: 'x@y.z' })) },
     }
     const res = await resolveCommentContext(ctx(prisma, { id: 'u1' }), { shareId: 'public-share' })
     expect(res.pageId).toBe('p2')
     expect(res.role).toBe('COMMENTER')
-    expect(prisma.page.findUnique).not.toHaveBeenCalled()
   })
 })
 

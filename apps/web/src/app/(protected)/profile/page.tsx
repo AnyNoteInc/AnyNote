@@ -22,7 +22,9 @@ export const metadata = { title: 'Мой профиль' }
 export default async function ProfilePage() {
   const session = await requireSession()
   const trpc = await getServerTRPC()
-  const workspaces = await trpc.workspace.listMine()
+  // «Рабочие пространства» lists memberships only — grant-only (guest)
+  // workspaces live in the switcher with a «Гость» chip, not here.
+  const workspaces = (await trpc.workspace.listMine()).filter((w) => w.accessKind === 'member')
 
   const initials =
     `${session.user.firstName.charAt(0)}${session.user.lastName.charAt(0)}`.toUpperCase()

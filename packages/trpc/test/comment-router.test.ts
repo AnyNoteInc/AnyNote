@@ -519,7 +519,7 @@ describe('comment access boundaries + mention validation', () => {
       workspaceMember: { findUnique: vi.fn(async () => null) },
       workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       pageShare: { findUnique: vi.fn(async () => null) },
-      pageShareUser: { findFirst: vi.fn(async () => null) },
+      pageShareUser: { findMany: vi.fn(async () => []) },
       user: { findUnique: vi.fn(async () => ({ firstName: 'X', lastName: '', email: 'x@y.z' })) },
     } as never
     await expect(caller(ctx(prisma, { id: 'u9' })).listThreads({ pageId: PAGE_ID })).rejects.toThrow(/Нет доступа/)
