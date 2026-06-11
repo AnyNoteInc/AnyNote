@@ -12,6 +12,7 @@ import {
 
 import { router, protectedProcedure } from '../trpc'
 import { getWorkspaceFeatures } from '../helpers/plan'
+import { assertRole, type WorkspaceRole } from '../helpers/membership'
 
 const DELIVERIES_PAGE_SIZE = 30
 const CHALLENGE_TIMEOUT_MS = Number(process.env.WEBHOOK_CHALLENGE_TIMEOUT_MS ?? 10_000)
@@ -40,23 +41,7 @@ const SAFE_SELECT = {
   updatedAt: true,
 } satisfies Prisma.WebhookSubscriptionSelect
 
-type RoleAllowed = 'OWNER' | 'ADMIN' | 'EDITOR' | 'COMMENTER' | 'VIEWER' | 'GUEST'
-
-async function assertRole(
-  ctx: { prisma: PrismaClient; user: { id: string } },
-  workspaceId: string,
-  allowed: RoleAllowed[],
-) {
-  const member = await ctx.prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
-  })
-  if (!member || !allowed.includes(member.role as RoleAllowed)) {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
-  }
-  return member
-}
-
-const MANAGERS: RoleAllowed[] = ['OWNER', 'ADMIN']
+const MANAGERS: WorkspaceRole[] = ['OWNER', 'ADMIN']
 
 /** Every webhook procedure: OWNER/ADMIN member + the developer-space plan flag. */
 async function assertWebhookAccess(

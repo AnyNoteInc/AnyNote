@@ -2,7 +2,7 @@ import { FileStatus, prisma } from '@repo/db'
 import { storage } from '@repo/storage'
 import { NextResponse, type NextRequest } from 'next/server'
 
-import { signAgentsJwt, type AgentsRole } from '@/lib/agents-token'
+import { getMembershipForToken, signAgentsJwt } from '@/lib/agents-token'
 import { activeStreamRegistry } from '@/lib/chat/active-stream-registry'
 import { buildAgentRunPayload } from '@/lib/chat/agents-payload'
 import { buildEnginesMcpHeaders } from '@/lib/chat/engines-mcp-headers'
@@ -124,10 +124,8 @@ export async function POST(request: NextRequest): Promise<Response> {
         },
       }),
       buildChatHistoryMessages({ prisma, chatId: chat.id, workspaceId: chat.workspaceId }),
-      prisma.workspaceMember.findUnique({
-        where: { workspaceId_userId: { workspaceId: chat.workspaceId, userId: session.user.id } },
-        select: { role: true },
-      }),
+      // Active members only — blocked users get no membership, hence no scopes.
+      getMembershipForToken(prisma, chat.workspaceId, session.user.id),
       prisma.workspaceMcpServer.findMany({
         where: { workspaceId: chat.workspaceId, enabled: true },
         select: {
@@ -261,7 +259,7 @@ export async function POST(request: NextRequest): Promise<Response> {
     userId: session.user.id,
     workspaceId: chat.workspaceId,
     chatId: chat.id,
-    role: membership.role as AgentsRole,
+    role: membership.role,
   })
 
   // Per-request thinking flags (from the composer) take precedence over the

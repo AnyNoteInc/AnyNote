@@ -8,7 +8,7 @@ import { FavoriteTools } from './favorite.tools.js'
 
 describe('FavoriteTools', () => {
   const findUnique = jest.fn<(...a: unknown[]) => Promise<unknown>>()
-  const prisma = { workspaceMember: { findUnique } } as unknown as PrismaClient
+  const prisma = { workspaceMember: { findUnique }, workspaceBlockedUser: { findUnique: jest.fn(async () => null) } } as unknown as PrismaClient
   const list = jest.fn<(...a: unknown[]) => Promise<unknown>>()
   const add = jest.fn<(...a: unknown[]) => Promise<unknown>>()
   const remove = jest.fn<(...a: unknown[]) => Promise<unknown>>()

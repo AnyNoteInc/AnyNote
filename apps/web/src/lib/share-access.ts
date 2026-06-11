@@ -98,24 +98,37 @@ export async function resolveShareAccess(
     analyticsYandexMetricaId: share.analyticsYandexMetricaId,
   }
 
-  // Member / grant fast-paths win and bypass all public gating.
+  // Member / grant fast-paths win and bypass all public gating. A workspace
+  // block (one indexed lookup — inline mirror of @repo/domain
+  // `PeopleService.isWorkspaceBlocked`) kills BOTH fast-paths: the blocked
+  // visitor falls through to the public path, i.e. keeps only the
+  // anonymous-level access a genuinely public link would give anyone.
   if (session?.user) {
-    const member = await prisma.workspaceMember.findUnique({
+    const blocked = await prisma.workspaceBlockedUser.findUnique({
       where: { workspaceId_userId: { workspaceId: rootPage.workspaceId, userId: session.user.id } },
-      select: { role: true },
+      select: { id: true },
     })
-    if (member) {
-      const page = await pageForRequest(prisma, rootPage, opts?.pageId)
-      if (page) return { kind: 'member', role: mapMemberRole(member.role), page, share: shareMeta }
-    }
 
-    const grant = await prisma.pageShareUser.findFirst({
-      where: { pageShareId: share.id, userId: session.user.id },
-      select: { role: true },
-    })
-    if (grant) {
-      const page = await pageForRequest(prisma, rootPage, opts?.pageId)
-      if (page) return { kind: 'grant', role: grant.role as EffectiveRole, page, share: shareMeta }
+    if (!blocked) {
+      const member = await prisma.workspaceMember.findUnique({
+        where: {
+          workspaceId_userId: { workspaceId: rootPage.workspaceId, userId: session.user.id },
+        },
+        select: { role: true },
+      })
+      if (member) {
+        const page = await pageForRequest(prisma, rootPage, opts?.pageId)
+        if (page) return { kind: 'member', role: mapMemberRole(member.role), page, share: shareMeta }
+      }
+
+      const grant = await prisma.pageShareUser.findFirst({
+        where: { pageShareId: share.id, userId: session.user.id },
+        select: { role: true },
+      })
+      if (grant) {
+        const page = await pageForRequest(prisma, rootPage, opts?.pageId)
+        if (page) return { kind: 'grant', role: grant.role as EffectiveRole, page, share: shareMeta }
+      }
     }
   }
 

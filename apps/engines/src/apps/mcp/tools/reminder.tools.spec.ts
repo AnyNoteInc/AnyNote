@@ -8,7 +8,7 @@ import { ReminderTools } from './reminder.tools.js'
 
 describe('ReminderTools', () => {
   const findUnique = jest.fn<(...a: unknown[]) => Promise<unknown>>()
-  const prisma = { workspaceMember: { findUnique } } as unknown as PrismaClient
+  const prisma = { workspaceMember: { findUnique }, workspaceBlockedUser: { findUnique: jest.fn(async () => null) } } as unknown as PrismaClient
   const createReminderMock = jest.fn<(...a: unknown[]) => Promise<unknown>>()
   const listRemindersMock = jest.fn<(...a: unknown[]) => Promise<unknown>>()
   const moveReminderMock = jest.fn<(...a: unknown[]) => Promise<unknown>>()

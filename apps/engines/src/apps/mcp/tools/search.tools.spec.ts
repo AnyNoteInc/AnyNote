@@ -10,7 +10,7 @@ import { SearchTools } from './search.tools.js'
 
 describe('SearchTools', () => {
   const findUnique = jest.fn<(...args: unknown[]) => Promise<unknown>>()
-  const prisma = { workspaceMember: { findUnique } } as unknown as PrismaClient
+  const prisma = { workspaceMember: { findUnique }, workspaceBlockedUser: { findUnique: jest.fn(async () => null) } } as unknown as PrismaClient
   const searchRag = jest.fn<AgentsSearchClient['searchRag']>()
   const ftsSearch = jest.fn<PageFtsService['search']>()
   const forWorkspace = jest.fn<EmbeddingConfigService['forWorkspace']>()

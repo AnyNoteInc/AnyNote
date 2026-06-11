@@ -7,12 +7,15 @@ import { WorkspaceMemberGuard } from './workspace-member.guard.js'
 describe('WorkspaceMemberGuard', () => {
   const mockPrisma = {
     workspaceMember: { findUnique: jest.fn<(...a: unknown[]) => Promise<unknown>>() },
+    workspaceBlockedUser: { findUnique: jest.fn<(...a: unknown[]) => Promise<unknown>>() },
   } as unknown as PrismaClient
 
   let guard: WorkspaceMemberGuard
 
   beforeEach(() => {
     ;(mockPrisma.workspaceMember.findUnique as jest.Mock).mockReset()
+    ;(mockPrisma.workspaceBlockedUser.findUnique as jest.Mock).mockReset()
+    ;(mockPrisma.workspaceBlockedUser.findUnique as jest.Mock).mockResolvedValue(null as never)
     guard = new WorkspaceMemberGuard(mockPrisma)
   })
 
@@ -25,6 +28,16 @@ describe('WorkspaceMemberGuard', () => {
 
   it('throws WorkspaceAccessDeniedError when not a member', async () => {
     ;(mockPrisma.workspaceMember.findUnique as jest.Mock).mockResolvedValue(null as never)
+    await expect(guard.assert('w1', 'u1')).rejects.toThrow(/access/i)
+  })
+
+  it('throws WorkspaceAccessDeniedError when the member is workspace-blocked', async () => {
+    ;(mockPrisma.workspaceMember.findUnique as jest.Mock).mockResolvedValue({
+      userId: 'u1',
+    } as never)
+    ;(mockPrisma.workspaceBlockedUser.findUnique as jest.Mock).mockResolvedValue({
+      id: 'b1',
+    } as never)
     await expect(guard.assert('w1', 'u1')).rejects.toThrow(/access/i)
   })
 })

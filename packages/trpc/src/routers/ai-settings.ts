@@ -8,6 +8,7 @@ import {
   getAvailableEmbeddingModels,
   requireWritableWorkspace,
 } from '../helpers/plan'
+import { assertRole, MEMBER_ROLES } from '../helpers/membership'
 
 async function wipeAgentsWorkspaceVectors(workspaceId: string): Promise<void> {
   const baseUrl = process.env.AGENTS_SERVICE_URL ?? 'http://localhost:8080'
@@ -34,13 +35,8 @@ async function assertWorkspaceMember(
   },
   workspaceId: string,
 ) {
-  const member = await ctx.prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
-  })
-  if (!member) {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Нет доступа к workspace' })
-  }
-  return member
+  // Active membership (member row + not blocked) — the shared trpc chokepoint.
+  return assertRole(ctx, workspaceId, MEMBER_ROLES)
 }
 
 async function assertWorkspaceOwner(
@@ -50,13 +46,7 @@ async function assertWorkspaceOwner(
   },
   workspaceId: string,
 ) {
-  const member = await ctx.prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
-  })
-  if (!member || member.role !== 'OWNER') {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
-  }
-  return member
+  return assertRole(ctx, workspaceId, ['OWNER'])
 }
 
 export interface AiSettingsResult {

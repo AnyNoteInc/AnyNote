@@ -10,7 +10,7 @@ import { PageTools } from './page.tools.js'
 
 describe('PageTools archive/restore', () => {
   const memberFindUnique = jest.fn<(...a: unknown[]) => Promise<unknown>>()
-  const prisma = { workspaceMember: { findUnique: memberFindUnique } } as unknown as PrismaClient
+  const prisma = { workspaceMember: { findUnique: memberFindUnique }, workspaceBlockedUser: { findUnique: jest.fn(async () => null) } } as unknown as PrismaClient
   const setArchived = jest.fn<(...a: unknown[]) => Promise<void>>()
   const writer = { setArchived } as unknown as PageWriter
   const req = { headers: {}, auth: { userId: 'u1', source: 'api-key' as const } } as AuthedRequest

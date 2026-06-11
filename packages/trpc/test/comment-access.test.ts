@@ -26,6 +26,7 @@ describe('resolveCommentContext (signed-in)', () => {
     const prisma = {
       page: { findUnique: vi.fn(async () => PAGE) },
       workspaceMember: { findUnique: vi.fn(async () => ({ role: 'COMMENTER' })) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       pageShareUser: { findFirst: vi.fn() },
       user: { findUnique: vi.fn(async () => ({ firstName: 'Ann', lastName: 'B', email: 'a@b.c' })) },
     }
@@ -40,6 +41,7 @@ describe('resolveCommentContext (signed-in)', () => {
     const prisma = {
       page: { findUnique: vi.fn(async () => PAGE) },
       workspaceMember: { findUnique: vi.fn(async () => null) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       pageShare: { findUnique: vi.fn(async () => ({ id: 's1' })) },
       pageShareUser: { findFirst: vi.fn(async () => ({ role: 'EDITOR' })) },
       user: { findUnique: vi.fn(async () => ({ firstName: 'Ann', lastName: '', email: 'a@b.c' })) },
@@ -52,6 +54,7 @@ describe('resolveCommentContext (signed-in)', () => {
     const prisma = {
       page: { findUnique: vi.fn(async () => PAGE) },
       workspaceMember: { findUnique: vi.fn(async () => null) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       pageShare: { findUnique: vi.fn(async () => null) },
       pageShareUser: { findFirst: vi.fn(async () => null) },
       user: { findUnique: vi.fn(async () => ({ firstName: 'X', lastName: '', email: 'x@y.z' })) },
@@ -64,6 +67,7 @@ describe('resolveCommentContext (signed-in)', () => {
     const prisma = {
       page: { findUnique: vi.fn() },
       workspaceMember: { findUnique: vi.fn(async () => null) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       pageShare: { findUnique: vi.fn(async () => PUBLIC_SHARE) },
       pageShareUser: { findFirst: vi.fn(async () => null) },
       user: { findUnique: vi.fn(async () => ({ firstName: 'X', lastName: '', email: 'x@y.z' })) },

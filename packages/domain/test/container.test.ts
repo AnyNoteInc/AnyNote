@@ -9,6 +9,10 @@ function makePrisma() {
     workspaceMember: {
       findUnique: vi.fn(async () => ({ workspaceId: 'w1', userId: 'u1', role: 'MEMBER' })),
     },
+    // assertMembership is an ACTIVE-membership check (member row + no block row).
+    workspaceBlockedUser: {
+      findUnique: vi.fn(async () => null),
+    },
     page: {
       findFirst: vi.fn(async () => null),
     },

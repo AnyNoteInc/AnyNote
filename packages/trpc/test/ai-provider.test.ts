@@ -57,6 +57,7 @@ describe('aiProvider.create', () => {
     const create = vi.fn()
     const prisma = {
       workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       aiProvider: { create },
     }
     await expect(caller(ctx(prisma)).create(input)).rejects.toThrow(/bad key/)
@@ -70,6 +71,7 @@ describe('aiProvider.create', () => {
     })
     const prisma = {
       workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       aiProvider: { create },
     }
     const out = await caller(ctx(prisma)).create(input)
@@ -91,6 +93,7 @@ describe('aiProvider.create', () => {
     })
     const prisma = {
       workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       aiProvider: { create },
     }
     await caller(ctx(prisma)).create({
@@ -108,6 +111,7 @@ describe('aiProvider.create', () => {
     })
     const prisma = {
       workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       aiProvider: { create },
     }
     await caller(ctx(prisma)).create(input)
@@ -128,6 +132,7 @@ describe('aiProvider.addModel', () => {
     const create = vi.fn()
     const prisma = {
       workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       aiProvider: {
         findFirst: vi.fn().mockResolvedValue({
           id: PROVIDER_ID, kind: 'OPENAI', workspaceId: WS,
@@ -152,6 +157,7 @@ describe('aiProvider.addModel', () => {
     const create = vi.fn().mockResolvedValue({ id: 'm1', supportsReasoning: true })
     const prisma = {
       workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       aiProvider: {
         findFirst: vi.fn().mockResolvedValue({
           id: PROVIDER_ID,
@@ -182,6 +188,7 @@ describe('aiProvider.list', () => {
   it('strips connection and connectionEnc from results', async () => {
     const prisma = {
       workspaceMember: { findUnique: vi.fn().mockResolvedValue({ role: 'OWNER' }) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       aiProvider: {
         findMany: vi.fn().mockResolvedValue([
           { id: 'p1', kind: 'OPENAI', name: 'X', slug: 's', workspaceId: WS, connection: { apiKey: 'leak' }, connectionEnc: { iv: 'x' }, models: [] },

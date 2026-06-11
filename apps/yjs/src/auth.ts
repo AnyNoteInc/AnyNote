@@ -31,19 +31,64 @@ function pickUserId(payload: JWTPayload): string | undefined {
   return undefined
 }
 
-export async function canAccessPage(
-  userId: string,
-  pageId: string,
-): Promise<{ pageType: PageType; workspaceId: string } | null> {
-  const page = await prisma.page.findFirst({
+export type PageAccess = {
+  pageType: PageType
+  workspaceId: string
+  access: 'member' | 'guest'
+  /** PageShareUser grant role when access === 'guest'; null for members. */
+  role: 'READER' | 'COMMENTER' | 'EDITOR' | null
+}
+
+export async function canAccessPage(userId: string, pageId: string): Promise<PageAccess | null> {
+  // Member arm — ACTIVE members only: a workspace_blocked_users row kills
+  // access (inline mirror of @repo/domain `PeopleService.isWorkspaceBlocked`).
+  const memberPage = await prisma.page.findFirst({
     where: {
       id: pageId,
       deletedAt: null,
-      workspace: { members: { some: { userId } } },
+      workspace: {
+        members: { some: { userId } },
+        blockedUsers: { none: { userId } },
+      },
     },
     select: { type: true, workspaceId: true },
   })
-  return page ? { pageType: page.type, workspaceId: page.workspaceId } : null
+  if (memberPage) {
+    return {
+      pageType: memberPage.type,
+      workspaceId: memberPage.workspaceId,
+      access: 'member',
+      role: null,
+    }
+  }
+
+  // Guest arm — a named PageShareUser grant on THIS page admits collaboration
+  // with the grant role; a blocked user's grant is dead too.
+  const guestPage = await prisma.page.findFirst({
+    where: {
+      id: pageId,
+      deletedAt: null,
+      share: { users: { some: { userId } } },
+      workspace: { blockedUsers: { none: { userId } } },
+    },
+    select: {
+      type: true,
+      workspaceId: true,
+      share: { select: { users: { where: { userId }, select: { role: true }, take: 1 } } },
+    },
+  })
+  if (!guestPage) return null
+  return {
+    pageType: guestPage.type,
+    workspaceId: guestPage.workspaceId,
+    access: 'guest',
+    role: (guestPage.share?.users[0]?.role as PageAccess['role']) ?? 'READER',
+  }
+}
+
+/** Grant-role → connection mode: READER/COMMENTER collaborate read-only, EDITOR writes; members keep full write. */
+export function isReadOnlyAccess(access: PageAccess): boolean {
+  return access.access === 'guest' && access.role !== 'EDITOR'
 }
 
 export type ShareTokenClaims = {

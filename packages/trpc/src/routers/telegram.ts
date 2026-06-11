@@ -13,6 +13,7 @@ import {
 
 import { router, protectedProcedure } from '../trpc'
 import { getWorkspaceFeatures } from '../helpers/plan'
+import { assertRole, type WorkspaceRole } from '../helpers/membership'
 
 const LOG_PAGE_SIZE = 30
 const TELEGRAM_TIMEOUT_MS = Number(process.env.TELEGRAM_TIMEOUT_MS ?? 10_000)
@@ -64,23 +65,7 @@ const SUBSCRIPTION_SELECT = {
   collection: { select: { id: true, title: true } },
 } satisfies Prisma.TelegramCollectionSubscriptionSelect
 
-type RoleAllowed = 'OWNER' | 'ADMIN' | 'EDITOR' | 'COMMENTER' | 'VIEWER' | 'GUEST'
-
-async function assertRole(
-  ctx: { prisma: PrismaClient; user: { id: string } },
-  workspaceId: string,
-  allowed: RoleAllowed[],
-) {
-  const member = await ctx.prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
-  })
-  if (!member || !allowed.includes(member.role as RoleAllowed)) {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
-  }
-  return member
-}
-
-const MANAGERS: RoleAllowed[] = ['OWNER', 'ADMIN']
+const MANAGERS: WorkspaceRole[] = ['OWNER', 'ADMIN']
 
 /** Every managed telegram procedure: OWNER/ADMIN member + the developer-space plan flag. */
 async function assertTelegramAccess(

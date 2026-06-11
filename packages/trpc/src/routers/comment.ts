@@ -184,8 +184,13 @@ export const commentRouter = router({
           select: { workspaceId: true },
         })
         if (!page) throw new TRPCError({ code: 'NOT_FOUND', message: 'Страница не найдена' })
-        const member = await ctx.prisma.workspaceMember.findUnique({
-          where: { workspaceId_userId: { workspaceId: page.workspaceId, userId: ctx.user.id } },
+        // Active membership: member row + no block row (PeopleService.isWorkspaceBlocked).
+        const member = await ctx.prisma.workspaceMember.findFirst({
+          where: {
+            workspaceId: page.workspaceId,
+            userId: ctx.user.id,
+            workspace: { blockedUsers: { none: { userId: ctx.user.id } } },
+          },
           select: { userId: true },
         })
         if (!member) throw new TRPCError({ code: 'FORBIDDEN', message: 'Нет доступа' })

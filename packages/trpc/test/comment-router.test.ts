@@ -39,7 +39,9 @@ describe('comment.listThreads / createThread', () => {
     const prisma = {
       page: { findUnique: vi.fn(async () => PAGE) },
       user: { findUnique: vi.fn(async () => ({ firstName: 'A', lastName: '', email: 'a@b.c' })) },
-      workspaceMember: { findUnique: vi.fn(async () => null) },
+      // The subscription gate uses findFirst (active membership: member + not blocked).
+      workspaceMember: { findUnique: vi.fn(async () => null), findFirst: vi.fn(async () => null) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       pageShare: { findUnique: vi.fn(async () => ({ id: 'share1', access: 'PUBLIC', linkRole: 'COMMENTER', pageId: PAGE_ID })) },
       pageShareUser: { findFirst: vi.fn(async () => null) },
     } as never
@@ -59,6 +61,7 @@ describe('comment.listThreads / createThread', () => {
     const prisma = {
       page: { findUnique: vi.fn(async () => PAGE) },
       workspaceMember: { findUnique: vi.fn(async () => ({ role: 'READER' })) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       user: { findUnique: vi.fn(async () => ({ firstName: 'A', lastName: '', email: 'a@b.c' })) },
       pageCommentThread: { findMany: vi.fn(async () => [{ id: 't1', comments: [] }]) },
     } as never
@@ -70,6 +73,7 @@ describe('comment.listThreads / createThread', () => {
     const prisma = {
       page: { findUnique: vi.fn(async () => PAGE) },
       workspaceMember: { findUnique: vi.fn(async () => ({ role: 'READER' })) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       user: { findUnique: vi.fn(async () => ({ firstName: 'A', lastName: '', email: 'a@b.c' })) },
     } as never
     await expect(
@@ -100,6 +104,7 @@ describe('comment.listThreads / createThread', () => {
         // notified (the ex-member leak guard).
         findMany: vi.fn(async () => [{ userId: 'owner' }]),
       },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       user: { findUnique: vi.fn(async () => ({ firstName: 'A', lastName: '', email: 'a@b.c' })) },
       $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
       pageCommentThread: {
@@ -185,6 +190,7 @@ describe('comment.listThreads / createThread', () => {
       $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
       pageCommentThread: { findUnique: vi.fn(async () => ({ id: 't1', page: { createdById: 'owner' }, comments: [] })) },
       workspaceMember: { findMany: vi.fn(async () => []) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
     } as never
     await caller(ctx(prisma, null)).createThread({
       shareId: 'public-share',
@@ -217,6 +223,7 @@ describe('comment.listThreads / createThread', () => {
         findUnique: vi.fn(async () => ({ role: 'COMMENTER' })),
         findMany: vi.fn(async () => []),
       },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       user: { findUnique: vi.fn(async () => ({ firstName: 'A', lastName: '', email: 'a@b.c' })) },
       pageCommentThread: {
         findUnique: vi.fn(async () => ({ pageId: PAGE_ID, page: { createdById: 'owner' }, comments: [] })),
@@ -282,6 +289,7 @@ describe('comment edit/delete/resolve', () => {
     return {
       page: { findUnique: vi.fn(async () => PAGE) },
       workspaceMember: { findUnique: vi.fn(async () => ({ role })) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       user: { findUnique: vi.fn(async () => ({ firstName: 'A', lastName: '', email: 'a@b.c' })) },
       ...extra,
     } as never
@@ -509,6 +517,7 @@ describe('comment access boundaries + mention validation', () => {
     const prisma = {
       page: { findUnique: vi.fn(async () => PAGE) },
       workspaceMember: { findUnique: vi.fn(async () => null) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       pageShare: { findUnique: vi.fn(async () => null) },
       pageShareUser: { findFirst: vi.fn(async () => null) },
       user: { findUnique: vi.fn(async () => ({ firstName: 'X', lastName: '', email: 'x@y.z' })) },
@@ -533,6 +542,7 @@ describe('comment access boundaries + mention validation', () => {
           where.userId.in.includes('owner') ? [{ userId: 'owner' }] : [],
         ),
       },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       user: { findUnique: vi.fn(async () => ({ firstName: 'A', lastName: '', email: 'a@b.c' })) },
       $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
       pageCommentThread: { findUnique: vi.fn(async () => ({ page: { createdById: 'owner' }, comments: [] })) },
@@ -562,6 +572,7 @@ describe('comment access boundaries + mention validation', () => {
         findUnique: vi.fn(async () => ({ role: 'COMMENTER' })),
         findMany: vi.fn(async () => [{ userId: MENTION }]),
       },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       user: { findUnique: vi.fn(async () => ({ firstName: 'A', lastName: '', email: 'a@b.c' })) },
       $transaction: vi.fn(async (fn: (t: typeof tx) => unknown) => fn(tx)),
       pageCommentThread: { findUnique: vi.fn(async () => ({ page: { createdById: 'owner' }, comments: [] })) },

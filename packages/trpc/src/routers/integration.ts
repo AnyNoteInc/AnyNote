@@ -2,6 +2,7 @@ import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
 
 import { router, protectedProcedure } from '../trpc'
+import { assertRole, MEMBER_ROLES } from '../helpers/membership'
 
 const ScopeSchema = z.enum(['USER', 'WORKSPACE'])
 
@@ -46,10 +47,7 @@ export const integrationRouter = router({
         })
       }
       if (input.scope === 'WORKSPACE') {
-        const member = await ctx.prisma.workspaceMember.findUnique({
-          where: { workspaceId_userId: { workspaceId: input.workspaceId!, userId: ctx.user.id } },
-        })
-        if (!member) throw new TRPCError({ code: 'FORBIDDEN' })
+        await assertRole(ctx, input.workspaceId!, MEMBER_ROLES)
       }
       return ctx.prisma.integration.create({
         data: {
@@ -73,12 +71,7 @@ export const integrationRouter = router({
         throw new TRPCError({ code: 'FORBIDDEN' })
       }
       if (integration.scope === 'WORKSPACE') {
-        const member = await ctx.prisma.workspaceMember.findUnique({
-          where: {
-            workspaceId_userId: { workspaceId: integration.workspaceId!, userId: ctx.user.id },
-          },
-        })
-        if (!member) throw new TRPCError({ code: 'FORBIDDEN' })
+        await assertRole(ctx, integration.workspaceId!, MEMBER_ROLES)
       }
       return ctx.prisma.integration.update({
         where: { id: input.integrationId },

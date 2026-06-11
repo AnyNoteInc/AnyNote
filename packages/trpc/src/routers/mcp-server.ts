@@ -1,12 +1,12 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
-import type { PrismaClient } from '@repo/db'
 import { encryptSecret, decryptSecret, type EncryptedPayload } from '@repo/auth'
 
 import { router, protectedProcedure } from '../trpc'
 import { getWorkspaceFeatures } from '../helpers/plan'
 import { validateMcp } from '../helpers/agents-validate'
 import { MCP_TRANSPORTS } from '../helpers/mcp-transports'
+import { assertRole, type WorkspaceRole } from '../helpers/membership'
 
 const transportSchema = z.enum(MCP_TRANSPORTS)
 
@@ -34,21 +34,7 @@ const updateInput = z.object({
   enabled: z.boolean().optional(),
 })
 
-type RoleAllowed = 'OWNER' | 'ADMIN' | 'EDITOR' | 'COMMENTER' | 'VIEWER' | 'GUEST'
-
-async function assertRole(
-  ctx: { prisma: PrismaClient; user: { id: string } },
-  workspaceId: string,
-  allowed: RoleAllowed[],
-) {
-  const member = await ctx.prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
-  })
-  if (!member || !allowed.includes(member.role as RoleAllowed)) {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
-  }
-  return member
-}
+type RoleAllowed = WorkspaceRole
 
 function stripHeaders<T extends { headers: unknown }>(row: T): Omit<T, 'headers'> {
   const copy = { ...row } as T & { headers?: unknown }

@@ -7,6 +7,7 @@ import { decryptSecret, encryptSecret, type EncryptedPayload } from '@repo/auth'
 
 import { router, protectedProcedure } from '../trpc'
 import { getWorkspaceFeatures } from '../helpers/plan'
+import { assertRole } from '../helpers/membership'
 import { validateEmbedding, validateLlm, type AgentsServiceAuth, type ProviderConnectionInput } from '../helpers/agents-validate'
 
 const kindSchema = z.enum(['OLLAMA', 'OPENAI', 'GIGACHAT', 'YANDEXGPT', 'ANTHROPIC', 'DEEPSEEK'])
@@ -31,12 +32,7 @@ const modelInput = z.object({
 })
 
 async function assertOwner(ctx: { prisma: PrismaClient; user: { id: string } }, workspaceId: string) {
-  const member = await ctx.prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
-  })
-  if (!member || member.role !== 'OWNER') {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
-  }
+  await assertRole(ctx, workspaceId, ['OWNER'])
 }
 
 async function assertPlan(workspaceId: string) {

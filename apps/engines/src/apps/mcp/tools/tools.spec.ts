@@ -16,6 +16,7 @@ describe('Tools access control', () => {
     workspaceMember: {
       findUnique: jest.fn<(...a: unknown[]) => Promise<unknown>>().mockResolvedValue(null),
     },
+    workspaceBlockedUser: { findUnique: jest.fn(async () => null) },
   } as unknown as PrismaClient
 
   const nonMemberReq: AuthedRequest = { headers: {}, auth: { userId: 'u1', source: 'api-key' } }

@@ -10,7 +10,7 @@ import { PageTools } from './page.tools.js'
 
 describe('PageTools.appendToPage', () => {
   const memberFindUnique = jest.fn<(...a: unknown[]) => Promise<unknown>>()
-  const prisma = { workspaceMember: { findUnique: memberFindUnique } } as unknown as PrismaClient
+  const prisma = { workspaceMember: { findUnique: memberFindUnique }, workspaceBlockedUser: { findUnique: jest.fn(async () => null) } } as unknown as PrismaClient
   const parse = jest.fn<(md: string) => unknown>()
   const appendContent = jest.fn<(...a: unknown[]) => Promise<void>>()
   const parser = { parse } as unknown as MarkdownParser

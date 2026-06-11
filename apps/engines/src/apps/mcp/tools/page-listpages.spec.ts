@@ -14,6 +14,7 @@ describe('PageTools.listPages', () => {
   const pageFindMany = jest.fn<(...a: unknown[]) => Promise<unknown>>()
   const prisma = {
     workspaceMember: { findUnique: memberFindUnique },
+    workspaceBlockedUser: { findUnique: jest.fn(async () => null) },
     page: { findMany: pageFindMany },
   } as unknown as PrismaClient
   const req = { headers: {}, auth: { userId: 'u1', source: 'api-key' as const } } as AuthedRequest

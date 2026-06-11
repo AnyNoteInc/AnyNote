@@ -238,6 +238,7 @@ describe('chatRouter', () => {
       workspaceMember: {
         findUnique: vi.fn(async () => ({ role: 'OWNER' })),
       },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       chat: {
         findFirst: vi.fn(async () => ({ id: chatId, workspaceId })),
       },

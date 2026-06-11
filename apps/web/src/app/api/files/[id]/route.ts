@@ -37,17 +37,33 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
           },
           select: { userId: true },
         })
-        if (member) authorized = true
+        if (member) {
+          // Active membership only: a workspace block kills file access. Inline
+          // one-liner mirror of @repo/domain `PeopleService.isWorkspaceBlocked`.
+          const blocked = await prisma.workspaceBlockedUser.findUnique({
+            where: {
+              workspaceId_userId: {
+                workspaceId: file.workspaceId,
+                userId: session.user.id,
+              },
+            },
+            select: { id: true },
+          })
+          if (!blocked) authorized = true
+        }
       }
 
-      // …or attached to a page in a workspace the user belongs to.
+      // …or attached to a page in a workspace the user belongs to (and is not blocked in).
       if (!authorized) {
         const linked = await prisma.pageFile.findFirst({
           where: {
             fileId: file.id,
             page: {
               deletedAt: null,
-              workspace: { members: { some: { userId: session.user.id } } },
+              workspace: {
+                members: { some: { userId: session.user.id } },
+                blockedUsers: { none: { userId: session.user.id } },
+              },
             },
           },
           select: { pageId: true },

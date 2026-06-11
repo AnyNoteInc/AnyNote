@@ -14,6 +14,7 @@ import {
 } from '../helpers/plan'
 import { seedStartPage } from '../helpers/seed-start-page'
 import { resolveActiveWorkspace } from '../helpers/active-workspace'
+import { assertRole, MEMBER_ROLES } from '../helpers/membership'
 import { domain as domainSvc } from '../domain'
 
 async function assertPaidPlan(ctx: { prisma: PrismaClient; user: { id: string } }) {
@@ -24,20 +25,6 @@ async function assertPaidPlan(ctx: { prisma: PrismaClient; user: { id: string } 
       message: 'Это действие доступно на платных тарифах',
     })
   }
-}
-
-async function assertRole(
-  ctx: { prisma: PrismaClient; user: { id: string } },
-  workspaceId: string,
-  allowed: Array<'OWNER' | 'ADMIN' | 'EDITOR' | 'COMMENTER' | 'VIEWER' | 'GUEST'>,
-) {
-  const member = await ctx.prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
-  })
-  if (!member || !allowed.includes(member.role)) {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
-  }
-  return member
 }
 
 export const workspaceRouter = router({
@@ -134,15 +121,7 @@ export const workspaceRouter = router({
   setActive: protectedProcedure
     .input(z.object({ workspaceId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
-      const member = await ctx.prisma.workspaceMember.findUnique({
-        where: { workspaceId_userId: { workspaceId: input.workspaceId, userId: ctx.user.id } },
-      })
-      if (!member) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'Вы не являетесь участником пространства',
-        })
-      }
+      await assertRole(ctx, input.workspaceId, MEMBER_ROLES)
       await ctx.prisma.userPreference.upsert({
         where: { userId: ctx.user.id },
         create: { userId: ctx.user.id, activeWorkspaceId: input.workspaceId },
@@ -237,8 +216,13 @@ export const workspaceRouter = router({
   getMyRole: protectedProcedure
     .input(z.object({ workspaceId: z.string().uuid() }))
     .query(async ({ ctx, input }) => {
-      const member = await ctx.prisma.workspaceMember.findUnique({
-        where: { workspaceId_userId: { workspaceId: input.workspaceId, userId: ctx.user.id } },
+      // Blocked members read as non-members (no role) — see PeopleService.isWorkspaceBlocked.
+      const member = await ctx.prisma.workspaceMember.findFirst({
+        where: {
+          workspaceId: input.workspaceId,
+          userId: ctx.user.id,
+          workspace: { blockedUsers: { none: { userId: ctx.user.id } } },
+        },
       })
       return member?.role ?? null
     }),

@@ -1,7 +1,20 @@
 import { TRPCError } from '@trpc/server'
 import type { PrismaClient } from '@repo/db'
 
+import { assertNotBlocked } from './membership'
+
 type Ctx = { prisma: PrismaClient; user: { id: string } }
+
+// Workspace-blocked users are denied everywhere (people spec §7.1). The page
+// queries below carry the `blockedUsers: { none: … }` condition so block
+// enforcement costs no extra roundtrip; the canonical semantics live in
+// `PeopleService.isWorkspaceBlocked` (@repo/domain).
+function memberAccessibleWorkspace(userId: string) {
+  return {
+    members: { some: { userId } },
+    blockedUsers: { none: { userId } },
+  }
+}
 
 export async function assertWorkspaceMember(ctx: Ctx, workspaceId: string) {
   const member = await ctx.prisma.workspaceMember.findUnique({
@@ -10,6 +23,7 @@ export async function assertWorkspaceMember(ctx: Ctx, workspaceId: string) {
   if (!member) {
     throw new TRPCError({ code: 'FORBIDDEN', message: 'Вы не являетесь участником воркспейса' })
   }
+  await assertNotBlocked(ctx, workspaceId)
   return member
 }
 
@@ -17,7 +31,7 @@ export async function assertPageAccess(ctx: Ctx, pageId: string) {
   const page = await ctx.prisma.page.findFirst({
     where: {
       id: pageId,
-      workspace: { members: { some: { userId: ctx.user.id } } },
+      workspace: memberAccessibleWorkspace(ctx.user.id),
     },
   })
   if (!page) {
@@ -30,7 +44,7 @@ export async function assertPageOwnership(ctx: Ctx, pageId: string) {
   const page = await ctx.prisma.page.findFirst({
     where: {
       id: pageId,
-      workspace: { members: { some: { userId: ctx.user.id } } },
+      workspace: memberAccessibleWorkspace(ctx.user.id),
     },
   })
   if (!page) {
@@ -52,7 +66,7 @@ export async function assertPageEditAccess(ctx: Ctx, pageId: string) {
   const page = await ctx.prisma.page.findFirst({
     where: {
       id: pageId,
-      workspace: { members: { some: { userId: ctx.user.id } } },
+      workspace: memberAccessibleWorkspace(ctx.user.id),
     },
   })
   if (!page) {
@@ -84,7 +98,7 @@ export async function assertCanManageShare(ctx: Ctx, pageId: string) {
   const page = await ctx.prisma.page.findFirst({
     where: {
       id: pageId,
-      workspace: { members: { some: { userId: ctx.user.id } } },
+      workspace: memberAccessibleWorkspace(ctx.user.id),
     },
   })
   if (!page) {

@@ -43,6 +43,7 @@ describe('WorkspaceTools', () => {
     workspaceMember: {
       findUnique: workspaceMemberFindUniqueMock,
     },
+    workspaceBlockedUser: { findUnique: jest.fn(async () => null) },
   } as unknown as PrismaClient
   const mockWriter = { createPage: writerCreatePageMock } as unknown as PageWriter
   const mockStats = { getWorkspaceStats: getWorkspaceStatsMock } as unknown as StatsService

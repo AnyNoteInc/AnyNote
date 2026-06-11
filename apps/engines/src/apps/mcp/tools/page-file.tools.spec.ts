@@ -24,6 +24,7 @@ describe('PageFileTools', () => {
     workspaceMember: {
       findUnique: workspaceMemberFindUniqueMock,
     },
+    workspaceBlockedUser: { findUnique: jest.fn(async () => null) },
   } as unknown as PrismaClient
   const mockUploader = {
     uploadInline: jest.fn<(...args: unknown[]) => Promise<string>>(),

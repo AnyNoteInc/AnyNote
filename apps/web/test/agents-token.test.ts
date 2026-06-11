@@ -1,6 +1,8 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-import { scopesForRole } from '../src/lib/agents-token'
+import type { PrismaClient } from '@repo/db'
+
+import { getMembershipForToken, scopesForRole } from '../src/lib/agents-token'
 
 // Scopes the engines MCP tools require (mirror of tool_registry.py DEFAULT_ENGINES_TOOLS).
 // If a new tool adds a scope, grant it in agents-token.ts or this guard fails.
@@ -47,5 +49,32 @@ describe('files:delete scope', () => {
     for (const role of ['ADMIN', 'EDITOR', 'COMMENTER', 'VIEWER', 'GUEST'] as const) {
       expect(scopesForRole(role)).not.toContain('files:delete')
     }
+  })
+})
+
+describe('getMembershipForToken refuses blocked users (no scopes minted)', () => {
+  function prismaWith(member: { role: string } | null, blocked: { id: string } | null) {
+    return {
+      workspaceMember: { findUnique: vi.fn(async () => member) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => blocked) },
+    } as unknown as PrismaClient
+  }
+
+  it('returns the member role for an active member', async () => {
+    const membership = await getMembershipForToken(prismaWith({ role: 'EDITOR' }, null), 'w1', 'u1')
+    expect(membership).toEqual({ role: 'EDITOR' })
+  })
+
+  it('returns null for a non-member', async () => {
+    expect(await getMembershipForToken(prismaWith(null, null), 'w1', 'u1')).toBeNull()
+  })
+
+  it('returns null for a workspace-blocked member — the 403 path', async () => {
+    const prisma = prismaWith({ role: 'EDITOR' }, { id: 'b1' })
+    expect(await getMembershipForToken(prisma, 'w1', 'u1')).toBeNull()
+    expect(prisma.workspaceBlockedUser.findUnique).toHaveBeenCalledWith({
+      where: { workspaceId_userId: { workspaceId: 'w1', userId: 'u1' } },
+      select: { id: true },
+    })
   })
 })

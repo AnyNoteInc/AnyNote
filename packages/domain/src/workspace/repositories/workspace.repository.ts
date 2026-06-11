@@ -17,4 +17,12 @@ export class WorkspaceRepository {
     if (!row) return null
     return { workspaceId: row.workspaceId, userId: row.userId, role: row.role }
   }
+
+  /** Same shape as `PeopleRepository.findBlock` — one indexed lookup on the block table. */
+  async findBlock(workspaceId: string, userId: string): Promise<{ id: string } | null> {
+    return this.uow.client().workspaceBlockedUser.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      select: { id: true },
+    })
+  }
 }

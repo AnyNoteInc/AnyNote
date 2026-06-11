@@ -25,6 +25,7 @@ describe('PageTools', () => {
     workspaceMember: {
       findUnique: workspaceMemberFindUniqueMock,
     },
+    workspaceBlockedUser: { findUnique: jest.fn(async () => null) },
   } as unknown as PrismaClient
   const mockWriter = {
     createPage: jest.fn<(...args: unknown[]) => Promise<string>>(),

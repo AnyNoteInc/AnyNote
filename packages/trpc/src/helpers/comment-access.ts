@@ -89,11 +89,21 @@ export async function resolveCommentContext(ctx: Ctx, input: Input): Promise<Com
       name: self ? displayName(self) : 'Пользователь',
     }
 
-    const member = await ctx.prisma.workspaceMember.findUnique({
+    // A workspace block kills the member AND grant arms — the blocked user keeps
+    // only anonymous-level access via genuinely public links (mirrors
+    // share-access; canonical semantics: PeopleService.isWorkspaceBlocked).
+    const blocked = await ctx.prisma.workspaceBlockedUser.findUnique({
       where: { workspaceId_userId: { workspaceId: page.workspaceId, userId: ctx.user.id } },
-      select: { role: true },
+      select: { id: true },
     })
-    if (member) return { ...base, role: mapMemberRole(member.role), author }
+
+    if (!blocked) {
+      const member = await ctx.prisma.workspaceMember.findUnique({
+        where: { workspaceId_userId: { workspaceId: page.workspaceId, userId: ctx.user.id } },
+        select: { role: true },
+      })
+      if (member) return { ...base, role: mapMemberRole(member.role), author }
+    }
 
     const pageShare =
       shareForPage ??
@@ -102,11 +112,13 @@ export async function resolveCommentContext(ctx: Ctx, input: Input): Promise<Com
         select: { id: true, access: true, linkRole: true, pageId: true },
       }))
     if (pageShare) {
-      const grant = await ctx.prisma.pageShareUser.findFirst({
-        where: { pageShareId: pageShare.id, userId: ctx.user.id },
-        select: { role: true },
-      })
-      if (grant) return { ...base, role: grant.role as EffectiveRole, author }
+      if (!blocked) {
+        const grant = await ctx.prisma.pageShareUser.findFirst({
+          where: { pageShareId: pageShare.id, userId: ctx.user.id },
+          select: { role: true },
+        })
+        if (grant) return { ...base, role: grant.role as EffectiveRole, author }
+      }
       if (pageShare.access === 'PUBLIC') return { ...base, role: pageShare.linkRole as EffectiveRole, author }
     }
     return { ...base, role: null, author }

@@ -1,26 +1,10 @@
 import { z } from 'zod'
 import { TRPCError } from '@trpc/server'
-import type { PrismaClient } from '@repo/db'
 
 import { router, protectedProcedure } from '../trpc'
+import { assertRole, type WorkspaceRole } from '../helpers/membership'
 
-type RoleAllowed = 'OWNER' | 'ADMIN' | 'EDITOR' | 'COMMENTER' | 'VIEWER' | 'GUEST'
-
-const READERS: RoleAllowed[] = ['OWNER', 'ADMIN', 'EDITOR', 'COMMENTER', 'VIEWER']
-
-async function assertRole(
-  ctx: { prisma: PrismaClient; user: { id: string } },
-  workspaceId: string,
-  allowed: RoleAllowed[],
-) {
-  const member = await ctx.prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
-  })
-  if (!member || !allowed.includes(member.role as RoleAllowed)) {
-    throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
-  }
-  return member
-}
+const READERS: WorkspaceRole[] = ['OWNER', 'ADMIN', 'EDITOR', 'COMMENTER', 'VIEWER']
 
 export const agentMemoryRouter = router({
   list: protectedProcedure
@@ -50,12 +34,7 @@ export const agentMemoryRouter = router({
       if (!isAuthor) {
         // Author may always delete their own USER-scope rows.
         // Otherwise, require OWNER role on the workspace.
-        const member = await ctx.prisma.workspaceMember.findUnique({
-          where: { workspaceId_userId: { workspaceId: row.workspaceId, userId: ctx.user.id } },
-        })
-        if (member?.role !== 'OWNER') {
-          throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
-        }
+        await assertRole(ctx, row.workspaceId, ['OWNER'])
       }
       await ctx.prisma.workspaceAgentMemory.delete({ where: { id: input.id } })
       return { ok: true as const }

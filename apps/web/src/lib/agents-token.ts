@@ -1,4 +1,5 @@
 import { SignJWT, jwtVerify, type JWTPayload } from 'jose'
+import type { PrismaClient } from '@repo/db'
 
 /**
  * Short-lived JWT used to authenticate apps/web → apps/agents calls (and the
@@ -67,6 +68,30 @@ export function scopesForRole(role: AgentsRole): AgentsScope[] {
     case 'GUEST':
       return [...READ_SCOPES]
   }
+}
+
+/**
+ * The single membership lookup that feeds `scopesForRole`: active members only.
+ * A `workspace_blocked_users` row (inline one-liner mirror of @repo/domain
+ * `PeopleService.isWorkspaceBlocked`) yields null — callers map that to their
+ * 403 path, so no agents JWT is ever minted for a blocked user.
+ */
+export async function getMembershipForToken(
+  prisma: PrismaClient,
+  workspaceId: string,
+  userId: string,
+): Promise<{ role: AgentsRole } | null> {
+  const member = await prisma.workspaceMember.findUnique({
+    where: { workspaceId_userId: { workspaceId, userId } },
+    select: { role: true },
+  })
+  if (!member) return null
+  const blocked = await prisma.workspaceBlockedUser.findUnique({
+    where: { workspaceId_userId: { workspaceId, userId } },
+    select: { id: true },
+  })
+  if (blocked) return null
+  return { role: member.role as AgentsRole }
 }
 
 export type AgentsJwtClaims = JWTPayload & {

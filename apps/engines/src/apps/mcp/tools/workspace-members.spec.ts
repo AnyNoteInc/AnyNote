@@ -12,6 +12,7 @@ describe('WorkspaceTools.listWorkspaceMembers', () => {
   const memberFindMany = jest.fn<(...args: unknown[]) => Promise<unknown>>()
   const prisma = {
     workspaceMember: { findUnique: memberFindUnique, findMany: memberFindMany },
+    workspaceBlockedUser: { findUnique: jest.fn(async () => null) },
   } as unknown as PrismaClient
   let tools: WorkspaceTools
 

@@ -51,10 +51,12 @@ function prismaWith(opts: {
   member?: { role: string } | null
   grant?: { role: string } | null
   page?: unknown
+  blocked?: { id: string } | null
 }) {
   return {
     pageShare: { findUnique: vi.fn(async () => opts.share) },
     workspaceMember: { findUnique: vi.fn(async () => opts.member ?? null) },
+    workspaceBlockedUser: { findUnique: vi.fn(async () => opts.blocked ?? null) },
     pageShareUser: { findFirst: vi.fn(async () => opts.grant ?? null) },
     page: {
       findUnique: vi.fn(async () => opts.page ?? PAGE),
@@ -115,6 +117,7 @@ describe('resolveShareAccess', () => {
     const prisma = {
       pageShare: { findUnique: vi.fn(async () => shareRestricted) },
       workspaceMember: { findUnique: vi.fn(async () => null) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       pageShareUser,
       page: { findUnique: vi.fn(async () => PAGE), findFirst: vi.fn(async () => PAGE) },
     } as never
@@ -134,6 +137,7 @@ describe('resolveShareAccess', () => {
     const prisma = {
       pageShare: { findUnique: vi.fn(async () => shareRestricted) },
       workspaceMember: { findUnique: vi.fn(async () => ({ role: 'VIEWER' })) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       pageShareUser,
       page: { findUnique: vi.fn(async () => PAGE), findFirst: vi.fn(async () => PAGE) },
     } as never
@@ -141,6 +145,45 @@ describe('resolveShareAccess', () => {
     expect(res.kind).toBe('member')
     if (res.kind === 'member') expect(res.role).toBe('READER') // VIEWER membership wins over the EDITOR grant
     expect(pageShareUser.findFirst).not.toHaveBeenCalled()
+  })
+
+  it('drops the member fast-path for a workspace-blocked user (falls through to public deny)', async () => {
+    const session = { user: { id: 'u1' } } as never
+    const prisma = prismaWith({
+      share: shareRestricted,
+      member: { role: 'EDITOR' },
+      blocked: { id: 'b1' },
+    })
+    const res = await resolveShareAccess(prisma, 's', session)
+    expect(res.kind).toBe('unavailable')
+    if (res.kind === 'unavailable') expect(res.reason).toBe('disabled')
+  })
+
+  it('drops the named-grant fast-path for a workspace-blocked user', async () => {
+    const session = { user: { id: 'u1' } } as never
+    const pageShareUser = { findFirst: vi.fn(async () => ({ role: 'EDITOR' })) }
+    const prisma = {
+      pageShare: { findUnique: vi.fn(async () => shareRestricted) },
+      workspaceMember: { findUnique: vi.fn(async () => null) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => ({ id: 'b1' })) },
+      pageShareUser,
+      page: { findUnique: vi.fn(async () => PAGE), findFirst: vi.fn(async () => PAGE) },
+    } as never
+    const res = await resolveShareAccess(prisma, 's', session)
+    expect(res.kind).toBe('unavailable')
+    // Neither fast-path may even consult the grant for blocked users.
+    expect(pageShareUser.findFirst).not.toHaveBeenCalled()
+  })
+
+  it('keeps anonymous-level public access for a blocked user on a genuinely public link', async () => {
+    const session = { user: { id: 'u1' } } as never
+    const res = await resolveShareAccess(
+      prismaWith({ share: sharePublicEditor, member: { role: 'OWNER' }, blocked: { id: 'b1' } }),
+      's',
+      session,
+    )
+    expect(res.kind).toBe('public')
+    if (res.kind === 'public') expect(res.role).toBe('EDITOR') // the link role, not the member role
   })
 
   it('gives anonymous COMMENTER on a public commenter link', async () => {

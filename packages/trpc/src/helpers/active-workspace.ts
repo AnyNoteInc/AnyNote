@@ -1,8 +1,11 @@
 import type { PrismaClient, Workspace } from '@repo/db'
 
+// "Member" here means ACTIVE member: a workspace the user is blocked in must
+// not resolve as their active workspace (canonical block semantics:
+// `PeopleService.isWorkspaceBlocked` in @repo/domain).
 async function isMember(prisma: PrismaClient, workspaceId: string, userId: string) {
-  const member = await prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId } },
+  const member = await prisma.workspaceMember.findFirst({
+    where: { workspaceId, userId, workspace: { blockedUsers: { none: { userId } } } },
   })
   return member !== null
 }
@@ -32,7 +35,7 @@ export async function resolveActiveWorkspace(
   }
   if (!fallback) {
     fallback = await prisma.workspace.findFirst({
-      where: { members: { some: { userId } } },
+      where: { members: { some: { userId } }, blockedUsers: { none: { userId } } },
       orderBy: { createdAt: 'asc' },
     })
   }

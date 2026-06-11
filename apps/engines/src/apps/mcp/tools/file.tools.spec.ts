@@ -23,6 +23,7 @@ describe('FileTools', () => {
 
   const mockPrisma = {
     workspaceMember: { findUnique: workspaceMemberFindUniqueMock },
+    workspaceBlockedUser: { findUnique: jest.fn(async () => null) },
     file: {
       findMany: fileFindManyMock,
       findFirst: fileFindFirstMock,

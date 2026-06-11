@@ -82,6 +82,7 @@ describe('soft-downgrade router guards', () => {
     // assertWorkspaceMember is mocked; prisma needs workspaceMember for it (mock handles it)
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => ({ role: 'OWNER' })) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
     } as unknown as PrismaClient
 
     const caller = createCallerFactory(pageRouter)(baseContext(prisma))
@@ -98,6 +99,7 @@ describe('soft-downgrade router guards', () => {
     planMocks.requireWritableWorkspace.mockRejectedValueOnce(new Error('WORKSPACE_OVER_PLAN_LIMIT'))
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => ({ role: 'OWNER' })) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
     } as unknown as PrismaClient
 
     const caller = createCallerFactory(pageRouter)(baseContext(prisma))
@@ -125,6 +127,7 @@ describe('soft-downgrade router guards', () => {
   it('checks writable workspace before workspace.rename writes', async () => {
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => ({ role: 'OWNER' })) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       workspace: { update: vi.fn(async () => ({ id: WORKSPACE_ID, name: 'Renamed' })) },
     } as unknown as PrismaClient
 
@@ -160,6 +163,7 @@ describe('soft-downgrade router guards', () => {
     })
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => ({ role: 'OWNER' })) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       user: { findUnique: vi.fn() },
     } as unknown as PrismaClient
 

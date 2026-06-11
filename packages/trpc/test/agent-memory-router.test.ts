@@ -36,6 +36,7 @@ describe('agentMemory.list', () => {
       workspaceMember: {
         findUnique: vi.fn().mockResolvedValue({ role: 'EDITOR', userId: USER_ID, workspaceId: WORKSPACE_ID }),
       },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       workspaceAgentMemory: {
         findMany: vi.fn().mockResolvedValue([
           { id: 'a', workspaceId: WORKSPACE_ID, scope: 'WORKSPACE', userId: null, key: 'tone', content: 'formal', source: 'AGENT', createdAt: new Date(), updatedAt: new Date() },
@@ -60,6 +61,7 @@ describe('agentMemory.list', () => {
   it('rejects non-member', async () => {
     const prismaMock = {
       workspaceMember: { findUnique: vi.fn().mockResolvedValue(null) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       workspaceAgentMemory: { findMany: vi.fn() },
     } as unknown as PrismaClient
 
@@ -86,6 +88,7 @@ describe('agentMemory.delete', () => {
       workspaceMember: {
         findUnique: vi.fn().mockResolvedValue({ role: 'EDITOR', userId: USER_ID, workspaceId: WORKSPACE_ID }),
       },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
     } as unknown as PrismaClient
 
     const caller = createCallerFactory(agentMemoryRouter)(baseContext(prismaMock))
@@ -112,6 +115,7 @@ describe('agentMemory.delete', () => {
       workspaceMember: {
         findUnique: vi.fn().mockResolvedValue({ role: 'OWNER', userId: USER_ID, workspaceId: WORKSPACE_ID }),
       },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
     } as unknown as PrismaClient
 
     const caller = createCallerFactory(agentMemoryRouter)(baseContext(prismaMock))
@@ -136,6 +140,7 @@ describe('agentMemory.delete', () => {
       workspaceMember: {
         findUnique: vi.fn().mockResolvedValue({ role: 'EDITOR', userId: USER_ID, workspaceId: WORKSPACE_ID }),
       },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
     } as unknown as PrismaClient
 
     const caller = createCallerFactory(agentMemoryRouter)(baseContext(prismaMock))

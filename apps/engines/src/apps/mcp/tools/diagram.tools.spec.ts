@@ -10,7 +10,7 @@ import { DiagramTools } from './diagram.tools.js'
 
 describe('DiagramTools.createDiagramPage', () => {
   const memberFindUnique = jest.fn<(...a: unknown[]) => Promise<unknown>>()
-  const prisma = { workspaceMember: { findUnique: memberFindUnique } } as unknown as PrismaClient
+  const prisma = { workspaceMember: { findUnique: memberFindUnique }, workspaceBlockedUser: { findUnique: jest.fn(async () => null) } } as unknown as PrismaClient
   const createDiagramPage = jest.fn<(...a: unknown[]) => Promise<string>>()
   const writer = { createDiagramPage } as unknown as PageWriter
   const validator = new DiagramValidatorService()

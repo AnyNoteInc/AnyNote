@@ -5,15 +5,14 @@ import type { PrismaClient } from '@repo/db'
 
 import { router, protectedProcedure } from '../trpc'
 import { getAvailableAiModels } from '../helpers/plan'
+import { assertRole, MEMBER_ROLES } from '../helpers/membership'
 
 async function assertWorkspaceMember(
   ctx: { prisma: PrismaClient; user: { id: string } },
   workspaceId: string,
 ) {
-  const member = await ctx.prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
-  })
-  if (!member) throw new TRPCError({ code: 'FORBIDDEN' })
+  // Active membership (member row + not blocked) — the shared trpc chokepoint.
+  await assertRole(ctx, workspaceId, MEMBER_ROLES)
 }
 
 async function assertChatAccess(
@@ -23,7 +22,11 @@ async function assertChatAccess(
   const chat = await ctx.prisma.chat.findFirst({
     where: {
       id: chatId,
-      workspace: { members: { some: { userId: ctx.user.id } } },
+      workspace: {
+        members: { some: { userId: ctx.user.id } },
+        // Blocked members lose chat access too — see PeopleService.isWorkspaceBlocked.
+        blockedUsers: { none: { userId: ctx.user.id } },
+      },
     },
   })
   if (!chat) throw new TRPCError({ code: 'NOT_FOUND' })

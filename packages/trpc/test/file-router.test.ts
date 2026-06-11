@@ -34,7 +34,7 @@ function baseContext(prisma: PrismaClient) {
 }
 
 function memberOk() {
-  return { workspaceId: WORKSPACE_ID, userId: USER_ID }
+  return { workspaceId: WORKSPACE_ID, userId: USER_ID, role: 'EDITOR' }
 }
 
 describe('fileRouter.listWorkspace', () => {
@@ -70,6 +70,7 @@ describe('fileRouter.listWorkspace', () => {
     const count = vi.fn(async () => 42)
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => memberOk()) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       file: { findMany, count },
     } as unknown as PrismaClient
 
@@ -109,6 +110,7 @@ describe('fileRouter.listWorkspace', () => {
     const count = vi.fn(async () => 0)
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => memberOk()) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       file: { findMany, count },
     } as unknown as PrismaClient
 
@@ -136,6 +138,7 @@ describe('fileRouter.listWorkspace', () => {
     const count = vi.fn(async () => 0)
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => memberOk()) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       file: { findMany, count },
     } as unknown as PrismaClient
 
@@ -155,6 +158,7 @@ describe('fileRouter.listWorkspace', () => {
   it('forbids non-members', async () => {
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => null) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       file: { findMany: vi.fn(), count: vi.fn() },
     } as unknown as PrismaClient
 
@@ -187,6 +191,7 @@ describe('fileRouter.listRecent', () => {
     const findMany = vi.fn(async () => rows)
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => memberOk()) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       file: { findMany },
     } as unknown as PrismaClient
 
@@ -210,6 +215,7 @@ describe('fileRouter.listRecent', () => {
     const findMany = vi.fn(async () => [])
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => memberOk()) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       file: { findMany },
     } as unknown as PrismaClient
 
@@ -223,6 +229,7 @@ describe('fileRouter.listRecent', () => {
     const findMany = vi.fn()
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => null) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       file: { findMany },
     } as unknown as PrismaClient
 
@@ -242,6 +249,7 @@ describe('fileRouter.workspaceUploaders', () => {
     ])
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => memberOk()) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       user: { findMany },
     } as unknown as PrismaClient
 
@@ -259,6 +267,7 @@ describe('fileRouter.workspaceUploaders', () => {
   it('forbids non-members from listing uploaders', async () => {
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => null) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       user: { findMany: vi.fn() },
     } as unknown as PrismaClient
 

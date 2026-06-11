@@ -129,6 +129,7 @@ function createPrismaMock(existingEmbeddingsModelId: string | null) {
   }
   const prisma = {
     workspaceMember: { findUnique: vi.fn(async () => ({ role: 'OWNER' })) },
+    workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
     workspaceAiSettings: {
       findUnique: vi.fn(async () => ({
         workspaceId: WORKSPACE_ID,
@@ -167,6 +168,7 @@ describe('aiSettings embedding model queries', () => {
     ])
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => ({ role: 'OWNER' })) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
     } as unknown as PrismaClient
     const caller = createCallerFactory(aiSettingsRouter)(baseContext(prisma))
 
@@ -193,6 +195,7 @@ describe('aiSettings embedding model queries', () => {
   it('returns embeddingsModelId from aiSettings.get', async () => {
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => ({ role: 'OWNER' })) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       workspaceAiSettings: {
         findUnique: vi.fn(async () => ({
           workspaceId: WORKSPACE_ID,
@@ -224,6 +227,7 @@ describe('aiSettings.listAvailableModels supportsReasoning exposure', () => {
     ])
     const prisma = {
       workspaceMember: { findUnique: vi.fn(async () => ({ role: 'OWNER' })) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
     } as unknown as PrismaClient
     const caller = createCallerFactory(aiSettingsRouter)(baseContext(prisma))
 

@@ -14,5 +14,13 @@ export class WorkspaceMemberGuard {
       select: { userId: true },
     })
     if (!member) throw new WorkspaceAccessDeniedError(workspaceId, userId)
+    // Active membership = member row + no block row (same semantics as
+    // ../../api/auth/membership.ts assertMember and @repo/domain
+    // PeopleService.assertNotBlocked); denial stays uniform.
+    const blocked = await this.prisma.workspaceBlockedUser.findUnique({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      select: { id: true },
+    })
+    if (blocked) throw new WorkspaceAccessDeniedError(workspaceId, userId)
   }
 }

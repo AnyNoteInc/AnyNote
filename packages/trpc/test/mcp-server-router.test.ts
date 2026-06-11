@@ -60,6 +60,7 @@ describe('mcpServer.create', () => {
     let storedHeadersJson: string | null = null
     const prismaMock = {
       workspaceMember: { findUnique: vi.fn().mockResolvedValue(ownerMember()) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       workspaceMcpServer: {
         create: vi.fn(async ({ data }: { data: Record<string, unknown> }) => {
           storedHeadersJson = JSON.stringify(data.headers)
@@ -102,6 +103,7 @@ describe('mcpServer.create', () => {
       workspaceMember: {
         findUnique: vi.fn().mockResolvedValue({ role: 'VIEWER', userId: USER_ID, workspaceId: WORKSPACE_ID }),
       },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       workspaceMcpServer: { create: vi.fn() },
     } as unknown as PrismaClient
 
@@ -122,6 +124,7 @@ describe('mcpServer.create', () => {
     const createSpy = vi.fn()
     const prismaMock = {
       workspaceMember: { findUnique: vi.fn().mockResolvedValue(ownerMember()) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       workspaceMcpServer: { create: createSpy },
     } as unknown as PrismaClient
 
@@ -142,6 +145,7 @@ describe('mcpServer.create', () => {
     getWorkspaceFeaturesMock.mockResolvedValue({ customMcpEnabled: false })
     const prismaMock = {
       workspaceMember: { findUnique: vi.fn().mockResolvedValue(ownerMember()) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       workspaceMcpServer: { create: vi.fn() },
     } as unknown as PrismaClient
 
@@ -183,6 +187,7 @@ describe('mcpServer.list', () => {
     }
     const prismaMock = {
       workspaceMember: { findUnique: vi.fn().mockResolvedValue(ownerMember()) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       workspaceMcpServer: { findMany: vi.fn().mockResolvedValue([row]) },
     } as unknown as PrismaClient
 
@@ -225,6 +230,7 @@ describe('mcpServer.update', () => {
     const updatedRow = existingServer({ name: 'Renamed' })
     const prismaMock = {
       workspaceMember: { findUnique: vi.fn().mockResolvedValue(ownerMember()) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       workspaceMcpServer: {
         findFirst: vi.fn().mockResolvedValue(existingServer()),
         update: vi.fn().mockResolvedValue(updatedRow),
@@ -241,6 +247,7 @@ describe('mcpServer.update', () => {
   it('rejects NOT_FOUND when the server is not in the workspace', async () => {
     const prismaMock = {
       workspaceMember: { findUnique: vi.fn().mockResolvedValue(ownerMember()) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       workspaceMcpServer: {
         findFirst: vi.fn().mockResolvedValue(null),
       },
@@ -261,6 +268,7 @@ describe('mcpServer.delete', () => {
   it('deletes the server and returns ok', async () => {
     const prismaMock = {
       workspaceMember: { findUnique: vi.fn().mockResolvedValue(ownerMember()) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       workspaceMcpServer: {
         findFirst: vi.fn().mockResolvedValue(existingServer()),
         delete: vi.fn().mockResolvedValue(existingServer()),
@@ -275,6 +283,7 @@ describe('mcpServer.delete', () => {
   it('rejects NOT_FOUND when the server is not in the workspace', async () => {
     const prismaMock = {
       workspaceMember: { findUnique: vi.fn().mockResolvedValue(ownerMember()) },
+      workspaceBlockedUser: { findUnique: vi.fn(async () => null) },
       workspaceMcpServer: {
         findFirst: vi.fn().mockResolvedValue(null),
       },

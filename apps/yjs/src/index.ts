@@ -1,7 +1,14 @@
 import { Server } from '@hocuspocus/server'
 
 import { loadEnv } from './env.js'
-import { initJwks, verifyJwt, canAccessPage, verifyShareToken, loadPageMeta } from './auth.js'
+import {
+  initJwks,
+  verifyJwt,
+  canAccessPage,
+  isReadOnlyAccess,
+  verifyShareToken,
+  loadPageMeta,
+} from './auth.js'
 import { loadPageDocument, storePageDocument } from './persistence.js'
 import { log } from './logger.js'
 import type { PageType } from '@repo/db'
@@ -42,18 +49,27 @@ const server = new Server({
       return ctx
     }
 
-    // Workspace-member path (unchanged).
+    // Workspace path: active members (write) or PageShareUser grant holders
+    // (role-mapped); workspace-blocked users are denied in both arms.
     const { userId } = await verifyJwt(token, env.jwtAudience)
     const access = await canAccessPage(userId, documentName)
     if (!access) {
       log.warn('page access denied', { userId, pageId: documentName })
       throw new Error('Forbidden')
     }
+    // READER/COMMENTER grants are read-only; the server rejects their writes
+    // regardless of any client-side editable flag. EDITOR grants and members write.
+    if (isReadOnlyAccess(access)) {
+      connectionConfig.readOnly = true
+    }
     log.info('authenticated', {
       userId,
       pageId: documentName,
       pageType: access.pageType,
       workspaceId: access.workspaceId,
+      access: access.access,
+      role: access.role,
+      readOnly: connectionConfig.readOnly,
     })
     const ctx: AuthContext = {
       userId,

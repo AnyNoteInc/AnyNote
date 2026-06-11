@@ -5,6 +5,7 @@ import { FileStatus, Prisma, type File } from '@repo/db'
 import * as domain from '@repo/domain'
 
 import { protectedProcedure, router } from '../trpc'
+import { assertRole, MEMBER_ROLES } from '../helpers/membership'
 
 const uuid = z.string().uuid()
 
@@ -51,20 +52,7 @@ export const fileRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const member = await ctx.prisma.workspaceMember.findUnique({
-        where: {
-          workspaceId_userId: {
-            workspaceId: input.workspaceId,
-            userId: ctx.user.id,
-          },
-        },
-      })
-      if (!member) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'Not a member of this workspace',
-        })
-      }
+      await assertRole(ctx, input.workspaceId, MEMBER_ROLES)
 
       const search = input.search?.trim() ?? ''
       const where: Prisma.FileWhereInput = {
@@ -112,20 +100,7 @@ export const fileRouter = router({
       }),
     )
     .query(async ({ ctx, input }) => {
-      const member = await ctx.prisma.workspaceMember.findUnique({
-        where: {
-          workspaceId_userId: {
-            workspaceId: input.workspaceId,
-            userId: ctx.user.id,
-          },
-        },
-      })
-      if (!member) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'Not a member of this workspace',
-        })
-      }
+      await assertRole(ctx, input.workspaceId, MEMBER_ROLES)
 
       const rows = await ctx.prisma.file.findMany({
         where: { workspaceId: input.workspaceId, status: FileStatus.ACTIVE },
@@ -139,20 +114,7 @@ export const fileRouter = router({
   workspaceUploaders: protectedProcedure
     .input(z.object({ workspaceId: uuid }))
     .query(async ({ ctx, input }) => {
-      const member = await ctx.prisma.workspaceMember.findUnique({
-        where: {
-          workspaceId_userId: {
-            workspaceId: input.workspaceId,
-            userId: ctx.user.id,
-          },
-        },
-      })
-      if (!member) {
-        throw new TRPCError({
-          code: 'FORBIDDEN',
-          message: 'Not a member of this workspace',
-        })
-      }
+      await assertRole(ctx, input.workspaceId, MEMBER_ROLES)
 
       return ctx.prisma.user.findMany({
         where: { files: { some: { workspaceId: input.workspaceId, status: FileStatus.ACTIVE } } },

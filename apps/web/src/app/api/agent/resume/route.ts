@@ -2,7 +2,7 @@ import { prisma, Prisma } from '@repo/db'
 import { NextRequest } from 'next/server'
 import { z } from 'zod'
 
-import { signAgentsJwt, type AgentsRole } from '@/lib/agents-token'
+import { getMembershipForToken, signAgentsJwt } from '@/lib/agents-token'
 import { activeStreamRegistry } from '@/lib/chat/active-stream-registry'
 import type { ServiceBlock } from '@/lib/chat/types'
 import {
@@ -60,11 +60,8 @@ export async function POST(req: NextRequest) {
   })
   if (!chat) return new Response('forbidden', { status: 403 })
 
-  // Confirm membership role
-  const membership = await prisma.workspaceMember.findUnique({
-    where: { workspaceId_userId: { workspaceId: chat.workspaceId, userId: session.user.id } },
-    select: { role: true },
-  })
+  // Confirm membership role — active members only (blocked users get no scopes).
+  const membership = await getMembershipForToken(prisma, chat.workspaceId, session.user.id)
   if (!membership) return new Response('forbidden', { status: 403 })
 
   // Find the assistant message that contains a confirmation block with this id.
@@ -104,7 +101,7 @@ export async function POST(req: NextRequest) {
     userId: session.user.id,
     workspaceId: chat.workspaceId,
     chatId,
-    role: membership.role as AgentsRole,
+    role: membership.role,
   })
 
   // Create a registry entry (no userMessageId — bubble already exists)

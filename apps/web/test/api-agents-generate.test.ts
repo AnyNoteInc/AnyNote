@@ -19,6 +19,15 @@ const mocks = vi.hoisted(() => ({
   decryptMcpHeadersMap: vi.fn(),
 }))
 
+// The route resolves membership through getMembershipForToken (active members
+// only); keep the existing per-test workspaceMember.findUnique fixtures working.
+const getMembershipForToken = vi.hoisted(() =>
+  vi.fn(async () => {
+    const member = (await mocks.prisma.workspaceMember.findUnique()) as { role: string } | null
+    return member ? { role: member.role } : null
+  }),
+)
+
 vi.mock('@repo/db', () => ({
   FileStatus: { ACTIVE: 'ACTIVE' },
   prisma: mocks.prisma,
@@ -26,7 +35,10 @@ vi.mock('@repo/db', () => ({
 }))
 vi.mock('@/lib/get-session', () => ({ getSession: mocks.getSession }))
 vi.mock('@/lib/chat/active-stream-registry', () => ({ activeStreamRegistry: mocks.activeStreamRegistry }))
-vi.mock('@/lib/agents-token', () => ({ signAgentsJwt: mocks.signAgentsJwt }))
+vi.mock('@/lib/agents-token', () => ({
+  signAgentsJwt: mocks.signAgentsJwt,
+  getMembershipForToken,
+}))
 vi.mock('@/lib/chat/engines-mcp-headers', () => ({ buildEnginesMcpHeaders: mocks.buildEnginesMcpHeaders }))
 vi.mock('@/lib/decrypt-workspace-secrets', () => ({ decryptMcpHeadersMap: mocks.decryptMcpHeadersMap }))
 

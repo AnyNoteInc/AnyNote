@@ -7,6 +7,7 @@ import { StatsService } from './stats.service.js'
 describe('StatsService', () => {
   const mockPrisma = {
     workspaceMember: { findMany: jest.fn<(...a: unknown[]) => Promise<unknown>>() },
+    workspaceBlockedUser: { findUnique: jest.fn(async () => null) },
     page: {
       groupBy: jest.fn<(...a: unknown[]) => Promise<unknown>>(),
       count: jest.fn<(...a: unknown[]) => Promise<number>>(),
