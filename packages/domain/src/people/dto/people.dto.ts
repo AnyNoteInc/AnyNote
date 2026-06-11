@@ -2,6 +2,13 @@ import type { Prisma, RoleType } from '@repo/db'
 
 import { DomainError } from '../../shared/errors.ts'
 
+/**
+ * Prisma's `PageShareRole` enum as a string union — the enum isn't re-exported
+ * from the `@repo/db` barrel (same precedent as the database module's
+ * access-level mapping). Assignable to/from the generated Prisma type.
+ */
+export type PageShareRole = 'READER' | 'COMMENTER' | 'EDITOR'
+
 // ── audit catalog (spec §2) ───────────────────────────────────────────────────
 
 /**
@@ -137,6 +144,160 @@ export interface InvitePreview {
   planSlug: string
   isPaid: boolean
   periodEnd: Date | null
+}
+
+// ── invite link ───────────────────────────────────────────────────────────────
+
+/** Roles a join link may carry — member seats only, never OWNER/ADMIN/GUEST (spec §2). */
+export const INVITE_LINK_ROLES: readonly RoleType[] = ['EDITOR', 'COMMENTER', 'VIEWER']
+
+/** Public state of the workspace join link — never carries token material. */
+export interface InviteLinkDto {
+  id: string
+  workspaceId: string
+  role: RoleType
+  enabled: boolean
+  rotatedAt: Date | null
+  createdAt: Date
+}
+
+export interface EnableInviteLinkInput {
+  workspaceId: string
+  actorId: string
+  role: RoleType
+}
+
+export interface InviteLinkActorInput {
+  workspaceId: string
+  actorId: string
+}
+
+export interface InviteLinkWithToken {
+  link: InviteLinkDto
+  /** Plaintext join token — surfaced exactly once (enable/rotate). Only the hash is stored. */
+  token: string
+}
+
+export interface JoinViaLinkInput {
+  token: string
+  userId: string
+}
+
+export type JoinViaLinkResult = AcceptInvitationResult
+
+// ── guest invites ─────────────────────────────────────────────────────────────
+
+export interface GuestInviteDto {
+  id: string
+  pageId: string
+  workspaceId: string
+  email: string
+  role: PageShareRole
+  inviterId: string
+  expiresAt: Date
+  createdAt: Date
+  state: InvitationState
+}
+
+export interface CreateGuestInviteInput {
+  pageId: string
+  actorId: string
+  email: string
+  /** All three PageShareRole values (READER | COMMENTER | EDITOR) are valid grant roles. */
+  role: PageShareRole
+}
+
+export interface CreateGuestInviteResult {
+  invite: GuestInviteDto
+  /** Plaintext guest token — surfaced exactly once, for the email link. Only the hash is stored. */
+  token: string
+}
+
+export interface RevokeGuestInviteInput {
+  workspaceId: string
+  actorId: string
+  inviteId: string
+}
+
+export interface AcceptGuestInviteInput {
+  token: string
+  userId: string
+  /** The session email — equality with the invite email is checked case-insensitively. */
+  userEmail: string
+}
+
+export interface AcceptGuestInviteResult {
+  pageId: string
+  workspaceId: string
+  role: PageShareRole
+  /** True when the accepting user is a workspace member — no grant is written (members don't need one). */
+  alreadyMember: boolean
+}
+
+// ── guests listing / management ───────────────────────────────────────────────
+
+/** A person with ≥1 grant on this workspace's pages and no member row (spec §4). */
+export interface GuestListItem {
+  userId: string
+  name: string | null
+  email: string
+  grantCount: number
+}
+
+export interface ListGuestsResult {
+  guests: GuestListItem[]
+  /** Open (pending/expired) guest invites of the workspace, merged into the people settings list. */
+  invites: GuestInviteDto[]
+}
+
+export interface RevokeGuestAccessInput {
+  workspaceId: string
+  actorId: string
+  userId: string
+}
+
+export interface RevokeGuestAccessResult {
+  grantsRemoved: number
+  invitesRevoked: number
+}
+
+export interface ConvertGuestToMemberInput {
+  workspaceId: string
+  actorId: string
+  userId: string
+  role: RoleType
+}
+
+// ── role matrix / removal / blocking ──────────────────────────────────────────
+
+export interface ChangeMemberRoleInput {
+  workspaceId: string
+  actorId: string
+  /** The actor's own membership role — the caller (router) asserts it; the matrix lives here. */
+  actorRole: RoleType
+  userId: string
+  role: RoleType
+}
+
+export interface RemoveMemberInput {
+  workspaceId: string
+  actorId: string
+  actorRole: RoleType
+  userId: string
+}
+
+export interface BlockUserInput {
+  workspaceId: string
+  actorId: string
+  actorRole: RoleType
+  userId: string
+  reason?: string
+}
+
+export interface UnblockUserInput {
+  workspaceId: string
+  actorId: string
+  userId: string
 }
 
 // ── audit writer ──────────────────────────────────────────────────────────────

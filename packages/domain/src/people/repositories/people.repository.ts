@@ -1,8 +1,10 @@
+import { randomBytes } from 'node:crypto'
+
 import type { RoleType } from '@repo/db'
 
 import { ACTIVE_SUBSCRIPTION_STATUSES } from '../../billing/index.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
-import type { PeopleAuditEntry } from '../dto/people.dto.ts'
+import type { PageShareRole, PeopleAuditEntry } from '../dto/people.dto.ts'
 
 /** The invitation fields the service works with (prisma rows carry a superset). */
 export interface InvitationRow {
@@ -16,6 +18,44 @@ export interface InvitationRow {
   acceptedById: string | null
   revokedAt: Date | null
   createdAt: Date
+}
+
+/** Join-link state without token material — the hash never leaves the repository. */
+export interface InviteLinkRow {
+  id: string
+  workspaceId: string
+  role: RoleType
+  enabled: boolean
+  rotatedAt: Date | null
+  createdAt: Date
+}
+
+const inviteLinkSelect = {
+  id: true,
+  workspaceId: true,
+  role: true,
+  enabled: true,
+  rotatedAt: true,
+  createdAt: true,
+} as const
+
+export interface GuestInviteRow {
+  id: string
+  pageId: string
+  workspaceId: string
+  email: string
+  role: PageShareRole
+  inviterId: string
+  expiresAt: Date
+  acceptedAt: Date | null
+  acceptedById: string | null
+  revokedAt: Date | null
+  createdAt: Date
+}
+
+/** Same shape as the page-share router's `newShareId` — 64 hex chars, 256-bit entropy. */
+function newShareId(): string {
+  return randomBytes(32).toString('hex')
 }
 
 export class PeopleRepository {
@@ -148,5 +188,230 @@ export class PeopleRepository {
       where: { workspaceId, acceptedAt: null, revokedAt: null },
       orderBy: { createdAt: 'desc' },
     })
+  }
+
+  // ── invite link ─────────────────────────────────────────────────────────────
+
+  async findInviteLink(workspaceId: string): Promise<InviteLinkRow | null> {
+    return this.uow.client().workspaceInviteLink.findUnique({
+      where: { workspaceId },
+      select: inviteLinkSelect,
+    })
+  }
+
+  async findInviteLinkByTokenHash(tokenHash: string): Promise<InviteLinkRow | null> {
+    return this.uow.client().workspaceInviteLink.findUnique({
+      where: { tokenHash },
+      select: inviteLinkSelect,
+    })
+  }
+
+  /** Create-or-enable: every enable lands a FRESH token (the old one dies with the upsert). */
+  async enableInviteLink(
+    workspaceId: string,
+    data: { role: RoleType; tokenHash: string; createdById: string },
+  ): Promise<InviteLinkRow> {
+    return this.uow.client().workspaceInviteLink.upsert({
+      where: { workspaceId },
+      create: { workspaceId, ...data, enabled: true },
+      update: { role: data.role, tokenHash: data.tokenHash, enabled: true },
+      select: inviteLinkSelect,
+    })
+  }
+
+  async disableInviteLink(workspaceId: string): Promise<InviteLinkRow> {
+    return this.uow.client().workspaceInviteLink.update({
+      where: { workspaceId },
+      data: { enabled: false },
+      select: inviteLinkSelect,
+    })
+  }
+
+  async rotateInviteLinkToken(workspaceId: string, tokenHash: string): Promise<InviteLinkRow> {
+    return this.uow.client().workspaceInviteLink.update({
+      where: { workspaceId },
+      data: { tokenHash, rotatedAt: new Date() },
+      select: inviteLinkSelect,
+    })
+  }
+
+  // ── pages & users (lookups the guest flows need) ────────────────────────────
+
+  async findPage(
+    pageId: string,
+  ): Promise<{ id: string; workspaceId: string; deletedAt: Date | null } | null> {
+    return this.uow.client().page.findUnique({
+      where: { id: pageId },
+      select: { id: true, workspaceId: true, deletedAt: true },
+    })
+  }
+
+  async findUserById(
+    userId: string,
+  ): Promise<{ id: string; email: string; name: string | null } | null> {
+    return this.uow.client().user.findUnique({
+      where: { id: userId },
+      select: { id: true, email: true, name: true },
+    })
+  }
+
+  // ── guest invites ───────────────────────────────────────────────────────────
+
+  async findActiveGuestInvite(pageId: string, email: string): Promise<GuestInviteRow | null> {
+    return this.uow.client().pageGuestInvite.findFirst({
+      where: { pageId, email, acceptedAt: null, revokedAt: null },
+    })
+  }
+
+  async createGuestInvite(data: {
+    pageId: string
+    workspaceId: string
+    email: string
+    role: PageShareRole
+    tokenHash: string
+    inviterId: string
+    expiresAt: Date
+  }): Promise<GuestInviteRow> {
+    return this.uow.client().pageGuestInvite.create({ data })
+  }
+
+  async refreshGuestInvite(
+    id: string,
+    data: { tokenHash: string; expiresAt: Date; role: PageShareRole; inviterId: string },
+  ): Promise<GuestInviteRow> {
+    return this.uow.client().pageGuestInvite.update({ where: { id }, data })
+  }
+
+  async findGuestInviteById(workspaceId: string, id: string): Promise<GuestInviteRow | null> {
+    return this.uow.client().pageGuestInvite.findFirst({ where: { id, workspaceId } })
+  }
+
+  async findGuestInviteByTokenHash(tokenHash: string): Promise<GuestInviteRow | null> {
+    return this.uow.client().pageGuestInvite.findUnique({ where: { tokenHash } })
+  }
+
+  async markGuestInviteAccepted(id: string, acceptedById: string): Promise<void> {
+    await this.uow.client().pageGuestInvite.update({
+      where: { id },
+      data: { acceptedAt: new Date(), acceptedById },
+    })
+  }
+
+  async markGuestInviteRevoked(id: string, revokedById: string): Promise<void> {
+    await this.uow.client().pageGuestInvite.update({
+      where: { id },
+      data: { revokedAt: new Date(), revokedById },
+    })
+  }
+
+  async listOpenGuestInvites(workspaceId: string): Promise<GuestInviteRow[]> {
+    return this.uow.client().pageGuestInvite.findMany({
+      where: { workspaceId, acceptedAt: null, revokedAt: null },
+      orderBy: { createdAt: 'desc' },
+    })
+  }
+
+  /** Revoke every open guest invite addressed to the email in this workspace; returns the count. */
+  async revokeOpenGuestInvitesByEmail(
+    workspaceId: string,
+    email: string,
+    revokedById: string,
+  ): Promise<number> {
+    const result = await this.uow.client().pageGuestInvite.updateMany({
+      where: { workspaceId, email, acceptedAt: null, revokedAt: null },
+      data: { revokedAt: new Date(), revokedById },
+    })
+    return result.count
+  }
+
+  // ── page shares (the `ensureShare` + grant logic the trpc router uses) ───────
+
+  /** Lazily create-or-return the PageShare row, mirroring the page-share router's `ensureShare`. */
+  async ensureShareForPage(pageId: string, createdById: string): Promise<{ id: string }> {
+    const existing = await this.uow.client().pageShare.findUnique({
+      where: { pageId },
+      select: { id: true },
+    })
+    if (existing) return existing
+    return this.uow.client().pageShare.create({
+      data: { pageId, shareId: newShareId(), createdById },
+      select: { id: true },
+    })
+  }
+
+  async upsertShareGrant(
+    pageShareId: string,
+    userId: string,
+    role: PageShareRole,
+  ): Promise<void> {
+    await this.uow.client().pageShareUser.upsert({
+      where: { pageShareId_userId: { pageShareId, userId } },
+      create: { pageShareId, userId, role },
+      update: { role },
+    })
+  }
+
+  /**
+   * One row per grant held by a non-member on a live page of this workspace —
+   * the service aggregates per user. Deleted pages don't count.
+   */
+  async listGuestGrants(
+    workspaceId: string,
+  ): Promise<Array<{ userId: string; name: string | null; email: string }>> {
+    const grants = await this.uow.client().pageShareUser.findMany({
+      where: {
+        pageShare: { page: { workspaceId, deletedAt: null } },
+        user: { workspaceMemberships: { none: { workspaceId } } },
+      },
+      select: { userId: true, user: { select: { name: true, email: true } } },
+    })
+    return grants.map((g) => ({ userId: g.userId, name: g.user.name, email: g.user.email }))
+  }
+
+  /** Delete every grant the user holds on this workspace's pages (deleted pages included). */
+  async deleteGuestGrants(workspaceId: string, userId: string): Promise<number> {
+    const result = await this.uow.client().pageShareUser.deleteMany({
+      where: { userId, pageShare: { page: { workspaceId } } },
+    })
+    return result.count
+  }
+
+  // ── members (role matrix) ───────────────────────────────────────────────────
+
+  async updateMemberRole(workspaceId: string, userId: string, role: RoleType): Promise<void> {
+    await this.uow.client().workspaceMember.update({
+      where: { workspaceId_userId: { workspaceId, userId } },
+      data: { role },
+    })
+  }
+
+  async deleteMember(workspaceId: string, userId: string): Promise<void> {
+    await this.uow.client().workspaceMember.delete({
+      where: { workspaceId_userId: { workspaceId, userId } },
+    })
+  }
+
+  async countOwners(workspaceId: string): Promise<number> {
+    return this.uow.client().workspaceMember.count({ where: { workspaceId, role: 'OWNER' } })
+  }
+
+  // ── blocks (mutations) ──────────────────────────────────────────────────────
+
+  async createBlock(
+    workspaceId: string,
+    userId: string,
+    blockedById: string,
+    reason?: string,
+  ): Promise<void> {
+    await this.uow.client().workspaceBlockedUser.create({
+      data: { workspaceId, userId, blockedById, reason: reason ?? null },
+    })
+  }
+
+  async deleteBlock(workspaceId: string, userId: string): Promise<number> {
+    const result = await this.uow.client().workspaceBlockedUser.deleteMany({
+      where: { workspaceId, userId },
+    })
+    return result.count
   }
 }
