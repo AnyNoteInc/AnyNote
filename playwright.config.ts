@@ -21,6 +21,8 @@ export default defineConfig({
         // Unroutable port: telegram connect's getMe fails instantly and
         // deterministically — no live Bot API calls ever leave the test run.
         TELEGRAM_API_BASE_URL: 'http://127.0.0.1:9',
+        // Bounds connect's getMe on environments that drop rather than refuse.
+        TELEGRAM_TIMEOUT_MS: '2000',
         // Agent OS — pass through from the outer shell if set.
         // These are needed by the chat API route (agents proxy) and the
         // encryptFixture helper in agent-qa-citations.spec.ts.

@@ -408,10 +408,10 @@ export function WorkspaceTelegramSection({
           </Box>
 
           <Divider />
-          <TelegramDeliveriesBlock workspaceId={workspaceId} />
+          <TelegramDeliveriesBlock workspaceId={workspaceId} enabled={canManage && hasConnection} />
 
           <Divider />
-          <TelegramAuditBlock workspaceId={workspaceId} />
+          <TelegramAuditBlock workspaceId={workspaceId} enabled={canManage && hasConnection} />
         </>
       ) : null}
 
@@ -450,10 +450,16 @@ export function WorkspaceTelegramSection({
   )
 }
 
-function TelegramDeliveriesBlock({ workspaceId }: { workspaceId: string }) {
+function TelegramDeliveriesBlock({
+  workspaceId,
+  enabled,
+}: {
+  workspaceId: string
+  enabled: boolean
+}) {
   const q = trpc.telegram.deliveries.useInfiniteQuery(
     { workspaceId },
-    { getNextPageParam: (page) => page.nextCursor ?? undefined },
+    { getNextPageParam: (page) => page.nextCursor ?? undefined, enabled },
   )
   return (
     <Box>
@@ -528,10 +534,10 @@ function TelegramDeliveriesBlock({ workspaceId }: { workspaceId: string }) {
   )
 }
 
-function TelegramAuditBlock({ workspaceId }: { workspaceId: string }) {
+function TelegramAuditBlock({ workspaceId, enabled }: { workspaceId: string; enabled: boolean }) {
   const q = trpc.telegram.auditLog.useInfiniteQuery(
     { workspaceId },
-    { getNextPageParam: (page) => page.nextCursor ?? undefined },
+    { getNextPageParam: (page) => page.nextCursor ?? undefined, enabled },
   )
   return (
     <Box data-testid="telegram-audit">
