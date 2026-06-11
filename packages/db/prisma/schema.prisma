@@ -66,6 +66,8 @@ model User {
   exportJobs                 ExportJob[]              @relation("ExportJobUser")
   importJobs                 ImportJob[]              @relation("ImportJobUser")
   webhookSubscriptions       WebhookSubscription[]    @relation("WebhookSubscriptionCreatedBy")
+  telegramUserLink           TelegramUserLink?
+  telegramLinkCodes          TelegramLinkCode[]
 
   @@map("users")
 }
@@ -408,6 +410,7 @@ model Workspace {
   exportJobs            ExportJob[]
   importJobs            ImportJob[]
   webhookSubscriptions  WebhookSubscription[]
+  telegramConnection    TelegramConnection?
 
   @@index([createdById])
   @@map("workspaces")
@@ -544,6 +547,8 @@ model Collection {
   owner     User?     @relation("CollectionOwner", fields: [ownerId], references: [id], onDelete: Cascade)
   homePage  Page?     @relation("CollectionHome", fields: [homePageId], references: [id], onDelete: SetNull)
   pages     Page[]    @relation("CollectionPages")
+
+  telegramSubscriptions TelegramCollectionSubscription[]
 
   @@index([workspaceId, kind])
   @@index([ownerId])
@@ -1961,4 +1966,153 @@ model WebhookDelivery {
   @@index([status, nextAttemptAt])
   @@index([subscriptionId, createdAt])
   @@map("webhook_deliveries")
+}
+
+// ── Telegram integration (Phase 7B) ─────────────────────────────────────────
+
+enum TelegramConnectionStatus {
+  PENDING
+  ACTIVE
+  DISABLED
+  ERROR
+}
+
+enum TelegramChatStatus {
+  ACTIVE
+  LEFT
+}
+
+enum TelegramDeliveryStatus {
+  PENDING
+  SENT
+  FAILED
+  SKIPPED
+}
+
+enum TelegramCommandResult {
+  OK
+  DENIED
+  ERROR
+}
+
+model TelegramConnection {
+  id                  String                   @id @default(uuid(7)) @db.Uuid
+  workspaceId         String                   @unique @map("workspace_id") @db.Uuid
+  createdById         String                   @map("created_by_id") @db.Uuid
+  botTokenEnc         Json                     @map("bot_token_enc")
+  botUsername         String?                  @map("bot_username") @db.VarChar(64)
+  webhookSecretEnc    Json                     @map("webhook_secret_enc")
+  status              TelegramConnectionStatus @default(PENDING)
+  consecutiveFailures Int                      @default(0) @map("consecutive_failures")
+  lastError           String?                  @map("last_error") @db.VarChar(500)
+  createdAt           DateTime                 @default(now()) @map("created_at")
+  updatedAt           DateTime                 @updatedAt @map("updated_at")
+  workspace     Workspace                        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  chats         TelegramChat[]
+  subscriptions TelegramCollectionSubscription[]
+  deliveries    TelegramDelivery[]
+  audits        TelegramBotCommandAudit[]
+
+  @@map("telegram_connections")
+}
+
+model TelegramChat {
+  id           String             @id @default(uuid(7)) @db.Uuid
+  connectionId String             @map("connection_id") @db.Uuid
+  chatId       String             @map("chat_id") @db.VarChar(32)
+  type         String             @db.VarChar(16)
+  title        String?            @db.VarChar(255)
+  status       TelegramChatStatus @default(ACTIVE)
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+  connection    TelegramConnection               @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  subscriptions TelegramCollectionSubscription[]
+
+  @@unique([connectionId, chatId])
+  @@map("telegram_chats")
+}
+
+model TelegramCollectionSubscription {
+  id           String   @id @default(uuid(7)) @db.Uuid
+  connectionId String   @map("connection_id") @db.Uuid
+  chatId       String   @map("chat_id") @db.Uuid
+  collectionId String   @map("collection_id") @db.Uuid
+  events       String[]
+  createdById  String   @map("created_by_id") @db.Uuid
+  createdAt    DateTime @default(now()) @map("created_at")
+  updatedAt    DateTime @updatedAt @map("updated_at")
+  connection TelegramConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  chat       TelegramChat       @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  collection Collection         @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  deliveries TelegramDelivery[]
+
+  @@unique([chatId, collectionId])
+  @@index([connectionId])
+  @@index([collectionId])
+  @@map("telegram_collection_subscriptions")
+}
+
+model TelegramUserLink {
+  id             String   @id @default(uuid(7)) @db.Uuid
+  userId         String   @unique @map("user_id") @db.Uuid
+  telegramUserId String   @unique @map("telegram_user_id") @db.VarChar(32)
+  username       String?  @db.VarChar(64)
+  linkedAt       DateTime @default(now()) @map("linked_at")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("telegram_user_links")
+}
+
+model TelegramLinkCode {
+  id        String    @id @default(uuid(7)) @db.Uuid
+  userId    String    @map("user_id") @db.Uuid
+  codeHash  String    @unique @map("code_hash") @db.VarChar(64)
+  expiresAt DateTime  @map("expires_at")
+  usedAt    DateTime? @map("used_at")
+  createdAt DateTime  @default(now()) @map("created_at")
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("telegram_link_codes")
+}
+
+model TelegramDelivery {
+  id              String                 @id @default(uuid(7)) @db.Uuid
+  connectionId    String                 @map("connection_id") @db.Uuid
+  subscriptionId  String                 @map("subscription_id") @db.Uuid
+  eventType       String                 @map("event_type") @db.VarChar(64)
+  eventId         String                 @map("event_id") @db.Uuid
+  payload         Json
+  status          TelegramDeliveryStatus @default(PENDING)
+  attempts        Int                    @default(0)
+  nextAttemptAt   DateTime               @default(now()) @map("next_attempt_at")
+  lockedAt        DateTime?              @map("locked_at")
+  lockedBy        String?                @map("locked_by") @db.VarChar(64)
+  responseSnippet String?                @map("response_snippet") @db.VarChar(500)
+  lastError       String?                @map("last_error") @db.VarChar(500)
+  createdAt       DateTime               @default(now()) @map("created_at")
+  connection   TelegramConnection             @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  subscription TelegramCollectionSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+
+  @@unique([subscriptionId, eventId])
+  @@index([status, nextAttemptAt])
+  @@index([connectionId, createdAt(sort: Desc)])
+  @@map("telegram_deliveries")
+}
+
+model TelegramBotCommandAudit {
+  id             String                @id @default(uuid(7)) @db.Uuid
+  connectionId   String                @map("connection_id") @db.Uuid
+  chatId         String                @map("chat_id") @db.VarChar(32)
+  telegramUserId String                @map("telegram_user_id") @db.VarChar(32)
+  linkedUserId   String?               @map("linked_user_id") @db.Uuid
+  command        String                @db.VarChar(32)
+  argsSummary    String?               @map("args_summary") @db.VarChar(200)
+  result         TelegramCommandResult
+  detail         String?               @db.VarChar(200)
+  createdAt      DateTime              @default(now()) @map("created_at")
+  connection TelegramConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+
+  @@index([connectionId, createdAt(sort: Desc)])
+  @@map("telegram_bot_command_audits")
 }

@@ -52,11 +52,12 @@ describe('PageRepository.createPageTx — tail-insert + outbox', () => {
   const baseFindMany = vi.fn(async () => [] as { id: string; prevPageId: string | null }[])
   const baseUpdate = vi.fn(async () => ({}))
   const outboxCreate = vi.fn(async () => ({}))
+  const outboxCreateMany = vi.fn(async () => ({ count: 2 }))
 
   function makeRepo() {
     const uow = makeUow({
       page: { create: baseCreate, findMany: baseFindMany, update: baseUpdate },
-      outboxEvent: { create: outboxCreate },
+      outboxEvent: { create: outboxCreate, createMany: outboxCreateMany },
     })
     return new PageRepository(uow)
   }
@@ -86,6 +87,23 @@ describe('PageRepository.createPageTx — tail-insert + outbox', () => {
           aggregateId: 'new-1',
           workspaceId: 'w1',
         }),
+      }),
+    )
+    // The integration fan-out rows (webhook + telegram) ride one createMany.
+    expect(outboxCreateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [
+          expect.objectContaining({
+            eventType: 'page.created',
+            aggregateType: 'webhook_event',
+            aggregateId: 'new-1',
+          }),
+          expect.objectContaining({
+            eventType: 'page.created',
+            aggregateType: 'telegram_event',
+            aggregateId: 'new-1',
+          }),
+        ],
       }),
     )
   })
@@ -159,11 +177,12 @@ describe('PageRepository.duplicatePageTx — sibling re-link + (копия)', ()
     const copyCreate = vi.fn(async () => ({ id: 'copy-1' }))
     const pageUpdate = vi.fn(async () => ({}))
     const outboxCreate = vi.fn(async () => ({}))
+    const outboxCreateMany = vi.fn(async () => ({ count: 2 }))
     const txFindFirst = vi.fn(async () => null) // no next sibling
     const repo = new PageRepository(
       makeUow({
         page: { findFirst: txFindFirst, create: copyCreate, update: pageUpdate },
-        outboxEvent: { create: outboxCreate },
+        outboxEvent: { create: outboxCreate, createMany: outboxCreateMany },
       }),
     )
     const result = await repo.duplicatePageTx('u1', original as never)
@@ -180,17 +199,34 @@ describe('PageRepository.duplicatePageTx — sibling re-link + (копия)', ()
         data: expect.objectContaining({ eventType: 'page.upserted', aggregateId: 'copy-1' }),
       }),
     )
+    expect(outboxCreateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [
+          expect.objectContaining({
+            eventType: 'page.created',
+            aggregateType: 'webhook_event',
+            aggregateId: 'copy-1',
+          }),
+          expect.objectContaining({
+            eventType: 'page.created',
+            aggregateType: 'telegram_event',
+            aggregateId: 'copy-1',
+          }),
+        ],
+      }),
+    )
   })
 
   it('relinks the old next sibling: null → copy', async () => {
     const copyCreate = vi.fn(async () => ({ id: 'copy-1' }))
     const pageUpdate = vi.fn(async () => ({}))
     const outboxCreate = vi.fn(async () => ({}))
+    const outboxCreateMany = vi.fn(async () => ({ count: 2 }))
     const txFindFirst = vi.fn(async () => ({ id: 'next-1' })) // old next sibling
     const repo = new PageRepository(
       makeUow({
         page: { findFirst: txFindFirst, create: copyCreate, update: pageUpdate },
-        outboxEvent: { create: outboxCreate },
+        outboxEvent: { create: outboxCreate, createMany: outboxCreateMany },
       }),
     )
     await repo.duplicatePageTx('u1', original as never)
@@ -222,10 +258,11 @@ describe('PageRepository.movePageTx — cycle-check + head-insert', () => {
     const txFindFirst = vi.fn(async () => null) // no next sibling, no ancestor, no existingFirst
     const pageUpdate = vi.fn(async () => ({}))
     const outboxCreate = vi.fn(async () => ({}))
+    const outboxCreateMany = vi.fn(async () => ({ count: 2 }))
     const repo = new PageRepository(
       makeUow({
         page: { findFirst: txFindFirst, update: pageUpdate },
-        outboxEvent: { create: outboxCreate },
+        outboxEvent: { create: outboxCreate, createMany: outboxCreateMany },
       }),
     )
     const result = await repo.movePageTx('u1', page as never, { pageId: 'p1', newParentId: 'par2' })
@@ -236,15 +273,24 @@ describe('PageRepository.movePageTx — cycle-check + head-insert', () => {
         data: expect.objectContaining({ parentId: 'par2', prevPageId: null }),
       }),
     )
-    // Two outbox rows per move: the indexing event + the webhook_event fan-out row.
-    expect(outboxCreate).toHaveBeenCalledTimes(2)
-    expect(outboxCreate).toHaveBeenCalledWith(
+    // Three outbox rows per move: the indexing event (create) + the
+    // webhook_event/telegram_event fan-out pair (one createMany).
+    expect(outboxCreate).toHaveBeenCalledTimes(1)
+    expect(outboxCreateMany).toHaveBeenCalledTimes(1)
+    expect(outboxCreateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({
-          eventType: 'page.moved',
-          aggregateType: 'webhook_event',
-          aggregateId: 'p1',
-        }),
+        data: [
+          expect.objectContaining({
+            eventType: 'page.moved',
+            aggregateType: 'webhook_event',
+            aggregateId: 'p1',
+          }),
+          expect.objectContaining({
+            eventType: 'page.moved',
+            aggregateType: 'telegram_event',
+            aggregateId: 'p1',
+          }),
+        ],
       }),
     )
   })
@@ -259,7 +305,7 @@ describe('PageRepository.movePageTx — cycle-check + head-insert', () => {
     const repo = new PageRepository(
       makeUow({
         page: { findFirst: txFindFirst, update: pageUpdate },
-        outboxEvent: { create: vi.fn() },
+        outboxEvent: { create: vi.fn(), createMany: vi.fn() },
       }),
     )
     await expect(
@@ -288,7 +334,7 @@ describe('PageRepository.movePageTx — cycle-check + head-insert', () => {
     const repo = new PageRepository(
       makeUow({
         page: { findFirst: txFindFirst, update: pageUpdate },
-        outboxEvent: { create: vi.fn() },
+        outboxEvent: { create: vi.fn(), createMany: vi.fn() },
       }),
     )
     await repo.movePageTx('u1', page as never, { pageId: 'p1', newParentId: 'par2' })
@@ -321,15 +367,16 @@ describe('PageRepository.softDeletePageTx — recursive BFS soft-delete', () => 
     const txUpdate = vi.fn(async () => ({}))
     const txUpdateMany = vi.fn(async () => ({ count: 0 }))
     const outboxCreate = vi.fn(async () => ({}))
+    const outboxCreateMany = vi.fn(async () => ({ count: 2 }))
     const uow = makeUow({
       page: { findFirst: txFindFirst, update: txUpdate, updateMany: txUpdateMany, findMany: txFindMany },
-      outboxEvent: { create: outboxCreate },
+      outboxEvent: { create: outboxCreate, createMany: outboxCreateMany },
     })
-    return { uow, txFindFirst, txFindMany, txUpdate, txUpdateMany, outboxCreate }
+    return { uow, txFindFirst, txFindMany, txUpdate, txUpdateMany, outboxCreate, outboxCreateMany }
   }
 
   it('soft-deletes the page and enqueues page.deleted', async () => {
-    const { uow, txUpdate, outboxCreate } = makeTrashUow()
+    const { uow, txUpdate, outboxCreate, outboxCreateMany } = makeTrashUow()
     const repo = new PageRepository(uow)
     const result = await repo.softDeletePageTx('u1', page as never, { id: 'p1', workspaceId: 'w1' })
     expect(result).toEqual({ id: 'p1' })
@@ -342,6 +389,22 @@ describe('PageRepository.softDeletePageTx — recursive BFS soft-delete', () => 
     expect(outboxCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ eventType: 'page.deleted', aggregateId: 'p1' }),
+      }),
+    )
+    expect(outboxCreateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [
+          expect.objectContaining({
+            eventType: 'page.deleted',
+            aggregateType: 'webhook_event',
+            aggregateId: 'p1',
+          }),
+          expect.objectContaining({
+            eventType: 'page.deleted',
+            aggregateType: 'telegram_event',
+            aggregateId: 'p1',
+          }),
+        ],
       }),
     )
   })
@@ -376,11 +439,12 @@ describe('PageRepository.restorePageTx — in-tx notFound + recursive restore', 
     const txUpdate = vi.fn(async () => ({}))
     const txUpdateMany = vi.fn(async () => ({ count: 0 }))
     const outboxCreate = vi.fn(async () => ({}))
+    const outboxCreateMany = vi.fn(async () => ({ count: 2 }))
     const uow = makeUow({
       page: { findFirst: txFindFirst, update: txUpdate, updateMany: txUpdateMany, findMany: txFindMany },
-      outboxEvent: { create: outboxCreate },
+      outboxEvent: { create: outboxCreate, createMany: outboxCreateMany },
     })
-    return { uow, txUpdate, txUpdateMany, outboxCreate }
+    return { uow, txUpdate, txUpdateMany, outboxCreate, outboxCreateMany }
   }
 
   it('throws NOT_FOUND when page is not in trash', async () => {
@@ -399,7 +463,10 @@ describe('PageRepository.restorePageTx — in-tx notFound + recursive restore', 
       parentId: null,
       deletedAt: new Date(),
     }))
-    const { uow, txUpdate, outboxCreate } = makeRestoreUow(txFindFirst, vi.fn(async () => []))
+    const { uow, txUpdate, outboxCreate, outboxCreateMany } = makeRestoreUow(
+      txFindFirst,
+      vi.fn(async () => []),
+    )
     const repo = new PageRepository(uow)
     const result = await repo.restorePageTx('u1', { id: 'p1', workspaceId: 'w1' })
     expect(result).toEqual({ id: 'p1' })
@@ -412,6 +479,22 @@ describe('PageRepository.restorePageTx — in-tx notFound + recursive restore', 
     expect(outboxCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({ eventType: 'page.upserted', aggregateId: 'p1' }),
+      }),
+    )
+    expect(outboxCreateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [
+          expect.objectContaining({
+            eventType: 'page.undeleted',
+            aggregateType: 'webhook_event',
+            aggregateId: 'p1',
+          }),
+          expect.objectContaining({
+            eventType: 'page.undeleted',
+            aggregateType: 'telegram_event',
+            aggregateId: 'p1',
+          }),
+        ],
       }),
     )
   })
@@ -463,10 +546,11 @@ describe('PageRepository.hardDeletePageTx — in-tx notFound + cascade', () => {
     const txUpdate = vi.fn(async () => ({}))
     const txDelete = vi.fn(async () => ({}))
     const outboxCreate = vi.fn(async () => ({}))
+    const outboxCreateMany = vi.fn(async () => ({ count: 0 }))
     const repo = new PageRepository(
       makeUow({
         page: { findFirst: txFindFirst, update: txUpdate, delete: txDelete },
-        outboxEvent: { create: outboxCreate },
+        outboxEvent: { create: outboxCreate, createMany: outboxCreateMany },
       }),
     )
     const result = await repo.hardDeletePageTx({ id: 'p1', workspaceId: 'w1' })
@@ -478,9 +562,10 @@ describe('PageRepository.hardDeletePageTx — in-tx notFound + cascade', () => {
       }),
     )
     expect(txDelete).toHaveBeenCalledWith({ where: { id: 'p1' } })
-    // Indexing row ONLY — no webhook_event row (the page is gone by fan-out
-    // time; soft-delete already emitted page.deleted).
+    // Indexing row ONLY — no webhook_event/telegram_event rows (the page is
+    // gone by fan-out time; soft-delete already emitted page.deleted).
     expect(outboxCreate).toHaveBeenCalledTimes(1)
+    expect(outboxCreateMany).not.toHaveBeenCalled()
     expect(outboxCreate).toHaveBeenCalledWith(
       expect.objectContaining({
         data: expect.objectContaining({
@@ -511,10 +596,11 @@ describe('PageRepository.emptyTrashTx — per-page outbox', () => {
     const txFindMany = vi.fn(async () => [{ id: 't1' }, { id: 't2' }])
     const txDeleteMany = vi.fn(async () => ({ count: 2 }))
     const outboxCreate = vi.fn(async () => ({}))
+    const outboxCreateMany = vi.fn(async () => ({ count: 0 }))
     const repo = new PageRepository(
       makeUow({
         page: { findMany: txFindMany, deleteMany: txDeleteMany },
-        outboxEvent: { create: outboxCreate },
+        outboxEvent: { create: outboxCreate, createMany: outboxCreateMany },
       }),
     )
     const result = await repo.emptyTrashTx({ workspaceId: 'w1' })
@@ -522,9 +608,10 @@ describe('PageRepository.emptyTrashTx — per-page outbox', () => {
     expect(txDeleteMany).toHaveBeenCalledWith({
       where: { workspaceId: 'w1', deletedAt: { not: null } },
     })
-    // ONE indexing row per page — no webhook_event rows (the pages are gone by
-    // fan-out time; soft-delete already emitted page.deleted).
+    // ONE indexing row per page — no webhook_event/telegram_event rows (the
+    // pages are gone by fan-out time; soft-delete already emitted page.deleted).
     expect(outboxCreate).toHaveBeenCalledTimes(2)
+    expect(outboxCreateMany).not.toHaveBeenCalled()
     for (const id of ['t1', 't2']) {
       expect(outboxCreate).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -562,10 +649,11 @@ describe('PageRepository.reorderPageTx — 3-step linked-list relink', () => {
     const txFindFirst = vi.fn(async () => null)
     const pageUpdate = vi.fn(async () => ({}))
     const outboxCreate = vi.fn(async () => ({}))
+    const outboxCreateMany = vi.fn(async () => ({ count: 2 }))
     const repo = new PageRepository(
       makeUow({
         page: { findFirst: txFindFirst, update: pageUpdate },
-        outboxEvent: { create: outboxCreate },
+        outboxEvent: { create: outboxCreate, createMany: outboxCreateMany },
       }),
     )
     const result = await repo.reorderPageTx('u1', page as never, {
@@ -580,15 +668,24 @@ describe('PageRepository.reorderPageTx — 3-step linked-list relink', () => {
         data: expect.objectContaining({ parentId: 'par2', prevPageId: null, updatedById: 'u1' }),
       }),
     )
-    // Two outbox rows per reorder: the indexing event + the webhook_event fan-out row.
-    expect(outboxCreate).toHaveBeenCalledTimes(2)
-    expect(outboxCreate).toHaveBeenCalledWith(
+    // Three outbox rows per reorder: the indexing event (create) + the
+    // webhook_event/telegram_event fan-out pair (one createMany).
+    expect(outboxCreate).toHaveBeenCalledTimes(1)
+    expect(outboxCreateMany).toHaveBeenCalledTimes(1)
+    expect(outboxCreateMany).toHaveBeenCalledWith(
       expect.objectContaining({
-        data: expect.objectContaining({
-          eventType: 'page.moved',
-          aggregateType: 'webhook_event',
-          aggregateId: 'p1',
-        }),
+        data: [
+          expect.objectContaining({
+            eventType: 'page.moved',
+            aggregateType: 'webhook_event',
+            aggregateId: 'p1',
+          }),
+          expect.objectContaining({
+            eventType: 'page.moved',
+            aggregateType: 'telegram_event',
+            aggregateId: 'p1',
+          }),
+        ],
       }),
     )
   })

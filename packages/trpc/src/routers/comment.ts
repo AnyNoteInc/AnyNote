@@ -5,7 +5,7 @@ import {
   notifyPageActivity,
   resolvePageActivityRecipients,
 } from '@repo/notifications'
-import { enqueueWebhookEvent } from '@repo/db'
+import { enqueueIntegrationEvents } from '@repo/db'
 import type { PrismaClient } from '@repo/db'
 
 import { router, publicProcedure } from '../trpc'
@@ -289,7 +289,7 @@ export const commentRouter = router({
           },
           select: { id: true },
         })
-        await enqueueWebhookEvent(tx, {
+        await enqueueIntegrationEvents(tx, {
           event: 'comment.created',
           resourceType: 'comment',
           resourceId: c.pageId,
@@ -352,7 +352,7 @@ export const commentRouter = router({
           },
           select: { id: true },
         })
-        await enqueueWebhookEvent(tx, {
+        await enqueueIntegrationEvents(tx, {
           event: 'comment.created',
           resourceType: 'comment',
           resourceId: c.pageId,
@@ -467,7 +467,7 @@ export const commentRouter = router({
           data: { resolvedAt: new Date(), resolvedById: c.author.userId ?? null },
           select: { id: true, resolvedAt: true },
         })
-        await enqueueWebhookEvent(tx, {
+        await enqueueIntegrationEvents(tx, {
           event: 'comment.resolved',
           resourceType: 'comment',
           resourceId: c.pageId,

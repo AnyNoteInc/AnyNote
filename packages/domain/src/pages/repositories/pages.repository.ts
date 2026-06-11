@@ -1,4 +1,4 @@
-import { PageType, enqueueOutboxEvent, enqueueWebhookEvent } from '@repo/db'
+import { PageType, enqueueOutboxEvent, enqueueIntegrationEvents } from '@repo/db'
 import type { Prisma } from '@repo/db'
 
 import { badRequest, notFound } from '../../shared/errors.ts'
@@ -234,7 +234,7 @@ export class PageRepository {
       aggregateId: newPage.id,
       workspaceId: input.workspaceId,
     })
-    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+    await enqueueIntegrationEvents(this.uow.client() as Prisma.TransactionClient, {
       event: 'page.created',
       resourceType: 'page',
       resourceId: newPage.id,
@@ -331,7 +331,7 @@ export class PageRepository {
       aggregateId: pageId,
       workspaceId,
     })
-    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+    await enqueueIntegrationEvents(this.uow.client() as Prisma.TransactionClient, {
       event: 'page.properties_updated',
       resourceType: 'page',
       resourceId: pageId,
@@ -357,7 +357,7 @@ export class PageRepository {
       aggregateId: pageId,
       workspaceId,
     })
-    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+    await enqueueIntegrationEvents(this.uow.client() as Prisma.TransactionClient, {
       event: 'page.properties_updated',
       resourceType: 'page',
       resourceId: pageId,
@@ -411,7 +411,7 @@ export class PageRepository {
       aggregateId: pageId,
       workspaceId,
     })
-    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+    await enqueueIntegrationEvents(this.uow.client() as Prisma.TransactionClient, {
       event: 'page.moved',
       resourceType: 'page',
       resourceId: pageId,
@@ -442,7 +442,7 @@ export class PageRepository {
       aggregateId: updated.id,
       workspaceId: input.workspaceId,
     })
-    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+    await enqueueIntegrationEvents(this.uow.client() as Prisma.TransactionClient, {
       event: 'page.properties_updated',
       resourceType: 'page',
       resourceId: updated.id,
@@ -477,7 +477,7 @@ export class PageRepository {
       aggregateId: updated.id,
       workspaceId: input.workspaceId,
     })
-    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+    await enqueueIntegrationEvents(this.uow.client() as Prisma.TransactionClient, {
       event: 'page.properties_updated',
       resourceType: 'page',
       resourceId: updated.id,
@@ -537,7 +537,7 @@ export class PageRepository {
       aggregateId: copy.id,
       workspaceId: page.workspaceId,
     })
-    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+    await enqueueIntegrationEvents(this.uow.client() as Prisma.TransactionClient, {
       event: 'page.created',
       resourceType: 'page',
       resourceId: copy.id,
@@ -609,7 +609,7 @@ export class PageRepository {
       aggregateId: page.id,
       workspaceId: page.workspaceId,
     })
-    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+    await enqueueIntegrationEvents(this.uow.client() as Prisma.TransactionClient, {
       event: 'page.moved',
       resourceType: 'page',
       resourceId: page.id,
@@ -680,7 +680,7 @@ export class PageRepository {
       aggregateId: input.pageId,
       workspaceId: page.workspaceId,
     })
-    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+    await enqueueIntegrationEvents(this.uow.client() as Prisma.TransactionClient, {
       event: 'page.moved',
       resourceType: 'page',
       resourceId: input.pageId,
@@ -750,7 +750,7 @@ export class PageRepository {
       aggregateId: page.id,
       workspaceId: input.workspaceId,
     })
-    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+    await enqueueIntegrationEvents(this.uow.client() as Prisma.TransactionClient, {
       event: 'page.deleted',
       resourceType: 'page',
       resourceId: page.id,
@@ -840,7 +840,7 @@ export class PageRepository {
       aggregateId: page.id,
       workspaceId: input.workspaceId,
     })
-    await enqueueWebhookEvent(this.uow.client() as Prisma.TransactionClient, {
+    await enqueueIntegrationEvents(this.uow.client() as Prisma.TransactionClient, {
       event: 'page.undeleted',
       resourceType: 'page',
       resourceId: page.id,

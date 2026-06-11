@@ -118,7 +118,7 @@ export {
   AiProviderKind,
 } from '@prisma/client'
 
-export type OutboxAggregateType = 'page' | 'file' | 'webhook_event'
+export type OutboxAggregateType = 'page' | 'file' | 'webhook_event' | 'telegram_event'
 
 export interface EnqueueOutboxEventArgs {
   eventType: string
@@ -186,6 +186,33 @@ export async function enqueueWebhookEvent(
         hints: args.hints ?? {},
       },
     },
+  })
+}
+
+export type EnqueueIntegrationEventsArgs = EnqueueWebhookEventArgs
+
+/**
+ * Writes one outbox row per outbound-integration consumer (webhooks + telegram).
+ * Consumers each claim only their own aggregateType — SKIP LOCKED consumers must
+ * never share rows (they would steal from each other).
+ */
+export async function enqueueIntegrationEvents(
+  tx: Prisma.TransactionClient,
+  args: EnqueueIntegrationEventsArgs,
+): Promise<void> {
+  const payload = {
+    resourceType: args.resourceType,
+    actorId: args.actorId ?? null,
+    hints: args.hints ?? {},
+  }
+  await tx.outboxEvent.createMany({
+    data: (['webhook_event', 'telegram_event'] as const).map((aggregateType) => ({
+      eventType: args.event,
+      aggregateType,
+      aggregateId: args.resourceId,
+      workspaceId: args.workspaceId,
+      payload,
+    })),
   })
 }
 
