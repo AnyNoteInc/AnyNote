@@ -359,7 +359,7 @@ describe('people service — guests, link, roles, blocking', () => {
       ).toBeNull()
     })
 
-    it('an existing member joins as a no-op alreadyMember success', async () => {
+    it('an existing member joins as a no-op alreadyMember success — and the join is audited', async () => {
       const { ws, owner, guest } = await seed()
       await addMember(ws.id, guest.id, RoleType.VIEWER)
       const { token } = await domain.people.enableInviteLink({
@@ -372,7 +372,48 @@ describe('people service — guests, link, roles, blocking', () => {
       expect(
         await prisma.workspaceMember.count({ where: { workspaceId: ws.id, userId: guest.id } }),
       ).toBe(1)
-      expect(await auditRows(ws.id, PEOPLE_AUDIT_ACTIONS.inviteLinkJoined)).toHaveLength(0)
+      // parity with acceptInvitation: the alreadyMember path writes an audit row too
+      const audits = await auditRows(ws.id, PEOPLE_AUDIT_ACTIONS.inviteLinkJoined)
+      expect(audits).toHaveLength(1)
+      expect(audits[0]!.targetUserId).toBe(guest.id)
+      expect(audits[0]!.metadata).toEqual({ alreadyMember: true })
+    })
+
+    it('two concurrent joins converge: one member row, one normal + one alreadyMember result, both audited', async () => {
+      const { ws, owner } = await seed()
+      const { token } = await domain.people.enableInviteLink({
+        workspaceId: ws.id,
+        actorId: owner.id,
+        role: RoleType.VIEWER,
+      })
+      // A few rounds to shake out interleaving luck (the 7B atomic-claim pattern):
+      // the loser of the workspace_members unique race must converge on the
+      // alreadyMember path instead of surfacing P2002.
+      for (let i = 0; i < 3; i++) {
+        const user = await makeUser(`linkrace${i}`)
+        const results = await Promise.all([
+          domain.people.joinViaLink({ token, userId: user.id }),
+          domain.people.joinViaLink({ token, userId: user.id }),
+        ])
+
+        expect(results.filter((r) => !r.alreadyMember)).toHaveLength(1)
+        expect(results.filter((r) => r.alreadyMember)).toHaveLength(1)
+        for (const r of results) {
+          expect(r.workspaceId).toBe(ws.id)
+          expect(r.role).toBe(RoleType.VIEWER)
+        }
+
+        const members = await prisma.workspaceMember.findMany({
+          where: { workspaceId: ws.id, userId: user.id },
+        })
+        expect(members).toHaveLength(1)
+        expect(members[0]!.role).toBe(RoleType.VIEWER)
+        // both the winner and the alreadyMember loser audit invite_link.joined
+        const audits = (await auditRows(ws.id, PEOPLE_AUDIT_ACTIONS.inviteLinkJoined)).filter(
+          (a) => a.targetUserId === user.id,
+        )
+        expect(audits).toHaveLength(2)
+      }
     })
 
     it('re-checks the seat limit ⇒ SEAT_LIMIT_REACHED', async () => {
@@ -716,6 +757,49 @@ describe('people service — guests, link, roles, blocking', () => {
         PEOPLE_ERROR_CODES.INVITE_NOT_FOUND,
         404,
       )
+    })
+
+    it('two concurrent accepts cannot race ensureShareForPage: one share row, one grant, both resolve', async () => {
+      const { ws, owner } = await seed()
+      // A few rounds to shake out interleaving luck (the 7B atomic-claim pattern):
+      // the read-then-create on the unique pageId must not surface P2002.
+      for (let i = 0; i < 3; i++) {
+        const user = await makeUser(`guestrace${i}`)
+        const page = await prisma.page.create({
+          data: { workspaceId: ws.id, title: `Race page ${i}`, createdById: owner.id },
+        })
+        const { invite, token } = await domain.people.createGuestInvite({
+          pageId: page.id,
+          actorId: owner.id,
+          email: user.email,
+          role: 'COMMENTER',
+        })
+        const input = { token, userId: user.id, userEmail: user.email }
+        // Promise.all rejects on any rejection — resolution itself asserts no 500
+        const results = await Promise.all([
+          domain.people.acceptGuestInvite(input),
+          domain.people.acceptGuestInvite(input),
+        ])
+        for (const r of results) {
+          expect(r).toEqual({
+            pageId: page.id,
+            workspaceId: ws.id,
+            role: 'COMMENTER',
+            alreadyMember: false,
+          })
+        }
+
+        const shares = await prisma.pageShare.findMany({ where: { pageId: page.id } })
+        expect(shares).toHaveLength(1)
+        const grants = await prisma.pageShareUser.findMany({
+          where: { pageShareId: shares[0]!.id, userId: user.id },
+        })
+        expect(grants).toHaveLength(1)
+        expect(grants[0]!.role).toBe('COMMENTER')
+        const row = await prisma.pageGuestInvite.findUniqueOrThrow({ where: { id: invite.id } })
+        expect(row.acceptedAt).not.toBeNull()
+        expect(row.acceptedById).toBe(user.id)
+      }
     })
   })
 

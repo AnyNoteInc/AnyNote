@@ -630,6 +630,81 @@ describe('people service', () => {
       expect(member).toBeNull()
     })
 
+    it('the in-tx seat re-check fires atomically: SEAT_LIMIT_REACHED and nothing is written', async () => {
+      const { ws, owner, invitee } = await seed()
+      const { invitation, token } = await domain.people.createInvitation({
+        workspaceId: ws.id,
+        actorId: owner.id,
+        email: invitee.email,
+        role: RoleType.EDITOR,
+      })
+      // the workspace fills to the limit between invite-time and acceptance
+      await prisma.workspaceLimit.update({
+        where: { workspaceId: ws.id },
+        data: { maxMembers: 1 }, // owner already holds the only seat
+      })
+      await expectDomainError(
+        domain.people.acceptInvitation({
+          token,
+          userId: invitee.id,
+          userEmail: invitee.email,
+        }),
+        PEOPLE_ERROR_CODES.SEAT_LIMIT_REACHED,
+        403,
+      )
+      // the rolled-back transaction left no trace: no member, open invite, no audit
+      expect(
+        await prisma.workspaceMember.findUnique({
+          where: { workspaceId_userId: { workspaceId: ws.id, userId: invitee.id } },
+        }),
+      ).toBeNull()
+      const row = await prisma.workspaceInvitation.findUniqueOrThrow({
+        where: { id: invitation.id },
+      })
+      expect(row.acceptedAt).toBeNull()
+      expect(await auditRows(ws.id, PEOPLE_AUDIT_ACTIONS.inviteAccepted)).toHaveLength(0)
+    })
+
+    it('two concurrent accepts converge: one member row, one normal + one alreadyMember result', async () => {
+      const { ws, owner } = await seed()
+      // A few rounds to shake out interleaving luck (the 7B atomic-claim pattern):
+      // the loser of the workspace_members unique race must converge on the
+      // alreadyMember path instead of surfacing P2002.
+      for (let i = 0; i < 3; i++) {
+        const user = await makeUser(`race${i}`)
+        const { invitation, token } = await domain.people.createInvitation({
+          workspaceId: ws.id,
+          actorId: owner.id,
+          email: user.email,
+          role: RoleType.EDITOR,
+        })
+        const input = { token, userId: user.id, userEmail: user.email }
+        // Promise.all rejects on any rejection — resolution itself asserts no 500
+        const results = await Promise.all([
+          domain.people.acceptInvitation(input),
+          domain.people.acceptInvitation(input),
+        ])
+
+        expect(results.filter((r) => !r.alreadyMember)).toHaveLength(1)
+        expect(results.filter((r) => r.alreadyMember)).toHaveLength(1)
+        for (const r of results) {
+          expect(r.workspaceId).toBe(ws.id)
+          expect(r.role).toBe(RoleType.EDITOR)
+        }
+
+        const members = await prisma.workspaceMember.findMany({
+          where: { workspaceId: ws.id, userId: user.id },
+        })
+        expect(members).toHaveLength(1)
+        expect(members[0]!.role).toBe(RoleType.EDITOR)
+        const row = await prisma.workspaceInvitation.findUniqueOrThrow({
+          where: { id: invitation.id },
+        })
+        expect(row.acceptedAt).not.toBeNull()
+        expect(row.acceptedById).toBe(user.id)
+      }
+    })
+
     it('double-accept by the same user returns alreadyMember without duplicates', async () => {
       const { ws, owner, invitee } = await seed()
       const { token } = await domain.people.createInvitation({

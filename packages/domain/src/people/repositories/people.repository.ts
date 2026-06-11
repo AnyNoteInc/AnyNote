@@ -326,24 +326,21 @@ export class PeopleRepository {
 
   // ── page shares (the `ensureShare` + grant logic the trpc router uses) ───────
 
-  /** Lazily create-or-return the PageShare row, mirroring the page-share router's `ensureShare`. */
+  /**
+   * Lazily create-or-return the PageShare row, mirroring the page-share router's
+   * `ensureShare` — as a single upsert on the unique `pageId` (not read-then-create),
+   * so concurrent guest accepts can't race each other into a P2002.
+   */
   async ensureShareForPage(pageId: string, createdById: string): Promise<{ id: string }> {
-    const existing = await this.uow.client().pageShare.findUnique({
+    return this.uow.client().pageShare.upsert({
       where: { pageId },
-      select: { id: true },
-    })
-    if (existing) return existing
-    return this.uow.client().pageShare.create({
-      data: { pageId, shareId: newShareId(), createdById },
+      create: { pageId, shareId: newShareId(), createdById },
+      update: {},
       select: { id: true },
     })
   }
 
-  async upsertShareGrant(
-    pageShareId: string,
-    userId: string,
-    role: PageShareRole,
-  ): Promise<void> {
+  async upsertShareGrant(pageShareId: string, userId: string, role: PageShareRole): Promise<void> {
     await this.uow.client().pageShareUser.upsert({
       where: { pageShareId_userId: { pageShareId, userId } },
       create: { pageShareId, userId, role },

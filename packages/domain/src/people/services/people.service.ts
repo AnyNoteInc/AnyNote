@@ -247,22 +247,44 @@ export class PeopleService {
       return { workspaceId: invite.workspaceId, role: existing.role, alreadyMember: true }
     }
 
-    // Authoritative seat re-check — the workspace may have filled up since invite-time.
-    await this.assertSeatAvailable(invite.workspaceId)
-
-    await this.uow.transaction(async () => {
-      await this.repo.createMember(invite.workspaceId, input.userId, invite.role)
-      await this.collections.ensurePersonalCollection(invite.workspaceId, input.userId)
-      await this.repo.markInvitationAccepted(invite.id, input.userId)
-      await this.repo.writeAudit({
-        workspaceId: invite.workspaceId,
-        actorId: input.userId,
-        action: PEOPLE_AUDIT_ACTIONS.inviteAccepted,
-        targetUserId: input.userId,
-        targetEmail: invite.email,
-        metadata: { invitationId: invite.id, role: invite.role },
+    try {
+      await this.uow.transaction(async () => {
+        // Authoritative seat re-check — the workspace may have filled up since
+        // invite-time. Running it inside the tx narrows (does not eliminate)
+        // the count-then-insert TOCTOU under READ COMMITTED.
+        await this.assertSeatAvailable(invite.workspaceId)
+        await this.repo.createMember(invite.workspaceId, input.userId, invite.role)
+        await this.collections.ensurePersonalCollection(invite.workspaceId, input.userId)
+        await this.repo.markInvitationAccepted(invite.id, input.userId)
+        await this.repo.writeAudit({
+          workspaceId: invite.workspaceId,
+          actorId: input.userId,
+          action: PEOPLE_AUDIT_ACTIONS.inviteAccepted,
+          targetUserId: input.userId,
+          targetEmail: invite.email,
+          metadata: { invitationId: invite.id, role: invite.role },
+        })
       })
-    })
+    } catch (e: unknown) {
+      if ((e as { code?: string })?.code !== 'P2002') throw e
+      // A concurrent accept won the workspace_members unique race after our
+      // membership pre-check. Postgres aborts the losing tx (no savepoints), so
+      // converge on the alreadyMember path in a fresh transaction.
+      const member = await this.repo.findMembership(invite.workspaceId, input.userId)
+      if (!member) throw e
+      await this.uow.transaction(async () => {
+        await this.repo.markInvitationAccepted(invite.id, input.userId)
+        await this.repo.writeAudit({
+          workspaceId: invite.workspaceId,
+          actorId: input.userId,
+          action: PEOPLE_AUDIT_ACTIONS.inviteAccepted,
+          targetUserId: input.userId,
+          targetEmail: invite.email,
+          metadata: { invitationId: invite.id, alreadyMember: true },
+        })
+      })
+      return { workspaceId: invite.workspaceId, role: member.role, alreadyMember: true }
+    }
     return { workspaceId: invite.workspaceId, role: invite.role, alreadyMember: false }
   }
 
@@ -333,10 +355,7 @@ export class PeopleService {
     if (!existing) throw peopleError('INVITE_NOT_FOUND')
     const token = generateInviteToken()
     const row = await this.uow.transaction(async () => {
-      const saved = await this.repo.rotateInviteLinkToken(
-        input.workspaceId,
-        hashInviteToken(token),
-      )
+      const saved = await this.repo.rotateInviteLinkToken(input.workspaceId, hashInviteToken(token))
       await this.repo.writeAudit({
         workspaceId: input.workspaceId,
         actorId: input.actorId,
@@ -355,23 +374,51 @@ export class PeopleService {
 
     const existing = await this.repo.findMembership(link.workspaceId, input.userId)
     if (existing) {
-      return { workspaceId: link.workspaceId, role: existing.role, alreadyMember: true }
+      return this.joinViaLinkAlreadyMember(link.workspaceId, input.userId, existing.role)
     }
 
-    await this.assertSeatAvailable(link.workspaceId)
+    try {
+      await this.uow.transaction(async () => {
+        // Authoritative seat re-check inside the tx — narrows (does not
+        // eliminate) the count-then-insert TOCTOU under READ COMMITTED.
+        await this.assertSeatAvailable(link.workspaceId)
+        await this.repo.createMember(link.workspaceId, input.userId, link.role)
+        await this.collections.ensurePersonalCollection(link.workspaceId, input.userId)
+        await this.repo.writeAudit({
+          workspaceId: link.workspaceId,
+          actorId: input.userId,
+          action: PEOPLE_AUDIT_ACTIONS.inviteLinkJoined,
+          targetUserId: input.userId,
+          metadata: { role: link.role },
+        })
+      })
+    } catch (e: unknown) {
+      if ((e as { code?: string })?.code !== 'P2002') throw e
+      // A concurrent join won the workspace_members unique race after our
+      // membership pre-check — converge on the alreadyMember path.
+      const member = await this.repo.findMembership(link.workspaceId, input.userId)
+      if (!member) throw e
+      return this.joinViaLinkAlreadyMember(link.workspaceId, input.userId, member.role)
+    }
+    return { workspaceId: link.workspaceId, role: link.role, alreadyMember: false }
+  }
 
+  /** Audit parity with `acceptInvitation`: the alreadyMember no-op still leaves a trace. */
+  private async joinViaLinkAlreadyMember(
+    workspaceId: string,
+    userId: string,
+    role: RoleType,
+  ): Promise<JoinViaLinkResult> {
     await this.uow.transaction(async () => {
-      await this.repo.createMember(link.workspaceId, input.userId, link.role)
-      await this.collections.ensurePersonalCollection(link.workspaceId, input.userId)
       await this.repo.writeAudit({
-        workspaceId: link.workspaceId,
-        actorId: input.userId,
+        workspaceId,
+        actorId: userId,
         action: PEOPLE_AUDIT_ACTIONS.inviteLinkJoined,
-        targetUserId: input.userId,
-        metadata: { role: link.role },
+        targetUserId: userId,
+        metadata: { alreadyMember: true },
       })
     })
-    return { workspaceId: link.workspaceId, role: link.role, alreadyMember: false }
+    return { workspaceId, role, alreadyMember: true }
   }
 
   // ── guest invites ────────────────────────────────────────────────────────────
@@ -490,19 +537,29 @@ export class PeopleService {
       }
     }
 
-    await this.uow.transaction(async () => {
-      const share = await this.repo.ensureShareForPage(invite.pageId, invite.inviterId)
-      await this.repo.upsertShareGrant(share.id, input.userId, invite.role)
-      await this.repo.markGuestInviteAccepted(invite.id, input.userId)
-      await this.repo.writeAudit({
-        workspaceId: invite.workspaceId,
-        actorId: input.userId,
-        action: PEOPLE_AUDIT_ACTIONS.guestJoined,
-        targetUserId: input.userId,
-        targetEmail: invite.email,
-        metadata: { inviteId: invite.id, pageId: invite.pageId, role: invite.role },
+    const grantTx = () =>
+      this.uow.transaction(async () => {
+        const share = await this.repo.ensureShareForPage(invite.pageId, invite.inviterId)
+        await this.repo.upsertShareGrant(share.id, input.userId, invite.role)
+        await this.repo.markGuestInviteAccepted(invite.id, input.userId)
+        await this.repo.writeAudit({
+          workspaceId: invite.workspaceId,
+          actorId: input.userId,
+          action: PEOPLE_AUDIT_ACTIONS.guestJoined,
+          targetUserId: input.userId,
+          targetEmail: invite.email,
+          metadata: { inviteId: invite.id, pageId: invite.pageId, role: invite.role },
+        })
       })
-    })
+    try {
+      await grantTx()
+    } catch (e: unknown) {
+      if ((e as { code?: string })?.code !== 'P2002') throw e
+      // A concurrent accept won the pageShare unique race (Prisma emulates the
+      // upsert here, and Postgres aborts the losing tx without savepoints). One
+      // clean re-run converges: every statement now finds the winner's rows.
+      await grantTx()
+    }
     return {
       pageId: invite.pageId,
       workspaceId: invite.workspaceId,
@@ -565,9 +622,11 @@ export class PeopleService {
     if (existing) throw peopleError('ALREADY_MEMBER')
     const user = await this.repo.findUserById(input.userId)
     if (!user) throw notFound('Пользователь не найден')
-    await this.assertSeatAvailable(input.workspaceId)
 
     await this.uow.transaction(async () => {
+      // Authoritative seat re-check inside the tx — narrows (does not
+      // eliminate) the count-then-insert TOCTOU under READ COMMITTED.
+      await this.assertSeatAvailable(input.workspaceId)
       await this.repo.createMember(input.workspaceId, input.userId, input.role)
       await this.collections.ensurePersonalCollection(input.workspaceId, input.userId)
       await this.repo.writeAudit({
@@ -682,12 +741,16 @@ export class PeopleService {
 
   // ── internals ────────────────────────────────────────────────────────────────
 
-  /** Same semantics as the legacy `workspace.inviteMember` check: no limit row ⇒ unlimited. */
+  /**
+   * Same semantics as the legacy `workspace.inviteMember` check: no limit row ⇒
+   * unlimited. Reads run sequentially (not Promise.all) so the check is safe on
+   * the single connection of an interactive transaction — the join paths call
+   * this inside `uow.transaction()` as their authoritative re-check.
+   */
   private async assertSeatAvailable(workspaceId: string): Promise<void> {
-    const [memberCount, limit] = await Promise.all([
-      this.repo.countMembers(workspaceId),
-      this.repo.findWorkspaceLimit(workspaceId),
-    ])
-    if (limit && memberCount >= limit.maxMembers) throw peopleError('SEAT_LIMIT_REACHED')
+    const limit = await this.repo.findWorkspaceLimit(workspaceId)
+    if (!limit) return
+    const memberCount = await this.repo.countMembers(workspaceId)
+    if (memberCount >= limit.maxMembers) throw peopleError('SEAT_LIMIT_REACHED')
   }
 }
