@@ -1210,6 +1210,40 @@ importers:
         specifier: ^3.2.4
         version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.17)(happy-dom@20.9.0)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.32.0)(sass@1.51.0)(terser@5.46.1)(tsx@4.21.0)(yaml@1.10.3)
 
+  packages/telegram:
+    dependencies:
+      '@repo/auth':
+        specifier: workspace:*
+        version: link:../auth
+      '@repo/db':
+        specifier: workspace:*
+        version: link:../db
+      '@repo/webhooks':
+        specifier: workspace:*
+        version: link:../webhooks
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
+    devDependencies:
+      '@repo/eslint-config':
+        specifier: workspace:*
+        version: link:../eslint-config
+      '@repo/typescript-config':
+        specifier: workspace:*
+        version: link:../typescript-config
+      '@types/node':
+        specifier: ^22.19.1
+        version: 22.19.17
+      eslint:
+        specifier: ^9.39.1
+        version: 9.39.4(jiti@2.6.1)
+      typescript:
+        specifier: ^5.9.2
+        version: 5.9.2
+      vitest:
+        specifier: ^3.2.4
+        version: 3.2.4(@types/debug@4.1.13)(@types/node@22.19.17)(happy-dom@20.9.0)(jiti@2.6.1)(jsdom@26.1.0)(lightningcss@1.32.0)(sass@1.51.0)(terser@5.46.1)(tsx@4.21.0)(yaml@1.10.3)
+
   packages/trpc:
     dependencies:
       '@hocuspocus/transformer':

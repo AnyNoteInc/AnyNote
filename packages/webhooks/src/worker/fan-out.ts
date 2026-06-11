@@ -87,7 +87,7 @@ const PAGE_ID_HINT_KEYS = ['duplicatedFrom', 'to'] as const
  * soft-deleted. Failing values become null; unknown keys pass through
  * untouched (the forbidden-keys assertion already guards content).
  */
-async function sanitizeHints(
+export async function sanitizeHints(
   prisma: PrismaClient,
   hints: Record<string, unknown>,
 ): Promise<Record<string, unknown>> {
