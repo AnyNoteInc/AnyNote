@@ -6,6 +6,36 @@ import { domain } from '@/lib/domain'
 export const runtime = 'nodejs'
 
 /**
+ * Lightweight sliding-window rate limit, in-memory per-instance BY DESIGN
+ * («rate-limited by simplicity» per the spec): a module-level map of recent
+ * request timestamps per IP, pruned on access. Multi-instance deployments
+ * multiply the cap by instance count — acceptable for a boolean endpoint.
+ */
+const RATE_LIMIT_MAX = 20
+const RATE_LIMIT_WINDOW_MS = 60_000
+
+const requestLog = new Map<string, number[]>()
+
+function clientIpOf(req: NextRequest): string {
+  const forwarded = req.headers.get('x-forwarded-for')
+  const firstHop = forwarded?.split(',')[0]?.trim()
+  return firstHop || req.headers.get('x-real-ip') || 'unknown'
+}
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now()
+  const cutoff = now - RATE_LIMIT_WINDOW_MS
+  const recent = (requestLog.get(ip) ?? []).filter((ts) => ts > cutoff)
+  if (recent.length >= RATE_LIMIT_MAX) {
+    requestLog.set(ip, recent)
+    return true
+  }
+  recent.push(now)
+  requestLog.set(ip, recent)
+  return false
+}
+
+/**
  * Abuse hardening (the `/api/invite/accept` precedent): this endpoint is a
  * domain-probing oracle by design, so at minimum require the browser's
  * `Origin` to match the app's own origin — cross-site pages cannot use a
@@ -41,6 +71,10 @@ const bodySchema = z.object({ email: z.string().email().max(320) })
  * probing domains). Cost per request: one indexed query.
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  if (isRateLimited(clientIpOf(req))) {
+    return NextResponse.json({ error: 'Слишком много запросов' }, { status: 429 })
+  }
+
   if (!isSameAppOrigin(req)) {
     return NextResponse.json({ error: 'Недопустимый источник запроса' }, { status: 403 })
   }

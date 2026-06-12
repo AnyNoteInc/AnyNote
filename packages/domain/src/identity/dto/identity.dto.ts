@@ -38,6 +38,12 @@ export const IDENTITY_AUDIT_ACTIONS = {
   providerDeleted: 'provider.deleted',
   enterpriseRequested: 'provider.enterprise_requested',
   identityLinked: 'sso.identity_linked',
+  /**
+   * RESERVED — intentionally never emitted in 8B: SSO-JIT users join through
+   * the same domain banner → `joinViaDomain`, so their join audits as
+   * `domain.joined` (the truthful record). Distinct JIT semantics arrive with
+   * SAML/SCIM provisioning (8C+), which will consume this action.
+   */
   jitJoined: 'sso.jit_joined',
 } as const
 
