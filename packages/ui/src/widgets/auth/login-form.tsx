@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import {
   Button,
@@ -23,15 +24,28 @@ export type LoginFormProps = {
   defaultValues?: Partial<LoginFormValues>
   onSubmit?: (values: LoginFormValues) => void | Promise<void>
   onGoogle?: () => void | Promise<void>
+  /**
+   * SSO slot (the `onGoogle` pattern): when provided, a «Войти через SSO»
+   * toggle renders under the Google button and expands a corporate-email
+   * field. The widget stays presentational — resolving the provider and
+   * starting the flow is the caller's job; the caller surfaces failures via
+   * `ssoError`.
+   */
+  onSso?: (email: string) => void | Promise<void>
+  ssoError?: string | null
   forgotPasswordHref?: string
   signUpHref?: string
   isSubmitting?: boolean
 }
 
+const EMAIL_PATTERN = /\S+@\S+\.\S+/
+
 export function LoginForm({
   defaultValues,
   onSubmit,
   onGoogle,
+  onSso,
+  ssoError,
   forgotPasswordHref = '/reset-credentials',
   signUpHref = '/sign-up',
   isSubmitting,
@@ -53,11 +67,30 @@ export function LoginForm({
     reValidateMode: 'onChange',
   })
 
+  const [ssoOpen, setSsoOpen] = useState(false)
+  const [ssoEmail, setSsoEmail] = useState('')
+  const [ssoEmailError, setSsoEmailError] = useState<string | null>(null)
+  const [ssoSubmitting, setSsoSubmitting] = useState(false)
+
   const submitting = isSubmitting ?? rhfSubmitting
 
   const handleFormSubmit = handleSubmit(async (values) => {
     await onSubmit?.(values)
   })
+
+  const handleSsoContinue = async (): Promise<void> => {
+    if (!EMAIL_PATTERN.test(ssoEmail)) {
+      setSsoEmailError('Введите корректный email')
+      return
+    }
+    setSsoEmailError(null)
+    setSsoSubmitting(true)
+    try {
+      await onSso?.(ssoEmail)
+    } finally {
+      setSsoSubmitting(false)
+    }
+  }
 
   return (
     <Stack spacing={3} component="form" onSubmit={handleFormSubmit}>
@@ -72,6 +105,56 @@ export function LoginForm({
       >
         Войти через Google
       </Button>
+      {onSso ? (
+        <>
+          <Button
+            variant="text"
+            size="large"
+            onClick={() => setSsoOpen((open) => !open)}
+            disabled={submitting}
+            fullWidth
+            data-testid="sso-signin-toggle"
+          >
+            Войти через SSO
+          </Button>
+          {ssoOpen ? (
+            <Stack spacing={1.5}>
+              <TextField
+                value={ssoEmail}
+                onChange={(event) => {
+                  setSsoEmail(event.target.value)
+                  setSsoEmailError(null)
+                }}
+                onKeyDown={(event) => {
+                  // The field lives inside the password form — Enter must
+                  // start the SSO flow, not submit email/password.
+                  if (event.key === 'Enter') {
+                    event.preventDefault()
+                    void handleSsoContinue()
+                  }
+                }}
+                label="Рабочий email"
+                type="email"
+                fullWidth
+                autoComplete="email"
+                error={Boolean(ssoEmailError ?? ssoError)}
+                helperText={ssoEmailError ?? ssoError}
+                slotProps={{ htmlInput: { 'data-testid': 'sso-email-input' } }}
+              />
+              <Button
+                type="button"
+                variant="outlined"
+                size="large"
+                onClick={() => void handleSsoContinue()}
+                disabled={submitting || ssoSubmitting}
+                fullWidth
+              >
+                Продолжить
+              </Button>
+            </Stack>
+          ) : null}
+        </>
+      ) : null}
       <Divider />
       <Stack spacing={2.5}>
         <TextField
