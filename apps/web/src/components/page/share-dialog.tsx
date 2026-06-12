@@ -109,6 +109,16 @@ export function ShareDialog({ open, onClose, pageId }: Props) {
     onSuccess: invalidateGuestInvites,
   })
 
+  // ── security policy (8C spec §6): the member-readable two-flag probe picks
+  // between the invite form, the request form, and the honest disabled note.
+  // Cosmetic only — the server enforces the policy on every mutation anyway.
+  const policyQ = trpc.security.sharingPolicyState.useQuery(
+    { pageId },
+    { enabled: open, retry: false },
+  )
+  const invitesDisabled = policyQ.data?.guestInvitesDisabled === true
+  const requestsAllowed = policyQ.data?.guestRequestsAllowed === true
+
   const data = shareQ.data?.share ?? null
   const owner = shareQ.data?.owner ?? null
   const grantedIds = useMemo(() => new Set((data?.users ?? []).map((u) => u.user.id)), [data])
@@ -218,52 +228,69 @@ export function ShareDialog({ open, onClose, pageId }: Props) {
                   )}
                 </Box>
 
-                {/* Guest invite by email — works for unregistered addresses */}
+                {/* Guest invite by email — policy-aware (8C spec §6): the
+                    invite form, or the request form when the policy opens the
+                    request gap, or the honest disabled note. */}
                 <Box>
-                  <Typography variant="subtitle2" sx={{ mb: 1 }}>
-                    Пригласить по email
-                  </Typography>
-                  {inviteGuest.error ? (
-                    <Alert severity="error" sx={{ mb: 1 }} onClose={() => inviteGuest.reset()}>
-                      {inviteGuest.error.message}
+                  {invitesDisabled && requestsAllowed ? (
+                    <GuestRequestBlock pageId={pageId} />
+                  ) : invitesDisabled ? (
+                    <Alert severity="info">
+                      Гостевые приглашения отключены администратором пространства.
                     </Alert>
-                  ) : null}
-                  {inviteGuest.isSuccess ? (
-                    <Alert severity="success" sx={{ mb: 1 }} onClose={() => inviteGuest.reset()}>
-                      Приглашение отправлено.
-                    </Alert>
-                  ) : null}
-                  <Stack direction="row" spacing={1} alignItems="flex-start">
-                    <TextField
-                      size="small"
-                      fullWidth
-                      placeholder="email@example.com"
-                      value={guestEmail}
-                      onChange={(e) => setGuestEmail(e.target.value)}
-                      slotProps={{ htmlInput: { 'data-testid': 'share-guest-invite-email' } }}
-                    />
-                    <Select
-                      size="small"
-                      value={guestRole}
-                      onChange={(e) => setGuestRole(e.target.value as ShareRole)}
-                      sx={{ minWidth: 150 }}
-                    >
-                      {(['READER', 'COMMENTER', 'EDITOR'] as const).map((r) => (
-                        <MenuItem key={r} value={r}>
-                          {ROLE_LABEL[r]}
-                        </MenuItem>
-                      ))}
-                    </Select>
-                    <Button
-                      onClick={() =>
-                        inviteGuest.mutate({ pageId, email: guestEmail.trim(), role: guestRole })
-                      }
-                      loading={inviteGuest.isPending}
-                      disabled={!guestEmail.trim()}
-                    >
-                      Пригласить
-                    </Button>
-                  </Stack>
+                  ) : (
+                    <>
+                      <Typography variant="subtitle2" sx={{ mb: 1 }}>
+                        Пригласить по email
+                      </Typography>
+                      {inviteGuest.error ? (
+                        <Alert severity="error" sx={{ mb: 1 }} onClose={() => inviteGuest.reset()}>
+                          {inviteGuest.error.message}
+                        </Alert>
+                      ) : null}
+                      {inviteGuest.isSuccess ? (
+                        <Alert
+                          severity="success"
+                          sx={{ mb: 1 }}
+                          onClose={() => inviteGuest.reset()}
+                        >
+                          Приглашение отправлено.
+                        </Alert>
+                      ) : null}
+                      <Stack direction="row" spacing={1} alignItems="flex-start">
+                        <TextField
+                          size="small"
+                          fullWidth
+                          placeholder="email@example.com"
+                          value={guestEmail}
+                          onChange={(e) => setGuestEmail(e.target.value)}
+                          slotProps={{ htmlInput: { 'data-testid': 'share-guest-invite-email' } }}
+                        />
+                        <Select
+                          size="small"
+                          value={guestRole}
+                          onChange={(e) => setGuestRole(e.target.value as ShareRole)}
+                          sx={{ minWidth: 150 }}
+                        >
+                          {(['READER', 'COMMENTER', 'EDITOR'] as const).map((r) => (
+                            <MenuItem key={r} value={r}>
+                              {ROLE_LABEL[r]}
+                            </MenuItem>
+                          ))}
+                        </Select>
+                        <Button
+                          onClick={() =>
+                            inviteGuest.mutate({ pageId, email: guestEmail.trim(), role: guestRole })
+                          }
+                          loading={inviteGuest.isPending}
+                          disabled={!guestEmail.trim()}
+                        >
+                          Пригласить
+                        </Button>
+                      </Stack>
+                    </>
+                  )}
+                  {/* Already-issued invites stay manageable (revoke) under any policy. */}
                   {(guestInvitesQ.data ?? []).length > 0 ? (
                     <Stack spacing={1} sx={{ mt: 1.5 }}>
                       {(guestInvitesQ.data ?? []).map((invite) => (
@@ -464,5 +491,108 @@ export function ShareDialog({ open, onClose, pageId }: Props) {
         </Button>
       </DialogActions>
     </Dialog>
+  )
+}
+
+const REQUEST_STATUS_CHIP: Record<
+  string,
+  { label: string; color: 'default' | 'success' | 'warning' | 'error' }
+> = {
+  PENDING: { label: 'Ожидает решения', color: 'warning' },
+  APPROVED: { label: 'Одобрен', color: 'success' },
+  REJECTED: { label: 'Отклонён', color: 'default' },
+}
+
+/**
+ * The guest-invite REQUEST form (8C spec §6) — mounted instead of the invite
+ * form when the policy disables invites but allows requests. Owners decide in
+ * Настройки → Безопасность; the requester's own request states render below.
+ */
+function GuestRequestBlock({ pageId }: { pageId: string }) {
+  const utils = trpc.useUtils()
+  const [email, setEmail] = useState('')
+  const [role, setRole] = useState<ShareRole>('READER')
+
+  const myRequestsQ = trpc.security.myGuestRequests.useQuery({ pageId }, { retry: false })
+  const requestInvite = trpc.security.requestGuestInvite.useMutation({
+    onSuccess: () => {
+      setEmail('')
+      void utils.security.myGuestRequests.invalidate({ pageId })
+    },
+  })
+
+  return (
+    <Box>
+      <Typography variant="subtitle2" sx={{ mb: 1 }}>
+        Запросить гостевой доступ
+      </Typography>
+      <Alert severity="info" sx={{ mb: 1 }}>
+        Гостевые приглашения отключены администратором — отправьте запрос, и владелец пространства
+        рассмотрит его.
+      </Alert>
+      {requestInvite.error ? (
+        <Alert severity="error" sx={{ mb: 1 }} onClose={() => requestInvite.reset()}>
+          {requestInvite.error.message}
+        </Alert>
+      ) : null}
+      {requestInvite.isSuccess ? (
+        <Alert severity="success" sx={{ mb: 1 }} onClose={() => requestInvite.reset()}>
+          Запрос отправлен.
+        </Alert>
+      ) : null}
+      <Stack direction="row" spacing={1} alignItems="flex-start">
+        <TextField
+          size="small"
+          fullWidth
+          placeholder="email@example.com"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          slotProps={{ htmlInput: { 'data-testid': 'share-guest-request-email' } }}
+        />
+        <Select
+          size="small"
+          value={role}
+          onChange={(e) => setRole(e.target.value as ShareRole)}
+          sx={{ minWidth: 150 }}
+        >
+          {(['READER', 'COMMENTER', 'EDITOR'] as const).map((r) => (
+            <MenuItem key={r} value={r}>
+              {ROLE_LABEL[r]}
+            </MenuItem>
+          ))}
+        </Select>
+        <Button
+          data-testid="share-guest-request-submit"
+          onClick={() => requestInvite.mutate({ pageId, email: email.trim(), role })}
+          loading={requestInvite.isPending}
+          disabled={!email.trim()}
+        >
+          Запросить доступ
+        </Button>
+      </Stack>
+      {(myRequestsQ.data ?? []).length > 0 ? (
+        <Stack spacing={1} sx={{ mt: 1.5 }}>
+          {(myRequestsQ.data ?? []).map((request) => {
+            const chip = REQUEST_STATUS_CHIP[request.status] ?? {
+              label: request.status,
+              color: 'default' as const,
+            }
+            return (
+              <Stack key={request.id} direction="row" alignItems="center" spacing={1}>
+                <Typography variant="body2" sx={{ flex: 1, minWidth: 0 }} noWrap>
+                  {request.email}
+                </Typography>
+                <Chip
+                  size="small"
+                  variant="outlined"
+                  label={ROLE_LABEL[request.role as ShareRole] ?? request.role}
+                />
+                <Chip size="small" color={chip.color} label={chip.label} />
+              </Stack>
+            )
+          })}
+        </Stack>
+      ) : null}
+    </Box>
   )
 }

@@ -501,6 +501,33 @@ describe('security router', () => {
     })
   })
 
+  // ── sharingPolicyState (member-level, the share-dialog policy probe) ────────
+
+  it('sharingPolicyState: member-readable two-flag surface tracking the policy; outsider ⇒ NOT_FOUND', async () => {
+    const { owner, viewer, ws, teamPage } = await seed()
+
+    // Any member may probe (VIEWER here), zero-value default included.
+    const zero = await security(viewer).sharingPolicyState({ pageId: teamPage.id })
+    // toEqual pins the MINIMAL surface: exactly these two flags, nothing else
+    // of the OWNER-only policy (no export/copy/links flags, no ack fields).
+    expect(zero).toEqual({ guestInvitesDisabled: false, guestRequestsAllowed: true })
+
+    await security(owner).updatePolicy({
+      workspaceId: ws.id,
+      patch: { disableGuestInvites: true, allowGuestInviteRequests: false },
+    })
+    expect(await security(viewer).sharingPolicyState({ pageId: teamPage.id })).toEqual({
+      guestInvitesDisabled: true,
+      guestRequestsAllowed: false,
+    })
+
+    // Outsider: the object-hiding NOT_FOUND of the page-access contract.
+    const outsider = await makeUser('outsider')
+    await expect(
+      security(outsider).sharingPolicyState({ pageId: teamPage.id }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+  })
+
   // ── myGuestRequests scoping ─────────────────────────────────────────────────
 
   it('myGuestRequests is requester-scoped: another member sees nothing', async () => {

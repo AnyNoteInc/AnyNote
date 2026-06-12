@@ -66,6 +66,15 @@ export function WorkspaceMembersSection({ workspaceId, locked, currentUserId, is
   const members = trpc.workspace.listMembers.useQuery({ workspaceId })
   const blockedQ = trpc.people.listBlocked.useQuery({ workspaceId })
   const previewQ = trpc.people.invitePreview.useQuery({ workspaceId })
+  // The guest-request queue badge (8C spec §6) — listGuestRequests is
+  // OWNER-only, so the query is gated by the viewer's role.
+  const guestRequestsQ = trpc.security.listGuestRequests.useQuery(
+    { workspaceId },
+    { enabled: isOwner, retry: false },
+  )
+  const pendingGuestRequests = (guestRequestsQ.data ?? []).filter(
+    (r) => r.status === 'PENDING',
+  ).length
 
   const onError = (e: { message: string }) => setNotice({ severity: 'error', text: e.message })
   const refreshMembers = () =>
@@ -329,6 +338,19 @@ export function WorkspaceMembersSection({ workspaceId, locked, currentUserId, is
       <InviteLinkCard workspaceId={workspaceId} locked={locked} />
 
       <Divider />
+      {isOwner && pendingGuestRequests > 0 ? (
+        <Stack direction="row" spacing={1} alignItems="center">
+          <Chip
+            size="small"
+            color="warning"
+            data-testid="guest-requests-pending-chip"
+            label={`Запросы на гостевой доступ: ${pendingGuestRequests}`}
+          />
+          <Typography variant="caption" color="text.secondary">
+            Одобрение — в разделе «Безопасность».
+          </Typography>
+        </Stack>
+      ) : null}
       <GuestsList workspaceId={workspaceId} locked={locked} />
 
       {isOwner ? (

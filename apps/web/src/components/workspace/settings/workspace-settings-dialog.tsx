@@ -13,6 +13,7 @@ import {
   IconButton,
   ImportExportIcon,
   PublicIcon,
+  SecurityIcon,
   SettingsIcon,
   SmartToyIcon,
   Stack,
@@ -30,6 +31,7 @@ import { trpc } from '@/trpc/client'
 import { WorkspaceGeneralSection } from './general-section'
 import { WorkspaceMembersSection } from './members-section'
 import { WorkspaceIdentitySection } from './identity-section'
+import { WorkspaceSecuritySection } from './security-section'
 import { WorkspaceAiSection } from './ai-section'
 import { WorkspaceMcpSection } from './mcp-section'
 import { WorkspaceWebhooksSection } from './webhooks-section'
@@ -44,6 +46,7 @@ export type SettingsSectionSlug =
   | 'general'
   | 'members'
   | 'identity'
+  | 'security'
   | 'ai'
   | 'mcp'
   | 'webhooks'
@@ -137,6 +140,15 @@ export function WorkspaceSettingsDialog({
       render: () => (
         <WorkspaceIdentitySection workspaceId={workspaceId} locked={!features.isPaid} />
       ),
+    },
+    {
+      slug: 'security',
+      label: 'Безопасность',
+      icon: <SecurityIcon fontSize="small" />,
+      // OWNER-only (security is not membership-admin work) but NOT plan-gated:
+      // security must not be paywalled (8C spec §6) — free workspaces included.
+      show: isOwner,
+      render: () => <WorkspaceSecuritySection workspaceId={workspaceId} />,
     },
     {
       slug: 'ai',

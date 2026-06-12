@@ -6,7 +6,7 @@ import { notify } from '@repo/notifications'
 
 import { router, protectedProcedure } from '../trpc'
 import { assertRole } from '../helpers/membership'
-import { assertPageEditAccess } from '../helpers/page-access'
+import { assertPageAccess, assertPageEditAccess } from '../helpers/page-access'
 import { mapDomain } from '../helpers/map-domain'
 import { domain as domainSvc } from '../domain'
 
@@ -169,6 +169,26 @@ export const securityRouter = router({
     }),
 
   // ── member-level: the share-dialog request surface ──────────────────────────
+
+  /**
+   * The share dialog's policy probe (spec §6): member-readable and deliberately
+   * MINIMAL — only the two flags the invite block needs to pick between the
+   * invite form, the request form, and the honest disabled note. The full
+   * policy stays OWNER-only (`getPolicy`); a member learns nothing here beyond
+   * what the invite/request mutations would reveal through their errors anyway.
+   * Page-scoped (the dialog only knows `pageId`): any member of the page's
+   * workspace, object-hiding NOT_FOUND for outsiders.
+   */
+  sharingPolicyState: protectedProcedure
+    .input(z.object({ pageId: z.string().uuid() }))
+    .query(async ({ ctx, input }) => {
+      const page = await assertPageAccess(ctx, input.pageId)
+      const policy = await mapDomain(() => domainSvc.security.getPolicy(page.workspaceId))
+      return {
+        guestInvitesDisabled: policy.disableGuestInvites,
+        guestRequestsAllowed: policy.allowGuestInviteRequests,
+      }
+    }),
 
   requestGuestInvite: protectedProcedure
     .input(
