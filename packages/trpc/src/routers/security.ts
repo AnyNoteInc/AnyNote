@@ -222,6 +222,8 @@ export const securityRouter = router({
           requesterName,
           pageTitle: page.title ?? 'Без названия',
           workspaceName: workspace.name,
+          // Legacy URL shape kept for consistency with all notification links;
+          // redirects to the neutral route.
           link: `${ctx.returnUrlBase}/workspaces/${page.workspaceId}/settings`,
         })
       }

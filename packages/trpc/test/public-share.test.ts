@@ -329,6 +329,7 @@ describe('security policy enforcement on sharing (8C §4, integration)', () => {
 
   const linksPolicyDenied = /Публичные ссылки и сайты отключены/
   const guestsPolicyDenied = /Гостевые приглашения отключены/
+  const copyPolicyDenied = /Копирование в другие пространства отключено/
 
   function enablePolicy(wsId: string, ownerId: string, flags: Record<string, boolean>) {
     return prisma.workspaceSecurityPolicy.create({
@@ -430,6 +431,68 @@ describe('security policy enforcement on sharing (8C §4, integration)', () => {
       select: { exposesAt: true },
     })
     expect(row?.exposesAt).toBeNull()
+  })
+
+  it('updatePublicSiteSettings: allowCopy:true is denied under disableMoveDuplicateOutsideWorkspace', async () => {
+    const fx = await seed({ publicSites: false })
+    const caller = makeCaller(fx.ownerId)
+    await enablePolicy(fx.wsId, fx.ownerId, { disableMoveDuplicateOutsideWorkspace: true })
+
+    await expect(
+      caller.updatePublicSiteSettings({
+        pageId: fx.pageId,
+        allowIndexing: false,
+        allowCopy: true,
+        publishSubpages: false,
+      }),
+    ).rejects.toThrow(copyPolicyDenied)
+
+    const row = await prisma.pageShare.findUnique({
+      where: { pageId: fx.pageId },
+      select: { allowCopy: true },
+    })
+    expect(row?.allowCopy ?? false).toBe(false)
+  })
+
+  it('updatePublicSiteSettings: allowCopy:false stays allowed under the copy policy', async () => {
+    const fx = await seed({ publicSites: false })
+    const caller = makeCaller(fx.ownerId)
+    await enablePolicy(fx.wsId, fx.ownerId, { disableMoveDuplicateOutsideWorkspace: true })
+
+    await caller.updatePublicSiteSettings({
+      pageId: fx.pageId,
+      allowIndexing: true,
+      allowCopy: false,
+      publishSubpages: true,
+    })
+
+    const row = await prisma.pageShare.findUnique({
+      where: { pageId: fx.pageId },
+      select: { allowCopy: true, allowIndexing: true },
+    })
+    expect(row?.allowCopy).toBe(false)
+    expect(row?.allowIndexing).toBe(true)
+  })
+
+  it('updatePublicSiteSettings: allowCopy:true allowed when the copy flag is off (zero-value policy row)', async () => {
+    const fx = await seed({ publicSites: false })
+    const caller = makeCaller(fx.ownerId)
+    // Policy row exists but disableMoveDuplicateOutsideWorkspace stays false —
+    // the gate must be specific to the copy flag, not any policy row.
+    await enablePolicy(fx.wsId, fx.ownerId, { disablePublicLinksSitesForms: true })
+
+    await caller.updatePublicSiteSettings({
+      pageId: fx.pageId,
+      allowIndexing: false,
+      allowCopy: true,
+      publishSubpages: false,
+    })
+
+    const row = await prisma.pageShare.findUnique({
+      where: { pageId: fx.pageId },
+      select: { allowCopy: true },
+    })
+    expect(row?.allowCopy).toBe(true)
   })
 
   it('addUser for a non-member (a guest grant by definition) is denied under disableGuestInvites', async () => {

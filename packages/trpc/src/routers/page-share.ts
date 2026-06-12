@@ -246,7 +246,14 @@ export const pageShareRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await assertCanManageShare(ctx, input.pageId)
+      const page = await assertCanManageShare(ctx, input.pageId)
+      // Security policy (8C §4): allowCopy:true is the more-public direction
+      // (the setExposesAt pattern) — copyToWorkspace enforces the same policy
+      // at copy time, so without this gate the toggle would flip on and then
+      // silently fail for every visitor. Turning it off stays free.
+      if (input.allowCopy) {
+        await mapDomain(() => domainSvc.security.assertCrossWorkspaceCopyAllowed(page.workspaceId))
+      }
       await ensureShare(ctx, input.pageId)
       const data: {
         allowIndexing: boolean

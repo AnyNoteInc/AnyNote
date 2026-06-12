@@ -127,6 +127,8 @@ export const notify = {
       // Members-settings deep link (the roleChanged precedent): the legacy
       // route activates the workspace; the pending queue lives in workspace
       // settings («Безопасность», badged from the members section).
+      // Legacy URL shape kept for consistency with all notification links;
+      // redirects to the neutral route.
       resourceUrl: `/workspaces/${args.workspaceId}/settings`,
       payload: args,
     }),
