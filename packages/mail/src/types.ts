@@ -11,6 +11,7 @@ export type MailKind =
   | 'account-deletion-requested'
   | 'account-deletion-completed'
   | 'reminder-due'
+  | 'invoice-request'
 
 export type RenderedEmail = { subject: string; html: string; text: string }
 
@@ -56,6 +57,17 @@ export type MailPayloads = {
     dueAtIso: string
     offsetMinutes: number
     baseUrl: string
+  }
+  // Legal-entity invoice request (per-seat billing, Phase 8D). Sent to the
+  // OPERATOR (BILLING_INVOICE_EMAIL), not the user — payment stays offline.
+  'invoice-request': {
+    legalName: string
+    inn: string
+    workspaceName: string
+    ownerEmail: string
+    seats: number
+    periodMonths: number
+    comment?: string
   }
 }
 

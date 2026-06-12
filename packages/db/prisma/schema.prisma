@@ -449,6 +449,10 @@ model Workspace {
   allowedDomains        AllowedEmailDomain[]
   verifiedDomains       VerifiedEmailDomain[]
   authProviders         WorkspaceAuthProvider[]
+  seatAddon             WorkspaceSeatAddon?
+  seatEvents            SeatBillingEvent[]
+  seatSnapshots         WorkspaceSeatSnapshot[]
+  invoiceRequests       InvoiceRequest[]
 
   @@index([createdById])
   @@map("workspaces")
@@ -894,6 +898,10 @@ model Plan {
   priceMonthlyKopecks Int    @default(0) @map("price_monthly_kopecks")
   priceYearlyKopecks  Int    @default(0) @map("price_yearly_kopecks")
   currency            String @default("RUB") @db.VarChar(3)
+
+  // Per-seat billing (Phase 8D). 0 = extra seats not purchasable on this plan.
+  pricePerExtraSeatMonthlyKopecks Int @default(0) @map("price_per_extra_seat_monthly_kopecks")
+  pricePerExtraSeatYearlyKopecks  Int @default(0) @map("price_per_extra_seat_yearly_kopecks")
 
   maxWorkspaces          Int?   @map("max_workspaces")
   maxMembersPerWorkspace Int    @default(1) @map("max_members_per_workspace")
@@ -2405,4 +2413,91 @@ model PageGuestInviteRequest {
   @@index([workspaceId, status])
   @@index([pageId])
   @@map("page_guest_invite_requests")
+}
+
+// ── Per-seat billing (Phase 8D) ───────────────────────────────────────────────
+
+model WorkspaceSeatAddon {
+  workspaceId    String   @id @map("workspace_id") @db.Uuid
+  paidSeats      Int      @default(0) @map("paid_seats") // billable + usable NOW
+  scheduledSeats Int?     @map("scheduled_seats") // effective from the next renewal; null = no change
+  updatedAt      DateTime @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("workspace_seat_addons")
+}
+
+enum SeatBillingEventType {
+  MEMBER_JOINED // informational; written by every member-creating path
+  MEMBER_REMOVED // informational; removal frees capacity, not money
+  SEATS_PURCHASED // owner bought N seats (prorated charge; orderId set)
+  SEATS_REDUCTION_SCHEDULED // owner scheduled paidSeats -> scheduledSeats
+  SEATS_RENEWED // renewal applied seats + charged (orderId set)
+  ADDONS_RESET // tier change cleared the addon
+}
+
+model SeatBillingEvent {
+  id            String               @id @default(uuid(7)) @db.Uuid
+  workspaceId   String               @map("workspace_id") @db.Uuid
+  type          SeatBillingEventType
+  seatsDelta    Int                  @default(0) @map("seats_delta") // signed where meaningful
+  seatsAfter    Int?                 @map("seats_after") // paidSeats after the event
+  amountKopecks Int?                 @map("amount_kopecks") // money events only
+  orderId       String?              @map("order_id") @db.Uuid // scalar; the YooKassa Order
+  actorId       String?              @map("actor_id") @db.Uuid // null = system/cron
+  targetUserId  String?              @map("target_user_id") @db.Uuid // member events
+  metadata      Json?
+  createdAt     DateTime             @default(now()) @map("created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt(sort: Desc)])
+  @@map("seat_billing_events")
+}
+
+model WorkspaceSeatSnapshot {
+  id                String   @id @default(uuid(7)) @db.Uuid
+  workspaceId       String   @map("workspace_id") @db.Uuid
+  subscriptionId    String?  @map("subscription_id") @db.Uuid // scalar
+  orderId           String?  @map("order_id") @db.Uuid // scalar; the renewal order
+  memberCount       Int      @map("member_count")
+  includedSeats     Int      @map("included_seats")
+  extraSeats        Int      @map("extra_seats") // effective at capture
+  seatAmountKopecks Int      @default(0) @map("seat_amount_kopecks") // the seats' share of the charge
+  capturedAt        DateTime @default(now()) @map("captured_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, capturedAt(sort: Desc)])
+  @@map("workspace_seat_snapshots")
+}
+
+enum InvoiceRequestStatus {
+  NEW
+  IN_PROGRESS
+  COMPLETED
+  REJECTED
+}
+
+model InvoiceRequest {
+  id           String               @id @default(uuid(7)) @db.Uuid
+  workspaceId  String               @map("workspace_id") @db.Uuid
+  userId       String               @map("user_id") @db.Uuid // the requesting OWNER; scalar
+  legalName    String               @map("legal_name") @db.VarChar(255)
+  inn          String               @db.VarChar(12) // 10 or 12 digits, format-validated
+  kpp          String?              @db.VarChar(9)
+  legalAddress String               @map("legal_address") @db.VarChar(500)
+  contactEmail String               @map("contact_email") @db.VarChar(255)
+  periodMonths Int                  @default(12) @map("period_months") // 1..12
+  seats        Int // requested total seats
+  comment      String?              @db.VarChar(1000)
+  status       InvoiceRequestStatus @default(NEW)
+  createdAt    DateTime             @default(now()) @map("created_at")
+  updatedAt    DateTime             @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@index([workspaceId, createdAt(sort: Desc)])
+  @@map("invoice_requests")
 }

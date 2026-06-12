@@ -125,6 +125,55 @@ describe('mail templates', () => {
     expect(out.text).toContain('Иван')
   })
 
+  it('invoice-request (operator-facing)', () => {
+    const out = renderTemplate('invoice-request', {
+      legalName: 'ООО «Ромашка»',
+      inn: '7707083893',
+      workspaceName: 'Команда продаж',
+      ownerEmail: 'owner@romashka.ru',
+      seats: 12,
+      periodMonths: 12,
+      comment: 'Нужен счёт до конца месяца',
+    })
+    expect(out.subject).toBe('Заявка на счёт: ООО «Ромашка» (ИНН 7707083893)')
+    expect(out.text).toContain('ООО «Ромашка»')
+    expect(out.text).toContain('7707083893')
+    expect(out.text).toContain('Команда продаж')
+    expect(out.text).toContain('owner@romashka.ru')
+    expect(out.text).toContain('Мест: 12')
+    expect(out.text).toContain('12 мес.')
+    expect(out.text).toContain('Нужен счёт до конца месяца')
+    expect(out.html).toContain('owner@romashka.ru')
+  })
+
+  it('invoice-request — omits the comment block when absent', () => {
+    const out = renderTemplate('invoice-request', {
+      legalName: 'ИП Иванов',
+      inn: '500100732259',
+      workspaceName: 'WS',
+      ownerEmail: 'ip@x.ru',
+      seats: 3,
+      periodMonths: 6,
+    })
+    expect(out.text).not.toContain('Комментарий')
+    expect(out.html).not.toContain('Комментарий')
+  })
+
+  it('invoice-request — escapes user-controlled fields in html', () => {
+    const out = renderTemplate('invoice-request', {
+      legalName: '<script>alert(1)</script>',
+      inn: '7707083893',
+      workspaceName: 'WS',
+      ownerEmail: 'o@x.ru',
+      seats: 1,
+      periodMonths: 1,
+      comment: '<img src=x onerror=alert(2)>',
+    })
+    expect(out.html).not.toContain('<script>alert')
+    expect(out.html).not.toContain('<img src=x')
+    expect(out.html).toContain('&lt;script&gt;')
+  })
+
   it('XSS — escapes user-controlled fields in html', () => {
     const out = renderTemplate('verify-email', {
       firstName: '<script>alert(1)</script>',
