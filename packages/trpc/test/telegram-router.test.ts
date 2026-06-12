@@ -337,7 +337,12 @@ describe('telegram router', () => {
         events: ['page.created'],
       }),
     ).rejects.toMatchObject({ code: 'BAD_REQUEST', message: 'Только командные разделы' })
-    expect(await prisma.telegramCollectionSubscription.count()).toBe(0)
+    // Scoped to this connection — the shared dev DB hosts concurrent suites' fixtures.
+    expect(
+      await prisma.telegramCollectionSubscription.count({
+        where: { connectionId: connection.id },
+      }),
+    ).toBe(0)
   })
 
   it('createSubscription rejects a foreign-workspace collection with NOT_FOUND', async () => {
