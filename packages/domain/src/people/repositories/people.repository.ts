@@ -255,6 +255,14 @@ export class PeopleRepository {
     })
   }
 
+  /** The 8C security-policy flag gating guest invites; no row = invites allowed. */
+  async findSecurityPolicy(workspaceId: string): Promise<{ disableGuestInvites: boolean } | null> {
+    return this.uow.client().workspaceSecurityPolicy.findUnique({
+      where: { workspaceId },
+      select: { disableGuestInvites: true },
+    })
+  }
+
   // ── guest invites ───────────────────────────────────────────────────────────
 
   async findActiveGuestInvite(pageId: string, email: string): Promise<GuestInviteRow | null> {

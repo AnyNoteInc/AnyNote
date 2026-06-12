@@ -52,6 +52,9 @@ import type {
   InviteLinkRow,
   PeopleRepository,
 } from '../repositories/people.repository.ts'
+// Barrel import (domain-module-isolation-compliant); the reverse edge is
+// cycle-free because security.module deep-imports only people.tokens.ts.
+import { securityError } from '../../security/index.ts'
 
 function computeState(row: { expiresAt: Date }, now: Date): InvitationState {
   return row.expiresAt > now ? 'PENDING' : 'EXPIRED'
@@ -423,10 +426,26 @@ export class PeopleService {
 
   // ── guest invites ────────────────────────────────────────────────────────────
 
-  async createGuestInvite(input: CreateGuestInviteInput): Promise<CreateGuestInviteResult> {
+  /**
+   * 8C security policy: `disableGuestInvites` closes this chokepoint for every
+   * caller (pageShare.inviteGuest and future surfaces). `bypassPolicy: true`
+   * is reserved for the OWNER-approved guest-request path
+   * (`SecurityService.approveGuestInviteRequest`) — the only sanctioned bypass,
+   * audited on the approval side (spec §7.4). The default (no policy row /
+   * flag off) changes nothing.
+   */
+  async createGuestInvite(
+    input: CreateGuestInviteInput,
+    options?: { bypassPolicy?: boolean },
+  ): Promise<CreateGuestInviteResult> {
     const email = normalizeEmail(input.email)
     const page = await this.repo.findPage(input.pageId)
     if (!page || page.deletedAt) throw notFound('Страница не найдена')
+
+    if (!options?.bypassPolicy) {
+      const policy = await this.repo.findSecurityPolicy(page.workspaceId)
+      if (policy?.disableGuestInvites) throw securityError('POLICY_GUEST_INVITES_DISABLED')
+    }
 
     const token = generateInviteToken()
     const tokenHash = hashInviteToken(token)
