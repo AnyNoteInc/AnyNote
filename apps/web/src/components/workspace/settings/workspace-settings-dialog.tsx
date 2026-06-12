@@ -12,6 +12,7 @@ import {
   HubIcon,
   IconButton,
   ImportExportIcon,
+  PaymentIcon,
   PublicIcon,
   SecurityIcon,
   SettingsIcon,
@@ -32,6 +33,7 @@ import { WorkspaceGeneralSection } from './general-section'
 import { WorkspaceMembersSection } from './members-section'
 import { WorkspaceIdentitySection } from './identity-section'
 import { WorkspaceSecuritySection } from './security-section'
+import { WorkspaceBillingSection } from './billing-section'
 import { WorkspaceAiSection } from './ai-section'
 import { WorkspaceMcpSection } from './mcp-section'
 import { WorkspaceWebhooksSection } from './webhooks-section'
@@ -47,6 +49,7 @@ export type SettingsSectionSlug =
   | 'members'
   | 'identity'
   | 'security'
+  | 'billing'
   | 'ai'
   | 'mcp'
   | 'webhooks'
@@ -149,6 +152,22 @@ export function WorkspaceSettingsDialog({
       // security must not be paywalled (8C spec §6) — free workspaces included.
       show: isOwner,
       render: () => <WorkspaceSecuritySection workspaceId={workspaceId} />,
+    },
+    {
+      slug: 'billing',
+      label: 'Биллинг мест',
+      icon: <PaymentIcon fontSize="small" />,
+      // OWNER-only but NOT plan-locked (8D spec §6): on personal the section
+      // explains seat economics with an upgrade pointer. Money actions are
+      // additionally holder-gated inside the cards.
+      show: isOwner,
+      render: () =>
+        workspace ? (
+          <WorkspaceBillingSection
+            workspaceId={workspaceId}
+            isSubscriptionHolder={workspace.createdById === currentUserId}
+          />
+        ) : null,
     },
     {
       slug: 'ai',

@@ -18,6 +18,9 @@ export type PricingTierPlan = {
   description: string
   priceMonthlyKopecks: number
   priceYearlyKopecks: number
+  /** 0 = extra seats not purchasable on this plan (8D per-seat billing). */
+  pricePerExtraSeatMonthlyKopecks: number
+  pricePerExtraSeatYearlyKopecks: number
   currency: string
   features: string[]
   sortOrder: number
@@ -189,6 +192,11 @@ export function PricingTiers({ plans, currentPlanSlug, isAuthenticated }: Props)
           const isCurrent = plan.slug === currentPlanSlug
           const isPaid = plan.priceMonthlyKopecks > 0 || plan.priceYearlyKopecks > 0
           const yearlyHint = period === 'YEARLY' ? getYearlyHint(plan) : null
+          // Per-seat billing (8D): the extra-seat price for the SELECTED period.
+          const seatPriceKopecks =
+            period === 'YEARLY'
+              ? plan.pricePerExtraSeatYearlyKopecks
+              : plan.pricePerExtraSeatMonthlyKopecks
           const ctaLabel = isCurrent
             ? 'Текущий тариф'
             : !isAuthenticated
@@ -240,6 +248,12 @@ export function PricingTiers({ plans, currentPlanSlug, isAuthenticated }: Props)
                   <Typography variant="caption" color="text.secondary" sx={{ minHeight: 20 }}>
                     {yearlyHint ?? (isPaid ? 'Оплата через YooKassa' : 'Без платежной карты')}
                   </Typography>
+                  {seatPriceKopecks > 0 ? (
+                    <Typography variant="caption" color="text.secondary">
+                      + доп. места: от {formatCurrency(seatPriceKopecks, plan.currency)}/
+                      {period === 'YEARLY' ? 'год' : 'мес'}
+                    </Typography>
+                  ) : null}
                 </Stack>
 
                 <Divider />

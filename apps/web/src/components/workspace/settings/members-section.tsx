@@ -32,15 +32,13 @@ import { trpc } from '@/trpc/client'
 import { getPlanDisplayName } from '@/components/billing/plan-labels'
 
 import { SettingsCard } from './settings-card'
+import { useSettingsDialog } from './settings-dialog-provider'
+import { formatKopecks } from './billing-labels'
 import { InvitationsList } from './invitations-list'
 import { InviteLinkCard } from './invite-link-card'
 import { GuestsList } from './guests-list'
 import { PeopleAuditLog } from './people-audit-log'
-import {
-  INVITABLE_ROLES,
-  MEMBER_ROLE_LABELS,
-  type InvitableRole,
-} from './people-labels'
+import { INVITABLE_ROLES, MEMBER_ROLE_LABELS, type InvitableRole } from './people-labels'
 
 type Props = {
   workspaceId: string
@@ -61,6 +59,7 @@ export function WorkspaceMembersSection({ workspaceId, locked, currentUserId, is
   const [role, setRole] = useState<InvitableRole>('EDITOR')
   const [notice, setNotice] = useState<Notice | null>(null)
   const [confirm, setConfirm] = useState<ConfirmAction | null>(null)
+  const settingsDialog = useSettingsDialog()
 
   const utils = trpc.useUtils()
   const members = trpc.workspace.listMembers.useQuery({ workspaceId })
@@ -135,7 +134,9 @@ export function WorkspaceMembersSection({ workspaceId, locked, currentUserId, is
   const blockedIds = new Set((blockedQ.data ?? []).map((b) => b.userId))
   const preview = previewQ.data ?? null
   // ADMIN can grant any non-OWNER role; only an OWNER can grant OWNER.
-  const assignableRoles: ChangeableRole[] = isOwner ? ['OWNER', ...INVITABLE_ROLES] : [...INVITABLE_ROLES]
+  const assignableRoles: ChangeableRole[] = isOwner
+    ? ['OWNER', ...INVITABLE_ROLES]
+    : [...INVITABLE_ROLES]
 
   return (
     <SettingsCard
@@ -193,6 +194,29 @@ export function WorkspaceMembersSection({ workspaceId, locked, currentUserId, is
             {getPlanDisplayName({ slug: preview.planSlug })}.
           </Typography>
         ) : null}
+        {preview?.atCapacity ? (
+          <Stack direction="row" spacing={1.5} alignItems="center" sx={{ mt: 0.75 }}>
+            <Typography variant="body2" color="warning.main">
+              Все места заняты
+              {preview.seatPriceKopecks !== null
+                ? ` — дополнительное место: ${formatKopecks(preview.seatPriceKopecks)}`
+                : ''}
+              .
+            </Typography>
+            {/* Buying is owner work (the billing section is OWNER-gated);
+                an ADMIN at capacity just sees the honest text. */}
+            {isOwner && preview.seatPriceKopecks !== null ? (
+              <Button
+                size="small"
+                variant="outlined"
+                data-testid="members-buy-seat-cta"
+                onClick={() => settingsDialog.open('billing')}
+              >
+                Докупить место
+              </Button>
+            ) : null}
+          </Stack>
+        ) : null}
       </Box>
 
       {/* ── members table ────────────────────────────────────────────────── */}
@@ -233,7 +257,11 @@ export function WorkspaceMembersSection({ workspaceId, locked, currentUserId, is
                           src={member.user.image ?? undefined}
                           sx={{ width: 28, height: 28, fontSize: 13 }}
                         >
-                          {(member.user.firstName?.[0] ?? member.user.email[0] ?? '?').toUpperCase()}
+                          {(
+                            member.user.firstName?.[0] ??
+                            member.user.email[0] ??
+                            '?'
+                          ).toUpperCase()}
                         </Avatar>
                         <Box sx={{ minWidth: 0 }}>
                           {/* Chip renders a <div> — keep it a SIBLING of the

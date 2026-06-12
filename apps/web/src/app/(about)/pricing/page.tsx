@@ -34,6 +34,8 @@ export default async function PricingPage() {
         description: true,
         priceMonthlyKopecks: true,
         priceYearlyKopecks: true,
+        pricePerExtraSeatMonthlyKopecks: true,
+        pricePerExtraSeatYearlyKopecks: true,
         currency: true,
         features: true,
         sortOrder: true,

@@ -8,6 +8,7 @@ import { Button, Chip, Paper, Stack, Typography } from '@repo/ui/components'
 
 import { CancelSubscriptionDialog } from '@/components/billing/cancel-subscription-dialog'
 import { getPlanDisplayName } from '@/components/billing/plan-labels'
+import { formatKopecks } from '@/components/workspace/settings/billing-labels'
 import { trpc } from '@/trpc/client'
 
 type Props = {
@@ -39,6 +40,12 @@ export function CurrentPlanCard({ subscription }: Props) {
   const isPaid = plan?.slug !== undefined && plan.slug !== 'personal'
   const periodEnd = formatDate(subscription?.currentPeriodEnd ?? null)
 
+  // The next-renewal seat breakdown (8D spec §6). Zero purchased seats ⇒ the
+  // line stays hidden and the card reads exactly as before.
+  const chargeQ = trpc.subscription.nextChargePreview.useQuery(undefined, { enabled: isPaid })
+  const charge = chargeQ.data ?? null
+  const showSeatBreakdown = isPaid && charge !== null && charge.totalSeatKopecks > 0
+
   const statusLabel = isPaid
     ? subscription?.cancelAtPeriodEnd
       ? `Отменена, доступ до ${periodEnd ?? 'конца периода'}`
@@ -65,6 +72,12 @@ export function CurrentPlanCard({ subscription }: Props) {
             <Typography variant="body2" color="text.secondary">
               {formatPrice(plan)}
             </Typography>
+            {showSeatBreakdown ? (
+              <Typography variant="body2" color="text.secondary" data-testid="next-charge-preview">
+                Следующее списание: тариф {formatKopecks(charge.tierKopecks)} + места{' '}
+                {formatKopecks(charge.totalSeatKopecks)} = {formatKopecks(charge.totalKopecks)}
+              </Typography>
+            ) : null}
           </Stack>
         </Stack>
 
