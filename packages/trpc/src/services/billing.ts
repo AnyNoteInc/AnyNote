@@ -166,6 +166,8 @@ export async function handleRefundSucceeded(ctx: Ctx, refund: Refund): Promise<v
       where: { id: order.id },
       data: { status: 'REFUNDED', refundedAt: new Date(), yookassaRefundId: refund.id },
     })
+    // Seat-purchase orders have subscriptionId = null — spec §9: mid-cycle
+    // refunds are a non-goal; seats are NOT reverted on refund.
     if (order.subscriptionId) {
       await tx.subscription.update({
         where: { id: order.subscriptionId },

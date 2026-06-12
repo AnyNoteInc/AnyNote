@@ -366,6 +366,73 @@ describe('handlePaymentSucceeded seat-purchase orders (8D)', () => {
   })
 })
 
+describe('handleRefundSucceeded seat-purchase orders (8D)', () => {
+  beforeEach(cleanFixtures)
+
+  it('flips the order REFUNDED only — addon seats NOT reverted, no subscription, no new ledger rows (spec §9 non-goal)', async () => {
+    const owner = await makeOwner('sf')
+    const ws = await makeWorkspace(owner.id)
+    const plan = await prisma.plan.findUniqueOrThrow({ where: { slug: 'pro' } })
+    // A settled seat purchase: PAID order (subscriptionId stays null for
+    // seat orders), addon + SEATS_PURCHASED ledger row already applied.
+    const order = await prisma.order.create({
+      data: {
+        userId: owner.id,
+        planId: plan.id,
+        billingPeriod: 'MONTHLY',
+        amountKopecks: 12_345,
+        currency: 'RUB',
+        status: 'PAID',
+        paidAt: new Date(),
+        isInitial: false,
+        metadata: { kind: 'seat_purchase', workspaceId: ws.id, seats: 2 },
+        yookassaIdempotencyKey: `idem-seat-rf-${owner.id}-${Date.now()}`,
+        yookassaPaymentId: `pay-seat-rf-${owner.id}-${Date.now()}`,
+      },
+    })
+    await prisma.workspaceSeatAddon.create({
+      data: { workspaceId: ws.id, paidSeats: 2 },
+    })
+    await prisma.seatBillingEvent.create({
+      data: {
+        workspaceId: ws.id,
+        type: 'SEATS_PURCHASED',
+        seatsDelta: 2,
+        seatsAfter: 2,
+        amountKopecks: 12_345,
+        orderId: order.id,
+        actorId: owner.id,
+      },
+    })
+
+    const refundId = `refund-seat-${owner.id}`
+    await handleRefundSucceeded({ yookassa: { getPayment: async () => ({}) as Payment }, prisma }, {
+      id: refundId,
+      payment_id: order.yookassaPaymentId!,
+      status: 'succeeded',
+    } as Refund)
+
+    const refunded = await prisma.order.findUniqueOrThrow({ where: { id: order.id } })
+    expect(refunded.status).toBe('REFUNDED')
+    expect(refunded.refundedAt).not.toBeNull()
+    expect(refunded.yookassaRefundId).toBe(refundId)
+    expect(refunded.subscriptionId).toBeNull()
+
+    // pinned: spec §9 — mid-cycle refunds are a non-goal; seats stay applied
+    const addon = await prisma.workspaceSeatAddon.findUniqueOrThrow({
+      where: { workspaceId: ws.id },
+    })
+    expect(addon.paidSeats).toBe(2)
+    expect(addon.scheduledSeats).toBeNull()
+
+    // no subscription was created or touched
+    expect(await prisma.subscription.count({ where: { userId: owner.id } })).toBe(0)
+
+    // no new ledger rows beyond the original purchase
+    expect(await prisma.seatBillingEvent.count({ where: { workspaceId: ws.id } })).toBe(1)
+  })
+})
+
 describe('handlePaymentSucceeded tier orders vs seat addons (8D)', () => {
   beforeEach(cleanFixtures)
 
