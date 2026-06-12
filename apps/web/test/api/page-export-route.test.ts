@@ -10,6 +10,7 @@ const mocks = vi.hoisted(() => ({
   getSession: vi.fn(),
   htmlToPdf: vi.fn(),
   assertMembership: vi.fn(),
+  assertExportAllowed: vi.fn(),
 }))
 
 // The export route imports @/lib/domain (the createDomain singleton), which is
@@ -38,7 +39,10 @@ vi.mock('@/server/page-export/html-to-pdf', () => ({
 // The new route resolves membership via the domain singleton, not prisma. Mock
 // the singleton so we control assertMembership per case.
 vi.mock('@/lib/domain', () => ({
-  domain: { workspace: { assertMembership: mocks.assertMembership } },
+  domain: {
+    workspace: { assertMembership: mocks.assertMembership },
+    security: { assertExportAllowed: mocks.assertExportAllowed },
+  },
 }))
 
 import { GET } from '../../src/app/api/pages/[pageId]/export/[format]/route'
@@ -74,6 +78,7 @@ describe('GET /api/pages/:p/export/:format', () => {
 
     mocks.getSession.mockReset().mockResolvedValue({ user: { id: 'user-1' } })
     mocks.assertMembership.mockReset().mockResolvedValue(undefined)
+    mocks.assertExportAllowed.mockReset().mockResolvedValue(undefined)
     mocks.prisma.page.findFirst.mockReset().mockResolvedValue(TEXT_PAGE)
     mocks.prisma.file.findMany.mockReset().mockResolvedValue([])
     mocks.storage.get.mockReset()
@@ -129,6 +134,19 @@ describe('GET /api/pages/:p/export/:format', () => {
     mocks.assertMembership.mockRejectedValue(forbidden('not a member'))
     const res = await callRoute('html')
     expect(res.status).toBe(403)
+  })
+
+  it('returns an honest 403 under the disableExport security policy (8C §4)', async () => {
+    const { DomainError } = await import('@repo/domain/errors.ts')
+    mocks.assertExportAllowed.mockRejectedValue(
+      new DomainError('POLICY_EXPORT_DISABLED', 'Экспорт отключён политикой безопасности пространства', 403),
+    )
+    const res = await callRoute('html')
+    expect(res.status).toBe(403)
+    expect(await res.json()).toEqual({
+      error: 'Экспорт отключён политикой безопасности пространства',
+    })
+    expect(mocks.assertExportAllowed).toHaveBeenCalledWith(WS_ID)
   })
 
   it('returns 404 for missing page', async () => {

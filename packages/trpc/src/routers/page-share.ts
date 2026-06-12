@@ -130,7 +130,12 @@ export const pageShareRouter = router({
   setAccess: protectedProcedure
     .input(z.object({ pageId: z.string().uuid(), access: AccessSchema, linkRole: RoleSchema }))
     .mutation(async ({ ctx, input }) => {
-      await assertCanManageShare(ctx, input.pageId)
+      const page = await assertCanManageShare(ctx, input.pageId)
+      // Security policy (8C §4): only the MORE-public transition is gated —
+      // setting RESTRICTED must always work so owners can close things down.
+      if (input.access === 'PUBLIC') {
+        await mapDomain(() => domainSvc.security.assertPublicSharingAllowed(page.workspaceId))
+      }
       return ctx.prisma.pageShare.update({
         where: { pageId: input.pageId },
         data: { access: input.access, linkRole: input.linkRole },
@@ -207,7 +212,11 @@ export const pageShareRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      await assertCanManageShare(ctx, input.pageId)
+      const page = await assertCanManageShare(ctx, input.pageId)
+      // Security policy (8C §4): gate only the PUBLIC direction (see setAccess).
+      if (input.access === 'PUBLIC') {
+        await mapDomain(() => domainSvc.security.assertPublicSharingAllowed(page.workspaceId))
+      }
       await ensureShare(ctx, input.pageId)
       const data: {
         access: typeof input.access
@@ -271,6 +280,9 @@ export const pageShareRouter = router({
     .input(z.object({ pageId: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
       const page = await assertCanManageShare(ctx, input.pageId)
+      // Security policy first (8C §4): publishing IS the more-public transition,
+      // and the policy denial is the more specific message than the plan gate.
+      await mapDomain(() => domainSvc.security.assertPublicSharingAllowed(page.workspaceId))
       const features = await getWorkspaceFeatures(page.workspaceId)
       if (!features.publicSitesEnabled) {
         throw new TRPCError({
@@ -301,7 +313,12 @@ export const pageShareRouter = router({
   setExposesAt: protectedProcedure
     .input(z.object({ pageId: z.string().uuid(), exposesAt: nullableDateInput }))
     .mutation(async ({ ctx, input }) => {
-      await assertCanManageShare(ctx, input.pageId)
+      const page = await assertCanManageShare(ctx, input.pageId)
+      // Security policy (8C §4): scheduling an expose date is a publish intent
+      // (more public) — gated; clearing the schedule (null) closes down — free.
+      if (input.exposesAt !== null) {
+        await mapDomain(() => domainSvc.security.assertPublicSharingAllowed(page.workspaceId))
+      }
       await ensureShare(ctx, input.pageId)
       return ctx.prisma.pageShare.update({
         where: { pageId: input.pageId },
@@ -442,6 +459,13 @@ export const pageShareRouter = router({
         })
       }
 
+      // 1b. SOURCE-workspace security policy (8C §4): the owner of the shared
+      //     content controls whether it may leave the workspace. The resolver
+      //     already validated the share, so its workspaceId is trusted.
+      await mapDomain(() =>
+        domainSvc.security.assertCrossWorkspaceCopyAllowed(resolved.page.workspaceId),
+      )
+
       // 2. The caller must belong to the destination workspace.
       await assertWorkspaceMember(ctx, input.targetWorkspaceId)
 
@@ -566,6 +590,10 @@ export const pageShareRouter = router({
           message: 'Пользователь уже имеет доступ к пространству',
         })
       }
+      // Past this point the target is NOT a workspace member, so the grant is a
+      // guest grant by definition — the same security policy as guest invites
+      // applies (8C §4 disableGuestInvites).
+      await mapDomain(() => domainSvc.security.assertGuestInvitesAllowed(page.workspaceId))
       const share = await ctx.prisma.pageShare.findUnique({
         where: { pageId: input.pageId },
         select: { id: true },

@@ -318,3 +318,144 @@ describe('public-share management is manager-only (integration)', () => {
     await expect(caller.clearSharePassword({ pageId: fx.pageId })).rejects.toThrow(forbid)
   })
 })
+
+// ── Phase 8C: workspace security policy enforcement at the sharing chokepoints.
+// The policy row is created directly via prisma (the tRPC security router is a
+// later task); the procedures must consult it through the domain singleton.
+// Pinned BOTH ways: more-public transitions deny, closing down stays allowed.
+describe('security policy enforcement on sharing (8C §4, integration)', () => {
+  beforeEach(cleanFixtures)
+  afterAll(cleanFixtures)
+
+  const linksPolicyDenied = /Публичные ссылки и сайты отключены/
+  const guestsPolicyDenied = /Гостевые приглашения отключены/
+
+  function enablePolicy(wsId: string, ownerId: string, flags: Record<string, boolean>) {
+    return prisma.workspaceSecurityPolicy.create({
+      data: { workspaceId: wsId, configuredById: ownerId, ...flags },
+    })
+  }
+
+  it('setAccess to PUBLIC is denied under disablePublicLinksSitesForms', async () => {
+    const fx = await seed({ publicSites: false })
+    const caller = makeCaller(fx.ownerId)
+    await caller.ensure({ pageId: fx.pageId })
+    await enablePolicy(fx.wsId, fx.ownerId, { disablePublicLinksSitesForms: true })
+
+    await expect(
+      caller.setAccess({ pageId: fx.pageId, access: 'PUBLIC', linkRole: 'READER' }),
+    ).rejects.toThrow(linksPolicyDenied)
+
+    const row = await prisma.pageShare.findUnique({
+      where: { pageId: fx.pageId },
+      select: { access: true },
+    })
+    expect(row?.access).toBe('RESTRICTED')
+  })
+
+  it('setAccess to RESTRICTED stays allowed under the policy (owners can close down)', async () => {
+    const fx = await seed({ publicSites: false })
+    const caller = makeCaller(fx.ownerId)
+    await caller.ensure({ pageId: fx.pageId })
+    await caller.setAccess({ pageId: fx.pageId, access: 'PUBLIC', linkRole: 'READER' })
+    await enablePolicy(fx.wsId, fx.ownerId, { disablePublicLinksSitesForms: true })
+
+    await caller.setAccess({ pageId: fx.pageId, access: 'RESTRICTED', linkRole: 'READER' })
+
+    const row = await prisma.pageShare.findUnique({
+      where: { pageId: fx.pageId },
+      select: { access: true },
+    })
+    expect(row?.access).toBe('RESTRICTED')
+  })
+
+  it('updatePublicLinkSettings: PUBLIC denied, RESTRICTED allowed under the policy', async () => {
+    const fx = await seed({ publicSites: false })
+    const caller = makeCaller(fx.ownerId)
+    await enablePolicy(fx.wsId, fx.ownerId, { disablePublicLinksSitesForms: true })
+
+    await expect(
+      caller.updatePublicLinkSettings({ pageId: fx.pageId, access: 'PUBLIC', linkRole: 'READER' }),
+    ).rejects.toThrow(linksPolicyDenied)
+
+    await caller.updatePublicLinkSettings({
+      pageId: fx.pageId,
+      access: 'RESTRICTED',
+      linkRole: 'READER',
+    })
+    const row = await prisma.pageShare.findUnique({
+      where: { pageId: fx.pageId },
+      select: { access: true },
+    })
+    expect(row?.access).toBe('RESTRICTED')
+  })
+
+  it('publishSite is denied under the policy even on a sites-enabled plan', async () => {
+    const fx = await seed({ publicSites: true })
+    const caller = makeCaller(fx.ownerId)
+    await enablePolicy(fx.wsId, fx.ownerId, { disablePublicLinksSitesForms: true })
+
+    await expect(caller.publishSite({ pageId: fx.pageId })).rejects.toThrow(linksPolicyDenied)
+  })
+
+  it('unpublishSite stays allowed under the policy', async () => {
+    const fx = await seed({ publicSites: true })
+    const caller = makeCaller(fx.ownerId)
+    await caller.publishSite({ pageId: fx.pageId })
+    await enablePolicy(fx.wsId, fx.ownerId, { disablePublicLinksSitesForms: true })
+
+    await caller.unpublishSite({ pageId: fx.pageId })
+
+    const row = await prisma.pageShare.findUnique({
+      where: { pageId: fx.pageId },
+      select: { unpublishedAt: true },
+    })
+    expect(row?.unpublishedAt).not.toBeNull()
+  })
+
+  it('setExposesAt: scheduling (non-null) denied, clearing (null) allowed under the policy', async () => {
+    const fx = await seed({ publicSites: true })
+    const caller = makeCaller(fx.ownerId)
+    const exposesAt = new Date(Date.now() + 3 * 86400_000)
+    await caller.setExposesAt({ pageId: fx.pageId, exposesAt })
+    await enablePolicy(fx.wsId, fx.ownerId, { disablePublicLinksSitesForms: true })
+
+    await expect(
+      caller.setExposesAt({ pageId: fx.pageId, exposesAt: new Date(Date.now() + 5 * 86400_000) }),
+    ).rejects.toThrow(linksPolicyDenied)
+
+    await caller.setExposesAt({ pageId: fx.pageId, exposesAt: null })
+    const row = await prisma.pageShare.findUnique({
+      where: { pageId: fx.pageId },
+      select: { exposesAt: true },
+    })
+    expect(row?.exposesAt).toBeNull()
+  })
+
+  it('addUser for a non-member (a guest grant by definition) is denied under disableGuestInvites', async () => {
+    const fx = await seed({ publicSites: false })
+    const stranger = await makeUser('stranger')
+    const caller = makeCaller(fx.ownerId)
+    await caller.ensure({ pageId: fx.pageId })
+    await enablePolicy(fx.wsId, fx.ownerId, { disableGuestInvites: true })
+
+    await expect(
+      caller.addUser({ pageId: fx.pageId, userId: stranger.id, role: 'READER' }),
+    ).rejects.toThrow(guestsPolicyDenied)
+
+    const grants = await prisma.pageShareUser.count({
+      where: { user: { id: stranger.id } },
+    })
+    expect(grants).toBe(0)
+  })
+
+  it('addUser grants a non-member under the zero-value policy (no row)', async () => {
+    const fx = await seed({ publicSites: false })
+    const stranger = await makeUser('stranger')
+    const caller = makeCaller(fx.ownerId)
+    await caller.ensure({ pageId: fx.pageId })
+
+    const res = await caller.addUser({ pageId: fx.pageId, userId: stranger.id, role: 'READER' })
+    expect(res.role).toBe('READER')
+  })
+})

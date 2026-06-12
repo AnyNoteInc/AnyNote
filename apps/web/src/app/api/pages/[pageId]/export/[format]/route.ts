@@ -56,6 +56,18 @@ export async function GET(
     throw e
   }
 
+  // Security policy (8C §4): disableExport blocks every export surface. The
+  // caller is already a verified member, so an honest 403 naming the policy
+  // leaks nothing (unlike the uniform-404 pre-auth failures).
+  try {
+    await domain.security.assertExportAllowed(page.workspaceId)
+  } catch (e) {
+    if (isDomainError(e) && e.httpStatus === 403) {
+      return Response.json({ error: e.message }, { status: 403 })
+    }
+    throw e
+  }
+
   const titleForOutput = (page.title ?? '').trim() || 'Без названия'
   const baseUrl = process.env.NEXT_PUBLIC_BASE_URL ?? new URL(req.url).origin
   const bodyHtml = await renderPageBodyHtml(page, { prisma, storage, baseUrl })

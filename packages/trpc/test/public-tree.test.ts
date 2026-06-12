@@ -176,6 +176,7 @@ async function seed() {
 
   return {
     ownerId: owner.id,
+    wsId: ws.id,
     rootId: root.id,
     visibleChildId: visibleChild.id,
     grandchildId: grandchild.id,
@@ -238,6 +239,25 @@ describe('page.share.publicTree (integration)', () => {
     const caller = makeCaller()
 
     const tree = await caller.publicTree({ shareId })
+    expect(tree.nodes).toEqual([])
+  })
+
+  // 8C §4 inherit pin: publicTree funnels through ShareAccessService.resolve,
+  // so the policy kill-switch empties the tree without any code of its own.
+  it('returns an empty tree under the disablePublicLinksSitesForms security policy', async () => {
+    const fx = await seed()
+    const shareId = await createShare(fx.rootId, fx.ownerId)
+    await prisma.workspaceSecurityPolicy.create({
+      data: {
+        workspaceId: fx.wsId,
+        configuredById: fx.ownerId,
+        disablePublicLinksSitesForms: true,
+      },
+    })
+    const caller = makeCaller()
+
+    const tree = await caller.publicTree({ shareId })
+    expect(tree.rootId).toBeNull()
     expect(tree.nodes).toEqual([])
   })
 })

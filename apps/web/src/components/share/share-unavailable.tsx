@@ -25,6 +25,8 @@ const MESSAGES: Record<Exclude<PublicUnavailableReason, 'not_found' | 'password_
     expired: 'Срок действия ссылки истёк',
     not_yet_exposed: 'Публикация ещё не началась',
     restricted_child: 'Эта страница недоступна',
+    // The 8C security-policy kill-switch — an honest state, never a silent 404.
+    policy_disabled: 'Доступ по ссылке отключён администратором пространства',
   }
 
 function Centered({ children }: { children: React.ReactNode }) {

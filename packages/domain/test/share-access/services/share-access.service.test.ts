@@ -23,6 +23,7 @@ function makeShare(over: Partial<ShareRow> = {}): ShareRow {
     analyticsYandexMetricaId: null,
     passwordHash: null,
     exposesAt: null,
+    policyDisablesPublicSharing: false,
     page: {
       id: 'p1',
       type: 'TEXT',
@@ -95,6 +96,14 @@ describe('ShareAccessService (LINK mode)', () => {
     expect(r).toEqual({ status: 'unavailable', reason: 'disabled' })
   })
 
+  it('denies policy_disabled when the workspace security policy kills public sharing (LINK)', async () => {
+    const r = await makeService(makeShare({ policyDisablesPublicSharing: true })).resolve({
+      shareId: 's1',
+      now: NOW,
+    })
+    expect(r).toEqual({ status: 'unavailable', reason: 'policy_disabled' })
+  })
+
   it('denies restricted_child when a child page is requested in LINK mode', async () => {
     const r = await makeService(makeShare()).resolve({
       shareId: 's1',
@@ -144,6 +153,43 @@ describe('ShareAccessService (SITE mode)', () => {
     s.passwordHash = await hashSharePassword('secret')
     const r = await makeService(s).resolve({ shareId: 's1', password: 'secret', now: NOW })
     expect(r).toMatchObject({ status: 'ok' })
+  })
+
+  it('denies policy_disabled for a published SITE when the policy kills public sharing', async () => {
+    const s = siteBase()
+    s.policyDisablesPublicSharing = true
+    const r = await makeService(s).resolve({ shareId: 's1', now: NOW })
+    expect(r).toEqual({ status: 'unavailable', reason: 'policy_disabled' })
+  })
+
+  it('denies policy_disabled BEFORE child checks on the SITE child/tree path', async () => {
+    const s = siteBase()
+    s.policyDisablesPublicSharing = true
+    // findPathToRoot would grant the child — the policy must win first.
+    const repo = {
+      findShareByShareId: async () => s,
+      findPathToRoot: async () => [
+        {
+          id: 'p2',
+          parentId: 'p1',
+          collectionId: 'c1',
+          archivedAt: null,
+          deletedAt: null,
+          collectionKind: 'TEAM',
+          collectionOwnerId: null,
+        },
+      ],
+      findPublicPageById: async () => ({
+        id: 'p2',
+        type: 'TEXT',
+        title: 'C',
+        icon: null,
+        workspaceId: 'w1',
+      }),
+    }
+    const svc = new ShareAccessService(repo as never)
+    const r = await svc.resolve({ shareId: 's1', requestedPageId: 'p2', now: NOW })
+    expect(r).toEqual({ status: 'unavailable', reason: 'policy_disabled' })
   })
 
   it('denies child not descended from root', async () => {

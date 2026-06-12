@@ -8,6 +8,8 @@ export type PublicUnavailableReason =
   | 'not_yet_exposed'
   | 'password_required'
   | 'restricted_child'
+  /** Workspace security policy `disablePublicLinksSitesForms` (8C §4) — honest, not a 404. */
+  | 'policy_disabled'
 
 export type ResolvedPublicPage = {
   id: string

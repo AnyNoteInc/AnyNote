@@ -99,6 +99,20 @@ describe('job router', () => {
     expect(job.status).toBe('QUEUED')
   })
 
+  it('export.create is denied under the disableExport security policy (8C §4)', async () => {
+    const { owner, ws } = await seed()
+    await prisma.workspaceSecurityPolicy.create({
+      data: { workspaceId: ws.id, configuredById: owner.id, disableExport: true },
+    })
+    const { caller, kick } = makeCaller(owner.id)
+
+    await expect(
+      caller.export.create({ workspaceId: ws.id, scope: 'WORKSPACE', format: 'MARKDOWN_ZIP' }),
+    ).rejects.toThrow(/Экспорт отключён/)
+    expect(kick).not.toHaveBeenCalled()
+    expect(await prisma.exportJob.count({ where: { workspaceId: ws.id } })).toBe(0)
+  })
+
   it('export.create rejects PDF_ZIP for the whole workspace but queues it for a subtree', async () => {
     const { owner, ws, page } = await seed()
     const { caller, kick } = makeCaller(owner.id)

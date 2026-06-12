@@ -22,6 +22,12 @@ export async function GET(
   // Owner-only: a workspace export may contain the creator's personal pages, so
   // even workspace admins must not fetch another user's artifact. All failure
   // modes are a uniform 404 (no existence leak).
+  //
+  // Deliberately NOT gated on the security policy's disableExport (8C §4): the
+  // artifact was created while exporting was still allowed, it is scoped to the
+  // very user who made it, and revoking the download would strand data the user
+  // already extracted. The policy blocks creating NEW exports (job.export.create
+  // and both GET export routes), not collecting finished ones.
   const job = await prisma.exportJob.findFirst({
     where: { id: jobId, userId: session.user.id, status: 'DONE' },
     include: { artifacts: { include: { file: true } } },

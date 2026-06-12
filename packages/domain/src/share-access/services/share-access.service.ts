@@ -33,6 +33,16 @@ export class ShareAccessService {
     const share = await this.repo.findShareByShareId(input.shareId)
     if (!share) return { status: 'unavailable', reason: 'not_found' }
 
+    // Workspace security policy kill-switch (8C §4): while
+    // `disablePublicLinksSitesForms` is on, EVERY public surface dies here —
+    // LINK, SITE, the child/tree path, copyToWorkspace and the yjs share-token
+    // mint all funnel through this resolver. Checked BEFORE mode checks; the
+    // share rows stay untouched (non-destructive — disabling the policy
+    // restores them). Member/grant fast-paths live in the web layer and are
+    // deliberately NOT affected (members keep access through their own auth).
+    if (share.policyDisablesPublicSharing)
+      return { status: 'unavailable', reason: 'policy_disabled' }
+
     // Root page must not be archived/deleted (closes the legacy leak).
     if (share.page.archivedAt || share.page.deletedAt)
       return { status: 'unavailable', reason: 'disabled' }

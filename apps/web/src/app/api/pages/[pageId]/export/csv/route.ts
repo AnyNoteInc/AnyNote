@@ -1,6 +1,6 @@
 import type { NextRequest } from 'next/server'
 import { prisma } from '@repo/db'
-import { buildPageVisibilityWhere } from '@repo/domain'
+import { buildPageVisibilityWhere, isDomainError } from '@repo/domain'
 import { z } from 'zod'
 
 import { domain } from '@/lib/domain'
@@ -43,9 +43,22 @@ export async function GET(req: NextRequest, ctx: { params: Promise<{ pageId: str
       workspace: { members: { some: { userId: session.user.id } } },
       AND: [buildPageVisibilityWhere(session.user.id)],
     },
-    select: { id: true, title: true },
+    select: { id: true, title: true, workspaceId: true },
   })
   if (!page) return NOT_FOUND
+
+  // Security policy (8C §4): disableExport blocks every export surface,
+  // database CSV included. The page is already known-visible to the caller, so
+  // the denial is an honest 403 naming the policy — deliberately NOT folded
+  // into the uniform 404 of the pre-visibility access chain above.
+  try {
+    await domain.security.assertExportAllowed(page.workspaceId)
+  } catch (e) {
+    if (isDomainError(e) && e.httpStatus === 403) {
+      return Response.json({ error: e.message }, { status: 403 })
+    }
+    throw e
+  }
 
   // Resolve the effective view: the requested one, else the default (first by
   // position) — resolveViewContext treats undefined as "no settings", so the

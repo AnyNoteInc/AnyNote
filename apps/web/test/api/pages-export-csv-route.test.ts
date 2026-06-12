@@ -235,4 +235,20 @@ describe('GET /api/pages/[pageId]/export/csv', () => {
     sessionUserId.current = fx.owner.id
     expect((await call(privatePage.id)).status).toBe(200)
   })
+
+  it('returns an honest 403 under the disableExport security policy (8C §4)', async () => {
+    const fx = await seed()
+    await prisma.workspaceSecurityPolicy.create({
+      data: { workspaceId: fx.ws.id, configuredById: fx.owner.id, disableExport: true },
+    })
+
+    // The page is already known-visible to the caller, so the policy denial is
+    // honest (named), NOT folded into the uniform 404 of the access chain.
+    sessionUserId.current = fx.owner.id
+    const res = await call(fx.pageId)
+    expect(res.status).toBe(403)
+    expect(await res.json()).toEqual({
+      error: 'Экспорт отключён политикой безопасности пространства',
+    })
+  })
 })

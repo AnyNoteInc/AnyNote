@@ -100,6 +100,32 @@ describe('resolveShareAccess', () => {
     }
   })
 
+  it('denies anonymous with policy_disabled when the workspace security policy kills public links', async () => {
+    // The domain repository joins page→workspace→securityPolicy in its share
+    // lookup; the mock returns the whole object for both queries.
+    const share = shareRow({
+      access: 'PUBLIC',
+      page: { ...PAGE, workspace: { securityPolicy: { disablePublicLinksSitesForms: true } } },
+    })
+    const res = await resolveShareAccess(prismaWith({ share }), 's', null)
+    expect(res.kind).toBe('unavailable')
+    if (res.kind === 'unavailable') expect(res.reason).toBe('policy_disabled')
+  })
+
+  it('keeps the member fast-path under the public-sharing policy (members retain access)', async () => {
+    const share = shareRow({
+      access: 'PUBLIC',
+      page: { ...PAGE, workspace: { securityPolicy: { disablePublicLinksSitesForms: true } } },
+    })
+    const session = { user: { id: 'u1' } } as never
+    const res = await resolveShareAccess(
+      prismaWith({ share, member: { role: 'EDITOR' } }),
+      's',
+      session,
+    )
+    expect(res.kind).toBe('member')
+  })
+
   it('prefers workspace membership over link role', async () => {
     const session = { user: { id: 'u1' } } as never
     const res = await resolveShareAccess(

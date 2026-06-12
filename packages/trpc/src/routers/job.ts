@@ -6,6 +6,8 @@ import { buildPageVisibilityWhere } from '@repo/domain'
 import { router, protectedProcedure } from '../trpc'
 import { assertPageEditAccess, assertWorkspaceMember } from '../helpers/page-access'
 import { requireWritableWorkspace } from '../helpers/plan'
+import { mapDomain } from '../helpers/map-domain'
+import { domain as domainSvc } from '../domain'
 
 /** PROCESSING older than this (by heartbeat) is considered orphaned. */
 export const RECLAIM_AFTER_MS = 10 * 60 * 1000
@@ -134,7 +136,10 @@ export const jobRouter = router({
       await assertWorkspaceMember(ctx, input.workspaceId)
       // Deliberately NO requireWritableWorkspace here: export is data portability —
       // users must be able to take their data out even when the workspace is over
-      // its plan limits. Import (which writes pages) IS plan-gated.
+      // its plan limits. Import (which writes pages) IS plan-gated. Portability
+      // defers to the workspace SECURITY policy, though: an OWNER's disableExport
+      // (8C §4) blocks new exports for everyone, plan state notwithstanding.
+      await mapDomain(() => domainSvc.security.assertExportAllowed(input.workspaceId))
 
       if (input.scope !== 'WORKSPACE' && !input.scopeId) {
         throw new TRPCError({ code: 'BAD_REQUEST', message: 'Не указан объект экспорта' })

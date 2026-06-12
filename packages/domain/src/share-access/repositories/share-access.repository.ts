@@ -15,6 +15,12 @@ export type ShareRow = {
   analyticsYandexMetricaId: string | null
   passwordHash: string | null
   exposesAt: Date | null
+  /**
+   * Workspace security policy `disablePublicLinksSitesForms` (8C §4), joined
+   * into the share lookup (page→workspace→securityPolicy — no extra query).
+   * False when no policy row exists (the zero-value policy).
+   */
+  policyDisablesPublicSharing: boolean
   page: {
     id: string
     type: string
@@ -35,7 +41,7 @@ export class ShareAccessRepository {
   }
 
   async findShareByShareId(shareId: string): Promise<ShareRow | null> {
-    return this.prisma.pageShare.findUnique({
+    const row = (await this.prisma.pageShare.findUnique({
       where: { shareId },
       select: {
         shareId: true,
@@ -63,10 +69,29 @@ export class ShareAccessRepository {
             collectionId: true,
             archivedAt: true,
             deletedAt: true,
+            // The 8C policy kill-switch rides the share lookup (one query):
+            // page → workspace → securityPolicy; null row = zero-value policy.
+            workspace: {
+              select: { securityPolicy: { select: { disablePublicLinksSitesForms: true } } },
+            },
           },
         },
       },
-    }) as Promise<ShareRow | null>
+    })) as
+      | (Omit<ShareRow, 'policyDisablesPublicSharing'> & {
+          page: ShareRow['page'] & {
+            workspace?: { securityPolicy: { disablePublicLinksSitesForms: boolean } | null }
+          }
+        })
+      | null
+    if (!row) return null
+    // `workspace?.` tolerates lean test doubles; the relation is required in Prisma.
+    const { workspace, ...page } = row.page
+    return {
+      ...row,
+      page,
+      policyDisablesPublicSharing: workspace?.securityPolicy?.disablePublicLinksSitesForms ?? false,
+    }
   }
 
   // Walks parentId from childId up toward rootId; returns the path of pages

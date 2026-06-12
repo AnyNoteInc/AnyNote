@@ -3,7 +3,11 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 vi.mock('@repo/auth', () => ({ getUserFromRequest: vi.fn() }))
 vi.mock('@repo/db', async (importOriginal) => {
   const actual = await importOriginal<typeof import('@repo/db')>()
-  return { ...actual, prisma: {} }
+  // The domain singleton (`../src/domain`) captures THIS prisma, not the
+  // per-test ctx.prisma. The 8C security-policy chokepoints read the policy
+  // through it — answer "no row" (the zero-value policy: everything allowed).
+  // The policy-denial paths are integration-pinned in public-share.test.ts.
+  return { ...actual, prisma: { workspaceSecurityPolicy: { findUnique: async () => null } } }
 })
 
 import type { PrismaClient } from '@repo/db'

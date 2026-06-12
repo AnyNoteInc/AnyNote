@@ -411,3 +411,50 @@ describe('share.copyToWorkspace (integration)', () => {
     expect(threads).toBe(0)
   })
 })
+
+// ── Phase 8C: SOURCE-workspace security policy enforcement on copyToWorkspace.
+describe('share.copyToWorkspace under the security policy (8C §4, integration)', () => {
+  beforeEach(cleanFixtures)
+  afterAll(cleanFixtures)
+
+  it('FORBIDDEN under the SOURCE workspace disableMoveDuplicateOutsideWorkspace policy', async () => {
+    const fx = await seed()
+    const shareId = await createShare(fx.rootId, fx.ownerId)
+    await prisma.workspaceSecurityPolicy.create({
+      data: {
+        workspaceId: fx.srcWsId,
+        configuredById: fx.ownerId,
+        disableMoveDuplicateOutsideWorkspace: true,
+      },
+    })
+    const caller = makeCaller(fx.copierId)
+
+    await expect(
+      caller.copyToWorkspace({ shareId, targetWorkspaceId: fx.dstWsId }),
+    ).rejects.toThrow(/Копирование в другие пространства отключено/)
+
+    const copies = await prisma.page.count({
+      where: { workspaceId: fx.dstWsId, title: 'Public root' },
+    })
+    expect(copies).toBe(0)
+  })
+
+  it('inherits the resolver kill: disablePublicLinksSitesForms on the source denies the copy', async () => {
+    const fx = await seed()
+    const shareId = await createShare(fx.rootId, fx.ownerId)
+    await prisma.workspaceSecurityPolicy.create({
+      data: {
+        workspaceId: fx.srcWsId,
+        configuredById: fx.ownerId,
+        disablePublicLinksSitesForms: true,
+      },
+    })
+    const caller = makeCaller(fx.copierId)
+
+    // The share itself resolves policy_disabled, so the copy is denied with the
+    // generic copy message (the public surface is dark — nothing to copy from).
+    await expect(
+      caller.copyToWorkspace({ shareId, targetWorkspaceId: fx.dstWsId }),
+    ).rejects.toThrow(/Копирование этой страницы недоступно/)
+  })
+})
