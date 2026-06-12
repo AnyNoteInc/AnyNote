@@ -138,14 +138,16 @@ async function webhookOutboxRows(workspaceId: string) {
   })
 }
 
-// The shared dev DB can hold foreign PENDING webhook_event rows (Task 3 already
-// emits from regular dev usage; the engines cron only arrives in Task 7), and the
-// claim is global by design. Tick until the backlog — ours included — is drained,
-// bounded so a concurrent writer can't spin us forever.
-async function runFanOutUntilDrained() {
+// The shared dev DB holds foreign PENDING rows (dual emission is live and other
+// real-DB suites emit continuously during `pnpm gates`), and the claim is global
+// by design. Draining the GLOBAL queue can therefore never terminate under
+// concurrency — so the exit condition is scoped to OUR workspace's rows; the
+// ticks still claim globally, we just stop once our rows are processed.
+async function runFanOutUntilDrained(workspaceId: string) {
   for (let i = 0; i < 50; i++) {
     const pending = await prisma.outboxEvent.count({
       where: {
+        workspaceId,
         aggregateType: 'webhook_event',
         status: 'PENDING',
         nextAttemptAt: { lte: new Date() },
@@ -171,7 +173,7 @@ describe('runFanOutTick (integration)', () => {
       hints: {},
     })
 
-    await runFanOutUntilDrained()
+    await runFanOutUntilDrained(fx.wsId)
 
     const deliveries = await prisma.webhookDelivery.findMany({
       where: { subscriptionId: fx.subscriptionId },
@@ -210,9 +212,11 @@ describe('runFanOutTick (integration)', () => {
       actorId: fx.ownerId,
     })
 
-    await runFanOutUntilDrained()
+    await runFanOutUntilDrained(fx.wsId)
 
-    expect(await prisma.webhookDelivery.count({ where: { subscriptionId: fx.subscriptionId } })).toBe(0)
+    expect(
+      await prisma.webhookDelivery.count({ where: { subscriptionId: fx.subscriptionId } }),
+    ).toBe(0)
     const outbox = await webhookOutboxRows(fx.wsId)
     expect(outbox).toHaveLength(1)
     expect(outbox[0]!.status).toBe('DONE')
@@ -228,9 +232,11 @@ describe('runFanOutTick (integration)', () => {
       hints: { changed: ['icon'] },
     })
 
-    await runFanOutUntilDrained()
+    await runFanOutUntilDrained(fx.wsId)
 
-    expect(await prisma.webhookDelivery.count({ where: { subscriptionId: fx.subscriptionId } })).toBe(0)
+    expect(
+      await prisma.webhookDelivery.count({ where: { subscriptionId: fx.subscriptionId } }),
+    ).toBe(0)
     expect((await webhookOutboxRows(fx.wsId))[0]!.status).toBe('DONE')
   })
 
@@ -271,7 +277,7 @@ describe('runFanOutTick (integration)', () => {
       actorId: fx.ownerId,
     })
 
-    await runFanOutUntilDrained()
+    await runFanOutUntilDrained(fx.wsId)
 
     const deliveries = await prisma.webhookDelivery.findMany({
       where: { subscription: { workspaceId: fx.wsId } },
@@ -297,7 +303,7 @@ describe('runFanOutTick (integration)', () => {
       actorId: fx.ownerId,
     })
 
-    await runFanOutUntilDrained()
+    await runFanOutUntilDrained(fx.wsId)
 
     const first = await prisma.webhookDelivery.findMany({
       where: { subscriptionId: fx.subscriptionId },
@@ -326,7 +332,7 @@ describe('runFanOutTick (integration)', () => {
       },
     })
 
-    await runFanOutUntilDrained()
+    await runFanOutUntilDrained(fx.wsId)
 
     const second = await prisma.webhookDelivery.findMany({
       where: { subscriptionId: fx.subscriptionId },
@@ -367,9 +373,11 @@ describe('runFanOutTick (integration)', () => {
       actorId: fx.ownerId,
     })
 
-    await runFanOutUntilDrained()
+    await runFanOutUntilDrained(fx.wsId)
 
-    expect(await prisma.webhookDelivery.count({ where: { subscription: { workspaceId: fx.wsId } } })).toBe(0)
+    expect(
+      await prisma.webhookDelivery.count({ where: { subscription: { workspaceId: fx.wsId } } }),
+    ).toBe(0)
     expect((await webhookOutboxRows(fx.wsId))[0]!.status).toBe('DONE')
   })
 
@@ -383,7 +391,7 @@ describe('runFanOutTick (integration)', () => {
       hints: { duplicatedFrom: fx.personalPageId, scope: 'duplicate' },
     })
 
-    await runFanOutUntilDrained()
+    await runFanOutUntilDrained(fx.wsId)
 
     const deliveries = await prisma.webhookDelivery.findMany({
       where: { subscriptionId: fx.subscriptionId },
@@ -416,7 +424,7 @@ describe('runFanOutTick (integration)', () => {
       hints: { duplicatedFrom: teamSource.id },
     })
 
-    await runFanOutUntilDrained()
+    await runFanOutUntilDrained(fx.wsId)
 
     const deliveries = await prisma.webhookDelivery.findMany({
       where: { subscriptionId: fx.subscriptionId },
@@ -465,7 +473,7 @@ describe('runFanOutTick (integration)', () => {
       hints: { to: teamParent.id },
     })
 
-    await runFanOutUntilDrained()
+    await runFanOutUntilDrained(fx.wsId)
 
     const deliveries = await prisma.webhookDelivery.findMany({
       where: { subscriptionId: fx.subscriptionId },
@@ -504,7 +512,7 @@ describe('runFanOutTick (integration)', () => {
       actorId: fx.ownerId,
     })
 
-    await runFanOutUntilDrained()
+    await runFanOutUntilDrained(fx.wsId)
 
     const deliveries = await prisma.webhookDelivery.findMany({
       where: { subscriptionId: fx.subscriptionId },

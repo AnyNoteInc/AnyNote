@@ -180,14 +180,15 @@ async function outboxRows(workspaceId: string, aggregateType: 'telegram_event' |
   })
 }
 
-// The shared dev DB can hold foreign PENDING telegram_event rows (dual emission
-// is already live; the engines cron only arrives in Task 8), and the claim is
-// global by design. Tick until the backlog — ours included — is drained,
-// bounded so a concurrent writer can't spin us forever.
-async function drainOutbox(aggregateType: 'telegram_event' | 'webhook_event') {
+// The shared dev DB holds foreign PENDING rows (dual emission is live and other
+// real-DB suites emit continuously during `pnpm gates`), and the claim is global
+// by design. Draining the GLOBAL queue can therefore never terminate under
+// concurrency — so the exit condition is scoped to OUR workspace's rows; the
+// ticks still claim globally, we just stop once our rows are processed.
+async function drainOutbox(aggregateType: 'telegram_event' | 'webhook_event', workspaceId: string) {
   for (let i = 0; i < 50; i++) {
     const pending = await prisma.outboxEvent.count({
-      where: { aggregateType, status: 'PENDING', nextAttemptAt: { lte: new Date() } },
+      where: { workspaceId, aggregateType, status: 'PENDING', nextAttemptAt: { lte: new Date() } },
     })
     if (pending === 0) return
     if (aggregateType === 'telegram_event') {
@@ -214,7 +215,7 @@ describe('runTelegramFanOutTick (integration)', () => {
       hints: {},
     })
 
-    await drainOutbox('telegram_event')
+    await drainOutbox('telegram_event', fx.wsId)
 
     const deliveries = await prisma.telegramDelivery.findMany({
       where: { subscriptionId: fx.subscriptionId },
@@ -262,7 +263,7 @@ describe('runTelegramFanOutTick (integration)', () => {
       resourceType: 'comment',
     })
 
-    await drainOutbox('telegram_event')
+    await drainOutbox('telegram_event', fx.wsId)
 
     const deliveries = await prisma.telegramDelivery.findMany({
       where: { subscriptionId: fx.subscriptionId },
@@ -283,11 +284,11 @@ describe('runTelegramFanOutTick (integration)', () => {
       hints: { changed: ['icon'] },
     })
 
-    await drainOutbox('telegram_event')
+    await drainOutbox('telegram_event', fx.wsId)
 
-    expect(
-      await prisma.telegramDelivery.count({ where: { connectionId: fx.connectionId } }),
-    ).toBe(0)
+    expect(await prisma.telegramDelivery.count({ where: { connectionId: fx.connectionId } })).toBe(
+      0,
+    )
     expect((await outboxRows(fx.wsId, 'telegram_event'))[0]!.status).toBe('DONE')
   })
 
@@ -305,11 +306,11 @@ describe('runTelegramFanOutTick (integration)', () => {
       actorId: fx.ownerId,
     })
 
-    await drainOutbox('telegram_event')
+    await drainOutbox('telegram_event', fx.wsId)
 
-    expect(
-      await prisma.telegramDelivery.count({ where: { connectionId: fx.connectionId } }),
-    ).toBe(0)
+    expect(await prisma.telegramDelivery.count({ where: { connectionId: fx.connectionId } })).toBe(
+      0,
+    )
     expect((await outboxRows(fx.wsId, 'telegram_event'))[0]!.status).toBe('DONE')
   })
 
@@ -327,11 +328,11 @@ describe('runTelegramFanOutTick (integration)', () => {
       actorId: fx.ownerId,
     })
 
-    await drainOutbox('telegram_event')
+    await drainOutbox('telegram_event', fx.wsId)
 
-    expect(
-      await prisma.telegramDelivery.count({ where: { connectionId: fx.connectionId } }),
-    ).toBe(0)
+    expect(await prisma.telegramDelivery.count({ where: { connectionId: fx.connectionId } })).toBe(
+      0,
+    )
     expect((await outboxRows(fx.wsId, 'telegram_event'))[0]!.status).toBe('DONE')
   })
 
@@ -356,11 +357,11 @@ describe('runTelegramFanOutTick (integration)', () => {
       actorId: fx.ownerId,
     })
 
-    await drainOutbox('telegram_event')
+    await drainOutbox('telegram_event', fx.wsId)
 
-    expect(
-      await prisma.telegramDelivery.count({ where: { connectionId: fx.connectionId } }),
-    ).toBe(0)
+    expect(await prisma.telegramDelivery.count({ where: { connectionId: fx.connectionId } })).toBe(
+      0,
+    )
     const outbox = await outboxRows(fx.wsId, 'telegram_event')
     expect(outbox).toHaveLength(1)
     expect(outbox[0]!.status).toBe('DONE')
@@ -376,11 +377,11 @@ describe('runTelegramFanOutTick (integration)', () => {
       actorId: fx.ownerId,
     })
 
-    await drainOutbox('telegram_event')
+    await drainOutbox('telegram_event', fx.wsId)
 
-    expect(
-      await prisma.telegramDelivery.count({ where: { connectionId: fx.connectionId } }),
-    ).toBe(0)
+    expect(await prisma.telegramDelivery.count({ where: { connectionId: fx.connectionId } })).toBe(
+      0,
+    )
     const outbox = await outboxRows(fx.wsId, 'telegram_event')
     expect(outbox).toHaveLength(1)
     expect(outbox[0]!.status).toBe('DONE')
@@ -396,7 +397,7 @@ describe('runTelegramFanOutTick (integration)', () => {
       actorId: fx.ownerId,
     })
 
-    await drainOutbox('telegram_event')
+    await drainOutbox('telegram_event', fx.wsId)
 
     const first = await prisma.telegramDelivery.findMany({
       where: { subscriptionId: fx.subscriptionId },
@@ -417,7 +418,7 @@ describe('runTelegramFanOutTick (integration)', () => {
       },
     })
 
-    await drainOutbox('telegram_event')
+    await drainOutbox('telegram_event', fx.wsId)
 
     const second = await prisma.telegramDelivery.findMany({
       where: { subscriptionId: fx.subscriptionId },
@@ -457,24 +458,20 @@ describe('runTelegramFanOutTick (integration)', () => {
     })
 
     // Telegram tick first: it must drain telegram_event and NOT touch webhook_event.
-    await drainOutbox('telegram_event')
+    await drainOutbox('telegram_event', fx.wsId)
 
     expect((await outboxRows(fx.wsId, 'telegram_event'))[0]!.status).toBe('DONE')
     expect((await outboxRows(fx.wsId, 'webhook_event'))[0]!.status).toBe('PENDING')
     expect(
       await prisma.telegramDelivery.count({ where: { subscriptionId: fx.subscriptionId } }),
     ).toBe(1)
-    expect(
-      await prisma.webhookDelivery.count({ where: { subscriptionId: webhookSub.id } }),
-    ).toBe(0)
+    expect(await prisma.webhookDelivery.count({ where: { subscriptionId: webhookSub.id } })).toBe(0)
 
     // Webhook tick second: drains its own row, leaves telegram deliveries alone.
-    await drainOutbox('webhook_event')
+    await drainOutbox('webhook_event', fx.wsId)
 
     expect((await outboxRows(fx.wsId, 'webhook_event'))[0]!.status).toBe('DONE')
-    expect(
-      await prisma.webhookDelivery.count({ where: { subscriptionId: webhookSub.id } }),
-    ).toBe(1)
+    expect(await prisma.webhookDelivery.count({ where: { subscriptionId: webhookSub.id } })).toBe(1)
     expect(
       await prisma.telegramDelivery.count({ where: { subscriptionId: fx.subscriptionId } }),
     ).toBe(1)
