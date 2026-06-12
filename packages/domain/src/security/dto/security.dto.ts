@@ -1,6 +1,6 @@
 import type { Prisma } from '@repo/db'
 
-import { DomainError } from '../../shared/errors.ts'
+import { DomainError, badRequest } from '../../shared/errors.ts'
 
 /**
  * Prisma's `PageShareRole` / `GuestInviteRequestStatus` enums as string unions
@@ -248,4 +248,185 @@ export interface SecurityAuditEntry {
   targetUserId?: string
   targetEmail?: string
   metadata?: Prisma.InputJsonValue
+}
+
+// ── admin content search (spec §3, Task 3) ────────────────────────────────────
+
+/** First-match precedence: public → external → internal → private (spec §3.4). */
+export type ContentSearchAudience = 'public' | 'external' | 'internal' | 'private'
+
+export type ContentSearchMode = 'fts' | 'browse'
+
+export const CONTENT_SEARCH_DEFAULT_PAGE_SIZE = 30
+export const CONTENT_SEARCH_MAX_PAGE_SIZE = 100
+/** Mirrors page-search's MIN_QUERY_LENGTH: shorter queries fall back to browse mode. */
+export const CONTENT_SEARCH_MIN_QUERY_LENGTH = 2
+/** Mirrors page-search's MAX_QUERY_LENGTH cap on the tsquery input. */
+export const CONTENT_SEARCH_MAX_QUERY_LENGTH = 200
+
+export interface AcknowledgeContentSearchInput {
+  workspaceId: string
+  actorId: string
+}
+
+export interface AdminContentSearchInput {
+  workspaceId: string
+  actorId: string
+  /** Trimmed; ≥2 chars ⇒ FTS mode, otherwise browse mode. Audited VERBATIM. */
+  query?: string
+  creatorId?: string
+  createdFrom?: Date
+  createdTo?: Date
+  /** Post-computation filter on the derived audienceState. */
+  audience?: ContentSearchAudience
+  /** Browse-mode keyset cursor (opaque). IGNORED in FTS mode — see the result contract. */
+  cursor?: string
+  /** Default 30, clamped to 1..100. */
+  pageSize?: number
+}
+
+export interface ContentSearchLocation {
+  collectionId: string | null
+  collectionTitle: string | null
+  collectionKind: 'TEAM' | 'PERSONAL' | 'SITE' | null
+}
+
+export interface ContentSearchUserRef {
+  id: string
+  name: string | null
+}
+
+export interface ContentSearchAccessSummary {
+  /** PageShareUser grants whose holder IS a workspace member. */
+  memberGrantCount: number
+  /** PageShareUser grants whose holder has NO WorkspaceMember row (= guest). */
+  guestCount: number
+  /** PageGuestInvite rows with acceptedAt/revokedAt both null. */
+  activeInviteCount: number
+  /** 'SITE' when site-published, 'LINK' when link access is PUBLIC, else null. */
+  publicMode: 'LINK' | 'SITE' | null
+}
+
+export interface AdminContentSearchRow {
+  pageId: string
+  title: string | null
+  icon: string | null
+  /** FTS mode: first matching content block (TEXT pages); browse mode: always null. */
+  excerpt: string | null
+  location: ContentSearchLocation
+  audienceState: ContentSearchAudience
+  createdBy: ContentSearchUserRef | null
+  createdAt: Date
+  /**
+   * `updatedById` approximation (spec §1): structural edits only — yjs typing
+   * bumps `updatedAt` anonymously, so this is null-able and may lag reality.
+   */
+  lastEditor: ContentSearchUserRef | null
+  updatedAt: Date
+  accessSummary: ContentSearchAccessSummary
+}
+
+/**
+ * The PINNED cursor asymmetry (Task 3):
+ * - `fts` mode is a SINGLE page of rank-ordered top-N — `nextCursor` is ALWAYS
+ *   null and `hasMore` reports truncation. ts_rank cannot keyset cleanly, and
+ *   trading rank order for cursor stability would break the spec's
+ *   "FTS results" contract; an input cursor is ignored.
+ * - `browse` mode keysets on (updatedAt DESC, id DESC). The audience filter is
+ *   applied post-computation per scanned window, so a page may carry fewer
+ *   than pageSize rows while hasMore=true — the cursor advances over the RAW
+ *   window, so nothing is ever skipped.
+ */
+export interface AdminContentSearchResult {
+  mode: ContentSearchMode
+  rows: AdminContentSearchRow[]
+  /** Browse mode: the next keyset position, null when exhausted. FTS mode: always null. */
+  nextCursor: string | null
+  hasMore: boolean
+}
+
+// ── browse-mode keyset cursor (opaque base64url JSON) ─────────────────────────
+
+export interface BrowseCursor {
+  updatedAt: Date
+  id: string
+}
+
+export function encodeBrowseCursor(cursor: BrowseCursor): string {
+  return Buffer.from(
+    JSON.stringify({ u: cursor.updatedAt.toISOString(), i: cursor.id }),
+    'utf8',
+  ).toString('base64url')
+}
+
+export function decodeBrowseCursor(raw: string): BrowseCursor {
+  try {
+    const parsed = JSON.parse(Buffer.from(raw, 'base64url').toString('utf8')) as {
+      u?: unknown
+      i?: unknown
+    }
+    if (typeof parsed.u !== 'string' || typeof parsed.i !== 'string') throw new Error('shape')
+    const updatedAt = new Date(parsed.u)
+    if (Number.isNaN(updatedAt.getTime())) throw new Error('date')
+    return { updatedAt, id: parsed.i }
+  } catch {
+    throw badRequest('Некорректный курсор поиска')
+  }
+}
+
+// ── content excerpt (FTS mode) ────────────────────────────────────────────────
+// REPLICATED from packages/trpc/src/services/page-search.ts
+// (findFirstMatchingBlock / extractExcerpt) — keep in sync. The domain cannot
+// import @repo/trpc (layering points the other way), and the helper is small
+// and stable enough that a fork with a sync comment beats a new shared package.
+
+const MAX_EXCERPT_WINDOW = 100
+
+type TiptapNode = {
+  type?: string
+  text?: string
+  content?: TiptapNode[]
+}
+
+function extractText(node: TiptapNode): string {
+  if (typeof node.text === 'string') return node.text
+  if (!Array.isArray(node.content)) return ''
+  return node.content.map(extractText).join('')
+}
+
+export function extractContentExcerpt(text: string, query: string, window: number): string {
+  const flat = text.replace(/\s+/g, ' ').trim()
+  const idx = flat.toLowerCase().indexOf(query.toLowerCase())
+  if (idx < 0) return flat
+
+  const start = Math.max(0, idx - window)
+  const end = Math.min(flat.length, idx + query.length + window)
+  const prefix = start > 0 ? '...' : ''
+  const suffix = end < flat.length ? '...' : ''
+  return `${prefix}${flat.slice(start, end)}${suffix}`
+}
+
+/** First top-level block of a Tiptap doc snapshot containing the query (case-insensitive). */
+export function findFirstMatchingContentBlock(
+  doc: unknown,
+  query: string,
+): { blockNumber: number; excerpt: string } | null {
+  if (
+    !doc ||
+    typeof doc !== 'object' ||
+    (doc as TiptapNode).type !== 'doc' ||
+    !Array.isArray((doc as TiptapNode).content)
+  ) {
+    return null
+  }
+
+  const lower = query.toLowerCase()
+  const blocks = (doc as TiptapNode).content as TiptapNode[]
+  for (let i = 0; i < blocks.length; i += 1) {
+    const text = extractText(blocks[i] ?? {})
+    if (text.toLowerCase().includes(lower)) {
+      return { blockNumber: i, excerpt: extractContentExcerpt(text, query, MAX_EXCERPT_WINDOW) }
+    }
+  }
+  return null
 }

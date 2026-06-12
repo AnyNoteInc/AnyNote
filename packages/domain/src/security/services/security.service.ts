@@ -1,9 +1,16 @@
 import { notFound } from '../../shared/errors.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 import {
+  CONTENT_SEARCH_DEFAULT_PAGE_SIZE,
+  CONTENT_SEARCH_MAX_PAGE_SIZE,
+  CONTENT_SEARCH_MAX_QUERY_LENGTH,
+  CONTENT_SEARCH_MIN_QUERY_LENGTH,
   SECURITY_AUDIT_ACTIONS,
   SECURITY_POLICY_FLAGS,
   canRequestGuestInvite,
+  decodeBrowseCursor,
+  encodeBrowseCursor,
+  findFirstMatchingContentBlock,
   isCrossWorkspaceCopyDisabled,
   isExportDisabled,
   isGuestInviteDisabled,
@@ -12,7 +19,13 @@ import {
   zeroSecurityPolicy,
 } from '../dto/security.dto.ts'
 import type {
+  AcknowledgeContentSearchInput,
+  AdminContentSearchInput,
+  AdminContentSearchResult,
+  AdminContentSearchRow,
   ApproveGuestInviteRequestResult,
+  ContentSearchAudience,
+  ContentSearchMode,
   CreateGuestInviteRequestInput,
   CreateGuestInviteRequestResult,
   DecideGuestInviteRequestInput,
@@ -24,6 +37,8 @@ import type {
   UpdateSecurityPolicyInput,
 } from '../dto/security.dto.ts'
 import type {
+  ContentSearchContext,
+  ContentSearchPageRow,
   GuestInviteRequestRow,
   SecurityRepository,
 } from '../repositories/security.repository.ts'
@@ -31,6 +46,18 @@ import type {
 /** Requests store emails lowercased (the invite precedent) — comparisons stay case-insensitive. */
 function normalizeEmail(email: string): string {
   return email.trim().toLowerCase()
+}
+
+/**
+ * Mirrors page-search's normalizeQuery (keep in sync with
+ * packages/trpc/src/services/page-search.ts): trim, cap at 200 chars, and
+ * treat anything shorter than 2 chars as "no query" — which here means browse
+ * mode rather than an empty result.
+ */
+function normalizeSearchQuery(raw: string | undefined): string | null {
+  if (!raw) return null
+  const query = raw.trim().slice(0, CONTENT_SEARCH_MAX_QUERY_LENGTH)
+  return query.length < CONTENT_SEARCH_MIN_QUERY_LENGTH ? null : query
 }
 
 function toRequestDto(row: GuestInviteRequestRow): GuestInviteRequestDto {
@@ -302,5 +329,187 @@ export class SecurityService {
   ): Promise<GuestInviteRequestDto[]> {
     const rows = await this.repo.listRequestsByRequester(pageId, requesterId)
     return rows.map(toRequestDto)
+  }
+
+  // ── admin content search (spec §3, Task 3) ──────────────────────────────────
+
+  /**
+   * The one-time privacy-warning acknowledgment (spec §3.1). PINNED: once
+   * acknowledged STAYS acknowledged — a repeat call is a no-op success that
+   * keeps the original timestamp/actor and writes NO second audit row.
+   * Lazy-creates the policy row when absent; on an existing row only the two
+   * ack fields move (flags and configuredById untouched).
+   */
+  async acknowledgeContentSearch(input: AcknowledgeContentSearchInput): Promise<SecurityPolicyDto> {
+    return this.uow.transaction(async () => {
+      const existing = await this.repo.findPolicy(input.workspaceId)
+      if (existing?.adminContentSearchAcknowledgedAt) return existing
+      const row = await this.repo.setSearchAcknowledged(input.workspaceId, input.actorId)
+      await this.repo.writeAudit({
+        workspaceId: input.workspaceId,
+        actorId: input.actorId,
+        action: SECURITY_AUDIT_ACTIONS.searchAcknowledged,
+      })
+      return row
+    })
+  }
+
+  /**
+   * OWNER-only audited workspace-wide content search (spec §3.2-3.6; the
+   * caller enforces the OWNER role). NO visibility filter — finding other
+   * users' PERSONAL pages is the feature, which is why every call is gated on
+   * the acknowledgment and writes a `content_search.performed` audit row with
+   * the VERBATIM query. Result/cursor contract: see AdminContentSearchResult.
+   */
+  async adminContentSearch(input: AdminContentSearchInput): Promise<AdminContentSearchResult> {
+    const policy = await this.getPolicy(input.workspaceId)
+    if (!policy.adminContentSearchAcknowledgedAt) throw securityError('SEARCH_ACK_REQUIRED')
+
+    const pageSize = Math.min(
+      Math.max(input.pageSize ?? CONTENT_SEARCH_DEFAULT_PAGE_SIZE, 1),
+      CONTENT_SEARCH_MAX_PAGE_SIZE,
+    )
+    const query = normalizeSearchQuery(input.query)
+    const mode: ContentSearchMode = query ? 'fts' : 'browse'
+    const filters = {
+      creatorId: input.creatorId,
+      createdFrom: input.createdFrom,
+      createdTo: input.createdTo,
+    }
+
+    // Fetch pageSize+1 candidates to detect truncation without a COUNT query.
+    let window: { id: string; updatedAt: Date }[]
+    let hasMore: boolean
+    let nextCursor: string | null = null
+    if (query) {
+      const raw = await this.repo.ftsSearchPages(input.workspaceId, query, filters, pageSize + 1)
+      hasMore = raw.length > pageSize
+      window = raw.slice(0, pageSize)
+    } else {
+      const cursor = input.cursor ? decodeBrowseCursor(input.cursor) : null
+      const raw = await this.repo.browsePages(input.workspaceId, filters, cursor, pageSize + 1)
+      hasMore = raw.length > pageSize
+      window = raw.slice(0, pageSize)
+      const last = window.at(-1)
+      if (hasMore && last) nextCursor = encodeBrowseCursor(last)
+    }
+
+    const context = await this.repo.loadContentSearchContext(
+      input.workspaceId,
+      window.map((row) => row.id),
+    )
+    const pageById = new Map(context.pages.map((page) => [page.id, page]))
+    const allRows: AdminContentSearchRow[] = []
+    for (const candidate of window) {
+      const page = pageById.get(candidate.id)
+      if (!page) continue // deleted between the candidate query and the join batch
+      allRows.push(toContentSearchRow(page, context, query))
+    }
+    // The audience filter runs post-computation over the scanned window (the
+    // state needs the joins) — rows may undershoot pageSize; the cursor above
+    // already advanced over the RAW window, so nothing is skipped.
+    const rows = input.audience
+      ? allRows.filter((row) => row.audienceState === input.audience)
+      : allRows
+
+    await this.repo.writeAudit({
+      workspaceId: input.workspaceId,
+      actorId: input.actorId,
+      action: SECURITY_AUDIT_ACTIONS.contentSearchPerformed,
+      metadata: {
+        // The QUERY is audited VERBATIM — that is the point (spec §2).
+        query: input.query ?? null,
+        filters: {
+          creatorId: input.creatorId ?? null,
+          createdFrom: input.createdFrom?.toISOString() ?? null,
+          createdTo: input.createdTo?.toISOString() ?? null,
+          audience: input.audience ?? null,
+        },
+        resultCount: rows.length, // what the owner actually saw (post audience filter)
+        mode,
+      },
+    })
+
+    return { mode, rows, nextCursor, hasMore }
+  }
+}
+
+// ── content-search row assembly (pure) ────────────────────────────────────────
+
+/**
+ * audienceState first-match (spec §3.4): public (PUBLIC link OR published
+ * SITE) → external (guest grants or active invites) → internal (TEAM/null
+ * collection or member grants) → private.
+ */
+function computeAudience(args: {
+  linkPublic: boolean
+  sitePublished: boolean
+  guestCount: number
+  activeInviteCount: number
+  memberGrantCount: number
+  collectionKind: 'TEAM' | 'PERSONAL' | 'SITE' | null
+}): ContentSearchAudience {
+  if (args.linkPublic || args.sitePublished) return 'public'
+  if (args.guestCount + args.activeInviteCount > 0) return 'external'
+  if (args.collectionKind === 'TEAM' || args.collectionKind === null || args.memberGrantCount > 0) {
+    return 'internal'
+  }
+  return 'private'
+}
+
+function toContentSearchRow(
+  page: ContentSearchPageRow,
+  context: ContentSearchContext,
+  query: string | null,
+): AdminContentSearchRow {
+  const share = page.share
+  const grantUserIds = share?.grantUserIds ?? []
+  const memberGrantCount = grantUserIds.filter((id) => context.memberGrantUserIds.has(id)).length
+  const guestCount = grantUserIds.length - memberGrantCount
+  const activeInviteCount = context.activeInviteCounts.get(page.id) ?? 0
+  // Site-published mirrors ShareAccessService.checkSite: publishedAt set and
+  // not superseded by a later unpublishedAt (re-publish flips it back).
+  const sitePublished = Boolean(
+    share &&
+    share.mode === 'SITE' &&
+    share.publishedAt &&
+    (!share.unpublishedAt || share.unpublishedAt.getTime() < share.publishedAt.getTime()),
+  )
+  const linkPublic = share?.access === 'PUBLIC'
+
+  // FTS mode only; mirrors searchPg — TEXT pages with a content snapshot.
+  const excerpt =
+    query && page.type === 'TEXT' && page.content
+      ? (findFirstMatchingContentBlock(page.content, query)?.excerpt ?? null)
+      : null
+
+  return {
+    pageId: page.id,
+    title: page.title,
+    icon: page.icon,
+    excerpt,
+    location: {
+      collectionId: page.collection?.id ?? null,
+      collectionTitle: page.collection?.title ?? null,
+      collectionKind: page.collection?.kind ?? null,
+    },
+    audienceState: computeAudience({
+      linkPublic,
+      sitePublished,
+      guestCount,
+      activeInviteCount,
+      memberGrantCount,
+      collectionKind: page.collection?.kind ?? null,
+    }),
+    createdBy: page.createdBy,
+    createdAt: page.createdAt,
+    lastEditor: page.updatedBy,
+    updatedAt: page.updatedAt,
+    accessSummary: {
+      memberGrantCount,
+      guestCount,
+      activeInviteCount,
+      publicMode: sitePublished ? 'SITE' : linkPublic ? 'LINK' : null,
+    },
   }
 }

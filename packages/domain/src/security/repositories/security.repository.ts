@@ -1,5 +1,9 @@
+import { Prisma } from '@repo/db'
+
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
+import { excludeDatabaseRowPages } from '../../pages/index.ts'
 import type {
+  BrowseCursor,
   GuestRequestStatus,
   GuestShareRole,
   SecurityAuditEntry,
@@ -37,6 +41,49 @@ export interface GuestInviteRequestContextRow extends GuestInviteRequestRow {
   pageTitle: string | null
   requesterName: string | null
   requesterEmail: string
+}
+
+// ── admin content search (spec §3, Task 3) ────────────────────────────────────
+
+export interface ContentSearchFilters {
+  creatorId?: string
+  createdFrom?: Date
+  createdTo?: Date
+}
+
+/** A candidate page in result order — id plus the keyset key for the cursor. */
+export interface ContentSearchCandidateRow {
+  id: string
+  updatedAt: Date
+}
+
+export interface ContentSearchPageRow {
+  id: string
+  title: string | null
+  icon: string | null
+  type: string
+  content: unknown
+  createdAt: Date
+  updatedAt: Date
+  collection: { id: string; title: string | null; kind: 'TEAM' | 'PERSONAL' | 'SITE' } | null
+  createdBy: { id: string; name: string | null } | null
+  updatedBy: { id: string; name: string | null } | null
+  share: {
+    access: 'RESTRICTED' | 'PUBLIC'
+    mode: 'LINK' | 'SITE'
+    publishedAt: Date | null
+    unpublishedAt: Date | null
+    grantUserIds: string[]
+  } | null
+}
+
+export interface ContentSearchContext {
+  /** UNORDERED — the service re-orders by the candidate id list. */
+  pages: ContentSearchPageRow[]
+  /** Grant-holder userIds that have a WorkspaceMember row (everyone else is a guest). */
+  memberGrantUserIds: Set<string>
+  /** Active (acceptedAt/revokedAt null) PageGuestInvite count per pageId. */
+  activeInviteCounts: Map<string, number>
 }
 
 export class SecurityRepository {
@@ -80,6 +127,24 @@ export class SecurityRepository {
       where: { workspaceId },
       create: { workspaceId, configuredById, ...patch },
       update: { configuredById, ...patch },
+      select: policySelect,
+    })
+  }
+
+  /**
+   * Sets ONLY the two ack fields. `configuredById` belongs to policy
+   * configuration and is stamped on the lazy CREATE arm only — acknowledging
+   * the search warning must not claim authorship of someone else's flags.
+   */
+  async setSearchAcknowledged(workspaceId: string, actorId: string): Promise<SecurityPolicyDto> {
+    const ack = {
+      adminContentSearchAcknowledgedAt: new Date(),
+      adminContentSearchAcknowledgedById: actorId,
+    }
+    return this.uow.client().workspaceSecurityPolicy.upsert({
+      where: { workspaceId },
+      create: { workspaceId, configuredById: actorId, ...ack },
+      update: ack,
       select: policySelect,
     })
   }
@@ -181,5 +246,176 @@ export class SecurityRepository {
       where: { pageId, requesterId },
       orderBy: { createdAt: 'desc' },
     })
+  }
+
+  // ── admin content search (spec §3, Task 3) ──────────────────────────────────
+
+  /**
+   * The FTS arm of the owner-only admin search.
+   *
+   * Keep in sync with packages/trpc/src/services/page-search.ts (searchPg):
+   * the same websearch_to_tsquery('russian') match and the same four
+   * exclusions (deleted / archived / templates / database-row pages) — but
+   * deliberately WITHOUT the buildPageVisibilityWhere post-filter (the whole
+   * point of the audited owner search, spec §3.2), WITH optional creator /
+   * created-at SQL filters, and WITH a deterministic (updated_at, id) tiebreak
+   * after the rank.
+   */
+  async ftsSearchPages(
+    workspaceId: string,
+    query: string,
+    filters: ContentSearchFilters,
+    limit: number,
+  ): Promise<ContentSearchCandidateRow[]> {
+    const creator = filters.creatorId
+      ? Prisma.sql`AND "created_by_id" = ${filters.creatorId}::uuid`
+      : Prisma.empty
+    const from = filters.createdFrom
+      ? Prisma.sql`AND "created_at" >= ${filters.createdFrom}`
+      : Prisma.empty
+    const to = filters.createdTo
+      ? Prisma.sql`AND "created_at" <= ${filters.createdTo}`
+      : Prisma.empty
+    return this.uow.client().$queryRaw<ContentSearchCandidateRow[]>`
+      SELECT id, "updated_at" AS "updatedAt"
+      FROM "pages"
+      WHERE "workspace_id" = ${workspaceId}::uuid
+        AND "deleted_at" IS NULL
+        AND "archived_at" IS NULL
+        AND "is_template" IS NULL
+        AND NOT EXISTS (
+          SELECT 1 FROM "pages" p2
+          WHERE p2.id = "pages".parent_id AND p2.type = 'DATABASE'
+        )
+        AND "search_vector" @@ websearch_to_tsquery('russian', ${query})
+        ${creator}
+        ${from}
+        ${to}
+      ORDER BY ts_rank("search_vector", websearch_to_tsquery('russian', ${query})) DESC,
+        "updated_at" DESC, id DESC
+      LIMIT ${limit}
+    `
+  }
+
+  /**
+   * The browse arm (no query): workspace pages newest-edited first with the
+   * SAME exclusions as the FTS arm, keyset-paged on (updatedAt DESC, id DESC).
+   */
+  async browsePages(
+    workspaceId: string,
+    filters: ContentSearchFilters,
+    cursor: BrowseCursor | null,
+    limit: number,
+  ): Promise<ContentSearchCandidateRow[]> {
+    return this.uow.client().page.findMany({
+      where: {
+        workspaceId,
+        deletedAt: null,
+        archivedAt: null,
+        isTemplate: null,
+        ...(filters.creatorId ? { createdById: filters.creatorId } : {}),
+        ...(filters.createdFrom || filters.createdTo
+          ? {
+              createdAt: {
+                ...(filters.createdFrom ? { gte: filters.createdFrom } : {}),
+                ...(filters.createdTo ? { lte: filters.createdTo } : {}),
+              },
+            }
+          : {}),
+        AND: [
+          excludeDatabaseRowPages(),
+          ...(cursor
+            ? [
+                {
+                  OR: [
+                    { updatedAt: { lt: cursor.updatedAt } },
+                    { updatedAt: cursor.updatedAt, id: { lt: cursor.id } },
+                  ],
+                },
+              ]
+            : []),
+        ],
+      },
+      orderBy: [{ updatedAt: 'desc' }, { id: 'desc' }],
+      take: limit,
+      select: { id: true, updatedAt: true },
+    })
+  }
+
+  /**
+   * The per-row joins for a candidate window, batched — no N+1 (Task 3 step 4):
+   * one findMany over the page ids (collection / createdBy / updatedBy / share
+   * incl. grant userIds), one grants-with-membership query, one active-invites
+   * query.
+   */
+  async loadContentSearchContext(
+    workspaceId: string,
+    pageIds: string[],
+  ): Promise<ContentSearchContext> {
+    if (pageIds.length === 0) {
+      return { pages: [], memberGrantUserIds: new Set(), activeInviteCounts: new Map() }
+    }
+    const pages = await this.uow.client().page.findMany({
+      where: { id: { in: pageIds } },
+      select: {
+        id: true,
+        title: true,
+        icon: true,
+        type: true,
+        content: true,
+        createdAt: true,
+        updatedAt: true,
+        collection: { select: { id: true, title: true, kind: true } },
+        createdBy: { select: { id: true, name: true } },
+        updatedBy: { select: { id: true, name: true } },
+        share: {
+          select: {
+            access: true,
+            mode: true,
+            publishedAt: true,
+            unpublishedAt: true,
+            users: { select: { userId: true } },
+          },
+        },
+      },
+    })
+
+    const grantUserIds = [
+      ...new Set(pages.flatMap((page) => page.share?.users.map((u) => u.userId) ?? [])),
+    ]
+    const members =
+      grantUserIds.length > 0
+        ? await this.uow.client().workspaceMember.findMany({
+            where: { workspaceId, userId: { in: grantUserIds } },
+            select: { userId: true },
+          })
+        : []
+
+    const invites = await this.uow.client().pageGuestInvite.findMany({
+      where: { pageId: { in: pageIds }, acceptedAt: null, revokedAt: null },
+      select: { pageId: true },
+    })
+    const activeInviteCounts = new Map<string, number>()
+    for (const invite of invites) {
+      activeInviteCounts.set(invite.pageId, (activeInviteCounts.get(invite.pageId) ?? 0) + 1)
+    }
+
+    return {
+      pages: pages.map(({ share, ...page }) => ({
+        ...page,
+        content: page.content as unknown,
+        share: share
+          ? {
+              access: share.access,
+              mode: share.mode,
+              publishedAt: share.publishedAt,
+              unpublishedAt: share.unpublishedAt,
+              grantUserIds: share.users.map((u) => u.userId),
+            }
+          : null,
+      })),
+      memberGrantUserIds: new Set(members.map((m) => m.userId)),
+      activeInviteCounts,
+    }
   }
 }
