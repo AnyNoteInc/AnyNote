@@ -78,10 +78,13 @@ export interface Domain {
 export function createDomainContainer(deps: DomainDeps): Container {
   const c = new Container()
   c.bind(SHARED.Prisma).toConstantValue(deps.prisma)
-  c.bind(SHARED.UnitOfWork).toResolvedValue(
-    (prisma) => new PrismaUnitOfWork(prisma as PrismaClient),
-    [SHARED.Prisma],
-  )
+  // MUST be a singleton: inversify 8 defaults to transient, which hands every
+  // service/repository its OWN PrismaUnitOfWork (own AsyncLocalStorage) — a
+  // service's transaction() then opens a tx the repository's client() never
+  // sees, so every repository write inside a "transaction" ran autocommit.
+  c.bind(SHARED.UnitOfWork)
+    .toResolvedValue((prisma) => new PrismaUnitOfWork(prisma as PrismaClient), [SHARED.Prisma])
+    .inSingletonScope()
   c.bind(REMINDERS.Scheduler).toConstantValue(deps.scheduler)
   c.load(
     workspaceModule,
