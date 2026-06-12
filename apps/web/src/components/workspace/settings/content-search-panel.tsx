@@ -164,7 +164,11 @@ export function ContentSearchPanel({ workspaceId }: Props) {
         await unpublishSite.mutateAsync({ pageId: confirm.pageId })
       }
       // Both actions close the public link; RESTRICTED never hits the policy
-      // gate (closing down is always allowed). linkRole is inert when restricted.
+      // gate (closing down is always allowed). linkRole is inert when restricted,
+      // but the hardcoded READER overwrites a configured EDITOR link role for
+      // future re-opens — the row's accessSummary doesn't carry linkRole, so
+      // preserving it would need the share row (deferred). The confirm dialog
+      // states the reset honestly instead.
       await setAccess.mutateAsync({
         pageId: confirm.pageId,
         access: 'RESTRICTED',
@@ -444,8 +448,8 @@ export function ContentSearchPanel({ workspaceId }: Props) {
           <DialogContent>
             <DialogContentText>
               {confirm.kind === 'unpublish'
-                ? `Сайт «${confirm.title}» перестанет быть опубликованным, а публичная ссылка будет закрыта. Точечные доступы участников и гостей сохранятся.`
-                : `Публичная ссылка на «${confirm.title}» перестанет открываться. Точечные доступы участников и гостей сохранятся.`}
+                ? `Сайт «${confirm.title}» перестанет быть опубликованным, а публичная ссылка будет закрыта. Роль для доступа по ссылке будет сброшена до «Читатель». Точечные доступы участников и гостей сохранятся.`
+                : `Публичная ссылка на «${confirm.title}» перестанет открываться. Роль для доступа по ссылке будет сброшена до «Читатель». Точечные доступы участников и гостей сохранятся.`}
             </DialogContentText>
           </DialogContent>
           <DialogActions>

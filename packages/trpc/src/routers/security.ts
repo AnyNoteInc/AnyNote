@@ -13,7 +13,8 @@ import { domain as domainSvc } from '../domain'
 // Security policy + guest-invite requests + audited admin content search
 // (Phase 8C, spec §5). Every MANAGED procedure is OWNER-only — security is not
 // membership-admin work (ADMIN ⇒ FORBIDDEN, count-pinned by tests). The
-// member-level surface is `requestGuestInvite` + `myGuestRequests` only.
+// member-level surface is `requestGuestInvite` + `myGuestRequests` +
+// `sharingPolicyState` only — all three page-gated (object-hiding NOT_FOUND).
 
 type Ctx = { prisma: PrismaClient; user: { id: string; email: string } }
 
@@ -230,7 +231,11 @@ export const securityRouter = router({
   /** The requester's own requests for the share dialog — never anyone else's. */
   myGuestRequests: protectedProcedure
     .input(z.object({ pageId: z.string().uuid() }))
-    .query(async ({ ctx, input }) =>
-      mapDomain(() => domainSvc.security.listMyRequestsForPage(input.pageId, ctx.user.id)),
-    ),
+    .query(async ({ ctx, input }) => {
+      // Page gate first (the sharingPolicyState contract): without it any
+      // authenticated user could probe arbitrary pageIds — the empty-vs-error
+      // oracle would confirm page existence. Object-hiding NOT_FOUND.
+      await assertPageAccess(ctx, input.pageId)
+      return mapDomain(() => domainSvc.security.listMyRequestsForPage(input.pageId, ctx.user.id))
+    }),
 })

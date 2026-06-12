@@ -548,6 +548,17 @@ describe('security router', () => {
     expect(await security(admin).myGuestRequests({ pageId: teamPage.id })).toEqual([])
   })
 
+  it('myGuestRequests is page-gated: an outsider probing a real pageId gets NOT_FOUND', async () => {
+    const { teamPage } = await seed()
+
+    // Object-hiding: without the page gate an outsider's empty-list-vs-error
+    // oracle would confirm which pageIds exist.
+    const outsider = await makeUser('outsider')
+    await expect(
+      security(outsider).myGuestRequests({ pageId: teamPage.id }),
+    ).rejects.toMatchObject({ code: 'NOT_FOUND' })
+  })
+
   // ── normal-search regression (spec §7.1 — pinned) ──────────────────────────
 
   it("normal search.search is UNCHANGED by the feature: a foreign private page stays absent before/after the owner's admin search", async () => {
