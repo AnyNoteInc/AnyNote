@@ -179,6 +179,13 @@ describe('workspace.create wires limits', () => {
     })
     expect(limit.sourcePlanSlug).toBe('personal')
     expect(limit.maxMembers).toBe(1)
+
+    // the creator's OWNER seat lands in the billing ledger, same tx (8D)
+    const joined = await prisma.seatBillingEvent.findMany({
+      where: { workspaceId: ws.id, type: 'MEMBER_JOINED' },
+    })
+    expect(joined).toHaveLength(1)
+    expect(joined[0]).toMatchObject({ targetUserId: owner.id, actorId: owner.id })
   })
 })
 
@@ -307,6 +314,22 @@ describe('inviteMember enforces member limit', () => {
     await expect(
       caller.inviteMember({ workspaceId: ws.id, email: extra.email, role: 'EDITOR' }),
     ).rejects.toThrow(/Достигнут лимит участников/)
+
+    // purchased seats lift the legacy pre-check: capacity = maxMembers + paidSeats (8D)
+    await prisma.workspaceSeatAddon.create({ data: { workspaceId: ws.id, paidSeats: 1 } })
+    const member = await caller.inviteMember({
+      workspaceId: ws.id,
+      email: extra.email,
+      role: 'EDITOR',
+    })
+    expect(member.role).toBe('EDITOR')
+
+    // the actual create wrote exactly one MEMBER_JOINED ledger row (8D)
+    const joined = await prisma.seatBillingEvent.findMany({
+      where: { workspaceId: ws.id, type: 'MEMBER_JOINED', targetUserId: extra.id },
+    })
+    expect(joined).toHaveLength(1)
+    expect(joined[0]).toMatchObject({ actorId: owner.id })
   })
 
   it('allows role update for existing member even when memberCount equals maxMembers', async () => {
@@ -349,5 +372,53 @@ describe('inviteMember enforces member limit', () => {
       role: 'ADMIN',
     })
     expect(updated.role).toBe('ADMIN')
+
+    // a role update is NOT a join: no MEMBER_JOINED ledger row for the member (8D)
+    const joined = await prisma.seatBillingEvent.findMany({
+      where: { workspaceId: ws.id, type: 'MEMBER_JOINED', targetUserId: updated.userId },
+    })
+    expect(joined).toHaveLength(0)
+  })
+
+  it('removeMember writes a MEMBER_REMOVED ledger row in the same tx (8D)', async () => {
+    const owner = await makeOwner('n')
+    const pro = await prisma.plan.findUniqueOrThrow({ where: { slug: 'pro' } })
+    await prisma.subscription.create({
+      data: { userId: owner.id, planId: pro.id, status: 'ACTIVE' },
+    })
+    const caller = createCallerFactory(workspaceRouter)({
+      prisma,
+      user: { id: owner.id, email: owner.email },
+      headers: new Headers(),
+      resHeaders: new Headers(),
+      yookassa: {} as never,
+      returnUrlBase: 'http://localhost:3000',
+    })
+    const ws = await caller.create({ name: 'WS' })
+    const member = await prisma.user.create({
+      data: {
+        email: `removee${EMAIL_SUFFIX}`,
+        emailVerified: true,
+        name: 'Removee',
+        firstName: 'Removee',
+        lastName: 'T',
+      },
+    })
+    await prisma.workspaceMember.create({
+      data: { workspaceId: ws.id, userId: member.id, role: 'EDITOR' },
+    })
+
+    await caller.removeMember({ workspaceId: ws.id, userId: member.id })
+
+    expect(
+      await prisma.workspaceMember.findUnique({
+        where: { workspaceId_userId: { workspaceId: ws.id, userId: member.id } },
+      }),
+    ).toBeNull()
+    const removed = await prisma.seatBillingEvent.findMany({
+      where: { workspaceId: ws.id, type: 'MEMBER_REMOVED' },
+    })
+    expect(removed).toHaveLength(1)
+    expect(removed[0]).toMatchObject({ targetUserId: member.id, actorId: owner.id })
   })
 })

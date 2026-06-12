@@ -141,6 +141,14 @@ function auditRows(workspaceId: string, action: string) {
   })
 }
 
+/** Billable-seat ledger rows (8D): one row per actual member create/remove. */
+function memberEvents(workspaceId: string, type: 'MEMBER_JOINED' | 'MEMBER_REMOVED') {
+  return prisma.seatBillingEvent.findMany({
+    where: { workspaceId, type },
+    orderBy: { createdAt: 'asc' },
+  })
+}
+
 describe('people service — guests, link, roles, blocking', () => {
   beforeEach(cleanFixtures)
   afterAll(async () => {
@@ -335,6 +343,11 @@ describe('people service — guests, link, roles, blocking', () => {
       const audits = await auditRows(ws.id, PEOPLE_AUDIT_ACTIONS.inviteLinkJoined)
       expect(audits).toHaveLength(1)
       expect(audits[0]!.targetUserId).toBe(guest.id)
+
+      // the billable-seat ledger records the join in the same tx (8D)
+      const joined = await memberEvents(ws.id, 'MEMBER_JOINED')
+      expect(joined).toHaveLength(1)
+      expect(joined[0]).toMatchObject({ targetUserId: guest.id, actorId: guest.id })
     })
 
     it('refuses a blocked user with USER_BLOCKED and creates nothing', async () => {
@@ -377,6 +390,8 @@ describe('people service — guests, link, roles, blocking', () => {
       expect(audits).toHaveLength(1)
       expect(audits[0]!.targetUserId).toBe(guest.id)
       expect(audits[0]!.metadata).toEqual({ alreadyMember: true })
+      // …but NO ledger row — no member row was created (8D)
+      expect(await memberEvents(ws.id, 'MEMBER_JOINED')).toHaveLength(0)
     })
 
     it('two concurrent joins converge: one member row, one normal + one alreadyMember result, both audited', async () => {
@@ -940,6 +955,12 @@ describe('people service — guests, link, roles, blocking', () => {
       const audits = await auditRows(ws.id, PEOPLE_AUDIT_ACTIONS.guestConvertedToMember)
       expect(audits).toHaveLength(1)
       expect(audits[0]!.targetUserId).toBe(guest.id)
+
+      // conversion writes MEMBER_JOINED only after the member row exists, in
+      // the same tx (spec §7.1); the actor is the converting OWNER/ADMIN (8D)
+      const joined = await memberEvents(ws.id, 'MEMBER_JOINED')
+      expect(joined).toHaveLength(1)
+      expect(joined[0]).toMatchObject({ targetUserId: guest.id, actorId: owner.id })
     })
 
     it('rejects OWNER/GUEST roles, blocked users, existing members and full workspaces', async () => {
@@ -1039,6 +1060,11 @@ describe('people service — guests, link, roles, blocking', () => {
             expect.objectContaining({ alreadyMember: true }),
           ]),
         )
+        // exactly ONE ledger row per actual member creation (8D)
+        const joined = (await memberEvents(ws.id, 'MEMBER_JOINED')).filter(
+          (e) => e.targetUserId === user.id,
+        )
+        expect(joined).toHaveLength(1)
       }
     })
   })
@@ -1188,6 +1214,11 @@ describe('people service — guests, link, roles, blocking', () => {
       const audits = await auditRows(ws.id, PEOPLE_AUDIT_ACTIONS.memberRemoved)
       expect(audits).toHaveLength(1)
       expect(audits[0]!.targetUserId).toBe(guest.id)
+
+      // removal frees the seat AND records it in the billing ledger (8D)
+      const removed = await memberEvents(ws.id, 'MEMBER_REMOVED')
+      expect(removed).toHaveLength(1)
+      expect(removed[0]).toMatchObject({ targetUserId: guest.id, actorId: owner.id })
     })
 
     it('ADMIN cannot remove an OWNER row ⇒ FORBIDDEN_ROLE; unknown member ⇒ NOT_FOUND', async () => {
@@ -1307,6 +1338,33 @@ describe('people service — guests, link, roles, blocking', () => {
         403,
       )
       expect(await auditRows(ws.id, PEOPLE_AUDIT_ACTIONS.userBlocked)).toHaveLength(0)
+    })
+
+    it('a blocked member keeps the billable seat until removal; removal drops it + writes MEMBER_REMOVED (8D)', async () => {
+      const { ws, owner, guest } = await seed()
+      await addMember(ws.id, guest.id, RoleType.EDITOR)
+      expect(await domain.seats.countBillableSeats(ws.id)).toBe(2) // owner + guest
+
+      await domain.people.blockUser({
+        workspaceId: ws.id,
+        actorId: owner.id,
+        actorRole: RoleType.OWNER,
+        userId: guest.id,
+      })
+      // blocking is NOT a billing event: the seat stays occupied (spec §7.2)
+      expect(await domain.seats.countBillableSeats(ws.id)).toBe(2)
+      expect(await memberEvents(ws.id, 'MEMBER_REMOVED')).toHaveLength(0)
+
+      await domain.people.removeMember({
+        workspaceId: ws.id,
+        actorId: owner.id,
+        actorRole: RoleType.OWNER,
+        userId: guest.id,
+      })
+      expect(await domain.seats.countBillableSeats(ws.id)).toBe(1)
+      const removed = await memberEvents(ws.id, 'MEMBER_REMOVED')
+      expect(removed).toHaveLength(1)
+      expect(removed[0]).toMatchObject({ targetUserId: guest.id, actorId: owner.id })
     })
 
     it('re-block is idempotent (single row, single audit); unblock removes and audits, idempotently', async () => {

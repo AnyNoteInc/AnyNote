@@ -446,7 +446,7 @@ export class IdentityService {
     return rows.map((row) => ({
       workspaceId: row.workspaceId,
       name: row.name,
-      seatAvailable: row.maxMembers === null || row.memberCount < row.maxMembers,
+      seatAvailable: row.capacity === null || row.memberCount < row.capacity,
     }))
   }
 
@@ -470,6 +470,11 @@ export class IdentityService {
         // eliminate) the count-then-insert TOCTOU under READ COMMITTED.
         await this.assertSeatAvailable(input.workspaceId)
         await this.repo.createMember(input.workspaceId, input.userId, DOMAIN_JOIN_ROLE)
+        await this.repo.recordMemberJoined({
+          workspaceId: input.workspaceId,
+          targetUserId: input.userId,
+          actorId: input.userId,
+        })
         await this.collections.ensurePersonalCollection(input.workspaceId, input.userId)
         await this.repo.writeAudit({
           workspaceId: input.workspaceId,
@@ -875,16 +880,17 @@ export class IdentityService {
   }
 
   /**
-   * Same semantics as the people module: no limit row ⇒ unlimited. Reads run
-   * sequentially so the check is safe on the single connection of an
-   * interactive transaction — `joinViaDomain` calls this inside
-   * `uow.transaction()` as its authoritative re-check.
+   * Same semantics (and the same capacity source: included + purchased seats)
+   * as the people module: no limit row ⇒ unlimited. Reads run sequentially so
+   * the check is safe on the single connection of an interactive transaction —
+   * `joinViaDomain` calls this inside `uow.transaction()` as its
+   * authoritative re-check.
    */
   private async isSeatAvailable(workspaceId: string): Promise<boolean> {
-    const limit = await this.repo.findWorkspaceLimit(workspaceId)
+    const limit = await this.repo.findSeatCapacity(workspaceId)
     if (!limit) return true
     const memberCount = await this.repo.countMembers(workspaceId)
-    return memberCount < limit.maxMembers
+    return memberCount < limit.capacity
   }
 
   private async assertSeatAvailable(workspaceId: string): Promise<void> {

@@ -130,6 +130,14 @@ function auditRows(workspaceId: string, action: string) {
   })
 }
 
+/** Billable-seat ledger rows (8D): one MEMBER_JOINED per actual member creation. */
+function memberEvents(workspaceId: string, type: 'MEMBER_JOINED' | 'MEMBER_REMOVED') {
+  return prisma.seatBillingEvent.findMany({
+    where: { workspaceId, type },
+    orderBy: { createdAt: 'asc' },
+  })
+}
+
 describe('people service', () => {
   beforeEach(cleanFixtures)
   afterAll(async () => {
@@ -324,6 +332,22 @@ describe('people service', () => {
         403,
       )
     })
+
+    it('purchased seats grow the capacity: the pre-check passes with an addon (8D)', async () => {
+      const { ws, owner } = await seed()
+      await prisma.workspaceLimit.update({
+        where: { workspaceId: ws.id },
+        data: { maxMembers: 1 }, // owner already holds the only INCLUDED seat
+      })
+      await prisma.workspaceSeatAddon.create({ data: { workspaceId: ws.id, paidSeats: 1 } })
+      const { invitation } = await domain.people.createInvitation({
+        workspaceId: ws.id,
+        actorId: owner.id,
+        email: email('paid-seat'),
+        role: RoleType.EDITOR,
+      })
+      expect(invitation.state).toBe('PENDING')
+    })
   })
 
   // ── listInvitations ────────────────────────────────────────────────────────
@@ -504,6 +528,11 @@ describe('people service', () => {
       const audits = await auditRows(ws.id, PEOPLE_AUDIT_ACTIONS.inviteAccepted)
       expect(audits).toHaveLength(1)
       expect(audits[0]!.targetUserId).toBe(invitee.id)
+
+      // the billable-seat ledger records the join in the same tx (8D)
+      const joined = await memberEvents(ws.id, 'MEMBER_JOINED')
+      expect(joined).toHaveLength(1)
+      expect(joined[0]).toMatchObject({ targetUserId: invitee.id, actorId: invitee.id })
     })
 
     it('throws INVITE_NOT_FOUND for an unknown token', async () => {
@@ -663,6 +692,35 @@ describe('people service', () => {
       })
       expect(row.acceptedAt).toBeNull()
       expect(await auditRows(ws.id, PEOPLE_AUDIT_ACTIONS.inviteAccepted)).toHaveLength(0)
+      // the seat ledger rolled back with the member row (8D)
+      expect(await memberEvents(ws.id, 'MEMBER_JOINED')).toHaveLength(0)
+    })
+
+    it('purchased seats grow the acceptance capacity: included + paidSeats (8D)', async () => {
+      const { ws, owner, invitee } = await seed()
+      const { token } = await domain.people.createInvitation({
+        workspaceId: ws.id,
+        actorId: owner.id,
+        email: invitee.email,
+        role: RoleType.EDITOR,
+      })
+      // the included limit fills up, but a purchased seat keeps the door open
+      await prisma.workspaceLimit.update({
+        where: { workspaceId: ws.id },
+        data: { maxMembers: 1 }, // owner already holds the only INCLUDED seat
+      })
+      await prisma.workspaceSeatAddon.create({ data: { workspaceId: ws.id, paidSeats: 1 } })
+      const result = await domain.people.acceptInvitation({
+        token,
+        userId: invitee.id,
+        userEmail: invitee.email,
+      })
+      expect(result).toEqual({ workspaceId: ws.id, role: RoleType.EDITOR, alreadyMember: false })
+      expect(
+        await prisma.workspaceMember.findUnique({
+          where: { workspaceId_userId: { workspaceId: ws.id, userId: invitee.id } },
+        }),
+      ).not.toBeNull()
     })
 
     it('two concurrent accepts converge: one member row, one normal + one alreadyMember result', async () => {
@@ -702,6 +760,12 @@ describe('people service', () => {
         })
         expect(row.acceptedAt).not.toBeNull()
         expect(row.acceptedById).toBe(user.id)
+        // exactly ONE ledger row per actual member creation — the converged
+        // alreadyMember loser writes none (8D)
+        const joined = (await memberEvents(ws.id, 'MEMBER_JOINED')).filter(
+          (e) => e.targetUserId === user.id,
+        )
+        expect(joined).toHaveLength(1)
       }
     })
 
@@ -724,6 +788,8 @@ describe('people service', () => {
       })
       expect(members).toHaveLength(1)
       expect(await auditRows(ws.id, PEOPLE_AUDIT_ACTIONS.inviteAccepted)).toHaveLength(1)
+      // the idempotent re-accept writes no second ledger row (8D)
+      expect(await memberEvents(ws.id, 'MEMBER_JOINED')).toHaveLength(1)
     })
 
     it('a used token is dead for any other user ⇒ INVITE_NOT_FOUND', async () => {
@@ -788,6 +854,14 @@ describe('people service', () => {
         isPaid: true,
         periodEnd: PERIOD_END,
       })
+    })
+
+    it('maxMembers reports the full capacity: included limit + purchased seats (8D)', async () => {
+      const { ws } = await seed()
+      await prisma.workspaceSeatAddon.create({ data: { workspaceId: ws.id, paidSeats: 2 } })
+      const preview = await domain.people.getInvitePreview(ws.id)
+      expect(preview.currentMembers).toBe(1)
+      expect(preview.maxMembers).toBe(7) // 5 included + 2 paid
     })
 
     it('falls back to the plan member limit and the personal plan without limit row / subscription', async () => {

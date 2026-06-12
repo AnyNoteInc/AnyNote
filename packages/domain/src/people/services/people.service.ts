@@ -257,6 +257,12 @@ export class PeopleService {
         // the count-then-insert TOCTOU under READ COMMITTED.
         await this.assertSeatAvailable(invite.workspaceId)
         await this.repo.createMember(invite.workspaceId, input.userId, invite.role)
+        await this.repo.recordMemberEvent({
+          workspaceId: invite.workspaceId,
+          type: 'MEMBER_JOINED',
+          targetUserId: input.userId,
+          actorId: input.userId,
+        })
         await this.collections.ensurePersonalCollection(invite.workspaceId, input.userId)
         await this.repo.markInvitationAccepted(invite.id, input.userId)
         await this.repo.writeAudit({
@@ -291,17 +297,21 @@ export class PeopleService {
     return { workspaceId: invite.workspaceId, role: invite.role, alreadyMember: false }
   }
 
-  /** Billing-impact data for the invite form, resolved through the billing chain. */
+  /**
+   * Billing-impact data for the invite form, resolved through the billing
+   * chain. `maxMembers` is the CAPACITY (included limit + purchased seats) —
+   * the same number the join paths enforce, so the form never under-reports.
+   */
   async getInvitePreview(workspaceId: string): Promise<InvitePreview> {
     const [features, currentMembers, limit, periodEnd] = await Promise.all([
       this.billing.getWorkspaceFeatures(workspaceId),
       this.repo.countMembers(workspaceId),
-      this.repo.findWorkspaceLimit(workspaceId),
+      this.repo.findSeatCapacity(workspaceId),
       this.repo.findOwnerPeriodEnd(workspaceId),
     ])
     return {
       currentMembers,
-      maxMembers: limit?.maxMembers ?? features.maxMembersPerWorkspace,
+      maxMembers: limit?.capacity ?? features.maxMembersPerWorkspace,
       planSlug: features.slug,
       isPaid: features.isPaid,
       periodEnd,
@@ -386,6 +396,12 @@ export class PeopleService {
         // eliminate) the count-then-insert TOCTOU under READ COMMITTED.
         await this.assertSeatAvailable(link.workspaceId)
         await this.repo.createMember(link.workspaceId, input.userId, link.role)
+        await this.repo.recordMemberEvent({
+          workspaceId: link.workspaceId,
+          type: 'MEMBER_JOINED',
+          targetUserId: input.userId,
+          actorId: input.userId,
+        })
         await this.collections.ensurePersonalCollection(link.workspaceId, input.userId)
         await this.repo.writeAudit({
           workspaceId: link.workspaceId,
@@ -648,6 +664,13 @@ export class PeopleService {
         // eliminate) the count-then-insert TOCTOU under READ COMMITTED.
         await this.assertSeatAvailable(input.workspaceId)
         await this.repo.createMember(input.workspaceId, input.userId, input.role)
+        // MEMBER_JOINED only after the member row exists, same tx (spec §7.1)
+        await this.repo.recordMemberEvent({
+          workspaceId: input.workspaceId,
+          type: 'MEMBER_JOINED',
+          targetUserId: input.userId,
+          actorId: input.actorId,
+        })
         await this.collections.ensurePersonalCollection(input.workspaceId, input.userId)
         await this.repo.writeAudit({
           workspaceId: input.workspaceId,
@@ -723,6 +746,13 @@ export class PeopleService {
 
     await this.uow.transaction(async () => {
       await this.repo.deleteMember(input.workspaceId, input.userId)
+      // removal frees the seat — the only event that does (spec §7.2)
+      await this.repo.recordMemberEvent({
+        workspaceId: input.workspaceId,
+        type: 'MEMBER_REMOVED',
+        targetUserId: input.userId,
+        actorId: input.actorId,
+      })
       await this.repo.writeAudit({
         workspaceId: input.workspaceId,
         actorId: input.actorId,
@@ -783,14 +813,15 @@ export class PeopleService {
 
   /**
    * Same semantics as the legacy `workspace.inviteMember` check: no limit row ⇒
-   * unlimited. Reads run sequentially (not Promise.all) so the check is safe on
-   * the single connection of an interactive transaction — the join paths call
-   * this inside `uow.transaction()` as their authoritative re-check.
+   * unlimited. The limit source is the CAPACITY (included + purchased seats,
+   * 8D spec §3). Reads run sequentially (not Promise.all) so the check is safe
+   * on the single connection of an interactive transaction — the join paths
+   * call this inside `uow.transaction()` as their authoritative re-check.
    */
   private async assertSeatAvailable(workspaceId: string): Promise<void> {
-    const limit = await this.repo.findWorkspaceLimit(workspaceId)
+    const limit = await this.repo.findSeatCapacity(workspaceId)
     if (!limit) return
     const memberCount = await this.repo.countMembers(workspaceId)
-    if (memberCount >= limit.maxMembers) throw peopleError('SEAT_LIMIT_REACHED')
+    if (memberCount >= limit.capacity) throw peopleError('SEAT_LIMIT_REACHED')
   }
 }

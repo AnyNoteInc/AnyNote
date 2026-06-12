@@ -103,15 +103,48 @@ export class IdentityRepository {
     return this.uow.client().workspaceMember.count({ where: { workspaceId } })
   }
 
-  async findWorkspaceLimit(workspaceId: string): Promise<{ maxMembers: number } | null> {
-    return this.uow.client().workspaceLimit.findUnique({
+  /**
+   * The operative seat capacity: `WorkspaceLimit.maxMembers` (included) +
+   * `WorkspaceSeatAddon.paidSeats` (purchased, 8D spec §3) — the SAME source
+   * the people module enforces, mirrored here because the identity module owns
+   * its own seat read. No limit row ⇒ unlimited (null).
+   */
+  async findSeatCapacity(workspaceId: string): Promise<{ capacity: number } | null> {
+    const limit = await this.uow.client().workspaceLimit.findUnique({
       where: { workspaceId },
-      select: { maxMembers: true },
+      select: {
+        maxMembers: true,
+        workspace: { select: { seatAddon: { select: { paidSeats: true } } } },
+      },
     })
+    if (!limit) return null
+    return { capacity: limit.maxMembers + (limit.workspace.seatAddon?.paidSeats ?? 0) }
   }
 
   async createMember(workspaceId: string, userId: string, role: RoleType): Promise<void> {
     await this.uow.client().workspaceMember.create({ data: { workspaceId, userId, role } })
+  }
+
+  /**
+   * Billable-seat ledger write (`SeatBillingEvent`, 8D) for the domain-join
+   * member create — a direct prisma write into the billing-owned table (the
+   * `WorkspaceAuditLog` cross-module precedent; people-module parity). Runs on
+   * `uow.client()`, so inside `uow.transaction()` it lands in the SAME tx as
+   * the member row. This module only creates members, hence MEMBER_JOINED only.
+   */
+  async recordMemberJoined(entry: {
+    workspaceId: string
+    targetUserId: string
+    actorId: string
+  }): Promise<void> {
+    await this.uow.client().seatBillingEvent.create({
+      data: {
+        workspaceId: entry.workspaceId,
+        type: 'MEMBER_JOINED',
+        targetUserId: entry.targetUserId,
+        actorId: entry.actorId,
+      },
+    })
   }
 
   // ── allowed domains ─────────────────────────────────────────────────────────
@@ -149,15 +182,16 @@ export class IdentityRepository {
    * Workspaces whose AllowedEmailDomain matches the (already lowercased) email
    * domain, excluding ones where the user is a member or blocked — the
    * join-prompt lookup arm of the `@@index([domain])`. The seat-preview inputs
-   * (member count + `WorkspaceLimit.maxMembers` via the `limits` relation)
-   * come back inline, so the lookup stays ONE query however many workspaces
-   * match. `maxMembers: null` ⇔ no limit row ⇔ unlimited.
+   * (member count + capacity = `WorkspaceLimit.maxMembers` + purchased
+   * `seatAddon.paidSeats`, the `findSeatCapacity` formula) come back inline,
+   * so the lookup stays ONE query however many workspaces match.
+   * `capacity: null` ⇔ no limit row ⇔ unlimited.
    */
   async listJoinableWorkspacesByDomain(
     domain: string,
     userId: string,
   ): Promise<
-    Array<{ workspaceId: string; name: string; memberCount: number; maxMembers: number | null }>
+    Array<{ workspaceId: string; name: string; memberCount: number; capacity: number | null }>
   > {
     const rows = await this.uow.client().allowedEmailDomain.findMany({
       where: {
@@ -173,6 +207,7 @@ export class IdentityRepository {
           select: {
             name: true,
             limits: { select: { maxMembers: true } },
+            seatAddon: { select: { paidSeats: true } },
             _count: { select: { members: true } },
           },
         },
@@ -183,7 +218,9 @@ export class IdentityRepository {
       workspaceId: r.workspaceId,
       name: r.workspace.name,
       memberCount: r.workspace._count.members,
-      maxMembers: r.workspace.limits?.maxMembers ?? null,
+      capacity: r.workspace.limits
+        ? r.workspace.limits.maxMembers + (r.workspace.seatAddon?.paidSeats ?? 0)
+        : null,
     }))
   }
 

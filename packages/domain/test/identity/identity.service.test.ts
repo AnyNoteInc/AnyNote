@@ -95,6 +95,14 @@ function auditRows(workspaceId: string, action: string) {
   })
 }
 
+/** Billable-seat ledger rows (8D): one MEMBER_JOINED per actual member creation. */
+function memberJoinedEvents(workspaceId: string) {
+  return prisma.seatBillingEvent.findMany({
+    where: { workspaceId, type: 'MEMBER_JOINED' },
+    orderBy: { createdAt: 'asc' },
+  })
+}
+
 /** A fake DNS TXT resolver serving fixed records (each record = chunk array). */
 function txt(...records: string[][]): ResolveTxtFn {
   return async () => records
@@ -625,6 +633,14 @@ describe('identity service', () => {
       expect(list).toEqual([
         { workspaceId: ws.id, name: `IdentityWS-${RUN}`, seatAvailable: false },
       ])
+
+      // a purchased seat re-opens the workspace — preview parity with the
+      // capacity source the join itself enforces (included + paidSeats, 8D)
+      await prisma.workspaceSeatAddon.create({ data: { workspaceId: ws.id, paidSeats: 1 } })
+      const reopened = await domain.identity.listDomainJoinableWorkspaces(joiner.id, joiner.email)
+      expect(reopened).toEqual([
+        { workspaceId: ws.id, name: `IdentityWS-${RUN}`, seatAvailable: true },
+      ])
     })
   })
 
@@ -658,6 +674,11 @@ describe('identity service', () => {
       expect(audits[0]!.actorId).toBe(joiner.id)
       expect(audits[0]!.targetUserId).toBe(joiner.id)
       expect(audits[0]!.metadata).toMatchObject({ domain: CORP_DOMAIN, role: 'EDITOR' })
+
+      // the billable-seat ledger records the join in the same tx (8D)
+      const joined = await memberJoinedEvents(ws.id)
+      expect(joined).toHaveLength(1)
+      expect(joined[0]).toMatchObject({ targetUserId: joiner.id, actorId: joiner.id })
     })
 
     it('throws DOMAIN_NOT_FOUND when no allowed domain matches the email, creates nothing', async () => {
@@ -743,13 +764,39 @@ describe('identity service', () => {
         IDENTITY_ERROR_CODES.SEAT_LIMIT_REACHED,
         403,
       )
-      // the rolled-back transaction left no trace: no member, no audit
+      // the rolled-back transaction left no trace: no member, no audit, no ledger
       expect(
         await prisma.workspaceMember.findUnique({
           where: { workspaceId_userId: { workspaceId: ws.id, userId: joiner.id } },
         }),
       ).toBeNull()
       expect(await auditRows(ws.id, IDENTITY_AUDIT_ACTIONS.joined)).toHaveLength(0)
+      expect(await memberJoinedEvents(ws.id)).toHaveLength(0)
+    })
+
+    it('purchased seats grow the capacity: the join passes with an addon at a full included limit (8D)', async () => {
+      const { ws, owner, joiner } = await seed()
+      await domain.identity.addAllowedDomain({
+        workspaceId: ws.id,
+        actorId: owner.id,
+        domain: CORP_DOMAIN,
+      })
+      await prisma.workspaceLimit.update({
+        where: { workspaceId: ws.id },
+        data: { maxMembers: 1 }, // the owner holds the only INCLUDED seat
+      })
+      await prisma.workspaceSeatAddon.create({ data: { workspaceId: ws.id, paidSeats: 1 } })
+      const result = await domain.identity.joinViaDomain({
+        workspaceId: ws.id,
+        userId: joiner.id,
+        userEmail: joiner.email,
+      })
+      expect(result).toEqual({ workspaceId: ws.id, role: RoleType.EDITOR, alreadyMember: false })
+      expect(
+        await prisma.workspaceMember.findUnique({
+          where: { workspaceId_userId: { workspaceId: ws.id, userId: joiner.id } },
+        }),
+      ).not.toBeNull()
     })
 
     it('alreadyMember is a no-op WITH audit parity: existing role returned, audit row written', async () => {
@@ -778,6 +825,8 @@ describe('identity service', () => {
       const audits = await auditRows(ws.id, IDENTITY_AUDIT_ACTIONS.joined)
       expect(audits).toHaveLength(1)
       expect(audits[0]!.metadata).toMatchObject({ alreadyMember: true })
+      // …but NO ledger row — no member row was created (8D)
+      expect(await memberJoinedEvents(ws.id)).toHaveLength(0)
     })
 
     it('two concurrent joins converge: one member row, one normal + one alreadyMember result', async () => {
@@ -811,6 +860,12 @@ describe('identity service', () => {
         })
         expect(members).toHaveLength(1)
         expect(members[0]!.role).toBe(RoleType.EDITOR)
+        // exactly ONE ledger row per actual member creation — the converged
+        // alreadyMember loser writes none (8D)
+        const joined = (await memberJoinedEvents(ws.id)).filter(
+          (e) => e.targetUserId === user.id,
+        )
+        expect(joined).toHaveLength(1)
       }
     })
   })

@@ -57,6 +57,16 @@ export const workspaceRouter = router({
         await tx.workspaceMember.create({
           data: { workspaceId: workspace.id, userId: ctx.user.id, role: 'OWNER' },
         })
+        // The creator's OWNER seat is billable like any other — ledger it in
+        // the same tx (8D spec §3; the actor IS the target here).
+        await tx.seatBillingEvent.create({
+          data: {
+            workspaceId: workspace.id,
+            type: 'MEMBER_JOINED',
+            targetUserId: ctx.user.id,
+            actorId: ctx.user.id,
+          },
+        })
         await tx.userPreference.upsert({
           where: { userId: ctx.user.id },
           create: {
@@ -275,14 +285,21 @@ export const workspaceRouter = router({
         where: { workspaceId_userId: { workspaceId: input.workspaceId, userId: user.id } },
       })
       if (!existingMember) {
-        const [memberCount, limits] = await Promise.all([
+        // Capacity = included limit + purchased seats (8D) — the same formula
+        // the domain join paths enforce via PeopleRepository.findSeatCapacity.
+        const [memberCount, limits, seatAddon] = await Promise.all([
           ctx.prisma.workspaceMember.count({ where: { workspaceId: input.workspaceId } }),
           ctx.prisma.workspaceLimit.findUnique({ where: { workspaceId: input.workspaceId } }),
+          ctx.prisma.workspaceSeatAddon.findUnique({
+            where: { workspaceId: input.workspaceId },
+            select: { paidSeats: true },
+          }),
         ])
-        if (limits && memberCount >= limits.maxMembers) {
+        const capacity = limits ? limits.maxMembers + (seatAddon?.paidSeats ?? 0) : null
+        if (capacity !== null && memberCount >= capacity) {
           throw new TRPCError({
             code: 'FORBIDDEN',
-            message: `Достигнут лимит участников (${limits.maxMembers}). Повысьте тариф или удалите участников.`,
+            message: `Достигнут лимит участников (${capacity}). Повысьте тариф или удалите участников.`,
           })
         }
       }
@@ -292,10 +309,28 @@ export const workspaceRouter = router({
         select: { id: true, name: true },
       })
 
-      const member = await ctx.prisma.workspaceMember.upsert({
-        where: { workspaceId_userId: { workspaceId: input.workspaceId, userId: user.id } },
-        create: { workspaceId: input.workspaceId, userId: user.id, role: input.role },
-        update: { role: input.role },
+      // MEMBER_JOINED lands ONLY on an actual create — the `existingMember`
+      // pre-read above (already there for the limit check) is the branch; a
+      // role update through the upsert is NOT a join and writes no ledger row
+      // (8D spec §3). The upsert + ledger share one tx so the seat row never
+      // exists without its billing record.
+      const member = await ctx.prisma.$transaction(async (tx) => {
+        const row = await tx.workspaceMember.upsert({
+          where: { workspaceId_userId: { workspaceId: input.workspaceId, userId: user.id } },
+          create: { workspaceId: input.workspaceId, userId: user.id, role: input.role },
+          update: { role: input.role },
+        })
+        if (!existingMember) {
+          await tx.seatBillingEvent.create({
+            data: {
+              workspaceId: input.workspaceId,
+              type: 'MEMBER_JOINED',
+              targetUserId: user.id,
+              actorId: ctx.user.id,
+            },
+          })
+        }
+        return row
       })
 
       // Idempotent: ensure the (newly) added member has a PERSONAL collection here.
@@ -371,8 +406,19 @@ export const workspaceRouter = router({
           })
         }
       }
-      await ctx.prisma.workspaceMember.delete({
-        where: { workspaceId_userId: { workspaceId: input.workspaceId, userId: input.userId } },
+      // Removal frees the seat — record it in the billing ledger, same tx (8D).
+      await ctx.prisma.$transaction(async (tx) => {
+        await tx.workspaceMember.delete({
+          where: { workspaceId_userId: { workspaceId: input.workspaceId, userId: input.userId } },
+        })
+        await tx.seatBillingEvent.create({
+          data: {
+            workspaceId: input.workspaceId,
+            type: 'MEMBER_REMOVED',
+            targetUserId: input.userId,
+            actorId: ctx.user.id,
+          },
+        })
       })
       return { ok: true }
     }),

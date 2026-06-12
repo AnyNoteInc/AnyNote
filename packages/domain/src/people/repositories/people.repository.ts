@@ -58,6 +58,18 @@ function newShareId(): string {
   return randomBytes(32).toString('hex')
 }
 
+/**
+ * The member-event slice of the billable-seat ledger this module writes (8D).
+ * `MEMBER_JOINED` accompanies every member-row CREATE, `MEMBER_REMOVED` every
+ * delete — informational rows: removal frees capacity, never money.
+ */
+export interface MemberSeatEventEntry {
+  workspaceId: string
+  type: 'MEMBER_JOINED' | 'MEMBER_REMOVED'
+  targetUserId: string
+  actorId: string
+}
+
 export class PeopleRepository {
   private readonly uow: UnitOfWork
   constructor(uow: UnitOfWork) {
@@ -109,15 +121,44 @@ export class PeopleRepository {
     return this.uow.client().workspaceMember.count({ where: { workspaceId } })
   }
 
-  async findWorkspaceLimit(workspaceId: string): Promise<{ maxMembers: number } | null> {
-    return this.uow.client().workspaceLimit.findUnique({
+  /**
+   * The operative seat capacity: `WorkspaceLimit.maxMembers` (included) +
+   * `WorkspaceSeatAddon.paidSeats` (purchased, 8D spec §3) — one query via the
+   * workspace join. Every join path (invite accept, link join, conversion,
+   * the invite-time pre-check, the preview) inherits the addon through this
+   * single read. No limit row ⇒ unlimited (null).
+   */
+  async findSeatCapacity(workspaceId: string): Promise<{ capacity: number } | null> {
+    const limit = await this.uow.client().workspaceLimit.findUnique({
       where: { workspaceId },
-      select: { maxMembers: true },
+      select: {
+        maxMembers: true,
+        workspace: { select: { seatAddon: { select: { paidSeats: true } } } },
+      },
     })
+    if (!limit) return null
+    return { capacity: limit.maxMembers + (limit.workspace.seatAddon?.paidSeats ?? 0) }
   }
 
   async createMember(workspaceId: string, userId: string, role: RoleType): Promise<void> {
     await this.uow.client().workspaceMember.create({ data: { workspaceId, userId, role } })
+  }
+
+  /**
+   * Billable-seat ledger write (`SeatBillingEvent`, 8D) — a direct prisma
+   * write into the billing-owned table from the member-owning module (the
+   * `WorkspaceAuditLog` cross-module precedent). Runs on `uow.client()`, so
+   * inside `uow.transaction()` it lands in the SAME tx as the member row.
+   */
+  async recordMemberEvent(entry: MemberSeatEventEntry): Promise<void> {
+    await this.uow.client().seatBillingEvent.create({
+      data: {
+        workspaceId: entry.workspaceId,
+        type: entry.type,
+        targetUserId: entry.targetUserId,
+        actorId: entry.actorId,
+      },
+    })
   }
 
   /** `currentPeriodEnd` of the workspace owner's latest active subscription, for the invite preview. */
