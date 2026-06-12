@@ -4,6 +4,7 @@ import {
   type ApplySeatPurchaseInput,
   type ApplySeatPurchaseResult,
   type OwnerSeatCharge,
+  type OwnerSeatChargeRow,
   type ResetAddonsResult,
   type SeatBillingPeriod,
 } from './dto/seats.dto.ts'
@@ -148,13 +149,17 @@ export async function computeOwnerSeatChargeTx(
 
   const perWorkspace = ids.map((workspaceId) => {
     const addon = addonByWs.get(workspaceId)
-    const effectiveSeats = addon ? (addon.scheduledSeats ?? addon.paidSeats) : 0
+    const paidSeats = addon?.paidSeats ?? 0
+    const scheduledSeats = addon?.scheduledSeats ?? null
+    const effectiveSeats = scheduledSeats ?? paidSeats
     return {
       workspaceId,
       effectiveSeats,
       seatKopecks: effectiveSeats * pricePerSeat,
       memberCount: memberCounts.get(workspaceId) ?? 0,
       includedSeats: limits.get(workspaceId) ?? input.plan.maxMembersPerWorkspace,
+      paidSeats,
+      scheduledSeats,
     }
   })
   return {
@@ -165,10 +170,17 @@ export async function computeOwnerSeatChargeTx(
 
 // ── renewal application (spec §4.2 — the SEATS_RENEWED record, one place) ─────
 
-export interface ApplySeatRenewalInput extends OwnerSeatChargeTxInput {
+export interface ApplySeatRenewalInput {
   /** The renewal Order this application settles. */
   orderId: string
   subscriptionId?: string | null
+  /**
+   * The CHARGE-TIME snapshot (`computeOwnerSeatChargeTx` rows, persisted in
+   * `Order.metadata` by the renewal producer). The application applies EXACTLY
+   * these values — never a re-read — so a mid-window addon mutation cannot
+   * make the applied seats diverge from what the owner was charged.
+   */
+  rows: OwnerSeatChargeRow[]
 }
 
 export interface SeatRenewalApplication {
@@ -177,83 +189,83 @@ export interface SeatRenewalApplication {
 }
 
 /**
- * Apply the seat renewal for every owned workspace that carries seat state:
- * scheduled values become paid, plus the renewal record — WorkspaceSeatSnapshot
- * (memberCount at capture, includedSeats, effective extraSeats,
- * seatAmountKopecks), the SEATS_RENEWED ledger row (orderId, actor = system),
- * and the `seats.renewal_applied` audit — all in the caller's tx.
+ * Apply the seat renewal from the charge-time rows: paidSeats becomes the
+ * charged effective count (schedules consumed), plus the renewal record —
+ * WorkspaceSeatSnapshot (memberCount/includedSeats AT CHARGE TIME, effective
+ * extraSeats, seatAmountKopecks), the SEATS_RENEWED ledger row (orderId,
+ * actor = system), and the `seats.renewal_applied` audit — all in the
+ * caller's tx. Charged == applied, by construction.
  *
  * EXACTLY-ONCE contract: call this in the SAME tx that flips the renewal order
  * PENDING→PAID. The synchronous renewOne path flips the order itself; a
  * pending renewal completing via webhook flips it in `handlePaymentSucceeded` —
  * whichever flip wins, the other caller sees a non-PENDING order and skips.
  *
- * Zero-addon owners write NOTHING (the flat-price regression pin).
+ * Rows that were clean at charge time (no paid seats, no schedule) write
+ * NOTHING (the flat-price regression pin). A workspace deleted mid-window
+ * (its addon cascades away) is skipped — nothing left to apply to.
  */
 export async function applySeatRenewalTx(
   tx: Db,
   input: ApplySeatRenewalInput,
 ): Promise<SeatRenewalApplication> {
-  const ids = await findOwnedWorkspaceIds(tx, input.userId)
-  if (ids.length === 0) return { totalSeatKopecks: 0, renewedWorkspaceIds: [] }
-
-  const addons = await findAddonsByWorkspaceIds(tx, ids)
-  const dirty = addons.filter((a) => a.paidSeats > 0 || a.scheduledSeats !== null)
+  const dirty = input.rows.filter((row) => row.paidSeats > 0 || row.scheduledSeats !== null)
   if (dirty.length === 0) return { totalSeatKopecks: 0, renewedWorkspaceIds: [] }
 
-  const pricePerSeat = seatPriceForPeriod(input.plan, input.billingPeriod)
-  const dirtyIds = dirty.map((a) => a.workspaceId)
-  const memberCounts = await countMembersByWorkspaceIds(tx, dirtyIds)
-  const limits = await findLimitsByWorkspaceIds(tx, dirtyIds)
+  // Liveness only — the VALUES come from the charge-time rows, never from here.
+  const liveAddons = await findAddonsByWorkspaceIds(
+    tx,
+    dirty.map((row) => row.workspaceId),
+  )
+  const liveIds = new Set(liveAddons.map((a) => a.workspaceId))
 
   let totalSeatKopecks = 0
-  for (const addon of dirty) {
-    const effectiveSeats = addon.scheduledSeats ?? addon.paidSeats
-    if (addon.scheduledSeats !== null) {
-      await tx.workspaceSeatAddon.update({
-        where: { workspaceId: addon.workspaceId },
-        data: { paidSeats: effectiveSeats, scheduledSeats: null },
-      })
-    }
-    const seatKopecks = effectiveSeats * pricePerSeat
-    totalSeatKopecks += seatKopecks
+  const renewedWorkspaceIds: string[] = []
+  for (const row of dirty) {
+    if (!liveIds.has(row.workspaceId)) continue
+    await tx.workspaceSeatAddon.update({
+      where: { workspaceId: row.workspaceId },
+      data: { paidSeats: row.effectiveSeats, scheduledSeats: null },
+    })
+    totalSeatKopecks += row.seatKopecks
+    renewedWorkspaceIds.push(row.workspaceId)
     await tx.workspaceSeatSnapshot.create({
       data: {
-        workspaceId: addon.workspaceId,
+        workspaceId: row.workspaceId,
         subscriptionId: input.subscriptionId ?? null,
         orderId: input.orderId,
-        memberCount: memberCounts.get(addon.workspaceId) ?? 0,
-        includedSeats: limits.get(addon.workspaceId) ?? input.plan.maxMembersPerWorkspace,
-        extraSeats: effectiveSeats,
-        seatAmountKopecks: seatKopecks,
+        memberCount: row.memberCount,
+        includedSeats: row.includedSeats,
+        extraSeats: row.effectiveSeats,
+        seatAmountKopecks: row.seatKopecks,
       },
     })
     await tx.seatBillingEvent.create({
       data: {
-        workspaceId: addon.workspaceId,
+        workspaceId: row.workspaceId,
         type: 'SEATS_RENEWED',
-        seatsDelta: effectiveSeats - addon.paidSeats,
-        seatsAfter: effectiveSeats,
-        amountKopecks: seatKopecks,
+        seatsDelta: row.effectiveSeats - row.paidSeats,
+        seatsAfter: row.effectiveSeats,
+        amountKopecks: row.seatKopecks,
         orderId: input.orderId,
         actorId: null, // system/cron — no human actor behind a renewal
       },
     })
     await tx.workspaceAuditLog.create({
       data: {
-        workspaceId: addon.workspaceId,
+        workspaceId: row.workspaceId,
         actorId: null,
         action: BILLING_AUDIT_ACTIONS.seatsRenewalApplied,
         metadata: {
           orderId: input.orderId,
-          extraSeats: effectiveSeats,
-          seatAmountKopecks: seatKopecks,
-          previousPaidSeats: addon.paidSeats,
+          extraSeats: row.effectiveSeats,
+          seatAmountKopecks: row.seatKopecks,
+          previousPaidSeats: row.paidSeats,
         },
       },
     })
   }
-  return { totalSeatKopecks, renewedWorkspaceIds: dirtyIds }
+  return { totalSeatKopecks, renewedWorkspaceIds }
 }
 
 // ── addon reset (spec §3 — tier change / subscription expiry) ─────────────────

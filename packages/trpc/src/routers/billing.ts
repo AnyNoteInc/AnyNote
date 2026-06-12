@@ -287,11 +287,14 @@ export const billingRouter = router({
       const { request, mail } = await mapDomain(() =>
         domainSvc.seats.createInvoiceRequest({ ...input, actorId: ctx.user.id }),
       )
-      // Operator mail, not user mail. Absent env ⇒ deliberately no send and no
-      // log — the persisted row IS the record (spec §2).
+      // Operator mail, not user mail. Absent env ⇒ no send — the persisted
+      // row is still the workflow record, and the skip is logged (spec §2)
+      // so a missing-config deploy is visible in the request logs.
       const operatorEmail = process.env.BILLING_INVOICE_EMAIL
       if (operatorEmail) {
         await sendMailNow({ kind: 'invoice-request', to: operatorEmail, data: mail })
+      } else {
+        console.info('[mail] invoice-request skipped: BILLING_INVOICE_EMAIL is not set')
       }
       // The response never carries the operator payload/address — just the row.
       return request

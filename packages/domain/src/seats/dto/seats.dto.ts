@@ -277,11 +277,90 @@ export interface OwnerSeatChargeRow {
   seatKopecks: number
   memberCount: number
   includedSeats: number
+  /** paidSeats at charge time — the application's delta base (charged == applied). */
+  paidSeats: number
+  /** scheduledSeats at charge time — the application's dirtiness signal. */
+  scheduledSeats: number | null
 }
 
 export interface OwnerSeatCharge {
   totalSeatKopecks: number
   perWorkspace: OwnerSeatChargeRow[]
+}
+
+/** `Order.metadata.kind` marking a renewal order that carries its charge snapshot (spec §4.2). */
+export const SEAT_RENEWAL_ORDER_KIND = 'seat_renewal'
+
+/**
+ * The `Order.metadata` shape the renewal producer writes at order creation and
+ * BOTH completion paths (the engines synchronous charge and the trpc webhook)
+ * read back — the application applies EXACTLY the rows that were charged, so a
+ * mid-window addon mutation can never make charged ≠ applied.
+ */
+export interface SeatRenewalOrderMetadata {
+  kind: typeof SEAT_RENEWAL_ORDER_KIND
+  rows: OwnerSeatChargeRow[]
+}
+
+export function buildSeatRenewalOrderMetadata(charge: OwnerSeatCharge): SeatRenewalOrderMetadata {
+  return { kind: SEAT_RENEWAL_ORDER_KIND, rows: charge.perWorkspace }
+}
+
+function parseSeatRenewalRow(raw: unknown, index: number): OwnerSeatChargeRow {
+  if (typeof raw !== 'object' || raw === null) {
+    throw new Error(`seat_renewal order metadata row ${index} is not an object`)
+  }
+  const r = raw as Record<string, unknown>
+  if (typeof r.workspaceId !== 'string' || r.workspaceId.length === 0) {
+    throw new Error(`seat_renewal order metadata row ${index} is missing a workspaceId`)
+  }
+  for (const key of [
+    'effectiveSeats',
+    'seatKopecks',
+    'memberCount',
+    'includedSeats',
+    'paidSeats',
+  ] as const) {
+    const value = r[key]
+    if (typeof value !== 'number' || !Number.isInteger(value) || value < 0) {
+      throw new Error(`seat_renewal order metadata row ${index} has a malformed ${key}`)
+    }
+  }
+  // Absent = null: tolerate older/leaner snapshots without losing strictness.
+  const scheduledSeats = r.scheduledSeats ?? null
+  if (scheduledSeats !== null && (typeof scheduledSeats !== 'number' || scheduledSeats < 0)) {
+    throw new Error(`seat_renewal order metadata row ${index} has a malformed scheduledSeats`)
+  }
+  return {
+    workspaceId: r.workspaceId,
+    effectiveSeats: r.effectiveSeats as number,
+    seatKopecks: r.seatKopecks as number,
+    memberCount: r.memberCount as number,
+    includedSeats: r.includedSeats as number,
+    paidSeats: r.paidSeats as number,
+    scheduledSeats,
+  }
+}
+
+/**
+ * Recognise a renewal-charge snapshot in `Order.metadata`. Returns `null` for
+ * tier/seat-purchase orders (no/foreign metadata) — including legacy renewal
+ * orders created before the snapshot existed, which fall back to recomputing.
+ * A `kind: 'seat_renewal'` payload that is malformed THROWS (the
+ * `parseSeatPurchaseOrderMetadata` precedent): silently applying garbage or
+ * silently recomputing would un-pin the charged==applied guarantee.
+ */
+export function parseSeatRenewalOrderMetadata(metadata: unknown): SeatRenewalOrderMetadata | null {
+  if (typeof metadata !== 'object' || metadata === null) return null
+  const m = metadata as Record<string, unknown>
+  if (m.kind !== SEAT_RENEWAL_ORDER_KIND) return null
+  if (!Array.isArray(m.rows)) {
+    throw new Error('seat_renewal order metadata is missing its charge rows')
+  }
+  return {
+    kind: SEAT_RENEWAL_ORDER_KIND,
+    rows: m.rows.map((raw, index) => parseSeatRenewalRow(raw, index)),
+  }
 }
 
 export interface ResetAddonsResult {

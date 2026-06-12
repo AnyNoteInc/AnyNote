@@ -115,6 +115,14 @@ test.afterAll(async () => {
     if (createdSubscriptionIds.length > 0) {
       await prisma.subscription.deleteMany({ where: { id: { in: createdSubscriptionIds } } })
     }
+    // Finally the throwaway fixture workspaces themselves (children cascade).
+    // AFTER the restores above — deleting first would make the workspaceLimit
+    // restore throw and skip the rest. Catch-swallowed like the row cleanup:
+    // cleanup must never fail the suite.
+    for (const workspaceId of billingWorkspaceIds) {
+      await prisma.workspaceMember.deleteMany({ where: { workspaceId } }).catch(() => {})
+      await prisma.workspace.delete({ where: { id: workspaceId } }).catch(() => {})
+    }
   } finally {
     await prisma.$disconnect()
   }

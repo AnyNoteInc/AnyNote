@@ -34,10 +34,13 @@ function estimateProratedKopecks(
   periodEnd: SeatUsageWire['periodEnd'],
 ): number | null {
   if (!periodEnd) return null
+  // One clock read — two Date.now() calls could straddle a tick and skew the
+  // guard against the remaining-time math.
+  const nowMs = Date.now()
   const end = new Date(periodEnd).getTime()
-  if (!Number.isFinite(end) || end <= Date.now()) return null
+  if (!Number.isFinite(end) || end <= nowMs) return null
   const periodMs = (seatPrice.billingPeriod === 'MONTHLY' ? 30 : 365) * DAY_MS
-  const remainingMs = Math.min(end - Date.now(), periodMs)
+  const remainingMs = Math.min(end - nowMs, periodMs)
   return Math.max(1, Math.ceil((seats * seatPrice.currentKopecks * remainingMs) / periodMs))
 }
 
@@ -154,9 +157,14 @@ export function SeatPurchaseCard({ workspaceId, usage, isSubscriptionHolder }: P
       title="Платные места"
       description="Докупка действует сразу — с пропорциональной доплатой до конца оплаченного периода. Уменьшение вступает в силу со следующего списания."
     >
+      {/* canPurchase=false covers BOTH an inactive subscription and an ended
+          paid period (the server mirrors beginSeatPurchase's gates) — either
+          way the cure is the same: renew first. The buy button below is
+          disabled via moneyDisabled. */}
       {!usage.canPurchase ? (
         <Alert severity="warning">
-          Покупка мест доступна только при активной подписке — сначала продлите её.
+          Покупка мест доступна только при активной подписке с действующим оплаченным периодом —
+          сначала продлите подписку.
         </Alert>
       ) : null}
 

@@ -1,19 +1,28 @@
 import { Injectable, Logger } from '@nestjs/common'
-import { prisma } from '@repo/db'
+import { prisma, type Prisma } from '@repo/db'
 import {
   applySeatRenewalTx,
+  buildSeatRenewalOrderMetadata,
   computeOwnerSeatChargeTx,
   resetAddonsForOwnerTx,
   syncWorkspaceLimits,
 } from '@repo/domain'
 import type { Payment } from '@repo/yookassa'
-import { randomUUID } from 'node:crypto'
 
 import { YookassaClientFactory } from './yookassa-client.factory.js'
 
 function renewalBatchSize(): number {
   const parsed = Number.parseInt(process.env.BILLING_RENEWAL_BATCH_SIZE ?? '50', 10)
   return Number.isFinite(parsed) && parsed > 0 ? parsed : 50
+}
+
+/**
+ * Prisma P2002 (unique-constraint violation), duck-typed: `instanceof
+ * Prisma.PrismaClientKnownRequestError` is brittle across the monorepo's
+ * client instances, and the `code` field is the documented contract.
+ */
+function isUniqueConstraintViolation(err: unknown): boolean {
+  return typeof err === 'object' && err !== null && (err as { code?: unknown }).code === 'P2002'
 }
 
 function addBillingPeriod(start: Date, period: 'MONTHLY' | 'YEARLY'): Date {
@@ -88,7 +97,12 @@ export class SubscriptionRenewalService {
       include: { plan: true },
     })
 
-    if (subscription.status !== 'ACTIVE' || !subscription.paymentMethodId) {
+    if (
+      subscription.status !== 'ACTIVE' ||
+      !subscription.paymentMethodId ||
+      !subscription.currentPeriodEnd
+    ) {
+      // No currentPeriodEnd ⇒ nothing to renew and no deterministic key.
       return
     }
 
@@ -106,22 +120,44 @@ export class SubscriptionRenewalService {
       plan: subscription.plan,
     })
     const amountKopecks = tierKopecks + seatCharge.totalSeatKopecks
-    const idempotencyKey = randomUUID()
+    // DETERMINISTIC per subscription+period (group review Fix 2): two
+    // overlapping cron ticks compute the SAME key, so YooKassa dedupes the
+    // charge — and the unique column below stops the second order row.
+    // Epoch ms, not toISOString: the column is VarChar(64) and
+    // `renew:` + uuid + `:` + ISO would be 67 chars.
+    const idempotencyKey = `renew:${subscription.id}:${subscription.currentPeriodEnd.getTime()}`
 
-    const order = await prisma.order.create({
-      data: {
-        userId: subscription.userId,
-        planId: subscription.planId,
-        subscriptionId: subscription.id,
-        billingPeriod: subscription.billingPeriod,
-        amountKopecks,
-        currency: subscription.currency,
-        status: 'PENDING',
-        isInitial: false,
-        savedPaymentMethod: true,
-        yookassaIdempotencyKey: idempotencyKey,
-      },
-    })
+    let order: { id: string }
+    try {
+      order = await prisma.order.create({
+        data: {
+          userId: subscription.userId,
+          planId: subscription.planId,
+          subscriptionId: subscription.id,
+          billingPeriod: subscription.billingPeriod,
+          amountKopecks,
+          currency: subscription.currency,
+          status: 'PENDING',
+          isInitial: false,
+          savedPaymentMethod: true,
+          yookassaIdempotencyKey: idempotencyKey,
+          // The charge-time row snapshot: BOTH completion paths (the
+          // synchronous flip below and the trpc webhook) apply EXACTLY these
+          // rows, so charged == applied even if an addon mutates mid-window.
+          metadata: buildSeatRenewalOrderMetadata(seatCharge) as unknown as Prisma.InputJsonValue,
+        },
+      })
+    } catch (err) {
+      if (isUniqueConstraintViolation(err)) {
+        // A concurrent tick already created this period's renewal order —
+        // it owns the charge; this tick skips (the cheap DB-level guard).
+        this.logger.warn(
+          `renewOne(${subscriptionId}): renewal order for key ${idempotencyKey} already exists — skipping concurrent tick`,
+        )
+        return
+      }
+      throw err
+    }
 
     const amount = (amountKopecks / 100).toFixed(2)
     const periodLabel = subscription.billingPeriod === 'YEARLY' ? 'Год' : 'Месяц'
@@ -170,15 +206,14 @@ export class SubscriptionRenewalService {
             currentPeriodEnd: addBillingPeriod(now, subscription.billingPeriod),
           },
         })
-        // Seats apply in the SAME tx as the order flip + period roll:
+        // Seats apply in the SAME tx as the order flip + period roll, from
+        // the SAME rows the charge was computed from (charged == applied):
         // scheduled values become paid, plus snapshot + SEATS_RENEWED ledger +
         // audit per workspace with seat state. Zero-addon owners write nothing.
         await applySeatRenewalTx(tx, {
-          userId: subscription.userId,
-          billingPeriod: subscription.billingPeriod,
-          plan: subscription.plan,
           orderId: order.id,
           subscriptionId: subscription.id,
+          rows: seatCharge.perWorkspace,
         })
       })
       return

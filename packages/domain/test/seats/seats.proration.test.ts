@@ -4,11 +4,14 @@ import { isDomainError } from '../../src/shared/errors.ts'
 import {
   BILLING_AUDIT_ACTIONS,
   SEATS_ERROR_CODES,
+  buildSeatRenewalOrderMetadata,
   isValidInn,
   isValidKpp,
+  parseSeatRenewalOrderMetadata,
   prorateSeatPurchase,
   seatsError,
 } from '../../src/seats/dto/seats.dto.ts'
+import type { OwnerSeatCharge } from '../../src/seats/dto/seats.dto.ts'
 
 // Pure table test for the proration formula (spec §3/§7.4):
 //   max(1, ceil(seats × seatPriceKopecks × remainingMs / periodMs))
@@ -305,5 +308,63 @@ describe('seats dto catalogs (spec §2)', () => {
     expect(isValidKpp('12345678')).toBe(false)
     expect(isValidKpp('1234567890')).toBe(false)
     expect(isValidKpp('12345678a')).toBe(false)
+  })
+})
+
+// The charged==applied contract (group review Fix 4): the renewal producer
+// snapshots the charge rows into Order.metadata; both completion paths apply
+// EXACTLY those rows. The parser mirrors parseSeatPurchaseOrderMetadata:
+// null for foreign/missing metadata, a LOUD throw for a kind-matching but
+// malformed payload (silently recomputing would un-pin charged==applied).
+describe('seat-renewal order metadata (spec §4.2 — charged == applied)', () => {
+  const charge: OwnerSeatCharge = {
+    totalSeatKopecks: 38000,
+    perWorkspace: [
+      {
+        workspaceId: 'ws-1',
+        effectiveSeats: 2,
+        seatKopecks: 38000,
+        memberCount: 4,
+        includedSeats: 5,
+        paidSeats: 3,
+        scheduledSeats: 2,
+      },
+    ],
+  }
+
+  it('round-trips build → parse', () => {
+    const metadata = buildSeatRenewalOrderMetadata(charge)
+    expect(metadata).toEqual({ kind: 'seat_renewal', rows: charge.perWorkspace })
+    // Through a JSON round-trip (Order.metadata is a Json column).
+    expect(parseSeatRenewalOrderMetadata(JSON.parse(JSON.stringify(metadata)))).toEqual(metadata)
+  })
+
+  it('returns null for missing/foreign metadata (tier and seat-purchase orders)', () => {
+    expect(parseSeatRenewalOrderMetadata(null)).toBeNull()
+    expect(parseSeatRenewalOrderMetadata(undefined)).toBeNull()
+    expect(parseSeatRenewalOrderMetadata({})).toBeNull()
+    expect(
+      parseSeatRenewalOrderMetadata({ kind: 'seat_purchase', workspaceId: 'ws-1', seats: 2 }),
+    ).toBeNull()
+  })
+
+  it('throws on a kind-matching but malformed payload', () => {
+    expect(() => parseSeatRenewalOrderMetadata({ kind: 'seat_renewal' })).toThrow()
+    expect(() => parseSeatRenewalOrderMetadata({ kind: 'seat_renewal', rows: [{}] })).toThrow()
+    expect(() =>
+      parseSeatRenewalOrderMetadata({
+        kind: 'seat_renewal',
+        rows: [{ workspaceId: 'ws-1', effectiveSeats: 'two' }],
+      }),
+    ).toThrow()
+  })
+
+  it('treats an absent scheduledSeats as null (older snapshots stay parseable)', () => {
+    const raw = JSON.parse(JSON.stringify(buildSeatRenewalOrderMetadata(charge))) as {
+      rows: Record<string, unknown>[]
+    }
+    delete raw.rows[0]!.scheduledSeats
+    const parsed = parseSeatRenewalOrderMetadata(raw)
+    expect(parsed?.rows[0]?.scheduledSeats).toBeNull()
   })
 })

@@ -10,6 +10,9 @@ const subscriptionId = '11111111-1111-4111-8111-111111111111'
 const orderId = '22222222-2222-4222-8222-222222222222'
 const userId = '33333333-3333-4333-8333-333333333333'
 const workspaceId = '77777777-7777-4777-8777-777777777777'
+const currentPeriodEnd = new Date('2026-06-10T00:00:00.000Z')
+/** The deterministic key (group review Fix 2): YooKassa dedupes per key, so two overlapping ticks cannot double-charge. */
+const expectedIdempotencyKey = `renew:${subscriptionId}:${currentPeriodEnd.getTime()}`
 
 function makeSubscription(overrides: Record<string, unknown> = {}) {
   return {
@@ -20,6 +23,8 @@ function makeSubscription(overrides: Record<string, unknown> = {}) {
     billingPeriod: 'MONTHLY',
     currency: 'RUB',
     paymentMethodId: 'pm_saved',
+    currentPeriodStart: new Date('2026-05-10T00:00:00.000Z'),
+    currentPeriodEnd,
     plan: {
       name: 'Pro',
       priceMonthlyKopecks: 15_000,
@@ -199,9 +204,28 @@ describe('SubscriptionRenewalService', () => {
 
     await svc.renewOne(subscriptionId)
 
-    // effective seats = scheduled ?? paid = 1 ⇒ 15 000 + 1 × 9 000
+    // effective seats = scheduled ?? paid = 1 ⇒ 15 000 + 1 × 9 000; the order
+    // carries the charge-time row snapshot so BOTH completion paths apply
+    // exactly what was charged (group review Fix 4).
     expect(prisma.order.create).toHaveBeenCalledWith({
-      data: expect.objectContaining({ amountKopecks: 24_000, status: 'PENDING' }),
+      data: expect.objectContaining({
+        amountKopecks: 24_000,
+        status: 'PENDING',
+        metadata: {
+          kind: 'seat_renewal',
+          rows: [
+            {
+              workspaceId,
+              effectiveSeats: 1,
+              seatKopecks: 9_000,
+              memberCount: 3,
+              includedSeats: 5,
+              paidSeats: 2,
+              scheduledSeats: 1,
+            },
+          ],
+        },
+      }),
     })
     expect(chargeWithSavedMethod).toHaveBeenCalledWith(
       expect.objectContaining({ amount: { value: '240.00', currency: 'RUB' } }),
@@ -240,6 +264,115 @@ describe('SubscriptionRenewalService', () => {
         actorId: null,
         action: 'seats.renewal_applied',
       }),
+    })
+  })
+
+  it('uses the deterministic idempotency key renew:<subscriptionId>:<periodEnd ms> for both the order and the charge', async () => {
+    // Two overlapping ticks compute the SAME key — YooKassa dedupes per key,
+    // so even a second charge attempt cannot bill the owner twice (Fix 2).
+    jest
+      .spyOn(prisma.subscription, 'findUniqueOrThrow')
+      .mockResolvedValue(makeSubscription() as never)
+    chargeWithSavedMethod.mockResolvedValue({
+      id: 'pmt_succeeded',
+      status: 'succeeded',
+      amount: { value: '150.00', currency: 'RUB' },
+      paid: true,
+      created_at: '2026-06-12T00:00:00Z',
+    } as never)
+
+    await svc.renewOne(subscriptionId)
+
+    expect(expectedIdempotencyKey.length).toBeLessThanOrEqual(64) // the column is VarChar(64)
+    expect(prisma.order.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ yookassaIdempotencyKey: expectedIdempotencyKey }),
+    })
+    expect(chargeWithSavedMethod).toHaveBeenCalledWith(expect.anything(), expectedIdempotencyKey)
+  })
+
+  it('skips the renewal when a concurrent tick already created the order: P2002 on the key, no charge, no throw', async () => {
+    jest
+      .spyOn(prisma.subscription, 'findUniqueOrThrow')
+      .mockResolvedValue(makeSubscription() as never)
+    chargeWithSavedMethod.mockResolvedValue({
+      id: 'pmt_succeeded',
+      status: 'succeeded',
+      amount: { value: '150.00', currency: 'RUB' },
+      paid: true,
+      created_at: '2026-06-12T00:00:00Z',
+    } as never)
+
+    // Tick 1 renews normally.
+    await svc.renewOne(subscriptionId)
+    expect(chargeWithSavedMethod).toHaveBeenCalledTimes(1)
+
+    // Tick 2 for the same subscription+period: the unique yookassaIdempotencyKey
+    // makes the order create P2002 — the renewal must skip gracefully.
+    jest
+      .spyOn(prisma.order, 'create')
+      .mockRejectedValueOnce(
+        Object.assign(new Error('Unique constraint failed on yookassa_idempotency_key'), {
+          code: 'P2002',
+        }) as never,
+      )
+    await expect(svc.renewOne(subscriptionId)).resolves.toBeUndefined()
+
+    expect(chargeWithSavedMethod).toHaveBeenCalledTimes(1) // no second charge
+  })
+
+  it('does not renew a subscription without a currentPeriodEnd — no period, no deterministic key, no charge', async () => {
+    jest
+      .spyOn(prisma.subscription, 'findUniqueOrThrow')
+      .mockResolvedValue(makeSubscription({ currentPeriodEnd: null }) as never)
+
+    await svc.renewOne(subscriptionId)
+
+    expect(prisma.order.create).not.toHaveBeenCalled()
+    expect(chargeWithSavedMethod).not.toHaveBeenCalled()
+  })
+
+  it('applies EXACTLY the charged rows even when the addon changed between order creation and completion', async () => {
+    jest
+      .spyOn(prisma.subscription, 'findUniqueOrThrow')
+      .mockResolvedValue(makeSubscription() as never)
+    jest.spyOn(prisma.workspace, 'findMany').mockResolvedValue([{ id: workspaceId }] as never)
+    jest
+      .spyOn(prisma.workspaceMember, 'groupBy')
+      .mockResolvedValue([{ workspaceId, _count: { _all: 3 } }] as never)
+    jest
+      .spyOn(prisma.workspaceLimit, 'findMany')
+      .mockResolvedValue([{ workspaceId, maxMembers: 5 }] as never)
+    // Charge-time read: 2 paid with a reduction to 1 scheduled ⇒ charged
+    // effective = 1. Application-time read (liveness only): the addon GREW
+    // mid-window — the re-read 5 must NOT leak into what gets applied.
+    jest
+      .spyOn(prisma.workspaceSeatAddon, 'findMany')
+      .mockResolvedValueOnce([{ workspaceId, paidSeats: 2, scheduledSeats: 1 }] as never)
+      .mockResolvedValueOnce([{ workspaceId, paidSeats: 5, scheduledSeats: null }] as never)
+    chargeWithSavedMethod.mockResolvedValue({
+      id: 'pmt_succeeded',
+      status: 'succeeded',
+      amount: { value: '240.00', currency: 'RUB' },
+      paid: true,
+      created_at: '2026-06-12T00:00:00Z',
+    } as never)
+
+    await svc.renewOne(subscriptionId)
+
+    // charged 15 000 + 1 × 9 000 …
+    expect(prisma.order.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ amountKopecks: 24_000 }),
+    })
+    // … and applied EXACTLY 1 seat @ 9 000 — never the re-read 5.
+    expect(prisma.workspaceSeatAddon.update).toHaveBeenCalledWith({
+      where: { workspaceId },
+      data: { paidSeats: 1, scheduledSeats: null },
+    })
+    expect(prisma.workspaceSeatSnapshot.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ extraSeats: 1, seatAmountKopecks: 9_000 }),
+    })
+    expect(prisma.seatBillingEvent.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({ type: 'SEATS_RENEWED', seatsAfter: 1, amountKopecks: 9_000 }),
     })
   })
 

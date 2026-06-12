@@ -27,10 +27,14 @@ const MONTHLY_SEAT_PRICE = 19000
 const YEARLY_SEAT_PRICE = 190000
 const PLAN_INCLUDED = 5
 
-const PERIOD_START = new Date('2026-06-01T00:00:00.000Z')
-const PERIOD_END = new Date('2026-07-01T00:00:00.000Z')
+// RELATIVE dates: canPurchase compares currentPeriodEnd against the real
+// clock, so a fixed period end would turn this suite into a time bomb the day
+// it passes. Proration stays deterministic — it uses the injected `now`.
+const DAY_MS = 24 * 60 * 60 * 1000
+const PERIOD_START = new Date(Date.now() - 15 * DAY_MS)
+const PERIOD_END = new Date(PERIOD_START.getTime() + 30 * DAY_MS)
 /** Exactly 15 of 30 days remaining — proration halves cleanly. */
-const MID_PERIOD = new Date('2026-06-16T00:00:00.000Z')
+const MID_PERIOD = new Date(PERIOD_START.getTime() + 15 * DAY_MS)
 
 const domain = createDomain({ prisma, scheduler: makeScheduler() })
 
@@ -108,6 +112,8 @@ interface SeedOptions {
   /** null = no WorkspaceLimit row. */
   maxMembers?: number | null
   addon?: { paidSeats: number; scheduledSeats?: number | null }
+  /** Override the paid period (the ended-period canPurchase pin). */
+  period?: { start: Date; end: Date }
 }
 
 async function seed(opts: SeedOptions = {}) {
@@ -121,8 +127,8 @@ async function seed(opts: SeedOptions = {}) {
         planId: plan.id,
         status: opts.subStatus ?? 'ACTIVE',
         billingPeriod: opts.billingPeriod ?? 'MONTHLY',
-        currentPeriodStart: PERIOD_START,
-        currentPeriodEnd: PERIOD_END,
+        currentPeriodStart: opts.period?.start ?? PERIOD_START,
+        currentPeriodEnd: opts.period?.end ?? PERIOD_END,
       },
     })
   }
@@ -307,6 +313,20 @@ describe('seats service', () => {
       expect(usage.canPurchase).toBe(false)
     })
 
+    it('reports canPurchase=false when the paid period has ended — ACTIVE status alone is not enough', async () => {
+      // beginSeatPurchase would refuse with PERIOD_ENDED; canPurchase must
+      // agree so the UI disables the buy button instead of 409ing.
+      const endedPeriod = {
+        start: new Date(Date.now() - 45 * DAY_MS),
+        end: new Date(Date.now() - 15 * DAY_MS),
+      }
+      const { ws } = await seed({ period: endedPeriod })
+      const usage = await domain.seats.getSeatUsage(ws.id)
+      expect(usage.seatPrice?.currentKopecks).toBe(MONTHLY_SEAT_PRICE)
+      expect(usage.periodEnd).toEqual(endedPeriod.end)
+      expect(usage.canPurchase).toBe(false)
+    })
+
     it('defaults to zero paid seats when no addon row exists', async () => {
       const { ws } = await seed()
       const usage = await domain.seats.getSeatUsage(ws.id)
@@ -410,7 +430,7 @@ describe('seats service', () => {
           workspaceId: ws.id,
           actorId: owner.id,
           seats: 1,
-          now: new Date('2026-07-02T00:00:00.000Z'),
+          now: new Date(PERIOD_END.getTime() + DAY_MS),
         }),
         'PERIOD_ENDED',
         409,
@@ -655,6 +675,8 @@ describe('seats service', () => {
         seatKopecks: 2 * MONTHLY_SEAT_PRICE,
         memberCount: 2,
         includedSeats: PLAN_INCLUDED,
+        paidSeats: 2,
+        scheduledSeats: null,
       })
       const row2 = charge.perWorkspace.find((r) => r.workspaceId === ws2.id)
       expect(row2).toEqual({
@@ -663,6 +685,8 @@ describe('seats service', () => {
         seatKopecks: 1 * MONTHLY_SEAT_PRICE,
         memberCount: 1,
         includedSeats: PLAN_INCLUDED,
+        paidSeats: 5,
+        scheduledSeats: 1,
       })
 
       // READ-ONLY: the scheduled value is still pending.
@@ -688,6 +712,8 @@ describe('seats service', () => {
           seatKopecks: 0,
           memberCount: 1,
           includedSeats: PLAN_INCLUDED,
+          paidSeats: 0,
+          scheduledSeats: null,
         },
       ])
     })

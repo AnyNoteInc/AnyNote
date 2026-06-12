@@ -441,6 +441,173 @@ describe('billing router', () => {
     expect(audits).toHaveLength(1)
   })
 
+  // ── tier-order settlement (group review Fix 1 + Fix 4) ──────────────────────
+
+  /** A PENDING tier RENEWAL order (no seat metadata kind = seat_purchase). */
+  async function createRenewalOrder(args: {
+    userId: string
+    planId: string
+    subscriptionId: string
+    paymentId: string
+    metadata?: object
+  }) {
+    return prisma.order.create({
+      data: {
+        userId: args.userId,
+        planId: args.planId,
+        subscriptionId: args.subscriptionId,
+        billingPeriod: 'MONTHLY',
+        amountKopecks: TIER_PRICE_MONTHLY + 2 * SEAT_PRICE_MONTHLY,
+        currency: 'RUB',
+        status: 'PENDING',
+        isInitial: false,
+        yookassaPaymentId: args.paymentId,
+        yookassaIdempotencyKey: randomUUID(),
+        ...(args.metadata ? { metadata: args.metadata as never } : {}),
+      },
+    })
+  }
+
+  function renewalMetadataFor(workspaceId: string, effectiveSeats: number, paidSeats: number) {
+    return {
+      kind: 'seat_renewal',
+      rows: [
+        {
+          workspaceId,
+          effectiveSeats,
+          seatKopecks: effectiveSeats * SEAT_PRICE_MONTHLY,
+          memberCount: 4,
+          includedSeats: 5,
+          paidSeats,
+          scheduledSeats: null,
+        },
+      ],
+    }
+  }
+
+  it('CONCURRENCY: a double webhook delivery settles a tier renewal exactly once — one seat application', async () => {
+    // What this proves: YooKassa delivers at-least-once, and BOTH deliveries
+    // pass the outer non-tx PENDING read when they overlap; the status-guarded
+    // flip inside the tx must let exactly ONE through to the subscription
+    // upsert + seat hooks. Promise.all makes the overlap near-certain (each
+    // call does its outer read in ~1 query while the winning tx needs many);
+    // it is still a race, not a lockstep proof — the sequential redelivery
+    // below is the deterministic half of the pin.
+    const { plan, owner, ws } = await seed()
+    await prisma.workspaceSeatAddon.create({ data: { workspaceId: ws.id, paidSeats: 2 } })
+    const sub = await prisma.subscription.findFirstOrThrow({ where: { userId: owner.id } })
+    const order = await createRenewalOrder({
+      userId: owner.id,
+      planId: plan.id,
+      subscriptionId: sub.id,
+      paymentId: 'pmt_tier_race',
+      metadata: renewalMetadataFor(ws.id, 2, 2),
+    })
+
+    const successCtx = {
+      prisma,
+      yookassa: { getPayment: vi.fn().mockResolvedValue(succeededPayment('pmt_tier_race')) },
+    }
+    await Promise.all([
+      handlePaymentSucceeded(successCtx, { id: 'pmt_tier_race' } as Payment),
+      handlePaymentSucceeded(successCtx, { id: 'pmt_tier_race' } as Payment),
+    ])
+    // A straggler redelivery after settlement: the outer PAID read no-ops.
+    await handlePaymentSucceeded(successCtx, { id: 'pmt_tier_race' } as Payment)
+
+    const settled = await prisma.order.findUniqueOrThrow({ where: { id: order.id } })
+    expect(settled.status).toBe('PAID')
+    expect(settled.subscriptionId).toBe(sub.id)
+    expect(settled.paidAt).not.toBeNull()
+
+    // Exactly ONE seat application: one ledger row, one snapshot, one audit.
+    expect(
+      await prisma.seatBillingEvent.count({
+        where: { workspaceId: ws.id, type: 'SEATS_RENEWED' },
+      }),
+    ).toBe(1)
+    expect(
+      await prisma.workspaceSeatSnapshot.count({
+        where: { workspaceId: ws.id, orderId: order.id },
+      }),
+    ).toBe(1)
+    expect(
+      await prisma.workspaceAuditLog.count({
+        where: { workspaceId: ws.id, action: 'seats.renewal_applied' },
+      }),
+    ).toBe(1)
+  })
+
+  it('webhook completion applies the charge-time metadata snapshot, not the mutated addon (charged == applied)', async () => {
+    const { plan, owner, ws } = await seed()
+    // Charged at order creation: effective 2 (the metadata snapshot). The
+    // addon then GREW to 3 mid-window — the application must stay at 2.
+    await prisma.workspaceSeatAddon.create({ data: { workspaceId: ws.id, paidSeats: 3 } })
+    const sub = await prisma.subscription.findFirstOrThrow({ where: { userId: owner.id } })
+    const order = await createRenewalOrder({
+      userId: owner.id,
+      planId: plan.id,
+      subscriptionId: sub.id,
+      paymentId: 'pmt_tier_meta',
+      metadata: renewalMetadataFor(ws.id, 2, 2),
+    })
+
+    const successCtx = {
+      prisma,
+      yookassa: { getPayment: vi.fn().mockResolvedValue(succeededPayment('pmt_tier_meta')) },
+    }
+    await handlePaymentSucceeded(successCtx, { id: 'pmt_tier_meta' } as Payment)
+
+    const addon = await prisma.workspaceSeatAddon.findUniqueOrThrow({
+      where: { workspaceId: ws.id },
+    })
+    expect(addon.paidSeats).toBe(2) // exactly what was charged
+    const ledger = await prisma.seatBillingEvent.findMany({
+      where: { workspaceId: ws.id, type: 'SEATS_RENEWED' },
+    })
+    expect(ledger).toHaveLength(1)
+    expect(ledger[0]).toMatchObject({
+      seatsAfter: 2,
+      amountKopecks: 2 * SEAT_PRICE_MONTHLY,
+      orderId: order.id,
+    })
+    const snapshots = await prisma.workspaceSeatSnapshot.findMany({
+      where: { workspaceId: ws.id, orderId: order.id },
+    })
+    expect(snapshots).toHaveLength(1)
+    expect(snapshots[0]).toMatchObject({
+      extraSeats: 2,
+      seatAmountKopecks: 2 * SEAT_PRICE_MONTHLY,
+      memberCount: 4, // charge-time values, straight from the snapshot rows
+      includedSeats: 5,
+    })
+  })
+
+  it('a legacy renewal order without the metadata snapshot still settles by recomputing (fallback pin)', async () => {
+    const { plan, owner, ws } = await seed()
+    await prisma.workspaceSeatAddon.create({ data: { workspaceId: ws.id, paidSeats: 2 } })
+    const sub = await prisma.subscription.findFirstOrThrow({ where: { userId: owner.id } })
+    const order = await createRenewalOrder({
+      userId: owner.id,
+      planId: plan.id,
+      subscriptionId: sub.id,
+      paymentId: 'pmt_tier_legacy',
+    })
+
+    const successCtx = {
+      prisma,
+      yookassa: { getPayment: vi.fn().mockResolvedValue(succeededPayment('pmt_tier_legacy')) },
+    }
+    await handlePaymentSucceeded(successCtx, { id: 'pmt_tier_legacy' } as Payment)
+
+    expect((await prisma.order.findUniqueOrThrow({ where: { id: order.id } })).status).toBe('PAID')
+    const ledger = await prisma.seatBillingEvent.findMany({
+      where: { workspaceId: ws.id, type: 'SEATS_RENEWED' },
+    })
+    expect(ledger).toHaveLength(1)
+    expect(ledger[0]).toMatchObject({ seatsAfter: 2, orderId: order.id })
+  })
+
   it('purchaseSeats is refused when the holder has no seat-selling ACTIVE subscription', async () => {
     await seed()
     const { freeOwner, ws } = await seedFreeWorkspace()
@@ -602,13 +769,22 @@ describe('billing router', () => {
     ).toBe(1)
   })
 
-  it('createInvoiceRequest skips the operator mail when the env is unset — the row is the record', async () => {
+  it('createInvoiceRequest skips the operator mail when the env is unset — the row is the record, the skip is logged', async () => {
     const { owner, ws } = await seed()
+    const info = vi.spyOn(console, 'info').mockImplementation(() => undefined)
 
-    const request = await billing(owner).createInvoiceRequest(validInvoiceInput(ws.id))
-    expect(request.status).toBe('NEW')
-    expect(mailMock.sent).toHaveLength(0)
-    expect(await prisma.invoiceRequest.count({ where: { workspaceId: ws.id } })).toBe(1)
+    try {
+      const request = await billing(owner).createInvoiceRequest(validInvoiceInput(ws.id))
+      expect(request.status).toBe('NEW')
+      expect(mailMock.sent).toHaveLength(0)
+      // The spec §2 wording, pinned.
+      expect(info).toHaveBeenCalledWith(
+        '[mail] invoice-request skipped: BILLING_INVOICE_EMAIL is not set',
+      )
+      expect(await prisma.invoiceRequest.count({ where: { workspaceId: ws.id } })).toBe(1)
+    } finally {
+      info.mockRestore()
+    }
   })
 
   it('invoice validation errors surface and nothing is persisted or mailed', async () => {
@@ -712,6 +888,8 @@ describe('billing router', () => {
         seatKopecks: 2 * SEAT_PRICE_MONTHLY,
         memberCount: 4,
         includedSeats: 5,
+        paidSeats: 2,
+        scheduledSeats: null,
       },
     ])
 

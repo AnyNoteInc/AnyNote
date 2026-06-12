@@ -116,7 +116,14 @@ export class SeatsService {
       capacity: includedSeats + paidSeats,
       seatPrice,
       periodEnd: sub?.currentPeriodEnd ?? null,
-      canPurchase: currentKopecks > 0 && sub?.status === 'ACTIVE',
+      // Mirrors beginSeatPurchase: price > 0, status strictly ACTIVE, AND the
+      // paid period still running — an ended period would 409 (PERIOD_ENDED),
+      // so the UI must see canPurchase=false and disable the buy button.
+      canPurchase:
+        currentKopecks > 0 &&
+        sub?.status === 'ACTIVE' &&
+        sub.currentPeriodEnd !== null &&
+        sub.currentPeriodEnd > new Date(),
     }
   }
 
