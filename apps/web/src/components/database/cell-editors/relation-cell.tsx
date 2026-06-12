@@ -15,6 +15,7 @@ import {
 } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
+import { PageIcon } from '@/components/page/page-icon'
 
 import { useActiveViewId } from './use-optimistic-cell'
 import { useOptimisticRows } from '../use-view-rows'
@@ -96,7 +97,11 @@ export function RelationCell({ pageId, rowId, propertyId, value, editable = true
         <Chip
           key={chip.rowId}
           size="small"
-          icon={<span style={{ fontSize: 14, marginLeft: 6 }}>{chip.icon ?? '📄'}</span>}
+          icon={
+            <span style={{ marginLeft: 6, display: 'inline-flex' }}>
+              <PageIcon icon={chip.icon} size={14} fallback="📄" />
+            </span>
+          }
           label={chip.title || 'Без названия'}
           onClick={() => openTarget(chip)}
           onDelete={editable ? () => removeTarget(chip.rowId) : undefined}

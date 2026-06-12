@@ -16,6 +16,8 @@ import {
 
 import { trpc } from '@/trpc/client'
 import { useSession } from '@/lib/auth-client'
+import { CoverBand } from '@/components/page/cover-band'
+import { PageIcon } from '@/components/page/page-icon'
 import { PageView } from '@/components/page/page-view'
 
 import { CellEditor } from './cell-editors/cell-dispatch'
@@ -35,7 +37,8 @@ import type { DatabaseRowView, DatabaseSchema } from './types'
  *    id, but the in-database UX is the modal/peek only).
  *  - Row/item comments. `PageView` carries the page comment integration, but
  *    surfacing a comments rail inside the peek is out of scope here.
- *  - Icon/cover editing — a placeholder affordance only.
+ *  - Icon/cover EDITING — the modal renders both (PageIcon + a small CoverBand,
+ *    Phase 9A) but changing them happens on the full page, not in the peek.
  */
 
 const COLORS = ['#1976d2', '#9c27b0', '#2e7d32', '#ed6c02', '#0288d1', '#d32f2f']
@@ -133,15 +136,28 @@ function ItemModalContent({
     [schema.properties],
   )
 
+  // The rows cache carries no cover fields; the item page query (shared with
+  // ItemBody — same key, deduped by React Query) provides them for the band.
+  const itemPage = trpc.page.getById.useQuery(
+    { id: row.pageId },
+    { retry: false, staleTime: 0 },
+  )
+
   return (
     <>
+      <CoverBand
+        coverUrl={itemPage.data?.coverUrl ?? null}
+        coverPreset={itemPage.data?.coverPreset ?? null}
+        height={96}
+        rounded={false}
+      />
       <Stack
         direction="row"
         alignItems="center"
         spacing={1.5}
         sx={{ px: 2, py: 1.25, borderBottom: 1, borderColor: 'divider', minHeight: 48 }}
       >
-        {/* Icon/cover are not editable yet — placeholder affordance only (MVP). */}
+        {/* Icon renders both forms (emoji/image); editing happens on the full page. */}
         <Box
           aria-hidden
           sx={{
@@ -152,11 +168,10 @@ function ItemModalContent({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            fontSize: 16,
             flex: '0 0 auto',
           }}
         >
-          {row.icon ?? '📄'}
+          <PageIcon icon={row.icon} size={18} fallback="📄" />
         </Box>
         <Box sx={{ flex: 1 }} />
         <IconButton onClick={onClose} aria-label="Закрыть" size="small">

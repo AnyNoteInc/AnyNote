@@ -26,6 +26,7 @@ import {
 } from '@repo/ui/components'
 import { trpc } from '@/trpc/client'
 import { CreatePageDialog, useCreatePageFlow } from '@/components/templates'
+import { PageIcon } from '@/components/page/page-icon'
 import { PageContextMenu } from './page-context-menu'
 import { MovePageDialog } from './move-page-dialog'
 import { type FlatPageItem, type PageItem, flattenTree } from './types'
@@ -142,9 +143,12 @@ function PageRowVisual({
           style={{ textDecoration: 'none', flex: 1, minWidth: 0, display: 'flex', gap: 4 }}
         >
           {item.icon ? (
-            <Typography variant="body2" component="span" sx={{ flexShrink: 0, lineHeight: '28px' }}>
-              {item.icon}
-            </Typography>
+            <Box
+              component="span"
+              sx={{ flexShrink: 0, height: 28, display: 'inline-flex', alignItems: 'center' }}
+            >
+              <PageIcon icon={item.icon} size={16} />
+            </Box>
           ) : null}
           <Typography
             variant="body2"
@@ -414,10 +418,13 @@ export function PageTreeSection({
                     bgcolor: 'background.paper',
                     boxShadow: 3,
                     opacity: 0.9,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 0.5,
                   }}
                 >
+                  {activeItem.icon ? <PageIcon icon={activeItem.icon} size={16} /> : null}
                   <Typography variant="body2" noWrap sx={{ color: 'text.secondary' }}>
-                    {activeItem.icon ? `${activeItem.icon} ` : ''}
                     {activeItem.title ?? 'Новая страница'}
                   </Typography>
                 </Box>

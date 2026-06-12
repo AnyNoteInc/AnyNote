@@ -4,6 +4,8 @@ import { useState } from 'react'
 
 import { Box, ChevronRightIcon, IconButton, Typography } from '@repo/ui/components'
 
+import { PageIcon } from '@/components/page/page-icon'
+
 import { type PageItem, orderSiblings } from './types'
 
 export const PAGE_TREE_ROOT = '__root__' as const
@@ -64,7 +66,11 @@ function TreeItem({ page, pages, excludeIds, onSelect, selectedId, depth }: Tree
         ) : (
           <Box sx={{ width: 20, mr: 0.5 }} />
         )}
-        {page.icon ? <span style={{ marginRight: 6 }}>{page.icon}</span> : null}
+        {page.icon ? (
+          <span style={{ marginRight: 6, display: 'inline-flex' }}>
+            <PageIcon icon={page.icon} size={14} />
+          </span>
+        ) : null}
         <Typography variant="body2" noWrap>
           {page.title ?? 'Новая страница'}
         </Typography>

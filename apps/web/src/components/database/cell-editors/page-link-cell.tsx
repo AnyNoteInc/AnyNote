@@ -14,6 +14,7 @@ import {
 } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
+import { PageIcon } from '@/components/page/page-icon'
 
 import { useCellUpdate, useDatabaseWorkspaceId } from './use-optimistic-cell'
 
@@ -69,7 +70,11 @@ export function PageLinkCell({ pageId, rowId, propertyId, value, editable = true
         component={Link}
         href={`/pages/${selectedId}`}
         clickable
-        icon={<span style={{ fontSize: 14, marginLeft: 6 }}>{selected?.icon ?? '📄'}</span>}
+        icon={
+          <span style={{ marginLeft: 6, display: 'inline-flex' }}>
+            <PageIcon icon={selected?.icon} size={14} fallback="📄" />
+          </span>
+        }
         label={chipLabel}
         onClick={(e) => e.stopPropagation()}
       />
@@ -86,7 +91,11 @@ export function PageLinkCell({ pageId, rowId, propertyId, value, editable = true
           component={Link}
           href={`/pages/${selectedId}`}
           clickable
-          icon={<span style={{ fontSize: 14, marginLeft: 6 }}>{selected?.icon ?? '📄'}</span>}
+          icon={
+          <span style={{ marginLeft: 6, display: 'inline-flex' }}>
+            <PageIcon icon={selected?.icon} size={14} fallback="📄" />
+          </span>
+        }
           label={chipLabel}
           onDelete={() => pick(null)}
           deleteIcon={<CloseIcon />}
@@ -138,8 +147,8 @@ export function PageLinkCell({ pageId, rowId, propertyId, value, editable = true
         ) : (
           filtered.map((p) => (
             <MenuItem key={p.id} onClick={() => pick(p.id)} dense selected={p.id === selectedId}>
-              <Box component="span" sx={{ mr: 1, fontSize: 14 }}>
-                {p.icon ?? '📄'}
+              <Box component="span" sx={{ mr: 1, display: 'inline-flex' }}>
+                <PageIcon icon={p.icon} size={14} fallback="📄" />
               </Box>
               <ListItemText primary={p.title || 'Без названия'} />
             </MenuItem>

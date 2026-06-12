@@ -18,6 +18,7 @@ import {
   Typography,
 } from '@repo/ui/components'
 
+import { PageIcon } from '@/components/page/page-icon'
 import { ShareDialog } from '@/components/page/share-dialog'
 import { trpc } from '@/trpc/client'
 
@@ -86,7 +87,7 @@ export function WorkspacePublicPagesSection({ workspaceId }: Props) {
               <TableRow key={row.shareId}>
                 <TableCell>
                   <Stack direction="row" spacing={1} alignItems="center">
-                    <span>{row.icon ?? '📄'}</span>
+                    <PageIcon icon={row.icon} size={16} fallback="📄" />
                     <Typography variant="body2" noWrap>
                       {row.title ?? 'Без названия'}
                     </Typography>

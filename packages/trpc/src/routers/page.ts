@@ -30,6 +30,8 @@ export const pageRouter = router({
         ownership: true,
         title: true,
         icon: true,
+        coverUrl: true,
+        coverPreset: true,
         content: true,
         contentYjs: true,
         collectionId: true,

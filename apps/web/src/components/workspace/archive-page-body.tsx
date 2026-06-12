@@ -3,6 +3,7 @@
 import { Box, IconButton, RestoreIcon, Stack, Tooltip, Typography } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
+import { PageIcon } from '@/components/page/page-icon'
 
 export function ArchivePageBody({ workspaceId }: { workspaceId: string }) {
   const utils = trpc.useUtils()
@@ -39,7 +40,7 @@ export function ArchivePageBody({ workspaceId }: { workspaceId: string }) {
               '&:hover': { bgcolor: 'action.hover' },
             }}
           >
-            <span style={{ fontSize: 16 }}>{page.icon ?? '📄'}</span>
+            <PageIcon icon={page.icon} size={16} fallback="📄" />
             <Box sx={{ flex: 1, minWidth: 0 }}>
               <Typography variant="body2" noWrap>
                 {page.title ?? 'Без названия'}

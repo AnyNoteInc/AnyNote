@@ -5,6 +5,8 @@ import Link from 'next/link'
 
 import { ArticleIcon, Box, List, ListItemButton, ListItemText, Typography } from '@repo/ui/components'
 
+import { PageIcon } from '@/components/page/page-icon'
+
 export type ShareTreeNode = {
   id: string
   title: string | null
@@ -87,8 +89,15 @@ export function PublicShareTreeNav({ shareId, rootId, rootTitle, rootIcon, nodes
           selected={isActive(rootHref)}
           sx={{ pl: 2, borderRadius: 1, mx: 0.5 }}
         >
-          <Box component="span" sx={{ mr: 1, width: 18, textAlign: 'center' }}>
-            {rootIcon || <ArticleIcon sx={{ fontSize: 16, color: 'text.secondary' }} />}
+          <Box
+            component="span"
+            sx={{ mr: 1, width: 18, display: 'inline-flex', justifyContent: 'center' }}
+          >
+            {rootIcon ? (
+              <PageIcon icon={rootIcon} size={16} />
+            ) : (
+              <ArticleIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+            )}
           </Box>
           <ListItemText
             primary={rootTitle || 'Без названия'}
@@ -105,8 +114,15 @@ export function PublicShareTreeNav({ shareId, rootId, rootTitle, rootIcon, nodes
               selected={isActive(href)}
               sx={{ pl: 2 + node.depth * 1.5, borderRadius: 1, mx: 0.5 }}
             >
-              <Box component="span" sx={{ mr: 1, width: 18, textAlign: 'center' }}>
-                {node.icon || <ArticleIcon sx={{ fontSize: 16, color: 'text.secondary' }} />}
+              <Box
+                component="span"
+                sx={{ mr: 1, width: 18, display: 'inline-flex', justifyContent: 'center' }}
+              >
+                {node.icon ? (
+                  <PageIcon icon={node.icon} size={16} />
+                ) : (
+                  <ArticleIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
+                )}
               </Box>
               <ListItemText
                 primary={node.title || 'Без названия'}

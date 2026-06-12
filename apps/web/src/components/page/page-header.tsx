@@ -9,15 +9,18 @@ import {
   AddIcon,
   Box,
   Button,
-  EmojiIconButton,
-  EmojiPicker,
-  Popover,
+  IconButton,
   Stack,
   TextField,
   Typography,
 } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
+
+import { CoverBand } from './cover-band'
+import { CoverPicker } from './cover-picker'
+import { IconPickerPopover } from './icon-picker-popover'
+import { PageIcon } from './page-icon'
 
 // Matches the scalar select used by page.listByWorkspace on the server. Kept
 // local because pulling the tRPC router output type is exactly what triggered
@@ -34,20 +37,52 @@ type WorkspacePageListItem = {
 
 const UNTITLED_PLACEHOLDER = 'Новая страница'
 
+const ghostButtonSx = {
+  color: 'text.secondary',
+  textTransform: 'none',
+  opacity: 0,
+  transition: 'opacity .15s',
+  '&:focus-visible': { opacity: 1 },
+} as const
+
+const coverActionSx = {
+  textTransform: 'none',
+  bgcolor: 'background.paper',
+  color: 'text.secondary',
+  boxShadow: 1,
+  px: 1,
+  py: 0.25,
+  minWidth: 0,
+  fontSize: 12,
+  '&:hover': { bgcolor: 'background.paper', color: 'text.primary' },
+} as const
+
 type Props = {
   id: string
   workspaceId: string
   initialTitle: string | null
   initialIcon: string | null
+  initialCoverUrl?: string | null
+  initialCoverPreset?: string | null
 }
 
-export function PageHeader({ id, workspaceId, initialTitle, initialIcon }: Props) {
+export function PageHeader({
+  id,
+  workspaceId,
+  initialTitle,
+  initialIcon,
+  initialCoverUrl = null,
+  initialCoverPreset = null,
+}: Props) {
   const query = trpc.page.getById.useQuery({ id }, { staleTime: 0 })
   // Use the query result directly when loaded (data can be null for icon after
   // removal). Only fall back to SSR initialIcon/Title while the query is still
   // pending. `?? initialIcon` was a bug — it treated null as "not loaded".
   const title = query.data ? query.data.title : initialTitle
   const icon = query.data ? query.data.icon : initialIcon
+  const coverUrl = query.data ? query.data.coverUrl : initialCoverUrl
+  const coverPreset = query.data ? query.data.coverPreset : initialCoverPreset
+  const hasCover = Boolean(coverUrl || coverPreset)
 
   const queryClient = useQueryClient()
   const update = trpc.page.update.useMutation({
@@ -60,9 +95,15 @@ export function PageHeader({ id, workspaceId, initialTitle, initialIcon }: Props
     // (DecoratedProcedureUtilsRecord × Prisma v7 output types) exceeds TS's
     // recursion limit for the Page router — see TS2589. Routing through
     // TanStack Query directly uses a flat <TData> generic and type-checks fine.
-    onSuccess: (updated) => {
+    onSuccess: (updated, variables) => {
       const pageByIdKey = getQueryKey(trpc.page.getById, { id }, 'query')
       const currentPage = queryClient.getQueryData<Page>(pageByIdKey)
+      // The mutation result carries no cover fields (RenameResultDto), so the
+      // cover patch reads the INPUT. Cover mutations below always send BOTH
+      // fields explicitly (mirroring the server's mutual exclusion), so the
+      // pair below is the enforced final state, not a guess.
+      const coverChanged =
+        variables.coverUrl !== undefined || variables.coverPreset !== undefined
       if (currentPage) {
         // updatedAt is intentionally not written here: tRPC's default JSON
         // transport serialises Date → string, but Page's type says Date.
@@ -72,6 +113,9 @@ export function PageHeader({ id, workspaceId, initialTitle, initialIcon }: Props
           ...currentPage,
           title: updated.title,
           icon: updated.icon,
+          ...(coverChanged
+            ? { coverUrl: variables.coverUrl ?? null, coverPreset: variables.coverPreset ?? null }
+            : {}),
         })
       }
       const pageListKey = getQueryKey(trpc.page.listByWorkspace, { workspaceId }, 'query')
@@ -89,7 +133,8 @@ export function PageHeader({ id, workspaceId, initialTitle, initialIcon }: Props
 
   const [editing, setEditing] = useState(false)
   const [draft, setDraft] = useState('')
-  const [addIconAnchor, setAddIconAnchor] = useState<HTMLElement | null>(null)
+  const [iconAnchor, setIconAnchor] = useState<HTMLElement | null>(null)
+  const [coverAnchor, setCoverAnchor] = useState<HTMLElement | null>(null)
   const inputRef = useRef<HTMLInputElement | null>(null)
 
   useEffect(() => {
@@ -109,54 +154,84 @@ export function PageHeader({ id, workspaceId, initialTitle, initialIcon }: Props
     if (next !== current) update.mutate({ id, workspaceId, title: next })
   }
 
-  const openAddIcon = (event: MouseEvent<HTMLButtonElement>) =>
-    setAddIconAnchor(event.currentTarget)
-  const closeAddIcon = () => setAddIconAnchor(null)
+  const openIconPicker = (event: MouseEvent<HTMLElement>) => setIconAnchor(event.currentTarget)
+  const openCoverPicker = (event: MouseEvent<HTMLElement>) => setCoverAnchor(event.currentTarget)
 
   return (
-    <Stack spacing={0.5} sx={{ '&:hover .page-header__add-icon': { opacity: 1 } }}>
-      {!icon ? (
-        <Box sx={{ height: 28 }}>
-          <Button
-            className="page-header__add-icon"
-            size="small"
-            onClick={openAddIcon}
-            startIcon={<AddIcon fontSize="small" />}
-            sx={{
-              color: 'text.secondary',
-              textTransform: 'none',
-              opacity: 0,
-              transition: 'opacity .15s',
-              '&:focus-visible': { opacity: 1 },
-            }}
-          >
-            Добавить иконку
-          </Button>
-          <Popover
-            open={Boolean(addIconAnchor)}
-            anchorEl={addIconAnchor}
-            onClose={closeAddIcon}
-            anchorOrigin={{ vertical: 'bottom', horizontal: 'left' }}
-          >
-            <EmojiPicker
-              onSelect={(emoji) => {
-                closeAddIcon()
-                update.mutate({ id, workspaceId, icon: emoji })
-              }}
-            />
-          </Popover>
+    <Stack spacing={0.5} sx={{ '&:hover .page-header__add-action': { opacity: 1 } }}>
+      {hasCover ? (
+        <CoverBand
+          coverUrl={coverUrl}
+          coverPreset={coverPreset}
+          actions={
+            <>
+              <Button
+                size="small"
+                data-testid="page-cover-change"
+                onClick={openCoverPicker}
+                sx={coverActionSx}
+              >
+                Сменить обложку
+              </Button>
+              <Button
+                size="small"
+                data-testid="page-cover-remove"
+                onClick={() => update.mutate({ id, workspaceId, coverUrl: null, coverPreset: null })}
+                sx={coverActionSx}
+              >
+                Убрать обложку
+              </Button>
+            </>
+          }
+        />
+      ) : null}
+      {!icon || !hasCover ? (
+        <Box sx={{ height: 28, display: 'flex', gap: 0.5 }}>
+          {!icon ? (
+            <Button
+              className="page-header__add-action"
+              size="small"
+              data-testid="page-icon-add"
+              onClick={openIconPicker}
+              startIcon={<AddIcon fontSize="small" />}
+              sx={ghostButtonSx}
+            >
+              Добавить иконку
+            </Button>
+          ) : null}
+          {!hasCover ? (
+            <Button
+              className="page-header__add-action"
+              size="small"
+              data-testid="page-cover-add"
+              onClick={openCoverPicker}
+              startIcon={<AddIcon fontSize="small" />}
+              sx={ghostButtonSx}
+            >
+              Добавить обложку
+            </Button>
+          ) : null}
         </Box>
       ) : null}
       <Stack direction="row" spacing={1} alignItems="center">
         {icon ? (
-          <EmojiIconButton
-            value={icon}
-            onChange={(emoji) => update.mutate({ id, workspaceId, icon: emoji })}
-            onRemove={() => update.mutate({ id, workspaceId, icon: null })}
+          <IconButton
             aria-label="Изменить иконку"
-            sx={{ width: 56, height: 56, p: 0.5, borderRadius: 1 }}
-            emojiSize={44}
-          />
+            onClick={openIconPicker}
+            sx={{
+              width: 56,
+              height: 56,
+              p: 0.5,
+              borderRadius: 1,
+              flexShrink: 0,
+              // Notion-style: the icon overlaps the cover's bottom edge.
+              ...(hasCover
+                ? { alignSelf: 'flex-start', mt: '-36px', position: 'relative', zIndex: 1 }
+                : {}),
+            }}
+          >
+            <PageIcon icon={icon} size={44} />
+          </IconButton>
         ) : null}
         {editing ? (
           <TextField
@@ -208,6 +283,22 @@ export function PageHeader({ id, workspaceId, initialTitle, initialIcon }: Props
           </Typography>
         )}
       </Stack>
+      <IconPickerPopover
+        anchorEl={iconAnchor}
+        open={Boolean(iconAnchor)}
+        onClose={() => setIconAnchor(null)}
+        onSelect={(value) => update.mutate({ id, workspaceId, icon: value })}
+        onRemove={icon ? () => update.mutate({ id, workspaceId, icon: null }) : undefined}
+      />
+      <CoverPicker
+        anchorEl={coverAnchor}
+        open={Boolean(coverAnchor)}
+        onClose={() => setCoverAnchor(null)}
+        onSelectPreset={(key) =>
+          update.mutate({ id, workspaceId, coverPreset: key, coverUrl: null })
+        }
+        onSelectUrl={(url) => update.mutate({ id, workspaceId, coverUrl: url, coverPreset: null })}
+      />
     </Stack>
   )
 }

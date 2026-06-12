@@ -3,6 +3,9 @@ import { randomUUID } from 'node:crypto'
 import { Box, Button, PublicIcon, Stack, Typography } from '@repo/ui/components'
 
 import type { ShareAccessResult } from '@/lib/share-access'
+import { CoverBand } from '@/components/page/cover-band'
+import { PageIcon } from '@/components/page/page-icon'
+import { pageColumnSx } from '@/components/page/column-sx'
 import { PageCommentsProvider } from '@/components/page/comments/comments-context'
 import { CommentToggleButton } from '@/components/page/comments/comment-toggle-button'
 import { CommentsSidebar } from '@/components/page/comments/comments-sidebar'
@@ -51,6 +54,12 @@ export function SharePageView({
   const contentYjs = page.contentYjs ? Buffer.from(page.contentYjs).toString('base64') : null
   const isSite = share.mode === 'SITE'
 
+  // Mirrors the /pages/[pageId] route's full-bleed dispatch: only TEXT pages
+  // get the reading-column chrome (and so the cover band); canvas/board types
+  // own their full viewport.
+  const isFullBleed = page.type !== 'TEXT'
+  const hasCover = Boolean(page.coverUrl || page.coverPreset)
+
   // The currently-viewed page may be the share root or a published subpage; the
   // copy button (when the share allows copying) saves THIS page/subtree.
   const isRoot = !tree.rootId || page.id === tree.rootId
@@ -95,7 +104,7 @@ export function SharePageView({
             spacing={1}
             sx={{ px: 3, py: 1.5, borderBottom: 1, borderColor: 'divider' }}
           >
-            {page.icon ? <span>{page.icon}</span> : null}
+            {page.icon ? <PageIcon icon={page.icon} size={18} /> : null}
             <Typography variant="subtitle1" sx={{ flex: 1 }} noWrap>
               {page.title || 'Без названия'}
             </Typography>
@@ -124,6 +133,11 @@ export function SharePageView({
               </Button>
             )}
           </Stack>
+          {!isFullBleed && hasCover ? (
+            <Box sx={{ ...pageColumnSx, pt: 2, flexShrink: 0 }}>
+              <CoverBand coverUrl={page.coverUrl} coverPreset={page.coverPreset} />
+            </Box>
+          ) : null}
           <Box className="share-page-content" sx={{ flex: 1, minHeight: 0, minWidth: 0 }}>
             <SharePageClient
               shareId={shareId}

@@ -5,6 +5,8 @@ import NextLink from 'next/link'
 
 import { Box, Button, Stack, Tab, Tabs, Typography } from '@repo/ui/components'
 
+import { PageIcon } from '@/components/page/page-icon'
+
 type CollectionPage = {
   id: string
   title: string | null
@@ -48,7 +50,7 @@ function PageList({ pages, emptyHint }: { pages: CollectionPage[]; emptyHint: st
             '&:hover': { bgcolor: 'action.hover' },
           }}
         >
-          <span style={{ fontSize: 16 }}>{page.icon ?? '📄'}</span>
+          <PageIcon icon={page.icon} size={16} fallback="📄" />
           <Typography variant="body2" noWrap sx={{ flex: 1, minWidth: 0 }}>
             {page.title ?? 'Без названия'}
           </Typography>

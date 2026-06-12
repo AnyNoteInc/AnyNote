@@ -13,6 +13,8 @@ export type SharePage = {
   type: PageType
   title: string | null
   icon: string | null
+  coverUrl: string | null
+  coverPreset: string | null
   contentYjs: Uint8Array | Buffer | null
   workspaceId: string
   createdById: string | null
@@ -39,6 +41,11 @@ const sharePageSelect = {
   type: true,
   title: true,
   icon: true,
+  // Page appearance (Phase 9A): covers/icons render for anonymous visitors —
+  // every share render path (member/grant fast-paths AND the public re-load)
+  // flows through this select.
+  coverUrl: true,
+  coverPreset: true,
   contentYjs: true,
   workspaceId: true,
   createdById: true,

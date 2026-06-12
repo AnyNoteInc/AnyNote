@@ -26,6 +26,7 @@ import {
 } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
+import { PageIcon } from '@/components/page/page-icon'
 
 import { HighlightMatches } from './highlight-matches'
 import { useSearchDialogEscapeGuard } from './use-search-dialog-escape-guard'
@@ -147,9 +148,7 @@ export function SearchDialog({
           >
             <ListItemIcon sx={{ minWidth: 28, pt: 0.5 }}>
               {item.icon ? (
-                <Typography component="span" sx={{ fontSize: 16, lineHeight: 1 }}>
-                  {item.icon}
-                </Typography>
+                <PageIcon icon={item.icon} size={16} />
               ) : (
                 <DescriptionIcon sx={{ fontSize: 16, color: 'text.secondary' }} />
               )}

@@ -6,6 +6,7 @@ import { usePathname } from 'next/navigation'
 import { Box, GroupIcon, Stack, Typography } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
+import { PageIcon } from '@/components/page/page-icon'
 
 type GrantedPage = { id: string; title: string | null; icon: string | null; role: string }
 
@@ -33,7 +34,9 @@ function GuestPageRow({ page }: { page: GrantedPage }) {
       }}
     >
       {page.icon ? (
-        <span style={{ fontSize: 14, marginRight: 8, flexShrink: 0 }}>{page.icon}</span>
+        <span style={{ marginRight: 8, flexShrink: 0, display: 'inline-flex' }}>
+          <PageIcon icon={page.icon} size={14} />
+        </span>
       ) : null}
       <span
         style={{

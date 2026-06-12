@@ -25,6 +25,7 @@ import {
   Typography,
 } from '@repo/ui/components'
 import { trpc } from '@/trpc/client'
+import { PageIcon } from '@/components/page/page-icon'
 import { PageContextMenu } from './page-context-menu'
 import { MovePageDialog } from './move-page-dialog'
 import type { PageItem } from './types'
@@ -100,7 +101,9 @@ function FavRowVisual({
         }}
       >
         {page.icon ? (
-          <span style={{ fontSize: 14, marginRight: 8, flexShrink: 0 }}>{page.icon}</span>
+          <span style={{ marginRight: 8, flexShrink: 0, display: 'inline-flex' }}>
+            <PageIcon icon={page.icon} size={14} />
+          </span>
         ) : null}
         <span
           style={{
@@ -291,7 +294,13 @@ export function FavoritesSection({ workspaceId, allPages: initialPages, favorite
                     color: 'text.secondary',
                   }}
                 >
-                  {activeItem.icon ? `${activeItem.icon} ` : ''}
+                  {activeItem.icon ? (
+                    <span
+                      style={{ marginRight: 6, display: 'inline-flex', verticalAlign: 'middle' }}
+                    >
+                      <PageIcon icon={activeItem.icon} size={14} />
+                    </span>
+                  ) : null}
                   {activeItem.title ?? 'Новая страница'}
                 </Box>
               ) : null}

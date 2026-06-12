@@ -59,6 +59,8 @@ export default async function PageRoute({ params }: { params: Promise<{ pageId: 
             workspaceId={page.workspaceId}
             initialTitle={page.title}
             initialIcon={page.icon}
+            initialCoverUrl={page.coverUrl}
+            initialCoverPreset={page.coverPreset}
           />
         </Box>
       )}
