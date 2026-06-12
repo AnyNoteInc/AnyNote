@@ -9,6 +9,10 @@ import { DomainError } from '../../shared/errors.ts'
  */
 export type DomainVerificationStatus = 'PENDING' | 'VERIFIED' | 'EXPIRED'
 
+/** Prisma's `AuthProviderType` / `AuthProviderStatus` enums as string unions (same precedent). */
+export type AuthProviderType = 'OIDC' | 'OAUTH' | 'SAML_RESERVED'
+export type AuthProviderStatus = 'ACTIVE' | 'DISABLED'
+
 // ── audit catalog (spec §2) ───────────────────────────────────────────────────
 
 /**
@@ -52,6 +56,8 @@ export const IDENTITY_ERROR_CODES = {
   SEAT_LIMIT_REACHED: 'SEAT_LIMIT_REACHED',
   USER_BLOCKED: 'USER_BLOCKED',
   FEATURE_RESERVED: 'FEATURE_RESERVED',
+  PROVIDER_NOT_FOUND: 'PROVIDER_NOT_FOUND',
+  INVALID_PROVIDER_CONFIG: 'INVALID_PROVIDER_CONFIG',
 } as const
 
 export type IdentityErrorCode = keyof typeof IDENTITY_ERROR_CODES
@@ -77,6 +83,11 @@ const IDENTITY_ERROR_DEFS: Record<IdentityErrorCode, { httpStatus: number; messa
   FEATURE_RESERVED: {
     httpStatus: 403,
     message: 'Функция готовится — оставьте заявку на ранний доступ',
+  },
+  PROVIDER_NOT_FOUND: { httpStatus: 404, message: 'Провайдер входа не найден' },
+  INVALID_PROVIDER_CONFIG: {
+    httpStatus: 400,
+    message: 'Укажите название, issuer URL (https), client ID и секрет провайдера',
   },
 }
 
@@ -224,6 +235,149 @@ export interface JoinViaDomainResult {
   role: RoleType
   /** True when the user already held a seat (double-join or joined via another path). */
   alreadyMember: boolean
+}
+
+// ── auth providers (spec §3) ──────────────────────────────────────────────────
+
+/**
+ * Secret-free read shape for `WorkspaceAuthProvider`. The encrypted client
+ * secret is stripped at the DOMAIN level — no list/get/mutation result ever
+ * carries `clientSecretEnc`; callers only see the `hasClientSecret` presence
+ * flag (spec §7 invariant 3).
+ */
+export interface AuthProviderDto {
+  id: string
+  workspaceId: string
+  type: AuthProviderType
+  name: string
+  status: AuthProviderStatus
+  domainId: string | null
+  issuerUrl: string | null
+  clientId: string | null
+  /** Presence flag only — the encrypted payload itself never leaves the domain. */
+  hasClientSecret: boolean
+  /** The `@better-auth/sso` registration key; set while ACTIVE, cleared on disable. */
+  ssoProviderId: string | null
+  createdById: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface CreateProviderInput {
+  workspaceId: string
+  actorId: string
+  type: AuthProviderType
+  name: string
+  /** OIDC/OAUTH: required, https only. Ignored (stored null) for SAML_RESERVED. */
+  issuerUrl?: string
+  /** OIDC/OAUTH: required. Ignored for SAML_RESERVED. */
+  clientId?: string
+  /**
+   * The AES-encrypted client secret as an OPAQUE Json payload. The ROUTER
+   * encrypts (the ai-provider precedent — encryption lives at the tRPC layer;
+   * the domain cannot depend on `@repo/auth`); the domain stores and never
+   * decrypts, returns, or logs it. Required for OIDC/OAUTH; ignored for
+   * SAML_RESERVED.
+   */
+  clientSecretEnc?: unknown
+}
+
+export interface UpdateProviderInput {
+  workspaceId: string
+  actorId: string
+  providerId: string
+  name?: string
+  issuerUrl?: string
+  clientId?: string
+  /** Omitted/undefined = keep the stored secret (write-only field semantics). */
+  clientSecretEnc?: unknown
+}
+
+export interface ProviderActionInput {
+  workspaceId: string
+  actorId: string
+  providerId: string
+}
+
+export interface ActivateProviderInput extends ProviderActionInput {
+  /** Must point at a VERIFIED `VerifiedEmailDomain` of the SAME workspace. */
+  domainId: string
+}
+
+// ── SSO port (consumed by the Task 5 router wiring) ──────────────────────────
+
+/**
+ * Everything the port needs to (re)build the `@better-auth/sso` plugin row —
+ * EXCEPT the client secret. The plaintext secret never transits through the
+ * domain: the ROUTER constructs the port instance per call as a closure over
+ * the decrypted secret (`decryptSecret(clientSecretEnc)` or the fresh input),
+ * the discovery fetch, and its own Prisma access to `sso_providers`. The
+ * domain only sequences validate → port call → persist → audit.
+ */
+export interface SsoRegistrationData {
+  /** Our `WorkspaceAuthProvider.id` — the stable source-of-truth key. */
+  providerId: string
+  workspaceId: string
+  name: string
+  issuerUrl: string
+  clientId: string
+  /** The VERIFIED email domain (lowercase) the provider is bound to. */
+  domain: string
+  /** The activating OWNER — becomes the plugin row's registrant `userId`. */
+  actorId: string
+}
+
+/**
+ * Injected adapter around the `@better-auth/sso` plugin contract (see
+ * `packages/auth/src/sso.md`): direct `sso_providers` table writes with a
+ * FULLY HYDRATED `oidcConfig` (the register/update implementations fetch
+ * `<issuer>/.well-known/openid-configuration` server-side). Implemented in
+ * the tRPC layer (Task 5); the domain treats every method as fallible infra —
+ * a thrown error aborts the surrounding flow with domain state unchanged.
+ */
+export interface IdentitySsoPort {
+  register(data: SsoRegistrationData): Promise<{ ssoProviderId: string }>
+  update(ssoProviderId: string, data: SsoRegistrationData): Promise<void>
+  unregister(ssoProviderId: string): Promise<void>
+}
+
+// ── enterprise requests (spec §7 invariant 6 — honest, audit-only) ───────────
+
+export const ENTERPRISE_FEATURES = ['SAML', 'SCIM', 'MANAGED_USERS'] as const
+export type EnterpriseFeature = (typeof ENTERPRISE_FEATURES)[number]
+
+export interface RequestEnterpriseFeatureInput {
+  workspaceId: string
+  actorId: string
+  feature: EnterpriseFeature
+}
+
+/** Returned for the ROUTER to notify the workspace owner — the domain emits nothing. */
+export interface RequestEnterpriseFeatureResult {
+  workspaceId: string
+  actorId: string
+  feature: EnterpriseFeature
+  requestedAt: Date
+}
+
+// ── external identity links (Task 6's SSO-callback consumer) ─────────────────
+
+export interface LinkExternalIdentityInput {
+  /** Our `WorkspaceAuthProvider.id` (NOT the plugin's ssoProviderId). */
+  providerId: string
+  userId: string
+  /** The OIDC `sub` claim. */
+  externalSubject: string
+  email?: string
+}
+
+export interface ExternalIdentityLinkDto {
+  id: string
+  providerId: string
+  userId: string
+  externalSubject: string
+  email: string | null
+  linkedAt: Date
 }
 
 // ── audit writer ──────────────────────────────────────────────────────────────

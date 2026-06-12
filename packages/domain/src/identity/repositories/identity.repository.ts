@@ -1,7 +1,12 @@
-import type { RoleType } from '@repo/db'
+import type { Prisma, RoleType } from '@repo/db'
 
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
-import type { DomainVerificationStatus, IdentityAuditEntry } from '../dto/identity.dto.ts'
+import type {
+  AuthProviderStatus,
+  AuthProviderType,
+  DomainVerificationStatus,
+  IdentityAuditEntry,
+} from '../dto/identity.dto.ts'
 
 export interface AllowedDomainRow {
   id: string
@@ -9,6 +14,36 @@ export interface AllowedDomainRow {
   domain: string
   addedById: string
   createdAt: Date
+}
+
+/**
+ * Full `WorkspaceAuthProvider` row INCLUDING the opaque encrypted secret —
+ * internal to the identity module; the service maps it to the secret-free
+ * `AuthProviderDto` before anything leaves the domain.
+ */
+export interface AuthProviderRow {
+  id: string
+  workspaceId: string
+  type: AuthProviderType
+  name: string
+  status: AuthProviderStatus
+  domainId: string | null
+  issuerUrl: string | null
+  clientId: string | null
+  clientSecretEnc: unknown
+  ssoProviderId: string | null
+  createdById: string
+  createdAt: Date
+  updatedAt: Date
+}
+
+export interface IdentityLinkRow {
+  id: string
+  providerId: string
+  userId: string
+  externalSubject: string
+  email: string | null
+  linkedAt: Date
 }
 
 export interface VerifiedDomainRow {
@@ -183,22 +218,136 @@ export class IdentityRepository {
     })
   }
 
-  // ── auth providers (the domain-removal disable arm; lifecycle lives in Task 4) ─
+  // ── auth providers ──────────────────────────────────────────────────────────
 
   async listActiveProvidersBoundToDomain(
     domainId: string,
-  ): Promise<Array<{ id: string; name: string }>> {
+  ): Promise<Array<{ id: string; name: string; ssoProviderId: string | null }>> {
     return this.uow.client().workspaceAuthProvider.findMany({
       where: { domainId, status: 'ACTIVE' },
-      select: { id: true, name: true },
+      select: { id: true, name: true, ssoProviderId: true },
       orderBy: { createdAt: 'asc' },
     })
   }
 
-  async disableProvider(id: string): Promise<void> {
-    await this.uow.client().workspaceAuthProvider.update({
+  /** Disabling always drops the sso registration key — the plugin row is gone. */
+  async disableProvider(id: string): Promise<AuthProviderRow> {
+    return this.uow.client().workspaceAuthProvider.update({
       where: { id },
-      data: { status: 'DISABLED' },
+      data: { status: 'DISABLED', ssoProviderId: null },
     })
+  }
+
+  async findProviderById(workspaceId: string, id: string): Promise<AuthProviderRow | null> {
+    return this.uow.client().workspaceAuthProvider.findFirst({ where: { id, workspaceId } })
+  }
+
+  /** Unscoped lookup — the SSO-callback consumer has no workspace context. */
+  async findProviderByIdGlobal(id: string): Promise<AuthProviderRow | null> {
+    return this.uow.client().workspaceAuthProvider.findUnique({ where: { id } })
+  }
+
+  async createProvider(data: {
+    workspaceId: string
+    type: AuthProviderType
+    name: string
+    issuerUrl: string | null
+    clientId: string | null
+    clientSecretEnc: unknown
+    createdById: string
+  }): Promise<AuthProviderRow> {
+    return this.uow.client().workspaceAuthProvider.create({
+      data: {
+        workspaceId: data.workspaceId,
+        type: data.type,
+        name: data.name,
+        status: 'DISABLED',
+        issuerUrl: data.issuerUrl,
+        clientId: data.clientId,
+        // opaque Json payload produced by the router (or absent)
+        clientSecretEnc: (data.clientSecretEnc ?? undefined) as Prisma.InputJsonValue | undefined,
+        createdById: data.createdById,
+      },
+    })
+  }
+
+  async updateProvider(
+    id: string,
+    data: Partial<{
+      name: string
+      issuerUrl: string | null
+      clientId: string | null
+      clientSecretEnc: unknown
+      status: AuthProviderStatus
+      domainId: string | null
+      ssoProviderId: string | null
+    }>,
+  ): Promise<AuthProviderRow> {
+    const { clientSecretEnc, ...rest } = data
+    return this.uow.client().workspaceAuthProvider.update({
+      where: { id },
+      data: {
+        ...rest,
+        ...('clientSecretEnc' in data
+          ? { clientSecretEnc: clientSecretEnc as Prisma.InputJsonValue }
+          : {}),
+      },
+    })
+  }
+
+  async deleteProvider(id: string): Promise<void> {
+    await this.uow.client().workspaceAuthProvider.delete({ where: { id } })
+  }
+
+  async listProviders(workspaceId: string): Promise<AuthProviderRow[]> {
+    return this.uow.client().workspaceAuthProvider.findMany({
+      where: { workspaceId },
+      orderBy: { createdAt: 'asc' },
+    })
+  }
+
+  /**
+   * The sign-in resolution arm: an ACTIVE, registered provider bound to a
+   * VERIFIED domain row matching the (lowercased) email domain. Deterministic
+   * pick (oldest first) when several workspaces verified the same domain.
+   */
+  async findActiveSsoProviderForDomain(domain: string): Promise<{ ssoProviderId: string } | null> {
+    const row = await this.uow.client().workspaceAuthProvider.findFirst({
+      where: {
+        status: 'ACTIVE',
+        ssoProviderId: { not: null },
+        domain: { domain, status: 'VERIFIED' },
+      },
+      select: { ssoProviderId: true },
+      orderBy: { createdAt: 'asc' },
+    })
+    return row?.ssoProviderId ? { ssoProviderId: row.ssoProviderId } : null
+  }
+
+  // ── external identity links ─────────────────────────────────────────────────
+
+  async findIdentityLink(
+    providerId: string,
+    externalSubject: string,
+  ): Promise<IdentityLinkRow | null> {
+    return this.uow.client().externalIdentityLink.findUnique({
+      where: { providerId_externalSubject: { providerId, externalSubject } },
+    })
+  }
+
+  async createIdentityLink(data: {
+    providerId: string
+    userId: string
+    externalSubject: string
+    email: string | null
+  }): Promise<IdentityLinkRow> {
+    return this.uow.client().externalIdentityLink.create({ data })
+  }
+
+  async updateIdentityLink(
+    id: string,
+    data: { userId: string; email: string | null },
+  ): Promise<IdentityLinkRow> {
+    return this.uow.client().externalIdentityLink.update({ where: { id }, data })
   }
 }

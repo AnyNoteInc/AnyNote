@@ -18,22 +18,35 @@ import {
   normalizeDomain,
 } from '../dto/identity.dto.ts'
 import type {
+  ActivateProviderInput,
   AddAllowedDomainInput,
   AllowedDomainDto,
+  AuthProviderDto,
+  CreateProviderInput,
   DomainJoinableWorkspace,
+  ExternalIdentityLinkDto,
   IdentityAuditEntry,
+  IdentitySsoPort,
   JoinViaDomainInput,
   JoinViaDomainResult,
+  LinkExternalIdentityInput,
+  ProviderActionInput,
   RemoveAllowedDomainInput,
   RemoveVerifiedDomainResult,
+  RequestEnterpriseFeatureInput,
+  RequestEnterpriseFeatureResult,
   ResolveTxtFn,
+  SsoRegistrationData,
   StartDomainVerificationInput,
+  UpdateProviderInput,
   VerifiedDomainActionInput,
   VerifiedDomainDto,
 } from '../dto/identity.dto.ts'
 import { generateVerificationToken } from '../verification-token.ts'
 import type {
   AllowedDomainRow,
+  AuthProviderRow,
+  IdentityLinkRow,
   IdentityRepository,
   VerifiedDomainRow,
 } from '../repositories/identity.repository.ts'
@@ -56,6 +69,40 @@ function toAllowedDto(row: AllowedDomainRow): AllowedDomainDto {
     domain: row.domain,
     addedById: row.addedById,
     createdAt: row.createdAt,
+  }
+}
+
+/**
+ * The single chokepoint where a provider row becomes externally visible —
+ * `clientSecretEnc` is reduced to a presence flag here, so NO read shape of
+ * the domain can ever carry the encrypted payload (spec §7 invariant 3).
+ */
+function toProviderDto(row: AuthProviderRow): AuthProviderDto {
+  return {
+    id: row.id,
+    workspaceId: row.workspaceId,
+    type: row.type,
+    name: row.name,
+    status: row.status,
+    domainId: row.domainId,
+    issuerUrl: row.issuerUrl,
+    clientId: row.clientId,
+    hasClientSecret: row.clientSecretEnc !== null && row.clientSecretEnc !== undefined,
+    ssoProviderId: row.ssoProviderId,
+    createdById: row.createdById,
+    createdAt: row.createdAt,
+    updatedAt: row.updatedAt,
+  }
+}
+
+function toLinkDto(row: IdentityLinkRow): ExternalIdentityLinkDto {
+  return {
+    id: row.id,
+    providerId: row.providerId,
+    userId: row.userId,
+    externalSubject: row.externalSubject,
+    email: row.email,
+    linkedAt: row.linkedAt,
   }
 }
 
@@ -313,9 +360,17 @@ export class IdentityService {
    * Removes the verification row and, in the SAME tx, disables every ACTIVE
    * provider bound to it — audited per provider plus the removal itself
    * (spec §3 «audit both»). The FK SetNull then detaches the disabled rows.
+   *
+   * Registered providers are deregistered from `@better-auth/sso` in lock-step
+   * (spec §7 invariant 2 — a disabled provider must not leave a live plugin
+   * row): the `port.unregister` call runs inside the tx (it is a single fast
+   * plugin-row delete, see sso.md), so a port failure rolls everything back
+   * with state unchanged. Callers MUST pass the port when a bound provider may
+   * hold a registration; the guard below makes a missing port loud.
    */
   async removeVerifiedDomain(
     input: VerifiedDomainActionInput,
+    port?: IdentitySsoPort,
   ): Promise<RemoveVerifiedDomainResult> {
     const row = await this.repo.findVerifiedDomainById(input.workspaceId, input.domainId)
     if (!row) throw identityError('DOMAIN_NOT_FOUND')
@@ -323,6 +378,14 @@ export class IdentityService {
     return this.uow.transaction(async () => {
       const providers = await this.repo.listActiveProvidersBoundToDomain(row.id)
       for (const provider of providers) {
+        if (provider.ssoProviderId) {
+          if (!port) {
+            throw new Error(
+              'removeVerifiedDomain: a bound ACTIVE provider holds an sso registration — an IdentitySsoPort is required',
+            )
+          }
+          await port.unregister(provider.ssoProviderId)
+        }
         await this.repo.disableProvider(provider.id)
         await this.repo.writeAudit({
           workspaceId: input.workspaceId,
@@ -436,7 +499,363 @@ export class IdentityService {
     return { workspaceId, role, alreadyMember: true }
   }
 
+  // ── auth providers (spec §3) ─────────────────────────────────────────────────
+
+  /**
+   * Providers are born DISABLED. OIDC/OAUTH require the full connection
+   * (name, https issuer, client id, encrypted secret) up front so activation
+   * never finds half a config; SAML_RESERVED honestly stores the NAME ONLY —
+   * any connection fields are dropped, and activation is refused for good
+   * (`FEATURE_RESERVED`, spec §7 invariant 6).
+   */
+  async createProvider(input: CreateProviderInput): Promise<AuthProviderDto> {
+    const config = this.validateProviderConfig(input.type, input)
+    return this.uow.transaction(async () => {
+      const row = await this.repo.createProvider({
+        workspaceId: input.workspaceId,
+        type: input.type,
+        name: config.name,
+        issuerUrl: config.issuerUrl,
+        clientId: config.clientId,
+        clientSecretEnc: config.clientSecretEnc,
+        createdById: input.actorId,
+      })
+      await this.repo.writeAudit({
+        workspaceId: input.workspaceId,
+        actorId: input.actorId,
+        action: IDENTITY_AUDIT_ACTIONS.providerCreated,
+        metadata: { providerId: row.id, name: row.name, type: row.type },
+      })
+      return toProviderDto(row)
+    })
+  }
+
+  /**
+   * Partial update; an omitted `clientSecretEnc` keeps the stored secret
+   * (write-only field semantics). The MERGED config is re-validated per type.
+   * An ACTIVE registered provider syncs its plugin row through `port.update`
+   * BEFORE persisting — a port failure aborts with state unchanged (lock-step,
+   * sso.md).
+   */
+  async updateProvider(
+    input: UpdateProviderInput,
+    port: IdentitySsoPort,
+  ): Promise<AuthProviderDto> {
+    const row = await this.findProviderOrThrow(input.workspaceId, input.providerId)
+    const secretRotated = input.clientSecretEnc !== undefined
+    const config = this.validateProviderConfig(row.type, {
+      name: input.name ?? row.name,
+      issuerUrl: input.issuerUrl ?? row.issuerUrl ?? undefined,
+      clientId: input.clientId ?? row.clientId ?? undefined,
+      clientSecretEnc: secretRotated ? input.clientSecretEnc : (row.clientSecretEnc ?? undefined),
+    })
+
+    if (row.status === 'ACTIVE' && row.ssoProviderId) {
+      await port.update(
+        row.ssoProviderId,
+        await this.ssoRegistrationData(row, config, row.domainId, input.actorId),
+      )
+    }
+
+    return this.uow.transaction(async () => {
+      const saved = await this.repo.updateProvider(row.id, {
+        name: config.name,
+        issuerUrl: config.issuerUrl,
+        clientId: config.clientId,
+        ...(secretRotated ? { clientSecretEnc: config.clientSecretEnc } : {}),
+      })
+      await this.repo.writeAudit({
+        workspaceId: input.workspaceId,
+        actorId: input.actorId,
+        action: IDENTITY_AUDIT_ACTIONS.providerUpdated,
+        metadata: { providerId: row.id, name: saved.name, secretRotated },
+      })
+      return toProviderDto(saved)
+    })
+  }
+
+  /**
+   * The verified-domain gate (spec §7 invariant 2): `domainId` must point at a
+   * VERIFIED `VerifiedEmailDomain` of the SAME workspace — missing, unverified,
+   * and foreign rows all fail uniformly with `DOMAIN_NOT_VERIFIED`. On success
+   * the sequence is validate → port.register (first activation) or port.update
+   * (re-bind, keeps the registration id stable) → persist ACTIVE+ssoProviderId
+   * → audit. The port call runs BEFORE the tx (it does discovery-fetch I/O); a
+   * port failure leaves the provider untouched.
+   */
+  async activateProvider(
+    input: ActivateProviderInput,
+    port: IdentitySsoPort,
+  ): Promise<AuthProviderDto> {
+    const row = await this.findProviderOrThrow(input.workspaceId, input.providerId)
+    if (row.type === 'SAML_RESERVED') throw identityError('FEATURE_RESERVED')
+    const config = this.validateProviderConfig(row.type, {
+      name: row.name,
+      issuerUrl: row.issuerUrl ?? undefined,
+      clientId: row.clientId ?? undefined,
+      clientSecretEnc: row.clientSecretEnc ?? undefined,
+    })
+    const data = await this.ssoRegistrationData(row, config, input.domainId, input.actorId)
+
+    let ssoProviderId = row.ssoProviderId
+    if (ssoProviderId) await port.update(ssoProviderId, data)
+    else ssoProviderId = (await port.register(data)).ssoProviderId
+
+    return this.uow.transaction(async () => {
+      const saved = await this.repo.updateProvider(row.id, {
+        status: 'ACTIVE',
+        domainId: input.domainId,
+        ssoProviderId,
+      })
+      await this.repo.writeAudit({
+        workspaceId: input.workspaceId,
+        actorId: input.actorId,
+        action: IDENTITY_AUDIT_ACTIONS.providerActivated,
+        metadata: { providerId: row.id, name: row.name, domain: data.domain },
+      })
+      return toProviderDto(saved)
+    })
+  }
+
+  /**
+   * Deregisters the plugin row first (port failure ⇒ throw, state unchanged),
+   * then flips to DISABLED and clears `ssoProviderId`. Idempotent: an already
+   * fully-disabled provider is a silent no-op (no port traffic, no audit).
+   */
+  async disableProvider(
+    input: ProviderActionInput,
+    port: IdentitySsoPort,
+  ): Promise<AuthProviderDto> {
+    const row = await this.findProviderOrThrow(input.workspaceId, input.providerId)
+    if (row.status === 'DISABLED' && !row.ssoProviderId) return toProviderDto(row)
+
+    if (row.ssoProviderId) await port.unregister(row.ssoProviderId)
+
+    return this.uow.transaction(async () => {
+      const saved = await this.repo.disableProvider(row.id)
+      await this.repo.writeAudit({
+        workspaceId: input.workspaceId,
+        actorId: input.actorId,
+        action: IDENTITY_AUDIT_ACTIONS.providerDisabled,
+        metadata: { providerId: row.id, name: row.name, reason: 'manual' },
+      })
+      return toProviderDto(saved)
+    })
+  }
+
+  /**
+   * Auto-unregister-then-delete in one flow: a live registration is removed
+   * from the plugin first and a port failure aborts the deletion entirely
+   * (spec §7 invariant 3 — provider deletion deregisters from better-auth).
+   * Identity links cascade with the row.
+   */
+  async deleteProvider(input: ProviderActionInput, port: IdentitySsoPort): Promise<{ id: string }> {
+    const row = await this.findProviderOrThrow(input.workspaceId, input.providerId)
+
+    if (row.ssoProviderId) await port.unregister(row.ssoProviderId)
+
+    await this.uow.transaction(async () => {
+      await this.repo.deleteProvider(row.id)
+      await this.repo.writeAudit({
+        workspaceId: input.workspaceId,
+        actorId: input.actorId,
+        action: IDENTITY_AUDIT_ACTIONS.providerDeleted,
+        metadata: { providerId: row.id, name: row.name, type: row.type },
+      })
+    })
+    return { id: row.id }
+  }
+
+  async listProviders(workspaceId: string): Promise<AuthProviderDto[]> {
+    const rows = await this.repo.listProviders(workspaceId)
+    return rows.map(toProviderDto)
+  }
+
+  async getProvider(workspaceId: string, providerId: string): Promise<AuthProviderDto> {
+    return toProviderDto(await this.findProviderOrThrow(workspaceId, providerId))
+  }
+
+  // ── SSO resolution (spec §3) ─────────────────────────────────────────────────
+
+  /**
+   * Email domain → VERIFIED `VerifiedEmailDomain` → ACTIVE registered provider
+   * ⇒ `{ssoProviderId}`. EVERY other case — malformed email, unknown domain,
+   * unverified domain, disabled provider, missing registration — returns the
+   * SAME `null` (spec §7 invariant 5: no oracle about which workspaces exist).
+   */
+  async resolveSsoProviderForEmail(email: string): Promise<{ ssoProviderId: string } | null> {
+    const domain = emailDomainOf(email)
+    if (!domain) return null
+    return this.repo.findActiveSsoProviderForDomain(domain)
+  }
+
+  // ── enterprise requests (spec §3, honest — audit only) ──────────────────────
+
+  /**
+   * No fake connector: the request is an audit row plus a return payload the
+   * ROUTER uses to notify the workspace owner (the domain emits nothing per
+   * the architecture).
+   */
+  async requestEnterpriseFeature(
+    input: RequestEnterpriseFeatureInput,
+  ): Promise<RequestEnterpriseFeatureResult> {
+    const requestedAt = new Date()
+    await this.uow.transaction(async () => {
+      await this.repo.writeAudit({
+        workspaceId: input.workspaceId,
+        actorId: input.actorId,
+        action: IDENTITY_AUDIT_ACTIONS.enterpriseRequested,
+        metadata: { feature: input.feature },
+      })
+    })
+    return {
+      workspaceId: input.workspaceId,
+      actorId: input.actorId,
+      feature: input.feature,
+      requestedAt,
+    }
+  }
+
+  // ── external identity links (Task 6's SSO-callback consumer) ─────────────────
+
+  /**
+   * Upsert on (providerId, externalSubject). The FIRST link of a subject (or a
+   * re-point to a different user) audits `sso.identity_linked`; re-linking the
+   * same subject to the same user is a silent no-op — no duplicate audit.
+   */
+  async linkExternalIdentity(input: LinkExternalIdentityInput): Promise<ExternalIdentityLinkDto> {
+    const provider = await this.repo.findProviderByIdGlobal(input.providerId)
+    if (!provider) throw identityError('PROVIDER_NOT_FOUND')
+
+    const existing = await this.repo.findIdentityLink(input.providerId, input.externalSubject)
+    if (existing) return this.upsertExistingIdentityLink(provider, existing, input)
+
+    try {
+      return await this.uow.transaction(async () => {
+        const saved = await this.repo.createIdentityLink({
+          providerId: input.providerId,
+          userId: input.userId,
+          externalSubject: input.externalSubject,
+          email: input.email ?? null,
+        })
+        await this.writeIdentityLinkedAudit(provider, input)
+        return toLinkDto(saved)
+      })
+    } catch (e: unknown) {
+      if ((e as { code?: string })?.code !== 'P2002') throw e
+      // A concurrent link won the (providerId, externalSubject) unique race —
+      // converge on the upsert path.
+      const winner = await this.repo.findIdentityLink(input.providerId, input.externalSubject)
+      if (!winner) throw e
+      return this.upsertExistingIdentityLink(provider, winner, input)
+    }
+  }
+
+  /** Same user ⇒ idempotent no-op; different user ⇒ re-point + fresh audit. */
+  private async upsertExistingIdentityLink(
+    provider: AuthProviderRow,
+    existing: IdentityLinkRow,
+    input: LinkExternalIdentityInput,
+  ): Promise<ExternalIdentityLinkDto> {
+    if (existing.userId === input.userId) return toLinkDto(existing)
+    return this.uow.transaction(async () => {
+      const saved = await this.repo.updateIdentityLink(existing.id, {
+        userId: input.userId,
+        email: input.email ?? null,
+      })
+      await this.writeIdentityLinkedAudit(provider, input)
+      return toLinkDto(saved)
+    })
+  }
+
+  private async writeIdentityLinkedAudit(
+    provider: AuthProviderRow,
+    input: LinkExternalIdentityInput,
+  ): Promise<void> {
+    await this.repo.writeAudit({
+      workspaceId: provider.workspaceId,
+      actorId: input.userId,
+      action: IDENTITY_AUDIT_ACTIONS.identityLinked,
+      targetUserId: input.userId,
+      targetEmail: input.email,
+      metadata: { providerId: provider.id, externalSubject: input.externalSubject },
+    })
+  }
+
   // ── internals ────────────────────────────────────────────────────────────────
+
+  private async findProviderOrThrow(
+    workspaceId: string,
+    providerId: string,
+  ): Promise<AuthProviderRow> {
+    const row = await this.repo.findProviderById(workspaceId, providerId)
+    if (!row) throw identityError('PROVIDER_NOT_FOUND')
+    return row
+  }
+
+  /**
+   * Per-type config validation returning the normalized persistable shape.
+   * OIDC/OAUTH: name + https issuer + client id + encrypted secret, all
+   * required. SAML_RESERVED: name only — connection fields are DROPPED (the
+   * type can never activate, storing half a config would only mislead).
+   */
+  private validateProviderConfig(
+    type: CreateProviderInput['type'],
+    raw: { name: string; issuerUrl?: string; clientId?: string; clientSecretEnc?: unknown },
+  ): { name: string; issuerUrl: string | null; clientId: string | null; clientSecretEnc: unknown } {
+    const name = raw.name.trim()
+    if (name.length === 0 || name.length > 100) throw identityError('INVALID_PROVIDER_CONFIG')
+    if (type === 'SAML_RESERVED') {
+      return { name, issuerUrl: null, clientId: null, clientSecretEnc: null }
+    }
+
+    const issuerUrl = raw.issuerUrl?.trim() ?? ''
+    let parsed: URL
+    try {
+      parsed = new URL(issuerUrl)
+    } catch {
+      throw identityError('INVALID_PROVIDER_CONFIG')
+    }
+    if (parsed.protocol !== 'https:' || issuerUrl.length > 500) {
+      throw identityError('INVALID_PROVIDER_CONFIG')
+    }
+    const clientId = raw.clientId?.trim() ?? ''
+    if (clientId.length === 0 || clientId.length > 255) {
+      throw identityError('INVALID_PROVIDER_CONFIG')
+    }
+    if (raw.clientSecretEnc === undefined || raw.clientSecretEnc === null) {
+      throw identityError('INVALID_PROVIDER_CONFIG')
+    }
+    return { name, issuerUrl, clientId, clientSecretEnc: raw.clientSecretEnc }
+  }
+
+  /**
+   * Builds the secret-free payload for the SSO port. The domain binding is
+   * re-resolved through the SAME gate as activation: a missing or unverified
+   * row fails with `DOMAIN_NOT_VERIFIED` (uniformly — foreign-workspace rows
+   * are invisible to the workspace-scoped lookup).
+   */
+  private async ssoRegistrationData(
+    row: AuthProviderRow,
+    config: { name: string; issuerUrl: string | null; clientId: string | null },
+    domainId: string | null,
+    actorId: string,
+  ): Promise<SsoRegistrationData> {
+    const domainRow = domainId
+      ? await this.repo.findVerifiedDomainById(row.workspaceId, domainId)
+      : null
+    if (!domainRow || domainRow.status !== 'VERIFIED') throw identityError('DOMAIN_NOT_VERIFIED')
+    return {
+      providerId: row.id,
+      workspaceId: row.workspaceId,
+      name: config.name,
+      // both are non-null after validateProviderConfig for activatable types
+      issuerUrl: config.issuerUrl ?? '',
+      clientId: config.clientId ?? '',
+      domain: domainRow.domain,
+      actorId,
+    }
+  }
 
   private normalizeDomainOrThrow(raw: string): string {
     const domain = normalizeDomain(raw)
