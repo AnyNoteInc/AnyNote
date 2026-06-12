@@ -144,6 +144,14 @@ export interface InvitePreview {
   planSlug: string
   isPaid: boolean
   periodEnd: Date | null
+  /** `currentMembers ≥ maxMembers` — the members UI's «докупите место» CTA switch (8D). */
+  atCapacity: boolean
+  /**
+   * The owner's CURRENT-period price per extra seat, when one is purchasable
+   * (plan price > 0 AND the owner's subscription is strictly ACTIVE — the
+   * seats module's `canPurchase` parity). Null otherwise.
+   */
+  seatPriceKopecks: number | null
 }
 
 // ── invite link ───────────────────────────────────────────────────────────────

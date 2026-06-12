@@ -4,6 +4,8 @@ import { TRPCError } from '@trpc/server'
 import { YookassaApiError } from '@repo/yookassa'
 import { router, protectedProcedure } from '../trpc'
 import { getActivePlanForUser, getPlanDisplayName } from '../helpers/plan'
+import { mapDomain } from '../helpers/map-domain'
+import { domain as domainSvc } from '../domain'
 import { syncOrderFromProvider } from '../services/billing'
 
 function shouldSavePaymentMethod(): boolean {
@@ -18,6 +20,37 @@ export const subscriptionRouter = router({
     // the whole batch. Stringify at the boundary (same as workspace.usage).
     const wirePlan = { ...plan, maxFileBytes: plan.maxFileBytes.toString() }
     return { subscription: { ...subscription, plan: wirePlan }, plan: wirePlan }
+  }),
+
+  /**
+   * The user's own next-renewal breakdown for the billing page's «Следующее
+   * списание: тариф N ₽ + места M ₽» line (8D spec §6). Null without an ACTIVE
+   * subscription — nothing renews. Seat rows price the value the renewal will
+   * apply (scheduled ?? paid), the same math `renewOne` charges.
+   */
+  nextChargePreview: protectedProcedure.query(async ({ ctx }) => {
+    const sub = await ctx.prisma.subscription.findFirst({
+      where: { userId: ctx.user.id, status: 'ACTIVE' },
+      orderBy: { createdAt: 'desc' },
+      select: {
+        billingPeriod: true,
+        currentPeriodEnd: true,
+        plan: { select: { priceMonthlyKopecks: true, priceYearlyKopecks: true } },
+      },
+    })
+    if (!sub) return null
+    const tierKopecks =
+      sub.billingPeriod === 'MONTHLY' ? sub.plan.priceMonthlyKopecks : sub.plan.priceYearlyKopecks
+    const charge = await mapDomain(() =>
+      domainSvc.seats.computeOwnerSeatCharge(ctx.user.id, sub.billingPeriod),
+    )
+    return {
+      tierKopecks,
+      seatRows: charge.perWorkspace,
+      totalSeatKopecks: charge.totalSeatKopecks,
+      totalKopecks: tierKopecks + charge.totalSeatKopecks,
+      periodEnd: sub.currentPeriodEnd,
+    }
   }),
 
   listHistory: protectedProcedure.query(async ({ ctx }) => {

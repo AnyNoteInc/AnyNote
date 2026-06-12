@@ -58,6 +58,18 @@ function newShareId(): string {
   return randomBytes(32).toString('hex')
 }
 
+/** The invite preview's owner-subscription slice (8D spec §5). */
+export interface OwnerBillingSummaryRow {
+  status: string
+  billingPeriod: 'MONTHLY' | 'YEARLY'
+  currentPeriodEnd: Date | null
+  plan: {
+    maxMembersPerWorkspace: number
+    pricePerExtraSeatMonthlyKopecks: number
+    pricePerExtraSeatYearlyKopecks: number
+  }
+}
+
 /**
  * The member-event slice of the billable-seat ledger this module writes (8D).
  * `MEMBER_JOINED` accompanies every member-row CREATE, `MEMBER_REMOVED` every
@@ -165,19 +177,33 @@ export class PeopleRepository {
     })
   }
 
-  /** `currentPeriodEnd` of the workspace owner's latest active subscription, for the invite preview. */
-  async findOwnerPeriodEnd(workspaceId: string): Promise<Date | null> {
+  /**
+   * The workspace owner's latest active-enough subscription slice for the
+   * invite preview: the period end plus what the seat-price line needs
+   * (status + billing period + the plan's per-seat prices, 8D spec §5).
+   */
+  async findOwnerBillingSummary(workspaceId: string): Promise<OwnerBillingSummaryRow | null> {
     const workspace = await this.uow.client().workspace.findUnique({
       where: { id: workspaceId },
       select: { createdById: true },
     })
     if (!workspace?.createdById) return null
-    const subscription = await this.uow.client().subscription.findFirst({
+    return this.uow.client().subscription.findFirst({
       where: { userId: workspace.createdById, status: { in: ACTIVE_SUBSCRIPTION_STATUSES } },
       orderBy: { createdAt: 'desc' },
-      select: { currentPeriodEnd: true },
+      select: {
+        status: true,
+        billingPeriod: true,
+        currentPeriodEnd: true,
+        plan: {
+          select: {
+            maxMembersPerWorkspace: true,
+            pricePerExtraSeatMonthlyKopecks: true,
+            pricePerExtraSeatYearlyKopecks: true,
+          },
+        },
+      },
     })
-    return subscription?.currentPeriodEnd ?? null
   }
 
   // ── invitations ─────────────────────────────────────────────────────────────

@@ -55,6 +55,8 @@ import type {
 // Barrel import (domain-module-isolation-compliant); the reverse edge is
 // cycle-free because security.module deep-imports only people.tokens.ts.
 import { securityError } from '../../security/index.ts'
+// Barrel import; cycle-free — the seats module never imports people.
+import { seatPriceForPeriod } from '../../seats/index.ts'
 
 function computeState(row: { expiresAt: Date }, now: Date): InvitationState {
   return row.expiresAt > now ? 'PENDING' : 'EXPIRED'
@@ -301,20 +303,28 @@ export class PeopleService {
    * Billing-impact data for the invite form, resolved through the billing
    * chain. `maxMembers` is the CAPACITY (included limit + purchased seats) —
    * the same number the join paths enforce, so the form never under-reports.
+   * `seatPriceKopecks` mirrors the seats module's `canPurchase` gate (8D spec
+   * §5): the owner's current-period price when the plan sells seats AND the
+   * subscription is strictly ACTIVE — null means «nothing to buy».
    */
   async getInvitePreview(workspaceId: string): Promise<InvitePreview> {
-    const [features, currentMembers, limit, periodEnd] = await Promise.all([
+    const [features, currentMembers, limit, ownerSub] = await Promise.all([
       this.billing.getWorkspaceFeatures(workspaceId),
       this.repo.countMembers(workspaceId),
       this.repo.findSeatCapacity(workspaceId),
-      this.repo.findOwnerPeriodEnd(workspaceId),
+      this.repo.findOwnerBillingSummary(workspaceId),
     ])
+    const maxMembers = limit?.capacity ?? features.maxMembersPerWorkspace
+    const seatPrice =
+      ownerSub?.status === 'ACTIVE' ? seatPriceForPeriod(ownerSub.plan, ownerSub.billingPeriod) : 0
     return {
       currentMembers,
-      maxMembers: limit?.capacity ?? features.maxMembersPerWorkspace,
+      maxMembers,
       planSlug: features.slug,
       isPaid: features.isPaid,
-      periodEnd,
+      periodEnd: ownerSub?.currentPeriodEnd ?? null,
+      atCapacity: currentMembers >= maxMembers,
+      seatPriceKopecks: seatPrice > 0 ? seatPrice : null,
     }
   }
 

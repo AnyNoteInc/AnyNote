@@ -27,6 +27,7 @@ import { telegramRouter } from './routers/telegram'
 import { peopleRouter } from './routers/people'
 import { identityRouter } from './routers/identity'
 import { securityRouter } from './routers/security'
+import { billingRouter } from './routers/billing'
 
 export { createContext, createServerContext } from './trpc'
 export type { Context, JobRunnerPort } from './trpc'
@@ -71,6 +72,7 @@ export const appRouter = router({
   people: peopleRouter,
   identity: identityRouter,
   security: securityRouter,
+  billing: billingRouter,
 })
 
 export const createCaller = createCallerFactory(appRouter)

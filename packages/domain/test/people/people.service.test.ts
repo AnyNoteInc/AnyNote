@@ -853,6 +853,9 @@ describe('people service', () => {
         planSlug: PRO_PLAN_SLUG,
         isPaid: true,
         periodEnd: PERIOD_END,
+        atCapacity: false,
+        // The test plan sells no extra seats (price 0) — nothing to buy.
+        seatPriceKopecks: null,
       })
     })
 
@@ -862,6 +865,28 @@ describe('people service', () => {
       const preview = await domain.people.getInvitePreview(ws.id)
       expect(preview.currentMembers).toBe(1)
       expect(preview.maxMembers).toBe(7) // 5 included + 2 paid
+    })
+
+    it('reports atCapacity and the current-period seat price when the plan sells seats (8D)', async () => {
+      const { ws, plan } = await seed()
+      await prisma.plan.update({
+        where: { id: plan.id },
+        data: { pricePerExtraSeatMonthlyKopecks: 19000, pricePerExtraSeatYearlyKopecks: 190000 },
+      })
+      await prisma.workspaceLimit.update({
+        where: { workspaceId: ws.id },
+        data: { maxMembers: 1 }, // 1 included seat — held by the owner
+      })
+
+      const full = await domain.people.getInvitePreview(ws.id)
+      expect(full.atCapacity).toBe(true)
+      expect(full.seatPriceKopecks).toBe(19000) // the owner bills MONTHLY
+
+      // A purchased seat reopens the capacity; the price line stays.
+      await prisma.workspaceSeatAddon.create({ data: { workspaceId: ws.id, paidSeats: 1 } })
+      const reopened = await domain.people.getInvitePreview(ws.id)
+      expect(reopened.atCapacity).toBe(false)
+      expect(reopened.seatPriceKopecks).toBe(19000)
     })
 
     it('falls back to the plan member limit and the personal plan without limit row / subscription', async () => {
@@ -881,6 +906,9 @@ describe('people service', () => {
         planSlug: 'personal',
         isPaid: false,
         periodEnd: null,
+        atCapacity: personal.maxMembersPerWorkspace <= 1,
+        // No subscription ⇒ no purchasable seat, whatever the plan rows say.
+        seatPriceKopecks: null,
       })
     })
   })

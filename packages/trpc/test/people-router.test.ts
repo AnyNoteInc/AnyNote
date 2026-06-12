@@ -390,6 +390,9 @@ describe('people router', () => {
         planSlug: PRO_PLAN_SLUG,
         isPaid: true,
         periodEnd: PERIOD_END,
+        atCapacity: false,
+        // The test plan sells no extra seats (8D) — nothing to buy.
+        seatPriceKopecks: null,
       })
     })
   })
