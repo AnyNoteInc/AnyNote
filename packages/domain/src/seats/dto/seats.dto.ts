@@ -126,13 +126,22 @@ export interface ProrateSeatPurchaseInput {
  *   the purchase is refused, never billed at zero (spec §3: renew first).
  * - `now` before `periodStart` clamps `remainingMs` to the full period — a
  *   purchase never costs MORE than the full per-period price.
+ * - The numerator is computed in BigInt: at yearly scale it overflows Number
+ *   (50 × 290000 × ~3.15e10 ≈ 4.6e17 > MAX_SAFE_INTEGER ≈ 9.0e15) and float
+ *   `ceil` then mischarges by a kopeck on ms-granular periods. The RESULT is
+ *   safe to convert back: it is ≤ seats × seatPriceKopecks (clampedMs ≤
+ *   periodMs), well under MAX_SAFE_INTEGER.
  */
 export function prorateSeatPurchase(input: ProrateSeatPurchaseInput): number {
   const periodMs = input.periodEnd.getTime() - input.periodStart.getTime()
   const remainingMs = input.periodEnd.getTime() - input.now.getTime()
   if (periodMs <= 0 || remainingMs <= 0) throw seatsError('PERIOD_ENDED')
   const clampedMs = Math.min(remainingMs, periodMs)
-  return Math.max(1, Math.ceil((input.seats * input.seatPriceKopecks * clampedMs) / periodMs))
+  const numerator = BigInt(input.seats) * BigInt(input.seatPriceKopecks) * BigInt(clampedMs)
+  const denominator = BigInt(periodMs)
+  const quotient = numerator / denominator
+  const ceiled = numerator % denominator === 0n ? quotient : quotient + 1n
+  return Math.max(1, Number(ceiled))
 }
 
 // ── invoice field validation (spec §3, pure) ──────────────────────────────────
@@ -314,7 +323,7 @@ export interface SeatLedgerEntry {
   type: SeatLedgerEventType
   /** Signed where meaningful. */
   seatsDelta: number
-  /** paidSeats after the event. */
+  /** paidSeats after the event — set ONLY when paidSeats actually changes (null otherwise). */
   seatsAfter?: number
   /** Money events only. */
   amountKopecks?: number

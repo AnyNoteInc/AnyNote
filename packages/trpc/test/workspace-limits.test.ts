@@ -332,6 +332,63 @@ describe('inviteMember enforces member limit', () => {
     expect(joined[0]).toMatchObject({ actorId: owner.id })
   })
 
+  it('the capacity re-check runs INSIDE the member tx: a refused invite leaves no member row and no ledger row', async () => {
+    const owner = await makeOwner('l')
+    const pro = await prisma.plan.findUniqueOrThrow({ where: { slug: 'pro' } })
+    await prisma.subscription.create({
+      data: { userId: owner.id, planId: pro.id, status: 'ACTIVE' },
+    })
+    const caller = createCallerFactory(workspaceRouter)({
+      prisma,
+      user: { id: owner.id, email: owner.email },
+      headers: new Headers(),
+      resHeaders: new Headers(),
+      yookassa: {} as never,
+      returnUrlBase: 'http://localhost:3000',
+    })
+    const ws = await caller.create({ name: 'WS' }) // OWNER counts as 1
+    // Pre-fill to capacity (maxMembers 5): the in-tx re-read sees a FULL
+    // workspace and must refuse atomically with the upsert it guards.
+    for (let i = 0; i < 4; i++) {
+      const u = await prisma.user.create({
+        data: {
+          email: `fill${i}${EMAIL_SUFFIX}`,
+          emailVerified: true,
+          name: `Fill${i}`,
+          firstName: `Fill${i}`,
+          lastName: 'T',
+        },
+      })
+      await prisma.workspaceMember.create({
+        data: { workspaceId: ws.id, userId: u.id, role: 'EDITOR' },
+      })
+    }
+    const late = await prisma.user.create({
+      data: {
+        email: `late${EMAIL_SUFFIX}`,
+        emailVerified: true,
+        name: 'Late',
+        firstName: 'Late',
+        lastName: 'T',
+      },
+    })
+    await expect(
+      caller.inviteMember({ workspaceId: ws.id, email: late.email, role: 'EDITOR' }),
+    ).rejects.toThrow(/Достигнут лимит участников/)
+
+    // the FORBIDDEN rollback left nothing behind: no seat taken, no billing record
+    expect(
+      await prisma.workspaceMember.findUnique({
+        where: { workspaceId_userId: { workspaceId: ws.id, userId: late.id } },
+      }),
+    ).toBeNull()
+    expect(
+      await prisma.seatBillingEvent.count({
+        where: { workspaceId: ws.id, type: 'MEMBER_JOINED', targetUserId: late.id },
+      }),
+    ).toBe(0)
+  })
+
   it('allows role update for existing member even when memberCount equals maxMembers', async () => {
     const owner = await makeOwner('m')
     const pro = await prisma.plan.findUniqueOrThrow({ where: { slug: 'pro' } })

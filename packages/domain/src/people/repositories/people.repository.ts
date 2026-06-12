@@ -127,6 +127,10 @@ export class PeopleRepository {
    * workspace join. Every join path (invite accept, link join, conversion,
    * the invite-time pre-check, the preview) inherits the addon through this
    * single read. No limit row ⇒ unlimited (null).
+   *
+   * // keep in sync with src/identity/repositories/identity.repository.ts
+   * // findSeatCapacity — parity pinned by the identity-suite
+   * // "findSeatCapacity parity" test.
    */
   async findSeatCapacity(workspaceId: string): Promise<{ capacity: number } | null> {
     const limit = await this.uow.client().workspaceLimit.findUnique({

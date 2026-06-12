@@ -108,6 +108,10 @@ export class IdentityRepository {
    * `WorkspaceSeatAddon.paidSeats` (purchased, 8D spec §3) — the SAME source
    * the people module enforces, mirrored here because the identity module owns
    * its own seat read. No limit row ⇒ unlimited (null).
+   *
+   * // keep in sync with src/people/repositories/people.repository.ts
+   * // findSeatCapacity — parity pinned by the identity-suite
+   * // "findSeatCapacity parity" test.
    */
   async findSeatCapacity(workspaceId: string): Promise<{ capacity: number } | null> {
     const limit = await this.uow.client().workspaceLimit.findUnique({

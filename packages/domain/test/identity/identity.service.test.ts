@@ -642,6 +642,63 @@ describe('identity service', () => {
         { workspaceId: ws.id, name: `IdentityWS-${RUN}`, seatAvailable: true },
       ])
     })
+
+    it('agrees with the people module on the effective capacity (findSeatCapacity parity, 8D)', async () => {
+      // PeopleRepository.findSeatCapacity and IdentityRepository.findSeatCapacity
+      // are deliberate mirrors (included limit + purchased seats). ONE fixture,
+      // both modules: they must surface the same effective capacity and flip
+      // to "full" at the same boundary.
+      await prisma.plan.upsert({
+        // getInvitePreview resolves the billing chain — personal-plan fallback
+        // must exist on a fresh CI DB (the people-suite precedent).
+        where: { slug: 'personal' },
+        update: {},
+        create: { slug: 'personal', name: 'Персональный', maxWorkspaces: 1, sortOrder: 1 },
+      })
+      const { ws, owner, joiner } = await seed()
+      await domain.identity.addAllowedDomain({
+        workspaceId: ws.id,
+        actorId: owner.id,
+        domain: CORP_DOMAIN,
+      })
+      await prisma.workspaceLimit.update({
+        where: { workspaceId: ws.id },
+        data: { maxMembers: 1 }, // 1 included seat — held by the owner
+      })
+      await prisma.workspaceSeatAddon.create({ data: { workspaceId: ws.id, paidSeats: 1 } })
+
+      // the people-repo formula surfaces through the invite preview: 1 + 1 = 2
+      const preview = await domain.people.getInvitePreview(ws.id)
+      expect(preview.currentMembers).toBe(1)
+      expect(preview.maxMembers).toBe(2)
+
+      // the identity-repo formula drives the joinable preview: 1 member < 2 ⇒ open
+      expect(await domain.identity.listDomainJoinableWorkspaces(joiner.id, joiner.email)).toEqual(
+        [{ workspaceId: ws.id, name: `IdentityWS-${RUN}`, seatAvailable: true }],
+      )
+
+      // ...and the authoritative in-tx seat check admits up to exactly that capacity
+      await domain.identity.joinViaDomain({
+        workspaceId: ws.id,
+        userId: joiner.id,
+        userEmail: joiner.email,
+      })
+
+      // both modules now report FULL at the same 2-of-2 boundary
+      const fullPreview = await domain.people.getInvitePreview(ws.id)
+      expect(fullPreview.currentMembers).toBe(2)
+      expect(fullPreview.maxMembers).toBe(2)
+      const late = await makeUser('late-joiner')
+      await expectDomainError(
+        domain.identity.joinViaDomain({
+          workspaceId: ws.id,
+          userId: late.id,
+          userEmail: late.email,
+        }),
+        IDENTITY_ERROR_CODES.SEAT_LIMIT_REACHED,
+        403,
+      )
+    })
   })
 
   describe('joinViaDomain', () => {

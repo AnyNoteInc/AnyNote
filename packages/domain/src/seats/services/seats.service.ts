@@ -234,7 +234,8 @@ export class SeatsService {
         workspaceId: input.workspaceId,
         type: 'SEATS_REDUCTION_SCHEDULED',
         seatsDelta: input.targetSeats - paidSeats,
-        seatsAfter: paidSeats,
+        // NO seatsAfter: paidSeats is genuinely unchanged until the renewal
+        // applies the schedule — the target lives in metadata.targetSeats.
         actorId: input.actorId,
         metadata: { targetSeats: input.targetSeats },
       })

@@ -504,7 +504,9 @@ describe('seats service', () => {
 
       const events = await seatEvents(ws.id, 'SEATS_REDUCTION_SCHEDULED')
       expect(events).toHaveLength(1)
-      expect(events[0]).toMatchObject({ seatsDelta: -2, seatsAfter: 3, actorId: owner.id })
+      // seatsAfter means "paidSeats after the event" — a scheduled reduction
+      // changes NOTHING yet, so it is null; the target lives in metadata.
+      expect(events[0]).toMatchObject({ seatsDelta: -2, seatsAfter: null, actorId: owner.id })
       expect(events[0]?.metadata).toMatchObject({ targetSeats: 1 })
 
       expect(await auditRows(ws.id, BILLING_AUDIT_ACTIONS.seatsReductionScheduled)).toHaveLength(1)

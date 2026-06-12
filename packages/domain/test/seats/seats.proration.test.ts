@@ -140,6 +140,32 @@ const rows: Row[] = [
     seatPriceKopecks: 1,
     expected: 1,
   },
+  {
+    // 50 × 290000 × 364d-in-ms ≈ 4.56e17 — far past MAX_SAFE_INTEGER (≈9.0e15);
+    // the BigInt path must produce the hand-computed exact value:
+    // ceil(14 500 000 × 364/365) = ceil(5 278 000 000 / 365) = 14 460 274.
+    name: 'max scale: 50 seats × yearly price on day one of a 365-day period (BigInt-exact)',
+    seats: 50,
+    periodStart: YEAR_START,
+    periodEnd: YEAR_END,
+    now: '2026-01-02T00:00:00.000Z', // 364 of 365 days remaining
+    seatPriceKopecks: 290000,
+    expected: 14460274,
+  },
+  {
+    // Real subscription periods carry millisecond timestamps. Numerator
+    // 425 736 063 085 500 000 ≡ periodMs−2 (mod 31 536 000 001), so the true
+    // quotient is 13 500 001.999 999 999 94 ⇒ ceil 13 500 002. The float
+    // version loses the product's low bits (4.26e17 > 2^53) and lands just
+    // ABOVE the integer: Math.ceil gives 13 500 003 — a 1-kopeck overcharge.
+    name: 'max scale, ms-granular period: float math overcharges by 1 kopeck, BigInt is exact',
+    seats: 50,
+    periodStart: YEAR_START,
+    periodEnd: '2027-01-01T00:00:00.001Z', // 365 days + 1 ms
+    now: '2026-01-26T04:08:12.202Z', // 29 361 107 799 ms remaining
+    seatPriceKopecks: 290000,
+    expected: 13500002,
+  },
 ]
 
 describe('prorateSeatPurchase', () => {
@@ -189,6 +215,37 @@ describe('prorateSeatPurchase', () => {
         seatPriceKopecks: 19000,
       }),
     )
+  })
+
+  it('never exceeds the full per-period price: result ≤ seats × price at max scale', () => {
+    // Property sweep at the overflowing scale (50 × 290000 × yearly): whatever
+    // `now` is (ms-jittered ends included, pre-start clamp included), the
+    // prorated amount stays within [1, seats × seatPriceKopecks].
+    const seats = 50
+    const seatPriceKopecks = 290000
+    const cap = seats * seatPriceKopecks
+    const ends = [YEAR_END, '2027-01-01T00:00:00.001Z', '2026-12-31T17:42:11.337Z']
+    const nows = [
+      '2025-12-31T23:59:59.999Z', // before periodStart — clamps to the full period
+      YEAR_START,
+      '2026-01-02T00:00:00.000Z',
+      '2026-01-26T04:08:12.202Z',
+      '2026-07-15T13:13:13.131Z',
+      '2026-12-30T23:59:59.998Z',
+    ]
+    for (const periodEnd of ends) {
+      for (const now of nows) {
+        const amount = prorateSeatPurchase({
+          seats,
+          periodStart: new Date(YEAR_START),
+          periodEnd: new Date(periodEnd),
+          now: new Date(now),
+          seatPriceKopecks,
+        })
+        expect(amount).toBeGreaterThanOrEqual(1)
+        expect(amount).toBeLessThanOrEqual(cap)
+      }
+    }
   })
 
   it('refuses a degenerate period (periodEnd ≤ periodStart)', () => {

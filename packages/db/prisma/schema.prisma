@@ -2442,7 +2442,7 @@ model SeatBillingEvent {
   workspaceId   String               @map("workspace_id") @db.Uuid
   type          SeatBillingEventType
   seatsDelta    Int                  @default(0) @map("seats_delta") // signed where meaningful
-  seatsAfter    Int?                 @map("seats_after") // paidSeats after the event
+  seatsAfter    Int?                 @map("seats_after") // paidSeats after the event; set ONLY when paidSeats actually changes
   amountKopecks Int?                 @map("amount_kopecks") // money events only
   orderId       String?              @map("order_id") @db.Uuid // scalar; the YooKassa Order
   actorId       String?              @map("actor_id") @db.Uuid // null = system/cron

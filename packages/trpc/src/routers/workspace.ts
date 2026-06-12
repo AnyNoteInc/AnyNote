@@ -281,40 +281,44 @@ export const workspaceRouter = router({
         })
       }
 
-      const existingMember = await ctx.prisma.workspaceMember.findUnique({
-        where: { workspaceId_userId: { workspaceId: input.workspaceId, userId: user.id } },
-      })
-      if (!existingMember) {
-        // Capacity = included limit + purchased seats (8D) — the same formula
-        // the domain join paths enforce via PeopleRepository.findSeatCapacity.
-        const [memberCount, limits, seatAddon] = await Promise.all([
-          ctx.prisma.workspaceMember.count({ where: { workspaceId: input.workspaceId } }),
-          ctx.prisma.workspaceLimit.findUnique({ where: { workspaceId: input.workspaceId } }),
-          ctx.prisma.workspaceSeatAddon.findUnique({
-            where: { workspaceId: input.workspaceId },
-            select: { paidSeats: true },
-          }),
-        ])
-        const capacity = limits ? limits.maxMembers + (seatAddon?.paidSeats ?? 0) : null
-        if (capacity !== null && memberCount >= capacity) {
-          throw new TRPCError({
-            code: 'FORBIDDEN',
-            message: `Достигнут лимит участников (${capacity}). Повысьте тариф или удалите участников.`,
-          })
-        }
-      }
-
       const workspace = await ctx.prisma.workspace.findUniqueOrThrow({
         where: { id: input.workspaceId },
         select: { id: true, name: true },
       })
 
-      // MEMBER_JOINED lands ONLY on an actual create — the `existingMember`
-      // pre-read above (already there for the limit check) is the branch; a
-      // role update through the upsert is NOT a join and writes no ledger row
-      // (8D spec §3). The upsert + ledger share one tx so the seat row never
-      // exists without its billing record.
+      // The membership re-read, the capacity check, the upsert and the ledger
+      // all share ONE interactive tx: a concurrent join can no longer slip
+      // between a pre-check and the insert (the identity-module precedent —
+      // reads run sequentially on the tx's single connection). MEMBER_JOINED
+      // lands ONLY on an actual create — a role update through the upsert is
+      // NOT a join and writes no ledger row (8D spec §3); the upsert + ledger
+      // sharing the tx means the seat row never exists without its billing
+      // record.
       const member = await ctx.prisma.$transaction(async (tx) => {
+        const existingMember = await tx.workspaceMember.findUnique({
+          where: { workspaceId_userId: { workspaceId: input.workspaceId, userId: user.id } },
+        })
+        if (!existingMember) {
+          // Capacity = included limit + purchased seats (8D) — the same formula
+          // the domain join paths enforce via PeopleRepository.findSeatCapacity.
+          const memberCount = await tx.workspaceMember.count({
+            where: { workspaceId: input.workspaceId },
+          })
+          const limits = await tx.workspaceLimit.findUnique({
+            where: { workspaceId: input.workspaceId },
+          })
+          const seatAddon = await tx.workspaceSeatAddon.findUnique({
+            where: { workspaceId: input.workspaceId },
+            select: { paidSeats: true },
+          })
+          const capacity = limits ? limits.maxMembers + (seatAddon?.paidSeats ?? 0) : null
+          if (capacity !== null && memberCount >= capacity) {
+            throw new TRPCError({
+              code: 'FORBIDDEN',
+              message: `Достигнут лимит участников (${capacity}). Повысьте тариф или удалите участников.`,
+            })
+          }
+        }
         const row = await tx.workspaceMember.upsert({
           where: { workspaceId_userId: { workspaceId: input.workspaceId, userId: user.id } },
           create: { workspaceId: input.workspaceId, userId: user.id, role: input.role },
