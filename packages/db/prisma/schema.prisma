@@ -70,6 +70,7 @@ model User {
   telegramLinkCodes          TelegramLinkCode[]
   workspaceBlocks            WorkspaceBlockedUser[]
   ssoProviders               SsoProvider[]            @relation("SsoProviderRegisteredBy")
+  externalIdentityLinks      ExternalIdentityLink[]
 
   @@map("users")
 }
@@ -443,6 +444,9 @@ model Workspace {
   guestInvites          PageGuestInvite[]
   blockedUsers          WorkspaceBlockedUser[]
   auditLogs             WorkspaceAuditLog[]
+  allowedDomains        AllowedEmailDomain[]
+  verifiedDomains       VerifiedEmailDomain[]
+  authProviders         WorkspaceAuthProvider[]
 
   @@index([createdById])
   @@map("workspaces")
@@ -2250,4 +2254,100 @@ model WorkspaceAuditLog {
 
   @@index([workspaceId, createdAt(sort: Desc)])
   @@map("workspace_audit_logs")
+}
+
+// ── Identity governance (Phase 8B) ───────────────────────────────────────────
+
+enum DomainVerificationStatus {
+  PENDING
+  VERIFIED
+  EXPIRED
+}
+
+enum AuthProviderType {
+  OIDC
+  OAUTH
+  SAML_RESERVED
+}
+
+enum AuthProviderStatus {
+  ACTIVE
+  DISABLED
+}
+
+model AllowedEmailDomain {
+  id          String   @id @default(uuid(7)) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  domain      String   @db.VarChar(255) // lowercase, no '@'; public providers rejected at the domain layer
+  addedById   String   @map("added_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@unique([workspaceId, domain])
+  @@index([domain]) // the join-prompt lookup arm
+  @@map("allowed_email_domains")
+}
+
+model VerifiedEmailDomain {
+  id                String                   @id @default(uuid(7)) @db.Uuid
+  workspaceId       String                   @map("workspace_id") @db.Uuid
+  domain            String                   @db.VarChar(255)
+  status            DomainVerificationStatus @default(PENDING)
+  verificationToken String                   @map("verification_token") @db.VarChar(64) // NOT secret (published in public DNS); plaintext at rest
+  tokenExpiresAt    DateTime                 @map("token_expires_at") // now() + 7d; rotation regenerates
+  verifiedAt        DateTime?                @map("verified_at")
+  lastCheckedAt     DateTime?                @map("last_checked_at")
+  lastCheckError    String?                  @map("last_check_error") @db.VarChar(255)
+  addedById         String                   @map("added_by_id") @db.Uuid
+  createdAt         DateTime                 @default(now()) @map("created_at")
+  updatedAt         DateTime                 @updatedAt @map("updated_at")
+
+  workspace     Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  authProviders WorkspaceAuthProvider[]
+
+  @@unique([workspaceId, domain])
+  @@index([domain])
+  @@map("verified_email_domains")
+}
+
+model WorkspaceAuthProvider {
+  id              String             @id @default(uuid(7)) @db.Uuid
+  workspaceId     String             @map("workspace_id") @db.Uuid
+  type            AuthProviderType
+  name            String             @db.VarChar(100) // display: «Okta», «Yandex ID»…
+  status          AuthProviderStatus @default(DISABLED)
+  domainId        String?            @map("domain_id") @db.Uuid // FK VerifiedEmailDomain; REQUIRED VERIFIED to activate
+  issuerUrl       String?            @map("issuer_url") @db.VarChar(500) // OIDC discovery base
+  clientId        String?            @map("client_id") @db.VarChar(255)
+  clientSecretEnc Json?              @map("client_secret_enc") // EncryptedPayload; never returned
+  ssoProviderId   String?            @unique @map("sso_provider_id") @db.VarChar(64) // the @better-auth/sso registration id
+  metadata        Json? // future SAML metadata etc.; never secrets
+  createdById     String             @map("created_by_id") @db.Uuid
+  createdAt       DateTime           @default(now()) @map("created_at")
+  updatedAt       DateTime           @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  // SetNull on domain removal; the identity service disables bound providers in the same tx + audits.
+  domain        VerifiedEmailDomain?   @relation(fields: [domainId], references: [id], onDelete: SetNull)
+  identityLinks ExternalIdentityLink[]
+
+  @@index([workspaceId])
+  @@map("workspace_auth_providers")
+}
+
+model ExternalIdentityLink {
+  id              String   @id @default(uuid(7)) @db.Uuid
+  providerId      String   @map("provider_id") @db.Uuid
+  userId          String   @map("user_id") @db.Uuid
+  externalSubject String   @map("external_subject") @db.VarChar(255) // OIDC sub
+  email           String?  @db.VarChar(255)
+  linkedAt        DateTime @default(now()) @map("linked_at")
+
+  provider WorkspaceAuthProvider @relation(fields: [providerId], references: [id], onDelete: Cascade)
+  user     User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([providerId, externalSubject])
+  @@index([userId])
+  @@map("external_identity_links")
 }
