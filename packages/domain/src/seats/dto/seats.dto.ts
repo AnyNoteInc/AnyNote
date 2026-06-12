@@ -212,6 +212,38 @@ export interface ApplySeatPurchaseInput {
   actorId: string
 }
 
+/** `Order.metadata.kind` marking a seat-purchase order (spec §4.1). */
+export const SEAT_PURCHASE_ORDER_KIND = 'seat_purchase'
+
+/** The `Order.metadata` shape the seat-purchase producer writes and the payment-success consumer reads. */
+export interface SeatPurchaseOrderMetadata {
+  kind: typeof SEAT_PURCHASE_ORDER_KIND
+  workspaceId: string
+  seats: number
+}
+
+/**
+ * Recognise a seat-purchase order from its `Order.metadata`. Returns `null`
+ * for tier orders (no/foreign metadata). A `kind: 'seat_purchase'` order with
+ * a malformed payload THROWS — treating it as a tier order would upsert a
+ * subscription for a seat charge, and applying garbage would corrupt addons;
+ * a loud webhook failure is the only safe outcome.
+ */
+export function parseSeatPurchaseOrderMetadata(
+  metadata: unknown,
+): SeatPurchaseOrderMetadata | null {
+  if (typeof metadata !== 'object' || metadata === null) return null
+  const m = metadata as Record<string, unknown>
+  if (m.kind !== SEAT_PURCHASE_ORDER_KIND) return null
+  if (typeof m.workspaceId !== 'string' || m.workspaceId.length === 0) {
+    throw new Error('seat_purchase order metadata is missing a workspaceId')
+  }
+  if (typeof m.seats !== 'number' || !Number.isInteger(m.seats) || m.seats < 1) {
+    throw new Error('seat_purchase order metadata is missing a positive integer seats count')
+  }
+  return { kind: SEAT_PURCHASE_ORDER_KIND, workspaceId: m.workspaceId, seats: m.seats }
+}
+
 export interface ApplySeatPurchaseResult {
   /** paidSeats after the increment. */
   paidSeats: number

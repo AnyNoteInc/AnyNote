@@ -223,10 +223,10 @@ describe('billing transitions sync limits', () => {
         payment_method: undefined,
       }),
     }
-    await handlePaymentSucceeded(
-      { yookassa: fakeYookassa, prisma },
-      { id: order.yookassaPaymentId!, status: 'succeeded' } as Payment,
-    )
+    await handlePaymentSucceeded({ yookassa: fakeYookassa, prisma }, {
+      id: order.yookassaPaymentId!,
+      status: 'succeeded',
+    } as Payment)
 
     const limit = await prisma.workspaceLimit.findUniqueOrThrow({
       where: { workspaceId: ws.id },
@@ -257,15 +257,294 @@ describe('billing transitions sync limits', () => {
         yookassaPaymentId: `pay-r-${owner.id}-${Date.now()}`,
       },
     })
-    await handleRefundSucceeded(
-      { yookassa: { getPayment: async () => ({}) as Payment }, prisma },
-      { id: `refund-${owner.id}`, payment_id: order.yookassaPaymentId!, status: 'succeeded' } as Refund,
-    )
+    await handleRefundSucceeded({ yookassa: { getPayment: async () => ({}) as Payment }, prisma }, {
+      id: `refund-${owner.id}`,
+      payment_id: order.yookassaPaymentId!,
+      status: 'succeeded',
+    } as Refund)
     const limit = await prisma.workspaceLimit.findUniqueOrThrow({
       where: { workspaceId: ws.id },
     })
     expect(limit.sourcePlanSlug).toBe('personal')
     expect(limit.maxFileBytes).toBe(524_288_000n)
+  })
+})
+
+describe('handlePaymentSucceeded seat-purchase orders (8D)', () => {
+  beforeEach(cleanFixtures)
+
+  function fakeYookassaFor(paymentId: string) {
+    return {
+      getPayment: async () => ({
+        id: paymentId,
+        status: 'succeeded' as const,
+        payment_method: undefined,
+      }),
+    }
+  }
+
+  async function setupSeatOrder(ownerId: string, workspaceId: string, seats: number) {
+    const plan = await prisma.plan.findUniqueOrThrow({ where: { slug: 'pro' } })
+    return prisma.order.create({
+      data: {
+        userId: ownerId,
+        planId: plan.id,
+        billingPeriod: 'MONTHLY',
+        amountKopecks: 12_345,
+        currency: 'RUB',
+        status: 'PENDING',
+        isInitial: false,
+        metadata: { kind: 'seat_purchase', workspaceId, seats },
+        yookassaIdempotencyKey: `idem-seat-${ownerId}-${Date.now()}`,
+        yookassaPaymentId: `pay-seat-${ownerId}-${Date.now()}`,
+      },
+    })
+  }
+
+  it('flips the order PAID and applies the seats — no subscription rows, no limits sync', async () => {
+    const owner = await makeOwner('sa')
+    const ws = await makeWorkspace(owner.id)
+    await syncWorkspaceLimits(prisma, owner.id) // personal baseline stays pinned
+
+    const order = await setupSeatOrder(owner.id, ws.id, 2)
+    await handlePaymentSucceeded({ yookassa: fakeYookassaFor(order.yookassaPaymentId!), prisma }, {
+      id: order.yookassaPaymentId!,
+      status: 'succeeded',
+    } as Payment)
+
+    const paid = await prisma.order.findUniqueOrThrow({ where: { id: order.id } })
+    expect(paid.status).toBe('PAID')
+    expect(paid.paidAt).not.toBeNull()
+    expect(paid.subscriptionId).toBeNull()
+
+    const addon = await prisma.workspaceSeatAddon.findUnique({ where: { workspaceId: ws.id } })
+    expect(addon?.paidSeats).toBe(2)
+
+    const events = await prisma.seatBillingEvent.findMany({
+      where: { workspaceId: ws.id, type: 'SEATS_PURCHASED' },
+    })
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({
+      seatsDelta: 2,
+      seatsAfter: 2,
+      amountKopecks: 12_345,
+      orderId: order.id,
+      actorId: owner.id,
+    })
+    expect(
+      await prisma.workspaceAuditLog.count({
+        where: { workspaceId: ws.id, action: 'seats.purchased' },
+      }),
+    ).toBe(1)
+
+    // pinned: NO subscription upsert, NO syncWorkspaceLimits for seat orders
+    expect(await prisma.subscription.count({ where: { userId: owner.id } })).toBe(0)
+    const limit = await prisma.workspaceLimit.findUniqueOrThrow({
+      where: { workspaceId: ws.id },
+    })
+    expect(limit.sourcePlanSlug).toBe('personal')
+    expect(limit.maxMembers).toBe(1)
+  })
+
+  it('a double success callback converges: seats and ledger applied once', async () => {
+    const owner = await makeOwner('sb')
+    const ws = await makeWorkspace(owner.id)
+    const order = await setupSeatOrder(owner.id, ws.id, 3)
+    const ctx = { yookassa: fakeYookassaFor(order.yookassaPaymentId!), prisma }
+    const payment = { id: order.yookassaPaymentId!, status: 'succeeded' } as Payment
+
+    await handlePaymentSucceeded(ctx, payment)
+    await handlePaymentSucceeded(ctx, payment)
+
+    const addon = await prisma.workspaceSeatAddon.findUnique({ where: { workspaceId: ws.id } })
+    expect(addon?.paidSeats).toBe(3)
+    expect(
+      await prisma.seatBillingEvent.count({
+        where: { workspaceId: ws.id, type: 'SEATS_PURCHASED' },
+      }),
+    ).toBe(1)
+  })
+})
+
+describe('handlePaymentSucceeded tier orders vs seat addons (8D)', () => {
+  beforeEach(cleanFixtures)
+
+  function fakeYookassaFor(paymentId: string) {
+    return {
+      getPayment: async () => ({
+        id: paymentId,
+        status: 'succeeded' as const,
+        payment_method: undefined,
+      }),
+    }
+  }
+
+  it('INITIAL tier orders reset existing addons (plan_change)', async () => {
+    const owner = await makeOwner('sc')
+    const ws = await makeWorkspace(owner.id)
+    await prisma.workspaceSeatAddon.create({
+      data: { workspaceId: ws.id, paidSeats: 3, scheduledSeats: 1 },
+    })
+    const plan = await prisma.plan.findUniqueOrThrow({ where: { slug: 'pro' } })
+    const order = await prisma.order.create({
+      data: {
+        userId: owner.id,
+        planId: plan.id,
+        billingPeriod: 'MONTHLY',
+        amountKopecks: plan.priceMonthlyKopecks,
+        currency: 'RUB',
+        status: 'PENDING',
+        isInitial: true,
+        yookassaIdempotencyKey: `idem-init-${owner.id}-${Date.now()}`,
+        yookassaPaymentId: `pay-init-${owner.id}-${Date.now()}`,
+      },
+    })
+
+    await handlePaymentSucceeded({ yookassa: fakeYookassaFor(order.yookassaPaymentId!), prisma }, {
+      id: order.yookassaPaymentId!,
+      status: 'succeeded',
+    } as Payment)
+
+    const sub = await prisma.subscription.findFirstOrThrow({ where: { userId: owner.id } })
+    expect(sub.status).toBe('ACTIVE')
+
+    const addon = await prisma.workspaceSeatAddon.findUniqueOrThrow({
+      where: { workspaceId: ws.id },
+    })
+    expect(addon.paidSeats).toBe(0)
+    expect(addon.scheduledSeats).toBeNull()
+
+    const resets = await prisma.seatBillingEvent.findMany({
+      where: { workspaceId: ws.id, type: 'ADDONS_RESET' },
+    })
+    expect(resets).toHaveLength(1)
+    expect(resets[0]?.metadata).toMatchObject({ reason: 'plan_change' })
+    expect(
+      await prisma.workspaceAuditLog.count({
+        where: { workspaceId: ws.id, action: 'seats.addons_reset' },
+      }),
+    ).toBe(1)
+  })
+
+  async function setupRenewalFixture(label: string) {
+    const owner = await makeOwner(label)
+    const ws = await makeWorkspace(owner.id)
+    await prisma.workspaceMember.create({
+      data: { workspaceId: ws.id, userId: owner.id, role: 'OWNER' },
+    })
+    const plan = await prisma.plan.findUniqueOrThrow({ where: { slug: 'pro' } })
+    const periodStart = new Date(Date.now() - 30 * 24 * 3600 * 1000)
+    const periodEnd = new Date(Date.now() - 3600 * 1000)
+    const sub = await prisma.subscription.create({
+      data: {
+        userId: owner.id,
+        planId: plan.id,
+        status: 'ACTIVE',
+        billingPeriod: 'MONTHLY',
+        currentPeriodStart: periodStart,
+        currentPeriodEnd: periodEnd,
+      },
+    })
+    const order = await prisma.order.create({
+      data: {
+        userId: owner.id,
+        planId: plan.id,
+        subscriptionId: sub.id,
+        billingPeriod: 'MONTHLY',
+        amountKopecks: plan.priceMonthlyKopecks + plan.pricePerExtraSeatMonthlyKopecks,
+        currency: 'RUB',
+        status: 'PENDING',
+        isInitial: false,
+        savedPaymentMethod: true,
+        yookassaIdempotencyKey: `idem-rnw-${owner.id}-${Date.now()}`,
+        yookassaPaymentId: `pay-rnw-${owner.id}-${Date.now()}`,
+      },
+    })
+    return { owner, ws, plan, sub, order, periodEnd }
+  }
+
+  it('a pending RENEWAL completing via webhook rolls the period AND applies scheduled seats exactly once', async () => {
+    const { ws, plan, sub, order, periodEnd } = await setupRenewalFixture('sd')
+    await prisma.workspaceSeatAddon.create({
+      data: { workspaceId: ws.id, paidSeats: 2, scheduledSeats: 1 },
+    })
+
+    const ctx = { yookassa: fakeYookassaFor(order.yookassaPaymentId!), prisma }
+    const payment = { id: order.yookassaPaymentId!, status: 'succeeded' } as Payment
+    await handlePaymentSucceeded(ctx, payment)
+
+    const rolled = await prisma.subscription.findUniqueOrThrow({ where: { id: sub.id } })
+    expect(rolled.currentPeriodEnd!.getTime()).toBeGreaterThan(periodEnd.getTime())
+
+    const addon = await prisma.workspaceSeatAddon.findUniqueOrThrow({
+      where: { workspaceId: ws.id },
+    })
+    expect(addon.paidSeats).toBe(1)
+    expect(addon.scheduledSeats).toBeNull()
+
+    const snapshots = await prisma.workspaceSeatSnapshot.findMany({
+      where: { workspaceId: ws.id },
+    })
+    expect(snapshots).toHaveLength(1)
+    expect(snapshots[0]).toMatchObject({
+      orderId: order.id,
+      subscriptionId: sub.id,
+      memberCount: 1,
+      includedSeats: plan.maxMembersPerWorkspace,
+      extraSeats: 1,
+      seatAmountKopecks: plan.pricePerExtraSeatMonthlyKopecks,
+    })
+
+    const renewed = await prisma.seatBillingEvent.findMany({
+      where: { workspaceId: ws.id, type: 'SEATS_RENEWED' },
+    })
+    expect(renewed).toHaveLength(1)
+    expect(renewed[0]).toMatchObject({
+      seatsDelta: -1,
+      seatsAfter: 1,
+      amountKopecks: plan.pricePerExtraSeatMonthlyKopecks,
+      orderId: order.id,
+      actorId: null,
+    })
+    expect(
+      await prisma.workspaceAuditLog.count({
+        where: { workspaceId: ws.id, action: 'seats.renewal_applied' },
+      }),
+    ).toBe(1)
+
+    // pinned: non-initial orders never reset addons
+    expect(
+      await prisma.seatBillingEvent.count({
+        where: { workspaceId: ws.id, type: 'ADDONS_RESET' },
+      }),
+    ).toBe(0)
+
+    // double callback converges: nothing applied twice
+    await handlePaymentSucceeded(ctx, payment)
+    expect(await prisma.workspaceSeatSnapshot.count({ where: { workspaceId: ws.id } })).toBe(1)
+    expect(
+      await prisma.seatBillingEvent.count({
+        where: { workspaceId: ws.id, type: 'SEATS_RENEWED' },
+      }),
+    ).toBe(1)
+    expect(
+      (await prisma.workspaceSeatAddon.findUniqueOrThrow({ where: { workspaceId: ws.id } }))
+        .paidSeats,
+    ).toBe(1)
+  })
+
+  it('a renewal completing without addons writes no seat records (flat-price regression)', async () => {
+    const { ws, sub, order, periodEnd } = await setupRenewalFixture('se')
+
+    await handlePaymentSucceeded({ yookassa: fakeYookassaFor(order.yookassaPaymentId!), prisma }, {
+      id: order.yookassaPaymentId!,
+      status: 'succeeded',
+    } as Payment)
+
+    const rolled = await prisma.subscription.findUniqueOrThrow({ where: { id: sub.id } })
+    expect(rolled.currentPeriodEnd!.getTime()).toBeGreaterThan(periodEnd.getTime())
+    expect(await prisma.workspaceSeatSnapshot.count({ where: { workspaceId: ws.id } })).toBe(0)
+    expect(await prisma.seatBillingEvent.count({ where: { workspaceId: ws.id } })).toBe(0)
   })
 })
 

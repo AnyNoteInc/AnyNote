@@ -28,17 +28,13 @@ import type {
   SeatReductionState,
   SeatUsage,
 } from '../dto/seats.dto.ts'
-import type {
-  InvoiceRequestRow,
-  SeatPlanRow,
-  SeatsRepository,
-} from '../repositories/seats.repository.ts'
-
-function pickSeatPrice(plan: SeatPlanRow, billingPeriod: SeatBillingPeriod): number {
-  return billingPeriod === 'YEARLY'
-    ? plan.pricePerExtraSeatYearlyKopecks
-    : plan.pricePerExtraSeatMonthlyKopecks
-}
+import type { InvoiceRequestRow, SeatsRepository } from '../repositories/seats.repository.ts'
+import {
+  applySeatPurchaseTx,
+  computeOwnerSeatChargeTx,
+  resetAddonsForOwnerTx,
+  seatPriceForPeriod,
+} from '../seats.tx.ts'
 
 function toInvoiceRequestDto(row: InvoiceRequestRow): InvoiceRequestDto {
   return {
@@ -100,7 +96,7 @@ export class SeatsService {
     // count is only the no-limit-row fallback.
     const includedSeats = limit?.maxMembers ?? plan.maxMembersPerWorkspace
     const billingPeriod = sub?.billingPeriod ?? 'MONTHLY'
-    const currentKopecks = pickSeatPrice(plan, billingPeriod)
+    const currentKopecks = seatPriceForPeriod(plan, billingPeriod)
     const seatPrice: SeatPriceInfo | null =
       currentKopecks > 0
         ? {
@@ -140,7 +136,7 @@ export class SeatsService {
     }
 
     const sub = await this.repo.findActiveSubscriptionWithPlan(input.actorId)
-    const seatPriceKopecks = sub ? pickSeatPrice(sub.plan, sub.billingPeriod) : 0
+    const seatPriceKopecks = sub ? seatPriceForPeriod(sub.plan, sub.billingPeriod) : 0
     // canPurchase parity (spec §3): price > 0 AND status strictly ACTIVE —
     // TRIAL/PAST_DUE owners must settle the tier first.
     if (!sub || sub.status !== 'ACTIVE' || seatPriceKopecks <= 0) {
@@ -173,7 +169,9 @@ export class SeatsService {
 
   /**
    * Settle a PAID seat-purchase order: addon += seats, SEATS_PURCHASED ledger
-   * row, audit — one transaction.
+   * row, audit — one transaction (delegates to `applySeatPurchaseTx`, the
+   * single home of the write — the trpc payment-success path composes the same
+   * function into its own order-flip tx).
    *
    * DELIBERATELY NOT idempotent at this layer: the CALLER's order-status guard
    * is the idempotency boundary (the `handlePaymentSucceeded` precedent flips
@@ -181,30 +179,7 @@ export class SeatsService {
    * Calling it twice for one order would double the seats AND the ledger.
    */
   async applySeatPurchase(input: ApplySeatPurchaseInput): Promise<ApplySeatPurchaseResult> {
-    return this.uow.transaction(async () => {
-      const paidSeats = await this.repo.incrementPaidSeats(input.workspaceId, input.seats)
-      await this.repo.writeSeatEvent({
-        workspaceId: input.workspaceId,
-        type: 'SEATS_PURCHASED',
-        seatsDelta: input.seats,
-        seatsAfter: paidSeats,
-        amountKopecks: input.amountKopecks,
-        orderId: input.orderId,
-        actorId: input.actorId,
-      })
-      await this.repo.writeAudit({
-        workspaceId: input.workspaceId,
-        actorId: input.actorId,
-        action: BILLING_AUDIT_ACTIONS.seatsPurchased,
-        metadata: {
-          seats: input.seats,
-          seatsAfter: paidSeats,
-          amountKopecks: input.amountKopecks,
-          orderId: input.orderId,
-        },
-      })
-      return { paidSeats }
-    })
+    return this.uow.transaction(async () => applySeatPurchaseTx(this.uow.client(), input))
   }
 
   // ── reduction (spec §3/§7.4/§7.5) ────────────────────────────────────────────
@@ -287,88 +262,32 @@ export class SeatsService {
   /**
    * The renewal amount input: effective (scheduled ?? paid) seats across ALL
    * the owner's workspaces, priced per the given billing period. READ-ONLY —
-   * the cron applies + charges atomically per renewal.
+   * the cron applies + charges atomically per renewal. Delegates to
+   * `computeOwnerSeatChargeTx` (shared with the engines renewal cron).
    */
   async computeOwnerSeatCharge(
     userId: string,
     billingPeriod: SeatBillingPeriod,
   ): Promise<OwnerSeatCharge> {
-    const workspaces = await this.repo.findOwnedWorkspaces(userId)
-    if (workspaces.length === 0) return { totalSeatKopecks: 0, perWorkspace: [] }
-
-    const ids = workspaces.map((w) => w.id)
     const sub = await this.repo.findActiveSubscriptionWithPlan(userId)
     const plan = sub?.plan ?? (await this.repo.findPersonalPlan())
-    const pricePerSeat = pickSeatPrice(plan, billingPeriod)
-
-    const [addons, memberCounts, limits] = await Promise.all([
-      this.repo.findAddonsByWorkspaceIds(ids),
-      this.repo.countMembersByWorkspaceIds(ids),
-      this.repo.findLimitsByWorkspaceIds(ids),
-    ])
-    const addonByWs = new Map(addons.map((a) => [a.workspaceId, a]))
-
-    const perWorkspace = workspaces.map((w) => {
-      const addon = addonByWs.get(w.id)
-      const effectiveSeats = addon ? (addon.scheduledSeats ?? addon.paidSeats) : 0
-      return {
-        workspaceId: w.id,
-        effectiveSeats,
-        seatKopecks: effectiveSeats * pricePerSeat,
-        memberCount: memberCounts.get(w.id) ?? 0,
-        includedSeats: limits.get(w.id) ?? plan.maxMembersPerWorkspace,
-      }
-    })
-    return {
-      totalSeatKopecks: perWorkspace.reduce((sum, row) => sum + row.seatKopecks, 0),
-      perWorkspace,
-    }
+    return computeOwnerSeatChargeTx(this.uow.client(), { userId, billingPeriod, plan })
   }
 
   /**
    * Tier change / subscription expiry: clear addons + schedules for ALL the
    * owner's workspaces. One ADDONS_RESET ledger row + audit per workspace that
    * actually carried state — so the call is idempotent (a second run finds
-   * nothing dirty and writes nothing).
+   * nothing dirty and writes nothing). Delegates to `resetAddonsForOwnerTx`
+   * (shared with the trpc initial-order path and the engines expiry cron).
    */
   async resetAddonsForOwner(
     userId: string,
     options: { reason: string },
   ): Promise<ResetAddonsResult> {
-    return this.uow.transaction(async () => {
-      const workspaces = await this.repo.findOwnedWorkspaces(userId)
-      if (workspaces.length === 0) return { resetWorkspaceIds: [] }
-      const addons = await this.repo.findAddonsByWorkspaceIds(workspaces.map((w) => w.id))
-      const dirty = addons.filter((a) => a.paidSeats > 0 || a.scheduledSeats !== null)
-      if (dirty.length === 0) return { resetWorkspaceIds: [] }
-
-      for (const addon of dirty) {
-        await this.repo.writeSeatEvent({
-          workspaceId: addon.workspaceId,
-          type: 'ADDONS_RESET',
-          seatsDelta: -addon.paidSeats,
-          seatsAfter: 0,
-          actorId: userId,
-          metadata: {
-            reason: options.reason,
-            previousPaidSeats: addon.paidSeats,
-            previousScheduledSeats: addon.scheduledSeats,
-          },
-        })
-        await this.repo.writeAudit({
-          workspaceId: addon.workspaceId,
-          actorId: userId,
-          action: BILLING_AUDIT_ACTIONS.seatsAddonsReset,
-          metadata: {
-            reason: options.reason,
-            previousPaidSeats: addon.paidSeats,
-            previousScheduledSeats: addon.scheduledSeats,
-          },
-        })
-      }
-      await this.repo.resetAddons(dirty.map((a) => a.workspaceId))
-      return { resetWorkspaceIds: dirty.map((a) => a.workspaceId) }
-    })
+    return this.uow.transaction(async () =>
+      resetAddonsForOwnerTx(this.uow.client(), userId, options),
+    )
   }
 
   // ── invoice requests (spec §3) ────────────────────────────────────────────────

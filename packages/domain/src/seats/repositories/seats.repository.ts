@@ -146,17 +146,6 @@ export class SeatsRepository {
     })
   }
 
-  /** Upsert += seats; returns paidSeats AFTER the increment. */
-  async incrementPaidSeats(workspaceId: string, seats: number): Promise<number> {
-    const row = await this.uow.client().workspaceSeatAddon.upsert({
-      where: { workspaceId },
-      create: { workspaceId, paidSeats: seats },
-      update: { paidSeats: { increment: seats } },
-      select: { paidSeats: true },
-    })
-    return row.paidSeats
-  }
-
   async setScheduledSeats(workspaceId: string, targetSeats: number): Promise<void> {
     await this.uow.client().workspaceSeatAddon.update({
       where: { workspaceId },
@@ -180,47 +169,9 @@ export class SeatsRepository {
     })
   }
 
-  async resetAddons(workspaceIds: string[]): Promise<void> {
-    await this.uow.client().workspaceSeatAddon.updateMany({
-      where: { workspaceId: { in: workspaceIds } },
-      data: { paidSeats: 0, scheduledSeats: null },
-    })
-  }
-
-  // ── owner-wide reads (renewal/reset) ─────────────────────────────────────────
-
-  /** Deterministic order — the renewal iterates and snapshots in creation order. */
-  async findOwnedWorkspaces(userId: string): Promise<{ id: string; name: string }[]> {
-    return this.uow.client().workspace.findMany({
-      where: { createdById: userId },
-      orderBy: { createdAt: 'asc' },
-      select: { id: true, name: true },
-    })
-  }
-
-  async findAddonsByWorkspaceIds(workspaceIds: string[]): Promise<SeatAddonRow[]> {
-    return this.uow.client().workspaceSeatAddon.findMany({
-      where: { workspaceId: { in: workspaceIds } },
-      select: { workspaceId: true, paidSeats: true, scheduledSeats: true },
-    })
-  }
-
-  async countMembersByWorkspaceIds(workspaceIds: string[]): Promise<Map<string, number>> {
-    const groups = await this.uow.client().workspaceMember.groupBy({
-      by: ['workspaceId'],
-      where: { workspaceId: { in: workspaceIds } },
-      _count: { _all: true },
-    })
-    return new Map(groups.map((g) => [g.workspaceId, g._count._all]))
-  }
-
-  async findLimitsByWorkspaceIds(workspaceIds: string[]): Promise<Map<string, number>> {
-    const rows = await this.uow.client().workspaceLimit.findMany({
-      where: { workspaceId: { in: workspaceIds } },
-      select: { workspaceId: true, maxMembers: true },
-    })
-    return new Map(rows.map((r) => [r.workspaceId, r.maxMembers]))
-  }
+  // NOTE: owner-wide reads/writes (renewal, addon reset, purchase settlement)
+  // live in `../seats.tx.ts` — tx-carve-out functions shared with the trpc
+  // payment-success handler and the engines billing cron.
 
   // ── invoice requests ──────────────────────────────────────────────────────────
 

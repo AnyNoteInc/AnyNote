@@ -1,4 +1,10 @@
 import type { PrismaClient } from '@repo/db'
+import {
+  applySeatPurchaseTx,
+  applySeatRenewalTx,
+  parseSeatPurchaseOrderMetadata,
+  resetAddonsForOwnerTx,
+} from '@repo/domain'
 import type { Payment, Refund } from '@repo/yookassa'
 
 import { syncWorkspaceLimits } from '../helpers/plan'
@@ -27,6 +33,34 @@ export async function handlePaymentSucceeded(ctx: Ctx, eventPayment: Payment): P
   if (verified.status !== 'succeeded') return
 
   const now = new Date()
+
+  const seatMeta = parseSeatPurchaseOrderMetadata(order.metadata)
+  if (seatMeta) {
+    // Seat-purchase orders NEVER touch subscription rows or workspace limits
+    // (spec §7.8): flip the order PAID and apply the seats, one tx. The
+    // status-guarded flip is the idempotency boundary — a concurrent second
+    // callback (double webhook / poll race) flips zero rows and applies nothing.
+    await ctx.prisma.$transaction(async (tx) => {
+      const flipped = await tx.order.updateMany({
+        where: { id: order.id, status: 'PENDING' },
+        data: {
+          status: 'PAID',
+          paidAt: now,
+          savedPaymentMethod: verified.payment_method?.saved ?? false,
+        },
+      })
+      if (flipped.count === 0) return
+      await applySeatPurchaseTx(tx, {
+        workspaceId: seatMeta.workspaceId,
+        seats: seatMeta.seats,
+        orderId: order.id,
+        amountKopecks: order.amountKopecks,
+        actorId: order.userId,
+      })
+    })
+    return
+  }
+
   const periodEnd = addPeriod(now, order.billingPeriod)
 
   await ctx.prisma.$transaction(async (tx) => {
@@ -67,6 +101,25 @@ export async function handlePaymentSucceeded(ctx: Ctx, eventPayment: Payment): P
       },
     })
     await syncWorkspaceLimits(tx, order.userId)
+
+    if (order.isInitial) {
+      // Tier change: purchased seats die with the old tier (spec §3). Only
+      // INITIAL checkouts reset — renewals must keep the addons (pinned).
+      await resetAddonsForOwnerTx(tx, order.userId, { reason: 'plan_change' })
+    } else if (order.subscriptionId) {
+      // A pending RENEWAL completing via webhook/poll: the upsert above just
+      // rolled the period, so the seat renewal applies HERE — exactly once,
+      // because the PENDING guard lets a single callback through (the
+      // synchronous renewOne path flips the order in ITS tx and applies seats
+      // there; whichever flip wins, the other side sees a non-PENDING order).
+      await applySeatRenewalTx(tx, {
+        userId: order.userId,
+        billingPeriod: order.billingPeriod,
+        plan: order.plan,
+        orderId: order.id,
+        subscriptionId: order.subscriptionId,
+      })
+    }
   })
 }
 

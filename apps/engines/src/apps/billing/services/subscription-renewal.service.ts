@@ -1,6 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common'
 import { prisma } from '@repo/db'
-import { syncWorkspaceLimits } from '@repo/domain'
+import {
+  applySeatRenewalTx,
+  computeOwnerSeatChargeTx,
+  resetAddonsForOwnerTx,
+  syncWorkspaceLimits,
+} from '@repo/domain'
 import type { Payment } from '@repo/yookassa'
 import { randomUUID } from 'node:crypto'
 
@@ -48,6 +53,11 @@ export class SubscriptionRenewalService {
     const uniqueUserIds = Array.from(new Set(affected.map((s) => s.userId)))
     for (const userId of uniqueUserIds) {
       await syncWorkspaceLimits(prisma, userId)
+      // Addons die with the subscription: ADDONS_RESET ledger + audit per
+      // workspace that carried state, no charge (spec §4.2).
+      await prisma.$transaction((tx) =>
+        resetAddonsForOwnerTx(tx, userId, { reason: 'subscription_expired' }),
+      )
     }
   }
 
@@ -82,10 +92,20 @@ export class SubscriptionRenewalService {
       return
     }
 
-    const amountKopecks =
+    const tierKopecks =
       subscription.billingPeriod === 'YEARLY'
         ? subscription.plan.priceYearlyKopecks
         : subscription.plan.priceMonthlyKopecks
+    // The seat charge is computed BEFORE the order is created so the order
+    // amount is authoritative (spec §4.2): effective = scheduled ?? paid seats
+    // across all owned workspaces, read-only here. Zero-addon owners get
+    // totalSeatKopecks 0 — exactly the old flat tier price (regression pin).
+    const seatCharge = await computeOwnerSeatChargeTx(prisma, {
+      userId: subscription.userId,
+      billingPeriod: subscription.billingPeriod,
+      plan: subscription.plan,
+    })
+    const amountKopecks = tierKopecks + seatCharge.totalSeatKopecks
     const idempotencyKey = randomUUID()
 
     const order = await prisma.order.create({
@@ -134,23 +154,33 @@ export class SubscriptionRenewalService {
 
     if (payment.status === 'succeeded') {
       const now = new Date()
-      await prisma.$transaction([
-        prisma.order.update({
+      await prisma.$transaction(async (tx) => {
+        await tx.order.update({
           where: { id: order.id },
           data: {
             status: 'PAID',
             yookassaPaymentId: payment.id,
             paidAt: now,
           },
-        }),
-        prisma.subscription.update({
+        })
+        await tx.subscription.update({
           where: { id: subscription.id },
           data: {
             currentPeriodStart: now,
             currentPeriodEnd: addBillingPeriod(now, subscription.billingPeriod),
           },
-        }),
-      ])
+        })
+        // Seats apply in the SAME tx as the order flip + period roll:
+        // scheduled values become paid, plus snapshot + SEATS_RENEWED ledger +
+        // audit per workspace with seat state. Zero-addon owners write nothing.
+        await applySeatRenewalTx(tx, {
+          userId: subscription.userId,
+          billingPeriod: subscription.billingPeriod,
+          plan: subscription.plan,
+          orderId: order.id,
+          subscriptionId: subscription.id,
+        })
+      })
       return
     }
 
@@ -169,6 +199,11 @@ export class SubscriptionRenewalService {
       return
     }
 
+    // Payment still pending: the order keeps PENDING (with the seat charge
+    // already in its amount) and the WEBHOOK path finishes it — trpc
+    // handlePaymentSucceeded flips the order, rolls the period AND applies the
+    // seat renewal in its own tx. Applying seats here too would double them;
+    // the PENDING→PAID flip is the exactly-once boundary.
     await prisma.order.update({
       where: { id: order.id },
       data: { yookassaPaymentId: payment.id },
