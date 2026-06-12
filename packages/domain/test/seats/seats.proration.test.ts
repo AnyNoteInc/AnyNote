@@ -1,0 +1,252 @@
+import { describe, expect, it } from 'vitest'
+
+import { isDomainError } from '../../src/shared/errors.ts'
+import {
+  BILLING_AUDIT_ACTIONS,
+  SEATS_ERROR_CODES,
+  isValidInn,
+  isValidKpp,
+  prorateSeatPurchase,
+  seatsError,
+} from '../../src/seats/dto/seats.dto.ts'
+
+// Pure table test for the proration formula (spec §3/§7.4):
+//   max(1, ceil(seats × seatPriceKopecks × remainingMs / periodMs))
+// remainingMs ≤ 0 ⇒ PERIOD_ENDED refusal; now before periodStart clamps to the
+// full period (never charges MORE than the full price). No Date.now inside —
+// the caller passes `now`, so every row here is deterministic.
+
+const MONTH_START = '2026-06-01T00:00:00.000Z' // 30-day month
+const MONTH_END = '2026-07-01T00:00:00.000Z'
+const YEAR_START = '2026-01-01T00:00:00.000Z' // 365-day year (2026 is not a leap year)
+const YEAR_END = '2027-01-01T00:00:00.000Z'
+
+interface Row {
+  name: string
+  seats: number
+  periodStart: string
+  periodEnd: string
+  now: string
+  seatPriceKopecks: number
+  expected: number
+}
+
+const rows: Row[] = [
+  {
+    name: 'mid-period: exactly half of a 30-day month',
+    seats: 1,
+    periodStart: MONTH_START,
+    periodEnd: MONTH_END,
+    now: '2026-06-16T00:00:00.000Z', // 15 of 30 days remaining
+    seatPriceKopecks: 19000,
+    expected: 9500,
+  },
+  {
+    name: 'same-day purchase (now = periodStart) charges the full price',
+    seats: 1,
+    periodStart: MONTH_START,
+    periodEnd: MONTH_END,
+    now: MONTH_START,
+    seatPriceKopecks: 19000,
+    expected: 19000,
+  },
+  {
+    name: 'day one of the period ≈ full remaining (29/30, ceil)',
+    seats: 1,
+    periodStart: MONTH_START,
+    periodEnd: MONTH_END,
+    now: '2026-06-02T00:00:00.000Z',
+    seatPriceKopecks: 19000,
+    expected: 18367, // ceil(19000 × 29/30 = 18366.67)
+  },
+  {
+    name: 'last day of the month',
+    seats: 1,
+    periodStart: MONTH_START,
+    periodEnd: MONTH_END,
+    now: '2026-06-30T00:00:00.000Z', // 1 of 30 days remaining
+    seatPriceKopecks: 19000,
+    expected: 634, // ceil(19000/30 = 633.33)
+  },
+  {
+    name: 'final hour of the period still charges (ceil ≥ 1 share)',
+    seats: 1,
+    periodStart: MONTH_START,
+    periodEnd: MONTH_END,
+    now: '2026-06-30T23:00:00.000Z', // 3 600 000 ms remaining
+    seatPriceKopecks: 19000,
+    expected: 27, // ceil(19000 × 3.6e6/2.592e9 = 26.39)
+  },
+  {
+    name: 'multi-seat mid-month',
+    seats: 3,
+    periodStart: MONTH_START,
+    periodEnd: MONTH_END,
+    now: '2026-06-16T00:00:00.000Z',
+    seatPriceKopecks: 19000,
+    expected: 28500, // 3 × 9500, no rounding
+  },
+  {
+    name: 'multi-seat ceil rounding edge',
+    seats: 7,
+    periodStart: MONTH_START,
+    periodEnd: MONTH_END,
+    now: '2026-06-21T00:00:00.000Z', // 10 of 30 days remaining
+    seatPriceKopecks: 19000,
+    expected: 44334, // ceil(7 × 19000 × 10/30 = 44333.33)
+  },
+  {
+    name: 'year period, mid-year',
+    seats: 1,
+    periodStart: YEAR_START,
+    periodEnd: YEAR_END,
+    now: '2026-07-01T00:00:00.000Z', // 184 of 365 days remaining
+    seatPriceKopecks: 190000,
+    expected: 95781, // ceil(190000 × 184/365 = 95780.82)
+  },
+  {
+    name: 'year period, multi-seat near the end',
+    seats: 5,
+    periodStart: YEAR_START,
+    periodEnd: YEAR_END,
+    now: '2026-12-02T00:00:00.000Z', // 30 of 365 days remaining
+    seatPriceKopecks: 190000,
+    expected: 78083, // ceil(5 × 190000 × 30/365 = 78082.19)
+  },
+  {
+    name: 'exact division leaves no rounding artifact',
+    seats: 1,
+    periodStart: MONTH_START,
+    periodEnd: MONTH_END,
+    now: '2026-06-21T00:00:00.000Z', // 10 of 30 days remaining
+    seatPriceKopecks: 30000,
+    expected: 10000,
+  },
+  {
+    name: 'clamp: now before periodStart charges exactly the full period, never more',
+    seats: 1,
+    periodStart: MONTH_START,
+    periodEnd: MONTH_END,
+    now: '2026-05-31T00:00:00.000Z',
+    seatPriceKopecks: 19000,
+    expected: 19000,
+  },
+  {
+    name: 'minimum 1 kopeck: one millisecond remaining at the cheapest price',
+    seats: 1,
+    periodStart: MONTH_START,
+    periodEnd: MONTH_END,
+    now: '2026-06-30T23:59:59.999Z',
+    seatPriceKopecks: 1,
+    expected: 1,
+  },
+]
+
+describe('prorateSeatPurchase', () => {
+  it.each(rows)('$name', ({ seats, periodStart, periodEnd, now, seatPriceKopecks, expected }) => {
+    expect(
+      prorateSeatPurchase({
+        seats,
+        periodStart: new Date(periodStart),
+        periodEnd: new Date(periodEnd),
+        now: new Date(now),
+        seatPriceKopecks,
+      }),
+    ).toBe(expected)
+  })
+
+  function expectPeriodEnded(fn: () => unknown) {
+    try {
+      fn()
+    } catch (e) {
+      if (!isDomainError(e)) throw e
+      expect(e.code).toBe(SEATS_ERROR_CODES.PERIOD_ENDED)
+      expect(e.httpStatus).toBe(409)
+      return
+    }
+    throw new Error('expected PERIOD_ENDED, but the call returned')
+  }
+
+  it('refuses when now = periodEnd (zero remaining)', () => {
+    expectPeriodEnded(() =>
+      prorateSeatPurchase({
+        seats: 1,
+        periodStart: new Date(MONTH_START),
+        periodEnd: new Date(MONTH_END),
+        now: new Date(MONTH_END),
+        seatPriceKopecks: 19000,
+      }),
+    )
+  })
+
+  it('refuses when now is past periodEnd', () => {
+    expectPeriodEnded(() =>
+      prorateSeatPurchase({
+        seats: 1,
+        periodStart: new Date(MONTH_START),
+        periodEnd: new Date(MONTH_END),
+        now: new Date('2026-07-15T00:00:00.000Z'),
+        seatPriceKopecks: 19000,
+      }),
+    )
+  })
+
+  it('refuses a degenerate period (periodEnd ≤ periodStart)', () => {
+    expectPeriodEnded(() =>
+      prorateSeatPurchase({
+        seats: 1,
+        periodStart: new Date(MONTH_END),
+        periodEnd: new Date(MONTH_START),
+        now: new Date('2026-05-15T00:00:00.000Z'),
+        seatPriceKopecks: 19000,
+      }),
+    )
+  })
+})
+
+describe('seats dto catalogs (spec §2)', () => {
+  it('audit catalog covers exactly the five spec actions', () => {
+    expect(Object.values(BILLING_AUDIT_ACTIONS).sort()).toEqual(
+      [
+        'seats.purchased',
+        'seats.reduction_scheduled',
+        'seats.renewal_applied',
+        'seats.addons_reset',
+        'invoice.requested',
+      ].sort(),
+    )
+  })
+
+  it('error codes carry honest Russian messages and statuses', () => {
+    for (const code of Object.values(SEATS_ERROR_CODES)) {
+      const err = seatsError(code)
+      expect(err.code).toBe(code)
+      expect(err.httpStatus).toBeGreaterThanOrEqual(400)
+      expect(err.message.length).toBeGreaterThan(0)
+    }
+    expect(seatsError('NOT_SUBSCRIPTION_OWNER').httpStatus).toBe(403)
+    expect(seatsError('SEATS_NOT_AVAILABLE').httpStatus).toBe(403)
+    expect(seatsError('PERIOD_ENDED').httpStatus).toBe(409)
+    expect(seatsError('REDUCTION_BELOW_USAGE').httpStatus).toBe(409)
+    expect(seatsError('INVALID_INN').httpStatus).toBe(400)
+    expect(seatsError('INVALID_KPP').httpStatus).toBe(400)
+    expect(seatsError('INVOICE_SEATS_BELOW_USAGE').httpStatus).toBe(400)
+  })
+
+  it('validates INN as exactly 10 or 12 digits', () => {
+    expect(isValidInn('1234567890')).toBe(true)
+    expect(isValidInn('123456789012')).toBe(true)
+    expect(isValidInn('123456789')).toBe(false) // 9
+    expect(isValidInn('12345678901')).toBe(false) // 11
+    expect(isValidInn('1234567890123')).toBe(false) // 13
+    expect(isValidInn('12345678ab')).toBe(false)
+    expect(isValidInn('')).toBe(false)
+  })
+
+  it('validates KPP as exactly 9 digits', () => {
+    expect(isValidKpp('123456789')).toBe(true)
+    expect(isValidKpp('12345678')).toBe(false)
+    expect(isValidKpp('1234567890')).toBe(false)
+    expect(isValidKpp('12345678a')).toBe(false)
+  })
+})
