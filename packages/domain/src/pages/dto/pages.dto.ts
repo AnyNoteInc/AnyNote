@@ -6,6 +6,9 @@ import { z } from 'zod'
 // imports `@repo/db` as a value (the domain-services-no-db-value rule).
 export { PageRevisionAction }
 
+// The canonical cover-preset whitelist (also deep-importable as a pure leaf).
+export { COVER_PRESET_KEYS, type CoverPresetKey } from './cover-presets.ts'
+
 // ── Input schemas ─────────────────────────────────────────────────────────────
 
 export const createPageInput = z.object({
@@ -33,6 +36,10 @@ export const updatePageInput = z.object({
   title: z.string().optional(),
   icon: z.string().nullable().optional(),
   type: z.nativeEnum(PageType).optional(),
+  // Page appearance (Phase 9A). Format/whitelist/mutual-exclusion rules are
+  // enforced in PageService.update with honest BAD_REQUEST messages.
+  coverUrl: z.string().nullable().optional(),
+  coverPreset: z.string().nullable().optional(),
 })
 export type UpdatePageInput = z.infer<typeof updatePageInput>
 

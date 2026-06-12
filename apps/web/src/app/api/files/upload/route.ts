@@ -24,10 +24,21 @@ export async function POST(request: NextRequest) {
 
   const kindParam = request.nextUrl.searchParams.get('kind')
 
-  if (kindParam !== 'avatar' && kindParam !== 'attachment') {
+  if (
+    kindParam !== 'avatar' &&
+    kindParam !== 'attachment' &&
+    kindParam !== 'icon' &&
+    kindParam !== 'cover'
+  ) {
     return Response.json({ error: 'Invalid kind' }, { status: 400 })
   }
   const kind: UploadKind = kindParam
+
+  // Page-appearance kinds (icon/cover) mirror the avatar semantics: isPublic
+  // true (served by unguessable UUID to anyone — they must render on public
+  // shares) and workspaceId null, which makes them quota-exempt like avatars.
+  // The small per-file caps in validateUpload bound abuse.
+  const isPublicKind = kind === 'avatar' || kind === 'icon' || kind === 'cover'
 
   let attachmentWorkspaceId: string | null = null
   if (kind === 'attachment') {
@@ -104,7 +115,7 @@ export async function POST(request: NextRequest) {
             hash,
             path: s3Key,
             status: FileStatus.ACTIVE,
-            isPublic: kind === 'avatar',
+            isPublic: isPublicKind,
           },
         })
         if (kind === 'avatar') {
@@ -141,8 +152,10 @@ export async function POST(request: NextRequest) {
     await setUserAvatar(session.user.id, fileRow.id)
   }
 
+  // All public kinds answer with the public-by-id URL — the avatar flow stores
+  // it on User.image above; icon/cover callers write it into Page.icon/coverUrl.
   let imageUrl: string | undefined
-  if (kind === 'avatar' && fileRow) {
+  if (isPublicKind && fileRow) {
     imageUrl = `/api/files/${fileRow.id}`
   }
 

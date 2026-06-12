@@ -1,7 +1,7 @@
 import { badRequest, forbidden, notFound } from '../../shared/errors.ts'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 import type { RevisionRecorder } from '../../shared/revision-recorder.ts'
-import { PageRevisionAction } from '../dto/pages.dto.ts'
+import { PageRevisionAction, COVER_PRESET_KEYS } from '../dto/pages.dto.ts'
 import type { KanbanService } from '../../kanban/index.ts'
 import type { DatabaseService } from '../../database/index.ts'
 import type {
@@ -25,6 +25,72 @@ import type {
   UpdatePageInput,
 } from '../dto/pages.dto.ts'
 import type { PageRepository } from '../repositories/pages.repository.ts'
+
+// ── Page appearance validation (Phase 9A, spec §3) ────────────────────────────
+
+const ICON_URL_PREFIX = 'url:'
+const ICON_PLAIN_MAX_CODEPOINTS = 32
+const APPEARANCE_URL_MAX = 1024
+// Same-origin uploaded-file path: exactly /api/files/<uuid> (public-by-id).
+const FILE_URL_RE =
+  /^\/api\/files\/[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** A same-origin `/api/files/<uuid>` path or an https URL, length-capped. */
+function isAppearanceUrl(value: string): boolean {
+  if (value.length > APPEARANCE_URL_MAX) return false
+  return FILE_URL_RE.test(value) || /^https:\/\/\S+$/.test(value)
+}
+
+function assertValidIcon(icon: string | null | undefined): void {
+  if (icon === null || icon === undefined) return
+  if (icon.startsWith(ICON_URL_PREFIX)) {
+    if (!isAppearanceUrl(icon.slice(ICON_URL_PREFIX.length))) {
+      throw badRequest(
+        'Иконка-изображение должна быть ссылкой вида /api/files/<id> или https-ссылкой не длиннее 1024 символов',
+      )
+    }
+    return
+  }
+  // Plain value = emoji (back-compatible). Code points, not UTF-16 units, so
+  // multi-unit emoji are counted honestly.
+  if ([...icon].length > ICON_PLAIN_MAX_CODEPOINTS) {
+    throw badRequest('Иконка должна быть эмодзи или строкой не длиннее 32 символов')
+  }
+}
+
+function assertValidCoverUrl(coverUrl: string | null | undefined): void {
+  if (coverUrl === null || coverUrl === undefined) return
+  if (!isAppearanceUrl(coverUrl)) {
+    throw badRequest(
+      'Обложка должна быть ссылкой вида /api/files/<id> или https-ссылкой не длиннее 1024 символов',
+    )
+  }
+}
+
+function assertValidCoverPreset(coverPreset: string | null | undefined): void {
+  if (coverPreset === null || coverPreset === undefined) return
+  if (!(COVER_PRESET_KEYS as readonly string[]).includes(coverPreset)) {
+    throw badRequest('Неизвестный градиент обложки')
+  }
+}
+
+/**
+ * Validates icon/cover formats and enforces coverUrl↔coverPreset mutual
+ * exclusion: setting one clears the other; explicit nulls clear. Both set in
+ * one call is a contradiction → honest BAD_REQUEST.
+ */
+function withValidatedAppearance(input: UpdatePageInput): UpdatePageInput {
+  assertValidIcon(input.icon)
+  assertValidCoverUrl(input.coverUrl)
+  assertValidCoverPreset(input.coverPreset)
+  if (typeof input.coverUrl === 'string' && typeof input.coverPreset === 'string') {
+    throw badRequest('Нельзя одновременно задать обложку-изображение и градиент')
+  }
+  const normalized = { ...input }
+  if (typeof input.coverUrl === 'string') normalized.coverPreset = null
+  if (typeof input.coverPreset === 'string') normalized.coverUrl = null
+  return normalized
+}
 
 export class PageService {
   private readonly repo: PageRepository
@@ -169,6 +235,7 @@ export class PageService {
     actorUserId: string,
     input: RenamePageInput,
   ): Promise<RenameResultDto> {
+    assertValidIcon(input.icon)
     await this.assertOwnership(actorUserId, input.id)
     return this.uow.transaction(async () => {
       const result = await this.repo.renamePageTx(actorUserId, input)
@@ -186,8 +253,9 @@ export class PageService {
     actorUserId: string,
     input: UpdatePageInput,
   ): Promise<RenameResultDto> {
+    const normalized = withValidatedAppearance(input)
     await this.assertOwnership(actorUserId, input.id)
-    return this.uow.transaction(() => this.repo.updatePageTx(actorUserId, input))
+    return this.uow.transaction(() => this.repo.updatePageTx(actorUserId, normalized))
   }
 
   async duplicate(

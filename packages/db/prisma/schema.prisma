@@ -484,6 +484,11 @@ model Page {
   ownership     PageOwnership            @default(TEXT)
   title         String?                  @db.Text
   icon          String?                  @db.Text
+  // Page appearance (Phase 9A). coverUrl: '/api/files/<id>' or an https URL;
+  // coverPreset: a key from COVER_PRESET_KEYS (@repo/domain pages dto) —
+  // mutually exclusive with coverUrl (service-enforced: setting one clears the other).
+  coverUrl      String?                  @map("cover_url") @db.VarChar(1024)
+  coverPreset   String?                  @map("cover_preset") @db.VarChar(32)
   content       Json?
   contentYjs    Bytes?                   @map("content_yjs")
   searchVector  Unsupported("tsvector")? @default(dbgenerated()) @map("search_vector")

@@ -461,11 +461,15 @@ export class PageRepository {
       title?: string
       icon?: string | null
       type?: PageType
+      coverUrl?: string | null
+      coverPreset?: string | null
       updatedById: string
     } = { updatedById: actorUserId }
     if (input.title !== undefined) data.title = input.title
     if (input.icon !== undefined) data.icon = input.icon
     if (input.type !== undefined) data.type = input.type
+    if (input.coverUrl !== undefined) data.coverUrl = input.coverUrl
+    if (input.coverPreset !== undefined) data.coverPreset = input.coverPreset
     const updated = await this.uow.client().page.update({
       where: { id: input.id },
       data,
@@ -484,7 +488,9 @@ export class PageRepository {
       workspaceId: input.workspaceId,
       actorId: actorUserId,
       hints: {
-        changed: (['title', 'icon', 'type'] as const).filter((k) => input[k] !== undefined),
+        changed: (['title', 'icon', 'type', 'coverUrl', 'coverPreset'] as const).filter(
+          (k) => input[k] !== undefined,
+        ),
       },
     })
     return updated

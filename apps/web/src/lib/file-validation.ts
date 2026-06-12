@@ -1,7 +1,11 @@
-export type UploadKind = 'avatar' | 'attachment'
+export type UploadKind = 'avatar' | 'attachment' | 'icon' | 'cover'
 
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024
 const ATTACHMENT_MAX_BYTES = 50 * 1024 * 1024
+// Page appearance kinds (Phase 9A): both are public-by-id (the avatar
+// semantics) — small per-file caps bound abuse since they are quota-exempt.
+const ICON_MAX_BYTES = 1 * 1024 * 1024
+const COVER_MAX_BYTES = 10 * 1024 * 1024
 
 const AVATAR_MIME = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
 
@@ -19,6 +23,21 @@ const ATTACHMENT_MIME = new Set([
   'application/zip',
 ])
 
+const MAX_BYTES_BY_KIND: Record<UploadKind, number> = {
+  avatar: AVATAR_MAX_BYTES,
+  attachment: ATTACHMENT_MAX_BYTES,
+  icon: ICON_MAX_BYTES,
+  cover: COVER_MAX_BYTES,
+}
+
+// icon/cover are images only — same whitelist as avatars.
+const MIME_BY_KIND: Record<UploadKind, Set<string>> = {
+  avatar: AVATAR_MIME,
+  attachment: ATTACHMENT_MIME,
+  icon: AVATAR_MIME,
+  cover: AVATAR_MIME,
+}
+
 export type ValidationError = { status: 400; message: string }
 
 export const validateUpload = (
@@ -26,12 +45,12 @@ export const validateUpload = (
   size: number,
   mimeType: string,
 ): ValidationError | null => {
-  const maxBytes = kind === 'avatar' ? AVATAR_MAX_BYTES : ATTACHMENT_MAX_BYTES
+  const maxBytes = MAX_BYTES_BY_KIND[kind]
   if (size === 0) return { status: 400, message: 'Empty file' }
   if (size > maxBytes) {
     return { status: 400, message: 'File too large' }
   }
-  const allowed = kind === 'avatar' ? AVATAR_MIME : ATTACHMENT_MIME
+  const allowed = MIME_BY_KIND[kind]
   if (!allowed.has(mimeType)) {
     return { status: 400, message: 'File type not allowed' }
   }

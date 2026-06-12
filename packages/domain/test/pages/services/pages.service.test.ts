@@ -166,6 +166,15 @@ describe('PageService.rename', () => {
       svc.rename('u1', { id: 'p1', workspaceId: 'w1', title: 'New' }),
     ).rejects.toBeInstanceOf(DomainError)
   })
+
+  it('validates the icon format too (33-char plain icon rejected)', async () => {
+    const repo = makeRepo()
+    const svc = makePageService(repo)
+    await expect(
+      svc.rename('u1', { id: 'p1', workspaceId: 'w1', title: 'New', icon: 'a'.repeat(33) }),
+    ).rejects.toMatchObject({ httpStatus: 400 })
+    expect(repo.renamePageTx).not.toHaveBeenCalled()
+  })
 })
 
 // ── update ────────────────────────────────────────────────────────────────────
@@ -176,6 +185,200 @@ describe('PageService.update', () => {
     const svc = makePageService(repo)
     await svc.update('u1', { id: 'p1', workspaceId: 'w1', type: 'KANBAN' })
     expect(repo.updatePageTx).toHaveBeenCalledOnce()
+  })
+})
+
+// ── update: icon format validation ───────────────────────────────────────────
+
+const FILE_URL = '/api/files/8a33ee5e-95f1-4b53-8d12-0d5dbb1c1a2f'
+
+describe('PageService.update — icon validation', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  const base = { id: 'p1', workspaceId: 'w1' }
+
+  it('accepts a plain emoji icon', async () => {
+    const repo = makeRepo()
+    const svc = makePageService(repo)
+    await svc.update('u1', { ...base, icon: '🎉' })
+    expect(repo.updatePageTx).toHaveBeenCalledWith('u1', expect.objectContaining({ icon: '🎉' }))
+  })
+
+  it('accepts a 32-codepoint plain icon', async () => {
+    const repo = makeRepo()
+    const svc = makePageService(repo)
+    await svc.update('u1', { ...base, icon: 'a'.repeat(32) })
+    expect(repo.updatePageTx).toHaveBeenCalledOnce()
+  })
+
+  it('rejects a 33-char plain icon with an honest BAD_REQUEST', async () => {
+    const repo = makeRepo()
+    const svc = makePageService(repo)
+    await expect(svc.update('u1', { ...base, icon: 'a'.repeat(33) })).rejects.toMatchObject({
+      httpStatus: 400,
+      message: 'Иконка должна быть эмодзи или строкой не длиннее 32 символов',
+    })
+    expect(repo.updatePageTx).not.toHaveBeenCalled()
+  })
+
+  it('accepts url: + a same-origin /api/files/<uuid> path', async () => {
+    const repo = makeRepo()
+    const svc = makePageService(repo)
+    await svc.update('u1', { ...base, icon: `url:${FILE_URL}` })
+    expect(repo.updatePageTx).toHaveBeenCalledOnce()
+  })
+
+  it('accepts url: + an https URL', async () => {
+    const repo = makeRepo()
+    const svc = makePageService(repo)
+    await svc.update('u1', { ...base, icon: 'url:https://example.com/pic.png' })
+    expect(repo.updatePageTx).toHaveBeenCalledOnce()
+  })
+
+  it('rejects url: + an http URL', async () => {
+    const repo = makeRepo()
+    const svc = makePageService(repo)
+    await expect(
+      svc.update('u1', { ...base, icon: 'url:http://example.com/pic.png' }),
+    ).rejects.toMatchObject({ httpStatus: 400 })
+    expect(repo.updatePageTx).not.toHaveBeenCalled()
+  })
+
+  it('rejects url: + a non-uuid files path', async () => {
+    const repo = makeRepo()
+    const svc = makePageService(repo)
+    await expect(
+      svc.update('u1', { ...base, icon: 'url:/api/files/../secret' }),
+    ).rejects.toMatchObject({ httpStatus: 400 })
+  })
+
+  it('rejects url: + an https URL longer than 1024 chars', async () => {
+    const repo = makeRepo()
+    const svc = makePageService(repo)
+    const longUrl = `https://example.com/${'x'.repeat(1024)}`
+    await expect(svc.update('u1', { ...base, icon: `url:${longUrl}` })).rejects.toMatchObject({
+      httpStatus: 400,
+    })
+  })
+
+  it('accepts explicit null (clears the icon)', async () => {
+    const repo = makeRepo()
+    const svc = makePageService(repo)
+    await svc.update('u1', { ...base, icon: null })
+    expect(repo.updatePageTx).toHaveBeenCalledWith('u1', expect.objectContaining({ icon: null }))
+  })
+})
+
+// ── update: cover validation + mutual exclusion ──────────────────────────────
+
+describe('PageService.update — cover validation', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  const base = { id: 'p1', workspaceId: 'w1' }
+
+  it('accepts a same-origin /api/files/<uuid> coverUrl', async () => {
+    const repo = makeRepo()
+    const svc = makePageService(repo)
+    await svc.update('u1', { ...base, coverUrl: FILE_URL })
+    expect(repo.updatePageTx).toHaveBeenCalledOnce()
+  })
+
+  it('accepts an https coverUrl', async () => {
+    const repo = makeRepo()
+    const svc = makePageService(repo)
+    await svc.update('u1', { ...base, coverUrl: 'https://example.com/cover.jpg' })
+    expect(repo.updatePageTx).toHaveBeenCalledOnce()
+  })
+
+  it('rejects an http coverUrl with an honest BAD_REQUEST', async () => {
+    const repo = makeRepo()
+    const svc = makePageService(repo)
+    await expect(
+      svc.update('u1', { ...base, coverUrl: 'http://example.com/cover.jpg' }),
+    ).rejects.toMatchObject({
+      httpStatus: 400,
+      message: 'Обложка должна быть ссылкой вида /api/files/<id> или https-ссылкой не длиннее 1024 символов',
+    })
+    expect(repo.updatePageTx).not.toHaveBeenCalled()
+  })
+
+  it('rejects a coverUrl longer than 1024 chars', async () => {
+    const repo = makeRepo()
+    const svc = makePageService(repo)
+    await expect(
+      svc.update('u1', { ...base, coverUrl: `https://example.com/${'x'.repeat(1024)}` }),
+    ).rejects.toMatchObject({ httpStatus: 400 })
+  })
+
+  it('accepts a whitelisted coverPreset', async () => {
+    const repo = makeRepo()
+    const svc = makePageService(repo)
+    await svc.update('u1', { ...base, coverPreset: 'sunset' })
+    expect(repo.updatePageTx).toHaveBeenCalledOnce()
+  })
+
+  it('rejects a non-whitelisted coverPreset', async () => {
+    const repo = makeRepo()
+    const svc = makePageService(repo)
+    await expect(svc.update('u1', { ...base, coverPreset: 'neon' })).rejects.toMatchObject({
+      httpStatus: 400,
+      message: 'Неизвестный градиент обложки',
+    })
+    expect(repo.updatePageTx).not.toHaveBeenCalled()
+  })
+
+  it('setting coverUrl clears coverPreset', async () => {
+    const repo = makeRepo()
+    const svc = makePageService(repo)
+    await svc.update('u1', { ...base, coverUrl: FILE_URL })
+    expect(repo.updatePageTx).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({ coverUrl: FILE_URL, coverPreset: null }),
+    )
+  })
+
+  it('setting coverPreset clears coverUrl', async () => {
+    const repo = makeRepo()
+    const svc = makePageService(repo)
+    await svc.update('u1', { ...base, coverPreset: 'ocean' })
+    expect(repo.updatePageTx).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({ coverPreset: 'ocean', coverUrl: null }),
+    )
+  })
+
+  it('rejects setting both coverUrl and coverPreset in one call', async () => {
+    const repo = makeRepo()
+    const svc = makePageService(repo)
+    await expect(
+      svc.update('u1', { ...base, coverUrl: FILE_URL, coverPreset: 'sunset' }),
+    ).rejects.toMatchObject({
+      httpStatus: 400,
+      message: 'Нельзя одновременно задать обложку-изображение и градиент',
+    })
+    expect(repo.updatePageTx).not.toHaveBeenCalled()
+  })
+
+  it('explicit nulls clear both cover fields', async () => {
+    const repo = makeRepo()
+    const svc = makePageService(repo)
+    await svc.update('u1', { ...base, coverUrl: null, coverPreset: null })
+    expect(repo.updatePageTx).toHaveBeenCalledWith(
+      'u1',
+      expect.objectContaining({ coverUrl: null, coverPreset: null }),
+    )
+  })
+
+  it('does not inject cover fields when neither is in the input', async () => {
+    const repo = makeRepo()
+    const svc = makePageService(repo)
+    await svc.update('u1', { ...base, title: 'T' })
+    const passed = (repo.updatePageTx as ReturnType<typeof vi.fn>).mock.calls[0]?.[1] as Record<
+      string,
+      unknown
+    >
+    expect('coverUrl' in passed).toBe(false)
+    expect('coverPreset' in passed).toBe(false)
   })
 })
 

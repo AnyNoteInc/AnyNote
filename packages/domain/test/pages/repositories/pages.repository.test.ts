@@ -154,6 +154,122 @@ describe('PageRepository.createPageTx — tail-insert + outbox', () => {
   })
 })
 
+// ── updatePageTx ──────────────────────────────────────────────────────────────
+
+describe('PageRepository.updatePageTx — appearance writes + properties_updated emission', () => {
+  beforeEach(() => vi.clearAllMocks())
+
+  const FILE_URL = '/api/files/8a33ee5e-95f1-4b53-8d12-0d5dbb1c1a2f'
+
+  function makeUpdateUow() {
+    const pageUpdate = vi.fn(async () => ({
+      id: 'p1',
+      title: 'T',
+      icon: null,
+      updatedAt: new Date(),
+    }))
+    const outboxCreate = vi.fn(async () => ({}))
+    const outboxCreateMany = vi.fn(async () => ({ count: 2 }))
+    const uow = makeUow({
+      page: { update: pageUpdate },
+      outboxEvent: { create: outboxCreate, createMany: outboxCreateMany },
+    })
+    return { uow, pageUpdate, outboxCreate, outboxCreateMany }
+  }
+
+  it('writes cover fields and emits changed: [coverUrl, coverPreset]', async () => {
+    const { uow, pageUpdate, outboxCreate, outboxCreateMany } = makeUpdateUow()
+    const repo = new PageRepository(uow)
+    await repo.updatePageTx('u1', {
+      id: 'p1',
+      workspaceId: 'w1',
+      coverUrl: FILE_URL,
+      coverPreset: null,
+    })
+    expect(pageUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: { id: 'p1' },
+        data: expect.objectContaining({
+          coverUrl: FILE_URL,
+          coverPreset: null,
+          updatedById: 'u1',
+        }),
+      }),
+    )
+    expect(outboxCreate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ eventType: 'page.upserted', aggregateId: 'p1' }),
+      }),
+    )
+    expect(outboxCreateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [
+          expect.objectContaining({
+            eventType: 'page.properties_updated',
+            aggregateType: 'webhook_event',
+            aggregateId: 'p1',
+            payload: expect.objectContaining({
+              hints: { changed: ['coverUrl', 'coverPreset'] },
+            }),
+          }),
+          expect.objectContaining({
+            eventType: 'page.properties_updated',
+            aggregateType: 'telegram_event',
+            aggregateId: 'p1',
+            payload: expect.objectContaining({
+              hints: { changed: ['coverUrl', 'coverPreset'] },
+            }),
+          }),
+        ],
+      }),
+    )
+  })
+
+  it('emits changed: [coverPreset] when only the preset is set', async () => {
+    const { uow, pageUpdate, outboxCreateMany } = makeUpdateUow()
+    const repo = new PageRepository(uow)
+    await repo.updatePageTx('u1', { id: 'p1', workspaceId: 'w1', coverPreset: 'ocean' })
+    expect(pageUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: expect.objectContaining({ coverPreset: 'ocean' }),
+      }),
+    )
+    expect(outboxCreateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [
+          expect.objectContaining({
+            payload: expect.objectContaining({ hints: { changed: ['coverPreset'] } }),
+          }),
+          expect.objectContaining({
+            payload: expect.objectContaining({ hints: { changed: ['coverPreset'] } }),
+          }),
+        ],
+      }),
+    )
+  })
+
+  it('keeps changed: [title] for a title-only update (no cover keys, no cover writes)', async () => {
+    const { uow, pageUpdate, outboxCreateMany } = makeUpdateUow()
+    const repo = new PageRepository(uow)
+    await repo.updatePageTx('u1', { id: 'p1', workspaceId: 'w1', title: 'New' })
+    const dataArg = (pageUpdate.mock.calls[0]?.[0] as { data: Record<string, unknown> }).data
+    expect('coverUrl' in dataArg).toBe(false)
+    expect('coverPreset' in dataArg).toBe(false)
+    expect(outboxCreateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [
+          expect.objectContaining({
+            payload: expect.objectContaining({ hints: { changed: ['title'] } }),
+          }),
+          expect.objectContaining({
+            payload: expect.objectContaining({ hints: { changed: ['title'] } }),
+          }),
+        ],
+      }),
+    )
+  })
+})
+
 // ── duplicatePageTx ───────────────────────────────────────────────────────────
 
 describe('PageRepository.duplicatePageTx — sibling re-link + (копия)', () => {
