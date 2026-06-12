@@ -227,18 +227,22 @@ export function WorkspaceMembersSection({ workspaceId, locked, currentUserId, is
                           {(member.user.firstName?.[0] ?? member.user.email[0] ?? '?').toUpperCase()}
                         </Avatar>
                         <Box sx={{ minWidth: 0 }}>
-                          <Typography variant="body2" noWrap>
-                            {label}
+                          {/* Chip renders a <div> — keep it a SIBLING of the
+                              Typography (<p>), never a child: div-in-p is
+                              invalid DOM nesting and breaks hydration. */}
+                          <Stack direction="row" alignItems="center" spacing={1}>
+                            <Typography variant="body2" noWrap sx={{ flex: 1, minWidth: 0 }}>
+                              {label}
+                            </Typography>
                             {isBlocked ? (
                               <Chip
                                 size="small"
                                 color="error"
                                 variant="outlined"
                                 label="Заблокирован"
-                                sx={{ ml: 1 }}
                               />
                             ) : null}
-                          </Typography>
+                          </Stack>
                           <Typography variant="caption" color="text.secondary" noWrap>
                             {member.user.email}
                           </Typography>

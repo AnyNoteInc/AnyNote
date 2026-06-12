@@ -45,6 +45,7 @@ let limitFix: {
 let uiInviteFix: { workspaceId: string; email: string } | null = null
 const insertedInvitationHashes: string[] = []
 const insertedGuestInviteHashes: string[] = []
+let createdGuestPageId: string | null = null
 let blockFix: { workspaceId: string; userId: string } | null = null
 
 function sha256(token: string): string {
@@ -87,6 +88,12 @@ test.afterAll(async () => {
       await prisma.pageGuestInvite.deleteMany({
         where: { tokenHash: { in: insertedGuestInviteHashes } },
       })
+    }
+    if (createdGuestPageId) {
+      // The guest fixture page is prisma-created (never via the UI) — drop it
+      // so the shared dev DB doesn't accumulate orphans (shares/grants cascade
+      // with the page). Catch-swallowed: cleanup must never fail the suite.
+      await prisma.page.deleteMany({ where: { id: createdGuestPageId } }).catch(() => {})
     }
     if (limitFix) {
       if (limitFix.existed) {
@@ -291,6 +298,7 @@ test('people management: invite, acceptance, guest scope, blocking', async ({ br
     },
     select: { id: true },
   })
+  createdGuestPageId = guestPage.id // register BEFORE the invite rows reference it
   const guestToken = makeToken('Guest')
   insertedGuestInviteHashes.push(sha256(guestToken))
   await prisma.pageGuestInvite.create({

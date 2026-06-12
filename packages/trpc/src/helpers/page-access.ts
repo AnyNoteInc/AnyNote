@@ -33,6 +33,9 @@ export async function findGrantOnPageOrAncestors(
   const path: string[] = []
   const seen = new Set<string>()
   let current: string | null = pageId
+  // Intentionally O(depth) sequential PK lookups: the cycle guard (`seen`)
+  // must inspect each parent before deciding whether to continue, so the walk
+  // can't be collapsed into one query. Bounded by MAX_PAGE_DEPTH.
   while (current && path.length < MAX_PAGE_DEPTH) {
     if (seen.has(current)) return null
     seen.add(current)
@@ -63,9 +66,12 @@ export async function findGrantOnPageOrAncestors(
  * Member-OR-grant resolution for page READ surfaces. Member (any role) wins
  * with full member semantics; otherwise a grant on the page or an ancestor
  * admits the user as a guest. Blocked users are FORBIDDEN on BOTH arms
- * (canonical semantics: `PeopleService.isWorkspaceBlocked`). Returns null for
- * users with no relationship at all so callers can keep their object-hiding
- * NOT_FOUND contract.
+ * (canonical semantics: `PeopleService.isWorkspaceBlocked`) — but the block
+ * check runs only AFTER a member row or grant is found: a blocked outsider
+ * (no relationship at all) must fall through to the uniform null denial
+ * rather than learn they are blocked (no oracle). Returns null for users with
+ * no relationship at all so callers can keep their object-hiding NOT_FOUND
+ * contract.
  */
 export async function resolveMemberOrPageGrant(
   ctx: Ctx,
@@ -76,10 +82,14 @@ export async function resolveMemberOrPageGrant(
     where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
     select: { role: true },
   })
-  await assertNotBlocked(ctx, workspaceId)
-  if (member) return { kind: 'member', role: member.role }
+  if (member) {
+    await assertNotBlocked(ctx, workspaceId)
+    return { kind: 'member', role: member.role }
+  }
   const grant = await findGrantOnPageOrAncestors(ctx.prisma, ctx.user.id, pageId)
-  return grant ? { kind: 'guest', role: grant.role } : null
+  if (!grant) return null
+  await assertNotBlocked(ctx, workspaceId)
+  return { kind: 'guest', role: grant.role }
 }
 
 /** Like `resolveMemberOrPageGrant` but FORBIDDEN when there is no access. */
@@ -99,6 +109,9 @@ export async function assertWorkspaceMemberOrPageGrant(
  * Workspace-level member-OR-grant: a member (block-aware) OR the holder of at
  * least one grant on a live page of the workspace. Used where a guest selects
  * the workspace itself (workspace.setActive) rather than a specific page.
+ * Same no-oracle ordering as `resolveMemberOrPageGrant`: the block check runs
+ * only once a member row or grant exists, so a blocked outsider gets the same
+ * uniform FORBIDDEN as a plain outsider.
  */
 export async function assertWorkspaceMemberOrAnyGrant(
   ctx: Ctx,
@@ -108,8 +121,10 @@ export async function assertWorkspaceMemberOrAnyGrant(
     where: { workspaceId_userId: { workspaceId, userId: ctx.user.id } },
     select: { id: true },
   })
-  await assertNotBlocked(ctx, workspaceId)
-  if (member) return { kind: 'member' }
+  if (member) {
+    await assertNotBlocked(ctx, workspaceId)
+    return { kind: 'member' }
+  }
   const grant = await ctx.prisma.pageShareUser.findFirst({
     where: { userId: ctx.user.id, pageShare: { page: { workspaceId, deletedAt: null } } },
     select: { id: true },
@@ -117,6 +132,7 @@ export async function assertWorkspaceMemberOrAnyGrant(
   if (!grant) {
     throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
   }
+  await assertNotBlocked(ctx, workspaceId)
   return { kind: 'guest' }
 }
 

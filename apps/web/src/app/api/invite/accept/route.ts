@@ -21,12 +21,38 @@ const TRPC_STATUS: Partial<Record<TRPCError['code'], number>> = {
 }
 
 /**
+ * CSRF hardening: this endpoint is cookie-authenticated and mutating, so a
+ * cross-site POST must not be able to accept an invite with the victim's
+ * session. Browsers always attach `Origin` to POST requests; require it to
+ * match the app's own origin exactly. When `NEXT_PUBLIC_BASE_URL` is unset
+ * (tests, ad-hoc envs) fall back to the origin implied by the request's own
+ * Host header.
+ */
+function isSameAppOrigin(req: NextRequest): boolean {
+  const origin = req.headers.get('origin')
+  if (!origin) return false
+  const base = process.env.NEXT_PUBLIC_BASE_URL
+  try {
+    const expected = base
+      ? new URL(base).origin
+      : new URL(`${new URL(req.url).protocol}//${req.headers.get('host') ?? ''}`).origin
+    return new URL(origin).origin === expected
+  } catch {
+    return false
+  }
+}
+
+/**
  * Acceptance endpoint for the public `(invite)` pages — the segment stays
  * RSC-pure (no browser tRPC client), so the client accept button POSTs here
  * and this handler drives the protected tRPC caller (`getServerTRPC`, the
  * same pattern RSC pages use; the session is resolved from request cookies).
  */
 export async function POST(req: NextRequest): Promise<NextResponse> {
+  if (!isSameAppOrigin(req)) {
+    return NextResponse.json({ error: 'Недопустимый источник запроса' }, { status: 403 })
+  }
+
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: 'Требуется вход' }, { status: 401 })

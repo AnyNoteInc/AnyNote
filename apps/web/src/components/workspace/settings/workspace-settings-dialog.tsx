@@ -298,7 +298,12 @@ export function WorkspaceSettingsDialog({
               </Box>
             ) : (
               <Box sx={{ maxWidth: 880, mx: 'auto' }}>
-                {items.find((i) => i.slug === section)?.render() ?? null}
+                {/* Resolve from the VISIBLE set only — a stale or externally
+                    supplied `initialSection` must never render a plan/role-
+                    hidden section; fall back to the first visible one. */}
+                {navItems.find((i) => i.slug === section)?.render() ??
+                  navItems[0]?.render() ??
+                  null}
               </Box>
             )}
           </Box>

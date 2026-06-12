@@ -11,6 +11,7 @@ import { workspaceRouter } from '../src/routers/workspace'
 import { peopleRouter } from '../src/routers/people'
 import { commentRouter } from '../src/routers/comment'
 import { resolveActiveWorkspace } from '../src/helpers/active-workspace'
+import { assertWorkspaceMemberOrPageGrant } from '../src/helpers/page-access'
 import { createCallerFactory } from '../src/trpc'
 
 // Real-DB integration test for the Task 6 guest read-path: page reads and
@@ -207,6 +208,24 @@ describe('guest read-path (member-OR-grant)', () => {
         message: BLOCKED_MESSAGE,
       })
     })
+
+    it('blocked outsider (no member, no grant) gets the same denial as a plain outsider — no blocked oracle', async () => {
+      const f = await seed()
+      await blockUser(f.ws.id, f.outsider.id, f.owner.id)
+      // Page read keeps the object-hiding NOT_FOUND…
+      await expect(pages(f.outsider).getById({ id: f.root.id })).rejects.toMatchObject({
+        code: 'NOT_FOUND',
+      })
+      // …the page-scoped assert keeps the uniform outsider FORBIDDEN message…
+      await expect(
+        assertWorkspaceMemberOrPageGrant(ctxFor(f.outsider), f.ws.id, f.root.id),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
+      // …and so does the workspace-scoped surface (setActive). The blocked
+      // message must never leak to users with no relationship at all.
+      await expect(
+        workspaces(f.outsider).setActive({ workspaceId: f.ws.id }),
+      ).rejects.toMatchObject({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
+    })
   })
 
   describe('writes stay member-only', () => {
@@ -312,7 +331,7 @@ describe('guest read-path (member-OR-grant)', () => {
       const f = await seed()
       await expect(
         workspaces(f.outsider).setActive({ workspaceId: f.ws.id }),
-      ).rejects.toMatchObject({ code: 'FORBIDDEN' })
+      ).rejects.toMatchObject({ code: 'FORBIDDEN', message: 'Недостаточно прав' })
     })
 
     it('blocked guest is FORBIDDEN on setActive and the resolver falls back', async () => {
