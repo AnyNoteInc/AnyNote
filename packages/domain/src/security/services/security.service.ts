@@ -338,20 +338,36 @@ export class SecurityService {
    * acknowledged STAYS acknowledged — a repeat call is a no-op success that
    * keeps the original timestamp/actor and writes NO second audit row.
    * Lazy-creates the policy row when absent; on an existing row only the two
-   * ack fields move (flags and configuredById untouched).
+   * ack fields move (flags and configuredById untouched). The repo's guarded
+   * update decides who performed the FIRST ack — exactly one audit row even
+   * under a concurrent double-ack.
    */
   async acknowledgeContentSearch(input: AcknowledgeContentSearchInput): Promise<SecurityPolicyDto> {
-    return this.uow.transaction(async () => {
-      const existing = await this.repo.findPolicy(input.workspaceId)
-      if (existing?.adminContentSearchAcknowledgedAt) return existing
-      const row = await this.repo.setSearchAcknowledged(input.workspaceId, input.actorId)
-      await this.repo.writeAudit({
-        workspaceId: input.workspaceId,
-        actorId: input.actorId,
-        action: SECURITY_AUDIT_ACTIONS.searchAcknowledged,
+    const run = () =>
+      this.uow.transaction(async () => {
+        const { policy, acknowledged } = await this.repo.setSearchAcknowledged(
+          input.workspaceId,
+          input.actorId,
+        )
+        if (acknowledged) {
+          await this.repo.writeAudit({
+            workspaceId: input.workspaceId,
+            actorId: input.actorId,
+            action: SECURITY_AUDIT_ACTIONS.searchAcknowledged,
+          })
+        }
+        return policy
       })
-      return row
-    })
+
+    try {
+      return await run()
+    } catch (e: unknown) {
+      if ((e as { code?: string })?.code !== 'P2002') throw e
+      // A concurrent first-ack won the lazy-create race; our whole tx (incl.
+      // the audit) rolled back. One clean re-run converges onto the winner's
+      // row via the already-acknowledged arm — no audit, no overwrite.
+      return await run()
+    }
   }
 
   /**

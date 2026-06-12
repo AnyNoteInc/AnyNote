@@ -257,6 +257,42 @@ describe('admin content search', () => {
       expect(row.configuredById).toBe(member.id) // ack is not policy configuration
       expect(row.disableExport).toBe(true)
     })
+
+    it('concurrent double-ack converges: both calls succeed with the FIRST-committed ack, exactly one audit (3 rounds)', async () => {
+      const { owner, member } = await seed()
+      for (let round = 0; round < 3; round += 1) {
+        // Fresh workspace per round — once acknowledged STAYS acknowledged.
+        const ws = await prisma.workspace.create({
+          data: { name: `AckRaceWS-${round}`, createdById: owner.id },
+        })
+        // Both first-acks race through the lazy-create path under READ
+        // COMMITTED; both must SUCCEED (re-ack is a no-op success) and both
+        // must report the winner's timestamp/actor — the loser converges.
+        const results = await Promise.all([
+          domain.security.acknowledgeContentSearch({ workspaceId: ws.id, actorId: owner.id }),
+          domain.security.acknowledgeContentSearch({ workspaceId: ws.id, actorId: member.id }),
+        ])
+
+        const row = await prisma.workspaceSecurityPolicy.findUniqueOrThrow({
+          where: { workspaceId: ws.id },
+        })
+        expect(row.adminContentSearchAcknowledgedAt).not.toBeNull()
+        for (const result of results) {
+          // The first-committed timestamp/actor survive: both calls' results
+          // are consistent with each other AND with the stored row.
+          expect(result.adminContentSearchAcknowledgedAt).toEqual(
+            row.adminContentSearchAcknowledgedAt,
+          )
+          expect(result.adminContentSearchAcknowledgedById).toBe(
+            row.adminContentSearchAcknowledgedById,
+          )
+        }
+
+        const audits = await auditRows(ws.id, SECURITY_AUDIT_ACTIONS.searchAcknowledged)
+        expect(audits).toHaveLength(1)
+        expect(audits[0]!.actorId).toBe(row.adminContentSearchAcknowledgedById)
+      }
+    })
   })
 
   // ── the ack gate ─────────────────────────────────────────────────────────────

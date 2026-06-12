@@ -40,7 +40,8 @@ export interface GuestInviteRequestContextRow extends GuestInviteRequestRow {
   /** Null mirrors the nullable `Page.title` — the UI renders its own placeholder. */
   pageTitle: string | null
   requesterName: string | null
-  requesterEmail: string
+  /** null = пользователь удалён. */
+  requesterEmail: string | null
 }
 
 // ── admin content search (spec §3, Task 3) ────────────────────────────────────
@@ -135,18 +136,46 @@ export class SecurityRepository {
    * Sets ONLY the two ack fields. `configuredById` belongs to policy
    * configuration and is stamped on the lazy CREATE arm only — acknowledging
    * the search warning must not claim authorship of someone else's flags.
+   *
+   * `acknowledged` is true only when THIS call performed the first ack — the
+   * service's exactly-one-audit guard. The conditional `updateMany` is the
+   * concurrency guard (the markRequestDecided precedent): under READ COMMITTED
+   * the losing transaction of a double-ack blocks on the row lock,
+   * re-evaluates `adminContentSearchAcknowledgedAt IS NULL` against the
+   * winner's committed row, matches nothing, and converges onto the winner's
+   * timestamp/actor instead of overwriting them. A lazy-create race surfaces
+   * as P2002, which the SERVICE converges by re-running the transaction.
    */
-  async setSearchAcknowledged(workspaceId: string, actorId: string): Promise<SecurityPolicyDto> {
+  async setSearchAcknowledged(
+    workspaceId: string,
+    actorId: string,
+  ): Promise<{ policy: SecurityPolicyDto; acknowledged: boolean }> {
     const ack = {
       adminContentSearchAcknowledgedAt: new Date(),
       adminContentSearchAcknowledgedById: actorId,
     }
-    return this.uow.client().workspaceSecurityPolicy.upsert({
+    const updated = await this.uow.client().workspaceSecurityPolicy.updateMany({
+      where: { workspaceId, adminContentSearchAcknowledgedAt: null },
+      data: ack,
+    })
+    if (updated.count === 1) {
+      const policy = await this.uow.client().workspaceSecurityPolicy.findUniqueOrThrow({
+        where: { workspaceId },
+        select: policySelect,
+      })
+      return { policy, acknowledged: true }
+    }
+    const existing = await this.uow.client().workspaceSecurityPolicy.findUnique({
       where: { workspaceId },
-      create: { workspaceId, configuredById: actorId, ...ack },
-      update: ack,
       select: policySelect,
     })
+    // Row present but unmatched ⇒ already acknowledged — the no-op success arm.
+    if (existing) return { policy: existing, acknowledged: false }
+    const policy = await this.uow.client().workspaceSecurityPolicy.create({
+      data: { workspaceId, configuredById: actorId, ...ack },
+      select: policySelect,
+    })
+    return { policy, acknowledged: true }
   }
 
   // ── pages / members (lookups the request flows need) ────────────────────────
@@ -234,7 +263,7 @@ export class SecurityRepository {
       ...row,
       pageTitle: page.title,
       requesterName: byId.get(row.requesterId)?.name ?? null,
-      requesterEmail: byId.get(row.requesterId)?.email ?? '',
+      requesterEmail: byId.get(row.requesterId)?.email ?? null, // null = пользователь удалён
     }))
   }
 

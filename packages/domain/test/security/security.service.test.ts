@@ -134,6 +134,8 @@ describe('security service', () => {
   })
 
   it('audit catalog covers spec §2 (page_inspected deliberately skipped)', () => {
+    // 'content_search.override' is declared for the admin-search override
+    // actions (Task 5/6 wiring) — not yet emitted.
     expect(Object.values(SECURITY_AUDIT_ACTIONS).sort()).toEqual(
       [
         'security.policy_changed',

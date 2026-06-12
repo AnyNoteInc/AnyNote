@@ -27,6 +27,8 @@ export const SECURITY_AUDIT_ACTIONS = {
   policyChanged: 'security.policy_changed',
   searchAcknowledged: 'security.search_acknowledged',
   contentSearchPerformed: 'content_search.performed',
+  // 'content_search.override' is declared for the admin-search override
+  // actions (Task 5/6 wiring) — not yet emitted.
   contentSearchOverride: 'content_search.override',
   guestRequestCreated: 'guest_request.created',
   guestRequestApproved: 'guest_request.approved',
@@ -174,7 +176,8 @@ export interface GuestInviteRequestDto {
 /** The settings-queue row: the request plus requester/page context for the UI. */
 export interface GuestInviteRequestListItem extends GuestInviteRequestDto {
   requesterName: string | null
-  requesterEmail: string
+  /** null = пользователь удалён. */
+  requesterEmail: string | null
   /** Null mirrors the nullable `Page.title` — the UI renders its own placeholder. */
   pageTitle: string | null
 }
