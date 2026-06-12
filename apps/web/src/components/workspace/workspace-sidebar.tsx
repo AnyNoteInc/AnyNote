@@ -33,6 +33,11 @@ import { isMac } from '@/lib/platform'
 import { trpc } from '@/trpc/client'
 
 import { NotificationsBell } from '../notifications/notifications-bell'
+import {
+  DOMAIN_JOIN_LIST_QUERY_OPTS,
+  DomainJoinConfirmDialog,
+  type DomainJoinTarget,
+} from './domain-join-banner'
 import { FavoritesSection } from './favorites-section'
 import { GuestPagesSection } from './guest-pages-section'
 import { PageTreeSection } from './page-tree-section'
@@ -107,6 +112,15 @@ export function WorkspaceSidebar({
 
   const [switcherAnchor, setSwitcherAnchor] = useState<HTMLElement | null>(null)
   const closeSwitcher = () => setSwitcherAnchor(null)
+
+  // Workspaces joinable via the user's e-mail domain (identity spec §6):
+  // rendered as «По домену» switcher entries — joining is explicit (confirm
+  // dialog, billable member seat), never a silent membership.
+  const domainJoinable = trpc.identity.domainJoin.listAvailable.useQuery(
+    undefined,
+    DOMAIN_JOIN_LIST_QUERY_OPTS,
+  )
+  const [joinTarget, setJoinTarget] = useState<DomainJoinTarget | null>(null)
 
   const myRole = trpc.workspace.getMyRole.useQuery({ workspaceId: workspace.id })
   // Settings entry: OWNER and ADMIN (people management lives there); the
@@ -224,6 +238,24 @@ export function WorkspaceSidebar({
           </MenuItem>
         ))}
 
+        {(domainJoinable.data ?? []).map((w) => (
+          <MenuItem
+            key={w.workspaceId}
+            data-testid="domain-join-switcher-entry"
+            onClick={() => {
+              closeSwitcher()
+              setJoinTarget(w)
+            }}
+            sx={{ gap: 1 }}
+          >
+            <WorkspaceAvatar icon={null} size={22} />
+            <Typography variant="body2" noWrap sx={{ flex: 1, minWidth: 0 }}>
+              {w.name}
+            </Typography>
+            <Chip label="По домену" size="small" variant="outlined" data-testid="domain-chip" />
+          </MenuItem>
+        ))}
+
         <Divider />
         <MenuItem component={Link} href="/workspaces/new" onClick={closeSwitcher} sx={{ gap: 1 }}>
           <AddIcon fontSize="small" />
@@ -332,6 +364,10 @@ export function WorkspaceSidebar({
         <Box sx={{ flex: 1, minWidth: 0 }}>{userMenu}</Box>
         <NotificationsBell tooltipPlacement="top" />
       </Box>
+
+      {joinTarget ? (
+        <DomainJoinConfirmDialog target={joinTarget} onClose={() => setJoinTarget(null)} />
+      ) : null}
     </Box>
   )
 }

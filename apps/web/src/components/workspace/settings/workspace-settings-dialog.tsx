@@ -19,6 +19,7 @@ import {
   StorageIcon,
   TelegramIcon,
   Typography,
+  VpnKeyIcon,
   WarningAmberIcon,
   WebhookIcon,
 } from '@repo/ui/components'
@@ -28,6 +29,7 @@ import { trpc } from '@/trpc/client'
 
 import { WorkspaceGeneralSection } from './general-section'
 import { WorkspaceMembersSection } from './members-section'
+import { WorkspaceIdentitySection } from './identity-section'
 import { WorkspaceAiSection } from './ai-section'
 import { WorkspaceMcpSection } from './mcp-section'
 import { WorkspaceWebhooksSection } from './webhooks-section'
@@ -41,6 +43,7 @@ import { WorkspaceDangerSection } from './danger-section'
 export type SettingsSectionSlug =
   | 'general'
   | 'members'
+  | 'identity'
   | 'ai'
   | 'mcp'
   | 'webhooks'
@@ -122,6 +125,17 @@ export function WorkspaceSettingsDialog({
           currentUserId={currentUserId}
           isOwner={isOwner}
         />
+      ),
+    },
+    {
+      slug: 'identity',
+      label: 'Домены и вход',
+      icon: <VpnKeyIcon fontSize="small" />,
+      // Security-adjacent (identity spec §6): OWNER-only like ai/mcp; locked
+      // on free plans like members — the OWNER's plan gates the feature.
+      show: features.membersSettingsEnabled && isOwner,
+      render: () => (
+        <WorkspaceIdentitySection workspaceId={workspaceId} locked={!features.isPaid} />
       ),
     },
     {

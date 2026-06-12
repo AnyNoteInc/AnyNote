@@ -22,6 +22,7 @@ import type { PlanFeatures } from '@repo/trpc'
 
 import { SearchDialogProvider } from '../search/search-dialog-provider'
 import { useSearchHotkey } from '../search/use-search-hotkey'
+import { DomainJoinBanner } from './domain-join-banner'
 import { SettingsDialogProvider } from './settings/settings-dialog-provider'
 import { WorkspaceShell } from './workspace-shell'
 import type { SidebarMode } from './workspace-shell'
@@ -242,6 +243,11 @@ export function WorkspaceLayoutClient({
             ) : null
           }
         />
+        {/* Persistent domain-join prompt (identity spec §6): shows under the
+            toolbar on every (active) route while the user's e-mail domain
+            unlocks joinable workspaces — incl. SSO-JIT users with no
+            membership yet. */}
+        <DomainJoinBanner />
         <Box
           component="main"
           sx={{
