@@ -29,6 +29,35 @@ describe('notify helpers', () => {
     )
   })
 
+  it('guestInviteRequested targets the owner with the settings deep link', async () => {
+    emitMock.mockClear()
+    const prisma = {} as never
+    await notify.guestInviteRequested(prisma, {
+      userId: 'owner-1',
+      workspaceId: 'w1',
+      actorId: 'member-1',
+      requesterName: 'Anna',
+      pageTitle: 'Roadmap',
+      workspaceName: 'Marketing',
+      link: '/workspaces/w1/settings',
+    })
+    expect(emitMock).toHaveBeenCalledWith(
+      prisma,
+      expect.objectContaining({
+        type: 'GUEST_INVITE_REQUESTED',
+        userId: 'owner-1',
+        workspaceId: 'w1',
+        actorId: 'member-1',
+        resourceUrl: '/workspaces/w1/settings',
+        payload: expect.objectContaining({
+          requesterName: 'Anna',
+          pageTitle: 'Roadmap',
+          workspaceName: 'Marketing',
+        }),
+      }),
+    )
+  })
+
   it('verifyEmail builds correct payload', async () => {
     emitMock.mockClear()
     const prisma = {} as never

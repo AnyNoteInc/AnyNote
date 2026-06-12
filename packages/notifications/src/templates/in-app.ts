@@ -81,6 +81,12 @@ export function renderInApp(
       }
     case 'REMINDER_DUE':
       return formatReminderDue(payload)
+    case 'GUEST_INVITE_REQUESTED':
+      return {
+        title: `${p.requesterName ?? 'Кто-то'} запрашивает гостевой доступ к странице «${p.pageTitle ?? 'Без названия'}»`,
+        body: p.workspaceName ? `Пространство: ${p.workspaceName}` : '',
+        icon: 'invite',
+      }
     default:
       return { title: 'Уведомление', body: '', icon: 'system' }
   }

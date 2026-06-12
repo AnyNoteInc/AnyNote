@@ -42,6 +42,20 @@ describe('renderInApp', () => {
     expect(result.body).toContain('Дедлайн:')
     expect(result.icon).toBe('system')
   })
+
+  it('formats GUEST_INVITE_REQUESTED with requester and page title', () => {
+    const result = renderInApp('GUEST_INVITE_REQUESTED', {
+      requesterName: 'Анна Иванова',
+      pageTitle: 'Дорожная карта',
+      workspaceName: 'Маркетинг',
+    })
+
+    expect(result.title).toBe(
+      'Анна Иванова запрашивает гостевой доступ к странице «Дорожная карта»',
+    )
+    expect(result.body).toContain('Маркетинг')
+    expect(result.icon).toBe('invite')
+  })
 })
 
 describe('renderPushPayload', () => {

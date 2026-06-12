@@ -103,6 +103,34 @@ export const notify = {
       payload: args,
     }),
 
+  // Phase 8C: a member asks an OWNER to approve a guest invite while the
+  // security policy disables direct invites. IN_APP-only (internal surface —
+  // the owner sees requester + page title; the invitee gets mail only after
+  // approval). `args.userId` is the OWNER being notified, `actorId` the requester.
+  guestInviteRequested: (
+    prisma: PrismaClient,
+    args: {
+      userId: string
+      workspaceId: string
+      actorId?: string
+      requesterName: string
+      pageTitle: string
+      workspaceName: string
+      link: string
+    },
+  ) =>
+    emit(prisma, {
+      type: 'GUEST_INVITE_REQUESTED',
+      userId: args.userId,
+      workspaceId: args.workspaceId,
+      actorId: args.actorId,
+      // Members-settings deep link (the roleChanged precedent): the legacy
+      // route activates the workspace; the pending queue lives in workspace
+      // settings («Безопасность», badged from the members section).
+      resourceUrl: `/workspaces/${args.workspaceId}/settings`,
+      payload: args,
+    }),
+
   // Reserved stubs (no trigger points wired in v1).
   pageMention: (
     prisma: PrismaClient,

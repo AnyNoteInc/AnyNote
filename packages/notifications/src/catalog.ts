@@ -119,6 +119,13 @@ export const EVENT_CATALOG: Record<NotificationEventType, EventDescriptor> = {
     lockedChannels: ['IN_APP'],
     requiresConsent: null,
   },
+  // Phase 8C: a member asks an OWNER to approve a guest invite (security policy).
+  GUEST_INVITE_REQUESTED: {
+    category: 'COLLABORATION',
+    defaultChannels: ['IN_APP'],
+    lockedChannels: ['IN_APP'],
+    requiresConsent: null,
+  },
   // MARKETING
   WEEKLY_DIGEST: {
     category: 'MARKETING',

@@ -41,3 +41,14 @@ describe('EVENT_CATALOG', () => {
     }
   })
 })
+
+describe('GUEST_INVITE_REQUESTED descriptor (Phase 8C)', () => {
+  it('is COLLABORATION, in-app only, locked to IN_APP, no consent', () => {
+    expect(EVENT_CATALOG.GUEST_INVITE_REQUESTED).toEqual({
+      category: 'COLLABORATION',
+      defaultChannels: ['IN_APP'],
+      lockedChannels: ['IN_APP'],
+      requiresConsent: null,
+    })
+  })
+})

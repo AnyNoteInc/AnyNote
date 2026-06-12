@@ -442,6 +442,8 @@ model Workspace {
   invitations           WorkspaceInvitation[]
   inviteLink            WorkspaceInviteLink?
   guestInvites          PageGuestInvite[]
+  securityPolicy        WorkspaceSecurityPolicy?
+  guestInviteRequests   PageGuestInviteRequest[]
   blockedUsers          WorkspaceBlockedUser[]
   auditLogs             WorkspaceAuditLog[]
   allowedDomains        AllowedEmailDomain[]
@@ -530,6 +532,7 @@ model Page {
   notificationPrefs    PageNotificationPreference[]
   importMappings       ImportMapping[]     @relation("ImportMappingPage")
   guestInvites         PageGuestInvite[]
+  guestInviteRequests  PageGuestInviteRequest[]
 
   @@index([workspaceId])
   @@index([parentId])
@@ -1110,6 +1113,8 @@ enum NotificationEventType {
   DATABASE_PERSON_ASSIGNED
   DATABASE_DATE_REMINDER
   PAGE_REVISION_RESTORED
+  // Phase 8C: guest-invite request workflow (security policy).
+  GUEST_INVITE_REQUESTED
 }
 
 enum NotificationChannel {
@@ -2350,4 +2355,54 @@ model ExternalIdentityLink {
   @@unique([providerId, externalSubject])
   @@index([userId])
   @@map("external_identity_links")
+}
+
+// ── Security policy + guest-invite requests (Phase 8C) ───────────────────────
+
+model WorkspaceSecurityPolicy {
+  workspaceId                          String    @id @map("workspace_id") @db.Uuid // one row per workspace; created lazily on first change
+  disableGuestInvites                  Boolean   @default(false) @map("disable_guest_invites")
+  allowGuestInviteRequests             Boolean   @default(true) @map("allow_guest_invite_requests") // meaningful only when invites are disabled
+  disablePublicLinksSitesForms         Boolean   @default(false) @map("disable_public_links_sites_forms")
+  disableExport                        Boolean   @default(false) @map("disable_export")
+  disableMoveDuplicateOutsideWorkspace Boolean   @default(false) @map("disable_move_duplicate_outside_workspace")
+  adminContentSearchAcknowledgedAt     DateTime? @map("admin_content_search_acknowledged_at") // the one-time privacy-warning ack
+  adminContentSearchAcknowledgedById   String?   @map("admin_content_search_acknowledged_by_id") @db.Uuid
+  configuredById                       String    @map("configured_by_id") @db.Uuid
+  createdAt                            DateTime  @default(now()) @map("created_at")
+  updatedAt                            DateTime  @updatedAt @map("updated_at")
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  @@map("workspace_security_policies")
+}
+
+enum GuestInviteRequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model PageGuestInviteRequest {
+  id          String                   @id @default(uuid(7)) @db.Uuid
+  pageId      String                   @map("page_id") @db.Uuid
+  workspaceId String                   @map("workspace_id") @db.Uuid // denormalized for the settings queue (PageGuestInvite precedent)
+  email       String                   @db.VarChar(255) // stored lowercase
+  role        PageShareRole // READER | COMMENTER | EDITOR
+  requesterId String                   @map("requester_id") @db.Uuid
+  status      GuestInviteRequestStatus @default(PENDING)
+  decidedById String?                  @map("decided_by_id") @db.Uuid
+  decidedAt   DateTime?                @map("decided_at")
+  createdAt   DateTime                 @default(now()) @map("created_at")
+  updatedAt   DateTime                 @updatedAt @map("updated_at")
+
+  page      Page      @relation(fields: [pageId], references: [id], onDelete: Cascade)
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+
+  // Partial unique (raw SQL in the migration, job-infra pattern):
+  // CREATE UNIQUE INDEX page_guest_invite_requests_one_pending ON page_guest_invite_requests (page_id, email)
+  //   WHERE status = 'PENDING';
+  @@index([workspaceId, status])
+  @@index([pageId])
+  @@map("page_guest_invite_requests")
 }
