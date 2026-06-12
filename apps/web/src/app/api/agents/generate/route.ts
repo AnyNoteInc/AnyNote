@@ -83,7 +83,12 @@ export async function POST(request: NextRequest): Promise<Response> {
   const chat = await prisma.chat.findFirst({
     where: {
       id: body.chatId,
-      workspace: { members: { some: { userId: session.user.id } } },
+      // Blocked users get the same uniform 404 as non-members — and we skip
+      // the parallel context fan-out below entirely.
+      workspace: {
+        members: { some: { userId: session.user.id } },
+        blockedUsers: { none: { userId: session.user.id } },
+      },
     },
     select: {
       id: true,

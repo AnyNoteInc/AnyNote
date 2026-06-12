@@ -241,6 +241,31 @@ describe('POST /api/agents/generate', () => {
     expect(secondCall).toMatchObject({ id: 't1', kind: 'tool', state: 'done', detail: '3 results' })
   })
 
+  it('scopes the chat lookup away from blocked users (blocked ⇒ uniform 404)', async () => {
+    mocks.getSession.mockResolvedValue({ user: { id: userId } })
+    // A blocked user falls out of the filtered lookup exactly like a non-member.
+    mocks.prisma.chat.findFirst.mockResolvedValue(null)
+
+    const response = await POST(
+      new NextRequest('http://localhost/api/agents/generate', {
+        method: 'POST',
+        body: JSON.stringify({ chatId, text: 'hi', fileIds: [] }),
+      }),
+    )
+
+    expect(response.status).toBe(404)
+    expect(mocks.prisma.chat.findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({
+          workspace: {
+            members: { some: { userId } },
+            blockedUsers: { none: { userId } },
+          },
+        }),
+      }),
+    )
+  })
+
   it('publishes ERROR status when upstream returns non-200', async () => {
     let upstreamTask: Promise<void> | null = null
     const entry = makeEntry(assistantMessageId)

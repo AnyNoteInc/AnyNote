@@ -28,6 +28,9 @@ export async function GET(
           members: {
             some: { userId: session.user.id },
           },
+          blockedUsers: {
+            none: { userId: session.user.id },
+          },
         },
       },
     },

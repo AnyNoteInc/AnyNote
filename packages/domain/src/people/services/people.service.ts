@@ -623,21 +623,42 @@ export class PeopleService {
     const user = await this.repo.findUserById(input.userId)
     if (!user) throw notFound('Пользователь не найден')
 
-    await this.uow.transaction(async () => {
-      // Authoritative seat re-check inside the tx — narrows (does not
-      // eliminate) the count-then-insert TOCTOU under READ COMMITTED.
-      await this.assertSeatAvailable(input.workspaceId)
-      await this.repo.createMember(input.workspaceId, input.userId, input.role)
-      await this.collections.ensurePersonalCollection(input.workspaceId, input.userId)
-      await this.repo.writeAudit({
-        workspaceId: input.workspaceId,
-        actorId: input.actorId,
-        action: PEOPLE_AUDIT_ACTIONS.guestConvertedToMember,
-        targetUserId: input.userId,
-        targetEmail: user.email,
-        metadata: { role: input.role },
+    try {
+      await this.uow.transaction(async () => {
+        // Authoritative seat re-check inside the tx — narrows (does not
+        // eliminate) the count-then-insert TOCTOU under READ COMMITTED.
+        await this.assertSeatAvailable(input.workspaceId)
+        await this.repo.createMember(input.workspaceId, input.userId, input.role)
+        await this.collections.ensurePersonalCollection(input.workspaceId, input.userId)
+        await this.repo.writeAudit({
+          workspaceId: input.workspaceId,
+          actorId: input.actorId,
+          action: PEOPLE_AUDIT_ACTIONS.guestConvertedToMember,
+          targetUserId: input.userId,
+          targetEmail: user.email,
+          metadata: { role: input.role },
+        })
       })
-    })
+    } catch (e: unknown) {
+      if ((e as { code?: string })?.code !== 'P2002') throw e
+      // A concurrent convert won the workspace_members unique race after our
+      // membership pre-check. Already-a-member is the desired end state, so
+      // converge on it (acceptInvitation parity: audit with alreadyMember,
+      // return the existing membership's role) in a fresh transaction.
+      const member = await this.repo.findMembership(input.workspaceId, input.userId)
+      if (!member) throw e
+      await this.uow.transaction(async () => {
+        await this.repo.writeAudit({
+          workspaceId: input.workspaceId,
+          actorId: input.actorId,
+          action: PEOPLE_AUDIT_ACTIONS.guestConvertedToMember,
+          targetUserId: input.userId,
+          targetEmail: user.email,
+          metadata: { alreadyMember: true },
+        })
+      })
+      return { workspaceId: input.workspaceId, role: member.role }
+    }
     return { workspaceId: input.workspaceId, role: input.role }
   }
 

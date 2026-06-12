@@ -157,6 +157,16 @@ describe('blocked-user denial — router sample', () => {
     await expect(caller.getMyRole({ workspaceId })).resolves.toBeNull()
   })
 
+  it('workspace.getById returns null for a blocked member (uniform miss)', async () => {
+    const blockedCaller = createCallerFactory(workspaceRouter)(ctxFor(blockedId))
+    await expect(blockedCaller.getById({ id: workspaceId })).resolves.toBeNull()
+    // sanity: the block filter does not hide the workspace from a regular member
+    const ownerCaller = createCallerFactory(workspaceRouter)(ctxFor(ownerId))
+    await expect(ownerCaller.getById({ id: workspaceId })).resolves.toMatchObject({
+      id: workspaceId,
+    })
+  })
+
   it('file.listRecent is FORBIDDEN for a blocked member', async () => {
     const caller = createCallerFactory(fileRouter)(ctxFor(blockedId))
     await expect(caller.listRecent({ workspaceId, limit: 5 })).rejects.toMatchObject({

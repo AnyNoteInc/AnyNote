@@ -998,6 +998,49 @@ describe('people service — guests, link, roles, blocking', () => {
         403,
       )
     })
+
+    it('two concurrent converts converge: one member row, both calls succeed', async () => {
+      const { ws, page, owner } = await seed()
+      // A few rounds to shake out interleaving luck (the 7B atomic-claim pattern):
+      // the loser of the workspace_members unique race must converge on the
+      // already-member end state instead of surfacing P2002.
+      for (let i = 0; i < 3; i++) {
+        const user = await makeUser(`convrace${i}`)
+        await grantPage(page.id, user.id, 'EDITOR')
+        const input = {
+          workspaceId: ws.id,
+          actorId: owner.id,
+          userId: user.id,
+          role: RoleType.EDITOR,
+        }
+        // Promise.all rejects on any rejection — resolution itself asserts no 500
+        const results = await Promise.all([
+          domain.people.convertGuestToMember(input),
+          domain.people.convertGuestToMember(input),
+        ])
+        for (const r of results) {
+          expect(r).toEqual({ workspaceId: ws.id, role: RoleType.EDITOR })
+        }
+
+        const members = await prisma.workspaceMember.findMany({
+          where: { workspaceId: ws.id, userId: user.id },
+        })
+        expect(members).toHaveLength(1)
+        expect(members[0]!.role).toBe(RoleType.EDITOR)
+        // acceptInvitation parity: the winner audits {role}, the converged
+        // loser audits {alreadyMember: true}
+        const audits = (await auditRows(ws.id, PEOPLE_AUDIT_ACTIONS.guestConvertedToMember)).filter(
+          (a) => a.targetUserId === user.id,
+        )
+        expect(audits).toHaveLength(2)
+        expect(audits.map((a) => a.metadata)).toEqual(
+          expect.arrayContaining([
+            expect.objectContaining({ role: RoleType.EDITOR }),
+            expect.objectContaining({ alreadyMember: true }),
+          ]),
+        )
+      }
+    })
   })
 
   // ── changeMemberRole ───────────────────────────────────────────────────────

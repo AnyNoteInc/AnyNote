@@ -50,11 +50,14 @@ export async function POST(req: NextRequest) {
 
   const { chatId, confirmationId, action } = parsed.data
 
-  // Verify chat membership
+  // Verify chat membership (blocked users miss uniformly, like non-members)
   const chat = await prisma.chat.findFirst({
     where: {
       id: chatId,
-      workspace: { members: { some: { userId: session.user.id } } },
+      workspace: {
+        members: { some: { userId: session.user.id } },
+        blockedUsers: { none: { userId: session.user.id } },
+      },
     },
     select: { id: true, workspaceId: true },
   })

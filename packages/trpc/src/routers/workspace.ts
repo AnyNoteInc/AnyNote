@@ -96,6 +96,7 @@ export const workspaceRouter = router({
         where: {
           id: input.id,
           members: { some: { userId: ctx.user.id } },
+          blockedUsers: { none: { userId: ctx.user.id } },
         },
       })
     }),
