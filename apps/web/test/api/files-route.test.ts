@@ -106,3 +106,20 @@ describe('GET /api/files/[id] — membership arm block enforcement', () => {
     expect(res.status).toBe(403)
   })
 })
+
+describe('GET /api/files/[id] — cache headers', () => {
+  it('public files (avatars/icons/covers) get an immutable public cache header', async () => {
+    mocks.fileFindUnique.mockResolvedValue(fileRow({ isPublic: true, workspaceId: null }))
+    const res = await callRoute()
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Cache-Control')).toBe('public, max-age=86400, immutable')
+  })
+
+  it('private files keep the private no-cache header', async () => {
+    mocks.fileFindUnique.mockResolvedValue(fileRow())
+    mocks.memberFindUnique.mockResolvedValue({ userId: USER_ID })
+    const res = await callRoute()
+    expect(res.status).toBe(200)
+    expect(res.headers.get('Cache-Control')).toBe('private, max-age=0')
+  })
+})

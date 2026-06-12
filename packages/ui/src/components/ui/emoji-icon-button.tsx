@@ -19,6 +19,12 @@ export type EmojiIconButtonProps = Omit<
   onRemove?: () => void
   fallback?: ReactNode
   emojiSize?: number
+  /**
+   * Custom face renderer for values the default emoji span can't display
+   * (e.g. the web app's `url:`-prefixed image icons render via PageIcon).
+   * Defaults to the emoji span.
+   */
+  renderValue?: (value: string | null | undefined) => ReactNode
 }
 
 export function EmojiIconButton({
@@ -27,6 +33,7 @@ export function EmojiIconButton({
   onRemove,
   fallback = '📄',
   emojiSize = 32,
+  renderValue,
   sx,
   ...buttonProps
 }: EmojiIconButtonProps) {
@@ -37,9 +44,13 @@ export function EmojiIconButton({
   return (
     <>
       <IconButton {...buttonProps} onClick={open} sx={sx}>
-        <Box component="span" sx={{ lineHeight: 1, fontSize: emojiSize }}>
-          {value || fallback}
-        </Box>
+        {renderValue ? (
+          renderValue(value)
+        ) : (
+          <Box component="span" sx={{ lineHeight: 1, fontSize: emojiSize }}>
+            {value || fallback}
+          </Box>
+        )}
       </IconButton>
       <Popover
         open={Boolean(anchor)}

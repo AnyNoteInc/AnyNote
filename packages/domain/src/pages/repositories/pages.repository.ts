@@ -470,6 +470,12 @@ export class PageRepository {
     if (input.type !== undefined) data.type = input.type
     if (input.coverUrl !== undefined) data.coverUrl = input.coverUrl
     if (input.coverPreset !== undefined) data.coverPreset = input.coverPreset
+    // Load the current values so the `changed` hint lists only real changes —
+    // e.g. clearing an already-null cover must not advertise coverUrl/coverPreset.
+    const current = await this.uow.client().page.findUnique({
+      where: { id: input.id },
+      select: { title: true, icon: true, type: true, coverUrl: true, coverPreset: true },
+    })
     const updated = await this.uow.client().page.update({
       where: { id: input.id },
       data,
@@ -481,18 +487,19 @@ export class PageRepository {
       aggregateId: updated.id,
       workspaceId: input.workspaceId,
     })
-    await enqueueIntegrationEvents(this.uow.client() as Prisma.TransactionClient, {
-      event: 'page.properties_updated',
-      resourceType: 'page',
-      resourceId: updated.id,
-      workspaceId: input.workspaceId,
-      actorId: actorUserId,
-      hints: {
-        changed: (['title', 'icon', 'type', 'coverUrl', 'coverPreset'] as const).filter(
-          (k) => input[k] !== undefined,
-        ),
-      },
-    })
+    const changed = (['title', 'icon', 'type', 'coverUrl', 'coverPreset'] as const).filter(
+      (k) => input[k] !== undefined && (current === null || input[k] !== current[k]),
+    )
+    if (changed.length > 0) {
+      await enqueueIntegrationEvents(this.uow.client() as Prisma.TransactionClient, {
+        event: 'page.properties_updated',
+        resourceType: 'page',
+        resourceId: updated.id,
+        workspaceId: input.workspaceId,
+        actorId: actorUserId,
+        hints: { changed },
+      })
+    }
     return updated
   }
 

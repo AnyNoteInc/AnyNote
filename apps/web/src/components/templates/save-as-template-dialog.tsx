@@ -21,6 +21,7 @@ import {
 
 import { trpc } from '@/trpc/client'
 import { TagIcon } from '@/components/marketplace/tag-icon'
+import { PageIcon } from '@/components/page/page-icon'
 
 const TITLE_ID = 'save-as-template-dialog-title'
 
@@ -116,6 +117,9 @@ export function SaveAsTemplateDialog({
               aria-label="Изменить иконку шаблона"
               sx={{ width: 40, height: 40, p: 0.5, borderRadius: 1 }}
               emojiSize={28}
+              // PageIcon understands the `url:` image-icon format — the default
+              // emoji span would render it as raw text.
+              renderValue={(v) => <PageIcon icon={v} size={28} fallback="📄" />}
             />
             <TextField
               autoFocus

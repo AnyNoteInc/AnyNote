@@ -6,7 +6,13 @@ import type { NextRequest } from 'next/server'
 
 import { getActiveWorkspaceForUser } from '@/lib/active-workspace'
 import { getSession } from '@/lib/get-session'
-import { computeS3Key, extractExt, validateUpload, type UploadKind } from '@/lib/file-validation'
+import {
+  computeS3Key,
+  extractExt,
+  sniffImageMime,
+  validateUpload,
+  type UploadKind,
+} from '@/lib/file-validation'
 
 export const runtime = 'nodejs'
 
@@ -61,6 +67,12 @@ export async function POST(request: NextRequest) {
   const validationError = validateUpload(kind, bytes.length, mimeType)
   if (validationError) {
     return Response.json({ error: validationError.message }, { status: validationError.status })
+  }
+
+  // The declared MIME is client-controlled; for the public image kinds verify
+  // the magic bytes actually match it (unknown or lying content ⇒ 400).
+  if (isPublicKind && sniffImageMime(bytes) !== mimeType) {
+    return Response.json({ error: 'Файл не является изображением' }, { status: 400 })
   }
 
   if (kind === 'attachment') {

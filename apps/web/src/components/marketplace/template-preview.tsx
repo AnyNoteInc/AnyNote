@@ -2,6 +2,7 @@
 
 import { Box } from '@repo/ui/components'
 
+import { PageIcon } from '@/components/page/page-icon'
 import { tiptapJsonToHtml } from '@/server/page-export/tiptap-to-html'
 
 /** Deterministic gradient from the template id (used when there's no content). */
@@ -51,7 +52,7 @@ export function TemplatePreview({
           fontSize: 34,
         }}
       >
-        {icon ?? '📄'}
+        <PageIcon icon={icon} size={34} fallback="📄" />
       </Box>
     )
   }

@@ -2,6 +2,8 @@
 
 import { Box, Button, Divider, Typography } from '@repo/ui/components'
 
+import { PageIcon } from '@/components/page/page-icon'
+
 import { pageTypeIcon, pageTypeLabel } from './page-type-registry'
 import { TemplateCreatedAt, TemplateScopeBadge, TemplateUsageBadge } from './template-badges'
 import type { TemplateSummary } from './types'
@@ -44,7 +46,7 @@ export function TemplatePreviewPane({ template, isCreating, onUse }: Props) {
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', p: 2, gap: 1.5 }}>
       <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
         <Box sx={{ fontSize: 24, lineHeight: 1 }} aria-hidden>
-          {template.icon ?? <Icon color="action" />}
+          {template.icon ? <PageIcon icon={template.icon} size={24} /> : <Icon color="action" />}
         </Box>
         <Typography variant="h6" sx={{ flex: 1, minWidth: 0 }} noWrap>
           {template.title}

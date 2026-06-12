@@ -28,6 +28,7 @@ import {
 import { trpc } from '@/trpc/client'
 import { usePageActions } from '@/hooks/use-page-actions'
 import { SaveAsTemplateDialog } from '@/components/templates'
+import { PageIcon } from '@/components/page/page-icon'
 import type { PageItem } from './types'
 
 type Props = {
@@ -202,6 +203,9 @@ export function PageContextMenu({
               aria-label="Изменить иконку"
               sx={{ width: 40, height: 40, p: 0.5, borderRadius: 1 }}
               emojiSize={28}
+              // PageIcon understands the `url:` image-icon format — the default
+              // emoji span would render it as raw text.
+              renderValue={(v) => <PageIcon icon={v} size={28} fallback="📄" />}
             />
             <TextField
               autoFocus

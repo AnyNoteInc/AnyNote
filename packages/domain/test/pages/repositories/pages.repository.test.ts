@@ -161,7 +161,16 @@ describe('PageRepository.updatePageTx — appearance writes + properties_updated
 
   const FILE_URL = '/api/files/8a33ee5e-95f1-4b53-8d12-0d5dbb1c1a2f'
 
-  function makeUpdateUow() {
+  const CURRENT_ROW = {
+    title: 'T',
+    icon: null,
+    type: 'TEXT',
+    coverUrl: null,
+    coverPreset: null,
+  }
+
+  function makeUpdateUow(current: Record<string, unknown> = CURRENT_ROW) {
+    const pageFindUnique = vi.fn(async () => current)
     const pageUpdate = vi.fn(async () => ({
       id: 'p1',
       title: 'T',
@@ -171,14 +180,19 @@ describe('PageRepository.updatePageTx — appearance writes + properties_updated
     const outboxCreate = vi.fn(async () => ({}))
     const outboxCreateMany = vi.fn(async () => ({ count: 2 }))
     const uow = makeUow({
-      page: { update: pageUpdate },
+      page: { findUnique: pageFindUnique, update: pageUpdate },
       outboxEvent: { create: outboxCreate, createMany: outboxCreateMany },
     })
     return { uow, pageUpdate, outboxCreate, outboxCreateMany }
   }
 
   it('writes cover fields and emits changed: [coverUrl, coverPreset]', async () => {
-    const { uow, pageUpdate, outboxCreate, outboxCreateMany } = makeUpdateUow()
+    // Current row has a preset — replacing it with an uploaded cover really
+    // changes both fields.
+    const { uow, pageUpdate, outboxCreate, outboxCreateMany } = makeUpdateUow({
+      ...CURRENT_ROW,
+      coverPreset: 'sunset',
+    })
     const repo = new PageRepository(uow)
     await repo.updatePageTx('u1', {
       id: 'p1',
@@ -263,6 +277,38 @@ describe('PageRepository.updatePageTx — appearance writes + properties_updated
           }),
           expect.objectContaining({
             payload: expect.objectContaining({ hints: { changed: ['title'] } }),
+          }),
+        ],
+      }),
+    )
+  })
+
+  it('a no-op clear (already-null cover fields) emits NO properties_updated rows', async () => {
+    const { uow, outboxCreate, outboxCreateMany } = makeUpdateUow() // current covers both null
+    const repo = new PageRepository(uow)
+    await repo.updatePageTx('u1', {
+      id: 'p1',
+      workspaceId: 'w1',
+      coverUrl: null,
+      coverPreset: null,
+    })
+    // Indexing row still rides (the row was touched) — but no integration fan-out.
+    expect(outboxCreate).toHaveBeenCalledTimes(1)
+    expect(outboxCreateMany).not.toHaveBeenCalled()
+  })
+
+  it('filters unchanged fields: same-title write with a real icon change emits changed: [icon]', async () => {
+    const { uow, outboxCreateMany } = makeUpdateUow() // current title 'T', icon null
+    const repo = new PageRepository(uow)
+    await repo.updatePageTx('u1', { id: 'p1', workspaceId: 'w1', title: 'T', icon: '🔥' })
+    expect(outboxCreateMany).toHaveBeenCalledWith(
+      expect.objectContaining({
+        data: [
+          expect.objectContaining({
+            payload: expect.objectContaining({ hints: { changed: ['icon'] } }),
+          }),
+          expect.objectContaining({
+            payload: expect.objectContaining({ hints: { changed: ['icon'] } }),
           }),
         ],
       }),

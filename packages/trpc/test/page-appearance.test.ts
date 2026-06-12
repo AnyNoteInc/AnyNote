@@ -128,6 +128,33 @@ describe('page.update — icon/cover appearance (integration)', () => {
     expect(row?.icon).toBe(`url:${FILE_URL}`)
   })
 
+  it('a no-op clear of already-null cover fields emits no properties_updated rows', async () => {
+    const ctx = await seed()
+    const caller = makeCaller(ctx.ownerId)
+
+    await caller.update({ id: ctx.pageId, workspaceId: ctx.wsId, coverUrl: null })
+    const rows = await prisma.outboxEvent.findMany({
+      where: { aggregateId: ctx.pageId, eventType: 'page.properties_updated' },
+      select: { id: true },
+    })
+    expect(rows).toHaveLength(0)
+  })
+
+  it('a real cover change emits properties_updated with the exact changed hint', async () => {
+    const ctx = await seed()
+    const caller = makeCaller(ctx.ownerId)
+
+    await caller.update({ id: ctx.pageId, workspaceId: ctx.wsId, coverPreset: 'sunset' })
+    const rows = await prisma.outboxEvent.findMany({
+      where: { aggregateId: ctx.pageId, eventType: 'page.properties_updated' },
+      select: { payload: true },
+    })
+    expect(rows.length).toBeGreaterThan(0)
+    for (const row of rows) {
+      expect(row.payload).toMatchObject({ hints: { changed: ['coverPreset'] } })
+    }
+  })
+
   it('rejects an unknown preset and a bad cover URL with BAD_REQUEST', async () => {
     const ctx = await seed()
     const caller = makeCaller(ctx.ownerId)

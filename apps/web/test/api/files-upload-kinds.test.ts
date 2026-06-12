@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { validateUpload } from '../../src/lib/file-validation'
+import { sniffImageMime, validateUpload } from '../../src/lib/file-validation'
 
 const mocks = vi.hoisted(() => ({
   fileFindFirst: vi.fn<(args: unknown) => Promise<unknown>>(async () => null),
@@ -66,8 +66,18 @@ function makeUploadRequest(kind: string, file: File): NextRequest {
   return req as unknown as NextRequest
 }
 
-const pngFile = (bytes = 10, name = 'pic.png') =>
-  new File([new Uint8Array(bytes)], name, { type: 'image/png' })
+// A real 1×1 transparent PNG — magic-byte validation rejects fabricated bytes.
+const PNG_1X1 = Buffer.from(
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==',
+  'base64',
+)
+
+/** A File whose content starts with the real PNG, zero-padded up to `bytes`. */
+const pngFile = (bytes = PNG_1X1.length, name = 'pic.png') => {
+  const buf = new Uint8Array(Math.max(bytes, PNG_1X1.length))
+  buf.set(PNG_1X1)
+  return new File([buf], name, { type: 'image/png' })
+}
 
 beforeEach(() => {
   mocks.fileFindFirst.mockReset().mockResolvedValue(null)
@@ -116,6 +126,30 @@ describe('validateUpload — cover kind (10MB, image MIME)', () => {
 
   it('rejects non-image MIME (zip)', () => {
     expect(validateUpload('cover', 100, 'application/zip')).toMatchObject({ status: 400 })
+  })
+})
+
+// ── sniffImageMime: the four whitelist signatures ─────────────────────────────
+
+describe('sniffImageMime', () => {
+  it.each([
+    ['image/png', [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0, 0, 0]],
+    ['image/jpeg', [0xff, 0xd8, 0xff, 0xe0, 0, 0, 0, 0, 0, 0, 0, 0]],
+    ['image/gif', [0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0, 0, 0, 0, 0, 0]],
+    ['image/webp', [0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]],
+  ] as const)('detects %s from its signature', (mime, bytes) => {
+    expect(sniffImageMime(Uint8Array.from(bytes))).toBe(mime)
+  })
+
+  it('returns null for unknown bytes (HTML, empty, truncated)', () => {
+    expect(sniffImageMime(Uint8Array.from(Buffer.from('<html></html>', 'utf8')))).toBeNull()
+    expect(sniffImageMime(new Uint8Array(0))).toBeNull()
+    expect(sniffImageMime(Uint8Array.from([0x89, 0x50]))).toBeNull()
+  })
+
+  it('returns null for RIFF that is not WEBP (e.g. WAV)', () => {
+    const wav = Uint8Array.from([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x41, 0x56, 0x45])
+    expect(sniffImageMime(wav)).toBeNull()
   })
 })
 
@@ -183,5 +217,50 @@ describe('POST /api/files/upload — icon/cover kinds (public-by-id, no quota)',
     const res = await POST(makeUploadRequest('avatar', pngFile()))
     expect(res.status).toBe(200)
     expect(mocks.txUserUpdate).toHaveBeenCalledTimes(1)
+  })
+})
+
+// ── Magic-byte validation for the public image kinds ─────────────────────────
+
+describe('POST /api/files/upload — magic-byte validation (avatar/icon/cover)', () => {
+  it.each(['avatar', 'icon', 'cover'] as const)(
+    'kind=%s rejects an HTML payload declared image/png with 400',
+    async (kind) => {
+      const html = new File(
+        [Buffer.from('<html><script>alert(1)</script></html>', 'utf8')],
+        'evil.png',
+        { type: 'image/png' },
+      )
+      const res = await POST(makeUploadRequest(kind, html))
+      expect(res.status).toBe(400)
+      const body = (await res.json()) as { error: string }
+      expect(body.error).toBe('Файл не является изображением')
+      expect(mocks.storagePut).not.toHaveBeenCalled()
+      expect(mocks.txFileCreate).not.toHaveBeenCalled()
+    },
+  )
+
+  it('rejects a real png declared as image/jpeg (declared/sniffed mismatch)', async () => {
+    const lying = new File([new Uint8Array(PNG_1X1)], 'pic.jpg', { type: 'image/jpeg' })
+    const res = await POST(makeUploadRequest('icon', lying))
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as { error: string }
+    expect(body.error).toBe('Файл не является изображением')
+  })
+
+  it('accepts a real 1×1 png buffer for kind=icon', async () => {
+    const res = await POST(makeUploadRequest('icon', pngFile()))
+    expect(res.status).toBe(200)
+    expect(mocks.txFileCreate).toHaveBeenCalledTimes(1)
+  })
+
+  it('does NOT sniff attachments (a zip declared application/zip passes MIME-only)', async () => {
+    mocks.getActiveWorkspaceForUser.mockResolvedValue({ id: 'ws-1' })
+    mocks.limitFindUnique.mockResolvedValue({ maxFileBytes: BigInt(100 * MB) })
+    const zip = new File([Buffer.from('not-actually-zip-bytes', 'utf8')], 'a.zip', {
+      type: 'application/zip',
+    })
+    const res = await POST(makeUploadRequest('attachment', zip))
+    expect(res.status).toBe(200)
   })
 })

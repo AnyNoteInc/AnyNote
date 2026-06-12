@@ -57,6 +57,26 @@ export const validateUpload = (
   return null
 }
 
+// ── Magic-byte sniffing for the image whitelist ──────────────────────────────
+// The multipart contentType is client-controlled; public kinds (avatar/icon/
+// cover) are served back by unguessable id to *anyone*, so the bytes must
+// actually be one of the whitelisted image formats. SVG is deliberately absent
+// from AVATAR_MIME, so no XML sniffing is needed — 4 fixed prefixes suffice.
+
+const startsWith = (bytes: Uint8Array, prefix: number[], offset = 0): boolean =>
+  bytes.length >= offset + prefix.length && prefix.every((b, i) => bytes[offset + i] === b)
+
+/** The detected image MIME for the 4 whitelisted formats, or null when unknown. */
+export const sniffImageMime = (bytes: Uint8Array): string | null => {
+  if (startsWith(bytes, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a])) return 'image/png'
+  if (startsWith(bytes, [0xff, 0xd8, 0xff])) return 'image/jpeg'
+  if (startsWith(bytes, [0x47, 0x49, 0x46, 0x38])) return 'image/gif'
+  // RIFF????WEBP — bytes 4..7 are the chunk size.
+  if (startsWith(bytes, [0x52, 0x49, 0x46, 0x46]) && startsWith(bytes, [0x57, 0x45, 0x42, 0x50], 8))
+    return 'image/webp'
+  return null
+}
+
 export const extractExt = (filename: string): string => {
   const dot = filename.lastIndexOf('.')
   if (dot < 0 || dot === filename.length - 1) return ''

@@ -2,6 +2,8 @@
 
 import { Box, Card, CardActionArea, Typography } from '@repo/ui/components'
 
+import { PageIcon } from '@/components/page/page-icon'
+
 import { pageTypeIcon } from './page-type-registry'
 import { TemplateCreatedAt, TemplateScopeBadge, TemplateUsageBadge } from './template-badges'
 import type { TemplateSummary } from './types'
@@ -50,7 +52,11 @@ export function TemplateCard({ template, selected, onSelect, onActivate }: Props
             }}
             aria-hidden
           >
-            {template.icon ?? <Icon fontSize="small" color="action" />}
+            {template.icon ? (
+              <PageIcon icon={template.icon} size={20} />
+            ) : (
+              <Icon fontSize="small" color="action" />
+            )}
           </Box>
           <Box sx={{ minWidth: 0, flex: 1 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 0.25 }}>

@@ -100,13 +100,17 @@ export async function GET(_request: NextRequest, { params }: { params: Promise<{
   const filenameStar = encodeURIComponent(filenameStem)
   const disposition = `inline; filename="${filenameStar}"; filename*=UTF-8''${filenameStar}`
 
+  // Public files (avatars/page icons/covers) are content-addressed per id —
+  // the bytes behind an id never change, so browsers/CDNs may cache hard.
+  const cacheControl = file.isPublic ? 'public, max-age=86400, immutable' : 'private, max-age=0'
+
   return new Response(stream, {
     status: 200,
     headers: {
       'Content-Type': file.mimeType,
       'Content-Length': file.fileSize.toString(),
       'Content-Disposition': disposition,
-      'Cache-Control': 'private, max-age=0',
+      'Cache-Control': cacheControl,
       'X-Content-Type-Options': 'nosniff',
     },
   })

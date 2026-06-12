@@ -16,12 +16,14 @@ const basePageRow: PageRowDto = {
   workspaceId: 'w1',
   createdById: 'u1',
   parentId: null,
+  collectionId: null,
   prevPageId: null,
   title: 'Hello',
   icon: null,
   type: 'TEXT',
   content: null,
   contentYjs: null,
+  archivedAt: null,
   deletedAt: null,
 }
 
