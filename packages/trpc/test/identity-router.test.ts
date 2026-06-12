@@ -195,11 +195,14 @@ function discoveryDocument(issuer = ISSUER_URL) {
   }
 }
 
-function serveDiscovery(doc: Record<string, unknown> = discoveryDocument()) {
+function serveDiscovery(
+  doc: Record<string, unknown> = discoveryDocument(),
+  init: { contentType?: string } = {},
+) {
   ssoEdge.fetchFn = async () =>
     new Response(JSON.stringify(doc), {
       status: 200,
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': init.contentType ?? 'application/json' },
     })
 }
 
@@ -627,6 +630,90 @@ describe('identity router', () => {
     })
     expect(row.status).toBe('DISABLED')
     expect(row.ssoProviderId).toBeNull()
+  })
+
+  it('providers.activate rejects an oversized discovery document (no plugin row)', async () => {
+    const { owner, ws } = await seed()
+    const caller = identity(owner)
+    const domainRow = await createVerifiedDomain(ws.id, owner.id)
+    // A valid doc inflated past the 256 KB bound — rejected BEFORE parsing.
+    serveDiscovery({ ...discoveryDocument(), padding: 'x'.repeat(256 * 1024) })
+
+    const created = await caller.providers.create({
+      workspaceId: ws.id,
+      type: 'OIDC',
+      name: 'Okta',
+      issuerUrl: ISSUER_URL,
+      clientId: 'client-id',
+      clientSecret: SECRET_PLAINTEXT,
+    })
+    await expect(
+      caller.providers.activate({
+        workspaceId: ws.id,
+        providerId: created.id,
+        domainId: domainRow.id,
+      }),
+    ).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+      message: expect.stringContaining('256 КБ'),
+    })
+    expect(await prisma.ssoProvider.count({ where: { providerId: created.id } })).toBe(0)
+  })
+
+  it('providers.activate rejects a discovery response whose Content-Type is not JSON', async () => {
+    const { owner, ws } = await seed()
+    const caller = identity(owner)
+    const domainRow = await createVerifiedDomain(ws.id, owner.id)
+    serveDiscovery(discoveryDocument(), { contentType: 'text/html; charset=utf-8' })
+
+    const created = await caller.providers.create({
+      workspaceId: ws.id,
+      type: 'OIDC',
+      name: 'Okta',
+      issuerUrl: ISSUER_URL,
+      clientId: 'client-id',
+      clientSecret: SECRET_PLAINTEXT,
+    })
+    await expect(
+      caller.providers.activate({
+        workspaceId: ws.id,
+        providerId: created.id,
+        domainId: domainRow.id,
+      }),
+    ).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+      message: expect.stringContaining('discovery-документ не является JSON'),
+    })
+    expect(await prisma.ssoProvider.count({ where: { providerId: created.id } })).toBe(0)
+  })
+
+  it('providers.activate rejects a discovery document without issuer (RFC 8414 requires it)', async () => {
+    const { owner, ws } = await seed()
+    const caller = identity(owner)
+    const domainRow = await createVerifiedDomain(ws.id, owner.id)
+    const docWithoutIssuer: Record<string, unknown> = { ...discoveryDocument() }
+    delete docWithoutIssuer.issuer
+    serveDiscovery(docWithoutIssuer)
+
+    const created = await caller.providers.create({
+      workspaceId: ws.id,
+      type: 'OIDC',
+      name: 'Okta',
+      issuerUrl: ISSUER_URL,
+      clientId: 'client-id',
+      clientSecret: SECRET_PLAINTEXT,
+    })
+    await expect(
+      caller.providers.activate({
+        workspaceId: ws.id,
+        providerId: created.id,
+        domainId: domainRow.id,
+      }),
+    ).rejects.toMatchObject({
+      code: 'BAD_REQUEST',
+      message: expect.stringContaining('issuer в discovery-документе не совпадает'),
+    })
+    expect(await prisma.ssoProvider.count({ where: { providerId: created.id } })).toBe(0)
   })
 
   it('providers.disable and providers.delete deregister the plugin row', async () => {

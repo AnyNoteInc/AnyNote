@@ -18,8 +18,23 @@ import { assertSafeWebhookUrl, SsrfBlockedError, type LookupFn } from '@repo/web
  *   private/loopback/link-local/CGN/metadata ranges blocked;
  * - the discovery fetch is timeout-bounded and NEVER follows redirects (a 3xx
  *   could point at a private host and evade the guard);
- * - the discovery `issuer` must match the configured issuer URL (OIDC §4.3 —
- *   prevents issuer mix-up via a hijacked document).
+ * - the discovery response must declare `application/json` and is size-bounded
+ *   (`MAX_DISCOVERY_BYTES`) before parsing — a misbehaving IdP can't make us
+ *   buffer an unbounded body;
+ * - the discovery `issuer` is REQUIRED (RFC 8414 §2) and must match the
+ *   configured issuer URL (OIDC §4.3 — prevents issuer mix-up via a hijacked
+ *   document).
+ *
+ * Known residual risk — DNS rebinding (accepted, deferred): the guard-then-
+ * fetch pattern resolves the hostname twice — once inside
+ * `assertSafeWebhookUrl` and again inside `fetchFn` — so a TTL-0 DNS record
+ * can answer the guard with a public IP and the fetch with a private one.
+ * Exploiting it requires a workspace OWNER to configure an issuer domain
+ * whose DNS they control, i.e. a privileged insider, and the response is only
+ * parsed as an OIDC discovery document (no body is echoed back). The full fix
+ * is an IP-pinned fetch (connect to the exact address the guard resolved);
+ * deferred until `@repo/webhooks` grows a pinned-dispatch helper so both
+ * consumers share one implementation.
  *
  * Crash-window convergence (sso.md): `register` AND `update` are upserts keyed
  * on the deterministic plugin `providerId` (= `WorkspaceAuthProvider.id`), so
@@ -44,6 +59,8 @@ export type CreateIdentitySsoPortOptions = {
 
 const DISCOVERY_TIMEOUT_MS = 10_000
 const DISCOVERY_PATH = '/.well-known/openid-configuration'
+/** Real discovery documents are a few KB; anything bigger is hostile or broken. */
+const MAX_DISCOVERY_BYTES = 256 * 1024
 
 type OidcDiscoveryDocument = {
   issuer?: unknown
@@ -120,15 +137,32 @@ async function buildHydratedOidcConfig(
   }
   if (res.status < 200 || res.status >= 300) throw badDiscovery(`http ${res.status}`)
 
+  const contentType = res.headers.get('content-type') ?? ''
+  if (!contentType.toLowerCase().startsWith('application/json')) {
+    throw badDiscovery('discovery-документ не является JSON')
+  }
+
+  let body: ArrayBuffer
+  try {
+    body = await res.arrayBuffer()
+  } catch (err) {
+    throw badDiscovery(err instanceof Error ? err.message : 'сетевая ошибка')
+  }
+  if (body.byteLength > MAX_DISCOVERY_BYTES) {
+    throw badDiscovery(`discovery-документ превышает ${MAX_DISCOVERY_BYTES / 1024} КБ`)
+  }
+
   let doc: OidcDiscoveryDocument
   try {
-    doc = (await res.json()) as OidcDiscoveryDocument
+    doc = JSON.parse(Buffer.from(body).toString('utf8')) as OidcDiscoveryDocument
   } catch {
     throw badDiscovery('ответ не является JSON')
   }
 
+  // RFC 8414 §2 makes `issuer` REQUIRED — a document without it is invalid,
+  // and silently skipping the match would defeat the mix-up protection.
   if (
-    typeof doc.issuer === 'string' &&
+    typeof doc.issuer !== 'string' ||
     stripTrailingSlash(doc.issuer) !== stripTrailingSlash(data.issuerUrl)
   ) {
     throw badDiscovery('issuer в discovery-документе не совпадает с указанным issuer URL')
