@@ -30,6 +30,9 @@ import type { PageService } from './pages/services/pages.service.ts'
 import { PEOPLE } from './people/people.tokens.ts'
 import { peopleModule } from './people/people.module.ts'
 import type { PeopleService } from './people/services/people.service.ts'
+import { IDENTITY } from './identity/identity.tokens.ts'
+import { identityModule } from './identity/identity.module.ts'
+import type { IdentityService } from './identity/services/identity.service.ts'
 import { PAGE_HISTORY } from './page-history/page-history.tokens.ts'
 import { pageHistoryModule } from './page-history/page-history.module.ts'
 import type { RevisionCaptureService } from './page-history/services/revision-capture.service.ts'
@@ -63,6 +66,7 @@ export interface Domain {
   database: DatabaseService
   pages: PageService
   people: PeopleService
+  identity: IdentityService
   pageHistory: RevisionCaptureService
   templates: TemplateService
   billing: BillingService
@@ -89,6 +93,7 @@ export function createDomainContainer(deps: DomainDeps): Container {
     pageHistoryModule,
     pagesModule,
     peopleModule,
+    identityModule,
     templatesModule,
     billingModule,
     collectionsModule,
@@ -109,6 +114,7 @@ export function createDomain(deps: DomainDeps): Domain {
     database: c.get<DatabaseService>(DATABASE.Service),
     pages: c.get<PageService>(PAGES.Service),
     people: c.get<PeopleService>(PEOPLE.Service),
+    identity: c.get<IdentityService>(IDENTITY.Service),
     pageHistory: c.get<RevisionCaptureService>(PAGE_HISTORY.Service),
     templates: c.get<TemplateService>(TEMPLATES.Service),
     billing: c.get<BillingService>(BILLING.Service),
