@@ -25,6 +25,7 @@ import { jobRouter } from './routers/job'
 import { webhookRouter } from './routers/webhook'
 import { telegramRouter } from './routers/telegram'
 import { peopleRouter } from './routers/people'
+import { identityRouter } from './routers/identity'
 
 export { createContext, createServerContext } from './trpc'
 export type { Context, JobRunnerPort } from './trpc'
@@ -67,6 +68,7 @@ export const appRouter = router({
   webhook: webhookRouter,
   telegram: telegramRouter,
   people: peopleRouter,
+  identity: identityRouter,
 })
 
 export const createCaller = createCallerFactory(appRouter)

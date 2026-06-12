@@ -11,6 +11,7 @@ import {
   captcha,
 } from 'better-auth/plugins'
 import { nextCookies } from 'better-auth/next-js'
+import { APIError } from 'better-auth/api'
 import { sso } from '@better-auth/sso'
 
 import { prisma, SubscriptionStatus } from '@repo/db'
@@ -59,6 +60,30 @@ export function withDerivedNameParts<T extends Record<string, unknown>>(
     firstName: first ?? parts[0] ?? '',
     lastName: last ?? parts.slice(1).join(' '),
   }
+}
+
+/**
+ * INSTANCE-level sign-up restriction (spec §5, Phase 8B) — distinct from
+ * per-workspace allowed domains. `envValue` is `RESTRICT_SIGNUP_EMAIL_DOMAINS`:
+ * a comma-separated, case-insensitive list of email domains (a leading `@` per
+ * entry is tolerated). Unset/empty ⇒ no restriction. The match is EXACT — a
+ * subdomain must be listed explicitly. Pure and exported for unit tests; wired
+ * into `databaseHooks.user.create.before`, so it covers email/password, social
+ * OAuth, and SSO JIT creation alike.
+ */
+export function isSignupEmailAllowed(email: string, envValue: string | null | undefined): boolean {
+  const allowed = (envValue ?? '')
+    .split(',')
+    .map((entry) => entry.trim().replace(/^@/, '').toLowerCase())
+    .filter((entry) => entry.length > 0)
+  if (allowed.length === 0) return true
+  const at = email.lastIndexOf('@')
+  if (at < 0) return false
+  const domain = email
+    .slice(at + 1)
+    .trim()
+    .toLowerCase()
+  return domain.length > 0 && allowed.includes(domain)
 }
 
 const auth = betterAuth({
@@ -202,8 +227,18 @@ const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
+        // better-auth takes exactly ONE before hook — the sign-up restriction
+        // and the name-part derivation are composed here, restriction first
+        // (a rejected creation must not reach any later step).
         before: async (user) => {
-          return { data: withDerivedNameParts(user as unknown as Record<string, unknown>) }
+          const data = user as unknown as Record<string, unknown>
+          const email = typeof data.email === 'string' ? data.email : ''
+          if (!isSignupEmailAllowed(email, process.env.RESTRICT_SIGNUP_EMAIL_DOMAINS)) {
+            throw new APIError('FORBIDDEN', {
+              message: 'Регистрация ограничена доменами организации',
+            })
+          }
+          return { data: withDerivedNameParts(data) }
         },
         after: async (user) => {
           const userWithName = user as {
