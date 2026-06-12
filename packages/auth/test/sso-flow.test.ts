@@ -161,8 +161,15 @@ describe('sso plugin spike (mock OIDC IdP)', () => {
   })
 
   afterAll(async () => {
-    // let background sendOnSignUp settle before deleting fixture rows
-    await new Promise((r) => setTimeout(r, 150))
+    // sendOnSignUp fires sendVerificationEmail for the JIT user in the
+    // background; all its DB writes commit BEFORE the mail transport is hit
+    // (packages/notifications emit.ts), so the mocked sendMailNow being called
+    // means the flow has settled and the fixture rows are safe to delete.
+    // Zero calls (the flow test failed before JIT creation) just falls through
+    // to cleanup instead of masking the real failure with a timeout error.
+    await vi
+      .waitUntil(() => sendMailNowMock.mock.calls.length > 0, { timeout: 2000 })
+      .catch(() => undefined)
     await cleanup()
     await new Promise<void>((resolve) => idp.close(() => resolve()))
   })

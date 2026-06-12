@@ -789,6 +789,70 @@ describe('identity providers', () => {
       expect(row.domainId).toBeNull()
     })
 
+    it('a mid-loop port failure aborts BEFORE any DB write — nothing changes', async () => {
+      const { ws, owner } = await seed()
+      const { port } = makeFakePort()
+      const verified = await makeVerifiedDomain(ws.id, owner.id)
+      const first = await domain.identity.createProvider(
+        oidcInput(ws.id, owner.id, { name: 'First' }),
+      )
+      const second = await domain.identity.createProvider(
+        oidcInput(ws.id, owner.id, { name: 'Second' }),
+      )
+      const activeFirst = await domain.identity.activateProvider(
+        { workspaceId: ws.id, actorId: owner.id, providerId: first.id, domainId: verified.id },
+        port,
+      )
+      const activeSecond = await domain.identity.activateProvider(
+        { workspaceId: ws.id, actorId: owner.id, providerId: second.id, domainId: verified.id },
+        port,
+      )
+
+      // Unregister #2 throws. Every call first PROVES no provider row is held
+      // by an open removal tx (`FOR UPDATE NOWAIT` errors on locked rows) —
+      // i.e. the port loop runs strictly BEFORE the DB transaction starts.
+      const unregistered: string[] = []
+      const failingPort: IdentitySsoPort = {
+        register: port.register,
+        update: port.update,
+        unregister: async (ssoProviderId) => {
+          await prisma.$queryRaw`
+            SELECT id FROM workspace_auth_providers
+            WHERE workspace_id = ${ws.id}::uuid FOR UPDATE NOWAIT`
+          unregistered.push(ssoProviderId)
+          if (unregistered.length === 2) {
+            throw new Error('idp unavailable on the second unregister')
+          }
+        },
+      }
+      await expect(
+        domain.identity.removeVerifiedDomain(
+          { workspaceId: ws.id, actorId: owner.id, domainId: verified.id },
+          failingPort,
+        ),
+      ).rejects.toThrow('idp unavailable on the second unregister')
+      const byCode = (a: string | null, b: string | null) => (a ?? '').localeCompare(b ?? '')
+      expect([...unregistered].sort(byCode)).toEqual(
+        [activeFirst.ssoProviderId, activeSecond.ssoProviderId].sort(byCode),
+      )
+
+      // NOTHING changed: both providers still ACTIVE + registered + bound,
+      // the domain row still present, no disable/removal audits.
+      for (const created of [first, second]) {
+        const dbRow = await prisma.workspaceAuthProvider.findUniqueOrThrow({
+          where: { id: created.id },
+        })
+        expect(dbRow.status).toBe('ACTIVE')
+        expect(dbRow.ssoProviderId).not.toBeNull()
+        expect(dbRow.domainId).toBe(verified.id)
+      }
+      expect(
+        await prisma.verifiedEmailDomain.findUnique({ where: { id: verified.id } }),
+      ).not.toBeNull()
+      expect(await auditRows(ws.id, IDENTITY_AUDIT_ACTIONS.providerDisabled)).toHaveLength(0)
+      expect(await auditRows(ws.id, IDENTITY_AUDIT_ACTIONS.verifiedRemoved)).toHaveLength(0)
+    })
+
     it('without a port a registered ACTIVE provider blocks the removal (state unchanged)', async () => {
       const { ws, owner } = await seed()
       const { port } = makeFakePort()

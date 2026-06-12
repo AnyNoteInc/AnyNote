@@ -108,6 +108,33 @@ otherwise it validates the `id_token` against `jwksEndpoint`. Optional
 `mapping` ({id,email,emailVerified,name,image,extraFields}) renames claims —
 note extraFields do NOT reach the created user (see JIT).
 
+### Crash windows + idempotent port writes (REQUIRED Task 5 behavior)
+
+The identity service runs every port call BEFORE its DB transaction, so a port
+failure always leaves the DB untouched — but the reverse window exists: the
+port write is not transactional with our tables.
+
+- `activateProvider`: `port.register` success → tx crash ⇒ an **orphan
+  `sso_providers` row** while `WorkspaceAuthProvider` stays DISABLED with
+  `ssoProviderId = null`, and the retry calls `register` again. The Task 5
+  port MUST therefore implement `register` as an **upsert keyed on the
+  deterministic `providerId`** (the `sso_providers.provider_id` unique;
+  derive it from `SsoRegistrationData.providerId` — the stable
+  `WorkspaceAuthProvider.id`) so a retry converges on the same plugin row
+  instead of failing or duplicating.
+- `removeVerifiedDomain` / `disableProvider` / `deleteProvider`:
+  `port.unregister` success → tx crash ⇒ plugin row gone, our row still
+  ACTIVE. `unregister` MUST be **delete-if-exists** (tolerate an
+  already-missing `providerId`) so the retry converges too.
+
+### Domain-verification TXT values are case-sensitive
+
+The DNS verification token is base62, so the TXT match in
+`IdentityService.checkDomainVerification` is case-sensitive — and some DNS
+panels lowercase TXT values on save, which makes verification fail forever.
+Task 7's TXT instructions card must tell the user «скопируйте точно как
+показано» (spec §6 wording).
+
 ## Sign-in flow
 
 1. Client: `authClient.signIn.sso({ email, callbackURL, errorCallbackURL?,

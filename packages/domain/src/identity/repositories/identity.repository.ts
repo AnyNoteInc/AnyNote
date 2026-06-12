@@ -148,12 +148,17 @@ export class IdentityRepository {
   /**
    * Workspaces whose AllowedEmailDomain matches the (already lowercased) email
    * domain, excluding ones where the user is a member or blocked — the
-   * join-prompt lookup arm of the `@@index([domain])`.
+   * join-prompt lookup arm of the `@@index([domain])`. The seat-preview inputs
+   * (member count + `WorkspaceLimit.maxMembers` via the `limits` relation)
+   * come back inline, so the lookup stays ONE query however many workspaces
+   * match. `maxMembers: null` ⇔ no limit row ⇔ unlimited.
    */
   async listJoinableWorkspacesByDomain(
     domain: string,
     userId: string,
-  ): Promise<Array<{ workspaceId: string; name: string }>> {
+  ): Promise<
+    Array<{ workspaceId: string; name: string; memberCount: number; maxMembers: number | null }>
+  > {
     const rows = await this.uow.client().allowedEmailDomain.findMany({
       where: {
         domain,
@@ -162,10 +167,24 @@ export class IdentityRepository {
           blockedUsers: { none: { userId } },
         },
       },
-      select: { workspaceId: true, workspace: { select: { name: true } } },
+      select: {
+        workspaceId: true,
+        workspace: {
+          select: {
+            name: true,
+            limits: { select: { maxMembers: true } },
+            _count: { select: { members: true } },
+          },
+        },
+      },
       orderBy: { workspace: { name: 'asc' } },
     })
-    return rows.map((r) => ({ workspaceId: r.workspaceId, name: r.workspace.name }))
+    return rows.map((r) => ({
+      workspaceId: r.workspaceId,
+      name: r.workspace.name,
+      memberCount: r.workspace._count.members,
+      maxMembers: r.workspace.limits?.maxMembers ?? null,
+    }))
   }
 
   // ── verified domains ────────────────────────────────────────────────────────

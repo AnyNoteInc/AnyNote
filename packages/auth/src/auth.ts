@@ -45,15 +45,19 @@ function appUrl(): string {
  * for email/password sign-ups and Google OAuth, which always provide both
  * fields. Exported for unit tests; wired as `databaseHooks.user.create.before`.
  */
-export function withDerivedNameParts<T extends Record<string, unknown>>(data: T): T {
-  const hasFirst = typeof data.firstName === 'string'
-  const hasLast = typeof data.lastName === 'string'
-  if (hasFirst && hasLast) return data
+export function withDerivedNameParts<T extends Record<string, unknown>>(
+  data: T,
+): T & { firstName: string; lastName: string } {
+  const first = typeof data.firstName === 'string' ? data.firstName : undefined
+  const last = typeof data.lastName === 'string' ? data.lastName : undefined
+  if (first !== undefined && last !== undefined) {
+    return data as T & { firstName: string; lastName: string }
+  }
   const parts = (typeof data.name === 'string' ? data.name.trim() : '').split(/\s+/).filter(Boolean)
   return {
     ...data,
-    firstName: hasFirst ? data.firstName : (parts[0] ?? ''),
-    lastName: hasLast ? data.lastName : parts.slice(1).join(' '),
+    firstName: first ?? parts[0] ?? '',
+    lastName: last ?? parts.slice(1).join(' '),
   }
 }
 

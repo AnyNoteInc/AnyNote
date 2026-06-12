@@ -317,6 +317,10 @@ export class IdentityService {
       resolveError = truncateCheckError(e)
     }
     // node's resolveTxt returns each TXT record as a chunk array — join before matching.
+    // The match is CASE-SENSITIVE by design (spec §6): the token is base62, so
+    // case-folding would collide distinct tokens. Some DNS panels lowercase
+    // TXT values on save — Task 7's TXT instructions card MUST tell the user
+    // «скопируйте точно как показано».
     const expected = `${VERIFICATION_TXT_PREFIX}${row.verificationToken}`
     const matched = records?.some((chunks) => chunks.join('').trim() === expected) ?? false
 
@@ -357,16 +361,20 @@ export class IdentityService {
   }
 
   /**
-   * Removes the verification row and, in the SAME tx, disables every ACTIVE
-   * provider bound to it — audited per provider plus the removal itself
-   * (spec §3 «audit both»). The FK SetNull then detaches the disabled rows.
+   * Removes the verification row and disables every ACTIVE provider bound to
+   * it — audited per provider plus the removal itself (spec §3 «audit both»).
+   * The FK SetNull then detaches the disabled rows.
    *
-   * Registered providers are deregistered from `@better-auth/sso` in lock-step
-   * (spec §7 invariant 2 — a disabled provider must not leave a live plugin
-   * row): the `port.unregister` call runs inside the tx (it is a single fast
-   * plugin-row delete, see sso.md), so a port failure rolls everything back
-   * with state unchanged. Callers MUST pass the port when a bound provider may
-   * hold a registration; the guard below makes a missing port loud.
+   * Registered providers are deregistered from `@better-auth/sso` FIRST,
+   * before the tx — the module-wide port-then-persist order (`disableProvider`
+   * / `deleteProvider` / `activateProvider`): a port failure aborts with the
+   * DB fully unchanged, and the tx that follows does ONLY DB writes — it never
+   * runs port I/O inside an open transaction, so a tx crash can no longer
+   * commit half a removal around an already-applied plugin-row delete (the
+   * remaining crash window — unregister succeeded, tx lost — converges on
+   * retry because `port.unregister` is delete-if-exists, see sso.md). Callers
+   * MUST pass the port when a bound provider may hold a registration; the
+   * guard below makes a missing port loud.
    */
   async removeVerifiedDomain(
     input: VerifiedDomainActionInput,
@@ -375,17 +383,21 @@ export class IdentityService {
     const row = await this.repo.findVerifiedDomainById(input.workspaceId, input.domainId)
     if (!row) throw identityError('DOMAIN_NOT_FOUND')
 
+    // Port loop strictly BEFORE the tx (see the doc comment above): a failure
+    // anywhere in it leaves every provider and the domain row untouched.
+    const providers = await this.repo.listActiveProvidersBoundToDomain(row.id)
+    for (const provider of providers) {
+      if (!provider.ssoProviderId) continue
+      if (!port) {
+        throw new Error(
+          'removeVerifiedDomain: a bound ACTIVE provider holds an sso registration — an IdentitySsoPort is required',
+        )
+      }
+      await port.unregister(provider.ssoProviderId)
+    }
+
     return this.uow.transaction(async () => {
-      const providers = await this.repo.listActiveProvidersBoundToDomain(row.id)
       for (const provider of providers) {
-        if (provider.ssoProviderId) {
-          if (!port) {
-            throw new Error(
-              'removeVerifiedDomain: a bound ACTIVE provider holds an sso registration — an IdentitySsoPort is required',
-            )
-          }
-          await port.unregister(provider.ssoProviderId)
-        }
         await this.repo.disableProvider(provider.id)
         await this.repo.writeAudit({
           workspaceId: input.workspaceId,
@@ -420,7 +432,9 @@ export class IdentityService {
   /**
    * Workspaces with an AllowedEmailDomain matching the user's email domain,
    * excluding ones where the user is a member or blocked. Seat availability is
-   * a preview — the authoritative re-check runs inside `joinViaDomain`'s tx.
+   * a preview computed from the counts the single repository query returns
+   * inline (same semantics as `isSeatAvailable`: no limit row ⇒ unlimited) —
+   * the authoritative re-check runs inside `joinViaDomain`'s tx.
    */
   async listDomainJoinableWorkspaces(
     userId: string,
@@ -429,15 +443,11 @@ export class IdentityService {
     const domain = emailDomainOf(userEmail)
     if (!domain) return []
     const rows = await this.repo.listJoinableWorkspacesByDomain(domain, userId)
-    const result: DomainJoinableWorkspace[] = []
-    for (const row of rows) {
-      result.push({
-        workspaceId: row.workspaceId,
-        name: row.name,
-        seatAvailable: await this.isSeatAvailable(row.workspaceId),
-      })
-    }
-    return result
+    return rows.map((row) => ({
+      workspaceId: row.workspaceId,
+      name: row.name,
+      seatAvailable: row.maxMembers === null || row.memberCount < row.maxMembers,
+    }))
   }
 
   /** Mirrors `joinViaLink`: explicit join only, member seat (never guest), audited. */
