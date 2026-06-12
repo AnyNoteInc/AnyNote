@@ -169,7 +169,11 @@ async function seed() {
 
 // ── shared provider/domain fixture helpers ────────────────────────────────────
 
-async function createVerifiedDomain(workspaceId: string, addedById: string, domain = FIXTURE_DOMAIN) {
+async function createVerifiedDomain(
+  workspaceId: string,
+  addedById: string,
+  domain = FIXTURE_DOMAIN,
+) {
   return prisma.verifiedEmailDomain.create({
     data: {
       workspaceId,
@@ -290,10 +294,7 @@ describe('identity router', () => {
         'providers.activate',
         () => caller.providers.activate({ workspaceId: ws.id, providerId: id, domainId: id }),
       ],
-      [
-        'providers.disable',
-        () => caller.providers.disable({ workspaceId: ws.id, providerId: id }),
-      ],
+      ['providers.disable', () => caller.providers.disable({ workspaceId: ws.id, providerId: id })],
       ['providers.delete', () => caller.providers.delete({ workspaceId: ws.id, providerId: id })],
       [
         'providers.requestEnterprise',
@@ -331,37 +332,44 @@ describe('identity router', () => {
 
   // ── verified domains lifecycle ────────────────────────────────────────────
 
-  it('verifiedDomains: start → rotate (token changes) → check via the DEFAULT DNS resolver records the failure', async () => {
-    const { owner, ws } = await seed()
-    const caller = identity(owner)
+  // Real-DNS test (the default-resolver wiring): NXDOMAIN on the reserved .example
+  // TLD is normally instant, but under gates-level load or slow resolvers the
+  // c-ares lookup can exceed vitest's 5s default — give it a generous budget.
+  it(
+    'verifiedDomains: start → rotate (token changes) → check via the DEFAULT DNS resolver records the failure',
+    { timeout: 30_000 },
+    async () => {
+      const { owner, ws } = await seed()
+      const caller = identity(owner)
 
-    const started = await caller.verifiedDomains.start({
-      workspaceId: ws.id,
-      domain: FIXTURE_DOMAIN,
-    })
-    expect(started.status).toBe('PENDING')
-    expect(started.verificationToken).toBeTruthy()
+      const started = await caller.verifiedDomains.start({
+        workspaceId: ws.id,
+        domain: FIXTURE_DOMAIN,
+      })
+      expect(started.status).toBe('PENDING')
+      expect(started.verificationToken).toBeTruthy()
 
-    const rotated = await caller.verifiedDomains.rotate({
-      workspaceId: ws.id,
-      domainId: started.id,
-    })
-    expect(rotated.verificationToken).not.toBe(started.verificationToken)
+      const rotated = await caller.verifiedDomains.rotate({
+        workspaceId: ws.id,
+        domainId: started.id,
+      })
+      expect(rotated.verificationToken).not.toBe(started.verificationToken)
 
-    // The router passes NO resolver — the domain's default (node:dns) resolver
-    // runs for real; the run-unique fixture domain cannot resolve, so the row
-    // stays PENDING with the failure recorded.
-    const checked = await caller.verifiedDomains.check({
-      workspaceId: ws.id,
-      domainId: started.id,
-    })
-    expect(checked.status).toBe('PENDING')
-    expect(checked.lastCheckError).toBeTruthy()
-    expect(checked.lastCheckedAt).not.toBeNull()
+      // The router passes NO resolver — the domain's default (node:dns) resolver
+      // runs for real; the run-unique fixture domain cannot resolve, so the row
+      // stays PENDING with the failure recorded.
+      const checked = await caller.verifiedDomains.check({
+        workspaceId: ws.id,
+        domainId: started.id,
+      })
+      expect(checked.status).toBe('PENDING')
+      expect(checked.lastCheckError).toBeTruthy()
+      expect(checked.lastCheckedAt).not.toBeNull()
 
-    const listed = await caller.verifiedDomains.list({ workspaceId: ws.id })
-    expect(listed.map((d) => d.id)).toContain(started.id)
-  })
+      const listed = await caller.verifiedDomains.list({ workspaceId: ws.id })
+      expect(listed.map((d) => d.id)).toContain(started.id)
+    },
+  )
 
   it('verifiedDomains.remove passes the port: bound ACTIVE provider is disabled and its plugin row deleted', async () => {
     const { owner, ws } = await seed()
@@ -425,9 +433,7 @@ describe('identity router', () => {
       where: { id: created.id },
       select: { clientSecretEnc: true },
     })
-    expect(decryptSecret(row.clientSecretEnc as unknown as EncryptedPayload)).toBe(
-      SECRET_PLAINTEXT,
-    )
+    expect(decryptSecret(row.clientSecretEnc as unknown as EncryptedPayload)).toBe(SECRET_PLAINTEXT)
   })
 
   it('providers.create zod gate: OIDC/OAUTH require https issuer + clientId + clientSecret', async () => {
@@ -809,9 +815,10 @@ describe('identity router', () => {
     const { owner, blocked, ws } = await seed()
     await identity(owner).allowedDomains.add({ workspaceId: ws.id, domain: FIXTURE_DOMAIN })
 
-    await expect(
-      identity(blocked).domainJoin.join({ workspaceId: ws.id }),
-    ).rejects.toMatchObject({ code: 'FORBIDDEN', message: 'Доступ заблокирован администратором' })
+    await expect(identity(blocked).domainJoin.join({ workspaceId: ws.id })).rejects.toMatchObject({
+      code: 'FORBIDDEN',
+      message: 'Доступ заблокирован администратором',
+    })
     expect(
       await prisma.workspaceMember.count({
         where: { workspaceId: ws.id, userId: blocked.id },
