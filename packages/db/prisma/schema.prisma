@@ -69,6 +69,7 @@ model User {
   telegramUserLink           TelegramUserLink?
   telegramLinkCodes          TelegramLinkCode[]
   workspaceBlocks            WorkspaceBlockedUser[]
+  ssoProviders               SsoProvider[]            @relation("SsoProviderRegisteredBy")
 
   @@map("users")
 }
@@ -142,6 +143,31 @@ model Verification {
 
   @@index([identifier])
   @@map("verification_tokens")
+}
+
+/// Storage model for the `@better-auth/sso` plugin (model name `ssoProvider`).
+/// Rows are managed exclusively server-side (the plugin's public /sso/register
+/// endpoint is disabled via `providersLimit: 0`); the workspace-scoped source
+/// of truth incl. the AES-encrypted client secret is `WorkspaceAuthProvider`
+/// (Phase 8B Task 2). NOTE: `oidcConfig` is a JSON string that contains the
+/// clientSecret in PLAINTEXT — the plugin reads it directly at sign-in; see
+/// packages/auth/src/sso.md "Secrets".
+model SsoProvider {
+  id             String   @id @default(uuid(7)) @db.Uuid()
+  issuer         String   @db.VarChar(500)
+  domain         String   @db.VarChar(255)
+  oidcConfig     String?  @map("oidc_config") @db.Text()
+  samlConfig     String?  @map("saml_config") @db.Text()
+  userId         String   @map("user_id") @db.Uuid()
+  providerId     String   @unique @map("provider_id") @db.VarChar(64)
+  organizationId String?  @map("organization_id") @db.VarChar(255)
+  domainVerified Boolean  @default(false) @map("domain_verified")
+  createdAt      DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt      DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+  user           User     @relation("SsoProviderRegisteredBy", fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([domain])
+  @@map("sso_providers")
 }
 
 model Jwks {

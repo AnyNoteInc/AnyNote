@@ -21,6 +21,7 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@better-auth/sso": "1.6.2",
     "@repo/db": "workspace:*",
     "@repo/notifications": "workspace:*",
     "better-auth": "^1.4.9"

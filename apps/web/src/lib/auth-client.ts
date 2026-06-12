@@ -8,6 +8,7 @@ import {
   deviceAuthorizationClient,
   lastLoginMethodClient,
 } from 'better-auth/client/plugins'
+import { ssoClient } from '@better-auth/sso/client'
 import { auth } from '@repo/auth'
 
 const baseURL =
@@ -38,6 +39,9 @@ const client = createAuthClient({
     deviceAuthorizationClient(),
     lastLoginMethodClient(),
     magicLinkClient(),
+    // SSO sign-in: client.signIn.sso({ email | providerId, callbackURL }) →
+    // POST /api/auth/sign-in/sso → { url, redirect } (see @repo/auth src/sso.md)
+    ssoClient({ domainVerification: { enabled: true } }),
   ],
   fetchOptions: {
     onError(e) {

@@ -11,6 +11,7 @@ import {
   captcha,
 } from 'better-auth/plugins'
 import { nextCookies } from 'better-auth/next-js'
+import { sso } from '@better-auth/sso'
 
 import { prisma, SubscriptionStatus } from '@repo/db'
 import { notify } from '@repo/notifications'
@@ -32,6 +33,28 @@ const VERIFY_EXPIRES_S = 60 * 60 * 3
 
 function appUrl(): string {
   return process.env.NEXT_PUBLIC_BASE_URL ?? 'http://localhost:3000'
+}
+
+/**
+ * `firstName`/`lastName` are REQUIRED additionalFields (NOT NULL in Postgres),
+ * but SSO JIT user creation only supplies `name` (the @better-auth/sso
+ * callback passes `{ id, email, name, image, emailVerified }` into
+ * `createOAuthUser` — mapped extraFields are NOT forwarded). This pure helper
+ * derives the missing parts from `name`, mirroring the Google
+ * `mapProfileToUser` fallback (auth.ts socialProviders.google). It is a no-op
+ * for email/password sign-ups and Google OAuth, which always provide both
+ * fields. Exported for unit tests; wired as `databaseHooks.user.create.before`.
+ */
+export function withDerivedNameParts<T extends Record<string, unknown>>(data: T): T {
+  const hasFirst = typeof data.firstName === 'string'
+  const hasLast = typeof data.lastName === 'string'
+  if (hasFirst && hasLast) return data
+  const parts = (typeof data.name === 'string' ? data.name.trim() : '').split(/\s+/).filter(Boolean)
+  return {
+    ...data,
+    firstName: hasFirst ? data.firstName : (parts[0] ?? ''),
+    lastName: hasLast ? data.lastName : parts.slice(1).join(' '),
+  }
 }
 
 const auth = betterAuth({
@@ -157,6 +180,16 @@ const auth = betterAuth({
       },
     }),
     lastLoginMethod(),
+    // Runtime per-workspace OIDC SSO (Phase 8B). Contract in src/sso.md:
+    // providersLimit: 0 disables the public /sso/register endpoint entirely —
+    // provider rows in `sso_providers` are written server-side in lock-step
+    // with WorkspaceAuthProvider (the workspace-scoped source of truth).
+    // domainVerification.enabled gates sign-in on the row's domainVerified
+    // flag, which we only set after OUR workspace DNS verification passes.
+    sso({
+      providersLimit: 0,
+      domainVerification: { enabled: true },
+    }),
   ],
   session: {
     storeSessionInDatabase: true,
@@ -165,6 +198,9 @@ const auth = betterAuth({
   databaseHooks: {
     user: {
       create: {
+        before: async (user) => {
+          return { data: withDerivedNameParts(user as unknown as Record<string, unknown>) }
+        },
         after: async (user) => {
           const userWithName = user as {
             id: string
