@@ -111,12 +111,7 @@ function TabsView({ node, updateAttributes, editor, getPos }: NodeViewProps) {
   )
 
   return (
-    <NodeViewWrapper
-      as="div"
-      className="anynote-tabs"
-      data-type="tabs"
-      data-active-tab={activeTab}
-    >
+    <NodeViewWrapper as="div" className="anynote-tabs" data-type="tabs" data-active-tab={activeTab}>
       <Box
         role="tablist"
         aria-orientation="horizontal"

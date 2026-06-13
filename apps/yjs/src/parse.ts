@@ -5,9 +5,7 @@
  */
 export const SYNCED_BLOCK_PREFIX = 'syncedBlock:'
 
-export type ParsedDocumentName =
-  | { kind: 'page'; id: string }
-  | { kind: 'syncedBlock'; id: string }
+export type ParsedDocumentName = { kind: 'page'; id: string } | { kind: 'syncedBlock'; id: string }
 
 /**
  * Total, defensive parser: every documentName resolves to exactly one kind.

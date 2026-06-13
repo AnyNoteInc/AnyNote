@@ -5,6 +5,7 @@ import { buildPageVisibilityWhere } from '@repo/domain'
 
 import { router, protectedProcedure } from '../trpc'
 import {
+  assertActivePageEditAccess,
   assertPageEditAccess,
   assertWorkspaceMember,
   resolveMemberOrPageGrant,
@@ -22,8 +23,11 @@ import {
  * - `no_access`: the caller cannot reach the block (foreign workspace, no
  *   origin-page access, or an unknown id) — NEVER carries content.
  * - `deleted`: the canonical block was soft-deleted — instances show «удалён».
- * - `unsynced`: «отсоединить все» fired (or the origin page was deleted →
- *   orphan) — carries `content` so each instance can inline-detach locally.
+ * - `unsynced`: «отсоединить все» fired, OR the origin page was removed → orphan.
+ *   Carries `content` so each instance can inline-detach locally ONLY when the
+ *   caller can still see the origin page (the detached case). A TRUE orphan (no
+ *   origin page left to prove visibility) returns `content: null` — the instance
+ *   degrades to a placeholder rather than leaking the canonical secret (§8.1).
  */
 export type SyncedBlockReadResult =
   | { status: 'ok'; content: Prisma.JsonValue | null; originPageId: string; readOnly: boolean }
@@ -99,7 +103,9 @@ async function resolveOriginAccess(
 
 /** True when the caller is an EDIT-capable member of the workspace (OWNER /
  *  ADMIN / EDITOR) OR the block's creator. The detach/delete fallback gate when
- *  a block has no origin page to assert against (already unsynced / orphaned). */
+ *  a block has no origin page to assert against (a TRUE orphan — origin page
+ *  hard/soft removed → originPageId null). Note: an «отсоединить все» block KEEPS
+ *  its originPageId, so it still flows through the origin-page edit check. */
 async function callerCanEditDetachedBlock(
   ctx: Ctx,
   block: { workspaceId: string; createdById: string | null },
@@ -114,10 +120,11 @@ async function callerCanEditDetachedBlock(
 
 /**
  * Resolve the EDIT gate for a block-level mutation (unsyncAll / delete). When the
- * block still has an origin page we delegate to `assertPageEditAccess` (the
- * canonical origin-page edit check); once the block is detached/orphaned
- * (originPageId null) there is no page to assert against, so we fall back to the
- * workspace edit-capable / creator gate. Throws FORBIDDEN/NOT_FOUND on denial.
+ * block still has an origin page (live OR «отсоединить все»-marked but anchored)
+ * we delegate to `assertPageEditAccess` (the canonical origin-page edit check);
+ * once the block is a TRUE orphan (originPageId null — origin page removed) there
+ * is no page to assert against, so we fall back to the workspace edit-capable /
+ * creator gate. Throws FORBIDDEN/NOT_FOUND on denial.
  */
 async function assertCanEditBlock(
   ctx: Ctx,
@@ -135,11 +142,13 @@ async function assertCanEditBlock(
 // ── Router ──────────────────────────────────────────────────────────────────
 
 export const syncedBlockRouter = router({
-  // Create a canonical synced block originating on `originPageId`. EDIT access to
-  // the origin page is required; the workspace is derived from the page (never
-  // trusted from the client). The supplied tiptap JSON seeds `content` so the
-  // snapshot/export render immediately; `contentYjs` is left null — the first
-  // nested-editor connection (`syncedBlock:{id}` Hocuspocus doc) seeds the bytes.
+  // Create a canonical synced block originating on `originPageId`. ACTIVE (not
+  // trashed) EDIT access to the origin page is required — a synced block must not
+  // originate on a page that has been moved to trash; the workspace is derived
+  // from the page (never trusted from the client). The supplied tiptap JSON seeds
+  // `content` so the snapshot/export render immediately; `contentYjs` is left null
+  // — the first nested-editor connection (`syncedBlock:{id}` Hocuspocus doc) seeds
+  // the bytes.
   create: protectedProcedure
     .input(
       z.object({
@@ -148,7 +157,7 @@ export const syncedBlockRouter = router({
       }),
     )
     .mutation(async ({ ctx, input }) => {
-      const page = await assertPageEditAccess(ctx, input.originPageId)
+      const page = await assertActivePageEditAccess(ctx, input.originPageId)
       const created = await ctx.prisma.syncedBlock.create({
         data: {
           workspaceId: page.workspaceId,
@@ -181,40 +190,51 @@ export const syncedBlockRouter = router({
       // Unknown id ⇒ object-hiding no_access (never reveal existence).
       if (!block) return NO_ACCESS
 
-      // Cross-workspace backstop: a caller who is not a member of the block's
-      // workspace gets no_access for EVERY state — content never leaks across the
-      // workspace boundary (the copy-bytes-verbatim caveat's runtime backstop).
+      // Canonical deletion wins over everything (instances show «удалён»).
+      if (block.deletedAt) return { status: 'deleted' }
+
+      // ── The SINGLE access authority for BOTH live and unsynced reads ─────────
+      // `resolveOriginAccess` is the one gate (member-visible OR PageShareUser
+      // grant on the origin/ancestor) — matching the yjs `canAccessSyncedBlock`
+      // member/grant arms so the two layers never drift (spec §8.1). Content is
+      // served ONLY when the caller can prove they can see the origin page; an
+      // unsynced block is still served (the §7 inline-detach for legit viewers),
+      // but content is NEVER served to someone who could not see the origin.
+      if (block.originPageId) {
+        const origin = await resolveOriginAccess(ctx, block.originPageId)
+        // Denied origin access ⇒ no_access for BOTH live and unsynced — closes
+        // the foreign-PERSONAL leak for the detached case too.
+        if (!origin) return NO_ACCESS
+        if (block.unsyncedAt) {
+          // Detached but the caller CAN see the origin ⇒ serve content so the
+          // instance inlines + detaches locally.
+          return { status: 'unsynced', content: block.content }
+        }
+        return {
+          status: 'ok',
+          content: block.content,
+          originPageId: block.originPageId,
+          readOnly: origin.readOnly,
+        }
+      }
+
+      // ── True orphan (originPageId null — origin page hard/soft removed) ──────
+      // There is no origin to check, so the caller cannot prove prior visibility.
+      // Per §8.1 confidentiality an orphan must NOT leak: serve the «unsynced»
+      // placeholder WITHOUT content. The cross-workspace backstop still applies —
+      // a non-member of the block's workspace can't even be a candidate.
       const member = await ctx.prisma.workspaceMember.findUnique({
         where: { workspaceId_userId: { workspaceId: block.workspaceId, userId: ctx.user.id } },
         select: { id: true },
       })
       if (!member) return NO_ACCESS
-
-      if (block.deletedAt) return { status: 'deleted' }
-
-      // «Отсоединить все» fired, or the origin page was deleted (SetNull → orphan)
-      // ⇒ unsynced WITH content so the instance inlines + detaches locally.
-      if (block.unsyncedAt || !block.originPageId) {
-        return { status: 'unsynced', content: block.content }
-      }
-
-      // Live block: inherit the origin page's access (visibility-aware — a
-      // member who cannot see the origin PERSONAL page is denied). No access ⇒
-      // no_access, never leaking content. readOnly when the caller can read but
-      // not EDIT the origin page (VIEWER/COMMENTER).
-      const origin = await resolveOriginAccess(ctx, block.originPageId)
-      if (!origin) return NO_ACCESS
-      return {
-        status: 'ok',
-        content: block.content,
-        originPageId: block.originPageId,
-        readOnly: origin.readOnly,
-      }
+      return { status: 'unsynced', content: null }
     }),
 
   // The picker / «отсоединить все» management list: the workspace's live synced
   // blocks the caller can ACCESS (per-block origin-page access filter). Excludes
-  // deleted blocks; detached/orphaned blocks (no origin page) are omitted — the
+  // deleted blocks (deletedAt), «отсоединить все»-detached blocks (unsyncedAt set,
+  // even though they keep originPageId) and true orphans (originPageId null) — the
   // picker only offers re-insertable LIVE blocks. Capped defensively.
   list: protectedProcedure
     .input(z.object({ workspaceId: z.string().uuid() }))
@@ -242,10 +262,13 @@ export const syncedBlockRouter = router({
     }),
 
   // «Отсоединить все»: detach EVERY instance at once. Origin-page-edit-gated.
-  // Sets unsyncedAt + nulls originPageId so each instance, on next render, sees
-  // getById → 'unsynced' and inlines locally (lazy, no synchronous remote
-  // deletion — the safe rule). Idempotent: a re-detach / a detached block is a
-  // no-op success.
+  // Sets ONLY unsyncedAt (the detached signal) — `originPageId` is KEPT as the
+  // origin-visibility anchor so getById's access check still has a page to gate
+  // the unsynced content against (a viewer who could never see the origin must
+  // not start seeing the content just because it was detached — spec §8.1). Each
+  // instance, on next render, sees getById → 'unsynced' and inlines locally
+  // (lazy, no synchronous remote deletion — the safe rule). Idempotent: a
+  // re-detach keeps the original `unsyncedAt` (does not bump it).
   unsyncAll: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .mutation(async ({ ctx, input }) => {
@@ -255,10 +278,12 @@ export const syncedBlockRouter = router({
       })
       if (!block) throw new TRPCError({ code: 'NOT_FOUND', message: 'Блок не найден' })
       await assertCanEditBlock(ctx, block)
-      await ctx.prisma.syncedBlock.update({
-        where: { id: input.id },
-        data: { unsyncedAt: block.unsyncedAt ?? new Date(), originPageId: null },
-      })
+      if (!block.unsyncedAt) {
+        await ctx.prisma.syncedBlock.update({
+          where: { id: input.id },
+          data: { unsyncedAt: new Date() },
+        })
+      }
       return { ok: true }
     }),
 

@@ -68,6 +68,18 @@ const DOC = (text: string) => ({
   content: [{ type: 'paragraph', content: [{ type: 'text', text }] }],
 })
 
+// Grant a named PageShareUser role to a NON-member user on `pageId` (the guest
+// arm). Mirrors the share-grant fixture in guest-access.test.ts.
+async function grantOn(pageId: string, userId: string, role: 'READER' | 'COMMENTER' | 'EDITOR') {
+  const share = await prisma.pageShare.upsert({
+    where: { pageId },
+    create: { pageId, shareId: `sb-${pageId.slice(0, 8)}-${userId.slice(0, 8)}` },
+    update: {},
+    select: { id: true },
+  })
+  await prisma.pageShareUser.create({ data: { pageShareId: share.id, userId, role } })
+}
+
 // Seed: a workspace with an OWNER (U1), a plain EDITOR member (U2), and a plain
 // VIEWER member (U3). A TEAM collection + a TEAM page everyone can edit/read per
 // role. A PERSONAL collection owned by U1 with a PERSONAL page only U1 can see.
@@ -191,6 +203,17 @@ describe('syncedBlock router (integration)', () => {
     ).rejects.toThrow(/Страница не найдена/)
   })
 
+  it('create is NOT_FOUND against a TRASHED origin page (active-edit-gated)', async () => {
+    const fx = await seed()
+    await prisma.page.update({
+      where: { id: fx.teamPageId },
+      data: { deletedAt: new Date() },
+    })
+    await expect(
+      caller(fx.ownerId).create({ originPageId: fx.teamPageId, content: DOC('x') }),
+    ).rejects.toThrow(/Страница не найдена/)
+  })
+
   // ── getById matrix ──────────────────────────────────────────────────────────
   it("getById → 'ok' with content + originPageId + readOnly:false for an editor", async () => {
     const fx = await seed()
@@ -266,6 +289,92 @@ describe('syncedBlock router (integration)', () => {
     expect(res.content).toEqual(DOC('inline-me'))
   })
 
+  // (d) Regression for §7: a member who CAN see the origin still gets the content
+  // to inline after unsyncAll — the owner here is the origin creator.
+  it("getById → 'unsynced' WITH content for a member who can see the origin (regression §7)", async () => {
+    const fx = await seed()
+    const { id } = await caller(fx.ownerId).create({
+      originPageId: fx.teamPageId,
+      content: DOC('still-visible'),
+    })
+    await caller(fx.ownerId).unsyncAll({ id })
+    const res = await caller(fx.ownerId).getById({ id })
+    expect(res.status).toBe('unsynced')
+    if (res.status !== 'unsynced') throw new Error('unreachable')
+    expect(res.content).toEqual(DOC('still-visible'))
+  })
+
+  // (a) The confidentiality gap the reviewers found: a block sourced from a
+  // FOREIGN PERSONAL origin, then unsyncAll'd, must STILL be 'no_access' (NEVER
+  // content) for an EDITOR who cannot see that origin page. Pre-fix this leaked
+  // because the unsynced branch returned content gated only by membership.
+  it("getById → 'no_access' (NEVER content) for an unsyncAll'd FOREIGN-PERSONAL block", async () => {
+    const fx = await seed()
+    const { id } = await caller(fx.ownerId).create({
+      originPageId: fx.personalPageId,
+      content: DOC('secret'),
+    })
+    await caller(fx.ownerId).unsyncAll({ id })
+    const res = await caller(fx.editorId).getById({ id })
+    expect(res.status).toBe('no_access')
+    expect(JSON.stringify(res)).not.toContain('secret')
+  })
+
+  // (b) True orphan: the origin page is removed (SetNull → originPageId null) so
+  // there is no origin to prove visibility against. The instance must degrade to
+  // a content-LESS placeholder, not leak the secret. The caller is still a
+  // workspace member (the cross-workspace backstop is a separate test).
+  it("getById → 'unsynced' with NO content for a TRUE ORPHAN (origin gone)", async () => {
+    const fx = await seed()
+    const { id } = await caller(fx.ownerId).create({
+      originPageId: fx.personalPageId,
+      content: DOC('secret'),
+    })
+    // Simulate origin-page removal: Prisma SetNull on page delete → originPageId null.
+    await prisma.syncedBlock.update({ where: { id }, data: { originPageId: null } })
+    const res = await caller(fx.editorId).getById({ id })
+    expect(res.status).toBe('unsynced')
+    if (res.status !== 'unsynced') throw new Error('unreachable')
+    expect(res.content).toBeNull()
+    expect(JSON.stringify(res)).not.toContain('secret')
+  })
+
+  // (c) The dead guest arm, now revived to match yjs canAccessSyncedBlock: a
+  // PageShareUser EDITOR grant on the origin page admits a NON-member as a guest,
+  // who gets content. The block lives on the OWNER's PERSONAL page (a plain member
+  // EDITOR cannot see it) — only the explicit grant lets the guest in.
+  it("getById → 'ok' WITH content+readOnly for a PageShareUser EDITOR-grant guest (guest arm live)", async () => {
+    const fx = await seed()
+    const guest = await makeUser('guest')
+    await grantOn(fx.personalPageId, guest.id, 'EDITOR')
+    const { id } = await caller(fx.ownerId).create({
+      originPageId: fx.personalPageId,
+      content: DOC('shared'),
+    })
+    const res = await caller(guest.id).getById({ id })
+    expect(res.status).toBe('ok')
+    if (res.status !== 'ok') throw new Error('unreachable')
+    expect(res.content).toEqual(DOC('shared'))
+    expect(res.readOnly).toBe(false)
+  })
+
+  // (c′) The same guest after unsyncAll: still served WITH content (the origin is
+  // still visible to the guest), matching the §7 inline-detach for legit viewers.
+  it("getById → 'unsynced' WITH content for a grant guest after unsyncAll", async () => {
+    const fx = await seed()
+    const guest = await makeUser('guest')
+    await grantOn(fx.personalPageId, guest.id, 'READER')
+    const { id } = await caller(fx.ownerId).create({
+      originPageId: fx.personalPageId,
+      content: DOC('shared-then-unsynced'),
+    })
+    await caller(fx.ownerId).unsyncAll({ id })
+    const res = await caller(guest.id).getById({ id })
+    expect(res.status).toBe('unsynced')
+    if (res.status !== 'unsynced') throw new Error('unreachable')
+    expect(res.content).toEqual(DOC('shared-then-unsynced'))
+  })
+
   it("getById → 'no_access' for an unknown block id (object-hiding)", async () => {
     const fx = await seed()
     const res = await caller(fx.editorId).getById({
@@ -307,7 +416,7 @@ describe('syncedBlock router (integration)', () => {
   })
 
   // ── unsyncAll ───────────────────────────────────────────────────────────────
-  it('unsyncAll detaches (originPageId → null, unsyncedAt set) and is idempotent', async () => {
+  it('unsyncAll marks unsyncedAt while KEEPING originPageId (visibility anchor) and is idempotent', async () => {
     const fx = await seed()
     const { id } = await caller(fx.ownerId).create({
       originPageId: fx.teamPageId,
@@ -315,13 +424,18 @@ describe('syncedBlock router (integration)', () => {
     })
     await caller(fx.ownerId).unsyncAll({ id })
     const after = await prisma.syncedBlock.findUnique({ where: { id } })
-    expect(after?.originPageId).toBeNull()
+    // originPageId is INTENTIONALLY retained — it is the origin-visibility anchor
+    // getById's access check still needs (the unsynced content must stay gated by
+    // who could see the origin). `unsyncedAt` is the detached signal.
+    expect(after?.originPageId).toBe(fx.teamPageId)
     expect(after?.unsyncedAt).not.toBeNull()
 
-    // Idempotent: a second call succeeds and leaves the block detached.
+    // Idempotent: a second call keeps the same unsyncedAt (does not bump it).
+    const firstStamp = after?.unsyncedAt
     await expect(caller(fx.ownerId).unsyncAll({ id })).resolves.toBeTruthy()
     const after2 = await prisma.syncedBlock.findUnique({ where: { id } })
-    expect(after2?.originPageId).toBeNull()
+    expect(after2?.originPageId).toBe(fx.teamPageId)
+    expect(after2?.unsyncedAt?.getTime()).toBe(firstStamp?.getTime())
   })
 
   it('unsyncAll is FORBIDDEN for a VIEWER (origin-edit-gated)', async () => {
