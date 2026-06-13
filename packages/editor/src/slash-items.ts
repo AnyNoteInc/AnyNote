@@ -1,8 +1,10 @@
 import { createElement } from 'react'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import AudiotrackIcon from '@mui/icons-material/Audiotrack'
+import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder'
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
 import NotificationsIcon from '@mui/icons-material/Notifications'
+import OndemandVideoIcon from '@mui/icons-material/OndemandVideo'
 import SchemaIcon from '@mui/icons-material/Schema'
 import StorageIcon from '@mui/icons-material/Storage'
 import VideocamIcon from '@mui/icons-material/Videocam'
@@ -38,6 +40,9 @@ export type SlashMediaHandlers = {
   openMediaPopover: (range: SlashRange, kind: 'video' | 'audio') => void
   openMarkdownPopover: (range: SlashRange) => void
   openPageLinkPopover: (range: SlashRange) => void
+  // Opens the URL popover for a `bookmark` or `embed` insert (the embedding group).
+  openBookmarkPopover: (range: SlashRange) => void
+  openEmbedPopover: (range: SlashRange) => void
   openReminderCreate?: (reminderId: string) => void
   openDrawioCreate?: (range: SlashRange) => void
   // Opens an apps/web-provided picker of the user's DATABASE sources; on pick it
@@ -346,6 +351,24 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
     keywords: ['markdown', 'md', 'импорт', 'вставить', 'содержимое'],
     icon: createElement(MarkdownIcon),
     run: ({ range }) => handlers.openMarkdownPopover(range),
+  },
+  {
+    id: 'bookmark',
+    group: 'embedding',
+    label: 'Закладка',
+    description: 'Вставить ссылку как карточку с превью',
+    keywords: ['bookmark', 'закладка', 'ссылка', 'превью', 'link', 'карточка'],
+    icon: createElement(BookmarkBorderIcon, { fontSize: 'small' }),
+    run: ({ range }) => handlers.openBookmarkPopover(range),
+  },
+  {
+    id: 'embed',
+    group: 'embedding',
+    label: 'Встроить',
+    description: 'Встроить видео или контент по ссылке',
+    keywords: ['embed', 'встроить', 'встраивание', 'youtube', 'vimeo', 'видео', 'iframe'],
+    icon: createElement(OndemandVideoIcon, { fontSize: 'small' }),
+    run: ({ range }) => handlers.openEmbedPopover(range),
   },
   {
     id: 'drawio',

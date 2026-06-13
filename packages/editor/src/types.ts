@@ -78,6 +78,10 @@ export type AnyNoteEditorProps = {
   // chosen source/view, or null if the user cancels; the editor then inserts the
   // node. When omitted, the `/база данных` slash item is hidden.
   onPickEmbeddedDatabase?: () => Promise<EmbeddedDatabasePick | null>
+  // apps/web injects a thin `fetch('/api/bookmark/preview')` wrapper (Task 4) so
+  // a «Закладка» insert/paste can async-fill its og:title/description/image.
+  // Tolerated absent — the bookmark stays a bare card until wired.
+  bookmarkPreview?: import('./extensions/url-paste').PreviewFetch
 }
 
 export type { CommentThreadAnchor } from './types-comments'

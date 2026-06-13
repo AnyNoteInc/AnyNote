@@ -12,6 +12,7 @@ import * as Y from 'yjs'
 import { DateInsertPopover } from './components/date-insert-popover'
 import { EditorDragHandle } from './components/drag-handle'
 import { DrawioEditorDialog } from './components/drawio-editor-dialog'
+import { EmbedUrlPopover } from './components/embed-url-popover'
 import { FileUploadPopover } from './components/file-upload-popover'
 import { FloatingToolbar } from './components/floating-toolbar'
 import { MarkdownUploadPopover } from './components/markdown-upload-popover'
@@ -37,7 +38,15 @@ type MentionSuggestionProps = SuggestionProps<MentionLookupItem, MentionLookupIt
 
 type YjsResources = { ydoc: Y.Doc; provider: HocuspocusProvider }
 
-type PopoverKind = 'date' | 'datetime' | 'file' | 'media' | 'markdown' | 'pageLink'
+type PopoverKind =
+  | 'date'
+  | 'datetime'
+  | 'file'
+  | 'media'
+  | 'markdown'
+  | 'pageLink'
+  | 'bookmark'
+  | 'embed'
 
 type OpenPopover = {
   kind: PopoverKind
@@ -202,6 +211,8 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
         openMediaPopover: (range, mediaKind) => openMedia(range, mediaKind),
         openMarkdownPopover: (range) => openKind('markdown', range),
         openPageLinkPopover: (range) => openKind('pageLink', range),
+        openBookmarkPopover: (range) => openKind('bookmark', range),
+        openEmbedPopover: (range) => openKind('embed', range),
         openReminderCreate: props.onReminderCreate,
         openDrawioCreate,
         openDatabasePicker,
@@ -350,6 +361,8 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
         onOpenThread: props.onOpenThread ?? (() => undefined),
         plantumlRenderAuth: props.plantumlRenderAuth,
         renderEmbeddedDatabase: props.renderEmbeddedDatabase,
+        pageId: props.pageId,
+        bookmarkPreview: props.bookmarkPreview,
       }),
       onCreate: ({ editor: ed }) => {
         editorInstanceRef.current = ed
@@ -436,6 +449,15 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
             editor={editor}
             workspaceId={workspaceId}
             pageSearch={pageSearch}
+            onClose={closePopover}
+          />
+          <EmbedUrlPopover
+            open={popover?.kind === 'bookmark' || popover?.kind === 'embed'}
+            mode={popover?.kind === 'embed' ? 'embed' : 'bookmark'}
+            anchorEl={anchorEl}
+            range={range}
+            editor={editor}
+            previewFetch={props.bookmarkPreview}
             onClose={closePopover}
           />
           <DrawioEditorDialog

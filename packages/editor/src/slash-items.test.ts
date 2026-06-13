@@ -9,6 +9,8 @@ const handlers: SlashMediaHandlers = {
   openMediaPopover: vi.fn(),
   openMarkdownPopover: vi.fn(),
   openPageLinkPopover: vi.fn(),
+  openBookmarkPopover: vi.fn(),
+  openEmbedPopover: vi.fn(),
 }
 
 describe('createSlashItems', () => {
@@ -50,6 +52,29 @@ describe('createSlashItems', () => {
     const slashItems = createSlashItems(handlers)
     expect(slashItems('видео').map((it) => it.id)).toContain('video')
     expect(slashItems('mp3').map((it) => it.id)).toContain('audio')
+  })
+
+  it('exposes bookmark and embed under the embedding group, wired to their popovers', () => {
+    const openBookmarkPopover = vi.fn()
+    const openEmbedPopover = vi.fn()
+    const slashItems = createSlashItems({ ...handlers, openBookmarkPopover, openEmbedPopover })
+    const items = slashItems('')
+    const bookmark = items.find((it) => it.id === 'bookmark')
+    const embed = items.find((it) => it.id === 'embed')
+    expect(bookmark?.group).toBe('embedding')
+    expect(embed?.group).toBe('embedding')
+
+    const range = { from: 1, to: 2 }
+    bookmark?.run({ editor: {} as never, range })
+    embed?.run({ editor: {} as never, range })
+    expect(openBookmarkPopover).toHaveBeenCalledWith(range)
+    expect(openEmbedPopover).toHaveBeenCalledWith(range)
+  })
+
+  it('finds bookmark and embed by keyword', () => {
+    const slashItems = createSlashItems(handlers)
+    expect(slashItems('закладка').map((it) => it.id)).toContain('bookmark')
+    expect(slashItems('youtube').map((it) => it.id)).toContain('embed')
   })
 
   it('groups date, datetime, pageLink and reminder under the inline group', () => {

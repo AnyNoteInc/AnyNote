@@ -21,6 +21,7 @@ import type { PlantumlRenderAuth } from '@repo/plantuml/render-plantuml'
 import { BlockBackground } from './block-background'
 import { BlockIndexAttributes } from './block-index-attributes'
 import { Audio } from './audio'
+import { Bookmark } from './bookmark'
 import { Callout } from './callout'
 import { CodeBlock } from './code-block'
 import { buildCollaboration } from './collaboration'
@@ -28,10 +29,12 @@ import { Comments } from './comments'
 import { Column, ColumnLayout } from './column-layout'
 import { DropPlacement } from './drop-placement'
 import { Drawio } from './drawio'
+import { Embed } from './embed'
 import { EmbeddedDatabase, type EmbeddedDatabaseRenderer } from './embedded-database'
 import { FileAttachment } from './file-attachment'
 import { buildFileUpload } from './file-upload'
 import { buildImagePaste } from './image-paste'
+import { buildUrlPaste, type PreviewFetch } from './url-paste'
 import { HiddenText } from './hidden-text'
 import { PageLink } from './page-link'
 import { Reminder } from './reminder'
@@ -72,6 +75,13 @@ export type BuildExtensionsOptions = {
   // database node here (it can't be imported from @repo/editor). When absent,
   // the node renders its own placeholder card.
   renderEmbeddedDatabase?: EmbeddedDatabaseRenderer
+  // The current pageId — used as the localStorage key for the per-page rich-embed
+  // toggle (the Embed node reads it). Optional; defaults to always-on.
+  pageId?: string | null
+  // apps/web injects a thin `fetch('/api/bookmark/preview')` wrapper (Task 4) so
+  // a «Закладка» paste can async-fill its title/description/image. Tolerated
+  // absent — the bookmark stays a bare card until wired.
+  bookmarkPreview?: PreviewFetch
 }
 
 export const buildExtensions = (opts: BuildExtensionsOptions) => [
@@ -126,6 +136,8 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   Callout,
   HiddenText,
   FileAttachment,
+  Bookmark,
+  Embed.configure({ pageId: opts.pageId ?? null }),
   Drawio.configure({ drawioUrl: opts.drawioUrl }),
   EmbeddedDatabase.configure({ renderEmbed: opts.renderEmbeddedDatabase ?? null }),
   PageLink.configure({ onNavigate: opts.onNavigateToPage }),
@@ -134,6 +146,7 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   ...buildCollaboration({ ydoc: opts.ydoc, provider: opts.provider, user: opts.user }),
   buildImagePaste(opts.uploadHandler),
   buildFileUpload(opts.uploadHandler),
+  buildUrlPaste(opts.bookmarkPreview),
   SlashMenu.configure({
     items: opts.slashItems,
     render: opts.slashRender,
