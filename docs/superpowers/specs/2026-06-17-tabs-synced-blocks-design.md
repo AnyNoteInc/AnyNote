@@ -100,7 +100,8 @@ prefix:
 
 - Synced-block instance counting / a management dashboard (scanning page docs is expensive — deferred).
 - Live unsync-all (it's lazy-per-instance by decision — instant global rewrite needs a server-side Yjs job, no precedent).
-- Public-share LIVE nested-doc connections (anonymous viewers get the read-only snapshot; members/grants get live).
+- Public-share LIVE nested-doc connections (members/grants get live; anonymous viewers never open the nested doc).
+- Anonymous public-share read-only SNAPSHOT (DEFERRED): `syncedBlock.getById` is a `protectedProcedure`, so a logged-out visitor on a published page currently fails CLOSED — the instance shows «Войдите, чтобы увидеть синхронизированный блок» rather than the snapshot. A correct public path must gate the snapshot through the same `ShareAccessService` resolver the public page render uses (prove the block's origin page is reachable through the share — never serve content the share doesn't cover, spec §8.1); that gate was judged too large/leak-prone to ship in the 9C final-review fixes and is intentionally deferred. Authenticated members/grants are unaffected.
 - Synced blocks inside synced blocks (nesting — guard against / disallow at insert).
 - Tab drag-reorder polish / tab icons (labels only); tabs inside tabs (allowed structurally but no special UX).
 - Converting a tabs block ↔ columns; synced-block ↔ tabs interplay beyond containment.

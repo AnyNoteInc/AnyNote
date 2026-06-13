@@ -6,7 +6,6 @@ import { buildPageVisibilityWhere } from '@repo/domain'
 import { router, protectedProcedure } from '../trpc'
 import {
   assertActivePageEditAccess,
-  assertPageEditAccess,
   assertWorkspaceMember,
   resolveMemberOrPageGrant,
 } from '../helpers/page-access'
@@ -121,17 +120,31 @@ async function callerCanEditDetachedBlock(
 /**
  * Resolve the EDIT gate for a block-level mutation (unsyncAll / delete). When the
  * block still has an origin page (live OR «отсоединить все»-marked but anchored)
- * we delegate to `assertPageEditAccess` (the canonical origin-page edit check);
- * once the block is a TRUE orphan (originPageId null — origin page removed) there
- * is no page to assert against, so we fall back to the workspace edit-capable /
- * creator gate. Throws FORBIDDEN/NOT_FOUND on denial.
+ * the caller must be able to BOTH SEE and EDIT that origin page — we resolve it
+ * through `resolveOriginAccess` (the SAME visibility-aware authority the read gate
+ * uses), so a member who cannot see a foreign PERSONAL origin can't mutate the
+ * block anchored there (object-hiding NOT_FOUND), and a VIEWER/COMMENTER who can
+ * see it but lacks edit rights is FORBIDDEN. This aligns the destructive edit gate
+ * with the read gate — previously `assertPageEditAccess` lacked the visibility
+ * predicate, letting a workspace EDITOR unsync/delete a block on a page they could
+ * not even read. Once the block is a TRUE orphan (originPageId null — origin page
+ * removed) there is no page to assert against, so we fall back to the workspace
+ * edit-capable / creator gate. Throws FORBIDDEN/NOT_FOUND on denial.
  */
 async function assertCanEditBlock(
   ctx: Ctx,
   block: { workspaceId: string; originPageId: string | null; createdById: string | null },
 ): Promise<void> {
   if (block.originPageId) {
-    await assertPageEditAccess(ctx, block.originPageId)
+    const origin = await resolveOriginAccess(ctx, block.originPageId)
+    // Cannot SEE the origin ⇒ object-hiding NOT_FOUND (same contract as the
+    // page-not-found path); can see but cannot EDIT ⇒ FORBIDDEN.
+    if (!origin) {
+      throw new TRPCError({ code: 'NOT_FOUND', message: 'Страница не найдена' })
+    }
+    if (origin.readOnly) {
+      throw new TRPCError({ code: 'FORBIDDEN', message: 'Недостаточно прав на редактирование' })
+    }
     return
   }
   if (!(await callerCanEditDetachedBlock(ctx, block))) {

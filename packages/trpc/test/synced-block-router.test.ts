@@ -447,6 +447,35 @@ describe('syncedBlock router (integration)', () => {
     await expect(caller(fx.viewerId).unsyncAll({ id })).rejects.toThrow(/прав/i)
   })
 
+  // SHOULD-FIX 3: the edit gate must be VISIBILITY-aware, matching the read gate.
+  // The block originates on the OWNER's PERSONAL page (which the workspace EDITOR
+  // cannot SEE). The EDITOR has the workspace EDITOR role, so a non-visibility
+  // gate (plain assertPageEditAccess) would let them unsync the block anchored on
+  // a page they can't read — destructive over-permissiveness. The origin must be
+  // both VISIBLE and EDITABLE → an invisible origin is NOT_FOUND.
+  it('unsyncAll is NOT_FOUND for a member who cannot SEE a foreign PERSONAL origin', async () => {
+    const fx = await seed()
+    const { id } = await caller(fx.ownerId).create({
+      originPageId: fx.personalPageId,
+      content: DOC('secret'),
+    })
+    await expect(caller(fx.editorId).unsyncAll({ id })).rejects.toThrow(/не найдена|прав/i)
+    // The block must NOT have been detached by the denied call.
+    const after = await prisma.syncedBlock.findUnique({ where: { id } })
+    expect(after?.unsyncedAt).toBeNull()
+  })
+
+  it('delete is NOT_FOUND for a member who cannot SEE a foreign PERSONAL origin', async () => {
+    const fx = await seed()
+    const { id } = await caller(fx.ownerId).create({
+      originPageId: fx.personalPageId,
+      content: DOC('secret'),
+    })
+    await expect(caller(fx.editorId).delete({ id })).rejects.toThrow(/не найдена|прав/i)
+    const after = await prisma.syncedBlock.findUnique({ where: { id } })
+    expect(after?.deletedAt).toBeNull()
+  })
+
   // ── delete ──────────────────────────────────────────────────────────────────
   it('delete soft-deletes (deletedAt set) and is idempotent', async () => {
     const fx = await seed()

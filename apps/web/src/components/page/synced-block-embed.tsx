@@ -113,6 +113,16 @@ export function SyncedBlockEmbed({
   }
 
   if (query.isError || !data) {
+    // An UNAUTHORIZED error is the anonymous public-share viewer: `getById` is a
+    // protectedProcedure, so a logged-out visitor on a published page can't read
+    // the snapshot. Fail CLOSED with an honest message (the read-only public
+    // snapshot is a deferred non-goal — spec §10), NOT the generic no-access text
+    // — and without retrying (retry:false on the query keeps this off the console
+    // hot path). Authenticated viewers without origin access still get 'no_access'
+    // below, which carries the same generic text.
+    if (query.error?.data?.code === 'UNAUTHORIZED') {
+      return <Placeholder text="Войдите, чтобы увидеть синхронизированный блок" />
+    }
     return <Placeholder text="Нет доступа к синхронизированному блоку" />
   }
 
