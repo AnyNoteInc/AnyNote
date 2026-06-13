@@ -453,6 +453,7 @@ model Workspace {
   seatEvents            SeatBillingEvent[]
   seatSnapshots         WorkspaceSeatSnapshot[]
   invoiceRequests       InvoiceRequest[]
+  syncedBlocks          SyncedBlock[]
 
   @@index([createdById])
   @@map("workspaces")
@@ -542,6 +543,7 @@ model Page {
   importMappings       ImportMapping[]     @relation("ImportMappingPage")
   guestInvites         PageGuestInvite[]
   guestInviteRequests  PageGuestInviteRequest[]
+  syncedBlocks         SyncedBlock[]       @relation("SyncedBlockOriginPage")
 
   @@index([workspaceId])
   @@index([parentId])
@@ -552,6 +554,32 @@ model Page {
   @@index([workspaceId, ownership])
   @@index([searchVector], type: Gin, name: "Page_searchVector_idx")
   @@map("pages")
+}
+
+// A synced block (Phase 9C): canonical content with its own `syncedBlock:{id}`
+// Yjs document, embeddable across pages, edits propagating live to every
+// instance. content/contentYjs mirror Page.content/Page.contentYjs exactly
+// (JSON snapshot for export/preview/sanitize; bytes are authoritative).
+// originPageId SetNull on page delete — orphan-tolerant (the safe rule):
+// instances degrade to the «удалён» placeholder, never a synchronous remote
+// deletion. Access is inherited from the origin page (see canAccessSyncedBlock).
+model SyncedBlock {
+  id           String    @id @default(uuid(7)) @db.Uuid
+  workspaceId  String    @map("workspace_id") @db.Uuid
+  originPageId String?   @map("origin_page_id") @db.Uuid
+  content      Json?
+  contentYjs   Bytes?    @map("content_yjs")
+  createdById  String?   @map("created_by_id") @db.Uuid
+  unsyncedAt   DateTime? @map("unsynced_at") @db.Timestamptz(6)
+  deletedAt    DateTime? @map("deleted_at") @db.Timestamptz(6)
+  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  originPage Page?    @relation("SyncedBlockOriginPage", fields: [originPageId], references: [id], onDelete: SetNull)
+
+  @@index([workspaceId])
+  @@map("synced_blocks")
 }
 
 model TemplateTag {

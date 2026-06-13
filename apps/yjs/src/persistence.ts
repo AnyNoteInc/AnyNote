@@ -132,3 +132,48 @@ export async function storePageDocument(args: {
     }
   })
 }
+
+/**
+ * Load a synced-block's collaborative document (Phase 9C). Mirrors
+ * {@link loadPageDocument}: apply the stored `SyncedBlock.contentYjs` bytes onto
+ * a fresh Y.Doc; an unseeded block yields an empty doc.
+ */
+export async function loadSyncedBlockDocument(blockId: string): Promise<Y.Doc> {
+  const block = await prisma.syncedBlock.findUnique({
+    where: { id: blockId },
+    select: { contentYjs: true },
+  })
+  const ydoc = new Y.Doc()
+  if (block?.contentYjs) {
+    Y.applyUpdate(ydoc, new Uint8Array(block.contentYjs))
+  }
+  return ydoc
+}
+
+/**
+ * Persist a synced-block's collaborative document (Phase 9C). Writes the
+ * authoritative `SyncedBlock.contentYjs` bytes AND a Tiptap JSON snapshot to
+ * `SyncedBlock.content` — exactly the TEXT-page contract — so the render-prop,
+ * the read-only snapshot, and export read `.content`. Synced blocks are always
+ * tiptap-shaped, so there is no pageType branch; and they intentionally skip the
+ * page revision/outbox/integration machinery (that is page-scoped).
+ */
+export async function storeSyncedBlockDocument(args: {
+  blockId: string
+  document: Y.Doc
+}): Promise<void> {
+  const { blockId, document } = args
+  const contentYjs = new Uint8Array(Y.encodeStateAsUpdate(document))
+  const data: Prisma.SyncedBlockUpdateInput = { contentYjs }
+
+  try {
+    data.content = TiptapTransformer.fromYdoc(document, 'default') as Prisma.InputJsonValue
+  } catch (err) {
+    log.warn('tiptap transformer failed for synced block; saving contentYjs only', {
+      blockId,
+      error: (err as Error).message,
+    })
+  }
+
+  await prisma.syncedBlock.update({ where: { id: blockId }, data })
+}

@@ -39,7 +39,18 @@ export type PageAccess = {
   role: 'READER' | 'COMMENTER' | 'EDITOR' | null
 }
 
-export async function canAccessPage(userId: string, pageId: string): Promise<PageAccess | null> {
+/**
+ * The shared origin-page access check (member arm + guest-grant arm, both
+ * blocked-user-excluded). EXTRACTED so page documents and synced-block documents
+ * resolve access through the SAME logic and can't drift: `canAccessPage` calls
+ * it against the page id; `canAccessSyncedBlock` calls it against the block's
+ * origin page id. Returns the canonical {@link PageAccess} shape so
+ * `isReadOnlyAccess` maps the connection mode identically for both.
+ */
+export async function resolvePageAccess(
+  userId: string,
+  pageId: string,
+): Promise<PageAccess | null> {
   // Member arm — ACTIVE members only: a workspace_blocked_users row kills
   // access (inline mirror of @repo/domain `PeopleService.isWorkspaceBlocked`).
   const memberPage = await prisma.page.findFirst({
@@ -84,6 +95,32 @@ export async function canAccessPage(userId: string, pageId: string): Promise<Pag
     access: 'guest',
     role: (guestPage.share?.users[0]?.role as PageAccess['role']) ?? 'READER',
   }
+}
+
+export async function canAccessPage(userId: string, pageId: string): Promise<PageAccess | null> {
+  return resolvePageAccess(userId, pageId)
+}
+
+/**
+ * Access for a synced-block document (Phase 9C). Resolves the SyncedBlock (NOT
+ * deleted), then inherits access from its origin page via {@link resolvePageAccess}
+ * — so a workspace member who cannot see a PERSONAL-collection origin page gets
+ * denied here too. An orphaned block (originPageId null, e.g. the origin page was
+ * deleted → SetNull) or a deleted/missing block ⇒ deny. Returns the SAME
+ * {@link PageAccess} shape as `canAccessPage` so index.ts maps `readOnly`
+ * (VIEWER/COMMENTER origin grants ⇒ read-only) identically.
+ */
+export async function canAccessSyncedBlock(
+  userId: string,
+  blockId: string,
+): Promise<PageAccess | null> {
+  const block = await prisma.syncedBlock.findFirst({
+    where: { id: blockId, deletedAt: null },
+    select: { originPageId: true },
+  })
+  // Deleted/missing block, or an orphan (no origin page) ⇒ no live access.
+  if (!block || !block.originPageId) return null
+  return resolvePageAccess(userId, block.originPageId)
 }
 
 /** Grant-role → connection mode: READER/COMMENTER collaborate read-only, EDITOR writes; members keep full write. */

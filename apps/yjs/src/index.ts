@@ -5,15 +5,26 @@ import {
   initJwks,
   verifyJwt,
   canAccessPage,
+  canAccessSyncedBlock,
   isReadOnlyAccess,
   verifyShareToken,
   loadPageMeta,
 } from './auth.js'
-import { loadPageDocument, storePageDocument } from './persistence.js'
+import {
+  loadPageDocument,
+  storePageDocument,
+  loadSyncedBlockDocument,
+  storeSyncedBlockDocument,
+} from './persistence.js'
+import { parseDocumentName } from './parse.js'
 import { log } from './logger.js'
 import type { PageType } from '@repo/db'
 
-type AuthContext = { userId: string; pageType: PageType; workspaceId: string }
+// The auth context is discriminated by document kind so onStoreDocument routes
+// to the right table without re-parsing the name.
+type AuthContext =
+  | { kind: 'page'; userId: string; pageType: PageType; workspaceId: string }
+  | { kind: 'syncedBlock'; userId: string; blockId: string }
 
 const env = loadEnv()
 initJwks(env.jwksUrl)
@@ -24,11 +35,50 @@ const server = new Server({
   async onAuthenticate({ token, documentName, connectionConfig }) {
     if (!token) throw new Error('Missing auth token')
 
+    const parsed = parseDocumentName(documentName)
+
+    // Synced-block document (Phase 9C): members/grant holders only. Share tokens
+    // are page-scoped and NEVER admit a live nested-doc connection — anonymous /
+    // public-share viewers see the synced block via the server-rendered snapshot
+    // (the node render-prop), not this live document. Reject any share token here.
+    if (parsed.kind === 'syncedBlock') {
+      const share = await verifyShareToken(token, env.shareTokenSecret)
+      if (share) {
+        log.warn('share token rejected on synced-block document', {
+          userId: share.userId,
+          blockId: parsed.id,
+        })
+        throw new Error('Forbidden')
+      }
+      const { userId } = await verifyJwt(token, env.jwtAudience)
+      const access = await canAccessSyncedBlock(userId, parsed.id)
+      if (!access) {
+        log.warn('synced-block access denied', { userId, blockId: parsed.id })
+        throw new Error('Forbidden')
+      }
+      // VIEWER/COMMENTER origin access ⇒ read-only, mapped identically to pages.
+      if (isReadOnlyAccess(access)) {
+        connectionConfig.readOnly = true
+      }
+      log.info('authenticated (synced block)', {
+        userId,
+        blockId: parsed.id,
+        access: access.access,
+        role: access.role,
+        readOnly: connectionConfig.readOnly,
+      })
+      const ctx: AuthContext = { kind: 'syncedBlock', userId, blockId: parsed.id }
+      return ctx
+    }
+
+    // Page document — the historical contract (documentName === pageId), unchanged.
+    const pageId = parsed.id
+
     // Share-token path (anonymous or non-member viewers via /s/{shareId}).
     const share = await verifyShareToken(token, env.shareTokenSecret)
     if (share) {
-      if (share.pageId !== documentName) throw new Error('Forbidden')
-      const meta = await loadPageMeta(documentName)
+      if (share.pageId !== pageId) throw new Error('Forbidden')
+      const meta = await loadPageMeta(pageId)
       if (!meta) throw new Error('Forbidden')
       // Reader/commenter connections are read-only; the server rejects their writes
       // regardless of any client-side editable flag. Editor is writable.
@@ -37,11 +87,12 @@ const server = new Server({
       }
       log.info('authenticated (share)', {
         userId: share.userId,
-        pageId: documentName,
+        pageId,
         role: share.role,
         readOnly: connectionConfig.readOnly,
       })
       const ctx: AuthContext = {
+        kind: 'page',
         userId: share.userId,
         pageType: meta.pageType,
         workspaceId: meta.workspaceId,
@@ -52,9 +103,9 @@ const server = new Server({
     // Workspace path: active members (write) or PageShareUser grant holders
     // (role-mapped); workspace-blocked users are denied in both arms.
     const { userId } = await verifyJwt(token, env.jwtAudience)
-    const access = await canAccessPage(userId, documentName)
+    const access = await canAccessPage(userId, pageId)
     if (!access) {
-      log.warn('page access denied', { userId, pageId: documentName })
+      log.warn('page access denied', { userId, pageId })
       throw new Error('Forbidden')
     }
     // READER/COMMENTER grants are read-only; the server rejects their writes
@@ -64,7 +115,7 @@ const server = new Server({
     }
     log.info('authenticated', {
       userId,
-      pageId: documentName,
+      pageId,
       pageType: access.pageType,
       workspaceId: access.workspaceId,
       access: access.access,
@@ -72,6 +123,7 @@ const server = new Server({
       readOnly: connectionConfig.readOnly,
     })
     const ctx: AuthContext = {
+      kind: 'page',
       userId,
       pageType: access.pageType,
       workspaceId: access.workspaceId,
@@ -80,15 +132,27 @@ const server = new Server({
   },
 
   async onLoadDocument({ documentName }) {
-    return loadPageDocument(documentName)
+    const parsed = parseDocumentName(documentName)
+    return parsed.kind === 'syncedBlock'
+      ? loadSyncedBlockDocument(parsed.id)
+      : loadPageDocument(parsed.id)
   },
 
   async onStoreDocument({ documentName, document, context }) {
-    const { pageType, workspaceId } = context as AuthContext
-    if (!pageType || !workspaceId) {
+    const ctx = context as AuthContext
+    if (ctx.kind === 'syncedBlock') {
+      await storeSyncedBlockDocument({ blockId: ctx.blockId, document })
+      return
+    }
+    if (!ctx.pageType || !ctx.workspaceId) {
       throw new Error('missing pageType/workspaceId in onStoreDocument context')
     }
-    await storePageDocument({ pageId: documentName, workspaceId, document, pageType })
+    await storePageDocument({
+      pageId: parseDocumentName(documentName).id,
+      workspaceId: ctx.workspaceId,
+      document,
+      pageType: ctx.pageType,
+    })
   },
 })
 

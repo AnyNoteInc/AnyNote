@@ -19,9 +19,16 @@ const mockTransaction = jest.fn(async (fn: (tx: unknown) => Promise<unknown>) =>
     pageRevision: { findFirst: mockRevisionFindFirst, create: mockRevisionCreate },
   })
 })
+const mockSyncedBlockFindUnique = jest
+  .fn<(args: unknown) => Promise<{ contentYjs: Uint8Array | null } | null>>()
+  .mockResolvedValue(null)
+const mockSyncedBlockUpdate = jest.fn<(args: unknown) => Promise<unknown>>().mockResolvedValue({})
 
 jest.unstable_mockModule('@repo/db', () => ({
-  prisma: { $transaction: mockTransaction },
+  prisma: {
+    $transaction: mockTransaction,
+    syncedBlock: { findUnique: mockSyncedBlockFindUnique, update: mockSyncedBlockUpdate },
+  },
   PageType: { TEXT: 'TEXT', EXCALIDRAW: 'EXCALIDRAW', GENOGRAM: 'GENOGRAM', MERMAID: 'MERMAID' },
   PageRevisionAction: {
     EDIT: 'EDIT',
@@ -36,7 +43,9 @@ jest.unstable_mockModule('@repo/db', () => ({
   enqueueIntegrationEvents: mockEnqueueIntegrationEvents,
 }))
 
-const { storePageDocument } = await import('./persistence.js')
+const { storePageDocument, loadSyncedBlockDocument, storeSyncedBlockDocument } = await import(
+  './persistence.js'
+)
 
 beforeEach(() => {
   mockTxPageUpdate.mockClear()
@@ -46,6 +55,9 @@ beforeEach(() => {
   mockRevisionFindFirst.mockClear()
   mockRevisionFindFirst.mockResolvedValue(null)
   mockRevisionCreate.mockClear()
+  mockSyncedBlockFindUnique.mockClear()
+  mockSyncedBlockFindUnique.mockResolvedValue(null)
+  mockSyncedBlockUpdate.mockClear()
 })
 
 describe('storePageDocument', () => {
@@ -203,5 +215,54 @@ describe('storePageDocument', () => {
 
       expect(mockRevisionCreate).toHaveBeenCalledTimes(1)
     })
+  })
+})
+
+describe('synced-block persistence', () => {
+  it('storeSyncedBlockDocument writes contentYjs + the tiptap JSON snapshot to .content', async () => {
+    const doc = new Y.Doc()
+    doc.getXmlFragment('default').insert(0, [new Y.XmlElement('paragraph')])
+
+    await storeSyncedBlockDocument({
+      blockId: '00000000-0000-0000-0000-0000000000bb',
+      document: doc,
+    })
+
+    expect(mockSyncedBlockUpdate).toHaveBeenCalledTimes(1)
+    const call = mockSyncedBlockUpdate.mock.calls[0]![0] as {
+      where: { id: string }
+      data: { content: unknown; contentYjs: unknown }
+    }
+    expect(call.where).toEqual({ id: '00000000-0000-0000-0000-0000000000bb' })
+    expect(call.data.contentYjs).toBeInstanceOf(Uint8Array)
+    expect(call.data.content).toBeDefined()
+    // Synced blocks never touch the page revision/outbox machinery.
+    expect(mockTransaction).not.toHaveBeenCalled()
+    expect(mockEnqueueOutboxEventIgnoreConflict).not.toHaveBeenCalled()
+  })
+
+  it('loadSyncedBlockDocument applies stored bytes and round-trips through store', async () => {
+    // Seed a doc, encode it the way the store does, feed it back through load.
+    const seed = new Y.Doc()
+    seed.getXmlFragment('default').insert(0, [new Y.XmlElement('paragraph')])
+    const bytes = Y.encodeStateAsUpdate(seed)
+    mockSyncedBlockFindUnique.mockResolvedValue({ contentYjs: bytes })
+
+    const loaded = await loadSyncedBlockDocument('00000000-0000-0000-0000-0000000000bb')
+
+    const args = mockSyncedBlockFindUnique.mock.calls[0]![0] as {
+      where: { id: string }
+      select: { contentYjs: boolean }
+    }
+    expect(args.where).toEqual({ id: '00000000-0000-0000-0000-0000000000bb' })
+    expect(args.select).toMatchObject({ contentYjs: true })
+    // The loaded doc carries the seeded fragment.
+    expect(loaded.getXmlFragment('default').length).toBe(1)
+  })
+
+  it('loadSyncedBlockDocument returns an empty doc when no bytes are stored yet', async () => {
+    mockSyncedBlockFindUnique.mockResolvedValue(null)
+    const loaded = await loadSyncedBlockDocument('00000000-0000-0000-0000-0000000000bb')
+    expect(loaded.getXmlFragment('default').length).toBe(0)
   })
 })
