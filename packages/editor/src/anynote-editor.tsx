@@ -37,12 +37,14 @@ type MentionSuggestionProps = SuggestionProps<MentionLookupItem, MentionLookupIt
 
 type YjsResources = { ydoc: Y.Doc; provider: HocuspocusProvider }
 
-type PopoverKind = 'date' | 'datetime' | 'file' | 'markdown' | 'pageLink'
+type PopoverKind = 'date' | 'datetime' | 'file' | 'media' | 'markdown' | 'pageLink'
 
 type OpenPopover = {
   kind: PopoverKind
   anchorEl: VirtualAnchor
   range: SlashRange
+  // For the media popover: which inline player to insert.
+  mediaKind?: 'video' | 'audio'
 }
 
 export function AnyNoteEditor(props: AnyNoteEditorProps) {
@@ -143,6 +145,17 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
     })
   }, [])
 
+  const openMedia = useCallback((range: SlashRange, mediaKind: 'video' | 'audio') => {
+    const rect = slashClientRectRef.current()
+    slashRendererRef.current.popup?.hide()
+    setPopover({
+      kind: 'media',
+      range,
+      mediaKind,
+      anchorEl: { nodeType: 1, getBoundingClientRect: () => rect },
+    })
+  }, [])
+
   const closePopover = useCallback(() => setPopover(null), [])
 
   const openDrawioCreate = useCallback((range: SlashRange) => {
@@ -186,13 +199,14 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
         openDatePopover: (range) => openKind('date', range),
         openDatetimePopover: (range) => openKind('datetime', range),
         openFilePopover: (range) => openKind('file', range),
+        openMediaPopover: (range, mediaKind) => openMedia(range, mediaKind),
         openMarkdownPopover: (range) => openKind('markdown', range),
         openPageLinkPopover: (range) => openKind('pageLink', range),
         openReminderCreate: props.onReminderCreate,
         openDrawioCreate,
         openDatabasePicker,
       }),
-    [openKind, props.onReminderCreate, openDrawioCreate, openDatabasePicker],
+    [openKind, openMedia, props.onReminderCreate, openDrawioCreate, openDatabasePicker],
   )
 
   const slashItemsRef = useRef(slashItems)
@@ -397,6 +411,16 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
             range={range}
             editor={editor}
             uploadHandler={uploadHandler}
+            onClose={closePopover}
+          />
+          <FileUploadPopover
+            open={popover?.kind === 'media'}
+            anchorEl={anchorEl}
+            range={range}
+            editor={editor}
+            uploadHandler={uploadHandler}
+            target="media"
+            accept={popover?.mediaKind === 'audio' ? 'audio/*' : 'video/*'}
             onClose={closePopover}
           />
           <MarkdownUploadPopover

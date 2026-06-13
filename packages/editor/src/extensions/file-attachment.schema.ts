@@ -14,6 +14,10 @@ export const FileAttachmentSchema = Node.create({
       size: { default: 0 },
       mimeType: { default: '' },
       ext: { default: '' },
+      // Transient marker used by the file-upload paste/drop plugin to re-find a
+      // freshly inserted placeholder after its async upload resolves. Not
+      // rendered to / parsed from the DOM so it never persists in saved content.
+      uploadId: { default: null, rendered: false },
     }
   },
 

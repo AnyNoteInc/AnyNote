@@ -13,6 +13,7 @@ import { common, createLowlight } from 'lowlight'
 
 import {
   AnynoteTextColor,
+  Audio,
   BlockBackground,
   Callout,
   Code,
@@ -31,6 +32,7 @@ import {
   PageLink,
   TextStyleKit,
   Underline,
+  Video,
 } from '@repo/editor/extensions/server'
 
 const lowlight = createLowlight(common)
@@ -89,6 +91,8 @@ export function buildServerExtensions() {
     Callout,
     HiddenText,
     FileAttachment,
+    Video,
+    Audio,
     EmbeddedDatabase,
     PageLink,
     DateNode,

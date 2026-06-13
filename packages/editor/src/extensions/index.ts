@@ -20,6 +20,7 @@ import type { PlantumlRenderAuth } from '@repo/plantuml/render-plantuml'
 
 import { BlockBackground } from './block-background'
 import { BlockIndexAttributes } from './block-index-attributes'
+import { Audio } from './audio'
 import { Callout } from './callout'
 import { CodeBlock } from './code-block'
 import { buildCollaboration } from './collaboration'
@@ -38,6 +39,7 @@ import { DateNode } from './date'
 import { buildPlaceholder } from './placeholder'
 import { ResizableImage } from './resizable-image'
 import { SlashMenu, type SlashMenuRender } from './slash-menu'
+import { Video } from './video'
 import { TaskItemWithCheckbox } from './task-item-view'
 import { AnynoteTextColor } from './text-color'
 import { LINK_HTML_ATTRIBUTES } from '../link-href'
@@ -112,6 +114,8 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   AnynoteTextColor,
   BlockBackground,
   ResizableImage.configure({ uploadHandler: opts.uploadHandler }),
+  Video.configure({ uploadHandler: opts.uploadHandler }),
+  Audio.configure({ uploadHandler: opts.uploadHandler }),
   TaskList,
   TaskItemWithCheckbox.configure({ nested: true }),
   Table.configure({ resizable: true }),

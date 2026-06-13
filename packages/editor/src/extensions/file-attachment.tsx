@@ -2,11 +2,13 @@
 
 import { NodeViewWrapper, ReactNodeViewRenderer } from '@tiptap/react'
 import type { NodeViewProps } from '@tiptap/react'
-import { Box, Typography } from '@mui/material'
+import { Box, IconButton, Paper, Tooltip, Typography } from '@mui/material'
+import PlayCircleOutlineIcon from '@mui/icons-material/PlayCircleOutline'
 
 import { getFileIcon } from '../assets/files/index'
 import { DownloadIcon } from '../assets/index'
 import { FileAttachmentSchema } from './file-attachment.schema'
+import { attachmentToMediaNode, inferMediaKind } from './media-mime'
 
 export type FileAttachmentAttrs = {
   url: string
@@ -24,9 +26,23 @@ const formatBytes = (bytes: number): string => {
   return `${value.toFixed(i === 0 ? 0 : 1)} ${units[i]}`
 }
 
-function FileAttachmentView({ node }: NodeViewProps) {
+function FileAttachmentView({ node, editor, selected, getPos }: NodeViewProps) {
   const attrs = node.attrs as FileAttachmentAttrs
   const Icon = getFileIcon(attrs.ext)
+  const mediaKind = inferMediaKind(attrs.mimeType)
+  const playable = mediaKind === 'video' || mediaKind === 'audio'
+
+  const playAsMedia = () => {
+    const pos = getPos()
+    if (typeof pos !== 'number') return
+    const swap = attachmentToMediaNode(attrs)
+    if (!swap) return
+    editor
+      .chain()
+      .focus()
+      .insertContentAt({ from: pos, to: pos + node.nodeSize }, swap)
+      .run()
+  }
 
   return (
     <NodeViewWrapper
@@ -36,27 +52,66 @@ function FileAttachmentView({ node }: NodeViewProps) {
       data-drag-handle=""
       contentEditable={false}
     >
-      <Box
-        sx={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: 1.5,
-          textDecoration: 'none',
-          color: 'text.primary',
-          border: '1px solid',
-          borderColor: 'divider',
-          borderRadius: 1.5,
-          px: 1.5,
-          py: 1,
-          my: 0.5,
-          transition: 'background-color .15s, border-color .15s',
-          '&:hover': {
-            backgroundColor: 'action.hover',
-            borderColor: 'text.secondary',
-            '& .download-link': { opacity: 1 },
-          },
-        }}
-      >
+      <Box sx={{ position: 'relative' }}>
+        {playable && selected && editor.isEditable ? (
+          <Paper
+            elevation={6}
+            sx={{
+              position: 'absolute',
+              top: -44,
+              left: 8,
+              display: 'flex',
+              alignItems: 'center',
+              px: 0.5,
+              py: 0.25,
+              borderRadius: 1,
+              whiteSpace: 'nowrap',
+              zIndex: 2,
+            }}
+          >
+            <Tooltip
+              title={mediaKind === 'video' ? 'Воспроизвести как видео' : 'Воспроизвести как аудио'}
+              arrow
+            >
+              <IconButton
+                size="small"
+                onMouseDown={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                }}
+                onClick={(e) => {
+                  e.preventDefault()
+                  e.stopPropagation()
+                  playAsMedia()
+                }}
+                sx={{ color: 'text.secondary' }}
+              >
+                <PlayCircleOutlineIcon fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </Paper>
+        ) : null}
+        <Box
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1.5,
+            textDecoration: 'none',
+            color: 'text.primary',
+            border: '1px solid',
+            borderColor: selected ? 'primary.main' : 'divider',
+            borderRadius: 1.5,
+            px: 1.5,
+            py: 1,
+            my: 0.5,
+            transition: 'background-color .15s, border-color .15s',
+            '&:hover': {
+              backgroundColor: 'action.hover',
+              borderColor: 'text.secondary',
+              '& .download-link': { opacity: 1 },
+            },
+          }}
+        >
         <Box sx={{ flexShrink: 0, display: 'flex', alignItems: 'center' }}>
           <Icon width={32} height={32} />
         </Box>
@@ -99,6 +154,7 @@ function FileAttachmentView({ node }: NodeViewProps) {
           }}
         >
           <DownloadIcon width={18} height={18} />
+        </Box>
         </Box>
       </Box>
     </NodeViewWrapper>

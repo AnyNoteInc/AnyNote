@@ -1,9 +1,11 @@
 import { createElement } from 'react'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
+import AudiotrackIcon from '@mui/icons-material/Audiotrack'
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
 import NotificationsIcon from '@mui/icons-material/Notifications'
 import SchemaIcon from '@mui/icons-material/Schema'
 import StorageIcon from '@mui/icons-material/Storage'
+import VideocamIcon from '@mui/icons-material/Videocam'
 
 import {
   BulletListIcon,
@@ -32,6 +34,8 @@ export type SlashMediaHandlers = {
   openDatePopover: (range: SlashRange) => void
   openDatetimePopover: (range: SlashRange) => void
   openFilePopover: (range: SlashRange) => void
+  // Opens the media upload popover targeting a `video` or `audio` node.
+  openMediaPopover: (range: SlashRange, kind: 'video' | 'audio') => void
   openMarkdownPopover: (range: SlashRange) => void
   openPageLinkPopover: (range: SlashRange) => void
   openReminderCreate?: (reminderId: string) => void
@@ -306,6 +310,24 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
         .deleteRange(range)
         .insertContent({ type: 'image', attrs: { src: null } })
         .run(),
+  },
+  {
+    id: 'video',
+    group: 'media',
+    label: 'Видео',
+    description: 'Загрузить видео со встроенным плеером',
+    keywords: ['video', 'видео', 'ролик', 'mp4', 'плеер'],
+    icon: createElement(VideocamIcon, { fontSize: 'small' }),
+    run: ({ range }) => handlers.openMediaPopover(range, 'video'),
+  },
+  {
+    id: 'audio',
+    group: 'media',
+    label: 'Аудио',
+    description: 'Загрузить аудио со встроенным плеером',
+    keywords: ['audio', 'аудио', 'звук', 'mp3', 'музыка', 'плеер'],
+    icon: createElement(AudiotrackIcon, { fontSize: 'small' }),
+    run: ({ range }) => handlers.openMediaPopover(range, 'audio'),
   },
   {
     id: 'file',

@@ -3,10 +3,12 @@
 //
 // The .tsx siblings re-extend these with addNodeView for client use.
 
+export { AudioSchema as Audio } from './audio.schema'
 export { CalloutSchema as Callout } from './callout.schema'
 export { DrawioSchema as Drawio } from './drawio.schema'
 export { EmbeddedDatabaseSchema as EmbeddedDatabase } from './embedded-database.schema'
 export { FileAttachmentSchema as FileAttachment } from './file-attachment.schema'
+export { VideoSchema as Video } from './video.schema'
 export { HiddenTextSchema as HiddenText } from './hidden-text.schema'
 export { PageLinkSchema as PageLink } from './page-link.schema'
 

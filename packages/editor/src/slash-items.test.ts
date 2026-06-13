@@ -6,6 +6,7 @@ const handlers: SlashMediaHandlers = {
   openDatePopover: vi.fn(),
   openDatetimePopover: vi.fn(),
   openFilePopover: vi.fn(),
+  openMediaPopover: vi.fn(),
   openMarkdownPopover: vi.fn(),
   openPageLinkPopover: vi.fn(),
 }
@@ -27,6 +28,28 @@ describe('createSlashItems', () => {
     )
     expect(slashItems('likec4')).toEqual([])
     expect(slashItems('d2')).toEqual([])
+  })
+
+  it('exposes video and audio under the media group, wired to openMediaPopover', () => {
+    const openMediaPopover = vi.fn()
+    const slashItems = createSlashItems({ ...handlers, openMediaPopover })
+    const items = slashItems('')
+    const video = items.find((it) => it.id === 'video')
+    const audio = items.find((it) => it.id === 'audio')
+    expect(video?.group).toBe('media')
+    expect(audio?.group).toBe('media')
+
+    const range = { from: 1, to: 2 }
+    video?.run({ editor: {} as never, range })
+    audio?.run({ editor: {} as never, range })
+    expect(openMediaPopover).toHaveBeenCalledWith(range, 'video')
+    expect(openMediaPopover).toHaveBeenCalledWith(range, 'audio')
+  })
+
+  it('finds video and audio by keyword', () => {
+    const slashItems = createSlashItems(handlers)
+    expect(slashItems('видео').map((it) => it.id)).toContain('video')
+    expect(slashItems('mp3').map((it) => it.id)).toContain('audio')
   })
 
   it('groups date, datetime, pageLink and reminder under the inline group', () => {

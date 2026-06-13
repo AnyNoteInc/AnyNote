@@ -80,7 +80,7 @@ describe('paste precedence (imagePaste vs fileUpload)', () => {
     }
   })
 
-  it('leaves a non-image paste to fileUpload (inserts uploadFileCard, not image)', () => {
+  it('does not route a non-image paste to the image node (fileUpload owns it)', () => {
     const editor = makeEditor()
     try {
       const file = new File(['hello'], 'note.txt', { type: 'text/plain' })

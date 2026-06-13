@@ -4,7 +4,13 @@ import { Alert, Box, Button, CircularProgress, Popover, Stack, Typography } from
 import type { Editor } from '@tiptap/core'
 import { useCallback, useId, useRef, useState } from 'react'
 
+import { MEDIA_ACCEPT, inferMediaKind } from '../extensions/media-mime'
 import type { SlashRange, UploadHandler, VirtualAnchor } from '../types'
+
+// `file`  → insert each upload as a `fileAttachment` (the default popover).
+// `media` → insert each upload as a `video`/`audio` node by its MIME family
+//           (the /video and /audio slash items reuse this popover).
+type UploadTarget = 'file' | 'media'
 
 type Props = {
   open: boolean
@@ -13,6 +19,10 @@ type Props = {
   editor: Editor
   uploadHandler: UploadHandler
   onClose: () => void
+  target?: UploadTarget
+  // Narrows the file picker `accept` (e.g. 'video/*' for the /video item).
+  // Defaults to all media when `target` is 'media'.
+  accept?: string
 }
 
 const getExtension = (name: string): string => {
@@ -27,7 +37,10 @@ export function FileUploadPopover({
   editor,
   uploadHandler,
   onClose,
+  target = 'file',
+  accept,
 }: Props) {
+  const acceptAttr = accept ?? (target === 'media' ? MEDIA_ACCEPT : undefined)
   const [busy, setBusy] = useState(false)
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null)
   const [error, setError] = useState<string | null>(null)
@@ -73,17 +86,21 @@ export function FileUploadPopover({
           }),
         )
 
-        editor
-          .chain()
-          .focus()
-          .deleteRange(range)
-          .insertContent(
-            uploaded.map((u) => ({
-              type: 'fileAttachment',
-              attrs: u,
-            })),
-          )
-          .run()
+        const content = uploaded.map((u) => {
+          if (target === 'media') {
+            const kind = inferMediaKind(u.mimeType)
+            // Fall back to a plain attachment when the picked file isn't media.
+            if (kind === 'video' || kind === 'audio') {
+              return {
+                type: kind,
+                attrs: { url: u.url, name: u.name, size: u.size, mimeType: u.mimeType },
+              }
+            }
+          }
+          return { type: 'fileAttachment', attrs: u }
+        })
+
+        editor.chain().focus().deleteRange(range).insertContent(content).run()
         reset()
         onClose()
       } catch (err) {
@@ -91,7 +108,7 @@ export function FileUploadPopover({
         setBusy(false)
       }
     },
-    [editor, onClose, range, reset, uploadHandler],
+    [editor, onClose, range, reset, target, uploadHandler],
   )
 
   return (
@@ -124,11 +141,14 @@ export function FileUploadPopover({
               type="file"
               hidden
               multiple
+              accept={acceptAttr}
               onChange={handleFilesSelected}
             />
           </Button>
           <Typography variant="caption" color="text.secondary">
-            Можно выбрать несколько файлов. Загрузка начнётся сразу.
+            {target === 'media'
+              ? 'Видео и аудио до 200 МБ. Загрузка начнётся сразу.'
+              : 'Можно выбрать несколько файлов. Загрузка начнётся сразу.'}
           </Typography>
           {error ? <Alert severity="error">{error}</Alert> : null}
         </Stack>
