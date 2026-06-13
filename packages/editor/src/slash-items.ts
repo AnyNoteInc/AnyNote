@@ -7,6 +7,7 @@ import NotificationsIcon from '@mui/icons-material/Notifications'
 import OndemandVideoIcon from '@mui/icons-material/OndemandVideo'
 import SchemaIcon from '@mui/icons-material/Schema'
 import StorageIcon from '@mui/icons-material/Storage'
+import TabIcon from '@mui/icons-material/Tab'
 import VideocamIcon from '@mui/icons-material/Videocam'
 
 import {
@@ -30,6 +31,7 @@ import {
   TextIcon,
   ToggleIcon,
 } from './assets/index'
+import { createTabsContent } from './extensions/tabs.schema'
 import type { SlashCommandItem, SlashRange } from './types'
 
 export type SlashMediaHandlers = {
@@ -220,6 +222,16 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
           ],
         })
         .run(),
+  },
+  {
+    id: 'tabs',
+    group: 'base',
+    label: 'Вкладки',
+    description: 'Содержимое по вкладкам',
+    keywords: ['tabs', 'вкладки', 'табы', 'разделы'],
+    icon: createElement(TabIcon, { fontSize: 'small' }),
+    run: ({ editor, range }) =>
+      editor.chain().focus().deleteRange(range).insertContent(createTabsContent()).run(),
   },
   {
     id: 'hidden',

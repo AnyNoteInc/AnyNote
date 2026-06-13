@@ -32,6 +32,8 @@ import {
   LINK_HTML_ATTRIBUTES,
   Mention,
   PageLink,
+  Tab,
+  Tabs,
   TextStyleKit,
   Underline,
   Video,
@@ -102,5 +104,7 @@ export function buildServerExtensions() {
     DateNode,
     ColumnLayout,
     Column,
+    Tabs,
+    Tab,
   ]
 }

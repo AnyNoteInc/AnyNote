@@ -43,6 +43,7 @@ import { DateNode } from './date'
 import { buildPlaceholder } from './placeholder'
 import { ResizableImage } from './resizable-image'
 import { SlashMenu, type SlashMenuRender } from './slash-menu'
+import { Tab, Tabs } from './tabs'
 import { Video } from './video'
 import { TaskItemWithCheckbox } from './task-item-view'
 import { AnynoteTextColor } from './text-color'
@@ -188,6 +189,8 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   CollapsibleHeadings.configure({ pageId: opts.pageId ?? null }),
   ColumnLayout,
   Column,
+  Tabs,
+  Tab,
   DropPlacement,
   Comments.configure({ onOpenThread: opts.onOpenThread }),
 ]

@@ -19,6 +19,8 @@ export { DateSchema as DateNode } from './date.schema'
 
 export { ColumnLayoutSchema as ColumnLayout, ColumnSchema as Column } from './column-layout.schema'
 
+export { TabsSchema as Tabs, TabSchema as Tab } from './tabs.schema'
+
 // Pure string/config helpers (no React) shared with the client editors.
 export { LINK_HTML_ATTRIBUTES, normalizeLinkHref } from '../link-href'
 
