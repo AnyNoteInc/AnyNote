@@ -91,7 +91,18 @@ const EmbeddedDatabasePicker = dynamic(
   { ssr: false },
 )
 
+const SyncedBlockEmbed = dynamic(
+  () => import('@/components/page/synced-block-embed').then((m) => m.SyncedBlockEmbed),
+  { ssr: false, loading: () => <CenteredSpinner /> },
+)
+
+const SyncedBlockPicker = dynamic(
+  () => import('@/components/page/synced-block-picker').then((m) => m.SyncedBlockPicker),
+  { ssr: false },
+)
+
 type EmbeddedDatabasePick = { sourceId: string; viewId: string | null }
+type SyncedBlockPick = { blockId: string }
 
 function CenteredSpinner() {
   return (
@@ -143,6 +154,10 @@ export function PageRenderer({
   // the in-flight resolver here so the editor can await the user's choice.
   const [dbPickerOpen, setDbPickerOpen] = useState(false)
   const dbPickerResolveRef = useRef<((pick: EmbeddedDatabasePick | null) => void) | null>(null)
+  // The `/синхронизированный блок` slash item opens a promise-based picker
+  // (create new / insert existing); the in-flight resolver is held here.
+  const [syncedPickerOpen, setSyncedPickerOpen] = useState(false)
+  const syncedPickerResolveRef = useRef<((pick: SyncedBlockPick | null) => void) | null>(null)
   const [movePos, setMovePos] = useState<number | null>(null)
   const [moveTarget, setMoveTarget] = useState<PageTreeSelection | null>(null)
   const [moveBusy, setMoveBusy] = useState(false)
@@ -328,6 +343,40 @@ export function PageRenderer({
     dbPickerResolveRef.current?.(pick)
     dbPickerResolveRef.current = null
   }, [])
+
+  // Opens the synced-block picker (create new / insert existing) and resolves
+  // with the chosen/created blockId (or null on cancel); the editor inserts the
+  // `syncedBlock` node from the result.
+  const onPickSyncedBlock = useCallback(
+    () =>
+      new Promise<SyncedBlockPick | null>((resolve) => {
+        syncedPickerResolveRef.current = resolve
+        setSyncedPickerOpen(true)
+      }),
+    [],
+  )
+
+  const resolveSyncedPicker = useCallback((pick: SyncedBlockPick | null) => {
+    setSyncedPickerOpen(false)
+    syncedPickerResolveRef.current?.(pick)
+    syncedPickerResolveRef.current = null
+  }, [])
+
+  // Live renderer injected into the editor's synced-block node. The node (in
+  // @repo/editor) can't import apps/web, so it calls this with the node's blockId
+  // + the per-instance detach hook, and we mount the access-checked embed (which
+  // either opens a nested live editor, renders the snapshot, or a placeholder).
+  const renderSyncedBlock = useCallback(
+    (args: import('@repo/editor').SyncedBlockRenderArgs) => (
+      <SyncedBlockEmbed
+        {...args}
+        user={user}
+        yjsUrl={resolveYjsUrl()}
+        yjsToken={token}
+      />
+    ),
+    [user, token],
+  )
 
   // Live renderer injected into the editor's embedded-database node. The node
   // (in @repo/editor) can't import apps/web, so it calls this with the node's
@@ -562,12 +611,21 @@ export function PageRenderer({
           loadingFallback={<EditorContentSkeleton />}
           renderEmbeddedDatabase={renderEmbeddedDatabase}
           onPickEmbeddedDatabase={onPickEmbeddedDatabase}
+          renderSyncedBlock={renderSyncedBlock}
+          onPickSyncedBlock={onPickSyncedBlock}
         />
         <EmbeddedDatabasePicker
           open={dbPickerOpen}
           workspaceId={workspaceId}
           onCancel={() => resolveDbPicker(null)}
           onPick={(pick) => resolveDbPicker(pick)}
+        />
+        <SyncedBlockPicker
+          open={syncedPickerOpen}
+          workspaceId={workspaceId}
+          originPageId={page.id}
+          onCancel={() => resolveSyncedPicker(null)}
+          onPick={(pick) => resolveSyncedPicker(pick)}
         />
         <CommentPopover />
         {reminderUI.open && (

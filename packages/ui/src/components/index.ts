@@ -222,6 +222,9 @@ export { default as ListItemIcon, type ListItemIconProps } from '@mui/material/L
 export { default as ListItemText, type ListItemTextProps } from '@mui/material/ListItemText'
 export { default as ListItemAvatar, type ListItemAvatarProps } from '@mui/material/ListItemAvatar'
 export { default as OpenInNewIcon } from '@mui/icons-material/OpenInNew'
+export { default as LinkOffIcon } from '@mui/icons-material/LinkOff'
+export { default as DeleteOutlineIcon } from '@mui/icons-material/DeleteOutline'
+export { default as SyncIcon } from '@mui/icons-material/Sync'
 export { default as ErrorOutlineIcon } from '@mui/icons-material/ErrorOutline'
 // Database property-type icons (creatable-type menu + settings dialog)
 export { default as NumbersIcon } from '@mui/icons-material/Numbers'

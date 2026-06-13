@@ -80,5 +80,10 @@ export const appRouter = router({
 export const createCaller = createCallerFactory(appRouter)
 export type AppRouter = typeof appRouter
 
+// The typed `syncedBlock.getById` result, re-exported so the editor embed can
+// annotate it directly and avoid tRPC's deep discriminated-union inference (the
+// React-Query inferred shape trips TS2589 on narrowing).
+export type { SyncedBlockReadResult } from './routers/synced-block'
+
 export { getCurrentConsents, hasAllRequiredConsents, type CurrentConsent } from './lib/consents'
 export { setDocumentVersionResolver } from './lib/document-versions'

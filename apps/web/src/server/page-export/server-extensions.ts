@@ -32,6 +32,7 @@ import {
   LINK_HTML_ATTRIBUTES,
   Mention,
   PageLink,
+  SyncedBlock,
   Tab,
   Tabs,
   TextStyleKit,
@@ -106,5 +107,6 @@ export function buildServerExtensions() {
     Column,
     Tabs,
     Tab,
+    SyncedBlock,
   ]
 }
