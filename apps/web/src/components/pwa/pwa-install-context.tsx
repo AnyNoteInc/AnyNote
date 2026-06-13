@@ -72,13 +72,19 @@ export function PwaInstallProvider({ children }: Readonly<{ children: ReactNode 
 
   const promptInstall = useCallback(async () => {
     if (!deferredPrompt) return false
-    await deferredPrompt.prompt()
-    const choice = await deferredPrompt.userChoice
-    if (choice.outcome === 'accepted') {
+    try {
+      await deferredPrompt.prompt()
+      const choice = await deferredPrompt.userChoice
+      return choice.outcome === 'accepted'
+    } catch {
+      // A re-prompt on an already-consumed event throws; treat as declined.
+      return false
+    } finally {
+      // `beforeinstallprompt` is single-use: clear it regardless of outcome so
+      // a dismissed prompt also retires `canInstall` and we never re-prompt
+      // an exhausted event.
       setDeferredPrompt(null)
-      return true
     }
-    return false
   }, [deferredPrompt])
 
   const value = useMemo<PwaInstallContextValue>(

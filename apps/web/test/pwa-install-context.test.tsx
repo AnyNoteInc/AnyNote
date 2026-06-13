@@ -89,6 +89,24 @@ describe('PwaInstallProvider', () => {
     expect(screen.getByTestId('can-install')).toHaveTextContent('false')
   })
 
+  it('clears canInstall after a dismissed prompt (single-use event)', async () => {
+    const actor = userEvent.setup()
+    render(
+      <PwaInstallProvider>
+        <Probe />
+      </PwaInstallProvider>,
+    )
+    const { event, prompt } = createBeforeInstallPromptEvent('dismissed')
+    act(() => {
+      window.dispatchEvent(event)
+    })
+    expect(screen.getByTestId('can-install')).toHaveTextContent('true')
+    await actor.click(screen.getByRole('button', { name: 'prompt' }))
+    expect(prompt).toHaveBeenCalledTimes(1)
+    // The deferred event is exhausted regardless of outcome.
+    expect(screen.getByTestId('can-install')).toHaveTextContent('false')
+  })
+
   it('appinstalled flips isInstalled and clears canInstall', () => {
     render(
       <PwaInstallProvider>

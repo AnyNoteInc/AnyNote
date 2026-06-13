@@ -37,6 +37,20 @@ describe('public/sw.js source contract', () => {
     expect(swSource).toContain("caches.match('/offline')")
   })
 
+  it('serves precached statics from the Request key, cache-first', () => {
+    // Match the original Request (scope-robust, matches the addAll keys) rather
+    // than the bare pathname.
+    expect(swSource).toContain('caches.match(request)')
+    expect(swSource).not.toContain('caches.match(url.pathname)')
+  })
+
+  it('never re-caches precached statics at runtime (install-time addAll is the sole write path)', () => {
+    // The only cache.put must be absent: a runtime miss falls through to the
+    // network and is NOT persisted, so a session-influenced render can't leak
+    // into the shell cache.
+    expect(swSource).not.toContain('cache.put')
+  })
+
   it('keeps the push and notificationclick handlers', () => {
     expect(swSource).toContain("addEventListener('push'")
     expect(swSource).toContain("addEventListener('notificationclick'")

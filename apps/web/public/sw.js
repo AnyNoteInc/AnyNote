@@ -1,7 +1,11 @@
 // AnyNote service worker: web push + a conservative app-shell cache.
 // Same URL/scope as the original push-only worker so existing push
-// subscriptions keep working across updates. Bump SW_VERSION to invalidate
-// the shell cache after deploys that change the precached assets.
+// subscriptions keep working across updates.
+//
+// SW_VERSION change-checklist: bump whenever sw.js OR any precached route
+// (/offline, /icon, /manifest.webmanifest) changes — otherwise returning
+// users keep serving a stale shell from the old versioned cache, since the
+// activate handler only purges caches whose name !== the current SHELL_CACHE.
 const SW_VERSION = 1
 const SHELL_CACHE = `anynote-shell-v${SW_VERSION}`
 const PRECACHE_PATHS = ['/offline', '/icon', '/manifest.webmanifest']
@@ -40,18 +44,16 @@ self.addEventListener('fetch', (event) => {
   // private data and must always go straight to the network, untouched.
   if (url.pathname.startsWith('/api/')) return
 
-  // Precached shell statics: cache-first.
+  // Precached shell statics: cache-first. Install-time `cache.addAll` is the
+  // sole write path; a runtime miss just falls through to the network and is
+  // NOT re-cached. That keeps a session-influenced render of e.g. `/offline`
+  // (fetched live after a cache eviction) from being persisted into the shell.
   if (PRECACHE_PATHS.includes(url.pathname)) {
     event.respondWith(
       (async () => {
-        const cached = await caches.match(url.pathname)
+        const cached = await caches.match(request)
         if (cached) return cached
-        const response = await fetch(request)
-        if (response.ok) {
-          const cache = await caches.open(SHELL_CACHE)
-          await cache.put(url.pathname, response.clone())
-        }
-        return response
+        return fetch(request)
       })(),
     )
     return
