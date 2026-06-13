@@ -283,6 +283,28 @@ export function PageRenderer({
 
   const mentionSearch = useWorkspaceMentionSearch(workspaceId)
 
+  // Bookmark preview: a thin POST to the SSRF-guarded route. The route returns
+  // `{}` on any failure (never an error), so a rejected fetch / non-JSON body
+  // degrades to a bare bookmark card rather than throwing in the editor.
+  const bookmarkPreview = useCallback(async (url: string) => {
+    try {
+      const res = await fetch('/api/bookmark/preview', {
+        method: 'POST',
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ url }),
+      })
+      if (!res.ok) return {}
+      return (await res.json()) as {
+        title?: string
+        description?: string
+        image?: string
+        favicon?: string
+      }
+    } catch {
+      return {}
+    }
+  }, [])
+
   const onNavigateToPage = useCallback(
     (pageId: string) => {
       router.push(`/pages/${pageId}`)
@@ -522,6 +544,7 @@ export function PageRenderer({
           editable={editable}
           user={user}
           uploadHandler={uploadHandler}
+          bookmarkPreview={bookmarkPreview}
           pageSearch={pageSearch}
           mentionSearch={mentionSearch}
           onNavigateToPage={onNavigateToPage}
