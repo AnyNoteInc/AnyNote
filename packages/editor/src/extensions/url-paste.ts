@@ -70,6 +70,10 @@ const insertBookmark = (
   void previewFetch(url)
     .then((preview) => {
       if (!preview) return
+      // The fetch can resolve up to FETCH_TIMEOUT_MS (8s) later, by which time
+      // the editor may have unmounted — dispatching on a destroyed view throws.
+      // Bail early, and wrap the dispatch as a belt against any race.
+      if (view.isDestroyed) return
       // Re-find the just-inserted bookmark by url (positions drift under Yjs).
       let pos: number | null = null
       view.state.doc.descendants((n, p) => {
@@ -81,15 +85,19 @@ const insertBookmark = (
         return undefined
       })
       if (pos == null) return
-      view.dispatch(
-        view.state.tr.setNodeMarkup(pos, undefined, {
-          url,
-          title: preview.title ?? '',
-          description: preview.description ?? '',
-          image: preview.image ?? '',
-          favicon: preview.favicon ?? '',
-        }),
-      )
+      try {
+        view.dispatch(
+          view.state.tr.setNodeMarkup(pos, undefined, {
+            url,
+            title: preview.title ?? '',
+            description: preview.description ?? '',
+            image: preview.image ?? '',
+            favicon: preview.favicon ?? '',
+          }),
+        )
+      } catch {
+        // View torn down between the guard and dispatch — the bare card stays.
+      }
     })
     .catch(() => {
       // Preview failed — the bare bookmark card stays.
@@ -149,8 +157,36 @@ const showChooser = (
     font: '13px system-ui, sans-serif',
   })
 
+  // `cleanup` and `onDismiss` reference each other but are only INVOKED after the
+  // `setTimeout` registers the listeners (and `choose` runs on a user click), so
+  // the mutual reference resolves at call time — both can be `const`. `cleanup`
+  // tears down the document listeners on the HAPPY path too (picking an option),
+  // not just on outside-dismiss — otherwise 3 listeners leak until the next
+  // global event.
+  const onDismiss = (e: Event) => {
+    if (e instanceof KeyboardEvent && e.key !== 'Escape') return
+    if (
+      e.type === 'mousedown' &&
+      activeMenu &&
+      e.target instanceof Node &&
+      activeMenu.contains(e.target)
+    ) {
+      return
+    }
+    closeMenu()
+    cleanup()
+  }
+  const cleanup = () => {
+    // `removeEventListener` is a no-op for an already-removed listener, so a
+    // double call (choose() then a stray dismiss event) is harmless.
+    document.removeEventListener('mousedown', onDismiss, true)
+    document.removeEventListener('keydown', onDismiss, true)
+    window.removeEventListener('scroll', onDismiss, true)
+  }
+
   const choose = (opt: UrlPasteOption) => {
     closeMenu()
+    cleanup()
     const { from, to } = view.state.selection
     if (opt.kind === 'link') insertLink(view, from, to, url)
     else if (opt.kind === 'bookmark') insertBookmark(view, from, to, url, previewFetch)
@@ -185,20 +221,8 @@ const showChooser = (
   document.body.appendChild(menu)
   activeMenu = menu
 
-  // Dismiss on the next outside interaction / scroll / Escape.
-  const onDismiss = (e: Event) => {
-    if (e instanceof KeyboardEvent && e.key !== 'Escape') return
-    if (e.type === 'mousedown' && activeMenu && e.target instanceof Node && activeMenu.contains(e.target)) {
-      return
-    }
-    closeMenu()
-    cleanup()
-  }
-  const cleanup = () => {
-    document.removeEventListener('mousedown', onDismiss, true)
-    document.removeEventListener('keydown', onDismiss, true)
-    window.removeEventListener('scroll', onDismiss, true)
-  }
+  // Register the dismiss listeners on the next tick so the paste's own events
+  // don't immediately close the menu.
   setTimeout(() => {
     document.addEventListener('mousedown', onDismiss, true)
     document.addEventListener('keydown', onDismiss, true)

@@ -124,6 +124,14 @@ export const hiddenNodeRanges = (doc: PMNode, collapsedKeys: ReadonlySet<string>
 }
 
 // --- localStorage round-trip ------------------------------------------------
+//
+// CAVEAT (documented, by design — matches the embed-prefs precedent in
+// embed-prefs.ts): these per-page keys are NOT pruned when a page is deleted, so
+// a deleted page leaves a small orphan entry behind. This is bounded (one tiny
+// array per page the viewer ever collapsed, on that browser only) and never
+// affects another viewer or the document, so wiring page-delete cleanup is out
+// of scope here. An empty collapsed set already removes its own key (see
+// writeCollapsed), so the only residue is from pages deleted while collapsed.
 
 const PREFIX = 'anynote:collapsed:'
 
@@ -171,6 +179,10 @@ type CollapseState = { collapsed: Set<string> }
 export const collapsibleHeadingsKey = new PluginKey<CollapseState>('collapsibleHeadings')
 
 const TOGGLE_CLASS = 'anynote-collapse-toggle'
+
+// Stable empty-set fallback so the decoration memo can still hit when the plugin
+// state is somehow absent (a fresh Set() each call would defeat the identity check).
+const EMPTY_COLLAPSED: ReadonlySet<string> = new Set<string>()
 
 /**
  * Build the ▸/▾ toggle widget that sits before a heading. A real
@@ -237,6 +249,19 @@ export const CollapsibleHeadings = Extension.create<CollapsibleHeadingsOptions>(
   addProseMirrorPlugins() {
     const pageId = this.options.pageId
 
+    // Single-slot decoration memo, scoped to THIS plugin instance (one per
+    // editor — never shared across editors). `decorations()` runs on every
+    // transaction, including pure no-ops (caret moves, selection-only changes,
+    // remote presence). Rebuilding the whole DecorationSet each time is wasted
+    // work on a large doc, so we cache the last result keyed by (doc, collapsed)
+    // identity: `state.doc` only changes identity on a doc edit, and the
+    // `collapsed` Set is replaced only on a toggle (the apply() below returns the
+    // same value object otherwise), so an identity match means nothing relevant
+    // changed and the cached set is still valid.
+    let memoDoc: PMNode | null = null
+    let memoCollapsed: ReadonlySet<string> | null = null
+    let memoDecos: DecorationSet = DecorationSet.empty
+
     return [
       new Plugin<CollapseState>({
         key: collapsibleHeadingsKey,
@@ -260,8 +285,14 @@ export const CollapsibleHeadings = Extension.create<CollapsibleHeadingsOptions>(
         props: {
           decorations(state: EditorState): DecorationSet {
             const collapsed =
-              collapsibleHeadingsKey.getState(state)?.collapsed ?? new Set<string>()
-            return buildDecorations(state.doc, collapsed)
+              collapsibleHeadingsKey.getState(state)?.collapsed ?? EMPTY_COLLAPSED
+            // Cache hit: neither the doc nor the collapsed set changed identity —
+            // the previously-built decorations are still exactly correct.
+            if (memoDoc === state.doc && memoCollapsed === collapsed) return memoDecos
+            memoDecos = buildDecorations(state.doc, collapsed)
+            memoDoc = state.doc
+            memoCollapsed = collapsed
+            return memoDecos
           },
           handleDOMEvents: {
             // The toggle is a real button; we own the mousedown so the caret

@@ -12,8 +12,9 @@ import { parseMeta, type BookmarkPreviewMeta } from '@/lib/bookmark-preview'
  * editor's bookmark card. SECURITY-CRITICAL — it fetches an arbitrary URL on
  * the server, so every SSRF lever is closed:
  *
- *  - session-gated (401 — the route is not a public relay);
- *  - per-IP sliding-window rate limit (the /api/sso/resolve precedent) FIRST;
+ *  - session-gated FIRST (401 — the route is not a public relay), so an
+ *    unauth caller can never burn a shared IP's rate-limit budget;
+ *  - then a per-IP sliding-window rate limit (the /api/sso/resolve precedent);
  *  - `assertSafeWebhookUrl` (https-only, private/loopback/link-local/CGN/
  *    metadata ranges blocked) BEFORE any fetch;
  *  - `redirect: 'manual'` + AbortSignal.timeout — on a 3xx the Location host is
@@ -129,22 +130,32 @@ function resolveRedirect(res: Response, from: string): string | null {
 const isRedirect = (status: number): boolean => status >= 300 && status < 400
 const isSuccess = (status: number): boolean => status >= 200 && status < 300
 
+/** A successful response paired with the URL it was actually fetched from. */
+type FetchResult = { res: Response; finalUrl: string }
+
 /**
  * Guards `url`, fetches once with manual redirects, re-guards + follows a single
- * 3xx Location, and returns the FINAL successful Response (or null on any
- * SSRF/transport/redirect/non-2xx outcome). Never throws.
+ * 3xx Location, and returns the FINAL successful Response together with the URL
+ * it was fetched from (or null on any SSRF/transport/redirect/non-2xx outcome).
+ * Never throws.
+ *
+ * `finalUrl` is the redirect TARGET when a 3xx was followed — relative
+ * image/favicon hrefs must resolve against the page that actually served them.
+ * We track it explicitly rather than rely on `res.url`: undici populates `res.url`
+ * for real fetches, but it is empty on a constructed `Response` (so tests would
+ * otherwise silently resolve against the original url).
  */
 async function safeFetch(
   url: string,
   fetchFn: typeof fetch,
   lookup: LookupFn | undefined,
-): Promise<Response | null> {
+): Promise<FetchResult | null> {
   let current = url
   for (let hop = 0; hop <= MAX_REDIRECTS; hop += 1) {
     const res = await guardedFetch(current, fetchFn, lookup)
     if (!res) return null
 
-    if (isSuccess(res.status)) return res
+    if (isSuccess(res.status)) return { res, finalUrl: res.url || current }
 
     // Either a redirect (maybe follow) or any other non-2xx — drain and decide.
     const next = isRedirect(res.status) && hop < MAX_REDIRECTS ? resolveRedirect(res, current) : null
@@ -161,13 +172,16 @@ async function safeFetch(
  * signature while tests drive the SSRF/redirect/rate-limit paths deterministically.
  */
 export async function handlePreview(req: NextRequest, deps: FetchDeps = {}): Promise<NextResponse> {
-  if (isRateLimited(clientIpOf(req))) {
-    return NextResponse.json({ error: 'Слишком много запросов' }, { status: 429 })
-  }
-
+  // Auth FIRST, then rate-limit. If the IP budget were spent before the session
+  // check, an unauthenticated caller could exhaust a shared IP's allowance (e.g.
+  // behind a corporate NAT) and lock out legitimate signed-in users on that IP.
   const session = await getSession()
   if (!session) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+  }
+
+  if (isRateLimited(clientIpOf(req))) {
+    return NextResponse.json({ error: 'Слишком много запросов' }, { status: 429 })
   }
 
   const parsed = bodySchema.safeParse(await req.json().catch(() => null))
@@ -176,19 +190,20 @@ export async function handlePreview(req: NextRequest, deps: FetchDeps = {}): Pro
   }
 
   const fetchFn = deps.fetchFn ?? fetch
-  const res = await safeFetch(parsed.data.url, fetchFn, deps.lookup)
-  if (!res) return NextResponse.json(EMPTY)
+  const result = await safeFetch(parsed.data.url, fetchFn, deps.lookup)
+  if (!result) return NextResponse.json(EMPTY)
 
   let html: string
   try {
-    html = await readBounded(res)
+    html = await readBounded(result.res)
   } catch {
     return NextResponse.json(EMPTY)
   }
 
-  // `res.url` is the final URL the response came from; fall back to the request
-  // url for resolving relative image/favicon hrefs.
-  const baseUrl = res.url || parsed.data.url
+  // Resolve relative image/favicon hrefs against the URL the page was actually
+  // fetched from (the redirect TARGET when a 3xx was followed), not the original
+  // request url. `safeFetch` tracks this through the redirect chain.
+  const baseUrl = result.finalUrl
   let meta: BookmarkPreviewMeta
   try {
     meta = parseMeta(html, baseUrl)

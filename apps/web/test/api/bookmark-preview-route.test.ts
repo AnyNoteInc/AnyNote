@@ -109,6 +109,30 @@ describe('POST /api/bookmark/preview — SSRF guard', () => {
     expect(fetchFn).toHaveBeenCalledTimes(2)
   })
 
+  it('resolves a RELATIVE favicon against the redirect target, not the original url', async () => {
+    // TARGET (news.example.com) 301s to final.example.com; the served HTML has a
+    // relative favicon. It must resolve against the page that actually served it
+    // (final.example.com/p), not the original request url — otherwise the card
+    // points a favicon at the wrong host. The handler threads the final fetched
+    // URL through safeFetch (constructed Responses carry no `.url`, so relying on
+    // `res.url` alone would silently resolve against the original here).
+    const fetchFn = vi.fn<typeof fetch>()
+    fetchFn
+      .mockResolvedValueOnce(
+        new Response(null, { status: 301, headers: { location: 'https://final.example.com/p' } }),
+      )
+      .mockResolvedValueOnce(
+        htmlResponse('<head><title>Final</title><link rel="icon" href="fav.ico"></head>'),
+      )
+    const res = await callRoute({ fetchFn })
+    expect(res.status).toBe(200)
+    expect(await res.json()).toEqual({
+      title: 'Final',
+      favicon: 'https://final.example.com/fav.ico',
+    })
+    expect(fetchFn).toHaveBeenCalledTimes(2)
+  })
+
   it('stops after a single redirect (no infinite redirect chains)', async () => {
     const fetchFn = vi.fn<typeof fetch>(async () =>
       new Response(null, { status: 302, headers: { location: 'https://hop.example.com/again' } }),

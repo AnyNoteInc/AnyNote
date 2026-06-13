@@ -8,6 +8,16 @@ const ICON_MAX_BYTES = 1 * 1024 * 1024
 const COVER_MAX_BYTES = 10 * 1024 * 1024
 // Media kind (Phase 9B): video/audio inline players. Quota-counted like
 // attachments and served auth-gated (NOT public). 200MB cap.
+//
+// INFRA NOTE: this 200MB is a per-app LOGICAL limit enforced in `validateUpload`.
+// For an upload of this size to actually reach the route, the surrounding infra
+// must allow it: the reverse proxy (Traefik) must not cap the request body below
+// 200MB (Traefik v3 does not buffer/limit bodies by default, but if a `buffering`
+// middleware with `maxRequestBodyBytes` is ever added, it must be ≥ this cap —
+// see deploy/traefik/dynamic/middlewares.yml), and the Node process must have
+// enough heap, since the route buffers the whole file via `file.arrayBuffer()`
+// before hashing/storing. Operators raising/lowering this cap must keep the proxy
+// limit and Node heap in step.
 const MEDIA_MAX_BYTES = 200 * 1024 * 1024
 
 const AVATAR_MIME = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif'])

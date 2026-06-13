@@ -66,6 +66,13 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'Missing file field' }, { status: 400 })
   }
 
+  // NOTE: the whole file is buffered into memory here before validation/hashing.
+  // The `media` kind allows up to 200MB (file-validation.ts), so this route's
+  // peak heap is bounded by that cap × concurrent uploads — operators must size
+  // Node heap and the reverse-proxy (Traefik) request-body limit to accommodate
+  // it (Traefik v3 does not cap bodies by default; see the INFRA NOTE on
+  // MEDIA_MAX_BYTES). Streaming straight to S3 would remove the buffer but is a
+  // larger change than this fix scope.
   const bytes = Buffer.from(await file.arrayBuffer())
   const mimeType = file.type || 'application/octet-stream'
 

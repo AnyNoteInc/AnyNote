@@ -107,20 +107,35 @@ export const buildImagePaste = (uploadHandler: UploadHandler) =>
               for (const { id, file } of queued) {
                 void uploadHandler({ blob: file, filename: file.name || 'pasted-image' })
                   .then((result) => {
+                    // The upload can resolve long after the editor unmounts —
+                    // dispatching on a destroyed view throws. The findPlaceholder
+                    // re-find no-ops if the node is gone, but the node may still
+                    // exist in a destroyed view's last state, so guard the view too.
+                    if (view.isDestroyed) return
                     const target = findPlaceholder(view, id)
                     if (target == null) return
                     // Clear the transient marker as we fill in the real src.
-                    view.dispatch(
-                      view.state.tr
-                        .setNodeAttribute(target, 'src', result.src)
-                        .setNodeAttribute(target, 'uploadId', null),
-                    )
+                    try {
+                      view.dispatch(
+                        view.state.tr
+                          .setNodeAttribute(target, 'src', result.src)
+                          .setNodeAttribute(target, 'uploadId', null),
+                      )
+                    } catch {
+                      // View torn down between the guard and dispatch — ignore.
+                    }
                   })
                   .catch(() => {
+                    if (view.isDestroyed) return
                     const target = findPlaceholder(view, id)
                     if (target == null) return
                     const node = view.state.doc.nodeAt(target)
-                    if (node) view.dispatch(view.state.tr.delete(target, target + node.nodeSize))
+                    if (!node) return
+                    try {
+                      view.dispatch(view.state.tr.delete(target, target + node.nodeSize))
+                    } catch {
+                      // View torn down — nothing to clean up.
+                    }
                   })
               }
               return true
