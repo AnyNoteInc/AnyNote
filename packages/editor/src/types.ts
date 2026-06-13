@@ -2,11 +2,16 @@ import type { ReactNode } from 'react'
 import type { Editor } from '@tiptap/core'
 import type { PlantumlRenderAuth } from '@repo/plantuml/render-plantuml'
 import type { EmbeddedDatabaseRenderer } from './extensions/embedded-database'
+import type { SyncedBlockRenderer } from './extensions/synced-block'
 
 export type { EmbeddedDatabaseRenderer, EmbeddedDatabaseRenderArgs } from './extensions/embedded-database'
+export type { SyncedBlockRenderer, SyncedBlockRenderArgs } from './extensions/synced-block'
 
 /** The source/view chosen in the apps/web database picker dialog. */
 export type EmbeddedDatabasePick = { sourceId: string; viewId: string | null }
+
+/** The synced block chosen/created in the apps/web synced-block picker dialog. */
+export type SyncedBlockPick = { blockId: string }
 
 export type UploadedFile = {
   id: string
@@ -74,6 +79,16 @@ export type AnyNoteEditorProps = {
   // Live renderer for the embedded-database node, injected by apps/web (the rich
   // `DatabaseTableView` + tRPC query can't be imported from @repo/editor).
   renderEmbeddedDatabase?: EmbeddedDatabaseRenderer
+  // Live renderer for the synced-block node, injected by apps/web (the nested
+  // collaborative editor + access-checked tRPC query can't be imported from
+  // @repo/editor). When omitted, the node renders its own placeholder.
+  renderSyncedBlock?: SyncedBlockRenderer
+  // Opens an apps/web picker that either CREATES a new synced block (tRPC
+  // `syncedBlock.create`) or selects an existing one (`syncedBlock.list`).
+  // Resolves to the chosen/created `{ blockId }`, or null on cancel; the editor
+  // then inserts the `syncedBlock` node. When omitted, the `/синхронизированный
+  // блок` slash item is hidden.
+  onPickSyncedBlock?: () => Promise<SyncedBlockPick | null>
   // Opens an apps/web picker of the user's DATABASE sources. Resolves to the
   // chosen source/view, or null if the user cancels; the editor then inserts the
   // node. When omitted, the `/база данных` slash item is hidden.

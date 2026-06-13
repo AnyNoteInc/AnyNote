@@ -202,6 +202,23 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
     }
   }, [onPickEmbeddedDatabase])
 
+  const onPickSyncedBlock = props.onPickSyncedBlock
+  const openSyncedBlockPicker = useMemo(() => {
+    if (!onPickSyncedBlock) return undefined
+    return (range: SlashRange) => {
+      slashRendererRef.current.popup?.hide()
+      void onPickSyncedBlock().then((pick) => {
+        const ed = editorInstanceRef.current
+        if (!ed || !pick) return
+        ed.chain()
+          .focus()
+          .deleteRange(range)
+          .insertContent({ type: 'syncedBlock', attrs: { blockId: pick.blockId } })
+          .run()
+      })
+    }
+  }, [onPickSyncedBlock])
+
   const slashItems = useMemo(
     () =>
       createSlashItems({
@@ -216,8 +233,16 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
         openReminderCreate: props.onReminderCreate,
         openDrawioCreate,
         openDatabasePicker,
+        openSyncedBlockPicker,
       }),
-    [openKind, openMedia, props.onReminderCreate, openDrawioCreate, openDatabasePicker],
+    [
+      openKind,
+      openMedia,
+      props.onReminderCreate,
+      openDrawioCreate,
+      openDatabasePicker,
+      openSyncedBlockPicker,
+    ],
   )
 
   const slashItemsRef = useRef(slashItems)
@@ -361,6 +386,7 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
         onOpenThread: props.onOpenThread ?? (() => undefined),
         plantumlRenderAuth: props.plantumlRenderAuth,
         renderEmbeddedDatabase: props.renderEmbeddedDatabase,
+        renderSyncedBlock: props.renderSyncedBlock,
         pageId: props.pageId,
         bookmarkPreview: props.bookmarkPreview,
       }),

@@ -21,6 +21,8 @@ export { ColumnLayoutSchema as ColumnLayout, ColumnSchema as Column } from './co
 
 export { TabsSchema as Tabs, TabSchema as Tab } from './tabs.schema'
 
+export { SyncedBlockSchema as SyncedBlock } from './synced-block.schema'
+
 // Pure string/config helpers (no React) shared with the client editors.
 export { LINK_HTML_ATTRIBUTES, normalizeLinkHref } from '../link-href'
 

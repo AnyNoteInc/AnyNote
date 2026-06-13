@@ -1,5 +1,14 @@
 export { AnyNoteEditor } from './anynote-editor'
 export { AnyNotePlainEditor, type AnyNotePlainEditorProps } from './plain-editor'
+export {
+  SyncedBlockNestedEditor,
+  type SyncedBlockNestedEditorProps,
+} from './synced-block-nested-editor'
+export {
+  SYNCED_BLOCK_LABEL,
+  createSyncedBlockNode,
+  emptySyncedBlockDoc,
+} from './extensions/synced-block'
 export { EditorThemeBridge } from './theme-bridge'
 export { createSlashItems } from './slash-items'
 export { filterMentionItems } from './mentions'
@@ -18,6 +27,9 @@ export type {
   SlashCommandGroup,
   SlashCommandItem,
   SlashRange,
+  SyncedBlockPick,
+  SyncedBlockRenderArgs,
+  SyncedBlockRenderer,
   UploadHandler,
   UploadedFile,
 } from './types'

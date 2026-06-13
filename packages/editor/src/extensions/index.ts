@@ -43,6 +43,7 @@ import { DateNode } from './date'
 import { buildPlaceholder } from './placeholder'
 import { ResizableImage } from './resizable-image'
 import { SlashMenu, type SlashMenuRender } from './slash-menu'
+import { SyncedBlock, type SyncedBlockRenderer } from './synced-block'
 import { Tab, Tabs } from './tabs'
 import { Video } from './video'
 import { TaskItemWithCheckbox } from './task-item-view'
@@ -77,6 +78,10 @@ export type BuildExtensionsOptions = {
   // database node here (it can't be imported from @repo/editor). When absent,
   // the node renders its own placeholder card.
   renderEmbeddedDatabase?: EmbeddedDatabaseRenderer
+  // apps/web injects the live nested-editor / snapshot / access-placeholder
+  // renderer for the synced-block node here (it can't import apps/web's tRPC). When
+  // absent, the node renders its own «Синхронизированный блок» placeholder.
+  renderSyncedBlock?: SyncedBlockRenderer
   // The current pageId — used as the localStorage key for the per-page rich-embed
   // toggle (the Embed node reads it). Optional; defaults to always-on.
   pageId?: string | null
@@ -142,6 +147,10 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   Embed.configure({ pageId: opts.pageId ?? null }),
   Drawio.configure({ drawioUrl: opts.drawioUrl }),
   EmbeddedDatabase.configure({ renderEmbed: opts.renderEmbeddedDatabase ?? null }),
+  SyncedBlock.configure({
+    renderSyncedBlock: opts.renderSyncedBlock ?? null,
+    onNavigateToPage: opts.onNavigateToPage,
+  }),
   PageLink.configure({ onNavigate: opts.onNavigateToPage }),
   Reminder,
   DateNode,

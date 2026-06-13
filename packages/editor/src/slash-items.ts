@@ -7,6 +7,7 @@ import NotificationsIcon from '@mui/icons-material/Notifications'
 import OndemandVideoIcon from '@mui/icons-material/OndemandVideo'
 import SchemaIcon from '@mui/icons-material/Schema'
 import StorageIcon from '@mui/icons-material/Storage'
+import SyncIcon from '@mui/icons-material/Sync'
 import TabIcon from '@mui/icons-material/Tab'
 import VideocamIcon from '@mui/icons-material/Videocam'
 
@@ -51,6 +52,10 @@ export type SlashMediaHandlers = {
   // inserts an `embeddedDatabase` node with the chosen sourceId/viewId. Omitted
   // when the host editor has no database picker (then the slash item is hidden).
   openDatabasePicker?: (range: SlashRange) => void
+  // Opens an apps/web-provided synced-block picker (create new / insert existing);
+  // on resolve it inserts a `syncedBlock` node with the chosen/created blockId.
+  // Omitted when the host editor has no picker (then the slash item is hidden).
+  openSyncedBlockPicker?: (range: SlashRange) => void
 }
 
 const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
@@ -404,6 +409,22 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
           icon: createElement(StorageIcon, { fontSize: 'small' }),
           run: ({ range }: { editor: import('@tiptap/core').Editor; range: SlashRange }) =>
             handlers.openDatabasePicker?.(range),
+        },
+      ]
+    : []),
+  // Only surfaced when the host wires `openSyncedBlockPicker` (apps/web). The
+  // node can't be created/inserted without the picker, so we hide it otherwise.
+  ...(handlers.openSyncedBlockPicker
+    ? [
+        {
+          id: 'synced-block',
+          group: 'embedding' as const,
+          label: 'Синхронизированный блок',
+          description: 'Один блок, синхронный на нескольких страницах',
+          keywords: ['synced', 'sync', 'синхронизированный', 'синхрон', 'блок', 'связанный'],
+          icon: createElement(SyncIcon, { fontSize: 'small' }),
+          run: ({ range }: { editor: import('@tiptap/core').Editor; range: SlashRange }) =>
+            handlers.openSyncedBlockPicker?.(range),
         },
       ]
     : []),
