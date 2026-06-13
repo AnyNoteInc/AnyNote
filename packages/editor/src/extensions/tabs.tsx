@@ -219,14 +219,17 @@ function TabsView({ node, updateAttributes, editor, getPos }: NodeViewProps) {
           </Tooltip>
         ) : null}
       </Box>
-      {/* All tab panels live here; only the active one is shown. The
-          nth-of-type selector re-evaluates on every parent re-render (so it
-          re-hides when activeTab changes). The contentDOM (NodeViewContent)
-          carries the tab children, each a `[data-type="tab"]` wrapper. */}
+      {/* All tab panels live here; only the active one is shown. ProseMirror's
+          React NodeViewRenderer wraps each `tab` child in a `.react-renderer`
+          element (the `[data-type="tab"]` panel is NOT a direct child of the
+          contentDOM), so the show/hide selector targets those per-tab wrappers,
+          scoped under `.anynote-tabs-panels` so it never leaks to other node
+          views. The `:nth-of-type` re-evaluates on every parent re-render (so it
+          re-hides when `activeTab` changes). */}
       <Box
         sx={{
-          '& > .anynote-tabs-panels > [data-type="tab"]': { display: 'none' },
-          [`& > .anynote-tabs-panels > [data-type="tab"]:nth-of-type(${activeTab + 1})`]: {
+          '& .anynote-tabs-panels .react-renderer.node-tab': { display: 'none' },
+          [`& .anynote-tabs-panels .react-renderer.node-tab:nth-of-type(${activeTab + 1})`]: {
             display: 'block',
           },
         }}
