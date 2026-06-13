@@ -1,4 +1,4 @@
-export type UploadKind = 'avatar' | 'attachment' | 'icon' | 'cover'
+export type UploadKind = 'avatar' | 'attachment' | 'icon' | 'cover' | 'media'
 
 const AVATAR_MAX_BYTES = 5 * 1024 * 1024
 const ATTACHMENT_MAX_BYTES = 50 * 1024 * 1024
@@ -6,6 +6,9 @@ const ATTACHMENT_MAX_BYTES = 50 * 1024 * 1024
 // semantics) — small per-file caps bound abuse since they are quota-exempt.
 const ICON_MAX_BYTES = 1 * 1024 * 1024
 const COVER_MAX_BYTES = 10 * 1024 * 1024
+// Media kind (Phase 9B): video/audio inline players. Quota-counted like
+// attachments and served auth-gated (NOT public). 200MB cap.
+const MEDIA_MAX_BYTES = 200 * 1024 * 1024
 
 const AVATAR_MIME = new Set(['image/png', 'image/jpeg', 'image/webp', 'image/gif'])
 
@@ -23,11 +26,25 @@ const ATTACHMENT_MIME = new Set([
   'application/zip',
 ])
 
+// The media whitelist (spec §2): video/* + audio/* containers we can sniff.
+const MEDIA_MIME = new Set([
+  'video/mp4',
+  'video/webm',
+  'video/ogg',
+  'video/quicktime',
+  'audio/mpeg',
+  'audio/wav',
+  'audio/ogg',
+  'audio/webm',
+  'audio/mp4',
+])
+
 const MAX_BYTES_BY_KIND: Record<UploadKind, number> = {
   avatar: AVATAR_MAX_BYTES,
   attachment: ATTACHMENT_MAX_BYTES,
   icon: ICON_MAX_BYTES,
   cover: COVER_MAX_BYTES,
+  media: MEDIA_MAX_BYTES,
 }
 
 // icon/cover are images only — same whitelist as avatars.
@@ -36,6 +53,7 @@ const MIME_BY_KIND: Record<UploadKind, Set<string>> = {
   attachment: ATTACHMENT_MIME,
   icon: AVATAR_MIME,
   cover: AVATAR_MIME,
+  media: MEDIA_MIME,
 }
 
 export type ValidationError = { status: 400; message: string }
@@ -75,6 +93,82 @@ export const sniffImageMime = (bytes: Uint8Array): string | null => {
   if (startsWith(bytes, [0x52, 0x49, 0x46, 0x46]) && startsWith(bytes, [0x57, 0x45, 0x42, 0x50], 8))
     return 'image/webp'
   return null
+}
+
+// ── Magic-byte sniffing for the media whitelist (Phase 9B) ───────────────────
+// The declared MIME is client-controlled; media is served auth-gated and embedded
+// in `<video>`/`<audio>`, so the bytes must actually be a media container. We can
+// only sniff the *container*, not the codec, so the route validates the declared
+// MIME's *family* (video/* vs audio/*) against the sniffed family. Several
+// containers (mp4/ogg/webm) legitimately carry both video and audio — those are
+// treated as family-agnostic so e.g. `audio/ogg` and `video/ogg` both pass.
+
+export type MediaFamily = 'video' | 'audio'
+
+const ascii4 = (s: string): number[] => Array.from(s, (c) => c.charCodeAt(0))
+
+/**
+ * Major brand at offset 8 of an `ftyp` box, lowercased and trimmed of the
+ * 4-char box's trailing padding (e.g. `"M4A "` → `"m4a"`), or null when absent.
+ */
+const ftypBrand = (bytes: Uint8Array): string | null => {
+  if (!startsWith(bytes, ascii4('ftyp'), 4)) return null
+  if (bytes.length < 12) return null
+  return String.fromCharCode(bytes[8]!, bytes[9]!, bytes[10]!, bytes[11]!)
+    .toLowerCase()
+    .trim()
+}
+
+// mp4-family brands that denote audio-only files (m4a/m4b). Everything else
+// (isom, mp41/42, qt, avc1, …) is treated as video.
+const AUDIO_FTYP_BRANDS = new Set(['m4a', 'm4b'])
+
+/**
+ * The media family of the bytes from its container signature, or null when the
+ * bytes are not a recognised media container.
+ *
+ * Family-agnostic containers (ogg, webm/mkv) report 'video' as their nominal
+ * family; the route's {@link mediaMimeMatchesSniff} accepts either declared
+ * family for them. mp4 reports audio vs video by its `ftyp` major brand.
+ */
+export const sniffMediaMime = (bytes: Uint8Array): MediaFamily | null => {
+  // WAV: RIFF????WAVE (RIFF????WEBP is an image, handled above)
+  if (startsWith(bytes, ascii4('RIFF')) && startsWith(bytes, ascii4('WAVE'), 8)) return 'audio'
+  // MP3: an ID3v2 tag, or a raw MPEG frame-sync (FF Fx, layer III: FB/F3/F2).
+  if (startsWith(bytes, ascii4('ID3'))) return 'audio'
+  if (startsWith(bytes, [0xff, 0xfb]) || startsWith(bytes, [0xff, 0xf3]) || startsWith(bytes, [0xff, 0xf2]))
+    return 'audio'
+  // mp4/mov/m4a: an `ftyp` box at offset 4; the major brand picks the family.
+  const brand = ftypBrand(bytes)
+  if (brand !== null) return AUDIO_FTYP_BRANDS.has(brand) ? 'audio' : 'video'
+  // webm/mkv: the EBML header magic.
+  if (startsWith(bytes, [0x1a, 0x45, 0xdf, 0xa3])) return 'video'
+  // Ogg container (carries Theora/Vorbis/Opus — video or audio).
+  if (startsWith(bytes, ascii4('OggS'))) return 'video'
+  return null
+}
+
+/** True when bytes start with a container that legitimately carries either family. */
+const isFamilyAgnosticContainer = (bytes: Uint8Array): boolean =>
+  startsWith(bytes, ascii4('OggS')) || startsWith(bytes, [0x1a, 0x45, 0xdf, 0xa3])
+
+/**
+ * Whether the client-declared media MIME is consistent with the sniffed bytes.
+ * The declared family (video/* vs audio/*) must match the sniffed family, except
+ * for family-agnostic containers (ogg/webm) which satisfy either. Non-media bytes
+ * (sniff null) never match.
+ */
+export const mediaMimeMatchesSniff = (declaredMime: string, bytes: Uint8Array): boolean => {
+  const sniffed = sniffMediaMime(bytes)
+  if (sniffed === null) return false
+  const declaredFamily: MediaFamily | null = declaredMime.startsWith('video/')
+    ? 'video'
+    : declaredMime.startsWith('audio/')
+      ? 'audio'
+      : null
+  if (declaredFamily === null) return false
+  if (isFamilyAgnosticContainer(bytes)) return true
+  return declaredFamily === sniffed
 }
 
 export const extractExt = (filename: string): string => {

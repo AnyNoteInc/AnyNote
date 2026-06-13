@@ -1,7 +1,7 @@
 import type { NextRequest } from 'next/server'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
-import { sniffImageMime, validateUpload } from '../../src/lib/file-validation'
+import { sniffImageMime, sniffMediaMime, validateUpload } from '../../src/lib/file-validation'
 
 const mocks = vi.hoisted(() => ({
   fileFindFirst: vi.fn<(args: unknown) => Promise<unknown>>(async () => null),
@@ -77,6 +77,42 @@ const pngFile = (bytes = PNG_1X1.length, name = 'pic.png') => {
   const buf = new Uint8Array(Math.max(bytes, PNG_1X1.length))
   buf.set(PNG_1X1)
   return new File([buf], name, { type: 'image/png' })
+}
+
+// ── Media container signatures (Phase 9B) ────────────────────────────────────
+// Minimal-but-real container headers: the leading box/magic the sniffer keys on,
+// then a few padding bytes (the sniffer only inspects the first ~16 bytes).
+const ascii = (s: string) => Array.from(s, (c) => c.charCodeAt(0))
+
+/** An `ftyp` box with the given 4-char major brand (offset 4 = "ftyp"). */
+const ftypBytes = (brand: string): number[] => [
+  0x00, 0x00, 0x00, 0x20, // box size
+  ...ascii('ftyp'),
+  ...ascii(brand), // major brand at offset 8
+  0x00, 0x00, 0x00, 0x00, // minor version
+]
+
+// video/mp4 → isom brand; video/quicktime → "qt  " brand; audio/mp4 → "M4A "
+const MP4_VIDEO = ftypBytes('isom')
+const MOV_VIDEO = ftypBytes('qt  ')
+const MP4_AUDIO = ftypBytes('M4A ')
+// webm/mkv EBML header 1A 45 DF A3
+const WEBM = [0x1a, 0x45, 0xdf, 0xa3, 0x01, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+// Ogg container "OggS"
+const OGG = [...ascii('OggS'), 0x00, 0x02, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+// MP3 with an ID3v2 tag, and the frame-sync variants
+const MP3_ID3 = [...ascii('ID3'), 0x03, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+const MP3_FFFB = [0xff, 0xfb, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+const MP3_FFF3 = [0xff, 0xf3, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+const MP3_FFF2 = [0xff, 0xf2, 0x90, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00]
+// WAV: RIFF????WAVE
+const WAV = [...ascii('RIFF'), 0x24, 0x00, 0x00, 0x00, ...ascii('WAVE')]
+
+/** A media File starting with `sig`, zero-padded up to `bytes`, declared `mime`. */
+const mediaFile = (sig: number[], mime: string, name: string, bytes = sig.length): File => {
+  const buf = new Uint8Array(Math.max(bytes, sig.length))
+  buf.set(Uint8Array.from(sig))
+  return new File([buf], name, { type: mime })
 }
 
 beforeEach(() => {
@@ -262,5 +298,165 @@ describe('POST /api/files/upload — magic-byte validation (avatar/icon/cover)',
     })
     const res = await POST(makeUploadRequest('attachment', zip))
     expect(res.status).toBe(200)
+  })
+})
+
+// ── validateUpload: the media kind (Phase 9B) ────────────────────────────────
+
+describe('validateUpload — media kind (200MB, video/audio MIME)', () => {
+  it('accepts a file at the 200MB cap', () => {
+    expect(validateUpload('media', 200 * MB, 'video/mp4')).toBeNull()
+  })
+
+  it('rejects anything over 200MB', () => {
+    expect(validateUpload('media', 200 * MB + 1, 'video/mp4')).toMatchObject({ status: 400 })
+  })
+
+  it.each([
+    'video/mp4',
+    'video/webm',
+    'video/ogg',
+    'video/quicktime',
+    'audio/mpeg',
+    'audio/wav',
+    'audio/ogg',
+    'audio/webm',
+    'audio/mp4',
+  ])('accepts %s', (mime) => {
+    expect(validateUpload('media', 100, mime)).toBeNull()
+  })
+
+  it('rejects a non-media MIME (pdf)', () => {
+    expect(validateUpload('media', 100, 'application/pdf')).toMatchObject({ status: 400 })
+  })
+
+  it('rejects an image MIME (image stays attachment, not media)', () => {
+    expect(validateUpload('media', 100, 'image/png')).toMatchObject({ status: 400 })
+  })
+})
+
+// ── sniffMediaMime: container signatures → family ('video' | 'audio' | null) ──
+
+describe('sniffMediaMime', () => {
+  it('detects video from an mp4 ftyp box (isom brand)', () => {
+    expect(sniffMediaMime(Uint8Array.from(MP4_VIDEO))).toBe('video')
+  })
+
+  it('detects video from a quicktime ftyp box ("qt  " brand)', () => {
+    expect(sniffMediaMime(Uint8Array.from(MOV_VIDEO))).toBe('video')
+  })
+
+  it('detects audio from an m4a ftyp box ("M4A " brand)', () => {
+    expect(sniffMediaMime(Uint8Array.from(MP4_AUDIO))).toBe('audio')
+  })
+
+  it('detects a webm/mkv EBML header as video', () => {
+    expect(sniffMediaMime(Uint8Array.from(WEBM))).toBe('video')
+  })
+
+  it('detects an OggS container as video (family-agnostic container)', () => {
+    // Ogg carries both; the route family-matcher treats it as compatible with
+    // both video/ogg and audio/ogg.
+    expect(sniffMediaMime(Uint8Array.from(OGG))).not.toBeNull()
+  })
+
+  it.each([
+    ['ID3', MP3_ID3],
+    ['FFFB frame-sync', MP3_FFFB],
+    ['FFF3 frame-sync', MP3_FFF3],
+    ['FFF2 frame-sync', MP3_FFF2],
+  ] as const)('detects mp3 (%s) as audio', (_label, sig) => {
+    expect(sniffMediaMime(Uint8Array.from(sig))).toBe('audio')
+  })
+
+  it('detects RIFF/WAVE as audio', () => {
+    expect(sniffMediaMime(Uint8Array.from(WAV))).toBe('audio')
+  })
+
+  it('returns null for unknown bytes (HTML, empty, truncated, a bare PNG)', () => {
+    expect(sniffMediaMime(Uint8Array.from(Buffer.from('<html></html>', 'utf8')))).toBeNull()
+    expect(sniffMediaMime(new Uint8Array(0))).toBeNull()
+    expect(sniffMediaMime(Uint8Array.from([0x1a, 0x45]))).toBeNull()
+    expect(sniffMediaMime(Uint8Array.from(PNG_1X1))).toBeNull()
+  })
+
+  it('returns null for RIFF that is not WAVE (e.g. WEBP)', () => {
+    const webp = Uint8Array.from([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50])
+    expect(sniffMediaMime(webp)).toBeNull()
+  })
+})
+
+// ── POST /api/files/upload?kind=media (quota-counted, NOT public) ─────────────
+
+describe('POST /api/files/upload — media kind (workspace-quota, auth-gated)', () => {
+  const withActiveWorkspace = () => {
+    mocks.getActiveWorkspaceForUser.mockResolvedValue({ id: 'ws-1' })
+    mocks.limitFindUnique.mockResolvedValue({ maxFileBytes: BigInt(500 * MB) })
+  }
+
+  it.each([
+    ['video/mp4', MP4_VIDEO, 'clip.mp4'],
+    ['video/quicktime', MOV_VIDEO, 'clip.mov'],
+    ['video/webm', WEBM, 'clip.webm'],
+    ['video/ogg', OGG, 'clip.ogv'],
+    ['audio/mp4', MP4_AUDIO, 'song.m4a'],
+    ['audio/mpeg', MP3_ID3, 'song.mp3'],
+    ['audio/mpeg', MP3_FFFB, 'song2.mp3'],
+    ['audio/wav', WAV, 'song.wav'],
+    ['audio/ogg', OGG, 'song.ogg'],
+    ['audio/webm', WEBM, 'song.weba'],
+  ] as const)('accepts %s with a matching container signature', async (mime, sig, name) => {
+    withActiveWorkspace()
+    const res = await POST(makeUploadRequest('media', mediaFile(sig, mime, name)))
+    expect(res.status).toBe(200)
+    expect(mocks.txFileCreate).toHaveBeenCalledTimes(1)
+    const createArgs = mocks.txFileCreate.mock.calls[0]?.[0] as { data: Record<string, unknown> }
+    expect(createArgs.data).toMatchObject({ isPublic: false, workspaceId: 'ws-1' })
+  })
+
+  it('rejects an HTML payload declared video/mp4 with 400 (family mismatch)', async () => {
+    withActiveWorkspace()
+    const html = new File([Buffer.from('<html><body>nope</body></html>', 'utf8')], 'evil.mp4', {
+      type: 'video/mp4',
+    })
+    const res = await POST(makeUploadRequest('media', html))
+    expect(res.status).toBe(400)
+    expect(mocks.storagePut).not.toHaveBeenCalled()
+    expect(mocks.txFileCreate).not.toHaveBeenCalled()
+  })
+
+  it('rejects audio bytes declared as video (family mismatch: mp3 as video/mp4)', async () => {
+    withActiveWorkspace()
+    const res = await POST(makeUploadRequest('media', mediaFile(MP3_ID3, 'video/mp4', 'lie.mp4')))
+    expect(res.status).toBe(400)
+    expect(mocks.txFileCreate).not.toHaveBeenCalled()
+  })
+
+  it('rejects an oversized media file (>200MB) with 400', async () => {
+    withActiveWorkspace()
+    const big = mediaFile(MP4_VIDEO, 'video/mp4', 'big.mp4', 200 * MB + 1)
+    const res = await POST(makeUploadRequest('media', big))
+    expect(res.status).toBe(400)
+    expect(mocks.txFileCreate).not.toHaveBeenCalled()
+  })
+
+  it('goes through the workspace quota aggregate and 413s when the cap is exceeded', async () => {
+    mocks.getActiveWorkspaceForUser.mockResolvedValue({ id: 'ws-1' })
+    mocks.fileAggregate.mockResolvedValue({ _sum: { fileSize: BigInt(100 * MB) } })
+    mocks.limitFindUnique.mockResolvedValue({ maxFileBytes: BigInt(100 * MB) })
+    const res = await POST(makeUploadRequest('media', mediaFile(MP4_VIDEO, 'video/mp4', 'clip.mp4')))
+    expect(res.status).toBe(413)
+    expect(mocks.fileAggregate).toHaveBeenCalledTimes(1)
+    const body = (await res.json()) as { error: string }
+    expect(body.error).toBe('WORKSPACE_STORAGE_LIMIT')
+    expect(mocks.txFileCreate).not.toHaveBeenCalled()
+  })
+
+  it('400s when there is no active workspace', async () => {
+    mocks.getActiveWorkspaceForUser.mockResolvedValue(null)
+    const res = await POST(makeUploadRequest('media', mediaFile(MP4_VIDEO, 'video/mp4', 'clip.mp4')))
+    expect(res.status).toBe(400)
+    const body = (await res.json()) as { error: string }
+    expect(body.error).toBe('No active workspace')
   })
 })

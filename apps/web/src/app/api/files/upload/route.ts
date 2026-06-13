@@ -9,6 +9,7 @@ import { getSession } from '@/lib/get-session'
 import {
   computeS3Key,
   extractExt,
+  mediaMimeMatchesSniff,
   sniffImageMime,
   validateUpload,
   type UploadKind,
@@ -34,7 +35,8 @@ export async function POST(request: NextRequest) {
     kindParam !== 'avatar' &&
     kindParam !== 'attachment' &&
     kindParam !== 'icon' &&
-    kindParam !== 'cover'
+    kindParam !== 'cover' &&
+    kindParam !== 'media'
   ) {
     return Response.json({ error: 'Invalid kind' }, { status: 400 })
   }
@@ -45,14 +47,17 @@ export async function POST(request: NextRequest) {
   // shares) and workspaceId null, which makes them quota-exempt like avatars.
   // The small per-file caps in validateUpload bound abuse.
   const isPublicKind = kind === 'avatar' || kind === 'icon' || kind === 'cover'
+  // Quota-counted, auth-gated kinds: bound to the active workspace and summed
+  // against the workspace storage limit (NOT public). Media joins attachment.
+  const isWorkspaceKind = kind === 'attachment' || kind === 'media'
 
-  let attachmentWorkspaceId: string | null = null
-  if (kind === 'attachment') {
+  let workspaceScopedId: string | null = null
+  if (isWorkspaceKind) {
     const ws = await getActiveWorkspaceForUser(session.user.id)
     if (!ws) {
       return Response.json({ error: 'No active workspace' }, { status: 400 })
     }
-    attachmentWorkspaceId = ws.id
+    workspaceScopedId = ws.id
   }
 
   const formData = await request.formData()
@@ -75,13 +80,19 @@ export async function POST(request: NextRequest) {
     return Response.json({ error: 'Файл не является изображением' }, { status: 400 })
   }
 
-  if (kind === 'attachment') {
+  // Media is embedded in `<video>`/`<audio>` players; verify the bytes are a
+  // media container whose family matches the declared MIME (HTML-as-mp4 ⇒ 400).
+  if (kind === 'media' && !mediaMimeMatchesSniff(mimeType, bytes)) {
+    return Response.json({ error: 'Файл не является видео или аудио' }, { status: 400 })
+  }
+
+  if (isWorkspaceKind) {
     const [usage, limits] = await Promise.all([
       prisma.file.aggregate({
-        where: { workspaceId: attachmentWorkspaceId!, status: FileStatus.ACTIVE },
+        where: { workspaceId: workspaceScopedId, status: FileStatus.ACTIVE },
         _sum: { fileSize: true },
       }),
-      prisma.workspaceLimit.findUnique({ where: { workspaceId: attachmentWorkspaceId! } }),
+      prisma.workspaceLimit.findUnique({ where: { workspaceId: workspaceScopedId! } }),
     ])
     if (!limits) {
       return Response.json({ error: 'WORKSPACE_LIMIT_MISSING' }, { status: 500 })
@@ -99,7 +110,7 @@ export async function POST(request: NextRequest) {
   const ext = extractExt(file.name)
   const s3Key = computeS3Key(hash, ext)
 
-  const workspaceId = kind === 'attachment' ? attachmentWorkspaceId : null
+  const workspaceId = isWorkspaceKind ? workspaceScopedId : null
 
   const existing = await prisma.file.findFirst({
     where: {
