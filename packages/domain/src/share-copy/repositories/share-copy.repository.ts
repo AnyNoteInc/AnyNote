@@ -6,6 +6,7 @@ import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 /** Source page projection needed to deep-copy it (content + metadata). */
 export interface SourcePageRow {
   id: string
+  workspaceId: string
   parentId: string | null
   title: string | null
   icon: string | null
@@ -43,6 +44,7 @@ export class ShareCopyRepository {
       where: { id: pageId, archivedAt: null, deletedAt: null },
       select: {
         id: true,
+        workspaceId: true,
         parentId: true,
         title: true,
         icon: true,
@@ -54,6 +56,7 @@ export class ShareCopyRepository {
     if (!row) return null
     return {
       id: row.id,
+      workspaceId: row.workspaceId,
       parentId: row.parentId,
       title: row.title,
       icon: row.icon,
@@ -85,6 +88,7 @@ export class ShareCopyRepository {
       },
       select: {
         id: true,
+        workspaceId: true,
         parentId: true,
         title: true,
         icon: true,
@@ -95,6 +99,7 @@ export class ShareCopyRepository {
     })
     return rows.map((row) => ({
       id: row.id,
+      workspaceId: row.workspaceId,
       parentId: row.parentId,
       title: row.title,
       icon: row.icon,

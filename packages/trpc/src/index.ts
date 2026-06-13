@@ -16,6 +16,7 @@ import { notificationRouter } from './routers/notification'
 import { reminderRouter } from './routers/reminder'
 import { kanbanRouter } from './routers/kanban'
 import { databaseRouter } from './routers/database'
+import { syncedBlockRouter } from './routers/synced-block'
 import { commentRouter } from './routers/comment'
 import { mcpServerRouter } from './routers/mcp-server'
 import { agentMemoryRouter } from './routers/agent-memory'
@@ -61,6 +62,7 @@ export const appRouter = router({
   reminder: reminderRouter,
   kanban: kanbanRouter,
   database: databaseRouter,
+  syncedBlock: syncedBlockRouter,
   comment: commentRouter,
   mcpServer: mcpServerRouter,
   agentMemory: agentMemoryRouter,

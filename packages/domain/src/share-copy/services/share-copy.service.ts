@@ -76,8 +76,12 @@ export class PublicShareCopyService {
       type: source.type,
       // Embedded-database nodes reference a source that isn't copied, so we
       // replace them with an unsupported placeholder in the copied snapshot
-      // rather than carry a broken live embed.
-      content: sanitizeCopiedContent(source.content),
+      // rather than carry a broken live embed. Synced blocks DETACH when the
+      // copy crosses workspaces (the canonical block stays in the source
+      // workspace) and survive a same-workspace copy.
+      content: sanitizeCopiedContent(source.content, {
+        sameWorkspace: source.workspaceId === input.targetWorkspaceId,
+      }),
       contentYjs: source.contentYjs,
       copiedFromShareId: input.fromShareId,
       copiedFromPageId: source.id,

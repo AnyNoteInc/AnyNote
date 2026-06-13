@@ -8,4 +8,6 @@ export {
   sanitizeCopiedContent,
   contentHasEmbeddedDatabase,
   EMBEDDED_DATABASE_COPY_PLACEHOLDER,
+  SYNCED_BLOCK_COPY_PLACEHOLDER,
 } from './services/sanitize-copied-content.ts'
+export type { SanitizeCopiedContentOptions } from './services/sanitize-copied-content.ts'

@@ -19,8 +19,11 @@ function makeUow(): UnitOfWork {
   }
 }
 
+// The source pages live in 'ws-source'; the copy target is 'ws-target' (see
+// baseInput) — so these fixtures model the CROSS-workspace copy by default.
 const ROOT: SourcePageRow = {
   id: 'p-root',
+  workspaceId: 'ws-source',
   parentId: null,
   title: 'Root',
   icon: '📄',
@@ -31,6 +34,7 @@ const ROOT: SourcePageRow = {
 
 const CHILD: SourcePageRow = {
   id: 'p-child',
+  workspaceId: 'ws-source',
   parentId: 'p-root',
   title: 'Child',
   icon: null,
@@ -43,6 +47,7 @@ const CHILD: SourcePageRow = {
 // re-parents under the copied child, not the copied root.
 const GRANDCHILD: SourcePageRow = {
   id: 'p-grandchild',
+  workspaceId: 'ws-source',
   parentId: 'p-child',
   title: 'Grandchild',
   icon: null,
@@ -233,5 +238,44 @@ describe('PublicShareCopyService.copyTree', () => {
     ;({ repo, mock } = makeRepo({ findSourcePage: vi.fn(async () => null) }))
     await expect(makeSvc(repo).copyTree(baseInput)).rejects.toMatchObject({ httpStatus: 404 })
     expect(mock.createCopiedPage).not.toHaveBeenCalled()
+  })
+
+  // ── Phase 9C: synced-block copy safety threaded through the service ──────────
+  it('DETACHES a synced block when copying across workspaces (source ws ≠ target ws)', async () => {
+    const synced: SourcePageRow = {
+      ...ROOT,
+      workspaceId: 'ws-source',
+      content: {
+        type: 'doc',
+        content: [{ type: 'syncedBlock', attrs: { blockId: 'b-1' } }],
+      },
+    }
+    ;({ repo, mock } = makeRepo({ findSourcePage: vi.fn(async () => ({ ...synced })) }))
+
+    await makeSvc(repo).copyTree({ ...baseInput, includeSubtree: false })
+
+    const payload = mock.createCopiedPage.mock.calls[0]![1] as { content: unknown }
+    // The block reference must NOT cross the workspace boundary.
+    expect(JSON.stringify(payload.content)).not.toContain('syncedBlock')
+    expect(JSON.stringify(payload.content)).not.toContain('b-1')
+  })
+
+  it('KEEPS a synced block when copying within the same workspace (source ws == target ws)', async () => {
+    const synced: SourcePageRow = {
+      ...ROOT,
+      workspaceId: 'ws-target', // same as baseInput.targetWorkspaceId
+      content: {
+        type: 'doc',
+        content: [{ type: 'syncedBlock', attrs: { blockId: 'b-1' } }],
+      },
+    }
+    ;({ repo, mock } = makeRepo({ findSourcePage: vi.fn(async () => ({ ...synced })) }))
+
+    await makeSvc(repo).copyTree({ ...baseInput, includeSubtree: false })
+
+    const payload = mock.createCopiedPage.mock.calls[0]![1] as { content: unknown }
+    // The live reference survives a same-workspace copy.
+    expect(JSON.stringify(payload.content)).toContain('syncedBlock')
+    expect(JSON.stringify(payload.content)).toContain('b-1')
   })
 })
