@@ -1,5 +1,11 @@
 import { createRemoteJWKSet, jwtVerify, decodeProtectedHeader, type JWTPayload } from 'jose'
 import { prisma, PageType } from '@repo/db'
+// Deep-import the PURE visibility leaf (it depends only on @repo/db) so the live
+// nested-doc gate reuses the SAME "can this user see this page" predicate the
+// tRPC read gate (`syncedBlock.getById` → `resolveOriginAccess`) uses, and the
+// two layers can't drift. The leaf carries no inversify/DI weight — we never
+// import the `@repo/domain` barrel here.
+import { buildPageVisibilityWhere } from '@repo/domain/pages/page-visibility.ts'
 
 import { log } from './logger.js'
 
@@ -51,8 +57,18 @@ export async function resolvePageAccess(
   userId: string,
   pageId: string,
 ): Promise<PageAccess | null> {
-  // Member arm — ACTIVE members only: a workspace_blocked_users row kills
-  // access (inline mirror of @repo/domain `PeopleService.isWorkspaceBlocked`).
+  // Member arm — ACTIVE members only, AND the page must be VISIBLE to this user.
+  //   - membership: a workspace_blocked_users row kills access (inline mirror of
+  //     @repo/domain `PeopleService.isWorkspaceBlocked`).
+  //   - visibility: `buildPageVisibilityWhere` (the @repo/domain source of truth,
+  //     deep-imported above) ANDs in the collection-privacy predicate — TEAM /
+  //     null-collection pages are member-visible, but a PERSONAL-collection page
+  //     is visible only to its owner (or via an explicit share grant). Without
+  //     this a workspace member could open the live `syncedBlock:<id>` doc whose
+  //     origin is a FOREIGN PERSONAL page and stream the canonical content,
+  //     bypassing the tRPC read gate (spec §8.1/§8.2 require the gate at BOTH
+  //     layers). This mirrors tRPC `resolveOriginAccess` exactly — they must not
+  //     drift.
   const memberPage = await prisma.page.findFirst({
     where: {
       id: pageId,
@@ -61,6 +77,7 @@ export async function resolvePageAccess(
         members: { some: { userId } },
         blockedUsers: { none: { userId } },
       },
+      AND: [buildPageVisibilityWhere(userId)],
     },
     select: { type: true, workspaceId: true },
   })

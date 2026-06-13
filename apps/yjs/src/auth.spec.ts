@@ -16,13 +16,25 @@ jest.unstable_mockModule('@repo/db', () => ({
     MERMAID: 'MERMAID',
     PLANTUML: 'PLANTUML',
   },
+  // `buildPageVisibilityWhere` (deep-imported from @repo/domain by auth.ts) reads
+  // CollectionKind to build the member-arm visibility predicate — surface it here.
+  CollectionKind: {
+    TEAM: 'TEAM',
+    PERSONAL: 'PERSONAL',
+    SITE: 'SITE',
+  },
 }))
 
 const { canAccessPage, canAccessSyncedBlock, isReadOnlyAccess } = await import('./auth.js')
 
+type VisibilityFragment = {
+  OR?: Array<Record<string, unknown>>
+}
+
 type Where = {
   workspace?: { members?: unknown; blockedUsers?: unknown }
   share?: unknown
+  AND?: VisibilityFragment[]
 }
 
 function whereOf(call: [unknown] | undefined): Where {
@@ -108,6 +120,30 @@ describe('canAccessPage', () => {
       blockedUsers: { none: { userId: 'u1' } },
     })
   })
+
+  // The COLLECTION-PRIVACY gate (the leak fix): the member arm must carry the
+  // page-visibility predicate (mirrors @repo/domain buildPageVisibilityWhere),
+  // so a workspace member who cannot SEE a foreign PERSONAL page is denied here
+  // too. Asserting the WHERE — not just the resolved value — is the only thing
+  // that fails if someone later removes the filter (a null-mock value test can't
+  // catch that). The predicate is the OR fragment under AND: TEAM OR null
+  // collection OR PERSONAL-owned-by-this-user OR an explicit share grant.
+  it('the member arm carries the page-visibility predicate (collection privacy)', async () => {
+    mockPageFindFirst.mockResolvedValue(null)
+    await canAccessPage('u1', 'p1')
+    const memberWhere = whereOf(mockPageFindFirst.mock.calls[0])
+    // The member arm must AND in the visibility predicate.
+    const fragment = memberWhere.AND?.[0]
+    expect(fragment).toBeDefined()
+    expect(fragment?.OR).toEqual(
+      expect.arrayContaining([
+        { collection: { kind: 'TEAM' } },
+        { collectionId: null },
+        { collection: { kind: 'PERSONAL', ownerId: 'u1' } },
+        { share: { users: { some: { userId: 'u1' } } } },
+      ]),
+    )
+  })
 })
 
 describe('canAccessSyncedBlock', () => {
@@ -143,6 +179,50 @@ describe('canAccessSyncedBlock', () => {
     mockPageFindFirst.mockResolvedValue(null) // both member + guest arms miss
     await expect(canAccessSyncedBlock('u1', 'b1')).resolves.toBeNull()
     expect(mockPageFindFirst).toHaveBeenCalledTimes(2)
+  })
+
+  // The LIVE-CONNECTION leak fix (spec §8.1/§8.2): a workspace member opening the
+  // live `syncedBlock:<id>` doc whose ORIGIN is a foreign PERSONAL page must be
+  // DENIED. The DB returns null because the origin-page query now ANDs in the
+  // visibility predicate, so the foreign personal page never matches the member
+  // arm. We assert BOTH the null result AND that the member-arm WHERE against the
+  // origin page carries that predicate — so the test fails if the gate is removed.
+  it('denies a member whose synced-block origin is a foreign PERSONAL page (and gates the WHERE)', async () => {
+    mockSyncedBlockFindFirst.mockResolvedValue({ originPageId: 'foreignPersonal' })
+    // The foreign PERSONAL page is filtered out by the visibility predicate in
+    // BOTH the member and guest arms → both return null.
+    mockPageFindFirst.mockResolvedValue(null)
+
+    const access = await canAccessSyncedBlock('u1', 'b1')
+    expect(access).toBeNull()
+
+    const memberWhere = whereOf(mockPageFindFirst.mock.calls[0])
+    // The member arm queried the ORIGIN page id, with membership + the
+    // collection-visibility predicate ANDed in.
+    expect(memberWhere).toMatchObject({ id: 'foreignPersonal' } as never)
+    // The origin-page member arm must AND in the visibility predicate.
+    const fragment = memberWhere.AND?.[0]
+    expect(fragment).toBeDefined()
+    expect(fragment?.OR).toEqual(
+      expect.arrayContaining([
+        { collection: { kind: 'PERSONAL', ownerId: 'u1' } },
+        { collection: { kind: 'TEAM' } },
+      ]),
+    )
+  })
+
+  // Counterpart: the caller's OWN personal origin page DOES match the predicate,
+  // so the DB returns the page and access is granted (member, writable).
+  it('admits a member whose synced-block origin is THEIR OWN personal page', async () => {
+    mockSyncedBlockFindFirst.mockResolvedValue({ originPageId: 'myPersonal' })
+    mockPageFindFirst.mockResolvedValueOnce({ type: 'TEXT', workspaceId: 'w1' })
+    const access = await canAccessSyncedBlock('u1', 'b1')
+    expect(access).toEqual({
+      pageType: 'TEXT',
+      workspaceId: 'w1',
+      access: 'member',
+      role: null,
+    })
   })
 
   it('denies an orphaned block (originPageId null) WITHOUT touching the page table', async () => {

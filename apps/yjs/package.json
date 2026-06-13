@@ -16,6 +16,7 @@
     "@hocuspocus/server": "^3.4.4",
     "@hocuspocus/transformer": "^3.4.4",
     "@repo/db": "workspace:*",
+    "@repo/domain": "workspace:*",
     "jose": "^6.2.2",
     "yjs": "^13.6.30"
   },
