@@ -2,6 +2,7 @@ import { Stack, Typography } from '@repo/ui/components'
 
 import { PreferencesMatrix } from '@/components/settings/preferences-matrix'
 import { ProfileSection } from '@/components/settings/profile-section'
+import { PwaHelpCard } from '@/components/settings/pwa-help-card'
 import { ThemeSection } from '@/components/settings/theme-section'
 import { getSession } from '@/lib/get-session'
 
@@ -32,6 +33,7 @@ export default async function GeneralSettingsPage() {
       />
       <ThemeSection />
       <PreferencesMatrix />
+      <PwaHelpCard />
     </Stack>
   )
 }

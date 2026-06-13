@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import { cookies } from 'next/headers'
 import localFont from 'next/font/local'
 import { Lora } from 'next/font/google'
@@ -6,6 +6,7 @@ import { Lora } from 'next/font/google'
 import { UiProvider } from '@repo/ui/providers'
 
 import { getSession } from '@/lib/get-session'
+import { PWA_THEME_COLOR } from '@/lib/pwa'
 import { siteConfig } from '@/lib/seo/site-config'
 import { getServerTRPC } from '@/trpc/server'
 
@@ -26,6 +27,10 @@ const lora = Lora({
   variable: '--font-serif',
   display: 'swap',
 })
+
+export const viewport: Viewport = {
+  themeColor: PWA_THEME_COLOR,
+}
 
 export const metadata: Metadata = {
   metadataBase: new URL(siteConfig.url),

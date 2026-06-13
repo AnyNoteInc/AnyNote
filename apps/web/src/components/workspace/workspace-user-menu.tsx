@@ -13,6 +13,7 @@ import {
   DarkModeRoundedIcon,
   Divider,
   DevicesRoundedIcon,
+  InstallDesktopIcon,
   LightModeRoundedIcon,
   ListItemIcon,
   ListItemText,
@@ -29,6 +30,7 @@ import { useThemeMode } from '@repo/ui/providers'
 import type { PlanFeatures } from '@repo/trpc'
 
 import { getPlanDisplayName } from '@/components/billing/plan-labels'
+import { usePwaInstall } from '@/components/pwa/pwa-install-context'
 import { trpc } from '@/trpc/client'
 
 type Props = Readonly<{
@@ -52,6 +54,7 @@ const themeOptions: Array<{
 export function WorkspaceUserMenu({ user, features, workspace }: Props) {
   const [anchor, setAnchor] = useState<HTMLElement | null>(null)
   const { preference, setPreference } = useThemeMode()
+  const { canInstall, promptInstall } = usePwaInstall()
   const setTheme = trpc.user.setTheme.useMutation()
   const initials = `${user.firstName.charAt(0)}${user.lastName.charAt(0)}`.toUpperCase()
   const close = () => setAnchor(null)
@@ -173,6 +176,20 @@ export function WorkspaceUserMenu({ user, features, workspace }: Props) {
         </Box>
         <Divider />
         <Box data-testid="workspace-user-menu-actions">
+          {canInstall && (
+            <MenuItem
+              data-testid="pwa-install-menu-item"
+              onClick={() => {
+                void promptInstall()
+                close()
+              }}
+            >
+              <ListItemIcon>
+                <InstallDesktopIcon fontSize="small" />
+              </ListItemIcon>
+              <ListItemText>Установить приложение</ListItemText>
+            </MenuItem>
+          )}
           {showUpgrade && (
             <>
               <MenuItem component={Link} href="/pricing" onClick={close}>

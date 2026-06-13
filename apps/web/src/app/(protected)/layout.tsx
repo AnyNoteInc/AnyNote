@@ -11,6 +11,8 @@ import { requireSession } from '@/lib/get-session'
 import { INVITE_RETURN_COOKIE, isInvitePath } from '@/lib/invite'
 import { TRPCReactProvider } from '@/trpc/client'
 import { ServiceWorkerMount } from '@/components/notifications/service-worker-mount'
+import { InstallPromptBanner } from '@/components/pwa/install-prompt-banner'
+import { PwaInstallProvider } from '@/components/pwa/pwa-install-context'
 
 export { NOINDEX_METADATA as metadata } from '@/lib/seo/build-metadata'
 
@@ -31,7 +33,10 @@ export default async function ProtectedLayout({ children }: Readonly<{ children:
     <TRPCReactProvider>
       <EditorThemeBridge />
       <ServiceWorkerMount />
-      {children}
+      <PwaInstallProvider>
+        {children}
+        <InstallPromptBanner />
+      </PwaInstallProvider>
     </TRPCReactProvider>
   )
 }
