@@ -9,7 +9,7 @@ vi.mock('@/lib/get-session', () => ({
   getSession: mocks.getSession,
 }))
 
-import { handlePreview, __testHooks } from '../../src/app/api/bookmark/preview/route'
+import { handlePreview, __testHooks } from '../../src/app/api/bookmark/preview/handler'
 
 const APP_ORIGIN = 'http://localhost:3000'
 const TARGET = 'https://news.example.com/story'
