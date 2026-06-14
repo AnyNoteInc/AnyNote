@@ -21,3 +21,12 @@ export function usePlanFeatures(): PlanFeatures {
   if (!v) throw new Error('usePlanFeatures must be used inside PlanFeaturesProvider')
   return v
 }
+
+/**
+ * Non-throwing variant for components rendered BOTH inside the protected app
+ * (where the provider is mounted) AND outside it (e.g. the public-share renderer,
+ * which has no plan context). Returns null when no provider is present.
+ */
+export function usePlanFeaturesOptional(): PlanFeatures | null {
+  return useContext(Ctx)
+}

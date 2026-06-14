@@ -15,10 +15,16 @@ import type {
  *   UPLOADED ──claim──▶ TRANSCRIBING ──segments──▶ SUMMARIZING ──summary──▶ READY
  *                                  └──── any error / no default model ───▶ FAILED
  *
- * Liveness rides `heartbeatAt` (the 6A lazy-reclaim mold). The provider for
- * summarization is the WORKSPACE's own `defaultModel` (the 9D готовность
- * guarantee) — no default model → FAILED, NEVER a hidden global. Every failure
- * persists a SANITIZED message (no upstream body / provider secret).
+ * Liveness rides `heartbeatAt` (the 6A lazy-reclaim mold): the runner bumps it
+ * at each phase, and the meeting read queries (`meeting.getByPage`/`getById`,
+ * polled every 3s while processing) opportunistically RECLAIM a stalled
+ * in-progress artifact — status TRANSCRIBING/SUMMARIZING with a heartbeat older
+ * than RECLAIM_AFTER_MS (or null) → atomically reset to UPLOADED + re-kick, so a
+ * crashed runner self-heals on the next poll (see `reclaimIfStalled` in the
+ * meeting router). The provider for summarization is the WORKSPACE's own
+ * `defaultModel` (the 9D готовность guarantee) — no default model → FAILED,
+ * NEVER a hidden global. Every failure persists a SANITIZED message (no upstream
+ * body / provider secret).
  */
 
 /** The resolved workspace model config (the 9D resolution), or null when unset. */

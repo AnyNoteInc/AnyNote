@@ -25,6 +25,8 @@ import {
   type PageTreeSelection,
 } from '@/components/workspace/page-tree-picker'
 
+import { usePlanFeaturesOptional } from '@/components/workspace/plan-features-context'
+
 import { usePageEditor } from './editor-context'
 import { EditorContentSkeleton } from './editor-content-skeleton'
 import { EditorOutline } from './editor-outline'
@@ -155,6 +157,10 @@ export function PageRenderer({
   const router = useRouter()
   // Share routes inject a share-scoped token; in-app callers use the default.
   const token = yjsToken ?? fetchYjsToken
+  // Plan-gate the «Запись встречи» slash item the same way the launch entry is
+  // gated (usePlanFeatures). Optional read: the public-share renderer is mounted
+  // OUTSIDE PlanFeaturesProvider (and is non-editable anyway), so absence → off.
+  const meetingsEnabled = usePlanFeaturesOptional()?.meetingsEnabled ?? false
   const attachFile = trpc.file.attachToPage.useMutation()
   const attachFileRef = useRef(attachFile)
   attachFileRef.current = attachFile
@@ -675,7 +681,10 @@ export function PageRenderer({
           renderSyncedBlock={renderSyncedBlock}
           onPickSyncedBlock={onPickSyncedBlock}
           renderMeetingBlock={renderMeetingBlock}
-          onPickMeetingBlock={onPickMeetingBlock}
+          // Plan gate (parity with the launch entry): only wire the picker handler
+          // — which is what makes the «Запись встречи» slash item appear (the
+          // gated-when-handler-wired pattern) — when meetings are enabled.
+          onPickMeetingBlock={meetingsEnabled ? onPickMeetingBlock : undefined}
           askAI={editable ? askAI : undefined}
         />
         <EmbeddedDatabasePicker

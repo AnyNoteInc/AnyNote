@@ -7,9 +7,11 @@ import { resolveProviderConnection } from '@/lib/chat/provider-connection'
 type JobKind = 'import' | 'export' | 'meeting'
 
 // Fire-and-forget background processing inside the web process. Crash recovery
-// is the lazy reclaim in job.list (heartbeat > 10 min → re-queue + re-kick);
-// import re-runs are idempotent via ImportMapping, export re-runs rebuild the zip,
-// meeting re-runs are idempotent via the UPLOADED→TRANSCRIBING atomic claim.
+// is a lazy reclaim (heartbeat > 10 min → re-queue/re-UPLOAD + re-kick): import/
+// export through job.list, meetings through the read queries the transcript page
+// polls (meeting.getByPage/getById → reclaimIfStalled). Re-runs are idempotent:
+// import via ImportMapping, export rebuilds the zip, meeting via the
+// UPLOADED→TRANSCRIBING atomic claim (which clears prior-run children first).
 export function kickJob(jobId: string, kind: JobKind): void {
   void run(jobId, kind).catch((err) => {
     console.error('[jobs] runner crashed', { jobId, kind, err })

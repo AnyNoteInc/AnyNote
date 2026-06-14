@@ -546,6 +546,126 @@ describe('meeting router (integration)', () => {
     expect(jobs.kick).toHaveBeenCalledWith(created.artifactId, 'meeting')
   })
 
+  // ── stalled in-progress reclaim (getByPage opportunistic re-kick) ────────────
+  // The runner writes `heartbeatAt`, but the only recovery path is `retry`, which
+  // acts on FAILED only. A crashed runner leaves the artifact in a non-FAILED
+  // in-progress status (TRANSCRIBING/SUMMARIZING) with a STALE heartbeat → stuck
+  // forever. `getByPage`/`getById` are polled every 3s while processing, so they
+  // opportunistically reclaim: a processing artifact whose heartbeat is older than
+  // RECLAIM_AFTER_MS is atomically reset to UPLOADED and re-kicked (the job.list
+  // lazy-reclaim spirit). A FRESH heartbeat is left alone; a READY artifact is
+  // untouched.
+  const STALE_HEARTBEAT = () => new Date(Date.now() - 20 * 60 * 1000) // 20 min ago
+  const FRESH_HEARTBEAT = () => new Date()
+
+  it('getByPage re-kicks a STALLED TRANSCRIBING artifact (stale heartbeat) + resets to UPLOADED', async () => {
+    const fx = await seed()
+    const rec = await makeRecording(fx.ownerId, fx.wsId)
+    const created = await meetingCaller(fx.ownerId).caller.create({
+      workspaceId: fx.wsId,
+      recordingFileId: rec.id,
+      consentAck: true,
+    })
+    // Simulate a crashed runner: stuck in TRANSCRIBING with a 20-min-old heartbeat.
+    await prisma.meetingArtifact.update({
+      where: { id: created.artifactId },
+      data: { status: 'TRANSCRIBING', heartbeatAt: STALE_HEARTBEAT(), error: 'stale-err' },
+    })
+    const { caller, jobs } = meetingCaller(fx.ownerId)
+    const res = await caller.getByPage({ pageId: created.pageId })
+    // Still surfaced as processing (UPLOADED is in the processing union).
+    expect(res.status).toBe('processing')
+    // Atomically reclaimed: reset to UPLOADED, heartbeat + error cleared.
+    const after = await prisma.meetingArtifact.findUnique({ where: { id: created.artifactId } })
+    expect(after?.status).toBe('UPLOADED')
+    expect(after?.heartbeatAt).toBeNull()
+    expect(after?.error).toBeNull()
+    // Re-kicked exactly once.
+    expect(jobs.kick).toHaveBeenCalledWith(created.artifactId, 'meeting')
+    expect(jobs.kick).toHaveBeenCalledTimes(1)
+  })
+
+  it('getByPage re-kicks a STALLED artifact with a NULL heartbeat', async () => {
+    const fx = await seed()
+    const rec = await makeRecording(fx.ownerId, fx.wsId)
+    const created = await meetingCaller(fx.ownerId).caller.create({
+      workspaceId: fx.wsId,
+      recordingFileId: rec.id,
+      consentAck: true,
+    })
+    // A claimed-then-crashed runner that never wrote a heartbeat.
+    await prisma.meetingArtifact.update({
+      where: { id: created.artifactId },
+      data: { status: 'SUMMARIZING', heartbeatAt: null },
+    })
+    const { caller, jobs } = meetingCaller(fx.ownerId)
+    await caller.getByPage({ pageId: created.pageId })
+    const after = await prisma.meetingArtifact.findUnique({ where: { id: created.artifactId } })
+    expect(after?.status).toBe('UPLOADED')
+    expect(jobs.kick).toHaveBeenCalledWith(created.artifactId, 'meeting')
+  })
+
+  it('getByPage does NOT re-kick a HEALTHY in-progress artifact (fresh heartbeat)', async () => {
+    const fx = await seed()
+    const rec = await makeRecording(fx.ownerId, fx.wsId)
+    const created = await meetingCaller(fx.ownerId).caller.create({
+      workspaceId: fx.wsId,
+      recordingFileId: rec.id,
+      consentAck: true,
+    })
+    await prisma.meetingArtifact.update({
+      where: { id: created.artifactId },
+      data: { status: 'TRANSCRIBING', heartbeatAt: FRESH_HEARTBEAT() },
+    })
+    const { caller, jobs } = meetingCaller(fx.ownerId)
+    const res = await caller.getByPage({ pageId: created.pageId })
+    expect(res.status).toBe('processing')
+    // Untouched: still TRANSCRIBING, no re-kick.
+    const after = await prisma.meetingArtifact.findUnique({ where: { id: created.artifactId } })
+    expect(after?.status).toBe('TRANSCRIBING')
+    expect(jobs.kick).not.toHaveBeenCalled()
+  })
+
+  it('getByPage does NOT re-kick a READY artifact (untouched)', async () => {
+    const fx = await seed()
+    const rec = await makeRecording(fx.ownerId, fx.wsId)
+    const created = await meetingCaller(fx.ownerId).caller.create({
+      workspaceId: fx.wsId,
+      recordingFileId: rec.id,
+      consentAck: true,
+    })
+    await prisma.meetingArtifact.update({
+      where: { id: created.artifactId },
+      // A READY artifact with a stale heartbeat must NOT be reclaimed.
+      data: { status: 'READY', summary: 'done', heartbeatAt: STALE_HEARTBEAT() },
+    })
+    const { caller, jobs } = meetingCaller(fx.ownerId)
+    const res = await caller.getByPage({ pageId: created.pageId })
+    expect(res.status).toBe('ok')
+    const after = await prisma.meetingArtifact.findUnique({ where: { id: created.artifactId } })
+    expect(after?.status).toBe('READY')
+    expect(jobs.kick).not.toHaveBeenCalled()
+  })
+
+  it('getById also re-kicks a STALLED in-progress artifact (the embed poll path)', async () => {
+    const fx = await seed()
+    const rec = await makeRecording(fx.ownerId, fx.wsId)
+    const created = await meetingCaller(fx.ownerId).caller.create({
+      workspaceId: fx.wsId,
+      recordingFileId: rec.id,
+      consentAck: true,
+    })
+    await prisma.meetingArtifact.update({
+      where: { id: created.artifactId },
+      data: { status: 'TRANSCRIBING', heartbeatAt: STALE_HEARTBEAT() },
+    })
+    const { caller, jobs } = meetingCaller(fx.ownerId)
+    await caller.getById({ id: created.artifactId })
+    const after = await prisma.meetingArtifact.findUnique({ where: { id: created.artifactId } })
+    expect(after?.status).toBe('UPLOADED')
+    expect(jobs.kick).toHaveBeenCalledWith(created.artifactId, 'meeting')
+  })
+
   // ── delete: S3-first ordering + DB rows gone + idempotent ────────────────────
   it('delete frees the recording S3 object (S3-first) + removes the artifact and File rows', async () => {
     const fx = await seed()

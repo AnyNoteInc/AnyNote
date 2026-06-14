@@ -9,6 +9,7 @@ import { BLOCKED_MESSAGE } from '../helpers/membership'
 import { getWorkspaceFeatures, requireWritableWorkspace } from '../helpers/plan'
 import { mapDomain } from '../helpers/map-domain'
 import { domain as domainSvc } from '../domain'
+import { RECLAIM_AFTER_MS } from './job'
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -73,6 +74,65 @@ const NO_ACCESS: MeetingReadResult = { status: 'no_access' }
 const NOT_FOUND: MeetingReadResult = { status: 'not_found' }
 
 const PROCESSING_STATUSES = new Set(['UPLOADED', 'TRANSCRIBING', 'SUMMARIZING'])
+
+// The in-progress statuses that a CRASHED runner can strand. (UPLOADED is also a
+// processing status but is the post-claim/queued state the runner picks up — it
+// is never "stalled mid-run"; resetting it to UPLOADED would be a no-op anyway,
+// so the reclaim only targets the two mid-pipeline states a heartbeat protects.)
+const STALLABLE_STATUSES = ['TRANSCRIBING', 'SUMMARIZING'] as const
+
+// ── Stalled-meeting lazy reclaim ────────────────────────────────────────────
+
+/**
+ * Crash recovery for the meeting pipeline, the job.list lazy-reclaim spirit
+ * applied to the only natural hook a meeting has: the read query the transcript
+ * page (`getByPage`) and the embed (`getById`) poll every 3s while `processing`.
+ *
+ * The runner writes `heartbeatAt`, but the only USER-driven recovery is
+ * `meeting.retry`, which acts on a FAILED artifact only. A runner that CRASHES
+ * mid-TRANSCRIBING/SUMMARIZING leaves the artifact in a non-FAILED in-progress
+ * status with a stale heartbeat → stuck forever (retry won't touch it, the
+ * client just spins). So on every poll we atomically reclaim a stalled
+ * in-progress artifact: status in (TRANSCRIBING, SUMMARIZING) AND heartbeat null
+ * or older than RECLAIM_AFTER_MS → reset to UPLOADED (clearing error/heartbeat)
+ * and re-kick. The runner's atomic claim (`where status: UPLOADED`) then re-runs
+ * the whole pipeline; it clears this artifact's children first, so no
+ * duplication. A FRESH heartbeat is left alone (a healthy run isn't disturbed);
+ * a READY/FAILED artifact never matches.
+ *
+ * The reset is an `updateMany` guarded by the same status+heartbeat predicate
+ * (the job.list precedent) so a concurrent poller can't double-reset/double-kick
+ * — only the first updateMany sees count===1 and fires the kick. On a successful
+ * reclaim the in-memory artifact's status is advanced to UPLOADED so the
+ * projection this same request returns reflects the reset (still `processing`),
+ * not a stale stage.
+ */
+async function reclaimIfStalled(
+  ctx: Ctx,
+  artifact: { id: string; status: string; heartbeatAt: Date | null },
+): Promise<void> {
+  if (!STALLABLE_STATUSES.includes(artifact.status as (typeof STALLABLE_STATUSES)[number])) {
+    return
+  }
+  const staleBefore = new Date(Date.now() - RECLAIM_AFTER_MS)
+  if (artifact.heartbeatAt !== null && artifact.heartbeatAt.getTime() >= staleBefore.getTime()) {
+    return // fresh heartbeat — a healthy run, leave it
+  }
+  // Atomic transition guards against a concurrent poller racing the same reset.
+  const res = await ctx.prisma.meetingArtifact.updateMany({
+    where: {
+      id: artifact.id,
+      status: { in: [...STALLABLE_STATUSES] },
+      OR: [{ heartbeatAt: null }, { heartbeatAt: { lt: staleBefore } }],
+    },
+    data: { status: 'UPLOADED', error: null, heartbeatAt: null },
+  })
+  if (res.count === 1) {
+    artifact.status = 'UPLOADED'
+    artifact.heartbeatAt = null
+    ctx.jobs?.kick(artifact.id, 'meeting')
+  }
+}
 
 // ── Access helpers ──────────────────────────────────────────────────────────
 
@@ -339,7 +399,9 @@ export const meetingRouter = router({
       return { pageId: page.id, artifactId: artifact.id }
     }),
 
-  // Object-hiding read by artifact id. Never throws on no-access.
+  // Object-hiding read by artifact id. Never throws on no-access. Opportunistic
+  // crash recovery: a stalled in-progress artifact (stale/null heartbeat) is
+  // reclaimed + re-kicked here (the embed poll path) before projecting.
   getById: protectedProcedure
     .input(z.object({ id: z.string().uuid() }))
     .query(async ({ ctx, input }): Promise<MeetingReadResult> => {
@@ -355,15 +417,21 @@ export const meetingRouter = router({
           language: true,
           durationMs: true,
           error: true,
+          heartbeatAt: true,
         },
       })
       if (!artifact) return NOT_FOUND
       const access = await resolveMeetingAccess(ctx, artifact, { forRead: true })
       if (!access) return NO_ACCESS
+      // Only members (access granted) can trigger the reclaim — no anonymous /
+      // no-access poke at the runner.
+      await reclaimIfStalled(ctx, artifact)
       return loadAndProject(ctx, artifact, access.readOnly)
     }),
 
-  // Object-hiding read by the owning MEETING page id.
+  // Object-hiding read by the owning MEETING page id. This is the query the
+  // MEETING transcript page polls every 3s while processing — the natural hook
+  // for the stalled-artifact lazy reclaim (job.list spirit).
   getByPage: protectedProcedure
     .input(z.object({ pageId: z.string().uuid() }))
     .query(async ({ ctx, input }): Promise<MeetingReadResult> => {
@@ -379,11 +447,15 @@ export const meetingRouter = router({
           language: true,
           durationMs: true,
           error: true,
+          heartbeatAt: true,
         },
       })
       if (!artifact) return NOT_FOUND
       const access = await resolveMeetingAccess(ctx, artifact, { forRead: true })
       if (!access) return NO_ACCESS
+      // Crashed-runner recovery: re-kick a stalled in-progress artifact (no user
+      // action needed). Gated behind the access check above (members only).
+      await reclaimIfStalled(ctx, artifact)
       return loadAndProject(ctx, artifact, access.readOnly)
     }),
 
