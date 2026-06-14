@@ -83,6 +83,11 @@ const TARGET_LANGS = ['English', 'Русский', 'Deutsch', 'Français', 'Espa
 type InlineAiSession = {
   args: AskAIArgs
   handle: { abort: () => void }
+  // Monotonic run token (the active run for this editor). Each (re)run bumps it;
+  // the AskAIHandle callbacks captured a token at run-start and no-op when it no
+  // longer matches — so a superseded run (retry / re-pick) can't leak a late
+  // token, error, or `done`-flip into the NEW in-flight preview.
+  token: number
 }
 
 const sessions = new WeakMap<Editor, InlineAiSession>()
@@ -99,22 +104,31 @@ function runInlineAi(editor: Editor, askAI: AskAICallback, args: AskAIArgs): voi
 
   startInlineAiPreview(editor, { from: args.from, to: args.to, action: args.action })
 
+  // Tag this run so its async callbacks can detect being superseded by a retry /
+  // re-pick. We bump the prior session's token (if any) and capture ours; a
+  // callback fires only while it's still the editor's active run.
+  const myToken = (sessions.get(editor)?.token ?? 0) + 1
+  const isCurrent = () => sessions.get(editor)?.token === myToken
+
   const handle = askAI(args)
-  sessions.set(editor, { args, handle })
+  sessions.set(editor, { args, handle, token: myToken })
 
   handle.onToken((delta) => {
-    if (editor.isDestroyed) return
+    if (editor.isDestroyed || !isCurrent()) return
     appendInlineAiToken(editor, delta)
   })
   handle.onError((message) => {
-    if (editor.isDestroyed) return
+    if (editor.isDestroyed || !isCurrent()) return
     failInlineAiPreview(editor, message)
   })
   void handle.done.then(() => {
-    if (editor.isDestroyed) return
-    // `done` resolves on success / error / abort. Only flip to 'done' when we're
-    // still streaming (an error already moved status to 'error'; an abort
-    // typically follows a clear). The plugin's `finish` is a no-op if inactive.
+    // `done` resolves on success / error / abort. A superseded run's `done`
+    // (e.g. the OLD handle aborted by «Повторить») can resolve AFTER the new run
+    // started — ignore it so it can't flip the NEW streaming preview to 'done'.
+    if (editor.isDestroyed || !isCurrent()) return
+    // Only flip to 'done' when we're still streaming (an error already moved
+    // status to 'error'; an abort typically follows a clear). The plugin's
+    // `finish` is a no-op if inactive.
     const current = getInlineAiPreview(editor)
     if (current.active && current.status === 'streaming') {
       finishInlineAiPreview(editor)
