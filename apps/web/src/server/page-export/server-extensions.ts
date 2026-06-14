@@ -30,6 +30,7 @@ import {
   Highlight,
   HiddenText,
   LINK_HTML_ATTRIBUTES,
+  MeetingNotesBlock,
   Mention,
   PageLink,
   SyncedBlock,
@@ -108,5 +109,6 @@ export function buildServerExtensions() {
     Tabs,
     Tab,
     SyncedBlock,
+    MeetingNotesBlock,
   ]
 }

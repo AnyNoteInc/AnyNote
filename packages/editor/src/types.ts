@@ -3,18 +3,26 @@ import type { Editor } from '@tiptap/core'
 import type { PlantumlRenderAuth } from '@repo/plantuml/render-plantuml'
 import type { EmbeddedDatabaseRenderer } from './extensions/embedded-database'
 import type { SyncedBlockRenderer } from './extensions/synced-block'
+import type { MeetingNotesBlockRenderer } from './extensions/meeting-notes-block'
 
 export type {
   EmbeddedDatabaseRenderer,
   EmbeddedDatabaseRenderArgs,
 } from './extensions/embedded-database'
 export type { SyncedBlockRenderer, SyncedBlockRenderArgs } from './extensions/synced-block'
+export type {
+  MeetingNotesBlockRenderer,
+  MeetingNotesBlockRenderArgs,
+} from './extensions/meeting-notes-block'
 
 /** The source/view chosen in the apps/web database picker dialog. */
 export type EmbeddedDatabasePick = { sourceId: string; viewId: string | null }
 
 /** The synced block chosen/created in the apps/web synced-block picker dialog. */
 export type SyncedBlockPick = { blockId: string }
+
+/** The meeting artifact chosen in the apps/web meeting-block picker dialog. */
+export type MeetingNotesBlockPick = { meetingArtifactId: string }
 
 // --- Inline AI («Спросить AI») injection (spec §4.3) -----------------------
 //
@@ -145,6 +153,17 @@ export type AnyNoteEditorProps = {
   // then inserts the `syncedBlock` node. When omitted, the `/синхронизированный
   // блок` slash item is hidden.
   onPickSyncedBlock?: () => Promise<SyncedBlockPick | null>
+  // Live renderer for the meeting-notes-block node, injected by apps/web (the
+  // access-checked `meeting.getById` query + the MUI summary card can't be
+  // imported from @repo/editor). When omitted, the node renders its own
+  // «Запись встречи» placeholder.
+  renderMeetingBlock?: MeetingNotesBlockRenderer
+  // Opens an apps/web picker that selects an existing meeting (`meeting.list`)
+  // or launches the upload dialog for a new one. Resolves to the chosen
+  // `{ meetingArtifactId }`, or null on cancel / when the user uploads a new
+  // meeting (which navigates to the new MEETING page instead of inserting a
+  // node). When omitted, the `/запись встречи` slash item is hidden.
+  onPickMeetingBlock?: () => Promise<MeetingNotesBlockPick | null>
   // Opens an apps/web picker of the user's DATABASE sources. Resolves to the
   // chosen source/view, or null if the user cancels; the editor then inserts the
   // node. When omitted, the `/база данных` slash item is hidden.

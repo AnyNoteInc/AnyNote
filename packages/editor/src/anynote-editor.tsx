@@ -228,6 +228,28 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
     }
   }, [onPickSyncedBlock])
 
+  const onPickMeetingBlock = props.onPickMeetingBlock
+  const openMeetingPicker = useMemo(() => {
+    if (!onPickMeetingBlock) return undefined
+    return (range: SlashRange) => {
+      slashRendererRef.current.popup?.hide()
+      void onPickMeetingBlock().then((pick) => {
+        const ed = editorInstanceRef.current
+        // A null pick = cancelled, OR the user uploaded a NEW meeting (the upload
+        // dialog navigates to the fresh MEETING page) — nothing to insert here.
+        if (!ed || !pick) return
+        ed.chain()
+          .focus()
+          .deleteRange(range)
+          .insertContent({
+            type: 'meetingNotesBlock',
+            attrs: { meetingArtifactId: pick.meetingArtifactId },
+          })
+          .run()
+      })
+    }
+  }, [onPickMeetingBlock])
+
   const slashItems = useMemo(
     () =>
       createSlashItems({
@@ -243,6 +265,7 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
         openDrawioCreate,
         openDatabasePicker,
         openSyncedBlockPicker,
+        openMeetingPicker,
       }),
     [
       openKind,
@@ -251,6 +274,7 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
       openDrawioCreate,
       openDatabasePicker,
       openSyncedBlockPicker,
+      openMeetingPicker,
     ],
   )
 
@@ -396,6 +420,7 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
         plantumlRenderAuth: props.plantumlRenderAuth,
         renderEmbeddedDatabase: props.renderEmbeddedDatabase,
         renderSyncedBlock: props.renderSyncedBlock,
+        renderMeetingBlock: props.renderMeetingBlock,
         pageId: props.pageId,
         bookmarkPreview: props.bookmarkPreview,
         askAI: props.askAI,

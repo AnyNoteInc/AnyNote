@@ -23,6 +23,8 @@ export { TabsSchema as Tabs, TabSchema as Tab } from './tabs.schema'
 
 export { SyncedBlockSchema as SyncedBlock } from './synced-block.schema'
 
+export { MeetingNotesBlockSchema as MeetingNotesBlock } from './meeting-notes-block.schema'
+
 // Pure string/config helpers (no React) shared with the client editors.
 export { LINK_HTML_ATTRIBUTES, normalizeLinkHref } from '../link-href'
 

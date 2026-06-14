@@ -3,6 +3,7 @@ import AccessTimeIcon from '@mui/icons-material/AccessTime'
 import AudiotrackIcon from '@mui/icons-material/Audiotrack'
 import BookmarkBorderIcon from '@mui/icons-material/BookmarkBorder'
 import CalendarTodayIcon from '@mui/icons-material/CalendarToday'
+import GraphicEqIcon from '@mui/icons-material/GraphicEq'
 import NotificationsIcon from '@mui/icons-material/Notifications'
 import OndemandVideoIcon from '@mui/icons-material/OndemandVideo'
 import SchemaIcon from '@mui/icons-material/Schema'
@@ -56,6 +57,11 @@ export type SlashMediaHandlers = {
   // on resolve it inserts a `syncedBlock` node with the chosen/created blockId.
   // Omitted when the host editor has no picker (then the slash item is hidden).
   openSyncedBlockPicker?: (range: SlashRange) => void
+  // Opens an apps/web-provided meeting picker (pick an existing meeting / upload a
+  // new recording); on resolve it inserts a `meetingNotesBlock` node with the
+  // chosen meetingArtifactId. Omitted when the host editor has no picker (then the
+  // slash item is hidden).
+  openMeetingPicker?: (range: SlashRange) => void
 }
 
 const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
@@ -425,6 +431,22 @@ const buildItems = (handlers: SlashMediaHandlers): SlashCommandItem[] => [
           icon: createElement(SyncIcon, { fontSize: 'small' }),
           run: ({ range }: { editor: import('@tiptap/core').Editor; range: SlashRange }) =>
             handlers.openSyncedBlockPicker?.(range),
+        },
+      ]
+    : []),
+  // Only surfaced when the host wires `openMeetingPicker` (apps/web). The node
+  // can't be inserted without the picker, so we hide it otherwise.
+  ...(handlers.openMeetingPicker
+    ? [
+        {
+          id: 'meeting-notes-block',
+          group: 'embedding' as const,
+          label: 'Запись встречи',
+          description: 'Встроить резюме встречи с расшифровкой',
+          keywords: ['meeting', 'встреча', 'запись', 'транскрипция', 'резюме', 'аудио', 'видео'],
+          icon: createElement(GraphicEqIcon, { fontSize: 'small' }),
+          run: ({ range }: { editor: import('@tiptap/core').Editor; range: SlashRange }) =>
+            handlers.openMeetingPicker?.(range),
         },
       ]
     : []),

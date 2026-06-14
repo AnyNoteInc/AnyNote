@@ -38,6 +38,7 @@ import { buildImagePaste } from './image-paste'
 import { buildUrlPaste, type PreviewFetch } from './url-paste'
 import { HiddenText } from './hidden-text'
 import { InlineAI, type InlineAiRenderPreview } from './inline-ai'
+import { MeetingNotesBlock, type MeetingNotesBlockRenderer } from './meeting-notes-block'
 import { PageLink } from './page-link'
 import { Reminder } from './reminder'
 import { DateNode } from './date'
@@ -84,6 +85,10 @@ export type BuildExtensionsOptions = {
   // renderer for the synced-block node here (it can't import apps/web's tRPC). When
   // absent, the node renders its own «Синхронизированный блок» placeholder.
   renderSyncedBlock?: SyncedBlockRenderer
+  // apps/web injects the live access-checked meeting summary card renderer for
+  // the meeting-notes-block node here (it can't import apps/web's tRPC). When
+  // absent, the node renders its own «Запись встречи» placeholder.
+  renderMeetingBlock?: MeetingNotesBlockRenderer
   // The current pageId — used as the localStorage key for the per-page rich-embed
   // toggle (the Embed node reads it). Optional; defaults to always-on.
   pageId?: string | null
@@ -160,6 +165,10 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   EmbeddedDatabase.configure({ renderEmbed: opts.renderEmbeddedDatabase ?? null }),
   SyncedBlock.configure({
     renderSyncedBlock: opts.renderSyncedBlock ?? null,
+    onNavigateToPage: opts.onNavigateToPage,
+  }),
+  MeetingNotesBlock.configure({
+    renderMeetingBlock: opts.renderMeetingBlock ?? null,
     onNavigateToPage: opts.onNavigateToPage,
   }),
   PageLink.configure({ onNavigate: opts.onNavigateToPage }),

@@ -9,6 +9,10 @@ export {
   createSyncedBlockNode,
   emptySyncedBlockDoc,
 } from './extensions/synced-block'
+export {
+  MEETING_NOTES_BLOCK_LABEL,
+  createMeetingNotesBlockNode,
+} from './extensions/meeting-notes-block'
 export { EditorThemeBridge } from './theme-bridge'
 export { createSlashItems } from './slash-items'
 export { filterMentionItems } from './mentions'
@@ -25,6 +29,9 @@ export type {
   AskAICallback,
   AskAIHandle,
   CommentThreadAnchor,
+  MeetingNotesBlockPick,
+  MeetingNotesBlockRenderArgs,
+  MeetingNotesBlockRenderer,
   MentionLookupItem,
   PageLookupItem,
   SlashCommandGroup,

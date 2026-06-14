@@ -107,8 +107,19 @@ const SyncedBlockPicker = dynamic(
   { ssr: false },
 )
 
+const MeetingBlockEmbed = dynamic(
+  () => import('@/components/meeting/meeting-block-embed').then((m) => m.MeetingBlockEmbed),
+  { ssr: false, loading: () => <CenteredSpinner /> },
+)
+
+const MeetingBlockPicker = dynamic(
+  () => import('@/components/meeting/meeting-block-picker').then((m) => m.MeetingBlockPicker),
+  { ssr: false },
+)
+
 type EmbeddedDatabasePick = { sourceId: string; viewId: string | null }
 type SyncedBlockPick = { blockId: string }
+type MeetingNotesBlockPick = { meetingArtifactId: string }
 
 function CenteredSpinner() {
   return (
@@ -164,6 +175,12 @@ export function PageRenderer({
   // (create new / insert existing); the in-flight resolver is held here.
   const [syncedPickerOpen, setSyncedPickerOpen] = useState(false)
   const syncedPickerResolveRef = useRef<((pick: SyncedBlockPick | null) => void) | null>(null)
+  // The `/запись встречи` slash item opens a promise-based picker (insert existing
+  // / upload new); the in-flight resolver is held here.
+  const [meetingPickerOpen, setMeetingPickerOpen] = useState(false)
+  const meetingPickerResolveRef = useRef<((pick: MeetingNotesBlockPick | null) => void) | null>(
+    null,
+  )
   const [movePos, setMovePos] = useState<number | null>(null)
   const [moveTarget, setMoveTarget] = useState<PageTreeSelection | null>(null)
   const [moveBusy, setMoveBusy] = useState(false)
@@ -374,6 +391,25 @@ export function PageRenderer({
     syncedPickerResolveRef.current = null
   }, [])
 
+  // Opens the meeting picker (insert existing / upload new) and resolves with the
+  // chosen meetingArtifactId (or null on cancel / when the user uploads a new
+  // meeting, which navigates away); the editor inserts the `meetingNotesBlock`
+  // node from the result.
+  const onPickMeetingBlock = useCallback(
+    () =>
+      new Promise<MeetingNotesBlockPick | null>((resolve) => {
+        meetingPickerResolveRef.current = resolve
+        setMeetingPickerOpen(true)
+      }),
+    [],
+  )
+
+  const resolveMeetingPicker = useCallback((pick: MeetingNotesBlockPick | null) => {
+    setMeetingPickerOpen(false)
+    meetingPickerResolveRef.current?.(pick)
+    meetingPickerResolveRef.current = null
+  }, [])
+
   // Live renderer injected into the editor's synced-block node. The node (in
   // @repo/editor) can't import apps/web, so it calls this with the node's blockId
   // + the per-instance detach hook, and we mount the access-checked embed (which
@@ -388,6 +424,15 @@ export function PageRenderer({
       />
     ),
     [user, token],
+  )
+
+  // Live renderer injected into the editor's meeting-notes-block node. The node
+  // (in @repo/editor) can't import apps/web, so it calls this with the node's
+  // meetingArtifactId + the open-meeting hook, and we mount the access-checked
+  // summary card (which switches on the object-hiding `meeting.getById` union).
+  const renderMeetingBlock = useCallback(
+    (args: import('@repo/editor').MeetingNotesBlockRenderArgs) => <MeetingBlockEmbed {...args} />,
+    [],
   )
 
   // Live renderer injected into the editor's embedded-database node. The node
@@ -629,6 +674,8 @@ export function PageRenderer({
           onPickEmbeddedDatabase={onPickEmbeddedDatabase}
           renderSyncedBlock={renderSyncedBlock}
           onPickSyncedBlock={onPickSyncedBlock}
+          renderMeetingBlock={renderMeetingBlock}
+          onPickMeetingBlock={onPickMeetingBlock}
           askAI={editable ? askAI : undefined}
         />
         <EmbeddedDatabasePicker
@@ -643,6 +690,12 @@ export function PageRenderer({
           originPageId={page.id}
           onCancel={() => resolveSyncedPicker(null)}
           onPick={(pick) => resolveSyncedPicker(pick)}
+        />
+        <MeetingBlockPicker
+          open={meetingPickerOpen}
+          workspaceId={workspaceId}
+          onCancel={() => resolveMeetingPicker(null)}
+          onPick={(pick) => resolveMeetingPicker(pick)}
         />
         <CommentPopover />
         {reminderUI.open && (
