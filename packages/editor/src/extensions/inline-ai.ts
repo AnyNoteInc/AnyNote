@@ -211,16 +211,24 @@ export const createInlineAiPlugin = (opts: {
         //    the selection keeps {from,to} pointing at the same content.
         let next = value
         if (value.active && tr.docChanged) {
-          // Bias both endpoints with assoc=1 so an insertion AT `from` pushes the
-          // whole pending range to the right (the remote-edit-before-selection
-          // case): the selected content stays covered, the inserted text is left
-          // outside the range. assoc=1 on `to` keeps trailing inserts (e.g. the
-          // streamed preview / an append at the boundary) outside the source span.
-          next = {
-            ...value,
-            from: tr.mapping.map(value.from, 1),
-            to: tr.mapping.map(value.to, 1),
+          // Re-map the pending range through this tr. Default bias assoc=1 keeps a
+          // plain insertion BEFORE/AT `from` shifting the whole range right (the
+          // collaborator-edits-before-selection case the pure tests pin).
+          const wasNonEmpty = value.to > value.from
+          let mappedFrom = tr.mapping.map(value.from, 1)
+          const mappedTo = tr.mapping.map(value.to, 1)
+          // COLLAPSE GUARD: a Yjs sync that re-materializes the paragraph as
+          // delete-then-reinsert (the empty-page contentYjs sync racing the
+          // `start` meta) maps a non-empty range to a degenerate [end,end] with
+          // assoc=1 on `from` — the start binds to the END of the reinsertion.
+          // When the mapping collapses a previously non-empty range, re-bias
+          // `from` LEFT (assoc=-1) so it sticks to the start of the reinserted
+          // content. Without this, accept appends at the doc end instead of
+          // replacing the selection.
+          if (wasNonEmpty && mappedFrom >= mappedTo) {
+            mappedFrom = tr.mapping.map(value.from, -1)
           }
+          next = { ...value, from: mappedFrom, to: mappedTo }
         }
         // 2. Fold in any meta-action.
         const meta = tr.getMeta(inlineAiPluginKey) as InlineAiMeta | undefined
@@ -364,11 +372,19 @@ export const InlineAI = Extension.create<InlineAiOptions, InlineAiStorage>({
     // Expose the capability on editor.storage.ai (the comments-storage
     // precedent) so floating-toolbar can gate the «Спросить AI» button on
     // `editor.storage.ai?.askAI` and the popover can call it.
+    //
+    // MERGE, don't replace: anynote-editor's effect adds `onAskAi` (which opens
+    // the popover) onto the SAME `editor.storage.ai` object. `onCreate` can fire
+    // after that effect (Tiptap reinitializes the view on the ydoc/provider deps,
+    // and the editor reference stays stable so the effect doesn't re-run). A
+    // wholesale `= { askAI }` here clobbers `onAskAi`, so the bubble-menu button
+    // renders (it only gates on `askAI`) but its click silently no-ops. Spreading
+    // the existing keys preserves whichever side ran first.
     this.storage.askAI = this.options.askAI
     this.storage.render = this.options.renderPreview
-    ;(this.editor.storage as unknown as Record<string, unknown>).ai = {
-      askAI: this.options.askAI,
-    }
+    const storage = this.editor.storage as unknown as Record<string, unknown>
+    const existingAi = (storage.ai as Record<string, unknown> | undefined) ?? {}
+    storage.ai = { ...existingAi, askAI: this.options.askAI }
   },
 
   addProseMirrorPlugins() {
