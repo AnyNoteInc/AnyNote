@@ -8,10 +8,22 @@ export type TelegramApiResult<T> = { ok: true; result: T } | { ok: false; descri
  * `lastError` strings.
  */
 export class TelegramApi {
+  // NB: fields are declared + assigned in the constructor body rather than using
+  // TS constructor *parameter properties*. Node's strip-only type loader (used by
+  // `apps/engines` at runtime to load this workspace `.ts` source directly) cannot
+  // transform parameter properties — they require codegen, not just type removal —
+  // and throws ERR_UNSUPPORTED_TYPESCRIPT_SYNTAX. This mirrors how `@repo/domain`
+  // services are written so they stay Node-strip-types-clean.
+  private readonly token: string
+  private readonly opts: { fetchFn?: typeof fetch; baseUrl?: string; timeoutMs?: number }
+
   constructor(
-    private readonly token: string,
-    private readonly opts: { fetchFn?: typeof fetch; baseUrl?: string; timeoutMs?: number } = {},
-  ) {}
+    token: string,
+    opts: { fetchFn?: typeof fetch; baseUrl?: string; timeoutMs?: number } = {},
+  ) {
+    this.token = token
+    this.opts = opts
+  }
 
   private get baseUrl(): string {
     return this.opts.baseUrl ?? process.env.TELEGRAM_API_BASE_URL ?? 'https://api.telegram.org'
