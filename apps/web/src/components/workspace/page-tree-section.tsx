@@ -1,7 +1,7 @@
 'use client'
 
 import Link from 'next/link'
-import { usePathname } from 'next/navigation'
+import { usePathname, useRouter } from 'next/navigation'
 import { useCallback, useEffect, useMemo, useState, type MouseEvent } from 'react'
 import {
   DndContext,
@@ -20,6 +20,7 @@ import {
   AddIcon,
   Box,
   ChevronRightIcon,
+  DashboardIcon,
   IconButton,
   MicIcon,
   MoreHorizIcon,
@@ -261,8 +262,18 @@ export function PageTreeSection({
   const [overId, setOverId] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
   const [meetingOpen, setMeetingOpen] = useState(false)
+  const router = useRouter()
   const utils = trpc.useUtils()
   const createFlow = useCreatePageFlow(workspaceId)
+  // The «Новый дашборд» launch: create the DASHBOARD page + its Dashboard row,
+  // then navigate to it. No plan gate — the create mutation only requires a
+  // writable workspace (the meeting upload is the plan-gated one).
+  const createDashboard = trpc.dashboard.create.useMutation({
+    onSuccess: async (result) => {
+      await utils.page.listByWorkspace.invalidate({ workspaceId })
+      router.push(`/pages/${result.pageId}`)
+    },
+  })
   // The «Загрузить встречу» launch action is gated on the plan flag: hidden when
   // the workspace's tier lacks meeting transcription (the create mutation also
   // 403s server-side, this just keeps the entry out of sight).
@@ -387,6 +398,17 @@ export function PageTreeSection({
               </IconButton>
             </Tooltip>
           ) : null}
+          <Tooltip title="Новый дашборд">
+            <IconButton
+              aria-label="Новый дашборд"
+              size="small"
+              data-testid="new-dashboard-button"
+              disabled={createDashboard.isPending}
+              onClick={() => createDashboard.mutate({ workspaceId })}
+            >
+              <DashboardIcon sx={{ fontSize: 16 }} />
+            </IconButton>
+          </Tooltip>
           <IconButton
             aria-label="Новая страница"
             size="small"
