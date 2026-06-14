@@ -66,6 +66,7 @@ const features = {
   prioritySupport: false,
   developerSpaceEnabled: false,
   publicSitesEnabled: false,
+  meetingsEnabled: false,
   pageHistoryDays: 7,
 } as const
 

@@ -42,6 +42,7 @@ export {
   getActivePlanForUser,
 } from './helpers/plan'
 export { resolveActiveWorkspace } from './helpers/active-workspace'
+export { signAgentsServiceToken, type AgentsServiceAuth } from './helpers/agents-token'
 
 export const appRouter = router({
   health: publicProcedure.query(() => ({ ok: true })),

@@ -3,7 +3,11 @@ import type { AiModel, AiProvider, Plan } from '@repo/db'
 import type { UnitOfWork } from '../../shared/unit-of-work.ts'
 import { activeSubscriptionWithPlanArgs } from '../active-subscription.ts'
 import type { PlanFeatures } from '../dto/billing.dto.ts'
-import { getPlanDisplayName, parsePageHistoryDays } from '../dto/billing.dto.ts'
+import {
+  getPlanDisplayName,
+  parseMeetingsEnabled,
+  parsePageHistoryDays,
+} from '../dto/billing.dto.ts'
 
 function planToFeatures(plan: Plan): PlanFeatures {
   const isPaid = plan.slug !== 'personal'
@@ -22,7 +26,9 @@ function planToFeatures(plan: Plan): PlanFeatures {
     customAiProvidersEnabled: plan.customAiProvidersEnabled,
     prioritySupport: plan.prioritySupport,
     developerSpaceEnabled: plan.developerSpaceEnabled,
-    publicSitesEnabled: Array.isArray(plan.features) && (plan.features as string[]).includes('publicSites'),
+    publicSitesEnabled:
+      Array.isArray(plan.features) && (plan.features as string[]).includes('publicSites'),
+    meetingsEnabled: parseMeetingsEnabled(plan.features),
     pageHistoryDays: parsePageHistoryDays(plan.features, isPaid),
   }
 }
@@ -43,7 +49,9 @@ export class BillingRepository {
       select: { createdById: true },
     })
     if (!workspace?.createdById) {
-      const personal = await this.uow.client().plan.findUniqueOrThrow({ where: { slug: 'personal' } })
+      const personal = await this.uow
+        .client()
+        .plan.findUniqueOrThrow({ where: { slug: 'personal' } })
       return planToFeatures(personal)
     }
     const sub = await this.uow.client().subscription.findFirst({
@@ -52,7 +60,9 @@ export class BillingRepository {
       include: { plan: true },
     })
     if (!sub) {
-      const personal = await this.uow.client().plan.findUniqueOrThrow({ where: { slug: 'personal' } })
+      const personal = await this.uow
+        .client()
+        .plan.findUniqueOrThrow({ where: { slug: 'personal' } })
       return planToFeatures(personal)
     }
     return planToFeatures(sub.plan)
@@ -98,7 +108,9 @@ export class BillingRepository {
     })
   }
 
-  async findWorkspaceOwner(workspaceId: string): Promise<{ createdById: string | null; createdAt: Date } | null> {
+  async findWorkspaceOwner(
+    workspaceId: string,
+  ): Promise<{ createdById: string | null; createdAt: Date } | null> {
     return this.uow.client().workspace.findUnique({
       where: { id: workspaceId },
       select: { createdById: true, createdAt: true },

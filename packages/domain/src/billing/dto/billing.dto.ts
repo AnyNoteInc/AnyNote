@@ -17,6 +17,12 @@ export type PlanFeatures = {
   developerSpaceEnabled: boolean
   publicSitesEnabled: boolean
   /**
+   * Meeting notes / transcription. Derived from a `"meetings"` token in the
+   * `Plan.features` JSON array (the `publicSites` precedent) — enabled on the
+   * paid tiers only. Gates `meeting.create`, the upload, and the agents calls.
+   */
+  meetingsEnabled: boolean
+  /**
    * Page-revision retention window in days, or `null` for unlimited.
    * Parsed from `Plan.features` JSON: an entry `"pageHistory:30"` → 30,
    * `"pageHistory:unlimited"` → null. When absent, the default depends on
@@ -47,6 +53,15 @@ export function parsePageHistoryDays(features: unknown, isPaid: boolean): number
     }
   }
   return isPaid ? null : DEFAULT_FREE_PAGE_HISTORY_DAYS
+}
+
+/**
+ * Whether a plan's `features` JSON array enables meeting notes / transcription
+ * (a `"meetings"` token). Mirrors the `publicSites` flag derivation; a
+ * non-array / non-string-entry value reads as disabled.
+ */
+export function parseMeetingsEnabled(features: unknown): boolean {
+  return Array.isArray(features) && features.includes('meetings')
 }
 
 export function getPlanDisplayName(plan: Pick<Plan, 'slug' | 'name'>): string {

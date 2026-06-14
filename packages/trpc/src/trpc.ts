@@ -10,7 +10,7 @@ type YookassaClientLike = {
 }
 
 /** apps/web injects the real runner; tests/RSC default to a no-op. */
-export type JobRunnerPort = { kick(jobId: string, kind: 'import' | 'export'): void }
+export type JobRunnerPort = { kick(jobId: string, kind: 'import' | 'export' | 'meeting'): void }
 
 const NOOP_JOBS: JobRunnerPort = { kick: () => {} }
 

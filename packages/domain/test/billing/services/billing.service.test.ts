@@ -22,19 +22,28 @@ function features(overrides: Partial<PlanFeatures> = {}): PlanFeatures {
     prioritySupport: true,
     developerSpaceEnabled: true,
     publicSitesEnabled: false,
+    meetingsEnabled: false,
     pageHistoryDays: null,
     ...overrides,
   }
 }
 
-function makeRepo(overrides: Partial<Record<keyof BillingRepository, ReturnType<typeof vi.fn>>> = {}) {
+function makeRepo(
+  overrides: Partial<Record<keyof BillingRepository, ReturnType<typeof vi.fn>>> = {},
+) {
   return {
-    findActiveSubscriptionWithPlan: vi.fn(async () => ({ id: 's1', plan: { slug: 'pro', name: 'Pro' } })),
+    findActiveSubscriptionWithPlan: vi.fn(async () => ({
+      id: 's1',
+      plan: { slug: 'pro', name: 'Pro' },
+    })),
     getWorkspaceFeatures: vi.fn(async () => features()),
     findPlansUpToSortOrder: vi.fn(async () => [{ slug: 'personal' }, { slug: 'pro' }]),
     findAvailableAiModels: vi.fn(async () => [{ id: 'm1' }]),
     findAvailableEmbeddingModels: vi.fn(async () => [{ id: 'e1' }]),
-    findWorkspaceOwner: vi.fn(async () => ({ createdById: 'owner1', createdAt: new Date('2026-01-01') })),
+    findWorkspaceOwner: vi.fn(async () => ({
+      createdById: 'owner1',
+      createdAt: new Date('2026-01-01'),
+    })),
     countOlderWorkspaces: vi.fn(async () => 0),
     ...overrides,
   } as unknown as BillingRepository
@@ -48,7 +57,9 @@ describe('BillingService.getActivePlan', () => {
   })
 
   it('throws when the user has no active subscription', async () => {
-    const svc = new BillingService(makeRepo({ findActiveSubscriptionWithPlan: vi.fn(async () => null) }))
+    const svc = new BillingService(
+      makeRepo({ findActiveSubscriptionWithPlan: vi.fn(async () => null) }),
+    )
     await expect(svc.getActivePlan('u1')).rejects.toThrow('User u1 has no active subscription')
   })
 })
@@ -66,7 +77,9 @@ describe('BillingService.getAvailableAiModels', () => {
 
 describe('BillingService.requireWritableWorkspace', () => {
   it('returns without throwing when maxWorkspaces is unlimited (null)', async () => {
-    const svc = new BillingService(makeRepo({ getWorkspaceFeatures: vi.fn(async () => features({ maxWorkspaces: null })) }))
+    const svc = new BillingService(
+      makeRepo({ getWorkspaceFeatures: vi.fn(async () => features({ maxWorkspaces: null })) }),
+    )
     await expect(svc.requireWritableWorkspace('w1')).resolves.toBeUndefined()
   })
 
