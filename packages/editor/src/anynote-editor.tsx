@@ -15,6 +15,11 @@ import { DrawioEditorDialog } from './components/drawio-editor-dialog'
 import { EmbedUrlPopover } from './components/embed-url-popover'
 import { FileUploadPopover } from './components/file-upload-popover'
 import { FloatingToolbar } from './components/floating-toolbar'
+import {
+  InlineAiPopover,
+  inlineAiRenderPreview,
+  type InlineAiCapturedRange,
+} from './components/inline-ai-popover'
 import { MarkdownUploadPopover } from './components/markdown-upload-popover'
 import { MentionMenuPopover } from './components/mention-menu-popover'
 import type { MentionMenuPopoverHandle } from './components/mention-menu-popover'
@@ -115,6 +120,10 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
 
   const [popover, setPopover] = useState<OpenPopover | null>(null)
   const [drawioCreate, setDrawioCreate] = useState<{ range: SlashRange } | null>(null)
+  // The inline-AI action popover: opened by the «Спросить AI» bubble-menu button
+  // with the selection captured BEFORE the click (the toolbar passes the range +
+  // text + anchor rect via editor.storage.ai.onAskAi).
+  const [aiCapture, setAiCapture] = useState<InlineAiCapturedRange | null>(null)
 
   const slashClientRectRef = useRef<() => DOMRect>(() => new DOMRect(0, 0, 0, 0))
 
@@ -389,6 +398,8 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
         renderSyncedBlock: props.renderSyncedBlock,
         pageId: props.pageId,
         bookmarkPreview: props.bookmarkPreview,
+        askAI: props.askAI,
+        inlineAiRenderPreview,
       }),
       onCreate: ({ editor: ed }) => {
         editorInstanceRef.current = ed
@@ -422,6 +433,18 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
       onCreateComment: props.onCreateComment,
     }
   }, [editor, props.canComment, props.onCreateComment])
+
+  // Keep editor.storage.ai in sync with the injected bridge (the extension's
+  // onCreate seeds `askAI`; here we refresh it and add `onAskAi`, which the
+  // bubble-menu button calls to open the action popover). Mirrors the comments
+  // storage block.
+  useEffect(() => {
+    if (!editor) return
+    ;(editor.storage as unknown as Record<string, unknown>).ai = {
+      askAI: props.askAI ?? null,
+      onAskAi: (captured: InlineAiCapturedRange) => setAiCapture(captured),
+    }
+  }, [editor, props.askAI])
 
   const anchorEl = popover?.anchorEl ?? null
   const range = popover?.range ?? null
@@ -502,6 +525,13 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
               setDrawioCreate(null)
             }}
             onCancel={() => setDrawioCreate(null)}
+          />
+          <InlineAiPopover
+            editor={editor}
+            open={aiCapture != null}
+            captured={aiCapture}
+            askAI={props.askAI ?? null}
+            onClose={() => setAiCapture(null)}
           />
         </>
       ) : null}

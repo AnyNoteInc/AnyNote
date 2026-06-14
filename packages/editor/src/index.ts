@@ -21,6 +21,9 @@ export type { Editor, JSONContent } from '@tiptap/core'
 export type {
   AnyNoteEditorProps,
   AnyNoteEditorUser,
+  AskAIArgs,
+  AskAICallback,
+  AskAIHandle,
   CommentThreadAnchor,
   MentionLookupItem,
   PageLookupItem,

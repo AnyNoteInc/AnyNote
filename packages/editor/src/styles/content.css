@@ -806,3 +806,78 @@
   box-shadow: 0 0 0 2px #ffb300;
   border-radius: 2px;
 }
+
+/* Inline AI («Спросить AI») streaming preview. A LOCAL decoration only — the
+   source range is tinted while a transform is pending; the preview box + the
+   accept/retry/discard toolbar render just after the selection. None of this is
+   written to Yjs until «Принять». */
+.anynote-editor .anynote-inline-ai-source {
+  background: color-mix(in srgb, #1976d2 14%, transparent);
+  border-radius: 2px;
+}
+
+.anynote-editor .anynote-inline-ai-preview {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 520px;
+  margin: 4px 0;
+  padding: 10px 12px;
+  border: 1px solid color-mix(in srgb, #1976d2 40%, transparent);
+  border-radius: 8px;
+  background: color-mix(in srgb, #1976d2 6%, transparent);
+  vertical-align: top;
+  white-space: normal;
+  user-select: none;
+}
+
+.anynote-editor .anynote-inline-ai-preview[data-status='error'] {
+  border-color: color-mix(in srgb, #d32f2f 50%, transparent);
+  background: color-mix(in srgb, #d32f2f 6%, transparent);
+}
+
+.anynote-editor .anynote-inline-ai-preview__body {
+  font-size: 0.92em;
+  line-height: 1.45;
+  color: var(--editor-text, currentColor);
+  white-space: pre-wrap;
+}
+
+.anynote-editor .anynote-inline-ai-preview__body[data-error='true'] {
+  color: #d32f2f;
+}
+
+.anynote-editor .anynote-inline-ai-preview__toolbar {
+  display: flex;
+  gap: 6px;
+}
+
+.anynote-editor .anynote-inline-ai-preview__btn {
+  font: inherit;
+  font-size: 0.82em;
+  padding: 3px 10px;
+  border-radius: 6px;
+  border: 1px solid color-mix(in srgb, currentColor 24%, transparent);
+  background: transparent;
+  color: var(--editor-text-muted, rgba(0, 0, 0, 0.6));
+  cursor: pointer;
+}
+
+.anynote-editor .anynote-inline-ai-preview__btn:hover {
+  background: color-mix(in srgb, currentColor 8%, transparent);
+}
+
+.anynote-editor .anynote-inline-ai-preview__btn--primary {
+  border-color: #1976d2;
+  background: #1976d2;
+  color: #fff;
+}
+
+.anynote-editor .anynote-inline-ai-preview__btn--primary:hover {
+  background: #1565c0;
+}
+
+.anynote-editor .anynote-inline-ai-preview__btn[disabled] {
+  opacity: 0.5;
+  cursor: default;
+}

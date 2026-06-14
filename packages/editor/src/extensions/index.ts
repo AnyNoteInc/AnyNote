@@ -37,7 +37,7 @@ import { buildFileUpload } from './file-upload'
 import { buildImagePaste } from './image-paste'
 import { buildUrlPaste, type PreviewFetch } from './url-paste'
 import { HiddenText } from './hidden-text'
-import { InlineAI } from './inline-ai'
+import { InlineAI, type InlineAiRenderPreview } from './inline-ai'
 import { PageLink } from './page-link'
 import { Reminder } from './reminder'
 import { DateNode } from './date'
@@ -95,6 +95,11 @@ export type BuildExtensionsOptions = {
   // extension exposes it on editor.storage.ai for the bubble-menu button + drives
   // the local streaming-preview decoration. Absent → the button is hidden.
   askAI?: AskAICallback
+  // The widget renderer for the inline-AI streaming preview (the MUI-light DOM
+  // toolbar). Lives in the React layer (components/inline-ai-popover) so the
+  // schema-only extensions barrel stays free of UI imports; anynote-editor passes
+  // it in. Absent → the plugin falls back to a bare text span.
+  inlineAiRenderPreview?: InlineAiRenderPreview
 }
 
 export const buildExtensions = (opts: BuildExtensionsOptions) => [
@@ -208,5 +213,8 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   Tab,
   DropPlacement,
   Comments.configure({ onOpenThread: opts.onOpenThread }),
-  InlineAI.configure({ askAI: opts.askAI ?? null }),
+  InlineAI.configure({
+    askAI: opts.askAI ?? null,
+    renderPreview: opts.inlineAiRenderPreview ?? null,
+  }),
 ]

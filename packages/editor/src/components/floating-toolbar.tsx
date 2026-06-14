@@ -9,6 +9,7 @@ import LinkIcon from '@mui/icons-material/Link'
 import LinkOffIcon from '@mui/icons-material/LinkOff'
 import StrikethroughSIcon from '@mui/icons-material/StrikethroughS'
 import ChatBubbleOutlineIcon from '@mui/icons-material/ChatBubbleOutline'
+import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
 import {
   Button,
   Dialog,
@@ -32,9 +33,40 @@ import { useEffect, useRef, useState } from 'react'
 import { attachLinkClickHandler } from '../extensions/link-click-handler'
 import { selectionToAnchor } from '../comment-anchor'
 import type { CommentsStorage } from '../extensions/comments'
+import type { InlineAiCapturedRange } from './inline-ai-popover'
+import type { AskAICallback } from '../types'
 import { normalizeLinkHref } from '../link-href'
 
 type Props = { editor: Editor }
+
+// The inline-AI capability injected onto `editor.storage.ai` (the comments-storage
+// precedent). `askAI` gates the button; `onAskAi` opens the action popover that
+// anynote-editor mounts as a sibling, fed the captured selection range + anchor.
+type AiStorage = {
+  askAI?: AskAICallback | null
+  onAskAi?: (captured: InlineAiCapturedRange) => void
+}
+
+function readAiStorage(editor: Editor): AiStorage | undefined {
+  return (editor.storage as unknown as { ai?: AiStorage }).ai
+}
+
+/** A virtual anchor at the selection's client rect (the slash-popover precedent). */
+function selectionRectAnchor(editor: Editor): InlineAiCapturedRange['anchorEl'] {
+  const { from, to } = editor.state.selection
+  try {
+    const start = editor.view.coordsAtPos(from)
+    const end = editor.view.coordsAtPos(to)
+    const left = Math.min(start.left, end.left)
+    const top = Math.min(start.top, end.top)
+    const right = Math.max(start.right, end.right)
+    const bottom = Math.max(start.bottom, end.bottom)
+    const rect = new DOMRect(left, top, right - left, bottom - top)
+    return { getBoundingClientRect: () => rect }
+  } catch {
+    return null
+  }
+}
 
 type TextToolbarSelection = {
   empty: boolean
@@ -126,15 +158,27 @@ export function FloatingToolbar({ editor }: Props) {
   const [linkValue, setLinkValue] = useState('')
   const [toolbarState, setToolbarState] = useState(() => readToolbarState(editor))
   const lastCommentAnchorRef = useRef<ReturnType<typeof selectionToAnchor>>(null)
+  // Capture the selection range + text + anchor rect BEFORE the «Спросить AI»
+  // click — Tiptap collapses the selection on the toolbar mousedown, and the
+  // selection IS the payload (the lastCommentAnchorRef precedent).
+  const lastAiCaptureRef = useRef<InlineAiCapturedRange | null>(null)
 
   useEffect(() => {
     const updateToolbarState = () => {
       setToolbarState(readToolbarState(editor))
       if (editor.state.selection.empty || editor.state.selection instanceof NodeSelection) {
         lastCommentAnchorRef.current = null
+        lastAiCaptureRef.current = null
         return
       }
       lastCommentAnchorRef.current = selectionToAnchor(editor.state) ?? lastCommentAnchorRef.current
+      const { from, to } = editor.state.selection
+      lastAiCaptureRef.current = {
+        from,
+        to,
+        selectedText: editor.state.doc.textBetween(from, to, ' '),
+        anchorEl: selectionRectAnchor(editor),
+      }
     }
 
     updateToolbarState()
@@ -298,6 +342,28 @@ export function FloatingToolbar({ editor }: Props) {
                   sx={{ color: 'text.secondary' }}
                 >
                   <ChatBubbleOutlineIcon fontSize="small" />
+                </IconButton>
+              </Tooltip>
+            ) : null}
+            {readAiStorage(editor)?.askAI ? (
+              <Tooltip title="Спросить AI">
+                <IconButton
+                  size="small"
+                  onMouseDown={(e) => e.preventDefault()}
+                  onClick={() => {
+                    const { from, to } = editor.state.selection
+                    const captured: InlineAiCapturedRange = lastAiCaptureRef.current ?? {
+                      from,
+                      to,
+                      selectedText: editor.state.doc.textBetween(from, to, ' '),
+                      anchorEl: selectionRectAnchor(editor),
+                    }
+                    readAiStorage(editor)?.onAskAi?.(captured)
+                  }}
+                  aria-label="Спросить AI"
+                  sx={{ color: 'primary.main' }}
+                >
+                  <AutoAwesomeIcon fontSize="small" />
                 </IconButton>
               </Tooltip>
             ) : null}
