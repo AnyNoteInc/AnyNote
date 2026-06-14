@@ -29,6 +29,7 @@ import { peopleRouter } from './routers/people'
 import { identityRouter } from './routers/identity'
 import { securityRouter } from './routers/security'
 import { billingRouter } from './routers/billing'
+import { meetingRouter } from './routers/meeting'
 
 export { createContext, createServerContext } from './trpc'
 export type { Context, JobRunnerPort } from './trpc'
@@ -76,6 +77,7 @@ export const appRouter = router({
   identity: identityRouter,
   security: securityRouter,
   billing: billingRouter,
+  meeting: meetingRouter,
 })
 
 export const createCaller = createCallerFactory(appRouter)
@@ -85,6 +87,11 @@ export type AppRouter = typeof appRouter
 // annotate it directly and avoid tRPC's deep discriminated-union inference (the
 // React-Query inferred shape trips TS2589 on narrowing).
 export type { SyncedBlockReadResult } from './routers/synced-block'
+
+// The typed `meeting.getById`/`getByPage` result, re-exported so the MEETING
+// page renderer + the MeetingNotesBlock embed can annotate it directly (same
+// reason as SyncedBlockReadResult — avoid TS2589 on the inferred union).
+export type { MeetingReadResult, MeetingSegment, MeetingActionItem } from './routers/meeting'
 
 export { getCurrentConsents, hasAllRequiredConsents, type CurrentConsent } from './lib/consents'
 export { setDocumentVersionResolver } from './lib/document-versions'

@@ -13,6 +13,7 @@ import { mapDomain } from '../helpers/map-domain'
 import { domain as domainSvc } from '../domain'
 import { pageShareRouter } from './page-share'
 import { pageHistoryRouter } from './page-history'
+import { freeMeetingPageRecording } from './meeting'
 
 // ── Router ───────────────────────────────────────────────────────────────────
 
@@ -167,12 +168,10 @@ export const pageRouter = router({
       },
     ),
 
-  archive: protectedProcedure
-    .input(domain.archivePageInput)
-    .mutation(async ({ ctx, input }) => {
-      await requireWritableWorkspace(input.workspaceId)
-      return mapDomain(() => domainSvc.pages.archive(ctx.user.id, input))
-    }),
+  archive: protectedProcedure.input(domain.archivePageInput).mutation(async ({ ctx, input }) => {
+    await requireWritableWorkspace(input.workspaceId)
+    return mapDomain(() => domainSvc.pages.archive(ctx.user.id, input))
+  }),
 
   unarchive: protectedProcedure
     .input(domain.unarchivePageInput)
@@ -212,17 +211,20 @@ export const pageRouter = router({
       return mapDomain(() => domainSvc.pages.softDelete(ctx.user.id, input))
     }),
 
-  restore: protectedProcedure
-    .input(domain.restorePageInput)
-    .mutation(async ({ ctx, input }) => {
-      await requireWritableWorkspace(input.workspaceId)
-      return mapDomain(() => domainSvc.pages.restore(ctx.user.id, input))
-    }),
+  restore: protectedProcedure.input(domain.restorePageInput).mutation(async ({ ctx, input }) => {
+    await requireWritableWorkspace(input.workspaceId)
+    return mapDomain(() => domainSvc.pages.restore(ctx.user.id, input))
+  }),
 
   hardDelete: protectedProcedure
     .input(domain.hardDeletePageInput)
     .mutation(async ({ ctx, input }) => {
       await requireWritableWorkspace(input.workspaceId)
+      // A MEETING page owns a recording in S3 that the domain layer cannot reach
+      // (spec §5). Free it (S3-first) BEFORE the domain purge — the domain
+      // cascade only drops the artifact DB rows, never the S3 object or the
+      // recording File. Idempotent: a non-meeting page is a silent no-op.
+      await freeMeetingPageRecording(ctx.prisma, input.id)
       return mapDomain(() => domainSvc.pages.hardDelete(ctx.user.id, input))
     }),
 
@@ -250,20 +252,25 @@ export const pageRouter = router({
       })
     }),
 
-  emptyTrash: protectedProcedure
-    .input(domain.emptyTrashInput)
-    .mutation(async ({ ctx, input }) => {
-      await requireWritableWorkspace(input.workspaceId)
-      return mapDomain(() => domainSvc.pages.emptyTrash(ctx.user.id, input))
-    }),
+  emptyTrash: protectedProcedure.input(domain.emptyTrashInput).mutation(async ({ ctx, input }) => {
+    await requireWritableWorkspace(input.workspaceId)
+    // Free the S3 recordings for every trashed MEETING page before the purge —
+    // the domain cascade drops the artifact rows but not the S3 objects (spec §5).
+    const trashedMeetings = await ctx.prisma.page.findMany({
+      where: { workspaceId: input.workspaceId, deletedAt: { not: null }, type: 'MEETING' },
+      select: { id: true },
+    })
+    for (const { id } of trashedMeetings) {
+      await freeMeetingPageRecording(ctx.prisma, id)
+    }
+    return mapDomain(() => domainSvc.pages.emptyTrash(ctx.user.id, input))
+  }),
 
-  move: protectedProcedure
-    .input(domain.movePageInput)
-    .mutation(async ({ ctx, input }) => {
-      const page = await assertPageAccess(ctx, input.pageId)
-      await requireWritableWorkspace(page.workspaceId)
-      return mapDomain(() => domainSvc.pages.move(ctx.user.id, input))
-    }),
+  move: protectedProcedure.input(domain.movePageInput).mutation(async ({ ctx, input }) => {
+    const page = await assertPageAccess(ctx, input.pageId)
+    await requireWritableWorkspace(page.workspaceId)
+    return mapDomain(() => domainSvc.pages.move(ctx.user.id, input))
+  }),
 
   moveToCollection: protectedProcedure
     .input(domain.moveToCollectionInput)
@@ -280,16 +287,14 @@ export const pageRouter = router({
       return mapDomain(() => domainSvc.pages.duplicate(ctx.user.id, input))
     }),
 
-  reorder: protectedProcedure
-    .input(domain.reorderPageInput)
-    .mutation(async ({ ctx, input }) => {
-      const page = await ctx.prisma.page.findFirst({
-        where: { id: input.pageId, deletedAt: null },
-        select: { workspaceId: true },
-      })
-      if (page) await requireWritableWorkspace(page.workspaceId)
-      return mapDomain(() => domainSvc.pages.reorder(ctx.user.id, input))
-    }),
+  reorder: protectedProcedure.input(domain.reorderPageInput).mutation(async ({ ctx, input }) => {
+    const page = await ctx.prisma.page.findFirst({
+      where: { id: input.pageId, deletedAt: null },
+      select: { workspaceId: true },
+    })
+    if (page) await requireWritableWorkspace(page.workspaceId)
+    return mapDomain(() => domainSvc.pages.reorder(ctx.user.id, input))
+  }),
 
   addFavorite: protectedProcedure
     .input(domain.addFavoriteInput)

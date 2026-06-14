@@ -39,6 +39,7 @@
     "@repo/domain": "workspace:*",
     "@repo/mail": "workspace:*",
     "@repo/notifications": "workspace:*",
+    "@repo/storage": "workspace:*",
     "@repo/telegram": "workspace:*",
     "@repo/webhooks": "workspace:*",
     "@repo/yookassa": "workspace:*",
