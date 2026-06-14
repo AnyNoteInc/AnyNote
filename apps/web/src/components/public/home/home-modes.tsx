@@ -3,7 +3,12 @@ import { eyebrowSx, sectionTitleSx, homeTokens } from './home-tokens'
 
 const t = homeTokens.palette
 
-type Mode = { icon: string; title: string; body: string; mini: 'doc' | 'canvas' | 'chat' | 'share' }
+type Mode = {
+  icon: string
+  title: string
+  body: string
+  mini: 'doc' | 'database' | 'dashboard' | 'canvas' | 'chat' | 'share'
+}
 const modes: Mode[] = [
   {
     icon: '📄',
@@ -12,21 +17,33 @@ const modes: Mode[] = [
     mini: 'doc',
   },
   {
+    icon: '🗂️',
+    title: 'Базы данных',
+    body: 'Таблицы, доски и календарь на одном источнике — свойства, фильтры, формулы и связи.',
+    mini: 'database',
+  },
+  {
+    icon: '📊',
+    title: 'Дашборды',
+    body: 'Графики и виджеты собирают данные баз в одном месте с общими фильтрами и режимом просмотра.',
+    mini: 'dashboard',
+  },
+  {
     icon: '🎨',
     title: 'Схемы и холсты',
     body: 'Сложные процессы можно объяснять визуально рядом с текстом — без отдельной Miro.',
     mini: 'canvas',
   },
   {
-    icon: '💬',
+    icon: '✦',
     title: 'ИИ-чаты',
     body: 'Помощник отвечает по материалам пространства и сохраняет контекст для следующего шага.',
     mini: 'chat',
   },
   {
-    icon: '🔗',
-    title: 'Публичные ссылки',
-    body: 'Клиент видит чистую страницу с нужными материалами — без пересылки десятков вложений.',
+    icon: '🌐',
+    title: 'Ссылки и сайты',
+    body: 'Клиент видит чистую страницу или целый публичный сайт — без пересылки десятков вложений.',
     mini: 'share',
   },
 ]
@@ -55,13 +72,13 @@ export function HomeModes() {
           <Stack spacing={2} sx={{ position: { lg: 'sticky' }, top: { lg: 96 } }}>
             <Typography sx={eyebrowSx}>РАБОЧЕЕ ПРОСТРАНСТВО</Typography>
             <Typography component="h2" sx={sectionTitleSx}>
-              Один продукт — <em>четыре режима работы</em>
+              Один продукт — <em>шесть режимов работы</em>
             </Typography>
             <Typography
               sx={{ color: 'text.secondary', fontSize: 16, lineHeight: 1.6, maxWidth: 460 }}
             >
-              Текст, схемы, ИИ-чаты и публичные ссылки в одном дереве страниц. Не нужно
-              переключаться между четырьмя инструментами.
+              Текст, базы данных, дашборды, схемы, ИИ-чаты и публикация в одном дереве страниц. Не
+              нужно переключаться между шестью разными инструментами.
             </Typography>
           </Stack>
 
@@ -161,6 +178,135 @@ function ModeMini({ variant }: { variant: Mode['mini'] }) {
             }}
           />
         ))}
+      </Box>
+    )
+  }
+  if (variant === 'database') {
+    const cols = ['38%', '22%', '18%'] as const
+    const cells = [
+      { id: 'r1', tag: t.orange },
+      { id: 'r2', tag: 'rgba(0,0,0,0.25)' },
+      { id: 'r3', tag: t.orangeWarm },
+    ] as const
+    return (
+      <Stack spacing={0} sx={{ ...wrapper, p: 0, justifyContent: 'flex-start' }}>
+        <Box
+          sx={{
+            display: 'grid',
+            gridTemplateColumns: `${cols[0]} ${cols[1]} ${cols[2]} 1fr`,
+            gap: 0.75,
+            px: 1.25,
+            py: 0.875,
+            bgcolor: '#fff',
+            borderBottom: `1px solid ${homeTokens.palette.line}`,
+          }}
+        >
+          {[0, 1, 2, 3].map((i) => (
+            <Box
+              key={`h-${i}`}
+              sx={{ height: 5, borderRadius: 0.25, bgcolor: 'rgba(0,0,0,0.22)' }}
+            />
+          ))}
+        </Box>
+        {cells.map((row) => (
+          <Box
+            key={row.id}
+            sx={{
+              display: 'grid',
+              gridTemplateColumns: `${cols[0]} ${cols[1]} ${cols[2]} 1fr`,
+              gap: 0.75,
+              alignItems: 'center',
+              px: 1.25,
+              py: 0.75,
+              borderBottom: `1px solid ${homeTokens.palette.line}`,
+            }}
+          >
+            <Box sx={{ height: 6, borderRadius: 0.25, bgcolor: 'rgba(0,0,0,0.12)' }} />
+            <Box
+              sx={{
+                height: 11,
+                borderRadius: 999,
+                bgcolor: row.tag,
+                opacity: 0.85,
+                justifySelf: 'start',
+                width: '100%',
+              }}
+            />
+            <Box sx={{ height: 6, borderRadius: 0.25, bgcolor: 'rgba(0,0,0,0.1)' }} />
+            <Box sx={{ height: 6, borderRadius: 0.25, bgcolor: 'rgba(0,0,0,0.08)' }} />
+          </Box>
+        ))}
+      </Stack>
+    )
+  }
+  if (variant === 'dashboard') {
+    const bars = ['46%', '72%', '58%', '90%', '64%'] as const
+    return (
+      <Box sx={{ ...wrapper, display: 'flex', flexDirection: 'column', gap: 1 }}>
+        <Stack direction="row" spacing={1} sx={{ alignItems: 'stretch' }}>
+          <Box
+            sx={{
+              flex: 1,
+              bgcolor: '#fff',
+              border: `1px solid ${homeTokens.palette.line}`,
+              borderRadius: 0.75,
+              p: '6px 8px',
+            }}
+          >
+            <Box
+              sx={{ height: 4, width: '55%', borderRadius: 0.25, bgcolor: 'rgba(0,0,0,0.18)', mb: 0.75 }}
+            />
+            <Typography
+              sx={{ fontFamily: homeTokens.fonts.mono, fontSize: 15, color: t.orange, lineHeight: 1 }}
+            >
+              128
+            </Typography>
+          </Box>
+          <Box
+            aria-hidden
+            sx={{
+              width: 34,
+              bgcolor: '#fff',
+              border: `1px solid ${homeTokens.palette.line}`,
+              borderRadius: 0.75,
+              display: 'grid',
+              placeItems: 'center',
+            }}
+          >
+            <Box
+              sx={{
+                width: 22,
+                height: 22,
+                borderRadius: '50%',
+                background: `conic-gradient(${t.orange} 0 62%, rgba(0,0,0,0.12) 62% 100%)`,
+              }}
+            />
+          </Box>
+        </Stack>
+        <Box
+          sx={{
+            flex: 1,
+            display: 'flex',
+            alignItems: 'flex-end',
+            gap: 0.75,
+            bgcolor: '#fff',
+            border: `1px solid ${homeTokens.palette.line}`,
+            borderRadius: 0.75,
+            p: '8px 9px',
+          }}
+        >
+          {bars.map((h, i) => (
+            <Box
+              key={`bar-${i}`}
+              sx={{
+                flex: 1,
+                height: h,
+                borderRadius: '2px 2px 0 0',
+                bgcolor: i === 3 ? t.orange : 'rgba(0,0,0,0.16)',
+              }}
+            />
+          ))}
+        </Box>
       </Box>
     )
   }

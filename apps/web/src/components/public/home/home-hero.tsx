@@ -102,8 +102,9 @@ export function HomeHero({ primaryHref, primaryLabel, showSecondary }: Props) {
                 maxWidth: 480,
               }}
             >
-              Соберите документы, заметки, схемы и файлы в одном пространстве. «Любые заметки»
-              отвечает по вашим материалам и помогает быстро передать контекст команде или клиенту.
+              Документы, базы данных, дашборды и файлы в одном пространстве. «Любые заметки»
+              отвечает по вашим материалам, ведёт историю версий и помогает быстро передать контекст
+              команде или клиенту.
             </Typography>
             <Stack direction={{ xs: 'column', sm: 'row' }} spacing={1.5}>
               <Button
@@ -145,7 +146,7 @@ export function HomeHero({ primaryHref, primaryLabel, showSecondary }: Props) {
               flexWrap="wrap"
               sx={{ pt: 1.5, columnGap: 2.5, rowGap: 1, color: 'text.secondary' }}
             >
-              {['Без банковской карты', 'Публичные ссылки', 'ИИ по вашим данным'].map((label) => (
+              {['Без банковской карты', 'Базы и дашборды', 'ИИ по вашим данным'].map((label) => (
                 <Stack key={label} direction="row" alignItems="center" spacing={1}>
                   <Box
                     aria-hidden
@@ -305,16 +306,16 @@ function PreviewSidebar() {
       </Stack>
       <NavRow icon="🔍" label="Поиск и чаты" />
       <NavRow icon="⚙" label="Настройки" />
-      <SectionLabel>Избранное</SectionLabel>
-      <TreeItem chev="▾" emoji="⭐" label="Roadmap 2026" />
-      <SectionLabel right="+">Страницы</SectionLabel>
-      <TreeItem chev="▸" emoji="📝" label="Заметки встреч" />
+      <SectionLabel right="+">Командное</SectionLabel>
       <TreeItem chev="▾" emoji="📄" label="Стратегия 2026" />
       <TreeItem nested active emoji="🎯" label="Q2 цели" />
-      <TreeItem nested emoji="📊" label="Метрики" />
-      <TreeItem chev="▸" emoji="🎨" label="Архитектура" />
-      <TreeItem chev="▸" emoji="🌳" label="Команда" />
+      <TreeItem nested emoji="📊" label="Дашборд" />
+      <TreeItem chev="▸" emoji="🗂️" label="База задач" />
+      <TreeItem chev="▸" emoji="📝" label="Заметки встреч" />
+      <SectionLabel right="+">Личное</SectionLabel>
+      <TreeItem chev="▸" emoji="⭐" label="Roadmap 2026" />
       <Box sx={{ mt: 1.75, pt: 1, borderTop: `1px solid ${t.line}` }}>
+        <NavRow icon="🗄" label="Архив" />
         <NavRow icon="🗑" label="Корзина" />
       </Box>
     </Box>

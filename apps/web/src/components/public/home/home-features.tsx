@@ -18,8 +18,8 @@ export function HomeFeatures() {
           <Typography
             sx={{ color: 'text.secondary', fontSize: 16, lineHeight: 1.6, maxWidth: 620 }}
           >
-            Шесть свойств, на которые мы зашили инженерные часы, чтобы продукт был приятным в
-            ежедневной работе.
+            Детали, в которые вложены инженерные часы, чтобы продукт был приятным в ежедневной
+            работе.
           </Typography>
         </Stack>
 

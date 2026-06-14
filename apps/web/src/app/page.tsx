@@ -11,6 +11,7 @@ import { websiteSchema } from '@/lib/seo/schemas/website'
 import { HomeHero } from '@/components/public/home/home-hero'
 import { HomeMarketFit } from '@/components/public/home/home-market-fit'
 import { HomeModes } from '@/components/public/home/home-modes'
+import { HomeCapabilities } from '@/components/public/home/home-capabilities'
 import { HomeSearch } from '@/components/public/home/home-search'
 import { HomeFeatures } from '@/components/public/home/home-features'
 import { HomePricing } from '@/components/public/home/home-pricing'
@@ -42,6 +43,7 @@ export default async function HomePage() {
         <HomeHero primaryHref={primaryHref} primaryLabel={primaryLabel} showSecondary={!session} />
         <HomeMarketFit />
         <HomeModes />
+        <HomeCapabilities />
         <HomeSearch />
         <HomeFeatures />
         <HomePricing />
