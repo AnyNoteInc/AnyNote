@@ -169,6 +169,7 @@ A new domain service `packages/domain/src/dashboard/` (or `packages/domain/src/d
 ## 10. Honest limitations (state; don't over-promise)
 - Aggregation is in-JS over fetched rows (the EAV/JSON cell model can't push aggregation to Postgres); each widget scans at most MAX_WIDGET_ROWS — a widget over a very large database shows a "first N rows" truncation notice, not a full-database aggregate.
 - No aggregation over computed (FORMULA/ROLLUP) properties in the MVP.
+- DATE group-by buckets by the **exact** cell value (the full ISO timestamp), so each distinct instant becomes its own bucket — there is no day/week/month rollup and no granularity selector. Grouping a DATE column is only useful when its cells already hold day-granular values; richer date bucketing is deliberately out of scope for this MVP.
 - Global filters match by property name + compatible type; they silently skip widgets without a matching property (by design).
 - Charts are bar/line/donut/number only; no scatter/area/heatmap.
 - No live/real-time updates — widgets refetch on load / on demand.

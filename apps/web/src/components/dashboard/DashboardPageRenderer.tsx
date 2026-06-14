@@ -273,12 +273,7 @@ export function DashboardPageRenderer({ pageId, editable = true }: DashboardPage
                   {data.isLoading && !resultById.has(w.id) ? (
                     <CenteredSpinner />
                   ) : (
-                    <WidgetBody
-                      type={w.type}
-                      result={resultById.get(w.id)}
-                      config={w.config}
-                      title={w.title}
-                    />
+                    <WidgetBody type={w.type} result={resultById.get(w.id)} config={w.config} />
                   )}
                 </WidgetFrame>
               </Box>

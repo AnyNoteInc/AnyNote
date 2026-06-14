@@ -256,6 +256,13 @@ export class WidgetAggregationService {
    * buckets follow the option order (+ a trailing empty bucket); for any other
    * non-computed property type the buckets are the distinct stringified cell
    * values (+ an empty bucket).
+   *
+   * KNOWN MVP LIMITATION (spec §10): a DATE group-by buckets by the EXACT
+   * stringified cell value (the full ISO timestamp), so each distinct instant is
+   * its own bucket — there is NO day/week/month rollup. Grouping a DATE column is
+   * therefore only useful when the cells already hold day-granular values. A
+   * granularity selector (bucket by YYYY-MM-DD / month) is deliberately out of
+   * scope for this MVP.
    */
   private bucketAndReduce(
     rows: RowWithPage[],
@@ -314,6 +321,10 @@ export class WidgetAggregationService {
     if (optionById) {
       return typeof raw === 'string' && optionById.has(raw) ? raw : null
     }
+    // Free (non-option) value → its exact string form is the bucket key. For a
+    // DATE cell this is the full ISO timestamp, so distinct instants do NOT roll
+    // up to a shared day/month bucket (the known MVP limitation noted on
+    // `bucketAndReduce` and in spec §10).
     if (typeof raw === 'string' || typeof raw === 'number' || typeof raw === 'boolean') {
       return String(raw)
     }

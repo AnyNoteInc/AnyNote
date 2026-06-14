@@ -23,23 +23,23 @@ interface WidgetBodyProps {
   readonly type: DashboardWidgetType
   readonly result: WidgetDataResult | undefined
   readonly config: WidgetConfig
-  /** The widget's title, used as the stat caption for METRIC/NUMBER. */
-  readonly title?: string | null
 }
 
 /**
  * Dispatch a widget's `WidgetDataResult` to the matching renderer by its type.
  * The data-state handling (no_access/hidden_property/error/truncated) lives in
  * each widget, so this is a thin type→component switch. A still-loading result
- * (`undefined`) renders nothing here (the frame/page owns the spinner).
+ * (`undefined`) renders nothing here (the frame/page owns the spinner). The
+ * widget title is rendered once by the surrounding `WidgetFrame`, so it is not
+ * threaded into the bodies.
  */
-export function WidgetBody({ type, result, config, title }: WidgetBodyProps) {
+export function WidgetBody({ type, result, config }: WidgetBodyProps) {
   if (!result) return null
   switch (type) {
     case 'METRIC':
-      return <MetricWidget result={result} label={title} />
+      return <MetricWidget result={result} />
     case 'NUMBER':
-      return <NumberWidget result={result} label={title} />
+      return <NumberWidget result={result} />
     case 'GROUPED':
       return <GroupedWidget result={result} />
     case 'TABLE':
