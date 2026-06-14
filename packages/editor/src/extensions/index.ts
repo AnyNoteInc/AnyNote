@@ -37,6 +37,7 @@ import { buildFileUpload } from './file-upload'
 import { buildImagePaste } from './image-paste'
 import { buildUrlPaste, type PreviewFetch } from './url-paste'
 import { HiddenText } from './hidden-text'
+import { InlineAI } from './inline-ai'
 import { PageLink } from './page-link'
 import { Reminder } from './reminder'
 import { DateNode } from './date'
@@ -51,6 +52,7 @@ import { AnynoteTextColor } from './text-color'
 import { LINK_HTML_ATTRIBUTES } from '../link-href'
 import type {
   AnyNoteEditorUser,
+  AskAICallback,
   MentionLookupItem,
   SlashCommandItem,
   UploadHandler,
@@ -89,6 +91,10 @@ export type BuildExtensionsOptions = {
   // a «Закладка» paste can async-fill its title/description/image. Tolerated
   // absent — the bookmark stays a bare card until wired.
   bookmarkPreview?: PreviewFetch
+  // apps/web injects the inline-AI streaming bridge (spec §4.3). The InlineAI
+  // extension exposes it on editor.storage.ai for the bubble-menu button + drives
+  // the local streaming-preview decoration. Absent → the button is hidden.
+  askAI?: AskAICallback
 }
 
 export const buildExtensions = (opts: BuildExtensionsOptions) => [
@@ -202,4 +208,5 @@ export const buildExtensions = (opts: BuildExtensionsOptions) => [
   Tab,
   DropPlacement,
   Comments.configure({ onOpenThread: opts.onOpenThread }),
+  InlineAI.configure({ askAI: opts.askAI ?? null }),
 ]

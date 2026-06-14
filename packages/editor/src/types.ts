@@ -4,7 +4,10 @@ import type { PlantumlRenderAuth } from '@repo/plantuml/render-plantuml'
 import type { EmbeddedDatabaseRenderer } from './extensions/embedded-database'
 import type { SyncedBlockRenderer } from './extensions/synced-block'
 
-export type { EmbeddedDatabaseRenderer, EmbeddedDatabaseRenderArgs } from './extensions/embedded-database'
+export type {
+  EmbeddedDatabaseRenderer,
+  EmbeddedDatabaseRenderArgs,
+} from './extensions/embedded-database'
 export type { SyncedBlockRenderer, SyncedBlockRenderArgs } from './extensions/synced-block'
 
 /** The source/view chosen in the apps/web database picker dialog. */
@@ -12,6 +15,59 @@ export type EmbeddedDatabasePick = { sourceId: string; viewId: string | null }
 
 /** The synced block chosen/created in the apps/web synced-block picker dialog. */
 export type SyncedBlockPick = { blockId: string }
+
+// --- Inline AI («Спросить AI») injection (spec §4.3) -----------------------
+//
+// The editor package owns NO tRPC/fetch. apps/web injects an `askAI` closure
+// (page-renderer → AnyNoteEditor → InlineAI extension → editor.storage.ai) that
+// turns a preset action + the current selection into the `/api/ai/inline` SSE
+// stream. The popover calls it and wires the returned handle's callbacks to the
+// InlineAI plugin metas (onToken → appendToken, done → finish, onError → fail);
+// «Принять» applies the accumulated text in one transaction; «Повторить» aborts
+// + re-calls; «Отклонить» clears.
+
+/** What the popover sends when the user picks a preset action on the selection. */
+export type AskAIArgs = {
+  /** The preset action id (the server-side allow-list authority validates it). */
+  action: string
+  /** Start of the selection in the editor doc (informational; range lives in the plugin). */
+  from: number
+  /** End of the selection in the editor doc. */
+  to: number
+  /** The plain text of the selection — the ONLY model context (spec §7.2). */
+  selectedText: string
+  /** Target language for the `translate` action (e.g. 'English'); ignored otherwise. */
+  targetLang?: string
+}
+
+/**
+ * The streaming handle apps/web's bridge returns for one inline-AI request.
+ *
+ * CONTRACT — Task 4 (apps/web `createAskAI`) MUST honor this shape verbatim:
+ *   - `onToken(cb)` registers a callback invoked with each text delta as it
+ *     streams (multiple deltas; the popover folds each into `appendToken`).
+ *     Registering after a delta has already arrived is allowed; the bridge may
+ *     replay or simply emit subsequent deltas — the popover registers
+ *     synchronously before the stream is consumed.
+ *   - `onError(cb)` registers a callback invoked once with a user-facing message
+ *     on a transport / non-OK response (400/403/429 → the spec §4.2 copy). After
+ *     `onError` fires, `done` still resolves (it never rejects) so the popover
+ *     has a single completion path.
+ *   - `done` is a Promise that resolves when the stream has fully ended (success
+ *     OR error OR abort). It NEVER rejects — errors surface via `onError`.
+ *   - `abort()` cancels the in-flight request (real cancellation — it aborts the
+ *     fetch, tearing down the upstream agents generation per spec §7.4). Safe to
+ *     call after completion (no-op). Used by «Повторить»/«Отклонить» and unmount.
+ */
+export type AskAIHandle = {
+  onToken: (cb: (delta: string) => void) => void
+  onError: (cb: (message: string) => void) => void
+  done: Promise<void>
+  abort: () => void
+}
+
+/** apps/web injects this — one call per action-pick, returns a stream handle. */
+export type AskAICallback = (args: AskAIArgs) => AskAIHandle
 
 export type UploadedFile = {
   id: string
@@ -97,6 +153,11 @@ export type AnyNoteEditorProps = {
   // a «Закладка» insert/paste can async-fill its og:title/description/image.
   // Tolerated absent — the bookmark stays a bare card until wired.
   bookmarkPreview?: import('./extensions/url-paste').PreviewFetch
+  // apps/web injects the inline-AI streaming bridge here (spec §4.3). When
+  // present, the «Спросить AI» bubble-menu button appears over a selection and
+  // the action popover streams a preset transform into a local preview. When
+  // absent (public share / read-only / unwired), the button is hidden.
+  askAI?: AskAICallback
 }
 
 export type { CommentThreadAnchor } from './types-comments'
