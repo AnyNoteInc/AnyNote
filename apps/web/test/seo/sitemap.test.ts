@@ -19,9 +19,9 @@ describe('sitemap', () => {
     expect(urls).toContain(`${siteConfig.url}/terms`)
   })
 
-  it('includes the public /changelog page', () => {
+  it('does not include the removed public /changelog page', () => {
     const urls = entries.map((e) => e.url)
-    expect(urls).toContain(`${siteConfig.url}/changelog`)
+    expect(urls).not.toContain(`${siteConfig.url}/changelog`)
   })
 
   it('includes the developer portal pages', () => {
