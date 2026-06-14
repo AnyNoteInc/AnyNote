@@ -30,6 +30,7 @@ import { identityRouter } from './routers/identity'
 import { securityRouter } from './routers/security'
 import { billingRouter } from './routers/billing'
 import { meetingRouter } from './routers/meeting'
+import { dashboardRouter } from './routers/dashboard'
 
 export { createContext, createServerContext } from './trpc'
 export type { Context, JobRunnerPort } from './trpc'
@@ -78,6 +79,7 @@ export const appRouter = router({
   security: securityRouter,
   billing: billingRouter,
   meeting: meetingRouter,
+  dashboard: dashboardRouter,
 })
 
 export const createCaller = createCallerFactory(appRouter)
@@ -92,6 +94,17 @@ export type { SyncedBlockReadResult } from './routers/synced-block'
 // page renderer + the MeetingNotesBlock embed can annotate it directly (same
 // reason as SyncedBlockReadResult — avoid TS2589 on the inferred union).
 export type { MeetingReadResult, MeetingSegment, MeetingActionItem } from './routers/meeting'
+
+// The typed `dashboard.getById`/`getByPage`/`dashboardData` results, re-exported
+// so the DASHBOARD page renderer + widgets can annotate them directly (same
+// reason as the meeting/synced-block unions — avoid TS2589 on the inferred type).
+export type {
+  DashboardReadResult,
+  DashboardDataResult,
+  DashboardWidgetDto,
+  DashboardGlobalFilterDto,
+  DashboardDto,
+} from './routers/dashboard'
 
 export { getCurrentConsents, hasAllRequiredConsents, type CurrentConsent } from './lib/consents'
 export { setDocumentVersionResolver } from './lib/document-versions'
