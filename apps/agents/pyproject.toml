@@ -31,6 +31,7 @@ dependencies = [
     "langdetect>=1.0.9",
     "pyjwt>=2.9",
     "mcp>=1.10",
+    "aioboto3>=15.5.0",
 ]
 
 [dependency-groups]
@@ -83,6 +84,11 @@ plugins = ["pydantic.mypy"]
 module = ["tests.apps.agent.*", "tests.integration.*"]
 disable_error_code = ["no-untyped-def", "no-untyped-call", "type-arg", "call-overload", "union-attr", "arg-type"]
 
+[[tool.mypy.overrides]]
+# aioboto3 (the S3/MinIO async client) ships no type stubs / py.typed marker.
+module = ["aioboto3.*"]
+ignore_missing_imports = true
+
 
 [tool.ruff]
 line-length = 120
@@ -121,6 +127,9 @@ ignore = ["E501"]
 "agents/apps/agent/router.py" = ["B008"]
 # Summary helpers intentionally mirror camelCase MCP tool names.
 "agents/apps/agent/services/tool_registry.py" = ["N802"]
+# Russian canned transcript + summary prompts use intentional Cyrillic letters.
+"agents/apps/transcription/repositories/transcription_factory.py" = ["RUF001"]
+"agents/apps/transcription/use_cases/summarize.py" = ["RUF001"]
 
 [tool.ruff.format]
 quote-style = "single"
