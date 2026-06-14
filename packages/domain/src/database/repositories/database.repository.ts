@@ -471,13 +471,17 @@ export class DatabaseRepository {
   }
 
   /**
-   * Fetch ALL matching rows + cells for grouping (BOARD). No pagination — a
-   * focused board view is bounded in practice (documented MVP limit). Merges the
-   * planner `where` (filters only; grouping/sorting handled in the service).
+   * Fetch matching rows + cells for grouping (BOARD) / dashboard-widget
+   * aggregation. No keyset pagination — a focused board view is bounded in
+   * practice (documented MVP limit). Merges the planner `where` (filters only;
+   * grouping/sorting handled in the service). An optional `take` caps the scan
+   * (the dashboard widget passes `MAX_WIDGET_ROWS + 1` to detect truncation);
+   * BOARD grouping omits it (unbounded, as before).
    */
   async findRowsForGrouping(args: {
     sourceId: string
     where: Prisma.DatabaseRowWhereInput
+    take?: number
   }): Promise<RowWithPage[]> {
     const where: Prisma.DatabaseRowWhereInput = {
       AND: [
@@ -488,6 +492,7 @@ export class DatabaseRepository {
     return this.uow.client().databaseRow.findMany({
       where,
       orderBy: { position: 'asc' },
+      ...(args.take === undefined ? {} : { take: args.take }),
       select: {
         id: true,
         pageId: true,

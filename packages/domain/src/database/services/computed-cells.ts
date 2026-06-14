@@ -61,13 +61,13 @@ const CIRCULAR_ERROR = { __error: 'circular reference' } as const
 
 // ── Aggregation ───────────────────────────────────────────────────────────────
 
-function isEmpty(v: unknown): boolean {
+export function isEmpty(v: unknown): boolean {
   if (v === null || v === undefined || v === '') return true
   if (Array.isArray(v)) return v.length === 0
   return false
 }
 
-function toNum(v: unknown): number | null {
+export function toNum(v: unknown): number | null {
   if (typeof v === 'number') return Number.isNaN(v) ? null : v
   if (typeof v === 'boolean') return v ? 1 : 0
   if (typeof v === 'string') {
@@ -77,7 +77,7 @@ function toNum(v: unknown): number | null {
   return null
 }
 
-function toComparableDate(v: unknown): number | null {
+export function toComparableDate(v: unknown): number | null {
   if (v instanceof Date) return v.getTime()
   if (typeof v === 'string' || typeof v === 'number') {
     const t = new Date(v).getTime()
@@ -106,7 +106,7 @@ function extremeByDate(nonEmpty: unknown[], pickEarliest: boolean): unknown {
   return best
 }
 
-const NUMERIC_AGGREGATORS: Partial<Record<RollupAggregation, (nums: number[]) => number>> = {
+export const NUMERIC_AGGREGATORS: Partial<Record<RollupAggregation, (nums: number[]) => number>> = {
   sum: (nums) => nums.reduce((a, b) => a + b, 0),
   average: (nums) => nums.reduce((a, b) => a + b, 0) / nums.length,
   min: (nums) => Math.min(...nums),
@@ -114,7 +114,7 @@ const NUMERIC_AGGREGATORS: Partial<Record<RollupAggregation, (nums: number[]) =>
   range: (nums) => Math.max(...nums) - Math.min(...nums),
 }
 
-function aggregate(aggregation: RollupAggregation, values: unknown[]): unknown {
+export function aggregate(aggregation: RollupAggregation, values: unknown[]): unknown {
   const nonEmpty = values.filter((v) => !isEmpty(v))
 
   const numeric = NUMERIC_AGGREGATORS[aggregation]

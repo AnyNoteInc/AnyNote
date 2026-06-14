@@ -1,5 +1,6 @@
 export * from './billing/index.ts'
 export * from './collections/index.ts'
+export * from './dashboard/index.ts'
 export * from './database/index.ts'
 export * from './errors.ts'
 export * from './favorites/index.ts'
