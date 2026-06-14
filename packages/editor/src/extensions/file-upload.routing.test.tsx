@@ -1,7 +1,7 @@
 // @vitest-environment happy-dom
 import { Editor } from '@tiptap/core'
 import StarterKit from '@tiptap/starter-kit'
-import { describe, expect, it, vi } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import { AudioSchema } from './audio.schema'
 import { buildFileUpload } from './file-upload'
@@ -47,6 +47,18 @@ const nodeNames = (editor: Editor): string[] => {
   })
   return names
 }
+
+// Tiptap's `mount()` schedules a `setTimeout(0)` that runs `commands.focus()`.
+// Each test destroys its editor synchronously (so the callback no-ops via the
+// `isDestroyed` guard), but the macrotask itself stays queued at the OS level.
+// Under heavy parallel `pnpm gates` load it can fire AFTER this file's happy-dom
+// environment is torn down — `document` is gone and ProseMirror's deferred
+// `selectionToDOM` throws `ReferenceError: document is not defined`, failing the
+// run despite all assertions passing. Draining one macrotask tick here lets the
+// (already-guarded) callback run while `document` still exists.
+afterEach(async () => {
+  await new Promise((resolve) => setTimeout(resolve, 0))
+})
 
 describe('fileUpload paste routing (synchronous placeholder)', () => {
   it('inserts a `video` placeholder for a video/* paste', () => {
