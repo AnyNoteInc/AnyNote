@@ -16,61 +16,62 @@ model User {
   emailVerified Boolean @default(false) @map("email_verified")
   image         String? @db.VarChar(1024)
 
-  tz                         String                   @default("UTC") @db.VarChar(50)
-  createdAt                  DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt                  DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  tz                         String                       @default("UTC") @db.VarChar(50)
+  createdAt                  DateTime                     @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                  DateTime                     @updatedAt @map("updated_at") @db.Timestamptz(6)
   accounts                   Account[]
   sessions                   Session[]
-  createdWorkspaces          Workspace[]              @relation("WorkspaceCreatedBy")
+  createdWorkspaces          Workspace[]                  @relation("WorkspaceCreatedBy")
   workspaceMemberships       WorkspaceMember[]
-  createdPages               Page[]                   @relation("PageCreatedBy")
-  updatedPages               Page[]                   @relation("PageUpdatedBy")
-  pageSharesCreated          PageShare[]              @relation("PageShareCreatedBy")
-  pageShareGrants            PageShareUser[]          @relation("PageShareGrant")
-  pageCommentThreadsAuthored PageCommentThread[]      @relation("PageCommentThreadAuthor")
-  pageCommentsAuthored       PageComment[]            @relation("PageCommentAuthor")
+  createdPages               Page[]                       @relation("PageCreatedBy")
+  updatedPages               Page[]                       @relation("PageUpdatedBy")
+  pageSharesCreated          PageShare[]                  @relation("PageShareCreatedBy")
+  pageShareGrants            PageShareUser[]              @relation("PageShareGrant")
+  pageCommentThreadsAuthored PageCommentThread[]          @relation("PageCommentThreadAuthor")
+  pageCommentsAuthored       PageComment[]                @relation("PageCommentAuthor")
   preferences                UserPreference?
-  userIntegrations           Integration[]            @relation("UserIntegrations")
+  userIntegrations           Integration[]                @relation("UserIntegrations")
   subscriptions              Subscription[]
   orders                     Order[]
-  chats                      Chat[]                   @relation("ChatCreator")
+  chats                      Chat[]                       @relation("ChatCreator")
   favoritePages              FavoritePage[]
   favoriteChats              FavoriteChat[]
   files                      File[]
   searchHistory              SearchHistory[]
   consents                   UserConsent[]
-  notifications              NotificationInApp[]      @relation("NotificationInAppOwner")
-  notificationEvents         NotificationEvent[]      @relation("NotificationRecipient")
-  notificationDeliveries     NotificationDelivery[]   @relation("NotificationDeliveryOwner")
-  notificationPreferences    NotificationPreference[] @relation("NotificationPreferenceOwner")
-  pushSubscriptions          PushSubscription[]       @relation("PushSubscriptionOwner")
-  remindersAuthored          Reminder[]               @relation("ReminderAuthor")
-  remindersCompleted         Reminder[]               @relation("ReminderDoneBy")
-  reminderRecipients         ReminderRecipient[]      @relation("ReminderRecipient")
-  tasksCreated               Task[]                   @relation("TaskCreator")
-  tasksUpdated               Task[]                   @relation("TaskUpdater")
+  notifications              NotificationInApp[]          @relation("NotificationInAppOwner")
+  notificationEvents         NotificationEvent[]          @relation("NotificationRecipient")
+  notificationDeliveries     NotificationDelivery[]       @relation("NotificationDeliveryOwner")
+  notificationPreferences    NotificationPreference[]     @relation("NotificationPreferenceOwner")
+  pushSubscriptions          PushSubscription[]           @relation("PushSubscriptionOwner")
+  remindersAuthored          Reminder[]                   @relation("ReminderAuthor")
+  remindersCompleted         Reminder[]                   @relation("ReminderDoneBy")
+  reminderRecipients         ReminderRecipient[]          @relation("ReminderRecipient")
+  tasksCreated               Task[]                       @relation("TaskCreator")
+  tasksUpdated               Task[]                       @relation("TaskUpdater")
   workspaceParticipants      WorkspaceParticipant[]
   taskComments               TaskComment[]
   taskActivity               TaskActivity[]
   taskAttachments            TaskAttachment[]
-  mcpServersCreated          WorkspaceMcpServer[]     @relation("WorkspaceMcpServerCreatedBy")
-  agentMemories              WorkspaceAgentMemory[]   @relation("WorkspaceAgentMemoryUser")
-  agentActionLogs            AgentActionLog[]         @relation("AgentActionLogUser")
+  mcpServersCreated          WorkspaceMcpServer[]         @relation("WorkspaceMcpServerCreatedBy")
+  agentMemories              WorkspaceAgentMemory[]       @relation("WorkspaceAgentMemoryUser")
+  agentActionLogs            AgentActionLog[]             @relation("AgentActionLogUser")
   apiKeys                    ApiKey[]
-  aiProvidersCreated         AiProvider[]             @relation("AiProviderCreatedBy")
-  collectionsOwned           Collection[]             @relation("CollectionOwner")
-  pagesArchived              Page[]                   @relation("PageArchivedBy")
-  pageRevisions              PageRevision[]           @relation("PageRevisionActor")
+  aiProvidersCreated         AiProvider[]                 @relation("AiProviderCreatedBy")
+  collectionsOwned           Collection[]                 @relation("CollectionOwner")
+  pagesArchived              Page[]                       @relation("PageArchivedBy")
+  pageRevisions              PageRevision[]               @relation("PageRevisionActor")
   pageNotificationPrefs      PageNotificationPreference[]
   databaseDateReminders      DatabaseDateReminder[]
-  exportJobs                 ExportJob[]              @relation("ExportJobUser")
-  importJobs                 ImportJob[]              @relation("ImportJobUser")
-  webhookSubscriptions       WebhookSubscription[]    @relation("WebhookSubscriptionCreatedBy")
+  exportJobs                 ExportJob[]                  @relation("ExportJobUser")
+  importJobs                 ImportJob[]                  @relation("ImportJobUser")
+  webhookSubscriptions       WebhookSubscription[]        @relation("WebhookSubscriptionCreatedBy")
   telegramUserLink           TelegramUserLink?
   telegramLinkCodes          TelegramLinkCode[]
   workspaceBlocks            WorkspaceBlockedUser[]
-  ssoProviders               SsoProvider[]            @relation("SsoProviderRegisteredBy")
+  ssoProviders               SsoProvider[]                @relation("SsoProviderRegisteredBy")
   externalIdentityLinks      ExternalIdentityLink[]
+  meetingArtifacts           MeetingArtifact[]            @relation("MeetingCreator")
 
   @@map("users")
 }
@@ -254,6 +255,7 @@ enum PageType {
   DATABASE
   KANBAN
   FORM
+  MEETING
 }
 
 enum PageShareAccess {
@@ -423,24 +425,24 @@ model Workspace {
   createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  createdBy             User?                  @relation("WorkspaceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdBy             User?                    @relation("WorkspaceCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   members               WorkspaceMember[]
   participants          WorkspaceParticipant[]
   pages                 Page[]
-  workspaceIntegrations Integration[]          @relation("WorkspaceIntegrations")
-  defaultForUsers       UserPreference[]       @relation("DefaultWorkspace")
-  activeForUsers        UserPreference[]       @relation("ActiveWorkspace")
+  workspaceIntegrations Integration[]            @relation("WorkspaceIntegrations")
+  defaultForUsers       UserPreference[]         @relation("DefaultWorkspace")
+  activeForUsers        UserPreference[]         @relation("ActiveWorkspace")
   chats                 Chat[]
   files                 File[]
   aiSettings            WorkspaceAiSettings?
   searchHistory         SearchHistory[]
-  notificationEvents    NotificationEvent[]    @relation("WorkspaceNotifications")
+  notificationEvents    NotificationEvent[]      @relation("WorkspaceNotifications")
   reminders             Reminder[]
   mcpServers            WorkspaceMcpServer[]
   agentMemories         WorkspaceAgentMemory[]
   agentActionLogs       AgentActionLog[]
   limits                WorkspaceLimit?
-  aiProviders           AiProvider[]           @relation("WorkspaceAiProviders")
+  aiProviders           AiProvider[]             @relation("WorkspaceAiProviders")
   collections           Collection[]
   databaseSources       DatabaseSource[]
   exportJobs            ExportJob[]
@@ -462,6 +464,8 @@ model Workspace {
   seatSnapshots         WorkspaceSeatSnapshot[]
   invoiceRequests       InvoiceRequest[]
   syncedBlocks          SyncedBlock[]
+  meetingArtifacts      MeetingArtifact[]
+  summaryInstructions   SummaryInstruction[]
 
   @@index([createdById])
   @@map("workspaces")
@@ -485,52 +489,52 @@ model WorkspaceMember {
 }
 
 model Page {
-  id            String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  workspaceId   String                   @map("workspace_id") @db.Uuid
-  parentId      String?                  @map("parent_id") @db.Uuid
-  collectionId  String?                  @map("collection_id") @db.Uuid
-  type          PageType                 @default(TEXT)
-  ownership     PageOwnership            @default(TEXT)
-  title         String?                  @db.Text
-  icon          String?                  @db.Text
+  id                String                   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId       String                   @map("workspace_id") @db.Uuid
+  parentId          String?                  @map("parent_id") @db.Uuid
+  collectionId      String?                  @map("collection_id") @db.Uuid
+  type              PageType                 @default(TEXT)
+  ownership         PageOwnership            @default(TEXT)
+  title             String?                  @db.Text
+  icon              String?                  @db.Text
   // Page appearance (Phase 9A). coverUrl: '/api/files/<id>' or an https URL;
   // coverPreset: a key from COVER_PRESET_KEYS (@repo/domain pages dto) —
   // mutually exclusive with coverUrl (service-enforced: setting one clears the other).
-  coverUrl      String?                  @map("cover_url") @db.VarChar(1024)
-  coverPreset   String?                  @map("cover_preset") @db.VarChar(32)
-  content       Json?
-  contentYjs    Bytes?                   @map("content_yjs")
-  searchVector  Unsupported("tsvector")? @default(dbgenerated()) @map("search_vector")
-  isTemplate    PageTemplateScope?       @map("is_template")
-  templateKey   String?                  @unique @map("template_key") @db.Text
-  templateMeta  Json?                    @map("template_meta")
-  usageCount    Int                      @default(0) @map("usage_count")
-  averageRating Float                    @default(0) @map("average_rating")
-  ratingCount   Int                      @default(0) @map("rating_count")
-  prevPageId    String?                  @unique @map("prev_page_id") @db.Uuid
-  archivedAt    DateTime?                @map("archived_at") @db.Timestamptz(6)
-  archivedById  String?                  @map("archived_by_id") @db.Uuid
+  coverUrl          String?                  @map("cover_url") @db.VarChar(1024)
+  coverPreset       String?                  @map("cover_preset") @db.VarChar(32)
+  content           Json?
+  contentYjs        Bytes?                   @map("content_yjs")
+  searchVector      Unsupported("tsvector")? @default(dbgenerated()) @map("search_vector")
+  isTemplate        PageTemplateScope?       @map("is_template")
+  templateKey       String?                  @unique @map("template_key") @db.Text
+  templateMeta      Json?                    @map("template_meta")
+  usageCount        Int                      @default(0) @map("usage_count")
+  averageRating     Float                    @default(0) @map("average_rating")
+  ratingCount       Int                      @default(0) @map("rating_count")
+  prevPageId        String?                  @unique @map("prev_page_id") @db.Uuid
+  archivedAt        DateTime?                @map("archived_at") @db.Timestamptz(6)
+  archivedById      String?                  @map("archived_by_id") @db.Uuid
   // Copy-to-workspace provenance (Phase 2 public sharing). Informational ids only,
   // no FK — the source may be cross-workspace or deleted.
-  copiedFromShareId String?              @map("copied_from_share_id") @db.Text
-  copiedFromPageId  String?              @map("copied_from_page_id") @db.Uuid
-  copiedAt          DateTime?            @map("copied_at") @db.Timestamptz(6)
-  deletedAt     DateTime?                @map("deleted_at") @db.Timestamptz(6)
-  createdById   String?                  @map("created_by_id") @db.Uuid
-  updatedById   String?                  @map("updated_by_id") @db.Uuid
-  createdAt     DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt     DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
+  copiedFromShareId String?                  @map("copied_from_share_id") @db.Text
+  copiedFromPageId  String?                  @map("copied_from_page_id") @db.Uuid
+  copiedAt          DateTime?                @map("copied_at") @db.Timestamptz(6)
+  deletedAt         DateTime?                @map("deleted_at") @db.Timestamptz(6)
+  createdById       String?                  @map("created_by_id") @db.Uuid
+  updatedById       String?                  @map("updated_by_id") @db.Uuid
+  createdAt         DateTime                 @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt         DateTime                 @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  workspace            Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  createdBy            User?               @relation("PageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
-  updatedBy            User?               @relation("PageUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
-  prevPage             Page?               @relation("PageOrder", fields: [prevPageId], references: [id], onDelete: SetNull)
-  nextPage             Page?               @relation("PageOrder")
-  children             Page[]              @relation("PageTree")
-  parent               Page?               @relation("PageTree", fields: [parentId], references: [id], onDelete: SetNull)
-  collection           Collection?         @relation("CollectionPages", fields: [collectionId], references: [id], onDelete: SetNull)
-  homePageOfCollection Collection?         @relation("CollectionHome")
-  archivedBy           User?               @relation("PageArchivedBy", fields: [archivedById], references: [id], onDelete: SetNull)
+  workspace            Workspace                    @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  createdBy            User?                        @relation("PageCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  updatedBy            User?                        @relation("PageUpdatedBy", fields: [updatedById], references: [id], onDelete: SetNull)
+  prevPage             Page?                        @relation("PageOrder", fields: [prevPageId], references: [id], onDelete: SetNull)
+  nextPage             Page?                        @relation("PageOrder")
+  children             Page[]                       @relation("PageTree")
+  parent               Page?                        @relation("PageTree", fields: [parentId], references: [id], onDelete: SetNull)
+  collection           Collection?                  @relation("CollectionPages", fields: [collectionId], references: [id], onDelete: SetNull)
+  homePageOfCollection Collection?                  @relation("CollectionHome")
+  archivedBy           User?                        @relation("PageArchivedBy", fields: [archivedById], references: [id], onDelete: SetNull)
   share                PageShare?
   commentThreads       PageCommentThread[]
   favorites            FavoritePage[]
@@ -544,15 +548,16 @@ model Page {
   sprints              Sprint[]
   tasks                Task[]
   templateTags         PageTemplateTag[]
-  databaseSource       DatabaseSource?     @relation("DatabaseSourcePage")
-  databaseRow          DatabaseRow?        @relation("DatabaseRowPage")
+  databaseSource       DatabaseSource?              @relation("DatabaseSourcePage")
+  databaseRow          DatabaseRow?                 @relation("DatabaseRowPage")
   revisions            PageRevision[]
   notificationPrefs    PageNotificationPreference[]
-  importMappings       ImportMapping[]     @relation("ImportMappingPage")
+  importMappings       ImportMapping[]              @relation("ImportMappingPage")
   guestInvites         PageGuestInvite[]
   guestInviteRequests  PageGuestInviteRequest[]
-  syncedBlocks         SyncedBlock[]       @relation("SyncedBlockOriginPage")
-  inlineAiChats        Chat[]              @relation("ChatInlineAiPage")
+  syncedBlocks         SyncedBlock[]                @relation("SyncedBlockOriginPage")
+  inlineAiChats        Chat[]                       @relation("ChatInlineAiPage")
+  meeting              MeetingArtifact?             @relation("PageMeeting")
 
   @@index([workspaceId])
   @@index([parentId])
@@ -584,8 +589,8 @@ model SyncedBlock {
   createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  originPage Page?    @relation("SyncedBlockOriginPage", fields: [originPageId], references: [id], onDelete: SetNull)
+  workspace  Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  originPage Page?     @relation("SyncedBlockOriginPage", fields: [originPageId], references: [id], onDelete: SetNull)
 
   @@index([workspaceId])
   @@map("synced_blocks")
@@ -642,27 +647,27 @@ model Collection {
 }
 
 model PageShare {
-  id          String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
-  pageId      String          @unique @map("page_id") @db.Uuid
-  shareId     String          @unique @map("share_id") @db.VarChar(64)
-  access      PageShareAccess @default(RESTRICTED)
-  linkRole    PageShareRole   @default(READER) @map("link_role")
-  mode        PageShareMode   @default(LINK)
-  expiresAt   DateTime?       @map("expires_at") @db.Timestamptz(6)
+  id                       String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  pageId                   String          @unique @map("page_id") @db.Uuid
+  shareId                  String          @unique @map("share_id") @db.VarChar(64)
+  access                   PageShareAccess @default(RESTRICTED)
+  linkRole                 PageShareRole   @default(READER) @map("link_role")
+  mode                     PageShareMode   @default(LINK)
+  expiresAt                DateTime?       @map("expires_at") @db.Timestamptz(6)
   // Public-site (Publish tab) fields — meaningful when mode = SITE.
-  publishedAt              DateTime? @map("published_at") @db.Timestamptz(6)
-  unpublishedAt            DateTime? @map("unpublished_at") @db.Timestamptz(6)
-  allowIndexing            Boolean   @default(false) @map("allow_indexing")
-  allowCopy                Boolean   @default(false) @map("allow_copy")
-  publishSubpages          Boolean   @default(true) @map("publish_subpages")
-  analyticsGoogleId        String?   @map("analytics_google_id") @db.Text
-  analyticsYandexMetricaId String?   @map("analytics_yandex_metrica_id") @db.Text
+  publishedAt              DateTime?       @map("published_at") @db.Timestamptz(6)
+  unpublishedAt            DateTime?       @map("unpublished_at") @db.Timestamptz(6)
+  allowIndexing            Boolean         @default(false) @map("allow_indexing")
+  allowCopy                Boolean         @default(false) @map("allow_copy")
+  publishSubpages          Boolean         @default(true) @map("publish_subpages")
+  analyticsGoogleId        String?         @map("analytics_google_id") @db.Text
+  analyticsYandexMetricaId String?         @map("analytics_yandex_metrica_id") @db.Text
   // AnyNote extensions (NOT Notion parity): password gate + scheduled publish.
-  passwordHash String?   @map("password_hash") @db.Text
-  exposesAt    DateTime? @map("exposes_at") @db.Timestamptz(6)
-  createdById  String?   @map("created_by_id") @db.Uuid
-  createdAt    DateTime  @default(now()) @map("created_at") @db.Timestamptz(6)
-  updatedAt    DateTime  @updatedAt @map("updated_at") @db.Timestamptz(6)
+  passwordHash             String?         @map("password_hash") @db.Text
+  exposesAt                DateTime?       @map("exposes_at") @db.Timestamptz(6)
+  createdById              String?         @map("created_by_id") @db.Uuid
+  createdAt                DateTime        @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt                DateTime        @updatedAt @map("updated_at") @db.Timestamptz(6)
 
   page      Page            @relation(fields: [pageId], references: [id], onDelete: Cascade)
   createdBy User?           @relation("PageShareCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
@@ -1095,12 +1100,13 @@ model File {
   createdAt DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  user      User             @relation(fields: [userId], references: [id], onDelete: Cascade)
-  workspace Workspace?       @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  pages     PageFile[]
-  tasks     TaskAttachment[]
-  exportArtifacts ExportArtifact[] @relation("ExportArtifactFile")
-  importArtifacts ImportArtifact[] @relation("ImportArtifactFile")
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  workspace         Workspace?        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  pages             PageFile[]
+  tasks             TaskAttachment[]
+  exportArtifacts   ExportArtifact[]  @relation("ExportArtifactFile")
+  importArtifacts   ImportArtifact[]  @relation("ImportArtifactFile")
+  meetingRecordings MeetingArtifact[] @relation("MeetingRecording")
 
   @@index([userId])
   @@index([createdAt])
@@ -1650,7 +1656,7 @@ model DatabaseProperty {
   position Int                  @default(0)
   settings Json?
 
-  source        DatabaseSource          @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  source        DatabaseSource           @relation(fields: [sourceId], references: [id], onDelete: Cascade)
   cells         DatabaseCellValue[]
   relationLinks DatabaseRelationLink[]
   accessRules   DatabasePageAccessRule[]
@@ -2099,35 +2105,35 @@ enum TelegramCommandResult {
 }
 
 model TelegramConnection {
-  id                  String                   @id @default(uuid(7)) @db.Uuid
-  workspaceId         String                   @unique @map("workspace_id") @db.Uuid
-  createdById         String                   @map("created_by_id") @db.Uuid
-  botTokenEnc         Json                     @map("bot_token_enc")
-  botUsername         String?                  @map("bot_username") @db.VarChar(64)
-  webhookSecretEnc    Json                     @map("webhook_secret_enc")
-  status              TelegramConnectionStatus @default(PENDING)
-  consecutiveFailures Int                      @default(0) @map("consecutive_failures")
-  lastError           String?                  @map("last_error") @db.VarChar(500)
-  createdAt           DateTime                 @default(now()) @map("created_at")
-  updatedAt           DateTime                 @updatedAt @map("updated_at")
-  workspace     Workspace                        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  chats         TelegramChat[]
-  subscriptions TelegramCollectionSubscription[]
-  deliveries    TelegramDelivery[]
-  audits        TelegramBotCommandAudit[]
+  id                  String                           @id @default(uuid(7)) @db.Uuid
+  workspaceId         String                           @unique @map("workspace_id") @db.Uuid
+  createdById         String                           @map("created_by_id") @db.Uuid
+  botTokenEnc         Json                             @map("bot_token_enc")
+  botUsername         String?                          @map("bot_username") @db.VarChar(64)
+  webhookSecretEnc    Json                             @map("webhook_secret_enc")
+  status              TelegramConnectionStatus         @default(PENDING)
+  consecutiveFailures Int                              @default(0) @map("consecutive_failures")
+  lastError           String?                          @map("last_error") @db.VarChar(500)
+  createdAt           DateTime                         @default(now()) @map("created_at")
+  updatedAt           DateTime                         @updatedAt @map("updated_at")
+  workspace           Workspace                        @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  chats               TelegramChat[]
+  subscriptions       TelegramCollectionSubscription[]
+  deliveries          TelegramDelivery[]
+  audits              TelegramBotCommandAudit[]
 
   @@map("telegram_connections")
 }
 
 model TelegramChat {
-  id           String             @id @default(uuid(7)) @db.Uuid
-  connectionId String             @map("connection_id") @db.Uuid
-  chatId       String             @map("chat_id") @db.VarChar(32)
-  type         String             @db.VarChar(16)
-  title        String?            @db.VarChar(255)
-  status       TelegramChatStatus @default(ACTIVE)
-  createdAt    DateTime           @default(now()) @map("created_at")
-  updatedAt    DateTime           @updatedAt @map("updated_at")
+  id            String                           @id @default(uuid(7)) @db.Uuid
+  connectionId  String                           @map("connection_id") @db.Uuid
+  chatId        String                           @map("chat_id") @db.VarChar(32)
+  type          String                           @db.VarChar(16)
+  title         String?                          @db.VarChar(255)
+  status        TelegramChatStatus               @default(ACTIVE)
+  createdAt     DateTime                         @default(now()) @map("created_at")
+  updatedAt     DateTime                         @updatedAt @map("updated_at")
   connection    TelegramConnection               @relation(fields: [connectionId], references: [id], onDelete: Cascade)
   subscriptions TelegramCollectionSubscription[]
 
@@ -2136,18 +2142,18 @@ model TelegramChat {
 }
 
 model TelegramCollectionSubscription {
-  id           String   @id @default(uuid(7)) @db.Uuid
-  connectionId String   @map("connection_id") @db.Uuid
-  chatId       String   @map("chat_id") @db.Uuid
-  collectionId String   @map("collection_id") @db.Uuid
+  id           String             @id @default(uuid(7)) @db.Uuid
+  connectionId String             @map("connection_id") @db.Uuid
+  chatId       String             @map("chat_id") @db.Uuid
+  collectionId String             @map("collection_id") @db.Uuid
   events       String[]
-  createdById  String   @map("created_by_id") @db.Uuid
-  createdAt    DateTime @default(now()) @map("created_at")
-  updatedAt    DateTime @updatedAt @map("updated_at")
-  connection TelegramConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
-  chat       TelegramChat       @relation(fields: [chatId], references: [id], onDelete: Cascade)
-  collection Collection         @relation(fields: [collectionId], references: [id], onDelete: Cascade)
-  deliveries TelegramDelivery[]
+  createdById  String             @map("created_by_id") @db.Uuid
+  createdAt    DateTime           @default(now()) @map("created_at")
+  updatedAt    DateTime           @updatedAt @map("updated_at")
+  connection   TelegramConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  chat         TelegramChat       @relation(fields: [chatId], references: [id], onDelete: Cascade)
+  collection   Collection         @relation(fields: [collectionId], references: [id], onDelete: Cascade)
+  deliveries   TelegramDelivery[]
 
   @@unique([chatId, collectionId])
   @@index([connectionId])
@@ -2161,7 +2167,7 @@ model TelegramUserLink {
   telegramUserId String   @unique @map("telegram_user_id") @db.VarChar(32)
   username       String?  @db.VarChar(64)
   linkedAt       DateTime @default(now()) @map("linked_at")
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("telegram_user_links")
 }
@@ -2173,29 +2179,29 @@ model TelegramLinkCode {
   expiresAt DateTime  @map("expires_at")
   usedAt    DateTime? @map("used_at")
   createdAt DateTime  @default(now()) @map("created_at")
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId])
   @@map("telegram_link_codes")
 }
 
 model TelegramDelivery {
-  id              String                 @id @default(uuid(7)) @db.Uuid
-  connectionId    String                 @map("connection_id") @db.Uuid
-  subscriptionId  String                 @map("subscription_id") @db.Uuid
-  eventType       String                 @map("event_type") @db.VarChar(64)
-  eventId         String                 @map("event_id") @db.Uuid
+  id              String                         @id @default(uuid(7)) @db.Uuid
+  connectionId    String                         @map("connection_id") @db.Uuid
+  subscriptionId  String                         @map("subscription_id") @db.Uuid
+  eventType       String                         @map("event_type") @db.VarChar(64)
+  eventId         String                         @map("event_id") @db.Uuid
   payload         Json
-  status          TelegramDeliveryStatus @default(PENDING)
-  attempts        Int                    @default(0)
-  nextAttemptAt   DateTime               @default(now()) @map("next_attempt_at")
-  lockedAt        DateTime?              @map("locked_at")
-  lockedBy        String?                @map("locked_by") @db.VarChar(64)
-  responseSnippet String?                @map("response_snippet") @db.VarChar(500)
-  lastError       String?                @map("last_error") @db.VarChar(500)
-  createdAt       DateTime               @default(now()) @map("created_at")
-  connection   TelegramConnection             @relation(fields: [connectionId], references: [id], onDelete: Cascade)
-  subscription TelegramCollectionSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  status          TelegramDeliveryStatus         @default(PENDING)
+  attempts        Int                            @default(0)
+  nextAttemptAt   DateTime                       @default(now()) @map("next_attempt_at")
+  lockedAt        DateTime?                      @map("locked_at")
+  lockedBy        String?                        @map("locked_by") @db.VarChar(64)
+  responseSnippet String?                        @map("response_snippet") @db.VarChar(500)
+  lastError       String?                        @map("last_error") @db.VarChar(500)
+  createdAt       DateTime                       @default(now()) @map("created_at")
+  connection      TelegramConnection             @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  subscription    TelegramCollectionSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
 
   @@unique([subscriptionId, eventId])
   @@index([status, nextAttemptAt])
@@ -2214,7 +2220,7 @@ model TelegramBotCommandAudit {
   result         TelegramCommandResult
   detail         String?               @db.VarChar(200)
   createdAt      DateTime              @default(now()) @map("created_at")
-  connection TelegramConnection @relation(fields: [connectionId], references: [id], onDelete: Cascade)
+  connection     TelegramConnection    @relation(fields: [connectionId], references: [id], onDelete: Cascade)
 
   @@index([connectionId, createdAt(sort: Desc)])
   @@map("telegram_bot_command_audits")
@@ -2393,7 +2399,7 @@ model WorkspaceAuthProvider {
   createdAt       DateTime           @default(now()) @map("created_at")
   updatedAt       DateTime           @updatedAt @map("updated_at")
 
-  workspace Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  workspace     Workspace              @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   // SetNull on domain removal; the identity service disables bound providers in the same tx + audits.
   domain        VerifiedEmailDomain?   @relation(fields: [domainId], references: [id], onDelete: SetNull)
   identityLinks ExternalIdentityLink[]
@@ -2553,4 +2559,82 @@ model InvoiceRequest {
 
   @@index([workspaceId, createdAt(sort: Desc)])
   @@map("invoice_requests")
+}
+
+enum MeetingStatus {
+  UPLOADED // recording stored, job queued
+  TRANSCRIBING
+  SUMMARIZING
+  READY
+  FAILED
+}
+
+model MeetingArtifact {
+  id                   String        @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId          String        @map("workspace_id") @db.Uuid
+  pageId               String?       @unique @map("page_id") @db.Uuid // the MEETING page that owns this (null until linked)
+  createdById          String        @map("created_by_id") @db.Uuid
+  recordingFileId      String        @map("recording_file_id") @db.Uuid // FK → File (the uploaded media)
+  title                String        @default("Встреча")
+  status               MeetingStatus @default(UPLOADED)
+  summary              String?       @db.Text // generated summary (markdown)
+  summaryInstructionId String?       @map("summary_instruction_id") @db.Uuid
+  consentAck           Boolean       @default(false) @map("consent_ack") // recording-disclosure acknowledged (server-persisted)
+  error                String?       @db.Text
+  durationMs           Int?          @map("duration_ms")
+  language             String? // detected/declared transcript language
+  heartbeatAt          DateTime?     @map("heartbeat_at") @db.Timestamptz(6) // runner liveness for lazy reclaim (6A mold)
+  createdAt            DateTime      @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt            DateTime      @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace          Workspace           @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  page               Page?               @relation("PageMeeting", fields: [pageId], references: [id], onDelete: Cascade)
+  recording          File                @relation("MeetingRecording", fields: [recordingFileId], references: [id], onDelete: Restrict)
+  createdBy          User                @relation("MeetingCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  summaryInstruction SummaryInstruction? @relation(fields: [summaryInstructionId], references: [id], onDelete: SetNull)
+  segments           TranscriptSegment[]
+  actionItems        ActionItem[]
+
+  @@index([workspaceId])
+  @@map("meeting_artifacts")
+}
+
+model TranscriptSegment {
+  id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  meetingId String          @map("meeting_id") @db.Uuid
+  idx       Int // ordinal within the transcript
+  startMs   Int             @map("start_ms")
+  endMs     Int             @map("end_ms")
+  speaker   String? // optional speaker label
+  text      String          @db.Text
+  meeting   MeetingArtifact @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId, idx])
+  @@map("transcript_segments")
+}
+
+model ActionItem {
+  id        String          @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  meetingId String          @map("meeting_id") @db.Uuid
+  idx       Int
+  text      String          @db.Text
+  done      Boolean         @default(false)
+  meeting   MeetingArtifact @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+
+  @@index([meetingId, idx])
+  @@map("action_items")
+}
+
+model SummaryInstruction {
+  id               String            @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId      String            @map("workspace_id") @db.Uuid
+  name             String
+  instruction      String            @db.Text
+  createdById      String            @map("created_by_id") @db.Uuid
+  createdAt        DateTime          @default(now()) @map("created_at") @db.Timestamptz(6)
+  workspace        Workspace         @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  meetingArtifacts MeetingArtifact[]
+
+  @@index([workspaceId])
+  @@map("summary_instructions")
 }
