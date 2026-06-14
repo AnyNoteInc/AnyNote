@@ -55,6 +55,10 @@ jobs:
       BETTER_AUTH_URL: http://localhost:3000
       BETTER_AUTH_SECRET: ci-secret-not-real-32-chars-padding
       BETTER_AUTH_JWT_AUDIENCE: anynote-yjs
+      # Deterministic test key (base64 of 32 bytes). Tests that encrypt/decrypt
+      # workspace secrets (telegram webhook, AI providers) need this; CI has no
+      # root .env for test/setup.ts to read, so it must come from this env block.
+      SECRETS_ENCRYPTION_KEY: YW55bm90ZS1jaS10ZXN0LWVuY3J5cHRpb24ta2V5MzI=
       NEXT_PUBLIC_YJS_URL: ws://localhost:1234
       YJS_PORT: '1234'
       S3_ENDPOINT: http://localhost:9000
