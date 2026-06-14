@@ -54,6 +54,9 @@ async function cleanFixtures() {
   await prisma.subscription.deleteMany({
     where: { user: { email: { contains: EMAIL_SUFFIX } } },
   })
+  await prisma.workspaceBlockedUser.deleteMany({
+    where: { workspace: { createdBy: { email: { contains: EMAIL_SUFFIX } } } },
+  })
   await prisma.workspaceMember.deleteMany({
     where: { workspace: { createdBy: { email: { contains: EMAIL_SUFFIX } } } },
   })
@@ -377,6 +380,44 @@ describe('meeting router (integration)', () => {
       id: '00000000-0000-7000-8000-000000000000',
     })
     expect(res.status === 'not_found' || res.status === 'no_access').toBe(true)
+  })
+
+  // A BLOCKED member must not break the never-throw read contract: the typed
+  // object-hiding union has to return `no_access`, the same shape a non-member /
+  // non-page-viewer gets — NOT a thrown FORBIDDEN (which the T5/T6 consumers
+  // can't distinguish from a real error). The pageId != null access branch goes
+  // through resolveMemberOrPageGrant → assertNotBlocked, which throws; the read
+  // resolver must catch that and degrade to no_access. (No content leak either
+  // way; this only fixes the contract.) The WRITE path keeps throwing — see the
+  // delete assertion below.
+  it("getById → 'no_access' (not a throw) for a BLOCKED member; delete still throws", async () => {
+    const fx = await seed()
+    const rec = await makeRecording(fx.ownerId, fx.wsId)
+    const created = await meetingCaller(fx.ownerId).caller.create({
+      workspaceId: fx.wsId,
+      recordingFileId: rec.id,
+      consentAck: true,
+    })
+    await prisma.meetingArtifact.update({
+      where: { id: created.artifactId },
+      data: { status: 'READY', summary: 'blocked-secret' },
+    })
+    // Block the EDITOR member (they keep their member row but are denied).
+    await prisma.workspaceBlockedUser.create({
+      data: { workspaceId: fx.wsId, userId: fx.editorId, blockedById: fx.ownerId },
+    })
+
+    // READ: returns the typed no_access placeholder, never throws, never leaks.
+    const byId = await meetingCaller(fx.editorId).caller.getById({ id: created.artifactId })
+    expect(byId.status).toBe('no_access')
+    expect(JSON.stringify(byId)).not.toContain('blocked-secret')
+    const byPage = await meetingCaller(fx.editorId).caller.getByPage({ pageId: created.pageId })
+    expect(byPage.status).toBe('no_access')
+
+    // WRITE: a blocked member is still rejected (the mutation gate stays hard).
+    await expect(
+      meetingCaller(fx.editorId).caller.delete({ id: created.artifactId }),
+    ).rejects.toThrow(/найден|прав|FORBIDDEN|not found|заблок/i)
   })
 
   it("getByPage → 'ok' for a member, 'no_access' for a non-member", async () => {

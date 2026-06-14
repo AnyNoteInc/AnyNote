@@ -5,6 +5,7 @@ import { storage } from '@repo/storage'
 
 import { router, protectedProcedure } from '../trpc'
 import { assertWorkspaceMember, resolveMemberOrPageGrant } from '../helpers/page-access'
+import { BLOCKED_MESSAGE } from '../helpers/membership'
 import { getWorkspaceFeatures, requireWritableWorkspace } from '../helpers/plan'
 import { mapDomain } from '../helpers/map-domain'
 import { domain as domainSvc } from '../domain'
@@ -82,10 +83,24 @@ const PROCESSING_STATUSES = new Set(['UPLOADED', 'TRANSCRIBING', 'SUMMARIZING'])
  * non-edit member (VIEWER/COMMENTER) or a non-EDITOR grant. Returns null for
  * anyone with no relationship (object-hiding). Mirrors the synced-block
  * origin-access gate so the two never drift.
+ *
+ * Blocked-member contract: the page-grant resolver (`resolveMemberOrPageGrant`)
+ * THROWS FORBIDDEN for a blocked member (canonical `assertNotBlocked`
+ * semantics), which the MUTATIONS (delete/retry/toggleActionItem) want — a
+ * blocked member must be rejected hard. But the READ queries (getById/getByPage/
+ * searchSegments) are documented as NEVER throwing on no-access: they return the
+ * typed `no_access` placeholder so the T5/T6 consumers can distinguish it from a
+ * real error. So `opts.forRead` makes a blocked throw degrade to null (→
+ * no_access) instead of propagating — keeping the object-hiding union honest
+ * without weakening the mutation gates. (No content leak either way: a blocked
+ * user can't see content under either outcome; this only fixes the shape.) The
+ * `pageId == null` branch already returns null for a blocked member, so it needs
+ * no read/write distinction.
  */
 async function resolveMeetingAccess(
   ctx: Ctx,
   artifact: { workspaceId: string; pageId: string | null },
+  opts: { forRead?: boolean } = {},
 ): Promise<{ readOnly: boolean } | null> {
   // Without a page anchor we can only gate on workspace membership (a meeting is
   // always page-anchored once created, but guard the null case defensively: a
@@ -104,7 +119,18 @@ async function resolveMeetingAccess(
     const canEdit = member.role === 'OWNER' || member.role === 'ADMIN' || member.role === 'EDITOR'
     return { readOnly: !canEdit }
   }
-  const access = await resolveMemberOrPageGrant(ctx, artifact.workspaceId, artifact.pageId)
+  let access
+  try {
+    access = await resolveMemberOrPageGrant(ctx, artifact.workspaceId, artifact.pageId)
+  } catch (err) {
+    // The only throw `resolveMemberOrPageGrant` raises is the blocked-member
+    // FORBIDDEN. On the read path degrade it to no_access (null); on the write
+    // path re-throw so the mutation stays gated.
+    if (opts.forRead && err instanceof TRPCError && err.message === BLOCKED_MESSAGE) {
+      return null
+    }
+    throw err
+  }
   if (!access) return null
   const canEdit = access.role === 'OWNER' || access.role === 'ADMIN' || access.role === 'EDITOR'
   return { readOnly: !canEdit }
@@ -332,7 +358,7 @@ export const meetingRouter = router({
         },
       })
       if (!artifact) return NOT_FOUND
-      const access = await resolveMeetingAccess(ctx, artifact)
+      const access = await resolveMeetingAccess(ctx, artifact, { forRead: true })
       if (!access) return NO_ACCESS
       return loadAndProject(ctx, artifact, access.readOnly)
     }),
@@ -356,7 +382,7 @@ export const meetingRouter = router({
         },
       })
       if (!artifact) return NOT_FOUND
-      const access = await resolveMeetingAccess(ctx, artifact)
+      const access = await resolveMeetingAccess(ctx, artifact, { forRead: true })
       if (!access) return NO_ACCESS
       return loadAndProject(ctx, artifact, access.readOnly)
     }),
@@ -393,7 +419,10 @@ export const meetingRouter = router({
         select: { id: true, workspaceId: true, pageId: true },
       })
       if (!artifact) throw new TRPCError({ code: 'NOT_FOUND', message: 'Встреча не найдена' })
-      const access = await resolveMeetingAccess(ctx, artifact)
+      // Read path: a blocked member degrades to the uniform NOT_FOUND
+      // object-hiding throw (the same a non-member gets), not a blocked-oracle
+      // FORBIDDEN.
+      const access = await resolveMeetingAccess(ctx, artifact, { forRead: true })
       if (!access) throw new TRPCError({ code: 'NOT_FOUND', message: 'Встреча не найдена' })
 
       const segments = await ctx.prisma.transcriptSegment.findMany({

@@ -67,9 +67,21 @@ export async function processMeetingJob(artifactId: string, deps: MeetingJobDeps
   const now = new Date()
   const claimed = await deps.prisma.meetingArtifact.updateMany({
     where: { id: artifactId, status: 'UPLOADED' },
-    data: { status: 'TRANSCRIBING', heartbeatAt: now, updatedAt: now },
+    data: { status: 'TRANSCRIBING', heartbeatAt: now, updatedAt: now, summary: null },
   })
   if (claimed.count === 0) return
+
+  // Idempotent re-processing: a retry (FAILED→UPLOADED→re-claim) or a
+  // heartbeat-reclaim re-kick re-runs this whole pipeline. The
+  // `(meeting_id, idx)` index is NON-unique, so re-writing segments/action-items
+  // without first clearing the prior partial run's rows would APPEND a second
+  // full copy (→ 2N rows, duplicated idx, mis-ordered reads). Clear this
+  // artifact's children NOW — after the atomic claim, before any write — so a
+  // re-run produces exactly N rows regardless of how it was triggered. The
+  // claim above already reset `summary` to null so a retry shows no stale
+  // summary mid-reprocess.
+  await deps.prisma.transcriptSegment.deleteMany({ where: { meetingId: artifactId } })
+  await deps.prisma.actionItem.deleteMany({ where: { meetingId: artifactId } })
 
   try {
     const artifact = await deps.prisma.meetingArtifact.findUnique({
