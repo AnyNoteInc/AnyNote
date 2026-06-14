@@ -31,6 +31,7 @@ export {
   type ToggleButtonGroupProps,
 } from '@mui/material/ToggleButtonGroup'
 export { default as Tooltip, type TooltipProps } from '@mui/material/Tooltip'
+export { type SvgIconProps } from '@mui/material/SvgIcon'
 export { default as Chip, type ChipProps } from '@mui/material/Chip'
 export { default as Stepper, type StepperProps } from '@mui/material/Stepper'
 export { default as Step, type StepProps } from '@mui/material/Step'
