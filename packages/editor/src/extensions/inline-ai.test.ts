@@ -16,6 +16,7 @@
 import { describe, expect, it } from 'vitest'
 import { Schema } from '@tiptap/pm/model'
 import { EditorState, type Transaction } from '@tiptap/pm/state'
+import type { Decoration, DecorationSet } from '@tiptap/pm/view'
 
 import {
   inlineAiPlugin,
@@ -55,6 +56,22 @@ const previewState = (state: EditorState): InlineAiPreviewState => {
   const s = inlineAiPluginKey.getState(state)
   if (!s) throw new Error('plugin state missing')
   return s
+}
+
+/** Pull the plugin's decoration set for a state (via its `decorations` prop). */
+const decorationsFor = (state: EditorState): DecorationSet => {
+  const decorate = inlineAiPlugin.props?.decorations
+  if (!decorate) throw new Error('decorations prop missing')
+  return decorate.call(inlineAiPlugin, state) as DecorationSet
+}
+
+/** The streaming-preview WIDGET decoration carries a `spec.key`; the source
+ *  inline decoration does not — so the widget is the one with a string key. */
+const widgetKeyFor = (state: EditorState): string | undefined => {
+  const set = decorationsFor(state)
+  const all = set.find() as Decoration[]
+  const widget = all.find((d) => typeof d.spec?.key === 'string')
+  return widget?.spec?.key as string | undefined
 }
 
 const apply = (state: EditorState, mutate: (tr: Transaction) => void): EditorState => {
@@ -230,5 +247,40 @@ describe('discard / retry invariants', () => {
     expect(s.text).toBe('')
     expect(s.from).toBe(1)
     expect(s.to).toBe(6)
+  })
+})
+
+describe('streaming-preview widget decoration key (no per-token DOM thrash)', () => {
+  it('keeps a STABLE widget key across appended tokens while text accumulates', () => {
+    // The widget key must NOT change per token, or ProseMirror's view diff
+    // (WidgetType.eq is key-equality) tears down + rebuilds the widget DOM each
+    // token — which would destroy+remount the Task 4 React toolbar per token.
+    let state = stateFrom('Hello world')
+    state = apply(state, (tr) =>
+      tr.setMeta(inlineAiPluginKey, inlineAiStartMeta({ from: 1, to: 6, action: 'summarize' })),
+    )
+    const keys: Array<string | undefined> = [widgetKeyFor(state)]
+    for (const token of ['Прив', 'ет', ', ', 'мир']) {
+      state = apply(state, (tr) =>
+        tr.setMeta(inlineAiPluginKey, inlineAiAppendTokenMeta(token)),
+      )
+      keys.push(widgetKeyFor(state))
+    }
+    // The text accumulated across the tokens...
+    expect(previewState(state).text).toBe('Привет, мир')
+    // ...but the widget key stayed identical for every one of them.
+    expect(keys.every((k) => k === keys[0])).toBe(true)
+    expect(keys[0]).toBe('inline-ai:streaming')
+  })
+
+  it('flips the widget key only on a discrete status transition (streaming → done)', () => {
+    let state = stateFrom('Hello world')
+    state = apply(state, (tr) =>
+      tr.setMeta(inlineAiPluginKey, inlineAiStartMeta({ from: 1, to: 6, action: 'rewrite' })),
+    )
+    state = apply(state, (tr) => tr.setMeta(inlineAiPluginKey, inlineAiAppendTokenMeta('done')))
+    expect(widgetKeyFor(state)).toBe('inline-ai:streaming')
+    state = apply(state, (tr) => tr.setMeta(inlineAiPluginKey, inlineAiFinishMeta()))
+    expect(widgetKeyFor(state)).toBe('inline-ai:done')
   })
 })

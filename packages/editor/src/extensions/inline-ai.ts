@@ -170,7 +170,22 @@ const buildDecorations = (
         box.textContent = preview.text
         return box
       },
-      { side: 1, ignoreSelection: true, key: `inline-ai:${preview.status}:${preview.text.length}` },
+      // STABLE widget identity: the key flips ONLY on discrete status
+      // transitions (streaming → done/error), never per appended token. Keying
+      // on `text.length` (as before) made ProseMirror's view diff treat every
+      // token as a NEW widget — `WidgetType.eq` is key-equality, so a changing
+      // key fails `matchesWidget` and tears down + rebuilds the widget DOM node
+      // each token. Once Task 4 injects the MUI accept/retry/discard toolbar via
+      // `renderPreview`, that teardown would destroy+remount the React subtree
+      // per token (lost focus/hover/press, flicker). A stable key keeps the host
+      // node mounted across the whole stream; the injected renderer updates its
+      // OWN subtree from live plugin state. (Mirrors collapsible-headings, which
+      // keys on stable identity + a discrete state flag, never content length.)
+      // NB: the fallback `<span>` below paints `preview.text` in toDOM; with a
+      // reused node toDOM is not re-invoked, so the fallback box reflects the
+      // text at first render of each status — fine for SSR/tests; the production
+      // path is the injected renderer.
+      { side: 1, ignoreSelection: true, key: `inline-ai:${preview.status}` },
     ),
   )
   return DecorationSet.create(state.doc, decos)

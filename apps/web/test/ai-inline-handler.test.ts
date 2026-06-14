@@ -27,6 +27,10 @@ function happyUpstream(): typeof fetch {
         sseStream([
           'data: {"type":"token","text":"Краткое "}\n\n',
           'data: {"type":"token","text":"резюме."}\n\n',
+          // HYPOTHETICAL / forward-compat: agents does NOT emit a `usage` frame
+          // today (spec §6). This synthetic frame only exercises the handler's
+          // token-capture path so it's wired and ready; it is NOT proof of live
+          // production token-accounting until agents actually emits `usage`.
           'data: {"type":"usage","promptTokens":12,"completionTokens":3,"totalTokens":15}\n\n',
           'data: {"type":"done"}\n\n',
         ]),
