@@ -49,7 +49,8 @@ export default async function PageRoute({ params }: { params: Promise<{ pageId: 
     page.type === 'DRAWIO' ||
     page.type === 'KANBAN' ||
     page.type === 'DATABASE' ||
-    page.type === 'MEETING'
+    page.type === 'MEETING' ||
+    page.type === 'DASHBOARD'
 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>

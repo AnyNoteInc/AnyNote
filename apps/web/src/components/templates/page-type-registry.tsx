@@ -3,6 +3,7 @@
 import {
   AccountTreeIcon,
   BrushIcon,
+  DashboardIcon,
   DescriptionIcon,
   MicIcon,
   SchemaIcon,
@@ -60,13 +61,15 @@ export const CREATABLE_PAGE_TYPES: PageTypeDescriptor[] = [
 /**
  * Page types that have an icon/label but are NOT user-creatable from the page-type
  * grid (the FORM precedent). MEETING pages are only born from the «Загрузить
- * встречу» upload flow, so they need a display icon/label everywhere a page is
- * listed (sidebar, search, history) without appearing in the create grid.
+ * встречу» upload flow, and DASHBOARD pages from the «Новый дашборд» launch
+ * action, so both need a display icon/label everywhere a page is listed
+ * (sidebar, search, history) without appearing in the create grid.
  */
 const NON_CREATABLE_PAGE_TYPE_META: Partial<
   Record<PageType, { label: string; Icon: IconComponent }>
 > = {
   MEETING: { label: 'Встреча', Icon: MicIcon },
+  DASHBOARD: { label: 'Дашборд', Icon: DashboardIcon },
 }
 
 /** Icon component for a page type, for rendering template cards/results. */

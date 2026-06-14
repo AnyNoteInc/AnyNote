@@ -88,6 +88,11 @@ const MeetingTranscriptPage = dynamic(
   { ssr: false, loading: () => <CenteredSpinner /> },
 )
 
+const DashboardPageRenderer = dynamic(
+  () => import('@/components/dashboard/DashboardPageRenderer').then((m) => m.DashboardPageRenderer),
+  { ssr: false, loading: () => <CenteredSpinner /> },
+)
+
 const EmbeddedDatabaseEmbed = dynamic(
   () => import('@/components/database/embedded-database-embed').then((m) => m.EmbeddedDatabaseEmbed),
   { ssr: false, loading: () => <CenteredSpinner /> },
@@ -646,6 +651,10 @@ export function PageRenderer({
 
   if (page.type === 'MEETING') {
     return <MeetingTranscriptPage pageId={page.id} editable={editable} />
+  }
+
+  if (page.type === 'DASHBOARD') {
+    return <DashboardPageRenderer pageId={page.id} editable={editable} />
   }
 
   if (page.type === 'TEXT') {
