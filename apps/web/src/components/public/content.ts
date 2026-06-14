@@ -4,7 +4,6 @@ export const publicFooterSections = [
     links: [
       { label: 'Возможности', href: '/#features' },
       { label: 'Тарифы', href: '/pricing' },
-      { label: 'Обновления', href: '/changelog' },
       { label: 'Разработчикам', href: '/developers' },
     ],
   },
@@ -22,7 +21,6 @@ export const publicFooterSections = [
 
 export const publicNavItems = [
   { label: 'Цены', href: '/pricing' },
-  { label: 'Обновления', href: '/changelog' },
   { label: 'Разработчикам', href: '/developers' },
 ] as const
 

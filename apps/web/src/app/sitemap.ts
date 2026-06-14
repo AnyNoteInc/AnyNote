@@ -26,12 +26,6 @@ export default function sitemap(): MetadataRoute.Sitemap {
       changeFrequency: 'monthly',
       priority: 0.9,
     },
-    {
-      url: `${base}/changelog`,
-      lastModified: STATIC_PAGES_LAST_MODIFIED,
-      changeFrequency: 'weekly',
-      priority: 0.7,
-    },
     ...developerPortalPages.map((path) => ({
       url: `${base}/developers${path}`,
       lastModified: STATIC_PAGES_LAST_MODIFIED,
