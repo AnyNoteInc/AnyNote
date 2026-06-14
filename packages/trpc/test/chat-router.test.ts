@@ -266,7 +266,8 @@ describe('chatRouter', () => {
     expect(prisma.favoriteChat.findMany).toHaveBeenCalledWith({
       where: {
         userId: 'user-1',
-        chat: { workspaceId },
+        // INLINE_AI chats are excluded from favourites (Phase 9D ephemeral chats).
+        chat: { workspaceId, kind: 'NORMAL' },
       },
       include: {
         chat: {

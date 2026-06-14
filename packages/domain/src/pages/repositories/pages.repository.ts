@@ -889,6 +889,13 @@ export class PageRepository {
       })
     }
 
+    // Prune the page's hidden INLINE_AI ephemeral chats (Phase 9D). The FK is
+    // SetNull (orphan-tolerant for the soft cases), but a permanent purge must
+    // remove them outright — they have no meaning without their page.
+    await this.uow.client().chat.deleteMany({
+      where: { kind: 'INLINE_AI', inlineAiPageId: page.id },
+    })
+
     // Delete the page (cascade handles related rows)
     await this.uow.client().page.delete({ where: { id: page.id } })
 
@@ -908,6 +915,14 @@ export class PageRepository {
       where: { workspaceId: input.workspaceId, deletedAt: { not: null } },
       select: { id: true },
     })
+    // Prune the trashed pages' hidden INLINE_AI ephemeral chats (Phase 9D) —
+    // same permanent-purge semantics as the single-page hard delete; the FK
+    // SetNull must not be relied on to leave orphans.
+    if (trashed.length > 0) {
+      await this.uow.client().chat.deleteMany({
+        where: { kind: 'INLINE_AI', inlineAiPageId: { in: trashed.map((p) => p.id) } },
+      })
+    }
     const deleted = await this.uow.client().page.deleteMany({
       where: { workspaceId: input.workspaceId, deletedAt: { not: null } },
     })

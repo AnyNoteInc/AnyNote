@@ -203,7 +203,8 @@ export const chatRouter = router({
     .query(async ({ ctx, input }) => {
       await assertWorkspaceMember(ctx, input.workspaceId)
       return ctx.prisma.chat.findMany({
-        where: { workspaceId: input.workspaceId },
+        // INLINE_AI chats are hidden ephemeral rows (Phase 9D) — never listed.
+        where: { workspaceId: input.workspaceId, kind: 'NORMAL' },
         orderBy: { updatedAt: 'desc' },
         take: 50,
         select: {
@@ -338,7 +339,8 @@ export const chatRouter = router({
       const favorites = await ctx.prisma.favoriteChat.findMany({
         where: {
           userId: ctx.user.id,
-          chat: { workspaceId: input.workspaceId },
+          // INLINE_AI chats are hidden ephemeral rows (Phase 9D) — never listed.
+          chat: { workspaceId: input.workspaceId, kind: 'NORMAL' },
         },
         include: {
           chat: {
