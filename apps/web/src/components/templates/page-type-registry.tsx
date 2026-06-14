@@ -4,6 +4,7 @@ import {
   AccountTreeIcon,
   BrushIcon,
   DescriptionIcon,
+  MicIcon,
   SchemaIcon,
   StorageIcon,
   ViewKanbanIcon,
@@ -56,12 +57,32 @@ export const CREATABLE_PAGE_TYPES: PageTypeDescriptor[] = [
   { type: 'LIKEC4', label: 'LikeC4', Icon: SchemaIcon, keywords: ['likec4', 'c4', 'архитектура', 'диаграмма'] },
 ]
 
+/**
+ * Page types that have an icon/label but are NOT user-creatable from the page-type
+ * grid (the FORM precedent). MEETING pages are only born from the «Загрузить
+ * встречу» upload flow, so they need a display icon/label everywhere a page is
+ * listed (sidebar, search, history) without appearing in the create grid.
+ */
+const NON_CREATABLE_PAGE_TYPE_META: Partial<
+  Record<PageType, { label: string; Icon: IconComponent }>
+> = {
+  MEETING: { label: 'Встреча', Icon: MicIcon },
+}
+
 /** Icon component for a page type, for rendering template cards/results. */
 export function pageTypeIcon(type: PageType): IconComponent {
-  return CREATABLE_PAGE_TYPES.find((d) => d.type === type)?.Icon ?? DescriptionIcon
+  return (
+    CREATABLE_PAGE_TYPES.find((d) => d.type === type)?.Icon ??
+    NON_CREATABLE_PAGE_TYPE_META[type]?.Icon ??
+    DescriptionIcon
+  )
 }
 
 /** Human label for a page type. */
 export function pageTypeLabel(type: PageType): string {
-  return CREATABLE_PAGE_TYPES.find((d) => d.type === type)?.label ?? 'Страница'
+  return (
+    CREATABLE_PAGE_TYPES.find((d) => d.type === type)?.label ??
+    NON_CREATABLE_PAGE_TYPE_META[type]?.label ??
+    'Страница'
+  )
 }

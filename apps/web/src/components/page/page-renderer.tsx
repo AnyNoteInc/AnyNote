@@ -81,6 +81,11 @@ const DatabasePageRenderer = dynamic(
   { ssr: false, loading: () => <CenteredSpinner /> },
 )
 
+const MeetingTranscriptPage = dynamic(
+  () => import('@/components/meeting/MeetingTranscriptPage').then((m) => m.MeetingTranscriptPage),
+  { ssr: false, loading: () => <CenteredSpinner /> },
+)
+
 const EmbeddedDatabaseEmbed = dynamic(
   () => import('@/components/database/embedded-database-embed').then((m) => m.EmbeddedDatabaseEmbed),
   { ssr: false, loading: () => <CenteredSpinner /> },
@@ -586,6 +591,10 @@ export function PageRenderer({
 
   if (page.type === 'DATABASE') {
     return <DatabasePageRenderer pageId={page.id} editable={editable} />
+  }
+
+  if (page.type === 'MEETING') {
+    return <MeetingTranscriptPage pageId={page.id} editable={editable} />
   }
 
   if (page.type === 'TEXT') {

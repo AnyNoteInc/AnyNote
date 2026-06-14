@@ -241,6 +241,9 @@ export { default as Collapse } from '@mui/material/Collapse'
 export { default as AttachFileIcon } from '@mui/icons-material/AttachFile'
 export { default as ImportExportIcon } from '@mui/icons-material/ImportExport'
 export { default as UploadFileIcon } from '@mui/icons-material/UploadFile'
+// Meeting / transcription icons (MEETING page type + transcript search)
+export { default as MicIcon } from '@mui/icons-material/Mic'
+export { default as GraphicEqIcon } from '@mui/icons-material/GraphicEq'
 
 export { SimpleTreeView } from '@mui/x-tree-view/SimpleTreeView'
 export { RichTreeView } from '@mui/x-tree-view/RichTreeView'
@@ -262,6 +265,7 @@ export { ru as dateFnsRu } from 'date-fns/locale/ru'
 
 export * from './ui/button'
 export { BrandIcon, type BrandIconProps } from './brand-icon'
+export { Markdown } from './markdown'
 
 export { default as FormControl, type FormControlProps } from '@mui/material/FormControl'
 export { default as InputLabel, type InputLabelProps } from '@mui/material/InputLabel'

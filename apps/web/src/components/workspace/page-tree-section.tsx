@@ -21,11 +21,15 @@ import {
   Box,
   ChevronRightIcon,
   IconButton,
+  MicIcon,
   MoreHorizIcon,
+  Tooltip,
   Typography,
 } from '@repo/ui/components'
 import { trpc } from '@/trpc/client'
 import { CreatePageDialog, useCreatePageFlow } from '@/components/templates'
+import { MeetingUploadDialog } from '@/components/meeting/MeetingUploadDialog'
+import { usePlanFeatures } from '@/components/workspace/plan-features-context'
 import { PageIcon } from '@/components/page/page-icon'
 import { PageContextMenu } from './page-context-menu'
 import { MovePageDialog } from './move-page-dialog'
@@ -256,8 +260,13 @@ export function PageTreeSection({
   const [activeId, setActiveId] = useState<string | null>(null)
   const [overId, setOverId] = useState<string | null>(null)
   const [mounted, setMounted] = useState(false)
+  const [meetingOpen, setMeetingOpen] = useState(false)
   const utils = trpc.useUtils()
   const createFlow = useCreatePageFlow(workspaceId)
+  // The «Загрузить встречу» launch action is gated on the plan flag: hidden when
+  // the workspace's tier lacks meeting transcription (the create mutation also
+  // 403s server-side, this just keeps the entry out of sight).
+  const { meetingsEnabled } = usePlanFeatures()
 
   useEffect(() => {
     setMounted(true)
@@ -365,13 +374,27 @@ export function PageTreeSection({
         <Typography variant="overline" sx={{ color: 'text.secondary', letterSpacing: '0.06em' }}>
           {title ?? 'Страницы'}
         </Typography>
-        <IconButton
-          aria-label="Новая страница"
-          size="small"
-          onClick={() => createFlow.openFor(null, location ? { location } : undefined)}
-        >
-          <AddIcon sx={{ fontSize: 16 }} />
-        </IconButton>
+        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+          {meetingsEnabled ? (
+            <Tooltip title="Загрузить встречу">
+              <IconButton
+                aria-label="Загрузить встречу"
+                size="small"
+                data-testid="upload-meeting-button"
+                onClick={() => setMeetingOpen(true)}
+              >
+                <MicIcon sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Tooltip>
+          ) : null}
+          <IconButton
+            aria-label="Новая страница"
+            size="small"
+            onClick={() => createFlow.openFor(null, location ? { location } : undefined)}
+          >
+            <AddIcon sx={{ fontSize: 16 }} />
+          </IconButton>
+        </Box>
         <CreatePageDialog
           open={createFlow.open}
           onClose={createFlow.close}
@@ -380,6 +403,13 @@ export function PageTreeSection({
           onCreateFromTemplate={createFlow.handleCreateFromTemplate}
           isCreating={createFlow.isCreating}
         />
+        {meetingsEnabled ? (
+          <MeetingUploadDialog
+            open={meetingOpen}
+            onClose={() => setMeetingOpen(false)}
+            workspaceId={workspaceId}
+          />
+        ) : null}
       </Box>
 
       <Box sx={{ flex: 1, minHeight: 0, overflow: 'auto' }}>
