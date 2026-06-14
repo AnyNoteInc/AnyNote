@@ -256,6 +256,7 @@ enum PageType {
   KANBAN
   FORM
   MEETING
+  DASHBOARD
 }
 
 enum PageShareAccess {
@@ -466,6 +467,7 @@ model Workspace {
   syncedBlocks          SyncedBlock[]
   meetingArtifacts      MeetingArtifact[]
   summaryInstructions   SummaryInstruction[]
+  dashboards            Dashboard[]
 
   @@index([createdById])
   @@map("workspaces")
@@ -558,6 +560,7 @@ model Page {
   syncedBlocks         SyncedBlock[]                @relation("SyncedBlockOriginPage")
   inlineAiChats        Chat[]                       @relation("ChatInlineAiPage")
   meeting              MeetingArtifact?             @relation("PageMeeting")
+  dashboard            Dashboard?                   @relation("PageDashboard")
 
   @@index([workspaceId])
   @@index([parentId])
@@ -1595,12 +1598,13 @@ model DatabaseSource {
   createdAt       DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
   updatedAt       DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
 
-  workspace   Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  page        Page                     @relation("DatabaseSourcePage", fields: [pageId], references: [id], onDelete: Cascade)
-  views       DatabaseView[]
-  properties  DatabaseProperty[]
-  rows        DatabaseRow[]
-  accessRules DatabasePageAccessRule[]
+  workspace        Workspace                @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  page             Page                     @relation("DatabaseSourcePage", fields: [pageId], references: [id], onDelete: Cascade)
+  views            DatabaseView[]
+  properties       DatabaseProperty[]
+  rows             DatabaseRow[]
+  accessRules      DatabasePageAccessRule[]
+  dashboardWidgets DashboardWidget[]        @relation("WidgetSource")
 
   @@index([workspaceId])
   @@map("database_sources")
@@ -1642,7 +1646,8 @@ model DatabaseView {
   position Int              @default(0)
   settings Json?
 
-  source DatabaseSource @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  source           DatabaseSource    @relation(fields: [sourceId], references: [id], onDelete: Cascade)
+  dashboardWidgets DashboardWidget[] @relation("WidgetView")
 
   @@index([sourceId])
   @@map("database_views")
@@ -2637,4 +2642,76 @@ model SummaryInstruction {
 
   @@index([workspaceId])
   @@map("summary_instructions")
+}
+
+// Phase 9F: BI dashboards over generic databases. A DASHBOARD page owns a
+// Dashboard (1:1 via pageId @unique) holding widgets that each query a
+// DatabaseSource/View with aggregation + grouping + filters, plus cross-widget
+// global filters that match by property NAME + compatible type.
+enum DashboardWidgetType {
+  METRIC // single aggregate (a "number" stat)
+  GROUPED // grouped aggregation (table of group → value)
+  TABLE // embed a read-only database table view
+  BAR // bar chart over a grouped aggregation
+  LINE // line chart over a grouped aggregation
+  DONUT // donut/pie over a grouped aggregation
+  NUMBER // big-number stat (styled metric)
+}
+
+model Dashboard {
+  id          String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  workspaceId String   @map("workspace_id") @db.Uuid
+  pageId      String   @unique @map("page_id") @db.Uuid // 1:1 with the DASHBOARD page
+  title       String   @default("Дашборд")
+  createdById String   @map("created_by_id") @db.Uuid
+  createdAt   DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  workspace     Workspace               @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  page          Page                    @relation("PageDashboard", fields: [pageId], references: [id], onDelete: Cascade)
+  widgets       DashboardWidget[]
+  globalFilters DashboardGlobalFilter[]
+
+  @@index([workspaceId])
+  @@map("dashboards")
+}
+
+model DashboardWidget {
+  id          String              @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dashboardId String              @map("dashboard_id") @db.Uuid
+  sourceId    String              @map("source_id") @db.Uuid // the DatabaseSource it queries
+  viewId      String?             @map("view_id") @db.Uuid // optional base view (inherits its filters/visibleProperties)
+  type        DashboardWidgetType
+  title       String              @default("")
+  config      Json                @default("{}") // WidgetConfig: { metric:{propertyId|'__count__', aggregation}, groupByPropertyId?, filters?, chartOptions?, tableLimit? }
+  // grid layout (react-grid-layout):
+  gridX       Int                 @default(0) @map("grid_x")
+  gridY       Int                 @default(0) @map("grid_y")
+  gridW       Int                 @default(4) @map("grid_w")
+  gridH       Int                 @default(4) @map("grid_h")
+  position    Int                 @default(0) // stable tiebreak/order
+  createdAt   DateTime            @default(now()) @map("created_at") @db.Timestamptz(6)
+  updatedAt   DateTime            @updatedAt @map("updated_at") @db.Timestamptz(6)
+
+  dashboard Dashboard      @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+  source    DatabaseSource @relation("WidgetSource", fields: [sourceId], references: [id], onDelete: Cascade)
+  view      DatabaseView?  @relation("WidgetView", fields: [viewId], references: [id], onDelete: SetNull)
+
+  @@index([dashboardId, position])
+  @@map("dashboard_widgets")
+}
+
+model DashboardGlobalFilter {
+  id           String   @id @default(dbgenerated("gen_random_uuid()")) @db.Uuid
+  dashboardId  String   @map("dashboard_id") @db.Uuid
+  // a global filter targets a property by NAME (so it can apply to any widget whose source has a matching property)
+  propertyName String   @map("property_name")
+  config       Json     @default("{}") // { operator, value } — the filter to apply where a compatible property exists
+  position     Int      @default(0)
+  createdAt    DateTime @default(now()) @map("created_at") @db.Timestamptz(6)
+
+  dashboard Dashboard @relation(fields: [dashboardId], references: [id], onDelete: Cascade)
+
+  @@index([dashboardId])
+  @@map("dashboard_global_filters")
 }
