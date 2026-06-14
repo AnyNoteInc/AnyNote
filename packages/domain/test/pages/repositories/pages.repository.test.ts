@@ -707,11 +707,13 @@ describe('PageRepository.hardDeletePageTx — in-tx notFound + cascade', () => {
     const txFindFirst = vi.fn(async () => ({ id: 'p1', workspaceId: 'w1', prevPageId: null }))
     const txUpdate = vi.fn(async () => ({}))
     const txDelete = vi.fn(async () => ({}))
+    const chatDeleteMany = vi.fn(async () => ({ count: 0 }))
     const outboxCreate = vi.fn(async () => ({}))
     const outboxCreateMany = vi.fn(async () => ({ count: 0 }))
     const repo = new PageRepository(
       makeUow({
         page: { findFirst: txFindFirst, update: txUpdate, delete: txDelete },
+        chat: { deleteMany: chatDeleteMany },
         outboxEvent: { create: outboxCreate, createMany: outboxCreateMany },
       }),
     )
@@ -723,6 +725,10 @@ describe('PageRepository.hardDeletePageTx — in-tx notFound + cascade', () => {
         where: expect.objectContaining({ id: 'p1', deletedAt: { not: null } }),
       }),
     )
+    // The page's hidden INLINE_AI ephemeral chats are pruned (Phase 9D) — deleted, not orphaned.
+    expect(chatDeleteMany).toHaveBeenCalledWith({
+      where: { kind: 'INLINE_AI', inlineAiPageId: 'p1' },
+    })
     expect(txDelete).toHaveBeenCalledWith({ where: { id: 'p1' } })
     // Indexing row ONLY — no webhook_event/telegram_event rows (the page is
     // gone by fan-out time; soft-delete already emitted page.deleted).
@@ -757,16 +763,22 @@ describe('PageRepository.emptyTrashTx — per-page outbox', () => {
   it('deletes all trashed pages and enqueues page.deleted for each', async () => {
     const txFindMany = vi.fn(async () => [{ id: 't1' }, { id: 't2' }])
     const txDeleteMany = vi.fn(async () => ({ count: 2 }))
+    const chatDeleteMany = vi.fn(async () => ({ count: 0 }))
     const outboxCreate = vi.fn(async () => ({}))
     const outboxCreateMany = vi.fn(async () => ({ count: 0 }))
     const repo = new PageRepository(
       makeUow({
         page: { findMany: txFindMany, deleteMany: txDeleteMany },
+        chat: { deleteMany: chatDeleteMany },
         outboxEvent: { create: outboxCreate, createMany: outboxCreateMany },
       }),
     )
     const result = await repo.emptyTrashTx({ workspaceId: 'w1' })
     expect(result).toEqual({ count: 2 })
+    // The trashed pages' hidden INLINE_AI ephemeral chats are pruned (Phase 9D).
+    expect(chatDeleteMany).toHaveBeenCalledWith({
+      where: { kind: 'INLINE_AI', inlineAiPageId: { in: ['t1', 't2'] } },
+    })
     expect(txDeleteMany).toHaveBeenCalledWith({
       where: { workspaceId: 'w1', deletedAt: { not: null } },
     })
