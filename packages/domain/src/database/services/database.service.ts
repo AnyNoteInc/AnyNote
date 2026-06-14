@@ -52,9 +52,19 @@ import {
   canEditRow,
   canViewRow,
   resolveRowAccess,
-  resolveRowAccessForRows,
 } from './row-access-resolver.ts'
 import type { AccessRule, RowAccessContext, RowAccessRow } from './row-access-resolver.ts'
+// The shared, single-sourced row post-filter + per-viewer row-access authority.
+// The private methods below delegate to these (the dashboard widget service
+// consumes the same functions through the database barrel — no copy drift).
+import {
+  applyMultiSelectPostFilters as sharedApplyMultiSelectPostFilters,
+  applyRelationPostFilters as sharedApplyRelationPostFilters,
+  buildRowAccessContext as sharedBuildRowAccessContext,
+  filterViewableRows as sharedFilterViewableRows,
+  toAccessRow as sharedToAccessRow,
+  toResolverRules as sharedToResolverRules,
+} from './row-post-filters.ts'
 import { tokenize, parse, FormulaSyntaxError } from '../formula/index.ts'
 import { resolveComputedCells } from './computed-cells.ts'
 import type {
@@ -196,14 +206,13 @@ export class DatabaseService {
 
   // ── Access rules + structure lock + getMyAccess (Phase 4C) ───────────────────
 
+  // The row post-filter + per-viewer row-access authority is single-sourced in
+  // `./row-post-filters.ts`; these private methods delegate to it (the dashboard
+  // widget service consumes the same functions through the database barrel).
+
   /** Map a repo EnabledAccessRule to the resolver's AccessRule shape. */
   private toResolverRules(rules: EnabledAccessRule[]): AccessRule[] {
-    return rules.map((r) => ({
-      propertyId: r.propertyId,
-      propertyType: r.propertyType,
-      accessLevel: r.accessLevel,
-      enabled: r.enabled,
-    }))
+    return sharedToResolverRules(rules)
   }
 
   /**
@@ -217,15 +226,7 @@ export class DatabaseService {
     source: { id: string; workspaceId: string; pageId: string },
     itemPageId: string | null,
   ): Promise<RowAccessContext> {
-    if (actorUserId === null) {
-      return { viewerId: null, workspaceRole: null, isSourcePageCreator: false, pageShareLevel: null }
-    }
-    const [workspaceRole, isSourcePageCreator, pageShareLevel] = await Promise.all([
-      this.repo.findWorkspaceRole(actorUserId, source.workspaceId),
-      this.repo.isSourcePageCreatedBy(source.pageId, actorUserId),
-      itemPageId ? this.repo.findItemPageShareLevel(itemPageId, actorUserId) : Promise.resolve(null),
-    ])
-    return { viewerId: actorUserId, workspaceRole, isSourcePageCreator, pageShareLevel }
+    return sharedBuildRowAccessContext(this.repo, actorUserId, source, itemPageId)
   }
 
   /**
@@ -234,9 +235,7 @@ export class DatabaseService {
    * against.
    */
   private toAccessRow(row: RowWithPage): { id: string } & RowAccessRow {
-    const cellsByProperty = new Map<string, unknown>()
-    for (const c of row.cells) cellsByProperty.set(c.propertyId, c.value)
-    return { id: row.id, rowCreatedById: row.createdById, cellsByProperty }
+    return sharedToAccessRow(row)
   }
 
   /**
@@ -250,12 +249,7 @@ export class DatabaseService {
     rules: AccessRule[],
     rows: RowWithPage[],
   ): RowWithPage[] {
-    if (rules.length === 0 && ctx.viewerId !== null && ctx.workspaceRole !== null) {
-      // Fast path: no rules + a workspace member → every row is viewable.
-      return rows
-    }
-    const levels = resolveRowAccessForRows(ctx, rules, rows.map((r) => this.toAccessRow(r)))
-    return rows.filter((r) => levels.get(r.id) != null)
+    return sharedFilterViewableRows(ctx, rules, rows)
   }
 
   /**
@@ -1043,15 +1037,7 @@ export class DatabaseService {
     rows: RowWithPage[],
     postFilters: MultiSelectPostFilter[],
   ): RowWithPage[] {
-    if (postFilters.length === 0) return rows
-    return rows.filter((row) =>
-      postFilters.every((pf) => {
-        const cell = row.cells.find((c) => c.propertyId === pf.propertyId)
-        const values = Array.isArray(cell?.value) ? (cell.value as string[]) : []
-        const intersects = pf.optionIds.some((id) => values.includes(id))
-        return pf.op === 'is_any_of' ? intersects : !intersects
-      }),
-    )
+    return sharedApplyMultiSelectPostFilters(rows, postFilters)
   }
 
   /**
@@ -1065,19 +1051,7 @@ export class DatabaseService {
     rows: RowWithPage[],
     postFilters: RelationPostFilter[],
   ): Promise<RowWithPage[]> {
-    if (postFilters.length === 0 || rows.length === 0) return rows
-    const rowIds = rows.map((r) => r.id)
-    let surviving = rows
-    for (const pf of postFilters) {
-      const linksByRow = await this.repo.findRelationLinks(pf.propertyId, rowIds)
-      const wanted = new Set(pf.targetRowIds)
-      surviving = surviving.filter((row) => {
-        const links = linksByRow.get(row.id) ?? []
-        const intersects = links.some((id) => wanted.has(id))
-        return pf.op === 'is_any_of' ? intersects : !intersects
-      })
-    }
-    return surviving
+    return sharedApplyRelationPostFilters(this.repo, rows, postFilters)
   }
 
   /** Resolve a view's settings + the source's property metas for the planner. */

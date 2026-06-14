@@ -1,11 +1,13 @@
 import { z } from 'zod'
 
+// The dashboard module reaches the database dto ONLY through the database barrel
+// (the domain-module-isolation rule): the property/filter/rollup schemas + types.
 import {
   DatabasePropertyType,
   filterGroupSchema,
+  filterOperatorSchema,
   rollupAggregationSchema,
-} from '../../database/dto/database.dto.ts'
-import type { FilterGroup, RollupAggregation } from '../../database/dto/database.dto.ts'
+} from '../../database/index.ts'
 
 // ── Performance caps (spec §7.5) ──────────────────────────────────────────────
 // A widget scans at most MAX_WIDGET_ROWS rows; over that the result is truncated
@@ -78,7 +80,10 @@ export type WidgetConfig = z.infer<typeof widgetConfigSchema>
 // compatible type (spec §3 / invariant 4).
 export const globalFilterInputSchema = z.object({
   propertyName: z.string(),
-  operator: z.string(),
+  // The SAME strict operator enum a FilterCondition uses. An unvalidated string
+  // would silently become a no-op in the planner (`default: return null`); the
+  // enum rejects an invalid operator at the schema boundary instead.
+  operator: filterOperatorSchema,
   value: z.unknown().optional(),
 })
 export type GlobalFilterInput = z.infer<typeof globalFilterInputSchema>

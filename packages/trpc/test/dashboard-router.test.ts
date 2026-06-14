@@ -426,7 +426,7 @@ describe('dashboard router (integration)', () => {
     await dashboardCaller(fx.ownerId).setGlobalFilters({
       dashboardId: dash.dashboardId,
       filters: [
-        { propertyName: 'Статус', operator: 'is', value: 'open' },
+        { propertyName: 'Статус', operator: 'equals', value: 'open' },
         { propertyName: 'Сумма', operator: 'gt', value: 5 },
       ],
     })
@@ -516,7 +516,7 @@ describe('dashboard router (integration)', () => {
     })
     await dashboardCaller(fx.ownerId).setGlobalFilters({
       dashboardId: dash.dashboardId,
-      filters: [{ propertyName: 'Статус', operator: 'is', value: 'x' }],
+      filters: [{ propertyName: 'Статус', operator: 'equals', value: 'x' }],
     })
     // Hard-delete requires the page to be in trash first.
     await prisma.page.update({ where: { id: dash.pageId }, data: { deletedAt: new Date() } })

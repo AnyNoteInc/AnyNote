@@ -15,35 +15,32 @@
 import type { Prisma, PrismaClient } from '@repo/db'
 
 import { PrismaUnitOfWork } from '../../shared/unit-of-work.ts'
-import { DatabasePropertyType, TITLE_SENTINEL } from '../../database/dto/database.dto.ts'
+// The dashboard module reaches the database read-stack ONLY through its barrel
+// (the domain-module-isolation rule): the planner, the row-access resolver, the
+// SHARED row post-filter authority (single-sourced with DatabaseService — no
+// copy drift), the repository, the computed-cells aggregate, and the dto types.
+import {
+  aggregate,
+  applyMultiSelectPostFilters,
+  applyRelationPostFilters,
+  buildRowAccessContext,
+  buildRowAccessWhere,
+  buildRowQuery,
+  DatabasePropertyType,
+  DatabaseRepository,
+  filterViewableRows,
+  TITLE_SENTINEL,
+  toResolverRules,
+} from '../../database/index.ts'
 import type {
   FilterCondition,
   FilterGroup,
-  RollupAggregation,
-  ViewSettings,
-} from '../../database/dto/database.dto.ts'
-import { DatabaseRepository } from '../../database/repositories/database.repository.ts'
-import type {
-  EnabledAccessRule,
-  PropertyRow,
-  RowWithPage,
-} from '../../database/repositories/database.repository.ts'
-import { buildRowQuery } from '../../database/services/query-planner.ts'
-import type {
-  MultiSelectPostFilter,
   PropertyMeta,
-  RelationPostFilter,
-} from '../../database/services/query-planner.ts'
-import {
-  buildRowAccessWhere,
-  resolveRowAccessForRows,
-} from '../../database/services/row-access-resolver.ts'
-import type {
-  AccessRule,
-  RowAccessContext,
-  RowAccessRow,
-} from '../../database/services/row-access-resolver.ts'
-import { aggregate } from '../../database/services/computed-cells.ts'
+  PropertyRow,
+  RollupAggregation,
+  RowWithPage,
+  ViewSettings,
+} from '../../database/index.ts'
 import {
   COUNT_SENTINEL,
   GROUPED_WIDGET_TYPES,
@@ -172,8 +169,10 @@ export class WidgetAggregationService {
     const plan = buildRowQuery({ filters: mergedFilters }, metas)
 
     // ── 5. Row-access (pre-filter optimization + authoritative post-filter) ──
-    const rules = this.toResolverRules(await this.repo.findEnabledAccessRules(source.id))
-    const accessCtx = await this.buildRowAccessContext(actorUserId, source)
+    // List context: itemPageId = null (no per-row share — role + creator + rules
+    // suffice), matching DatabaseService.listRows.
+    const rules = toResolverRules(await this.repo.findEnabledAccessRules(source.id))
+    const accessCtx = await buildRowAccessContext(this.repo, actorUserId, source, null)
     const accessWhere = buildRowAccessWhere(accessCtx, rules)
     const effectiveWhere: Prisma.DatabaseRowWhereInput =
       accessWhere === null ? plan.where : { AND: [plan.where, accessWhere] }
@@ -189,9 +188,13 @@ export class WidgetAggregationService {
 
     // Post-filters: MULTI_SELECT containment + RELATION links + the AUTHORITATIVE
     // per-viewer row-access gate (the where-clause is only an optimization).
-    const afterMulti = this.applyMultiSelectPostFilters(capped, plan.multiSelectPostFilters)
-    const afterRelation = await this.applyRelationPostFilters(afterMulti, plan.relationPostFilters)
-    const rows = this.filterViewableRows(accessCtx, rules, afterRelation)
+    const afterMulti = applyMultiSelectPostFilters(capped, plan.multiSelectPostFilters)
+    const afterRelation = await applyRelationPostFilters(
+      this.repo,
+      afterMulti,
+      plan.relationPostFilters,
+    )
+    const rows = filterViewableRows(accessCtx, rules, afterRelation)
 
     // Truncation is honest: the over-fetch probe tripped (more rows matched than
     // the cap). Post-filtering can only shrink the set, never reveal more.
@@ -370,93 +373,14 @@ export class WidgetAggregationService {
       if (!SCALAR_FILTER_TYPES.has(prop.type)) continue // incompatible type
       conditions.push({
         propertyId: prop.id,
-        operator: gf.operator as FilterCondition['operator'],
+        // `gf.operator` is the strict FilterOperator enum (dashboard dto) — the
+        // same type as FilterCondition['operator'], so no cast is needed.
+        operator: gf.operator,
         value: gf.value,
       })
     }
     if (conditions.length === 0) return undefined
     return { conjunction: 'and', conditions }
-  }
-
-  // ── Access context + post-filter chain (mirrors DatabaseService, self-contained) ─
-
-  private toResolverRules(rules: EnabledAccessRule[]): AccessRule[] {
-    return rules.map((r) => ({
-      propertyId: r.propertyId,
-      propertyType: r.propertyType,
-      accessLevel: r.accessLevel,
-      enabled: r.enabled,
-    }))
-  }
-
-  private async buildRowAccessContext(
-    actorUserId: string,
-    source: { id: string; workspaceId: string; pageId: string },
-  ): Promise<RowAccessContext> {
-    const [workspaceRole, isSourcePageCreator] = await Promise.all([
-      this.repo.findWorkspaceRole(actorUserId, source.workspaceId),
-      this.repo.isSourcePageCreatedBy(source.pageId, actorUserId),
-    ])
-    // List context: no per-item page share (role + creator + rules suffice),
-    // matching DatabaseService.listRows (itemPageId = null).
-    return { viewerId: actorUserId, workspaceRole, isSourcePageCreator, pageShareLevel: null }
-  }
-
-  private toAccessRow(row: RowWithPage): { id: string } & RowAccessRow {
-    const cellsByProperty = new Map<string, unknown>()
-    for (const c of row.cells) cellsByProperty.set(c.propertyId, c.value)
-    return { id: row.id, rowCreatedById: row.createdById, cellsByProperty }
-  }
-
-  /** THE authoritative per-row read gate (per viewer). */
-  private filterViewableRows(
-    ctx: RowAccessContext,
-    rules: AccessRule[],
-    rows: RowWithPage[],
-  ): RowWithPage[] {
-    if (rules.length === 0 && ctx.viewerId !== null && ctx.workspaceRole !== null) {
-      return rows // no rules + a member → every row viewable (fast path)
-    }
-    const levels = resolveRowAccessForRows(
-      ctx,
-      rules,
-      rows.map((r) => this.toAccessRow(r)),
-    )
-    return rows.filter((r) => levels.get(r.id) != null)
-  }
-
-  private applyMultiSelectPostFilters(
-    rows: RowWithPage[],
-    postFilters: MultiSelectPostFilter[],
-  ): RowWithPage[] {
-    if (postFilters.length === 0) return rows
-    return rows.filter((row) =>
-      postFilters.every((pf) => {
-        const cell = row.cells.find((c) => c.propertyId === pf.propertyId)
-        const values = Array.isArray(cell?.value) ? (cell.value as string[]) : []
-        const intersects = pf.optionIds.some((id) => values.includes(id))
-        return pf.op === 'is_any_of' ? intersects : !intersects
-      }),
-    )
-  }
-
-  private async applyRelationPostFilters(
-    rows: RowWithPage[],
-    postFilters: RelationPostFilter[],
-  ): Promise<RowWithPage[]> {
-    if (postFilters.length === 0 || rows.length === 0) return rows
-    const rowIds = rows.map((r) => r.id)
-    let surviving = rows
-    for (const pf of postFilters) {
-      const linksByRow = await this.repo.findRelationLinks(pf.propertyId, rowIds)
-      const wanted = new Set(pf.targetRowIds)
-      surviving = surviving.filter((row) => {
-        const links = linksByRow.get(row.id) ?? []
-        const intersects = links.some((id) => wanted.has(id))
-        return pf.op === 'is_any_of' ? intersects : !intersects
-      })
-    }
-    return surviving
   }
 }
 

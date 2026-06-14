@@ -4,12 +4,14 @@ import type { PrismaClient } from '@repo/db'
 import {
   aggregateWidget,
   dashboardWidgetTypeSchema,
+  filterOperatorSchema,
   globalFilterInputSchema,
   widgetConfigSchema,
   MAX_WIDGETS_PER_DASHBOARD,
 } from '@repo/domain'
 import type {
   DashboardWidgetType,
+  FilterOperator,
   GlobalFilterInput,
   WidgetConfig,
   WidgetDataResult,
@@ -124,6 +126,18 @@ function projectWidget(w: WidgetRow): DashboardWidgetDto {
   }
 }
 
+/**
+ * Coerce a PERSISTED global-filter operator (free JSON) to the strict
+ * FilterOperator enum. New rows are written through `globalFilterInputSchema`
+ * (validated), so this is normally a pass-through; a legacy/corrupt operator
+ * falls back to `equals` (a defined, harmless no-op for a missing-type cell)
+ * rather than smuggling an invalid string into the typed surface.
+ */
+function asFilterOperator(raw: unknown): FilterOperator {
+  const parsed = filterOperatorSchema.safeParse(raw)
+  return parsed.success ? parsed.data : 'equals'
+}
+
 function projectGlobalFilter(f: {
   id: string
   propertyName: string
@@ -131,14 +145,14 @@ function projectGlobalFilter(f: {
   position: number
 }): DashboardGlobalFilterDto {
   const cfg = (f.config && typeof f.config === 'object' ? f.config : {}) as {
-    operator?: string
+    operator?: unknown
     value?: unknown
   }
   return {
     id: f.id,
     position: f.position,
     propertyName: f.propertyName,
-    operator: typeof cfg.operator === 'string' ? cfg.operator : 'is',
+    operator: asFilterOperator(cfg.operator),
     value: cfg.value,
   }
 }
@@ -497,12 +511,12 @@ export const dashboardRouter = router({
 
       const globalFilters: GlobalFilterInput[] = filterRows.map((f) => {
         const cfg = (f.config && typeof f.config === 'object' ? f.config : {}) as {
-          operator?: string
+          operator?: unknown
           value?: unknown
         }
         return {
           propertyName: f.propertyName,
-          operator: typeof cfg.operator === 'string' ? cfg.operator : 'is',
+          operator: asFilterOperator(cfg.operator),
           value: cfg.value,
         }
       })
