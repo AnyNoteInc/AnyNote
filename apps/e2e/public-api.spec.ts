@@ -26,7 +26,8 @@ test('mint key in UI, call /v1/workspaces with Bearer, list current user workspa
 
   await page.getByTestId('api-key-create-button').click()
   await page.getByTestId('api-key-name-input').fill('e2e')
-  await page.getByRole('radio', { name: '30 дней' }).check()
+  await page.getByRole('combobox', { name: 'Срок действия' }).click()
+  await page.getByRole('option', { name: '30 дней' }).click()
   await page.getByTestId('api-key-create-submit').click()
 
   const fullKey = await page
@@ -61,7 +62,8 @@ test('rejects revoked key with 401', async ({ page }) => {
 
   await page.getByTestId('api-key-create-button').click()
   await page.getByTestId('api-key-name-input').fill('revoke')
-  await page.getByRole('radio', { name: '7 дней' }).check()
+  await page.getByRole('combobox', { name: 'Срок действия' }).click()
+  await page.getByRole('option', { name: '7 дней' }).click()
   await page.getByTestId('api-key-create-submit').click()
 
   const fullKey = await page
