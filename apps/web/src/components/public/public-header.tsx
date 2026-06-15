@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { Box, Button, Stack, Typography } from '@repo/ui/components'
 import { ChangeColorTheme } from '@repo/ui/widgets'
 
-import { AppUserMenu } from '@/components/app/app-user-menu'
+import { AppUserMenu, type WorkspaceSummary } from '@/components/app/app-user-menu'
 import { Origami } from '@/components/public/home/origami'
 import type { SessionType } from '@/lib/get-session'
 
@@ -11,9 +11,11 @@ import { publicNavItems } from './content'
 
 type PublicHeaderProps = {
   session: SessionType
+  activeWorkspace?: WorkspaceSummary | null
+  hasAnyWorkspace?: boolean
 }
 
-export function PublicHeader({ session }: PublicHeaderProps) {
+export function PublicHeader({ session, activeWorkspace, hasAnyWorkspace }: PublicHeaderProps) {
   return (
     <Box
       sx={{
@@ -79,7 +81,11 @@ export function PublicHeader({ session }: PublicHeaderProps) {
 
         <Stack direction="row" spacing={1.5} alignItems="center">
           <ChangeColorTheme />
-          <AppUserMenu session={session} />
+          <AppUserMenu
+            session={session}
+            activeWorkspace={activeWorkspace}
+            hasAnyWorkspace={hasAnyWorkspace}
+          />
         </Stack>
       </Stack>
     </Box>

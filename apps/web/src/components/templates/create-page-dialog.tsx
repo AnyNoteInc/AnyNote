@@ -1,14 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import {
-  Box,
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  IconButton,
-  CloseIcon,
-} from '@repo/ui/components'
+import { Box, Dialog, DialogContent, DialogTitle, IconButton, CloseIcon } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
 
@@ -40,6 +33,12 @@ interface Props {
   onCreatePage: (type: CreatablePageType) => void
   /** Create a page from a template (optionally with an overridden title). */
   onCreateFromTemplate: (templateId: string) => void
+  /** Create a DASHBOARD page (runs dashboard.create, not page.create). */
+  onCreateDashboard: () => void
+  /** Open the recording-upload flow that produces a MEETING page. */
+  onUploadMeeting: () => void
+  /** Whether the workspace plan allows meeting transcription; gates the MEETING tile. */
+  meetingsEnabled: boolean
   /** Disables actions while a create mutation is in flight. */
   isCreating?: boolean
 }
@@ -55,6 +54,9 @@ export function CreatePageDialog({
   workspaceId,
   onCreatePage,
   onCreateFromTemplate,
+  onCreateDashboard,
+  onUploadMeeting,
+  meetingsEnabled,
   isCreating = false,
 }: Props) {
   const [rawQuery, setRawQuery] = useState('')
@@ -95,13 +97,7 @@ export function CreatePageDialog({
   }
 
   return (
-    <Dialog
-      open={open}
-      onClose={onClose}
-      maxWidth="md"
-      fullWidth
-      aria-labelledby={TITLE_ID}
-    >
+    <Dialog open={open} onClose={onClose} maxWidth="md" fullWidth aria-labelledby={TITLE_ID}>
       <DialogTitle
         id={TITLE_ID}
         sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', pb: 1 }}
@@ -150,8 +146,19 @@ export function CreatePageDialog({
         ) : (
           <Box sx={{ p: 2, pt: 1 }}>
             <PageTypeGrid
+              meetingsEnabled={meetingsEnabled}
               onSelect={(type) => {
                 if (!isCreating) onCreatePage(type)
+              }}
+              onSelectSpecial={(type) => {
+                if (isCreating) return
+                // DASHBOARD and MEETING aren't plain page.create: branch to their
+                // dedicated create paths (dashboard.create / recording upload).
+                if (type === 'DASHBOARD') {
+                  onCreateDashboard()
+                  return
+                }
+                onUploadMeeting()
               }}
             />
           </Box>

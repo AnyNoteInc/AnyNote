@@ -7,7 +7,6 @@ import { requireSession } from '@/lib/get-session'
 import { getServerTRPC } from '@/trpc/server'
 import { PageRenderer } from '@/components/page/page-renderer'
 import { PageHeader } from '@/components/page/page-header'
-import { PAGE_COLUMN_CLASS, pageColumnSx } from '@/components/page/column-sx'
 
 const COLORS = ['#1976d2', '#9c27b0', '#2e7d32', '#ed6c02', '#0288d1', '#d32f2f']
 
@@ -55,16 +54,14 @@ export default async function PageRoute({ params }: { params: Promise<{ pageId: 
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', minHeight: 0 }}>
       {!isFullBleed && (
-        <Box className={PAGE_COLUMN_CLASS} sx={{ ...pageColumnSx, pt: 4, pb: 1 }}>
-          <PageHeader
-            id={page.id}
-            workspaceId={page.workspaceId}
-            initialTitle={page.title}
-            initialIcon={page.icon}
-            initialCoverUrl={page.coverUrl}
-            initialCoverPreset={page.coverPreset}
-          />
-        </Box>
+        <PageHeader
+          id={page.id}
+          workspaceId={page.workspaceId}
+          initialTitle={page.title}
+          initialIcon={page.icon}
+          initialCoverUrl={page.coverUrl}
+          initialCoverPreset={page.coverPreset}
+        />
       )}
       <Box sx={{ flex: 1, minHeight: 0 }}>
         <PageRenderer

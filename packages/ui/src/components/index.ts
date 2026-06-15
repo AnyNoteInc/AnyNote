@@ -260,6 +260,7 @@ export {
   LocalizationProvider,
   type LocalizationProviderProps,
 } from '@mui/x-date-pickers/LocalizationProvider'
+export { TimeField, type TimeFieldProps } from '@mui/x-date-pickers/TimeField'
 export { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns'
 export { ruRU as datePickerRuRU } from '@mui/x-date-pickers/locales'
 export { ru as dateFnsRu } from 'date-fns/locale/ru'

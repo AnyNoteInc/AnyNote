@@ -61,6 +61,28 @@ type OpenPopover = {
   mediaKind?: 'video' | 'audio'
 }
 
+/**
+ * Run an editor mutation AFTER a modal MUI Dialog has finished closing.
+ *
+ * The async-picker slash inserts (synced block, embedded database, meeting,
+ * drawio) resolve a modal `Dialog` and then insert a node. A modal Dialog traps
+ * focus and restores it to the previously-focused element asynchronously on
+ * unmount. Running `editor.chain().focus().…run()` synchronously in the resolve
+ * callback applies the ProseMirror transaction while that focus restore is still
+ * in flight, so the y-prosemirror collab binding never observes the change — the
+ * node renders locally but is absent from the persisted Yjs doc and is lost on
+ * reload (the slash trigger text re-appears). Deferring a frame past the close
+ * lets focus settle so the transaction syncs. (The non-modal Popover-based slash
+ * inserts — date/file/media/etc. — never hit this and commit inline.)
+ */
+function deferModalInsert(run: () => void): void {
+  if (typeof requestAnimationFrame === 'function') {
+    requestAnimationFrame(() => requestAnimationFrame(run))
+  } else {
+    setTimeout(run, 0)
+  }
+}
+
 export function AnyNoteEditor(props: AnyNoteEditorProps) {
   const { pageId, yjsUrl, yjsToken, initialContentYjs } = props
   const [resources, setResources] = useState<YjsResources | null>(null)
@@ -194,19 +216,22 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
       void onPickEmbeddedDatabase().then((pick) => {
         const ed = editorInstanceRef.current
         if (!ed || !pick) return
-        ed.chain()
-          .focus()
-          .deleteRange(range)
-          .insertContent({
-            type: 'embeddedDatabase',
-            attrs: {
-              sourceId: pick.sourceId,
-              viewId: pick.viewId,
-              displayMode: 'table',
-              readonly: false,
-            },
-          })
-          .run()
+        deferModalInsert(() =>
+          ed
+            .chain()
+            .focus()
+            .deleteRange(range)
+            .insertContent({
+              type: 'embeddedDatabase',
+              attrs: {
+                sourceId: pick.sourceId,
+                viewId: pick.viewId,
+                displayMode: 'table',
+                readonly: false,
+              },
+            })
+            .run(),
+        )
       })
     }
   }, [onPickEmbeddedDatabase])
@@ -219,11 +244,19 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
       void onPickSyncedBlock().then((pick) => {
         const ed = editorInstanceRef.current
         if (!ed || !pick) return
-        ed.chain()
-          .focus()
-          .deleteRange(range)
-          .insertContent({ type: 'syncedBlock', attrs: { blockId: pick.blockId } })
-          .run()
+        // Defer past the modal Dialog's close/focus-restore (it traps focus and
+        // restores it asynchronously on unmount). Inserting synchronously here
+        // applies the transaction to a view whose selection is mid-restore, so
+        // y-prosemirror never syncs it to the Yjs doc and the node is lost on
+        // reload — see deferModalInsert.
+        deferModalInsert(() =>
+          ed
+            .chain()
+            .focus()
+            .deleteRange(range)
+            .insertContent({ type: 'syncedBlock', attrs: { blockId: pick.blockId } })
+            .run(),
+        )
       })
     }
   }, [onPickSyncedBlock])
@@ -238,14 +271,17 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
         // A null pick = cancelled, OR the user uploaded a NEW meeting (the upload
         // dialog navigates to the fresh MEETING page) — nothing to insert here.
         if (!ed || !pick) return
-        ed.chain()
-          .focus()
-          .deleteRange(range)
-          .insertContent({
-            type: 'meetingNotesBlock',
-            attrs: { meetingArtifactId: pick.meetingArtifactId },
-          })
-          .run()
+        deferModalInsert(() =>
+          ed
+            .chain()
+            .focus()
+            .deleteRange(range)
+            .insertContent({
+              type: 'meetingNotesBlock',
+              attrs: { meetingArtifactId: pick.meetingArtifactId },
+            })
+            .run(),
+        )
       })
     }
   }, [onPickMeetingBlock])
@@ -540,12 +576,15 @@ function AnyNoteEditorInner(props: AnyNoteEditorProps & { resources: YjsResource
             drawioUrl={props.drawioUrl}
             onSave={(attrs) => {
               if (drawioCreate) {
-                editor
-                  .chain()
-                  .focus()
-                  .deleteRange(drawioCreate.range)
-                  .insertContent({ type: 'drawio', attrs })
-                  .run()
+                const { range } = drawioCreate
+                deferModalInsert(() =>
+                  editor
+                    .chain()
+                    .focus()
+                    .deleteRange(range)
+                    .insertContent({ type: 'drawio', attrs })
+                    .run(),
+                )
               }
               setDrawioCreate(null)
             }}

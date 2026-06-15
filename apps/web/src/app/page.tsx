@@ -1,7 +1,9 @@
+import type { WorkspaceSummary } from '@/components/app/app-user-menu'
 import { PublicFooter } from '@/components/public/public-footer'
 import { PublicHeader } from '@/components/public/public-header'
 import { CookieBanner } from '@/components/public/cookie-banner'
 import { getSession } from '@/lib/get-session'
+import { getServerTRPC } from '@/trpc/server'
 import { buildMetadata } from '@/lib/seo/build-metadata'
 import { JsonLd } from '@/lib/seo/json-ld'
 import { organizationSchema } from '@/lib/seo/schemas/organization'
@@ -35,10 +37,26 @@ export default async function HomePage() {
   const primaryHref = session ? '/app' : '/registration'
   const primaryLabel = session ? 'Открыть рабочее пространство' : 'Начать бесплатно'
 
+  let activeWorkspace: WorkspaceSummary | null = null
+  let hasAnyWorkspace = false
+  if (session) {
+    const trpc = await getServerTRPC()
+    const [ws, mine] = await Promise.all([
+      trpc.workspace.getActive().catch(() => null),
+      trpc.workspace.listMine().catch(() => []),
+    ])
+    if (ws) activeWorkspace = { name: ws.name, icon: ws.icon ?? null }
+    hasAnyWorkspace = mine.length > 0
+  }
+
   return (
     <>
       <JsonLd data={[organizationSchema(), websiteSchema(), softwareAppSchema()]} />
-      <PublicHeader session={session} />
+      <PublicHeader
+        session={session}
+        activeWorkspace={activeWorkspace}
+        hasAnyWorkspace={hasAnyWorkspace}
+      />
       <main>
         <HomeHero primaryHref={primaryHref} primaryLabel={primaryLabel} showSecondary={!session} />
         <HomeMarketFit />

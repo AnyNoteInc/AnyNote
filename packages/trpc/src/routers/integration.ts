@@ -6,12 +6,25 @@ import { assertRole, MEMBER_ROLES } from '../helpers/membership'
 
 const ScopeSchema = z.enum(['USER', 'WORKSPACE'])
 
+/**
+ * Generic integration providers with real connection logic. Everything else
+ * (GitHub, Yandex, AmoCRM, MangoOffice) is a placeholder with no implemented
+ * OAuth/connection flow, so it is filtered out server-side regardless of any
+ * stale `integration_providers` rows a DB might still carry. Telegram has its
+ * own dedicated linking flow (`telegram.*` procedures + TelegramLinkCard), not
+ * a generic provider row, so this list is currently empty — kept as a typed
+ * allowlist so re-enabling an implemented provider is a one-line change.
+ */
+const IMPLEMENTED_PROVIDER_SLUGS: readonly string[] = []
+
 export const integrationRouter = router({
   listProviders: protectedProcedure.query(async ({ ctx }) => {
-    return ctx.prisma.integrationProvider.findMany({
+    const allowed = new Set(IMPLEMENTED_PROVIDER_SLUGS.map((s) => s.toLowerCase()))
+    const providers = await ctx.prisma.integrationProvider.findMany({
       where: { isEnabled: true },
       orderBy: { sortOrder: 'asc' },
     })
+    return providers.filter((p) => allowed.has(p.slug.toLowerCase()))
   }),
 
   listMine: protectedProcedure

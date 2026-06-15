@@ -103,7 +103,7 @@ export function SharedPagesSection({ workspaceId }: Props) {
       </Box>
 
       {open ? (
-        <Stack spacing={0.25} sx={{ maxHeight: 200, overflow: 'auto' }}>
+        <Stack spacing={0.25}>
           {sharedPages.map((page) => (
             <SharedRow key={page.id} page={page} />
           ))}

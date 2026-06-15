@@ -5,18 +5,11 @@ import { useQueryClient } from '@tanstack/react-query'
 import { getQueryKey } from '@trpc/react-query'
 
 import type { Page } from '@repo/db'
-import {
-  AddIcon,
-  Box,
-  Button,
-  IconButton,
-  Stack,
-  TextField,
-  Typography,
-} from '@repo/ui/components'
+import { AddIcon, Box, Button, IconButton, Stack, TextField, Typography } from '@repo/ui/components'
 
 import { trpc } from '@/trpc/client'
 
+import { PAGE_COLUMN_CLASS, pageColumnSx } from './column-sx'
 import { CoverBand } from './cover-band'
 import { CoverPicker } from './cover-picker'
 import { IconPickerPopover } from './icon-picker-popover'
@@ -41,8 +34,15 @@ const ghostButtonSx = {
   color: 'text.secondary',
   textTransform: 'none',
   opacity: 0,
-  transition: 'opacity .15s',
-  '&:focus-visible': { opacity: 1 },
+  transition: 'opacity .15s, color .15s, background-color .15s',
+  // The parent title Stack flips opacity to 1 on hover to reveal these. Once
+  // revealed the label must clearly contrast the page background in BOTH the
+  // light and dark themes — bare text.secondary reads as a washed-out, near
+  // invisible label (the reported "не видны" bug), so on direct hover/focus we
+  // darken to text.primary and back it with an action.hover chip. Both colors
+  // are palette tokens, so they stay legible in either theme.
+  '&:hover': { color: 'text.primary', bgcolor: 'action.hover' },
+  '&:focus-visible': { opacity: 1, color: 'text.primary', bgcolor: 'action.hover' },
 } as const
 
 const coverActionSx = {
@@ -102,8 +102,7 @@ export function PageHeader({
       // cover patch reads the INPUT. Cover mutations below always send BOTH
       // fields explicitly (mirroring the server's mutual exclusion), so the
       // pair below is the enforced final state, not a guess.
-      const coverChanged =
-        variables.coverUrl !== undefined || variables.coverPreset !== undefined
+      const coverChanged = variables.coverUrl !== undefined || variables.coverPreset !== undefined
       if (currentPage) {
         // updatedAt is intentionally not written here: tRPC's default JSON
         // transport serialises Date → string, but Page's type says Date.
@@ -158,11 +157,19 @@ export function PageHeader({
   const openCoverPicker = (event: MouseEvent<HTMLElement>) => setCoverAnchor(event.currentTarget)
 
   return (
-    <Stack spacing={0.5} sx={{ '&:hover .page-header__add-action': { opacity: 1 } }}>
+    <Box
+      sx={{
+        // Full content-area width. The cover (below) spans this whole width and
+        // sits flush under the toolbar/breadcrumbs (no top padding). The title,
+        // icon and add-buttons live inside the centred reading column.
+        '&:hover .page-header__add-action': { opacity: 1 },
+      }}
+    >
       {hasCover ? (
         <CoverBand
           coverUrl={coverUrl}
           coverPreset={coverPreset}
+          rounded={false}
           actions={
             <>
               <Button
@@ -176,7 +183,9 @@ export function PageHeader({
               <Button
                 size="small"
                 data-testid="page-cover-remove"
-                onClick={() => update.mutate({ id, workspaceId, coverUrl: null, coverPreset: null })}
+                onClick={() =>
+                  update.mutate({ id, workspaceId, coverUrl: null, coverPreset: null })
+                }
                 sx={coverActionSx}
               >
                 Убрать обложку
@@ -185,120 +194,136 @@ export function PageHeader({
           }
         />
       ) : null}
-      {!icon || !hasCover ? (
-        <Box sx={{ height: 28, display: 'flex', gap: 0.5 }}>
-          {!icon ? (
-            <Button
-              className="page-header__add-action"
-              size="small"
-              data-testid="page-icon-add"
-              onClick={openIconPicker}
-              startIcon={<AddIcon fontSize="small" />}
-              sx={ghostButtonSx}
-            >
-              Добавить иконку
-            </Button>
-          ) : null}
-          {!hasCover ? (
-            <Button
-              className="page-header__add-action"
-              size="small"
-              data-testid="page-cover-add"
-              onClick={openCoverPicker}
-              startIcon={<AddIcon fontSize="small" />}
-              sx={ghostButtonSx}
-            >
-              Добавить обложку
-            </Button>
-          ) : null}
-        </Box>
-      ) : null}
-      <Stack direction="row" spacing={1} alignItems="center">
-        {icon ? (
-          <IconButton
-            aria-label="Изменить иконку"
-            onClick={openIconPicker}
-            sx={{
-              width: 56,
-              height: 56,
-              p: 0.5,
-              borderRadius: 1,
-              flexShrink: 0,
-              // Notion-style: the icon overlaps the cover's bottom edge.
-              ...(hasCover
-                ? { alignSelf: 'flex-start', mt: '-36px', position: 'relative', zIndex: 1 }
-                : {}),
-            }}
-          >
-            <PageIcon icon={icon} size={44} />
-          </IconButton>
+      <Stack
+        className={PAGE_COLUMN_CLASS}
+        spacing={0.5}
+        sx={{
+          ...pageColumnSx,
+          // No cover → keep the original top breathing room; with a cover the
+          // icon overlaps its bottom edge, so drop the top padding.
+          pt: hasCover ? 1 : 4,
+          pb: 1,
+        }}
+      >
+        {!icon || !hasCover ? (
+          <Box sx={{ height: 28, display: 'flex', gap: 0.5 }}>
+            {!icon ? (
+              <Button
+                className="page-header__add-action"
+                variant="text"
+                size="small"
+                data-testid="page-icon-add"
+                onClick={openIconPicker}
+                startIcon={<AddIcon fontSize="small" />}
+                sx={ghostButtonSx}
+              >
+                Добавить иконку
+              </Button>
+            ) : null}
+            {!hasCover ? (
+              <Button
+                className="page-header__add-action"
+                variant="text"
+                size="small"
+                data-testid="page-cover-add"
+                onClick={openCoverPicker}
+                startIcon={<AddIcon fontSize="small" />}
+                sx={ghostButtonSx}
+              >
+                Добавить обложку
+              </Button>
+            ) : null}
+          </Box>
         ) : null}
-        {editing ? (
-          <TextField
-            inputRef={inputRef}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onBlur={commitEdit}
-            onKeyDown={(e) => {
-              if (e.key === 'Enter') {
-                e.preventDefault()
-                commitEdit()
-              }
-              if (e.key === 'Escape') {
-                e.preventDefault()
-                setEditing(false)
-              }
-            }}
-            variant="standard"
-            fullWidth
-            placeholder={UNTITLED_PLACEHOLDER}
-            slotProps={{ input: { disableUnderline: true } }}
-            sx={{
-              '& .MuiInput-input': {
+        <Stack direction="row" spacing={1} alignItems="center">
+          {icon ? (
+            <IconButton
+              aria-label="Изменить иконку"
+              onClick={openIconPicker}
+              sx={{
+                width: 56,
+                height: 56,
+                p: 0.5,
+                borderRadius: 1,
+                flexShrink: 0,
+                // Notion-style: the icon overlaps the cover's bottom edge.
+                ...(hasCover
+                  ? { alignSelf: 'flex-start', mt: '-36px', position: 'relative', zIndex: 1 }
+                  : {}),
+              }}
+            >
+              <PageIcon icon={icon} size={44} />
+            </IconButton>
+          ) : null}
+          {editing ? (
+            <TextField
+              inputRef={inputRef}
+              value={draft}
+              onChange={(e) => setDraft(e.target.value)}
+              onBlur={commitEdit}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  commitEdit()
+                }
+                if (e.key === 'Escape') {
+                  e.preventDefault()
+                  setEditing(false)
+                }
+              }}
+              variant="standard"
+              fullWidth
+              placeholder={UNTITLED_PLACEHOLDER}
+              slotProps={{ input: { disableUnderline: true } }}
+              sx={{
+                '& .MuiInput-input': {
+                  fontSize: '2.25rem',
+                  fontWeight: 700,
+                  lineHeight: 1.2,
+                  padding: 0,
+                },
+              }}
+            />
+          ) : (
+            <Typography
+              variant="h3"
+              onClick={startEdit}
+              sx={{
+                flex: 1,
                 fontSize: '2.25rem',
                 fontWeight: 700,
                 lineHeight: 1.2,
-                padding: 0,
-              },
-            }}
-          />
-        ) : (
-          <Typography
-            variant="h3"
-            onClick={startEdit}
-            sx={{
-              flex: 1,
-              fontSize: '2.25rem',
-              fontWeight: 700,
-              lineHeight: 1.2,
-              cursor: 'text',
-              color: title ? 'text.primary' : 'text.secondary',
-              px: 1,
-              mx: -1,
-              borderRadius: 1,
-              '&:hover': { bgcolor: 'action.hover' },
-            }}
-          >
-            {title || UNTITLED_PLACEHOLDER}
-          </Typography>
-        )}
+                cursor: 'text',
+                color: title ? 'text.primary' : 'text.secondary',
+                px: 1,
+                mx: -1,
+                borderRadius: 1,
+                '&:hover': { bgcolor: 'action.hover' },
+              }}
+            >
+              {title || UNTITLED_PLACEHOLDER}
+            </Typography>
+          )}
+        </Stack>
+        <IconPickerPopover
+          anchorEl={iconAnchor}
+          open={Boolean(iconAnchor)}
+          onClose={() => setIconAnchor(null)}
+          onSelect={(value) => update.mutate({ id, workspaceId, icon: value })}
+          onRemove={icon ? () => update.mutate({ id, workspaceId, icon: null }) : undefined}
+        />
+        <CoverPicker
+          anchorEl={coverAnchor}
+          open={Boolean(coverAnchor)}
+          onClose={() => setCoverAnchor(null)}
+          onSelectPreset={(key) =>
+            update.mutate({ id, workspaceId, coverPreset: key, coverUrl: null })
+          }
+          onSelectUrl={(url) =>
+            update.mutate({ id, workspaceId, coverUrl: url, coverPreset: null })
+          }
+        />
       </Stack>
-      <IconPickerPopover
-        anchorEl={iconAnchor}
-        open={Boolean(iconAnchor)}
-        onClose={() => setIconAnchor(null)}
-        onSelect={(value) => update.mutate({ id, workspaceId, icon: value })}
-        onRemove={icon ? () => update.mutate({ id, workspaceId, icon: null }) : undefined}
-      />
-      <CoverPicker
-        anchorEl={coverAnchor}
-        open={Boolean(coverAnchor)}
-        onClose={() => setCoverAnchor(null)}
-        onSelectPreset={(key) =>
-          update.mutate({ id, workspaceId, coverPreset: key, coverUrl: null })
-        }
-        onSelectUrl={(url) => update.mutate({ id, workspaceId, coverUrl: url, coverPreset: null })}
-      />
-    </Stack>
+    </Box>
   )
 }

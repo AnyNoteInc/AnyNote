@@ -66,6 +66,9 @@ function renderDialog(props: Partial<Parameters<typeof CreatePageDialog>[0]> = {
       workspaceId={WS}
       onCreatePage={vi.fn()}
       onCreateFromTemplate={vi.fn()}
+      onCreateDashboard={vi.fn()}
+      onUploadMeeting={vi.fn()}
+      meetingsEnabled
       {...props}
     />,
   )
@@ -115,6 +118,44 @@ describe('CreatePageDialog', () => {
     renderDialog({ onCreatePage })
     await actor.click(screen.getByRole('button', { name: 'Создать страницу: Текст' }))
     expect(onCreatePage).toHaveBeenCalledWith('TEXT')
+  })
+
+  it('offers Дашборд and Загрузить встречу tiles in the grid', () => {
+    mocks.useQuery.mockReturnValue(idle())
+    renderDialog()
+    expect(screen.getByRole('button', { name: 'Создать страницу: Дашборд' })).toBeInTheDocument()
+    expect(
+      screen.getByRole('button', { name: 'Создать страницу: Загрузить встречу' }),
+    ).toBeInTheDocument()
+  })
+
+  it('selecting Дашборд calls onCreateDashboard, not onCreatePage', async () => {
+    const actor = userEvent.setup()
+    const onCreateDashboard = vi.fn()
+    const onCreatePage = vi.fn()
+    mocks.useQuery.mockReturnValue(idle())
+    renderDialog({ onCreateDashboard, onCreatePage })
+    await actor.click(screen.getByRole('button', { name: 'Создать страницу: Дашборд' }))
+    expect(onCreateDashboard).toHaveBeenCalledTimes(1)
+    expect(onCreatePage).not.toHaveBeenCalled()
+  })
+
+  it('selecting Загрузить встречу calls onUploadMeeting', async () => {
+    const actor = userEvent.setup()
+    const onUploadMeeting = vi.fn()
+    mocks.useQuery.mockReturnValue(idle())
+    renderDialog({ onUploadMeeting })
+    await actor.click(screen.getByRole('button', { name: 'Создать страницу: Загрузить встречу' }))
+    expect(onUploadMeeting).toHaveBeenCalledTimes(1)
+  })
+
+  it('hides the meeting tile when the plan disallows it', () => {
+    mocks.useQuery.mockReturnValue(idle())
+    renderDialog({ meetingsEnabled: false })
+    expect(screen.getByRole('button', { name: 'Создать страницу: Дашборд' })).toBeInTheDocument()
+    expect(
+      screen.queryByRole('button', { name: 'Создать страницу: Загрузить встречу' }),
+    ).not.toBeInTheDocument()
   })
 
   it('shows templates when a query is typed', async () => {

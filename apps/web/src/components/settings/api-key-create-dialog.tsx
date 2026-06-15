@@ -9,10 +9,9 @@ import {
   DialogContent,
   DialogTitle,
   FormControl,
-  FormControlLabel,
-  FormLabel,
-  Radio,
-  RadioGroup,
+  InputLabel,
+  MenuItem,
+  Select,
   Stack,
   TextField,
 } from '@repo/ui/components'
@@ -55,15 +54,20 @@ export function ApiKeyCreateDialog({ open, onClose, onCreated }: Props) {
             inputProps={{ 'data-testid': 'api-key-name-input', maxLength: 100 }}
             fullWidth
           />
-          <FormControl>
-            <FormLabel>Срок действия</FormLabel>
-            <RadioGroup value={ttl} onChange={(e) => setTtl(e.target.value as Ttl)}>
-              <FormControlLabel value="7d" control={<Radio />} label="7 дней" />
-              <FormControlLabel value="30d" control={<Radio />} label="30 дней" />
-              <FormControlLabel value="90d" control={<Radio />} label="90 дней" />
-              <FormControlLabel value="1y" control={<Radio />} label="1 год" />
-              <FormControlLabel value="never" control={<Radio />} label="Никогда" />
-            </RadioGroup>
+          <FormControl fullWidth size="small">
+            <InputLabel id="api-key-ttl-label">Срок действия</InputLabel>
+            <Select
+              labelId="api-key-ttl-label"
+              label="Срок действия"
+              value={ttl}
+              onChange={(e) => setTtl(e.target.value as Ttl)}
+            >
+              <MenuItem value="7d">7 дней</MenuItem>
+              <MenuItem value="30d">30 дней</MenuItem>
+              <MenuItem value="90d">90 дней</MenuItem>
+              <MenuItem value="1y">1 год</MenuItem>
+              <MenuItem value="never">Бессрочный</MenuItem>
+            </Select>
           </FormControl>
         </Stack>
       </DialogContent>

@@ -16,10 +16,12 @@ import {
   DeleteIcon,
   Divider,
   GroupAddIcon,
+  GroupIcon,
   HomeIcon,
   IconButton,
   Inventory2Icon,
   KeyboardDoubleArrowLeftIcon,
+  LockIcon,
   Menu,
   MenuItem,
   SearchIcon,
@@ -31,6 +33,7 @@ import {
 
 import { isMac } from '@/lib/platform'
 import { trpc } from '@/trpc/client'
+import { PageIcon } from '@/components/page/page-icon'
 
 import { NotificationsBell } from '../notifications/notifications-bell'
 import {
@@ -42,6 +45,7 @@ import { FavoritesSection } from './favorites-section'
 import { GuestPagesSection } from './guest-pages-section'
 import { PageTreeSection } from './page-tree-section'
 import { SharedPagesSection } from './shared-pages-section'
+import { SIDEBAR_ZONES, SidebarDndProvider, SidebarDropZone } from './sidebar-dnd-context'
 import type { PageItem } from './types'
 import { SearchSidebarSection } from './search-sidebar-section'
 import { SIDEBAR_WIDTH } from './workspace-layout-client'
@@ -94,6 +98,19 @@ export function WorkspaceSidebar({
   )
   const teamCollectionId = collections.data?.find((c) => c.kind === 'TEAM')?.id ?? null
   const personalCollectionId = collections.data?.find((c) => c.kind === 'PERSONAL')?.id ?? null
+
+  // "Прикрепленные коллекции": there is no pin flag in the data model — a
+  // workspace bootstraps exactly one primary TEAM («Команда») and the user's
+  // PERSONAL («Личное») collection, both already rendered as roots above.
+  // Render any OTHER collection the user can see (extra team/site collections,
+  // should they ever exist) as additional first-level roots BELOW the three.
+  const pinnedCollections = useMemo(
+    () =>
+      (collections.data ?? []).filter(
+        (c) => c.id !== teamCollectionId && c.id !== personalCollectionId,
+      ),
+    [collections.data, teamCollectionId, personalCollectionId],
+  )
 
   const allWorkspaces = trpc.workspace.listMine.useQuery()
 
@@ -297,7 +314,9 @@ export function WorkspaceSidebar({
         ) : null}
 
         {!isGuest && activeSection === 'pages' ? (
-          <>
+          // One DndContext for the whole pages area so a page can be dragged
+          // across sections (favorite/move) and onto Archive/Trash.
+          <SidebarDndProvider workspaceId={workspace.id}>
             <FavoritesSection
               workspaceId={workspace.id}
               allPages={pages}
@@ -311,6 +330,7 @@ export function WorkspaceSidebar({
                 collectionId={teamCollectionId}
                 title="Команда"
                 location="team"
+                headerIcon={<GroupIcon sx={{ fontSize: 16 }} />}
               />
             ) : null}
             {personalCollectionId ? (
@@ -321,8 +341,27 @@ export function WorkspaceSidebar({
                 collectionId={personalCollectionId}
                 title="Личное"
                 location="private"
+                headerIcon={<LockIcon sx={{ fontSize: 16 }} />}
               />
             ) : null}
+            {/* Прикрепленные коллекции: additional collections (if any) as roots below. */}
+            {pinnedCollections.map((c) => (
+              <PageTreeSection
+                key={c.id}
+                workspaceId={workspace.id}
+                pages={pages}
+                favoritePageIds={favoritePageIds}
+                collectionId={c.id}
+                title={c.title ?? 'Коллекция'}
+                headerIcon={
+                  c.icon ? (
+                    <PageIcon icon={c.icon} size={16} />
+                  ) : (
+                    <GroupIcon sx={{ fontSize: 16 }} />
+                  )
+                }
+              />
+            ))}
             <SharedPagesSection workspaceId={workspace.id} />
             <Stack spacing={0.25} sx={{ pb: 1 }}>
               <NavItem
@@ -332,22 +371,34 @@ export function WorkspaceSidebar({
                 matchPrefix="/marketplace"
                 pathname={pathname}
               />
-              <NavItem
-                icon={<Inventory2Icon sx={{ fontSize: 16 }} />}
-                label="Архив"
-                href="/archive"
-                matchPrefix="/archive"
-                pathname={pathname}
-              />
-              <NavItem
-                icon={<DeleteIcon sx={{ fontSize: 16 }} />}
-                label="Корзина"
-                href="/trash"
-                matchPrefix="/trash"
-                pathname={pathname}
-              />
+              <SidebarDropZone zoneId={SIDEBAR_ZONES.archive}>
+                {({ isOver, setNodeRef }) => (
+                  <NavItem
+                    icon={<Inventory2Icon sx={{ fontSize: 16 }} />}
+                    label="Архив"
+                    href="/archive"
+                    matchPrefix="/archive"
+                    pathname={pathname}
+                    dropRef={setNodeRef}
+                    isDropOver={isOver}
+                  />
+                )}
+              </SidebarDropZone>
+              <SidebarDropZone zoneId={SIDEBAR_ZONES.trash}>
+                {({ isOver, setNodeRef }) => (
+                  <NavItem
+                    icon={<DeleteIcon sx={{ fontSize: 16 }} />}
+                    label="Корзина"
+                    href="/trash"
+                    matchPrefix="/trash"
+                    pathname={pathname}
+                    dropRef={setNodeRef}
+                    isDropOver={isOver}
+                  />
+                )}
+              </SidebarDropZone>
             </Stack>
-          </>
+          </SidebarDndProvider>
         ) : null}
       </Box>
 
@@ -513,6 +564,8 @@ function NavItem({
   pathname,
   muted,
   shortcut,
+  dropRef,
+  isDropOver,
 }: {
   icon: ReactNode
   label: string
@@ -521,12 +574,16 @@ function NavItem({
   pathname: string
   muted?: boolean
   shortcut?: string
+  /** When set, this nav link doubles as a drag-and-drop target. */
+  dropRef?: (el: HTMLElement | null) => void
+  isDropOver?: boolean
 }) {
   const active = matchPrefix ? pathname.startsWith(matchPrefix) : false
   return (
     <Box
       component={Link}
       href={href}
+      ref={dropRef}
       sx={{
         display: 'flex',
         alignItems: 'center',
@@ -536,7 +593,9 @@ function NavItem({
         borderRadius: 0.75,
         textDecoration: 'none',
         color: active ? 'text.primary' : muted ? 'text.disabled' : 'text.secondary',
-        backgroundColor: active ? 'action.selected' : 'transparent',
+        backgroundColor: isDropOver ? 'action.hover' : active ? 'action.selected' : 'transparent',
+        outline: isDropOver ? '2px dashed' : 'none',
+        outlineColor: 'primary.main',
         '&:hover': { backgroundColor: active ? 'action.selected' : 'action.hover' },
         fontSize: 13,
       }}
