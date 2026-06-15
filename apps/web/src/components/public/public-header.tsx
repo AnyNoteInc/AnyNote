@@ -9,11 +9,15 @@ import type { SessionType } from '@/lib/get-session'
 
 import { publicNavItems } from './content'
 
+type WorkspaceSummary = { id: string; name: string; icon: string | null }
+
 type PublicHeaderProps = {
   session: SessionType
+  activeWorkspace?: WorkspaceSummary | null
+  hasAnyWorkspace?: boolean
 }
 
-export function PublicHeader({ session }: PublicHeaderProps) {
+export function PublicHeader({ session, activeWorkspace, hasAnyWorkspace }: PublicHeaderProps) {
   return (
     <Box
       sx={{
@@ -79,7 +83,11 @@ export function PublicHeader({ session }: PublicHeaderProps) {
 
         <Stack direction="row" spacing={1.5} alignItems="center">
           <ChangeColorTheme />
-          <AppUserMenu session={session} />
+          <AppUserMenu
+            session={session}
+            activeWorkspace={activeWorkspace}
+            hasAnyWorkspace={hasAnyWorkspace}
+          />
         </Stack>
       </Stack>
     </Box>
